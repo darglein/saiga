@@ -92,12 +92,11 @@ TumRGBDCamera::~TumRGBDCamera()
     cout << "~TumRGBDCamera" << endl;
 }
 
-std::unique_ptr<RGBDFrameData> TumRGBDCamera::getImageSync()
+bool TumRGBDCamera::getImageSync(RGBDFrameData& data)
 {
     if (!isOpened())
-    //    if(currentId == (int)frames.size())
     {
-        return nullptr;
+        return false;
     }
 
 
@@ -119,8 +118,9 @@ std::unique_ptr<RGBDFrameData> TumRGBDCamera::getImageSync()
 
 
     auto&& img = frames[currentId];
-    setNextFrame(*img);
-    return std::move(img);
+    setNextFrame(img);
+    data = std::move(img);
+    return true;
 }
 
 SE3 TumRGBDCamera::getGroundTruth(int frame)
@@ -137,8 +137,8 @@ void TumRGBDCamera::saveRaw(const std::string& dir)
     {
         auto str  = Saiga::leadingZeroString(i, 5);
         auto& tmp = frames[i];
-        tmp->colorImg.save(std::string(dir) + str + ".png");
-        tmp->depthImg.save(std::string(dir) + str + ".saigai");
+        tmp.colorImg.save(std::string(dir) + str + ".png");
+        tmp.depthImg.save(std::string(dir) + str + ".saigai");
     }
 }
 
@@ -307,17 +307,18 @@ void TumRGBDCamera::load(const std::string& datasetDir)
         //        deptho.w = targetW;
         //        deptho.h = targetH;
 
-        auto f = makeFrameData();
+        RGBDFrameData f;
+        makeFrameData(f);
 
 
         if (cimg.type == UC3)
         {
             // convert to rgba
-            ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), f->colorImg);
+            ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), f.colorImg);
         }
         else if (cimg.type == UC4)
         {
-            cimg.getImageView<ucvec4>().copyTo(f->colorImg.getImageView());
+            cimg.getImageView<ucvec4>().copyTo(f.colorImg.getImageView());
         }
         else
         {
@@ -342,7 +343,7 @@ void TumRGBDCamera::load(const std::string& datasetDir)
         //        }
         //        else
         {
-            tmp.getImageView().copyTo(f->depthImg.getImageView());
+            tmp.getImageView().copyTo(f.depthImg.getImageView());
         }
 
 

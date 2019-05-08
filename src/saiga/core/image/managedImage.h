@@ -65,7 +65,7 @@ class SAIGA_CORE_API Image : public ImageBase
      * @brief valid
      * Checks if this image has at least 1 pixel and a valid type.
      */
-    bool valid();
+    bool valid() const;
 
     void* data() { return vdata.data(); }
     const void* data() const { return vdata.data(); }
@@ -130,12 +130,12 @@ class SAIGA_CORE_API Image : public ImageBase
     bool load(const std::string& path);
     bool loadFromMemory(ArrayView<const char> data);
 
-    bool save(const std::string& path);
+    bool save(const std::string& path) const;
 
     // save in a custom saiga format
     // this can handle all image types
     bool loadRaw(const std::string& path);
-    bool saveRaw(const std::string& path);
+    bool saveRaw(const std::string& path) const;
 
     /**
      * Tries to convert the given image to a storable format.

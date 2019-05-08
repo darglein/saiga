@@ -53,30 +53,27 @@ RGBDCameraOpenni::~RGBDCameraOpenni()
 }
 
 
-std::unique_ptr<RGBDFrameData> RGBDCameraOpenni::getImageSync()
+bool RGBDCameraOpenni::getImageSync(RGBDFrameData& data)
 {
-    auto tmp = makeFrameData();
-    while (!waitFrame(*tmp, true))
+    makeFrameData(data);
+    while (!waitFrame(data, true))
     {
-        if (!foundCamera) return nullptr;
+        if (!foundCamera) return false;
     }
-    return tmp;
+    return true;
 }
 
-std::unique_ptr<RGBDFrameData> RGBDCameraOpenni::getImage()
+bool RGBDCameraOpenni::getImage(RGBDFrameData& data)
 {
-    if (!tmp)
-    {
-        tmp = makeFrameData();
-    }
+    makeFrameData(data);
 
-    bool ret = waitFrame(*tmp, false);
+    bool ret = waitFrame(data, false);
 
     if (ret)
     {
-        return std::move(tmp);
+        return true;
     }
-    return nullptr;
+    return false;
 }
 
 void RGBDCameraOpenni::close()
@@ -300,6 +297,7 @@ void RGBDCameraOpenni::updateSettingsIntern()
 
 void RGBDCameraOpenni::eventLoop()
 {
+#    if 0
     running = true;
 
     setThreadName("Saiga::NI");
@@ -343,6 +341,7 @@ void RGBDCameraOpenni::eventLoop()
 
     resetCamera();
     foundCamera = false;
+#    endif
 }
 
 

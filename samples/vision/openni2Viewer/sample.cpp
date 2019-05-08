@@ -43,9 +43,11 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 void VulkanExample::update(float dt)
 {
     if (!rgbdcamera) return;
-    auto newFrameData = rgbdcamera->getImage();
 
-    if (newFrameData)
+    Saiga::RGBDFrameData newFrameData;
+    auto gotFrame = rgbdcamera->getImage(newFrameData);
+
+    if (gotFrame)
     {
         frameData     = std::move(newFrameData);
         updateTexture = true;
@@ -56,8 +58,8 @@ void VulkanExample::update(float dt)
             auto str = Saiga::leadingZeroString(frameId, 5);
             auto tmp = frameData;
             Saiga::globalThreadPool->enqueue([=]() {
-                tmp->colorImg.save(std::string(dir) + str + ".png");
-                tmp->depthImg.save(std::string(dir) + str + ".saigai");
+                tmp.colorImg.save(std::string(dir) + str + ".png");
+                tmp.depthImg.save(std::string(dir) + str + ".saigai");
             });
         }
         frameId++;
@@ -76,11 +78,11 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
-        frameData = rgbdcamera->getImageSync();
+        bool gotImage = rgbdcamera->getImageSync(frameData);
 
-        cout << "create image texture: " << frameData->depthImg.height << "x" << frameData->depthImg.width << endl;
+        cout << "create image texture: " << frameData.depthImg.height << "x" << frameData.depthImg.width << endl;
 
-        rgbImage.create(frameData->colorImg.h, frameData->colorImg.w);
+        rgbImage.create(frameData.colorImg.h, frameData.colorImg.w);
         //    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
         texture = std::make_shared<Saiga::Vulkan::Texture2D>();
@@ -89,10 +91,10 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
 
         texture2 = std::make_shared<Saiga::Vulkan::Texture2D>();
         //    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
-        depthmg.create(frameData->depthImg.height, frameData->depthImg.width);
-        cout << frameData->depthImg << endl;
+        depthmg.create(frameData.depthImg.height, frameData.depthImg.width);
+        cout << frameData.depthImg << endl;
         cout << depthmg << endl;
-        Saiga::ImageTransformation::depthToRGBA(frameData->depthImg.getImageView(), depthmg.getImageView(), 0, 7000);
+        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg.getImageView(), depthmg.getImageView(), 0, 7000);
         texture2->fromImage(renderer.base(), depthmg);
 
 
@@ -106,8 +108,8 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
 
     if (updateTexture)
     {
-        texture->uploadImage(frameData->colorImg, true);
-        Saiga::ImageTransformation::depthToRGBA(frameData->depthImg, depthmg, 0, 8);
+        texture->uploadImage(frameData.colorImg, true);
+        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, depthmg, 0, 8);
         texture2->uploadImage(depthmg, true);
         updateTexture = false;
     }
@@ -121,9 +123,9 @@ void VulkanExample::render(vk::CommandBuffer cmd)
     if (textureDisplay.bind(cmd))
     {
         textureDisplay.renderTexture(cmd, textureDes, vec2(0, 0),
-                                     vec2(frameData->colorImg.width, frameData->colorImg.height));
-        textureDisplay.renderTexture(cmd, textureDes2, vec2(frameData->colorImg.width, 0),
-                                     vec2(frameData->depthImg.width, frameData->depthImg.height));
+                                     vec2(frameData.colorImg.width, frameData.colorImg.height));
+        textureDisplay.renderTexture(cmd, textureDes2, vec2(frameData.colorImg.width, 0),
+                                     vec2(frameData.depthImg.width, frameData.depthImg.height));
     }
 }
 

@@ -204,7 +204,7 @@ bool readPNG(PngImage* img, const std::string& path, bool invertY)
 /* returns 0 for success, 2 for libpng problem, 4 for out of memory, 11 for
  *  unexpected pnmtype; note that outfile might be stdout */
 
-static int writepng_init(Image& img, PNGLoadStore* pngls)
+static int writepng_init(const Image& img, PNGLoadStore* pngls)
 {
     png_structp png_ptr; /* note:  temporary variables! */
     png_infop info_ptr;
@@ -329,7 +329,7 @@ static int writepng_init(Image& img, PNGLoadStore* pngls)
 
 
 
-static void writepng_encode_image(Image& img, PNGLoadStore* pngls, bool invertY)
+static void writepng_encode_image(const Image& img, PNGLoadStore* pngls, bool invertY)
 {
     png_structp png_ptr = (png_structp)pngls->png_ptr;
     png_infop info_ptr  = (png_infop)pngls->info_ptr;
@@ -495,7 +495,7 @@ void convert(Image& src, PNG::PngImage& dest)
     }
 }
 
-bool save(Image& img, const std::string& path, bool invertY)
+bool save(const Image& img, const std::string& path, bool invertY)
 {
     //    PNG::PngImage pngimg;
     //    PNG::convert(img,pngimg);

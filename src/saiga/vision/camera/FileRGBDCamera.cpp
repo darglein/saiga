@@ -41,11 +41,11 @@ FileRGBDCamera::~FileRGBDCamera()
     cout << "~FileRGBDCamera" << endl;
 }
 
-std::unique_ptr<RGBDFrameData> FileRGBDCamera::getImageSync()
+bool FileRGBDCamera::getImageSync(RGBDFrameData& data)
 {
     if (!isOpened())
     {
-        return nullptr;
+        return false;
     }
 
 
@@ -67,8 +67,9 @@ std::unique_ptr<RGBDFrameData> FileRGBDCamera::getImageSync()
 
 
     auto&& img = frames[currentId];
-    setNextFrame(*img);
-    return std::move(img);
+    setNextFrame(img);
+    data = std::move(img);
+    return true;
 }
 
 
@@ -100,6 +101,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
     for (int i = 0; i < (int)frames.size(); ++i)
     {
         auto& f = frames[i];
+        makeFrameData(f);
 
         //        cout << "dir: " << dir() + rgbImages[i] << endl;
         RGBImageType cimg(dir() + "/" + rgbImages[i]);
@@ -126,7 +128,6 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
         //        deptho.h       = targetH;
 
 
-        f = makeFrameData();
 
         //        if (dmpp)
         //        {
@@ -137,8 +138,8 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
             //            f->depthImg.load(dir() + depthImages[i]);
         }
 
-        f->depthImg = std::move(dimg);
-        f->colorImg = std::move(cimg);
+        f.depthImg = std::move(dimg);
+        f.colorImg = std::move(cimg);
     }
 
     cout << "Loading done." << endl;

@@ -5,7 +5,7 @@
 
 namespace Saiga
 {
-bool saveImageSTB(const std::string& path, Image& img)
+bool saveImageSTB(const std::string& path, const Image& img)
 {
     if (img.type == UC1 || img.type == UC2 || img.type == UC3 || img.type == UC4)
     {
@@ -24,7 +24,7 @@ bool saveImageSTB(const std::string& path, Image& img)
     }
 }
 
-std::vector<uint8_t> compressImageSTB(Image& img)
+std::vector<uint8_t> compressImageSTB(const Image& img)
 {
     int w               = img.width;
     int h               = img.height;

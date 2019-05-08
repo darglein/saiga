@@ -85,7 +85,7 @@ void Image::makeZero()
     std::fill(vdata.begin(), vdata.end(), 0);
 }
 
-bool Image::valid()
+bool Image::valid() const
 {
     return width > 0 && height > 0 && pitchBytes > 0 && type != TYPE_UNKNOWN && size() == vdata.size();
 }
@@ -148,7 +148,7 @@ bool Image::loadFromMemory(ArrayView<const char> data)
     return erg;
 }
 
-bool Image::save(const std::string& path)
+bool Image::save(const std::string& path) const
 {
     SAIGA_ASSERT(valid());
 
@@ -221,7 +221,7 @@ bool Image::loadRaw(const std::string& path)
     return true;
 }
 
-bool Image::saveRaw(const std::string& path)
+bool Image::saveRaw(const std::string& path) const
 {
     std::fstream stream;
 

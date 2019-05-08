@@ -10,6 +10,7 @@
 #include "saiga/core/image/image.h"
 #include "saiga/vision/DepthmapPreprocessor.h"
 #include "saiga/vision/Distortion.h"
+
 #include <chrono>
 
 namespace Saiga
@@ -76,10 +77,12 @@ class SAIGA_VISION_API RGBDCamera
     virtual ~RGBDCamera() {}
 
     // Blocks until the next image is available
-    virtual std::unique_ptr<RGBDFrameData> getImageSync() = 0;
+    virtual bool getImageSync(RGBDFrameData& data) = 0;
 
-    // Returns 0 if no image is currently available
-    virtual std::unique_ptr<RGBDFrameData> getImage() { return getImageSync(); }
+    // Returns false if no image is currently available
+    virtual bool getImage(RGBDFrameData& data) { return getImageSync(data); }
+
+
 
     // Close the camera.
     // Blocking calls to waitForImage should return a 'nullptr'
@@ -94,7 +97,7 @@ class SAIGA_VISION_API RGBDCamera
     int currentId = 0;
 
     // Create a frame data object with the images already allocated in the correct size
-    std::unique_ptr<RGBDFrameData> makeFrameData();
+    void makeFrameData(RGBDFrameData& data);
 
     // Set frame id and capture time
     void setNextFrame(RGBDFrameData& data);

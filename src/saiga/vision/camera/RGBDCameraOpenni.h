@@ -37,13 +37,13 @@ class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
     /**
      * Blocks until a new image arrives.
      */
-    virtual std::unique_ptr<RGBDFrameData> getImageSync() override;
+    virtual bool getImageSync(RGBDFrameData& data) override;
 
     /**
      * Tries to return the last dslr image.
      * If none are ready a nullptr is returned.
      */
-    virtual std::unique_ptr<RGBDFrameData> getImage() override;
+    virtual bool getImage(RGBDFrameData& data) override;
 
 
     virtual void close() override;
@@ -71,7 +71,7 @@ class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
    private:
     //    SynchronizedBuffer<std::unique_ptr<RGBDFrameData>> frameBuffer;
 
-    std::unique_ptr<RGBDFrameData> tmp;
+    //    std::unique_ptr<RGBDFrameData> tmp;
 
     std::shared_ptr<openni::Device> device;
     std::shared_ptr<openni::VideoStream> depth, color;
