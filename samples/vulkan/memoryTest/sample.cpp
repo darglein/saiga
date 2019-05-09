@@ -119,16 +119,24 @@ void VulkanExample::render(vk::CommandBuffer cmd)
     }
 }
 
-void writeToFile(Saiga::Vulkan::Memory::VulkanMemory& memory, const std::string& baseName, const std::string& time,
-                 bool singleAllocs, int allocCount, int allocSizeKB, std::vector<double>& times)
+void writeToFile(bool chunk_allocator, const std::string& baseName, const std::string& time, bool singleAllocs,
+                 int allocCount, int allocSizeKB, std::vector<double>& times, bool device)
 {
     std::ofstream file;
 
     std::stringstream file_name;
     file_name << baseName << "_" << time << "_";
 
+    if (device)
+    {
+        file_name << "device_";
+    }
+    else
+    {
+        file_name << "host_";
+    }
 
-    if (memory.enableChunkAllocator)
+    if (chunk_allocator)
     {
         file_name << "chunk_";
     }
@@ -154,6 +162,102 @@ void writeToFile(Saiga::Vulkan::Memory::VulkanMemory& memory, const std::string&
     file.close();
 }
 
+inline Saiga::Vulkan::Memory::BufferMemoryLocation* performAlloc(Saiga::Vulkan::Memory::BufferType& type,
+                                                                 Saiga::Vulkan::Memory::UniqueAllocator& allocator,
+                                                                 vk::DeviceSize size)
+{
+    return allocator.allocate(type, size);
+}
+
+inline Saiga::Vulkan::Memory::BufferMemoryLocation* performAlloc(Saiga::Vulkan::Memory::BufferType& type,
+                                                                 Saiga::Vulkan::Memory::BufferChunkAllocator& allocator,
+                                                                 vk::DeviceSize size)
+{
+    return allocator.allocate(size);
+}
+
+
+
+template <typename Allocator>
+inline void performSingleAllocs(int repetitions, int allocCount, int allocSizeKB, std::vector<double>& times,
+                                std::vector<double>& times_dealloc, Saiga::Vulkan::Memory::BufferType type,
+                                Allocator& allocator)
+{
+    for (int rep = 0; rep < repetitions; ++rep)
+    {
+        for (int i = 0; i < allocCount; i++)
+        {
+            BufferMemoryLocation* location = nullptr;
+
+            {
+                times.push_back(0.0);
+                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                location = performAlloc(type, allocator, allocSizeKB * 1024);
+            }
+            if (location)
+            {
+                {
+                    times_dealloc.push_back(0.0);
+                    Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                    allocator.deallocate(location);
+                }
+            }
+        }
+    }
+}
+inline void performMassAllocs(int repetitions, int allocCount, int allocSizeKB, std::vector<double>& times,
+                              std::vector<double>& times_dealloc, Saiga::Vulkan::Memory::BufferType type, bool chunk,
+                              Saiga::Vulkan::VulkanBase& base)
+{
+    std::vector<BufferMemoryLocation*> locations;
+    for (int rep = 0; rep < repetitions; ++rep)
+    {
+        Saiga::Vulkan::Memory::FirstFitStrategy<BufferMemoryLocation> ffs;
+        Saiga::Vulkan::Memory::BufferChunkAllocator bca(base.physicalDevice, base.device, type, ffs,
+                                                        base.transferQueue);
+        Saiga::Vulkan::Memory::UniqueAllocator ua(base.device, base.physicalDevice);
+        if (chunk)
+        {
+            {
+                times.push_back(0.0);
+                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                for (int i = 0; i < allocCount; i++)
+                {
+                    locations.push_back(bca.allocate(allocSizeKB * 1024U));
+                }
+            }
+            {
+                times_dealloc.push_back(0.0);
+                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                for (auto* location : locations)
+                {
+                    bca.deallocate(location);
+                }
+            }
+        }
+        else
+        {
+            {
+                times.push_back(0.0);
+                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                for (int i = 0; i < allocCount; i++)
+                {
+                    locations.push_back(ua.allocate(type, (allocSizeKB * 1024U)));
+                }
+            }
+            {
+                times_dealloc.push_back(0.0);
+                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                for (auto* location : locations)
+                {
+                    ua.deallocate(location);
+                }
+            }
+        }
+        locations.clear();
+    }
+}
+
 void VulkanExample::renderGUI()
 {
     static std::uniform_int_distribution<unsigned long> alloc_dist(1, 5), size_dist(0UL, 3UL), image_dist(0, 4);
@@ -176,21 +280,41 @@ void VulkanExample::renderGUI()
     static int allocCount  = 100;
     static int allocSizeKB = 1024;
     static int repetitions = 1;
+    static bool chunk      = true;
+    static bool device_mem = true;
+
     ImGui::Text("Profiling");
-    auto& memory = renderer.base().memory;
-    ImGui::Checkbox("Enable chunk alloc", &memory.enableChunkAllocator);
+    ImGui::Checkbox("Enable chunk alloc", &chunk);
+    ImGui::Checkbox("Use Device memory", &device_mem);
     //    ImGui::Checkbox("Single allocs", &singleAllocs);
     ImGui::InputInt("repetitions", &repetitions);
     ImGui::InputInt("allocCount", &allocCount, 10);
     ImGui::InputInt("allocSizeKB", &allocSizeKB, 128, 1024);
+    ImGui::Indent();
+    if (ImGui::Button("*2"))
+    {
+        allocSizeKB *= 2;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("/2"))
+    {
+        allocSizeKB /= 2;
+    }
+    ImGui::Unindent();
+
+
+    const Saiga::Vulkan::Memory::BufferType device_type{
+        {vk::BufferUsageFlagBits ::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal}};
+
+    const Saiga::Vulkan::Memory::BufferType host_type{
+        {vk::BufferUsageFlagBits ::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible}};
+
+    const auto type = device_mem ? device_type : host_type;
 
     if (ImGui::Button("Profile single allocations"))
     {
         renderer.base().device.waitIdle();
-        const Saiga::Vulkan::Memory::BufferType type{
-            {vk::BufferUsageFlagBits ::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal}};
 
-        std::vector<BufferMemoryLocation*> locations;
         std::vector<double> times;
         std::vector<double> times_dealloc;
 
@@ -202,40 +326,30 @@ void VulkanExample::renderGUI()
 
         std::stringstream timestr;
         timestr << time;
-        for (int rep = 0; rep < repetitions; ++rep)
+        Saiga::Vulkan::Memory::FirstFitStrategy<BufferMemoryLocation> ffs;
+        Saiga::Vulkan::Memory::BufferChunkAllocator bca(renderer.base().physicalDevice, renderer.base().device, type,
+                                                        ffs, renderer.base().transferQueue);
+        Saiga::Vulkan::Memory::UniqueAllocator ua(renderer.base().device, renderer.base().physicalDevice);
+
+        if (chunk)
         {
-            for (int i = 0; i < allocCount; i++)
-            {
-                BufferMemoryLocation* location = nullptr;
-
-                {
-                    times.push_back(0.0);
-                    Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
-                    location = memory.allocate(type, allocSizeKB * 1024);
-                }
-                if (location)
-                {
-                    {
-                        times_dealloc.push_back(0.0);
-                        Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
-                        memory.deallocateBuffer(type, location);
-                    }
-                }
-            }
+            bca.deallocate(bca.allocate(1024));
+            performSingleAllocs(repetitions, allocCount, allocSizeKB, times, times_dealloc, type, bca);
         }
-
-        writeToFile(memory, "allocate", timestr.str(), true, allocCount, allocSizeKB, times);
-        writeToFile(memory, "deallocate", timestr.str(), true, allocCount, allocSizeKB, times_dealloc);
+        else
+        {
+            performSingleAllocs(repetitions, allocCount, allocSizeKB, times, times_dealloc, type, ua);
+        }
+        writeToFile(chunk, "allocate", timestr.str(), true, allocCount, allocSizeKB, times, type == device_type);
+        writeToFile(chunk, "deallocate", timestr.str(), true, allocCount, allocSizeKB, times_dealloc,
+                    type == device_type);
     }
 
 
     if (ImGui::Button("Profile mass allocation"))
     {
         renderer.base().device.waitIdle();
-        const Saiga::Vulkan::Memory::BufferType type{
-            {vk::BufferUsageFlagBits ::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal}};
 
-        std::vector<BufferMemoryLocation*> locations;
         std::vector<double> times;
         std::vector<double> times_dealloc;
 
@@ -247,48 +361,60 @@ void VulkanExample::renderGUI()
 
         std::stringstream timestr;
         timestr << time;
-        for (int rep = 0; rep < repetitions; ++rep)
-        {
-            BufferMemoryLocation* location = nullptr;
 
-            {
-                times.push_back(0.0);
-                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
-                for (int i = 0; i < allocCount; i++)
-                {
-                    locations.push_back(memory.allocate(type, allocSizeKB * 1024));
-                }
-            }
-            {
-                times_dealloc.push_back(0.0);
-                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
-                for (auto* location : locations)
-                {
-                    memory.deallocateBuffer(type, location);
-                }
-            }
-            locations.clear();
+        if (chunk)
+        {
+            performMassAllocs(repetitions, allocCount, allocSizeKB, times, times_dealloc, type, true, renderer.base());
+        }
+        else
+        {
+            performMassAllocs(repetitions, allocCount, allocSizeKB, times, times_dealloc, type, false, renderer.base());
         }
 
-
-        writeToFile(memory, "allocate", timestr.str(), false, allocCount, allocSizeKB, times);
-        writeToFile(memory, "deallocate", timestr.str(), false, allocCount, allocSizeKB, times_dealloc);
+        writeToFile(chunk, "allocate", timestr.str(), false, allocCount, allocSizeKB, times, type == device_type);
+        writeToFile(chunk, "deallocate", timestr.str(), false, allocCount, allocSizeKB, times_dealloc,
+                    type == device_type);
     }
 
-    // ImGui::Checkbox("Enable profiling", &renderer.base().memory.enable_profiling);
+    if (ImGui::Button("Multi complete"))
+    {
+        std::vector<Saiga::Vulkan::Memory::BufferType> types{host_type, device_type};
+        std::vector<bool> use_chunk{false, true};
+        std::vector<vk::DeviceSize> sizes{128, 256, 512, 1024, 2048, 4096, 4096 * 2, 4096 * 4, 4096 * 8, 4096 * 16};
+        renderer.base().device.waitIdle();
 
-    // auto& times = renderer.base().memory.times;
-    // auto sum = std::accumulate(times.begin(), times.end(),0.0);
-    //
-    // if (times.size() > 0) {
-    //    sum /= times.size();
-    //}
-    //
-    // if (ImGui::Button("Clear times")) {
-    //    times.clear();
-    //}
-    //
-    // ImGui::Text("%f", sum);
+        for (auto type : types)
+        {
+            for (auto chunk : use_chunk)
+            {
+                for (auto size : sizes)
+                {
+                    {
+                        using namespace std::chrono_literals;
+                        std::this_thread::sleep_for(1s);
+                    }
+                    std::vector<double> times;
+                    std::vector<double> times_dealloc;
+
+
+                    auto now       = std::chrono::system_clock::now();
+                    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+                    auto time = std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S_");
+
+                    std::stringstream timestr;
+                    timestr << time;
+
+                    performMassAllocs(repetitions, allocCount, size, times, times_dealloc, type, chunk,
+                                      renderer.base());
+
+                    writeToFile(chunk, "allocate", timestr.str(), false, allocCount, size, times, type == device_type);
+                    writeToFile(chunk, "deallocate", timestr.str(), false, allocCount, size, times_dealloc,
+                                type == device_type);
+                }
+            }
+        }
+    }
 
     if (ImGui::Button("Allocate Image"))
     {
