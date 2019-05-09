@@ -29,8 +29,8 @@ struct Intrinsics4Base
     Vec2 project(const Vec3& X) const
     {
         auto invz = T(1) / X(2);
-        auto x = X(0) * invz;
-        auto y = X(1) * invz;
+        auto x    = X(0) * invz;
+        auto y    = X(1) * invz;
         return {fx * x + cx, fy * y + cy};
     }
 
@@ -91,7 +91,11 @@ template <typename T>
 struct StereoCamera4Base : public Intrinsics4Base<T>
 {
     using Vec5 = Eigen::Matrix<T, 5, 1>;
-
+    using Base = Intrinsics4Base<T>;
+    using Base::cx;
+    using Base::cy;
+    using Base::fx;
+    using Base::fy;
     /**
      * Baseline * FocalLength_x
      *
@@ -109,6 +113,14 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
     StereoCamera4Base<G> cast()
     {
         return {Intrinsics4Base<T>::template cast<G>(), bf};
+    }
+
+    Vec3 projectStereo(const Vec3& X) const
+    {
+        auto invz = T(1) / X(2);
+        auto x    = X(0) * invz;
+        auto y    = X(1) * invz;
+        return {fx * x + cx, fy * y + cy, x - bf * invz};
     }
 
     Vec5 coeffs() const

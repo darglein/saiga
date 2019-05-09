@@ -67,10 +67,10 @@ inline int distance(const DescriptorORB& a, const DescriptorORB& b)
         // to gain around 25% more performance
         // according to this source:
         // https://github.com/kimwalisch/libpopcnt
-        dist += popcnt32(v);
-        //        v              = v - ((v >> 1) & 0x55555555);
-        //        v              = (v & 0x33333333) + ((v >> 2) & 0x33333333);
-        //        dist += (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
+        //        dist += popcnt32(v);
+        v = v - ((v >> 1) & 0x55555555);
+        v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+        dist += (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
     }
 
     return dist;
