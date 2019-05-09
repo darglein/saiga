@@ -207,22 +207,21 @@ void initSaiga(const SaigaParameters& params)
 
     el::Configurations defaultConf;
     defaultConf.setToDefault();
-    if (params.logging_enabled)
+
+    //    cout << "Enabling logging" << endl;
+
+    // Values are always std::string
+    defaultConf.set(el::Level::Global, el::ConfigurationType::ToFile, "false");
+    // defaultConf.set(el::Level::Global, el::ConfigurationType::ToStandardOutput,
+    // std::to_string(params.logging_enabled));
+    defaultConf.set(el::Level::Global, el::ConfigurationType::Enabled, std::to_string(params.logging_enabled));
+    defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, std::to_string(params.verbose_logging));
+
+    if (params.verbose_logging)
     {
-        cout << "Enabling logging" << endl;
-
-        // Values are always std::string
-        defaultConf.set(el::Level::Global, el::ConfigurationType::ToFile, "false");
-        // defaultConf.set(el::Level::Global, el::ConfigurationType::ToStandardOutput,
-        // std::to_string(params.logging_enabled));
-        defaultConf.set(el::Level::Global, el::ConfigurationType::Enabled, std::to_string(params.logging_enabled));
-        defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, std::to_string(params.verbose_logging));
-
-        if (params.verbose_logging)
-        {
-            el::Loggers::setVerboseLevel(1);
-        }
+        el::Loggers::setVerboseLevel(1);
     }
+
     el::Loggers::reconfigureLogger("default", defaultConf);
 
 

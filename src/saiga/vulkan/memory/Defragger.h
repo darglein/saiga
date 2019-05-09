@@ -7,9 +7,9 @@
 #include "saiga/core/util/threadName.h"
 #include "saiga/vulkan/Queue.h"
 
-#include "BufferChunkAllocator.h"
 #include "BufferMemoryLocation.h"
-#include "ChunkAllocation.h"
+#include "Chunk.h"
+#include "ChunkAllocator.h"
 #include "FitStrategy.h"
 #include "ImageMemoryLocation.h"
 
@@ -97,7 +97,7 @@ class Defragger
 
         friend std::ostream& operator<<(std::ostream& os, const PossibleOp& op)
         {
-            os << op.target << "<-" << PointerOutput(op.source) << " w: " << op.weight;
+            os << op.target << "<-" << PointerOutput<T>(op.source) << " w: " << op.weight;
             return os;
         }
     };
@@ -110,7 +110,7 @@ class Defragger
 
         friend std::ostream& operator<<(std::ostream& os, const DefragOp& op)
         {
-            os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " cmd: " << op.cmd;
+            os << PointerOutput<T>(op.target) << "<-" << PointerOutput<T>(op.source) << " cmd: " << op.cmd;
             return os;
         }
     };
@@ -127,7 +127,7 @@ class Defragger
 
         friend std::ostream& operator<<(std::ostream& os, const CopyOp& op)
         {
-            os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " cmd: " << op.cmd
+            os << PointerOutput<T>(op.target) << "<-" << PointerOutput<T>(op.source) << " cmd: " << op.cmd
                << " fence: " << op.fence << " wsem: " << op.wait_semaphore << " ssem: " << op.signal_semaphore;
             return os;
         }
@@ -140,7 +140,7 @@ class Defragger
 
         friend std::ostream& operator<<(std::ostream& os, const FreeOp& op)
         {
-            os << PointerOutput(op.target) << "<-" << PointerOutput(op.source) << " delay: " << op.delay;
+            os << PointerOutput<T>(op.target) << "<-" << PointerOutput<T>(op.source) << " delay: " << op.delay;
             return os;
         }
     };
@@ -199,7 +199,7 @@ class Defragger
     VulkanBase* base;
     uint64_t dealloc_delay;
     vk::Device device;
-    BaseChunkAllocator<T>* allocator;
+    ChunkAllocator<T>* allocator;
 
     std::vector<PossibleOp> possibleOps;
     std::list<DefragOp> defragOps;
@@ -240,7 +240,7 @@ class Defragger
    public:
     DefraggerConfiguration config;
 
-    Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0);
+    Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0);
 
 
     Defragger(const Defragger& other) = delete;
@@ -328,7 +328,7 @@ class Defragger
 class BufferDefragger final : public Defragger<BufferMemoryLocation>
 {
    public:
-    BufferDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<BufferMemoryLocation>* allocator,
+    BufferDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<BufferMemoryLocation>* allocator,
                     uint32_t dealloc_delay)
         : Defragger(base, device, allocator, dealloc_delay)
     {
@@ -353,7 +353,7 @@ class ImageDefragger final : public Defragger<ImageMemoryLocation>
     ImageCopyComputeShader* img_copy_shader;
 
    public:
-    ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,
+    ImageDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<ImageMemoryLocation>* allocator,
                    uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader);
 
    protected:

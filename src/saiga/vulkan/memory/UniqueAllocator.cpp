@@ -2,7 +2,7 @@
 // Created by Peter Eichinger on 2018-12-18.
 //
 
-#include "FallbackAllocator.h"
+#include "UniqueAllocator.h"
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/tostring.h"
@@ -11,10 +11,10 @@
 
 namespace Saiga::Vulkan::Memory
 {
-void FallbackAllocator::deallocate(BufferMemoryLocation* location)
+void UniqueAllocator::deallocate(BufferMemoryLocation* location)
 {
     std::scoped_lock lock(mutex);
-    LOG(INFO) << "Fallback deallocate: " << location;
+    LOG(INFO) << "Unique deallocate: " << *location;
 
     auto foundAllocation = std::find_if(m_allocations.begin(), m_allocations.end(),
                                         [location](auto& alloc) { return alloc.get() == location; });
@@ -27,10 +27,10 @@ void FallbackAllocator::deallocate(BufferMemoryLocation* location)
     m_allocations.erase(foundAllocation);
 }
 
-void FallbackAllocator::deallocate(ImageMemoryLocation* location)
+void UniqueAllocator::deallocate(ImageMemoryLocation* location)
 {
     std::scoped_lock lock(mutex);
-    LOG(INFO) << "Fallback deallocate: " << location;
+    LOG(INFO) << "Unique deallocate: " << *location;
 
     auto foundAllocation = std::find_if(m_image_allocations.begin(), m_image_allocations.end(),
                                         [location](auto& alloc) { return alloc.get() == location; });
@@ -44,7 +44,7 @@ void FallbackAllocator::deallocate(ImageMemoryLocation* location)
 }
 
 
-void FallbackAllocator::destroy()
+void UniqueAllocator::destroy()
 {
     for (auto& location : m_allocations)
     {
@@ -59,7 +59,7 @@ void FallbackAllocator::destroy()
     m_image_allocations.clear();
 }
 
-BufferMemoryLocation* FallbackAllocator::allocate(const BufferType& type, vk::DeviceSize size)
+BufferMemoryLocation* UniqueAllocator::allocate(const BufferType& type, vk::DeviceSize size)
 {
     vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(), size, type.usageFlags};
     auto buffer = m_device.createBuffer(bufferCreateInfo);
@@ -84,11 +84,11 @@ BufferMemoryLocation* FallbackAllocator::allocate(const BufferType& type, vk::De
         m_allocations.emplace_back(std::make_unique<BufferMemoryLocation>(buffer, memory, 0, size, mappedPtr));
         retVal = m_allocations.back().get();
     }
-    LOG(INFO) << "Fallback allocation: " << type << "->" << retVal;
+    LOG(INFO) << "Unique allocation: " << type << "->" << *retVal;
     return retVal;
 }
 
-ImageMemoryLocation* FallbackAllocator::allocate(const ImageType& type, ImageData& image_data)
+ImageMemoryLocation* UniqueAllocator::allocate(const ImageType& type, ImageData& image_data)
 {
     SAIGA_ASSERT(image_data.image, "Image must already be created before allocating");
     vk::MemoryAllocateInfo info;
@@ -111,11 +111,11 @@ ImageMemoryLocation* FallbackAllocator::allocate(const ImageType& type, ImageDat
     retVal->data.create_view(m_device);
     retVal->data.create_sampler(m_device);
 
-    LOG(INFO) << "Fallback image allocation: " << type << "->" << retVal;
+    LOG(INFO) << "Unique image allocation: " << type << "->" << *retVal;
     return retVal;
 }
 
-void FallbackAllocator::showDetailStats()
+void UniqueAllocator::showDetailStats()
 {
     if (ImGui::CollapsingHeader(gui_identifier.c_str()))
     {
@@ -130,18 +130,21 @@ void FallbackAllocator::showDetailStats()
     }
 }
 
-MemoryStats FallbackAllocator::collectMemoryStats()
+MemoryStats UniqueAllocator::collectMemoryStats()
 {
     const auto totalSize = std::accumulate(m_allocations.begin(), m_allocations.end(), 0UL,
                                            [](const auto& a, const auto& b) { return a + b->size; });
 
     return MemoryStats{totalSize, totalSize, 0};
 }
-void FallbackAllocator::destroy(const vk::Device& device, BufferMemoryLocation* memory_location)
+void UniqueAllocator::destroy(const vk::Device& device, BufferMemoryLocation* memory_location)
 {
     SAIGA_ASSERT(memory_location->memory, "Already destroyed");
+    if (memory_location->data.buffer)
+    {
+        device.destroy(memory_location->data.buffer);
+    }
     memory_location->destroy_owned_data(device);
-    device.destroy(memory_location->data.buffer);
     if (memory_location->memory)
     {
         device.free(memory_location->memory);
@@ -150,7 +153,7 @@ void FallbackAllocator::destroy(const vk::Device& device, BufferMemoryLocation* 
     memory_location->mappedPointer = nullptr;
 }
 
-void FallbackAllocator::destroy(const vk::Device& device, ImageMemoryLocation* memory_location)
+void UniqueAllocator::destroy(const vk::Device& device, ImageMemoryLocation* memory_location)
 {
     SAIGA_ASSERT(memory_location->memory, "Already destroyed");
     memory_location->destroy_owned_data(device);

@@ -1,7 +1,7 @@
 //
 // Created by Peter Eichinger on 2019-03-07.
 //
-#include "BaseChunkAllocator.h"
+#include "ChunkAllocator.h"
 
 #include "BufferMemoryLocation.h"
 #include "ImageMemoryLocation.h"
@@ -9,7 +9,7 @@
 namespace Saiga::Vulkan::Memory
 {
 template <typename T>
-T* BaseChunkAllocator<T>::base_allocate(vk::DeviceSize size)
+T* ChunkAllocator<T>::base_allocate(vk::DeviceSize size)
 {
     ChunkIterator<T> chunkAlloc;
     FreeIterator<T> freeSpace;
@@ -21,8 +21,8 @@ T* BaseChunkAllocator<T>::base_allocate(vk::DeviceSize size)
 }
 
 template <typename T>
-T* BaseChunkAllocator<T>::allocate_in_free_space(vk::DeviceSize size, ChunkIterator<T>& chunkAlloc,
-                                                 FreeIterator<T>& freeSpace)
+T* ChunkAllocator<T>::allocate_in_free_space(vk::DeviceSize size, ChunkIterator<T>& chunkAlloc,
+                                             FreeIterator<T>& freeSpace)
 {
     T* val;
     if (chunkAlloc == chunks.end())
@@ -57,7 +57,7 @@ T* BaseChunkAllocator<T>::allocate_in_free_space(vk::DeviceSize size, ChunkItera
 }
 
 template <typename T>
-void BaseChunkAllocator<T>::findNewMax(ChunkIterator<T>& chunkAlloc) const
+void ChunkAllocator<T>::findNewMax(ChunkIterator<T>& chunkAlloc) const
 {
     auto& freeList = chunkAlloc->freeList;
 
@@ -72,9 +72,8 @@ void BaseChunkAllocator<T>::findNewMax(ChunkIterator<T>& chunkAlloc) const
                                             [](auto& first, auto& second) { return first.size < second.size; });
 }
 
-
 template <typename T>
-void BaseChunkAllocator<T>::deallocate(T* location)
+void ChunkAllocator<T>::deallocate(T* location)
 {
     std::scoped_lock alloc_lock(allocationMutex);
 
@@ -109,48 +108,29 @@ void BaseChunkAllocator<T>::deallocate(T* location)
         }
 
         m_device.destroy(last->buffer);
-        m_chunkAllocator->deallocate(last->chunk);
+        m_device.free(last->memory);
 
         chunks.pop_back();
     }
 }
 
 template <typename T>
-void BaseChunkAllocator<T>::destroy()
+void ChunkAllocator<T>::destroy()
 {
     for (auto& alloc : chunks)
     {
         m_device.destroy(alloc.buffer);
+        m_device.free(alloc.memory);
     }
 }
 
 template <typename T>
-bool BaseChunkAllocator<T>::memory_is_free(vk::DeviceMemory memory, FreeListEntry free_mem)
-{
-    std::scoped_lock lock(allocationMutex);
-    auto chunk = std::find_if(chunks.begin(), chunks.end(),
-                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
-
-    SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
-
-    if (chunk->freeList.empty())
-    {
-        return false;
-    }
-    auto found =
-        std::lower_bound(chunk->freeList.begin(), chunk->freeList.end(), free_mem,
-                         [](const auto& free_entry, const auto& value) { return free_entry.offset < value.offset; });
-
-    return found->offset == free_mem.offset && found->size == free_mem.size;
-}
-
-template <typename T>
-T* BaseChunkAllocator<T>::reserve_if_free(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size)
+T* ChunkAllocator<T>::reserve_if_free(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size)
 {
     std::scoped_lock lock(allocationMutex);
 
     auto chunk = std::find_if(chunks.begin(), chunks.end(),
-                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
+                              [&](const auto& chunk_entry) { return chunk_entry.memory == memory; });
 
     SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
 
@@ -178,23 +158,7 @@ T* BaseChunkAllocator<T>::reserve_if_free(vk::DeviceMemory memory, FreeListEntry
 
 
 template <typename T>
-T* BaseChunkAllocator<T>::reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size)
-{
-    std::scoped_lock lock(allocationMutex);
-    auto chunk = std::find_if(chunks.begin(), chunks.end(),
-                              [&](const auto& chunk_entry) { return chunk_entry.chunk->memory == memory; });
-
-    SAIGA_ASSERT(chunk != chunks.end(), "Wrong allocator");
-
-    auto free = std::find(chunk->freeList.begin(), chunk->freeList.end(), freeListEntry);
-
-    SAIGA_ASSERT(free != chunk->freeList.end(), "Free space not found");
-
-    return allocate_in_free_space(size, chunk, free);
-}
-
-template <typename T>
-void BaseChunkAllocator<T>::swap(T* target, T* source)
+void ChunkAllocator<T>::swap(T* target, T* source)
 {
     std::scoped_lock lock(allocationMutex);
 
@@ -219,7 +183,7 @@ void BaseChunkAllocator<T>::swap(T* target, T* source)
 
 template <typename T>
 template <typename FreeEntry>
-void BaseChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const FreeEntry& location) const
+void ChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const FreeEntry& location) const
 {
     auto& freeList = chunk->freeList;
     auto found = lower_bound(freeList.begin(), freeList.end(), location, [](const auto& free_entry, const auto& value) {
@@ -248,11 +212,10 @@ void BaseChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, cons
 
 
 template <typename T>
-std::pair<ChunkIterator<T>, AllocationIterator<T>> BaseChunkAllocator<T>::find_allocation(T* location)
+std::pair<ChunkIterator<T>, AllocationIterator<T>> ChunkAllocator<T>::find_allocation(T* location)
 {
-    auto fChunk = std::find_if(chunks.begin(), chunks.end(), [&](ChunkAllocation<T> const& alloc) {
-        return alloc.chunk->memory == location->memory;
-    });
+    auto fChunk = std::find_if(chunks.begin(), chunks.end(),
+                               [&](Chunk<T> const& alloc) { return alloc.memory == location->memory; });
 
     SAIGA_ASSERT(fChunk != chunks.end(), "Allocation was not done with this allocator!");
 
@@ -265,7 +228,7 @@ std::pair<ChunkIterator<T>, AllocationIterator<T>> BaseChunkAllocator<T>::find_a
 }
 
 template <typename T>
-void BaseChunkAllocator<T>::showDetailStats(bool expand)
+void ChunkAllocator<T>::showDetailStats(bool expand)
 {
     using BarColor = ImGui::ColoredBar::BarColor;
     static const BarColor alloc_color_static{{1.00f, 0.447f, 0.133f, 1.0f}, {0.133f, 0.40f, 0.40f, 1.0f}};
@@ -299,7 +262,7 @@ void BaseChunkAllocator<T>::showDetailStats(bool expand)
             auto& chunk = chunks[i];
 
             std::stringstream ss;
-            ss << "Mem " << std::hex << chunk.chunk->memory << " Buffer " << chunk.buffer;
+            ss << "Mem " << std::hex << chunk.memory << " Buffer " << chunk.buffer;
 
             ImGui::Text("Chunk %d (%s, %s) %s", i + 1, sizeToString(chunk.getFree()).c_str(),
                         sizeToString(chunk.allocated).c_str(), ss.str().c_str());
@@ -346,7 +309,7 @@ void BaseChunkAllocator<T>::showDetailStats(bool expand)
 }
 
 template <typename T>
-MemoryStats BaseChunkAllocator<T>::collectMemoryStats()
+MemoryStats ChunkAllocator<T>::collectMemoryStats()
 {
     std::scoped_lock lock(allocationMutex);
     int numAllocs                = 0;
@@ -382,7 +345,7 @@ MemoryStats BaseChunkAllocator<T>::collectMemoryStats()
     return MemoryStats{totalSpace, usedSpace, fragmentedFreeSpace};
 }
 
-template class BaseChunkAllocator<BufferMemoryLocation>;
-template class BaseChunkAllocator<ImageMemoryLocation>;
+template class ChunkAllocator<BufferMemoryLocation>;
+template class ChunkAllocator<ImageMemoryLocation>;
 
 }  // namespace Saiga::Vulkan::Memory

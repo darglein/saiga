@@ -7,7 +7,6 @@
 #pragma once
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/export.h"
-#include "saiga/vulkan/memory/Chunk.h"
 
 #include <mutex>
 #include <optional>

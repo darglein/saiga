@@ -1,6 +1,7 @@
 ﻿#include "saiga/core/framework/framework.h"
 #include "saiga/core/sdl/sdl.h"
 #include "saiga/core/util/easylogging++.h"
+#include "saiga/core/util/threadPool.h"
 #include "saiga/vulkan/memory/VulkanStlAllocator.h"
 #include "saiga/vulkan/window/SDLWindow.h"
 
@@ -8,12 +9,12 @@
 
 #include <memory>
 #include <vector>
-
 int main(const int argc, const char* argv[])
 {
     using namespace Saiga;
     //    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::Format, "%datetime %level [%fbase]: %msg");
     {
+        Saiga::createGlobalThreadPool(-1);
         Saiga::WindowParameters windowParameters;
         Saiga::initSample(windowParameters.saigaParameters);
         windowParameters.fromConfigFile("config.ini");

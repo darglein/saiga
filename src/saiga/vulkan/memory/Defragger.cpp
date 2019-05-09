@@ -49,8 +49,7 @@ bool Defragger<T>::perform_free_operations()
 }
 
 template <typename T>
-Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, BaseChunkAllocator<T>* _allocator,
-                        uint32_t _dealloc_delay)
+Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator, uint32_t _dealloc_delay)
     : base(_base),
       dealloc_delay(_dealloc_delay + 15),
       // dealloc_delay(240),
@@ -325,11 +324,11 @@ bool Defragger<T>::find_defrag_ops()
                             if (alloc_iter == t_allocs.cend())
                             {
                                 // Allocate in last free space
-                                entry = Target{chunk.chunk->memory, chunk.size - free_size, free_size};
+                                entry = Target{chunk.memory, chunk.size - free_size, free_size};
                             }
                             else
                             {
-                                entry = Target{chunk.chunk->memory, begin(alloc_iter) - free_size, free_size};
+                                entry = Target{chunk.memory, begin(alloc_iter) - free_size, free_size};
                             }
                             target = entry;
                         }
@@ -691,7 +690,7 @@ void ImageDefragger::create_copy_command(ImageDefragger::PossibleOp& op, ImageMe
 }
 
 
-ImageDefragger::ImageDefragger(VulkanBase* base, vk::Device device, BaseChunkAllocator<ImageMemoryLocation>* allocator,
+ImageDefragger::ImageDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<ImageMemoryLocation>* allocator,
                                uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader)
     : Defragger(base, device, allocator, dealloc_delay), usedSets(), img_copy_shader(_img_copy_shader)
 {

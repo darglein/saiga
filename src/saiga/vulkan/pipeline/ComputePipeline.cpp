@@ -13,7 +13,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-ComputePipeline::ComputePipeline() : PipelineBase(vk::PipelineBindPoint::eCompute) {}
+ComputePipeline:: ComputePipeline() : PipelineBase(vk::PipelineBindPoint::eCompute) {}
 
 
 void ComputePipeline::create()

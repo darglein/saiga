@@ -10,6 +10,7 @@
 
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/time/timer.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/imath.h"
 
@@ -118,6 +119,41 @@ void VulkanExample::render(vk::CommandBuffer cmd)
     }
 }
 
+void writeToFile(Saiga::Vulkan::Memory::VulkanMemory& memory, const std::string& baseName, const std::string& time,
+                 bool singleAllocs, int allocCount, int allocSizeKB, std::vector<double>& times)
+{
+    std::ofstream file;
+
+    std::stringstream file_name;
+    file_name << baseName << "_" << time << "_";
+
+
+    if (memory.enableChunkAllocator)
+    {
+        file_name << "chunk_";
+    }
+    else
+    {
+        file_name << "unique_";
+    }
+    if (singleAllocs)
+    {
+        file_name << "dealloc_";
+    }
+    else
+    {
+        file_name << "nodealloc_";
+    }
+    file_name << allocCount << "_" << allocSizeKB << ".txt";
+    file.open(file_name.str(), std::ios::out | std::ios::app);
+
+    for (auto& time : times)
+    {
+        file << time << std::endl;
+    }
+    file.close();
+}
+
 void VulkanExample::renderGUI()
 {
     static std::uniform_int_distribution<unsigned long> alloc_dist(1, 5), size_dist(0UL, 3UL), image_dist(0, 4);
@@ -136,6 +172,124 @@ void VulkanExample::renderGUI()
     ImGui::Checkbox("Auto allocate indexed", &enable_auto_index);
     ImGui::Text("%d", auto_allocs);
 
+    //    static bool singleAllocs = true;
+    static int allocCount  = 100;
+    static int allocSizeKB = 1024;
+    static int repetitions = 1;
+    ImGui::Text("Profiling");
+    auto& memory = renderer.base().memory;
+    ImGui::Checkbox("Enable chunk alloc", &memory.enableChunkAllocator);
+    //    ImGui::Checkbox("Single allocs", &singleAllocs);
+    ImGui::InputInt("repetitions", &repetitions);
+    ImGui::InputInt("allocCount", &allocCount, 10);
+    ImGui::InputInt("allocSizeKB", &allocSizeKB, 128, 1024);
+
+    if (ImGui::Button("Profile single allocations"))
+    {
+        renderer.base().device.waitIdle();
+        const Saiga::Vulkan::Memory::BufferType type{
+            {vk::BufferUsageFlagBits ::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal}};
+
+        std::vector<BufferMemoryLocation*> locations;
+        std::vector<double> times;
+        std::vector<double> times_dealloc;
+
+
+        auto now       = std::chrono::system_clock::now();
+        auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+        auto time = std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S_");
+
+        std::stringstream timestr;
+        timestr << time;
+        for (int rep = 0; rep < repetitions; ++rep)
+        {
+            for (int i = 0; i < allocCount; i++)
+            {
+                BufferMemoryLocation* location = nullptr;
+
+                {
+                    times.push_back(0.0);
+                    Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                    location = memory.allocate(type, allocSizeKB * 1024);
+                }
+                if (location)
+                {
+                    {
+                        times_dealloc.push_back(0.0);
+                        Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                        memory.deallocateBuffer(type, location);
+                    }
+                }
+            }
+        }
+
+        writeToFile(memory, "allocate", timestr.str(), true, allocCount, allocSizeKB, times);
+        writeToFile(memory, "deallocate", timestr.str(), true, allocCount, allocSizeKB, times_dealloc);
+    }
+
+
+    if (ImGui::Button("Profile mass allocation"))
+    {
+        renderer.base().device.waitIdle();
+        const Saiga::Vulkan::Memory::BufferType type{
+            {vk::BufferUsageFlagBits ::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal}};
+
+        std::vector<BufferMemoryLocation*> locations;
+        std::vector<double> times;
+        std::vector<double> times_dealloc;
+
+
+        auto now       = std::chrono::system_clock::now();
+        auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+        auto time = std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S_");
+
+        std::stringstream timestr;
+        timestr << time;
+        for (int rep = 0; rep < repetitions; ++rep)
+        {
+            BufferMemoryLocation* location = nullptr;
+
+            {
+                times.push_back(0.0);
+                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                for (int i = 0; i < allocCount; i++)
+                {
+                    locations.push_back(memory.allocate(type, allocSizeKB * 1024));
+                }
+            }
+            {
+                times_dealloc.push_back(0.0);
+                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                for (auto* location : locations)
+                {
+                    memory.deallocateBuffer(type, location);
+                }
+            }
+            locations.clear();
+        }
+
+
+        writeToFile(memory, "allocate", timestr.str(), false, allocCount, allocSizeKB, times);
+        writeToFile(memory, "deallocate", timestr.str(), false, allocCount, allocSizeKB, times_dealloc);
+    }
+
+    // ImGui::Checkbox("Enable profiling", &renderer.base().memory.enable_profiling);
+
+    // auto& times = renderer.base().memory.times;
+    // auto sum = std::accumulate(times.begin(), times.end(),0.0);
+    //
+    // if (times.size() > 0) {
+    //    sum /= times.size();
+    //}
+    //
+    // if (ImGui::Button("Clear times")) {
+    //    times.clear();
+    //}
+    //
+    // ImGui::Text("%f", sum);
+
     if (ImGui::Button("Allocate Image"))
     {
         renderer.base().memory.enable_defragmentation(image_type, false);
@@ -145,7 +299,6 @@ void VulkanExample::renderGUI()
         for (auto i = 0U; i < num_allocs; ++i)
         {
             auto index = image_dist(mersenne_twister);
-            // allocations.push_back(renderer.base().memory.allocate(buffer_type, size));
             tex_allocations.push_back(allocate(image_type, index));
         }
         renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);

@@ -10,7 +10,6 @@
 #include "saiga/vulkan/Queue.h"
 #include "saiga/vulkan/memory/MemoryStats.h"
 
-#include "ChunkCreator.h"
 #include "FitStrategy.h"
 #include "MemoryStats.h"
 
@@ -19,13 +18,14 @@
 namespace Saiga::Vulkan::Memory
 {
 template <typename T>
-class SAIGA_VULKAN_API BaseChunkAllocator
+class SAIGA_VULKAN_API ChunkAllocator
 {
    protected:
     std::mutex allocationMutex;
     void findNewMax(ChunkIterator<T>& chunkAlloc) const;
+    vk::PhysicalDevice m_pDevice;
     vk::Device m_device;
-    ChunkCreator* m_chunkAllocator{};
+
 
    public:
     FitStrategy<T>* strategy{};
@@ -55,12 +55,18 @@ class SAIGA_VULKAN_API BaseChunkAllocator
     virtual std::unique_ptr<T> create_location(ChunkIterator<T>& chunk_alloc, vk::DeviceSize start,
                                                vk::DeviceSize size) = 0;
 
+   private:
+    T* allocate_in_free_space(vk::DeviceSize size, ChunkIterator<T>& chunkAlloc, FreeIterator<T>& freeSpace);
+
+    template <typename FreeEntry>
+    void add_to_free_list(const ChunkIterator<T>& chunk, const FreeEntry& location) const;
+
    public:
     virtual void deallocate(T* location);
-    BaseChunkAllocator(vk::Device _device, ChunkCreator* chunkAllocator, FitStrategy<T>& strategy, Queue* _queue,
-                       vk::DeviceSize chunkSize = 64 * 1024 * 1024)
-        : m_device(_device),
-          m_chunkAllocator(chunkAllocator),
+    ChunkAllocator(vk::PhysicalDevice _pDevice, vk::Device _device, FitStrategy<T>& strategy, Queue* _queue,
+                   vk::DeviceSize chunkSize = 64 * 1024 * 1024)
+        : m_pDevice(_pDevice),
+          m_device(_device),
           strategy(&strategy),
           queue(_queue),
           m_chunkSize(chunkSize),
@@ -69,9 +75,9 @@ class SAIGA_VULKAN_API BaseChunkAllocator
     {
     }
 
-    BaseChunkAllocator(BaseChunkAllocator&& other) noexcept
-        : m_device(other.m_device),
-          m_chunkAllocator(other.m_chunkAllocator),
+    ChunkAllocator(ChunkAllocator&& other) noexcept
+        : m_pDevice(other.m_pDevice),
+          m_device(other.m_device),
           strategy(other.strategy),
           queue(other.queue),
           m_chunkSize(other.m_chunkSize),
@@ -81,30 +87,24 @@ class SAIGA_VULKAN_API BaseChunkAllocator
     {
     }
 
-    BaseChunkAllocator& operator=(BaseChunkAllocator&& other) noexcept
+    ChunkAllocator& operator=(ChunkAllocator&& other) noexcept
     {
-        m_device         = other.m_device;
-        m_chunkAllocator = other.m_chunkAllocator;
-        strategy         = other.strategy;
-        queue            = other.queue;
-        m_chunkSize      = other.m_chunkSize;
-        m_allocateSize   = other.m_allocateSize;
-        chunks           = std::move(other.chunks);
-        gui_identifier   = std::move(other.gui_identifier);
+        m_pDevice      = other.m_pDevice;
+        m_device       = other.m_device;
+        strategy       = other.strategy;
+        queue          = other.queue;
+        m_chunkSize    = other.m_chunkSize;
+        m_allocateSize = other.m_allocateSize;
+        chunks         = std::move(other.chunks);
+        gui_identifier = std::move(other.gui_identifier);
         return *this;
     }
 
 
-    virtual ~BaseChunkAllocator() = default;
+    virtual ~ChunkAllocator() = default;
 
-    BaseChunkAllocator(const BaseChunkAllocator&) = delete;
-    BaseChunkAllocator& operator=(const BaseChunkAllocator&) = delete;
-
-
-    T* reserve_space(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size);
-
-
-    bool memory_is_free(vk::DeviceMemory memory, FreeListEntry free_mem);
+    ChunkAllocator(const ChunkAllocator&) = delete;
+    ChunkAllocator& operator=(const ChunkAllocator&) = delete;
 
     T* reserve_if_free(vk::DeviceMemory memory, FreeListEntry freeListEntry, vk::DeviceSize size);
 
@@ -114,14 +114,11 @@ class SAIGA_VULKAN_API BaseChunkAllocator
 
     void showDetailStats(bool expand);
 
-    T* allocate_in_free_space(vk::DeviceSize size, ChunkIterator<T>& chunkAlloc, FreeIterator<T>& freeSpace);
-
     std::pair<ChunkIterator<T>, AllocationIterator<T>> find_allocation(T* location);
 
     void swap(T* target, T* source);
 
-    template <typename FreeEntry>
-    void add_to_free_list(const ChunkIterator<T>& chunk, const FreeEntry& location) const;
+    inline bool can_allocate(vk::DeviceSize size) const { return size <= m_chunkSize; }
 };
 
 }  // namespace Saiga::Vulkan::Memory

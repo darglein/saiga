@@ -4,14 +4,15 @@
 
 #pragma once
 #include "saiga/core/util/assert.h"
+#include "saiga/vulkan/Parameters.h"
+#include "saiga/vulkan/svulkan.h"
 
 #include "BufferChunkAllocator.h"
-#include "ChunkCreator.h"
 #include "Defragger.h"
-#include "FallbackAllocator.h"
 #include "ImageChunkAllocator.h"
 #include "ImageCopyComputeShader.h"
 #include "MemoryType.h"
+#include "UniqueAllocator.h"
 
 #include <algorithm>
 #include <map>
@@ -37,8 +38,13 @@ static const vk::DeviceSize fallback_image_chunk_size = 32 * 1024 * 1024;
 class SAIGA_VULKAN_API VulkanMemory
 {
    private:
-    uint32_t frame_number      = 0;
+    uint32_t frame_number = 0;
+
+   public:
     bool enableDefragmentation = false;
+    bool enableChunkAllocator  = true;
+
+   private:
     template <bool usage_exact, bool memory_exact, typename T>
     struct allocator_find_functor
     {
@@ -92,11 +98,11 @@ class SAIGA_VULKAN_API VulkanMemory
     using ImageDefaultMap  = std::map<ImageType, vk::DeviceSize>;
 
 
-    VulkanBase* base;
+    VulkanBase* base{};
     vk::PhysicalDevice m_pDevice;
     vk::Device m_device;
-    Queue* m_queue;
-    uint32_t m_swapchain_images;
+    Queue* m_queue{};
+    uint32_t m_swapchain_images{};
     std::unique_ptr<ImageCopyComputeShader> img_copy_shader;
 
 
@@ -116,8 +122,7 @@ class SAIGA_VULKAN_API VulkanMemory
     BufferMap bufferAllocators;
     ImageMap imageAllocators;
 
-    std::unique_ptr<FallbackAllocator> fallbackAllocator;
-    ChunkCreator chunkCreator;
+    std::unique_ptr<UniqueAllocator> fallbackAllocator;
     std::unique_ptr<FitStrategy<BufferMemoryLocation>> strategy;
     std::unique_ptr<FitStrategy<ImageMemoryLocation>> image_strategy;
 
@@ -190,7 +195,7 @@ class SAIGA_VULKAN_API VulkanMemory
     ImageContainer& get_image_allocator_exact(const ImageType& type);
 
    public:
-    void init(VulkanBase* base, uint32_t swapchain_frames, bool enableDefragmentation);
+    void init(VulkanBase* base, uint32_t swapchain_frames, const VulkanParameters& parameters);
     VulkanMemory()                    = default;
     VulkanMemory(const VulkanMemory&) = delete;
     VulkanMemory& operator=(const VulkanMemory&) = delete;
@@ -201,7 +206,6 @@ class SAIGA_VULKAN_API VulkanMemory
 
     BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
 
-    // Continue here: change from image to ImageData
     ImageMemoryLocation* allocate(const ImageType& type, ImageData& image);
 
     void deallocateBuffer(const BufferType& type, BufferMemoryLocation* location);

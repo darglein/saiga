@@ -83,8 +83,17 @@ void createGlobalThreadPool(int threads)
 {
     if (threads < 0)
     {
+#if defined(_OPENMP)
         threads = omp_get_thread_num();
+#else
+        threads = std::thread::hardware_concurrency();
+        if (threads <= 0)
+        {
+            threads = 8;
+        }
+#endif
     }
+
     SAIGA_ASSERT(!globalThreadPool);
     globalThreadPool = std::make_unique<ThreadPool>(threads, "GlobalTP");
 }

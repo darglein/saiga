@@ -112,10 +112,10 @@ struct SAIGA_VULKAN_API VulkanBase
 
     bool findDedicatedQueueFamily(vk::QueueFlags flags, uint32_t& family);
 
-    void finalize_init(uint32_t swapchain_frames)
+    void initMemory(uint32_t swapchain_frames)
     {
         numSwapchainFrames = swapchain_frames;
-        memory.init(this, swapchain_frames, m_parameters.enableDefragmentation);
+        memory.init(this, swapchain_frames, m_parameters);
     }
 
     inline void finish_frame()
