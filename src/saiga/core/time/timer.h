@@ -100,19 +100,22 @@ class SAIGA_CORE_API ScopedTimerPrint : public Timer
 };
 
 
-template <typename T>
+
+template <typename Unit = std::chrono::milliseconds, typename T = double>
 class ScopedTimer : public Timer
 {
+    static_assert(std::is_arithmetic_v<T>);
+
    public:
     T* target;
-    ScopedTimer(T* target) : target(target) { start(); }
+    explicit ScopedTimer(T* target) : target(target) { start(); }
 
-    ScopedTimer(T& target) : target(&target) { start(); }
+    explicit ScopedTimer(T& target) : target(&target) { start(); }
 
-    ~ScopedTimer()
+    ~ScopedTimer() override
     {
         stop();
-        T time  = static_cast<T>(getTimeMS());
+        T time  = std::chrono::duration_cast<std::chrono::duration<T, typename Unit::period>>(getCurrentTime()).count();
         *target = time;
     }
 };
