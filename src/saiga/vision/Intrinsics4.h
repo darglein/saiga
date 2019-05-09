@@ -117,10 +117,13 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
 
     Vec3 projectStereo(const Vec3& X) const
     {
-        auto invz = T(1) / X(2);
-        auto x    = X(0) * invz;
-        auto y    = X(1) * invz;
-        return {fx * x + cx, fy * y + cy, x - bf * invz};
+        auto invz        = T(1) / X(2);
+        auto x           = X(0) * invz;
+        auto y           = X(1) * invz;
+        x                = fx * x + cx;
+        y                = fy * y + cy;
+        auto stereoPoint = x - bf * invz;
+        return {x, y, stereoPoint};
     }
 
     Vec5 coeffs() const

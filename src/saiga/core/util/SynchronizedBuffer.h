@@ -52,11 +52,12 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
     }
 
     template <typename G>
-    void addOverride(G&& data)
+    bool addOverride(G&& data)
     {
         std::unique_lock<std::mutex> l(lock);
-        RingBuffer<T>::addOverride(std::forward<G>(data));
+        auto ret = RingBuffer<T>::addOverride(std::forward<G>(data));
         not_empty.notify_one();
+        return ret;
     }
 
     bool tryAdd(const T& v)

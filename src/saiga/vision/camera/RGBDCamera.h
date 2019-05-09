@@ -42,6 +42,9 @@ struct SAIGA_VISION_API RGBDIntrinsics
     // Used to convert from the actual depth data to metric floats
     double depthFactor = 1.0;
 
+    // Maximum depth (in meters) above which the depth values should be considered as outliers
+    double maxDepth = 10;
+
     // The camera disconnects after this amount of frames
     int maxFrames = -1;
 
