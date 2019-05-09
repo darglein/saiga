@@ -210,14 +210,14 @@ void VulkanExample::renderGUI()
 
                 {
                     times.push_back(0.0);
-                    Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                    Saiga::ScopedTimer<double> timer(times.back());
                     location = memory.allocate(type, allocSizeKB * 1024);
                 }
                 if (location)
                 {
                     {
                         times_dealloc.push_back(0.0);
-                        Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                        Saiga::ScopedTimer<double> timer(times_dealloc.back());
                         memory.deallocateBuffer(type, location);
                     }
                 }
@@ -253,7 +253,7 @@ void VulkanExample::renderGUI()
 
             {
                 times.push_back(0.0);
-                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                Saiga::ScopedTimer<double> timer(times.back());
                 for (int i = 0; i < allocCount; i++)
                 {
                     locations.push_back(memory.allocate(type, allocSizeKB * 1024));
@@ -261,7 +261,7 @@ void VulkanExample::renderGUI()
             }
             {
                 times_dealloc.push_back(0.0);
-                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                Saiga::ScopedTimer<double> timer(times_dealloc.back());
                 for (auto* location : locations)
                 {
                     memory.deallocateBuffer(type, location);
