@@ -100,7 +100,6 @@ class SAIGA_CORE_API ScopedTimerPrint : public Timer
 };
 
 
-
 template <typename Unit = std::chrono::milliseconds, typename T = double>
 class ScopedTimer : public Timer
 {
@@ -112,6 +111,9 @@ class ScopedTimer : public Timer
 
     explicit ScopedTimer(T& target) : target(&target) { start(); }
 
+    ScopedTimer(ScopedTimer&& other) noexcept : target(other.target) {}
+
+
     ~ScopedTimer() override
     {
         stop();
@@ -120,7 +122,11 @@ class ScopedTimer : public Timer
     }
 };
 
-
+template <typename Unit = std::chrono::milliseconds, typename T = double>
+auto make_scoped_timer(T& target)
+{
+    return ScopedTimer<Unit, T>(target);
+}
 
 }  // namespace Saiga
 
