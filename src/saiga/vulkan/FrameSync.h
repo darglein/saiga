@@ -22,6 +22,7 @@ class SAIGA_VULKAN_API FrameSync
    public:
     vk::Semaphore imageAvailable = nullptr;
     vk::Semaphore renderComplete = nullptr;
+    vk::Semaphore defragMayStart = nullptr;
     vk::Fence frameFence         = nullptr;
 
     ~FrameSync() { destroy(); }

@@ -343,10 +343,11 @@ void VulkanMemory::stop_defrag(const ImageType& type)
     }
 }
 
-void VulkanMemory::performTimedDefrag(int64_t time)
+bool VulkanMemory::performTimedDefrag(int64_t time, vk::Semaphore semaphore)
 {
     auto remainingTime = time;
 
+    bool performed = false;
     for (auto& allocator : bufferAllocators)
     {
         if (remainingTime < 0)
@@ -356,7 +357,13 @@ void VulkanMemory::performTimedDefrag(int64_t time)
         auto* defragger = allocator.second.defragger.get();
         if (defragger)
         {
-            remainingTime = defragger->perform_defrag(remainingTime);
+            auto [perf, remTime] = defragger->perform_defrag(remainingTime, semaphore);
+            if (perf)
+            {
+                semaphore = nullptr;
+            }
+            performed |= perf;
+            remainingTime = remTime;
         }
     }
 
@@ -369,9 +376,16 @@ void VulkanMemory::performTimedDefrag(int64_t time)
         auto* defragger = allocator.second.defragger.get();
         if (defragger)
         {
-            remainingTime = defragger->perform_defrag(remainingTime);
+            auto [perf, remTime] = defragger->perform_defrag(remainingTime, semaphore);
+            if (perf)
+            {
+                semaphore = nullptr;
+            }
+            performed |= perf;
+            remainingTime = remTime;
         }
     }
+    return performed;
 }
 
 

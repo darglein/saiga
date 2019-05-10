@@ -15,6 +15,7 @@
 #include <set>
 #include <string>
 #include <vector>
+
 namespace Saiga::Vulkan
 {
 struct FramePauses
@@ -76,6 +77,7 @@ class SAIGA_VULKAN_API FrameTimings
     };
 
 
+    vk::CommandBuffer dummy = nullptr;
 
     std::optional<SuitablePause> bestSection;
     std::optional<SectionTimes> lastFrameSections;
@@ -83,7 +85,7 @@ class SAIGA_VULKAN_API FrameTimings
     std::vector<FramePauses>::iterator insertionPoint;
 
 
-
+    Saiga::Vulkan::Queue* queue;
     vk::Device device;
     std::vector<Timing> timings;
     uint32_t numberOfFrames, next, current, running, frameWindow;
@@ -103,10 +105,18 @@ class SAIGA_VULKAN_API FrameTimings
    public:
     FrameTimings() = default;
 
-    ~FrameTimings() { destroyPool(); }
+    ~FrameTimings()
+    {
+        if (device && dummy)
+        {
+            queue->commandPool.freeCommandBuffer(dummy);
+        }
+        destroyPool();
+    }
 
-    FrameTimings(vk::Device _device, Memory::VulkanMemory* _memory)
+    FrameTimings(vk::Device _device, Saiga::Vulkan::Queue* _queue, Memory::VulkanMemory* _memory)
         : device(_device),
+          queue(_queue),
           timings(0),
           numberOfFrames(0),
           next(0),
@@ -118,6 +128,12 @@ class SAIGA_VULKAN_API FrameTimings
           finder(),
           memory(_memory)
     {
+        dummy = queue->commandPool.allocateCommandBuffer();
+
+        vk::CommandBufferBeginInfo cbbi;
+        cbbi.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+        dummy.begin(cbbi);
+        dummy.end();
     }
 
     FrameTimings& operator=(FrameTimings&& other) noexcept
@@ -134,9 +150,13 @@ class SAIGA_VULKAN_API FrameTimings
             queryPool       = other.queryPool;
             frameSections   = std::move(other.frameSections);
             memory          = other.memory;
+            dummy           = other.dummy;
+            queue           = other.queue;
             other.device    = nullptr;
             other.queryPool = nullptr;
             other.memory    = nullptr;
+            other.dummy     = nullptr;
+            other.queue     = nullptr;
         }
         return *this;
     }
@@ -157,5 +177,7 @@ class SAIGA_VULKAN_API FrameTimings
     void leaveSection(const std::string& name, vk::CommandBuffer cmd);
 
     void resetFrame(vk::CommandBuffer cmd);
+
+    void finishFrame(vk::Semaphore semaphore);
 };
 }  // namespace Saiga::Vulkan

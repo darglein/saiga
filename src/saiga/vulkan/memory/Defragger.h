@@ -230,7 +230,7 @@ class Defragger
     void fill_free_list();
     bool create_copy_commands();
 
-    void perform_single_defrag(DefragOp& op);
+    void perform_single_defrag(DefragOp& op, vk::Semaphore semaphore);
 
     bool complete_copy_commands();
 
@@ -253,7 +253,7 @@ class Defragger
     void start();
     void stop();
 
-    int64_t perform_defrag(int64_t allowed_time);
+    std::pair<bool, int64_t> perform_defrag(int64_t allowed_time, vk::Semaphore semaphore);
 
     void setEnabled(bool enable) { enabled = enable; }
 

@@ -163,15 +163,31 @@ void FrameTimings<Finder>::leaveSection(const std::string& name, vk::CommandBuff
 {
     auto index = nameToSectionMap[name];
     cmd.writeTimestamp(vk::PipelineStageFlagBits::eBottomOfPipe, queryPool, getEnd(index));
+}
+
+template <typename Finder>
+void FrameTimings<Finder>::finishFrame(vk::Semaphore semaphore)
+{
+    bool performed = false;
 
     if (bestSection.has_value())
     {
         auto best = bestSection.value();
+        auto time = static_cast<int64_t>(best.length);
+        performed = memory->performTimedDefrag(time, semaphore);
+    }
 
-        if (best.pauseIndex == index)
-        {
-            memory->performTimedDefrag(static_cast<int64_t>(best.length));
-        }
+    if (!performed)
+    {
+        // No defrag took place. have to submit dummy command buffer to wait for semaphore
+        vk::PipelineStageFlags wait{vk::PipelineStageFlagBits::eAllCommands | vk::PipelineStageFlagBits::eAllGraphics};
+        vk::SubmitInfo si;
+        si.commandBufferCount = 1;
+        si.pCommandBuffers    = &dummy;
+        si.waitSemaphoreCount = 1;
+        si.pWaitSemaphores    = &semaphore;
+        si.pWaitDstStageMask  = &wait;
+        queue->submit(si, nullptr);
     }
 }
 
@@ -180,6 +196,7 @@ void FrameTimings<Finder>::resetFrame(vk::CommandBuffer cmd)
 {
     cmd.resetQueryPool(queryPool, getFirst(current), getCount());
 }
+
 
 template class FrameTimings<FindMinPause>;
 

@@ -213,18 +213,22 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
 
     vk::PipelineStageFlags submitPipelineStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
+    std::array<vk::Semaphore, 2> signalSemaphores{sync.renderComplete, sync.defragMayStart};
+    LOG(INFO) << sync.defragMayStart;
     vk::SubmitInfo submitInfo;
     //    submitInfo = vks::initializers::submitInfo();
     submitInfo.pWaitDstStageMask    = &submitPipelineStages;
     submitInfo.waitSemaphoreCount   = 1;
     submitInfo.pWaitSemaphores      = &sync.imageAvailable;
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores    = &sync.renderComplete;
+    submitInfo.signalSemaphoreCount = 2;
+    submitInfo.pSignalSemaphores    = signalSemaphores.data();
 
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers    = &cmd;
     //    VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.frameFence));
     base().mainQueue.submit(submitInfo, sync.frameFence);
+
+    timings.finishFrame(sync.defragMayStart);
     //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
 
     //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));

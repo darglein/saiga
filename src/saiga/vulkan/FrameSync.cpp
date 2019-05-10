@@ -21,6 +21,7 @@ void FrameSync::create(vk::Device device)
     vk::SemaphoreCreateInfo semaphoreCreateInfo{vk::SemaphoreCreateFlags()};
     device.createSemaphore(&semaphoreCreateInfo, nullptr, &imageAvailable);
     device.createSemaphore(&semaphoreCreateInfo, nullptr, &renderComplete);
+    defragMayStart = device.createSemaphore(semaphoreCreateInfo);
 }
 
 void FrameSync::destroy()
@@ -29,6 +30,7 @@ void FrameSync::destroy()
     {
         device.destroySemaphore(imageAvailable);
         device.destroySemaphore(renderComplete);
+        device.destroy(defragMayStart);
         device.destroyFence(frameFence);
         imageAvailable = nullptr;
     }

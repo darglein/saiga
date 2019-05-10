@@ -224,7 +224,7 @@ class SAIGA_VULKAN_API VulkanMemory
 
     void stop_defrag(const ImageType& type);
 
-    void performTimedDefrag(int64_t time);
+    bool performTimedDefrag(int64_t time, vk::Semaphore semaphore);
 
     void update()
     {

@@ -468,13 +468,13 @@ bool Defragger<T>::create_copy_commands()
 
 
 template <typename T>
-int64_t Defragger<T>::perform_defrag(int64_t allowed_time)
+std::pair<bool, int64_t> Defragger<T>::perform_defrag(int64_t allowed_time, vk::Semaphore semaphore)
 {
     std::scoped_lock defrag_lock(defrag_mutex);
     auto remaining_time = allowed_time;
 
-    bool first = true;
-    auto op    = defragOps.begin();
+    bool first = true, performed = false;
+    auto op = defragOps.begin();
     while (op != defragOps.end())
     {
         std::scoped_lock copy_lock(copy_mutex);
@@ -485,22 +485,23 @@ int64_t Defragger<T>::perform_defrag(int64_t allowed_time)
             break;
         }
 
-        perform_single_defrag(*op);
+        perform_single_defrag(*op, first ? semaphore : nullptr);
 
         remaining_time -= sizeInKB / kbPerNanoSecond;
 
-        op    = defragOps.erase(op);
-        first = false;
+        op        = defragOps.erase(op);
+        first     = false;
+        performed = true;
     }
 
     start();
 
-    return remaining_time;
+    return std::make_pair(performed, remaining_time);
 }
 
 
 template <typename T>
-void Defragger<T>::perform_single_defrag(Defragger<T>::DefragOp& op)
+void Defragger<T>::perform_single_defrag(Defragger<T>::DefragOp& op, vk::Semaphore semaphore)
 {
     //    std::scoped_lock copy_lock(copy_mutex);
     //    LOG(INFO) << "Run op " << op;
@@ -510,29 +511,40 @@ void Defragger<T>::perform_single_defrag(Defragger<T>::DefragOp& op)
     submit.commandBufferCount = 1;
     submit.pCommandBuffers    = &op.cmd;
     vk::Semaphore wait;
-    auto waitStage = vk::PipelineStageFlagBits::eAllCommands | vk::PipelineStageFlagBits::eAllGraphics;
+    std::array<vk::PipelineStageFlags, 2> waitStage{
+        vk::PipelineStageFlagBits::eAllCommands | vk::PipelineStageFlagBits::eAllGraphics,
+        vk::PipelineStageFlagBits::eAllCommands | vk::PipelineStageFlagBits::eAllGraphics};
+
+    std::vector<vk::Semaphore> waitSemaphores;
+
+    if (semaphore)
+    {
+        waitSemaphores.push_back(semaphore);
+    }
     if (copyOps.empty())
     {
-        submit.waitSemaphoreCount = 0;
-        wait                      = nullptr;
+        wait = nullptr;
     }
     else
     {
-        submit.waitSemaphoreCount = 1;
-        submit.pWaitSemaphores    = &copyOps.back().signal_semaphore;
-        submit.pWaitDstStageMask  = &waitStage;
-        wait                      = copyOps.back().signal_semaphore;
+        waitSemaphores.push_back(copyOps.back().signal_semaphore);
+        wait = copyOps.back().signal_semaphore;
     }
-    auto fence     = device.createFence(vk::FenceCreateInfo{});
-    auto semaphore = device.createSemaphore(vk::SemaphoreCreateInfo{});
 
+    auto fence        = device.createFence(vk::FenceCreateInfo{});
+    auto sigSemaphore = device.createSemaphore(vk::SemaphoreCreateInfo{});
+
+
+    submit.waitSemaphoreCount   = waitSemaphores.size();
+    submit.pWaitSemaphores      = waitSemaphores.data();
+    submit.pWaitDstStageMask    = waitStage.data();
     submit.signalSemaphoreCount = 1;
-    submit.pSignalSemaphores    = &semaphore;
+    submit.pSignalSemaphores    = &sigSemaphore;
 
     base->mainQueue.submit(submit, fence);
 
 
-    copyOps.push_back(CopyOp{op.target, op.source, op.cmd, fence, wait, semaphore});
+    copyOps.push_back(CopyOp{op.target, op.source, op.cmd, fence, wait, sigSemaphore});
 
     LOG(INFO) << "Copy " << copyOps.back();
 }
