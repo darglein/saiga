@@ -102,19 +102,12 @@ void VulkanExample::render(vk::CommandBuffer cmd)
             const int width = 16;
             int index       = 0;
 
-
-            std::stringstream ss;
             for (auto& texture : tex_allocations)
             {
-                // auto set = textureDisplay.createAndUpdateDescriptorSet(*(texture.first));
-                // VLOG(1) << "Displaying " << texture.first->memoryLocation->data.sampler;
-                ss << (std::get<0>(texture))->memoryLocation->data.sampler << " ";
                 vec2 position((index % width) * 64, (index / width) * 64);
                 textureDisplay.renderTexture(cmd, std::get<1>(texture), position, vec2(64, 64));
                 index++;
             }
-            VLOG(1) << ss.str();
-            // VLOG(1) << "===============";
         }
     }
 }
