@@ -19,6 +19,7 @@ namespace Saiga::Vulkan::Memory
 {
 BufferMemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
 {
+    SAIGA_ASSERT(size > 0, "Allocations must have a size > 0");
     std::scoped_lock lock(allocationMutex);
     auto alignedSize = iAlignUp(size, m_alignment);
     SAIGA_ASSERT(alignedSize <= m_chunkSize, "Can't allocate sizes bigger than chunk size");

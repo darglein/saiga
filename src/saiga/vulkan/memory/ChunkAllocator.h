@@ -28,6 +28,7 @@ class SAIGA_VULKAN_API ChunkAllocator
 
 
    public:
+    double totalTime = 0.0;
     FitStrategy<T>* strategy{};
     Queue* queue;
 

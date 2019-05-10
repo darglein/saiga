@@ -64,6 +64,7 @@ std::pair<ChunkIterator<T>, FreeIterator<T>> FirstFitStrategy<T>::findRange(Chun
     return std::make_pair(foundChunk, foundRange);
 }
 
+
 template <typename T, typename CompareFunc>
 std::pair<ChunkIterator<T>, FreeIterator<T>> findFitPairForBestWorst(ChunkIterator<T> begin, ChunkIterator<T> end,
                                                                      vk::DeviceSize size)
@@ -87,7 +88,7 @@ std::pair<ChunkIterator<T>, FreeIterator<T>> findFitPairForBestWorst(ChunkIterat
             {
                 return std::make_pair(chunkIt, freeIt);
             }
-            if (CompareFunc()(free_size, foundFreeSpace->size))
+            if (!found || CompareFunc()(free_size, foundFreeSpace->size))
             {
                 found          = true;
                 foundFreeSpace = freeIt;
@@ -97,9 +98,14 @@ std::pair<ChunkIterator<T>, FreeIterator<T>> findFitPairForBestWorst(ChunkIterat
         chunkIt++;
     }
 
-
+    if (!found)
+    {
+        return std::make_pair(end, FreeIterator<T>());
+    }
     return std::make_pair(foundChunk, foundFreeSpace);
 }
+
+
 
 template <typename T>
 std::pair<ChunkIterator<T>, FreeIterator<T>> BestFitStrategy<T>::findRange(ChunkIterator<T> begin, ChunkIterator<T> end,
