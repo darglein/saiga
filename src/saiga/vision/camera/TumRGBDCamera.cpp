@@ -71,18 +71,16 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, double depthFactor, int maxFrames, int fps,
-                             const std::shared_ptr<DMPP>& dmpp)
-    : depthFactor(depthFactor), maxFrames(maxFrames)
+TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr) : RGBDCamera(intr)
 {
-    this->dmpp = dmpp;
     cout << "Loading TUM RGBD Dataset: " << datasetDir << endl;
     //    associate(datasetDir);
     associateFromFile(datasetDir + "/associations.txt");
 
     load(datasetDir);
 
-    timeStep = std::chrono::duration_cast<tick_t>(std::chrono::duration<double, std::milli>(1000.0 / double(fps)));
+    timeStep = std::chrono::duration_cast<tick_t>(
+        std::chrono::duration<double, std::milli>(1000.0 / double(intrinsics().fps)));
 
     timer.start();
     lastFrameTime = timer.stop();
@@ -94,12 +92,11 @@ TumRGBDCamera::~TumRGBDCamera()
     cout << "~TumRGBDCamera" << endl;
 }
 
-std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
+bool TumRGBDCamera::getImageSync(RGBDFrameData& data)
 {
     if (!isOpened())
-    //    if(currentId == (int)frames.size())
     {
-        return nullptr;
+        return false;
     }
 
 
@@ -120,9 +117,10 @@ std::shared_ptr<RGBDCamera::FrameData> TumRGBDCamera::waitForImage()
     }
 
 
-    auto img = frames[currentId];
-    setNextFrame(*img);
-    return img;
+    auto&& img = frames[currentId];
+    setNextFrame(img);
+    data = std::move(img);
+    return true;
 }
 
 SE3 TumRGBDCamera::getGroundTruth(int frame)
@@ -137,10 +135,10 @@ void TumRGBDCamera::saveRaw(const std::string& dir)
 #pragma omp parallel for
     for (int i = 0; i < (int)frames.size(); ++i)
     {
-        auto str = Saiga::leadingZeroString(i, 5);
-        auto tmp = frames[i];
-        tmp->colorImg.save(std::string(dir) + str + ".png");
-        tmp->depthImg.save(std::string(dir) + str + ".saigai");
+        auto str  = Saiga::leadingZeroString(i, 5);
+        auto& tmp = frames[i];
+        tmp.colorImg.save(std::string(dir) + str + ".png");
+        tmp.depthImg.save(std::string(dir) + str + ".saigai");
     }
 }
 
@@ -280,9 +278,9 @@ void TumRGBDCamera::associateFromFile(const std::string& datasetDir)
 
 void TumRGBDCamera::load(const std::string& datasetDir)
 {
-    if (maxFrames >= 0)
+    if (intrinsics().maxFrames >= 0)
     {
-        tumframes.resize(std::min((size_t)maxFrames, tumframes.size()));
+        tumframes.resize(std::min((size_t)intrinsics().maxFrames, tumframes.size()));
     }
 
 
@@ -296,30 +294,31 @@ void TumRGBDCamera::load(const std::string& datasetDir)
 
 
         Image cimg(datasetDir + "/" + d.rgb.img);
-        rgbo.h = cimg.h;
-        rgbo.w = cimg.w;
+        //        rgbo.h = cimg.h;
+        //        rgbo.w = cimg.w;
 
 
         Image dimg(datasetDir + "/" + d.depth.img);
 
-        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
-        int targetW    = downScale ? dimg.w / 2 : dimg.w;
-        int targetH    = downScale ? dimg.h / 2 : dimg.h;
+        //        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
+        //        int targetW    = downScale ? dimg.w / 2 : dimg.w;
+        //        int targetH    = downScale ? dimg.h / 2 : dimg.h;
 
-        deptho.w = targetW;
-        deptho.h = targetH;
+        //        deptho.w = targetW;
+        //        deptho.h = targetH;
 
-        auto f = makeFrameData();
+        RGBDFrameData f;
+        makeFrameData(f);
 
 
         if (cimg.type == UC3)
         {
             // convert to rgba
-            ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), f->colorImg);
+            ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), f.colorImg);
         }
         else if (cimg.type == UC4)
         {
-            cimg.getImageView<ucvec4>().copyTo(f->colorImg.getImageView());
+            cimg.getImageView<ucvec4>().copyTo(f.colorImg.getImageView());
         }
         else
         {
@@ -331,24 +330,24 @@ void TumRGBDCamera::load(const std::string& datasetDir)
 
         if (dimg.type == US1)
         {
-            dimg.getImageView<unsigned short>().copyTo(tmp.getImageView(), depthFactor);
+            dimg.getImageView<unsigned short>().copyTo(tmp.getImageView(), intrinsics().depthFactor);
         }
         else
         {
             SAIGA_ASSERT(0);
         }
 
-        if (dmpp)
+        //        if (dmpp)
+        //        {
+        //            (*dmpp)(tmp, f->depthImg.getImageView());
+        //        }
+        //        else
         {
-            (*dmpp)(tmp, f->depthImg.getImageView());
-        }
-        else
-        {
-            tmp.getImageView().copyTo(f->depthImg.getImageView());
+            tmp.getImageView().copyTo(f.depthImg.getImageView());
         }
 
 
-        frames[i] = f;
+        frames[i] = std::move(f);
     }
 
     cout << "Loaded " << tumframes.size() << " images." << endl;

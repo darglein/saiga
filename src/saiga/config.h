@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "export.h"
-
-#include "saiga_buildconfig.h"
-#include "saiga_modules.h"
+#include "saiga/export.h"
+#include "saiga/saiga_buildconfig.h"
+#include "saiga/saiga_modules.h"
 
 #ifdef _MSC_VER
 //#pragma warning( disable : 4267 ) //

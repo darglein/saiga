@@ -74,10 +74,11 @@ endif()
 PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
 
 #libfreeimage
-find_package(FreeImage QUIET)
-PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_PATH}" "${FREEIMAGE_LIBRARIES}")
+
 find_package(FreeImagePlus QUIET)
 PackageHelper(FreeImagePlus ${FREEIMAGEPLUS_FOUND} "${FREEIMAGEPLUS_INCLUDE_PATH}" "${FREEIMAGEPLUS_LIBRARIES}")
+find_package(FreeImage QUIET)
+PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_PATH}" "${FREEIMAGE_LIBRARIES}")
 if(FREEIMAGE_FOUND AND FREEIMAGEPLUS_FOUND)
     SET(SAIGA_USE_FREEIMAGE 1)
 endif()
@@ -91,11 +92,11 @@ PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
 
 
 #c++17 filesystem
-find_package(Filesystem QUIET)
-PackageHelper(Filesystem "${FILESYSTEM_FOUND}" "" "${FILESYSTEM_LIBRARY}")
-if(FILESYSTEM_FOUND)
-    SET(SAIGA_USE_FILESYSTEM 1)
-endif()
+find_package(Filesystem REQUIRED)
+SET(SAIGA_USE_FILESYSTEM 1)
+#PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
+#if(FILESYSTEM_FOUND)
+#endif()
 
 
 #openmesh
@@ -110,3 +111,5 @@ set(CORE_INCLUDES ${PACKAGE_INCLUDES})
 set(CORE_LIBS ${LIBS})
 set(CORE_TARGETS ${LIB_TARGETS})
 set(MODULE_CORE 1)
+
+message(STATUS ${LIBS})

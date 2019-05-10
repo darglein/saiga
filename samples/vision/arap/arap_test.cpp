@@ -11,7 +11,7 @@
 #include "saiga/core/model/ModelLoader.h"
 #include "saiga/core/model/objModelLoader.h"
 #include "saiga/core/model/plyModelLoader.h"
-#include "saiga/core/time/Time"
+#include "saiga/core/time/all.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"

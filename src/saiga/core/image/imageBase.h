@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/util/Range.h"
 
 namespace Saiga
 {
@@ -43,6 +44,17 @@ struct SAIGA_CORE_API ImageBase
 
     HD inline ImageBase(int h, int w, int p) : width(w), height(h), pitchBytes(p) {}
 
+
+    /**
+     * Usefull for range-based iteration over the image.
+     * Example:
+     *
+     * for(auto i : img.rowRange())
+     *   for(auto j : img.colRange())
+     *      img(i,j) = 0;
+     */
+    HD inline Range<int> rowRange() { return {0, rows}; }
+    HD inline Range<int> colRange() { return {0, cols}; }
 
     // size in bytes
     HD inline size_t size() const { return height * pitchBytes; }

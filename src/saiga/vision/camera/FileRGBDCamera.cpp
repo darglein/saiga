@@ -14,16 +14,22 @@
 #include <thread>
 namespace Saiga
 {
-FileRGBDCamera::FileRGBDCamera(const std::string& datasetDir, double depthFactor, int maxFrames, int fps,
-                               const std::shared_ptr<DMPP>& dmpp)
-    : maxFrames(maxFrames)
+FileRGBDCamera::FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool _preload,
+                               bool multithreaded)
+    : RGBDCamera(intr)
 {
-    this->dmpp = dmpp;
     cout << "Loading File RGBD Dataset: " << datasetDir << endl;
 
-    load(datasetDir);
-
-    timeStep = std::chrono::duration_cast<tick_t>(std::chrono::duration<double, std::milli>(1000.0 / double(fps)));
+    if (_preload)
+    {
+        preload(datasetDir, multithreaded);
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("Not implemented!");
+    }
+    timeStep = std::chrono::duration_cast<tick_t>(
+        std::chrono::duration<double, std::milli>(1000.0 / double(intrinsics().fps)));
 
     timer.start();
     lastFrameTime = timer.stop();
@@ -35,11 +41,11 @@ FileRGBDCamera::~FileRGBDCamera()
     cout << "~FileRGBDCamera" << endl;
 }
 
-std::shared_ptr<RGBDCamera::FrameData> FileRGBDCamera::waitForImage()
+bool FileRGBDCamera::getImageSync(RGBDFrameData& data)
 {
     if (!isOpened())
     {
-        return nullptr;
+        return false;
     }
 
 
@@ -60,13 +66,14 @@ std::shared_ptr<RGBDCamera::FrameData> FileRGBDCamera::waitForImage()
     }
 
 
-    auto img = frames[currentId];
-    setNextFrame(*img);
-    return img;
+    auto&& img = frames[currentId];
+    setNextFrame(img);
+    data = std::move(img);
+    return true;
 }
 
 
-void FileRGBDCamera::load(const std::string& datasetDir)
+void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
 {
     Directory dir(datasetDir);
 
@@ -76,7 +83,6 @@ void FileRGBDCamera::load(const std::string& datasetDir)
     dir.getFiles(rgbImages, ".png");
     dir.getFiles(depthImages, ".saigai");
 
-    cout << "Found Color/Depth Images: " << rgbImages.size() << "/" << depthImages.size() << endl;
 
     SAIGA_ASSERT(rgbImages.size() == depthImages.size());
     SAIGA_ASSERT(rgbImages.size() > 0);
@@ -84,43 +90,56 @@ void FileRGBDCamera::load(const std::string& datasetDir)
     std::sort(rgbImages.begin(), rgbImages.end());
     std::sort(depthImages.begin(), depthImages.end());
 
-    if (maxFrames <= 0) maxFrames = rgbImages.size();
+    if (intrinsics().maxFrames <= 0) _intrinsics.maxFrames = rgbImages.size();
 
+    cout << "Found Color/Depth Images: " << rgbImages.size() << "/" << depthImages.size() << " Loading "
+         << _intrinsics.maxFrames << " images..." << endl;
 
-    frames.resize(maxFrames);
+    frames.resize(intrinsics().maxFrames);
 
-#pragma omp parallel for
-    for (int i = 0; i < maxFrames; ++i)
+#pragma omp parallel for if (multithreaded)
+    for (int i = 0; i < (int)frames.size(); ++i)
     {
         auto& f = frames[i];
+        makeFrameData(f);
 
-        RGBImageType cimg;
-        cimg.load(dir() + rgbImages[i]);
-        rgbo.h = cimg.h;
-        rgbo.w = cimg.w;
+        //        cout << "dir: " << dir() + rgbImages[i] << endl;
+        RGBImageType cimg(dir() + "/" + rgbImages[i]);
+        //        cimg.load(dir() + rgbImages[i]);
 
-
-        DepthImageType dimg;
-        dimg.load(dir() + depthImages[i]);
-        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
-        int targetW    = downScale ? dimg.w / 2 : dimg.w;
-        int targetH    = downScale ? dimg.h / 2 : dimg.h;
-        deptho.w       = targetW;
-        deptho.h       = targetH;
+        // make sure it matches the defined intrinsics
+        SAIGA_ASSERT(cimg.h == intrinsics().rgbo.h);
+        SAIGA_ASSERT(cimg.w == intrinsics().rgbo.w);
+        //        rgbo.h = cimg.h;
+        //        rgbo.w = cimg.w;
 
 
-        f = makeFrameData();
+        DepthImageType dimg(dir() + "/" + depthImages[i]);
+        //        dimg.load(dir() + depthImages[i]);
 
-        if (dmpp)
+        // make sure it matches the defined intrinsics
+        SAIGA_ASSERT(dimg.h == intrinsics().deptho.h);
+        SAIGA_ASSERT(dimg.w == intrinsics().deptho.w);
+
+        //        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
+        //        int targetW    = downScale ? dimg.w / 2 : dimg.w;
+        //        int targetH    = downScale ? dimg.h / 2 : dimg.h;
+        //        deptho.w       = targetW;
+        //        deptho.h       = targetH;
+
+
+
+        //        if (dmpp)
+        //        {
+        //            (*dmpp)(dimg, f->depthImg.getImageView());
+        //        }
+        //        else
         {
-            (*dmpp)(dimg, f->depthImg.getImageView());
-        }
-        else
-        {
-            f->depthImg.load(dir() + depthImages[i]);
+            //            f->depthImg.load(dir() + depthImages[i]);
         }
 
-        f->colorImg = cimg;
+        f.depthImg = std::move(dimg);
+        f.colorImg = std::move(cimg);
     }
 
     cout << "Loading done." << endl;

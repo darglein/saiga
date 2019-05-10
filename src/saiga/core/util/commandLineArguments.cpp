@@ -7,27 +7,42 @@
 #include "saiga/core/util/commandLineArguments.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
+
+#include <algorithm>
 namespace Saiga
 {
-std::string CommandLineArguments::get(std::string name)
+std::string CommandLineArguments::get(const std::string& name)
 {
     for (auto& arg : arguments)
     {
-        if (arg.long_name == name) return arg.value;
+        if (arg.longName == name)
+        {
+            SAIGA_ASSERT(arg.valid());
+            return arg.value;
+        }
     }
     SAIGA_ASSERT(0);
     return "";
 }
 
+long CommandLineArguments::getLong(const std::string& name)
+{
+    return Saiga::to_long(get(name));
+}
+
+bool CommandLineArguments::getFlag(const std::string& name)
+{
+    std::string value = get(name);
+    std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+    return (value == "1" || value == "on" || value == "true" || value == "yes");
+}
+
 void CommandLineArguments::parse(int argc, char* argv[])
 {
     SAIGA_ASSERT(argc >= 1);
-
-
-    cout << "parsing " << argc << " commandline arguments... " << endl;
-
     exePath = argv[0];
 
     for (int i = 1; i < argc; ++i)
@@ -90,7 +105,7 @@ void CommandLineArguments::parse(int argc, char* argv[])
         // find corresponding
         for (auto& arg : arguments)
         {
-            if ((longName && arg.long_name == name) || (!longName && arg.short_name == name[0]))
+            if ((longName && arg.longName == name) || (!longName && arg.shortName == name[0]))
             {
                 arg.value = value;
             }
@@ -100,29 +115,48 @@ void CommandLineArguments::parse(int argc, char* argv[])
 
 void CommandLineArguments::printHelp()
 {
-    cout << "CommandLineArguments Help" << endl;
+    SAIGA_ASSERT(!arguments.empty());
     for (auto& arg : arguments)
     {
-        if (arg.long_name != "")
+        if (arg.longName != "")
         {
-            cout << "[--" << arg.long_name << "]";
+            cout << "--" << arg.longName;
         }
-        if (arg.short_name != 0)
+        if (arg.shortName != 0)
         {
-            cout << "[-" << arg.short_name << "]";
+            cout << "  -" << arg.shortName;
+        }
+        cout << endl;
+
+        cout << "    Description: " << arg.description << endl;
+
+
+        {
+            cout << "    Default: " << arg.defaultValue << endl;
         }
 
-        cout << " " << arg.description;
-
-        if (arg.flag)
+        if (arg.isFlag)
         {
+            cout << "    Flag: yes" << endl;
         }
         else
         {
-            cout << " default=[" << arg.value << "]";
+            cout << "    Flag: no" << endl;
         }
+
+        if (arg.isRequired)
+        {
+            cout << "    Required: yes" << endl;
+        }
+        else
+        {
+            cout << "    Required: no" << endl;
+        }
+
+
         cout << endl;
     }
+    exit(0);
 }
 
 }  // namespace Saiga

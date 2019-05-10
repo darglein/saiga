@@ -1,6 +1,7 @@
 set(MODULE_NAME "saiga_vision")
 
 
+add_subdirectory(camera)
 add_subdirectory(ba)
 add_subdirectory(icp)
 add_subdirectory(kernels)
@@ -10,10 +11,6 @@ add_subdirectory(scene)
 
 if(MKL_FOUND)
     add_subdirectory(mkl)
-endif()
-
-if(OPENNI2_FOUND)
-    add_subdirectory(openni2)
 endif()
 
 if(G2O_FOUND)

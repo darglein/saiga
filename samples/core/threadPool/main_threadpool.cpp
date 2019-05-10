@@ -5,6 +5,7 @@
  */
 
 #include "saiga/core/Core.h"
+#include "saiga/core/util/SpinLock.h"
 
 #include <chrono>
 
@@ -55,7 +56,13 @@ int main(int argc, char* argv[])
     //    std::vector<char> asdf(100);
 
     //    testRingBuffer();
-    return 0;
+
+    SpinLock sl;
+
+    {
+        std::unique_lock l(sl);
+        // Critical Section
+    }
 
     createGlobalThreadPool(5);
 

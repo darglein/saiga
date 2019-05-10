@@ -30,7 +30,7 @@ PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 
 #Recursive
 find_package(EigenRecursive QUIET)
-PackageHelperTarget(EigenRecursive EIGENRECURSIVE_FOUND)
+PackageHelperTarget(Eigen::EigenRecursive EIGENRECURSIVE_FOUND)
 
 #g2o
 find_package(g2o QUIET)
@@ -64,12 +64,13 @@ PackageHelper(Cholmod ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIE
 #message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
 
 #mkl
-find_package(MKL QUIET)
-if(MKL_FOUND )
-    SET(SAIGA_USE_MKL 1)
+if(SAIGA_WITH_MKL)
+    find_package(MKL QUIET)
+    if(MKL_FOUND )
+        SET(SAIGA_USE_MKL 1)
+    endif()
+    PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")
 endif()
-PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")
-
 
 
 #openni2
@@ -96,4 +97,5 @@ if(EIGEN3_FOUND AND SOPHUS_FOUND AND EIGENRECURSIVE_FOUND)
     SET(MODULE_VISION 1)
     SET(SAIGA_VISION 1)
 endif()
+
 

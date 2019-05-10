@@ -166,7 +166,7 @@ class TriangleMesh
     size_t size();
     void free();
 
-    int numIndices(){return faces.size() * 3;}
+    int numIndices() { return faces.size() * 3; }
 
     AABB calculateAabb();
 
@@ -502,7 +502,7 @@ void TriangleMesh<vertex_t, index_t>::sortVerticesByPosition()
         return std::tie(p1.x, p1.y, p1.z) < std::tie(p2.x, p2.y, p2.z);
     });
 
-    std::vector<Vertex> new_vertices(vertices.size());
+    std::vector<vertex_t> new_vertices(vertices.size());
     for (int i = 0; i < (int)new_vertices.size(); ++i)
     {
         new_vertices[i]              = vertices[tmp_indices[i]];
@@ -525,7 +525,7 @@ void TriangleMesh<vertex_t, index_t>::removeSubsequentDuplicates()
 
     std::vector<int> tmp_indices(vertices.size());
     std::vector<bool> valid(vertices.size(), false);
-    std::vector<Vertex> new_vertices;
+    std::vector<vertex_t> new_vertices;
 
     int currentIdx = -1;
     vec4 currentPos;

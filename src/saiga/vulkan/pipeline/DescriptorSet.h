@@ -47,6 +47,7 @@ class SAIGA_VULKAN_API DescriptorSet
 
     inline operator vk::ArrayProxy<const vk::DescriptorSet>() { return descriptorSet; }
     inline operator vk::DescriptorSet() { return descriptorSet; }
+    inline operator bool() { return descriptorSet; }
     virtual void update() = 0;
 
     void assign(uint32_t index, UniformBuffer* buffer);

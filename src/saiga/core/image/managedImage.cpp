@@ -47,16 +47,18 @@ void Image::create()
 
 void Image::create(int h, int w)
 {
-    height = h;
-    width  = w;
+    pitchBytes = 0;
+    height     = h;
+    width      = w;
     create();
 }
 
 void Image::create(int h, int w, ImageType t)
 {
-    height = h;
-    width  = w;
-    type   = t;
+    pitchBytes = 0;
+    height     = h;
+    width      = w;
+    type       = t;
     create();
 }
 
@@ -83,7 +85,7 @@ void Image::makeZero()
     std::fill(vdata.begin(), vdata.end(), 0);
 }
 
-bool Image::valid()
+bool Image::valid() const
 {
     return width > 0 && height > 0 && pitchBytes > 0 && type != TYPE_UNKNOWN && size() == vdata.size();
 }
@@ -146,7 +148,7 @@ bool Image::loadFromMemory(ArrayView<const char> data)
     return erg;
 }
 
-bool Image::save(const std::string& path)
+bool Image::save(const std::string& path) const
 {
     SAIGA_ASSERT(valid());
 
@@ -219,7 +221,7 @@ bool Image::loadRaw(const std::string& path)
     return true;
 }
 
-bool Image::saveRaw(const std::string& path)
+bool Image::saveRaw(const std::string& path) const
 {
     std::fstream stream;
 
@@ -272,56 +274,6 @@ std::vector<uint8_t> Image::compress()
 void Image::decompress(std::vector<uint8_t> data)
 {
     decompressImageSTB(*this, data);
-}
-
-
-
-bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax)
-{
-    TemplatedImage<float> cpy(img);
-    auto vcpy = cpy.getImageView();
-    vcpy.add(-vmin);
-    vcpy.multWithScalar(float(1) / (vmax - vmin));
-
-    TemplatedImage<ucvec3> simg(img.height, img.width);
-    for (int i = 0; i < img.height; ++i)
-    {
-        for (int j = 0; j < img.width; ++j)
-        {
-            float f = clamp(vcpy(i, j), 0.0f, 1.0f);
-
-            //            vec3 hsv = vec3(f,1,1);
-            vec3 hsv(f * (240.0 / 360.0), 1, 1);
-            Saiga::Color c(Color::hsv2rgb(hsv));
-            //            unsigned char c = Saiga::iRound(f * 255.0f);
-            simg(i, j)[0] = c.r;
-            simg(i, j)[1] = c.g;
-            simg(i, j)[2] = c.b;
-        }
-    }
-    return simg.save(path);
-}
-
-
-bool save(const std::string& path, ImageView<float> img, float vmin, float vmax)
-{
-    TemplatedImage<float> cpy(img);
-    auto vcpy = cpy.getImageView();
-
-    vcpy.add(-vmin);
-    vcpy.multWithScalar(float(1) / (vmax - vmin));
-
-    TemplatedImage<unsigned char> simg(img.height, img.width);
-    for (int i = 0; i < img.height; ++i)
-    {
-        for (int j = 0; j < img.width; ++j)
-        {
-            float f         = clamp(vcpy(i, j), 0.0f, 1.0f);
-            unsigned char c = Saiga::iRound(f * 255.0f);
-            simg(i, j)      = c;
-        }
-    }
-    return simg.save(path);
 }
 
 

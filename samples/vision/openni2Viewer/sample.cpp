@@ -15,8 +15,7 @@
 #include "saiga/core/util/threadPool.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/extra/network/RGBDCameraNetwork.h"
-#include "saiga/vision/FileRGBDCamera.h"
-#include "saiga/vision/openni2/RGBDCameraInput.h"
+#include "saiga/vision/camera/all.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
@@ -44,11 +43,13 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 void VulkanExample::update(float dt)
 {
     if (!rgbdcamera) return;
-    auto newFrameData = rgbdcamera->tryGetImage();
 
-    if (newFrameData)
+    Saiga::RGBDFrameData newFrameData;
+    auto gotFrame = rgbdcamera->getImage(newFrameData);
+
+    if (gotFrame)
     {
-        frameData     = newFrameData;
+        frameData     = std::move(newFrameData);
         updateTexture = true;
         tg.addTime();
 
@@ -57,8 +58,8 @@ void VulkanExample::update(float dt)
             auto str = Saiga::leadingZeroString(frameId, 5);
             auto tmp = frameData;
             Saiga::globalThreadPool->enqueue([=]() {
-                tmp->colorImg.save(std::string(dir) + str + ".png");
-                tmp->depthImg.save(std::string(dir) + str + ".saigai");
+                tmp.colorImg.save(std::string(dir) + str + ".png");
+                tmp.depthImg.save(std::string(dir) + str + ".saigai");
             });
         }
         frameId++;
@@ -77,10 +78,11 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
-        frameData = rgbdcamera->waitForImage();
+        bool gotImage = rgbdcamera->getImageSync(frameData);
 
+        cout << "create image texture: " << frameData.depthImg.height << "x" << frameData.depthImg.width << endl;
 
-        rgbImage.create(frameData->colorImg.h, frameData->colorImg.w);
+        rgbImage.create(frameData.colorImg.h, frameData.colorImg.w);
         //    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
         texture = std::make_shared<Saiga::Vulkan::Texture2D>();
@@ -89,8 +91,10 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
 
         texture2 = std::make_shared<Saiga::Vulkan::Texture2D>();
         //    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
-        depthmg.create(frameData->depthImg.height, frameData->depthImg.width);
-        Saiga::ImageTransformation::depthToRGBA(frameData->depthImg.getImageView(), depthmg.getImageView(), 0, 7000);
+        depthmg.create(frameData.depthImg.height, frameData.depthImg.width);
+        cout << frameData.depthImg << endl;
+        cout << depthmg << endl;
+        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg.getImageView(), depthmg.getImageView(), 0, 7000);
         texture2->fromImage(renderer.base(), depthmg);
 
 
@@ -104,8 +108,8 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
 
     if (updateTexture)
     {
-        texture->uploadImage(frameData->colorImg, true);
-        Saiga::ImageTransformation::depthToRGBA(frameData->depthImg, depthmg, 0, 8);
+        texture->uploadImage(frameData.colorImg, true);
+        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, depthmg, 0, 8);
         texture2->uploadImage(depthmg, true);
         updateTexture = false;
     }
@@ -119,9 +123,9 @@ void VulkanExample::render(vk::CommandBuffer cmd)
     if (textureDisplay.bind(cmd))
     {
         textureDisplay.renderTexture(cmd, textureDes, vec2(0, 0),
-                                     vec2(frameData->colorImg.width, frameData->colorImg.height));
-        textureDisplay.renderTexture(cmd, textureDes2, vec2(frameData->colorImg.width, 0),
-                                     vec2(frameData->depthImg.width, frameData->depthImg.height));
+                                     vec2(frameData.colorImg.width, frameData.colorImg.height));
+        textureDisplay.renderTexture(cmd, textureDes2, vec2(frameData.colorImg.width, 0),
+                                     vec2(frameData.depthImg.width, frameData.depthImg.height));
     }
 }
 
@@ -138,31 +142,47 @@ void VulkanExample::renderGUI()
 
 
     ImGui::InputText("Output Dir", dir, 256);
-    if (ImGui::Checkbox("Capture", &capturing))
-    {
-        frameId = 0;
-    }
 
-    if (ImGui::Button("Load From File"))
-    {
-        rgbdcamera  = std::make_unique<Saiga::FileRGBDCamera>("recording/");
-        initTexture = true;
-    }
-
-    static int depthWidth  = 640;
-    static int depthHeight = 480;
+    static int depthWidth  = 320;
+    static int depthHeight = 240;
+    static int fps         = 30;
 
     ImGui::InputInt("depthWidth", &depthWidth);
     ImGui::InputInt("depthHeight", &depthHeight);
+    ImGui::InputInt("fps", &fps);
+
+    Saiga::RGBDIntrinsics intr;
+    intr.deptho.w = depthWidth;
+    intr.deptho.h = depthHeight;
+    intr.fps      = fps;
+
+
+
+    if (ImGui::Checkbox("Capture", &capturing))
+    {
+        if (capturing)
+        {
+            std::filesystem::remove_all(std::string(dir));
+            std::filesystem::create_directory(std::string(dir));
+            intr.fromConfigFile(std::string(dir) + "config.ini");
+            frameId = 0;
+        }
+    }
+
+
+
+    if (ImGui::Button("Load From File"))
+    {
+        intr.fromConfigFile(std::string(dir) + "config.ini");
+        rgbdcamera  = std::make_unique<Saiga::FileRGBDCamera>(dir, intr);
+        initTexture = true;
+    }
 
     if (ImGui::Button("Openni"))
     {
-        Saiga::RGBDCameraInput::CameraOptions co1, co2;
-        co2.w = depthWidth;
-        co2.h = depthHeight;
-
-        rgbdcamera  = std::make_unique<Saiga::RGBDCameraInput>(co1, co2);
-        initTexture = true;
+        intr.depthFactor = 1000.0;
+        rgbdcamera       = std::make_unique<Saiga::RGBDCameraOpenni>(intr);
+        initTexture      = true;
     }
 
     if (ImGui::Button("Clear"))
@@ -172,7 +192,7 @@ void VulkanExample::renderGUI()
 
     ImGui::Text("Frame: %d", frameId);
 
-    Saiga::RGBDCameraInput* cam = dynamic_cast<Saiga::RGBDCameraInput*>(rgbdcamera.get());
+    Saiga::RGBDCameraOpenni* cam = dynamic_cast<Saiga::RGBDCameraOpenni*>(rgbdcamera.get());
     if (cam)
     {
         cam->imgui();

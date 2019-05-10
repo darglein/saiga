@@ -8,8 +8,9 @@
 
 #include "saiga/config.h"
 #include "saiga/core/time/timer.h"
-#include "saiga/vision/RGBDCamera.h"
 #include "saiga/vision/VisionTypes.h"
+
+#include "RGBDCamera.h"
 
 
 namespace Saiga
@@ -40,13 +41,12 @@ class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };
 
-    TumRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1, int fps = 30,
-                  const std::shared_ptr<DMPP>& dmpp = nullptr);
+    TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr);
     ~TumRGBDCamera();
     /**
      * Blocks until a new image arrives.
      */
-    virtual std::shared_ptr<FrameData> waitForImage() override;
+    virtual bool getImageSync(RGBDFrameData& data) override;
 
 
     SE3 getGroundTruth(int frame);
@@ -62,10 +62,8 @@ class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
     void associateFromFile(const std::string& datasetDir);
     void load(const std::string& datasetDir);
 
-    double depthFactor;
-    int maxFrames;
 
-    std::vector<std::shared_ptr<FrameData>> frames;
+    std::vector<RGBDFrameData> frames;
     AlignedVector<TumFrame> tumframes;
 
     Timer timer;

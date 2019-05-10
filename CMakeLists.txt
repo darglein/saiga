@@ -31,7 +31,6 @@ OptionsHelper (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
 OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" ON)
 OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON)
 OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON)
-OptionsHelper (SAIGA_WITH_CUDA "use cuda if possible" ON)
 OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF)
 OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF)
 OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON)
@@ -39,8 +38,6 @@ OptionsHelper (SAIGA_CUDA_BLSP "enables cublas and cusparse" OFF)
 OptionsHelper (SAIGA_CUDA_RDC "cuda relocateable device code" OFF)
 OptionsHelper (SAIGA_CUDA_COMP "Add CUDA compile flags that make the code compatible with older GPUs but takes longer to compile" OFF)
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
-OptionsHelper(SAIGA_WITH_GL "With opengl (if it is found)" ON)
-OptionsHelper(SAIGA_WITH_VULKAN "With vulkan (if it is found)" ON)
 OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
 OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
 OptionsHelper(SAIGA_FULL_EIGEN "Use the eigen library for CG math instead of GLM" OFF)
@@ -57,6 +54,8 @@ OptionsHelper(SAIGA_MODULE_EXTRA  "Build the extra module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_VISION "Build the vision module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_CUDA   "Build the cuda module, if possible." ON)
 
+OptionsHelper(SAIGA_WITH_MKL "Build the MKL library, if possible." OFF)
+
 
 DefaultBuildType(RelWithDebInfo)
 
@@ -69,13 +68,34 @@ if(SAIGA_PCH)
 endif()
 
 ####### Dependencies #######
-include (Dependencies_core)
+
+unset(MODULE_CORE)
+unset(MODULE_CUDA)
+unset(MODULE_EXTRA)
+unset(MODULE_OPENGL)
+unset(MODULE_VISION)
+unset(MODULE_VULKAN)
+
+if(SAIGA_MODULE_CORE)
+    include (Dependencies_core)
+endif()
+
 if(MODULE_CORE)
-    include (Dependencies_cuda)
-    include (Dependencies_extra)
-    include (Dependencies_opengl)
-    include (Dependencies_vision)
-    include (Dependencies_vulkan)
+    if(SAIGA_MODULE_CUDA)
+        include (Dependencies_cuda)
+    endif()
+    if(SAIGA_MODULE_EXTRA)
+        include (Dependencies_extra)
+    endif()
+    if(SAIGA_MODULE_OPENGL)
+        include (Dependencies_opengl)
+    endif()
+    if(SAIGA_MODULE_VISION)
+        include (Dependencies_vision)
+    endif()
+    if(SAIGA_MODULE_VULKAN)
+        include (Dependencies_vulkan)
+    endif()
 endif()
 
 ############# INSTALL PATHS ###############
@@ -127,23 +147,29 @@ endif()
 
 if(SAIGA_NO_INSTALL)
     set(SAIGA_SHADER_PREFIX "${PROJECT_SOURCE_DIR}/shader")
+    set(SAIGA_INCLUDE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/src")
+    set(SAIGA_LIB_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/bin")
+    set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/include")
 
-    set(SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL "${CMAKE_CURRENT_BINARY_DIR}/SAIGAConfig.cmake")
-    configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfigNoInstall.cmake.in"
-        "${SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL}"
-        @ONLY
-        )
+    #set(SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL "${CMAKE_CURRENT_BINARY_DIR}/SAIGAConfig.cmake")
+    #configure_file(
+     #   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfigNoInstall.cmake.in"
+      #  "${SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL}"
+       # @ONLY
+        #)
 else()
     set(SAIGA_SHADER_PREFIX "${CMAKE_INSTALL_PREFIX}/share/saiga/shader")
+    set(SAIGA_INCLUDE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/include")
+    set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/include")
+    set(SAIGA_LIB_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/lib")
 endif()
 
 STRING(REGEX REPLACE "\\\\" "/" SAIGA_SHADER_PREFIX ${SAIGA_SHADER_PREFIX} )
 STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} )
 
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
-set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga_buildconfig.h")
-set(SAIGA_MODULES_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga_modules.h")
+set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_buildconfig.h")
+set(SAIGA_MODULES_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_modules.h")
 INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
 configure_file (
     "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_buildconfig.h.in"

@@ -13,7 +13,7 @@
 #include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/window/Interfaces.h"
-#include "saiga/vision/RGBDCamera.h"
+#include "saiga/vision/camera/RGBDCamera.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
@@ -38,7 +38,7 @@ class VulkanExample : public Saiga::Updating,
     virtual void renderGUI() override;
 
    private:
-    std::shared_ptr<Saiga::RGBDCamera::FrameData> frameData;
+    Saiga::RGBDFrameData frameData;
     std::unique_ptr<Saiga::RGBDCamera> rgbdcamera;
 
     Saiga::TemplatedImage<ucvec4> rgbImage;
@@ -55,8 +55,8 @@ class VulkanExample : public Saiga::Updating,
     bool updateTexture = false;
     bool initTexture   = false;
 
-    vk::DescriptorSet textureDes;
-    vk::DescriptorSet textureDes2;
+    Saiga::Vulkan::StaticDescriptorSet textureDes;
+    Saiga::Vulkan::StaticDescriptorSet textureDes2;
     Saiga::Vulkan::TextureDisplay textureDisplay;
 
     Saiga::Vulkan::VulkanForwardRenderer& renderer;

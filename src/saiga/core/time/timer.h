@@ -100,7 +100,7 @@ class SAIGA_CORE_API ScopedTimerPrint : public Timer
 };
 
 
-template <typename Unit = std::chrono::milliseconds, typename T = double>
+template <typename T = float, typename Unit = std::chrono::milliseconds>
 class ScopedTimer : public Timer
 {
     static_assert(std::is_arithmetic_v<T>);
@@ -125,7 +125,7 @@ class ScopedTimer : public Timer
 template <typename Unit = std::chrono::milliseconds, typename T = double>
 auto make_scoped_timer(T& target)
 {
-    return ScopedTimer<Unit, T>(target);
+    return ScopedTimer<T, Unit>(target);
 }
 
 }  // namespace Saiga

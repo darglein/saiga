@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/util/synchronizedBuffer.h"
+#include "saiga/core/util/SynchronizedBuffer.h"
 #include "saiga/core/util/threadName.h"
 
 #include <mutex>

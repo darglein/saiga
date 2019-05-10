@@ -3,12 +3,12 @@
 # SAIGA_FOUND
 # SAIGA_INCLUDE_DIRS
 # SAIGA_LIBRARIES
-# SAIGA_LIBRARY
+# SAIGA_LIBRARY2
 
 
 find_path(SAIGA_INCLUDE_DIRS 
 	NAMES 
-                saiga/core/Core
+                saiga/core/Core.h
 	PATHS
                 @PROJECT_SOURCE_DIR@/src
 )
@@ -125,11 +125,12 @@ set_target_properties(${_target} PROPERTIES
 
 endmacro()
 
-
-saiga_make_target(saiga_core   "${SAIGA_CORE_LIBRARY}"   SAIGA_LIBRARIES "saiga_core.so")
-saiga_make_target(saiga_vision "${SAIGA_VISION_LIBRARY}" SAIGA_LIBRARIES "saiga_vision.so")
-saiga_make_target(saiga_vulkan "${SAIGA_VULKAN_LIBRARY}" SAIGA_LIBRARIES "saiga_vulkan.so")
-saiga_make_target(saiga_extra  "${SAIGA_EXTRA_LIBRARY}"  SAIGA_LIBRARIES "saiga_extra.so")
-saiga_make_target(saiga_opengl "${SAIGA_OPENGL_LIBRARY}" SAIGA_LIBRARIES "saiga_opengl.so")
+if(@MODULE_CORE@)
+saiga_make_target(Saiga::saiga_core   "${SAIGA_CORE_LIBRARY}"   SAIGA_LIBRARIES "saiga_core.so")
+endif()
+saiga_make_target(Saiga::saiga_vision "${SAIGA_VISION_LIBRARY}" SAIGA_LIBRARIES "saiga_vision.so")
+saiga_make_target(Saiga::saiga_vulkan "${SAIGA_VULKAN_LIBRARY}" SAIGA_LIBRARIES "saiga_vulkan.so")
+saiga_make_target(Saiga::saiga_extra  "${SAIGA_EXTRA_LIBRARY}"  SAIGA_LIBRARIES "saiga_extra.so")
+saiga_make_target(Saiga::saiga_opengl "${SAIGA_OPENGL_LIBRARY}" SAIGA_LIBRARIES "saiga_opengl.so")
 
 

@@ -7,13 +7,14 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/image/image.h"
-#include "saiga/core/util/synchronizedBuffer.h"
 
-#include <thread>
+#ifdef SAIGA_USE_OPENNI2
+#    include "saiga/core/image/image.h"
+#    include "saiga/core/util/SynchronizedBuffer.h"
 
-#ifdef SAIGA_VISION
-#    include "saiga/vision/RGBDCamera.h"
+#    include "RGBDCamera.h"
+
+#    include <thread>
 
 // Use shared pointer of openni objects so that we don't have to include the header here
 namespace openni
@@ -25,29 +26,36 @@ class VideoFrameRef;
 
 namespace Saiga
 {
-class SAIGA_VISION_API RGBDCameraInput : public RGBDCamera
+class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
 {
    public:
-    RGBDCameraInput(CameraOptions rgbo, CameraOptions deptho, const std::shared_ptr<DMPP>& dmpp = {},
-                    float depthFactor = 1.0 / 1000.0);
-    virtual ~RGBDCameraInput();
+    RGBDCameraOpenni(const RGBDIntrinsics& intr);
+    virtual ~RGBDCameraOpenni();
 
 
 
     /**
      * Blocks until a new image arrives.
      */
-    virtual std::shared_ptr<FrameData> waitForImage() override;
+    virtual bool getImageSync(RGBDFrameData& data) override;
 
     /**
      * Tries to return the last dslr image.
      * If none are ready a nullptr is returned.
      */
-    virtual std::shared_ptr<FrameData> tryGetImage() override;
+    virtual bool getImage(RGBDFrameData& data) override;
 
 
     virtual void close() override;
     virtual bool isOpened() override;
+
+
+
+    /**
+     * Tries to open a camera and set the given parameters.
+     * Returns true if it was sucessfull.
+     */
+    bool tryOpen();
 
     // The user can change these variables, but must call 'updateCameraSettings' to make the take effect
     bool autoexposure = true;
@@ -61,19 +69,20 @@ class SAIGA_VISION_API RGBDCameraInput : public RGBDCamera
     void imgui();
 
    private:
-    SynchronizedBuffer<std::shared_ptr<FrameData>> frameBuffer;
+    //    SynchronizedBuffer<std::unique_ptr<RGBDFrameData>> frameBuffer;
+
+    //    std::unique_ptr<RGBDFrameData> tmp;
 
     std::shared_ptr<openni::Device> device;
     std::shared_ptr<openni::VideoStream> depth, color;
     std::shared_ptr<openni::VideoFrameRef> m_depthFrame, m_colorFrame;
 
-    bool open();
     void resetCamera();
-    bool waitFrame(FrameData& data);
+    bool waitFrame(RGBDFrameData& data, bool wait);
     bool readDepth(DepthImageType::ViewType depthImg);
     bool readColor(RGBImageType::ViewType colorImg);
 
-    std::thread eventThread;
+    //    std::thread eventThread;
 
     bool foundCamera = false;
     bool running     = false;

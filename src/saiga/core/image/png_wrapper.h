@@ -57,7 +57,7 @@ struct SAIGA_CORE_API PngImage
 //    SAIGA_LOCAL void convert(Image &src, PNG::PngImage &dst);
 
 
-SAIGA_LOCAL bool save(Image& img, const std::string& path, bool invertY = false);
+SAIGA_LOCAL bool save(const Image& img, const std::string& path, bool invertY = false);
 SAIGA_LOCAL bool load(Image& img, const std::string& path, bool invertY = false);
 
 }  // namespace PNG

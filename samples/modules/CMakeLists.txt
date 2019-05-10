@@ -1,6 +1,7 @@
 
 if (EIGEN3_FOUND)
     add_subdirectory(eigen)
+    add_subdirectory(stress_test)
 endif ()
 
 

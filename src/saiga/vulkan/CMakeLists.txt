@@ -21,8 +21,8 @@ else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
 endif()
 
-target_link_libraries(${MODULE_NAME} ${VULKAN_TARGETS}  ${VULKAN_LIBS})
-
+target_link_libraries(${MODULE_NAME} PUBLIC ${VULKAN_TARGETS}  ${VULKAN_LIBS})
+target_link_libraries(${MODULE_NAME} PRIVATE std::filesystem)
 
 target_include_directories(
     ${MODULE_NAME}

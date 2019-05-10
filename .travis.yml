@@ -1,14 +1,14 @@
 sudo: required
-
+dist: xenial
 services:
   - docker
 
 # It is not really needed, other than for showing correct language tag in Travis CI build log.
 language: cpp
 
+# - SAIGA_CXX=clang++-7 CXX_PACKAGE=clang-7
 env:
     - SAIGA_CXX=g++-8 CXX_PACKAGE=g++-8
-    - SAIGA_CXX=clang++-7 CXX_PACKAGE=clang-7
 
 before_install:
   - docker run -d --name ubuntu-test -v $(pwd):/travis ubuntu:latest tail -f /dev/null

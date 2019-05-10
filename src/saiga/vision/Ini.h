@@ -63,9 +63,23 @@ std::string toIniString(const Intrinsics4Base<_Scalar>& I)
 }
 
 template <typename _Scalar>
+std::string toIniString(const StereoCamera4Base<_Scalar>& I)
+{
+    return toIniString(I.coeffs());
+}
+
+template <typename _Scalar>
 void fromIniString(const std::string& str, Intrinsics4Base<_Scalar>& I)
 {
     typename Intrinsics4Base<_Scalar>::Vec4 v;
+    fromIniString(str, v);
+    I.coeffs(v);
+}
+
+template <typename _Scalar>
+void fromIniString(const std::string& str, StereoCamera4Base<_Scalar>& I)
+{
+    typename StereoCamera4Base<_Scalar>::Vec5 v;
     fromIniString(str, v);
     I.coeffs(v);
 }

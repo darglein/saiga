@@ -7,6 +7,7 @@
 #pragma once
 
 
+#include "commandLineArguments.h"
 #include "crash.h"
 #include "ini/ini.h"
 #include "pipeline.h"

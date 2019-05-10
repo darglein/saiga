@@ -8,8 +8,9 @@
 
 #include "saiga/config.h"
 #include "saiga/core/time/timer.h"
-#include "saiga/vision/RGBDCamera.h"
 #include "saiga/vision/VisionTypes.h"
+
+#include "RGBDCamera.h"
 
 
 namespace Saiga
@@ -17,25 +18,24 @@ namespace Saiga
 class SAIGA_VISION_API FileRGBDCamera : public RGBDCamera
 {
    public:
-    FileRGBDCamera(const std::string& datasetDir, double depthFactor = 1.0 / 5000, int maxFrames = -1, int fps = 30,
-                   const std::shared_ptr<DMPP>& dmpp = nullptr);
+    FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool preload = true,
+                   bool multithreaded = true);
     ~FileRGBDCamera();
     /**
      * Blocks until a new image arrives.
      */
-    virtual std::shared_ptr<FrameData> waitForImage() override;
+    virtual bool getImageSync(RGBDFrameData& data) override;
 
 
     virtual bool isOpened() override { return currentId < (int)frames.size(); }
 
     size_t getFrameCount() { return frames.size(); }
 
-    void load(const std::string& datasetDir);
 
    private:
-    int maxFrames;
+    void preload(const std::string& datasetDir, bool multithreaded);
 
-    std::vector<std::shared_ptr<FrameData>> frames;
+    std::vector<RGBDFrameData> frames;
 
     Timer timer;
     tick_t timeStep;

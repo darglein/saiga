@@ -184,14 +184,17 @@ inline void performSingleAllocs(int repetitions, int allocCount, int allocSizeKB
 
             {
                 times.push_back(0.0);
-                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
-                location = performAlloc(type, allocator, allocSizeKB * 1024);
+                //                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
+                auto timer = Saiga::make_scoped_timer<std::chrono::microseconds>(times.back());
+                location   = performAlloc(type, allocator, allocSizeKB * 1024);
             }
             if (location)
             {
                 {
                     times_dealloc.push_back(0.0);
-                    Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times_dealloc.back());
+                    auto timer = Saiga::make_scoped_timer<std::chrono::microseconds>(times_dealloc.back());
+                    //                    Saiga::ScopedTimer<std::chrono::microseconds, double>
+                    //                    timer(times_dealloc.back());
                     allocator.deallocate(location);
                 }
             }
@@ -213,7 +216,7 @@ inline void performMassAllocs(int repetitions, int allocCount, int allocSizeKB, 
         {
             {
                 times.push_back(0.0);
-                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
+                auto timer = Saiga::make_scoped_timer<std::chrono::microseconds>(times.back());
                 for (int i = 0; i < allocCount; i++)
                 {
                     locations.push_back(bca.allocate(allocSizeKB * 1024U));
@@ -221,7 +224,7 @@ inline void performMassAllocs(int repetitions, int allocCount, int allocSizeKB, 
             }
             {
                 times_dealloc.push_back(0.0);
-                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times_dealloc.back());
+                auto timer = Saiga::make_scoped_timer<std::chrono::microseconds>(times_dealloc.back());
                 for (auto* location : locations)
                 {
                     bca.deallocate(location);
@@ -232,7 +235,8 @@ inline void performMassAllocs(int repetitions, int allocCount, int allocSizeKB, 
         {
             {
                 times.push_back(0.0);
-                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
+                //                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
+                auto timer = Saiga::make_scoped_timer<std::chrono::microseconds>(times.back());
                 for (int i = 0; i < allocCount; i++)
                 {
                     locations.push_back(ua.allocate(type, (allocSizeKB * 1024U)));
@@ -240,7 +244,8 @@ inline void performMassAllocs(int repetitions, int allocCount, int allocSizeKB, 
             }
             {
                 times_dealloc.push_back(0.0);
-                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times_dealloc.back());
+                //                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times_dealloc.back());
+                auto timer = Saiga::make_scoped_timer<std::chrono::microseconds>(times_dealloc.back());
                 for (auto* location : locations)
                 {
                     ua.deallocate(location);
@@ -565,7 +570,9 @@ void VulkanExample::fragmentationProfiling()
                     for (int alloc = 0; alloc < numAllocs; ++alloc)
                     {
                         times.push_back(0.0);
-                        Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
+                        //                        Saiga::ScopedTimer<std::chrono::microseconds, double>
+                        //                        timer(times.back());
+                        auto timer = Saiga::make_scoped_timer<std::chrono::microseconds>(times.back());
                         locations.push_back(bca.allocate(size_dist(test_rand) * 128U * 1024U));
                     }
                 }

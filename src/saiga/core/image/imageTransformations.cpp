@@ -6,7 +6,11 @@
 
 #include "imageTransformations.h"
 
+#include "saiga/core/util/color.h"
+
 #include "internal/noGraphicsAPI.h"
+
+#include "templatedImage.h"
 
 namespace Saiga
 {
@@ -88,6 +92,57 @@ void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> dst, float scale)
 {
     src.copyToTransform(dst, RGBATOGRAYFTrans(scale));
 }
+
+
+bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax)
+{
+    TemplatedImage<float> cpy(img);
+    auto vcpy = cpy.getImageView();
+    vcpy.add(-vmin);
+    vcpy.multWithScalar(float(1) / (vmax - vmin));
+
+    TemplatedImage<ucvec3> simg(img.height, img.width);
+    for (int i = 0; i < img.height; ++i)
+    {
+        for (int j = 0; j < img.width; ++j)
+        {
+            float f = clamp(vcpy(i, j), 0.0f, 1.0f);
+
+            //            vec3 hsv = vec3(f,1,1);
+            vec3 hsv(f * (240.0 / 360.0), 1, 1);
+            Saiga::Color c(Color::hsv2rgb(hsv));
+            //            unsigned char c = Saiga::iRound(f * 255.0f);
+            simg(i, j)[0] = c.r;
+            simg(i, j)[1] = c.g;
+            simg(i, j)[2] = c.b;
+        }
+    }
+    return simg.save(path);
+}
+
+
+bool save(const std::string& path, ImageView<float> img, float vmin, float vmax)
+{
+    TemplatedImage<float> cpy(img);
+    auto vcpy = cpy.getImageView();
+
+    vcpy.add(-vmin);
+    vcpy.multWithScalar(float(1) / (vmax - vmin));
+
+    TemplatedImage<unsigned char> simg(img.height, img.width);
+    for (int i = 0; i < img.height; ++i)
+    {
+        for (int j = 0; j < img.width; ++j)
+        {
+            float f         = clamp(vcpy(i, j), 0.0f, 1.0f);
+            unsigned char c = Saiga::iRound(f * 255.0f);
+            simg(i, j)      = c;
+        }
+    }
+    return simg.save(path);
+}
+
+
 
 }  // namespace ImageTransformation
 }  // namespace Saiga

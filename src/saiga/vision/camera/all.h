@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include "saiga/saiga_modules.h"
-
-#ifdef SAIGA_USE_FILESYSTEM
-#    include <filesystem>
-#endif
+#include "FileRGBDCamera.h"
+#include "RGBDCamera.h"
+#include "RGBDCameraOpenni.h"
+#include "TumRGBDCamera.h"

@@ -88,9 +88,11 @@ if(CUDA_FOUND)
         #endif()
     endif()
 
+    set(MODULE_CUDA 1)
 
 else()
     SET(SAIGA_USE_CUDA 0)
+    set(MODULE_CUDA 0)
 endif()
 
 #PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
@@ -106,4 +108,3 @@ set(CUDA_INCLUDES ${PACKAGE_INCLUDES})
 set(CUDA_LIBS ${LIBS})
 set(CUDA_TARGETS ${LIB_TARGETS})
 
-set(MODULE_CUDA 0)

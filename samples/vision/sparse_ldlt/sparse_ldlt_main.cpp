@@ -8,7 +8,7 @@
 #define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
 
 
-#include "saiga/core/time/Time"
+#include "saiga/core/time/all.h"
 #include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"

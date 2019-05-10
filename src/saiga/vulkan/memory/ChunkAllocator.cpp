@@ -16,7 +16,7 @@ T* ChunkAllocator<T>::base_allocate(vk::DeviceSize size)
 
     double time;
     {
-        Saiga::ScopedTimer<std::chrono::microseconds> timer(time);
+        auto timer                      = make_scoped_timer<std::chrono::microseconds>(time);
         std::tie(chunkAlloc, freeSpace) = strategy->findRange(chunks.begin(), chunks.end(), size);
     }
     totalTime += time;
