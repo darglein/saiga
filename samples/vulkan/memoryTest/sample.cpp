@@ -191,14 +191,14 @@ inline void performSingleAllocs(int repetitions, int allocCount, int allocSizeKB
 
             {
                 times.push_back(0.0);
-                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
                 location = performAlloc(type, allocator, allocSizeKB * 1024);
             }
             if (location)
             {
                 {
                     times_dealloc.push_back(0.0);
-                    Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                    Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times_dealloc.back());
                     allocator.deallocate(location);
                 }
             }
@@ -220,7 +220,7 @@ inline void performMassAllocs(int repetitions, int allocCount, int allocSizeKB, 
         {
             {
                 times.push_back(0.0);
-                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
                 for (int i = 0; i < allocCount; i++)
                 {
                     locations.push_back(bca.allocate(allocSizeKB * 1024U));
@@ -228,7 +228,7 @@ inline void performMassAllocs(int repetitions, int allocCount, int allocSizeKB, 
             }
             {
                 times_dealloc.push_back(0.0);
-                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times_dealloc.back());
                 for (auto* location : locations)
                 {
                     bca.deallocate(location);
@@ -239,7 +239,7 @@ inline void performMassAllocs(int repetitions, int allocCount, int allocSizeKB, 
         {
             {
                 times.push_back(0.0);
-                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times.back());
+                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
                 for (int i = 0; i < allocCount; i++)
                 {
                     locations.push_back(ua.allocate(type, (allocSizeKB * 1024U)));
@@ -247,7 +247,7 @@ inline void performMassAllocs(int repetitions, int allocCount, int allocSizeKB, 
             }
             {
                 times_dealloc.push_back(0.0);
-                Saiga::ScopedTimer<double, Saiga::TimerUnits::MicroS> timer(times_dealloc.back());
+                Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times_dealloc.back());
                 for (auto* location : locations)
                 {
                     ua.deallocate(location);
@@ -277,6 +277,53 @@ void VulkanExample::renderGUI()
     ImGui::Text("%d", auto_allocs);
 
     //    static bool singleAllocs = true;
+    speedProfiling();
+    fragmentationProfiling();
+
+    if (ImGui::Button("Allocate Image"))
+    {
+        renderer.base().memory.enable_defragmentation(image_type, false);
+        renderer.base().memory.stop_defrag(image_type);
+        auto num_allocs = alloc_dist(mersenne_twister);
+
+        for (auto i = 0U; i < num_allocs; ++i)
+        {
+            auto index = image_dist(mersenne_twister);
+            tex_allocations.push_back(allocate(image_type, index));
+        }
+        renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
+        renderer.base().memory.start_defrag(buffer_type);
+    }
+
+    if (ImGui::Button("Deallocate Image"))
+    {
+        renderer.base().memory.enable_defragmentation(image_type, false);
+        renderer.base().memory.stop_defrag(image_type);
+
+        auto num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
+
+
+        for (auto i = 0U; i < num_allocs; ++i)
+        {
+            auto index = mersenne_twister() % tex_allocations.size();
+
+            std::move(tex_allocations.begin() + index, tex_allocations.begin() + index + 1,
+                      std::back_inserter(to_delete_tex));
+            // auto& alloc = tex_allocations[index];
+            // to_delete_tex.push_back(std::make_tuple(std::move(alloc.first), std::move(alloc.second), 12));
+            tex_allocations.erase(tex_allocations.begin() + index);
+        }
+        renderer.base().memory.enable_defragmentation(image_type, enable_defragger);
+        renderer.base().memory.start_defrag(image_type);
+    }
+
+    ImGui::Checkbox("Show textures", &show_textures);
+    ImGui::End();
+
+    parentWindow.renderImGui();
+}
+void VulkanExample::speedProfiling() const
+{
     static int allocCount  = 100;
     static int allocSizeKB = 1024;
     static int repetitions = 1;
@@ -322,7 +369,7 @@ void VulkanExample::renderGUI()
         auto now       = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
 
-        auto time = std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S_");
+        auto time = std::put_time(localtime(&in_time_t), "%Y%m%d_%H%M%S_");
 
         std::stringstream timestr;
         timestr << time;
@@ -357,7 +404,7 @@ void VulkanExample::renderGUI()
         auto now       = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
 
-        auto time = std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S_");
+        auto time = std::put_time(localtime(&in_time_t), "%Y%m%d_%H%M%S_");
 
         std::stringstream timestr;
         timestr << time;
@@ -383,11 +430,11 @@ void VulkanExample::renderGUI()
         std::vector<vk::DeviceSize> sizes{128, 256, 512, 1024, 2048, 4096, 4096 * 2, 4096 * 4, 4096 * 8, 4096 * 16};
         renderer.base().device.waitIdle();
 
-        for (auto type : types)
+        for (const auto& type : types)
         {
-            for (auto chunk : use_chunk)
+            for (const auto& chunk : use_chunk)
             {
-                for (auto size : sizes)
+                for (const auto& size : sizes)
                 {
                     {
                         using namespace std::chrono_literals;
@@ -400,7 +447,7 @@ void VulkanExample::renderGUI()
                     auto now       = std::chrono::system_clock::now();
                     auto in_time_t = std::chrono::system_clock::to_time_t(now);
 
-                    auto time = std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S_");
+                    auto time = std::put_time(localtime(&in_time_t), "%Y%m%d_%H%M%S_");
 
                     std::stringstream timestr;
                     timestr << time;
@@ -415,49 +462,149 @@ void VulkanExample::renderGUI()
             }
         }
     }
-
-    if (ImGui::Button("Allocate Image"))
-    {
-        renderer.base().memory.enable_defragmentation(image_type, false);
-        renderer.base().memory.stop_defrag(image_type);
-        auto num_allocs = alloc_dist(mersenne_twister);
-
-        for (auto i = 0U; i < num_allocs; ++i)
-        {
-            auto index = image_dist(mersenne_twister);
-            tex_allocations.push_back(allocate(image_type, index));
-        }
-        renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
-        renderer.base().memory.start_defrag(buffer_type);
-    }
-
-    if (ImGui::Button("Deallocate Image"))
-    {
-        renderer.base().memory.enable_defragmentation(image_type, false);
-        renderer.base().memory.stop_defrag(image_type);
-
-        auto num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
-
-
-        for (auto i = 0U; i < num_allocs; ++i)
-        {
-            auto index = mersenne_twister() % tex_allocations.size();
-
-            std::move(tex_allocations.begin() + index, tex_allocations.begin() + index + 1,
-                      std::back_inserter(to_delete_tex));
-            // auto& alloc = tex_allocations[index];
-            // to_delete_tex.push_back(std::make_tuple(std::move(alloc.first), std::move(alloc.second), 12));
-            tex_allocations.erase(tex_allocations.begin() + index);
-        }
-        renderer.base().memory.enable_defragmentation(image_type, enable_defragger);
-        renderer.base().memory.start_defrag(image_type);
-    }
-
-    ImGui::Checkbox("Show textures", &show_textures);
-    ImGui::End();
-
-    parentWindow.renderImGui();
 }
+
+void VulkanExample::fragmentationProfiling()
+{
+    ImGui::Text("Fragmentation tests");
+    static int testCount = 1000;
+    static int rounds = 10, roundsMax = 100;
+    static int maxAllocCount = 100;
+    ImGui::InputInt("Count", &testCount);
+    ImGui::DragIntRange2("Rounds MinMax", &rounds, &roundsMax);
+    ImGui::InputInt("Max (de)allocs", &maxAllocCount);
+
+    if (ImGui::Button("Profile fit strategies"))
+    {
+        const Saiga::Vulkan::Memory::BufferType device_type{
+            {vk::BufferUsageFlagBits ::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal}};
+
+        Saiga::Vulkan::Memory::FirstFitStrategy<BufferMemoryLocation> firstFit;
+        Saiga::Vulkan::Memory::BestFitStrategy<BufferMemoryLocation> bestFit;
+        Saiga::Vulkan::Memory::WorstFitStrategy<BufferMemoryLocation> worstFit;
+
+        auto strategies =
+            std::vector<Saiga::Vulkan::Memory::FitStrategy<BufferMemoryLocation>*>{&bestFit, &firstFit, &worstFit};
+
+        std::mt19937 seed_rand(666);
+
+        std::vector<unsigned int> seeds;
+
+
+        // auto sizes = std::vector<vk::DeviceSize>{128, 256, 512, 1024, 1024 * 2, 1024 * 4, 1024 * 8, 1024 * 16};
+
+        for (int i = 0; i < testCount; ++i)
+        {
+            seeds.push_back(seed_rand());
+        }
+
+
+        // for (int i = 0; i < testCount; ++i)
+        //{
+        //    std::cout << " " << seeds[i];
+        //}
+        auto& base = renderer.base();
+
+        std::uniform_int_distribution<> size_dist(1, 128);
+
+
+        auto now       = std::chrono::system_clock::now();
+        auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+        auto time = std::put_time(localtime(&in_time_t), "%Y%m%d_%H%M%S_");
+
+
+
+        for (auto* strat : strategies)
+        {
+            std::stringstream fileName, speedFileName;
+
+            fileName << time;
+
+            fileName << testCount << "_" << rounds << "_" << roundsMax << "_" << maxAllocCount << "_";
+
+            if (strat == &firstFit) fileName << "first";
+            if (strat == &bestFit) fileName << "besty";
+            if (strat == &worstFit) fileName << "worst";
+
+            speedFileName << fileName.str() << "_speed.txt";
+
+            fileName << ".txt";
+
+
+            std::ofstream file, speedFile;
+            file.open(fileName.str(), std::ios::out);
+            speedFile.open(speedFileName.str(), std::ios::out);
+
+            for (const auto& seed : seeds)
+            {
+                std::vector<double> times;
+                std::mt19937 test_rand(seed);
+
+                Saiga::Vulkan::Memory::BufferChunkAllocator bca(base.physicalDevice, base.device, device_type, *strat,
+                                                                base.transferQueue);
+
+                bca.totalTime = 0.0;
+                std::uniform_int_distribution<> rounds_dist(rounds, roundsMax);
+                std::uniform_int_distribution<> alloc_dist(0, maxAllocCount);
+                int currRounds = rounds_dist(test_rand);
+
+                std::vector<BufferMemoryLocation*> locations;
+                for (auto round = 0; round < currRounds; round++)
+                {
+                    int numAllocs   = alloc_dist(test_rand);
+                    int numDeallocs = alloc_dist(test_rand);
+
+
+                    for (int dealloc = 0; dealloc < numDeallocs; ++dealloc)
+                    {
+                        if (locations.empty())
+                        {
+                            break;
+                        }
+                        std::uniform_int_distribution<> dealloc_dist(0, locations.size() - 1);
+
+                        auto dealloc_index = dealloc_dist(test_rand);
+                        bca.deallocate(locations[dealloc_index]);
+                        locations.erase(locations.begin() + dealloc_index);
+                    }
+
+                    for (int alloc = 0; alloc < numAllocs; ++alloc)
+                    {
+                        times.push_back(0.0);
+                        Saiga::ScopedTimer<std::chrono::microseconds, double> timer(times.back());
+                        locations.push_back(bca.allocate(size_dist(test_rand) * 128U * 1024U));
+                    }
+                }
+
+                // if (bca.chunks.empty())
+                //{
+                //    // std::cout << "empty" << std::endl;
+                //    continue;
+                //}
+                // float sum = 0.0f;
+                for (auto& chunk : bca.chunks)
+                {
+                    // sum += chunk.getFragmentation();
+                    file << chunk.getFragmentation() << std::endl;
+                }
+
+                auto times_sum = 0.0;
+                for (const auto& time : times)
+                {
+                    times_sum += time;
+                }
+
+                times_sum /= times.size();
+
+                speedFile << bca.totalTime / times.size() << std::endl;
+            }
+            file.close();
+            speedFile.close();
+        }
+    }
+}
+
 
 
 void VulkanExample::keyPressed(SDL_Keysym key)

@@ -92,4 +92,6 @@ class VulkanExample : public Saiga::Updating,
     std::tuple<std::shared_ptr<Saiga::Vulkan::Texture2D>, Saiga::Vulkan::DynamicDescriptorSet, int32_t> allocate(
         Saiga::Vulkan::Memory::ImageType type, unsigned long long int size);
     void cleanup();
+    void speedProfiling() const;
+    void fragmentationProfiling();
 };
