@@ -13,8 +13,13 @@ T* ChunkAllocator<T>::base_allocate(vk::DeviceSize size)
 {
     ChunkIterator<T> chunkAlloc;
     FreeIterator<T> freeSpace;
-    std::tie(chunkAlloc, freeSpace) = strategy->findRange(chunks.begin(), chunks.end(), size);
 
+    double time;
+    {
+        Saiga::ScopedTimer<std::chrono::microseconds> timer(time);
+        std::tie(chunkAlloc, freeSpace) = strategy->findRange(chunks.begin(), chunks.end(), size);
+    }
+    totalTime += time;
     T* val = allocate_in_free_space(size, chunkAlloc, freeSpace);
 
     return val;

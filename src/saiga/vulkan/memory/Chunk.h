@@ -74,6 +74,26 @@ struct SAIGA_VULKAN_API Chunk
     }
 
    public:
+    float getFragmentation() const
+    {
+        auto max = 0U;
+        auto sum = 0U;
+        for (auto& freeEntry : freeList)
+        {
+            sum += freeEntry.size;
+            if (max < freeEntry.size)
+            {
+                max = freeEntry.size;
+            }
+        }
+
+        if (sum == 0U)
+        {
+            return 0.0f;
+        }
+
+        return 1.0f - (static_cast<float>(max) / sum);
+    }
     inline vk::DeviceSize getFree() const { return size - allocated; }
 };
 
