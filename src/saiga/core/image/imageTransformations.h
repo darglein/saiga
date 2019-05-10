@@ -26,5 +26,12 @@ SAIGA_CORE_API void RGBAToGray8(ImageView<const ucvec4> src, ImageView<unsigned 
 // with scale = 1 the resulting grayscale will be in the range 0..255
 SAIGA_CORE_API void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> dst, float scale = 1.0f);
 
+/**
+ * Converts a floating point image to a 8-bit image and saves it.
+ * Useful for debugging.
+ */
+SAIGA_CORE_API bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax);
+SAIGA_CORE_API bool save(const std::string& path, ImageView<float> img, float vmin, float vmax);
+
 }  // namespace ImageTransformation
 }  // namespace Saiga

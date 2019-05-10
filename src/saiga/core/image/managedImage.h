@@ -152,13 +152,5 @@ class SAIGA_CORE_API Image : public ImageBase
 };
 
 
-/**
- * Converts a floating point image to a 8-bit image and saves it.
- * Useful for debugging.
- */
-SAIGA_CORE_API bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax);
-SAIGA_CORE_API bool save(const std::string& path, ImageView<float> img, float vmin, float vmax);
-
-
 
 }  // namespace Saiga
