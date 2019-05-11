@@ -35,10 +35,19 @@ class ImageCopyComputeShader;
 
 struct DefraggerConfiguration
 {
-    float weight_chunk      = 1.0f;
-    float weight_offset     = 0.5f;
-    float weight_small_free = 0.05f;
+    float weight_location   = 1.0f;
+    float weight_small_free = 0.5f;
     uint32_t max_targets    = 3;
+    float size_small_factor = 0.001f;
+    float size_limit_factor = 0.01;
+
+    vk::DeviceSize size_small, size_limit;
+
+    void update_sizes(vk::DeviceSize chunkSize)
+    {
+        size_small = static_cast<vk::DeviceSize>(size_small_factor * chunkSize);
+        size_limit = static_cast<vk::DeviceSize>(size_limit_factor * chunkSize);
+    }
 };
 
 template <typename T>
@@ -54,7 +63,7 @@ class Defragger
        public:
         explicit PointerOutput(PType* _type) : type(_type) {}
 
-        friend std::ostream& operator<<(std::ostream& os, const PointerOutput& output)
+        inline friend std::ostream& operator<<(std::ostream& os, const PointerOutput& output)
         {
             if (output.type)
             {
@@ -144,56 +153,6 @@ class Defragger
             return os;
         }
     };
-
-    //    struct DefragOperation
-    //    {
-    //        T *source, *targetLocation;
-    //        vk::DeviceMemory targetMemory;
-    //        FreeListEntry target;
-    //        float weight;
-    //        vk::CommandBuffer copy_cmd = nullptr;
-    //        bool operator<(const DefragOperation& second) const { return this->weight < second.weight; }
-    //
-    //        friend std::ostream& operator<<(std::ostream& os, const DefragOperation& operation)
-    //        {
-    //            os << "src: " << *operation.source << " tLoc: ";
-    //
-    //            if (operation.targetLocation)
-    //            {
-    //                os << *operation.targetLocation;
-    //            }
-    //            else
-    //            {
-    //                os << "nullptr";
-    //            }
-    //            os << " tMem: " << operation.targetMemory << " t: " << operation.target << " cmd: " << std::hex
-    //               << operation.copy_cmd << std::dec;
-    //            return os;
-    //        }
-    //    };
-    //
-    //    struct FreeOperation
-    //    {
-    //        T *target, *source;
-    //        uint64_t delay;
-    //
-    //        friend std::ostream& operator<<(std::ostream& os, const FreeOperation& operation)
-    //        {
-    //            os << "target: ";
-    //            if (operation.target)
-    //                os << *operation.target;
-    //            else
-    //                os << "nullptr";
-    //
-    //            os << " source: ";
-    //            if (operation.source)
-    //                os << *operation.source;
-    //            else
-    //                os << "nullptr";
-    //            os << " delay: " << operation.delay;
-    //            return os;
-    //        }
-    //    };
 
     std::vector<std::vector<vk::DeviceSize>> all_free;
     VulkanBase* base;
@@ -287,18 +246,24 @@ class Defragger
     inline float get_free_weight(vk::DeviceSize size) const
     {
         const vk::DeviceSize cap = 10 * 1024 * 1024;
-        if (size == 0 || size > cap)
+        if (size == 0 || size >= cap)
         {
             return 0;
         }
 
-        return glm::mix(config.weight_small_free, 0.0f, static_cast<float>(size) / cap);
+        if (size <= config.size_small)
+        {
+            return glm::mix(0.0f, config.weight_small_free, static_cast<float>(size) / config.size_small);
+        }
+
+        return glm::mix(config.weight_small_free, 0.0f,
+                        static_cast<float>(size - config.size_small) / (config.size_limit - config.size_small));
     }
 
     inline float get_target_weight(uint32_t chunkIndex, vk::DeviceSize chunkSize, vk::DeviceSize begin,
                                    vk::DeviceSize first, vk::DeviceSize second) const
     {
-        return config.weight_chunk * chunkIndex + config.weight_offset * (static_cast<float>(begin) / chunkSize) +
+        return config.weight_location * (chunkIndex + (static_cast<float>(begin) / chunkSize)) +
                get_free_weight(first) + get_free_weight(second);
     }
 
@@ -306,9 +271,8 @@ class Defragger
     inline float get_weight(uint32_t chunkIndex, vk::DeviceSize chunkSize, Iter alloc, vk::DeviceSize first,
                             vk::DeviceSize second) const
     {
-        return config.weight_chunk * chunkIndex +
-               config.weight_offset * (static_cast<float>(begin(alloc)) / chunkSize) + get_free_weight(first) +
-               get_free_weight(second);
+        return config.weight_location * (chunkIndex + (static_cast<float>(begin(alloc)) / chunkSize)) +
+               get_free_weight(first) + get_free_weight(second);
     }
 
     template <typename Iter>

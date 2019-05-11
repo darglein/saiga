@@ -173,7 +173,7 @@ void FrameTimings<Finder>::finishFrame(vk::Semaphore semaphore)
     if (bestSection.has_value())
     {
         auto best = bestSection.value();
-        auto time = static_cast<int64_t>(best.length);
+        auto time = static_cast<int64_t>(0.8 * best.length);
         performed = memory->performTimedDefrag(time, semaphore);
     }
 

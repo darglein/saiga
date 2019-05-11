@@ -70,6 +70,7 @@ Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>
 {
     auto queryPoolInfo = vk::QueryPoolCreateInfo{vk::QueryPoolCreateFlags(), vk::QueryType::eTimestamp, 2};
     queryPool          = base->device.createQueryPool(queryPoolInfo);
+    config.update_sizes(allocator->m_chunkSize);
 }
 
 template <typename T>

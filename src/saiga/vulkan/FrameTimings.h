@@ -85,8 +85,8 @@ class SAIGA_VULKAN_API FrameTimings
     std::vector<FramePauses>::iterator insertionPoint;
 
 
-    Saiga::Vulkan::Queue* queue;
     vk::Device device;
+    Saiga::Vulkan::Queue* queue;
     std::vector<Timing> timings;
     uint32_t numberOfFrames, next, current, running, frameWindow;
 
