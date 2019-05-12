@@ -15,9 +15,11 @@ void CommandPool::destroy()
     if (device && commandPool) device.destroyCommandPool(commandPool);
 }
 
-void CommandPool::create(vk::Device device, uint32_t queueFamilyIndex_, vk::CommandPoolCreateFlags flags)
+void CommandPool::create(vk::Device device, std::mutex* _mutex, uint32_t queueFamilyIndex_,
+                         vk::CommandPoolCreateFlags flags)
 {
     this->device = device;
+    this->mutex  = _mutex;
     vk::CommandPoolCreateInfo info(flags, queueFamilyIndex_);
 
     commandPool = device.createCommandPool(info);
@@ -26,6 +28,8 @@ void CommandPool::create(vk::Device device, uint32_t queueFamilyIndex_, vk::Comm
 
 vk::CommandBuffer CommandPool::allocateCommandBuffer(vk::CommandBufferLevel level)
 {
+    std::scoped_lock lock(*mutex);
+
     vk::CommandBufferAllocateInfo cmdBufAllocateInfo(commandPool, level, 1);
 
     vk::CommandBuffer buffer;
@@ -35,6 +39,8 @@ vk::CommandBuffer CommandPool::allocateCommandBuffer(vk::CommandBufferLevel leve
 
 std::vector<vk::CommandBuffer> CommandPool::allocateCommandBuffers(uint32_t count, vk::CommandBufferLevel level)
 {
+    std::scoped_lock lock(*mutex);
+
     SAIGA_ASSERT(count > 0);
     vk::CommandBufferAllocateInfo cmdBufAllocateInfo(commandPool, level, count);
 
@@ -45,11 +51,15 @@ std::vector<vk::CommandBuffer> CommandPool::allocateCommandBuffers(uint32_t coun
 
 void CommandPool::freeCommandBuffer(vk::CommandBuffer cmd)
 {
+    std::scoped_lock lock(*mutex);
+
     device.freeCommandBuffers(commandPool, cmd);
 }
 
 void CommandPool::freeCommandBuffers(std::vector<vk::CommandBuffer>& cmds)
 {
+    std::scoped_lock lock(*mutex);
+
     if (cmds.empty()) return;
     device.freeCommandBuffers(commandPool, cmds);
 }

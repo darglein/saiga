@@ -186,14 +186,13 @@ class SAIGA_VULKAN_API VulkanMemory
     }
 
 
+   public:
     BufferContainer& getAllocator(const BufferType& type);
-
     BufferContainer& get_allocator_exact(const BufferType& type);
-
     ImageContainer& getImageAllocator(const ImageType& type);
-
     ImageContainer& get_image_allocator_exact(const ImageType& type);
 
+   private:
    public:
     void init(VulkanBase* base, uint32_t swapchain_frames, const VulkanParameters& parameters);
     VulkanMemory()                    = default;

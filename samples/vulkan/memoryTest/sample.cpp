@@ -36,6 +36,7 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
 
     auto_mersenne = std::mt19937();
 
+    defrag_test_mersenne = std::mt19937(666);
     init(renderer.base());
 }
 
@@ -67,9 +68,110 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
 void VulkanExample::update(float dt)
 {
+    static std::uniform_int_distribution<> size_dist(1, 64);
     camera.update(dt);
     camera.interpolate(dt, 0);
 
+    static int frameCount = 0;
+
+    static std::uniform_int_distribution<unsigned long> alloc_dist(1, 5), image_dist(0, 4), dealloc_dist(0, 5);
+
+    frameCount++;
+
+    static std::ofstream testFile;
+
+    if (defrag_current_free >= 0 && defrag_current_free <= 1 && defrag_current_loc >= 0 && defrag_current_loc <= 1 &&
+        defrag_current_test >= 0 && frameCount % 10 == 0)
+    {
+        if (defrag_current_test == 0 && defrag_current_round == 0)
+        {
+            auto now       = std::chrono::system_clock::now();
+            auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+            auto time = std::put_time(localtime(&in_time_t), "%Y%m%d_%H%M%S_");
+
+            std::stringstream timestr;
+            timestr << time;
+            timestr << defrag_tests << "_" << defrag_rounds << "_" << (enable_defragger ? "defrag" : "nodefrag") << "_l"
+                    << defrag_current_loc << "_f" << defrag_current_free << ".txt";
+            testFile.open(timestr.str(), std::ios::out);
+
+            auto& defragger                    = *renderer.base().memory.getAllocator(buffer_type).defragger;
+            defragger.config.weight_location   = defrag_current_loc;
+            defragger.config.weight_small_free = defrag_current_free;
+            renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
+            if (enable_defragger) renderer.base().memory.start_defrag(buffer_type);
+        }
+        if (defrag_current_round == 0)
+        {
+            defrag_test_mersenne.seed(defrag_seeds[defrag_current_test]);
+        }
+        //        renderer.base().memory.enable_defragmentation(image_type, false);
+        renderer.base().memory.stop_defrag(buffer_type);
+        auto& chunks = renderer.base().memory.getAllocator(buffer_type).allocator->chunks;
+
+        for (auto& chunk : chunks)
+        {
+            testFile << chunk.getFragmentation() << std::endl;
+        }
+        testFile << std::endl;
+        renderer.base().memory.start_defrag(buffer_type);
+
+
+        auto num_allocs = alloc_dist(defrag_test_mersenne);
+
+        for (auto i = 0U; i < num_allocs; ++i)
+        {
+            test_allocs.push_back(allocateEmpty(buffer_type, size_dist(defrag_test_mersenne) * 128 * 1024).first);
+        }
+        //        renderer.base().memory.enable_defragmentation(buffer_type, enable_defragger);
+        //        renderer.base().memory.start_defrag(buffer_type);
+        //
+        //        renderer.base().memory.enable_defragmentation(image_type, false);
+        //        renderer.base().memory.stop_defrag(image_type);
+
+        num_allocs = std::min(dealloc_dist(defrag_test_mersenne), test_allocs.size());
+
+        if (defrag_current_round != defrag_rounds)
+        {
+            for (auto i = 0U; i < num_allocs; ++i)
+            {
+                auto index = defrag_test_mersenne() % test_allocs.size();
+
+                test_allocs.erase(test_allocs.begin() + index);
+            }
+        }
+        //        renderer.base().memory.enable_defragmentation(image_type, enable_defragger);
+        //        renderer.base().memory.start_defrag(image_type);
+        defrag_current_round++;
+
+        if (defrag_current_round == defrag_rounds)
+        {
+            defrag_current_test++;
+            defrag_current_round = 0;
+
+            //            std::move(tex_allocations.begin(), tex_allocations.end(), std::back_inserter(to_delete_tex));
+            test_allocs.clear();
+
+            if (defrag_current_test == defrag_tests)
+            {
+                defrag_current_test = 0;
+                //                testFile.close();
+                defrag_current_loc += 0.25f;
+                if (defrag_current_loc > 1)
+                {
+                    defrag_current_loc = 0;
+                    defrag_current_free += 0.05f;
+                }
+                if (defrag_current_free > 0.25f)
+                {
+                    defrag_current_loc  = -1;
+                    defrag_current_free = -1;
+                }
+                testFile.close();
+            }
+        }
+    }
 
     if (enable_auto_index)
     {
@@ -277,6 +379,8 @@ void VulkanExample::renderGUI()
     //    static bool singleAllocs = true;
     speedProfiling();
     fragmentationProfiling();
+    defragProfiling();
+
 
     if (ImGui::Button("Allocate Image"))
     {
@@ -606,6 +710,34 @@ void VulkanExample::fragmentationProfiling()
 }
 
 
+void VulkanExample::defragProfiling()
+{
+    ImGui::Text("Defrag profiling");
+
+    ImGui::InputInt("Tests", &defrag_tests);
+    ImGui::InputInt("Rounds", &defrag_rounds);
+
+    ImGui::Text("Current test %d", defrag_current_test);
+    ImGui::Text("Current round %d", defrag_current_round);
+    ImGui::Text("Current loc %f", defrag_current_loc);
+    ImGui::Text("Current free %f", defrag_current_free);
+
+    if (ImGui::Button("Begin"))
+    {
+        defrag_seeds.resize(defrag_tests);
+        defrag_test_mersenne.seed(666);
+
+        for (auto& seed : defrag_seeds)
+        {
+            seed = defrag_test_mersenne();
+        }
+
+        defrag_current_test  = 0;
+        defrag_current_round = 0;
+        defrag_current_loc   = 0;
+        defrag_current_free  = 0;
+    }
+}
 
 void VulkanExample::keyPressed(SDL_Keysym key)
 {
@@ -801,6 +933,23 @@ std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::alloc
     buffer->createBuffer(renderer.base(), size, type.usageFlags, type.memoryFlags);
 
     buffer->stagedUpload(renderer.base(), size, mem.data());
+
+    buffer->mark_dynamic();
+
+    return std::make_pair(buffer, start);
+}
+
+std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::allocateEmpty(
+    Saiga::Vulkan::Memory::BufferType type, unsigned long long int size)
+{
+    static std::uniform_int_distribution<unsigned long> init_dist(0UL, 1024UL);
+
+    auto start = init_dist(mersenne_twister);
+
+    LOG(INFO) << "Creating buffer of size " << size << " beginning at " << start;
+
+    std::shared_ptr<Saiga::Vulkan::Buffer> buffer = std::make_shared<Saiga::Vulkan::Buffer>();
+    buffer->createBuffer(renderer.base(), size, type.usageFlags, type.memoryFlags);
 
     buffer->mark_dynamic();
 

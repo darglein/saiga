@@ -5,6 +5,7 @@
 #pragma once
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/threadName.h"
+#include "saiga/vulkan/CommandPool.h"
 #include "saiga/vulkan/Queue.h"
 
 #include "BufferMemoryLocation.h"
@@ -174,6 +175,8 @@ class Defragger
     std::condition_variable start_condition;
     std::thread worker;
 
+    CommandPool commandPool;
+
     void worker_func();
 
 
@@ -183,7 +186,6 @@ class Defragger
     // Defrag thread functions
 
     void run();
-
 
     bool find_defrag_ops();
     void fill_free_list();

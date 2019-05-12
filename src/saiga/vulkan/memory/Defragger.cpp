@@ -51,7 +51,7 @@ bool Defragger<T>::perform_free_operations()
 template <typename T>
 Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator, uint32_t _dealloc_delay)
     : base(_base),
-      dealloc_delay(_dealloc_delay + 15),
+      dealloc_delay(_dealloc_delay),
       // dealloc_delay(240),
       device(_device),
       allocator(_allocator),
@@ -71,6 +71,8 @@ Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>
     auto queryPoolInfo = vk::QueryPoolCreateInfo{vk::QueryPoolCreateFlags(), vk::QueryType::eTimestamp, 2};
     queryPool          = base->device.createQueryPool(queryPoolInfo);
     config.update_sizes(allocator->m_chunkSize);
+
+    commandPool = base->mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eTransient);
 }
 
 template <typename T>
@@ -102,13 +104,14 @@ void Defragger<T>::exit()
 
         base->device.destroy(copyOp.fence);
         base->device.destroy(copyOp.signal_semaphore);
-        base->mainQueue.commandPool.freeCommandBuffer(copyOp.cmd);
+        commandPool.freeCommandBuffer(copyOp.cmd);
     }
 
     for (DefragOp& defragOp : defragOps)
     {
-        base->mainQueue.commandPool.freeCommandBuffer(defragOp.cmd);
+        commandPool.freeCommandBuffer(defragOp.cmd);
     }
+    //    commandPool.destroy();
 }
 
 
@@ -446,7 +449,7 @@ bool Defragger<T>::create_copy_commands()
         {
             //            LOG(INFO) << "/*Cpy*/ op" << op;
             op.source->mark_static();
-            auto cmd = base->mainQueue.commandPool.createAndBeginOneTimeBuffer();
+            auto cmd = commandPool.createAndBeginOneTimeBuffer();
             cmd.resetQueryPool(queryPool, 0, 2);
             cmd.writeTimestamp(vk::PipelineStageFlagBits::eTopOfPipe, queryPool, 0);
             create_copy_command(op, reserve_space, cmd);
@@ -604,7 +607,7 @@ bool Defragger<T>::complete_copy_commands()
             {
                 device.destroy(copy.signal_semaphore);
             }
-            base->mainQueue.commandPool.freeCommandBuffer(copy.cmd);
+            commandPool.freeCommandBuffer(copy.cmd);
 
             copyOps.pop_front();
         }
@@ -630,7 +633,7 @@ void Defragger<T>::invalidate(T* memoryLocation)
 
         if (defragOp != defragOps.end())
         {
-            base->mainQueue.commandPool.freeCommandBuffer(defragOp->cmd);
+            commandPool.freeCommandBuffer(defragOp->cmd);
             allocator->deallocate(defragOp->target);
             defragOps.erase(defragOp);
         }
@@ -652,7 +655,7 @@ void Defragger<T>::invalidate(T* memoryLocation)
                 std::prev(copyOp)->signal_semaphore = nullptr;
             }
 
-            base->mainQueue.commandPool.freeCommandBuffer(copyOp->cmd);
+            commandPool.freeCommandBuffer(copyOp->cmd);
             allocator->deallocate(copyOp->target);
             copyOps.erase(copyOp);
         }

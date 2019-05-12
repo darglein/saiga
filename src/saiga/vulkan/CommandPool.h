@@ -8,6 +8,7 @@
 
 #include "saiga/vulkan/svulkan.h"
 
+#include <mutex>
 namespace Saiga
 {
 namespace Vulkan
@@ -35,7 +36,7 @@ class SAIGA_VULKAN_API CommandPool
         If the protected memory feature is not enabled, the VK_COMMAND_POOL_CREATE_PROTECTED_BIT
         bit of flags must not be set.
     */
-    void create(vk::Device device, uint32_t queueFamilyIndex_ = 0,
+    void create(vk::Device device, std::mutex* _mutex, uint32_t queueFamilyIndex_ = 0,
                 vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
 
     /**
@@ -72,6 +73,7 @@ class SAIGA_VULKAN_API CommandPool
     void destroy();
 
    private:
+    std::mutex* mutex;
     vk::Device device;
     vk::CommandPool commandPool;
 };

@@ -31,7 +31,7 @@ class VulkanExample : public Saiga::Updating,
 {
     std::array<std::string, 5> image_names{"cat.png", "red-panda.png", "dog.png", "pika.png", "ludi.png"};
     std::array<std::shared_ptr<Saiga::Image>, 5> images;
-
+    std::vector<std::shared_ptr<Saiga::Vulkan::Buffer>> test_allocs;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations;
     std::vector<std::tuple<std::shared_ptr<Saiga::Vulkan::Texture2D>, Saiga::Vulkan::DynamicDescriptorSet, int32_t>>
         tex_allocations;
@@ -39,7 +39,7 @@ class VulkanExample : public Saiga::Updating,
         to_delete_tex;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> num_allocations;
 
-    std::mt19937 mersenne_twister, auto_mersenne;
+    std::mt19937 mersenne_twister, auto_mersenne, defrag_test_mersenne;
 
 
     std::array<vk::DeviceSize, 4> tex_sizes{256, 512, 1024, 2048};
@@ -71,6 +71,14 @@ class VulkanExample : public Saiga::Updating,
     void renderGUI() override;
 
    private:
+    int defrag_tests          = 1000;
+    int defrag_rounds         = 50;
+    int defrag_current_test   = -1;
+    int defrag_current_round  = 0;
+    float defrag_current_loc  = -1;
+    float defrag_current_free = -1;
+    std::vector<unsigned int> defrag_seeds;
+
     bool show_textures = false;
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
@@ -88,10 +96,13 @@ class VulkanExample : public Saiga::Updating,
 
     std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> allocate(Saiga::Vulkan::Memory::BufferType type,
                                                                          unsigned long long int size);
+    std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> allocateEmpty(Saiga::Vulkan::Memory::BufferType type,
+                                                                              unsigned long long int size);
 
     std::tuple<std::shared_ptr<Saiga::Vulkan::Texture2D>, Saiga::Vulkan::DynamicDescriptorSet, int32_t> allocate(
         Saiga::Vulkan::Memory::ImageType type, unsigned long long int size);
     void cleanup();
     void speedProfiling() const;
     void fragmentationProfiling();
+    void defragProfiling();
 };

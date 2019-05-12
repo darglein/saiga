@@ -20,7 +20,7 @@ void Queue::create(vk::Device _device, uint32_t _queueFamilyIndex, uint32_t _que
     queueIndex       = _queueIndex;
     queue            = _device.getQueue(_queueFamilyIndex, _queueIndex);
     SAIGA_ASSERT(queue);
-    commandPool.create(device, _queueFamilyIndex, commandPoolCreateFlags);
+    commandPool.create(device, &commandPoolCreationMutex, _queueFamilyIndex, commandPoolCreateFlags);
 }
 
 void Queue::waitIdle()
@@ -84,7 +84,7 @@ CommandPool Queue::createCommandPool(vk::CommandPoolCreateFlags commandPoolCreat
 {
     std::scoped_lock pool_create_lock(commandPoolCreationMutex);
     CommandPool newCommandPool;
-    newCommandPool.create(device, queueFamilyIndex, commandPoolCreateFlags);
+    newCommandPool.create(device, &commandPoolCreationMutex, queueFamilyIndex, commandPoolCreateFlags);
     LOG(INFO) << "Creating command pool: " << static_cast<vk::CommandPool>(newCommandPool);
     commandPools.push_back(newCommandPool);
     return newCommandPool;
