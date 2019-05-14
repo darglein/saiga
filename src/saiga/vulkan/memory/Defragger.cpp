@@ -183,6 +183,11 @@ void Defragger<T>::run()
         performed |= create_copy_commands();
         performed |= complete_copy_commands();
         performed |= perform_free_operations();
+
+        if (!performed)
+        {
+            running = false;
+        }
     }
 }
 

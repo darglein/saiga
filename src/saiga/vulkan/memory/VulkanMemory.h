@@ -248,6 +248,8 @@ class SAIGA_VULKAN_API VulkanMemory
             }
         }
     }
+
+    void full_defrag();
 };
 
 }  // namespace Saiga::Vulkan::Memory

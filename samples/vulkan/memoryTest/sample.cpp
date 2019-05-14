@@ -161,9 +161,9 @@ void VulkanExample::update(float dt)
                 if (defrag_current_loc > 1)
                 {
                     defrag_current_loc = 0;
-                    defrag_current_free += 0.05f;
+                    defrag_current_free += 0.25f;
                 }
-                if (defrag_current_free > 0.25f)
+                if (defrag_current_free > 1)
                 {
                     defrag_current_loc  = -1;
                     defrag_current_free = -1;
@@ -887,6 +887,10 @@ void VulkanExample::keyPressed(SDL_Keysym key)
         case SDL_SCANCODE_ESCAPE:
             cleanup();
             parentWindow.close();
+            break;
+
+        case SDL_SCANCODE_J:
+            renderer.base().memory.full_defrag();
             break;
         default:
             break;

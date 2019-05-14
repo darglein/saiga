@@ -5,6 +5,7 @@
 #include "VulkanMemory.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vulkan/Base.h"
 
@@ -386,6 +387,63 @@ bool VulkanMemory::performTimedDefrag(int64_t time, vk::Semaphore semaphore)
         }
     }
     return performed;
+}
+void VulkanMemory::full_defrag()
+{
+    if (enableDefragmentation)
+    {
+        for (auto& allocator : bufferAllocators)
+        {
+            auto* defragger = allocator.second.defragger.get();
+
+            if (defragger)
+            {
+                defragger->setEnabled(true);
+                defragger->start();
+            }
+        }
+
+        for (auto& allocator : imageAllocators)
+        {
+            auto* defragger = allocator.second.defragger.get();
+
+            if (defragger)
+            {
+                defragger->setEnabled(true);
+                defragger->start();
+            }
+        }
+
+        for (auto& allocator : bufferAllocators)
+        {
+            auto* defragger = allocator.second.defragger.get();
+
+            while (defragger->running)
+            {
+                {
+                    using namespace std::chrono_literals;
+                    std::this_thread::sleep_for(100us);
+                }
+            }
+        }
+
+        for (auto& allocator : imageAllocators)
+        {
+            auto* defragger = allocator.second.defragger.get();
+
+            while (defragger->running)
+            {
+                {
+                    using namespace std::chrono_literals;
+                    std::this_thread::sleep_for(100us);
+                }
+            }
+        }
+    }
+    else
+    {
+        LOG(WARNING) << "Cannot perform defragmentation. It is disabled.";
+    }
 }
 
 
