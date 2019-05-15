@@ -26,6 +26,8 @@ struct Intrinsics4Base
     Intrinsics4Base(T fx, T fy, T cx, T cy) : fx(fx), fy(fy), cx(cx), cy(cy) {}
     Intrinsics4Base(const Vec4& v) : fx(v(0)), fy(v(1)), cx(v(2)), cy(v(3)) {}
 
+    Intrinsics4Base<T> inverse() const { return {T(1) / fx, T(1) / fy, -cx / fx, -cy / fy}; }
+
     Vec2 project(const Vec3& X) const
     {
         auto invz = T(1) / X(2);
@@ -108,6 +110,8 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
     StereoCamera4Base(T fx, T fy, T cx, T cy, T bf) : Intrinsics4Base<T>(fx, fy, cx, cy), bf(bf) {}
     StereoCamera4Base(const Intrinsics4Base<T>& i, T bf) : Intrinsics4Base<T>(i), bf(bf) {}
     StereoCamera4Base(const Vec5& v) : Intrinsics4Base<T>(Vec4(v.template segment<4>(0))), bf(v(4)) {}
+
+    StereoCamera4Base<T> inverse() const { return {T(1) / fx, T(1) / fy, -cx / fx, -cy / fy, T(1) / bf}; }
 
     template <typename G>
     StereoCamera4Base<G> cast()

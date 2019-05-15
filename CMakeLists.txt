@@ -151,12 +151,12 @@ if(SAIGA_NO_INSTALL)
     set(SAIGA_LIB_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/bin")
     set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/include")
 
-    #set(SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL "${CMAKE_CURRENT_BINARY_DIR}/SAIGAConfig.cmake")
-    #configure_file(
-     #   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfigNoInstall.cmake.in"
-      #  "${SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL}"
-       # @ONLY
-        #)
+    set(SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL "${CMAKE_CURRENT_BINARY_DIR}/SAIGAConfig.cmake")
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfigNoInstall.cmake.in"
+        "${SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL}"
+        @ONLY
+        )
 else()
     set(SAIGA_SHADER_PREFIX "${CMAKE_INSTALL_PREFIX}/share/saiga/shader")
     set(SAIGA_INCLUDE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/include")

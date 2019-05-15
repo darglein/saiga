@@ -7,12 +7,14 @@
 #pragma once
 
 #include "saiga/config.h"
-#include <vector>
+
 #include "imath.h"
+
+#include <cstdlib>
+#include <vector>
 
 namespace Saiga
 {
-
 /**
  * A simple aligned allocator using the standard library.
  * This file requires C++17.
@@ -39,7 +41,7 @@ class aligned_allocator : public std::allocator<T>
     template <class U>
     struct rebind
     {
-        typedef aligned_allocator<U,Alignment> other;
+        typedef aligned_allocator<U, Alignment> other;
     };
 
     aligned_allocator() : std::allocator<T>() {}
@@ -47,7 +49,7 @@ class aligned_allocator : public std::allocator<T>
     aligned_allocator(const aligned_allocator& other) : std::allocator<T>(other) {}
 
     template <class U>
-    aligned_allocator(const aligned_allocator<U,Alignment>& other) : std::allocator<T>(other)
+    aligned_allocator(const aligned_allocator<U, Alignment>& other) : std::allocator<T>(other)
     {
     }
 
@@ -65,7 +67,7 @@ class aligned_allocator : public std::allocator<T>
 
 // An Aligned std::vector
 template <typename T, size_t Alignment = 16>
-using AlignedVector = std::vector<T, aligned_allocator<T,Alignment>>;
+using AlignedVector = std::vector<T, aligned_allocator<T, Alignment>>;
 
 
 /**
@@ -76,13 +78,13 @@ template <typename _Tp, size_t Alignment, typename... _Args>
 inline std::shared_ptr<_Tp> make_aligned_shared(_Args&&... __args)
 {
     typedef typename std::remove_cv<_Tp>::type _Tp_nc;
-    return std::allocate_shared<_Tp>(aligned_allocator<_Tp_nc,Alignment>(), std::forward<_Args>(__args)...);
+    return std::allocate_shared<_Tp>(aligned_allocator<_Tp_nc, Alignment>(), std::forward<_Args>(__args)...);
 }
 
 template <typename _Tp, typename... _Args>
 inline std::shared_ptr<_Tp> make_aligned_shared(_Args&&... __args)
 {
-    return make_aligned_shared<_Tp,16,_Args...>(std::forward<_Args>(__args)...);
+    return make_aligned_shared<_Tp, 16, _Args...>(std::forward<_Args>(__args)...);
 }
 
 /**
