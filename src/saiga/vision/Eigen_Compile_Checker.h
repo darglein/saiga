@@ -13,11 +13,15 @@ namespace Saiga
 {
 namespace EigenHelper
 {
-struct EigenCompileFlags
+struct SAIGA_VISION_API EigenCompileFlags
 {
     int versionWorld, versionMajor, versionMinor;
     bool debug = true;
-    bool fma = false, sse3 = false, ssse3 = false, sse41 = false, sse42 = false, avx = false, avx2 = false;
+    bool fma   = false;
+    bool sse3 = false, ssse3 = false;
+    bool sse41 = false, sse42 = false;
+    bool avx = false, avx2 = false;
+    bool avx512 = false;
 
 
     /**
@@ -54,6 +58,9 @@ struct EigenCompileFlags
 #ifdef EIGEN_VECTORIZE_AVX2
         avx2 = true;
 #endif
+#ifdef EIGEN_VECTORIZE_AVX512
+        avx512 = true;
+#endif
     }
 
     bool operator==(const EigenCompileFlags& o)
@@ -62,6 +69,8 @@ struct EigenCompileFlags
                                avx2) == std::make_tuple(o.versionWorld, o.versionMajor, o.versionMinor, o.debug, o.fma,
                                                         o.sse3, o.ssse3, o.sse41, o.sse42, o.avx, o.avx2);
     }
+
+    SAIGA_VISION_API friend std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags);
 };
 
 /**
@@ -77,9 +86,13 @@ void checkEigenCompabitilty()
     EigenCompileFlags e;
     e.create<n>();
 
-    if (!(e == getSaigaEigenCompileFlags()))
+    auto se = getSaigaEigenCompileFlags();
+    if (!(e == se))
     {
-        SAIGA_EXIT_ERROR("Your eigen compile flags do not match to Saiga's compile flags!");
+        cout << "Your eigen compile flags do not match to Saiga's compile flags!" << endl << endl;
+        cout << "Saiga's flags: " << endl << se << endl << endl;
+        cout << "Your flags: " << endl << e << endl << endl;
+        SAIGA_EXIT_ERROR("Invalid compile flags!");
     }
 }
 

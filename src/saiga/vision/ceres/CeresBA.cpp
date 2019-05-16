@@ -23,7 +23,7 @@
 
 namespace Saiga
 {
-OptimizationResults CeresBA::solve()
+OptimizationResults CeresBA::initAndSolve()
 {
     auto& scene = *_scene;
 

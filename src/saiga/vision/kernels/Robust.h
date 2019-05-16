@@ -25,29 +25,42 @@ namespace Kernel
  * // ....
  *
  * auto rw = huberWeight(deltaStereo, res.squaredNorm());
- * Jrow *= rw;
- * res *= rw;
+ * auto sqrtLoss = sqrt(rw(1));
+ * Jrow *= sqrtLoss;
+ * res *= sqrtLoss;
+ *
+ * // Build quadratic form...
+ * // Note: If you multiply the loss directly to the quadractic form
+ * // you can save the sqrt(rw(1));
+ *
  *
  */
 template <typename T>
-inline T huberWeight(T _delta, T e)
+inline Eigen::Matrix<T, 3, 1> huberWeight(T _delta, T e)
 {
+    Eigen::Matrix<T, 3, 1> result;
     T dsqr = _delta * _delta;
     if (e <= dsqr)
     {
         // inlier
-        return 1;
+        result(0) = e;
+        result(1) = 1;
+        result(2) = 0;
+        return result;
     }
     else
     {
         // outlier
-        T sqrte = sqrt(e);      // absolut value of the error
-        return _delta / sqrte;  // rho'(e)  = delta / sqrt(e)
+        T sqrte   = sqrt(e);  // absolut value of the error
+        result(0) = 2 * sqrte * _delta - dsqr;
+        result(1) = _delta / sqrte;
+        result(2) = -0.5 * result(1) / e;
+        return result;  // rho'(e)  = delta / sqrt(e)
     }
 }
 
 
-
+#if 1
 struct IdentityRobustification
 {
     template <typename ResidualType, typename JacobiType>
@@ -66,12 +79,12 @@ struct HuberRobustification
     void apply(ResidualType& res, JacobiType& Jrow) const
     {
         auto e = res.squaredNorm();
-        auto w = huberWeight(delta, e);
+        auto w = huberWeight(delta, e)(1);
         res *= w;
         Jrow *= w;
     }
 };
-
+#endif
 
 }  // namespace Kernel
 }  // namespace Saiga

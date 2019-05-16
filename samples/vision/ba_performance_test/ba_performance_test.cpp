@@ -151,7 +151,7 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
                 auto opt                 = dynamic_cast<Optimizer*>(s.get());
                 opt->optimizationOptions = baoptions;
                 SAIGA_ASSERT(opt);
-                auto result = opt->solve();
+                auto result = opt->initAndSolve();
                 chi2        = result.cost_final;
                 times.push_back(result.total_time);
                 timesl.push_back(result.linear_solver_time);
@@ -269,7 +269,7 @@ int main(int, char**)
         auto opt                 = dynamic_cast<Optimizer*>(s.get());
         opt->optimizationOptions = baoptions;
         SAIGA_ASSERT(opt);
-        auto result = opt->solve();
+        auto result = opt->initAndSolve();
 
         cout << "Error " << result.cost_initial << " -> " << result.cost_final << endl;
         cout << "Time LinearSolver/Total: " << result.linear_solver_time << "/" << result.total_time << endl;

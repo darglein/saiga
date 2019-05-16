@@ -21,7 +21,7 @@
 
 namespace Saiga
 {
-OptimizationResults CeresPGO::solve()
+OptimizationResults CeresPGO::initAndSolve()
 {
     auto& scene = *_scene;
     SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);

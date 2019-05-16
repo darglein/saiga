@@ -28,6 +28,7 @@ class SAIGA_VISION_API RecursiveArap : public ArapBase, public LMOptimizer
    public:
     ArapProblem* arap;
 
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     RecursiveArap() : ArapBase("Recursive") {}
     virtual void create(ArapProblem& scene) override { arap = &scene; }
 

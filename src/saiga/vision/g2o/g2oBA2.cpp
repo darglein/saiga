@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-OptimizationResults g2oBA2::solve()
+OptimizationResults g2oBA2::initAndSolve()
 {
     Scene& scene = *_scene;
 

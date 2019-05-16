@@ -137,6 +137,9 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
         return v;
     }
     void coeffs(Vec5 v) { (*this) = v; }
+
+    // Baseline in meters
+    T baseLine() { return bf / fx; }
 };
 
 using StereoCamera4  = StereoCamera4Base<double>;

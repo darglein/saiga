@@ -18,7 +18,7 @@ class SAIGA_VISION_API G2OArap : public ArapBase, public Optimizer
     void optimizeAutodiff(ArapProblem& arap, int its);
 
 
-    virtual OptimizationResults solve() override;
+    virtual OptimizationResults initAndSolve() override;
 
     void create(ArapProblem& scene) override { _scene = &scene; }
 

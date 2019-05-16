@@ -33,7 +33,7 @@ using DescriptorORB  = std::array<uint64_t, 4>;
 using DescriptorSIFT = std::array<float, 128>;
 
 
-#if 1
+#if 0
 // use the popcnt instruction
 // this will be the fastest implementation if it is available
 // more here: https://github.com/kimwalisch/libpopcnt

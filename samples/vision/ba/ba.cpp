@@ -172,7 +172,7 @@ void VulkanExample::renderGUI()
         Saiga::g2oBA2 ba;
         ba.baOptions = baoptions;
         ba.create(scene);
-        ba.solve();
+        ba.initAndSolve();
         change = true;
     }
 
@@ -182,7 +182,7 @@ void VulkanExample::renderGUI()
         Saiga::CeresBA ba;
         ba.baOptions = baoptions;
         ba.create(scene);
-        ba.solve();
+        ba.initAndSolve();
         change = true;
     }
 
@@ -211,7 +211,7 @@ void VulkanExample::renderGUI()
         //        Saiga::BARec barec;
         barec.baOptions = baoptions;
         barec.create(scene);
-        barec.solve();
+        barec.initAndSolve();
         change = true;
     }
 
@@ -221,7 +221,7 @@ void VulkanExample::renderGUI()
         Saiga::BAPoseOnly ba;
         ba.baOptions = baoptions;
         ba.create(scene);
-        ba.solve();
+        ba.initAndSolve();
         change = true;
     }
 

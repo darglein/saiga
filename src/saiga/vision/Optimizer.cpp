@@ -58,6 +58,77 @@ std::ostream& operator<<(std::ostream& strm, const OptimizationOptions& op)
 
 OptimizationResults LMOptimizer::solve()
 {
+    double current_chi2 = 0;
+
+    OptimizationResults result;
+    result.linear_solver_time = 0;
+
+    for (auto i = 0; i < optimizationOptions.maxIterations; ++i)
+    {
+        double chi2 = computeQuadraticForm();
+
+
+        if (optimizationOptions.debug)
+        {
+            // A small sanity check in debug mode to see if compute cost is correct
+            double test = computeCost();
+            if (chi2 != test)
+            {
+                cerr << "Warning " << chi2 << "!=" << test << endl;
+                SAIGA_ASSERT(chi2 == test);
+            }
+        }
+
+
+
+        addLambda(lambda);
+        if (i == 0)
+        {
+            current_chi2        = chi2;
+            result.cost_initial = chi2;
+            if (optimizationOptions.debugOutput) cout << "initial_chi2 = " << 0.5 * current_chi2 << endl;
+        }
+        result.cost_final = chi2;
+
+        double ltime;
+        {
+            Saiga::ScopedTimer<double> timer(ltime);
+            solveLinearSystem();
+        }
+        result.linear_solver_time += ltime;
+
+        addDelta();
+
+        double newChi2 = computeCost();
+
+        if (newChi2 < current_chi2)
+        {
+            // accept
+            lambda       = lambda * (1.0 / 3.0);
+            v            = 2;
+            current_chi2 = newChi2;
+        }
+        else
+        {
+            // discard
+            lambda = lambda * v;
+            v      = 2 * v;
+            revertDelta();
+            if (optimizationOptions.debugOutput)
+                cerr << i << " warning invalid lm step. lambda: " << lambda << " new/old: " << newChi2 << "/"
+                     << current_chi2 << endl;
+        }
+
+        if (optimizationOptions.debugOutput) cout << "current_chi2 = " << 0.5 * current_chi2 << endl;
+    }
+    finalize();
+
+    result.cost_final = current_chi2;
+    return result;
+}
+
+OptimizationResults LMOptimizer::initAndSolve()
+{
     OptimizationResults result;
 
     lambda = optimizationOptions.initialLambda;
@@ -66,71 +137,7 @@ OptimizationResults LMOptimizer::solve()
         Saiga::ScopedTimer<double> timer(result.total_time);
         init();
 
-        double current_chi2 = 0;
-
-        result.linear_solver_time = 0;
-
-        for (auto i = 0; i < optimizationOptions.maxIterations; ++i)
-        {
-            double chi2 = computeQuadraticForm();
-
-
-            if (optimizationOptions.debug)
-            {
-                // A small sanity check in debug mode to see if compute cost is correct
-                double test = computeCost();
-                if (chi2 != test)
-                {
-                    cerr << "Warning " << chi2 << "!=" << test << endl;
-                    SAIGA_ASSERT(chi2 == test);
-                }
-            }
-
-
-
-            addLambda(lambda);
-            if (i == 0)
-            {
-                current_chi2        = chi2;
-                result.cost_initial = chi2;
-                if (optimizationOptions.debugOutput) cout << "initial_chi2 = " << 0.5 * current_chi2 << endl;
-            }
-            result.cost_final = chi2;
-
-            double ltime;
-            {
-                Saiga::ScopedTimer<double> timer(ltime);
-                solveLinearSystem();
-            }
-            result.linear_solver_time += ltime;
-
-            addDelta();
-
-            double newChi2 = computeCost();
-
-            if (newChi2 < current_chi2)
-            {
-                // accept
-                lambda       = lambda * (1.0 / 3.0);
-                v            = 2;
-                current_chi2 = newChi2;
-            }
-            else
-            {
-                // discard
-                lambda = lambda * v;
-                v      = 2 * v;
-                revertDelta();
-                if (optimizationOptions.debugOutput)
-                    cerr << i << " warning invalid lm step. lambda: " << lambda << " new/old: " << newChi2 << "/"
-                         << current_chi2 << endl;
-            }
-
-            if (optimizationOptions.debugOutput) cout << "current_chi2 = " << 0.5 * current_chi2 << endl;
-        }
-        finalize();
-
-        result.cost_final = current_chi2;
+        result = solve();
     }
     return result;
 }
