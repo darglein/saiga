@@ -26,6 +26,12 @@ struct KeyPoint
     T angle;
     T response;
     int octave;
+
+    bool operator==(const KeyPoint& other) const
+    {
+        return point == other.point && size == other.size && angle == other.angle && response == other.response &&
+               octave == other.octave;
+    }
 };
 
 // Some common feature descriptors

@@ -27,9 +27,9 @@ using namespace Saiga;
 void buildScene(Scene& scene)
 {
     SynteticScene sscene;
-    sscene.numCameras     = 100;
-    sscene.numImagePoints = 100;
-    sscene.numWorldPoints = 500;
+    sscene.numCameras     = 2;
+    sscene.numImagePoints = 3;
+    sscene.numWorldPoints = 3;
     scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
     scene.addImagePointNoise(1.0);
@@ -232,18 +232,18 @@ int main(int, char**)
     scene.compress();
 #endif
 
-    //    buildScene(scene);
+    buildScene(scene);
 
     //        buildSceneBAL(scene, balPrefix + "problem-21-11315-pre.txt");
     // buildSceneBAL(scene, balPrefix + "trafalgar-00201-54427.txt");
-    buildSceneBAL(scene, balPrefix + "ladybug-00049-7776.txt");
+    //    buildSceneBAL(scene, balPrefix + "ladybug-00049-7776.txt");
     //    buildSceneBAL(scene, balPrefix + "venice-01778-993923.txt");
 
 
     cout << scene << endl;
 
     OptimizationOptions baoptions;
-    baoptions.debugOutput            = true;
+    baoptions.debugOutput            = false;
     baoptions.maxIterations          = 3;
     baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
@@ -258,9 +258,10 @@ int main(int, char**)
 
     solvers.push_back(std::make_shared<BARec>());
     //    solvers.push_back(std::make_shared<BAPoseOnly>());
-    solvers.push_back(std::make_shared<g2oBA2>());
-    //    solvers.push_back(std::make_shared<CeresBA>());
+    //    solvers.push_back(std::make_shared<g2oBA2>());
+    solvers.push_back(std::make_shared<CeresBA>());
 
+    scene.globalScale = 1;
     for (auto& s : solvers)
     {
         cout << "[Solver] " << s->name << endl;

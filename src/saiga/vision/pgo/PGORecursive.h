@@ -43,6 +43,8 @@ class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
     PBType delta_x;
     PGOSolver solver;
 
+
+
     AlignedVector<SE3> x_u, oldx_u;
 
 

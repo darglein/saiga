@@ -146,7 +146,7 @@ void BARec::init()
 
 
     // Create sparsity histogram of the schur complement
-    if (optimizationOptions.debugOutput)
+    if (false && optimizationOptions.debugOutput)
     {
         HistogramImage img(n, n, 512, 512);
         schurStructure.clear();
@@ -180,7 +180,7 @@ void BARec::init()
 
 
     // Create a sparsity histogram of the complete matrix
-    if (optimizationOptions.debugOutput)
+    if (false && optimizationOptions.debugOutput)
     {
         HistogramImage img(n + m, n + m, 512, 512);
         for (int i = 0; i < n + m; ++i)

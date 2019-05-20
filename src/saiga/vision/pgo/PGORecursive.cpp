@@ -106,7 +106,8 @@ double PGORec::computeQuadraticForm()
 {
     auto& scene = *_scene;
 
-    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
+    SAIGA_BLOCK_TIMER();
+    //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     using T          = BlockPGOScalar;
     using KernelType = Saiga::Kernel::PGO<T>;
 
@@ -119,40 +120,77 @@ double PGORec::computeQuadraticForm()
     }
 
     double chi2 = 0;
-    for (size_t k = 0; k < scene.edges.size(); ++k)
+#pragma omp parallel
     {
-        auto& e       = scene.edges[k];
-        auto& offsets = edgeOffsets[k];
-        int i         = e.from;
-        int j         = e.to;
-
-        auto& target_ij = S.valuePtr()[offsets].get();
-        auto& target_ii = S.valuePtr()[S.outerIndexPtr()[i]].get();
-        auto& target_jj = S.valuePtr()[S.outerIndexPtr()[j]].get();
-        auto& target_ir = b(i).get();
-        auto& target_jr = b(j).get();
-
+        auto b2 = b;
+        AlignedVector<PGOBlock> diagBlocks(n);
+        for (int i = 0; i < n; ++i)
         {
-            KernelType::PoseJacobiType Jrowi, Jrowj;
-            KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(x_u[i], x_u[j], e.meassurement.inverse(), res, Jrowi, Jrowj,
-                                                    e.weight);
+            diagBlocks[i].setZero();
+        }
+        double chi2local = 0;
+#pragma omp for
+        for (size_t k = 0; k < scene.edges.size(); ++k)
+        {
+            auto& e       = scene.edges[k];
+            auto& offsets = edgeOffsets[k];
+            int i         = e.from;
+            int j         = e.to;
 
-            if (scene.poses[i].constant) Jrowi.setZero();
-            if (scene.poses[j].constant) Jrowj.setZero();
+            auto& target_ij = S.valuePtr()[offsets].get();
+            //            auto& target_ii = S.valuePtr()[S.outerIndexPtr()[i]].get();
+            //            auto& target_jj = S.valuePtr()[S.outerIndexPtr()[j]].get();
+            auto& target_ii = diagBlocks[i];
+            auto& target_jj = diagBlocks[j];
+            auto& target_ir = b2(i).get();
+            auto& target_jr = b2(j).get();
 
-            // JtJ
-            target_ij = Jrowi.transpose() * Jrowj;
-            target_ii += Jrowi.transpose() * Jrowi;
-            target_jj += Jrowj.transpose() * Jrowj;
+            {
+                KernelType::PoseJacobiType Jrowi, Jrowj;
+                KernelType::ResidualType res;
+                KernelType::evaluateResidualAndJacobian(x_u[i], x_u[j], e.meassurement.inverse(), res, Jrowi, Jrowj,
+                                                        e.weight);
 
-            // Jtb
-            target_ir -= Jrowi.transpose() * res;
-            target_jr -= Jrowj.transpose() * res;
+                if (scene.poses[i].constant) Jrowi.setZero();
+                if (scene.poses[j].constant) Jrowj.setZero();
+
+                auto c = res.squaredNorm();
+
+                // JtJ
+                target_ij = Jrowi.transpose() * Jrowj;
+
+                auto ii = (Jrowi.transpose() * Jrowi).eval();
+                auto jj = (Jrowj.transpose() * Jrowj).eval();
+                //#pragma omp critical
+                {
+                    target_ii += ii;
+                    target_jj += jj;
+                }
+                auto ir = Jrowi.transpose() * res;
+                auto jr = Jrowj.transpose() * res;
+                //#pragma omp critical
+                {
+                    // Jtb
+                    target_ir -= ir;
+                    target_jr -= jr;
+                }
 
 
-            auto c = res.squaredNorm();
-            chi2 += c;
+                chi2local += c;
+            }
+        }
+
+#pragma omp atomic
+        chi2 += chi2local;
+#pragma omp critical
+        {
+            b += b2;
+        }
+
+        for (int i = 0; i < n; ++i)
+        {
+#pragma omp critical
+            S.valuePtr()[S.outerIndexPtr()[i]].get() += diagBlocks[i];
         }
     }
 
