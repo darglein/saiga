@@ -15,7 +15,7 @@
 namespace Saiga
 {
 template <typename T>
-class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
+class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
 {
    public:
     std::mutex lock;
@@ -26,6 +26,19 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
     SynchronizedBuffer(int capacity) : RingBuffer<T>(capacity) {}
 
     ~SynchronizedBuffer() {}
+
+    int count()
+    {
+        std::unique_lock<std::mutex> l(lock);
+        if (this->empty()) return 0;
+        return (this->front < this->rear) ? this->rear - this->front : this->rear + this->capacity - this->front;
+    }
+
+    bool emptysync()
+    {
+        std::unique_lock<std::mutex> l(lock);
+        return this->front == -1;
+    }
 
     // blocks until buffer is empty
     void waitUntilEmpty()
