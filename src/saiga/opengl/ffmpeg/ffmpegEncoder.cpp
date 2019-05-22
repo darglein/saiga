@@ -348,14 +348,14 @@ void FFMPEGEncoder::startEncoding()
 
 void FFMPEGEncoder::createBuffers()
 {
-    for (int i = 0; i < (int)imageStorage.capacity; ++i)
+    for (int i = 0; i < (int)imageStorage.capacity(); ++i)
     {
         std::shared_ptr<EncoderImageType> img = std::make_shared<EncoderImageType>(inHeight, inWidth);
         imageStorage.add(img);
     }
 
 
-    for (int i = 0; i < (int)frameStorage.capacity; ++i)
+    for (int i = 0; i < (int)frameStorage.capacity(); ++i)
     {
         AVFrame* frame = av_frame_alloc();
         if (!frame)
