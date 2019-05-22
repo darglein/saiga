@@ -119,8 +119,8 @@ struct BAPoseStereo
         Vec3 pc   = extr * wp;
         Vec3 proj = camera.project3(pc);
 
-        Vec3 obs3;
-        obs3 << observed(0), observed(1), observedDepth;
+        Vec3 obs3(observed(0), observed(1), observedDepth);
+//        obs3 << observed(0), observed(1), observedDepth;
 
 
         //        res = reprojectionErrorDepth(obs3, proj, camera.bf);

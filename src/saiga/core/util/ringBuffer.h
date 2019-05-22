@@ -135,7 +135,7 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
 
     bool empty() const { return front == -1; }
 
-    int capacity() { return _capacity; }
+    int capacity() const { return _capacity; }
 
     bool full() const
     {

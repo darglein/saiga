@@ -32,8 +32,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
     int count()
     {
         std::unique_lock l(lock);
-        if (this->empty()) return 0;
-        return (this->front < this->rear) ? this->rear - this->front : this->rear + this->capacity - this->front;
+        return Base::count();
     }
 
     int capacity() { return Base::capacity(); }

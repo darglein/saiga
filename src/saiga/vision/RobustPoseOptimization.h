@@ -36,6 +36,9 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
     using Vec2       = Eigen::Matrix<T, 2, 1>;
     using Obs        = ObsBase<T>;
 
+    int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
+                           SE3Type& guess, const CameraType& camera);
+
     std::vector<T> chi2Mono   = {5.991, 5.991, 5.991, 5.991};
     std::vector<T> chi2Stereo = {7.815, 7.815, 7.815, 7.815};
     std::vector<int> its      = {10, 10, 10, 10};
@@ -43,10 +46,6 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
     T deltaStereo             = sqrt(7.815);
     T deltaChiEpsilon         = 1e-4;
     size_t iterations         = 4;
-
-    int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
-                           SE3Type& guess, const CameraType& camera);
-
    private:
     std::vector<T> chi2s;
 };
