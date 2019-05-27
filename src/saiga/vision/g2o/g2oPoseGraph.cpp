@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-OptimizationResults g2oPGO::solve()
+OptimizationResults g2oPGO::initAndSolve()
 {
     auto& scene = *_scene;
 

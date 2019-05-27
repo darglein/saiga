@@ -9,6 +9,7 @@
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/tostring.h"
 
+#include <algorithm>
 #include <fstream>
 #include <thread>
 namespace Saiga
@@ -31,6 +32,7 @@ static AlignedVector<TumRGBDCamera::CameraData> readCameraData(std::string file)
             data.push_back(d);
         }
     }
+    std::sort(data.begin(), data.end());
     return data;
 }
 
@@ -47,7 +49,7 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
             std::vector<std::string> elements = Saiga::split(line, ' ');
             SAIGA_ASSERT(elements.size() == 8);
             TumRGBDCamera::GroundTruth d;
-            d.timeStamp = Saiga::to_double(elements[0]);
+            d.timestamp = Saiga::to_double(elements[0]);
 
             Vec3 t;
             t(0) = Saiga::to_double(elements[1]);
@@ -66,6 +68,7 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
             data.push_back(d);
         }
     }
+    std::sort(data.begin(), data.end());
     return data;
 }
 
@@ -74,8 +77,8 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr) : RGBDCamera(intr)
 {
     cout << "Loading TUM RGBD Dataset: " << datasetDir << endl;
-    //    associate(datasetDir);
-    associateFromFile(datasetDir + "/associations.txt");
+    associate(datasetDir);
+    //    associateFromFile(datasetDir + "/associations.txt");
 
     load(datasetDir);
 
@@ -149,110 +152,43 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
     AlignedVector<CameraData> depthData = readCameraData(datasetDir + "/depth.txt");
     AlignedVector<GroundTruth> gt       = readGT(datasetDir + "/groundtruth.txt");
 
-    // Find for each rgb image the best depth and gt
-    int cdepth = 0;
-    int cgt    = 0;
-
-    int lastBest = -1;
-    for (auto r : rgbData)
+    for (auto&& r : rgbData)
     {
         TumFrame tf;
-
+        tf.rgb = r;
         auto t = r.timestamp;
-        int ibest;
 
         {
-            int ismaller = cdepth;
-            int ibigger  = cdepth;
-
-            auto smaller = depthData[ismaller].timestamp;
-            auto bigger  = smaller;
-
-            while (bigger < t && cdepth + 1 < (int)depthData.size())
-            {
-                smaller  = bigger;
-                ismaller = ibigger;
-
-                cdepth++;
-                ibigger = cdepth;
-                bigger  = depthData[ibigger].timestamp;
-            }
-
-            ibest = t - smaller < bigger - t ? ismaller : ibigger;
-
-            tf.rgb   = r;
-            tf.depth = depthData[ibest];
+            // find best depth image
+            auto depthIt = std::lower_bound(depthData.begin(), depthData.end(), CameraData{r.timestamp, ""});
+            if (depthIt == depthData.end() || depthIt == depthData.begin()) continue;
+            auto prevDepthIt = depthIt--;
+            auto bestDepth = std::abs(r.timestamp - depthIt->timestamp) < std::abs(r.timestamp - prevDepthIt->timestamp)
+                                 ? depthIt
+                                 : prevDepthIt;
+            tf.depth = *bestDepth;
         }
-
-#if 0
-        int igtbest;
-#endif
-        GroundTruth bestGT;
         {
-            int ismaller = cgt;
-            int ibigger  = cgt;
-
-            auto smaller = gt[ismaller].timeStamp;
-            auto bigger  = smaller;
-
-            while (bigger < t && cgt + 1 < (int)gt.size())
-            {
-                smaller  = bigger;
-                ismaller = ibigger;
-
-                cgt++;
-                ibigger = cgt;
-                bigger  = gt[ibigger].timeStamp;
-            }
+            // find best gt
+            auto gtIt = std::lower_bound(gt.begin(), gt.end(), GroundTruth{r.timestamp, {}});
+            if (gtIt == gt.end() || gtIt == gt.begin()) continue;
+            auto prevGTIt = gtIt--;
 
 
 #if 1
-            GroundTruth a = gt[ismaller];
-            GroundTruth b = gt[ibigger];
-            SAIGA_ASSERT(a.timeStamp >= 0 && b.timeStamp >= 0);
-            bestGT.timeStamp = t;
-            double alpha     = (t - a.timeStamp) / (b.timeStamp - a.timeStamp);
-            if (a.timeStamp == b.timeStamp) alpha = 0;
-            bestGT.se3 = slerp(a.se3, b.se3, alpha);
-
+            // interpolate
+            double alpha = (t - prevGTIt->timestamp) / (gtIt->timestamp - prevGTIt->timestamp);
+            if (prevGTIt->timestamp == gtIt->timestamp) alpha = 0;
+            tf.gt.se3       = slerp(prevGTIt->se3, gtIt->se3, alpha);
+            tf.gt.timestamp = t;
 #else
-            igtbest = t - smaller < bigger - t ? ismaller : ibigger;
-            bestGT  = gt[igtbest];
+            // nearest neighbor
+            auto bestGt =
+                std::abs(r.timestamp - gtIt->timestamp) < std::abs(r.timestamp - prevGTIt->timestamp) ? gtIt : prevGTIt;
+            tf.gt = *bestGt;
 #endif
         }
-
-
-        tf.rgb   = r;
-        tf.depth = depthData[ibest];
-        //        tf.gt = gt[igtbest];
-        tf.gt = bestGT;
-
-
-#if 0
-        {
-            // Debug check
-            int ibest2 = 0;
-            double diffbest = 2135388888787;
-            for(int i = 0; i <depthData.size(); ++i)
-            {
-                double diff = abs(t - depthData[i].timestamp);
-                if(diff < diffbest)
-                {
-                    ibest2 = i;
-                    diffbest = diff;
-                }
-            }
-            SAIGA_ASSERT(ibest == ibest2);
-        }
-#endif
-
-
-
-        if (ibest != lastBest)
-        {
-            tumframes.push_back(tf);
-        }
-        lastBest = ibest;
+        tumframes.push_back(tf);
     }
 }
 
@@ -290,26 +226,11 @@ void TumRGBDCamera::load(const std::string& datasetDir)
     for (int i = 0; i < (int)tumframes.size(); ++i)
     {
         TumFrame d = tumframes[i];
-        //        cout << "loading " << d.rgb.img << endl;
-
-
         Image cimg(datasetDir + "/" + d.rgb.img);
-        //        rgbo.h = cimg.h;
-        //        rgbo.w = cimg.w;
-
-
         Image dimg(datasetDir + "/" + d.depth.img);
-
-        //        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
-        //        int targetW    = downScale ? dimg.w / 2 : dimg.w;
-        //        int targetH    = downScale ? dimg.h / 2 : dimg.h;
-
-        //        deptho.w = targetW;
-        //        deptho.h = targetH;
 
         RGBDFrameData f;
         makeFrameData(f);
-
 
         if (cimg.type == UC3)
         {
@@ -322,34 +243,25 @@ void TumRGBDCamera::load(const std::string& datasetDir)
         }
         else
         {
-            SAIGA_ASSERT(0);
+            SAIGA_EXIT_ERROR("invalid image type");
         }
-
-        DepthImageType tmp;
-        tmp.create(dimg.h, dimg.w);
 
         if (dimg.type == US1)
         {
-            dimg.getImageView<unsigned short>().copyTo(tmp.getImageView(), intrinsics().depthFactor);
+            dimg.getImageView<unsigned short>().copyTo(f.depthImg.getImageView(), 1.0 / intrinsics().depthFactor);
         }
         else
         {
-            SAIGA_ASSERT(0);
+            SAIGA_EXIT_ERROR("invalid image type");
         }
 
-        //        if (dmpp)
-        //        {
-        //            (*dmpp)(tmp, f->depthImg.getImageView());
-        //        }
-        //        else
+        if (d.gt.timestamp != -1)
         {
-            tmp.getImageView().copyTo(f.depthImg.getImageView());
+            f.groundTruth = d.gt.se3;
         }
-
 
         frames[i] = std::move(f);
     }
-
     cout << "Loaded " << tumframes.size() << " images." << endl;
 }
 

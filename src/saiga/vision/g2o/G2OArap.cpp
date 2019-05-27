@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-OptimizationResults G2OArap::solve()
+OptimizationResults G2OArap::initAndSolve()
 {
     auto& scene = *_scene;
     auto& arap  = *_scene;

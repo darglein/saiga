@@ -200,7 +200,7 @@ void VulkanExample::renderGUI()
         Saiga::g2oPGO ba;
         ba.optimizationOptions = baoptions;
         ba.create(scene);
-        ba.solve();
+        ba.initAndSolve();
         change = true;
     }
 
@@ -210,7 +210,7 @@ void VulkanExample::renderGUI()
         Saiga::PGORec barec;
         barec.optimizationOptions = baoptions;
         barec.create(scene);
-        barec.solve();
+        barec.initAndSolve();
         change = true;
     }
 

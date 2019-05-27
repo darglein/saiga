@@ -50,14 +50,35 @@ struct SAIGA_VISION_API Correspondence
         srcNormal = se3.so3() * srcNormal;
     }
 
+    double residualPointToPoint() { return (refPoint - srcPoint).squaredNorm(); }
+
+    double residualPointToPlane()
+    {
+        double d = refNormal.dot(refPoint - srcPoint);
+        return d * d;
+    }
+
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 /**
- * The basic ICP algorithm which minimized the function above. Each correspondence only needs
- * the 'refPoint' and 'srcPoint'.
+ * The basic point to point registration algorithm which minimized the function above. Each correspondence only needs
+ * the 'refPoint' and 'srcPoint'. The function is minized iterativley using the Gauss-Newton algorithm.
  */
-SAIGA_VISION_API SE3 pointToPoint(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3());
+SAIGA_VISION_API SE3 pointToPointIterative(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3(),
+                                           int innerIterations = 5);
+
+/**
+ * Analytical solution to the point cloud registration problem.
+ * The funtion is solved using the polar decomposition.
+ * See also "Orthonormal Procrustus Problem".
+ *
+ * For larger offsets it makes sense to apply this function multiple times.
+ *
+ *
+ */
+SAIGA_VISION_API SE3 pointToPointDirect(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3(),
+                                        int innerIterations = 1);
 
 /**
  * Minimized the distance between the source point to the surface plane at the reference point:
@@ -67,7 +88,7 @@ SAIGA_VISION_API SE3 pointToPoint(const AlignedVector<Correspondence>& corrs, co
  * Each correspondnce additional needs the 'refNormal' attribute.
  */
 SAIGA_VISION_API SE3 pointToPlane(const AlignedVector<Correspondence>& corrs, const SE3& ref, const SE3& src,
-                              int innerIterations = 1);
+                                  int innerIterations = 1);
 
 
 /**
@@ -84,8 +105,8 @@ SAIGA_VISION_API SE3 pointToPlane(const AlignedVector<Correspondence>& corrs, co
  * Full Paper: Generalized-ICP, http://www.roboticsproceedings.org/rss05/p21.pdf
  * G2O Implementation: https://github.com/RainerKuemmerle/g2o/blob/master/g2o/types/icp/types_icp.h
  */
-SAIGA_VISION_API SE3 planeToPlane(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3(), double covE = 0.001,
-                              int innerIterations = 5);
+SAIGA_VISION_API SE3 planeToPlane(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3(),
+                                  double covE = 0.001, int innerIterations = 5);
 
 
 }  // namespace ICP

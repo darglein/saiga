@@ -20,16 +20,20 @@ class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
    public:
     struct GroundTruth
     {
-        double timeStamp = -1;
+        double timestamp = -1;
         SE3 se3;
 
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+        bool operator<(const GroundTruth& other) const { return timestamp < other.timestamp; }
     };
 
     struct CameraData
     {
         double timestamp = -1;
         std::string img;
+
+        bool operator<(const CameraData& other) const { return timestamp < other.timestamp; }
     };
 
     struct TumFrame

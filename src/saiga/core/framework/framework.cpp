@@ -51,7 +51,7 @@ void SaigaParameters::fromConfigFile(const std::string& file)
     dataDirectory    = split(ini.GetAddString("saiga", "dataDirectory", concat(dataDirectory, sep).c_str()), sep);
     mainThreadName   = ini.GetAddString("saiga", "mainThreadName", mainThreadName.c_str());
     logging_enabled  = ini.GetAddBool("saiga", "logging", logging_enabled);
-    verbose_logging  = ini.GetAddBool("saiga", "verbose_logging", verbose_logging);
+    verbose_logging  = ini.GetAddLong("saiga", "verbose_logging", verbose_logging);
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 
@@ -132,8 +132,6 @@ void initSample(SaigaParameters& saigaParameters)
     saigaParameters.modelDirectory   = {SAIGA_PROJECT_SOURCE_DIR "/data/models"};
     saigaParameters.fontDirectory    = {SAIGA_PROJECT_SOURCE_DIR "/data/fonts"};
     saigaParameters.dataDirectory    = {SAIGA_PROJECT_SOURCE_DIR "/data"};
-    saigaParameters.logging_enabled  = false;
-    saigaParameters.verbose_logging  = false;
 }
 
 void initSaiga(const SaigaParameters& params)
@@ -215,11 +213,17 @@ void initSaiga(const SaigaParameters& params)
     // defaultConf.set(el::Level::Global, el::ConfigurationType::ToStandardOutput,
     // std::to_string(params.logging_enabled));
     defaultConf.set(el::Level::Global, el::ConfigurationType::Enabled, std::to_string(params.logging_enabled));
-    defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, std::to_string(params.verbose_logging));
+    //    defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, std::to_string(params.verbose_logging));
 
-    if (params.verbose_logging)
+
+    if (params.verbose_logging > 0)
     {
-        el::Loggers::setVerboseLevel(1);
+        defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, "true");
+        el::Loggers::setVerboseLevel(params.verbose_logging);
+    }
+    else
+    {
+        defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, "false");
     }
 
     el::Loggers::reconfigureLogger("default", defaultConf);

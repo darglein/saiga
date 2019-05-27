@@ -167,6 +167,27 @@ struct ImageTypeTemplate<float>
     const static ImageType type = F1;
 };
 
+template <>
+struct ImageTypeTemplate<vec2>
+{
+    using ChannelType           = float;
+    const static ImageType type = F2;
+};
+
+template <>
+struct ImageTypeTemplate<vec3>
+{
+    using ChannelType           = float;
+    const static ImageType type = F3;
+};
+
+template <>
+struct ImageTypeTemplate<vec4>
+{
+    using ChannelType           = float;
+    const static ImageType type = F4;
+};
+
 
 
 inline ImageType getType(ImageChannel channels, ImageElementType elementType)

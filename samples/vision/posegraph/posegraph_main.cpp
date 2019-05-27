@@ -28,7 +28,7 @@ std::vector<std::string> getBALFiles()
     files.insert(files.end(), {"vision/tum_office.scene"});
     files.insert(files.end(), {"vision/tum_large.scene"});
 //    files.insert(files.end(), {"dubrovnik-00356-226730.txt"});
-#if 1
+#if 0
     files.insert(files.end(), {"dubrovnik-00016-22106.txt", "dubrovnik-00161-103832.txt"});
     files.insert(files.end(), {"dubrovnik-00262-169354.txt", "dubrovnik-00356-226730.txt"});
 
@@ -89,8 +89,8 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
 
         std::vector<std::shared_ptr<PGOBase>> solvers;
         solvers.push_back(std::make_shared<PGORec>());
-        solvers.push_back(std::make_shared<g2oPGO>());
-        solvers.push_back(std::make_shared<CeresPGO>());
+        //        solvers.push_back(std::make_shared<g2oPGO>());
+        //        solvers.push_back(std::make_shared<CeresPGO>());
 
 
 
@@ -115,7 +115,7 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
                 auto opt                 = dynamic_cast<Optimizer*>(s.get());
                 opt->optimizationOptions = baoptions;
                 SAIGA_ASSERT(opt);
-                auto result = opt->solve();
+                auto result = opt->initAndSolve();
                 chi2        = result.cost_final;
                 times.push_back(result.total_time);
                 timesl.push_back(result.linear_solver_time);
@@ -158,7 +158,7 @@ int main(int, char**)
             test_to_file(baoptions, "pgo_benchmark_cg.csv", testIts);
         }
 
-        if (1)
+        if (0)
         {
             baoptions.solverType = OptimizationOptions::SolverType::Direct;
             test_to_file(baoptions, "pgo_benchmark_chol.csv", testIts);
@@ -226,7 +226,7 @@ int main(int, char**)
         auto opt                 = dynamic_cast<Optimizer*>(s.get());
         opt->optimizationOptions = baoptions;
         SAIGA_ASSERT(opt);
-        auto result = opt->solve();
+        auto result = opt->initAndSolve();
         //        }
         cout << "Error " << result.cost_initial << " -> " << result.cost_final << endl;
         cout << "Time LinearSolver/Total: " << result.linear_solver_time << "/" << result.total_time << endl;

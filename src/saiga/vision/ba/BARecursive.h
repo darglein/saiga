@@ -46,6 +46,8 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     using BASolver = Eigen::Recursive::MixedSymmetricRecursiveSolver<BAMatrix, BAVector>;
 
    public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
     BARec() : BABase("Recursive BA") {}
     virtual ~BARec() {}
     virtual void create(Scene& scene) override { _scene = &scene; }

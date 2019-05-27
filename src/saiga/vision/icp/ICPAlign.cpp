@@ -13,39 +13,78 @@ namespace Saiga
 {
 namespace ICP
 {
-SE3 pointToPoint(const AlignedVector<Correspondence>& corrs, const SE3& guess)
+SE3 pointToPointIterative(const AlignedVector<Correspondence>& corrs, const SE3& guess, int innerIterations)
 {
     SAIGA_ASSERT(corrs.size() >= 6);
 
     SE3 T = guess;
     Eigen::Matrix<double, 6, 6> JtJ;
     Eigen::Matrix<double, 6, 1> Jtb;
-    JtJ.setZero();
-    Jtb.setZero();
 
-    for (size_t i = 0; i < corrs.size(); ++i)
+    for (int k = 0; k < innerIterations; ++k)
     {
-        auto& corr = corrs[i];
+        JtJ.setZero();
+        Jtb.setZero();
 
-        Vec3 sp = T * corr.srcPoint;
+        for (size_t i = 0; i < corrs.size(); ++i)
+        {
+            auto& corr = corrs[i];
+
+            Vec3 sp = T * corr.srcPoint;
 
 
-        Eigen::Matrix<double, 3, 6> Jrow;
-        Jrow.block<3, 3>(0, 0) = Mat3::Identity();
-        Jrow.block<3, 3>(0, 3) = -skew(sp);
+            Eigen::Matrix<double, 3, 6> Jrow;
+            Jrow.block<3, 3>(0, 0) = Mat3::Identity();
+            Jrow.block<3, 3>(0, 3) = -skew(sp);
 
 
-        Vec3 res = corr.refPoint - sp;
+            Vec3 res = corr.refPoint - sp;
 
-        // use weight
-        Jrow *= corr.weight;
-        res *= corr.weight;
+            // use weight
+            Jrow *= corr.weight;
+            res *= corr.weight;
 
-        JtJ += Jrow.transpose() * Jrow;
-        Jtb += Jrow.transpose() * res;
+            JtJ += Jrow.transpose() * Jrow;
+            Jtb += Jrow.transpose() * res;
+        }
+        Eigen::Matrix<double, 6, 1> x = JtJ.ldlt().solve(Jtb);
+        T                             = SE3::exp(x) * T;
     }
-    Eigen::Matrix<double, 6, 1> x = JtJ.ldlt().solve(Jtb);
-    T                             = SE3::exp(x) * T;
+    return T;
+}
+
+SE3 pointToPointDirect(const AlignedVector<Correspondence>& corrs, const SE3& guess, int innerIterations)
+{
+    SE3 T = guess;
+    for (int i = 0; i < innerIterations; ++i)
+    {
+        Vec3 meanRef(0, 0, 0);
+        Vec3 meanSrc(0, 0, 0);
+
+        for (auto c : corrs)
+        {
+            meanRef += c.refPoint;
+            meanSrc += T * c.srcPoint;
+        }
+        meanRef /= corrs.size();
+        meanSrc /= corrs.size();
+        Vec3 t = meanRef - meanSrc;
+
+        Mat3 M;
+        M.setZero();
+        for (auto c : corrs)
+        {
+            M += (c.refPoint - meanRef) * (T * c.srcPoint - meanSrc).transpose();
+        }
+
+        // polar decomp
+        // M = USV^T
+        // R = UV^T
+        Eigen::JacobiSVD svd(M, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        Mat3 R = svd.matrixU() * svd.matrixV().transpose();
+        t      = meanRef - R.transpose() * meanSrc;
+        T      = SE3(Quat(R), t) * T;
+    }
     return T;
 }
 

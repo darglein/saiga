@@ -23,6 +23,10 @@ namespace Saiga
 {
 void BARec::init()
 {
+    //    cout << "Test sizes: " << sizeof(Scene) << " " << sizeof(BARec)<< " " << sizeof(BABase)<< " " <<
+    //    sizeof(LMOptimizer) << endl; cout << "Test sizes2: " << sizeof(BAMatrix) << " " << sizeof(BAVector)<< " " <<
+    //    sizeof(BASolver)<< " " << sizeof(AlignedVector<SE3>) << endl;
+
     Scene& scene = *_scene;
 
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
@@ -112,7 +116,7 @@ void BARec::init()
         auto& img = scene.images[validImages[i]];
         for (auto& ip : img.stereoPoints)
         {
-            if (!ip) continue;
+            if (ip.wp == -1) continue;
 
             int j = pointToValidMap[ip.wp];
             cameraPointCounts[i]++;
@@ -142,7 +146,7 @@ void BARec::init()
 
 
     // Create sparsity histogram of the schur complement
-    if (optimizationOptions.debugOutput)
+    if (false && optimizationOptions.debugOutput)
     {
         HistogramImage img(n, n, 512, 512);
         schurStructure.clear();
@@ -176,7 +180,7 @@ void BARec::init()
 
 
     // Create a sparsity histogram of the complete matrix
-    if (optimizationOptions.debugOutput)
+    if (false && optimizationOptions.debugOutput)
     {
         HistogramImage img(n + m, n + m, 512, 512);
         for (int i = 0; i < n + m; ++i)
@@ -247,6 +251,8 @@ double BARec::computeQuadraticForm()
     A.u.setZero();
     A.v.setZero();
 
+
+
     SAIGA_ASSERT(A.w.IsRowMajor);
 
 
@@ -265,9 +271,17 @@ double BARec::computeQuadraticForm()
 
             for (auto& ip : img.stereoPoints)
             {
-                if (!ip) continue;
+                if (ip.wp == -1) continue;
+                if (ip.outlier)
+                {
+                    A.w.valuePtr()[k].get().setZero();
+                    ++k;
+                    continue;
+                }
                 BlockBAScalar w = ip.weight * img.imageWeight * scene.scale();
                 int j           = pointToValidMap[ip.wp];
+
+
                 //                auto& wp        = scene.worldPoints[ip.wp].p;
                 auto& wp = x_v[j];
 
@@ -284,7 +298,7 @@ double BARec::computeQuadraticForm()
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, w, res, JrowPose,
+                    KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, 1, res, JrowPose,
                                                             JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
@@ -292,10 +306,11 @@ double BARec::computeQuadraticForm()
                     newChi2 += c;
                     if (baOptions.huberStereo > 0)
                     {
-                        auto rw = Kernel::huberWeight<T>(baOptions.huberStereo, c);
-                        JrowPose *= rw;
-                        JrowPoint *= rw;
-                        res *= rw;
+                        auto rw     = Kernel::huberWeight<T>(baOptions.huberStereo, c);
+                        auto sqrtrw = sqrt(rw(1)) * sqrt(w);
+                        JrowPose *= sqrtrw;
+                        JrowPoint *= sqrtrw;
+                        res *= sqrtrw;
                     }
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
@@ -310,16 +325,17 @@ double BARec::computeQuadraticForm()
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
+                    KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, 1, res, JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
                     auto c = res.squaredNorm();
                     newChi2 += c;
                     if (baOptions.huberMono > 0)
                     {
-                        auto rw = Kernel::huberWeight<T>(baOptions.huberMono, c);
-                        JrowPose *= rw;
-                        JrowPoint *= rw;
-                        res *= rw;
+                        auto rw     = Kernel::huberWeight<T>(baOptions.huberMono, c);
+                        auto sqrtrw = sqrt(rw(1)) * sqrt(w);
+                        JrowPose *= sqrtrw;
+                        JrowPoint *= sqrtrw;
+                        res *= sqrtrw;
                     }
 
                     targetPosePose += JrowPose.transpose() * JrowPose;
@@ -438,8 +454,14 @@ double BARec::computeCost()
                 {
                     using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
                     KernelType::ResidualType res;
-                    res    = KernelType::evaluateResidual(scam, extr, wp, ip.point, ip.depth, w);
+                    res    = KernelType::evaluateResidual(scam, extr, wp, ip.point, ip.depth, 1);
                     auto c = res.squaredNorm();
+                    if (baOptions.huberStereo > 0)
+                    {
+                        auto rw     = Kernel::huberWeight<T>(baOptions.huberStereo, c);
+                        auto sqrtrw = sqrt(rw(1)) * sqrt(w);
+                        res *= sqrtrw;
+                    }
                     newChi2 += c;
                 }
                 else
@@ -449,8 +471,14 @@ double BARec::computeCost()
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    res    = KernelType::evaluateResidual(camera, extr, wp, ip.point, w);
+                    res    = KernelType::evaluateResidual(camera, extr, wp, ip.point, 1);
                     auto c = res.squaredNorm();
+                    if (baOptions.huberMono > 0)
+                    {
+                        auto rw     = Kernel::huberWeight<T>(baOptions.huberMono, c);
+                        auto sqrtrw = sqrt(rw(1)) * sqrt(w);
+                        res *= sqrtrw;
+                    }
                     newChi2 += c;
                 }
             }

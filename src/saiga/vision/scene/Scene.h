@@ -86,12 +86,13 @@ struct SAIGA_VISION_API StereoImagePoint
     Eigen::Vector2d point;
     float weight = 1;
 
+    bool outlier = false;
 
     // === computed by reprojection
     double repDepth = 0;
     Eigen::Vector2d repPoint;
 
-    explicit operator bool() const { return wp != -1; }
+    explicit operator bool() const { return wp != -1 && !outlier; }
 };
 
 struct SAIGA_VISION_API DenseConstraint

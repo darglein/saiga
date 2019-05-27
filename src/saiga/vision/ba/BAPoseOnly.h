@@ -21,7 +21,7 @@ class SAIGA_VISION_API BAPoseOnly : public BABase, public Optimizer
     void posePointSparseSchur(Scene& scene);
 
 
-    virtual OptimizationResults solve() override;
+    virtual OptimizationResults initAndSolve() override;
     virtual void create(Scene& scene) override { _scene = &scene; }
 
    private:

@@ -1,14 +1,7 @@
-src/saiga/buildconfig.h
 CMakeLists.txt.user
 build*/
 *.ptx
 cmake/SAIGAConfig.cmake
-saiga.creator
-saiga.creator.user
-saiga.files
-saiga.includes
-
-
-.DS_Store
+create.sh
 cmake-build-*/
 .idea/

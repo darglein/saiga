@@ -113,7 +113,7 @@ void test_to_file(const OptimizationOptions& options, const std::string& file, i
                 auto opt                 = dynamic_cast<Optimizer*>(s.get());
                 opt->optimizationOptions = options;
                 SAIGA_ASSERT(opt);
-                auto result = opt->solve();
+                auto result = opt->initAndSolve();
                 chi2        = cpy.chi2();
                 times.push_back(result.total_time);
                 timesl.push_back(result.linear_solver_time);

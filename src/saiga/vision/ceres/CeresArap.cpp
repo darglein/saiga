@@ -234,7 +234,7 @@ void CeresArap::optimizeAutodiff(ArapProblem& arap, int its)
 
 
 
-OptimizationResults CeresArap::solve()
+OptimizationResults CeresArap::initAndSolve()
 {
     // fill targets and mesh
     // ...

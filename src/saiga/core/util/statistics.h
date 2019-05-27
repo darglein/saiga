@@ -28,6 +28,7 @@ class Statistics
     T median;
     T mean, sum;
     T variance, sdev;
+    T rms;
 };
 
 template <typename T>
@@ -44,6 +45,7 @@ Statistics<T>::Statistics(const std::vector<T>& _data)
     max    = data.back();
     median = data[data.size() / 2];
 
+    rms = 0;
     sum = 0;
     for (auto& d : data) sum += d;
     mean = sum / numValues;
@@ -51,12 +53,14 @@ Statistics<T>::Statistics(const std::vector<T>& _data)
     variance = 0;
     for (auto d : data)
     {
-        d = d - mean;
-        variance += d * d;
+        auto center = d - mean;
+        variance += center * center;
+        rms += d * d;
     }
     variance /= numValues;
 
     sdev = std::sqrt(variance);
+    rms = std::sqrt(rms / numValues);
 }
 
 template <typename T>

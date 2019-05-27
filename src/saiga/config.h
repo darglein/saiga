@@ -54,6 +54,7 @@
 #else
 #    error Please add the correct align macro for your compiler.
 #endif
+#define SAIGA_ALIGN_CACHE SAIGA_ALIGN(64)
 
 
 

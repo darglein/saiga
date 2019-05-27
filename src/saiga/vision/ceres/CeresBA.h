@@ -15,7 +15,7 @@ class SAIGA_VISION_API CeresBA : public BABase, public Optimizer
    public:
     CeresBA() : BABase("Ceres BA") {}
     virtual ~CeresBA() {}
-    virtual OptimizationResults solve() override;
+    virtual OptimizationResults initAndSolve() override;
     virtual void create(Scene& scene) override { _scene = &scene; }
 
    private:

@@ -35,14 +35,7 @@ void applyLMDiagonal(Eigen::DiagonalMatrix<T, -1>& U, double lambda = 1.00e-04, 
     for (int i = 0; i < U.rows(); ++i)
     {
         auto& diag = U.diagonal()(i).get();
-
         applyLMDiagonalInner(diag, lambda, min_lm_diagonal, max_lm_diagonal);
-        //        for (int k = 0; k < diag.RowsAtCompileTime; ++k)
-        {
-            //            auto& value = diag.diagonal()(k);
-            //            value       = value + lambda * value;
-            //            value       = clamp(value, min_lm_diagonal, max_lm_diagonal);
-        }
     }
 }
 

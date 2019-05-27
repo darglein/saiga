@@ -1,4 +1,5 @@
 add_subdirectory(block_matrices)
+add_subdirectory(robust_pose_optimization)
 
 if(SAIGA_USE_CHOLMOD)
     add_subdirectory(sparse_ldlt)

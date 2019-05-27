@@ -54,7 +54,8 @@ class SAIGA_VISION_API Optimizer
 {
    public:
     Optimizer() {}
-    virtual OptimizationResults solve() = 0;
+    virtual OptimizationResults solve() { return initAndSolve(); }
+    virtual OptimizationResults initAndSolve() = 0;
 
     OptimizationOptions optimizationOptions;
 };
@@ -65,6 +66,7 @@ class SAIGA_VISION_API LMOptimizer : public Optimizer
    public:
     LMOptimizer() {}
     virtual OptimizationResults solve() override;
+    virtual OptimizationResults initAndSolve() override;
 
     //    virtual OptimizationResults solve() = 0;
    protected:

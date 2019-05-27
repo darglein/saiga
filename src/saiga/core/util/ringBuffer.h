@@ -127,13 +127,15 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
 
 
 
-    int capacity;
+    int _capacity;
 
-    RingBuffer(int capacity) : std::vector<T>(capacity), capacity(capacity) {}
+    RingBuffer(int capacity) : std::vector<T>(capacity), _capacity(capacity) {}
 
     ~RingBuffer() {}
 
     bool empty() const { return front == -1; }
+
+    int capacity() const { return _capacity; }
 
     bool full() const
     {
@@ -144,7 +146,7 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
     int count() const
     {
         if (empty()) return 0;
-        return (front < rear) ? rear - front : rear + capacity - front;
+        return (front < rear) ? rear - front : rear + capacity() - front;
     }
 
 
@@ -155,7 +157,7 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
         SAIGA_ASSERT(!full());
         if (empty()) front = rear;
         (*this)[rear] = std::forward<G>(data);
-        rear          = (rear + 1) % capacity;
+        rear          = (rear + 1) % capacity();
     }
 
     // adds one element to the buffer
@@ -170,9 +172,9 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
         {
             // Override first element and increment both pointers
             (*this)[front] = std::forward<G>(data);
-            front          = (front + 1) % capacity;
-            rear           = (rear + 1) % capacity;
-            return  true;
+            front          = (front + 1) % capacity();
+            rear           = (rear + 1) % capacity();
+            return true;
         }
         else
         {
@@ -186,7 +188,7 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
     {
         T result       = std::move((*this)[front]);
         (*this)[front] = T();  // override with default element
-        front          = (front + 1) % capacity;
+        front          = (front + 1) % capacity();
         if (front == rear) front = -1;
         return result;
     }
@@ -196,7 +198,7 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
     {
         front = -1;
         rear  = 0;
-        for (int i = 0; i < capacity; ++i)
+        for (int i = 0; i < capacity(); ++i)
         {
             (*this)[i] = T();
         }

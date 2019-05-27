@@ -2,7 +2,6 @@
 
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/random.h"
-#include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
@@ -445,7 +444,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene)
         }
     }
 }
-OptimizationResults BAPoseOnly::solve()
+OptimizationResults BAPoseOnly::initAndSolve()
 {
     Scene& scene = *_scene;
 

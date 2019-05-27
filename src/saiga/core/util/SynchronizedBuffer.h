@@ -15,9 +15,11 @@
 namespace Saiga
 {
 template <typename T>
-class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
+class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
 {
    public:
+    using Base = RingBuffer<T>;
+
     std::mutex lock;
 
     std::condition_variable not_full;
@@ -27,16 +29,35 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
 
     ~SynchronizedBuffer() {}
 
+    int count()
+    {
+        std::unique_lock l(lock);
+        return Base::count();
+    }
+
+    int capacity() { return Base::capacity(); }
+    bool emptysync()
+    {
+        std::unique_lock l(lock);
+        return this->front == -1;
+    }
+
+    void clear()
+    {
+        std::unique_lock l(lock);
+        Base::clear();
+    }
+
     // blocks until buffer is empty
     void waitUntilEmpty()
     {
-        std::unique_lock<std::mutex> l(lock);
+        std::unique_lock l(lock);
         not_full.wait(l, [this]() { return this->empty(); });
     }
 
     void waitUntilFull()
     {
-        std::unique_lock<std::mutex> l(lock);
+        std::unique_lock l(lock);
         not_empty.wait(l, [this]() { return this->full(); });
     }
 
@@ -45,7 +66,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
     template <typename G>
     void add(G&& data)
     {
-        std::unique_lock<std::mutex> l(lock);
+        std::unique_lock l(lock);
         not_full.wait(l, [this]() { return !this->full(); });
         RingBuffer<T>::add(std::forward<G>(data));
         not_empty.notify_one();
@@ -54,7 +75,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
     template <typename G>
     bool addOverride(G&& data)
     {
-        std::unique_lock<std::mutex> l(lock);
+        std::unique_lock l(lock);
         auto ret = RingBuffer<T>::addOverride(std::forward<G>(data));
         not_empty.notify_one();
         return ret;
@@ -62,7 +83,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
 
     bool tryAdd(const T& v)
     {
-        std::unique_lock<std::mutex> l(lock);
+        std::unique_lock l(lock);
         if (this->full())
         {
             return false;
@@ -75,7 +96,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
 
     T get()
     {
-        std::unique_lock<std::mutex> l(lock);
+        std::unique_lock l(lock);
         not_empty.wait(l, [this]() { return !this->empty(); });
         T result = RingBuffer<T>::get();
         not_full.notify_one();
@@ -87,7 +108,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
     template <typename TimeType>
     T getTimeout(const TimeType& duration)
     {
-        std::unique_lock<std::mutex> l(lock);
+        std::unique_lock l(lock);
         bool got_something = not_empty.wait_for(l, duration, [this]() { return !this->empty(); });
         if (!got_something) return T();
         T result = RingBuffer<T>::get();
@@ -97,7 +118,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : public RingBuffer<T>
 
     bool tryGet(T& v)
     {
-        std::unique_lock<std::mutex> l(lock);
+        std::unique_lock l(lock);
         if (this->empty())
         {
             return false;

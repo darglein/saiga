@@ -28,13 +28,16 @@ struct ObsBase
 using Obs = ObsBase<double>;
 
 template <typename T>
-struct SAIGA_VISION_API RobustPoseOptimization
+struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
 {
     using CameraType = StereoCamera4Base<T>;
     using SE3Type    = Sophus::SE3<T>;
     using Vec3       = Eigen::Matrix<T, 3, 1>;
     using Vec2       = Eigen::Matrix<T, 2, 1>;
     using Obs        = ObsBase<T>;
+
+    int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
+                           SE3Type& guess, const CameraType& camera);
 
     std::vector<T> chi2Mono   = {5.991, 5.991, 5.991, 5.991};
     std::vector<T> chi2Stereo = {7.815, 7.815, 7.815, 7.815};
@@ -43,10 +46,6 @@ struct SAIGA_VISION_API RobustPoseOptimization
     T deltaStereo             = sqrt(7.815);
     T deltaChiEpsilon         = 1e-4;
     size_t iterations         = 4;
-
-    int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
-                           SE3Type& guess, const CameraType& camera);
-
    private:
     std::vector<T> chi2s;
 };

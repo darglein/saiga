@@ -30,6 +30,7 @@ class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
     using PGOSolver = Eigen::Recursive::MixedSymmetricRecursiveSolver<PSType, PBType>;
 
    public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     PGORec() : PGOBase("recursive PGO") {}
     virtual ~PGORec() {}
     virtual void create(PoseGraph& scene) override { _scene = &scene; }
@@ -41,6 +42,8 @@ class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
     PBType b;
     PBType delta_x;
     PGOSolver solver;
+
+
 
     AlignedVector<SE3> x_u, oldx_u;
 
