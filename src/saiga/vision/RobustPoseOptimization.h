@@ -42,8 +42,27 @@ using Obs = ObsBase<double>;
 template <typename T>
 struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
 {
+   private:
+#ifdef EIGEN_VECTORIZE_AVX
+    static constexpr bool HasAvx = true;
+#else
+    static constexpr bool HasAvx  = false;
+#endif
+#ifdef EIGEN_VECTORIZE_AVX2
+    static constexpr bool HasAvx2 = true;
+#else
+    static constexpr bool HasAvx2 = false;
+#endif
+
+    // Only align if we can process 8 elements in one instruction
+    static constexpr bool AlignVec4 =
+        (std::is_same<T, float>::value && HasAvx) || (std::is_same<T, double>::value && HasAvx2);
+
+    // Do triangular add if we can process 2 or less elements at once
+    // -> since SSE is always enabled on x64 this happens only for doubles without avx
+    static constexpr bool TriangularAdd = !AlignVec4 && (std::is_same<T, double>::value && !HasAvx);
+
    public:
-    EIGEN_VECTORIZE_SSE4_2
     using CameraType = StereoCamera4Base<T>;
     using SE3Type    = Sophus::SE3<T>;
     using Vec2       = Eigen::Matrix<T, 2, 1>;
@@ -68,9 +87,7 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
     int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
                            SE3Type& guess, const CameraType& camera)
     {
-        constexpr bool AlignVec4     = false;
-        constexpr bool TriangularAdd = false;
-        constexpr int JParams        = AlignVec4 ? 8 : 6;
+        constexpr int JParams = AlignVec4 ? 8 : 6;
 
         using StereoKernel = typename Saiga::Kernel::BAPoseStereo<T, AlignVec4>;
         using MonoKernel   = typename Saiga::Kernel::BAPoseMono<T, AlignVec4>;
@@ -86,23 +103,20 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
 
         if constexpr (AlignVec4)
         {
+            // clear the padded zeros
             JrowS.setZero();
             JrowM.setZero();
         }
 
-
         int N            = wps.size();
         int inliers      = 0;
         T innerThreshold = deltaChiEpsilon;
-        //                cout << "threshold: " << innerThreshold << endl;
 
-        //        SE3Type pose;
         for (auto outerIt : Range(0, maxOuterIts))
         {
             bool robust = outerIt < (maxOuterIts - 1);
             JType JtJ;
             BType Jtb;
-            //            pose          = guess;
             T lastChi2sum     = std::numeric_limits<T>::infinity();
             SE3Type lastGuess = guess;
 

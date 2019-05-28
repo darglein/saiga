@@ -73,7 +73,7 @@ class RPOTest
             //            inliers = rpo.optimizePoseRobust4(wps4, obs, outlier, p, K);
         }
 
-        cout << "[PoseRefinement] Wps/Inliers " << wps.size() << "/" << inliers << " " << p << endl;
+        //        cout << "[PoseRefinement] Wps/Inliers " << wps.size() << "/" << inliers << " " << p << endl;
         return inliers;
     }
 
@@ -111,11 +111,11 @@ int main(int, char**)
     int sum = 0;
 
     int its = 500;
-    test_double.optimize();
-    //    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
-    //    auto b = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
+    //    test_double.optimize();
+    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
+    auto b = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
 
     cout << "Sum: " << sum << endl;
-    //    cout << a.median << " " << b.median << endl;
+    cout << a.median << " " << b.median << endl;
     return 0;
 }
