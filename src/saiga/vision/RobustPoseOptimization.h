@@ -48,15 +48,15 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
 #else
     static constexpr bool HasAvx  = false;
 #endif
-#ifdef EIGEN_VECTORIZE_AVX2
-    static constexpr bool HasAvx2 = true;
+#ifdef EIGEN_VECTORIZE_AVX512
+    static constexpr bool HasAvx512 = true;
 #else
-    static constexpr bool HasAvx2 = false;
+    static constexpr bool HasAvx512 = false;
 #endif
 
     // Only align if we can process 8 elements in one instruction
     static constexpr bool AlignVec4 =
-        (std::is_same<T, float>::value && HasAvx) || (std::is_same<T, double>::value && HasAvx2);
+     (std::is_same<T, float>::value && HasAvx) || (std::is_same<T, double>::value && HasAvx512);
 
     // Do triangular add if we can process 2 or less elements at once
     // -> since SSE is always enabled on x64 this happens only for doubles without avx

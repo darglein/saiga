@@ -7,6 +7,7 @@
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/RobustPoseOptimization.h"
+#include "saiga/vision/Eigen_Compile_Checker.h"
 
 #include <fstream>
 
@@ -100,6 +101,10 @@ int main(int, char**)
 
     Saiga::Random::setSeed(93865023985);
 
+    EIGEN_VECTORIZE_AVX
+    Saiga::EigenHelper::EigenCompileFlags flags;
+    flags.create<3998735>();
+    cout << flags << endl;
     RPOTest<float> test_float;
     RPOTest<double> test_double;
     cout << endl;
