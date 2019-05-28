@@ -46,6 +46,13 @@ int rand()
     return dis(generator());
 }
 
+uint64_t urand64()
+{
+    std::uniform_int_distribution<uint64_t> dis(0, std::numeric_limits<uint64_t>::max());
+    return dis(generator());
+}
+
+
 int uniformInt(int low, int high)
 {
     std::uniform_int_distribution<int> dis(low, high);

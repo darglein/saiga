@@ -7,8 +7,9 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/util/math.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/math.h"
+
 #include <vector>
 
 namespace Saiga
@@ -59,6 +60,11 @@ SAIGA_CORE_API double gaussRand(double mean = 0, double stddev = 1);
  * Similar to std::rand but with thread save c++11 generators
  */
 SAIGA_CORE_API int rand();
+
+/**
+ * Similar to std::rand but with thread save c++11 generators
+ */
+SAIGA_CORE_API uint64_t urand64();
 
 /**
  * Returns 'sampleCount' unique integers between 0 and indexSize-1

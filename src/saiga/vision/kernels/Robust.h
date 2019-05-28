@@ -36,14 +36,14 @@ namespace Kernel
  *
  */
 template <typename T>
-inline Eigen::Matrix<T, 3, 1> huberWeight(T _delta, T e)
+inline Eigen::Matrix<T, 3, 1> huberWeight(T _deltaChi1, T residualSquared)
 {
     Eigen::Matrix<T, 3, 1> result;
-    T dsqr = _delta * _delta;
-    if (e <= dsqr)
+    T thresholdChi2 = _deltaChi1 * _deltaChi1;
+    if (residualSquared <= thresholdChi2)
     {
         // inlier
-        result(0) = e;
+        result(0) = residualSquared;
         result(1) = 1;
         result(2) = 0;
         return result;
@@ -51,10 +51,10 @@ inline Eigen::Matrix<T, 3, 1> huberWeight(T _delta, T e)
     else
     {
         // outlier
-        T sqrte   = sqrt(e);  // absolut value of the error
-        result(0) = 2 * sqrte * _delta - dsqr;
-        result(1) = _delta / sqrte;
-        result(2) = -0.5 * result(1) / e;
+        T sqrte   = sqrt(residualSquared);  // absolut value of the error
+        result(0) = 2 * sqrte * _deltaChi1 - thresholdChi2;
+        result(1) = _deltaChi1 / sqrte;
+        result(2) = -0.5 * result(1) / residualSquared;
         return result;  // rho'(e)  = delta / sqrt(e)
     }
 }

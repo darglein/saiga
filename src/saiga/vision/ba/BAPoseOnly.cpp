@@ -14,13 +14,14 @@
 
 namespace Saiga
 {
+#if 0
 void BAPoseOnly::poseOnlySparse(Scene& scene, int its)
 {
     SAIGA_BLOCK_TIMER();
 
     using T          = double;
     using KernelType = Saiga::Kernel::BAPoseMono<T>;
-    KernelType::PoseJacobiType JrowPose;
+    KernelType::JacobiType JrowPose;
     KernelType::ResidualType res;
 
     auto numCameras = scene.extrinsics.size();
@@ -60,7 +61,7 @@ void BAPoseOnly::poseOnlySparse(Scene& scene, int its)
         }
     }
 }
-
+#endif
 
 void BAPoseOnly::posePointDense(Scene& scene, int its)
 {

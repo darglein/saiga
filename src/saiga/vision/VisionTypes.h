@@ -111,38 +111,22 @@ inline Mat3 onb(const Vec3& dir, const Vec3& up)
  */
 template <typename _InputIterator1, typename _InputIterator2, typename _T>
 inline void undistortAll(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __output,
-                          const Intrinsics4Base<_T>& intr, const DistortionBase<_T>& dis)
+                         const Intrinsics4Base<_T>& intr, const DistortionBase<_T>& dis)
 {
     for (; __first1 != __last1; ++__first1, (void)++__output)
     {
         auto tmp  = *__first1;  // make sure it works inplace
-        tmp = intr.unproject2(tmp);
-        tmp = undistortNormalizedPoint(tmp,dis);
-        tmp = intr.normalizedToImage(tmp);
+        tmp       = intr.unproject2(tmp);
+        tmp       = undistortNormalizedPoint(tmp, dis);
+        tmp       = intr.normalizedToImage(tmp);
         *__output = tmp;
     }
 }
 
-/**
- * Conversion from a SE3 into an arbitrary type.
- * For example from double->float
- *
- * I need this because the Sophus SE3 class doesn't provide a ".cast" operation
- * like the Eigen types.
- */
-template <typename Target, typename Source>
-Sophus::SE3<Target> castSE3(const Source& se3)
-{
-    return se3.template cast<Target>();
-    //    return {se3.unit_quaternion().template cast<Target>(), se3.translation().template cast<Target>()};
-}
-
-
 }  // namespace Saiga
 
-
-
-inline std::ostream& operator<<(std::ostream& os, const Saiga::SE3& se3)
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const Sophus::SE3<T>& se3)
 {
     os << se3.unit_quaternion().coeffs().transpose() << " | " << se3.translation().transpose();
     return os;

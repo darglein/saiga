@@ -39,7 +39,8 @@ using DescriptorORB  = std::array<uint64_t, 4>;
 using DescriptorSIFT = std::array<float, 128>;
 
 
-#if 0
+
+#if 1
 // use the popcnt instruction
 // this will be the fastest implementation if it is available
 // more here: https://github.com/kimwalisch/libpopcnt
@@ -76,24 +77,15 @@ inline uint64_t popcnt(uint64_t v)
 // http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
 inline int distance(const DescriptorORB& a, const DescriptorORB& b)
 {
-    auto pa  = a.data();
-    auto pb  = b.data();
     int dist = 0;
-    for (int i = 0; i < (int)a.size(); i++, pa++, pb++)
+    for (int i = 0; i < (int)a.size(); i++)
     {
-        auto v = *pa ^ *pb;
-
+        auto v = a[i] ^ b[i];
         // TODO: if this is really a bottleneck we can also use AVX-2
         // to gain around 25% more performance
         // according to this source:
         // https://github.com/kimwalisch/libpopcnt
-#if 1
         dist += popcnt(v);
-#else
-        v = v - ((v >> 1) & 0x55555555);
-        v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
-        dist += (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
-#endif
     }
 
     return dist;

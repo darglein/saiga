@@ -116,7 +116,7 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
     template <typename G>
     StereoCamera4Base<G> cast()
     {
-        return {Intrinsics4Base<T>::template cast<G>(), bf};
+        return {Intrinsics4Base<T>::template cast<G>(), static_cast<G>(bf)};
     }
 
     Vec3 projectStereo(const Vec3& X) const
