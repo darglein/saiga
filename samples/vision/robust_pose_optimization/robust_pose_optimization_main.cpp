@@ -6,18 +6,22 @@
 #include "saiga/core/Core.h"
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/vision/RobustPoseOptimization.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
+#include "saiga/vision/RobustPoseOptimization.h"
 
 #include <fstream>
 
 using namespace Saiga;
 
-template <typename T>
+template <typename T, bool Normalized>
 class RPOTest
 {
    public:
-    RPOTest() { load(); }
+    RPOTest()
+    {
+        load();
+        if (Normalized) normalize();
+    }
 
     void load()
     {
@@ -63,6 +67,18 @@ class RPOTest
         outlier.resize(wpc);
     }
 
+    void normalize()
+    {
+        auto factor = 2.0 / (K.fx + K.fy);
+
+        for (auto& o : obs)
+        {
+            o.ip = K.unproject2(o.ip);
+        }
+        K.bf = K.bf * factor;
+        rpo.scaleThresholds(factor);
+    }
+
     int optimize()
     {
         std::fill(outlier.begin(), outlier.end(), false);
@@ -89,7 +105,7 @@ class RPOTest
     AlignedVector<Obs> obs;
 
     AlignedVector<bool> outlier;
-    RobustPoseOptimization<T> rpo;
+    RobustPoseOptimization<T, Normalized> rpo;
 };
 
 
@@ -101,12 +117,11 @@ int main(int, char**)
 
     Saiga::Random::setSeed(93865023985);
 
-    EIGEN_VECTORIZE_AVX
     Saiga::EigenHelper::EigenCompileFlags flags;
     flags.create<3998735>();
     cout << flags << endl;
-    RPOTest<float> test_float;
-    RPOTest<double> test_double;
+    RPOTest<double, true> test_float;
+    RPOTest<double, false> test_double;
     cout << endl;
 
     //    cout << Kernel::huberWeight(0.5, 0.4999 * 0.4999) << endl << endl;
@@ -115,12 +130,13 @@ int main(int, char**)
 
     int sum = 0;
 
-    int its = 500;
-    //    test_double.optimize();
-    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
-    auto b = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
+    int its = 5000;
+    test_double.optimize();
+    test_float.optimize();
+    //    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
+    //    auto b = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
 
     cout << "Sum: " << sum << endl;
-    cout << a.median << " " << b.median << endl;
+    //    cout << a.median << " " << b.median << endl;
     return 0;
 }

@@ -12,7 +12,7 @@ namespace Saiga
 {
 namespace Kernel
 {
-template <typename T, bool AlignVec4 = false>
+template <typename T, bool AlignVec4 = false, bool normalizedImageSpace = false>
 struct BAPoseMono
 {
     static constexpr int ResCount     = 2;
@@ -46,10 +46,7 @@ struct BAPoseMono
     static inline void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const WorldPoint& wp,
                                                    const Vec2& observed, ResidualType& res, JacobiType& Jrow, T weight)
     {
-        Vec3 pc   = extr * wp;
-        Vec2 proj = camera.project(pc);
-        res       = observed - proj;
-        res *= weight;
+        Vec3 pc = extr * wp;
 
         auto x     = pc(0);
         auto y     = pc(1);
@@ -58,30 +55,49 @@ struct BAPoseMono
         auto zinv  = 1 / z;
         auto zzinv = 1 / zz;
 
+
+        Vec2 proj;
+        if constexpr (normalizedImageSpace)
+            proj = Vec2(x, y) * zinv;
+        else
+            proj = camera.project(pc);
+
+        res = observed - proj;
+        res *= weight;
+
+
+        auto fxw = weight;
+        auto fyw = weight;
+        if constexpr (!normalizedImageSpace)
+        {
+            fxw *= camera.fx;
+            fyw *= camera.fy;
+        }
+
         // Tx
-        Jrow(0, 0) = zinv;
-        Jrow(0, 1) = 0;
-        Jrow(0, 2) = -x * zzinv;
+        Jrow(0, 0) = fxw * zinv;
+        Jrow(0, 1) = fxw * 0;
+        Jrow(0, 2) = fxw * -x * zzinv;
         // Rx
-        Jrow(0, 3) = -y * x * zzinv;
-        Jrow(0, 4) = (1 + (x * x) * zzinv);
-        Jrow(0, 5) = -y * zinv;
-        Jrow.row(0) *= camera.fx * weight;
+        Jrow(0, 3) = fyw * -y * x * zzinv;
+        Jrow(0, 4) = fyw * (1 + (x * x) * zzinv);
+        Jrow(0, 5) = fyw * -y * zinv;
+        //        Jrow.row(0) *= camera.fx * weight;
 
         // Ty
-        Jrow(1, 0) = 0;
-        Jrow(1, 1) = zinv;
-        Jrow(1, 2) = -y * zzinv;
+        Jrow(1, 0) = fxw * 0;
+        Jrow(1, 1) = fxw * zinv;
+        Jrow(1, 2) = fxw * -y * zzinv;
         // Ry
-        Jrow(1, 3) = (-1 - (y * y) * zzinv);
-        Jrow(1, 4) = x * y * zzinv;
-        Jrow(1, 5) = x * zinv;
-        Jrow.row(1) *= camera.fy * weight;
+        Jrow(1, 3) = fyw * (-1 - (y * y) * zzinv);
+        Jrow(1, 4) = fyw * x * y * zzinv;
+        Jrow(1, 5) = fyw * x * zinv;
+        //        Jrow.row(1) *= camera.fy * weight;
     }
-};
+};  // namespace Kernel
 
 
-template <typename T, bool AlignVec4 = false>
+template <typename T, bool AlignVec4 = false, bool normalizedImageSpace = false>
 struct BAPoseStereo
 {
     static constexpr int ResCount     = 3;
@@ -101,18 +117,12 @@ struct BAPoseStereo
     static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr, const WorldPoint& wp,
                                          const Vec2& observed, T observedDepth, T weight)
     {
-        //        Vec3 pc   = extr * wp.template segment<3>(0);
         Vec3 pc   = extr * wp;
-        Vec3 proj = camera.project3(pc);
+        Vec3 proj = camera.projectStereo(pc);
 
-        Vec3 obs3{observed(0), observed(1), observedDepth};
+        Vec3 obs3(observed(0), observed(1), observed(0) - camera.bf / observedDepth);
 
-
-        T stereoPointObs = obs3(0) - camera.bf / obs3(2);
-        T stereoPoint    = proj(0) - camera.bf / proj(2);
-        Vec3 res         = {observed(0) - proj(0), obs3(1) - proj(1), stereoPointObs - stereoPoint};
-
-
+        Vec3 res = obs3 - proj;
         res *= weight;
         return res;
     }
@@ -121,19 +131,13 @@ struct BAPoseStereo
                                             const Vec2& observed, T observedDepth, ResidualType& res, JacobiType& Jrow,
                                             T weight)
     {
-        //        Vec3 pc   = extr * wp.template segment<3>(0);
         Vec3 pc   = extr * wp;
-        Vec3 proj = camera.project3(pc);
+        Vec3 proj = camera.projectStereo(pc);
 
-        Vec3 obs3(observed(0), observed(1), observedDepth);
-        //        obs3 << observed(0), observed(1), observedDepth;
+        Vec3 obs3(observed(0), observed(1), observed(0) - camera.bf / observedDepth);
 
-
-        //        res = reprojectionErrorDepth(obs3, proj, camera.bf);
-        T stereoPointObs = obs3(0) - camera.bf / obs3(2);
-        T stereoPoint    = proj(0) - camera.bf / proj(2);
-        //        res = ResidualType{observed(0) - proj(0), obs3(1) - proj(1), stereoPointObs - stereoPoint} * weight;
-        res = {observed(0) - proj(0), obs3(1) - proj(1), stereoPointObs - stereoPoint};
+        res = obs3 - proj;
+        res *= weight;
 
         auto x     = pc(0);
         auto y     = pc(1);
@@ -142,34 +146,34 @@ struct BAPoseStereo
         auto zinv  = 1 / z;
         auto zzinv = 1 / zz;
 
+#if 1
+        auto fxw = camera.fx * weight;
+        auto fyw = camera.fy * weight;
+        auto bfw = camera.bf * weight;
+
         // Translation
-        Jrow(0, 0) = zinv;
-        Jrow(0, 1) = 0;
-        Jrow(0, 2) = -x * zzinv;
-        Jrow(1, 0) = 0;
-        Jrow(1, 1) = zinv;
-        Jrow(1, 2) = -y * zzinv;
+        Jrow(0, 0) = fxw * zinv;
+        Jrow(0, 1) = fxw * 0;
+        Jrow(0, 2) = fxw * -x * zzinv;
+        Jrow(1, 0) = fyw * 0;
+        Jrow(1, 1) = fyw * zinv;
+        Jrow(1, 2) = fyw * -y * zzinv;
 
-#if 0
         // Rotation
-        Jrow(0, 3) = camera.fx * weight * -y * x * zzinv;
-        Jrow(0, 4) = camera.fx * weight * (1 + (x * x) * zzinv);
-        Jrow(0, 5) = camera.fx * weight * -y * zinv;
-        Jrow(1, 3) = camera.fy * weight * (-1 - (y * y) * zzinv);
-        Jrow(1, 4) = camera.fy * weight * x * y * zzinv;
-        Jrow(1, 5) = camera.fy * weight * x * zinv;
-
-
-        //        Jrow.row(0) *= camera.fx;
-        //        Jrow.row(1) *= camera.fy;
+        Jrow(0, 3) = fxw * -y * x * zzinv;
+        Jrow(0, 4) = fxw * (1 + (x * x) * zzinv);
+        Jrow(0, 5) = fxw * -y * zinv;
+        Jrow(1, 3) = fyw * (-1 - (y * y) * zzinv);
+        Jrow(1, 4) = fyw * x * y * zzinv;
+        Jrow(1, 5) = fyw * x * zinv;
 
 
         Jrow(2, 0) = Jrow(0, 0);
         Jrow(2, 1) = 0;
-        Jrow(2, 2) = Jrow(0, 2) + weight * camera.bf * zzinv;
+        Jrow(2, 2) = Jrow(0, 2) + bfw * zzinv;
 
-        Jrow(2, 3) = Jrow(0, 3) + weight * camera.bf * y * zzinv;
-        Jrow(2, 4) = Jrow(0, 4) - weight * camera.bf * x * zzinv;
+        Jrow(2, 3) = Jrow(0, 3) + bfw * y * zzinv;
+        Jrow(2, 4) = Jrow(0, 4) - bfw * x * zzinv;
         Jrow(2, 5) = Jrow(0, 5);
 #else
         // Rotation
@@ -197,14 +201,7 @@ struct BAPoseStereo
 
         // use weight
         Jrow *= weight;
-        res *= weight;
 #endif
-
-
-
-        // use weight
-        //        Jrow *= weight;
-        //        res *= weight;
     }
 };
 

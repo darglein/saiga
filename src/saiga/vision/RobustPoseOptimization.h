@@ -39,14 +39,14 @@ struct ObsBase
 
 using Obs = ObsBase<double>;
 
-template <typename T>
+template <typename T, bool Normalized = false>
 struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
 {
    private:
 #ifdef EIGEN_VECTORIZE_AVX
     static constexpr bool HasAvx = true;
 #else
-    static constexpr bool HasAvx  = false;
+    static constexpr bool HasAvx    = false;
 #endif
 #ifdef EIGEN_VECTORIZE_AVX512
     static constexpr bool HasAvx512 = true;
@@ -56,11 +56,12 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
 
     // Only align if we can process 8 elements in one instruction
     static constexpr bool AlignVec4 =
-     (std::is_same<T, float>::value && HasAvx) || (std::is_same<T, double>::value && HasAvx512);
+        (std::is_same<T, float>::value && HasAvx) || (std::is_same<T, double>::value && HasAvx512);
 
     // Do triangular add if we can process 2 or less elements at once
     // -> since SSE is always enabled on x64 this happens only for doubles without avx
     static constexpr bool TriangularAdd = !AlignVec4 && (std::is_same<T, double>::value && !HasAvx);
+
 
    public:
     using CameraType = StereoCamera4Base<T>;
@@ -71,18 +72,34 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
     using Obs        = ObsBase<T>;
 
 
-    RobustPoseOptimization(T chi2Mono = 5.991, T chi2Stereo = 7.815, T deltaChiEpsilon = 1e-4, int maxOuterIts = 4,
+    RobustPoseOptimization(T thMono = 2.45, T thStereo = 2.8, T chi1Epsilon = 0.01, int maxOuterIts = 4,
                            int maxInnerIts = 10)
-        : chi2Mono(chi2Mono),
-          chi2Stereo(chi2Stereo),
-          deltaChiEpsilon(deltaChiEpsilon),
-          maxOuterIts(maxOuterIts),
-          maxInnerIts(maxInnerIts)
+        : maxOuterIts(maxOuterIts), maxInnerIts(maxInnerIts)
     {
-        chi1Mono   = sqrt(chi2Mono);
-        chi1Stereo = sqrt(chi2Stereo);
+        chi1Mono         = thMono;
+        chi1Stereo       = thStereo;
+        deltaChi1Epsilon = chi1Epsilon;
+
+        deltaChi2Epsilon = deltaChi1Epsilon * deltaChi1Epsilon;
+        chi2Mono         = chi1Mono * chi1Mono;
+        chi2Stereo       = chi1Stereo * chi1Stereo;
     }
 
+    /**
+     * Scale all thresholds by factor.
+     * Usefull for example when operating in normalized image space.
+     * Then you can scale the thresholds by 2/(fx+fy)
+     */
+    void scaleThresholds(T factor)
+    {
+        chi1Mono *= factor;
+        chi1Stereo *= factor;
+        deltaChi1Epsilon *= factor;
+
+        deltaChi2Epsilon = deltaChi1Epsilon * deltaChi1Epsilon;
+        chi2Mono         = chi1Mono * chi1Mono;
+        chi2Stereo       = chi1Stereo * chi1Stereo;
+    }
 
     int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
                            SE3Type& guess, const CameraType& camera)
@@ -90,7 +107,7 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
         constexpr int JParams = AlignVec4 ? 8 : 6;
 
         using StereoKernel = typename Saiga::Kernel::BAPoseStereo<T, AlignVec4>;
-        using MonoKernel   = typename Saiga::Kernel::BAPoseMono<T, AlignVec4>;
+        using MonoKernel   = typename Saiga::Kernel::BAPoseMono<T, AlignVec4, Normalized>;
         using StereoJ      = typename StereoKernel::JacobiType;
         using MonoJ        = typename MonoKernel::JacobiType;
         using JType        = Eigen::Matrix<T, JParams, JParams>;
@@ -110,7 +127,7 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
 
         int N            = wps.size();
         int inliers      = 0;
-        T innerThreshold = deltaChiEpsilon;
+        T innerThreshold = deltaChi2Epsilon;
 
         for (auto outerIt : Range(0, maxOuterIts))
         {
@@ -134,7 +151,7 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
                     auto& o  = obs[i];
                     auto& wp = wps[i];
 
-                    if (o.stereo())
+                    if (false && o.stereo())
                     {
                         Vec3 res;
                         StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth, res, JrowS,
@@ -294,7 +311,8 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
     T chi2Stereo;
     T chi1Mono;
     T chi1Stereo;
-    T deltaChiEpsilon;
+    T deltaChi1Epsilon;
+    T deltaChi2Epsilon;
     int maxOuterIts;
     int maxInnerIts;
 };  // namespace Saiga
