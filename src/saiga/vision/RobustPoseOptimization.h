@@ -25,8 +25,9 @@ struct ObsBase
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+    bool stereo() const { return depth > 0; }
     template <typename G>
-    ObsBase<G> cast()
+    ObsBase<G> cast() const
     {
         ObsBase<G> result;
         result.ip     = ip.template cast<G>();
@@ -38,9 +39,11 @@ struct ObsBase
 
 using Obs = ObsBase<double>;
 
-template <typename T, bool TriangularAdd>
+template <typename T>
 struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
 {
+   public:
+    EIGEN_VECTORIZE_SSE4_2
     using CameraType = StereoCamera4Base<T>;
     using SE3Type    = Sophus::SE3<T>;
     using Vec2       = Eigen::Matrix<T, 2, 1>;
@@ -49,42 +52,66 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
     using Obs        = ObsBase<T>;
 
 
-    T chi2Mono        = 5.991;
-    T chi2Stereo      = 7.815;
-    T deltaMono       = sqrt(5.991);
-    T deltaStereo     = sqrt(7.815);
-    T deltaChiEpsilon = 1e-4;
-    int maxOuterIts   = 4;
-    int maxInnerIts   = 10;
+    RobustPoseOptimization(T chi2Mono = 5.991, T chi2Stereo = 7.815, T deltaChiEpsilon = 1e-4, int maxOuterIts = 4,
+                           int maxInnerIts = 10)
+        : chi2Mono(chi2Mono),
+          chi2Stereo(chi2Stereo),
+          deltaChiEpsilon(deltaChiEpsilon),
+          maxOuterIts(maxOuterIts),
+          maxInnerIts(maxInnerIts)
+    {
+        chi1Mono   = sqrt(chi2Mono);
+        chi1Stereo = sqrt(chi2Stereo);
+    }
 
-   private:
-    std::vector<T> chi2s;
 
-   public:
     int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
                            SE3Type& guess, const CameraType& camera)
     {
+        constexpr bool AlignVec4     = false;
+        constexpr bool TriangularAdd = false;
+        constexpr int JParams        = AlignVec4 ? 8 : 6;
+
+        using StereoKernel = typename Saiga::Kernel::BAPoseStereo<T, AlignVec4>;
+        using MonoKernel   = typename Saiga::Kernel::BAPoseMono<T, AlignVec4>;
+        using StereoJ      = typename StereoKernel::JacobiType;
+        using MonoJ        = typename MonoKernel::JacobiType;
+        using JType        = Eigen::Matrix<T, JParams, JParams>;
+        using BType        = Eigen::Matrix<T, JParams, 1>;
+        using CompactJ     = Eigen::Matrix<T, 6, 6>;
+        using XType        = Eigen::Matrix<T, 6, 1>;
+
+        StereoJ JrowS;
+        MonoJ JrowM;
+
+        if constexpr (AlignVec4)
+        {
+            JrowS.setZero();
+            JrowM.setZero();
+        }
+
+
         int N            = wps.size();
         int inliers      = 0;
         T innerThreshold = deltaChiEpsilon;
-        chi2s.resize(N);
-        SE3Type pose;
+        //                cout << "threshold: " << innerThreshold << endl;
+
+        //        SE3Type pose;
         for (auto outerIt : Range(0, maxOuterIts))
         {
-            //            cout << "outer " << outerIt << endl;
-            bool robust = outerIt <= 2;
-            Eigen::Matrix<T, 6, 6> JtJ;
-            Eigen::Matrix<T, 6, 1> Jtb;
-            pose          = guess;
-            T lastChi2sum = 1e50;
-            //            SE3Type lastGuess = guess;
+            bool robust = outerIt < (maxOuterIts - 1);
+            JType JtJ;
+            BType Jtb;
+            //            pose          = guess;
+            T lastChi2sum     = std::numeric_limits<T>::infinity();
+            SE3Type lastGuess = guess;
 
             for (auto innerIt : Range(0, maxInnerIts))
             {
-                //                cout << "inner " << innerIt << endl;
                 JtJ.setZero();
                 Jtb.setZero();
                 T chi2sum = 0;
+                inliers   = 0;
 
                 for (auto i : Range(0, N))
                 {
@@ -93,17 +120,12 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
                     auto& o  = obs[i];
                     auto& wp = wps[i];
 
-                    if (o.depth > 0)
+                    if (o.stereo())
                     {
-                        typename Saiga::Kernel::BAPoseStereo<T>::JacobiType Jrow;
                         Vec3 res;
-                        Saiga::Kernel::BAPoseStereo<T>::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth,
-                                                                                    res, Jrow, o.weight);
-
-                        T c2     = res.squaredNorm();
-                        chi2s[i] = c2;
-
-#if 0
+                        StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth, res, JrowS,
+                                                                  o.weight);
+                        auto c2 = res.squaredNorm();
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
@@ -113,35 +135,27 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
                                 continue;
                             }
                         }
-#endif
-
                         if (robust)
                         {
-                            //                            auto rw       = Kernel::huberWeight(deltaStereo, chi2s[i]);
-                            //                            auto sqrtLoss = sqrt(rw(1));
-                            //                            Jrow *= sqrtLoss;
-                            //                            res *= sqrtLoss;
-                            Saiga::Kernel::HuberRobustification<T> rob(deltaStereo);
-                            rob.apply(res, Jrow);
+                            auto rw       = Kernel::huberWeight(chi1Stereo, c2);
+                            auto sqrtLoss = sqrt(rw(1));
+                            JrowS *= sqrtLoss;
+                            res *= sqrtLoss;
                         }
-
-                        chi2sum += res.squaredNorm();
-                        //                        if constexpr (TriangularAdd)
-                        JtJ += (Jrow.transpose() * Jrow).template triangularView<Eigen::Upper>();
-                        //                        else
-                        //                            JtJ += (Jrow.transpose() * Jrow);
-                        Jtb += Jrow.transpose() * res;
+                        chi2sum += c2;
+                        if constexpr (TriangularAdd)
+                            JtJ += (JrowS.transpose() * JrowS).template triangularView<Eigen::Upper>();
+                        else
+                            JtJ += (JrowS.transpose() * JrowS);
+                        Jtb += JrowS.transpose() * res;
+                        inliers++;
                     }
                     else
                     {
-                        typename Saiga::Kernel::BAPoseMono<T>::JacobiType Jrow;
                         Vec2 res;
-                        Saiga::Kernel::BAPoseMono<T>::evaluateResidualAndJacobian(camera, guess, wp, o.ip, res, Jrow,
-                                                                                  o.weight);
-                        T c2     = res.squaredNorm();
-                        chi2s[i] = c2;
-
-#if 0
+                        MonoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, res, JrowM, o.weight);
+                        auto c2 = res.squaredNorm();
+#if 1
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
@@ -155,26 +169,28 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
 
                         if (robust)
                         {
-                            //                            auto rw       = Kernel::huberWeight(deltaMono, chi2s[i]);
-                            //                            auto sqrtLoss = sqrt(rw(1));
-                            //                            Jrow *= sqrtLoss;
-                            //                            res *= sqrtLoss;
-                            Saiga::Kernel::HuberRobustification<T> rob(deltaMono);
-                            rob.apply(res, Jrow);
+                            auto rw       = Kernel::huberWeight(chi1Mono, c2);
+                            auto sqrtLoss = sqrt(rw(1));
+                            JrowM *= sqrtLoss;
+                            res *= sqrtLoss;
                         }
 
-                        chi2sum += res.squaredNorm();
-                        //                        if constexpr (TriangularAdd)
-                        JtJ += (Jrow.transpose() * Jrow).template triangularView<Eigen::Upper>();
-                        //                        else
-                        //                            JtJ += (Jrow.transpose() * Jrow);
-                        Jtb += Jrow.transpose() * res;
+                        chi2sum += c2;
+                        if constexpr (TriangularAdd)
+                            JtJ += (JrowM.transpose() * JrowM).template triangularView<Eigen::Upper>();
+                        else
+                            JtJ += (JrowM.transpose() * JrowM);
+                        Jtb += JrowM.transpose() * res;
+                        inliers++;
                     }
                 }
-                T deltaChi = lastChi2sum - chi2sum;
+                T deltaChi  = lastChi2sum - chi2sum;
+                lastChi2sum = chi2sum;
 
 #if 0
-                //                cout << outerIt << " Chi2: " << chi2sum << " Delta: " << deltaChi << endl;
+                cout << outerIt << " Chi2: " << chi2sum << " Delta: " << deltaChi << " Robust: " << robust
+                     << " Inliers: " << inliers << "/" << N << endl;
+#endif
                 if (deltaChi < 0)
                 {
                     // the error got worse :(
@@ -183,211 +199,91 @@ struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
                     break;
                 }
 
-
+#if 0
+// simple LM instead of GN
                 for (int k = 0; k < JtJ.rows(); ++k)
                 {
                     auto& value = JtJ.diagonal()(k);
-                    value       = value + 1e1 * value;
+                    value       = value + 1e-3 * value;
                     value       = std::clamp(value, 1e-6, 1e32);
                 }
+#endif
+
+                lastGuess = guess;
+
 
                 //                cout << JtJ << endl;
-
-                lastGuess                = guess;
-#endif
-                Eigen::Matrix<T, 6, 1> x = JtJ.template selfadjointView<Eigen::Upper>().ldlt().solve(Jtb);
-                guess                    = SE3Type::exp(x) * guess;
-
-
-                if (innerIt >= 1)
+                //                return 0;
+                XType x;
+                if constexpr (AlignVec4)
                 {
-                    // early termination if the error doesn't change
-                    if (deltaChi < innerThreshold)
-                    {
-                        break;
-                    }
-                }
-
-                lastChi2sum = chi2sum;
-            }
-            inliers = 0;
-            // One more check because the last iteration changed the guess again
-            for (auto i : Range(0, N))
-            {
-                auto& wp = wps[i];
-                auto& o  = obs[i];
-                if (outlier[i]) continue;
-                T chi2;
-                // we need to only recompute it for outliers
-                if (o.depth > 0)
-                {
-                    auto res =
-                        Saiga::Kernel::BAPoseStereo<T>::evaluateResidual(camera, guess, wp, o.ip, o.depth, o.weight);
-                    chi2 = res.squaredNorm();
+                    CompactJ J = JtJ.template block<6, 6>(0, 0);
+                    x          = J.ldlt().solve(Jtb.template segment<6>(0));
                 }
                 else
                 {
-                    auto res = Saiga::Kernel::BAPoseMono<T>::evaluateResidual(camera, guess, wp, o.ip, o.weight);
-                    chi2     = res.squaredNorm();
-                }
-                bool os = o.depth > 0 ? chi2 > chi2Stereo : chi2 > chi2Mono;
-                if (!os)
-                {
-                    inliers++;
-                }
-                outlier[i] = os;
-            }
-        }
-
-
-        guess = pose;
-
-        return inliers;
-    }
-
-    int optimizePoseRobust4(const AlignedVector<Vec4>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
-                            SE3Type& guess, const CameraType& camera)
-    {
-        using MonoKernel   = Kernel::BAPoseMono<T, true>;
-        using StereoKernel = Kernel::BAPoseStereo<T, true>;
-
-        using MonoJ   = typename MonoKernel::JacobiType;
-        using StereoJ = typename StereoKernel::JacobiType;
-
-        StereoJ JrowS;
-        MonoJ JrowM;
-        JrowS.setZero();
-        JrowM.setZero();
-
-        int N       = wps.size();
-        int inliers = 0;
-        SE3Type pose;
-        chi2s.resize(N);
-        for (int it = 0; it < maxOuterIts; it++)
-        {
-            bool robust = it <= 2;
-            pose        = guess;
-            Eigen::Matrix<T, 8, 8> JtJ;
-            Eigen::Matrix<T, 8, 1> Jtb;
-            T lastChi2 = 0;
-
-            for (int it = 0; it < maxInnerIts; ++it)
-            {
-                JtJ.setZero();
-                Jtb.setZero();
-                T chi2 = 0;
-
-                for (size_t i = 0; i < wps.size(); ++i)
-                {
-                    if (outlier[i]) continue;
-
-                    auto& o  = obs[i];
-                    auto& wp = wps[i];
-
-                    if (o.depth > 0)
-                    {
-                        Vec3 res;
-                        StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth, res, JrowS,
-                                                                  o.weight);
-                        chi2s[i] = res.squaredNorm();
-
-                        if (robust)
-                        {
-                            Saiga::Kernel::HuberRobustification<T> rob(deltaStereo);
-                            rob.apply(res, JrowS);
-                        }
-
-                        chi2 += res.squaredNorm();
-                        if constexpr (TriangularAdd)
-                            JtJ += (JrowS.transpose() * JrowS).template triangularView<Eigen::Upper>();
-                        else
-                            JtJ += (JrowS.transpose() * JrowS);
-                        Jtb += JrowS.transpose() * res;
-                    }
+                    if constexpr (TriangularAdd)
+                        x = JtJ.template selfadjointView<Eigen::Upper>().ldlt().solve(Jtb);
                     else
-                    {
-                        Vec2 res;
-                        MonoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, res, JrowM, o.weight);
-                        chi2s[i] = res.squaredNorm();
-                        if (robust)
-                        {
-                            Saiga::Kernel::HuberRobustification<T> rob(deltaMono);
-                            rob.apply(res, JrowM);
-                        }
-
-                        chi2 += res.squaredNorm();
-                        if constexpr (TriangularAdd)
-                            JtJ += (JrowM.transpose() * JrowM).template triangularView<Eigen::Upper>();
-                        else
-                            JtJ += (JrowM.transpose() * JrowM);
-                        Jtb += JrowM.transpose() * res;
-                    }
+                        x = JtJ.ldlt().solve(Jtb);
                 }
-                Eigen::Matrix<T, 6, 6> test  = JtJ.template block<6, 6>(0, 0);
-                Eigen::Matrix<T, 6, 1> testb = Jtb.template segment<6>(0);
-                //                cout << JtJ << endl << endl;
-                //                cout << Jtb << endl << endl;
-                //                return 0;
-                Eigen::Matrix<T, 6, 1> x = test.template selfadjointView<Eigen::Upper>().ldlt().solve(testb);
-                //                Eigen::Matrix<T, 8, 1> x = JtJ.template block<6, 6>(0, 0).solve(Jtb);
                 guess = SE3Type::exp(x) * guess;
 
-                if (it >= 1)
+
+                // early termination if the error doesn't change
+                // normalize by number of inliers
+                if (deltaChi < innerThreshold * inliers)
                 {
-                    T deltaChi = lastChi2 - chi2;
-                    // early termination if the error doesn't change
-                    if (deltaChi < deltaChiEpsilon)
-                    {
-                        break;
-                    }
+                    break;
                 }
-                lastChi2 = chi2;
-            }
-
-            T chi2sum = 0;
-
-            inliers = 0;
-
-            for (int i = 0; i < N; ++i)
-            {
-                auto& wp = wps[i];
-                auto& o  = obs[i];
-
-                T chi2;
-
-                if (outlier[i])
-                {
-                    // we need to only recompute it for outliers
-                    if (o.depth > 0)
-                    {
-                        auto res = StereoKernel::evaluateResidual(camera, guess, wp, o.ip, o.depth, o.weight);
-                        chi2     = res.squaredNorm();
-                    }
-                    else
-                    {
-                        auto res = MonoKernel::evaluateResidual(camera, guess, wp, o.ip, o.weight);
-                        chi2     = res.squaredNorm();
-                    }
-                }
-                else
-                {
-                    chi2 = chi2s[i];
-                }
-
-                bool os = o.depth > 0 ? chi2 > chi2Stereo : chi2 > chi2Mono;
-
-                if (!os)
-                {
-                    inliers++;
-                    chi2sum += chi2;
-                }
-                outlier[i] = os;
             }
         }
-        guess = pose;
+// We don't really need this check because the last iteration is without the robust kernel anyways
+#if 0
+        inliers = 0;
+        // One more check because the last iteration changed the guess again
+        for (auto i : Range(0, N))
+        {
+            auto& wp = wps[i];
+            auto& o  = obs[i];
+            if (outlier[i]) continue;
+            T chi2;
+            // we need to only recompute it for outliers
+            if (o.depth > 0)
+            {
+                auto res = Saiga::Kernel::BAPoseStereo<T>::evaluateResidual(camera, guess, wp, o.ip, o.depth, o.weight);
+                chi2     = res.squaredNorm();
+            }
+            else
+            {
+                auto res = Saiga::Kernel::BAPoseMono<T>::evaluateResidual(camera, guess, wp, o.ip, o.weight);
+                chi2     = res.squaredNorm();
+            }
+            bool os = o.depth > 0 ? chi2 > chi2Stereo : chi2 > chi2Mono;
+            if (!os)
+            {
+                inliers++;
+            }
+            outlier[i] = os;
+        }
+#else
+//        inliers = 0;
+//        for (auto b : outlier)
+//            if (!b) inliers++;
+#endif
+
         return inliers;
     }
-};
+
+   private:
+    T chi2Mono;
+    T chi2Stereo;
+    T chi1Mono;
+    T chi1Stereo;
+    T deltaChiEpsilon;
+    int maxOuterIts;
+    int maxInnerIts;
+};  // namespace Saiga
 
 
 

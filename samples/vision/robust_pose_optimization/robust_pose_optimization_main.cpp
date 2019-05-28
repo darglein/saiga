@@ -60,7 +60,6 @@ class RPOTest
         }
 
         outlier.resize(wpc);
-        cout << wpc << " " << obsc << endl;
     }
 
     int optimize()
@@ -89,7 +88,7 @@ class RPOTest
     AlignedVector<Obs> obs;
 
     AlignedVector<bool> outlier;
-    RobustPoseOptimization<T, false> rpo;
+    RobustPoseOptimization<T> rpo;
 };
 
 
