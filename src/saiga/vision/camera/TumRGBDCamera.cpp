@@ -135,6 +135,7 @@ SE3 TumRGBDCamera::getGroundTruth(int frame)
 
 void TumRGBDCamera::saveRaw(const std::string& dir)
 {
+    cout << "Saving TUM dataset as Saiga-Raw dataset in " << dir << endl;
 #pragma omp parallel for
     for (int i = 0; i < (int)frames.size(); ++i)
     {
@@ -143,6 +144,7 @@ void TumRGBDCamera::saveRaw(const std::string& dir)
         tmp.colorImg.save(std::string(dir) + str + ".png");
         tmp.depthImg.save(std::string(dir) + str + ".saigai");
     }
+    cout << "... Done saving the raw dataset." << endl;
 }
 
 

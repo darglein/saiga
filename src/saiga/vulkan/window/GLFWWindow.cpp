@@ -45,13 +45,13 @@ std::unique_ptr<ImGuiVulkanRenderer> GLFWWindow::createImGui(size_t frameCount)
     return nullptr;
 }
 
-std::vector<const char*> GLFWWindow::getRequiredInstanceExtensions()
+std::vector<std::string> GLFWWindow::getRequiredInstanceExtensions()
 {
     uint32_t count;
     const char** extensions = glfwGetRequiredInstanceExtensions(&count);
 
 
-    std::vector<const char*> res;
+    std::vector<std::string> res;
     for (uint32_t i = 0; i < count; ++i)
     {
         res.push_back(extensions[i]);

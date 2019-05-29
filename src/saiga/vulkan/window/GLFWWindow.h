@@ -30,7 +30,7 @@ class SAIGA_VULKAN_API GLFWWindow : public VulkanWindow
 
     virtual std::unique_ptr<ImGuiVulkanRenderer> createImGui(size_t frameCount) override;
 
-    std::vector<const char*> getRequiredInstanceExtensions() override;
+    std::vector<std::string> getRequiredInstanceExtensions() override;
     void createSurface(VkInstance instance, VkSurfaceKHR* surface) override;
     virtual void update(float dt) override;
 

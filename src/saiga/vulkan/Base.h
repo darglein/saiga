@@ -28,19 +28,22 @@ namespace Saiga
 {
 namespace Vulkan
 {
+class Instance;
+
 struct SAIGA_VULKAN_API VulkanBase
 {
    private:
     // TODO: Rename to backing fields for dedicated queues
     std::unique_ptr<Queue> dedicated_compute_queue;
     std::unique_ptr<Queue> dedicated_transfer_queue;
-
+    Instance* instance;
 
    public:
     std::atomic_uint32_t current_frame;
     uint32_t numSwapchainFrames;
     VulkanParameters m_parameters;
     ~VulkanBase() { destroy(); }
+
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
     vk::PhysicalDeviceFeatures enabledFeatures = {};
@@ -82,7 +85,7 @@ struct SAIGA_VULKAN_API VulkanBase
     operator vk::Device() { return device; }
 
 
-    void setPhysicalDevice(vk::PhysicalDevice physicalDevice);
+    void setPhysicalDevice(Instance& instance, vk::PhysicalDevice physicalDevice);
 
     /**
      * Default destructor
@@ -100,7 +103,7 @@ struct SAIGA_VULKAN_API VulkanBase
      *
      * @return VkResult of the device creation call
      */
-    void createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& parameters, bool useSwapChain = true);
+    void createLogicalDevice(VulkanParameters& parameters, bool useSwapChain = true);
 
 
     [[deprecated("The functionality of this function was moved to createLogicalDevice(...)")]] void init(

@@ -19,17 +19,17 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     window.setRenderer(this);
 
 
-    std::vector<const char*> instanceExtensions = window.getRequiredInstanceExtensions();
+    auto instanceExtensions = window.getRequiredInstanceExtensions();
     instance.create(instanceExtensions, vulkanParameters.enableValidationLayer);
 
 
     window.createSurface(instance, &surface);
 
-    base().setPhysicalDevice(instance.pickPhysicalDevice());
+    base().setPhysicalDevice(instance, instance.pickPhysicalDevice());
 
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
     vulkanParameters.physicalDeviceFeatures.wideLines        = VK_TRUE;
-    base().createLogicalDevice(surface, vulkanParameters, true);
+    base().createLogicalDevice(vulkanParameters, true);
 
 
     swapChain.connect(instance, base().physicalDevice, base().device);

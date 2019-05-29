@@ -2,6 +2,7 @@
 
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/Shader/GLSL.h"
 
 #include "Debug.h"
@@ -16,9 +17,10 @@ VulkanBase::VulkanBase()
     Vulkan::GLSLANG::init();
 }
 
-void VulkanBase::setPhysicalDevice(vk::PhysicalDevice physicalDevice)
+void VulkanBase::setPhysicalDevice(Instance& instance, vk::PhysicalDevice physicalDevice)
 {
     assert(physicalDevice);
+    this->instance       = &instance;
     this->physicalDevice = physicalDevice;
 
     // Queue family properties, used for setting up requested queues upon device creation
@@ -60,7 +62,7 @@ void VulkanBase::destroy()
 }
 
 
-void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& parameters, bool useSwapChain)
+void VulkanBase::createLogicalDevice(VulkanParameters& parameters, bool useSwapChain)
 {
     m_parameters = parameters;
     std::vector<uint32_t> queueCounts(queueFamilyProperties.size(), 0);
@@ -164,8 +166,9 @@ void VulkanBase::createLogicalDevice(vk::SurfaceKHR surface, VulkanParameters& p
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
     }
 
-    auto layers = Saiga::Vulkan::Debug::getDebugValidationLayers();
 
+    // just use the same layers as the instance
+    auto layers                          = instance->getEnabledLayers();
     deviceCreateInfo.enabledLayerCount   = layers.size();
     deviceCreateInfo.ppEnabledLayerNames = layers.data();
 

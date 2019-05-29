@@ -13,7 +13,7 @@ class SAIGA_VULKAN_API Debug
               VkDebugReportFlagsEXT flags       = VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_ERROR_BIT_EXT,
               VkDebugReportCallbackEXT callBack = VK_NULL_HANDLE);
     void destroy();
-    static std::vector<const char*> getDebugValidationLayers();
+    static std::string getDebugValidationLayers();
 
    private:
     vk::Instance instance;

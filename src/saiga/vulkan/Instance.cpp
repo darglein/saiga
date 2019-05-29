@@ -24,68 +24,65 @@ void Instance::destroy()
     }
 }
 
-void Instance::create(std::vector<const char*> instanceExtensions, bool enableValidation)
+void Instance::create(const std::vector<std::string>& _instanceExtensions, bool enableValidation)
 {
     SAIGA_ASSERT(!instance);
 
-    VkApplicationInfo appInfo = {};
-    appInfo.sType             = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName  = "Saiga Application";
-    appInfo.pEngineName       = "Saiga";
-    appInfo.apiVersion        = VK_API_VERSION_1_1;
+    std::vector<std::string> instanceExtensions = _instanceExtensions;
+    std::vector<std::string> instanceLayers;
 
-    //    std::vector<const char*> instanceExtensions = getRequiredInstanceExtensions();
-
-    //    instanceExtensions.push_back( VK_KHR_SURFACE_EXTENSION_NAME );
+    vk::ApplicationInfo appInfo;
+    appInfo.pApplicationName = "Saiga Application";
+    appInfo.pEngineName      = "Saiga";
+    appInfo.apiVersion       = VK_API_VERSION_1_1;
 
 
+    vk::InstanceCreateInfo instanceCreateInfo;
+    instanceCreateInfo.pApplicationInfo = &appInfo;
 
-    VkInstanceCreateInfo instanceCreateInfo = {};
-    instanceCreateInfo.sType                = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    instanceCreateInfo.pNext                = NULL;
-    instanceCreateInfo.pApplicationInfo     = &appInfo;
-    if (instanceExtensions.size() > 0)
-    {
-        if (enableValidation)
-        {
-            instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-        }
-        instanceCreateInfo.enabledExtensionCount   = (uint32_t)instanceExtensions.size();
-        instanceCreateInfo.ppEnabledExtensionNames = instanceExtensions.data();
-    }
-    auto layers = Debug::getDebugValidationLayers();
     if (enableValidation)
     {
-        // TODO
-        instanceCreateInfo.enabledLayerCount   = layers.size();
-        instanceCreateInfo.ppEnabledLayerNames = layers.data();
+        // We require both, the debug report extension as well as a validation layer
+        std::string ext = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
+        std::string val = Debug::getDebugValidationLayers();
+
+
+        if (hasExtension(ext) && hasLayer(val))
+        {
+            cout << "Vulkan Validation layer enabled!" << endl;
+            instanceExtensions.push_back(ext);
+            instanceLayers.push_back(val);
+        }
+        else if (!hasExtension(ext))
+        {
+            cerr << "Vulkan Warning: You tried to enable the validation layer, but the extension " << ext
+                 << " was not found. Starting without valdiation layer..." << endl;
+            enableValidation = false;
+        }
+        else if (!hasLayer(val))
+        {
+            cerr << "Vulkan Warning: You tried to enable the validation layer, but the layer " << val
+                 << " was not found. Starting without valdiation layer..." << endl;
+            enableValidation = false;
+        }
     }
 
-#if 0
-    cout << "Instance extensions:" << endl;
-    for (auto ex : instanceExtensions) cout << ex << endl;
-#endif
+    // convert to char pointer array for vulkan
+    for (auto& s : instanceExtensions) extensions.push_back(s.c_str());
+    for (auto& s : instanceLayers) layers.push_back(s.c_str());
+    instanceCreateInfo.enabledExtensionCount   = (uint32_t)extensions.size();
+    instanceCreateInfo.ppEnabledExtensionNames = extensions.data();
+    instanceCreateInfo.enabledLayerCount       = (uint32_t)layers.size();
+    instanceCreateInfo.ppEnabledLayerNames     = layers.data();
 
-
-    //   VK_CHECK_RESULT(vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
     instance = vk::createInstance(instanceCreateInfo);
     SAIGA_ASSERT(instance);
-
-#if 0
-    auto extprops = vk::enumerateInstanceExtensionProperties();
-    for (auto e : extprops)
-    {
-        cout << e.specVersion << " " << e.extensionName << endl;
-    }
-#endif
-
 
     // If requested, we enable the default validation layers for debugging
     if (enableValidation)
     {
         debug.init(instance);
     }
-
     cout << "Vulkan instance created." << endl;
 }
 
@@ -109,6 +106,26 @@ vk::PhysicalDevice Instance::pickPhysicalDevice()
                   << std::endl;
     }
     return physicalDevice;
+}
+
+bool Instance::hasLayer(const std::string& name)
+{
+    auto prop = vk::enumerateInstanceLayerProperties();
+    for (auto l : prop)
+    {
+        if (std::string(l.layerName) == name) return true;
+    }
+    return false;
+}
+
+bool Instance::hasExtension(const std::string& name)
+{
+    auto prop = vk::enumerateInstanceExtensionProperties();
+    for (auto l : prop)
+    {
+        if (std::string(l.extensionName) == name) return true;
+    }
+    return false;
 }
 
 }  // namespace Vulkan

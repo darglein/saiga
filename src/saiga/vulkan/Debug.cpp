@@ -141,9 +141,9 @@ void Debug::destroy()
     }
 }
 
-std::vector<const char*> Debug::getDebugValidationLayers()
+std::string Debug::getDebugValidationLayers()
 {
-    return {"VK_LAYER_LUNARG_standard_validation"};
+    return "VK_LAYER_LUNARG_standard_validation";
 }
 
 

@@ -51,7 +51,7 @@ std::unique_ptr<ImGuiVulkanRenderer> SDLWindow::createImGui(size_t frameCount)
     return {};
 }
 
-std::vector<const char*> SDLWindow::getRequiredInstanceExtensions()
+std::vector<std::string> SDLWindow::getRequiredInstanceExtensions()
 {
     unsigned int count = 0;
     const char** names = nullptr;
@@ -67,7 +67,7 @@ std::vector<const char*> SDLWindow::getRequiredInstanceExtensions()
     SAIGA_ASSERT(res);
     // Now names should have (count) strings in it:
 
-    std::vector<const char*> extensions;
+    std::vector<std::string> extensions;
     for (unsigned int i = 0; i < count; i++)
     {
         extensions.push_back(names[i]);
