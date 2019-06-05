@@ -39,7 +39,7 @@ inline void AABB::translate(const vec3& v)
 inline void AABB::scale(const vec3& s)
 {
     vec3 pos = getPosition();
-    setPosition(vec3(0));
+    setPosition(make_vec3(0));
     //    min *= s;
     //    max *= s;
 

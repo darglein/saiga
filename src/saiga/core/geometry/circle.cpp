@@ -11,13 +11,13 @@ namespace Saiga
 {
 std::ostream& operator<<(std::ostream& os, const Saiga::Circle& s)
 {
-    std::cout << "Circle: " << s.pos << s.r << s.normal;
+    os << "Circle: " << s.pos << s.r << s.normal;
     return os;
 }
 
 float Circle::distance(const vec3& p) const
 {
-    return ::distance(p, closestPointOnCircle(p));
+    return Saiga::distance(p, closestPointOnCircle(p));
 }
 
 vec3 Circle::closestPointOnCircle(const vec3& p) const

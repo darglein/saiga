@@ -5,9 +5,10 @@
  */
 
 #pragma once
-
 #include "saiga/config.h"
 #include "saiga/core/geometry/object3d.h"
+
+#include <memory>
 
 namespace Saiga
 {

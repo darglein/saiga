@@ -12,12 +12,12 @@
 #include "saiga/cuda/event.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/stream.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <iostream>
 #include <vector>
 
-
+using namespace Saiga;
 
 using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
@@ -34,7 +34,7 @@ class Element
     {
         for (int k = 0; k < K * 512; ++k)
         {
-            data = data * data + data;
+            data = data * 3.1f + data;
         }
     }
 };

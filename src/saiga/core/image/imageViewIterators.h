@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include "saiga/core/math/imath.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/imath.h"
 
 
 namespace Saiga

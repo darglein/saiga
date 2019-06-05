@@ -7,10 +7,11 @@
 #pragma once
 
 #include "saiga/core/geometry/object3d.h"
+#include "saiga/core/math/math.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/vertex.h"
-#include "saiga/core/util/math.h"
 
+#include <memory>
 #include <vector>
 
 namespace Saiga

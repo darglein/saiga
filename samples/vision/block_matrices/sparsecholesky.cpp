@@ -6,8 +6,8 @@
 
 
 
+#include "saiga/core/math/random.h"
 #include "saiga/core/time/timer.h"
-#include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
 
 #include "EigenRecursive/All.h"
@@ -59,7 +59,7 @@ Eigen::Matrix<VectorType, -1, 1> solveSparseLDLT(const Eigen::SparseMatrix<Matri
             {
                 if (Li.col() == Lj.col())
                 {
-                    sum += Li.value() * D.diagonal()(Li.col()) * transpose(Lj.value());
+                    sum += Li.value() * D.diagonal()(Li.col()) * Eigen::Recursive::transpose(Lj.value());
                     ++Li;
                     ++Lj;
                 }
@@ -87,7 +87,7 @@ Eigen::Matrix<VectorType, -1, 1> solveSparseLDLT(const Eigen::SparseMatrix<Matri
 
             sum            = sum * Dinv.diagonal()(j);
             L.insert(i, j) = sum;
-            sumd += sum * D.diagonal()(j) * transpose(sum);
+            sumd += sum * D.diagonal()(j) * Eigen::Recursive::transpose(sum);
         }
         L.insert(i, i) = MultiplicativeNeutral<MatrixScalar>::get();
         SAIGA_ASSERT(it && it.col() == i);

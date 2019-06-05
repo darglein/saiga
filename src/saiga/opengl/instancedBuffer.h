@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/buffer.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 namespace Saiga
 {

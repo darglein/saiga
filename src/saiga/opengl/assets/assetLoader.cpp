@@ -145,7 +145,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float le
 
     float coneH   = length * 0.3f;
     float coneR   = radius * 1.3f;
-    auto coneMesh = TriangleMeshGenerator::createMesh(Cone(vec3(0), vec3(0, 1, 0), coneR, coneH), 12);
+    auto coneMesh = TriangleMeshGenerator::createMesh(Cone(make_vec3(0), vec3(0, 1, 0), coneR, coneH), 12);
     m             = translate(vec3(0, length + coneH, 0));
     coneMesh->transform(m);
 

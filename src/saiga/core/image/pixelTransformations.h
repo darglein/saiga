@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 
 namespace Saiga
@@ -28,7 +28,7 @@ inline float toGray(const ucvec3& v, float scale = 1)
 
 inline float toGray(const ucvec4& v, float scale = 1)
 {
-    return toGray(ucvec3(v), scale);
+    return toGray(v.segment<3>(0).eval(), scale);
 }
 
 }  // namespace PixelTransformation

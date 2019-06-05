@@ -9,7 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/opengl/animation/bspline.h"
 #include "saiga/opengl/assets/assetLoader.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <saiga/core/time/time.h>
 

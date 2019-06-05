@@ -18,15 +18,15 @@ Color::Color(int r, int g, int b, int a) : r(r), g(g), b(b), a(a) {}
 
 Color::Color(float r, float g, float b, float a) : Color(vec4(r, g, b, a)) {}
 
-Color::Color(vec3 c) : Color(make_vec4(c, 1)) {}
+Color::Color(const vec3& c) : Color(make_vec4(c, 1)) {}
 
-Color::Color(vec4 c)
+Color::Color(const vec4& c)
 {
-    c = round(c * 255.0f);
-    r = c[0];
-    g = c[1];
-    b = c[2];
-    a = c[3];
+    vec4 tmp = round(c * 255.0f);
+    r        = tmp[0];
+    g        = tmp[1];
+    b        = tmp[2];
+    a        = tmp[3];
 }
 
 Color::operator vec3() const

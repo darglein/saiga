@@ -5,7 +5,7 @@
  */
 
 #include "saiga/core/time/timer.h"
-#include "saiga/core/util/random.h"
+#include "saiga/core/math/random.h"
 #include "EigenRecursive/All.h"
 #include "saiga/vision/VisionIncludes.h"
 

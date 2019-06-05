@@ -40,7 +40,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     sphere.rotateLocal(vec3(0, 1, 0), 180);
     sphere.calculateModel();
 
-    groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
+    groundPlane.asset = assetLoader.loadDebugPlaneAsset(make_vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
 
 
     ShadowQuality sq = ShadowQuality::HIGH;
@@ -59,7 +59,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     pointLight->setIntensity(2);
     pointLight->setRadius(10);
     pointLight->setPosition(vec3(10, 3, 0));
-    pointLight->setColorDiffuse(vec3(1));
+    pointLight->setColorDiffuse(make_vec3(1));
     pointLight->calculateModel();
     //        pointLight->createShadowMap(256,256,sq);
     pointLight->createShadowMap(512, 512, sq);
@@ -70,7 +70,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     spotLight->setIntensity(2);
     spotLight->setRadius(8);
     spotLight->setPosition(vec3(-10, 5, 0));
-    spotLight->setColorDiffuse(vec3(1));
+    spotLight->setColorDiffuse(make_vec3(1));
     spotLight->calculateModel();
     spotLight->createShadowMap(512, 512, sq);
     spotLight->enableShadows();
@@ -81,7 +81,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     //        boxLight->setPosition(vec3(0,2,10));
     //        boxLight->rotateLocal(vec3(1,0,0),30);
     boxLight->setView(vec3(0, 2, 10), vec3(0, 0, 13), vec3(0, 1, 0));
-    boxLight->setColorDiffuse(vec3(1));
+    boxLight->setColorDiffuse(make_vec3(1));
     boxLight->setScale(vec3(5, 5, 8));
     boxLight->calculateModel();
     boxLight->createShadowMap(512, 512, sq);

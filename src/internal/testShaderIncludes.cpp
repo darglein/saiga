@@ -1,7 +1,7 @@
 ﻿#include "saiga/saiga_buildconfig.h"
 
 // Only test this if we have glm
-#ifndef SAIGA_FULL_EIGEN
+#ifdef NOT_SUPPORTED_RIGHT_NOW
 
 #    ifdef _WIN32
 // TODO fix for windows

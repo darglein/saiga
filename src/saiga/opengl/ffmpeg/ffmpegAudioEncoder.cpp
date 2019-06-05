@@ -9,8 +9,8 @@
 
 #if defined(SAIGA_USE_FFMPEG)
 
+#    include "saiga/core/math/math.h"
 #    include "saiga/core/util/assert.h"
-#    include "saiga/core/util/math.h"
 
 #    include "ffmpegAudioEncoder.h"
 

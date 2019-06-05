@@ -131,8 +131,8 @@ void SoundSource::reset(bool isMusic, float masterVolume)
     music          = isMusic;
     myMasterVolume = masterVolume;
     setLooping(false);
-    setPosition(vec3(0));
-    setVelocity(vec3(0));
+    setPosition(make_vec3(0));
+    setVelocity(make_vec3(0));
     setVolume(1.f);
     //    setPitch(1.f); //this is set with timescale
     setReferenceDistance(1.f);  // TODO dont know if correct?
@@ -146,7 +146,7 @@ void SoundSource::makeBackground()
 {
     alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
     alSourcef(source, AL_ROLLOFF_FACTOR, 0.0);
-    setPosition(vec3(0));
+    setPosition(make_vec3(0));
     assert_no_alerror();
 }
 

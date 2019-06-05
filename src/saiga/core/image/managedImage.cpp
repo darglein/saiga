@@ -14,7 +14,7 @@
 #include "saiga/core/image/templatedImage.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/core/util/imath.h"
+#include "saiga/core/math/imath.h"
 #include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"

@@ -6,7 +6,7 @@
 
 #include "ImageTransmition.h"
 
-#include "saiga/core/util/imath.h"
+#include "saiga/core/math/imath.h"
 
 namespace Saiga
 {

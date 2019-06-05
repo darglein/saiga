@@ -6,10 +6,11 @@
 
 #pragma once
 
+#include "saiga/core/math/math.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shaderpart.h"
-#include "saiga/core/util/math.h"
 
+#include <memory>
 #include <vector>
 // for shared pointer
 

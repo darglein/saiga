@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/math/floatingPoint.h"
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/floatingPoint.h"
-#include "saiga/core/util/math.h"
 
 #include "internal/noGraphicsAPI.h"
 

@@ -79,6 +79,7 @@ void Sample::renderOverlay(Camera* cam)
 {
     // The skybox is rendered after lighting and before post processing
     skybox.sunDir = vec3(sun->getDirection());
+    //    sun->setDirection(skybox.sunDir);
     skybox.render(cam);
 }
 
@@ -96,6 +97,7 @@ void Sample::renderFinal(Camera* cam)
 
 
         skybox.imgui();
+
         ImGui::End();
     }
 }

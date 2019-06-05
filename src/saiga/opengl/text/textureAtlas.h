@@ -8,11 +8,12 @@
 
 #include "saiga/config.h"
 #include "saiga/core/geometry/aabb.h"
-#include "saiga/opengl/texture/texture.h"
+#include "saiga/core/math/math.h"
 #include "saiga/opengl/text/fontLoader.h"
-#include "saiga/core/util/math.h"
+#include "saiga/opengl/texture/texture.h"
 
 #include <map>
+#include <memory>
 
 namespace Saiga
 {
@@ -25,15 +26,16 @@ class SAIGA_OPENGL_API TextureAtlas
    public:
     struct character_info
     {
-        int character = 0;        // unicode code point
-        vec2 advance  = vec2(0);  // distance to the origin of the next character
-        vec2 offset   = vec2(0);  // offset of the bitmap position to the origin of this character
-        vec2 size     = vec2(0);  // size of bitmap
+        int character = 0;           // unicode code point
+        vec2 advance  = vec2(0, 0);  // distance to the origin of the next character
+        vec2 offset   = vec2(0, 0);  // offset of the bitmap position to the origin of this character
+        vec2 size     = vec2(0, 0);  // size of bitmap
 
-        ivec2 atlasPos = ivec2(0);  // position of this character in the texture atlas
+        ivec2 atlasPos = ivec2(0, 0);  // position of this character in the texture atlas
         //        int atlasX = 0, atlasY = 0;
 
-        vec2 tcMin, tcMax;
+        vec2 tcMin = vec2(0, 0);
+        vec2 tcMax = vec2(0, 0);
     };
 
     TextureAtlas();

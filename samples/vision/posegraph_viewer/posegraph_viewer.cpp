@@ -16,11 +16,11 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
-#include "saiga/vision/ba/BAPoseOnly.h"
+#include "saiga/vision/recursive/BAPoseOnly.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
-#include "saiga/vision/pgo/PGORecursive.h"
+#include "saiga/vision/recursive/PGORecursive.h"
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
@@ -96,8 +96,8 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
             auto p1 = scene.poses[i].se3.inverse().translation();
             auto p2 = scene.poses[j].se3.inverse().translation();
 
-            lines.emplace_back(vec3(p1(0), p1(1), p1(2)), vec3(0), vec3(0, 1, 0));
-            lines.emplace_back(vec3(p2(0), p2(1), p2(2)), vec3(0), vec3(0, 1, 0));
+            lines.emplace_back(vec3(p1(0), p1(1), p1(2)), make_vec3(0), vec3(0, 1, 0));
+            lines.emplace_back(vec3(p2(0), p2(1), p2(2)), make_vec3(0), vec3(0, 1, 0));
         }
 
         if (lines.size() > 0)

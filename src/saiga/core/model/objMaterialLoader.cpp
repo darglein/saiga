@@ -6,6 +6,8 @@
 
 #include "objMaterialLoader.h"
 
+#include "saiga/core/math/String.h"
+
 #include "internal/noGraphicsAPI.h"
 
 #include <algorithm>

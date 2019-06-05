@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include "saiga/core/math/math.h"
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/core/util/math.h"
 
 #include <curand_kernel.h>
 
@@ -52,7 +52,9 @@ __device__ inline vec3 sampleCone(const vec3& dir, float angle, curandState& sta
 {
     vec3 v    = sampleUnitCone(angle, state);
     vec3 cdir = vec3(0, 0, 1);
-    vec4 r    = rotation(cdir, dir) * vec4(v, 0);
+    quat q    = rotation(cdir, dir);
+    vec4 v4   = make_vec4(v, 0);
+    vec3 r    = q * v;
     return vec3(r);
 }
 

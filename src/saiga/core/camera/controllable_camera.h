@@ -7,7 +7,7 @@
 #pragma once
 
 
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/mouse.h"
 
 #include "camera.h"
@@ -139,7 +139,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 
     p += point;
     this->position = make_vec4(p, 1);
-    //        camera.rotateAroundPoint(vec3(0),vec3(1,0,0),relMovement[1]);
+    //        camera.rotateAroundPoint(make_vec3(0),vec3(1,0,0),relMovement[1]);
     this->calculateModel();
     this->updateFromModel();
 #endif

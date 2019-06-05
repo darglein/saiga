@@ -6,9 +6,10 @@
 
 #pragma once
 
+#include "saiga/core/math/imath.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/core/util/assert.h"
 
 #if !defined(IS_CUDA)
 #    error device_helper.h must only be included by nvcc
@@ -89,8 +90,8 @@ __device__ inline void cuda_assert_fail(const char* __assertion, const char* __f
 #endif
 
 
-#define WARP_FOR_NO_IF(_variableName, _initExpr, _length, _step)                             \
-    for (unsigned int _variableName = _initExpr, _k = 0; _k < Saiga::iDivUp(_length, _step); \
+#define WARP_FOR_NO_IF(_variableName, _initExpr, _length, _step)                                  \
+    for (unsigned int _variableName = _initExpr, _k = 0; _k < Saiga::iDivUp<int>(_length, _step); \
          _k++, _variableName += _step)
 
 #define WARP_FOR(_variableName, _initExpr, _length, _step)   \

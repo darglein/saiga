@@ -9,10 +9,10 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
-#include "saiga/opengl/shader/basic_shaders.h"
-#include "saiga/opengl/vertex.h"
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/rendering/deferredRendering/postProcessor.h"
+#include "saiga/opengl/shader/basic_shaders.h"
+#include "saiga/opengl/vertex.h"
 
 namespace Saiga
 {

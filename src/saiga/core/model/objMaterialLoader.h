@@ -15,7 +15,7 @@ namespace Saiga
 struct SAIGA_CORE_API ObjMaterial
 {
     std::string name;
-    vec4 color = vec4(0, 1, 0, 0);
+    vec4 color = make_vec4(0, 1, 0, 0);
 
     float Ns = 0.2f;  // specular coefficient
     float Ni = 1;

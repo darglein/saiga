@@ -6,9 +6,9 @@
 
 #pragma once
 #include "saiga/vision/Optimizer.h"
+#include "saiga/vision/arap/ArapBase.h"
+#include "saiga/vision/arap/ArapProblem.h"
 
-#include "ArapBase.h"
-#include "ArapProblem.h"
 #include "EigenRecursive/All.h"
 namespace Saiga
 {

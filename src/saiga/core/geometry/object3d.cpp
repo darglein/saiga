@@ -6,6 +6,8 @@
 
 #include "object3d.h"
 
+#include "saiga/core/math/String.h"
+
 #include "internal/noGraphicsAPI.h"
 
 namespace Saiga
@@ -41,7 +43,7 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
     translateGlobal(vec3(-point));
     quat qrot = angleAxis(radians(angle), axis);
     //    position = vec3(qrot*vec4(position,1));
-    position = make_vec4(qrot * make_vec3(position),1);
+    position = make_vec4(qrot * make_vec3(position), 1);
     translateGlobal(point);
 }
 
@@ -64,9 +66,9 @@ Object3D Object3D::interpolate(const Object3D& a, const Object3D& b, float alpha
     return res;
 }
 
-std::ostream& operator<<(std::ostream& os, const Object3D& o)
+std::ostream& operator<<(std::ostream& os, const Saiga::Object3D& o)
 {
-    std::cout << "Object3D (P/R/S): " << o.position << " " << o.rot << " " << o.scale;
+    os << "Object3D (P/R/S): " << o.position << " " << o.rot << " " << o.scale;
     return os;
 }
 

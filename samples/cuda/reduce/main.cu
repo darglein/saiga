@@ -8,11 +8,11 @@
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/reduce.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <iostream>
 #include <vector>
-
+using namespace Saiga;
 using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
 

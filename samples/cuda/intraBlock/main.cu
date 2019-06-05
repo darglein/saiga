@@ -10,7 +10,7 @@
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/stream.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <iostream>
 #include <vector>

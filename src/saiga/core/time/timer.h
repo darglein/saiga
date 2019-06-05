@@ -103,7 +103,7 @@ class SAIGA_CORE_API ScopedTimerPrint : public Timer
 template <typename T = float, typename Unit = std::chrono::milliseconds>
 class ScopedTimer : public Timer
 {
-    static_assert(std::is_arithmetic_v<T>);
+    static_assert(std::is_arithmetic<T>::value);
 
    public:
     T* target;

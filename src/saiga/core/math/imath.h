@@ -13,13 +13,17 @@
 namespace Saiga
 {
 // returns the smallest x number with: x * b >= a
-HD SAIGA_CONSTEXPR inline int iDivUp(int a, int b)
+template <typename T>
+HD SAIGA_CONSTEXPR inline T iDivUp(T a, T b)
 {
-    return (a + b - 1) / b;
+    static_assert(std::is_integral<T>::value, "T must be integral!");
+    return (a + b - T(1)) / b;
 }
 
-HD SAIGA_CONSTEXPR inline int iDivDown(int a, int b)
+template <typename T>
+HD SAIGA_CONSTEXPR inline T iDivDown(T a, T b)
 {
+    static_assert(std::is_integral<T>::value, "T must be integral!");
     return a / b;
 }
 
@@ -56,19 +60,19 @@ HD SAIGA_CONSTEXPR inline T iAlignDown(T a, U b)
 }
 
 
-HD inline int iFloor(float value)
+HD constexpr inline int iFloor(float value)
 {
     int i = (int)value;
     return i - (i > value);
 }
 
-HD inline int iCeil(float value)
+HD constexpr inline int iCeil(float value)
 {
     int i = (int)value;
     return i + (i < value);
 }
 
-HD inline int iRound(float value)
+HD constexpr inline int iRound(float value)
 {
     return (int)(value + (value >= 0 ? 0.5f : -0.5f));
 }

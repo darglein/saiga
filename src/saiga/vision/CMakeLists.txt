@@ -21,6 +21,10 @@ if(CERES_FOUND)
     add_subdirectory(ceres)
 endif()
 
+if(EIGENRECURSIVE_FOUND)
+    add_subdirectory(recursive)
+endif()
+
 FILE(GLOB VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
 FILE(GLOB VULKAN_HEADER  "*.h" "*.hpp" "*.inl")
 

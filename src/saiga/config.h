@@ -60,8 +60,6 @@
 
 // includes that are used for everything
 #include <iostream>
-#include <memory>
-#include <string>
 
 using std::cerr;
 using std::cout;

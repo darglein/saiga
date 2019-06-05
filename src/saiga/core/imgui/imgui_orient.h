@@ -24,7 +24,7 @@
 // SOFTWARE.
 
 
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <algorithm>
 #include <float.h>
@@ -244,7 +244,7 @@ IMGUI_API bool DirectionGizmo(const char* label, ImVec3& dir);
 
 
 ////glm wrapper for the 3 functions above
-inline bool Quaternion(const char* label, quat& quat)
+inline bool Quaternion(const char* label, Saiga::quat& quat)
 {
     ImQuat q(quat);
     bool ret = QuaternionGizmo(label, q);
@@ -252,7 +252,7 @@ inline bool Quaternion(const char* label, quat& quat)
     return ret;
 }
 
-inline bool AxisAngle(const char* label, vec3& axis, float& angle)
+inline bool AxisAngle(const char* label, Saiga::vec3& axis, float& angle)
 {
     ImVec3 d(axis);
     bool ret = AxisAngleGizmo(label, d, angle);
@@ -260,7 +260,7 @@ inline bool AxisAngle(const char* label, vec3& axis, float& angle)
     return ret;
 }
 
-inline bool Direction(const char* label, vec3& dir)
+inline bool Direction(const char* label, Saiga::vec3& dir)
 {
     ImVec3 d(dir);
     bool ret = DirectionGizmo(label, d);

@@ -9,6 +9,7 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/String.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/glImageFormat.h"

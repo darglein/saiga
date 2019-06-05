@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <saiga/core/geometry/object3d.h>
 #include <saiga/core/geometry/plane.h>

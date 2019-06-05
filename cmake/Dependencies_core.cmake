@@ -11,9 +11,15 @@ unset(LIB_TARGETS)
 unset(LIBS)
 unset(MODULE_CORE)
 
-#GLM
-find_package(GLM REQUIRED QUIET)
-PackageHelper(GLM "${GLM_FOUND}" "${GLM_INCLUDE_DIRS}" "")
+
+#GLM is deprecated
+#find_package(GLM REQUIRED QUIET)
+#PackageHelper(GLM "${GLM_FOUND}" "${GLM_INCLUDE_DIRS}" "")
+
+#Eigen is now required
+find_package(Eigen3 REQUIRED QUIET)
+PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
+SET(SAIGA_USE_EIGEN 1)
 
 #dbghelp for crash.cpp
 if(WIN32)

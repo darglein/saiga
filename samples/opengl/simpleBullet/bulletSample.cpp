@@ -8,8 +8,8 @@
 
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/random.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/core/util/random.h"
 
 
 Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer)
@@ -30,7 +30,7 @@ Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer)
     AssetLoader assetLoader;
 
     // First create the triangle mesh of a cube
-    auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-1), vec3(1)));
+    auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(make_vec3(-1), make_vec3(1)));
 
 
 

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 
-#include "BABase.h"
+#include "saiga/vision/ba/BABase.h"
 
 namespace Saiga
 {
@@ -15,7 +15,7 @@ class SAIGA_VISION_API BAPoseOnly : public BABase, public Optimizer
      *
      */
     BAPoseOnly() : BABase("Simple Sparse BA") {}
-    void poseOnlySparse(Scene& scene, int its);
+    //    void poseOnlySparse(Scene& scene, int its);
     void posePointDense(Scene& scene, int its);
     void posePointSparse(Scene& scene, int its);
     void posePointSparseSchur(Scene& scene);

@@ -17,7 +17,7 @@ void ProceduralSkyboxShader::checkUniforms()
     location_params = Shader::getUniformLocation("params");
 }
 
-void ProceduralSkyboxShader::uploadParams(glm::vec3 sunDir, float horizonHeight, float distance, float sunIntensity,
+void ProceduralSkyboxShader::uploadParams(vec3 sunDir, float horizonHeight, float distance, float sunIntensity,
                                           float sunSize)
 {
     vec4 params = vec4(horizonHeight, distance, sunIntensity, sunSize);

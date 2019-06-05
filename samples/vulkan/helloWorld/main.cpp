@@ -22,6 +22,7 @@ int main(const int argc, const char* argv[])
         Saiga::Vulkan::VulkanParameters vulkanParams;
         // vulkanParams.enableValidationLayer = true;
         vulkanParams.fromConfigFile("config.ini");
+
         Saiga::Vulkan::VulkanForwardRenderer renderer(window, vulkanParams);
 
 

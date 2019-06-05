@@ -6,6 +6,7 @@
 
 #include "saiga/core/Core.h"
 
+
 using namespace Saiga;
 
 int main(int argc, char* args[])
@@ -29,7 +30,7 @@ int main(int argc, char* args[])
     w    = ini.GetAddLong("window", "width", 1280);
     h    = ini.GetAddDouble("window", "height", 720);
     b    = ini.GetAddBool("window", "fullscreen", false);
-    m    = Saiga::mat4FromString(ini.GetAddString("window", "viewmatrix", Saiga::to_string(m).c_str()));
+    Saiga::fromIniString(ini.GetAddString("window", "viewmatrix", Saiga::toIniString(m).c_str()), m);
 
     cout << name << " " << w << "x" << h << " " << b << " " << endl << m << endl;
 

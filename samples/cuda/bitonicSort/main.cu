@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/table.h"
 #include "saiga/cuda/bitonicSort.h"
 #include "saiga/cuda/cudaHelper.h"

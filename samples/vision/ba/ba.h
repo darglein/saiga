@@ -9,7 +9,7 @@
 #pragma once
 
 
-#include "saiga/vision/ba/BARecursive.h"
+#include "saiga/vision/recursive/BARecursive.h"
 #include "saiga/vision/scene/Scene.h"
 #include "saiga/vision/scene/SynteticScene.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
@@ -19,6 +19,7 @@
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 #include "saiga/vulkan/window/SDLSample.h"
 
+using namespace Saiga;
 
 class VulkanExample : public Saiga::VulkanSDLExampleBase
 {

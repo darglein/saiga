@@ -1,7 +1,7 @@
 ﻿#include "BAPoseOnly.h"
 
+#include "saiga/core/math/random.h"
 #include "saiga/core/time/timer.h"
-#include "saiga/core/util/random.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"

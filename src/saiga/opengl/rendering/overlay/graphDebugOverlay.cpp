@@ -7,9 +7,9 @@
 #include "saiga/opengl/rendering/overlay/graphDebugOverlay.h"
 
 #include "saiga/core/geometry/triangle_mesh.h"
+#include "saiga/core/math/random.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
-#include "saiga/core/util/random.h"
 
 namespace Saiga
 {
@@ -104,7 +104,7 @@ void GraphDebugOverlay::setScreenPosition(vec2 start, vec2 end)
 
     vec2 S = abs(vec2(start - end));
     model  = translate(make_vec3(mid, 0) + make_vec3(-S / 2.f, 0));
-    model  = ::scale(model, make_vec3(S, 0));
+    model  = Saiga::scale(model, make_vec3(S, 0));
 }
 
 void GraphDebugOverlay::render(float interpolation)

@@ -16,12 +16,6 @@ if(NOT MODULE_CORE)
     return()
 endif()
 
-#eigen
-find_package(Eigen3 QUIET)
-PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
-if(EIGEN3_FOUND)
-    SET(SAIGA_USE_EIGEN 1)
-endif()
 
 #Sophus
 find_package(Sophus QUIET)
@@ -31,6 +25,9 @@ PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
 #Recursive
 find_package(EigenRecursive QUIET)
 PackageHelperTarget(Eigen::EigenRecursive EIGENRECURSIVE_FOUND)
+if(EIGENRECURSIVE_FOUND)
+    SET(SAIGA_USE_EIGENRECURSIVE 1)
+endif()
 
 #g2o
 find_package(g2o QUIET)
@@ -92,7 +89,7 @@ set(VISION_TARGETS saiga_core ${LIB_TARGETS})
 
 message(STATUS ${VISION_TARGETS})
 
-if(EIGEN3_FOUND AND SOPHUS_FOUND AND EIGENRECURSIVE_FOUND)
+if(EIGEN3_FOUND AND SOPHUS_FOUND)
     message(STATUS "Saiga vision enabled.")
     SET(MODULE_VISION 1)
     SET(SAIGA_VISION 1)

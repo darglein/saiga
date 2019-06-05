@@ -8,7 +8,7 @@
 
 #include "saiga/config.h"
 #include "saiga/core/time/timer.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <vector>
 
@@ -67,6 +67,8 @@ class SAIGA_CORE_API HzTimeGraph : public Graph
 class SAIGA_CORE_API ColoredBar
 {
    public:
+    using vec4 = Saiga::vec4;
+    using vec2 = Saiga::vec2;
     struct BarColor
     {
         vec4 fill;

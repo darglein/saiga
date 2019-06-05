@@ -4,17 +4,17 @@
  * See LICENSE file for more information.
  */
 #include "saiga/core/framework/framework.h"
+#include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_Compile_Checker.h"
-#include "saiga/vision/ba/BAPoseOnly.h"
-#include "saiga/vision/ba/BARecursive.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
+#include "saiga/vision/recursive/BAPoseOnly.h"
+#include "saiga/vision/recursive/BARecursive.h"
 #include "saiga/vision/scene/SynteticScene.h"
 
 #include <fstream>

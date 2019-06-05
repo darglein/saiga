@@ -482,8 +482,8 @@ __global__ static void d_convolveInnerShuffle(ImageView<T> src, ImageView<T> dst
 
 template <typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int X_ELEMENTS,
           unsigned int Y_ELEMENTS, typename VectorType = int2>
-__launch_bounds__(BLOCK_W* BLOCK_H, 3) __global__
-    static void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
+//__launch_bounds__(BLOCK_W* BLOCK_H, 3)
+     __global__ static void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
 {
     const unsigned int TILE_W = BLOCK_W;
     const unsigned int TILE_H = BLOCK_H;

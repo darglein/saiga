@@ -5,10 +5,11 @@
  */
 
 #pragma once
-
-#include "saiga/opengl/texture/texture.h"
 #include "saiga/core/util/ObjectCache.h"
 #include "saiga/core/util/singleton.h"
+#include "saiga/opengl/texture/texture.h"
+
+#include <memory>
 
 namespace Saiga
 {

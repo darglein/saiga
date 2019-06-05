@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include "saiga/core/camera/camera.h"
 #include "saiga/config.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/camera/camera.h"
+#include "saiga/core/math/math.h"
 
+#include <memory>
 #include <vector>
 
 namespace Saiga

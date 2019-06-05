@@ -16,12 +16,7 @@ if(NOT MODULE_CORE)
     return()
 endif()
 
-#eigen
-find_package(Eigen3 QUIET)
-PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
-if(EIGEN3_FOUND)
-    SET(SAIGA_USE_EIGEN 1)
-endif()
+
 
 #boost
 find_package(Boost QUIET COMPONENTS thread system)

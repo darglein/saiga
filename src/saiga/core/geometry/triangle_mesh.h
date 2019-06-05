@@ -10,7 +10,7 @@
 #include "saiga/core/geometry/triangle.h"
 #include "saiga/core/geometry/vertex.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <algorithm>
 #include <cstring>
@@ -499,7 +499,7 @@ void TriangleMesh<vertex_t, index_t>::sortVerticesByPosition()
         auto p1 = vertices[a].position;
         auto p2 = vertices[b].position;
 
-        return std::tie(p1.x, p1.y, p1.z) < std::tie(p2.x, p2.y, p2.z);
+        return std::tie(p1[0], p1[1], p1[2]) < std::tie(p2[0], p2[1], p2[2]);
     });
 
     std::vector<vertex_t> new_vertices(vertices.size());

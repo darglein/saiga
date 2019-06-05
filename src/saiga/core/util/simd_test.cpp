@@ -4,11 +4,11 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include "internal/noGraphicsAPI.h"
 
-namespace saigatest
+namespace Saiga
 {
 /**
  * SSE instructions:
@@ -68,4 +68,4 @@ SAIGA_CORE_API mat4_t mult(mat4_t a, mat4_t b)
     return ret;
 }
 
-}  // namespace saigatest
+}  // namespace Saiga

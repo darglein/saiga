@@ -12,6 +12,7 @@
 #include "framework/framework.h"
 #include "geometry/all.h"
 #include "image/image.h"
+#include "math/all.h"
 #include "model/Model"
 #include "time/all.h"
 #include "util/all.h"

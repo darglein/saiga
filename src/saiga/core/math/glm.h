@@ -85,6 +85,9 @@ GLM_ALIGNED_TYPEDEF(aquat, quat, 16);
 // GLM_ALIGNED_TYPEDEF(quat, quat, 16);
 
 #else
+
+namespace Saiga
+{
 using glm::ivec2;
 using glm::uvec3;
 
@@ -128,7 +131,7 @@ using cvec4 = glm::tvec4<char, glm::highp>;
 using ucvec2 = glm::tvec2<unsigned char, glm::highp>;
 using ucvec3 = glm::tvec3<unsigned char, glm::highp>;
 using ucvec4 = glm::tvec4<unsigned char, glm::highp>;
-
+}  // namespace Saiga
 #endif
 
 //======= Output stream operator overloads =========
@@ -161,7 +164,8 @@ SAIGA_CORE_API std::istream& operator>>(std::istream& is, quat& v);
 //============== Helper functions =================
 
 
-
+namespace Saiga
+{
 inline mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, float a11, float a12, float a13, float a20,
                       float a21, float a22, float a23, float a30, float a31, float a32, float a33)
 {
@@ -270,10 +274,12 @@ inline vec2 make_vec2(vec3 a)
 }
 inline vec4 quat_to_vec4(quat q)
 {
-    return vec4(q.w, q.x, q.y, q.z);
+    return vec4(q.x, q.y, q.z, q.w);
 }
-inline quat make_quat(float w, float x, float y, float z)
+inline quat make_quat(float x, float y, float z, float w)
 {
+    // yes, the glm quat constructor is (w,x,y,z) even tho it is stored as (x,y,z,w)
+    // GLM_FUNC_DECL GLM_CONSTEXPR qua(T w, T x, T y, T z);
     return quat(w, x, y, z);
 }
 inline quat make_quat(mat4 m)
@@ -324,6 +330,7 @@ inline mat4 zeroMat4()
 {
     return mat4(0);
 }
+}  // namespace Saiga
 namespace Saiga
 {
 SAIGA_CORE_API vec3 sampleCone(const vec3& dir, float angle);

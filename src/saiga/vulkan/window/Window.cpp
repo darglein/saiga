@@ -8,6 +8,7 @@
 
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/String.h"
 #include "saiga/core/util/tostring.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)

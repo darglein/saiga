@@ -15,7 +15,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/imgui/imgui_renderer.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/buffer/IndexBuffer.h"
 #include "saiga/vulkan/buffer/VertexBuffer.h"

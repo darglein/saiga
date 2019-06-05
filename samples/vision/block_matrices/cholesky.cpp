@@ -8,10 +8,11 @@
 
 #include "cholesky.h"
 
+#include "saiga/core/math/random.h"
 #include "saiga/core/time/timer.h"
-#include "saiga/core/util/random.h"
-#include "EigenRecursive/All.h"
 #include "saiga/vision/VisionIncludes.h"
+
+#include "EigenRecursive/All.h"
 
 using Block  = Eigen::Matrix<double, 2, 2>;
 using Vector = Eigen::Matrix<double, 2, 1>;
@@ -360,7 +361,7 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
         std::fill(rowCache.begin(), rowCache.end(), AdditiveNeutral<MatrixScalar>::get());
         for (int i = 0; i <= k; ++i)
         {
-            rowCache[i] = transpose(A(i, k));
+            rowCache[i] = Eigen::Recursive::transpose(A(i, k));
         }
 
         // This is the diagonal element of the current row
@@ -383,10 +384,10 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
 
 
             // Propagate into everything to the right
-            diagElement -= prop_tmp * transpose(target);
+            diagElement -= prop_tmp * Eigen::Recursive::transpose(target);
             for (int j = i + 1; j < k; ++j)
             {
-                rowCache[j] -= prop_tmp * transpose(L(j, i));
+                rowCache[j] -= prop_tmp * Eigen::Recursive::transpose(L(j, i));
             }
         }
 
@@ -566,7 +567,7 @@ T ldltTriDot(const T& Asrc, const T& sum, const T& _srcBlock, const D& _srcDiag,
             Scalar sum = initialSum(l, m);
             for (int n = 0; n < m; ++n)
             {
-                sum += targetBlock(l, n) * srcDiag.diagonal()(n) * transpose(srcBlock(m, n));
+                sum += targetBlock(l, n) * srcDiag.diagonal()(n) * Eigen::Recursive::transpose(srcBlock(m, n));
             }
 
             //            targetBlock(l, m) = (Asrc(l, m) - sum) * srcDiaginv.diagonal()(m);

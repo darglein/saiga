@@ -8,7 +8,7 @@
 
 #include "saiga/core/image/imageFormat.h"
 #include "saiga/opengl/opengl.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 /**
  * Note:

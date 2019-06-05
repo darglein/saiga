@@ -27,7 +27,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     AssetLoader assetLoader;
 
     // First create the triangle mesh of a cube
-    auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-1), vec3(1)));
+    auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(make_vec3(-1), make_vec3(1)));
 
 
 
@@ -56,7 +56,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
 
 
 
-    auto sphereMesh  = TriangleMeshGenerator::createMesh(Sphere(vec3(0), 1), 0);
+    auto sphereMesh  = TriangleMeshGenerator::createMesh(Sphere(make_vec3(0), 1), 0);
     auto sphereAsset = assetLoader.assetFromMesh(*sphereMesh, Colors::green);
     sphere.asset     = sphereAsset;
     sphere.translateGlobal(vec3(-2, 1, 0));

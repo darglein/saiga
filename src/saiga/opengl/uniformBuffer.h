@@ -11,6 +11,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shader.h"
 
+#include <memory>
 namespace Saiga
 {
 /**

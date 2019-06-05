@@ -10,8 +10,9 @@
 #include "plane.h"
 #include "sphere.h"
 
-#include "triangle_mesh.h"
+#include <memory>
 
+#include "triangle_mesh.h"
 namespace Saiga
 {
 class SAIGA_CORE_API TriangleMeshGenerator

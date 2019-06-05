@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/util/floatingPoint.h"
+#include "floatingPoint.h"
 
 #include "internal/noGraphicsAPI.h"
 

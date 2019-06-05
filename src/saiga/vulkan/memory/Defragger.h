@@ -255,11 +255,11 @@ class Defragger
 
         if (size <= config.size_small)
         {
-            return glm::mix(0.0f, config.weight_small_free, static_cast<float>(size) / config.size_small);
+            return mix(0.0f, config.weight_small_free, static_cast<float>(size) / config.size_small);
         }
 
-        return glm::mix(config.weight_small_free, 0.0f,
-                        static_cast<float>(size - config.size_small) / (config.size_limit - config.size_small));
+        return mix(config.weight_small_free, 0.0f,
+                   static_cast<float>(size - config.size_small) / (config.size_limit - config.size_small));
     }
 
     inline float get_target_weight(uint32_t chunkIndex, vk::DeviceSize chunkSize, vk::DeviceSize begin,

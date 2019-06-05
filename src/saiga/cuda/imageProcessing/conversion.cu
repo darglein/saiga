@@ -6,7 +6,7 @@
 
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 
 namespace Saiga
@@ -88,6 +88,7 @@ void convertRGBAtoRGB(ImageView<uchar4> src, ImageView<uchar3> dst)
     dim3 threads(BLOCK_W, BLOCK_H);
     d_convertRGBAtoRGB<BLOCK_W, BLOCK_H, ROWS_PER_THREAD><<<blocks, threads>>>(src, dst, h);
 }
+
 
 
 template <int BLOCK_W, int BLOCK_H, int ROWS_PER_THREAD = 1>

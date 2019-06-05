@@ -8,8 +8,8 @@
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/tests/test_helper.h"
-#include "saiga/core/util/math.h"
-
+#include "saiga/core/math/math.h"
+using namespace Saiga;
 // cuobjdump globalMemory --dump-sass -arch sm_61 > sass.txt
 
 //#define LECTURE

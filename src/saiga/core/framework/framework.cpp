@@ -7,12 +7,12 @@
 #include "framework.h"
 
 #include "saiga/core/image/image.h"
+#include "saiga/core/math/floatingPoint.h"
 #include "saiga/core/model/ModelLoader.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/directory.h"
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/core/util/floatingPoint.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/util/threadName.h"
 #include "saiga/core/util/tostring.h"

@@ -10,14 +10,14 @@
 
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/random.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/cv.h"
 #include "saiga/core/util/directory.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/core/util/random.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
-#include "saiga/vision/ba/BAPoseOnly.h"
+#include "saiga/vision/recursive/BAPoseOnly.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 
@@ -187,13 +187,13 @@ void VulkanExample::renderGUI()
     }
 
 
-    if (ImGui::Button("poseOnlySparse"))
-    {
-        SAIGA_BLOCK_TIMER();
-        Saiga::BAPoseOnly ba;
-        ba.poseOnlySparse(scene, its);
-        change = true;
-    }
+    //    if (ImGui::Button("poseOnlySparse"))
+    //    {
+    //        SAIGA_BLOCK_TIMER();
+    //        Saiga::BAPoseOnly ba;
+    //        ba.poseOnlySparse(scene, its);
+    //        change = true;
+    //    }
 
     if (ImGui::Button("posePointDense"))
     {

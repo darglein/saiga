@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/util/glm.h"
+#include "glm.h"
 
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/tostring.h"

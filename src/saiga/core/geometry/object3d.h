@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/math.h"
 
 namespace Saiga
 {
@@ -171,7 +171,17 @@ inline void Object3D::multScale(const vec3& s)
 inline void Object3D::setModelMatrix(const mat4& _model)
 {
 #ifdef SAIGA_FULL_EIGEN
-    SAIGA_ASSERT(0);
+    // this is the inverse of createTRSmatrix
+    model    = _model;
+    position = col(model, 3);
+    mat3 R   = make_mat3(model);
+    scale[0] = length(col(R, 0));
+    scale[1] = length(col(R, 1));
+    scale[2] = length(col(R, 2));
+    R.col(0) /= scale[0];
+    R.col(1) /= scale[1];
+    R.col(2) /= scale[2];
+    rot = quat_cast(R);
 #else
     // this is the inverse of createTRSmatrix
     model    = _model;

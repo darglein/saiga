@@ -6,7 +6,7 @@
 
 #include "imageGenerator.h"
 
-#include "saiga/core/util/random.h"
+#include "saiga/core/math/random.h"
 
 #include "internal/noGraphicsAPI.h"
 

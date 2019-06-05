@@ -10,7 +10,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/core/util/imath.h"
+#include "saiga/core/math/imath.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.

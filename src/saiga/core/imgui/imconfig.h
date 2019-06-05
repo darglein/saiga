@@ -16,8 +16,8 @@
 
 #pragma once
 
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/math.h"
 
 //---- Define assertion handler. Defaults to calling assert().
 #define IM_ASSERT(_EXPR) SAIGA_ASSERT(_EXPR)
@@ -61,43 +61,43 @@
 //---- Define constructor and implicit cast operators to convert back<>forth between your math types and ImVec2/ImVec4.
 // This will be inlined as part of ImVec2 and ImVec4 class declarations.
 
-#define IM_VEC2_CLASS_EXTRA \
-    ImVec2(const vec2& f)   \
-    {                       \
-        x = f[0];           \
-        y = f[1];           \
-    }                       \
-    operator vec2() const { return vec2(x, y); }
+#define IM_VEC2_CLASS_EXTRA      \
+    ImVec2(const Saiga::vec2& f) \
+    {                            \
+        x = f[0];                \
+        y = f[1];                \
+    }                            \
+    operator Saiga::vec2() const { return Saiga::vec2(x, y); }
 
-#define IM_VEC3_CLASS_EXTRA \
-    ImVec3(const vec3& f)   \
-    {                       \
-        x = f[0];           \
-        y = f[1];           \
-        z = f[2];           \
-    }                       \
-    operator vec3() const { return vec3(x, y, z); }
+#define IM_VEC3_CLASS_EXTRA      \
+    ImVec3(const Saiga::vec3& f) \
+    {                            \
+        x = f[0];                \
+        y = f[1];                \
+        z = f[2];                \
+    }                            \
+    operator Saiga::vec3() const { return Saiga::vec3(x, y, z); }
 
-#define IM_VEC4_CLASS_EXTRA \
-    ImVec4(const vec4& f)   \
-    {                       \
-        x = f[0];           \
-        y = f[1];           \
-        z = f[2];           \
-        w = f[3];           \
-    }                       \
-    operator vec4() const { return vec4(x, y, z, w); }
+#define IM_VEC4_CLASS_EXTRA      \
+    ImVec4(const Saiga::vec4& f) \
+    {                            \
+        x = f[0];                \
+        y = f[1];                \
+        z = f[2];                \
+        w = f[3];                \
+    }                            \
+    operator Saiga::vec4() const { return Saiga::vec4(x, y, z, w); }
 
-#define IM_QUAT_CLASS_EXTRA       \
-    ImQuat(const quat& f)         \
-    {                             \
-        auto v = quat_to_vec4(f); \
-        x      = v[0];            \
-        y      = v[1];            \
-        z      = v[2];            \
-        w      = v[3];            \
-    }                             \
-    operator quat() const { return make_quat(w, x, y, z); }
+#define IM_QUAT_CLASS_EXTRA              \
+    ImQuat(const Saiga::quat& f)         \
+    {                                    \
+        auto v = Saiga::quat_to_vec4(f); \
+        x      = v[0];                   \
+        y      = v[1];                   \
+        z      = v[2];                   \
+        w      = v[3];                   \
+    }                                    \
+    operator Saiga::quat() const { return Saiga::make_quat(x, y, z, w); }
 //---- Use 32-bit vertex indices (default is 16-bit) to allow meshes with more than 64K vertices. Render function needs
 // to support it. #define ImDrawIdx unsigned int
 

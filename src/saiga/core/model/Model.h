@@ -56,7 +56,7 @@ void TriangleModel<vertex_t, index_t>::normalizeScale()
 {
     normalizePosition();
     const auto scaling = 1 / max(max(boundingBox.max[0], boundingBox.max[1]), boundingBox.max[2]);
-    mat4 t             = ::scale(identityMat4(), make_vec3(scaling));
+    mat4 t             = scale(identityMat4(), make_vec3(scaling));
     offset *= scaling;
     mesh.transform(t);
 }

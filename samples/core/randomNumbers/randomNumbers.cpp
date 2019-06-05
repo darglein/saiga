@@ -79,7 +79,7 @@ float halton(int index, int base)
 float additiveRecurrence(int index, float alpha)
 {
     float a = index * alpha;
-    return glm::fract(a);
+    return fract(a);
 }
 
 
@@ -94,8 +94,8 @@ int main(int argc, char* args[])
 
     auto set = [&](vec2 p) {
         // assuming p is in [0,1]
-        p = p * vec2(iw, ih);
-        //        p = vec2(iw,ih) - p;
+        //        p = p * vec2(iw, ih);
+        p = ele_mult(p, make_vec2(iw, ih));
         drawCircle(img.getImageView(), p, 4, 255);
     };
 
@@ -125,8 +125,8 @@ int main(int argc, char* args[])
     {
         // Additive recurrence
         img.getImageView().set(128);
-        float a1 = glm::fract(sqrt(2));
-        float a2 = glm::fract(sqrt(11));
+        float a1 = fract(sqrt(2));
+        float a2 = fract(sqrt(11));
         for (int i = 0; i < 100; ++i)
         {
             set(vec2(additiveRecurrence(i, a1), additiveRecurrence(i, a2)));

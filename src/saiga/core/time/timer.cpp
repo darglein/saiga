@@ -11,7 +11,7 @@
 #endif
 
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include "internal/noGraphicsAPI.h"
 

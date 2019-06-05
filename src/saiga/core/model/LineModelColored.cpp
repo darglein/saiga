@@ -56,7 +56,8 @@ void LineModelColored::createFrustum(const mat4& proj, float farPlaneLimit, cons
     vec4 tl(-1, 1, d, 1);
     vec4 tr(1, 1, d, 1);
 
-    mat4 projInv = vulkanTransform ? inverse(inverse(Camera::getVulkanTransform()) * proj) : inverse(proj);
+    mat4 tmp     = (inverse(Camera::getVulkanTransform()) * proj);
+    mat4 projInv = vulkanTransform ? inverse(tmp) : inverse(proj);
 
 
 

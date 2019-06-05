@@ -15,9 +15,11 @@
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
+#include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/texture/Texture.h"
-#include "saiga/vulkan/pipeline/DescriptorSet.h"
+
+using namespace Saiga;
 
 class Compute : public Saiga::Updating,
                 public Saiga::Vulkan::VulkanForwardRenderingInterface,

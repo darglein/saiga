@@ -123,7 +123,7 @@ inline void undistortAll(_InputIterator1 __first1, _InputIterator1 __last1, _Inp
     }
 }
 
-}  // namespace Saiga
+
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const Sophus::SE3<T>& se3)
@@ -146,3 +146,5 @@ inline std::istream& operator>>(std::istream& is, Eigen::Matrix<_Scalar, _Rows, 
     }
     return is;
 }
+
+}  // namespace Saiga

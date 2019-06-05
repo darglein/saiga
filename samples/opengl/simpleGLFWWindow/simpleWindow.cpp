@@ -7,8 +7,8 @@
 #include "simpleWindow.h"
 
 #include "saiga/core/geometry/triangle_mesh_generator.h"
-#include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/rendering/deferredRendering/deferred_renderer.h"
+#include "saiga/opengl/shader/shaderLoader.h"
 
 Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
 {
@@ -32,7 +32,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     AssetLoader assetLoader;
 
     // First create the triangle mesh of a cube
-    auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-1), vec3(1)));
+    auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(make_vec3(-1), make_vec3(1)));
 
     // To render a triangle mesh we need to wrap it into an asset. This creates the required OpenGL buffers and provides
     // render functions.
@@ -58,7 +58,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     cube2.calculateModel();
 
 
-    auto sphereMesh  = TriangleMeshGenerator::createMesh(Sphere(vec3(0), 1), 2);
+    auto sphereMesh  = TriangleMeshGenerator::createMesh(Sphere(make_vec3(0), 1), 2);
     auto sphereAsset = assetLoader.assetFromMesh(*sphereMesh, Colors::green);
     sphere.asset     = sphereAsset;
     sphere.translateGlobal(vec3(-2, 1, 0));

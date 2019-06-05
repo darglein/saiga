@@ -6,6 +6,7 @@
 
 #include "objModelLoader.h"
 
+#include "saiga/core/math/String.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
 

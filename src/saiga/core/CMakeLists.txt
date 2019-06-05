@@ -2,6 +2,7 @@ set(MODULE_NAME "saiga_core")
 
 add_subdirectory(camera)
 add_subdirectory(framework)
+add_subdirectory(math)
 add_subdirectory(model)
 add_subdirectory(window)
 add_subdirectory(image)

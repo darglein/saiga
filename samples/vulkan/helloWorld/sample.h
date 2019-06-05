@@ -21,6 +21,7 @@
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 
 #include <vector>
+using namespace Saiga;
 class VulkanExample : public Saiga::Updating,
                       public Saiga::Vulkan::VulkanForwardRenderingInterface,
                       public Saiga::SDL_KeyListener

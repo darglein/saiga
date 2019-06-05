@@ -11,7 +11,7 @@ include(helper_macros)
 
 
 set (SAIGA_VERSION_MAJOR 1)
-set (SAIGA_VERSION_MINOR 2)
+set (SAIGA_VERSION_MINOR 3)
 set (SAIGA_VERSION_PATCH 0)
 set(SAIGA_VERSION ${SAIGA_VERSION_MAJOR}.${SAIGA_VERSION_MINOR}.${SAIGA_VERSION_PATCH})
 
@@ -40,7 +40,7 @@ OptionsHelper (SAIGA_CUDA_COMP "Add CUDA compile flags that make the code compat
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
 OptionsHelper(SAIGA_U_EIGEN_CUDA "Eigen CUDA Support" OFF)
 OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
-OptionsHelper(SAIGA_FULL_EIGEN "Use the eigen library for CG math instead of GLM" OFF)
+OptionsHelper(SAIGA_LEGACY_GLM "Use GLM instead of eigen. This feature will be removed in the near future" OFF)
 OptionsHelper(SAIGA_PCH "Generate a precompiled header" OFF)
 OptionsHelper(SAIGA_LIBSTDCPP "Use the GCC std lib for the clang compiler" OFF)
 OptionsHelper(SAIGA_DEBUG_ASAN "Enable the address sanitizer. Does not work in combination with TSAN." OFF)
@@ -60,6 +60,10 @@ OptionsHelper(SAIGA_WITH_MKL "Build the MKL library, if possible." OFF)
 DefaultBuildType(RelWithDebInfo)
 
 
+set(SAIGA_FULL_EIGEN 1)
+if(SAIGA_LEGACY_GLM)
+    set(SAIGA_FULL_EIGEN 0)
+endif()
 ############# COMPILER FLAGS ###############
 
 include(Saiga_compiler_flags)

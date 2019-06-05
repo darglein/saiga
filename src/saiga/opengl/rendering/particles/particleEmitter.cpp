@@ -7,7 +7,7 @@
 #include "saiga/opengl/rendering/particles/particleEmitter.h"
 
 #include "saiga/opengl/rendering/particles/particlesystem.h"
-#include "saiga/core/util/random.h"
+#include "saiga/core/math/random.h"
 
 namespace Saiga
 {

@@ -8,7 +8,7 @@
 
 #include "saiga/config.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <vector>
 
@@ -74,7 +74,7 @@ SAIGA_CORE_API std::vector<int> uniqueIndices(int sampleCount, int indexSize);
 
 
 }  // namespace Random
-}  // namespace Saiga
+
 
 
 inline vec3 sphericalRand(float r)
@@ -121,3 +121,4 @@ inline vec2 diskRand(float Radius)
 
     return Result;
 }
+}  // namespace Saiga

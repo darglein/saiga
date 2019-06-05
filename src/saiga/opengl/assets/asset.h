@@ -15,6 +15,7 @@
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 
+#include <memory>
 
 namespace Saiga
 {

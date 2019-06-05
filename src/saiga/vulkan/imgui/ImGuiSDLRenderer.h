@@ -14,7 +14,7 @@
 #pragma once
 
 #include "saiga/core/sdl/sdl_eventhandler.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 
 #ifndef SAIGA_USE_SDL

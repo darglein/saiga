@@ -110,7 +110,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
             for (int f = 0; f < 3; ++f)
             {
                 int index                     = face.v[f];
-                float spec                    = dot(tg.material.Ks, vec3(1)) / 3.0f;
+                float spec                    = dot(tg.material.Ks, make_vec3(1)) / 3.0f;
                 tmesh.vertices[index].data[0] = spec;
             }
         }

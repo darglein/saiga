@@ -21,7 +21,7 @@ void ImageCopyComputeShader::init(VulkanBase* _base)
         {{0, {0, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eCompute}},
          {1, {1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eCompute}}});
 
-    pipeline->addPushConstantRange(vk::PushConstantRange{vk::ShaderStageFlagBits::eCompute, 0, sizeof(glm::ivec2)});
+    pipeline->addPushConstantRange(vk::PushConstantRange{vk::ShaderStageFlagBits::eCompute, 0, sizeof(ivec2)});
 
     bool valid = pipeline->shaderPipeline.loadCompute(_base->device, "vulkan/img_copy.comp");
 
@@ -78,8 +78,8 @@ std::optional<vk::DescriptorSet> ImageCopyComputeShader::copy_image(vk::CommandB
     int countX        = extent.width / 8 + 1;
     int countY        = extent.height / 8 + 1;
 
-    glm::ivec2 size{extent.width, extent.height};
-    pipeline->pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(glm::ivec2), &size, 0);
+    ivec2 size{extent.width, extent.height};
+    pipeline->pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(ivec2), &size, 0);
 
     cmd.dispatch(countX, countY, 1);
 

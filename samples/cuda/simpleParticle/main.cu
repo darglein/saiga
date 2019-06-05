@@ -6,13 +6,16 @@
 
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
+#include "saiga/core/math/random.h"
 
 #include <iostream>
 #include <vector>
 
 #include <thrust/device_vector.h>
 
+
+using namespace Saiga;
 
 struct Particle
 {
@@ -41,8 +44,8 @@ void particleSampleThrustSaiga()
 
     for (Particle& p : particles)
     {
-        p.position = vec3(0);
-        p.velocity = linearRand(vec3(-1), vec3(1));
+        p.position = make_vec3(0);
+        p.velocity = linearRand(make_vec3(-1), make_vec3(1));
     }
 
 
@@ -81,8 +84,8 @@ void particleSample()
 
     for (Particle& p : particles)
     {
-        p.position = vec3(0);
-        p.velocity = linearRand(vec3(-1), vec3(1));
+        p.position = make_vec3(0);
+        p.velocity = linearRand(make_vec3(-1), make_vec3(1));
     }
 
     auto size = sizeof(Particle) * N;

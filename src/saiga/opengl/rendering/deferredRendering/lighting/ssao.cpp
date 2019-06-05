@@ -10,7 +10,7 @@
 #include "saiga/core/image/imageGenerator.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/core/util/random.h"
+#include "saiga/core/math/random.h"
 
 namespace Saiga
 {

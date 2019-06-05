@@ -6,7 +6,7 @@
 
 #pragma once
 #include "saiga/core/util/easylogging++.h"
-#include "saiga/core/util/imath.h"
+#include "saiga/core/math/imath.h"
 #include "saiga/export.h"
 
 #include "BufferMemoryLocation.h"

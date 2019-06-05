@@ -30,8 +30,8 @@ SoundManager::SoundManager(int maxSources, int fixedSources)
 
     quietSoundSource = new SoundSource();
 
-    setListenerPosition(vec3(0));
-    setListenerVelocity(vec3(0));
+    setListenerPosition(make_vec3(0));
+    setListenerVelocity(make_vec3(0));
     setListenerOrientation(vec3(0, 0, -1), vec3(0, 1, 0));
     setListenerGain(masterVolume);
 

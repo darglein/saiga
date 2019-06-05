@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include "BABase.h"
+#include "saiga/vision/ba/BABase.h"
+
 #include "EigenRecursive/All.h"
 
 namespace Saiga

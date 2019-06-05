@@ -7,7 +7,7 @@
 #pragma once
 
 
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include "OpenAL.h"
 #include "SoundSource.h"

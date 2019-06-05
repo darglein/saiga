@@ -8,7 +8,7 @@
 
 #include "saiga/core/image/imageViewIterators.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/imath.h"
+#include "saiga/core/math/imath.h"
 
 #include "floatTexels.h"
 #include "imageBase.h"

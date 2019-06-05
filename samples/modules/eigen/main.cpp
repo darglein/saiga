@@ -6,7 +6,7 @@
 
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/util/crash.h"
-#include "saiga/core/util/random.h"
+#include "saiga/core/math/random.h"
 #include "saiga/extra/eigen/eigen.h"
 #include "saiga/extra/eigen/lse.h"
 

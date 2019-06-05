@@ -11,7 +11,7 @@
 #include "saiga/opengl/rendering/overlay/Layout.h"
 #include "saiga/opengl/text/TextOverlay2D.h"
 #include "saiga/opengl/text/text.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/tostring.h"
 
 #include <vector>

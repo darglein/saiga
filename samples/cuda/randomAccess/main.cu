@@ -9,7 +9,7 @@
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/reduce.h"
 #include "saiga/cuda/tests/test_helper.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include <fstream>
 #include <random>

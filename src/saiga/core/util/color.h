@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 namespace Saiga
 {
@@ -19,8 +19,8 @@ class SAIGA_CORE_API Color
     Color(int r, int g, int b, int a = 255);
     Color(float r, float g, float b, float a = 255);
 
-    Color(vec3 c);
-    Color(vec4 c);
+    Color(const vec3& c);
+    Color(const vec4& c);
 
     operator vec3() const;
     operator vec4() const;

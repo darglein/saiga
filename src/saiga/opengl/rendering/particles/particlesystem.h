@@ -7,9 +7,10 @@
 #pragma once
 
 #include "saiga/core/geometry/object3d.h"
-#include "saiga/opengl/vertexBuffer.h"
 #include "saiga/opengl/rendering/particles/particle.h"
+#include "saiga/opengl/vertexBuffer.h"
 
+#include <memory>
 namespace Saiga
 {
 class raw_Texture;

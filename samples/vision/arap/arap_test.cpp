@@ -8,19 +8,19 @@
 #include "saiga/core/geometry/openMeshWrapper.h"
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/random.h"
 #include "saiga/core/model/ModelLoader.h"
 #include "saiga/core/model/objModelLoader.h"
 #include "saiga/core/model/plyModelLoader.h"
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/core/util/random.h"
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/arap/ArapProblem.h"
-#include "saiga/vision/arap/RecursiveArap.h"
 #include "saiga/vision/ceres/CeresArap.h"
 #include "saiga/vision/g2o/G2OArap.h"
+#include "saiga/vision/recursive/RecursiveArap.h"
 
 #include <fstream>
 

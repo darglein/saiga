@@ -8,7 +8,7 @@
 
 #include "saiga/core/image/imageView.h"
 #include "saiga/extra/opencv/OpenCV_GLM.h"
-#include "saiga/core/util/math.h"
+#include "saiga/core/math/math.h"
 
 #include "opencv2/opencv.hpp"
 

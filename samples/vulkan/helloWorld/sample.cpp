@@ -9,8 +9,8 @@
 #include "sample.h"
 
 #include "saiga/core/image/imageTransformations.h"
+#include "saiga/core/math/random.h"
 #include "saiga/core/util/color.h"
-#include "saiga/core/util/random.h"
 
 #include <saiga/core/imgui/imgui.h>
 
@@ -96,7 +96,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     teapot.mesh.computePerVertexNormal();
     teapot.init(renderer.base());
     teapotTrans.setScale(vec3(2, 2, 2));
-    //    teapotTrans.rotateGlobal(vec3(1, 0, 0), glm::pi<float>());
+    //    teapotTrans.rotateGlobal(vec3(1, 0, 0), pi<float>());
     teapotTrans.translateGlobal(vec3(0, 1, 0));
     teapotTrans.calculateModel();
 
@@ -140,8 +140,8 @@ void VulkanExample::update(float dt)
         for (auto& v : pointCloud.pointCloud)
         {
             //            Saiga::VertexNC v;
-            v.position = make_vec4(linearRand(vec3(-3), vec3(3)), 1);
-            v.color    = make_vec4(linearRand(vec3(0), vec3(1)), 1);
+            v.position = make_vec4(linearRand(make_vec3(-3), make_vec3(3)), 1);
+            v.color    = make_vec4(linearRand(make_vec3(0), make_vec3(1)), 1);
             //            pointCloud.mesh.points.push_back(v);
         }
         change        = false;

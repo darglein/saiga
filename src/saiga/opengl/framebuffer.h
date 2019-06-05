@@ -8,6 +8,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/texture/texture.h"
 
+#include <memory>
 #include <vector>
 
 namespace Saiga

@@ -11,9 +11,11 @@ unset(LIB_TARGETS)
 unset(LIBS)
 unset(MODULE_CUDA)
 
+unset(CUDA_FOUND)
+unset(CMAKE_CUDA_COMPILER)
+
 #Check Language is an extra module so we need to include it.
 include(CheckLanguage)
-
 
 if(SAIGA_MODULE_CUDA)
     check_language(CUDA)

@@ -9,14 +9,14 @@
 #pragma once
 
 
-#include "saiga/vision/pgo/PGORecursive.h"
+#include "saiga/vision/recursive/PGORecursive.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 #include "saiga/vulkan/window/SDLSample.h"
-
+using namespace Saiga;
 
 class VulkanExample : public Saiga::VulkanSDLExampleBase
 {

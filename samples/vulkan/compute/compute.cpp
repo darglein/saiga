@@ -22,7 +22,7 @@ Compute::Compute(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwa
     float aspect = window.getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 50.0f, true);
     camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
-    camera.rotationPoint = vec3(0);
+    camera.rotationPoint = make_vec3(0);
 
     window.setCamera(&camera);
 

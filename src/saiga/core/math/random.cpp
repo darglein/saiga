@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/util/random.h"
+#include "saiga/core/math/random.h"
 
 #include "saiga/core/util/assert.h"
 

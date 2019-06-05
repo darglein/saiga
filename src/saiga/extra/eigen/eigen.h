@@ -8,7 +8,9 @@
 
 #include "saiga/config.h"
 
-#define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
+#ifndef EIGEN_DEFAULT_DENSE_INDEX_TYPE
+#    define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
+#endif
 
 // these two headers work also with cuda and windows :o
 #include <Eigen/Core>

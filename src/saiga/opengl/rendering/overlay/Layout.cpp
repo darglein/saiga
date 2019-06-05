@@ -113,7 +113,7 @@ AABB Layout::transformNonUniform(Object3D* obj, const AABB& box, vec2 relPos, ve
     vec3 bbmin  = ele_mult(box.min, obj->getScale());
     vec3 bbmax  = ele_mult(box.max, obj->getScale());
 
-    vec3 alignmentOffset(0);
+    vec3 alignmentOffset(0, 0, 0);
 
     switch (alignmentX)
     {
@@ -181,7 +181,7 @@ AABB Layout::transformUniform(Object3D* obj, const AABB& box, vec2 relPos, vec2 
     vec3 bbmin  = ele_mult(box.min, obj->getScale());
     vec3 bbmax  = ele_mult(box.max, obj->getScale());
 
-    vec3 alignmentOffset(0);
+    vec3 alignmentOffset(0, 0, 0);
 
     switch (alignmentX)
     {

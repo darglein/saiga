@@ -7,10 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
-
-#include "imath.h"
+#include "saiga/core/math/imath.h"
 
 #include <cstdlib>
+#include <memory>
 #include <vector>
 
 namespace Saiga
