@@ -7,6 +7,7 @@
 #pragma once
 
 
+#include "ConsoleColor.h"
 #include "commandLineArguments.h"
 #include "crash.h"
 #include "ini/ini.h"

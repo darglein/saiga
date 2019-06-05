@@ -60,6 +60,7 @@ OptionsHelper(SAIGA_WITH_MKL "Build the MKL library, if possible." OFF)
 DefaultBuildType(RelWithDebInfo)
 
 
+
 set(SAIGA_FULL_EIGEN 1)
 if(SAIGA_LEGACY_GLM)
     set(SAIGA_FULL_EIGEN 0)

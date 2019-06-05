@@ -9,18 +9,20 @@
 #include "saiga/core/image/image.h"
 #include "saiga/core/math/floatingPoint.h"
 #include "saiga/core/model/ModelLoader.h"
+#include "saiga/core/util/ConsoleColor.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/directory.h"
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/ini/ini.h"
+#include "saiga/core/util/table.h"
 #include "saiga/core/util/threadName.h"
 #include "saiga/core/util/tostring.h"
 
 namespace Saiga
 {
 bool initialized = false;
-
+std::string shaderDir;
 
 
 bool isShaderDirectory(const std::string& dir)
@@ -59,69 +61,64 @@ void SaigaParameters::fromConfigFile(const std::string& file)
 
 static void printSaigaInfo()
 {
-    cout << "Saiga Version " << SAIGA_VERSION_MAJOR << "." << SAIGA_VERSION_MINOR << endl;
-    std::string libs;
-#ifdef SAIGA_USE_SDL
-    libs += "SDL,";
-#endif
-#ifdef SAIGA_USE_GLFW
-    libs += "GLFW,";
-#endif
-#ifdef SAIGA_USE_OPENAL
-    libs += "OPENAL,";
-#endif
-#ifdef SAIGA_USE_ALUT
-    libs += "ALUT,";
-#endif
-#ifdef SAIGA_USE_OPUS
-    libs += "OPUS,";
-#endif
-#ifdef SAIGA_USE_ASSIMP
-    libs += "ASSIMP,";
-#endif
-#ifdef SAIGA_USE_PNG
-    libs += "PNG,";
-#endif
-#ifdef SAIGA_USE_FREEIMAGE
-    libs += "FREEIMAGE,";
-#endif
-#ifdef SAIGA_USE_FFMPEG
-    libs += "FFMPEG,";
-#endif
-#ifdef SAIGA_USE_CUDA
-    libs += "CUDA,";
-#endif
-#ifdef SAIGA_USE_EIGEN
-    libs += "EIGEN,";
-#endif
-    cout << "Libs: " << libs << endl;
+    cout << ConsoleColor::BLUE;
+    Table table({2, 18, 10, 1});
 
-    std::string options;
-#ifdef SAIGA_BUILD_SHARED
-    options += "BUILD_SHARED,";
+    cout << "============ SAIGA ============" << endl;
+    table << "|"
+          << "Saiga Version" << SAIGA_VERSION << "|";
+    table << "|"
+          << "Eigen Version"
+          << (to_string(EIGEN_WORLD_VERSION) + "." + to_string(EIGEN_MAJOR_VERSION) + "." +
+              to_string(EIGEN_MINOR_VERSION))
+          << "|";
+
+    table << "|"
+          << "Compiler" << (SAIGA_COMPILER_STRING) << "|";
+    table << "|"
+          << "  -> Version" << SAIGA_COMPILER_VERSION << "|";
+    table << "|"
+          << "Debug"
+          <<
+#ifndef NDEBUG
+        "1"
+#else
+        "0"
 #endif
-#ifdef SAIGA_DEBUG
-    options += "DEBUG,";
+          << "|";
+
+    table << "|"
+          << "ASAN"
+          <<
+#ifdef SAIGA_DEBUG_ASAN
+        "1"
+#else
+        "0"
 #endif
+          << "|";
+
+    table << "|"
+          << "Asserts"
+          <<
 #ifdef SAIGA_ASSERTS
-    options += "ASSERTS,";
+        "1"
+#else
+        "0"
 #endif
-#ifdef SAIGA_BUILD_SAMPLES
-    options += "BUILD_SAMPLES,";
-#endif
-#ifdef SAIGA_WITH_CUDA
-    options += "WITH_CUDA,";
-#endif
-#ifdef SAIGA_STRICT_FP
-    options += "STRICT_FP,";
-#endif
+          << "|";
+    table << "|"
+          << "Optimizations"
+          <<
 #ifdef SAIGA_FULL_OPTIMIZE
-    options += "FULL_OPTIMIZE,";
+        "1"
+#else
+        "0"
 #endif
-#ifdef SAIGA_CUDA_DEBUG
-    options += "CUDA_DEBUG,";
-#endif
-    cout << "Build Options: " << options << endl;
+          << "|";
+
+    cout << "===============================" << endl;
+    cout.unsetf(std::ios_base::floatfield);
+    cout << ConsoleColor::RESET;
 }
 
 
@@ -155,17 +152,13 @@ void initSaiga(const SaigaParameters& params)
     // And last the install prefix from cmake
     searchPathes.push_back(SAIGA_INSTALL_PREFIX "/share/saiga/shader");
     searchPathes.push_back(SAIGA_SHADER_PREFIX);
-    //    };
 
-
-    std::string shaderDir;
 
     for (auto str : searchPathes)
     {
         if (isShaderDirectory(str))
         {
             shaderDir = str;
-            cout << "Found the Saiga shaders at " << shaderDir << endl;
             break;
         }
     }
@@ -190,24 +183,11 @@ void initSaiga(const SaigaParameters& params)
     SearchPathes::font.addSearchPath(params.fontDirectory);
     SearchPathes::model.addSearchPath(params.modelDirectory);
 
-    //#ifdef SAIGA_USE_OPENGL
-    //    initSaigaGL(shaderDir, params.textureDirectory);
-    //#endif
-
-    //#ifdef SAIGA_USE_VULKAN
-    //    Vulkan::GLSLANG::init();
-    //#endif
-
-
     setThreadName(params.mainThreadName);
-
 
 
     el::Configurations defaultConf;
     defaultConf.setToDefault();
-
-    //    cout << "Enabling logging" << endl;
-
     // Values are always std::string
     defaultConf.set(el::Level::Global, el::ConfigurationType::ToFile, "false");
     // defaultConf.set(el::Level::Global, el::ConfigurationType::ToStandardOutput,
@@ -230,21 +210,12 @@ void initSaiga(const SaigaParameters& params)
 
 
     printSaigaInfo();
-    cout << "========================== Saiga initialization done!  ==========================" << endl << endl;
+
     initialized = true;
 }
 
 void cleanupSaiga()
 {
-    //#ifdef SAIGA_USE_VULKAN
-    //    Saiga::Vulkan::GLSLANG::quit();
-    //#endif
-
-    //#ifdef SAIGA_USE_OPENGL
-    //    cleanupSaigaGL();
-    //#endif
-
-    cout << "========================== Saiga cleanup done! ==========================" << endl;
     initialized = false;
 }
 
