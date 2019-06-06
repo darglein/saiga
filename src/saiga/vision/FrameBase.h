@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/util/SpinLock.h"
 #include "saiga/vision/VisionTypes.h"
 
 #include <mutex>
@@ -32,25 +33,26 @@ class FramePose
 class FramePoseSync
 {
    public:
-    SE3 Pose()const
+    SE3 Pose() const
     {
-        std::unique_lock<std::mutex> lock(poseMutex);
+        std::unique_lock lock(poseMutex);
         return se3;
     }
     void setPose(const SE3& v)
     {
-        std::unique_lock<std::mutex> lock(poseMutex);
+        std::unique_lock lock(poseMutex);
         se3 = v;
     }
 
     // Expose the mutex so it can be used by the base class to sync additional things.
-    std::mutex& getPoseMutex()const { return poseMutex; }
+    auto& getPoseMutex() const { return poseMutex; }
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
    protected:
     SE3 se3;
-    mutable std::mutex poseMutex;
+    // use a fast spinlock here befause the critical sections are extremly small
+    mutable SpinLock poseMutex;
 };
 
 // Derive from either FramePose or FramePoseSync depending on the SYNC parameter.

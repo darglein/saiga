@@ -196,7 +196,7 @@ void initSaiga(const SaigaParameters& params)
     //    defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, std::to_string(params.verbose_logging));
 
 
-    if (params.verbose_logging > 0)
+    if (params.logging_enabled && params.verbose_logging > 0)
     {
         defaultConf.set(el::Level::Verbose, el::ConfigurationType::Enabled, "true");
         el::Loggers::setVerboseLevel(params.verbose_logging);

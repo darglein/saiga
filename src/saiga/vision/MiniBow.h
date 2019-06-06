@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-namespace DBoW2
+namespace MiniBow
 {
 /// Id of words
 typedef unsigned int WordId;

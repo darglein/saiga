@@ -33,10 +33,11 @@ class SAIGA_CORE_API Table
     int numCols    = 0;
     int precision  = 6;
     std::vector<int> colWidth;
+    std::ostream& strm;
 
    public:
-    Table() {}
-    Table(std::vector<int> colWidth);
+    Table() : strm(std::cout) {}
+    Table(std::vector<int> colWidth, std::ostream& strm = std::cout);
 
     void setColWidth(std::vector<int> colWidth);
 
@@ -45,14 +46,14 @@ class SAIGA_CORE_API Table
     template <typename T>
     Table& operator<<(const T& t)
     {
-        std::cout << std::setprecision(precision);
-        std::cout << std::setw(colWidth[currentCol]) << std::left << t;
+        strm << std::setprecision(precision);
+        strm << std::setw(colWidth[currentCol]) << std::left << t;
         currentCol = (currentCol + 1) % numCols;
         if (currentCol == 0)
         {
-            std::cout << std::endl;
+            strm << std::endl;
         }
-        std::cout.unsetf(std::ios_base::floatfield);
+        strm.unsetf(std::ios_base::floatfield);
         return *this;
     }
 };

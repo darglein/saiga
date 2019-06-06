@@ -29,10 +29,10 @@ class Range
         IndexType num;
 
        public:
-        explicit iterator(IndexType _num = 0) : num(_num) {}
+        explicit iterator(IndexType _num) : num(_num) {}
         iterator& operator++()
         {
-            num = num + 1;
+            ++num;
             return *this;
         }
         iterator operator++(int)
@@ -51,6 +51,53 @@ class Range
     iterator end() { return iterator(to); }
 
     IndexType from, to;
+};
+
+/**
+ * An indirect range iterator for index-value iteration.
+ * Example:
+ *
+ * //Contains only the indices of the valid elements of 'data'
+ * std::vector<int> validIndices;
+ * std::vector<T> data;
+ *
+ * auto ir = IndirectRange(validIndices.begin(),validIndices.end(),data.data());
+ * for(auto&& t : ir)
+ *      t.doSomething();
+ */
+template <typename T, typename KeyIterator>
+class IndirectRange
+{
+   public:
+    class iterator : public std::iterator<std::input_iterator_tag, T>
+    {
+        KeyIterator it;
+        T* value;
+
+       public:
+        explicit iterator(KeyIterator _it, T* _value) : it(_it), value(_value) {}
+        iterator& operator++()
+        {
+            ++it;
+            return *this;
+        }
+        iterator operator++(int)
+        {
+            iterator retval = *this;
+            ++(*this);
+            return retval;
+        }
+        bool operator==(iterator other) const { return it == other.it; }
+        bool operator!=(iterator other) const { return !(*this == other); }
+        auto& operator*() const { return value[*it]; }
+    };
+
+    IndirectRange(KeyIterator _from, KeyIterator _to, T* _value) : from(_from), to(_to), value(_value) {}
+    iterator begin() { return iterator(from, value); }
+    iterator end() { return iterator(to, value); }
+
+    KeyIterator from, to;
+    T* value;
 };
 
 }  // namespace Saiga

@@ -22,4 +22,41 @@ namespace Saiga
 SAIGA_CORE_API extern void setThreadName(const std::string& name);
 SAIGA_CORE_API extern void setThreadName(std::thread& thread, const std::string& name);
 
+/**
+ * A simple wrapper for std::thread that joins during destruction.
+ *
+ * This is a simple implementation of joining_thread from the C++ core guidelines:
+ * https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rconc-join
+ *
+ * TODO: Maybe move to different file or rename this file to "Thread.h"
+ * Usage:
+ *
+ * auto thread = ScopedThread([this]() {
+ *      doSomething();
+ * });
+ */
+class SAIGA_CORE_API ScopedThread : public std::thread
+{
+   public:
+    template <typename... Args>
+    ScopedThread(Args&&... args) : std::thread(std::forward<Args>(args)...)
+    {
+    }
+    ScopedThread(ScopedThread&& __t) { swap(__t); }
+    ScopedThread& operator=(ScopedThread&& __t) noexcept
+    {
+        if (joinable()) std::terminate();
+        swap(__t);
+        return *this;
+    }
+    ~ScopedThread()
+    {
+        if (joinable()) join();
+    }
+   private:
+    // Scoped Threads are not allowed to detach.
+    // Note: Upcasting ScopedThread to std::thread and then detaching is UB
+    using std::thread::detach;
+};
+
 }  // namespace Saiga

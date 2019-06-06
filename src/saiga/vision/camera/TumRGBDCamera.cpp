@@ -6,6 +6,7 @@
 
 #include "TumRGBDCamera.h"
 
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/tostring.h"
 
@@ -76,7 +77,7 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr) : RGBDCamera(intr)
 {
-    cout << "Loading TUM RGBD Dataset: " << datasetDir << endl;
+    VLOG(1) << "Loading TUM RGBD Dataset: " << datasetDir;
     associate(datasetDir);
     //    associateFromFile(datasetDir + "/associations.txt");
 
@@ -90,10 +91,7 @@ TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics
     nextFrameTime = lastFrameTime + timeStep;
 }
 
-TumRGBDCamera::~TumRGBDCamera()
-{
-    cout << "~TumRGBDCamera" << endl;
-}
+TumRGBDCamera::~TumRGBDCamera() {}
 
 bool TumRGBDCamera::getImageSync(RGBDFrameData& data)
 {
@@ -264,7 +262,7 @@ void TumRGBDCamera::load(const std::string& datasetDir)
 
         frames[i] = std::move(f);
     }
-    cout << "Loaded " << tumframes.size() << " images." << endl;
+    VLOG(1) << "Loaded " << tumframes.size() << " images.";
 }
 
 
