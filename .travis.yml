@@ -33,5 +33,5 @@ script:
     cd build;
     cmake -DCMAKE_CXX_COMPILER=$SAIGA_CXX ..;
     cmake ..;
-    make;" 
+    make saiga_core;" 
 

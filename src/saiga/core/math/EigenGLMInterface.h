@@ -17,6 +17,27 @@ using std::max;
 using std::min;
 using std::round;
 
+
+template <typename T>
+constexpr T epsilon()
+{
+    return std::numeric_limits<T>::epsilon();
+}
+
+
+template <typename T>
+constexpr T pi()
+{
+    return T(3.14159265358979323846);
+}
+
+template <typename T>
+constexpr T two_pi()
+{
+    return pi<T>() * T(2);
+}
+
+
 template <typename T>
 HD inline T ele_mult(const T& a, const T& b)
 {
@@ -155,7 +176,7 @@ HD inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a)
 
 HD inline float radians(float a)
 {
-    return a / 180.0 * M_PI;
+    return a / 180.0 * pi<float>();
 }
 
 HD inline mat3 identityMat3()
@@ -359,6 +380,13 @@ HD inline float distance(const vec3& a, const vec3& b)
     return (a - b).norm();
 }
 
+
+HD inline float distance(const vec2& a, const vec2& b)
+{
+    return (a - b).norm();
+}
+
+
 HD inline auto inverse(const mat3& m)
 {
     return m.inverse().eval();
@@ -379,25 +407,6 @@ HD inline auto transpose(const mat4& m)
     return m.transpose().eval();
 }
 
-
-template <typename T>
-T epsilon()
-{
-    return std::numeric_limits<T>::epsilon();
-}
-
-
-template <typename T>
-T pi()
-{
-    return T(M_PI);
-}
-
-template <typename T>
-T two_pi()
-{
-    return T(M_PI * 2);
-}
 
 
 template <typename _Scalar, int _Rows, int _Cols>
