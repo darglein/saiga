@@ -9,6 +9,7 @@
 #include "saiga/config.h"
 
 #include <vector>
+#include <string>
 
 namespace Saiga
 {

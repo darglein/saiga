@@ -9,6 +9,7 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <fstream>
+#include <string>
 
 
 #if defined(__i386__) || defined(__x86_64__)

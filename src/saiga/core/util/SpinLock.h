@@ -51,7 +51,7 @@ inline void yield(unsigned k)
  *.
  * @brief The SpinLock class
  */
-class SAIGA_CORE_API SpinLock
+class SpinLock
 {
    public:
     void lock()
