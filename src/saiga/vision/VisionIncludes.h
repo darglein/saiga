@@ -9,6 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/Align.h"
+#include "saiga/core/util/Range.h"
 
 #include "sophus/se3.hpp"
 

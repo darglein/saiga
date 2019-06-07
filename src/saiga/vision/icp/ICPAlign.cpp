@@ -53,6 +53,52 @@ SE3 pointToPointIterative(const AlignedVector<Correspondence>& corrs, const SE3&
     return T;
 }
 
+inline Quat orientationFromMixedMatrixUQ(const Mat3& M)
+{
+    // Closed-form solution of absolute orientation using unit quaternions
+    // https://pdfs.semanticscholar.org/3120/a0e44d325c477397afcf94ea7f285a29684a.pdf
+
+    // Upper triangle
+    Mat4 N;
+    N(0, 0) = M(0, 0) + M(1, 1) + M(2, 2);
+    N(0, 1) = M(1, 2) - M(2, 1);
+    N(0, 2) = M(2, 0) - M(0, 2);
+    N(0, 3) = M(0, 1) - M(1, 0);
+    N(1, 1) = M(0, 0) - M(1, 1) - M(2, 2);
+    N(1, 2) = M(0, 1) + M(1, 0);
+    N(1, 3) = M(2, 0) + M(0, 2);
+    N(2, 2) = -M(0, 0) + M(1, 1) - M(2, 2);
+    N(2, 3) = M(1, 2) + M(2, 1);
+    N(3, 3) = -M(0, 0) - M(1, 1) + M(2, 2);
+    N       = N.selfadjointView<Eigen::Upper>();
+
+    Eigen::EigenSolver<Mat4> eigenSolver(N, true);
+
+    Vec4 E             = eigenSolver.eigenvectors().col(0).real();
+    auto largestRealEv = eigenSolver.eigenvalues()(0).real();
+    for (auto i = 1; i < 4; ++i)
+    {
+        auto ev = eigenSolver.eigenvalues()(i).real();
+        if (ev > largestRealEv)
+        {
+            E             = eigenSolver.eigenvectors().col(i).real();
+            largestRealEv = ev;
+        }
+    }
+    Quat R(E(0), E(1), E(2), E(3));
+    return R.conjugate();
+}
+
+inline Quat orientationFromMixedMatrixSVD(const Mat3& M)
+{
+    // polar decomp
+    // M = USV^T
+    // R = UV^T
+    Eigen::JacobiSVD svd(M, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Mat3 R = svd.matrixU() * svd.matrixV().transpose();
+    return Quat(R);
+}
+
 SE3 pointToPointDirect(const AlignedVector<Correspondence>& corrs, const SE3& guess, int innerIterations)
 {
     SE3 T = guess;
@@ -77,13 +123,16 @@ SE3 pointToPointDirect(const AlignedVector<Correspondence>& corrs, const SE3& gu
             M += (c.refPoint - meanRef) * (T * c.srcPoint - meanSrc).transpose();
         }
 
-        // polar decomp
-        // M = USV^T
-        // R = UV^T
-        Eigen::JacobiSVD svd(M, Eigen::ComputeFullU | Eigen::ComputeFullV);
-        Mat3 R = svd.matrixU() * svd.matrixV().transpose();
-        t      = meanRef - R.transpose() * meanSrc;
-        T      = SE3(Quat(R), t) * T;
+
+        Quat R;
+
+        if (1)
+            R = orientationFromMixedMatrixUQ(M);
+        else
+            R = orientationFromMixedMatrixSVD(M);
+
+        t = meanRef - R.conjugate() * meanSrc;
+        T = SE3(Quat(R), t) * T;
     }
     return T;
 }

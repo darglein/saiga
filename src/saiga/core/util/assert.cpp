@@ -8,7 +8,6 @@
 
 #include "internal/noGraphicsAPI.h"
 
-#include <csignal>
 namespace Saiga
 {
 void saiga_assert_fail(const std::string& __assertion, const char* __file, unsigned int __line, const char* __function,
@@ -19,14 +18,8 @@ void saiga_assert_fail(const std::string& __assertion, const char* __file, unsig
     std::cout << "  Function: " << __function << std::endl;
     std::cout << "  Message: " << __message << std::endl;
 
-#ifdef _MSC_VER
-    // breakpoint for visual studio
-    __debugbreak();
-#endif
-
-    // raise sigint signal for gdb debugger
-    std::raise(SIGINT);
-    exit(1);
+    // stops and raise SIGABRT
+    std::abort();
 }
 
 }  // namespace Saiga
