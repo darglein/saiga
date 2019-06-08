@@ -193,6 +193,9 @@ void VulkanMemory::destroy()
         allocator.second.allocator->destroy();
     }
 
+    bufferAllocators.clear();
+    imageAllocators.clear();
+
     if (img_copy_shader)
     {
         img_copy_shader->destroy();

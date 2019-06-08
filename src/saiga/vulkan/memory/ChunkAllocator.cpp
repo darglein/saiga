@@ -115,7 +115,7 @@ void ChunkAllocator<T>::deallocate(T* location)
         m_device.destroy(last->buffer);
         m_device.free(last->memory);
 
-        chunks.pop_back();
+        chunks.erase(last);
     }
 }
 
@@ -127,6 +127,7 @@ void ChunkAllocator<T>::destroy()
         m_device.destroy(alloc.buffer);
         m_device.free(alloc.memory);
     }
+    chunks.clear();
 }
 
 template <typename T>
