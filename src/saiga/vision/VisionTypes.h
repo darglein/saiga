@@ -128,7 +128,12 @@ inline void undistortAll(_InputIterator1 __first1, _InputIterator1 __last1, _Inp
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const Sophus::SE3<T>& se3)
 {
-    os << se3.unit_quaternion().coeffs().transpose() << " | " << se3.translation().transpose();
+    //    os << se3.unit_quaternion().coeffs().transpose() << " | " << se3.translation().transpose();
+    Quat q = se3.unit_quaternion();
+    Vec3 t = se3.translation();
+    os << "SE3(Quat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "),Vec3(" << t(0) << "," << t(1)
+       << "," << t(2) << "))";
+
     return os;
 }
 

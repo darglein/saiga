@@ -96,7 +96,7 @@ void Sample::renderFinal(Camera* cam)
         ImGui::Begin("An Imgui Window :D");
 
 
-        skybox.imgui();
+        //        skybox.imgui();
 
         ImGui::End();
     }

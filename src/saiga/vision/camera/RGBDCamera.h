@@ -12,6 +12,7 @@
 #include "saiga/vision/Distortion.h"
 
 #include <chrono>
+#include <optional>
 
 namespace Saiga
 {

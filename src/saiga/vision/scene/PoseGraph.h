@@ -36,6 +36,17 @@ struct SAIGA_VISION_API PoseEdge
 #endif
     }
 
+    // Computes the relative pose as it is defined here
+    Vec6 residual(const SE3& from, const SE3& to)
+    {
+#ifdef LSD_REL
+        auto error_ = from.inverse() * to * meassurement.inverse();
+#else
+        auto error_  = meassurement * from * to.inverse();
+#endif
+        return error_.log() * weight;
+    }
+
     void invert()
     {
         std::swap(from, to);

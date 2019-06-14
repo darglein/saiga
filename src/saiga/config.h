@@ -56,7 +56,12 @@
 #endif
 #define SAIGA_ALIGN_CACHE SAIGA_ALIGN(64)
 
-
+// Just use the normal NDEBUG convention
+#ifdef NDEBUG
+#    define SAIGA_NDEBUG
+#else
+#    define SAIGA_DEBUG
+#endif
 
 // includes that are used for everything
 #include <iostream>
