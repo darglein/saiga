@@ -7,6 +7,8 @@
 #include "objModelLoader.h"
 
 #include "saiga/core/math/String.h"
+#include "saiga/core/time/all.h"
+#include "saiga/core/util/file.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
 
@@ -23,6 +25,7 @@ ObjModelLoader::ObjModelLoader(const std::string& file) : file(file)
     loadFile(file);
 }
 
+
 bool ObjModelLoader::loadFile(const std::string& _file)
 {
     this->file = SearchPathes::model(_file);
@@ -33,29 +36,33 @@ bool ObjModelLoader::loadFile(const std::string& _file)
         return false;
     }
 
-    std::ifstream stream(file, std::ios::in);
-    if (!stream.is_open())
-    {
-        //        cerr << "Could not open file " << _file << endl;
-        SAIGA_ASSERT(0);
-        return false;
-    }
+    //    std::ifstream stream(file, std::ios::in);
+    //    if (!stream.is_open())
+    //    {
+    //        throw std::runtime_error("Search Pathes broken!");
+    //    }
 
 
-    cout << "objloader: loading file " << file << endl;
+    cout << "[ObjModelLoader] Loading " << file << endl;
 
     ObjTriangleGroup tg;
     tg.startFace = 0;
     tg.faces     = 0;
     triangleGroups.push_back(tg);
 
-    while (!stream.eof())
+    std::vector<std::string> data;
     {
-        std::string line;
-        std::getline(stream, line);
-        // remove carriage return from windows
-        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-        parseLine(line);
+        //        SAIGA_BLOCK_TIMER();
+        data = File::loadFileStringArray(file);
+        File::removeWindowsLineEnding(data);
+    }
+    {
+        //        SAIGA_BLOCK_TIMER();
+        for (auto& line : data)
+        {
+            lineParser.set(line);
+            parseLine();
+        }
     }
 
     // finish last group
@@ -68,7 +75,7 @@ bool ObjModelLoader::loadFile(const std::string& _file)
                                         [](const ObjTriangleGroup& otg) { return otg.faces == 0; }),
                          triangleGroups.end());
 
-    cout << "Model Loaded. "
+    cout << "[ObjModelLoader] Done.  "
          << "V " << vertices.size() << " N " << normals.size() << " T " << texCoords.size() << " F " << faces.size()
          << " Material Groups " << triangleGroups.size() << endl;
 
@@ -298,33 +305,30 @@ std::vector<std::vector<IndexedVertex2>> ObjModelLoader::triangulateFace(const s
     return newFaces;
 }
 
-void ObjModelLoader::parseLine(const std::string& line)
+void ObjModelLoader::parseLine()
 {
-    std::stringstream sstream(line);
-
-    std::string header;
-    sstream >> header;
-
-    std::string rest;
-    std::getline(sstream, rest);
-
-    // remove first white space
-    if (rest[0] == ' ' && rest.size() > 1)
-    {
-        rest = rest.substr(1);
-    }
-
+    auto header = lineParser.next();
 
     if (header == "#")
     {
     }
     else if (header == "usemtl")
     {
-        parseUM(rest);
+        // finish current group and create new one
+        if (!triangleGroups.empty())
+        {
+            ObjTriangleGroup& currentGroup = triangleGroups[triangleGroups.size() - 1];
+            currentGroup.faces             = faces.size() - currentGroup.startFace;
+        }
+        ObjTriangleGroup newGroup;
+        newGroup.startFace = faces.size();
+        newGroup.material  = materialLoader.getMaterial(std::string(lineParser.next()));
+        triangleGroups.push_back(newGroup);
     }
     else if (header == "mtllib")
     {
-        parseM(rest);
+        FileChecker fc;
+        materialLoader.loadFile(fc.getRelative(file, std::string(lineParser.next())));
     }
     else if (header == "g")
     {
@@ -340,59 +344,48 @@ void ObjModelLoader::parseLine(const std::string& line)
     }
     else if (header == "v")
     {
-        parseV(rest);
+        //        parseV(rest);
+        vec3 v;
+        v(0) = to_double(lineParser.next());
+        v(1) = to_double(lineParser.next());
+        v(2) = to_double(lineParser.next());
+        vertices.push_back(v);
+        //        to_double()
     }
     else if (header == "vt")
     {
-        parseVT(rest);
+        //        parseVT(rest);
+        vec2 v;
+        v(0) = to_double(lineParser.next());
+        v(1) = to_double(lineParser.next());
+        texCoords.push_back(v);
     }
     else if (header == "vn")
     {
-        parseVN(rest);
+        //        parseVN(rest);
+        vec3 v;
+        v(0) = to_double(lineParser.next());
+        v(1) = to_double(lineParser.next());
+        v(2) = to_double(lineParser.next());
+        normals.push_back(v);
     }
     else if (header == "f")
     {
-        parseF(rest);
+        parseF();
     }
 }
 
-void ObjModelLoader::parseV(const std::string& line)
+
+
+void ObjModelLoader::parseF()
 {
-    std::stringstream sstream(line);
-    vec3 v;
-    sstream >> v;
-    vertices.push_back(v);
-}
+    ivs.clear();
 
-void ObjModelLoader::parseVT(const std::string& line)
-{
-    std::stringstream sstream(line);
-    vec2 v;
-    sstream >> v;
-    texCoords.push_back(v);
-}
-
-void ObjModelLoader::parseVN(const std::string& line)
-{
-    std::stringstream sstream(line);
-    vec3 v;
-    sstream >> v;
-    normals.push_back(normalize(v));
-}
-
-void ObjModelLoader::parseF(std::string& line)
-{
-    //    std::replace( line.begin(), line.end(), '/', ' ');
-
-    std::stringstream sstream(line);
-    std::string t;
-
-    //    cout<<"parse F "<<line<<endl;
-
-    std::vector<IndexedVertex2> ivs;
-    while (sstream >> t)
+    std::string_view f = lineParser.next();
+    while (!f.empty())
     {
-        ivs.push_back(parseIV(t));
+        ivs.push_back(parseIV(f));
+        f = lineParser.next();
     }
 
     auto nf = triangulateFace(ivs);
@@ -428,34 +421,26 @@ void ObjModelLoader::parseF(std::string& line)
 // examples:
 // v1/vt1/vn1        12/51/1
 // v1//vn1           51//4
-IndexedVertex2 ObjModelLoader::parseIV(std::string& line)
+IndexedVertex2 ObjModelLoader::parseIV(std::string_view line)
 {
     IndexedVertex2 iv;
+#if 0
     std::vector<std::string> s = split(line, '/');
     if (s.size() > 0 && s[0].size() > 0) iv.v = std::atoi(s[0].c_str()) - 1;
     if (s.size() > 1 && s[1].size() > 0) iv.t = std::atoi(s[1].c_str()) - 1;
     if (s.size() > 2 && s[2].size() > 0) iv.n = std::atoi(s[2].c_str()) - 1;
+#else
+    faceParser.set(line);
+    std::string_view tmp;
+    tmp = faceParser.next();
+    if (!tmp.empty()) iv.v = to_long(tmp) - 1;
+    tmp = faceParser.next();
+    if (!tmp.empty()) iv.t = to_long(tmp) - 1;
+    tmp = faceParser.next();
+    if (!tmp.empty()) iv.n = to_long(tmp) - 1;
+#endif
     return iv;
 }
 
-void ObjModelLoader::parseUM(const std::string& line)
-{
-    // finish current group and create new one
-    if (!triangleGroups.empty())
-    {
-        ObjTriangleGroup& currentGroup = triangleGroups[triangleGroups.size() - 1];
-        currentGroup.faces             = faces.size() - currentGroup.startFace;
-    }
-    ObjTriangleGroup newGroup;
-    newGroup.startFace = faces.size();
-    newGroup.material  = materialLoader.getMaterial(line);
-    triangleGroups.push_back(newGroup);
-}
-
-void ObjModelLoader::parseM(const std::string& line)
-{
-    FileChecker fc;
-    materialLoader.loadFile(fc.getRelative(file, line));
-}
 
 }  // namespace Saiga

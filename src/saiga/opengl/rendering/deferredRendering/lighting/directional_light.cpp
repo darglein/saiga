@@ -290,12 +290,12 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
     //                orthoMin[2] ,orthoMax[2]
     //                );
 
-
-#    if 0
-    //test if all cam vertices are in the shadow volume
-    for(int i = 0 ;i < 8 ; ++i){
+#    ifdef SAIGA_DEBUG1
+    // test if all cam vertices are in the shadow volume
+    for (int i = 0; i < 8; ++i)
+    {
         vec3 v = cam->vertices[i];
-        vec4 p = this->cam.proj * this->cam.view * vec4(v,1);
+        vec4 p = shadowCamera.proj * shadowCamera.view * make_vec4(v, 1);
         cout << p << endl;
     }
 #    endif

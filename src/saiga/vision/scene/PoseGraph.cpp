@@ -65,6 +65,10 @@ void PoseGraph::addNoise(double stddev)
     for (auto& e : poses)
     {
         e.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
+        Quat q = e.se3.unit_quaternion();
+        q.coeffs() += Random::gaussRandMatrix<Vec4>(0, stddev);
+        q.normalize();
+        //        e.se3.setQuaternion(q);
     }
 }
 

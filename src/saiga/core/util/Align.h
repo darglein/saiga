@@ -13,8 +13,37 @@
 #include <memory>
 #include <vector>
 
+#ifdef WIN32
+#    include <malloc.h>
+#endif
+
 namespace Saiga
 {
+/**
+ * Get an aligned piece of memory.
+ * Alignment must be a power of 2!
+ */
+template <size_t Alignment>
+inline void* aligned_malloc(size_t size)
+{
+    auto num = iAlignUp(size, Alignment);
+#ifdef WIN32
+    // Windows doesn't implement std::aligned_alloc :(
+    return _aligned_malloc(num, Alignment);
+#else
+    return std::aligned_alloc(Alignment, num);
+#endif
+}
+
+inline void aligned_free(void* ptr)
+{
+#ifdef WIN32
+    _aligned_free(ptr);
+#else
+    std::free(ptr);
+#endif
+}
+
 /**
  * A simple aligned allocator using the standard library.
  * This file requires C++17.
@@ -58,11 +87,12 @@ class aligned_allocator : public std::allocator<T>
     pointer allocate(size_type num, const void* /*hint*/ = 0)
     {
         num = num * sizeof(T);
-        num = iAlignUp(num, Alignment);
-        return static_cast<pointer>(std::aligned_alloc(Alignment, num));
+        return static_cast<pointer>(aligned_malloc<Alignment>(num));
+        //        num = iAlignUp(num, Alignment);
+        //        return static_cast<pointer>(std::aligned_alloc(Alignment, num));
     }
 
-    void deallocate(pointer p, size_type /*num*/) { std::free(p); }
+    void deallocate(pointer p, size_type /*num*/) { aligned_free(p); }
 };
 
 // An Aligned std::vector

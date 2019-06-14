@@ -40,7 +40,7 @@ struct ObsBase
 using Obs = ObsBase<double>;
 
 template <typename T, bool Normalized = false>
-struct SAIGA_VISION_API SAIGA_ALIGN_CACHE RobustPoseOptimization
+struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 {
    private:
 #ifdef EIGEN_VECTORIZE_AVX

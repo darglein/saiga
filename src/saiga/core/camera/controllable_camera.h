@@ -16,11 +16,8 @@
 
 namespace Saiga
 {
-template <typename camera_t>
-class Controllable_Camera : public camera_t
+struct SAIGA_CORE_API CameraController
 {
-   public:
-    // Velocity in units/seconds
     float movementSpeed     = 10;
     float movementSpeedFast = 40;
 
@@ -35,6 +32,14 @@ class Controllable_Camera : public camera_t
 
     bool mouseTurnLocal = false;
 
+    void imgui();
+};
+
+template <typename camera_t>
+class Controllable_Camera : public CameraController, public camera_t
+{
+   public:
+    // Velocity in units/seconds
 
     Controllable_Camera() {}
     virtual ~Controllable_Camera() {}
@@ -50,6 +55,12 @@ class Controllable_Camera : public camera_t
     void mouseRotateAroundPoint(float dx, float dy);
     void mouseRotateAroundPoint(float dx, float dy, vec3 point);
     void mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up);
+
+    void imgui()
+    {
+        CameraController::imgui();
+        camera_t::imgui();
+    }
 
    private:
     ivec2 lastMousePos;

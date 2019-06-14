@@ -6,6 +6,8 @@
 
 #include "camera.h"
 
+#include "saiga/core/imgui/imgui.h"
+
 #include "internal/noGraphicsAPI.h"
 
 #include "controllable_camera.h"
@@ -251,6 +253,15 @@ std::pair<vec3, vec3> Camera::getEdge(int i)
     }
 }
 
+void Camera::imgui()
+{
+    bool changed = false;
+    changed |= ImGui::InputFloat("zNear", &zNear);
+    changed |= ImGui::InputFloat("zFar", &zFar);
+    changed |= ImGui::Checkbox("vulkanTransform", &vulkanTransform);
+    if (changed) recomputeProj();
+}
+
 
 
 std::ostream& operator<<(std::ostream& os, const Camera& ca)
@@ -267,24 +278,34 @@ std::ostream& operator<<(std::ostream& os, const Camera& ca)
 
 void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float _zFar, bool vulkanTransform)
 {
-    _fovy        = radians(_fovy);
-    this->fovy   = _fovy;
-    this->aspect = _aspect;
-    this->zNear  = _zNear;
-    this->zFar   = _zFar;
-
+    _fovy                 = radians(_fovy);
+    this->fovy            = _fovy;
+    this->aspect          = _aspect;
+    this->zNear           = _zNear;
+    this->zFar            = _zFar;
+    this->vulkanTransform = vulkanTransform;
 
     tang = (float)tan(fovy * 0.5);
 
 
+    recomputeProj();
+}
+
+void PerspectiveCamera::imgui()
+{
+    Camera::imgui();
+    bool changed = false;
+    changed |= ImGui::InputFloat("fovy", &fovy);
+    changed |= ImGui::InputFloat("aspect", &aspect);
+    if (changed) recomputeProj();
+}
+
+void PerspectiveCamera::recomputeProj()
+{
     proj = perspective(fovy, aspect, zNear, zFar);
 
     if (vulkanTransform)
     {
-        //        const mat4 clip(1.0f,  0.0f, 0.0f, 0.0f,
-        //                            0.0f, -1.0f, 0.0f, 0.0f,
-        //                            0.0f,  0.0f, 0.5f, 0.0f,
-        //                            0.0f,  0.0f, 0.5f, 1.0f);
         proj = getVulkanTransform() * proj;
     }
 }
@@ -366,31 +387,26 @@ void OrthographicCamera::setProj(float _left, float _right, float _bottom, float
     this->zNear  = _near;
     this->zFar   = _far;
 
-    //    nh = (top-bottom)/2;
-    //    nw = (right-left)/2;
-
-    //    fh = nh;
-    //    fw = nw;
-    proj = ortho(left, right, bottom, top, zNear, zFar);
+    recomputeProj();
 }
 
 void OrthographicCamera::setProj(AABB bb)
 {
-    //    setProj(bb.min[0], bb.max[0], bb.min[1], bb.max[1], bb.min[2], bb.max[2]);
     setProj(bb.min[0], bb.max[0], bb.min[1], bb.max[1], bb.min[2], bb.max[2]);
+}
+
+void OrthographicCamera::imgui()
+{
+    Camera::imgui();
+}
+
+void OrthographicCamera::recomputeProj()
+{
+    proj = ortho(left, right, bottom, top, zNear, zFar);
 }
 
 void OrthographicCamera::recalculatePlanes()
 {
-    //    vec3 rightv = vec3(model[0]);
-    //    vec3 up     = vec3(model[1]);
-    //    vec3 dir    = -vec3(model[2]);
-
-
-    //    vec3 rightv = col(model, 0);
-    //    vec3 up    = col(model, 1);
-    //    vec3 dir   = -col(model, 2);
-
     vec3 rightv = make_vec3(col(model, 0));
     vec3 up     = make_vec3(col(model, 1));
     vec3 dir    = make_vec3(-col(model, 2));

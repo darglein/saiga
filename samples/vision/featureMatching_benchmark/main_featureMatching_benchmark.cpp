@@ -12,7 +12,7 @@
 #include "saiga/vision/Features.h"
 #include "saiga/vision/VisionIncludes.h"
 
-
+#include <numeric>
 using namespace Saiga;
 
 

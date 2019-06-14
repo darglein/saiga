@@ -40,7 +40,7 @@ using DescriptorSIFT = std::array<float, 128>;
 
 
 
-#if 1
+#ifndef WIN32
 // use the popcnt instruction
 // this will be the fastest implementation if it is available
 // more here: https://github.com/kimwalisch/libpopcnt
@@ -68,7 +68,7 @@ inline uint64_t popcnt(uint64_t v)
     v = v - ((v >> 1) & (uint64_t) ~(uint64_t)0 / 3);
     v = (v & (uint64_t) ~(uint64_t)0 / 15 * 3) + ((v >> 2) & (uint64_t) ~(uint64_t)0 / 15 * 3);
     v = (v + (v >> 4)) & (uint64_t) ~(uint64_t)0 / 255 * 15;
-    return (uint64_t)(v * ((uint64_t) ~(uint64_t)0 / 255)) >> (sizeof(uint64_t) - 1) * __CHAR_BIT__;
+    return (uint64_t)(v * ((uint64_t) ~(uint64_t)0 / 255)) >> (sizeof(uint64_t) - 1) * CHAR_BIT;
 }
 #endif
 

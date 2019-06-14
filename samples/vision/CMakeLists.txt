@@ -1,5 +1,6 @@
 add_subdirectory(featureMatching_benchmark)
 add_subdirectory(robust_pose_optimization)
+add_subdirectory(derive)
 
 if(EIGENRECURSIVE_FOUND)
     add_subdirectory(block_matrices)

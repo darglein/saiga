@@ -8,7 +8,7 @@
 #include "saiga/core/sdl/sdl.h"
 #include "saiga/core/util/crash.h"
 
-#include "advancedWindow.h"
+#include "modelViewer.h"
 
 
 int main(int argc, char* args[])

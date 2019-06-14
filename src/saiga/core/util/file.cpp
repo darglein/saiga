@@ -10,6 +10,7 @@
 
 #include "internal/noGraphicsAPI.h"
 
+#include <algorithm>
 #include <fstream>
 
 namespace Saiga
@@ -110,6 +111,20 @@ void saveFileBinary(const std::string& file, const void* data, size_t size)
 
     is.write((const char*)data, size);
     is.close();
+}
+
+void removeWindowsLineEnding(std::string& line)
+{
+    line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+}
+
+
+void removeWindowsLineEnding(std::vector<std::string>& file)
+{
+    for (auto& line : file)
+    {
+        removeWindowsLineEnding(line);
+    }
 }
 
 

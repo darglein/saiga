@@ -481,11 +481,11 @@ HD inline mat4 make_mat4(const quat& q)
 
 HD inline quat make_quat(float x, float y, float z, float w)
 {
-    // Eigen quats are stored as (x,y,z,w) and the constructor is also (x,y,z,w)
-    return quat(x, y, z, w);
+    // Eigen quats are stored as (x,y,z,w), but the constructor is (w,x,y,z)
+    return quat(w, x, y, z);
 }
 
-
+// return vec4 as (x,y,z,w)
 HD inline vec4 quat_to_vec4(const quat& q)
 {
     return vec4(q.x(), q.y(), q.z(), q.w());

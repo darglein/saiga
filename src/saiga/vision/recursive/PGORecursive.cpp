@@ -106,8 +106,8 @@ double PGORec::computeQuadraticForm()
 {
     auto& scene = *_scene;
 
-    SAIGA_BLOCK_TIMER();
-    //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
+    //    SAIGA_BLOCK_TIMER();
+    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     using T          = BlockPGOScalar;
     using KernelType = Saiga::Kernel::PGO<T>;
 

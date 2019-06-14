@@ -30,11 +30,8 @@ VulkanSDLExampleBase::~VulkanSDLExampleBase() {}
 
 void VulkanSDLExampleBase::update(float dt)
 {
-    if (!ImGui::GetIO().WantCaptureMouse)
-    {
-        camera.update(dt);
-        camera.interpolate(dt, 0);
-    }
+    if (!ImGui::captureMouse()) camera.interpolate(dt, 0);
+    if (!ImGui::captureKeyboard()) camera.update(dt);
 }
 
 

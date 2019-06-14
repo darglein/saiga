@@ -16,10 +16,10 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
-#include "saiga/vision/recursive/BAPoseOnly.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
+#include "saiga/vision/recursive/BAPoseOnly.h"
 #include "saiga/vision/recursive/PGORecursive.h"
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
@@ -167,8 +167,8 @@ void VulkanExample::renderGUI()
         if (ImGui::Button("Load Dataset"))
         {
             scene.load(Saiga::SearchPathes::data(datasets[currentItem]));
-            scene.poses[0].constant = true;
-            change                  = true;
+            //            scene.poses[0].constant = true;
+            change = true;
         }
     }
 #endif

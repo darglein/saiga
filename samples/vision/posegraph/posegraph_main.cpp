@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 #include "saiga/core/framework/framework.h"
+#include "saiga/core/math/random.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/core/math/random.h"
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/BALDataset.h"
@@ -85,12 +85,12 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
             scene = PoseGraph(bald.makeScene());
         }
 
-        scene.addNoise(1.05);
+        scene.addNoise(0.55);
 
         std::vector<std::shared_ptr<PGOBase>> solvers;
-        solvers.push_back(std::make_shared<PGORec>());
-        //        solvers.push_back(std::make_shared<g2oPGO>());
-        //        solvers.push_back(std::make_shared<CeresPGO>());
+        //        solvers.push_back(std::make_shared<PGORec>());
+        solvers.push_back(std::make_shared<g2oPGO>());
+        solvers.push_back(std::make_shared<CeresPGO>());
 
 
 

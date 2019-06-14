@@ -6,16 +6,15 @@
 
 #pragma once
 
+#include "saiga/core/sdl/sdl_camera.h"
+#include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/opengl/assets/all.h"
 #include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/opengl/rendering/overlay/textDebugOverlay.h"
 #include "saiga/opengl/rendering/renderer.h"
-#include "saiga/core/sdl/sdl_camera.h"
-#include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/opengl/window/sdl_window.h"
-#include "saiga/opengl/text/all.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 
 using namespace Saiga;
@@ -25,21 +24,15 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
    public:
     SDLCamera<PerspectiveCamera> camera;
 
-    SimpleAssetObject cube1, cube2;
+    SimpleAssetObject object;
     SimpleAssetObject groundPlane;
-    SimpleAssetObject sphere;
 
     ProceduralSkybox skybox;
 
-    TextDebugOverlay tdo;
-    TextureAtlas textAtlas;
 
-    std::vector<std::shared_ptr<PointLight>> lights;
-
-    float rotationSpeed    = 0.1;
-    bool showimguidemo     = false;
-    bool lightDebug        = false;
-    bool pointLightShadows = false;
+    bool showSkybox            = false;
+    bool showGrid              = true;
+    std::array<char, 512> file = {0};
 
     std::shared_ptr<DirectionalLight> sun;
 
