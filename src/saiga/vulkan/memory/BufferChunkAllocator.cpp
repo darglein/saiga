@@ -67,15 +67,6 @@ void BufferChunkAllocator::headerInfo()
     ImGui::LabelText("Memory Type", "%s", vk::to_string(type.memoryFlags).c_str());
 }
 
-BufferChunkAllocator::~BufferChunkAllocator()
-{
-    for (auto& chunk : chunks)
-    {
-        m_device.destroy(chunk.buffer);
-        m_device.free(chunk.memory);
-    }
-}
-
 std::unique_ptr<BufferMemoryLocation> BufferChunkAllocator::create_location(
     ChunkIterator<Saiga::Vulkan::Memory::BaseMemoryLocation<Saiga::Vulkan::Memory::BufferData>>& chunk_alloc,
     vk::DeviceSize start, vk::DeviceSize size)

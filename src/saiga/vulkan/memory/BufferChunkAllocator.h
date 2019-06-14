@@ -5,8 +5,8 @@
 //
 
 #pragma once
-#include "saiga/core/util/easylogging++.h"
 #include "saiga/core/math/imath.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/export.h"
 
 #include "BufferMemoryLocation.h"
@@ -39,7 +39,6 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public ChunkAllocator<Buffer
 
    public:
     BufferType type;
-    ~BufferChunkAllocator() override;
 
     BufferChunkAllocator(vk::PhysicalDevice _pDevice, vk::Device _device, BufferType _type,
                          FitStrategy<BufferMemoryLocation>& strategy, Queue* _queue,

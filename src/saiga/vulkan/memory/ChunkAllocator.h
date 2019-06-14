@@ -102,7 +102,7 @@ class SAIGA_VULKAN_API ChunkAllocator
     }
 
 
-    virtual ~ChunkAllocator() = default;
+    virtual ~ChunkAllocator() { destroy(); }
 
     ChunkAllocator(const ChunkAllocator&) = delete;
     ChunkAllocator& operator=(const ChunkAllocator&) = delete;
