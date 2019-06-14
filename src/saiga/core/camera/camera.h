@@ -32,6 +32,8 @@ class SAIGA_CORE_API Camera : public Object3D
     Plane planes[6];        // for exact frustum culling
     Sphere boundingSphere;  // for fast frustum culling
 
+    bool vulkanTransform = false;
+
     Camera();
     virtual ~Camera() {}
 
@@ -169,6 +171,10 @@ class SAIGA_CORE_API Camera : public Object3D
                          1.0f);
     }
 
+    virtual void recomputeProj() = 0;
+
+    void imgui();
+
    private:
     friend std::ostream& operator<<(std::ostream& os, const Camera& ca);
 };
@@ -184,7 +190,9 @@ class SAIGA_CORE_API PerspectiveCamera : public Camera
     void setProj(float fovy, float aspect, float zNear, float zFar, bool vulkanTransform = false);
     friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
 
-    virtual void recalculatePlanes();
+    void imgui();
+    virtual void recomputeProj() override;
+    virtual void recalculatePlanes() override;
 };
 
 //========================= OrthographicCamera =========================
@@ -199,8 +207,9 @@ class SAIGA_CORE_API OrthographicCamera : public Camera
 
     friend std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca);
 
-
-    virtual void recalculatePlanes();
+    void imgui();
+    virtual void recomputeProj() override;
+    virtual void recalculatePlanes() override;
 };
 
 

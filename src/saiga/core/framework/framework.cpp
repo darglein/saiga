@@ -124,11 +124,13 @@ static void printSaigaInfo()
 
 void initSample(SaigaParameters& saigaParameters)
 {
-    saigaParameters.shaderDirectory  = {SAIGA_PROJECT_SOURCE_DIR "/shader"};
-    saigaParameters.textureDirectory = {SAIGA_PROJECT_SOURCE_DIR "/data/textures"};
-    saigaParameters.modelDirectory   = {SAIGA_PROJECT_SOURCE_DIR "/data/models"};
-    saigaParameters.fontDirectory    = {SAIGA_PROJECT_SOURCE_DIR "/data/fonts"};
-    saigaParameters.dataDirectory    = {SAIGA_PROJECT_SOURCE_DIR "/data"};
+    saigaParameters.shaderDirectory = {SAIGA_PROJECT_SOURCE_DIR "/shader"};
+
+    std::string dataDir              = SAIGA_PROJECT_SOURCE_DIR "/data";
+    saigaParameters.textureDirectory = {dataDir, dataDir + "/textures"};
+    saigaParameters.modelDirectory   = {dataDir, dataDir + "/models"};
+    saigaParameters.fontDirectory    = {dataDir, dataDir + "/fonts"};
+    saigaParameters.dataDirectory    = {dataDir};
 }
 
 void initSaiga(const SaigaParameters& params)
@@ -184,7 +186,6 @@ void initSaiga(const SaigaParameters& params)
     SearchPathes::model.addSearchPath(params.modelDirectory);
 
     setThreadName(params.mainThreadName);
-
 
     el::Configurations defaultConf;
     defaultConf.setToDefault();

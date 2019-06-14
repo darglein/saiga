@@ -8,6 +8,7 @@
 
 #include "saiga/config.h"
 #include "saiga/core/geometry/triangle_mesh.h"
+#include "saiga/core/util/tostring.h"
 
 #include "objMaterialLoader.h"
 
@@ -73,16 +74,15 @@ class SAIGA_CORE_API ObjModelLoader
 
     std::vector<std::vector<IndexedVertex2>> triangulateFace(const std::vector<IndexedVertex2>& face);
 
-    void parseLine(const std::string& line);
 
-    void parseV(const std::string& line);
-    void parseVT(const std::string& line);
-    void parseVN(const std::string& line);
-    void parseF(std::string& line);
-    IndexedVertex2 parseIV(std::string& line);
+    // ================== Parser Tmp Variables ================
+    StringViewParser lineParser = {" ,\n", true};
+    StringViewParser faceParser = {"/", false};
+    std::vector<IndexedVertex2> ivs;
+    void parseLine();
 
-    void parseUM(const std::string& line);
-    void parseM(const std::string& line);
+    void parseF();
+    IndexedVertex2 parseIV(std::string_view line);
 };
 
 }  // namespace Saiga

@@ -14,6 +14,11 @@
 #include <string>
 #include <vector>
 
+#if 0 && __has_include(<charconv> )
+#    include <charconv>
+#    define SAIGA_USE_SV_CONV
+#endif
+
 /**
  * This acts as a wrapper for std::to_string for build in data types.
  * For more complex data types the ostream operator << is used to create a string.
@@ -105,6 +110,21 @@ inline long int to_long(const std::string& str)
     return std::atol(str.c_str());
 }
 
+inline double to_double(const std::string_view& str)
+{
+#if 0
+    double d;
+    std::from_chars(str.data(),str.data()+str.size(),d);
+    return d;
+#else
+    return std::atof(std::string(str).c_str());
+#endif
+}
+
+inline double to_long(const std::string_view& str)
+{
+    return std::atol(std::string(str).c_str());
+}
 
 template <typename T>
 struct FromStringConverter
@@ -189,7 +209,56 @@ SAIGA_TEMPLATE std::vector<T> string_to_array(const std::string& string, char se
  * @return Nicely formatted SI-prefixed string.
  */
 SAIGA_CORE_API std::string sizeToString(size_t size, size_t base = 1024, size_t max = 1536, const char* sep = " ",
-                                      std::streamsize precision = 1);
+                                        std::streamsize precision = 1);
 
+
+
+struct SAIGA_TEMPLATE StringViewParser
+{
+    StringViewParser(std::string_view delims = " ,\n", bool allowDoubleDelims = true)
+        : delims(delims), allowDoubleDelims(allowDoubleDelims)
+    {
+    }
+    std::string_view next()
+    {
+        auto it = currentView.begin();
+        while (it != currentView.end() && !isDelim(*it))
+        {
+            ++it;
+        }
+        auto result = currentView.substr(0, it - currentView.begin());
+        currentView = currentView.substr(it - currentView.begin());
+        advance();
+        return result;
+    }
+    void set(std::string_view v)
+    {
+        currentView = v;
+        advance();
+    }
+
+   private:
+    std::string_view currentView;
+    std::string_view delims;
+    bool allowDoubleDelims = true;
+    // Skip over all delims
+    inline void advance()
+    {
+        auto it = currentView.begin();
+        while (it != currentView.end() && isDelim(*it))
+        {
+            ++it;
+
+            if (!allowDoubleDelims) break;
+        }
+        currentView = currentView.substr(it - currentView.begin());
+    }
+    inline bool isDelim(char c)
+    {
+        for (auto d : delims)
+            if (d == c) return true;
+        return false;
+    }
+};
 
 }  // namespace Saiga
