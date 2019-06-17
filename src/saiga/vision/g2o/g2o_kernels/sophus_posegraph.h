@@ -37,7 +37,8 @@ class SAIGA_VISION_API VertexSim3 : public g2o::BaseVertex<6, SE3>
 #ifdef LSD_REL
         setEstimate(SE3::exp(update) * estimate());
 #else
-        setEstimate(estimate() * SE3::exp(update));
+        //        setEstimate(estimate() * SE3::exp(update));
+        setEstimate(SE3::exp(update) * estimate());
 #endif
     }
 };
@@ -45,6 +46,7 @@ class SAIGA_VISION_API VertexSim3 : public g2o::BaseVertex<6, SE3>
 /**
  * \brief 7D edge between two Vertex7
  */
+template <bool _LSD_REL = false>
 class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3, VertexSim3>
 {
    public:
@@ -58,42 +60,51 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
     {
         auto from = static_cast<const VertexSim3*>(_vertices[0])->estimate();
         auto to   = static_cast<const VertexSim3*>(_vertices[1])->estimate();
-#ifdef LSD_REL
-        SE3 error_ = from.inverse() * to * _inverseMeasurement;
-        _error     = error_.log();
+        if (_LSD_REL)
+        {
+            SE3 error_ = from.inverse() * to * _inverseMeasurement;
+            _error     = error_.log();
 
 
-//        cout << from << endl;
-//        cout << to << endl;
-//        cout << _measurement << endl;
-//        exit(0);
-//        cout << _error.transpose() << endl;
+            //        cout << from << endl;
+            //        cout << to << endl;
+            //        cout << _measurement << endl;
+            //        exit(0);
+            //        cout << _error.transpose() << endl;
 
-//        SE3 error_2 = _inverseMeasurement * _to->estimate() * _from->estimate().inverse();
-//        cout << error_2.log().transpose() << endl;
-//        exit(0);
-#else
-        //        SE3 error_              = _from->estimate() * _to->estimate().inverse() * _measurement;
-        SE3 error_ = _measurement * from * to.inverse();
-        _error     = error_.log();
-//        cout << _error.transpose() << endl;
-//        exit(0);
-#endif
+            //        SE3 error_2 = _inverseMeasurement * _to->estimate() * _from->estimate().inverse();
+            //        cout << error_2.log().transpose() << endl;
+            //        exit(0);
+        }
+        else
+        {
+            //        SE3 error_              = _from->estimate() * _to->estimate().inverse() * _measurement;
+            SE3 error_ = _measurement * from * to.inverse();
+            _error     = error_.log();
+            //        cout << _error.transpose() << endl;
+            //        exit(0);
+        }
     }
 
     void linearizeOplus()
     {
-        g2o::BaseBinaryEdge<6, SE3, VertexSim3, VertexSim3>::linearizeOplus();
+        if (_LSD_REL)
+        {
+            auto from = static_cast<const VertexSim3*>(_vertices[0])->estimate();
+            auto to   = static_cast<const VertexSim3*>(_vertices[1])->estimate();
+
+
+            _jacobianOplusXj = from.inverse().Adj();
+            _jacobianOplusXi = -_jacobianOplusXj;
+        }
+        else
+        {
+            g2o::BaseBinaryEdge<6, SE3, VertexSim3, VertexSim3>::linearizeOplus();
+        }
         return;
 #ifdef LSD_REL
 
 
-        auto from = static_cast<const VertexSim3*>(_vertices[0])->estimate();
-        auto to   = static_cast<const VertexSim3*>(_vertices[1])->estimate();
-
-
-        _jacobianOplusXj = from.inverse().Adj();
-        _jacobianOplusXi = -_jacobianOplusXj;
 
         //        return;
         //        cout << from << endl;
@@ -262,6 +273,7 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
 
     virtual bool setMeasurementFromState()
     {
+        SAIGA_EXIT_ERROR("");
         const VertexSim3* from = static_cast<const VertexSim3*>(_vertices[0]);
         const VertexSim3* to   = static_cast<const VertexSim3*>(_vertices[1]);
         SE3 delta              = from->estimate().inverse() * to->estimate();

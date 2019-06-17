@@ -97,18 +97,18 @@ inline float to_float(const std::string& str)
 {
     return std::atof(str.c_str());
 }
-inline double to_double(const std::string& str)
-{
-    return std::atof(str.c_str());
-}
+// inline double to_double(const std::string& str)
+//{
+//    return std::atof(str.c_str());
+//}
 inline int to_int(const std::string& str)
 {
     return std::atoi(str.c_str());
 }
-inline long int to_long(const std::string& str)
-{
-    return std::atol(str.c_str());
-}
+// inline long int to_long(const std::string& str)
+//{
+//    return std::atol(str.c_str());
+//}
 
 inline double to_double(const std::string_view& str)
 {

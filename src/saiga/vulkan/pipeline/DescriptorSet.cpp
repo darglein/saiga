@@ -29,7 +29,7 @@ Saiga::Vulkan::DescriptorSet::~DescriptorSet()
 {
     if (base && descriptorSet)
     {
-        VLOG(1) << "~DescriptorSet(): " << descriptorSet;
+        VLOG(3) << "~DescriptorSet(): " << descriptorSet;
         base->descriptorPool.freeDescriptorSet(descriptorSet);
         descriptorSet = nullptr;
     }

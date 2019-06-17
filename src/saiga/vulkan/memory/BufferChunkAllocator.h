@@ -57,7 +57,7 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public ChunkAllocator<Buffer
         m_alignment                    = requirements.alignment;
         m_device.destroy(buffer);
 
-        LOG(INFO) << "Created new buffer allocator  " << type << ", alignment " << m_alignment;
+        VLOG(3) << "Created new buffer allocator  " << type << ", alignment " << m_alignment;
     }
 
     BufferChunkAllocator(BufferChunkAllocator&& other) noexcept

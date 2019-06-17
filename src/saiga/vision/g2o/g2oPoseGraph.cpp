@@ -51,7 +51,7 @@ OptimizationResults g2oPGO::initAndSolve()
         SAIGA_ASSERT(vertex_from);
         SAIGA_ASSERT(vertex_to);
 
-        EdgeSim3* ge = new EdgeSim3();
+        auto ge = new EdgeSim3();
         ge->setVertex(0, vertex_from);
         ge->setVertex(1, vertex_to);
         ge->setMeasurement(e.meassurement);

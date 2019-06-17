@@ -24,7 +24,7 @@ bool Defragger<T>::perform_free_operations()
         {
             if (current->target)
             {
-                LOG(INFO) << "Free op " << *current;
+                VLOG(3) << "Free op " << *current;
                 allocator->deallocate(current->target);
                 if (current->source)
                 {
@@ -452,7 +452,7 @@ bool Defragger<T>::create_copy_commands()
         ;
         if (reserve_space)
         {
-            //            LOG(INFO) << "/*Cpy*/ op" << op;
+            //            VLOG(3) << "/*Cpy*/ op" << op;
             op.source->mark_static();
             auto cmd = commandPool.createAndBeginOneTimeBuffer();
             cmd.resetQueryPool(queryPool, 0, 2);
@@ -465,7 +465,7 @@ bool Defragger<T>::create_copy_commands()
             SAIGA_ASSERT(inserted && iterator != currentDefragSources.end(), "Source already in use");
 
             defragOps.push_back(DefragOp{reserve_space, op.source, cmd});
-            LOG(INFO) << "Defrag " << defragOps.back();
+            VLOG(3) << "Defrag " << defragOps.back();
         }
         performed = true;
     }
@@ -513,7 +513,7 @@ template <typename T>
 void Defragger<T>::perform_single_defrag(Defragger<T>::DefragOp& op, vk::Semaphore semaphore)
 {
     //    std::scoped_lock copy_lock(copy_mutex);
-    //    LOG(INFO) << "Run op " << op;
+    //    VLOG(3) << "Run op " << op;
 
     vk::SubmitInfo submit;
 
@@ -555,7 +555,7 @@ void Defragger<T>::perform_single_defrag(Defragger<T>::DefragOp& op, vk::Semapho
 
     copyOps.push_back(CopyOp{op.target, op.source, op.cmd, fence, wait, sigSemaphore});
 
-    LOG(INFO) << "Copy " << copyOps.back();
+    VLOG(3) << "Copy " << copyOps.back();
 }
 
 template <typename T>
@@ -584,7 +584,7 @@ bool Defragger<T>::complete_copy_commands()
             auto duration = timestamps[1] - timestamps[0];
 
             auto last = static_cast<double>(copy.source->size / 1024) / duration;
-            LOG(INFO) << "DURATION: " << duration << " " << last;
+            VLOG(3) << "DURATION: " << duration << " " << last;
             if (std::isinf(kbPerNanoSecond))
             {
                 kbPerNanoSecond = last;
@@ -598,7 +598,7 @@ bool Defragger<T>::complete_copy_commands()
 
             freeOps.push_back(FreeOp{copy.target, copy.source, frame_number + dealloc_delay});
 
-            LOG(INFO) << "Free " << freeOps.back();
+            VLOG(3) << "Free " << freeOps.back();
             copy.source->modified();
 
 
@@ -630,7 +630,7 @@ void Defragger<T>::invalidate(T* memoryLocation)
 
     if (isCurrentlyDefragged)
     {
-        LOG(INFO) << "in use " << PointerOutput<T>(memoryLocation);
+        VLOG(3) << "in use " << PointerOutput<T>(memoryLocation);
         std::scoped_lock lock(defrag_mutex, copy_mutex);
 
         auto defragOp = std::find_if(defragOps.begin(), defragOps.end(),
@@ -692,7 +692,7 @@ void BufferDefragger::create_copy_command(BufferDefragger::PossibleOp& op, Buffe
 {
     //    BufferMemoryLocation* reserve_space = allocator->reserve_space(op.targetMemory, op.target,
     //    op.source->size);
-    VLOG(1) << "Create Buffer Copy" << PointerOutput<BufferMemoryLocation>(reserve_space) << " " << op << " " << cmd;
+    VLOG(3) << "Create Buffer Copy" << PointerOutput<BufferMemoryLocation>(reserve_space) << " " << op << " " << cmd;
     copy_buffer(cmd, reserve_space, op.source);
 }
 

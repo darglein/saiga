@@ -148,7 +148,7 @@ void Texture2D::fromImage(VulkanBase& _base, Image& img, Queue& queue, CommandPo
     // SAIGA_ASSERT(image);
 
 
-    // LOG(INFO) << "Creating image synched: " << image;
+    // VLOG(3) << "Creating image synched: " << image;
 
     memoryLocation = base->memory.allocate(type, img_data);
 

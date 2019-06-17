@@ -92,7 +92,7 @@ void ChunkAllocator<T>::deallocate(T* location)
     SAIGA_ASSERT(fLoc != chunkAllocs.end(), "Allocation is not part of the chunk");
 
     (**fLoc).destroy_owned_data(m_device);
-    VLOG(1) << "Deallocating " << location->size << " bytes in chunk/offset [" << distance(chunks.begin(), fChunk)
+    VLOG(3) << "Deallocating " << location->size << " bytes in chunk/offset [" << distance(chunks.begin(), fChunk)
             << "/" << (*fLoc)->offset << "]";
 
     fChunk->allocated -= location->size;

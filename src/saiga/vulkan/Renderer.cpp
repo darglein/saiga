@@ -46,7 +46,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
 
 VulkanRenderer::~VulkanRenderer()
 {
-    LOG(INFO) << "Destroying VulkanRenderer";
+    VLOG(3) << "Destroying VulkanRenderer";
     // Only wait until the queue is done.
     // All vulkan objects are destroyed in their destructor
     waitIdle();

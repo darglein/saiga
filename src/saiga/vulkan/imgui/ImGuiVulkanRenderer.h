@@ -61,7 +61,7 @@ class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRender
                                   vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
                 vertexData = static_cast<ImDrawVert*>(vertexBuffer.getMappedPointer());
-                LOG(INFO) << "Resizing imgui vertex buffer: " << currentCount << " vertices";
+                VLOG(3) << "Resizing imgui vertex buffer: " << currentCount << " vertices";
             }
             if (indexCount > indexBuffer.indexCount)
             {
@@ -75,7 +75,7 @@ class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRender
                                  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
                 indexData = static_cast<ImDrawIdx*>(indexBuffer.getMappedPointer());
-                LOG(INFO) << "Resizing imgui index buffer: " << currentCount << " vertices";
+                VLOG(3) << "Resizing imgui index buffer: " << currentCount << " vertices";
             }
         }
     };

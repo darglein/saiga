@@ -69,7 +69,7 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     // ============== Structure information ==============
 
     int observations;
-    int schurEdges;
+    int schurEdges = 0;
     std::vector<std::vector<int>> schurStructure;
 
     // Number of seen world points for each camera + the corresponding exclusive scan and sum

@@ -17,7 +17,7 @@ void Instance::destroy()
 {
     if (instance)
     {
-        LOG(INFO) << "Destroying Vulkan Instance: " << instance;
+        VLOG(3) << "Destroying Vulkan Instance: " << instance;
         debug.destroy();
         instance.destroy();
         instance = nullptr;

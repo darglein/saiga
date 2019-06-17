@@ -25,7 +25,7 @@ void PipelineBase::init(VulkanBase& base, uint32_t numDescriptorSetLayouts)
 void PipelineBase::destroy()
 {
     if (!device) return;
-    LOG(INFO) << "Destroying pipeline " << pipeline;
+    VLOG(3) << "Destroying pipeline " << pipeline;
     vkDestroyPipeline(device, pipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     for (auto& l : descriptorSetLayouts) l.destroy();

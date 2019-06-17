@@ -24,7 +24,7 @@ BufferMemoryLocation* BufferChunkAllocator::allocate(vk::DeviceSize size)
     auto alignedSize = iAlignUp(size, m_alignment);
     SAIGA_ASSERT(alignedSize <= m_chunkSize, "Can't allocate sizes bigger than chunk size");
     auto location = ChunkAllocator::base_allocate(alignedSize);
-    VLOG(1) << "Allocate buffer " << type << ":" << *location;
+    VLOG(3) << "Allocate buffer " << type << ":" << *location;
     return location;
 }
 
@@ -38,7 +38,7 @@ ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
     info.memoryTypeIndex = findMemoryType(m_pDevice, memReqs.memoryTypeBits, type.memoryFlags);
     auto newChunk        = SafeAllocator::instance()->allocateMemory(m_device, info);
     auto memRequirements = m_device.getBufferMemoryRequirements(newBuffer);
-    VLOG(1) << "New chunk: " << chunks.size() << " Mem " << newChunk << ", Buffer " << newBuffer;
+    VLOG(3) << "New chunk: " << chunks.size() << " Mem " << newChunk << ", Buffer " << newBuffer;
     if (m_allocateSize != memRequirements.size)
     {
         LOG(ERROR) << "New buffer has differing memory requirements size";
@@ -48,7 +48,7 @@ ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
     if (type.is_mappable())
     {
         mappedPointer = m_device.mapMemory(newChunk, 0, m_chunkSize);
-        VLOG(1) << "Mapped pointer = " << mappedPointer;
+        VLOG(3) << "Mapped pointer = " << mappedPointer;
     }
     chunks.emplace_back(newChunk, newBuffer, m_chunkSize, mappedPointer);
 
@@ -57,7 +57,7 @@ ChunkIterator<BufferMemoryLocation> BufferChunkAllocator::createNewChunk()
 
 void BufferChunkAllocator::deallocate(BufferMemoryLocation* location)
 {
-    VLOG(1) << "Trying to deallocate buffer " << type << ":" << *location;
+    VLOG(3) << "Trying to deallocate buffer " << type << ":" << *location;
     ChunkAllocator::deallocate(location);
 }
 

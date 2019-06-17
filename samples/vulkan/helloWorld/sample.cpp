@@ -38,7 +38,7 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
 
 VulkanExample::~VulkanExample()
 {
-    LOG(INFO) << "~VulkanExample";
+    VLOG(3) << "~VulkanExample";
     assetRenderer.destroy();
     lineAssetRenderer.destroy();
     pointCloudRenderer.destroy();

@@ -25,21 +25,21 @@ void Queue::create(vk::Device _device, uint32_t _queueFamilyIndex, uint32_t _que
 
 void Queue::waitIdle()
 {
-    LOG(INFO) << "Queue: wait idle...";
+    VLOG(3) << "Queue: wait idle...";
     submitMutex.lock();
     queue.waitIdle();
     submitMutex.unlock();
-    LOG(INFO) << "Queue: wait idle done.";
+    VLOG(3) << "Queue: wait idle done.";
 }
 
 void Queue::destroy()
 {
     waitIdle();
 
-    LOG(INFO) << "Destroying queue with " << commandPools.size() << " command pools";
+    VLOG(3) << "Destroying queue with " << commandPools.size() << " command pools";
     for (auto& pool : commandPools)
     {
-        LOG(INFO) << "Destroying command pool: " << static_cast<vk::CommandPool>(pool);
+        VLOG(3) << "Destroying command pool: " << static_cast<vk::CommandPool>(pool);
         pool.destroy();
     }
 
@@ -85,7 +85,7 @@ CommandPool Queue::createCommandPool(vk::CommandPoolCreateFlags commandPoolCreat
     std::scoped_lock pool_create_lock(commandPoolCreationMutex);
     CommandPool newCommandPool;
     newCommandPool.create(device, &commandPoolCreationMutex, queueFamilyIndex, commandPoolCreateFlags);
-    LOG(INFO) << "Creating command pool: " << static_cast<vk::CommandPool>(newCommandPool);
+    VLOG(3) << "Creating command pool: " << static_cast<vk::CommandPool>(newCommandPool);
     commandPools.push_back(newCommandPool);
     return newCommandPool;
 }

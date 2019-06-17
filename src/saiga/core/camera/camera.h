@@ -171,7 +171,7 @@ class SAIGA_CORE_API Camera : public Object3D
                          1.0f);
     }
 
-    virtual void recomputeProj() = 0;
+    virtual void recomputeProj(){};
 
     void imgui();
 

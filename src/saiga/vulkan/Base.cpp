@@ -31,7 +31,7 @@ void VulkanBase::destroy()
 {
     if (!device) return;
 
-    LOG(INFO) << "Destroying VulkanBase with device: " << device;
+    VLOG(3) << "Destroying VulkanBase with device: " << device;
 
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
@@ -58,7 +58,7 @@ void VulkanBase::destroy()
         device = nullptr;
     }
 
-    LOG(INFO) << "Vulkan device destroyed.";
+    VLOG(3) << "Vulkan device destroyed.";
 }
 
 

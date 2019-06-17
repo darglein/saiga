@@ -345,7 +345,7 @@ VkResult VulkanSwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSem
 
 void VulkanSwapChain::cleanup()
 {
-    LOG(INFO) << "Destroying Swap Chain";
+    VLOG(3) << "Destroying Swap Chain";
     if (swapChain != VK_NULL_HANDLE)
     {
         for (uint32_t i = 0; i < imageCount; i++)
@@ -359,7 +359,7 @@ void VulkanSwapChain::cleanup()
 
 void VulkanSwapChain::destroySurface()
 {
-    LOG(INFO) << "Destroying Surface";
+    VLOG(3) << "Destroying Surface";
     if (surface != VK_NULL_HANDLE)
     {
         vkDestroySurfaceKHR(instance, surface, nullptr);

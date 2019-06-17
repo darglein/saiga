@@ -48,7 +48,7 @@ ImageMemoryLocation* ImageChunkAllocator::allocate(ImageData& image_data)
     location->data.create_view(m_device);
     location->data.create_sampler(m_device);
 
-    VLOG(1) << "Allocated image" << *location;
+    VLOG(3) << "Allocated image" << *location;
     return location;
 }
 
@@ -63,7 +63,7 @@ ImageChunkAllocator::ImageChunkAllocator(vk::PhysicalDevice _pDevice, const vk::
                                          vk::DeviceSize chunkSize)
     : ChunkAllocator(_pDevice, _device, strategy, _queue, chunkSize), hasInfo(false), type(std::move(_type))
 {
-    LOG(INFO) << "Created new image allocator for flags " << type;
+    VLOG(3) << "Created new image allocator for flags " << type;
     std::stringstream identifier_stream;
     identifier_stream << "Image Chunk " << type;
     gui_identifier = identifier_stream.str();
@@ -71,7 +71,7 @@ ImageChunkAllocator::ImageChunkAllocator(vk::PhysicalDevice _pDevice, const vk::
 
 void ImageChunkAllocator::deallocate(ImageMemoryLocation* location)
 {
-    VLOG(1) << "Trying to deallocate image" << *location;
+    VLOG(3) << "Trying to deallocate image" << *location;
     ChunkAllocator::deallocate(location);
 }
 

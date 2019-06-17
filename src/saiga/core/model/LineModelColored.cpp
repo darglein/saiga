@@ -112,6 +112,16 @@ void LineModelColored::createFrustum(const mat4& proj, float farPlaneLimit, cons
                     5, 7, 6, 7};
 }
 
+void LineModelColored::createFrustumCV(float farPlaneLimit, const vec4& color, int w, int h)
+{
+    mat3 K  = mat3::Identity();
+    K(0, 2) = w / 2.0;
+    K(1, 2) = h / 2.0;
+    K(0, 0) = w;
+    K(1, 1) = w;
+    createFrustumCV(K, farPlaneLimit, color, w, h);
+}
+
 
 void LineModelColored::createFrustumCV(const mat3& K, float farPlaneLimit, const vec4& color, int w, int h)
 {

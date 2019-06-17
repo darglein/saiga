@@ -86,7 +86,7 @@ OptimizationResults LMOptimizer::solve()
         {
             current_chi2        = chi2;
             result.cost_initial = chi2;
-            if (optimizationOptions.debugOutput) cout << "initial_chi2 = " << 0.5 * current_chi2 << endl;
+            //            if (optimizationOptions.debugOutput) cout << "initial_chi2 = " << 0.5 * current_chi2 << endl;
         }
         result.cost_final = chi2;
 
@@ -111,15 +111,20 @@ OptimizationResults LMOptimizer::solve()
         else
         {
             // discard
-            lambda = lambda * v;
-            v      = 2 * v;
+            auto oldLambda = lambda;
+            lambda         = lambda * v;
+            v              = 2 * v;
             revertDelta();
             if (optimizationOptions.debugOutput)
-                cerr << i << " warning invalid lm step. lambda: " << lambda << " new/old: " << newChi2 << "/"
-                     << current_chi2 << endl;
+            {
+                cerr << "It " << i << ": Invalid lm step. lambda: " << oldLambda << " -> " << lambda << endl;
+            }
         }
 
-        if (optimizationOptions.debugOutput) cout << "current_chi2 = " << 0.5 * current_chi2 << endl;
+        if (optimizationOptions.debugOutput)
+        {
+            cout << "It " << i << ": " << 0.5 * chi2 << " -> " << 0.5 * newChi2 << endl;
+        }
     }
     finalize();
 
