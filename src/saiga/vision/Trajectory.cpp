@@ -8,7 +8,6 @@
 
 #include "saiga/core/util/Range.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/statistics.h"
 #include "saiga/vision/icp/ICPAlign.h"
 
 namespace Saiga
@@ -58,7 +57,7 @@ double align(TrajectoryType& A, TrajectoryType& B)
     return error;
 }
 
-double rpe(const TrajectoryType& A, const TrajectoryType& B)
+std::vector<double> rpe(const TrajectoryType& A, const TrajectoryType& B)
 {
     SAIGA_ASSERT(A.size() == B.size());
     int N = A.size();
@@ -82,10 +81,10 @@ double rpe(const TrajectoryType& A, const TrajectoryType& B)
         et = et / double(numFramesBetween);
         rpe.push_back(et);
     }
-    return Statistics(rpe).rms;
+    return rpe;
 }
 
-double ate(const TrajectoryType& A, const TrajectoryType& B)
+std::vector<double> ate(const TrajectoryType& A, const TrajectoryType& B)
 {
     SAIGA_ASSERT(A.size() == B.size());
     int N = A.size();
@@ -96,7 +95,7 @@ double ate(const TrajectoryType& A, const TrajectoryType& B)
         auto et = translationalError(A[i].second, B[i].second);
         ate.push_back(et);
     }
-    return Statistics(ate).rms;
+    return ate;
 }
 
 }  // namespace Trajectory

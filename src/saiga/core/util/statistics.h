@@ -74,7 +74,7 @@ std::ostream& operator<<(std::ostream& stream, const Statistics<T>& object)
 {
     stream << "Num         = [" << object.numValues << "]" << std::endl
            << "Min,Max     = [" << object.min << "," << object.max << "]" << std::endl
-           << "Mean,Median = [" << object.mean << "," << object.median << "]" << std::endl
+           << "Mean,Median,Rms = [" << object.mean << "," << object.median << "," << object.rms << "]" << std::endl
            << "sdev,var    = [" << object.sdev << "," << object.variance << "]";
     return stream;
 }
