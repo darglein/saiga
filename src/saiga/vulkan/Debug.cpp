@@ -143,7 +143,8 @@ void Debug::destroy()
 
 std::string Debug::getDebugValidationLayers()
 {
-    return "VK_LAYER_LUNARG_standard_validation";
+    //    return "VK_LAYER_LUNARG_standard_validation";
+    return "VK_LAYER_KHRONOS_validation";
 }
 
 

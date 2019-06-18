@@ -405,8 +405,8 @@ void Deferred_Renderer::renderImGui(bool* p_open)
 {
     int w = 340;
     int h = 240;
-    ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
     ImGui::Begin("Deferred Renderer", p_open);
 
     ImGui::Checkbox("renderDDO", &renderDDO);

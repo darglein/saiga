@@ -34,8 +34,8 @@ void VulkanWindow::renderImGui(bool* p_open)
 
     int w = 340;
     int h = 240;
-    ImGui::SetNextWindowPos(ImVec2(0, getHeight() - h), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, getHeight() - h), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
     ImGui::Begin("Vulkan Window", &showImgui);
 
     mainLoop.renderImGuiInline();

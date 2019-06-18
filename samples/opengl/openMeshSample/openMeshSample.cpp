@@ -277,8 +277,8 @@ void Sample::renderFinal(Camera* cam)
     // Usually the GUI is rendered here.
 
     {
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");
 
 

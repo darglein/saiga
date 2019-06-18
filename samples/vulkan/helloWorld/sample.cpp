@@ -218,7 +218,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
 void VulkanExample::renderGUI()
 {
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Example settings");
     ImGui::Checkbox("Render models", &displayModels);
 
@@ -242,7 +242,7 @@ void VulkanExample::renderGUI()
     //    return;
 
     parentWindow.renderImGui();
-    //    ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
+    //    ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
     //    ImGui::ShowTestWindow();
 }
 

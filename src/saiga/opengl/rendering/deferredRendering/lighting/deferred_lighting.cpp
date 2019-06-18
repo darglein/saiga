@@ -818,8 +818,8 @@ void DeferredLighting::renderImGui(bool* p_open)
 {
     int w = 340;
     int h = 240;
-    ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
     ImGui::Begin("DeferredLighting", p_open);
 
     ImGui::Text("resolution: %dx%d", width, height);

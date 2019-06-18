@@ -29,8 +29,18 @@ class SAIGA_VULKAN_API Instance
     bool hasLayer(const std::string& name);
     bool hasExtension(const std::string& name);
 
-    auto getEnabledExtensions() { return extensions; }
-    auto getEnabledLayers() { return layers; }
+    std::vector<const char*> getEnabledExtensions()
+    {
+        std::vector<const char*> v;
+        for (auto& s : _extensions) v.push_back(s.c_str());
+        return v;
+    }
+    std::vector<const char*> getEnabledLayers()
+    {
+        std::vector<const char*> v;
+        for (auto& s : _layers) v.push_back(s.c_str());
+        return v;
+    }
 
     operator vk::Instance() const { return instance; }
     operator VkInstance() const { return instance; }
@@ -41,8 +51,8 @@ class SAIGA_VULKAN_API Instance
     Debug debug;
 
     // the extensions and layers which have been enabled for this instance
-    std::vector<const char*> extensions;
-    std::vector<const char*> layers;
+    std::vector<std::string> _extensions;
+    std::vector<std::string> _layers;
 };
 
 

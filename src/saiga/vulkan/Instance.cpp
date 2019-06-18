@@ -66,10 +66,14 @@ void Instance::create(const std::vector<std::string>& _instanceExtensions, bool 
             enableValidation = false;
         }
     }
+    for (auto& s : instanceExtensions) _extensions.push_back(s);
+    for (auto& s : instanceLayers) _layers.push_back(s);
 
-    // convert to char pointer array for vulkan
-    for (auto& s : instanceExtensions) extensions.push_back(s.c_str());
-    for (auto& s : instanceLayers) layers.push_back(s.c_str());
+
+    auto extensions = getEnabledExtensions();
+    auto layers     = getEnabledLayers();
+
+
     instanceCreateInfo.enabledExtensionCount   = (uint32_t)extensions.size();
     instanceCreateInfo.ppEnabledExtensionNames = extensions.data();
     instanceCreateInfo.enabledLayerCount       = (uint32_t)layers.size();

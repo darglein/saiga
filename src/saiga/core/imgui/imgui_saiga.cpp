@@ -1,10 +1,10 @@
 ﻿#include "imgui_saiga.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/random.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/ini/ini.h"
-#include "saiga/core/math/random.h"
 #include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -271,9 +271,9 @@ void initImGui(const ImGuiParameters& params)
     colors[ImGuiCol_HeaderHovered] = COL_ALPHA(color_highlight_low, 0.86f);
     colors[ImGuiCol_HeaderActive]  = COL_ALPHA(color_highlight_high, 1.00f);
 
-    colors[ImGuiCol_Column]        = COL_ALPHA(color_background_high, 0.8);
-    colors[ImGuiCol_ColumnHovered] = COL_ALPHA(color_highlight_low, 0.8);
-    colors[ImGuiCol_ColumnActive]  = COL_ALPHA(color_highlight_high, 1.00f);
+    //    colors[ImGuiCol_Column]        = COL_ALPHA(color_background_high, 0.8);
+    //    colors[ImGuiCol_ColumnHovered] = COL_ALPHA(color_highlight_low, 0.8);
+    //    colors[ImGuiCol_ColumnActive]  = COL_ALPHA(color_highlight_high, 1.00f);
 
     colors[ImGuiCol_ResizeGrip]        = COL_ALPHA(color_background_medium, 0.5f);
     colors[ImGuiCol_ResizeGripHovered] = COL_ALPHA(color_background_medium, 1);

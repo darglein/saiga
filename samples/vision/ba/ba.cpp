@@ -127,7 +127,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
 void VulkanExample::renderGUI()
 {
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Scene Loading");
 
 
@@ -158,7 +158,7 @@ void VulkanExample::renderGUI()
 
 
 
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Vision BA Sample");
 
 
@@ -228,7 +228,7 @@ void VulkanExample::renderGUI()
 
     ImGui::End();
 
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Scene");
     ImGui::Text("RMS: %f", rms);
     change |= scene.imgui();

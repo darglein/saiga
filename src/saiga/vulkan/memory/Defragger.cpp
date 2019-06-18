@@ -433,7 +433,7 @@ void Defragger<T>::fill_free_list()
 template <typename T>
 bool Defragger<T>::create_copy_commands()
 {
-    bool performed = false;
+    //    bool performed = false;
 
     std::scoped_lock defrag_lock(defrag_mutex);
 
@@ -467,7 +467,7 @@ bool Defragger<T>::create_copy_commands()
             defragOps.push_back(DefragOp{reserve_space, op.source, cmd});
             VLOG(3) << "Defrag " << defragOps.back();
         }
-        performed = true;
+        //        performed = true;
     }
 
     possibleOps.clear();

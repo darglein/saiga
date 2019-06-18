@@ -143,7 +143,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
 void VulkanExample::renderGUI()
 {
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Pose Graph Viewer");
 
     ImGui::Text("Rms: %f", rms);

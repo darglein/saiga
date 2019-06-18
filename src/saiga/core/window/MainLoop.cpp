@@ -258,7 +258,7 @@ void MainLoop::renderImGuiInline()
 
     //    ImGui::Checkbox("showImguiDemo",&showImguiDemo);
     //    if(mainLoop.showImguiDemo){
-    //        ImGui::SetNextWindowPos(ImVec2(340, 0), ImGuiSetCond_FirstUseEver);
+    //        ImGui::SetNextWindowPos(ImVec2(340, 0), ImGuiCond_FirstUseEver);
     //        ImGui::ShowTestWindow(&showImguiDemo);
     //    }
 }

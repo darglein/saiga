@@ -82,8 +82,8 @@ void Sample::renderOverlay(Camera* cam)
 
 void Sample::renderFinal(Camera* cam)
 {
-    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
     ImGui::Begin("Model Viewer");
 
     ImGui::Checkbox("showSkybox", &showSkybox);
@@ -109,8 +109,8 @@ void Sample::renderFinal(Camera* cam)
 
     ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(0, 400), ImGuiSetCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 400), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Camera");
 
     camera.imgui();

@@ -138,7 +138,7 @@ void VulkanRenderer::reset()
 
 void VulkanRenderer::renderImGui(bool* p_open)
 {
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiSetCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Renderer Info", p_open, ImGuiWindowFlags_NoCollapse);
 
     base().renderGUI();
