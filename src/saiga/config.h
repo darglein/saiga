@@ -47,13 +47,15 @@
 #define SAIGA_WARN_UNUSED_RESULT [[nodiscard]]
 
 
-#if defined(_MSC_VER)
-#    define SAIGA_ALIGN(x) __declspec(align(x))
-#elif defined(__GNUC__)
-#    define SAIGA_ALIGN(x) __attribute__((aligned(x)))
-#else
-#    error Please add the correct align macro for your compiler.
-#endif
+//#if defined(_MSC_VER)
+//#    define SAIGA_ALIGN(x) __declspec(align(x))
+//#elif defined(__GNUC__)
+//#    define SAIGA_ALIGN(x) __attribute__((aligned(x)))
+//#else
+//#    error Please add the correct align macro for your compiler.
+//#endif
+// alignas should be supported now by all compiles so we don't need the extensions from above
+#define SAIGA_ALIGN(_x) alignas(_x)
 #define SAIGA_ALIGN_CACHE SAIGA_ALIGN(64)
 
 // Just use the normal NDEBUG convention
@@ -64,11 +66,10 @@
 #endif
 
 // includes that are used for everything
-#include <iostream>
-
-using std::cerr;
-using std::cout;
-using std::endl;
+//#include <iostream>
+// This includes forward declarations for basic IO types
+// such as std::ostream
+#include <iosfwd>
 
 #define SAIGA_INCLUDED
 

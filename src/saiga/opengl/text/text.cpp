@@ -41,7 +41,7 @@ void Text::calculateNormalizationMatrix()
     }
     else
     {
-        //        cout << "boundingBox " << boundingBox << " " << textureAtlas->getMaxCharacter() << endl;
+        //        std::cout << "boundingBox " << boundingBox << " " << textureAtlas->getMaxCharacter() << std::endl;
 
         // grow every line by max character
         AABB maxCharacter = textureAtlas->getMaxCharacter();
@@ -52,12 +52,12 @@ void Text::calculateNormalizationMatrix()
         }
     }
 
-    //        cout<<"text "<<label<<" "<<boundingBox<<" "<<normalize<<" "<<endl<<normalizationMatrix<<endl;
+    //        std::cout<<"text "<<label<<" "<<boundingBox<<" "<<normalize<<" "<<endl<<normalizationMatrix<<endl;
 }
 
 void Text::updateText(const std::string& l, int startIndex)
 {
-    //    cout<<"Text::updateText: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
+    //    std::cout<<"Text::updateText: '"<<l<<"' Start:"<<startIndex<<" old: '"<<this->label<<"'"<<endl;
     //    std::string label(l);
     utf32string label = Encoding::UTF8toUTF32(l);
     // checks how many leading characteres are already the same.
@@ -71,7 +71,7 @@ void Text::updateText(const std::string& l, int startIndex)
         // no update needed
         return;
     }
-    //        cout<<"start "<<startIndex<<" '"<<label<<"' size "<<size << " resize=" <<resize << "
+    //        std::cout<<"start "<<startIndex<<" '"<<label<<"' size "<<size << " resize=" <<resize << "
     //        oldStartCharacter="<<(char)oldStartCharacter<<endl;
 
     vec2 startOffset = startPos;
@@ -138,8 +138,8 @@ void Text::updateGLBuffer(int start, bool resize)
     }
     else
     {
-        //        cout<<"Text::updateGLBuffer "<<"start="<<start << " " << mesh.vertices.size() << " " << (size-start)*4
-        //        << endl; mesh.updateVerticesInBuffer(buffer,(size-start)*4,start*4);
+        //        std::cout<<"Text::updateGLBuffer "<<"start="<<start << " " << mesh.vertices.size() << " " << (size-start)*4
+        //        << std::endl; mesh.updateVerticesInBuffer(buffer,(size-start)*4,start*4);
         buffer.updateFromMesh(mesh, (size - start) * 4, start * 4);
     }
 }
@@ -157,7 +157,7 @@ bool Text::compressText(utf32string& str, int& start, int& lines)
         std::copy(str.begin(), str.end(), label.begin() + start);
         capacity = newLength;
         start    = 0;
-        //        cout<<"Increasing capacity of text '"<<label<<"' to "<<size<<endl;
+        //        std::cout<<"Increasing capacity of text '"<<label<<"' to "<<size<<endl;
         return true;
     }
 
@@ -183,16 +183,16 @@ bool Text::compressText(utf32string& str, int& start, int& lines)
 
 void Text::addTextToMesh(const utf32string& text, vec2 offset)
 {
-    //    cout << "addTextToMesh '"<<text<<"' " << offset << endl;
+    //    std::cout << "addTextToMesh '"<<text<<"' " << offset << std::endl;
 
     //    std::vector<uint32_t> utf32string = Encoding::UTF8toUTF32(text);
 
-    //    cout<<"convert back "<<Encoding::UTF32toUTF8(utf32string)<<endl;
+    //    std::cout<<"convert back "<<Encoding::UTF32toUTF8(utf32string)<<endl;
     vec2 position = offset;
     VertexNT verts[4];
     for (uint32_t c : text)
     {
-        //        cout<<"create text mesh "<<std::dec<<(int)c<<" "<<std::hex<<(int)c<<" "<<c<<endl;
+        //        std::cout<<"create text mesh "<<std::dec<<(int)c<<" "<<std::hex<<(int)c<<" "<<c<<endl;
         const TextureAtlas::character_info& info = textureAtlas->getCharacterInfo((int)c);
 
         if (c == '\n')
@@ -207,7 +207,7 @@ void Text::addTextToMesh(const utf32string& text, vec2 offset)
 
         vec3 bufferPosition = vec3(position[0] + info.offset[0], position[1] + info.offset[1], 0);
 
-        //        cout << "bufferPosition '"<<(char)c<<"' " << bufferPosition << " " << info.offset[1] << endl;
+        //        std::cout << "bufferPosition '"<<(char)c<<"' " << bufferPosition << " " << info.offset[1] << std::endl;
 
         // bottom left
         verts[0] = VertexNT(bufferPosition, vec3(0, 0, 1), vec2(info.tcMin[0], info.tcMax[1]));

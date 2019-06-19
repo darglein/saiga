@@ -540,7 +540,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
      *   {
      *       for (auto p : row)
      *       {
-     *           cout << p.x() << " " << p.y() << " " << p.value() << endl;
+     *           std::cout << p.x() << " " << p.y() << " " << p.value() << std::endl;
      *       }
      *   }
      */

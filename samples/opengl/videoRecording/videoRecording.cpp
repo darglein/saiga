@@ -57,7 +57,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer)
 
     testBspline();
 
-    cout << "Program Initialized!" << endl;
+    std::cout << "Program Initialized!" << std::endl;
 }
 
 Sample::~Sample()
@@ -67,7 +67,7 @@ Sample::~Sample()
 
 void Sample::testBspline()
 {
-    cout << "Testing Bspline..." << endl;
+    std::cout << "Testing Bspline..." << std::endl;
 
 
     {
@@ -77,35 +77,35 @@ void Sample::testBspline()
         quat q2(-25, 1617, 15, -781);
         q2 = normalize(q2);
 
-        cout << "mix   " << q1 << " " << q2 << " " << normalize(mix(q1, q2, 0.3f)) << endl;
-        cout << "slerp " << q1 << " " << q2 << " " << normalize(slerp(q1, q2, 0.3f)) << endl;
+        std::cout << "mix   " << q1 << " " << q2 << " " << normalize(mix(q1, q2, 0.3f)) << std::endl;
+        std::cout << "slerp " << q1 << " " << q2 << " " << normalize(slerp(q1, q2, 0.3f)) << std::endl;
     }
 
     {
-        cout << "Linear bspline" << endl;
+        std::cout << "Linear bspline" << std::endl;
         Bspline<vec2> spline(1, {{0, 0}, {1, 0}, {1, 1}, {2, 2}});
         spline.normalize();
-        cout << spline << endl;
+        std::cout << spline << std::endl;
 
         int steps = 50;
         for (int i = 0; i < steps; ++i)
         {
             float alpha = float(i) / (steps - 1);
-            cout << i << " " << alpha << " " << spline.getPointOnCurve(alpha) << endl;
+            std::cout << i << " " << alpha << " " << spline.getPointOnCurve(alpha) << std::endl;
         }
     }
 
     {
-        cout << "Cubic bspline" << endl;
+        std::cout << "Cubic bspline" << std::endl;
         Bspline<vec2> spline(3, {{0, 0}, {1, 0}, {1, 1}, {2, 2}});
         spline.normalize();
-        cout << spline << endl;
+        std::cout << spline << std::endl;
 
         int steps = 50;
         for (int i = 0; i < steps; ++i)
         {
             float alpha = float(i) / (steps - 1);
-            cout << i << " " << alpha << " " << spline.getPointOnCurve(alpha) << endl;
+            std::cout << i << " " << alpha << " " << spline.getPointOnCurve(alpha) << std::endl;
         }
     }
 
@@ -115,7 +115,7 @@ void Sample::testBspline()
     //    cameraInterpolation.positionSpline.addPoint({0,3,1});
     //    cameraInterpolation.positionSpline.normalize(true);
 
-    //    cout << cameraInterpolation.positionSpline << endl;
+    //    std::cout << cameraInterpolation.positionSpline << std::endl;
     //    cameraInterpolation.createAsset();
 
 

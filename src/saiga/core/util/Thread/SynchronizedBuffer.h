@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/core/util/ringBuffer.h"
+#include "saiga/core/util/DataStructures/ringBuffer.h"
 
 #include <mutex>
 

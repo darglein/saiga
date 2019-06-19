@@ -8,13 +8,13 @@
 
 #include "saiga/config.h"
 
+#include <string>
 #include <vector>
 #ifdef _WIN32
 #    include "saiga/core/util/windows_dirent.h"
 #else
 #    include <dirent.h>
 #endif
-
 namespace Saiga
 {
 class SAIGA_CORE_API Directory

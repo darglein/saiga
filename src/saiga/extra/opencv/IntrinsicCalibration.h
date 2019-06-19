@@ -22,7 +22,7 @@ class SAIGA_EXTRA_API IntrinsicsCalibration
         }
         else
         {
-            cout << "could not find pattern :(" << endl;
+            std::cout << "could not find pattern :(" << std::endl;
         }
         recomputeIntrinsics();
     }
@@ -34,7 +34,7 @@ class SAIGA_EXTRA_API IntrinsicsCalibration
 
         cv::Mat rvecs, tvecs;
         auto error = cv::calibrateCamera(objPointss, images, cv::Size(intr.w, intr.h), intr.K, intr.dist, rvecs, tvecs);
-        cout << "calibrateCamera error: " << error << endl;
+        std::cout << "calibrateCamera error: " << error << std::endl;
 
         currentIntrinsics = intr;
     }

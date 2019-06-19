@@ -10,14 +10,15 @@
 #    include <windows.h>
 #endif
 
-#include "saiga/core/util/assert.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/assert.h"
 
 #include "internal/noGraphicsAPI.h"
 
 #include "gameTime.h"
 
 #include <algorithm>
+#include <iostream>
 
 namespace Saiga
 {
@@ -34,9 +35,9 @@ void Timer::start()
     // Since VS2015 the standard high resolution clock is implemented with queryperformanceCounters,
     // so this special windows code is not needed anymore.
     LARGE_INTEGER li;
-    if (!QueryPerformanceFrequency(&li)) cout << "QueryPerformanceFrequency failed!\n";
+    if (!QueryPerformanceFrequency(&li)) std::cout << "QueryPerformanceFrequency failed!\n";
 
-    //    cout << "QueryPerformanceFrequency " << double(li.QuadPart) << endl;
+    //    std::cout << "QueryPerformanceFrequency " << double(li.QuadPart) << std::endl;
     //    PCFreqPerMicrSecond = double(li.QuadPart) / 1000000.0;
 
     ticksPerSecond = li.QuadPart;

@@ -9,7 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/core/image/image.h"
 #include "saiga/core/time/timer.h"
-#include "saiga/core/util/SynchronizedBuffer.h"
+#include "saiga/core/util/Thread/SynchronizedBuffer.h"
 
 #include <fstream>
 #include <thread>

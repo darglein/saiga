@@ -187,7 +187,7 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
     //    for(BoneVertexNC v : asset->model.mesh.vertices){
     //        v.apply(boneMatrices);
     //        if(i%10==0){
-    //            cout<<v.activeBones()<<" "<<v.position<<endl;
+    //            std::cout<<v.activeBones()<<" "<<v.position<<endl;
     //        }
     //        i++;
     //    }

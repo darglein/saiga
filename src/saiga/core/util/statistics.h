@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <saiga/core/util/assert.h>
 #include <vector>
 
@@ -60,7 +61,7 @@ Statistics<T>::Statistics(const std::vector<T>& _data)
     variance /= numValues;
 
     sdev = std::sqrt(variance);
-    rms = std::sqrt(rms / numValues);
+    rms  = std::sqrt(rms / numValues);
 }
 
 template <typename T>

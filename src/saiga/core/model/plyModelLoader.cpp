@@ -22,7 +22,7 @@ PLYLoader::PLYLoader(const std::string& _file)
 
     if (!stream.is_open())
     {
-        cerr << "Could not open file " << file << endl;
+        std::cerr << "Could not open file " << file << std::endl;
         throw std::runtime_error("invalid file: " + file + ", " + _file);
     }
 
@@ -32,7 +32,7 @@ PLYLoader::PLYLoader(const std::string& _file)
     // read the data:
     data = std::vector<char>((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
 
-    //         cout << "filesize: " << data.size() << endl;
+    //         std::cout << "filesize: " << data.size() << std::endl;
 
     parseHeader();
     parseMeshBinary();
@@ -78,13 +78,13 @@ void PLYLoader::parseHeader()
     int elementStatus = -1;
     for (auto l : headerLines)
     {
-        //        cout << l << endl;
+        //        std::cout << l << std::endl;
         std::vector<std::string> splitLine = split(l, ' ');
 
         if (splitLine.size() == 0) continue;
 
         std::string& type = splitLine[0];
-        //            cout << "type " << type << endl;
+        //            std::cout << "type " << type << std::endl;
 
 
         if (type == "format")
@@ -132,9 +132,9 @@ void PLYLoader::parseHeader()
     }
 
 
-    //    cout << endl;
-    //    cout << "V " << vertexCount << " F " << faceCount << endl;
-    //    cout << "Face: " << faceVertexCountType << " - " << faceVertexIndexType << endl;
+    //    std::cout << std::endl;
+    //    std::cout << "V " << vertexCount << " F " << faceCount << std::endl;
+    //    std::cout << "Face: " << faceVertexCountType << " - " << faceVertexIndexType << std::endl;
 
     offsetType.resize(6, std::pair<int, int>(0, -1));
 
@@ -151,15 +151,15 @@ void PLYLoader::parseHeader()
         if (vp.name == "green") offsetType[4] = std::make_pair(vertexSize, t);
         if (vp.name == "blue") offsetType[5] = std::make_pair(vertexSize, t);
 
-        //        cout << "Prop: " << vp.type << " " << vp.name << endl;
+        //        std::cout << "Prop: " << vp.type << " " << vp.name << std::endl;
         vertexSize += sizeoftype(vp.type);
     }
 
-    //    cout << "vertex size: " << vertexSize << endl;
+    //    std::cout << "vertex size: " << vertexSize << std::endl;
 
 
     SAIGA_ASSERT(vertexCount > 0 && faceCount > 0);
-    //        cout << header << endl;
+    //        std::cout << header << std::endl;
 }
 
 void PLYLoader::parseMeshBinary()
@@ -195,7 +195,7 @@ void PLYLoader::parseMeshBinary()
         mesh.addVertex(v);
         //            float x = reinterpret_cast<float*>(start)[0];
         //            float x = reinterpret_cast<float*>(start)[0];
-        //            cout << "x " << x << endl;
+        //            std::cout << "x " << x << std::endl;
     }
 
     int faceStart = dataStart + vertexCount * vertexSize;
@@ -212,12 +212,12 @@ void PLYLoader::parseMeshBinary()
         mesh.addFace(face);
 
         start += sizeof(uint32_t) * c;
-        //            cout << c << endl;
+        //            std::cout << c << std::endl;
     }
 
     mesh.computePerVertexNormal();
 
-    cout << "Loaded Ply mesh: V " << mesh.vertices.size() << " F " << mesh.faces.size() << endl;
+    std::cout << "Loaded Ply mesh: V " << mesh.vertices.size() << " F " << mesh.faces.size() << std::endl;
 }
 
 }  // namespace Saiga

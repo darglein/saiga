@@ -27,7 +27,7 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
 {
     setupRenderPass();
     renderCommandPool = base().mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
-    cout << "VulkanForwardRenderer init done." << endl;
+    std::cout << "VulkanForwardRenderer init done." << std::endl;
 }
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
@@ -137,7 +137,7 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
     VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    //    cout << "VulkanForwardRenderer::render" << endl;
+    //    std::cout << "VulkanForwardRenderer::render" << std::endl;
     if (imGui)
     {
         //        std::thread t([&](){

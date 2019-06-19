@@ -44,14 +44,14 @@ void testMatrixVector2()
     y = (A * x).eval();
     // asm("# End y=A*x");
 
-    cout << y << endl;
+    std::cout << y << std::endl;
 }
 
 void testMatrixVector()
 {
-    cout << "testMatrixVector" << endl;
+    std::cout << "testMatrixVector" << std::endl;
 
     testMatrixVector2();
 
-    cout << "testMatrixVector done." << endl;
+    std::cout << "testMatrixVector done." << std::endl;
 }

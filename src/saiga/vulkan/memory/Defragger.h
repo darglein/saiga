@@ -4,7 +4,7 @@
 
 #pragma once
 #include "saiga/core/util/easylogging++.h"
-#include "saiga/core/util/threadName.h"
+#include "saiga/core/util/Thread/threadName.h"
 #include "saiga/vulkan/CommandPool.h"
 #include "saiga/vulkan/Queue.h"
 

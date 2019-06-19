@@ -44,7 +44,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     sun->createShadowMap(2048, 2048);
     sun->enableShadows();
 
-    cout << "Program Initialized!" << endl;
+    std::cout << "Program Initialized!" << std::endl;
 }
 
 void Sample::update(float dt)

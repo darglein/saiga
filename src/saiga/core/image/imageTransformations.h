@@ -22,10 +22,11 @@ SAIGA_CORE_API void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4>
 SAIGA_CORE_API void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst, float minD = 0, float maxD = 7);
 
 SAIGA_CORE_API void RGBAToGray8(ImageView<const ucvec4> src, ImageView<unsigned char> dst);
-
 // with scale = 1 the resulting grayscale will be in the range 0..255
 SAIGA_CORE_API void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> dst, float scale = 1.0f);
 
+
+SAIGA_CORE_API float sharpness(ImageView<const unsigned char> src);
 /**
  * Converts a floating point image to a 8-bit image and saves it.
  * Useful for debugging.

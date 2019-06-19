@@ -10,6 +10,8 @@
 #include "saiga/core/imgui/imgui.h"
 
 #include "internal/noGraphicsAPI.h"
+
+#include <iostream>
 namespace Saiga
 {
 WindowBase::WindowBase(WindowParameters _windowParameters) : mainLoop(*this), windowParameters(_windowParameters)
@@ -21,7 +23,7 @@ WindowBase::~WindowBase() {}
 
 void WindowBase::close()
 {
-    cout << "Window: close" << endl;
+    std::cout << "Window: close" << std::endl;
     running = false;
 }
 

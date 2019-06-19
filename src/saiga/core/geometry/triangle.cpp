@@ -77,7 +77,7 @@ vec3 Triangle::normal()
 
 std::ostream& operator<<(std::ostream& os, const Triangle& t)
 {
-    std::cout << "Triangle: " << t.a << t.b << t.c;
+    os << "Triangle: " << t.a << t.b << t.c;
     return os;
 }
 

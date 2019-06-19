@@ -57,8 +57,8 @@ void OpenGLWindow::renderImGui(bool* p_open)
     ImGui::Text("Camera Direction: %s", to_string(-make_vec3(currentCamera->getDirection())).c_str());
     if (ImGui::Button("Printf camera"))
     {
-        cout << "camera.position = vec4" << currentCamera->position << ";" << endl;
-        cout << "camera.rot = quat" << currentCamera->rot << ";" << endl;
+        std::cout << "camera.position = vec4" << currentCamera->position << ";" << std::endl;
+        std::cout << "camera.rot = quat" << currentCamera->rot << ";" << std::endl;
         //        createTRSmatrix()
     }
 
@@ -107,7 +107,7 @@ bool OpenGLWindow::create()
 
     glDebugMessageCallback(Error::DebugLogConst, NULL);
 
-    cout << ">> Window inputs initialized!" << endl;
+    std::cout << ">> Window inputs initialized!" << std::endl;
     assert_no_glerror();
 
     return true;
@@ -169,7 +169,7 @@ void OpenGLWindow::screenshotRender(const std::string& file)
 {
     SAIGA_ASSERT(0);
 #if 0
-    //    cout<<"Window::screenshotRender "<<file<<endl;
+    //    std::cout<<"Window::screenshotRender "<<file<<endl;
     int w = renderer->width;
     int h = renderer->height;
 
@@ -237,7 +237,7 @@ void OpenGLWindow::screenshotRenderDepth(const std::string& file)
 {
     SAIGA_ASSERT(0);
 #if 0
-    //    cout<<"Window::screenshotRender "<<file<<endl;
+    //    std::cout<<"Window::screenshotRender "<<file<<endl;
     int w = renderer->width;
     int h = renderer->height;
 

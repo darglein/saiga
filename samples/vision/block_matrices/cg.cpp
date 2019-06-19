@@ -32,7 +32,7 @@ namespace Saiga
 {
 void testCG()
 {
-    cout << "perfTestCG" << endl;
+    std::cout << "perfTestCG" << std::endl;
 
     Eigen::setNbThreads(1);
     Saiga::Random::setSeed(34534);
@@ -117,7 +117,7 @@ void testCG()
 
 
 
-    cout << "matrix constructed" << endl;
+    std::cout << "matrix constructed" << std::endl;
 
     // sanity checks
     //    SAIGA_ASSERT((expand(bA) - A.toDense()).norm() == 0);
@@ -135,8 +135,8 @@ void testCG()
             x = solver.solve(b);
         }
 
-        cout << "error " << solver.error() << " iterations " << solver.iterations() << endl;
-        cout << "Eigen cg error: " << (A * x - b).squaredNorm() << endl << endl;
+        std::cout << "error " << solver.error() << " iterations " << solver.iterations() << std::endl;
+        std::cout << "Eigen cg error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
     }
 
     {
@@ -152,8 +152,8 @@ void testCG()
             x = solver.solve(b);
         }
 
-        cout << "error " << solver.error() << " iterations " << solver.iterations() << endl;
-        cout << "Eigen cg error: " << (A * x - b).squaredNorm() << endl << endl;
+        std::cout << "error " << solver.error() << " iterations " << solver.iterations() << std::endl;
+        std::cout << "Eigen cg error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
     }
 #endif
     {
@@ -166,8 +166,8 @@ void testCG()
             P.compute(A);
             Eigen::internal::conjugate_gradient(A, b, x, P, iters, tol);
         }
-        cout << "error " << tol << " iterations " << iters << endl;
-        cout << "Eigen cg error: " << (A * x - b).squaredNorm() << endl << endl;
+        std::cout << "error " << tol << " iterations " << iters << std::endl;
+        std::cout << "Eigen cg error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
     }
 
     {
@@ -182,8 +182,8 @@ void testCG()
                                          bb, bx, P, iters, tol);
         }
         x = expand(bx);
-        cout << "error " << tol << " iterations " << iters << endl;
-        cout << "Eigen cg error: " << (A * x - b).squaredNorm() << endl << endl;
+        std::cout << "error " << tol << " iterations " << iters << std::endl;
+        std::cout << "Eigen cg error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
     }
 }
 

@@ -90,7 +90,7 @@ class RPOTest
             //            inliers = rpo.optimizePoseRobust4(wps4, obs, outlier, p, K);
         }
 
-        //        cout << "[PoseRefinement] Wps/Inliers " << wps.size() << "/" << inliers << " " << p << endl;
+        //        std::cout << "[PoseRefinement] Wps/Inliers " << wps.size() << "/" << inliers << " " << p << std::endl;
         return inliers;
     }
 
@@ -119,13 +119,13 @@ int main(int, char**)
 
     Saiga::EigenHelper::EigenCompileFlags flags;
     flags.create<3998735>();
-    cout << flags << endl;
+    std::cout << flags << std::endl;
     RPOTest<double, true> test_float;
     RPOTest<double, false> test_double;
-    cout << endl;
+    std::cout << std::endl;
 
-    //    cout << Kernel::huberWeight(0.5, 0.4999 * 0.4999) << endl << endl;
-    //    cout << Kernel::huberWeight(0.5, 0.5001 * 0.5001) << endl << endl;
+    //    std::cout << Kernel::huberWeight(0.5, 0.4999 * 0.4999) << std::endl << std::endl;
+    //    std::cout << Kernel::huberWeight(0.5, 0.5001 * 0.5001) << std::endl << std::endl;
     //    return 0;
 
     int sum = 0;
@@ -136,7 +136,7 @@ int main(int, char**)
     //    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
     //    auto b = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
 
-    cout << "Sum: " << sum << endl;
-    //    cout << a.median << " " << b.median << endl;
+    std::cout << "Sum: " << sum << std::endl;
+    //    std::cout << a.median << " " << b.median << std::endl;
     return 0;
 }

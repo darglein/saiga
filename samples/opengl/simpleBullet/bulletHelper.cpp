@@ -6,6 +6,7 @@
 
 #include "bulletHelper.h"
 
+#include <iostream>
 namespace Saiga
 {
 void createCollisionShape(std::vector<Triangle>& mesh, btBvhTriangleMeshShape*& outShape, btTriangleMesh*& outMesh)
@@ -45,7 +46,7 @@ btRigidBody* createRigidBody(btCollisionShape* collisionShape, float mass, vec3 
 {
     if (!collisionShape)
     {
-        cout << "createRigidbody: collision shape is null!" << endl;
+        std::cout << "createRigidbody: collision shape is null!" << std::endl;
     }
 
     // rigidbody is dynamic if and only if mass is non zero, otherwise static

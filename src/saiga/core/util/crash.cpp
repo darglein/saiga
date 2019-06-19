@@ -8,6 +8,8 @@
 
 #include "saiga/core/util/assert.h"
 
+#include <iostream>
+
 
 #if defined(_WIN32)
 #    include <signal.h>

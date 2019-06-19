@@ -13,7 +13,7 @@
 namespace Saiga
 {
 SAIGA_CORE_API extern void saiga_assert_fail(const std::string& __assertion, const char* __file, unsigned int __line,
-                                           const char* __function, const std::string& __message);
+                                             const char* __function, const std::string& __message);
 }
 
 
@@ -38,9 +38,20 @@ SAIGA_CORE_API extern void saiga_assert_fail(const std::string& __assertion, con
 #    define SAIGA_ASSERT_FUNCTION __PRETTY_FUNCTION__
 #    define SAIGA_SHORT_FUNCTION __FUNCTION__
 #else
-#error Unknown compiler.
+#    error Unknown compiler.
 #endif
 
+#ifdef SAIGA_DEBUG
+#    define SAIGA_DEBUG_ASSERT(expr) \
+        ((expr) ? static_cast<void>(0) : Saiga::saiga_assert_fail(#expr, __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION))
+
+#else
+#    define SAIGA_DEBUG_ASSERT(expr) \
+        if (false)                   \
+            static_cast<void>(expr); \
+        else                         \
+            static_cast<void>(0)
+#endif
 
 
 #if defined(SAIGA_ASSERTS)

@@ -9,7 +9,7 @@
 #include "saiga/core/image/imageBase.h"
 #include "saiga/core/image/imageFormat.h"
 #include "saiga/core/image/imageView.h"
-#include "saiga/core/util/ArrayView.h"
+#include "saiga/core/util/DataStructures/ArrayView.h"
 
 #include <vector>
 

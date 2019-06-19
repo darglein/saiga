@@ -9,7 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/core/imgui/imgui_saiga.h"
 #include "saiga/core/time/gameTime.h"
-#include "saiga/core/util/semaphore.h"
+#include "saiga/core/util/Thread/semaphore.h"
 
 #include <thread>
 
@@ -42,7 +42,7 @@ struct SAIGA_CORE_API MainLoopParameters
     int maxFrameSkip       = 0;
     bool parallelUpdate    = false;
     bool catchUp           = false;
-    bool printInfoMsg      = true;
+    bool printInfoMsg      = false;
 
     /**
      *  Reads all paramters from the given config file.

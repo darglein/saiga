@@ -143,7 +143,7 @@ void Heightmap::createInitialHeightmap()
                         F(xf - wf, yf - hf) * (xf) * (yf) + F(xf, yf - hf) * (wf - xf) * (yf)) /
                        (wf * hf);
 
-            //            cout<<h<<endl;
+            //            std::cout<<h<<endl;
             setHeight(x, y, he);
         }
     }
@@ -170,7 +170,7 @@ void Heightmap::normalizeHeightMap()
 
     float m = minH;
 
-    cout << "min " << minH << " max " << maxH << endl;
+    std::cout << "min " << minH << " max " << maxH << std::endl;
     for (int x = 0; x < w; ++x)
     {
         for (int y = 0; y < h; ++y)
@@ -227,10 +227,10 @@ void Heightmap::createNormalmap()
                 //                vec3 n = cross(vb,va);
 
                 n = normalize(n);
-                //                 cout<<"Normal "<<n<<endl;
+                //                 std::cout<<"Normal "<<n<<endl;
                 n = 0.5f * n + vec3(0.5f);  // now in range 0,1
                 n = n * 255.0f;             // range 0,255
-                //                cout<<"Normal "<<n<<endl;
+                //                std::cout<<"Normal "<<n<<endl;
                 n = clamp(n, vec3(0), vec3(255));
 
                 //                normalmap[layer].setPixel(x,y,(uint8_t)n[0],(uint8_t)n[1],(uint8_t)n[2]);
@@ -293,7 +293,7 @@ void Heightmap::createRemainingLayers()
         //        Image& previous = heightmap[i-1];
         Image& next = heightmap[i];
         // reduce previous to get the next
-        cout << "reduce next " << next.width << " " << next.height << endl;
+        std::cout << "reduce next " << next.width << " " << next.height << std::endl;
         for (int x = 0; x < next.width; ++x)
         {
             for (int y = 0; y < next.height; ++y)
@@ -353,7 +353,7 @@ void Heightmap::saveHeightmaps()
 
         SAIGA_ASSERT(0);
         //        if(!TextureLoader::instance()->saveImage(name,heightmap[i])){
-        //            cout<<"could not save "<<name<<endl;
+        //            std::cout<<"could not save "<<name<<endl;
         //        }
     }
 }
@@ -365,7 +365,7 @@ void Heightmap::saveNormalmaps()
 
 
         //        if(!TextureLoader::instance()->saveImage(name,normalmap[i])){
-        //            cout<<"could not save "<<name<<endl;
+        //            std::cout<<"could not save "<<name<<endl;
         //        }
     }
 }
@@ -378,7 +378,7 @@ bool Heightmap::loadMaps()
     {
         std::string name = "heightmap" + std::to_string(i) + ".png";
 
-        cout << "load heightmap " << endl;
+        std::cout << "load heightmap " << std::endl;
         //        if (!TextureLoader::instance()->loadImage(name,heightmap[i]))
         //            return false;
     }

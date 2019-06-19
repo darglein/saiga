@@ -116,7 +116,7 @@ int main(int argc, char* args[])
         img.getImageView().set(128);
         for (int i = 0; i < 17; ++i)
         {
-            cout << vec2(halton(i, 2), halton(i, 3)) * 1.6f << endl;
+            std::cout << vec2(halton(i, 2), halton(i, 3)) * 1.6f << std::endl;
             set(vec2(halton(i, 2), halton(i, 3)));
         }
         img.save("random_halton.png");

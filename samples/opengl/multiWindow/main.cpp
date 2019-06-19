@@ -43,11 +43,11 @@ int main(int argc, char* args[])
             // Everyhing is initilalized, we can run the main loop now!
             window.startMainLoop();
         }
-        cout << "window closed. Opening next window in..." << endl;
+        std::cout << "window closed. Opening next window in..." << std::endl;
 
         for (int j = 0; i < 3 && j < 3; ++j)
         {
-            cout << (3 - j) << endl;
+            std::cout << (3 - j) << std::endl;
 
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }

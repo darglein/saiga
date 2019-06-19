@@ -65,7 +65,7 @@ Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer)
     sun->enableShadows();
 
 
-    cout << "Program Initialized!" << endl;
+    std::cout << "Program Initialized!" << std::endl;
 }
 
 Sample::~Sample()

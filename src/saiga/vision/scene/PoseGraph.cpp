@@ -103,27 +103,27 @@ double PoseGraph::chi2()
 
 void PoseGraph::save(const std::string& file)
 {
-    cout << "Saving PoseGraph to " << file << "." << endl;
-    cout << "chi2 " << chi2() << endl;
+    std::cout << "Saving PoseGraph to " << file << "." << std::endl;
+    std::cout << "chi2 " << chi2() << std::endl;
     std::ofstream strm(file);
     SAIGA_ASSERT(strm.is_open());
     strm.precision(20);
     strm << std::scientific;
 
-    strm << poses.size() << " " << edges.size() << endl;
+    strm << poses.size() << " " << edges.size() << std::endl;
     for (auto& e : poses)
     {
-        strm << e.constant << " " << e.se3.params().transpose() << endl;
+        strm << e.constant << " " << e.se3.params().transpose() << std::endl;
     }
     for (auto& e : edges)
     {
-        strm << e.from << " " << e.to << " " << e.weight << " " << e.meassurement.params().transpose() << endl;
+        strm << e.from << " " << e.to << " " << e.weight << " " << e.meassurement.params().transpose() << std::endl;
     }
 }
 
 void PoseGraph::load(const std::string& file)
 {
-    cout << "Loading scene from " << file << "." << endl;
+    std::cout << "Loading scene from " << file << "." << std::endl;
 
 
     std::ifstream strm(file);
@@ -152,7 +152,7 @@ void PoseGraph::load(const std::string& file)
     strm >> num_vertices >> num_edges;
     poses.resize(num_vertices);
     edges.resize(num_edges);
-    cout << "Vertices/Edges: " << num_vertices << "/" << num_edges << endl;
+    std::cout << "Vertices/Edges: " << num_vertices << "/" << num_edges << std::endl;
 
     for (auto& e : poses)
     {
@@ -215,12 +215,12 @@ bool PoseGraph::imgui()
 
 std::ostream& operator<<(std::ostream& strm, PoseGraph& pg)
 {
-    strm << "[PoseGraph]" << endl;
-    strm << " Poses: " << pg.poses.size() << endl;
-    strm << " Edges: " << pg.edges.size() << endl;
-    strm << " Rms: " << pg.rms() << endl;
-    strm << " Chi2: " << pg.chi2() << endl;
-    strm << " Density: " << pg.density() * 100 << "%" << endl;
+    strm << "[PoseGraph]" << std::endl;
+    strm << " Poses: " << pg.poses.size() << std::endl;
+    strm << " Edges: " << pg.edges.size() << std::endl;
+    strm << " Rms: " << pg.rms() << std::endl;
+    strm << " Chi2: " << pg.chi2() << std::endl;
+    strm << " Density: " << pg.density() * 100 << "%" << std::endl;
     return strm;
 }
 

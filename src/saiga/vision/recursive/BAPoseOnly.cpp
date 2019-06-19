@@ -157,13 +157,13 @@ void BAPoseOnly::posePointDense(Scene& scene, int its)
             }
         }
 
-        //        cout << "J" << endl << J << endl << endl;
+        //        std::cout << "J" << std::endl << J << std::endl << std::endl;
 
-        //        cout << JtJ << endl << endl;
+        //        std::cout << JtJ << std::endl << std::endl;
 
 
         //        std::ofstream strm("jtjdense.txt");
-        //        strm << JtJ << endl;
+        //        strm << JtJ << std::endl;
         //        strm.close();
 
 
@@ -378,7 +378,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene)
             // Not sure how good the sparse matrix mult is of eigen
             // maybe own implementation because the structure is well known before hand
             S = -Y * WT;
-            //        cout << "S" << endl << S.toDense() << endl;
+            //        std::cout << "S" << std::endl << S.toDense() << std::endl;
             S = U + S;
 
             // Step 4
@@ -417,7 +417,7 @@ void BAPoseOnly::posePointSparseSchur(Scene& scene)
                         },
                         ej, deltaA, P, iters, tol);
                 }
-                if (optimizationOptions.debugOutput) cout << "error " << tol << " iterations " << iters << endl;
+                if (optimizationOptions.debugOutput) std::cout << "error " << tol << " iterations " << iters << std::endl;
             }
 
             // Step 6
@@ -607,7 +607,7 @@ OptimizationResults BAPoseOnly::initAndSolve()
         mat.setFromTriplets(tripletList.begin(), tripletList.end());
 
         //        std::ofstream strm("jtjsparse.txt");
-        //        strm << mat << endl;
+        //        strm << mat << std::endl;
         //        strm.close();
         {
             //            double lambda = 1;
@@ -624,7 +624,7 @@ OptimizationResults BAPoseOnly::initAndSolve()
 
 
 #if 0
-        cout << mat.toDense() << endl;
+        std::cout << mat.toDense() << std::endl;
 #endif
 
 

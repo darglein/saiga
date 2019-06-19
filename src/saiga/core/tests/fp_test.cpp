@@ -12,6 +12,7 @@
 
 #include "test.h"
 
+#include <iostream>
 #include <random>
 namespace Saiga
 {
@@ -75,8 +76,8 @@ void fpTest(float x)
         float b          = 0.2f;
         float erg        = a + b + x;
         unsigned int ref = 0x3fa66666;
-        cout << "Addition test: " << (fToUint(erg) == ref ? "Success" : "Fail") << endl;
-        //        cout << erg << " " << hex << fToUint(erg) << endl;
+        std::cout << "Addition test: " << (fToUint(erg) == ref ? "Success" : "Fail") << std::endl;
+        //        std::cout << erg << " " << hex << fToUint(erg) << std::endl;
     }
 
     {
@@ -84,8 +85,8 @@ void fpTest(float x)
         float f          = 0.1f;
         float erg        = f * f * x;
         unsigned int ref = 0x3c23d70b;
-        cout << "Multiply test: " << (fToUint(erg) == ref ? "Success" : "Fail") << endl;
-        //        cout << erg << " " << hex << fToUint(erg) << endl;
+        std::cout << "Multiply test: " << (fToUint(erg) == ref ? "Success" : "Fail") << std::endl;
+        //        std::cout << erg << " " << hex << fToUint(erg) << std::endl;
     }
 
     {
@@ -94,8 +95,8 @@ void fpTest(float x)
         float b          = 7.0f;
         float erg        = a / b * x;
         unsigned int ref = 0x3edb6db7;
-        cout << "Division test: " << (fToUint(erg) == ref ? "Success" : "Fail") << endl;
-        //        cout << erg << " " << hex << fToUint(erg) << endl;
+        std::cout << "Division test: " << (fToUint(erg) == ref ? "Success" : "Fail") << std::endl;
+        //        std::cout << erg << " " << hex << fToUint(erg) << std::endl;
     }
 
     {
@@ -113,9 +114,9 @@ void fpTest(float x)
         for (int i = 0; i < N; ++i)
         {
             if (fToUint(output[i]) != ref[i]) success = false;
-            //            cout << hex << "0x" << fToUint(output[i]) << ", " ;
+            //            std::cout << hex << "0x" << fToUint(output[i]) << ", " ;
         }
-        cout << "sinf(x) test: " << (success ? "Success" : "Fail") << endl;
+        std::cout << "sinf(x) test: " << (success ? "Success" : "Fail") << std::endl;
     }
 
     {
@@ -133,9 +134,9 @@ void fpTest(float x)
         for (int i = 0; i < N; ++i)
         {
             if (fToUint(output[i]) != ref[i]) success = false;
-            //            cout << hex << "0x" << fToUint(output[i]) << ", " ;
+            //            std::cout << hex << "0x" << fToUint(output[i]) << ", " ;
         }
-        cout << "sqrt(x) test: " << (success ? "Success" : "Fail") << endl;
+        std::cout << "sqrt(x) test: " << (success ? "Success" : "Fail") << std::endl;
     }
 
     {
@@ -152,11 +153,11 @@ void fpTest(float x)
         unsigned int refx = 0x44ad9a30;
         unsigned int refy = 0x452d9a30;
         unsigned int refz = 0x45d900b7;
-        cout << "Integration test: "
-             << ((fToUint(pos[0]) == refx) && (fToUint(pos[1]) == refy) && (fToUint(pos[2]) == refz) ? "Success"
-                                                                                                     : "Fail")
-             << endl;
-        //        cout << hex << fToUint(pos[0]) << " " << fToUint(pos[1])<< " " << fToUint(pos[2])  << endl;
+        std::cout << "Integration test: "
+                  << ((fToUint(pos[0]) == refx) && (fToUint(pos[1]) == refy) && (fToUint(pos[2]) == refz) ? "Success"
+                                                                                                          : "Fail")
+                  << std::endl;
+        //        std::cout << hex << fToUint(pos[0]) << " " << fToUint(pos[1])<< " " << fToUint(pos[2])  << std::endl;
     }
 
 
@@ -170,7 +171,7 @@ void fpTest(float x)
         float f          = dis(mt);
         unsigned int ref = 0x3f36b6eb;
 
-        cout << "Random distribution test: " << ((fToUint(f) == ref) ? "Success" : "Fail") << endl;
+        std::cout << "Random distribution test: " << ((fToUint(f) == ref) ? "Success" : "Fail") << std::endl;
 
 
         for (int i = 0; i < 10 * 1000 * 1000; ++i)
@@ -186,8 +187,8 @@ void fpTest(float x)
         }
 
         ref = 0xbc93ad8d;
-        cout << "Random Operations test: " << ((fToUint(f) == ref) ? "Success" : "Fail") << endl;
-        //        cout << hex << fToUint(f) << " " << f << endl;
+        std::cout << "Random Operations test: " << ((fToUint(f) == ref) ? "Success" : "Fail") << std::endl;
+        //        std::cout << hex << fToUint(f) << " " << f << std::endl;
     }
 }
 

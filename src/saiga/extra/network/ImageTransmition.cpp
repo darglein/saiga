@@ -17,7 +17,7 @@ ImageTransmition::ImageTransmition(std::string host, uint32_t port) : socket(ios
     ip::udp::resolver resolver(ios);
     endpoint = *resolver.resolve(query);
 
-    cout << "ImageTransmition " << endpoint.address().to_string() << " " << endpoint.port() << endl;
+    std::cout << "ImageTransmition " << endpoint.address().to_string() << " " << endpoint.port() << std::endl;
 }
 
 ImageTransmition::~ImageTransmition()
@@ -122,7 +122,7 @@ bool ImageTransmition::recieveImage(Image& img)
         img.create(h.height, h.width, h.pitch, (Saiga::ImageType)h.type);
         SAIGA_ASSERT(checkHeader(img, h));
 
-        //    cout << "got image" << endl;
+        //    std::cout << "got image" << std::endl;
 
         //    return;
 
@@ -139,7 +139,7 @@ bool ImageTransmition::recieveImage(Image& img)
             {
                 if (dh->mn == magicNumber)
                 {
-                    cout << "reset to next image " << dh->mn << endl;
+                    std::cout << "reset to next image " << dh->mn << std::endl;
                     memcpy(&h, buffer.data(), sizeof(ImageHeader));
                     //                    SAIGA_ASSERT(checkHeader(img,h));
                     i = 0;
@@ -151,7 +151,7 @@ bool ImageTransmition::recieveImage(Image& img)
 
             if (dh->imageId != h.imageId)
             {
-                cout << "invalid imageid" << endl;
+                std::cout << "invalid imageid" << std::endl;
                 i--;
                 continue;
             }
@@ -163,7 +163,7 @@ bool ImageTransmition::recieveImage(Image& img)
             //        size_t packetSize = min(dataPacketSize,imageSize-offset);
             //        auto buf = boost::asio::buffer(img.data8() + offset, packetSize);
             //        auto size = socket.receive_from(buf, endpoint);
-            //        cout << size << " " << packetSize << endl;
+            //        std::cout << size << " " << packetSize << std::endl;
             //        SAIGA_ASSERT(size == packetSize);
         }
 

@@ -7,7 +7,7 @@
 #include "RGBDCamera.h"
 
 #include "saiga/core/util/ini/ini.h"
-#include "saiga/core/util/threadName.h"
+#include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/Ini.h"
 namespace Saiga
@@ -48,14 +48,14 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
 
 std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value)
 {
-    strm << "[RGBDIntrinsics]" << endl;
-    strm << "K: " << value.K.coeffs().transpose() << endl;
-    strm << "depthK: " << value.depthK.coeffs().transpose() << endl;
-    strm << "Distortion: " << value.dis.transpose() << endl;
-    strm << "Color: " << value.rgbo.w << "x" << value.rgbo.h << endl;
-    strm << "Depth: " << value.deptho.w << "x" << value.deptho.h << endl;
-    strm << "Fps: " << value.fps << endl;
-    strm << "MaxFrames: " << value.maxFrames << endl;
+    strm << "[RGBDIntrinsics]" << std::endl;
+    strm << "K: " << value.K.coeffs().transpose() << std::endl;
+    strm << "depthK: " << value.depthK.coeffs().transpose() << std::endl;
+    strm << "Distortion: " << value.dis.transpose() << std::endl;
+    strm << "Color: " << value.rgbo.w << "x" << value.rgbo.h << std::endl;
+    strm << "Depth: " << value.deptho.w << "x" << value.deptho.h << std::endl;
+    strm << "Fps: " << value.fps << std::endl;
+    strm << "MaxFrames: " << value.maxFrames << std::endl;
     return strm;
 }
 

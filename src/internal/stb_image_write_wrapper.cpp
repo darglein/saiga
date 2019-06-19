@@ -1,6 +1,8 @@
 ﻿#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write_wrapper.h"
 
+#include <iostream>
+
 #include "stb_image_write.h"
 
 namespace Saiga
@@ -19,7 +21,7 @@ bool saveImageSTB(const std::string& path, const Image& img)
     }
     else
     {
-        std::cerr << "saveImageSTB: unsupported image type." << endl;
+        std::cerr << "saveImageSTB: unsupported image type." << std::endl;
         return false;
     }
 }

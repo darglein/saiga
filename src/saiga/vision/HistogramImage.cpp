@@ -47,7 +47,7 @@ void HistogramImage::writeBinary(const std::string& file)
             }
         }
     }
-    cout << outimg << endl;
+    std::cout << outimg << std::endl;
     outimg.save(file);
 }
 

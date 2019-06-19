@@ -8,6 +8,8 @@
 
 #include "saiga/core/util/tostring.h"
 
+#include <iostream>
+
 #include <unordered_map>
 
 

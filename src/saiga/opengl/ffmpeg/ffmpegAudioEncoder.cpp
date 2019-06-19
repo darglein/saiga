@@ -24,7 +24,7 @@ FFMPEGAudioEncoder::FFMPEGAudioEncoder()
 
 void FFMPEGAudioEncoder::addFrame()
 {
-    //    cout << "Adding audio frame." << endl;
+    //    std::cout << "Adding audio frame." << std::endl;
     SAIGA_ASSERT(currentSamples == buffer_size);
 
     pkt.data = NULL;  // packet data will be allocated by the encoder
@@ -165,7 +165,7 @@ static int select_channel_layout(AVCodec *codec)
 
 void FFMPEGAudioEncoder::startEncoding(const std::string& filename)
 {
-    cout << "Encode audio file " << filename << endl;
+    std::cout << "Encode audio file " << filename << std::endl;
     /* find the MP2 encoder */
     codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
     if (!codec)
@@ -205,10 +205,10 @@ void FFMPEGAudioEncoder::startEncoding(const std::string& filename)
         exit(1);
     }
 
-    cout << "Audio encoding. "
+    std::cout << "Audio encoding. "
             "c->sample_rate="
          << c->sample_rate << " c->channel_layout=" << c->channel_layout << " c->channels=" << c->channels
-         << " c->frame_size=" << c->frame_size << endl;
+         << " c->frame_size=" << c->frame_size << std::endl;
 
     outputStream.open(filename, std::ios::out | std::ios::binary);
 
@@ -229,7 +229,7 @@ void FFMPEGAudioEncoder::startEncoding(const std::string& filename)
      * we calculate the size of the samples buffer in bytes */
     buffer_size = av_samples_get_buffer_size(NULL, c->channels, c->frame_size, c->sample_fmt, 0);
     SAIGA_ASSERT(buffer_size == bytesPerSample * c->frame_size);
-    cout << "buffer size: " << buffer_size << " test " << 2 * 2 * c->frame_size << endl;
+    std::cout << "buffer size: " << buffer_size << " test " << 2 * 2 * c->frame_size << std::endl;
     if (buffer_size < 0)
     {
         fprintf(stderr, "Could not get sample buffer size\n");

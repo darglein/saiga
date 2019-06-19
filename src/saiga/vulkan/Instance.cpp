@@ -49,20 +49,20 @@ void Instance::create(const std::vector<std::string>& _instanceExtensions, bool 
 
         if (hasExtension(ext) && hasLayer(val))
         {
-            cout << "Vulkan Validation layer enabled!" << endl;
+            std::cout << "Vulkan Validation layer enabled!" << std::endl;
             instanceExtensions.push_back(ext);
             instanceLayers.push_back(val);
         }
         else if (!hasExtension(ext))
         {
-            cerr << "Vulkan Warning: You tried to enable the validation layer, but the extension " << ext
-                 << " was not found. Starting without valdiation layer..." << endl;
+            std::cerr << "Vulkan Warning: You tried to enable the validation layer, but the extension " << ext
+                 << " was not found. Starting without valdiation layer..." << std::endl;
             enableValidation = false;
         }
         else if (!hasLayer(val))
         {
-            cerr << "Vulkan Warning: You tried to enable the validation layer, but the layer " << val
-                 << " was not found. Starting without valdiation layer..." << endl;
+            std::cerr << "Vulkan Warning: You tried to enable the validation layer, but the layer " << val
+                 << " was not found. Starting without valdiation layer..." << std::endl;
             enableValidation = false;
         }
     }
@@ -87,7 +87,7 @@ void Instance::create(const std::vector<std::string>& _instanceExtensions, bool 
     {
         debug.init(instance);
     }
-    cout << "Vulkan instance created." << endl;
+    std::cout << "Vulkan instance created." << std::endl;
 }
 
 vk::PhysicalDevice Instance::pickPhysicalDevice()

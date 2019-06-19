@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 
 namespace Saiga
 {
@@ -24,7 +25,7 @@ std::vector<unsigned char> loadFileBinary(const std::string& file)
     std::ifstream is(file, std::ios::binary | std::ios::in | std::ios::ate);
     if (!is.is_open())
     {
-        cout << "File not found " << file << endl;
+        std::cout << "File not found " << file << std::endl;
         return result;
     }
 
@@ -42,7 +43,7 @@ std::string loadFileString(const std::string& file)
     std::ifstream fileStream(file, std::ios::in);
     if (!fileStream.is_open())
     {
-        cout << "File not found " << file << endl;
+        std::cout << "File not found " << file << std::endl;
         return "";
     }
     std::string line = "";
@@ -72,7 +73,7 @@ std::vector<std::string> loadFileStringArray(const std::string& file)
     std::ifstream fileStream(file, std::ios::in);
     if (!fileStream.is_open())
     {
-        cout << "File not found " << file << endl;
+        std::cout << "File not found " << file << std::endl;
         return {};
     }
     std::string line = "";
@@ -105,7 +106,7 @@ void saveFileBinary(const std::string& file, const void* data, size_t size)
     std::ofstream is(file, std::ios::binary | std::ios::out);
     if (!is.is_open())
     {
-        cout << "File not found " << file << endl;
+        std::cout << "File not found " << file << std::endl;
         return;
     }
 

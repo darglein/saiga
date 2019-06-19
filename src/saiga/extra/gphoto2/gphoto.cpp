@@ -7,7 +7,7 @@
 #include "gphoto.h"
 
 #include "saiga/core/util/file.h"
-#include "saiga/core/util/threadName.h"
+#include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -31,7 +31,7 @@
         auto ret = _X;                                                            \
         if (ret != GP_OK)                                                         \
         {                                                                         \
-            cout << "Gphoto error in " << #_X << endl << "code: " << ret << endl; \
+            std::cout << "Gphoto error in " << #_X << std::endl << "code: " << ret << std::endl; \
             SAIGA_ASSERT(0);                                                      \
         }                                                                         \
     }
@@ -52,7 +52,7 @@ GPhoto::GPhoto() : imageBuffer(10)
 
 GPhoto::~GPhoto()
 {
-    cout << "~GPhoto" << endl;
+    std::cout << "~GPhoto" << std::endl;
     if (running)
     {
         running = false;
@@ -62,7 +62,7 @@ GPhoto::~GPhoto()
     if (camera)
     {
         gp_camera_free((Camera*)camera);
-        cout << "DSLR Camera closed." << endl;
+        std::cout << "DSLR Camera closed." << std::endl;
     }
 }
 
@@ -114,7 +114,7 @@ bool getEvent(GPContext* context, Camera* camera, Event& event)
 
     if (retval != GP_OK)
     {
-        cerr << "gp_camera_wait_for_event failed with error code " << retval << endl;
+        std::cerr << "gp_camera_wait_for_event failed with error code " << retval << std::endl;
         return false;
     }
     return true;
@@ -136,7 +136,7 @@ void GPhoto::eventLoop()
 {
     setThreadName("Saiga::GPhoto");
 
-    cout << "Starting GPhoto2... " << endl;
+    std::cout << "Starting GPhoto2... " << std::endl;
 
     running = true;
 
@@ -164,14 +164,14 @@ void GPhoto::eventLoop()
             else
             {
                 clearEvents();
-                cout << "DSLR Camera opened." << endl;
+                std::cout << "DSLR Camera opened." << std::endl;
             }
         }
         Event e;
         auto gotEvent = getEvent((GPContext*)context, (Camera*)camera, e);
         if (!gotEvent)
         {
-            cout << "Camera connection lost!" << endl;
+            std::cout << "Camera connection lost!" << std::endl;
             foundCamera = false;
             continue;
         }
@@ -183,7 +183,7 @@ void GPhoto::eventLoop()
             std::string imageName = path->name;
             std::string imageDir  = path->folder;
 
-            cout << "GP_EVENT_FILE_ADDED: " << imageName << endl;
+            std::cout << "GP_EVENT_FILE_ADDED: " << imageName << std::endl;
 
             if (hasEnding(imageName, "jpg"))
             {
@@ -243,7 +243,7 @@ GPhoto::waitCaptureComplete ()
 
         Event e = getEvent();
 
-        cout << "got event " << e.evtype << endl;
+        std::cout << "got event " << e.evtype << std::endl;
         path = (CameraFilePath	*)e.data;
         switch (e.evtype) {
 
@@ -295,12 +295,12 @@ GPhoto::waitCaptureComplete ()
         const char	*data;
         gp_file_get_data_and_size (file, &data, &size);
 
-        cout << "size " << size << endl;
+        std::cout << "size " << size << std::endl;
 
 
         //        auto fd = open(qe.path.name, O_RDWR, 0644);
 
-        //        cout << "fd " << fd << " " << qe.path.name << endl;
+        //        std::cout << "fd " << fd << " " << qe.path.name << std::endl;
         //            if (-1 == lseek(fd, qe.offset, SEEK_SET))
         //                perror("lseek");
         //            if (-1 == write (fd, data, size))
@@ -354,7 +354,7 @@ void GPhoto::clearEventQueue()
 void GPhoto::trigger()
 {
     auto retval = gp_camera_trigger_capture (camera, context);
-    cout << "trigger " << retval << endl;
+    std::cout << "trigger " << retval << std::endl;
 
     //    CameraFilePath camera_file_path;
     //    auto retval = gp_camera_capture(camera, GP_CAPTURE_IMAGE, &camera_file_path, context);

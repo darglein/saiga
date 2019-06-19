@@ -65,7 +65,7 @@ bool Sphere::intersect(const Sphere& other)
 
 std::ostream& operator<<(std::ostream& os, const Saiga::Sphere& s)
 {
-    std::cout << "Sphere: " << s.pos << s.r;
+    os << "Sphere: " << s.pos << s.r;
     return os;
 }
 

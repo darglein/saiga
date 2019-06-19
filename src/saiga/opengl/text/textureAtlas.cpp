@@ -38,8 +38,8 @@ void TextureAtlas::loadFont(const std::string& _font, int fontSize, int quality,
     std::string font = SearchPathes::font(_font);
     if (font == "")
     {
-        cerr << "Could not open file " << _font << endl;
-        cerr << SearchPathes::font << endl;
+        std::cerr << "Could not open file " << _font << std::endl;
+        std::cerr << SearchPathes::font << std::endl;
         SAIGA_ASSERT(0);
     }
 
@@ -62,7 +62,7 @@ void TextureAtlas::loadFont(const std::string& _font, int fontSize, int quality,
         return;
     }
 
-    cout << "Generating new SDF Text Atlas: " << uniqueFontString << endl;
+    std::cout << "Generating new SDF Text Atlas: " << uniqueFontString << std::endl;
     quality = quality * 2 + 1;
 
     FontLoader fl(font, blocks);
@@ -80,7 +80,7 @@ void TextureAtlas::loadFont(const std::string& _font, int fontSize, int quality,
         writeAtlasToFiles(img);
     }
 
-    //    cout << "maxCharacter: " << maxCharacter << endl;
+    //    std::cout << "maxCharacter: " << maxCharacter << std::endl;
 
 
 
@@ -103,7 +103,7 @@ const TextureAtlas::character_info& TextureAtlas::getCharacterInfo(int c)
     auto it = characterInfoMap.find(c);
     if (it == characterInfoMap.end())
     {
-        cerr << "TextureAtlas::getCharacterInfo: Invalid character '" << std::hex << c << "'" << endl;
+        std::cerr << "TextureAtlas::getCharacterInfo: Invalid character '" << std::hex << c << "'" << std::endl;
         return invalidCharacter;
     }
     return (*it).second;
@@ -115,7 +115,7 @@ void TextureAtlas::createTextureAtlas(Image& outImg, std::vector<FontLoader::Gly
                                       int searchRadius)
 {
     numCharacters = glyphs.size();
-    cout << "TextureAtlas::createTextureAtlas: Number of glyphs = " << numCharacters << endl;
+    std::cout << "TextureAtlas::createTextureAtlas: Number of glyphs = " << numCharacters << std::endl;
     padGlyphsToDivisor(glyphs, downsample);
     convertToSDF(glyphs, downsample, searchRadius);
     calculateTextureAtlasLayout(glyphs);
@@ -131,7 +131,7 @@ void TextureAtlas::createTextureAtlas(Image& outImg, std::vector<FontLoader::Gly
     outImg.create();
     outImg.makeZero();
 
-    cout << "AtlasWidth " << atlasWidth << " AtlasHeight " << atlasHeight << endl;
+    std::cout << "AtlasWidth " << atlasWidth << " AtlasHeight " << atlasHeight << std::endl;
 
     for (FontLoader::Glyph& g : glyphs)
     {
@@ -213,14 +213,14 @@ void TextureAtlas::padGlyphsToDivisor(std::vector<FontLoader::Glyph>& glyphs, in
         int w = g.bitmap.width;
         int h = g.bitmap.height;
 
-        //                cout<<"old "<<w<<","<<h;
+        //                std::cout<<"old "<<w<<","<<h;
         w += (divisor - (w % divisor)) % divisor;
         h += (divisor - (h % divisor)) % divisor;
 
         SAIGA_ASSERT(w % divisor == 0);
         SAIGA_ASSERT(h % divisor == 0);
 
-        //                cout<<" new "<<w<<","<<h<<endl;
+        //                std::cout<<" new "<<w<<","<<h<<endl;
 
         TemplatedImage<unsigned char> paddedImage(h, w);
         paddedImage.makeZero();
@@ -358,7 +358,7 @@ void TextureAtlas::writeAtlasToFiles(Image& img)
         stream.write((char*)&ci.second, sizeof(character_info));
         i++;
     }
-    //    cout << i << " Characters written to file." << endl;
+    //    std::cout << i << " Characters written to file." << std::endl;
     SAIGA_ASSERT(i == numCharacters);
 
     stream.write((char*)&maxCharacter, sizeof(AABB));
@@ -376,7 +376,7 @@ bool TextureAtlas::readAtlasFromFiles()
         stream.read((char*)&ci, sizeof(character_info));
         characterInfoMap[ci.character] = ci;
     }
-    //    cout << numCharacters << " Characters read from file." << endl;
+    //    std::cout << numCharacters << " Characters read from file." << std::endl;
     stream.read((char*)&maxCharacter, sizeof(AABB));
     stream.close();
 
@@ -391,7 +391,7 @@ bool TextureAtlas::readAtlasFromFiles()
     textureAtlas->fromImage(img, false, false);
     textureAtlas->generateMipmaps();
 
-    cout << "readAtlasFromFiles: " << uniqueFontString << " numCharacters: " << numCharacters << endl;
+    std::cout << "readAtlasFromFiles: " << uniqueFontString << " numCharacters: " << numCharacters << std::endl;
 
     return true;
 }

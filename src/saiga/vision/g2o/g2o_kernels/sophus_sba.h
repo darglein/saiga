@@ -68,8 +68,8 @@ class VertexSE3 : public g2o::BaseVertex<6, SE3>
 
         update2 = update;
 
-        //    cout << "update " << update2 << endl;
-        //    cout << "update se3 " << update2.transpose() << endl;
+        //    std::cout << "update " << update2 << std::endl;
+        //    std::cout << "update se3 " << update2.transpose() << std::endl;
         SAIGA_ASSERT(update2.allFinite());
         setEstimate(SE3::exp(update2) * estimate());
     }

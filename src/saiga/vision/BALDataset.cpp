@@ -22,7 +22,7 @@ namespace Saiga
 {
 BALDataset::BALDataset(const std::string& file)
 {
-    cout << "> Loading BALDataset " << file << endl;
+    std::cout << "> Loading BALDataset " << file << std::endl;
 
     auto data = File::loadFileStringArray(file);
 
@@ -91,8 +91,8 @@ BALDataset::BALDataset(const std::string& file)
 
 
     undistortAll();
-    cout << "> Done. num_cameras " << num_cameras << " num_points " << num_points << " num_observations "
-         << num_observations << " Rms: " << rms() << endl;
+    std::cout << "> Done. num_cameras " << num_cameras << " num_points " << num_points << " num_observations "
+         << num_observations << " Rms: " << rms() << std::endl;
 }
 
 void BALDataset::undistortAll()
@@ -108,7 +108,7 @@ void BALDataset::undistortAll()
 
 #ifdef SAIGA_USE_CERES1
     {
-        cout << "Creating the ceres undistortion problem..." << endl;
+        std::cout << "Creating the ceres undistortion problem..." << std::endl;
         ceres::Problem problem;
         std::vector<Vec2> undistortedPoints(observations.size());
         for (int i = 0; i < observations.size(); ++i)

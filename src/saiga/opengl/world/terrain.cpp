@@ -57,7 +57,7 @@ void Terrain::createMesh()
     }
 
 
-    cout << "Terrain initialized!" << endl;
+    std::cout << "Terrain initialized!" << std::endl;
 }
 
 

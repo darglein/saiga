@@ -4,7 +4,7 @@
 
 #include "Defragger.h"
 
-#include "saiga/core/util/threadName.h"
+#include "saiga/core/util/Thread/threadName.h"
 #include "saiga/vulkan/Base.h"
 
 #include "ImageCopyComputeShader.h"

@@ -38,7 +38,7 @@ GLDebugDrawer::~GLDebugDrawer() {}
 void GLDebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btVector3& fromColor,
                              const btVector3& toColor)
 {
-    cout << "draw line " << endl;
+    std::cout << "draw line " << std::endl;
 }
 
 void GLDebugDrawer::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
@@ -52,29 +52,29 @@ void GLDebugDrawer::drawLine(const btVector3& from, const btVector3& to, const b
 
 void GLDebugDrawer::drawSphere(const btVector3& p, btScalar radius, const btVector3& color)
 {
-    cout << "draw shpere" << endl;
+    std::cout << "draw shpere" << std::endl;
 }
 
 void GLDebugDrawer::drawTriangle(const btVector3& a, const btVector3& b, const btVector3& c, const btVector3& color,
                                  btScalar alpha)
 {
-    cout << "draw triangle" << endl;
+    std::cout << "draw triangle" << std::endl;
 }
 
 void GLDebugDrawer::drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, btScalar distance,
                                      int lifeTime, const btVector3& color)
 {
-    cout << "draw contact point" << endl;
+    std::cout << "draw contact point" << std::endl;
 }
 
 void GLDebugDrawer::reportErrorWarning(const char* warningString)
 {
-    cout << "GLDebugDrawer error/warning: " << warningString << endl;
+    std::cout << "GLDebugDrawer error/warning: " << warningString << std::endl;
 }
 
 void GLDebugDrawer::draw3dText(const btVector3& location, const char* textString)
 {
-    cout << "draw 3d text" << endl;
+    std::cout << "draw 3d text" << std::endl;
 }
 
 void GLDebugDrawer::setDebugMode(int debugMode)

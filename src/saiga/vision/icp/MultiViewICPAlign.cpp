@@ -150,8 +150,8 @@ void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& p
         Eigen::MatrixXd x = JtJ.selfadjointView<Eigen::Upper>().ldlt().solve(Jtb);
 
 
-        //        cout << J.block(0, 0, 20, 6) << endl;
-        //        cout << x.transpose() << endl;
+        //        std::cout << J.block(0, 0, 20, 6) << std::endl;
+        //        std::cout << x.transpose() << std::endl;
 
         for (size_t n = 0; n < N; ++n)
         {

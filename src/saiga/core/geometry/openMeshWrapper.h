@@ -1,7 +1,8 @@
 #pragma once
 
-#include "triangle_mesh.h"
+#include <iostream>
 
+#include "triangle_mesh.h"
 
 #ifdef SAIGA_USE_OPENMESH
 

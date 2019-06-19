@@ -7,6 +7,8 @@
 #include "ray.h"
 
 #include "internal/noGraphicsAPI.h"
+
+#include <iostream>
 namespace Saiga
 {
 std::ostream& operator<<(std::ostream& os, const Ray& r)

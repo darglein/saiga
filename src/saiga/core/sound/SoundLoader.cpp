@@ -11,6 +11,7 @@
 #include <al.h>
 #include <alc.h>
 #include <fstream>
+#include <iostream>
 
 #ifdef SAIGA_USE_ALUT
 #    include <alut.h>
@@ -58,7 +59,7 @@ void readDecode(std::ifstream& stream, void* dst, int size, int offset)
  */
 Sound* SoundLoader::loadWaveFileRaw(const std::string& filename)
 {
-    //    cout << "loadWaveFileRaw " << filename << endl;
+    //    std::cout << "loadWaveFileRaw " << filename << std::endl;
     int allowedOffset = 0x42;
     int offset        = 0;
 
@@ -69,7 +70,7 @@ Sound* SoundLoader::loadWaveFileRaw(const std::string& filename)
     std::ifstream stream(filename, std::ifstream::binary);
     if (!stream.is_open())
     {
-        cout << "Could not open file " << filename << endl;
+        std::cout << "Could not open file " << filename << std::endl;
         return nullptr;
     }
 
@@ -91,14 +92,14 @@ Sound* SoundLoader::loadWaveFileRaw(const std::string& filename)
     {
         //'encoded' wave header.
         offset = 0x42;
-        //        cout << "found encoded riff wave header! " << endl;
+        //        std::cout << "found encoded riff wave header! " << std::endl;
         //        return nullptr;
     }
     else
     {
-        //        cout << (int)riff_header.chunkID[0] << " " << " " << (int) 'R' << " " <<  (int)'R' + allowedOffset <<
-        //        " " << (int)(riff_header.chunkID[0] - (char)allowedOffset) <<  endl;
-        cout << "Invalid RIFF or WAVE Header" << endl;
+        //        std::cout << (int)riff_header.chunkID[0] << " " << " " << (int) 'R' << " " <<  (int)'R' +
+        //        allowedOffset << " " << (int)(riff_header.chunkID[0] - (char)allowedOffset) <<  std::endl;
+        std::cout << "Invalid RIFF or WAVE Header" << std::endl;
         return nullptr;
     }
 
@@ -109,7 +110,7 @@ Sound* SoundLoader::loadWaveFileRaw(const std::string& filename)
     if (wave_format.subChunkID[0] != 'f' || wave_format.subChunkID[1] != 'm' || wave_format.subChunkID[2] != 't' ||
         wave_format.subChunkID[3] != ' ')
     {
-        cout << "Invalid Wave Format" << endl;
+        std::cout << "Invalid Wave Format" << std::endl;
         return nullptr;
     }
 
@@ -129,10 +130,10 @@ Sound* SoundLoader::loadWaveFileRaw(const std::string& filename)
     if (wave_data.subChunkID[0] != 'd' || wave_data.subChunkID[1] != 'a' || wave_data.subChunkID[2] != 't' ||
         wave_data.subChunkID[3] != 'a')
     {
-        cout << "Invalid data header" << endl;
+        std::cout << "Invalid data header" << std::endl;
         return nullptr;
     }
-    //        cout << "size of data: " << wave_data.subChunk2Size << endl;
+    //        std::cout << "size of data: " << wave_data.subChunk2Size << std::endl;
 
     std::vector<unsigned char> data(wave_data.subChunk2Size);
 
@@ -177,7 +178,7 @@ Sound* SoundLoader::loadOpusFile(const std::string& filename)
     OggOpusFile* file = op_open_file(filename.c_str(), &error);
     if (error)
     {
-        cout << "could not open file: " << filename << endl;
+        std::cout << "could not open file: " << filename << std::endl;
         return nullptr;
     }
 
@@ -210,7 +211,7 @@ Sound* SoundLoader::loadOpusFile(const std::string& filename)
     sound->createBuffer(data.data(), data.size() * sizeof(opus_int16));
 
 
-    //     cout<<"Loaded opus file: "<<filename<<" ( "<<"bitRate="<<bitRate<<" samplestotal="<<data.size() <<"
+    //     std::cout<<"Loaded opus file: "<<filename<<" ( "<<"bitRate="<<bitRate<<" samplestotal="<<data.size() <<"
     //     channels="<<channels<<" )"<<endl;
     return sound;
 }
@@ -228,40 +229,40 @@ Sound* SoundLoader::loadWaveFileALUT(const std::string& filename)
         switch (e)
         {
             case ALUT_ERROR_AL_ERROR_ON_ENTRY:
-                cout << "ALUT_ERROR_AL_ERROR_ON_ENTRY" << endl;
+                std::cout << "ALUT_ERROR_AL_ERROR_ON_ENTRY" << std::endl;
                 break;
             case ALUT_ERROR_ALC_ERROR_ON_ENTRY:
-                cout << "ALUT_ERROR_ALC_ERROR_ON_ENTRY" << endl;
+                std::cout << "ALUT_ERROR_ALC_ERROR_ON_ENTRY" << std::endl;
                 break;
             case ALUT_ERROR_BUFFER_DATA:
-                cout << "ALUT_ERROR_BUFFER_DATA" << endl;
+                std::cout << "ALUT_ERROR_BUFFER_DATA" << std::endl;
                 break;
             case ALUT_ERROR_CORRUPT_OR_TRUNCATED_DATA:
-                cout << "ALUT_ERROR_CORRUPT_OR_TRUNCATED_DATA" << endl;
+                std::cout << "ALUT_ERROR_CORRUPT_OR_TRUNCATED_DATA" << std::endl;
                 break;
             case ALUT_ERROR_GEN_BUFFERS:
-                cout << "ALUT_ERROR_GEN_BUFFERS" << endl;
+                std::cout << "ALUT_ERROR_GEN_BUFFERS" << std::endl;
                 break;
             case ALUT_ERROR_INVALID_OPERATION:
-                cout << "ALUT_ERROR_INVALID_OPERATION" << endl;
+                std::cout << "ALUT_ERROR_INVALID_OPERATION" << std::endl;
                 break;
             case ALUT_ERROR_IO_ERROR:
-                cout << "ALUT_ERROR_IO_ERROR" << endl;
+                std::cout << "ALUT_ERROR_IO_ERROR" << std::endl;
                 break;
             case ALUT_ERROR_NO_CURRENT_CONTEXT:
-                cout << "ALUT_ERROR_NO_CURRENT_CONTEXT" << endl;
+                std::cout << "ALUT_ERROR_NO_CURRENT_CONTEXT" << std::endl;
                 break;
             case ALUT_ERROR_OUT_OF_MEMORY:
-                cout << "ALUT_ERROR_OUT_OF_MEMORY" << endl;
+                std::cout << "ALUT_ERROR_OUT_OF_MEMORY" << std::endl;
                 break;
             case ALUT_ERROR_UNSUPPORTED_FILE_SUBTYPE:
-                cout << "ALUT_ERROR_UNSUPPORTED_FILE_SUBTYPE" << endl;
+                std::cout << "ALUT_ERROR_UNSUPPORTED_FILE_SUBTYPE" << std::endl;
                 break;
             case ALUT_ERROR_UNSUPPORTED_FILE_TYPE:
-                cout << "ALUT_ERROR_UNSUPPORTED_FILE_TYPE" << endl;
+                std::cout << "ALUT_ERROR_UNSUPPORTED_FILE_TYPE" << std::endl;
                 break;
             case 519:
-                cout << "Failed to open OpenAL Device, maybe reinstall OpenAL!" << endl;
+                std::cout << "Failed to open OpenAL Device, maybe reinstall OpenAL!" << std::endl;
                 break;
         }
 

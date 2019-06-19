@@ -10,6 +10,7 @@
 #    include "saiga/core/math/String.h"
 #    include "saiga/opengl/animation/cameraAnimation.h"
 
+#    include <iostream>
 namespace Saiga
 {
 #    if 0
@@ -24,7 +25,7 @@ Interpolation::Keyframe Interpolation::get(double time)
 
     float alpha = fract(time);
 
-    //    cout << "Interpolation " << prevFrame << "," << frame << " " << time << " " << alpha << endl;
+    //    std::cout << "Interpolation " << prevFrame << "," << frame << " " << time << " " << alpha << std::endl;
     if(alpha == 0)
         return keyframes[frame];
 
@@ -76,7 +77,7 @@ Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::In
     A = mat4(transpose(A));
 
 
-    //        cout << A << endl;
+    //        std::cout << A << std::endl;
     vec3 ps[4] = {f1.position,f2.position,f3.position,f4.position};
 
     vec3 ps2[4];
@@ -90,7 +91,7 @@ Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::In
             p += A[j][i] * ps[j];
         }
         ps2[i] = p;
-        //            cout << "p " << p << endl;
+        //            std::cout << "p " << p << std::endl;
     }
 
 
@@ -143,7 +144,7 @@ void Interpolation::createAsset()
         indices.push_back(vertices.size() - 2);
         indices.push_back(vertices.size() - 1);
 
-        //            cout << "cp " << p1 << p2 << endl;
+        //            std::cout << "cp " << p1 << p2 << std::endl;
     }
     int idx = vertices.size();
 
@@ -183,7 +184,7 @@ void Interpolation::createAsset()
             kf.rot      = IDENTITY_QUATERNION;
             vec3 p      = kf.position;
 
-            //            cout << "time " << time << " p " << p << endl;
+            //            std::cout << "time " << time << " p " << p << std::endl;
 
             int idx = vertices.size();
             vertices.push_back(p);
@@ -222,7 +223,8 @@ void Interpolation::start(Camera& cam, float totalTimeS, float dt)
     totalTicks = totalTimeS / dt;
     tick       = 0;
 
-    cout << "Starting Camera Interpolation. " << totalTimeS << "s  dt=" << dt << " TotalTicks: " << totalTicks << endl;
+    std::cout << "Starting Camera Interpolation. " << totalTimeS << "s  dt=" << dt << " TotalTicks: " << totalTicks
+              << std::endl;
 
     update(cam);
 }
@@ -325,9 +327,9 @@ void Interpolation::renderGui(Camera& camera)
     {
         for (Keyframe& kf : keyframes)
         {
-            cout << "keyframes.push_back({ quat" << kf.rot << ", vec3" << kf.position << "});" << endl;
+            std::cout << "keyframes.push_back({ quat" << kf.rot << ", vec3" << kf.position << "});" << std::endl;
         }
-        cout << "createAsset();" << endl;
+        std::cout << "createAsset();" << std::endl;
 
         keyframes.push_back({IDENTITY_QUATERNION, make_vec3(0)});
     }

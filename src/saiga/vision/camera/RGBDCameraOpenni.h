@@ -10,7 +10,7 @@
 
 #ifdef SAIGA_USE_OPENNI2
 #    include "saiga/core/image/image.h"
-#    include "saiga/core/util/SynchronizedBuffer.h"
+#    include "saiga/core/util/Thread/SynchronizedBuffer.h"
 
 #    include "RGBDCamera.h"
 

@@ -53,14 +53,14 @@ const std::string balPrefix = "vision/bal/";
 
 void test_to_file(const OptimizationOptions& baoptions, const std::string& file, int its)
 {
-    cout << baoptions << endl;
-    cout << "Running long performance test to file..." << endl;
+    std::cout << baoptions << std::endl;
+    std::cout << "Running long performance test to file..." << std::endl;
 
     auto files = getBALFiles();
 
 
     std::ofstream strm(file);
-    strm << "file,edges,poses,density,solver_type,iterations,time_recursive,time_g2o,time_ceres" << endl;
+    strm << "file,edges,poses,density,solver_type,iterations,time_recursive,time_g2o,time_ceres" << std::endl;
 
 
     Saiga::Table table({20, 20, 15, 15});
@@ -94,7 +94,7 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
 
 
 
-        cout << "> Initial Error: " << scene.chi2() << " - " << scene.rms() << endl;
+        std::cout << "> Initial Error: " << scene.chi2() << " - " << scene.rms() << std::endl;
         table << "Name"
               << "Final Error"
               << "Time_LS"
@@ -128,9 +128,9 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
 
             strm << "," << t;
         }
-        strm << endl;
+        strm << std::endl;
 
-        cout << endl;
+        std::cout << std::endl;
     }
 }
 
@@ -188,13 +188,13 @@ int main(int, char**)
     //    scene.addExtrinsicNoise(0.01);
 
 
-    cout << "Density: " << scene.getSchurDensity() << endl;
+    std::cout << "Density: " << scene.getSchurDensity() << std::endl;
     PoseGraph pg(scene);
     //    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
     //    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
     //    pg.load(SearchPathes::data("vision/loop.posegraph"));
     pg.addNoise(1.05);
-    cout << endl;
+    std::cout << std::endl;
 
 
     OptimizationOptions baoptions;
@@ -205,7 +205,7 @@ int main(int, char**)
     //    baoptions.initialLambda          = 1e3;
     baoptions.solverType = OptimizationOptions::SolverType::Direct;
     //    baoptions.solverType = OptimizationOptions::SolverType::Iterative;
-    cout << baoptions << endl;
+    std::cout << baoptions << std::endl;
 
 
     std::vector<std::unique_ptr<PGOBase>> solvers;
@@ -216,10 +216,10 @@ int main(int, char**)
 
     for (auto& s : solvers)
     {
-        cout << "[Solver] " << s->name << endl;
+        std::cout << "[Solver] " << s->name << std::endl;
         auto cpy = pg;
         //        auto rmsbefore = cpy.chi2();
-        cout << "chi2 " << cpy.chi2() << endl;
+        std::cout << "chi2 " << cpy.chi2() << std::endl;
         //        {
         //            SAIGA_BLOCK_TIMER(s->name);
         s->create(cpy);
@@ -228,9 +228,9 @@ int main(int, char**)
         SAIGA_ASSERT(opt);
         auto result = opt->initAndSolve();
         //        }
-        cout << "Error " << result.cost_initial << " -> " << result.cost_final << endl;
-        cout << "Time LinearSolver/Total: " << result.linear_solver_time << "/" << result.total_time << endl;
-        cout << endl;
+        std::cout << "Error " << result.cost_initial << " -> " << result.cost_final << std::endl;
+        std::cout << "Time LinearSolver/Total: " << result.linear_solver_time << "/" << result.total_time << std::endl;
+        std::cout << std::endl;
     }
 
     return 0;

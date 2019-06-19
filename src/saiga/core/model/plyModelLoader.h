@@ -5,12 +5,12 @@
  */
 
 #pragma once
-
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/tostring.h"
 
 #include <fstream>
+#include <iostream>
 
 namespace Saiga
 {
@@ -53,7 +53,7 @@ class SAIGA_CORE_API PLYLoader
     template <typename VertexType, typename IndexType>
     static void save(std::string file, TriangleMesh<VertexType, IndexType>& mesh)
     {
-        cout << "Save ply " << file << endl;
+        std::cout << "Save ply " << file << std::endl;
         std::vector<char> data;
 
         std::vector<std::string> header;
@@ -131,7 +131,7 @@ class SAIGA_CORE_API PLYLoader
         std::ofstream stream(file, std::ios::binary);
         if (!stream.is_open())
         {
-            cerr << "Could not open file " << file << endl;
+            std::cerr << "Could not open file " << file << std::endl;
         }
 
         stream.write(data.data(), data.size());

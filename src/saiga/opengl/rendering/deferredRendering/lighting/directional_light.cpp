@@ -181,7 +181,7 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
 
 
     //    vec4 test = this->cam.proj * this->cam.view * vec4(obb.center,1);
-    //    cout << "test " << test << endl;
+    //    std::cout << "test " << test << std::endl;
 #else
     // other idea use bounding sphere of frustum
     // make sure shadow box aligned to light fits bounding sphere
@@ -225,7 +225,7 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
             //                zFar = 50;
             //            }
 
-            //            cout << "znear/far: " << zNear << " " << zFar << endl;
+            //            std::cout << "znear/far: " << zNear << " " << zFar << std::endl;
 
             float tang = (float)tan(pc->fovy * 0.5);
 
@@ -296,7 +296,7 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
     {
         vec3 v = cam->vertices[i];
         vec4 p = shadowCamera.proj * shadowCamera.view * make_vec4(v, 1);
-        cout << p << endl;
+        std::cout << p << std::endl;
     }
 #    endif
 
@@ -353,8 +353,8 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
         minZ = -minZ;
         maxZ = -maxZ;
 
-        //    cout << "min max Z " << minZ << " " << maxZ << endl;
-        //    cout << "ortho min max Z " << orthoMin[2] << " " << orthoMax[2] << endl;
+        //    std::cout << "min max Z " << minZ << " " << maxZ << std::endl;
+        //    std::cout << "ortho min max Z " << orthoMin[2] << " " << orthoMax[2] << std::endl;
 
 
         orthoBox.min[2] = minZ;

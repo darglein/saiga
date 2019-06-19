@@ -195,7 +195,7 @@ double PGORec::computeQuadraticForm()
     }
 
 
-    if (optimizationOptions.debugOutput) cout << "chi2 " << chi2 << endl;
+    if (optimizationOptions.debugOutput) std::cout << "chi2 " << chi2 << std::endl;
     return chi2;
 }
 

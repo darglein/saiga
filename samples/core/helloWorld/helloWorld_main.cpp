@@ -15,7 +15,7 @@ int main()
     SaigaParameters sp;
     initSample(sp);
     initSaiga(sp);
-    cout << ConsoleColor::RED << "Hello World! :D" << endl;
-    cout << ConsoleColor::GREEN << "Hello World! :D" << ConsoleColor::RESET << endl;
+    std::cout << ConsoleColor::RED << "Hello World! :D" << std::endl;
+    std::cout << ConsoleColor::GREEN << "Hello World! :D" << ConsoleColor::RESET << std::endl;
     return 0;
 }

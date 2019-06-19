@@ -110,7 +110,7 @@ bool PointLight::cullLight(Camera* cam)
     Sphere s(getPosition(), cutoffRadius);
     this->culled = cam->sphereInFrustum(s) == Camera::OUTSIDE;
     //    this->culled = false;
-    //    cout<<culled<<endl;
+    //    std::cout<<culled<<endl;
     return culled;
 }
 

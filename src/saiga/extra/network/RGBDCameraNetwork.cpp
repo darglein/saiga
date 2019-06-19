@@ -26,11 +26,11 @@ void RGBDCameraNetwork::connect(std::string host, uint32_t port)
     Image img;
     int gotC = false;
     int gotD = false;
-    cout << "rec " << img << endl;
+    std::cout << "rec " << img << std::endl;
     while (!gotC || !gotD)
     {
         trans->recieveImage(img);
-        cout << "rec " << img << endl;
+        std::cout << "rec " << img << std::endl;
         if (img.type == Saiga::UC3)
         {
             if (!gotC)

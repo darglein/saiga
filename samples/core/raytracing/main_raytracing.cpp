@@ -32,7 +32,7 @@ int main(int argc, char* args[])
 
     AccelerationStructure::ObjectMedianBVH bf(triangles);
 
-    cout << "Num triangles = " << triangles.size() << endl;
+    std::cout << "Num triangles = " << triangles.size() << std::endl;
 
 
     TemplatedImage<ucvec3> img(w, h);

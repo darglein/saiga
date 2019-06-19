@@ -58,13 +58,15 @@ void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst, float minD, 
     }
 }
 
+// const vec3 rgbToGray(0.2126f, 0.7152f, 0.0722f);
+const vec3 rgbToGray(0.299f, 0.587f, 0.114f);  // opencv values
+
 struct RGBATOGRAY8Trans
 {
     unsigned char operator()(const ucvec4& v)
     {
-        const vec3 conv(0.2126f, 0.7152f, 0.0722f);
         vec3 vf(v[0], v[1], v[2]);
-        float gray = dot(conv, vf);
+        float gray = dot(rgbToGray, vf);
         return gray;
     }
 };
@@ -82,9 +84,8 @@ struct RGBATOGRAYFTrans
     RGBATOGRAYFTrans(float scale) : scale(scale) {}
     float operator()(const ucvec4& v)
     {
-        const vec3 conv(0.2126f, 0.7152f, 0.0722f);
         vec3 vf(v[0], v[1], v[2]);
-        float gray = dot(conv, vf);
+        float gray = dot(rgbToGray, vf);
         return gray * scale;
     }
 };
@@ -93,6 +94,21 @@ void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> dst, float scale)
     src.copyToTransform(dst, RGBATOGRAYFTrans(scale));
 }
 
+
+float sharpness(ImageView<const unsigned char> src)
+{
+    long sum = 0;
+    for (auto i : src.rowRange(1))
+    {
+        for (auto j : src.colRange(1))
+        {
+            auto dx = src(i, j + 1) - src(i, j - 1);
+            auto dy = src(i + 1, j) - src(i - 1, j);
+            sum += max(dx, dy);
+        }
+    }
+    return float(sum) / (src.w * src.h);
+}
 
 bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax)
 {

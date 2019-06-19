@@ -110,7 +110,7 @@ Eigen::Matrix<VectorType, -1, 1> solveSparseLDLT(const Eigen::SparseMatrix<Matri
 
 void testSparseBlockCholesky()
 {
-    cout << "testSparseBlockCholesky" << endl;
+    std::cout << "testSparseBlockCholesky" << std::endl;
     using CompleteMatrix = Eigen::SparseMatrix<double, Eigen::RowMajor>;
     using CompleteVector = Eigen::Matrix<double, -1, 1>;
 
@@ -147,36 +147,36 @@ void testSparseBlockCholesky()
         bb(i) = b.segment(i * 2, 2);
     }
 #if 0
-    //        cout << Adense << endl << endl;
-    cout << A.toDense() << endl << endl;
-    cout << blockMatrixToMatrix(bA.toDense()) << endl << endl;
-    cout << b << endl << endl;
-    cout << blockVectorToVector(bb) << endl << endl;
+    //        std::cout << Adense << std::endl << std::endl;
+    std::cout << A.toDense() << std::endl << std::endl;
+    std::cout << blockMatrixToMatrix(bA.toDense()) << std::endl << std::endl;
+    std::cout << b << std::endl << std::endl;
+    std::cout << blockVectorToVector(bb) << std::endl << std::endl;
 #endif
 
 
-    cout << "non zeros: " << A.nonZeros() << endl;
+    std::cout << "non zeros: " << A.nonZeros() << std::endl;
 
     {
         Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
         solver.compute(A);
         x = solver.solve(b);
         //        x = A.llt().solve(b);
-        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 
     {
         x = solveSparseLDLT(A, b);
-        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 
     {
         bx = solveSparseLDLT(bA, bb);
         x  = expand(bx);
-        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 
     {
@@ -185,21 +185,21 @@ void testSparseBlockCholesky()
         bx = ldlt.solve(bb);
 
         x = expand(bx);
-        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
 
         //        solveLDLT2(bA, bb);
 
         //        x = fixedBlockMatrixToMatrix(bx);
-        //        cout << "x " << x.transpose() << endl;
-        //        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        //        std::cout << "x " << x.transpose() << std::endl;
+        //        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 }
 
 
 void perfTestSparseCholesky()
 {
-    cout << "perfTestSparseCholesky" << endl;
+    std::cout << "perfTestSparseCholesky" << std::endl;
 
     Saiga::Random::setSeed(34534);
     const int bn = 4;
@@ -297,18 +297,18 @@ void perfTestSparseCholesky()
 
 
 
-    //    cout << A.toDense() << endl << endl;
-    //    cout << expand(bA.toDense()) << endl << endl;
+    //    std::cout << A.toDense() << std::endl << std::endl;
+    //    std::cout << expand(bA.toDense()) << std::endl << std::endl;
 
 
 
-    //    cout << b.transpose() << endl << endl;
-    //    cout << expand(bb).transpose() << endl << endl;
+    //    std::cout << b.transpose() << std::endl << std::endl;
+    //    std::cout << expand(bb).transpose() << std::endl << std::endl;
 
 
-    cout << "non zeros: " << A.nonZeros() << " fillrate " << ((double)A.nonZeros() / (A.cols() * A.rows())) * 100 << "%"
-         << endl
-         << endl;
+    std::cout << "non zeros: " << A.nonZeros() << " fillrate " << ((double)A.nonZeros() / (A.cols() * A.rows())) * 100 << "%"
+         << std::endl
+         << std::endl;
 
     {
         Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::Lower> solver;
@@ -317,7 +317,7 @@ void perfTestSparseCholesky()
             solver.compute(A);
         }
         x = solver.solve(b);
-        cout << "Eigen error: " << (A * x - b).squaredNorm() << endl << endl;
+        std::cout << "Eigen error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
     }
 
 
@@ -329,10 +329,10 @@ void perfTestSparseCholesky()
 
         DenseLDLT<decltype(adense), decltype(b)> ldlt;
         ldlt.compute(adense);
-        cout << expand(ldlt.L) << endl << endl;
+        std::cout << expand(ldlt.L) << std::endl << std::endl;
         x = ldlt.solve(b);
     }
-    cout << "my dense error: " << (A * x - b).squaredNorm() << endl << endl;
+    std::cout << "my dense error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
 
 #endif
     {
@@ -358,7 +358,7 @@ void perfTestSparseCholesky()
         }
         bx = ldlt3.solve(bb);
         x  = expand(bx);
-        cout << "my recursive dense error: " << (A * x - b).squaredNorm() << endl << endl;
+        std::cout << "my recursive dense error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
     }
 
 
@@ -368,9 +368,9 @@ void perfTestSparseCholesky()
     {
         SAIGA_BLOCK_TIMER();
         x = solveSparseLDLT(A, b);
-        //        cout << "x " << x.transpose() << endl;
+        //        std::cout << "x " << x.transpose() << std::endl;
     }
-    cout << "my sparse error: " << (A * x - b).squaredNorm() << endl << endl;
+    std::cout << "my sparse error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
 
 
 
@@ -378,8 +378,8 @@ void perfTestSparseCholesky()
         SAIGA_BLOCK_TIMER();
         bx = solveSparseLDLT(bA, bb);
         x  = expand(bx);
-//        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl << endl;
+//        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
     }
 #endif
 
@@ -390,7 +390,7 @@ void perfTestSparseCholesky()
             ldlt.compute(A);
         }
         x = ldlt.solve(b);
-        cout << "My sparse error: " << (A * x - b).squaredNorm() << endl << endl;
+        std::cout << "My sparse error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
     }
 
     {
@@ -401,7 +401,7 @@ void perfTestSparseCholesky()
         }
         bx = ldlt.solve(bb);
         x  = expand(bx);
-        cout << "My recursive sparse error: " << (A * x - b).squaredNorm() << endl << endl;
+        std::cout << "My recursive sparse error: " << (A * x - b).squaredNorm() << std::endl << std::endl;
     }
 }
 

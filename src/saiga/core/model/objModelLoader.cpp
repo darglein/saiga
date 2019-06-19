@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 namespace Saiga
@@ -31,8 +32,8 @@ bool ObjModelLoader::loadFile(const std::string& _file)
     this->file = SearchPathes::model(_file);
     if (file == "")
     {
-        cerr << "Could not open file " << _file << endl;
-        cerr << SearchPathes::model << endl;
+        std::cerr << "Could not open file " << _file << std::endl;
+        std::cerr << SearchPathes::model << std::endl;
         return false;
     }
 
@@ -43,7 +44,7 @@ bool ObjModelLoader::loadFile(const std::string& _file)
     //    }
 
 
-    cout << "[ObjModelLoader] Loading " << file << endl;
+    std::cout << "[ObjModelLoader] Loading " << file << std::endl;
 
     ObjTriangleGroup tg;
     tg.startFace = 0;
@@ -75,21 +76,21 @@ bool ObjModelLoader::loadFile(const std::string& _file)
                                         [](const ObjTriangleGroup& otg) { return otg.faces == 0; }),
                          triangleGroups.end());
 
-    cout << "[ObjModelLoader] Done.  "
-         << "V " << vertices.size() << " N " << normals.size() << " T " << texCoords.size() << " F " << faces.size()
-         << " Material Groups " << triangleGroups.size() << endl;
+    std::cout << "[ObjModelLoader] Done.  "
+              << "V " << vertices.size() << " N " << normals.size() << " T " << texCoords.size() << " F "
+              << faces.size() << " Material Groups " << triangleGroups.size() << std::endl;
 
 
 
-    //    cout<<"number of vertices "<<vertices.size()<<" number of faces "<<faces.size()<<endl;
+    //    std::cout<<"number of vertices "<<vertices.size()<<" number of faces "<<faces.size()<<endl;
     createVertexIndexList();
-    //    cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
+    //    std::cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
     separateVerticesByGroup();
-    //    cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
+    //    std::cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
 
     calculateMissingNormals();
 
-    //    cout<<"objloader finished :)"<<endl;
+    //    std::cout<<"objloader finished :)"<<endl;
     return true;
 }
 
@@ -332,11 +333,11 @@ void ObjModelLoader::parseLine()
     }
     else if (header == "g")
     {
-        //        cout<<"Found Group: "<<line<<endl;
+        //        std::cout<<"Found Group: "<<line<<endl;
     }
     else if (header == "o")
     {
-        //        cout<<"Found Object: "<<line<<endl;
+        //        std::cout<<"Found Object: "<<line<<endl;
     }
     else if (header == "s")
     {

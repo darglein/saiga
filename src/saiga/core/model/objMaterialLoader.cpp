@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 namespace Saiga
@@ -31,7 +32,7 @@ bool ObjMaterialLoader::loadFile(const std::string& _file)
     }
 
 
-    cout << "ObjMaterialLoader: loading file " << file << endl;
+    std::cout << "ObjMaterialLoader: loading file " << file << std::endl;
 
 
     while (!stream.eof())
@@ -51,7 +52,7 @@ ObjMaterial ObjMaterialLoader::getMaterial(const std::string& name)
     {
         if (m.name == name) return m;
     }
-    cout << "Warning material '" << name << "' not found!" << endl;
+    std::cout << "Warning material '" << name << "' not found!" << std::endl;
     return ObjMaterial("default");
 }
 

@@ -32,7 +32,7 @@ int main(int argc, char* args[])
     b    = ini.GetAddBool("window", "fullscreen", false);
     Saiga::fromIniString(ini.GetAddString("window", "viewmatrix", Saiga::toIniString(m).c_str()), m);
 
-    cout << name << " " << w << "x" << h << " " << b << " " << endl << m << endl;
+    std::cout << name << " " << w << "x" << h << " " << b << " " << std::endl << m << std::endl;
 
     if (ini.changed()) ini.SaveFile(fileName);
 }

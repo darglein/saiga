@@ -39,15 +39,15 @@ std::vector<std::string> getFiles()
 
 void test_to_file(const OptimizationOptions& options, const std::string& file, int its)
 {
-    cout << options << endl;
-    cout << "Running long performance test to file..." << endl;
+    std::cout << options << std::endl;
+    std::cout << "Running long performance test to file..." << std::endl;
 
     auto files = getFiles();
 
 
     std::ofstream strm(file);
     strm << "file,vertices,constraints,targets,density,solver_type,iterations,time_recursive,time_ceres,time_g2o"
-         << endl;
+         << std::endl;
 
 
     Saiga::Table table({20, 20, 15, 15});
@@ -91,7 +91,7 @@ void test_to_file(const OptimizationOptions& options, const std::string& file, i
 
 #if 1
 
-        cout << "> Initial Error: " << problem.chi2() << endl;
+        std::cout << "> Initial Error: " << problem.chi2() << std::endl;
         table << "Name"
               << "Final Error"
               << "Time_LS"
@@ -126,9 +126,9 @@ void test_to_file(const OptimizationOptions& options, const std::string& file, i
 
             strm << "," << t;
         }
-        strm << endl;
+        strm << std::endl;
 #endif
-        cout << endl;
+        std::cout << std::endl;
     }
 }
 
@@ -207,7 +207,7 @@ int main(int, char**)
         ca.optimizationOptions = options;
         ca.create(cpy);
         auto res = ca.solve();
-        cout << res << endl;
+        std::cout << res << std::endl;
     }
 
 
@@ -217,14 +217,14 @@ int main(int, char**)
         ca.arap                = &cpy;
         ca.optimizationOptions = options;
         auto res               = ca.solve();
-        cout << res << endl;
+        std::cout << res << std::endl;
     }
 
     //    problem.saveToMesh(mesh);
     //    saveOpenMesh(mesh, "arab_1.off");
 
     //    optimize(mesh);
-    //    cout << "openmesh vertices: " << mesh.n_vertices() << endl;
+    //    std::cout << "openmesh vertices: " << mesh.n_vertices() << std::endl;
 
 
 

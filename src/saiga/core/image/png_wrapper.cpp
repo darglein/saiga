@@ -9,6 +9,7 @@
 #include "saiga/core/util/assert.h"
 
 #include <cstring>  // for memcpy
+#include <iostream>
 
 #ifdef SAIGA_USE_PNG
 #    include "internal/noGraphicsAPI.h"

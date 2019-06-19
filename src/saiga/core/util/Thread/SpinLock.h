@@ -71,4 +71,17 @@ class SpinLock
     std::atomic_flag v = ATOMIC_FLAG_INIT;
 };
 
+/**
+ * This is not actually a lock.
+ *
+ * Usefull if you want to test your code without locks.
+ */
+class DummyLock
+{
+   public:
+    void lock() {}
+    bool try_lock() { return true; }
+    void unlock() {}
+};
+
 }  // namespace Saiga

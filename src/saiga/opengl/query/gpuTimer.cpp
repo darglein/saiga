@@ -8,6 +8,8 @@
 
 #include "saiga/core/util/assert.h"
 
+#include <iostream>
+
 namespace Saiga
 {
 MultiFrameOpenGLTimer::MultiFrameOpenGLTimer() {}

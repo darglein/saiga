@@ -86,7 +86,7 @@ AABB Layout::transform(Object3D* obj, const AABB& box, vec2 relPos, float relSiz
 
 
     obj->setPosition(vec3(make_vec3(relPos, 0) - alignmentOffset));
-    //    cout << "obj position " << relPos << " " << alignmentOffset << " " << obj->position << endl;
+    //    std::cout << "obj position " << relPos << " " << alignmentOffset << " " << obj->position << std::endl;
 
     AABB resultBB = AABB(ele_mult(box.min, s), ele_mult(box.max, s));
     resultBB.setPosition(obj->getPosition() + center);
@@ -164,8 +164,8 @@ AABB Layout::transformUniform(Object3D* obj, const AABB& box, vec2 relPos, vec2 
     //    s[0] *= aspect;
     s = ele_div(vec3(relSize[0], relSize[1], 1.0f), vec3(s[0], s[1], 1.0f));
 
-    //    cout << "s: " << s << endl;
-    //    cout << "test: " << (s * (box.max-box.min)) << " " << relSize << endl;
+    //    std::cout << "s: " << s << std::endl;
+    //    std::cout << "test: " << (s * (box.max-box.min)) << " " << relSize << std::endl;
 
     // use lower value of s[0] and s[1] to scale uniformly.
     //-> The result will fit in the box

@@ -27,8 +27,8 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     camera.rotationPoint = make_vec3(0);
 
 
-    //    cout << camera.view << endl;
-    //    cout << camera.proj << endl;
+    //    std::cout << camera.view << std::endl;
+    //    std::cout << camera.proj << std::endl;
     //    exit(0);
 
     window.setCamera(&camera);
@@ -52,23 +52,23 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 
         Saiga::Image img("box.png");
 
-        cout << "uncompressed size " << img.size() << endl;
+        std::cout << "uncompressed size " << img.size() << std::endl;
         auto data = img.compress();
-        cout << "compressed size " << data.size() << endl;
+        std::cout << "compressed size " << data.size() << std::endl;
         img.decompress(data);
-        cout << "test" << endl;
+        std::cout << "test" << std::endl;
 
         if (img.type == Saiga::UC3)
         {
-            cout << "adding alplha channel" << endl;
+            std::cout << "adding alplha channel" << std::endl;
             Saiga::TemplatedImage<ucvec4> img2(img.height, img.width);
-            cout << img << " " << img2 << endl;
+            std::cout << img << " " << img2 << std::endl;
             Saiga::ImageTransformation::addAlphaChannel(img.getImageView<ucvec3>(), img2.getImageView(), 255);
             tex->fromImage(base, img2);
         }
         else
         {
-            cout << img << endl;
+            std::cout << img << std::endl;
             tex->fromImage(base, img);
         }
         texture = tex;

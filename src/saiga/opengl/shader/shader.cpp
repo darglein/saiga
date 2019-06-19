@@ -21,7 +21,7 @@ Shader::Shader() {}
 
 Shader::~Shader()
 {
-    // cout << "~Shader " << name << endl;
+    // std::cout << "~Shader " << name << std::endl;
     destroyProgram();
 }
 
@@ -35,7 +35,7 @@ GLuint Shader::createProgram()
     // attach all shaders
     for (auto& sp : shaders)
     {
-        //        cout << "Attaching shader " << sp->id << endl;
+        //        std::cout << "Attaching shader " << sp->id << std::endl;
         glAttachShader(program, sp->id);
     }
     assert_no_glerror();
@@ -103,7 +103,7 @@ bool Shader::printProgramLog()
     }
     else
     {
-        cout << "Name " << program << " is not a program" << endl;
+        std::cout << "Name " << program << " is not a program" << std::endl;
         return false;
     }
 }
@@ -143,9 +143,9 @@ bool Shader::getBinary(std::vector<uint8_t>& binary, GLenum& format)
      std::vector<GLint> program_binary_formats(num_program_binary_formats[0]);
      glGetIntegerv(GL_PROGRAM_BINARY_FORMATS,program_binary_formats.data());
 
-     cout << "Num binary formats: " << num_program_binary_formats[0] << endl;
+     std::cout << "Num binary formats: " << num_program_binary_formats[0] << std::endl;
      for(auto f : program_binary_formats){
-         cout << f << endl;
+         std::cout << f << std::endl;
      }
 #endif
 
@@ -160,13 +160,13 @@ bool Shader::getBinary(std::vector<uint8_t>& binary, GLenum& format)
     }
 
     binary.resize(size);
-    //    cout << "Binary length: " << size << endl;
+    //    std::cout << "Binary length: " << size << std::endl;
     GLsizei actualLength;
     glGetProgramBinary(program, size, &actualLength, &format, binary.data());
 
     SAIGA_ASSERT(size == actualLength);
-    //    cout << "recieved format: " << format << endl;
-    //    cout << "actualLength: " << actualLength << endl;
+    //    std::cout << "recieved format: " << format << std::endl;
+    //    std::cout << "actualLength: " << actualLength << std::endl;
     assert_no_glerror();
     return true;
 }
@@ -263,11 +263,11 @@ void Shader::getUniformInfo(GLuint location)
 
     glGetActiveUniform(program, location, bufSize, &length, &size, &type, name);
 
-    cout << "uniform info " << location << endl;
-    cout << "name " << name << endl;
-    //    cout<<"length "<<length<<endl;
-    cout << "size " << size << endl;
-    cout << "type " << (int)type << endl;
+    std::cout << "uniform info " << location << std::endl;
+    std::cout << "name " << name << std::endl;
+    //    std::cout<<"length "<<length<<endl;
+    std::cout << "size " << size << std::endl;
+    std::cout << "type " << (int)type << std::endl;
 }
 
 // ===================================== uniform blocks =====================================
@@ -278,7 +278,7 @@ GLuint Shader::getUniformBlockLocation(const char* name)
 
     if (blockIndex == GL_INVALID_INDEX)
     {
-        std::cout << "Warning: glGetUniformBlockIndex: uniform block '" << name << "' invalid!" << endl;
+        std::cout << "Warning: glGetUniformBlockIndex: uniform block '" << name << "' invalid!" << std::endl;
     }
     assert_no_glerror();
     return blockIndex;

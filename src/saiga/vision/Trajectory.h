@@ -26,8 +26,8 @@
  *      // fill data and groundTruth
  *
  * align(data,groundTruth);
- * cout << "rpe: " << rpe(data,groundTruth) << endl;
- * cout << "ate: " << ate(data,groundTruth) << endl;
+ * std::cout << "rpe: " << rpe(data,groundTruth) << std::endl;
+ * std::cout << "ate: " << ate(data,groundTruth) << std::endl;
  *
  */
 namespace Saiga

@@ -267,15 +267,15 @@ void VulkanSwapChain::create(int* width, int* height, bool vsync)
 
 
 #if 0
-    cout << "Swap Chain: surfaceFormat: " << createInfo.imageFormat << " " << createInfo.imageColorSpace << endl;
-    cout << "Swap Chain: presentMode: " << createInfo.presentMode << endl;
-    cout << "Swap Chain: compositeAlpha: " << createInfo.compositeAlpha << endl;
-    cout << "Swap Chain: minImageCount: " << createInfo.minImageCount << endl;
-    cout << "Swap Chain: imageUsage: " << createInfo.imageUsage << endl;
-    cout << "Swap Chain: imageSharingMode: " << createInfo.imageSharingMode << endl;
-    cout << "Swap Chain: preTransform: " << createInfo.preTransform << endl;
-    cout << "Swap Chain: queueFamilyIndexCount: " << createInfo.queueFamilyIndexCount << endl;
-    cout << "Swap Chain: imageExtent: " << createInfo.imageExtent.width << "x" << createInfo.imageExtent.height << endl;
+    std::cout << "Swap Chain: surfaceFormat: " << createInfo.imageFormat << " " << createInfo.imageColorSpace << std::endl;
+    std::cout << "Swap Chain: presentMode: " << createInfo.presentMode << std::endl;
+    std::cout << "Swap Chain: compositeAlpha: " << createInfo.compositeAlpha << std::endl;
+    std::cout << "Swap Chain: minImageCount: " << createInfo.minImageCount << std::endl;
+    std::cout << "Swap Chain: imageUsage: " << createInfo.imageUsage << std::endl;
+    std::cout << "Swap Chain: imageSharingMode: " << createInfo.imageSharingMode << std::endl;
+    std::cout << "Swap Chain: preTransform: " << createInfo.preTransform << std::endl;
+    std::cout << "Swap Chain: queueFamilyIndexCount: " << createInfo.queueFamilyIndexCount << std::endl;
+    std::cout << "Swap Chain: imageExtent: " << createInfo.imageExtent.width << "x" << createInfo.imageExtent.height << std::endl;
 #endif
 
 

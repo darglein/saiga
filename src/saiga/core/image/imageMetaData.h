@@ -8,6 +8,7 @@
 
 #include "saiga/config.h"
 
+#include <iostream>
 namespace Saiga
 {
 struct SAIGA_CORE_API ImageMetadata

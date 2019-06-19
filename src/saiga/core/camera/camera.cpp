@@ -10,6 +10,8 @@
 
 #include "internal/noGraphicsAPI.h"
 
+#include <iostream>
+
 #include "controllable_camera.h"
 
 namespace Saiga
@@ -103,7 +105,7 @@ Camera::IntersectionResult Camera::sphereInFrustum(const Sphere& s)
         distance = planes[i].distance(s.pos);
         if (distance >= s.r)
         {
-            //            cout<<"outside of plane "<<i<<" "<<planes[i]<<endl;
+            //            std::cout<<"outside of plane "<<i<<" "<<planes[i]<<endl;
             return OUTSIDE;
         }
         else if (distance > -s.r)
@@ -248,7 +250,7 @@ std::pair<vec3, vec3> Camera::getEdge(int i)
         case 5:
             return std::pair<vec3, vec3>(vertices[0], vertices[2]);
         default:
-            std::cerr << "Camera::getEdge" << endl;
+            std::cerr << "Camera::getEdge" << std::endl;
             return std::pair<vec3, vec3>();
     }
 }
@@ -361,10 +363,10 @@ void PerspectiveCamera::recalculatePlanes()
     boundingSphere.r   = r;
     boundingSphere.pos = sphereMid;
 
-    //    cout<<"recalculatePlanes"<<endl;
-    //    cout<<zNear<<" "<<zFar<<endl;
-    //    cout<<sphereMid<<" "<<fbr<<endl;
-    //    cout<<r<<endl;
+    //    std::cout<<"recalculatePlanes"<<endl;
+    //    std::cout<<zNear<<" "<<zFar<<endl;
+    //    std::cout<<sphereMid<<" "<<fbr<<endl;
+    //    std::cout<<r<<endl;
 }
 
 std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca)

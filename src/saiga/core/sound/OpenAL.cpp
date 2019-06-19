@@ -8,6 +8,7 @@
 
 #include <al.h>
 #include <alc.h>
+#include <iostream>
 
 #ifdef SAIGA_USE_ALUT
 #    include <alut.h>

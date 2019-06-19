@@ -21,13 +21,13 @@ bool Scene::imgui()
 
     if (ImGui::Button("RMS"))
     {
-        cout << "rms/chi2: " << rms() << " / " << chi2() << endl;
+        std::cout << "rms/chi2: " << rms() << " / " << chi2() << std::endl;
     }
 
     if (ImGui::Button("Normalize"))
     {
         auto m = medianWorldPoint();
-        cout << "median world point " << m.transpose() << endl;
+        std::cout << "median world point " << m.transpose() << std::endl;
         Saiga::SE3 T(Saiga::Quat::Identity(), -m);
         transformScene(T);
         changed = true;
@@ -77,53 +77,53 @@ void Scene::save(const std::string& file)
 {
     SAIGA_ASSERT(valid());
 
-    cout << "Saving scene to " << file << "." << endl;
+    std::cout << "Saving scene to " << file << "." << std::endl;
     std::ofstream strm(file);
     SAIGA_ASSERT(strm.is_open());
     strm.precision(20);
     strm << std::scientific;
 
 
-    strm << "# Saiga Scene file." << endl;
-    strm << "#" << endl;
-    strm << "# <num_intrinsics> <num_extrinsics> <num_images> <num_worldPoints>" << endl;
-    strm << "# Intrinsics" << endl;
-    strm << "# <fx> <fy> <cx> <cy>" << endl;
-    strm << "# Extrinsics" << endl;
-    strm << "# constant tx ty tz rx ry rz rw" << endl;
-    strm << "# Images" << endl;
-    strm << "# intr extr weight num_points" << endl;
-    strm << "# wp depth px py weight" << endl;
-    strm << "# WorldPoints" << endl;
-    strm << "# x y z" << endl;
+    strm << "# Saiga Scene file." << std::endl;
+    strm << "#" << std::endl;
+    strm << "# <num_intrinsics> <num_extrinsics> <num_images> <num_worldPoints>" << std::endl;
+    strm << "# Intrinsics" << std::endl;
+    strm << "# <fx> <fy> <cx> <cy>" << std::endl;
+    strm << "# Extrinsics" << std::endl;
+    strm << "# constant tx ty tz rx ry rz rw" << std::endl;
+    strm << "# Images" << std::endl;
+    strm << "# intr extr weight num_points" << std::endl;
+    strm << "# wp depth px py weight" << std::endl;
+    strm << "# WorldPoints" << std::endl;
+    strm << "# x y z" << std::endl;
     strm << intrinsics.size() << " " << extrinsics.size() << " " << images.size() << " " << worldPoints.size() << " "
-         << bf << " " << globalScale << endl;
+         << bf << " " << globalScale << std::endl;
     for (auto& i : intrinsics)
     {
-        strm << i.coeffs().transpose() << endl;
+        strm << i.coeffs().transpose() << std::endl;
     }
     for (auto& e : extrinsics)
     {
-        strm << e.constant << " " << e.se3.params().transpose() << endl;
+        strm << e.constant << " " << e.se3.params().transpose() << std::endl;
     }
     for (auto& img : images)
     {
-        strm << img.intr << " " << img.extr << " " << img.imageWeight << " " << img.stereoPoints.size() << endl;
+        strm << img.intr << " " << img.extr << " " << img.imageWeight << " " << img.stereoPoints.size() << std::endl;
         for (auto& ip : img.stereoPoints)
         {
-            strm << ip.wp << " " << ip.depth << " " << ip.point.transpose() << " " << ip.weight << endl;
+            strm << ip.wp << " " << ip.depth << " " << ip.point.transpose() << " " << ip.weight << std::endl;
         }
     }
 
     for (auto& wp : worldPoints)
     {
-        strm << wp.p.transpose() << endl;
+        strm << wp.p.transpose() << std::endl;
     }
 }
 
 void Scene::load(const std::string& file)
 {
-    cout << "Loading scene from " << file << "." << endl;
+    std::cout << "Loading scene from " << file << "." << std::endl;
 
 
     std::ifstream strm(SearchPathes::data(file));
@@ -191,13 +191,13 @@ void Scene::load(const std::string& file)
 
 std::ostream& operator<<(std::ostream& strm, Scene& scene)
 {
-    strm << "[Scene]" << endl;
+    strm << "[Scene]" << std::endl;
 
     int n = scene.validImages().size();
     int m = scene.validPoints().size();
 
-    strm << " Images: " << n << "/" << scene.images.size() << endl;
-    strm << " Points: " << m << "/" << scene.worldPoints.size() << endl;
+    strm << " Images: " << n << "/" << scene.images.size() << std::endl;
+    strm << " Points: " << m << "/" << scene.worldPoints.size() << std::endl;
 
     int stereoEdges = 0;
     int monoEdges   = 0;
@@ -213,14 +213,14 @@ std::ostream& operator<<(std::ostream& strm, Scene& scene)
                 monoEdges++;
         }
     }
-    strm << " MonoEdges: " << monoEdges << endl;
-    strm << " StereoEdges: " << stereoEdges << endl;
-    strm << " TotalEdges: " << monoEdges + stereoEdges << endl;
-    strm << " Rms: " << scene.rms() << endl;
-    strm << " Chi2: " << scene.chi2() << endl;
+    strm << " MonoEdges: " << monoEdges << std::endl;
+    strm << " StereoEdges: " << stereoEdges << std::endl;
+    strm << " TotalEdges: " << monoEdges + stereoEdges << std::endl;
+    strm << " Rms: " << scene.rms() << std::endl;
+    strm << " Chi2: " << scene.chi2() << std::endl;
 
     double density = double(monoEdges + stereoEdges) / double(n * m);
-    strm << " W Density: " << density * 100 << "%" << endl;
+    strm << " W Density: " << density * 100 << "%" << std::endl;
 
     return strm;
 }

@@ -15,8 +15,8 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixMatrix(int smm_its)
 {
     std::ofstream strm("eigen_mkl_mm.csv", std::ostream::app);
 
-    cout << "Running Block Sparse Matrix-Matrix Benchmark..." << endl;
-    cout << "Number of Runs: " << smm_its << endl;
+    std::cout << "Running Block Sparse Matrix-Matrix Benchmark..." << std::endl;
+    std::cout << "Number of Runs: " << smm_its << std::endl;
     // ============= Benchmark =============
     double flop;
     Statistics<float> stat_eigen, stat_mkl;
@@ -73,17 +73,17 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixMatrix(int smm_its)
 
 
 //        double error = (expand(C) - expand(A) * expand(B)).norm();
-//        cout << "error " << error << endl;
+//        std::cout << "error " << error << std::endl;
 
-//        cout << expand(C) << endl << endl;
+//        std::cout << expand(C) << std::endl << std::endl;
 
-//        cout << expand(A) * expand(B) << endl << endl;
+//        std::cout << expand(A) * expand(B) << std::endl << std::endl;
 
 //        exit(0);
 
 //        C.makeCompressed();
 //        int c_nnz = C.nonZeros();
-//        cout << C.nonZeros() << " = " << A.nonZeros() << " * " << B.nonZeros() << endl;
+//        std::cout << C.nonZeros() << " = " << A.nonZeros() << " * " << B.nonZeros() << std::endl;
 #endif
 
 
@@ -110,9 +110,9 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixMatrix(int smm_its)
         sparse_layout_t block_layout;
         mkl_sparse_d_export_bsr(mkl_C, &indexing, &block_layout, &rows, &cols, &block_size, &rows_start, &rows_end,
                                 &col_indx, &values);
-        cout << indexing << " " << block_layout << " " << rows << " " << cols << " " << block_size << " "
-             << rows_end[rows - 1] << endl
-             << endl;
+        std::cout << indexing << " " << block_layout << " " << rows << " " << cols << " " << block_size << " "
+             << rows_end[rows - 1] << std::endl
+             << std::endl;
         ;
 
 
@@ -122,24 +122,24 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixMatrix(int smm_its)
 #    if 0
         for (int i = 0; i < rows; ++i)
         {
-            cout << rows_start[i] << " ";
+            std::cout << rows_start[i] << " ";
         }
-        cout << endl;
+        std::cout << std::endl;
         for (int i = 0; i < rows; ++i)
         {
-            cout << rows_end[i] << " ";
+            std::cout << rows_end[i] << " ";
         }
-        cout << endl;
+        std::cout << std::endl;
         for (int i = 0; i < rows_end[rows - 1]; ++i)
         {
-            cout << col_indx[i] << " ";
+            std::cout << col_indx[i] << " ";
         }
-        cout << endl;
+        std::cout << std::endl;
         for (int i = 0; i < rows_end[rows - 1]; ++i)
         {
-            cout << C.innerIndexPtr()[i] << " ";
+            std::cout << C.innerIndexPtr()[i] << " ";
         }
-        cout << endl;
+        std::cout << std::endl;
 #    endif
 
         for (int r = 0; r < rows; ++r)
@@ -154,32 +154,32 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixMatrix(int smm_its)
 
 
         double diff = (expand(C) - expand(test_C)).norm();
-        cout << "diff " << diff << endl;
-        //        cout << expand(test_C) << endl << endl;
+        std::cout << "diff " << diff << std::endl;
+        //        std::cout << expand(test_C) << std::endl << std::endl;
         //        for (int i = 0; i < block_size * block_size; ++i)
         //        {
-        //            cout << values[i] << " ";
+        //            std::cout << values[i] << " ";
         //        }
-        //        cout << endl;
+        //        std::cout << std::endl;
 
-        //        cout << expand(C) << endl << endl;
+        //        std::cout << expand(C) << std::endl << std::endl;
 
-        //        cout << expand(A) * expand(B) << endl << endl;
+        //        std::cout << expand(A) * expand(B) << std::endl << std::endl;
         exit(0);
 //        for (int i = 0; i < block_size * block_size; ++i)
 //        {
-//            cout << C.valuePtr()[0].get().data()[i] << " ";
+//            std::cout << C.valuePtr()[0].get().data()[i] << " ";
 //        }
-//        cout << endl;
+//        std::cout << std::endl;
 #endif
 
 
 
 #if 0
         // More precise timing stats
-        cout << stat_eigen << endl;
-        cout << stat_mkl << endl;
-        cout << endl;
+        std::cout << stat_eigen << std::endl;
+        std::cout << stat_mkl << std::endl;
+        std::cout << std::endl;
 #endif
     // time in seconds
     double ts_eigen = stat_eigen.median / 1000.0;
@@ -188,14 +188,14 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixMatrix(int smm_its)
     double gflop_eigen = flop / (ts_eigen * 1000 * 1000 * 1000);
     double gflop_mkl   = flop / (ts_mkl * 1000 * 1000 * 1000);
 
-    cout << "Done." << endl;
-    cout << "Median Time Eigen : " << ts_eigen << " -> " << gflop_eigen << " GFlop/s" << endl;
-    cout << "Median Time MKL   : " << ts_mkl << " -> " << gflop_mkl << " GFlop/s" << endl;
-    cout << "Eigen Speedup: " << (ts_mkl / ts_eigen) << endl;
-    cout << endl;
+    std::cout << "Done." << std::endl;
+    std::cout << "Median Time Eigen : " << ts_eigen << " -> " << gflop_eigen << " GFlop/s" << std::endl;
+    std::cout << "Median Time MKL   : " << ts_mkl << " -> " << gflop_mkl << " GFlop/s" << std::endl;
+    std::cout << "Eigen Speedup: " << (ts_mkl / ts_eigen) << std::endl;
+    std::cout << std::endl;
 
     strm << block_size << "," << n << "," << nnzr << "," << typeid(T).name() << "," << ts_eigen << "," << gflop_eigen
-         << "," << ts_mkl << "," << gflop_mkl << "," << (ts_mkl / ts_eigen) << ",1" << endl;
+         << "," << ts_mkl << "," << gflop_mkl << "," << (ts_mkl / ts_eigen) << ",1" << std::endl;
 }
 
 }  // namespace Saiga

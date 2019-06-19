@@ -87,7 +87,7 @@ void SSAO::init(int w, int h)
 
     assert_no_glerror();
 
-    cout << "SSAO initialized!" << endl;
+    std::cout << "SSAO initialized!" << std::endl;
 }
 
 void SSAO::resize(int w, int h)

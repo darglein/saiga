@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/util/ArrayView.h"
+#include "saiga/core/util/DataStructures/ArrayView.h"
 
 #include "image.h"
 #include "imageMetaData.h"
@@ -38,7 +38,7 @@ SAIGA_CORE_API bool saveFIP(
 // these are used by load and save from above
 SAIGA_CORE_API extern void convert(const fipImage& src, Image& dest);
 SAIGA_CORE_API extern void convert(const Image& src,
-                                 fipImage& dest);  // copy the src image because we need to flip red and blue :(
+                                   fipImage& dest);  // copy the src image because we need to flip red and blue :(
 
 // reads the meta data of a fipimage
 // is used by load from above

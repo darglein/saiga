@@ -16,7 +16,7 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/util/table.h"
-#include "saiga/core/util/threadName.h"
+#include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/tostring.h"
 
 namespace Saiga
@@ -61,10 +61,10 @@ void SaigaParameters::fromConfigFile(const std::string& file)
 
 static void printSaigaInfo()
 {
-    cout << ConsoleColor::BLUE;
+    std::cout << ConsoleColor::BLUE;
     Table table({2, 18, 10, 1});
 
-    cout << "============ SAIGA ============" << endl;
+    std::cout << "============ SAIGA ============" << std::endl;
     table << "|"
           << "Saiga Version" << SAIGA_VERSION << "|";
     table << "|"
@@ -116,9 +116,9 @@ static void printSaigaInfo()
 #endif
           << "|";
 
-    cout << "===============================" << endl;
-    cout.unsetf(std::ios_base::floatfield);
-    cout << ConsoleColor::RESET;
+    std::cout << "===============================" << std::endl;
+    std::cout.unsetf(std::ios_base::floatfield);
+    std::cout << ConsoleColor::RESET;
 }
 
 
@@ -167,11 +167,11 @@ void initSaiga(const SaigaParameters& params)
 
     if (shaderDir.empty())
     {
-        cout << "Could not find the Saiga shaders." << endl;
-        cout << "Set the 'shaderDirectory' variable of 'SaigaParameters' accordingly." << endl;
+        std::cout << "Could not find the Saiga shaders." << std::endl;
+        std::cout << "Set the 'shaderDirectory' variable of 'SaigaParameters' accordingly." << std::endl;
         for (auto s : searchPathes)
         {
-            cout << "     " << s << endl;
+            std::cout << "     " << s << std::endl;
         }
         exit(1);
     }

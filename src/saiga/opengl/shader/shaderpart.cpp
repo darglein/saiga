@@ -7,7 +7,7 @@
 #include "saiga/opengl/shader/shaderpart.h"
 
 #include "saiga/opengl/error.h"
-
+#include <iostream>
 #include <fstream>
 
 namespace Saiga
@@ -32,7 +32,7 @@ void ShaderPart::createGLShader()
     id = glCreateShader(type);
     if (id == 0)
     {
-        cout << "Could not create shader of type: " << typeToName(type) << endl;
+        std::cout << "Could not create shader of type: " << typeToName(type) << std::endl;
     }
     assert_no_glerror();
 }
@@ -79,7 +79,7 @@ bool ShaderPart::writeToFile(const std::string& file)
     try
     {
         stream.open(errorFile, std::fstream::out);
-        stream << error << endl;
+        stream << error << std::endl;
         stream.close();
     }
     catch (const std::fstream::failure& e)

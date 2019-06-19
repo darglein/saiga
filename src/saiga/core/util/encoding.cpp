@@ -10,6 +10,8 @@
 
 #include "internal/noGraphicsAPI.h"
 
+#include <iostream>
+
 namespace Saiga
 {
 int sizeTable[] = {
@@ -339,7 +341,7 @@ utf32string Encoding::UTF8toUTF32(const std::string& str)
 
         if (size == -1)
         {
-            cerr << "Warning Encoding::UTF8toUTF32: The passed string is not UTF8 encoded! " << str << endl;
+            std::cerr << "Warning Encoding::UTF8toUTF32: The passed string is not UTF8 encoded! " << str << std::endl;
             size = 1;
         }
         else

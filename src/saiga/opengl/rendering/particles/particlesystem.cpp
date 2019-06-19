@@ -76,7 +76,7 @@ void ParticleSystem::interpolate(float interpolation)
 
 void ParticleSystem::render(Camera* cam)
 {
-    //    cout<<tick<<" ParticleSystem::renderr()"<<endl;
+    //    std::cout<<tick<<" ParticleSystem::renderr()"<<endl;
 
     if (blending)
     {
@@ -153,11 +153,11 @@ void ParticleSystem::addParticle(Particle& p)
 
 void ParticleSystem::updateParticleBuffer()
 {
-    //    cout<<tick<<" ParticleSystem::updateParticleBuffer()"<<endl;
+    //    std::cout<<tick<<" ParticleSystem::updateParticleBuffer()"<<endl;
 
     if (newParticles > particleCount)
     {
-        //        cout<<"warning: new particles spawned = "<<newParticles<<" , particle system size =
+        //        std::cout<<"warning: new particles spawned = "<<newParticles<<" , particle system size =
         //        "<<particleCount<<endl;
         int size   = particleCount;
         int offset = 0;

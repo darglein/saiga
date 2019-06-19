@@ -76,7 +76,7 @@ void glfw_EventHandler::joystick_key_callback(int button, bool pressed)
 
 void glfw_EventHandler::window_size_callback(GLFWwindow* window, int width, int height)
 {
-    std::cout << "window_size_callback " << width << " " << height << std::endl;
+    //    std::cout << "window_size_callback " << width << " " << height << std::endl;
     // forward event to all listeners
     for (auto& rl : resizeListener)
     {

@@ -66,14 +66,14 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
             _error     = error_.log();
 
 
-            //        cout << from << endl;
-            //        cout << to << endl;
-            //        cout << _measurement << endl;
+            //        std::cout << from << std::endl;
+            //        std::cout << to << std::endl;
+            //        std::cout << _measurement << std::endl;
             //        exit(0);
-            //        cout << _error.transpose() << endl;
+            //        std::cout << _error.transpose() << std::endl;
 
             //        SE3 error_2 = _inverseMeasurement * _to->estimate() * _from->estimate().inverse();
-            //        cout << error_2.log().transpose() << endl;
+            //        std::cout << error_2.log().transpose() << std::endl;
             //        exit(0);
         }
         else
@@ -81,7 +81,7 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
             //        SE3 error_              = _from->estimate() * _to->estimate().inverse() * _measurement;
             SE3 error_ = _measurement * from * to.inverse();
             _error     = error_.log();
-            //        cout << _error.transpose() << endl;
+            //        std::cout << _error.transpose() << std::endl;
             //        exit(0);
         }
     }
@@ -91,7 +91,7 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
         if (_LSD_REL)
         {
             auto from = static_cast<const VertexSim3*>(_vertices[0])->estimate();
-            auto to   = static_cast<const VertexSim3*>(_vertices[1])->estimate();
+            //            auto to   = static_cast<const VertexSim3*>(_vertices[1])->estimate();
 
 
             _jacobianOplusXj = from.inverse().Adj();
@@ -107,16 +107,16 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
 
 
         //        return;
-        //        cout << from << endl;
-        //        cout << to << endl;
-        //        cout << _measurement << endl;
-        //        cout << _jacobianOplusXi << endl << endl;
-        //        cout << _jacobianOplusXj << endl << endl;
+        //        std::cout << from << std::endl;
+        //        std::cout << to << std::endl;
+        //        std::cout << _measurement << std::endl;
+        //        std::cout << _jacobianOplusXi << std::endl << std::endl;
+        //        std::cout << _jacobianOplusXj << std::endl << std::endl;
 
         //        g2o::BaseBinaryEdge<6, SE3, VertexSim3, VertexSim3>::linearizeOplus();
 
-        //        cout << _jacobianOplusXi << endl << endl;
-        //        cout << _jacobianOplusXj << endl << endl;
+        //        std::cout << _jacobianOplusXi << std::endl << std::endl;
+        //        std::cout << _jacobianOplusXj << std::endl << std::endl;
 
         //        exit(0);
         //        return;
@@ -126,8 +126,8 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
 
         auto ei = (ji - _jacobianOplusXi).norm();
         auto ej = (jj - _jacobianOplusXj).norm();
-        cout << "error i " << ei << endl;
-        cout << "error j " << ej << endl;
+        std::cout << "error i " << ei << std::endl;
+        std::cout << "error j " << ej << std::endl;
 #else
         const VertexSim3* _from = static_cast<const VertexSim3*>(_vertices[0]);
         const VertexSim3* _to   = static_cast<const VertexSim3*>(_vertices[1]);
@@ -135,41 +135,43 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
         g2o::BaseBinaryEdge<6, SE3, VertexSim3, VertexSim3>::linearizeOplus();
         return;
 #    if 0
-        cout << "======================================================================================================"
+        std::cout << "======================================================================================================"
                 "============ "
-             << endl;
-        cout << _from->estimate().inverse().Adj() << endl << endl;
-        cout << _from->estimate().Adj() << endl << endl;
-        cout << _to->estimate().inverse().Adj() << endl << endl;
-        cout << (_from->estimate() * _to->estimate().inverse()).Adj() << endl << endl;
-        cout << (_from->estimate() * _to->estimate().inverse()).inverse().Adj() << endl << endl;
-        cout << (_measurement * _from->estimate() * _to->estimate().inverse()).Adj() << endl << endl;
-        cout << "======================================================================================================"
+             << std::endl;
+        std::cout << _from->estimate().inverse().Adj() << std::endl << std::endl;
+        std::cout << _from->estimate().Adj() << std::endl << std::endl;
+        std::cout << _to->estimate().inverse().Adj() << std::endl << std::endl;
+        std::cout << (_from->estimate() * _to->estimate().inverse()).Adj() << std::endl << std::endl;
+        std::cout << (_from->estimate() * _to->estimate().inverse()).inverse().Adj() << std::endl << std::endl;
+        std::cout << (_measurement * _from->estimate() * _to->estimate().inverse()).Adj() << std::endl << std::endl;
+        std::cout << "======================================================================================================"
                 "============ "
-             << endl;
+             << std::endl;
 
-        cout << "numeric reference:" << endl;
-        cout << _jacobianOplusXi << endl << endl;
-        cout << _jacobianOplusXj << endl;
+        std::cout << "numeric reference:" << std::endl;
+        std::cout << _jacobianOplusXi << std::endl << std::endl;
+        std::cout << _jacobianOplusXj << std::endl;
 #    endif
 
 #    if 1
-        cout << "======================================================================================================"
-                "============ "
-             << endl;
-        cout << _from->estimate().inverse().Adj() << endl << endl;
-        cout << _from->estimate().Adj() << endl << endl;
-        cout << _to->estimate().inverse().Adj() << endl << endl;
-        cout << (_from->estimate() * _to->estimate().inverse()).Adj() << endl << endl;
-        cout << (_from->estimate() * _to->estimate().inverse()).inverse().Adj() << endl << endl;
-        cout << (_from->estimate() * _to->estimate().inverse() * _measurement).Adj() << endl << endl;
-        cout << "======================================================================================================"
-                "============ "
-             << endl;
+        std::cout
+            << "======================================================================================================"
+               "============ "
+            << std::endl;
+        std::cout << _from->estimate().inverse().Adj() << std::endl << std::endl;
+        std::cout << _from->estimate().Adj() << std::endl << std::endl;
+        std::cout << _to->estimate().inverse().Adj() << std::endl << std::endl;
+        std::cout << (_from->estimate() * _to->estimate().inverse()).Adj() << std::endl << std::endl;
+        std::cout << (_from->estimate() * _to->estimate().inverse()).inverse().Adj() << std::endl << std::endl;
+        std::cout << (_from->estimate() * _to->estimate().inverse() * _measurement).Adj() << std::endl << std::endl;
+        std::cout
+            << "======================================================================================================"
+               "============ "
+            << std::endl;
 
-        cout << "numeric reference:" << endl;
-        cout << _jacobianOplusXi << endl << endl;
-        cout << _jacobianOplusXj << endl;
+        std::cout << "numeric reference:" << std::endl;
+        std::cout << _jacobianOplusXi << std::endl << std::endl;
+        std::cout << _jacobianOplusXj << std::endl;
 #    endif
 
         Eigen::Matrix<double, 6, 6> _jacobianOplusXj2 =
@@ -190,28 +192,28 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
 
         auto ei = (_jacobianOplusXi2 - _jacobianOplusXi).norm();
         auto ej = (_jacobianOplusXj2 - _jacobianOplusXj).norm();
-        cout << "error i " << ei << endl;
-        cout << "error j " << ej << endl;
+        std::cout << "error i " << ei << std::endl;
+        std::cout << "error j " << ej << std::endl;
 
         if (ej > 1)
         {
 #    if 0
-            cout << "meas:" << endl;
-            cout << _measurement.Adj() << endl;
-            cout << _measurement << endl;
-            cout << Sophus::SO3<double>::hat(_measurement.translation()) << endl;
-            cout << "=================================================================================================="
+            std::cout << "meas:" << std::endl;
+            std::cout << _measurement.Adj() << std::endl;
+            std::cout << _measurement << std::endl;
+            std::cout << Sophus::SO3<double>::hat(_measurement.translation()) << std::endl;
+            std::cout << "=================================================================================================="
                     "===="
                     "============ ";
-                 << endl;
-            cout << _from->estimate().inverse().Adj() << endl << endl;
-            cout << _from->estimate().Adj() << endl << endl;
-            cout << _to->estimate().inverse().Adj() << endl << endl;
-            cout << (_from->estimate() * _to->estimate().inverse()).Adj() << endl << endl;
-            cout << (_from->estimate() * _to->estimate().inverse()).inverse().Adj() << endl << endl;
-            cout << (_measurement * _from->estimate() * _to->estimate().inverse()).Adj() << endl << endl;
-            //            cout << (_measurement * _from->estimate() * _to->estimate().inverse()).inverse().Adj() << endl
-            //            << endl;
+                 << std::endl;
+            std::cout << _from->estimate().inverse().Adj() << std::endl << std::endl;
+            std::cout << _from->estimate().Adj() << std::endl << std::endl;
+            std::cout << _to->estimate().inverse().Adj() << std::endl << std::endl;
+            std::cout << (_from->estimate() * _to->estimate().inverse()).Adj() << std::endl << std::endl;
+            std::cout << (_from->estimate() * _to->estimate().inverse()).inverse().Adj() << std::endl << std::endl;
+            std::cout << (_measurement * _from->estimate() * _to->estimate().inverse()).Adj() << std::endl << std::endl;
+            //            std::cout << (_measurement * _from->estimate() * _to->estimate().inverse()).inverse().Adj() << std::endl
+            //            << std::endl;
 
 #    endif
 
@@ -220,44 +222,45 @@ class SAIGA_VISION_API EdgeSim3 : public g2o::BaseBinaryEdge<6, SE3, VertexSim3,
 
             auto R     = test.so3().matrix();
             auto myhat = Sophus::SO3<double>::hat(test.translation());
-            cout << test.Adj() << endl << endl;
+            std::cout << test.Adj() << std::endl << std::endl;
 
             auto Rm = _measurement.so3().matrix();
             auto Tm = Sophus::SO3<double>::hat(_measurement.translation());
 
-            cout << myhat * R << endl << endl;
-            cout << R * myhat << endl << endl;
-            cout << myhat * R * Rm.transpose() << endl << endl;
-            cout << myhat * Rm.transpose() * R << endl << endl;
-            cout << Rm * myhat * R << endl << endl;
-            cout << Rm.transpose() * myhat * R << endl << endl;
+            std::cout << myhat * R << std::endl << std::endl;
+            std::cout << R * myhat << std::endl << std::endl;
+            std::cout << myhat * R * Rm.transpose() << std::endl << std::endl;
+            std::cout << myhat * Rm.transpose() * R << std::endl << std::endl;
+            std::cout << Rm * myhat * R << std::endl << std::endl;
+            std::cout << Rm.transpose() * myhat * R << std::endl << std::endl;
 
-            cout << Tm * myhat * R << endl << endl;
-            cout << myhat * R * Tm << endl << endl;
-            cout << myhat * Tm * R << endl << endl;
+            std::cout << Tm * myhat * R << std::endl << std::endl;
+            std::cout << myhat * R * Tm << std::endl << std::endl;
+            std::cout << myhat * Tm * R << std::endl << std::endl;
 #    endif
 
-            cout << "=================================================================================================="
-                    "===="
-                    "============ "
-                 << endl;
+            std::cout
+                << "=================================================================================================="
+                   "===="
+                   "============ "
+                << std::endl;
 
-            //            cout << _jacobianOplusXi.block(0, 3, 3, 3) * 2 << endl << endl;
-            cout << _jacobianOplusXi << endl << endl;
-            cout << _jacobianOplusXj << endl << endl;
-            cout << _jacobianOplusXi2 << endl << endl;
-            cout << _jacobianOplusXj2 << endl << endl;
+            //            std::cout << _jacobianOplusXi.block(0, 3, 3, 3) * 2 << std::endl << std::endl;
+            std::cout << _jacobianOplusXi << std::endl << std::endl;
+            std::cout << _jacobianOplusXj << std::endl << std::endl;
+            std::cout << _jacobianOplusXi2 << std::endl << std::endl;
+            std::cout << _jacobianOplusXj2 << std::endl << std::endl;
             exit(0);
         }
 
         _jacobianOplusXi = _jacobianOplusXi2;
         _jacobianOplusXj = _jacobianOplusXj2;
-        //        cout << endl;
+        //        std::cout << std::endl;
 
 
         //        //        _jacobianOplusXi        = -_jacobianOplusXj;
 
-        //        cout << endl;
+        //        std::cout << std::endl;
         //        exit(0);
 
 

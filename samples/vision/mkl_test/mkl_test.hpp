@@ -74,7 +74,7 @@ inline MKL_Test<T, block_size, factor>::MKL_Test()
     A.setFromTriplets(trips.begin(), trips.end());
     A.makeCompressed();
 
-//        cout << expand(A) << endl;
+//        std::cout << expand(A) << std::endl;
 #endif
     B = A;
 
@@ -98,7 +98,7 @@ inline MKL_Test<T, block_size, factor>::MKL_Test()
 #if 0
         {
             nist_A = BLAS_duscr_block_begin(n, m, block_size, block_size);
-            cout << nist_A << endl;
+            std::cout << nist_A << std::endl;
 
             for (auto trip : trips)
             {
@@ -108,19 +108,19 @@ inline MKL_Test<T, block_size, factor>::MKL_Test()
         }
 #endif
 
-    cout << "Init done." << endl;
+    std::cout << "Init done." << std::endl;
 
 
     // Print some stats
-    cout << "." << endl;
-    cout << "Block Size : " << block_size << "x" << block_size << endl;
-    cout << "Matrix Size (in Blocks): " << n << "x" << m << endl;
-    cout << "Matrix Size Total: " << n * block_size << "x" << m * block_size << endl;
-    cout << "Non Zero blocks per row: " << nnzr << endl;
-    cout << "Non Zero BLocks: " << nnzr * n << endl;
-    cout << "Non Zeros: " << nnzr * n * block_size * block_size << endl;
-    cout << "." << endl;
-    cout << endl;
+    std::cout << "." << std::endl;
+    std::cout << "Block Size : " << block_size << "x" << block_size << std::endl;
+    std::cout << "Matrix Size (in Blocks): " << n << "x" << m << std::endl;
+    std::cout << "Matrix Size Total: " << n * block_size << "x" << m * block_size << std::endl;
+    std::cout << "Non Zero blocks per row: " << nnzr << std::endl;
+    std::cout << "Non Zero BLocks: " << nnzr * n << std::endl;
+    std::cout << "Non Zeros: " << nnzr * n * block_size * block_size << std::endl;
+    std::cout << "." << std::endl;
+    std::cout << std::endl;
 }
 
 }  // namespace Saiga

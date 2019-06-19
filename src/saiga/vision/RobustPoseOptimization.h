@@ -219,8 +219,8 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                 lastChi2sum = chi2sum;
 
 #if 0
-                cout << outerIt << " Chi2: " << chi2sum << " Delta: " << deltaChi << " Robust: " << robust
-                     << " Inliers: " << inliers << "/" << N << endl;
+                std::cout << outerIt << " Chi2: " << chi2sum << " Delta: " << deltaChi << " Robust: " << robust
+                     << " Inliers: " << inliers << "/" << N << std::endl;
 #endif
                 if (deltaChi < 0)
                 {
@@ -243,7 +243,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                 lastGuess = guess;
 
 
-                //                cout << JtJ << endl;
+                //                std::cout << JtJ << std::endl;
                 //                return 0;
                 XType x;
                 if constexpr (AlignVec4)

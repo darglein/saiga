@@ -12,6 +12,7 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <fstream>
+#include <iostream>
 
 namespace Saiga
 {
@@ -25,9 +26,8 @@ std::string FileChecker::getFile(const std::string& file)
 {
     if (file.empty()) return "";
 
-	// Check without search pathes
-	if (existsFile(file))
-		return file;
+    // Check without search pathes
+    if (existsFile(file)) return file;
 
 
     for (std::string& path : searchPathes)
@@ -87,7 +87,7 @@ void FileChecker::getFiles(std::vector<std::string>& out, const std::string& pre
     for (std::string& path : searchPathes)
     {
         std::string dir = path + "/" + predir;
-        cout << dir << endl;
+        std::cout << dir << std::endl;
         Directory d(dir);
 
         std::vector<std::string> tmp;
@@ -117,10 +117,10 @@ bool FileChecker::existsFile(const std::string& file)
 
 std::ostream& operator<<(std::ostream& os, const FileChecker& fc)
 {
-    os << "File Checker - Search Pathes:" << endl;
+    os << "File Checker - Search Pathes:" << std::endl;
     for (auto s : fc.searchPathes)
     {
-        os << "   '" << s << "'" << endl;
+        os << "   '" << s << "'" << std::endl;
     }
     return os;
 }

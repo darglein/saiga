@@ -53,8 +53,9 @@ struct SAIGA_CORE_API ImageBase
      *   for(auto j : img.colRange())
      *      img(i,j) = 0;
      */
-    HD inline Range<int> rowRange() { return {0, rows}; }
-    HD inline Range<int> colRange() { return {0, cols}; }
+    HD inline Range<int> rowRange(int border = 0) const { return {border, rows - border}; }
+    HD inline Range<int> colRange(int border = 0) const { return {border, cols - border}; }
+
 
     // size in bytes
     HD inline size_t size() const { return height * pitchBytes; }

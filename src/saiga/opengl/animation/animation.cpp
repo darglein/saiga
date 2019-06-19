@@ -7,7 +7,7 @@
 #include "animation.h"
 
 #include "saiga/core/util/assert.h"
-
+#include <iostream>
 #include <algorithm>
 namespace Saiga
 {
@@ -56,13 +56,13 @@ void Animation::getFrameNormalized(double time, AnimationFrame& out)
 
 void Animation::print()
 {
-    cout << "[Animation] " + name << " Frames=" << frameCount << " duration=" << duration.count() << "s" << endl;
-    cout << "\tKeyframes: [";
+    std::cout << "[Animation] " + name << " Frames=" << frameCount << " duration=" << duration.count() << "s" << std::endl;
+    std::cout << "\tKeyframes: [";
     for (AnimationFrame& af : keyFrames)
     {
-        cout << af.time.count() << ", ";
+        std::cout << af.time.count() << ", ";
     }
-    cout << "]" << endl;
+    std::cout << "]" << std::endl;
 }
 
 }  // namespace Saiga

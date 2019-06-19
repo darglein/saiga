@@ -56,14 +56,14 @@ std::vector<std::string> SDLWindow::getRequiredInstanceExtensions()
     unsigned int count = 0;
     const char** names = nullptr;
     auto res           = SDL_Vulkan_GetInstanceExtensions(sdl_window, &count, nullptr);
-    cout << SDL_GetError() << endl;
+    std::cout << SDL_GetError() << std::endl;
     SAIGA_ASSERT(res);
     // now count is (probably) 2. Now you can make space:
     names = new const char*[count];
 
     // now call again with that not-NULL array you just allocated.
     res = SDL_Vulkan_GetInstanceExtensions(sdl_window, &count, names);
-    cout << SDL_GetError() << endl;
+    std::cout << SDL_GetError() << std::endl;
     SAIGA_ASSERT(res);
     // Now names should have (count) strings in it:
 

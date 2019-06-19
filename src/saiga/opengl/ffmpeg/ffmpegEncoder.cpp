@@ -48,14 +48,14 @@ FFMPEGEncoder::FFMPEGEncoder(const std::string& filename, int outWidth, int outH
 {
     if (!ffmpegInitialized)
     {
-        cout << "Initializing FFMPEG... ";
+        std::cout << "Initializing FFMPEG... ";
         av_log_set_level(AV_LOG_DEBUG);
 
         // Can be removed after ffmpeg 4
         // avcodec_register_all();
         // av_register_all();
         ffmpegInitialized = true;
-        cout << "done" << endl;
+        std::cout << "done" << std::endl;
     }
 }
 
@@ -78,7 +78,7 @@ void FFMPEGEncoder::scaleThreadFunc()
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
     }
-    cout << "Scale Thread done." << endl;
+    std::cout << "Scale Thread done." << std::endl;
     finishScale = true;
 }
 
@@ -133,7 +133,7 @@ void FFMPEGEncoder::encodeThreadFunc()
     while (encodeFrame())
     {
     }
-    cout << "Encode Thread done." << endl;
+    std::cout << "Encode Thread done." << std::endl;
     finishEncode = true;
 }
 
@@ -157,7 +157,7 @@ bool FFMPEGEncoder::encodeFrame(AVFrame* frame)
     int ret = avcodec_send_frame(m_codecContext, frame);
     if (ret < 0)
     {
-        cout << "Error encoding frame" << endl;
+        std::cout << "Error encoding frame" << std::endl;
         exit(1);
     }
 
@@ -184,7 +184,7 @@ bool FFMPEGEncoder::encodeFrame(AVFrame* frame)
 
 void FFMPEGEncoder::addFrame(std::shared_ptr<EncoderImageType> image)
 {
-    //    cout << "Add frame. Queue states: Scale="<<imageQueue.count()<<" Encode="<<frameQueue.count()<<endl;
+    //    std::cout << "Add frame. Queue states: Scale="<<imageQueue.count()<<" Encode="<<frameQueue.count()<<endl;
     imageQueue.add(image);
 }
 
@@ -197,7 +197,7 @@ void FFMPEGEncoder::finishEncoding()
 {
     if (!running) return;
 
-    std::cout << "finishing ffmpeg encoding..." << endl;
+    std::cout << "finishing ffmpeg encoding..." << std::endl;
     running = false;
 
     scaleThread.join();
@@ -218,12 +218,12 @@ void FFMPEGEncoder::finishEncoding()
     imageStorage.clear();
     frameStorage.clear();
 
-    std::cout << "encoding done." << endl;
+    std::cout << "encoding done." << std::endl;
 }
 
 void FFMPEGEncoder::startEncoding()
 {
-    cout << "FFMPEGEncoder start encoding to file " << filename << endl;
+    std::cout << "FFMPEGEncoder start encoding to file " << filename << std::endl;
 
     //    this->outWidth = outWidth;
     //    this->outHeight = outHeight;

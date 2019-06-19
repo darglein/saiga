@@ -165,10 +165,10 @@ void convert(const fipImage& src, Image& dest)
     SAIGA_ASSERT(elementType != IET_ELEMENT_UNKNOWN);
 
 
-    //    cout << "Channels: " << format.getChannels() << " BitsPerPixel: " << src.getBitsPerPixel() << " Bitdepth: " <<
-    //    format.getBitDepth() << endl;
+    //    std::cout << "Channels: " << format.getChannels() << " BitsPerPixel: " << src.getBitsPerPixel() << " Bitdepth: " <<
+    //    format.getBitDepth() << std::endl;
 
-    //    cout << format << endl;
+    //    std::cout << format << std::endl;
 
     dest.type = getType(channels, elementType);
     dest.create();
@@ -231,7 +231,7 @@ void getMetaData(fipImage& img, ImageMetadata& metaData)
             }
             else
             {
-                //                cout << "Tag: " << tag.getKey() << " Value: " << tag.toString(FIMD_EXIF_MAIN) << endl;
+                //                std::cout << "Tag: " << tag.getKey() << " Value: " << tag.toString(FIMD_EXIF_MAIN) << std::endl;
             }
 
         } while (finder.findNextMetadata(tag));
@@ -266,7 +266,7 @@ void getMetaData(fipImage& img, ImageMetadata& metaData)
             }
             else
             {
-                //                cout << "Tag: " << tag.getKey() << " Value: " << tag.toString(FIMD_EXIF_MAIN) << endl;
+                //                std::cout << "Tag: " << tag.getKey() << " Value: " << tag.toString(FIMD_EXIF_MAIN) << std::endl;
             }
         } while (finder.findNextMetadata(tag));
     }
@@ -278,7 +278,7 @@ void printAllMetaData(fipImage& img)
     for (int i = -1; i <= 11; ++i)
     {
         FREE_IMAGE_MDMODEL model = (FREE_IMAGE_MDMODEL)i;
-        cout << "Model: " << model << endl;
+        std::cout << "Model: " << model << std::endl;
         fipTag tag;
         fipMetadataFind finder;
         if (finder.findFirstMetadata(model, img, tag))
@@ -287,7 +287,7 @@ void printAllMetaData(fipImage& img)
             {
                 std::string t = tag.getKey();
 
-                cout << tag.getKey() << " : " << tag.toString(model) << " Type: " << tag.getType() << endl;
+                std::cout << tag.getKey() << " : " << tag.toString(model) << " Type: " << tag.getType() << std::endl;
 
 
             } while (finder.findNextMetadata(tag));

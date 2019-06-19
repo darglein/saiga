@@ -61,8 +61,8 @@ inline Saiga::OptimizationResults ceres_solve(const ceres::Solver::Options& cere
         ceres::Solve(ceres_options, &problem, &summaryTest);
     }
 
-    //    cout << "linear solver time " << summaryTest.linear_solver_time_in_seconds << "s." << endl;
-    //    cout << summaryTest.FullReport() << endl;
+    //    std::cout << "linear solver time " << summaryTest.linear_solver_time_in_seconds << "s." << std::endl;
+    //    std::cout << summaryTest.FullReport() << std::endl;
 
     OptimizationResults result;
     result.cost_initial       = summaryTest.initial_cost * 2.0;
@@ -83,21 +83,21 @@ inline void printDebugSmall(ceres::Problem& problem)
     std::vector<double> residuals, gradient;
     problem.Evaluate(defaultEvalOptions, &costFinal, &residuals, &gradient, nullptr);
 
-    cout << "num residuals: " << problem.NumResiduals() << endl;
-    cout << "cost: " << costFinal << endl;
+    std::cout << "num residuals: " << problem.NumResiduals() << std::endl;
+    std::cout << "cost: " << costFinal << std::endl;
 
 
 
-    //        cout << "gradient" << endl;
-    //        for (auto d : gradient) cout << d << " ";
-    //        cout << endl << "residuals" << endl;
-    //        for (auto d : residuals) cout << d << " ";
-    //        cout << endl;
+    //        std::cout << "gradient" << std::endl;
+    //        for (auto d : gradient) std::cout << d << " ";
+    //        std::cout << std::endl << "residuals" << std::endl;
+    //        for (auto d : residuals) std::cout << d << " ";
+    //        std::cout << std::endl;
 }
 
 inline void printDebugJacobi(ceres::Problem& problem, int maxRows = 10, bool printJtJ = false)
 {
-    cout << "[Ceres Problem Info]" << endl;
+    std::cout << "[Ceres Problem Info]" << std::endl;
     ceres::Problem::EvaluateOptions defaultEvalOptions;
     ceres::CRSMatrix matrix;
     double costFinal = 0;
@@ -106,39 +106,39 @@ inline void printDebugJacobi(ceres::Problem& problem, int maxRows = 10, bool pri
     problem.Evaluate(defaultEvalOptions, &costFinal, &residuals, &gradient, &matrix);
 
 
-    cout << "num residuals: " << problem.NumResiduals() << endl;
-    cout << matrix.num_rows << "x" << matrix.num_cols << endl;
+    std::cout << "num residuals: " << problem.NumResiduals() << std::endl;
+    std::cout << matrix.num_rows << "x" << matrix.num_cols << std::endl;
 
-    cout << "cost: " << costFinal << endl;
+    std::cout << "cost: " << costFinal << std::endl;
 
     {
-        cout << "[Residual r]" << endl;
+        std::cout << "[Residual r]" << std::endl;
         double residualSum = 0;
         for (int i = 0; i < std::min<int>(maxRows, residuals.size()); ++i)
         {
             auto g = residuals[i];
             residualSum += g;
-            cout << g << " ";
+            std::cout << g << " ";
         }
-        cout << endl << "Sum = " << residualSum << endl;
+        std::cout << std::endl << "Sum = " << residualSum << std::endl;
     }
 
     {
-        cout << "[Gradient -Jr]" << endl;
+        std::cout << "[Gradient -Jr]" << std::endl;
         double gradientSum = 0;
         for (int i = 0; i < std::min<int>(maxRows, gradient.size()); ++i)
         {
             auto g = gradient[i];
             gradientSum += g;
-            cout << g << " ";
+            std::cout << g << " ";
         }
-        cout << endl << "Sum = " << gradientSum << endl;
+        std::cout << std::endl << "Sum = " << gradientSum << std::endl;
     }
 
 
 
     {
-        cout << "[Jacobian J]" << endl;
+        std::cout << "[Jacobian J]" << std::endl;
 
         using SM = Eigen::SparseMatrix<double, Eigen::RowMajor>;
         SM ematrix(matrix.num_rows, matrix.num_cols);
@@ -153,11 +153,11 @@ inline void printDebugJacobi(ceres::Problem& problem, int maxRows = 10, bool pri
             ematrix.valuePtr()[i]      = matrix.values[i];
             ematrix.innerIndexPtr()[i] = matrix.cols[i];
         }
-        //        cout << "gradient" << endl;
-        //        for (auto d : gradient) cout << d << " ";
-        //        cout << endl << "residuals" << endl;
-        //        for (auto d : residuals) cout << d << " ";
-        //        cout << endl;
+        //        std::cout << "gradient" << std::endl;
+        //        for (auto d : gradient) std::cout << d << " ";
+        //        std::cout << std::endl << "residuals" << std::endl;
+        //        for (auto d : residuals) std::cout << d << " ";
+        //        std::cout << std::endl;
 
 
         // Only print a few rows because it could get very big
@@ -165,18 +165,18 @@ inline void printDebugJacobi(ceres::Problem& problem, int maxRows = 10, bool pri
         {
             for (SM::InnerIterator it(ematrix, i); it; ++it)
             {
-                cout << it.value() << " ";
+                std::cout << it.value() << " ";
             }
-            cout << endl;
+            std::cout << std::endl;
         }
 
-        cout << "|J| = " << ematrix.norm() << endl;
+        std::cout << "|J| = " << ematrix.norm() << std::endl;
 
 
         if (printJtJ)
         {
             SM JtJ = (ematrix.transpose() * ematrix).triangularView<Eigen::Upper>();
-            cout << "JtJ" << endl << JtJ.toDense() << endl << endl;
+            std::cout << "JtJ" << std::endl << JtJ.toDense() << std::endl << std::endl;
         }
     }
 }

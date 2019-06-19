@@ -125,25 +125,25 @@ void test()
     e.meassurement =
         SE3(Quat(0.999975, 0.00656501, -0.00140489, -0.00232645), Vec3(0.0394367, -0.0333284, -0.00711748));
 
-    //    cout << n1.v << endl;
+    //    std::cout << n1.v << std::endl;
 
     JType JA, JB, JA2, JB2;
     //
     numericDeriv(JA, JB);
     analyticDeriv(JA2, JB2);
 
-    cout << endl;
-    cout << "Numeric: " << endl;
-    cout << JA << endl << endl;
-    cout << JB << endl << endl;
+    std::cout << std::endl;
+    std::cout << "Numeric: " << std::endl;
+    std::cout << JA << std::endl << std::endl;
+    std::cout << JB << std::endl << std::endl;
 
-    cout << endl;
-    cout << "Analytic: " << endl;
-    cout << JA2 << endl << endl;
-    cout << JB2 << endl << endl;
+    std::cout << std::endl;
+    std::cout << "Analytic: " << std::endl;
+    std::cout << JA2 << std::endl << std::endl;
+    std::cout << JB2 << std::endl << std::endl;
 
-    cout << "Error 1: " << (JA - JA2).norm() << endl;
-    cout << "Error 2: " << (JB - JB2).norm() << endl;
+    std::cout << "Error 1: " << (JA - JA2).norm() << std::endl;
+    std::cout << "Error 2: " << (JB - JB2).norm() << std::endl;
 }
 
 

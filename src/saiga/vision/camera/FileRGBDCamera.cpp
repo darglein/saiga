@@ -18,7 +18,7 @@ FileRGBDCamera::FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsi
                                bool multithreaded)
     : RGBDCamera(intr)
 {
-    cout << "Loading File RGBD Dataset: " << datasetDir << endl;
+    std::cout << "Loading File RGBD Dataset: " << datasetDir << std::endl;
 
     if (_preload)
     {
@@ -38,7 +38,7 @@ FileRGBDCamera::FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsi
 
 FileRGBDCamera::~FileRGBDCamera()
 {
-    cout << "~FileRGBDCamera" << endl;
+    std::cout << "~FileRGBDCamera" << std::endl;
 }
 
 bool FileRGBDCamera::getImageSync(RGBDFrameData& data)
@@ -92,8 +92,8 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
 
     if (intrinsics().maxFrames <= 0) _intrinsics.maxFrames = rgbImages.size();
 
-    cout << "Found Color/Depth Images: " << rgbImages.size() << "/" << depthImages.size() << " Loading "
-         << _intrinsics.maxFrames << " images..." << endl;
+    std::cout << "Found Color/Depth Images: " << rgbImages.size() << "/" << depthImages.size() << " Loading "
+         << _intrinsics.maxFrames << " images..." << std::endl;
 
     frames.resize(intrinsics().maxFrames);
 
@@ -103,7 +103,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
         auto& f = frames[i];
         makeFrameData(f);
 
-        //        cout << "dir: " << dir() + rgbImages[i] << endl;
+        //        std::cout << "dir: " << dir() + rgbImages[i] << std::endl;
         RGBImageType cimg(dir() + "/" + rgbImages[i]);
         //        cimg.load(dir() + rgbImages[i]);
 
@@ -142,7 +142,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
         f.colorImg = std::move(cimg);
     }
 
-    cout << "Loading done." << endl;
+    std::cout << "Loading done." << std::endl;
 
 
 #if 0
@@ -158,7 +158,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
     for (int i = 0; i < (int)tumframes.size(); ++i)
     {
         TumFrame d = tumframes[i];
-        //        cout << "loading " << d.rgb.img << endl;
+        //        std::cout << "loading " << d.rgb.img << std::endl;
 
 
         Image cimg(datasetDir + "/" + d.rgb.img);
@@ -217,7 +217,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
         frames[i] = f;
     }
 
-    cout << "Loaded " << tumframes.size() << " images." << endl;
+    std::cout << "Loaded " << tumframes.size() << " images." << std::endl;
 #endif
 }
 

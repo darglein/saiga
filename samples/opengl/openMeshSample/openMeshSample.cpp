@@ -74,7 +74,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     sun->createShadowMap(2048, 2048);
     sun->enableShadows();
 
-    cout << "Program Initialized!" << endl;
+    std::cout << "Program Initialized!" << std::endl;
 }
 
 Sample::~Sample()
@@ -103,7 +103,7 @@ class ModNone : public OpenMesh::Decimater::ModBaseT<MeshT>
 void Sample::reduce()
 {
 #ifdef OM_DEBUG
-    cerr << "Warning OpenMesh debug is ON" << endl;
+    std::cerr << "Warning OpenMesh debug is ON" << std::endl;
 #endif
 
 
@@ -293,7 +293,7 @@ void Sample::renderFinal(Camera* cam)
             Saiga::HalfEdgeMesh<VertexNC, GLuint> hem(baseMesh);
             t.stop();
 
-            cout << "to halfedge: " << t.getTimeMS() << endl;
+            std::cout << "to halfedge: " << t.getTimeMS() << std::endl;
 
             {
                 ScopedTimerPrint tim("isValid");

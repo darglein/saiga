@@ -18,7 +18,7 @@ Texture3D::Texture3D(GLenum target) : raw_Texture(target)
 void Texture3D::createEmptyTexture(int width, int height, int depth, GLenum color_type, GLenum internal_format,
                                    GLenum data_type)
 {
-    //    cout <<"Texture3D::createEmptyTexture" << endl;
+    //    std::cout <<"Texture3D::createEmptyTexture" << std::endl;
     this->width           = width;
     this->height          = height;
     this->depth           = depth;

@@ -9,6 +9,7 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <fstream>
+#include <iostream>
 #include <string>
 
 
@@ -73,7 +74,7 @@ bool checkSSECSR()
 {
     unsigned int csr = _mm_getcsr();
     //    for(int i = 0 ; i < 32 ; ++i){
-    //        cout << i << " " << ((csr>>i)&1) << endl;
+    //        std::cout << i << " " << ((csr>>i)&1) << std::endl;
     //    }
 
     if (((csr >> FZ) & 1) != 0) return false;

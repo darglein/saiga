@@ -44,7 +44,7 @@ void glfw_Window::getCurrentPrimaryMonitorResolution(int* width, int* height)
 {
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
-    cout << "Video Mode: " << mode->width << " x " << mode->height << " @" << mode->refreshRate << "Hz" << endl;
+    std::cout << "Video Mode: " << mode->width << " x " << mode->height << " @" << mode->refreshRate << "Hz" << std::endl;
 
     *width  = mode->width;
     *height = mode->height;
@@ -56,14 +56,14 @@ void glfw_Window::getMaxResolution(int* width, int* height)
     // get max video mode resolution
     int count;
     const GLFWvidmode* mode = glfwGetVideoModes(primary, &count);
-    //    cout << "Video modes:" << endl;
+    //    std::cout << "Video modes:" << std::endl;
     //    for (int i = 0; i < count; i++){
-    //        cout << "Mode "<< i << ": " << mode[i].width << " x "<< mode[i].height << " @" << mode[i].refreshRate <<
-    //        "Hz" << endl;
+    //        std::cout << "Mode "<< i << ": " << mode[i].width << " x "<< mode[i].height << " @" << mode[i].refreshRate <<
+    //        "Hz" << std::endl;
     //    }
 
-    cout << "Native Video Mode: " << mode[count - 1].width << " x " << mode[count - 1].height << " @"
-         << mode[count - 1].refreshRate << "Hz" << endl;
+    std::cout << "Native Video Mode: " << mode[count - 1].width << " x " << mode[count - 1].height << " @"
+         << mode[count - 1].refreshRate << "Hz" << std::endl;
     *width  = mode[count - 1].width;
     *height = mode[count - 1].height;
 }
@@ -101,10 +101,10 @@ void glfw_Window::disableMouseCursor()
 bool glfw_Window::initGlfw()
 {
     glfwSetErrorCallback(glfw_Window::error_callback);
-    cout << "Initializing GLFW." << endl;
+    std::cout << "Initializing GLFW." << std::endl;
     /* Initialize the library */
     if (!glfwInit()) return false;
-    cout << "Initializing GLFW sucessfull!" << endl;
+    std::cout << "Initializing GLFW sucessfull!" << std::endl;
     return true;
 }
 
@@ -114,7 +114,7 @@ bool glfw_Window::initWindow()
 {
     if (!glfw_Window::initGlfw())
     {
-        cout << "Could not initialize GLFW" << endl;
+        std::cout << "Could not initialize GLFW" << std::endl;
         return false;
     }
 
@@ -203,7 +203,7 @@ bool glfw_Window::initWindow()
     if (!window)
     {
         glfwTerminate();
-        cerr << "glfwCreateWindow returned false!" << endl;
+        std::cerr << "glfwCreateWindow returned false!" << std::endl;
         return false;
     }
 
@@ -255,7 +255,7 @@ void glfw_Window::freeContext()
     glfwDestroyWindow(window);
     glfwTerminate();
     terminateOpenGL();
-    cout << "GLFW: Terminated." << endl;
+    std::cout << "GLFW: Terminated." << std::endl;
 }
 
 
@@ -269,7 +269,7 @@ bool glfw_Window::window_size_callback(GLFWwindow* window, int width, int height
 
 void glfw_Window::error_callback(int error, const char* description)
 {
-    cout << "glfw error: " << error << " " << description << endl;
+    std::cout << "glfw error: " << error << " " << description << std::endl;
 }
 
 void glfw_Window::setGLFWcursor(GLFWcursor* cursor)
@@ -282,8 +282,8 @@ GLFWcursor* glfw_Window::createGLFWcursor(Image* image, int midX, int midY)
 {
     if (image->type != UC4)
     {
-        cout << "glfw_Window::createGLFWcursor(Image *image): image has the wrong format." << endl;
-        cout << "Required format: RGBA8" << endl;
+        std::cout << "glfw_Window::createGLFWcursor(Image *image): image has the wrong format." << std::endl;
+        std::cout << "Required format: RGBA8" << std::endl;
         SAIGA_ASSERT(0);
     }
 
@@ -318,8 +318,8 @@ void glfw_Window::setWindowIcon(Image* image)
     SAIGA_ASSERT(window);
     if (image->type != UC4)
     {
-        cout << "glfw_Window::setWindowIcon(Image *image): image has the wrong format." << endl;
-        cout << "Required format: RGBA8" << endl;
+        std::cout << "glfw_Window::setWindowIcon(Image *image): image has the wrong format." << std::endl;
+        std::cout << "Required format: RGBA8" << std::endl;
         SAIGA_ASSERT(0);
     }
 

@@ -568,19 +568,19 @@ void TriangleMesh<vertex_t, index_t>::removeDegenerateFaces()
 template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm)
 {
-    strm << "OFF" << endl;
+    strm << "OFF" << std::endl;
     // first line: number of vertices, number of faces, number of edges (can be ignored)
-    strm << vertices.size() << " " << faces.size() << " 0" << endl;
+    strm << vertices.size() << " " << faces.size() << " 0" << std::endl;
 
     for (auto& v : vertices)
     {
-        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << endl;
+        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << std::endl;
     }
 
     for (auto& f : faces)
     {
         strm << "3"
-             << " " << f[0] << " " << f[1] << " " << f[2] << endl;
+             << " " << f[0] << " " << f[1] << " " << f[2] << std::endl;
     }
 }
 

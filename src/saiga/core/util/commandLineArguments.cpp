@@ -12,6 +12,7 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <algorithm>
+#include <iostream>
 namespace Saiga
 {
 std::string CommandLineArguments::get(const std::string& name)
@@ -52,7 +53,7 @@ void CommandLineArguments::parse(int argc, char* argv[])
 
 
     //    for(auto s : args)
-    //        cout << s << endl;
+    //        std::cout << s << std::endl;
 
     std::string minus      = "-";
     std::string minusminus = "--";
@@ -78,14 +79,14 @@ void CommandLineArguments::parse(int argc, char* argv[])
         }
         else
         {
-            cout << "invalid parameter" << endl;
+            std::cout << "invalid parameter" << std::endl;
             SAIGA_ASSERT(0);
             return;
         }
 
         auto subStr = longName ? str.substr(2) : str.substr(1);
 
-        //        cout << "substr " << subStr << endl;
+        //        std::cout << "substr " << subStr << std::endl;
 
         // split into name and value
         auto equalPos = subStr.find('=');
@@ -120,41 +121,41 @@ void CommandLineArguments::printHelp()
     {
         if (arg.longName != "")
         {
-            cout << "--" << arg.longName;
+            std::cout << "--" << arg.longName;
         }
         if (arg.shortName != 0)
         {
-            cout << "  -" << arg.shortName;
+            std::cout << "  -" << arg.shortName;
         }
-        cout << endl;
+        std::cout << std::endl;
 
-        cout << "    Description: " << arg.description << endl;
+        std::cout << "    Description: " << arg.description << std::endl;
 
 
         {
-            cout << "    Default: " << arg.defaultValue << endl;
+            std::cout << "    Default: " << arg.defaultValue << std::endl;
         }
 
         if (arg.isFlag)
         {
-            cout << "    Flag: yes" << endl;
+            std::cout << "    Flag: yes" << std::endl;
         }
         else
         {
-            cout << "    Flag: no" << endl;
+            std::cout << "    Flag: no" << std::endl;
         }
 
         if (arg.isRequired)
         {
-            cout << "    Required: yes" << endl;
+            std::cout << "    Required: yes" << std::endl;
         }
         else
         {
-            cout << "    Required: no" << endl;
+            std::cout << "    Required: no" << std::endl;
         }
 
 
-        cout << endl;
+        std::cout << std::endl;
     }
     exit(0);
 }

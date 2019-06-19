@@ -12,6 +12,8 @@
 #include "GLSL.h"
 #include "ShaderLoaderHelper.h"
 
+#include <iostream>
+
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
@@ -48,7 +50,7 @@ bool ShaderModule::loadSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, 
     auto data = GLSLANG::loadSPIRV(file);
     if (data.size() == 0) return false;
     createSPIRV(device, _stage, data);
-    cout << "Loaded ShaderModule " << file << endl;
+    std::cout << "Loaded ShaderModule " << file << std::endl;
     return true;
 }
 
@@ -58,7 +60,7 @@ bool ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, c
     auto file = SearchPathes::shader(_file);
     if (file == "")
     {
-        cout << "Could not find " << _file << endl;
+        std::cout << "Could not find " << _file << std::endl;
         SAIGA_ASSERT(0);
     }
 
@@ -71,7 +73,7 @@ bool ShaderModule::loadGLSL(vk::Device device, vk::ShaderStageFlagBits _stage, c
     auto spirv      = GLSLANG::loadGLSL(file, _stage, injection);
     if (spirv.size() == 0) return false;
     createSPIRV(device, _stage, spirv);
-    cout << "Loaded ShaderModule " << file << endl;
+    std::cout << "Loaded ShaderModule " << file << std::endl;
     return true;
 }
 
@@ -124,7 +126,7 @@ bool ShaderModule::autoReload()
 
     if (write != lastWrite)
     {
-        cout << "File Update detected. Reloading " << file << endl;
+        std::cout << "File Update detected. Reloading " << file << std::endl;
         reload();
         return true;
     }

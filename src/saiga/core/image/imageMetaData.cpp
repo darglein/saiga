@@ -14,14 +14,14 @@ namespace Saiga
 {
 std::ostream& operator<<(std::ostream& os, const ImageMetadata& d)
 {
-    os << "> ImageMetadata" << endl;
-    os << "Size: " << d.width << "x" << d.height << endl;
-    os << "DateTime: " << d.DateTime << endl;
-    os << "Make: " << d.Make << endl;
-    os << "Model: " << d.Model << endl;
+    os << "> ImageMetadata" << std::endl;
+    os << "Size: " << d.width << "x" << d.height << std::endl;
+    os << "DateTime: " << d.DateTime << std::endl;
+    os << "Make: " << d.Make << std::endl;
+    os << "Model: " << d.Model << std::endl;
 
-    os << "FocalLengthMM: " << d.FocalLengthMM << endl;
-    os << "FocalLengthMM35: " << d.FocalLengthMM35 << endl;
+    os << "FocalLengthMM: " << d.FocalLengthMM << std::endl;
+    os << "FocalLengthMM35: " << d.FocalLengthMM35 << std::endl;
 
     std::string resStr;
     switch (d.FocalPlaneResolutionUnit)
@@ -37,8 +37,8 @@ std::ostream& operator<<(std::ostream& os, const ImageMetadata& d)
             break;
     }
 
-    os << "FocalPlaneResolutionUnit: " << resStr << endl;
-    os << "FocalPlaneXResolution: " << d.FocalPlaneXResolution << endl;
+    os << "FocalPlaneResolutionUnit: " << resStr << std::endl;
+    os << "FocalPlaneXResolution: " << d.FocalPlaneXResolution << std::endl;
     os << "FocalPlaneYResolution: " << d.FocalPlaneYResolution;
     return os;
 }

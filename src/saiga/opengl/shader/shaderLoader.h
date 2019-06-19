@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include "saiga/opengl/shader/shader.h"
-#include "saiga/opengl/shader/shaderPartLoader.h"
-#include "saiga/core/util/ObjectCache.h"
+#include "saiga/core/util/DataStructures/ObjectCache.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/singleton.h"
-
+#include "saiga/opengl/shader/shader.h"
+#include "saiga/opengl/shader/shaderPartLoader.h"
+#include <iostream>
 namespace Saiga
 {
 class SAIGA_OPENGL_API ShaderLoader : public Singleton<ShaderLoader>
@@ -38,8 +38,8 @@ std::shared_ptr<shader_t> ShaderLoader::load(const std::string& name, const Shad
     std::string fullName = SearchPathes::shader(name);
     if (fullName.empty())
     {
-        cout << "Could not find file '" << name << "'. Make sure it exists and the search pathes are set." << endl;
-        cerr << SearchPathes::shader << endl;
+        std::cout << "Could not find file '" << name << "'. Make sure it exists and the search pathes are set." << std::endl;
+        std::cerr << SearchPathes::shader << std::endl;
         SAIGA_ASSERT(0);
     }
 

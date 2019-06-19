@@ -5,8 +5,9 @@
  */
 
 #pragma once
-
 #include "managedImage.h"
+
+#include <iostream>
 
 namespace Saiga
 {
@@ -69,10 +70,10 @@ class TemplatedImage : public Image
 
         if (type != TType::type)
         {
-            cerr << "Image type does not match template argument!" << endl;
-            cerr << "Loaded:   " << channels(type) << "/" << elementType(type) << endl;
-            cerr << "Template: " << channels(TType::type) << "/" << elementType(TType::type) << endl;
-            cerr << "Path:     " << path << endl;
+            std::cerr << "Image type does not match template argument!" << std::endl;
+            std::cerr << "Loaded:   " << channels(type) << "/" << elementType(type) << std::endl;
+            std::cerr << "Template: " << channels(TType::type) << "/" << elementType(TType::type) << std::endl;
+            std::cerr << "Path:     " << path << std::endl;
             SAIGA_EXIT_ERROR("Image Load failed!");
         }
         SAIGA_ASSERT(type == TType::type);

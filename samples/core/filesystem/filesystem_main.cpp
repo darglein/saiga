@@ -17,9 +17,9 @@ int main()
 {
     fs::path aPath{"./path/to/file.txt"};
 
-    cout << "Parent path: " << aPath.parent_path() << endl;
-    cout << "Filename: " << aPath.filename() << endl;
-    cout << "Extension: " << aPath.extension() << endl;
+    std::cout << "Parent path: " << aPath.parent_path() << std::endl;
+    std::cout << "Filename: " << aPath.filename() << std::endl;
+    std::cout << "Extension: " << aPath.extension() << std::endl;
 
     return 0;
 }

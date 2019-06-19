@@ -10,7 +10,7 @@ namespace Saiga
 {
 void ShaderLoader::reload()
 {
-    cout << "ShaderLoader::reload " << cache.objects.size() << endl;
+    std::cout << "ShaderLoader::reload " << cache.objects.size() << std::endl;
     for (auto& object : cache.objects)
     {
         auto name   = std::get<0>(object);
@@ -27,7 +27,7 @@ void ShaderLoader::reload()
 bool ShaderLoader::reload(std::shared_ptr<Shader> shader, const std::string& name,
                           const ShaderPart::ShaderCodeInjections& sci)
 {
-    cout << "ShaderLoader::reload " << name << endl;
+    std::cout << "ShaderLoader::reload " << name << std::endl;
     ShaderPartLoader spl(name, sci);
     if (spl.load())
     {

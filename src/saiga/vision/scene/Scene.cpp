@@ -230,7 +230,7 @@ void Scene::removeOutliers(float factor)
             }
         }
     }
-    cout << "Removed " << pointsRemoved << " outlier observations above the threshold " << threshold << endl;
+    std::cout << "Removed " << pointsRemoved << " outlier observations above the threshold " << threshold << std::endl;
     fixWorldPointReferences();
 }
 
@@ -298,7 +298,7 @@ void Scene::compress()
         }
         else
         {
-            // cout << "removed wp" << endl;
+            // std::cout << "removed wp" << std::endl;
         }
     }
     worldPoints = newWorldPoints;
@@ -314,7 +314,7 @@ void Scene::compress()
         {
             if (ip) img.validPoints++;
         }
-        if (img.validPoints == 0) cout << "invalid camera " << i << endl;
+        if (img.validPoints == 0) std::cout << "invalid camera " << i << std::endl;
         i++;
     }
 }
@@ -393,8 +393,8 @@ double Scene::rms()
 
     auto error2 = error / (monoEdges + stereoEdges);
     error2      = sqrt(error2);
-    //    cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
-    //         << " chi2: " << error << endl;
+    //    std::cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
+    //         << " chi2: " << error << std::endl;
     return error2;
 }
 
@@ -444,10 +444,10 @@ double Scene::rmsDense()
 
 
             SAIGA_ASSERT(error.allFinite());
-            //            cout << error.transpose() << endl;
-            //            cout << cI << " " << obs(0) << endl;
-            //            cout << cD << " " << z << endl;
-            //            cout << error.squaredNorm() << endl;
+            //            std::cout << error.transpose() << std::endl;
+            //            std::cout << cI << " " << obs(0) << std::endl;
+            //            std::cout << cD << " " << z << std::endl;
+            //            std::cout << error.squaredNorm() << std::endl;
 
             rms += error.squaredNorm();
             totalObservations++;
@@ -592,7 +592,7 @@ void Scene::removeNegativeProjections()
         }
     }
     fixWorldPointReferences();
-    cout << "removed " << removedObs << " negative projections" << endl;
+    std::cout << "removed " << removedObs << " negative projections" << std::endl;
 }
 
 

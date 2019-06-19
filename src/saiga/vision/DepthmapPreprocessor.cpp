@@ -288,7 +288,7 @@ void DMPP::computeMinMax(DepthMap vsrc, float& dmin, float& dmax)
 
 void DMPP::fillHoles(DepthMap vsrc, DepthMap vdst)
 {
-    //    cout << "fill holes " << params.holeFillIterations << endl;
+    //    std::cout << "fill holes " << params.holeFillIterations << std::endl;
     SAIGA_ASSERT(vsrc.width == vdst.width && vsrc.height == vdst.height);
 
 

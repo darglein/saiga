@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/util/ArrayView.h"
+#include "saiga/core/util/DataStructures/ArrayView.h"
 
 #include <iomanip>
 #include <sstream>

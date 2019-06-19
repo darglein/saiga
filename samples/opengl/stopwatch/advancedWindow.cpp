@@ -30,7 +30,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer)
 
 
     timer.start();
-    cout << "Program Initialized!" << endl;
+    std::cout << "Program Initialized!" << std::endl;
 }
 
 Sample::~Sample()

@@ -8,6 +8,8 @@
 
 #include "saiga/core/imgui/imgui.h"
 
+#include <iostream>
+
 namespace Saiga
 {
 std::ostream& operator<<(std::ostream& strm, const OptimizationResults& op)
@@ -39,19 +41,19 @@ void OptimizationOptions::imgui()
 
 std::ostream& operator<<(std::ostream& strm, const OptimizationOptions& op)
 {
-    strm << "[Optimization Options]" << endl;
-    strm << " Iterations: " << op.maxIterations << endl;
-    strm << " Initial Lambda: " << op.initialLambda << endl;
+    strm << "[Optimization Options]" << std::endl;
+    strm << " Iterations: " << op.maxIterations << std::endl;
+    strm << " Initial Lambda: " << op.initialLambda << std::endl;
 
     if (op.solverType == OptimizationOptions::SolverType::Iterative)
     {
-        strm << " solverType: CG Schur" << endl;
-        strm << " maxIterativeIterations: " << op.maxIterativeIterations << endl;
-        strm << " iterativeTolerance: " << op.iterativeTolerance << endl;
+        strm << " solverType: CG Schur" << std::endl;
+        strm << " maxIterativeIterations: " << op.maxIterativeIterations << std::endl;
+        strm << " iterativeTolerance: " << op.iterativeTolerance << std::endl;
     }
     else
     {
-        strm << " solverType: LDLT Schur" << endl;
+        strm << " solverType: LDLT Schur" << std::endl;
     }
     return strm;
 }
@@ -74,7 +76,7 @@ OptimizationResults LMOptimizer::solve()
             double test = computeCost();
             if (chi2 != test)
             {
-                cerr << "Warning " << chi2 << "!=" << test << endl;
+                std::cerr << "Warning " << chi2 << "!=" << test << std::endl;
                 SAIGA_ASSERT(chi2 == test);
             }
         }
@@ -86,7 +88,8 @@ OptimizationResults LMOptimizer::solve()
         {
             current_chi2        = chi2;
             result.cost_initial = chi2;
-            //            if (optimizationOptions.debugOutput) cout << "initial_chi2 = " << 0.5 * current_chi2 << endl;
+            //            if (optimizationOptions.debugOutput) std::cout << "initial_chi2 = " << 0.5 * current_chi2 <<
+            //            std::endl;
         }
         result.cost_final = chi2;
 
@@ -117,13 +120,13 @@ OptimizationResults LMOptimizer::solve()
             revertDelta();
             if (optimizationOptions.debugOutput)
             {
-                cerr << "It " << i << ": Invalid lm step. lambda: " << oldLambda << " -> " << lambda << endl;
+                std::cerr << "It " << i << ": Invalid lm step. lambda: " << oldLambda << " -> " << lambda << std::endl;
             }
         }
 
         if (optimizationOptions.debugOutput)
         {
-            cout << "It " << i << ": " << 0.5 * chi2 << " -> " << 0.5 * newChi2 << endl;
+            std::cout << "It " << i << ": " << 0.5 * chi2 << " -> " << 0.5 * newChi2 << std::endl;
         }
     }
     finalize();

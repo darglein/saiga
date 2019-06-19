@@ -11,6 +11,7 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <GLFW/glfw3.h>
+#include <iostream>
 
 #include "glfw_eventhandler.h"
 
@@ -73,10 +74,10 @@ void glfw_Joystick::enableFirstJoystick()
     {
         if (glfwJoystickPresent(i))
         {
-            // cout << "found joystick: " <<  i <<  ": " << glfwGetJoystickName(i) <<endl;
+            // std::cout << "found joystick: " <<  i <<  ": " << glfwGetJoystickName(i) <<endl;
 
             // take first joystick
-            cout << "using joystick: " << i << endl;
+            std::cout << "using joystick: " << i << std::endl;
             joystickId = i;
             break;
         }
@@ -90,14 +91,14 @@ void glfw_Joystick::joystick_callback(int joy, int event)
     if (event == GLFW_CONNECTED)
     {
         // The joystick was connected
-        //        cout << "joystick was connected " << joy << endl;
-        cout << "joystick was connected: " << glfwGetJoystickName(joy) << endl;
+        //        std::cout << "joystick was connected " << joy << std::endl;
+        std::cout << "joystick was connected: " << glfwGetJoystickName(joy) << std::endl;
         joystickId = joy;
     }
     else if (event == GLFW_DISCONNECTED)
     {
         // The joystick was disconnected
-        cout << "joystick was disconnected " << joy << endl;
+        std::cout << "joystick was disconnected " << joy << std::endl;
         // glfwGetJoystickName would return nullptr here anyways
         if (joystickId == joy)
         {

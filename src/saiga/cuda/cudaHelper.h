@@ -11,7 +11,7 @@
 #include "saiga/cuda/cuda.h"
 #include "saiga/cuda/cudaTimer.h"
 #include "saiga/cuda/thrust_helper.h"
-#include "saiga/core/util/ArrayView.h"
+#include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/math/imath.h"
 

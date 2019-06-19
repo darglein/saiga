@@ -10,6 +10,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shaderpart.h"
 
+#include <iostream>
 #include <memory>
 #include <vector>
 // for shared pointer
@@ -56,9 +57,9 @@ std::shared_ptr<shader_t> ShaderPartLoader::createShader()
 {
     if (shaders.size() == 0)
     {
-        std::cerr << file << " does not contain any shaders." << endl;
-        std::cerr << "Use for example '##GL_FRAGMENT_SHADER' to mark the beginning of a fragment shader." << endl;
-        std::cerr << "Also make sure this makro is at a beginning of a new line." << endl;
+        std::cerr << file << " does not contain any shaders." << std::endl;
+        std::cerr << "Use for example '##GL_FRAGMENT_SHADER' to mark the beginning of a fragment shader." << std::endl;
+        std::cerr << "Also make sure this makro is at a beginning of a new line." << std::endl;
         return nullptr;
     }
 

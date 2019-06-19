@@ -11,6 +11,7 @@
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/templatedBuffer.h"
 
+#include <iostream>
 #include <vector>
 
 namespace Saiga
@@ -277,14 +278,15 @@ void VertexBuffer<vertex_t>::addExternalBuffer(Buffer& buffer, GLuint index, GLi
 template <class vertex_t>
 void VertexBuffer<vertex_t>::setVertexAttributes()
 {
-    cerr << "Warning: I don't know how to bind this Vertex Type. Please use the vertices in vertex.h or write your own "
-            "bind function"
-         << endl;
-    cerr << "If you want to write your own bind function use this template:" << endl;
-    cerr << "\ttemplate<>" << endl;
-    cerr << "\tvoid VertexBuffer<YOUR_VERTEX_TYPE>::bindVertices(){" << endl;
-    cerr << "\t\t//bind code" << endl;
-    cerr << "\t}" << endl;
+    std::cerr
+        << "Warning: I don't know how to bind this Vertex Type. Please use the vertices in vertex.h or write your own "
+           "bind function"
+        << std::endl;
+    std::cerr << "If you want to write your own bind function use this template:" << std::endl;
+    std::cerr << "\ttemplate<>" << std::endl;
+    std::cerr << "\tvoid VertexBuffer<YOUR_VERTEX_TYPE>::bindVertices(){" << std::endl;
+    std::cerr << "\t\t//bind code" << std::endl;
+    std::cerr << "\t}" << std::endl;
     SAIGA_ASSERT(0);
 }
 

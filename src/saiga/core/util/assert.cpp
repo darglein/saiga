@@ -8,6 +8,8 @@
 
 #include "internal/noGraphicsAPI.h"
 
+#include <iostream>
+
 namespace Saiga
 {
 void saiga_assert_fail(const std::string& __assertion, const char* __file, unsigned int __line, const char* __function,

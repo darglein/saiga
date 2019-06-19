@@ -5,9 +5,10 @@
  */
 
 #pragma once
-#include "saiga/core/util/assert.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/assert.h"
 
+#include <iostream>
 #include <vector>
 
 namespace Saiga
@@ -116,11 +117,11 @@ P Bspline<P>::deBoor(float u)
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const Bspline<T>& bs)
 {
-    os << "Bspline n=" << bs.degree << " m=" << bs.controlPoints.size() << " #knots=" << bs.knots.size() << endl;
-    cout << "knots:  ";
+    os << "Bspline n=" << bs.degree << " m=" << bs.controlPoints.size() << " #knots=" << bs.knots.size() << std::endl;
+    std::cout << "knots:  ";
     for (auto n : bs.knots) os << n << ", ";
-    os << endl;
-    cout << "control points:  ";
+    os << std::endl;
+    std::cout << "control points:  ";
     for (auto n : bs.controlPoints) os << n << ", ";
     return os;
 }

@@ -15,8 +15,8 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixVector(int smv_its)
     std::ofstream strm("eigen_mkl_mv.csv", std::ostream::app);
     // ============= Benchmark =============
 
-    cout << "Running Block Sparse Matrix-Vector Benchmark..." << endl;
-    cout << "Number of Runs: " << smv_its << endl;
+    std::cout << "Running Block Sparse Matrix-Vector Benchmark..." << std::endl;
+    std::cout << "Number of Runs: " << smv_its << std::endl;
 
     double flop;
 
@@ -28,11 +28,11 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixVector(int smv_its)
     // Test if the result is correct
     y.setZero();
     y = A * x;
-    cout << expand(x).norm() << " " << expand(y).norm() << endl;
+    std::cout << expand(x).norm() << " " << expand(y).norm() << std::endl;
 
     ex_y.setZero();
     mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE, 1, mkl_A, mkl_A_desc, ex_x.data(), 0, ex_y.data());
-    cout << expand(ex_x).norm() << " " << expand(ex_y).norm() << endl;
+    std::cout << expand(ex_x).norm() << " " << expand(ex_y).norm() << std::endl;
 
     exit(0);
     y.resize(x.rows());
@@ -52,9 +52,9 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixVector(int smv_its)
 
 #if 0
         // More precise timing stats
-        cout << stat_eigen << endl;
-        cout << stat_mkl << endl;
-        cout << endl;
+        std::cout << stat_eigen << std::endl;
+        std::cout << stat_mkl << std::endl;
+        std::cout << std::endl;
 #endif
     // time in seconds
     double ts_eigen = stat_eigen.median / 1000.0;
@@ -64,15 +64,15 @@ inline void MKL_Test<T, block_size, factor>::sparseMatrixVector(int smv_its)
     double gflop_eigen = flop / (ts_eigen * 1000 * 1000 * 1000);
     double gflop_mkl   = flop / (ts_mkl * 1000 * 1000 * 1000);
 
-    cout << "Done." << endl;
-    cout << "Median Time Eigen : " << ts_eigen << " -> " << gflop_eigen << " GFlop/s" << endl;
-    cout << "Median Time MKL   : " << ts_mkl << " -> " << gflop_mkl << " GFlop/s" << endl;
-    cout << "Eigen Speedup: " << (ts_mkl / ts_eigen) << endl;
-    cout << endl;
+    std::cout << "Done." << std::endl;
+    std::cout << "Median Time Eigen : " << ts_eigen << " -> " << gflop_eigen << " GFlop/s" << std::endl;
+    std::cout << "Median Time MKL   : " << ts_mkl << " -> " << gflop_mkl << " GFlop/s" << std::endl;
+    std::cout << "Eigen Speedup: " << (ts_mkl / ts_eigen) << std::endl;
+    std::cout << std::endl;
 
 
     strm << block_size << "," << n << "," << nnzr << "," << typeid(T).name() << "," << ts_eigen << "," << gflop_eigen
-         << "," << ts_mkl << "," << gflop_mkl << "," << (ts_mkl / ts_eigen) << ",1" << endl;
+         << "," << ts_mkl << "," << gflop_mkl << "," << (ts_mkl / ts_eigen) << ",1" << std::endl;
 }
 
 

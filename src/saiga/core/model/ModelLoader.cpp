@@ -13,6 +13,8 @@
 
 #include "objModelLoader.h"
 #include "plyModelLoader.h"
+
+#include <iostream>
 namespace Saiga
 {
 bool GenericModel::load(const std::string& _file)
@@ -21,7 +23,7 @@ bool GenericModel::load(const std::string& _file)
 
     if (file.empty())
     {
-        cout << "Can not open file " << _file << endl;
+        std::cout << "Can not open file " << _file << std::endl;
         return false;
     }
 
@@ -31,11 +33,11 @@ bool GenericModel::load(const std::string& _file)
 
     if (type == "obj")
     {
-        cout << "load obj" << endl;
+        std::cout << "load obj" << std::endl;
     }
     else if (type == "ply")
     {
-        cout << "load ply" << endl;
+        std::cout << "load ply" << std::endl;
     }
     else
     {

@@ -16,7 +16,7 @@ void Intrinsics::writeToFile(string file)
     fs << "K" << K;
     fs << "dist" << dist;
 
-    cout << "Saved Intrinsics to " << file << endl;
+    std::cout << "Saved Intrinsics to " << file << std::endl;
 }
 
 bool Intrinsics::readFromFile(string file)
@@ -29,7 +29,7 @@ bool Intrinsics::readFromFile(string file)
     fs["K"] >> K;
     fs["dist"] >> dist;
 
-    cout << "Loaded Intrinsics from " << file << endl;
+    std::cout << "Loaded Intrinsics from " << file << std::endl;
     return true;
 }
 Matx44f StereoExtrinsics::getRelativeTransform()
@@ -50,7 +50,7 @@ void StereoExtrinsics::writeToFile(string file)
     fs << "F" << F;
     fs << "E" << E;
 
-    cout << "Saved StereoExtrinsics to " << file << endl;
+    std::cout << "Saved StereoExtrinsics to " << file << std::endl;
 }
 
 bool StereoExtrinsics::readFromFile(string file)
@@ -63,7 +63,7 @@ bool StereoExtrinsics::readFromFile(string file)
     fs["F"] >> F;
     fs["E"] >> E;
 
-    cout << "Loaded StereoExtrinsics from " << file << endl;
+    std::cout << "Loaded StereoExtrinsics from " << file << std::endl;
     return true;
 }
 

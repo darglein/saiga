@@ -69,9 +69,9 @@ VectorType forwardSubstituteDiagOneOnlyDiag(const MatrixType& A, const VectorTyp
 #endif
 #if 1
     // Test if (Ax-b)==0
-    cout << expand(x).transpose() << endl;
+    std::cout << expand(x).transpose() << std::endl;
     double test = (expand(A).template triangularView<Eigen::Lower>() * expand(x) - expand(b)).squaredNorm();
-    cout << "error forwardSubstituteDiagOneOnlyDiag: " << test << endl;
+    std::cout << "error forwardSubstituteDiagOneOnlyDiag: " << test << std::endl;
     SAIGA_ASSERT(test < 1e-10);
 #endif
     return x;
@@ -121,9 +121,9 @@ VectorType backwardSubstituteDiagOneTransposeOnlyDiag(const MatrixType& A, const
 
 #if 1
     // Test if (Ax-b)==0
-    cout << "x: " << expand(x).transpose() << endl;
+    std::cout << "x: " << expand(x).transpose() << std::endl;
     double test = (expand(A).transpose().template triangularView<Eigen::Upper>() * expand(x) - expand(b)).squaredNorm();
-    cout << "error backwardSubstituteDiagOneTranspose: " << test << endl;
+    std::cout << "error backwardSubstituteDiagOneTranspose: " << test << std::endl;
     SAIGA_ASSERT(test < 1e-10);
 #endif
     return x;
@@ -157,7 +157,7 @@ Eigen::Matrix<_Scalar, _Rows, 1> solveLLT(const Eigen::Matrix<_Scalar, _Rows, _C
         }
     }
 
-    cout << "L" << endl << L << endl << endl;
+    std::cout << "L" << std::endl << L << std::endl << std::endl;
 
     // forward / backward substituion
     z = L.template triangularView<Eigen::Lower>().solve(b);
@@ -204,13 +204,13 @@ Eigen::Matrix<_Scalar, _Rows, 1> solveLDLT(const Eigen::Matrix<_Scalar, _Rows, _
         Dinv.diagonal()(i) = inverse(D.diagonal()(i));
     }
 
-    //    cout << L << endl << endl;
-    cout << "L" << endl << L << endl << endl;
+    //    std::cout << L << std::endl << std::endl;
+    std::cout << "L" << std::endl << L << std::endl << std::endl;
 
-    cout << "D" << endl << expand(D) << endl << endl;
+    std::cout << "D" << std::endl << expand(D) << std::endl << std::endl;
 
     int asdf = 2;
-    cout << "block" << endl << L.block(asdf, 0, asdf, asdf).eval() << endl;
+    std::cout << "block" << std::endl << L.block(asdf, 0, asdf, asdf).eval() << std::endl;
 
     // forward / backward substituion
     z = L.template triangularView<Eigen::Lower>().solve(b);
@@ -271,8 +271,8 @@ VectorType solveLDLT2(const MatrixType& A, const VectorType& b)
         Dinv.diagonal()(i) = inverse(D.diagonal()(i));
     }
 
-    cout << "L" << endl << expand(L) << endl << endl;
-    cout << "D" << endl << expand(D) << endl << endl;
+    std::cout << "L" << std::endl << expand(L) << std::endl << std::endl;
+    std::cout << "D" << std::endl << expand(D) << std::endl << std::endl;
 
     z = forwardSubstituteDiagOne(L, b);
     //    z = forwardSubstituteDiagOne2(L, b);
@@ -284,7 +284,7 @@ VectorType solveLDLT2(const MatrixType& A, const VectorType& b)
     // Test if (Ax-b)==0
     double test =
         (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
-    cout << "error solveLDLT2: " << test << endl;
+    std::cout << "error solveLDLT2: " << test << std::endl;
 #endif
 
 
@@ -398,21 +398,21 @@ VectorType solveLDLT_ybuffer(const MatrixType& A, const VectorType& b)
         Dinv.diagonal()(k) = inverse(D.diagonal()(k));
     }
 
-    cout << "L" << endl << expand(L) << endl << endl;
-    cout << "D" << endl << expand(D) << endl << endl;
+    std::cout << "L" << std::endl << expand(L) << std::endl << std::endl;
+    std::cout << "D" << std::endl << expand(D) << std::endl << std::endl;
 
     //    z = forwardSubstituteDiagOneOnlyDiag(L, b);
     z = forwardSubstituteDiagOne(L, b);
     y = multDiagVector(Dinv, z);
-    cout << y.transpose() << endl;
+    std::cout << y.transpose() << std::endl;
     x = backwardSubstituteDiagOneTranspose(L, y);
-    cout << "x: " << x.transpose() << endl;
+    std::cout << "x: " << x.transpose() << std::endl;
 
 #if 0
     // Test if (Ax-b)==0
     double test =
         (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
-    cout << "error solveLDLT2: " << test << endl;
+    std::cout << "error solveLDLT2: " << test << std::endl;
 #endif
 
 
@@ -496,18 +496,18 @@ VectorType solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
 #endif
     }
 
-    cout << "L" << endl << expand(L) << endl << endl;
-    cout << "D" << endl << expand(D) << endl << endl;
+    std::cout << "L" << std::endl << expand(L) << std::endl << std::endl;
+    std::cout << "D" << std::endl << expand(D) << std::endl << std::endl;
 
 #if 1
     z = forwardSubstituteDiagOneOnlyDiag(L, b);
     //    y = multDiagVector(Dinv, z);
     y = multDiagVectorOnlyDiag(Dinv, z);
-    cout << expand(y).transpose() << endl;
+    std::cout << expand(y).transpose() << std::endl;
     //    z = forwardSubstituteDiagOne2(L, b);
     //    y = multDiagVector(Dinv, z);
     x = backwardSubstituteDiagOneTransposeOnlyDiag(L, y);
-    cout << "x: " << expand(x).transpose() << endl;
+    std::cout << "x: " << expand(x).transpose() << std::endl;
     return x;
 #else
 
@@ -523,7 +523,7 @@ VectorType solveLDLT_ybuffer_block(const MatrixType& A, const VectorType& b)
     // Test if (Ax-b)==0
     double test =
         (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
-    cout << "error solveLDLT2: " << test << endl;
+    std::cout << "error solveLDLT2: " << test << std::endl;
 #endif
 
 
@@ -615,7 +615,7 @@ VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
 
         for (int j = 0; j < i; ++j)
         {
-            cout << "Compute L " << i << "," << j << endl;
+            std::cout << "Compute L " << i << "," << j << std::endl;
             // compute all l's for this row
             MatrixScalar sum = AdditiveNeutral<MatrixScalar>::get();
 
@@ -633,7 +633,7 @@ VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
         }
 
 
-        cout << "Compute D " << i << "," << i << endl;
+        std::cout << "Compute D " << i << "," << i << std::endl;
         BlockType diagBlock = (A(i, i) - sumd).get();
 
         //        Eigen::LDLT<BlockType> ldlt(diagBlock);
@@ -658,8 +658,8 @@ VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
         //        L(i, i)            = MultiplicativeNeutral<MatrixScalar>::get();
     }
 
-    cout << "L" << endl << expand(L) << endl << endl;
-    cout << "D" << endl << expand(D) << endl << endl;
+    std::cout << "L" << std::endl << expand(L) << std::endl << std::endl;
+    std::cout << "D" << std::endl << expand(D) << std::endl << std::endl;
 
 
     z = forwardSubstituteDiagOne(L, b);
@@ -672,7 +672,7 @@ VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
     // Test if (Ax-b)==0
     double test =
         (fixedBlockMatrixToMatrix(A) * fixedBlockMatrixToMatrix(x) - fixedBlockMatrixToMatrix(b)).squaredNorm();
-    cout << "error solveLDLT2: " << test << endl;
+    std::cout << "error solveLDLT2: " << test << std::endl;
 #endif
 
 
@@ -682,7 +682,7 @@ VectorType solveLDLT3(const MatrixType& A, const VectorType& b)
 
 void testBlockCholesky()
 {
-    cout << "testBlockCholesky" << endl;
+    std::cout << "testBlockCholesky" << std::endl;
 
     const int n          = 5;
     const int block_size = 2;
@@ -732,7 +732,7 @@ void testBlockCholesky()
     b = CompleteVector::Random();
     A.diagonal() += CompleteVector::Ones();
 
-    cout << A << endl << endl;
+    std::cout << A << std::endl << std::endl;
 
     Eigen::Matrix<MatrixScalar<Block>, n, n> bA;
     Eigen::Matrix<MatrixScalar<Vector>, n, 1> bx, bb;
@@ -749,13 +749,13 @@ void testBlockCholesky()
 #if 0
     {
         x = A.llt().solve(b);
-        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
     //    {
     //        x = solveLLT(A, b);
-    //        cout << "x " << x.transpose() << endl;
-    //        cout << "error: " << (A * x - b).squaredNorm() << endl;
+    //        std::cout << "x " << x.transpose() << std::endl;
+    //        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     //    }
 
 
@@ -765,15 +765,15 @@ void testBlockCholesky()
         ldlt.compute(A);
         x = ldlt.solve(b);
 
-        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 #endif
     if (0)
     {
         x = solveLDLT(A, b);
-        //        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        //        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 
 
@@ -782,8 +782,8 @@ void testBlockCholesky()
         bx = solveLDLT2(bA, bb);
 
         x = expand(bx);
-        //        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        //        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 
 
@@ -806,7 +806,7 @@ void testBlockCholesky()
         }
         sm.makeCompressed();
 
-        cout << "non zeros: " << sm.nonZeros() << endl;
+        std::cout << "non zeros: " << sm.nonZeros() << std::endl;
 
         LDLT ldlt;
         ldlt.compute(sm);
@@ -814,18 +814,18 @@ void testBlockCholesky()
         //        bx = solveLDLT2(bA, bb);
 
         SMat L = ldlt.matrixL();
-        cout << expand(L) << endl << endl;
+        std::cout << expand(L) << std::endl << std::endl;
         x = expand(bx);
-        //        cout << "x " << x.transpose() << endl;
-        //        cout << "error: " << (A * x - b).squaredNorm() << endl;
-        cout << "error: " << (expand(sm) * expand(bx) - expand(bb)).squaredNorm() << endl;
+        //        std::cout << "x " << x.transpose() << std::endl;
+        //        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
+        std::cout << "error: " << (expand(sm) * expand(bx) - expand(bb)).squaredNorm() << std::endl;
     }
     if (0)
     {
         x = solveLDLT_ybuffer(A, b);
 
-        //        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        //        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 
     if (0)
@@ -833,8 +833,8 @@ void testBlockCholesky()
         bx = solveLDLT_ybuffer_block(bA, bb);
 
         x = expand(bx);
-        //        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        //        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 
     if (0)
@@ -842,16 +842,16 @@ void testBlockCholesky()
         bx = solveLDLT3(bA, bb);
 
         x = expand(bx);
-        //        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        //        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 #if 0
 
     {
         x = solveLDLT3(A, b);
 
-        //        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        //        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
     {
         DenseLDLT<decltype(bA), decltype(bb)> ldlt;
@@ -860,15 +860,15 @@ void testBlockCholesky()
 
 
         x = expand(bx);
-        cout << "x " << x.transpose() << endl;
-        cout << "error: " << (A * x - b).squaredNorm() << endl;
+        std::cout << "x " << x.transpose() << std::endl;
+        std::cout << "error: " << (A * x - b).squaredNorm() << std::endl;
     }
 #endif
 }
 
 void perfTestDenseCholesky()
 {
-    cout << "perfTestDenseCholesky" << endl;
+    std::cout << "perfTestDenseCholesky" << std::endl;
 
     const int bn = 4;
     const int bm = 4;
@@ -918,7 +918,7 @@ void perfTestDenseCholesky()
         //        x = A.ldlt().solve(b);
     }
     x = ldlt.solve(b);
-    cout << "Eigen error: " << (A * x - b).squaredNorm() << endl;
+    std::cout << "Eigen error: " << (A * x - b).squaredNorm() << std::endl;
 
 
     DenseLDLT<decltype(A)> ldlt2;
@@ -927,7 +927,7 @@ void perfTestDenseCholesky()
         ldlt2.compute(A);
     }
     x = ldlt2.solve(b);
-    cout << "My error: " << (A * x - b).squaredNorm() << endl;
+    std::cout << "My error: " << (A * x - b).squaredNorm() << std::endl;
 
 
     DenseLDLT<decltype(bA)> ldlt3;
@@ -937,7 +937,7 @@ void perfTestDenseCholesky()
     }
     bx = ldlt3.solve(bb);
     x  = expand(bx);
-    cout << "My recursive error: " << (A * x - b).squaredNorm() << endl;
+    std::cout << "My recursive error: " << (A * x - b).squaredNorm() << std::endl;
 }
 
 }  // namespace Saiga

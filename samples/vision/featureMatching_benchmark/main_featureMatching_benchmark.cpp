@@ -46,7 +46,7 @@ int main(int, char**)
     std::vector<int> d_matchMatrix(N * N);
     ImageView<int> matchMatrix(N, N, d_matchMatrix.data());
 
-    cout << "Bruteforce matching " << N << "x" << N << " ORB Descriptors..." << endl;
+    std::cout << "Bruteforce matching " << N << "x" << N << " ORB Descriptors..." << std::endl;
     {
         SAIGA_BLOCK_TIMER("Matching");
         for (auto i : Range(0, N))
@@ -60,7 +60,7 @@ int main(int, char**)
 
 
     auto sum = std::accumulate(d_matchMatrix.begin(), d_matchMatrix.end(), 0);
-    cout << "distance sum: " << sum << " avg: " << double(sum) / (N * N) << endl;
+    std::cout << "distance sum: " << sum << " avg: " << double(sum) / (N * N) << std::endl;
 
     return 0;
 }

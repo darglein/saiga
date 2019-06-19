@@ -2,6 +2,7 @@
 
 #include "saiga/vulkan/svulkan.h"
 
+#include <string>
 namespace Saiga
 {
 namespace Vulkan

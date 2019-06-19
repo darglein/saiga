@@ -129,7 +129,7 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
     base.computeQueue->submitAndWait(compute.commandBuffer);
     compute.storageBuffer.download(compute.data.data());
 
-    for (int i : compute.data) cout << i << endl;
+    for (int i : compute.data) std::cout << i << std::endl;
 }
 
 

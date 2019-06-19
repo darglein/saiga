@@ -173,11 +173,11 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, bool useSwapC
     deviceCreateInfo.ppEnabledLayerNames = layers.data();
 
 #if 0
-    cout << "Device extensions" << endl;
-    for (auto de : deviceExtensions) cout << de << endl;
+    std::cout << "Device extensions" << std::endl;
+    for (auto de : deviceExtensions) std::cout << de << std::endl;
 
-    cout << "Device layers" << endl;
-    for (auto de : layers) cout << de << endl;
+    std::cout << "Device layers" << std::endl;
+    for (auto de : layers) std::cout << de << std::endl;
 #endif
 
     device = physicalDevice.createDevice(deviceCreateInfo);
@@ -188,7 +188,7 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, bool useSwapC
     std::vector<vk::ExtensionProperties> extprops = physicalDevice.enumerateDeviceExtensionProperties();
     for (auto e : extprops)
     {
-        cout << e.specVersion << " " << e.extensionName << endl;
+        std::cout << e.specVersion << " " << e.extensionName << std::endl;
     }
 #endif
 

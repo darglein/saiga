@@ -157,21 +157,21 @@ class Sparse_LDLT_TEST
         //        Random::setRandom(b);
 
 #ifdef LDLT_DEBUG
-        cout << expand(A) << endl << endl;
+        std::cout << expand(A) << std::endl << std::endl;
 #endif
-        //        cout << expand(Anoblock) << endl << endl;
+        //        std::cout << expand(Anoblock) << std::endl << std::endl;
         //        exit(0);
-        //        cout << b.transpose() << endl;
+        //        std::cout << b.transpose() << std::endl;
 
-        cout << "." << endl;
-        cout << "Sparse LDLT test" << endl;
-        cout << "Blocksize: " << block_size << endl;
-        cout << "N: " << n << endl;
-        cout << "Non zeros (per row): " << nnzr << endl;
-        cout << "Non zeros: " << Anoblock.nonZeros() << endl;
-        cout << "Density: " << density() << endl;
-        cout << "." << endl;
-        cout << endl;
+        std::cout << "." << std::endl;
+        std::cout << "Sparse LDLT test" << std::endl;
+        std::cout << "Blocksize: " << block_size << std::endl;
+        std::cout << "N: " << n << std::endl;
+        std::cout << "Non zeros (per row): " << nnzr << std::endl;
+        std::cout << "Non zeros: " << Anoblock.nonZeros() << std::endl;
+        std::cout << "Density: " << density() << std::endl;
+        std::cout << "." << std::endl;
+        std::cout << std::endl;
     }
 
 
@@ -233,7 +233,7 @@ class Sparse_LDLT_TEST
                 }
                 if (s != i && indices.count(s) == 0)
                 {
-                    //                    cout << "insert " << i << " " << s << endl;
+                    //                    std::cout << "insert " << i << " " << s << std::endl;
                     indices.insert(s);
                     ++k;
                 }
@@ -336,9 +336,9 @@ class Sparse_LDLT_TEST
 #ifdef LDLT_DEBUG
         Eigen::MatrixXd L(ldlt.matrixL().eval());
         L.diagonal().setOnes();
-        cout << "x: " << bx.transpose() << endl;
-        cout << "L" << endl << L << endl << endl;
-//        cout << "D" << endl << ldlt.vectorD().transpose() << endl << endl;
+        std::cout << "x: " << bx.transpose() << std::endl;
+        std::cout << "L" << std::endl << L << std::endl << std::endl;
+//        std::cout << "D" << std::endl << ldlt.vectorD().transpose() << std::endl << std::endl;
 #endif
 
         double error = (Anoblock * bx - be).squaredNorm();
@@ -387,11 +387,11 @@ class Sparse_LDLT_TEST
         auto d = ldlt.vectorD();
 
 
-        cout << "L" << endl << L << endl << endl;
-        cout << "D" << endl << expand(d) << endl << endl;
+        std::cout << "L" << std::endl << L << std::endl << std::endl;
+        std::cout << "D" << std::endl << expand(d) << std::endl << std::endl;
 #endif
 
-        //        cout << expand(x).transpose() << endl;
+        //        std::cout << expand(x).transpose() << std::endl;
         double error = expand((A * x - b).eval()).squaredNorm();
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
@@ -420,13 +420,13 @@ class Sparse_LDLT_TEST
         auto d = ldlt.vectorD();
 
 
-//        cout << "L" << endl << L << endl << endl;
-//        cout << "diagL" << endl << expand(ldlt.m_diagL) << endl << endl;
-//        cout << "D" << endl << expand(d) << endl << endl;
-//        cout << "Dinv" << endl << expand(ldlt.m_diag_inv) << endl << endl;
+//        std::cout << "L" << std::endl << L << std::endl << std::endl;
+//        std::cout << "diagL" << std::endl << expand(ldlt.m_diagL) << std::endl << std::endl;
+//        std::cout << "D" << std::endl << expand(d) << std::endl << std::endl;
+//        std::cout << "Dinv" << std::endl << expand(ldlt.m_diag_inv) << std::endl << std::endl;
 #endif
 
-        //        cout << expand(x).transpose() << endl;
+        //        std::cout << expand(x).transpose() << std::endl;
         double error = expand((A * x - b).eval()).squaredNorm();
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
@@ -561,7 +561,7 @@ class Sparse_LDLT_TEST
             x = ldlt.solve(b);
         }
 
-        //        cout << expand(x).transpose() << endl;
+        //        std::cout << expand(x).transpose() << std::endl;
         double error = expand((A2 * x - b).eval()).squaredNorm();
         return std::make_tuple(time, error, SAIGA_SHORT_FUNCTION);
     }
@@ -576,11 +576,11 @@ class Sparse_LDLT_TEST
             x = ldlt.solve(b);
         }
 
-        //        cout << expand(x).transpose() << endl;
-        cout << "Error: " << expand((A * x - b).eval()).squaredNorm() << endl << endl;
+        //        std::cout << expand(x).transpose() << std::endl;
+        std::cout << "Error: " << expand((A * x - b).eval()).squaredNorm() << std::endl << std::endl;
 
-        //        cout << "L" << endl << expand(ldlt.L) << endl << endl;
-        //        cout << "D" << endl << expand(ldlt.D.toDenseMatrix()) << endl << endl;
+        //        std::cout << "L" << std::endl << expand(ldlt.L) << std::endl << std::endl;
+        //        std::cout << "D" << std::endl << expand(ldlt.D.toDenseMatrix()) << std::endl << std::endl;
     }
     cholmod_common m_cholmod;
     Eigen::SparseMatrix<double> Anoblock;
@@ -642,7 +642,7 @@ void run()
 
 
 
-    strm << endl;
+    strm << std::endl;
 }
 
 
@@ -675,7 +675,7 @@ void perf_test()
             "eigen_recursive2,"
             "cholmod_simp,"
             "cholmod_super"
-         << endl;
+         << std::endl;
 
     omp_set_num_threads(1);
 
@@ -704,17 +704,17 @@ void result_test()
     using LDLT = Sparse_LDLT_TEST<7, 1>;
     LDLT test;
     //    auto res = test.solveEigenSparseLDLT();
-    //    cout << "Error: " << std::get<1>(res) << endl;
+    //    std::cout << "Error: " << std::get<1>(res) << std::endl;
     //    res = test.solveEigenRecursiveCholmod();
-    //    cout << "Error: " << std::get<1>(res) << endl;
+    //    std::cout << "Error: " << std::get<1>(res) << std::endl;
     //    auto res = test.solveEigenRecursiveSparseLDLT();
-    //    cout << "Error: " << std::get<1>(res) << endl;
+    //    std::cout << "Error: " << std::get<1>(res) << std::endl;
     //    auto res = test.solveEigenRecursiveSparseLDLT();
-    //    cout << "Error: " << std::get<1>(res) << endl;
+    //    std::cout << "Error: " << std::get<1>(res) << std::endl;
     //    res = test.solveEigenRecursiveSparseLDLT();
-    //    cout << "Error: " << std::get<1>(res) << endl;
+    //    std::cout << "Error: " << std::get<1>(res) << std::endl;
     auto res = test.solveEigenRecursiveSparseLDLT3();
-    cout << "Error: " << std::get<1>(res) << endl;
+    std::cout << "Error: " << std::get<1>(res) << std::endl;
 
     //    test.solveEigenRecursiveSparseLDLTRowMajor();
 
@@ -725,7 +725,7 @@ void result_test()
     m.setRandom();
     m.triangularView<Eigen::Lower>() = m.triangularView<Eigen::Upper>().transpose();
 
-    cout << m << endl << endl;
+    std::cout << m << std::endl << std::endl;
 
     Eigen::LDLT<MT> ldlt;
 
@@ -743,14 +743,14 @@ void result_test()
     D.setZero();
     D.diagonal() = ldlt.vectorD();
 
-    cout << L << endl << endl;
-    cout << D << endl << endl;
+    std::cout << L << std::endl << std::endl;
+    std::cout << D << std::endl << std::endl;
     MT res = L * D * L.transpose();
 
-    cout << res << endl << endl;
+    std::cout << res << std::endl << std::endl;
 
     auto error = ((m * x) - b).norm();
-    cout << "error: " << error << endl;
+    std::cout << "error: " << error << std::endl;
 #endif
 }
 
@@ -765,7 +765,7 @@ int main(int, char**)
     //    result_test();
     perf_test();
 
-    cout << "Done." << endl;
+    std::cout << "Done." << std::endl;
 
     return 0;
 }

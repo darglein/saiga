@@ -8,7 +8,7 @@
 
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
 #    include "saiga/core/util/assert.h"
-
+#include <iostream>
 namespace Saiga
 {
 AssimpLoader::AssimpLoader(const std::string& _file) : file(_file)
@@ -34,7 +34,7 @@ void AssimpLoader::loadFile(const std::string& _file)
     // If the import failed, report it
     if (!scene)
     {
-        cout << importer.GetErrorString() << endl;
+        std::cout << importer.GetErrorString() << std::endl;
         SAIGA_ASSERT(0);
     }
 
@@ -46,16 +46,16 @@ void AssimpLoader::loadFile(const std::string& _file)
 
 void AssimpLoader::printInfo()
 {
-    cout << ">> AssimpLoader: " << file << " ";
-    cout << "Animations " << scene->mNumAnimations << ", Cameras " << scene->mNumCameras << ", Lights "
+    std::cout << ">> AssimpLoader: " << file << " ";
+    std::cout << "Animations " << scene->mNumAnimations << ", Cameras " << scene->mNumCameras << ", Lights "
          << scene->mNumLights << ", Materials " << scene->mNumMaterials << ", Meshes " << scene->mNumMeshes
-         << ", Textures " << scene->mNumTextures << endl;
+         << ", Textures " << scene->mNumTextures << std::endl;
 
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
     {
         const aiMesh* mesh = scene->mMeshes[m];
-        cout << ">>> Mesh " << m << ": Material id " << mesh->mMaterialIndex << ", Vertices " << mesh->mNumVertices
-             << ", Faces " << mesh->mNumFaces << endl;
+        std::cout << ">>> Mesh " << m << ": Material id " << mesh->mMaterialIndex << ", Vertices " << mesh->mNumVertices
+             << ", Faces " << mesh->mNumFaces << std::endl;
     }
 
     for (unsigned int m = 0; m < scene->mNumMaterials; ++m)
@@ -80,10 +80,10 @@ void AssimpLoader::printMaterialInfo(const aiMaterial* material)
     material->Get(AI_MATKEY_COLOR_SPECULAR, cs);
 
 
-    cout << ">>>> Material: "
+    std::cout << ">>>> Material: "
          << "Color Diffuse (" << cd.r << " " << cd.g << " " << cd.b << "), Color Emissive (" << ce.r << " " << ce.g
          << " " << ce.b << "), Color Specular (" << cs.r << " " << cs.g << " " << cs.b << "), Diffuse texture "
-         << texturepath.C_Str() << endl;
+         << texturepath.C_Str() << std::endl;
 }
 
 void AssimpLoader::loadBones()
@@ -107,9 +107,9 @@ void AssimpLoader::loadBones()
 
     rootNode = createNodeTree(scene->mRootNode);
     SAIGA_ASSERT(rootNode == 0);
-    //    cout<<"unique nodes: "<<nodeCount<<endl;
+    //    std::cout<<"unique nodes: "<<nodeCount<<endl;
 
-    if (verbose) cout << ">>Created node map: " << nodeCount << " nodes, " << boneCount << " bones." << endl;
+    if (verbose) std::cout << ">>Created node map: " << nodeCount << " nodes, " << boneCount << " bones." << std::endl;
 }
 
 void AssimpLoader::getAnimation(int animationId, int meshId, Animation& out)
@@ -143,7 +143,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation& out)
     }
     //    out.print();
 
-    if (verbose) cout << ">>loaded animation " << out.name << ": " << out.frameCount << " frames" << endl;
+    if (verbose) std::cout << ">>loaded animation " << out.name << ": " << out.frameCount << " frames" << std::endl;
 }
 
 
@@ -220,7 +220,7 @@ void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationFrame
         k.nodes = animationNodes;
         k.time  = animationtime_t((keyFrameTime - firstKeyFrameTime));
 
-        // cout << k.nodes.size() << endl;
+        // std::cout << k.nodes.size() << std::endl;
     }
 }
 
@@ -257,7 +257,7 @@ aiNode* AssimpLoader::findnode(struct aiNode* node, char* name)
 
 int AssimpLoader::createNodeTree(struct aiNode* node)
 {
-    //    cout<<"node "<<node->mName.data<<endl;
+    //    std::cout<<"node "<<node->mName.data<<endl;
     //    int n = 1;
 
 
@@ -308,7 +308,7 @@ int AssimpLoader::createNodeTree(struct aiNode* node)
 // calculate absolute transform for node to do mesh skinning
 void AssimpLoader::transformnode(aiMatrix4x4* result, aiNode* node)
 {
-    //    cout<<"transform "<<node->mName.data<<endl;
+    //    std::cout<<"transform "<<node->mName.data<<endl;
     if (node->mParent)
     {
         transformnode(result, node->mParent);

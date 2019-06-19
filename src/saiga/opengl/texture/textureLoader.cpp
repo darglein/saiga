@@ -21,8 +21,8 @@ std::shared_ptr<Texture> TextureLoader::load(const std::string& name, const Text
     std::string fullName = SearchPathes::image(name);
     if (fullName.empty())
     {
-        cout << "Could not find file '" << name << "'. Make sure it exists and the search pathes are set." << endl;
-        cerr << SearchPathes::image << endl;
+        std::cout << "Could not find file '" << name << "'. Make sure it exists and the search pathes are set." << std::endl;
+        std::cerr << SearchPathes::image << std::endl;
         SAIGA_ASSERT(0);
     }
 

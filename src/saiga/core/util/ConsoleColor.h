@@ -19,7 +19,7 @@ namespace Saiga
  * shells support these colors.
  *
  * Usage:
- * cout << ConsoleColor::RED << "Hello World! :D" << ConsoleColor::RESET << endl;
+ * std::cout << ConsoleColor::RED << "Hello World! :D" << ConsoleColor::RESET << std::endl;
  *
  */
 enum class ConsoleColor : int

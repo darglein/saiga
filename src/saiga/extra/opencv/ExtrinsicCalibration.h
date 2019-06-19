@@ -38,7 +38,7 @@ class SAIGA_EXTRA_API StereoCalibration
         auto error = cv::stereoCalibrate(objPointss, images1, images2, intr1.K, intr1.dist, intr2.K, intr2.dist,
                                          cv::Size(0, 0), extr.R, extr.t, extr.E, extr.F, cv::CALIB_FIX_INTRINSIC);
 
-        cout << "stereoCalibrate error: " << error << endl;
+        std::cout << "stereoCalibrate error: " << error << std::endl;
     }
 
     StereoExtrinsics extr;

@@ -26,7 +26,7 @@ void testMatrixMatrixOperations()
     CompleteMatrix result;
 
     result = m1 * m2;
-    cout << "Result Dense Matrix" << endl << result << endl;
+    std::cout << "Result Dense Matrix" << std::endl << result << std::endl;
 
 
 
@@ -46,7 +46,7 @@ void testMatrixMatrixOperations()
     res2 += b1;
     res2   = b1 * b2;
     result = expand(res2);
-    cout << "Result Block Matrix" << endl << result << endl;
+    std::cout << "Result Block Matrix" << std::endl << result << std::endl;
 }
 
 using Block  = Eigen::Matrix<double, 2, 2>;
@@ -69,7 +69,7 @@ void testMatrixVectorOperations()
     CompleteVector result;
 
     result = m * x;
-    cout << "Result Dense Matrix" << endl << result << endl;
+    std::cout << "Result Dense Matrix" << std::endl << result << std::endl;
 
 
 
@@ -86,7 +86,7 @@ void testMatrixVectorOperations()
 
     res2   = bm * bx;
     result = expand(res2);
-    cout << "Result Block Matrix" << endl << result << endl;
+    std::cout << "Result Block Matrix" << std::endl << result << std::endl;
 }
 
 
@@ -142,7 +142,7 @@ void sparseMatrixVector()
 
     res2   = sbm * bx;
     result = expand(res2);
-    cout << "Result Sparse Block Matrix" << endl << result << endl;
+    std::cout << "Result Sparse Block Matrix" << std::endl << result << std::endl;
 }
 
 using RectBlock = Eigen::Matrix<double, 3, 2>;
@@ -186,7 +186,7 @@ struct Eigen::internal::sparse_time_dense_product_impl<SparseLhsType, DenseRhsTy
 
 void sparseRectangularMatrixVector()
 {
-    cout << "testing sparse matrix times vector with rectangular inner blocks" << endl;
+    std::cout << "testing sparse matrix times vector with rectangular inner blocks" << std::endl;
     using CompleteMatrix       = Eigen::Matrix<double, 6, 4>;
     using CompleteVector       = Eigen::Matrix<double, 4, 1>;
     using ResultCompleteVector = Eigen::Matrix<double, 6, 1>;
@@ -195,7 +195,7 @@ void sparseRectangularMatrixVector()
     CompleteVector x = CompleteVector::Random();
     ResultCompleteVector result;
 
-    cout << "reference: " << endl << m * x << endl;
+    std::cout << "reference: " << std::endl << m * x << std::endl;
 
     Eigen::Matrix<MatrixScalar<RectBlock>, 2, 2> bm;
     Eigen::Matrix<MatrixScalar<Vector>, 2, 1> bx;
@@ -214,7 +214,7 @@ void sparseRectangularMatrixVector()
 
     res2   = sbm * bx;
     result = expand(res2);
-    cout << "Result Sparse Block Matrix" << endl << result << endl;
+    std::cout << "Result Sparse Block Matrix" << std::endl << result << std::endl;
 }
 
 int main(int argc, char* argv[])

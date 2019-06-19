@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/util/SpinLock.h"
+#include "saiga/core/util/Thread/SpinLock.h"
 #include "saiga/vision/VisionTypes.h"
 
 #include <mutex>

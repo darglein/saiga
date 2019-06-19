@@ -29,8 +29,8 @@ FontLoader::FontLoader(const std::string& _file, const std::vector<Unicode::Unic
     this->file = SearchPathes::font(_file);
     if (file == "")
     {
-        cerr << "Could not open file " << _file << endl;
-        cerr << SearchPathes::font << endl;
+        std::cerr << "Could not open file " << _file << std::endl;
+        std::cerr << SearchPathes::font << std::endl;
         SAIGA_ASSERT(0);
     }
 
@@ -116,7 +116,7 @@ void FontLoader::addGlyph(int charCode, int glyphPadding)
     FT_Glyph g2 = glyph_bitmap;
     if (g2->format != FT_GLYPH_FORMAT_BITMAP)
     {
-        cout << "invalid glyph format returned!" << endl;
+        std::cout << "invalid glyph format returned!" << std::endl;
         SAIGA_ASSERT(0);
     }
 
@@ -173,7 +173,7 @@ void FontLoader::writeGlyphsToFiles(const std::string& prefix)
         //        if(!TextureLoader::instance()->saveImage(str,*g.bitmap))
         if (g.bitmap.save(str))
         {
-            cout << "could not save " << str << endl;
+            std::cout << "could not save " << str << std::endl;
         }
     }
 }

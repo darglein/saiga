@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/core/util/managedBuffer.h"
+#include "saiga/core/util/DataStructures/managedBuffer.h"
 
 
 namespace Saiga

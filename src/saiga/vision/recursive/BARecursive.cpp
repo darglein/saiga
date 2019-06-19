@@ -23,9 +23,9 @@ namespace Saiga
 {
 void BARec::init()
 {
-    //    cout << "Test sizes: " << sizeof(Scene) << " " << sizeof(BARec)<< " " << sizeof(BABase)<< " " <<
-    //    sizeof(LMOptimizer) << endl; cout << "Test sizes2: " << sizeof(BAMatrix) << " " << sizeof(BAVector)<< " " <<
-    //    sizeof(BASolver)<< " " << sizeof(AlignedVector<SE3>) << endl;
+    //    std::cout << "Test sizes: " << sizeof(Scene) << " " << sizeof(BARec)<< " " << sizeof(BABase)<< " " <<
+    //    sizeof(LMOptimizer) << std::endl; std::cout << "Test sizes2: " << sizeof(BAMatrix) << " " << sizeof(BAVector)<< " " <<
+    //    sizeof(BASolver)<< " " << sizeof(AlignedVector<SE3>) << std::endl;
 
     Scene& scene = *_scene;
 
@@ -207,15 +207,15 @@ void BARec::init()
 
     if (optimizationOptions.debugOutput)
     {
-        cout << "." << endl;
-        cout << "Structure Analyzed." << endl;
-        cout << "Cameras: " << n << endl;
-        cout << "Points: " << m << endl;
-        cout << "Observations: " << observations << endl;
+        std::cout << "." << std::endl;
+        std::cout << "Structure Analyzed." << std::endl;
+        std::cout << "Cameras: " << n << std::endl;
+        std::cout << "Points: " << m << std::endl;
+        std::cout << "Observations: " << observations << std::endl;
 #if 1
-        cout << "Schur Edges: " << schurEdges << endl;
-        cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << endl;
-        cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << endl;
+        std::cout << "Schur Edges: " << schurEdges << std::endl;
+        std::cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << std::endl;
+        std::cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << std::endl;
 #endif
 
 #if 1
@@ -226,10 +226,10 @@ void BARec::init()
         averagePoints /= cameraPointCounts.size();
         for (auto i : pointCameraCounts) averageCams += i;
         averageCams /= pointCameraCounts.size();
-        cout << "Average Points per Camera: " << averagePoints << endl;
-        cout << "Average Cameras per Point: " << averageCams << endl;
+        std::cout << "Average Points per Camera: " << averagePoints << std::endl;
+        std::cout << "Average Cameras per Point: " << averageCams << std::endl;
 #endif
-        cout << "." << endl;
+        std::cout << "." << std::endl;
     }
 }
 
@@ -523,19 +523,19 @@ OptimizationResults BARec::solve()
         }
         linearSolverTime += t;
 
-        //        cout << expand(A.u).transpose() << endl;
-        //        cout << expand(A.v).transpose() << endl;
-        //        cout << expand(A.w).transpose() << endl;
-        //        cout << expand(b.u).transpose() << endl;
-        //        cout << expand(b.v).transpose() << endl;
-        //        cout << expand(delta_x.u).transpose() << endl;
-        //        cout << expand(delta_x.v).transpose() << endl;
+        //        std::cout << expand(A.u).transpose() << std::endl;
+        //        std::cout << expand(A.v).transpose() << std::endl;
+        //        std::cout << expand(A.w).transpose() << std::endl;
+        //        std::cout << expand(b.u).transpose() << std::endl;
+        //        std::cout << expand(b.v).transpose() << std::endl;
+        //        std::cout << expand(delta_x.u).transpose() << std::endl;
+        //        std::cout << expand(delta_x.v).transpose() << std::endl;
 
         plus();
 
         updateScene(scene);
     }
-    cout << "totalLinearSolverTime: " << linearSolverTime << endl;
+    std::cout << "totalLinearSolverTime: " << linearSolverTime << std::endl;
 
     // revert last step
     double finalChi2 = scene.chi2();

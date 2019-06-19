@@ -82,7 +82,7 @@ void LightShader::uploadShadowMapSize(ivec2 s)
 
 // void Light::createShadowMap(int resX, int resY){
 
-////    cout<<"Light::createShadowMap"<<endl;
+////    std::cout<<"Light::createShadowMap"<<endl;
 
 //    shadowmap.createFlat(resX,resY);
 

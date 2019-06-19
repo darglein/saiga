@@ -25,8 +25,8 @@
 
 #include "threadPool.h"
 
+#include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/core/util/threadName.h"
 
 #include "omp.h"
 
@@ -62,7 +62,6 @@ ThreadPool::ThreadPool(size_t threads, const std::string& name) : name(name), st
 ThreadPool::~ThreadPool()
 {
     quit();
-    cout << "~ThreadPool " << name << endl;
 }
 
 void ThreadPool::quit()

@@ -131,7 +131,7 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPa
         frameData.emplace_back(*base, initialMaxVertexCount, initialMaxIndexCount);
     }
 
-    cout << "Vulkan imgui created." << endl;
+    std::cout << "Vulkan imgui created." << std::endl;
 }
 
 void ImGuiVulkanRenderer::updateBuffers(vk::CommandBuffer cmd, size_t index)

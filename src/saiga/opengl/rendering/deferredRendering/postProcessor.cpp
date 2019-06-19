@@ -177,7 +177,7 @@ void PostProcessor::render()
 
     if (effects == 0)
     {
-        cout << "Warning no post processing effects specified. The screen will probably be black!" << endl;
+        std::cout << "Warning no post processing effects specified. The screen will probably be black!" << std::endl;
         return;
     }
 
@@ -235,7 +235,7 @@ void PostProcessor::printTimings()
     if (!useTimers) return;
     for (unsigned int i = 0; i < postProcessingEffects.size(); ++i)
     {
-        cout << "\t" << shaderTimer[i].getTimeMS() << "ms " << postProcessingEffects[i]->name << endl;
+        std::cout << "\t" << shaderTimer[i].getTimeMS() << "ms " << postProcessingEffects[i]->name << std::endl;
     }
 }
 

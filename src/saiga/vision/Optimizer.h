@@ -8,7 +8,7 @@
 
 #include "saiga/config.h"
 
-
+#include <string>
 namespace Saiga
 {
 struct SAIGA_VISION_API OptimizationResults

@@ -89,9 +89,9 @@ void checkEigenCompabitilty()
     auto se = getSaigaEigenCompileFlags();
     if (!(e == se))
     {
-        cout << "Your eigen compile flags do not match to Saiga's compile flags!" << endl << endl;
-        cout << "Saiga's flags: " << endl << se << endl << endl;
-        cout << "Your flags: " << endl << e << endl << endl;
+        std::cout << "Your eigen compile flags do not match to Saiga's compile flags!" << std::endl << std::endl;
+        std::cout << "Saiga's flags: " << std::endl << se << std::endl << std::endl;
+        std::cout << "Your flags: " << std::endl << e << std::endl << std::endl;
         SAIGA_EXIT_ERROR("Invalid compile flags!");
     }
 }

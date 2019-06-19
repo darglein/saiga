@@ -95,7 +95,7 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow& window, DeferredRenderingPara
     defaultEffects.push_back(pps);
     postProcessor.setPostProcessingEffects(defaultEffects);
 
-    cout << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight << endl;
+    std::cout << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight << std::endl;
 }
 
 Deferred_Renderer::~Deferred_Renderer() {}
@@ -106,7 +106,7 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 {
     if (windowWidth <= 0 || windowHeight <= 0)
     {
-        cerr << "Warning: The window size must be greater than zero." << endl;
+        std::cerr << "Warning: The window size must be greater than zero." << std::endl;
         windowWidth  = max(windowWidth, 1);
         windowHeight = max(windowHeight, 1);
     }
@@ -114,8 +114,8 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
     this->outputHeight = windowHeight;
     this->renderWidth  = windowWidth * params.renderScale;
     this->renderHeight = windowHeight * params.renderScale;
-    cout << "Resizing Window to : " << windowWidth << "," << windowHeight << endl;
-    cout << "Framebuffer size: " << renderWidth << " " << renderHeight << endl;
+    std::cout << "Resizing Window to : " << windowWidth << "," << windowHeight << std::endl;
+    std::cout << "Framebuffer size: " << renderWidth << " " << renderHeight << std::endl;
     postProcessor.resize(renderWidth, renderHeight);
     gbuffer.resize(renderWidth, renderHeight);
     lighting.resize(renderWidth, renderHeight);
@@ -383,21 +383,21 @@ void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
 
 void Deferred_Renderer::printTimings()
 {
-    cout << "====================================" << endl;
-    cout << "Geometry pass: " << getTime(GEOMETRYPASS) << "ms" << endl;
-    cout << "SSAO: " << getTime(SSAOT) << "ms" << endl;
-    cout << "Depthmaps: " << getTime(DEPTHMAPS) << "ms" << endl;
-    cout << "Lighting: " << getTime(LIGHTING) << "ms" << endl;
+    std::cout << "====================================" << std::endl;
+    std::cout << "Geometry pass: " << getTime(GEOMETRYPASS) << "ms" << std::endl;
+    std::cout << "SSAO: " << getTime(SSAOT) << "ms" << std::endl;
+    std::cout << "Depthmaps: " << getTime(DEPTHMAPS) << "ms" << std::endl;
+    std::cout << "Lighting: " << getTime(LIGHTING) << "ms" << std::endl;
     lighting.printTimings();
-    //    cout<<"Light accumulation: "<<getTime(LIGHTACCUMULATION)<<"ms"<<endl;
-    cout << "Overlay pass: " << getTime(OVERLAY) << "ms" << endl;
-    cout << "Postprocessing: " << getTime(POSTPROCESSING) << "ms" << endl;
+    //    std::cout<<"Light accumulation: "<<getTime(LIGHTACCUMULATION)<<"ms"<<endl;
+    std::cout << "Overlay pass: " << getTime(OVERLAY) << "ms" << std::endl;
+    std::cout << "Postprocessing: " << getTime(POSTPROCESSING) << "ms" << std::endl;
     postProcessor.printTimings();
-    cout << "SMAA: " << getTime(SMAATIME) << "ms" << endl;
-    cout << "Final pass: " << getTime(FINAL) << "ms" << endl;
+    std::cout << "SMAA: " << getTime(SMAATIME) << "ms" << std::endl;
+    std::cout << "Final pass: " << getTime(FINAL) << "ms" << std::endl;
     float total = getTime(TOTAL);
-    cout << "Total: " << total << "ms (" << 1000 / total << " fps)" << endl;
-    cout << "====================================" << endl;
+    std::cout << "Total: " << total << "ms (" << 1000 / total << " fps)" << std::endl;
+    std::cout << "====================================" << std::endl;
 }
 
 

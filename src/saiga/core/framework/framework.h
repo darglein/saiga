@@ -8,6 +8,7 @@
 
 #include "saiga/config.h"
 
+#include <string>
 #include <vector>
 
 namespace Saiga

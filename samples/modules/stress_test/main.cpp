@@ -19,8 +19,8 @@ using namespace Saiga;
 
 static void printVectorInstructions()
 {
-    cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION
-         << endl;
+    std::cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION
+         << std::endl;
 
     std::cout << "defined EIGEN Macros:" << std::endl;
 
@@ -58,8 +58,8 @@ static void printVectorInstructions()
 template <int size, typename T>
 void eigenHeatTest(int numThreads)
 {
-    cout << "Starting Thermal Test: Matrix Multiplication." << endl;
-    cout << "Threads: " << numThreads << endl;
+    std::cout << "Starting Thermal Test: Matrix Multiplication." << std::endl;
+    std::cout << "Threads: " << numThreads << std::endl;
 
 
     using MatrixType2 = Eigen::Matrix<T, size, size>;
@@ -82,7 +82,7 @@ void eigenHeatTest(int numThreads)
             m2 += m1 * m2;
         }
 
-        cout << "Done." << endl;
+        std::cout << "Done." << std::endl;
     }
 }
 
@@ -106,12 +106,12 @@ int main(int argc, char* argv[])
 #endif
         if (cla.getFlag("double"))
         {
-            cout << "AVX, double" << endl;
+            std::cout << "AVX, double" << std::endl;
             eigenHeatTest<7 * 8, double>(numThreads);
         }
         else
         {
-            cout << "AVX, float" << endl;
+            std::cout << "AVX, float" << std::endl;
             eigenHeatTest<13 * 8, float>(numThreads);
         }
     }
@@ -119,12 +119,12 @@ int main(int argc, char* argv[])
     {
         if (cla.getFlag("double"))
         {
-            cout << "SSE, double" << endl;
+            std::cout << "SSE, double" << std::endl;
             eigenHeatTest<13 * 4, double>(numThreads);
         }
         else
         {
-            cout << "SSE, float" << endl;
+            std::cout << "SSE, float" << std::endl;
             eigenHeatTest<23 * 4, float>(numThreads);
         }
     }

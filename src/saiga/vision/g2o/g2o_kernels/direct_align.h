@@ -71,7 +71,7 @@ class EdgeSE3DirectAlign : public g2o::BaseUnaryEdge<1, Vec2, VertexSE3>
         _error(0) = _measurement(0) - cI;
         //        _error(1) = bf/z - bf*cD;
 
-        //        cout << _error.transpose() << endl;
+        //        std::cout << _error.transpose() << std::endl;
         SAIGA_ASSERT(_error.allFinite());
     }
 
@@ -134,8 +134,8 @@ class EdgeSE3DirectAlign : public g2o::BaseUnaryEdge<1, Vec2, VertexSE3>
 
         _jacobianOplusXi.row(1) *= bf;
 #endif
-        //        cout << _jacobianOplusXi << endl;
-        //        cout << (1.0/zz*bf) << " " << bf << endl;
+        //        std::cout << _jacobianOplusXi << std::endl;
+        //        std::cout << (1.0/zz*bf) << " " << bf << std::endl;
         //        exit(0);
 
         SAIGA_ASSERT(_jacobianOplusXi.allFinite());

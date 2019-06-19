@@ -5,7 +5,7 @@
  */
 
 #include "saiga/core/Core.h"
-#include "saiga/core/util/SpinLock.h"
+#include "saiga/core/util/Thread/SpinLock.h"
 
 #include <chrono>
 
@@ -68,32 +68,32 @@ int main(int argc, char* argv[])
 
 
 
-    cout << "start" << endl;
+    std::cout << "start" << std::endl;
 
     auto f = globalThreadPool->enqueue([]() {
-        cout << "hello from other thread." << endl;
+        std::cout << "hello from other thread." << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
     });
 
 
     globalThreadPool->enqueue([]() {
-        cout << "hello from other thread." << endl;
+        std::cout << "hello from other thread." << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
     });
 
     globalThreadPool->enqueue([]() {
-        cout << "hello from other thread." << endl;
+        std::cout << "hello from other thread." << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
     });
 
     globalThreadPool->enqueue([]() {
-        cout << "hello from other thread." << endl;
+        std::cout << "hello from other thread." << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(3));
     });
 
-    cout << "before wait " << endl;
+    std::cout << "before wait " << std::endl;
 
     f.wait();
 
-    cout << "Done." << endl;
+    std::cout << "Done." << std::endl;
 }

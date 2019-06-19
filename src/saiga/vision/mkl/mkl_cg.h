@@ -26,12 +26,12 @@ inline void mklcg(const sparse_matrix_t A, struct matrix_descr adescr, const spa
     int n = n2 * block_size;
 
 #ifdef MKL_CG_DEBUG_OUTPUT
-    cout << "Starting mkl CG" << endl;
-    cout << "Iterations: " << iters << endl;
-    cout << "Tolerance: " << tol_error << endl;
-    cout << "Block Size: " << block_size << endl;
-    cout << "N: " << n2 << endl;
-    cout << "Total N: " << n << endl;
+    std::cout << "Starting mkl CG" << std::endl;
+    std::cout << "Iterations: " << iters << std::endl;
+    std::cout << "Tolerance: " << tol_error << std::endl;
+    std::cout << "Block Size: " << block_size << std::endl;
+    std::cout << "N: " << n2 << std::endl;
+    std::cout << "Total N: " << n << std::endl;
 #endif
 
 #if 0
@@ -78,7 +78,7 @@ inline void mklcg(const sparse_matrix_t A, struct matrix_descr adescr, const spa
     //    residualNorm2        = residualNorm2 * residualNorm2;
     double residualNorm2 = cblas_ddot(n, residual, 1, residual, 1);
 #ifdef MKL_CG_DEBUG_OUTPUT
-    cout << "Initial residual: " << residualNorm2 << endl;
+    std::cout << "Initial residual: " << residualNorm2 << std::endl;
 #endif
     if (residualNorm2 < threshold)
     {
@@ -96,7 +96,7 @@ inline void mklcg(const sparse_matrix_t A, struct matrix_descr adescr, const spa
 
     double absNew = cblas_ddot(n, residual, 1, p, 1);
 #ifdef MKL_CG_DEBUG_OUTPUT
-    cout << "dot(r,p): " << absNew << endl;
+    std::cout << "dot(r,p): " << absNew << std::endl;
 #endif
 
     int i = 0;
@@ -120,7 +120,7 @@ inline void mklcg(const sparse_matrix_t A, struct matrix_descr adescr, const spa
         //        residualNorm2 = residualNorm2 * residualNorm2;
         residualNorm2 = cblas_ddot(n, residual, 1, residual, 1);
 #ifdef MKL_CG_DEBUG_OUTPUT
-        cout << "Iteration: " << i << " Residual: " << residualNorm2 << " Alpha: " << alpha << endl;
+        std::cout << "Iteration: " << i << " Residual: " << residualNorm2 << " Alpha: " << alpha << std::endl;
 #endif
         if (residualNorm2 < threshold) break;
 

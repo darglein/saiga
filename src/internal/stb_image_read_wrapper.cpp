@@ -1,6 +1,8 @@
 ﻿#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image_read_wrapper.h"
 
+#include <iostream>
+
 #include "stb_image.h"
 
 namespace Saiga

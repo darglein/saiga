@@ -147,9 +147,9 @@ OptimizationResults CeresBA::initAndSolve()
     double costFinal = 0;
     problem.Evaluate(defaultEvalOptions, &costFinal, nullptr, nullptr, &matrix);
 
-    cout << "num residuals: " << problem.NumResiduals() << endl;
+    std::cout << "num residuals: " << problem.NumResiduals() << std::endl;
 
-    cout << matrix.num_rows << "x" << matrix.num_cols << endl;
+    std::cout << matrix.num_rows << "x" << matrix.num_cols << std::endl;
 
     {
         Eigen::SparseMatrix<double, Eigen::RowMajor> ematrix(matrix.num_rows, matrix.num_cols);
@@ -164,7 +164,7 @@ OptimizationResults CeresBA::initAndSolve()
             ematrix.valuePtr()[i]      = matrix.values[i];
             ematrix.innerIndexPtr()[i] = matrix.cols[i];
         }
-        cout << ematrix.toDense() << endl;
+        std::cout << ematrix.toDense() << std::endl;
     }
     return;
 #endif
@@ -179,8 +179,8 @@ OptimizationResults CeresBA::initAndSolve()
     //        ceres::Solve(ceres_options, &problem, &summaryTest);
     //    }
 
-    //    cout << "linear solver time " << summaryTest.linear_solver_time_in_seconds << "s." << endl;
-    //    cout << summaryTest.FullReport() << endl;
+    //    std::cout << "linear solver time " << summaryTest.linear_solver_time_in_seconds << "s." << std::endl;
+    //    std::cout << summaryTest.FullReport() << std::endl;
 
     OptimizationResults result = ceres_solve(ceres_options, problem);
 
@@ -191,11 +191,11 @@ OptimizationResults CeresBA::initAndSolve()
     //    result.total_time         = summaryTest.total_time_in_seconds * 1000;
     //    if (summaryTest.iterations.size() < optimizationOptions.maxIterations + 1)
     //    {
-    //        cout << "less iterations than expected: " << summaryTest.iterations.size() << endl;
+    //        std::cout << "less iterations than expected: " << summaryTest.iterations.size() << std::endl;
     //    }
     return result;
 
-    //    std::cout << "optimizePoints residual: " << costInit << " -> " << costFinal << endl;
+    //    std::cout << "optimizePoints residual: " << costInit << " -> " << costFinal << std::endl;
 }
 
 }  // namespace Saiga

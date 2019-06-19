@@ -11,6 +11,7 @@
 
 #include <al.h>
 #include <alc.h>
+#include <iostream>
 
 #ifdef SAIGA_USE_ALUT
 #    include <alut.h>
@@ -24,7 +25,7 @@ namespace sound
 SoundManager::SoundManager(int maxSources, int fixedSources)
     : maxSources(maxSources), fixedSources(fixedSources), oldestSource(fixedSources)
 {
-    cout << "SoundManager()" << endl;
+    std::cout << "SoundManager()" << std::endl;
     initOpenAL();
 
 
@@ -42,7 +43,7 @@ SoundManager::SoundManager(int maxSources, int fixedSources)
 
 SoundManager::~SoundManager()
 {
-    cout << "~SoundManager" << endl;
+    std::cout << "~SoundManager" << std::endl;
 
 
     delete quietSoundSource;
@@ -69,7 +70,7 @@ SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic)
     auto it = soundMap.find(file);
     if (it == soundMap.end())
     {
-        std::cerr << "Sound not loaded: " << file << endl;
+        std::cerr << "Sound not loaded: " << file << std::endl;
         SAIGA_ASSERT(false);
         return quietSoundSource;
     }
@@ -78,11 +79,11 @@ SoundSource* SoundManager::getSoundSource(const std::string& file, bool isMusic)
         sound = it->second;
     }
 
-    //    cout << "returning source " << oldestSource << endl;
+    //    std::cout << "returning source " << oldestSource << std::endl;
     SoundSource* s = &sources[oldestSource];
     if (s->isPlaying())
     {
-        cout << "<SoundManager> Stopping sound before playing a new one!" << endl;
+        std::cout << "<SoundManager> Stopping sound before playing a new one!" << std::endl;
         s->stop();
     }
 
@@ -103,7 +104,7 @@ SoundSource* SoundManager::getSoundSourceWhileStillLoading(const std::string& fi
         auto it = soundMap.find(file);
         if (it == soundMap.end())
         {
-            std::cerr << "Sound not loaded: " << file << endl;
+            std::cerr << "Sound not loaded: " << file << std::endl;
             return quietSoundSource;
         }
         else
@@ -117,7 +118,7 @@ SoundSource* SoundManager::getSoundSourceWhileStillLoading(const std::string& fi
     SoundSource* s = &sources[oldestSource];
     if (s->isPlaying())
     {
-        cout << "<SoundManager> Stopping sound before playing a new one!" << endl;
+        std::cout << "<SoundManager> Stopping sound before playing a new one!" << std::endl;
         s->stop();
     }
     s->reset(isMusic, isMusic ? musicVolume : effectsVolume);
@@ -137,7 +138,7 @@ SoundSource* SoundManager::getFixedSoundSource(const std::string& file, int id, 
     auto it = soundMap.find(file);
     if (it == soundMap.end())
     {
-        std::cerr << "Sound not loaded: " << file << endl;
+        std::cerr << "Sound not loaded: " << file << std::endl;
         SAIGA_ASSERT(false);
         return quietSoundSource;
     }
@@ -178,13 +179,13 @@ void SoundManager::loadWaveSound(const std::string& file)
         }
         else
         {
-            cout << "Could not load sound: " << file << endl;
+            std::cout << "Could not load sound: " << file << std::endl;
             SAIGA_ASSERT(0);
         }
     }
     else
     {
-        cout << "Sound already loaded: " << file << endl;
+        std::cout << "Sound already loaded: " << file << std::endl;
         SAIGA_ASSERT(0);
     }
     assert_no_alerror();
@@ -207,13 +208,13 @@ void SoundManager::loadOpusSound(const std::string& file)
         }
         else
         {
-            cout << "Could not load sound: " << file << endl;
+            std::cout << "Could not load sound: " << file << std::endl;
             SAIGA_ASSERT(0);
         }
     }
     else
     {
-        cout << "Sound already loaded: " << file << endl;
+        std::cout << "Sound already loaded: " << file << std::endl;
         SAIGA_ASSERT(0);
     }
     assert_no_alerror();
@@ -237,7 +238,7 @@ void SoundManager::loadSoundByEnding(const std::string& file)
     }
     else
     {
-        cout << "Unknown file extension for sound file: " << file << endl;
+        std::cout << "Unknown file extension for sound file: " << file << std::endl;
         SAIGA_ASSERT(0);
     }
 }
@@ -251,7 +252,7 @@ void SoundManager::unloadSound(const std::string& file)
     auto it = soundMap.find(file);
     if (it == soundMap.end())
     {
-        std::cerr << "Sound to unload was not loaded: " << file << endl;
+        std::cerr << "Sound to unload was not loaded: " << file << std::endl;
         SAIGA_ASSERT(false);
         return;
     }
@@ -287,7 +288,7 @@ bool SoundManager::soundAlreadyLoaded(const std::string& file) const
     }
     else
     {
-        cout << "Sound already loaded: " << file << endl;
+        std::cout << "Sound already loaded: " << file << std::endl;
         SAIGA_ASSERT(0);
         return true;
     }
@@ -305,7 +306,7 @@ void SoundManager::startParallelSoundLoader(int threadCount)
     //    SAIGA_ASSERT(!parallelSoundLoaderRunning);
     //    SAIGA_ASSERT(soundLoaderThreads.size() == 0);
     SAIGA_ASSERT(threadCount > 0);
-    cout << "startParallelSoundLoader " << threadCount << endl;
+    std::cout << "startParallelSoundLoader " << threadCount << std::endl;
 
     int oldthreadCount = this->threadCount;
     this->threadCount += threadCount;
@@ -319,7 +320,7 @@ void SoundManager::startParallelSoundLoader(int threadCount)
 
 void SoundManager::joinParallelSoundLoader()
 {
-    cout << "joinParallelSoundLoader " << endl;
+    std::cout << "joinParallelSoundLoader " << std::endl;
     SAIGA_ASSERT(parallelSoundLoaderRunning);
     for (int i = 0; i < threadCount; ++i)
     {
@@ -362,7 +363,7 @@ void SoundManager::loadSoundsThreadStart()
 
         if (took)
         {
-            //            cout << "parallel loadsound " << f << endl;
+            //            std::cout << "parallel loadsound " << f << std::endl;
             SAIGA_ASSERT(!soundAlreadyLoaded(f));
 
             SoundLoader sl;
@@ -381,7 +382,7 @@ void SoundManager::loadSoundsThreadStart()
             }
             else
             {
-                cout << "Unknown file extension for sound file: " << f << endl;
+                std::cout << "Unknown file extension for sound file: " << f << std::endl;
                 SAIGA_ASSERT(0);
             }
 
@@ -392,20 +393,20 @@ void SoundManager::loadSoundsThreadStart()
             }
             else
             {
-                cout << "Could not load sound (parallel): " << f << endl;
+                std::cout << "Could not load sound (parallel): " << f << std::endl;
                 SAIGA_ASSERT(0);
             }
         }
         else
         {
-            //            cout << "sound list empty! joining... " << f << endl;
+            //            std::cout << "sound list empty! joining... " << f << std::endl;
             break;
             //            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
     }
 
     loadingDoneCounter -= 1;
-    cout << "sound loader thread finished " << endl;
+    std::cout << "sound loader thread finished " << std::endl;
 }
 
 
@@ -529,7 +530,7 @@ int SoundManager::getCapturedSamples()
     alcGetIntegerv(captureDevice, ALC_CAPTURE_SAMPLES, 4, &sampleCount);
 
     alcCaptureSamples(captureDevice, (ALCvoid*)captureBuffer.data(), sampleCount);
-    //    cout << "captured "<<sampleCount << " samples"<<endl;
+    //    std::cout << "captured "<<sampleCount << " samples"<<endl;
     assert_no_alerror();
 
     return sampleCount;

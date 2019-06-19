@@ -26,7 +26,7 @@ mat4 cvCameraToGLCamera(const mat3& K, int viewportW, int viewportH, float znear
                 0,                  0,                  1
                 );
     auto removeViewPortTransform = inverse(transpose(viewPortTransform));
-    cout << viewPortTransform << endl << removeViewPortTransform << endl;
+    std::cout << viewPortTransform << std::endl << removeViewPortTransform << std::endl;
 #else
     mat3 removeViewPortTransform = make_mat3(2.0 / viewportW, 0, 0, 0, 2.0 / viewportH, 0, -1, -1, 1);
 #endif

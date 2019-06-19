@@ -175,7 +175,7 @@ OptimizationResults g2oBA2::initAndSolve()
     }
 
     if (optimizationOptions.debugOutput)
-        cout << "g2o problem created. Mono/Stereo " << monoEdges << "/" << stereoEdges << endl;
+        std::cout << "g2o problem created. Mono/Stereo " << monoEdges << "/" << stereoEdges << std::endl;
 
 
     OptimizationResults result;
@@ -194,7 +194,7 @@ OptimizationResults g2oBA2::initAndSolve()
             double chi2b = optimizer.chi2();
             optimizer.optimize(optimizationOptions.maxIterations);
             double chi2a = optimizer.chi2();
-            cout << "g2o::optimize " << chi2b << " -> " << chi2a << endl;
+            std::cout << "g2o::optimize " << chi2b << " -> " << chi2a << std::endl;
         }
         else
         {
@@ -206,23 +206,23 @@ OptimizationResults g2oBA2::initAndSolve()
     auto stats = optimizer.batchStatistics();
     for (auto s : stats)
     {
-        cout << " levenbergIterations " << s.levenbergIterations << endl
-             << " timeResiduals " << s.timeResiduals << endl
-             << " timeLinearize " << s.timeLinearize << endl
-             << " timeQuadraticForm " << s.timeQuadraticForm << endl
-             << " timeSchurComplement " << s.timeSchurComplement << endl
-             << " timeLinearSolution " << s.timeLinearSolution << endl
-             << " timeLinearSolver " << s.timeLinearSolver << endl
-             << " timeUpdate " << s.timeUpdate << endl
-             << " timeIteration " << s.timeIteration << endl
-             << " timeMarginals " << s.timeMarginals << endl;
-        cout << endl;
+        std::cout << " levenbergIterations " << s.levenbergIterations << std::endl
+             << " timeResiduals " << s.timeResiduals << std::endl
+             << " timeLinearize " << s.timeLinearize << std::endl
+             << " timeQuadraticForm " << s.timeQuadraticForm << std::endl
+             << " timeSchurComplement " << s.timeSchurComplement << std::endl
+             << " timeLinearSolution " << s.timeLinearSolution << std::endl
+             << " timeLinearSolver " << s.timeLinearSolver << std::endl
+             << " timeUpdate " << s.timeUpdate << std::endl
+             << " timeIteration " << s.timeIteration << std::endl
+             << " timeMarginals " << s.timeMarginals << std::endl;
+        std::cout << std::endl;
     }
 
     //    costFinal = optimizer.activeRobustChi2();
 
-    //    cout << "Optimize g2o stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << totalDensePoints
-    //         << " Error: " << costInit << "->" << costFinal << endl;
+    //    std::cout << "Optimize g2o stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << totalDensePoints
+    //         << " Error: " << costInit << "->" << costFinal << std::endl;
 
 #endif
 

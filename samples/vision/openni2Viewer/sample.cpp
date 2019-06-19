@@ -11,8 +11,8 @@
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/color.h"
-#include "saiga/core/util/threadName.h"
-#include "saiga/core/util/threadPool.h"
+#include "saiga/core/util/Thread/threadName.h"
+#include "saiga/core/util/Thread/threadPool.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/extra/network/RGBDCameraNetwork.h"
 #include "saiga/vision/camera/all.h"
@@ -26,7 +26,7 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
 {
     Saiga::createGlobalThreadPool(8);
     Saiga::setThreadName("main");
-    cout << "init done" << endl;
+    std::cout << "init done" << std::endl;
 
     init(renderer.base());
 }
@@ -74,13 +74,13 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
     {
         while (!rgbdcamera->isOpened())
         {
-            cout << "Waiting for camera..." << endl;
+            std::cout << "Waiting for camera..." << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
         bool gotImage = rgbdcamera->getImageSync(frameData);
 
-        cout << "create image texture: " << frameData.depthImg.height << "x" << frameData.depthImg.width << endl;
+        std::cout << "create image texture: " << frameData.depthImg.height << "x" << frameData.depthImg.width << std::endl;
 
         rgbImage.create(frameData.colorImg.h, frameData.colorImg.w);
         //    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
@@ -92,8 +92,8 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
         texture2 = std::make_shared<Saiga::Vulkan::Texture2D>();
         //    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
         depthmg.create(frameData.depthImg.height, frameData.depthImg.width);
-        cout << frameData.depthImg << endl;
-        cout << depthmg << endl;
+        std::cout << frameData.depthImg << std::endl;
+        std::cout << depthmg << std::endl;
         Saiga::ImageTransformation::depthToRGBA(frameData.depthImg.getImageView(), depthmg.getImageView(), 0, 7000);
         texture2->fromImage(renderer.base(), depthmg);
 
@@ -102,7 +102,7 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
         textureDes  = textureDisplay.createAndUpdateDescriptorSet(*texture);
         textureDes2 = textureDisplay.createAndUpdateDescriptorSet(*texture2);
 
-        cout << "init done " << endl;
+        std::cout << "init done " << std::endl;
         initTexture = false;
     }
 

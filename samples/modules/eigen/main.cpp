@@ -18,8 +18,8 @@ using namespace Saiga;
 
 static void printVectorInstructions()
 {
-    cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION
-         << endl;
+    std::cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION
+         << std::endl;
 
     std::cout << "defined EIGEN Macros:" << std::endl;
 
@@ -82,7 +82,7 @@ void randomMatrix(MatrixType& M)
 
 void eigenHeatTest()
 {
-    cout << "Starting Thermal Test: Matrix Multiplication" << endl;
+    std::cout << "Starting Thermal Test: Matrix Multiplication" << std::endl;
 
     using MatrixType2 = Eigen::Matrix<float, 100, 100, Eigen::ColMajor>;
 
@@ -97,7 +97,7 @@ void eigenHeatTest()
         m2 += m1 * m2;
     }
 
-    cout << "Done." << endl << m2 << endl;
+    std::cout << "Done." << std::endl << m2 << std::endl;
 }
 
 void testMatrixVector();
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
     randomMatrix(M);
     randomMatrix(x);
 
-    cout << "random check: " << M(0, 0) << " == " << -0.571635 << endl;
+    std::cout << "random check: " << M(0, 0) << " == " << -0.571635 << std::endl;
     measureFunction("multMatrixVector", 100, multMatrixVector, M, x, y);
 
 

@@ -13,6 +13,8 @@
 
 #include "internal/noGraphicsAPI.h"
 
+#include <iostream>
+
 namespace Saiga
 {
 void MainLoopParameters::fromConfigFile(const std::string& file)
@@ -138,9 +140,9 @@ void MainLoop::startMainLoop(MainLoopParameters params)
     gameTime.printInfoMsg = printInfoMsg;
     running               = true;
 
-    cout << "> Starting the main loop..." << endl;
-    cout << "> updatesPerSecond=" << params.updatesPerSecond << " framesPerSecond=" << params.framesPerSecond
-         << " maxFrameSkip=" << params.maxFrameSkip << endl;
+    std::cout << "> Starting the main loop..." << std::endl;
+    std::cout << "> updatesPerSecond=" << params.updatesPerSecond << " framesPerSecond=" << params.framesPerSecond
+              << " maxFrameSkip=" << params.maxFrameSkip << std::endl;
 
 
     if (params.updatesPerSecond <= 0) params.updatesPerSecond = gameTime.base.count();
@@ -200,9 +202,9 @@ void MainLoop::startMainLoop(MainLoopParameters params)
         if (printInfoMsg && gameTime.getTime() > nextInfoTick)
         {
             auto gt = std::chrono::duration_cast<std::chrono::seconds>(gameTime.getTime());
-            cout << "> Time: " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/" << numFrames
-                 << "  UPS/FPS: " << (1000.0f / upsTimer.getTimeMS()) << "/" << (1000.0f / fpsTimer.getTimeMS())
-                 << endl;
+            std::cout << "> Time: " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/"
+                      << numFrames << "  UPS/FPS: " << (1000.0f / upsTimer.getTimeMS()) << "/"
+                      << (1000.0f / fpsTimer.getTimeMS()) << std::endl;
             nextInfoTick += ticksPerInfo;
         }
 
@@ -222,15 +224,15 @@ void MainLoop::startMainLoop(MainLoopParameters params)
     if (parallelUpdate)
     {
         // cleanup the update thread
-        cout << "Finished main loop. Exiting update thread." << endl;
+        std::cout << "Finished main loop. Exiting update thread." << std::endl;
         endParallelUpdate();
         semStartUpdate.notify();
         updateThread.join();
     }
 
     auto gt = std::chrono::duration_cast<std::chrono::seconds>(gameTime.getTime());
-    cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/"
-         << numFrames << endl;
+    std::cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/"
+              << numFrames << std::endl;
 }
 
 void MainLoop::renderImGuiInline()

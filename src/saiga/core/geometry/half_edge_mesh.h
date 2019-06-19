@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <map>
 
 #include "triangle_mesh.h"
@@ -289,8 +290,8 @@ bool HalfEdgeMesh<vertex_t, index_t>::isValid()
 
         if (op.oppositeHalfEdge != i)
         {
-            cout << "Opposite Half Edge Broken! " << i << "," << e.oppositeHalfEdge << " - " << op.oppositeHalfEdge
-                 << endl;
+            std::cout << "Opposite Half Edge Broken! " << i << "," << e.oppositeHalfEdge << " - " << op.oppositeHalfEdge
+                      << std::endl;
             return false;
         }
     }
@@ -303,14 +304,14 @@ bool HalfEdgeMesh<vertex_t, index_t>::isValid()
 
         if (edgeList[e.nextHalfEdge].prevHalfEdge != i)
         {
-            cout << "prev broken" << endl;
+            std::cout << "prev broken" << std::endl;
             return false;
         }
 
         int f = e.face;
         if (f == -1 || !faces[f].valid)
         {
-            cout << "valid half edge with broken face" << endl;
+            std::cout << "valid half edge with broken face" << std::endl;
             return false;
         }
 
@@ -321,26 +322,26 @@ bool HalfEdgeMesh<vertex_t, index_t>::isValid()
             e = edgeList[e.nextHalfEdge];
             if (count++ > 1000)
             {
-                cout << "Half edge circle broken (over 1000 nodes)!" << endl;
+                std::cout << "Half edge circle broken (over 1000 nodes)!" << std::endl;
                 return false;
             }
 
             if (e.valid == false)
             {
-                cout << "valid broken" << endl;
+                std::cout << "valid broken" << std::endl;
                 return false;
             }
 
             if (e.face != f)
             {
-                cout << "Not all half edges reference the same face" << endl;
+                std::cout << "Not all half edges reference the same face" << std::endl;
                 return false;
             }
         }
 
         if (count != 2)
         {
-            cout << "Not a triangle mesh" << endl;
+            std::cout << "Not a triangle mesh" << std::endl;
             return false;
         }
     }
@@ -354,7 +355,7 @@ bool HalfEdgeMesh<vertex_t, index_t>::isValid()
 
         if (v.halfEdge == -1)
         {
-            cout << "-1 halfedge on vertex" << endl;
+            std::cout << "-1 halfedge on vertex" << std::endl;
             return false;
         }
 
@@ -367,7 +368,7 @@ bool HalfEdgeMesh<vertex_t, index_t>::isValid()
 
         if (e.vertex != i)
         {
-            cout << "Vertex edge is broken!" << endl;
+            std::cout << "Vertex edge is broken!" << std::endl;
             return false;
         }
     }
@@ -466,7 +467,7 @@ void HalfEdgeMesh<vertex_t, index_t>::halfEdgeCollapse(int he)
 
 
 
-    //    cout << "o1,o2 " << o1 << "," << o2<< endl;
+    //    std::cout << "o1,o2 " << o1 << "," << o2<< std::endl;
 
     // other triangle
     if (e.oppositeHalfEdge != -1)
@@ -485,7 +486,7 @@ void HalfEdgeMesh<vertex_t, index_t>::halfEdgeCollapse(int he)
         if (o3 != -1) vertices[w2].halfEdge = o3;
 
 
-        //        cout << "o3,o4 " << o3 << "," << o4 << endl;
+        //        std::cout << "o3,o4 " << o3 << "," << o4 << std::endl;
     }
 
 
@@ -562,7 +563,7 @@ void HalfEdgeMesh<vertex_t, index_t>::flipEdge(int he)
     // just a small check that these vertices are actual different
     if (v0 == v1 || v0 == v2 || v0 == v3 || v1 == v2 || v1 == v3 || v2 == v3)
     {
-        cout << "broken mesh (non manifold). Not flipping..." << endl;
+        std::cout << "broken mesh (non manifold). Not flipping..." << std::endl;
         return;
     }
 
@@ -595,9 +596,9 @@ void HalfEdgeMesh<vertex_t, index_t>::flipEdge(int he)
     vertices[v2].halfEdge = h1;
     vertices[v3].halfEdge = h4;
 
-    cout << h0 << "," << h1 << "," << h2 << "," << h3 << "," << h4 << "," << h5 << "," << endl;
-    cout << h6 << "," << h7 << "," << h8 << "," << h9 << "," << endl;
-    cout << endl;
+    std::cout << h0 << "," << h1 << "," << h2 << "," << h3 << "," << h4 << "," << h5 << "," << std::endl;
+    std::cout << h6 << "," << h7 << "," << h8 << "," << h9 << "," << std::endl;
+    std::cout << std::endl;
 }
 
 

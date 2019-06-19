@@ -191,10 +191,10 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string& file, std::vector<s
             std::vector<std::string> tmp;
             if (!loadAndPreproccess(includeFileName, tmp))
             {
-                std::cerr << "ShaderPartLoader: Could not open included file: " << line << endl;
-                std::cerr << "Extracted filename: '" << includeFileName << "'" << endl;
-                std::cerr << "Basefile: " << file << endl;
-                std::cerr << "Make sure it exists and the search pathes are set." << endl;
+                std::cerr << "ShaderPartLoader: Could not open included file: " << line << std::endl;
+                std::cerr << "Extracted filename: '" << includeFileName << "'" << std::endl;
+                std::cerr << "Basefile: " << file << std::endl;
+                std::cerr << "Make sure it exists and the search pathes are set." << std::endl;
                 SAIGA_ASSERT(0);
             }
             ret.erase(ret.begin() + i);
@@ -228,7 +228,7 @@ void ShaderPartLoader::addShader(std::vector<std::string>& content, GLenum type)
 
 void ShaderPartLoader::reloadShader(std::shared_ptr<Shader> shader)
 {
-    //    cout<<"ShaderPartLoader::reloadShader"<<endl;
+    //    std::cout<<"ShaderPartLoader::reloadShader"<<endl;
     shader->destroyProgram();
 
     shader->shaders = shaders;

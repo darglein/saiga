@@ -17,7 +17,7 @@ void Particle::createFixedBillboard(const vec3& normal, float angle)
         rotate(IDENTITY_QUATERNION, angle, make_vec3(velocity)) * cross(vec3(0.236027, -0.0934642, 0.967241), normal),
         0);
 
-    //    cout<<normalize(vec3(3.1314,-1.24,12.8325))<<endl;
+    //    std::cout<<normalize(vec3(3.1314,-1.24,12.8325))<<endl;
     right = normalize(right);
 
     orientation = FIXED;

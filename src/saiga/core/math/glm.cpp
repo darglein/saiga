@@ -49,7 +49,7 @@ std::ostream& operator<<(std::ostream& os, const mat3& v)
     auto vt = transpose(v);
     for (int i = 0; i < 3; ++i)
     {
-        os << vt[i] << endl;
+        os << vt[i] << std::endl;
     }
     return os;
 }
@@ -59,7 +59,7 @@ std::ostream& operator<<(std::ostream& os, const mat4& v)
     auto vt = transpose(v);
     for (int i = 0; i < 4; ++i)
     {
-        os << vt[i] << endl;
+        os << vt[i] << std::endl;
     }
     return os;
 }

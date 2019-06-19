@@ -12,7 +12,7 @@ using namespace Saiga;
 
 int main(int argc, char* args[])
 {
-    cout << sizeof(bool) << endl;
+    std::cout << sizeof(bool) << std::endl;
     return 0;
 
     Saiga::GPhoto dslr;
@@ -24,7 +24,7 @@ int main(int argc, char* args[])
         {
             img->saveJpg("dslr");
             img->saveRaw("dslr");
-            cout << "saved." << endl;
+            std::cout << "saved." << std::endl;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }

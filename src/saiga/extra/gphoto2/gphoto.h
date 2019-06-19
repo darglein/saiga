@@ -9,7 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/core/image/image.h"
 #include "saiga/core/util/file.h"
-#include "saiga/core/util/SynchronizedBuffer.h"
+#include "saiga/core/util/Thread/SynchronizedBuffer.h"
 
 #include <thread>
 

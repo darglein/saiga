@@ -30,7 +30,7 @@
  *
  *   if(ini.changed()) ini.SaveFile("config.ini");
  *
- *   cout << name << " " << w << "x" << h << " " << b << endl;
+ *   std::cout << name << " " << w << "x" << h << " " << b << std::endl;
  *
  */
 

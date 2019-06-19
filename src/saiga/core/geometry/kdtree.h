@@ -10,6 +10,7 @@
 #include "saiga/core/math/math.h"
 
 #include <algorithm>
+#include <iostream>
 #include <vector>
 
 namespace Saiga
@@ -240,7 +241,7 @@ void KDTree<D, point_t>::printPoints(index_t startIndex, index_t endIndex)
 {
     for (index_t i = startIndex; i < endIndex; ++i)
     {
-        cout << nodes[i].p << endl;
+        std::cout << nodes[i].p << std::endl;
     }
 }
 

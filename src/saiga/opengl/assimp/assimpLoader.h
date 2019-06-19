@@ -224,7 +224,7 @@ void AssimpLoader::getMesh(int id, TriangleMesh<vertex_t, uint32_t>& out)
             aiFace* f = mesh->mFaces + i;
             if (f->mNumIndices != 3)
             {
-                //                cout<<"Mesh not triangulated!!!"<<endl;
+                //                std::cout<<"Mesh not triangulated!!!"<<endl;
                 continue;
             }
             out.addFace(f->mIndices);
@@ -264,7 +264,7 @@ void AssimpLoader::getPositions(int id, TriangleMesh<vertex_t, uint32_t>& out)
 
 
             //            aiColor4D* c = mesh->mColors[i];
-            //            cout<<"color "<<c->r<<","<<c->g<<","<<c->b<<","<<c->a<<endl;
+            //            std::cout<<"color "<<c->r<<","<<c->g<<","<<c->b<<","<<c->a<<endl;
         }
     }
 }
@@ -348,7 +348,7 @@ void AssimpLoader::getFaces(int id, TriangleMesh<vertex_t, uint32_t>& out)
             aiFace* f = mesh->mFaces + i;
             if (f->mNumIndices != 3)
             {
-                //                cout<<"Mesh not triangulated! (found face with "<<f->mNumIndices << " vertices)"
+                //                std::cout<<"Mesh not triangulated! (found face with "<<f->mNumIndices << " vertices)"
                 //                <<endl;
                 continue;
             }

@@ -13,6 +13,8 @@
 #include "SPIRV/GlslangToSpv.h"
 #include "SPIRV/spirv.hpp"
 
+#include <iostream>
+
 namespace Saiga
 {
 namespace Vulkan
@@ -65,25 +67,25 @@ struct MyIncluder : public glslang::TShader::Includer
     virtual IncludeResult* includeSystem(const char* headerName, const char* includerName,
                                          size_t inclusionDepth) override
     {
-        // be save from endless loops
+        // be save from std::endless loops
         if (inclusionDepth > 100)
         {
             return nullptr;
         }
         std::string base = std::string(includerName).size() > 0 ? std::string(includerName) : baseFile;
-        //        cout << "include request '" << headerName << "' '" << includerName << "' " << inclusionDepth << endl;
-        //        cout << "base " << base << endl;
+        //        std::cout << "include request '" << headerName << "' '" << includerName << "' " << inclusionDepth <<
+        //        std::endl; std::cout << "base " << base << std::endl;
 
         auto includeFileName = SearchPathes::shader.getRelative(base, headerName);
 
         if (includeFileName == "")
         {
-            //            cout << "relative include not found" << endl;
+            //            std::cout << "relative include not found" << std::endl;
             return nullptr;
         }
         else
         {
-            //            cout << "found " << includeFileName << endl;
+            //            std::cout << "found " << includeFileName << std::endl;
         }
 
         data.push_back(File::loadFileString(includeFileName));
@@ -116,8 +118,8 @@ std::vector<uint32_t> createFromString(const std::string& shaderString, const vk
 
     if (!shader.parse(&Resources, 100, false, messages))
     {
-        cout << shader.getInfoLog() << endl;
-        cout << shader.getInfoDebugLog() << endl;
+        std::cout << shader.getInfoLog() << std::endl;
+        std::cout << shader.getInfoDebugLog() << std::endl;
         return {};  // something didn't work
     }
 
@@ -133,7 +135,7 @@ std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFl
 
     if (file == "")
     {
-        cout << "Could not find " << _file << endl;
+        std::cout << "Could not find " << _file << std::endl;
         SAIGA_ASSERT(0);
     }
 
@@ -156,9 +158,9 @@ std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFl
 
     if (!shader.parse(&Resources, 100, false, messages, includer))
     {
-        cout << "Error in " << _file << endl;
-        cout << shader.getInfoLog() << endl;
-        cout << shader.getInfoDebugLog() << endl;
+        std::cout << "Error in " << _file << std::endl;
+        std::cout << shader.getInfoLog() << std::endl;
+        std::cout << shader.getInfoDebugLog() << std::endl;
         return {};  // something didn't work
     }
 
@@ -170,7 +172,7 @@ std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFl
 
     //    for(int i = 0 ;i < 20; ++i)
     //    {
-    //        cout << std::hex << spirv[i] << endl;
+    //        std::cout << std::hex << spirv[i] << std::endl;
     //    }
     return spirv;
 }

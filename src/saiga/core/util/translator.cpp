@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 
 namespace Saiga
 {
@@ -86,7 +87,7 @@ std::vector<Translator::TranslationEntry> Translator::getTranslationVector()
 
 bool Translator::readTranslationFile()
 {
-    std::cout << "Reading translation file " << translationFile << endl;
+    std::cout << "Reading translation file " << translationFile << std::endl;
 
     std::fstream stream;
 
@@ -95,14 +96,14 @@ bool Translator::readTranslationFile()
         stream.open(translationFile, std::fstream::in);
         if (!stream.good())
         {
-            cout << "Warning Translator: file does not exist! " + translationFile << endl;
+            std::cout << "Warning Translator: file does not exist! " + translationFile << std::endl;
             return false;
         }
     }
     catch (const std::fstream::failure& e)
     {
-        cout << e.what() << endl;
-        cout << "Exception opening/reading file\n";
+        std::cout << e.what() << std::endl;
+        std::cout << "Exception opening/reading file\n";
         return false;
     }
 
@@ -157,7 +158,7 @@ bool Translator::readTranslationFile()
 #if defined(SAIGA_DEBUG)
             if (spacerPos.size() != 2)
             {
-                cout << "Line " << lineNumber << ": " << Encoding::UTF32toUTF8(utf32line) << endl;
+                std::cout << "Line " << lineNumber << ": " << Encoding::UTF32toUTF8(utf32line) << std::endl;
             }
 #endif
             SAIGA_ASSERT(spacerPos.size() == 2);
@@ -172,13 +173,14 @@ bool Translator::readTranslationFile()
             te.key         = unescapeSpecialCharacters(Encoding::UTF32toUTF8(key));
             te.translation = unescapeSpecialCharacters(Encoding::UTF32toUTF8(trans));
             te.note        = unescapeSpecialCharacters(Encoding::UTF32toUTF8(note));
-            //            cout << lineNumber << " " << te.key << spacer << te.translation << spacer << te.note << endl;
+            //            std::cout << lineNumber << " " << te.key << spacer << te.translation << spacer << te.note <<
+            //            std::endl;
             addTranslation(te);
         }
     }
     catch (const std::fstream::failure& e)
     {
-        cout << e.what() << std::endl;
+        std::cout << e.what() << std::endl;
         return false;
     }
     return true;
@@ -205,36 +207,36 @@ void Translator::writeToFile()
     }
     catch (const std::fstream::failure& e)
     {
-        cout << e.what() << endl;
-        cout << "Exception opening/reading file\n";
+        std::cout << e.what() << std::endl;
+        std::cout << "Exception opening/reading file\n";
         return;
     }
 
     std::cout << "Writing collected translation strings to " << outFile << std::endl;
 
 
-    stream << "# This is a translation file for the Saiga Translator." << endl;
-    stream << "# See saiga/core/util/translator.h for more infos." << endl;
-    stream << "#" << endl;
-    stream << "# Structure:  [optional]<required>" << endl;
-    stream << "# [newentrysymbol]<key><separator><translation><separator>[note]" << endl;
-    stream << "#" << endl;
-    stream << "# Special characters:" << endl;
-    stream << "# <comment>  " << comment << endl;
-    stream << "# <newentrysymbol>  " << newEntry << endl;
-    stream << "# <separator>  " << spacer << endl;
-    stream << "# <escapesymbol>  " << escapesymbol << endl;
-    stream << "# <newlinesymbol>  " << newlinesymbol << endl;
-    stream << "#" << endl;
-    stream << "# Notes:" << endl;
-    stream << "# - The key has to be unique" << endl;
+    stream << "# This is a translation file for the Saiga Translator." << std::endl;
+    stream << "# See saiga/core/util/translator.h for more infos." << std::endl;
+    stream << "#" << std::endl;
+    stream << "# Structure:  [optional]<required>" << std::endl;
+    stream << "# [newentrysymbol]<key><separator><translation><separator>[note]" << std::endl;
+    stream << "#" << std::endl;
+    stream << "# Special characters:" << std::endl;
+    stream << "# <comment>  " << comment << std::endl;
+    stream << "# <newentrysymbol>  " << newEntry << std::endl;
+    stream << "# <separator>  " << spacer << std::endl;
+    stream << "# <escapesymbol>  " << escapesymbol << std::endl;
+    stream << "# <newlinesymbol>  " << newlinesymbol << std::endl;
+    stream << "#" << std::endl;
+    stream << "# Notes:" << std::endl;
+    stream << "# - The key has to be unique" << std::endl;
     stream << "# - <separator> and <escapesymbol> in the translation and note has to be escaped by " << escapesymbol
-           << endl;
-    stream << "# - Entries will be sorted alphabetically by the key" << endl;
-    stream << "# - An optional new entry symbol will be added if the key was previously not defined" << endl;
-    stream << "# - The note should be used to give a context" << endl;
-    stream << "# - The file has to be UTF-8 encoded" << endl;
-    stream << "#" << endl;
+           << std::endl;
+    stream << "# - Entries will be sorted alphabetically by the key" << std::endl;
+    stream << "# - An optional new entry symbol will be added if the key was previously not defined" << std::endl;
+    stream << "# - The note should be used to give a context" << std::endl;
+    stream << "# - The file has to be UTF-8 encoded" << std::endl;
+    stream << "#" << std::endl;
 
     for (TranslationEntry& te : entries)
     {
@@ -243,7 +245,7 @@ void Translator::writeToFile()
             stream << newEntry;
         }
         stream << escapeSpecialCharacters(te.key) << spacer << escapeSpecialCharacters(te.translation) << spacer
-               << escapeSpecialCharacters(te.note) << endl;
+               << escapeSpecialCharacters(te.note) << std::endl;
     }
 }
 

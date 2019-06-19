@@ -49,7 +49,7 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     sun->enableShadows();
 
 
-    cout << "Program Initialized!" << endl;
+    std::cout << "Program Initialized!" << std::endl;
 }
 
 Sample::~Sample() {}
