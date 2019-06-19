@@ -18,7 +18,7 @@ void saiga_assert_fail(const std::string& __assertion, const char* __file, unsig
     std::cout << "Assertion '" << __assertion << "' failed!" << std::endl;
     std::cout << "  File: " << __file << ":" << __line << std::endl;
     std::cout << "  Function: " << __function << std::endl;
-    std::cout << "  Message: " << __message << std::endl;
+    if (!__message.empty()) std::cout << "  Message: " << __message << std::endl;
 
     // stops and raise SIGABRT
     std::abort();

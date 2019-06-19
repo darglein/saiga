@@ -10,6 +10,7 @@
 
 #include <al.h>
 #include <alc.h>
+#include <iostream>
 namespace Saiga
 {
 namespace sound

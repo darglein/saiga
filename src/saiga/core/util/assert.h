@@ -43,7 +43,7 @@ SAIGA_CORE_API extern void saiga_assert_fail(const std::string& __assertion, con
 
 #ifdef SAIGA_DEBUG
 #    define SAIGA_DEBUG_ASSERT(expr) \
-        ((expr) ? static_cast<void>(0) : Saiga::saiga_assert_fail(#expr, __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION))
+        ((expr) ? static_cast<void>(0) : Saiga::saiga_assert_fail(#expr, __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION, ""))
 
 #else
 #    define SAIGA_DEBUG_ASSERT(expr) \
