@@ -6,6 +6,7 @@
 
 #include "TumRGBDCamera.h"
 
+#include "saiga/core/util/ProgressBar.h"
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/tostring.h"
@@ -75,13 +76,14 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr) : RGBDCamera(intr)
+TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool multithreaded)
+    : RGBDCamera(intr)
 {
     VLOG(1) << "Loading TUM RGBD Dataset: " << datasetDir;
     associate(datasetDir);
     //    associateFromFile(datasetDir + "/associations.txt");
 
-    load(datasetDir);
+    load(datasetDir, multithreaded);
 
     timeStep = std::chrono::duration_cast<tick_t>(
         std::chrono::duration<double, std::milli>(1000.0 / double(intrinsics().fps)));
@@ -212,7 +214,8 @@ void TumRGBDCamera::associateFromFile(const std::string& datasetDir)
     SAIGA_ASSERT(tumframes.size() > 1);
 }
 
-void TumRGBDCamera::load(const std::string& datasetDir)
+
+void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
 {
     if (intrinsics().maxFrames >= 0)
     {
@@ -220,10 +223,14 @@ void TumRGBDCamera::load(const std::string& datasetDir)
     }
 
 
-    frames.resize(tumframes.size());
+    int N = tumframes.size();
+    frames.resize(N);
 
-#pragma omp parallel for
-    for (int i = 0; i < (int)tumframes.size(); ++i)
+    SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
+
+
+#pragma omp parallel for if (multithreaded)
+    for (int i = 0; i < N; ++i)
     {
         TumFrame d = tumframes[i];
         Image cimg(datasetDir + "/" + d.rgb.img);
@@ -261,6 +268,7 @@ void TumRGBDCamera::load(const std::string& datasetDir)
         }
 
         frames[i] = std::move(f);
+        loadingBar.addProgress(1);
     }
     VLOG(1) << "Loaded " << tumframes.size() << " images.";
 }
