@@ -26,7 +26,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     set(SAIGA_CXX_MSVC 1)
     set(SAIGA_COMPILER_STRING "MSVC")
 else()
-    message(FATAL_ERROR "Unknown CXX Compiler.")
+    message(FATAL_ERROR "Unknown CXX Compiler. '${CMAKE_CXX_COMPILER_ID}'")
 endif()
 
 

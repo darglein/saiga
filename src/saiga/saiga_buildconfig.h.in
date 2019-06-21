@@ -16,7 +16,6 @@
 #cmakedefine SAIGA_BUILD_SHARED
 #cmakedefine SAIGA_DEBUG
 #cmakedefine SAIGA_ASSERTS
-#cmakedefine SAIGA_BUILD_SAMPLES
 #cmakedefine SAIGA_STRICT_FP
 #cmakedefine SAIGA_FULL_OPTIMIZE
 #cmakedefine SAIGA_CUDA_DEBUG

@@ -95,9 +95,12 @@ class aligned_allocator : public std::allocator<T>
     void deallocate(pointer p, size_type /*num*/) { aligned_free(p); }
 };
 
-// An Aligned std::vector
-template <typename T, size_t Alignment = 16>
+template <typename T, size_t Alignment = alignof(T)>
 using AlignedVector = std::vector<T, aligned_allocator<T, Alignment>>;
+
+// An aligned std::vector, which makes sure that the allocated data matches the alignment of T
+// template <typename T>
+// using AlignedVector = std::vector<T, aligned_allocator<T, alignof (T)>>;
 
 
 /**
@@ -107,14 +110,21 @@ using AlignedVector = std::vector<T, aligned_allocator<T, Alignment>>;
 template <typename _Tp, size_t Alignment, typename... _Args>
 inline std::shared_ptr<_Tp> make_aligned_shared(_Args&&... __args)
 {
-    typedef typename std::remove_cv<_Tp>::type _Tp_nc;
-    return std::allocate_shared<_Tp>(aligned_allocator<_Tp_nc, Alignment>(), std::forward<_Args>(__args)...);
+    // currently using "allocate_shared" with aligned allocator doesn't work.
+    // my guess is that the control block is inserted at the beginning and therefore the actual data is after the
+    // control block without alignment
+    auto ptr = (_Tp*)aligned_malloc<Alignment>(sizeof(_Tp));
+    new (ptr) _Tp(std::forward<_Args>(__args)...);
+    return std::shared_ptr<_Tp>(ptr, &aligned_free);
+
+    //    typedef typename std::remove_cv<_Tp>::type _Tp_nc;
+    //    return std::allocate_shared<_Tp>(aligned_allocator<_Tp_nc, Alignment>(), std::forward<_Args>(__args)...);
 }
 
 template <typename _Tp, typename... _Args>
 inline std::shared_ptr<_Tp> make_aligned_shared(_Args&&... __args)
 {
-    return make_aligned_shared<_Tp, 16, _Args...>(std::forward<_Args>(__args)...);
+    return make_aligned_shared<_Tp, alignof(_Tp), _Args...>(std::forward<_Args>(__args)...);
 }
 
 /**
@@ -127,6 +137,11 @@ inline auto make_aligned_unique(_Args&&... __args)
     return std::make_unique<_Tp>(std::forward<_Args>(__args)...);
 }
 
+template <typename _Tp, typename... _Args>
+inline std::shared_ptr<_Tp> make_aligned_unique(_Args&&... __args)
+{
+    return make_aligned_unique<_Tp, alignof(_Tp), _Args...>(std::forward<_Args>(__args)...);
+}
 
 
 }  // namespace Saiga

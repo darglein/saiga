@@ -568,8 +568,8 @@ void HalfEdgeMesh<vertex_t, index_t>::flipEdge(int he)
     }
 
 
-    int f0 = edgeList[h0].face;
-    int f1 = edgeList[h3].face;
+    //    int f0 = edgeList[h0].face;
+    //    int f1 = edgeList[h3].face;
 
 
     edgeList[h0].vertex = v2;

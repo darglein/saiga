@@ -13,6 +13,7 @@
 
 #include "Eigen/Core"
 
+#include <omp.h>
 #include <random>
 
 using namespace Saiga;
@@ -20,7 +21,7 @@ using namespace Saiga;
 static void printVectorInstructions()
 {
     std::cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION
-         << std::endl;
+              << std::endl;
 
     std::cout << "defined EIGEN Macros:" << std::endl;
 

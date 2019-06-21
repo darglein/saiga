@@ -85,7 +85,7 @@ class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
     //    std::thread eventThread;
 
     bool foundCamera = false;
-    bool running     = false;
+    //    bool running     = false;
     float depthFactor;
     bool updateS = false;
     void updateSettingsIntern();
