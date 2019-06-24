@@ -6,13 +6,13 @@
 
 #pragma once
 
+#include "saiga/core/math/random.h"
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/timer.h"
-#include "saiga/core/math/random.h"
-#include "EigenRecursive/All.h"
 #include "saiga/vision/mkl/mkl_cg.h"
 #include "saiga/vision/mkl/mkl_helper.h"
 
+#include "EigenRecursive/All.h"
 #include "mkl.h"
 
 #include <fstream>
@@ -60,6 +60,7 @@ class MKL_Test
 
     void sparseMatrixVector(int smv_its);
     void sparseMatrixMatrix(int smm_its);
+    void denseMatrixMatrix(int smm_its);
     void sparseCG(int scg_its, int cg_inner_its);
 
    private:

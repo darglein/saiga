@@ -10,6 +10,7 @@
 #include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/assert.h"
 
+#include <atomic>
 #include <iostream>
 #include <mutex>
 #include <string>
@@ -52,10 +53,10 @@ struct SyncedConsoleProgressBar
     std::ostream& strm;
     ScopedThread st;
     std::string header;
-    bool running = true;
+    std::atomic_bool running = true;
+    std::atomic_int current  = 0;
     int end;
     int length;
-    int current = 0;
 
     void run()
     {

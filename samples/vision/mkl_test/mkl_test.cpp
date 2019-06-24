@@ -12,6 +12,7 @@
 void bench_mm();
 void bench_mv();
 void bench_cg();
+void bench_dmm();
 
 int main(int argc, char* argv[])
 {
@@ -24,6 +25,9 @@ int main(int argc, char* argv[])
     const int vec_mult = true;
     const int mat_mult = false;
     const int cg_mult  = false;
+
+    bench_dmm();
+    return 0;
 
     if (vec_mult) bench_mv();
     if (mat_mult) bench_mm();
