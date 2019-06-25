@@ -36,6 +36,7 @@ struct SyncedConsoleProgressBar
     SyncedConsoleProgressBar(std::ostream& strm, const std::string header, int end, int length = 30)
         : strm(strm), header(header), end(end), length(length)
     {
+        SAIGA_ASSERT(end >= 0);
         print();
         run();
     }
@@ -44,8 +45,6 @@ struct SyncedConsoleProgressBar
     {
         running = false;
         st.join();
-        print();
-        strm << "Done." << std::endl;
     }
     void addProgress(int i) { current += i; }
 
@@ -61,11 +60,13 @@ struct SyncedConsoleProgressBar
     void run()
     {
         st = ScopedThread([this]() {
-            while (running)
+            while (running && current.load() < end)
             {
                 print();
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
+            print();
+            strm << "Done." << std::endl;
         });
     }
 

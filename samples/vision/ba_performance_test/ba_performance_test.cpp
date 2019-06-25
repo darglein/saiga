@@ -32,8 +32,8 @@ void buildScene(Scene& scene)
     sscene.numWorldPoints = 3;
     scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
-    scene.addImagePointNoise(1.0);
-    scene.addExtrinsicNoise(0.01);
+    //    scene.addImagePointNoise(1.0);
+    //    scene.addExtrinsicNoise(0.01);
 }
 
 std::vector<std::string> getBALFiles()
@@ -244,7 +244,7 @@ int main(int, char**)
 
     OptimizationOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 3;
+    baoptions.maxIterations          = 5;
     baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
     baoptions.initialLambda          = 1;
@@ -257,9 +257,9 @@ int main(int, char**)
     std::vector<std::shared_ptr<BABase>> solvers;
 
     solvers.push_back(std::make_shared<BARec>());
-    //    solvers.push_back(std::make_shared<BAPoseOnly>());
+    solvers.push_back(std::make_shared<BAPoseOnly>());
     //    solvers.push_back(std::make_shared<g2oBA2>());
-    solvers.push_back(std::make_shared<CeresBA>());
+    //    solvers.push_back(std::make_shared<CeresBA>());
 
     scene.globalScale = 1;
     for (auto& s : solvers)

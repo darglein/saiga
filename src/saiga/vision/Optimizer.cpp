@@ -128,6 +128,15 @@ OptimizationResults LMOptimizer::solve()
         {
             std::cout << "It " << i << ": " << 0.5 * chi2 << " -> " << 0.5 * newChi2 << std::endl;
         }
+
+        if (chi2 - newChi2 < optimizationOptions.minChi2Delta)
+        {
+            if (optimizationOptions.debugOutput)
+            {
+                std::cout << "Early terminate because deltaChi2 < threshold" << std::endl;
+            }
+            break;
+        }
     }
     finalize();
 

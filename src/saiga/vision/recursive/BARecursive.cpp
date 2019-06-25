@@ -24,8 +24,8 @@ namespace Saiga
 void BARec::init()
 {
     //    std::cout << "Test sizes: " << sizeof(Scene) << " " << sizeof(BARec)<< " " << sizeof(BABase)<< " " <<
-    //    sizeof(LMOptimizer) << std::endl; std::cout << "Test sizes2: " << sizeof(BAMatrix) << " " << sizeof(BAVector)<< " " <<
-    //    sizeof(BASolver)<< " " << sizeof(AlignedVector<SE3>) << std::endl;
+    //    sizeof(LMOptimizer) << std::endl; std::cout << "Test sizes2: " << sizeof(BAMatrix) << " " <<
+    //    sizeof(BAVector)<< " " << sizeof(BASolver)<< " " << sizeof(AlignedVector<SE3>) << std::endl;
 
     Scene& scene = *_scene;
 
@@ -215,7 +215,8 @@ void BARec::init()
 #if 1
         std::cout << "Schur Edges: " << schurEdges << std::endl;
         std::cout << "Non Zeros LSE: " << schurEdges * 6 * 6 << std::endl;
-        std::cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%" << std::endl;
+        std::cout << "Density: " << double(schurEdges * 6.0 * 6) / double(double(n) * n * 6 * 6) * 100 << "%"
+                  << std::endl;
 #endif
 
 #if 1
@@ -302,16 +303,20 @@ double BARec::computeQuadraticForm()
                                                             JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
-                    auto c = res.squaredNorm();
-                    newChi2 += c;
+
+                    auto c      = res.squaredNorm();
+                    auto sqrtrw = sqrt(w);
                     if (baOptions.huberStereo > 0)
                     {
-                        auto rw     = Kernel::huberWeight<T>(baOptions.huberStereo, c);
-                        auto sqrtrw = sqrt(rw(1)) * sqrt(w);
-                        JrowPose *= sqrtrw;
-                        JrowPoint *= sqrtrw;
-                        res *= sqrtrw;
+                        auto rw = Kernel::huberWeight<T>(baOptions.huberStereo, c);
+                        sqrtrw *= sqrt(rw(1));
                     }
+                    JrowPose *= sqrtrw;
+                    JrowPoint *= sqrtrw;
+                    res *= sqrtrw;
+
+                    newChi2 += res.squaredNorm();
+
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
                     targetPosePoint = JrowPose.transpose() * JrowPoint;
@@ -327,16 +332,19 @@ double BARec::computeQuadraticForm()
 
                     KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, 1, res, JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
-                    auto c = res.squaredNorm();
-                    newChi2 += c;
+
+                    auto c      = res.squaredNorm();
+                    auto sqrtrw = sqrt(w);
                     if (baOptions.huberMono > 0)
                     {
-                        auto rw     = Kernel::huberWeight<T>(baOptions.huberMono, c);
-                        auto sqrtrw = sqrt(rw(1)) * sqrt(w);
-                        JrowPose *= sqrtrw;
-                        JrowPoint *= sqrtrw;
-                        res *= sqrtrw;
+                        auto rw = Kernel::huberWeight<T>(baOptions.huberMono, c);
+                        sqrtrw *= sqrt(rw(1));
                     }
+                    JrowPose *= sqrtrw;
+                    JrowPoint *= sqrtrw;
+                    res *= sqrtrw;
+
+                    newChi2 += res.squaredNorm();
 
                     targetPosePose += JrowPose.transpose() * JrowPose;
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;

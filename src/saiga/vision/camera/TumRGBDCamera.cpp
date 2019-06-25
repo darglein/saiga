@@ -220,8 +220,8 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
     if (intrinsics().maxFrames >= 0)
     {
         tumframes.resize(std::min((size_t)intrinsics().maxFrames, tumframes.size()));
-        _intrinsics.maxFrames = tumframes.size();
     }
+    _intrinsics.maxFrames = tumframes.size();
 
 
     int N = tumframes.size();

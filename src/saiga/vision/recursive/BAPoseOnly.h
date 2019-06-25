@@ -3,29 +3,48 @@
 
 #include "saiga/vision/ba/BABase.h"
 
+#include "EigenRecursive/All.h"
+
 namespace Saiga
 {
-class SAIGA_VISION_API BAPoseOnly : public BABase, public Optimizer
+class SAIGA_VISION_API BAPoseOnly : public BABase, public LMOptimizer
 {
    public:
+    static constexpr int blockSizePoint = 3;
+    using T                             = double;
+
+    using DiagType = Eigen::Matrix<T, blockSizePoint, blockSizePoint, Eigen::RowMajor>;
+    using ResType  = Eigen::Matrix<T, blockSizePoint, 1>;
+
     /**
      * Optimize the camera extrinics of all cameras.
      * The world points are kept constant.
      *
      *
      */
-    BAPoseOnly() : BABase("Simple Sparse BA") {}
-    //    void poseOnlySparse(Scene& scene, int its);
-    void posePointDense(Scene& scene, int its);
-    void posePointSparse(Scene& scene, int its);
-    void posePointSparseSchur(Scene& scene);
+    BAPoseOnly() : BABase("Point Only BA") {}
+    virtual ~BAPoseOnly() {}
 
-
-    virtual OptimizationResults initAndSolve() override;
     virtual void create(Scene& scene) override { _scene = &scene; }
 
    private:
+    int n;
     Scene* _scene;
+
+    std::vector<DiagType> diagBlocks;
+    std::vector<ResType> resBlocks;
+    AlignedVector<Vec3> x_v, oldx_v;
+    AlignedVector<Vec3> delta_x;
+
+
+    virtual void init() override;
+    virtual double computeQuadraticForm() override;
+    virtual void addLambda(double lambda) override;
+    virtual void addDelta() override;
+    virtual void revertDelta() override;
+    virtual void solveLinearSystem() override;
+    virtual double computeCost() override;
+    virtual void finalize() override;
 };
 
 
