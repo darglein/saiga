@@ -17,9 +17,10 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/BALDataset.h"
 #include "saiga/vision/Eigen_GLM.h"
-#include "saiga/vision/recursive/BAPoseOnly.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
+#include "saiga/vision/recursive/BAPoseOnly.h"
+#include "saiga/vision/scene/PoseGraph.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
@@ -37,7 +38,7 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     scene                 = sscene.circleSphere();
     scene.addWorldPointNoise(0.01);
 
-    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".txt");
+    Saiga::SearchPathes::data.getFiles(datasets, "vision/bal", ".txt");
     std::sort(datasets.begin(), datasets.end());
     std::cout << "Found " << datasets.size() << " BAL datasets" << std::endl;
 
@@ -62,7 +63,7 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     frustum.init(renderer.base());
 
     pointCloud.init(base, 1000 * 1000 * 10);
-
+    graphLines.init(base, 1000000);
     change = true;
 }
 
@@ -71,6 +72,10 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 void VulkanExample::update(float dt)
 {
     VulkanSDLExampleBase::update(dt);
+
+    float speed = 360.0f / 10.0 * dt;
+    //        float speed = 2 * pi<float>();
+    camera.mouseRotateAroundPoint(speed * 0.5, 0, vec3(0, 5, 0), vec3(0, 1, 0));
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd)
@@ -93,6 +98,36 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
         pointCloud.updateBuffer(cmd);
         rms    = scene.rms();
         change = false;
+
+        PoseGraph pg(scene, minMatchEdge);
+        i = 0;
+        for (auto e : pg.edges)
+        {
+            if (!scene.images[e.from].valid() || !scene.images[e.to].valid()) continue;
+            auto p1 = pg.poses[e.from].se3.inverse().translation();
+            auto p2 = pg.poses[e.to].se3.inverse().translation();
+
+            if ((p1 - p2).norm() > maxEdgeDistance) continue;
+            //            if (p1.norm() > 10 || p2.norm() > 10) continue;
+
+            auto& pc1 = graphLines.pointCloud[i];
+            auto& pc2 = graphLines.pointCloud[i + 1];
+
+            pc1.position = make_vec4(p1.cast<float>(), 1);
+            pc2.position = make_vec4(p2.cast<float>(), 1);
+
+            pc1.color = vec4(0, 1, 0, 1);
+            pc2.color = pc1.color;
+
+            pc1.normal = vec4(1, 1, 1, 1);
+            pc2.normal = vec4(1, 1, 1, 1);
+            //            lines.emplace_back(make_vec4(p1.cast<float>(),1),make_vec4(0),make_vec4(e.color.cast<float>(),1));
+            //            lines.emplace_back(make_vec4(p2.cast<float>(),1),make_vec4(0),make_vec4(e.color.cast<float>(),1));
+            i += 2;
+        }
+        graphLines.size = i;
+        graphLines.updateBuffer(cmd, 0, graphLines.size);
+        std::cout << "pg size " << i << std::endl;
     }
 }
 
@@ -114,6 +149,10 @@ void VulkanExample::render(vk::CommandBuffer cmd)
             lineAssetRenderer.pushModel(cmd, v);
             frustum.render(cmd);
         }
+
+
+        lineAssetRenderer.pushModel(cmd, mat4::Identity());
+        if (graphLines.size > 0) graphLines.render(cmd, 0, graphLines.size);
     }
 
 
@@ -130,6 +169,8 @@ void VulkanExample::renderGUI()
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Scene Loading");
 
+    ImGui::InputInt("minMatchEdge", &minMatchEdge);
+    ImGui::InputFloat("maxEdgeDistance", &maxEdgeDistance);
 
     sscene.imgui();
     if (ImGui::Button("Syntetic - circleSphere"))
@@ -195,13 +236,6 @@ void VulkanExample::renderGUI()
     //        change = true;
     //    }
 
-    if (ImGui::Button("posePointDense"))
-    {
-        SAIGA_BLOCK_TIMER();
-        Saiga::BAPoseOnly ba;
-        ba.posePointDense(scene, its);
-        change = true;
-    }
 
 
     baoptions.imgui();

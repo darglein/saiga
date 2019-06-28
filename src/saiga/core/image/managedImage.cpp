@@ -12,9 +12,9 @@
 #include "saiga/core/image/freeimage.h"
 #include "saiga/core/image/png_wrapper.h"
 #include "saiga/core/image/templatedImage.h"
+#include "saiga/core/math/imath.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/core/math/imath.h"
 #include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -90,14 +90,6 @@ bool Image::valid() const
     return width > 0 && height > 0 && pitchBytes > 0 && type != TYPE_UNKNOWN && size() == vdata.size();
 }
 
-
-std::ostream& operator<<(std::ostream& os, const Image& f)
-{
-    os << "Image " << f.width << "x" << f.height << " "
-       << " pitch " << f.pitchBytes << " "
-       << " channels/elementType " << channels(f.type) << "/" << elementType(f.type);  // << " " << f.Format();
-    return os;
-}
 
 
 bool Image::load(const std::string& _path)
@@ -276,6 +268,13 @@ void Image::decompress(std::vector<uint8_t> data)
     decompressImageSTB(*this, data);
 }
 
-
+std::ostream& operator<<(std::ostream& os, const Image& f)
+{
+    os << "Image " << f.width << "x" << f.height << " "
+       << " pitch " << f.pitchBytes << " "
+       << " channels/elementType " << channels(f.type) << "/" << elementType(f.type)
+       << " BPP: " << bitsPerPixel(f.type);
+    return os;
+}
 
 }  // namespace Saiga

@@ -51,4 +51,8 @@ using ucvec2 = Eigen::Matrix<unsigned char, 2, 1>;
 using ucvec3 = Eigen::Matrix<unsigned char, 3, 1>;
 using ucvec4 = Eigen::Matrix<unsigned char, 4, 1>;
 
+using usvec2 = Eigen::Matrix<unsigned short, 2, 1>;
+using usvec3 = Eigen::Matrix<unsigned short, 3, 1>;
+using usvec4 = Eigen::Matrix<unsigned short, 4, 1>;
+
 }  // namespace Saiga

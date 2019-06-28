@@ -42,7 +42,8 @@ class RegistrationProjectRANSAC
      */
     std::pair<SE3, int> solve(const SE3& guess, int maxIterations, int stopInliers)
     {
-//        std::cout << "Starting RANSAC... MaxIts=" << maxIterations << " Stopping at " << stopInliers << " inliers." << std::endl;
+        //        std::cout << "Starting RANSAC... MaxIts=" << maxIterations << " Stopping at " << stopInliers << "
+        //        inliers." << std::endl;
         SAIGA_ASSERT(N > 0);
         std::uniform_int_distribution<unsigned int> dis(0, N - 1);
 
@@ -54,7 +55,8 @@ class RegistrationProjectRANSAC
         int bestInliers = 0;
 
 
-        for (auto i : Range(0, maxIterations))
+        //        for (auto i : Range(0, maxIterations))
+        for (int i = 0; i < maxIterations; ++i)
         {
             // Get 3 matches and store them in A,B
             for (auto j : Range(0, 3))

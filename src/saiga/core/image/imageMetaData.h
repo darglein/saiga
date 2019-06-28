@@ -32,6 +32,8 @@ struct SAIGA_CORE_API ImageMetadata
     ResolutionUnit FocalPlaneResolutionUnit = NoUnit;
     double FocalPlaneXResolution            = 0;
     double FocalPlaneYResolution            = 0;
+    double ExposureTime                     = 0;
+    double ISOSpeedRatings                  = 0;
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const ImageMetadata& d);
 };

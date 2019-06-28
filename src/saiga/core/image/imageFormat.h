@@ -35,7 +35,6 @@ enum ImageElementType : int
 static const int ImageElementTypeSize[] = {1, 1, 2, 2, 4, 4, 4, 8, 0};
 
 
-
 enum ImageType : int
 {
     C1 = 0,
@@ -145,6 +144,24 @@ struct ImageTypeTemplate<unsigned short>
 {
     using ChannelType           = unsigned short;
     const static ImageType type = US1;
+};
+template <>
+struct ImageTypeTemplate<usvec2>
+{
+    using ChannelType           = unsigned short;
+    const static ImageType type = US2;
+};
+template <>
+struct ImageTypeTemplate<usvec3>
+{
+    using ChannelType           = unsigned short;
+    const static ImageType type = US3;
+};
+template <>
+struct ImageTypeTemplate<usvec4>
+{
+    using ChannelType           = unsigned short;
+    const static ImageType type = US4;
 };
 
 template <>

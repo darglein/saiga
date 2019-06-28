@@ -65,6 +65,27 @@ struct MatchingFloatType<ucvec4>
 };
 
 
+template <>
+struct MatchingFloatType<usvec3>
+{
+    using FloatType = vec3;
+    static inline FloatType convert(const usvec3& t)
+    {
+#ifdef SAIGA_FULL_EIGEN
+        return t.cast<float>();
+#else
+        return FloatType(t);
+#endif
+    }
+    static inline usvec3 convertBack(const FloatType& t)
+    {
+#ifdef SAIGA_FULL_EIGEN
+        return t.cast<unsigned short>();
+#else
+        return FloatType(t);
+#endif
+    }
+};
 
 template <typename T, typename ST = float>
 struct SAIGA_TEMPLATE NormalizeScale
@@ -75,12 +96,17 @@ struct SAIGA_TEMPLATE NormalizeScale
 template <typename ST>
 struct NormalizeScale<char, ST>
 {
-    constexpr static ST scale = ST(255);
+    constexpr static ST scale = ST(0xFF);
 };
 template <typename ST>
 struct NormalizeScale<unsigned char, ST>
 {
-    constexpr static ST scale = ST(255);
+    constexpr static ST scale = ST(0xFF);
+};
+template <typename ST>
+struct NormalizeScale<unsigned short, ST>
+{
+    constexpr static ST scale = ST(0xFFFF);
 };
 
 

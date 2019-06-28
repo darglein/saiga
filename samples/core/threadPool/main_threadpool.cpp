@@ -96,4 +96,5 @@ int main(int argc, char* argv[])
     f.wait();
 
     std::cout << "Done." << std::endl;
+    return 0;
 }

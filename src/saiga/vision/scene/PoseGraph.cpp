@@ -12,7 +12,7 @@
 #include <fstream>
 namespace Saiga
 {
-PoseGraph::PoseGraph(const Scene& scene)
+PoseGraph::PoseGraph(const Scene& scene, int minEdges)
 {
     poses.reserve(scene.extrinsics.size());
     for (auto& p : scene.extrinsics)
@@ -47,7 +47,7 @@ PoseGraph::PoseGraph(const Scene& scene)
     {
         for (int j = 0; j < i; ++j)
         {
-            if (schurStructure[i][j] != -1)
+            if (schurStructure[i][j] >= minEdges)
             {
                 PoseEdge e;
                 e.from = i;

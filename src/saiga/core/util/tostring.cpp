@@ -92,7 +92,7 @@ std::string removeFileEnding(const std::string& str)
         if (*it == '.')
         {
             auto d = std::distance(it, str.rend());
-            return str.substr(0, d);
+            return str.substr(0, d - 1);
         }
     }
     return std::string();

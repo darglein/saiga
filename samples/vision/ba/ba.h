@@ -37,14 +37,18 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
 
    private:
     std::vector<vec3> boxOffsets;
-    bool change        = false;
-    bool uploadChanges = true;
-    float rms          = 0;
+    bool change           = false;
+    bool uploadChanges    = true;
+    float rms             = 0;
+    int minMatchEdge      = 1000;
+    float maxEdgeDistance = 1;
     Saiga::Object3D teapotTrans;
 
     Saiga::Scene scene;
     Saiga::SynteticScene sscene;
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
+
+    Saiga::Vulkan::VulkanPointCloudAsset graphLines;
 
     Saiga::Vulkan::VulkanTexturedAsset box;
     Saiga::Vulkan::VulkanVertexColoredAsset teapot, plane;
@@ -60,6 +64,7 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
 
 
     bool displayModels = true;
+    bool showImgui     = true;
 
     Saiga::BAOptions baoptions;
     Saiga::BARec barec;

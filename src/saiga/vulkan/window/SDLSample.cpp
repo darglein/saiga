@@ -48,6 +48,9 @@ void VulkanSDLExampleBase::keyPressed(SDL_Keysym key)
         case SDL_SCANCODE_ESCAPE:
             parentWindow.close();
             break;
+        case SDL_SCANCODE_G:
+            renderer.setRenderImgui(!renderer.getRenderImgui());
+            break;
         default:
             break;
     }

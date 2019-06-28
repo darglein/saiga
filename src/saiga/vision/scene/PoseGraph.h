@@ -74,7 +74,7 @@ struct SAIGA_VISION_API PoseGraph
 
     PoseGraph() {}
     PoseGraph(const std::string& file) { load(file); }
-    PoseGraph(const Scene& scene);
+    PoseGraph(const Scene& scene, int minEdges = 1);
 
     void addNoise(double stddev);
 
