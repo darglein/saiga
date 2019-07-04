@@ -86,7 +86,7 @@ void PGORec::init()
     }
 
     // Create a sparsity histogram
-    if (optimizationOptions.debugOutput)
+    if (false && optimizationOptions.debugOutput)
     {
         HistogramImage img(n, n, 1024, 1024);
         for (auto& e : scene.edges)
@@ -107,7 +107,7 @@ double PGORec::computeQuadraticForm()
     auto& scene = *_scene;
 
     //    SAIGA_BLOCK_TIMER();
-    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
+    //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     using T          = BlockPGOScalar;
     using KernelType = Saiga::Kernel::PGO<T>;
 
@@ -120,82 +120,82 @@ double PGORec::computeQuadraticForm()
     }
 
     double chi2 = 0;
-#pragma omp parallel
+    //#pragma omp parallel
+
+    //        auto b2 = b;
+    AlignedVector<PGOBlock> diagBlocks(n);
+    for (int i = 0; i < n; ++i)
     {
-        auto b2 = b;
-        AlignedVector<PGOBlock> diagBlocks(n);
-        for (int i = 0; i < n; ++i)
-        {
-            diagBlocks[i].setZero();
-        }
-        double chi2local = 0;
-#pragma omp for
-        for (size_t k = 0; k < scene.edges.size(); ++k)
-        {
-            auto& e       = scene.edges[k];
-            auto& offsets = edgeOffsets[k];
-            int i         = e.from;
-            int j         = e.to;
+        diagBlocks[i].setZero();
+    }
+    double chi2local = 0;
+    //#pragma omp for
+    for (size_t k = 0; k < scene.edges.size(); ++k)
+    {
+        auto& e       = scene.edges[k];
+        auto& offsets = edgeOffsets[k];
+        int i         = e.from;
+        int j         = e.to;
 
-            auto& target_ij = S.valuePtr()[offsets].get();
-            //            auto& target_ii = S.valuePtr()[S.outerIndexPtr()[i]].get();
-            //            auto& target_jj = S.valuePtr()[S.outerIndexPtr()[j]].get();
-            auto& target_ii = diagBlocks[i];
-            auto& target_jj = diagBlocks[j];
-            auto& target_ir = b2(i).get();
-            auto& target_jr = b2(j).get();
+        auto& target_ij = S.valuePtr()[offsets].get();
+        //            auto& target_ii = S.valuePtr()[S.outerIndexPtr()[i]].get();
+        //            auto& target_jj = S.valuePtr()[S.outerIndexPtr()[j]].get();
+        auto& target_ii = diagBlocks[i];
+        auto& target_jj = diagBlocks[j];
+        auto& target_ir = b(i).get();
+        auto& target_jr = b(j).get();
 
+        {
+            KernelType::PoseJacobiType Jrowi, Jrowj;
+            KernelType::ResidualType res;
+            KernelType::evaluateResidualAndJacobian(x_u[i], x_u[j], e.meassurement.inverse(), res, Jrowi, Jrowj,
+                                                    e.weight);
+
+            if (scene.poses[i].constant) Jrowi.setZero();
+            if (scene.poses[j].constant) Jrowj.setZero();
+
+            auto c = res.squaredNorm();
+
+            // JtJ
+            target_ij = Jrowi.transpose() * Jrowj;
+
+            auto ii = (Jrowi.transpose() * Jrowi).eval();
+            auto jj = (Jrowj.transpose() * Jrowj).eval();
+            //#pragma omp critical
             {
-                KernelType::PoseJacobiType Jrowi, Jrowj;
-                KernelType::ResidualType res;
-                KernelType::evaluateResidualAndJacobian(x_u[i], x_u[j], e.meassurement.inverse(), res, Jrowi, Jrowj,
-                                                        e.weight);
-
-                if (scene.poses[i].constant) Jrowi.setZero();
-                if (scene.poses[j].constant) Jrowj.setZero();
-
-                auto c = res.squaredNorm();
-
-                // JtJ
-                target_ij = Jrowi.transpose() * Jrowj;
-
-                auto ii = (Jrowi.transpose() * Jrowi).eval();
-                auto jj = (Jrowj.transpose() * Jrowj).eval();
-                //#pragma omp critical
-                {
-                    target_ii += ii;
-                    target_jj += jj;
-                }
-                auto ir = Jrowi.transpose() * res;
-                auto jr = Jrowj.transpose() * res;
-                //#pragma omp critical
-                {
-                    // Jtb
-                    target_ir -= ir;
-                    target_jr -= jr;
-                }
-
-
-                chi2local += c;
+                target_ii += ii;
+                target_jj += jj;
             }
-        }
+            auto ir = Jrowi.transpose() * res;
+            auto jr = Jrowj.transpose() * res;
+            //#pragma omp critical
+            {
+                // Jtb
+                target_ir -= ir;
+                target_jr -= jr;
+            }
 
-#pragma omp atomic
-        chi2 += chi2local;
-#pragma omp critical
-        {
-            b += b2;
-        }
 
-        for (int i = 0; i < n; ++i)
-        {
-#pragma omp critical
-            S.valuePtr()[S.outerIndexPtr()[i]].get() += diagBlocks[i];
+            chi2local += c;
         }
     }
 
+    //#pragma omp atomic
+    chi2 += chi2local;
+    //#pragma omp critical
+    {
+        //            b += b2;
+    }
 
-    if (optimizationOptions.debugOutput) std::cout << "chi2 " << chi2 << std::endl;
+    for (int i = 0; i < n; ++i)
+    {
+        //#pragma omp critical
+        S.valuePtr()[S.outerIndexPtr()[i]].get() += diagBlocks[i];
+    }
+
+
+
+    //    if (optimizationOptions.debugOutput) std::cout << "chi2 " << chi2 << std::endl;
     return chi2;
 }
 
@@ -204,7 +204,7 @@ double PGORec::computeCost()
 {
     auto& scene = *_scene;
 
-    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
+    //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     using T          = BlockPGOScalar;
     using KernelType = Saiga::Kernel::PGO<T>;
 
@@ -242,10 +242,12 @@ void PGORec::addLambda(double lambda)
 
 void PGORec::addDelta()
 {
-    oldx_u = x_u;
+    auto& scene = *_scene;
+    oldx_u      = x_u;
 
     for (int i = 0; i < n; ++i)
     {
+        if (scene.poses[i].constant) continue;
         auto t = delta_x(i).get();
         x_u[i] = SE3::exp(t) * x_u[i];
     }
@@ -276,10 +278,13 @@ void PGORec::finalize()
 {
     auto& scene = *_scene;
 
-    int i = 0;
-    for (auto& e : scene.poses)
+//    int i = 0;
+//    for (auto& e : scene.poses)
+//    {
+    for (int i = 0; i < n; ++i)
     {
-        if (!e.constant) e.se3 = x_u[i++];
+        auto& e = scene.poses[i];
+        if (!e.constant) e.se3 = x_u[i];
     }
 }
 

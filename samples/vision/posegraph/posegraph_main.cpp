@@ -88,7 +88,7 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
         scene.addNoise(0.55);
 
         std::vector<std::shared_ptr<PGOBase>> solvers;
-        //        solvers.push_back(std::make_shared<PGORec>());
+        solvers.push_back(std::make_shared<PGORec>());
         solvers.push_back(std::make_shared<g2oPGO>());
         solvers.push_back(std::make_shared<CeresPGO>());
 
@@ -148,8 +148,9 @@ int main(int, char**)
         OptimizationOptions baoptions;
         baoptions.debugOutput   = false;
         baoptions.maxIterations = 3;
-        baoptions.initialLambda = 1;  // use a high lambda for the benchmark so it converges slowly, but surely
-        int testIts             = 1;
+        //        baoptions.initialLambda = 1;  // use a high lambda for the benchmark so it converges slowly, but
+        //        surely
+        int testIts = 1;
         if (1)
         {
             baoptions.maxIterativeIterations = 25;

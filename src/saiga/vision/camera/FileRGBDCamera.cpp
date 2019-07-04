@@ -6,6 +6,7 @@
 
 #include "FileRGBDCamera.h"
 
+#include "saiga/core/util/ProgressBar.h"
 #include "saiga/core/util/directory.h"
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/tostring.h"
@@ -92,13 +93,16 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
 
     if (intrinsics().maxFrames <= 0) _intrinsics.maxFrames = rgbImages.size();
 
-    std::cout << "Found Color/Depth Images: " << rgbImages.size() << "/" << depthImages.size() << " Loading "
-         << _intrinsics.maxFrames << " images..." << std::endl;
+    //    std::cout << "Found Color/Depth Images: " << rgbImages.size() << "/" << depthImages.size() << " Loading "
+    //         << _intrinsics.maxFrames << " images..." << std::endl;
 
-    frames.resize(intrinsics().maxFrames);
+    int N = intrinsics().maxFrames;
+    frames.resize(N);
+
+    SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
 
 #pragma omp parallel for if (multithreaded)
-    for (int i = 0; i < (int)frames.size(); ++i)
+    for (int i = 0; i < N; ++i)
     {
         auto& f = frames[i];
         makeFrameData(f);
@@ -140,9 +144,10 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
 
         f.depthImg = std::move(dimg);
         f.colorImg = std::move(cimg);
+        loadingBar.addProgress(1);
     }
 
-    std::cout << "Loading done." << std::endl;
+    //    std::cout << "Loading done." << std::endl;
 
 
 #if 0

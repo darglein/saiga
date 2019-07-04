@@ -94,7 +94,6 @@ void convert(const Image& _src, fipImage& dest)
 
     FREE_IMAGE_TYPE t = FIT_UNKNOWN;
 
-    std::cout << src.type << std::endl;
     switch (_src.type)
     {
         case UC1:
@@ -111,7 +110,6 @@ void convert(const Image& _src, fipImage& dest)
             break;
         case F3:
             t = FIT_RGBF;
-            std::cout << "got float image" << std::endl;
             break;
         default:
             break;

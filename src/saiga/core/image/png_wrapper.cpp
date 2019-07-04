@@ -159,6 +159,7 @@ bool readPNG(PngImage* img, const std::string& path, bool invertY)
 
     png_uint_32 pw, ph;
     png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &img->bit_depth, &img->color_type, &interlace_type, NULL, NULL);
+    SAIGA_ASSERT(interlace_type == PNG_INTERLACE_NONE);
     img->width  = pw;
     img->height = ph;
 
@@ -318,6 +319,9 @@ static int writepng_init(const Image& img, PNGLoadStore* pngls)
 
     /*  png_set_shift(png_ptr, &sig_bit);  to scale low-bit-depth values */
 
+    if (bit_depth == 16 || bit_depth == 32) png_set_swap(png_ptr);
+
+    //    std::cout << "bit depth " << bit_depth << std::endl;
 
     /* make sure we save our pointers for use in writepng_encode_image() */
 
@@ -335,17 +339,24 @@ static void writepng_encode_image(const Image& img, PNGLoadStore* pngls, bool in
     png_structp png_ptr = (png_structp)pngls->png_ptr;
     png_infop info_ptr  = (png_infop)pngls->info_ptr;
 
-    // Libpng is big endian!!!
-    int bit_depth = bitsPerPixel(img.type);
-    if (bit_depth == 16 || bit_depth == 32) png_set_swap(png_ptr);
-
 
     for (int i = 0; i < img.height; i++)
     {
         auto j      = invertY ? img.height - i - 1 : i;
         auto offset = j * img.pitchBytes;
-        png_write_row(png_ptr, img.data8() + offset);
+        auto rowPtr = img.data8() + offset;
+
+        std::vector<unsigned char> dataTest(img.pitchBytes);
+
+        for (auto c : img.colRange())
+        {
+            png_save_uint_16(dataTest.data() + c * sizeof(short), ((unsigned short*)rowPtr)[c]);
+        }
+
+        png_write_row(png_ptr, rowPtr);
+        //        png_write_row(png_ptr, dataTest.data());
     }
+
 
     png_write_end(png_ptr, NULL);
 

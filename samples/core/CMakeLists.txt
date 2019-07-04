@@ -7,9 +7,9 @@ add_subdirectory(imageProcessing)
 add_subdirectory(fractals)
 add_subdirectory(filesystem)
 
-if(SAIGA_USE_FREEIMAGE)
-add_subdirectory(raw2hdr)
-endif()
+#if(SAIGA_USE_FREEIMAGE)
+#add_subdirectory(raw2hdr)
+#endif()
 
 
 
