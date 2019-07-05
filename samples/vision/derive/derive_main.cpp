@@ -45,14 +45,17 @@ struct Edge
 
     Delta residual(Node& nA, Node& nB)
     {
-        auto& A = nA.v;
-        auto& B = nB.v;
-#ifdef LSD_REL
-        auto error_ = A.inverse() * B * meassurement.inverse();
-#else
-        auto error_  = meassurement * A * B.inverse();
-#endif
-        return error_.log();
+        //        auto& A = nA.v;
+        //        auto& B = nB.v;
+        //#ifdef LSD_REL
+        //        auto error_ = A.inverse() * B * meassurement.inverse();
+        //#else
+        //        auto error_  = meassurement * A * B.inverse();
+        //#endif
+        //        return error_.log();
+        // ==================== Only log operator =====================
+        return nA.v.log();
+        //        nA.v.hat()
     }
 };
 
@@ -108,13 +111,23 @@ void numericDeriv(JType& JA, JType& JB)
 
 void analyticDeriv(JType& JA, JType& JB)
 {
-    auto A    = n1.v;
-    auto B    = n2.v;
-    auto meas = e.meassurement;
-#ifdef LSD_REL
-    JB = A.inverse().Adj();
-    JA = -JB;
-#endif
+    auto A = n1.v;
+    auto B = n2.v;
+    //    auto meas = e.meassurement;
+    //#ifdef LSD_REL
+    //    JB = A.inverse().Adj();
+    //    JA = -JB;
+    //#endif
+
+    // ==================== Only log operator =====================\
+
+    std::cout << A << std::endl;
+    std::cout << A.inverse() << std::endl;
+    std::cout << A.log().transpose() << std::endl;
+    std::cout << A.Dx_exp_x_at_0().transpose() << std::endl;
+
+    JA = A.inverse().Adj();
+    JB.setZero();
 }
 
 void test()

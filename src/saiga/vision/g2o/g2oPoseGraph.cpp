@@ -51,7 +51,12 @@ OptimizationResults g2oPGO::initAndSolve()
         SAIGA_ASSERT(vertex_from);
         SAIGA_ASSERT(vertex_to);
 
-        auto ge = new EdgeSim3();
+#ifdef LSD_REL
+        const bool LSD = true;
+#else
+        const bool LSD = false;
+#endif
+        auto ge = new EdgeSim3<LSD>();
         ge->setVertex(0, vertex_from);
         ge->setVertex(1, vertex_to);
         ge->setMeasurement(e.meassurement);

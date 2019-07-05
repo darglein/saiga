@@ -11,7 +11,6 @@
 #include "saiga/core/util/Algorithm.h"
 #include "saiga/vision/HistogramImage.h"
 #include "saiga/vision/LM.h"
-#include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
 
 
