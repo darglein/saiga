@@ -5,11 +5,12 @@
  */
 
 #include "saiga/core/util/assert.h"
+
 #include "EigenRecursive/All.h"
 
 
 #if !defined(SAIGA_USE_MKL)
-#error Saiga was compiled without MKL!
+#    error Saiga was compiled without MKL!
 #endif
 
 #include "mkl.h"
@@ -145,16 +146,40 @@ inline void createBlockMKLFromEigen(Eigen::SparseMatrix<BlockType, options>& A, 
 }
 
 template <typename BlockType, int options>
-inline void createEigenFromBlockMKL(Eigen::SparseMatrix<BlockType, options>& A, sparse_matrix_t* mklA,
-                                    matrix_descr* desc, int block_size)
+inline void createEigenFromBlockMKL(Eigen::SparseMatrix<BlockType, options>& A, sparse_matrix_t* mklA, int block_size)
 {
     static_assert(options == Eigen::RowMajor, "matrix must be row major");
-    using T = typename Eigen::Recursive::ScalarType<BlockType>::Type;
-    int n   = A.rows();
-    int m   = A.cols();
-    mkl_sparse_d_create_bsr(mklA, SPARSE_INDEX_BASE_ZERO, SPARSE_LAYOUT_ROW_MAJOR, n, m, block_size, A.outerIndexPtr(),
-                            A.outerIndexPtr() + 1, A.innerIndexPtr(), (T*)A.valuePtr());
-    desc->type = SPARSE_MATRIX_TYPE_GENERAL;
+    using Block = typename BlockType::M;
+
+    MKL_INT rows, cols, block_size2;
+    MKL_INT *rows_start, *rows_end, *col_indx;
+    double* values;
+    sparse_index_base_t indexing;
+    sparse_layout_t block_layout;
+    mkl_sparse_d_export_bsr(*mklA, &indexing, &block_layout, &rows, &cols, &block_size2, &rows_start, &rows_end,
+                            &col_indx, &values);
+    SAIGA_ASSERT(block_layout == SPARSE_LAYOUT_ROW_MAJOR);
+    SAIGA_ASSERT(block_size2 == block_size);
+    //    std::cout << "mlk matrix data: " << indexing << " " << block_layout << " " << rows << " " << cols << " "
+    //              << block_size << " " << rows_end[rows - 1] << std::endl
+    //              << std::endl;
+
+    A.setZero();
+    A.resize(rows, cols);
+    A.reserve(rows_end[rows - 1]);
+
+    for (int r = 0; r < rows; ++r)
+    {
+        *(A.outerIndexPtr() + r) = rows_start[r];
+        for (int s = rows_start[r]; s < rows_end[r]; ++s)
+        {
+            int c = col_indx[s];
+            Eigen::Map<Block> bm(values + s * block_size * block_size);
+            *(A.innerIndexPtr() + s) = c;
+            *(A.valuePtr() + s)      = bm;
+        }
+    }
+    *(A.outerIndexPtr() + rows) = rows_end[rows - 1];
 }
 
 template <typename MatrixType, typename T>

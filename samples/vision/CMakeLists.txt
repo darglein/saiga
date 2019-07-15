@@ -3,7 +3,7 @@ add_subdirectory(robust_pose_optimization)
 add_subdirectory(derive)
 
 if(EIGENRECURSIVE_FOUND)
-#    add_subdirectory(block_matrices)
+    #    add_subdirectory(block_matrices)
 
     if(SAIGA_USE_CHOLMOD)
         add_subdirectory(sparse_ldlt)
@@ -15,7 +15,6 @@ if(EIGENRECURSIVE_FOUND)
         add_subdirectory(ba_performance_test)
     endif()
 
-        add_subdirectory(sb_benchmark)
 
 
     if(SAIGA_MODULE_EXTRA AND OPENMESH_FOUND)
