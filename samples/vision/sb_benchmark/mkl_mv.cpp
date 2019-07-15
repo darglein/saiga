@@ -4,12 +4,12 @@
  * See LICENSE file for more information.
  */
 
+// for matrix-vector
+#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
+//#define SAIGA_GENEREAL_MV
 
-// for matrix-matrix
-#define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 1
+#include "sparse_block_benchmark.h"
 
-
-#include "mkl_test.h"
 
 
 template <int START, int END, typename T, int factor>
@@ -19,7 +19,7 @@ struct LauncherLoop
     {
         {
             Saiga::MKL_Test<T, START, factor> t;
-            t.sparseMatrixMatrix(100);
+            t.sparseMatrixVector(10);
         }
         LauncherLoop<START + 1, END, T, factor> l;
         l();
@@ -32,12 +32,15 @@ struct LauncherLoop<END, END, T, factor>
     void operator()() {}
 };
 
-#ifdef EIGEN_GPU_COMPILE_PHASE
-#    error something went wrong
-#endif
 
-void bench_mm()
+void bench_mv()
 {
-    LauncherLoop<2, 2 + 1, double, 8> l;
-    l();
+    {
+        LauncherLoop<32, 32 + 1, double, 32> l;
+        l();
+    }
+    {
+//        LauncherLoop<43, 43 + 1, double, 64> l;
+//        l();
+    }
 }

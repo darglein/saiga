@@ -5,12 +5,11 @@
  */
 
 
-// for matrix-vector
+// for matrix-matrix
 #define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 1
 
 
-
-#include "mkl_test.h"
+#include "sparse_block_benchmark.h"
 
 
 template <int START, int END, typename T, int factor>
@@ -20,7 +19,7 @@ struct LauncherLoop
     {
         {
             Saiga::MKL_Test<T, START, factor> t;
-            t.sparseCG(200, 5);
+            t.sparseMatrixMatrix(10);
         }
         LauncherLoop<START + 1, END, T, factor> l;
         l();
@@ -33,9 +32,12 @@ struct LauncherLoop<END, END, T, factor>
     void operator()() {}
 };
 
+#ifdef EIGEN_GPU_COMPILE_PHASE
+#    error something went wrong
+#endif
 
-void bench_cg()
+void bench_mm()
 {
-    LauncherLoop<2, 2 + 1, double, 32> l;
+    LauncherLoop<2, 2 + 1, double, 2> l;
     l();
 }

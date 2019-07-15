@@ -7,6 +7,11 @@
 #include "saiga/core/util/assert.h"
 #include "EigenRecursive/All.h"
 
+
+#if !defined(SAIGA_USE_MKL)
+#error Saiga was compiled without MKL!
+#endif
+
 #include "mkl.h"
 
 
@@ -128,6 +133,19 @@ inline auto createMKL(sparse_matrix_t* A, MKL_INT* rows_start, MKL_INT* rows_end
 
 template <typename BlockType, int options>
 inline void createBlockMKLFromEigen(Eigen::SparseMatrix<BlockType, options>& A, sparse_matrix_t* mklA,
+                                    matrix_descr* desc, int block_size)
+{
+    static_assert(options == Eigen::RowMajor, "matrix must be row major");
+    using T = typename Eigen::Recursive::ScalarType<BlockType>::Type;
+    int n   = A.rows();
+    int m   = A.cols();
+    mkl_sparse_d_create_bsr(mklA, SPARSE_INDEX_BASE_ZERO, SPARSE_LAYOUT_ROW_MAJOR, n, m, block_size, A.outerIndexPtr(),
+                            A.outerIndexPtr() + 1, A.innerIndexPtr(), (T*)A.valuePtr());
+    desc->type = SPARSE_MATRIX_TYPE_GENERAL;
+}
+
+template <typename BlockType, int options>
+inline void createEigenFromBlockMKL(Eigen::SparseMatrix<BlockType, options>& A, sparse_matrix_t* mklA,
                                     matrix_descr* desc, int block_size)
 {
     static_assert(options == Eigen::RowMajor, "matrix must be row major");

@@ -15,9 +15,8 @@ if(EIGENRECURSIVE_FOUND)
         add_subdirectory(ba_performance_test)
     endif()
 
-    if(SAIGA_USE_MKL)
-        add_subdirectory(mkl_test)
-    endif()
+        add_subdirectory(sb_benchmark)
+
 
     if(SAIGA_MODULE_EXTRA AND OPENMESH_FOUND)
         add_subdirectory(arap)

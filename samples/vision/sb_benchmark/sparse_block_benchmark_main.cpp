@@ -4,14 +4,14 @@
  * See LICENSE file for more information.
  */
 
-#include "mkl_test.h"
+#include "sparse_block_benchmark.h"
 
 #include "saiga/vision/Eigen_Compile_Checker.h"
 
 
 void bench_mm();
 void bench_mv();
-void bench_cg();
+
 
 int main(int argc, char* argv[])
 {
@@ -21,13 +21,13 @@ int main(int argc, char* argv[])
 
     // Type of benchmark
 
-    const int vec_mult = true;
-    const int mat_mult = false;
-    const int cg_mult  = false;
+    const int vec_mult = false;
+    const int mat_mult = true;
+
 
 
     if (vec_mult) bench_mv();
     if (mat_mult) bench_mm();
-    if (cg_mult) bench_cg();
+
     return 0;
 }
