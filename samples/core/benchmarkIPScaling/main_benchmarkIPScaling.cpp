@@ -6,18 +6,19 @@
 
 #include "saiga/core/Core.h"
 #include "saiga/core/time/all.h"
+
 using namespace Saiga;
 
 struct ImageProcessing
 {
     ImageProcessing(int w, int h) : rgbImage(h, w), floatImage(h, w), grayImage(h, w) {}
 
-    void testRGB2Gray(int threads)
+    double testRGB2Gray(int threads)
     {
-        omp_set_num_threads(threads);
+        //        omp_set_num_threads(threads);
 
-        auto stats = measureObject(50, [&]() {
-#pragma omp parallel for
+        auto stats = measureObject(100, [&]() {
+#pragma omp parallel for num_threads(threads)
             for (int i = 0; i < rgbImage.h; ++i)
             {
                 for (int j = 0; j < rgbImage.w; ++j)
@@ -33,55 +34,14 @@ struct ImageProcessing
         size_t bytesRW = rgbImage.size() + grayImage.size();
         double gbRW    = bytesRW / (1000.0 * 1000.0 * 1000.0);
         double t       = stats.median / 1000.0;
+        double bw      = gbRW / t;
 
 
-
-        std::cout << "Threads " << threads << " Time (ms): " << t * 1000 << " Bandwidth: " << gbRW / t << std::endl;
+        std::cout << "Threads " << threads << " Time (ms): " << t * 1000 << " Bandwidth: " << bw << std::endl;
+        return bw;
     }
 
-    void testRGB2Gray2(int threads)
-    {
-        ThreadPool tp(threads - 1);
 
-        auto f = [&](int start, int end) {
-            for (int i = start; i < end; ++i)
-            {
-                for (int j = 0; j < rgbImage.w; ++j)
-                {
-                    auto v = rgbImage(i, j);
-                    vec3 vf(v[0], v[1], v[2]);
-                    float gray = dot(rgbToGray, vf);
-                    grayImage(i, j) += gray;
-                }
-            }
-        };
-
-        std::vector<std::future<void>> rets(threads);
-        auto stats = measureObject(50, [&]() {
-            int block = rgbImage.h / threads;
-            for (int t = 0; t < threads; ++t)
-            {
-                int start = t * block;
-                int end   = (t + 1) * block;
-                if (t == threads - 1) end = rgbImage.h;
-                rets[t] = tp.enqueue([&]() { f(start, end); });
-            }
-
-            // wait for all threads
-            for (auto& r : rets)
-            {
-                r.wait();
-            }
-        });
-
-        size_t bytesRW = rgbImage.size() + grayImage.size();
-        double gbRW    = bytesRW / (1000.0 * 1000.0 * 1000.0);
-        double t       = stats.median / 1000.0;
-
-
-
-        std::cout << "Threads " << threads << " Time (ms): " << t * 1000 << " Bandwidth: " << gbRW / t << std::endl;
-    }
     const vec3 rgbToGray = vec3(0.299f, 0.587f, 0.114f);
     TemplatedImage<ucvec4> rgbImage;
     TemplatedImage<float> floatImage;
@@ -91,16 +51,27 @@ struct ImageProcessing
 
 int main(int, char**)
 {
-    //    ImageProcessing ip(3000, 1500);
     ImageProcessing ip(640, 480);
-    ip.testRGB2Gray(1);
-    ip.testRGB2Gray(2);
-    ip.testRGB2Gray(3);
-    ip.testRGB2Gray(4);
 
-    ip.testRGB2Gray2(1);
-    ip.testRGB2Gray2(2);
-    ip.testRGB2Gray2(3);
-    ip.testRGB2Gray2(4);
+    int maxThreads = omp_get_max_threads();
+#pragma omp parallel
+    maxThreads = omp_get_num_threads();
+
+    // just add 2 more so we see if the performance actually falls of now
+    maxThreads += 2;
+
+    std::vector<double> bws;
+    for (int i = 1; i <= maxThreads; ++i)
+    {
+        bws.push_back(ip.testRGB2Gray(i));
+    }
+    auto lvl1 = bws.front();
+
+    for (int i = 1; i < maxThreads; ++i)
+    {
+        std::cout << "Scaling " << i << " -> " << bws[i - 1] / lvl1 << std::endl;
+    }
+
+
     return 0;
 }
