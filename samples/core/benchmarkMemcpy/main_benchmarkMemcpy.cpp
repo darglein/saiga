@@ -69,7 +69,6 @@ int main(int, char**)
     memcpyTest(2);
     memcpyTest(4);
     memcpyTest(8);
-    memcpyTest(16);
 
     std::cout << "Done." << std::endl;
 
