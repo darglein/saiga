@@ -106,45 +106,50 @@ inline float distance(const DescriptorSIFT& a, const DescriptorSIFT& b)
 }
 
 
-
 template <typename T>
-inline int bestDescriptorFromArray(const std::vector<T>& descriptors)
+struct MeanMatcher
 {
-    static_assert(std::is_same<T, DescriptorORB>::value, "Only implemented for ORB so far.");
-    if (descriptors.size() == 0) return -1;
-    // Compute distances between them
-    size_t N = descriptors.size();
-
-    std::vector<std::vector<int>> Distances(N, std::vector<int>(N));
-    for (size_t i = 0; i < N; i++)
+    inline int bestDescriptorFromArray(const std::vector<T>& descriptors)
     {
-        Distances[i][i] = 0;
-        for (size_t j = i + 1; j < N; j++)
+        static_assert(std::is_same<T, DescriptorORB>::value, "Only implemented for ORB so far.");
+        if (descriptors.size() == 0) return -1;
+        // Compute distances between them
+        size_t N = descriptors.size();
+        std::vector<std::vector<int>> Distances(N, std::vector<int>(N));
+
+        for (size_t i = 0; i < N; i++)
         {
-            int distij      = distance(descriptors[i], descriptors[j]);
-            Distances[i][j] = distij;
-            Distances[j][i] = distij;
+            Distances[i][i] = 0;
+            for (size_t j = i + 1; j < N; j++)
+            {
+                int distij      = distance(descriptors[i], descriptors[j]);
+                Distances[i][j] = distij;
+                Distances[j][i] = distij;
+            }
         }
+
+        // Take the descriptor with least median distance to the rest
+        int BestMedian = INT_MAX;
+        int BestIdx    = 0;
+        for (size_t i = 0; i < N; i++)
+        {
+            // vector<int> vDists(Distances[i],Distances[i]+N);
+            auto& vDists = Distances[i];
+            sort(vDists.begin(), vDists.end());
+            int median = vDists[0.5 * (N - 1)];
+
+            if (median < BestMedian)
+            {
+                BestMedian = median;
+                BestIdx    = i;
+            }
+        }
+        return BestIdx;
     }
 
-    // Take the descriptor with least median distance to the rest
-    int BestMedian = INT_MAX;
-    int BestIdx    = 0;
-    for (size_t i = 0; i < N; i++)
-    {
-        // vector<int> vDists(Distances[i],Distances[i]+N);
-        auto& vDists = Distances[i];
-        sort(vDists.begin(), vDists.end());
-        int median = vDists[0.5 * (N - 1)];
 
-        if (median < BestMedian)
-        {
-            BestMedian = median;
-            BestIdx    = i;
-        }
-    }
-    return BestIdx;
-}
+
+};
 
 
 }  // namespace Saiga

@@ -33,7 +33,7 @@ void Graph::renderImGui()
 
     renderImGuiDerived();
     ImGui::PlotLines("", values.data(), numValues, currentIndex, ("avg " + Saiga::to_string(average)).c_str(), 0,
-                     maxValue, ImVec2(0, 80));
+                     maxValue, ImVec2(std::max(numValues, 250), 80));
     ImGui::SameLine();
     if (ImGui::Button("R"))
     {
