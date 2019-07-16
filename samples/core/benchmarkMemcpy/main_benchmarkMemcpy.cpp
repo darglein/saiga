@@ -67,6 +67,7 @@ int main(int, char**)
     std::cout << "Starting RAM Bandwidth test with " << blockSizeGB << " GB blocks." << std::endl;
     memcpyTest(1);
     memcpyTest(2);
+    memcpyTest(3);
     memcpyTest(4);
     memcpyTest(8);
 
