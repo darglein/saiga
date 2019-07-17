@@ -18,12 +18,11 @@
 #include <iterator>
 #include <saiga/core/imgui/imgui.h>
 
-#include <glm/gtc/matrix_transform.hpp>
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
 
-VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
+VulkanExample:: VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
     : Updating(window), Saiga::Vulkan::VulkanForwardRenderingInterface(renderer), mersenne_twister(), renderer(renderer)
 {
     SAIGA_ASSERT(image_names.size() == images.size());

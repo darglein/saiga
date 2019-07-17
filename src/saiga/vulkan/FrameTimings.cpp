@@ -8,7 +8,7 @@
 
 #include <algorithm>
 #include <exception>
-#include <glm/glm.hpp>
+
 
 namespace Saiga::Vulkan
 {

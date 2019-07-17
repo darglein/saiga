@@ -13,8 +13,11 @@ unset(MODULE_CORE)
 
 
 #GLM is deprecated
-#find_package(GLM REQUIRED QUIET)
-#PackageHelper(GLM "${GLM_FOUND}" "${GLM_INCLUDE_DIRS}" "")
+find_package(GLM QUIET)
+PackageHelper(GLM "${GLM_FOUND}" "${GLM_INCLUDE_DIRS}" "")
+if (GLM_FOUND)
+    SET(SAIGA_USE_GLM 1)
+endif()
 
 #Eigen is now required
 find_package(Eigen3 REQUIRED QUIET)
@@ -101,7 +104,7 @@ PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
 #c++17 filesystem
 find_package(Filesystem REQUIRED)
 SET(SAIGA_USE_FILESYSTEM 1)
-#PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
+PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
 #if(FILESYSTEM_FOUND)
 #endif()
 

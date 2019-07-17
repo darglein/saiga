@@ -3,9 +3,7 @@
 
 #include "Meta_Maps.h"
 
-
 using namespace gl;
-
 
 namespace glbinding
 {
@@ -13,6 +11,7 @@ namespace aux
 {
 const std::unordered_map<GLextension, std::set<std::string>> Meta_FunctionStringsByExtension = {
     {GLextension::GL_3DFX_tbuffer, {"glTbufferMask3DFX"}},
+#ifdef FULL_MAP
     {GLextension::GL_AMD_debug_output,
      {"glDebugMessageCallbackAMD", "glDebugMessageEnableAMD", "glDebugMessageInsertAMD", "glGetDebugMessageLogAMD"}},
     {GLextension::GL_AMD_draw_buffers_blend,
@@ -1557,9 +1556,9 @@ const std::unordered_map<GLextension, std::set<std::string>> Meta_FunctionString
       "glTexCoord4fColor4fNormal3fVertex4fvSUN",
       "glTexCoord4fVertex4fSUN",
       "glTexCoord4fVertex4fvSUN"}},
+#endif
 
 };
 
-
-}
+}  // namespace aux
 }  // namespace glbinding

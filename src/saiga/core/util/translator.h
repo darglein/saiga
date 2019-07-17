@@ -11,6 +11,7 @@
 #include <map>
 #include <saiga/core/util/encoding.h>
 #include <vector>
+#include <string>
 
 namespace Saiga
 {

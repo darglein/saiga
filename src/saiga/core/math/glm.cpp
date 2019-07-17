@@ -4,6 +4,9 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
+
+#ifdef SAIGA_USE_GLM
 #include "glm.h"
 
 #include "saiga/core/util/assert.h"
@@ -234,3 +237,4 @@ vec4 vec4FromString(const std::string& str)
 }
 
 }  // namespace Saiga
+#endif

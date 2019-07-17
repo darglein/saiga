@@ -44,5 +44,6 @@
 #cmakedefine SAIGA_USE_GPHOTO2
 #cmakedefine SAIGA_USE_CERES
 #cmakedefine SAIGA_USE_FILESYSTEM
+#cmakedefine SAIGA_USE_GLM
 
 #cmakedefine SAIGA_VISION

@@ -60,6 +60,8 @@ if(SAIGA_LIBSTDCPP AND SAIGA_CXX_CLANG)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++")
     set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -stdlib=libstdc++")
     SET(LIBS ${LIBS} "-lstdc++")
+else()
+    #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()
 
 if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
