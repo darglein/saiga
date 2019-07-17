@@ -51,7 +51,7 @@ struct ImageProcessing
 
 int main(int, char**)
 {
-    ImageProcessing ip(640, 480);
+    ImageProcessing ip(640 * 4, 480 * 4);
 
     int maxThreads = omp_get_max_threads();
 #pragma omp parallel
@@ -60,6 +60,7 @@ int main(int, char**)
     // just add 2 more so we see if the performance actually falls of now
     maxThreads += 2;
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     std::vector<double> bws;
     for (int i = 1; i <= maxThreads; ++i)
     {
@@ -67,7 +68,7 @@ int main(int, char**)
     }
     auto lvl1 = bws.front();
 
-    for (int i = 1; i < maxThreads; ++i)
+    for (int i = 1; i <= maxThreads; ++i)
     {
         std::cout << "Scaling " << i << " -> " << bws[i - 1] / lvl1 << std::endl;
     }

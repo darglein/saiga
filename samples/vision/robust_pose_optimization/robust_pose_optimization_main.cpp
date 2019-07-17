@@ -86,7 +86,7 @@ class RPOTest
         int inliers;
         {
             //            SAIGA_BLOCK_TIMER();
-            inliers = rpo.optimizePoseRobust(wps, obs, outlier, p, K);
+            inliers = rpo.optimizePoseRobust2(wps, obs, outlier, p, K);
             //            inliers = rpo.optimizePoseRobust4(wps4, obs, outlier, p, K);
         }
 
@@ -120,7 +120,7 @@ int main(int, char**)
     Saiga::EigenHelper::EigenCompileFlags flags;
     flags.create<3998735>();
     std::cout << flags << std::endl;
-    RPOTest<double, true> test_float;
+    RPOTest<float, false> test_float;
     RPOTest<double, false> test_double;
     std::cout << std::endl;
 
@@ -133,8 +133,8 @@ int main(int, char**)
     int its = 5000;
     test_double.optimize();
     test_float.optimize();
-    //    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
-    //    auto b = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
+    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
+    auto b = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
 
     std::cout << "Sum: " << sum << std::endl;
     //    std::cout << a.median << " " << b.median << std::endl;

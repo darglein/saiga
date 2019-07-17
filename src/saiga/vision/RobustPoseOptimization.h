@@ -37,7 +37,6 @@ struct ObsBase
     }
 };
 
-using Obs = ObsBase<double>;
 
 template <typename T, bool Normalized = false>
 struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
@@ -265,7 +264,8 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                 // normalize by number of inliers
                 if (deltaChi < innerThreshold * inliers)
                 {
-                    break;
+                    //                    std::cout << "inner " << innerIt << std::endl;
+                    //                    break;
                 }
             }
         }
@@ -302,6 +302,167 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 //        for (auto b : outlier)
 //            if (!b) inliers++;
 #endif
+
+        return inliers;
+    }
+
+    int optimizePoseRobust2(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
+                            SE3Type& guess, const CameraType& camera)
+    {
+        constexpr int JParams = AlignVec4 ? 8 : 6;
+
+        using StereoKernel = typename Saiga::Kernel::BAPoseStereo<T, AlignVec4>;
+        using MonoKernel   = typename Saiga::Kernel::BAPoseMono<T, AlignVec4, Normalized>;
+        using StereoJ      = typename StereoKernel::JacobiType;
+        using MonoJ        = typename MonoKernel::JacobiType;
+        using JType        = Eigen::Matrix<T, JParams, JParams>;
+        using BType        = Eigen::Matrix<T, JParams, 1>;
+        using CompactJ     = Eigen::Matrix<T, 6, 6>;
+        using XType        = Eigen::Matrix<T, 6, 1>;
+
+        StereoJ JrowS;
+        MonoJ JrowM;
+
+        if constexpr (AlignVec4)
+        {
+            // clear the padded zeros
+            JrowS.setZero();
+            JrowM.setZero();
+        }
+
+        int N            = wps.size();
+        int inliers      = 0;
+        T innerThreshold = deltaChi2Epsilon;
+
+#pragma omp parallel num_threads(4)
+        {
+            for (auto outerIt : Range(0, maxOuterIts))
+            {
+                bool robust = outerIt < (maxOuterIts - 1);
+                JType JtJ;
+                BType Jtb;
+                T lastChi2sum     = std::numeric_limits<T>::infinity();
+                SE3Type lastGuess = guess;
+
+                for (auto innerIt : Range(0, maxInnerIts))
+                {
+                    JtJ.setZero();
+                    Jtb.setZero();
+                    T chi2sum = 0;
+                    inliers   = 0;
+
+                    for (auto i : Range(0, N))
+                    {
+                        if (outlier[i]) continue;
+
+                        auto& o  = obs[i];
+                        auto& wp = wps[i];
+
+                        if (false && o.stereo())
+                        {
+                            Vec3 res;
+                            StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth, res, JrowS,
+                                                                      o.weight);
+                            auto c2 = res.squaredNorm();
+                            // Remove outliers
+                            if (outerIt > 0 && innerIt == 0)
+                            {
+                                if (c2 > chi2Stereo)
+                                {
+                                    outlier[i] = true;
+                                    continue;
+                                }
+                            }
+                            if (robust)
+                            {
+                                auto rw       = Kernel::huberWeight(chi1Stereo, c2);
+                                auto sqrtLoss = sqrt(rw(1));
+                                JrowS *= sqrtLoss;
+                                res *= sqrtLoss;
+                            }
+                            chi2sum += c2;
+                            if constexpr (TriangularAdd)
+                                JtJ += (JrowS.transpose() * JrowS).template triangularView<Eigen::Upper>();
+                            else
+                                JtJ += (JrowS.transpose() * JrowS);
+                            Jtb += JrowS.transpose() * res;
+                            inliers++;
+                        }
+                        else
+                        {
+                            Vec2 res;
+                            MonoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, res, JrowM, o.weight);
+                            auto c2 = res.squaredNorm();
+#if 1
+                            // Remove outliers
+                            if (outerIt > 0 && innerIt == 0)
+                            {
+                                if (c2 > chi2Mono)
+                                {
+                                    outlier[i] = true;
+                                    continue;
+                                }
+                            }
+#endif
+
+                            if (robust)
+                            {
+                                auto rw       = Kernel::huberWeight(chi1Mono, c2);
+                                auto sqrtLoss = sqrt(rw(1));
+                                JrowM *= sqrtLoss;
+                                res *= sqrtLoss;
+                            }
+
+                            chi2sum += c2;
+                            if constexpr (TriangularAdd)
+                                JtJ += (JrowM.transpose() * JrowM).template triangularView<Eigen::Upper>();
+                            else
+                                JtJ += (JrowM.transpose() * JrowM);
+                            Jtb += JrowM.transpose() * res;
+                            inliers++;
+                        }
+                    }
+                    T deltaChi  = lastChi2sum - chi2sum;
+                    lastChi2sum = chi2sum;
+
+
+                    if (deltaChi < 0)
+                    {
+                        // the error got worse :(
+                        // -> discard step
+                        guess = lastGuess;
+                        break;
+                    }
+
+
+                    lastGuess = guess;
+
+
+                    XType x;
+                    if constexpr (AlignVec4)
+                    {
+                        CompactJ J = JtJ.template block<6, 6>(0, 0);
+                        x          = J.ldlt().solve(Jtb.template segment<6>(0));
+                    }
+                    else
+                    {
+                        if constexpr (TriangularAdd)
+                            x = JtJ.template selfadjointView<Eigen::Upper>().ldlt().solve(Jtb);
+                        else
+                            x = JtJ.ldlt().solve(Jtb);
+                    }
+                    guess = SE3Type::exp(x) * guess;
+
+
+                    // early termination if the error doesn't change
+                    // normalize by number of inliers
+                    if (deltaChi < innerThreshold * inliers)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
 
         return inliers;
     }

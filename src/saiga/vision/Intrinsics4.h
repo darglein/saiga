@@ -99,6 +99,7 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
     using Base::cy;
     using Base::fx;
     using Base::fy;
+    using Vec3 = typename Base::Vec3;
     /**
      * Baseline * FocalLength_x
      *
