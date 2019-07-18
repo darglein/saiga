@@ -303,15 +303,15 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
     };
 
 
-    int optimizePoseRobust2(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<int>& outlier,
-                            SE3Type& guess, const CameraType& camera)
+    int optimizePoseRobustOMP(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs,
+                              AlignedVector<int>& outlier, SE3Type& guess, const CameraType& camera, int N)
     {
 #pragma omp single
         {
             //            int numThreads = 4;
             int numThreads = omp_get_max_threads();
             locals.resize(numThreads);
-            N = obs.size();
+//            N = obs.size();
             //            std::cout << "numt " << numThreads << std::endl;
         }
 
@@ -346,6 +346,14 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                     local.JtJ.setZero();
                     local.Jtb.setZero();
                     local.inliers = 0;
+
+#pragma omp single
+                    {
+                        JType JtJ2;
+                        BType Jtb2;
+                        JtJ2.setZero();
+                        Jtb2.setZero();
+                    }
 
 
 #pragma omp for

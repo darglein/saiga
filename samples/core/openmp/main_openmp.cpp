@@ -61,10 +61,39 @@ void simpleGroup()
     std::cout << std::endl;
 }
 
+
+void reduction()
+{
+    int sum = 0;
+
+    int N = 100000;
+    std::vector<int> data(N, 1);
+#pragma omp parallel for reduction(+ : sum)
+    for (int i = 0; i < N; ++i)
+    {
+        sum += data[i];
+    }
+    SAIGA_ASSERT(sum == N);
+    std::cout << "Reduction: " << sum << std::endl;
+
+
+
+    // Use an eigen vector
+    std::vector<Vec4> dataV(N, Vec4(1, 1, 1, 1));
+    Vec4 sumV(0, 0, 0, 0);
+#pragma omp parallel for reduction(+ : sumV)
+    for (int i = 0; i < N; ++i)
+    {
+        sumV += dataV[i];
+    }
+    //    SAIGA_ASSERT(sumV == Vec4(N, N, N, N));
+    std::cout << "Reduction Vector: " << sumV.transpose() << std::endl;
+}
 int main(int argc, char* argv[])
 {
     simpleForLoop();
     simpleGroup();
+    reduction();
     std::cout << "Done." << std::endl;
 
     return 0;
