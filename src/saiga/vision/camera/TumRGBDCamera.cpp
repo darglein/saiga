@@ -86,7 +86,7 @@ TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics
     load(datasetDir, multithreaded);
 
     timeStep = std::chrono::duration_cast<tick_t>(
-        std::chrono::duration<double, std::milli>(1000.0 / double(intrinsics().fps)));
+        std::chrono::duration<double, std::micro>(1000000.0 / double(intrinsics().fps)));
 
     timer.start();
     lastFrameTime = timer.stop();

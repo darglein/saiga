@@ -78,19 +78,27 @@ class RPOTest
         K.bf = K.bf * factor;
         rpo.scaleThresholds(factor);
     }
+    int optimizeOMP()
+    {
+        std::fill(outlier.begin(), outlier.end(), false);
+        SE3Type p = pose;
+        int inliers;
 
+#pragma omp parallel num_threads(4)
+        {
+            inliers = rpo.optimizePoseRobust2(wps, obs, outlier, p, K);
+        }
+        return inliers;
+    }
     int optimize()
     {
         std::fill(outlier.begin(), outlier.end(), false);
         SE3Type p = pose;
         int inliers;
-        {
-            //            SAIGA_BLOCK_TIMER();
-            inliers = rpo.optimizePoseRobust2(wps, obs, outlier, p, K);
-            //            inliers = rpo.optimizePoseRobust4(wps4, obs, outlier, p, K);
-        }
 
-        //        std::cout << "[PoseRefinement] Wps/Inliers " << wps.size() << "/" << inliers << " " << p << std::endl;
+        {
+            inliers = rpo.optimizePoseRobust(wps, obs, outlier, p, K);
+        }
         return inliers;
     }
 
@@ -104,7 +112,7 @@ class RPOTest
     AlignedVector<Vec4> wps4;
     AlignedVector<Obs> obs;
 
-    AlignedVector<bool> outlier;
+    AlignedVector<int> outlier;
     RobustPoseOptimization<T, Normalized> rpo;
 };
 
@@ -120,7 +128,7 @@ int main(int, char**)
     Saiga::EigenHelper::EigenCompileFlags flags;
     flags.create<3998735>();
     std::cout << flags << std::endl;
-    RPOTest<float, false> test_float;
+    //    RPOTest<float, false> test_float;
     RPOTest<double, false> test_double;
     std::cout << std::endl;
 
@@ -128,14 +136,16 @@ int main(int, char**)
     //    std::cout << Kernel::huberWeight(0.5, 0.5001 * 0.5001) << std::endl << std::endl;
     //    return 0;
 
+
+    int its = 2000;
+    //    sum += test_double.optimize();
+    //    sum += test_float.optimize();
+    //    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
     int sum = 0;
-
-    int its = 5000;
-    test_double.optimize();
-    test_float.optimize();
-    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
-    auto b = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
-
+    auto b  = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
+    std::cout << "Sum: " << sum << std::endl;
+    sum    = 0;
+    auto c = measureObject("Double", its, [&]() { sum += test_double.optimizeOMP(); });
     std::cout << "Sum: " << sum << std::endl;
     //    std::cout << a.median << " " << b.median << std::endl;
     return 0;

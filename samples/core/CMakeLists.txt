@@ -9,6 +9,7 @@ add_subdirectory(randomNumbers)
 add_subdirectory(imageProcessing)
 add_subdirectory(fractals)
 add_subdirectory(filesystem)
+add_subdirectory(openmp)
 
 #if(SAIGA_USE_FREEIMAGE)
 #add_subdirectory(raw2hdr)

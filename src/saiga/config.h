@@ -55,8 +55,9 @@
 //#    error Please add the correct align macro for your compiler.
 //#endif
 // alignas should be supported now by all compiles so we don't need the extensions from above
+#define SAIGA_CACHE_LINE_SIZE 64
 #define SAIGA_ALIGN(_x) alignas(_x)
-#define SAIGA_ALIGN_CACHE SAIGA_ALIGN(64)
+#define SAIGA_ALIGN_CACHE SAIGA_ALIGN(SAIGA_CACHE_LINE_SIZE)
 
 // Just use the normal NDEBUG convention
 #ifdef NDEBUG

@@ -54,8 +54,8 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 #endif
 
     // Only align if we can process 8 elements in one instruction
-    static constexpr bool AlignVec4 =
-        (std::is_same<T, float>::value && HasAvx) || (std::is_same<T, double>::value && HasAvx512);
+    static constexpr bool AlignVec4 = false;
+    //        (std::is_same<T, float>::value && HasAvx) || (std::is_same<T, double>::value && HasAvx512);
 
     // Do triangular add if we can process 2 or less elements at once
     // -> since SSE is always enabled on x64 this happens only for doubles without avx
@@ -70,6 +70,15 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
     using Vec4       = Eigen::Matrix<T, 4, 1>;
     using Obs        = ObsBase<T>;
 
+    static constexpr int JParams = AlignVec4 ? 8 : 6;
+    using StereoKernel           = typename Saiga::Kernel::BAPoseStereo<T, AlignVec4>;
+    using MonoKernel             = typename Saiga::Kernel::BAPoseMono<T, AlignVec4, Normalized>;
+    using StereoJ                = typename StereoKernel::JacobiType;
+    using MonoJ                  = typename MonoKernel::JacobiType;
+    using JType                  = Eigen::Matrix<T, JParams, JParams>;
+    using BType                  = Eigen::Matrix<T, JParams, 1>;
+    using CompactJ               = Eigen::Matrix<T, 6, 6>;
+    using XType                  = Eigen::Matrix<T, 6, 1>;
 
     RobustPoseOptimization(T thMono = 2.45, T thStereo = 2.8, T chi1Epsilon = 0.01, int maxOuterIts = 4,
                            int maxInnerIts = 10)
@@ -100,20 +109,9 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
         chi2Stereo       = chi1Stereo * chi1Stereo;
     }
 
-    int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
+    int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<int>& outlier,
                            SE3Type& guess, const CameraType& camera)
     {
-        constexpr int JParams = AlignVec4 ? 8 : 6;
-
-        using StereoKernel = typename Saiga::Kernel::BAPoseStereo<T, AlignVec4>;
-        using MonoKernel   = typename Saiga::Kernel::BAPoseMono<T, AlignVec4, Normalized>;
-        using StereoJ      = typename StereoKernel::JacobiType;
-        using MonoJ        = typename MonoKernel::JacobiType;
-        using JType        = Eigen::Matrix<T, JParams, JParams>;
-        using BType        = Eigen::Matrix<T, JParams, 1>;
-        using CompactJ     = Eigen::Matrix<T, 6, 6>;
-        using XType        = Eigen::Matrix<T, 6, 1>;
-
         StereoJ JrowS;
         MonoJ JrowM;
 
@@ -124,9 +122,8 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
             JrowM.setZero();
         }
 
-        int N            = wps.size();
-        int inliers      = 0;
-        T innerThreshold = deltaChi2Epsilon;
+        int N       = wps.size();
+        int inliers = 0;
 
         for (auto outerIt : Range(0, maxOuterIts))
         {
@@ -150,7 +147,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                     auto& o  = obs[i];
                     auto& wp = wps[i];
 
-                    if (false && o.stereo())
+                    if (o.stereo())
                     {
                         Vec3 res;
                         StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth, res, JrowS,
@@ -173,10 +170,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                             res *= sqrtLoss;
                         }
                         chi2sum += c2;
-                        if constexpr (TriangularAdd)
-                            JtJ += (JrowS.transpose() * JrowS).template triangularView<Eigen::Upper>();
-                        else
-                            JtJ += (JrowS.transpose() * JrowS);
+                        JtJ += (JrowS.transpose() * JrowS);
                         Jtb += JrowS.transpose() * res;
                         inliers++;
                     }
@@ -206,10 +200,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                         }
 
                         chi2sum += c2;
-                        if constexpr (TriangularAdd)
-                            JtJ += (JrowM.transpose() * JrowM).template triangularView<Eigen::Upper>();
-                        else
-                            JtJ += (JrowM.transpose() * JrowM);
+                        JtJ += (JrowM.transpose() * JrowM);
                         Jtb += JrowM.transpose() * res;
                         inliers++;
                     }
@@ -252,20 +243,17 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                 }
                 else
                 {
-                    if constexpr (TriangularAdd)
-                        x = JtJ.template selfadjointView<Eigen::Upper>().ldlt().solve(Jtb);
-                    else
-                        x = JtJ.ldlt().solve(Jtb);
+                    x = JtJ.ldlt().solve(Jtb);
                 }
                 guess = SE3Type::exp(x) * guess;
 
 
                 // early termination if the error doesn't change
                 // normalize by number of inliers
-                if (deltaChi < innerThreshold * inliers)
+                if (deltaChi < deltaChi2Epsilon * inliers)
                 {
                     //                    std::cout << "inner " << innerIt << std::endl;
-                    //                    break;
+                    break;
                 }
             }
         }
@@ -306,59 +294,69 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
         return inliers;
     }
 
-    int optimizePoseRobust2(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<bool>& outlier,
+    struct SAIGA_ALIGN_CACHE ThreadLocalData
+    {
+        JType JtJ;
+        BType Jtb;
+        T chi2;
+        int inliers;
+    };
+
+
+    int optimizePoseRobust2(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<int>& outlier,
                             SE3Type& guess, const CameraType& camera)
     {
-        constexpr int JParams = AlignVec4 ? 8 : 6;
-
-        using StereoKernel = typename Saiga::Kernel::BAPoseStereo<T, AlignVec4>;
-        using MonoKernel   = typename Saiga::Kernel::BAPoseMono<T, AlignVec4, Normalized>;
-        using StereoJ      = typename StereoKernel::JacobiType;
-        using MonoJ        = typename MonoKernel::JacobiType;
-        using JType        = Eigen::Matrix<T, JParams, JParams>;
-        using BType        = Eigen::Matrix<T, JParams, 1>;
-        using CompactJ     = Eigen::Matrix<T, 6, 6>;
-        using XType        = Eigen::Matrix<T, 6, 1>;
-
-        StereoJ JrowS;
-        MonoJ JrowM;
-
-        if constexpr (AlignVec4)
+#pragma omp single
         {
-            // clear the padded zeros
-            JrowS.setZero();
-            JrowM.setZero();
+            //            int numThreads = 4;
+            int numThreads = omp_get_max_threads();
+            locals.resize(numThreads);
+            N = obs.size();
+            //            std::cout << "numt " << numThreads << std::endl;
         }
 
-        int N            = wps.size();
-        int inliers      = 0;
-        T innerThreshold = deltaChi2Epsilon;
 
-#pragma omp parallel num_threads(4)
+
+        //#pragma omp parallel
         {
+            auto tid    = omp_get_thread_num();
+            auto& local = locals[tid];
+
+            StereoJ JrowS;
+            MonoJ JrowM;
+            if constexpr (AlignVec4)
+            {
+                // clear the padded zeros
+                JrowS.setZero();
+                JrowM.setZero();
+            }
             for (auto outerIt : Range(0, maxOuterIts))
             {
                 bool robust = outerIt < (maxOuterIts - 1);
-                JType JtJ;
-                BType Jtb;
-                T lastChi2sum     = std::numeric_limits<T>::infinity();
-                SE3Type lastGuess = guess;
+
+#pragma omp single
+                {
+                    lastChi2sum = std::numeric_limits<T>::infinity();
+                    lastGuess   = guess;
+                }
 
                 for (auto innerIt : Range(0, maxInnerIts))
                 {
-                    JtJ.setZero();
-                    Jtb.setZero();
-                    T chi2sum = 0;
-                    inliers   = 0;
+                    local.chi2 = 0;
+                    local.JtJ.setZero();
+                    local.Jtb.setZero();
+                    local.inliers = 0;
 
-                    for (auto i : Range(0, N))
+
+#pragma omp for
+                    for (int i = 0; i < N; ++i)
                     {
                         if (outlier[i]) continue;
 
                         auto& o  = obs[i];
                         auto& wp = wps[i];
 
-                        if (false && o.stereo())
+                        if (o.stereo())
                         {
                             Vec3 res;
                             StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth, res, JrowS,
@@ -380,13 +378,10 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                                 JrowS *= sqrtLoss;
                                 res *= sqrtLoss;
                             }
-                            chi2sum += c2;
-                            if constexpr (TriangularAdd)
-                                JtJ += (JrowS.transpose() * JrowS).template triangularView<Eigen::Upper>();
-                            else
-                                JtJ += (JrowS.transpose() * JrowS);
-                            Jtb += JrowS.transpose() * res;
-                            inliers++;
+                            local.chi2 += c2;
+                            local.JtJ += (JrowS.transpose() * JrowS);
+                            local.Jtb += JrowS.transpose() * res;
+                            local.inliers++;
                         }
                         else
                         {
@@ -413,57 +408,67 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                                 res *= sqrtLoss;
                             }
 
-                            chi2sum += c2;
-                            if constexpr (TriangularAdd)
-                                JtJ += (JrowM.transpose() * JrowM).template triangularView<Eigen::Upper>();
-                            else
-                                JtJ += (JrowM.transpose() * JrowM);
-                            Jtb += JrowM.transpose() * res;
-                            inliers++;
+                            local.chi2 += c2;
+                            local.JtJ += (JrowM.transpose() * JrowM);
+                            local.Jtb += JrowM.transpose() * res;
+                            local.inliers++;
                         }
                     }
-                    T deltaChi  = lastChi2sum - chi2sum;
-                    lastChi2sum = chi2sum;
 
 
-                    if (deltaChi < 0)
+#pragma omp single
                     {
-                        // the error got worse :(
-                        // -> discard step
-                        guess = lastGuess;
-                        break;
-                    }
+                        T chi2sum = 0;
+                        JType JtJ;
+                        BType Jtb;
+                        JtJ.setZero();
+                        Jtb.setZero();
+                        inliers = 0;
+                        for (auto& l : locals)
+                        {
+                            chi2sum += l.chi2;
+                            JtJ += l.JtJ;
+                            Jtb += l.Jtb;
+                            inliers += l.inliers;
+                        }
+                        //                        std::cout << chi2sum << std::endl;
 
-
-                    lastGuess = guess;
-
-
-                    XType x;
-                    if constexpr (AlignVec4)
-                    {
-                        CompactJ J = JtJ.template block<6, 6>(0, 0);
-                        x          = J.ldlt().solve(Jtb.template segment<6>(0));
-                    }
-                    else
-                    {
-                        if constexpr (TriangularAdd)
-                            x = JtJ.template selfadjointView<Eigen::Upper>().ldlt().solve(Jtb);
+                        deltaChi    = lastChi2sum - chi2sum;
+                        lastChi2sum = chi2sum;
+                        if (deltaChi < 0)
+                        {
+                            // the error got worse :(
+                            // -> discard step
+                            guess = lastGuess;
+                        }
                         else
-                            x = JtJ.ldlt().solve(Jtb);
+                        {
+                            lastGuess = guess;
+                            XType x;
+                            if constexpr (AlignVec4)
+                            {
+                                CompactJ J = JtJ.template block<6, 6>(0, 0);
+                                x          = J.ldlt().solve(Jtb.template segment<6>(0));
+                            }
+                            else
+                            {
+                                x = JtJ.ldlt().solve(Jtb);
+                            }
+                            guess = SE3Type::exp(x) * guess;
+                        }
                     }
-                    guess = SE3Type::exp(x) * guess;
+
 
 
                     // early termination if the error doesn't change
                     // normalize by number of inliers
-                    if (deltaChi < innerThreshold * inliers)
+                    if (deltaChi < deltaChi2Epsilon * inliers)
                     {
                         break;
                     }
                 }
             }
         }
-
         return inliers;
     }
 
@@ -476,6 +481,15 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
     T deltaChi2Epsilon;
     int maxOuterIts;
     int maxInnerIts;
+
+    // Tmp variables for OMP implementation
+    AlignedVector<ThreadLocalData, SAIGA_CACHE_LINE_SIZE> locals;
+    int N;
+    int inliers;
+    T deltaChi;
+    SE3Type lastGuess;
+    T lastChi2sum;
+
 };  // namespace Saiga
 
 

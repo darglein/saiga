@@ -59,30 +59,15 @@ if(SAIGA_EXTRA_LIBRARY)
     set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_EXTRA_LIBRARY})
 endif()
 
-#GLM is required 
-find_path(SAIGA_GLM_INCLUDE_DIRS 
-	NAMES 
-		glm/glm.hpp
-	PATHS
-        /usr/include
-)
-
-
-#OpenGL is required
-set(OpenGL_GL_PREFERENCE LEGACY)
-find_package(OpenGL REQUIRED QUIET)
-
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
 	saiga  
 	DEFAULT_MSG
-        SAIGA_INCLUDE_DIRS 
-        SAIGA_GLM_INCLUDE_DIRS
+        SAIGA_INCLUDE_DIRS
         SAIGA_BUILD_INCLUDE_DIRS
         SAIGA_SHADER_DIRS
         SAIGA_LIBRARIES_BASE
-        OPENGL_LIBRARIES
 )
 
 
