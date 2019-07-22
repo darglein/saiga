@@ -23,13 +23,13 @@ class SAIGA_VULKAN_API AssetRenderer : public Pipeline
 {
    public:
     // Change these strings before calling 'init' to use your own shaders
-    std::string vertexShader = "vulkan/coloredAsset.vert";
+    std::string vertexShader   = "vulkan/coloredAsset.vert";
     std::string fragmendShader = "vulkan/coloredAsset.frag";
 
     ~AssetRenderer() { destroy(); }
     void destroy();
 
-    bool bind(vk::CommandBuffer cmd);
+    SAIGA_WARN_UNUSED_RESULT bool bind(vk::CommandBuffer cmd);
 
 
     void pushModel(VkCommandBuffer cmd, mat4 model);

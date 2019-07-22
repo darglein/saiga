@@ -24,7 +24,7 @@ void main()
 		return;	
 
 	numbers[index] = index;
-	 atomicAdd(numbers[0],10);
+         atomicAdd(numbers[0],10);
 
     imageStore(storageTexture, ivec2(0,0), vec4(1));
 //numbers[0] += 10;

@@ -33,31 +33,13 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
 
     window.setCamera(&camera);
 
-    init(renderer.base());
-}
+    //    init(renderer.base());
+    auto& base = renderer.base();
 
-VulkanExample::~VulkanExample()
-{
-    VLOG(3) << "~VulkanExample";
-    assetRenderer.destroy();
-    lineAssetRenderer.destroy();
-    pointCloudRenderer.destroy();
-    texturedAssetRenderer.destroy();
-}
 
-void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
-{
     {
         auto tex = std::make_shared<Saiga::Vulkan::Texture2D>();
-
         Saiga::Image img("box.png");
-
-        std::cout << "uncompressed size " << img.size() << std::endl;
-        auto data = img.compress();
-        std::cout << "compressed size " << data.size() << std::endl;
-        img.decompress(data);
-        std::cout << "test" << std::endl;
-
         if (img.type == Saiga::UC3)
         {
             std::cout << "adding alplha channel" << std::endl;
@@ -91,13 +73,10 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
     teapot.loadObj("teapot.obj");
-    //        teapot.loadPly("dragon_10k.ply");
-    //    teapot.loadPly("fr3_office.ply");
     teapot.mesh.computePerVertexNormal();
     teapot.init(renderer.base());
     teapotTrans.setScale(vec3(2, 2, 2));
-    //    teapotTrans.rotateGlobal(vec3(1, 0, 0), pi<float>());
-    teapotTrans.translateGlobal(vec3(0, 1, 0));
+    teapotTrans.translateGlobal(vec3(0, 2, 0));
     teapotTrans.calculateModel();
 
     plane.createCheckerBoard(ivec2(20, 20), 1.0f, Saiga::Colors::firebrick, Saiga::Colors::gray);
@@ -119,7 +98,10 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     }
 }
 
-
+VulkanExample::~VulkanExample()
+{
+    VLOG(3) << "~VulkanExample";
+}
 
 void VulkanExample::update(float dt)
 {
@@ -135,20 +117,14 @@ void VulkanExample::update(float dt)
 
     if (change)
     {
-        //        renderer.waitIdle();
-        //        for(int i = 0; i < 1000; ++i)
         for (auto& v : pointCloud.pointCloud)
         {
-            //            Saiga::VertexNC v;
             v.position = make_vec4(linearRand(make_vec3(-3), make_vec3(3)), 1);
             v.color    = make_vec4(linearRand(make_vec3(0), make_vec3(1)), 1);
-            //            pointCloud.mesh.points.push_back(v);
         }
         change        = false;
         uploadChanges = true;
     }
-
-    // camera.setInput(!ImGui::GetIO().WantCaptureKeyboard && !ImGui::GetIO().WantCaptureMouse);
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd)
@@ -158,12 +134,9 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
     pointCloudRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
     texturedAssetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
 
-
-    // upload everything every frame
     if (uploadChanges)
     {
         pointCloud.updateBuffer(cmd, 0, pointCloud.capacity);
-
         uploadChanges = false;
     }
 }
@@ -178,14 +151,14 @@ void VulkanExample::render(vk::CommandBuffer cmd)
             assetRenderer.pushModel(cmd, identityMat4());
             plane.render(cmd);
 
-            lineAssetRenderer.pushModel(cmd, teapotTrans.model);
+            assetRenderer.pushModel(cmd, teapotTrans.model);
             teapot.render(cmd);
         }
 
         if (lineAssetRenderer.bind(cmd))
         {
             lineAssetRenderer.pushModel(cmd, translate(vec3(-5, 1.5f, 0)));
-            //            teapot.render(cmd);
+            teapot.render(cmd);
 
             auto gridMatrix = rotate(0.5f * pi<float>(), vec3(1, 0, 0));
             gridMatrix      = translate(gridMatrix, vec3(0, -10, 0));
@@ -202,7 +175,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
         if (texturedAssetRenderer.bind(cmd))
         {
-            texturedAssetRenderer.pushModel(cmd, identityMat4());
+            texturedAssetRenderer.pushModel(cmd, translate(vec3(-10, 1, 0)));
             texturedAssetRenderer.bindTexture(cmd, box.descriptor);
             box.render(cmd);
         }

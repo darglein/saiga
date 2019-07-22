@@ -38,7 +38,6 @@ VulkanForwardRenderer::~VulkanForwardRenderer()
 
 void VulkanForwardRenderer::createBuffers(int numImages, int w, int h)
 {
-    depthBuffer.destroy();
     depthBuffer.init(base(), w, h);
 
     frameBuffers.clear();

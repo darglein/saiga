@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "saiga/core/util/assert.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/vulkan/CommandPool.h"
 #include "saiga/vulkan/FrameSync.h"
 #include "saiga/vulkan/Queue.h"
@@ -45,8 +45,6 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
     virtual ~VulkanForwardRenderer() override;
 
     virtual void render(FrameSync& sync, int currentImage) override;
-    //    virtual void render(Camera* cam) override;
-
 
     virtual void createBuffers(int numImages, int w, int h) override;
     void setupRenderPass();

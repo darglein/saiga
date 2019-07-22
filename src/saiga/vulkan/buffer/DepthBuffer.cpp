@@ -24,6 +24,7 @@ void DepthBuffer::destroy()
 
 void DepthBuffer::init(VulkanBase& base, int width, int height)
 {
+    destroy();
     this->base = &base;
     {
         // depth buffer

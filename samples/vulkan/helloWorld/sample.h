@@ -39,8 +39,9 @@ class VulkanExample : public Saiga::Updating,
     void renderGUI() override;
 
    private:
-    std::vector<vec3> boxOffsets;
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
+
+    std::vector<vec3> boxOffsets;
     bool change        = false;
     bool uploadChanges = true;
     Saiga::Object3D teapotTrans;

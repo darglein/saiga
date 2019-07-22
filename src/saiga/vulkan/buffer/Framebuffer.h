@@ -34,5 +34,6 @@ class SAIGA_VULKAN_API Framebuffer
     vk::Device device;
 };
 
+
 }  // namespace Vulkan
 }  // namespace Saiga
