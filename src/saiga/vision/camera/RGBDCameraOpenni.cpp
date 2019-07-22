@@ -18,16 +18,16 @@
 
 namespace Saiga
 {
-#    define CHECK_NI(_X)                                                           \
-        {                                                                          \
-            auto ret = _X;                                                         \
-            if (ret != openni::STATUS_OK)                                          \
-            {                                                                      \
+#    define CHECK_NI(_X)                                                                     \
+        {                                                                                    \
+            auto ret = _X;                                                                   \
+            if (ret != openni::STATUS_OK)                                                    \
+            {                                                                                \
                 std::cout << "Openni error in " << #_X << std::endl                          \
-                     << "code: " << ret << std::endl                                    \
-                     << "message: " << openni::OpenNI::getExtendedError() << std::endl; \
-                SAIGA_ASSERT(0);                                                   \
-            }                                                                      \
+                          << "code: " << ret << std::endl                                    \
+                          << "message: " << openni::OpenNI::getExtendedError() << std::endl; \
+                SAIGA_ASSERT(0);                                                             \
+            }                                                                                \
         }
 
 
@@ -44,7 +44,6 @@ RGBDCameraOpenni::RGBDCameraOpenni(const RGBDIntrinsics& intr)
         std::cout << "RGBD Camera Open Failed. Trying again shortly." << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
-    //    eventThread = std::thread(&RGBDCameraOpenni::eventLoop, this);
 }
 
 RGBDCameraOpenni::~RGBDCameraOpenni()
@@ -280,69 +279,13 @@ void RGBDCameraOpenni::updateSettingsIntern()
     SAIGA_ASSERT(foundCamera);
     auto settings = color->getCameraSettings();
 
-    //    return;
     (settings->setAutoExposureEnabled(autoexposure));
     (settings->setAutoWhiteBalanceEnabled(autoWhiteBalance));
 
-    //    int current_exposure_ = settings->getExposure();
-    //    (settings->setExposure(exposure));
-    //    std::cout << "Exposure " << current_exposure_ << " -> " << exposure << std::endl;
-
-    //    int current_gain = settings->getGain();
-    //    (settings->setGain(gain));
-    //    std::cout << "Gain " << current_gain << " -> " << gain << std::endl;
 
     updateS = false;
 }
 
-void RGBDCameraOpenni::eventLoop()
-{
-#    if 0
-    running = true;
-
-    setThreadName("Saiga::NI");
-
-    std::unique_ptr<RGBDFrameData> tmp = makeFrameData();
-
-    std::cout << "Starting OpenNI RGBD Camera..." << std::endl;
-
-
-    while (running)
-    {
-        if (!foundCamera)
-        {
-            //            foundCamera = open();
-
-            if (!foundCamera)
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                continue;
-            }
-        }
-
-        if (updateS) updateSettingsIntern();
-
-        //        if (!waitFrame(*tmp))
-        {
-            std::cout << "lost camera connection!" << std::endl;
-            foundCamera = false;
-            continue;
-        }
-
-        //        if(!frameBuffer.tryAdd(tmp))
-        //        frameBuffer.addOverride(tmp);
-        {
-            //            std::cout << "buffer full" << std::endl;
-        }
-        tmp = makeFrameData();
-    }
-
-    std::cout << "OpenNI RGBD Camera done." << std::endl;
-
-    resetCamera();
-    foundCamera = false;
-#    endif
-}
 
 
 }  // namespace Saiga

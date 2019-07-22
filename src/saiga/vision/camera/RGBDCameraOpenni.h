@@ -89,8 +89,6 @@ class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
     float depthFactor;
     bool updateS = false;
     void updateSettingsIntern();
-
-    void eventLoop();
 };
 
 }  // namespace Saiga

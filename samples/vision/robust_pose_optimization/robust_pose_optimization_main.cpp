@@ -86,7 +86,7 @@ class RPOTest
 
 #pragma omp parallel num_threads(4)
         {
-            inliers = rpo.optimizePoseRobustOMP(wps, obs, outlier, p, K);
+            inliers = rpo.optimizePoseRobustOMP(wps, obs, outlier, p, K, wps.size());
         }
         return inliers;
     }
