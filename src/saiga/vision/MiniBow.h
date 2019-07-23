@@ -337,6 +337,12 @@ class TemplatedVocabulary
      */
     virtual void transform(const std::vector<TDescriptor>& features, BowVector& v, FeatureVector& fv,
                            int levelsup) const;
+    virtual void transformOMP(const std::vector<TDescriptor>& features, BowVector& v, FeatureVector& fv, int levelsup);
+
+    // shared OMP variables
+    using TransformResult = std::tuple<WordId, NodeId, WordValue>;
+    int N;
+    std::vector<TransformResult> transformedFeatures;
 
     /**
      * Transforms a single feature into a word (without weight)
@@ -1196,6 +1202,10 @@ template <class TDescriptor, class F, class Scoring>
 void TemplatedVocabulary<TDescriptor, F, Scoring>::transform(const std::vector<TDescriptor>& features, BowVector& v,
                                                              FeatureVector& fv, int levelsup) const
 {
+    int N                 = features.size();
+    using TransformResult = std::tuple<WordId, NodeId, WordValue>;
+    std::vector<TransformResult> transformedFeatures(N);
+
     v.clear();
     fv.clear();
 
@@ -1206,26 +1216,32 @@ void TemplatedVocabulary<TDescriptor, F, Scoring>::transform(const std::vector<T
     }
 
 
-    typename std::vector<TDescriptor>::const_iterator fit;
 
     if (m_weighting == TF || m_weighting == TF_IDF)
     {
-        unsigned int i_feature = 0;
-        for (fit = features.begin(); fit < features.end(); ++fit, ++i_feature)
+        for (int i = 0; i < N; ++i)
         {
-            WordId id;
-            NodeId nid;
-            WordValue w;
+            WordId& id   = std::get<0>(transformedFeatures[i]);
+            NodeId& nid  = std::get<1>(transformedFeatures[i]);
+            WordValue& w = std::get<2>(transformedFeatures[i]);
             // w is the idf value if TF_IDF, 1 if TF
 
-            transform(*fit, id, w, &nid, levelsup);
+            transform(features[i], id, w, &nid, levelsup);
+        }
+
+        for (int i = 0; i < N; ++i)
+        {
+            WordId& id   = std::get<0>(transformedFeatures[i]);
+            NodeId& nid  = std::get<1>(transformedFeatures[i]);
+            WordValue& w = std::get<2>(transformedFeatures[i]);
 
             if (w > 0)  // not stopped
             {
                 v.addWeight(id, w);
-                fv.addFeature(nid, i_feature);
+                fv.addFeature(nid, i);
             }
         }
+
 
         if (!v.empty() && !Scoring::mustNormalize)
         {
@@ -1236,6 +1252,8 @@ void TemplatedVocabulary<TDescriptor, F, Scoring>::transform(const std::vector<T
     }
     else  // IDF || BINARY
     {
+        typename std::vector<TDescriptor>::const_iterator fit;
+        throw std::runtime_error("not supported");
         unsigned int i_feature = 0;
         for (fit = features.begin(); fit < features.end(); ++fit, ++i_feature)
         {
@@ -1255,6 +1273,66 @@ void TemplatedVocabulary<TDescriptor, F, Scoring>::transform(const std::vector<T
     }  // if m_weighting == ...
 
     if (Scoring::mustNormalize) v.normalize();
+}
+
+
+template <class TDescriptor, class F, class Scoring>
+void TemplatedVocabulary<TDescriptor, F, Scoring>::transformOMP(const std::vector<TDescriptor>& features, BowVector& v,
+                                                                FeatureVector& fv, int levelsup)
+{
+#pragma omp single
+    {
+        N = features.size();
+        transformedFeatures.resize(N);
+
+        v.clear();
+        fv.clear();
+    }
+
+    if (empty())  // safe for subclasses
+    {
+        return;
+    }
+
+
+
+#pragma omp for
+    for (int i = 0; i < N; ++i)
+    {
+        WordId& id   = std::get<0>(transformedFeatures[i]);
+        NodeId& nid  = std::get<1>(transformedFeatures[i]);
+        WordValue& w = std::get<2>(transformedFeatures[i]);
+        // w is the idf value if TF_IDF, 1 if TF
+
+        transform(features[i], id, w, &nid, levelsup);
+    }
+#pragma omp single
+    {
+        for (int i = 0; i < N; ++i)
+        {
+            WordId& id   = std::get<0>(transformedFeatures[i]);
+            NodeId& nid  = std::get<1>(transformedFeatures[i]);
+            WordValue& w = std::get<2>(transformedFeatures[i]);
+
+            if (w > 0)  // not stopped
+            {
+                v.addWeight(id, w);
+                fv.addFeature(nid, i);
+            }
+        }
+
+
+        if (!v.empty() && !Scoring::mustNormalize)
+        {
+            // unnecessary when normalizing
+            const double nd = v.size();
+            for (BowVector::iterator vit = v.begin(); vit != v.end(); vit++) vit->second /= nd;
+        }
+
+
+
+        if (Scoring::mustNormalize) v.normalize();
+    }
 }
 
 // --------------------------------------------------------------------------
@@ -1448,18 +1526,20 @@ template <class TDescriptor, class F, class Scoring>
 void TemplatedVocabulary<TDescriptor, F, Scoring>::loadRaw(const std::string& file)
 {
     BinaryFile bf(file, std::ios_base::in);
+    if (!bf.strm.is_open())
+    {
+        throw std::runtime_error("Could not load Voc file.");
+    }
     int scoringid;
     bf >> m_k >> m_L >> scoringid >> m_weighting;
 
     if (m_weighting != TF_IDF)
     {
-        std::cout << "fail1" << std::endl;
-        exit(0);
+        throw std::runtime_error("Only TF_IDF supported.");
     }
     if (scoringid != Scoring::id)
     {
-        std::cout << "fail2" << std::endl;
-        exit(0);
+        throw std::runtime_error("Scoring id doesn't match template.");
     }
 
 
@@ -1468,9 +1548,7 @@ void TemplatedVocabulary<TDescriptor, F, Scoring>::loadRaw(const std::string& fi
     m_nodes.resize(nodecount);
     for (Node& n : m_nodes)
     {
-        //        typename F::BinaryDescriptor des;
         bf >> n.id >> n.parent >> n.weight >> n.word_id >> n.descriptor;
-        //        F::fromBinary(des, n.descriptor);
         if (n.id != 0) m_nodes[n.parent].children.push_back(n.id);
     }
 
@@ -1549,4 +1627,4 @@ std::ostream& operator<<(std::ostream& os, const TemplatedVocabulary<TDescriptor
     return os;
 }
 
-}  // namespace DBoW2
+}  // namespace MiniBow

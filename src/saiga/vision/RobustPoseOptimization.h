@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/util/Range.h"
+#include "saiga/core/util/Thread/omp.h"
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/Robust.h"
@@ -309,9 +310,9 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 #pragma omp single
         {
             //            int numThreads = 4;
-            int numThreads = omp_get_max_threads();
+            int numThreads = OMP::getMaxThreads();
             locals.resize(numThreads);
-//            N = obs.size();
+            //            N = obs.size();
             //            std::cout << "numt " << numThreads << std::endl;
         }
 
@@ -319,7 +320,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 
         //#pragma omp parallel
         {
-            auto tid    = omp_get_thread_num();
+            auto tid    = OMP::getThreadNum();
             auto& local = locals[tid];
 
             StereoJ JrowS;

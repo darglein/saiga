@@ -1,3 +1,4 @@
+add_subdirectory(bow)
 add_subdirectory(featureMatching_benchmark)
 add_subdirectory(robust_pose_optimization)
 add_subdirectory(derive)

@@ -29,7 +29,7 @@ void simpleForLoop()
 
 void simpleGroup()
 {
-    std::cout << "Starting simple OpenMP loop..." << std::endl;
+    std::cout << "Starting simple OpenMP Groups..." << std::endl;
 #pragma omp parallel num_threads(4)
     {
         int tid = omp_get_thread_num();
@@ -64,6 +64,7 @@ void simpleGroup()
 
 void reduction()
 {
+    std::cout << "Starting OpenMP reduction..." << std::endl;
     int sum = 0;
 
     int N = 100000;
@@ -88,12 +89,76 @@ void reduction()
     }
     //    SAIGA_ASSERT(sumV == Vec4(N, N, N, N));
     std::cout << "Reduction Vector: " << sumV.transpose() << std::endl;
+    std::cout << std::endl;
 }
+
+
+void tasks()
+{
+    std::cout << "Starting OpenMP tasks..." << std::endl;
+#pragma omp parallel num_threads(4)
+    {
+#pragma omp single nowait
+        {
+#pragma omp task
+            {
+                report(1337);
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                report(1337);
+            }
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        //#pragma omp taskwait
+#pragma omp for
+        for (int i = 0; i < 20; ++i)
+        {
+            report(i);
+        }
+        report(-1);
+    }
+    std::cout << std::endl;
+}
+
+void nested()
+{
+    std::cout << "Starting OpenMP nested..." << std::endl;
+    std::cout << std::endl;
+
+#pragma omp parallel num_threads(2)
+    {
+#pragma omp single
+        {
+            report(1337);
+        }
+#pragma omp parallel num_threads(2)
+        {
+            report(1);
+        }
+    }
+
+
+    omp_set_nested(1);
+#pragma omp parallel num_threads(2)
+    {
+#pragma omp single
+        {
+            report(1337);
+        }
+#pragma omp parallel num_threads(2)
+        {
+            report(1);
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     simpleForLoop();
     simpleGroup();
     reduction();
+    tasks();
+    nested();
     std::cout << "Done." << std::endl;
 
     return 0;
