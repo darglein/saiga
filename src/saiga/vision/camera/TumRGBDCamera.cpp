@@ -227,49 +227,49 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
     int N = tumframes.size();
     frames.resize(N);
 
-    SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
-
-
-#pragma omp parallel for if (multithreaded)
-    for (int i = 0; i < N; ++i)
     {
-        TumFrame d = tumframes[i];
-        Image cimg(datasetDir + "/" + d.rgb.img);
-        Image dimg(datasetDir + "/" + d.depth.img);
+        SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
+#pragma omp parallel for if (multithreaded)
+        for (int i = 0; i < N; ++i)
+        {
+            TumFrame d = tumframes[i];
+            Image cimg(datasetDir + "/" + d.rgb.img);
+            Image dimg(datasetDir + "/" + d.depth.img);
 
-        RGBDFrameData f;
-        makeFrameData(f);
+            RGBDFrameData f;
+            makeFrameData(f);
 
-        if (cimg.type == UC3)
-        {
-            // convert to rgba
-            ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), f.colorImg);
-        }
-        else if (cimg.type == UC4)
-        {
-            cimg.getImageView<ucvec4>().copyTo(f.colorImg.getImageView());
-        }
-        else
-        {
-            SAIGA_EXIT_ERROR("invalid image type");
-        }
+            if (cimg.type == UC3)
+            {
+                // convert to rgba
+                ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), f.colorImg);
+            }
+            else if (cimg.type == UC4)
+            {
+                cimg.getImageView<ucvec4>().copyTo(f.colorImg.getImageView());
+            }
+            else
+            {
+                SAIGA_EXIT_ERROR("invalid image type");
+            }
 
-        if (dimg.type == US1)
-        {
-            dimg.getImageView<unsigned short>().copyTo(f.depthImg.getImageView(), 1.0 / intrinsics().depthFactor);
-        }
-        else
-        {
-            SAIGA_EXIT_ERROR("invalid image type");
-        }
+            if (dimg.type == US1)
+            {
+                dimg.getImageView<unsigned short>().copyTo(f.depthImg.getImageView(), 1.0 / intrinsics().depthFactor);
+            }
+            else
+            {
+                SAIGA_EXIT_ERROR("invalid image type");
+            }
 
-        if (d.gt.timestamp != -1)
-        {
-            f.groundTruth = d.gt.se3;
-        }
+            if (d.gt.timestamp != -1)
+            {
+                f.groundTruth = d.gt.se3;
+            }
 
-        frames[i] = std::move(f);
-        loadingBar.addProgress(1);
+            frames[i] = std::move(f);
+            loadingBar.addProgress(1);
+        }
     }
     VLOG(1) << "Loaded " << tumframes.size() << " images.";
 }

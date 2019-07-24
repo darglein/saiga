@@ -34,7 +34,7 @@ class RPOTest
         AlignedVector<Vec3Load> wps;
         AlignedVector<ObsLoad> obs;
 
-        std::ifstream strm(SearchPathes::data("vision/poseRefinement.dat"), std::ios::binary);
+        std::ifstream strm(SearchPathes::data("vision/poseRefinement41.dat"), std::ios::binary);
         SAIGA_ASSERT(strm.is_open());
 
         int wpc;
@@ -65,6 +65,10 @@ class RPOTest
         }
 
         outlier.resize(wpc);
+
+
+
+        std::cout << "Loaded Scene Wps/Obs: " << wps.size() << "/" << obs.size() << std::endl;
     }
 
     void normalize()
@@ -113,7 +117,7 @@ class RPOTest
     AlignedVector<Obs> obs;
 
     AlignedVector<int> outlier;
-    RobustPoseOptimization<T, Normalized> rpo;
+    RobustPoseOptimization<T, Normalized> rpo = {2.45, 2.8};
 };
 
 
@@ -137,16 +141,17 @@ int main(int, char**)
     //    return 0;
 
 
-    int its = 2000;
-    //    sum += test_double.optimize();
+    int its      = 2000;
+    auto inliers = test_double.optimize();
+    std::cout << "inliers: " << inliers << std::endl;
     //    sum += test_float.optimize();
     //    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
     int sum = 0;
-    auto b  = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
-    std::cout << "Sum: " << sum << std::endl;
-    sum    = 0;
-    auto c = measureObject("Double", its, [&]() { sum += test_double.optimizeOMP(); });
-    std::cout << "Sum: " << sum << std::endl;
+    //    auto b  = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
+    //    std::cout << "Sum: " << sum << std::endl;
+    sum = 0;
+    //    auto c = measureObject("Double", its, [&]() { sum += test_double.optimizeOMP(); });
+    //    std::cout << "Sum: " << sum << std::endl;
     //    std::cout << a.median << " " << b.median << std::endl;
     return 0;
 }

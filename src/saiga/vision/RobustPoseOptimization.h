@@ -116,7 +116,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
         StereoJ JrowS;
         MonoJ JrowM;
 
-        if constexpr (AlignVec4)
+        if (AlignVec4)
         {
             // clear the padded zeros
             JrowS.setZero();
@@ -134,12 +134,25 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
             T lastChi2sum     = std::numeric_limits<T>::infinity();
             SE3Type lastGuess = guess;
 
+            // compute current outlier threshold
+            // we start a bit higher than the given
+            // threshold and reduce it in each iteration
+            // note: the huber threshold does not change!
+            auto chi2s = chi2Stereo;
+            auto chi2m = chi2Mono;
+            int k      = maxOuterIts - 1 - outerIt;
+            chi2s      = chi1Stereo * pow(1.2, k);
+            chi2s      = chi2s * chi2s;
+            chi2m      = chi1Mono * pow(1.2, k);
+            chi2m      = chi2m * chi2m;
+
             for (auto innerIt : Range(0, maxInnerIts))
             {
                 JtJ.setZero();
                 Jtb.setZero();
                 T chi2sum = 0;
                 inliers   = 0;
+
 
                 for (auto i : Range(0, N))
                 {
@@ -157,7 +170,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
-                            if (c2 > chi2Stereo)
+                            if (c2 > chi2s)
                             {
                                 outlier[i] = true;
                                 continue;
@@ -184,7 +197,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
-                            if (c2 > chi2Mono)
+                            if (c2 > chi2m)
                             {
                                 outlier[i] = true;
                                 continue;
@@ -210,8 +223,9 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                 lastChi2sum = chi2sum;
 
 #if 0
-                std::cout << outerIt << " Chi2: " << chi2sum << " Delta: " << deltaChi << " Robust: " << robust
-                     << " Inliers: " << inliers << "/" << N << std::endl;
+                std::cout << outerIt << " Robust: " << robust << " "
+                          << " Chi2: " << chi2sum << " Delta: " << deltaChi << " Robust: " << robust
+                          << " Inliers: " << inliers << "/" << N << std::endl;
 #endif
                 if (deltaChi < 0)
                 {
@@ -341,6 +355,18 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                     lastGuess   = guess;
                 }
 
+                // compute current outlier threshold
+                // we start a bit higher than the given
+                // threshold and reduce it in each iteration
+                // note: the huber threshold does not change!
+                auto chi2s = chi2Stereo;
+                auto chi2m = chi2Mono;
+                int k      = maxOuterIts - 1 - outerIt;
+                chi2s      = chi1Stereo * pow(1.2, k);
+                chi2s      = chi2s * chi2s;
+                chi2m      = chi1Mono * pow(1.2, k);
+                chi2m      = chi2m * chi2m;
+
                 for (auto innerIt : Range(0, maxInnerIts))
                 {
                     local.chi2 = 0;
@@ -374,7 +400,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                             // Remove outliers
                             if (outerIt > 0 && innerIt == 0)
                             {
-                                if (c2 > chi2Stereo)
+                                if (c2 > chi2s)
                                 {
                                     outlier[i] = true;
                                     continue;
@@ -401,7 +427,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                             // Remove outliers
                             if (outerIt > 0 && innerIt == 0)
                             {
-                                if (c2 > chi2Mono)
+                                if (c2 > chi2m)
                                 {
                                     outlier[i] = true;
                                     continue;
