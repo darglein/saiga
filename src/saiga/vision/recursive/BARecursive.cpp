@@ -524,7 +524,7 @@ void BARec::finalize()
             auto& extr = scene.extrinsics[id];
             if (!extr.constant) extr.se3 = x_u[i];
         }
-#pragma omp for nowait
+#pragma omp for
         for (size_t i = 0; i < validPoints.size(); ++i)
         {
             Eigen::Matrix<BlockBAScalar, 3, 1> t;
