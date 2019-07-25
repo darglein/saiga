@@ -7,8 +7,10 @@
 #include "Optimizer.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/Thread/omp.h"
 
 #include <iostream>
+#include <memory>
 
 namespace Saiga
 {
@@ -129,11 +131,11 @@ OptimizationResults LMOptimizer::solve()
             std::cout << "It " << i << ": " << 0.5 * chi2 << " -> " << 0.5 * newChi2 << std::endl;
         }
 
-        if (chi2 - newChi2 < optimizationOptions.minChi2Delta)
+        if (std::abs(chi2 - newChi2) < optimizationOptions.minChi2Delta)
         {
             if (optimizationOptions.debugOutput)
             {
-                std::cout << "Early terminate because deltaChi2 < threshold" << std::endl;
+                std::cout << "Early terminate because |deltaChi2| < threshold" << std::endl;
             }
             break;
         }
@@ -157,6 +159,122 @@ OptimizationResults LMOptimizer::initAndSolve()
         result = solve();
     }
     return result;
+}
+
+OptimizationResults LMOptimizer::solveOMP()
+{
+    SAIGA_ASSERT(supportOMP());
+    double current_chi2 = 0;
+
+    OptimizationResults result;
+    result.linear_solver_time = 0;
+
+    Saiga::ScopedTimer<double> timer(result.total_time);
+
+    bool running = true;
+    bool revert  = false;
+
+    // use this thread block for the complete optimizer
+#pragma omp parallel num_threads(optimizationOptions.numThreads)
+    {
+        int tid = OMP::getThreadNum();
+        for (auto i = 0; i < optimizationOptions.maxIterations && running; ++i)
+        {
+            double chi2;
+
+            chi2 = computeQuadraticForm();
+
+            if (optimizationOptions.debug)
+            {
+                // A small sanity check in debug mode to see if compute cost is correct
+                double test = computeCost();
+                if (chi2 != test)
+                {
+                    std::cerr << "Warning " << chi2 << "!=" << test << std::endl;
+                    SAIGA_ASSERT(chi2 == test);
+                }
+            }
+
+
+            addLambda(lambda);
+
+            if (i == 0)
+            {
+                current_chi2        = chi2;
+                result.cost_initial = chi2;
+            }
+            result.cost_final = chi2;
+
+            double ltime;
+            {
+                auto timer = (tid == 0) ? std::make_shared<Saiga::ScopedTimer<double>>(ltime) : nullptr;
+                solveLinearSystem();
+            }
+            result.linear_solver_time += ltime;
+
+            addDelta();
+
+            double newChi2 = computeCost();
+
+
+#pragma omp single
+            {
+                if (newChi2 < current_chi2)
+                {
+                    // accept
+                    lambda       = lambda * (1.0 / 3.0);
+                    v            = 2;
+                    current_chi2 = newChi2;
+                    revert       = false;
+                }
+                else
+                {
+                    // discard
+                    auto oldLambda = lambda;
+                    lambda         = lambda * v;
+                    v              = 2 * v;
+
+                    revert = true;
+                    if (optimizationOptions.debugOutput)
+                    {
+                        std::cerr << "It " << i << ": Invalid lm step. lambda: " << oldLambda << " -> " << lambda
+                                  << std::endl;
+                    }
+                }
+
+                if (optimizationOptions.debugOutput)
+                {
+                    std::cout << "It " << i << ": " << 0.5 * chi2 << " -> " << 0.5 * newChi2 << std::endl;
+                }
+
+                if (std::abs(chi2 - newChi2) < optimizationOptions.minChi2Delta)
+                {
+                    if (optimizationOptions.debugOutput)
+                    {
+                        std::cout << "Early terminate because |deltaChi2| < threshold" << std::endl;
+                    }
+                    running = false;
+                }
+            }
+            if (revert) revertDelta();
+        }
+        finalize();
+    }
+
+    result.cost_final = current_chi2;
+    return result;
+}
+
+void LMOptimizer::initOMP()
+{
+    SAIGA_ASSERT(supportOMP());
+    setThreadCount(optimizationOptions.numThreads);
+
+    lambda = optimizationOptions.initialLambda;
+    //#pragma omp parallel num_threads(optimizationOptions.numThreads)
+    {
+        init();
+    }
 }
 
 

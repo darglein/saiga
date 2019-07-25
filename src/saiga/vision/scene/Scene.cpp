@@ -60,6 +60,22 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
     return res;
 }
 
+void Scene::clear()
+{
+    intrinsics.clear();
+    extrinsics.clear();
+    worldPoints.clear();
+    images.clear();
+}
+
+void Scene::reserve(int _images, int points, int observations)
+{
+    intrinsics.reserve(1);
+    extrinsics.reserve(_images);
+    worldPoints.reserve(points);
+    images.reserve(_images);
+}
+
 double Scene::residualNorm2(const SceneImage& img, const StereoImagePoint& ip)
 {
     if (ip.depth > 0)

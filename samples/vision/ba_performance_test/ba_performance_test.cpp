@@ -206,8 +206,9 @@ int main(int, char**)
     Scene scene;
     //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
-    //    scene.load(SearchPathes::data("vision/tum_office.scene"));
+    scene.load(SearchPathes::data("vision/tum_office.scene"));
 
+    scene.addExtrinsicNoise(0.01);
 #if 0
     std::cout << scene << std::endl;
 
@@ -230,9 +231,9 @@ int main(int, char**)
         }
     }
     scene.compress();
-#endif
 
     buildScene(scene);
+#endif
 
     //        buildSceneBAL(scene, balPrefix + "problem-21-11315-pre.txt");
     // buildSceneBAL(scene, balPrefix + "trafalgar-00201-54427.txt");
@@ -243,7 +244,8 @@ int main(int, char**)
     std::cout << scene << std::endl;
 
     OptimizationOptions baoptions;
-    baoptions.debugOutput            = false;
+    baoptions.debugOutput            = true;
+    baoptions.debug                  = false;
     baoptions.maxIterations          = 5;
     baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
@@ -256,11 +258,12 @@ int main(int, char**)
 
     std::vector<std::shared_ptr<BABase>> solvers;
 
-    solvers.push_back(std::make_shared<BARec>());
+    //    solvers.push_back(std::make_shared<BARec>());
+    //    solvers.push_back(std::make_shared<CeresBA>());
     solvers.push_back(std::make_shared<BAPoseOnly>());
     //    solvers.push_back(std::make_shared<g2oBA2>());
-    //    solvers.push_back(std::make_shared<CeresBA>());
 
+    std::cout << std::setprecision(30) << std::endl;
     scene.globalScale = 1;
     for (auto& s : solvers)
     {
@@ -270,7 +273,20 @@ int main(int, char**)
         auto opt                 = dynamic_cast<Optimizer*>(s.get());
         opt->optimizationOptions = baoptions;
         SAIGA_ASSERT(opt);
-        auto result = opt->initAndSolve();
+
+
+        OptimizationResults result;
+        auto lmopt = dynamic_cast<LMOptimizer*>(opt);
+        if (lmopt)
+        {
+            lmopt->initOMP();
+            result = lmopt->solveOMP();
+        }
+        else
+        {
+            result = opt->initAndSolve();
+        }
+        //        auto result = opt->initAndSolve();
 
         std::cout << "Error " << result.cost_initial << " -> " << result.cost_final << std::endl;
         std::cout << "Time LinearSolver/Total: " << result.linear_solver_time << "/" << result.total_time << std::endl;

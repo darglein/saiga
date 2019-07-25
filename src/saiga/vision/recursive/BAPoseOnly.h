@@ -36,6 +36,12 @@ class SAIGA_VISION_API BAPoseOnly : public BABase, public LMOptimizer
     AlignedVector<Vec3> x_v, oldx_v;
     AlignedVector<Vec3> delta_x;
 
+    // ============= Multi Threading Stuff ===========
+    int threads = 1;
+    std::vector<std::vector<DiagType>> diagTemp;
+    std::vector<std::vector<ResType>> resTemp;
+    std::vector<double> localChi2;
+    // ============== LM Functions ==============
 
     virtual void init() override;
     virtual double computeQuadraticForm() override;
@@ -45,6 +51,9 @@ class SAIGA_VISION_API BAPoseOnly : public BABase, public LMOptimizer
     virtual void solveLinearSystem() override;
     virtual double computeCost() override;
     virtual void finalize() override;
+
+    virtual void setThreadCount(int n) override { threads = n; }
+    virtual bool supportOMP() override { return true; }
 };
 
 

@@ -156,6 +156,13 @@ class SAIGA_VISION_API Scene
 
     double bf = 1;
 
+    // similar to vector::clear:
+    // reset, but keep memory
+    void clear();
+
+    void reserve(int images, int points, int observations);
+
+
 
     double residualNorm2(const SceneImage& img, const StereoImagePoint& ip);
     Vec3 residual3(const SceneImage& img, const StereoImagePoint& ip);

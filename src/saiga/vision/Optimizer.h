@@ -18,6 +18,7 @@ struct SAIGA_VISION_API OptimizationResults
     double cost_initial = 0;
     double cost_final   = 0;
 
+    double init_time          = 0;
     double linear_solver_time = 0;
     double total_time         = 0;
 
@@ -43,6 +44,7 @@ struct SAIGA_VISION_API OptimizationOptions
     // early termiante if the chi2 delta is smaller than this value
     double minChi2Delta  = 1e-5;
     double initialLambda = 1.00e-04;
+    int numThreads       = 4;
 
     bool debugOutput = false;
     bool debug       = false;
@@ -70,6 +72,11 @@ class SAIGA_VISION_API LMOptimizer : public Optimizer
     virtual OptimizationResults solve() override;
     virtual OptimizationResults initAndSolve() override;
 
+    // multithreaded version
+    // only works if the problem supports omp
+    OptimizationResults solveOMP();
+    void initOMP();
+
     //    virtual OptimizationResults solve() = 0;
    protected:
     virtual void init()                   = 0;
@@ -80,6 +87,9 @@ class SAIGA_VISION_API LMOptimizer : public Optimizer
     virtual void solveLinearSystem()      = 0;
     virtual double computeCost()          = 0;
     virtual void finalize()               = 0;
+
+    virtual void setThreadCount(int n) {}
+    virtual bool supportOMP() { return false; }
 
     double lambda;
     double v = 2;
