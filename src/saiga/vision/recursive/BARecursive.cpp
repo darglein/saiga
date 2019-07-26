@@ -198,7 +198,7 @@ void BARec::init()
 
 
     // Create sparsity histogram of the schur complement
-    if (false && optimizationOptions.debugOutput)
+    if (optimizationOptions.debugOutput)
     {
         HistogramImage img(n, n, 512, 512);
         schurStructure.clear();
@@ -227,7 +227,7 @@ void BARec::init()
             v.erase(std::remove(v.begin(), v.end(), -1), v.end());
             schurEdges += v.size();
         }
-        img.writeBinary("vision_ba_schur_sparsity.png");
+        //        img.writeBinary("vision_ba_schur_sparsity.png");
     }
 
 

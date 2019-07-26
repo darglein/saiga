@@ -29,11 +29,18 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
 
     ProceduralSkybox skybox;
 
-
+    vec3 up                    = vec3(0, 1, 0);
+    bool autoRotate            = false;
+    float autoRotateSpeed      = 0.5;
     bool showSkybox            = false;
     bool showGrid              = true;
     std::array<char, 512> file = {0};
 
+
+    bool renderObject    = true;
+    bool renderWireframe = false;
+    bool renderGeometry  = false;
+    std::shared_ptr<MVPTextureShader> normalShader, textureShader;
     std::shared_ptr<DirectionalLight> sun;
 
     Sample(OpenGLWindow& window, Renderer& renderer);

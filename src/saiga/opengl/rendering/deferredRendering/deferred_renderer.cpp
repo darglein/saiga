@@ -95,7 +95,8 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow& window, DeferredRenderingPara
     defaultEffects.push_back(pps);
     postProcessor.setPostProcessingEffects(defaultEffects);
 
-    std::cout << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight << std::endl;
+    std::cout << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight
+              << std::endl;
 }
 
 Deferred_Renderer::~Deferred_Renderer() {}
@@ -235,6 +236,7 @@ void Deferred_Renderer::render(Camera* cam)
         // final render pass
         if (imgui)
         {
+            SAIGA_ASSERT(ImGui::GetCurrentContext());
             imgui->beginFrame();
         }
         renderingInterface->renderFinal(cam);

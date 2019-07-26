@@ -8,8 +8,8 @@
 
 #include "saiga/config.h"
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace Saiga
 {
@@ -33,7 +33,7 @@ class SAIGA_CORE_API FileChecker
      * test/image.png
      * ->   test/
      */
-    std::string getParentDirectory(const std::string& file);
+    static std::string getParentDirectory(const std::string& file);
 
     /**
      * returns the raw file name of 'file'
@@ -71,11 +71,11 @@ namespace SearchPathes
  * These are set in framework.cpp.
  * Additional search pathes can be set in the config.ini
  */
-	SAIGA_CORE_API extern  FileChecker shader;
-	SAIGA_CORE_API extern  FileChecker image;
-	SAIGA_CORE_API extern  FileChecker model;
-	SAIGA_CORE_API extern  FileChecker font;
-	SAIGA_CORE_API extern  FileChecker data;
+SAIGA_CORE_API extern FileChecker shader;
+SAIGA_CORE_API extern FileChecker image;
+SAIGA_CORE_API extern FileChecker model;
+SAIGA_CORE_API extern FileChecker font;
+SAIGA_CORE_API extern FileChecker data;
 }  // namespace SearchPathes
 
 }  // namespace Saiga

@@ -58,6 +58,10 @@ class SAIGA_CORE_API ObjMaterialLoader
     std::vector<ObjMaterial> materials;
     ObjMaterial* currentMaterial = nullptr;
     void parseLine(const std::string& line);
+
+    // tries to find a file from the material (for example a texture)
+    // returns the absolute path to that file
+    std::string getPathImage(const std::string& s);
 };
 
 }  // namespace Saiga

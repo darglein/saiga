@@ -22,11 +22,13 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     camera.movementSpeed     = 10;
     camera.movementSpeedFast = 20;
     camera.mouseTurnLocal    = true;
+    camera.rotationPoint     = vec3(0, 0, 0);
 
     // Set the camera from which view the scene is rendered
     window.setCamera(&camera);
 
-
+    normalShader  = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_normal.glsl");
+    textureShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset.glsl");
     ObjAssetLoader assetLoader;
 
 
@@ -57,6 +59,12 @@ Sample::~Sample() {}
 void Sample::update(float dt)
 {
     if (!ImGui::captureKeyboard()) camera.update(dt);
+
+
+    if (autoRotate)
+    {
+        camera.mouseRotateAroundPoint(autoRotateSpeed, 0, camera.rotationPoint, up);
+    }
 }
 
 void Sample::interpolate(float dt, float interpolation)
@@ -64,10 +72,7 @@ void Sample::interpolate(float dt, float interpolation)
     if (!ImGui::captureMouse()) camera.interpolate(dt, interpolation);
 }
 
-void Sample::render(Camera* cam)
-{
-    object.render(cam);
-}
+void Sample::render(Camera* cam) {}
 
 void Sample::renderDepth(Camera* cam)
 {
@@ -77,7 +82,33 @@ void Sample::renderDepth(Camera* cam)
 void Sample::renderOverlay(Camera* cam)
 {
     if (showSkybox) skybox.render(cam);
-    if (showGrid) groundPlane.renderForward(cam);
+    if (showGrid) groundPlane.render(cam);
+
+    TexturedAsset* ta = dynamic_cast<TexturedAsset*>(object.asset.get());
+    SAIGA_ASSERT(ta);
+
+    if (renderObject)
+    {
+        if (renderGeometry)
+        {
+            ta->shader = normalShader;
+        }
+        else
+        {
+            ta->shader = textureShader;
+        }
+        object.render(cam);
+    }
+
+    if (renderWireframe)
+    {
+        glEnable(GL_POLYGON_OFFSET_LINE);
+        //        glLineWidth(1);
+        glPolygonOffset(0, -500);
+
+        object.renderWireframe(cam);
+        glDisable(GL_POLYGON_OFFSET_LINE);
+    }
 }
 
 void Sample::renderFinal(Camera* cam)
@@ -88,6 +119,9 @@ void Sample::renderFinal(Camera* cam)
 
     ImGui::Checkbox("showSkybox", &showSkybox);
     ImGui::Checkbox("showGrid", &showGrid);
+    ImGui::Checkbox("renderGeometry", &renderGeometry);
+    ImGui::Checkbox("renderWireframe", &renderWireframe);
+    ImGui::Checkbox("renderObject", &renderObject);
 
     ImGui::InputText("File", file.data(), file.size());
 
@@ -113,6 +147,12 @@ void Sample::renderFinal(Camera* cam)
     ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Camera");
 
+
+    ImGui::Checkbox("autoRotate", &autoRotate);
+    if (ImGui::Button("Set Rotation Point to Position"))
+    {
+        camera.rotationPoint = make_vec3(camera.position);
+    }
     camera.imgui();
     ImGui::End();
 }

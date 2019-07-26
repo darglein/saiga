@@ -55,6 +55,7 @@ void Forward_Renderer::render(Camera* cam)
     // final render pass
     if (imgui)
     {
+        SAIGA_ASSERT(ImGui::GetCurrentContext());
         imgui->beginFrame();
     }
     renderingInterface->renderFinal(cam);

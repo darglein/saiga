@@ -7,6 +7,7 @@
 #include "objMaterialLoader.h"
 
 #include "saiga/core/math/String.h"
+#include "saiga/core/util/fileChecker.h"
 
 #include "internal/noGraphicsAPI.h"
 
@@ -133,30 +134,48 @@ void ObjMaterialLoader::parseLine(const std::string& line)
     }
     else if (header == "map_Ka")
     {
-        currentMaterial->map_Ka = rest;
+        currentMaterial->map_Ka = getPathImage(rest);
     }
     else if (header == "map_Kd")
     {
-        currentMaterial->map_Kd = rest;
+        currentMaterial->map_Kd = getPathImage(rest);
     }
     else if (header == "map_Ks")
     {
-        currentMaterial->map_Ks = rest;
+        currentMaterial->map_Ks = getPathImage(rest);
     }
     else if (header == "map_d")
     {
         //        TextureParameters tp;
         //        tp.srgb = false;
-        currentMaterial->map_d = rest;
+        currentMaterial->map_d = getPathImage(rest);
         //        if(currentMaterial->map_d) currentMaterial->map_d->setWrap(GL_REPEAT);
     }
     else if (header == "map_bump" || header == "bump")
     {
         //        TextureParameters tp;
         //        tp.srgb = false;
-        currentMaterial->map_bump = rest;
+        currentMaterial->map_bump = getPathImage(rest);
         //        if(currentMaterial->map_bump) currentMaterial->map_bump->setWrap(GL_REPEAT);
     }
+}
+
+std::string ObjMaterialLoader::getPathImage(const std::string& str)
+{
+    std::string result;
+
+    // first search relative to the parent
+    result = SearchPathes::model.getRelative(file, str);
+    if (!result.empty()) return result;
+
+
+    // no search in the image dir
+    result = SearchPathes::image.getRelative(file, str);
+    if (!result.empty()) return result;
+
+    std::cout << str << " " << file << " " << result << std::endl;
+    SAIGA_ASSERT(!result.empty());
+    return result;
 }
 
 }  // namespace Saiga

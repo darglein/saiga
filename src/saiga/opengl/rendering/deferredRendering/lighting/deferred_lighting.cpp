@@ -338,6 +338,7 @@ void DeferredLighting::render(Camera* cam)
 
     // reset state
     glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 
     if (drawDebug)

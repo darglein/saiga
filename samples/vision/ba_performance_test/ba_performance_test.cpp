@@ -27,7 +27,7 @@ using namespace Saiga;
 void buildScene(Scene& scene)
 {
     SynteticScene sscene;
-    sscene.numCameras     = 2;
+    sscene.numCameras     = 3;
     sscene.numImagePoints = 3;
     sscene.numWorldPoints = 3;
     scene                 = sscene.circleSphere();
@@ -206,7 +206,7 @@ int main(int, char**)
     Scene scene;
     //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
-    scene.load(SearchPathes::data("vision/tum_office.scene"));
+    scene.load(SearchPathes::data("vision/localBA.scene"));
 
     scene.addExtrinsicNoise(0.01);
 #if 0
@@ -232,8 +232,9 @@ int main(int, char**)
     }
     scene.compress();
 
-    buildScene(scene);
 #endif
+    //    buildScene(scene);
+    //    scene.addExtrinsicNoise(0.01);
 
     //        buildSceneBAL(scene, balPrefix + "problem-21-11315-pre.txt");
     // buildSceneBAL(scene, balPrefix + "trafalgar-00201-54427.txt");
@@ -244,13 +245,12 @@ int main(int, char**)
     std::cout << scene << std::endl;
 
     OptimizationOptions baoptions;
-    baoptions.debugOutput            = true;
+    baoptions.debugOutput            = false;
     baoptions.debug                  = false;
-    baoptions.maxIterations          = 5;
-    baoptions.maxIterativeIterations = 15;
+    baoptions.maxIterations          = 3;
+    baoptions.maxIterativeIterations = 20;
     baoptions.iterativeTolerance     = 1e-50;
-    baoptions.initialLambda          = 1;
-    baoptions.numThreads             = 4;
+    baoptions.numThreads             = 1;
 
     baoptions.solverType = OptimizationOptions::SolverType::Iterative;
     std::cout << baoptions << std::endl;
@@ -263,7 +263,6 @@ int main(int, char**)
     //    solvers.push_back(std::make_shared<BAPoseOnly>());
     //    solvers.push_back(std::make_shared<g2oBA2>());
 
-    std::cout << std::setprecision(30) << std::endl;
     scene.globalScale = 1;
     for (auto& s : solvers)
     {
@@ -277,7 +276,7 @@ int main(int, char**)
 
         OptimizationResults result;
         auto lmopt = dynamic_cast<LMOptimizer*>(opt);
-        if (lmopt)
+        if (false && lmopt)
         {
             lmopt->initOMP();
             result = lmopt->solveOMP();
