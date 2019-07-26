@@ -144,4 +144,10 @@ inline std::shared_ptr<_Tp> make_aligned_unique(_Args&&... __args)
 }
 
 
+template <typename T, int alignment>
+struct SAIGA_ALIGN(alignment) AlignedStruct
+{
+    T element;
+};
+
 }  // namespace Saiga

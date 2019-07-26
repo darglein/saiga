@@ -250,7 +250,7 @@ int main(int, char**)
     baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
     baoptions.initialLambda          = 1;
-
+    baoptions.numThreads             = 4;
 
     baoptions.solverType = OptimizationOptions::SolverType::Iterative;
     std::cout << baoptions << std::endl;
@@ -258,9 +258,9 @@ int main(int, char**)
 
     std::vector<std::shared_ptr<BABase>> solvers;
 
-    //    solvers.push_back(std::make_shared<BARec>());
+    solvers.push_back(std::make_shared<BARec>());
     //    solvers.push_back(std::make_shared<CeresBA>());
-    solvers.push_back(std::make_shared<BAPoseOnly>());
+    //    solvers.push_back(std::make_shared<BAPoseOnly>());
     //    solvers.push_back(std::make_shared<g2oBA2>());
 
     std::cout << std::setprecision(30) << std::endl;

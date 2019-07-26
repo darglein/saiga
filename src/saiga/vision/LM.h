@@ -32,6 +32,16 @@ template <typename T>
 void applyLMDiagonal(Eigen::DiagonalMatrix<T, -1>& U, double lambda = 1.00e-04, double min_lm_diagonal = 1e-6,
                      double max_lm_diagonal = 1e32)
 {
+    for (int i = 0; i < U.rows(); ++i)
+    {
+        auto& diag = U.diagonal()(i).get();
+        applyLMDiagonalInner(diag, lambda, min_lm_diagonal, max_lm_diagonal);
+    }
+}
+template <typename T>
+void applyLMDiagonal_omp(Eigen::DiagonalMatrix<T, -1>& U, double lambda = 1.00e-04, double min_lm_diagonal = 1e-6,
+                         double max_lm_diagonal = 1e32)
+{
 #pragma omp for
     for (int i = 0; i < U.rows(); ++i)
     {
@@ -39,7 +49,6 @@ void applyLMDiagonal(Eigen::DiagonalMatrix<T, -1>& U, double lambda = 1.00e-04, 
         applyLMDiagonalInner(diag, lambda, min_lm_diagonal, max_lm_diagonal);
     }
 }
-
 /**
  * Simplified LM diagonal update, used by the g2o framwork
  *

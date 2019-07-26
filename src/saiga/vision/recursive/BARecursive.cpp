@@ -46,6 +46,7 @@ void BARec::reserve(int n, int m)
 void BARec::init()
 {
     SAIGA_ASSERT(1 == OMP::getNumThreads());
+    //    threads = 4;
     //    std::cout << "Test sizes: " << sizeof(Scene) << " " << sizeof(BARec)<< " " << sizeof(BABase)<< " " <<
     //    sizeof(LMOptimizer) << std::endl; std::cout << "Test sizes2: " << sizeof(BAMatrix) << " " <<
     //    sizeof(BAVector)<< " " << sizeof(BASolver)<< " " << sizeof(AlignedVector<SE3>) << std::endl;
@@ -310,6 +311,7 @@ double BARec::computeQuadraticForm()
     //#pragma omp parallel num_threads(threads)
     {
         int tid = OMP::getThreadNum();
+
 
         double& newChi2 = localChi2[tid];
         newChi2         = 0;
