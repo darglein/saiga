@@ -146,10 +146,105 @@ struct MeanMatcher
         }
         return BestIdx;
     }
-
-
-
 };
 
+template <typename T>
+struct BruteForceMatcher
+{
+    using DistanceType = int;
+
+
+    template <typename _InputIterator>
+    void match(_InputIterator first1, int n, _InputIterator first2, int m)
+    {
+        distances.resize(n, m);
+        for (auto i : Range(0, n))
+        {
+            auto d2 = first2;
+            for (auto j : Range(0, m))
+            {
+                distances(i, j) = distance(*first1, *d2);
+                ++d2;
+            }
+            ++first1;
+        }
+
+        int sum = distances.sum();
+        std::cout << "distance sum: " << sum << " avg: " << double(sum) / (n * m) << std::endl;
+    }
+
+    template <typename _InputIterator>
+    void matchKnn2(_InputIterator first1, int n, _InputIterator first2, int m)
+    {
+        knn2.resize(n, 2);
+        for (auto i : Range(0, n))
+        {
+            // init best to infinity distance
+            knn2(i, 0) = {1000, -1};
+            knn2(i, 1) = knn2(i, 0);
+
+
+            auto d2 = first2;
+            for (auto j : Range(0, m))
+            {
+                auto dis = distance(*first1, *d2);
+
+                if (dis < knn2(i, 0).first)
+                {
+                    // set second best to old best
+                    knn2(i, 1) = knn2(i, 0);
+                    // create new best
+                    knn2(i, 0).first  = dis;
+                    knn2(i, 0).second = j;
+                }
+                else if (dis < knn2(i, 1).first)
+                {
+                    // override second best
+                    knn2(i, 1).first  = dis;
+                    knn2(i, 1).second = j;
+                }
+
+
+                ++d2;
+            }
+
+
+            ++first1;
+        }
+    }
+
+
+    /**
+     * Filter matches by ratio test and threshold.
+     * You must have used the knn2 method above before!
+     */
+    void filterMatches(DistanceType threshold, float ratioThreshold)
+    {
+        matches.reserve(knn2.rows());
+
+        for (auto i : Range<int>(0, knn2.rows()))
+        {
+            // the best distance is still larger than the threshold
+            if (knn2(i, 0).first > threshold) continue;
+
+//            float ratio = float(knn2(i, 0).first) / float(knn2(i, 1).first);
+//            std::cout << "for " << i << " best/second: " << knn2(i, 0).first << "/" << knn2(i, 1).first << " " << ratio
+//                      << std::endl;
+
+            if (float(knn2(i, 0).first) > float(knn2(i, 1).first) * ratioThreshold) continue;
+
+            matches.push_back({i, knn2(i, 0).second});
+        }
+        std::cout << "found " << matches.size() << " matches." << std::endl;
+    }
+
+
+    Eigen::Matrix<DistanceType, -1, -1, Eigen::RowMajor> distances;
+
+    // contains the matches index + the distance
+    Eigen::Matrix<std::pair<DistanceType, int>, -1, 2, Eigen::RowMajor> knn2;
+
+    std::vector<std::pair<int, int>> matches;
+};
 
 }  // namespace Saiga

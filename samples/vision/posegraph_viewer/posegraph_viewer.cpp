@@ -14,8 +14,8 @@
 #include "saiga/core/util/cv.h"
 #include "saiga/core/util/directory.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/vision/BALDataset.h"
-#include "saiga/vision/Eigen_GLM.h"
+#include "saiga/vision/scene/BALDataset.h"
+//#include "saiga/vision/Eigen_GLM.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
@@ -123,7 +123,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         for (auto& i : scene.poses)
         {
             Saiga::SE3 se3 = i.se3;
-            mat4 v         = Saiga::toglm(se3.matrix());
+            mat4 v         = (se3.matrix()).cast<float>();
             v              = Saiga::cvViewToGLView(v);
             v              = mat4(inverse(v));
 

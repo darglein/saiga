@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "saiga/vision/Distortion.h"
-#include "saiga/vision/Intrinsics4.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/cameraModel/Distortion.h"
+#include "saiga/vision/cameraModel/Intrinsics4.h"
 
 namespace Saiga
 {
@@ -103,6 +103,24 @@ inline Mat3 onb(const Vec3& dir, const Vec3& up)
     // make sure it works even if dir and up are not orthogonal
     R.col(1) = R.col(2).cross(R.col(0));
     return R;
+}
+
+inline Mat3 enforceRank2(const Mat3& M)
+{
+    // enforce it with svd
+    // det(F)=0
+    auto svde = M.jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
+    auto svs  = svde.singularValues();
+    // set third singular value to 0
+    svs(2) = 0;
+
+    Eigen::DiagonalMatrix<double, 3> sigma;
+    sigma.diagonal() = svs;
+
+    Mat3 u = svde.matrixU();
+    Mat3 v = svde.matrixV();
+    auto F = u * sigma * v.transpose();
+    return F;
 }
 
 

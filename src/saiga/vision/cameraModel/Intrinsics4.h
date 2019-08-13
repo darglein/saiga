@@ -52,6 +52,7 @@ struct Intrinsics4Base
     }
 
     // from image to normalized image space
+    // same as above but without depth
     Vec2 unproject2(const Vec2& ip) const { return {(ip(0) - cx) / fx, (ip(1) - cy) / fy}; }
 
     Vec2 normalizedToImage(const Vec2& p) const { return {fx * p(0) + cx, fy * p(1) + cy}; }

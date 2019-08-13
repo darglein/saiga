@@ -6,7 +6,7 @@
 
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
-#include "saiga/vision/MiniBow.h"
+#include "saiga/vision/slam/MiniBow.h"
 
 #include <fstream>
 

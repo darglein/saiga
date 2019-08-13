@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/Optimizer.h"
+#include "saiga/vision/util/Optimizer.h"
 
 #include "g2o/core/solver.h"
 

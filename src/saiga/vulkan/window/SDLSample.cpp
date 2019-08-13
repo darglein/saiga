@@ -43,6 +43,8 @@ void VulkanSDLExampleBase::renderGUI()
 
 void VulkanSDLExampleBase::keyPressed(SDL_Keysym key)
 {
+    if (ImGui::captureKeyboard()) return;
+
     switch (key.scancode)
     {
         case SDL_SCANCODE_ESCAPE:

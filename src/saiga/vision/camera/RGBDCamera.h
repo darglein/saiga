@@ -8,8 +8,8 @@
 
 #include "saiga/config.h"
 #include "saiga/core/image/image.h"
-#include "saiga/vision/DepthmapPreprocessor.h"
-#include "saiga/vision/Distortion.h"
+#include "saiga/vision/cameraModel/Distortion.h"
+#include "saiga/vision/util/DepthmapPreprocessor.h"
 
 #include <chrono>
 #include <optional>

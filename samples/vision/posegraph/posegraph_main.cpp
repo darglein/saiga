@@ -9,13 +9,13 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
-#include "saiga/vision/BALDataset.h"
-#include "saiga/vision/Eigen_Compile_Checker.h"
 #include "saiga/vision/ceres/CeresPGO.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
 #include "saiga/vision/recursive/PGORecursive.h"
+#include "saiga/vision/scene/BALDataset.h"
 #include "saiga/vision/scene/PoseGraph.h"
 #include "saiga/vision/scene/SynteticScene.h"
+#include "saiga/vision/util/Eigen_Compile_Checker.h"
 
 #include <fstream>
 using namespace Saiga;

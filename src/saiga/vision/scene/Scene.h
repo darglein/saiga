@@ -20,10 +20,11 @@ struct SAIGA_VISION_API Extrinsics
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    Sophus::SE3d se3;
+    SE3 se3;
     bool constant = false;
 
-    Eigen::Vector3d apply(const Eigen::Vector3d& X) { return se3 * X; }
+    Extrinsics() = default;
+    Extrinsics(const SE3& se3, bool c = false) : se3(se3), constant(c) {}
 };
 
 struct SAIGA_VISION_API WorldPoint

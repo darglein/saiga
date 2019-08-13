@@ -1,13 +1,17 @@
 set(MODULE_NAME "saiga_vision")
 
 
-add_subdirectory(camera)
+add_subdirectory(arap)
 add_subdirectory(ba)
+add_subdirectory(camera)
+add_subdirectory(cameraModel)
 add_subdirectory(icp)
 add_subdirectory(kernels)
 add_subdirectory(pgo)
-add_subdirectory(arap)
+add_subdirectory(reconstruction)
 add_subdirectory(scene)
+add_subdirectory(slam)
+add_subdirectory(util)
 
 if(MKL_FOUND)
     add_subdirectory(mkl)

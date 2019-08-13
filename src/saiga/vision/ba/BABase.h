@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/vision/Optimizer.h"
 #include "saiga/vision/scene/Scene.h"
+#include "saiga/vision/util/Optimizer.h"
 
 namespace Saiga
 {

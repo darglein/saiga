@@ -7,7 +7,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/vision/Random.h"
+#include "saiga/vision/util/Random.h"
 
 #include "Scene.h"
 

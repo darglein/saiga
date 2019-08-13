@@ -15,8 +15,8 @@
 #include "saiga/core/util/cv.h"
 #include "saiga/core/util/directory.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/vision/BALDataset.h"
-#include "saiga/vision/Eigen_GLM.h"
+#include "saiga/vision/scene/BALDataset.h"
+//#include "saiga/vision/Eigen_GLM.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 #include "saiga/vision/recursive/BAPoseOnly.h"
@@ -73,9 +73,9 @@ void VulkanExample::update(float dt)
 {
     VulkanSDLExampleBase::update(dt);
 
-    float speed = 360.0f / 10.0 * dt;
+    //    float speed = 360.0f / 10.0 * dt;
     //        float speed = 2 * pi<float>();
-    camera.mouseRotateAroundPoint(speed * 0.5, 0, vec3(0, 5, 0), vec3(0, 1, 0));
+    //    camera.mouseRotateAroundPoint(speed * 0.5, 0, vec3(0, 5, 0), vec3(0, 1, 0));
 }
 
 void VulkanExample::transfer(vk::CommandBuffer cmd)
@@ -90,7 +90,7 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
         for (auto& wp : scene.worldPoints)
         {
             Saiga::VertexNC v;
-            v.position                 = make_vec4(Saiga::toglm(wp.p), 1);
+            v.position                 = make_vec4(wp.p.cast<float>(), 1.f);
             v.color                    = make_vec4(linearRand(make_vec3(1), make_vec3(1)), 1);
             pointCloud.pointCloud[i++] = v;
         }
@@ -143,7 +143,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         {
             auto& extr     = scene.extrinsics[i.extr];
             Saiga::SE3 se3 = extr.se3;
-            mat4 v         = Saiga::toglm(se3.matrix());
+            mat4 v         = se3.matrix().cast<float>();
             v              = Saiga::cvViewToGLView(v);
             v              = mat4(inverse(v));
             lineAssetRenderer.pushModel(cmd, v);
@@ -194,6 +194,17 @@ void VulkanExample::renderGUI()
         scene.sortByWorldPointId();
         change = true;
     }
+
+    static std::array<char, 512> file = {0};
+    ImGui::InputText("File", file.data(), file.size());
+
+    if (ImGui::Button("load saiga scene"))
+    {
+        scene.load(std::string(file.data()));
+        std::cout << scene << std::endl;
+        change = true;
+    }
+
 
     ImGui::End();
 

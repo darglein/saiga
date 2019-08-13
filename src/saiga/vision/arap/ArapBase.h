@@ -5,7 +5,7 @@
  */
 
 #pragma once
-#include "saiga/vision/Optimizer.h"
+#include "saiga/vision/util/Optimizer.h"
 
 #include "ArapProblem.h"
 

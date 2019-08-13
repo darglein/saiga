@@ -4,11 +4,10 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/math/random.h"
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/util/crash.h"
-#include "saiga/core/math/random.h"
 #include "saiga/extra/eigen/eigen.h"
-#include "saiga/extra/eigen/lse.h"
 
 #include "Eigen/Sparse"
 
@@ -19,7 +18,7 @@ using namespace Saiga;
 static void printVectorInstructions()
 {
     std::cout << "Eigen Version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION
-         << std::endl;
+              << std::endl;
 
     std::cout << "defined EIGEN Macros:" << std::endl;
 
@@ -113,40 +112,4 @@ int main(int argc, char* argv[])
 
     eigenHeatTest();
     return 0;
-    //    Eigen::setNbThreads(1);
-
-
-    catchSegFaults();
-
-    const int N = 10000;
-
-    //    using MatrixType = Eigen::MatrixXf;
-    //    using VectorType = Eigen::VectorXf;
-
-    using MatrixType = Eigen::Matrix<float, -1, -1, Eigen::ColMajor>;
-    using VectorType = Eigen::Matrix<float, -1, 1>;
-
-    MatrixType M(N, N);
-    VectorType x(N);
-    VectorType y(N);
-
-    randomMatrix(M);
-    randomMatrix(x);
-
-    std::cout << "random check: " << M(0, 0) << " == " << -0.571635 << std::endl;
-    measureFunction("multMatrixVector", 100, multMatrixVector, M, x, y);
-
-
-    MatrixType Ms(200, 200);
-    VectorType xs(200);
-    randomMatrix(Ms);
-    measureFunction("solveNullspaceSVD", 100, solveNullspaceSVD<MatrixType, VectorType>, Ms, xs);
-
-
-    using MatrixType2 = Eigen::Matrix<float, 100, 100, Eigen::ColMajor>;
-    using VectorType2 = Eigen::Matrix<float, 100, 1>;
-    MatrixType2 Ms2;
-    VectorType2 xs2;
-    randomMatrix(Ms2);
-    measureFunction("solveNullspaceSVD2", 100, solveNullspaceSVD<MatrixType2, VectorType2>, Ms2, xs2);
 }

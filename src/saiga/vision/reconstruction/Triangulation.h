@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include "saiga/core/math/HomogeneousLSE.h"
 #include "saiga/vision/VisionTypes.h"
 
 
 namespace Saiga
 {
-template <typename T>
+template <typename T, bool Precise = true>
 class Triangulation
 {
    public:
@@ -40,10 +41,15 @@ class Triangulation
         A.row(2) = p2.x() * P2.row(2) - P2.row(0);
         A.row(3) = p2.y() * P2.row(2) - P2.row(1);
 
-        auto svd  = A.jacobiSvd(Eigen::ComputeFullV);
-        auto V    = svd.matrixV();
-        Vec4 phom = V.col(3);
-        phom      = phom / phom(3);
+        Vec4 phom;
+
+        // svd is a bit more precise, but also a lot slower
+        if constexpr (Precise)
+            solveHomogeneousJacobiSVD(A, phom);
+        else
+            solveHomogeneousQR(A, phom);
+
+        phom = phom / phom(3);
         Vec3 p(phom(0), phom(1), phom(2));
         return p;
     }

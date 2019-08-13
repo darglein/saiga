@@ -3,11 +3,11 @@
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Thread/omp.h"
-#include "saiga/vision/LM.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BAPoint.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/util/LM.h"
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/Depthmap.h"
+#include "saiga/vision/util/Depthmap.h"
 #include "saiga/vision/icp/ICPAlign.h"
 
 #include <vector>

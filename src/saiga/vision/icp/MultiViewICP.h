@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/vision/Depthmap.h"
 #include "saiga/vision/icp/ICPDepthMap.h"
+#include "saiga/vision/util/Depthmap.h"
 
 #include <vector>
 
@@ -20,16 +20,16 @@ namespace ICP
  * Point-to-Plane metric is used.
  */
 SAIGA_VISION_API void multiViewICP(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<SE3>& guesses,
-                               Intrinsics4 camera, int iterations,
-                               ProjectiveCorrespondencesParams params = ProjectiveCorrespondencesParams());
+                                   Intrinsics4 camera, int iterations,
+                                   ProjectiveCorrespondencesParams params = ProjectiveCorrespondencesParams());
 
 
 /**
  * Aligns all depthmaps relative to the first one.
  */
 SAIGA_VISION_API void multiViewICPSimple(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<SE3>& guesses,
-                                     Intrinsics4 camera, int iterations,
-                                     ProjectiveCorrespondencesParams params = ProjectiveCorrespondencesParams());
+                                         Intrinsics4 camera, int iterations,
+                                         ProjectiveCorrespondencesParams params = ProjectiveCorrespondencesParams());
 
 
 }  // namespace ICP

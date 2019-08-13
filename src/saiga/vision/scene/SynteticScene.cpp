@@ -6,7 +6,7 @@
 #include "SynteticScene.h"
 
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/vision/Random.h"
+#include "saiga/vision/util/Random.h"
 namespace Saiga
 {
 Scene SynteticScene::circleSphere(int numWorldPoints, int numCameras, int numImagePoints)

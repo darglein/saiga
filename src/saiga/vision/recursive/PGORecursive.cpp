@@ -3,10 +3,10 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Algorithm.h"
-#include "saiga/vision/HistogramImage.h"
-#include "saiga/vision/LM.h"
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
+#include "saiga/vision/util/HistogramImage.h"
+#include "saiga/vision/util/LM.h"
 
 #include <fstream>
 #include <numeric>
@@ -278,9 +278,9 @@ void PGORec::finalize()
 {
     auto& scene = *_scene;
 
-//    int i = 0;
-//    for (auto& e : scene.poses)
-//    {
+    //    int i = 0;
+    //    for (auto& e : scene.poses)
+    //    {
     for (int i = 0; i < n; ++i)
     {
         auto& e = scene.poses[i];

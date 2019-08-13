@@ -44,12 +44,15 @@ class RegistrationProjectRANSAC
     {
         //        std::cout << "Starting RANSAC... MaxIts=" << maxIterations << " Stopping at " << stopInliers << "
         //        inliers." << std::endl;
+
+        constexpr int sampleSize = 3;
+
         SAIGA_ASSERT(N > 0);
         std::uniform_int_distribution<unsigned int> dis(0, N - 1);
 
 
-        std::array<Vec3, 3> A;
-        std::array<Vec3, 3> B;
+        std::array<Vec3, sampleSize> A;
+        std::array<Vec3, sampleSize> B;
 
         SE3 bestT;
         int bestInliers = 0;
@@ -59,7 +62,7 @@ class RegistrationProjectRANSAC
         for (int i = 0; i < maxIterations; ++i)
         {
             // Get 3 matches and store them in A,B
-            for (auto j : Range(0, 3))
+            for (auto j : Range(0, sampleSize))
             {
                 auto idx = dis(gen);
                 A[j]     = points1[idx];

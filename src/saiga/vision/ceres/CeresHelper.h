@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/Optimizer.h"
+#include "saiga/vision/util/Optimizer.h"
 #include "saiga/vision/VisionTypes.h"
 
 #include "Eigen/Sparse"

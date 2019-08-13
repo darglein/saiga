@@ -9,7 +9,6 @@
 //#include "saiga/core/math/random.h"
 #include "saiga/core/Core.h"
 #include "saiga/extra/eigen/eigen.h"
-#include "saiga/extra/eigen/lse.h"
 
 #include "Eigen/Core"
 

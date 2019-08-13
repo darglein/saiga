@@ -1,5 +1,6 @@
 add_subdirectory(benchmarkIPScaling)
 add_subdirectory(benchmarkMemcpy)
+add_subdirectory(nullspace)
 
 add_subdirectory(helloWorld)
 add_subdirectory(raytracing)

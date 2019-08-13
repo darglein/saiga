@@ -9,8 +9,8 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Algorithm.h"
-#include "saiga/vision/HistogramImage.h"
-#include "saiga/vision/LM.h"
+#include "saiga/vision/util/HistogramImage.h"
+#include "saiga/vision/util/LM.h"
 #include "saiga/vision/kernels/Robust.h"
 
 
