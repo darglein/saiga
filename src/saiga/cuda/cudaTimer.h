@@ -9,6 +9,8 @@
 #include "saiga/cuda/cuda.h"
 #include "saiga/cuda/event.h"
 
+#include <string>
+
 namespace Saiga
 {
 namespace CUDA

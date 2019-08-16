@@ -515,7 +515,7 @@ inline int computeERansac(Vec2* points1, Vec2* points2, int N, Mat3& bestE, SE3&
             bestT             = localBestT;
         }
     }
-    std::cout << "FivePoint Ransac finished: " << bestInliers << " Inliers" << std::endl;
+    //    std::cout << "FivePoint Ransac finished: " << bestInliers << "/" << N << " Inliers" << std::endl;
 
     return bestInliers;
 }  // namespace Saiga

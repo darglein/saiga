@@ -38,6 +38,7 @@ find_library(SAIGA_OPENGL_LIBRARY NAMES saiga_opengl PATHS @PROJECT_BINARY_DIR@/
 find_library(SAIGA_VULKAN_LIBRARY NAMES saiga_vulkan PATHS @PROJECT_BINARY_DIR@/bin)
 find_library(SAIGA_VISION_LIBRARY NAMES saiga_vision PATHS @PROJECT_BINARY_DIR@/bin)
 find_library(SAIGA_EXTRA_LIBRARY  NAMES saiga_extra  PATHS @PROJECT_BINARY_DIR@/bin)
+find_library(SAIGA_CUDA_LIBRARY   NAMES saiga_cuda   PATHS @PROJECT_BINARY_DIR@/bin)
 
 if(SAIGA_CORE_LIBRARY)
     set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_CORE_LIBRARY})
@@ -59,6 +60,9 @@ if(SAIGA_EXTRA_LIBRARY)
     set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_EXTRA_LIBRARY})
 endif()
 
+if(SAIGA_CUDA_LIBRARY)
+    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_CUDA_LIBRARY})
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
@@ -117,5 +121,6 @@ saiga_make_target(Saiga::saiga_vision "${SAIGA_VISION_LIBRARY}" SAIGA_LIBRARIES 
 saiga_make_target(Saiga::saiga_vulkan "${SAIGA_VULKAN_LIBRARY}" SAIGA_LIBRARIES "saiga_vulkan.so")
 saiga_make_target(Saiga::saiga_extra  "${SAIGA_EXTRA_LIBRARY}"  SAIGA_LIBRARIES "saiga_extra.so")
 saiga_make_target(Saiga::saiga_opengl "${SAIGA_OPENGL_LIBRARY}" SAIGA_LIBRARIES "saiga_opengl.so")
+saiga_make_target(Saiga::saiga_cuda   "${SAIGA_CUDA_LIBRARY}" SAIGA_LIBRARIES "saiga_cuda.so")
 
 

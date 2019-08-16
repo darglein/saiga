@@ -218,8 +218,9 @@ struct BruteForceMatcher
      * Filter matches by ratio test and threshold.
      * You must have used the knn2 method above before!
      */
-    void filterMatches(DistanceType threshold, float ratioThreshold)
+    int filterMatches(DistanceType threshold, float ratioThreshold)
     {
+        matches.clear();
         matches.reserve(knn2.rows());
 
         for (auto i : Range<int>(0, knn2.rows()))
@@ -235,7 +236,7 @@ struct BruteForceMatcher
 
             matches.push_back({i, knn2(i, 0).second});
         }
-        std::cout << "found " << matches.size() << " matches." << std::endl;
+        return matches.size();
     }
 
 

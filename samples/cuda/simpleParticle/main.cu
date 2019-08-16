@@ -60,9 +60,9 @@ void particleSampleThrustSaiga()
 
     for (Particle& p : particles)
     {
-        cout << p.position << " " << p.velocity << endl;
+        std::cout << p.position << " " << p.velocity << std::endl;
     }
-    cout << "done." << endl;
+    std::cout << "done." << std::endl;
 }
 
 
@@ -106,9 +106,9 @@ void particleSample()
 
     for (Particle& p : particles)
     {
-        cout << p.position << " " << p.velocity << endl;
+        std::cout << p.position << " " << p.velocity << std::endl;
     }
-    cout << "done." << endl;
+    std::cout << "done." << std::endl;
 }
 
 

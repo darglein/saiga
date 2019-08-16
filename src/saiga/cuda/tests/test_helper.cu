@@ -15,8 +15,8 @@ namespace CUDA
 PerformanceTestHelper::PerformanceTestHelper(const std::string& name, size_t bytesReadWrite)
     : name(name), bytesReadWrite(bytesReadWrite)
 {
-    cout << ">>>> Starting Test " << name << ". " << endl;
-    cout << ">>>> Total amount of memory reads and writes: " << bytesReadWrite << " bytes" << endl;
+    std::cout << ">>>> Starting Test " << name << ". " << std::endl;
+    std::cout << ">>>> Total amount of memory reads and writes: " << bytesReadWrite << " bytes" << std::endl;
     using std::left;
     using std::setw;
     std::cout << setw(40) << left << "Name" << setw(15) << left << "Time (ms)" << setw(15) << left << "Bandwidth (GB/s)"
@@ -25,7 +25,7 @@ PerformanceTestHelper::PerformanceTestHelper(const std::string& name, size_t byt
 
 PerformanceTestHelper::~PerformanceTestHelper()
 {
-    cout << ">>>> Test " << name << " finished." << endl << endl;
+    std::cout << ">>>> Test " << name << " finished." << std::endl << std::endl;
 }
 
 void PerformanceTestHelper::addMeassurement(const std::string& name, float timeMS)
@@ -33,7 +33,7 @@ void PerformanceTestHelper::addMeassurement(const std::string& name, float timeM
     using std::left;
     using std::setw;
     float bandWidth = bandwidth(timeMS);
-    std::cout << setw(40) << left << name << setw(15) << left << timeMS << setw(15) << left << bandWidth << endl;
+    std::cout << setw(40) << left << name << setw(15) << left << timeMS << setw(15) << left << bandWidth << std::endl;
 }
 
 float PerformanceTestHelper::bandwidth(float timeMS) const

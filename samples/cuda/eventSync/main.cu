@@ -96,5 +96,5 @@ int main(int argc, char* argv[])
 {
     uploadProcessDownloadAsync(1024 * 8);
 
-    cout << "Done." << endl;
+    std::cout << "Done." << std::endl;
 }

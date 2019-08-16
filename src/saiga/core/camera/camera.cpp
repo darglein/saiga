@@ -467,12 +467,12 @@ void OrthographicCamera::recalculatePlanes()
 
 
 
-std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca)
+std::ostream& operator<<(std::ostream& os, const Saiga::OrthographicCamera& ca)
 {
     os << "Type: Orthographic Camera";
     os << "Name='" << ca.name << "' left=" << ca.left << " right=" << ca.right << " bottom=" << ca.bottom
-       << " top=" << ca.top << " zNear=" << ca.zNear << " zFar=" << ca.zFar << "\n";
-    os << static_cast<const Camera&>(ca);
+       << " top=" << ca.top << " zNear=" << ca.zNear << " zFar=" << ca.zFar;
+    os << static_cast<const Saiga::Camera&>(ca);
     return os;
 }
 

@@ -127,9 +127,12 @@ void DirectionalLight::setDirection(const vec3& dir)
 
 
     mat3 m;
-    col(m, 0) = right;
-    col(m, 1) = up;
-    col(m, 2) = d;
+    m.col(0) = right;
+    m.col(1) = up;
+    m.col(2) = d;
+    //    col(m, 0) = right;
+    //    col(m, 1) = up;
+    //    col(m, 2) = d;
 
     vec3 cp = make_vec3(0);
 
@@ -140,6 +143,12 @@ void DirectionalLight::setDirection(const vec3& dir)
 
     this->shadowCamera.calculateModel();
     this->shadowCamera.updateFromModel();
+
+    //    std::cout << shadowCamera << std::endl;
+    //    std::cout << "dir: " << direction.transpose() << std::endl;
+    //    std::cout << m << std::endl;
+    //    std::cout << shadowCamera.model << std::endl;
+    //    std::cout << shadowCamera.proj << std::endl;
 }
 
 
@@ -290,13 +299,14 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
     //                orthoMin[2] ,orthoMax[2]
     //                );
 
-#    ifdef SAIGA_DEBUG1
+#    if 0
     // test if all cam vertices are in the shadow volume
     for (int i = 0; i < 8; ++i)
     {
         vec3 v = cam->vertices[i];
         vec4 p = shadowCamera.proj * shadowCamera.view * make_vec4(v, 1);
-        std::cout << p << std::endl;
+        std::cout << p.transpose() << std::endl;
+        //        for (int j = 0; j < 3; ++j) SAIGA_ASSERT(p(j) >= -1 && p(j) <= 1);
     }
 #    endif
 

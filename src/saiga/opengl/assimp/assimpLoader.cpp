@@ -8,7 +8,8 @@
 
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
 #    include "saiga/core/util/assert.h"
-#include <iostream>
+
+#    include <iostream>
 namespace Saiga
 {
 AssimpLoader::AssimpLoader(const std::string& _file) : file(_file)
@@ -48,14 +49,14 @@ void AssimpLoader::printInfo()
 {
     std::cout << ">> AssimpLoader: " << file << " ";
     std::cout << "Animations " << scene->mNumAnimations << ", Cameras " << scene->mNumCameras << ", Lights "
-         << scene->mNumLights << ", Materials " << scene->mNumMaterials << ", Meshes " << scene->mNumMeshes
-         << ", Textures " << scene->mNumTextures << std::endl;
+              << scene->mNumLights << ", Materials " << scene->mNumMaterials << ", Meshes " << scene->mNumMeshes
+              << ", Textures " << scene->mNumTextures << std::endl;
 
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
     {
         const aiMesh* mesh = scene->mMeshes[m];
         std::cout << ">>> Mesh " << m << ": Material id " << mesh->mMaterialIndex << ", Vertices " << mesh->mNumVertices
-             << ", Faces " << mesh->mNumFaces << std::endl;
+                  << ", Faces " << mesh->mNumFaces << std::endl;
     }
 
     for (unsigned int m = 0; m < scene->mNumMaterials; ++m)
@@ -81,9 +82,9 @@ void AssimpLoader::printMaterialInfo(const aiMaterial* material)
 
 
     std::cout << ">>>> Material: "
-         << "Color Diffuse (" << cd.r << " " << cd.g << " " << cd.b << "), Color Emissive (" << ce.r << " " << ce.g
-         << " " << ce.b << "), Color Specular (" << cs.r << " " << cs.g << " " << cs.b << "), Diffuse texture "
-         << texturepath.C_Str() << std::endl;
+              << "Color Diffuse (" << cd.r << " " << cd.g << " " << cd.b << "), Color Emissive (" << ce.r << " " << ce.g
+              << " " << ce.b << "), Color Specular (" << cs.r << " " << cs.g << " " << cs.b << "), Diffuse texture "
+              << texturepath.C_Str() << std::endl;
 }
 
 void AssimpLoader::loadBones()
@@ -382,7 +383,7 @@ mat4 AssimpLoader::convert(aiMatrix4x4 mat)
     {
         for (int j = 0; j < 4; ++j)
         {
-            col(ret, i)[j] = mat[j][i];
+            ret.col(i)[j] = mat[j][i];
         }
     }
     return ret;

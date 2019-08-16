@@ -119,7 +119,7 @@ void analyticDeriv(JType& JA, JType& JB)
     //    JA = -JB;
     //#endif
 
-    // ==================== Only log operator =====================\
+    // ==================== Only log operator =====================
 
     std::cout << A << std::endl;
     std::cout << A.inverse() << std::endl;

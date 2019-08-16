@@ -26,9 +26,8 @@ Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), Def
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
     ObjAssetLoader assetLoader;
 
-    //    teapot.asset = assetLoader.loadBasicAsset("models/teapot.obj");
+    teapot.asset = assetLoader.loadBasicAsset("models/teapot.obj");
     //    teapot.asset = assetLoader.loadTexturedAsset("cat.obj");
-    teapot.asset = assetLoader.loadTexturedAsset("model2/room.obj");
     teapot.translateGlobal(vec3(0, 1, 0));
     teapot.calculateModel();
 

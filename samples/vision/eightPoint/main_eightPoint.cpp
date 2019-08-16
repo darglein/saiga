@@ -12,7 +12,7 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/reconstruction/EightPoint.h"
 #include "saiga/vision/scene/Scene.h"
-#include "saiga/vision/util/Eigen_Compile_Checker.h"
+#include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/vision/util/Features.h"
 
 #include <numeric>

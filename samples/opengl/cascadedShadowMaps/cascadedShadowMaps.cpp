@@ -8,8 +8,8 @@
 
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/core/math/random.h"
+#include "saiga/opengl/shader/shaderLoader.h"
 
 Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer)
     : Updating(window), DeferredRenderingInterface(renderer)
@@ -64,6 +64,11 @@ Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer)
     sun->createShadowMap(512, 512);
     sun->enableShadows();
 
+    camera.recalculateMatrices();
+    camera.recalculatePlanes();
+
+    sun->fitShadowToCamera(&camera);
+    sun->fitNearPlaneToScene(sceneBB);
 
     std::cout << "Program Initialized!" << std::endl;
 }

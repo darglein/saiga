@@ -172,7 +172,10 @@ HD inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a)
     return ucvec4(v(0), v(1), v(2), a);
 }
 
-
+HD inline float degrees(float a)
+{
+    return a * 180.0 / pi<float>();
+}
 
 HD inline float radians(float a)
 {
@@ -255,10 +258,16 @@ HD inline T normalize(const T& v)
     return v.normalized();
 }
 
-HD inline vec3 col(const mat3& m, int id)
+HD inline auto col(const mat3& m, int id)
 {
     return m.col(id);
 }
+
+HD inline auto col(mat3& m, int id)
+{
+    return m.col(id);
+}
+
 HD inline auto col(mat4& m, int id)
 {
     return m.col(id);
@@ -479,6 +488,11 @@ HD inline mat4 make_mat4(const quat& q)
     return make_mat4(q.matrix());
 }
 
+HD inline mat3 make_mat3(const quat& q)
+{
+    return q.matrix();
+}
+
 HD inline quat make_quat(float x, float y, float z, float w)
 {
     // Eigen quats are stored as (x,y,z,w), but the constructor is (w,x,y,z)
@@ -515,7 +529,7 @@ HD inline quat mix(const quat& a, const quat& b, float alpha)
 }
 HD inline quat quat_cast(const mat3& m)
 {
-    return quat(m);
+    return quat(m).normalized();
 }
 HD inline quat quat_cast(const mat4& m)
 {

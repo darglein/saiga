@@ -49,10 +49,10 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
 
 quat Object3D::getSimpleDirectionQuat(const vec3& dir)
 {
-    mat4 rotmat    = identityMat4();
-    col(rotmat, 0) = make_vec4(normalize(cross(dir, vec3(0, 1, 0))), 0);
-    col(rotmat, 1) = make_vec4(0, 1, 0, 0);
-    col(rotmat, 2) = make_vec4(-dir, 0);
+    mat4 rotmat   = identityMat4();
+    rotmat.col(0) = make_vec4(normalize(cross(dir, vec3(0, 1, 0))), 0);
+    rotmat.col(1) = make_vec4(0, 1, 0, 0);
+    rotmat.col(2) = make_vec4(-dir, 0);
 
     return normalize(make_quat(rotmat));
 }
@@ -68,7 +68,8 @@ Object3D Object3D::interpolate(const Object3D& a, const Object3D& b, float alpha
 
 std::ostream& operator<<(std::ostream& os, const Saiga::Object3D& o)
 {
-    os << "Object3D (P/R/S): " << o.position << " " << o.rot << " " << o.scale;
+    os << "Object3D (P/R/S): " << o.position.transpose() << " " << o.rot.coeffs().transpose() << " "
+       << o.scale.transpose();
     return os;
 }
 

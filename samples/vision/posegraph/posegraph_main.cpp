@@ -15,7 +15,7 @@
 #include "saiga/vision/scene/BALDataset.h"
 #include "saiga/vision/scene/PoseGraph.h"
 #include "saiga/vision/scene/SynteticScene.h"
-#include "saiga/vision/util/Eigen_Compile_Checker.h"
+#include "saiga/core/math/Eigen_Compile_Checker.h"
 
 #include <fstream>
 using namespace Saiga;

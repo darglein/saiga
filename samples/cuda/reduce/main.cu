@@ -52,7 +52,7 @@ static void reduceTest()
         // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(data.begin(), data.end());
-        cout << "warpReduceSimple=" <<  res << ", thrust::reduce=" << tres << endl;
+        std::cout << "warpReduceSimple=" <<  res << ", thrust::reduce=" << tres << std::endl;
         SAIGA_ASSERT(res == tres);
     }
 }
@@ -60,7 +60,7 @@ static void reduceTest()
 int main(int argc, char* argv[])
 {
     reduceTest();
-    cout << "Done." << endl;
+    std::cout << "Done." << std::endl;
 }
 
 #else
@@ -188,7 +188,7 @@ static void reduceTest()
         // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(data.begin(), data.end());
-        cout << "warpReduceSimple=" <<  res << ", thrust::reduce=" << tres << endl;
+        std::cout << "warpReduceSimple=" <<  res << ", thrust::reduce=" << tres << std::endl;
         SAIGA_ASSERT(res == tres);
     }
 
@@ -202,7 +202,7 @@ static void reduceTest()
         // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(data.begin(), data.end());
-        cout << "blockReduceSimple=" <<  res << ", thrust::reduce=" << tres << endl;
+        std::cout << "blockReduceSimple=" <<  res << ", thrust::reduce=" << tres << std::endl;
         SAIGA_ASSERT(res == tres);
     }
 
@@ -214,7 +214,7 @@ static void reduceTest()
         // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(d_data.begin(), d_data.end());
-        cout << "globalReduceSimple=" <<  res << ", thrust::reduce=" << tres << endl;
+        std::cout << "globalReduceSimple=" <<  res << ", thrust::reduce=" << tres << std::endl;
         SAIGA_ASSERT(res == tres);
     }
 
@@ -229,7 +229,7 @@ static void reduceTest()
         particles[100] = test;
 
         Particle p = thrust::reduce(particles.begin(), particles.end(), Particle(), MaxRadius());
-        cout << "Max radius = " << p.radius << endl;
+        std::cout << "Max radius = " << p.radius << std::endl;
 
         SAIGA_ASSERT(test.radius == p.radius);
     }
@@ -238,7 +238,7 @@ static void reduceTest()
 int main(int argc, char* argv[])
 {
     reduceTest();
-    cout << "Done." << endl;
+    std::cout << "Done." << std::endl;
 }
 
 #endif

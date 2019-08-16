@@ -41,9 +41,12 @@ void OBB::fitToPoints(int axis, vec3* points, int count)
 
 void OBB::normalize2()
 {
-    col(orientationScale, 0) = normalize(col(orientationScale, 0));
-    col(orientationScale, 1) = normalize(col(orientationScale, 1));
-    col(orientationScale, 2) = normalize(col(orientationScale, 2));
+    orientationScale.col(0).normalize();
+    orientationScale.col(1).normalize();
+    orientationScale.col(2).normalize();
+    //    col(orientationScale, 0) = normalize(col(orientationScale, 0));
+    //    col(orientationScale, 1) = normalize(col(orientationScale, 1));
+    //    col(orientationScale, 2) = normalize(col(orientationScale, 2));
 }
 
 }  // namespace Saiga

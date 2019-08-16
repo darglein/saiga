@@ -99,12 +99,12 @@ static void intraBlockTest(int N)
 
     thrust::host_vector<int> data = d_blockTmp;
 
-    for (auto i : data) cout << i << endl;
+    for (auto i : data) std::cout << i << std::endl;
 }
 
 int main(int argc, char* argv[])
 {
     intraBlockTest(1024 * 2);
 
-    cout << "Done." << endl;
+    std::cout << "Done." << std::endl;
 }

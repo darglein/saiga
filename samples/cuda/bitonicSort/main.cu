@@ -101,7 +101,7 @@ static void bitonicSortTest()
     Saiga::Table table({6, 7, 7});
 
     {
-        cout << "Full warp sort (width = 32)" << endl;
+        std::cout << "Full warp sort (width = 32)" << std::endl;
         table << "Id"
               << "Before"
               << "After";
@@ -115,7 +115,7 @@ static void bitonicSortTest()
     }
 
     {
-        cout << "Partial warp sort (width = 8)" << endl;
+        std::cout << "Partial warp sort (width = 8)" << std::endl;
         table << "Id"
               << "Before"
               << "After";
@@ -133,5 +133,5 @@ int main(int argc, char* argv[])
 {
     bitonicSortTest();
 
-    cout << "Done." << endl;
+    std::cout << "Done." << std::endl;
 }

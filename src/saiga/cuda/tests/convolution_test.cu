@@ -24,7 +24,7 @@ static void checkRes(ImageView<float> ref, ImageView<float> dst)
 #else
             if (std::abs(dst(y, x) - ref(y, x)) > 1e-5)
             {
-                cout << "error (" << x << "," << y << ") " << dst(y, x) << "!=" << ref(y, x) << endl;
+                std::cout << "error (" << x << "," << y << ") " << dst(y, x) << "!=" << ref(y, x) << std::endl;
                 SAIGA_ASSERT(0);
             }
 #endif

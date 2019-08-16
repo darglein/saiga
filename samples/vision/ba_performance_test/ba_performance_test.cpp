@@ -10,7 +10,7 @@
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/scene/BALDataset.h"
-#include "saiga/vision/util/Eigen_Compile_Checker.h"
+#include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 #include "saiga/vision/recursive/BAPoseOnly.h"

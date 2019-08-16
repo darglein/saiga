@@ -19,8 +19,9 @@ struct Intrinsics4Base
     using Vec2 = Eigen::Matrix<T, 2, 1>;
     using Mat3 = Eigen::Matrix<T, 3, 3>;
 
-    T fx, fy;
-    T cx, cy;
+    // Initialized to the identity "matrix"
+    T fx = 1, fy = 1;
+    T cx = 0, cy = 0;
 
     Intrinsics4Base() {}
     Intrinsics4Base(T fx, T fy, T cx, T cy) : fx(fx), fy(fy), cx(cx), cy(cy) {}

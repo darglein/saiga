@@ -188,7 +188,7 @@ class SAIGA_CORE_API PerspectiveCamera : public Camera
     float tang;
     PerspectiveCamera() {}
     void setProj(float fovy, float aspect, float zNear, float zFar, bool vulkanTransform = false);
-    friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
 
     void imgui();
     virtual void recomputeProj() override;
@@ -205,7 +205,7 @@ class SAIGA_CORE_API OrthographicCamera : public Camera
     void setProj(float left, float right, float bottom, float top, float near, float far);
     void setProj(AABB bb);
 
-    friend std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca);
 
     void imgui();
     virtual void recomputeProj() override;

@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/text/all.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/encoding.h"
+#include "saiga/opengl/text/all.h"
 
 namespace Saiga
 {
@@ -32,11 +32,11 @@ void Text::calculateNormalizationMatrix()
         //        float height = boundingBox.max[1] - boundingBox.min[1];
         float height = 1.0f;
 
-        vec3 offset                    = boundingBox.getPosition();
-        col(normalizationMatrix, 0)[0] = 1.0f / height;
-        col(normalizationMatrix, 1)[1] = 1.0f / height;
-        col(normalizationMatrix, 2)[2] = 1.0f / height;
-        col(normalizationMatrix, 3)    = make_vec4(-offset * 1.0f / height, 1);
+        vec3 offset                   = boundingBox.getPosition();
+        normalizationMatrix.col(0)[0] = 1.0f / height;
+        normalizationMatrix.col(1)[1] = 1.0f / height;
+        normalizationMatrix.col(2)[2] = 1.0f / height;
+        normalizationMatrix.col(3)    = make_vec4(-offset * 1.0f / height, 1);
         boundingBox.transform(normalizationMatrix);
     }
     else
@@ -138,7 +138,8 @@ void Text::updateGLBuffer(int start, bool resize)
     }
     else
     {
-        //        std::cout<<"Text::updateGLBuffer "<<"start="<<start << " " << mesh.vertices.size() << " " << (size-start)*4
+        //        std::cout<<"Text::updateGLBuffer "<<"start="<<start << " " << mesh.vertices.size() << " " <<
+        //        (size-start)*4
         //        << std::endl; mesh.updateVerticesInBuffer(buffer,(size-start)*4,start*4);
         buffer.updateFromMesh(mesh, (size - start) * 4, start * 4);
     }
@@ -207,7 +208,8 @@ void Text::addTextToMesh(const utf32string& text, vec2 offset)
 
         vec3 bufferPosition = vec3(position[0] + info.offset[0], position[1] + info.offset[1], 0);
 
-        //        std::cout << "bufferPosition '"<<(char)c<<"' " << bufferPosition << " " << info.offset[1] << std::endl;
+        //        std::cout << "bufferPosition '"<<(char)c<<"' " << bufferPosition << " " << info.offset[1] <<
+        //        std::endl;
 
         // bottom left
         verts[0] = VertexNT(bufferPosition, vec3(0, 0, 1), vec2(info.tcMin[0], info.tcMax[1]));

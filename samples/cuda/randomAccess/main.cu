@@ -214,7 +214,7 @@ void randomAccessTest2(int numIndices, int numElements)
     }
 
 
-    outstrm << endl;
+    outstrm << std::endl;
     return;
 }
 
@@ -225,7 +225,7 @@ int main(int argc, char* argv[])
     //    cudaDeviceSetCacheConfig(cudaFuncCachePreferShared);
 
     outstrm.open("out.csv");
-    outstrm << "size,simple,cr,ldg,texture" << endl;
+    outstrm << "size,simple,cr,ldg,texture" << std::endl;
 
 #ifdef LECTURE
     int start = 8;

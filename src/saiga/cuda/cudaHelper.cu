@@ -154,15 +154,15 @@ void initCUDA()
     int driverVersion;
     cudaDriverGetVersion(&driverVersion);
 
-    cout << "CUDA Runtime Version: " << runtimeVersion << endl;
-    cout << "CUDA Driver Version: " << driverVersion << endl;
+    std::cout << "CUDA Runtime Version: " << runtimeVersion << std::endl;
+    std::cout << "CUDA Driver Version: " << driverVersion << std::endl;
 
 #ifdef CUDA_DEBUG
     bool cudadebug = true;
 #else
     bool cudadebug = false;
 #endif
-    cout << "CUDA DEBUG = " << cudadebug << endl;
+    std::cout << "CUDA DEBUG = " << cudadebug << std::endl;
 
     int deviceCount;
     CHECK_CUDA_ERROR(cudaGetDeviceCount(&deviceCount));
@@ -177,39 +177,39 @@ void initCUDA()
     cudaDeviceProp deviceProp;
     CHECK_CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, devID));
     /* Statistics about the GPU device */
-    cout << "Device Properties for CUDA device: " << devID << endl;
-    cout << "  Device name: " << deviceProp.name << endl;
-    cout << "  Compute capabilities: " << deviceProp.major << "." << deviceProp.minor << endl;
-    cout << "  Global Memory: " << deviceProp.totalGlobalMem << endl;
-    cout << "  Shared Memory Per Block: " << deviceProp.sharedMemPerBlock << endl;
-    cout << "  Shared Memory Per SM: " << deviceProp.sharedMemPerMultiprocessor << endl;
-    cout << "  Constant Memory: " << deviceProp.totalConstMem << endl;
-    cout << "  Warp Size: " << deviceProp.warpSize << endl;
-    cout << "  Max Threads per Block: " << deviceProp.maxThreadsPerBlock << endl;
-    cout << "  Max Threads per Multi Processor: " << deviceProp.maxThreadsPerMultiProcessor << endl;
-    cout << "  32-Bit Registers per Block: " << deviceProp.regsPerBlock << endl;
-    cout << "  32-Bit Registers per SM: " << deviceProp.regsPerMultiprocessor << endl;
-    cout << "  L2 cache size: " << deviceProp.l2CacheSize << endl;
-    cout << "  Multi-Processors: " << deviceProp.multiProcessorCount << endl;
-    cout << "  Memory Clock Rate (KHz): " << deviceProp.memoryClockRate << endl;
-    cout << "  Memory Bus Width (bits): " << deviceProp.memoryBusWidth << endl;
+    std::cout << "Device Properties for CUDA device: " << devID << std::endl;
+    std::cout << "  Device name: " << deviceProp.name << std::endl;
+    std::cout << "  Compute capabilities: " << deviceProp.major << "." << deviceProp.minor << std::endl;
+    std::cout << "  Global Memory: " << deviceProp.totalGlobalMem << std::endl;
+    std::cout << "  Shared Memory Per Block: " << deviceProp.sharedMemPerBlock << std::endl;
+    std::cout << "  Shared Memory Per SM: " << deviceProp.sharedMemPerMultiprocessor << std::endl;
+    std::cout << "  Constant Memory: " << deviceProp.totalConstMem << std::endl;
+    std::cout << "  Warp Size: " << deviceProp.warpSize << std::endl;
+    std::cout << "  Max Threads per Block: " << deviceProp.maxThreadsPerBlock << std::endl;
+    std::cout << "  Max Threads per Multi Processor: " << deviceProp.maxThreadsPerMultiProcessor << std::endl;
+    std::cout << "  32-Bit Registers per Block: " << deviceProp.regsPerBlock << std::endl;
+    std::cout << "  32-Bit Registers per SM: " << deviceProp.regsPerMultiprocessor << std::endl;
+    std::cout << "  L2 cache size: " << deviceProp.l2CacheSize << std::endl;
+    std::cout << "  Multi-Processors: " << deviceProp.multiProcessorCount << std::endl;
+    std::cout << "  Memory Clock Rate (KHz): " << deviceProp.memoryClockRate << std::endl;
+    std::cout << "  Memory Bus Width (bits): " << deviceProp.memoryBusWidth << std::endl;
 
     // In this calculation, we convert the memory clock rate to Hz,
     // multiply it by the interface width (divided by 8, to convert bits to bytes)
     // and multiply by 2 due to the double data rate. Finally, we divide by 109 to convert the result to GB/s.
     double clockRateHz = deviceProp.memoryClockRate * 1000.0;
-    cout << "  Theoretical Memory Bandwidth (GB/s): " << 2.0 * clockRateHz * (deviceProp.memoryBusWidth / 8) / 1.0e9
-         << endl;
+    std::cout << "  Theoretical Memory Bandwidth (GB/s): " << 2.0 * clockRateHz * (deviceProp.memoryBusWidth / 8) / 1.0e9
+         << std::endl;
 
 
-    cout << "  32-Bit Registers per Thread (100% Occ): "
-         << deviceProp.regsPerBlock / deviceProp.maxThreadsPerMultiProcessor << endl;
-    cout << "  Shared Memory per Thread (100% Occ): "
-         << deviceProp.sharedMemPerBlock / deviceProp.maxThreadsPerMultiProcessor << endl;
-    cout << "  32-Bit Shared Memory elements per Thread (100% Occ): "
-         << deviceProp.sharedMemPerBlock / deviceProp.maxThreadsPerMultiProcessor / 4 << endl;
+    std::cout << "  32-Bit Registers per Thread (100% Occ): "
+         << deviceProp.regsPerBlock / deviceProp.maxThreadsPerMultiProcessor << std::endl;
+    std::cout << "  Shared Memory per Thread (100% Occ): "
+         << deviceProp.sharedMemPerBlock / deviceProp.maxThreadsPerMultiProcessor << std::endl;
+    std::cout << "  32-Bit Shared Memory elements per Thread (100% Occ): "
+         << deviceProp.sharedMemPerBlock / deviceProp.maxThreadsPerMultiProcessor / 4 << std::endl;
 
-    cout << endl;
+    std::cout << std::endl;
 }
 
 void destroyCUDA()

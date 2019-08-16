@@ -72,7 +72,7 @@ void randomTest()
     size_t readWrites = N * sizeof(curandState);
 
     CUDA::PerformanceTestHelper pth("curand", readWrites);
-    cout << "sizeof(curandState)=" << sizeof(curandState) << endl;
+    std::cout << "sizeof(curandState)=" << sizeof(curandState) << std::endl;
 
     thrust::device_vector<curandState> states(N);
 

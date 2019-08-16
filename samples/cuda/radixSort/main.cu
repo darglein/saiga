@@ -104,7 +104,7 @@ static void radixSortTest()
     }
     d_data = h_data;
     {
-        cout << "Sorting " << N << " elements..." << endl;
+        std::cout << "Sorting " << N << " elements..." << std::endl;
         radixSort(d_data);
     }
     res = d_data;
@@ -114,11 +114,11 @@ static void radixSortTest()
     res2 = d_data;
 
     SAIGA_ASSERT(res == res2);
-    cout << "Success! All elements are in the correct order!" << endl;
+    std::cout << "Success! All elements are in the correct order!" << std::endl;
 }
 
 int main(int argc, char* argv[])
 {
     radixSortTest();
-    cout << "Done." << endl;
+    std::cout << "Done." << std::endl;
 }

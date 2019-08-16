@@ -14,6 +14,10 @@
 #include <string>
 #include <vector>
 
+#ifdef SAIGA_HAS_STRING_VIEW
+#    include <string_view>
+#endif
+
 #if 0 && __has_include(<charconv> )
 #    include <charconv>
 #    define SAIGA_USE_SV_CONV
@@ -97,34 +101,38 @@ inline float to_float(const std::string& str)
 {
     return std::atof(str.c_str());
 }
-// inline double to_double(const std::string& str)
-//{
-//    return std::atof(str.c_str());
-//}
+
 inline int to_int(const std::string& str)
 {
     return std::atoi(str.c_str());
 }
-// inline long int to_long(const std::string& str)
-//{
-//    return std::atol(str.c_str());
-//}
 
+#ifdef SAIGA_HAS_STRING_VIEW
 inline double to_double(const std::string_view& str)
 {
-#if 0
+#    if 0
     double d;
     std::from_chars(str.data(),str.data()+str.size(),d);
     return d;
-#else
+#    else
     return std::atof(std::string(str).c_str());
-#endif
+#    endif
 }
 
 inline double to_long(const std::string_view& str)
 {
     return std::atol(std::string(str).c_str());
 }
+#else
+inline double to_double(const std::string& str)
+{
+    return std::atof(str.c_str());
+}
+inline long int to_long(const std::string& str)
+{
+    return std::atol(str.c_str());
+}
+#endif
 
 template <typename T>
 struct FromStringConverter
@@ -212,7 +220,7 @@ SAIGA_CORE_API std::string sizeToString(size_t size, size_t base = 1024, size_t 
                                         std::streamsize precision = 1);
 
 
-
+#ifdef SAIGA_HAS_STRING_VIEW
 struct SAIGA_TEMPLATE StringViewParser
 {
     StringViewParser(std::string_view delims = " ,\n", bool allowDoubleDelims = true)
@@ -260,5 +268,6 @@ struct SAIGA_TEMPLATE StringViewParser
         return false;
     }
 };
+#endif
 
 }  // namespace Saiga

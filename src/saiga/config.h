@@ -102,6 +102,11 @@
 #    endif
 #endif
 
+#ifdef __CUDACC__
+#else
+#    define SAIGA_HAS_STRING_VIEW
+#endif
+
 #define WARP_SIZE 32
 #define L1_CACHE_LINE_SIZE 128
 #define L2_CACHE_LINE_SIZE 32

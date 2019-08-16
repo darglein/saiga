@@ -76,6 +76,10 @@ struct SAIGA_VISION_API EigenCompileFlags
 /**
  * The eigen compile flags saiga was compiled with.
  * This should mach the applications flags to ensure compabitility
+ *
+ * Usage (just add this line to the beginning of your main():
+ *
+ * Saiga::EigenHelper::checkEigenCompabitilty<23598615>();
  */
 SAIGA_VISION_API EigenCompileFlags getSaigaEigenCompileFlags();
 

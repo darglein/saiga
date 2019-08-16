@@ -247,7 +247,7 @@ void memcpyTest()
             cudaMemcpy(dest.data().get(), src.data().get(), N * sizeof(int), cudaMemcpyDeviceToDevice);
         }
         double bandwidth = readWrites / t / (1000 * 1000);
-        cout << "Time: " << t << " ms,   Bandwidth: " << bandwidth << " GB/s" << endl;
+        std::cout << "Time: " << t << " ms,   Bandwidth: " << bandwidth << " GB/s" << std::endl;
     }
 
     Saiga::CUDA::PerformanceTestHelper pth("Memcpy", readWrites);

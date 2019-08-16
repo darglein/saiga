@@ -98,8 +98,8 @@ void TextOverlay3D::renderText(Camera* cam, float interpolationInSeconds)
     textShader->bind();
 
 
-    mat4 v    = cam->model;
-    col(v, 3) = vec4(0, 0, 0, 1);
+    mat4 v   = cam->model;
+    v.col(3) = vec4(0, 0, 0, 1);
 
 
     for (TextContainer& p : texts)
