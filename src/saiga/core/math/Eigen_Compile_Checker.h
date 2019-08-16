@@ -8,7 +8,8 @@
 
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/vision/VisionIncludes.h"
+
+#include <iostream>
 namespace Saiga
 {
 namespace EigenHelper
