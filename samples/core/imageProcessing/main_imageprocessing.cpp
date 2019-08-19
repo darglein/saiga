@@ -5,7 +5,8 @@
  */
 
 #include "saiga/core/Core.h"
-
+#include "saiga/core/image/ImageDraw.h"
+#include "saiga/core/math/random.h"
 using namespace Saiga;
 
 void test16BitLoadStore()
@@ -50,6 +51,43 @@ void testScaleLinear()
     }
 }
 
+void testDraw()
+{
+    int w = 512;
+    int h = 512;
+
+
+    TemplatedImage<ucvec3> img(h, w);
+    auto iv = img.getImageView();
+
+
+    iv.set(ucvec3(0, 0, 0));
+
+    std::vector<vec2> points;
+    for (int i = 0; i < 100; ++i)
+    {
+        points.push_back(linearRand(vec2(0, 0), vec2(h, w)));
+    }
+
+    // draw random line between points
+    for (int i = 0; i < 100; ++i)
+    {
+        auto a = Random::uniformInt(0, points.size() - 1);
+        auto b = Random::uniformInt(0, points.size() - 1);
+        ImageDraw::drawLineBresenham(iv, points[a], points[b], ucvec3(255, 0, 0));
+    }
+
+    for (auto p : points)
+    {
+        if (Random::sampleDouble(0, 1) < 0.5)
+            ImageDraw::drawCircle(iv, p, 5, ucvec3(0, 255, 0));
+        else
+            ImageDraw::drawCircleBresenham(iv, p, 5, ucvec3(0, 0, 255));
+    }
+
+
+    img.save("testDraw.png");
+}
 
 int main(int argc, char* argv[])
 {
@@ -61,6 +99,8 @@ int main(int argc, char* argv[])
 
     initSaiga(sp);
 
+
+    testDraw();
     //    test16BitLoadStore();
 
     testScaleLinear();

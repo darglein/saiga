@@ -5,58 +5,9 @@
  */
 
 #include "saiga/core/Core.h"
-
+#include "saiga/core/image/ImageDraw.h"
 using namespace Saiga;
 
-template <typename T, typename S>
-void drawLineBresenham(ImageView<T> img, vec2 start, vec2 end, S color)
-{
-    // Source
-    // https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C
-    int x0 = round(start[0]);
-    int y0 = round(start[1]);
-    int x1 = round(end[0]);
-    int y1 = round(end[1]);
-
-    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    int dy = abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-    int err = (dx > dy ? dx : -dy) / 2, e2;
-
-    for (;;)
-    {
-        img.clampedWrite(y0, x0, color);
-        if (x0 == x1 && y0 == y1) break;
-        e2 = err;
-        if (e2 > -dx)
-        {
-            err -= dy;
-            x0 += sx;
-        }
-        if (e2 < dy)
-        {
-            err += dx;
-            y0 += sy;
-        }
-    }
-}
-
-
-
-template <typename T, typename S>
-void drawCircle(ImageView<T> img, vec2 position, float radius, S color)
-{
-    for (int dy = -radius; dy <= radius; ++dy)
-    {
-        for (int dx = -radius; dx <= radius; ++dx)
-        {
-            float distance = length(vec2(dx, dy));
-            if (distance > radius) continue;
-            int px = position[0] + dx;
-            int py = position[1] + dy;
-            img.clampedWrite(py, px, color);
-        }
-    }
-}
 
 
 float halton(int index, int base)
@@ -96,7 +47,7 @@ int main(int argc, char* args[])
         // assuming p is in [0,1]
         //        p = p * vec2(iw, ih);
         p = ele_mult(p, make_vec2(iw, ih));
-        drawCircle(img.getImageView(), p, 4, 255);
+        ImageDraw::drawCircle(img.getImageView(), p, 4, 255);
     };
 
 
