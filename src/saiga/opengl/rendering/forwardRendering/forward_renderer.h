@@ -31,7 +31,7 @@ struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
 {
 };
 
-class SAIGA_OPENGL_API Forward_Renderer : public Renderer
+class SAIGA_OPENGL_API Forward_Renderer : public OpenGLRenderer
 {
    public:
     ForwardRenderingParameters params;
@@ -40,7 +40,7 @@ class SAIGA_OPENGL_API Forward_Renderer : public Renderer
     virtual ~Forward_Renderer() {}
 
     virtual float getTotalRenderTime() override { return timer.getTimeMS(); }
-    virtual void render(Camera* cam) override;
+    virtual void render(const RenderInfo& renderInfo) override;
 
    private:
     FilteredMultiFrameOpenGLTimer timer;

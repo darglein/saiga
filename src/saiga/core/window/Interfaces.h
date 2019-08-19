@@ -7,14 +7,23 @@
 #pragma once
 
 #include "saiga/config.h"
-
-
+#include "saiga/core/camera/camera.h"
 
 namespace Saiga
 {
 class Camera;
 class WindowBase;
 class RenderingInterfaceBase;
+
+/**
+ * This struct is passed to the renderers.
+ */
+struct RenderInfo
+{
+    std::vector<std::pair<Camera*, ViewPort>> cameras;
+    explicit operator bool() const { return !cameras.empty(); }
+};
+
 /**
  * Base class of all render engines.
  * This includes the deferred and forward OpenGL engines
@@ -39,8 +48,7 @@ class SAIGA_CORE_API RendererBase
     virtual float getTotalRenderTime() { return 0; }
 
     virtual void resize(int windowWidth, int windowHeight) {}
-    virtual void render(Camera* cam)     = 0;
-    virtual void bindCamera(Camera* cam) = 0;
+    virtual void render(const RenderInfo& renderInfo) = 0;
 };
 
 /**

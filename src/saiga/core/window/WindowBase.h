@@ -7,16 +7,14 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/camera/camera.h"
 #include "saiga/core/geometry/ray.h"
 
 #include "Interfaces.h"
 #include "MainLoop.h"
 #include "windowParameters.h"
-
 namespace Saiga
 {
-class Camera;
-
 class SAIGA_CORE_API WindowBase : public MainLoopInterface
 {
    public:
@@ -42,9 +40,19 @@ class SAIGA_CORE_API WindowBase : public MainLoopInterface
     int getWidth() const { return windowParameters.width; }
     int getHeight() const { return windowParameters.height; }
     float getAspectRatio() const { return (float)windowParameters.width / (float)windowParameters.height; }
-    Camera* getCamera() const { return currentCamera; }
     std::string getName() const { return windowParameters.name; }
-    void setCamera(Camera* c) { currentCamera = c; }
+
+    // these functions are only valid in single camera mode
+    Camera* getCamera() const { return activeCameras.empty() ? nullptr : activeCameras.front().first; }
+    void setCamera(Camera* c)
+    {
+        activeCameras.resize(1);
+        activeCameras.front() = {c, ViewPort({0, 0}, {getWidth(), getHeight()})};
+    }
+
+    // set up multi camera
+    void setMultiCamera(const std::vector<std::pair<Camera*, ViewPort>>& cameras) { activeCameras = cameras; }
+
     RendererBase* getRenderer() const { return renderer; }
 
     void setUpdateObject(Updating& u) { updating = &u; }
@@ -65,7 +73,10 @@ class SAIGA_CORE_API WindowBase : public MainLoopInterface
     bool running = false;
     WindowParameters windowParameters;
 
-    Camera* currentCamera  = nullptr;
+    // all these cameras will be rendered
+    std::vector<std::pair<Camera*, ViewPort>> activeCameras;
+
+    //    Camera* currentCamera  = nullptr;
     bool showImgui         = true;
     RendererBase* renderer = nullptr;
     Updating* updating     = nullptr;

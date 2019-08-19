@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/core/image/imageView.h"
-#include "saiga/extra/opencv/OpenCV_GLM.h"
 #include "saiga/core/math/math.h"
+#include "saiga/extra/opencv/OpenCV_GLM.h"
 
 #include "opencv2/opencv.hpp"
 
@@ -53,9 +53,8 @@ inline cv::Mat ImageViewToMat(ImageView<T> img)
 SAIGA_EXTRA_API inline mat3 scaleK(mat3 K, float scale)
 {
     K *= scale;
-    col(K,2)[2] = 1;
+    col(K, 2)[2] = 1;
     return K;
 }
-
 
 }  // namespace Saiga

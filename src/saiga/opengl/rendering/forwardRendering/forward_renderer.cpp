@@ -13,17 +13,20 @@
 namespace Saiga
 {
 Forward_Renderer::Forward_Renderer(OpenGLWindow& window, const ForwardRenderingParameters& params)
-    : Renderer(window), params(params)
+    : OpenGLRenderer(window), params(params)
 {
     timer.create();
 }
 
-void Forward_Renderer::render(Camera* cam)
+void Forward_Renderer::render(const RenderInfo& renderInfo)
 {
     if (!rendering) return;
 
+
     SAIGA_ASSERT(rendering);
-    SAIGA_ASSERT(cam);
+    SAIGA_ASSERT(renderInfo);
+
+    auto camera = renderInfo.cameras.front().first;
 
     ForwardRenderingInterface* renderingInterface = dynamic_cast<ForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
@@ -35,8 +38,8 @@ void Forward_Renderer::render(Camera* cam)
     if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
 
 
-    cam->recalculatePlanes();
-    bindCamera(cam);
+    camera->recalculatePlanes();
+    bindCamera(camera);
 
 
     glEnable(GL_CULL_FACE);
@@ -46,7 +49,7 @@ void Forward_Renderer::render(Camera* cam)
     glDepthMask(GL_TRUE);
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    renderingInterface->renderOverlay(cam);
+    renderingInterface->renderOverlay(camera);
 
 
     glEnable(GL_BLEND);
@@ -58,7 +61,7 @@ void Forward_Renderer::render(Camera* cam)
         SAIGA_ASSERT(ImGui::GetCurrentContext());
         imgui->beginFrame();
     }
-    renderingInterface->renderFinal(cam);
+    renderingInterface->renderFinal(camera);
     if (imgui)
     {
         imgui->endFrame();

@@ -28,7 +28,7 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
     std::shared_ptr<DirectionalLight> sun;
     std::shared_ptr<Texture> t;
 
-    Sample(OpenGLWindow& window, Renderer& renderer);
+    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
 
     void update(float dt) override;
     void interpolate(float dt, float interpolation) override;

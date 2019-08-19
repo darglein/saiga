@@ -80,8 +80,8 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
 
 
-    virtual void render(Camera*) override;
-    virtual void bindCamera(Camera*) override {}
+    virtual void render(const RenderInfo& renderInfo) override;
+
     virtual float getTotalRenderTime() override;
 
     void renderImGui(bool* p_open) override;

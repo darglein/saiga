@@ -82,7 +82,7 @@ void VulkanRenderer::init()
     state = State::RENDERABLE;
 }
 
-void VulkanRenderer::render(Camera*)
+void VulkanRenderer::render(const RenderInfo &renderInfo)
 {
     if (state == State::RESET)
     {

@@ -11,7 +11,7 @@
 #include "saiga/core/math/random.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
-Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer)
+Sample::Sample(Saiga::OpenGLWindow& window, Saiga::OpenGLRenderer& renderer)
     : Updating(window), DeferredRenderingInterface(renderer)
 {
     // create a perspective camera

@@ -10,7 +10,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
-Sample::Sample(OpenGLWindow& window, Renderer& renderer)
+Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer)
     : Updating(window), ForwardRenderingInterface(renderer), tdo(window.getWidth(), window.getHeight())
 {
     window.setCamera(&camera);
@@ -67,7 +67,7 @@ void Sample::renderFinal(Camera* cam)
     tdo.layout.cam.recalculateMatrices();
     tdo.layout.cam.recalculatePlanes();
 
-    parentWindow.getRenderer()->bindCamera(&tdo.layout.cam);
+    static_cast<OpenGLRenderer*>(parentWindow.getRenderer())->bindCamera(&tdo.layout.cam);
     tdo.render();
 }
 

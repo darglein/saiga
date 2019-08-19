@@ -12,7 +12,7 @@ namespace Saiga
 {
 class Camera;
 class OpenGLWindow;
-class Renderer;
+class OpenGLRenderer;
 
 
 

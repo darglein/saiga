@@ -42,7 +42,7 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
     bool pointLightShadows = false;
 
 
-    Sample(OpenGLWindow& window, Renderer& renderer);
+    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
     ~Sample();
 
     void update(float dt) override;

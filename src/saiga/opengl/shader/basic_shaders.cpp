@@ -65,7 +65,7 @@ void FBShader::uploadFramebuffer(Framebuffer* fb)
 void DeferredShader::checkUniforms()
 {
     MVPShader::checkUniforms();
-    location_screen_size = getUniformLocation("screen_size");
+    location_viewPort = getUniformLocation("viewPort");
 
     location_texture_diffuse = getUniformLocation("deferred_diffuse");
     location_texture_normal  = getUniformLocation("deferred_normal");

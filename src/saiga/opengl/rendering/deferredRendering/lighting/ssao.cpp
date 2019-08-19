@@ -9,8 +9,8 @@
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/image/imageGenerator.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/core/math/random.h"
+#include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
 {
@@ -113,7 +113,7 @@ void SSAO::clearSSAO()
     ssao_framebuffer2.unbind();
 }
 
-void SSAO::render(Camera* cam, GBuffer* gbuffer)
+void SSAO::render(Camera* cam, const ViewPort& vp, GBuffer* gbuffer)
 {
     glViewport(0, 0, ssaoSize[0], ssaoSize[1]);
     ssao_framebuffer.bind();
@@ -122,7 +122,7 @@ void SSAO::render(Camera* cam, GBuffer* gbuffer)
     ssaoShader->bind();
 
     //    gbuffer->clampToEdge();
-    ssaoShader->uploadScreenSize(screenSize);
+    ssaoShader->uploadScreenSize(vp.getVec4());
     ssaoShader->uploadFramebuffer(gbuffer);
     ssaoShader->uploadRandomImage(randomTexture);
     ssaoShader->uploadData();

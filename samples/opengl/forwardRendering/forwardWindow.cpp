@@ -12,7 +12,7 @@
 #include "saiga/core/math/random.h"
 
 
-Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), ForwardRenderingInterface(renderer)
+Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window), ForwardRenderingInterface(renderer)
 {
     // create a perspective camera
     float aspect = window.getAspectRatio();

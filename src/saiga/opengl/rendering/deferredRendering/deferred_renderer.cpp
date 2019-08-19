@@ -17,7 +17,7 @@
 namespace Saiga
 {
 Deferred_Renderer::Deferred_Renderer(OpenGLWindow& window, DeferredRenderingParameters _params)
-    : Renderer(window),
+    : OpenGLRenderer(window),
       lighting(gbuffer),
       renderWidth(window.getWidth() * _params.renderScale),
       renderHeight(window.getHeight() * _params.renderScale),
@@ -131,12 +131,25 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 
 
 
-void Deferred_Renderer::render(Camera* cam)
+void Deferred_Renderer::render(const Saiga::RenderInfo& _renderInfo)
 {
     if (!rendering) return;
 
+
+    Saiga::RenderInfo renderInfo = _renderInfo;
+
     SAIGA_ASSERT(rendering);
-    SAIGA_ASSERT(cam);
+    SAIGA_ASSERT(renderInfo);
+
+    // if we have multiple cameras defined the user has to specify the viewports of each individual camera
+    SAIGA_ASSERT(params.userViewPort || renderInfo.cameras.size() == 1);
+
+
+    if (renderInfo.cameras.size() == 1)
+    {
+        renderInfo.cameras.front().second = ViewPort({0, 0}, {renderWidth, renderHeight});
+    }
+
 
     DeferredRenderingInterface* renderingInterface = dynamic_cast<DeferredRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
@@ -155,22 +168,33 @@ void Deferred_Renderer::render(Camera* cam)
     //    if (params.srgbWrites)
     //        glEnable(GL_FRAMEBUFFER_SRGB); //no reason to switch it off
 
-    cam->recalculatePlanes();
-    bindCamera(cam);
-    renderGBuffer(cam);
+
+
+    clearGBuffer();
+
+    lighting.initRender();
+    for (auto c : renderInfo.cameras)
+    {
+        auto camera = c.first;
+        camera->recalculatePlanes();
+        bindCamera(camera);
+
+        setViewPort(c.second);
+        renderGBuffer(c);
+        renderSSAO(c);
+
+        lighting.cullLights(camera);
+        renderDepthMaps();
+
+
+        bindCamera(camera);
+        setViewPort(c.second);
+        renderLighting(c);
+    }
     assert_no_glerror();
 
 
-    renderSSAO(cam);
     //    return;
-
-    lighting.initRender();
-    lighting.cullLights(cam);
-    renderDepthMaps();
-
-
-    bindCamera(cam);
-    renderLighting(cam);
 
 
 
@@ -185,9 +209,16 @@ void Deferred_Renderer::render(Camera* cam)
 
     startTimer(OVERLAY);
 
-    bindCamera(cam);
-    renderingInterface->renderOverlay(cam);
+    for (auto c : renderInfo.cameras)
+    {
+        auto camera = c.first;
+        bindCamera(camera);
+        setViewPort(c.second);
+        renderingInterface->renderOverlay(camera);
+    }
     stopTimer(OVERLAY);
+
+    glViewport(0, 0, renderWidth, renderHeight);
 
 
 
@@ -239,7 +270,7 @@ void Deferred_Renderer::render(Camera* cam)
             SAIGA_ASSERT(ImGui::GetCurrentContext());
             imgui->beginFrame();
         }
-        renderingInterface->renderFinal(cam);
+        renderingInterface->renderFinal(nullptr);
         if (imgui)
         {
             imgui->endFrame();
@@ -265,26 +296,17 @@ void Deferred_Renderer::render(Camera* cam)
     assert_no_glerror();
 }
 
-void Deferred_Renderer::renderGBuffer(Camera* cam)
+void Deferred_Renderer::clearGBuffer()
 {
-    startTimer(GEOMETRYPASS);
-
-    glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-
-
     gbuffer.bind();
+
     glViewport(0, 0, renderWidth, renderHeight);
+
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
 
     if (params.maskUsedPixels)
     {
         glClearStencil(0xFF);  // sets stencil buffer to 255
-        // mark all written pixels with 0 in the stencil buffer
-        glEnable(GL_STENCIL_TEST);
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
     }
     else
     {
@@ -292,6 +314,37 @@ void Deferred_Renderer::renderGBuffer(Camera* cam)
     }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    gbuffer.unbind();
+}
+
+
+
+void Deferred_Renderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
+{
+    startTimer(GEOMETRYPASS);
+
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+
+    if (params.maskUsedPixels)
+    {
+        // mark all written pixels with 0 in the stencil buffer
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_ALWAYS, 0, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    }
+    else
+    {
+        glDisable(GL_STENCIL_TEST);
+    }
+
+    gbuffer.bind();
+
+    //    setViewPort(camera.second);
+    //    glViewport(0, 0, renderWidth, renderHeight);
+
 
 
     glEnable(GL_CULL_FACE);
@@ -310,7 +363,7 @@ void Deferred_Renderer::renderGBuffer(Camera* cam)
         glLineWidth(params.wireframeLineSize);
     }
     DeferredRenderingInterface* renderingInterface = dynamic_cast<DeferredRenderingInterface*>(rendering);
-    renderingInterface->render(cam);
+    renderingInterface->render(camera.first);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
@@ -342,22 +395,22 @@ void Deferred_Renderer::renderDepthMaps()
     assert_no_glerror();
 }
 
-void Deferred_Renderer::renderLighting(Camera* cam)
+void Deferred_Renderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
     startTimer(LIGHTING);
 
-    lighting.render(cam);
+    lighting.render(camera.first, camera.second);
 
     stopTimer(LIGHTING);
 
     assert_no_glerror();
 }
 
-void Deferred_Renderer::renderSSAO(Camera* cam)
+void Deferred_Renderer::renderSSAO(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
     startTimer(SSAOT);
 
-    if (params.useSSAO) ssao->render(cam, &gbuffer);
+    if (params.useSSAO) ssao->render(camera.first, camera.second, &gbuffer);
 
 
     stopTimer(SSAOT);

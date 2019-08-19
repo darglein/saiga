@@ -63,7 +63,7 @@ class SAIGA_OPENGL_API SSAO
     void init(int w, int h);
     void resize(int w, int h);
     void clearSSAO();
-    void render(Camera* cam, GBuffer* gbuffer);
+    void render(Camera* cam, const ViewPort &vp, GBuffer* gbuffer);
 
 
     void setKernelSize(int kernelSize);

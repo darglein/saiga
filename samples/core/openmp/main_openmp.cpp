@@ -78,11 +78,12 @@ void reduction()
     std::cout << "Reduction: " << sum << std::endl;
 
 
-
+#if 0
+// looks like this is only supported in the very latest eigen versions by default
     // Use an eigen vector
     std::vector<Vec4> dataV(N, Vec4(1, 1, 1, 1));
     Vec4 sumV(0, 0, 0, 0);
-#pragma omp parallel for reduction(+ : sumV)
+#    pragma omp parallel for reduction(+ : sumV)
     for (int i = 0; i < N; ++i)
     {
         sumV += dataV[i];
@@ -90,6 +91,7 @@ void reduction()
     //    SAIGA_ASSERT(sumV == Vec4(N, N, N, N));
     std::cout << "Reduction Vector: " << sumV.transpose() << std::endl;
     std::cout << std::endl;
+#endif
 }
 
 

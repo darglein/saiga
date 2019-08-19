@@ -14,6 +14,18 @@
 
 namespace Saiga
 {
+struct ViewPort
+{
+    ivec2 position;
+    ivec2 size;
+    ViewPort() = default;
+    ViewPort(ivec2 position, ivec2 size) : position(position), size(size) {}
+
+    vec4 getVec4() const { return vec4(position(0), position(1), size(0), size(1)); }
+};
+
+
+
 class SAIGA_CORE_API Camera : public Object3D
 {
    public:

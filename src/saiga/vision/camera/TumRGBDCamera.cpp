@@ -83,6 +83,8 @@ TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics
     associate(datasetDir);
     //    associateFromFile(datasetDir + "/associations.txt");
 
+
+
     load(datasetDir, multithreaded);
 
     timeStep = std::chrono::duration_cast<tick_t>(
@@ -217,6 +219,8 @@ void TumRGBDCamera::associateFromFile(const std::string& datasetDir)
 
 void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
 {
+    tumframes.erase(tumframes.begin(), tumframes.begin() + intrinsics().startFrame);
+
     if (intrinsics().maxFrames >= 0)
     {
         tumframes.resize(std::min((size_t)intrinsics().maxFrames, tumframes.size()));

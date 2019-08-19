@@ -30,7 +30,7 @@ class Sample : public Updating, public DeferredRenderingInterface, public glfw_K
 
     std::shared_ptr<DirectionalLight> sun;
 
-    Sample(OpenGLWindow& window, Renderer& renderer);
+    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
     ~Sample();
 
     void update(float dt) override;

@@ -43,7 +43,7 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
     std::shared_ptr<MVPTextureShader> normalShader, textureShader;
     std::shared_ptr<DirectionalLight> sun;
 
-    Sample(OpenGLWindow& window, Renderer& renderer);
+    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
     ~Sample();
 
     void update(float dt) override;

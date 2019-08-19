@@ -48,6 +48,8 @@ struct SAIGA_VISION_API RGBDIntrinsics
 
     // The camera disconnects after this amount of frames
     int maxFrames = -1;
+    // start frame for
+    int startFrame = 0;
 
 
 

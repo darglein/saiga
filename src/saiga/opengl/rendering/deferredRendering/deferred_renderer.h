@@ -83,7 +83,7 @@ class SAIGA_OPENGL_API DeferredRenderingInterface : public RenderingInterfaceBas
 };
 
 
-class SAIGA_OPENGL_API Deferred_Renderer : public Renderer
+class SAIGA_OPENGL_API Deferred_Renderer : public OpenGLRenderer
 {
    public:
     DeferredLighting lighting;
@@ -93,7 +93,7 @@ class SAIGA_OPENGL_API Deferred_Renderer : public Renderer
     Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
     virtual ~Deferred_Renderer();
 
-    void render(Camera* cam) override;
+    void render(const RenderInfo& renderInfo) override;
     void renderImGui(bool* p_open = nullptr) override;
 
 
@@ -127,6 +127,9 @@ class SAIGA_OPENGL_API Deferred_Renderer : public Renderer
     void printTimings() override;
     void resize(int outputWidth, int outputHeight) override;
 
+    int getRenderWidth() { return renderWidth; }
+    int getRenderHeight() { return renderHeight; }
+
    private:
     int renderWidth, renderHeight;
     std::shared_ptr<SSAO> ssao;
@@ -143,10 +146,11 @@ class SAIGA_OPENGL_API Deferred_Renderer : public Renderer
     DeferredDebugOverlay ddo;
 
 
-    void renderGBuffer(Camera* cam);
+    void clearGBuffer();
+    void renderGBuffer(const std::pair<Camera*, ViewPort>& camera);
     void renderDepthMaps();  // render the scene from the lights perspective (don't need user camera here)
-    void renderLighting(Camera* cam);
-    void renderSSAO(Camera* cam);
+    void renderLighting(const std::pair<Camera*, ViewPort>& camera);
+    void renderSSAO(const std::pair<Camera*, ViewPort>& camera);
 
     void writeGbufferDepthToCurrentFramebuffer();
 

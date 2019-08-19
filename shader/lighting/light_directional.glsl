@@ -161,4 +161,5 @@ void main()
     //    out_color = (c / s);
 
     out_color = getDirectionalLightIntensity(0);
+//    out_color = vec4(1,0,0,1);
 }

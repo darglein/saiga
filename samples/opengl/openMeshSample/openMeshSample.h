@@ -51,7 +51,7 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
     TriangleMesh<VertexNC, GLuint> baseMesh;
     TriangleMesh<VertexNC, GLuint> reducedMesh;
 
-    Sample(OpenGLWindow& window, Renderer& renderer);
+    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
     ~Sample();
 
     void reduce();

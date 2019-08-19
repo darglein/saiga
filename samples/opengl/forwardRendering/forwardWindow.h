@@ -32,7 +32,7 @@ class Sample : public Updating, public ForwardRenderingInterface, public SDL_Key
 
     std::shared_ptr<Texture> t;
 
-    Sample(OpenGLWindow& window, Renderer& renderer);
+    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
     ~Sample();
 
     void update(float dt) override;

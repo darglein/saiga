@@ -49,9 +49,9 @@ class SAIGA_EXTRA_API ChessboardPattern : public CalibrationPattern
         if (found)
         {
             cv::Mat viewGray;
-            cv::cvtColor(image, viewGray, CV_BGR2GRAY);
+            cv::cvtColor(image, viewGray, cv::COLOR_BGR2GRAY);
             cv::cornerSubPix(viewGray, corners, cv::Size(11, 11), cv::Size(-1, -1),
-                             cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+                             cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 30, 0.1));
         }
 
         //        SAIGA_ASSERT(corners.size() == objPoints.size());

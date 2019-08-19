@@ -55,10 +55,10 @@ std::string WindowBase::getTimeString()
 Ray WindowBase::createPixelRay(const vec2& pixel) const
 {
     vec4 p = vec4(2 * pixel[0] / getWidth() - 1.f, 1.f - (2 * pixel[1] / getHeight()), 0, 1.f);
-    p      = inverse(WindowBase::currentCamera->proj) * p;
+    p      = inverse(WindowBase::getCamera()->proj) * p;
     p /= p[3];
 
-    mat4 inverseView = inverse(WindowBase::currentCamera->view);
+    mat4 inverseView = inverse(WindowBase::getCamera()->view);
     vec3 ray_world   = make_vec3(inverseView * p);
     vec3 origin      = make_vec3(col(inverseView, 3));
     return Ray(normalize(vec3(ray_world - origin)), origin);
@@ -70,7 +70,7 @@ Ray WindowBase::createPixelRay(const vec2& pixel, const vec2& resolution, const 
     p      = inverseProj * p;
     p /= p[3];
 
-    mat4 inverseView = inverse(WindowBase::currentCamera->view);
+    mat4 inverseView = inverse(WindowBase::getCamera()->view);
     vec3 ray_world   = make_vec3(inverseView * p);
     vec3 origin      = make_vec3(col(inverseView, 3));
     return Ray(normalize(vec3(ray_world - origin)), origin);
@@ -79,10 +79,10 @@ Ray WindowBase::createPixelRay(const vec2& pixel, const vec2& resolution, const 
 vec3 WindowBase::screenToWorld(const vec2& pixel) const
 {
     vec4 p = vec4(2 * pixel[0] / getWidth() - 1.f, 1.f - (2 * pixel[1] / getHeight()), 0, 1.f);
-    p      = inverse(WindowBase::currentCamera->proj) * p;
+    p      = inverse(WindowBase::getCamera()->proj) * p;
     p /= p[3];
 
-    mat4 inverseView = inverse(WindowBase::currentCamera->view);
+    mat4 inverseView = inverse(WindowBase::getCamera()->view);
     vec3 ray_world   = make_vec3(inverseView * p);
     return ray_world;
 }
@@ -94,7 +94,7 @@ vec3 WindowBase::screenToWorld(const vec2& pixel, const vec2& resolution, const 
     p      = inverseProj * p;
     p /= p[3];
 
-    mat4 inverseView = inverse(WindowBase::currentCamera->view);
+    mat4 inverseView = inverse(WindowBase::getCamera()->view);
     vec3 ray_world   = make_vec3(inverseView * p);
     return ray_world;
 }
@@ -103,7 +103,7 @@ vec3 WindowBase::screenToWorld(const vec2& pixel, const vec2& resolution, const 
 
 vec2 WindowBase::projectToScreen(const vec3& pos) const
 {
-    vec4 r = WindowBase::currentCamera->proj * WindowBase::currentCamera->view * make_vec4(pos, 1);
+    vec4 r = WindowBase::getCamera()->proj * WindowBase::getCamera()->view * make_vec4(pos, 1);
     r /= r[3];
 
     vec2 pixel;
@@ -125,7 +125,10 @@ void WindowBase::render()
 {
     //    SAIGA_ASSERT(currentCamera);
     SAIGA_ASSERT(renderer);
-    if (renderer) renderer->render(currentCamera);
+
+    RenderInfo renderInfo;
+    renderInfo.cameras = activeCameras;
+    if (renderer) renderer->render(renderInfo);
 }
 
 

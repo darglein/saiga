@@ -38,10 +38,16 @@ struct SAIGA_OPENGL_API RenderingParameters
 
     bool wireframe          = false;
     float wireframeLineSize = 1;
+
+    /**
+     * Setting this to true means the user takes care of viewport updates during window resize.
+     * Currently only makes sense for multi view rendering (split screen)
+     */
+    bool userViewPort = false;
 };
 
 
-class SAIGA_OPENGL_API Renderer : public RendererBase
+class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
 {
    public:
     std::shared_ptr<ImGui_GL_Renderer> imgui;
@@ -49,8 +55,8 @@ class SAIGA_OPENGL_API Renderer : public RendererBase
     int outputWidth = -1, outputHeight = -1;
     UniformBuffer cameraBuffer;
 
-    Renderer(OpenGLWindow& window);
-    virtual ~Renderer();
+    OpenGLRenderer(OpenGLWindow& window);
+    virtual ~OpenGLRenderer();
 
 
     virtual void resize(int windowWidth, int windowHeight);
@@ -60,5 +66,10 @@ class SAIGA_OPENGL_API Renderer : public RendererBase
 
     void bindCamera(Camera* cam);
 };
+
+inline void setViewPort(const ViewPort& vp)
+{
+    glViewport(vp.position(0), vp.position(1), vp.size(0), vp.size(1));
+}
 
 }  // namespace Saiga

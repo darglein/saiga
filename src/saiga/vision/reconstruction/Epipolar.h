@@ -20,12 +20,34 @@ namespace Saiga
  *
  * 1. Computes relative rotation and translation [R|t] between cameras
  * 2. The essential matrix E is then: E = R[t]x
+ *
+ *
+ * Hartley - Chapter 9.6 Essential Matrix (page 257):
+ *
+ * Given two normalized cameras P, P' with
+ * P  = [I | 0]
+ * P' = [R | t]
+ * then the essential matrix mapping a point x in P to a line l in P' is
+ * E = [t]xR
+ *
+ * If P,P' are not normalized we multiply P^-1 right sided to both matrices.
+ * P2  = P  * P^-1 = [I|0]
+ * P2' = P2 * P^-1 = [R|t]
+ *
+ * Relation to fundamental Matrix:
+ * E = K'^T*F*K
+ * F = K'^T^-1 * E * K^-1
+ *
  */
 inline Mat3 EssentialMatrix(const SE3& a, const SE3& b)
 {
-    SE3 rel = a * b.inverse();
+    //    SE3 rel = a * b.inverse();
     //    SE3 rel = b * a.inverse();
-    return rel.rotationMatrix() * skew(rel.translation());
+    //    return rel.rotationMatrix() * skew(rel.translation());
+    SE3 T  = b * a.inverse();
+    Mat3 E = skew(T.translation()) * T.rotationMatrix();
+    E *= 1.0 / E(2, 2);
+    return E;
 }
 
 
@@ -34,11 +56,14 @@ inline Mat3 EssentialMatrix(const SE3& a, const SE3& b)
  * the camera intrinsics.
  * Assumes a pinhole camera model!
  *
+ * F = K'^T^-1 * E * K^-1
  * F = K2^-T * E * K1^-1
  */
 inline Mat3 FundamentalMatrix(const Mat3& E, const Intrinsics4& K1, const Intrinsics4& K2)
 {
-    return K2.inverse().matrix().transpose() * E * K1.inverse().matrix();
+    Mat3 F = K2.inverse().matrix().transpose() * E * K1.inverse().matrix();
+    F *= 1.0 / F(2, 2);
+    return F;
 }
 
 /**

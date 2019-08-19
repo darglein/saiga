@@ -39,6 +39,9 @@ Eigen::Vector3d Scene::residual3(const SceneImage& img, const StereoImagePoint& 
     res(2)              = stereoPointObs - disparity;
 
     res *= w;
+
+    if (z <= 0) res *= 10000000;
+
     return res;
 }
 
@@ -51,12 +54,14 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
 
     // project to screen
     auto p  = extrinsics[img.extr].se3 * wp.p;
+    auto z  = p(2);
     auto p2 = intrinsics[img.intr].project(p);
-
-    auto w = ip.weight * img.imageWeight * scale();
+    auto w  = ip.weight * img.imageWeight * scale();
     Eigen::Vector2d res;
     res.head<2>() = (ip.point - p2);
     res *= w;
+
+    if (z <= 0) res *= 10000000;
     return res;
 }
 

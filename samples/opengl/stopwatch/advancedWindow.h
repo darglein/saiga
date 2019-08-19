@@ -30,7 +30,7 @@ class Sample : public Updating, public ForwardRenderingInterface, public SDL_Key
     TextureAtlas textAtlas;
 
     bool running = true;
-    Sample(OpenGLWindow& window, Renderer& renderer);
+    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
     ~Sample();
 
     void update(float dt) override;

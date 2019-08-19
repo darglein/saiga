@@ -32,7 +32,7 @@
 
 using namespace OpenMesh;
 
-Sample::Sample(OpenGLWindow& window, Renderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
+Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
 {
     // create a perspective camera
     float aspect = window.getAspectRatio();

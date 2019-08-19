@@ -21,7 +21,7 @@ uniform sampler2D deferred_depth;
 uniform sampler2D deferred_position;
 uniform sampler2D deferred_data;
 
-uniform vec2 screen_size;
+uniform vec4 viewPort; // x,y,width,height
 
 uniform vec4 lightColorDiffuse; //rgba, rgb=color, a=intensity [0,1]
 uniform vec4 lightColorSpecular; //rgba, rgb=color, a=intensity [0,1]
@@ -37,7 +37,9 @@ float random(vec4 seed4){
 
 vec2 CalcTexCoord()
 {
-   return gl_FragCoord.xy / screen_size;
+//   return gl_FragCoord.xy / viewPort.zw;
+       vec2 tc = (gl_FragCoord.xy -viewPort.xy)/ viewPort.zw;
+       return tc;
 }
 
 

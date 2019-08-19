@@ -7,12 +7,12 @@
 #include "saiga/opengl/rendering/renderer.h"
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/opengl/window/OpenGLWindow.h"
 #include "saiga/opengl/shader/basic_shaders.h"
+#include "saiga/opengl/window/OpenGLWindow.h"
 
 namespace Saiga
 {
-Renderer::Renderer(OpenGLWindow& window) : outputWidth(window.getWidth()), outputHeight(window.getHeight())
+OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window) : outputWidth(window.getWidth()), outputHeight(window.getHeight())
 {
     cameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
 
@@ -23,9 +23,9 @@ Renderer::Renderer(OpenGLWindow& window) : outputWidth(window.getWidth()), outpu
     imgui = window.createImGui();
 }
 
-Renderer::~Renderer() {}
+OpenGLRenderer::~OpenGLRenderer() {}
 
-void Renderer::resize(int windowWidth, int windowHeight)
+void OpenGLRenderer::resize(int windowWidth, int windowHeight)
 {
     outputWidth  = windowWidth;
     outputHeight = windowHeight;
@@ -33,7 +33,7 @@ void Renderer::resize(int windowWidth, int windowHeight)
 }
 
 
-void Renderer::bindCamera(Camera* cam)
+void OpenGLRenderer::bindCamera(Camera* cam)
 {
     CameraDataGLSL cd(cam);
     cameraBuffer.updateBuffer(&cd, sizeof(CameraDataGLSL), 0);
