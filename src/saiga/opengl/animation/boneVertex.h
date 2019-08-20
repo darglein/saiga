@@ -36,7 +36,7 @@ struct SAIGA_OPENGL_API BoneVertex
 
     // applies an array of bonematrices to this position and normal.
     // That is a copy of the vertex shader functionality.
-    void apply(const std::vector<mat4>& boneMatrices);
+    void apply(const AlignedVector<mat4>& boneMatrices);
 
     // normalizes the weights so that the sum is 1.
     void normalizeWeights();

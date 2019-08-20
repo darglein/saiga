@@ -36,7 +36,7 @@ void BoneVertex::addBone(int32_t index, float weight)
     SAIGA_ASSERT(0);
 }
 
-void BoneVertex::apply(const std::vector<mat4>& boneMatrices)
+void BoneVertex::apply(const AlignedVector<mat4>& boneMatrices)
 {
     mat4 boneMatrix = zeroMat4();
     for (int i = 0; i < MAX_BONES_PER_VERTEX; ++i)

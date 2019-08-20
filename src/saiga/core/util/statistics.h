@@ -23,13 +23,13 @@ class Statistics
     Statistics() {}
     Statistics(const std::vector<T>& data);
 
-    int numValues;
-    T min;
-    T max;
-    T median;
-    T mean, sum;
-    T variance, sdev;
-    T rms;
+    int numValues = 0;
+    T min         = 0;
+    T max         = 0;
+    T median      = 0;
+    T mean = 0, sum = 0;
+    T variance = 0, sdev = 0;
+    T rms = 0;
 };
 
 template <typename T>

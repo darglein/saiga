@@ -42,7 +42,7 @@ void AnimationNode::reset()
 
 
 
-void AnimationNode::traverse(mat4 m, std::vector<mat4>& out_boneMatrices, std::vector<AnimationNode>& nodes)
+void AnimationNode::traverse(mat4 m, AlignedVector<mat4>& out_boneMatrices, std::vector<AnimationNode>& nodes)
 {
     if (keyFramed)
     {
@@ -102,13 +102,13 @@ void AnimationFrame::calculateBoneMatrices(const Animation& parent)
     }
 }
 
-const std::vector<mat4>& AnimationFrame::getBoneMatrices(const Animation& parent)
+const AlignedVector<mat4>& AnimationFrame::getBoneMatrices(const Animation& parent)
 {
     if (boneMatrices.size() == 0) calculateBoneMatrices(parent);
     return boneMatrices;
 }
 
-void AnimationFrame::setBoneMatrices(const std::vector<mat4>& value)
+void AnimationFrame::setBoneMatrices(const AlignedVector<mat4>& value)
 {
     //    SAIGA_ASSERT(value.size() == boneCount);
     boneMatrices = value;

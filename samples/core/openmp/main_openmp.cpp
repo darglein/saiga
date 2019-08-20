@@ -81,7 +81,7 @@ void reduction()
 #if 0
 // looks like this is only supported in the very latest eigen versions by default
     // Use an eigen vector
-    std::vector<Vec4> dataV(N, Vec4(1, 1, 1, 1));
+    AlignedVector<Vec4> dataV(N, Vec4(1, 1, 1, 1));
     Vec4 sumV(0, 0, 0, 0);
 #    pragma omp parallel for reduction(+ : sumV)
     for (int i = 0; i < N; ++i)

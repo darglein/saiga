@@ -8,6 +8,9 @@
 
 #include <cuda_runtime.h>
 
+
+#include "saiga/core/util/Align.h"
+
 __global__ void helloCudaKernel()
 {
     printf("Hello from thread %d on block %d!\n", threadIdx.x, blockIdx.x);

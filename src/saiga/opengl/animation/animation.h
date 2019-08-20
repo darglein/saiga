@@ -45,7 +45,7 @@ class SAIGA_OPENGL_API Animation
 
 
     int boneCount = 0;
-    std::vector<mat4> boneOffsets;
+    AlignedVector<mat4> boneOffsets;
 
     /**
      * Returns the keyframe at the given index.

@@ -11,7 +11,6 @@
 #include "saiga/core/util/tostring.h"
 
 #include "objMaterialLoader.h"
-
 namespace Saiga
 {
 #define INVALID_VERTEX_ID -911365965
@@ -50,8 +49,8 @@ class SAIGA_CORE_API ObjModelLoader
 
     bool loadFile(const std::string& file);
 
-    std::vector<vec4> vertexData;    // x: specular
-    std::vector<vec4> vertexColors;  // only when given by the material. Otherwise: white!
+    AlignedVector<vec4> vertexData;    // x: specular
+    AlignedVector<vec4> vertexColors;  // only when given by the material. Otherwise: white!
     std::vector<VertexNT> outVertices;
     std::vector<ObjTriangle> outTriangles;
     std::vector<ObjTriangleGroup> triangleGroups;

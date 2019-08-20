@@ -62,6 +62,8 @@ std::vector<double> rpe(const TrajectoryType& A, const TrajectoryType& B)
     SAIGA_ASSERT(A.size() == B.size());
     int N = A.size();
     std::vector<double> rpe;
+    if (A.empty()) return rpe;
+
     for (auto i : Range(1, N))
     {
         auto [a_id, a_se] = A[i];

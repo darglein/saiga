@@ -50,8 +50,8 @@ class SAIGA_OPENGL_API AnimatedAsset : public BasicAsset<AnimatedModel>
     std::map<std::string, int> boneMap;
     std::map<std::string, int> nodeindexMap;
 
-    std::vector<mat4> boneOffsets;
-    std::vector<mat4> inverseBoneOffsets;
+    AlignedVector<mat4> boneOffsets;
+    AlignedVector<mat4> inverseBoneOffsets;
 
     std::vector<Animation> animations;
 

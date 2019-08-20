@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/vision/util/Depthmap.h"
 #include "saiga/vision/icp/ICPDepthMap.h"
+#include "saiga/vision/util/Depthmap.h"
 
 #include <vector>
 
@@ -16,8 +16,8 @@ namespace Saiga
 namespace ICP
 {
 SAIGA_VISION_API void multiViewICPAlign(size_t N, const std::vector<std::pair<size_t, size_t>>& pairs,
-                                    const std::vector<AlignedVector<Correspondence>>& corrs, std::vector<SE3>& guesses,
-                                    int iterations);
+                                        const std::vector<AlignedVector<Correspondence>>& corrs,
+                                        AlignedVector<SE3>& guesses, int iterations);
 
 
 }  // namespace ICP

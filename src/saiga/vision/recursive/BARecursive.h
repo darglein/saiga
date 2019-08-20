@@ -95,8 +95,8 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     // ============= Multi Threading Stuff ===========
     int threads = 1;
     // each thread gets one vector
-    std::vector<std::vector<BDiag>> pointDiagTemp;
-    std::vector<std::vector<BRes>> pointResTemp;
+    std::vector<AlignedVector<BDiag>> pointDiagTemp;
+    std::vector<AlignedVector<BRes>> pointResTemp;
     std::vector<double> localChi2;
 
 

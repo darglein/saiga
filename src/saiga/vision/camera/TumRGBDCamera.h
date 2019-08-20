@@ -67,7 +67,7 @@ class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
     void load(const std::string& datasetDir, bool multithreaded);
 
 
-    std::vector<RGBDFrameData> frames;
+    AlignedVector<RGBDFrameData> frames;
     AlignedVector<TumFrame> tumframes;
 
     Timer timer;

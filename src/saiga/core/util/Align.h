@@ -17,8 +17,24 @@
 #    include <malloc.h>
 #endif
 
+
 namespace Saiga
 {
+// returns true if the pointer is actually aligned to the given size
+template <typename T, int alignment>
+constexpr bool isAligned(const T* ptr)
+{
+    return (((uintptr_t)ptr) % (alignment)) == 0;
+}
+
+template <typename T>
+constexpr bool isAligned(const T* ptr)
+{
+    return isAligned<T, alignof(T)>(ptr);
+}
+
+
+
 /**
  * Get an aligned piece of memory.
  * Alignment must be a power of 2!
@@ -30,6 +46,14 @@ inline void* aligned_malloc(size_t size)
 #ifdef WIN32
     // Windows doesn't implement std::aligned_alloc :(
     return _aligned_malloc(num, Alignment);
+#elif defined(IS_CUDA)
+    // nvcc currently doesn't support std::aligned_alloc (CUDA 10)
+    // we cannot use the trick of padding the beginnning because that would break
+    // allocating in a .cpp file and freeing in .cu.
+    // So let's just hope malloc is already aligned :(
+    auto ptr = std::malloc(num);
+    if (!isAligned<void, Alignment>(ptr)) throw std::runtime_error("Malloc Not Aligned!");
+    return ptr;
 #else
     return std::aligned_alloc(Alignment, num);
 #endif
@@ -149,5 +173,7 @@ struct SAIGA_ALIGN(alignment) AlignedStruct
 {
     T element;
 };
+
+
 
 }  // namespace Saiga

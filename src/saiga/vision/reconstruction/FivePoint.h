@@ -287,8 +287,14 @@ inline int fivePointNister(Vec2* points0, Vec2* points1, std::vector<Mat3>& es)
     Eigen::Matrix<double, 10, 20, Eigen::RowMajor> EA2;
     constructFivePointMatrix(EEE.data(), EA2.data());
 
+#if 1
     Eigen::Matrix<double, 10, 10> EA;
     EA = EA2.block(0, 0, 10, 10).inverse() * EA2.block(0, 10, 10, 20);
+#else
+    Eigen::Matrix<double, 10, 10> EA;
+    Eigen::Matrix<double, 10, 10> EA2inv = EA2.block(0, 0, 10, 10).inverse();
+    EA                                   = EA2inv * EA2.block(0, 10, 10, 20);
+#endif
 
 
     Eigen::Matrix<double, 3, 13, Eigen::RowMajor> BE;

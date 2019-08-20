@@ -43,7 +43,7 @@ class TwoViewReconstruction
     SE3 T;
     std::vector<int> inliers;
     int inlierCount;
-    std::vector<Vec3> worldPoints;
+    AlignedVector<Vec3> worldPoints;
 };
 
 void TwoViewReconstruction::clear()
@@ -91,24 +91,24 @@ double TwoViewReconstruction::medianAngle()
 
 double TwoViewReconstruction::getMedianDepth()
 {
-     std::vector<double> depth;
+    std::vector<double> depth;
 
-     for (auto& wp : worldPoints)
-     {
-         depth.push_back(wp.z());
-     }
-     std::sort(depth.begin(), depth.end());
-     return depth[depth.size() / 2];
+    for (auto& wp : worldPoints)
+    {
+        depth.push_back(wp.z());
+    }
+    std::sort(depth.begin(), depth.end());
+    return depth[depth.size() / 2];
 }
 
 void TwoViewReconstruction::setMedianDepth(double d)
 {
-    auto md = getMedianDepth();
+    auto md     = getMedianDepth();
     auto factor = d / md;
 
     T.translation() = factor * T.translation();
 
-    for(auto& wp : worldPoints)
+    for (auto& wp : worldPoints)
     {
         wp *= factor;
     }

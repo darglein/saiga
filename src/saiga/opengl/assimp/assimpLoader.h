@@ -47,7 +47,7 @@ class SAIGA_OPENGL_API AssimpLoader
 
     int boneCount = 0;
     std::map<std::string, int> boneMap;
-    std::vector<mat4> boneOffsets;
+    AlignedVector<mat4> boneOffsets;
 
     int nodeCount = 0;
     std::map<std::string, int> nodeMap;
@@ -93,7 +93,7 @@ class SAIGA_OPENGL_API AssimpLoader
 
     void getAnimation(int animationId, int meshId, Animation& out);
 
-    void transformmesh(const aiMesh* amesh, std::vector<mat4>& boneMatrices);
+    void transformmesh(const aiMesh* amesh, AlignedVector<mat4>& boneMatrices);
     void createFrames(const aiMesh* mesh, aiAnimation* anim, std::vector<AnimationFrame>& animationFrames);
 
     void createKeyFrames(aiAnimation* anim, std::vector<AnimationFrame>& animationFrames);

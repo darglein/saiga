@@ -130,8 +130,8 @@ SE3 alignDepthMapsCeres(DepthMap referenceDepthMap, DepthMap sourceDepthMap, SE3
 
 #endif
 
-void multiViewICPSimple(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<SE3>& guesses, Intrinsics4 camera,
-                        int iterations, ProjectiveCorrespondencesParams params)
+void multiViewICPSimple(const std::vector<Depthmap::DepthMap>& depthMaps, AlignedVector<SE3>& guesses,
+                        Intrinsics4 camera, int iterations, ProjectiveCorrespondencesParams params)
 {
     //    SAIGA_BLOCK_TIMER;
     // Compute all relative to the first frame
@@ -153,7 +153,7 @@ void multiViewICPSimple(const std::vector<Depthmap::DepthMap>& depthMaps, std::v
 
 
 
-void multiViewICP(const std::vector<Depthmap::DepthMap>& depthMaps, std::vector<SE3>& guesses, Intrinsics4 camera,
+void multiViewICP(const std::vector<Depthmap::DepthMap>& depthMaps, AlignedVector<SE3>& guesses, Intrinsics4 camera,
                   int iterations, ProjectiveCorrespondencesParams params)
 {
     // initial alignment with reduced resolution

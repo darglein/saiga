@@ -290,6 +290,7 @@ static int writepng_init(const Image& img, PNGLoadStore* pngls)
     }
 
 
+
     png_set_IHDR(png_ptr, info_ptr, img.width, img.height, bit_depth, color_type, interlace_type,
                  PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
@@ -328,6 +329,8 @@ static int writepng_init(const Image& img, PNGLoadStore* pngls)
     pngls->png_ptr  = png_ptr;
     pngls->info_ptr = info_ptr;
 
+    SAIGA_ASSERT(pngls->png_ptr);
+    SAIGA_ASSERT(pngls->info_ptr);
 
     return 0;
 }
@@ -346,13 +349,13 @@ static void writepng_encode_image(const Image& img, PNGLoadStore* pngls, bool in
         auto offset = j * img.pitchBytes;
         auto rowPtr = img.data8() + offset;
 
+#    if 0
         std::vector<unsigned char> dataTest(img.pitchBytes);
-
         for (auto c : img.colRange())
         {
             png_save_uint_16(dataTest.data() + c * sizeof(short), ((unsigned short*)rowPtr)[c]);
         }
-
+#    endif
         png_write_row(png_ptr, rowPtr);
         //        png_write_row(png_ptr, dataTest.data());
     }

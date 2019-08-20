@@ -82,7 +82,7 @@ void DirectionalLightShader::uploadDepthTextures(std::shared_ptr<ArrayTexture2D>
     Shader::upload(location_depthTexures, 6);
 }
 
-void DirectionalLightShader::uploadViewToLightTransforms(std::vector<mat4>& transforms)
+void DirectionalLightShader::uploadViewToLightTransforms(AlignedVector<mat4>& transforms)
 {
     Shader::upload(location_viewToLightTransforms, transforms.size(), transforms.data());
 }
@@ -395,7 +395,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader& shader, Camera* cam)
     {
         const mat4 biasMatrix =
             make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
-        std::vector<mat4> viewToLight(numCascades);
+        AlignedVector<mat4> viewToLight(numCascades);
 
         for (int i = 0; i < numCascades; ++i)
         {

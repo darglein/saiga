@@ -43,13 +43,13 @@ class SAIGA_OPENGL_API AnimationNode
     AnimationNode(const AnimationNode& n0, const AnimationNode& n1, float alpha);
 
     void reset();
-    void traverse(mat4 t, std::vector<mat4>& out_boneMatrices, std::vector<AnimationNode>& nodes);
+    void traverse(mat4 t, AlignedVector<mat4>& out_boneMatrices, std::vector<AnimationNode>& nodes);
 };
 
 class SAIGA_OPENGL_API AnimationFrame
 {
    private:
-    std::vector<mat4> boneMatrices;
+    AlignedVector<mat4> boneMatrices;
 
    public:
     tickd_t time  = tickd_t(0);  // animation time in seconds of this frame
@@ -63,8 +63,8 @@ class SAIGA_OPENGL_API AnimationFrame
     AnimationFrame(const AnimationFrame& k0, const AnimationFrame& k1, float alpha);
 
     void calculateBoneMatrices(const Animation& parent);
-    const std::vector<mat4>& getBoneMatrices(const Animation& parent);
-    void setBoneMatrices(const std::vector<mat4>& value);
+    const AlignedVector<mat4>& getBoneMatrices(const Animation& parent);
+    void setBoneMatrices(const AlignedVector<mat4>& value);
 };
 
 }  // namespace Saiga
