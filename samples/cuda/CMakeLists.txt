@@ -10,6 +10,7 @@ add_subdirectory(eventSync)
 add_subdirectory(intraBlock)
 add_subdirectory(segfault)
 add_subdirectory(bitonicSort)
+add_subdirectory(bandwidth)
 add_subdirectory(radixSort)
 add_subdirectory(reduce)
 

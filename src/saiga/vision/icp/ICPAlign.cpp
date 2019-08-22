@@ -86,7 +86,11 @@ inline Quat orientationFromMixedMatrixUQ(const Mat3& M)
         }
     }
     Quat R(E(0), E(1), E(2), E(3));
-    return R.conjugate();
+    R = R.conjugate();
+    R.normalize();
+    if (R.w() < 0) R.coeffs() *= -1;
+    return R;
+    //    return R;
 }
 
 inline Quat orientationFromMixedMatrixSVD(const Mat3& M)
@@ -95,46 +99,78 @@ inline Quat orientationFromMixedMatrixSVD(const Mat3& M)
     // M = USV^T
     // R = UV^T
     Eigen::JacobiSVD svd(M, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    Mat3 R = svd.matrixU() * svd.matrixV().transpose();
-    return Quat(R);
+    Mat3 U = svd.matrixU();
+    Mat3 V = svd.matrixV();
+
+    //    Mat3 R = U * V.transpose();
+    Mat3 R = U * V.transpose();
+    //    Mat3 R = V * U.transpose();
+    //    Mat3 R = svd.matrixU() * svd.matrixV().transpose();
+
+    if (R.determinant() < 0)
+    {
+        Mat3 E  = Mat3::Identity();
+        E(2, 2) = -1.0;
+        R       = U * E * V.transpose();
+    }
+    //    SAIGA_ASSERT(R.determinant() >= 0);
+
+    Quat q = Quat(R).normalized();
+    if (q.w() < 0) q.coeffs() *= -1;
+    return q;
 }
 
-SE3 pointToPointDirect(const AlignedVector<Correspondence>& corrs, const SE3& guess, int innerIterations)
+SE3 pointToPointDirect(const AlignedVector<Correspondence>& corrs, double* scale)
 {
-    SE3 T = guess;
-    for (int i = 0; i < innerIterations; ++i)
+    auto cpy = corrs;
+
+    // Compute center
+    Vec3 meanRef(0, 0, 0);
+    Vec3 meanSrc(0, 0, 0);
+    for (auto c : corrs)
     {
-        Vec3 meanRef(0, 0, 0);
-        Vec3 meanSrc(0, 0, 0);
-
-        for (auto c : corrs)
-        {
-            meanRef += c.refPoint;
-            meanSrc += T * c.srcPoint;
-        }
-        meanRef /= corrs.size();
-        meanSrc /= corrs.size();
-        Vec3 t = meanRef - meanSrc;
-
-        Mat3 M;
-        M.setZero();
-        for (auto c : corrs)
-        {
-            M += (c.refPoint - meanRef) * (T * c.srcPoint - meanSrc).transpose();
-        }
-
-
-        Quat R;
-
-        if (1)
-            R = orientationFromMixedMatrixUQ(M);
-        else
-            R = orientationFromMixedMatrixSVD(M);
-
-        t = meanRef - R.conjugate() * meanSrc;
-        T = SE3(Quat(R), t) * T;
+        meanRef += c.refPoint;
+        meanSrc += c.srcPoint;
     }
-    return T;
+    meanRef /= corrs.size();
+    meanSrc /= corrs.size();
+
+    // Translate src to target and computed squared distance sum
+    double refSumSq = 0;
+    double srcSumSq = 0;
+    for (auto& c : cpy)
+    {
+        c.refPoint -= meanRef;
+        c.srcPoint -= meanSrc;
+        refSumSq += c.refPoint.squaredNorm();
+        srcSumSq += c.srcPoint.squaredNorm();
+    }
+
+    double S = 1;
+
+    if (scale)
+    {
+        S      = sqrt(refSumSq / srcSumSq);
+        *scale = S;
+    }
+
+    Vec3 t = meanRef - meanSrc;
+    Mat3 M;
+    M.setZero();
+    for (auto c : cpy)
+    {
+        M += (c.refPoint) * (c.srcPoint).transpose();
+    }
+
+    Quat R;
+
+    if (0)
+        R = orientationFromMixedMatrixUQ(M);
+    else
+        R = orientationFromMixedMatrixSVD(M);
+
+    t = meanRef - S * (R * meanSrc);
+    return SE3(Quat(R), t);
 }
 
 SE3 pointToPlane(const AlignedVector<Correspondence>& corrs, const SE3& ref, const SE3& _src, int innerIterations)

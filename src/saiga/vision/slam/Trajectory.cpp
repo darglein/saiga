@@ -14,7 +14,7 @@ namespace Saiga
 {
 namespace Trajectory
 {
-double align(TrajectoryType& A, TrajectoryType& B)
+double align(TrajectoryType& A, TrajectoryType& B, bool computeScale)
 {
     SAIGA_ASSERT(A.size() == B.size());
     if (A.empty()) return 0;
@@ -25,10 +25,10 @@ double align(TrajectoryType& A, TrajectoryType& B)
     std::sort(B.begin(), B.end(), compFirst);
 
     // transform both trajectories so that the first kf is at the origin
-    SE3 pinv1 = A.front().second.inverse();
-    SE3 pinv2 = B.front().second.inverse();
-    for (auto& m : A) m.second = pinv1 * m.second;
-    for (auto& m : B) m.second = pinv2 * m.second;
+    //    SE3 pinv1 = A.front().second.inverse();
+    //    SE3 pinv2 = B.front().second.inverse();
+    //    for (auto& m : A) m.second = pinv1 * m.second;
+    //    for (auto& m : B) m.second = pinv2 * m.second;
 
 
     // fit trajectories with icp
@@ -40,8 +40,13 @@ double align(TrajectoryType& A, TrajectoryType& B)
         c.refPoint = B[i].second.translation();
         corrs.push_back(c);
     }
-    SE3 rel;
-    rel = ICP::pointToPointDirect(corrs, rel, 4);
+
+    double scale = 1;
+    SE3 relSe3   = ICP::pointToPointDirect(corrs, computeScale ? &scale : nullptr);
+
+    Sim3 rel = sim3(relSe3, scale);
+
+
 
     // Apply transformation to the src trajectory (A)
     double error = 0;
@@ -49,9 +54,7 @@ double align(TrajectoryType& A, TrajectoryType& B)
     {
         auto& c = corrs[i];
         error += c.residualPointToPoint();
-        c.apply(rel);
-
-        A[i].second = rel * A[i].second;
+        A[i].second = se3Scale(rel * sim3(A[i].second, 1)).first;
     }
 
     return error;

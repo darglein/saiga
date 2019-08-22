@@ -40,7 +40,7 @@ using TrajectoryType = AlignedVector<std::pair<int, SE3>>;
  * Align the trajectories by minimizing the squared error:
  * sum_i (A.position() - B.position)^2
  */
-SAIGA_VISION_API double align(TrajectoryType& A, TrajectoryType& B);
+SAIGA_VISION_API double align(TrajectoryType& A, TrajectoryType& B, bool computeScale);
 
 /**
  * Root mean squared relative pose error (rpe).

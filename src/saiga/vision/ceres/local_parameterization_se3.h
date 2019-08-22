@@ -1,6 +1,4 @@
-#ifndef SOPHUS_TEST_LOCAL_PARAMETERIZATION_SE3_HPP
-#define SOPHUS_TEST_LOCAL_PARAMETERIZATION_SE3_HPP
-
+#pragma once
 #include <sophus/se3.hpp>
 
 #include <ceres/local_parameterization.h>
@@ -9,7 +7,9 @@ namespace Sophus
 {
 namespace test
 {
-template <bool LEFT_MULT = false>
+
+// use for autodiff
+template <bool LEFT_MULT = true>
 class LocalParameterizationSE3 : public ceres::LocalParameterization
 {
    public:
@@ -60,6 +60,7 @@ class LocalParameterizationSE3 : public ceres::LocalParameterization
     virtual int LocalSize() const { return SE3d::DoF; }
 };
 
+// use for analytical diff with lie algebra
 template <bool LEFT_MULT = true>
 class LocalParameterizationSE32 : public ceres::LocalParameterization
 {
@@ -101,11 +102,11 @@ class LocalParameterizationSE32 : public ceres::LocalParameterization
     }
 
     virtual int GlobalSize() const { return SE3d::num_parameters; }
-
     virtual int LocalSize() const { return SE3d::DoF; }
 };
+
 
 }  // namespace test
 }  // namespace Sophus
 
-#endif
+

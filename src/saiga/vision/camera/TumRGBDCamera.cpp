@@ -11,6 +11,8 @@
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/tostring.h"
 
+#include "TimestampMatcher.h"
+
 #include <algorithm>
 #include <fstream>
 #include <thread>
@@ -156,42 +158,74 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
     AlignedVector<CameraData> depthData = readCameraData(datasetDir + "/depth.txt");
     AlignedVector<GroundTruth> gt       = readGT(datasetDir + "/groundtruth.txt");
 
+
+
+    std::vector<double> rgbTimestamps, depthTimestamps, gtTimestamps;
+    for (auto&& r : rgbData) rgbTimestamps.push_back(r.timestamp);
+    for (auto&& r : depthData) depthTimestamps.push_back(r.timestamp);
+    for (auto&& r : gt) gtTimestamps.push_back(r.timestamp);
+
+
     for (auto&& r : rgbData)
     {
         TumFrame tf;
         tf.rgb = r;
         auto t = r.timestamp;
 
-        {
-            // find best depth image
-            auto depthIt = std::lower_bound(depthData.begin(), depthData.end(), CameraData{r.timestamp, ""});
-            if (depthIt == depthData.end() || depthIt == depthData.begin()) continue;
-            auto prevDepthIt = depthIt--;
-            auto bestDepth = std::abs(r.timestamp - depthIt->timestamp) < std::abs(r.timestamp - prevDepthIt->timestamp)
-                                 ? depthIt
-                                 : prevDepthIt;
-            tf.depth = *bestDepth;
-        }
-        {
-            // find best gt
-            auto gtIt = std::lower_bound(gt.begin(), gt.end(), GroundTruth{r.timestamp, {}});
-            if (gtIt == gt.end() || gtIt == gt.begin()) continue;
-            auto prevGTIt = gtIt--;
+        //        {
+        //            // find best depth image
+        //            auto depthIt = std::lower_bound(depthData.begin(), depthData.end(), CameraData{r.timestamp, ""});
+        //            if (depthIt == depthData.end() || depthIt == depthData.begin()) continue;
+        //            auto prevDepthIt = depthIt - 1;
+        //            auto bestDepth = std::abs(r.timestamp - depthIt->timestamp) < std::abs(r.timestamp -
+        //            prevDepthIt->timestamp)
+        //                                 ? depthIt
+        //                                 : prevDepthIt;
+        //            tf.depth = *bestDepth;
+        //        }
 
 
-#if 1
-            // interpolate
-            double alpha = (t - prevGTIt->timestamp) / (gtIt->timestamp - prevGTIt->timestamp);
-            if (prevGTIt->timestamp == gtIt->timestamp) alpha = 0;
-            tf.gt.se3       = slerp(prevGTIt->se3, gtIt->se3, alpha);
+        //        std::cout << std::setprecision(30);
+        //        SAIGA_ASSERT(tf.depth.timestamp == depthTimestamps[id]);
+
+        auto id = TimestampMatcher::findNearestNeighbour(t, depthTimestamps);
+        if (id == -1) continue;
+
+        tf.depth = depthData[id];
+
+
+        //        {
+        //            // find best gt
+        //            auto gtIt = std::lower_bound(gt.begin(), gt.end(), GroundTruth{r.timestamp, {}});
+        //            if (gtIt == gt.end() || gtIt == gt.begin()) continue;
+        //            auto prevGTIt = gtIt - 1;
+
+
+        //#if 1
+        //            // interpolate
+        //            double alpha = (t - prevGTIt->timestamp) / (gtIt->timestamp - prevGTIt->timestamp);
+        //            if (prevGTIt->timestamp == gtIt->timestamp) alpha = 0;
+        //            tf.gt.se3       = slerp(prevGTIt->se3, gtIt->se3, alpha);
+        //            tf.gt.timestamp = t;
+        //#else
+        //            // nearest neighbor
+        //            auto bestGt =
+        //                std::abs(r.timestamp - gtIt->timestamp) < std::abs(r.timestamp - prevGTIt->timestamp) ? gtIt :
+        //                prevGTIt;
+        //            tf.gt = *bestGt;
+        //#endif
+        //            SAIGA_ASSERT(tf.gt.se3.matrix() == se3.matrix());
+        //        }
+
+        auto [id1, id2, alpha] = TimestampMatcher::findLowHighAlphaNeighbour(t, gtTimestamps);
+        if (id1 == -1) continue;
+
+        if (id1 != -1)
+        {
+            tf.gt.se3       = slerp(gt[id1].se3, gt[id2].se3, alpha);
             tf.gt.timestamp = t;
-#else
-            // nearest neighbor
-            auto bestGt =
-                std::abs(r.timestamp - gtIt->timestamp) < std::abs(r.timestamp - prevGTIt->timestamp) ? gtIt : prevGTIt;
-            tf.gt = *bestGt;
-#endif
         }
+
         tumframes.push_back(tf);
     }
 }

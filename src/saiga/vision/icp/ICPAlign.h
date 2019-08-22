@@ -44,11 +44,13 @@ struct SAIGA_VISION_API Correspondence
     double weight = 1;
 
     // Apply this transfomration to the src point and normal
-    void apply(const SE3& se3)
+    void apply(const SE3& T)
     {
-        srcPoint  = se3 * srcPoint;
-        srcNormal = se3.so3() * srcNormal;
+        srcPoint  = T * srcPoint;
+        srcNormal = T.so3() * srcNormal;
     }
+
+
 
     double residualPointToPoint() { return (refPoint - srcPoint).squaredNorm(); }
 
@@ -73,12 +75,11 @@ SAIGA_VISION_API SE3 pointToPointIterative(const AlignedVector<Correspondence>& 
  * The funtion is solved using the polar decomposition.
  * See also "Orthonormal Procrustus Problem".
  *
- * For larger offsets it makes sense to apply this function multiple times.
+ * If scale != nullptr a scaling between the point clouds is also computed
  *
  *
  */
-SAIGA_VISION_API SE3 pointToPointDirect(const AlignedVector<Correspondence>& corrs, const SE3& guess = SE3(),
-                                        int innerIterations = 1);
+SAIGA_VISION_API SE3 pointToPointDirect(const AlignedVector<Correspondence>& corrs, double* scale = nullptr);
 
 /**
  * Minimized the distance between the source point to the surface plane at the reference point:

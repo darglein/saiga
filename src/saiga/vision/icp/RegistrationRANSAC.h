@@ -14,7 +14,6 @@
 #include <random>
 #include <vector>
 
-//#define WORLD_SPACE_RANSAC
 
 namespace Saiga
 {
@@ -34,17 +33,21 @@ class RegistrationProjectRANSAC
     double threshold;
 
 
-    // Compute T which maps from 1 to 2
+    //
     /**
+     * Compute T which maps from 1 to 2
+     * The ransac error is computed by reprojection.
+     *
+     * Set computeScale=1 for monocular tracking to compensate scale drift
+     *
+     * Returns [Transformation,Scale,NumInliers]
+     *
      * @brief solve
      * @param maxIterations
      * @param stopInliers Early termination when that amount of inliers are found
      */
-    std::pair<SE3, int> solve(const SE3& guess, int maxIterations, int stopInliers)
+    std::tuple<SE3, double, int> solve(int maxIterations, bool computeScale)
     {
-        //        std::cout << "Starting RANSAC... MaxIts=" << maxIterations << " Stopping at " << stopInliers << "
-        //        inliers." << std::endl;
-
         constexpr int sampleSize = 3;
 
         SAIGA_ASSERT(N > 0);
@@ -55,10 +58,9 @@ class RegistrationProjectRANSAC
         std::array<Vec3, sampleSize> B;
 
         SE3 bestT;
-        int bestInliers = 0;
+        int bestInliers  = 0;
+        double bestScale = 1;
 
-
-        //        for (auto i : Range(0, maxIterations))
         for (int i = 0; i < maxIterations; ++i)
         {
             // Get 3 matches and store them in A,B
@@ -69,7 +71,7 @@ class RegistrationProjectRANSAC
                 B[j]     = points2[idx];
             }
 
-            // fit trajectories with icp
+            // fit relative transformation with icp
             AlignedVector<ICP::Correspondence> corrs;
             for (int i = 0; i < (int)A.size(); ++i)
             {
@@ -78,49 +80,52 @@ class RegistrationProjectRANSAC
                 c.refPoint = B[i];
                 corrs.push_back(c);
             }
-            SE3 rel = ICP::pointToPointDirect(corrs, guess, 4);
 
-            int currentInliers = numInliers(rel);
+
+            double scale     = 1;
+            double* scalePtr = computeScale ? &scale : nullptr;
+            SE3 rel          = ICP::pointToPointDirect(corrs, scalePtr);
+
+            int currentInliers;
+
+            if (scalePtr)
+            {
+                Sim3 T         = sim3(rel, scale);
+                currentInliers = numInliers(T);
+            }
+            else
+            {
+                currentInliers = numInliers(rel);
+            }
 
             //            std::cout << "ransac test " << currentInliers << std::endl;
             if (currentInliers > bestInliers)
             {
                 bestInliers = currentInliers;
                 bestT       = rel;
-
-                if (currentInliers > stopInliers)
-                {
-                    //                    break;
-                }
+                bestScale   = scale;
             }
         }
-        return {bestT, bestInliers};
+        return {bestT, bestScale, bestInliers};
     }
 
-    int numInliers(const SE3& T)
+    template <typename Transformation>
+    int numInliers(const Transformation& T)
     {
-        int count = 0;
-#ifdef WORLD_SPACE_RANSAC
-        SE3 T12 = pose2 * T;
-        SE3 T21 = pose1 * T.inverse();
-#else
-        SE3 T12 = T;
-        SE3 T21 = T.inverse();
-#endif
-
-
-
+        int count          = 0;
+        Transformation T12 = T;
+        Transformation T21 = T.inverse();
         for (auto i : Range(0, N))
         {
             Vec3 point1inImage2 = camera2.project3(T12 * points1[i]);
             Vec3 point2inImage1 = camera1.project3(T21 * points2[i]);
 
-            // project behind one of the cameras
+            // projected point is behind one of the cameras
             if (point1inImage2(2) < 0 || point2inImage1(2) < 0) continue;
 
+            // check reprojection error
             auto e1 = (point1inImage2.segment<2>(0) - ips2[i]).squaredNorm();
             auto e2 = (point2inImage1.segment<2>(0) - ips1[i]).squaredNorm();
-
             if (e1 < threshold && e2 < threshold)
             {
                 count++;
@@ -128,6 +133,8 @@ class RegistrationProjectRANSAC
         }
         return count;
     }
+
+
 
    private:
     //    std::mt19937 gen = std::mt19937(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
