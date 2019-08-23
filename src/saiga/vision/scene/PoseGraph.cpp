@@ -18,8 +18,13 @@ PoseGraph::PoseGraph(const Scene& scene, int minEdges)
     for (auto& p : scene.extrinsics)
     {
         PoseVertex pv;
-        pv.se3      = p.se3;
+#ifdef PGO_SIM3
+        pv.se3 = sim3(p.se3, 1);
+#else
+        pv.se3 = p.se3;
+#endif
         pv.constant = p.constant;
+        pv.constant = false;
         poses.push_back(pv);
     }
 
@@ -27,17 +32,17 @@ PoseGraph::PoseGraph(const Scene& scene, int minEdges)
     int n = scene.extrinsics.size();
     std::vector<std::vector<int>> schurStructure;
     schurStructure.clear();
-    schurStructure.resize(n, std::vector<int>(n, -1));
+    schurStructure.resize(n, std::vector<int>(n, 0));
     for (auto& wp : scene.worldPoints)
     {
         for (auto& ref : wp.stereoreferences)
         {
             for (auto& ref2 : wp.stereoreferences)
             {
-                int i1                 = ref.first;
-                int i2                 = ref2.first;
-                schurStructure[i1][i2] = i2;
-                schurStructure[i2][i1] = i1;
+                int i1 = ref.first;
+                int i2 = ref2.first;
+                schurStructure[i1][i2]++;
+                schurStructure[i2][i1]++;
             }
         }
     }
@@ -64,15 +69,21 @@ void PoseGraph::addNoise(double stddev)
 {
     for (auto& e : poses)
     {
+        if (e.constant) continue;
         e.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
-        Quat q = e.se3.unit_quaternion();
-        q.coeffs() += Random::gaussRandMatrix<Vec4>(0, stddev);
-        q.normalize();
+
+#ifdef PGO_SIM3
+        e.se3.setScale(e.se3.scale() * Random::sampleDouble(0.7, 1.3));
+#endif
+        //        Quat q = e.se3.unit_quaternion();
+        //        Quat q = e.se3.rxso3().quaternion();
+        //        q.coeffs() += Random::gaussRandMatrix<Vec4>(0, stddev);
+        //        q.normalize();
         //        e.se3.setQuaternion(q);
     }
 }
 
-Vec6 PoseGraph::residual6(const PoseEdge& edge)
+PoseEdge::TangentType PoseGraph::residual6(const PoseEdge& edge)
 {
     auto& _from = poses[edge.from].se3;
     auto& _to   = poses[edge.to].se3;
@@ -221,6 +232,12 @@ std::ostream& operator<<(std::ostream& strm, PoseGraph& pg)
     strm << " Rms: " << pg.rms() << std::endl;
     strm << " Chi2: " << pg.chi2() << std::endl;
     strm << " Density: " << pg.density() * 100 << "%" << std::endl;
+
+    int constantNodes = 0;
+    for (auto e : pg.poses)
+        if (e.constant) constantNodes++;
+    strm << " Constant Poses: " << constantNodes << std::endl;
+
     return strm;
 }
 

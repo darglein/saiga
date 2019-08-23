@@ -13,14 +13,15 @@
 
 namespace Saiga
 {
-class CostPGOAnalytic : public ceres::SizedCostFunction<6, 7, 7>
+class CostPGOAnalytic : public ceres::SizedCostFunction<PGOTransformation::DoF, 7, 7>
 {
    public:
-    using T = double;
+    static constexpr int DOF = PGOTransformation::DoF;
+    using T                  = double;
 
-    using Kernel = Saiga::Kernel::PGO<double>;
+    using Kernel = Saiga::Kernel::PGO<PGOTransformation>;
 
-    CostPGOAnalytic(const SE3& invMeassurement, double weight = 1)
+    CostPGOAnalytic(const PGOTransformation& invMeassurement, double weight = 1)
         : _inverseMeasurement(invMeassurement), weight(weight)
     {
     }
@@ -29,9 +30,9 @@ class CostPGOAnalytic : public ceres::SizedCostFunction<6, 7, 7>
 
     virtual bool Evaluate(double const* const* _parameters, double* _residuals, double** _jacobians) const
     {
-        Eigen::Map<Sophus::SE3<T> const> const from(_parameters[0]);
-        Eigen::Map<Sophus::SE3<T> const> const to(_parameters[1]);
-        Eigen::Map<Eigen::Matrix<T, 6, 1>> residual(_residuals);
+        Eigen::Map<Sophus::Sim3<T> const> const from(_parameters[0]);
+        Eigen::Map<Sophus::Sim3<T> const> const to(_parameters[1]);
+        Eigen::Map<Eigen::Matrix<T, DOF, 1>> residual(_residuals);
 
 
 
@@ -51,25 +52,28 @@ class CostPGOAnalytic : public ceres::SizedCostFunction<6, 7, 7>
 
             residual = res;
 
+
+
             if (_jacobians[0])
             {
-                Eigen::Map<Eigen::Matrix<T, 6, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
+                Eigen::Map<Eigen::Matrix<T, DOF, 7, Eigen::RowMajor>> jpose2(_jacobians[0]);
                 jpose2.setZero();
-                jpose2.block<6, 6>(0, 0) = JrowFrom;
+                jpose2.block<DOF, DOF>(0, 0) = JrowFrom;
             }
             if (_jacobians[1])
             {
-                Eigen::Map<Eigen::Matrix<T, 6, 7, Eigen::RowMajor>> jpose2(_jacobians[1]);
+                Eigen::Map<Eigen::Matrix<T, DOF, 7, Eigen::RowMajor>> jpose2(_jacobians[1]);
                 jpose2.setZero();
-                jpose2.block<6, 6>(0, 0) = JrowTo;
+                jpose2.block<DOF, DOF>(0, 0) = JrowTo;
             }
         }
+
 
         return true;
     }
 
    private:
-    SE3 _inverseMeasurement;
+    PGOTransformation _inverseMeasurement;
     double weight;
 };
 

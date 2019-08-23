@@ -7,3 +7,9 @@
 #pragma once
 
 #define LSD_REL
+
+#define PGO_SIM3
+namespace Saiga
+{
+using PGOTransformation = Sim3;
+}

@@ -18,6 +18,7 @@
 
 #include "CeresKernel_PGO.h"
 #include "local_parameterization_se3.h"
+#include "local_parameterization_sim3.h"
 
 namespace Saiga
 {
@@ -36,10 +37,25 @@ OptimizationResults CeresPGO::initAndSolve()
 
 
     //    Sophus::test::LocalParameterizationSE3* camera_parameterization = new Sophus::test::LocalParameterizationSE3;
+#ifdef PGO_SIM3
+    Sophus::test::LocalParameterizationSim32 camera_parameterization;
+    camera_parameterization.fixScale = scene.fixScale;
+//    Sophus::test::LocalParameterizationSim32<true> camera_parameterization2;
+#else
     Sophus::test::LocalParameterizationSE32 camera_parameterization;
+#endif
     for (size_t i = 0; i < scene.poses.size(); ++i)
     {
         problem.AddParameterBlock(scene.poses[i].se3.data(), 7, &camera_parameterization);
+
+        if (scene.poses[i].constant)
+        {
+            //            problem.AddParameterBlock(scene.poses[i].se3.data(), 7, &camera_parameterization2);
+            problem.SetParameterBlockConstant(scene.poses[i].se3.data());
+        }
+        else
+        {
+        }
     }
 
 

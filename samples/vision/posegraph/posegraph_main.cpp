@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 #include "saiga/core/framework/framework.h"
+#include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/fileChecker.h"
@@ -15,7 +16,6 @@
 #include "saiga/vision/scene/BALDataset.h"
 #include "saiga/vision/scene/PoseGraph.h"
 #include "saiga/vision/scene/SynteticScene.h"
-#include "saiga/core/math/Eigen_Compile_Checker.h"
 
 #include <fstream>
 using namespace Saiga;
@@ -151,11 +151,11 @@ int main(int, char**)
         //        baoptions.initialLambda = 1;  // use a high lambda for the benchmark so it converges slowly, but
         //        surely
         int testIts = 1;
-        if (1)
+        if (0)
         {
             baoptions.maxIterativeIterations = 25;
             baoptions.iterativeTolerance     = 1e-50;
-            baoptions.solverType             = OptimizationOptions::SolverType::Iterative;
+            baoptions.solverType             = OptimizationOptions::SolverType::Direct;
             test_to_file(baoptions, "pgo_benchmark_cg.csv", testIts);
         }
 
@@ -165,7 +165,7 @@ int main(int, char**)
             test_to_file(baoptions, "pgo_benchmark_chol.csv", testIts);
         }
     }
-    return 0;
+    //    return 0;
 
     //    std::string path = "vision/problem-00257-65132-pre.txt";
     //    std::string path = "vision/problem-00356-226730-pre.txt";
@@ -176,43 +176,52 @@ int main(int, char**)
     //    Scene scene = bald.makeScene();
 
     Scene scene;
-    //    scene.load(SearchPathes::data("vision/tum_office.scene"));
-    scene.load(SearchPathes::data("vision/tum_large.scene"));
+    //    scene.load(SearchPathes::data("vision/tum_large.scene"));
 
-    //    SynteticScene sscene;
-    //    sscene.numCameras     = 2;
-    //    sscene.numImagePoints = 2;
-    //    sscene.numWorldPoints = 7;
-    //    scene                 = sscene.circleSphere();
+#if 0
+    SynteticScene sscene;
+    sscene.numCameras     = 5;
+    sscene.numImagePoints = 5;
+    sscene.numWorldPoints = 7;
+    scene                 = sscene.circleSphere();
+#else
+
+    scene.load(SearchPathes::data("vision/tum_office.scene"));
+#endif
     //    scene.addWorldPointNoise(0.01);
     //    scene.addImagePointNoise(1.0);
     //    scene.addExtrinsicNoise(0.01);
 
+    std::cout << scene << std::endl;
 
-    std::cout << "Density: " << scene.getSchurDensity() << std::endl;
+    //    std::cout << "Density: " << scene.getSchurDensity() << std::endl;
     PoseGraph pg(scene);
+    std::cout << pg << std::endl;
     //    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
     //    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
     //    pg.load(SearchPathes::data("vision/loop.posegraph"));
+    //    std::cout << pg.chi2() << std::endl;
     pg.addNoise(1.05);
-    std::cout << std::endl;
+    pg.fixScale = false;
+    //    std::cout << pg.chi2() << std::endl;
+    //    std::cout << std::endl;
 
 
     OptimizationOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 10;
+    baoptions.maxIterations          = 3;
     baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
     //    baoptions.initialLambda          = 1e3;
-    baoptions.solverType = OptimizationOptions::SolverType::Direct;
-    //    baoptions.solverType = OptimizationOptions::SolverType::Iterative;
+    //    baoptions.solverType = OptimizationOptions::SolverType::Direct;
+    baoptions.solverType = OptimizationOptions::SolverType::Iterative;
     std::cout << baoptions << std::endl;
 
 
     std::vector<std::unique_ptr<PGOBase>> solvers;
 
     solvers.push_back(std::make_unique<PGORec>());
-    solvers.push_back(std::make_unique<g2oPGO>());
+    //    solvers.push_back(std::make_unique<g2oPGO>());
     solvers.push_back(std::make_unique<CeresPGO>());
 
     for (auto& s : solvers)
@@ -220,7 +229,7 @@ int main(int, char**)
         std::cout << "[Solver] " << s->name << std::endl;
         auto cpy = pg;
         //        auto rmsbefore = cpy.chi2();
-        std::cout << "chi2 " << cpy.chi2() << std::endl;
+        //        std::cout << "chi2 " << cpy.chi2() << std::endl;
         //        {
         //            SAIGA_BLOCK_TIMER(s->name);
         s->create(cpy);

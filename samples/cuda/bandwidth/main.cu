@@ -19,7 +19,6 @@ __global__ static void copy(Saiga::ArrayView<T> src,
     Saiga::CUDA::ThreadInfo<> ti;
     if (ti.thread_id >= src.size()) return;
 
-
     dst[ti.thread_id] = src[ti.thread_id];
 }
 

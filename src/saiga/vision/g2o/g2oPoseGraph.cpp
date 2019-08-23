@@ -26,7 +26,7 @@ OptimizationResults g2oPGO::initAndSolve()
 
     auto solver = g2o_make_optimizationAlgorithm<BlockSolver>(optimizationOptions);
     g2o::SparseOptimizer optimizer;
-    //    optimizer.setVerbose(optimizationOptions.debugOutput);
+    optimizer.setVerbose(optimizationOptions.debugOutput);
     //    //    optimizer.setComputeBatchStatistics(options.debugOutput);
     optimizer.setComputeBatchStatistics(true);
     optimizer.setAlgorithm(solver);
@@ -38,12 +38,14 @@ OptimizationResults g2oPGO::initAndSolve()
         VertexSim3* v_se3 = new VertexSim3();
         v_se3->setId(i);
         v_se3->setEstimate(img.se3);
+        v_se3->fixScale = scene.fixScale;
         // fix the first camera
         v_se3->setFixed(img.constant);
         optimizer.addVertex(v_se3);
     }
 
     // Add all transformation edges
+    double chi2 = 0;
     for (auto& e : scene.edges)
     {
         auto vertex_from = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(e.from));
@@ -61,9 +63,14 @@ OptimizationResults g2oPGO::initAndSolve()
         ge->setVertex(1, vertex_to);
         ge->setMeasurement(e.meassurement);
         //        ge->setMeasurementFromState();
-        ge->information() = Eigen::Matrix<double, 6, 6>::Identity();
+        ge->information() = Eigen::Matrix<double, PGOTransformation::DoF, PGOTransformation::DoF>::Identity();
         optimizer.addEdge(ge);
+
+        ge->computeError();
+        chi2 += ge->chi2();
     }
+
+    //    std::cout << "chi2: " << chi2 << std::endl;
 
 
 

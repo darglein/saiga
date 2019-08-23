@@ -20,14 +20,17 @@ namespace Saiga
 {
 struct SAIGA_VISION_API PoseEdge
 {
+    using TransformationType = PGOTransformation;
+    using TangentType        = typename TransformationType::Tangent;
+
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     int from = -1, to = -1;
     double weight = 1;
-    SE3 meassurement;
+    TransformationType meassurement;
 
     // Computes the relative pose as it is defined here
-    void setRel(const SE3& from, const SE3& to)
+    void setRel(const TransformationType& from, const TransformationType& to)
     {
 #ifdef LSD_REL
         meassurement = from.inverse() * to;
@@ -37,7 +40,7 @@ struct SAIGA_VISION_API PoseEdge
     }
 
     // Computes the relative pose as it is defined here
-    Vec6 residual(const SE3& from, const SE3& to)
+    TangentType residual(const TransformationType& from, const TransformationType& to)
     {
 #ifdef LSD_REL
         auto error_ = from.inverse() * to * meassurement.inverse();
@@ -61,7 +64,7 @@ struct SAIGA_VISION_API PoseVertex
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    SE3 se3;
+    PGOTransformation se3;
     bool constant = false;
 };
 
@@ -71,6 +74,7 @@ struct SAIGA_VISION_API PoseGraph
 
     AlignedVector<PoseVertex> poses;
     AlignedVector<PoseEdge> edges;
+    bool fixScale = true;
 
     PoseGraph() {}
     PoseGraph(const std::string& file) { load(file); }
@@ -78,7 +82,7 @@ struct SAIGA_VISION_API PoseGraph
 
     void addNoise(double stddev);
 
-    Vec6 residual6(const PoseEdge& edge);
+    PoseEdge::TangentType residual6(const PoseEdge& edge);
 
     double density();
 

@@ -18,6 +18,34 @@ class RegistrationTest
         groundTruthTransformation      = Random::randomSE3();
         groundTruthTransformationScale = sim3(groundTruthTransformation, gtscale);
 
+
+        std::cout << groundTruthTransformation << std::endl;
+        std::cout << groundTruthTransformationScale << std::endl;
+        auto test = se3Scale(groundTruthTransformationScale);
+        std::cout << test.first << " " << test.second << std::endl;
+        std::cout << std::endl;
+
+        std::cout << groundTruthTransformationScale.inverse() << std::endl;
+        test = se3Scale(groundTruthTransformationScale.inverse());
+        std::cout << test.first << " " << test.second << std::endl;
+
+
+        std::cout << std::endl;
+        Quat eigR = groundTruthTransformationScale.rxso3().quaternion().normalized();
+        Vec3 eigt = groundTruthTransformationScale.translation();
+        double s  = groundTruthTransformationScale.scale();
+        eigt *= (1. / s);  //[R t/s;0 1]
+
+        SE3 correctedTiw = SE3(eigR, eigt);
+
+        std::cout << correctedTiw << std::endl;
+        std::cout << correctedTiw.inverse() << std::endl;
+        std::cout << se3Scale(groundTruthTransformationScale.inverse()).first.inverse() << std::endl;
+
+
+        std::terminate();
+
+
         // create random point cloud
         // and transform by inverse ground truth transformation
         AlignedVector<Vec3> points, pointsTransformed, pointsTransformedScaled;

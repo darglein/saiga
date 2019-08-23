@@ -38,4 +38,26 @@ inline std::pair<SE3, double> se3Scale(const Sim3& sim3)
     return {se3, scale};
 }
 
+
+// Returns the SE3 which is inversely matching the given sim3:
+//
+// A [sim3] -> B [SE3]
+// B.inverse() == se3Scale(sim3.inverse()).first
+inline SE3 inverseMatchingSE3(const Sim3& sim3)
+{
+    // Alternative implementation using 2x inverse
+    // return se3Scale(sim3.inverse()).first.inverse();
+
+    Quat q   = sim3.rxso3().quaternion().normalized();
+    Vec3 t   = sim3.translation();
+    double s = sim3.scale();
+    t *= (1. / s);
+    return SE3(q, t);
+}
+
+// inline SE3 operator*(const Sim3& l, const SE3& r)
+//{
+//    return se3Scale(l * sim3(r, 1)).first;
+//}
+
 }  // namespace Saiga

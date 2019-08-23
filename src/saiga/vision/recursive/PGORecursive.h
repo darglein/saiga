@@ -18,7 +18,7 @@ class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
    public:
     // ============== Recusrive Matrix Types ==============
 
-    static constexpr int pgoBlockSizeCamera = 6;
+    static constexpr int pgoBlockSizeCamera = PGOTransformation::DoF;
     using BlockPGOScalar                    = double;
 
     using PGOBlock   = Eigen::Matrix<BlockPGOScalar, pgoBlockSizeCamera, pgoBlockSizeCamera>;
@@ -45,7 +45,7 @@ class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
 
 
 
-    AlignedVector<SE3> x_u, oldx_u;
+    AlignedVector<PGOTransformation> x_u, oldx_u;
 
 
     std::vector<int> edgeOffsets;
