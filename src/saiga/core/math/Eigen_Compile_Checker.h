@@ -66,9 +66,9 @@ struct SAIGA_VISION_API EigenCompileFlags
 
     bool operator==(const EigenCompileFlags& o)
     {
-        return std::make_tuple(versionWorld, versionMajor, versionMinor, debug, fma, sse3, ssse3, sse41, sse42, avx,
-                               avx2) == std::make_tuple(o.versionWorld, o.versionMajor, o.versionMinor, o.debug, o.fma,
-                                                        o.sse3, o.ssse3, o.sse41, o.sse42, o.avx, o.avx2);
+        return std::make_tuple(versionWorld, versionMajor, versionMinor, fma, sse3, ssse3, sse41, sse42, avx, avx2) ==
+               std::make_tuple(o.versionWorld, o.versionMajor, o.versionMinor, o.fma, o.sse3, o.ssse3, o.sse41, o.sse42,
+                               o.avx, o.avx2);
     }
 
     SAIGA_VISION_API friend std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags);

@@ -196,6 +196,9 @@ int main(int, char**)
 
     //    std::cout << "Density: " << scene.getSchurDensity() << std::endl;
     PoseGraph pg(scene);
+
+    //    pg = PoseGraph();
+    //    pg.load(SearchPathes::data("vision/loop.posegraph"));
     std::cout << pg << std::endl;
     //    pg.load(SearchPathes::data("vision/slam_30_431.posegraph"));
     //    pg.load(SearchPathes::data("vision/slam_125_3495.posegraph"));
@@ -209,7 +212,7 @@ int main(int, char**)
 
     OptimizationOptions baoptions;
     baoptions.debugOutput            = false;
-    baoptions.maxIterations          = 3;
+    baoptions.maxIterations          = 1;
     baoptions.maxIterativeIterations = 15;
     baoptions.iterativeTolerance     = 1e-50;
     //    baoptions.initialLambda          = 1e3;

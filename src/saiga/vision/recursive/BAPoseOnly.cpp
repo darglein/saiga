@@ -26,6 +26,7 @@ void BAPoseOnly::init()
     resBlocks.resize(n);
     x_v.resize(n);
     delta_x.resize(n);
+    oldx_v.resize(n);
 
     for (int i = 0; i < n; ++i)
     {
@@ -229,6 +230,7 @@ void BAPoseOnly::addDelta()
 #pragma omp for
     for (int i = 0; i < n; ++i)
     {
+        oldx_v[i] = x_v[i];
         x_v[i] += delta_x[i];
     }
 }

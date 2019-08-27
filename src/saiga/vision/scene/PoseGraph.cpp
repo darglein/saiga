@@ -121,7 +121,7 @@ void PoseGraph::save(const std::string& file)
     strm.precision(20);
     strm << std::scientific;
 
-    strm << poses.size() << " " << edges.size() << std::endl;
+    strm << poses.size() << " " << edges.size() << " " << (int)fixScale << std::endl;
     for (auto& e : poses)
     {
         strm << e.constant << " " << e.se3.params().transpose() << std::endl;
@@ -159,8 +159,9 @@ void PoseGraph::load(const std::string& file)
 
 
     consumeComment();
-    int num_vertices, num_edges;
-    strm >> num_vertices >> num_edges;
+    int num_vertices, num_edges, _fixScale;
+    strm >> num_vertices >> num_edges >> _fixScale;
+    fixScale = _fixScale;
     poses.resize(num_vertices);
     edges.resize(num_edges);
     std::cout << "Vertices/Edges: " << num_vertices << "/" << num_edges << std::endl;
@@ -203,6 +204,7 @@ bool PoseGraph::imgui()
     ImGui::PushID(2836759);
     bool changed = false;
 
+    ImGui::Checkbox("fixScale",&fixScale);
     if (ImGui::Button("RMS"))
     {
         rms();

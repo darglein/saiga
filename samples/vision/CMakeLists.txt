@@ -4,6 +4,7 @@ add_subdirectory(eightPoint)
 add_subdirectory(fivePoint)
 add_subdirectory(robust_pose_optimization)
 add_subdirectory(derive)
+add_subdirectory(pnp)
 add_subdirectory(registration)
 
 if(EIGENRECURSIVE_FOUND)

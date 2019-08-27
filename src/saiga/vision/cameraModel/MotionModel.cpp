@@ -109,6 +109,7 @@ SE3 MotionModel::computeVelocity()
     // Number of values to consider
     int s = std::min((int)data.size(), params.smoothness);
 
+    //    return data.back().v;
 
     weights.resize(s);
     double weightSum = 0;
@@ -145,7 +146,10 @@ SE3 MotionModel::computeVelocity()
         result = slerp(result, data[dataId].v, slerpAlpha);
         currentWeight += nextWeight;
     }
-    return scale(result, params.damping);
+    result = scale(result, params.damping);
+    //    std::cout << result << std::endl;
+    //    std::cout << data.back().v << std::endl << std::endl;
+    return result;
 }
 
 

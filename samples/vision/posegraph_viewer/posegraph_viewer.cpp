@@ -93,8 +93,8 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
             int i = e.from;
             int j = e.to;
 
-            auto p1 = scene.poses[i].se3.inverse().translation();
-            auto p2 = scene.poses[j].se3.inverse().translation();
+            auto p1 = inverseMatchingSE3(scene.poses[i].se3).inverse().translation();
+            auto p2 = inverseMatchingSE3(scene.poses[j].se3).inverse().translation();
 
             lines.emplace_back(vec3(p1(0), p1(1), p1(2)), make_vec3(0), vec3(0, 1, 0));
             lines.emplace_back(vec3(p2(0), p2(1), p2(2)), make_vec3(0), vec3(0, 1, 0));
@@ -122,7 +122,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
 
         for (auto& i : scene.poses)
         {
-            Saiga::SE3 se3 = i.se3;
+            Saiga::SE3 se3 = inverseMatchingSE3(i.se3);
             mat4 v         = (se3.matrix()).cast<float>();
             v              = Saiga::cvViewToGLView(v);
             v              = mat4(inverse(v));

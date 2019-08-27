@@ -34,7 +34,7 @@ class LocalParameterizationSim32 : public ceres::LocalParameterization
 
         if (fixScale) delta2[6] = 0;
 
-        //        std::cout << delta.transpose() << std::endl;
+        std::cout << delta.transpose() << std::endl;
         //        std::cout << Sim3d::exp(delta).rxso3().quaternion().coeffs().transpose() << std::endl;
 
 

@@ -289,7 +289,7 @@ inline int fivePointNister(Vec2* points0, Vec2* points1, std::vector<Mat3>& es)
 
 #if 1
     Eigen::Matrix<double, 10, 10> EA;
-    EA = EA2.block(0, 0, 10, 10).inverse() * EA2.block(0, 10, 10, 20);
+    EA = EA2.block<10, 10>(0, 0).inverse() * EA2.block<10, 10>(0, 10);
 #else
     Eigen::Matrix<double, 10, 10> EA;
     Eigen::Matrix<double, 10, 10> EA2inv = EA2.block(0, 0, 10, 10).inverse();
