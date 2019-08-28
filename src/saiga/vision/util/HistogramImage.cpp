@@ -20,8 +20,15 @@ HistogramImage::HistogramImage(int inputW, int inputH, int outputW, int outputH)
 
 void HistogramImage::add(int y, int x, int value)
 {
-    int ox = iRound(x * ((double)outputW / (double)inputW));
-    int oy = iRound(y * ((double)outputH / (double)inputH));
+    // pixel center
+    double dx = x + 0.5;
+    double dy = y + 0.5;
+    // rescale
+    dx = dx * ((double)outputW / (double)inputW);
+    dy = dy * ((double)outputH / (double)inputH);
+    // round to target
+    int ox = iRound(dx);
+    int oy = iRound(dy);
 
     if (img.getImageView().inImage(oy, ox))
     {
@@ -49,6 +56,15 @@ void HistogramImage::writeBinary(const std::string& file)
     }
     std::cout << outimg << std::endl;
     outimg.save(file);
+}
+
+float HistogramImage::density(int threshold)
+{
+    int count = 0;
+    for (auto i : img.rowRange())
+        for (auto j : img.colRange())
+            if (img(i, j) >= threshold) count++;
+    return float(count) / (img.w * img.h);
 }
 
 }  // namespace Saiga

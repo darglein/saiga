@@ -86,12 +86,13 @@ class RegistrationProjectRANSAC
             double* scalePtr = computeScale ? &scale : nullptr;
             SE3 rel          = ICP::pointToPointDirect(corrs, scalePtr);
 
-            int currentInliers;
+            int currentInliers = 0;
 
             if (scalePtr)
             {
-                Sim3 T         = sim3(rel, scale);
-                currentInliers = numInliers(T);
+                Sim3 T = sim3(rel, scale);
+                // if we have that much scale drift something is broken an
+                if (scale > 0.2 && scale < 5) currentInliers = numInliers(T);
             }
             else
             {

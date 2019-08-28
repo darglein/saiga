@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/util/assert.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/assert.h"
 
 #include <vector>
 
@@ -29,6 +29,9 @@ namespace Random
  * Therefore every thread has to call this method.
  */
 SAIGA_CORE_API void setSeed(uint64_t seed);
+
+SAIGA_CORE_API uint64_t getSeed();
+
 
 /**
  * Returns true with a probability of 's'.

@@ -33,6 +33,14 @@ MotionModel::MotionModel(const MotionModel::Parameters& params) : params(params)
 void MotionModel::addRelativeMotion(const SE3& T, size_t frameId, double weight)
 {
     std::unique_lock<std::mutex> lock(mut);
+    if (frameId < indices.size())
+    {
+        // frame already exists
+//        std::cout << "update instead of add" << std::endl;
+        lock.unlock();
+        updateRelativeMotion(T, frameId);
+        return;
+    }
     size_t id;
     id = data.size();
     if (id == 0)
@@ -56,7 +64,9 @@ void MotionModel::addRelativeMotion(const SE3& T, size_t frameId, double weight)
 void MotionModel::updateRelativeMotion(const SE3& T, size_t frameId)
 {
     std::unique_lock<std::mutex> lock(mut);
+    SAIGA_ASSERT(frameId < indices.size());
     auto id = indices[frameId];
+    SAIGA_ASSERT(id < data.size());
     if (id != std::numeric_limits<size_t>::max()) data[id].v = T;
     validVelocity = false;
 }

@@ -27,6 +27,8 @@ void setSeed(uint64_t seed)
     generator().seed(seed);
 }
 
+
+
 bool sampleBool(double s)
 {
     // we need this because the line below is 'inclusive'

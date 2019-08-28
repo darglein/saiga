@@ -5,6 +5,7 @@
  */
 
 #pragma once
+#include "saiga/core/math/random.h"
 #include "saiga/vision/VisionTypes.h"
 
 #include "Epipolar.h"
@@ -463,13 +464,13 @@ inline bool bestEUsing6Points(const std::vector<Mat3>& es, const Vec2* points1, 
 inline int computeERansac(Vec2* points1, Vec2* points2, int N, Mat3& bestE, SE3& bestT,
                           std::vector<int>& bestInlierMatches)
 {
-    int maxIterations        = 1000;
+    int maxIterations        = 200;
     constexpr int sampleSize = 6;
-    double epipolarTheshold  = 1 / 535.4;
+    double epipolarTheshold  = 1.5 / 535.4;
     double thresholdSquared  = epipolarTheshold * epipolarTheshold;
 
-    std::uniform_int_distribution<unsigned int> dis(0, N - 1);
-    std::mt19937 gen = std::mt19937(92730469346UL);
+    //    std::uniform_int_distribution<unsigned int> dis(0, N - 1);
+    //    std::mt19937 gen = std::mt19937(92730469346UL);
 
     std::array<Vec2, sampleSize> A;
     std::array<Vec2, sampleSize> B;
@@ -480,7 +481,8 @@ inline int computeERansac(Vec2* points1, Vec2* points2, int N, Mat3& bestE, SE3&
     {
         for (auto j : Range(0, sampleSize))
         {
-            auto idx = dis(gen);
+            //            auto idx = dis(gen);
+            auto idx = Saiga::Random::uniformInt(0, N - 1);
             A[j]     = points1[idx];
             B[j]     = points2[idx];
         }

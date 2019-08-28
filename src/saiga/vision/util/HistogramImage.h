@@ -20,6 +20,11 @@ class SAIGA_VISION_API HistogramImage
 
     void writeBinary(const std::string& file);
 
+    int operator()(int y, int x) { return img(y, x); }
+
+    // all elements larger or equal than threshold divided by size
+    float density(int threshold = 1);
+
    private:
     int inputW, inputH, outputW, outputH;
     TemplatedImage<int> img;
