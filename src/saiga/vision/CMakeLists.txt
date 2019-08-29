@@ -12,6 +12,7 @@ add_subdirectory(reconstruction)
 add_subdirectory(scene)
 add_subdirectory(slam)
 add_subdirectory(util)
+add_subdirectory(orb)
 
 if(MKL_FOUND)
     add_subdirectory(mkl)

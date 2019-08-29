@@ -41,6 +41,7 @@ inline cv::Mat ImageViewToMat(ImageView<T> img)
     if (typeid(T) == typeid(float)) type = CV_32FC1;
     if (typeid(T) == typeid(ucvec3)) type = CV_8UC3;
     if (typeid(T) == typeid(ucvec4)) type = CV_8UC4;
+    if (typeid(T) == typeid(uchar)) type = CV_8UC1;
     SAIGA_ASSERT(type != -1);
     return cv::Mat(img.height, img.width, type, img.data, img.pitchBytes);
 }
