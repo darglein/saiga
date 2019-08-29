@@ -252,7 +252,7 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
 
 void ORBextractor::ComputeAngles(std::vector<std::vector<kpt_t>>& allkpts)
 {
-#pragma omp parallel for default(none) shared(allkpts, imagePyramid)
+    //#pragma omp parallel for default(none) shared(allkpts, imagePyramid)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
         for (int i = 0; i < (int)allkpts[lvl].size(); ++i)
@@ -337,7 +337,7 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int c
             minLvl = levelToDisplay;
             maxLvl = minLvl + 1;
         }
-#pragma omp parallel for default(none) shared(minLvl, maxLvl, cellSize, distributePerLevel, allkpts)
+        //#pragma omp parallel for default(none) shared(minLvl, maxLvl, cellSize, distributePerLevel, allkpts)
         for (int lvl = minLvl; lvl < maxLvl; ++lvl)
         {
             std::vector<kpt_t> levelkpts;
