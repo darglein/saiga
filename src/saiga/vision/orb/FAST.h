@@ -23,7 +23,7 @@ public:
 
     void SetFASTThresholds(int ini, int min);
 
-    void FAST(img_t img, std::vector<Saiga::KeyPoint> &keypoints, int threshold, int lvl);
+    void FAST(img_t img, std::vector<kpt_t> &keypoints, int threshold, int lvl);
 
     void inline SetLevels(int nlvls)
     {
@@ -48,7 +48,7 @@ protected:
 
 
     template <typename scoretype>
-    void FAST_t(img_t &img, std::vector<Saiga::KeyPoint> &keypoints, int threshold, int lvl);
+    void FAST_t(img_t &img, std::vector<kpt_t> &keypoints, int threshold, int lvl);
 
     float CornerScore(const uchar* pointer, const int offset[], int threshold);
 };

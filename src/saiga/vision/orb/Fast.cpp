@@ -62,7 +62,7 @@ void FASTdetector::SetStepVector(std::vector<int> &_steps)
 }
 
 
-void FASTdetector::FAST(img_t img, std::vector<Saiga::KeyPoint> &keypoints, int threshold, int lvl)
+void FASTdetector::FAST(img_t img, std::vector<kpt_t> &keypoints, int threshold, int lvl)
 {
     this->FAST_t<uchar>(img, keypoints, threshold, lvl);
 }
@@ -70,7 +70,7 @@ void FASTdetector::FAST(img_t img, std::vector<Saiga::KeyPoint> &keypoints, int 
 
 
 template <typename scoretype>
-void FASTdetector::FAST_t(img_t &img, std::vector<Saiga::KeyPoint> &keypoints, int threshold, int lvl)
+void FASTdetector::FAST_t(img_t &img, std::vector<kpt_t> &keypoints, int threshold, int lvl)
 {
     keypoints.clear();
 
@@ -222,7 +222,7 @@ void FASTdetector::FAST_t(img_t &img, std::vector<Saiga::KeyPoint> &keypoints, i
                 score > prevRowScores[pos+1] && score > prevRowScores[pos-1] &&
                 score > currRowScores[pos-1] && score > currRowScores[pos] && score > currRowScores[pos+1])
             {
-                keypoints.emplace_back(Saiga::KeyPoint(pos, (i-1), 7.f, -1, (float)score, lvl));
+                keypoints.emplace_back(kpt_t(pos, (i-1), 7.f, -1, (float)score, lvl));
             }
         }
     }

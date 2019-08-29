@@ -60,7 +60,7 @@ ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int
     SetnFeatures(nfeatures);
 
     const int nPoints = 512;
-    const auto tempPattern = (const Saiga::Point*) bit_pattern_31_;
+    const auto tempPattern = (const Point2i*) bit_pattern_31_;
     std::copy(tempPattern, tempPattern+nPoints, std::back_inserter(pattern));
 }
 
@@ -97,7 +97,7 @@ void ORBextractor::SetFASTThresholds(int ini, int min)
 
 
 void ORBextractor::operator()(cv::InputArray inputImage, cv::InputArray mask,
-                              std::vector<Saiga::KeyPoint>& resultKeypoints, cv::OutputArray outputDescriptors)
+                              std::vector<kpt_t>& resultKeypoints, cv::OutputArray outputDescriptors)
 {
     //this->operator()(inputImage, mask, resultKeypoints, outputDescriptors, true);
 
@@ -120,7 +120,7 @@ void ORBextractor::operator()(cv::InputArray inputImage, cv::InputArray mask,
  * @param outputDescriptors matrix in which descriptors will be stored
  * @param distributePerLevel true->distribute kpts per octave, false->distribute kpts per image
  */
-void ORBextractor::operator()(img_t& image, std::vector<Saiga::KeyPoint>& resultKeypoints,
+void ORBextractor::operator()(img_t& image, std::vector<kpt_t>& resultKeypoints,
                               img_t& outputDescriptors, bool distributePerLevel)
 {
 #ifdef ORB_FIXED_DURATION
@@ -152,7 +152,7 @@ void ORBextractor::operator()(img_t& image, std::vector<Saiga::KeyPoint>& result
 
     SetSteps();
 
-    std::vector<std::vector<Saiga::KeyPoint>> allkpts(nlevels);
+    std::vector<std::vector<kpt_t>> allkpts(nlevels);
 
     DivideAndFAST(allkpts, 30, distributePerLevel);
 
@@ -238,24 +238,24 @@ void ORBextractor::operator()(img_t& image, std::vector<Saiga::KeyPoint>& result
 }
 
 
-void ORBextractor::ComputeAngles(std::vector<std::vector<Saiga::KeyPoint>> &allkpts)
+void ORBextractor::ComputeAngles(std::vector<std::vector<kpt_t>> &allkpts)
 {
 #pragma omp parallel for default(none) shared(allkpts, imagePyramid)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
         for (int i = 0; i < (int)allkpts[lvl].size(); ++i)
         {
-            allkpts[lvl][i].angle = IntensityCentroidAngle(&imagePyramid[lvl](allkpts[lvl][i].pt.y,
-                                                                              allkpts[lvl][i].pt.x), imagePyramid[lvl].pitchBytes);
+            allkpts[lvl][i].angle = IntensityCentroidAngle(&imagePyramid[lvl](allkpts[lvl][i].pt.y(),
+                                                                              allkpts[lvl][i].pt.x()), imagePyramid[lvl].pitchBytes);
         }
     }
 }
 
 
-void ORBextractor::ComputeDescriptors(std::vector<std::vector<Saiga::KeyPoint>> &allkpts, img_t &descriptors)
+void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>> &allkpts, img_t &descriptors)
 {
     const auto degToRadFactor = (float)(CV_PI/180.f);
-    const Saiga::Point* p = &pattern[0];
+    const Point2i* p = &pattern[0];
 
     int current = 0;
 
@@ -275,9 +275,9 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<Saiga::KeyPoint>> 
         int i = 0, nkpts = (int)allkpts[lvl].size();
         for (int k = 0; k < nkpts; ++k, ++current)
         {
-            const Saiga::KeyPoint& kpt = allkpts[lvl][k];
+            const kpt_t& kpt = allkpts[lvl][k];
             auto descPointer = descriptors.rowPtr(current);        //ptr to beginning of current descriptor
-            const uchar* pixelPointer = &lvlClone(kpt.pt.y, kpt.pt.x);  //ptr to kpt in img
+            const uchar* pixelPointer = &lvlClone(kpt.pt.y(), kpt.pt.x());  //ptr to kpt in img
 
             float angleRad = kpt.angle * degToRadFactor;
             auto a = (float)cos(angleRad), b = (float)sin(angleRad);
@@ -312,7 +312,7 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<Saiga::KeyPoint>> 
  * @param divideImage  true-->divide image into cellSize x cellSize cells, run FAST per cell
  * @param cellSize must be greater than 16 and lesser than min(rows, cols) of smallest image in pyramid
  */
-void ORBextractor::DivideAndFAST(std::vector<std::vector<Saiga::KeyPoint>>& allkpts, int cellSize, bool distributePerLevel)
+void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int cellSize, bool distributePerLevel)
 {
     const int minimumX = EDGE_THRESHOLD - 3, minimumY = minimumX;
     {
@@ -328,7 +328,7 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<Saiga::KeyPoint>>& allk
 #pragma omp parallel for default(none) shared(minLvl, maxLvl, cellSize, distributePerLevel, allkpts)
         for (int lvl = minLvl; lvl < maxLvl; ++lvl)
         {
-            std::vector<Saiga::KeyPoint> levelkpts;
+            std::vector<kpt_t> levelkpts;
             levelkpts.clear();
             levelkpts.reserve(nfeatures*10);
 
@@ -374,7 +374,7 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<Saiga::KeyPoint>>& allk
                         endX = maximumX;
                     }
 
-                    std::vector<Saiga::KeyPoint> patchkpts;
+                    std::vector<kpt_t> patchkpts;
                     img_t patch = imagePyramid[lvl].subImageView(startY, startX, endY-startY, endX-startX);
 
                     fast.FAST(patch, patchkpts, iniThFAST, lvl);
@@ -388,8 +388,8 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<Saiga::KeyPoint>>& allk
 
                     for (auto &kpt : patchkpts)
                     {
-                        kpt.pt.y += py * patchHeight;
-                        kpt.pt.x += px * patchWidth;
+                        kpt.pt.y() += py * patchHeight;
+                        kpt.pt.x() += px * patchWidth;
                         levelkpts.emplace_back(kpt);
                     }
                 }
@@ -400,8 +400,8 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<Saiga::KeyPoint>>& allk
 
             for (auto &kpt : levelkpts)
             {
-                kpt.pt.y += minimumY;
-                kpt.pt.x += minimumX;
+                kpt.pt.y() += minimumY;
+                kpt.pt.x() += minimumX;
                 kpt.octave = lvl;
             }
             featuresPerLevelActual[lvl] = levelkpts.size();

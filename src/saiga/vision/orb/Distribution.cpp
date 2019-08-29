@@ -6,25 +6,25 @@
 #include <opencv2/core/core.hpp>
 #endif
 
-static void RetainBestN(std::vector<Saiga::KeyPoint> &kpts, int N)
+static void RetainBestN(std::vector<kpt_t> &kpts, int N)
 {
     if (kpts.size() <= N)
         return;
     std::nth_element(kpts.begin(), kpts.begin()+N, kpts.end(),
-                     [](const Saiga::KeyPoint &k1, const Saiga::KeyPoint &k2){return k1.response > k2.response;});
+                     [](const kpt_t &k1, const kpt_t &k2){return k1.response > k2.response;});
     kpts.resize(N);
 }
 
 
 void
-Distribution::DistributeKeypoints(std::vector<Saiga::KeyPoint> &kpts, const int minX, const int maxX, const int minY,
+Distribution::DistributeKeypoints(std::vector<kpt_t> &kpts, const int minX, const int maxX, const int minY,
                                   const int maxY, const int N, int softSSCThreshold)
 {
     if (kpts.size() <= N)
         return;
     if (N == 0)
     {
-        kpts = std::vector<Saiga::KeyPoint>(0);
+        kpts = std::vector<kpt_t>(0);
         return;
     }
     const float epsilon = 0.1;
@@ -35,12 +35,12 @@ Distribution::DistributeKeypoints(std::vector<Saiga::KeyPoint> &kpts, const int 
         responseVector.emplace_back(kpts[i].response);
     std::vector<int> idx(responseVector.size()); std::iota (std::begin(idx), std::end(idx), 0);
     cv::sortIdx(responseVector, idx, CV_SORT_DESCENDING);
-    std::vector<Saiga::KeyPoint> kptsSorted;
+    std::vector<kpt_t> kptsSorted;
     for (int i = 0; i < kpts.size(); i++)
         kptsSorted.emplace_back(kpts[idx[i]]);
     kpts = kptsSorted;
 #else
-    std::sort(kpts.begin(), kpts.end(), [](const Saiga::KeyPoint &k1, const Saiga::KeyPoint &k2)
+    std::sort(kpts.begin(), kpts.end(), [](const kpt_t &k1, const kpt_t &k2)
         {return k1.response > k2.response;});
 #endif
     int cols = maxX - minX;
@@ -49,7 +49,7 @@ Distribution::DistributeKeypoints(std::vector<Saiga::KeyPoint> &kpts, const int 
 }
 
 
-void Distribution::DistributeKeypointsSoftSSC(std::vector<Saiga::KeyPoint>& kpts, const int cols, const int rows,
+void Distribution::DistributeKeypointsSoftSSC(std::vector<kpt_t>& kpts, const int cols, const int rows,
         int N, float epsilon, int threshold)
 {
     int numerator1 = rows + cols + 2*N;
@@ -88,8 +88,8 @@ void Distribution::DistributeKeypointsSoftSSC(std::vector<Saiga::KeyPoint>& kpts
 
         for (int i = 0; i < (int)kpts.size(); ++i)
         {
-            row = (int)((kpts[i].pt.y)/c);
-            col = (int)((kpts[i].pt.x)/c);
+            row = (int)((kpts[i].pt.y())/c);
+            col = (int)((kpts[i].pt.x())/c);
 
 
             int score = (int)round((double)kpts[i].response);
@@ -125,7 +125,7 @@ void Distribution::DistributeKeypointsSoftSSC(std::vector<Saiga::KeyPoint>& kpts
         prevwidth = width;
     }
 
-    std::vector<Saiga::KeyPoint> reskpts;
+    std::vector<kpt_t> reskpts;
     for (int i = 0; i < resultIndices.size(); ++i)
     {
         reskpts.emplace_back(kpts[resultIndices[i]]);

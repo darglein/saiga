@@ -10,4 +10,9 @@ typedef unsigned char uchar;
 
 typedef Saiga::ImageView<uchar> img_t;
 
+typedef Saiga::KeyPoint<float> kpt_t;
+
+#ifdef ORB_USE_OPENCV
+#include <opencv2/core/types.hpp>
+#endif
 #endif //SAIGA_ORB_TYPES_H
