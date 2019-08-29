@@ -1,22 +1,22 @@
 #ifndef SAIGA_ORB_ORBEXTRACTOR_H
 #define SAIGA_ORB_ORBEXTRACTOR_H
 
-#include <vector>
 #include "Distribution.h"
 #include "FAST.h"
+
+#include <vector>
 #ifdef ORB_USE_OPENCV
-#include <opencv2/imgproc/imgproc.hpp>
+#    include <opencv2/imgproc/imgproc.hpp>
 #endif
 
 #ifdef ORB_FEATURE_FILEINTERFACE_ENABLED
-#include "include/FeatureFileInterface.h"
+#    include "include/FeatureFileInterface.h"
 #endif
 
 
 
 namespace SaigaORB
 {
-
 struct Point2i
 {
     int x;
@@ -26,22 +26,19 @@ struct Point2i
 
     Point2i(int _x, int _y) : x(_x), y(_y) {}
 
-    bool inline operator==(const Point2i &other) const
+    bool inline operator==(const Point2i& other) const { return x == other.x && y == other.y; }
+
+    template <typename T>
+    inline friend Point2i operator*(const T s, const Point2i& pt)
     {
-        return x == other.x && y == other.y;
+        return Point(pt.x * s, pt.y * s);
     }
 
-    template <typename T> inline
-    friend Point2i operator*(const T s, const Point2i& pt)
+    template <typename T>
+    inline friend void operator*=(Point2i& pt, const T s)
     {
-        return Point(pt.x*s, pt.y*s);
-    }
-
-    template <typename T> inline
-    friend void operator*=(Point2i& pt, const T s)
-    {
-        pt.x*=s;
-        pt.y*=s;
+        pt.x *= s;
+        pt.y *= s;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const Point2i& pt)
@@ -51,56 +48,37 @@ struct Point2i
     }
 };
 
-class ORBextractor
+class SAIGA_VISION_API ORBextractor
 {
-public:
-
-    ORBextractor(int nfeatures, float scaleFactor, int nlevels,
-                 int iniThFAST, int minThFAST);
+   public:
+    ORBextractor(int nfeatures, float scaleFactor, int nlevels, int iniThFAST, int minThFAST);
 
     ~ORBextractor() = default;
 
 #ifdef ORB_USE_OPENCV
-    void operator()( cv::InputArray image, cv::InputArray mask,
-                     std::vector<kpt_t>& keypoints,
-                     cv::OutputArray descriptors);
+    void operator()(cv::InputArray image, cv::InputArray mask, std::vector<kpt_t>& keypoints,
+                    cv::OutputArray descriptors);
 #endif
 
 
-    void operator()(Saiga::ImageView<uchar> &inputImage, std::vector<kpt_t> &resultKeypoints,
-                    Saiga::ImageView<uchar> &outputDescriptors, bool distributePerLevel);
+    void operator()(Saiga::ImageView<uchar> inputImage, std::vector<kpt_t>& resultKeypoints,
+                    Saiga::TemplatedImage<uchar>& outputDescriptors, bool distributePerLevel);
 
-    int inline GetLevels(){
-        return nlevels;}
+    int inline GetLevels() { return nlevels; }
 
-    float inline GetScaleFactor(){
-        return scaleFactor;}
+    float inline GetScaleFactor() { return scaleFactor; }
 
-    std::vector<float> inline GetScaleFactors(){
-        return scaleFactorVec;
-    }
+    std::vector<float> inline GetScaleFactors() { return scaleFactorVec; }
 
-    std::vector<float> inline GetInverseScaleFactors(){
-        return invScaleFactorVec;
-    }
+    std::vector<float> inline GetInverseScaleFactors() { return invScaleFactorVec; }
 
-    std::vector<float> inline GetScaleSigmaSquares(){
-        return levelSigma2Vec;
-    }
+    std::vector<float> inline GetScaleSigmaSquares() { return levelSigma2Vec; }
 
-    std::vector<float> inline GetInverseScaleSigmaSquares(){
-        return invLevelSigma2Vec;
-    }
+    std::vector<float> inline GetInverseScaleSigmaSquares() { return invLevelSigma2Vec; }
 
-    void inline SetLevelToDisplay(int lvl)
-    {
-        levelToDisplay = std::min(lvl, nlevels-1);
-    }
+    void inline SetLevelToDisplay(int lvl) { levelToDisplay = std::min(lvl, nlevels - 1); }
 
-    void inline SetSoftSSCThreshold(float th)
-    {
-        softSSCThreshold = th;
-    }
+    void inline SetSoftSSCThreshold(float th) { softSSCThreshold = th; }
 
     void SetnFeatures(int n);
 
@@ -117,46 +95,34 @@ public:
                 std::to_string(kptDistribution) + "d/";
         fileInterface.SetPath(path);
     }
-    void inline SetFeatureSaving(bool s)
-    {
-        saveFeatures = s;
-    }
-    void inline SetLoadPath(std::string &path)
-    {
-        loadPath = path;
-    }
-    void inline EnablePrecomputedFeatures(bool b)
-    {
-        usePrecomputedFeatures = b;
-    }
-    inline FeatureFileInterface* GetFileInterface()
-    {
-        return &fileInterface;
-    }
+    void inline SetFeatureSaving(bool s) { saveFeatures = s; }
+    void inline SetLoadPath(std::string& path) { loadPath = path; }
+    void inline EnablePrecomputedFeatures(bool b) { usePrecomputedFeatures = b; }
+    inline FeatureFileInterface* GetFileInterface() { return &fileInterface; }
 #endif
 
     void SetSteps();
 
-protected:
-
+   protected:
     static float IntensityCentroidAngle(const uchar* pointer, int step);
 
 
-    void ComputeAngles(std::vector<std::vector<kpt_t>> &allkpts);
+    void ComputeAngles(std::vector<std::vector<kpt_t>>& allkpts);
 
-    void ComputeDescriptors(std::vector<std::vector<kpt_t>> &allkpts, img_t &descriptors);
+    void ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, img_t& descriptors);
 
 
-    void DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int cellSize = 30,
-            bool distributePerLevel = true);
+    void DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int cellSize = 30, bool distributePerLevel = true);
 #ifdef ORB_USE_OPENCV
     void ComputeScalePyramid(img_t& image, std::vector<cv::Mat>& tmpPyramid);
 #endif
 
     std::vector<Point2i> pattern;
-public:
+
+   public:
     std::vector<img_t> imagePyramid;
-protected:
+
+   protected:
     int nfeatures;
     double scaleFactor;
     int nlevels;
@@ -190,6 +156,6 @@ protected:
     std::string loadPath;
 #endif
 };
-}
+}  // namespace SaigaORB
 
-#endif //SAIGA_ORB_ORBEXTRACTOR_H
+#endif  // SAIGA_ORB_ORBEXTRACTOR_H

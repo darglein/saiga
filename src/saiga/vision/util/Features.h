@@ -15,7 +15,7 @@ namespace Saiga
  * Eigen Points and no 'class_id' member.
  * @brief The Keypoint struct
  */
- /*
+/*
 struct Point
 {
 int x;
@@ -27,62 +27,66 @@ Point(int _x, int _y) : x(_x), y(_y) {}
 
 bool inline operator==(const Point &other) const
 {
-    return x == other.x && y == other.y;
+   return x == other.x && y == other.y;
 }
 
 
 template <typename T> inline
 friend Point operator*(const T s, const Point& pt)
 {
-    return Point(pt.x*s, pt.y*s);
+   return Point(pt.x*s, pt.y*s);
 }
 
 template <typename T> inline
 friend void operator*=(Point& pt, const T s)
 {
-    pt.x*=s;
-    pt.y*=s;
+   pt.x*=s;
+   pt.y*=s;
 }
 
 friend std::ostream& operator<<(std::ostream& os, const Point& pt)
 {
-    os << "[" << pt.x << "," << pt.y << "]";
-    return os;
+   os << "[" << pt.x << "," << pt.y << "]";
+   return os;
 }
 };
-  */
- template <typename T = float>
+ */
+template <typename T = float>
 class KeyPoint
 {
-public:
+   public:
     using Vec2 = Eigen::Matrix<T, 2, 1>;
 
 
-    Vec2 pt;
+    Vec2 point;
 
     float size;
     float angle;
     float response;
     int octave;
 
-    KeyPoint() : pt(), size(0), angle(-1), response(0), octave(0) {}
+    KeyPoint() : point(), size(0), angle(-1), response(0), octave(0) {}
 
-    explicit KeyPoint(Vec2 _pt, float _size=0, float _angle=-1, float _response=0, int _octave=0) :
-            pt(_pt), size(_size), angle(_angle), response(_response), octave(_octave) {}
+    explicit KeyPoint(Vec2 _pt, float _size = 0, float _angle = -1, float _response = 0, int _octave = 0)
+        : point(_pt), size(_size), angle(_angle), response(_response), octave(_octave)
+    {
+    }
 
-    KeyPoint(int _x, int _y, float _size=0, float _angle=-1, float _response=0, int _octave=0) :
-            pt(_x, _y), size(_size), angle(_angle), response(_response), octave(_octave) {}
+    KeyPoint(int _x, int _y, float _size = 0, float _angle = -1, float _response = 0, int _octave = 0)
+        : point(_x, _y), size(_size), angle(_angle), response(_response), octave(_octave)
+    {
+    }
 
     bool operator==(const KeyPoint& other) const
     {
-        return pt == other.pt && size == other.size && angle == other.angle && response == other.response &&
+        return point == other.point && size == other.size && angle == other.angle && response == other.response &&
                octave == other.octave;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const KeyPoint& kpt)
     {
-        os << kpt.pt << ": size=" << kpt.size << ", angle=" << kpt.angle << ", response=" << kpt.response <<
-           ", octave=" << kpt.octave;
+        os << kpt.point << ": size=" << kpt.size << ", angle=" << kpt.angle << ", response=" << kpt.response
+           << ", octave=" << kpt.octave;
         return os;
     }
 };
@@ -281,9 +285,10 @@ struct BruteForceMatcher
             // the best distance is still larger than the threshold
             if (knn2(i, 0).first > threshold) continue;
 
-//            float ratio = float(knn2(i, 0).first) / float(knn2(i, 1).first);
-//            std::cout << "for " << i << " best/second: " << knn2(i, 0).first << "/" << knn2(i, 1).first << " " << ratio
-//                      << std::endl;
+            //            float ratio = float(knn2(i, 0).first) / float(knn2(i, 1).first);
+            //            std::cout << "for " << i << " best/second: " << knn2(i, 0).first << "/" << knn2(i, 1).first <<
+            //            " " << ratio
+            //                      << std::endl;
 
             if (float(knn2(i, 0).first) > float(knn2(i, 1).first) * ratioThreshold) continue;
 

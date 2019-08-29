@@ -17,6 +17,13 @@ if(NOT MODULE_CORE)
 endif()
 
 
+#opencv
+find_package(OpenCV QUIET)
+if(OpenCV_FOUND)
+    SET(SAIGA_USE_OPENCV 1)
+endif()
+PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRARIES}")
+
 #Sophus
 find_package(Sophus QUIET)
 PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
