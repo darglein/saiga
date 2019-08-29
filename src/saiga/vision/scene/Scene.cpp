@@ -229,13 +229,17 @@ Saiga::Statistics<double> Scene::depthStatistics()
     return sr;
 }
 
-
-void Scene::removeOutliers(float factor)
+void Scene::removeOutliersFactor(float factor)
 {
     SAIGA_ASSERT(valid());
     auto sr = statistics();
-
     auto threshold = std::max(sr.median * factor, 1.0);
+    removeOutliers(threshold);
+}
+
+void Scene::removeOutliers(float threshold)
+{
+
 
     int pointsRemoved = 0;
     for (SceneImage& im : images)

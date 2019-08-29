@@ -22,6 +22,7 @@ struct SAIGA_VISION_API Extrinsics
 
     SE3 se3;
     bool constant = false;
+    SE3 velocity;
 
     Extrinsics() = default;
     Extrinsics(const SE3& se3, bool c = false) : se3(se3), constant(c) {}
@@ -142,6 +143,15 @@ struct SAIGA_VISION_API SceneImage
 };
 
 
+struct SmoothConstraint
+{
+    // smoothness regulizer between 3 poses
+    // cost with p1,p2,p3 the corresponding poses:
+    // C = w*(log(p1*p2inv)-log(p2*p3inv))
+    int ex1 = -1, ex2 = -1, ex3 = -1;
+    double weight = 1;
+};
+
 class SAIGA_VISION_API Scene
 {
    public:
@@ -151,6 +161,11 @@ class SAIGA_VISION_API Scene
     AlignedVector<Extrinsics> extrinsics;
     AlignedVector<WorldPoint> worldPoints;
     AlignedVector<SceneImage> images;
+
+    // optional, only works with ceres smooth ba solver
+    AlignedVector<SmoothConstraint> smoothnessConstraints;
+
+
 
     // to scale towards [-1,1] range for floating point precision
     double globalScale = 1;
@@ -213,7 +228,8 @@ class SAIGA_VISION_API Scene
 
     Saiga::Statistics<double> statistics();
     Saiga::Statistics<double> depthStatistics();
-    void removeOutliers(float factor);
+    void removeOutliersFactor(float factor);
+    void removeOutliers(float th);
     // removes all references to this worldpoint
     void removeWorldPoint(int id);
     void removeCamera(int id);

@@ -36,7 +36,7 @@ void MotionModel::addRelativeMotion(const SE3& T, size_t frameId, double weight)
     if (frameId < indices.size())
     {
         // frame already exists
-//        std::cout << "update instead of add" << std::endl;
+        //        std::cout << "update instead of add" << std::endl;
         lock.unlock();
         updateRelativeMotion(T, frameId);
         return;
@@ -120,7 +120,7 @@ SE3 MotionModel::computeVelocity()
     int s = std::min((int)data.size(), params.smoothness);
 
     //    return data.back().v;
-
+#if 0
     weights.resize(s);
     double weightSum = 0;
     for (auto i = 0; i < s; ++i)
@@ -160,6 +160,19 @@ SE3 MotionModel::computeVelocity()
     //    std::cout << result << std::endl;
     //    std::cout << data.back().v << std::endl << std::endl;
     return result;
+#else
+    SE3 result = data[data.size() - s].v;
+    for (auto i = 1; i < s; ++i)
+    {
+        auto dataId = data.size() - s + i;
+
+        result = slerp(result, data[dataId].v, params.alpha);
+    }
+    return result;
+
+
+
+#endif
 }
 
 
