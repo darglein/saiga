@@ -26,6 +26,7 @@ if(EIGENRECURSIVE_FOUND)
         add_subdirectory(arap)
     endif()
 
+
     if (SDL2_FOUND AND SAIGA_USE_VULKAN)
         if(G2O_FOUND)
             add_subdirectory(ba)
