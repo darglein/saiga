@@ -13,6 +13,10 @@ add_subdirectory(scene)
 add_subdirectory(slam)
 add_subdirectory(util)
 
+if (OPENCV_FOUND)
+    add_subdirectory(orb)
+endif()
+
 if(MKL_FOUND)
     add_subdirectory(mkl)
 endif()
