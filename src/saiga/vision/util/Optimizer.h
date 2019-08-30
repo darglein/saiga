@@ -40,6 +40,7 @@ struct SAIGA_VISION_API OptimizationOptions
 
     int maxIterativeIterations = 50;
     double iterativeTolerance  = 1e-5;
+    bool buildExplizitSchur    = false;
 
     // early termiante if the chi2 delta is smaller than this value
     double minChi2Delta  = 1e-5;

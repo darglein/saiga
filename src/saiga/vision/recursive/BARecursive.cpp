@@ -9,11 +9,11 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Algorithm.h"
 #include "saiga/core/util/Thread/omp.h"
-#include "saiga/vision/util/HistogramImage.h"
-#include "saiga/vision/util/LM.h"
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/BAPosePoint.h"
 #include "saiga/vision/kernels/Robust.h"
+#include "saiga/vision/util/HistogramImage.h"
+#include "saiga/vision/util/LM.h"
 
 #include <fstream>
 #include <numeric>
@@ -82,11 +82,22 @@ void BARec::init()
     validPoints.reserve(scene.worldPoints.size());
     pointToValidMap.resize(scene.worldPoints.size());
 
+    totalN           = 0;
+    constantN        = 0;
+    int nonConstantN = 0;
     for (int i = 0; i < (int)scene.images.size(); ++i)
     {
         auto& img = scene.images[i];
         if (!img) continue;
-        validImages.push_back(i);
+        bool constant = scene.extrinsics[img.extr].constant;
+
+        int realOffset = constant ? -1 : nonConstantN;
+        validImages.emplace_back(i, realOffset);
+        if (constant)
+            constantN++;
+        else
+            nonConstantN++;
+        totalN++;
     }
 
     for (int i = 0; i < (int)scene.worldPoints.size(); ++i)
@@ -98,8 +109,10 @@ void BARec::init()
         validPoints.push_back(i);
     }
 
-    n = validImages.size();
+    n = totalN - constantN;
     m = validPoints.size();
+
+    //    std::cout << n << " " << totalN << " " << constantN << std::endl;
 
 
     SAIGA_ASSERT(n > 0 && m > 0);
@@ -111,8 +124,8 @@ void BARec::init()
     delta_x.resize(n, m);
     b.resize(n, m);
 
-    x_u.resize(n);
-    oldx_u.resize(n);
+    x_u.resize(totalN);
+    oldx_u.resize(totalN);
     x_v.resize(m);
     oldx_v.resize(m);
 
@@ -120,7 +133,7 @@ void BARec::init()
     // Make a copy of the initial parameters
     for (int i = 0; i < (int)validImages.size(); ++i)
     {
-        auto& img = scene.images[validImages[i]];
+        auto& img = scene.images[validImages[i].first];
         x_u[i]    = scene.extrinsics[img.extr].se3;
     }
 
@@ -141,13 +154,19 @@ void BARec::init()
     std::vector<int> innerElements;
     for (int i = 0; i < (int)validImages.size(); ++i)
     {
-        auto& img = scene.images[validImages[i]];
+        auto imgId  = validImages[i].first;
+        auto offset = validImages[i].second;
+        //        std::cout << imgId << " " << offset << std::endl;
+        if (offset == -1) continue;
+
+        auto& img = scene.images[imgId];
+
         for (auto& ip : img.stereoPoints)
         {
             if (ip.wp == -1) continue;
 
             int j = pointToValidMap[ip.wp];
-            cameraPointCounts[i]++;
+            cameraPointCounts[offset]++;
             pointCameraCounts[j]++;
             innerElements.push_back(j);
             observations++;
@@ -193,9 +212,9 @@ void BARec::init()
     loptions.solverType             = (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
                               ? Eigen::Recursive::LinearSolverOptions::SolverType::Direct
                               : Eigen::Recursive::LinearSolverOptions::SolverType::Iterative;
-    loptions.buildExplizitSchur = explizitSchur;
+    loptions.buildExplizitSchur = optimizationOptions.buildExplizitSchur;
     solver.analyzePattern(A, loptions);
-
+#if 0
 
     // Create sparsity histogram of the schur complement
     if (optimizationOptions.debugOutput)
@@ -255,7 +274,7 @@ void BARec::init()
         }
         img.writeBinary("vision_ba_complete_sparsity.png");
     }
-
+#endif
 
     if (optimizationOptions.debugOutput)
     {
@@ -338,25 +357,37 @@ double BARec::computeQuadraticForm()
         }
 
 #pragma omp for
-        for (int i = 0; i < (int)validImages.size(); ++i)
+        for (int asdf = 0; asdf < (int)validImages.size(); ++asdf)
         {
-            int k = A.w.outerIndexPtr()[i];
-            //            SAIGA_ASSERT(k == A.w.outerIndexPtr()[i]);
+            int imgid        = validImages[asdf].first;
+            int actualOffset = validImages[asdf].second;
 
-            int imgid = validImages[i];
+            int k = A.w.outerIndexPtr()[actualOffset];
+
+            bool constant = actualOffset == -1;
+            //            std::cout << "img " << imgid << " " << actualOffset << " " << k << " const " << constant <<
+            //            std::endl; SAIGA_ASSERT(k == A.w.outerIndexPtr()[i]);
+
+
+
             auto& img = scene.images[imgid];
             //            auto& extr   = scene.extrinsics[img.extr].se3;
-            auto& extr   = x_u[i];
+            auto& extr   = x_u[imgid];
             auto& extr2  = scene.extrinsics[img.extr];
             auto& camera = scene.intrinsics[img.intr];
             StereoCamera4 scam(camera, scene.bf);
 
             // each thread can direclty right into A.u and b.u because
             // we parallize over images
-            auto& targetPosePose = A.u.diagonal()(i).get();
-            auto& targetPoseRes  = b.u(i).get();
-            targetPosePose.setZero();
-            targetPoseRes.setZero();
+            auto& targetPosePose = A.u.diagonal()(actualOffset).get();
+            auto& targetPoseRes  = b.u(actualOffset).get();
+
+
+            if (!constant)
+            {
+                targetPosePose.setZero();
+                targetPoseRes.setZero();
+            }
 
             for (auto& ip : img.stereoPoints)
             {
@@ -406,11 +437,13 @@ double BARec::computeQuadraticForm()
                     res *= sqrtrw;
 
                     newChi2 += res.squaredNorm();
-
-                    targetPosePose += JrowPose.transpose() * JrowPose;
+                    if (!constant)
+                    {
+                        targetPosePose += JrowPose.transpose() * JrowPose;
+                        targetPosePoint = JrowPose.transpose() * JrowPoint;
+                        targetPoseRes -= JrowPose.transpose() * res;
+                    }
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
-                    targetPosePoint = JrowPose.transpose() * JrowPoint;
-                    targetPoseRes -= JrowPose.transpose() * res;
                     targetPointRes -= JrowPoint.transpose() * res;
                 }
                 else
@@ -436,18 +469,23 @@ double BARec::computeQuadraticForm()
 
                     newChi2 += res.squaredNorm();
 
-                    targetPosePose += JrowPose.transpose() * JrowPose;
+                    if (!constant)
+                    {
+                        targetPosePose += JrowPose.transpose() * JrowPose;
+                        targetPosePoint = JrowPose.transpose() * JrowPoint;
+                        targetPoseRes -= JrowPose.transpose() * res;
+                    }
                     targetPointPoint += JrowPoint.transpose() * JrowPoint;
-                    targetPosePoint = JrowPose.transpose() * JrowPoint;
-                    targetPoseRes -= JrowPose.transpose() * res;
                     targetPointRes -= JrowPoint.transpose() * res;
                 }
 
-                SAIGA_ASSERT(A.w.innerIndexPtr()[k] == j);
+                if (!constant)
+                {
+                    SAIGA_ASSERT(A.w.innerIndexPtr()[k] == j);
+                    ++k;
+                }
                 //                A.w.innerIndexPtr()[k] = j;
                 //                A.w.valuePtr()[k]      = targetPosePoint;
-
-                ++k;
             }
         }
 
@@ -474,16 +512,17 @@ double BARec::computeQuadraticForm()
 
 void BARec::addDelta()
 {
+#if 0
     //#pragma omp parallel num_threads(threads)
     {
-#pragma omp for nowait
+//#pragma omp for nowait
         for (int i = 0; i < n; ++i)
         {
             oldx_u[i] = x_u[i];
             auto t    = delta_x.u(i).get();
             x_u[i]    = SE3::exp(t) * x_u[i];
         }
-#pragma omp for nowait
+//#pragma omp for nowait
         for (int i = 0; i < m; ++i)
         {
             oldx_v[i] = x_v[i];
@@ -491,6 +530,27 @@ void BARec::addDelta()
             x_v[i] += t;
         }
     }
+#else
+    for (size_t i = 0; i < validImages.size(); ++i)
+    {
+        auto id     = validImages[i].first;
+        auto offset = validImages[i].second;
+        oldx_u[i]   = x_u[i];
+
+        if (offset == -1) continue;
+
+        auto t = delta_x.u(offset).get();
+        x_u[i] = SE3::exp(t) * x_u[i];
+    }
+
+
+    for (int i = 0; i < m; ++i)
+    {
+        oldx_v[i] = x_v[i];
+        auto t    = delta_x.v(i).get();
+        x_v[i] += t;
+    }
+#endif
 }
 
 void BARec::revertDelta()
@@ -522,7 +582,7 @@ void BARec::finalize()
 #pragma omp for nowait
         for (size_t i = 0; i < validImages.size(); ++i)
         {
-            auto id    = validImages[i];
+            auto id    = validImages[i].first;
             auto& extr = scene.extrinsics[id];
             if (!extr.constant) extr.se3 = x_u[i];
         }
@@ -575,7 +635,7 @@ double BARec::computeCost()
 #pragma omp for
         for (int i = 0; i < (int)validImages.size(); ++i)
         {
-            int imgid = validImages[i];
+            int imgid = validImages[i].first;
             auto& img = scene.images[imgid];
             //            auto& extr   = scene.extrinsics[img.extr].se3;
             auto& extr   = x_u[i];

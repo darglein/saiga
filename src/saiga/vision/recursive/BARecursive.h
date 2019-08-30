@@ -61,6 +61,8 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
 
    private:
     int n, m;
+    int totalN;     // with constant images
+    int constantN;  // only constant images  n + constantN == totalN
 
 
     BAMatrix A;
@@ -82,7 +84,7 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     std::vector<int> pointCameraCounts, pointCameraCountsScan;
 
 
-    std::vector<int> validImages;
+    std::vector<std::pair<int, int>> validImages;  // compact images + bool=constant
     std::vector<int> validPoints;
     std::vector<int> pointToValidMap;
 

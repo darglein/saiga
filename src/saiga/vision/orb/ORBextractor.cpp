@@ -200,7 +200,7 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
         nkpts += allkpts[lvl].size();
     }
 
-    Saiga::TemplatedImage<uchar> t(nkpts, 32);
+    Saiga::TemplatedImage<uchar> t(std::max(nkpts, 1), 32);
     img_t BRIEFdescriptors = t.getImageView();
 
     ComputeDescriptors(allkpts, BRIEFdescriptors);
