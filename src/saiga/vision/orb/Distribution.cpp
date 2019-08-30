@@ -29,22 +29,53 @@ void Distribution::DistributeKeypoints(std::vector<kpt_t>& kpts, const int minX,
     }
     const float epsilon = 0.1;
 
-#ifdef ORB_USE_OPENCV
-    std::vector<int> responseVector;
-    for (int i = 0; i < kpts.size(); i++) responseVector.emplace_back(kpts[i].response);
-    std::vector<int> idx(responseVector.size());
-    std::iota(std::begin(idx), std::end(idx), 0);
-    cv::sortIdx(responseVector, idx, CV_SORT_DESCENDING);
-    std::vector<kpt_t> kptsSorted;
-    for (int i = 0; i < kpts.size(); i++) kptsSorted.emplace_back(kpts[idx[i]]);
-    kpts = kptsSorted;
-#else
+
     std::sort(kpts.begin(), kpts.end(), [](const kpt_t& k1, const kpt_t& k2) { return k1.response > k2.response; });
-#endif
+
     int cols = maxX - minX;
     int rows = maxY - minY;
-    DistributeKeypointsSoftSSC(kpts, cols, rows, N, epsilon, softSSCThreshold);
+    //    DistributeKeypointsSoftSSC(kpts, cols, rows, N, epsilon, softSSCThreshold);
+    DistributeKeypointsGrid(kpts, minX, maxX, minY, maxY, N);
 }
+
+void Distribution::DistributeKeypointsGrid(std::vector<kpt_t>& kpts, const int minX, const int maxX, const int minY,
+                                           const int maxY, const int N)
+{
+    // std::sort(kpts.begin(), kpts.end(), [](const cv::KeyPoint &a, const cv::KeyPoint &b){return (a.pt.x < b.pt.x ||
+    //        (a.pt.x == b.pt.x && a.pt.y < b.pt.y));});
+
+    const float width  = maxX - minX;
+    const float height = maxY - minY;
+
+    int cellSize = (int)std::min(80.f, std::min(width, height));
+
+    const int npatchesInX = width / cellSize;
+    const int npatchesInY = height / cellSize;
+    const int patchWidth  = ceil(width / npatchesInX);
+    const int patchHeight = ceil(height / npatchesInY);
+
+    int nCells = npatchesInX * npatchesInY;
+    std::vector<std::vector<kpt_t>> cellkpts(nCells);
+    int nPerCell = (float)N / nCells;
+
+
+    for (auto& kpt : kpts)
+    {
+        int idx = (int)(kpt.point(1) / patchHeight) * npatchesInX + (int)(kpt.point(0) / patchWidth);
+        if (idx >= nCells) idx = nCells - 1;
+        cellkpts[idx].emplace_back(kpt);
+    }
+
+    kpts.clear();
+    kpts.reserve(N * 2);
+
+    for (auto& kptVec : cellkpts)
+    {
+        RetainBestN(kptVec, nPerCell);
+        kpts.insert(kpts.end(), kptVec.begin(), kptVec.end());
+    }
+}
+
 
 
 void Distribution::DistributeKeypointsSoftSSC(std::vector<kpt_t>& kpts, const int cols, const int rows, int N,

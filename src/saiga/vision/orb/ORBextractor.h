@@ -132,7 +132,7 @@ class SAIGA_VISION_API ORBextractor
 
     int levelToDisplay;
 
-    int softSSCThreshold;
+    int softSSCThreshold = 1;
 
     Point2i prevDims;
 

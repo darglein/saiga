@@ -19,16 +19,16 @@ int main(int, char**)
     TemplatedImage<ucvec4> img("bar.png");
     TemplatedImage<unsigned char> imgGray(img.h, img.w);
     ImageTransformation::RGBAToGray8(img.getImageView(), imgGray.getImageView());
-
+    //    TemplatedImage<unsigned char> imgGray("test.png");
 
     SaigaORB::ORBextractor extractor(1000, 1.2, 4, 20, 7);
-    std::cout << img << std::endl;
+    //    std::cout << img << std::endl;
 
 
     std::vector<SaigaORB::kpt_t> kps;
     Saiga::TemplatedImage<uchar> des;
 
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         kps.clear();
         SAIGA_BLOCK_TIMER("Extract");

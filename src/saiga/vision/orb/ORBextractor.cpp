@@ -56,7 +56,6 @@ ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int
       minThFAST(_minThFAST),
       stepsChanged(true),
       levelToDisplay(-1),
-      softSSCThreshold(10),
       prevDims(-1, -1),
       pixelOffset{},
       fast(_iniThFAST, _minThFAST, _nlevels)
@@ -252,7 +251,8 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
 
 void ORBextractor::ComputeAngles(std::vector<std::vector<kpt_t>>& allkpts)
 {
-    //#pragma omp parallel for default(none) shared(allkpts, imagePyramid)
+//#pragma omp parallel for num_threads(nlevels)
+#pragma omp parallel for num_threads(2) schedule(dynamic)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
         for (int i = 0; i < (int)allkpts[lvl].size(); ++i)
@@ -269,10 +269,22 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, 
     const auto degToRadFactor = (float)(CV_PI / 180.f);
     const Point2i* p          = &pattern[0];
 
-    int current = 0;
+    //    int current = 0;
 
+    std::vector<int> scan;
+    scan.push_back(0);
+
+    for (int i = 1; i < nlevels; ++i)
+    {
+        scan[i] = scan[i - 1] + allkpts[i - 1].size();
+    }
+
+
+
+#pragma omp parallel for num_threads(2) schedule(dynamic)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
+        int current = scan[lvl];
         Saiga::TemplatedImage<uchar> t(imagePyramid[lvl].rows, imagePyramid[lvl].cols);
         img_t lvlClone = t.getImageView();
         imagePyramid[lvl].copyTo(lvlClone);
@@ -337,7 +349,8 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int c
             minLvl = levelToDisplay;
             maxLvl = minLvl + 1;
         }
-        //#pragma omp parallel for default(none) shared(minLvl, maxLvl, cellSize, distributePerLevel, allkpts)
+//#pragma omp parallel for default(none) shared(minLvl, maxLvl, cellSize, distributePerLevel, allkpts)
+#pragma omp parallel for num_threads(2) schedule(dynamic)
         for (int lvl = minLvl; lvl < maxLvl; ++lvl)
         {
             std::vector<kpt_t> levelkpts;

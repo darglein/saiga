@@ -72,7 +72,7 @@ class KeyPoint
     {
     }
 
-    KeyPoint(int _x, int _y, float _size = 0, float _angle = -1, float _response = 0, int _octave = 0)
+    KeyPoint(float _x, float _y, float _size = 0, float _angle = -1, float _response = 0, int _octave = 0)
         : point(_x, _y), size(_size), angle(_angle), response(_response), octave(_octave)
     {
     }

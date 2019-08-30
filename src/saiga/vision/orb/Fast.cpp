@@ -1,4 +1,8 @@
 #include "FAST.h"
+
+#include "saiga/extra/opencv/opencv.h"
+
+#include "opencv2/features2d.hpp"
 namespace SaigaORB
 {
 FASTdetector::FASTdetector(int _iniThreshold, int _minThreshold, int _nlevels)
@@ -66,7 +70,21 @@ void FASTdetector::SetStepVector(std::vector<int>& _steps)
 
 void FASTdetector::FAST(img_t img, std::vector<kpt_t>& keypoints, int threshold, int lvl)
 {
+#if 1
     this->FAST_t<uchar>(img, keypoints, threshold, lvl);
+#else
+    cv::Mat cvmat = Saiga::ImageViewToMat(img);
+
+    std::vector<cv::KeyPoint> cvkeypoints;
+    cv::FAST(cvmat, cvkeypoints, threshold, true, cv::FastFeatureDetector::TYPE_9_16);
+
+    keypoints.reserve(cvkeypoints.size());
+    for (auto&& cvkp : cvkeypoints)
+    {
+        kpt_t kp(cvkp.pt.x, cvkp.pt.y, cvkp.size, cvkp.angle, cvkp.response, lvl);
+        keypoints.push_back(kp);
+    }
+#endif
 }
 
 
