@@ -30,7 +30,7 @@ SplitScreen::SplitScreen(OpenGLWindow& window, OpenGLRenderer& renderer)
     groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
 
     // create one directional light
-    Deferred_Renderer& r = static_cast<Deferred_Renderer&>(parentRenderer);
+    DeferredRenderer& r = static_cast<DeferredRenderer&>(parentRenderer);
     sun                  = r.lighting.createDirectionalLight();
     sun->setDirection(vec3(-1, -3, -2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);

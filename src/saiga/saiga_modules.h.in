@@ -46,4 +46,6 @@
 #cmakedefine SAIGA_USE_FILESYSTEM
 #cmakedefine SAIGA_USE_GLM
 
+#cmakedefine SAIGA_VR
+
 #cmakedefine SAIGA_VISION

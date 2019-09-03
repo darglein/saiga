@@ -65,6 +65,12 @@ endif()
 PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
 
 
+## OpenVR / steamVR
+find_package(OpenVR REQUIRED)
+PackageHelper(OpenVR ${OPENVR_FOUND} "${OPENVR_INCLUDE_DIRS}" "${OPENVR_LIBRARY}")
+if(OPENVR_FOUND)
+    set(SAIGA_VR 1)
+endif()
 
 set(OPENGL_INCLUDES ${PACKAGE_INCLUDES})
 set(OPENGL_LIBS ${LIBS})

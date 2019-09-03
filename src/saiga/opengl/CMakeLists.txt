@@ -4,6 +4,11 @@ set(MODULE_NAME "saiga_opengl")
 add_subdirectory(animation)
 add_subdirectory(assets)
 
+if(OPENVR_FOUND)
+    add_subdirectory(vr)
+endif()
+
+
 if(ASSIMP_FOUND)
     add_subdirectory(assimp)
 endif()

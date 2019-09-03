@@ -41,7 +41,7 @@ Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window
     groundPlane.asset = assetLoader.loadDebugGrid(20, 20);
 
     // create one directional light
-    Deferred_Renderer& r = static_cast<Deferred_Renderer&>(parentRenderer);
+    DeferredRenderer& r = static_cast<DeferredRenderer&>(parentRenderer);
     sun                  = r.lighting.createDirectionalLight();
     sun->setDirection(vec3(-1, -3, -2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);

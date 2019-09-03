@@ -83,15 +83,15 @@ class SAIGA_OPENGL_API DeferredRenderingInterface : public RenderingInterfaceBas
 };
 
 
-class SAIGA_OPENGL_API Deferred_Renderer : public OpenGLRenderer
+class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 {
    public:
     DeferredLighting lighting;
     PostProcessor postProcessor;
 
-    Deferred_Renderer(OpenGLWindow& window, DeferredRenderingParameters _params = DeferredRenderingParameters());
-    Deferred_Renderer& operator=(Deferred_Renderer& l) = delete;
-    virtual ~Deferred_Renderer();
+    DeferredRenderer(OpenGLWindow& window, DeferredRenderingParameters _params = DeferredRenderingParameters());
+    DeferredRenderer& operator=(DeferredRenderer& l) = delete;
+    virtual ~DeferredRenderer();
 
     void render(const RenderInfo& renderInfo) override;
     void renderImGui(bool* p_open = nullptr) override;
@@ -122,7 +122,7 @@ class SAIGA_OPENGL_API Deferred_Renderer : public OpenGLRenderer
         if (!params.useGPUTimers && timer != TOTAL) return 0;
         return timers[timer].MultiFrameOpenGLTimer::getTimeMS();
     }
-    float getTotalRenderTime() override { return getUnsmoothedTimeMS(Deferred_Renderer::DeferredTimings::TOTAL); }
+    float getTotalRenderTime() override { return getUnsmoothedTimeMS(DeferredRenderer::DeferredTimings::TOTAL); }
 
     void printTimings() override;
     void resize(int outputWidth, int outputHeight) override;

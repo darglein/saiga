@@ -25,7 +25,7 @@ int main(int argc, char* args[])
     OffscreenWindow window(windowParameters);
 
     // 2. Create the OpenGL renderer
-    Deferred_Renderer renderer(window);
+    DeferredRenderer renderer(window);
 
     // 3. Create an object of our class, which is both renderable and updateable
     Sample simpleWindow(window, renderer);

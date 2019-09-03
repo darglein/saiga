@@ -31,7 +31,7 @@ int main(int argc, char* args[])
     //    Deferred_Renderer renderer(window);
     DeferredRenderingParameters renderParams;
     renderParams.writeDepthToDefaultFramebuffer = true;
-    Deferred_Renderer renderer(window, renderParams);
+    DeferredRenderer renderer(window, renderParams);
 
     // 3. Create an object of our class, which is both renderable and updateable
     Sample simpleWindow(window, renderer);

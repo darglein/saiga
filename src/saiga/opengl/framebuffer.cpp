@@ -56,7 +56,7 @@ void Framebuffer::bind()
 
 void Framebuffer::unbind()
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    bindDefaultFramebuffer();
 }
 
 void Framebuffer::check()

@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-Deferred_Renderer::Deferred_Renderer(OpenGLWindow& window, DeferredRenderingParameters _params)
+DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParameters _params)
     : OpenGLRenderer(window),
       lighting(gbuffer),
       renderWidth(window.getWidth() * _params.renderScale),
@@ -99,11 +99,11 @@ Deferred_Renderer::Deferred_Renderer(OpenGLWindow& window, DeferredRenderingPara
               << std::endl;
 }
 
-Deferred_Renderer::~Deferred_Renderer() {}
+DeferredRenderer::~DeferredRenderer() {}
 
 
 
-void Deferred_Renderer::resize(int windowWidth, int windowHeight)
+void DeferredRenderer::resize(int windowWidth, int windowHeight)
 {
     if (windowWidth <= 0 || windowHeight <= 0)
     {
@@ -131,7 +131,7 @@ void Deferred_Renderer::resize(int windowWidth, int windowHeight)
 
 
 
-void Deferred_Renderer::render(const Saiga::RenderInfo& _renderInfo)
+void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
 {
     if (!rendering) return;
 
@@ -296,7 +296,7 @@ void Deferred_Renderer::render(const Saiga::RenderInfo& _renderInfo)
     assert_no_glerror();
 }
 
-void Deferred_Renderer::clearGBuffer()
+void DeferredRenderer::clearGBuffer()
 {
     gbuffer.bind();
 
@@ -320,7 +320,7 @@ void Deferred_Renderer::clearGBuffer()
 
 
 
-void Deferred_Renderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
+void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
     startTimer(GEOMETRYPASS);
 
@@ -382,7 +382,7 @@ void Deferred_Renderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::Vie
     assert_no_glerror();
 }
 
-void Deferred_Renderer::renderDepthMaps()
+void DeferredRenderer::renderDepthMaps()
 {
     startTimer(DEPTHMAPS);
 
@@ -395,7 +395,7 @@ void Deferred_Renderer::renderDepthMaps()
     assert_no_glerror();
 }
 
-void Deferred_Renderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
+void DeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
     startTimer(LIGHTING);
 
@@ -406,7 +406,7 @@ void Deferred_Renderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::Vi
     assert_no_glerror();
 }
 
-void Deferred_Renderer::renderSSAO(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
+void DeferredRenderer::renderSSAO(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
     startTimer(SSAOT);
 
@@ -418,7 +418,7 @@ void Deferred_Renderer::renderSSAO(const std::pair<Saiga::Camera*, Saiga::ViewPo
     assert_no_glerror();
 }
 
-void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
+void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
 {
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
     glEnable(GL_DEPTH_TEST);
@@ -436,7 +436,7 @@ void Deferred_Renderer::writeGbufferDepthToCurrentFramebuffer()
 
 
 
-void Deferred_Renderer::printTimings()
+void DeferredRenderer::printTimings()
 {
     std::cout << "====================================" << std::endl;
     std::cout << "Geometry pass: " << getTime(GEOMETRYPASS) << "ms" << std::endl;
@@ -456,7 +456,7 @@ void Deferred_Renderer::printTimings()
 }
 
 
-void Deferred_Renderer::renderImGui(bool* p_open)
+void DeferredRenderer::renderImGui(bool* p_open)
 {
     int w = 340;
     int h = 240;

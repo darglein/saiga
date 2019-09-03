@@ -54,7 +54,7 @@ Sample::Sample(Saiga::OpenGLWindow& window, Saiga::OpenGLRenderer& renderer)
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(s, s), 1.0f, Colors::lightgray, Colors::gray);
 
     // create one directional light
-    Deferred_Renderer& r = static_cast<Deferred_Renderer&>(parentRenderer);
+    DeferredRenderer& r = static_cast<DeferredRenderer&>(parentRenderer);
     sun                  = r.lighting.createDirectionalLight();
     sun->setDirection(vec3(-1, -2, -2.5));
     //    sun->setDirection(vec3(0,-1,0));

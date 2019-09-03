@@ -33,3 +33,6 @@ if (EGL_FOUND)
     add_subdirectory(offscreenRendering)
 endif ()
 
+if(OPENVR_FOUND)
+    add_subdirectory(hellovr)
+endif()

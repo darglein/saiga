@@ -30,7 +30,7 @@ int main(int argc, char* args[])
     // 2. Create the OpenGL renderer
     DeferredRenderingParameters renderParams;
     renderParams.userViewPort = true;  // < this is important so saiga actually uses your custom viewports
-    Deferred_Renderer renderer(window, renderParams);
+    DeferredRenderer renderer(window, renderParams);
 
     // 3. Create an object of our class, which is both renderable and updateable
     SplitScreen simpleWindow(window, renderer);
