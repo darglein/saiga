@@ -120,13 +120,14 @@ void ProcessVREvent(const vr::VREvent_t& event)
         case vr::VREvent_TrackedDeviceDeactivated:
         {
             //            dprintf("Device %u detached.\n", event.trackedDeviceIndex);
-            std::terminate();
+        std::cout << "Device detached " <<  event.trackedDeviceIndex << std::endl;
+//            std::terminate();
         }
         break;
         case vr::VREvent_TrackedDeviceUpdated:
         {
-            std::terminate();
-            //            dprintf("Device %u updated.\n", event.trackedDeviceIndex);
+//            std::terminate();
+                        std::cout << "Device updated. " <<  event.trackedDeviceIndex << std::endl;
         }
         break;
     }
@@ -216,7 +217,14 @@ std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(con
     left.view  = vl * m_mat4HMDPose * camera.view;
     right.view = vr * m_mat4HMDPose * camera.view;
 
+//    -58.6051 -19.3548 -56.7005 -7.57974
+//    13.4702  -79.1438 -5.04516 -20.4803
+//    57.4138  24.3135  -54.5785 15.7798
+//    0        -0       0        -81.9813
 
+    std::cout << vl << std::endl;
+std::cout << m_mat4HMDPose << std::endl;
+std::cout << std::endl;
     left.setModelMatrix(left.view.inverse());
     left.recalculateMatrices();
 

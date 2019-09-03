@@ -12,7 +12,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 
 
-Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer)
+Sample::Sample(Saiga::OpenGLWindow& window, OpenGLRenderer &renderer)
     : Updating(window), DeferredRenderingInterface(renderer)
 {
     // create a perspective camera
@@ -41,7 +41,7 @@ Sample::Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer)
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
 
     // create one directional light
-    Deferred_Renderer& r = static_cast<Deferred_Renderer&>(parentRenderer);
+    DeferredRenderer& r = static_cast<DeferredRenderer&>(parentRenderer);
     sun                  = r.lighting.createDirectionalLight();
     sun->setDirection(vec3(-1, -3, -2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);

@@ -48,7 +48,7 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
     std::shared_ptr<DirectionalLight> sun;
     std::shared_ptr<Texture> t;
 
-    Sample(Saiga::OpenGLWindow& window, Saiga::Renderer& renderer);
+    Sample(Saiga::OpenGLWindow& window, Saiga::OpenGLRenderer& renderer);
     ~Sample();
 
     void initBullet();
