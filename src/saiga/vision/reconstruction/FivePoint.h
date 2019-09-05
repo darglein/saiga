@@ -7,6 +7,7 @@
 #pragma once
 #include "saiga/core/math/random.h"
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/util/Ransac.h"
 
 #include "Epipolar.h"
 #include "unsupported/Eigen/Polynomials"
@@ -461,9 +462,11 @@ inline bool bestEUsing6Points(const std::vector<Mat3>& es, const Vec2* points1, 
 }
 
 
-inline int computeERansac(Vec2* points1, Vec2* points2, int N, Mat3& bestE, SE3& bestT,
-                          std::vector<int>& bestInlierMatches)
+inline int computeERansac(const Vec2* points1, const Vec2* points2, int N, Mat3& bestE, SE3& bestT,
+                          std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
 {
+    inlierMask.resize(N);
+
     int maxIterations        = 200;
     constexpr int sampleSize = 6;
     double epipolarTheshold  = 1.5 / 535.4;
@@ -523,10 +526,99 @@ inline int computeERansac(Vec2* points1, Vec2* points2, int N, Mat3& bestE, SE3&
             bestT             = localBestT;
         }
     }
+
+
+    std::fill(inlierMask.begin(), inlierMask.end(), 0);
+    for (auto i : bestInlierMatches) inlierMask[i] = true;
     //    std::cout << "FivePoint Ransac finished: " << bestInliers << "/" << N << " Inliers" << std::endl;
 
     return bestInliers;
-}  // namespace Saiga
+}
+
+
+
+class SAIGA_VISION_API FivePointRansac : public RansacBase<FivePointRansac, std::pair<Mat3, SE3>, 6>
+{
+    using Model = std::pair<Mat3, SE3>;
+    using Base  = RansacBase<FivePointRansac, Model, 6>;
+
+   public:
+    FivePointRansac() {}
+    FivePointRansac(const RansacParameters& params) : Base(params) {}
+
+    int solve(ArrayView<const Vec2> _points1, ArrayView<const Vec2> _points2, Mat3& bestE, SE3& bestT,
+              std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
+    {
+        points1 = _points1;
+        points2 = _points2;
+
+
+
+        int idx;
+        idx = compute(points1.size());
+
+
+
+#pragma omp single
+        {
+            bestE = models[idx].first;
+            bestT = models[idx].second;
+
+            bestInlierMatches.clear();
+            bestInlierMatches.reserve(numInliers[idx]);
+            for (int i = 0; i < N; ++i)
+            {
+                if (inliers[idx][i]) bestInlierMatches.push_back(i);
+            }
+
+            inlierMask = inliers[idx];
+        }
+
+
+        return numInliers[idx];
+    }
+
+
+
+    bool computeModel(const Subset& set, Model& model)
+    {
+        std::array<Vec2, 6> A;
+        std::array<Vec2, 6> B;
+
+        for (auto i : Range(0, (int)set.size()))
+        {
+            A[i] = points1[set[i]];
+            B[i] = points2[set[i]];
+        }
+
+
+        std::vector<Mat3> es;
+        fivePointNister(A.data(), B.data(), es);
+
+        SE3 localBestT;
+        Mat3 localBestE;
+
+        auto ret = bestEUsing6Points(es, A.data(), B.data(), localBestE, localBestT);
+        if (!ret)
+        {
+            // non of the E matrices is valid.
+            // this can happen if, for example, the 6th point is an outlier.
+            return false;
+        }
+
+        model = {localBestE, localBestT};
+        return true;
+    }
+
+    double computeResidual(const Model& model, int i)
+    {
+        return EpipolarDistanceSquared(points1[i], points2[i], model.first);
+    }
+
+    ArrayView<const Vec2> points1;
+    ArrayView<const Vec2> points2;
+};
+
 
 
 }  // namespace Saiga

@@ -5,10 +5,11 @@
  */
 
 #pragma once
+#include "saiga/core/time/all.h"
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/reconstruction/FivePoint.h"
+#include "saiga/vision/recursive/BARecursive.h"
 #include "saiga/vision/scene/Scene.h"
-
 
 namespace Saiga
 {
@@ -27,46 +28,112 @@ namespace Saiga
 class TwoViewReconstruction
 {
    public:
-    inline void clear();
-    inline void compute(Vec2* points1, Vec2* points2, int N);
+    inline TwoViewReconstruction();
+    // must be called once before running compute!
+    void init(const RansacParameters& fivePointParams) { fpr.init(fivePointParams); }
+
+    inline void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2);
     inline double medianAngle();
 
     // scales the scene so that the median depth is d
     inline void setMedianDepth(double d);
     inline double getMedianDepth();
 
-    // build a saiga-scene.
-    // mainly for debugging purposes
-    inline Scene makeScene(Vec2* points1, Vec2* points2);
+    // optimize with bundle adjustment
+    inline int optimize(int its, float threshold);
 
+    SE3& T() { return scene.extrinsics[1].se3; }
+
+
+    int N;
     Mat3 E;
-    SE3 T;
     std::vector<int> inliers;
+    std::vector<char> inlierMask;
     int inlierCount;
-    AlignedVector<Vec3> worldPoints;
+    //    AlignedVector<Vec3> worldPoints;
+    Scene scene;
+
+    FivePointRansac fpr;
 };
 
-void TwoViewReconstruction::clear()
+
+TwoViewReconstruction::TwoViewReconstruction()
 {
-    inliers.clear();
-    worldPoints.clear();
+    Intrinsics4 intr;
+    scene.intrinsics.push_back(intr);
+    scene.images.resize(2);
+
+    scene.images[0].extr = 0;
+    scene.images[0].intr = 0;
+    scene.images[1].extr = 1;
+    scene.images[1].intr = 0;
+
+    scene.extrinsics.push_back(Extrinsics(SE3()));
+    scene.extrinsics.push_back(Extrinsics(SE3()));
+
+    scene.extrinsics[0].constant = true;
+
+    int maxPoints = 2000;
+    scene.worldPoints.reserve(maxPoints);
+    scene.images[0].stereoPoints.reserve(maxPoints);
+    scene.images[1].stereoPoints.reserve(maxPoints);
 }
 
-void TwoViewReconstruction::compute(Vec2* points1, Vec2* points2, int N)
-{
-    clear();
 
-    inlierCount = computeERansac(points1, points2, N, E, T, inliers);
+
+void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2)
+{
+    N = points1.size();
+    inliers.clear();
+    inliers.reserve(N);
+    inlierMask.resize(N);
+
+    inlierCount = computeERansac(points1.data(), points2.data(), points1.size(), E, T(), inliers, inlierMask);
+
+    //#pragma omp parallel num_threads(1)
+    //    {
+    //        inlierCount = fpr.solve(points1, points2, E, T(), inliers);
+    //    }
+
 
     // triangulate points
-    worldPoints.reserve(inlierCount);
+    scene.worldPoints.clear();
+    scene.worldPoints.reserve(inlierCount);
+    scene.extrinsics[1].se3 = T();
+
+    scene.images[0].stereoPoints.resize(N);
+    scene.images[1].stereoPoints.resize(N);
+    scene.worldPoints.resize(N);
+
+
 
     Triangulation<double> triangulation;
-    for (auto i : inliers)
+    for (int i = 0; i < N; ++i)
     {
-        Vec3 p = triangulation.triangulateHomogeneous(SE3(), T, points1[i], points2[i]);
-        worldPoints.push_back(p);
+        auto&& wp  = scene.worldPoints[i];
+        auto&& ip1 = scene.images[0].stereoPoints[i];
+        auto&& ip2 = scene.images[1].stereoPoints[i];
+        if (!inlierMask[i])
+        {
+            // outlier
+            wp.valid = false;
+            ip1.wp   = -1;
+            ip2.wp   = -1;
+            continue;
+        }
+
+        // inlier
+        wp.p     = triangulation.triangulateHomogeneous(SE3(), T(), points1[i], points2[i]);
+        wp.valid = true;
+
+        ip1.wp    = i;
+        ip1.point = points1[i];
+
+        ip2.wp    = i;
+        ip2.point = points2[i];
     }
+    scene.fixWorldPointReferences();
+    SAIGA_ASSERT(scene);
 }
 
 double TwoViewReconstruction::medianAngle()
@@ -74,15 +141,11 @@ double TwoViewReconstruction::medianAngle()
     std::vector<double> angles;
 
     auto c1 = Vec3(0, 0, 0);
-    auto c2 = T.inverse().translation();
+    auto c2 = T().inverse().translation();
 
-    for (auto& wp : worldPoints)
+    for (auto& wp2 : scene.worldPoints)
     {
-        Vec3 v1 = (c1 - wp).normalized();
-        Vec3 v2 = (c2 - wp).normalized();
-
-        double cosA = v1.dot(v2);
-        double A    = acos(cosA);
+        auto A = TriangulationAngle(c1, c2, wp2.p);
         angles.push_back(A);
     }
     std::sort(angles.begin(), angles.end());
@@ -93,63 +156,67 @@ double TwoViewReconstruction::getMedianDepth()
 {
     std::vector<double> depth;
 
-    for (auto& wp : worldPoints)
+    for (auto& wp2 : scene.worldPoints)
     {
+        auto wp = wp2.p;
         depth.push_back(wp.z());
     }
     std::sort(depth.begin(), depth.end());
     return depth[depth.size() / 2];
 }
 
+int TwoViewReconstruction::optimize(int its, float threshold)
+{
+    //    SAIGA_BLOCK_TIMER();
+    BARec cba;
+
+    OptimizationOptions local_op_options;
+    local_op_options.debugOutput            = false;
+    local_op_options.maxIterations          = its;
+    local_op_options.maxIterativeIterations = 20;
+    local_op_options.iterativeTolerance     = 1e-50;
+    local_op_options.solverType             = OptimizationOptions::SolverType::Iterative;
+    local_op_options.numThreads             = 1;
+    local_op_options.buildExplizitSchur     = true;
+
+    BAOptions local_ba_options;
+
+    cba.optimizationOptions = local_op_options;
+    cba.baOptions           = local_ba_options;
+    cba.create(scene);
+
+    auto res = cba.initAndSolve();
+    std::cout << res << std::endl;
+
+
+    //    scene.removeOutliers(3);
+
+    // recompute inliers
+    inlierCount = 0;
+    for (int i = 0; i < N; ++i)
+    {
+        if (!inlierMask[i]) continue;
+        auto e1 = scene.residual2(scene.images[0], scene.images[0].stereoPoints[i]).squaredNorm();
+        auto e2 = scene.residual2(scene.images[1], scene.images[1].stereoPoints[i]).squaredNorm();
+
+        if (std::max(e1, e2) < threshold)
+        {
+            inlierCount++;
+        }
+        else
+        {
+            inlierMask[i] = false;
+        }
+    }
+
+    return inlierCount;
+}
+
 void TwoViewReconstruction::setMedianDepth(double d)
 {
     auto md     = getMedianDepth();
     auto factor = d / md;
-
-    T.translation() = factor * T.translation();
-
-    for (auto& wp : worldPoints)
-    {
-        wp *= factor;
-    }
-}
-
-Scene TwoViewReconstruction::makeScene(Vec2* points1, Vec2* points2)
-{
-    Intrinsics4 intr;
-
-    Scene scene;
-    scene.intrinsics.push_back(intr);
-    scene.images.resize(2);
-
-    scene.images[0].extr = 0;
-    scene.images[0].intr = 0;
-    scene.images[1].extr = 1;
-    scene.images[1].intr = 0;
-
-    scene.extrinsics.push_back(Extrinsics(SE3()));
-    scene.extrinsics.push_back(Extrinsics(T));
-
-    for (int i = 0; i < inlierCount; ++i)
-    {
-        int idx = inliers[i];
-
-        StereoImagePoint ip1;
-        ip1.wp    = i;
-        ip1.point = points1[idx];
-        scene.images[0].stereoPoints.push_back(ip1);
-
-        StereoImagePoint ip2;
-        ip2.wp    = i;
-        ip2.point = points2[idx];
-        scene.images[1].stereoPoints.push_back(ip2);
-
-        WorldPoint wp;
-        wp.p = worldPoints[i];
-        scene.worldPoints.push_back(wp);
-    }
-    scene.fixWorldPointReferences();
-    return scene;
+    scene.rescale(factor);
 }
 
 

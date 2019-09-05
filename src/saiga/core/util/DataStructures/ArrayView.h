@@ -7,16 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-
-// Test if saiga was compiled with CUDA and
-// the current project has CUDA in the include dir.
-// If yes, generate a constructor and additional functions for thrust device vectors.
-#ifdef SAIGA_USE_CUDA
-#    if __has_include(<thrust/device_vector.h>)
-#        include <thrust/device_vector.h>
-#        define SAIGA_GENERATE_THRUST_CONSTRUCTOR
-#    endif
-#endif
+#include "saiga/core/util/assert.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -47,7 +38,6 @@ struct SAIGA_TEMPLATE ArrayView
     using iterator        = pointer;
     using const_iterator  = const_pointer;
     using size_type       = size_t;
-    using difference_type = ptrdiff_t;
 
     HD ArrayView() : data_(nullptr), n(0) {}
     HD ArrayView(T* data_, size_t n) : data_(data_), n(n) {}
@@ -56,27 +46,29 @@ struct SAIGA_TEMPLATE ArrayView
     ArrayView& operator=(ArrayView<T> const&) = default;
 
 
-#ifdef SAIGA_GENERATE_THRUST_CONSTRUCTOR
-    __host__ ArrayView(thrust::device_vector<typename std::remove_const<T>::type>& dv)
-        : data_(thrust::raw_pointer_cast(dv.data())), n(dv.size())
-    {
-    }
-    __host__ ArrayView(thrust::device_vector<typename std::remove_const<T>::type> const& dv)
-        : data_(const_cast<T*>(thrust::raw_pointer_cast(dv.data()))), n(dv.size())
-    {
-    }
-#endif
-
-
     template <size_t N>
     HD ArrayView(T (&arr)[N]) : data_(arr), n(N)
     {
     }
 
-    template <typename Cont, typename = typename std::enable_if<
-                                 std::is_convertible<decltype(std::declval<Cont>().data()), T*>::value &&
-                                 !std::is_same<Cont, ArrayView<T>>::value>::type>
+
+    template <typename Cont,
+              typename std::enable_if<std::is_convertible<decltype(std::declval<Cont>().data()), T*>::value &&
+                                          std::is_convertible<decltype(std::declval<Cont>().size()), size_t>::value &&
+                                          !std::is_same<Cont, ArrayView<T>>::value,
+                                      int>::type = 0>
     ArrayView(Cont& dv) : data_(dv.data()), n(dv.size())
+    {
+    }
+
+
+    // For thrust device vectors which use .data().get() to get the raw pointer.
+    template <typename Cont,
+              typename std::enable_if<std::is_convertible<decltype(std::declval<Cont>().data().get()), T*>::value &&
+                                          std::is_convertible<decltype(std::declval<Cont>().size()), size_t>::value &&
+                                          !std::is_same<Cont, ArrayView<T>>::value,
+                                      int>::type = 0>
+    ArrayView(Cont& dv) : data_(dv.data().get()), n(dv.size())
     {
     }
 
@@ -97,19 +89,14 @@ struct SAIGA_TEMPLATE ArrayView
     HD iterator end() const SAIGA_NOEXCEPT { return data_ + n; }
 
 
-#ifdef SAIGA_GENERATE_THRUST_CONSTRUCTOR
-    thrust::device_ptr<T> tbegin() const { return thrust::device_pointer_cast(begin()); }
-    thrust::device_ptr<T> tend() const { return thrust::device_pointer_cast(end()); }
-#endif
-
     // remove elements from the right and left
     HD ArrayView<T> slice(size_t left, size_t right) const { return ArrayView<T>(data_ + left, n - right - left); }
 
     HD ArrayView<T> slice_n(size_t offset, size_t n) const { return ArrayView<T>(data_ + offset, n); }
 
-    //    HD operator T*() const SAIGA_NOEXCEPT{
-    //        return data_;
-    //    }
+
+    HD bool isAligned() { return (((uintptr_t)data_) % (alignof(T))) == 0; }
+    HD bool isAligned(size_t alignment) { return (((uintptr_t)data_) % (alignment)) == 0; }
 
    private:
     T* data_;

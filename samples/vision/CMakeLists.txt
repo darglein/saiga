@@ -1,6 +1,7 @@
 add_subdirectory(bow)
 add_subdirectory(featureMatching)
 add_subdirectory(eightPoint)
+add_subdirectory(homography)
 add_subdirectory(fivePoint)
 add_subdirectory(robust_pose_optimization)
 add_subdirectory(derive)

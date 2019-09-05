@@ -172,6 +172,8 @@ template <typename T, int alignment>
 struct SAIGA_ALIGN(alignment) AlignedStruct
 {
     T element;
+
+    T& operator()() { return element; }
 };
 
 

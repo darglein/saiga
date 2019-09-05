@@ -5,6 +5,7 @@
  */
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/image/image.h"
+#include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/BinaryFile.h"
@@ -12,7 +13,6 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/reconstruction/FivePoint.h"
 #include "saiga/vision/scene/Scene.h"
-#include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/vision/util/Features.h"
 
 #include <numeric>
@@ -78,13 +78,38 @@ int main(int, char**)
 
     Mat3 E;
     std::vector<int> inliers;
+    std::vector<char> inlierMask;
     SE3 rel;
     int num;
     {
         SAIGA_BLOCK_TIMER();
-        num = computeERansac(npoints1.data(), npoints2.data(), matcher.matches.size(), E, rel, inliers);
+        num = computeERansac(npoints1.data(), npoints2.data(), matcher.matches.size(), E, rel, inliers, inlierMask);
         SAIGA_ASSERT(num == inliers.size());
     }
+
+    std::cout << "5 Point Ransac Inliers: " << num << " " << npoints1.size() << std::endl;
+
+
+    {
+        RansacParameters rparams;
+        rparams.maxIterations     = 200;
+        double epipolarTheshold   = 1.5 / 535.4;
+        rparams.residualThreshold = epipolarTheshold * epipolarTheshold;
+        rparams.reserveN          = 2000;
+        rparams.threads           = 4;
+        FivePointRansac fran(rparams);
+
+        SAIGA_BLOCK_TIMER();
+
+#pragma omp parallel num_threads(rparams.threads)
+        {
+            num = fran.solve(npoints1, npoints2, E, rel, inliers, inlierMask);
+        }
+        SAIGA_ASSERT(num == inliers.size());
+    }
+
+
+    std::cout << "5 Point Ransac Inliers: " << num << " " << npoints1.size() << std::endl;
 
     Scene scene;
     scene.intrinsics.push_back(intr);

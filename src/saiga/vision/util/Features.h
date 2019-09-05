@@ -60,19 +60,19 @@ class KeyPoint
 
     Vec2 point;
 
-    float size;
-    float angle;
-    float response;
+    T size;
+    T angle;
+    T response;
     int octave;
 
     KeyPoint() : point(), size(0), angle(-1), response(0), octave(0) {}
 
-    explicit KeyPoint(Vec2 _pt, float _size = 0, float _angle = -1, float _response = 0, int _octave = 0)
+    explicit KeyPoint(Vec2 _pt, T _size = 0, T _angle = -1, T _response = 0, int _octave = 0)
         : point(_pt), size(_size), angle(_angle), response(_response), octave(_octave)
     {
     }
 
-    KeyPoint(float _x, float _y, float _size = 0, float _angle = -1, float _response = 0, int _octave = 0)
+    KeyPoint(T _x, T _y, T _size = 0, T _angle = -1, T _response = 0, int _octave = 0)
         : point(_x, _y), size(_size), angle(_angle), response(_response), octave(_octave)
     {
     }

@@ -14,7 +14,7 @@ namespace Saiga
 {
 namespace EigenHelper
 {
-struct SAIGA_VISION_API EigenCompileFlags
+struct SAIGA_CORE_API EigenCompileFlags
 {
     int versionWorld, versionMajor, versionMinor;
     bool debug = true;
@@ -71,7 +71,7 @@ struct SAIGA_VISION_API EigenCompileFlags
                                o.avx, o.avx2);
     }
 
-    SAIGA_VISION_API friend std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags);
 };
 
 /**
@@ -82,7 +82,7 @@ struct SAIGA_VISION_API EigenCompileFlags
  *
  * Saiga::EigenHelper::checkEigenCompabitilty<23598615>();
  */
-SAIGA_VISION_API EigenCompileFlags getSaigaEigenCompileFlags();
+SAIGA_CORE_API EigenCompileFlags getSaigaEigenCompileFlags();
 
 
 template <int n>

@@ -56,5 +56,40 @@ class Triangulation
 };
 
 
+// This code here is partially copied from Colmap.
+// https://github.com/colmap/colmap
+inline double TriangulationAngle(const Vec3& c1, const Vec3& c2, const Vec3& wp)
+{
+#if 1
+    // alternative implementation using the dot product
+    // (requires 2 sqrts so is a bit slower)
+    Vec3 v1      = (c1 - wp).normalized();
+    Vec3 v2      = (c2 - wp).normalized();
+    double cosA  = v1.dot(v2);
+    double angle = acos(cosA);
+#else
+    // Baseline length between camera centers.
+    const double baseline_length_squared = (proj_center1 - proj_center2).squaredNorm();
+
+    // Ray lengths from cameras to point.
+    const double ray_length_squared1 = (points3D - proj_center1).squaredNorm();
+    const double ray_length_squared2 = (points3D - proj_center2).squaredNorm();
+
+    // Using "law of cosines" to compute the enclosing angle between rays.
+    const double denominator = 2.0 * std::sqrt(ray_length_squared1 * ray_length_squared2);
+    if (denominator == 0.0)
+    {
+        return 0.0;
+    }
+    const double nominator = ray_length_squared1 + ray_length_squared2 - baseline_length_squared;
+    const double angle     = std::abs(std::acos(nominator / denominator));
+#endif
+
+    // Triangulation is unstable for acute angles (far away points) and
+    // obtuse angles (close points), so always compute the minimum angle
+    // between the two intersecting rays.
+    return std::min(angle, M_PI - angle);
+}
+
 
 }  // namespace Saiga
