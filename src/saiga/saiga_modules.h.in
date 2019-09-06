@@ -42,10 +42,11 @@
 #cmakedefine SAIGA_USE_VULKAN
 #cmakedefine SAIGA_USE_OPENCV
 #cmakedefine SAIGA_USE_GPHOTO2
-#cmakedefine SAIGA_USE_CERES
 #cmakedefine SAIGA_USE_FILESYSTEM
 #cmakedefine SAIGA_USE_GLM
-
+#cmakedefine SAIGA_USE_EIGENRECURSIVE
+#cmakedefine SAIGA_USE_G2O
+#cmakedefine SAIGA_USE_CERES
 #cmakedefine SAIGA_VR
 
 #cmakedefine SAIGA_VISION

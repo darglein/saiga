@@ -394,8 +394,11 @@ double BARec::computeQuadraticForm()
                 if (ip.wp == -1) continue;
                 if (ip.outlier)
                 {
-                    A.w.valuePtr()[k].get().setZero();
-                    ++k;
+                    if (!constant)
+                    {
+                        A.w.valuePtr()[k].get().setZero();
+                        ++k;
+                    }
                     continue;
                 }
                 BlockBAScalar w = ip.weight * img.imageWeight * scene.scale();

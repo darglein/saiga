@@ -39,7 +39,9 @@ endif()
 #g2o
 find_package(g2o QUIET)
 PackageHelperTarget(g2o::core G2O_FOUND)
-
+if(G2O_FOUND)
+    SET(SAIGA_USE_G2O 1)
+endif()
 
 #ceres
 find_package(Ceres QUIET)

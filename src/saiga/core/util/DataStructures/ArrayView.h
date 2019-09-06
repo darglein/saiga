@@ -14,6 +14,10 @@
 
 #include <type_traits>
 
+#ifdef SAIGA_ARRAY_VIEW_THRUST
+#    include "saiga/cuda/thrust_helper.h"
+#endif
+
 namespace Saiga
 {
 /**
@@ -97,6 +101,11 @@ struct SAIGA_TEMPLATE ArrayView
 
     HD bool isAligned() { return (((uintptr_t)data_) % (alignof(T))) == 0; }
     HD bool isAligned(size_t alignment) { return (((uintptr_t)data_) % (alignment)) == 0; }
+
+#ifdef SAIGA_ARRAY_VIEW_THRUST
+    thrust::device_ptr<T> device_begin() const { return thrust::device_ptr<T>(begin()); }
+    thrust::device_ptr<T> device_end() const { return thrust::device_ptr<T>(end()); }
+#endif
 
    private:
     T* data_;

@@ -9,6 +9,7 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/vision/g2o/g2oHelper.h"
+#include "saiga/vision/scene/Scene.h"
 
 #include "g2o_kernels/sophus_sba.h"
 

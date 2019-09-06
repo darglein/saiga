@@ -12,6 +12,7 @@
 #include "saiga/vision/ceres/CeresKernel_BA_Intr4.h"
 #include "saiga/vision/ceres/CeresKernel_SmoothBA.h"
 #include "saiga/vision/ceres/local_parameterization_se3.h"
+#include "saiga/vision/scene/Scene.h"
 
 #include "ceres/ceres.h"
 #include "ceres/problem.h"

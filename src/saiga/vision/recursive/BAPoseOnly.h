@@ -2,6 +2,7 @@
 
 
 #include "saiga/vision/ba/BABase.h"
+#include "saiga/vision/scene/Scene.h"
 
 #include "EigenRecursive/All.h"
 

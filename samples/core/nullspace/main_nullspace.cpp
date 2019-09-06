@@ -114,10 +114,10 @@ int main(int, char**)
 
 
     NullSpaceTest<4> nst1(0);
-    NullSpaceTest<4> nst1_s(1e-5);
+    NullSpaceTest<4> nst1_s(1e-2);
 
     NullSpaceTest<16> nst2(0);
-    NullSpaceTest<16> nst2_s(1e-5);
+    NullSpaceTest<16> nst2_s(1e-2);
 
     std::cout << "Done." << std::endl;
 

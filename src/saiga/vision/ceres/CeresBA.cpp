@@ -7,6 +7,7 @@
 #include "CeresBA.h"
 
 #include "saiga/core/time/timer.h"
+#include "saiga/vision/scene/Scene.h"
 
 #include "CeresHelper.h"
 #include "Eigen/Sparse"

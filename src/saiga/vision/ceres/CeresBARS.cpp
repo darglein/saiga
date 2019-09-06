@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
 #include "CeresBARS.h"
 
 #include "saiga/core/time/timer.h"
@@ -11,6 +10,7 @@
 #include "saiga/vision/ceres/CeresKernel_BARS_Intr4.h"
 #include "saiga/vision/ceres/CeresKernel_BA_Intr4.h"
 #include "saiga/vision/ceres/local_parameterization_se3.h"
+#include "saiga/vision/scene/Scene.h"
 
 #include "ceres/ceres.h"
 #include "ceres/problem.h"

@@ -23,6 +23,7 @@ inline int _ConvertSMVer2Cores(int major, int minor)
         int Cores;
     } sSMtoCores;
 
+
     sSMtoCores nGpuArchCoresPerSM[] = {{0x20, 32},   // Fermi Generation (SM 2.0) GF100 class
                                        {0x21, 48},   // Fermi Generation (SM 2.1) GF10x class
                                        {0x30, 192},  // Kepler Generation (SM 3.0) GK10x class
