@@ -10,26 +10,6 @@
 using namespace Saiga;
 
 
-// SE3 solveP3P(const Vec3* worldPoints, const Vec2* normalizedPoints, int N)
-//{
-//    p3p solver;
-
-
-
-//    double rotation_matrix[3][3], translation_matrix[3];
-//    auto res = solver.solve(rotation_matrix, translation_matrix, normalizedPoints[0](0), normalizedPoints[0](1),
-//                            worldPoints[0](0), worldPoints[0](1), worldPoints[0](2), normalizedPoints[1](0),
-//                            normalizedPoints[1](1), worldPoints[1](0), worldPoints[1](1), worldPoints[1](2),
-//                            normalizedPoints[2](0), normalizedPoints[2](1), worldPoints[2](0), worldPoints[2](1),
-//                            worldPoints[2](2), normalizedPoints[3](0), normalizedPoints[3](1), worldPoints[3](0),
-//                            worldPoints[3](1), worldPoints[3](2));
-//    SAIGA_ASSERT(res);
-//    Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>> R(&rotation_matrix[0][0]);
-//    Vec3 t = Vec3(translation_matrix[0], translation_matrix[1], translation_matrix[2]);
-
-//    Quat q(R);
-//    return SE3(q, t);
-//}
 
 class PnPTest
 {
@@ -55,21 +35,26 @@ class PnPTest
             outlier.push_back(false);
         }
 
+        std::cout << "Testing PnP solvers." << std::endl;
+        std::cout << "Ground Truth SE3: " << std::endl << groundTruth << std::endl << std::endl;
+
+
         test();
         testRansac();
     }
 
     void test()
     {
-        std::cout << groundTruth << std::endl;
-
         PNP<double> pnp;
         auto res = pnp.extractSE3(pnp.dlt(wps.data(), ips.data(), 8));
-        std::cout << res << std::endl;
+
+        std::cout << "DLT PNP (not working) " << std::endl;
+        std::cout << res << std::endl << std::endl;
 
         p3p p3pSolver;
         auto success = p3pSolver.solve(wps.data(), ips.data(), res);
-        std::cout << res << std::endl;
+        std::cout << "P3P PNP " << std::endl;
+        std::cout << res << std::endl << std::endl;
     }
 
     void testRansac()
@@ -78,6 +63,8 @@ class PnPTest
         std::vector<int> inliers;
         SE3 result;
         auto num = pnp.solvePNPRansac(wps, ips, inliers, result);
+
+        std::cout << "Ransac P3P" << std::endl;
         std::cout << "Inliers: " << num << std::endl;
         std::cout << result << std::endl;
 

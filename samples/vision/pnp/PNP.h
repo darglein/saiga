@@ -90,7 +90,7 @@ class PNP
             }
         }
 
-#if 0
+#if 1
         // refine again with all inliers
 
         AlignedVector<Vec3> wpIn;

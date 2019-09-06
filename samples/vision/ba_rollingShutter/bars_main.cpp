@@ -5,6 +5,7 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/ceres/CeresBARS.h"
 #include "saiga/vision/ceres/CeresBASmooth.h"
+#include "saiga/vision/scene/Scene.h"
 #include "saiga/vision/util/Random.h"
 
 using namespace Saiga;
