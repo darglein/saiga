@@ -21,6 +21,9 @@ inline uint64_t ransacSeed = 92730469346UL;
 struct RansacParameters
 {
     int maxIterations = -1;
+
+    // compared to the value which is returned from computeResidual.
+    // usually you want to return the squared norm
     double residualThreshold;
 
     // expected maximum number of N

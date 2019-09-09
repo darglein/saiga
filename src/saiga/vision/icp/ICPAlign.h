@@ -110,5 +110,12 @@ SAIGA_VISION_API SE3 planeToPlane(const AlignedVector<Correspondence>& corrs, co
                                   double covE = 0.001, int innerIterations = 5);
 
 
+SAIGA_VISION_API Quat orientationFromMixedMatrixUQ(const Mat3& M);
+SAIGA_VISION_API Quat orientationFromMixedMatrixSVD(const Mat3& M);
+
+// aligning 3 points from src to dst.
+// this is the minimal problem and used for example in the p3p solution.
+// similar to eigen::umeyama but faster
+SAIGA_VISION_API SE3 alignMinimal(const Mat3& src, const Mat3& dst);
 }  // namespace ICP
 }  // namespace Saiga

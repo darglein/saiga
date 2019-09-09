@@ -49,6 +49,11 @@ struct SAIGA_TEMPLATE ArrayView
     ArrayView(ArrayView<T> const&) = default;
     ArrayView& operator=(ArrayView<T> const&) = default;
 
+    // Allow assignment of different arrayviews as long as the pointers are compatible
+    template <typename G>
+    ArrayView(ArrayView<G> const& av) : data_(av.data()), n(av.size())
+    {
+    }
 
     template <size_t N>
     HD ArrayView(T (&arr)[N]) : data_(arr), n(N)
@@ -97,6 +102,12 @@ struct SAIGA_TEMPLATE ArrayView
     HD ArrayView<T> slice(size_t left, size_t right) const { return ArrayView<T>(data_ + left, n - right - left); }
 
     HD ArrayView<T> slice_n(size_t offset, size_t n) const { return ArrayView<T>(data_ + offset, n); }
+
+    // returns the first n elemetns
+    HD ArrayView<T> head(size_t n) const { return ArrayView<T>(data_, n); }
+
+    // returns the last n elements
+    HD ArrayView<T> tail(size_t n2) const { return ArrayView<T>(data_ + n - n2, n2); }
 
 
     HD bool isAligned() { return (((uintptr_t)data_) % (alignof(T))) == 0; }

@@ -3,13 +3,11 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
+#include "saiga/core/time/all.h"
+#include "saiga/vision/reconstruction/P3P.h"
 #include "saiga/vision/util/Random.h"
 
-#include "PNP.h"
-#include "p3p.h"
 using namespace Saiga;
-
-
 
 class PnPTest
 {
@@ -28,7 +26,7 @@ class PnPTest
 
             Vec3 wp = gtInv * ipn;
 
-            Vec2 noise = Vec2::Random() * 0.01;
+            Vec2 noise = Vec2::Random() * 0.001;
 
             wps.push_back(wp);
             ips.push_back(ip + noise);
@@ -41,35 +39,61 @@ class PnPTest
 
         test();
         testRansac();
+        benchmark();
     }
 
     void test()
     {
-        PNP<double> pnp;
-        auto res = pnp.extractSE3(pnp.dlt(wps.data(), ips.data(), 8));
+        {
+            P3P p3pSolver2;
+            auto bestSolution = p3pSolver2.solve4(ArrayView<Vec3>(wps).head(4), ArrayView<Vec2>(ips).head(4));
+            auto res          = bestSolution.value();
+            std::cout << "P3P colmap PNP " << std::endl;
+            std::cout << res << std::endl;
+            std::cout << "Error: " << rotationalError(res, groundTruth) << std::endl << std::endl;
+        }
+    }
 
-        std::cout << "DLT PNP (not working) " << std::endl;
-        std::cout << res << std::endl << std::endl;
+    void benchmark()
+    {
+        int its      = 10;
+        int innerIts = 1000;
+        std::cout << "Running Benchmark with " << innerIts << " inner iterations." << std::endl;
 
-        p3p p3pSolver;
-        auto success = p3pSolver.solve(wps.data(), ips.data(), res);
-        std::cout << "P3P PNP " << std::endl;
-        std::cout << res << std::endl << std::endl;
+        {
+            P3P p3pSolver2;
+            SE3 result;
+            auto res = measureObject(its, [&]() {
+                for (int i = 0; i < innerIts; ++i)
+                {
+                    auto bestSolution = p3pSolver2.solve4(ArrayView<Vec3>(wps).head(4), ArrayView<Vec2>(ips).head(4));
+                    auto res          = bestSolution.value();
+                    result            = res * result;
+                }
+            });
+            std::cout << "Median time: " << res.median << " micro seconds" << std::endl << std::endl;
+        }
     }
 
     void testRansac()
     {
-        PNP<double> pnp;
-        std::vector<int> inliers;
+        RansacParameters params;
+        params.maxIterations     = 1000;
+        params.residualThreshold = 0.001;
+
+
+        P3PRansac pnp(params);
         SE3 result;
-        auto num = pnp.solvePNPRansac(wps, ips, inliers, result);
+        std::vector<char> inlierMask;
+        auto num = pnp.solve(wps, ips, result, inlierMask);
 
         std::cout << "Ransac P3P" << std::endl;
         std::cout << "Inliers: " << num << std::endl;
         std::cout << result << std::endl;
 
         std::cout << "Error: T/R " << translationalError(groundTruth, result) << " "
-                  << rotationalError(groundTruth, result) << std::endl;
+                  << rotationalError(groundTruth, result) << std::endl
+                  << std::endl;
     }
 
     AlignedVector<Vec3> wps;
