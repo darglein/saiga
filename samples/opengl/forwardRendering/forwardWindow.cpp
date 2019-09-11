@@ -125,6 +125,8 @@ void Sample::renderOverlay(Camera* cam)
     frustum.renderForward(cam, mat4::Identity());
 }
 
+
+
 void Sample::renderFinal(Camera* cam)
 {
     // The final render path (after post processing).
@@ -138,6 +140,11 @@ void Sample::renderFinal(Camera* cam)
         ImGui::Begin("An Imgui Window :D");
 
         ImGui::End();
+    }
+
+    {
+        // console like output
+        oc.render();
     }
 }
 

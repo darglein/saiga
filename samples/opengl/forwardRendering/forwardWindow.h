@@ -16,9 +16,36 @@
 #include "saiga/opengl/world/pointCloud.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 
+#include <sstream>
 using namespace Saiga;
 
 
+struct OutputConsole
+{
+    void render()
+    {
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+        ImGui::Begin(name.c_str());
+
+
+
+        ImGui::End();
+    }
+
+    template <typename T>
+    OutputConsole& operator<<(const T& t)
+    {
+        std::stringstream strm;
+        strm << t;
+        content += strm.str();
+
+        return *this;
+    }
+
+    std::string name = "Output";
+    std::string content;
+};
 
 class Sample : public Updating, public ForwardRenderingInterface, public SDL_KeyListener
 {
@@ -31,6 +58,7 @@ class Sample : public Updating, public ForwardRenderingInterface, public SDL_Key
     LineVertexColoredAsset frustum;
 
 
+    OutputConsole oc;
     ProceduralSkybox skybox;
 
     std::shared_ptr<Texture> t;
