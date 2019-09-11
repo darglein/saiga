@@ -6,14 +6,15 @@
 
 #pragma once
 
+#include "saiga/core/sdl/all.h"
 #include "saiga/opengl/assets/all.h"
 #include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/window/sdl_window.h"
+#include "saiga/opengl/world/LineSoup.h"
 #include "saiga/opengl/world/pointCloud.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
-#include "saiga/core/sdl/all.h"
 
 using namespace Saiga;
 
@@ -25,7 +26,9 @@ class Sample : public Updating, public ForwardRenderingInterface, public SDL_Key
     SDLCamera<PerspectiveCamera> camera;
 
     GLPointCloud pointCloud;
+    LineSoup lineSoup;
     SimpleAssetObject groundPlane;
+    LineVertexColoredAsset frustum;
 
 
     ProceduralSkybox skybox;

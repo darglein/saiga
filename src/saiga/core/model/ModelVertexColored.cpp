@@ -15,12 +15,12 @@ namespace Saiga
 {
 void VertexColoredModel::createFullscreenQuad()
 {
-    mesh.vertices.push_back(VertexNC(vec3(-1, -1, 0), vec3(0, 0, 1)));
-    mesh.vertices.push_back(VertexNC(vec3(1, -1, 0), vec3(0, 0, 1)));
-    mesh.vertices.push_back(VertexNC(vec3(1, 1, 0), vec3(0, 0, 1)));
-    mesh.vertices.push_back(VertexNC(vec3(-1, 1, 0), vec3(0, 0, 1)));
-    mesh.addFace(0, 2, 3);
-    mesh.addFace(0, 1, 2);
+    vertices.push_back(VertexNC(vec3(-1, -1, 0), vec3(0, 0, 1)));
+    vertices.push_back(VertexNC(vec3(1, -1, 0), vec3(0, 0, 1)));
+    vertices.push_back(VertexNC(vec3(1, 1, 0), vec3(0, 0, 1)));
+    vertices.push_back(VertexNC(vec3(-1, 1, 0), vec3(0, 0, 1)));
+    addFace(0, 2, 3);
+    addFace(0, 1, 2);
 }
 
 void VertexColoredModel::createCheckerBoard(ivec2 size, float quadSize, vec4 color1, vec4 color2)
@@ -44,7 +44,7 @@ void VertexColoredModel::createCheckerBoard(ivec2 size, float quadSize, vec4 col
                 verts[i].position[2] *= quadSize;
             }
 
-            mesh.addQuad(verts);
+            addQuad(verts);
         }
     }
 }
@@ -53,20 +53,20 @@ void VertexColoredModel::loadObj(const std::string& file)
 {
     Saiga::ObjModelLoader loader(file);
     loader.computeVertexColorAndData();
-    loader.toTriangleMesh(mesh);
+    loader.toTriangleMesh(*this);
 }
 
 void VertexColoredModel::loadPly(const std::string& file)
 {
     Saiga::PLYLoader loader(file);
-    mesh = loader.mesh;
+    this->TriangleMesh<VertexNC, uint32_t>::operator=(loader.mesh);
 }
 
 void TexturedModel::loadObj(const std::string& file)
 {
     Saiga::ObjModelLoader loader(file);
     loader.computeVertexColorAndData();
-    loader.toTriangleMesh(mesh);
+    loader.toTriangleMesh(*this);
 
     for (ObjTriangleGroup& otg : loader.triangleGroups)
     {

@@ -6,8 +6,30 @@
 
 #include "coloredAsset.h"
 
+#include "saiga/opengl/shader/shaderLoader.h"
 namespace Saiga
 {
+void ColoredAsset::loadDefaultShaders()
+{
+    this->shader          = ShaderLoader::instance()->load<MVPShader>(deferredShaderStr);
+    this->forwardShader   = ShaderLoader::instance()->load<MVPShader>(forwardShaderStr);
+    this->depthshader     = ShaderLoader::instance()->load<MVPShader>(depthShaderStr);
+    this->wireframeshader = ShaderLoader::instance()->load<MVPShader>(wireframeShaderStr);
+}
+void LineVertexColoredAsset::loadDefaultShaders()
+{
+    this->shader          = ShaderLoader::instance()->load<MVPShader>(deferredShaderStr);
+    this->forwardShader   = ShaderLoader::instance()->load<MVPShader>(forwardShaderStr);
+    this->depthshader     = ShaderLoader::instance()->load<MVPShader>(depthShaderStr);
+    this->wireframeshader = ShaderLoader::instance()->load<MVPShader>(wireframeShaderStr);
+}
+void TexturedAsset::loadDefaultShaders()
+{
+    this->shader          = ShaderLoader::instance()->load<MVPShader>(deferredShaderStr);
+    this->forwardShader   = ShaderLoader::instance()->load<MVPShader>(forwardShaderStr);
+    this->depthshader     = ShaderLoader::instance()->load<MVPShader>(depthShaderStr);
+    this->wireframeshader = ShaderLoader::instance()->load<MVPShader>(wireframeShaderStr);
+}
 void TexturedAsset::render(Camera* cam, const mat4& model)
 {
     auto tshader = std::static_pointer_cast<MVPTextureShader>(this->shader);
@@ -57,5 +79,7 @@ void TexturedAsset::renderDepth(Camera* cam, const mat4& model)
 
     dshader->unbind();
 }
+
+
 
 }  // namespace Saiga

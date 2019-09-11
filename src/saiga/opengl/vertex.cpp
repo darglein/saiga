@@ -27,6 +27,17 @@ void VertexBuffer<VertexN>::setVertexAttributes()
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(VertexN), (void*)(4 * sizeof(GLfloat)));
 }
 
+
+template <>
+void VertexBuffer<VertexC>::setVertexAttributes()
+{
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(VertexC), NULL);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(VertexC), (void*)(4 * sizeof(GLfloat)));
+}
+
 template <>
 void VertexBuffer<VertexNT>::setVertexAttributes()
 {

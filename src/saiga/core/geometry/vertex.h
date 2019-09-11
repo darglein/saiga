@@ -44,6 +44,11 @@ struct SAIGA_CORE_API VertexN : public Vertex
     friend std::ostream& operator<<(std::ostream& os, const VertexN& vert);
 };
 
+struct SAIGA_CORE_API VertexC : public Vertex
+{
+    vec4 color = make_vec4(1);
+};
+
 
 struct SAIGA_CORE_API VertexNT : public VertexN
 {

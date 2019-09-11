@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/geometry/vertex.h"
+#include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/opengl/instancedBuffer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/templatedBuffer.h"
@@ -60,8 +61,7 @@ class VertexBuffer : public TemplatedBuffer<vertex_t>
      *
      *  A VBO and a VAO will be created and initialized.
      */
-    void set(std::vector<vertex_t>& vertices, GLenum usage);
-    void set(vertex_t* vertices, int vertex_count, GLenum usage);
+    void set(ArrayView<vertex_t> vertices, GLenum usage);
 
     /*
      *  Updates the existing OpenGL buffer.
@@ -176,21 +176,17 @@ void VertexBuffer<vertex_t>::bindAndDraw() const
     unbind();
 }
 
-template <class vertex_t>
-void VertexBuffer<vertex_t>::set(std::vector<vertex_t>& vertices, GLenum _usage)
-{
-    set(&vertices[0], (int)vertices.size(), _usage);
-}
+
 
 template <class vertex_t>
-void VertexBuffer<vertex_t>::set(vertex_t* vertices, int _vertex_count, GLenum _usage)
+void VertexBuffer<vertex_t>::set(ArrayView<vertex_t> vertices, GLenum _usage)
 {
     //    this->vertex_count = _vertex_count;
 
     deleteGLBuffer();
     assert_no_glerror();
 
-    TemplatedBuffer<vertex_t>::set(vertices, _vertex_count, _usage);
+    TemplatedBuffer<vertex_t>::set(vertices, _usage);
     //    createGLBuffer(vertices,_vertex_count * sizeof(vertex_t),usage);
 
     // create VAO and init
@@ -296,6 +292,8 @@ template <>
 SAIGA_OPENGL_API void VertexBuffer<Vertex>::setVertexAttributes();
 template <>
 SAIGA_OPENGL_API void VertexBuffer<VertexN>::setVertexAttributes();
+template <>
+SAIGA_OPENGL_API void VertexBuffer<VertexC>::setVertexAttributes();
 template <>
 SAIGA_OPENGL_API void VertexBuffer<VertexNT>::setVertexAttributes();
 template <>

@@ -9,9 +9,9 @@
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/framebuffer.h"
+#include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 
 
 namespace Saiga
@@ -23,7 +23,7 @@ DeferredDebugOverlay::DeferredDebugOverlay(int width, int height) : layout(width
     float aspect = float(width) / height;
     tm->transform(scale(vec3(aspect, 1, 1)));
 
-    meshBB = tm->calculateAabb();
+    meshBB = tm->aabb();
 
     buffer.fromMesh(*tm);
 

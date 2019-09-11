@@ -32,7 +32,7 @@ class SAIGA_OPENGL_API Asset
 
 
 template <typename ModelType>
-class SAIGA_TEMPLATE BasicAsset : public Asset
+class SAIGA_TEMPLATE BasicAsset : public Asset, public ModelType
 {
    public:
     using VertexType = typename ModelType::VertexType;
@@ -45,7 +45,7 @@ class SAIGA_TEMPLATE BasicAsset : public Asset
 
     IndexedVertexBuffer<VertexType, IndexType> buffer;
 
-    ModelType model;
+    //    ModelType model;
 
     /**
      * Use these for simple inefficient rendering.
@@ -152,22 +152,22 @@ void BasicAsset<ModelType>::create(std::shared_ptr<MVPShader> _shader, std::shar
                                    std::shared_ptr<MVPShader> _depthshader, std::shared_ptr<MVPShader> _wireframeshader,
                                    bool normalizePosition, bool ZUPtoYUP)
 {
-    this->shader            = _shader;
-    this->forwardShader     = _forwardShader;
-    this->depthshader       = _depthshader;
-    this->wireframeshader   = _wireframeshader;
-    this->model.boundingBox = model.mesh.calculateAabb();
+    this->shader          = _shader;
+    this->forwardShader   = _forwardShader;
+    this->depthshader     = _depthshader;
+    this->wireframeshader = _wireframeshader;
+    //    this->model.boundingBox = model.mesh.aabb();
 
     if (ZUPtoYUP)
     {
-        this->model.ZUPtoYUP();
+        //        this->model.ZUPtoYUP();
     }
 
     if (normalizePosition)
     {
-        this->model.normalizePosition();
+        this->normalizePosition();
     }
-    buffer.fromMesh(model.mesh);
+    buffer.fromMesh(*this);
 }
 
 }  // namespace Saiga

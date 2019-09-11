@@ -20,7 +20,6 @@ class SAIGA_TEMPLATE TriangleModel
     using IndexType  = index_t;
 
     AABB boundingBox;
-    vec3 offset = make_vec3(0);
     TriangleMesh<vertex_t, index_t> mesh;
 
     void normalizePosition();
@@ -44,21 +43,9 @@ class SAIGA_TEMPLATE TriangleModel
 template <typename vertex_t, typename index_t>
 void TriangleModel<vertex_t, index_t>::normalizePosition()
 {
-    offset = boundingBox.getPosition();
-    mat4 t = translate(identityMat4(), -offset);
+    mat4 t = identityMat4();
     mesh.transform(t);
     boundingBox.setPosition(make_vec3(0));
-}
-
-
-template <typename vertex_t, typename index_t>
-void TriangleModel<vertex_t, index_t>::normalizeScale()
-{
-    normalizePosition();
-    const auto scaling = 1 / max(max(boundingBox.max[0], boundingBox.max[1]), boundingBox.max[2]);
-    mat4 t             = scale(identityMat4(), make_vec3(scaling));
-    offset *= scaling;
-    mesh.transform(t);
 }
 
 

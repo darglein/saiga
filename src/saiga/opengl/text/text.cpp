@@ -25,7 +25,7 @@ Text::Text(TextureAtlas* textureAtlas, const std::string& label, bool normalize)
 
 void Text::calculateNormalizationMatrix()
 {
-    boundingBox         = mesh.calculateAabb();
+    boundingBox         = mesh.aabb();
     normalizationMatrix = identityMat4();
     if (normalize)
     {

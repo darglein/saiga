@@ -85,7 +85,8 @@ class PnPTest
         P3PRansac pnp(params);
         SE3 result;
         std::vector<char> inlierMask;
-        auto num = pnp.solve(wps, ips, result, inlierMask);
+        std::vector<int> inliers;
+        auto num = pnp.solve(wps, ips, result, inliers, inlierMask);
 
         std::cout << "Ransac P3P" << std::endl;
         std::cout << "Inliers: " << num << std::endl;

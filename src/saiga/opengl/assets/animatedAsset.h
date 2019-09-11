@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class AnimatedModel : public TriangleModel<BoneVertexCD, uint32_t>
+class AnimatedModel : public TriangleMesh<BoneVertexCD, uint32_t>
 {
    public:
 };

@@ -177,11 +177,6 @@ class SAIGA_CORE_API Camera : public Object3D
         return make_vec3(wp);
     }
 
-    static mat4 getVulkanTransform()
-    {
-        return make_mat4(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.5f,
-                         1.0f);
-    }
 
     virtual void recomputeProj(){};
 

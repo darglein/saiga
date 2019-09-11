@@ -18,6 +18,7 @@ using std::min;
 using std::round;
 
 
+
 template <typename T>
 constexpr T epsilon()
 {
@@ -582,6 +583,12 @@ HD inline mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s)
     mat4 S = scale(identityMat4(), make_vec3(s));
     return T * R * S;
 }
+
+inline mat4 getVulkanTransform()
+{
+    return make_mat4(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.5f, 1.0f);
+}
+
 
 }  // namespace Saiga
 

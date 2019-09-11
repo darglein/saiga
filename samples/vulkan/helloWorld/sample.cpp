@@ -73,7 +73,7 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
     teapot.loadObj("teapot.obj");
-    teapot.mesh.computePerVertexNormal();
+    teapot.computePerVertexNormal();
     teapot.init(renderer.base());
     teapotTrans.setScale(vec3(2, 2, 2));
     teapotTrans.translateGlobal(vec3(0, 2, 0));

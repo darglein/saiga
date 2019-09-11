@@ -9,8 +9,10 @@
 #include "saiga/core/geometry/aabb.h"
 #include "saiga/core/geometry/triangle.h"
 #include "saiga/core/geometry/vertex.h"
-#include "saiga/core/util/assert.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/assert.h"
+
+#include "Mesh.h"
 
 #include <algorithm>
 #include <cstring>
@@ -24,9 +26,18 @@ namespace Saiga
  */
 
 template <typename vertex_t, typename index_t>
-class TriangleMesh
+class TriangleMesh : public Mesh<vertex_t>
 {
    public:
+    using VertexType = vertex_t;
+    using IndexType  = index_t;
+
+    using Base = Mesh<vertex_t>;
+    using Base::aabb;
+    using Base::addVertex;
+    using Base::size;
+    using Base::vertices;
+
     struct SAIGA_ALIGN(4) Face
     {
         index_t v1, v2, v3;
@@ -45,23 +56,7 @@ class TriangleMesh
         }
     };
 
-    //    typedef IndexedVertexBuffer<vertex_t,index_t> buffer_t;
 
-
-
-    /*
-     * Create empty triangle mesh
-     */
-
-    TriangleMesh(void);
-    ~TriangleMesh(void) {}
-
-    /*
-     * Transforms mesh with given matrix.
-     * All vertices are multiplied with 'trafo'
-     */
-
-    void transform(const mat4& trafo);
     void transformNormal(const mat4& trafo);
 
     /*
@@ -70,28 +65,17 @@ class TriangleMesh
 
     void clear()
     {
-        vertices.resize(0);
+        Base::clear();
         faces.resize(0);
     }
 
-    /*
-     * Adds vertex to mesh and updates enclosing AABB.
-     * return: index of new vertex
-     */
 
-    int addVertex(const vertex_t& v)
-    {
-        vertices.push_back(v);
-        boundingBox.growBox(make_vec3(v.position));
-        return vertices.size() - 1;
-    }
 
     /*
      * Adds face to mesh.
      * The indices of the face should match existing vertices
      * return: index of new face
      */
-
     int addFace(const Face& f)
     {
         faces.push_back(f);
@@ -99,7 +83,6 @@ class TriangleMesh
     }
 
     int addFace(index_t f[3]) { return addFace(Face(f[0], f[1], f[2])); }
-
     int addFace(index_t v0, index_t v1, index_t v2) { return addFace(Face(v0, v1, v2)); }
 
     /*
@@ -117,19 +100,16 @@ class TriangleMesh
     void addQuad(index_t inds[4]);
 
 
-
     /*
      * Subdivides the triangle at index 'face' into 4 triangles.
      * The new triangles will be added to the mesh and the old will be overwritten
      */
-
     void subdivideFace(int face);
 
     /*
      * Inverts the triangle at index 'face'.
      * The order of the indices will be reversed.
      */
-
     void invertFace(int face);
     void invertMesh();
 
@@ -168,7 +148,7 @@ class TriangleMesh
 
     int numIndices() { return faces.size() * 3; }
 
-    AABB calculateAabb();
+
 
     bool isValid();
 
@@ -195,7 +175,6 @@ class TriangleMesh
     template <typename v, typename i>
     friend std::ostream& operator<<(std::ostream& os, const TriangleMesh<v, i>& dt);
 
-    AABB& getAabb() { return boundingBox; }
 
     std::vector<index_t> getIndexList()
     {
@@ -210,31 +189,11 @@ class TriangleMesh
     void saveMeshOff(std::ostream& strm);
 
    public:
-    std::vector<vertex_t> vertices;
+    //    std::vector<vertex_t> vertices;
     std::vector<Face> faces;
-    AABB boundingBox;
 };
 
 
-
-template <typename vertex_t, typename index_t>
-TriangleMesh<vertex_t, index_t>::TriangleMesh(void)
-{
-    boundingBox.makeNegative();
-}
-
-template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::transform(const mat4& trafo)
-{
-    for (vertex_t& v : vertices)
-    {
-        // Make sure it works for user defined w components
-        vec4 p     = make_vec4(make_vec3(v.position), 1);
-        p          = trafo * p;
-        v.position = make_vec4(make_vec3(p), v.position[3]);
-    }
-    boundingBox.transform(trafo);
-}
 
 template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::transformNormal(const mat4& trafo)
@@ -463,17 +422,6 @@ void TriangleMesh<vertex_t, index_t>::removeUnusedVertices()
 }
 
 
-template <typename vertex_t, typename index_t>
-AABB TriangleMesh<vertex_t, index_t>::calculateAabb()
-{
-    boundingBox.makeNegative();
-
-    for (vertex_t& v : vertices)
-    {
-        boundingBox.growBox(make_vec3(v.position));
-    }
-    return boundingBox;
-}
 
 template <typename vertex_t, typename index_t>
 bool TriangleMesh<vertex_t, index_t>::isValid()

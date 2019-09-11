@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include "saiga/core/geometry/LineMesh.h"
 #include "saiga/core/geometry/triangle_mesh.h"
+#include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/opengl/indexBuffer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/vertexBuffer.h"
@@ -49,8 +51,7 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
      */
     void drawInstanced(int instanceCount, int baseInstance = 0, int indexOffset = 0, int indexCount = -1) const;
 
-    void set(std::vector<vertex_t>& vertices, std::vector<index_t>& indices, GLenum usage);
-    void set(vertex_t* vertices, int vertex_count, index_t* indices, int index_count, GLenum usage);
+    void set(ArrayView<vertex_t> vertices, ArrayView<index_t> indices, GLenum usage);
 
     /*
      * Creates OpenGL buffer from indices and vertices
@@ -60,6 +61,12 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
 
     template <typename buffer_vertex_t, typename buffer_index_t>
     void fromMesh(TriangleMesh<buffer_vertex_t, buffer_index_t>& mesh, GLenum usage = GL_STATIC_DRAW);
+
+    /*
+     * Creates OpenGL buffer from indices and vertices
+     * 'buffer' is now ready to draw.
+     */
+    void fromMesh(LineMesh<vertex_t, index_t>& mesh, GLenum usage = GL_STATIC_DRAW);
 
     /*
      * Updates OpenGL buffer with the data currently saved in this mesh
@@ -119,18 +126,10 @@ void IndexedVertexBuffer<vertex_t, index_t>::deleteGLBuffer()
 
 
 template <class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t, index_t>::set(std::vector<vertex_t>& vertices, std::vector<index_t>& indices,
-                                                 GLenum usage)
+void IndexedVertexBuffer<vertex_t, index_t>::set(ArrayView<vertex_t> vertices, ArrayView<index_t> indices, GLenum usage)
 {
-    set(&vertices[0], vertices.size(), &indices[0], indices.size(), usage);
-}
-
-template <class vertex_t, class index_t>
-void IndexedVertexBuffer<vertex_t, index_t>::set(vertex_t* vertices, int _vertex_count, index_t* indices,
-                                                 int _index_count, GLenum usage)
-{
-    vbuffer_t::set(vertices, _vertex_count, usage);
-    ibuffer_t::set(indices, _index_count, usage);
+    vbuffer_t::set(vertices, usage);
+    ibuffer_t::set(indices, usage);
 
     // The ELEMENT_ARRAY_BUFFER_BINDING is part of VAO state.
     // adds index buffer to vao state
@@ -167,6 +166,13 @@ void IndexedVertexBuffer<buffer_vertex_t, buffer_index_t>::fromMesh(TriangleMesh
 
     set(bufferVertices, bufferIndices, usage);
     this->setDrawMode(GL_TRIANGLES);
+}
+
+template <typename vertex_t, typename index_t>
+void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(LineMesh<vertex_t, index_t>& mesh, GLenum usage)
+{
+    set(mesh.vertices, mesh.indices, usage);
+    this->setDrawMode(GL_LINES);
 }
 
 

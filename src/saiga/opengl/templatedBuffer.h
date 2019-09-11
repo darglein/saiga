@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/opengl/buffer.h"
 
 #include <vector>
@@ -19,8 +20,8 @@ class TemplatedBuffer : public Buffer
     TemplatedBuffer(GLenum _target) : Buffer(_target) {}
     ~TemplatedBuffer() {}
 
-    void set(std::vector<T>& data, GLenum usage);
-    void set(T* data, int count, GLenum usage);
+    void set(ArrayView<T> data, GLenum usage);
+
 
     void fill(const T* data, int count, GLenum usage = GL_STATIC_DRAW);
 
@@ -32,15 +33,9 @@ class TemplatedBuffer : public Buffer
 
 
 template <typename T>
-void TemplatedBuffer<T>::set(std::vector<T>& data, GLenum usage)
+void TemplatedBuffer<T>::set(ArrayView<T> data, GLenum _usage)
 {
-    set(data.data(), data.size(), usage);
-}
-
-template <typename T>
-void TemplatedBuffer<T>::set(T* data, int count, GLenum _usage)
-{
-    Buffer::createGLBuffer(data, count * sizeof(T), _usage);
+    Buffer::createGLBuffer(data.data(), data.size() * sizeof(T), _usage);
 }
 
 template <typename T>

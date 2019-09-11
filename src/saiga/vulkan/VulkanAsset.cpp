@@ -16,12 +16,12 @@ namespace Vulkan
 {
 void VulkanVertexColoredAsset::init(Saiga::Vulkan::VulkanBase& base)
 {
-    auto indices = mesh.getIndexList();
+    auto indices = getIndexList();
 
-    vertexBuffer.init(base, mesh.vertices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
+    vertexBuffer.init(base, vertices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
     indexBuffer.init(base, indices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-    vertexBuffer.stagedUpload(base, mesh.vertices.size() * sizeof(VertexType), mesh.vertices.data());
+    vertexBuffer.stagedUpload(base, vertices.size() * sizeof(VertexType), vertices.data());
     indexBuffer.stagedUpload(base, indices.size() * sizeof(uint32_t), indices.data());
 }
 
@@ -83,14 +83,14 @@ void VulkanTexturedAsset::init(VulkanBase& base)
     //    indexBuffer.destroy();
     //    indexBuffer.init(base,mesh.getIndexList());
 
-    auto indices = mesh.getIndexList();
+    auto indices = getIndexList();
 
     //    std::cout << mesh.vertices.size() << std::endl;
-    vertexBuffer.init(base, mesh.vertices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
+    vertexBuffer.init(base, vertices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
     indexBuffer.init(base, indices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
 
 
-    vertexBuffer.stagedUpload(base, mesh.vertices.size() * sizeof(VertexType), mesh.vertices.data());
+    vertexBuffer.stagedUpload(base, vertices.size() * sizeof(VertexType), vertices.data());
     indexBuffer.stagedUpload(base, indices.size() * sizeof(IndexType), indices.data());
 
     textures.clear();

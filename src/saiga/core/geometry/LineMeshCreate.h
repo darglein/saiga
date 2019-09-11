@@ -1,54 +1,54 @@
-/**
+﻿/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
-#include "LineModelColored.h"
+#pragma once
 
-#include "saiga/core/camera/camera.h"
-
-#include "internal/noGraphicsAPI.h"
+#include "LineMesh.h"
 
 namespace Saiga
 {
-void LineModelColored::createGrid(int numX, int numY, float quadSize, vec4 color)
+template <typename VertexType, typename IndexType>
+void LineMesh<VertexType, IndexType>::createGrid(const ivec2& dimension, const vec2& spacing)
 {
-    vec2 size = vec2(numX, numY) * quadSize;
+    vec2 size = dimension.cast<float>().array() * spacing.array();
 
 
     std::vector<vec3> vertices;
 
-    for (float i = -numX; i <= numX; i++)
+    for (float i = -dimension.x(); i <= dimension.x(); i++)
     {
-        vec3 p1 = vec3(quadSize * i, 0, -size[1]);
-        vec3 p2 = vec3(quadSize * i, 0, size[1]);
-        mesh.indices.push_back(vertices.size());
+        vec3 p1 = vec3(spacing.x() * i, 0, -size[1]);
+        vec3 p2 = vec3(spacing.x() * i, 0, size[1]);
+        indices.push_back(vertices.size());
         vertices.push_back(p1);
-        mesh.indices.push_back(vertices.size());
+        indices.push_back(vertices.size());
         vertices.push_back(p2);
     }
 
-    for (float i = -numY; i <= numY; i++)
+    for (float i = -dimension.y(); i <= dimension.y(); i++)
     {
-        vec3 p1 = vec3(-size[0], 0, quadSize * i);
-        vec3 p2 = vec3(+size[0], 0, quadSize * i);
-        mesh.indices.push_back(vertices.size());
+        vec3 p1 = vec3(-size[0], 0, spacing.y() * i);
+        vec3 p2 = vec3(+size[0], 0, spacing.y() * i);
+        indices.push_back(vertices.size());
         vertices.push_back(p1);
-        mesh.indices.push_back(vertices.size());
+        indices.push_back(vertices.size());
         vertices.push_back(p2);
     }
 
 
     for (auto v : vertices)
     {
-        VertexNC ver(v);
-        ver.color = color;
-        mesh.vertices.push_back(ver);
+        VertexType ver;
+        ver.position = make_vec4(v, 1);
+        this->vertices.push_back(ver);
     }
 }
 
-void LineModelColored::createFrustum(const mat4& proj, float farPlaneLimit, const vec4& color, bool vulkanTransform)
+template <typename VertexType, typename IndexType>
+void LineMesh<VertexType, IndexType>::createFrustum(const mat4& proj, float farPlaneDistance, bool vulkanTransform)
 {
     float d = 1.0f;
     vec4 bl(-1, -1, d, 1);
@@ -71,12 +71,12 @@ void LineModelColored::createFrustum(const mat4& proj, float farPlaneLimit, cons
     bl /= bl[3];
     br /= br[3];
 
-    if (farPlaneLimit > 0)
+    if (farPlaneDistance > 0)
     {
-        tl[3] = -tl[2] / farPlaneLimit;
-        tr[3] = -tr[2] / farPlaneLimit;
-        bl[3] = -bl[2] / farPlaneLimit;
-        br[3] = -br[2] / farPlaneLimit;
+        tl[3] = -tl[2] / farPlaneDistance;
+        tr[3] = -tr[2] / farPlaneDistance;
+        bl[3] = -bl[2] / farPlaneDistance;
+        br[3] = -br[2] / farPlaneDistance;
 
         tl /= tl[3];
         tr /= tr[3];
@@ -98,32 +98,33 @@ void LineModelColored::createFrustum(const mat4& proj, float farPlaneLimit, cons
 
     for (int i = 0; i < 8; ++i)
     {
-        VertexNC v;
+        VertexType v;
         v.position = positions[i];
-        v.color    = color;
-        mesh.vertices.push_back(v);
+
+        vertices.push_back(v);
     }
 
 
-    mesh.indices = {0, 1, 0, 2, 0, 3, 0, 4,
+    indices = {0, 1, 0, 2, 0, 3, 0, 4,
 
-                    1, 2, 3, 4, 1, 4, 2, 3,
+               1, 2, 3, 4, 1, 4, 2, 3,
 
-                    5, 7, 6, 7};
+               5, 7, 6, 7};
 }
 
-void LineModelColored::createFrustumCV(float farPlaneLimit, const vec4& color, int w, int h)
+template <typename VertexType, typename IndexType>
+void LineMesh<VertexType, IndexType>::createFrustumCV(float farPlaneLimit, int w, int h)
 {
     mat3 K  = mat3::Identity();
     K(0, 2) = w / 2.0;
     K(1, 2) = h / 2.0;
     K(0, 0) = w;
     K(1, 1) = w;
-    createFrustumCV(K, farPlaneLimit, color, w, h);
+    createFrustumCV(K, farPlaneLimit, w, h);
 }
 
-
-void LineModelColored::createFrustumCV(const mat3& K, float farPlaneLimit, const vec4& color, int w, int h)
+template <typename VertexType, typename IndexType>
+void LineMesh<VertexType, IndexType>::createFrustumCV(const mat3& K, float farPlaneDistance, int w, int h)
 {
     vec3 bl(0, h, 1);
     vec3 br(w, h, 1);
@@ -138,12 +139,12 @@ void LineModelColored::createFrustumCV(const mat3& K, float farPlaneLimit, const
     br = projInv * br;
 
 
-    if (farPlaneLimit > 0)
+    if (farPlaneDistance > 0)
     {
-        tl *= farPlaneLimit;
-        tr *= farPlaneLimit;
-        bl *= farPlaneLimit;
-        br *= farPlaneLimit;
+        tl *= farPlaneDistance;
+        tr *= farPlaneDistance;
+        bl *= farPlaneDistance;
+        br *= farPlaneDistance;
     }
 
     vec3 positions[] = {vec3(0, 0, 0),
@@ -157,18 +158,15 @@ void LineModelColored::createFrustumCV(const mat3& K, float farPlaneLimit, const
 
     for (int i = 0; i < 8; ++i)
     {
-        VertexNC v;
+        VertexType v;
         v.position = make_vec4(positions[i], 1);
-        v.color    = color;
-        mesh.vertices.push_back(v);
+        vertices.push_back(v);
     }
 
-    mesh.indices = {0, 1, 0, 2, 0, 3, 0, 4,
+    indices = {0, 1, 0, 2, 0, 3, 0, 4,
 
-                    1, 2, 3, 4, 1, 4, 2, 3,
+               1, 2, 3, 4, 1, 4, 2, 3,
 
-                    5, 7, 6, 7};
+               5, 7, 6, 7};
 }
-
-
 }  // namespace Saiga
