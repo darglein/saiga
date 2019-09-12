@@ -104,6 +104,7 @@ class SAIGA_OPENGL_API DeferredLighting
     vec4 clearColor = make_vec4(0);
     int totalLights;
     int visibleLights;
+    int visibleVolumetricLights;
     int renderedDepthmaps;
     int currentStencilId = 0;
 
@@ -114,7 +115,7 @@ class SAIGA_OPENGL_API DeferredLighting
     bool useTimers = true;
 
     bool backFaceShadows     = false;
-    float shadowOffsetFactor = 4;
+    float shadowOffsetFactor = 2;
     float shadowOffsetUnits  = 10;
     bool renderVolumetric    = false;
 

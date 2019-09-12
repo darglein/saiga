@@ -69,7 +69,7 @@ void main() {
     vec3 lightW = vec3(model[3]);
     vec3 fragW = vec3(inverse(view)*vec4(vposition,1));
     visibility = calculateShadowCube(depthTex,lightW,fragW,farplane,nearplane);
-//    visibility = calculateShadowCubePCF(depthTex,lightW,fragW,farplane,nearplane);
+   // visibility = calculateShadowCubePCF(depthTex,lightW,fragW,farplane,nearplane);
 #endif
 
     float atten = getAttenuation(attenuation,distance(vposition,lightPos));

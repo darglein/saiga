@@ -45,11 +45,12 @@ class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow<WindowMana
     void keyPressed(SDL_Keysym key) override;
     void keyReleased(SDL_Keysym key) override;
 
-    std::shared_ptr<DirectionalLight> sun;
 
+
+   protected:
+    std::shared_ptr<DirectionalLight> sun;
     SDLCamera<PerspectiveCamera> camera;
 
-   private:
     SimpleAssetObject groundPlane;
     ProceduralSkybox skybox;
 

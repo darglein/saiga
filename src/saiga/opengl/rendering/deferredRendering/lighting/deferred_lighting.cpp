@@ -113,7 +113,8 @@ void DeferredLighting::resize(int _width, int _height)
 
 void DeferredLighting::cullLights(Camera* cam)
 {
-    visibleLights = directionalLights.size();
+    visibleLights           = directionalLights.size();
+    visibleVolumetricLights = 0;
 
     // cull lights that are not visible
     for (auto& light : spotLights)
@@ -122,7 +123,9 @@ void DeferredLighting::cullLights(Camera* cam)
         {
             light->calculateCamera();
             light->shadowCamera.recalculatePlanes();
-            visibleLights += (light->cullLight(cam)) ? 0 : 1;
+            bool visible = !light->cullLight(cam);
+            visibleLights += visible;
+            visibleVolumetricLights += (visible && light->isVolumetric());
         }
     }
 
@@ -132,7 +135,9 @@ void DeferredLighting::cullLights(Camera* cam)
         {
             light->calculateCamera();
             light->shadowCamera.recalculatePlanes();
-            visibleLights += (light->cullLight(cam)) ? 0 : 1;
+            bool visible = !light->cullLight(cam);
+            visibleLights += visible;
+            visibleVolumetricLights += (visible && light->isVolumetric());
         }
     }
 
@@ -141,9 +146,13 @@ void DeferredLighting::cullLights(Camera* cam)
     {
         if (light->isActive())
         {
-            visibleLights += (light->cullLight(cam)) ? 0 : 1;
+            bool visible = !light->cullLight(cam);
+            visibleLights += visible;
+            visibleVolumetricLights += (visible && light->isVolumetric());
         }
     }
+
+    renderVolumetric = visibleVolumetricLights > 0;
 }
 
 void DeferredLighting::printTimings()

@@ -115,9 +115,14 @@ float calculateShadowCube(samplerCubeShadow tex, vec3 lightW, vec3 fragW, float 
     vec3 direction =  fragW-lightW;
     float visibility = 1.0f;
 
+
     float d = VectorToDepth(direction,farplane,nearplane);
-    //the bias is applied with glPolygonOffset
-    visibility = texture(tex, vec4(direction,d));
+    direction = normalize(direction);
+
+    //a quick bias is applied with glpolygon offset.
+    //
+    const float bias = 1e-3;
+    visibility = texture(tex, vec4(direction,d-bias));
     return visibility;
 }
 

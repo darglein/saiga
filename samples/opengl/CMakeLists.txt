@@ -6,6 +6,7 @@ endif ()
 
 if (SDL2_FOUND)
     add_subdirectory(simpleSDLWindow)
+    add_subdirectory(cornell)
     add_subdirectory(forwardRendering)
     add_subdirectory(splitScreen)
     add_subdirectory(multiWindow)
