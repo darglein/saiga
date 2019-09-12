@@ -7,10 +7,10 @@
 #include "saiga/opengl/rendering/particles/particlesystem.h"
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/texture/arrayTexture.h"
-#include "saiga/opengl/rendering/particles/particle_shader.h"
 #include "saiga/core/math/random.h"
+#include "saiga/opengl/rendering/particles/particle_shader.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/opengl/texture/ArrayTexture2D.h"
 
 namespace Saiga
 {
@@ -37,8 +37,8 @@ void ParticleSystem::init()
 
     initialized = true;
 
-    particleShader         = ShaderLoader::instance()->load<ParticleShader>("geometry/particles.glsl");
-    deferredParticleShader = ShaderLoader::instance()->load<DeferredParticleShader>("geometry/deferred_particles.glsl");
+    particleShader         = shaderLoader.load<ParticleShader>("geometry/particles.glsl");
+    deferredParticleShader = shaderLoader.load<DeferredParticleShader>("geometry/deferred_particles.glsl");
 }
 
 void ParticleSystem::reset()
@@ -87,7 +87,7 @@ void ParticleSystem::render(Camera* cam)
     particleShader->bind();
 
     particleShader->uploadModel(model);
-    particleShader->uploadTexture(arrayTexture);
+    particleShader->uploadTexture(arrayTexture.get());
 
     particleShader->uploadTiming(tick, interpolation);
     particleShader->uploadTimestep(secondsPerTick);
@@ -107,12 +107,12 @@ void ParticleSystem::render(Camera* cam)
     }
 }
 
-void ParticleSystem::renderDeferred(Camera* cam, std::shared_ptr<raw_Texture> detphTexture)
+void ParticleSystem::renderDeferred(Camera* cam, std::shared_ptr<TextureBase> detphTexture)
 {
     deferredParticleShader->bind();
 
     deferredParticleShader->uploadModel(model);
-    deferredParticleShader->uploadTexture(arrayTexture);
+    deferredParticleShader->uploadTexture(arrayTexture.get());
     deferredParticleShader->uploadDepthTexture(detphTexture);
     deferredParticleShader->uploadTiming(tick, interpolation);
     deferredParticleShader->uploadTimestep(secondsPerTick);

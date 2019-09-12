@@ -42,7 +42,7 @@ void MVPTextureShader::checkUniforms()
 }
 
 
-void MVPTextureShader::uploadTexture(std::shared_ptr<raw_Texture> texture)
+void MVPTextureShader::uploadTexture(TextureBase* texture)
 {
     upload(location_texture, texture, 0);
 }

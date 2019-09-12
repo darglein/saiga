@@ -100,7 +100,7 @@ mat4 OpenVRWrapper::GetHMDViewMatrix(vr::Hmd_Eye nEye)
     return matrixObj.transpose().inverse();
 }
 
-void OpenVRWrapper::submitImage(vr::Hmd_Eye nEye, raw_Texture* texture)
+void OpenVRWrapper::submitImage(vr::Hmd_Eye nEye, TextureBase* texture)
 {
     SAIGA_ASSERT(m_pHMD);
 

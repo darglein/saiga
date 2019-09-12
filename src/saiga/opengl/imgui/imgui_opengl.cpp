@@ -25,7 +25,7 @@ void VertexBuffer<ImDrawVert>::setVertexAttributes()
 
 ImGui_GL_Renderer::ImGui_GL_Renderer(const ImGuiParameters& params) : ImGuiRenderer(params, true)
 {
-    shader = ShaderLoader::instance()->load<Shader>("imgui_gl.glsl");
+    shader = shaderLoader.load<Shader>("imgui_gl.glsl");
 
     std::vector<ImDrawVert> test(5);
     std::vector<ImDrawIdx> test2(5);
@@ -40,7 +40,7 @@ ImGui_GL_Renderer::ImGui_GL_Renderer(const ImGuiParameters& params) : ImGuiRende
                                      &height);  // Load as RGBA 32-bits for OpenGL3 demo because it is more likely to be
                                                 // compatible with user's existing shader.
         texture = std::make_shared<Texture>();
-        texture->createTexture(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE, pixels);
+        texture->create(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE, pixels);
         io.Fonts->TexID = (void*)(intptr_t)texture->getId();
     }
 }

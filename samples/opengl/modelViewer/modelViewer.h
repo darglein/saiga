@@ -6,34 +6,22 @@
 
 #pragma once
 
-#include "saiga/core/sdl/sdl_camera.h"
-#include "saiga/core/sdl/sdl_eventhandler.h"
-#include "saiga/opengl/assets/all.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
-#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
-#include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
-#include "saiga/opengl/rendering/overlay/textDebugOverlay.h"
-#include "saiga/opengl/rendering/renderer.h"
-#include "saiga/opengl/window/sdl_window.h"
-#include "saiga/opengl/world/proceduralSkybox.h"
+#include "saiga/opengl/window/SampleWindowDeferred.h"
 
 using namespace Saiga;
 
-class Sample : public Updating, public DeferredRenderingInterface, public SDL_KeyListener
+class Sample : public SampleWindowDeferred
 {
+    using Base = SampleWindowDeferred;
+
    public:
-    SDLCamera<PerspectiveCamera> camera;
-
     SimpleAssetObject object;
-    SimpleAssetObject groundPlane;
 
-    ProceduralSkybox skybox;
 
-    vec3 up                    = vec3(0, 1, 0);
-    bool autoRotate            = false;
-    float autoRotateSpeed      = 0.5;
-    bool showSkybox            = false;
-    bool showGrid              = true;
+    vec3 up               = vec3(0, 1, 0);
+    bool autoRotate       = false;
+    float autoRotateSpeed = 0.5;
+
     std::array<char, 512> file = {0};
 
 
@@ -41,18 +29,11 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
     bool renderWireframe = false;
     bool renderGeometry  = false;
     std::shared_ptr<MVPTextureShader> normalShader, textureShader;
-    std::shared_ptr<DirectionalLight> sun;
 
-    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
-    ~Sample();
+    Sample();
 
     void update(float dt) override;
-    void interpolate(float dt, float interpolation) override;
-    void render(Camera* cam) override;
     void renderDepth(Camera* cam) override;
     void renderOverlay(Camera* cam) override;
     void renderFinal(Camera* cam) override;
-
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
 };

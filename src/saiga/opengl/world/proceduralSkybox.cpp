@@ -36,7 +36,7 @@ ProceduralSkybox::ProceduralSkybox()
     //    sb->createBuffers(mesh);
     mesh.fromMesh(*sb);
 
-    shader = ShaderLoader::instance()->load<ProceduralSkyboxShader>("geometry/proceduralSkybox.glsl");
+    shader = shaderLoader.load<ProceduralSkyboxShader>("geometry/proceduralSkybox.glsl");
 }
 
 

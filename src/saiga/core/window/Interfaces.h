@@ -57,12 +57,7 @@ class SAIGA_CORE_API RendererBase
 class SAIGA_CORE_API RenderingInterfaceBase
 {
    public:
-    RenderingInterfaceBase(RendererBase& parent);
     virtual ~RenderingInterfaceBase() {}
-
-
-   protected:
-    RendererBase& parentRenderer;
 };
 
 /**
@@ -72,8 +67,6 @@ class SAIGA_CORE_API RenderingInterfaceBase
 class SAIGA_CORE_API Updating
 {
    public:
-    Updating(WindowBase& parent);
-
     virtual ~Updating() {}
 
     // advances the state of the program by dt. All game logic should happen here
@@ -90,9 +83,6 @@ class SAIGA_CORE_API Updating
     // We don't want to render two times the same image, so the game state should be interpolated either into the future
     // or from the past. Alpha is in the range [0,1] where 1 is equivalent to a timestep of dt
     virtual void interpolate(float dt, float alpha) {}
-
-   protected:
-    WindowBase& parentWindow;
 };
 
 }  // namespace Saiga

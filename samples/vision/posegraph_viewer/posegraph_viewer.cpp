@@ -21,12 +21,12 @@
 #include "saiga/vision/g2o/g2oPoseGraph.h"
 #include "saiga/vision/recursive/BAPoseOnly.h"
 #include "saiga/vision/recursive/PGORecursive.h"
-#if defined(SAIGA_OPENGL_INCLUDED)
+
+#if defined(SAIGA_VULKAN_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
 
-VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
-    : VulkanSDLExampleBase(window, renderer)
+Sample::Sample()
 {
     Saiga::SearchPathes::data.getFiles(datasets, "vision", ".posegraph");
     std::sort(datasets.begin(), datasets.end());
@@ -37,112 +37,79 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     std::sort(baldatasets.begin(), baldatasets.end());
     std::cout << "Found " << baldatasets.size() << " BAL datasets" << std::endl;
 
-    init(renderer.base());
-}
 
-VulkanExample::~VulkanExample() {}
+    frustum.createFrustum(camera.proj, 0.01);
+    frustum.setColor(vec4{0, 1, 0, 1});
 
-void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
-{
-    assetRenderer.init(base, renderer.renderPass);
-    lineAssetRenderer.init(base, renderer.renderPass, 2);
-    textureDisplay.init(base, renderer.renderPass);
-
-
-
-    grid.createGrid(10, 10);
-    grid.init(renderer.base());
-
-
-
-    //    frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
-    //    frustum.init(renderer.base());
-
-    lineAsset.init(base, 10 * 1000 * 1000);
-    lineAsset.size = 0;
-
-    frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.05, vec4(1, 1, 1, 1), false);
-    frustum.init(renderer.base());
-
-
-    pointCloud.init(base, 1000 * 1000 * 10);
-
-    change = true;
+    auto shader = shaderLoader.load<MVPShader>("colored_points.glsl");
+    frustum.create(shader, shader, shader, shader);
+    frustum.loadDefaultShaders();
 }
 
 
 
-void VulkanExample::update(float dt)
+void Sample::update(float dt)
 {
-    VulkanSDLExampleBase::update(dt);
-}
-
-void VulkanExample::transfer(vk::CommandBuffer cmd)
-{
-    assetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
-    lineAssetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
+    Base::update(dt);
 
     if (change)
     {
         chi2 = scene.chi2();
         rms  = scene.rms();
+        lineSoup.lines.clear();
 
-        lines.clear();
         for (auto& e : scene.edges)
         {
             int i = e.from;
             int j = e.to;
 
-            auto p1 = inverseMatchingSE3(scene.poses[i].se3).inverse().translation();
-            auto p2 = inverseMatchingSE3(scene.poses[j].se3).inverse().translation();
+            vec3 p1 = inverseMatchingSE3(scene.poses[i].se3).inverse().translation().cast<float>();
+            vec3 p2 = inverseMatchingSE3(scene.poses[j].se3).inverse().translation().cast<float>();
 
-            lines.emplace_back(vec3(p1(0), p1(1), p1(2)), make_vec3(0), vec3(0, 1, 0));
-            lines.emplace_back(vec3(p2(0), p2(1), p2(2)), make_vec3(0), vec3(0, 1, 0));
+            PointVertex pc1;
+            PointVertex pc2;
+
+            pc1.position = p1;
+            pc2.position = p2;
+
+            pc1.color = vec3(0, 0, 1);
+            pc2.color = vec3(0, 0, 1);
+
+            lineSoup.lines.push_back(pc1);
+            lineSoup.lines.push_back(pc2);
         }
 
-        if (lines.size() > 0)
-        {
-            std::cout << "num lines: " << lines.size() << std::endl;
-            lineAsset.size = lines.size();
-            std::copy(lines.begin(), lines.end(), lineAsset.pointCloud.begin());
-            lineAsset.updateBuffer(cmd, 0, lineAsset.size);
-        }
 
+        lineSoup.updateBuffer();
         change = false;
     }
 }
 
 
-void VulkanExample::render(vk::CommandBuffer cmd)
+void Sample::renderOverlay(Camera* cam)
 {
-    if (lineAssetRenderer.bind(cmd))
+    Base::renderOverlay(cam);
+    lineSoup.render(cam);
+
+
+
+    for (auto& i : scene.poses)
     {
-        lineAssetRenderer.pushModel(cmd, identityMat4());
-        grid.render(cmd);
+        Saiga::SE3 se3 = inverseMatchingSE3(i.se3);
+        mat4 v         = (se3.matrix()).cast<float>();
+        v              = Saiga::cvViewToGLView(v);
+        v              = mat4(inverse(v));
 
-        for (auto& i : scene.poses)
-        {
-            Saiga::SE3 se3 = inverseMatchingSE3(i.se3);
-            mat4 v         = (se3.matrix()).cast<float>();
-            v              = Saiga::cvViewToGLView(v);
-            v              = mat4(inverse(v));
+        //            std::cout << v << std::endl;
+        vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
 
-            //            std::cout << v << std::endl;
-            vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
-            lineAssetRenderer.pushModel(cmd, v, color);
-            frustum.render(cmd);
-        }
-
-        if (lines.size() > 0)
-        {
-            lineAssetRenderer.pushModel(cmd, identityMat4());
-            lineAsset.render(cmd, 0, lineAsset.size);
-        }
+        frustum.render(cam, v);
     }
 }
 
-void VulkanExample::renderGUI()
+void Sample::renderFinal(Camera* cam)
 {
+    Base::renderFinal(cam);
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Pose Graph Viewer");
 
@@ -217,4 +184,17 @@ void VulkanExample::renderGUI()
 
 
     ImGui::End();
+}
+
+int main(const int argc, const char* argv[])
+{
+    using namespace Saiga;
+
+    {
+        Sample example;
+
+        example.run();
+    }
+
+    return 0;
 }

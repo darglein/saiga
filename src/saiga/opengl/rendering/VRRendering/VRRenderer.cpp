@@ -34,7 +34,7 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
 
 
     std::shared_ptr<Texture> depth = std::make_shared<Texture>();
-    depth->createEmptyTexture(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_SHORT);
+    depth->create(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_SHORT);
 
     auto tex = framebuffer_texture_t(depth);
 
@@ -43,7 +43,7 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
         framebuffers[i].create();
         framebuffers[i].attachTextureDepth(tex);
         textures[i] = std::make_shared<Texture>();
-        textures[i]->createEmptyTexture(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+        textures[i]->create(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
         framebuffers[i].attachTexture(framebuffer_texture_t(textures[i]));
         framebuffers[i].drawToAll();
         framebuffers[i].check();
@@ -56,7 +56,7 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
 
 
     framebufferToDebugWindowShader =
-        ShaderLoader::instance()->load<PostProcessingShader>("post_processing/VRToDebugWindow.glsl");
+        shaderLoader.load<PostProcessingShader>("post_processing/VRToDebugWindow.glsl");
     assert_no_glerror();
 }
 

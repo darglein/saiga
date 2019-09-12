@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "saiga/opengl/framebuffer.h"
-#include "saiga/opengl/texture/arrayTexture.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/opengl/framebuffer.h"
+#include "saiga/opengl/texture/ArrayTexture2D.h"
 
 namespace Saiga
 {
@@ -38,12 +38,12 @@ class SAIGA_OPENGL_API ShadowmapBase
  */
 class SAIGA_OPENGL_API SimpleShadowmap : public ShadowmapBase
 {
-    std::shared_ptr<raw_Texture> depthTexture;
+    std::shared_ptr<TextureBase> depthTexture;
 
    public:
     SimpleShadowmap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
     ~SimpleShadowmap() {}
-    std::shared_ptr<raw_Texture> getDepthTexture() { return depthTexture; }
+    std::shared_ptr<TextureBase> getDepthTexture() { return depthTexture; }
 };
 
 /**
@@ -52,12 +52,12 @@ class SAIGA_OPENGL_API SimpleShadowmap : public ShadowmapBase
  */
 class SAIGA_OPENGL_API CubeShadowmap : public ShadowmapBase
 {
-    std::shared_ptr<raw_Texture> depthTexture;
+    std::shared_ptr<TextureBase> depthTexture;
 
    public:
     CubeShadowmap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
     ~CubeShadowmap() {}
-    std::shared_ptr<raw_Texture> getDepthTexture() { return depthTexture; }
+    std::shared_ptr<TextureBase> getDepthTexture() { return depthTexture; }
     void bindCubeFace(GLenum side);
 };
 

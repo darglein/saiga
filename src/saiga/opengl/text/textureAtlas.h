@@ -10,7 +10,7 @@
 #include "saiga/core/geometry/aabb.h"
 #include "saiga/core/math/math.h"
 #include "saiga/opengl/text/fontLoader.h"
-#include "saiga/opengl/texture/texture.h"
+#include "saiga/opengl/texture/Texture.h"
 
 #include <map>
 #include <memory>

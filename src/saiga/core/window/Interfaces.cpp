@@ -12,15 +12,4 @@
 
 namespace Saiga
 {
-Updating::Updating(WindowBase& parent) : parentWindow(parent)
-{
-    parent.setUpdateObject(*this);
-}
-
-RenderingInterfaceBase::RenderingInterfaceBase(RendererBase& parent) : parentRenderer(parent)
-{
-    parent.setRenderObject(*this);
-}
-
-
 }  // namespace Saiga

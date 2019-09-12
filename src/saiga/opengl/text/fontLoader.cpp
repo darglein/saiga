@@ -10,13 +10,13 @@
 #if defined(SAIGA_USE_FREETYPE)
 
 
-#    include "saiga/opengl/text/fontLoader.h"
-#    include "saiga/opengl/text/textureAtlas.h"
-#    include "saiga/opengl/texture/texture.h"
-#    include "saiga/opengl/texture/textureLoader.h"
 #    include "saiga/core/util/assert.h"
 #    include "saiga/core/util/fileChecker.h"
 #    include "saiga/core/util/tostring.h"
+#    include "saiga/opengl/text/fontLoader.h"
+#    include "saiga/opengl/text/textureAtlas.h"
+#    include "saiga/opengl/texture/Texture.h"
+#    include "saiga/opengl/texture/TextureLoader.h"
 
 #    include <freetype/ftstroke.h>
 

@@ -124,7 +124,7 @@ void Terrain::renderintern(Camera* cam)
     shader->uploadTexSizeScale(TexSizeScale);
 
 
-    shader->uploadTexture(heightmap.texheightmap[0]);
+    shader->uploadTexture(heightmap.texheightmap[0].get());
     shader->uploadNormalMap(heightmap.texnormalmap[0]);
     shader->uploadImageUp(heightmap.texheightmap[0]);
     shader->uploadNormalMapUp(heightmap.texnormalmap[0]);
@@ -140,7 +140,7 @@ void Terrain::renderintern(Camera* cam)
 
     for (int i = 0; i < layers - 1; i++)
     {
-        shader->uploadTexture(heightmap.texheightmap[i]);
+        shader->uploadTexture(heightmap.texheightmap[i].get());
         shader->uploadNormalMap(heightmap.texnormalmap[0]);
 
         int next = clamp(i + 1, 0, layers - 2);

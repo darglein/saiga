@@ -37,9 +37,9 @@ DeferredDebugOverlay::DeferredDebugOverlay(int width, int height) : layout(width
 
 void DeferredDebugOverlay::loadShaders()
 {
-    shader       = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer.glsl");
-    depthShader  = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_depth.glsl");
-    normalShader = ShaderLoader::instance()->load<MVPTextureShader>("debug/gbuffer_normal.glsl");
+    shader       = shaderLoader.load<MVPTextureShader>("debug/gbuffer.glsl");
+    depthShader  = shaderLoader.load<MVPTextureShader>("debug/gbuffer_depth.glsl");
+    normalShader = shaderLoader.load<MVPTextureShader>("debug/gbuffer_normal.glsl");
 }
 
 void DeferredDebugOverlay::setScreenPosition(GbufferTexture* gbt, int id)
@@ -68,15 +68,15 @@ void DeferredDebugOverlay::render()
     shader->bind();
 
     shader->uploadModel(color.model);
-    shader->uploadTexture(color.texture);
+    shader->uploadTexture(color.texture.get());
     buffer.bindAndDraw();
 
     shader->uploadModel(data.model);
-    shader->uploadTexture(data.texture);
+    shader->uploadTexture(data.texture.get());
     buffer.bindAndDraw();
 
     shader->uploadModel(light.model);
-    shader->uploadTexture(light.texture);
+    shader->uploadTexture(light.texture.get());
     buffer.bindAndDraw();
 
     shader->unbind();
@@ -84,20 +84,20 @@ void DeferredDebugOverlay::render()
 
     normalShader->bind();
     normalShader->uploadModel(normal.model);
-    normalShader->uploadTexture(normal.texture);
+    normalShader->uploadTexture(normal.texture.get());
     buffer.bindAndDraw();
     normalShader->unbind();
 
     depthShader->bind();
 
     depthShader->uploadModel(depth.model);
-    depthShader->uploadTexture(depth.texture);
+    depthShader->uploadTexture(depth.texture.get());
     buffer.bindAndDraw();
 
     depthShader->unbind();
 }
 
-void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer* gbuffer, std::shared_ptr<raw_Texture> light)
+void DeferredDebugOverlay::setDeferredFramebuffer(GBuffer* gbuffer, std::shared_ptr<TextureBase> light)
 {
     color.texture       = gbuffer->getTextureColor();
     normal.texture      = gbuffer->getTextureNormal();

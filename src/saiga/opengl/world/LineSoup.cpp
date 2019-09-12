@@ -12,12 +12,13 @@ namespace Saiga
 {
 LineSoup::LineSoup()
 {
-    shader = ShaderLoader::instance()->load<MVPShader>("colored_points.glsl");
+    shader = shaderLoader.load<MVPShader>("colored_points.glsl");
     buffer.setDrawMode(GL_LINES);
 }
 
 void LineSoup::render(Camera* cam)
 {
+    if (buffer.getVAO() == 0) return;
     glLineWidth(lineWidth);
     shader->bind();
 
@@ -31,7 +32,7 @@ void LineSoup::render(Camera* cam)
 void LineSoup::updateBuffer()
 {
     SAIGA_ASSERT(lines.size() % 2 == 0);
-    buffer.set(lines, GL_STATIC_DRAW);
+    if (lines.size() > 0) buffer.set(lines, GL_STATIC_DRAW);
 }
 
 

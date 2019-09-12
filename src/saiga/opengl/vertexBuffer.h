@@ -191,6 +191,8 @@ void VertexBuffer<vertex_t>::set(ArrayView<vertex_t> vertices, GLenum _usage)
 
     // create VAO and init
     glGenVertexArrays(1, &gl_vao);
+    SAIGA_ASSERT(gl_vao);
+
     glBindVertexArray(gl_vao);
     assert_no_glerror();
 

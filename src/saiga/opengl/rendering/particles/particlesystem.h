@@ -13,7 +13,7 @@
 #include <memory>
 namespace Saiga
 {
-class raw_Texture;
+class TextureBase;
 class Camera;
 class ParticleShader;
 class DeferredParticleShader;
@@ -69,7 +69,7 @@ class SAIGA_OPENGL_API ParticleSystem : public Object3D
     void update();
     void interpolate(float interpolation);
     void render(Camera* cam);
-    void renderDeferred(Camera* cam, std::shared_ptr<raw_Texture> detphTexture);
+    void renderDeferred(Camera* cam, std::shared_ptr<TextureBase> detphTexture);
 
 
     void addParticle(Particle& p);

@@ -59,7 +59,7 @@ void SSAO::init(int w, int h)
 
     ssao_framebuffer.create();
     ssaotex = std::make_shared<Texture>();
-    ssaotex->createEmptyTexture(ssaoSize[0], ssaoSize[1], GL_RED, GL_R8, GL_UNSIGNED_BYTE);
+    ssaotex->create(ssaoSize[0], ssaoSize[1], GL_RED, GL_R8, GL_UNSIGNED_BYTE);
     ssao_framebuffer.attachTexture(ssaotex);
     ssao_framebuffer.drawToAll();
     ssao_framebuffer.check();
@@ -67,7 +67,7 @@ void SSAO::init(int w, int h)
 
     ssao_framebuffer2.create();
     bluredTexture = std::make_shared<Texture>();
-    bluredTexture->createEmptyTexture(ssaoSize[0], ssaoSize[1], GL_RED, GL_R8, GL_UNSIGNED_BYTE);
+    bluredTexture->create(ssaoSize[0], ssaoSize[1], GL_RED, GL_R8, GL_UNSIGNED_BYTE);
     ssao_framebuffer2.attachTexture(bluredTexture);
     ssao_framebuffer2.drawToAll();
     ssao_framebuffer2.check();
@@ -76,8 +76,8 @@ void SSAO::init(int w, int h)
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
     quadMesh.fromMesh(*qb);
 
-    ssaoShader = ShaderLoader::instance()->load<SSAOShader>("post_processing/ssao2.glsl");
-    blurShader = ShaderLoader::instance()->load<MVPTextureShader>("post_processing/ssao_blur.glsl");
+    ssaoShader = shaderLoader.load<SSAOShader>("post_processing/ssao2.glsl");
+    blurShader = shaderLoader.load<MVPTextureShader>("post_processing/ssao_blur.glsl");
 
     setKernelSize(kernelSize);
 
@@ -139,7 +139,7 @@ void SSAO::render(Camera* cam, const ViewPort& vp, GBuffer* gbuffer)
 
     blurShader->bind();
 
-    blurShader->uploadTexture(ssaotex);
+    blurShader->uploadTexture(ssaotex.get());
     quadMesh.bindAndDraw();
     blurShader->unbind();
 

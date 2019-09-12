@@ -4,21 +4,20 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/texture/texture3D.h"
+#include "saiga/opengl/texture/Texture3D.h"
 
 #include "saiga/opengl/error.h"
 
 namespace Saiga
 {
-Texture3D::Texture3D(GLenum target) : raw_Texture(target)
+Texture3D::Texture3D(GLenum target) : TextureBase(target)
 {
     SAIGA_ASSERT(target == GL_TEXTURE_3D || target == GL_TEXTURE_2D_ARRAY);
 }
 
-void Texture3D::createEmptyTexture(int width, int height, int depth, GLenum color_type, GLenum internal_format,
-                                   GLenum data_type)
+void Texture3D::create(int width, int height, int depth, GLenum color_type, GLenum internal_format, GLenum data_type)
 {
-    //    std::cout <<"Texture3D::createEmptyTexture" << std::endl;
+    //    std::cout <<"Texture3D::create" << std::endl;
     this->width           = width;
     this->height          = height;
     this->depth           = depth;
@@ -26,10 +25,11 @@ void Texture3D::createEmptyTexture(int width, int height, int depth, GLenum colo
     this->data_type       = data_type;
     this->internal_format = internal_format;
 
-    createGlTexture();
+    TextureBase::create();
     bind(0);
     glTexImage3D(target, 0, static_cast<GLint>(internal_format), width, height, depth, 0, color_type, data_type,
                  nullptr);
+    setDefaultParameters();
     unbind();
 
     assert_no_glerror();
@@ -59,7 +59,7 @@ bool Texture3D::fromImage(std::vector<Image>& images)
     setFormat(images[0].type);
 
 
-    createGlTexture();
+    TextureBase::create();
     bind(0);
     //    glTexStorage3D(target, 1, internal_format, width, height, depth);
     glTexImage3D(target, 0, static_cast<GLint>(internal_format), width, height, depth, 0, color_type, data_type,

@@ -6,8 +6,8 @@
 
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/error.h"
-#include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
 {
@@ -23,7 +23,7 @@ void PostProcessingShader::checkUniforms()
 }
 
 
-void PostProcessingShader::uploadTexture(std::shared_ptr<raw_Texture> texture)
+void PostProcessingShader::uploadTexture(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(0);
     Shader::upload(location_texture, 0);
@@ -68,7 +68,7 @@ void LightAccumulationShader::checkUniforms()
 }
 
 
-void LightAccumulationShader::uploadLightAccumulationtexture(std::shared_ptr<raw_Texture> texture)
+void LightAccumulationShader::uploadLightAccumulationtexture(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(4);
     Shader::upload(location_lightAccumulationtexture, 4);
@@ -96,9 +96,9 @@ void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorP
 
     this->LightAccumulationTexture = LightAccumulationTexture;
 
-    passThroughShader = ShaderLoader::instance()->load<PostProcessingShader>("post_processing/post_processing.glsl");
+    passThroughShader = shaderLoader.load<PostProcessingShader>("post_processing/post_processing.glsl");
 
-    //    computeTest = ShaderLoader::instance()->load<Shader>("computeTest.glsl");
+    //    computeTest = shaderLoader.load<Shader>("computeTest.glsl");
     assert_no_glerror();
 }
 
@@ -112,7 +112,7 @@ void PostProcessor::nextFrame()
 void PostProcessor::createFramebuffers()
 {
     std::shared_ptr<Texture> depth = std::make_shared<Texture>();
-    depth->createEmptyTexture(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_SHORT);
+    depth->create(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_SHORT);
 
     auto tex = framebuffer_texture_t(depth);
 
@@ -122,7 +122,7 @@ void PostProcessor::createFramebuffers()
 
         //        if(i==0){
         //            std::shared_ptr<Texture> depth_stencil = new Texture();
-        //            depth_stencil->createEmptyTexture(width,height,GL_DEPTH_STENCIL,
+        //            depth_stencil->create(width,height,GL_DEPTH_STENCIL,
         //            GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
         //            framebuffers[i].attachTextureDepthStencil(depth_stencil);
 
@@ -135,20 +135,20 @@ void PostProcessor::createFramebuffers()
         textures[i] = std::make_shared<Texture>();
         if (params.srgb)
         {
-            textures[i]->createEmptyTexture(width, height, GL_RGBA, GL_SRGB8_ALPHA8, GL_UNSIGNED_BYTE);
+            textures[i]->create(width, height, GL_RGBA, GL_SRGB8_ALPHA8, GL_UNSIGNED_BYTE);
         }
         else
         {
             switch (params.quality)
             {
                 case Quality::LOW:
-                    textures[i]->createEmptyTexture(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+                    textures[i]->create(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
                     break;
                 case Quality::MEDIUM:
-                    textures[i]->createEmptyTexture(width, height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
+                    textures[i]->create(width, height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
                     break;
                 case Quality::HIGH:
-                    textures[i]->createEmptyTexture(width, height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
+                    textures[i]->create(width, height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
                     break;
             }
         }

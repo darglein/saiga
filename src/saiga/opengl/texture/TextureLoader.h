@@ -7,7 +7,7 @@
 #pragma once
 #include "saiga/core/util/DataStructures/ObjectCache.h"
 #include "saiga/core/util/singleton.h"
-#include "saiga/opengl/texture/texture.h"
+#include "saiga/opengl/texture/Texture.h"
 
 #include <memory>
 

@@ -6,13 +6,13 @@
 
 #pragma once
 
+#include "saiga/core/util/quality.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
+#include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/vertex.h"
-#include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
-#include "saiga/core/util/quality.h"
 
 namespace Saiga
 {
@@ -26,7 +26,7 @@ class SAIGA_OPENGL_API PostProcessingShader : public Shader
 
 
     virtual void checkUniforms();
-    virtual void uploadTexture(std::shared_ptr<raw_Texture> texture);
+    virtual void uploadTexture(std::shared_ptr<TextureBase> texture);
     virtual void uploadGbufferTextures(GBuffer* gbuffer);
     virtual void uploadScreenSize(vec4 size);
 
@@ -52,7 +52,7 @@ class SAIGA_OPENGL_API LightAccumulationShader : public DeferredShader
     GLint location_lightAccumulationtexture;
 
     virtual void checkUniforms();
-    virtual void uploadLightAccumulationtexture(std::shared_ptr<raw_Texture> texture);
+    virtual void uploadLightAccumulationtexture(std::shared_ptr<TextureBase> texture);
 };
 
 

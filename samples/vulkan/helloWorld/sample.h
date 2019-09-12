@@ -11,7 +11,6 @@
 #include "saiga/core/sdl/sdl_camera.h"
 #include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/core/window/Interfaces.h"
-#include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/memory/VulkanMemory.h"
 #include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
@@ -19,15 +18,14 @@
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
+#include "saiga/vulkan/window/SDLSample.h"
 
 #include <vector>
 using namespace Saiga;
-class VulkanExample : public Saiga::Updating,
-                      public Saiga::Vulkan::VulkanForwardRenderingInterface,
-                      public Saiga::SDL_KeyListener
+class VulkanExample : public VulkanSDLExampleBase
 {
    public:
-    VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
+    VulkanExample();
     ~VulkanExample() override;
 
     void init(Saiga::Vulkan::VulkanBase& base);
@@ -39,8 +37,6 @@ class VulkanExample : public Saiga::Updating,
     void renderGUI() override;
 
    private:
-    Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
-
     std::vector<vec3> boxOffsets;
     bool change        = false;
     bool uploadChanges = true;
@@ -61,11 +57,6 @@ class VulkanExample : public Saiga::Updating,
     Saiga::Vulkan::StaticDescriptorSet textureDes;
     Saiga::Vulkan::TextureDisplay textureDisplay;
 
-    Saiga::Vulkan::VulkanForwardRenderer& renderer;
 
     bool displayModels = true;
-
-
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
 };

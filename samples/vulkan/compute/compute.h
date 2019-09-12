@@ -18,15 +18,13 @@
 #include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/texture/Texture.h"
-
+#include "saiga/vulkan/window/SDLSample.h"
 using namespace Saiga;
 
-class Compute : public Saiga::Updating,
-                public Saiga::Vulkan::VulkanForwardRenderingInterface,
-                public Saiga::SDL_KeyListener
+class Compute : public VulkanSDLExampleBase
 {
    public:
-    Compute(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
+    Compute();
     ~Compute();
 
     void init(Saiga::Vulkan::VulkanBase& base);
@@ -35,7 +33,7 @@ class Compute : public Saiga::Updating,
 
     void render(vk::CommandBuffer cmd) override;
 
-    void renderGUI() override;
+
 
    private:
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
@@ -43,11 +41,6 @@ class Compute : public Saiga::Updating,
     Saiga::Object3D teapotTrans;
     Saiga::Vulkan::VulkanVertexColoredAsset teapot, plane;
     Saiga::Vulkan::AssetRenderer assetRenderer;
-
-    Saiga::Vulkan::VulkanForwardRenderer& renderer;
-
-    //    bool displayModels = true;
-
 
 
     Saiga::Vulkan::VulkanBase* vulkanDevice;
@@ -62,7 +55,4 @@ class Compute : public Saiga::Updating,
     } compute;
     Saiga::Vulkan::ComputePipeline computePipeline;
     Saiga::Vulkan::StaticDescriptorSet descriptorSet;
-
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
 };

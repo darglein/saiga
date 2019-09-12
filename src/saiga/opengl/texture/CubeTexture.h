@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/opengl/texture/raw_texture.h"
+#include "saiga/opengl/texture/TextureBase.h"
 
 namespace Saiga
 {
@@ -21,21 +21,28 @@ namespace Saiga
  *
  * -> Swap Y before creating a cube texture from a image
  */
-class SAIGA_OPENGL_API TextureCube : public raw_Texture
+class SAIGA_OPENGL_API TextureCube : public TextureBase
 {
    public:
-    TextureCube() : raw_Texture(GL_TEXTURE_CUBE_MAP) {}
+    TextureCube() : TextureBase(GL_TEXTURE_CUBE_MAP) {}
     virtual ~TextureCube() {}
 
 
-    void setDefaultParameters() override;
-    void uploadData(const void* data) override;
+    void setDefaultParameters();
+    void uploadData(const void* data);
 
     void uploadData(GLenum target, const void* data);
 
 
     bool fromImage(Image& img);
     bool fromImage(std::vector<Image>& images);
+
+
+    void create(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,
+                const void* data = nullptr);
+
+   private:
+    int width, height;
 };
 
 }  // namespace Saiga

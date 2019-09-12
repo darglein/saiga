@@ -6,25 +6,25 @@
 
 #pragma once
 
-#include "saiga/opengl/texture/raw_texture.h"
+#include "saiga/opengl/texture/TextureBase.h"
 
 #include <vector>
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API Texture3D : public raw_Texture
+class SAIGA_OPENGL_API Texture3D : public TextureBase
 {
    public:
+    int width, height;
     int depth;
 
     Texture3D(GLenum target = GL_TEXTURE_3D);
     virtual ~Texture3D() {}
 
-    void createEmptyTexture(int width, int height, int depth, GLenum color_type, GLenum internal_format,
-                            GLenum data_type);
+    void create(int width, int height, int depth, GLenum color_type, GLenum internal_format, GLenum data_type);
     void uploadSubImage(int x, int y, int z, int width, int height, int depth, void* data);
 
-    void setDefaultParameters() override;
+    void setDefaultParameters();
 
     bool fromImage(std::vector<Image>& images);
 };

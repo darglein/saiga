@@ -10,13 +10,16 @@
 #include "saiga/opengl/assets/all.h"
 #include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/window/WindowTemplate.h"
 #include "saiga/opengl/window/sdl_window.h"
+#include "saiga/opengl/world/LineSoup.h"
+#include "saiga/opengl/world/pointCloud.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 using namespace Saiga;
 
-class SplitScreen : public Updating,
-                    public DeferredRenderingInterface,
+class SplitScreen : public StandaloneWindow<WindowManagement::SDL, DeferredRenderer>,
                     public SDL_KeyListener,
                     public SDL_ResizeListener
 {
@@ -37,7 +40,7 @@ class SplitScreen : public Updating,
     std::shared_ptr<DirectionalLight> sun;
     std::shared_ptr<Texture> t;
 
-    SplitScreen(OpenGLWindow& window, OpenGLRenderer& renderer);
+    SplitScreen();
 
     void setupCameras();
 

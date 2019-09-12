@@ -7,7 +7,7 @@
 #include "saiga/opengl/rendering/deferredRendering/lighting/shadowmap.h"
 
 #include "saiga/opengl/error.h"
-#include "saiga/opengl/texture/cube_texture.h"
+#include "saiga/opengl/texture/CubeTexture.h"
 
 namespace Saiga
 {
@@ -41,17 +41,17 @@ SimpleShadowmap::SimpleShadowmap(int w, int h, ShadowQuality quality)
     switch (quality)
     {
         case ShadowQuality::LOW:
-            depth->createEmptyTexture(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16, GL_UNSIGNED_SHORT);
+            depth->create(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16, GL_UNSIGNED_SHORT);
             break;
         case ShadowQuality::MEDIUM:
-            depth->createEmptyTexture(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_INT);
+            depth->create(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_INT);
             break;
         case ShadowQuality::HIGH:
-            depth->createEmptyTexture(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F, GL_FLOAT);
+            depth->create(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F, GL_FLOAT);
             break;
     }
 
-    //    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+    //    depth->create(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
     //    depth->setWrap(GL_CLAMP_TO_EDGE);
     depth->setWrap(GL_CLAMP_TO_BORDER);
     //    depth->setBorderColor(vec4(1.0f));
@@ -82,21 +82,21 @@ CubeShadowmap::CubeShadowmap(int w, int h, ShadowQuality quality)
 
 
     auto cubeMap = std::make_shared<TextureCube>();
-    //    cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+    //    cubeMap->create(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
     switch (quality)
     {
         case ShadowQuality::LOW:
-            cubeMap->createEmptyTexture(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16, GL_UNSIGNED_SHORT);
+            cubeMap->create(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16, GL_UNSIGNED_SHORT);
             break;
         case ShadowQuality::MEDIUM:
-            cubeMap->createEmptyTexture(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_INT);
+            cubeMap->create(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_INT);
             break;
         case ShadowQuality::HIGH:
-            cubeMap->createEmptyTexture(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F, GL_FLOAT);
+            cubeMap->create(w, h, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F, GL_FLOAT);
             break;
     }
 
-    //    cubeMap->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+    //    cubeMap->create(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
     cubeMap->setWrap(GL_CLAMP_TO_EDGE);
     cubeMap->setFiltering(GL_LINEAR);
 
@@ -145,17 +145,17 @@ CascadedShadowmap::CascadedShadowmap(int w, int h, int numCascades, ShadowQualit
 
         switch(quality){
         case ShadowQuality::LOW:
-            depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
+            depth->create(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,GL_UNSIGNED_SHORT);
             break;
         case ShadowQuality::MEDIUM:
-            depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+            depth->create(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
             break;
         case ShadowQuality::HIGH:
-            depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
+            depth->create(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F,GL_FLOAT);
             break;
         }
 
-        //    depth->createEmptyTexture(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
+        //    depth->create(w,h,GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,GL_UNSIGNED_INT);
         //    depth->setWrap(GL_CLAMP_TO_EDGE);
         depth->setWrap(GL_CLAMP_TO_BORDER);
         depth->setBorderColor(vec4(1.0f));
@@ -174,15 +174,13 @@ CascadedShadowmap::CascadedShadowmap(int w, int h, int numCascades, ShadowQualit
     switch (quality)
     {
         case ShadowQuality::LOW:
-            depthTexture->createEmptyTexture(w, h, numCascades, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16,
-                                             GL_UNSIGNED_SHORT);
+            depthTexture->create(w, h, numCascades, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT16, GL_UNSIGNED_SHORT);
             break;
         case ShadowQuality::MEDIUM:
-            depthTexture->createEmptyTexture(w, h, numCascades, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32,
-                                             GL_UNSIGNED_INT);
+            depthTexture->create(w, h, numCascades, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_INT);
             break;
         case ShadowQuality::HIGH:
-            depthTexture->createEmptyTexture(w, h, numCascades, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F, GL_FLOAT);
+            depthTexture->create(w, h, numCascades, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32F, GL_FLOAT);
             break;
     }
     depthTexture->setWrap(GL_CLAMP_TO_BORDER);

@@ -38,7 +38,7 @@ class SAIGA_OPENGL_API OpenVRWrapper
     mat4 GetHMDViewMatrix(vr::Hmd_Eye nEye);
 
     // send an opengl image to the HMD
-    void submitImage(vr::Hmd_Eye nEye, raw_Texture* texture);
+    void submitImage(vr::Hmd_Eye nEye, TextureBase* texture);
 
     void handleInput();
 
@@ -62,7 +62,7 @@ class SAIGA_OPENGL_API OpenVRWrapper
     vr::IVRSystem* m_pHMD = nullptr;
     vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
     int m_iValidPoseCount;
-    int m_iValidPoseCount_Last;
+    //    int m_iValidPoseCount_Last;
     std::string m_strPoseClasses;  // what classes we saw poses for this frame
     mat4 m_rmat4DevicePose[vr::k_unMaxTrackedDeviceCount];
     char m_rDevClassChar[vr::k_unMaxTrackedDeviceCount];  // for each device, a character representing its class

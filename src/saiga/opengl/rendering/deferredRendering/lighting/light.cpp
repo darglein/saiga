@@ -62,7 +62,7 @@ void LightShader::uploadInvProj(const mat4& mat)
     Shader::upload(location_invProj, mat);
 }
 
-void LightShader::uploadDepthTexture(std::shared_ptr<raw_Texture> texture)
+void LightShader::uploadDepthTexture(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(5);
     Shader::upload(location_depthTex, 5);

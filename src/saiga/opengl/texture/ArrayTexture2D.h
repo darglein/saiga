@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/opengl/texture/texture3D.h"
+#include "saiga/opengl/texture/Texture3D.h"
 
 namespace Saiga
 {

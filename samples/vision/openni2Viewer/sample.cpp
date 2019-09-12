@@ -10,37 +10,29 @@
 
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/util/color.h"
+#include "saiga/core/util/FileSystem.h"
 #include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/Thread/threadPool.h"
+#include "saiga/core/util/color.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/extra/network/RGBDCameraNetwork.h"
 #include "saiga/vision/camera/all.h"
 
-#if defined(SAIGA_OPENGL_INCLUDED)
+#if defined(SAIGA_VULKAN_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
 
-VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
-    : Updating(window), Saiga::Vulkan::VulkanForwardRenderingInterface(renderer), renderer(renderer)
+
+
+Sample::Sample()
 {
     Saiga::createGlobalThreadPool(8);
     Saiga::setThreadName("main");
     std::cout << "init done" << std::endl;
-
-    init(renderer.base());
-}
-
-VulkanExample::~VulkanExample() {}
-
-void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
-{
-    textureDisplay.init(base, renderer.renderPass);
 }
 
 
-
-void VulkanExample::update(float dt)
+void Sample::update(float dt)
 {
     if (!rgbdcamera) return;
 
@@ -64,10 +56,7 @@ void VulkanExample::update(float dt)
         }
         frameId++;
     }
-}
 
-void VulkanExample::transfer(vk::CommandBuffer cmd)
-{
     if (!rgbdcamera) return;
 
     if (initTexture)
@@ -80,27 +69,24 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
 
         bool gotImage = rgbdcamera->getImageSync(frameData);
 
-        std::cout << "create image texture: " << frameData.depthImg.height << "x" << frameData.depthImg.width << std::endl;
+        std::cout << "create image texture: " << frameData.depthImg.height << "x" << frameData.depthImg.width
+                  << std::endl;
 
         rgbImage.create(frameData.colorImg.h, frameData.colorImg.w);
         //    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
-        texture = std::make_shared<Saiga::Vulkan::Texture2D>();
-        texture->fromImage(renderer.base(), rgbImage);
+        texture = std::make_shared<Texture>();
+        texture->fromImage(rgbImage, false, false);
 
 
-        texture2 = std::make_shared<Saiga::Vulkan::Texture2D>();
+        texture2 = std::make_shared<Texture>();
         //    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
         depthmg.create(frameData.depthImg.height, frameData.depthImg.width);
         std::cout << frameData.depthImg << std::endl;
         std::cout << depthmg << std::endl;
         Saiga::ImageTransformation::depthToRGBA(frameData.depthImg.getImageView(), depthmg.getImageView(), 0, 7000);
-        texture2->fromImage(renderer.base(), depthmg);
+        texture2->fromImage(depthmg, false, false);
 
-
-
-        textureDes  = textureDisplay.createAndUpdateDescriptorSet(*texture);
-        textureDes2 = textureDisplay.createAndUpdateDescriptorSet(*texture2);
 
         std::cout << "init done " << std::endl;
         initTexture = false;
@@ -108,31 +94,22 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
 
     if (updateTexture)
     {
-        texture->uploadImage(frameData.colorImg, true);
+        texture->updateFromImage(frameData.colorImg);
         Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, depthmg, 0, 8);
-        texture2->uploadImage(depthmg, true);
+        texture2->updateFromImage(depthmg);
         updateTexture = false;
     }
 }
 
-
-void VulkanExample::render(vk::CommandBuffer cmd)
+void Sample::renderFinal(Camera* cam)
 {
-    if (!rgbdcamera) return;
-
-    if (textureDisplay.bind(cmd))
+    if (rgbdcamera)
     {
-        textureDisplay.renderTexture(cmd, textureDes, vec2(0, 0),
-                                     vec2(frameData.colorImg.width, frameData.colorImg.height));
-        textureDisplay.renderTexture(cmd, textureDes2, vec2(frameData.colorImg.width, 0),
-                                     vec2(frameData.depthImg.width, frameData.depthImg.height));
+        display.render(texture.get(), {0, 0}, {frameData.colorImg.width, frameData.colorImg.height});
+        display.render(texture2.get(), {frameData.colorImg.width, 0},
+                       {frameData.depthImg.width, frameData.depthImg.height});
     }
-}
-
-void VulkanExample::renderGUI()
-{
-    parentWindow.renderImGui();
-
+    Base::renderFinal(cam);
 
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiCond_FirstUseEver);
@@ -192,26 +169,24 @@ void VulkanExample::renderGUI()
 
     ImGui::Text("Frame: %d", frameId);
 
-    Saiga::RGBDCameraOpenni* cam = dynamic_cast<Saiga::RGBDCameraOpenni*>(rgbdcamera.get());
-    if (cam)
+    Saiga::RGBDCameraOpenni* cam2 = dynamic_cast<Saiga::RGBDCameraOpenni*>(rgbdcamera.get());
+    if (cam2)
     {
-        cam->imgui();
+        cam2->imgui();
     }
 
     ImGui::End();
 }
 
-
-void VulkanExample::keyPressed(SDL_Keysym key)
+int main(const int argc, const char* argv[])
 {
-    switch (key.scancode)
-    {
-        case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
-            break;
-        default:
-            break;
-    }
-}
+    using namespace Saiga;
 
-void VulkanExample::keyReleased(SDL_Keysym key) {}
+    {
+        Sample example;
+
+        example.run();
+    }
+
+    return 0;
+}

@@ -6,18 +6,14 @@
 
 #pragma once
 
-#include "saiga/opengl/assets/all.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
-#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
-#include "saiga/opengl/rendering/renderer.h"
-#include "saiga/opengl/window/glfw_window.h"
-#include "saiga/opengl/world/proceduralSkybox.h"
+
+#include "saiga/opengl/window/SampleWindowDeferred.h"
 
 // a
 #include "saiga/core/glfw/all.h"
 using namespace Saiga;
 
-class Sample : public Updating, public DeferredRenderingInterface, public glfw_KeyListener
+class Sample : public StandaloneWindow<WindowManagement::GLFW, DeferredRenderer>, public glfw_KeyListener
 {
    public:
     Glfw_Camera<PerspectiveCamera> camera;
@@ -30,7 +26,7 @@ class Sample : public Updating, public DeferredRenderingInterface, public glfw_K
 
     std::shared_ptr<DirectionalLight> sun;
 
-    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
+    Sample();
     ~Sample();
 
     void update(float dt) override;

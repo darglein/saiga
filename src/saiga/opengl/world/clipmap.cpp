@@ -82,31 +82,31 @@ void TerrainShader::uploadZScale(float f)
     Shader::upload(location_ZScaleFactor, f);
 }
 
-void TerrainShader::uploadNormalMap(std::shared_ptr<raw_Texture> texture)
+void TerrainShader::uploadNormalMap(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(1);
     Shader::upload(location_normalMap, 1);
 }
 
-void TerrainShader::uploadImageUp(std::shared_ptr<raw_Texture> texture)
+void TerrainShader::uploadImageUp(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(2);
     Shader::upload(location_imageUp, 2);
 }
 
-void TerrainShader::uploadNormalMapUp(std::shared_ptr<raw_Texture> texture)
+void TerrainShader::uploadNormalMapUp(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(3);
     Shader::upload(location_normalMapUp, 3);
 }
 
-void TerrainShader::uploadTexture1(std::shared_ptr<raw_Texture> texture)
+void TerrainShader::uploadTexture1(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(4);
     Shader::upload(location_texture1, 4);
 }
 
-void TerrainShader::uploadTexture2(std::shared_ptr<raw_Texture> texture)
+void TerrainShader::uploadTexture2(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(5);
     Shader::upload(location_texture2, 5);

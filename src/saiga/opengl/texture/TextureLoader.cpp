@@ -5,7 +5,7 @@
  */
 
 
-#include "saiga/opengl/texture/textureLoader.h"
+#include "saiga/opengl/texture/TextureLoader.h"
 
 
 namespace Saiga

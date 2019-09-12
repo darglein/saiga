@@ -26,18 +26,23 @@ namespace Vulkan
 class SAIGA_VULKAN_API VulkanForwardRenderingInterface : public RenderingInterfaceBase
 {
    public:
-    VulkanForwardRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
-    virtual ~VulkanForwardRenderingInterface() {}
-
     virtual void transfer(vk::CommandBuffer cmd) {}
     virtual void render(vk::CommandBuffer cmd) {}
     virtual void renderGUI() {}
 };
 
+struct SAIGA_OPENGL_API ForwardRenderingParameters
+{
+    void fromConfigFile(const std::string& file) {}
+};
 
 class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
 {
    public:
+    using InterfaceType = VulkanForwardRenderingInterface;
+    using ParameterType = ForwardRenderingParameters;
+
+
     CommandPool renderCommandPool;
     VkRenderPass renderPass;
 

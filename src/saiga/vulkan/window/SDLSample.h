@@ -10,8 +10,10 @@
 
 #include "saiga/core/sdl/sdl_camera.h"
 #include "saiga/core/sdl/sdl_eventhandler.h"
-#include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/core/window/Interfaces.h"
+#include "saiga/vulkan/VulkanForwardRenderer.h"
+
+#include "WindowTemplate.h"
 
 namespace Saiga
 {
@@ -19,12 +21,13 @@ namespace Saiga
  * The base class for the saiga vulkan samples.
  * Includes basic input handling and a controllable camera.
  */
-class SAIGA_VULKAN_API VulkanSDLExampleBase : public Updating,
-                                          public Vulkan::VulkanForwardRenderingInterface,
-                                          public SDL_KeyListener
+class SAIGA_VULKAN_API VulkanSDLExampleBase
+    : public Saiga::Vulkan::StandaloneWindow<Saiga::Vulkan::WindowManagement::SDL,
+                                             Saiga::Vulkan::VulkanForwardRenderer>,
+      public SDL_KeyListener
 {
    public:
-    VulkanSDLExampleBase(Vulkan::VulkanWindow& window, Vulkan::VulkanForwardRenderer& renderer);
+    VulkanSDLExampleBase();
     ~VulkanSDLExampleBase() override;
 
     void update(float dt) override;
@@ -32,7 +35,6 @@ class SAIGA_VULKAN_API VulkanSDLExampleBase : public Updating,
 
    protected:
     SDLCamera<PerspectiveCamera> camera;
-    Vulkan::VulkanForwardRenderer& renderer;
 
 
     void keyPressed(SDL_Keysym key) override;

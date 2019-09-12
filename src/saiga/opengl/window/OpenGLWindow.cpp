@@ -16,7 +16,7 @@
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/texture/textureLoader.h"
+#include "saiga/opengl/texture/TextureLoader.h"
 
 #include <cstring>
 #include <ctime>
@@ -34,6 +34,7 @@ OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters, OpenGLParameters 
 
 OpenGLWindow::~OpenGLWindow()
 {
+    cleanupSaigaGL();
     //    delete renderer;
 }
 
@@ -64,7 +65,7 @@ void OpenGLWindow::renderImGui(bool* p_open)
 
     if (ImGui::Button("Reload Shaders"))
     {
-        ShaderLoader::instance()->reload();
+        shaderLoader.reload();
     }
 
     if (ImGui::Button("Screenshot"))

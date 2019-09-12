@@ -22,16 +22,12 @@
 #include "saiga/vision/recursive/BAPoseOnly.h"
 #include "saiga/vision/scene/PoseGraph.h"
 
-#if defined(SAIGA_OPENGL_INCLUDED)
+#if defined(SAIGA_VULKAN_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
 
-VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
-    : VulkanSDLExampleBase(window, renderer)
+Sample::Sample()
 {
-    //    Saiga::BALDataset bald("problem-49-7776-pre.txt");
-    //    Saiga::BALDataset bald("problem-1723-156502-pre.txt");
-
     sscene.numCameras     = 1;
     sscene.numWorldPoints = 3;
     sscene.numImagePoints = 2;
@@ -42,65 +38,36 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     std::sort(datasets.begin(), datasets.end());
     std::cout << "Found " << datasets.size() << " BAL datasets" << std::endl;
 
-    init(renderer.base());
-}
+    frustum.createFrustum(camera.proj, 0.1);
+    frustum.setColor(vec4{0, 1, 0, 1});
 
-VulkanExample::~VulkanExample() {}
-
-void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
-{
-    assetRenderer.init(base, renderer.renderPass);
-    lineAssetRenderer.init(base, renderer.renderPass, 2);
-    pointCloudRenderer.init(base, renderer.renderPass, 1);
-    textureDisplay.init(base, renderer.renderPass);
-
-
-
-    grid.createGrid(10, 10);
-    grid.init(renderer.base());
-
-    frustum.createFrustum(perspective(70.0f, float(640) / float(480), 0.1f, 1.0f), 0.02, vec4(1, 0, 0, 1), false);
-    frustum.init(renderer.base());
-
-    pointCloud.init(base, 1000 * 1000 * 10);
-    graphLines.init(base, 1000000);
-    change = true;
+    auto shader = shaderLoader.load<MVPShader>("colored_points.glsl");
+    frustum.create(shader, shader, shader, shader);
+    frustum.loadDefaultShaders();
 }
 
 
 
-void VulkanExample::update(float dt)
+void Sample::update(float dt)
 {
-    VulkanSDLExampleBase::update(dt);
-
-    //    float speed = 360.0f / 10.0 * dt;
-    //        float speed = 2 * pi<float>();
-    //    camera.mouseRotateAroundPoint(speed * 0.5, 0, vec3(0, 5, 0), vec3(0, 1, 0));
-}
-
-void VulkanExample::transfer(vk::CommandBuffer cmd)
-{
-    assetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
-    lineAssetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
-    pointCloudRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
-
+    Base::update(dt);
     if (change)
     {
-        int i = 0;
+        pointCloud.points.clear();
         for (auto& wp : scene.worldPoints)
         {
-            Saiga::VertexNC v;
-            v.position                 = make_vec4(wp.p.cast<float>(), 1.f);
-            v.color                    = make_vec4(linearRand(make_vec3(1), make_vec3(1)), 1);
-            pointCloud.pointCloud[i++] = v;
+            PointVertex v;
+            v.position = wp.p.cast<float>();
+            v.color    = linearRand(make_vec3(1), make_vec3(1));
+            pointCloud.points.push_back(v);
         }
-        pointCloud.size = i;
-        pointCloud.updateBuffer(cmd);
+        pointCloud.updateBuffer();
+
         rms    = scene.rms();
         change = false;
 
         PoseGraph pg(scene, minMatchEdge);
-        i = 0;
+        lineSoup.lines.clear();
         for (auto e : pg.edges)
         {
             if (!scene.images[e.from].valid() || !scene.images[e.to].valid()) continue;
@@ -110,62 +77,49 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
             if ((p1 - p2).norm() > maxEdgeDistance) continue;
             //            if (p1.norm() > 10 || p2.norm() > 10) continue;
 
-            auto& pc1 = graphLines.pointCloud[i];
-            auto& pc2 = graphLines.pointCloud[i + 1];
+            PointVertex pc1;
+            PointVertex pc2;
 
-            pc1.position = make_vec4(p1.cast<float>(), 1);
-            pc2.position = make_vec4(p2.cast<float>(), 1);
+            pc1.position = p1.cast<float>();
+            pc2.position = p2.cast<float>();
 
-            pc1.color = vec4(0, 1, 0, 1);
+            pc1.color = vec3(0, 1, 0);
             pc2.color = pc1.color;
 
-            pc1.normal = vec4(1, 1, 1, 1);
-            pc2.normal = vec4(1, 1, 1, 1);
-            //            lines.emplace_back(make_vec4(p1.cast<float>(),1),make_vec4(0),make_vec4(e.color.cast<float>(),1));
-            //            lines.emplace_back(make_vec4(p2.cast<float>(),1),make_vec4(0),make_vec4(e.color.cast<float>(),1));
-            i += 2;
+            lineSoup.lines.push_back(pc1);
+            lineSoup.lines.push_back(pc2);
         }
-        graphLines.size = i;
-        graphLines.updateBuffer(cmd, 0, graphLines.size);
-        std::cout << "pg size " << i << std::endl;
+        lineSoup.updateBuffer();
     }
 }
 
 
-void VulkanExample::render(vk::CommandBuffer cmd)
+void Sample::renderOverlay(Camera* cam)
 {
-    if (lineAssetRenderer.bind(cmd))
+    Base::renderOverlay(cam);
+
+    pointCloud.render(cam);
+
+    lineSoup.render(cam);
+
+
+    for (auto& i : scene.extrinsics)
     {
-        lineAssetRenderer.pushModel(cmd, identityMat4());
-        grid.render(cmd);
+        Saiga::SE3 se3 = i.se3;
+        mat4 v         = (se3.matrix()).cast<float>();
+        v              = Saiga::cvViewToGLView(v);
+        v              = mat4(inverse(v));
 
-        for (auto& i : scene.images)
-        {
-            auto& extr     = scene.extrinsics[i.extr];
-            Saiga::SE3 se3 = extr.se3;
-            mat4 v         = se3.matrix().cast<float>();
-            v              = Saiga::cvViewToGLView(v);
-            v              = mat4(inverse(v));
-            lineAssetRenderer.pushModel(cmd, v);
-            frustum.render(cmd);
-        }
+        //            std::cout << v << std::endl;
+        vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
 
-
-        lineAssetRenderer.pushModel(cmd, mat4::Identity());
-        if (graphLines.size > 0) graphLines.render(cmd, 0, graphLines.size);
-    }
-
-
-
-    if (pointCloudRenderer.bind(cmd))
-    {
-        pointCloudRenderer.pushModel(cmd, identityMat4());
-        pointCloud.render(cmd);
+        frustum.render(cam, v);
     }
 }
 
-void VulkanExample::renderGUI()
+void Sample::renderFinal(Camera* cam)
 {
+    Base::renderFinal(cam);
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Scene Loading");
 
@@ -279,5 +233,18 @@ void VulkanExample::renderGUI()
     change |= scene.imgui();
 
     ImGui::End();
-    Saiga::VulkanSDLExampleBase::renderGUI();
+}
+
+
+int main(const int argc, const char* argv[])
+{
+    using namespace Saiga;
+
+    {
+        Sample example;
+
+        example.run();
+    }
+
+    return 0;
 }

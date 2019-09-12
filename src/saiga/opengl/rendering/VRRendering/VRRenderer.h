@@ -16,11 +16,15 @@ namespace Saiga
 {
 struct SAIGA_OPENGL_API VRRenderingParameters : public RenderingParameters
 {
+    void fromConfigFile(const std::string& file) {}
 };
 
 class SAIGA_OPENGL_API VRRenderer : public OpenGLRenderer
 {
    public:
+    using InterfaceType = ForwardRenderingInterface;
+    using ParameterType = VRRenderingParameters;
+
     VRRenderingParameters params;
 
     VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params = VRRenderingParameters());

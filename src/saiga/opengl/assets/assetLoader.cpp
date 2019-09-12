@@ -10,7 +10,7 @@
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/image/imageGenerator.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/texture/textureLoader.h"
+#include "saiga/opengl/texture/TextureLoader.h"
 
 namespace Saiga
 {
@@ -22,28 +22,27 @@ AssetLoader::~AssetLoader() {}
 void AssetLoader::loadBasicShaders()
 {
     if (basicAssetShader) return;
-    basicAssetShader          = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model.glsl");
-    basicAssetForwardShader   = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_forward.glsl");
-    basicAssetDepthshader     = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_depth.glsl");
-    basicAssetWireframeShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_wireframe.glsl");
+    basicAssetShader          = shaderLoader.load<MVPShader>("geometry/deferred_mvp_model.glsl");
+    basicAssetForwardShader   = shaderLoader.load<MVPShader>("geometry/deferred_mvp_model_forward.glsl");
+    basicAssetDepthshader     = shaderLoader.load<MVPShader>("geometry/deferred_mvp_model_depth.glsl");
+    basicAssetWireframeShader = shaderLoader.load<MVPShader>("geometry/deferred_mvp_model_wireframe.glsl");
 }
 
 void AssetLoader::loadTextureShaders()
 {
     if (texturedAssetShader) return;
-    texturedAssetShader        = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset.glsl");
-    texturedAssetForwardShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset.glsl");
-    texturedAssetDepthShader   = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_depth.glsl");
-    texturedAssetWireframeShader =
-        ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_wireframe.glsl");
+    texturedAssetShader          = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset.glsl");
+    texturedAssetForwardShader   = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset.glsl");
+    texturedAssetDepthShader     = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset_depth.glsl");
+    texturedAssetWireframeShader = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset_wireframe.glsl");
 }
 
 void AssetLoader::loadAnimatedShaders()
 {
     if (animatedAssetShader) return;
-    animatedAssetShader          = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones.glsl");
-    animatedAssetDepthshader     = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones_depth.glsl");
-    animatedAssetWireframeShader = ShaderLoader::instance()->load<BoneShader>("geometry/deferred_mvp_bones.glsl");
+    animatedAssetShader          = shaderLoader.load<BoneShader>("geometry/deferred_mvp_bones.glsl");
+    animatedAssetDepthshader     = shaderLoader.load<BoneShader>("geometry/deferred_mvp_bones_depth.glsl");
+    animatedAssetWireframeShader = shaderLoader.load<BoneShader>("geometry/deferred_mvp_bones.glsl");
 }
 
 

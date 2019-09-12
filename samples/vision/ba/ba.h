@@ -9,33 +9,32 @@
 #pragma once
 
 
+
+#include "saiga/opengl/window/SampleWindowForward.h"
 #include "saiga/vision/recursive/BARecursive.h"
 #include "saiga/vision/scene/Scene.h"
 #include "saiga/vision/scene/SynteticScene.h"
-#include "saiga/vulkan/renderModules/AssetRenderer.h"
-#include "saiga/vulkan/renderModules/LineAssetRenderer.h"
-#include "saiga/vulkan/renderModules/PointCloudRenderer.h"
-#include "saiga/vulkan/renderModules/TextureDisplay.h"
-#include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
-#include "saiga/vulkan/window/SDLSample.h"
 
 using namespace Saiga;
 
-class VulkanExample : public Saiga::VulkanSDLExampleBase
+class Sample : public SampleWindowForward
 {
+    using Base = SampleWindowForward;
+
    public:
-    VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
-    ~VulkanExample() override;
-
-    void init(Saiga::Vulkan::VulkanBase& base);
-
+    Sample();
 
     void update(float dt) override;
-    void transfer(vk::CommandBuffer cmd) override;
-    void render(vk::CommandBuffer cmd) override;
-    void renderGUI() override;
+    void renderOverlay(Camera* cam) override;
+    void renderFinal(Camera* cam) override;
 
    private:
+    // render objects
+    GLPointCloud pointCloud;
+    LineSoup lineSoup;
+    LineVertexColoredAsset frustum;
+
+
     std::vector<vec3> boxOffsets;
     bool change           = false;
     bool uploadChanges    = true;
@@ -46,22 +45,6 @@ class VulkanExample : public Saiga::VulkanSDLExampleBase
 
     Saiga::Scene scene;
     Saiga::SynteticScene sscene;
-    std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
-
-    Saiga::Vulkan::VulkanPointCloudAsset graphLines;
-
-    Saiga::Vulkan::VulkanTexturedAsset box;
-    Saiga::Vulkan::VulkanVertexColoredAsset teapot, plane;
-    Saiga::Vulkan::VulkanLineVertexColoredAsset grid, frustum;
-    Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
-    Saiga::Vulkan::AssetRenderer assetRenderer;
-    Saiga::Vulkan::LineAssetRenderer lineAssetRenderer;
-    Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
-
-    //
-    vk::DescriptorSet textureDes;
-    Saiga::Vulkan::TextureDisplay textureDisplay;
-
 
     bool displayModels = true;
     bool showImgui     = true;

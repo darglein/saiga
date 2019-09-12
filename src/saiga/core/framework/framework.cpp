@@ -10,13 +10,14 @@
 #include "saiga/core/math/floatingPoint.h"
 #include "saiga/core/model/ModelLoader.h"
 #include "saiga/core/util/ConsoleColor.h"
+#include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/crash.h"
 #include "saiga/core/util/directory.h"
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/util/table.h"
-#include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/tostring.h"
 
 namespace Saiga
@@ -122,8 +123,9 @@ static void printSaigaInfo()
 }
 
 
-void initSample(SaigaParameters& saigaParameters)
+void initSaigaSample()
 {
+    SaigaParameters saigaParameters;
     saigaParameters.shaderDirectory = {SAIGA_PROJECT_SOURCE_DIR "/shader"};
 
     std::string dataDir              = SAIGA_PROJECT_SOURCE_DIR "/data";
@@ -131,6 +133,10 @@ void initSample(SaigaParameters& saigaParameters)
     saigaParameters.modelDirectory   = {dataDir, dataDir + "/models"};
     saigaParameters.fontDirectory    = {dataDir, dataDir + "/fonts"};
     saigaParameters.dataDirectory    = {dataDir};
+
+    saigaParameters.fromConfigFile("config.ini");
+
+    catchSegFaults();
 }
 
 void initSaiga(const SaigaParameters& params)

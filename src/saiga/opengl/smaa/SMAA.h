@@ -41,8 +41,8 @@ class SAIGA_OPENGL_API SMAABlendingWeightCalculationShader : public Shader
    public:
     GLint location_edgeTex, location_areaTex, location_searchTex;
     virtual void checkUniforms();
-    virtual void uploadTextures(std::shared_ptr<raw_Texture> edgeTex, std::shared_ptr<raw_Texture> areaTex,
-                                std::shared_ptr<raw_Texture> searchTex);
+    virtual void uploadTextures(std::shared_ptr<TextureBase> edgeTex, std::shared_ptr<TextureBase> areaTex,
+                                std::shared_ptr<TextureBase> searchTex);
 };
 
 class SAIGA_OPENGL_API SMAANeighborhoodBlendingShader : public Shader
@@ -50,7 +50,7 @@ class SAIGA_OPENGL_API SMAANeighborhoodBlendingShader : public Shader
    public:
     GLint location_colorTex, location_blendTex;
     virtual void checkUniforms();
-    virtual void uploadTextures(std::shared_ptr<raw_Texture> colorTex, std::shared_ptr<raw_Texture> blendTex);
+    virtual void uploadTextures(std::shared_ptr<TextureBase> colorTex, std::shared_ptr<TextureBase> blendTex);
 };
 
 class SMAA

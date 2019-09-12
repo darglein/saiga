@@ -14,7 +14,6 @@ namespace Saiga
 class SAIGA_OPENGL_API ForwardRenderingInterface : public RenderingInterfaceBase
 {
    public:
-    ForwardRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
     virtual ~ForwardRenderingInterface() {}
 
     // forward rendering path after lighting, but before post processing
@@ -29,14 +28,18 @@ class SAIGA_OPENGL_API ForwardRenderingInterface : public RenderingInterfaceBase
 
 struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
 {
+    void fromConfigFile(const std::string& file) {}
 };
 
 class SAIGA_OPENGL_API Forward_Renderer : public OpenGLRenderer
 {
    public:
-    ForwardRenderingParameters params;
+    using InterfaceType = ForwardRenderingInterface;
+    using ParameterType = ForwardRenderingParameters;
 
-    Forward_Renderer(OpenGLWindow& window, const ForwardRenderingParameters& params = ForwardRenderingParameters());
+    ParameterType params;
+
+    Forward_Renderer(OpenGLWindow& window, const ParameterType& params = ParameterType());
     virtual ~Forward_Renderer() {}
 
     virtual float getTotalRenderTime() override { return timer.getTimeMS(); }

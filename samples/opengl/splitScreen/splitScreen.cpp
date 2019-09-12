@@ -11,11 +11,12 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 
 
-SplitScreen::SplitScreen(OpenGLWindow& window, OpenGLRenderer& renderer)
-    : Updating(window), DeferredRenderingInterface(renderer)
+SplitScreen::SplitScreen() : StandaloneWindow("config.ini")
 {
-    rw = window.getWidth();
-    rh = window.getHeight();
+    renderer->params.userViewPort = true;
+
+    rw = window->getWidth();
+    rh = window->getHeight();
     setupCameras();
 
 
@@ -30,8 +31,7 @@ SplitScreen::SplitScreen(OpenGLWindow& window, OpenGLRenderer& renderer)
     groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
 
     // create one directional light
-    DeferredRenderer& r = static_cast<DeferredRenderer&>(parentRenderer);
-    sun                  = r.lighting.createDirectionalLight();
+    sun = renderer->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1, -3, -2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(1.0);
@@ -51,7 +51,7 @@ void SplitScreen::setupCameras()
     int w = rw;
 
 
-    float aspect = parentWindow.getAspectRatio();
+    float aspect = window->getAspectRatio();
 
     SDLCamera<PerspectiveCamera> defaultCamera;
     defaultCamera.setProj(60.0f, aspect, 0.1f, 50.0f);
@@ -107,7 +107,7 @@ void SplitScreen::setupCameras()
 
 
 
-    parentWindow.setMultiCamera(camerasVps);
+    window->setMultiCamera(camerasVps);
     activeCamera = 0;
 }
 
@@ -153,7 +153,7 @@ void SplitScreen::renderFinal(Camera* cam)
     // The final render path (after post processing).
     // Usually the GUI is rendered here.
 
-    parentWindow.renderImGui();
+    window->renderImGui();
 
     {
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
@@ -169,7 +169,7 @@ void SplitScreen::renderFinal(Camera* cam)
             cameraCount = itemsi[item];
             setupCameras();
         }
-        ImGui::SliderInt("Active CAmera", &activeCamera, 0, cameraCount);
+        ImGui::SliderInt("Active CAmera", &activeCamera, 0, cameraCount - 1);
 
         ImGui::End();
     }
@@ -181,7 +181,7 @@ void SplitScreen::keyPressed(SDL_Keysym key)
     switch (key.scancode)
     {
         case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
+            window->close();
             break;
         default:
             break;
@@ -189,3 +189,16 @@ void SplitScreen::keyPressed(SDL_Keysym key)
 }
 
 void SplitScreen::keyReleased(SDL_Keysym key) {}
+
+
+
+int main(int argc, char* args[])
+{
+    // This should be only called if this is a sample located in saiga/samples
+    initSaigaSample();
+
+    SplitScreen window;
+    window.run();
+
+    return 0;
+}

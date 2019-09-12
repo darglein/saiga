@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/texture/cube_texture.h"
+#include "saiga/opengl/texture/CubeTexture.h"
 
 #include "saiga/opengl/error.h"
 
@@ -44,6 +44,7 @@ void TextureCube::uploadData(const void* data)
                      data);
     }
     assert_no_glerror();
+    setDefaultParameters();
     unbind();
 }
 
@@ -92,10 +93,10 @@ bool TextureCube::fromImage(std::vector<Image>& images)
     auto& refImage = images.front();
 
     setFormat(refImage.type);
-    width = refImage.width;
+    width  = refImage.width;
     height = refImage.height;
 
-    createGlTexture();
+    TextureBase::create();
 
     uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_X, images[1].data());
     uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, images[0].data());
@@ -107,6 +108,15 @@ bool TextureCube::fromImage(std::vector<Image>& images)
 
     assert_no_glerror();
     return true;
+}
+
+void TextureCube::create(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,
+                         const void* data)
+{
+    TextureBase::create(color_type, internal_format, data_type);
+    this->width  = width;
+    this->height = height;
+    uploadData(data);
 }
 
 }  // namespace Saiga

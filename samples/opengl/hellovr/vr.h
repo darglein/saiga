@@ -13,12 +13,12 @@
 #include "saiga/opengl/rendering/VRRendering/VRRenderer.h"
 #include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/window/SampleWindowForward.h"
 #include "saiga/opengl/window/sdl_window.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
-
 using namespace Saiga;
 
-class VRSample : public Updating, public ForwardRenderingInterface, public SDL_KeyListener
+class VRSample : public StandaloneWindow<WindowManagement::SDL, VRRenderer>, public SDL_KeyListener
 {
    public:
     SDLCamera<PerspectiveCamera> camera;
@@ -36,7 +36,7 @@ class VRSample : public Updating, public ForwardRenderingInterface, public SDL_K
     bool pointLightShadows = false;
 
 
-    VRSample(OpenGLWindow& window, OpenGLRenderer& renderer);
+    VRSample();
     ~VRSample();
 
     void update(float dt) override;

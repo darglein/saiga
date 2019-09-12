@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/assets/asset.h"
-#include "saiga/opengl/texture/texture.h"
+#include "saiga/opengl/texture/Texture.h"
 
 namespace Saiga
 {

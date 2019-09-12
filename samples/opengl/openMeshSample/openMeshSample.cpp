@@ -10,11 +10,11 @@
 
 #include "openMeshSample.h"
 
-#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/core/geometry/half_edge_mesh.h"
 #include "saiga/core/geometry/openMeshWrapper.h"
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 #include "OpenMesh/Tools/Decimater/DecimaterT.hh"
@@ -32,18 +32,8 @@
 
 using namespace OpenMesh;
 
-Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
+Sample::Sample()
 {
-    // create a perspective camera
-    float aspect = window.getAspectRatio();
-    camera.setProj(60.0f, aspect, 0.1f, 50.0f);
-    camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
-    camera.enableInput();
-
-    // Set the camera from which view the scene is rendered
-    window.setCamera(&camera);
-
-
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
     ObjAssetLoader assetLoader;
 
@@ -62,17 +52,6 @@ Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window
     cube2.translateGlobal(vec3(-0, 1, 0));
     cube2.calculateModel();
 
-    groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
-
-    // create one directional light
-    DeferredRenderer& r = static_cast<DeferredRenderer&>(parentRenderer);
-    sun                  = r.lighting.createDirectionalLight();
-    sun->setDirection(vec3(-1, -3, -2));
-    sun->setColorDiffuse(LightColorPresets::DirectSunlight);
-    sun->setIntensity(1.0);
-    sun->setAmbientIntensity(0.3f);
-    sun->createShadowMap(2048, 2048);
-    sun->enableShadows();
 
     std::cout << "Program Initialized!" << std::endl;
 }
@@ -253,11 +232,7 @@ void Sample::renderDepth(Camera* cam)
 
 void Sample::renderOverlay(Camera* cam)
 {
-    // The skybox is rendered after lighting and before post processing
-    skybox.render(cam);
-
-
-
+    Base::renderOverlay(cam);
     if (wireframe)
     {
         glEnable(GL_POLYGON_OFFSET_LINE);
@@ -396,16 +371,14 @@ void Sample::renderFinal(Camera* cam)
 }
 
 
-void Sample::keyPressed(SDL_Keysym key)
-{
-    switch (key.scancode)
-    {
-        case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
-            break;
-        default:
-            break;
-    }
-}
 
-void Sample::keyReleased(SDL_Keysym key) {}
+int main(int argc, char* args[])
+{
+    // This should be only called if this is a sample located in saiga/samples
+    initSaigaSample();
+
+    Sample window;
+    window.run();
+
+    return 0;
+}

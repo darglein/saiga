@@ -19,15 +19,14 @@
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
+#include "saiga/vulkan/window/SDLSample.h"
 
 #include <random>
 #include <utility>
 #include <vector>
 using namespace Saiga;
 using Saiga::Vulkan::Memory::BufferMemoryLocation;
-class VulkanExample : public Saiga::Updating,
-                      public Saiga::Vulkan::VulkanForwardRenderingInterface,
-                      public Saiga::SDL_KeyListener
+class VulkanExample : public VulkanSDLExampleBase, public Saiga::SDL_KeyListener
 {
     std::array<std::string, 5> image_names{"cat.png", "red-panda.png", "dog.png", "pika.png", "ludi.png"};
     std::array<std::shared_ptr<Saiga::Image>, 5> images;
@@ -59,7 +58,7 @@ class VulkanExample : public Saiga::Updating,
     int auto_allocs        = 0;
 
    public:
-    VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
+    VulkanExample();
     ~VulkanExample() override;
 
     void init(Saiga::Vulkan::VulkanBase& base);
@@ -82,9 +81,6 @@ class VulkanExample : public Saiga::Updating,
     bool show_textures = false;
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
-
-
-    Saiga::Vulkan::VulkanForwardRenderer& renderer;
 
     bool displayModels = true;
 

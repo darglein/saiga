@@ -8,45 +8,40 @@
 
 #pragma once
 
+#include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/sdl/sdl_camera.h"
 #include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/window/Interfaces.h"
+#include "saiga/opengl/window/SampleWindowForward.h"
+#include "saiga/opengl/world/TextureDisplay.h"
 #include "saiga/vision/camera/RGBDCamera.h"
-#include "saiga/vulkan/VulkanForwardRenderer.h"
-#include "saiga/vulkan/renderModules/AssetRenderer.h"
-#include "saiga/vulkan/renderModules/LineAssetRenderer.h"
-#include "saiga/vulkan/renderModules/PointCloudRenderer.h"
-#include "saiga/vulkan/renderModules/TextureDisplay.h"
-#include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
 using namespace Saiga;
-class VulkanExample : public Saiga::Updating,
-                      public Saiga::Vulkan::VulkanForwardRenderingInterface,
-                      public Saiga::SDL_KeyListener
+
+
+
+class Sample : public SampleWindowForward
 {
+    using Base = SampleWindowForward;
+
    public:
-    VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
-    ~VulkanExample();
-
-    void init(Saiga::Vulkan::VulkanBase& base);
+    Sample();
 
 
-    virtual void update(float dt) override;
-    virtual void transfer(vk::CommandBuffer cmd) override;
-    virtual void render(vk::CommandBuffer cmd) override;
-    virtual void renderGUI() override;
+    void update(float dt) override;
+    void renderFinal(Camera* cam) override;
 
    private:
+    std::shared_ptr<Texture> texture, texture2;
+    TextureDisplay display;
+
     Saiga::RGBDFrameData frameData;
     std::unique_ptr<Saiga::RGBDCamera> rgbdcamera;
 
     Saiga::TemplatedImage<ucvec4> rgbImage;
     Saiga::TemplatedImage<ucvec4> depthmg;
 
-
-    std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
-    std::shared_ptr<Saiga::Vulkan::Texture2D> texture2;
 
 
     char dir[256]      = "recording/";
@@ -55,16 +50,6 @@ class VulkanExample : public Saiga::Updating,
     bool updateTexture = false;
     bool initTexture   = false;
 
-    Saiga::Vulkan::StaticDescriptorSet textureDes;
-    Saiga::Vulkan::StaticDescriptorSet textureDes2;
-    Saiga::Vulkan::TextureDisplay textureDisplay;
-
-    Saiga::Vulkan::VulkanForwardRenderer& renderer;
-
-
 
     ImGui::HzTimeGraph tg;
-
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
 };

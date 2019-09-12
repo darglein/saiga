@@ -6,7 +6,7 @@
 
 #pragma once
 #include "saiga/opengl/opengl.h"
-#include "saiga/opengl/texture/texture.h"
+#include "saiga/opengl/texture/Texture.h"
 
 #include <memory>
 #include <vector>
@@ -14,7 +14,7 @@
 namespace Saiga
 {
 // todo: remove
-using framebuffer_texture_t = std::shared_ptr<raw_Texture>;
+using framebuffer_texture_t = std::shared_ptr<Texture>;
 
 class SAIGA_OPENGL_API Framebuffer
 {

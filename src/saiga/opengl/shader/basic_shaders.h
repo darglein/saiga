@@ -44,7 +44,7 @@ class SAIGA_OPENGL_API MVPTextureShader : public MVPShader
     GLint location_texture;
 
     virtual void checkUniforms();
-    virtual void uploadTexture(std::shared_ptr<raw_Texture> texture);
+    virtual void uploadTexture(TextureBase* texture);
 };
 
 

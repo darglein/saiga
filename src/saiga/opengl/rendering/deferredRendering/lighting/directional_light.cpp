@@ -47,13 +47,13 @@ void DirectionalLightShader::uploadCascadeInterpolateRange(float r)
     Shader::upload(location_cascadeInterpolateRange, r);
 }
 
-void DirectionalLightShader::uploadSsaoTexture(std::shared_ptr<raw_Texture> texture)
+void DirectionalLightShader::uploadSsaoTexture(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(5);
     Shader::upload(location_ssaoTexture, 5);
 }
 
-void DirectionalLightShader::uploadDepthTextures(std::vector<std::shared_ptr<raw_Texture> >& textures)
+void DirectionalLightShader::uploadDepthTextures(std::vector<std::shared_ptr<TextureBase> >& textures)
 {
     //    int i = 7;
     int startTexture = 6;

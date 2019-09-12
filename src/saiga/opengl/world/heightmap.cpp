@@ -7,7 +7,7 @@
 #include "saiga/opengl/world/heightmap.h"
 
 #include "saiga/config.h"
-#include "saiga/opengl/texture/textureLoader.h"
+#include "saiga/opengl/texture/TextureLoader.h"
 
 #ifdef USE_NOISE
 #    include <libnoise/noise.h>

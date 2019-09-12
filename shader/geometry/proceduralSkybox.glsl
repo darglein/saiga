@@ -13,7 +13,7 @@ layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec2 in_tex;
 
 #include "camera.glsl"
-uniform mat4 model;
+uniform mat4 model = mat4(1);
 
 
 out vec2 texCoord;
@@ -29,7 +29,7 @@ void main()
     gl_Position = vec4(in_position, 1);
 
 
-    mat4 invView  = inverse(view);
+    mat4 invView  = model * inverse(view) ;
     vec4 worldPos = inverse(proj) * pos;
     worldPos /= worldPos.w;
     worldPos = invView * worldPos;

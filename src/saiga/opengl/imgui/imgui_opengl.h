@@ -8,11 +8,10 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/imgui/imgui_renderer.h"
+#include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/all.h"
-
-#include <saiga/opengl/indexedVertexBuffer.h>
-#include <saiga/opengl/texture/texture.h>
+#include "saiga/opengl/texture/Texture.h"
 
 namespace Saiga
 {

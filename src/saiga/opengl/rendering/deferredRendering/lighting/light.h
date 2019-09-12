@@ -36,7 +36,7 @@ public:
     void uploadColorSpecular(vec3& color, float intensity);
 
     void uploadDepthBiasMV(const mat4& mat);
-    void uploadDepthTexture(std::shared_ptr<raw_Texture> texture);
+    void uploadDepthTexture(std::shared_ptr<TextureBase> texture);
     void uploadShadow(float shadow);
     void uploadShadowMapSize(ivec2 s);
     void uploadInvProj(const mat4& mat);

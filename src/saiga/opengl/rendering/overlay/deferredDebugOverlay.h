@@ -17,7 +17,7 @@ namespace Saiga
 {
 class MVPTextureShader;
 class basic_Texture_2D;
-class raw_Texture;
+class TextureBase;
 class Framebuffer;
 class GBuffer;
 
@@ -32,12 +32,12 @@ class SAIGA_OPENGL_API DeferredDebugOverlay
 
     void render();
 
-    void setDeferredFramebuffer(GBuffer* gbuffer, std::shared_ptr<raw_Texture> light);
+    void setDeferredFramebuffer(GBuffer* gbuffer, std::shared_ptr<TextureBase> light);
 
    private:
     struct GbufferTexture : public Object3D
     {
-        std::shared_ptr<raw_Texture> texture;
+        std::shared_ptr<TextureBase> texture;
     };
 
 

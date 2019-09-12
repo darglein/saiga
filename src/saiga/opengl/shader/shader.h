@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class raw_Texture;
+class TextureBase;
 
 
 /**
@@ -175,8 +175,7 @@ class SAIGA_OPENGL_API Shader
 
     // ===================================== uniform uploads =====================================
 
-    /**
-     * Uploading a uniform to video ram.
+    /**     * Uploading a uniform to video ram.
      * Maps to glUniform**.
      * The shader must be bound beforehand.
      */
@@ -197,8 +196,9 @@ class SAIGA_OPENGL_API Shader
     void upload(int location, int count, float* v);
 
     // binds the texture to the given texture unit and sets the uniform.
-    void upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit);
-    void upload(int location, raw_Texture& texture, int textureUnit);
+    void upload(int location, TextureBase* texture, int textureUnit);
+    void upload(int location, std::shared_ptr<TextureBase> texture, int textureUnit);
+    void upload(int location, TextureBase& texture, int textureUnit);
     //    void upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit);
 };
 

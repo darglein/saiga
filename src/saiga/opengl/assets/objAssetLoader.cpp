@@ -8,7 +8,7 @@
 
 #include "saiga/core/model/objModelLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/texture/textureLoader.h"
+#include "saiga/opengl/texture/TextureLoader.h"
 
 namespace Saiga
 {

@@ -32,7 +32,7 @@ class SAIGA_OPENGL_API DeferredParticleShader : public ParticleShader
 
     virtual void checkUniforms();
 
-    void uploadDepthTexture(std::shared_ptr<raw_Texture> texture);
+    void uploadDepthTexture(std::shared_ptr<TextureBase> texture);
     void uploadCameraParameters(vec2 cp);
 };
 

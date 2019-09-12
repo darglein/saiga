@@ -12,13 +12,12 @@
 #include "saiga/core/util/singleton.h"
 #include "saiga/opengl/shader/shader.h"
 #include "saiga/opengl/shader/shaderPartLoader.h"
+
 #include <iostream>
 namespace Saiga
 {
-class SAIGA_OPENGL_API ShaderLoader : public Singleton<ShaderLoader>
+class SAIGA_OPENGL_API ShaderLoader
 {
-    friend class Singleton<ShaderLoader>;
-
     ObjectCache<std::string, std::shared_ptr<Shader>, ShaderPart::ShaderCodeInjections> cache;
 
    public:
@@ -29,6 +28,8 @@ class SAIGA_OPENGL_API ShaderLoader : public Singleton<ShaderLoader>
 
     void reload();
     bool reload(std::shared_ptr<Shader> shader, const std::string& name, const ShaderPart::ShaderCodeInjections& sci);
+
+    void clear() { cache.clear(); }
 };
 
 
@@ -38,7 +39,8 @@ std::shared_ptr<shader_t> ShaderLoader::load(const std::string& name, const Shad
     std::string fullName = SearchPathes::shader(name);
     if (fullName.empty())
     {
-        std::cout << "Could not find file '" << name << "'. Make sure it exists and the search pathes are set." << std::endl;
+        std::cout << "Could not find file '" << name << "'. Make sure it exists and the search pathes are set."
+                  << std::endl;
         std::cerr << SearchPathes::shader << std::endl;
         SAIGA_ASSERT(0);
     }
@@ -68,6 +70,11 @@ std::shared_ptr<shader_t> ShaderLoader::load(const std::string& name, const Shad
     return object;
 }
 
+
+// Let's make it a global variable to simplify the code a lot
+// Note: we need the export here to ensure it is included in the
+// symbol table of libsaiga.so
+inline SAIGA_OPENGL_API ShaderLoader shaderLoader;
 
 
 }  // namespace Saiga

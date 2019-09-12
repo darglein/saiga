@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/rendering/particles/particle_shader.h"
 
-#include "saiga/opengl/texture/raw_texture.h"
+#include "saiga/opengl/texture/TextureBase.h"
 
 namespace Saiga
 {
@@ -44,7 +44,7 @@ void DeferredParticleShader::checkUniforms()
 
 
 
-void DeferredParticleShader::uploadDepthTexture(std::shared_ptr<raw_Texture> texture)
+void DeferredParticleShader::uploadDepthTexture(std::shared_ptr<TextureBase> texture)
 {
     texture->bind(1);
     Shader::upload(location_texture_depth, 1);

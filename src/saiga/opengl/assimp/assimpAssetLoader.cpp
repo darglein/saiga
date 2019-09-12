@@ -9,7 +9,7 @@
 #    include "saiga/opengl/assimp/assimpAssetLoader.h"
 #    include "saiga/opengl/assimp/assimpLoader.h"
 #    include "saiga/opengl/shader/shaderLoader.h"
-#    include "saiga/opengl/texture/textureLoader.h"
+#    include "saiga/opengl/texture/TextureLoader.h"
 
 namespace Saiga
 {

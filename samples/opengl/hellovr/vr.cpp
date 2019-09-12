@@ -10,17 +10,16 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
-VRSample::VRSample(OpenGLWindow& window, OpenGLRenderer& renderer)
-    : Updating(window), ForwardRenderingInterface(renderer)
+VRSample::VRSample() : StandaloneWindow("config.ini")
 {
     // create a perspective camera
-    float aspect = window.getAspectRatio();
+    float aspect = window->getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 50.0f);
     camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
     camera.enableInput();
 
     // Set the camera from which view the scene is rendered
-    window.setCamera(&camera);
+    window->setCamera(&camera);
 
 
     ObjAssetLoader assetLoader;
@@ -87,7 +86,7 @@ void VRSample::renderFinal(Camera* cam)
 
         if (ImGui::Button("Reload Shaders"))
         {
-            ShaderLoader::instance()->reload();
+            shaderLoader.reload();
         }
 
         ImGui::End();
@@ -102,7 +101,7 @@ void VRSample::keyPressed(SDL_Keysym key)
     switch (key.scancode)
     {
         case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
+            window->close();
             break;
         default:
             break;
@@ -110,3 +109,14 @@ void VRSample::keyPressed(SDL_Keysym key)
 }
 
 void VRSample::keyReleased(SDL_Keysym key) {}
+
+int main(int argc, char* args[])
+{
+    // This should be only called if this is a sample located in saiga/samples
+    initSaigaSample();
+
+    VRSample window;
+    window.run();
+
+    return 0;
+}

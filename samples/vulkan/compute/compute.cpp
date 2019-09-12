@@ -16,17 +16,9 @@
 #    error OpenGL was included somewhere.
 #endif
 
-Compute::Compute(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
-    : Updating(window), Saiga::Vulkan::VulkanForwardRenderingInterface(renderer), renderer(renderer)
+Compute::Compute()
 {
-    float aspect = window.getAspectRatio();
-    camera.setProj(60.0f, aspect, 0.1f, 50.0f, true);
-    camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
-    camera.rotationPoint = make_vec3(0);
-
-    window.setCamera(&camera);
-
-    init(renderer.base());
+    init(renderer->base());
 }
 
 Compute::~Compute()
@@ -61,14 +53,14 @@ void Compute::init(Saiga::Vulkan::VulkanBase& base)
     }
 
 
-    vulkanDevice = &renderer.base();
+    vulkanDevice = &renderer->base();
     device       = vulkanDevice->device;
 
     // create storage buffer
     compute.data.resize(10, 1);
     //    compute.storageBuffer.
     compute.storageBuffer.createBuffer(
-        renderer.base(), sizeof(int) * compute.data.size(), vk::BufferUsageFlagBits::eStorageBuffer,
+        renderer->base(), sizeof(int) * compute.data.size(), vk::BufferUsageFlagBits::eStorageBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     //    compute.storageBuffer.allocateMemoryBuffer(renderer.base(),vk::MemoryPropertyFlagBits::eHostVisible|vk::MemoryPropertyFlagBits::eHostCoherent);
     compute.storageBuffer.upload(compute.data.data(), compute.data.size());
@@ -143,18 +135,15 @@ void Compute::update(float dt)
 
 void Compute::render(vk::CommandBuffer cmd) {}
 
-void Compute::renderGUI() {}
-
-void Compute::keyPressed(SDL_Keysym key)
+int main(const int argc, const char* argv[])
 {
-    switch (key.scancode)
-    {
-        case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
-            break;
-        default:
-            break;
-    }
-}
+    using namespace Saiga;
 
-void Compute::keyReleased(SDL_Keysym key) {}
+    {
+        Compute example;
+
+        example.run();
+    }
+
+    return 0;
+}

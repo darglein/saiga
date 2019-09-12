@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-Forward_Renderer::Forward_Renderer(OpenGLWindow& window, const ForwardRenderingParameters& params)
+Forward_Renderer::Forward_Renderer(OpenGLWindow& window, const ParameterType &params)
     : OpenGLRenderer(window), params(params)
 {
     timer.create();

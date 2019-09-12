@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/shader/basic_shaders.h"
-#include "saiga/opengl/texture/texture.h"
+#include "saiga/opengl/texture/Texture.h"
 #include "saiga/opengl/text/textParameters.h"
 
 namespace Saiga

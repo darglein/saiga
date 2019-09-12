@@ -11,22 +11,8 @@
 #include "saiga/core/math/random.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
-Sample::Sample(Saiga::OpenGLWindow& window, Saiga::OpenGLRenderer& renderer)
-    : Updating(window), DeferredRenderingInterface(renderer)
+Sample::Sample()
 {
-    // create a perspective camera
-    float aspect = window.getAspectRatio();
-    camera.setProj(60.0f, aspect, 1.0f, 150.0f);
-    //    camera.setView(vec3(0,5,10),vec3(0,5,0),vec3(0,1,0));
-    camera.setView(vec3(0, 10, -10), vec3(0, 9, 0), vec3(0, 1, 0));
-    camera.enableInput();
-    // How fast the camera moves
-    camera.movementSpeed     = 2;
-    camera.movementSpeedFast = 20;
-
-    // Set the camera from which view the scene is rendered
-    window.setCamera(&camera);
-
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
     AssetLoader assetLoader;
 
@@ -54,8 +40,10 @@ Sample::Sample(Saiga::OpenGLWindow& window, Saiga::OpenGLRenderer& renderer)
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(s, s), 1.0f, Colors::lightgray, Colors::gray);
 
     // create one directional light
-    DeferredRenderer& r = static_cast<DeferredRenderer&>(parentRenderer);
-    sun                  = r.lighting.createDirectionalLight();
+
+    Base::sun->setActive(false);
+
+    sun = renderer->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1, -2, -2.5));
     //    sun->setDirection(vec3(0,-1,0));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
@@ -161,10 +149,10 @@ void Sample::renderFinal(Camera* cam)
         static float farPlane  = 150;
         static float nearPlane = 1;
         if (ImGui::InputFloat("Camera Far Plane", &farPlane))
-            camera.setProj(60.0f, parentWindow.getAspectRatio(), nearPlane, farPlane);
+            camera.setProj(60.0f, window->getAspectRatio(), nearPlane, farPlane);
 
         if (ImGui::InputFloat("Camera Near Plane", &nearPlane))
-            camera.setProj(60.0f, parentWindow.getAspectRatio(), nearPlane, farPlane);
+            camera.setProj(60.0f, window->getAspectRatio(), nearPlane, farPlane);
 
         static int numCascades = 1;
 
@@ -186,22 +174,16 @@ void Sample::renderFinal(Camera* cam)
         }
         ImGui::End();
     }
-
-    parentWindow.renderImGui();
 }
 
-#include <fstream>
 
-void Sample::keyPressed(SDL_Keysym key)
+int main(int argc, char* args[])
 {
-    switch (key.scancode)
-    {
-        case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
-            break;
-        default:
-            break;
-    }
-}
+    // This should be only called if this is a sample located in saiga/samples
+    initSaigaSample();
 
-void Sample::keyReleased(SDL_Keysym key) {}
+    Sample window;
+    window.run();
+
+    return 0;
+}

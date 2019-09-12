@@ -10,10 +10,10 @@
 #include "saiga/opengl/rendering/deferredRendering/deferred_renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
-Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
+Sample::Sample() : StandaloneWindow("config.ini")
 {
     // create a perspective camera
-    float aspect = window.getAspectRatio();
+    float aspect = window->getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 50.0f);
     camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
     camera.enableInput();
@@ -22,7 +22,7 @@ Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window
     camera.movementSpeedFast = 20;
 
     // Set the camera from which view the scene is rendered
-    window.setCamera(&camera);
+    window->setCamera(&camera);
 
 
     // add this object to the keylistener, so keyPressed and keyReleased will be called
@@ -67,8 +67,7 @@ Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window
     groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
 
     // create one directional light
-    DeferredRenderer& r = static_cast<DeferredRenderer&>(parentRenderer);
-    sun                  = r.lighting.createDirectionalLight();
+    sun = renderer->lighting.createDirectionalLight();
     sun->setDirection(vec3(-1, -3, -2));
     sun->setColorDiffuse(LightColorPresets::DirectSunlight);
     sun->setIntensity(1.0);
@@ -127,7 +126,7 @@ void Sample::renderFinal(Camera* cam)
 {
     // The final render path (after post processing).
     // Usually the GUI is rendered here.
-    parentWindow.renderImGui();
+    window->renderImGui();
 }
 
 bool Sample::key_event(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -137,7 +136,7 @@ bool Sample::key_event(GLFWwindow* window, int key, int scancode, int action, in
         switch (key)
         {
             case GLFW_KEY_ESCAPE:
-                parentWindow.close();
+                this->window->close();
                 break;
             default:
                 break;
@@ -149,4 +148,14 @@ bool Sample::key_event(GLFWwindow* window, int key, int scancode, int action, in
 bool Sample::character_event(GLFWwindow* window, unsigned int codepoint)
 {
     return false;
+}
+int main(int argc, char* args[])
+{
+    // This should be only called if this is a sample located in saiga/samples
+    initSaigaSample();
+
+    Sample window;
+    window.run();
+
+    return 0;
 }

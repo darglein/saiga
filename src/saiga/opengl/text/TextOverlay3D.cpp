@@ -118,8 +118,8 @@ void TextOverlay3D::renderText(Camera* cam, float interpolationInSeconds)
 void TextOverlay3D::loadShader()
 {
     if (textShader != nullptr) return;
-    //    textShader = ShaderLoader::instance()->load<TextShaderFade>("deferred_text3D.glsl");
-    textShader = ShaderLoader::instance()->load<TextShader>("sdf_text.glsl");
+    //    textShader = shaderLoader.load<TextShaderFade>("deferred_text3D.glsl");
+    textShader = shaderLoader.load<TextShader>("sdf_text.glsl");
 }
 
 }  // namespace Saiga

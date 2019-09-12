@@ -7,6 +7,7 @@
 #include "camera.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/CoordinateSystems.h"
 
 #include "internal/noGraphicsAPI.h"
 
@@ -308,7 +309,7 @@ void PerspectiveCamera::recomputeProj()
 
     if (vulkanTransform)
     {
-        proj = getVulkanTransform() * proj;
+        proj = GL2VulkanNormalizedImage() * proj;
     }
 }
 

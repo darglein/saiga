@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include "LineMesh.h"
+#include "saiga/core/math/CoordinateSystems.h"
 
+#include "LineMesh.h"
 namespace Saiga
 {
 template <typename VertexType, typename IndexType>
@@ -56,7 +57,7 @@ void LineMesh<VertexType, IndexType>::createFrustum(const mat4& proj, float farP
     vec4 tl(-1, 1, d, 1);
     vec4 tr(1, 1, d, 1);
 
-    mat4 tmp     = (inverse(getVulkanTransform()) * proj);
+    mat4 tmp     = (inverse(GL2VulkanNormalizedImage()) * proj);
     mat4 projInv = vulkanTransform ? inverse(tmp) : inverse(proj);
 
 

@@ -12,47 +12,38 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API raw_Texture
+class SAIGA_OPENGL_API TextureBase
 {
-   protected:
-    GLuint id = 0;
-    GLenum target;
-    int width, height;
-    GLenum internal_format;
-    GLenum color_type, data_type;
-
    public:
-    raw_Texture(GLenum target) : target(target) {}
-    virtual ~raw_Texture();
+    TextureBase(GLenum target) : target(target) {}
+    virtual ~TextureBase();
 
-    raw_Texture(raw_Texture const&) = delete;
-    raw_Texture& operator=(raw_Texture const&) = delete;
+    TextureBase(TextureBase const&) = delete;
+    TextureBase& operator=(TextureBase const&) = delete;
 
-    void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
-    void createTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,
-                       const void* data);
-    void createEmptyTexture(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type);
+    // Create and destroy the underlying GL types.
+    void create();
+    void create(GLenum color_type, GLenum internal_format, GLenum data_type);
+    void destroy();
+
+    // Downloads the GPU data
+    bool download(void* data);
+
+
+    // Bind the texture to the target.
+    // In most cases you should use bind(int) see below.
+    void bind();
 
     /**
-     * Resizes the texture.
-     * The old texture data is lost and the new texture is again uninitialized.
+     * Binds the texture (see above) and also binds it to the active texture 'location'.
+     * The typical usecase is:
+     *
+     * 1. bind shader
+     * 2. bind texture to unit X
+     * 3. update texture uniform at location L to texture unit X
      */
-    void resize(int width, int height);
-
-    void createGlTexture();
-    void deleteGlTexture();
-    virtual void setDefaultParameters() = 0;
-
-
-    bool downloadFromGl(void* data);
-
-    virtual void uploadData(const void* data);
-
-    void uploadSubImage(int x, int y, int width, int height, void* data);
-
-
-    void bind();
     void bind(int location);
+
     void unbind();
 
     /**
@@ -73,25 +64,19 @@ class SAIGA_OPENGL_API raw_Texture
      *  layout(binding=3, rgba8) uniform image2D destTex;
      *
      */
-
     void bindImageTexture(GLuint imageUnit, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format);
     void bindImageTexture(GLuint imageUnit, GLint level, GLboolean layered, GLint layer, GLenum access);
     void bindImageTexture(GLuint imageUnit, GLenum access);
 
 
-    int getWidth() { return width; }
-    int getHeight() { return height; }
     GLuint getId() { return id; }
     GLenum getTarget() { return target; }
 
 
-    int bytesPerPixel();
-    int bytesPerChannel();
-    int colorChannels();
-
-    //    void setFormat(const Image &img);
+    /**
+     * Sets the internal formats according to the saiga image type
+     */
     void setFormat(ImageType type, bool srgb = false);
-    //    void setFormat(const ImageFormat &format);
 
     void setBorderColor(vec4 color);
 
@@ -130,6 +115,16 @@ class SAIGA_OPENGL_API raw_Texture
      */
 
     void generateMipmaps();
+
+   protected:
+    // The underlying GL texture name and target
+    GLuint id = 0;
+    GLenum target;
+
+    // Every texture has an internal-format/colortype/datatype
+    GLenum internal_format;
+    GLenum color_type, data_type;
 };
+
 
 }  // namespace Saiga

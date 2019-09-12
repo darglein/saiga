@@ -6,25 +6,16 @@
 
 #pragma once
 
-#include "saiga/opengl/assets/all.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
-#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
-#include "saiga/opengl/rendering/renderer.h"
-#include "saiga/core/sdl/sdl_camera.h"
-#include "saiga/core/sdl/sdl_eventhandler.h"
-#include "saiga/opengl/window/sdl_window.h"
-#include "saiga/opengl/world/proceduralSkybox.h"
+#include "saiga/opengl/window/SampleWindowDeferred.h"
 
 using namespace Saiga;
 
-class Sample : public Updating, public DeferredRenderingInterface, public SDL_KeyListener
+class Sample : public SampleWindowDeferred
 {
-   public:
-    SDLCamera<PerspectiveCamera> camera;
+    using Base = SampleWindowDeferred;
 
-    //    SimpleAssetObject cube1, cube2;
+   public:
     SimpleAssetObject groundPlane;
-    //    SimpleAssetObject sphere;
     std::vector<SimpleAssetObject> cubes;
 
     AABB sceneBB;
@@ -37,7 +28,7 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
 
     std::shared_ptr<DirectionalLight> sun;
 
-    Sample(OpenGLWindow& window, OpenGLRenderer& renderer);
+    Sample();
     ~Sample();
 
     void update(float dt) override;
@@ -46,7 +37,4 @@ class Sample : public Updating, public DeferredRenderingInterface, public SDL_Ke
     void renderDepth(Camera* cam) override;
     void renderOverlay(Camera* cam) override;
     void renderFinal(Camera* cam) override;
-
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
 };

@@ -20,15 +20,14 @@ Skybox::Skybox()
 
 void Skybox::setPosition(const vec3& p)
 {
-    col(model,3) = vec4(p[0], 0, p[2], 1);
-
+    col(model, 3) = vec4(p[0], 0, p[2], 1);
 }
 
 void Skybox::setDistance(float d)
 {
-    col(model,0)[0] = d;
-    col(model,1)[1] = d;
-    col(model,2)[2] = d;
+    col(model, 0)[0] = d;
+    col(model, 1)[1] = d;
+    col(model, 2)[2] = d;
 }
 
 
@@ -36,7 +35,7 @@ void Skybox::render(Camera* cam)
 {
     shader->bind();
     shader->uploadModel(model);
-    shader->uploadTexture(cube_texture);
+    shader->uploadTexture(cube_texture.get());
     mesh.bindAndDraw();
     cube_texture->unbind();
 

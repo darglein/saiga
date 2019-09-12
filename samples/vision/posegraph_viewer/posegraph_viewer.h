@@ -9,50 +9,37 @@
 #pragma once
 
 
+#include "saiga/opengl/window/SampleWindowForward.h"
 #include "saiga/vision/recursive/PGORecursive.h"
-#include "saiga/vulkan/renderModules/AssetRenderer.h"
-#include "saiga/vulkan/renderModules/LineAssetRenderer.h"
-#include "saiga/vulkan/renderModules/PointCloudRenderer.h"
-#include "saiga/vulkan/renderModules/TextureDisplay.h"
-#include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
-#include "saiga/vulkan/window/SDLSample.h"
+
 using namespace Saiga;
 
-class VulkanExample : public Saiga::VulkanSDLExampleBase
+class Sample : public SampleWindowForward
 {
-   public:
-    VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer);
-    ~VulkanExample() override;
+    using Base = SampleWindowForward;
 
-    void init(Saiga::Vulkan::VulkanBase& base);
+   public:
+    Sample();
+
 
 
     void update(float dt) override;
-    void transfer(vk::CommandBuffer cmd) override;
-    void render(vk::CommandBuffer cmd) override;
-    void renderGUI() override;
+    void renderOverlay(Camera* cam) override;
+    void renderFinal(Camera* cam) override;
 
    private:
+    // render objects
+    GLPointCloud pointCloud;
+    LineSoup lineSoup;
+    LineVertexColoredAsset frustum;
+
+
     std::vector<vec3> boxOffsets;
     bool change = false;
     //    bool uploadChanges = true;
     float rms  = 0;
     float chi2 = 0;
     Saiga::Object3D teapotTrans;
-
-    std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
-
-    Saiga::Vulkan::VulkanTexturedAsset box;
-    Saiga::Vulkan::VulkanVertexColoredAsset teapot, plane;
-    Saiga::Vulkan::VulkanLineVertexColoredAsset grid, frustum;
-    Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
-    Saiga::Vulkan::AssetRenderer assetRenderer;
-    Saiga::Vulkan::LineAssetRenderer lineAssetRenderer;
-    Saiga::Vulkan::VulkanPointCloudAsset lineAsset;
-    std::vector<Saiga::VertexNC> lines;
-    //
-    vk::DescriptorSet textureDes;
-    Saiga::Vulkan::TextureDisplay textureDisplay;
 
 
     //    bool displayModels = true;

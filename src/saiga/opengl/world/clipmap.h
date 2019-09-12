@@ -9,8 +9,8 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
-#include "saiga/opengl/texture/cube_texture.h"
-#include "saiga/opengl/texture/texture.h"
+#include "saiga/opengl/texture/CubeTexture.h"
+#include "saiga/opengl/texture/Texture.h"
 #include "saiga/opengl/world/heightmap.h"
 #include "saiga/opengl/world/terrainmesh.h"
 
@@ -35,12 +35,12 @@ class SAIGA_OPENGL_API TerrainShader : public MVPTextureShader
     void uploadTexSizeScale(const vec4& s);
     void uploadRingSize(const vec2& s);
     void uploadZScale(float f);
-    void uploadNormalMap(std::shared_ptr<raw_Texture> texture);
-    void uploadImageUp(std::shared_ptr<raw_Texture> texture);
+    void uploadNormalMap(std::shared_ptr<TextureBase> texture);
+    void uploadImageUp(std::shared_ptr<TextureBase> texture);
 
-    void uploadNormalMapUp(std::shared_ptr<raw_Texture> texture);
-    void uploadTexture1(std::shared_ptr<raw_Texture> texture);
-    void uploadTexture2(std::shared_ptr<raw_Texture> texture);
+    void uploadNormalMapUp(std::shared_ptr<TextureBase> texture);
+    void uploadTexture1(std::shared_ptr<TextureBase> texture);
+    void uploadTexture2(std::shared_ptr<TextureBase> texture);
 };
 
 class Clipmap

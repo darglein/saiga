@@ -58,12 +58,13 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
 
     GBufferParameters gbp;
     PostProcessorParameters ppp;
+
+    void fromConfigFile(const std::string& file) {}
 };
 
 class SAIGA_OPENGL_API DeferredRenderingInterface : public RenderingInterfaceBase
 {
    public:
-    DeferredRenderingInterface(RendererBase& parent) : RenderingInterfaceBase(parent) {}
     virtual ~DeferredRenderingInterface() {}
 
     // rendering into the gbuffer
@@ -86,8 +87,12 @@ class SAIGA_OPENGL_API DeferredRenderingInterface : public RenderingInterfaceBas
 class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 {
    public:
+    using InterfaceType = DeferredRenderingInterface;
+    using ParameterType = DeferredRenderingParameters;
+
     DeferredLighting lighting;
     PostProcessor postProcessor;
+    DeferredRenderingParameters params;
 
     DeferredRenderer(OpenGLWindow& window, DeferredRenderingParameters _params = DeferredRenderingParameters());
     DeferredRenderer& operator=(DeferredRenderer& l) = delete;
@@ -136,7 +141,6 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     std::shared_ptr<SMAA> smaa;
     GBuffer gbuffer;
 
-    DeferredRenderingParameters params;
     std::shared_ptr<MVPTextureShader> blitDepthShader;
     IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
     std::vector<FilteredMultiFrameOpenGLTimer> timers;

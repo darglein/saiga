@@ -24,9 +24,9 @@ void SMAABlendingWeightCalculationShader::checkUniforms()
     location_searchTex = Shader::getUniformLocation("searchTex");
 }
 
-void SMAABlendingWeightCalculationShader::uploadTextures(std::shared_ptr<raw_Texture> edgeTex,
-                                                         std::shared_ptr<raw_Texture> areaTex,
-                                                         std::shared_ptr<raw_Texture> searchTex)
+void SMAABlendingWeightCalculationShader::uploadTextures(std::shared_ptr<TextureBase> edgeTex,
+                                                         std::shared_ptr<TextureBase> areaTex,
+                                                         std::shared_ptr<TextureBase> searchTex)
 {
     edgeTex->bind(0);
     Shader::upload(location_edgeTex, 0);
@@ -45,8 +45,8 @@ void SMAANeighborhoodBlendingShader::checkUniforms()
     location_blendTex = Shader::getUniformLocation("blendTex");
 }
 
-void SMAANeighborhoodBlendingShader::uploadTextures(std::shared_ptr<raw_Texture> colorTex,
-                                                    std::shared_ptr<raw_Texture> blendTex)
+void SMAANeighborhoodBlendingShader::uploadTextures(std::shared_ptr<TextureBase> colorTex,
+                                                    std::shared_ptr<TextureBase> blendTex)
 {
     colorTex->bind(0);
     Shader::upload(location_colorTex, 0);
@@ -66,17 +66,17 @@ SMAA::SMAA(int w, int h)
     bool useStencilOnly = hasExtension("GL_ARB_texture_stencil8");
     if (useStencilOnly)
     {
-        stencilTex->createEmptyTexture(w, h, GL_STENCIL_INDEX, GL_STENCIL_INDEX8, GL_UNSIGNED_BYTE);
+        stencilTex->create(w, h, GL_STENCIL_INDEX, GL_STENCIL_INDEX8, GL_UNSIGNED_BYTE);
     }
     else
     {
-        stencilTex->createEmptyTexture(w, h, GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8, GL_UNSIGNED_INT_24_8);
+        stencilTex->create(w, h, GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8, GL_UNSIGNED_INT_24_8);
         std::cerr << "Warning: OpenGL extension ARB_texture_stencil8 not found. Fallback to Depth Stencil Texture."
                   << std::endl;
     }
 
     edgesTex = framebuffer_texture_t(new Texture());
-    edgesTex->createEmptyTexture(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    edgesTex->create(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
     edgesFb.create();
     edgesFb.attachTexture(edgesTex);
     if (useStencilOnly)
@@ -88,7 +88,7 @@ SMAA::SMAA(int w, int h)
     edgesFb.unbind();
 
     blendTex = framebuffer_texture_t(new Texture());
-    blendTex->createEmptyTexture(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    blendTex->create(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
     blendFb.create();
     blendFb.attachTexture(blendTex);
     blendFb.attachTextureStencil(stencilTex);
@@ -97,10 +97,10 @@ SMAA::SMAA(int w, int h)
     blendFb.unbind();
 
     areaTex = framebuffer_texture_t(new Texture());
-    areaTex->createTexture(AREATEX_WIDTH, AREATEX_HEIGHT, GL_RG, GL_RG8, GL_UNSIGNED_BYTE, areaTexBytes);
+    areaTex->create(AREATEX_WIDTH, AREATEX_HEIGHT, GL_RG, GL_RG8, GL_UNSIGNED_BYTE, areaTexBytes);
 
     searchTex = framebuffer_texture_t(new Texture());
-    searchTex->createTexture(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, GL_RED, GL_R8, GL_UNSIGNED_BYTE, searchTexBytes);
+    searchTex->create(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, GL_RED, GL_R8, GL_UNSIGNED_BYTE, searchTexBytes);
 
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
@@ -140,11 +140,11 @@ void SMAA::loadShader(SMAA::Quality _quality)
     smaaInjection.emplace_back(GL_VERTEX_SHADER, qualityStr, 2);
     smaaInjection.emplace_back(GL_FRAGMENT_SHADER, qualityStr, 2);
 
-    smaaEdgeDetectionShader = ShaderLoader::instance()->load<PostProcessingShader>(
-        "post_processing/smaa/SMAAEdgeDetection.glsl", smaaInjection);
-    smaaBlendingWeightCalculationShader = ShaderLoader::instance()->load<SMAABlendingWeightCalculationShader>(
+    smaaEdgeDetectionShader =
+        shaderLoader.load<PostProcessingShader>("post_processing/smaa/SMAAEdgeDetection.glsl", smaaInjection);
+    smaaBlendingWeightCalculationShader = shaderLoader.load<SMAABlendingWeightCalculationShader>(
         "post_processing/smaa/SMAABlendingWeightCalculation.glsl", smaaInjection);
-    smaaNeighborhoodBlendingShader = ShaderLoader::instance()->load<SMAANeighborhoodBlendingShader>(
+    smaaNeighborhoodBlendingShader = shaderLoader.load<SMAANeighborhoodBlendingShader>(
         "post_processing/smaa/SMAANeighborhoodBlending.glsl", smaaInjection);
 
     shaderLoaded = true;

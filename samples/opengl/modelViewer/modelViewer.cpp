@@ -11,24 +11,10 @@
 #include "saiga/core/math/random.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
-Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
+Sample::Sample()
 {
-    // create a perspective camera
-    float aspect = window.getAspectRatio();
-    camera.setProj(60.0f, aspect, 0.1f, 500.0f);
-    camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
-    camera.enableInput();
-    // How fast the camera moves
-    camera.movementSpeed     = 10;
-    camera.movementSpeedFast = 20;
-    camera.mouseTurnLocal    = true;
-    camera.rotationPoint     = vec3(0, 0, 0);
-
-    // Set the camera from which view the scene is rendered
-    window.setCamera(&camera);
-
-    normalShader  = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset_normal.glsl");
-    textureShader = ShaderLoader::instance()->load<MVPTextureShader>("geometry/texturedAsset.glsl");
+    normalShader  = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset_normal.glsl");
+    textureShader = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset.glsl");
     ObjAssetLoader assetLoader;
 
 
@@ -36,53 +22,30 @@ Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window
     object.asset = asset;
 
 
-
-    //    groundPlane.asset = assetLoader.loadDebugPlaneAsset(make_vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
-    groundPlane.asset = assetLoader.loadDebugGrid(20, 20);
-
-    // create one directional light
-    DeferredRenderer& r = static_cast<DeferredRenderer&>(parentRenderer);
-    sun                  = r.lighting.createDirectionalLight();
-    sun->setDirection(vec3(-1, -3, -2));
-    sun->setColorDiffuse(LightColorPresets::DirectSunlight);
-    sun->setIntensity(0);
-    sun->setAmbientIntensity(1);
-    sun->createShadowMap(2048, 2048);
-    sun->enableShadows();
-
-
     std::cout << "Program Initialized!" << std::endl;
 }
 
-Sample::~Sample() {}
 
 void Sample::update(float dt)
 {
-    if (!ImGui::captureKeyboard()) camera.update(dt);
-
-
+    Base::update(dt);
     if (autoRotate)
     {
         camera.mouseRotateAroundPoint(autoRotateSpeed, 0, camera.rotationPoint, up);
     }
 }
 
-void Sample::interpolate(float dt, float interpolation)
-{
-    if (!ImGui::captureMouse()) camera.interpolate(dt, interpolation);
-}
 
-void Sample::render(Camera* cam) {}
 
 void Sample::renderDepth(Camera* cam)
 {
+    Base::renderDepth(cam);
     object.renderDepth(cam);
 }
 
 void Sample::renderOverlay(Camera* cam)
 {
-    if (showSkybox) skybox.render(cam);
-    if (showGrid) groundPlane.render(cam);
+    Base::renderOverlay(cam);
 
     TexturedAsset* ta = dynamic_cast<TexturedAsset*>(object.asset.get());
     SAIGA_ASSERT(ta);
@@ -113,12 +76,12 @@ void Sample::renderOverlay(Camera* cam)
 
 void Sample::renderFinal(Camera* cam)
 {
+    Base::renderFinal(cam);
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
     ImGui::Begin("Model Viewer");
 
-    ImGui::Checkbox("showSkybox", &showSkybox);
-    ImGui::Checkbox("showGrid", &showGrid);
+
     ImGui::Checkbox("renderGeometry", &renderGeometry);
     ImGui::Checkbox("renderWireframe", &renderWireframe);
     ImGui::Checkbox("renderObject", &renderObject);
@@ -158,16 +121,13 @@ void Sample::renderFinal(Camera* cam)
 }
 
 
-void Sample::keyPressed(SDL_Keysym key)
+int main(int argc, char* args[])
 {
-    switch (key.scancode)
-    {
-        case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
-            break;
-        default:
-            break;
-    }
-}
+    // This should be only called if this is a sample located in saiga/samples
+    initSaigaSample();
 
-void Sample::keyReleased(SDL_Keysym key) {}
+    Sample window;
+    window.run();
+
+    return 0;
+}

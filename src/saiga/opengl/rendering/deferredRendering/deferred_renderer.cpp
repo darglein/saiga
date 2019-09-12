@@ -19,9 +19,9 @@ namespace Saiga
 DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParameters _params)
     : OpenGLRenderer(window),
       lighting(gbuffer),
+      params(_params),
       renderWidth(window.getWidth() * _params.renderScale),
       renderHeight(window.getHeight() * _params.renderScale),
-      params(_params),
       ddo(window.getWidth(), window.getHeight())
 {
     if (params.useSMAA)
@@ -34,7 +34,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
         // create a 2x2 grayscale black dummy texture
         blackDummyTexture = std::make_shared<Texture>();
         std::vector<int> data(2 * 2, 0);
-        blackDummyTexture->createTexture(2, 2, GL_RED, GL_R8, GL_UNSIGNED_BYTE, (GLubyte*)data.data());
+        blackDummyTexture->create(2, 2, GL_RED, GL_R8, GL_UNSIGNED_BYTE, (GLubyte*)data.data());
     }
     if (params.useSSAO)
     {
@@ -84,13 +84,13 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
 
 
 
-    blitDepthShader = ShaderLoader::instance()->load<MVPTextureShader>("lighting/blitDepth.glsl");
+    blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
 
     ddo.setDeferredFramebuffer(&gbuffer, lighting.volumetricLightTexture2);
 
 
-    std::shared_ptr<PostProcessingShader> pps = ShaderLoader::instance()->load<PostProcessingShader>(
-        "post_processing/post_processing.glsl");  // this shader does nothing
+    std::shared_ptr<PostProcessingShader> pps =
+        shaderLoader.load<PostProcessingShader>("post_processing/post_processing.glsl");  // this shader does nothing
     std::vector<std::shared_ptr<PostProcessingShader> > defaultEffects;
     defaultEffects.push_back(pps);
     postProcessor.setPostProcessingEffects(defaultEffects);
@@ -425,7 +425,7 @@ void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
-    blitDepthShader->uploadTexture(gbuffer.getTextureDepth());
+    blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
     quadMesh.bindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);

@@ -11,7 +11,7 @@
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/shader/shaderPartLoader.h"
-#include "saiga/opengl/texture/textureLoader.h"
+#include "saiga/opengl/texture/TextureLoader.h"
 
 #include <algorithm>
 #include <glbinding/glbinding.h>
@@ -223,14 +223,17 @@ void initSaigaGL()
     // will use VIDEO memory as the source for buffer object operations.
     std::vector<GLuint> ignoreIds = {
         131185,  // nvidia
-        // intel
+
+        // Vertex shader in program xx is being recompiled based on GL state.
+        131218,
     };
     Error::ignoreGLError(ignoreIds);
 }
 
 void cleanupSaigaGL()
 {
-    //    ShaderLoader::instance()->clear();
+    shaderLoader.clear();
+    //    shaderLoader.clear();
     //    TextureLoader::instance()->clear();
 }
 

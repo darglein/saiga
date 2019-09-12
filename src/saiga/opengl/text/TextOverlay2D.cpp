@@ -59,7 +59,7 @@ void TextOverlay2D::removeText(Text* text)
 void TextOverlay2D::loadShader()
 {
     if (textShader != nullptr) return;
-    textShader = ShaderLoader::instance()->load<TextShader>("sdf_text.glsl");
+    textShader = shaderLoader.load<TextShader>("sdf_text.glsl");
 }
 
 }  // namespace Saiga

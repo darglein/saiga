@@ -18,23 +18,10 @@
 #    error OpenGL was included somewhere.
 #endif
 
-VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan::VulkanForwardRenderer& renderer)
-    : Updating(window), Saiga::Vulkan::VulkanForwardRenderingInterface(renderer), renderer(renderer)
+VulkanExample::VulkanExample()
 {
-    float aspect = window.getAspectRatio();
-    camera.setProj(60.0f, aspect, 0.1f, 50.0f, true);
-    camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
-    camera.rotationPoint = make_vec3(0);
-
-
-    //    std::cout << camera.view << std::endl;
-    //    std::cout << camera.proj << std::endl;
-    //    exit(0);
-
-    window.setCamera(&camera);
-
-    //    init(renderer.base());
-    auto& base = renderer.base();
+    //    init(renderer->base());
+    auto& base = renderer->base();
 
 
     {
@@ -57,11 +44,11 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     }
 
 
-    assetRenderer.init(base, renderer.renderPass);
-    lineAssetRenderer.init(base, renderer.renderPass, 2);
-    pointCloudRenderer.init(base, renderer.renderPass, 5);
-    texturedAssetRenderer.init(base, renderer.renderPass);
-    textureDisplay.init(base, renderer.renderPass);
+    assetRenderer.init(base, renderer->renderPass);
+    lineAssetRenderer.init(base, renderer->renderPass, 2);
+    pointCloudRenderer.init(base, renderer->renderPass, 5);
+    texturedAssetRenderer.init(base, renderer->renderPass);
+    textureDisplay.init(base, renderer->renderPass);
 
     textureDes = textureDisplay.createAndUpdateDescriptorSet(*texture);
 
@@ -69,24 +56,24 @@ VulkanExample::VulkanExample(Saiga::Vulkan::VulkanWindow& window, Saiga::Vulkan:
     box.loadObj("box.obj");
 
     //    box.loadObj("cat.obj");
-    box.init(renderer.base());
+    box.init(renderer->base());
     box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
     teapot.loadObj("teapot.obj");
     teapot.computePerVertexNormal();
-    teapot.init(renderer.base());
+    teapot.init(renderer->base());
     teapotTrans.setScale(vec3(2, 2, 2));
     teapotTrans.translateGlobal(vec3(0, 2, 0));
     teapotTrans.calculateModel();
 
     plane.createCheckerBoard(ivec2(20, 20), 1.0f, Saiga::Colors::firebrick, Saiga::Colors::gray);
-    plane.init(renderer.base());
+    plane.init(renderer->base());
 
     grid.createGrid(10, 10);
-    grid.init(renderer.base());
+    grid.init(renderer->base());
 
     frustum.createFrustum(camera.proj, 2, make_vec4(1), true);
-    frustum.init(renderer.base());
+    frustum.init(renderer->base());
 
     pointCloud.init(base, 1000 * 1000);
     for (int i = 0; i < 1000 * 1000; ++i)
@@ -214,22 +201,19 @@ void VulkanExample::renderGUI()
     ImGui::End();
     //    return;
 
-    parentWindow.renderImGui();
+    window->renderImGui();
     //    ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
     //    ImGui::ShowTestWindow();
 }
-
-
-void VulkanExample::keyPressed(SDL_Keysym key)
+int main(const int argc, const char* argv[])
 {
-    switch (key.scancode)
-    {
-        case SDL_SCANCODE_ESCAPE:
-            parentWindow.close();
-            break;
-        default:
-            break;
-    }
-}
+    using namespace Saiga;
 
-void VulkanExample::keyReleased(SDL_Keysym key) {}
+    {
+        VulkanExample example;
+
+        example.run();
+    }
+
+    return 0;
+}

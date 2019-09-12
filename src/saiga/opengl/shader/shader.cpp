@@ -6,9 +6,9 @@
 
 #include "saiga/opengl/shader/shader.h"
 
-#include "saiga/opengl/error.h"
-#include "saiga/opengl/texture/raw_texture.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/opengl/error.h"
+#include "saiga/opengl/texture/TextureBase.h"
 
 #include <algorithm>
 #include <fstream>
@@ -417,13 +417,19 @@ void Shader::upload(int location, int count, float* v)
     assert_no_glerror();
 }
 
-void Shader::upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit)
+void Shader::upload(int location, TextureBase* texture, int textureUnit)
 {
     SAIGA_ASSERT(texture);
     upload(location, *texture, textureUnit);
 }
 
-void Shader::upload(int location, raw_Texture& texture, int textureUnit)
+void Shader::upload(int location, std::shared_ptr<TextureBase> texture, int textureUnit)
+{
+    SAIGA_ASSERT(texture);
+    upload(location, *texture, textureUnit);
+}
+
+void Shader::upload(int location, TextureBase& texture, int textureUnit)
 {
     SAIGA_ASSERT(isBound());
     texture.bind(textureUnit);
