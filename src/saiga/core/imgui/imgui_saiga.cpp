@@ -9,6 +9,8 @@
 
 #include "internal/noGraphicsAPI.h"
 
+#include <fstream>
+
 
 namespace ImGui
 {
@@ -167,6 +169,75 @@ bool captureMouse()
 bool captureKeyboard()
 {
     return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureKeyboard;
+}
+
+IMConsole::IMConsole(const std::string& name, const Saiga::ivec2& position, const Saiga::ivec2& size)
+    : std::ostream(this), name(name), position(position), size(size)
+{
+}
+
+void IMConsole::render()
+{
+    ImGui::SetNextWindowPos(ImVec2(position(0), position(1)), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(size(0), size(1)), ImGuiCond_Once);
+    ImGui::Begin(name.c_str());
+
+    float footer_height_to_reserve =
+        ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();  // 1 separator, 1 input text
+
+    // use full frame
+    footer_height_to_reserve = 0;
+    ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false,
+                      ImGuiWindowFlags_HorizontalScrollbar);  // Leave room for 1 separator + 1 InputText
+
+    // right click action
+    if (ImGui::BeginPopupContextWindow())
+    {
+        if (ImGui::Selectable("Clear")) data.clear();
+        if (ImGui::Selectable("ScrollToBottom")) scrollToBottom = !scrollToBottom;
+
+        ImGui::EndPopup();
+    }
+
+    ImGui::TextUnformatted(&data.front(), &data.back());
+
+
+    if (scrollToBottom)
+    {
+        ImGui::SetScrollY(GetScrollMaxY());
+        scrollDownAtNextRender = false;
+    }
+
+
+    ImGui::EndChild();
+    ImGui::End();
+}
+
+void IMConsole::setOutputFile(const std::string& file)
+{
+    outFile = std::make_shared<std::ofstream>(file);
+    SAIGA_ASSERT(outFile->is_open());
+}
+
+int IMConsole::overflow(int c)
+{
+    data.push_back(c);
+    if (outFile)
+    {
+        (*outFile) << (char)c;
+        if (c == '\n') outFile->flush();
+    }
+    if (writeToCout)
+    {
+        std::cout << (char)c;
+        if (c == '\n') std::cout.flush();
+    }
+
+    if (scrollToBottom)
+    {
+        scrollDownAtNextRender = true;
+    }
+    return 0;
 }
 
 }  // namespace ImGui

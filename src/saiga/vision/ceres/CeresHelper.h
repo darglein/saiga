@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/vision/util/Optimizer.h"
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/util/Optimizer.h"
 
 #include "Eigen/Sparse"
 #include "ceres/problem.h"
@@ -62,7 +62,11 @@ inline Saiga::OptimizationResults ceres_solve(const ceres::Solver::Options& cere
     }
 
     //    std::cout << "linear solver time " << summaryTest.linear_solver_time_in_seconds << "s." << std::endl;
-    //    std::cout << summaryTest.FullReport() << std::endl;
+    if (summaryTest.termination_type == ceres::FAILURE)
+    {
+        std::cout << summaryTest.FullReport() << std::endl;
+    }
+
 
     OptimizationResults result;
     result.cost_initial       = summaryTest.initial_cost * 2.0;

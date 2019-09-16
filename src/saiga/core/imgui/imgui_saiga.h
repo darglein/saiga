@@ -7,14 +7,45 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/time/timer.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/time/timer.h"
 
 #include <vector>
 
 struct ImDrawList;
 namespace ImGui
 {
+class SAIGA_CORE_API IMConsole : public std::ostream, protected std::streambuf
+{
+   public:
+    IMConsole(const std::string& name = "Console", const Saiga::ivec2& position = {0, 0},
+              const Saiga::ivec2& size = {500, 250});
+
+    void render();
+
+    // additionally log to the given file.
+    // Note: calling this method will clear the exsisting content!
+    void setOutputFile(const std::string& file);
+
+    // additonally write to std::cout (default = false)
+    void setWriteToCout(bool b) { writeToCout = b; }
+
+    // derived
+    int overflow(int c) override;
+
+    std::string name;
+    Saiga::ivec2 position, size;
+
+   private:
+    bool scrollDownAtNextRender = true;
+    bool writeToCout            = false;
+    bool scrollToBottom         = true;
+    std::string data;
+    std::shared_ptr<std::ofstream> outFile;
+};
+
+
+
 class SAIGA_CORE_API Graph
 {
    public:
