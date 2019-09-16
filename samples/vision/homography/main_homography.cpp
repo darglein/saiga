@@ -94,9 +94,7 @@ void testRansac()
 
 int main(int, char**)
 {
-    Saiga::SaigaParameters saigaParameters;
-    Saiga::initSample(saigaParameters);
-    Saiga::initSaiga(saigaParameters);
+    initSaigaSampleNoWindow();
 
     Saiga::EigenHelper::checkEigenCompabitilty<15357>();
     Saiga::Random::setSeed(45786045);

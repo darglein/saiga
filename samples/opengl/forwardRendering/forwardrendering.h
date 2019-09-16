@@ -21,6 +21,7 @@ class Sample : public SampleWindowForward
     Sample();
 
     void renderOverlay(Camera* cam) override;
+    void renderFinal(Camera* cam) override;
 
    private:
     GLPointCloud pointCloud;

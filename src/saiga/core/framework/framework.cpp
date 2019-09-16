@@ -226,6 +226,15 @@ void cleanupSaiga()
     initialized = false;
 }
 
+void initSaigaSampleNoWindow()
+{
+    Saiga::initSaigaSample();
+    Saiga::SaigaParameters saigaParameters;
+    saigaParameters.fromConfigFile("config.ini");
+    initSaiga(saigaParameters);
+    catchSegFaults();
+}
+
 
 
 }  // namespace Saiga

@@ -5,6 +5,7 @@
  */
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/image/image.h"
+#include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/BinaryFile.h"
@@ -12,7 +13,6 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/reconstruction/EightPoint.h"
 #include "saiga/vision/scene/Scene.h"
-#include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/vision/util/Features.h"
 
 #include <numeric>
@@ -24,9 +24,7 @@ using FeatureDescriptor = DescriptorORB;
 
 int main(int, char**)
 {
-    Saiga::SaigaParameters saigaParameters;
-    Saiga::initSample(saigaParameters);
-    Saiga::initSaiga(saigaParameters);
+    initSaigaSampleNoWindow();
 
     Saiga::EigenHelper::checkEigenCompabitilty<15357>();
     Saiga::Random::setSeed(45786045);

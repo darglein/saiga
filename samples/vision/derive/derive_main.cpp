@@ -167,9 +167,7 @@ using namespace Saiga;
 
 int main(int, char**)
 {
-    Saiga::SaigaParameters saigaParameters;
-    Saiga::initSample(saigaParameters);
-    Saiga::initSaiga(saigaParameters);
+    initSaigaSampleNoWindow();
 
     Saiga::Random::setSeed(93865023985);
     test();

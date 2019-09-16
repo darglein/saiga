@@ -91,13 +91,7 @@ void testDraw()
 
 int main(int argc, char* argv[])
 {
-    catchSegFaults();
-
-
-    SaigaParameters sp;
-    initSample(sp);
-
-    initSaiga(sp);
+    initSaigaSampleNoWindow();
 
 
     testDraw();

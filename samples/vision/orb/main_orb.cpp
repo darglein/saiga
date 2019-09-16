@@ -12,9 +12,7 @@ using namespace Saiga;
 
 int main(int, char**)
 {
-    Saiga::SaigaParameters saigaParameters;
-    Saiga::initSample(saigaParameters);
-    Saiga::initSaiga(saigaParameters);
+    initSaigaSampleNoWindow();
 
     TemplatedImage<ucvec4> img("bar.png");
     TemplatedImage<unsigned char> imgGray(img.h, img.w);

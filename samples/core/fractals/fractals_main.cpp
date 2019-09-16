@@ -52,9 +52,7 @@ struct Test
 
 int main(int argc, char* args[])
 {
-    Saiga::SaigaParameters saigaParameters;
-    Saiga::initSample(saigaParameters);
-    Saiga::initSaiga(saigaParameters);
+    initSaigaSampleNoWindow();
 
     using T      = double;
     using Number = std::complex<T>;

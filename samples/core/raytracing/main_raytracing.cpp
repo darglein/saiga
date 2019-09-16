@@ -10,9 +10,7 @@ using namespace Saiga;
 
 int main(int argc, char* args[])
 {
-    Saiga::SaigaParameters saigaParameters;
-    Saiga::initSample(saigaParameters);
-    Saiga::initSaiga(saigaParameters);
+    initSaigaSampleNoWindow();
 
     int w = 500;
     int h = 500;

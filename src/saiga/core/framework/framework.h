@@ -36,6 +36,7 @@ struct SAIGA_CORE_API SaigaParameters
 
 SAIGA_CORE_API extern void writeExtensions();
 
+SAIGA_CORE_API extern void initSaigaSampleNoWindow();
 SAIGA_CORE_API extern void initSaigaSample();
 SAIGA_CORE_API extern void initSaiga(const SaigaParameters& params);
 SAIGA_CORE_API extern void cleanupSaiga();

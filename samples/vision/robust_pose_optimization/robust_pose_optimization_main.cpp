@@ -4,10 +4,10 @@
  * See LICENSE file for more information.
  */
 #include "saiga/core/Core.h"
+#include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/reconstruction/RobustPoseOptimization.h"
-#include "saiga/core/math/Eigen_Compile_Checker.h"
 
 #include <fstream>
 
@@ -123,9 +123,7 @@ class RPOTest
 
 int main(int, char**)
 {
-    Saiga::SaigaParameters saigaParameters;
-    Saiga::initSample(saigaParameters);
-    Saiga::initSaiga(saigaParameters);
+    initSaigaSampleNoWindow();
 
     Saiga::Random::setSeed(93865023985);
 

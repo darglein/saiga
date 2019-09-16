@@ -134,9 +134,7 @@ void test_to_file(const OptimizationOptions& options, const std::string& file, i
 
 int main(int, char**)
 {
-    Saiga::SaigaParameters saigaParameters;
-    Saiga::initSample(saigaParameters);
-    Saiga::initSaiga(saigaParameters);
+    initSaigaSampleNoWindow();
 
     Saiga::Random::setSeed(93865023985);
 

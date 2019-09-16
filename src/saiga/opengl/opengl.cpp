@@ -16,15 +16,12 @@
 #include <algorithm>
 #include <glbinding/glbinding.h>
 
-#include <glbinding-aux/Meta.h>
-
-
 
 namespace Saiga
 {
 std::ostream& operator<<(std::ostream& os, GLenum g)
 {
-    os << glbinding::aux::Meta::getString(g);
+    os << (int)g;
     return os;
 }
 

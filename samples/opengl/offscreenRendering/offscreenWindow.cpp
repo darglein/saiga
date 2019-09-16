@@ -9,6 +9,7 @@
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
+#if 0
 Sample::Sample(OpenGLWindow& window, OpenGLRenderer& renderer) : Updating(window), DeferredRenderingInterface(renderer)
 {
     // create a perspective camera
@@ -114,3 +115,4 @@ void Sample::renderFinal(Camera* cam)
     // The final render path (after post processing).
     // Usually the GUI is rendered here.
 }
+#endif

@@ -22,7 +22,6 @@ if(FFMPEG_FOUND)
 endif()
 
 add_subdirectory(glbinding)
-add_subdirectory(glbinding-aux)
 add_subdirectory(imgui)
 add_subdirectory(query)
 add_subdirectory(rendering)

@@ -88,6 +88,78 @@ void Sample::renderOverlay(Camera* cam)
 
     frustum.renderForward(cam, mat4::Identity());
 }
+
+
+std::vector<std::string> logdata;
+
+
+
+struct IMConsole : std::ostream, std::streambuf
+{
+    IMConsole() : std::ostream(this) {}
+
+    int overflow(int c)
+    {
+        foo(c);
+        return 0;
+    }
+
+    void flush() {}
+
+    void foo(char c)
+    {
+        std::cout.put(c);
+        std::cout.flush();
+    }
+
+    std::string data;
+};
+IMConsole console;
+
+void Sample::renderFinal(Camera* cam)
+{
+    Base::renderFinal(cam);
+
+
+    {
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Console");
+
+        const float footer_height_to_reserve =
+            ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();  // 1 separator, 1 input text
+        ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false,
+                          ImGuiWindowFlags_HorizontalScrollbar);  // Leave room for 1 separator + 1 InputText
+
+        // right click action
+        if (ImGui::BeginPopupContextWindow())
+        {
+            if (ImGui::Selectable("Clear")) logdata.clear();
+            ImGui::EndPopup();
+        }
+
+
+
+        std::vector<const char*> test;
+        for (auto&& s : logdata)
+        {
+            ImGui::TextWrapped("%s\n", s.c_str());
+        }
+
+
+
+        ImGui::EndChild();
+        if (ImGui::Button("add"))
+        {
+            logdata.push_back("sldhgowe");
+
+            console << "asdf " << 234;  //<< std::endl;
+        }
+
+
+        ImGui::End();
+    }
+}
 int main(const int argc, const char* argv[])
 {
     using namespace Saiga;
