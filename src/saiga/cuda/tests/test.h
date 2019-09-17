@@ -30,7 +30,6 @@ SAIGA_CUDA_API extern void imageProcessingTest();
 SAIGA_CUDA_API extern void testCuda();
 SAIGA_CUDA_API extern void testThrust();
 
-SAIGA_CUDA_API extern void inverseTest();
 
 }  // namespace CUDA
 }  // namespace Saiga

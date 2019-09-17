@@ -15,7 +15,7 @@ namespace Saiga
 // This seed is used for all ransac classes.
 // You can change this in your application for example to:
 // ransacSeed = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-inline uint64_t ransacSeed = 92730469346UL;
+inline SAIGA_VISION_API uint64_t ransacRandomSeed = 92730469346UL;
 
 
 struct RansacParameters
@@ -60,7 +60,7 @@ class RansacBase
         threadLocalBestModel.resize(params.threads);
         for (int i = 0; i < params.threads; ++i)
         {
-            generators[i].seed(ransacSeed + 6643838879UL * i);
+            generators[i].seed(ransacRandomSeed + 6643838879UL * i);
         }
     }
 

@@ -96,12 +96,6 @@ if(CUDA_FOUND)
     endif()
     SET(SAIGA_USE_CUDA 1)
 
-    if(SAIGA_U_EIGEN_CUDA)
-        #if(${Eigen3_VERSION} VERSION_GREATER_EQUAL "3.3.90" AND ${CUDA_VERSION} VERSION_GREATER_EQUAL "9.2")
-        SET(SAIGA_EIGEN_AND_CUDA 1)
-        #endif()
-    endif()
-
     set(MODULE_CUDA 1)
 
 else()
