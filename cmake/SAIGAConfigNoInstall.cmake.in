@@ -32,7 +32,7 @@ find_path(SAIGA_SHADER_DIRS
 )
 
 
-
+# check each module individually
 find_library(SAIGA_CORE_LIBRARY   NAMES saiga_core   PATHS @PROJECT_BINARY_DIR@/bin)
 find_library(SAIGA_OPENGL_LIBRARY NAMES saiga_opengl PATHS @PROJECT_BINARY_DIR@/bin)
 find_library(SAIGA_VULKAN_LIBRARY NAMES saiga_vulkan PATHS @PROJECT_BINARY_DIR@/bin)
@@ -40,28 +40,30 @@ find_library(SAIGA_VISION_LIBRARY NAMES saiga_vision PATHS @PROJECT_BINARY_DIR@/
 find_library(SAIGA_EXTRA_LIBRARY  NAMES saiga_extra  PATHS @PROJECT_BINARY_DIR@/bin)
 find_library(SAIGA_CUDA_LIBRARY   NAMES saiga_cuda   PATHS @PROJECT_BINARY_DIR@/bin)
 
+
+# - Append everything to SAIGA_LIBRARIES
 if(SAIGA_CORE_LIBRARY)
-    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_CORE_LIBRARY})
+    set(SAIGA_LIBRARIES ${SAIGA_LIBRARIES} ${SAIGA_CORE_LIBRARY})
 endif()
 
 if(SAIGA_OPENGL_LIBRARY)
-    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_OPENGL_LIBRARY})
+    set(SAIGA_LIBRARIES ${SAIGA_LIBRARIES} ${SAIGA_OPENGL_LIBRARY})
 endif()
 
 if(SAIGA_VULKAN_LIBRARY)
-    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_VULKAN_LIBRARY})
+    set(SAIGA_LIBRARIES ${SAIGA_LIBRARIES} ${SAIGA_VULKAN_LIBRARY})
 endif()
 
 if(SAIGA_VISION_LIBRARY)
-    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_VISION_LIBRARY})
+    set(SAIGA_LIBRARIES ${SAIGA_LIBRARIES} ${SAIGA_VISION_LIBRARY})
 endif()
 
 if(SAIGA_EXTRA_LIBRARY)
-    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_EXTRA_LIBRARY})
+    set(SAIGA_LIBRARIES ${SAIGA_LIBRARIES} ${SAIGA_EXTRA_LIBRARY})
 endif()
 
 if(SAIGA_CUDA_LIBRARY)
-    set(SAIGA_LIBRARIES_BASE ${SAIGA_LIBRARIES_BASE} ${SAIGA_CUDA_LIBRARY})
+    set(SAIGA_LIBRARIES ${SAIGA_LIBRARIES} ${SAIGA_CUDA_LIBRARY})
 endif()
 
 include(FindPackageHandleStandardArgs)
@@ -71,33 +73,26 @@ find_package_handle_standard_args(
         SAIGA_INCLUDE_DIRS
         SAIGA_BUILD_INCLUDE_DIRS
         SAIGA_SHADER_DIRS
-        SAIGA_LIBRARIES_BASE
+        SAIGA_CORE_LIBRARY
 )
 
 
 
-set(SAIGA_INCLUDE_DIRS ${SAIGA_INCLUDE_DIRS} ${SAIGA_SHADER_DIRS} ${OPENGL_INCLUDE_DIRS} ${SAIGA_GLM_INCLUDE_DIRS} ${SAIGA_GLBINDING_INCLUDE_DIRS} ${SAIGA_BUILD_INCLUDE_DIRS})
-set(SAIGA_LIBRARY ${SAIGA_LIBRARIES_BASE} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
-set(SAIGA_LIBRARIES ${SAIGA_LIBRARY})
+set(SAIGA_INCLUDE_DIRS ${SAIGA_INCLUDE_DIRS} ${SAIGA_SHADER_DIRS}  ${SAIGA_GLBINDING_INCLUDE_DIRS} ${SAIGA_BUILD_INCLUDE_DIRS})
+set(SAIGA_LIBRARY ${SAIGA_LIBRARIES})
 
 
 
-# Create imported target saiga
-
-
-#message(STATUS "${SAIGA_LIBRARIES}")
-#message(STATUS "${SAIGA_INCLUDE_DIRS}")
-
-
+# Creates a target for each module
 macro(saiga_make_target _target _target_lib _libraries _soname)
-
 
 add_library(${_target} SHARED IMPORTED)
 
-#message(STATUS ${_target})
-#message(STATUS ${_target_lib})
-#message(STATUS ${_libraries})
-#message(STATUS ${_soname})
+message(STATUS ${_target})
+message(STATUS ${_target_lib})
+message(STATUS ${_libraries})
+message(STATUS ${_soname})
+
 set_target_properties(${_target} PROPERTIES
   INTERFACE_COMPILE_FEATURES "cxx_std_14"
   INTERFACE_INCLUDE_DIRECTORIES "${SAIGA_INCLUDE_DIRS}"
@@ -115,12 +110,12 @@ set_target_properties(${_target} PROPERTIES
 endmacro()
 
 if(@MODULE_CORE@)
-saiga_make_target(Saiga::saiga_core   "${SAIGA_CORE_LIBRARY}"   SAIGA_LIBRARIES "saiga_core.so")
+saiga_make_target(Saiga::saiga_core   "${SAIGA_CORE_LIBRARY}"   SAIGA_CORE_LIBRARY "saiga_core.so")
 endif()
-saiga_make_target(Saiga::saiga_vision "${SAIGA_VISION_LIBRARY}" SAIGA_LIBRARIES "saiga_vision.so")
-saiga_make_target(Saiga::saiga_vulkan "${SAIGA_VULKAN_LIBRARY}" SAIGA_LIBRARIES "saiga_vulkan.so")
-saiga_make_target(Saiga::saiga_extra  "${SAIGA_EXTRA_LIBRARY}"  SAIGA_LIBRARIES "saiga_extra.so")
-saiga_make_target(Saiga::saiga_opengl "${SAIGA_OPENGL_LIBRARY}" SAIGA_LIBRARIES "saiga_opengl.so")
-saiga_make_target(Saiga::saiga_cuda   "${SAIGA_CUDA_LIBRARY}" SAIGA_LIBRARIES "saiga_cuda.so")
+saiga_make_target(Saiga::saiga_vision "${SAIGA_VISION_LIBRARY}" SAIGA_VISION_LIBRARY "saiga_vision.so")
+saiga_make_target(Saiga::saiga_vulkan "${SAIGA_VULKAN_LIBRARY}" SAIGA_VULKAN_LIBRARY "saiga_vulkan.so")
+saiga_make_target(Saiga::saiga_extra  "${SAIGA_EXTRA_LIBRARY}"  SAIGA_EXTRA_LIBRARY "saiga_extra.so")
+saiga_make_target(Saiga::saiga_opengl "${SAIGA_OPENGL_LIBRARY}" SAIGA_OPENGL_LIBRARY "saiga_opengl.so")
+saiga_make_target(Saiga::saiga_cuda   "${SAIGA_CUDA_LIBRARY}" SAIGA_CUDA_LIBRARY "saiga_cuda.so")
 
 
