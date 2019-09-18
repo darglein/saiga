@@ -47,6 +47,7 @@ OptionsHelper(SAIGA_OPENMP "Enable OPENMP" ON)
 OptionsHelper(SAIGA_LIBSTDCPP "Use the GCC std lib for the clang compiler" OFF)
 OptionsHelper(SAIGA_DEBUG_ASAN "Enable the address sanitizer. Does not work in combination with TSAN." OFF)
 OptionsHelper(SAIGA_DEBUG_TSAN "Enable the thread sanitizer. Does not work in combination with ASAN." OFF)
+OptionsHelper(SAIGA_DEBIAN_BUILD "Saiga is currently build into a Debian Package. This will overwrite a lot of compile flags." OFF)
 
 
 OptionsHelper(SAIGA_MODULE_CORE   "Build the core module, if possible." ON)
@@ -152,14 +153,24 @@ endif()
 
 ############# Generate config file ###############
 
+set(SAIGA_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
+set(SAIGA_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} )
+
+if(SAIGA_DEBIAN_BUILD)
+    # Note during a debian build the actual install dir is something like /libsaiga0.0.8/debian/tmp/usr
+    # We set it here to /usr so the programs can find the shader later.
+    set(SAIGA_INSTALL_PREFIX /usr)
+    # The source is not included in the final package
+    set(SAIGA_PROJECT_SOURCE_DIR "-")
+endif()
 
 if(SAIGA_NO_INSTALL)
     set(SAIGA_SHADER_PREFIX "${PROJECT_SOURCE_DIR}/shader")
     set(SAIGA_INCLUDE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/src")
     set(SAIGA_LIB_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/bin")
     set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/include")
-
+    set(SAIGA_INSTALL_PREFIX "-")
     set(SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL "${CMAKE_CURRENT_BINARY_DIR}/SAIGAConfig.cmake")
     configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfigNoInstall.cmake.in"
@@ -167,14 +178,14 @@ if(SAIGA_NO_INSTALL)
         @ONLY
         )
 else()
-    set(SAIGA_SHADER_PREFIX "${CMAKE_INSTALL_PREFIX}/share/saiga/shader")
-    set(SAIGA_INCLUDE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/include")
-    set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/include")
-    set(SAIGA_LIB_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/lib")
+    set(SAIGA_SHADER_PREFIX "${SAIGA_INSTALL_PREFIX}/share/saiga/shader")
+    set(SAIGA_INCLUDE_INSTALL_PREFIX "${SAIGA_INSTALL_PREFIX}/include")
+    set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${SAIGA_INSTALL_PREFIX}/include")
+    set(SAIGA_LIB_INSTALL_PREFIX "${SAIGA_INSTALL_PREFIX}/lib")
 endif()
 
 STRING(REGEX REPLACE "\\\\" "/" SAIGA_SHADER_PREFIX ${SAIGA_SHADER_PREFIX} )
-STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} )
+STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${SAIGA_INSTALL_PREFIX} )
 
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_buildconfig.h")
