@@ -74,16 +74,15 @@ endif()
 PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
 
-    #openmp
-    find_package(OpenMP REQUIRED)
-    PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
-
-#    find_package(OpenMP REQUIRED)
-#    if (OPENMP_FOUND)
-#        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-#        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-#    endif()
-#    PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
+#openmp
+find_package(OpenMP REQUIRED)
+#   PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
+# nvcc + gcc8.3 somehow doesn't work with the line above.
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
 
 
 #libfreeimage
