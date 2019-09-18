@@ -19,11 +19,11 @@ int main(int, char**)
     ImageTransformation::RGBAToGray8(img.getImageView(), imgGray.getImageView());
     //    TemplatedImage<unsigned char> imgGray("test.png");
 
-    SaigaORB::ORBextractor extractor(1000, 1.2, 4, 20, 7);
+    Saiga::ORBextractor extractor(1000, 1.2, 4, 20, 7);
     //    std::cout << img << std::endl;
 
 
-    std::vector<SaigaORB::kpt_t> kps;
+    std::vector<Saiga::kpt_t> kps;
     Saiga::TemplatedImage<uchar> des;
 
     for (int i = 0; i < 5; ++i)

@@ -1,12 +1,11 @@
-#ifndef ORBEXTRACTOR_DISTRIBUTION_H
-#define ORBEXTRACTOR_DISTRIBUTION_H
-
+#pragma once
 #include "Types.h"
 
 #include <list>
 #include <vector>
-namespace SaigaORB
+namespace Saiga
 {
+// TODO: remove
 class Distribution
 {
    public:
@@ -23,7 +22,7 @@ class Distribution
 
 
 
-}  // namespace SaigaORB
+}  // namespace Saiga
 
 
 namespace Saiga
@@ -64,5 +63,28 @@ class SAIGA_VISION_API FeatureDistributionBucketing : public FeatureDistribution
     ivec2 bucketSize;
 };
 
+
+class SAIGA_VISION_API FeatureDistributionANMS : public FeatureDistribution
+{
+   public:
+    enum class AccelarationStructure
+    {
+        KDTREE,
+        RANGETREE,
+        GRID
+    };
+
+    FeatureDistributionANMS(const ivec2& imageSize, int N, AccelarationStructure ac = AccelarationStructure::GRID)
+        : FeatureDistribution(imageSize, N)
+    {
+    }
+
+    virtual int operator()(std::vector<KeyPoint<float>>& keypoints) override
+    {
+        // implementation in .cpp file
+        return 0;
+    }
+};
+
+
 }  // namespace Saiga
-#endif

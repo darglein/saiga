@@ -11,7 +11,7 @@
 #    include <opencv2/core/types.hpp>
 #endif
 
-namespace SaigaORB
+namespace Saiga
 {
 typedef unsigned char uchar;
 

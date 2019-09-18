@@ -5,7 +5,7 @@
 
 #include <opencv2/imgproc/imgproc.hpp>
 
-namespace SaigaORB
+namespace Saiga
 {
 void MakeKernel1D(std::vector<double>& k, double sigma, int sz)
 {

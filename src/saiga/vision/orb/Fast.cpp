@@ -3,7 +3,7 @@
 #include "saiga/extra/opencv/opencv.h"
 
 #include "opencv2/features2d.hpp"
-namespace SaigaORB
+namespace Saiga
 {
 FASTdetector::FASTdetector(int _iniThreshold, int _minThreshold, int _nlevels)
     : iniThreshold(0), minThreshold(0), nlevels(_nlevels), pixelOffset{}, threshold_tab_init{}, threshold_tab_min{}

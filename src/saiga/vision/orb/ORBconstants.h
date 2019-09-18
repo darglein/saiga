@@ -1,6 +1,6 @@
 #ifndef SAIGA_ORB_ORBCONSTANTS_H
 #define SAIGA_ORB_ORBCONSTANTS_H
-namespace SaigaORB
+namespace Saiga
 {
 const int PATCH_SIZE = 31;
 

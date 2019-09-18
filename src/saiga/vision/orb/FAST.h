@@ -4,7 +4,7 @@
 #include "ORBconstants.h"
 #include "Types.h"
 
-namespace SaigaORB
+namespace Saiga
 {
 // const int CIRCLE_SIZE = 16;
 

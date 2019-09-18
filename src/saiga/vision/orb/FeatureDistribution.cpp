@@ -1,4 +1,4 @@
-#include "Distribution.h"
+#include "FeatureDistribution.h"
 
 #include <algorithm>
 #include <vector>
@@ -7,7 +7,7 @@
 #    include <opencv2/core/core.hpp>
 #endif
 
-namespace SaigaORB
+namespace Saiga
 {
 static void RetainBestN(std::vector<kpt_t>& kpts, int N)
 {
@@ -91,7 +91,7 @@ void Distribution::DistributeKeypointsSoftSSC(std::vector<kpt_t>& kpts, const in
     double sol2 = (numerator1 + sqrt(discriminant)) / denominator;
 
     int high = (sol1 > sol2) ? sol1 : sol2;
-    int low  = floor(sqrt((double)kpts.size() / N));
+    int low  = std::floor(sqrt((double)kpts.size() / N));
 
     bool done = false;
     int kMin = round(N - N * epsilon), kMax = round(N + N * epsilon);
@@ -160,4 +160,4 @@ void Distribution::DistributeKeypointsSoftSSC(std::vector<kpt_t>& kpts, const in
     }
     kpts = reskpts;
 }
-}  // namespace SaigaORB
+}  // namespace Saiga

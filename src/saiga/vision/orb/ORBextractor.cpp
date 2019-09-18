@@ -16,7 +16,7 @@
 
 #include <saiga/core/util/Range.h>
 
-namespace SaigaORB
+namespace Saiga
 {
 float ORBextractor::IntensityCentroidAngle(const uchar* pointer, int step)
 {

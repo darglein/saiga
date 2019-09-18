@@ -1,8 +1,8 @@
 #ifndef SAIGA_ORB_ORBEXTRACTOR_H
 #define SAIGA_ORB_ORBEXTRACTOR_H
 
-#include "Distribution.h"
 #include "FAST.h"
+#include "FeatureDistribution.h"
 
 #include <vector>
 #ifdef ORB_USE_OPENCV
@@ -15,7 +15,7 @@
 
 
 
-namespace SaigaORB
+namespace Saiga
 {
 struct Point2i
 {
@@ -156,6 +156,6 @@ class SAIGA_VISION_API ORBextractor
     std::string loadPath;
 #endif
 };
-}  // namespace SaigaORB
+}  // namespace Saiga
 
 #endif  // SAIGA_ORB_ORBEXTRACTOR_H
