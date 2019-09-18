@@ -62,6 +62,8 @@ OptionsHelper(SAIGA_WITH_MKL "Build the MKL library, if possible." OFF)
 DefaultBuildType(RelWithDebInfo)
 
 
+set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/External)
+
 
 set(SAIGA_FULL_EIGEN 1)
 if(SAIGA_LEGACY_GLM)

@@ -11,6 +11,7 @@ add_subdirectory(pgo)
 add_subdirectory(reconstruction)
 add_subdirectory(scene)
 add_subdirectory(slam)
+add_subdirectory(sophus)
 add_subdirectory(util)
 
 if (OPENCV_FOUND)
@@ -29,7 +30,7 @@ if(CERES_FOUND)
     add_subdirectory(ceres)
 endif()
 
-if(EIGENRECURSIVE_FOUND)
+if(SAIGA_USE_EIGENRECURSIVE)
     add_subdirectory(recursive)
 endif()
 

@@ -12,7 +12,7 @@ if(OPENCV_FOUND)
 add_subdirectory(orb)
 endif()
 
-if(EIGENRECURSIVE_FOUND)
+if(SAIGA_USE_EIGENRECURSIVE)
     #    add_subdirectory(block_matrices)
 
     if(SAIGA_USE_CHOLMOD)

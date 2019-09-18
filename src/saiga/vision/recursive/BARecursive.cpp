@@ -379,7 +379,7 @@ double BARec::computeQuadraticForm()
         //#pragma omp for
         for (auto&& info : validImages)
         {
-            int imgid        = info.sceneImageId;
+            // int imgid        = info.sceneImageId;
             int actualOffset = info.variableId;
 
             int k = A.w.outerIndexPtr()[actualOffset];

@@ -11,7 +11,6 @@
 
 #include "Eigen/Sparse"
 #include "Eigen/SparseCholesky"
-#include "EigenRecursive/All.h"
 
 #include <fstream>
 

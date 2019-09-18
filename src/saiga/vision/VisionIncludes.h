@@ -10,10 +10,7 @@
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/Align.h"
 #include "saiga/core/util/Range.h"
-
-#include "sophus/se3.hpp"
-#include "sophus/sim3.hpp"
-
+#include "saiga/vision/sophus/Sophus.h"
 
 namespace Saiga
 {

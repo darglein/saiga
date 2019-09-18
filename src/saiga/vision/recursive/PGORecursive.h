@@ -9,7 +9,7 @@
 
 #include "saiga/vision/pgo/PGOBase.h"
 
-#include "EigenRecursive/All.h"
+#include "Recursive.h"
 
 namespace Saiga
 {
