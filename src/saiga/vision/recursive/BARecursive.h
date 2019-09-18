@@ -84,7 +84,24 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     std::vector<int> pointCameraCounts, pointCameraCountsScan;
 
 
-    std::vector<std::pair<int, int>> validImages;  // compact images + bool=constant
+    struct ImageInfo
+    {
+        // id in the saiga.scene.image array
+        int sceneImageId = -1;
+
+        // compacted valid id. index into validImages array
+        int validId = -1;
+
+        // index into delta_x, A matrices.
+        // this is -1 for constant cameras
+        int variableId = -1;
+
+        bool isConstant() { return variableId == -1; }
+        bool isValid() { return validId >= 0; }
+        explicit operator bool() { return isValid(); }
+    };
+
+    std::vector<ImageInfo> validImages;  // compact images + bool=constant
     std::vector<int> validPoints;
     std::vector<int> pointToValidMap;
 

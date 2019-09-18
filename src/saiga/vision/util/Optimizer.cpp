@@ -67,6 +67,11 @@ OptimizationResults LMOptimizer::solve()
     OptimizationResults result;
     result.linear_solver_time = 0;
 
+
+    //    double test = computeCost();
+    //    std::cout << "test : " << test << std::endl;
+    //    return result;
+
     for (auto i = 0; i < optimizationOptions.maxIterations; ++i)
     {
         double chi2 = computeQuadraticForm();

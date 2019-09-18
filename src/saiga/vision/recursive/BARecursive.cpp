@@ -82,27 +82,46 @@ void BARec::init()
     validPoints.reserve(scene.worldPoints.size());
     pointToValidMap.resize(scene.worldPoints.size());
 
-    totalN           = 0;
-    constantN        = 0;
-    int nonConstantN = 0;
-    for (int i = 0; i < (int)scene.images.size(); ++i)
+    totalN    = 0;
+    constantN = 0;
+
+
+    for (int i = 0, validId = 0, nonConstantN = 0; i < (int)scene.images.size(); ++i)
     {
         auto& img = scene.images[i];
-        if (!img) continue;
+        if (!img)
+        {
+            // std::cout << "invalid image " << i << std::endl;
+            continue;
+        }
+
+
+
+        ImageInfo info;
+        info.sceneImageId = i;
+        info.validId      = validId++;
+
         bool constant = scene.extrinsics[img.extr].constant;
 
         int realOffset = constant ? -1 : nonConstantN;
-        validImages.emplace_back(i, realOffset);
+
+        info.variableId = realOffset;
+        //        validImages.emplace_back(validId, realOffset);
         if (constant)
             constantN++;
         else
             nonConstantN++;
         totalN++;
+
+        validImages.push_back(info);
     }
+
+    SAIGA_ASSERT(totalN == validImages.size());
 
     for (int i = 0; i < (int)scene.worldPoints.size(); ++i)
     {
-        auto& wp = scene.worldPoints[i];
+        auto& wp           = scene.worldPoints[i];
+        pointToValidMap[i] = -1;
         if (!wp) continue;
         int validId        = validPoints.size();
         pointToValidMap[i] = validId;
@@ -131,10 +150,10 @@ void BARec::init()
 
 
     // Make a copy of the initial parameters
-    for (int i = 0; i < (int)validImages.size(); ++i)
+    for (auto&& info : validImages)
     {
-        auto& img = scene.images[validImages[i].first];
-        x_u[i]    = scene.extrinsics[img.extr].se3;
+        auto& img         = scene.images[info.sceneImageId];
+        x_u[info.validId] = scene.extrinsics[img.extr].se3;
     }
 
     for (int i = 0; i < (int)validPoints.size(); ++i)
@@ -152,10 +171,10 @@ void BARec::init()
     observations = 0;
 
     std::vector<int> innerElements;
-    for (int i = 0; i < (int)validImages.size(); ++i)
+    for (auto&& info : validImages)
     {
-        auto imgId  = validImages[i].first;
-        auto offset = validImages[i].second;
+        auto imgId  = info.sceneImageId;
+        auto offset = info.variableId;
         //        std::cout << imgId << " " << offset << std::endl;
         if (offset == -1) continue;
 
@@ -280,7 +299,8 @@ void BARec::init()
     {
         std::cout << "." << std::endl;
         std::cout << "Structure Analyzed." << std::endl;
-        std::cout << "Cameras: " << n << std::endl;
+        std::cout << "Total Cameras: " << totalN << std::endl;
+        std::cout << "Constant Cameras: " << constantN << std::endl;
         std::cout << "Points: " << m << std::endl;
         std::cout << "Observations: " << observations << std::endl;
 #if 1
@@ -356,11 +376,11 @@ double BARec::computeQuadraticForm()
             bresArray[i].setZero();
         }
 
-#pragma omp for
-        for (int asdf = 0; asdf < (int)validImages.size(); ++asdf)
+        //#pragma omp for
+        for (auto&& info : validImages)
         {
-            int imgid        = validImages[asdf].first;
-            int actualOffset = validImages[asdf].second;
+            int imgid        = info.sceneImageId;
+            int actualOffset = info.variableId;
 
             int k = A.w.outerIndexPtr()[actualOffset];
 
@@ -370,9 +390,8 @@ double BARec::computeQuadraticForm()
 
 
 
-            auto& img = scene.images[imgid];
-            //            auto& extr   = scene.extrinsics[img.extr].se3;
-            auto& extr   = x_u[imgid];
+            auto& img    = scene.images[info.sceneImageId];
+            auto& extr   = x_u[info.validId];
             auto& extr2  = scene.extrinsics[img.extr];
             auto& camera = scene.intrinsics[img.intr];
             StereoCamera4 scam(camera, scene.bf);
@@ -423,21 +442,21 @@ double BARec::computeQuadraticForm()
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, 1, res, JrowPose,
+                    KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, w, res, JrowPose,
                                                             JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
-
-                    auto c      = res.squaredNorm();
-                    auto sqrtrw = sqrt(w);
+#if 1
                     if (baOptions.huberStereo > 0)
                     {
-                        auto rw = Kernel::huberWeight<T>(baOptions.huberStereo, c);
-                        sqrtrw *= sqrt(rw(1));
+                        auto c      = res.squaredNorm();
+                        auto rw     = Kernel::huberWeight<T>(baOptions.huberStereo, c);
+                        auto sqrtrw = sqrt(rw(1));
+                        JrowPose *= sqrtrw;
+                        JrowPoint *= sqrtrw;
+                        res *= sqrtrw;
                     }
-                    JrowPose *= sqrtrw;
-                    JrowPoint *= sqrtrw;
-                    res *= sqrtrw;
+#endif
 
                     newChi2 += res.squaredNorm();
                     if (!constant)
@@ -456,20 +475,20 @@ double BARec::computeQuadraticForm()
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, 1, res, JrowPose, JrowPoint);
+                    KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
-                    auto c      = res.squaredNorm();
-                    auto sqrtrw = sqrt(w);
+#if 1
                     if (baOptions.huberMono > 0)
                     {
-                        auto rw = Kernel::huberWeight<T>(baOptions.huberMono, c);
-                        sqrtrw *= sqrt(rw(1));
+                        auto c      = res.squaredNorm();
+                        auto rw     = Kernel::huberWeight<T>(baOptions.huberMono, c);
+                        auto sqrtrw = sqrt(rw(1));
+                        JrowPose *= sqrtrw;
+                        JrowPoint *= sqrtrw;
+                        res *= sqrtrw;
                     }
-                    JrowPose *= sqrtrw;
-                    JrowPoint *= sqrtrw;
-                    res *= sqrtrw;
-
+#endif
                     newChi2 += res.squaredNorm();
 
                     if (!constant)
@@ -487,8 +506,6 @@ double BARec::computeQuadraticForm()
                     SAIGA_ASSERT(A.w.innerIndexPtr()[k] == j);
                     ++k;
                 }
-                //                A.w.innerIndexPtr()[k] = j;
-                //                A.w.valuePtr()[k]      = targetPosePoint;
             }
         }
 
@@ -515,37 +532,19 @@ double BARec::computeQuadraticForm()
 
 void BARec::addDelta()
 {
-#if 0
-    //#pragma omp parallel num_threads(threads)
+    for (auto&& info : validImages)
     {
-//#pragma omp for nowait
-        for (int i = 0; i < n; ++i)
-        {
-            oldx_u[i] = x_u[i];
-            auto t    = delta_x.u(i).get();
-            x_u[i]    = SE3::exp(t) * x_u[i];
-        }
-//#pragma omp for nowait
-        for (int i = 0; i < m; ++i)
-        {
-            oldx_v[i] = x_v[i];
-            auto t    = delta_x.v(i).get();
-            x_v[i] += t;
-        }
+        if (info.isConstant()) continue;
+
+        auto id     = info.validId;
+        auto offset = info.variableId;
+        oldx_u[id]  = x_u[id];
+
+
+
+        auto t  = delta_x.u(offset).get();
+        x_u[id] = SE3::exp(t) * x_u[id];
     }
-#else
-    for (size_t i = 0; i < validImages.size(); ++i)
-    {
-        auto id     = validImages[i].first;
-        auto offset = validImages[i].second;
-        oldx_u[i]   = x_u[i];
-
-        if (offset == -1) continue;
-
-        auto t = delta_x.u(offset).get();
-        x_u[i] = SE3::exp(t) * x_u[i];
-    }
-
 
     for (int i = 0; i < m; ++i)
     {
@@ -553,20 +552,22 @@ void BARec::addDelta()
         auto t    = delta_x.v(i).get();
         x_v[i] += t;
     }
-#endif
 }
 
 void BARec::revertDelta()
 {
     //#pragma omp parallel num_threads(threads)
     {
-#pragma omp for nowait
-        for (int i = 0; i < n; ++i)
+        //#pragma omp for nowait
+        //        for (int i = 0; i < x_u.size(); ++i)
+        for (auto&& info : validImages)
         {
-            x_u[i] = oldx_u[i];
+            if (info.isConstant()) continue;
+
+            x_u[info.validId] = oldx_u[info.validId];
         }
 #pragma omp for nowait
-        for (int i = 0; i < m; ++i)
+        for (int i = 0; i < x_v.size(); ++i)
         {
             x_v[i] = oldx_v[i];
         }
@@ -582,12 +583,13 @@ void BARec::finalize()
 
     //#pragma omp parallel num_threads(threads)
     {
-#pragma omp for nowait
-        for (size_t i = 0; i < validImages.size(); ++i)
+        //#pragma omp for nowait
+        for (auto&& info : validImages)
         {
-            auto id    = validImages[i].first;
-            auto& extr = scene.extrinsics[id];
-            if (!extr.constant) extr.se3 = x_u[i];
+            if (info.isConstant()) continue;
+
+            auto& extr = scene.extrinsics[info.sceneImageId];
+            extr.se3   = x_u[info.validId];
         }
 #pragma omp for
         for (size_t i = 0; i < validPoints.size(); ++i)
@@ -627,6 +629,7 @@ double BARec::computeCost()
 
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
 
+    SAIGA_ASSERT(threads == 1);
     using T = BlockBAScalar;
 
     //#pragma omp parallel num_threads(threads)
@@ -635,14 +638,16 @@ double BARec::computeCost()
 
         double& newChi2 = localChi2[tid];
         newChi2         = 0;
-#pragma omp for
-        for (int i = 0; i < (int)validImages.size(); ++i)
+        //#pragma omp for
+        for (auto&& info : validImages)
         {
-            int imgid = validImages[i].first;
-            auto& img = scene.images[imgid];
-            //            auto& extr   = scene.extrinsics[img.extr].se3;
-            auto& extr   = x_u[i];
+            SAIGA_ASSERT(info);
+            auto& img  = scene.images[info.sceneImageId];
+            auto& extr = x_u[info.validId];
+            //            auto& extr2  = scene.extrinsics[img.extr];
+            //            auto& extr   = extr2.se3;
             auto& camera = scene.intrinsics[img.intr];
+
             StereoCamera4 scam(camera, scene.bf);
 
             for (auto& ip : img.stereoPoints)
@@ -650,21 +655,24 @@ double BARec::computeCost()
                 if (!ip) continue;
                 BlockBAScalar w = ip.weight * img.imageWeight * scene.scale();
                 int j           = pointToValidMap[ip.wp];
-                auto& wp        = x_v[j];
+                SAIGA_ASSERT(j >= 0);
+                auto& wp = x_v[j];
 
                 if (ip.depth > 0)
                 {
                     using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
                     KernelType::ResidualType res;
-                    res         = KernelType::evaluateResidual(scam, extr, wp, ip.point, ip.depth, 1);
-                    auto c      = res.squaredNorm();
-                    auto sqrtrw = sqrt(w);
+                    res = KernelType::evaluateResidual(scam, extr, wp, ip.point, ip.depth, w);
+#if 1
                     if (baOptions.huberStereo > 0)
                     {
+                        auto c  = res.squaredNorm();
                         auto rw = Kernel::huberWeight<T>(baOptions.huberStereo, c);
-                        sqrtrw *= sqrt(rw(1));
+                        // we need to sqrt the weight here because it will get squared again later
+                        auto sqrtrw = sqrt(rw(1));
+                        res *= sqrtrw;
                     }
-                    res *= sqrtrw;
+#endif
                     newChi2 += res.squaredNorm();
                 }
                 else
@@ -672,15 +680,16 @@ double BARec::computeCost()
                     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
                     KernelType::ResidualType res;
 
-                    res         = KernelType::evaluateResidual(camera, extr, wp, ip.point, 1);
-                    auto c      = res.squaredNorm();
-                    auto sqrtrw = sqrt(w);
+                    res = KernelType::evaluateResidual(camera, extr, wp, ip.point, w);
+#if 1
                     if (baOptions.huberMono > 0)
                     {
-                        auto rw = Kernel::huberWeight<T>(baOptions.huberMono, c);
-                        sqrtrw *= sqrt(rw(1));
+                        auto c      = res.squaredNorm();
+                        auto rw     = Kernel::huberWeight<T>(baOptions.huberMono, c);
+                        auto sqrtrw = sqrt(rw(1));
+                        res *= sqrtrw;
                     }
-                    res *= sqrtrw;
+#endif
                     newChi2 += res.squaredNorm();
                 }
             }

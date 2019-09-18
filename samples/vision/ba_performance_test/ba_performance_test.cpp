@@ -204,9 +204,10 @@ int main(int, char**)
     Scene scene;
     //    scene.load(SearchPathes::data("vision/slam_30_2656.scene"));
     //    scene.load(SearchPathes::data("vision/slam_125_8658.scene"));
-    scene.load(SearchPathes::data("vision/scene_gba.scene"));
+    //    scene.load(SearchPathes::data("vision/scene_gba.scene"));
+    scene.load(SearchPathes::data("vision/broken.scene"));
 
-    scene.addExtrinsicNoise(0.01);
+//    scene.addExtrinsicNoise(0.01);
 #if 0
     std::cout << scene << std::endl;
 
@@ -250,6 +251,8 @@ int main(int, char**)
     baoptions.iterativeTolerance     = 1e-50;
     baoptions.numThreads             = 1;
     baoptions.buildExplizitSchur     = true;
+
+
 
     baoptions.solverType = OptimizationOptions::SolverType::Iterative;
     std::cout << baoptions << std::endl;

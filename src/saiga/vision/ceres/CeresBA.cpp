@@ -59,6 +59,7 @@ OptimizationResults CeresBA::initAndSolve()
     int stereoCount = 0;
     for (auto& img : scene.images)
     {
+        if (!img) continue;
         for (auto& ip : img.stereoPoints)
         {
             if (!ip) continue;
@@ -85,6 +86,8 @@ OptimizationResults CeresBA::initAndSolve()
 
     for (auto& img : scene.images)
     {
+        if (!img) continue;
+
         auto& extr   = scene.extrinsics[img.extr].se3;
         auto& camera = scene.intrinsics[img.intr];
         StereoCamera4 scam(camera, scene.bf);
