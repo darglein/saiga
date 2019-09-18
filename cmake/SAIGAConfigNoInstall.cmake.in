@@ -88,10 +88,10 @@ macro(saiga_make_target _target _target_lib _libraries _soname)
 
 add_library(${_target} SHARED IMPORTED)
 
-message(STATUS ${_target})
-message(STATUS ${_target_lib})
-message(STATUS ${_libraries})
-message(STATUS ${_soname})
+#message(STATUS ${_target})
+#message(STATUS ${_target_lib})
+#message(STATUS ${_libraries})
+#message(STATUS ${_soname})
 
 set_target_properties(${_target} PROPERTIES
   INTERFACE_COMPILE_FEATURES "cxx_std_14"
