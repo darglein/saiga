@@ -5,20 +5,46 @@
  */
 #include "Eigen_Compile_Checker.h"
 
+#include "saiga/core/util/ConsoleColor.h"
+#include "saiga/core/util/table.h"
+#include "saiga/core/util/tostring.h"
 namespace Saiga
 {
 namespace EigenHelper
 {
 std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags)
 {
-    strm << "[EigenCompileFlags]" << std::endl;
-    strm << "Eigen Version: " << flags.versionWorld << "." << flags.versionMajor << "." << flags.versionMinor << std::endl;
-    strm << "Eigen Debug: " << flags.debug << std::endl;
-    strm << "FMA: " << flags.fma << std::endl;
-    strm << "SSE3/SSSE3: " << flags.sse3 << "/" << flags.ssse3 << std::endl;
-    strm << "SSE4.1/SSE4.2: " << flags.sse41 << "/" << flags.sse42 << std::endl;
-    strm << "AVX/AVX2: " << flags.avx << "/" << flags.avx2 << std::endl;
-    strm << "AVX512: " << flags.avx512;
+    strm << ConsoleColor::CYAN;
+    strm << "========= Eigen Info ==========" << std::endl;
+
+    Table table({2, 18, 10, 1}, strm);
+    table << "|"
+          << "Eigen Version"
+          << (to_string(EIGEN_WORLD_VERSION) + "." + to_string(EIGEN_MAJOR_VERSION) + "." +
+              to_string(EIGEN_MINOR_VERSION))
+          << "|";
+
+    table << "|"
+          << "Debug " << flags.debug << "|";
+
+    table << "|"
+          << "FMA " << flags.fma << "|";
+
+    table << "|"
+          << "SSE3/SSSE3 " << to_string(flags.sse3) + "/" + to_string(flags.ssse3) << "|";
+
+    table << "|"
+          << "SSE4.1/SSE4.2 " << to_string(flags.sse41) + "/" + to_string(flags.sse42) << "|";
+    table << "|"
+          << "AVX/AVX2 " << to_string(flags.avx) + "/" + to_string(flags.avx2) << "|";
+    table << "|"
+          << "AVX512 " << flags.avx512 << "|";
+
+    strm << "===============================" << std::endl;
+
+    strm.unsetf(std::ios_base::floatfield);
+    strm << ConsoleColor::RESET;
+
     return strm;
 }
 EigenCompileFlags getSaigaEigenCompileFlags()

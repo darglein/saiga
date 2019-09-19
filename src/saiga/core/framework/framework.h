@@ -34,9 +34,13 @@ struct SAIGA_CORE_API SaigaParameters
     void fromConfigFile(const std::string& file);
 };
 
-SAIGA_CORE_API extern void writeExtensions();
 
-SAIGA_CORE_API extern void initSaigaSampleNoWindow();
+
+SAIGA_CORE_API extern void printSaigaInfo();
+
+SAIGA_CORE_API extern bool findShaders(const SaigaParameters& params);
+
+SAIGA_CORE_API extern void initSaigaSampleNoWindow(bool createConfig = true);
 SAIGA_CORE_API extern void initSaigaSample();
 SAIGA_CORE_API extern void initSaiga(const SaigaParameters& params);
 SAIGA_CORE_API extern void cleanupSaiga();

@@ -33,6 +33,43 @@ bool isShaderDirectory(const std::string& dir)
     return dirbase.existsFile("colored_points.glsl") && dirgeo.existsFile("deferred_mvp_texture.glsl");
 }
 
+bool findShaders(const SaigaParameters& params)
+{
+    std::vector<std::string> searchPathes = {
+        // First check in the local working directory
+        "shader",
+    };
+
+    searchPathes.insert(searchPathes.end(), params.shaderDirectory.begin(), params.shaderDirectory.end());
+    // Then the given paramter from the config file
+    //        params.shaderDirectory,
+    // And last the install prefix from cmake
+    searchPathes.push_back(SAIGA_INSTALL_PREFIX "/share/saiga/shader");
+    searchPathes.push_back(SAIGA_SHADER_PREFIX);
+
+
+    for (auto str : searchPathes)
+    {
+        if (isShaderDirectory(str))
+        {
+            shaderDir = str;
+            break;
+        }
+    }
+
+    if (shaderDir.empty())
+    {
+        std::cout << "Could not find the Saiga shaders." << std::endl;
+        std::cout << "Set the 'shaderDirectory' variable of 'SaigaParameters' accordingly." << std::endl;
+        for (auto s : searchPathes)
+        {
+            std::cout << "     " << s << std::endl;
+        }
+        return false;
+    }
+    return true;
+}
+
 
 void SaigaParameters::fromConfigFile(const std::string& file)
 {
@@ -60,7 +97,7 @@ void SaigaParameters::fromConfigFile(const std::string& file)
 
 
 
-static void printSaigaInfo()
+void printSaigaInfo()
 {
     std::cout << ConsoleColor::BLUE;
     Table table({2, 18, 10, 1});
@@ -148,39 +185,10 @@ void initSaiga(const SaigaParameters& params)
 
     FP::resetSSECSR();
 
+    bool gotShaders = findShaders(params);
 
-    std::vector<std::string> searchPathes = {
-        // First check in the local working directory
-        "shader",
-    };
+    if (!gotShaders) exit(1);
 
-    searchPathes.insert(searchPathes.end(), params.shaderDirectory.begin(), params.shaderDirectory.end());
-    // Then the given paramter from the config file
-    //        params.shaderDirectory,
-    // And last the install prefix from cmake
-    searchPathes.push_back(SAIGA_INSTALL_PREFIX "/share/saiga/shader");
-    searchPathes.push_back(SAIGA_SHADER_PREFIX);
-
-
-    for (auto str : searchPathes)
-    {
-        if (isShaderDirectory(str))
-        {
-            shaderDir = str;
-            break;
-        }
-    }
-
-    if (shaderDir.empty())
-    {
-        std::cout << "Could not find the Saiga shaders." << std::endl;
-        std::cout << "Set the 'shaderDirectory' variable of 'SaigaParameters' accordingly." << std::endl;
-        for (auto s : searchPathes)
-        {
-            std::cout << "     " << s << std::endl;
-        }
-        exit(1);
-    }
 
     SearchPathes::shader.addSearchPath(shaderDir);
     SearchPathes::shader.addSearchPath(shaderDir + "/include");
@@ -226,11 +234,11 @@ void cleanupSaiga()
     initialized = false;
 }
 
-void initSaigaSampleNoWindow()
+void initSaigaSampleNoWindow(bool createConfig)
 {
     Saiga::initSaigaSample();
     Saiga::SaigaParameters saigaParameters;
-    saigaParameters.fromConfigFile("config.ini");
+    if (createConfig) saigaParameters.fromConfigFile("config.ini");
     initSaiga(saigaParameters);
     catchSegFaults();
 }
