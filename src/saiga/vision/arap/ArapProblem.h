@@ -10,8 +10,9 @@
 
 namespace Saiga
 {
+#ifdef SAIGA_USE_OPENMESH
 using ArabMesh = OpenMesh::TriMesh_ArrayKernelT<OpenMesh::DefaultTraits>;
-
+#endif
 
 class SAIGA_VISION_API ArapProblem
 {
@@ -50,9 +51,10 @@ class SAIGA_VISION_API ArapProblem
 
     const double wReg = 0.01;
 
-
+#ifdef SAIGA_USE_OPENMESH
     void createFromMesh(const ArabMesh& mesh);
     void saveToMesh(ArabMesh& mesh);
+#endif
 
     double density();
 

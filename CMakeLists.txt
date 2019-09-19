@@ -60,6 +60,12 @@ OptionsHelper(SAIGA_MODULE_CUDA   "Build the cuda module, if possible." ON)
 OptionsHelper(SAIGA_WITH_MKL "Build the MKL library, if possible." OFF)
 
 
+if(SAIGA_DEBIAN_BUILD)
+    # Force release mode for package builds
+    # Debug info will make the files too big.
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
 DefaultBuildType(RelWithDebInfo)
 
 
