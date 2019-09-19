@@ -25,6 +25,9 @@ class SAIGA_CORE_API Color
     operator vec3() const;
     operator vec4() const;
 
+
+    operator ucvec4() const { return ucvec4(r, g, b, a); }
+
     vec3 toVec3() const;
     vec4 toVec4() const;
 

@@ -64,6 +64,8 @@ if(SAIGA_DEBIAN_BUILD)
     # Force release mode for package builds
     # Debug info will make the files too big.
     set(CMAKE_BUILD_TYPE Release)
+    set(SAIGA_ARCHNATIVE OFF)
+    set(SAIGA_FULL_OPTIMIZE OFF)
 endif()
 
 DefaultBuildType(RelWithDebInfo)
