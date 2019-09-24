@@ -163,9 +163,20 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
 
     SetSteps();
 
+    ivec2 dims(image.cols, image.rows);
+    ivec2 bucketSize(80, 80);
+    //FeatureDistributionBucketing distribution(dims, nfeatures, bucketSize);
+    //FeatureDistributionSoftSSC distribution(dims, nfeatures, 3, 0.1);
+    //FeatureDistributionQuadtree distribution(dims, nfeatures);
+    //FeatureDistributionANMS distribution(dims, nfeatures, FeatureDistributionANMS::AccelerationStructure::KDTREE);
+    //FeatureDistributionANMS distribution(dims, nfeatures, FeatureDistributionANMS::AccelerationStructure::RANGETREE);
+    FeatureDistributionANMS distribution(dims, nfeatures, FeatureDistributionANMS::AccelerationStructure::GRID);
+    //FeatureDistributionTopN distribution(dims, nfeatures);
+
+
     std::vector<std::vector<kpt_t>> allkpts(nlevels);
 
-    DivideAndFAST(allkpts, 30, distributePerLevel);
+    DivideAndFAST(allkpts, distribution, 30, distributePerLevel);
 
     if (!distributePerLevel)
     {
@@ -185,8 +196,7 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
             }
         }
 
-        Distribution::DistributeKeypoints(resultKeypoints, 0, imagePyramid[0].cols, 0, imagePyramid[0].rows, nfeatures,
-                                          softSSCThreshold);
+        distribution(resultKeypoints);
     }
 
     if (distributePerLevel)
@@ -252,7 +262,7 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
 void ORBextractor::ComputeAngles(std::vector<std::vector<kpt_t>>& allkpts)
 {
 //#pragma omp parallel for num_threads(nlevels)
-#pragma omp parallel for num_threads(2) schedule(dynamic)
+//#pragma omp parallel for num_threads(2) schedule(dynamic)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
         for (int i = 0; i < (int)allkpts[lvl].size(); ++i)
@@ -281,7 +291,7 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, 
 
 
 
-#pragma omp parallel for num_threads(2) schedule(dynamic)
+//#pragma omp parallel for num_threads(2) schedule(dynamic)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
         int current = scan[lvl];
@@ -336,7 +346,8 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, 
  * @param divideImage  true-->divide image into cellSize x cellSize cells, run FAST per cell
  * @param cellSize must be greater than 16 and lesser than min(rows, cols) of smallest image in pyramid
  */
-void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int cellSize, bool distributePerLevel)
+void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, FeatureDistribution& distribution,
+        int cellSize, bool distributePerLevel)
 {
     const int minimumX = EDGE_THRESHOLD - 3, minimumY = minimumX;
     {
@@ -350,7 +361,7 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int c
             maxLvl = minLvl + 1;
         }
 //#pragma omp parallel for default(none) shared(minLvl, maxLvl, cellSize, distributePerLevel, allkpts)
-#pragma omp parallel for num_threads(2) schedule(dynamic)
+//#pragma omp parallel for num_threads(2) schedule(dynamic)
         for (int lvl = minLvl; lvl < maxLvl; ++lvl)
         {
             std::vector<kpt_t> levelkpts;
@@ -419,8 +430,12 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int c
                 }
             }
             if (distributePerLevel)
-                Distribution::DistributeKeypoints(levelkpts, minimumX, maximumX, minimumY, maximumY,
-                                                  nfeaturesPerLevelVec[lvl], softSSCThreshold);
+            {
+                distribution.SetN(nfeaturesPerLevelVec[lvl]);
+                distribution.SetImageSize(make_ivec2(maximumX-minimumX, maximumY-minimumY));
+                distribution(levelkpts);
+            }
+
 
             for (auto& kpt : levelkpts)
             {

@@ -3,88 +3,113 @@
 
 #include <list>
 #include <vector>
-namespace Saiga
-{
-// TODO: remove
-class Distribution
-{
-   public:
-    static void DistributeKeypoints(std::vector<kpt_t>& kpts, int minX, int maxX, int minY, int maxY, int N,
-                                    int softSSCThreshold = 4);
-
-    static void DistributeKeypointsGrid(std::vector<kpt_t>& kpts, const int minX, const int maxX, const int minY,
-                                        const int maxY, const int N);
-
-   protected:
-    static void DistributeKeypointsSoftSSC(std::vector<kpt_t>& kpts, int cols, int rows, int N, float epsilon,
-                                           int threshold);
-};
-
-
-
-}  // namespace Saiga
-
 
 namespace Saiga
 {
 // Abstract base class for the different distribution methods
 class SAIGA_VISION_API FeatureDistribution
 {
-   public:
+public:
     FeatureDistribution(const ivec2& imageSize, int N) : imageSize(imageSize), N(N) {}
     virtual ~FeatureDistribution() {}
     /**
      * @param keypoints
      * @return The number of keypoints
      */
-    virtual int operator()(std::vector<KeyPoint<float>>& keypoints) = 0;
+    virtual int operator()(std::vector<kpt_t>& keypoints) = 0;
+    inline void SetN(int _N)
+    {
+        N = _N;
+    }
+    inline void SetImageSize(const ivec2& imgsz)
+    {
+        imageSize[0] = imgsz[0];
+        imageSize[1] = imgsz[1];
+    }
 
-   protected:
+protected:
     // common parameters
     ivec2 imageSize;
     int N;
 };
 
+class SAIGA_VISION_API FeatureDistributionTopN : public FeatureDistribution
+{
+public:
+    FeatureDistributionTopN(const ivec2& imageSize, int N) : FeatureDistribution(imageSize, N)
+    {
+    }
+
+    int operator()(std::vector<kpt_t>& keypoints) override;
+};
 
 class SAIGA_VISION_API FeatureDistributionBucketing : public FeatureDistribution
 {
-   public:
+public:
     FeatureDistributionBucketing(const ivec2& imageSize, int N, const ivec2& bucketSize)
-        : FeatureDistribution(imageSize, N), bucketSize(bucketSize)
+            : FeatureDistribution(imageSize, N), bucketSize(bucketSize)
     {
     }
 
-    virtual int operator()(std::vector<KeyPoint<float>>& keypoints) override
-    {
-        // implementation in .cpp file
-        return 0;
-    }
+    int operator()(std::vector<kpt_t>& keypoints) override;
 
+protected:
     ivec2 bucketSize;
+};
+
+
+class SAIGA_VISION_API FeatureDistributionQuadtree : public FeatureDistribution
+{
+public:
+    FeatureDistributionQuadtree(const ivec2& imageSize, int N) : FeatureDistribution(imageSize, N)
+    {
+    }
+
+    int operator()(std::vector<kpt_t>& keypoints) override;
 };
 
 
 class SAIGA_VISION_API FeatureDistributionANMS : public FeatureDistribution
 {
-   public:
-    enum class AccelarationStructure
+public:
+    enum class AccelerationStructure
     {
         KDTREE,
         RANGETREE,
         GRID
     };
 
-    FeatureDistributionANMS(const ivec2& imageSize, int N, AccelarationStructure ac = AccelarationStructure::GRID)
-        : FeatureDistribution(imageSize, N)
+    FeatureDistributionANMS(const ivec2& imageSize, int N, AccelerationStructure _ac = AccelerationStructure::GRID,
+                            float _epsilon = 0.1f)
+            : FeatureDistribution(imageSize, N), ac(_ac), epsilon(_epsilon)
     {
     }
 
-    virtual int operator()(std::vector<KeyPoint<float>>& keypoints) override
-    {
-        // implementation in .cpp file
-        return 0;
-    }
+    int operator()(std::vector<kpt_t>& keypoints) override;
+
+protected:
+    AccelerationStructure ac;
+    float epsilon;
+
+    int ANMSKDTree(std::vector<kpt_t>& keypoints, int high, int low);
+    int ANMSRangeTree(std::vector<kpt_t>& keypoints, int high, int low);
+    int ANMSGrid(std::vector<kpt_t>& keypoints, int high, int low);
 };
 
+
+class SAIGA_VISION_API FeatureDistributionSoftSSC : public FeatureDistribution
+{
+public:
+    FeatureDistributionSoftSSC(const ivec2 &imageSize, int N, int _threshold = 3, float _epsilon = 0.1) :
+            FeatureDistribution(imageSize, N), threshold(_threshold), epsilon(_epsilon)
+    {
+    }
+
+    int operator()(std::vector<kpt_t>& keypoints) override;
+
+protected:
+    int threshold;
+    float epsilon;
+};
 
 }  // namespace Saiga
