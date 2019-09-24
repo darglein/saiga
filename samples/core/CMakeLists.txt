@@ -1,4 +1,4 @@
-
+add_subdirectory(autodiff)
 add_subdirectory(benchmarkIPScaling)
 add_subdirectory(benchmarkMemcpy)
 add_subdirectory(nullspace)
