@@ -108,7 +108,7 @@ void ORBextractor::SetFASTThresholds(int ini, int min)
 
 
 void ORBextractor::operator()(cv::InputArray inputImage, cv::InputArray mask, std::vector<kpt_t>& resultKeypoints,
-                              cv::OutputArray outputDescriptors)
+                              cv::OutputArray outputDescriptors, FeatureDistribution& distribution)
 {
     // this->operator()(inputImage, mask, resultKeypoints, outputDescriptors, true);
 
@@ -119,7 +119,7 @@ void ORBextractor::operator()(cv::InputArray inputImage, cv::InputArray mask, st
 
     Saiga::TemplatedImage<uchar> saigaDescriptors;
 
-    this->operator()(saigaImage, resultKeypoints, saigaDescriptors, true);
+    this->operator()(saigaImage, resultKeypoints, saigaDescriptors, distribution, true);
 
     cv::Mat cvRes = Saiga::ImageViewToMat<uchar>(saigaDescriptors);
 }
@@ -133,7 +133,8 @@ void ORBextractor::operator()(cv::InputArray inputImage, cv::InputArray mask, st
  * @param distributePerLevel true->distribute kpts per octave, false->distribute kpts per image
  */
 void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
-                              Saiga::TemplatedImage<uchar>& outputDescriptors, bool distributePerLevel)
+                              Saiga::TemplatedImage<uchar>& outputDescriptors, FeatureDistribution& distribution,
+                              bool distributePerLevel)
 {
 #ifdef ORB_FIXED_DURATION
     using clk                 = std::chrono::high_resolution_clock;
@@ -163,17 +164,6 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
 
     SetSteps();
 
-    ivec2 dims(image.cols, image.rows);
-    ivec2 bucketSize(80, 80);
-    //FeatureDistributionBucketing distribution(dims, nfeatures, bucketSize);
-    //FeatureDistributionSoftSSC distribution(dims, nfeatures, 3, 0.1);
-    //FeatureDistributionQuadtree distribution(dims, nfeatures);
-    //FeatureDistributionANMS distribution(dims, nfeatures, FeatureDistributionANMS::AccelerationStructure::KDTREE);
-    //FeatureDistributionANMS distribution(dims, nfeatures, FeatureDistributionANMS::AccelerationStructure::RANGETREE);
-    FeatureDistributionANMS distribution(dims, nfeatures, FeatureDistributionANMS::AccelerationStructure::GRID);
-    //FeatureDistributionTopN distribution(dims, nfeatures);
-
-
     std::vector<std::vector<kpt_t>> allkpts(nlevels);
 
     DivideAndFAST(allkpts, distribution, 30, distributePerLevel);
@@ -195,7 +185,7 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
                 kpt.point *= scale;
             }
         }
-
+        distribution.SetImageSize(make_ivec2(image.cols, image.rows));
         distribution(resultKeypoints);
     }
 

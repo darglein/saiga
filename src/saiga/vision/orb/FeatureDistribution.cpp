@@ -352,10 +352,10 @@ int FeatureDistributionANMS::operator()(std::vector<kpt_t> &keypoints)
 
 int FeatureDistributionANMS::ANMSKDTree(std::vector<kpt_t> &keypoints, int high, int low)
 {
-    PointCloud<int> cloud;
+    KdTreePointCloud<int> cloud;
     generatePointCloud(cloud, keypoints);
-    typedef nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<int, PointCloud<int>>, PointCloud<int>, 2>
-                                                                                                                     a_kd_tree;
+    typedef nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<int, KdTreePointCloud<int>>,
+            KdTreePointCloud<int>, 2> a_kd_tree;
     a_kd_tree tree(2, cloud, nanoflann::KDTreeSingleIndexAdaptorParams(25));
     tree.buildIndex();
 
