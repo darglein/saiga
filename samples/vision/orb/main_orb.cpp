@@ -26,7 +26,7 @@ int main(int, char**)
     std::vector<Saiga::kpt_t> kps;
     Saiga::TemplatedImage<uchar> des;
 
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 500; ++i)
     {
         kps.clear();
         SAIGA_BLOCK_TIMER("Extract");

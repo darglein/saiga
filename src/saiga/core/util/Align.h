@@ -139,7 +139,11 @@ inline std::shared_ptr<_Tp> make_aligned_shared(_Args&&... __args)
     // control block without alignment
     auto ptr = (_Tp*)aligned_malloc<Alignment>(sizeof(_Tp));
     new (ptr) _Tp(std::forward<_Args>(__args)...);
-    return std::shared_ptr<_Tp>(ptr, &aligned_free);
+    //    return std::shared_ptr<_Tp>(ptr, &aligned_free);
+    return std::shared_ptr<_Tp>(ptr, [](_Tp* ptr) {
+        ptr->~_Tp();
+        aligned_free(ptr);
+    });
 
     //    typedef typename std::remove_cv<_Tp>::type _Tp_nc;
     //    return std::allocate_shared<_Tp>(aligned_allocator<_Tp_nc, Alignment>(), std::forward<_Args>(__args)...);
@@ -162,7 +166,7 @@ inline auto make_aligned_unique(_Args&&... __args)
 }
 
 template <typename _Tp, typename... _Args>
-inline std::shared_ptr<_Tp> make_aligned_unique(_Args&&... __args)
+inline std::unique_ptr<_Tp> make_aligned_unique(_Args&&... __args)
 {
     return make_aligned_unique<_Tp, alignof(_Tp), _Args...>(std::forward<_Args>(__args)...);
 }
