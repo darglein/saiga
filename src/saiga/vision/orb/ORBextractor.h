@@ -57,12 +57,13 @@ class SAIGA_VISION_API ORBextractor
 
 #ifdef ORB_USE_OPENCV
     void operator()(cv::InputArray image, cv::InputArray mask, std::vector<kpt_t>& keypoints,
-                    cv::OutputArray descriptors);
+                    cv::OutputArray descriptors, FeatureDistribution& distribution);
 #endif
 
 
     void operator()(Saiga::ImageView<uchar> inputImage, std::vector<kpt_t>& resultKeypoints,
-                    Saiga::TemplatedImage<uchar>& outputDescriptors, bool distributePerLevel);
+                    Saiga::TemplatedImage<uchar>& outputDescriptors, FeatureDistribution& distribution,
+                    bool distributePerLevel = true);
 
     int inline GetLevels() { return nlevels; }
 
@@ -112,7 +113,7 @@ class SAIGA_VISION_API ORBextractor
     void ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, img_t& descriptors);
 
 
-    void DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int cellSize = 30, bool distributePerLevel = true);
+    void DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, FeatureDistribution& distribution, int cellSize = 30, bool distributePerLevel = true);
 #ifdef ORB_USE_OPENCV
     void ComputeScalePyramid(img_t& image, std::vector<cv::Mat>& tmpPyramid);
 #endif

@@ -108,7 +108,7 @@ void ORBextractor::SetFASTThresholds(int ini, int min)
 
 
 void ORBextractor::operator()(cv::InputArray inputImage, cv::InputArray mask, std::vector<kpt_t>& resultKeypoints,
-                              cv::OutputArray outputDescriptors)
+                              cv::OutputArray outputDescriptors, FeatureDistribution& distribution)
 {
     // this->operator()(inputImage, mask, resultKeypoints, outputDescriptors, true);
 
@@ -119,7 +119,7 @@ void ORBextractor::operator()(cv::InputArray inputImage, cv::InputArray mask, st
 
     Saiga::TemplatedImage<uchar> saigaDescriptors;
 
-    this->operator()(saigaImage, resultKeypoints, saigaDescriptors, true);
+    this->operator()(saigaImage, resultKeypoints, saigaDescriptors, distribution, true);
 
     cv::Mat cvRes = Saiga::ImageViewToMat<uchar>(saigaDescriptors);
 }
@@ -133,7 +133,8 @@ void ORBextractor::operator()(cv::InputArray inputImage, cv::InputArray mask, st
  * @param distributePerLevel true->distribute kpts per octave, false->distribute kpts per image
  */
 void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
-                              Saiga::TemplatedImage<uchar>& outputDescriptors, bool distributePerLevel)
+                              Saiga::TemplatedImage<uchar>& outputDescriptors, FeatureDistribution& distribution,
+                              bool distributePerLevel)
 {
 #ifdef ORB_FIXED_DURATION
     using clk                 = std::chrono::high_resolution_clock;
@@ -165,7 +166,7 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
 
     std::vector<std::vector<kpt_t>> allkpts(nlevels);
 
-    DivideAndFAST(allkpts, 30, distributePerLevel);
+    DivideAndFAST(allkpts, distribution, 30, distributePerLevel);
 
     if (!distributePerLevel)
     {
@@ -184,9 +185,8 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
                 kpt.point *= scale;
             }
         }
-
-        Distribution::DistributeKeypoints(resultKeypoints, 0, imagePyramid[0].cols, 0, imagePyramid[0].rows, nfeatures,
-                                          softSSCThreshold);
+        distribution.SetImageSize(make_ivec2(image.cols, image.rows));
+        distribution(resultKeypoints);
     }
 
     if (distributePerLevel)
@@ -252,7 +252,7 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
 void ORBextractor::ComputeAngles(std::vector<std::vector<kpt_t>>& allkpts)
 {
 //#pragma omp parallel for num_threads(nlevels)
-#pragma omp parallel for num_threads(2) schedule(dynamic)
+//#pragma omp parallel for num_threads(2) schedule(dynamic)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
         for (int i = 0; i < (int)allkpts[lvl].size(); ++i)
@@ -281,7 +281,7 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, 
 
 
 
-#pragma omp parallel for num_threads(2) schedule(dynamic)
+//#pragma omp parallel for num_threads(2) schedule(dynamic)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
         int current = scan[lvl];
@@ -336,7 +336,8 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, 
  * @param divideImage  true-->divide image into cellSize x cellSize cells, run FAST per cell
  * @param cellSize must be greater than 16 and lesser than min(rows, cols) of smallest image in pyramid
  */
-void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int cellSize, bool distributePerLevel)
+void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, FeatureDistribution& distribution,
+        int cellSize, bool distributePerLevel)
 {
     const int minimumX = EDGE_THRESHOLD - 3, minimumY = minimumX;
     {
@@ -350,7 +351,7 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int c
             maxLvl = minLvl + 1;
         }
 //#pragma omp parallel for default(none) shared(minLvl, maxLvl, cellSize, distributePerLevel, allkpts)
-#pragma omp parallel for num_threads(2) schedule(dynamic)
+//#pragma omp parallel for num_threads(2) schedule(dynamic)
         for (int lvl = minLvl; lvl < maxLvl; ++lvl)
         {
             std::vector<kpt_t> levelkpts;
@@ -419,8 +420,12 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, int c
                 }
             }
             if (distributePerLevel)
-                Distribution::DistributeKeypoints(levelkpts, minimumX, maximumX, minimumY, maximumY,
-                                                  nfeaturesPerLevelVec[lvl], softSSCThreshold);
+            {
+                distribution.SetN(nfeaturesPerLevelVec[lvl]);
+                distribution.SetImageSize(make_ivec2(maximumX-minimumX, maximumY-minimumY));
+                distribution(levelkpts);
+            }
+
 
             for (auto& kpt : levelkpts)
             {
