@@ -15,7 +15,7 @@
 #else
 namespace Saiga
 {
-using glfw_Window = void;
+using GLFWWindow = void;
 }
 #endif
 

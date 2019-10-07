@@ -10,7 +10,7 @@ GLDebugDrawer::GLDebugDrawer()
     //    setDebugMode(DBG_MAX_DEBUG_DRAW_MODE);
     setDebugMode(DBG_DrawWireframe | DBG_DrawConstraints);
 
-    lineShader = ShaderLoader::instance()->load<MVPShader>("geometry/deferred_mvp_model_forward.glsl");
+    lineShader = shaderLoader.load<MVPShader>("geometry/deferred_mvp_model_forward.glsl");
 }
 
 
