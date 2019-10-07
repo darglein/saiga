@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-#include "EigenRecursive/All.h"
+#include "Recursive.h"
 
 // The recursive matrix module is standalone
 #if defined(SAIGA_INCLUDED)

@@ -31,7 +31,7 @@ OptionsHelper (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
 OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" OFF)
 OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON)
 OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON)
-OptionsHelper (SAIGA_BUILD_TESTS "build tests" ON)
+OptionsHelper (SAIGA_BUILD_TESTS "build tests" OFF)
 OptionsHelper (SAIGA_STRICT_FP "strict ieee floating point" OFF)
 OptionsHelper (SAIGA_FULL_OPTIMIZE "finds and enables all possible optimizations" OFF)
 OptionsHelper (SAIGA_ARCHNATIVE "adds the -march=native compile flag" ON)
@@ -47,6 +47,7 @@ OptionsHelper(SAIGA_OPENMP "Enable OPENMP" ON)
 OptionsHelper(SAIGA_LIBSTDCPP "Use the GCC std lib for the clang compiler" OFF)
 OptionsHelper(SAIGA_DEBUG_ASAN "Enable the address sanitizer. Does not work in combination with TSAN." OFF)
 OptionsHelper(SAIGA_DEBUG_TSAN "Enable the thread sanitizer. Does not work in combination with ASAN." OFF)
+OptionsHelper(SAIGA_DEBIAN_BUILD "Saiga is currently build into a Debian Package. This will overwrite a lot of compile flags." OFF)
 
 
 OptionsHelper(SAIGA_MODULE_CORE   "Build the core module, if possible." ON)
@@ -59,8 +60,18 @@ OptionsHelper(SAIGA_MODULE_CUDA   "Build the cuda module, if possible." ON)
 OptionsHelper(SAIGA_WITH_MKL "Build the MKL library, if possible." OFF)
 
 
+if(SAIGA_DEBIAN_BUILD)
+    # Force release mode for package builds
+    # Debug info will make the files too big.
+    set(CMAKE_BUILD_TYPE Release)
+    set(SAIGA_ARCHNATIVE OFF)
+    set(SAIGA_FULL_OPTIMIZE OFF)
+endif()
+
 DefaultBuildType(RelWithDebInfo)
 
+
+set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/External)
 
 
 set(SAIGA_FULL_EIGEN 1)
@@ -150,14 +161,24 @@ endif()
 
 ############# Generate config file ###############
 
+set(SAIGA_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
+set(SAIGA_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} )
+
+if(SAIGA_DEBIAN_BUILD)
+    # Note during a debian build the actual install dir is something like /libsaiga0.0.8/debian/tmp/usr
+    # We set it here to /usr so the programs can find the shader later.
+    set(SAIGA_INSTALL_PREFIX /usr)
+    # The source is not included in the final package
+    set(SAIGA_PROJECT_SOURCE_DIR "-")
+endif()
 
 if(SAIGA_NO_INSTALL)
     set(SAIGA_SHADER_PREFIX "${PROJECT_SOURCE_DIR}/shader")
     set(SAIGA_INCLUDE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/src")
     set(SAIGA_LIB_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/bin")
     set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/include")
-
+    set(SAIGA_INSTALL_PREFIX "-")
     set(SAIGA_CONFIG_CMAKE_FILE_NO_INSTALL "${CMAKE_CURRENT_BINARY_DIR}/SAIGAConfig.cmake")
     configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SAIGAConfigNoInstall.cmake.in"
@@ -165,14 +186,14 @@ if(SAIGA_NO_INSTALL)
         @ONLY
         )
 else()
-    set(SAIGA_SHADER_PREFIX "${CMAKE_INSTALL_PREFIX}/share/saiga/shader")
-    set(SAIGA_INCLUDE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/include")
-    set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/include")
-    set(SAIGA_LIB_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/lib")
+    set(SAIGA_SHADER_PREFIX "${SAIGA_INSTALL_PREFIX}/share/saiga/shader")
+    set(SAIGA_INCLUDE_INSTALL_PREFIX "${SAIGA_INSTALL_PREFIX}/include")
+    set(SAIGA_BUILD_INCLUDE_INSTALL_PREFIX "${SAIGA_INSTALL_PREFIX}/include")
+    set(SAIGA_LIB_INSTALL_PREFIX "${SAIGA_INSTALL_PREFIX}/lib")
 endif()
 
 STRING(REGEX REPLACE "\\\\" "/" SAIGA_SHADER_PREFIX ${SAIGA_SHADER_PREFIX} )
-STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} )
+STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${SAIGA_INSTALL_PREFIX} )
 
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_buildconfig.h")

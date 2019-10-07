@@ -8,6 +8,7 @@
 
 namespace Saiga
 {
+#ifdef SAIGA_USE_OPENMESH
 void ArapProblem::createFromMesh(const ArabMesh& mesh)
 {
     vertices.clear();
@@ -65,6 +66,7 @@ void ArapProblem::saveToMesh(ArabMesh& mesh)
         mesh.point(v)     = p;
     }
 }
+#endif
 
 double ArapProblem::density()
 {

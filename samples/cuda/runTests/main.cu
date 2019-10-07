@@ -9,6 +9,7 @@
 #include "saiga/core/util/commandLineArguments.h"
 #include "saiga/core/util/crash.h"
 #include "saiga/cuda/cudaHelper.h"
+#include "saiga/cuda/CudaInfo.h"
 #include "saiga/cuda/cusparseHelper.h"
 #include "saiga/cuda/random.h"
 #include "saiga/cuda/tests/test.h"

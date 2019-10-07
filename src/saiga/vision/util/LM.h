@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "EigenRecursive/All.h"
+#include "../recursive/Recursive.h"
 
 namespace Saiga
 {

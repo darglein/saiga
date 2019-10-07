@@ -36,7 +36,7 @@ int main(int, char**)
     //FeatureDistributionANMS dis(dims, nfeatures, FeatureDistributionANMS::AccelerationStructure::GRID);
     //FeatureDistributionTopN dis(dims, nfeatures);
 
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 500; ++i)
     {
         kps.clear();
         SAIGA_BLOCK_TIMER("Extract");

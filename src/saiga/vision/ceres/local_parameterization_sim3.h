@@ -1,6 +1,7 @@
 #pragma once
 
-#include <sophus/sim3.hpp>
+
+#include "saiga/vision/sophus/Sophus.h"
 
 #include <ceres/local_parameterization.h>
 

@@ -136,6 +136,8 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
                               Saiga::TemplatedImage<uchar>& outputDescriptors, FeatureDistribution& distribution,
                               bool distributePerLevel)
 {
+    cv::setNumThreads(0);
+
 #ifdef ORB_FIXED_DURATION
     using clk                 = std::chrono::high_resolution_clock;
     clk::time_point funcEntry = clk::now();
@@ -462,6 +464,8 @@ void ORBextractor::ComputeScalePyramid(img_t& image, std::vector<cv::Mat>& tmpPy
         tmpPyramid[lvl] = borderedImg(rowRange, colRange);
 
 
+#if 1
+
         if (lvl)
         {
             cv::resize(tmpPyramid[lvl - 1], tmpPyramid[lvl], cv::Size(width, height), 0, 0, CV_INTER_LINEAR);
@@ -474,6 +478,7 @@ void ORBextractor::ComputeScalePyramid(img_t& image, std::vector<cv::Mat>& tmpPy
             cv::copyMakeBorder(img, borderedImg, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
                                cv::BORDER_REFLECT_101);
         }
+#endif
     }
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
@@ -542,4 +547,4 @@ void ORBextractor::SetScaleFactor(float s)
         invLevelSigma2Vec[i] = 1.f / levelSigma2Vec[i];
     }
 }
-}  // namespace SaigaORB
+}  // namespace Saiga

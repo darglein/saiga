@@ -15,6 +15,20 @@ namespace Saiga
 {
 namespace ImageDraw
 {
+// Draw a filled rectangle, with AABB like min/max values
+// note: the high bounds will be exclusive
+template <typename T, typename S>
+void drawRectangle(ImageView<T> img, const vec2& low, const vec2& high, const S& color)
+{
+    for (int dy = low.y(); dy < high.y(); ++dy)
+    {
+        for (int dx = low.x(); dx < high.x(); ++dx)
+        {
+            img.clampedWrite(dy, dx, color);
+        }
+    }
+}
+
 // Draw a filled circle
 template <typename T, typename S>
 void drawCircle(ImageView<T> img, const vec2& position, float radius, const S& color)

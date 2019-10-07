@@ -39,11 +39,6 @@ SAIGA_OPENGL_API bool hasExtension(const std::string& ext);
 SAIGA_OPENGL_API std::vector<std::string> getExtensions();
 
 
-// called from OpenGLWindow::OpenGLWindow()
-SAIGA_LOCAL void initSaigaGL();
-SAIGA_LOCAL void cleanupSaigaGL();
-
-
 
 enum class OpenGLVendor
 {
@@ -68,6 +63,9 @@ struct SAIGA_OPENGL_API OpenGLParameters
 
     bool debug = true;
 
+    // Throw an assertion if we get an opengl error.
+    bool assertAtError = false;
+
     // all functionality deprecated in the requested version of OpenGL is removed
     bool forwardCompatible = false;
 
@@ -80,6 +78,10 @@ struct SAIGA_OPENGL_API OpenGLParameters
      */
     void fromConfigFile(const std::string& file);
 };
+
+// called from OpenGLWindow::OpenGLWindow()
+SAIGA_LOCAL void initSaigaGL(const OpenGLParameters& params);
+SAIGA_LOCAL void cleanupSaigaGL();
 
 }  // namespace Saiga
 

@@ -56,11 +56,15 @@ class Triangulation
 };
 
 
+// Compute the triangulation angle in radians
+// c1: world position of camera 1
+// c2: world position of camera 2
+// wp: world position of 3D point
 // This code here is partially copied from Colmap.
 // https://github.com/colmap/colmap
 inline double TriangulationAngle(const Vec3& c1, const Vec3& c2, const Vec3& wp)
 {
-#if 1
+#if 0
     // alternative implementation using the dot product
     // (requires 2 sqrts so is a bit slower)
     Vec3 v1      = (c1 - wp).normalized();
@@ -69,11 +73,11 @@ inline double TriangulationAngle(const Vec3& c1, const Vec3& c2, const Vec3& wp)
     double angle = acos(cosA);
 #else
     // Baseline length between camera centers.
-    const double baseline_length_squared = (proj_center1 - proj_center2).squaredNorm();
+    const double baseline_length_squared = (c1 - c2).squaredNorm();
 
     // Ray lengths from cameras to point.
-    const double ray_length_squared1 = (points3D - proj_center1).squaredNorm();
-    const double ray_length_squared2 = (points3D - proj_center2).squaredNorm();
+    const double ray_length_squared1 = (wp - c1).squaredNorm();
+    const double ray_length_squared2 = (wp - c2).squaredNorm();
 
     // Using "law of cosines" to compute the enclosing angle between rays.
     const double denominator = 2.0 * std::sqrt(ray_length_squared1 * ray_length_squared2);

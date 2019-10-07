@@ -8,10 +8,6 @@
 
 #include "saiga/config.h"
 
-#if !defined(SAIGA_USE_CUDA)
-#    error Saiga was compiled without cuda.
-#endif
-
 //#include <cuda.h>
 #include <cuda_runtime.h>
 

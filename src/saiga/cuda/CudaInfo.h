@@ -1,18 +1,22 @@
-﻿/**
+/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
-#include "saiga/cuda/cudaHelper.h"
-#include "saiga/core/util/assert.h"
+#pragma once
 
-#include <algorithm>
+
+#include "saiga/cuda/cudaHelper.h"
+
+
 
 namespace Saiga
 {
 namespace CUDA
 {
+
+
 // Beginning of GPU Architecture definitions
 inline int _ConvertSMVer2Cores(int major, int minor)
 {
@@ -147,9 +151,7 @@ inline int gpuGetMaxGflopsDeviceId()
     return max_perf_device;
 }
 
-
-void initCUDA()
-{
+inline void initCUDA() {
     int runtimeVersion;
     cudaRuntimeGetVersion(&runtimeVersion);
     int driverVersion;
@@ -173,7 +175,23 @@ void initCUDA()
     int devID;
     devID = gpuGetMaxGflopsDeviceId();
     CHECK_CUDA_ERROR(cudaSetDevice(devID));
+}
 
+
+inline void destroyCUDA()
+{
+    // cudaDeviceReset causes the driver to clean up all state. While
+    // not mandatory in normal operation, it is good practice.  It is also
+    // needed to ensure correct operation when the application is being
+    // profiled. Calling cudaDeviceReset causes all profile data to be
+    // flushed before the application exits
+    CHECK_CUDA_ERROR(cudaDeviceReset());
+}
+
+inline void printCUDAInfo()
+{
+    int devID;
+    cudaGetDevice(&devID);
 
     cudaDeviceProp deviceProp;
     CHECK_CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, devID));
@@ -199,29 +217,21 @@ void initCUDA()
     // multiply it by the interface width (divided by 8, to convert bits to bytes)
     // and multiply by 2 due to the double data rate. Finally, we divide by 109 to convert the result to GB/s.
     double clockRateHz = deviceProp.memoryClockRate * 1000.0;
-    std::cout << "  Theoretical Memory Bandwidth (GB/s): " << 2.0 * clockRateHz * (deviceProp.memoryBusWidth / 8) / 1.0e9
-         << std::endl;
+    std::cout << "  Theoretical Memory Bandwidth (GB/s): "
+              << 2.0 * clockRateHz * (deviceProp.memoryBusWidth / 8) / 1.0e9 << std::endl;
 
 
     std::cout << "  32-Bit Registers per Thread (100% Occ): "
-         << deviceProp.regsPerBlock / deviceProp.maxThreadsPerMultiProcessor << std::endl;
+              << deviceProp.regsPerBlock / deviceProp.maxThreadsPerMultiProcessor << std::endl;
     std::cout << "  Shared Memory per Thread (100% Occ): "
-         << deviceProp.sharedMemPerBlock / deviceProp.maxThreadsPerMultiProcessor << std::endl;
+              << deviceProp.sharedMemPerBlock / deviceProp.maxThreadsPerMultiProcessor << std::endl;
     std::cout << "  32-Bit Shared Memory elements per Thread (100% Occ): "
-         << deviceProp.sharedMemPerBlock / deviceProp.maxThreadsPerMultiProcessor / 4 << std::endl;
+              << deviceProp.sharedMemPerBlock / deviceProp.maxThreadsPerMultiProcessor / 4 << std::endl;
 
     std::cout << std::endl;
 }
 
-void destroyCUDA()
-{
-    // cudaDeviceReset causes the driver to clean up all state. While
-    // not mandatory in normal operation, it is good practice.  It is also
-    // needed to ensure correct operation when the application is being
-    // profiled. Calling cudaDeviceReset causes all profile data to be
-    // flushed before the application exits
-    CHECK_CUDA_ERROR(cudaDeviceReset());
-}
-
 }  // namespace CUDA
 }  // namespace Saiga
+
+

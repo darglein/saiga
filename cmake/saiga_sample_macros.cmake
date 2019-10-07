@@ -40,7 +40,7 @@ macro(saiga_make_test _modules)
 
     set(PROG_NAME "test_${PREFIX}_${PROG_NAME}")
 
-    message(STATUS "Sample enabled:      ${PROG_NAME}")
+    message(STATUS "Test enabled:      ${PROG_NAME}")
 
     # Collect source and header files
     FILE(GLOB main_SRC  *.cpp)

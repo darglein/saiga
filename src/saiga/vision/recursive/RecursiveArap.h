@@ -5,11 +5,11 @@
  */
 
 #pragma once
-#include "saiga/vision/util/Optimizer.h"
 #include "saiga/vision/arap/ArapBase.h"
 #include "saiga/vision/arap/ArapProblem.h"
+#include "saiga/vision/util/Optimizer.h"
 
-#include "EigenRecursive/All.h"
+#include "Recursive.h"
 namespace Saiga
 {
 class SAIGA_VISION_API RecursiveArap : public ArapBase, public LMOptimizer

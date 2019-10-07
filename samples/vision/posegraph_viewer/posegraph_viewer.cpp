@@ -23,7 +23,7 @@
 #include "saiga/vision/recursive/PGORecursive.h"
 
 #if defined(SAIGA_VULKAN_INCLUDED)
-#    error OpenGL was included somewhere.
+#    error Vulkan was included somewhere.
 #endif
 
 Sample::Sample()

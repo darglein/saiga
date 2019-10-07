@@ -36,8 +36,8 @@ class Sample : public SampleWindowForward
 
 
     std::vector<vec3> boxOffsets;
-    bool change           = false;
-    bool uploadChanges    = true;
+    bool change = false;
+    // bool uploadChanges    = true;
     float rms             = 0;
     int minMatchEdge      = 1000;
     float maxEdgeDistance = 1;
@@ -46,8 +46,8 @@ class Sample : public SampleWindowForward
     Saiga::Scene scene;
     Saiga::SynteticScene sscene;
 
-    bool displayModels = true;
-    bool showImgui     = true;
+    // bool displayModels = true;
+    // bool showImgui     = true;
 
     Saiga::BAOptions baoptions;
     Saiga::BARec barec;

@@ -8,15 +8,15 @@
 #define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
 
 
+#include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/table.h"
-#include "saiga/core/math/Eigen_Compile_Checker.h"
+#include "saiga/vision/recursive/Recursive.h"
 #include "saiga/vision/util/Random.h"
 
 #include "Eigen/CholmodSupport"
 #include "Eigen/SparseCholesky"
-#include "EigenRecursive/All.h"
 
 #include <fstream>
 #include <set>

@@ -7,8 +7,9 @@
 ##GL_VERTEX_SHADER
 
 #version 330
-layout(location=0) in vec3 in_position;
+#extension GL_ARB_explicit_uniform_location : enable
 
+layout(location=0) in vec3 in_position;
 
 out vec2 tc;
 
@@ -20,7 +21,10 @@ void main() {
 }
 
 ##GL_FRAGMENT_SHADER
+
 #version 330
+#extension GL_ARB_explicit_uniform_location : enable
+
 in vec2 tc;
 uniform sampler2D image;
 

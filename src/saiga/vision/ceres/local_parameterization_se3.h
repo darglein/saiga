@@ -1,5 +1,5 @@
 #pragma once
-#include <sophus/se3.hpp>
+#include "saiga/vision/sophus/Sophus.h"
 
 #include <ceres/local_parameterization.h>
 
@@ -7,7 +7,6 @@ namespace Sophus
 {
 namespace test
 {
-
 // use for autodiff
 template <bool LEFT_MULT = true>
 class LocalParameterizationSE3 : public ceres::LocalParameterization
@@ -108,5 +107,3 @@ class LocalParameterizationSE32 : public ceres::LocalParameterization
 
 }  // namespace test
 }  // namespace Sophus
-
-

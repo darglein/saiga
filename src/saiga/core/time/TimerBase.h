@@ -9,8 +9,8 @@
 #include "saiga/config.h"
 
 #include <chrono>
-#include <string>
 #include <iostream>
+#include <string>
 namespace Saiga
 {
 #ifdef WIN32
@@ -36,7 +36,7 @@ class SAIGA_TEMPLATE TimerBase
     {
         auto endTime = std::chrono::high_resolution_clock::now();
         auto elapsed = endTime - startTime;
-        lastTime = std::chrono::duration_cast<Time>(elapsed);
+        lastTime     = std::chrono::duration_cast<Time>(elapsed);
         return lastTime;
     }
 
@@ -63,18 +63,16 @@ class SAIGA_TEMPLATE TimerBase
 class SAIGA_TEMPLATE ScopedTimerPrint : public TimerBase
 {
    public:
-
-    ScopedTimerPrint(const std::string& name) : name(name)
+    ScopedTimerPrint(const std::string& name) : name(name) { start(); }
+    ~ScopedTimerPrint()
     {
-        start();
-    }
-    ~ScopedTimerPrint(){
         stop();
         auto time = getTimeMS();
         std::cout << name << " : " << time << "ms." << std::endl;
     }
+
    public:
-     std::string name;
+    std::string name;
 };
 
 
@@ -82,7 +80,7 @@ class SAIGA_TEMPLATE ScopedTimerPrint : public TimerBase
 template <typename T = float, typename Unit = std::chrono::milliseconds>
 class ScopedTimer : public TimerBase
 {
-    static_assert(std::is_arithmetic<T>::value);
+    static_assert(std::is_arithmetic<T>::value, "T must be arithmetic");
 
    public:
     T* target;
@@ -103,7 +101,7 @@ auto make_scoped_timer(T& target)
 {
     return ScopedTimer<T, Unit>(target);
 }
-}
+}  // namespace Saiga
 
 
 #define SAIGA_BLOCK_TIMER_NOMSG()                                                  \
@@ -133,6 +131,3 @@ auto make_scoped_timer(T& target)
                                ? std::make_shared<Saiga::ScopedTimerPrint>(std::string(SAIGA_SHORT_FUNCTION) + ":" + \
                                                                            std::string(std::to_string(__LINE__)))    \
                                : nullptr
-
-
-

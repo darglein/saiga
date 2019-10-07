@@ -100,36 +100,43 @@ if(SAIGA_FULL_OPTIMIZE OR SAIGA_ARCHNATIVE)
     endif()
 endif()
 
-    if(SAIGA_FULL_OPTIMIZE)
-        if(SAIGA_CXX_MSVC)
-            #todo check if avx is present
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Oi /Ot /Oy /GL /fp:fast /Gy /arch:AVX2")
-            set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} /LTCG")
-            add_definitions(-D__FMA__)
-        endif()
+if(SAIGA_FULL_OPTIMIZE)
+    if(SAIGA_CXX_MSVC)
+        #todo check if avx is present
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Oi /Ot /Oy /GL /fp:fast /Gy /arch:AVX2")
+        set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} /LTCG")
+        add_definitions(-D__FMA__)
     endif()
+endif()
 
-    # Sanitizers
-    # https://github.com/google/sanitizers
-
-    if(SAIGA_DEBUG_ASAN)
-        if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
-            SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g")
-            if(SAIGA_CXX_CLANG)
-                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libsan")
-            else()
-                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libasan")
-            endif()
+# Sanitizers
+# https://github.com/google/sanitizers
+if(SAIGA_DEBUG_ASAN)
+    if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g")
+        if(SAIGA_CXX_CLANG)
+            SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libsan")
         else()
-            message(FATAL_ERROR "ASAN not supported for your compiler.")
+            SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libasan")
         endif()
+    else()
+        message(FATAL_ERROR "ASAN not supported for your compiler.")
     endif()
+endif()
 
 
-    if(SAIGA_DEBUG_TSAN)
-        if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
-            SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread -static-libasan -fno-omit-frame-pointer -g")
-        else()
-            message(FATAL_ERROR "TSAN not supported for your compiler.")
-        endif()
+if(SAIGA_DEBUG_TSAN)
+    if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread -static-libasan -fno-omit-frame-pointer -g")
+    else()
+        message(FATAL_ERROR "TSAN not supported for your compiler.")
     endif()
+endif()
+
+
+if(SAIGA_DEBIAN_BUILD)
+    if( NOT SAIGA_CXX_CLANG AND NOT SAIGA_CXX_GNU)
+         message(FATAL_ERROR "Only GCC and Clang is supported for a debian build.")
+    endif()
+     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mfma")
+endif()

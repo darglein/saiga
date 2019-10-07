@@ -200,11 +200,14 @@ void OpenGLParameters::fromConfigFile(const std::string& file)
     ini.LoadFile(file.c_str());
 
     debug             = ini.GetAddBool("opengl", "debug", debug);
+    assertAtError     = ini.GetAddBool("opengl", "assertAtError", assertAtError);
     forwardCompatible = ini.GetAddBool("opengl", "forwardCompatible", forwardCompatible);
     versionMajor      = ini.GetAddLong("opengl", "versionMajor", versionMajor);
     versionMinor      = ini.GetAddLong("opengl", "versionMinor", versionMinor);
     profileString     = ini.GetAddString("opengl", "profile", profileString.c_str(),
                                      "# One of the following: 'ANY' 'CORE' 'COMPATIBILITY'");
+
+
 
     if (ini.changed()) ini.SaveFile(file.c_str());
 
@@ -212,7 +215,7 @@ void OpenGLParameters::fromConfigFile(const std::string& file)
     profile = profileString == "ANY" ? Profile::ANY : profileString == "CORE" ? Profile::CORE : Profile::COMPATIBILITY;
 }
 
-void initSaigaGL()
+void initSaigaGL(const OpenGLParameters& params)
 {
     //    shaderPathes.addSearchPath(shaderDir);
     // Disables the following notification:
@@ -225,6 +228,8 @@ void initSaigaGL()
         131218,
     };
     Error::ignoreGLError(ignoreIds);
+
+    Error::setAssertAtError(params.assertAtError)
 }
 
 void cleanupSaigaGL()

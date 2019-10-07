@@ -6,7 +6,7 @@
 
 
 #include <thrust/device_vector.h>
-
+#include "saiga/cuda/CudaInfo.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/event.h"

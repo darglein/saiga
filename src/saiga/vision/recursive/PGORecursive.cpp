@@ -108,7 +108,7 @@ double PGORec::computeQuadraticForm()
 
     //    SAIGA_BLOCK_TIMER();
     //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
-    using T          = BlockPGOScalar;
+    // using T          = BlockPGOScalar;
     using KernelType = Saiga::Kernel::PGO<PGOTransformation>;
 
     b.setZero();
@@ -206,7 +206,7 @@ double PGORec::computeCost()
     auto& scene = *_scene;
 
     //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
-    using T          = BlockPGOScalar;
+    // using T          = BlockPGOScalar;
     using KernelType = Saiga::Kernel::PGO<PGOTransformation>;
 
 

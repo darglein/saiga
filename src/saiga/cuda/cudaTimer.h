@@ -29,8 +29,14 @@ namespace CUDA
 class SAIGA_CUDA_API CudaScopedTimer
 {
    public:
-    CudaScopedTimer(float& time, cudaStream_t stream = 0);
-    ~CudaScopedTimer();
+    CudaScopedTimer(float& time, cudaStream_t stream = 0) : time(time), stream(stream) { start.record(stream); }
+    ~CudaScopedTimer()
+    {
+        stop.record(stream);
+        stop.synchronize();
+
+        time = CudaEvent::elapsedTime(start, stop);
+    }
 
    private:
     float& time;
@@ -43,8 +49,19 @@ class SAIGA_CUDA_API CudaScopedTimer
 class SAIGA_CUDA_API CudaScopedTimerPrint
 {
    public:
-    CudaScopedTimerPrint(const std::string& name, cudaStream_t stream = 0);
-    ~CudaScopedTimerPrint();
+    CudaScopedTimerPrint(const std::string& name, cudaStream_t stream = 0) : name(name), stream(stream)
+    {
+        start.record(stream);
+    }
+    ~CudaScopedTimerPrint()
+    {
+        stop.record(stream);
+        stop.synchronize();
+
+        auto time = CudaEvent::elapsedTime(start, stop);
+
+        std::cout << name << " : " << time << "ms." << std::endl;
+    }
 
    private:
     std::string name;

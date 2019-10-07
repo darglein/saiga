@@ -70,7 +70,7 @@ void FASTdetector::SetStepVector(std::vector<int>& _steps)
 
 void FASTdetector::FAST(img_t img, std::vector<kpt_t>& keypoints, int threshold, int lvl)
 {
-#if 1
+#if 0
     this->FAST_t<uchar>(img, keypoints, threshold, lvl);
 #else
     cv::Mat cvmat = Saiga::ImageViewToMat(img);
@@ -321,4 +321,4 @@ float FASTdetector::CornerScore(const uchar* pointer, const int offset[], int th
     }
     return -b0 - 1;
 }
-}  // namespace SaigaORB
+}  // namespace Saiga

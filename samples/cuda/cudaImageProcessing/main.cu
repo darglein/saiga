@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
+#include "saiga/cuda/CudaInfo.h"
 #include "saiga/core/image/image.h"
 #include "saiga/core/image/templatedImage.h"
 #include "saiga/core/tests/test.h"

@@ -29,7 +29,7 @@ namespace Saiga
 OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters, OpenGLParameters openglParameters)
     : WindowBase(_windowParameters), openglParameters(openglParameters)
 {
-    initSaigaGL();
+    initSaigaGL(openglParameters);
 }
 
 OpenGLWindow::~OpenGLWindow()

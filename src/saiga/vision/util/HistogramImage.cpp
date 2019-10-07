@@ -4,10 +4,11 @@
  * See LICENSE file for more information.
  */
 
-
 #include "HistogramImage.h"
 
+#include "saiga/core/image/ImageDraw.h"
 #include "saiga/core/math/imath.h"
+#include "saiga/core/util/color.h"
 
 namespace Saiga
 {
@@ -18,7 +19,7 @@ HistogramImage::HistogramImage(int inputW, int inputH, int outputW, int outputH)
     img.getImageView().set(0);
 }
 
-void HistogramImage::add(int y, int x, int value)
+HistogramImage::BinIndex HistogramImage::bin(int y, int x)
 {
     // pixel center
     double dx = x + 0.5;
@@ -27,16 +28,28 @@ void HistogramImage::add(int y, int x, int value)
     dx = dx * ((double)outputW / (double)inputW);
     dy = dy * ((double)outputH / (double)inputH);
     // round to target
-    int ox = iRound(dx);
-    int oy = iRound(dy);
+    int ox = iRound(dx - 0.5);
+    int oy = iRound(dy - 0.5);
 
-    if (img.getImageView().inImage(oy, ox))
+    if (!img.getImageView().inImage(oy, ox))
     {
-        img.getImageView()(oy, ox) += value;
+        ox = -1;
+        oy = -1;
     }
+    return {oy, ox};
 }
 
-void HistogramImage::writeBinary(const std::string& file)
+HistogramImage::BinIndex HistogramImage::add(int y, int x, int value)
+{
+    auto bid = bin(y, x);
+    if (bid.first >= 0)
+    {
+        img(bid.first, bid.second) += value;
+    }
+    return bid;
+}
+
+void HistogramImage::writeBinary(const std::string& file, int threshold)
 {
     TemplatedImage<ucvec3> outimg(outputH, outputW);
 
@@ -44,7 +57,7 @@ void HistogramImage::writeBinary(const std::string& file)
     {
         for (int j = 0; j < outputW; ++j)
         {
-            if (img(i, j) > 0)
+            if (img(i, j) >= threshold)
             {
                 outimg(i, j) = ucvec3(0, 0, 255);
             }
@@ -56,6 +69,43 @@ void HistogramImage::writeBinary(const std::string& file)
     }
     std::cout << outimg << std::endl;
     outimg.save(file);
+}
+
+void HistogramImage::drawGridLines(ImageView<ucvec4> imgv, bool drawHistBoxes)
+{
+    double dx = double(inputW) / outputW;
+    double dy = double(inputH) / outputH;
+
+    if (drawHistBoxes)
+    {
+        for (int i = 0; i < outputH; ++i)
+        {
+            for (int j = 0; j < outputW; ++j)
+            {
+                vec2 low(j * dx, i * dy);
+                vec2 high((j + 1) * dx, (i + 1) * dy);
+
+                if (img(i, j) >= 1)
+                {
+                    ImageDraw::drawRectangle(imgv, low, high, ucvec4(0, 0, 255, 255));
+                }
+            }
+        }
+    }
+
+
+    for (auto i = 0; i < outputH + 1; ++i)
+    {
+        auto y = i * dy;
+        ImageDraw::drawLineBresenham(imgv, vec2(0 - 0.5, y - 0.5), vec2(inputW + 0.5, y - 0.5), ucvec4(255, 0, 0, 255));
+    }
+
+
+    for (auto i = 0; i < outputW + 1; ++i)
+    {
+        auto x = i * dx;
+        ImageDraw::drawLineBresenham(imgv, vec2(x - 0.5, 0 - 0.5), vec2(x - 0.5, inputH + 0.5), ucvec4(255, 0, 0, 255));
+    }
 }
 
 float HistogramImage::density(int threshold)
