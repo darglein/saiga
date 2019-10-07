@@ -229,7 +229,7 @@ void initSaigaGL(const OpenGLParameters& params)
     };
     Error::ignoreGLError(ignoreIds);
 
-    Error::setAssertAtError(params.assertAtError)
+    Error::setAssertAtError(params.assertAtError);
 }
 
 void cleanupSaigaGL()
