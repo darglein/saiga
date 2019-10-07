@@ -253,8 +253,7 @@ void ORBextractor::operator()(img_t image, std::vector<kpt_t>& resultKeypoints,
 
 void ORBextractor::ComputeAngles(std::vector<std::vector<kpt_t>>& allkpts)
 {
-//#pragma omp parallel for num_threads(nlevels)
-//#pragma omp parallel for num_threads(2) schedule(dynamic)
+#pragma omp parallel for num_threads(2) schedule(dynamic)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
         for (int i = 0; i < (int)allkpts[lvl].size(); ++i)
@@ -283,7 +282,7 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, 
 
 
 
-//#pragma omp parallel for num_threads(2) schedule(dynamic)
+#pragma omp parallel for num_threads(2) schedule(dynamic)
     for (int lvl = 0; lvl < nlevels; ++lvl)
     {
         int current = scan[lvl];
@@ -339,7 +338,7 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, 
  * @param cellSize must be greater than 16 and lesser than min(rows, cols) of smallest image in pyramid
  */
 void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, FeatureDistribution& distribution,
-        int cellSize, bool distributePerLevel)
+                                 int cellSize, bool distributePerLevel)
 {
     const int minimumX = EDGE_THRESHOLD - 3, minimumY = minimumX;
     {
@@ -353,7 +352,7 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, Featu
             maxLvl = minLvl + 1;
         }
 //#pragma omp parallel for default(none) shared(minLvl, maxLvl, cellSize, distributePerLevel, allkpts)
-//#pragma omp parallel for num_threads(2) schedule(dynamic)
+#pragma omp parallel for num_threads(2) schedule(dynamic)
         for (int lvl = minLvl; lvl < maxLvl; ++lvl)
         {
             std::vector<kpt_t> levelkpts;
@@ -424,7 +423,7 @@ void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, Featu
             if (distributePerLevel)
             {
                 distribution.SetN(nfeaturesPerLevelVec[lvl]);
-                distribution.SetImageSize(make_ivec2(maximumX-minimumX, maximumY-minimumY));
+                distribution.SetImageSize(make_ivec2(maximumX - minimumX, maximumY - minimumY));
                 distribution(levelkpts);
             }
 
