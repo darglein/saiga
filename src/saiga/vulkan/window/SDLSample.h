@@ -13,7 +13,7 @@
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 
-#include "WindowTemplate.h"
+#include "saiga/vulkan/window/WindowTemplate.h"
 
 namespace Saiga
 {
