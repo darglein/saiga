@@ -537,7 +537,7 @@ inline int computeERansac(const Vec2* points1, const Vec2* points2, int N, Mat3&
 
 
 
-class SAIGA_VISION_API FivePointRansac : public RansacBase<FivePointRansac, std::pair<Mat3, SE3>, 6>
+class FivePointRansac : public RansacBase<FivePointRansac, std::pair<Mat3, SE3>, 6>
 {
     using Model = std::pair<Mat3, SE3>;
     using Base  = RansacBase<FivePointRansac, Model, 6>;
