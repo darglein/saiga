@@ -78,8 +78,8 @@ class Mesh
     {
         auto box = aabb();
 
-        //        const auto scaling = 1 / max(max(box.max[0], box.max[1]), box.max[2]);
-        auto s = 1.0 / box.max.array().max();
+        const auto s = 1 / std::max(std::max(box.max[0], box.max[1]), box.max[2]);
+        //        float s = 1.0 / box.max.array().max();
         mat4 t = scale(make_vec3(s));
         transform(t);
     }

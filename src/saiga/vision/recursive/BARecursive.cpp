@@ -592,7 +592,7 @@ void BARec::finalize()
             extr.se3   = x_u[info.validId];
         }
 #pragma omp for
-        for (size_t i = 0; i < validPoints.size(); ++i)
+        for (int i = 0; i < validPoints.size(); ++i)
         {
             Eigen::Matrix<BlockBAScalar, 3, 1> t;
             auto id = validPoints[i];

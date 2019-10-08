@@ -21,7 +21,7 @@ void simpleForLoop()
 #pragma omp parallel for num_threads(4)
     for (int i = 0; i < 20; ++i)
     {
-        int tid = omp_get_thread_num();
+        //        int tid = omp_get_thread_num();
         report(i);
     }
     std::cout << std::endl;
@@ -48,13 +48,13 @@ void simpleGroup()
 #pragma omp for
         for (int i = 0; i < 20; ++i)
         {
-            int tid2 = omp_get_thread_num();
+            //            int tid2 = omp_get_thread_num();
             report(i);
         }
 
 #pragma omp parallel
         {
-            int tid2 = omp_get_thread_num();
+            //            int tid2 = omp_get_thread_num();
             report(tid);
         }
     }

@@ -9,6 +9,8 @@
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/util/Ransac.h"
 
+#include <optional>
+
 namespace Saiga
 {
 /**
@@ -68,7 +70,7 @@ class SAIGA_VISION_API P3PRansac : public RansacBase<P3PRansac, SE3, 4>
 
 
     int solve(ArrayView<const Vec3> _worldPoints, ArrayView<const Vec2> _normalizedImagePoints, SE3& bestT,
-                   std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
+              std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
     {
         worldPoints           = _worldPoints;
         normalizedImagePoints = _normalizedImagePoints;
@@ -118,6 +120,7 @@ class SAIGA_VISION_API P3PRansac : public RansacBase<P3PRansac, SE3, 4>
         Vec2 ip = (model * worldPoints[i]).hnormalized();
         return (ip - normalizedImagePoints[i]).squaredNorm();
     }
+
    private:
     ArrayView<const Vec3> worldPoints;
     ArrayView<const Vec2> normalizedImagePoints;

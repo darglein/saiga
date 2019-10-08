@@ -73,9 +73,9 @@ class ModNone : public OpenMesh::Decimater::ModBaseT<MeshT>
     ModNone(MeshT& _mesh) : Base(_mesh, false) { Base::set_binary(false); }
 
 
-    virtual float collapse_priority(const CollapseInfo& _ci) { return 0; }
+    virtual float collapse_priority(const CollapseInfo& _ci) override { return 0; }
 
-    virtual void initialize(void) { Base::set_binary(false); }
+    virtual void initialize(void) override { Base::set_binary(false); }
 };
 
 

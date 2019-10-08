@@ -101,7 +101,7 @@ void Sample::renderOverlay(Camera* cam)
         v              = mat4(inverse(v));
 
         //            std::cout << v << std::endl;
-        vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
+        //        vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
 
         frustum.render(cam, v);
     }

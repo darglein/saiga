@@ -27,7 +27,7 @@ namespace Saiga
 
 typedef uint16_t height_res_t;
 typedef uint32_t height_resn_t;
-const int bits             = 16;
+// const int bits             = 16;
 const height_res_t max_res = 65535;
 
 // typedef u_int8_t height_res_t;

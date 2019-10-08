@@ -67,7 +67,7 @@ void Sample::update(float dt)
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
-        bool gotImage = rgbdcamera->getImageSync(frameData);
+        rgbdcamera->getImageSync(frameData);
 
         std::cout << "create image texture: " << frameData.depthImg.height << "x" << frameData.depthImg.width
                   << std::endl;
