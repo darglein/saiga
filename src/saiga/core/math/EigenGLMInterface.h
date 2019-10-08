@@ -51,7 +51,6 @@ HD inline T ele_div(const T& a, const T& b)
     return a.array() / b.array();
 }
 
-
 HD inline vec3 min(const vec3& a, const vec3& b)
 {
     return a.array().min(b.array());

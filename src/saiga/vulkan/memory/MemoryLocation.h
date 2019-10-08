@@ -1,5 +1,3 @@
-#include <utility>
-
 //
 // Created by Peter Eichinger on 08.10.18.
 //
@@ -7,7 +5,7 @@
 #pragma once
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/export.h"
-
+#include <utility>
 #include <mutex>
 #include <optional>
 #include <ostream>

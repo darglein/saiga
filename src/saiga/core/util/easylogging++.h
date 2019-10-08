@@ -34,6 +34,8 @@
 #define ELPP_THREAD_SAFE
 #define AUTO_INITIALIZE_EASYLOGGINGPP
 
+#include "saiga/config.h"
+
 // Compilers and C++0x/C++11 Evaluation
 #if __cplusplus >= 201103L
 #    define ELPP_CXX11 1

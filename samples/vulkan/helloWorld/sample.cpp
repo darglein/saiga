@@ -205,6 +205,9 @@ void VulkanExample::renderGUI()
     //    ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
     //    ImGui::ShowTestWindow();
 }
+
+#undef main
+
 int main(const int argc, const char* argv[])
 {
     using namespace Saiga;

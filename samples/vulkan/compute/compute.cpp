@@ -134,7 +134,7 @@ void Compute::update(float dt)
 
 
 void Compute::render(vk::CommandBuffer cmd) {}
-
+#undef main
 int main(const int argc, const char* argv[])
 {
     using namespace Saiga;

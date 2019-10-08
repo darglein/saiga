@@ -97,6 +97,8 @@ void reduction()
 
 void tasks()
 {
+	//doesn't work on msvc
+#ifndef WIN32
     std::cout << "Starting OpenMP tasks..." << std::endl;
 #pragma omp parallel num_threads(4)
     {
@@ -120,6 +122,7 @@ void tasks()
         report(-1);
     }
     std::cout << std::endl;
+#endif
 }
 
 void nested()

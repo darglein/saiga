@@ -120,7 +120,7 @@ void VulkanExample::update(float dt)
         //        renderer->base().memory.enable_defragmentation(image_type, false);
         //        renderer->base().memory.stop_defrag(image_type);
 
-        num_allocs = std::min(dealloc_dist(defrag_test_mersenne), test_allocs.size());
+        num_allocs = std::min<size_t>(dealloc_dist(defrag_test_mersenne), test_allocs.size());
 
         if (defrag_current_round != defrag_rounds)
         {
@@ -392,7 +392,7 @@ void VulkanExample::renderGUI()
         renderer->base().memory.enable_defragmentation(image_type, false);
         renderer->base().memory.stop_defrag(image_type);
 
-        auto num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
+        auto num_allocs = std::min<size_t>(alloc_dist(mersenne_twister), tex_allocations.size());
 
 
         for (auto i = 0U; i < num_allocs; ++i)
@@ -790,7 +790,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer->base().memory.enable_defragmentation(buffer_type, false);
             renderer->base().memory.stop_defrag(buffer_type);
 
-            num_allocs = std::min(alloc_dist(mersenne_twister), allocations.size());
+            num_allocs = std::min<size_t>(alloc_dist(mersenne_twister), allocations.size());
 
             for (auto i = 0U; i < num_allocs; ++i)
             {
@@ -824,7 +824,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer->base().memory.enable_defragmentation(image_type, false);
             renderer->base().memory.stop_defrag(image_type);
 
-            num_allocs = std::min(alloc_dist(mersenne_twister), tex_allocations.size());
+            num_allocs = std::min<size_t>(alloc_dist(mersenne_twister), tex_allocations.size());
 
 
             for (auto i = 0U; i < num_allocs; ++i)
@@ -984,7 +984,7 @@ void VulkanExample::cleanup()
 }
 
 
-
+#undef main
 int main(const int argc, const char* argv[])
 {
     using namespace Saiga;

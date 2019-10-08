@@ -74,7 +74,7 @@ std::shared_ptr<shader_t> ShaderLoader::load(const std::string& name, const Shad
 // Let's make it a global variable to simplify the code a lot
 // Note: we need the export here to ensure it is included in the
 // symbol table of libsaiga.so
-inline SAIGA_OPENGL_API ShaderLoader shaderLoader;
+extern SAIGA_OPENGL_API ShaderLoader shaderLoader;
 
 
 }  // namespace Saiga

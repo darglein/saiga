@@ -120,11 +120,21 @@ class FORB
      * @param b
      * @return distance
      */
+#ifdef WIN32
+	static inline int popcnt64(uint64_t v)
+	{
+		v = v - ((v >> 1) & (uint64_t)~(uint64_t)0 / 3);
+		v = (v & (uint64_t)~(uint64_t)0 / 15 * 3) + ((v >> 2) & (uint64_t)~(uint64_t)0 / 15 * 3);
+		v = (v + (v >> 4)) & (uint64_t)~(uint64_t)0 / 255 * 15;
+		return (uint64_t)(v * ((uint64_t)~(uint64_t)0 / 255)) >> (sizeof(uint64_t) - 1) * CHAR_BIT;
+	}
+#else
     static inline int popcnt64(uint64_t x)
     {
         __asm__("popcnt %1, %0" : "=r"(x) : "0"(x));
         return x;
     }
+#endif
     static double distance(const TDescriptor& a, const TDescriptor& b)
     {
         auto pa  = (uint64_t*)a.data();

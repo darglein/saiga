@@ -18,6 +18,7 @@ namespace Saiga
 extern SAIGA_VISION_API uint64_t ransacRandomSeed;
 
 
+
 struct RansacParameters
 {
     int maxIterations = -1;
