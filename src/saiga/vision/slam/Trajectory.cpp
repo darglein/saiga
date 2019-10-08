@@ -23,7 +23,7 @@ double align(TrajectoryType& A, TrajectoryType& B, bool computeScale)
     auto compFirst = [](const std::pair<int, SE3>& a, const std::pair<int, SE3>& b) { return a.first < b.first; };
     std::sort(A.begin(), A.end(), compFirst);
     std::sort(B.begin(), B.end(), compFirst);
-
+	 
     // transform both trajectories so that the first kf is at the origin
     //    SE3 pinv1 = A.front().second.inverse();
     //    SE3 pinv2 = B.front().second.inverse();
@@ -96,7 +96,7 @@ std::vector<double> ate(const TrajectoryType& A, const TrajectoryType& B)
 
     std::vector<double> ate;
     for (auto i : Range(0, N))
-    {
+    { 
         auto et = translationalError(A[i].second, B[i].second);
         ate.push_back(et);
     }

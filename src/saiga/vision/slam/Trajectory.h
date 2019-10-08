@@ -40,18 +40,18 @@ using TrajectoryType = AlignedVector<std::pair<int, SE3>>;
  * Align the trajectories by minimizing the squared error:
  * sum_i (A.position() - B.position)^2
  */
-extern SAIGA_VISION_API double align(TrajectoryType& A, TrajectoryType& B, bool computeScale);
+SAIGA_VISION_API extern double align(TrajectoryType& A, TrajectoryType& B, bool computeScale);
 
 /**
  * Root mean squared relative pose error (rpe).
  * sum_i (a[i].inverse()*a[i-1] - b[i].inverse()*b[i-1])^2
  */
-extern SAIGA_VISION_API std::vector<double> rpe(const TrajectoryType& A, const TrajectoryType& B);
+SAIGA_VISION_API extern std::vector<double> rpe(const TrajectoryType& A, const TrajectoryType& B);
 /**
  * Root mean squared absolute trajectory error (ate)
  * sum_i (a[i] - b[i])^2
  */
-extern SAIGA_VISION_API std::vector<double> ate(const TrajectoryType& A, const TrajectoryType& B);
+SAIGA_VISION_API extern std::vector<double> ate(const TrajectoryType& A, const TrajectoryType& B);
 
 }  // namespace Trajectory
 }  // namespace Saiga
