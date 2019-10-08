@@ -73,13 +73,13 @@ struct SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public 
         vulkanParams.fromConfigFile(config);
         rendererParameters.fromConfigFile(config);
 
+        init(windowParameters, vulkanParams, rendererParameters);
+    }
 
-        window   = std::make_unique<WindowManagment>(windowParameters);
-        renderer = std::make_unique<Renderer>(*window, vulkanParams);
-
-
-        window->setUpdateObject(*this);
-        renderer->setRenderObject(*this);
+    StandaloneWindow(const WindowParameters& windowParameters, const VulkanParameters& vulkanParams,
+                     const typename Renderer::ParameterType& rendererParameters)
+    {
+        init(windowParameters, vulkanParams, rendererParameters);
     }
 
     ~StandaloneWindow()
@@ -88,17 +88,26 @@ struct SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public 
         window.reset();
     }
 
-    void run()
+    void run(const MainLoopParameters& mainLoopParameters = MainLoopParameters())
     {
         // Everyhing is initilalized, we can run the main loop now!
-        MainLoopParameters mainLoopParameters;
-        mainLoopParameters.fromConfigFile("config.ini");
         window->startMainLoop(mainLoopParameters);
         renderer->waitIdle();
     }
 
     std::unique_ptr<Renderer> renderer;
     std::unique_ptr<WindowManagment> window;
+
+   private:
+    void init(const WindowParameters& windowParameters, const VulkanParameters& vulkanParams,
+              const typename Renderer::ParameterType& rendererParameters)
+    {
+        window   = std::make_unique<WindowManagment>(windowParameters);
+        renderer = std::make_unique<Renderer>(*window, vulkanParams);
+
+        window->setUpdateObject(*this);
+        renderer->setRenderObject(*this);
+    }
 };
 
 }  // namespace Vulkan
