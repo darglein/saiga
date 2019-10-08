@@ -51,6 +51,16 @@ HD inline T ele_div(const T& a, const T& b)
     return a.array() / b.array();
 }
 
+HD inline vec4 min(const vec4& a, const vec4& b)
+{
+    return a.array().min(b.array());
+}
+
+HD inline vec4 max(const vec4& a, const vec4& b)
+{
+    return a.array().max(b.array());
+}
+
 HD inline vec3 min(const vec3& a, const vec3& b)
 {
     return a.array().min(b.array());
@@ -61,6 +71,15 @@ HD inline vec3 max(const vec3& a, const vec3& b)
     return a.array().max(b.array());
 }
 
+HD inline vec2 min(const vec2& a, const vec2& b)
+{
+    return a.array().min(b.array());
+}
+
+HD inline vec2 max(const vec2& a, const vec2& b)
+{
+    return a.array().max(b.array());
+}
 
 HD inline vec4 round(const vec4& a)
 {
