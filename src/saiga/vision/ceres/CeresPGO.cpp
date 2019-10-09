@@ -20,6 +20,8 @@
 #include "local_parameterization_se3.h"
 #include "local_parameterization_sim3.h"
 
+#define AUTO_DIFF
+
 namespace Saiga
 {
 OptimizationResults CeresPGO::initAndSolve()
@@ -36,30 +38,35 @@ OptimizationResults CeresPGO::initAndSolve()
 
 
 
-    //    Sophus::test::LocalParameterizationSE3* camera_parameterization = new Sophus::test::LocalParameterizationSE3;
-#ifdef PGO_SIM3
-    Sophus::test::LocalParameterizationSim32 camera_parameterization;
-    camera_parameterization.fixScale = scene.fixScale;
-//    Sophus::test::LocalParameterizationSim32<true> camera_parameterization2;
+#ifdef AUTO_DIFF
+
+    Saiga::test::LocalParameterizationSim3<false> camera_parameterization;
+
 #else
+#    ifdef PGO_SIM3
+    test::LocalParameterizationSim3_IdentityJ camera_parameterization;
+    camera_parameterization.fixScale = scene.fixScale;
+#    else
     Sophus::test::LocalParameterizationSE32 camera_parameterization;
+#    endif
 #endif
+
     for (size_t i = 0; i < scene.poses.size(); ++i)
     {
         problem.AddParameterBlock(scene.poses[i].se3.data(), 7, &camera_parameterization);
-
         if (scene.poses[i].constant)
         {
-            //            problem.AddParameterBlock(scene.poses[i].se3.data(), 7, &camera_parameterization2);
             problem.SetParameterBlockConstant(scene.poses[i].se3.data());
         }
-        else
-        {
-        }
     }
+#ifdef AUTO_DIFF
+    using CostFunctionType = CostPGO::CostFunctionType;
+#else
+    using CostFunctionType           = CostPGOAnalytic;
+#endif
 
 
-    std::vector<std::unique_ptr<CostPGOAnalytic>> monoCostFunctions;
+    std::vector<std::unique_ptr<CostFunctionType>> monoCostFunctions;
 
     // Add all transformation edges
     for (auto& e : scene.edges)
@@ -67,7 +74,11 @@ OptimizationResults CeresPGO::initAndSolve()
         auto vertex_from = scene.poses[e.from].se3.data();
         auto vertex_to   = scene.poses[e.to].se3.data();
 
-        CostPGOAnalytic* cost = new CostPGOAnalytic(e.meassurement.inverse());
+#ifdef AUTO_DIFF
+        CostFunctionType* cost = CostPGO::create(e.meassurement.inverse());
+#else
+        CostFunctionType* cost = new CostFunctionType(e.meassurement.inverse());
+#endif
         monoCostFunctions.emplace_back(cost);
         problem.AddResidualBlock(cost, nullptr, vertex_from, vertex_to);
     }

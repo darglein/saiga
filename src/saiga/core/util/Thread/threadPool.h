@@ -51,6 +51,11 @@ class SAIGA_CORE_API ThreadPool
 
     void quit();
 
+    size_t queueSize()
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        return tasks.size();
+    }
     size_t getWorkingThreads() { return workingThreads; }
 
    private:

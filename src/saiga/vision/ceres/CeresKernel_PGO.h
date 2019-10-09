@@ -13,6 +13,45 @@
 
 namespace Saiga
 {
+struct CostPGO
+{
+    CostPGO(const PGOTransformation& invMeassurement, double weight = 1)
+        : _inverseMeasurement(invMeassurement), weight(weight)
+    {
+    }
+
+    using CostType         = CostPGO;
+    using CostFunctionType = ceres::AutoDiffCostFunction<CostType, PGOTransformation::DoF, 7, 7>;
+    template <typename... Types>
+    static CostFunctionType* create(const Types&... args)
+    {
+        return new CostFunctionType(new CostType(args...));
+    }
+
+    template <typename T>
+    bool operator()(const T* const _from, const T* const _to, T* _residual) const
+    {
+        Eigen::Map<Sophus::Sim3<T> const> const from(_from);
+        Eigen::Map<Sophus::Sim3<T> const> const to(_to);
+        Eigen::Map<Eigen::Matrix<T, PGOTransformation::DoF, 1>> residual(_residual);
+
+        Sophus::Sim3<T> inverseMeasurement = _inverseMeasurement.cast<T>();
+#ifdef LSD_REL
+        auto error_ = from.inverse() * to * inverseMeasurement;
+#else
+        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
+#endif
+        residual = error_.log() * weight;
+
+        return true;
+    }
+
+   private:
+    PGOTransformation _inverseMeasurement;
+    double weight;
+};
+
+
 class CostPGOAnalytic : public ceres::SizedCostFunction<PGOTransformation::DoF, 7, 7>
 {
    public:

@@ -15,7 +15,7 @@ namespace Saiga
 // This seed is used for all ransac classes.
 // You can change this in your application for example to:
 // ransacSeed = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-extern SAIGA_VISION_API uint64_t ransacRandomSeed;
+SAIGA_VISION_API extern uint64_t ransacRandomSeed;
 
 
 
