@@ -7,6 +7,7 @@ add_subdirectory(camera)
 add_subdirectory(cameraModel)
 add_subdirectory(icp)
 add_subdirectory(kernels)
+add_subdirectory(optimizationProblems)
 add_subdirectory(pgo)
 add_subdirectory(reconstruction)
 add_subdirectory(scene)
@@ -58,12 +59,10 @@ target_include_directories(
     PUBLIC
     $<INSTALL_INTERFACE:include>
     $<INSTALL_INTERFACE:include/saiga/opengl/glbinding/include>
-    $<INSTALL_INTERFACE:include/saiga/opengl/glbinding-aux/include>
     $<INSTALL_INTERFACE:share/saiga/shader/include>
     "$<INSTALL_INTERFACE:${VISION_INCLUDES}>"
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
     "$<BUILD_INTERFACE:${VISION_INCLUDES}>"
     #PRIVATE

@@ -44,12 +44,10 @@ target_include_directories(
     PUBLIC
     $<INSTALL_INTERFACE:include>
     $<INSTALL_INTERFACE:include/saiga/opengl/glbinding/include>
-    $<INSTALL_INTERFACE:include/saiga/opengl/glbinding-aux/include>
     $<INSTALL_INTERFACE:share/saiga/shader/include>
     #"$<INSTALL_INTERFACE:${PACKAGE_INCLUDES}>"
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding-aux/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
     "$<BUILD_INTERFACE:${EXTRA_INCLUDES}>"
     #PRIVATE
