@@ -5,17 +5,20 @@
  */
 
 #pragma once
+#include "saiga/vision/ceres/CeresHelper.h"
+#include "saiga/vision/ceres/local_parameterization_se3.h"
+#include "saiga/vision/ceres/local_parameterization_sim3.h"
+
 #include "ProjectivePointCloudRegistration.h"
+
 #include "ceres/autodiff_cost_function.h"
 #include "ceres/loss_function.h"
-#include "saiga/vision/ceres/local_parameterization_sim3.h"
-#include "saiga/vision/ceres/CeresHelper.h"
 namespace Saiga
 {
-
-template <typename ScalarType, template <typename> class TransformationType, bool invert = false>
+template <typename ScalarType, int options, template <typename, int> class TransformationType, bool invert = false>
 struct ProjectivePointCloudRegistrationCeresCost
 {
+    using Trans = TransformationType<ScalarType, options>;
     // Helper function to simplify the "add residual" part for creating ceres problems
     using CostType = ProjectivePointCloudRegistrationCeresCost;
     // Note: The first number is the number of residuals
@@ -30,7 +33,7 @@ struct ProjectivePointCloudRegistrationCeresCost
     template <typename T>
     bool operator()(const T* const _extrinsics, T* _residuals) const
     {
-        Eigen::Map<TransformationType<T> const> const se3(_extrinsics);
+        Eigen::Map<TransformationType<T, options> const> const se3(_extrinsics);
         Eigen::Map<Eigen::Matrix<T, 2, 1>> residual(_residuals);
 
         Eigen::Matrix<T, 3, 1> wp       = _wp.cast<T>();
@@ -58,15 +61,28 @@ struct ProjectivePointCloudRegistrationCeresCost
 };
 
 
-template <typename ScalarType, template <typename> class TransformationType>
-void optimize(ProjectivePointCloudRegistration<TransformationType<ScalarType>>& scene)
+template <bool FIX_SCALE, typename ScalarType, int options, template <typename, int> class TransformationType>
+OptimizationResults optimize_PPCR_ceres(
+    ProjectivePointCloudRegistration<TransformationType<ScalarType, options>>& scene,
+    const ceres::Solver::Options& ceres_options = ceres::Solver::Options())
 {
+    using Trans = TransformationType<ScalarType, options>;
     ceres::Problem::Options problemOptions;
     ceres::Problem problem(problemOptions);
 
     double huber = sqrt(scene.chi2Threshold);
 
-    auto camera_parameterization = new Saiga::test::LocalParameterizationSim3<false>;
+    ceres::LocalParameterization* camera_parameterization;
+
+    if constexpr (Trans::DoF == 7)
+    {
+        camera_parameterization = new Saiga::test::LocalParameterizationSim3<FIX_SCALE>;
+    }
+    else
+    {
+        camera_parameterization = new Sophus::test::LocalParameterizationSE3;
+    }
+
     problem.AddParameterBlock(scene.T.data(), 7, camera_parameterization);
 
 
@@ -74,8 +90,9 @@ void optimize(ProjectivePointCloudRegistration<TransformationType<ScalarType>>& 
     for (auto& e : scene.obs1)
     {
         if (e.wp == -1) continue;
-        auto& wp                  = scene.points2[e.wp];
-        auto* cost                = ProjectivePointCloudRegistrationCeresCost<ScalarType,TransformationType,true>::create(scene.K, e.imagePoint, wp, e.weight);
+        auto& wp   = scene.points2[e.wp];
+        auto* cost = ProjectivePointCloudRegistrationCeresCost<ScalarType, options, TransformationType, true>::create(
+            scene.K, e.imagePoint, wp, e.weight);
         ceres::LossFunction* loss = nullptr;
         if (huber > 0) loss = new ceres::HuberLoss(huber);
         problem.AddResidualBlock(cost, loss, scene.T.data());
@@ -84,16 +101,14 @@ void optimize(ProjectivePointCloudRegistration<TransformationType<ScalarType>>& 
     for (auto& e : scene.obs2)
     {
         if (e.wp == -1) continue;
-        auto& wp                  = scene.points1[e.wp];
-        auto* cost                = ProjectivePointCloudRegistrationCeresCost<ScalarType,TransformationType,false>::create(scene.K, e.imagePoint, wp, e.weight);
+        auto& wp   = scene.points1[e.wp];
+        auto* cost = ProjectivePointCloudRegistrationCeresCost<ScalarType, options, TransformationType, false>::create(
+            scene.K, e.imagePoint, wp, e.weight);
         ceres::LossFunction* loss = nullptr;
         if (huber > 0) loss = new ceres::HuberLoss(huber);
         problem.AddResidualBlock(cost, loss, scene.T.data());
     }
-
-    ceres::Solver::Options ceres_options;
-    //    ceres_options.minimizer_progress_to_stdout = true;
-    OptimizationResults result = ceres_solve(ceres_options, problem);
+    return ceres_solve(ceres_options, problem);
 }
 
 }  // namespace Saiga

@@ -98,6 +98,14 @@ struct ProjectivePointCloudRegistration
         return removedPoints;
     }
 
+    // Add some noise to the point cloud an T
+    void addNoise(float sigma)
+    {
+        for (auto& p : points1) p += Vec3::Random() * sigma;
+        for (auto& p : points2) p += Vec3::Random() * sigma;
+        T.translation() += Vec3::Random() * sigma;
+    }
+
     void setRandom(int N)
     {
         for (int i = 0; i < N; ++i)

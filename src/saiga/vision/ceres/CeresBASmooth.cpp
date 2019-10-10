@@ -38,7 +38,7 @@ OptimizationResults CeresBASmooth::initAndSolve()
     ceres::Problem problem(problemOptions);
 
 
-    Sophus::test::LocalParameterizationSE3<false> camera_parameterization;
+    Sophus::test::LocalParameterizationSE3 camera_parameterization;
 
     for (size_t i = 0; i < scene.extrinsics.size(); ++i)
     {

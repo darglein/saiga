@@ -7,8 +7,7 @@ namespace Sophus
 {
 namespace test
 {
-// use for autodiff
-template <bool LEFT_MULT = true>
+// if this is used in ceres autodiff functors LEFT_MULT should be false
 class LocalParameterizationSE3 : public ceres::LocalParameterization
 {
    public:
@@ -23,14 +22,8 @@ class LocalParameterizationSE3 : public ceres::LocalParameterization
         Eigen::Map<SE3d const> const T(T_raw);
         Eigen::Map<Vector6d const> const delta(delta_raw);
         Eigen::Map<SE3d> T_plus_delta(T_plus_delta_raw);
-        if (LEFT_MULT)
-        {
-            T_plus_delta = SE3d::exp(delta) * T;
-        }
-        else
-        {
-            T_plus_delta = T * SE3d::exp(delta);
-        }
+        T_plus_delta = T * SE3d::exp(delta);
+
         return true;
     }
 
@@ -43,14 +36,9 @@ class LocalParameterizationSE3 : public ceres::LocalParameterization
         Eigen::Map<SE3d const> T(T_raw);
         Eigen::Map<Eigen::Matrix<double, 7, 6, Eigen::RowMajor>> jacobian(jacobian_raw);
 
-        if (LEFT_MULT)
-        {
-            jacobian = -T.Dx_this_mul_exp_x_at_0();
-        }
-        else
-        {
-            jacobian = T.Dx_this_mul_exp_x_at_0();
-        }
+        // Returns derivative of  this * exp(x)  wrt x at x=0.
+        jacobian = T.Dx_this_mul_exp_x_at_0();
+
         return true;
     }
 

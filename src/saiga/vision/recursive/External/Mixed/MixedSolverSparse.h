@@ -152,8 +152,8 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Eigen::Recursive::Matrix
     std::unique_ptr<CholmodLDLT> cholmodldlt;
     std::unique_ptr<ExpandedType> expandS;
 #else
-//    std::unique_ptr<int> dummy;
-//    std::unique_ptr<int> dummy2;
+    std::unique_ptr<int> dummy;
+    std::unique_ptr<int> dummy2;
 #endif
 };
 

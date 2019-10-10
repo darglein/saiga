@@ -172,7 +172,7 @@ void CeresArap::optimizeAutodiff(ArapProblem& arap, int its)
     // fill targets and mesh
     // ...
 
-    auto qp = new Sophus::test::LocalParameterizationSE3<false>();
+    auto qp = new Sophus::test::LocalParameterizationSE3();
 
     ceres::Problem problem;
 

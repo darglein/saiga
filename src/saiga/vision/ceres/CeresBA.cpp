@@ -39,7 +39,7 @@ OptimizationResults CeresBA::initAndSolve()
 
 
 #ifdef BA_AUTODIFF
-    Sophus::test::LocalParameterizationSE3<false> camera_parameterization;
+    Sophus::test::LocalParameterizationSE3 camera_parameterization;
 #else
     Sophus::test::LocalParameterizationSE32 camera_parameterization;
 #endif
