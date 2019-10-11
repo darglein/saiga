@@ -22,9 +22,7 @@ class Range
 {
    public:
     // member typedefs provided through inheriting from std::iterator
-    class iterator : public std::iterator<std::input_iterator_tag,  // iterator_category
-                                          IndexType                 // reference
-                                          >
+    class iterator
     {
         IndexType num;
 
