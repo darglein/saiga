@@ -69,6 +69,13 @@ if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 endif()
 
+if(SAIGA_CXX_WCLANG)
+	# Fixes: cannot use 'throw' with exceptions disabled
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fcxx-exceptions")
+	# some eigen header generates this warning
+	add_definitions(-D_SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING)
+endif()
+
 if(SAIGA_CXX_MSVC OR SAIGA_CXX_WCLANG)
     #multiprocessor compilation for visual studio
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")

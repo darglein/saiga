@@ -438,7 +438,7 @@ extern "C"
      * this function include regular files, sub-directories, pseudo-directories
      * "." and ".." as well as volume labels, hidden files and system files.
      */
-    static struct _wdirent* _wreaddir(_WDIR* dirp)
+    inline struct _wdirent* _wreaddir(_WDIR* dirp)
     {
         WIN32_FIND_DATAW* datap;
         struct _wdirent* entp;
@@ -615,7 +615,7 @@ extern "C"
     /*
      * Open directory stream using plain old C-string.
      */
-    static DIR* opendir(const char* dirname)
+    inline DIR* opendir(const char* dirname)
     {
         struct DIR* dirp;
         int error;
@@ -691,7 +691,7 @@ extern "C"
      * ANSI strings to the console code page so many non-ASCII characters will
      * display correcly.
      */
-    static struct dirent* readdir(DIR* dirp)
+    inline struct dirent* readdir(DIR* dirp)
     {
         WIN32_FIND_DATAW* datap;
         struct dirent* entp;
@@ -779,7 +779,7 @@ extern "C"
     /*
      * Close directory stream.
      */
-    static int closedir(DIR* dirp)
+    inline int closedir(DIR* dirp)
     {
         int ok;
         if (dirp)
@@ -803,7 +803,7 @@ extern "C"
     /*
      * Rewind directory stream to beginning.
      */
-    static void rewinddir(DIR* dirp)
+    inline void rewinddir(DIR* dirp)
     {
         /* Rewind wide-character string directory stream */
         _wrewinddir(dirp->wdirp);

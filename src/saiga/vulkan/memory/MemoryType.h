@@ -100,7 +100,7 @@ struct SAIGA_VULKAN_API hash<vk::ImageUsageFlags>
 };
 
 template <typename T>
-struct SAIGA_VULKAN_API hash<Saiga::Vulkan::Memory::MemoryType<T>>
+struct SAIGA_TEMPLATE hash<Saiga::Vulkan::Memory::MemoryType<T>>
 {
     typedef Saiga::Vulkan::Memory::MemoryType<T> argument_type;
     typedef std::size_t result_type;

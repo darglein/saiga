@@ -76,7 +76,10 @@ PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
 #openmp
 if(SAIGA_CXX_WCLANG)
-    set (CMAKE_CXX_FLAGS "-Xclang -fopenmp")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
+	find_library(OMP_LIB libomp PATH_SUFFIXES lib)
+	message(STATUS ${OMP_LIB})
+	 SET(LIBS ${LIBS} ${OMP_LIB})
 else()
 find_package(OpenMP REQUIRED)
    PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
@@ -128,4 +131,4 @@ set(CORE_LIBS ${LIBS})
 set(CORE_TARGETS ${LIB_TARGETS})
 set(MODULE_CORE 1)
 
-message(STATUS ${LIBS})
+message(STATUS "${LIBS}")
