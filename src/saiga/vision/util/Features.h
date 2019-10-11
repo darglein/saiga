@@ -240,7 +240,6 @@ struct BruteForceMatcher
             knn2(i, 0) = {1000, -1};
             knn2(i, 1) = knn2(i, 0);
 
-
             auto d2 = first2;
             for (auto j : Range(0, m))
             {
@@ -260,12 +259,8 @@ struct BruteForceMatcher
                     knn2(i, 1).first  = dis;
                     knn2(i, 1).second = j;
                 }
-
-
                 ++d2;
             }
-
-
             ++first1;
         }
     }
