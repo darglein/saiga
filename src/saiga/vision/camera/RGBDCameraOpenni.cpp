@@ -122,7 +122,7 @@ bool RGBDCameraOpenni::tryOpen()
 
     auto fps = intrinsics().fps;
     {
-        auto co                                       = intrinsics().deptho;
+        auto co                                       = intrinsics().depthImageSize;
         const openni::Array<openni::VideoMode>& modes = depth->getSensorInfo().getSupportedVideoModes();
         int found                                     = -1;
         for (int i = 0; i < modes.getSize(); ++i)
@@ -141,7 +141,7 @@ bool RGBDCameraOpenni::tryOpen()
     }
 
     {
-        auto co                                       = intrinsics().rgbo;
+        auto co                                       = intrinsics().imageSize;
         const openni::Array<openni::VideoMode>& modes = color->getSensorInfo().getSupportedVideoModes();
         int found                                     = -1;
         for (int i = 0; i < modes.getSize(); ++i)

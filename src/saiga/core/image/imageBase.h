@@ -11,6 +11,29 @@
 
 namespace Saiga
 {
+struct ImageDimensions
+{
+    union {
+        int h;
+        int height;
+        int r;
+        int rows;
+    };
+    union {
+        int w;
+        int width;
+        int c;
+        int cols;
+    };
+    HD ImageDimensions() : h(0), w(0) {}
+    HD ImageDimensions(int h, int w) : h(h), w(w) {}
+
+    HD inline std::pair<int, int> pair() const { return {h, w}; }
+    HD inline bool valid() const { return h > 0 && w > 0; }
+    HD inline explicit operator bool() { return valid(); }
+    HD inline bool operator==(const ImageDimensions& other) const { return pair() == other.pair(); }
+};
+
 /**
  * @brief The ImageBase struct
  *
@@ -18,33 +41,19 @@ namespace Saiga
  * It only captures the key concept of an image, which is a two dimensional array
  * with a 'pitch' offset between rows.
  */
-struct SAIGA_CORE_API ImageBase
+struct SAIGA_CORE_API ImageBase : public ImageDimensions
 {
-    union {
-        int w;
-        int width;
-        int c;
-        int cols;
-    };
-    union {
-        int h;
-        int height;
-        int r;
-        int rows;
-    };
-
     size_t pitchBytes;
-
-
 
     HD inline ImageBase() : ImageBase(0, 0, 0)
     {
         // static_assert(sizeof(ImageBase) == 16, "ImageBase size wrong!");
     }
 
-    HD inline ImageBase(int h, int w, int p) : width(w), height(h), pitchBytes(p) {}
+    HD inline ImageBase(int h, int w, int p) : ImageDimensions(h, w), pitchBytes(p) {}
 
 
+    HD inline ImageDimensions dimensions() { return *this; }
     /**
      * Usefull for range-based iteration over the image.
      * Example:

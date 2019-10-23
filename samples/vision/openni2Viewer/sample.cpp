@@ -129,9 +129,9 @@ void Sample::renderFinal(Camera* cam)
     ImGui::InputInt("fps", &fps);
 
     Saiga::RGBDIntrinsics intr;
-    intr.deptho.w = depthWidth;
-    intr.deptho.h = depthHeight;
-    intr.fps      = fps;
+    intr.depthImageSize.w = depthWidth;
+    intr.depthImageSize.h = depthHeight;
+    intr.fps              = fps;
 
 
 

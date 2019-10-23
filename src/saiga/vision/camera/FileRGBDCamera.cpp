@@ -112,8 +112,8 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
         //        cimg.load(dir() + rgbImages[i]);
 
         // make sure it matches the defined intrinsics
-        SAIGA_ASSERT(cimg.h == intrinsics().rgbo.h);
-        SAIGA_ASSERT(cimg.w == intrinsics().rgbo.w);
+        SAIGA_ASSERT(cimg.dimensions() == intrinsics().imageSize);
+
         //        rgbo.h = cimg.h;
         //        rgbo.w = cimg.w;
 
@@ -122,8 +122,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
         //        dimg.load(dir() + depthImages[i]);
 
         // make sure it matches the defined intrinsics
-        SAIGA_ASSERT(dimg.h == intrinsics().deptho.h);
-        SAIGA_ASSERT(dimg.w == intrinsics().deptho.w);
+        SAIGA_ASSERT(dimg.dimensions() == intrinsics().depthImageSize);
 
         //        bool downScale = (dmpp && dmpp->params.apply_downscale) ? true : false;
         //        int targetW    = downScale ? dimg.w / 2 : dimg.w;

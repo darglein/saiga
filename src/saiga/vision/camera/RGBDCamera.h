@@ -11,70 +11,11 @@
 #include "saiga/vision/cameraModel/Distortion.h"
 #include "saiga/vision/util/DepthmapPreprocessor.h"
 
-#include <chrono>
-#include <optional>
+#include "CameraData.h"
+
 
 namespace Saiga
 {
-// The image types
-using RGBImageType   = TemplatedImage<ucvec4>;
-using DepthImageType = TemplatedImage<float>;
-
-// All required intrinsics for the depth sensor
-struct SAIGA_VISION_API RGBDIntrinsics
-{
-    // K matrix for depth and color
-    // the image should already be registered
-    StereoCamera4 K;
-    Intrinsics4 depthK;
-    Distortion dis;
-
-
-    // Image options
-    struct CameraOptions
-    {
-        int w = 640;
-        int h = 480;
-    };
-    CameraOptions rgbo, deptho;
-
-    int fps = 30;
-
-    // Used to convert from the actual depth data to metric floats
-    double depthFactor = 1.0;
-
-    // Maximum depth (in meters) above which the depth values should be considered as outliers
-    double maxDepth = 10;
-
-    // The camera disconnects after this amount of frames
-    int maxFrames = -1;
-    // start frame for
-    int startFrame = 0;
-
-
-
-    /**
-     *  Reads all paramters from the given config file.
-     *  Creates the file with the default values if it doesn't exist.
-     */
-    void fromConfigFile(const std::string& file);
-};
-
-
-SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value);
-
-
-struct SAIGA_VISION_API RGBDFrameData
-{
-    RGBImageType colorImg;
-    DepthImageType depthImg;
-    int frameId;
-    std::chrono::steady_clock::time_point captureTime;
-
-    // Some datasets provide ground truth pose estimations
-    std::optional<SE3> groundTruth;
-};
-
 class SAIGA_VISION_API RGBDCamera
 {
    public:
