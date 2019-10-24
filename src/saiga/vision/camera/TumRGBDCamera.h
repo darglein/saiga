@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
+class SAIGA_VISION_API TumRGBDCamera : public DatasetCameraBase<RGBDFrameData>
 {
    public:
     struct GroundTruth
@@ -47,17 +47,12 @@ class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
 
     TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool multithreaded = true);
     ~TumRGBDCamera();
-    /**
-     * Blocks until a new image arrives.
-     */
-    virtual bool getImageSync(RGBDFrameData& data) override;
 
 
     SE3 getGroundTruth(int frame);
 
-    virtual bool isOpened() override { return currentId < (int)frames.size(); }
+    RGBDIntrinsics intrinsics() { return _intrinsics; }
 
-    size_t getFrameCount() { return frames.size(); }
 
     void saveRaw(const std::string& dir);
 
@@ -67,13 +62,10 @@ class SAIGA_VISION_API TumRGBDCamera : public RGBDCamera
     void load(const std::string& datasetDir, bool multithreaded);
 
 
-    AlignedVector<RGBDFrameData> frames;
     AlignedVector<TumFrame> tumframes;
 
-    Timer timer;
-    tick_t timeStep;
-    tick_t lastFrameTime;
-    tick_t nextFrameTime;
+
+    RGBDIntrinsics _intrinsics;
 };
 
 }  // namespace Saiga

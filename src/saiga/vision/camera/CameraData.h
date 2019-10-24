@@ -23,6 +23,14 @@ using DepthImageType     = TemplatedImage<float>;
 using GrayImageType      = TemplatedImage<unsigned char>;
 using GrayFloatImageType = TemplatedImage<float>;
 
+enum class CameraInputType : int
+{
+    Mono   = 0,
+    RGBD   = 1,
+    Stereo = 2,
+};
+
+
 /**
  * The base class for all different camera types.
  */
@@ -49,6 +57,8 @@ struct MonocularFrameData : public FrameMetaData
 {
     GrayImageType grayImg;
     RGBImageType colorImg;
+
+    static constexpr CameraInputType cameraType = CameraInputType::Mono;
 };
 
 /**
@@ -57,6 +67,8 @@ struct MonocularFrameData : public FrameMetaData
 struct RGBDFrameData : public MonocularFrameData
 {
     DepthImageType depthImg;
+
+    static constexpr CameraInputType cameraType = CameraInputType::RGBD;
 };
 
 /**
@@ -66,6 +78,8 @@ struct StereoFrameData : public MonocularFrameData
 {
     GrayImageType grayImg2;
     RGBImageType colorImg2;
+
+    static constexpr CameraInputType cameraType = CameraInputType::Stereo;
 };
 
 struct BaseIntrinsics
@@ -77,7 +91,12 @@ struct SAIGA_VISION_API MonocularIntrinsics : public BaseIntrinsics
 {
     ImageDimensions imageSize;
     PinholeCamera model;
+
+
+    static constexpr CameraInputType cameraType = CameraInputType::Mono;
 };
+
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const MonocularIntrinsics& value);
 
 // All required intrinsics for the depth sensor
 struct SAIGA_VISION_API RGBDIntrinsics : public MonocularIntrinsics
@@ -107,9 +126,22 @@ struct SAIGA_VISION_API RGBDIntrinsics : public MonocularIntrinsics
      *  Creates the file with the default values if it doesn't exist.
      */
     void fromConfigFile(const std::string& file);
+
+
+    static constexpr CameraInputType cameraType = CameraInputType::RGBD;
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value);
 
+struct SAIGA_VISION_API StereoIntrinsics : public MonocularIntrinsics
+{
+    ImageDimensions rightImageSize;
+    PinholeCamera rightModel;
+
+    // BaseLine * fx
+    double bf = 0;
+};
+
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const StereoIntrinsics& value);
 
 }  // namespace Saiga

@@ -11,6 +11,7 @@
 
 #include "internal/noGraphicsAPI.h"
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -111,8 +112,9 @@ void FileChecker::addSearchPath(const std::vector<std::string>& paths)
 
 bool FileChecker::existsFile(const std::string& file)
 {
-    std::ifstream infile(file);
-    return infile.good();
+    return std::filesystem::exists(file);
+    //    std::ifstream infile(file);
+    //    return infile.good();
 }
 
 std::ostream& operator<<(std::ostream& os, const FileChecker& fc)

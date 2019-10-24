@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "EuRoCDataset.h"
 #include "FileRGBDCamera.h"
 #include "RGBDCamera.h"
 #include "RGBDCameraOpenni.h"

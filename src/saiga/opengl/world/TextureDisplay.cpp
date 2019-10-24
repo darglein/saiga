@@ -20,7 +20,7 @@ TextureDisplay::TextureDisplay()
     shader = shaderLoader.load<MVPTextureShader>("post_processing/imagedisplay.glsl");
 }
 
-void TextureDisplay::render(TextureBase* texture, const ivec2& position, const ivec2& size)
+void TextureDisplay::render(TextureBase* texture, const ivec2& position, const ivec2& size, bool flip_y)
 {
     ViewPort vp;
     vp.position = position;
@@ -31,6 +31,7 @@ void TextureDisplay::render(TextureBase* texture, const ivec2& position, const i
 
     shader->bind();
 
+    shader->upload(0, (int)flip_y);
     shader->uploadTexture(texture);
     buffer.bindAndDraw();
 

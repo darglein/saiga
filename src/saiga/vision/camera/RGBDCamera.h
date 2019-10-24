@@ -11,30 +11,18 @@
 #include "saiga/vision/cameraModel/Distortion.h"
 #include "saiga/vision/util/DepthmapPreprocessor.h"
 
+#include "CameraBase.h"
 #include "CameraData.h"
-
 
 namespace Saiga
 {
-class SAIGA_VISION_API RGBDCamera
+class SAIGA_VISION_API RGBDCamera : public CameraBase<RGBDFrameData>
 {
    public:
     RGBDCamera() {}
     RGBDCamera(const RGBDIntrinsics& intr) : _intrinsics(intr) {}
     virtual ~RGBDCamera() {}
 
-    // Blocks until the next image is available
-    virtual bool getImageSync(RGBDFrameData& data) = 0;
-
-    // Returns false if no image is currently available
-    virtual bool getImage(RGBDFrameData& data) { return getImageSync(data); }
-
-
-
-    // Close the camera.
-    // Blocking calls to waitForImage should return a 'nullptr'
-    virtual void close() {}
-    virtual bool isOpened() { return true; }
 
 
     const RGBDIntrinsics& intrinsics() { return _intrinsics; }

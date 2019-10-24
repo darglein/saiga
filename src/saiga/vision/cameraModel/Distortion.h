@@ -11,6 +11,13 @@
 
 namespace Saiga
 {
+/**
+ * The 5 paramter Rad-Tan Distortion model.
+ * Stored in the following vector.
+ * (k1,k2,p1,p2,k3)
+ *
+ * If the camera is given as a 4 parameter rad-tan just set k3=0.
+ */
 template <typename T>
 using DistortionBase = Eigen::Matrix<T, 5, 1>;
 

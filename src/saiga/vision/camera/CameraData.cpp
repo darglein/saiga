@@ -13,6 +13,16 @@
 #include "saiga/vision/util/Ini.h"
 namespace Saiga
 {
+std::ostream& operator<<(std::ostream& strm, const MonocularIntrinsics& value)
+{
+    strm << "[MonocularIntrinsics]" << std::endl;
+    strm << "K: " << value.model.K.coeffs().transpose() << std::endl;
+    strm << "Distortion: " << value.model.dis.transpose() << std::endl;
+    strm << "Color: " << value.imageSize.w << "x" << value.imageSize.h << std::endl;
+    strm << "Fps: " << value.fps << std::endl;
+    return strm;
+}
+
 void RGBDIntrinsics::fromConfigFile(const std::string& file)
 {
     Saiga::SimpleIni ini;
@@ -61,6 +71,19 @@ std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value)
     strm << "Depth: " << value.depthImageSize.w << "x" << value.depthImageSize.h << std::endl;
     strm << "Fps: " << value.fps << std::endl;
     strm << "MaxFrames: " << value.maxFrames << std::endl;
+    return strm;
+}
+
+std::ostream& operator<<(std::ostream& strm, const StereoIntrinsics& value)
+{
+    strm << "[StereoIntrinsics]" << std::endl;
+    strm << "K:                " << value.model.K.coeffs().transpose() << std::endl;
+    strm << "K right:          " << value.rightModel.K.coeffs().transpose() << std::endl;
+    strm << "Distortion:       " << value.model.dis.transpose() << std::endl;
+    strm << "Distortion right: " << value.rightModel.dis.transpose() << std::endl;
+    strm << "Color:            " << value.imageSize.w << "x" << value.imageSize.h << std::endl;
+    strm << "Color:            " << value.rightImageSize.w << "x" << value.rightImageSize.h << std::endl;
+    strm << "Fps:              " << value.fps << std::endl;
     return strm;
 }
 }  // namespace Saiga

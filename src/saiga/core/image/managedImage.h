@@ -49,6 +49,7 @@ class SAIGA_CORE_API Image : public ImageBase
     }
 
     void create();
+    void create(ImageDimensions dimensions);
     void create(int h, int w);
     void create(int h, int w, ImageType t);
     void create(int h, int w, int p, ImageType t);

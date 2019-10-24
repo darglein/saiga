@@ -79,56 +79,21 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool multithreaded)
-    : RGBDCamera(intr)
+    : DatasetCameraBase<RGBDFrameData>(intr.fps), _intrinsics(intr)
 {
     VLOG(1) << "Loading TUM RGBD Dataset: " << datasetDir;
+
+    if (_intrinsics.depthFactor != 5000)
+    {
+        std::cerr << "Depth Factor should be 5000." << std::endl;
+        _intrinsics.depthFactor = 5000;
+    }
     associate(datasetDir);
-    //    associateFromFile(datasetDir + "/associations.txt");
-
-
-
     load(datasetDir, multithreaded);
-
-    timeStep = std::chrono::duration_cast<tick_t>(
-        std::chrono::duration<double, std::micro>(1000000.0 / double(intrinsics().fps)));
-
-    timer.start();
-    lastFrameTime = timer.stop();
-    nextFrameTime = lastFrameTime + timeStep;
 }
 
 TumRGBDCamera::~TumRGBDCamera() {}
 
-bool TumRGBDCamera::getImageSync(RGBDFrameData& data)
-{
-    if (!isOpened())
-    {
-        return false;
-    }
-
-
-    auto t = timer.stop();
-
-    if (t < nextFrameTime)
-    {
-        std::this_thread::sleep_for(nextFrameTime - t);
-        nextFrameTime += timeStep;
-    }
-    else if (t < nextFrameTime + timeStep)
-    {
-        nextFrameTime += timeStep;
-    }
-    else
-    {
-        nextFrameTime = t + timeStep;
-    }
-
-
-    auto&& img = frames[currentId];
-    setNextFrame(img);
-    data = std::move(img);
-    return true;
-}
 
 SE3 TumRGBDCamera::getGroundTruth(int frame)
 {
@@ -266,6 +231,25 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
     frames.resize(N);
 
     {
+        // load the first image to get image sizes
+        TumFrame first = tumframes.front();
+        Image cimg(datasetDir + "/" + first.rgb.img);
+        Image dimg(datasetDir + "/" + first.depth.img);
+
+        if (!(cimg.dimensions() == intrinsics().imageSize))
+        {
+            std::cerr << "Warning: Intrinsics Image Size does not match actual image size." << std::endl;
+            _intrinsics.imageSize = cimg.dimensions();
+        }
+
+        if (!(dimg.dimensions() == intrinsics().depthImageSize))
+        {
+            std::cerr << "Warning: Depth Intrinsics Image Size does not match actual depth image size." << std::endl;
+            _intrinsics.depthImageSize = dimg.dimensions();
+        }
+    }
+
+    {
         SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
 #pragma omp parallel for if (multithreaded)
         for (int i = 0; i < N; ++i)
@@ -275,7 +259,10 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
             Image dimg(datasetDir + "/" + d.depth.img);
 
             RGBDFrameData f;
-            makeFrameData(f);
+            //            makeFrameData(f);
+
+            f.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
+            f.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
 
             if (cimg.type == UC3)
             {

@@ -30,8 +30,15 @@ uniform sampler2D image;
 
 layout(location=0) out vec4 out_color;
 
+layout(location=0) uniform int flip_y = 0;
+
 void main() {
-    out_color = texture( image, tc );
+    vec2 tc2 = tc;
+    if(flip_y == 1)
+    {
+        tc2.y = 1.0 - tc2.y;
+    }
+    out_color = texture( image, tc2 );
 }
 
 

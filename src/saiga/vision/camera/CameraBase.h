@@ -6,18 +6,34 @@
 
 #pragma once
 
+#include "saiga/core/time/timer.h"
+
 #include "CameraData.h"
+
+#include <thread>
 
 namespace Saiga
 {
+class CameraBase2
+{
+   public:
+    virtual ~CameraBase2() {}
+
+    virtual void close() {}
+    virtual bool isOpened() { return true; }
+    // transforms the pose to the ground truth reference frame.
+    virtual SE3 CameraToGroundTruth() { return SE3(); }
+    SE3 GroundTruthToCamera() { return CameraToGroundTruth().inverse(); }
+};
+
 /**
  * Interface class for different datset inputs.
  */
-template<typename FrameType>
-class SAIGA_TEMPLATE CameraBase
+template <typename _FrameType>
+class SAIGA_TEMPLATE CameraBase : public CameraBase2
 {
    public:
-    CameraBase() {}
+    using FrameType = _FrameType;
     virtual ~CameraBase() {}
 
     // Blocks until the next image is available
@@ -27,11 +43,72 @@ class SAIGA_TEMPLATE CameraBase
     // Returns false if no image is currently available
     virtual bool getImage(FrameType& data) { return getImageSync(data); }
 
-    virtual void close() {}
-    virtual bool isOpened() { return true; }
+
 
    protected:
     int currentId = 0;
 };
+
+/**
+ * Interface for cameras that read datasets.
+ */
+template <typename FrameType>
+class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
+{
+   public:
+    DatasetCameraBase(double fps)
+    {
+        timeStep = std::chrono::duration_cast<tick_t>(std::chrono::duration<double, std::micro>(1000000.0 / fps));
+        timer.start();
+        lastFrameTime = timer.stop();
+        nextFrameTime = lastFrameTime + timeStep;
+    }
+
+    bool getImageSync(FrameType& data) override
+    {
+        if (!this->isOpened())
+        {
+            return false;
+        }
+
+
+        auto t = timer.stop();
+
+        if (t < nextFrameTime)
+        {
+            std::this_thread::sleep_for(nextFrameTime - t);
+            nextFrameTime += timeStep;
+        }
+        else if (t < nextFrameTime + timeStep)
+        {
+            nextFrameTime += timeStep;
+        }
+        else
+        {
+            nextFrameTime = t + timeStep;
+        }
+
+
+        auto&& img = frames[this->currentId];
+        img.id     = this->currentId;
+        this->currentId++;
+        data = std::move(img);
+        return true;
+    }
+
+    virtual bool isOpened() override { return this->currentId < (int)frames.size(); }
+    size_t getFrameCount() { return frames.size(); }
+
+   protected:
+    double fps;
+    AlignedVector<FrameType> frames;
+
+   private:
+    Timer timer;
+    tick_t timeStep;
+    tick_t lastFrameTime;
+    tick_t nextFrameTime;
+};
+
 
 }  // namespace Saiga

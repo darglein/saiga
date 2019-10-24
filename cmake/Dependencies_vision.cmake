@@ -39,6 +39,12 @@ if(SOPHUS_FOUND)
 endif()
 
 
+# lib yaml for dataset loading
+find_package(yaml-cpp QUIET)
+PackageHelperTarget(yaml-cpp YAML_FOUND)
+if(YAML_FOUND)
+    SET(SAIGA_USE_YAML_CPP 1)
+endif()
 
 #Recursive
 SET(SAIGA_USE_EIGENRECURSIVE 1)

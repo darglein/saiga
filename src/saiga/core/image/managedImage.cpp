@@ -45,6 +45,11 @@ void Image::create()
     SAIGA_ASSERT(valid());
 }
 
+void Image::create(ImageDimensions dimensions)
+{
+    create(dimensions.h, dimensions.w);
+}
+
 void Image::create(int h, int w)
 {
     pitchBytes = 0;
@@ -97,6 +102,11 @@ bool Image::load(const std::string& _path)
     clear();
 
     auto path = SearchPathes::image(_path);
+
+    if (path.empty())
+    {
+        std::cout << "could not find " << _path << std::endl;
+    }
 
     bool erg         = false;
     std::string type = fileEnding(path);

@@ -25,6 +25,8 @@ SAIGA_CORE_API void RGBAToGray8(ImageView<const ucvec4> src, ImageView<unsigned 
 // with scale = 1 the resulting grayscale will be in the range 0..255
 SAIGA_CORE_API void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> dst, float scale = 1.0f);
 
+// just sets the color channels to the gray value
+SAIGA_CORE_API void Gray8ToRGBA(ImageView<unsigned char> src, ImageView<ucvec4> dst, unsigned char alpha = 255);
 
 SAIGA_CORE_API float sharpness(ImageView<const unsigned char> src);
 /**

@@ -33,6 +33,7 @@ if(SAIGA_USE_EIGENRECURSIVE)
 
 
     if (SDL2_FOUND AND SAIGA_USE_OPENGL)
+        add_subdirectory(datasetViewer)
         if(G2O_FOUND)
             add_subdirectory(ba)
             add_subdirectory(posegraph_viewer)

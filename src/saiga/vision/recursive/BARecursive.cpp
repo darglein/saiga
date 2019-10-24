@@ -396,14 +396,14 @@ double BARec::computeQuadraticForm()
             auto& camera = scene.intrinsics[img.intr];
             StereoCamera4 scam(camera, scene.bf);
 
-            // each thread can direclty right into A.u and b.u because
-            // we parallize over images
-            auto& targetPosePose = A.u.diagonal()(actualOffset).get();
-            auto& targetPoseRes  = b.u(actualOffset).get();
 
 
             if (!constant)
             {
+                // each thread can direclty right into A.u and b.u because
+                // we parallize over images
+                auto& targetPosePose = A.u.diagonal()(actualOffset).get();
+                auto& targetPoseRes  = b.u(actualOffset).get();
                 targetPosePose.setZero();
                 targetPoseRes.setZero();
             }
@@ -461,6 +461,8 @@ double BARec::computeQuadraticForm()
                     newChi2 += res.squaredNorm();
                     if (!constant)
                     {
+                        auto& targetPosePose = A.u.diagonal()(actualOffset).get();
+                        auto& targetPoseRes  = b.u(actualOffset).get();
                         targetPosePose += JrowPose.transpose() * JrowPose;
                         targetPosePoint = JrowPose.transpose() * JrowPoint;
                         targetPoseRes -= JrowPose.transpose() * res;
@@ -493,6 +495,8 @@ double BARec::computeQuadraticForm()
 
                     if (!constant)
                     {
+                        auto& targetPosePose = A.u.diagonal()(actualOffset).get();
+                        auto& targetPoseRes  = b.u(actualOffset).get();
                         targetPosePose += JrowPose.transpose() * JrowPose;
                         targetPosePoint = JrowPose.transpose() * JrowPoint;
                         targetPoseRes -= JrowPose.transpose() * res;

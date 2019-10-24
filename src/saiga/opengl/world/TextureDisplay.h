@@ -22,7 +22,7 @@ class SAIGA_OPENGL_API TextureDisplay
 {
    public:
     TextureDisplay();
-    void render(TextureBase* texture, const ivec2& position, const ivec2& size);
+    void render(TextureBase* texture, const ivec2& position, const ivec2& size, bool flip_y = false);
 
    private:
     std::shared_ptr<MVPTextureShader> shader;
