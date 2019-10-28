@@ -151,7 +151,10 @@ void Sample::renderFinal(Camera* cam)
     if (ImGui::Button("Load From File"))
     {
         intr.fromConfigFile(std::string(dir) + "config.ini");
-        rgbdcamera  = std::make_unique<Saiga::FileRGBDCamera>(dir, intr);
+
+        DatasetParameters dparams;
+        dparams.dir = dir;
+        rgbdcamera  = std::make_unique<Saiga::FileRGBDCamera>(dparams, intr);
         initTexture = true;
     }
 

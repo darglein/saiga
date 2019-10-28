@@ -113,13 +113,6 @@ struct SAIGA_VISION_API RGBDIntrinsics : public MonocularIntrinsics
     // Maximum depth (in meters) above which the depth values should be considered as outliers
     double maxDepth = 10;
 
-    // The camera disconnects after this amount of frames
-    int maxFrames = -1;
-    // start frame for
-    int startFrame = 0;
-
-
-
     StereoCamera4 stereoCamera() const { return StereoCamera4(model.K, bf); }
     /**
      *  Reads all paramters from the given config file.

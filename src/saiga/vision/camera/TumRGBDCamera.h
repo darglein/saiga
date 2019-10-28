@@ -45,7 +45,7 @@ class SAIGA_VISION_API TumRGBDCamera : public DatasetCameraBase<RGBDFrameData>
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };
 
-    TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool multithreaded = true);
+    TumRGBDCamera(const DatasetParameters& params, const RGBDIntrinsics& intr);
     ~TumRGBDCamera();
 
 
@@ -58,7 +58,6 @@ class SAIGA_VISION_API TumRGBDCamera : public DatasetCameraBase<RGBDFrameData>
 
    private:
     void associate(const std::string& datasetDir);
-    void associateFromFile(const std::string& datasetDir);
     void load(const std::string& datasetDir, bool multithreaded);
 
 

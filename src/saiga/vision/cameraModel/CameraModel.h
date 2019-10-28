@@ -16,7 +16,7 @@ namespace Saiga
 struct PinholeCamera
 {
     Intrinsics4 K;
-    Distortion dis;
+    Distortion dis = Distortion::Zero();
 };
 
 }  // namespace Saiga

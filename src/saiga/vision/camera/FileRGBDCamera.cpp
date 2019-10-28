@@ -15,63 +15,14 @@
 #include <thread>
 namespace Saiga
 {
-FileRGBDCamera::FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool _preload,
-                               bool multithreaded)
-    : RGBDCamera(intr)
+FileRGBDCamera::FileRGBDCamera(const DatasetParameters& params, const RGBDIntrinsics& intr)
+    : DatasetCameraBase<RGBDFrameData>(params), _intrinsics(intr)
 {
-    std::cout << "Loading File RGBD Dataset: " << datasetDir << std::endl;
-
-    if (_preload)
-    {
-        preload(datasetDir, multithreaded);
-    }
-    else
-    {
-        SAIGA_EXIT_ERROR("Not implemented!");
-    }
-    timeStep = std::chrono::duration_cast<tick_t>(
-        std::chrono::duration<double, std::milli>(1000.0 / double(intrinsics().fps)));
-
-    timer.start();
-    lastFrameTime = timer.stop();
-    nextFrameTime = lastFrameTime + timeStep;
+    std::cout << "Loading File RGBD Dataset: " << params.dir << std::endl;
+    preload(params.dir, params.multiThreadedLoad);
 }
 
-FileRGBDCamera::~FileRGBDCamera()
-{
-    std::cout << "~FileRGBDCamera" << std::endl;
-}
-
-bool FileRGBDCamera::getImageSync(RGBDFrameData& data)
-{
-    if (!isOpened())
-    {
-        return false;
-    }
-
-
-    auto t = timer.stop();
-
-    if (t < nextFrameTime)
-    {
-        std::this_thread::sleep_for(nextFrameTime - t);
-        nextFrameTime += timeStep;
-    }
-    else if (t < nextFrameTime + timeStep)
-    {
-        nextFrameTime += timeStep;
-    }
-    else
-    {
-        nextFrameTime = t + timeStep;
-    }
-
-
-    auto&& img = frames[currentId];
-    setNextFrame(img);
-    data = std::move(img);
-    return true;
-}
+FileRGBDCamera::~FileRGBDCamera() {}
 
 
 void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
@@ -91,12 +42,12 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
     std::sort(rgbImages.begin(), rgbImages.end());
     std::sort(depthImages.begin(), depthImages.end());
 
-    if (intrinsics().maxFrames <= 0) _intrinsics.maxFrames = rgbImages.size();
+    if (params.maxFrames <= 0) params.maxFrames = rgbImages.size();
 
     //    std::cout << "Found Color/Depth Images: " << rgbImages.size() << "/" << depthImages.size() << " Loading "
     //         << _intrinsics.maxFrames << " images..." << std::endl;
 
-    int N = intrinsics().maxFrames;
+    int N = params.maxFrames;
     frames.resize(N);
 
     SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
@@ -105,9 +56,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
     for (int i = 0; i < N; ++i)
     {
         auto& f = frames[i];
-        makeFrameData(f);
 
-        //        std::cout << "dir: " << dir() + rgbImages[i] << std::endl;
         RGBImageType cimg(dir() + "/" + rgbImages[i]);
         //        cimg.load(dir() + rgbImages[i]);
 

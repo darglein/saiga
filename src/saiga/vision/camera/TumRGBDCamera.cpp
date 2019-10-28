@@ -78,18 +78,18 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool multithreaded)
-    : DatasetCameraBase<RGBDFrameData>(intr.fps), _intrinsics(intr)
+TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params, const RGBDIntrinsics& intr)
+    : DatasetCameraBase<RGBDFrameData>(_params), _intrinsics(intr)
 {
-    VLOG(1) << "Loading TUM RGBD Dataset: " << datasetDir;
+    VLOG(1) << "Loading TUM RGBD Dataset: " << params.dir;
 
     if (_intrinsics.depthFactor != 5000)
     {
         std::cerr << "Depth Factor should be 5000." << std::endl;
         _intrinsics.depthFactor = 5000;
     }
-    associate(datasetDir);
-    load(datasetDir, multithreaded);
+    associate(params.dir);
+    load(params.dir, params.multiThreadedLoad);
 }
 
 TumRGBDCamera::~TumRGBDCamera() {}
@@ -137,50 +137,10 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
         tf.rgb = r;
         auto t = r.timestamp;
 
-        //        {
-        //            // find best depth image
-        //            auto depthIt = std::lower_bound(depthData.begin(), depthData.end(), CameraData{r.timestamp, ""});
-        //            if (depthIt == depthData.end() || depthIt == depthData.begin()) continue;
-        //            auto prevDepthIt = depthIt - 1;
-        //            auto bestDepth = std::abs(r.timestamp - depthIt->timestamp) < std::abs(r.timestamp -
-        //            prevDepthIt->timestamp)
-        //                                 ? depthIt
-        //                                 : prevDepthIt;
-        //            tf.depth = *bestDepth;
-        //        }
-
-
-        //        std::cout << std::setprecision(30);
-        //        SAIGA_ASSERT(tf.depth.timestamp == depthTimestamps[id]);
-
         auto id = TimestampMatcher::findNearestNeighbour(t, depthTimestamps);
         if (id == -1) continue;
 
         tf.depth = depthData[id];
-
-
-        //        {
-        //            // find best gt
-        //            auto gtIt = std::lower_bound(gt.begin(), gt.end(), GroundTruth{r.timestamp, {}});
-        //            if (gtIt == gt.end() || gtIt == gt.begin()) continue;
-        //            auto prevGTIt = gtIt - 1;
-
-
-        //#if 1
-        //            // interpolate
-        //            double alpha = (t - prevGTIt->timestamp) / (gtIt->timestamp - prevGTIt->timestamp);
-        //            if (prevGTIt->timestamp == gtIt->timestamp) alpha = 0;
-        //            tf.gt.se3       = slerp(prevGTIt->se3, gtIt->se3, alpha);
-        //            tf.gt.timestamp = t;
-        //#else
-        //            // nearest neighbor
-        //            auto bestGt =
-        //                std::abs(r.timestamp - gtIt->timestamp) < std::abs(r.timestamp - prevGTIt->timestamp) ? gtIt :
-        //                prevGTIt;
-        //            tf.gt = *bestGt;
-        //#endif
-        //            SAIGA_ASSERT(tf.gt.se3.matrix() == se3.matrix());
-        //        }
 
         auto [id1, id2, alpha] = TimestampMatcher::findLowHighAlphaNeighbour(t, gtTimestamps);
         if (id1 == -1) continue;
@@ -193,38 +153,21 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
 
         tumframes.push_back(tf);
     }
-}
 
-void TumRGBDCamera::associateFromFile(const std::string& datasetDir)
-{
-    auto lines = File::loadFileStringArray(datasetDir);
-    SAIGA_ASSERT(lines.size() > 1);
-
-    for (auto& l : lines)
-    {
-        TumFrame tf;
-        auto v = split(l, ' ');
-        if (v.size() != 4) continue;
-        //        SAIGA_ASSERT(v.size() == 4);
-        tf.rgb.timestamp   = to_double(v[0]);
-        tf.rgb.img         = v[1];
-        tf.depth.timestamp = to_double(v[2]);
-        tf.depth.img       = v[3];
-        tumframes.push_back(tf);
-    }
-    SAIGA_ASSERT(tumframes.size() > 1);
+    std::cout << "Loaded " << tumframes.size() << std::endl;
 }
 
 
 void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
 {
-    tumframes.erase(tumframes.begin(), tumframes.begin() + intrinsics().startFrame);
+    SAIGA_ASSERT(params.startFrame < tumframes.size());
+    tumframes.erase(tumframes.begin(), tumframes.begin() + params.startFrame);
 
-    if (intrinsics().maxFrames >= 0)
+    if (params.maxFrames >= 0)
     {
-        tumframes.resize(std::min((size_t)intrinsics().maxFrames, tumframes.size()));
+        tumframes.resize(std::min((size_t)params.maxFrames, tumframes.size()));
     }
-    _intrinsics.maxFrames = tumframes.size();
+    params.maxFrames = tumframes.size();
 
 
     int N = tumframes.size();
@@ -251,14 +194,14 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
 
     {
         SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
-#pragma omp parallel for if (multithreaded)
+#pragma omp parallel for if (params.multiThreadedLoad)
         for (int i = 0; i < N; ++i)
         {
             TumFrame d = tumframes[i];
             Image cimg(datasetDir + "/" + d.rgb.img);
             Image dimg(datasetDir + "/" + d.depth.img);
 
-            RGBDFrameData f;
+            RGBDFrameData& f = frames[i];
             //            makeFrameData(f);
 
             f.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
@@ -292,7 +235,6 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
                 f.groundTruth = d.gt.se3;
             }
 
-            frames[i] = std::move(f);
             loadingBar.addProgress(1);
         }
     }

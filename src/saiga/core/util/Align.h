@@ -13,6 +13,10 @@
 #include <memory>
 #include <vector>
 
+#if defined(IS_CUDA)
+#    include "saiga/core/math/math.h"
+#endif
+
 #ifdef WIN32
 #    include <malloc.h>
 #endif
@@ -51,9 +55,10 @@ inline void* aligned_malloc(size_t size)
     // we cannot use the trick of padding the beginnning because that would break
     // allocating in a .cpp file and freeing in .cu.
     // So let's just hope malloc is already aligned :(
-    auto ptr = std::malloc(num);
-    if (!isAligned<void, Alignment>(ptr)) throw std::runtime_error("Malloc Not Aligned!");
-    return ptr;
+    // auto ptr = std::malloc(num);
+    // if (!isAligned<void, Alignment>(ptr)) throw std::runtime_error("Malloc Not Aligned!");
+
+    return Eigen::internal::aligned_malloc(size);
 #else
     return std::aligned_alloc(Alignment, num);
 #endif
@@ -63,6 +68,8 @@ inline void aligned_free(void* ptr)
 {
 #ifdef WIN32
     _aligned_free(ptr);
+#elif defined(IS_CUDA)
+    Eigen::internal::aligned_free(ptr);
 #else
     std::free(ptr);
 #endif

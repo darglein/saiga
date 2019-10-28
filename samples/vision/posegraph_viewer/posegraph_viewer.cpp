@@ -17,6 +17,7 @@
 #include "saiga/vision/scene/BALDataset.h"
 //#include "saiga/vision/Eigen_GLM.h"
 #include "saiga/vision/ceres/CeresBA.h"
+#include "saiga/vision/ceres/CeresPGO.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
 #include "saiga/vision/recursive/BAPoseOnly.h"
@@ -88,7 +89,7 @@ void Sample::update(float dt)
 
 void Sample::renderOverlay(Camera* cam)
 {
-    Base::renderOverlay(cam);
+    //    Base::renderOverlay(cam);
     lineSoup.render(cam);
 
 
@@ -181,6 +182,14 @@ void Sample::renderFinal(Camera* cam)
         change = true;
     }
 
+    if (ImGui::Button("Solve Ceres"))
+    {
+        Saiga::CeresPGO barec;
+        barec.optimizationOptions = baoptions;
+        barec.create(scene);
+        barec.initAndSolve();
+        change = true;
+    }
 
 
     ImGui::End();

@@ -26,6 +26,7 @@ struct Intrinsics4Base
     Intrinsics4Base() {}
     Intrinsics4Base(T fx, T fy, T cx, T cy) : fx(fx), fy(fy), cx(cx), cy(cy) {}
     Intrinsics4Base(const Vec4& v) : fx(v(0)), fy(v(1)), cx(v(2)), cy(v(3)) {}
+    Intrinsics4Base(const Mat3& K) : fx(K(0, 0)), fy(K(1, 1)), cx(K(0, 2)), cy(K(1, 2)) {}
 
     Intrinsics4Base<T> inverse() const { return {T(1) / fx, T(1) / fy, -cx / fx, -cy / fy}; }
 

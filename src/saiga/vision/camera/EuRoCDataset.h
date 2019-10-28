@@ -20,7 +20,7 @@ namespace Saiga
 class SAIGA_VISION_API EuRoCDataset : public DatasetCameraBase<StereoFrameData>
 {
    public:
-    EuRoCDataset(const std::string& datasetDir, int fps = 20);
+    EuRoCDataset(const DatasetParameters& params);
 
     StereoIntrinsics intrinsics;
 

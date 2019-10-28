@@ -31,8 +31,6 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
 
     INI_GETADD_LONG(ini, "Sensor", fps);
     INI_GETADD_DOUBLE(ini, "Sensor", depthFactor);
-    INI_GETADD_LONG(ini, "Sensor", maxFrames);
-    INI_GETADD_LONG(ini, "Sensor", startFrame);
 
     imageSize.w = ini.GetAddLong("Color", "width", imageSize.w);
     imageSize.h = ini.GetAddLong("Color", "height", imageSize.h);
@@ -70,7 +68,6 @@ std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value)
     strm << "Color: " << value.imageSize.w << "x" << value.imageSize.h << std::endl;
     strm << "Depth: " << value.depthImageSize.w << "x" << value.depthImageSize.h << std::endl;
     strm << "Fps: " << value.fps << std::endl;
-    strm << "MaxFrames: " << value.maxFrames << std::endl;
     return strm;
 }
 
@@ -84,6 +81,8 @@ std::ostream& operator<<(std::ostream& strm, const StereoIntrinsics& value)
     strm << "Color:            " << value.imageSize.w << "x" << value.imageSize.h << std::endl;
     strm << "Color:            " << value.rightImageSize.w << "x" << value.rightImageSize.h << std::endl;
     strm << "Fps:              " << value.fps << std::endl;
+    strm << "B * fx:           " << value.bf << std::endl;
+    strm << "B (meters):       " << value.bf / value.model.K.fx << std::endl;
     return strm;
 }
 }  // namespace Saiga

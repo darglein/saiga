@@ -121,33 +121,39 @@ void Sample::renderFinal(Camera* cam)
     intr.fps = fps;
 
 
+    DatasetParameters dparams;
+    dparams.fps        = 25;
+    dparams.startFrame = 10;
+    dparams.maxFrames  = 10000;
 
     if (ImGui::Button("Load From File"))
     {
-        intr.maxFrames = 100;
-        //        intr.fromConfigFile(std::string(dir) + "config.ini");
-        //        rgbdcamera  = std::make_unique<Saiga::FileRGBDCamera>(dir, intr);
-        //        initTexture = true;
-        std::string dir = "/home/dari/Projects/snake/code/data/rgbd_dataset_freiburg3_long_office_household/";
-        rgbdcamera      = std::make_unique<TumRGBDCamera>(dir, intr);
-        leftTexture     = nullptr;
-        rightTexture    = nullptr;
+        dparams.dir  = "/home/dari/Projects/snake/code/data/tum/rgbd_dataset_freiburg3_long_office_household/";
+        rgbdcamera   = std::make_unique<TumRGBDCamera>(dparams, intr);
+        leftTexture  = nullptr;
+        rightTexture = nullptr;
 
         cameraType = TumRGBDCamera::FrameType::cameraType;
     }
 
-    if (ImGui::Button("Load From File2"))
+    if (ImGui::Button("Load From File Euroc"))
     {
-        intr.maxFrames = 100;
-        //        intr.fromConfigFile(std::string(dir) + "config.ini");
-        //        rgbdcamera  = std::make_unique<Saiga::FileRGBDCamera>(dir, intr);
-        //        initTexture = true;
-        std::string dir = "/home/dari/Projects/snake/code/data/euroc/mav0/";
-        stereocamera    = std::make_unique<EuRoCDataset>(dir);
-        leftTexture     = nullptr;
-        rightTexture    = nullptr;
+        dparams.dir  = "/home/dari/Projects/snake/code/data/euroc/mav0/";
+        stereocamera = std::make_unique<EuRoCDataset>(dparams);
+        leftTexture  = nullptr;
+        rightTexture = nullptr;
 
         cameraType = EuRoCDataset::FrameType::cameraType;
+    }
+
+    if (ImGui::Button("Load From File Kitti"))
+    {
+        dparams.dir  = "/home/dari/Projects/snake/code/data/kitti/dataset/sequences/00/";
+        stereocamera = std::make_unique<KittiDataset>(dparams);
+        leftTexture  = nullptr;
+        rightTexture = nullptr;
+
+        cameraType = KittiDataset::FrameType::cameraType;
     }
 
     if (ImGui::Button("Openni"))

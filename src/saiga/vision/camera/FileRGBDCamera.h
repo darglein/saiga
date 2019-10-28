@@ -15,32 +15,18 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API FileRGBDCamera : public RGBDCamera
+class SAIGA_VISION_API FileRGBDCamera : public DatasetCameraBase<RGBDFrameData>
 {
    public:
-    FileRGBDCamera(const std::string& datasetDir, const RGBDIntrinsics& intr, bool preload = true,
-                   bool multithreaded = true);
+    FileRGBDCamera(const DatasetParameters& params, const RGBDIntrinsics& intr);
     ~FileRGBDCamera();
-    /**
-     * Blocks until a new image arrives.
-     */
-    virtual bool getImageSync(RGBDFrameData& data) override;
 
-
-    virtual bool isOpened() override { return currentId < (int)frames.size(); }
-
-    size_t getFrameCount() { return frames.size(); }
-
+    RGBDIntrinsics intrinsics() { return _intrinsics; }
 
    private:
     void preload(const std::string& datasetDir, bool multithreaded);
 
-    std::vector<RGBDFrameData> frames;
-
-    Timer timer;
-    tick_t timeStep;
-    tick_t lastFrameTime;
-    tick_t nextFrameTime;
+    RGBDIntrinsics _intrinsics;
 };
 
 }  // namespace Saiga

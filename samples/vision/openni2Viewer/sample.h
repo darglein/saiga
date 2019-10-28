@@ -37,7 +37,7 @@ class Sample : public SampleWindowForward
     TextureDisplay display;
 
     Saiga::RGBDFrameData frameData;
-    std::unique_ptr<Saiga::RGBDCamera> rgbdcamera;
+    std::unique_ptr<Saiga::CameraBase<RGBDFrameData>> rgbdcamera;
 
     Saiga::TemplatedImage<ucvec4> rgbImage;
     Saiga::TemplatedImage<ucvec4> depthmg;

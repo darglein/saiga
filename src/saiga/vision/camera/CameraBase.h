@@ -49,6 +49,27 @@ class SAIGA_TEMPLATE CameraBase : public CameraBase2
     int currentId = 0;
 };
 
+
+struct SAIGA_VISION_API DatasetParameters
+{
+    // The playback fps. Doesn't have to match the actual camera fps.
+    double fps = 30;
+
+    // Root directory of the dataset. The exact value depends on the dataset type.
+    std::string dir;
+
+    // Throw away all frames before 'startFrame'
+    int startFrame = 0;
+
+    // Only load 'maxFrames' after the startFrame.
+    int maxFrames = -1;
+
+    // Load images in parallel with omp
+    bool multiThreadedLoad = true;
+
+    void fromConfigFile(const std::string& file);
+};
+
 /**
  * Interface for cameras that read datasets.
  */
@@ -56,9 +77,10 @@ template <typename FrameType>
 class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 {
    public:
-    DatasetCameraBase(double fps)
+    DatasetCameraBase(const DatasetParameters& params) : params(params)
     {
-        timeStep = std::chrono::duration_cast<tick_t>(std::chrono::duration<double, std::micro>(1000000.0 / fps));
+        timeStep =
+            std::chrono::duration_cast<tick_t>(std::chrono::duration<double, std::micro>(1000000.0 / params.fps));
         timer.start();
         lastFrameTime = timer.stop();
         nextFrameTime = lastFrameTime + timeStep;
@@ -100,8 +122,8 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
     size_t getFrameCount() { return frames.size(); }
 
    protected:
-    double fps;
     AlignedVector<FrameType> frames;
+    DatasetParameters params;
 
    private:
     Timer timer;
@@ -109,6 +131,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
     tick_t lastFrameTime;
     tick_t nextFrameTime;
 };
+
 
 
 }  // namespace Saiga

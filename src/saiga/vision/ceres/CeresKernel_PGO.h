@@ -41,7 +41,9 @@ struct CostPGO
 #else
         auto error_ = inverseMeasurement.inverse() * from * to.inverse();
 #endif
+
         residual = error_.log() * weight;
+
 
         return true;
     }

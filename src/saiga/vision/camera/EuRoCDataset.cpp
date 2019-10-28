@@ -6,6 +6,7 @@
 
 #include "EuRoCDataset.h"
 
+#include "saiga/core/util/ProgressBar.h"
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
@@ -86,18 +87,23 @@ struct Associations
 };
 
 
-EuRoCDataset::EuRoCDataset(const std::string& datasetDir, int fps) : DatasetCameraBase<StereoFrameData>(fps)
+EuRoCDataset::EuRoCDataset(const DatasetParameters& params) : DatasetCameraBase<StereoFrameData>(params)
 {
-    intrinsics.fps = fps;
+    intrinsics.fps = params.fps;
 
-    VLOG(1) << "Loading EuRoCDataset Stereo Dataset: " << datasetDir;
+    VLOG(1) << "Loading EuRoCDataset Stereo Dataset: " << params.dir;
 
+    auto leftImageSensor  = params.dir + "/cam0/sensor.yaml";
+    auto rightImageSensor = params.dir + "/cam1/sensor.yaml";
+
+    SAIGA_ASSERT(std::filesystem::exists(leftImageSensor));
+    SAIGA_ASSERT(std::filesystem::exists(rightImageSensor));
 
 
     {
         // == Cam 0 ==
         // Load camera meta data
-        YAML::Node config = YAML::LoadFile(datasetDir + "/cam0/sensor.yaml");
+        YAML::Node config = YAML::LoadFile(leftImageSensor);
         SAIGA_ASSERT(config);
         SAIGA_ASSERT(!config.IsNull());
 
@@ -112,13 +118,13 @@ EuRoCDataset::EuRoCDataset(const std::string& datasetDir, int fps) : DatasetCame
         intrinsics.model.dis(4)            = 0;
         Mat4 m                             = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
         extrinsics_cam0                    = SE3::fitToSE3(m);
-        cam0_images                        = loadTimestapDataCSV(datasetDir + "/cam0/data.csv");
+        cam0_images                        = loadTimestapDataCSV(params.dir + "/cam0/data.csv");
     }
 
     {
         // == Cam 1 ==
         // Load camera meta data
-        YAML::Node config = YAML::LoadFile(datasetDir + "/cam1/sensor.yaml");
+        YAML::Node config = YAML::LoadFile(rightImageSensor);
         VLOG(1) << config["comment"].as<std::string>();
         SAIGA_ASSERT(config["camera_model"].as<std::string>() == "pinhole");
         intrinsics.rightModel.K.coeffs(readYamlMatrix<Vec4>(config["intrinsics"]));
@@ -130,13 +136,13 @@ EuRoCDataset::EuRoCDataset(const std::string& datasetDir, int fps) : DatasetCame
         intrinsics.rightModel.dis(4)            = 0;
         Mat4 m                                  = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
         extrinsics_cam1                         = SE3::fitToSE3(m);
-        cam1_images                             = loadTimestapDataCSV(datasetDir + "/cam1/data.csv");
+        cam1_images                             = loadTimestapDataCSV(params.dir + "/cam1/data.csv");
     }
 
     {
         // == Ground truth position ==
 
-        auto sensorFile = datasetDir + "/" + "state_groundtruth_estimate0/data.csv";
+        auto sensorFile = params.dir + "/" + "state_groundtruth_estimate0/data.csv";
 
 
         auto lines = File::loadFileStringArray(sensorFile);
@@ -179,7 +185,7 @@ EuRoCDataset::EuRoCDataset(const std::string& datasetDir, int fps) : DatasetCame
             ground_truth.emplace_back(time, SE3(q, data));
         }
 
-        YAML::Node config = YAML::LoadFile(datasetDir + "/state_groundtruth_estimate0/sensor.yaml");
+        YAML::Node config = YAML::LoadFile(params.dir + "/state_groundtruth_estimate0/sensor.yaml");
         Mat4 m            = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
         extrinsics_gt     = SE3::fitToSE3(m);
 
@@ -238,16 +244,18 @@ EuRoCDataset::EuRoCDataset(const std::string& datasetDir, int fps) : DatasetCame
     // ==== Actual Image Loading ====
     {
         frames.resize(assos.size());
+        int N = assos.size();
 
-#    pragma omp parallel for
-        for (int i = 0; i < assos.size(); ++i)
+        SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
+#    pragma omp parallel for if (params.multiThreadedLoad)
+        for (int i = 0; i < N; ++i)
         {
             auto a      = assos[i];
             auto& frame = frames[i];
 
 
-            std::string leftFile  = datasetDir + "/cam0/data/" + cam0_images[a.left].second;
-            std::string rightFile = datasetDir + "/cam1/data/" + cam1_images[a.right].second;
+            std::string leftFile  = params.dir + "/cam0/data/" + cam0_images[a.left].second;
+            std::string rightFile = params.dir + "/cam1/data/" + cam1_images[a.right].second;
 
             if (a.gtlow >= 0 && a.gthigh >= 0 && a.gtlow != a.gthigh)
             {
@@ -260,6 +268,7 @@ EuRoCDataset::EuRoCDataset(const std::string& datasetDir, int fps) : DatasetCame
                 frame.grayImg2.load(rightFile);
             }
             frame.timeStamp = cam0_images[a.left].first / 1e9;
+            loadingBar.addProgress(1);
         }
     }
 }
