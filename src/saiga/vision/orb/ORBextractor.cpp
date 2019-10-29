@@ -272,8 +272,8 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, 
 
     //    int current = 0;
 
-    std::vector<int> scan;
-    scan.push_back(0);
+    std::vector<int> scan(nlevels);
+    scan[0] = 0;
 
     for (int i = 1; i < nlevels; ++i)
     {

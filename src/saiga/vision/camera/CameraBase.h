@@ -10,6 +10,8 @@
 
 #include "CameraData.h"
 
+#include <fstream>
+#include <iomanip>
 #include <thread>
 
 namespace Saiga
@@ -57,6 +59,9 @@ struct SAIGA_VISION_API DatasetParameters
 
     // Root directory of the dataset. The exact value depends on the dataset type.
     std::string dir;
+
+    // Ground truth file. Only used for the kitti dataset. The other datasets have them included in the main directory.
+    std::string groundTruth;
 
     // Throw away all frames before 'startFrame'
     int startFrame = 0;
@@ -120,6 +125,25 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
     virtual bool isOpened() override { return this->currentId < (int)frames.size(); }
     size_t getFrameCount() { return frames.size(); }
+
+    // Saves the groundtruth in TUM-Trajectory format:
+    // <timestamp> <translation x y z> <rotation x y z w>
+    void saveGroundTruthTrajectory(const std::string& file)
+    {
+        std::ofstream strm(file);
+        strm << std::setprecision(20);
+        for (auto& f : frames)
+        {
+            double time = f.timeStamp;
+            SAIGA_ASSERT(f.groundTruth);
+
+            SE3 gt = f.groundTruth.value();
+            Vec3 t = gt.translation();
+            Quat q = gt.unit_quaternion();
+            strm << time << " " << t(0) << " " << t(1) << " " << t(2) << " " << q.x() << " " << q.y() << " " << q.z()
+                 << " " << q.w() << std::endl;
+        }
+    }
 
    protected:
     AlignedVector<FrameType> frames;

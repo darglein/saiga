@@ -24,10 +24,11 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
 
     VLOG(1) << "Loading KittiDataset Stereo Dataset: " << params.dir;
 
-    auto leftImageDir  = params.dir + "/image_0";
-    auto rightImageDir = params.dir + "/image_1";
-    auto calibFile     = params.dir + "/calib.txt";
-    auto timesFile     = params.dir + "/times.txt";
+    auto leftImageDir    = params.dir + "/image_0";
+    auto rightImageDir   = params.dir + "/image_1";
+    auto calibFile       = params.dir + "/calib.txt";
+    auto timesFile       = params.dir + "/times.txt";
+    auto groundtruthFile = params.groundTruth;
 
     SAIGA_ASSERT(std::filesystem::exists(leftImageDir));
     SAIGA_ASSERT(std::filesystem::exists(rightImageDir));
@@ -89,6 +90,41 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
         std::cout << "got " << timestamps.size() << " timestamps" << std::endl;
     }
 
+    std::vector<SE3> groundTruth;
+
+    if (std::filesystem::exists(params.groundTruth))
+    {
+        // load ground truth
+        std::cout << "loading ground truth " << std::endl;
+        auto lines = File::loadFileStringArray(params.groundTruth);
+
+        StringViewParser parser(" ");
+
+        for (auto l : lines)
+        {
+            if (l.empty()) continue;
+            parser.set(l);
+
+            Eigen::Matrix<double, 3, 4> m;
+            for (int i = 0; i < 12; ++i)
+            {
+                auto sv = parser.next();
+                SAIGA_ASSERT(!sv.empty());
+                m(i / 4, i % 4) = to_double(sv);
+            }
+            //            std::cout << m << std::endl << std::endl;
+            //            matrices.push_back(m);
+            Mat4 m4              = Mat4::Identity();
+            m4.block<3, 4>(0, 0) = m;
+            groundTruth.push_back(SE3::fitToSE3(m4));
+        }
+
+
+
+        SAIGA_ASSERT(groundTruth.size() == timestamps.size());
+    }
+
+
 
     {
         // load left and right images
@@ -125,6 +161,9 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
 
             SAIGA_ASSERT(frame.grayImg);
             SAIGA_ASSERT(frame.grayImg2);
+
+
+            if (!groundTruth.empty()) frame.groundTruth = groundTruth[i];
 
             frame.timeStamp = timestamps[i];
             loadingBar.addProgress(1);

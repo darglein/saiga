@@ -148,10 +148,11 @@ void Sample::renderFinal(Camera* cam)
 
     if (ImGui::Button("Load From File Kitti"))
     {
-        dparams.dir  = "/home/dari/Projects/snake/code/data/kitti/dataset/sequences/00/";
-        stereocamera = std::make_unique<KittiDataset>(dparams);
-        leftTexture  = nullptr;
-        rightTexture = nullptr;
+        dparams.dir         = "/home/dari/Projects/snake/code/data/kitti/dataset/sequences/00/";
+        dparams.groundTruth = "/home/dari/Projects/snake/code/data/kitti/dataset/poses/00.txt";
+        stereocamera        = std::make_unique<KittiDataset>(dparams);
+        leftTexture         = nullptr;
+        rightTexture        = nullptr;
 
         cameraType = KittiDataset::FrameType::cameraType;
     }
