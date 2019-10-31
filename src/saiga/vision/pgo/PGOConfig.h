@@ -6,7 +6,7 @@
 
 #pragma once
 
-#define LSD_REL
+//#define LSD_REL
 
 #define PGO_SIM3
 namespace Saiga

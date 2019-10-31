@@ -207,6 +207,20 @@ SAIGA_TEMPLATE std::vector<T> string_to_array(const std::string& string, char se
     return res;
 }
 
+template <typename Iterator>
+SAIGA_TEMPLATE std::string to_string(Iterator begin, Iterator end)
+{
+    std::string result = "{";
+    while (begin != end)
+    {
+        result += to_string(*begin);
+        ++begin;
+        if (begin != end) result += ", ";
+    }
+    result += "}";
+    return result;
+}
+
 /**
  * Convert a byte size to a string with SI-prefix. e.g.: 512 -> "512 B" and 1536 -> "1.5 kB"
  * @param size Size to convert

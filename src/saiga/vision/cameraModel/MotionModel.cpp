@@ -169,7 +169,7 @@ SE3 MotionModel::computeVelocity()
         result = slerp(result, data[dataId].v, params.alpha);
     }
     result.translation() *= params.damping;
-    // result = scale(result, params.damping);
+    //    result = scale(result, params.damping);
     return result;
 
 

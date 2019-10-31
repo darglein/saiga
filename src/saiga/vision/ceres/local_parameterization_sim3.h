@@ -24,16 +24,10 @@ struct Sim3Plus
 
         // make a copy so we can set the scale to zero
         Vec7 delta2 = delta;
-        //        if (FIX_SCALE) delta2[6] = T(0);
+        if (FIX_SCALE) delta2[6] = T(0);
 
-        delta2[0] = T(0);
-        delta2[1] = T(0);
-        delta2[2] = T(0);
-        delta2[3] = T(0);
-        delta2[4] = T(0);
-        delta2[5] = T(0);
-        //        delta2[6] = T(0);
 
+        //        x_plus_delta = x * Sophus::Sim3<T>::exp(delta2);
         x_plus_delta = Sophus::Sim3<T>::exp(delta2) * x;
 
         return true;

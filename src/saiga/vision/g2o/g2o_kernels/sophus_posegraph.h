@@ -40,7 +40,9 @@ class SAIGA_VISION_API VertexSim3 : public g2o::BaseVertex<G2OSim3VertexType::Do
         if (fixScale) update[6] = 0;
 #endif
         //#ifdef LSD_REL
-        setEstimate(G2OSim3VertexType::exp(update) * estimate());
+
+        Sim3 s = G2OSim3VertexType::exp(update);
+        setEstimate(s * estimate());
         //#else
         //        //        setEstimate(estimate() * SE3::exp(update));
         //        setEstimate(SE3::exp(update) * estimate());
@@ -67,30 +69,30 @@ class SAIGA_VISION_API EdgeSim3
     {
         auto from = static_cast<const VertexSim3*>(_vertices[0])->estimate();
         auto to   = static_cast<const VertexSim3*>(_vertices[1])->estimate();
-        //        if (_LSD_REL)
-        //        {
-        G2OSim3VertexType error_ = from.inverse() * to * _inverseMeasurement;
-        _error                   = error_.log();
-        //        }
-        //        else
-        //        {
-        //            Sim3 error_ = _measurement * from * to.inverse();
-        //            _error      = error_.log();
-        //        }
+        if (_LSD_REL)
+        {
+            G2OSim3VertexType error_ = from.inverse() * to * _inverseMeasurement;
+            _error                   = error_.log();
+        }
+        else
+        {
+            Sim3 error_ = _measurement * from * to.inverse();
+            _error      = error_.log();
+        }
     }
 
     void linearizeOplus()
     {
-        //        if (_LSD_REL)
-        //        {
-        auto from        = static_cast<const VertexSim3*>(_vertices[0])->estimate();
-        _jacobianOplusXj = from.inverse().Adj();
-        _jacobianOplusXi = -_jacobianOplusXj;
-        //        }
-        //        else
-        //        {
-        //            g2o::BaseBinaryEdge<7, Sim3, VertexSim3, VertexSim3>::linearizeOplus();
-        //        }
+        if (_LSD_REL)
+        {
+            auto from        = static_cast<const VertexSim3*>(_vertices[0])->estimate();
+            _jacobianOplusXj = from.inverse().Adj();
+            _jacobianOplusXi = -_jacobianOplusXj;
+        }
+        else
+        {
+            g2o::BaseBinaryEdge<7, Sim3, VertexSim3, VertexSim3>::linearizeOplus();
+        }
     }
 
 
