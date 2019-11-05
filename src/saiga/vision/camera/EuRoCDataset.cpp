@@ -87,7 +87,7 @@ struct Associations
 };
 
 
-EuRoCDataset::EuRoCDataset(const DatasetParameters& params) : DatasetCameraBase<StereoFrameData>(params)
+EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase<StereoFrameData>(_params)
 {
     intrinsics.fps = params.fps;
 
@@ -243,8 +243,20 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& params) : DatasetCameraBase<
     //    assos.resize(200);
     // ==== Actual Image Loading ====
     {
-        frames.resize(assos.size());
         int N = assos.size();
+
+
+        if (params.maxFrames == -1)
+        {
+            params.maxFrames = N;
+        }
+
+        params.maxFrames = std::min(N - params.startFrame, params.maxFrames);
+
+        frames.resize(params.maxFrames);
+        N = params.maxFrames;
+
+
 
         SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
 #    pragma omp parallel for if (params.multiThreadedLoad)

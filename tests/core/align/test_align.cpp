@@ -32,6 +32,8 @@ struct SAIGA_ALIGN(32768) AlignLarge
 TEST(Align, aligned_malloc)
 {
     size_t alocSize = 12345;
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(aligned_malloc<4>(alocSize)) % 4);
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(aligned_malloc<8>(alocSize)) % 8);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(aligned_malloc<16>(alocSize)) % 16);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(aligned_malloc<32>(alocSize)) % 32);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(aligned_malloc<64>(alocSize)) % 64);
@@ -46,6 +48,9 @@ TEST(Align, aligned_malloc)
 TEST(Align, AlignedVector)
 {
     size_t alocSize = 12345;
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<uint8_t>(alocSize).data()) % 1);
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<uint16_t>(alocSize).data()) % 2);
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<uint32_t>(alocSize).data()) % 4);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<int, 16>(alocSize).data()) % 16);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<int, 128>(alocSize).data()) % 128);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<int, 1024>(alocSize).data()) % 1024);
@@ -89,8 +94,3 @@ TEST(Align, AlignStruct)
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(new Align128()) % 128);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(new AlignLarge()) % (1024 * 32));
 }
-
-// int main()
-//{
-//    return 0;
-//}

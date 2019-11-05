@@ -10,6 +10,7 @@
 #include "saiga/core/math/imath.h"
 
 #include <cstdlib>
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -46,31 +47,44 @@ constexpr bool isAligned(const T* ptr)
 template <size_t Alignment>
 inline void* aligned_malloc(size_t size)
 {
-    auto num = iAlignUp(size, Alignment);
+    void* ptr              = nullptr;
+    auto size_with_padding = iAlignUp(size, Alignment);
 #ifdef WIN32
     // Windows doesn't implement std::aligned_alloc :(
-    return _aligned_malloc(num, Alignment);
+    ptr = _aligned_malloc(size_with_padding, Alignment);
 #elif defined(IS_CUDA)
-    // nvcc currently doesn't support std::aligned_alloc (CUDA 10)
-    // we cannot use the trick of padding the beginnning because that would break
-    // allocating in a .cpp file and freeing in .cu.
-    // So let's just hope malloc is already aligned :(
-    // auto ptr = std::malloc(num);
-    // if (!isAligned<void, Alignment>(ptr)) throw std::runtime_error("Malloc Not Aligned!");
-
-    return Eigen::internal::aligned_malloc(size);
+    // Linux + CUDA
+    // Nvcc currently doesn't support std::aligned_alloc :(
+    // Posix memalign is defined in stdlib.h and does the same as the modern std::aligned_alloc.
+    // From posix_memalign manual
+    // The value of alignment shall be a multiple of sizeof( void *), that is also a power of two.
+    if (Alignment < sizeof(void*))
+    {
+        // let's assume malloc is at least (void*) aligned.
+        ptr = malloc(size_with_padding);
+    }
+    else
+    {
+        posix_memalign(&ptr, Alignment, size_with_padding);
+    }
 #else
-    return std::aligned_alloc(Alignment, num);
+    ptr = std::aligned_alloc(Alignment, size_with_padding);
 #endif
+
+#ifdef SAIGA_ASSERTS
+    if (!ptr) throw std::runtime_error("aligned_malloc failed! (nullptr)");
+    if (!isAligned<void, Alignment>(ptr)) throw std::runtime_error("aligned_malloc failed! (Pointer not aligned)");
+#endif
+
+    return ptr;
 }
 
 inline void aligned_free(void* ptr)
 {
 #ifdef WIN32
     _aligned_free(ptr);
-#elif defined(IS_CUDA)
-    Eigen::internal::aligned_free(ptr);
 #else
+    // Posix memalign can also be freeded with std::free!
     std::free(ptr);
 #endif
 }

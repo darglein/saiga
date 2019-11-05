@@ -20,8 +20,7 @@ std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags)
     Table table({2, 18, 10, 1}, strm);
     table << "|"
           << "Eigen Version"
-          << (to_string(EIGEN_WORLD_VERSION) + "." + to_string(EIGEN_MAJOR_VERSION) + "." +
-              to_string(EIGEN_MINOR_VERSION))
+          << (to_string(flags.versionWorld) + "." + to_string(flags.versionMajor) + "." + to_string(flags.versionMinor))
           << "|";
 
     table << "|"

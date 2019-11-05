@@ -13,7 +13,7 @@ namespace Saiga
 struct SAIGA_VISION_API ScalePyramid
 {
     // Maybe this will be changed to a template later.
-    using T = float;
+    using T = double;
 
     ScalePyramid(int levels = 1, T scale_factor = 1);
 
@@ -39,10 +39,8 @@ struct SAIGA_VISION_API ScalePyramid
         return {min_distance, max_distance};
     }
 
-    // Predict the scale of a 3D point for a new image. This predicted level can be compared to the observed scale to
-    // filter outliers.
-    bool CheckScaleConsistencyOfObservation(T reference_distance_to_world_point, int reference_level_of_keypoint,
-                                            T distance_to_world_point, int level_of_keypoint)
+
+    T PredictScaleLevel(T reference_distance_to_world_point, int reference_level_of_keypoint, T distance_to_world_point)
     {
         // The distance we expect on the scale level 0
         T max_distance = reference_distance_to_world_point * scale_per_level[reference_level_of_keypoint];
@@ -54,13 +52,31 @@ struct SAIGA_VISION_API ScalePyramid
 
         // inverse scale formula
         // scale = factor^i    ->    log_factor(scale) = i    ->    log(scale) / log(factor) = i
-        T predicted_scale_level = log(predicted_scale) / log_scale_factor;
+        return log(predicted_scale) / log_scale_factor;
+    }
 
-        T prediction_error = predicted_scale_level - level_of_keypoint;
+    static inline bool PredictionConsistent(T predicted_scale, int level_of_keypoint)
+    {
+        T prediction_error = predicted_scale - level_of_keypoint;
 
         return prediction_error * prediction_error <
                (scale_prediction_error_threshold * scale_prediction_error_threshold);
     }
+
+    // Predict the scale of a 3D point for a new image. This predicted level can be compared to the observed scale to
+    // filter outliers.
+    bool CheckScaleConsistencyOfObservation(T reference_distance_to_world_point, int reference_level_of_keypoint,
+                                            T distance_to_world_point, int level_of_keypoint)
+    {
+        T predicted_scale_level =
+            PredictScaleLevel(reference_distance_to_world_point, reference_level_of_keypoint, distance_to_world_point);
+
+        return PredictionConsistent(predicted_scale_level, level_of_keypoint);
+    }
+
+
+    T ScaleForContiniousLevel(T level) { return pow(scale_factor, level); }
+
 
     // Number of scale levels.
     int levels;
@@ -92,7 +108,7 @@ struct SAIGA_VISION_API ScalePyramid
     std::vector<T> inv_squared_scale_per_level;
 
 
-    static constexpr T scale_prediction_error_threshold = 1;
+    static constexpr T scale_prediction_error_threshold = 1.2;
 };
 
 std::ostream& operator<<(std::ostream& strm, const ScalePyramid& sp);

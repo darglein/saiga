@@ -7,10 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
-#include "saiga/core/util/Thread/SpinLock.h"
 #include "saiga/vision/VisionTypes.h"
 
-#include <mutex>
+// This file includes base types for frames and keyframes in a SLAM or SfM system.
+// Typically an implementation wants to define their own types, but deriving from the classes here.
 namespace Saiga
 {
 /**
@@ -18,67 +18,33 @@ namespace Saiga
  * A projection from world->imagespace is therefore:
  *
  * imagePoint = cameraIntrinsics * framePose * worldPoint
+ *
+ * This class is basically a wrapper for se3 which includes a few more helper functions used in reconstruction
+ * enviroments.
  */
 class FramePose
 {
    public:
     SE3 Pose() const { return se3; }
-    void setPose(const SE3& v) { se3 = v; }
-
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-   protected:
-    SE3 se3;
-};
-
-class FramePoseSync
-{
-   public:
-    SE3 Pose() const
-    {
-        std::unique_lock lock(poseMutex);
-        return se3;
-    }
-    void setPose(const SE3& v)
-    {
-        std::unique_lock lock(poseMutex);
-        se3 = v;
-    }
-
-    // Expose the mutex so it can be used by the base class to sync additional things.
-    auto& getPoseMutex() const { return poseMutex; }
-
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-   protected:
-    SE3 se3;
-    // use a fast spinlock here befause the critical sections are extremly small
-    mutable SpinLock poseMutex;
-};
-
-// Derive from either FramePose or FramePoseSync depending on the SYNC parameter.
-template <bool SYNC = false>
-class FrameBase : public std::conditional<SYNC, FramePoseSync, FramePose>::type
-{
-   public:
-    using PoseType = typename std::conditional<SYNC, FramePoseSync, FramePose>::type;
-
-    using PoseType::Pose;
-    using PoseType::setPose;
-
-
+    SE3 PoseInv() const { return Pose().inverse(); }
+    void SetPose(const SE3& v) { se3 = v; }
+    void SetPose(const Mat4& value) { SetPose(SE3::fitToSE3(value)); }
 
     Vec3 CameraPosition() const { return Pose().inverse().translation(); }
     Mat4 ViewMatrix() const { return Pose().matrix(); }
     Mat4 ModelMatrix() const { return Pose().inverse().matrix(); }
 
-    SE3 PoseInv() const { return Pose().inverse(); }
-    //    SE3 Pose() { return se3.Pose(); }
-    void setPose(const Mat4& value) { setPose(SE3::fitToSE3(value)); }
-    //    void setPose(const SE3& value) { se3.setPose(value); }
-
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+   protected:
+    SE3 se3;
 };
 
+
+// The base class for a single frame (not necessary a keyframe!).
+//
+class FrameBase
+{
+};
 
 
 }  // namespace Saiga
