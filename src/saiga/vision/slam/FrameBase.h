@@ -25,9 +25,9 @@ namespace Saiga
 class FramePose
 {
    public:
-    SE3 Pose() const { return se3; }
+    SE3 Pose() const { return se3_; }
     SE3 PoseInv() const { return Pose().inverse(); }
-    void SetPose(const SE3& v) { se3 = v; }
+    void SetPose(const SE3& v) { se3_ = v; }
     void SetPose(const Mat4& value) { SetPose(SE3::fitToSE3(value)); }
 
     Vec3 CameraPosition() const { return Pose().inverse().translation(); }
@@ -36,7 +36,7 @@ class FramePose
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
    protected:
-    SE3 se3;
+    SE3 se3_;
 };
 
 
@@ -45,6 +45,23 @@ class FramePose
 class FrameBase
 {
 };
+
+
+class KeyframeBase : public FramePose
+{
+   public:
+    KeyframeBase(int id) : id_(id) {}
+
+    explicit operator bool() const { return !bad_; }
+    bool isBad() const { return bad_; }
+    bool Valid() const { return !bad_; }
+    int id() const { return id_; }
+
+   protected:
+    int id_;
+    bool bad_ = false;
+};
+
 
 
 }  // namespace Saiga
