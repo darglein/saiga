@@ -6,5 +6,6 @@
 
 #pragma once
 
-#include "saiga/config.h"
-#include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/VisionTypes.h"
+
+#include "pch_core.h"

@@ -6,6 +6,6 @@
 #include "Recursive.h"
 
 // The recursive matrix module is standalone
-#if defined(SAIGA_INCLUDED)
-#    error "Saiga was included somewhere"
-#endif
+//#if defined(SAIGA_INCLUDED)
+//#    error "Saiga was included somewhere"
+//#endif

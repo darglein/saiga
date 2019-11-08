@@ -81,9 +81,6 @@ endif()
 ############# COMPILER FLAGS ###############
 
 include(Saiga_compiler_flags)
-if(SAIGA_PCH)
-    include(cotire)
-endif()
 
 ####### Dependencies #######
 

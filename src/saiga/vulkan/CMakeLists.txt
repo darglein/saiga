@@ -48,15 +48,10 @@ install(
     ARCHIVE DESTINATION ${INSTALL_LIB}
     )
 
-#install(
-#    EXPORT ${LIB_EXPORT}
-#    FILE SaigaTargets.cmake
-#    DESTINATION ${INSTALL_SHARE}
-#    )
-
-##### Precompiled Headers #####
 if(SAIGA_PCH)
-    set_target_properties(${MODULE_NAME} PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "${PROJECT_SOURCE_DIR}/src/internal/pch_vulkan.h")
-    set_target_properties(${MODULE_NAME} PROPERTIES COTIRE_ADD_UNITY_BUILD false)
-    cotire(${MODULE_NAME})
+    target_precompile_headers(
+        ${MODULE_NAME}
+      PRIVATE
+        "${PROJECT_SOURCE_DIR}/src/internal/pch_vulkan.h"
+    )
 endif()

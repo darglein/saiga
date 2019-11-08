@@ -54,16 +54,3 @@ install(
     ARCHIVE DESTINATION ${INSTALL_LIB}
     )
 
-#install(
-#    EXPORT ${LIB_EXPORT}
-#    FILE SaigaTargets.cmake
-#    DESTINATION ${INSTALL_SHARE}
-#    )
-
-##### Precompiled Headers #####
-if(SAIGA_PCH)
-    set_target_properties(${MODULE_NAME} PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "${PROJECT_SOURCE_DIR}/src/internal/pch_extra.h")
-    set_target_properties(${MODULE_NAME} PROPERTIES COTIRE_ADD_UNITY_BUILD false)
-    cotire(${MODULE_NAME})
-endif()
-

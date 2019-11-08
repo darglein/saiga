@@ -6,5 +6,6 @@
 
 #pragma once
 
-#include "saiga/config.h"
 #include "saiga/vulkan/svulkan.h"
+
+#include "pch_core.h"
