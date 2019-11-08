@@ -27,8 +27,8 @@ void ParticleSystem::init()
     for (unsigned int i = 0; i < particleCount; ++i)
     {
         Particle p;
-        p.position = make_vec4(sphericalRand(15.0f), 1);
-        p.velocity = make_vec4(sphericalRand(1.0f), 1);
+        //        p.position = make_vec4(sphericalRand(15.0f), 1);
+        //        p.velocity = make_vec4(sphericalRand(1.0f), 1);
         addParticle(p);
     }
 

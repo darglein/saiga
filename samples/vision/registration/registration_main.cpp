@@ -78,7 +78,7 @@ class RegistrationTest
         {
             SE3 r           = Random::randomSE3();
             r.translation() = points[i];
-            Sim3 rs         = sim3(r, 1);
+            Sim3 rs         = sim3(r, 1.0);
 
             gt.emplace_back(i, r);
             tracking.emplace_back(i, invT * r);

@@ -19,7 +19,7 @@ Interpolation::Keyframe Interpolation::get(double time)
 
     int frame = Saiga::iCeil(time);
 
-    int prevFrame = max(0,frame - 1);
+    int prevFrame = std::max(0,frame - 1);
 
 
 
@@ -33,10 +33,10 @@ Interpolation::Keyframe Interpolation::get(double time)
     if(cubicInterpolation)
     {
 
-        int if0 = max(0,prevFrame-1);
+        int if0 = std::max(0,prevFrame-1);
         int if1 = prevFrame;
         int if2 = frame;
-        int if3 = min((int)keyframes.size()-1,frame+1);
+        int if3 = std::min((int)keyframes.size()-1,frame+1);
 
 
         Keyframe& f0 = keyframes[if0];
@@ -181,7 +181,7 @@ void Interpolation::createAsset()
 
             Keyframe kf;
             kf.position = curve.getPointOnCurve(time);
-            kf.rot      = IDENTITY_QUATERNION;
+            kf.rot      = quat::Identity();
             vec3 p      = kf.position;
 
             //            std::cout << "time " << time << " p " << p << std::endl;
@@ -274,7 +274,7 @@ void Interpolation::render()
 {
     if (cameraPathAsset && !isRunning())
     {
-        cameraPathAsset->renderForward(nullptr, identityMat4());
+        cameraPathAsset->renderForward(nullptr, mat4::Identity());
     }
 }
 void Interpolation::renderGui(Camera& camera)
@@ -331,7 +331,7 @@ void Interpolation::renderGui(Camera& camera)
         }
         std::cout << "createAsset();" << std::endl;
 
-        keyframes.push_back({IDENTITY_QUATERNION, make_vec3(0)});
+        keyframes.push_back({quat::Identity(), make_vec3(0)});
     }
 
     if (ImGui::CollapsingHeader("render"))

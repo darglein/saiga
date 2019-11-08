@@ -32,9 +32,9 @@ class SAIGA_CORE_API Camera : public Object3D
     std::string name;
 
     //    mat4 model;
-    mat4 view     = identityMat4();
-    mat4 proj     = identityMat4();
-    mat4 viewProj = identityMat4();
+    mat4 view     = mat4::Identity();
+    mat4 proj     = mat4::Identity();
+    mat4 viewProj = mat4::Identity();
 
 
     float zNear, zFar;

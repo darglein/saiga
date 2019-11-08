@@ -139,7 +139,7 @@ int main(int, char**)
     //    return 0;
 
 
-    int its      = 2000;
+    //    int its      = 2000;
     auto inliers = test_double.optimize();
     std::cout << "inliers: " << inliers << std::endl;
     //    sum += test_float.optimize();

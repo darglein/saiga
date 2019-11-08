@@ -5,8 +5,8 @@
  */
 
 #pragma once
-
 #include "saiga/core/camera/camera.h"
+#include "saiga/core/util/Align.h"
 #include "saiga/opengl/rendering/deferredRendering/lighting/light.h"
 #include "saiga/opengl/uniformBuffer.h"
 

@@ -86,6 +86,7 @@ class SAIGA_VISION_API MotionModel
 
     void renderVelocityGraph();
 
+    void clear();
    private:
     struct MotionData
     {

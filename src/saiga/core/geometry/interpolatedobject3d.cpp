@@ -15,14 +15,14 @@ void InterpolatedObject3D::interpolate(float alpha)
     //    interpolatedrot = mix(oldrot,rot,alpha);
 
     interpolatedrot = slerp(oldrot, rot, alpha);
-    interpolatedrot = normalize(interpolatedrot);
+    interpolatedrot = (interpolatedrot).normalized();
 
 
     interpolatedscale    = mix(oldscale, scale, alpha);
     interpolatedposition = mix(oldposition, position, alpha);
 
     interpolatedmodel = createTRSmatrix(interpolatedposition, interpolatedrot, interpolatedscale);
-    //    interpolatedmodel = mat4_cast(interpolatedrot)*scale(identityMat4(),interpolatedscale);
+    //    interpolatedmodel = mat4_cast(interpolatedrot)*scale(mat4::Identity(),interpolatedscale);
     //    interpolatedmodel[3] = vec4(interpolatedposition,1);
 }
 

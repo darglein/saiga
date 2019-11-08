@@ -108,8 +108,8 @@ void DeferredRenderer::resize(int windowWidth, int windowHeight)
     if (windowWidth <= 0 || windowHeight <= 0)
     {
         std::cerr << "Warning: The window size must be greater than zero." << std::endl;
-        windowWidth  = max(windowWidth, 1);
-        windowHeight = max(windowHeight, 1);
+        windowWidth  = std::max(windowWidth, 1);
+        windowHeight = std::max(windowHeight, 1);
     }
     this->outputWidth  = windowWidth;
     this->outputHeight = windowHeight;

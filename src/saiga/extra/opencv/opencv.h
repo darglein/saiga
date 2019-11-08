@@ -54,7 +54,7 @@ inline cv::Mat ImageViewToMat(ImageView<T> img)
 SAIGA_EXTRA_API inline mat3 scaleK(mat3 K, float scale)
 {
     K *= scale;
-    col(K, 2)[2] = 1;
+    K(2, 2) = 1;
     return K;
 }
 

@@ -22,7 +22,7 @@ Color::Color(const vec3& c) : Color(make_vec4(c, 1)) {}
 
 Color::Color(const vec4& c)
 {
-    vec4 tmp = round(c * 255.0f);
+    vec4 tmp = (c * 255.0f).array().round();
     r        = tmp[0];
     g        = tmp[1];
     b        = tmp[2];
@@ -119,8 +119,11 @@ vec3 Color::rgb2hsv(vec3 c)
 vec3 Color::hsv2rgb(vec3 c)
 {
     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-    vec3 p = abs(vec3(fract(make_vec3(c[0]) + make_vec3(K)) * 6.0f - make_vec3(K[3])));
-    return c[2] * mix(make_vec3(K[0]), clamp(p - make_vec3(K[0]), make_vec3(0.0), make_vec3(1.0)), c[1]);
+    //    vec3 fra = fract(make_vec3(c[0]) + make_vec3(K));
+    vec3 fra = (make_vec3(c[0]) + make_vec3(K));
+    fra      = fra.array() - fra.array().floor();
+    vec3 p   = vec3(fra * 6.0f - make_vec3(K[3])).array().abs();
+    return c[2] * mix(make_vec3(K[0]), clamp((p - make_vec3(K[0])).eval(), make_vec3(0.0), make_vec3(1.0)), c[1]);
 }
 
 }  // namespace Saiga

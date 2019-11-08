@@ -528,12 +528,12 @@ template <typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, un
     for (int i = 0; i < Y_ELEMENTS; ++i)
     {
         int rowId = y + i * TILE_H;
-        rowId     = min(rowId, src.height - 1);
-        rowId     = max(0, rowId);
-        int colId = max(0, x);
+        rowId     = std::min(rowId, src.height - 1);
+        rowId     = std::max(0, rowId);
+        int colId = std::max(0, x);
 
         int xb = Saiga::iAlignUp(src.width, X_ELEMENTS) - X_ELEMENTS;
-        colId  = min(colId, xb);
+        colId  = std::min(colId, xb);
 
 
         T* row = src.rowPtr(rowId);
@@ -634,14 +634,14 @@ template <typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, un
     for (int i = 0; i < Y_ELEMENTS; ++i)
     {
         int rowId = y + i * TILE_H;
-        rowId     = min(rowId, src.height - 1);
-        rowId     = max(0, rowId);
+        rowId     = std::min(rowId, src.height - 1);
+        rowId     = std::max(0, rowId);
 
 
-        int colId = max(0, x);
+        int colId = std::max(0, x);
         int xb    = Saiga::iAlignUp(src.width, X_ELEMENTS) - X_ELEMENTS;
-        colId     = min(colId, xb);
-        // colId = min(colId,src.width - X_ELEMENTS);
+        colId     = std::min(colId, xb);
+        // colId = std::min(colId,src.width - X_ELEMENTS);
 
 
         // continue if this thread is not a 'inner thread'

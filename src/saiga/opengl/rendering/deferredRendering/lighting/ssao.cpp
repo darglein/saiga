@@ -94,8 +94,8 @@ void SSAO::resize(int w, int h)
 {
     screenSize  = vec2(w, h);
     ssaoSize    = ivec2(w / 2, h / 2);
-    ssaoSize[0] = max(ssaoSize[0], 1);
-    ssaoSize[1] = max(ssaoSize[1], 1);
+    ssaoSize[0] = std::max(ssaoSize[0], 1);
+    ssaoSize[1] = std::max(ssaoSize[1], 1);
 
     ssao_framebuffer.resize(ssaoSize[0], ssaoSize[1]);
     ssao_framebuffer2.resize(ssaoSize[0], ssaoSize[1]);

@@ -21,7 +21,7 @@ SAIGA_TEMPLATE inline mat3 CVtoGLM_mat3(const MatrixType& mat)
     {
         for (int j = 0; j < 3; ++j)
         {
-            col(M,j)[i] = mat(i, j);
+            M(i, j) = mat(i, j);
         }
     }
     return M;
@@ -35,7 +35,7 @@ SAIGA_TEMPLATE inline mat4 CVtoGLM_mat4(const MatrixType& mat)
     {
         for (int j = 0; j < 4; ++j)
         {
-            col(M,j)[i] = mat(i, j);
+            M(i, j) = mat(i, j);
         }
     }
     return M;

@@ -20,18 +20,20 @@ using Sim3 = Sophus::Sim3d;
 
 
 // No idea why this method doesn't exist in sophus
-inline Sim3 sim3(const SE3& se3, double scale)
+template <typename T>
+inline Sophus::Sim3<T> sim3(const Sophus::SE3<T>& se3, T scale)
 {
-    Sim3 s(se3.unit_quaternion(), se3.translation());
+    Sophus::Sim3<T> s(se3.unit_quaternion(), se3.translation());
     s.setScale(scale);
     return s;
 }
 
 // extract se3 + scale from sim3
-inline std::pair<SE3, double> se3Scale(const Sim3& sim3)
+template <typename T>
+inline std::pair<Sophus::SE3<T>, T> se3Scale(const Sophus::Sim3<T>& sim3)
 {
     double scale = sim3.scale();
-    SE3 se3(sim3.rxso3().quaternion().normalized(), sim3.translation());
+    Sophus::SE3<T> se3(sim3.rxso3().quaternion().normalized(), sim3.translation());
     return {se3, scale};
 }
 
@@ -40,7 +42,8 @@ inline std::pair<SE3, double> se3Scale(const Sim3& sim3)
 //
 // A [sim3] -> B [SE3]
 // B.inverse() == se3Scale(sim3.inverse()).first
-inline SE3 inverseMatchingSE3(const Sim3& sim3)
+template <typename T>
+inline Sophus::SE3<T> inverseMatchingSE3(const Sophus::Sim3<T>& sim3)
 {
     // Alternative implementation using 2x inverse
     // return se3Scale(sim3.inverse()).first.inverse();
@@ -49,12 +52,8 @@ inline SE3 inverseMatchingSE3(const Sim3& sim3)
     Vec3 t   = sim3.translation();
     double s = sim3.scale();
     t *= (1. / s);
-    return SE3(q, t);
+    return Sophus::SE3<T>(q, t);
 }
 
-// inline SE3 operator*(const Sim3& l, const SE3& r)
-//{
-//    return se3Scale(l * sim3(r, 1)).first;
-//}
 
 }  // namespace Saiga

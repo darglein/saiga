@@ -61,7 +61,7 @@ double align(TrajectoryType& A, TrajectoryType& B, bool computeScale)
     {
         auto& c = corrs[i];
         error += c.residualPointToPoint();
-        A[i].second = se3Scale(rel * sim3(A[i].second, 1)).first;
+        A[i].second = se3Scale(rel * sim3(A[i].second, 1.0)).first;
     }
 
     return error;

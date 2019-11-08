@@ -8,6 +8,7 @@
 
 #include "saiga/config.h"
 #include "saiga/core/geometry/triangle_mesh.h"
+#include "saiga/core/util/Align.h"
 #include "saiga/core/util/tostring.h"
 
 #include "objMaterialLoader.h"

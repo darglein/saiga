@@ -35,13 +35,13 @@ if(SAIGA_USE_EIGENRECURSIVE)
     add_subdirectory(recursive)
 endif()
 
-FILE(GLOB VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
-FILE(GLOB VULKAN_HEADER  "*.h" "*.hpp" "*.inl")
+FILE(GLOB VISION_SRC  "*.cpp" "*.cu" "*.cc")
+FILE(GLOB VISION_HEADER  "*.h" "*.hpp" "*.inl")
 
 SET(SAIGA_ALL_FILES
     ${SAIGA_ALL_FILES}
-    ${VULKAN_SRC}
-    ${VULKAN_HEADER}
+    ${VISION_SRC}
+    ${VISION_HEADER}
     )
 
 

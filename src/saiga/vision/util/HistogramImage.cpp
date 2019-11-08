@@ -13,7 +13,7 @@
 namespace Saiga
 {
 HistogramImage::HistogramImage(int inputW, int inputH, int outputW, int outputH)
-    : inputW(inputW), inputH(inputH), outputW(min(inputW, outputW)), outputH(min(inputH, outputH))
+    : inputW(inputW), inputH(inputH), outputW(std::min(inputW, outputW)), outputH(std::min(inputH, outputH))
 {
     img.create(this->outputH, this->outputW);
     img.getImageView().set(0);

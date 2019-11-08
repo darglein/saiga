@@ -106,14 +106,14 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSW()
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimSE()
 {
     auto mesh = createMeshTrimSW();
-    mesh->transform(rotate(identityMat4(), radians(90.0f), vec3(0, 1, 0)));
+    mesh->transform(rotate(mat4::Identity(), radians(90.0f), vec3(0, 1, 0)));
     return mesh;
 }
 
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimNW()
 {
     auto mesh = createMeshTrimSW();
-    mesh->transform(rotate(identityMat4(), radians(-90.0f), vec3(0, 1, 0)));
+    mesh->transform(rotate(mat4::Identity(), radians(-90.0f), vec3(0, 1, 0)));
     return mesh;
 }
 
@@ -121,7 +121,7 @@ std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimNW()
 std::shared_ptr<TerrainMesh::mesh_t> TerrainMesh::createMeshTrimNE()
 {
     auto mesh = createMeshTrimSW();
-    mesh->transform(rotate(identityMat4(), radians(180.0f), vec3(0, 1, 0)));
+    mesh->transform(rotate(mat4::Identity(), radians(180.0f), vec3(0, 1, 0)));
     return mesh;
 }
 

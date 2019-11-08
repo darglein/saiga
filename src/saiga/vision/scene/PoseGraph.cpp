@@ -19,7 +19,7 @@ PoseGraph::PoseGraph(const Scene& scene, int minEdges)
     {
         PoseVertex pv;
 #ifdef PGO_SIM3
-        pv.se3 = sim3(p.se3, 1);
+        pv.se3 = sim3(p.se3, 1.0);
 #else
         pv.se3 = p.se3;
 #endif
@@ -204,7 +204,7 @@ bool PoseGraph::imgui()
     ImGui::PushID(2836759);
     bool changed = false;
 
-    ImGui::Checkbox("fixScale",&fixScale);
+    ImGui::Checkbox("fixScale", &fixScale);
     if (ImGui::Button("RMS"))
     {
         rms();

@@ -19,9 +19,9 @@
 // inverseSF / SF / inverseHSF / HSF - final version from the SFM paper.
 FUNC_DECL float inverseSF(float3 p, float n)
 {
-    float phi = min(atan2(p.y, p.x), PI), cosTheta = p.z;
+    float phi = std::min(atan2(p.y, p.x), PI), cosTheta = p.z;
 
-    float k = max(2.f, floor(log(n * PI * sqrt(5.f) * (1.f - cosTheta * cosTheta)) / log(PHI * PHI)));
+    float k = std::max(2.f, floor(log(n * PI * sqrt(5.f) * (1.f - cosTheta * cosTheta)) / log(PHI * PHI)));
 
     float Fk = pow(PHI, k) / sqrt(5);
     float F0 = round(Fk), F1 = round(Fk * PHI);
@@ -65,9 +65,9 @@ FUNC_DECL float3 SF(float i, float n)
 
 FUNC_DECL float inverseHSF(float3 p, float n)
 {
-    float phi = min(atan2(p.y, p.x), PI), cosTheta = max(p.z, 0.f);
+    float phi = std::min(atan2(p.y, p.x), PI), cosTheta = std::max(p.z, 0.f);
 
-    float k = max(2.f, floor(log(2.f * n * PI * sqrt(5.f) * saturate(1.f - cosTheta * cosTheta)) / log(PHI * PHI)));
+    float k = std::max(2.f, floor(log(2.f * n * PI * sqrt(5.f) * saturate(1.f - cosTheta * cosTheta)) / log(PHI * PHI)));
 
     float Fk = pow(PHI, k) / sqrt(5);
     float F0 = round(Fk), F1 = round(Fk * PHI);

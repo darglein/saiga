@@ -166,6 +166,8 @@ bool RayPlane(const Ray& r, const Plane& p, float& t)
 // http://gamedev.stackexchange.com/questions/18436/most-efficient-AABB-vs-ray-collision-algorithms
 bool RayAABB(const vec3& origin, const vec3& direction, const vec3& boxmin, const vec3& boxmax, float& t)
 {
+    using std::max;
+    using std::min;
     vec3 dirfrac;
     dirfrac[0] = 1.0f / direction[0];
     dirfrac[1] = 1.0f / direction[1];
@@ -180,8 +182,8 @@ bool RayAABB(const vec3& origin, const vec3& direction, const vec3& boxmin, cons
     float t5 = (boxmin[2] - origin[2]) * dirfrac[2];
     float t6 = (boxmax[2] - origin[2]) * dirfrac[2];
 
-    float tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
-    float tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
+    float tmin = std::max(max(min(t1, t2), std::min(t3, t4)), std::min(t5, t6));
+    float tmax = std::min(min(max(t1, t2), std::max(t3, t4)), std::max(t5, t6));
 
     // if tmax < 0, ray (line) is intersecting AABB, but whole AABB is behing us
     if (tmax < 0)

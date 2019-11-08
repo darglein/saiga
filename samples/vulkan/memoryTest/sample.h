@@ -41,7 +41,7 @@ class VulkanExample : public VulkanSDLExampleBase, public Saiga::SDL_KeyListener
     std::mt19937 mersenne_twister, auto_mersenne, defrag_test_mersenne;
 
 
-    std::array<vk::DeviceSize, 4> tex_sizes{256, 512, 1024, 2048};
+    //    std::array<vk::DeviceSize, 4> tex_sizes{256, 512, 1024, 2048};
     std::array<vk::DeviceSize, 4> sizes{256 * 256, 512 * 512, 1024 * 1024, 16 * 1024 * 1024};
 
     Saiga::Vulkan::Memory::BufferType buffer_type{vk::BufferUsageFlagBits::eTransferDst,
@@ -82,7 +82,7 @@ class VulkanExample : public VulkanSDLExampleBase, public Saiga::SDL_KeyListener
     Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
 
 
-    bool displayModels = true;
+    //    bool displayModels = true;
 
 
     void keyPressed(SDL_Keysym key) override;

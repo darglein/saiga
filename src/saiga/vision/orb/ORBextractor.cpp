@@ -335,7 +335,7 @@ void ORBextractor::ComputeDescriptors(std::vector<std::vector<kpt_t>>& allkpts, 
  * @param allkpts KeyPoint vector in which the result will be stored
  * @param mode decides which method to call for keypoint distribution over image, see Distribution.h
  * @param divideImage  true-->divide image into cellSize x cellSize cells, run FAST per cell
- * @param cellSize must be greater than 16 and lesser than min(rows, cols) of smallest image in pyramid
+ * @param cellSize must be greater than 16 and lesser than std::min(rows, cols) of smallest image in pyramid
  */
 void ORBextractor::DivideAndFAST(std::vector<std::vector<kpt_t>>& allkpts, FeatureDistribution& distribution,
                                  int cellSize, bool distributePerLevel)

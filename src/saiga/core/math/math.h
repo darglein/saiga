@@ -15,6 +15,7 @@
 // A few GLM-like functions so we can write transpose(mat) instead of mat.transpose()
 // This will most likely be removed in the future
 #include "EigenGLMInterface.h"
+#include "EigenGLMInterfaceFloat.h"
 // Contains defintions for aligned allocations.
 // This is important for eigen data structures
-#include "saiga/core/util/Align.h"
+//#include "saiga/core/util/Align.h"

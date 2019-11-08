@@ -26,7 +26,7 @@ Text::Text(TextureAtlas* textureAtlas, const std::string& label, bool normalize)
 void Text::calculateNormalizationMatrix()
 {
     boundingBox         = mesh.aabb();
-    normalizationMatrix = identityMat4();
+    normalizationMatrix = mat4::Identity();
     if (normalize)
     {
         //        float height = boundingBox.max[1] - boundingBox.min[1];

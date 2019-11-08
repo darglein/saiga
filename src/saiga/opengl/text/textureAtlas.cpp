@@ -7,12 +7,12 @@
 #include "saiga/opengl/text/textureAtlas.h"
 
 #include "saiga/core/geometry/triangle_mesh.h"
-#include "saiga/opengl/texture/Texture.h"
-#include "saiga/opengl/texture/TextureLoader.h"
-#include "saiga/opengl/text/fontLoader.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/opengl/text/fontLoader.h"
+#include "saiga/opengl/texture/Texture.h"
+#include "saiga/opengl/texture/TextureLoader.h"
 
 #include <algorithm>
 #include <fstream>
@@ -176,9 +176,14 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph>& g
             info.offset[0] = g.offset[0];
             info.offset[1] = g.offset[1] - info.size[1];  // freetype uses an y inverted glyph coordinate system
 
-            maxCharacter.min = min(maxCharacter.min, vec3(info.offset[0], info.offset[1], 0));
-            maxCharacter.max =
-                max(maxCharacter.max, vec3(info.offset[0] + info.size[0], info.offset[1] + info.size[1], 0));
+            //            maxCharacter.min = std::min(maxCharacter.min, vec3(info.offset[0], info.offset[1], 0));
+            //            maxCharacter.max =
+            //                std::max(maxCharacter.max, vec3(info.offset[0] + info.size[0], info.offset[1] +
+            //                info.size[1], 0));
+
+            maxCharacter.min = maxCharacter.min.array().min(vec3(info.offset[0], info.offset[1], 0).array());
+            maxCharacter.max = maxCharacter.max.array().min(
+                vec3(info.offset[0] + info.size[0], info.offset[1] + info.size[1], 0).array());
 
 
 

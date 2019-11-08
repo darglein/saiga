@@ -80,54 +80,15 @@ SAIGA_CORE_API std::vector<int> uniqueIndices(int sampleCount, int indexSize);
 
 
 
-inline vec3 sphericalRand(float r)
-{
-    SAIGA_ASSERT(0);
-    return vec3(0, 0, 0);
-}
+SAIGA_CORE_API extern float linearRand(float low, float high);
+
+SAIGA_CORE_API extern vec2 linearRand(const vec2& low, const vec2& high);
 
 
-inline vec3 sampleCone(vec3 low, float f)
-{
-    SAIGA_ASSERT(0);
-    return vec3(0, 0, 0);
-}
+SAIGA_CORE_API extern vec3 linearRand(const vec3& low, const vec3& high);
 
-inline float linearRand(float low, float high)
-{
-    return Saiga::Random::sampleDouble(low, high);
-}
-
-inline vec2 linearRand(const vec2& low, const vec2& high)
-{
-    return vec2(Saiga::Random::sampleDouble(low[0], high[0]), Saiga::Random::sampleDouble(low[1], high[1]));
-}
+SAIGA_CORE_API extern vec4 linearRand(const vec4& low, const vec4& high);
 
 
-inline vec3 linearRand(const vec3& low, const vec3& high)
-{
-    return vec3(Saiga::Random::sampleDouble(low[0], high[0]), Saiga::Random::sampleDouble(low[1], high[1]),
-                Saiga::Random::sampleDouble(low[2], high[2]));
-}
-
-inline vec4 linearRand(const vec4& low, const vec4& high)
-{
-    return vec4(Saiga::Random::sampleDouble(low[0], high[0]), Saiga::Random::sampleDouble(low[1], high[1]),
-                Saiga::Random::sampleDouble(low[2], high[2]), Saiga::Random::sampleDouble(low[3], high[3]));
-}
-
-
-inline vec2 diskRand(float Radius)
-{
-    vec2 Result(0, 0);
-    float LenRadius = 0;
-
-    do
-    {
-        Result    = linearRand(make_vec2(-Radius), make_vec2(Radius));
-        LenRadius = length(Result);
-    } while (LenRadius > Radius);
-
-    return Result;
-}
+SAIGA_CORE_API extern vec2 diskRand(float Radius);
 }  // namespace Saiga

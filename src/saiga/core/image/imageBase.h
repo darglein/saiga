@@ -83,8 +83,8 @@ struct SAIGA_CORE_API ImageBase : public ImageDimensions
     HD inline void clampToEdge(int& y, int& x) const
     {
 #ifdef SAIGA_ON_DEVICE
-        x = min(max(0, x), width - 1);
-        y = min(max(0, y), height - 1);
+        x = std::min(max(0, x), width - 1);
+        y = std::min(max(0, y), height - 1);
 #else
         x = std::min(std::max(0, x), width - 1);
         y = std::min(std::max(0, y), height - 1);
@@ -99,7 +99,7 @@ struct SAIGA_CORE_API ImageBase : public ImageDimensions
         int y0 = y;
         int y1 = height - 1 - y;
 #ifdef SAIGA_ON_DEVICE
-        return min(x0, min(x1, min(y0, y1)));
+        return std::min(x0, std::min(x1, std::min(y0, y1)));
 #else
         return std::min(x0, std::min(x1, std::min(y0, y1)));
 #endif

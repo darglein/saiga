@@ -163,8 +163,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 
 
 #ifdef SAIGA_ON_DEVICE
-        int x1 = min(x0 + 1, width - 1);
-        int y1 = min(y0 + 1, height - 1);
+        int x1 = std::min(x0 + 1, width - 1);
+        int y1 = std::min(y0 + 1, height - 1);
 #else
         int x1 = std::min(x0 + 1, width - 1);
         int y1 = std::min(y0 + 1, height - 1);
@@ -418,8 +418,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     HD inline void clampToEdge(int& y, int& x)
     {
 #ifdef SAIGA_ON_DEVICE
-        x = min(max(0, x), width - 1);
-        y = min(max(0, y), height - 1);
+        x = std::min(max(0, x), width - 1);
+        y = std::min(max(0, y), height - 1);
 #else
         x      = std::min(std::max(0, x), width - 1);
         y      = std::min(std::max(0, y), height - 1);

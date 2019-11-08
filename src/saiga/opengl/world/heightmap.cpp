@@ -281,8 +281,8 @@ float Heightmap::getHeightScaled(int layer, int x, int y)
 
 void Heightmap::setHeight(int x, int y, float v)
 {
-    minH               = min(v, minH);
-    maxH               = max(v, maxH);
+    minH               = std::min(v, minH);
+    maxH               = std::max(v, maxH);
     heights[x + y * w] = v;
 }
 

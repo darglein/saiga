@@ -20,14 +20,14 @@ Skybox::Skybox()
 
 void Skybox::setPosition(const vec3& p)
 {
-    col(model, 3) = vec4(p[0], 0, p[2], 1);
+    model.col(3) = vec4(p[0], 0, p[2], 1);
 }
 
 void Skybox::setDistance(float d)
 {
-    col(model, 0)[0] = d;
-    col(model, 1)[1] = d;
-    col(model, 2)[2] = d;
+    model(0, 0) = d;
+    model(1, 1) = d;
+    model(2, 2) = d;
 }
 
 

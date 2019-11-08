@@ -31,7 +31,7 @@ class SAIGA_OPENGL_API ProceduralSkybox : public ProceduralSkyboxBase
    public:
     IndexedVertexBuffer<VertexNT, GLuint> mesh;
     std::shared_ptr<ProceduralSkyboxShader> shader;
-    mat4 model = identityMat4();
+    mat4 model = mat4::Identity();
 
     ProceduralSkybox();
 

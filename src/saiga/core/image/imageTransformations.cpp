@@ -115,7 +115,7 @@ float sharpness(ImageView<const unsigned char> src)
         {
             auto dx = src(i, j + 1) - src(i, j - 1);
             auto dy = src(i + 1, j) - src(i - 1, j);
-            sum += max(dx, dy);
+            sum += std::max(dx, dy);
         }
     }
     return float(sum) / (src.w * src.h);

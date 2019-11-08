@@ -46,7 +46,7 @@ int main(int argc, char* args[])
     auto set = [&](vec2 p) {
         // assuming p is in [0,1]
         //        p = p * vec2(iw, ih);
-        p = ele_mult(p, make_vec2(iw, ih));
+        p = p.array() * make_vec2(iw, ih).array();
         ImageDraw::drawCircle(img.getImageView(), p, 4, 255);
     };
 

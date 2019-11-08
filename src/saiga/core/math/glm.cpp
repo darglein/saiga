@@ -6,13 +6,13 @@
 
 #include "saiga/config.h"
 
-#ifdef SAIGA_USE_GLM
-#include "glm.h"
+#ifdef SAIGA_USE_GLM1
+#    include "saiga/core/util/assert.h"
+#    include "saiga/core/util/tostring.h"
 
-#include "saiga/core/util/assert.h"
-#include "saiga/core/util/tostring.h"
+#    include "internal/noGraphicsAPI.h"
 
-#include "internal/noGraphicsAPI.h"
+#    include "glm.h"
 
 namespace glm
 {

@@ -176,7 +176,7 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
 
     //    AlignedVector<mat4> boneMatrices(al.boneOffsets.size());
     //    for(int i = 0 ; i < al.boneOffsets.size() ; ++i){
-    //        mat4 randomTransformation = translate(identityMat4(),vec3(1,i,3));
+    //        mat4 randomTransformation = translate(mat4::Identity(),vec3(1,i,3));
     //        randomTransformation = rotate(randomTransformation,123.123f+i,vec3(-14,2,i));
     //        randomTransformation = scale(randomTransformation,vec3(i,3.5f,5.1f));
     //        randomTransformation = rotate(randomTransformation,123.123f*i,vec3(4,2,-5*i));

@@ -135,7 +135,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
     {
         if (assetRenderer.bind(cmd))
         {
-            assetRenderer.pushModel(cmd, identityMat4());
+            assetRenderer.pushModel(cmd, mat4::Identity());
             plane.render(cmd);
 
             assetRenderer.pushModel(cmd, teapotTrans.model);
@@ -148,7 +148,7 @@ void VulkanExample::render(vk::CommandBuffer cmd)
             teapot.render(cmd);
 
             auto gridMatrix = rotate(0.5f * pi<float>(), vec3(1, 0, 0));
-            gridMatrix      = translate(gridMatrix, vec3(0, -10, 0));
+            gridMatrix      = gridMatrix * translate(vec3(0, -10, 0));
             lineAssetRenderer.pushModel(cmd, gridMatrix);
             grid.render(cmd);
         }

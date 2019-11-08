@@ -36,16 +36,7 @@ void setRandom(MatrixType& M)
         for (int j = 0; j < M.cols(); ++j) M(i, j) = sampleDouble(-1, 1);
 }
 
-inline SE3 randomSE3()
-{
-    Vec3 t  = Vec3::Random();
-    Vec4 qc = Vec4::Random();
-    Quat q;
-    q.coeffs() = qc;
-    q.normalize();
-    if (q.w() < 0) q.coeffs() *= -1;
-    return SE3(q, t);
-}
+SAIGA_VISION_API extern SE3 randomSE3();
 
 }  // namespace Random
 }  // namespace Saiga

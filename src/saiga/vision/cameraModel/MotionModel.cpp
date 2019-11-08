@@ -106,6 +106,12 @@ void MotionModel::renderVelocityGraph()
     grapha.renderImGui();
 }
 
+void MotionModel::clear()
+{
+    data.clear();
+    validVelocity = false;
+}
+
 void MotionModel::recomputeVelocity()
 {
     currentVelocity = computeVelocity();

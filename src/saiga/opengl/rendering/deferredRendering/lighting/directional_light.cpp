@@ -216,9 +216,9 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
             // compute bounding sphere for cascade
 
             //        vec3 d = -vec3(cam->model[2]);
-            vec3 right = make_vec3(col(cam->model, 0));
-            vec3 up    = make_vec3(col(cam->model, 1));
-            vec3 dir   = -make_vec3(col(cam->model, 2));
+            vec3 right = make_vec3(cam->model.col(0));
+            vec3 up    = make_vec3(cam->model.col(1));
+            vec3 dir   = -make_vec3(cam->model.col(2));
 
 
             float zNear = depthCuts[c] - cascadeInterpolateRange;
@@ -264,7 +264,7 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
         //    texelSize[0] = 2.0f * r / shadowmap.w;
         //    texelSize[1] = 2.0f * r / shadowmap.h;
         //    texelSize[2] = 0.0001f;
-        texelSize = 2.0f * r / smsize;
+        texelSize = 2.0f * r / smsize.array();
 
         // project the position of the actual camera to light space
         vec3 p = boundingSphere.pos;
@@ -280,14 +280,14 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
 #    if 1
         {
             // move camera in texel size increments
-            orthoBox.min = ele_div(orthoBox.min, texelSize);
-            orthoBox.min = floor(orthoBox.min);
-            orthoBox.min = ele_mult(orthoBox.min, texelSize);
+            orthoBox.min = (orthoBox.min.array() / texelSize.array());
+            orthoBox.min = (orthoBox.min).array().floor();
+            orthoBox.min = orthoBox.min.array() * texelSize.array();
 
             //            orthoBox.max /= texelSize;
-            orthoBox.max = ele_div(orthoBox.max, texelSize);
-            orthoBox.max = floor(orthoBox.max);
-            orthoBox.max = ele_mult(orthoBox.max, texelSize);
+            orthoBox.max = (orthoBox.max.array() / texelSize.array());
+            orthoBox.max = (orthoBox.max).array().floor();
+            orthoBox.max = orthoBox.max.array() * texelSize.array();
         }
 #    endif
     }

@@ -60,7 +60,7 @@ Ray WindowBase::createPixelRay(const vec2& pixel) const
 
     mat4 inverseView = inverse(WindowBase::getCamera()->view);
     vec3 ray_world   = make_vec3(inverseView * p);
-    vec3 origin      = make_vec3(col(inverseView, 3));
+    vec3 origin      = make_vec3(inverseView.col(3));
     return Ray(normalize(vec3(ray_world - origin)), origin);
 }
 
@@ -72,7 +72,7 @@ Ray WindowBase::createPixelRay(const vec2& pixel, const vec2& resolution, const 
 
     mat4 inverseView = inverse(WindowBase::getCamera()->view);
     vec3 ray_world   = make_vec3(inverseView * p);
-    vec3 origin      = make_vec3(col(inverseView, 3));
+    vec3 origin      = make_vec3(inverseView.col(3));
     return Ray(normalize(vec3(ray_world - origin)), origin);
 }
 

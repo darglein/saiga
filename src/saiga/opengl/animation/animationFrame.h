@@ -5,10 +5,10 @@
  */
 
 #pragma once
-
 #include "saiga/config.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/time/time.h"
+#include "saiga/core/util/Align.h"
 
 #include <map>
 #include <vector>

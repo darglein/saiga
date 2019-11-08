@@ -44,7 +44,7 @@ __device__ inline T warpReduceMax(T val)
     for (int offset = LOCAL_WARP_SIZE / 2; offset > 0; offset /= 2)
     {
         auto v = RESULT_FOR_ALL_THREADS ? __shfl_xor(val, offset) : __shfl_down(val, offset);
-        val    = max(val, v);
+        val    = std::max(val, v);
     }
     return val;
 }

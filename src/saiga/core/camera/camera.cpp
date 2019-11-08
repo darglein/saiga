@@ -29,7 +29,7 @@ void Camera::setView(const mat4& v)
     recalculateMatrices();
     model = inverse(view);
 
-    this->position = col(model, 3);
+    this->position = model.col(3);
     this->rot      = quat_cast(model);
 }
 
@@ -160,8 +160,8 @@ vec2 Camera::projectedIntervall(const vec3& d)
     for (int i = 0; i < 8; ++i)
     {
         float t = dot(d, vertices[i]);
-        ret[0]  = min(ret[0], t);
-        ret[1]  = max(ret[1], t);
+        ret[0]  = std::min(ret[0], t);
+        ret[1]  = std::max(ret[1], t);
     }
     return ret;
 }
@@ -319,9 +319,9 @@ void PerspectiveCamera::recalculatePlanes()
     //    vec3 up    = vec3(model[1]);
     //    vec3 dir   = -vec3(model[2]);
 
-    vec3 right = make_vec3(col(model, 0));
-    vec3 up    = make_vec3(col(model, 1));
-    vec3 dir   = make_vec3(-col(model, 2));
+    vec3 right = make_vec3(model.col(0));
+    vec3 up    = make_vec3(model.col(1));
+    vec3 dir   = make_vec3(-model.col(2));
 
     vec3 nearplanepos = getPosition() + dir * zNear;
     vec3 farplanepos  = getPosition() + dir * zFar;
@@ -410,9 +410,9 @@ void OrthographicCamera::recomputeProj()
 
 void OrthographicCamera::recalculatePlanes()
 {
-    vec3 rightv = make_vec3(col(model, 0));
-    vec3 up     = make_vec3(col(model, 1));
-    vec3 dir    = make_vec3(-col(model, 2));
+    vec3 rightv = make_vec3((model.col(0)));
+    vec3 up     = make_vec3((model.col(1)));
+    vec3 dir    = make_vec3(-(model.col(1)));
 
     vec3 nearplanepos = getPosition() + dir * zNear;
     vec3 farplanepos  = getPosition() + dir * zFar;

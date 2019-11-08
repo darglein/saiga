@@ -54,7 +54,7 @@ void BoxLight::calculateCamera()
     calculateModel();
     // trs matrix without scale
     //(scale is applied through projection matrix
-    mat4 T = translate(identityMat4(), make_vec3(position));
+    mat4 T = translate(make_vec3(position));
     mat4 R = make_mat4(rot);
     mat4 m = T * R;
     shadowCamera.setView(inverse(m));

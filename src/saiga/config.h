@@ -112,6 +112,6 @@
 //#include <iostream>
 // This includes forward declarations for basic IO types
 // such as std::ostream
-#include <iosfwd>
+//#include <iosfwd>
 
 #define SAIGA_INCLUDED

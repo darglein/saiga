@@ -22,7 +22,7 @@ Sample::Sample()
     float aspect = window->getAspectRatio();
     camera.setProj(35.0f, aspect, 0.1f, 100.0f);
     camera.position = vec4(0, 1, 4.5, 1);
-    camera.rot      = IDENTITY_QUATERNION;
+    camera.rot      = quat::Identity();
     std::cout << "Program Initialized!" << std::endl;
 
 
@@ -34,7 +34,7 @@ Sample::Sample()
     pointLight->setColorDiffuse(make_vec3(1));
     pointLight->calculateModel();
     //        pointLight->createShadowMap(256,256,sq);
-    pointLight->createShadowMap(512, 512, ShadowQuality::HIGH);
+    pointLight->createShadowMap(1024, 1024, ShadowQuality::HIGH);
     pointLight->enableShadows();
 }
 

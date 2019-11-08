@@ -43,8 +43,8 @@ inline void AABB::scale(const vec3& s)
     //    min *= s;
     //    max *= s;
 
-    min = ele_mult(min, s);
-    max = ele_mult(max, s);
+    min = min.array() * s.array();
+    max = max.array() * s.array();
 
     setPosition(pos);
 }

@@ -27,7 +27,7 @@ void GLDebugDrawer::render(btDynamicsWorld* world, Camera* cam)
     //    glEnable(GL_POLYGON_OFFSET_LINE);
     //    glPolygonOffset(-5,-5);
     lineShader->bind();
-    lineShader->uploadModel(identityMat4());
+    lineShader->uploadModel(mat4::Identity());
     lines.bindAndDraw();
     lineShader->unbind();
     //    glDisable(GL_POLYGON_OFFSET_LINE);

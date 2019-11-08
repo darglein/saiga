@@ -9,6 +9,7 @@
 #include "saiga/config.h"
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace Saiga

@@ -115,7 +115,7 @@ __global__ static void integrateEulerSharedVector(Saiga::ArrayView<Particle> src
 
 
     auto begin = warpStart * cycles;
-    auto end   = min(srcParticles.size() * cycles, begin + step * cycles);
+    auto end   = std::min(srcParticles.size() * cycles, begin + step * cycles);
     CUDA_ASSERT(begin < end);
 
     auto lbegin = 0;

@@ -236,9 +236,9 @@ int AssimpLoader::animationlength(aiAnimation* anim)
     for (i = 0; i < anim->mNumChannels; i++)
     {
         struct aiNodeAnim* chan = anim->mChannels[i];
-        len                     = max(len, chan->mNumPositionKeys);
-        len                     = max(len, chan->mNumRotationKeys);
-        len                     = max(len, chan->mNumScalingKeys);
+        len                     = std::max(len, chan->mNumPositionKeys);
+        len                     = std::max(len, chan->mNumRotationKeys);
+        len                     = std::max(len, chan->mNumScalingKeys);
     }
     return len;
 }
@@ -328,9 +328,9 @@ void AssimpLoader::transformnode(aiMatrix4x4* result, aiNode* node)
 
 mat4 AssimpLoader::composematrix(vec3 position, quat rotation, vec3 scaling)
 {
-    mat4 t = translate(identityMat4(), position);
+    mat4 t = translate(position);
     mat4 r = make_mat4(rotation);
-    mat4 s = scale(identityMat4(), scaling);
+    mat4 s = scale(scaling);
 
 
 

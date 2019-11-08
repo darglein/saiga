@@ -23,7 +23,7 @@ int main(int argc, char* args[])
     std::string name;
     int w, h;
     bool b;
-    mat4 m  = identityMat4();
+    mat4 m  = mat4::Identity();
     m(0, 1) = 1;  // row 0 and col 1
 
     name = ini.GetAddString("window", "name", "Test Window");

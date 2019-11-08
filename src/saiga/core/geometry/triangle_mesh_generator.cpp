@@ -132,8 +132,8 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere& 
         }
     }
 
-    mat4 S = scale(identityMat4(), make_vec3(sphere.r));
-    mat4 T = translate(identityMat4(), sphere.pos);
+    mat4 S = scale(make_vec3(sphere.r));
+    mat4 T = translate(sphere.pos);
     mesh->transform(T * S);
 
     return std::shared_ptr<default_mesh_t>(mesh);

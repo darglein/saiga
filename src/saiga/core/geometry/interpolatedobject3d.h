@@ -13,7 +13,7 @@ namespace Saiga
 class SAIGA_CORE_API InterpolatedObject3D : public Object3D
 {
    public:
-    mat4 interpolatedmodel = identityMat4();
+    mat4 interpolatedmodel = mat4::Identity();
 
     quat oldrot, interpolatedrot;
     vec4 oldscale = make_vec4(1), interpolatedscale = make_vec4(1);

@@ -21,7 +21,7 @@ float Triangle::minimalAngle()
 
 float Triangle::cosMinimalAngle()
 {
-    return max(max(cosAngleAtCorner(0), cosAngleAtCorner(1)), cosAngleAtCorner(2));
+    return std::max(std::max(cosAngleAtCorner(0), cosAngleAtCorner(1)), cosAngleAtCorner(2));
 }
 
 float Triangle::angleAtCorner(int i)

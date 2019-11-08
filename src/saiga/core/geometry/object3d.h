@@ -15,12 +15,12 @@ namespace Saiga
 class SAIGA_CORE_API Object3D
 {
    public:
-    mat4 model = identityMat4();
+    mat4 model = mat4::Identity();
 
 
     // required for non uniform scaled rotations
     // TODO: extra class so uniform objects are faster
-    quat rot      = IDENTITY_QUATERNION;
+    quat rot      = quat::Identity();
     vec4 scale    = make_vec4(1);
     vec4 position = make_vec4(0);
 
@@ -165,7 +165,7 @@ inline void Object3D::setScale(const vec3& s)
 
 inline void Object3D::multScale(const vec3& s)
 {
-    setScale(ele_mult(getScale(), s));
+    setScale(getScale().array() * s.array());
 }
 
 inline void Object3D::setModelMatrix(const mat4& _model)
@@ -173,7 +173,7 @@ inline void Object3D::setModelMatrix(const mat4& _model)
 #ifdef SAIGA_FULL_EIGEN
     // this is the inverse of createTRSmatrix
     model    = _model;
-    position = col(model, 3);
+    position = model.col(3);
     mat3 R   = make_mat3(model);
     scale[0] = length(vec3(R.col(0)));
     scale[1] = length(vec3(R.col(1)));

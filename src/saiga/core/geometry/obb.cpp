@@ -12,26 +12,26 @@ namespace Saiga
 {
 void OBB::setOrientationScale(vec3 x, vec3 y, vec3 z)
 {
-    col(orientationScale, 0) = x;
-    col(orientationScale, 1) = y;
-    col(orientationScale, 2) = z;
+    (orientationScale.col(0)) = x;
+    (orientationScale.col(1)) = y;
+    (orientationScale.col(2)) = z;
 }
 
 void OBB::fitToPoints(int axis, vec3* points, int count)
 {
     float xMin = 234235125, xMax = -34853690;
 
-    vec3 dir = col(orientationScale, axis);
+    vec3 dir = orientationScale.col(axis);
     dir      = normalize(dir);
 
     for (int i = 0; i < count; ++i)
     {
         float x = dot(dir, points[i]);
-        xMin    = min(xMin, x);
-        xMax    = max(xMax, x);
+        xMin    = std::min(xMin, x);
+        xMax    = std::max(xMax, x);
     }
 
-    col(orientationScale, axis) = 0.5f * dir * (xMax - xMin);
+    orientationScale.col(axis) = 0.5f * dir * (xMax - xMin);
 
     // translate center along axis
     float centerAxis = 0.5f * (xMax + xMin);

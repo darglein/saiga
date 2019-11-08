@@ -88,7 +88,7 @@ void ImageTransmition::sendImage(const Image& img)
     for (size_t i = 0; i < h.numDataPackets; ++i)
     {
         size_t offset     = i * dataPacketSize;
-        size_t packetSize = min(dataPacketSize, imageSize - offset);
+        size_t packetSize = std::min(dataPacketSize, imageSize - offset);
 
         DataHeader dh;
         dh.size    = packetSize;
@@ -160,7 +160,7 @@ bool ImageTransmition::recieveImage(Image& img)
             memcpy(img.data8() + dh->offset, buffer.data() + sizeof(DataHeader), dh->size);
 
             //        size_t offset = i * dataPacketSize;
-            //        size_t packetSize = min(dataPacketSize,imageSize-offset);
+            //        size_t packetSize = std::min(dataPacketSize,imageSize-offset);
             //        auto buf = boost::asio::buffer(img.data8() + offset, packetSize);
             //        auto size = socket.receive_from(buf, endpoint);
             //        std::cout << size << " " << packetSize << std::endl;

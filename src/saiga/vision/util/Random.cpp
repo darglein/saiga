@@ -34,6 +34,17 @@ Vec3 ballRand(double radius)
     return result;
 }
 
+SE3 randomSE3()
+{
+    Vec3 t  = Vec3::Random();
+    Vec4 qc = Vec4::Random();
+    Quat q;
+    q.coeffs() = qc;
+    q.normalize();
+    if (q.w() < 0) q.coeffs() *= -1;
+    return SE3(q, t);
+}
+
 
 
 }  // namespace Random

@@ -7,8 +7,9 @@
 #include "animation.h"
 
 #include "saiga/core/util/assert.h"
-#include <iostream>
+
 #include <algorithm>
+#include <iostream>
 namespace Saiga
 {
 const AnimationFrame& Animation::getKeyFrame(int frameIndex)
@@ -32,7 +33,7 @@ void Animation::getFrame(animationtime_t time, AnimationFrame& out)
         }
         frame++;
     }
-    int prevFrame = max(0, frame - 1);
+    int prevFrame = std::max(0, frame - 1);
 
     AnimationFrame& k0 = keyFrames[prevFrame];
     AnimationFrame& k1 = keyFrames[frame];
@@ -56,7 +57,8 @@ void Animation::getFrameNormalized(double time, AnimationFrame& out)
 
 void Animation::print()
 {
-    std::cout << "[Animation] " + name << " Frames=" << frameCount << " duration=" << duration.count() << "s" << std::endl;
+    std::cout << "[Animation] " + name << " Frames=" << frameCount << " duration=" << duration.count() << "s"
+              << std::endl;
     std::cout << "\tKeyframes: [";
     for (AnimationFrame& af : keyFrames)
     {

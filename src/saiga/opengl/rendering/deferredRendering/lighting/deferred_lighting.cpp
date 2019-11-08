@@ -386,7 +386,7 @@ void DeferredLighting::postprocessVolumetric()
 
     volumetricBuffer.bind();
     volumetricBlurShader->bind();
-    volumetricBlurShader->uploadModel(identityMat4());
+    volumetricBlurShader->uploadModel(mat4::Identity());
     volumetricBlurShader->uploadTexture(volumetricLightTexture.get());
     directionalLightMesh.bindAndDraw();
     volumetricBlurShader->unbind();
@@ -516,7 +516,7 @@ void DeferredLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : pointLights)
     {
-        mat4 sm    = scale(obj->model, make_vec3(0.05));
+        mat4 sm    = obj->model * scale(make_vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if (!obj->isActive() || !obj->isVisible())
         {
@@ -548,7 +548,7 @@ void DeferredLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : spotLights)
     {
-        mat4 sm    = scale(obj->model, make_vec3(0.05));
+        mat4 sm    = obj->model * scale(make_vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if (!obj->isActive() || !obj->isVisible())
         {
@@ -580,7 +580,7 @@ void DeferredLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : boxLights)
     {
-        mat4 sm    = scale(obj->model, make_vec3(0.05));
+        mat4 sm    = obj->model * scale(make_vec3(0.05));
         vec4 color = obj->colorDiffuse;
         if (!obj->isActive() || !obj->isVisible())
         {
@@ -648,7 +648,7 @@ void DeferredLighting::applyVolumetricLightBuffer()
 
     textureShader->bind();
 
-    textureShader->uploadModel(identityMat4());
+    textureShader->uploadModel(mat4::Identity());
     textureShader->uploadTexture(volumetricLightTexture2.get());
     directionalLightMesh.bindAndDraw();
     textureShader->unbind();

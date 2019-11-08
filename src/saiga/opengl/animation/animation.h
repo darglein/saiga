@@ -5,11 +5,11 @@
  */
 
 #pragma once
-
 #include "saiga/config.h"
-#include "saiga/opengl/animation/animationFrame.h"
-#include "saiga/core/time/time.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/time/time.h"
+#include "saiga/core/util/Align.h"
+#include "saiga/opengl/animation/animationFrame.h"
 
 namespace Saiga
 {

@@ -61,7 +61,7 @@ class SAIGA_OPENGL_API GraphDebugOverlay : public Object3D
    private:
     mat4 proj;
 
-    int width, height;
+    int height;
 
 
     std::vector<Graph> graphs;

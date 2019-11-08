@@ -58,7 +58,7 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float
     for (auto& v : asset->vertices)
     {
         //        v.texture *= size / quadSize;
-        v.texture = ele_mult(v.texture, vec2(size * (1.0f / quadSize)));
+        v.texture = v.texture.array() * vec2(size * (1.0f / quadSize)).array();
     }
     //    asset->createBuffers(asset->buffer);
     asset->buffer.fromMesh(*asset);
@@ -80,7 +80,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(ivec2 size, floa
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
 {
     auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
-    mat4 S         = scale(identityMat4(), vec3(size[0], 1, size[1]));
+    mat4 S         = scale(vec3(size[0], 1, size[1]));
     plainMesh->transform(S);
 
     auto asset = std::make_shared<TexturedAsset>();

@@ -9,7 +9,7 @@
 #include "saiga/config.h"
 
 #ifndef SAIGA_USE_GLM
-#error Saiga was compiled without glm.
+#    error Saiga was compiled without glm.
 #endif
 
 #include <iostream>
@@ -128,7 +128,7 @@ using glm::two_pi;
 
 
 
-#    define IDENTITY_QUATERNION quat(1, 0, 0, 0)
+#    define quat ::Identity() quat(1, 0, 0, 0)
 
 using cvec2 = glm::tvec2<char, glm::highp>;
 using cvec3 = glm::tvec3<char, glm::highp>;
@@ -292,14 +292,7 @@ inline quat make_quat(mat4 m)
 {
     return quat(m);
 }
-inline mat4 identityMat4()
-{
-    return mat4(1);
-}
-inline mat3 identityMat3()
-{
-    return mat3(1);
-}
+
 inline ucvec4 make_ucvec4(const ucvec3& v, unsigned char a)
 {
     return ucvec4(v, a);
@@ -332,10 +325,6 @@ inline float distance(vec3 a, vec3 b)
     return glm::distance(a, b);
 }
 
-inline mat4 zeroMat4()
-{
-    return mat4(0);
-}
 }  // namespace Saiga
 namespace Saiga
 {

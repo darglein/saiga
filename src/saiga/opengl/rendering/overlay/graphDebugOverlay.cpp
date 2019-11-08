@@ -14,7 +14,7 @@
 namespace Saiga
 {
 GraphDebugOverlay::GraphDebugOverlay(int width, int height, int numGraphs, int numDataPoints)
-    : width(width), height(height), graphs(numGraphs)
+    : height(height), graphs(numGraphs)
 {
     proj = ortho(0.0f, (float)width, 0.0f, (float)height, 1.0f, -1.0f);
 
@@ -102,9 +102,9 @@ void GraphDebugOverlay::setScreenPosition(vec2 start, vec2 end)
     vec2 mid = (start + end) / 2.f;
     mid[1]   = height - mid[1];
 
-    vec2 S = abs(vec2(start - end));
+    vec2 S = vec2(start - end).array().abs();
     model  = translate(make_vec3(mid, 0) + make_vec3(-S / 2.f, 0));
-    model  = Saiga::scale(model, make_vec3(S, 0));
+    model  = model * Saiga::scale(make_vec3(S, 0));
 }
 
 void GraphDebugOverlay::render(float interpolation)
