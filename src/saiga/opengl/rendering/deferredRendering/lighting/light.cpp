@@ -6,8 +6,8 @@
 
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 
 namespace Saiga
 {
@@ -98,6 +98,7 @@ mat4 Light::viewToLightTransform(const Camera& camera, const Camera& shadowCamer
 {
     // glm like glsl is column major!
     const mat4 biasMatrix = make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
+
     // We could also use inverse(camera.view) but using the model matrix is faster
     return biasMatrix * shadowCamera.proj * shadowCamera.view * camera.model;
 }

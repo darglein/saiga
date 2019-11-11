@@ -395,6 +395,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader& shader, Camera* cam)
     {
         const mat4 biasMatrix =
             make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
+
         AlignedVector<mat4> viewToLight(numCascades);
 
         for (int i = 0; i < numCascades; ++i)

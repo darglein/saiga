@@ -15,91 +15,81 @@
 namespace Saiga
 {
 template <typename Derived>
-typename Derived::PlainObject clamp(const Eigen::EigenBase<Derived>& x, const Eigen::EigenBase<Derived>& minVal,
-                                    const Eigen::EigenBase<Derived>& maxVal)
+HD constexpr typename Derived::PlainObject clamp(const Eigen::EigenBase<Derived>& x,
+                                              const Eigen::EigenBase<Derived>& minVal,
+                                              const Eigen::EigenBase<Derived>& maxVal)
 {
     typename Derived::PlainObject tmp = x.derived().array().max(minVal.derived().array());
     return tmp.array().min(maxVal.derived().array());
 }
 
 template <typename Derived1, typename Derived2>
-auto mix(const Eigen::MatrixBase<Derived1>& a, const Eigen::MatrixBase<Derived2>& b, typename Derived1::Scalar alpha)
+HD constexpr auto mix(const Eigen::MatrixBase<Derived1>& a, const Eigen::MatrixBase<Derived2>& b,
+                   typename Derived1::Scalar alpha)
 {
     return (1 - alpha) * a + alpha * b;
 }
 
-template <typename T1, typename T2>
-constexpr auto dot(const T1& a, const T2& b)
+template <typename Derived1, typename Derived2>
+HD constexpr auto dot(const Eigen::MatrixBase<Derived1>& a, const Eigen::MatrixBase<Derived2>& b)
 {
     return a.dot(b);
 }
 
 template <typename Derived1, typename Derived2>
-HD auto cross(const Eigen::MatrixBase<Derived1>& v1, const Eigen::MatrixBase<Derived2>& v2)
+HD constexpr auto cross(const Eigen::MatrixBase<Derived1>& v1, const Eigen::MatrixBase<Derived2>& v2)
 {
     return v1.cross(v2);
 }
 
 template <typename Derived1, typename Derived2>
-HD auto distance(const Eigen::MatrixBase<Derived1>& v1, const Eigen::MatrixBase<Derived2>& v2)
+HD constexpr auto distance(const Eigen::MatrixBase<Derived1>& v1, const Eigen::MatrixBase<Derived2>& v2)
 {
     return (v1 - v2).norm();
 }
 
 template <typename Derived1>
-HD auto inverse(const Eigen::MatrixBase<Derived1>& v1)
+HD constexpr auto inverse(const Eigen::MatrixBase<Derived1>& v1)
 {
     return v1.inverse();
 }
 
 template <typename Derived1>
-HD auto transpose(const Eigen::MatrixBase<Derived1>& v1)
+HD constexpr auto transpose(const Eigen::MatrixBase<Derived1>& v1)
 {
     return v1.transpose();
 }
 
 template <typename Derived>
-constexpr typename Derived::Scalar length(const Eigen::MatrixBase<Derived>& v)
+HD constexpr typename Derived::Scalar length(const Eigen::MatrixBase<Derived>& v)
 {
     return v.norm();
 }
 
 
 template <typename Derived>
-HD Derived normalize(const Eigen::MatrixBase<Derived>& v)
+HD constexpr Derived normalize(const Eigen::MatrixBase<Derived>& v)
 {
     return v.normalized();
 }
 
-template <typename _Scalar, int _Options>
-HD Eigen::Quaternion<_Scalar, _Options> normalize(const Eigen::Quaternion<_Scalar, _Options>& q)
+template <typename Derived>
+HD constexpr auto normalize(const Eigen::QuaternionBase<Derived>& q)
 {
     return q.normalized();
 }
 
-template <typename _Scalar, int _Rows, int _Cols>
-_Scalar* data(Eigen::Matrix<_Scalar, _Rows, _Cols>& M)
-{
-    return M.data();
-}
+SAIGA_CORE_API extern mat4 scale(const vec3& t);
+SAIGA_CORE_API extern mat4 translate(const vec3& t);
+SAIGA_CORE_API extern mat4 rotate(float angle, const vec3& axis);
+SAIGA_CORE_API extern quat rotate(const quat& q, float angle, const vec3& axis);
 
-template <typename _Scalar, int _Rows, int _Cols>
-const _Scalar* data(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M)
-{
-    return M.data();
-}
-
-
-
-SAIGA_CORE_API mat4 translate(const vec3& t);
 SAIGA_CORE_API extern quat angleAxis(float angle, const vec3& axis);
 SAIGA_CORE_API extern quat mix(const quat& a, const quat& b, float alpha);
 SAIGA_CORE_API extern quat quat_cast(const mat3& m);
 SAIGA_CORE_API extern quat quat_cast(const mat4& m);
 SAIGA_CORE_API extern quat inverse(const quat& q);
-SAIGA_CORE_API extern mat4 rotate(float angle, const vec3& axis);
-SAIGA_CORE_API extern quat rotate(const quat& q, float angle, const vec3& axis);
-SAIGA_CORE_API extern mat4 rotate(const mat4& m, float angle, const vec3& axis);
+
 SAIGA_CORE_API extern quat slerp(const quat& a, const quat& b, float alpha);
 SAIGA_CORE_API extern quat rotation(const vec3& a, const vec3& b);
 
@@ -137,7 +127,6 @@ SAIGA_CORE_API extern vec4 quat_to_vec4(const quat& q);
 SAIGA_CORE_API extern quat make_quat(const mat3& m);
 SAIGA_CORE_API extern quat make_quat(const mat4& m);
 
-SAIGA_CORE_API extern mat4 scale(const vec3& t);
 SAIGA_CORE_API extern mat4 lookAt(const vec3& eye, const vec3& center, const vec3& up);
 SAIGA_CORE_API extern mat4 perspective(float fovy, float aspect, float zNear, float zFar);
 SAIGA_CORE_API extern mat4 ortho(float left, float right, float bottom, float top, float zNear, float zFar);

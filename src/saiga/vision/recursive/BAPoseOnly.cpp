@@ -224,7 +224,7 @@ double BAPoseOnly::computeCost()
     return chi2;
 }
 
-void BAPoseOnly::addDelta()
+bool BAPoseOnly::addDelta()
 {
 #pragma omp for
     for (int i = 0; i < n; ++i)
@@ -232,6 +232,7 @@ void BAPoseOnly::addDelta()
         oldx_v[i] = x_v[i];
         x_v[i] += delta_x[i];
     }
+    return true;
 }
 
 

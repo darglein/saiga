@@ -54,6 +54,7 @@ template <typename vertex_t, typename index_t>
 void TriangleModel<vertex_t, index_t>::ZUPtoYUP()
 {
     const mat4 m = make_mat4(1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+
     mesh.transform(m);
     mesh.transformNormal(m);
 }

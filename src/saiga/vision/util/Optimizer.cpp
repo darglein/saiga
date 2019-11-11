@@ -111,7 +111,7 @@ OptimizationResults LMOptimizer::solve()
 
         double newChi2 = computeCost();
 
-        if (newChi2 < current_chi2)
+        if (std::isfinite(newChi2) && newChi2 < current_chi2)
         {
             // accept
             lambda       = lambda * (1.0 / 3.0);

@@ -83,7 +83,7 @@ class SAIGA_VISION_API LMOptimizer : public Optimizer
     virtual void init()                   = 0;
     virtual double computeQuadraticForm() = 0;
     virtual void addLambda(double lambda) = 0;
-    virtual void addDelta()               = 0;
+    virtual bool addDelta()               = 0;
     virtual void revertDelta()            = 0;
     virtual void solveLinearSystem()      = 0;
     virtual double computeCost()          = 0;

@@ -31,7 +31,7 @@ void TexturedAssetRenderer::bindTexture(vk::CommandBuffer cmd, vk::DescriptorSet
 
 void TexturedAssetRenderer::pushModel(vk::CommandBuffer cmd, mat4 model)
 {
-    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), data(model));
+    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), model.data());
 }
 
 

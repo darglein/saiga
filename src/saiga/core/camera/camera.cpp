@@ -38,10 +38,26 @@ void Camera::setView(const vec3& eye, const vec3& center, const vec3& up)
     setView(lookAt(eye, center, up));
 }
 
+void Camera::setProj(const mat4& p)
+{
+    proj = p;
+    recalculateMatrices();
+}
+
 void Camera::updateFromModel()
 {
     view = inverse(model);
     recalculateMatrices();
+}
+
+void Camera::recalculateMatrices()
+{
+    viewProj = proj * view;
+}
+
+void Camera::recalculatePlanes()
+{
+    recalculatePlanesFromMatrices();
 }
 
 float Camera::linearDepth(float d)
@@ -254,6 +270,41 @@ std::pair<vec3, vec3> Camera::getEdge(int i)
             std::cerr << "Camera::getEdge" << std::endl;
             return std::pair<vec3, vec3>();
     }
+}
+
+vec3 Camera::projectToViewSpace(vec3 worldPosition)
+{
+    return make_vec3(view * make_vec4(worldPosition, 1));
+}
+
+vec3 Camera::projectToNDC(vec3 worldPosition)
+{
+    vec4 p = (viewProj * make_vec4(worldPosition, 1));
+    p /= p[3];
+    return make_vec3(p);
+}
+
+vec2 Camera::projectToScreenSpace(vec3 worldPosition, int w, int h)
+{
+    vec3 p  = projectToNDC(worldPosition);
+    vec2 ip = make_vec2(p);
+    ip      = ip * 0.5f + make_vec2(0.5f);
+    //        ip *= vec2(w, h);
+    ip[0] *= w;
+    ip[1] *= h;
+    return ip;
+}
+
+vec3 Camera::inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h)
+{
+    //        ip /= vec2(w, h);
+    ip[0] /= w;
+    ip[1] /= h;
+    ip      = (ip - make_vec2(0.5f)) * 2.0f;
+    vec3 p  = make_vec3(ip, depth);
+    vec4 wp = inverse(viewProj) * make_vec4(p, 1);
+    wp /= wp[3];
+    return make_vec3(wp);
 }
 
 void Camera::imgui()

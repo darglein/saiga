@@ -168,34 +168,6 @@ inline void Object3D::multScale(const vec3& s)
     setScale(getScale().array() * s.array());
 }
 
-inline void Object3D::setModelMatrix(const mat4& _model)
-{
-#ifdef SAIGA_FULL_EIGEN
-    // this is the inverse of createTRSmatrix
-    model    = _model;
-    position = model.col(3);
-    mat3 R   = make_mat3(model);
-    scale[0] = length(vec3(R.col(0)));
-    scale[1] = length(vec3(R.col(1)));
-    scale[2] = length(vec3(R.col(2)));
-    R.col(0) /= scale[0];
-    R.col(1) /= scale[1];
-    R.col(2) /= scale[2];
-    rot = quat_cast(R);
-#else
-    // this is the inverse of createTRSmatrix
-    model    = _model;
-    position = col(model, 3);
-    mat3 R(model);
-    scale[0] = length(col(R, 0));
-    scale[1] = length(col(R, 1));
-    scale[2] = length(col(R, 2));
-    R[0] /= scale[0];
-    R[1] /= scale[1];
-    R[2] /= scale[2];
-    rot = quat_cast(R);
-#endif
-}
 
 inline void Object3D::setViewMatrix(const mat4& view)
 {

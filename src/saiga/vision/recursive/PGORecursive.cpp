@@ -241,7 +241,7 @@ void PGORec::addLambda(double lambda)
     }
 }
 
-void PGORec::addDelta()
+bool PGORec::addDelta()
 {
     auto& scene = *_scene;
     oldx_u      = x_u;
@@ -257,6 +257,7 @@ void PGORec::addDelta()
         //        std::cout << t.transpose() << std::endl;
         x_u[i] = PGOTransformation::exp(t) * x_u[i];
     }
+    return true;
 }
 
 void PGORec::solveLinearSystem()

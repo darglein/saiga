@@ -52,6 +52,8 @@ mat4 cvViewToGLView(const mat4& view)
      * Both systems are right-handed.
      */
     mat4 viewTransform = make_mat4(1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
+
+
     return viewTransform * view;
 }
 

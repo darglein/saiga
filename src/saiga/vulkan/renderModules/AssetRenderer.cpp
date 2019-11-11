@@ -32,7 +32,7 @@ bool AssetRenderer::bind(vk::CommandBuffer cmd)
 
 void AssetRenderer::pushModel(VkCommandBuffer cmd, mat4 model)
 {
-    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), data(model));
+    pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(mat4), model.data());
 }
 
 

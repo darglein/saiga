@@ -55,17 +55,13 @@ class SAIGA_CORE_API Camera : public Object3D
     void setView(const vec3& eye, const vec3& center, const vec3& up);
 
 
-    void setProj(const mat4& p)
-    {
-        proj = p;
-        recalculateMatrices();
-    }
+    void setProj(const mat4& p);
     //    virtual void setProj( double fovy, double aspect, double zNear, double zFar){}
     //    virtual void setProj( float left, float right,float bottom,float top,float near,  float far){}
 
     void updateFromModel();
-    void recalculateMatrices() { viewProj = proj * view; }
-    virtual void recalculatePlanes() { recalculatePlanesFromMatrices(); }
+    void recalculateMatrices();
+    virtual void recalculatePlanes();
 
     // linearize the depth (for rendering)
     float linearDepth(float d);
@@ -145,37 +141,13 @@ class SAIGA_CORE_API Camera : public Object3D
 
     std::pair<vec3, vec3> getEdge(int i);
 
-    vec3 projectToViewSpace(vec3 worldPosition) { return make_vec3(view * make_vec4(worldPosition, 1)); }
+    vec3 projectToViewSpace(vec3 worldPosition);
 
-    vec3 projectToNDC(vec3 worldPosition)
-    {
-        vec4 p = (viewProj * make_vec4(worldPosition, 1));
-        p /= p[3];
-        return make_vec3(p);
-    }
+    vec3 projectToNDC(vec3 worldPosition);
 
-    vec2 projectToScreenSpace(vec3 worldPosition, int w, int h)
-    {
-        vec3 p  = projectToNDC(worldPosition);
-        vec2 ip = make_vec2(p);
-        ip      = ip * 0.5f + make_vec2(0.5f);
-        //        ip *= vec2(w, h);
-        ip[0] *= w;
-        ip[1] *= h;
-        return ip;
-    }
+    vec2 projectToScreenSpace(vec3 worldPosition, int w, int h);
 
-    vec3 inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h)
-    {
-        //        ip /= vec2(w, h);
-        ip[0] /= w;
-        ip[1] /= h;
-        ip      = (ip - make_vec2(0.5f)) * 2.0f;
-        vec3 p  = make_vec3(ip, depth);
-        vec4 wp = inverse(viewProj) * make_vec4(p, 1);
-        wp /= wp[3];
-        return make_vec3(wp);
-    }
+    vec3 inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h);
 
 
     virtual void recomputeProj(){};

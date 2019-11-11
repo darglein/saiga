@@ -9,9 +9,9 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Algorithm.h"
+#include "saiga/vision/kernels/Robust.h"
 #include "saiga/vision/util/HistogramImage.h"
 #include "saiga/vision/util/LM.h"
-#include "saiga/vision/kernels/Robust.h"
 
 
 
@@ -244,7 +244,7 @@ void RecursiveArap::revertDelta()
     x_u = oldx_u;
 }
 
-void RecursiveArap::addDelta()
+bool RecursiveArap::addDelta()
 {
     oldx_u = x_u;
 
@@ -253,6 +253,7 @@ void RecursiveArap::addDelta()
         auto t = delta_x(i).get();
         x_u[i] = x_u[i] * SE3::exp(t);
     }
+    return true;
 }
 
 void RecursiveArap::solveLinearSystem()

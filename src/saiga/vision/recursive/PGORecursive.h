@@ -57,7 +57,7 @@ class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
     virtual double computeQuadraticForm() override;
     virtual void addLambda(double lambda) override;
     virtual void revertDelta() override;
-    virtual void addDelta() override;
+    virtual bool addDelta() override;
     virtual void solveLinearSystem() override;
     virtual double computeCost() override;
     virtual void finalize() override;

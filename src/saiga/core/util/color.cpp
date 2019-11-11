@@ -11,24 +11,6 @@
 #include <algorithm>
 namespace Saiga
 {
-Color::Color() : r(255), g(255), b(255), a(255) {}
-
-Color::Color(int r, int g, int b, int a) : r(r), g(g), b(b), a(a) {}
-
-
-Color::Color(float r, float g, float b, float a) : Color(vec4(r, g, b, a)) {}
-
-Color::Color(const vec3& c) : Color(make_vec4(c, 1)) {}
-
-Color::Color(const vec4& c)
-{
-    vec4 tmp = (c * 255.0f).array().round();
-    r        = tmp[0];
-    g        = tmp[1];
-    b        = tmp[2];
-    a        = tmp[3];
-}
-
 Color::operator vec3() const
 {
     return toVec3();
@@ -38,6 +20,19 @@ Color::operator vec3() const
 Color::operator vec4() const
 {
     return toVec4();
+}
+
+Color::Color(float r, float g, float b, float a) : Color(vec4(r, g, b, a)) {}
+
+Color::Color(const vec3& c) : Color(make_vec4(c, 1)) {}
+
+Color::Color(const ucvec4& c) : r(c(0)), g(c(1)), b(c(2)), a(c(3)) {}
+
+Color::Color(const vec4& c) : Color(ucvec4((c * 255.0f).array().round().cast<unsigned char>())) {}
+
+Saiga::Color::operator ucvec4() const
+{
+    return ucvec4(r, g, b, a);
 }
 
 vec3 Color::toVec3() const

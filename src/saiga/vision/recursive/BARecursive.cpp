@@ -534,7 +534,7 @@ double BARec::computeQuadraticForm()
     return chi2;
 }
 
-void BARec::addDelta()
+bool BARec::addDelta()
 {
     for (auto&& info : validImages)
     {
@@ -556,6 +556,7 @@ void BARec::addDelta()
         auto t    = delta_x.v(i).get();
         x_v[i] += t;
     }
+    return true;
 }
 
 void BARec::revertDelta()

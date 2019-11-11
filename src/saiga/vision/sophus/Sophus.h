@@ -8,6 +8,10 @@
 
 #include "saiga/saiga_modules.h"
 
+// Without this define, sophus adds a few asserts that check for valid input.
+// We rather just compute with nans and infs.
+#define SOPHUS_DISABLE_ENSURES
+
 // Sophus is a header only library which is not so common. Therefore we include it here, but
 // only use it if cmake cannot find an installed version.
 #ifdef SAIGA_SYSTEM_SOPHUS

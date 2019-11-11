@@ -47,7 +47,7 @@ class SAIGA_VISION_API BAPoseOnly : public BABase, public LMOptimizer
     virtual void init() override;
     virtual double computeQuadraticForm() override;
     virtual void addLambda(double lambda) override;
-    virtual void addDelta() override;
+    virtual bool addDelta() override;
     virtual void revertDelta() override;
     virtual void solveLinearSystem() override;
     virtual double computeCost() override;
