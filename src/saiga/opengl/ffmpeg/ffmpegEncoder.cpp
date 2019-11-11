@@ -52,9 +52,14 @@ FFMPEGEncoder::FFMPEGEncoder(const std::string& filename, int outWidth, int outH
         av_log_set_level(AV_LOG_DEBUG);
 
 
-        // Can be removed after ffmpeg 4
-         avcodec_register_all();
-         av_register_all();
+
+        // These functions are deprecated since version 58, but required before that.
+#    if LIBAVCODEC_VERSION_MAJOR < 58
+        avcodec_register_all();
+#    endif
+#    if LIBAVFORMAT_VERSION_MAJOR < 58
+        av_register_all();
+#    endif
         ffmpegInitialized = true;
         std::cout << "done" << std::endl;
     }
