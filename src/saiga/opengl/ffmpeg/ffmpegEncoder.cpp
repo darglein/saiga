@@ -51,9 +51,10 @@ FFMPEGEncoder::FFMPEGEncoder(const std::string& filename, int outWidth, int outH
         std::cout << "Initializing FFMPEG... ";
         av_log_set_level(AV_LOG_DEBUG);
 
+
         // Can be removed after ffmpeg 4
-        // avcodec_register_all();
-        // av_register_all();
+         avcodec_register_all();
+         av_register_all();
         ffmpegInitialized = true;
         std::cout << "done" << std::endl;
     }
@@ -237,6 +238,7 @@ void FFMPEGEncoder::startEncoding()
         oformat = av_guess_format("mpeg", NULL, NULL);
     }
 
+    SAIGA_ASSERT(oformat, "av_guess_format failed!");
 
     if (videoCodecId == AV_CODEC_ID_NONE)
     {
