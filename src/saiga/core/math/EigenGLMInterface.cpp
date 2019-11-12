@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "EigenGLMInterface.h"
+#include "math.h"
 
 namespace Saiga
 {

@@ -4,7 +4,11 @@
  * See LICENSE file for more information.
  */
 
-#pragma once
+// I'm not sure why, but this pragma once doesn't work with precompiled headers and GCC 8/9.
+// TODO: Check after a new gcc version comes out.
+//#pragma once
+#ifndef SAIGA_OPENGL_OPENGL_H
+#define SAIGA_OPENGL_OPENGL_H
 
 #include "saiga/config.h"
 
@@ -86,3 +90,5 @@ SAIGA_LOCAL void cleanupSaigaGL();
 }  // namespace Saiga
 
 #define SAIGA_OPENGL_INCLUDED
+
+#endif
