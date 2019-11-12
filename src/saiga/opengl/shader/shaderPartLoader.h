@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/core/math/math.h"
-#include "saiga/opengl/opengl.h"
+#include "saiga/opengl/opengl_helper.h"
 #include "saiga/opengl/shader/shaderpart.h"
 
 #include <iostream>

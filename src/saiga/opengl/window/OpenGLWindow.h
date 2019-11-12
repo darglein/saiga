@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "saiga/opengl/imgui/imgui_opengl.h"
-#include "saiga/opengl/opengl.h"
 #include "saiga/core/window/WindowBase.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
+#include "saiga/opengl/opengl_helper.h"
 
 namespace Saiga
 {

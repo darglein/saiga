@@ -7,6 +7,7 @@
 #include "saiga/opengl/error.h"
 
 #include "saiga/core/util/tostring.h"
+#include "saiga/opengl/opengl_helper.h"
 
 #include <iostream>
 
