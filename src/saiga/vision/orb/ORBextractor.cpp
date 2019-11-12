@@ -467,7 +467,7 @@ void ORBextractor::ComputeScalePyramid(img_t& image, std::vector<cv::Mat>& tmpPy
 
         if (lvl)
         {
-            cv::resize(tmpPyramid[lvl - 1], tmpPyramid[lvl], cv::Size(width, height), 0, 0, CV_INTER_LINEAR);
+            cv::resize(tmpPyramid[lvl - 1], tmpPyramid[lvl], cv::Size(width, height), 0, 0, cv::INTER_LINEAR);
 
             cv::copyMakeBorder(tmpPyramid[lvl], borderedImg, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
                                EDGE_THRESHOLD, cv::BORDER_REFLECT_101 + cv::BORDER_ISOLATED);
