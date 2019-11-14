@@ -128,7 +128,7 @@ void Sample::renderFinal(Camera* cam)
 
     if (ImGui::Button("Load From File"))
     {
-        dparams.dir  = "/home/dari/Projects/snake/code/data/tum/rgbd_dataset_freiburg3_long_office_household/";
+        dparams.dir  = dir;
         rgbdcamera   = std::make_unique<TumRGBDCamera>(dparams, intr);
         leftTexture  = nullptr;
         rightTexture = nullptr;
@@ -136,20 +136,22 @@ void Sample::renderFinal(Camera* cam)
         cameraType = TumRGBDCamera::FrameType::cameraType;
     }
 
+#ifdef SAIGA_USE_YAML_CPP
     if (ImGui::Button("Load From File Euroc"))
     {
-        dparams.dir  = "/home/dari/Projects/snake/code/data/euroc/mav0/";
+        dparams.dir  = dir;
         stereocamera = std::make_unique<EuRoCDataset>(dparams);
         leftTexture  = nullptr;
         rightTexture = nullptr;
 
         cameraType = EuRoCDataset::FrameType::cameraType;
     }
+#endif
 
     if (ImGui::Button("Load From File Kitti"))
     {
-        dparams.dir         = "/home/dari/Projects/snake/code/data/kitti/dataset/sequences/00/";
-        dparams.groundTruth = "/home/dari/Projects/snake/code/data/kitti/dataset/poses/00.txt";
+        dparams.dir         = dir;
+        dparams.groundTruth = dir;
         stereocamera        = std::make_unique<KittiDataset>(dparams);
         leftTexture         = nullptr;
         rightTexture        = nullptr;
