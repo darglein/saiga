@@ -113,6 +113,10 @@ if(MODULE_CORE)
     endif()
 endif()
 
+unset(PACKAGE_INCLUDES)
+unset(LIB_TARGETS)
+unset(LIBS)
+
 ############# INSTALL PATHS ###############
 
 #This part is partly copied from the CMakeLists.txt of glbinding.

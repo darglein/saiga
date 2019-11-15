@@ -54,16 +54,13 @@ else ()
 endif()
 
 target_link_libraries(${MODULE_NAME} ${VISION_TARGETS}  ${VISION_LIBS})
+
 target_include_directories(
     ${MODULE_NAME}
     PUBLIC
     $<INSTALL_INTERFACE:include>
-    $<INSTALL_INTERFACE:include/saiga/opengl/glbinding/include>
-    $<INSTALL_INTERFACE:share/saiga/shader/include>
-    "$<INSTALL_INTERFACE:${VISION_INCLUDES}>"
+    #"$<INSTALL_INTERFACE:${VISION_INCLUDES}>"
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
     "$<BUILD_INTERFACE:${VISION_INCLUDES}>"
     #PRIVATE
     # for the internal files

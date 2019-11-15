@@ -45,6 +45,6 @@ endif()
 
 set(EXTRA_INCLUDES ${PACKAGE_INCLUDES})
 set(EXTRA_LIBS ${LIBS})
-set(EXTRA_TARGETS ${LIB_TARGETS} saiga_core)
+set(EXTRA_TARGETS saiga_core ${LIB_TARGETS})
 set(MODULE_EXTRA 1)
 

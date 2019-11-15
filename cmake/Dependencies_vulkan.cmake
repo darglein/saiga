@@ -33,8 +33,8 @@ endif()
 
 set(VULKAN_INCLUDES ${PACKAGE_INCLUDES})
 set(VULKAN_LIBS ${LIBS})
-set(VULKAN_TARGETS ${LIB_TARGETS} saiga_core)
+set(VULKAN_TARGETS saiga_core ${LIB_TARGETS})
 
 if(SAIGA_USE_VULKAN)
-set(MODULE_VULKAN 1)
+    set(MODULE_VULKAN 1)
 endif()

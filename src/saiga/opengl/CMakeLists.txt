@@ -40,15 +40,15 @@ add_subdirectory(world)
 
 
 
-FILE(GLOB VULKAN_SRC  "*.cpp" "*.cu" "*.cc")
-FILE(GLOB VULKAN_HEADER  "*.h" "*.hpp" "*.inl" "Opengl")
+FILE(GLOB OPENGL_SRC  "*.cpp" "*.cu" "*.cc")
+FILE(GLOB OPENGL_HEADER  "*.h" "*.hpp" "*.inl" "Opengl")
 
 
 # the internal files are added to core
 SET(SAIGA_ALL_FILES
     ${SAIGA_ALL_FILES}
-    ${VULKAN_SRC}
-    ${VULKAN_HEADER}
+    ${OPENGL_SRC}
+    ${OPENGL_HEADER}
     )
 
 
@@ -59,7 +59,7 @@ else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
 endif()
 
-target_link_libraries(${MODULE_NAME} ${OPENGL_LIBS} ${OPENGL_TARGETS})
+target_link_libraries(${MODULE_NAME} ${OPENGL_TARGETS} ${OPENGL_LIBS})
 
 target_include_directories(
     ${MODULE_NAME}

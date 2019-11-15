@@ -28,13 +28,11 @@ target_include_directories(
     ${MODULE_NAME}
     PUBLIC
     $<INSTALL_INTERFACE:include>
-    $<INSTALL_INTERFACE:include/saiga/opengl/glbinding/include>
     $<INSTALL_INTERFACE:share/saiga/shader/include>
-    #"$<INSTALL_INTERFACE:${PACKAGE_INCLUDES}>"
+    #"$<INSTALL_INTERFACE:${VULKAN_INCLUDES}>"
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/saiga/opengl/glbinding/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
     "$<BUILD_INTERFACE:${VULKAN_INCLUDES}>"
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/shader/include>
     #PRIVATE
     # for the internal files
     #${PROJECT_SOURCE_DIR}/src/
