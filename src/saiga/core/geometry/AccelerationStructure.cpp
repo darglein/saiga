@@ -46,9 +46,13 @@ std::vector<RayTriangleIntersection> BruteForce::getAll(const Ray& ray)
 }
 
 
-BVH::BVH(const std::vector<Saiga::Triangle>& triangles) : triangles(triangles)
+BVH::BVH(const std::vector<Saiga::Triangle>& triangles)
 {
     static_assert(sizeof(BVHNode) == 8 * sizeof(float), "Node size broken.");
+    for (int i = 0; i < triangles.size(); ++i)
+    {
+        this->triangles.push_back({triangles[i], i});
+    }
 }
 
 
@@ -72,7 +76,7 @@ AABB BVH::computeBox(int start, int end)
     box.makeNegative();
     for (int i = start; i < end; ++i)
     {
-        auto& t = triangles[i];
+        auto& t = triangles[i].first;
         box.growBox(t.a);
         box.growBox(t.b);
         box.growBox(t.c);
@@ -107,10 +111,10 @@ void BVH::getClosest(int node, const Ray& ray, Intersection::RayTriangleIntersec
         // Leaf node -> intersect with triangles
         for (uint32_t i = n._left; i < n._right; ++i)
         {
-            auto inter = Intersection::RayTriangle(ray, triangles[i]);
+            auto inter = Intersection::RayTriangle(ray, triangles[i].first);
             if (inter && inter < result)
             {
-                inter.triangleIndex = i;
+                inter.triangleIndex = triangles[i].second;
                 result              = inter;
             }
         }
@@ -136,10 +140,10 @@ void BVH::getAll(int node, const Ray& ray, std::vector<Intersection::RayTriangle
         // Leaf node -> intersect with triangles
         for (uint32_t i = n._left; i < n._right; ++i)
         {
-            auto inter = Intersection::RayTriangle(ray, triangles[i]);
+            auto inter = Intersection::RayTriangle(ray, triangles[i].first);
             if (inter)
             {
-                inter.triangleIndex = i;
+                inter.triangleIndex = triangles[i].second;
                 result.push_back(inter);
             }
         }

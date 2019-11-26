@@ -66,10 +66,10 @@ class SAIGA_CORE_API BVH : public Base
     struct SortTriangleByAxis
     {
         SortTriangleByAxis(int a) : axis(a) {}
-        bool operator()(const Triangle& A, const Triangle& B)
+        bool operator()(const std::pair<Triangle, int>& A, const std::pair<Triangle, int>& B)
         {
-            auto a = A.center();
-            auto b = B.center();
+            auto a = A.first.center();
+            auto b = B.first.center();
             return a[axis] < b[axis];
         }
         int axis;
@@ -85,7 +85,7 @@ class SAIGA_CORE_API BVH : public Base
     virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) override;
 
    protected:
-    std::vector<Triangle> triangles;
+    std::vector<std::pair<Triangle, int>> triangles;
     std::vector<BVHNode> nodes;
 
     AABB computeBox(int start, int end);
