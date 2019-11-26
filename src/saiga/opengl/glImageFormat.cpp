@@ -10,11 +10,11 @@
 
 namespace Saiga
 {
-static const GLenum ImageElementTypeGL[] = {GL_BYTE,         GL_UNSIGNED_BYTE, GL_SHORT,  GL_UNSIGNED_SHORT, GL_INT,
-                                            GL_UNSIGNED_INT, GL_FLOAT,         GL_DOUBLE, GL_INVALID_ENUM};
+static constexpr GLenum ImageElementTypeGL[] = {GL_BYTE,         GL_UNSIGNED_BYTE, GL_SHORT,  GL_UNSIGNED_SHORT, GL_INT,
+                                                GL_UNSIGNED_INT, GL_FLOAT,         GL_DOUBLE, GL_INVALID_ENUM};
 
 
-static const GLenum ImageTypeInternalGL[] = {
+static constexpr GLenum ImageTypeInternalGL[] = {
     GL_R8,   GL_RG8,   GL_RGB8,   GL_RGBA8,   GL_R8,           GL_RG8,          GL_RGB8,         GL_RGBA8,
 
     GL_R16,  GL_RG16,  GL_RGB16,  GL_RGBA16,  GL_R16,          GL_RG16,         GL_RGB16,        GL_RGBA16,
@@ -45,7 +45,7 @@ GLenum getGlFormat(ImageType type)
 
 GLenum getGlType(ImageType type)
 {
-    return ImageElementTypeGL[elementType(type)];
+    return ImageElementTypeGL[(int)elementType(type)];
 }
 
 }  // namespace Saiga

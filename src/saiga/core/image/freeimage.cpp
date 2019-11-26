@@ -165,38 +165,38 @@ void convert(const fipImage& src, Image& dest)
 
     int bitDepth = src.getBitsPerPixel() / channels;
 
-    ImageElementType elementType = IET_ELEMENT_UNKNOWN;
+    ImageElementType elementType = ImageElementType::IET_ELEMENT_UNKNOWN;
     switch (src.getImageType())
     {
         case FIT_BITMAP:
             switch (bitDepth)
             {
                 case 8:
-                    elementType = IET_UCHAR;
+                    elementType = ImageElementType::IET_UCHAR;
                     break;
                 case 16:
-                    elementType = IET_USHORT;
+                    elementType = ImageElementType::IET_USHORT;
                     break;
                 case 32:
-                    elementType = IET_UINT;
+                    elementType = ImageElementType::IET_UINT;
                     break;
             }
             break;
         case FIT_FLOAT:
         case FIT_RGBF:
         case FIT_RGBAF:
-            elementType = IET_FLOAT;
+            elementType = ImageElementType::IET_FLOAT;
             break;
 
         case FIT_RGB16:
         case FIT_RGBA16:
-            elementType = IET_USHORT;
+            elementType = ImageElementType::IET_USHORT;
             break;
         default:
             break;
     }
 
-    if (elementType == IET_ELEMENT_UNKNOWN)
+    if (elementType == ImageElementType::IET_ELEMENT_UNKNOWN)
     {
         throw std::runtime_error("Unknown FIT type " + std::to_string(src.getImageType()));
     }

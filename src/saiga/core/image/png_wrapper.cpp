@@ -416,20 +416,20 @@ ImageType PngImage::saigaType() const
     }
     SAIGA_ASSERT(channels != -1);
 
-    ImageElementType elementType = IET_ELEMENT_UNKNOWN;
+    ImageElementType elementType = ImageElementType::IET_ELEMENT_UNKNOWN;
     switch (bit_depth)
     {
         case 8:
-            elementType = IET_UCHAR;
+            elementType = ImageElementType::IET_UCHAR;
             break;
         case 16:
-            elementType = IET_USHORT;
+            elementType = ImageElementType::IET_USHORT;
             break;
         case 32:
-            elementType = IET_UINT;
+            elementType = ImageElementType::IET_UINT;
             break;
     }
-    SAIGA_ASSERT(elementType != IET_ELEMENT_UNKNOWN);
+    SAIGA_ASSERT(elementType != ImageElementType::IET_ELEMENT_UNKNOWN);
 
     return getType(channels, elementType);
 }
@@ -457,13 +457,13 @@ void PngImage::fromSaigaType(ImageType t)
 
     switch (elementType(t))
     {
-        case IET_UCHAR:
+        case ImageElementType::IET_UCHAR:
             bit_depth = 8;
             break;
-        case IET_USHORT:
+        case ImageElementType::IET_USHORT:
             bit_depth = 16;
             break;
-        case IET_UINT:
+        case ImageElementType::IET_UINT:
             bit_depth = 32;
             break;
         default:

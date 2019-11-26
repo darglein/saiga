@@ -30,6 +30,8 @@ Image::Image(int h, int w, ImageType type)
     create();
 }
 
+Image::Image(ImageDimensions dimensions, ImageType type) : Image(dimensions.h, dimensions.w, type) {}
+
 
 void Image::create()
 {
@@ -282,7 +284,7 @@ std::ostream& operator<<(std::ostream& os, const Image& f)
 {
     os << "Image " << f.width << "x" << f.height << " "
        << " pitch " << f.pitchBytes << " "
-       << " channels/elementType " << channels(f.type) << "/" << elementType(f.type)
+       << " channels/elementType " << channels(f.type) << "/" << (int)elementType(f.type)
        << " BPP: " << bitsPerPixel(f.type);
     return os;
 }

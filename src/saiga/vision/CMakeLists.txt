@@ -14,6 +14,7 @@ add_subdirectory(scene)
 add_subdirectory(slam)
 add_subdirectory(sophus)
 add_subdirectory(util)
+add_subdirectory(torch)
 
 if (OPENCV_FOUND)
     add_subdirectory(orb)

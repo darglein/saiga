@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-enum ImageChannel : int
+enum class ImageChannel : int
 {
     CHANNEL_1 = 0,
     CHANNEL_2,
@@ -18,7 +18,7 @@ enum ImageChannel : int
     CHANNEL_4
 };
 
-enum ImageElementType : int
+enum class ImageElementType : int
 {
     IET_CHAR = 0,
     IET_UCHAR,
@@ -32,7 +32,7 @@ enum ImageElementType : int
 };
 
 
-static const int ImageElementTypeSize[] = {1, 1, 2, 2, 4, 4, 4, 8, 0};
+static constexpr int ImageElementTypeSize[] = {1, 1, 2, 2, 4, 4, 4, 8, 0};
 
 
 enum ImageType : int
@@ -79,8 +79,6 @@ enum ImageType : int
 template <typename T>
 struct SAIGA_CORE_API ImageTypeTemplate
 {
-    //    using ChannelType = T;
-    //    const static ImageType type = TYPE_UNKNOWN;
 };
 
 template <>
@@ -207,38 +205,43 @@ struct ImageTypeTemplate<vec4>
 
 
 
-inline ImageType getType(ImageChannel channels, ImageElementType elementType)
+constexpr ImageType getType(ImageChannel channels, ImageElementType elementType)
 {
     return ImageType(int(elementType) * 4 + int(channels));
 }
 
-inline ImageType getType(int channels, ImageElementType elementType)
+constexpr ImageType getType(int channels, ImageElementType elementType)
 {
     return ImageType(int(elementType) * 4 + int(channels - 1));
 }
 
-inline int channels(ImageType type)
+constexpr int channels(ImageType type)
 {
     return (int(type) % 4) + 1;
 }
 
-inline int elementType(ImageType type)
+constexpr ImageElementType elementType(ImageType type)
 {
-    return int(type) / 4;
+    return static_cast<ImageElementType>(int(type) / 4);
+}
+
+constexpr int elementSize(ImageElementType type)
+{
+    return ImageElementTypeSize[static_cast<int>(type)];
 }
 
 // Size of one pixel in bytes
-inline int elementSize(ImageType type)
+constexpr int elementSize(ImageType type)
 {
-    return channels(type) * ImageElementTypeSize[elementType(type)];
+    return channels(type) * elementSize(elementType(type));
 }
 
-inline int bitsPerChannel(ImageType type)
+constexpr int bitsPerChannel(ImageType type)
 {
-    return ImageElementTypeSize[elementType(type)] * 8;
+    return elementSize(elementType(type)) * 8;
 }
 
-inline int bitsPerPixel(ImageType type)
+constexpr int bitsPerPixel(ImageType type)
 {
     return bitsPerChannel(type) * channels(type);
 }
