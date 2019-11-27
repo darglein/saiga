@@ -1,37 +1,44 @@
-sudo: required
-dist: xenial
-services:
-  - docker
+# This script is partially copied from the ceres-solver:
+# https://github.com/ceres-solver/ceres-solver/blob/master/.travis.yml
 
-# It is not really needed, other than for showing correct language tag in Travis CI build log.
 language: cpp
 
-# - SAIGA_CXX=clang++-7 CXX_PACKAGE=clang-7
+matrix:
+  fast_finish: true
+  include:
+  - os: linux
+    dist: bionic
+    sudo: required
+    compiler: gcc
+    env: CERES_BUILD_TARGET=LINUX
+
 env:
-    - SAIGA_CXX=g++-8 CXX_PACKAGE=g++-8
-
+  - OMP_NUM_THREADS=4
+  
 before_install:
-  - docker run -d --name ubuntu-test -v $(pwd):/travis ubuntu:latest tail -f /dev/null
-  - docker ps
-
+  - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get update -qq; fi
+  
 install:
-  - docker exec -t ubuntu-test bash -c "add-apt-repository -y ppa:ubuntu-toolchain-r/test;
-    apt-get update;
-    apt-get install -y $CXX_PACKAGE;
-    apt-get install -y cmake;
-    apt-get install -y libfreetype6-dev libglm-dev;
-    apt-get install -y libegl1-mesa-dev;
-    apt-get install -y libsdl2-dev libglfw3-dev;
-    apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
-    apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
-    apt-get install -y libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev;
-    apt-get install -y libassimp-dev libeigen3-dev libsuitesparse-dev;"
+   - apt-get update;
+   - apt-get install -y $CXX_PACKAGE;
+   - apt-get install -y cmake;
+   - apt-get install -y libfreetype6-dev libglm-dev;
+   - apt-get install -y libegl1-mesa-dev;
+   - apt-get install -y libsdl2-dev libglfw3-dev;
+   - apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
+   - apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
+   - apt-get install -y libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev;
+   - apt-get install -y libassimp-dev libeigen3-dev libsuitesparse-dev;
 
+before_script:
+  - mkdir /tmp/saiga-build
+  - cd /tmp/saiga-build
+  
 script:
-  - docker exec -t ubuntu-test bash -c "cd /travis;
-    mkdir build;
-    cd build;
-    cmake -DCMAKE_CXX_COMPILER=$SAIGA_CXX ..;
-    cmake ..;
-    make saiga_core;" 
+  - cmake $TRAVIS_BUILD_DIR 
+  - make -j 4
+  - sudo make install
 
+notifications:
+  email:
+    - darius.rueckert@fau.de
