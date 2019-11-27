@@ -81,7 +81,7 @@ if(SAIGA_CXX_WCLANG)
     message(STATUS ${OMP_LIB})
     SET(LIBS ${LIBS} ${OMP_LIB})
 else()
-    #find_package(OpenMP)
+    find_package(OpenMP)
     if(OPENMP_FOUND)
         # This line doesn't work with nvcc + gcc8.3. Just uncomment it.
         if(SAIGA_CXX_GNU)
