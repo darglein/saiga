@@ -6,7 +6,7 @@
 
 #include "saiga/core/Core.h"
 #include "saiga/core/time/all.h"
-
+#include "saiga/core/util/Thread/omp.h"
 using namespace Saiga;
 
 struct ImageProcessing
@@ -53,9 +53,9 @@ int main(int, char**)
 {
     ImageProcessing ip(640 * 4, 480 * 4);
 
-    int maxThreads = omp_get_max_threads();
+    int maxThreads = OMP::getMaxThreads();
 #pragma omp parallel
-    maxThreads = omp_get_num_threads();
+    maxThreads = OMP::getNumThreads();
 
     // just add 2 more so we see if the performance actually falls of now
     maxThreads += 2;

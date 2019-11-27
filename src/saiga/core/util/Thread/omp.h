@@ -20,14 +20,14 @@
  */
 namespace Saiga
 {
-namespace OMP {
-
+namespace OMP
+{
 inline int getMaxThreads()
 {
 #ifdef SAIGA_HAS_OMP
     return omp_get_max_threads();
 #else
-return 1;
+    return 1;
 #endif
 }
 
@@ -48,5 +48,14 @@ inline int getNumThreads()
     return 1;
 #endif
 }
+
+inline void setNumThreads(int t)
+{
+#ifdef SAIGA_HAS_OMP
+    omp_set_num_threads(t);
+#else
+#endif
 }
+
+}  // namespace OMP
 }  // namespace Saiga

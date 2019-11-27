@@ -284,7 +284,7 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient(const MultFunction& applyA, 
     iters     = i;
 }
 
-
+#if defined(_OPENMP)
 
 template <typename T>
 struct alignas(64) CacheAlignedValues
@@ -328,7 +328,7 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient_OMP(const MultFunction& appl
     static VectorType residual;
     static std::vector<CacheAlignedValues<Scalar>> tmpResults1, tmpResults;
 
-#pragma omp single
+#    pragma omp single
     {
         z.resize(n);
         p.resize(n);
@@ -344,7 +344,7 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient_OMP(const MultFunction& appl
 
     applyA(x, residual);
 
-#pragma omp for
+#    pragma omp for
     for (int i = 0; i < n; ++i)
     {
         residual(i) = rhs(i) - residual(i);
@@ -359,7 +359,7 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient_OMP(const MultFunction& appl
     if (rhsNorm2 == 0)
     {
 //        x.setZero();
-#pragma omp for
+#    pragma omp for
         for (int i = 0; i < n; ++i)
         {
             x(i).get().setZero();
@@ -396,7 +396,7 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient_OMP(const MultFunction& appl
         Scalar dotpz = accumulate(tmpResults1);
         Scalar alpha = absNew / dotpz;
 
-#pragma omp for
+#    pragma omp for
         for (int i = 0; i < n; ++i)
         {
             // the amount we travel on dir
@@ -417,7 +417,7 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient_OMP(const MultFunction& appl
         absNew          = accumulate(tmpResults);
         RealScalar beta = absNew / absOld;  // calculate the Gram-Schmidt value used to create the new search direction
                                             //        std::cout << "absnew " << absNew << " beta " << beta << std::endl;
-#pragma omp for
+#    pragma omp for
         for (int i = 0; i < n; ++i)
         {
             p(i) = z(i) + p(i) * beta;  // update search direction
@@ -429,6 +429,7 @@ EIGEN_DONT_INLINE void recursive_conjugate_gradient_OMP(const MultFunction& appl
 
     tol_error = sqrt(residualNorm2 / rhsNorm2);
     iters     = i;
-}  // namespace Eigen::Recursive
+}
+#endif
 
 }  // namespace Eigen::Recursive

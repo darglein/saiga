@@ -7,10 +7,10 @@
 #define CHOLMOD_OMP_NUM_THREADS 1
 #define EIGEN_CACHEFRIENDLY_PRODUCT_THRESHOLD 128
 
-
 #include "saiga/core/math/Eigen_Compile_Checker.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
+#include "saiga/core/util/Thread/omp.h"
 #include "saiga/core/util/table.h"
 #include "saiga/vision/recursive/Recursive.h"
 #include "saiga/vision/util/Random.h"
@@ -677,7 +677,7 @@ void perf_test()
             "cholmod_super"
          << std::endl;
 
-    omp_set_num_threads(1);
+    OMP::setNumThreads(1);
 
 
     //    {

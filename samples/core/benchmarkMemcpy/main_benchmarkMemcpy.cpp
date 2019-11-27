@@ -6,6 +6,7 @@
 
 #include "saiga/core/Core.h"
 #include "saiga/core/time/all.h"
+#include "saiga/core/util/Thread/omp.h"
 using namespace Saiga;
 
 int sizeMB               = 1000 * 1;
@@ -20,7 +21,7 @@ void memcpyTest(int threads)
 
 
 
-    omp_set_num_threads(threads);
+    OMP::setNumThreads(threads);
 
     auto singleThread = measureObject(5, [&]() {
 #pragma omp parallel for

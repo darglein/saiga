@@ -8,11 +8,11 @@
 //#include "saiga/core/util/crash.h"
 //#include "saiga/core/math/random.h"
 #include "saiga/core/Core.h"
+#include "saiga/core/util/Thread/omp.h"
 #include "saiga/extra/eigen/eigen.h"
 
 #include "Eigen/Core"
 
-#include <omp.h>
 #include <random>
 
 using namespace Saiga;
@@ -65,7 +65,8 @@ void eigenHeatTest(int numThreads)
     using MatrixType2 = Eigen::Matrix<T, size, size>;
 
     //    omp_set_dynamic(0);
-    omp_set_num_threads(numThreads);
+    OMP::setNumThreads(numThreads);
+
 
     //    numThreads = 2;
 
