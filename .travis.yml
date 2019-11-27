@@ -15,12 +15,11 @@ env:
   - OMP_NUM_THREADS=4
   
 before_install:
-  - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get update -qq; fi
+  - sudo apt-get update -qq
   
 install:
-   - sudo apt-get update;
-   - sudo apt-get install -y $CXX_PACKAGE;
    - sudo apt-get install -y cmake;
+   - sudo apt-get install -y g++-8;
    - sudo apt-get install -y libfreetype6-dev libglm-dev;
    - sudo apt-get install -y libegl1-mesa-dev;
    - sudo apt-get install -y libsdl2-dev libglfw3-dev;
@@ -34,6 +33,7 @@ before_script:
   - cd /tmp/saiga-build
   
 script:
+  - export CXX=g++-8
   - cmake $TRAVIS_BUILD_DIR 
   - make -j 4
   - sudo make install
