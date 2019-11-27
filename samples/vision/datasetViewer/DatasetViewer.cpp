@@ -159,12 +159,19 @@ void Sample::renderFinal(Camera* cam)
         cameraType = KittiDataset::FrameType::cameraType;
     }
 
+#ifdef SAIGA_USE_OPENNI2
     if (ImGui::Button("Openni"))
     {
         intr.depthFactor = 1000.0;
         rgbdcamera       = std::make_unique<Saiga::RGBDCameraOpenni>(intr);
         initTexture      = true;
     }
+    Saiga::RGBDCameraOpenni* cam2 = dynamic_cast<Saiga::RGBDCameraOpenni*>(rgbdcamera.get());
+    if (cam2)
+    {
+        cam2->imgui();
+    }
+#endif
 
     if (ImGui::Button("Clear"))
     {
@@ -173,11 +180,6 @@ void Sample::renderFinal(Camera* cam)
 
     ImGui::Text("Frame: %d", frameId);
 
-    Saiga::RGBDCameraOpenni* cam2 = dynamic_cast<Saiga::RGBDCameraOpenni*>(rgbdcamera.get());
-    if (cam2)
-    {
-        cam2->imgui();
-    }
 
     ImGui::End();
 }
