@@ -10,7 +10,6 @@ matrix:
     dist: bionic
     sudo: required
     compiler: gcc
-    env: CERES_BUILD_TARGET=LINUX
 
 env:
   - OMP_NUM_THREADS=4
@@ -19,16 +18,16 @@ before_install:
   - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get update -qq; fi
   
 install:
-   - apt-get update;
-   - apt-get install -y $CXX_PACKAGE;
-   - apt-get install -y cmake;
-   - apt-get install -y libfreetype6-dev libglm-dev;
-   - apt-get install -y libegl1-mesa-dev;
-   - apt-get install -y libsdl2-dev libglfw3-dev;
-   - apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
-   - apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
-   - apt-get install -y libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev;
-   - apt-get install -y libassimp-dev libeigen3-dev libsuitesparse-dev;
+   - sudo apt-get update;
+   - sudo apt-get install -y $CXX_PACKAGE;
+   - sudo apt-get install -y cmake;
+   - sudo apt-get install -y libfreetype6-dev libglm-dev;
+   - sudo apt-get install -y libegl1-mesa-dev;
+   - sudo apt-get install -y libsdl2-dev libglfw3-dev;
+   - sudo apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
+   - sudo apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
+   - sudo apt-get install -y libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev;
+   - sudo apt-get install -y libassimp-dev libeigen3-dev libsuitesparse-dev;
 
 before_script:
   - mkdir /tmp/saiga-build
