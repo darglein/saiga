@@ -20,6 +20,8 @@ set(SAIGA_VERSION ${SAIGA_VERSION_MAJOR}.${SAIGA_VERSION_MINOR}.${SAIGA_VERSION_
 # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+enable_testing()
+
 ############# Build Options ###############
 
 message(STATUS "\nBuild Options")
