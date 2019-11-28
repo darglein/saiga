@@ -77,6 +77,8 @@ if(SAIGA_CXX_WCLANG)
 endif()
 
 if(SAIGA_CXX_MSVC OR SAIGA_CXX_WCLANG)
+	# required for some crazy eigen stuff
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
     #multiprocessor compilation for visual studio
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
     add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
