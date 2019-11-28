@@ -4,7 +4,10 @@
  * See LICENSE file for more information.
  */
 
-#include "SampleWindowForward.h"
+#include "saiga/config.h"
+#ifdef SAIGA_USE_SDL
+
+#    include "SampleWindowForward.h"
 
 namespace Saiga
 {
@@ -80,3 +83,5 @@ void SampleWindowForward::keyPressed(SDL_Keysym key)
 void SampleWindowForward::keyReleased(SDL_Keysym key) {}
 
 }  // namespace Saiga
+
+#endif

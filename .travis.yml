@@ -34,8 +34,8 @@ install:
    - if [ $TRAVIS_OS_NAME = windows ]; then $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh; fi
 
 before_script:
-  - mkdir /tmp/saiga-build
-  - cd /tmp/saiga-build
+  - mkdir ~/saiga_build
+  - cd ~/saiga_build
   
 script:
   - |

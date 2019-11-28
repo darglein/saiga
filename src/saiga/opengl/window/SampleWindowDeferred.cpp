@@ -4,7 +4,10 @@
  * See LICENSE file for more information.
  */
 
-#include "SampleWindowDeferred.h"
+#include "saiga/config.h"
+#ifdef SAIGA_USE_SDL
+
+#    include "SampleWindowDeferred.h"
 
 namespace Saiga
 {
@@ -109,3 +112,4 @@ void SampleWindowDeferred::keyPressed(SDL_Keysym key)
 void SampleWindowDeferred::keyReleased(SDL_Keysym key) {}
 
 }  // namespace Saiga
+#endif
