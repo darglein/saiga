@@ -24,7 +24,8 @@ env:
   - OMP_NUM_THREADS=4
   
 before_install:
-  - sudo apt-get update -qq
+  - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get update -qq; fi
+
   
 install:
    - if [ $TRAVIS_OS_NAME = linux ]; then $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; fi
