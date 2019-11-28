@@ -16,9 +16,10 @@ matrix:
     sudo: required
     compiler: clang
     env: CXX=clang++-8
-  - os: osx
-    osx_image: xcode11.2
   - os: windows
+  #- os: osx
+    #osx_image: xcode11.2
+
 
 env:
   - OMP_NUM_THREADS=4
@@ -30,16 +31,25 @@ before_install:
 install:
    - if [ $TRAVIS_OS_NAME = linux ]; then $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; fi
    - if [ $TRAVIS_OS_NAME = osx ]; then $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; fi
+   - if [ $TRAVIS_OS_NAME = windows ]; then $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh; fi
 
 before_script:
   - mkdir /tmp/saiga-build
   - cd /tmp/saiga-build
   
 script:
-  - cmake $TRAVIS_BUILD_DIR 
-  - cmake --build . -j4
-  - sudo make install
-  - ctest --output-on-failure -j 4
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" || "$TRAVIS_OS_NAME" == "osx" ]]; then
+      cmake $TRAVIS_BUILD_DIR 
+      cmake --build . -j4
+      sudo make install
+      ctest --output-on-failure -j 4
+    fi
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
+      cmake -DCMAKE_PREFIX_PATH=/tmp/eigen/ $TRAVIS_BUILD_DIR 
+      cmake --build . -j4
+    fi
 
 notifications:
   email:
