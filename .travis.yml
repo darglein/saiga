@@ -47,7 +47,7 @@ script:
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
-      cmake -DCMAKE_PREFIX_PATH=/tmp/eigen/ $TRAVIS_BUILD_DIR 
+      cmake -DCMAKE_PREFIX_PATH="C:/Users/travis/install" $TRAVIS_BUILD_DIR 
       cmake --build . -j4
     fi
 
