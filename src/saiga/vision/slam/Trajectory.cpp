@@ -14,7 +14,7 @@ namespace Saiga
 {
 namespace Trajectory
 {
-double align(TrajectoryType& A, TrajectoryType& B, bool computeScale)
+double align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B, bool computeScale)
 {
     SAIGA_ASSERT(A.size() == B.size());
     if (A.empty()) return 0;
@@ -67,7 +67,7 @@ double align(TrajectoryType& A, TrajectoryType& B, bool computeScale)
     return error;
 }
 
-std::vector<double> rpe(const TrajectoryType& A, const TrajectoryType& B)
+std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A, ArrayView<const std::pair<int, SE3>> B)
 {
     SAIGA_ASSERT(A.size() == B.size());
     int N = A.size();
@@ -96,7 +96,7 @@ std::vector<double> rpe(const TrajectoryType& A, const TrajectoryType& B)
     return rpe;
 }
 
-std::vector<double> ate(const TrajectoryType& A, const TrajectoryType& B)
+std::vector<double> ate(ArrayView<const std::pair<int, SE3>> A, ArrayView<const std::pair<int, SE3>> B)
 {
     SAIGA_ASSERT(A.size() == B.size());
     int N = A.size();

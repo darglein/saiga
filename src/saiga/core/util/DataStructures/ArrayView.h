@@ -109,6 +109,8 @@ struct SAIGA_TEMPLATE ArrayView
     // returns the last n elements
     HD ArrayView<T> tail(size_t n2) const { return ArrayView<T>(data_ + n - n2, n2); }
 
+	HD bool empty() const { return n == 0; }
+
 
     HD bool isAligned() { return (((uintptr_t)data_) % (alignof(T))) == 0; }
     HD bool isAligned(size_t alignment) { return (((uintptr_t)data_) % (alignment)) == 0; }
