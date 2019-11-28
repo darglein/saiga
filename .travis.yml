@@ -16,6 +16,9 @@ matrix:
     sudo: required
     compiler: clang
     env: CXX=clang++-8
+  - os: osx
+    osx_image: xcode11.2
+  - os: windows
 
 env:
   - OMP_NUM_THREADS=4
@@ -24,16 +27,8 @@ before_install:
   - sudo apt-get update -qq
   
 install:
-   - sudo apt-get install -y cmake;
-   - sudo apt-get install -y g++-8;
-   - sudo apt-get install -y clang-8;
-   - sudo apt-get install -y libfreetype6-dev libglm-dev;
-   - sudo apt-get install -y libegl1-mesa-dev;
-   - sudo apt-get install -y libsdl2-dev libglfw3-dev;
-   - sudo apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
-   - sudo apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
-   - sudo apt-get install -y libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev;
-   - sudo apt-get install -y libassimp-dev libeigen3-dev libsuitesparse-dev;
+   - if [ $TRAVIS_OS_NAME = linux ]; then $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; fi
+   - if [ $TRAVIS_OS_NAME = osx ]; then $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; fi
 
 before_script:
   - mkdir /tmp/saiga-build
@@ -41,7 +36,7 @@ before_script:
   
 script:
   - cmake $TRAVIS_BUILD_DIR 
-  - make -j 4
+  - cmake --build . -j4
   - sudo make install
   - ctest --output-on-failure -j 4
 
