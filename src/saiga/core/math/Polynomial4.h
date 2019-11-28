@@ -16,7 +16,6 @@
  */
 namespace Saiga
 {
-
 inline int solve_deg2(double a, double b, double c, double& x1, double& x2)
 {
     double delta = b * b - 4 * a * c;
@@ -93,8 +92,8 @@ inline int solve_deg3(double a, double b, double c, double d, double& x0, double
         double theta  = acos(R / sqrt(-Q3));
         double sqrt_Q = sqrt(-Q);
         x0            = 2 * sqrt_Q * cos(theta / 3.0) - b_a_3;
-        x1            = 2 * sqrt_Q * cos((theta + 2 * M_PI) / 3.0) - b_a_3;
-        x2            = 2 * sqrt_Q * cos((theta + 4 * M_PI) / 3.0) - b_a_3;
+        x1            = 2 * sqrt_Q * cos((theta + 2 * pi<double>()) / 3.0) - b_a_3;
+        x2            = 2 * sqrt_Q * cos((theta + 4 * pi<double>()) / 3.0) - b_a_3;
 
         return 3;
     }
