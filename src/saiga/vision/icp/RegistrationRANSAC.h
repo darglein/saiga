@@ -13,7 +13,7 @@
 #include <chrono>
 #include <random>
 #include <vector>
-
+#include <array>
 
 namespace Saiga
 {

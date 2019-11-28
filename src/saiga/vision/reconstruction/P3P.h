@@ -10,6 +10,7 @@
 #include "saiga/vision/util/Ransac.h"
 
 #include <optional>
+#include <array>
 
 namespace Saiga
 {

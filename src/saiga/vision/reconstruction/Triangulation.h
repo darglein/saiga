@@ -92,7 +92,7 @@ inline double TriangulationAngle(const Vec3& c1, const Vec3& c2, const Vec3& wp)
     // Triangulation is unstable for acute angles (far away points) and
     // obtuse angles (close points), so always compute the minimum angle
     // between the two intersecting rays.
-    return std::min(angle, M_PI - angle);
+    return std::min(angle, pi<double>() - angle);
 }
 
 

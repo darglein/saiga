@@ -2,6 +2,8 @@
 
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/util/Ransac.h"
+#include <array>
+
 // This code here is inspired (and partially copied) from Colmap.
 // https://github.com/colmap/colmap
 namespace Saiga
