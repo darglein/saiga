@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/time/timer.h"
+#include "saiga/vision/imu/IMUData.h"
 
 #include "CameraData.h"
 
@@ -117,7 +118,6 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
 
         auto&& img = frames[this->currentId];
-        img.id     = this->currentId;
         this->currentId++;
         data = std::move(img);
         return true;
@@ -145,9 +145,46 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         }
     }
 
+    // Completely removes the frames between from and to
+    void eraseFrames(int from, int to)
+    {
+        frames.erase(frames.begin() + from, frames.begin() + to);
+        imuDataForFrame.erase(imuDataForFrame.begin() + from, imuDataForFrame.begin() + to);
+    }
+
+    void computeImuDataPerFrame()
+    {
+        // Create IMU per frame vector by adding all imu datas from frame_i to frame_i+1 to frame_i+1.
+        imuDataForFrame.resize(frames.size());
+        int currentImuid = 0;
+
+        for (int i = 0; i < frames.size(); ++i)
+        {
+            auto& a = frames[i];
+            for (; currentImuid < imuData.size(); ++currentImuid)
+            {
+                auto id = imuData[currentImuid];
+                if (id.timestamp < a.timeStamp)
+                {
+                    imuDataForFrame[i].push_back(id);
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    std::vector<IMUData> ImuDataForFrame(int frame) { return imuDataForFrame[frame]; }
+
    protected:
     AlignedVector<FrameType> frames;
     DatasetParameters params;
+
+    IMUSensor imu;
+    std::vector<IMUData> imuData;
+    std::vector<std::vector<IMUData>> imuDataForFrame;
 
    private:
     Timer timer;

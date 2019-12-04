@@ -155,6 +155,37 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
     }
 
     std::cout << "Loaded " << tumframes.size() << std::endl;
+
+
+    {
+        // == Imu Data ==
+        // Format:
+        //  timestamp ax ay az
+        auto sensorFile = params.dir + "/" + "accelerometer.txt";
+        auto lines      = File::loadFileStringArray(sensorFile);
+        StringViewParser csvParser(", ");
+
+        for (auto&& l : lines)
+        {
+            if (l.empty()) continue;
+            if (l[0] == '#') continue;
+            csvParser.set(l);
+
+            auto svTime = csvParser.next();
+            if (svTime.empty()) continue;
+            auto time = to_double(svTime);
+
+
+            Vec3 acceleration;
+            for (int i = 0; i < 3; ++i)
+            {
+                auto sv = csvParser.next();
+                SAIGA_ASSERT(!sv.empty());
+                acceleration(i) = to_double(sv);
+            }
+            imuData.emplace_back(Vec3(0, 0, 0), acceleration, time);
+        }
+    }
 }
 
 
@@ -204,8 +235,10 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
             RGBDFrameData& f = frames[i];
             //            makeFrameData(f);
 
+            f.id = i;
             f.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
             f.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
+            f.timeStamp = d.rgb.timestamp;
 
             if (cimg.type == UC3)
             {
@@ -238,6 +271,7 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
             loadingBar.addProgress(1);
         }
     }
+    computeImuDataPerFrame();
     VLOG(1) << "Loaded " << tumframes.size() << " images.";
 }
 

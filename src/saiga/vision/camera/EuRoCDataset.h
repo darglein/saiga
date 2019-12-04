@@ -26,10 +26,10 @@ class SAIGA_VISION_API EuRoCDataset : public DatasetCameraBase<StereoFrameData>
 
     virtual SE3 CameraToGroundTruth() override { return groundTruthToCamera.inverse(); }
 
+
    private:
     SE3 extrinsics_cam0, extrinsics_cam1, extrinsics_gt;
     SE3 groundTruthToCamera;
-
 
     // Tmp loading data
     std::vector<std::pair<double, std::string>> cam0_images, cam1_images;

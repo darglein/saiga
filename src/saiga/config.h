@@ -56,6 +56,7 @@
 //#endif
 // alignas should be supported now by all compiles so we don't need the extensions from above
 #define SAIGA_CACHE_LINE_SIZE 64
+// Note: In CUDA 10 alignas(_x) doesn't vectorize copies :(
 #define SAIGA_ALIGN(_x) alignas(_x)
 #define SAIGA_ALIGN_CACHE SAIGA_ALIGN(SAIGA_CACHE_LINE_SIZE)
 

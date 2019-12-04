@@ -99,8 +99,8 @@ void Sample::renderFinal(Camera* cam)
     Base::renderFinal(cam);
 
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Saiga OpenNI");
+    ImGui::SetNextWindowSize(ImVec2(500, 600), ImGuiCond_FirstUseEver);
+    ImGui::Begin("DatasetViewer");
 
     tg.renderImGui();
 
@@ -128,7 +128,8 @@ void Sample::renderFinal(Camera* cam)
 
     if (ImGui::Button("Load From File"))
     {
-        dparams.dir  = dir;
+        //        dparams.dir  = dir;
+        dparams.dir  = "/home/dari/Projects/snake/code/data/tum/rgbd_dataset_freiburg1_desk/";
         rgbdcamera   = std::make_unique<TumRGBDCamera>(dparams, intr);
         leftTexture  = nullptr;
         rightTexture = nullptr;
@@ -140,6 +141,7 @@ void Sample::renderFinal(Camera* cam)
     if (ImGui::Button("Load From File Euroc"))
     {
         dparams.dir  = dir;
+        dparams.dir  = "/home/dari/Projects/snake/code/data/euroc/MH_01/mav0/";
         stereocamera = std::make_unique<EuRoCDataset>(dparams);
         leftTexture  = nullptr;
         rightTexture = nullptr;

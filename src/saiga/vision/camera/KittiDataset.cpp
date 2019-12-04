@@ -156,6 +156,7 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
             std::string leftFile  = leftImageDir + "/" + leadingZeroString(i, 6) + ".png";
             std::string rightFile = rightImageDir + "/" + leadingZeroString(i, 6) + ".png";
 
+            frame.id = id;
             frame.grayImg.load(leftFile);
             frame.grayImg2.load(rightFile);
 

@@ -122,7 +122,7 @@ PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
 
 
 #openmesh
-find_package(OpenMesh QUIET)
+find_package(OpenMesh REQUIRED)
 if(OPENMESH_FOUND)
     SET(SAIGA_USE_OPENMESH 1)
 endif()

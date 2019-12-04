@@ -57,9 +57,7 @@ macro(saiga_make_test _modules)
     target_link_libraries(${PROG_NAME} ${${_modules}})
 
     add_test(NAME ${PROG_NAME}
-             COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PROG_NAME}
-             --test_srcdir
-               data)
+             COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PROG_NAME})
 
     # We only need to link the saiga target
 

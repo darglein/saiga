@@ -17,30 +17,10 @@
 #ifdef SAIGA_USE_YAML_CPP
 
 #    include "saiga/core/util/easylogging++.h"
+#    include "saiga/core/util/yaml.h"
 
-#    include "yaml-cpp/yaml.h"
 namespace Saiga
 {
-template <typename MatrixType>
-MatrixType readYamlMatrix(const YAML::Node& node)
-{
-    MatrixType matrix;
-    std::vector<double> data;
-    for (auto n : node)
-    {
-        data.push_back(n.as<double>());
-    }
-    SAIGA_ASSERT(data.size() == (MatrixType::RowsAtCompileTime * MatrixType::ColsAtCompileTime));
-    for (int i = 0; i < MatrixType::RowsAtCompileTime; ++i)
-    {
-        for (int j = 0; j < MatrixType::ColsAtCompileTime; ++j)
-        {
-            matrix(i, j) = data[i * MatrixType::ColsAtCompileTime + j];
-        }
-    }
-    return matrix;
-}
-
 // Reads csv files of the following format:
 //
 // #timestamp [ns],filename
@@ -80,10 +60,12 @@ struct Associations
     // left and right image id
     int left, right;
     // id into gt array
-    // gtlow is the closest timestamp smaller and gthigh is the closest timestamp larger.
+    // gtlow is the closest gt index smaller and gthigh is the closest gt index larger.
     int gtlow, gthigh;
     // the interpolation value between low and high
     double gtAlpha;
+
+    double timestamp;
 };
 
 
@@ -95,9 +77,11 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
 
     auto leftImageSensor  = params.dir + "/cam0/sensor.yaml";
     auto rightImageSensor = params.dir + "/cam1/sensor.yaml";
+    auto imuSensor        = params.dir + "/imu0/sensor.yaml";
 
     SAIGA_ASSERT(std::filesystem::exists(leftImageSensor));
     SAIGA_ASSERT(std::filesystem::exists(rightImageSensor));
+    SAIGA_ASSERT(std::filesystem::exists(imuSensor));
 
 
     {
@@ -137,6 +121,63 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
         Mat4 m                                  = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
         extrinsics_cam1                         = SE3::fitToSE3(m);
         cam1_images                             = loadTimestapDataCSV(params.dir + "/cam1/data.csv");
+    }
+
+    {
+        // == IMU ==
+        // Load camera meta data
+        YAML::Node config = YAML::LoadFile(imuSensor);
+        VLOG(1) << config["comment"].as<std::string>();
+        Mat4 m             = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
+        imu.sensor_to_body = SE3::fitToSE3(m);
+
+        imu.frequency                = config["rate_hz"].as<double>();
+        imu.omega_sigma              = config["gyroscope_noise_density"].as<double>();
+        imu.omega_random_walk        = config["gyroscope_random_walk"].as<double>();
+        imu.acceleration_sigma       = config["accelerometer_noise_density"].as<double>();
+        imu.acceleration_random_walk = config["accelerometer_random_walk"].as<double>();
+
+        std::cout << imu << std::endl;
+    }
+
+    {
+        // == Imu Data ==
+        // Format:
+        //   timestamp [ns],
+        //   w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],
+        //   a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]
+        auto sensorFile = params.dir + "/" + "imu0/data.csv";
+        auto lines      = File::loadFileStringArray(sensorFile);
+        StringViewParser csvParser(", ");
+
+        for (auto&& l : lines)
+        {
+            if (l.empty()) continue;
+            if (l[0] == '#') continue;
+            csvParser.set(l);
+
+            auto svTime = csvParser.next();
+            if (svTime.empty()) continue;
+            // time is given in nano seconds
+            auto time = to_double(svTime) / 1e9;
+
+            Vec3 omega;
+            for (int i = 0; i < 3; ++i)
+            {
+                auto sv = csvParser.next();
+                SAIGA_ASSERT(!sv.empty());
+                omega(i) = to_double(sv);
+            }
+
+            Vec3 acceleration;
+            for (int i = 0; i < 3; ++i)
+            {
+                auto sv = csvParser.next();
+                SAIGA_ASSERT(!sv.empty());
+                acceleration(i) = to_double(sv);
+            }
+            imuData.emplace_back(omega, acceleration, time);
+        }
     }
 
     {
@@ -225,8 +266,8 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
         for (int i = 0; i < cam0_images.size(); ++i)
         {
             Associations a;
-            a.left = i;
-
+            a.left                 = i;
+            a.timestamp            = left_timestamps[i];
             a.right                = TimestampMatcher::findNearestNeighbour(left_timestamps[i], right_timestamps);
             auto [id1, id2, alpha] = TimestampMatcher::findLowHighAlphaNeighbour(left_timestamps[i], gt_timestamps);
             a.gtlow                = id1;
@@ -238,9 +279,8 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
         }
     }
 
-    //    assos.resize(100);
-    //    assos.erase(assos.begin(), assos.begin() + 1000);
-    //    assos.resize(200);
+
+
     // ==== Actual Image Loading ====
     {
         int N = assos.size();
@@ -269,6 +309,7 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
             std::string leftFile  = params.dir + "/cam0/data/" + cam0_images[a.left].second;
             std::string rightFile = params.dir + "/cam1/data/" + cam1_images[a.right].second;
 
+            frame.id = i;
             if (a.gtlow >= 0 && a.gthigh >= 0 && a.gtlow != a.gthigh)
             {
                 //                Vec3 gtpos =
@@ -283,7 +324,11 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
             loadingBar.addProgress(1);
         }
     }
+
+    computeImuDataPerFrame();
 }
+
+
 
 }  // namespace Saiga
 
