@@ -6,20 +6,22 @@
 
 #include "ZJUDataset.h"
 
-#include "saiga/core/util/ProgressBar.h"
-#include "saiga/core/util/directory.h"
-#include "saiga/core/util/easylogging++.h"
-#include "saiga/core/util/file.h"
-#include "saiga/core/util/fileChecker.h"
-#include "saiga/core/util/tostring.h"
-#include "saiga/core/util/yaml.h"
-#include "saiga/vision/camera/TimestampMatcher.h"
+#ifdef SAIGA_USE_YAML_CPP
+
+#    include "saiga/core/util/ProgressBar.h"
+#    include "saiga/core/util/directory.h"
+#    include "saiga/core/util/easylogging++.h"
+#    include "saiga/core/util/file.h"
+#    include "saiga/core/util/fileChecker.h"
+#    include "saiga/core/util/tostring.h"
+#    include "saiga/core/util/yaml.h"
+#    include "saiga/vision/camera/TimestampMatcher.h"
 
 //#include "IsmarFrameData.h"
 
-#include <algorithm>
-#include <fstream>
-#include <thread>
+#    include <algorithm>
+#    include <fstream>
+#    include <thread>
 
 namespace Saiga
 {
@@ -235,19 +237,19 @@ void ZJUDataset::associate(const std::string& datasetDir)
         double t     = r.first;
         tf.timestamp = t;
 
-#if 1
+#    if 1
         auto [id1, id2, alpha] = TimestampMatcher::findLowHighAlphaNeighbour(t, gtTimes);
         if (id1 != -1)
         {
             tf.gt = slerp(gt[id1].second, gt[id2].second, alpha);
         }
-#else
+#    else
         auto id1 = TimestampMatcher::findNearestNeighbour(t, gtTimes);
         if (id1 != -1)
         {
             tf.gt = gt[id1].second;
         }
-#endif
+#    endif
         framesRaw.push_back(tf);
     }
 }
@@ -275,7 +277,7 @@ void ZJUDataset::load(const std::string& datasetDir, bool multithreaded)
 
     {
         SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
-#pragma omp parallel for if (multithreaded)
+#    pragma omp parallel for if (multithreaded)
         for (int i = 0; i < N; ++i)
         {
             auto imgStr           = framesRaw[i].image;
@@ -318,3 +320,5 @@ void ZJUDataset::load(const std::string& datasetDir, bool multithreaded)
 
 
 }  // namespace Saiga
+
+#endif
