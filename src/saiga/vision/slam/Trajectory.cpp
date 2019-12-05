@@ -64,7 +64,7 @@ double align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B,
         A[i].second = se3Scale(rel * sim3(A[i].second, 1.0)).first;
     }
 
-    return error;
+    return scale;
 }
 
 std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A, ArrayView<const std::pair<int, SE3>> B)

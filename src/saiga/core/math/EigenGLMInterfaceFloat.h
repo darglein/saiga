@@ -12,7 +12,6 @@
 
 namespace Saiga
 {
-
 template <typename T>
 constexpr T epsilon()
 {
@@ -66,6 +65,19 @@ HD inline float mix(const float& a, const float& b, float alpha)
     return (1 - alpha) * a + alpha * b;
 }
 
+// Maybe use more advanced implementation from boost?
+// https://www.boost.org/doc/libs/1_51_0/boost/math/special_functions/sinc.hpp
+template <typename T>
+inline T sinc(const T x)
+{
+    if (std::abs(x) >= std::numeric_limits<T>::epsilon())
+    {
+        return (sin(x) / x);
+    }
+    else
+    {
+        return T(1);
+    }
+}
+
 }  // namespace Saiga
-
-
