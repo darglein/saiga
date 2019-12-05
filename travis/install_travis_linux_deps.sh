@@ -13,4 +13,4 @@ sudo apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
 sudo apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
 sudo apt-get install -y libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev;
 sudo apt-get install -y libassimp-dev libeigen3-dev libsuitesparse-dev;
-sudo apt-get install -y libgoogle-glog-dev libgflags-dev
+sudo apt-get install -y libgtest-dev libgoogle-glog-dev libgflags-dev

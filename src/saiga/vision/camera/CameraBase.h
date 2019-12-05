@@ -27,6 +27,12 @@ class CameraBase2
     // transforms the pose to the ground truth reference frame.
     virtual SE3 CameraToGroundTruth() { return SE3(); }
     SE3 GroundTruthToCamera() { return CameraToGroundTruth().inverse(); }
+
+
+    // Optional IMU data if the camera provides it.
+    // The returned vector contains all data from frame-1 to frame.
+    virtual std::vector<IMUData> ImuDataForFrame(int frame) { return {}; }
+    virtual std::optional<IMUSensor> getIMU() { return {}; }
 };
 
 /**
@@ -45,7 +51,6 @@ class SAIGA_TEMPLATE CameraBase : public CameraBase2
 
     // Returns false if no image is currently available
     virtual bool getImage(FrameType& data) { return getImageSync(data); }
-
 
 
    protected:
@@ -176,7 +181,8 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         }
     }
 
-    std::vector<IMUData> ImuDataForFrame(int frame) { return imuDataForFrame[frame]; }
+    std::vector<IMUData> ImuDataForFrame(int frame) override { return imuDataForFrame[frame]; }
+    virtual std::optional<IMUSensor> getIMU() override { return imuData.empty() ? std::optional<IMUSensor>() : imu; }
 
    protected:
     AlignedVector<FrameType> frames;
