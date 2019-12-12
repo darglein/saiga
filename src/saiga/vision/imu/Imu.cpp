@@ -4,10 +4,10 @@
  * See LICENSE file for more information.
  */
 
-#include "IMUData.h"
+#include "Imu.h"
 namespace Saiga
 {
-std::ostream& operator<<(std::ostream& strm, const IMUData& data)
+std::ostream& operator<<(std::ostream& strm, const Imu::Data& data)
 {
     Vec6 v;
     v.segment<3>(0) = data.omega;
@@ -16,9 +16,9 @@ std::ostream& operator<<(std::ostream& strm, const IMUData& data)
     return strm;
 }
 
-std::ostream& operator<<(std::ostream& strm, const IMUSensor& sensor)
+std::ostream& Imu::operator<<(std::ostream& strm, const Imu::Sensor& sensor)
 {
-    strm << "[IMUSensor]" << std::endl;
+    strm << "[IMU::Sensor]" << std::endl;
     strm << "Frequency:          " << sensor.frequency << " hz" << std::endl;
     strm << "Acceleration Noise: " << sensor.acceleration_sigma << "" << sensor.acceleration_random_walk << std::endl;
     strm << "Omega Noise:        " << sensor.omega_sigma << "" << sensor.omega_random_walk << std::endl;

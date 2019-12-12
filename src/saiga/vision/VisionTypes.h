@@ -91,32 +91,11 @@ inline void undistortAll(_InputIterator1 __first1, _InputIterator1 __last1, _Inp
 }
 
 
+}  // namespace Saiga
 
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const Sophus::SE3<T>& se3)
+
+namespace Eigen
 {
-    Quat q = se3.unit_quaternion();
-    Vec3 t = se3.translation();
-    os << "SE3(Quat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "),Vec3(" << t(0) << "," << t(1)
-       << "," << t(2) << "))";
-
-    return os;
-}
-
-
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const Sophus::Sim3<T>& sim3)
-{
-    Quat q = sim3.rxso3().quaternion();
-    Vec3 t = sim3.translation();
-    os << "Sim3(ScaledQuat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "),Vec3(" << t(0) << ","
-       << t(1) << "," << t(2) << "))";
-
-    return os;
-}
-
-
-
 template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
 inline std::istream& operator>>(std::istream& is, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>& m)
 {
@@ -129,5 +108,28 @@ inline std::istream& operator>>(std::istream& is, Eigen::Matrix<_Scalar, _Rows, 
     }
     return is;
 }
+}  // namespace Eigen
 
-}  // namespace Saiga
+namespace Sophus
+{
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const Sophus::SE3<T>& se3)
+{
+    Saiga::Quat q = se3.unit_quaternion();
+    Saiga::Vec3 t = se3.translation();
+    os << "SE3(Quat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "),Vec3(" << t(0) << "," << t(1)
+       << "," << t(2) << "))";
+    return os;
+}
+
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const Sophus::Sim3<T>& sim3)
+{
+    Saiga::Quat q = sim3.rxso3().quaternion();
+    Saiga::Vec3 t = sim3.translation();
+    os << "Sim3(ScaledQuat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "),Vec3(" << t(0) << ","
+       << t(1) << "," << t(2) << "))";
+    return os;
+}
+}  // namespace Sophus

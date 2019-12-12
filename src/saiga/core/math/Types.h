@@ -22,11 +22,12 @@ template <typename Scalar, int Rows, int Cols>
 using Matrix = Eigen::Matrix<Scalar, Rows, Cols, Eigen::ColMajor>;
 
 // ===== Double Precision (Capital Letter) ======
-using Vec7 = Vector<double, 7>;
-using Vec6 = Vector<double, 6>;
-using Vec4 = Vector<double, 4>;
-using Vec3 = Vector<double, 3>;
 using Vec2 = Vector<double, 2>;
+using Vec3 = Vector<double, 3>;
+using Vec4 = Vector<double, 4>;
+using Vec6 = Vector<double, 6>;
+using Vec7 = Vector<double, 7>;
+using Vec9 = Vector<double, 9>;
 
 using Mat4 = Matrix<double, 4, 4>;
 using Mat3 = Matrix<double, 3, 3>;

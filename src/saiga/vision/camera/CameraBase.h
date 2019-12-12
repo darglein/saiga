@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/core/time/timer.h"
-#include "saiga/vision/imu/IMUData.h"
+#include "saiga/vision/imu/Imu.h"
 
 #include "CameraData.h"
 
@@ -31,8 +31,8 @@ class CameraBase2
 
     // Optional IMU data if the camera provides it.
     // The returned vector contains all data from frame-1 to frame.
-    virtual std::vector<IMUData> ImuDataForFrame(int frame) { return {}; }
-    virtual std::optional<IMUSensor> getIMU() { return {}; }
+    virtual std::vector<Imu::Data> ImuDataForFrame(int frame) { return {}; }
+    virtual std::optional<Imu::Sensor> getIMU() { return {}; }
 };
 
 /**
@@ -181,16 +181,19 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         }
     }
 
-    std::vector<IMUData> ImuDataForFrame(int frame) override { return imuDataForFrame[frame]; }
-    virtual std::optional<IMUSensor> getIMU() override { return imuData.empty() ? std::optional<IMUSensor>() : imu; }
+    std::vector<Imu::Data> ImuDataForFrame(int frame) override { return imuDataForFrame[frame]; }
+    virtual std::optional<Imu::Sensor> getIMU() override
+    {
+        return imuData.empty() ? std::optional<Imu::Sensor>() : imu;
+    }
 
    protected:
     AlignedVector<FrameType> frames;
     DatasetParameters params;
 
-    IMUSensor imu;
-    std::vector<IMUData> imuData;
-    std::vector<std::vector<IMUData>> imuDataForFrame;
+    Imu::Sensor imu;
+    std::vector<Imu::Data> imuData;
+    std::vector<std::vector<Imu::Data>> imuDataForFrame;
 
    private:
     Timer timer;

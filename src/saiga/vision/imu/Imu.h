@@ -11,9 +11,21 @@
 #include <vector>
 
 
-namespace Saiga
+namespace Saiga::Imu
 {
-struct SAIGA_VISION_API IMUData
+using AngularVelocity = Vec3;
+using Velocity        = Vec3;
+
+using GyroBias = Vec3;
+using AccBias  = Vec3;
+using ImuBias  = Vec6;
+
+// (Linear) velocity and ImuBias stacked as
+// [Velocity | GyroBias | AccBias]
+using VelocityAndBias = Vec9;
+
+
+struct SAIGA_VISION_API Data
 {
     // Angular velocity in [rad/s] given by the gyroscope.
     Vec3 omega;
@@ -24,8 +36,8 @@ struct SAIGA_VISION_API IMUData
     // Timestamp of the sensor reading in [s]
     double timestamp;
 
-    IMUData() = default;
-    IMUData(const Vec3& omega, const Vec3& acceleration, double timestamp)
+    Data() = default;
+    Data(const Vec3& omega, const Vec3& acceleration, double timestamp)
         : omega(omega), acceleration(acceleration), timestamp(timestamp)
     {
     }
@@ -33,9 +45,10 @@ struct SAIGA_VISION_API IMUData
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const IMUData& data);
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::Data& data);
 
-struct IMUSensor
+
+struct Sensor
 {
     // Number of meassueremnt per second in [hz]
     double frequency;
@@ -51,7 +64,7 @@ struct IMUSensor
     SE3 sensor_to_body;
 };
 
-SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const IMUSensor& sensor);
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::Sensor& sensor);
 
 
-}  // namespace Saiga
+}  // namespace Saiga::Imu
