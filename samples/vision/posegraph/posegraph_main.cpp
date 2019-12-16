@@ -122,8 +122,8 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
             }
 
 
-            auto t  = make_statistics(times).median / 1000.0 / baoptions.maxIterations;
-            auto tl = make_statistics(timesl).median / 1000.0 / baoptions.maxIterations;
+            auto t  = Statistics(times).median / 1000.0 / baoptions.maxIterations;
+            auto tl = Statistics(timesl).median / 1000.0 / baoptions.maxIterations;
             table << s->name << chi2 << tl << t;
 
             strm << "," << t;

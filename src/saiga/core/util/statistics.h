@@ -65,12 +65,6 @@ Statistics<T>::Statistics(const std::vector<T>& _data)
 }
 
 template <typename T>
-Statistics<T> make_statistics(const std::vector<T>& data)
-{
-    return Statistics<T>(data);
-}
-
-template <typename T>
 std::ostream& operator<<(std::ostream& stream, const Statistics<T>& object)
 {
     stream << "Num         = [" << object.numValues << "]" << std::endl
