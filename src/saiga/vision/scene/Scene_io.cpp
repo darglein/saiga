@@ -125,8 +125,15 @@ void Scene::load(const std::string& file)
 {
     std::cout << "Loading scene from " << file << "." << std::endl;
 
+    std::string f = SearchPathes::data(file);
+    if (f.empty())
+    {
+        std::cout << "could not find file " << file << std::endl;
+        std::cout << SearchPathes::data << std::endl;
+        return;
+    }
 
-    std::ifstream strm(SearchPathes::data(file));
+    std::ifstream strm(f);
     SAIGA_ASSERT(strm.is_open());
 
 

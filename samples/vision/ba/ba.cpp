@@ -238,13 +238,8 @@ void Sample::renderFinal(Camera* cam)
 
 int main(const int argc, const char* argv[])
 {
-    using namespace Saiga;
-
-    {
-        Sample example;
-
-        example.run();
-    }
-
+    initSaigaSample();
+    Sample example;
+    example.run();
     return 0;
 }
