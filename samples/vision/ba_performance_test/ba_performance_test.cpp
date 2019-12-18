@@ -12,7 +12,7 @@
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
-#include "saiga/vision/recursive/BAPoseOnly.h"
+#include "saiga/vision/recursive/BAPointOnly.h"
 #include "saiga/vision/recursive/BARecursive.h"
 #include "saiga/vision/scene/BALDataset.h"
 #include "saiga/vision/scene/SynteticScene.h"

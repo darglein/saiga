@@ -19,7 +19,7 @@
 //#include "saiga/vision/Eigen_GLM.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/g2o/g2oBA2.h"
-#include "saiga/vision/recursive/BAPoseOnly.h"
+#include "saiga/vision/recursive/BAPointOnly.h"
 #include "saiga/vision/scene/PoseGraph.h"
 
 #if defined(SAIGA_VULKAN_INCLUDED)
@@ -217,7 +217,7 @@ void Sample::renderFinal(Camera* cam)
     if (ImGui::Button("posePointSparse"))
     {
         SAIGA_BLOCK_TIMER();
-        Saiga::BAPoseOnly ba;
+        Saiga::BAPointOnly ba;
         ba.baOptions = baoptions;
         ba.create(scene);
         ba.initAndSolve();

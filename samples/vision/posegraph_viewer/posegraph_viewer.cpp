@@ -20,7 +20,7 @@
 #include "saiga/vision/ceres/CeresPGO.h"
 #include "saiga/vision/g2o/g2oBA2.h"
 #include "saiga/vision/g2o/g2oPoseGraph.h"
-#include "saiga/vision/recursive/BAPoseOnly.h"
+#include "saiga/vision/recursive/BAPointOnly.h"
 #include "saiga/vision/recursive/PGORecursive.h"
 
 #if defined(SAIGA_VULKAN_INCLUDED)

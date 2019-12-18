@@ -8,14 +8,14 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API BAPoseOnly : public BABase, public LMOptimizer
+class SAIGA_VISION_API BAPointOnly : public BABase, public LMOptimizer
 {
    public:
-    static constexpr int blockSizePose = 6;
-    using T                            = double;
+    static constexpr int blockSizePoint = 3;
+    using T                             = double;
 
-    using DiagType = Eigen::Matrix<T, blockSizePose, blockSizePose, Eigen::RowMajor>;
-    using ResType  = Eigen::Matrix<T, blockSizePose, 1>;
+    using DiagType = Eigen::Matrix<T, blockSizePoint, blockSizePoint, Eigen::RowMajor>;
+    using ResType  = Eigen::Matrix<T, blockSizePoint, 1>;
 
     /**
      * Optimize the camera extrinics of all cameras.
@@ -23,8 +23,8 @@ class SAIGA_VISION_API BAPoseOnly : public BABase, public LMOptimizer
      *
      *
      */
-    BAPoseOnly() : BABase("Point Only BA") {}
-    virtual ~BAPoseOnly() {}
+    BAPointOnly() : BABase("Point Only BA") {}
+    virtual ~BAPointOnly() {}
 
     virtual void create(Scene& scene) override { _scene = &scene; }
 
@@ -34,9 +34,14 @@ class SAIGA_VISION_API BAPoseOnly : public BABase, public LMOptimizer
 
     AlignedVector<DiagType> diagBlocks;
     AlignedVector<ResType> resBlocks;
-    AlignedVector<SE3> x_v, oldx_v;
-    AlignedVector<ResType> delta_x;
+    AlignedVector<Vec3> x_v, oldx_v;
+    AlignedVector<Vec3> delta_x;
 
+    // ============= Multi Threading Stuff ===========
+    int threads = 1;
+    std::vector<AlignedVector<DiagType>> diagTemp;
+    std::vector<AlignedVector<ResType>> resTemp;
+    std::vector<double> localChi2;
     // ============== LM Functions ==============
 
     virtual void init() override;
@@ -47,6 +52,9 @@ class SAIGA_VISION_API BAPoseOnly : public BABase, public LMOptimizer
     virtual void solveLinearSystem() override;
     virtual double computeCost() override;
     virtual void finalize() override;
+
+    virtual void setThreadCount(int n) override { threads = n; }
+    virtual bool supportOMP() override { return true; }
 };
 
 

@@ -4,9 +4,7 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Thread/omp.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/kernels/BAPoint.h"
 #include "saiga/vision/kernels/BAPose.h"
-#include "saiga/vision/kernels/BAPosePoint.h"
 #include "saiga/vision/util/LM.h"
 
 #include "Eigen/Sparse"
@@ -19,7 +17,7 @@ namespace Saiga
 void BAPoseOnly::init()
 {
     Scene& scene = *_scene;
-    n            = scene.worldPoints.size();
+    n            = scene.images.size();
 
     diagBlocks.resize(n);
     resBlocks.resize(n);
@@ -29,80 +27,42 @@ void BAPoseOnly::init()
 
     for (int i = 0; i < n; ++i)
     {
-        x_v[i] = scene.worldPoints[i].p;
+        x_v[i] = scene.extrinsics[i].se3;
     }
-
-    // ===== Threading Tmps ======
-    localChi2.resize(threads);
-    diagTemp.resize(threads - 1);
-    resTemp.resize(threads - 1);
-    for (auto& a : diagTemp) a.resize(n);
-    for (auto& a : resTemp) a.resize(n);
 }
 
 double BAPoseOnly::computeQuadraticForm()
 {
     Scene& scene = *_scene;
 
-    //    for (int i = 0; i < n; ++i)
-    //    {
-    //        diagBlocks[i].setZero();
-    //        resBlocks[i].setZero();
-    //    }
+    double chi2 = 0;
 
-    //    double newChi2 = 0;
 
-    int tid = OMP::getThreadNum();
-
-    double& newChi2 = localChi2[tid];
-    newChi2         = 0;
-    DiagType* diagArray;
-    ResType* resArray;
-
-    if (tid == 0)
-    {
-        // thread 0 directly writes into the recursive matrix
-        diagArray = diagBlocks.data();
-        resArray  = resBlocks.data();
-    }
-    else
-    {
-        diagArray = diagTemp[tid - 1].data();
-        resArray  = resTemp[tid - 1].data();
-    }
-
-    // every thread has to zero its own local copy
-    for (int i = 0; i < n; ++i)
-    {
-        diagArray[i].setZero();
-        resArray[i].setZero();
-    }
-
-#pragma omp for
     for (int i = 0; i < (int)scene.images.size(); ++i)
     {
         auto& img   = scene.images[i];
-        auto extr   = scene.extrinsics[img.extr].se3;
         auto camera = scene.intrinsics[img.intr];
         StereoCamera4 scam(camera, scene.bf);
+
+
+        auto& targetJ   = diagBlocks[i];
+        auto& targetRes = resBlocks[i];
+        targetJ.setZero();
+        targetRes.setZero();
 
         for (auto& ip : img.stereoPoints)
         {
             if (!ip) continue;
-            auto i = ip.wp;
+            auto wp   = scene.worldPoints[ip.wp].p;
+            auto extr = x_v[i];
+            auto w    = ip.weight * img.imageWeight * scene.scale();
 
-            //            auto wp = scene.worldPoints[ip.wp].p;
-            auto wp = x_v[i];
-            auto w  = ip.weight * img.imageWeight * scene.scale();
-
-            auto& targetJ   = diagArray[i];
-            auto& targetRes = resArray[i];
             if (ip.depth > 0)
             {
-                using StereoKernel = Saiga::Kernel::BAPointStereo<T>;
-                StereoKernel::PointJacobiType JrowPoint;
+                using StereoKernel = Saiga::Kernel::BAPoseStereo<T>;
+                StereoKernel::JacobiType JrowPoint;
                 StereoKernel::ResidualType res;
-                StereoKernel::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, 1, res, JrowPoint);
+                StereoKernel::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, res, JrowPoint, 1.0);
 
 
                 auto sqrtrw = sqrt(w);
@@ -110,17 +70,17 @@ double BAPoseOnly::computeQuadraticForm()
                 res *= sqrtrw;
 
                 auto c = res.squaredNorm();
-                newChi2 += c;
+                chi2 += c;
 
                 targetJ += JrowPoint.transpose() * JrowPoint;
-                targetRes -= JrowPoint.transpose() * res;
+                targetRes += JrowPoint.transpose() * res;
             }
             else
             {
-                using MonoKernel = Saiga::Kernel::BAPointMono<T>;
-                MonoKernel::PointJacobiType JrowPoint;
+                using MonoKernel = Saiga::Kernel::BAPoseMono<T>;
+                MonoKernel::JacobiType JrowPoint;
                 MonoKernel::ResidualType res;
-                MonoKernel::evaluateResidualAndJacobian(camera, extr, wp, ip.point, 1, res, JrowPoint);
+                MonoKernel::evaluateResidualAndJacobian(camera, extr, wp, ip.point, res, JrowPoint, 1.0);
 
 
                 auto sqrtrw = sqrt(w);
@@ -128,32 +88,13 @@ double BAPoseOnly::computeQuadraticForm()
                 res *= sqrtrw;
 
                 auto c = res.squaredNorm();
-                newChi2 += c;
+                chi2 += c;
 
                 targetJ += JrowPoint.transpose() * JrowPoint;
-                targetRes -= JrowPoint.transpose() * res;
+                targetRes += JrowPoint.transpose() * res;
             }
         }
     }
-
-#pragma omp for
-    for (int i = 0; i < n; ++i)
-    {
-        for (int j = 0; j < threads - 1; ++j)
-        {
-            diagBlocks[i] += diagTemp[j][i];
-            resBlocks[i] += resTemp[j][i];
-        }
-    }
-
-
-
-    double chi2 = 0;
-    for (int i = 0; i < threads; ++i)
-    {
-        chi2 += localChi2[i];
-    }
-
     return chi2;
 }
 
@@ -161,76 +102,57 @@ double BAPoseOnly::computeCost()
 {
     Scene& scene = *_scene;
 
-    int tid = OMP::getThreadNum();
+    double chi2 = 0;
 
-    double& newChi2 = localChi2[tid];
-    newChi2         = 0;
 
-#pragma omp for
     for (int i = 0; i < (int)scene.images.size(); ++i)
     {
         auto& img   = scene.images[i];
-        auto extr   = scene.extrinsics[img.extr].se3;
         auto camera = scene.intrinsics[img.intr];
         StereoCamera4 scam(camera, scene.bf);
 
         for (auto& ip : img.stereoPoints)
         {
             if (!ip) continue;
-            //            auto wp = scene.worldPoints[ip.wp].p;
-            auto i  = ip.wp;
-            auto wp = x_v[i];
-            auto w  = ip.weight * img.imageWeight * scene.scale();
-
-
-
+            auto wp   = scene.worldPoints[ip.wp].p;
+            auto extr = x_v[i];
+            auto w    = ip.weight * img.imageWeight * scene.scale();
             if (ip.depth > 0)
             {
-                using StereoKernel = Saiga::Kernel::BAPointStereo<T>;
-
+                using StereoKernel = Saiga::Kernel::BAPoseStereo<T>;
                 StereoKernel::ResidualType res;
-                res = StereoKernel::evaluateResidual(scam, extr, wp, ip.point, ip.depth, 1);
-
+                res = StereoKernel::evaluateResidual(scam, extr, wp, ip.point, ip.depth, 1.0);
 
                 auto sqrtrw = sqrt(w);
-
                 res *= sqrtrw;
 
                 auto c = res.squaredNorm();
-                newChi2 += c;
+                chi2 += c;
             }
             else
             {
-                using MonoKernel = Saiga::Kernel::BAPointMono<T>;
+                using MonoKernel = Saiga::Kernel::BAPoseMono<T>;
                 MonoKernel::ResidualType res;
-                res = MonoKernel::evaluateResidual(camera, extr, wp, ip.point, 1);
-
+                res = MonoKernel::evaluateResidual(camera, extr, wp, ip.point, 1.0);
 
                 auto sqrtrw = sqrt(w);
                 res *= sqrtrw;
 
                 auto c = res.squaredNorm();
-                newChi2 += c;
+                chi2 += c;
             }
         }
     }
-
-    double chi2 = 0;
-    for (int i = 0; i < threads; ++i)
-    {
-        chi2 += localChi2[i];
-    }
-
     return chi2;
 }
 
 bool BAPoseOnly::addDelta()
 {
-#pragma omp for
     for (int i = 0; i < n; ++i)
     {
         oldx_v[i] = x_v[i];
-        x_v[i] += delta_x[i];
+        //        x_v[i] += SE3::exp(delta_x[i]);
+        x_v[i] = SE3::exp(delta_x[i]) * x_v[i];
     }
     return true;
 }
@@ -238,8 +160,8 @@ bool BAPoseOnly::addDelta()
 
 void BAPoseOnly::revertDelta()
 {
-//    x_v = oldx_v;
-#pragma omp for
+    //    x_v = oldx_v;
+
     for (int i = 0; i < n; ++i)
     {
         x_v[i] = oldx_v[i];
@@ -250,17 +172,16 @@ void BAPoseOnly::finalize()
 {
     Scene& scene = *_scene;
 
-#pragma omp for
+
     for (int i = 0; i < n; ++i)
     {
-        scene.worldPoints[i].p = x_v[i];
+        scene.extrinsics[i].se3 = x_v[i];
     }
 }
 
 
 void BAPoseOnly::addLambda(double lambda)
 {
-#pragma omp for
     for (int i = 0; i < n; ++i)
     {
         applyLMDiagonalInner(diagBlocks[i], lambda);
@@ -271,7 +192,6 @@ void BAPoseOnly::addLambda(double lambda)
 
 void BAPoseOnly::solveLinearSystem()
 {
-#pragma omp for
     for (int i = 0; i < n; ++i)
     {
         delta_x[i] = diagBlocks[i].ldlt().solve(resBlocks[i]);

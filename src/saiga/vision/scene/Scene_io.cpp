@@ -104,7 +104,7 @@ void Scene::save(const std::string& file)
     }
     for (auto& e : extrinsics)
     {
-        strm << e.constant << " " << e.se3.params().transpose() << std::endl;
+        strm << e.constant << " " << e.se3.params().transpose() << " " << e.velocity.params().transpose() << std::endl;
     }
     for (auto& img : images)
     {
@@ -169,10 +169,16 @@ void Scene::load(const std::string& file)
     }
     for (auto& e : extrinsics)
     {
-        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> v2(e.se3.data());
-        Sophus::Vector<double, SE3::num_parameters> v;
-        strm >> e.constant >> v;
-        v2 = v;
+        Sophus::Vector<double, SE3::num_parameters> pose;
+        Sophus::Vector<double, SE3::num_parameters> velocity;
+        strm >> e.constant >> pose >> velocity;
+
+
+        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> pose_map(e.se3.data());
+        pose_map = pose;
+
+        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> velocity_map(e.velocity.data());
+        velocity_map = velocity;
     }
 
     for (auto& img : images)
