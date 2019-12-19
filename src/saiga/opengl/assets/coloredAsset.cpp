@@ -11,73 +11,55 @@ namespace Saiga
 {
 void ColoredAsset::loadDefaultShaders()
 {
-    this->shader          = shaderLoader.load<MVPShader>(deferredShaderStr);
-    this->forwardShader   = shaderLoader.load<MVPShader>(forwardShaderStr);
-    this->depthshader     = shaderLoader.load<MVPShader>(depthShaderStr);
-    this->wireframeshader = shaderLoader.load<MVPShader>(wireframeShaderStr);
+    this->deferredShader  = shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+    this->depthshader     = shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
+    this->forwardShader   = shaderLoader.load<MVPColorShader>(shaderStr);
+    this->wireframeshader = shaderLoader.load<MVPColorShader>(shaderStr);
 }
 void LineVertexColoredAsset::loadDefaultShaders()
 {
-    this->shader          = shaderLoader.load<MVPShader>(deferredShaderStr);
-    this->forwardShader   = shaderLoader.load<MVPShader>(forwardShaderStr);
-    this->depthshader     = shaderLoader.load<MVPShader>(depthShaderStr);
-    this->wireframeshader = shaderLoader.load<MVPShader>(wireframeShaderStr);
+    this->deferredShader  = shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+    this->depthshader     = shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
+    this->forwardShader   = shaderLoader.load<MVPColorShader>(shaderStr);
+    this->wireframeshader = shaderLoader.load<MVPColorShader>(shaderStr);
 }
 void TexturedAsset::loadDefaultShaders()
 {
-    this->shader          = shaderLoader.load<MVPShader>(deferredShaderStr);
-    this->forwardShader   = shaderLoader.load<MVPShader>(forwardShaderStr);
-    this->depthshader     = shaderLoader.load<MVPShader>(depthShaderStr);
-    this->wireframeshader = shaderLoader.load<MVPShader>(wireframeShaderStr);
+    this->deferredShader =
+        shaderLoader.load<MVPTextureShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+    this->depthshader     = shaderLoader.load<MVPTextureShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
+    this->forwardShader   = shaderLoader.load<MVPTextureShader>(shaderStr);
+    this->wireframeshader = shaderLoader.load<MVPTextureShader>(shaderStr);
 }
 void TexturedAsset::render(Camera* cam, const mat4& model)
 {
-    auto tshader = std::static_pointer_cast<MVPTextureShader>(this->shader);
-    tshader->bind();
-    tshader->uploadModel(model);
-
-    buffer.bind();
-    for (TextureGroup& tg : groups)
-    {
-        tshader->uploadTexture(tg.texture.get());
-
-        int start = 0;
-        start += tg.startIndex;
-        buffer.draw(tg.indices, start);
-    }
-    buffer.unbind();
-
-
-
-    tshader->unbind();
+    renderGroups(deferredShader, cam, model);
 }
 
 void TexturedAsset::renderForward(Camera* cam, const mat4& model)
 {
-    render(cam, model);
+    renderGroups(forwardShader, cam, model);
 }
 
 void TexturedAsset::renderDepth(Camera* cam, const mat4& model)
 {
-    auto dshader = std::static_pointer_cast<MVPTextureShader>(this->depthshader);
+    renderGroups(depthshader, cam, model);
+}
 
-    dshader->bind();
-    dshader->uploadModel(model);
-
+void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camera* cam, const mat4& model)
+{
+    shader->bind();
+    shader->uploadModel(model);
     buffer.bind();
     for (TextureGroup& tg : groups)
     {
-        dshader->uploadTexture(tg.texture.get());
-
+        shader->uploadTexture(tg.texture.get());
         int start = 0;
         start += tg.startIndex;
         buffer.draw(tg.indices, start);
     }
     buffer.unbind();
-
-
-
-    dshader->unbind();
+    shader->unbind();
 }
 
 

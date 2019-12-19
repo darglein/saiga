@@ -31,21 +31,19 @@ class SAIGA_OPENGL_API Asset
 };
 
 
-template <typename ModelType>
+template <typename ModelType, typename ShaderType>
 class SAIGA_TEMPLATE BasicAsset : public Asset, public ModelType
 {
    public:
     using VertexType = typename ModelType::VertexType;
     using IndexType  = typename ModelType::IndexType;
 
-    std::shared_ptr<MVPShader> shader;
-    std::shared_ptr<MVPShader> forwardShader;
-    std::shared_ptr<MVPShader> depthshader;
-    std::shared_ptr<MVPShader> wireframeshader;
+    std::shared_ptr<ShaderType> deferredShader;
+    std::shared_ptr<ShaderType> forwardShader;
+    std::shared_ptr<ShaderType> depthshader;
+    std::shared_ptr<ShaderType> wireframeshader;
 
     IndexedVertexBuffer<VertexType, IndexType> buffer;
-
-    //    ModelType model;
 
     /**
      * Use these for simple inefficient rendering.
@@ -66,18 +64,20 @@ class SAIGA_TEMPLATE BasicAsset : public Asset, public ModelType
     virtual void renderRaw() override;
 
 
-    void create(std::shared_ptr<MVPShader> shader, std::shared_ptr<MVPShader> forwardShader,
-                std::shared_ptr<MVPShader> depthshader, std::shared_ptr<MVPShader> wireframeshader,
-                bool normalizePosition = false, bool ZUPtoYUP = false);
+    virtual void loadDefaultShaders() = 0;
+
+    void setShader(std::shared_ptr<ShaderType> deferredShader, std::shared_ptr<ShaderType> forwardShader,
+                   std::shared_ptr<ShaderType> depthshader, std::shared_ptr<ShaderType> wireframeshader);
+    void create();
 };
 
-template <typename ModelType>
-void BasicAsset<ModelType>::render(Camera* cam, const mat4& model)
+template <typename ModelType, typename ShaderType>
+void BasicAsset<ModelType, ShaderType>::render(Camera* cam, const mat4& model)
 {
     (void)cam;
-    shader->bind();
+    deferredShader->bind();
     //    shader->uploadAll(cam,model);
-    shader->uploadModel(model);
+    deferredShader->uploadModel(model);
 
     //    glEnable(GL_POLYGON_OFFSET_FILL);
     //    glPolygonOffset(1.0f,1.0f);
@@ -86,11 +86,11 @@ void BasicAsset<ModelType>::render(Camera* cam, const mat4& model)
 
     //    glDisable(GL_POLYGON_OFFSET_FILL);
 
-    shader->unbind();
+    deferredShader->unbind();
 }
 
-template <typename ModelType>
-void BasicAsset<ModelType>::renderForward(Camera* cam, const mat4& model)
+template <typename ModelType, typename ShaderType>
+void BasicAsset<ModelType, ShaderType>::renderForward(Camera* cam, const mat4& model)
 {
     (void)cam;
     forwardShader->bind();
@@ -107,8 +107,8 @@ void BasicAsset<ModelType>::renderForward(Camera* cam, const mat4& model)
     forwardShader->unbind();
 }
 
-template <typename ModelType>
-void BasicAsset<ModelType>::renderDepth(Camera* cam, const mat4& model)
+template <typename ModelType, typename ShaderType>
+void BasicAsset<ModelType, ShaderType>::renderDepth(Camera* cam, const mat4& model)
 {
     (void)cam;
     depthshader->bind();
@@ -117,8 +117,8 @@ void BasicAsset<ModelType>::renderDepth(Camera* cam, const mat4& model)
     depthshader->unbind();
 }
 
-template <typename ModelType>
-void BasicAsset<ModelType>::renderWireframe(Camera* cam, const mat4& model)
+template <typename ModelType, typename ShaderType>
+void BasicAsset<ModelType, ShaderType>::renderWireframe(Camera* cam, const mat4& model)
 {
     (void)cam;
     wireframeshader->bind();
@@ -141,31 +141,30 @@ void BasicAsset<ModelType>::renderWireframe(Camera* cam, const mat4& model)
     wireframeshader->unbind();
 }
 
-template <typename ModelType>
-void BasicAsset<ModelType>::renderRaw()
+template <typename ModelType, typename ShaderType>
+void BasicAsset<ModelType, ShaderType>::renderRaw()
 {
     buffer.bindAndDraw();
 }
 
-template <typename ModelType>
-void BasicAsset<ModelType>::create(std::shared_ptr<MVPShader> _shader, std::shared_ptr<MVPShader> _forwardShader,
-                                   std::shared_ptr<MVPShader> _depthshader, std::shared_ptr<MVPShader> _wireframeshader,
-                                   bool normalizePosition, bool ZUPtoYUP)
+template <typename ModelType, typename ShaderType>
+void BasicAsset<ModelType, ShaderType>::setShader(std::shared_ptr<ShaderType> _shader,
+                                                  std::shared_ptr<ShaderType> _forwardShader,
+                                                  std::shared_ptr<ShaderType> _depthshader,
+                                                  std::shared_ptr<ShaderType> _wireframeshader)
 {
-    this->shader          = _shader;
+    this->deferredShader  = _shader;
     this->forwardShader   = _forwardShader;
     this->depthshader     = _depthshader;
     this->wireframeshader = _wireframeshader;
-    //    this->model.boundingBox = model.mesh.aabb();
+}
 
-    if (ZUPtoYUP)
+template <typename ModelType, typename ShaderType>
+void BasicAsset<ModelType, ShaderType>::create()
+{
+    if (!deferredShader)
     {
-        //        this->model.ZUPtoYUP();
-    }
-
-    if (normalizePosition)
-    {
-        this->normalizePosition();
+        loadDefaultShaders();
     }
     buffer.fromMesh(*this);
 }

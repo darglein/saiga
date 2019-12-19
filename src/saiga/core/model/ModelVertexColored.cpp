@@ -6,6 +6,8 @@
 
 #include "ModelVertexColored.h"
 
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+
 #include "internal/noGraphicsAPI.h"
 
 #include "objModelLoader.h"
@@ -23,7 +25,56 @@ void VertexColoredModel::createFullscreenQuad()
     addFace(0, 1, 2);
 }
 
-void VertexColoredModel::createCheckerBoard(ivec2 size, float quadSize, vec4 color1, vec4 color2)
+
+static TriangleMesh<VertexNC, uint32_t> ArrowMeshY(float radius, float length, const vec4& color)
+{
+    float coneH = length * 0.15f;
+    float coneR = radius * 1.5f;
+
+
+    auto cylinderMesh = TriangleMeshGenerator::createCylinderMesh(radius, length - coneH, 12);
+    mat4 m            = translate(vec3(0, (length - coneH) * 0.5f, 0));
+    cylinderMesh->transform(m);
+
+    auto coneMesh = TriangleMeshGenerator::createMesh(Cone(make_vec3(0), vec3(0, 1, 0), coneR, coneH), 12);
+    m             = translate(vec3(0, length, 0));
+    coneMesh->transform(m);
+
+    TriangleMesh<VertexNC, uint32_t> mesh;
+    mesh.addMesh(*cylinderMesh);
+    mesh.addMesh(*coneMesh);
+    mesh.setColor(color);
+    return mesh;
+}
+
+void VertexColoredModel::createArrow(float radius, float length, const vec4& color)
+{
+    addMesh(ArrowMeshY(radius, length, color));
+}
+
+void VertexColoredModel::createCoordinateSystem(float _scale)
+{
+    float radius = 0.05;
+    float length = 2;
+
+    auto x = ArrowMeshY(radius, length, vec4(1, 0, 0, 1));
+    x.transform(rotate(radians(90), vec3(0, 0, -1)));
+    x.transform(translate(vec3(-1, 0, 0)));
+
+    auto y = ArrowMeshY(radius, length, vec4(0, 1, 0, 1));
+    y.transform(translate(vec3(0, -1, 0)));
+
+    auto z = ArrowMeshY(radius, length, vec4(0, 0, 1, 1));
+    z.transform(rotate(radians(90), vec3(1, 0, 0)));
+    z.transform(translate(vec3(0, 0, -1)));
+
+    addMesh(x);
+    addMesh(y);
+    addMesh(z);
+    transform(scale(vec3(_scale, _scale, _scale)));
+}
+
+void VertexColoredModel::createCheckerBoard(ivec2 size, float quadSize, const vec4& color1, const vec4& color2)
 {
     vec4 n(0, 1, 0, 0);
     for (int i = -size[0]; i < size[0]; ++i)

@@ -60,9 +60,7 @@ std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string& 
 {
     std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
     loadMeshNC(file, *asset, normalize);
-    loadBasicShaders();
-    asset->create(basicAssetShader, basicAssetForwardShader, basicAssetDepthshader, basicAssetWireframeShader,
-                  normalize, false);
+    asset->create();
     return asset;
 }
 
@@ -115,10 +113,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
             }
         }
     }
-    loadTextureShaders();
-    asset->create(texturedAssetShader, texturedAssetForwardShader, texturedAssetDepthShader,
-                  texturedAssetWireframeShader, normalize, false);
-
+    asset->create();
     return asset;
 }
 

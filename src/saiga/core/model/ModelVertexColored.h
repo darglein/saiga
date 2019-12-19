@@ -15,7 +15,13 @@ class SAIGA_CORE_API VertexColoredModel : public TriangleMesh<VertexNC, uint32_t
    public:
     void createFullscreenQuad();
 
-    void createCheckerBoard(ivec2 size, float quadSize, vec4 color1, vec4 color2);
+
+    void createArrow(float radius, float length, const vec4& color);
+
+
+    void createCoordinateSystem(float scale);
+
+    void createCheckerBoard(ivec2 size, float quadSize, const vec4& color1, const vec4& color2);
     void loadObj(const std::string& file);
     void loadPly(const std::string& file);
 };

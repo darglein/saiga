@@ -71,8 +71,8 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(ivec2 size, floa
 
     asset->createCheckerBoard(size, quadSize, color1, color2);
 
-    loadBasicShaders();
-    asset->create(basicAssetShader, basicAssetForwardShader, basicAssetDepthshader, basicAssetWireframeShader);
+
+    asset->create();
 
     return asset;
 }
@@ -97,9 +97,7 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_p
     tg.indices    = plainMesh->numIndices();
     tg.texture    = texture;
     asset->groups.push_back(tg);
-    loadTextureShaders();
-    asset->create(texturedAssetShader, texturedAssetForwardShader, texturedAssetDepthShader,
-                  texturedAssetWireframeShader);
+    asset->create();
 
     return asset;
 }
@@ -158,8 +156,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float le
         v.data  = vec4(0.5, 0, 0, 0);
     }
 
-    loadBasicShaders();
-    asset->create(basicAssetShader, basicAssetForwardShader, basicAssetDepthshader, basicAssetWireframeShader);
+    asset->create();
     return asset;
 }
 
@@ -175,8 +172,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNT, 
         v.data  = vec4(0.5, 0, 0, 0);
     }
 
-    loadBasicShaders();
-    asset->create(basicAssetShader, basicAssetForwardShader, basicAssetDepthshader, basicAssetWireframeShader);
+    asset->create();
     return asset;
 }
 
@@ -190,8 +186,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::assetFromMesh(TriangleMesh<VertexNC, 
         v.data = vec4(0.5, 0, 0, 0);
     }
 
-    loadBasicShaders();
-    asset->create(basicAssetShader, basicAssetForwardShader, basicAssetDepthshader, basicAssetWireframeShader);
+    asset->create();
     return asset;
 }
 
@@ -208,8 +203,8 @@ std::shared_ptr<ColoredAsset> AssetLoader::nonTriangleMesh(std::vector<vec3> ver
     //        v.color = color;
     //        v.data = vec4(0.5,0,0,0);
     //    }
-    loadBasicShaders();
-    asset->create(basicAssetShader, basicAssetForwardShader, basicAssetDepthshader, basicAssetWireframeShader);
+    asset->loadDefaultShaders();
+
     asset->buffer.set(asset->vertices, indices, GL_STATIC_DRAW);
     asset->buffer.setDrawMode(mode);
     return asset;

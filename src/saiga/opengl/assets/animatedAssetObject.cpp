@@ -23,7 +23,7 @@ void AnimatedAssetObject::init(std::shared_ptr<AnimatedAsset> _asset)
 {
     SAIGA_ASSERT(_asset);
     this->asset                    = _asset;
-    std::shared_ptr<BoneShader> bs = std::static_pointer_cast<BoneShader>(asset->shader);
+    std::shared_ptr<BoneShader> bs = std::static_pointer_cast<BoneShader>(asset->deferredShader);
 
     boneMatricesBuffer.init(bs, bs->location_boneMatricesBlock);
 

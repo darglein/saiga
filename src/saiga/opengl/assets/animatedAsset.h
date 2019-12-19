@@ -39,11 +39,19 @@ class AnimatedModel : public TriangleMesh<BoneVertexCD, uint32_t>
  *
  */
 
-class SAIGA_OPENGL_API AnimatedAsset : public BasicAsset<AnimatedModel>
+class SAIGA_OPENGL_API AnimatedAsset : public BasicAsset<AnimatedModel, MVPShader>
 {
    public:
-    using BasicAsset<AnimatedModel>::render;
-    using BasicAsset<AnimatedModel>::renderDepth;
+    // Default shaders
+    // If you want to use your own load them and override the shader memebers in BasicAsset.
+    static constexpr const char* deferredShaderStr  = "geometry/deferred_mvp_bones.glsl";
+    static constexpr const char* forwardShaderStr   = "geometry/deferred_mvp_bones.glsl";
+    static constexpr const char* depthShaderStr     = "geometry/deferred_mvp_bones_depth.glsl";
+    static constexpr const char* wireframeShaderStr = "geometry/deferred_mvp_bones.glsl";
+    void loadDefaultShaders() override;
+
+    using BasicAsset<AnimatedModel, MVPShader>::render;
+    using BasicAsset<AnimatedModel, MVPShader>::renderDepth;
 
     int boneCount;
 

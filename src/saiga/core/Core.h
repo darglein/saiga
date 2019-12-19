@@ -13,7 +13,7 @@
 #include "geometry/all.h"
 #include "image/image.h"
 #include "math/all.h"
-#include "model/Model"
+#include "model/all.h"
 #include "time/all.h"
 #include "util/all.h"
 #include "window/all.h"

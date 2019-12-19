@@ -54,11 +54,11 @@ void Sample::renderOverlay(Camera* cam)
     {
         if (renderGeometry)
         {
-            ta->shader = normalShader;
+            ta->deferredShader = normalShader;
         }
         else
         {
-            ta->shader = textureShader;
+            ta->deferredShader = textureShader;
         }
         object.render(cam);
     }

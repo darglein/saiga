@@ -11,47 +11,34 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<VertexColoredModel>
+class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<VertexColoredModel, MVPColorShader>
 {
    public:
-    // Default shaders
-    // If you want to use your own load them and override the shader memebers in BasicAsset.
-    static constexpr const char* deferredShaderStr  = "geometry/deferred_mvp_model.glsl";
-    static constexpr const char* forwardShaderStr   = "geometry/deferred_mvp_model_forward.glsl";
-    static constexpr const char* depthShaderStr     = "geometry/deferred_mvp_model_depth.glsl";
-    static constexpr const char* wireframeShaderStr = "geometry/deferred_mvp_model_wireframe.glsl";
+    static constexpr const char* shaderStr = "asset/ColoredAsset.glsl";
     void loadDefaultShaders();
-
 
     virtual ~ColoredAsset() {}
 };
 
-class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<LineMesh<VertexC, uint32_t>>
+class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<LineMesh<VertexC, uint32_t>, MVPColorShader>
 {
    public:
     // Default shaders
     // If you want to use your own load them and override the shader memebers in BasicAsset.
-    static constexpr const char* deferredShaderStr  = "colored_points.glsl";
-    static constexpr const char* forwardShaderStr   = "colored_points.glsl";
-    static constexpr const char* depthShaderStr     = "colored_points.glsl";
-    static constexpr const char* wireframeShaderStr = "colored_points.glsl";
+    static constexpr const char* shaderStr = "asset/LineVertexColoredAsset.glsl";
     void loadDefaultShaders();
-
 
     virtual ~LineVertexColoredAsset() {}
 };
 
 
-class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TexturedModel>
+class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TexturedModel, MVPTextureShader>
 {
    public:
     // Default shaders
     // If you want to use your own load them and override the shader memebers in BasicAsset.
-    static constexpr const char* deferredShaderStr  = "geometry/texturedAsset.glsl";
-    static constexpr const char* forwardShaderStr   = "geometry/texturedAsset.glsl";
-    static constexpr const char* depthShaderStr     = "geometry/texturedAsset_depth.glsl";
-    static constexpr const char* wireframeShaderStr = "geometry/texturedAsset.glsl";
-    void loadDefaultShaders();
+    static constexpr const char* shaderStr = "asset/texturedAsset.glsl";
+    void loadDefaultShaders() override;
 
 
     class SAIGA_OPENGL_API TextureGroup
@@ -64,9 +51,14 @@ class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TexturedModel>
     std::vector<TextureGroup> groups;
 
     virtual ~TexturedAsset() {}
+
+
     virtual void render(Camera* cam, const mat4& model) override;
     virtual void renderForward(Camera* cam, const mat4& model) override;
     virtual void renderDepth(Camera* cam, const mat4& model) override;
+
+   protected:
+    void renderGroups(std::shared_ptr<MVPTextureShader> shader, Camera* cam, const mat4& model);
 };
 
 }  // namespace Saiga

@@ -41,9 +41,7 @@ Sample::Sample()
     frustum.createFrustum(camera.proj, 0.1);
     frustum.setColor(vec4{0, 1, 0, 1});
 
-    auto shader = shaderLoader.load<MVPShader>("colored_points.glsl");
-    frustum.create(shader, shader, shader, shader);
-    frustum.loadDefaultShaders();
+    frustum.create();
 }
 
 
