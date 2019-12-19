@@ -19,7 +19,7 @@ class SAIGA_CORE_API VertexColoredModel : public TriangleMesh<VertexNC, uint32_t
     void createArrow(float radius, float length, const vec4& color);
 
 
-    void createCoordinateSystem(float scale);
+    void createCoordinateSystem(float scale, bool full = true);
 
     void createCheckerBoard(ivec2 size, float quadSize, const vec4& color1, const vec4& color2);
     void loadObj(const std::string& file);

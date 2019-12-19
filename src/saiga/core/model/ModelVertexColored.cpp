@@ -52,21 +52,30 @@ void VertexColoredModel::createArrow(float radius, float length, const vec4& col
     addMesh(ArrowMeshY(radius, length, color));
 }
 
-void VertexColoredModel::createCoordinateSystem(float _scale)
+void VertexColoredModel::createCoordinateSystem(float _scale, bool full)
 {
     float radius = 0.05;
-    float length = 2;
+
+    float length = 1;
+    if (full)
+    {
+        length = 2;
+    }
 
     auto x = ArrowMeshY(radius, length, vec4(1, 0, 0, 1));
     x.transform(rotate(radians(90), vec3(0, 0, -1)));
-    x.transform(translate(vec3(-1, 0, 0)));
 
     auto y = ArrowMeshY(radius, length, vec4(0, 1, 0, 1));
-    y.transform(translate(vec3(0, -1, 0)));
 
     auto z = ArrowMeshY(radius, length, vec4(0, 0, 1, 1));
     z.transform(rotate(radians(90), vec3(1, 0, 0)));
-    z.transform(translate(vec3(0, 0, -1)));
+
+    if (full)
+    {
+        x.transform(translate(vec3(-1, 0, 0)));
+        y.transform(translate(vec3(0, -1, 0)));
+        z.transform(translate(vec3(0, 0, -1)));
+    }
 
     addMesh(x);
     addMesh(y);

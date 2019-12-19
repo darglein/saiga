@@ -14,7 +14,7 @@ namespace Saiga
 {
 namespace Random
 {
-SAIGA_VISION_API Vec3 linearRand(Vec3 low, Vec3 high);
+// SAIGA_VISION_API Vec3 linearRand(Vec3 low, Vec3 high);
 
 SAIGA_VISION_API Vec3 ballRand(double radius);
 
@@ -37,6 +37,7 @@ void setRandom(MatrixType& M)
 }
 
 SAIGA_VISION_API extern SE3 randomSE3();
+
 
 }  // namespace Random
 }  // namespace Saiga

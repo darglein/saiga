@@ -12,11 +12,6 @@ namespace Saiga
 {
 namespace Random
 {
-Vec3 linearRand(Vec3 low, Vec3 high)
-{
-    return {sampleDouble(low(0), high(0)), sampleDouble(low(1), high(1)), sampleDouble(low(2), high(2))};
-}
-
 Vec3 ballRand(double radius)
 {
     SAIGA_ASSERT(radius >= 0);
@@ -43,6 +38,16 @@ SE3 randomSE3()
     q.normalize();
     if (q.w() < 0) q.coeffs() *= -1;
     return SE3(q, t);
+}
+
+Quat randomQuat()
+{
+    Vec4 qc = Vec4::Random();
+    Quat q;
+    q.coeffs() = qc;
+    q.normalize();
+    if (q.w() < 0) q.coeffs() *= -1;
+    return q;
 }
 
 

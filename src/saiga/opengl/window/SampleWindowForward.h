@@ -50,6 +50,9 @@ class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManag
     SDLCamera<PerspectiveCamera> camera;
     SimpleAssetObject groundPlane;
     ProceduralSkybox skybox;
+
+    bool showSkybox = true;
+    bool showGrid   = true;
 };
 
 }  // namespace Saiga

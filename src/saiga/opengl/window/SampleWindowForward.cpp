@@ -47,7 +47,9 @@ void SampleWindowForward::interpolate(float dt, float interpolation)
 
 void SampleWindowForward::renderOverlay(Camera* cam)
 {
+    if(showSkybox)
     skybox.render(cam);
+    if(showGrid)
     groundPlane.renderForward(cam);
 }
 

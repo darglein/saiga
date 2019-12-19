@@ -76,18 +76,51 @@ SAIGA_CORE_API uint64_t urand64();
 SAIGA_CORE_API std::vector<int> uniqueIndices(int sampleCount, int indexSize);
 
 
+
 }  // namespace Random
 
 
+inline double linearRand(double low, double high)
+{
+    return double(Saiga::Random::sampleDouble(low, high));
+}
 
-SAIGA_CORE_API extern float linearRand(float low, float high);
-
-SAIGA_CORE_API extern vec2 linearRand(const vec2& low, const vec2& high);
 
 
-SAIGA_CORE_API extern vec3 linearRand(const vec3& low, const vec3& high);
+template <typename Derived>
+inline typename Derived::PlainObject linearRand(const Eigen::DenseBase<Derived>& low,
+                                                const Eigen::DenseBase<Derived>& high)
+{
+    typename Derived::PlainObject result;
+    for (int i = 0; i < low.rows(); ++i)
+    {
+        for (int j = 0; j < low.rows(); ++j)
+        {
+            result(i, j) = linearRand(low(i, j), high(i, j));
+        }
+    }
+    return result;
+}
 
-SAIGA_CORE_API extern vec4 linearRand(const vec4& low, const vec4& high);
+
+template <typename Scalar>
+Eigen::Quaternion<Scalar> randomQuat()
+{
+    using Vec = Vector<Scalar, 4>;
+    Vec r     = linearRand(Vec::Zero(), Vec::Ones());
+    Quat q;
+    q.coeffs() = r;
+    q.normalize();
+    if (q.w() < 0) q.coeffs() *= -1;
+    return q;
+}
+
+// SAIGA_CORE_API extern vec2 linearRand(const vec2& low, const vec2& high);
+
+
+// SAIGA_CORE_API extern vec3 linearRand(const vec3& low, const vec3& high);
+
+// SAIGA_CORE_API extern vec4 linearRand(const vec4& low, const vec4& high);
 
 
 SAIGA_CORE_API extern vec2 diskRand(float Radius);
