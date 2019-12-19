@@ -137,13 +137,8 @@ void Compute::render(vk::CommandBuffer cmd) {}
 #undef main
 int main(const int argc, const char* argv[])
 {
-    using namespace Saiga;
-
-    {
-        Compute example;
-
-        example.run();
-    }
-
+    initSaigaSample();
+    Compute example;
+    example.run();
     return 0;
 }

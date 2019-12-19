@@ -987,13 +987,8 @@ void VulkanExample::cleanup()
 #undef main
 int main(const int argc, const char* argv[])
 {
-    using namespace Saiga;
-
-    {
-        VulkanExample example;
-
-        example.run();
-    }
-
+    initSaigaSample();
+    VulkanExample example;
+    example.run();
     return 0;
 }
