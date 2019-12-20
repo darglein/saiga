@@ -43,6 +43,21 @@ struct SAIGA_VISION_API Data
     }
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+
+    static Data Interpolate(const Data& before, const Data& after, double new_timestamp)
+    {
+        SAIGA_ASSERT(before.timestamp < new_timestamp);
+        SAIGA_ASSERT(after.timestamp >  new_timestamp);
+        double alpha = ( new_timestamp - before.timestamp) / (after.timestamp - before.timestamp);
+
+
+        Data result;
+        result.omega = (1.0 - alpha) * before.omega + alpha * after.omega;
+        result.acceleration= (1.0 - alpha) * before.acceleration+ alpha * after.acceleration;
+        result.timestamp = new_timestamp;
+        return result;
+    }
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::Data& data);
