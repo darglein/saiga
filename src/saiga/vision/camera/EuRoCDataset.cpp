@@ -71,7 +71,7 @@ struct Associations
 
 EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase<StereoFrameData>(_params)
 {
-    intrinsics.fps = params.fps;
+    //    intrinsics.fps = params.fps;
 
     VLOG(1) << "Loading EuRoCDataset Stereo Dataset: " << params.dir;
 
@@ -93,6 +93,7 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
 
         VLOG(1) << config["comment"].as<std::string>();
         SAIGA_ASSERT(config["camera_model"].as<std::string>() == "pinhole");
+        intrinsics.fps = config["rate_hz"].as<double>();
         intrinsics.model.K.coeffs(readYamlMatrix<Vec4>(config["intrinsics"]));
         auto res               = readYamlMatrix<ivec2>(config["resolution"]);
         intrinsics.imageSize.w = res(0);

@@ -23,9 +23,17 @@
  */
 namespace Saiga
 {
-using quat  = Eigen::Quaternionf;
-using quatd = Eigen::Quaterniond;
-
+using quat = Eigen::Quaternionf;
 using Quat = Eigen::Quaterniond;
-
 }  // namespace Saiga
+
+namespace Eigen
+{
+template <typename Derived>
+inline std::ostream& operator<<(std::ostream& os, const Eigen::QuaternionBase<Derived>& q)
+{
+    os << "Quat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << ")";
+    return os;
+}
+
+}  // namespace Eigen

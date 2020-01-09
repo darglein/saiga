@@ -26,5 +26,36 @@ std::ostream& Imu::operator<<(std::ostream& strm, const Imu::Sensor& sensor)
     return strm;
 }
 
+void Imu::Frame::computeInterplatedImuValue()
+{
+    SAIGA_ASSERT(!imu_data_since_last_frame.empty());
+    Imu::Data before = imu_data_since_last_frame.back();
+    Imu::Data after  = imu_directly_after_this_frame;
+    SAIGA_ASSERT(std::isfinite(before.timestamp));
+    SAIGA_ASSERT(std::isfinite(after.timestamp));
+    interpolated_imu = Imu::Data::Interpolate(before, after, timestamp);
+}
+
+void Imu::Frame::sanityCheck(const Sensor& sensor)
+{
+    SAIGA_ASSERT(!imu_data_since_last_frame.empty());
+    SAIGA_ASSERT(std::isfinite(timestamp));
+    SAIGA_ASSERT(std::isfinite(imu_directly_after_this_frame.timestamp));
+    SAIGA_ASSERT(std::isfinite(interpolated_imu.timestamp));
+
+    double dt = imu_directly_after_this_frame.timestamp - timestamp;
+    SAIGA_ASSERT(dt >= 0);
+    SAIGA_ASSERT(dt <= sensor.frequency);
+
+    dt = timestamp - imu_data_since_last_frame.back().timestamp;
+    SAIGA_ASSERT(dt >= 0);
+    SAIGA_ASSERT(dt <= sensor.frequency);
+
+    for (auto d : imu_data_since_last_frame)
+    {
+        SAIGA_ASSERT(d.timestamp < timestamp);
+    }
+}
+
 
 }  // namespace Saiga

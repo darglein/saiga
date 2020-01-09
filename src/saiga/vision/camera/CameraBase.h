@@ -31,7 +31,7 @@ class CameraBase2
 
     // Optional IMU data if the camera provides it.
     // The returned vector contains all data from frame-1 to frame.
-    virtual std::vector<Imu::Data> ImuDataForFrame(int frame) { return {}; }
+    virtual Imu::Frame ImuDataForFrame(int frame) { return {}; }
     virtual std::optional<Imu::Sensor> getIMU() { return {}; }
 };
 
@@ -61,7 +61,7 @@ class SAIGA_TEMPLATE CameraBase : public CameraBase2
 struct SAIGA_VISION_API DatasetParameters
 {
     // The playback fps. Doesn't have to match the actual camera fps.
-    double fps = 30;
+    double playback_fps = 30;
 
     // Root directory of the dataset. The exact value depends on the dataset type.
     std::string dir;
@@ -90,8 +90,8 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
    public:
     DatasetCameraBase(const DatasetParameters& params) : params(params)
     {
-        timeStep =
-            std::chrono::duration_cast<tick_t>(std::chrono::duration<double, std::micro>(1000000.0 / params.fps));
+        timeStep = std::chrono::duration_cast<tick_t>(
+            std::chrono::duration<double, std::micro>(1000000.0 / params.playback_fps));
         timer.start();
         lastFrameTime = timer.stop();
         nextFrameTime = lastFrameTime + timeStep;
@@ -165,23 +165,46 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
         for (int i = 0; i < frames.size(); ++i)
         {
-            auto& a = frames[i];
+            Imu::Frame& imuFrame = imuDataForFrame[i];
+            auto& a              = frames[i];
+            imuFrame.timestamp   = a.timeStamp;
             for (; currentImuid < imuData.size(); ++currentImuid)
             {
                 auto id = imuData[currentImuid];
                 if (id.timestamp < a.timeStamp)
                 {
-                    imuDataForFrame[i].push_back(id);
+                    imuFrame.imu_data_since_last_frame.push_back(id);
                 }
                 else
                 {
+                    imuFrame.imu_directly_after_this_frame = id;
                     break;
                 }
+            }
+
+            // not a valid meassurement after this frame
+            // -> use last one if it exists
+            // This is not really correct but an approximation that only effects the last frame of a dataset.
+            if (!std::isfinite(imuFrame.imu_directly_after_this_frame.timestamp))
+            {
+                if (!imuFrame.imu_data_since_last_frame.empty())
+                {
+                    imuFrame.imu_directly_after_this_frame           = imuFrame.imu_data_since_last_frame.back();
+                    imuFrame.imu_directly_after_this_frame.timestamp = imuFrame.timestamp;
+                }
+            }
+
+            imuFrame.computeInterplatedImuValue();
+            auto imu = getIMU();
+            if (imu)
+            {
+                imuFrame.sanityCheck(imu.value());
             }
         }
     }
 
-    std::vector<Imu::Data> ImuDataForFrame(int frame) override { return imuDataForFrame[frame]; }
+    Imu::Frame ImuDataForFrame(int frame) override { return imuDataForFrame[frame]; }
+
     virtual std::optional<Imu::Sensor> getIMU() override
     {
         return imuData.empty() ? std::optional<Imu::Sensor>() : imu;
@@ -193,7 +216,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
     Imu::Sensor imu;
     std::vector<Imu::Data> imuData;
-    std::vector<std::vector<Imu::Data>> imuDataForFrame;
+    std::vector<Imu::Frame> imuDataForFrame;
 
    private:
     Timer timer;

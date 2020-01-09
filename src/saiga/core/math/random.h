@@ -94,7 +94,7 @@ inline typename Derived::PlainObject linearRand(const Eigen::DenseBase<Derived>&
     typename Derived::PlainObject result;
     for (int i = 0; i < low.rows(); ++i)
     {
-        for (int j = 0; j < low.rows(); ++j)
+        for (int j = 0; j < low.cols(); ++j)
         {
             result(i, j) = linearRand(low(i, j), high(i, j));
         }

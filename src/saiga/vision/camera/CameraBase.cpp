@@ -14,7 +14,7 @@ void DatasetParameters::fromConfigFile(const std::string& file)
     ini.LoadFile(file.c_str());
 
     auto group = "Dataset";
-    INI_GETADD_DOUBLE(ini, group, fps);
+    INI_GETADD_DOUBLE(ini, group, playback_fps);
     INI_GETADD_STRING(ini, group, dir);
     INI_GETADD_STRING(ini, group, groundTruth);
     INI_GETADD_LONG(ini, group, startFrame);

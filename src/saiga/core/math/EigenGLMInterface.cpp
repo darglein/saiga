@@ -247,11 +247,6 @@ quat rotate(const quat& q, float angle, const vec3& axis)
     return q * aa;
 }
 
-quat slerp(const quat& a, const quat& b, float alpha)
-{
-    return a.slerp(alpha, b);
-}
-
 
 
 quat rotation(const vec3& a, const vec3& b)
