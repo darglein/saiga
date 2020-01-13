@@ -38,7 +38,7 @@ struct VelocityAndBiasBase
     AccBiasBase<T> acc_bias   = AccBiasBase<T>::Zero();
 
     template <typename G>
-    VelocityAndBiasBase<G> cast()
+    VelocityAndBiasBase<G> cast() const
     {
         VelocityAndBiasBase<G> result;
         result.velocity  = velocity.template cast<G>();
@@ -120,6 +120,12 @@ struct SAIGA_VISION_API Data
         result.timestamp    = new_timestamp;
         return result;
     }
+
+    void Transform(const Mat3& q)
+    {
+        omega = q * omega;
+        //        acceleration = q * acceleration;
+    }
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::Data& data);
@@ -166,6 +172,17 @@ struct SAIGA_VISION_API Frame
 
 
     Imu::Data interpolated_imu;
+
+
+    void Transform(const Mat3& q)
+    {
+        interpolated_imu.Transform(q);
+        imu_directly_after_this_frame.Transform(q);
+        for (auto& d : imu_data_since_last_frame)
+        {
+            d.Transform(q);
+        }
+    }
 
     void computeInterplatedImuValue();
 

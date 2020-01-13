@@ -141,45 +141,7 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
         std::cout << imu << std::endl;
     }
 
-    {
-        // == Imu Data ==
-        // Format:
-        //   timestamp [ns],
-        //   w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],
-        //   a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]
-        auto sensorFile = params.dir + "/" + "imu0/data.csv";
-        auto lines      = File::loadFileStringArray(sensorFile);
-        StringViewParser csvParser(", ");
 
-        for (auto&& l : lines)
-        {
-            if (l.empty()) continue;
-            if (l[0] == '#') continue;
-            csvParser.set(l);
-
-            auto svTime = csvParser.next();
-            if (svTime.empty()) continue;
-            // time is given in nano seconds
-            auto time = to_double(svTime) / 1e9;
-
-            Vec3 omega;
-            for (int i = 0; i < 3; ++i)
-            {
-                auto sv = csvParser.next();
-                SAIGA_ASSERT(!sv.empty());
-                omega(i) = to_double(sv);
-            }
-
-            Vec3 acceleration;
-            for (int i = 0; i < 3; ++i)
-            {
-                auto sv = csvParser.next();
-                SAIGA_ASSERT(!sv.empty());
-                acceleration(i) = to_double(sv);
-            }
-            imuData.emplace_back(omega, acceleration, time);
-        }
-    }
 
     {
         // == Ground truth position ==
@@ -235,7 +197,46 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
     }
 
     groundTruthToCamera = extrinsics_gt.inverse() * extrinsics_cam0;
-    //    groundTruthToCamera = extrinsics_gt * extrinsics_cam0.inverse();
+
+    {
+        // == Imu Data ==
+        // Format:
+        //   timestamp [ns],
+        //   w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],
+        //   a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]
+        auto sensorFile = params.dir + "/" + "imu0/data.csv";
+        auto lines      = File::loadFileStringArray(sensorFile);
+        StringViewParser csvParser(", ");
+
+        for (auto&& l : lines)
+        {
+            if (l.empty()) continue;
+            if (l[0] == '#') continue;
+            csvParser.set(l);
+
+            auto svTime = csvParser.next();
+            if (svTime.empty()) continue;
+            // time is given in nano seconds
+            auto time = to_double(svTime) / 1e9;
+
+            Vec3 omega;
+            for (int i = 0; i < 3; ++i)
+            {
+                auto sv = csvParser.next();
+                SAIGA_ASSERT(!sv.empty());
+                omega(i) = to_double(sv);
+            }
+
+            Vec3 acceleration;
+            for (int i = 0; i < 3; ++i)
+            {
+                auto sv = csvParser.next();
+                SAIGA_ASSERT(!sv.empty());
+                acceleration(i) = to_double(sv);
+            }
+            imuData.emplace_back(omega, acceleration, time);
+        }
+    }
 
     std::cout << extrinsics_gt << std::endl;
     std::cout << extrinsics_cam0 << std::endl;
