@@ -40,18 +40,27 @@ using TrajectoryType = AlignedVector<std::pair<int, SE3>>;
  * Align the trajectories by minimizing the squared error:
  * sum_i (A.position() - B.position)^2
  */
-SAIGA_VISION_API extern double align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B, bool computeScale);
+SAIGA_VISION_API extern double align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B,
+                                     bool computeScale);
 
 /**
  * Root mean squared relative pose error (rpe).
  * sum_i (a[i].inverse()*a[i-1] - b[i].inverse()*b[i-1])^2
  */
-SAIGA_VISION_API extern std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A, ArrayView<const std::pair<int, SE3>> B);
+SAIGA_VISION_API extern std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A,
+                                                ArrayView<const std::pair<int, SE3>> B);
 /**
  * Root mean squared absolute trajectory error (ate)
  * sum_i (a[i] - b[i])^2
  */
-SAIGA_VISION_API extern std::vector<double> ate(ArrayView<const std::pair<int, SE3>> A, ArrayView<const std::pair<int, SE3>> B);
+SAIGA_VISION_API extern std::vector<double> ate(ArrayView<const std::pair<int, SE3>> A,
+                                                ArrayView<const std::pair<int, SE3>> B);
+
+/**
+ * RMS Absolute Rotational error in degrees (!!!)
+ */
+SAIGA_VISION_API extern std::vector<double> are(ArrayView<const std::pair<int, SE3>> A,
+                                                ArrayView<const std::pair<int, SE3>> B);
 
 }  // namespace Trajectory
 }  // namespace Saiga

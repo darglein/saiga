@@ -49,14 +49,16 @@ HD inline float fract(float a)
     return a - std::floor(a);
 }
 
-HD inline float degrees(float a)
+template <typename T>
+constexpr T degrees(T a)
 {
-    return a * 180.0 / pi<float>();
+    return a * T(180.0) / pi<T>();
 }
 
-HD inline float radians(float a)
+template <typename T>
+constexpr T radians(T a)
 {
-    return a / 180.0 * pi<float>();
+    return a / T(180.0) * pi<T>();
 }
 
 

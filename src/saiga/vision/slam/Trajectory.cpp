@@ -110,5 +110,19 @@ std::vector<double> ate(ArrayView<const std::pair<int, SE3>> A, ArrayView<const 
     return ate;
 }
 
+std::vector<double> are(ArrayView<const std::pair<int, SE3>> A, ArrayView<const std::pair<int, SE3>> B)
+{
+    SAIGA_ASSERT(A.size() == B.size());
+    int N = A.size();
+
+    std::vector<double> ate;
+    for (auto i : Range(0, N))
+    {
+        auto et = degrees(rotationalError(A[i].second, B[i].second));
+        ate.push_back(et);
+    }
+    return ate;
+}
+
 }  // namespace Trajectory
 }  // namespace Saiga
