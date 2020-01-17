@@ -100,6 +100,10 @@ void Sample::renderFinal(Camera* cam)
         console << "asdf " << 234 << std::endl;
     }
 
+    if (ImGui::Button("Screenshot"))
+    {
+        window->ScreenshotDefaultFramebuffer().save("screenshot.png");
+    }
 
     ImGui::End();
 

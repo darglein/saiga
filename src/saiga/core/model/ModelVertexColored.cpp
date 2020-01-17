@@ -63,12 +63,12 @@ void VertexColoredModel::createCoordinateSystem(float _scale, bool full)
     }
 
     auto x = ArrowMeshY(radius, length, vec4(1, 0, 0, 1));
-    x.transform(rotate(radians(90), vec3(0, 0, -1)));
+    x.transform(rotate(radians(90.0), vec3(0, 0, -1)));
 
     auto y = ArrowMeshY(radius, length, vec4(0, 1, 0, 1));
 
     auto z = ArrowMeshY(radius, length, vec4(0, 0, 1, 1));
-    z.transform(rotate(radians(90), vec3(1, 0, 0)));
+    z.transform(rotate(radians(90.0), vec3(1, 0, 0)));
 
     if (full)
     {

@@ -40,8 +40,8 @@ using TrajectoryType = AlignedVector<std::pair<int, SE3>>;
  * Align the trajectories by minimizing the squared error:
  * sum_i (A.position() - B.position)^2
  */
-SAIGA_VISION_API extern double align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B,
-                                     bool computeScale);
+SAIGA_VISION_API extern std::pair<SE3, double> align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B,
+                                                     bool computeScale);
 
 /**
  * Root mean squared relative pose error (rpe).

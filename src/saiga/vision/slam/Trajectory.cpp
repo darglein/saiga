@@ -14,10 +14,13 @@ namespace Saiga
 {
 namespace Trajectory
 {
-double align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B, bool computeScale)
+std::pair<SE3, double> align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B, bool computeScale)
 {
     SAIGA_ASSERT(A.size() == B.size());
-    if (A.empty()) return 0;
+    if (A.size() == 0)
+    {
+        return {{}, 0};
+    }
     int N = A.size();
 
     auto compFirst = [](const std::pair<int, SE3>& a, const std::pair<int, SE3>& b) { return a.first < b.first; };
@@ -48,7 +51,7 @@ double align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B,
     if (scale < 0.0001 || scale > 1000 || !std::isfinite(scale))
     {
         std::cout << "Trajectory::align invalid scale." << std::endl;
-        return 100000;
+        return {{}, 0};
     }
 
     Sim3 rel = sim3(relSe3, scale);
@@ -64,7 +67,7 @@ double align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B,
         A[i].second = se3Scale(rel * sim3(A[i].second, 1.0)).first;
     }
 
-    return scale;
+    return {relSe3, scale};
 }
 
 std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A, ArrayView<const std::pair<int, SE3>> B)

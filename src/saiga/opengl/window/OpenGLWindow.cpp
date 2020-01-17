@@ -70,7 +70,7 @@ void OpenGLWindow::renderImGui(bool* p_open)
 
     if (ImGui::Button("Screenshot"))
     {
-        screenshot("screenshot.png");
+        ScreenshotDefaultFramebuffer().save("screenshot.png");
     }
 
     ImGui::Checkbox("showRendererImgui", &showRendererImgui);
@@ -123,154 +123,27 @@ void OpenGLWindow::destroy()
 
 
 
-void OpenGLWindow::readToExistingImage(Image& out)
+TemplatedImage<ucvec4> OpenGLWindow::ScreenshotDefaultFramebuffer()
 {
+    GLint dims[4] = {0};
+    glGetIntegerv(GL_VIEWPORT, dims);
+    int w = dims[2];
+    int h = dims[3];
+
+    TemplatedImage<ucvec4> out;
+    out.create(h, w);
+
     // read data from default framebuffer and restore currently bound fb.
     GLint fb;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fb);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-    //    glReadPixels(0,0,out.width,out.height,GL_RGB,GL_UNSIGNED_BYTE,out.getRawData());
-
-    //    SAIGA_ASSERT(0);
-    //    glReadPixels(0,0,out.width,out.height,out.Format().getGlFormat(),out.Format().getGlType(),out.getRawData());
     glReadPixels(0, 0, out.width, out.height, getGlFormat(out.type), getGlType(out.type), out.data());
-
-
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
+
+    out.getImageView().flipY();
+    return out;
 }
 
-
-void OpenGLWindow::readToImage(Image& out)
-{
-    //    int w = renderer->outputWidth;
-    //    int h = renderer->outputHeight;
-
-    //    out.width = w;
-    //    out.height = h;
-    //    out.create(h,w,UC3);
-    //    out.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-    SAIGA_ASSERT(0);
-    //    out.create();
-
-    //    readToExistingImage(out);
-}
-
-
-void OpenGLWindow::screenshot(const std::string& file)
-{
-    Image img;
-    readToImage(img);
-    img.save(file);
-    //    TextureLoader::instance()->saveImage(file,img);
-}
-
-void OpenGLWindow::screenshotRender(const std::string& file)
-{
-    SAIGA_ASSERT(0);
-#if 0
-    //    std::cout<<"Window::screenshotRender "<<file<<endl;
-    int w = renderer->width;
-    int h = renderer->height;
-
-    Image img;
-    img.width = w;
-    img.height = h;
-    //    img.Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized);
-    SAIGA_ASSERT(0);
-    img.create();
-
-    auto tex = getRenderer()->postProcessor.getCurrentTexture();
-    tex->bind();
-    glGetTexImage(tex->getTarget(),0,GL_RGB,GL_UNSIGNED_BYTE,img.data());
-    tex->unbind();
-
-    //    TextureLoader::instance()->saveImage(file,img);
-    img.save(file);
-#endif
-}
-
-void OpenGLWindow::getDepthFloat(Image& out)
-{
-    SAIGA_ASSERT(0);
-#if 0
-    int w = renderer->outputWidth;
-    int h = renderer->outputHeight;
-
-    out.width = w;
-    out.height = h;
-    //    out.Format() = ImageFormat(1,32,ImageElementFormat::FloatingPoint);
-    SAIGA_ASSERT(0);
-    out.create();
-
-
-    Image img;
-    img.width = w;
-    img.height = h;
-    //    img.Format() = ImageFormat(4,8,ImageElementFormat::UnsignedNormalized);
-    SAIGA_ASSERT(0);
-    img.create();
-
-
-    auto tex = getRenderer()->gbuffer.getTextureDepth();
-    tex->bind();
-    glGetTexImage(tex->getTarget(),0,GL_DEPTH_STENCIL,GL_UNSIGNED_INT_24_8,img.data());
-    tex->unbind();
-
-    for(int i = 0; i < h; ++i)
-    {
-        for(int j = 0; j < w; ++j)
-        {
-#    if 0
-            unsigned int v = img.getPixel<unsigned int>(j,i);
-            //override stencil bits with 0
-            v = v & 0xFFFFFF00;
-            float d = uintToNFloat(v);
-            out.getPixel<float>(j,i) = d;
-#    endif
-        }
-    }
-#endif
-}
-
-void OpenGLWindow::screenshotRenderDepth(const std::string& file)
-{
-    SAIGA_ASSERT(0);
-#if 0
-    //    std::cout<<"Window::screenshotRender "<<file<<endl;
-    int w = renderer->width;
-    int h = renderer->height;
-
-    Image img;
-    getDepthFloat(img);
-
-    Image img2;
-    img2.width = w;
-    img2.height = h;
-    //    img2.Format() = ImageFormat(1,16,ImageElementFormat::UnsignedNormalized);
-    SAIGA_ASSERT(0);
-    img2.create();
-
-    for(int i = 0; i < h; ++i)
-    {
-        for(int j = 0; j < w; ++j)
-        {
-#    if 0
-            float d = img.getPixel<float>(j,i);
-            d = currentCamera->linearDepth(d);
-            img2.getPixel<unsigned short>(j,i) = d * 0xFFFF;
-#    endif
-        }
-    }
-
-
-
-
-    //    TextureLoader::instance()->saveImage(file,img2);
-    img2.save(file);
-#endif
-}
 
 
 void OpenGLWindow::update(float dt)

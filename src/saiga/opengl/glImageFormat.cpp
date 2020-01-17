@@ -43,6 +43,12 @@ GLenum getGlFormat(ImageType type)
     return formats[channels(type) - 1];
 }
 
+GLenum getGlFormatInteger(ImageType type)
+{
+    static const GLenum formats[] = {GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER, GL_RGBA_INTEGER};
+    return formats[channels(type) - 1];
+}
+
 GLenum getGlType(ImageType type)
 {
     return ImageElementTypeGL[(int)elementType(type)];

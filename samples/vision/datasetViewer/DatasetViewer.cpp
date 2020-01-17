@@ -122,9 +122,9 @@ void Sample::renderFinal(Camera* cam)
 
 
     DatasetParameters dparams;
-    dparams.fps        = 25;
-    dparams.startFrame = 10;
-    dparams.maxFrames  = 10000;
+    dparams.playback_fps = 25;
+    dparams.startFrame   = 10;
+    dparams.maxFrames    = 10000;
 
     if (ImGui::Button("Load From File"))
     {

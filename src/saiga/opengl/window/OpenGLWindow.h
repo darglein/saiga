@@ -28,14 +28,7 @@ class SAIGA_OPENGL_API OpenGLWindow : public WindowBase
 
 
     // reading the default framebuffer
-    void readToExistingImage(Image& out);
-    void readToImage(Image& out);
-
-    // read the default framebuffer and save to file
-    void screenshot(const std::string& file);
-    void screenshotRender(const std::string& file);
-    void screenshotRenderDepth(const std::string& file);
-    void getDepthFloat(Image& out);
+    TemplatedImage<ucvec4> ScreenshotDefaultFramebuffer();
 
 
 

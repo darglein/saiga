@@ -16,7 +16,7 @@ class SAIGA_OPENGL_API Texture2D : public TextureBase
     Texture2D() : TextureBase(GL_TEXTURE_2D) {}
 
     void setDefaultParameters();
-    bool fromImage(const Image& img, bool srgb, bool flipY);
+    bool fromImage(const Image& img, bool srgb, bool flipY, bool integer = false);
     void updateFromImage(const Image& img);
 
     int getWidth() { return width; }

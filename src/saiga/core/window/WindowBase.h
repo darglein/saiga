@@ -65,8 +65,6 @@ class SAIGA_CORE_API WindowBase : public MainLoopInterface
     virtual void render();
     virtual void interpolate(float dt, float alpha);
 
-    void screenshot(std::string s) {}
-
    protected:
     void resize(int width, int height);
 

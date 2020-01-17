@@ -44,6 +44,12 @@ struct SAIGA_OPENGL_API RenderingParameters
      * Currently only makes sense for multi view rendering (split screen)
      */
     bool userViewPort = false;
+
+    /**
+     *  Reads all paramters from the given config file.
+     *  Creates the file with the default values if it doesn't exist.
+     */
+    void fromConfigFile(const std::string& file);
 };
 
 

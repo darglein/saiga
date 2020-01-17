@@ -57,27 +57,24 @@ struct GetWindowType<WindowManagement::GLFW>
 
 
 template <WindowManagement WM, typename Renderer>
-struct SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public Updating
+class SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public Updating
 {
-    using WindowManagment = typename GetWindowType<WM>::Type;
+   public:
+    using WindowManagment     = typename GetWindowType<WM>::Type;
+    using RenderingParameters = typename Renderer::ParameterType;
 
     StandaloneWindow(const std::string& config)
     {
         WindowParameters windowParameters;
         OpenGLParameters openglParameters;
-        typename Renderer::ParameterType rendererParameters;
+        RenderingParameters rendererParameters;
 
         windowParameters.fromConfigFile(config);
         openglParameters.fromConfigFile(config);
         rendererParameters.fromConfigFile(config);
+        mainLoopParameters.fromConfigFile(config);
 
-
-        window   = std::make_unique<WindowManagment>(windowParameters, openglParameters);
-        renderer = std::make_unique<Renderer>(*window);
-
-
-        window->setUpdateObject(*this);
-        renderer->setRenderObject(*this);
+        create(windowParameters, openglParameters, rendererParameters);
     }
 
     ~StandaloneWindow()
@@ -86,14 +83,23 @@ struct SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public 
         window.reset();
     }
 
-    void run()
+    void run() { window->startMainLoop(mainLoopParameters); }
+
+   private:
+    void create(const WindowParameters& windowParameters, const OpenGLParameters& openglParameters,
+                const RenderingParameters& rendererParameters)
     {
-        // Everyhing is initilalized, we can run the main loop now!
-        MainLoopParameters mainLoopParameters;
-        mainLoopParameters.fromConfigFile("config.ini");
-        window->startMainLoop(mainLoopParameters);
+        window   = std::make_unique<WindowManagment>(windowParameters, openglParameters);
+        renderer = std::make_unique<Renderer>(*window, rendererParameters);
+
+
+        window->setUpdateObject(*this);
+        renderer->setRenderObject(*this);
     }
 
+    MainLoopParameters mainLoopParameters;
+
+   protected:
     std::unique_ptr<Renderer> renderer;
     std::unique_ptr<WindowManagment> window;
 };

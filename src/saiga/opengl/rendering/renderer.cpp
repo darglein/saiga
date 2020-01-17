@@ -7,6 +7,7 @@
 #include "saiga/opengl/rendering/renderer.h"
 
 #include "saiga/core/camera/camera.h"
+#include "saiga/core/util/ini/ini.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 
@@ -38,6 +39,17 @@ void OpenGLRenderer::bindCamera(Camera* cam)
     CameraDataGLSL cd(cam);
     cameraBuffer.updateBuffer(&cd, sizeof(CameraDataGLSL), 0);
     cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
+}
+
+void RenderingParameters::fromConfigFile(const std::string& file)
+{
+    Saiga::SimpleIni ini;
+    ini.LoadFile(file.c_str());
+
+    auto section = "Rendering";
+    INI_GETADD_BOOL(ini, section, srgbWrites);
+
+    if (ini.changed()) ini.SaveFile(file.c_str());
 }
 
 

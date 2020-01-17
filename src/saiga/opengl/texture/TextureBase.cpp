@@ -143,12 +143,19 @@ void TextureBase::setBorderColor(vec4 color)
 }
 
 
-void TextureBase::setFormat(ImageType type, bool srgb)
+void TextureBase::setFormat(ImageType type, bool srgb, bool integer)
 {
     //    SAIGA_ASSERT(0);
     internal_format = getGlInternalFormat(type, srgb);
-    color_type      = getGlFormat(type);
     data_type       = getGlType(type);
+    if (integer)
+    {
+        color_type = getGlFormatInteger(type);
+    }
+    else
+    {
+        color_type = getGlFormat(type);
+    }
 }
 
 #if 0

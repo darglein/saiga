@@ -76,7 +76,7 @@ class SAIGA_OPENGL_API TextureBase
     /**
      * Sets the internal formats according to the saiga image type
      */
-    void setFormat(ImageType type, bool srgb = false);
+    void setFormat(ImageType type, bool srgb = false, bool integer = false);
 
     void setBorderColor(vec4 color);
 

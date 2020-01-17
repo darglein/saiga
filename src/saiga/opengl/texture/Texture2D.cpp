@@ -4,9 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/texture/Texture.h"
-
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/texture/Texture.h"
 namespace Saiga
 {
 // ===========================
@@ -20,9 +19,9 @@ void Texture2D::setDefaultParameters()
 }
 
 
-bool Texture2D::fromImage(const Image& img, bool srgb, bool flipY)
+bool Texture2D::fromImage(const Image& img, bool srgb, bool flipY, bool integer)
 {
-    setFormat(img.type, srgb);
+    setFormat(img.type, srgb, integer);
     width  = img.width;
     height = img.height;
     TextureBase::create();

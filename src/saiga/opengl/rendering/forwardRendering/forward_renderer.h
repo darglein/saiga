@@ -28,7 +28,7 @@ class SAIGA_OPENGL_API ForwardRenderingInterface : public RenderingInterfaceBase
 
 struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
 {
-    void fromConfigFile(const std::string& file) {}
+    void fromConfigFile(const std::string& file) { RenderingParameters::fromConfigFile(file); }
 };
 
 class SAIGA_OPENGL_API Forward_Renderer : public OpenGLRenderer

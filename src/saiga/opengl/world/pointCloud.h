@@ -33,7 +33,6 @@ class SAIGA_OPENGL_API GLPointCloud : public Object3D
     void render(Camera* cam);
     void updateBuffer();
 
-   private:
     std::shared_ptr<MVPShader> shader;
     VertexBuffer<PointVertex> buffer;
 };

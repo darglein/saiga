@@ -15,6 +15,7 @@ namespace Saiga
 template <typename T>
 constexpr T epsilon()
 {
+    static_assert(std::is_floating_point<T>::value, "Only allowed for floating point types.");
     return std::numeric_limits<T>::epsilon();
 }
 
@@ -22,12 +23,14 @@ constexpr T epsilon()
 template <typename T>
 constexpr T pi()
 {
+    static_assert(std::is_floating_point<T>::value, "Only allowed for floating point types.");
     return T(3.14159265358979323846);
 }
 
 template <typename T>
 constexpr T two_pi()
 {
+    static_assert(std::is_floating_point<T>::value, "Only allowed for floating point types.");
     return pi<T>() * T(2);
 }
 
@@ -52,12 +55,14 @@ HD inline float fract(float a)
 template <typename T>
 constexpr T degrees(T a)
 {
+    static_assert(std::is_floating_point<T>::value, "Only allowed for floating point types.");
     return a * T(180.0) / pi<T>();
 }
 
 template <typename T>
 constexpr T radians(T a)
 {
+    static_assert(std::is_floating_point<T>::value, "Only allowed for floating point types.");
     return a / T(180.0) * pi<T>();
 }
 

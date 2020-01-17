@@ -8,11 +8,12 @@
 
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 
 namespace Saiga
 {
-Forward_Renderer::Forward_Renderer(OpenGLWindow& window, const ParameterType &params)
+Forward_Renderer::Forward_Renderer(OpenGLWindow& window, const ParameterType& params)
     : OpenGLRenderer(window), params(params)
 {
     timer.create();
@@ -42,6 +43,7 @@ void Forward_Renderer::render(const RenderInfo& renderInfo)
     bindCamera(camera);
 
 
+    Framebuffer::bindDefaultFramebuffer();
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glDisable(GL_BLEND);
@@ -52,6 +54,7 @@ void Forward_Renderer::render(const RenderInfo& renderInfo)
     renderingInterface->renderOverlay(camera);
 
 
+    Framebuffer::bindDefaultFramebuffer();
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);

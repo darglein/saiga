@@ -685,8 +685,8 @@ void perf_test()
     //        l();
     //    }
     {
-        LauncherLoop<8, 8 + 1, 1, 1, 32> l;
-        l();
+        //        LauncherLoop<8, 8 + 1, 1, 1, 32> l;
+        //        l();
     }
     //    {
     //        LauncherLoop<16, 16 + 1, 1, 1, 32> l;
