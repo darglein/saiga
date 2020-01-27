@@ -21,7 +21,7 @@ class SAIGA_OPENGL_API Skybox
     std::shared_ptr<MVPTextureShader> shader;
     std::shared_ptr<Texture> texture;
     std::shared_ptr<TextureCube> cube_texture;
-    mat4 model;
+    mat4 model = mat4::Identity();
 
     Skybox();
 

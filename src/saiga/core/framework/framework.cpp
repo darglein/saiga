@@ -173,6 +173,7 @@ void initSaigaSample()
 
     saigaParameters.fromConfigFile("config.ini");
 
+    initSaiga(saigaParameters);
     catchSegFaults();
 }
 

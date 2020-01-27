@@ -12,7 +12,8 @@ namespace Saiga
 {
 void TextureCube::uploadData(GLenum target, const void* data)
 {
-    bind(0);
+    //    bind(0);
+    bind();
     glTexImage2D(target,
                  0,                                    // level, 0 = base, no minimap,
                  static_cast<GLint>(internal_format),  // internalformat
@@ -22,6 +23,8 @@ void TextureCube::uploadData(GLenum target, const void* data)
                  color_type,                           // format
                  data_type,                            // type
                  data);
+    setDefaultParameters();
+    unbind();
 
     assert_no_glerror();
 }
@@ -59,32 +62,6 @@ void TextureCube::setDefaultParameters()
 }
 
 
-bool TextureCube::fromImage(Image& img)
-{
-    // cubestrip
-    if (img.width % 6 != 0)
-    {
-        std::cout << "Width no factor of 6!" << std::endl;
-        return false;
-    }
-
-    if (img.width / 6 != img.height)
-    {
-        std::cout << "No square!" << std::endl;
-        return false;
-    }
-
-    // split into 6 small images
-    std::vector<Image> images(6);
-    //    auto w = img.height;
-    for (int i = 0; i < 6; i++)
-    {
-        SAIGA_ASSERT(0);
-        //        img.getSubImage(w*i,0,w,w,images[i]);
-    }
-
-    return fromImage(images);
-}
 
 bool TextureCube::fromImage(std::vector<Image>& images)
 {

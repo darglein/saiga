@@ -6,8 +6,8 @@
 
 #pragma once
 
-
 #include "saiga/opengl/window/SampleWindowForward.h"
+#include "saiga/opengl/world/skybox.h"
 
 using namespace Saiga;
 
@@ -22,6 +22,7 @@ class Sample : public SampleWindowForward
 
     void renderOverlay(Camera* cam) override;
     void renderFinal(Camera* cam) override;
+    Skybox skybox;
 
    private:
     GLPointCloud pointCloud;

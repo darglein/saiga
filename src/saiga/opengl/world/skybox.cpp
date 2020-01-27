@@ -12,9 +12,8 @@ namespace Saiga
 {
 Skybox::Skybox()
 {
-    AABB bb(vec3(-1), vec3(1));
+    AABB bb(make_vec3(-1), make_vec3(1));
     auto sb = TriangleMeshGenerator::createSkyboxMesh(bb);
-    //    sb->createBuffers(mesh);
     mesh.fromMesh(*sb);
 }
 
@@ -35,6 +34,7 @@ void Skybox::render(Camera* cam)
 {
     shader->bind();
     shader->uploadModel(model);
+    shader->uploadModel(mat4::Identity());
     shader->uploadTexture(cube_texture.get());
     mesh.bindAndDraw();
     cube_texture->unbind();

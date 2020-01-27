@@ -22,7 +22,7 @@ void main() {
     texCoord = in_tex;
     normal = normalize(vec3(view*model * vec4( in_normal, 0 )));
     texCoord2 = in_position;
-    gl_Position = viewProj *model* vec4(in_position,1);
+    gl_Position = viewProj * vec4(in_position,1);
 }
 
 
@@ -45,6 +45,8 @@ layout(location=0) out vec3 out_color;
 void main() {
      vec4 diffColor = texture(image, texCoord2);
     out_color =  vec3(diffColor);
+//    out_color =  vec3(texCoord2);
+//    out_color = vec4(1);
 }
 
 

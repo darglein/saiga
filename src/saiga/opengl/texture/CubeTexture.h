@@ -34,7 +34,6 @@ class SAIGA_OPENGL_API TextureCube : public TextureBase
     void uploadData(GLenum target, const void* data);
 
 
-    bool fromImage(Image& img);
     bool fromImage(std::vector<Image>& images);
 
 
