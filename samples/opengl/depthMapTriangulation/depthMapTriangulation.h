@@ -53,7 +53,7 @@ class Sample : public StandaloneWindow<WindowManagement::SDL, Forward_Renderer>,
 
     bool wireframe   = true;
 
-    char depth_image_input[100]  = "bar/03517.saigai";
+    char depth_image_input[100]  = "bar.saigai";
 
     StereoCamera4Base<float> cameraParameters = StereoCamera4Base<float>(
         5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02, 2.3691517848391885e+02, 40.0f);
