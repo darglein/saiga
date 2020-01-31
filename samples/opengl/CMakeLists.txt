@@ -22,6 +22,7 @@ if (SDL2_FOUND)
         add_subdirectory(simpleBullet)
     endif ()
     if (OPENMESH_FOUND)
+        add_subdirectory(depthMapTriangulation)
         add_subdirectory(openMeshSample)
     endif ()
 
