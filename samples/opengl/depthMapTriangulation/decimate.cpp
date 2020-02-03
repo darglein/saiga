@@ -1,12 +1,18 @@
+/**
+ * Copyright (c) 2020 Simon Mederer
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "decimate.h"
 
-/* PUBLIC */
+// --- PUBLIC ---
 
-Saiga::quadricDecimater::quadricDecimater(DecimateSettings s) : settings(s) {}
+Saiga::QuadricDecimater::QuadricDecimater(Settings const& s) : settings(s) {}
 
-Saiga::quadricDecimater::~quadricDecimater() {}
+Saiga::QuadricDecimater::~QuadricDecimater() {}
 
-void Saiga::quadricDecimater::decimate_quardic(MyMesh& mesh_in)
+void Saiga::QuadricDecimater::decimate_quadric(MyMesh& mesh_in)
 {
     mesh = mesh_in;
 
@@ -15,10 +21,10 @@ void Saiga::quadricDecimater::decimate_quardic(MyMesh& mesh_in)
     // Pre-computation
 
     // add the relevant properties
-    /*if (true)*/ mesh.add_property(h_error);
-    /*if (true)*/ mesh.add_property(h_heap_position);
-    /*if (true)*/ mesh.add_property(h_errorMatrix);
-    /*if (true)*/ mesh.add_property(h_collapseTarget);
+    mesh.add_property(h_error);
+    mesh.add_property(h_heap_position);
+    mesh.add_property(h_errorMatrix);
+    mesh.add_property(h_collapseTarget);
     if (settings.check_folding_triangles == true) mesh.add_property(h_folding_triangles_edge);
     if (settings.check_self_intersections == true) mesh.add_property(h_collapse_self_intersection);
     if (settings.only_collapse_roughly_parallel_borders == true) mesh.add_property(h_parallel_border_edges);
@@ -49,7 +55,7 @@ void Saiga::quadricDecimater::decimate_quardic(MyMesh& mesh_in)
 
     // 1. Compute the Q matrices for all the initial vertices
     {
-        /* Calculation of fundamental error matrices per face */
+        // --- Calculation of fundamental error matrices per face ---
 
         // add error fundamental error matrix property to the faces
         mesh.add_property(h_fund_error_mat);
@@ -63,7 +69,7 @@ void Saiga::quadricDecimater::decimate_quardic(MyMesh& mesh_in)
             mesh.property(h_fund_error_mat, *f_it) = calculate_fundamental_error_matrix(*f_it);
         }
 
-        /* Calculation of Q matrices per vertex */
+        // --- Calculation of Q matrices per vertex ---
 
         // iterate all vertices and calculate their error matrices
         MyMesh::VertexIter v_it, v_end(mesh.vertices_end());
@@ -180,10 +186,10 @@ void Saiga::quadricDecimater::decimate_quardic(MyMesh& mesh_in)
     mesh.garbage_collection();
 
     // remove properties
-    /*if (true)*/ mesh.remove_property(h_error);
-    /*if (true)*/ mesh.remove_property(h_heap_position);
-    /*if (true)*/ mesh.remove_property(h_errorMatrix);
-    /*if (true)*/ mesh.remove_property(h_collapseTarget);
+    mesh.remove_property(h_error);
+    mesh.remove_property(h_heap_position);
+    mesh.remove_property(h_errorMatrix);
+    mesh.remove_property(h_collapseTarget);
     if (settings.check_folding_triangles == true) mesh.remove_property(h_folding_triangles_edge);
     if (settings.check_self_intersections == true) mesh.remove_property(h_collapse_self_intersection);
     if (settings.only_collapse_roughly_parallel_borders == true) mesh.remove_property(h_parallel_border_edges);
@@ -198,9 +204,9 @@ void Saiga::quadricDecimater::decimate_quardic(MyMesh& mesh_in)
     mesh_in = mesh;
 }
 
-/* PRIVATE */
+// --- PRIVATE ---
 
-bool Saiga::quadricDecimater::check_minimal_interior_angles_undershot(MyMesh::HalfedgeHandle collapse_edge)
+bool Saiga::QuadricDecimater::check_minimal_interior_angles_undershot(MyMesh::HalfedgeHandle collapse_edge)
 {
     MyMesh::FaceHandle collapse_face_1(mesh.face_handle(collapse_edge));
     MyMesh::FaceHandle collapse_face_2(mesh.opposite_face_handle(collapse_edge));
@@ -259,7 +265,7 @@ bool Saiga::quadricDecimater::check_minimal_interior_angles_undershot(MyMesh::Ha
     return false;
 }
 
-bool Saiga::quadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeHandle collapse_edge)
+bool Saiga::QuadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeHandle collapse_edge)
 {
     MyMesh::FaceHandle collapse_face_1(mesh.face_handle(collapse_edge));
     MyMesh::FaceHandle collapse_face_2(mesh.opposite_face_handle(collapse_edge));
@@ -319,7 +325,7 @@ bool Saiga::quadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeH
     return false;
 }
 
-bool Saiga::quadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0v1)
+bool Saiga::QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0v1)
 {
     /**
      *       vl
@@ -339,12 +345,10 @@ bool Saiga::quadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0
     MyMesh::HalfedgeHandle v1v0(mesh.opposite_halfedge_handle(v0v1));  ///< Reverse halfedge
     MyMesh::VertexHandle v0(mesh.to_vertex_handle(v1v0));              ///< Vertex to be removed
     MyMesh::VertexHandle v1(mesh.to_vertex_handle(v0v1));              ///< Remaining vertex
-    // MyMesh::Point p0(mesh.point(v0)); ///< Position of removed vertex
-    // MyMesh::Point p1(mesh.point(v1)); ///< Positions of remaining vertex
-    MyMesh::FaceHandle fl(mesh.face_handle(v0v1));  ///< Left face
-    MyMesh::FaceHandle fr(mesh.face_handle(v1v0));  ///< Right face
-    MyMesh::VertexHandle vl;                        ///< Left vertex
-    MyMesh::VertexHandle vr;                        ///< Right vertex
+    MyMesh::FaceHandle fl(mesh.face_handle(v0v1));                     ///< Left face
+    MyMesh::FaceHandle fr(mesh.face_handle(v1v0));                     ///< Right face
+    MyMesh::VertexHandle vl;                                           ///< Left vertex
+    MyMesh::VertexHandle vr;                                           ///< Right vertex
 
     MyMesh::HalfedgeHandle vlv1, v0vl, vrv0, v1vr;  ///< Outer remaining halfedges
 
@@ -426,7 +430,7 @@ bool Saiga::quadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0
     return true;
 }
 
-Saiga::mat4 Saiga::quadricDecimater::calculate_fundamental_error_matrix(const MyMesh::FaceHandle fh)
+Saiga::mat4 Saiga::QuadricDecimater::calculate_fundamental_error_matrix(const MyMesh::FaceHandle fh)
 {
     // https://en.wikipedia.org/wiki/Plane_(geometry)#Describing_a_plane_through_three_points
 
@@ -470,7 +474,7 @@ Saiga::mat4 Saiga::quadricDecimater::calculate_fundamental_error_matrix(const My
     return k_p;
 }
 
-bool Saiga::quadricDecimater::check_for_folding_triangles(const MyMesh::EdgeHandle edge)
+bool Saiga::QuadricDecimater::check_for_folding_triangles(const MyMesh::EdgeHandle edge)
 {
     // if any of the triangles that are altered by this collapse have normals with greater angles than 60° to each
     // other, don't consider it
@@ -522,7 +526,7 @@ bool Saiga::quadricDecimater::check_for_folding_triangles(const MyMesh::EdgeHand
     return false;
 }
 
-bool Saiga::quadricDecimater::check_edge_parallelity(const OpenMesh::Vec3f v0, const OpenMesh::Vec3f v1,
+bool Saiga::QuadricDecimater::check_edge_parallelity(const OpenMesh::Vec3f v0, const OpenMesh::Vec3f v1,
                                                      const OpenMesh::Vec3f v2)
 {
     OpenMesh::Vec3f edge0((v0 - v1).normalize()), edge1((v1 - v2).normalize());
@@ -535,7 +539,7 @@ bool Saiga::quadricDecimater::check_edge_parallelity(const OpenMesh::Vec3f v0, c
     return true;
 }
 
-float Saiga::quadricDecimater::calculate_collapse_error(const MyMesh::HalfedgeHandle candidat_edge)
+float Saiga::QuadricDecimater::calculate_collapse_error(const MyMesh::HalfedgeHandle candidat_edge)
 {
     MyMesh::VertexHandle vh1 = mesh.from_vertex_handle(candidat_edge);
     MyMesh::VertexHandle vh2 = mesh.to_vertex_handle(candidat_edge);
@@ -570,7 +574,7 @@ float Saiga::quadricDecimater::calculate_collapse_error(const MyMesh::HalfedgeHa
     return error;
 }
 
-float Saiga::quadricDecimater::find_collapse_partner(const MyMesh::VertexHandle vh,
+float Saiga::QuadricDecimater::find_collapse_partner(const MyMesh::VertexHandle vh,
                                                      MyMesh::HalfedgeHandle& collapse_edge)
 {
     MyMesh::VertexOHalfedgeCWIter he_it = mesh.cvoh_cwbegin(vh);
@@ -598,7 +602,7 @@ float Saiga::quadricDecimater::find_collapse_partner(const MyMesh::VertexHandle 
     return error;
 }
 
-void Saiga::quadricDecimater::update_vertex(const MyMesh::VertexHandle vh)
+void Saiga::QuadricDecimater::update_vertex(const MyMesh::VertexHandle vh)
 {
     // calculate new best fit
     MyMesh::HalfedgeHandle heh;
@@ -626,7 +630,7 @@ void Saiga::quadricDecimater::update_vertex(const MyMesh::VertexHandle vh)
     }
 }
 
-void Saiga::quadricDecimater::update_edge(const MyMesh::EdgeHandle eh)
+void Saiga::QuadricDecimater::update_edge(const MyMesh::EdgeHandle eh)
 {
     MyMesh::HalfedgeHandle heh0 = mesh.halfedge_handle(eh, 0);
     MyMesh::HalfedgeHandle heh1 = mesh.halfedge_handle(eh, 1);
@@ -679,7 +683,7 @@ void Saiga::quadricDecimater::update_edge(const MyMesh::EdgeHandle eh)
     }
 }
 
-void Saiga::quadricDecimater::update_edges(const MyMesh::VertexHandle vh)
+void Saiga::QuadricDecimater::update_edges(const MyMesh::VertexHandle vh)
 {
     auto it = mesh.ve_begin(vh);
     while (it.is_valid())

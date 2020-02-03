@@ -1,15 +1,18 @@
+/**
+ * Copyright (c) 2020 Simon Mederer
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #include "imageProcessor.h"
 
-// temporär für ScopedTimerPrint:
-#include "saiga/core/imgui/imgui.h"
+// --- PUBLIC ---
 
-/* PUBLIC */
+Saiga::ImageProcessor::ImageProcessor(Settings const& settings_in) : settings(settings_in) {}
 
-Saiga::imageProcessor::imageProcessor(imageProcessorSettings settings_in) : settings(settings_in) {}
+Saiga::ImageProcessor::~ImageProcessor() {}
 
-Saiga::imageProcessor::~imageProcessor() {}
-
-void Saiga::imageProcessor::remove_occlusion_edges(const ImageView<float> depthImageView)
+void Saiga::ImageProcessor::remove_occlusion_edges(ImageView<float> depthImageView)
 {
     std::vector<vec3> unprojected_image = std::vector<vec3>(depthImageView.h * depthImageView.w, vec3::Zero());
     ImageView<vec3> unprojected_imageView =
@@ -19,8 +22,7 @@ void Saiga::imageProcessor::remove_occlusion_edges(const ImageView<float> depthI
     unproject_depth_image(depthImageView, unprojected_imageView);
 
     // create images for the extra data used by the occlusion edge paper (4.2.1)
-    TemplatedImage<float> p_Image(depthImageView.h, depthImageView.w);
-    ImageView<float> p = p_Image.getImageView();
+    TemplatedImage<float> p(depthImageView.h, depthImageView.w);
 
     // find / delete occlusion edge pixels paper
     compute_image_aspect_ratio(unprojected_imageView, depthImageView, p);
@@ -29,7 +31,7 @@ void Saiga::imageProcessor::remove_occlusion_edges(const ImageView<float> depthI
     use_hysteresis_threshold(depthImageView, unprojected_imageView, p);
 }
 
-void Saiga::imageProcessor::unproject_depth_image(const ImageView<const float> depth_imageView,
+void Saiga::ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageView,
                                                   ImageView<vec3> unprojected_image)
 {
     int height = depth_imageView.height;
@@ -45,7 +47,7 @@ void Saiga::imageProcessor::unproject_depth_image(const ImageView<const float> d
     }
 }
 
-void Saiga::imageProcessor::unproject_depth_image(const ImageView<const float> depth_imageView,
+void Saiga::ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageView,
                                                   ImageView<OpenMesh::Vec3f> unprojected_image)
 {
     int height = depth_imageView.height;
@@ -63,7 +65,7 @@ void Saiga::imageProcessor::unproject_depth_image(const ImageView<const float> d
     }
 }
 
-void Saiga::imageProcessor::filter_gaussian(const ImageView<const float> input, ImageView<float> output)
+void Saiga::ImageProcessor::filter_gaussian(ImageView<const float> input, ImageView<float> output)
 {
     std::vector<float> filter((settings.gauss_radius * 2) + 1);
     for (int i = -settings.gauss_radius; i <= settings.gauss_radius; ++i)
@@ -158,9 +160,9 @@ void Saiga::imageProcessor::filter_gaussian(const ImageView<const float> input, 
     }
 }
 
-/* PRIVATE */
+// --- PRIVATE ---
 
-float Saiga::imageProcessor::compute_quad_max_aspect_ratio(vec3 left_up, vec3 right_up, vec3 left_down, vec3 right_down)
+float Saiga::ImageProcessor::compute_quad_max_aspect_ratio(vec3 const& left_up, vec3 const& right_up, vec3 const& left_down, vec3 const& right_down)
 {
     // all edge lengths
     float len_up, len_right, len_down, len_left, len_diag_0, len_diag_1;
@@ -199,12 +201,11 @@ float Saiga::imageProcessor::compute_quad_max_aspect_ratio(vec3 left_up, vec3 ri
     }
 }
 
-void Saiga::imageProcessor::compute_image_aspect_ratio(const ImageView<const vec3> image,
-                                                       const ImageView<float> depthImageView, ImageView<float> p)
+void Saiga::ImageProcessor::compute_image_aspect_ratio(ImageView<const vec3> image,
+                                                       ImageView<float> depthImageView, ImageView<float> p)
 {
     // get disparity data
-    TemplatedImage<float> disparity_image(depthImageView.h, depthImageView.w);
-    ImageView<float> disparity = disparity_image.getImageView();
+    TemplatedImage<float> disparity(depthImageView.h, depthImageView.w);
     float median_disparity     = get_disparity(depthImageView, disparity);
 
     int height       = disparity.height;
@@ -214,7 +215,6 @@ void Saiga::imageProcessor::compute_image_aspect_ratio(const ImageView<const vec
 
     // temporay information on the p per quad (maximum of aspect ratio using the better triangulation)
     TemplatedImage<float> quad_p(height - 1, width - 1);
-    ImageView<float> quad_p_imView = quad_p.getImageView();
 
     // check quad properties: quad_p
     for (int h = 0; h < quads_height; ++h)
@@ -226,15 +226,15 @@ void Saiga::imageProcessor::compute_image_aspect_ratio(const ImageView<const vec
                 image(h, w + 1)[2] == settings.broken_values || image(h + 1, w + 1)[2] == settings.broken_values)
             {
                 // the quad has broken depth
-                quad_p_imView(h, w) = settings.broken_values;
+                quad_p(h, w) = settings.broken_values;
                 continue;
             }
 
             // if not then get the worse aspect ratio using the better triangulation
-            float quad_p =
+            float q_p =
                 compute_quad_max_aspect_ratio(image(h, w), image(h, w + 1), image(h + 1, w), image(h + 1, w + 1));
 
-            quad_p_imView(h, w) = quad_p;
+            quad_p(h, w) = q_p;
 
 
             // compute the data for the next pixel
@@ -247,10 +247,10 @@ void Saiga::imageProcessor::compute_image_aspect_ratio(const ImageView<const vec
                 // find the maximum p for this pixel (highest aspect ratio --> highest error)
 
                 // initialize p at current pixel
-                float quad_left_up    = quad_p_imView(h - 1, w - 1);
-                float quad_left_down  = quad_p_imView(h, w - 1);
-                float quad_right_up   = quad_p_imView(h - 1, w);
-                float quad_right_down = quad_p_imView(h, w);
+                float quad_left_up    = quad_p(h - 1, w - 1);
+                float quad_left_down  = quad_p(h, w - 1);
+                float quad_right_up   = quad_p(h - 1, w);
+                float quad_right_down = quad_p(h, w);
 
                 // check the surroundings for p (quads) and d_p (vertices)
 
@@ -287,7 +287,7 @@ void Saiga::imageProcessor::compute_image_aspect_ratio(const ImageView<const vec
     }
 }
 
-float Saiga::imageProcessor::get_disparity(const ImageView<float> depth_imageView, ImageView<float> disparity_imageView)
+float Saiga::ImageProcessor::get_disparity(ImageView<float> depth_imageView, ImageView<float> disparity_imageView)
 {
     // median disparity (broken pixels will not be used)
     std::vector<float> disparities;
@@ -327,8 +327,8 @@ float Saiga::imageProcessor::get_disparity(const ImageView<float> depth_imageVie
     return 0.0f;
 }
 
-void Saiga::imageProcessor::use_hysteresis_threshold(ImageView<float> depth_image, ImageView<vec3> unprojected_image,
-                                                     const ImageView<float> computed_values)
+void Saiga::ImageProcessor::use_hysteresis_threshold(ImageView<float> depth_image, ImageView<vec3> unprojected_image,
+                                                     ImageView<float> computed_values)
 {
     int height = depth_image.height;
     int width  = depth_image.width;

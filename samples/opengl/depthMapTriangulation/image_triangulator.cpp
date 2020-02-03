@@ -1,14 +1,19 @@
+/**
+ * Copyright (c) 2020 Simon Mederer
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
 
 #include "image_triangulator.h"
 
 // ------------------- naive triangulation -------------------
 
 // ----  PUBLIC  ----
-Saiga::SimpleTriangulator::SimpleTriangulator(Settings settings_in) : settings(settings_in) {}
+Saiga::SimpleTriangulator::SimpleTriangulator(Settings const& settings_in) : settings(settings_in) {}
 
 Saiga::SimpleTriangulator::~SimpleTriangulator() {}
 
-void Saiga::SimpleTriangulator::triangulate_image(ImageView<float> depthImage, MyMesh& mesh_out)
+void Saiga::SimpleTriangulator::triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out)
 {
     // create an ImageView to hold the vertexHandles that are added to the mesh
     std::vector<OpenMesh::VertexHandle> pixel_vertexHandles(depthImage.height * depthImage.width);
@@ -47,12 +52,12 @@ void Saiga::SimpleTriangulator::triangulate_image(ImageView<float> depthImage, M
 void Saiga::SimpleTriangulator::add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2,
                                                  MyMesh::VertexHandle vh3)
 {
-    if (mesh.point(vh1)[2] == 0.0f || mesh.point(vh2)[2] == 0.0f || mesh.point(vh3)[2] == 0.0f) return;
+    if (mesh.point(vh1)[2] == settings.broken_values || mesh.point(vh2)[2] == settings.broken_values || mesh.point(vh3)[2] == settings.broken_values) return;
 
     mesh.add_face(vh1, vh2, vh3);
 }
 
-void Saiga::SimpleTriangulator::add_vertices_to_mesh(const ImageView<const float> depthImageView,
+void Saiga::SimpleTriangulator::add_vertices_to_mesh(ImageView<const float> depthImageView,
                                                      ImageView<OpenMesh::VertexHandle> pixel_vertices, MyMesh& mesh)
 {
     int height = depthImageView.height;
@@ -61,9 +66,9 @@ void Saiga::SimpleTriangulator::add_vertices_to_mesh(const ImageView<const float
     assert(pixel_vertices.height == height);
     assert(pixel_vertices.width == width);
 
-    imageProcessorSettings ip_settings;
+    ImageProcessor::Settings ip_settings;
     ip_settings.cameraParameters = settings.cameraParameters;
-    imageProcessor ip(ip_settings);
+    ImageProcessor ip(ip_settings);
 
     std::vector<OpenMesh::Vec3f> unprojected_image(height * width);
     ImageView<OpenMesh::Vec3f> unprojected_image_iV(height, width, unprojected_image.data());
@@ -82,7 +87,7 @@ void Saiga::SimpleTriangulator::add_vertices_to_mesh(const ImageView<const float
                 if (mesh.has_vertex_colors())
                 {
                     mesh.set_color(vh,
-                                   OpenMesh::Vec3f(float(w) / width, float(h) / height, depthImageView(h, w) / 5.0f));
+                                   OpenMesh::Vec3f(float(h) / height, float(w) / width, depthImageView(h, w) / 5.0f));
                 }
             }
             else
@@ -177,20 +182,20 @@ void Saiga::SimpleTriangulator::completely_triangulate(MyMesh& mesh,
 // ------------------- RQT triangulation -------------------
 
 // ----  PUBLIC  ----
-Saiga::RQT_Triangualtor::RQT_Triangualtor(Settings settings_in) : settings(settings_in)
+Saiga::RQT_Triangulator::RQT_Triangulator(Settings const& settings_in) : settings(settings_in)
 {
     RQT_side_len = get_closest_RQT_side_length(settings_in.image_height, settings_in.image_width);
 
     create_dependency_graph();
 }
 
-Saiga::RQT_Triangualtor::~RQT_Triangualtor() {}
+Saiga::RQT_Triangulator::~RQT_Triangulator() {}
 
-void Saiga::RQT_Triangualtor::triangulate_image(ImageView<float> depthImage, MyMesh& mesh_out)
+void Saiga::RQT_Triangulator::triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out)
 {
-    imageProcessorSettings ip_settings;
+    ImageProcessor::Settings ip_settings;
     ip_settings.cameraParameters = settings.cameraParameters;
-    imageProcessor ip(ip_settings);
+    ImageProcessor ip(ip_settings);
 
     // unproject the image
     std::vector<OpenMesh::Vec3f> unprojected_image =
@@ -230,15 +235,15 @@ void Saiga::RQT_Triangualtor::triangulate_image(ImageView<float> depthImage, MyM
 
 
 // ----  PRIVATE  ----
-void Saiga::RQT_Triangualtor::add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2,
+void Saiga::RQT_Triangulator::add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2,
                                                MyMesh::VertexHandle vh3)
 {
-    if (mesh.point(vh1)[2] == 0.0f || mesh.point(vh2)[2] == 0.0f || mesh.point(vh3)[2] == 0.0f) return;
+    if (mesh.point(vh1)[2] == settings.broken_values || mesh.point(vh2)[2] == settings.broken_values || mesh.point(vh3)[2] == settings.broken_values) return;
 
     mesh.add_face(vh1, vh2, vh3);
 }
 
-int Saiga::RQT_Triangualtor::get_closest_RQT_side_length(int height, int width)
+int Saiga::RQT_Triangulator::get_closest_RQT_side_length(int height, int width)
 {
     int max_image_side_length = std::max(height, width);
     // the width has to be a power of 2 with 1 added on top
@@ -264,7 +269,7 @@ int Saiga::RQT_Triangualtor::get_closest_RQT_side_length(int height, int width)
     return max_image_side_length;
 }
 
-void Saiga::RQT_Triangualtor::create_dependency_graph()
+void Saiga::RQT_Triangulator::create_dependency_graph()
 {
     // level 0 isn't captured by log, so add it manually
     int total_levels_without_zero = log2(RQT_side_len - 1);
@@ -395,7 +400,7 @@ void Saiga::RQT_Triangualtor::create_dependency_graph()
     dependency_graph(RQT_side_len - 1, RQT_side_len - 1) = tmp_vec;
 }
 
-void Saiga::RQT_Triangualtor::resolve_dependencies(MyMesh& mesh,
+void Saiga::RQT_Triangulator::resolve_dependencies(MyMesh& mesh,
                                                    ImageView<const OpenMesh::Vec3f> const& unprojected_image,
                                                    Point2D vertex, ImageView<MyMesh::VertexHandle>& selected_vertices)
 {
@@ -443,7 +448,7 @@ void Saiga::RQT_Triangualtor::resolve_dependencies(MyMesh& mesh,
     }
 }
 
-void Saiga::RQT_Triangualtor::select_vertices_for_RQT(MyMesh& mesh,
+void Saiga::RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh,
                                                       ImageView<const OpenMesh::Vec3f> const& unprojected_image,
                                                       ImageView<MyMesh::VertexHandle>& selected_vertices)
 {
@@ -592,7 +597,7 @@ void Saiga::RQT_Triangualtor::select_vertices_for_RQT(MyMesh& mesh,
 
 // ----------- actual triangulation -----------
 
-void Saiga::RQT_Triangualtor::triangulate_RQT_selected_vertices(
+void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
     MyMesh& current_mesh, ImageView<OpenTriangleMesh::VertexHandle> const& selected_vertices)
 {
     // heap for quads that need to be triangulated
@@ -838,7 +843,7 @@ void Saiga::RQT_Triangualtor::triangulate_RQT_selected_vertices(
 
 // ----------- error calculation stuff -----------
 
-bool Saiga::RQT_Triangualtor::check_metric(OpenMesh::Vec3f const& p, OpenMesh::Vec3f const& triangle_vertex,
+bool Saiga::RQT_Triangulator::check_metric(OpenMesh::Vec3f const& p, OpenMesh::Vec3f const& triangle_vertex,
                                            OpenMesh::Vec3f const& normal, float threshold)
 {
     if (abs(p[2]) < 0.00005f) return true;
@@ -848,7 +853,7 @@ bool Saiga::RQT_Triangualtor::check_metric(OpenMesh::Vec3f const& p, OpenMesh::V
     return sqrt(square_dist) / pow(p.length(), 2) > threshold;  // dist / depth^2
 }
 
-bool Saiga::RQT_Triangualtor::check_triangle_error_threshold_exceeded(
+bool Saiga::RQT_Triangulator::check_triangle_error_threshold_exceeded(
     ImageView<const OpenMesh::Vec3f> const& unprojected_image, int triangle_orientation, float threshold, Point2D a,
     Point2D b, Point2D c)
 {
@@ -856,7 +861,7 @@ bool Saiga::RQT_Triangualtor::check_triangle_error_threshold_exceeded(
     OpenMesh::Vec3f b_v = unprojected_image(b.first, b.second);
     OpenMesh::Vec3f c_v = unprojected_image(c.first, c.second);
 
-    // compute triangle plane like in quadricDecimater::calculate_fundamental_error_matrix
+    // compute triangle plane like in QuadricDecimater::calculate_fundamental_error_matrix
     OpenMesh::Vec3f normal = cross((b_v - a_v), (c_v - a_v));
     normal.normalize();
 
@@ -908,7 +913,7 @@ bool Saiga::RQT_Triangualtor::check_triangle_error_threshold_exceeded(
     return false;
 }
 
-bool Saiga::RQT_Triangualtor::check_quad_error_threshold_exceeded(
+bool Saiga::RQT_Triangulator::check_quad_error_threshold_exceeded(
     ImageView<const OpenMesh::Vec3f> const& unprojected_image, int triangle_orientation, float threshold, Point2D a,
     Point2D b, Point2D c, Point2D d)
 {

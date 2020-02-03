@@ -1,3 +1,10 @@
+/**
+ * Copyright (c) 2020 Simon Mederer
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#pragma once
 
 #include "saiga/core/geometry/openMeshWrapper.h"
 
@@ -7,40 +14,40 @@
 
 namespace Saiga
 {
-struct DecimateSettings
-{
-    int max_decimations                         = 0;  // 0 and below means unlimited decimations are allowed
-    float quadricMaxError                       = 0.000001f;
-    bool check_self_intersections               = true;
-    bool check_folding_triangles                = true;
-    bool only_collapse_roughly_parallel_borders = true;
-    bool check_interior_angles                  = true;
-    float minimal_interior_angle_rad            = radians(13.0f);
-};
-
-class quadricDecimater
+class QuadricDecimater
 {
    public:
     using MyMesh   = OpenTriangleMesh;
     using DeciHeap = OpenMesh::Decimater::DecimaterT<MyMesh>::DeciHeap;
 
-   public:
-    quadricDecimater(DecimateSettings s);
-    ~quadricDecimater();
+    struct Settings
+    {
+        // max_decimations <= 0 means unlimited decimations are allowed
+        int max_decimations                         = 0;
+        float quadricMaxError                       = 0.000001f;
+        bool check_self_intersections               = true;
+        bool check_folding_triangles                = true;
+        bool only_collapse_roughly_parallel_borders = true;
+        bool check_interior_angles                  = true;
+        float minimal_interior_angle_rad            = radians(13.0f);
+    };
+
+    QuadricDecimater(Settings const& s);
+    ~QuadricDecimater();
 
     // decimates the mesh as described in the paper here:
     // https://www.ri.cmu.edu/pub_files/pub2/garland_michael_1997_1/garland_michael_1997_1.pdf
-	// One major difference is that only vertex-pairs sharing an edge are considered for decimation
-    void decimate_quardic(MyMesh& mesh_in);
+    // One major difference is that only vertex-pairs sharing an edge are considered for decimation
+    void decimate_quadric(MyMesh& mesh_in);
 
    private:
     MyMesh mesh;
-    DecimateSettings settings;
+    Settings settings;
 
     // heap
     std::unique_ptr<DeciHeap> collapseCandidates_heap;
 
-    /* Functions */
+    // --- Functions ---
 
     // checks whether any of the triangles after the collapse of collapse_edge would have an interior angle smaller than
     // the given min_angle calculations taken from https://www.calculator.net/triangle-calculator.html
@@ -83,33 +90,40 @@ class quadricDecimater
     // updates following parts of an edge: h_folding_triangles_edge:
     // h_collapse_self_intersection, h_interior_angles_undershot, h_folding_triangles_edge, h_parallel_border_edges
     void update_edge(const MyMesh::EdgeHandle eh);
-    void update_edges(
-        const MyMesh::VertexHandle vh);  // this calls update_edge for all edges adjacent to the given vertex
+    // this calls update_edge for all edges adjacent to the given vertex
+    void update_edges(const MyMesh::VertexHandle vh);
 
 
 
-    /* Mesh properties */
+    // --- Mesh properties ---
 
-    // properties to store the collapse target and more for each vetrtex
-    OpenMesh::VPropHandleT<float> h_error;        // a property to store theerror of the collapse using collapseTarget
-    OpenMesh::VPropHandleT<int> h_heap_position;  // stores the vertex' position in the priority heap
-    OpenMesh::VPropHandleT<mat4> h_errorMatrix;   // stores the error matrix of the vertex
-    OpenMesh::VPropHandleT<MyMesh::HalfedgeHandle>
-        h_collapseTarget;  // stores the halfEdge whose collapse causes the lowest error
+    // --- vertex properties ---
+    // a property to store the error of the collapse using collapseTarget
+    OpenMesh::VPropHandleT<float> h_error;
+    // stores the vertex' position in the priority heap
+    OpenMesh::VPropHandleT<int> h_heap_position;
+    // stores the error matrix of the vertex
+    OpenMesh::VPropHandleT<mat4> h_errorMatrix;
+    // stores the halfEdge whose collapse causes the lowest error
+    OpenMesh::VPropHandleT<MyMesh::HalfedgeHandle> h_collapseTarget;
 
-    OpenMesh::EPropHandleT<bool>
-        h_folding_triangles_edge;  // a boolean indicating whether there are adjacent faces to
-                                   // the Edge with more than 60 degree difference in their normals
+    // --- edge properties ---
+    // a boolean indicating whether there are adjacent faces to
+    // the Edge with more than 60 degree difference in their normals
+    OpenMesh::EPropHandleT<bool> h_folding_triangles_edge;
 
-    OpenMesh::HPropHandleT<bool> h_collapse_self_intersection;  // a boolean indicating whether collapsing this halfedge
-                                                                // results in a flipped triangle
-    OpenMesh::HPropHandleT<bool>
-        h_parallel_border_edges;  // a boolean indicating whether collapsing this border halfedge results in a
-                                  // relatively parallel border halfedge or not (non-borders have unspecified values)
-    OpenMesh::HPropHandleT<bool>
-        h_interior_angles_undershot;  // a boolean indicating whether collapsing this halfedge creates any triangle with
-                                      // an interior angle below minimal_interior_angle
+    // --- halfedge properties ---
+    // a boolean indicating whether collapsing this halfedge
+    // results in a flipped triangle
+    OpenMesh::HPropHandleT<bool> h_collapse_self_intersection;
+    // a boolean indicating whether collapsing this border halfedge results in a
+    // relatively parallel border halfedge or not (non-borders have unspecified values)
+    OpenMesh::HPropHandleT<bool> h_parallel_border_edges;
+    // a boolean indicating whether collapsing this halfedge causes any of the adjacent
+    // triangles to have one or more interior angles below minimal_interior_angle
+    OpenMesh::HPropHandleT<bool> h_interior_angles_undershot;
 
+    // --- face properties ---
     // a property to store the fundamental error matrices per face
     OpenMesh::FPropHandleT<mat4> h_fund_error_mat;
 };

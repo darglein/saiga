@@ -1,14 +1,14 @@
-#pragma once
+/**
+ * Copyright (c) 2020 Simon Mederer
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
 
-// for later reference
-//#include <OpenMesh/Tools/Decimater/DecimaterT.hh>
+#pragma once
 
 #include "saiga/core/geometry/openMeshWrapper.h"
 #include "saiga/opengl/assets/all.h"
-#include "saiga/vision/VisionTypes.h"  // camera parameters
-
-// for later reference
-//#include <set>
+#include "saiga/vision/VisionTypes.h"
 
 #include "imageProcessor.h"
 
@@ -16,7 +16,8 @@ namespace Saiga
 {
 class Triangulator
 {
-    virtual void triangulate_image(ImageView<float> depthImage, OpenTriangleMesh& mesh_out) = 0;
+   public:
+    virtual void triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out) = 0;
 };
 
 
@@ -32,25 +33,24 @@ class SimpleTriangulator : public Triangulator
         // the value used for pixels that contain failed depth measurements or got discarded
         float broken_values = 0.0f;
 
-        StereoCamera4Base<float> cameraParameters = StereoCamera4Base<float>(
-            5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02, 2.3691517848391885e+02, 40.0f);
+        StereoCamera4Base<float> cameraParameters;
     };
 
-   public:
-    SimpleTriangulator(Settings settings_in);
+    SimpleTriangulator(Settings const& settings_in);
     ~SimpleTriangulator();
 
-    void triangulate_image(ImageView<float> depthImage, MyMesh& mesh_out);
+    void triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out) override;
 
    private:
     Settings settings;
 
-   private:
+	// takes a mesh and three VertexHandles that belong to the same mesh.
+	// Checks whether any of those handles contain a broken value and creates a face if they don't
     void add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2, MyMesh::VertexHandle vh3);
 
     // unprojects the pixels of the input image and adds them to the mesh in case the respective pixel contains no
     // broken value
-    void add_vertices_to_mesh(const ImageView<const float> depthImageView,
+    void add_vertices_to_mesh(ImageView<const float> depthImageView,
                               ImageView<OpenMesh::VertexHandle> pixel_vertices, MyMesh& mesh);
 
     // takes an ImageView of VertexHandles that were added to the mesh (via add_vertices_to_mesh) and creates a simple
@@ -62,7 +62,7 @@ class SimpleTriangulator : public Triangulator
 // ------------------- RQT triangulation -------------------
 
 // This class is meant for getting one or more images and turning them into meshes
-class RQT_Triangualtor : public Triangulator
+class RQT_Triangulator : public Triangulator
 {
    public:
     using MyMesh  = OpenTriangleMesh;
@@ -77,23 +77,22 @@ class RQT_Triangualtor : public Triangulator
         int image_height          = 240;
         int image_width           = 320;
 
-        StereoCamera4Base<float> cameraParameters = StereoCamera4Base<float>(
-            5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02, 2.3691517848391885e+02, 40.0f);
+        StereoCamera4Base<float> cameraParameters;
     };
 
-   public:
-    RQT_Triangualtor(Settings settings_in);
-    ~RQT_Triangualtor();
+    RQT_Triangulator(Settings const& settings_in);
+    ~RQT_Triangulator();
 
-    void triangulate_image(ImageView<float> depthImage, MyMesh& mesh_out);
+    void triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out) override;
 
    private:
     Settings settings;
     std::vector<std::vector<Point2D>> dependency_graph_vector;
     ImageView<std::vector<Point2D>> dependency_graph;
     int RQT_side_len;
-
-   private:
+	
+	// takes a mesh and three VertexHandles that belong to the same mesh.
+	// Checks whether any of those handles contain a broken value and creates a face if they don't
     void add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2, MyMesh::VertexHandle vh3);
 
     // gets the next (2^n)+1 that is greater or equal than both settings.image_height and settings.image_width

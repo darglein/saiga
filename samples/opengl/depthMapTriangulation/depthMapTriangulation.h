@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2020 Simon Mederer
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -20,46 +20,30 @@
 #include "saiga/vision/VisionTypes.h"
 
 #include "decimate.h"
+#include "image_triangulator.h"
 #include "imageProcessor.h"
 
 #include <set>
-
-#include "image_triangulator.h"
-
-
 
 using namespace Saiga;
 
 class Sample : public StandaloneWindow<WindowManagement::SDL, Forward_Renderer>, public SDL_KeyListener
 {
    public:
-    // preprocessing:
-    float gauss_deviation = 1.2f;
-    int gauss_radius      = 4;
-    float hyst_min        = 12.0f;
-    float hyst_max        = 23.0f;
+    ImageProcessor::Settings ips;
+    SimpleTriangulator::Settings sts;
+    RQT_Triangulator::Settings rqts;
+    QuadricDecimater::Settings qds;
 
-    // RQT:
-    float RQT_error_threshold = 0.0015f;
+    bool wireframe = true;
 
-    // reduction:
-    float quadricMaxError                  = 0.000001;
-    int quad_red_max_decimations                 = 0;
-    bool quad_red_check_self_intersections       = true;
-    bool quad_red_check_folding_triangles        = true;
-    bool quad_red_only_collapse_parallel_borders = true;
-    bool quad_red_check_interior_angles          = true;
-    float quad_red_minimal_interior_angle_degree = 13.0f;
+    char depth_image_input[100] = "bar.saigai";
 
-    bool wireframe   = true;
-
-    char depth_image_input[100]  = "bar.saigai";
-
+    // camera parameters used for the bar.saigai image
     StereoCamera4Base<float> cameraParameters = StereoCamera4Base<float>(
         5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02, 2.3691517848391885e+02, 40.0f);
 
     TemplatedImage<float> loaded_depth_image;
-    ImageView<float> depthImageView;
 
     SimpleAssetObject meshObject;
 

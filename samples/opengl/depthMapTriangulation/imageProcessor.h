@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2020 Simon Mederer
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #pragma once
 
 #include "saiga/core/geometry/openMeshWrapper.h"
@@ -6,43 +12,47 @@
 
 namespace Saiga
 {
-struct imageProcessorSettings
-{
-    // the value used for pixels that contain failed depth measurements or got discarded
-    float broken_values = 0.0f;
-
-    // options for the gaussian filtering
-    int gauss_radius      = 4;
-    float gauss_deviation = 1.2f;
-
-    // options for using the hysteresis threshold
-    float hyst_min = 12.0f;
-    float hyst_max = 23.0f;
-
-    // camera parameters of the camera that took the picture which gets processed
-    StereoCamera4Base<float> cameraParameters = StereoCamera4Base<float>(
-        5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02, 2.3691517848391885e+02, 40.0f);
-};
-
-class imageProcessor
+class ImageProcessor
 {
    public:
-    imageProcessor(imageProcessorSettings settings_in);
-    ~imageProcessor();
+    struct Settings
+    {
+        // the value used for pixels that contain failed depth measurements or got discarded
+        float broken_values = 0.0f;
+
+        // options for the gaussian filtering
+        int gauss_radius      = 4;
+        float gauss_deviation = 1.2f;
+
+        // options for using the hysteresis threshold
+        // if a pixel in the filtered image...
+        // ... is greater than hyst_max, it gets deleted
+        // ... is lower than hyst_min, it doesn't get deleted
+        // ... lies between those values, it gets deleted only if a neighbouring pixel gets deleted. This may also
+        // propagate across the image
+        float hyst_min = 12.0f;
+        float hyst_max = 23.0f;
+
+        // camera parameters of the camera that took the picture which gets processed
+        StereoCamera4Base<float> cameraParameters;
+    };
+
+    ImageProcessor(Settings const& settings_in);
+    ~ImageProcessor();
 
     // combines most of the
-    void remove_occlusion_edges(const ImageView<float> depthImageView);
+    void remove_occlusion_edges(ImageView<float> depthImageView);
 
     // unprojects a depth image
     // unprojected_image must be at least as big as depth_image
-    void unproject_depth_image(const ImageView<const float> depth_imageView, ImageView<vec3> unprojected_image);
-    void unproject_depth_image(const ImageView<const float> depth_imageView,
+    void unproject_depth_image(ImageView<const float> depth_imageView, ImageView<vec3> unprojected_image);
+    void unproject_depth_image(ImageView<const float> depth_imageView,
                                ImageView<OpenMesh::Vec3f> unprojected_image);
 
-    void filter_gaussian(const ImageView<const float> input, ImageView<float> output);
+    void filter_gaussian(ImageView<const float> input, ImageView<float> output);
 
    private:
-    imageProcessorSettings settings;
+    Settings settings;
 
     // computes the aspect ratios for all possible triangulations of a quad and returns the better triangulation and the
     // worse aspect ratio from those triangles
@@ -54,7 +64,7 @@ class imageProcessor
     //
     // aspect ratio = max(a, b, c) / min(a, b, c)
     // --> this ratio works best for occlusion edge detection (also mentioned in the paper under 4.2.1)
-    float compute_quad_max_aspect_ratio(vec3 left_up, vec3 right_up, vec3 left_down, vec3 right_down);
+    float compute_quad_max_aspect_ratio(vec3 const& left_up, vec3 const& right_up, vec3 const& left_down, vec3 const& right_down);
 
     // computes aspect ratio information for a depth image for later triangulation and vertex deletion:
     // p per vertex:
@@ -63,11 +73,11 @@ class imageProcessor
     //		Each quad uses the triangulation that minimizes the maximum aspect ratio.
     //
     // the edge of the image is ignored
-    void compute_image_aspect_ratio(const ImageView<const vec3> image, const ImageView<float> depthImageView,
+    void compute_image_aspect_ratio(ImageView<const vec3> image, ImageView<float> depthImageView,
                                     ImageView<float> p);
 
     // gets a depth image and fills a disparity image. Returns the average disparity
-    float get_disparity(const ImageView<float> depth_image, ImageView<float> disparity_image);
+    float get_disparity(ImageView<float> depth_image, ImageView<float> disparity_image);
 
     // deletes pixels according to the hysteresis threshold https://docs.opencv.org/3.1.0/da/d22/tutorial_py_canny.html
     // adds unclear edge Pixels with sure edge neighbours to sure edges,
@@ -78,7 +88,7 @@ class imageProcessor
     // values above maxVal are sure to be edges
     // values below minVal are sure to be non-edges WITH EXCEPTION OF brokenVal which is a sure edge
     void use_hysteresis_threshold(ImageView<float> depth_image, ImageView<vec3> unprojected_image,
-                                  const ImageView<float> computed_values);
+                                  ImageView<float> computed_values);
 };
 
 }  // namespace Saiga
