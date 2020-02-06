@@ -22,7 +22,7 @@ class ImageProcessor
 
         // options for the gaussian filtering
         int gauss_radius      = 4;
-        float gauss_deviation = 1.2f;
+        float gauss_stadard_deviation = 1.2f;
 
         // options for using the hysteresis threshold
         // if a pixel in the filtered image...
@@ -37,8 +37,7 @@ class ImageProcessor
         StereoCamera4Base<float> cameraParameters;
     };
 
-    ImageProcessor(Settings const& settings_in);
-    ~ImageProcessor();
+    ImageProcessor(const Settings& settings_in);
 
     // combines most of the
     void remove_occlusion_edges(ImageView<float> depthImageView);
@@ -64,7 +63,7 @@ class ImageProcessor
     //
     // aspect ratio = max(a, b, c) / min(a, b, c)
     // --> this ratio works best for occlusion edge detection (also mentioned in the paper under 4.2.1)
-    float compute_quad_max_aspect_ratio(vec3 const& left_up, vec3 const& right_up, vec3 const& left_down, vec3 const& right_down);
+    float compute_quad_max_aspect_ratio(const vec3& left_up, const vec3& right_up, const vec3& left_down, const vec3& right_down);
 
     // computes aspect ratio information for a depth image for later triangulation and vertex deletion:
     // p per vertex:
@@ -77,7 +76,7 @@ class ImageProcessor
                                     ImageView<float> p);
 
     // gets a depth image and fills a disparity image. Returns the average disparity
-    float get_disparity(ImageView<float> depth_image, ImageView<float> disparity_image);
+    float get_median_disparity(ImageView<float> depth_image, ImageView<float> disparity_image);
 
     // deletes pixels according to the hysteresis threshold https://docs.opencv.org/3.1.0/da/d22/tutorial_py_canny.html
     // adds unclear edge Pixels with sure edge neighbours to sure edges,

@@ -6,39 +6,41 @@
 
 #include "decimate.h"
 
+namespace Saiga
+{
 // --- PUBLIC ---
 
-Saiga::QuadricDecimater::QuadricDecimater(Settings const& s) : settings(s) {}
+QuadricDecimater::QuadricDecimater(const Settings& s) : settings(s) {}
 
-Saiga::QuadricDecimater::~QuadricDecimater() {}
-
-void Saiga::QuadricDecimater::decimate_quadric(MyMesh& mesh_in)
+void QuadricDecimater::decimate(MyMesh& mesh)
 {
-    mesh = mesh_in;
+	// save a pointer to the mesh so all QuadricDecimater methods can access it easily
+	// the pointer will only be used by this method and all the methods called within it
+    current_mesh = &mesh;
 
     // https://www.ri.cmu.edu/pub_files/pub2/garland_michael_1997_1/garland_michael_1997_1.pdf
 
     // Pre-computation
 
     // add the relevant properties
-    mesh.add_property(h_error);
-    mesh.add_property(h_heap_position);
-    mesh.add_property(h_errorMatrix);
-    mesh.add_property(h_collapseTarget);
-    if (settings.check_folding_triangles == true) mesh.add_property(h_folding_triangles_edge);
-    if (settings.check_self_intersections == true) mesh.add_property(h_collapse_self_intersection);
-    if (settings.only_collapse_roughly_parallel_borders == true) mesh.add_property(h_parallel_border_edges);
-    if (settings.check_interior_angles == true) mesh.add_property(h_interior_angles_undershot);
+    current_mesh->add_property(h_error);
+    current_mesh->add_property(h_heap_position);
+    current_mesh->add_property(h_errorMatrix);
+    current_mesh->add_property(h_collapseTarget);
+    if (settings.check_folding_triangles) current_mesh->add_property(h_folding_triangles_edge);
+    if (settings.check_self_intersections) current_mesh->add_property(h_collapse_self_intersection);
+    if (settings.only_collapse_roughly_parallel_borders) current_mesh->add_property(h_parallel_border_edges);
+    if (settings.check_interior_angles) current_mesh->add_property(h_interior_angles_undershot);
 
     // calculate face normals
-    mesh.request_face_normals();
-    mesh.update_face_normals();
+    current_mesh->request_face_normals();
+    current_mesh->update_face_normals();
 
     // activate status so that items can be deleted
-    mesh.request_face_status();
-    mesh.request_edge_status();
-    mesh.request_halfedge_status();
-    mesh.request_vertex_status();
+    current_mesh->request_face_status();
+    current_mesh->request_edge_status();
+    current_mesh->request_halfedge_status();
+    current_mesh->request_vertex_status();
 
     // Main body of decimation
 
@@ -46,8 +48,8 @@ void Saiga::QuadricDecimater::decimate_quadric(MyMesh& mesh_in)
     if (settings.check_self_intersections || settings.check_interior_angles || settings.check_folding_triangles ||
         settings.only_collapse_roughly_parallel_borders)
     {
-        MyMesh::EdgeIter e_it, e_end(mesh.edges_end());
-        for (e_it = mesh.edges_sbegin(); e_it != e_end; ++e_it)
+        MyMesh::EdgeIter e_it, e_end(current_mesh->edges_end());
+        for (e_it = current_mesh->edges_sbegin(); e_it != e_end; ++e_it)
         {
             update_edge(*e_it);
         }
@@ -58,62 +60,62 @@ void Saiga::QuadricDecimater::decimate_quadric(MyMesh& mesh_in)
         // --- Calculation of fundamental error matrices per face ---
 
         // add error fundamental error matrix property to the faces
-        mesh.add_property(h_fund_error_mat);
+        current_mesh->add_property(h_fund_error_mat);
 
         // iterate through faces and calculate their fundamental error matrix
-        MyMesh::FaceIter f_it, f_end(mesh.faces_end());
+        MyMesh::FaceIter f_it, f_end(current_mesh->faces_end());
         MyMesh::FaceVertexCWIter fv_it;
 
-        for (f_it = mesh.faces_sbegin(); f_it != f_end; ++f_it)
+        for (f_it = current_mesh->faces_sbegin(); f_it != f_end; ++f_it)
         {
-            mesh.property(h_fund_error_mat, *f_it) = calculate_fundamental_error_matrix(*f_it);
+            current_mesh->property(h_fund_error_mat, *f_it) = calculate_fundamental_error_matrix(*f_it);
         }
 
         // --- Calculation of Q matrices per vertex ---
 
         // iterate all vertices and calculate their error matrices
-        MyMesh::VertexIter v_it, v_end(mesh.vertices_end());
+        MyMesh::VertexIter v_it, v_end(current_mesh->vertices_end());
         MyMesh::VertexFaceCWIter vf_it;
 
-        for (v_it = mesh.vertices_sbegin(); v_it != v_end; ++v_it)
+        for (v_it = current_mesh->vertices_sbegin(); v_it != v_end; ++v_it)
         {
             // circulate the faces of the vertex and add the matrices
             mat4 error_mat = mat4::Zero();
 
-            vf_it = mesh.cvf_cwbegin(*v_it);
+            vf_it = current_mesh->cvf_cwbegin(*v_it);
 
             for (; vf_it.is_valid(); ++vf_it)
             {
                 MyMesh::FaceHandle f = *vf_it;
-                error_mat += mesh.property(h_fund_error_mat, f);
+                error_mat += current_mesh->property(h_fund_error_mat, f);
             }
 
             // set the vertex error matrix
-            mesh.property(h_errorMatrix, *v_it) = error_mat;
+            current_mesh->property(h_errorMatrix, *v_it) = error_mat;
         }
 
         // remove fundamental error matrices from faces
-        mesh.remove_property(h_fund_error_mat);
+        current_mesh->remove_property(h_fund_error_mat);
     }
 
 
     // 2. Find a collapse target and the corresponding error for every vertex
 
     // initialize heap
-    OpenMesh::Decimater::DecimaterT<OpenTriangleMesh>::HeapInterface collapseCandidates_HI(mesh, h_error,
+    OpenMesh::Decimater::DecimaterT<OpenTriangleMesh>::HeapInterface collapseCandidates_HI(*current_mesh, h_error,
                                                                                            h_heap_position);
     collapseCandidates_heap.reset(new DeciHeap(collapseCandidates_HI));
-    collapseCandidates_heap->reserve(mesh.n_vertices());
+    collapseCandidates_heap->reserve(current_mesh->n_vertices());
 
     // do the decimation loop
     {
         // iterate all vertices and find their best decimation partner
-        MyMesh::VertexIter v_it, v_end(mesh.vertices_end());
+        MyMesh::VertexIter v_it, v_end(current_mesh->vertices_end());
 
-        for (v_it = mesh.vertices_begin(); v_it != v_end; ++v_it)
+        for (v_it = current_mesh->vertices_begin(); v_it != v_end; ++v_it)
         {
             collapseCandidates_heap->reset_heap_position(*v_it);
-            if (!mesh.status(*v_it).deleted()) update_vertex(*v_it);
+            if (!current_mesh->status(*v_it).deleted()) update_vertex(*v_it);
         }
     }
 
@@ -126,7 +128,7 @@ void Saiga::QuadricDecimater::decimate_quadric(MyMesh& mesh_in)
 
         // initialize counter variables for in case a specific amount of decimations is requested
         int decimated_vertices = 0;
-        int my_max_collapses   = (settings.max_decimations <= 0) ? mesh.n_vertices() : settings.max_decimations;
+        int my_max_collapses   = (settings.max_decimations <= 0) ? current_mesh->n_vertices() : settings.max_decimations;
 
         while (!collapseCandidates_heap->empty() && decimated_vertices < my_max_collapses)
         {
@@ -134,7 +136,7 @@ void Saiga::QuadricDecimater::decimate_quadric(MyMesh& mesh_in)
             collapseCandidates_heap->pop_front();
 
             // collapse the edge
-            MyMesh::HalfedgeHandle collapse_edge = mesh.property(h_collapseTarget, current_candidate);
+            MyMesh::HalfedgeHandle collapse_edge = current_mesh->property(h_collapseTarget, current_candidate);
             if (!custom_is_collapse_legal(collapse_edge))
             {
                 // re-calculate the vertex error
@@ -142,26 +144,27 @@ void Saiga::QuadricDecimater::decimate_quadric(MyMesh& mesh_in)
                 continue;
             }
 
-            MyMesh::VertexHandle vh_base   = mesh.from_vertex_handle(collapse_edge);
-            MyMesh::VertexHandle vh_target = mesh.to_vertex_handle(collapse_edge);
-            mat4 new_error_mat = mesh.property(h_errorMatrix, vh_base) + mesh.property(h_errorMatrix, vh_target);
-            mesh.property(h_errorMatrix, vh_target) = new_error_mat;
+            MyMesh::VertexHandle vh_base   = current_mesh->from_vertex_handle(collapse_edge);
+            MyMesh::VertexHandle vh_target = current_mesh->to_vertex_handle(collapse_edge);
+            mat4 new_error_mat =
+                current_mesh->property(h_errorMatrix, vh_base) + current_mesh->property(h_errorMatrix, vh_target);
+            current_mesh->property(h_errorMatrix, vh_target) = new_error_mat;
 
             // save all the vertices that will have to be updated
             support.clear();
-            for (auto vv_it = mesh.vv_cwiter(vh_base); vv_it.is_valid(); ++vv_it)
+            for (auto vv_it = current_mesh->vv_cwiter(vh_base); vv_it.is_valid(); ++vv_it)
             {
                 support.push_back(*vv_it);
             }
 
-            mesh.collapse(collapse_edge);
+            current_mesh->collapse(collapse_edge);
             ++decimated_vertices;
 
             // update the face normals surrounding the target vertex
-            MyMesh::VertexFaceCWIter vf_it = mesh.vf_cwiter(vh_target);
+            MyMesh::VertexFaceCWIter vf_it = current_mesh->vf_cwiter(vh_target);
             for (; vf_it.is_valid(); ++vf_it)
             {
-                mesh.set_normal(*vf_it, mesh.calc_face_normal(*vf_it));
+                current_mesh->set_normal(*vf_it, current_mesh->calc_face_normal(*vf_it));
             }
 
             // update the information of surrounding edges
@@ -172,7 +175,7 @@ void Saiga::QuadricDecimater::decimate_quadric(MyMesh& mesh_in)
             // update the newly created vertex, its neighbours and their location in the heap
             for (MyMesh::VertexHandle vh : support)
             {
-                assert(!mesh.status(vh).deleted());
+                assert(!current_mesh->status(vh).deleted());
                 update_vertex(vh);
             }
         }
@@ -182,46 +185,34 @@ void Saiga::QuadricDecimater::decimate_quadric(MyMesh& mesh_in)
 
     collapseCandidates_heap.reset();
 
-    mesh.delete_isolated_vertices();
-    mesh.garbage_collection();
+    current_mesh->delete_isolated_vertices();
+    current_mesh->garbage_collection();
 
     // remove properties
-    mesh.remove_property(h_error);
-    mesh.remove_property(h_heap_position);
-    mesh.remove_property(h_errorMatrix);
-    mesh.remove_property(h_collapseTarget);
-    if (settings.check_folding_triangles == true) mesh.remove_property(h_folding_triangles_edge);
-    if (settings.check_self_intersections == true) mesh.remove_property(h_collapse_self_intersection);
-    if (settings.only_collapse_roughly_parallel_borders == true) mesh.remove_property(h_parallel_border_edges);
-    if (settings.check_interior_angles == true) mesh.remove_property(h_interior_angles_undershot);
+    current_mesh->remove_property(h_error);
+    current_mesh->remove_property(h_heap_position);
+    current_mesh->remove_property(h_errorMatrix);
+    current_mesh->remove_property(h_collapseTarget);
+    if (settings.check_folding_triangles) current_mesh->remove_property(h_folding_triangles_edge);
+    if (settings.check_self_intersections) current_mesh->remove_property(h_collapse_self_intersection);
+    if (settings.only_collapse_roughly_parallel_borders) current_mesh->remove_property(h_parallel_border_edges);
+    if (settings.check_interior_angles) current_mesh->remove_property(h_interior_angles_undershot);
 
 
     // deactivate status
-    mesh.release_face_status();
-    mesh.release_edge_status();
-    mesh.release_vertex_status();
-
-    mesh_in = mesh;
+    current_mesh->release_face_status();
+    current_mesh->release_edge_status();
+    current_mesh->release_vertex_status();
 }
 
 // --- PRIVATE ---
 
-bool Saiga::QuadricDecimater::check_minimal_interior_angles_undershot(MyMesh::HalfedgeHandle collapse_edge)
+bool QuadricDecimater::check_minimal_interior_angles_undershot(MyMesh::HalfedgeHandle collapse_edge)
 {
-    MyMesh::FaceHandle collapse_face_1(mesh.face_handle(collapse_edge));
-    MyMesh::FaceHandle collapse_face_2(mesh.opposite_face_handle(collapse_edge));
+    MyMesh::FaceHandle collapse_face_1(current_mesh->face_handle(collapse_edge));
+    MyMesh::FaceHandle collapse_face_2(current_mesh->opposite_face_handle(collapse_edge));
 
-    float a, b, c;  // side lengths
-
-    MyMesh::VertexHandle vh1;
-    MyMesh::VertexHandle vh2;
-    MyMesh::VertexHandle vh3;
-    OpenMesh::Vec3f v1;
-    OpenMesh::Vec3f v2;
-    OpenMesh::Vec3f v3;
-
-    MyMesh::VFCWIter vf_iter = mesh.vf_cwiter(mesh.from_vertex_handle(collapse_edge));
-    MyMesh::FVCCWIter fv_iter;
+    MyMesh::VFCWIter vf_iter = current_mesh->vf_cwiter(current_mesh->from_vertex_handle(collapse_edge));
 
     for (; vf_iter.is_valid(); ++vf_iter)
     {
@@ -229,29 +220,29 @@ bool Saiga::QuadricDecimater::check_minimal_interior_angles_undershot(MyMesh::Ha
         if (*vf_iter == collapse_face_1 || *vf_iter == collapse_face_2) continue;
 
         // find the vertices of the resulting face after a collapse
-        fv_iter = mesh.fv_ccwbegin(*vf_iter);
+        MyMesh::FVCCWIter fv_iter = current_mesh->fv_ccwbegin(*vf_iter);
 
-        vh1 = *fv_iter;
+        MyMesh::VertexHandle vh1 = *fv_iter;
         ++fv_iter;
-        vh2 = *fv_iter;
+        MyMesh::VertexHandle vh2 = *fv_iter;
         ++fv_iter;
-        vh3 = *fv_iter;
+        MyMesh::VertexHandle vh3 = *fv_iter;
 
-        if (vh1 == mesh.from_vertex_handle(collapse_edge))
-            vh1 = mesh.to_vertex_handle(collapse_edge);
-        else if (vh2 == mesh.from_vertex_handle(collapse_edge))
-            vh2 = mesh.to_vertex_handle(collapse_edge);
-        else if (vh3 == mesh.from_vertex_handle(collapse_edge))
-            vh3 = mesh.to_vertex_handle(collapse_edge);
+        if (vh1 == current_mesh->from_vertex_handle(collapse_edge))
+            vh1 = current_mesh->to_vertex_handle(collapse_edge);
+        else if (vh2 == current_mesh->from_vertex_handle(collapse_edge))
+            vh2 = current_mesh->to_vertex_handle(collapse_edge);
+        else if (vh3 == current_mesh->from_vertex_handle(collapse_edge))
+            vh3 = current_mesh->to_vertex_handle(collapse_edge);
 
-        v1 = mesh.point(vh1);
-        v2 = mesh.point(vh2);
-        v3 = mesh.point(vh3);
+        OpenMesh::Vec3f v1 = current_mesh->point(vh1);
+        OpenMesh::Vec3f v2 = current_mesh->point(vh2);
+        OpenMesh::Vec3f v3 = current_mesh->point(vh3);
 
         // get the side lenght from the vertices
-        a = (v1 - v2).length();
-        b = (v2 - v3).length();
-        c = (v3 - v1).length();
+        float a = (v1 - v2).length();
+        float b = (v2 - v3).length();
+        float c = (v3 - v1).length();
 
         // calculate interior angles of the triangle
         if (acos((b * b + c * c - a * a) / (2 * b * c)) < settings.minimal_interior_angle_rad ||
@@ -265,55 +256,44 @@ bool Saiga::QuadricDecimater::check_minimal_interior_angles_undershot(MyMesh::Ha
     return false;
 }
 
-bool Saiga::QuadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeHandle collapse_edge)
+bool QuadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeHandle collapse_edge)
 {
-    MyMesh::FaceHandle collapse_face_1(mesh.face_handle(collapse_edge));
-    MyMesh::FaceHandle collapse_face_2(mesh.opposite_face_handle(collapse_edge));
+    MyMesh::FaceHandle collapse_face_1(current_mesh->face_handle(collapse_edge));
+    MyMesh::FaceHandle collapse_face_2(current_mesh->opposite_face_handle(collapse_edge));
 
-    OpenMesh::Vec3f pre_collapse_normal;
-    OpenMesh::Vec3f post_collapse_normal;
-
-    MyMesh::VertexHandle vh1;
-    MyMesh::VertexHandle vh2;
-    MyMesh::VertexHandle vh3;
-    OpenMesh::Vec3f v1;
-    OpenMesh::Vec3f v2;
-    OpenMesh::Vec3f v3;
-
-    MyMesh::VFCCWIter vf_iter = mesh.vf_ccwiter(mesh.from_vertex_handle(collapse_edge));
-    MyMesh::FVCCWIter fv_iter;
+    MyMesh::VFCCWIter vf_iter = current_mesh->vf_ccwiter(current_mesh->from_vertex_handle(collapse_edge));
 
     for (; vf_iter.is_valid(); ++vf_iter)
     {
         // the faces that disappear in the collapse don't matter
         if (*vf_iter == collapse_face_1 || *vf_iter == collapse_face_2) continue;
 
-        pre_collapse_normal = mesh.normal(*vf_iter).normalized();
+        OpenMesh::Vec3f pre_collapse_normal = current_mesh->normal(*vf_iter).normalized();
 
         // find the vertices of the resulting face after a collapse
-        fv_iter = mesh.fv_ccwbegin(*vf_iter);
+        MyMesh::FVCCWIter fv_iter = current_mesh->fv_ccwbegin(*vf_iter);
 
-        vh1 = *fv_iter;
+        MyMesh::VertexHandle vh1 = *fv_iter;
         ++fv_iter;
-        vh2 = *fv_iter;
+        MyMesh::VertexHandle vh2 = *fv_iter;
         ++fv_iter;
-        vh3 = *fv_iter;
+        MyMesh::VertexHandle vh3 = *fv_iter;
 
-        if (vh1 == mesh.from_vertex_handle(collapse_edge))
-            vh1 = mesh.to_vertex_handle(collapse_edge);
-        else if (vh2 == mesh.from_vertex_handle(collapse_edge))
-            vh2 = mesh.to_vertex_handle(collapse_edge);
-        else if (vh3 == mesh.from_vertex_handle(collapse_edge))
-            vh3 = mesh.to_vertex_handle(collapse_edge);
+        if (vh1 == current_mesh->from_vertex_handle(collapse_edge))
+            vh1 = current_mesh->to_vertex_handle(collapse_edge);
+        else if (vh2 == current_mesh->from_vertex_handle(collapse_edge))
+            vh2 = current_mesh->to_vertex_handle(collapse_edge);
+        else if (vh3 == current_mesh->from_vertex_handle(collapse_edge))
+            vh3 = current_mesh->to_vertex_handle(collapse_edge);
 
-        v1 = mesh.point(vh1);
-        v2 = mesh.point(vh2);
-        v3 = mesh.point(vh3);
+        OpenMesh::Vec3f v1 = current_mesh->point(vh1);
+        OpenMesh::Vec3f v2 = current_mesh->point(vh2);
+        OpenMesh::Vec3f v3 = current_mesh->point(vh3);
 
         // get the normal from those vertices
-        OpenMesh::Vec3f edge1 = v2 - v1;
-        OpenMesh::Vec3f edge2 = v3 - v1;
-        post_collapse_normal  = cross(edge1, edge2).normalized();
+        OpenMesh::Vec3f edge1                = v2 - v1;
+        OpenMesh::Vec3f edge2                = v3 - v1;
+        OpenMesh::Vec3f post_collapse_normal = cross(edge1, edge2).normalized();
 
         // if the angle between old and new normal is too great, the triangle probably gets flipped
         if (dot(pre_collapse_normal, post_collapse_normal) < 0.5)
@@ -325,7 +305,7 @@ bool Saiga::QuadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeH
     return false;
 }
 
-bool Saiga::QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0v1)
+bool QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0v1)
 {
     /**
      *       vl
@@ -342,42 +322,42 @@ bool Saiga::QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0
      **/
 
     // get the handles
-    MyMesh::HalfedgeHandle v1v0(mesh.opposite_halfedge_handle(v0v1));  ///< Reverse halfedge
-    MyMesh::VertexHandle v0(mesh.to_vertex_handle(v1v0));              ///< Vertex to be removed
-    MyMesh::VertexHandle v1(mesh.to_vertex_handle(v0v1));              ///< Remaining vertex
-    MyMesh::FaceHandle fl(mesh.face_handle(v0v1));                     ///< Left face
-    MyMesh::FaceHandle fr(mesh.face_handle(v1v0));                     ///< Right face
-    MyMesh::VertexHandle vl;                                           ///< Left vertex
-    MyMesh::VertexHandle vr;                                           ///< Right vertex
+    MyMesh::HalfedgeHandle v1v0(current_mesh->opposite_halfedge_handle(v0v1));  ///< Reverse halfedge
+    MyMesh::VertexHandle v0(current_mesh->to_vertex_handle(v1v0));              ///< Vertex to be removed
+    MyMesh::VertexHandle v1(current_mesh->to_vertex_handle(v0v1));              ///< Remaining vertex
+    MyMesh::FaceHandle fl(current_mesh->face_handle(v0v1));                     ///< Left face
+    MyMesh::FaceHandle fr(current_mesh->face_handle(v1v0));                     ///< Right face
+    MyMesh::VertexHandle vl;                                                   ///< Left vertex
+    MyMesh::VertexHandle vr;                                                   ///< Right vertex
 
     MyMesh::HalfedgeHandle vlv1, v0vl, vrv0, v1vr;  ///< Outer remaining halfedges
 
     // get vl
     if (fl.is_valid())
     {
-        vlv1 = mesh.next_halfedge_handle(v0v1);
-        v0vl = mesh.next_halfedge_handle(vlv1);
-        vl   = mesh.to_vertex_handle(vlv1);
-        vlv1 = mesh.opposite_halfedge_handle(vlv1);
-        v0vl = mesh.opposite_halfedge_handle(v0vl);
+        vlv1 = current_mesh->next_halfedge_handle(v0v1);
+        v0vl = current_mesh->next_halfedge_handle(vlv1);
+        vl   = current_mesh->to_vertex_handle(vlv1);
+        vlv1 = current_mesh->opposite_halfedge_handle(vlv1);
+        v0vl = current_mesh->opposite_halfedge_handle(v0vl);
     }
 
     // get vr
     if (fr.is_valid())
     {
-        vrv0 = mesh.next_halfedge_handle(v1v0);
-        v1vr = mesh.next_halfedge_handle(vrv0);
-        vr   = mesh.to_vertex_handle(vrv0);
-        vrv0 = mesh.opposite_halfedge_handle(vrv0);
-        v1vr = mesh.opposite_halfedge_handle(v1vr);
+        vrv0 = current_mesh->next_halfedge_handle(v1v0);
+        v1vr = current_mesh->next_halfedge_handle(vrv0);
+        vr   = current_mesh->to_vertex_handle(vrv0);
+        vrv0 = current_mesh->opposite_halfedge_handle(vrv0);
+        v1vr = current_mesh->opposite_halfedge_handle(v1vr);
     }
 
     // -------------------------------------
     // check if things are legal to collapse
     // -------------------------------------
 
-    // locked ?
-    if (mesh.status(v0).locked()) return false;
+    // was the vertex locked by someone?
+    if (current_mesh->status(v0).locked()) return false;
 
     // this test checks:
     // is v0v1 deleted?
@@ -388,35 +368,37 @@ bool Saiga::QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0
     // are vl and vr equal or both invalid?
     // one ring intersection test
     // edge between two boundary vertices should be a boundary edge
-    if (!mesh.is_collapse_ok(v0v1)) return false;
+    if (!current_mesh->is_collapse_ok(v0v1)) return false;
 
     // my modification
-    if (settings.check_self_intersections == true && mesh.property(h_collapse_self_intersection, v0v1) == true)
+    if (settings.check_self_intersections && current_mesh->property(h_collapse_self_intersection, v0v1))
         return false;
 
     // my modification
-    if (settings.only_collapse_roughly_parallel_borders == true && mesh.is_boundary(mesh.edge_handle(v0v1)))
+    if (settings.only_collapse_roughly_parallel_borders &&
+        current_mesh->is_boundary(current_mesh->edge_handle(v0v1)))
     {
-        if (mesh.property(h_parallel_border_edges, v0v1) == false)
+        if (current_mesh->property(h_parallel_border_edges, v0v1) == false)
         {
             return false;
         }
     }
 
-    if (vl.is_valid() && vr.is_valid() && mesh.find_halfedge(vl, vr).is_valid() && mesh.valence(vl) == 3 &&
-        mesh.valence(vr) == 3)
+    if (vl.is_valid() && vr.is_valid() && current_mesh->find_halfedge(vl, vr).is_valid() &&
+        current_mesh->valence(vl) == 3 && current_mesh->valence(vr) == 3)
     {
         return false;
     }
     //--- feature test ---
 
-    if (mesh.status(v0).feature() && !mesh.status(mesh.edge_handle(v0v1)).feature()) return false;
+    if (current_mesh->status(v0).feature() && !current_mesh->status(current_mesh->edge_handle(v0v1)).feature())
+        return false;
 
     //--- test boundary cases ---
-    if (mesh.is_boundary(v0))
+    if (current_mesh->is_boundary(v0))
     {
         // don't collapse a boundary vertex to an inner one
-        if (!mesh.is_boundary(v1)) return false;
+        if (!current_mesh->is_boundary(v1)) return false;
 
         // only one one ring intersection
         if (vl.is_valid() && vr.is_valid()) return false;
@@ -424,23 +406,23 @@ bool Saiga::QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0
 
 
     // there have to be at least 2 incident faces at v0
-    if (mesh.cw_rotated_halfedge_handle(mesh.cw_rotated_halfedge_handle(v0v1)) == v0v1) return false;
+    if (current_mesh->cw_rotated_halfedge_handle(current_mesh->cw_rotated_halfedge_handle(v0v1)) == v0v1) return false;
 
     // collapse passed all tests -> ok
     return true;
 }
 
-Saiga::mat4 Saiga::QuadricDecimater::calculate_fundamental_error_matrix(const MyMesh::FaceHandle fh)
+mat4 QuadricDecimater::calculate_fundamental_error_matrix(const MyMesh::FaceHandle fh)
 {
     // https://en.wikipedia.org/wiki/Plane_(geometry)#Describing_a_plane_through_three_points
 
-    MyMesh::FaceVertexCWIter fv_it = mesh.cfv_cwbegin(fh);
+    MyMesh::FaceVertexCWIter fv_it = current_mesh->cfv_cwbegin(fh);
     MyMesh::VertexHandle vh0       = *fv_it;
     MyMesh::VertexHandle vh1       = *(++fv_it);
     MyMesh::VertexHandle vh2       = *(++fv_it);
-    OpenMesh::Vec3f v0             = mesh.point(vh0);
-    OpenMesh::Vec3f v1             = mesh.point(vh1);
-    OpenMesh::Vec3f v2             = mesh.point(vh2);
+    OpenMesh::Vec3f v0             = current_mesh->point(vh0);
+    OpenMesh::Vec3f v1             = current_mesh->point(vh1);
+    OpenMesh::Vec3f v2             = current_mesh->point(vh2);
 
     OpenMesh::Vec3f normal = OpenMesh::cross((v1 - v0), (v2 - v0));
 
@@ -474,44 +456,43 @@ Saiga::mat4 Saiga::QuadricDecimater::calculate_fundamental_error_matrix(const My
     return k_p;
 }
 
-bool Saiga::QuadricDecimater::check_for_folding_triangles(const MyMesh::EdgeHandle edge)
+bool QuadricDecimater::check_for_folding_triangles(const MyMesh::EdgeHandle edge)
 {
-    // if any of the triangles that are altered by this collapse have normals with greater angles than 60° to each
-    // other, don't consider it
+    // check if any of the triangles that are altered by this collapse have normals with greater
+    // angles than 60° to each other
     // --> loop through all faces of the vertices of the cendidat edge and check their normals against each other
 
-    std::set<OpenMesh::Vec3f> normals;
-
     // collect all normals
-    MyMesh::VertexFaceCWIter fcw_it  = mesh.cvf_cwbegin(mesh.to_vertex_handle(mesh.halfedge_handle(edge, 0)));
-    MyMesh::VertexFaceCWIter fcw_it2 = mesh.cvf_cwbegin(mesh.from_vertex_handle(mesh.halfedge_handle(edge, 0)));
+    std::vector<OpenMesh::Vec3f> normals;
+    MyMesh::VertexFaceCWIter fcw_it =
+        current_mesh->cvf_cwbegin(current_mesh->to_vertex_handle(current_mesh->halfedge_handle(edge, 0)));
+    MyMesh::VertexFaceCWIter fcw_it2 =
+        current_mesh->cvf_cwbegin(current_mesh->from_vertex_handle(current_mesh->halfedge_handle(edge, 0)));
 
     while (fcw_it.is_valid())
     {
-        if (mesh.status(*fcw_it).deleted()) continue;
-        normals.insert(mesh.normal(*fcw_it));
+        if (current_mesh->status(*fcw_it).deleted()) continue;
+        normals.push_back(current_mesh->normal(*fcw_it));
         ++fcw_it;
     }
     while (fcw_it2.is_valid())
     {
-        if (mesh.status(*fcw_it2).deleted()) continue;
-        normals.insert(mesh.normal(*fcw_it2));
+        if (current_mesh->status(*fcw_it2).deleted()) continue;
+        normals.push_back(current_mesh->normal(*fcw_it2));
         ++fcw_it2;
     }
 
     // check them against each other
-    std::vector<OpenMesh::Vec3f> normals_vec(normals.begin(), normals.end());
-
-    for (int i = 0; i < normals_vec.size(); ++i)
+    for (int i = 0; i < normals.size(); ++i)
     {
-        OpenMesh::Vec3f normal_1 = normals_vec[i];
+        OpenMesh::Vec3f normal_1 = normals[i];
 
-        for (int j = i + 1; j < normals_vec.size(); ++j)
+        for (int j = i + 1; j < normals.size(); ++j)
         {
             // dot(A,B) = |A| * |B| * cos(angle)
             // which can be rearranged to
             // angle = arccos(dot(A, B) / (|A| * |B|)).
-            float angle = OpenMesh::dot(normal_1, normals_vec[j]);
+            float angle = OpenMesh::dot(normal_1, normals[j]);
             angle       = acos(angle);
 
             // pi<float>() / 3.0f rad = 60 degree
@@ -526,8 +507,8 @@ bool Saiga::QuadricDecimater::check_for_folding_triangles(const MyMesh::EdgeHand
     return false;
 }
 
-bool Saiga::QuadricDecimater::check_edge_parallelity(const OpenMesh::Vec3f v0, const OpenMesh::Vec3f v1,
-                                                     const OpenMesh::Vec3f v2)
+bool QuadricDecimater::check_edge_parallelity(const OpenMesh::Vec3f v0, const OpenMesh::Vec3f v1,
+                                              const OpenMesh::Vec3f v2)
 {
     OpenMesh::Vec3f edge0((v0 - v1).normalize()), edge1((v1 - v2).normalize());
 
@@ -539,45 +520,49 @@ bool Saiga::QuadricDecimater::check_edge_parallelity(const OpenMesh::Vec3f v0, c
     return true;
 }
 
-float Saiga::QuadricDecimater::calculate_collapse_error(const MyMesh::HalfedgeHandle candidat_edge)
+float QuadricDecimater::calculate_collapse_error(const MyMesh::HalfedgeHandle candidat_edge)
 {
-    MyMesh::VertexHandle vh1 = mesh.from_vertex_handle(candidat_edge);
-    MyMesh::VertexHandle vh2 = mesh.to_vertex_handle(candidat_edge);
-    vec4 v2                  = vec4(mesh.point(vh2)[0], mesh.point(vh2)[1], mesh.point(vh2)[2], 1.0f);
+    MyMesh::VertexHandle vh1 = current_mesh->from_vertex_handle(candidat_edge);
+    MyMesh::VertexHandle vh2 = current_mesh->to_vertex_handle(candidat_edge);
+    vec4 v2 = vec4(current_mesh->point(vh2)[0], current_mesh->point(vh2)[1], current_mesh->point(vh2)[2], 1.0f);
 
-    float error = dot(v2, (mesh.property(h_errorMatrix, vh1) + mesh.property(h_errorMatrix, vh2)) * v2);
+    float error = dot(v2, (current_mesh->property(h_errorMatrix, vh1) + current_mesh->property(h_errorMatrix, vh2)) * v2);
 
-    if (settings.check_folding_triangles == true)
+    if (settings.check_folding_triangles)
     {
-        if (mesh.property(h_folding_triangles_edge, mesh.edge_handle(candidat_edge)) == true)
+        if (current_mesh->property(h_folding_triangles_edge, current_mesh->edge_handle(candidat_edge)))
         {
+            // the collapse affects folding triangles
+            // --> add a penalty to the calculated error
             error *= 10.0f;
         }
     }
 
     // undershooting interior angles gives a strong penalty
-    if (settings.check_interior_angles == true)
+    if (settings.check_interior_angles)
     {
-        if (mesh.property(h_interior_angles_undershot, candidat_edge) == true)
+        if (current_mesh->property(h_interior_angles_undershot, candidat_edge))
         {
+            // the collapse causes some acute triangles
+            // (or rather triangles with at least one interior angle below settings.minimal_interior_angle_rad)
+            // --> add a penalty to the calculated error
             error *= 10.0f;
         }
     }
 
     // divide error by squared distance
-    OpenMesh::Vec3f a             = mesh.point(vh1);
-    OpenMesh::Vec3f b             = mesh.point(vh2);
+    OpenMesh::Vec3f a             = current_mesh->point(vh1);
+    OpenMesh::Vec3f b             = current_mesh->point(vh2);
     OpenMesh::Vec3f mid           = (a + b) / 2.0f;
     float edge_to_camera_distance = mid.length();
-    error                         = error / pow(edge_to_camera_distance, 2);
+    error                         = error / (edge_to_camera_distance * edge_to_camera_distance);
 
     return error;
 }
 
-float Saiga::QuadricDecimater::find_collapse_partner(const MyMesh::VertexHandle vh,
-                                                     MyMesh::HalfedgeHandle& collapse_edge)
+float QuadricDecimater::find_collapse_partner(const MyMesh::VertexHandle vh, MyMesh::HalfedgeHandle& collapse_edge)
 {
-    MyMesh::VertexOHalfedgeCWIter he_it = mesh.cvoh_cwbegin(vh);
+    MyMesh::VertexOHalfedgeCWIter he_it = current_mesh->cvoh_cwbegin(vh);
     float error                         = std::numeric_limits<float>::max();
 
     float error_tmp;
@@ -585,7 +570,7 @@ float Saiga::QuadricDecimater::find_collapse_partner(const MyMesh::VertexHandle 
     {
         if (!custom_is_collapse_legal(*he_it))
         {
-            error_tmp = settings.quadricMaxError + 999.9f;
+            continue;
         }
         else
         {
@@ -602,7 +587,7 @@ float Saiga::QuadricDecimater::find_collapse_partner(const MyMesh::VertexHandle 
     return error;
 }
 
-void Saiga::QuadricDecimater::update_vertex(const MyMesh::VertexHandle vh)
+void QuadricDecimater::update_vertex(const MyMesh::VertexHandle vh)
 {
     // calculate new best fit
     MyMesh::HalfedgeHandle heh;
@@ -612,8 +597,8 @@ void Saiga::QuadricDecimater::update_vertex(const MyMesh::VertexHandle vh)
     if (heh.is_valid() && error <= settings.quadricMaxError)
     {
         // update the information in the vertex
-        mesh.property(h_collapseTarget, vh) = heh;
-        mesh.property(h_error, vh)          = error;
+        current_mesh->property(h_collapseTarget, vh) = heh;
+        current_mesh->property(h_error, vh)          = error;
 
         if (collapseCandidates_heap->is_stored(vh))
             collapseCandidates_heap->update(vh);
@@ -626,69 +611,70 @@ void Saiga::QuadricDecimater::update_vertex(const MyMesh::VertexHandle vh)
         // remove from set if the error is too big
         if (collapseCandidates_heap->is_stored(vh)) collapseCandidates_heap->remove(vh);
 
-        mesh.property(h_error, vh) = -1;
+        current_mesh->property(h_error, vh) = -1;
     }
 }
 
-void Saiga::QuadricDecimater::update_edge(const MyMesh::EdgeHandle eh)
+void QuadricDecimater::update_edge(const MyMesh::EdgeHandle eh)
 {
-    MyMesh::HalfedgeHandle heh0 = mesh.halfedge_handle(eh, 0);
-    MyMesh::HalfedgeHandle heh1 = mesh.halfedge_handle(eh, 1);
+    MyMesh::HalfedgeHandle heh0 = current_mesh->halfedge_handle(eh, 0);
+    MyMesh::HalfedgeHandle heh1 = current_mesh->halfedge_handle(eh, 1);
 
     if (settings.check_self_intersections)
     {
-        mesh.property(h_collapse_self_intersection, heh0) = check_collapse_self_intersection(heh0);
-        mesh.property(h_collapse_self_intersection, heh1) = check_collapse_self_intersection(heh1);
+        current_mesh->property(h_collapse_self_intersection, heh0) = check_collapse_self_intersection(heh0);
+        current_mesh->property(h_collapse_self_intersection, heh1) = check_collapse_self_intersection(heh1);
     }
 
     if (settings.check_interior_angles)
     {
-        mesh.property(h_interior_angles_undershot, heh0) = check_minimal_interior_angles_undershot(heh0);
-        mesh.property(h_interior_angles_undershot, heh1) = check_minimal_interior_angles_undershot(heh1);
+        current_mesh->property(h_interior_angles_undershot, heh0) = check_minimal_interior_angles_undershot(heh0);
+        current_mesh->property(h_interior_angles_undershot, heh1) = check_minimal_interior_angles_undershot(heh1);
     }
 
-    if (settings.check_folding_triangles) mesh.property(h_folding_triangles_edge, eh) = check_for_folding_triangles(eh);
+    if (settings.check_folding_triangles)
+        current_mesh->property(h_folding_triangles_edge, eh) = check_for_folding_triangles(eh);
 
     if (settings.only_collapse_roughly_parallel_borders)
     {
         // check if it's a border
-        if (mesh.is_boundary(eh))
+        if (current_mesh->is_boundary(eh))
         {
             // find the right halfedge
-            bool border_at_1 = mesh.is_boundary(heh1);
+            bool border_at_1 = current_mesh->is_boundary(heh1);
 
             OpenMesh::Vec3f v0, v1, v2, v3;
 
             if (border_at_1)
             {
-                v0 = mesh.point(mesh.from_vertex_handle(mesh.prev_halfedge_handle(heh1)));
-                v1 = mesh.point(mesh.from_vertex_handle(heh1));
-                v2 = mesh.point(mesh.to_vertex_handle(heh1));
-                v3 = mesh.point(mesh.to_vertex_handle(mesh.next_halfedge_handle(heh1)));
+                v0 = current_mesh->point(current_mesh->from_vertex_handle(current_mesh->prev_halfedge_handle(heh1)));
+                v1 = current_mesh->point(current_mesh->from_vertex_handle(heh1));
+                v2 = current_mesh->point(current_mesh->to_vertex_handle(heh1));
+                v3 = current_mesh->point(current_mesh->to_vertex_handle(current_mesh->next_halfedge_handle(heh1)));
 
-                mesh.property(h_parallel_border_edges, heh0) = check_edge_parallelity(v3, v2, v1);
-                mesh.property(h_parallel_border_edges, heh1) = check_edge_parallelity(v0, v1, v2);
+                current_mesh->property(h_parallel_border_edges, heh0) = check_edge_parallelity(v3, v2, v1);
+                current_mesh->property(h_parallel_border_edges, heh1) = check_edge_parallelity(v0, v1, v2);
             }
             else
             {
-                v0 = mesh.point(mesh.from_vertex_handle(mesh.prev_halfedge_handle(heh0)));
-                v1 = mesh.point(mesh.from_vertex_handle(heh0));
-                v2 = mesh.point(mesh.to_vertex_handle(heh0));
-                v3 = mesh.point(mesh.to_vertex_handle(mesh.next_halfedge_handle(heh0)));
+                v0 = current_mesh->point(current_mesh->from_vertex_handle(current_mesh->prev_halfedge_handle(heh0)));
+                v1 = current_mesh->point(current_mesh->from_vertex_handle(heh0));
+                v2 = current_mesh->point(current_mesh->to_vertex_handle(heh0));
+                v3 = current_mesh->point(current_mesh->to_vertex_handle(current_mesh->next_halfedge_handle(heh0)));
 
-                mesh.property(h_parallel_border_edges, heh0) = check_edge_parallelity(v0, v1, v2);
-                mesh.property(h_parallel_border_edges, heh1) = check_edge_parallelity(v3, v2, v1);
+                current_mesh->property(h_parallel_border_edges, heh0) = check_edge_parallelity(v0, v1, v2);
+                current_mesh->property(h_parallel_border_edges, heh1) = check_edge_parallelity(v3, v2, v1);
             }
         }
     }
 }
 
-void Saiga::QuadricDecimater::update_edges(const MyMesh::VertexHandle vh)
+void QuadricDecimater::update_edges(const MyMesh::VertexHandle vh)
 {
-    auto it = mesh.ve_begin(vh);
-    while (it.is_valid())
+    for (auto it = current_mesh->ve_begin(vh); it.is_valid(); ++it)
     {
         update_edge(*it);
-        ++it;
     }
 }
+
+}  // namespace Saiga

@@ -6,14 +6,14 @@
 
 #include "image_triangulator.h"
 
+namespace Saiga
+{
 // ------------------- naive triangulation -------------------
 
 // ----  PUBLIC  ----
-Saiga::SimpleTriangulator::SimpleTriangulator(Settings const& settings_in) : settings(settings_in) {}
+SimpleTriangulator::SimpleTriangulator(const Settings& settings_in) : settings(settings_in) {}
 
-Saiga::SimpleTriangulator::~SimpleTriangulator() {}
-
-void Saiga::SimpleTriangulator::triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out)
+void SimpleTriangulator::triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out)
 {
     // create an ImageView to hold the vertexHandles that are added to the mesh
     std::vector<OpenMesh::VertexHandle> pixel_vertexHandles(depthImage.height * depthImage.width);
@@ -49,16 +49,18 @@ void Saiga::SimpleTriangulator::triangulate_image(ImageView<const float> depthIm
 }
 
 // ----  PRIVATE  ----
-void Saiga::SimpleTriangulator::add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2,
-                                                 MyMesh::VertexHandle vh3)
+void SimpleTriangulator::add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2,
+                                          MyMesh::VertexHandle vh3)
 {
-    if (mesh.point(vh1)[2] == settings.broken_values || mesh.point(vh2)[2] == settings.broken_values || mesh.point(vh3)[2] == settings.broken_values) return;
+    if (mesh.point(vh1)[2] == settings.broken_values || mesh.point(vh2)[2] == settings.broken_values ||
+        mesh.point(vh3)[2] == settings.broken_values)
+        return;
 
     mesh.add_face(vh1, vh2, vh3);
 }
 
-void Saiga::SimpleTriangulator::add_vertices_to_mesh(ImageView<const float> depthImageView,
-                                                     ImageView<OpenMesh::VertexHandle> pixel_vertices, MyMesh& mesh)
+void SimpleTriangulator::add_vertices_to_mesh(ImageView<const float> depthImageView,
+                                              ImageView<OpenMesh::VertexHandle> pixel_vertices, MyMesh& mesh)
 {
     int height = depthImageView.height;
     int width  = depthImageView.width;
@@ -70,9 +72,9 @@ void Saiga::SimpleTriangulator::add_vertices_to_mesh(ImageView<const float> dept
     ip_settings.cameraParameters = settings.cameraParameters;
     ImageProcessor ip(ip_settings);
 
-    std::vector<OpenMesh::Vec3f> unprojected_image(height * width);
-    ImageView<OpenMesh::Vec3f> unprojected_image_iV(height, width, unprojected_image.data());
-    ip.unproject_depth_image(depthImageView, unprojected_image_iV);
+    std::vector<OpenMesh::Vec3f> unprojected_image_vector(height * width);
+    ImageView<OpenMesh::Vec3f> unprojected_image(height, width, unprojected_image_vector.data());
+    ip.unproject_depth_image(depthImageView, unprojected_image);
 
     // iterate the pixels and add the not broken ones to the mesh
     OpenMesh::VertexHandle vh;
@@ -83,7 +85,7 @@ void Saiga::SimpleTriangulator::add_vertices_to_mesh(ImageView<const float> dept
             // add the vertex and color it
             if (depthImageView(h, w) != settings.broken_values)
             {
-                vh = mesh.add_vertex(unprojected_image_iV(h, w));
+                vh = mesh.add_vertex(unprojected_image(h, w));
                 if (mesh.has_vertex_colors())
                 {
                     mesh.set_color(vh,
@@ -100,8 +102,7 @@ void Saiga::SimpleTriangulator::add_vertices_to_mesh(ImageView<const float> dept
     }
 }
 
-void Saiga::SimpleTriangulator::completely_triangulate(MyMesh& mesh,
-                                                       ImageView<OpenMesh::VertexHandle> pixel_vertexHandles)
+void SimpleTriangulator::completely_triangulate(MyMesh& mesh, ImageView<OpenMesh::VertexHandle> pixel_vertexHandles)
 {
     // I add the faces on the lower right per vertex (the "4th quadrant" basically)
     for (int h = 0; h < pixel_vertexHandles.height - 1; ++h)
@@ -182,39 +183,36 @@ void Saiga::SimpleTriangulator::completely_triangulate(MyMesh& mesh,
 // ------------------- RQT triangulation -------------------
 
 // ----  PUBLIC  ----
-Saiga::RQT_Triangulator::RQT_Triangulator(Settings const& settings_in) : settings(settings_in)
+RQT_Triangulator::RQT_Triangulator(const Settings& settings_in) : settings(settings_in)
 {
     RQT_side_len = get_closest_RQT_side_length(settings_in.image_height, settings_in.image_width);
 
     create_dependency_graph();
 }
 
-Saiga::RQT_Triangulator::~RQT_Triangulator() {}
-
-void Saiga::RQT_Triangulator::triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out)
+void RQT_Triangulator::triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out)
 {
     ImageProcessor::Settings ip_settings;
     ip_settings.cameraParameters = settings.cameraParameters;
     ImageProcessor ip(ip_settings);
 
     // unproject the image
-    std::vector<OpenMesh::Vec3f> unprojected_image =
-        std::vector<OpenMesh::Vec3f>(settings.image_height * settings.image_width);
-    ImageView<OpenMesh::Vec3f> unprojected_imV =
-        ImageView<OpenMesh::Vec3f>(settings.image_height, settings.image_width, unprojected_image.data());
-    ip.unproject_depth_image(depthImage, unprojected_imV);
+    std::vector<OpenMesh::Vec3f> unprojected_image_vector(settings.image_height * settings.image_width);
+    ImageView<OpenMesh::Vec3f> unprojected_image(settings.image_height, settings.image_width,
+                                                 unprojected_image_vector.data());
+
+    ip.unproject_depth_image(depthImage, unprojected_image);
 
     // create an ImageView for the selected vertices
-    std::vector<MyMesh::VertexHandle> selected_vertices_vec =
-        std::vector<MyMesh::VertexHandle>(settings.image_height * settings.image_width, MyMesh::VertexHandle());
-    ImageView<MyMesh::VertexHandle> selected_vertices_imV =
-        ImageView<MyMesh::VertexHandle>(settings.image_height, settings.image_width, selected_vertices_vec.data());
+    std::vector<MyMesh::VertexHandle> selected_vertices_vector(settings.image_height * settings.image_width);
+    ImageView<MyMesh::VertexHandle> selected_vertices(settings.image_height, settings.image_width,
+                                                      selected_vertices_vector.data());
 
-    select_vertices_for_RQT(mesh_out, unprojected_imV, selected_vertices_imV);
+    select_vertices_for_RQT(mesh_out, unprojected_image, selected_vertices);
 
 
     // actually triangulate the mesh using all the selected vertices
-    triangulate_RQT_selected_vertices(mesh_out, selected_vertices_imV);
+    triangulate_RQT_selected_vertices(mesh_out, selected_vertices);
 
 
     // --- post computation ---
@@ -235,15 +233,17 @@ void Saiga::RQT_Triangulator::triangulate_image(ImageView<const float> depthImag
 
 
 // ----  PRIVATE  ----
-void Saiga::RQT_Triangulator::add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2,
-                                               MyMesh::VertexHandle vh3)
+void RQT_Triangulator::add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2,
+                                        MyMesh::VertexHandle vh3)
 {
-    if (mesh.point(vh1)[2] == settings.broken_values || mesh.point(vh2)[2] == settings.broken_values || mesh.point(vh3)[2] == settings.broken_values) return;
+    if (mesh.point(vh1)[2] == settings.broken_values || mesh.point(vh2)[2] == settings.broken_values ||
+        mesh.point(vh3)[2] == settings.broken_values)
+        return;
 
     mesh.add_face(vh1, vh2, vh3);
 }
 
-int Saiga::RQT_Triangulator::get_closest_RQT_side_length(int height, int width)
+int RQT_Triangulator::get_closest_RQT_side_length(int height, int width)
 {
     int max_image_side_length = std::max(height, width);
     // the width has to be a power of 2 with 1 added on top
@@ -269,24 +269,20 @@ int Saiga::RQT_Triangulator::get_closest_RQT_side_length(int height, int width)
     return max_image_side_length;
 }
 
-void Saiga::RQT_Triangulator::create_dependency_graph()
+void RQT_Triangulator::create_dependency_graph()
 {
     // level 0 isn't captured by log, so add it manually
     int total_levels_without_zero = log2(RQT_side_len - 1);
     int total_levels              = total_levels_without_zero + 1;
 
     dependency_graph_vector = std::vector<std::vector<Point2D>>(RQT_side_len * RQT_side_len);
-    dependency_graph = ImageView<std::vector<Point2D>>(RQT_side_len, RQT_side_len, dependency_graph_vector.data());
+    ImageView<std::vector<Point2D>> dependency_graph = ImageView<std::vector<Point2D>>(RQT_side_len, RQT_side_len, dependency_graph_vector.data());
 
     // add something to the level 0 vertices so they will be skipped in the upcoming loop over the other levels
-    Point2D tmp_point(0, 0);
-    std::vector<Point2D> tmp_vec = std::vector<Point2D>();
-    tmp_vec.push_back(tmp_point);
-
-    dependency_graph(0, 0)                               = tmp_vec;
-    dependency_graph(RQT_side_len - 1, 0)                = tmp_vec;
-    dependency_graph(0, RQT_side_len - 1)                = tmp_vec;
-    dependency_graph(RQT_side_len - 1, RQT_side_len - 1) = tmp_vec;
+    dependency_graph(0, 0)                               = std::vector<Point2D>(1, Point2D(0, 0));
+    dependency_graph(RQT_side_len - 1, 0)                = std::vector<Point2D>(1, Point2D(0, 0));
+    dependency_graph(0, RQT_side_len - 1)                = std::vector<Point2D>(1, Point2D(0, 0));
+    dependency_graph(RQT_side_len - 1, RQT_side_len - 1) = std::vector<Point2D>(1, Point2D(0, 0));
 
     for (int level = 1; level < total_levels; ++level)
     {
@@ -304,69 +300,78 @@ void Saiga::RQT_Triangulator::create_dependency_graph()
         // top/bottom, top/bottom, ...
         // ...
 
-        bool row_flag                = true;   // true: top/bottom-row; false: right/left/center-row
-        bool side_center_flag        = true;   // true: right/left; false: center
-        bool diagonal_dependency_dir = false;  // true: left down and right up; false: left up and right down;
-                                               // this should be true for the first vertex. However since there is a
-                                               // flip before that, it is set to false here
+        // true: top/bottom-row; false: right/left/center-row
+        bool row_flag = true;
+        // true: right/left; false: center
+        bool side_center_flag = true;
+        // true: left down and right up; false: left up and right down;
+        // this should be true for the first vertex. However since there is a
+        // flip before that, it is set to false here
+        bool diagonal_dependency_dir = false;
 
         for (int y = 0; y <= hl_dl; y += d_l)
         {
             for (int x = 0; x <= hl_dl; x += d_l)
             {
-                if (x == 0) side_center_flag = true;  // all side-center-rows start and end with side vertices
+                if (x == 0)
+                {  // all side-center-rows start and end with side vertices
+                    side_center_flag = true;
+                }
                 if (x == 0 && row_flag == false)
-                    diagonal_dependency_dir =
-                        !diagonal_dependency_dir;  // side-center-rows finish with the same center-diagonal-dependency
-                                                   // as the next one starts. this flip neutralizes the one that comes
-                                                   // after every center vertex handling
+                {
+                    // side-center-rows finish with the same center-diagonal-dependency
+                    // as the next one starts. this flip neutralizes the one that comes
+                    // after every center vertex handling
+                    diagonal_dependency_dir = !diagonal_dependency_dir;
+                }
                 if (dependency_graph(y, x).size() > 0)
                 {
+					// the current vertex is already part of a previously handled level
                     continue;
                 }
 
                 // all dependency_graph of vertices are 2 other vertices (or 1 if the vertex is at the edge)
                 int x1, x2, y1, y2;
 
-                if (row_flag == true)  // true: top/bottom-row
-                {
+                if (row_flag)
+                {  // true: top/bottom-row
                     x1 = x;
                     x2 = x;
                     y1 = y + d_l;
                     y2 = y - d_l;
 
                     // add the dependency_graph if they don't point outside of the whole quadtree
-                    if (y1 < RQT_side_len) dependency_graph(y, x).push_back(Point2D(y1, x1));
-                    if (y2 >= 0) dependency_graph(y, x).push_back(Point2D(y2, x2));
+                    if (y1 < RQT_side_len) dependency_graph(y, x).push_back(Point2D(x1, y1));
+                    if (y2 >= 0) dependency_graph(y, x).push_back(Point2D(x2, y2));
                 }
-                else  // false: right/left/center-row
-                {
-                    if (side_center_flag == true)  // true: right/left
-                    {
+                else
+                {  // false: right/left/center-row
+                    if (side_center_flag)
+                    {  // true: right/left
                         x1 = x + d_l;
                         x2 = x - d_l;
                         y1 = y;
                         y2 = y;
 
                         // add the dependency_graph if they don't point outside of the whole quadtree
-                        if (x1 < RQT_side_len) dependency_graph(y, x).push_back(Point2D(y1, x1));
-                        if (x2 >= 0) dependency_graph(y, x).push_back(Point2D(y2, x2));
+                        if (x1 < RQT_side_len) dependency_graph(y, x).push_back(Point2D(x1, y1));
+                        if (x2 >= 0) dependency_graph(y, x).push_back(Point2D(x2, y2));
                     }
-                    else  // false: center
-                    {
-                        if (diagonal_dependency_dir == true)  // true: left down and right up
-                        {
+                    else
+                    {  // false: center
+                        if (diagonal_dependency_dir)
+                        {  // true: left down and right up
                             x1 = x + d_l;
                             x2 = x - d_l;
                             y1 = y - d_l;
                             y2 = y + d_l;
 
                             // add the dependency_graph if they don't point outside of the whole quadtree
-                            if (x1 < RQT_side_len && y1 >= 0) dependency_graph(y, x).push_back(Point2D(y1, x1));
-                            if (x2 >= 0 && y2 < RQT_side_len) dependency_graph(y, x).push_back(Point2D(y2, x2));
+                            if (x1 < RQT_side_len && y1 >= 0) dependency_graph(y, x).push_back(Point2D(x1, y1));
+                            if (x2 >= 0 && y2 < RQT_side_len) dependency_graph(y, x).push_back(Point2D(x2, y2));
                         }
-                        else  // false: left up and right down
-                        {
+                        else
+                        {  // false: left up and right down
                             x1 = x + d_l;
                             x2 = x - d_l;
                             y1 = y + d_l;
@@ -374,8 +379,8 @@ void Saiga::RQT_Triangulator::create_dependency_graph()
 
                             // add the dependency_graph if they don't point outside of the whole quadtree
                             if (x1 < RQT_side_len && y1 < RQT_side_len)
-                                dependency_graph(y, x).push_back(Point2D(y1, x1));
-                            if (x2 >= 0 && y2 >= 0) dependency_graph(y, x).push_back(Point2D(y2, x2));
+                                dependency_graph(y, x).push_back(Point2D(x1, y1));
+                            if (x2 >= 0 && y2 >= 0) dependency_graph(y, x).push_back(Point2D(x2, y2));
                         }
 
                         // diagonal dependency_graph are always alternating
@@ -393,31 +398,27 @@ void Saiga::RQT_Triangulator::create_dependency_graph()
     }
 
     // clear tmp dependency_graph from level 0
-    tmp_vec.clear();
-    dependency_graph(0, 0)                               = tmp_vec;
-    dependency_graph(RQT_side_len - 1, 0)                = tmp_vec;
-    dependency_graph(0, RQT_side_len - 1)                = tmp_vec;
-    dependency_graph(RQT_side_len - 1, RQT_side_len - 1) = tmp_vec;
+    dependency_graph(0, 0).clear();
+    dependency_graph(RQT_side_len - 1, 0).clear();
+    dependency_graph(0, RQT_side_len - 1).clear();
+    dependency_graph(RQT_side_len - 1, RQT_side_len - 1).clear();
 }
 
-void Saiga::RQT_Triangulator::resolve_dependencies(MyMesh& mesh,
-                                                   ImageView<const OpenMesh::Vec3f> const& unprojected_image,
-                                                   Point2D vertex, ImageView<MyMesh::VertexHandle>& selected_vertices)
+void RQT_Triangulator::resolve_dependencies(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image,
+                                            Point2D vertex, ImageView<MyMesh::VertexHandle> selected_vertices)
 {
     // create a heap of vertices left to add to the selected_vertices
     std::vector<Point2D> vertex_heap;
     vertex_heap.push_back(vertex);
 
-    Point2D curr_vertex;
-    int x, y;
     while (!vertex_heap.empty())
     {
         // get next index to work with
-        curr_vertex = vertex_heap.back();
+        Point2D curr_vertex = vertex_heap.back();
         vertex_heap.pop_back();
 
-        y = curr_vertex.first;
-        x = curr_vertex.second;
+        int x = curr_vertex.first;
+        int y = curr_vertex.second;
 
         // check whether the vertex lies within the bounds of the image
         if (y >= settings.image_height || x >= settings.image_width)
@@ -440,6 +441,7 @@ void Saiga::RQT_Triangulator::resolve_dependencies(MyMesh& mesh,
         }
 
         // add the vertices dependencies to the heap
+		ImageView<std::vector<Point2D>> dependency_graph = ImageView<std::vector<Point2D>>(RQT_side_len, RQT_side_len, dependency_graph_vector.data());
         for (int i = 0; i < dependency_graph(y, x).size(); ++i)
         {
             // i won't be greater than 1
@@ -448,9 +450,8 @@ void Saiga::RQT_Triangulator::resolve_dependencies(MyMesh& mesh,
     }
 }
 
-void Saiga::RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh,
-                                                      ImageView<const OpenMesh::Vec3f> const& unprojected_image,
-                                                      ImageView<MyMesh::VertexHandle>& selected_vertices)
+void RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image,
+                                               ImageView<MyMesh::VertexHandle> selected_vertices)
 {
     int image_width  = unprojected_image.width;
     int image_height = unprojected_image.height;
@@ -462,20 +463,20 @@ void Saiga::RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh,
     resolve_dependencies(mesh, unprojected_image, Point2D(RQT_side_len - 1, RQT_side_len - 1), selected_vertices);
 
     // create a heap of RQT quads whose 4 inner quads need to be checked against the error metric to determine if they
-    // should be split or not (I do it this way so I'll know the triangulation) each entry is a pair of the quads' upper
-    // left corners' coordinates (y, x) in the image and the side-length of the quad
+    // should be split or not (I do it this way so I'll know the triangulation). Each entry is a pair of the quads' upper
+    // left corners' coordinates (x, y) in the image and the side-length of the quad
     std::vector<std::pair<Point2D, int>> quad_heap;
     quad_heap.push_back(std::pair<Point2D, int>(Point2D(0, 0), RQT_side_len));
 
-    // initialize variables that will be used for every quad
+    // define variables that will be used for every quad
     int y, x, curr_side_len;
     int x_mid, x_right, y_mid, y_down;
     int step_small, step_med;
     while (!quad_heap.empty())
     {
         // get the current quad-index
-        y             = quad_heap.back().first.first;
-        x             = quad_heap.back().first.second;
+        x             = quad_heap.back().first.first;
+        y             = quad_heap.back().first.second;
         curr_side_len = quad_heap.back().second;
         quad_heap.pop_back();
 
@@ -503,23 +504,24 @@ void Saiga::RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh,
             if (y_mid >= image_height ||
                 x_mid >= image_width  // any part of the quad doesn't cover the image (--> instantly split)
                 || check_quad_error_threshold_exceeded(unprojected_image, 0, settings.RQT_error_threshold,
-                                                       Point2D(y, x), Point2D(y_mid, x), Point2D(y_mid, x_mid),
-                                                       Point2D(y, x_mid)))  // error threshold exceeded
+                                                       Point2D(x, y), Point2D(x, y_mid), Point2D(x_mid, y_mid),
+                                                       Point2D(x_mid, y)))  // error threshold exceeded
             {
                 // add the quad to the heap for further metric checks
-                quad_heap.push_back(std::pair<Point2D, int>(Point2D(y, x), step_med + 1));
+                quad_heap.push_back(std::pair<Point2D, int>(Point2D(x, y), step_med + 1));
 
                 // add the vertices of this split and their dependencies to the selected_vertices
-                resolve_dependencies(mesh, unprojected_image, Point2D(y, x + step_small),
-                                     selected_vertices);  // up
-                resolve_dependencies(mesh, unprojected_image, Point2D(y + step_small, x),
-                                     selected_vertices);  // left
-                resolve_dependencies(mesh, unprojected_image, Point2D(y + step_small, x + step_small),
-                                     selected_vertices);  // center
-                resolve_dependencies(mesh, unprojected_image, Point2D(y + step_small, x + step_med),
-                                     selected_vertices);  // right
-                resolve_dependencies(mesh, unprojected_image, Point2D(y + step_med, x + step_small),
-                                     selected_vertices);  // down
+                // up
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_small, y), selected_vertices);
+                // left
+                resolve_dependencies(mesh, unprojected_image, Point2D(x, y + step_small), selected_vertices);
+                // center
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_small, y + step_small),
+                                     selected_vertices);
+                // right
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med, y + step_small), selected_vertices);
+                // down
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_small, y + step_med), selected_vertices);
             }
         }
 
@@ -528,21 +530,24 @@ void Saiga::RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh,
         {
             if (y_down >= image_height || x_mid >= image_width ||
                 check_quad_error_threshold_exceeded(unprojected_image, 1, settings.RQT_error_threshold,
-                                                    Point2D(y_mid, x), Point2D(y_down, x), Point2D(y_down, x_mid),
-                                                    Point2D(y_mid, x_mid)))
+                                                    Point2D(x, y_mid), Point2D(x, y_down), Point2D(x_mid, y_down),
+                                                    Point2D(x_mid, y_mid)))
             {
-                quad_heap.push_back(std::pair<Point2D, int>(Point2D(y_mid, x), step_med + 1));
+                quad_heap.push_back(std::pair<Point2D, int>(Point2D(x, y_mid), step_med + 1));
 
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid, x + step_small),
-                                     selected_vertices);  // up
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid + step_small, x),
-                                     selected_vertices);  // left
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid + step_small, x + step_small),
-                                     selected_vertices);  // center
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid + step_small, x + step_med),
-                                     selected_vertices);  // right
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid + step_med, x + step_small),
-                                     selected_vertices);  // down
+                // up
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_small, y_mid), selected_vertices);
+                // left
+                resolve_dependencies(mesh, unprojected_image, Point2D(x, y_mid + step_small), selected_vertices);
+                // center
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_small, y_mid + step_small),
+                                     selected_vertices);
+                // right
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med, y_mid + step_small),
+                                     selected_vertices);
+                // down
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_small, y_mid + step_med),
+                                     selected_vertices);
             }
         }
 
@@ -551,21 +556,26 @@ void Saiga::RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh,
         {
             if (y_down >= image_height || x_right >= image_width ||
                 check_quad_error_threshold_exceeded(unprojected_image, 0, settings.RQT_error_threshold,
-                                                    Point2D(y_mid, x_mid), Point2D(y_down, x_mid),
-                                                    Point2D(y_down, x_right), Point2D(y_mid, x_right)))
+                                                    Point2D(x_mid, y_mid), Point2D(x_mid, y_down),
+                                                    Point2D(x_right, y_down), Point2D(x_right, y_mid)))
             {
-                quad_heap.push_back(std::pair<Point2D, int>(Point2D(y_mid, x_mid), step_med + 1));
+                quad_heap.push_back(std::pair<Point2D, int>(Point2D(x_mid, y_mid), step_med + 1));
 
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid, x + step_med + step_small),
-                                     selected_vertices);  // up
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid + step_small, x + step_med),
-                                     selected_vertices);  // left
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid + step_small, x + step_med + step_small),
-                                     selected_vertices);  // center
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid + step_small, x + step_med + step_med),
-                                     selected_vertices);  // right
-                resolve_dependencies(mesh, unprojected_image, Point2D(y_mid + step_med, x + step_med + step_small),
-                                     selected_vertices);  // down
+                // up
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med + step_small, y_mid),
+                                     selected_vertices);
+                // left
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med, y_mid + step_small),
+                                     selected_vertices);
+                // center
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med + step_small, y_mid + step_small),
+                                     selected_vertices);
+                // right
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med + step_med, y_mid + step_small),
+                                     selected_vertices);
+                // down
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med + step_small, y_mid + step_med),
+                                     selected_vertices);
             }
         }
 
@@ -574,21 +584,24 @@ void Saiga::RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh,
         {
             if (y_mid >= image_height || x_right >= image_width ||
                 check_quad_error_threshold_exceeded(unprojected_image, 1, settings.RQT_error_threshold,
-                                                    Point2D(y, x_mid), Point2D(y_mid, x_mid), Point2D(y_mid, x_right),
-                                                    Point2D(y, x_right)))
+                                                    Point2D(x_mid, y), Point2D(x_mid, y_mid), Point2D(x_right, y_mid),
+                                                    Point2D(x_right, y)))
             {
-                quad_heap.push_back(std::pair<Point2D, int>(Point2D(y, x_mid), step_med + 1));
+                quad_heap.push_back(std::pair<Point2D, int>(Point2D(x_mid, y), step_med + 1));
 
-                resolve_dependencies(mesh, unprojected_image, Point2D(y, x + step_med + step_small),
-                                     selected_vertices);  // up
-                resolve_dependencies(mesh, unprojected_image, Point2D(y + step_small, x + step_med),
-                                     selected_vertices);  // left
-                resolve_dependencies(mesh, unprojected_image, Point2D(y + step_small, x + step_med + step_small),
-                                     selected_vertices);  // center
-                resolve_dependencies(mesh, unprojected_image, Point2D(y + step_small, x + step_med + step_med),
-                                     selected_vertices);  // right
-                resolve_dependencies(mesh, unprojected_image, Point2D(y + step_med, x + step_med + step_small),
-                                     selected_vertices);  // down
+                // up
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med + step_small, y), selected_vertices);
+                // left
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med, y + step_small), selected_vertices);
+                // center
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med + step_small, y + step_small),
+                                     selected_vertices);
+                // right
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med + step_med, y + step_small),
+                                     selected_vertices);
+                // down
+                resolve_dependencies(mesh, unprojected_image, Point2D(x + step_med + step_small, y + step_med),
+                                     selected_vertices);
             }
         }
     }
@@ -597,8 +610,8 @@ void Saiga::RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh,
 
 // ----------- actual triangulation -----------
 
-void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
-    MyMesh& current_mesh, ImageView<OpenTriangleMesh::VertexHandle> const& selected_vertices)
+void RQT_Triangulator::triangulate_RQT_selected_vertices(MyMesh& current_mesh,
+                                                         ImageView<OpenTriangleMesh::VertexHandle> selected_vertices)
 {
     // heap for quads that need to be triangulated
     // consists of the coordinates of the left upper corner, the side_length of the quad and a bool indicating the
@@ -615,13 +628,15 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
     int curr_y, curr_x;
     int curr_max_y, curr_max_x;
     int curr_side_len, next_side_len, step_small, step_mid;
-    bool curr_triangulation;  // false: top left to bottom right, true: top right to bottom left
-    bool up_exists, left_exists, down_exists, right_exists;  // flags to help determine the correct triangulation
+	// curr_triangulation == false: top left to bottom right, true: top right to bottom left
+    bool curr_triangulation;
+	// flags to help determine the correct triangulation
+    bool up_exists, left_exists, down_exists, right_exists;
     while (!quad_heap.empty())
     {
         // get current data
-        curr_y             = std::get<0>(quad_heap.back()).first;
-        curr_x             = std::get<0>(quad_heap.back()).second;
+        curr_x             = std::get<0>(quad_heap.back()).first;
+        curr_y             = std::get<0>(quad_heap.back()).second;
         curr_side_len      = std::get<1>(quad_heap.back());
         curr_max_y         = curr_y + curr_side_len - 1;
         curr_max_x         = curr_x + curr_side_len - 1;
@@ -644,13 +659,13 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
             {
                 // the quads will be split since at least two of them are out of the images bounds and the others
                 // have to fulfill the quadtree restriction
-                quad_heap.push_back(std::tuple<Point2D, int, bool>(Point2D(curr_y, curr_x), next_side_len, false));
+                quad_heap.push_back(std::tuple<Point2D, int, bool>(Point2D(curr_x, curr_y), next_side_len, false));
                 quad_heap.push_back(
-                    std::tuple<Point2D, int, bool>(Point2D(curr_y + step_mid, curr_x), next_side_len, true));
-                quad_heap.push_back(std::tuple<Point2D, int, bool>(Point2D(curr_y + step_mid, curr_x + step_mid),
+                    std::tuple<Point2D, int, bool>(Point2D(curr_x, curr_y + step_mid), next_side_len, true));
+                quad_heap.push_back(std::tuple<Point2D, int, bool>(Point2D(curr_x + step_mid, curr_y + step_mid),
                                                                    next_side_len, false));
                 quad_heap.push_back(
-                    std::tuple<Point2D, int, bool>(Point2D(curr_y, curr_x + step_mid), next_side_len, true));
+                    std::tuple<Point2D, int, bool>(Point2D(curr_x + step_mid, curr_y), next_side_len, true));
                 continue;
             }
             else
@@ -675,7 +690,8 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
                                      selected_vertices(curr_y, curr_x + step_mid));
 
                     // at most one will lie within bounds
-                    if (curr_y < settings.image_height - 2)  // left lower quad
+                    // left lower quad
+                    if (curr_y < settings.image_height - 2)
                     {
                         add_face_to_mesh(current_mesh, selected_vertices(curr_max_y, curr_x),
                                          selected_vertices(curr_y + step_mid, curr_x + step_mid),
@@ -684,7 +700,8 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
                                          selected_vertices(curr_max_y, curr_x + step_mid),
                                          selected_vertices(curr_y + step_mid, curr_x + step_mid));
                     }
-                    else if (curr_x < settings.image_width - 2)  // right upper quad
+                    // right upper quad
+                    else if (curr_x < settings.image_width - 2)
                     {
                         add_face_to_mesh(current_mesh, selected_vertices(curr_y + step_mid, curr_x + step_mid),
                                          selected_vertices(curr_y, curr_max_x),
@@ -740,7 +757,7 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
         // exist). If a center vertex exists I add the respective quad to the heap
         if (up_exists && left_exists && curr_side_len > 3)
         {  // top left
-            quad_heap.push_back(std::tuple<Point2D, int, bool>(Point2D(curr_y, curr_x), next_side_len, false));
+            quad_heap.push_back(std::tuple<Point2D, int, bool>(Point2D(curr_x, curr_y), next_side_len, false));
             child_1 = true;
         }
         else
@@ -750,7 +767,7 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
         if (left_exists && down_exists && curr_side_len > 3)
         {  // bottom left
             quad_heap.push_back(
-                std::tuple<Point2D, int, bool>(Point2D(curr_y + step_mid, curr_x), next_side_len, true));
+                std::tuple<Point2D, int, bool>(Point2D(curr_x, curr_y + step_mid), next_side_len, true));
             child_2 = true;
         }
         else
@@ -760,7 +777,7 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
         if (down_exists && right_exists && curr_side_len > 3)
         {  // bottom right
             quad_heap.push_back(
-                std::tuple<Point2D, int, bool>(Point2D(curr_y + step_mid, curr_x + step_mid), next_side_len, false));
+                std::tuple<Point2D, int, bool>(Point2D(curr_x + step_mid, curr_y + step_mid), next_side_len, false));
             child_3 = true;
         }
         else
@@ -770,7 +787,7 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
         if (right_exists && up_exists && curr_side_len > 3)
         {  // top right
             quad_heap.push_back(
-                std::tuple<Point2D, int, bool>(Point2D(curr_y, curr_x + step_mid), next_side_len, true));
+                std::tuple<Point2D, int, bool>(Point2D(curr_x + step_mid, curr_y), next_side_len, true));
             child_4 = true;
         }
         else
@@ -790,9 +807,13 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
         {
             // triangulate current_mesh respective triangles if they are not handled by a recursive call
             if (!child_1)
-                add_face_to_mesh(current_mesh, vh1, vhc, selected_vertices(curr_y, curr_x + step_mid));  // top left
+            {  // top left
+                add_face_to_mesh(current_mesh, vh1, vhc, selected_vertices(curr_y, curr_x + step_mid));
+            }
             if (!child_4)
-                add_face_to_mesh(current_mesh, vhc, vh4, selected_vertices(curr_y, curr_x + step_mid));  // top right
+            {  // top right
+                add_face_to_mesh(current_mesh, vhc, vh4, selected_vertices(curr_y, curr_x + step_mid));
+            }
         }
 
         // also check the left
@@ -803,9 +824,13 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
         else
         {
             if (!child_1)
-                add_face_to_mesh(current_mesh, vhc, vh1, selected_vertices(curr_y + step_mid, curr_x));  // left upper
+            {  // left upper
+                add_face_to_mesh(current_mesh, vhc, vh1, selected_vertices(curr_y + step_mid, curr_x));
+            }
             if (!child_2)
-                add_face_to_mesh(current_mesh, vh2, vhc, selected_vertices(curr_y + step_mid, curr_x));  // left lower
+            {  // left lower
+                add_face_to_mesh(current_mesh, vh2, vhc, selected_vertices(curr_y + step_mid, curr_x));
+            }
         }
 
         // also check below
@@ -816,11 +841,13 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
         else
         {
             if (!child_2)
-                add_face_to_mesh(current_mesh, vhc, vh2,
-                                 selected_vertices(curr_max_y, curr_x + step_mid));  // bottom left
+            {  // bottom left
+                add_face_to_mesh(current_mesh, vhc, vh2, selected_vertices(curr_max_y, curr_x + step_mid));
+            }
             if (!child_3)
-                add_face_to_mesh(current_mesh, vh3, vhc,
-                                 selected_vertices(curr_max_y, curr_x + step_mid));  // bottom right
+            {  // bottom right
+                add_face_to_mesh(current_mesh, vh3, vhc, selected_vertices(curr_max_y, curr_x + step_mid));
+            }
         }
 
         // also check the right
@@ -831,11 +858,13 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
         else
         {
             if (!child_3)
-                add_face_to_mesh(current_mesh, vhc, vh3,
-                                 selected_vertices(curr_y + step_mid, curr_max_x));  // right lower
+            {  // right lower
+                add_face_to_mesh(current_mesh, vhc, vh3, selected_vertices(curr_y + step_mid, curr_max_x));
+            }
             if (!child_4)
-                add_face_to_mesh(current_mesh, vh4, vhc,
-                                 selected_vertices(curr_y + step_mid, curr_max_x));  // right upper
+            {  // right upper
+                add_face_to_mesh(current_mesh, vh4, vhc, selected_vertices(curr_y + step_mid, curr_max_x));
+            }
         }
     }
 }
@@ -843,23 +872,32 @@ void Saiga::RQT_Triangulator::triangulate_RQT_selected_vertices(
 
 // ----------- error calculation stuff -----------
 
-bool Saiga::RQT_Triangulator::check_metric(OpenMesh::Vec3f const& p, OpenMesh::Vec3f const& triangle_vertex,
-                                           OpenMesh::Vec3f const& normal, float threshold)
+bool RQT_Triangulator::check_metric(const OpenMesh::Vec3f& point, const OpenMesh::Vec3f& triangle_vertex,
+                                    const OpenMesh::Vec3f& normal, float threshold)
 {
-    if (abs(p[2]) < 0.00005f) return true;
+    // if the depth of the current pixel is broken, we can split immediately without checking the actual metric
+    if (point[2] == settings.broken_values) return true;
 
-    float square_dist = pow(dot(normal, p - triangle_vertex), 2) / dot(normal, normal);
+    // get the point-to-plane distance
+    float dist = dot(normal, point - triangle_vertex);
 
-    return sqrt(square_dist) / pow(p.length(), 2) > threshold;  // dist / depth^2
+    // dist / depth^2
+    return dist / (point.length() * point.length()) > threshold;
 }
 
-bool Saiga::RQT_Triangulator::check_triangle_error_threshold_exceeded(
-    ImageView<const OpenMesh::Vec3f> const& unprojected_image, int triangle_orientation, float threshold, Point2D a,
-    Point2D b, Point2D c)
+bool RQT_Triangulator::check_triangle_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> unprojected_image,
+                                                               int triangle_orientation, float threshold, Point2D a,
+                                                               Point2D b, Point2D c)
 {
-    OpenMesh::Vec3f a_v = unprojected_image(a.first, a.second);
-    OpenMesh::Vec3f b_v = unprojected_image(b.first, b.second);
-    OpenMesh::Vec3f c_v = unprojected_image(c.first, c.second);
+    OpenMesh::Vec3f a_v = unprojected_image(a.second, a.first);
+    OpenMesh::Vec3f b_v = unprojected_image(b.second, b.first);
+    OpenMesh::Vec3f c_v = unprojected_image(c.second, c.first);
+
+    // if the triangle to be checked is represented by broken values, we immediately split
+    if (a_v[2] == settings.broken_values || b_v[2] == settings.broken_values || c_v[2] == settings.broken_values)
+    {
+        return true;
+    }
 
     // compute triangle plane like in QuadricDecimater::calculate_fundamental_error_matrix
     OpenMesh::Vec3f normal = cross((b_v - a_v), (c_v - a_v));
@@ -869,9 +907,9 @@ bool Saiga::RQT_Triangulator::check_triangle_error_threshold_exceeded(
     switch (triangle_orientation)
     {
         case 0:
-            for (int y = a.first; y <= b.first; ++y)
+            for (int y = a.second; y <= b.second; ++y)
             {
-                for (int x = a.second + counter; x <= b.second; ++x)
+                for (int x = a.first + counter; x <= b.first; ++x)
                 {
                     if (check_metric(unprojected_image(y, x), a_v, normal, threshold)) return true;
                 }
@@ -879,9 +917,9 @@ bool Saiga::RQT_Triangulator::check_triangle_error_threshold_exceeded(
             }
             break;
         case 1:
-            for (int y = c.first; y >= a.first; --y)
+            for (int y = c.second; y >= a.second; --y)
             {
-                for (int x = c.second - counter; x >= a.second; --x)
+                for (int x = c.first - counter; x >= a.first; --x)
                 {
                     if (check_metric(unprojected_image(y, x), a_v, normal, threshold)) return true;
                 }
@@ -889,9 +927,9 @@ bool Saiga::RQT_Triangulator::check_triangle_error_threshold_exceeded(
             }
             break;
         case 2:
-            for (int y = a.first; y <= b.first; ++y)
+            for (int y = a.second; y <= b.second; ++y)
             {
-                for (int x = a.second; x <= c.second - counter; ++x)
+                for (int x = a.first; x <= c.first - counter; ++x)
                 {
                     if (check_metric(unprojected_image(y, x), a_v, normal, threshold)) return true;
                 }
@@ -899,9 +937,9 @@ bool Saiga::RQT_Triangulator::check_triangle_error_threshold_exceeded(
             }
             break;
         case 3:
-            for (int y = a.first; y >= c.first; --y)
+            for (int y = a.second; y >= c.second; --y)
             {
-                for (int x = a.second + counter; x <= c.second; ++x)
+                for (int x = a.first + counter; x <= c.first; ++x)
                 {
                     if (check_metric(unprojected_image(y, x), a_v, normal, threshold)) return true;
                 }
@@ -913,18 +951,18 @@ bool Saiga::RQT_Triangulator::check_triangle_error_threshold_exceeded(
     return false;
 }
 
-bool Saiga::RQT_Triangulator::check_quad_error_threshold_exceeded(
-    ImageView<const OpenMesh::Vec3f> const& unprojected_image, int triangle_orientation, float threshold, Point2D a,
-    Point2D b, Point2D c, Point2D d)
+bool RQT_Triangulator::check_quad_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> unprojected_image,
+                                                           int triangle_orientation, float threshold, Point2D a,
+                                                           Point2D b, Point2D c, Point2D d)
 {
     // first check whether all pixels of the quad are broken
     // in this case we can stop with the splitting
     bool everything_broken = true;
-    for (int y = a.first; y <= b.first; ++y)
+    for (int y = a.second; y <= b.second; ++y)
     {
-        for (int x = a.second; x <= d.second; ++x)
+        for (int x = a.first; x <= d.first; ++x)
         {
-            if (unprojected_image(y, x)[2] > 0.00005f)
+            if (unprojected_image(y, x)[2] != settings.broken_values)
             {
                 // actually not broken vertex
                 everything_broken = false;
@@ -933,7 +971,8 @@ bool Saiga::RQT_Triangulator::check_quad_error_threshold_exceeded(
         }
         if (everything_broken == false) break;
     }
-    if (everything_broken == true) return false;  // --> don't split any further
+    // don't split any further
+    if (everything_broken) return false;
 
     // regularly check the triangle
     if (triangle_orientation == 0)
@@ -947,3 +986,5 @@ bool Saiga::RQT_Triangulator::check_quad_error_threshold_exceeded(
                check_triangle_error_threshold_exceeded(unprojected_image, 3, threshold, b, c, d);
     }
 }
+
+}  // namespace Saiga

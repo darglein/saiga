@@ -6,32 +6,32 @@
 
 #include "imageProcessor.h"
 
+namespace Saiga
+{
+
 // --- PUBLIC ---
 
-Saiga::ImageProcessor::ImageProcessor(Settings const& settings_in) : settings(settings_in) {}
+ImageProcessor::ImageProcessor(const Settings& settings_in) : settings(settings_in) {}
 
-Saiga::ImageProcessor::~ImageProcessor() {}
-
-void Saiga::ImageProcessor::remove_occlusion_edges(ImageView<float> depthImageView)
+void ImageProcessor::remove_occlusion_edges(ImageView<float> depthImageView)
 {
-    std::vector<vec3> unprojected_image = std::vector<vec3>(depthImageView.h * depthImageView.w, vec3::Zero());
-    ImageView<vec3> unprojected_imageView =
-        ImageView<vec3>(depthImageView.h, depthImageView.w, unprojected_image.data());
+	TemplatedImage<vec3> unprojected_image(depthImageView.height, depthImageView.width);
+    unprojected_image.makeZero();
 
     // unproject the depth image
-    unproject_depth_image(depthImageView, unprojected_imageView);
+    unproject_depth_image(depthImageView, unprojected_image);
 
     // create images for the extra data used by the occlusion edge paper (4.2.1)
-    TemplatedImage<float> p(depthImageView.h, depthImageView.w);
+    TemplatedImage<float> p(depthImageView.height, depthImageView.width);
 
     // find / delete occlusion edge pixels paper
-    compute_image_aspect_ratio(unprojected_imageView, depthImageView, p);
+    compute_image_aspect_ratio(unprojected_image, depthImageView, p);
 
     // delete pixels from image that surpass the threshold using a looped hysteresis threshold
-    use_hysteresis_threshold(depthImageView, unprojected_imageView, p);
+    use_hysteresis_threshold(depthImageView, unprojected_image, p);
 }
 
-void Saiga::ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageView,
+void ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageView,
                                                   ImageView<vec3> unprojected_image)
 {
     int height = depth_imageView.height;
@@ -47,7 +47,7 @@ void Saiga::ImageProcessor::unproject_depth_image(ImageView<const float> depth_i
     }
 }
 
-void Saiga::ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageView,
+void ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageView,
                                                   ImageView<OpenMesh::Vec3f> unprojected_image)
 {
     int height = depth_imageView.height;
@@ -65,13 +65,13 @@ void Saiga::ImageProcessor::unproject_depth_image(ImageView<const float> depth_i
     }
 }
 
-void Saiga::ImageProcessor::filter_gaussian(ImageView<const float> input, ImageView<float> output)
+void ImageProcessor::filter_gaussian(ImageView<const float> input, ImageView<float> output)
 {
     std::vector<float> filter((settings.gauss_radius * 2) + 1);
     for (int i = -settings.gauss_radius; i <= settings.gauss_radius; ++i)
     {
-        filter[i + settings.gauss_radius] = 1.0f / (sqrt(2.0f * pi<float>()) * settings.gauss_deviation) *
-                                            std::exp(-(i * i / (2.0f * pow(settings.gauss_deviation, 2))));
+        filter[i + settings.gauss_radius] = 1.0f / (sqrt(2.0f * pi<float>()) * settings.gauss_stadard_deviation) *
+                                            std::exp(-(i * i / (2.0f * settings.gauss_stadard_deviation * settings.gauss_stadard_deviation)));
     }
     int filter_mid = filter.size() / 2;
 
@@ -162,7 +162,7 @@ void Saiga::ImageProcessor::filter_gaussian(ImageView<const float> input, ImageV
 
 // --- PRIVATE ---
 
-float Saiga::ImageProcessor::compute_quad_max_aspect_ratio(vec3 const& left_up, vec3 const& right_up, vec3 const& left_down, vec3 const& right_down)
+float ImageProcessor::compute_quad_max_aspect_ratio(const vec3& left_up, const vec3& right_up, const vec3& left_down, const vec3& right_down)
 {
     // all edge lengths
     float len_up, len_right, len_down, len_left, len_diag_0, len_diag_1;
@@ -201,12 +201,12 @@ float Saiga::ImageProcessor::compute_quad_max_aspect_ratio(vec3 const& left_up, 
     }
 }
 
-void Saiga::ImageProcessor::compute_image_aspect_ratio(ImageView<const vec3> image,
+void ImageProcessor::compute_image_aspect_ratio(ImageView<const vec3> image,
                                                        ImageView<float> depthImageView, ImageView<float> p)
 {
     // get disparity data
     TemplatedImage<float> disparity(depthImageView.h, depthImageView.w);
-    float median_disparity     = get_disparity(depthImageView, disparity);
+    float median_disparity     = get_median_disparity(depthImageView, disparity);
 
     int height       = disparity.height;
     int width        = disparity.width;
@@ -287,10 +287,11 @@ void Saiga::ImageProcessor::compute_image_aspect_ratio(ImageView<const vec3> ima
     }
 }
 
-float Saiga::ImageProcessor::get_disparity(ImageView<float> depth_imageView, ImageView<float> disparity_imageView)
+float ImageProcessor::get_median_disparity(ImageView<float> depth_imageView, ImageView<float> disparity_imageView)
 {
     // median disparity (broken pixels will not be used)
     std::vector<float> disparities;
+	disparities.reserve(disparity_imageView.height * disparity_imageView.width);
 
     for (int h = 0; h < depth_imageView.height; ++h)
     {
@@ -327,7 +328,7 @@ float Saiga::ImageProcessor::get_disparity(ImageView<float> depth_imageView, Ima
     return 0.0f;
 }
 
-void Saiga::ImageProcessor::use_hysteresis_threshold(ImageView<float> depth_image, ImageView<vec3> unprojected_image,
+void ImageProcessor::use_hysteresis_threshold(ImageView<float> depth_image, ImageView<vec3> unprojected_image,
                                                      ImageView<float> computed_values)
 {
     int height = depth_image.height;
@@ -371,7 +372,7 @@ void Saiga::ImageProcessor::use_hysteresis_threshold(ImageView<float> depth_imag
                         sure_edges_vec[h * width + w + 1] || sure_edges_vec[(h + 1) * width + w - 1] ||
                         sure_edges_vec[(h + 1) * width + w] || sure_edges_vec[(h + 1) * width + w + 1];
 
-                    if (sure_edge_neighbour == true)
+                    if (sure_edge_neighbour)
                     {
                         // there is a neighbour that is a sure edge --> this is an edge too
                         depth_image(h, w)             = settings.broken_values;
@@ -384,3 +385,5 @@ void Saiga::ImageProcessor::use_hysteresis_threshold(ImageView<float> depth_imag
         }
     }
 }
+
+} // namespace saiga

@@ -36,8 +36,7 @@ class SimpleTriangulator : public Triangulator
         StereoCamera4Base<float> cameraParameters;
     };
 
-    SimpleTriangulator(Settings const& settings_in);
-    ~SimpleTriangulator();
+    SimpleTriangulator(const Settings& settings_in);
 
     void triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out) override;
 
@@ -80,15 +79,13 @@ class RQT_Triangulator : public Triangulator
         StereoCamera4Base<float> cameraParameters;
     };
 
-    RQT_Triangulator(Settings const& settings_in);
-    ~RQT_Triangulator();
+    RQT_Triangulator(const Settings& settings_in);
 
     void triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out) override;
 
    private:
     Settings settings;
     std::vector<std::vector<Point2D>> dependency_graph_vector;
-    ImageView<std::vector<Point2D>> dependency_graph;
     int RQT_side_len;
 	
 	// takes a mesh and three VertexHandles that belong to the same mesh.
@@ -106,14 +103,14 @@ class RQT_Triangulator : public Triangulator
     // -------------- vertex selection --------------
 
     // adds a vertex and all its dependencies to the selected vertices using the dependency_graph
-    void resolve_dependencies(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> const& unprojected_image, Point2D vertex,
-                              ImageView<MyMesh::VertexHandle>& selected_vertices);
+    void resolve_dependencies(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image, Point2D vertex,
+                              ImageView<MyMesh::VertexHandle> selected_vertices);
 
 
     // Uses a metric to determine when to split a quadtree, selects the needed
     // vertices, resolves dependencies. This function selects all neccessary vertices for the whole RQT
-    void select_vertices_for_RQT(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> const& unprojected_image,
-                                 ImageView<MyMesh::VertexHandle>& selected_vertices);
+    void select_vertices_for_RQT(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image,
+                                 ImageView<MyMesh::VertexHandle> selected_vertices);
 
 
     // -------------- actual triangulation --------------
@@ -122,15 +119,15 @@ class RQT_Triangulator : public Triangulator
     //
     // the resulting mesh is added to current_mesh
     void triangulate_RQT_selected_vertices(MyMesh& current_mesh,
-                                           ImageView<OpenTriangleMesh::VertexHandle> const& selected_vertices);
+                                           ImageView<OpenTriangleMesh::VertexHandle> selected_vertices);
 
     // -------------- error calculation stuff --------------
 
-    // computes the distance from point p to a plane represented by the vertex triangle_vertex and a normal
+    // computes the distance from point to a plane represented by the vertex triangle_vertex and a normal
     // close to http://www.iquilezles.org/www/articles/triangledistance/triangledistance.htm
     // allows a greater error in the distance, taken from the decimate enhanced error:
     // error /= pow(edge_to_camera_distance, 2)
-    bool check_metric(OpenMesh::Vec3f const& p, OpenMesh::Vec3f const& triangle_vertex, OpenMesh::Vec3f const& normal,
+    bool check_metric(const OpenMesh::Vec3f& point, const OpenMesh::Vec3f& triangle_vertex, const OpenMesh::Vec3f& normal,
                       float threshold);
 
     // evaluates whether a triangle exceeds a given error threashold or not using the point to plane distance for every
@@ -144,7 +141,7 @@ class RQT_Triangulator : public Triangulator
     //					-------		-------
     // a, b, c: Points of the triangle. Always given in counter-clock-wise order with "a" being the primarily left most
     // and secondarily upper most point
-    bool check_triangle_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> const& unprojected_image,
+    bool check_triangle_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> unprojected_image,
                                                  int triangle_orientation, float threshold, Point2D a, Point2D b,
                                                  Point2D c);
 
@@ -155,7 +152,7 @@ class RQT_Triangulator : public Triangulator
     //					a--d
     //					|  |
     //					b--c
-    bool check_quad_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> const& unprojected_image,
+    bool check_quad_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> unprojected_image,
                                              int triangle_orientation, float threshold, Point2D a, Point2D b, Point2D c,
                                              Point2D d);
 };

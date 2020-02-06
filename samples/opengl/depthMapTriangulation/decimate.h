@@ -23,28 +23,33 @@ class QuadricDecimater
     struct Settings
     {
         // max_decimations <= 0 means unlimited decimations are allowed
-        int max_decimations                         = 0;
-        float quadricMaxError                       = 0.000001f;
-        bool check_self_intersections               = true;
-        bool check_folding_triangles                = true;
+        int max_decimations = 0;
+        // if there is no collapse left that would cause a smaller error than quadricMaxError, the decimation is done
+        float quadricMaxError = 0.000001f;
+        // if this is true, collapses that invert the orientation of one or more faces are prohibited
+        bool check_self_intersections = true;
+        // if this is true, collapses that influence faces which are more than 60 degree apart receive a penalty towards
+        // their error
+        bool check_folding_triangles = true;
+        // if this is true, border edges only get decimated if they are roughly parallel to the other influenced edges
         bool only_collapse_roughly_parallel_borders = true;
-        bool check_interior_angles                  = true;
-        float minimal_interior_angle_rad            = radians(13.0f);
+        // if this is true, collapses that create a face with an interior angle smaller than minimal_interior_angle_rad
+        // receive a penalty towards their error
+        bool check_interior_angles       = true;
+        float minimal_interior_angle_rad = radians(13.0f);
     };
 
-    QuadricDecimater(Settings const& s);
-    ~QuadricDecimater();
+    QuadricDecimater(const Settings& s);
 
     // decimates the mesh as described in the paper here:
     // https://www.ri.cmu.edu/pub_files/pub2/garland_michael_1997_1/garland_michael_1997_1.pdf
     // One major difference is that only vertex-pairs sharing an edge are considered for decimation
-    void decimate_quadric(MyMesh& mesh_in);
+    void decimate(MyMesh& mesh);
 
    private:
-    MyMesh mesh;
+    MyMesh *current_mesh;
     Settings settings;
 
-    // heap
     std::unique_ptr<DeciHeap> collapseCandidates_heap;
 
     // --- Functions ---
@@ -68,7 +73,8 @@ class QuadricDecimater
     // The error is also dependent on the area of the face
     mat4 calculate_fundamental_error_matrix(const MyMesh::FaceHandle fh);
 
-    // gets an edge and checks if any of the adjacent faces have normals that are more than 60? off from each other
+    // gets an edge and checks if any of the adjacent faces have normals that are more than 60 degree off from each
+    // other
     bool check_for_folding_triangles(const MyMesh::EdgeHandle edge);
 
     // gets three vertices which represent two edges and checks, whether those edges are roughly parallel to each other

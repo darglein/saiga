@@ -30,10 +30,10 @@ using namespace Saiga;
 class Sample : public StandaloneWindow<WindowManagement::SDL, Forward_Renderer>, public SDL_KeyListener
 {
    public:
-    ImageProcessor::Settings ips;
-    SimpleTriangulator::Settings sts;
-    RQT_Triangulator::Settings rqts;
-    QuadricDecimater::Settings qds;
+    ImageProcessor::Settings ip_settings;
+    SimpleTriangulator::Settings st_settings;
+    RQT_Triangulator::Settings rqt_settings;
+    QuadricDecimater::Settings qd_settings;
 
     bool wireframe = true;
 
@@ -50,7 +50,6 @@ class Sample : public StandaloneWindow<WindowManagement::SDL, Forward_Renderer>,
     TriangleMesh<VertexNC, GLuint> depthmesh;
 
     Sample();
-    ~Sample();
 
     // loads a depth image named by depth_image_input
     void load_depth_image();
