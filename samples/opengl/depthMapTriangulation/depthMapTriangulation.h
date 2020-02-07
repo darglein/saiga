@@ -20,10 +20,11 @@
 #include "saiga/vision/VisionTypes.h"
 
 #include "decimate.h"
-#include "image_triangulator.h"
 #include "imageProcessor.h"
 
 #include <set>
+
+#include "image_triangulator.h"
 
 using namespace Saiga;
 

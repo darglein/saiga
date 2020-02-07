@@ -10,6 +10,7 @@
 #include "saiga/core/geometry/openMeshWrapper.h"
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/objModelLoader.h"
 #include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/vision/util/DepthmapPreprocessor.h"
@@ -41,7 +42,7 @@ Sample::Sample() : StandaloneWindow("config.ini")
     window->setCamera(&camera);
 
     // set an all-white background
-    renderer->params.clearColor = vec4(1, 1, 1, 1);
+    renderer->params.clearColor = vec4(0, 1, 1, 1);
 
     // set the camera parameters of all settings to the values of the used sample image
     cameraParameters = StereoCamera4Base<float>(5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02,
@@ -60,7 +61,6 @@ Sample::Sample() : StandaloneWindow("config.ini")
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
     ObjAssetLoader assetLoader;
     meshObject.asset = assetLoader.assetFromMesh(depthmesh);
-    meshObject.translateGlobal(vec3(0, 1, 0));
     meshObject.calculateModel();
 
     std::cout << "Program Initialized!" << std::endl;
@@ -68,7 +68,7 @@ Sample::Sample() : StandaloneWindow("config.ini")
 
 void Sample::load_depth_image()
 {
-    loaded_depth_image = TemplatedImage<float>(depth_image_input);
+    loaded_depth_image        = TemplatedImage<float>(depth_image_input);
     rqt_settings.image_height = loaded_depth_image.height;
     rqt_settings.image_width  = loaded_depth_image.width;
 
@@ -189,7 +189,7 @@ void Sample::interpolate(float dt, float interpolation)
 
 void Sample::renderOverlay(Camera* cam)
 {
-    meshObject.renderForward(cam);
+    //    meshObject.renderForward(cam);
 
     if (wireframe)
     {
@@ -230,10 +230,14 @@ void Sample::renderFinal(Camera* cam)
             ImGui::InputFloat("quadricMaxError", &qd_settings.quadricMaxError, 0.0f, 0.0f, "%.10f");
             ImGui::Checkbox("check_self_intersections", &qd_settings.check_self_intersections);
             ImGui::Checkbox("check_folding_triangles", &qd_settings.check_folding_triangles);
-            ImGui::Checkbox("only_collapse_roughly_parallel_borders", &qd_settings.only_collapse_roughly_parallel_borders);
+            ImGui::InputFloat("folding_triangle_constant", &qd_settings.folding_triangle_constant);
+            ImGui::Checkbox("only_collapse_roughly_parallel_borders",
+                            &qd_settings.only_collapse_roughly_parallel_borders);
             ImGui::Separator();
             ImGui::Checkbox("check_interior_angles", &qd_settings.check_interior_angles);
-            ImGui::InputFloat("minimal_interior_angle_rad", &qd_settings.minimal_interior_angle_rad, 0.0f, 0.0f, "%.6f");
+            ImGui::InputFloat("minimal_interior_angle_rad", &qd_settings.minimal_interior_angle_rad, 0.0f, 0.0f,
+                              "%.6f");
+            ImGui::InputFloat("interior_angle_constant", &qd_settings.interior_angle_constant);
         }
 
         ImGui::Separator();
@@ -261,6 +265,23 @@ void Sample::renderFinal(Camera* cam)
         if (ImGui::Button("4 reduce_quadric"))
         {
             reduce_quadric();
+        }
+
+        static std::array<char, 512> mesh_file = {0};
+        ImGui::InputText("File", mesh_file.data(), mesh_file.size());
+        if (ImGui::Button("Load Mesh"))
+        {
+            depthmesh.clear();
+            ObjModelLoader modelLoader(std::string(mesh_file.data()));
+            modelLoader.toTriangleMesh(depthmesh);
+            depthmesh.setColor(vec4(1, 0, 0, 1));
+            depthmesh.computePerVertexNormal();
+            depthmesh.normalizeScale();
+            depthmesh.normalizePosition();
+            // This simple AssetLoader can create assets from meshes and generate some generic debug assets
+            ObjAssetLoader assetLoader;
+            meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+            meshObject.calculateModel();
         }
 
         ImGui::Separator();

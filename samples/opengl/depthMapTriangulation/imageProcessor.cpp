@@ -14,7 +14,7 @@ ImageProcessor::ImageProcessor(const Settings& settings_in) : settings(settings_
 
 void ImageProcessor::remove_occlusion_edges(ImageView<float> depthImageView)
 {
-	TemplatedImage<vec3> unprojected_image(depthImageView.height, depthImageView.width);
+    TemplatedImage<vec3> unprojected_image(depthImageView.height, depthImageView.width);
     unprojected_image.makeZero();
 
     // unproject the depth image
@@ -30,8 +30,7 @@ void ImageProcessor::remove_occlusion_edges(ImageView<float> depthImageView)
     use_hysteresis_threshold(depthImageView, unprojected_image, p);
 }
 
-void ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageView,
-                                                  ImageView<vec3> unprojected_image)
+void ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageView, ImageView<vec3> unprojected_image)
 {
     int height = depth_imageView.height;
     int width  = depth_imageView.width;
@@ -47,7 +46,7 @@ void ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageVie
 }
 
 void ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageView,
-                                                  ImageView<OpenMesh::Vec3f> unprojected_image)
+                                           ImageView<OpenMesh::Vec3f> unprojected_image)
 {
     int height = depth_imageView.height;
     int width  = depth_imageView.width;
@@ -68,8 +67,9 @@ void ImageProcessor::filter_gaussian(ImageView<const float> input, ImageView<flo
     std::vector<float> filter((settings.gauss_radius * 2) + 1);
     for (int i = -settings.gauss_radius; i <= settings.gauss_radius; ++i)
     {
-        filter[i + settings.gauss_radius] = 1.0f / (sqrt(2.0f * pi<float>()) * settings.gauss_standard_deviation) *
-                                            std::exp(-(i * i / (2.0f * settings.gauss_standard_deviation * settings.gauss_standard_deviation)));
+        filter[i + settings.gauss_radius] =
+            1.0f / (sqrt(2.0f * pi<float>()) * settings.gauss_standard_deviation) *
+            std::exp(-(i * i / (2.0f * settings.gauss_standard_deviation * settings.gauss_standard_deviation)));
     }
     int filter_mid = filter.size() / 2;
 
@@ -159,7 +159,8 @@ void ImageProcessor::filter_gaussian(ImageView<const float> input, ImageView<flo
 
 // --- PRIVATE ---
 
-float ImageProcessor::compute_quad_max_aspect_ratio(const vec3& left_up, const vec3& right_up, const vec3& left_down, const vec3& right_down)
+float ImageProcessor::compute_quad_max_aspect_ratio(const vec3& left_up, const vec3& right_up, const vec3& left_down,
+                                                    const vec3& right_down)
 {
     // all edge lengths
     float len_up, len_right, len_down, len_left, len_diag_0, len_diag_1;
@@ -191,12 +192,12 @@ float ImageProcessor::compute_quad_max_aspect_ratio(const vec3& left_up, const v
     return std::min(max_aspect_0, max_aspect_1);
 }
 
-void ImageProcessor::compute_image_aspect_ratio(ImageView<const vec3> image,
-                                                       ImageView<float> depthImageView, ImageView<float> p)
+void ImageProcessor::compute_image_aspect_ratio(ImageView<const vec3> image, ImageView<float> depthImageView,
+                                                ImageView<float> p)
 {
     // get disparity data
     TemplatedImage<float> disparity(depthImageView.h, depthImageView.w);
-    float median_disparity     = get_median_disparity(depthImageView, disparity);
+    float median_disparity = get_median_disparity(depthImageView, disparity);
 
     int height       = disparity.height;
     int width        = disparity.width;
@@ -279,7 +280,7 @@ float ImageProcessor::get_median_disparity(ImageView<float> depth_imageView, Ima
 {
     // median disparity (broken pixels will not be used)
     std::vector<float> disparities;
-	disparities.reserve(disparity_imageView.height * disparity_imageView.width);
+    disparities.reserve(disparity_imageView.height * disparity_imageView.width);
 
     for (int h = 0; h < depth_imageView.height; ++h)
     {
@@ -316,7 +317,7 @@ float ImageProcessor::get_median_disparity(ImageView<float> depth_imageView, Ima
 }
 
 void ImageProcessor::use_hysteresis_threshold(ImageView<float> depth_image, ImageView<vec3> unprojected_image,
-                                                     ImageView<float> computed_values)
+                                              ImageView<float> computed_values)
 {
     int height = depth_image.height;
     int width  = depth_image.width;
@@ -372,4 +373,4 @@ void ImageProcessor::use_hysteresis_threshold(ImageView<float> depth_image, Imag
         }
     }
 }
-} // namespace saiga
+}  // namespace Saiga

@@ -42,14 +42,14 @@ class SimpleTriangulator : public Triangulator
    private:
     Settings settings;
 
-	// takes a mesh and three VertexHandles that belong to the same mesh.
-	// Checks whether any of those handles contain a broken value and creates a face if they don't
+    // takes a mesh and three VertexHandles that belong to the same mesh.
+    // Checks whether any of those handles contain a broken value and creates a face if they don't
     void add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2, MyMesh::VertexHandle vh3);
 
     // unprojects the pixels of the input image and adds them to the mesh in case the respective pixel contains no
     // broken value
-    void add_vertices_to_mesh(ImageView<const float> depthImageView,
-                              ImageView<OpenMesh::VertexHandle> pixel_vertices, MyMesh& mesh);
+    void add_vertices_to_mesh(ImageView<const float> depthImageView, ImageView<OpenMesh::VertexHandle> pixel_vertices,
+                              MyMesh& mesh);
 
     // takes an ImageView of VertexHandles that were added to the mesh (via add_vertices_to_mesh) and creates a simple
     // triangulation
@@ -68,7 +68,7 @@ class RQT_Triangulator : public Triangulator
     struct Settings
     {
         // the value used for pixels that contain failed depth measurements or got discarded
-        float broken_values = 0.0f;
+        float broken_values       = 0.0f;
         int image_height          = 240;
         int image_width           = 320;
         float RQT_error_threshold = 0.0015f;
@@ -84,9 +84,9 @@ class RQT_Triangulator : public Triangulator
     Settings settings;
     std::vector<std::vector<Point2D>> dependency_graph_vector;
     int RQT_side_len;
-	
-	// takes a mesh and three VertexHandles that belong to the same mesh.
-	// Checks whether any of those handles contain a broken value and creates a face if they don't
+
+    // takes a mesh and three VertexHandles that belong to the same mesh.
+    // Checks whether any of those handles contain a broken value and creates a face if they don't
     void add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2, MyMesh::VertexHandle vh3);
 
     // gets the next (2^n)+1 that is greater or equal than both settings.image_height and settings.image_width
@@ -121,8 +121,8 @@ class RQT_Triangulator : public Triangulator
     // close to http://www.iquilezles.org/www/articles/triangledistance/triangledistance.htm
     // allows a greater error in the distance, taken from the decimate enhanced error:
     // error /= pow(edge_to_camera_distance, 2)
-    bool check_metric(const OpenMesh::Vec3f& point, const OpenMesh::Vec3f& triangle_vertex, const OpenMesh::Vec3f& normal,
-                      float threshold);
+    bool check_metric(const OpenMesh::Vec3f& point, const OpenMesh::Vec3f& triangle_vertex,
+                      const OpenMesh::Vec3f& normal, float threshold);
 
     // evaluates whether a triangle exceeds a given error threashold or not using the point to plane distance for every
     // pixel

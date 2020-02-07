@@ -14,8 +14,8 @@ QuadricDecimater::QuadricDecimater(const Settings& s) : settings(s) {}
 
 void QuadricDecimater::decimate(MyMesh& mesh)
 {
-	// save a pointer to the mesh so all QuadricDecimater methods can access it easily
-	// the pointer will only be used by this method and all the methods called within it
+    // save a pointer to the mesh so all QuadricDecimater methods can access it easily
+    // the pointer will only be used by this method and all the methods called within it
     current_mesh = &mesh;
 
     // https://www.ri.cmu.edu/pub_files/pub2/garland_michael_1997_1/garland_michael_1997_1.pdf
@@ -124,7 +124,7 @@ void QuadricDecimater::decimate(MyMesh& mesh)
 
         // initialize counter variables for in case a specific amount of decimations is requested
         int decimated_vertices = 0;
-        int my_max_collapses   = (settings.max_decimations <= 0) ? current_mesh->n_vertices() : settings.max_decimations;
+        int my_max_collapses = (settings.max_decimations <= 0) ? current_mesh->n_vertices() : settings.max_decimations;
 
         while (!collapseCandidates_heap->empty() && decimated_vertices < my_max_collapses)
         {
@@ -211,7 +211,7 @@ bool QuadricDecimater::check_minimal_interior_angles_undershot(MyMesh::HalfedgeH
 
         // find the vertices of the resulting face after a collapse
         MyMesh::FVCCWIter fv_iter = current_mesh->fv_ccwbegin(*vf_iter);
-        MyMesh::VertexHandle vh1 = *fv_iter;
+        MyMesh::VertexHandle vh1  = *fv_iter;
         ++fv_iter;
         MyMesh::VertexHandle vh2 = *fv_iter;
         ++fv_iter;
@@ -259,7 +259,7 @@ bool QuadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeHandle c
 
         // find the vertices of the resulting face after a collapse
         MyMesh::FVCCWIter fv_iter = current_mesh->fv_ccwbegin(*vf_iter);
-        MyMesh::VertexHandle vh1 = *fv_iter;
+        MyMesh::VertexHandle vh1  = *fv_iter;
         ++fv_iter;
         MyMesh::VertexHandle vh2 = *fv_iter;
         ++fv_iter;
@@ -312,8 +312,8 @@ bool QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0v1)
     MyMesh::VertexHandle v1(current_mesh->to_vertex_handle(v0v1));              ///< Remaining vertex
     MyMesh::FaceHandle fl(current_mesh->face_handle(v0v1));                     ///< Left face
     MyMesh::FaceHandle fr(current_mesh->face_handle(v1v0));                     ///< Right face
-    MyMesh::VertexHandle vl;                                                   ///< Left vertex
-    MyMesh::VertexHandle vr;                                                   ///< Right vertex
+    MyMesh::VertexHandle vl;                                                    ///< Left vertex
+    MyMesh::VertexHandle vr;                                                    ///< Right vertex
 
     MyMesh::HalfedgeHandle vlv1, v0vl, vrv0, v1vr;  ///< Outer remaining halfedges
 
@@ -356,12 +356,10 @@ bool QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0v1)
     if (!current_mesh->is_collapse_ok(v0v1)) return false;
 
     // check for self intersections after the collapse
-    if (settings.check_self_intersections && current_mesh->property(h_collapse_self_intersection, v0v1))
-        return false;
+    if (settings.check_self_intersections && current_mesh->property(h_collapse_self_intersection, v0v1)) return false;
 
     // check whether the edge is a border and roughly parallel to the other affected border edge
-    if (settings.only_collapse_roughly_parallel_borders &&
-        current_mesh->is_boundary(current_mesh->edge_handle(v0v1)))
+    if (settings.only_collapse_roughly_parallel_borders && current_mesh->is_boundary(current_mesh->edge_handle(v0v1)))
     {
         if (current_mesh->property(h_parallel_border_edges, v0v1) == false)
         {
@@ -409,7 +407,7 @@ mat4 QuadricDecimater::calculate_fundamental_error_matrix(const MyMesh::FaceHand
     OpenMesh::Vec3f v2             = current_mesh->point(vh2);
 
     OpenMesh::Vec3f normal = OpenMesh::cross((v1 - v0), (v2 - v0));
-    float area = normal.norm();
+    float area             = normal.norm();
     normal /= area;
     area *= 0.5;
 
@@ -505,7 +503,8 @@ float QuadricDecimater::calculate_collapse_error(const MyMesh::HalfedgeHandle ca
     MyMesh::VertexHandle vh2 = current_mesh->to_vertex_handle(candidat_edge);
     vec4 v2 = vec4(current_mesh->point(vh2)[0], current_mesh->point(vh2)[1], current_mesh->point(vh2)[2], 1.0f);
 
-    float error = dot(v2, (current_mesh->property(h_errorMatrix, vh1) + current_mesh->property(h_errorMatrix, vh2)) * v2);
+    float error =
+        dot(v2, (current_mesh->property(h_errorMatrix, vh1) + current_mesh->property(h_errorMatrix, vh2)) * v2);
 
     if (settings.check_folding_triangles)
     {
@@ -513,7 +512,7 @@ float QuadricDecimater::calculate_collapse_error(const MyMesh::HalfedgeHandle ca
         {
             // the collapse affects folding triangles
             // --> add a penalty to the calculated error
-            error *= 10.0f;
+            error = error * 10.0f + settings.folding_triangle_constant;
         }
     }
 
@@ -525,7 +524,7 @@ float QuadricDecimater::calculate_collapse_error(const MyMesh::HalfedgeHandle ca
             // the collapse causes some acute triangles
             // (or rather triangles with at least one interior angle below settings.minimal_interior_angle_rad)
             // --> add a penalty to the calculated error
-            error *= 10.0f;
+            error = error * 10.0f + settings.interior_angle_constant;
         }
     }
 

@@ -147,7 +147,7 @@ std::vector<Triangle> AABB::toTriangles()
 
 std::ostream& operator<<(std::ostream& os, const AABB& bb)
 {
-    std::cout << "AABB: " << bb.min << " " << bb.max;
+    std::cout << "AABB: [" << bb.min.transpose() << "] [" << bb.max.transpose() << "]";
     return os;
 }
 

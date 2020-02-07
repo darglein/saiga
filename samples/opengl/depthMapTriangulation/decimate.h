@@ -30,13 +30,16 @@ class QuadricDecimater
         bool check_self_intersections = true;
         // if this is true, collapses that influence faces which are more than 60 degree apart receive a penalty towards
         // their error
-        bool check_folding_triangles = true;
+        bool check_folding_triangles    = true;
+        float folding_triangle_constant = 0;
+
         // if this is true, border edges only get decimated if they are roughly parallel to the other influenced edges
         bool only_collapse_roughly_parallel_borders = true;
         // if this is true, collapses that create a face with an interior angle smaller than minimal_interior_angle_rad
         // receive a penalty towards their error
         bool check_interior_angles       = true;
         float minimal_interior_angle_rad = radians(13.0f);
+        float interior_angle_constant    = 0;
     };
 
     QuadricDecimater(const Settings& s);
@@ -47,7 +50,7 @@ class QuadricDecimater
     void decimate(MyMesh& mesh);
 
    private:
-    MyMesh *current_mesh;
+    MyMesh* current_mesh;
     Settings settings;
 
     std::unique_ptr<DeciHeap> collapseCandidates_heap;
