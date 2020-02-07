@@ -76,14 +76,12 @@ void QuadricDecimater::decimate(MyMesh& mesh)
         // iterate all vertices and calculate their error matrices
         MyMesh::VertexIter v_it, v_end(current_mesh->vertices_end());
         MyMesh::VertexFaceCWIter vf_it;
-
         for (v_it = current_mesh->vertices_sbegin(); v_it != v_end; ++v_it)
         {
             // circulate the faces of the vertex and add the matrices
             mat4 error_mat = mat4::Zero();
 
             vf_it = current_mesh->cvf_cwbegin(*v_it);
-
             for (; vf_it.is_valid(); ++vf_it)
             {
                 MyMesh::FaceHandle f = *vf_it;
@@ -111,7 +109,6 @@ void QuadricDecimater::decimate(MyMesh& mesh)
     {
         // iterate all vertices and find their best decimation partner
         MyMesh::VertexIter v_it, v_end(current_mesh->vertices_end());
-
         for (v_it = current_mesh->vertices_begin(); v_it != v_end; ++v_it)
         {
             collapseCandidates_heap->reset_heap_position(*v_it);
@@ -123,7 +120,6 @@ void QuadricDecimater::decimate(MyMesh& mesh)
     // partners for all neighbouring vertices
     {
         MyMesh::VertexHandle current_candidate;
-
         std::vector<MyMesh::VertexHandle> support;
 
         // initialize counter variables for in case a specific amount of decimations is requested
@@ -168,23 +164,19 @@ void QuadricDecimater::decimate(MyMesh& mesh)
             }
 
             // update the information of surrounding edges
-            {
-                update_edges(vh_target);
-            }
+            update_edges(vh_target);
 
             // update the newly created vertex, its neighbours and their location in the heap
             for (MyMesh::VertexHandle vh : support)
             {
-                assert(!current_mesh->status(vh).deleted());
+                SAIGA_ASSERT(!current_mesh->status(vh).deleted());
                 update_vertex(vh);
             }
         }
     }
 
     // Post-computation
-
     collapseCandidates_heap.reset();
-
     current_mesh->delete_isolated_vertices();
     current_mesh->garbage_collection();
 
@@ -197,7 +189,6 @@ void QuadricDecimater::decimate(MyMesh& mesh)
     if (settings.check_self_intersections) current_mesh->remove_property(h_collapse_self_intersection);
     if (settings.only_collapse_roughly_parallel_borders) current_mesh->remove_property(h_parallel_border_edges);
     if (settings.check_interior_angles) current_mesh->remove_property(h_interior_angles_undershot);
-
 
     // deactivate status
     current_mesh->release_face_status();
@@ -213,7 +204,6 @@ bool QuadricDecimater::check_minimal_interior_angles_undershot(MyMesh::HalfedgeH
     MyMesh::FaceHandle collapse_face_2(current_mesh->opposite_face_handle(collapse_edge));
 
     MyMesh::VFCWIter vf_iter = current_mesh->vf_cwiter(current_mesh->from_vertex_handle(collapse_edge));
-
     for (; vf_iter.is_valid(); ++vf_iter)
     {
         // the faces that disappear in the collapse don't matter
@@ -221,7 +211,6 @@ bool QuadricDecimater::check_minimal_interior_angles_undershot(MyMesh::HalfedgeH
 
         // find the vertices of the resulting face after a collapse
         MyMesh::FVCCWIter fv_iter = current_mesh->fv_ccwbegin(*vf_iter);
-
         MyMesh::VertexHandle vh1 = *fv_iter;
         ++fv_iter;
         MyMesh::VertexHandle vh2 = *fv_iter;
@@ -252,7 +241,6 @@ bool QuadricDecimater::check_minimal_interior_angles_undershot(MyMesh::HalfedgeH
             return true;
         }
     }
-
     return false;
 }
 
@@ -262,7 +250,6 @@ bool QuadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeHandle c
     MyMesh::FaceHandle collapse_face_2(current_mesh->opposite_face_handle(collapse_edge));
 
     MyMesh::VFCCWIter vf_iter = current_mesh->vf_ccwiter(current_mesh->from_vertex_handle(collapse_edge));
-
     for (; vf_iter.is_valid(); ++vf_iter)
     {
         // the faces that disappear in the collapse don't matter
@@ -272,7 +259,6 @@ bool QuadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeHandle c
 
         // find the vertices of the resulting face after a collapse
         MyMesh::FVCCWIter fv_iter = current_mesh->fv_ccwbegin(*vf_iter);
-
         MyMesh::VertexHandle vh1 = *fv_iter;
         ++fv_iter;
         MyMesh::VertexHandle vh2 = *fv_iter;
@@ -301,7 +287,6 @@ bool QuadricDecimater::check_collapse_self_intersection(MyMesh::HalfedgeHandle c
             return true;
         }
     }
-
     return false;
 }
 
@@ -370,11 +355,11 @@ bool QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0v1)
     // edge between two boundary vertices should be a boundary edge
     if (!current_mesh->is_collapse_ok(v0v1)) return false;
 
-    // my modification
+    // check for self intersections after the collapse
     if (settings.check_self_intersections && current_mesh->property(h_collapse_self_intersection, v0v1))
         return false;
 
-    // my modification
+    // check whether the edge is a border and roughly parallel to the other affected border edge
     if (settings.only_collapse_roughly_parallel_borders &&
         current_mesh->is_boundary(current_mesh->edge_handle(v0v1)))
     {
@@ -404,7 +389,6 @@ bool QuadricDecimater::custom_is_collapse_legal(MyMesh::HalfedgeHandle v0v1)
         if (vl.is_valid() && vr.is_valid()) return false;
     }
 
-
     // there have to be at least 2 incident faces at v0
     if (current_mesh->cw_rotated_halfedge_handle(current_mesh->cw_rotated_halfedge_handle(v0v1)) == v0v1) return false;
 
@@ -425,7 +409,6 @@ mat4 QuadricDecimater::calculate_fundamental_error_matrix(const MyMesh::FaceHand
     OpenMesh::Vec3f v2             = current_mesh->point(vh2);
 
     OpenMesh::Vec3f normal = OpenMesh::cross((v1 - v0), (v2 - v0));
-
     float area = normal.norm();
     normal /= area;
     area *= 0.5;
@@ -495,15 +478,12 @@ bool QuadricDecimater::check_for_folding_triangles(const MyMesh::EdgeHandle edge
             float angle = OpenMesh::dot(normal_1, normals[j]);
             angle       = acos(angle);
 
-            // pi<float>() / 3.0f rad = 60 degree
-            // pi<float>() / 3.0f = 1.0471975512f
-            if (angle > 1.0471975512f)
+            if (angle > radians(60.0f))
             {
                 return true;
             }
         }
     }
-
     return false;
 }
 
@@ -514,7 +494,6 @@ bool QuadricDecimater::check_edge_parallelity(const OpenMesh::Vec3f v0, const Op
 
     // check the edges against each other
     float dot = OpenMesh::dot(edge0, edge1);
-
     if (abs(dot) < 0.95) return false;
 
     return true;
@@ -583,7 +562,6 @@ float QuadricDecimater::find_collapse_partner(const MyMesh::VertexHandle vh, MyM
             error         = error_tmp;
         }
     }
-
     return error;
 }
 
@@ -676,5 +654,4 @@ void QuadricDecimater::update_edges(const MyMesh::VertexHandle vh)
         update_edge(*it);
     }
 }
-
 }  // namespace Saiga

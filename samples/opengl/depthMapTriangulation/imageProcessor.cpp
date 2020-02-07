@@ -8,7 +8,6 @@
 
 namespace Saiga
 {
-
 // --- PUBLIC ---
 
 ImageProcessor::ImageProcessor(const Settings& settings_in) : settings(settings_in) {}
@@ -53,12 +52,11 @@ void ImageProcessor::unproject_depth_image(ImageView<const float> depth_imageVie
     int height = depth_imageView.height;
     int width  = depth_imageView.width;
 
-    float z;
     for (int h = 0; h < height; ++h)
     {
         for (int w = 0; w < width; ++w)
         {
-            z                       = depth_imageView(h, w);
+            float z                 = depth_imageView(h, w);
             vec3 unprojected_point  = settings.cameraParameters.unproject(vec2(w + 0.5f, h + 0.5f), z);
             unprojected_image(h, w) = OpenMesh::Vec3f(unprojected_point[0], unprojected_point[1], unprojected_point[2]);
         }
@@ -70,8 +68,8 @@ void ImageProcessor::filter_gaussian(ImageView<const float> input, ImageView<flo
     std::vector<float> filter((settings.gauss_radius * 2) + 1);
     for (int i = -settings.gauss_radius; i <= settings.gauss_radius; ++i)
     {
-        filter[i + settings.gauss_radius] = 1.0f / (sqrt(2.0f * pi<float>()) * settings.gauss_stadard_deviation) *
-                                            std::exp(-(i * i / (2.0f * settings.gauss_stadard_deviation * settings.gauss_stadard_deviation)));
+        filter[i + settings.gauss_radius] = 1.0f / (sqrt(2.0f * pi<float>()) * settings.gauss_standard_deviation) *
+                                            std::exp(-(i * i / (2.0f * settings.gauss_standard_deviation * settings.gauss_standard_deviation)));
     }
     int filter_mid = filter.size() / 2;
 
@@ -117,7 +115,6 @@ void ImageProcessor::filter_gaussian(ImageView<const float> input, ImageView<flo
             temp_image(h, w) = value / weights;
         }
     }
-
 
     // go through the pixels and filter in y-direction
     for (int h = 0; h < input.height; ++h)
@@ -190,15 +187,8 @@ float ImageProcessor::compute_quad_max_aspect_ratio(const vec3& left_up, const v
     // edge direction: left down to right up
     float max_aspect_1 = std::max(aspect_2, aspect_3);
 
-    // choose the smaller maximum and its triangulation
-    if (max_aspect_0 <= max_aspect_1)
-    {
-        return max_aspect_0;
-    }
-    else
-    {
-        return max_aspect_1;
-    }
+    // choose the smaller maximum
+    return std::min(max_aspect_0, max_aspect_1);
 }
 
 void ImageProcessor::compute_image_aspect_ratio(ImageView<const vec3> image,
@@ -233,9 +223,7 @@ void ImageProcessor::compute_image_aspect_ratio(ImageView<const vec3> image,
             // if not then get the worse aspect ratio using the better triangulation
             float q_p =
                 compute_quad_max_aspect_ratio(image(h, w), image(h, w + 1), image(h + 1, w), image(h + 1, w + 1));
-
             quad_p(h, w) = q_p;
-
 
             // compute the data for the next pixel
             if (h == 0 || w == 0)
@@ -307,7 +295,6 @@ float ImageProcessor::get_median_disparity(ImageView<float> depth_imageView, Ima
             }
 
             disparity_imageView(h, w) = settings.cameraParameters.bf / depth;
-
             disparities.push_back(disparity_imageView(h, w));
         }
     }
@@ -385,5 +372,4 @@ void ImageProcessor::use_hysteresis_threshold(ImageView<float> depth_image, Imag
         }
     }
 }
-
 } // namespace saiga

@@ -57,10 +57,8 @@ Sample::Sample() : StandaloneWindow("config.ini")
     blur_depth_image();
     triangulate_naive();
 
-
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
     ObjAssetLoader assetLoader;
-
     meshObject.asset = assetLoader.assetFromMesh(depthmesh);
     meshObject.translateGlobal(vec3(0, 1, 0));
     meshObject.calculateModel();
@@ -71,7 +69,6 @@ Sample::Sample() : StandaloneWindow("config.ini")
 void Sample::load_depth_image()
 {
     loaded_depth_image = TemplatedImage<float>(depth_image_input);
-
     rqt_settings.image_height = loaded_depth_image.height;
     rqt_settings.image_width  = loaded_depth_image.width;
 
@@ -86,9 +83,7 @@ void Sample::load_depth_image()
 void Sample::scale_down_depth_image()
 {
     DMPPParameters dmppp = DMPPParameters();
-
     Intrinsics4 intrinsics(cameraParameters.fx, cameraParameters.fy, cameraParameters.cx, cameraParameters.cy);
-
     DMPP dmpp(intrinsics, dmppp);
 
     if (loaded_depth_image.height % 2 != 0 || loaded_depth_image.width % 2 != 0)
@@ -117,16 +112,13 @@ void Sample::scale_down_depth_image()
 void Sample::preprocess_occlusion_edges()
 {
     ImageProcessor ip(ip_settings);
-
     ip.remove_occlusion_edges(loaded_depth_image);
 }
 
 void Sample::blur_depth_image()
 {
     TemplatedImage<float> result(loaded_depth_image.height, loaded_depth_image.width);
-
     ImageProcessor ip(ip_settings);
-
     ip.filter_gaussian(loaded_depth_image, result);
 
     loaded_depth_image = result;
@@ -146,7 +138,6 @@ void Sample::triangulate_naive()
     copyVertexColor(m, depthmesh);
     depthmesh.computePerVertexNormal();
 
-
     AssetLoader assetLoader;
     meshObject.asset = assetLoader.assetFromMesh(depthmesh);
 }
@@ -156,9 +147,7 @@ void Sample::triangulate_RQT()
     OpenTriangleMesh m;
 
     RQT_Triangulator t(rqt_settings);
-
     t.triangulate_image(loaded_depth_image, m);
-
     openMeshToTriangleMesh(m, depthmesh);
     copyVertexColor(m, depthmesh);
     depthmesh.computePerVertexNormal();
@@ -175,7 +164,6 @@ void Sample::reduce_quadric()
     copyVertexColor(depthmesh, mesh);
 
     QuadricDecimater qd(qd_settings);
-
     qd.decimate(mesh);
 
     openMeshToTriangleMesh(mesh, depthmesh);
@@ -185,7 +173,6 @@ void Sample::reduce_quadric()
     AssetLoader assetLoader;
     meshObject.asset = assetLoader.assetFromMesh(depthmesh);
 }
-
 
 void Sample::update(float dt)
 {
@@ -199,7 +186,6 @@ void Sample::interpolate(float dt, float interpolation)
     // doing it in the interpolate step will reduce latency
     if (!ImGui::captureMouse()) camera.interpolate(dt, interpolation);
 }
-
 
 void Sample::renderOverlay(Camera* cam)
 {
@@ -231,7 +217,7 @@ void Sample::renderFinal(Camera* cam)
         {
             ImGui::InputFloat("hyst min", &ip_settings.hyst_min);
             ImGui::InputFloat("hyst max", &ip_settings.hyst_max);
-            ImGui::InputFloat("gauss standard deviation", &ip_settings.gauss_stadard_deviation);
+            ImGui::InputFloat("gauss standard deviation", &ip_settings.gauss_standard_deviation);
             ImGui::InputInt("gauss radius", &ip_settings.gauss_radius);
         }
         if (ImGui::CollapsingHeader("RQT Options"))
@@ -286,6 +272,7 @@ void Sample::renderFinal(Camera* cam)
         ImGui::End();
     }
 }
+
 void Sample::keyPressed(SDL_Keysym key)
 {
     switch (key.scancode)
@@ -299,7 +286,6 @@ void Sample::keyPressed(SDL_Keysym key)
 }
 
 void Sample::keyReleased(SDL_Keysym key) {}
-
 
 int main(int argc, char* args[])
 {

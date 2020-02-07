@@ -22,7 +22,7 @@ class ImageProcessor
 
         // options for the gaussian filtering
         int gauss_radius      = 4;
-        float gauss_stadard_deviation = 1.2f;
+        float gauss_standard_deviation = 1.2f;
 
         // options for using the hysteresis threshold
         // if a pixel in the filtered image...
@@ -89,5 +89,4 @@ class ImageProcessor
     void use_hysteresis_threshold(ImageView<float> depth_image, ImageView<vec3> unprojected_image,
                                   ImageView<float> computed_values);
 };
-
 }  // namespace Saiga

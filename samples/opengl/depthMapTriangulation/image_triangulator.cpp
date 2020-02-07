@@ -26,7 +26,6 @@ void SimpleTriangulator::triangulate_image(ImageView<const float> depthImage, Op
     // triangulate the added vertices
     completely_triangulate(mesh_out, pixel_vertexHandles_iV);
 
-
     // Post-computation
 
     // activate status so that items can be deleted
@@ -65,8 +64,8 @@ void SimpleTriangulator::add_vertices_to_mesh(ImageView<const float> depthImageV
     int height = depthImageView.height;
     int width  = depthImageView.width;
 
-    assert(pixel_vertices.height == height);
-    assert(pixel_vertices.width == width);
+    SAIGA_ASSERT(pixel_vertices.height == height);
+    SAIGA_ASSERT(pixel_vertices.width == width);
 
     ImageProcessor::Settings ip_settings;
     ip_settings.cameraParameters = settings.cameraParameters;
@@ -158,7 +157,6 @@ void SimpleTriangulator::completely_triangulate(MyMesh& mesh, ImageView<OpenMesh
                 continue;
             }
 
-
             // no vertex is broken
             // depending on the length of the diagonals, we triangulate so that the shorter one is chosen
             float diagonal_length_1 = (mesh.point(vh) - mesh.point(vh_right_down)).length();
@@ -178,15 +176,12 @@ void SimpleTriangulator::completely_triangulate(MyMesh& mesh, ImageView<OpenMesh
     }
 }
 
-
-
 // ------------------- RQT triangulation -------------------
 
 // ----  PUBLIC  ----
 RQT_Triangulator::RQT_Triangulator(const Settings& settings_in) : settings(settings_in)
 {
     RQT_side_len = get_closest_RQT_side_length(settings_in.image_height, settings_in.image_width);
-
     create_dependency_graph();
 }
 
@@ -200,20 +195,16 @@ void RQT_Triangulator::triangulate_image(ImageView<const float> depthImage, Open
     std::vector<OpenMesh::Vec3f> unprojected_image_vector(settings.image_height * settings.image_width);
     ImageView<OpenMesh::Vec3f> unprojected_image(settings.image_height, settings.image_width,
                                                  unprojected_image_vector.data());
-
     ip.unproject_depth_image(depthImage, unprojected_image);
 
     // create an ImageView for the selected vertices
     std::vector<MyMesh::VertexHandle> selected_vertices_vector(settings.image_height * settings.image_width);
     ImageView<MyMesh::VertexHandle> selected_vertices(settings.image_height, settings.image_width,
                                                       selected_vertices_vector.data());
-
     select_vertices_for_RQT(mesh_out, unprojected_image, selected_vertices);
-
 
     // actually triangulate the mesh using all the selected vertices
     triangulate_RQT_selected_vertices(mesh_out, selected_vertices);
-
 
     // --- post computation ---
 
@@ -230,7 +221,6 @@ void RQT_Triangulator::triangulate_image(ImageView<const float> depthImage, Open
     mesh_out.release_edge_status();
     mesh_out.release_vertex_status();
 }
-
 
 // ----  PRIVATE  ----
 void RQT_Triangulator::add_face_to_mesh(MyMesh& mesh, MyMesh::VertexHandle vh1, MyMesh::VertexHandle vh2,
@@ -265,7 +255,6 @@ int RQT_Triangulator::get_closest_RQT_side_length(int height, int width)
         max_image_side_length = pow(2, max_image_side_length);
         ++max_image_side_length;
     }
-
     return max_image_side_length;
 }
 
@@ -276,7 +265,8 @@ void RQT_Triangulator::create_dependency_graph()
     int total_levels              = total_levels_without_zero + 1;
 
     dependency_graph_vector = std::vector<std::vector<Point2D>>(RQT_side_len * RQT_side_len);
-    ImageView<std::vector<Point2D>> dependency_graph = ImageView<std::vector<Point2D>>(RQT_side_len, RQT_side_len, dependency_graph_vector.data());
+    ImageView<std::vector<Point2D>> dependency_graph =
+        ImageView<std::vector<Point2D>>(RQT_side_len, RQT_side_len, dependency_graph_vector.data());
 
     // add something to the level 0 vertices so they will be skipped in the upcoming loop over the other levels
     dependency_graph(0, 0)                               = std::vector<Point2D>(1, Point2D(0, 0));
@@ -286,9 +276,8 @@ void RQT_Triangulator::create_dependency_graph()
 
     for (int level = 1; level < total_levels; ++level)
     {
-        int h_l = pow(2, level);
-        int d_l = (RQT_side_len - 1) / pow(2, level);
-
+        int h_l   = pow(2, level);
+        int d_l   = (RQT_side_len - 1) / pow(2, level);
         int hl_dl = h_l * d_l;
 
         // there are 5 vertices per quad in a quadtree (except for level 0):
@@ -326,7 +315,7 @@ void RQT_Triangulator::create_dependency_graph()
                 }
                 if (dependency_graph(y, x).size() > 0)
                 {
-					// the current vertex is already part of a previously handled level
+                    // the current vertex is already part of a previously handled level
                     continue;
                 }
 
@@ -382,21 +371,17 @@ void RQT_Triangulator::create_dependency_graph()
                                 dependency_graph(y, x).push_back(Point2D(x1, y1));
                             if (x2 >= 0 && y2 >= 0) dependency_graph(y, x).push_back(Point2D(x2, y2));
                         }
-
                         // diagonal dependency_graph are always alternating
                         diagonal_dependency_dir = !diagonal_dependency_dir;
                     }
-
                     // flip the flag since the next loop is the other kind of column
                     side_center_flag = !side_center_flag;
                 }
             }
-
             // flip the flag since the next loop is the other kind of row
             row_flag = !row_flag;
         }
     }
-
     // clear tmp dependency_graph from level 0
     dependency_graph(0, 0).clear();
     dependency_graph(RQT_side_len - 1, 0).clear();
@@ -410,13 +395,11 @@ void RQT_Triangulator::resolve_dependencies(MyMesh& mesh, ImageView<const OpenMe
     // create a heap of vertices left to add to the selected_vertices
     std::vector<Point2D> vertex_heap;
     vertex_heap.push_back(vertex);
-
     while (!vertex_heap.empty())
     {
         // get next index to work with
         Point2D curr_vertex = vertex_heap.back();
         vertex_heap.pop_back();
-
         int x = curr_vertex.first;
         int y = curr_vertex.second;
 
@@ -430,7 +413,6 @@ void RQT_Triangulator::resolve_dependencies(MyMesh& mesh, ImageView<const OpenMe
         // there too) don't add further dependencies of this vertex if it already existed
         if (selected_vertices(y, x) != MyMesh::VertexHandle()) continue;
 
-
         // add the current vertex to the selected vertices
         selected_vertices(y, x) = mesh.add_vertex(unprojected_image(y, x));
         if (mesh.has_vertex_colors())
@@ -441,10 +423,10 @@ void RQT_Triangulator::resolve_dependencies(MyMesh& mesh, ImageView<const OpenMe
         }
 
         // add the vertices dependencies to the heap
-		ImageView<std::vector<Point2D>> dependency_graph = ImageView<std::vector<Point2D>>(RQT_side_len, RQT_side_len, dependency_graph_vector.data());
+        ImageView<std::vector<Point2D>> dependency_graph =
+            ImageView<std::vector<Point2D>>(RQT_side_len, RQT_side_len, dependency_graph_vector.data());
         for (int i = 0; i < dependency_graph(y, x).size(); ++i)
         {
-            // i won't be greater than 1
             vertex_heap.push_back(dependency_graph(y, x)[i]);
         }
     }
@@ -463,8 +445,8 @@ void RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh, ImageView<const Ope
     resolve_dependencies(mesh, unprojected_image, Point2D(RQT_side_len - 1, RQT_side_len - 1), selected_vertices);
 
     // create a heap of RQT quads whose 4 inner quads need to be checked against the error metric to determine if they
-    // should be split or not (I do it this way so I'll know the triangulation). Each entry is a pair of the quads' upper
-    // left corners' coordinates (x, y) in the image and the side-length of the quad
+    // should be split or not (I do it this way so I'll know the triangulation). Each entry is a pair of the quads'
+    // upper left corners' coordinates (x, y) in the image and the side-length of the quad
     std::vector<std::pair<Point2D, int>> quad_heap;
     quad_heap.push_back(std::pair<Point2D, int>(Point2D(0, 0), RQT_side_len));
 
@@ -486,13 +468,10 @@ void RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh, ImageView<const Ope
 
         step_small = curr_side_len / 4;
         step_med   = curr_side_len / 2;
-
-        x_mid = x + step_med;
-        y_mid = y + step_med;
-
-        x_right = x + curr_side_len - 1;
-        y_down  = y + curr_side_len - 1;
-
+        x_mid      = x + step_med;
+        y_mid      = y + step_med;
+        x_right    = x + curr_side_len - 1;
+        y_down     = y + curr_side_len - 1;
 
         // get error metric result
 
@@ -501,11 +480,11 @@ void RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh, ImageView<const Ope
         // represented by neighbour quads)
         if (y < image_height - 1 && x < image_width - 1)
         {
-            if (y_mid >= image_height ||
-                x_mid >= image_width  // any part of the quad doesn't cover the image (--> instantly split)
-                || check_quad_error_threshold_exceeded(unprojected_image, 0, settings.RQT_error_threshold,
-                                                       Point2D(x, y), Point2D(x, y_mid), Point2D(x_mid, y_mid),
-                                                       Point2D(x_mid, y)))  // error threshold exceeded
+            if (  // any part of the quad doesn't cover the image (--> instantly split)
+                y_mid >= image_height || x_mid >= image_width ||
+                // check whether error threshold is exceeded
+                check_quad_error_threshold_exceeded(unprojected_image, 0, settings.RQT_error_threshold, Point2D(x, y),
+                                                    Point2D(x, y_mid), Point2D(x_mid, y_mid), Point2D(x_mid, y)))
             {
                 // add the quad to the heap for further metric checks
                 quad_heap.push_back(std::pair<Point2D, int>(Point2D(x, y), step_med + 1));
@@ -607,7 +586,6 @@ void RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh, ImageView<const Ope
     }
 }
 
-
 // ----------- actual triangulation -----------
 
 void RQT_Triangulator::triangulate_RQT_selected_vertices(MyMesh& current_mesh,
@@ -624,13 +602,12 @@ void RQT_Triangulator::triangulate_RQT_selected_vertices(MyMesh& current_mesh,
     bool child_1, child_2, child_3, child_4;
 
     MyMesh::VertexHandle curr_center_vh;
-
     int curr_y, curr_x;
     int curr_max_y, curr_max_x;
     int curr_side_len, next_side_len, step_small, step_mid;
-	// curr_triangulation == false: top left to bottom right, true: top right to bottom left
+    // curr_triangulation == false: top left to bottom right, true: top right to bottom left
     bool curr_triangulation;
-	// flags to help determine the correct triangulation
+    // flags to help determine the correct triangulation
     bool up_exists, left_exists, down_exists, right_exists;
     while (!quad_heap.empty())
     {
@@ -710,9 +687,7 @@ void RQT_Triangulator::triangulate_RQT_selected_vertices(MyMesh& current_mesh,
                                          selected_vertices(curr_y + step_mid, curr_max_x),
                                          selected_vertices(curr_y, curr_max_x));
                     }
-
                     // right lower quad is not in the image for sure
-
                     continue;
                 }
             }
@@ -947,7 +922,6 @@ bool RQT_Triangulator::check_triangle_error_threshold_exceeded(ImageView<const O
             }
             break;
     }
-
     return false;
 }
 
@@ -986,5 +960,4 @@ bool RQT_Triangulator::check_quad_error_threshold_exceeded(ImageView<const OpenM
                check_triangle_error_threshold_exceeded(unprojected_image, 3, threshold, b, c, d);
     }
 }
-
 }  // namespace Saiga

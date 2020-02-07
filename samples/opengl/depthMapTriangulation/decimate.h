@@ -99,8 +99,6 @@ class QuadricDecimater
     // this calls update_edge for all edges adjacent to the given vertex
     void update_edges(const MyMesh::VertexHandle vh);
 
-
-
     // --- Mesh properties ---
 
     // --- vertex properties ---
@@ -133,5 +131,4 @@ class QuadricDecimater
     // a property to store the fundamental error matrices per face
     OpenMesh::FPropHandleT<mat4> h_fund_error_mat;
 };
-
 }  // namespace Saiga

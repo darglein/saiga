@@ -20,7 +20,6 @@ class Triangulator
     virtual void triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out) = 0;
 };
 
-
 // ------------------- naive triangulation -------------------
 
 class SimpleTriangulator : public Triangulator
@@ -57,7 +56,6 @@ class SimpleTriangulator : public Triangulator
     void completely_triangulate(MyMesh& mesh, ImageView<OpenMesh::VertexHandle> pixel_vertexHandles);
 };
 
-
 // ------------------- RQT triangulation -------------------
 
 // This class is meant for getting one or more images and turning them into meshes
@@ -71,10 +69,9 @@ class RQT_Triangulator : public Triangulator
     {
         // the value used for pixels that contain failed depth measurements or got discarded
         float broken_values = 0.0f;
-
-        float RQT_error_threshold = 0.0015f;
         int image_height          = 240;
         int image_width           = 320;
+        float RQT_error_threshold = 0.0015f;
 
         StereoCamera4Base<float> cameraParameters;
     };
@@ -99,19 +96,16 @@ class RQT_Triangulator : public Triangulator
     // this method refreshes both dependency_graph_vector and dependency_graph
     void create_dependency_graph();
 
-
     // -------------- vertex selection --------------
 
     // adds a vertex and all its dependencies to the selected vertices using the dependency_graph
     void resolve_dependencies(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image, Point2D vertex,
                               ImageView<MyMesh::VertexHandle> selected_vertices);
 
-
     // Uses a metric to determine when to split a quadtree, selects the needed
     // vertices, resolves dependencies. This function selects all neccessary vertices for the whole RQT
     void select_vertices_for_RQT(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image,
                                  ImageView<MyMesh::VertexHandle> selected_vertices);
-
 
     // -------------- actual triangulation --------------
 
@@ -156,5 +150,4 @@ class RQT_Triangulator : public Triangulator
                                              int triangle_orientation, float threshold, Point2D a, Point2D b, Point2D c,
                                              Point2D d);
 };
-
 }  // namespace Saiga
