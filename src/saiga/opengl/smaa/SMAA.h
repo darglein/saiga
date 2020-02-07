@@ -72,7 +72,7 @@ class SMAA
 
     void renderImGui();
 
-   private:
+   protected:
     // mark pixel in first pass and use it in second pass. The last pass is executed on all pixels.
     framebuffer_texture_t stencilTex;
 

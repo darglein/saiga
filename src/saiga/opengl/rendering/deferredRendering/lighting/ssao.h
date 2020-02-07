@@ -9,8 +9,8 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
-#include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/rendering/deferredRendering/postProcessor.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 
 namespace Saiga
 {
@@ -42,7 +42,21 @@ class SAIGA_OPENGL_API SSAOShader : public DeferredShader
 
 class SAIGA_OPENGL_API SSAO
 {
-   private:
+   public:
+    std::shared_ptr<Texture> bluredTexture;
+
+    SSAO(int w, int h);
+    void init(int w, int h);
+    void resize(int w, int h);
+    void clearSSAO();
+    void render(Camera* cam, const ViewPort& vp, GBuffer* gbuffer);
+
+
+    void setKernelSize(int kernelSize);
+
+    void renderImGui();
+
+   protected:
     std::shared_ptr<MVPTextureShader> blurShader;
     std::shared_ptr<SSAOShader> ssaoShader = nullptr;
 
@@ -55,20 +69,6 @@ class SAIGA_OPENGL_API SSAO
     ivec2 ssaoSize;
     std::vector<vec3> kernelOffsets;
     int kernelSize = 32;
-
-   public:
-    std::shared_ptr<Texture> bluredTexture;
-
-    SSAO(int w, int h);
-    void init(int w, int h);
-    void resize(int w, int h);
-    void clearSSAO();
-    void render(Camera* cam, const ViewPort &vp, GBuffer* gbuffer);
-
-
-    void setKernelSize(int kernelSize);
-
-    void renderImGui();
 };
 
 }  // namespace Saiga

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/opengl/framebuffer.h"
 #include "saiga/core/util/quality.h"
+#include "saiga/opengl/framebuffer.h"
 
 namespace Saiga
 {
@@ -22,9 +22,6 @@ struct SAIGA_OPENGL_API GBufferParameters
 
 class SAIGA_OPENGL_API GBuffer : public Framebuffer
 {
-   protected:
-    GBufferParameters params;
-
    public:
     GBuffer();
     GBuffer(int w, int h, GBufferParameters params);
@@ -38,6 +35,9 @@ class SAIGA_OPENGL_API GBuffer : public Framebuffer
     void sampleLinear();
 
     void clampToEdge();
+
+   protected:
+    GBufferParameters params;
 };
 
 }  // namespace Saiga

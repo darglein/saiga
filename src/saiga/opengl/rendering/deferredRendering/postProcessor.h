@@ -64,7 +64,29 @@ struct SAIGA_OPENGL_API PostProcessorParameters
 
 class SAIGA_OPENGL_API PostProcessor
 {
-   private:
+   public:
+    void createTimers();
+
+    void init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params,
+              std::shared_ptr<Texture> LightAccumulationTexture, bool _useTimers);
+
+    void nextFrame();
+    void bindCurrentBuffer();
+    void switchBuffer();
+
+    void render();
+
+    void setPostProcessingEffects(const std::vector<std::shared_ptr<PostProcessingShader> >& postProcessingEffects);
+
+    void printTimings();
+    void resize(int width, int height);
+    void blitLast(int windowWidth, int windowHeight);
+    void renderLast(int windowWidth, int windowHeight);
+
+    framebuffer_texture_t getCurrentTexture();
+    Framebuffer& getTargetBuffer();
+
+   public:
     PostProcessorParameters params;
     int width, height;
     Framebuffer framebuffers[2];
@@ -87,28 +109,6 @@ class SAIGA_OPENGL_API PostProcessor
 
     void createFramebuffers();
     void applyShader(std::shared_ptr<PostProcessingShader> postProcessingShader);
-
-   public:
-    void createTimers();
-
-    void init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params,
-              std::shared_ptr<Texture> LightAccumulationTexture, bool _useTimers);
-
-    void nextFrame();
-    void bindCurrentBuffer();
-    void switchBuffer();
-
-    void render();
-
-    void setPostProcessingEffects(const std::vector<std::shared_ptr<PostProcessingShader> >& postProcessingEffects);
-
-    void printTimings();
-    void resize(int width, int height);
-    void blitLast(int windowWidth, int windowHeight);
-    void renderLast(int windowWidth, int windowHeight);
-
-    framebuffer_texture_t getCurrentTexture();
-    Framebuffer& getTargetBuffer();
 };
 
 }  // namespace Saiga

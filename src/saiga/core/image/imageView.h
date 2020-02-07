@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/core/image/imageViewIterators.h"
-#include "saiga/core/util/assert.h"
 #include "saiga/core/math/imath.h"
+#include "saiga/core/util/assert.h"
 
 #include "floatTexels.h"
 #include "imageBase.h"
@@ -80,6 +80,15 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 #endif
         ImageView<T> iv(h, w, pitchBytes, &(*this)(startY, startX));
         return iv;
+    }
+
+    // Crops the image to the desired size, by removing the edges.
+    // Identical to PyTorch's center crop.
+    HD inline ImageView<T> centerCrop(int output_h, int output_w)
+    {
+        int start_h = (h - output_h) / 2;
+        int start_w = (w - output_w) / 2;
+        return subImageView(start_h, start_w, output_h, output_w);
     }
 
     /**
@@ -523,6 +532,20 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
                 std::swap((*this)(y, x), (*this)(y, width - x - 1));
             }
         }
+    }
+
+    bool operator==(const ImageView<const T> other) const
+    {
+        if (this->dimensions() != other.dimensions()) return false;
+
+        for (int y = 0; y < height; ++y)
+        {
+            for (int x = 0; x < width; ++x)
+            {
+                if ((*this)(y, x) != other(y, x)) return false;
+            }
+        }
+        return true;
     }
 
     // write only if the point is in the image

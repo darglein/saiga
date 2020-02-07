@@ -42,64 +42,6 @@ struct DeferredLightingShaderNames
 
 class SAIGA_OPENGL_API DeferredLighting
 {
-    friend class LightingController;
-
-   private:
-    int width, height;
-    std::shared_ptr<MVPColorShader> debugShader;
-    std::shared_ptr<MVPTextureShader> textureShader;
-    std::shared_ptr<MVPTextureShader> volumetricBlurShader;
-    std::shared_ptr<Shader> volumetricBlurShader2;
-    UniformBuffer shadowCameraBuffer;
-
-    // the vertex position is sufficient. no normals and texture coordinates needed.
-    typedef IndexedVertexBuffer<Vertex, GLushort> lightMesh_t;
-
-
-
-    std::shared_ptr<PointLightShader> pointLightShader, pointLightShadowShader, pointLightVolumetricShader;
-    lightMesh_t pointLightMesh;
-    std::vector<std::shared_ptr<PointLight> > pointLights;
-
-    std::shared_ptr<SpotLightShader> spotLightShader, spotLightShadowShader, spotLightVolumetricShader;
-    lightMesh_t spotLightMesh;
-    std::vector<std::shared_ptr<SpotLight> > spotLights;
-
-    std::shared_ptr<BoxLightShader> boxLightShader, boxLightShadowShader, boxLightVolumetricShader;
-    lightMesh_t boxLightMesh;
-    std::vector<std::shared_ptr<BoxLight> > boxLights;
-
-    std::shared_ptr<DirectionalLightShader> directionalLightShader, directionalLightShadowShader;
-    lightMesh_t directionalLightMesh;
-    std::vector<std::shared_ptr<DirectionalLight> > directionalLights;
-
-    ShaderPart::ShaderCodeInjections volumetricInjection;
-    ShaderPart::ShaderCodeInjections shadowInjection;
-
-    std::shared_ptr<MVPShader> stencilShader;
-    GBuffer& gbuffer;
-
-
-    bool lightDepthTest = true;
-    bool stencilCulling = true;
-
-
-    std::vector<FilteredMultiFrameOpenGLTimer> timers2;
-    std::vector<std::string> timerStrings;
-    void startTimer(int timer)
-    {
-        if (useTimers) timers2[timer].startTimer();
-    }
-    void stopTimer(int timer)
-    {
-        if (useTimers) timers2[timer].stopTimer();
-    }
-    float getTime(int timer)
-    {
-        if (!useTimers) return 0;
-        return timers2[timer].getTimeMS();
-    }
-
    public:
     vec4 clearColor = make_vec4(0);
     int totalLights;
@@ -176,7 +118,63 @@ class SAIGA_OPENGL_API DeferredLighting
     void printTimings();
     void renderImGui(bool* p_open = NULL);
 
-   private:
+
+   public:
+    int width, height;
+    std::shared_ptr<MVPColorShader> debugShader;
+    std::shared_ptr<MVPTextureShader> textureShader;
+    std::shared_ptr<MVPTextureShader> volumetricBlurShader;
+    std::shared_ptr<Shader> volumetricBlurShader2;
+    UniformBuffer shadowCameraBuffer;
+
+    // the vertex position is sufficient. no normals and texture coordinates needed.
+    typedef IndexedVertexBuffer<Vertex, GLushort> lightMesh_t;
+
+
+
+    std::shared_ptr<PointLightShader> pointLightShader, pointLightShadowShader, pointLightVolumetricShader;
+    lightMesh_t pointLightMesh;
+    std::vector<std::shared_ptr<PointLight> > pointLights;
+
+    std::shared_ptr<SpotLightShader> spotLightShader, spotLightShadowShader, spotLightVolumetricShader;
+    lightMesh_t spotLightMesh;
+    std::vector<std::shared_ptr<SpotLight> > spotLights;
+
+    std::shared_ptr<BoxLightShader> boxLightShader, boxLightShadowShader, boxLightVolumetricShader;
+    lightMesh_t boxLightMesh;
+    std::vector<std::shared_ptr<BoxLight> > boxLights;
+
+    std::shared_ptr<DirectionalLightShader> directionalLightShader, directionalLightShadowShader;
+    lightMesh_t directionalLightMesh;
+    std::vector<std::shared_ptr<DirectionalLight> > directionalLights;
+
+    ShaderPart::ShaderCodeInjections volumetricInjection;
+    ShaderPart::ShaderCodeInjections shadowInjection;
+
+    std::shared_ptr<MVPShader> stencilShader;
+    GBuffer& gbuffer;
+
+
+    bool lightDepthTest = true;
+    bool stencilCulling = true;
+
+
+    std::vector<FilteredMultiFrameOpenGLTimer> timers2;
+    std::vector<std::string> timerStrings;
+    void startTimer(int timer)
+    {
+        if (useTimers) timers2[timer].startTimer();
+    }
+    void stopTimer(int timer)
+    {
+        if (useTimers) timers2[timer].stopTimer();
+    }
+    float getTime(int timer)
+    {
+        if (!useTimers) return 0;
+        return timers2[timer].getTimeMS();
+    }
+
     void blitGbufferDepthToAccumulationBuffer();
     void setupStencilPass();
     void setupLightPass(bool isVolumetric);

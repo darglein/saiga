@@ -84,123 +84,142 @@ struct SAIGA_CORE_API ImageTypeTemplate
 template <>
 struct ImageTypeTemplate<char>
 {
-    using ChannelType           = char;
-    const static ImageType type = C1;
+    using ChannelType               = char;
+    static constexpr ImageType type = C1;
 };
 template <>
 struct ImageTypeTemplate<cvec2>
 {
-    using ChannelType           = char;
-    const static ImageType type = C2;
+    using ChannelType               = char;
+    static constexpr ImageType type = C2;
 };
 template <>
 struct ImageTypeTemplate<cvec3>
 {
-    using ChannelType           = char;
-    const static ImageType type = C3;
+    using ChannelType               = char;
+    static constexpr ImageType type = C3;
 };
 template <>
 struct ImageTypeTemplate<cvec4>
 {
-    using ChannelType           = char;
-    const static ImageType type = C4;
+    using ChannelType               = char;
+    static constexpr ImageType type = C4;
 };
 
 template <>
 struct ImageTypeTemplate<unsigned char>
 {
-    using ChannelType           = unsigned char;
-    const static ImageType type = UC1;
+    using ChannelType               = unsigned char;
+    static constexpr ImageType type = UC1;
 };
 template <>
 struct ImageTypeTemplate<ucvec2>
 {
-    using ChannelType           = unsigned char;
-    const static ImageType type = UC2;
+    using ChannelType               = unsigned char;
+    static constexpr ImageType type = UC2;
 };
 template <>
 struct ImageTypeTemplate<ucvec3>
 {
-    using ChannelType           = unsigned char;
-    const static ImageType type = UC3;
+    using ChannelType               = unsigned char;
+    static constexpr ImageType type = UC3;
 };
 template <>
 struct ImageTypeTemplate<ucvec4>
 {
-    using ChannelType           = unsigned char;
-    const static ImageType type = UC4;
+    using ChannelType               = unsigned char;
+    static constexpr ImageType type = UC4;
 };
 
 template <>
 struct ImageTypeTemplate<short>
 {
-    using ChannelType           = short;
-    const static ImageType type = S1;
+    using ChannelType               = short;
+    static constexpr ImageType type = S1;
 };
 template <>
 struct ImageTypeTemplate<unsigned short>
 {
-    using ChannelType           = unsigned short;
-    const static ImageType type = US1;
+    using ChannelType               = unsigned short;
+    static constexpr ImageType type = US1;
 };
 template <>
 struct ImageTypeTemplate<usvec2>
 {
-    using ChannelType           = unsigned short;
-    const static ImageType type = US2;
+    using ChannelType               = unsigned short;
+    static constexpr ImageType type = US2;
 };
 template <>
 struct ImageTypeTemplate<usvec3>
 {
-    using ChannelType           = unsigned short;
-    const static ImageType type = US3;
+    using ChannelType               = unsigned short;
+    static constexpr ImageType type = US3;
 };
 template <>
 struct ImageTypeTemplate<usvec4>
 {
-    using ChannelType           = unsigned short;
-    const static ImageType type = US4;
+    using ChannelType               = unsigned short;
+    static constexpr ImageType type = US4;
 };
 
 template <>
 struct ImageTypeTemplate<int>
 {
-    using ChannelType           = int;
-    const static ImageType type = I1;
+    using ChannelType               = int;
+    static constexpr ImageType type = I1;
 };
 template <>
 struct ImageTypeTemplate<unsigned int>
 {
-    using ChannelType           = unsigned int;
-    const static ImageType type = UI1;
+    using ChannelType               = unsigned int;
+    static constexpr ImageType type = UI1;
 };
+template <>
+struct ImageTypeTemplate<uvec2>
+{
+    using ChannelType               = unsigned int;
+    static constexpr ImageType type = UI2;
+};
+template <>
+struct ImageTypeTemplate<uvec3>
+{
+    using ChannelType               = unsigned int;
+    static constexpr ImageType type = UI3;
+};
+template <>
+struct ImageTypeTemplate<uvec4>
+{
+    using ChannelType               = unsigned int;
+    static constexpr ImageType type = UI4;
+};
+
 
 template <>
 struct ImageTypeTemplate<float>
 {
-    using ChannelType           = float;
-    const static ImageType type = F1;
+    using ChannelType               = float;
+    static constexpr ImageType type = F1;
 };
 
 template <>
 struct ImageTypeTemplate<vec2>
 {
-    using ChannelType           = float;
-    const static ImageType type = F2;
+    using ChannelType               = float;
+    static constexpr ImageType type = F2;
 };
 
 template <>
 struct ImageTypeTemplate<vec3>
 {
-    using ChannelType           = float;
-    const static ImageType type = F3;
+    using ChannelType               = float;
+    static constexpr ImageType type = F3;
 };
 
 template <>
 struct ImageTypeTemplate<vec4>
 {
-    using ChannelType           = float;
-    const static ImageType type = F4;
+    using ChannelType               = float;
+    static constexpr ImageType type = F4;
 };
 
 

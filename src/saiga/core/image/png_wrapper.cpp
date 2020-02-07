@@ -286,7 +286,7 @@ static int writepng_init(const Image& img, PNGLoadStore* pngls)
             color_type = PNG_COLOR_TYPE_RGB_ALPHA;
             break;
         default:
-            SAIGA_ASSERT(0);
+            SAIGA_EXIT_ERROR("Invalid color type!");
     }
 
 

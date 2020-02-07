@@ -64,8 +64,17 @@ bool loadFIP(const std::string& path, fipImage& img)
 
 bool saveFIP(const std::string& path, fipImage& img)
 {
+    SAIGA_ASSERT(img.isValid());
     // fipImage is not const to ensure compatibility with version 3.18.0 of freeimage
-    auto ret = img.save(path.c_str());
+    FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(path.c_str());
+    SAIGA_ASSERT(format != FIF_UNKNOWN);
+
+    bool ret = false;
+
+    ret = img.save(format, path.c_str());
+
+
+
     return ret;
 }
 
@@ -102,14 +111,32 @@ void convert(const Image& _src, fipImage& dest)
         case UC4:
             t = FIT_BITMAP;
             break;
+            // === Short ===
         case US1:
             t = FIT_UINT16;
             break;
         case US3:
             t = FIT_RGB16;
             break;
+        case US4:
+            t = FIT_RGBA16;
+            break;
+            // === Float ===
+        case F1:
+            t = FIT_FLOAT;
+            break;
         case F3:
             t = FIT_RGBF;
+            break;
+        case F4:
+            t = FIT_RGBAF;
+            break;
+            // === Int ===
+        case UI1:
+            t = FIT_UINT32;
+            break;
+        case I1:
+            t = FIT_INT32;
             break;
         default:
             break;
@@ -188,9 +215,16 @@ void convert(const fipImage& src, Image& dest)
             elementType = ImageElementType::IET_FLOAT;
             break;
 
+        case FIT_UINT16:
         case FIT_RGB16:
         case FIT_RGBA16:
             elementType = ImageElementType::IET_USHORT;
+            break;
+        case FIT_INT32:
+            elementType = ImageElementType::IET_INT;
+            break;
+        case FIT_UINT32:
+            elementType = ImageElementType::IET_UINT;
             break;
         default:
             break;

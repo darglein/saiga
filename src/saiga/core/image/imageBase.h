@@ -32,6 +32,7 @@ struct ImageDimensions
     HD inline bool valid() const { return h > 0 && w > 0; }
     HD inline explicit operator bool() { return valid(); }
     HD inline bool operator==(const ImageDimensions& other) const { return pair() == other.pair(); }
+    HD inline bool operator!=(const ImageDimensions& other) const { return !((*this) == other); }
 };
 
 /**
@@ -53,7 +54,7 @@ struct SAIGA_CORE_API ImageBase : public ImageDimensions
     HD inline ImageBase(int h, int w, int p) : ImageDimensions(h, w), pitchBytes(p) {}
 
 
-    HD inline ImageDimensions dimensions() { return *this; }
+    HD inline ImageDimensions dimensions() const { return *this; }
     /**
      * Usefull for range-based iteration over the image.
      * Example:
