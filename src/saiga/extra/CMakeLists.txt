@@ -3,9 +3,6 @@
 set(MODULE_NAME "saiga_extra")
 
 
-if(EIGEN3_FOUND)
-    add_subdirectory(eigen)
-endif()
 
 if(Boost_FOUND)
     add_subdirectory(network)
