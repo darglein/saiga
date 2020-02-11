@@ -71,7 +71,7 @@ bool saveFIP(const std::string& path, fipImage& img)
 
     bool ret = false;
 
-    ret = img.save(format, path.c_str());
+    ret = img.save(path.c_str());
 
 
 
