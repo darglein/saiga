@@ -158,6 +158,11 @@ class SAIGA_CORE_API ColoredBar
 SAIGA_CORE_API bool captureMouse();
 SAIGA_CORE_API bool captureKeyboard();
 
+
+// Similar to ImGui::Combo but with C++ strings instead of a char array.
+SAIGA_CORE_API bool StringCombo(const char* label, int* current_item, const std::vector<std::string>& data);
+
+
 }  // namespace ImGui
 
 namespace Saiga

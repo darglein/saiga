@@ -240,6 +240,13 @@ int IMConsole::overflow(int c)
     return 0;
 }
 
+bool StringCombo(const char* label, int* current_item, const std::vector<std::string>& data)
+{
+    std::vector<const char*> strings;
+    for (auto& d : data) strings.push_back(d.data());
+    return ImGui::Combo(label, current_item, strings.data(), strings.size());
+}
+
 }  // namespace ImGui
 
 namespace Saiga

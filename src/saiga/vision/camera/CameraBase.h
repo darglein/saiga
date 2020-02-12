@@ -142,9 +142,9 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
             double time = f.timeStamp;
             SAIGA_ASSERT(f.groundTruth);
 
-            SE3 gt = f.groundTruth.value();
-            Vec3 t = gt.translation();
-            Quat q = gt.unit_quaternion();
+            SE3 pose = f.groundTruth.value();
+            Vec3 t   = pose.translation();
+            Quat q   = pose.unit_quaternion();
             strm << time << " " << t(0) << " " << t(1) << " " << t(2) << " " << q.x() << " " << q.y() << " " << q.z()
                  << " " << q.w() << std::endl;
         }
