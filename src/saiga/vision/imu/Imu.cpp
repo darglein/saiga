@@ -26,7 +26,7 @@ std::ostream& Imu::operator<<(std::ostream& strm, const Imu::Sensor& sensor)
     return strm;
 }
 
-void Imu::Frame::computeInterplatedImuValue()
+void Imu::Frame::computeInterpolatedImuValue()
 {
     SAIGA_ASSERT(!imu_data_since_last_frame.empty());
     Imu::Data before = imu_data_since_last_frame.back();

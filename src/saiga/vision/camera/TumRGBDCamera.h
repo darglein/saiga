@@ -45,7 +45,7 @@ class SAIGA_VISION_API TumRGBDCamera : public DatasetCameraBase<RGBDFrameData>
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };
 
-    TumRGBDCamera(const DatasetParameters& params, const RGBDIntrinsics& intr);
+    TumRGBDCamera(const DatasetParameters& params);
     ~TumRGBDCamera();
 
 

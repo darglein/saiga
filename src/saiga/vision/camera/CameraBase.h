@@ -194,7 +194,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
                 }
             }
 
-            imuFrame.computeInterplatedImuValue();
+            imuFrame.computeInterpolatedImuValue();
             auto imu = getIMU();
             if (imu)
             {

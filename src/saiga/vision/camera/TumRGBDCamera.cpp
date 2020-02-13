@@ -14,6 +14,7 @@
 #include "TimestampMatcher.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <thread>
 namespace Saiga
@@ -78,10 +79,17 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params, const RGBDIntrinsics& intr)
-    : DatasetCameraBase<RGBDFrameData>(_params), _intrinsics(intr)
+TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params) : DatasetCameraBase<RGBDFrameData>(_params)
 {
-    VLOG(1) << "Loading TUM RGBD Dataset: " << params.dir;
+    std::cout << "Loading TUM RGBD Dataset: " << params.dir << std::endl;
+
+
+    auto intrinsics_file = params.dir + "/intrinsics.ini";
+    SAIGA_ASSERT(std::filesystem::exists(intrinsics_file));
+
+    _intrinsics.fromConfigFile(intrinsics_file);
+
+
 
     if (_intrinsics.depthFactor != 5000)
     {
@@ -271,7 +279,7 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
             loadingBar.addProgress(1);
         }
     }
-    computeImuDataPerFrame();
+    //    computeImuDataPerFrame();
     VLOG(1) << "Loaded " << tumframes.size() << " images.";
 }
 

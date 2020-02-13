@@ -126,18 +126,19 @@ void Sample::renderFinal(Camera* cam)
     dparams.startFrame   = 10;
     dparams.maxFrames    = 10000;
 
+#ifdef SAIGA_USE_YAML_CPP
     if (ImGui::Button("Load From File"))
     {
         //        dparams.dir  = dir;
         dparams.dir  = "/home/dari/Projects/snake/code/data/tum/rgbd_dataset_freiburg1_desk/";
-        rgbdcamera   = std::make_unique<TumRGBDCamera>(dparams, intr);
+        rgbdcamera   = std::make_unique<TumRGBDCamera>(dparams);
         leftTexture  = nullptr;
         rightTexture = nullptr;
 
         cameraType = TumRGBDCamera::FrameType::cameraType;
     }
 
-#ifdef SAIGA_USE_YAML_CPP
+
     if (ImGui::Button("Load From File Euroc"))
     {
         dparams.dir  = dir;

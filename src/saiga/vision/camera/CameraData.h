@@ -92,6 +92,7 @@ struct SAIGA_VISION_API MonocularIntrinsics : public BaseIntrinsics
     ImageDimensions imageSize;
     PinholeCamera model;
 
+    StereoCamera4 dummyStereoCamera() const { return StereoCamera4(model.K, 1); }
 
     static constexpr CameraInputType cameraType = CameraInputType::Mono;
 };

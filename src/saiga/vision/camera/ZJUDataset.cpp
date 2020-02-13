@@ -25,11 +25,10 @@
 
 namespace Saiga
 {
-ZJUDataset::ZJUDataset(const DatasetParameters& params, const RGBDIntrinsics& intr)
-    : DatasetCameraBase<MonocularFrameData>(params), intrinsics(intr)
+ZJUDataset::ZJUDataset(const DatasetParameters& params) : DatasetCameraBase<MonocularFrameData>(params)
 
 {
-    VLOG(1) << "Loading ISMAR Dataset: " << params.dir;
+    std::cout << "Loading ZJUDataset: " << params.dir << std::endl;
 
 
 
@@ -90,7 +89,7 @@ ZJUDataset::ZJUDataset(const DatasetParameters& params, const RGBDIntrinsics& in
 
     groundTruthToCamera = SE3(q, t);
 
-    std::cout << "Extrinsics: " << groundTruthToCamera << std::endl;
+    //    std::cout << "Extrinsics: " << groundTruthToCamera << std::endl;
 
 
     {
@@ -116,7 +115,7 @@ ZJUDataset::ZJUDataset(const DatasetParameters& params, const RGBDIntrinsics& in
         imu.acceleration_sigma       = config["intrinsic"]["sigma_a"].as<double>();
         imu.acceleration_random_walk = config["intrinsic"]["sigma_ba"].as<double>();
 
-        std::cout << imu << std::endl;
+        //        std::cout << imu << std::endl;
     }
 
 

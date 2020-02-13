@@ -184,7 +184,7 @@ struct SAIGA_VISION_API Frame
         }
     }
 
-    void computeInterplatedImuValue();
+    void computeInterpolatedImuValue();
 
     void sanityCheck(const Sensor& sensor);
 };

@@ -37,11 +37,11 @@ class SAIGA_VISION_API ZJUDataset : public DatasetCameraBase<MonocularFrameData>
         std::optional<SE3> gt;
     };
 
-    ZJUDataset(const DatasetParameters& params, const RGBDIntrinsics& intr);
+    ZJUDataset(const DatasetParameters& params);
 
     virtual SE3 CameraToGroundTruth() override { return groundTruthToCamera.inverse(); }
 
-    RGBDIntrinsics intrinsics;
+    MonocularIntrinsics intrinsics;
 
    private:
     void associate(const std::string& datasetDir);

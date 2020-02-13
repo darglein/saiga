@@ -71,9 +71,7 @@ struct Associations
 
 EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase<StereoFrameData>(_params)
 {
-    //    intrinsics.fps = params.fps;
-
-    VLOG(1) << "Loading EuRoCDataset Stereo Dataset: " << params.dir;
+    std::cout << "Loading EuRoCDataset Stereo Dataset: " << params.dir << std::endl;
 
     auto leftImageSensor  = params.dir + "/cam0/sensor.yaml";
     auto rightImageSensor = params.dir + "/cam1/sensor.yaml";
