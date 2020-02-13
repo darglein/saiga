@@ -10,114 +10,70 @@
 
 namespace Saiga
 {
-void MotionModel::Parameters::fromConfigFile(const std::string& file)
+void MotionModel::Settings::fromConfigFile(const std::string& file)
 {
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
 
-    smoothness = ini.GetAddLong("MotionModel", "smoothness", smoothness);
-    alpha      = ini.GetAddDouble("MotionModel", "alpha", alpha);
-    damping    = ini.GetAddDouble("MotionModel", "damping", damping);
-    fps        = ini.GetAddDouble("MotionModel", "fps", fps);
+    INI_GETADD_LONG(ini, "MotionModel", valid_range);
+    INI_GETADD_DOUBLE(ini, "MotionModel", damping);
 
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 
-MotionModel::MotionModel(const MotionModel::Parameters& params) : params(params)
-{
-    size_t N = 10000;
-    data.reserve(N);
-    indices.reserve(N);
-}
 
-void MotionModel::addRelativeMotion(const SE3& T, size_t frameId, double weight)
+
+void MotionModel::addRelativeMotion(const SE3& velocity, int frameId)
 {
+    // Sanity check. Maybe remove?
+    SAIGA_ASSERT(frameId >= 0);
+    SAIGA_ASSERT(frameId < 100 * 1000);
+
     std::unique_lock<std::mutex> lock(mut);
-    if (frameId < indices.size())
+    // Make sure the new frame fits into the array
+    data.resize(frameId + 1);
+    data[frameId].velocity = velocity;
+    data[frameId].valid    = true;
+}
+
+std::optional<SE3> MotionModel::predictVelocityForFrame(int frameId)
+{
+    if (frameId < data.size())
     {
-        // frame already exists
-        //        std::cout << "update instead of add" << std::endl;
-        lock.unlock();
-        updateRelativeMotion(T, frameId);
-        return;
+        // let's check if we have an actual meassurement for this frameid.
+        if (data[frameId].valid)
+        {
+            return data[frameId].velocity;
+        }
     }
-    size_t id;
-    id = data.size();
-    if (id == 0)
+
+    // Find the last valid velocity.
+    int start_idx = std::min(frameId, (int)data.size() - 1);
+    while (start_idx >= 0 && !data[start_idx].valid)
     {
-        averageWeight = weight;
+        start_idx--;
     }
-    else
+
+    if (start_idx < 0)
     {
-        double a      = 0.2;
-        averageWeight = (1 - a) * averageWeight + a * weight;
+        // didn't found anything
+        return {};
     }
-    data.push_back({T, weight});
-    if (indices.size() < frameId + 1)
+
+    int frame_distance = frameId - start_idx;
+    if (frame_distance > params.valid_range)
     {
-        indices.resize(frameId + 1, std::numeric_limits<size_t>::max());
+        // last prediction was too far away
+        return {};
     }
-    indices[frameId] = id;
-    validVelocity    = false;
+
+    auto v = data[start_idx].velocity;
+    v      = scale(v, params.damping);
+    return v;
 }
 
-void MotionModel::updateRelativeMotion(const SE3& T, size_t frameId)
-{
-    std::unique_lock<std::mutex> lock(mut);
-    SAIGA_ASSERT(frameId < indices.size());
-    auto id = indices[frameId];
-    SAIGA_ASSERT(id < data.size());
-    if (id != std::numeric_limits<size_t>::max()) data[id].v = T;
-    validVelocity = false;
-}
 
-void MotionModel::addInvalidMotion(size_t frameId)
-{
-    addRelativeMotion(SE3(), frameId, averageWeight * 0.5);
-}
-
-SE3 MotionModel::getFrameVelocity()
-{
-    std::unique_lock<std::mutex> lock(mut);
-    if (!validVelocity) recomputeVelocity();
-    return currentVelocity;
-}
-
-SE3 MotionModel::getRealVelocity()
-{
-    double factor = params.fps;
-    return scale(getFrameVelocity(), factor);
-}
-
-void MotionModel::renderVelocityGraph()
-{
-    SE3 v = getRealVelocity();
-
-    Eigen::AngleAxisd aa(v.unit_quaternion());
-    Vec3 t = v.translation();
-
-    double vt = t.norm();
-    double va = aa.angle();
-
-    grapht.addValue(vt);
-    grapht.renderImGui();
-
-    grapha.addValue(va);
-    grapha.renderImGui();
-}
-
-void MotionModel::clear()
-{
-    data.clear();
-    validVelocity = false;
-}
-
-void MotionModel::recomputeVelocity()
-{
-    currentVelocity = computeVelocity();
-    validVelocity   = true;
-}
-
+#if 0
 SE3 MotionModel::computeVelocity()
 {
     if (data.empty() || params.smoothness == 0) return SE3();
@@ -126,7 +82,6 @@ SE3 MotionModel::computeVelocity()
     int s = std::min((int)data.size(), params.smoothness);
 
     //    return data.back().v;
-#if 0
     weights.resize(s);
     double weightSum = 0;
     for (auto i = 0; i < s; ++i)
@@ -166,7 +121,6 @@ SE3 MotionModel::computeVelocity()
     //    std::cout << result << std::endl;
     //    std::cout << data.back().v << std::endl << std::endl;
     return result;
-#else
     SE3 result = data[data.size() - s].v;
     for (auto i = 1; i < s; ++i)
     {
@@ -180,8 +134,9 @@ SE3 MotionModel::computeVelocity()
 
 
 
-#endif
+
 }
+#endif
 
 
 }  // namespace Saiga

@@ -31,82 +31,48 @@ namespace Saiga
 class SAIGA_VISION_API MotionModel
 {
    public:
-    struct SAIGA_VISION_API Parameters
+    struct SAIGA_VISION_API Settings
     {
         // Number of previous frame that are included
-        int smoothness = 3;
-
-        // Exponential factor of new frames compared to old frames.
-        // FrameWeight = pow(alpha,currentFrameId - oldFrameId)
-        // Range [0,1]
-        double alpha = 0.75;
-
-        // Velocity damping applied at the end
-        // Range [0,1]
-        double damping = 0.9;
-
-        // Used for converting the frame velocity to real velocity
-        double fps = 30;
-
+        int valid_range = 1;
+        double damping  = 1.0;
         /**
          *  Reads all paramters from the given config file.
          *  Creates the file with the default values if it doesn't exist.
          */
         void fromConfigFile(const std::string& file);
     };
-    Parameters params;
+    Settings params;
 
-    MotionModel(const Parameters& params);
+    MotionModel(const Settings& params) : params(params) { data.reserve(10000); }
 
     /**
      * Adds a relative transformation between two frames.
      */
-    void addRelativeMotion(const SE3& T, size_t frameId, double weight);
-    void updateRelativeMotion(const SE3& T, size_t frameId);
+    void addRelativeMotion(const SE3& velocity, int frameId);
+
 
     /**
-     * Adds an invalid motion. Use this when tracking fails to localize a frame.
+     * @brief predictVelocityForFrame
+     * @param frameId
+     * @return
      */
-    void addInvalidMotion(size_t frameId);
+    std::optional<SE3> predictVelocityForFrame(int frameId);
 
-    /**
-     * Computes the current velocity in units/frame. You can add it to the last frame position
-     * to get the new extimated location:
-     */
-    SE3 getFrameVelocity();
+    void clear() { data.clear(); }
 
-    /**
-     * Real velocity in units/second.
-     *
-     * = getFrameVelocity() * fps
-     */
-    SE3 getRealVelocity();
-
-    SE3 predictNextPose(const SE3& currentPose) { return getFrameVelocity() * currentPose; }
-
-    void renderVelocityGraph();
-
-    void clear();
    private:
     struct MotionData
     {
-        SE3 v;
-        double weight = 1;
+        SE3 velocity;
+        bool valid;
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };
-    AlignedVector<MotionData> data;
-    double averageWeight = 1;
-    std::vector<size_t> indices;
-    ImGui::Graph grapht = {"Velocity"};
-    ImGui::Graph grapha = {"Angular Velocity"};
-    std::mutex mut;
-    std::vector<double> weights;
 
-    // Cache the current velocity
-    void recomputeVelocity();
-    SE3 computeVelocity();
-    bool validVelocity = false;
-    SE3 currentVelocity;
+    AlignedVector<MotionData> data;
+
+
+    std::mutex mut;
 };
 
 }  // namespace Saiga

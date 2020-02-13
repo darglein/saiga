@@ -132,4 +132,13 @@ inline std::ostream& operator<<(std::ostream& os, const Sophus::Sim3<T>& sim3)
        << t(1) << "," << t(2) << "))";
     return os;
 }
+
+template <typename T>
+inline bool operator==(const Sophus::SE3<T>& a, const Sophus::SE3<T>& b)
+{
+    return a.params() == b.params();
+}
+
+
+
 }  // namespace Sophus
