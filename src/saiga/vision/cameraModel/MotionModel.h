@@ -10,6 +10,7 @@
 #include "saiga/vision/VisionTypes.h"
 
 #include <mutex>
+#include <optional>
 
 namespace Saiga
 {
