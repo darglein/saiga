@@ -89,6 +89,19 @@ std::vector<int> uniqueIndices(int sampleCount, int indexSize)
     return data;
 }
 
+uint64_t generateTimeBasedSeed()
+{
+    uint64_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+    std::mt19937 gen(time);
+    std::uniform_int_distribution<uint64_t> dis(0, std::numeric_limits<uint64_t>::max());
+    for (int i = 0; i < 100; ++i)
+    {
+        time = dis(gen);
+    }
+    return time;
+}
+
 
 
 }  // namespace Random

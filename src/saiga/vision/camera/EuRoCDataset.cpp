@@ -283,19 +283,18 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
 
     // ==== Actual Image Loading ====
     {
-        int N = assos.size();
+        SAIGA_ASSERT(params.startFrame < (int)assos.size());
+        assos.erase(assos.begin(), assos.begin() + params.startFrame);
 
-
-        if (params.maxFrames == -1)
+        if (params.maxFrames >= 0)
         {
-            params.maxFrames = N;
+            assos.resize(std::min((size_t)params.maxFrames, assos.size()));
         }
+        params.maxFrames = assos.size();
 
-        params.maxFrames = std::min(N - params.startFrame, params.maxFrames);
 
-        frames.resize(params.maxFrames);
-        N = params.maxFrames;
-
+        int N = assos.size();
+        frames.resize(N);
 
 
         SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);

@@ -30,7 +30,12 @@ namespace Random
  */
 SAIGA_CORE_API void setSeed(uint64_t seed);
 
-SAIGA_CORE_API uint64_t getSeed();
+
+/**
+ * 1. Generates a seed using std::chrono::system_clock::now().
+ * 2. Computes a few iterations on std::mt19937 so that the output is not close anymore.
+ */
+SAIGA_CORE_API uint64_t generateTimeBasedSeed();
 
 
 /**
