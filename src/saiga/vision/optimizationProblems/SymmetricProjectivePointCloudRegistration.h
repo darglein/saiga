@@ -24,10 +24,10 @@ namespace Saiga
  * The residual is the difference from the projected point to the observation.
  * The template TransformationType can be either SE3 or Sim3.
  *
- * @brief The ProjectivePointCloudRegistration class
+ * @brief The SymmetricProjectivePointCloudRegistration class
  */
 template <typename TransformationType>
-struct ProjectivePointCloudRegistration
+struct SymmetricProjectivePointCloudRegistration
 {
     Intrinsics4 K;
     TransformationType T;

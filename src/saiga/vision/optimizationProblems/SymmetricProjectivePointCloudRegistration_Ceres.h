@@ -9,18 +9,18 @@
 #include "saiga/vision/ceres/local_parameterization_se3.h"
 #include "saiga/vision/ceres/local_parameterization_sim3.h"
 
-#include "ProjectivePointCloudRegistration.h"
+#include "SymmetricProjectivePointCloudRegistration.h"
 
 #include "ceres/autodiff_cost_function.h"
 #include "ceres/loss_function.h"
 namespace Saiga
 {
 template <typename ScalarType, int options, template <typename, int> class TransformationType, bool invert = false>
-struct ProjectivePointCloudRegistrationCeresCost
+struct SymmetricProjectivePointCloudRegistrationCeresCost
 {
     using Trans = TransformationType<ScalarType, options>;
     // Helper function to simplify the "add residual" part for creating ceres problems
-    using CostType = ProjectivePointCloudRegistrationCeresCost;
+    using CostType = SymmetricProjectivePointCloudRegistrationCeresCost;
     // Note: The first number is the number of residuals
     //       The following number sthe size of the residual blocks (without local parametrization)
     using CostFunctionType = ceres::AutoDiffCostFunction<CostType, 2, 7>;
@@ -49,7 +49,7 @@ struct ProjectivePointCloudRegistrationCeresCost
         return true;
     }
 
-    ProjectivePointCloudRegistrationCeresCost(Intrinsics4 intr, Vec2 observed, Vec3 wp, double weight = 1)
+    SymmetricProjectivePointCloudRegistrationCeresCost(Intrinsics4 intr, Vec2 observed, Vec3 wp, double weight = 1)
         : _intr(intr), _observed(observed), _wp(wp), weight(weight)
     {
     }
@@ -63,7 +63,7 @@ struct ProjectivePointCloudRegistrationCeresCost
 
 template <bool FIX_SCALE, typename ScalarType, int options, template <typename, int> class TransformationType>
 OptimizationResults optimize_PPCR_ceres(
-    ProjectivePointCloudRegistration<TransformationType<ScalarType, options>>& scene,
+    SymmetricProjectivePointCloudRegistration<TransformationType<ScalarType, options>>& scene,
     const ceres::Solver::Options& ceres_options = ceres::Solver::Options())
 {
     using Trans = TransformationType<ScalarType, options>;
@@ -90,9 +90,10 @@ OptimizationResults optimize_PPCR_ceres(
     for (auto& e : scene.obs1)
     {
         if (e.wp == -1) continue;
-        auto& wp   = scene.points2[e.wp];
-        auto* cost = ProjectivePointCloudRegistrationCeresCost<ScalarType, options, TransformationType, true>::create(
-            scene.K, e.imagePoint, wp, e.weight);
+        auto& wp = scene.points2[e.wp];
+        auto* cost =
+            SymmetricProjectivePointCloudRegistrationCeresCost<ScalarType, options, TransformationType, true>::create(
+                scene.K, e.imagePoint, wp, e.weight);
         ceres::LossFunction* loss = nullptr;
         if (huber > 0) loss = new ceres::HuberLoss(huber);
         problem.AddResidualBlock(cost, loss, scene.T.data());
@@ -101,9 +102,10 @@ OptimizationResults optimize_PPCR_ceres(
     for (auto& e : scene.obs2)
     {
         if (e.wp == -1) continue;
-        auto& wp   = scene.points1[e.wp];
-        auto* cost = ProjectivePointCloudRegistrationCeresCost<ScalarType, options, TransformationType, false>::create(
-            scene.K, e.imagePoint, wp, e.weight);
+        auto& wp = scene.points1[e.wp];
+        auto* cost =
+            SymmetricProjectivePointCloudRegistrationCeresCost<ScalarType, options, TransformationType, false>::create(
+                scene.K, e.imagePoint, wp, e.weight);
         ceres::LossFunction* loss = nullptr;
         if (huber > 0) loss = new ceres::HuberLoss(huber);
         problem.AddResidualBlock(cost, loss, scene.T.data());

@@ -12,33 +12,12 @@
 #include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/Robust.h"
 
+#include "PoseOptimizationScene.h"
+
 #include <vector>
 
 namespace Saiga
 {
-template <typename T>
-struct ObsBase
-{
-    using Vec2 = Eigen::Matrix<T, 2, 1>;
-    Vec2 ip;
-    T depth  = -1;
-    T weight = 1;
-
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    bool stereo() const { return depth > 0; }
-    template <typename G>
-    ObsBase<G> cast() const
-    {
-        ObsBase<G> result;
-        result.ip     = ip.template cast<G>();
-        result.depth  = static_cast<T>(depth);
-        result.weight = static_cast<T>(weight);
-        return result;
-    }
-};
-
-
 template <typename T, bool Normalized = false>
 struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 {
@@ -108,6 +87,11 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
         deltaChi2Epsilon = deltaChi1Epsilon * deltaChi1Epsilon;
         chi2Mono         = chi1Mono * chi1Mono;
         chi2Stereo       = chi1Stereo * chi1Stereo;
+    }
+
+    int optimizePoseRobust(PoseOptimizationScene<T>& scene)
+    {
+        return optimizePoseRobust(scene.wps, scene.obs, scene.outlier, scene.pose, scene.K);
     }
 
     int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<int>& outlier,
