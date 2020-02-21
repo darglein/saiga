@@ -34,23 +34,36 @@ class TwoViewReconstruction
 
     inline void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2);
     inline double medianAngle();
+    inline int NumPointWithAngleAboveThreshold(double angle);
 
     // scales the scene so that the median depth is d
     inline void setMedianDepth(double d);
     inline double getMedianDepth();
 
     // optimize with bundle adjustment
-    inline int optimize(int its, float threshold);
+    inline int optimize(int its, float thresholdChi1);
 
     SE3& pose1() { return scene.extrinsics[0].se3; }
     SE3& pose2() { return scene.extrinsics[1].se3; }
 
+    void clear()
+    {
+        inliers.clear();
+        inlierMask.clear();
+        tmpArray.clear();
+        scene.worldPoints.clear();
+        scene.images[0].stereoPoints.clear();
+        scene.images[1].stereoPoints.clear();
+        N           = 0;
+        inlierCount = 0;
+    }
 
-    int N;
+
+    int N = 0;
     Mat3 E;
     std::vector<int> inliers;
     std::vector<char> inlierMask;
-    int inlierCount;
+    int inlierCount = 0;
     //    AlignedVector<Vec3> worldPoints;
     Scene scene;
 
@@ -78,7 +91,7 @@ TwoViewReconstruction::TwoViewReconstruction()
     scene.extrinsics.push_back(Extrinsics(SE3()));
     scene.extrinsics.push_back(Extrinsics(SE3()));
 
-    scene.extrinsics[0].constant = true;
+    //    scene.extrinsics[0].constant = true;
 
     int maxPoints = 2000;
     scene.worldPoints.reserve(maxPoints);
@@ -152,11 +165,30 @@ double TwoViewReconstruction::medianAngle()
 
     for (auto& wp2 : scene.worldPoints)
     {
+        if (!wp2.valid) continue;
         auto A = TriangulationAngle(c1, c2, wp2.p);
         tmpArray.push_back(A);
     }
     std::sort(tmpArray.begin(), tmpArray.end());
     return tmpArray[tmpArray.size() / 2];
+}
+
+int TwoViewReconstruction::NumPointWithAngleAboveThreshold(double angle)
+{
+    int count = 0;
+    auto c1   = pose1().inverse().translation();
+    auto c2   = pose2().inverse().translation();
+
+    for (auto& wp2 : scene.worldPoints)
+    {
+        if (!wp2.valid) continue;
+        auto A = TriangulationAngle(c1, c2, wp2.p);
+        if (A > angle)
+        {
+            count++;
+        }
+    }
+    return count;
 }
 
 double TwoViewReconstruction::getMedianDepth()
@@ -171,8 +203,12 @@ double TwoViewReconstruction::getMedianDepth()
     return tmpArray[tmpArray.size() / 2];
 }
 
-int TwoViewReconstruction::optimize(int its, float threshold)
+int TwoViewReconstruction::optimize(int its, float thresholdChi1)
 {
+    ba_options.huberMono   = thresholdChi1;
+    op_options.debugOutput = true;
+    auto threshold2        = thresholdChi1 * thresholdChi1;
+
     ba.create(scene);
     ba.initAndSolve(op_options, ba_options);
 
@@ -184,7 +220,7 @@ int TwoViewReconstruction::optimize(int its, float threshold)
         auto e1 = scene.residual2(scene.images[0], scene.images[0].stereoPoints[i]).squaredNorm();
         auto e2 = scene.residual2(scene.images[1], scene.images[1].stereoPoints[i]).squaredNorm();
 
-        if (std::max(e1, e2) < threshold)
+        if (std::max(e1, e2) < threshold2)
         {
             inlierCount++;
         }

@@ -197,7 +197,7 @@ class SAIGA_VISION_API Scene
     bool valid() const;
     explicit operator bool() const { return valid(); }
 
-    double chi2();
+    double chi2(double huber = 0);
     double rms();
     double rmsDense();
 
@@ -247,6 +247,7 @@ class SAIGA_VISION_API Scene
     bool imgui();
     void save(const std::string& file);
     void load(const std::string& file);
+    double chi2Huber(double huber);
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, Scene& scene);

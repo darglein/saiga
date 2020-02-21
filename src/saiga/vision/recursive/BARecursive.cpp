@@ -95,8 +95,6 @@ void BARec::init()
             continue;
         }
 
-
-
         ImageInfo info;
         info.sceneImageId = i;
         info.validId      = validId++;
@@ -217,6 +215,7 @@ void BARec::init()
     }
 
     // ===== Threading Tmps ======
+    SAIGA_ASSERT(threads > 0);
     localChi2.resize(threads);
     pointDiagTemp.resize(threads - 1);
     pointResTemp.resize(threads - 1);
@@ -446,29 +445,32 @@ double BARec::computeQuadraticForm()
                                                             JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
+
 #if 1
+                    T loss_weight = 1.0;
                     if (baOptions.huberStereo > 0)
                     {
                         auto c      = res.squaredNorm();
                         auto rw     = Kernel::huberWeight<T>(baOptions.huberStereo, c);
-                        auto sqrtrw = sqrt(rw(1));
-                        JrowPose *= sqrtrw;
-                        JrowPoint *= sqrtrw;
-                        res *= sqrtrw;
+                        loss_weight = rw(1);
+                        newChi2 += rw(0);
                     }
+                    else
 #endif
+                    {
+                        newChi2 += res.squaredNorm();
+                    }
 
-                    newChi2 += res.squaredNorm();
                     if (!constant)
                     {
                         auto& targetPosePose = A.u.diagonal()(actualOffset).get();
                         auto& targetPoseRes  = b.u(actualOffset).get();
-                        targetPosePose += JrowPose.transpose() * JrowPose;
-                        targetPosePoint = JrowPose.transpose() * JrowPoint;
-                        targetPoseRes -= JrowPose.transpose() * res;
+                        targetPosePose += loss_weight * JrowPose.transpose() * JrowPose;
+                        targetPosePoint = loss_weight * JrowPose.transpose() * JrowPoint;
+                        targetPoseRes -= loss_weight * JrowPose.transpose() * res;
                     }
-                    targetPointPoint += JrowPoint.transpose() * JrowPoint;
-                    targetPointRes -= JrowPoint.transpose() * res;
+                    targetPointPoint += loss_weight * JrowPoint.transpose() * JrowPoint;
+                    targetPointRes -= loss_weight * JrowPoint.transpose() * res;
                 }
                 else
                 {
@@ -481,28 +483,30 @@ double BARec::computeQuadraticForm()
                     if (extr2.constant) JrowPose.setZero();
 
 #if 1
+                    T loss_weight = 1.0;
                     if (baOptions.huberMono > 0)
                     {
                         auto c      = res.squaredNorm();
                         auto rw     = Kernel::huberWeight<T>(baOptions.huberMono, c);
-                        auto sqrtrw = sqrt(rw(1));
-                        JrowPose *= sqrtrw;
-                        JrowPoint *= sqrtrw;
-                        res *= sqrtrw;
+                        loss_weight = rw(1);
+                        newChi2 += rw(0);
                     }
+                    else
 #endif
-                    newChi2 += res.squaredNorm();
+                    {
+                        newChi2 += res.squaredNorm();
+                    }
 
                     if (!constant)
                     {
                         auto& targetPosePose = A.u.diagonal()(actualOffset).get();
                         auto& targetPoseRes  = b.u(actualOffset).get();
-                        targetPosePose += JrowPose.transpose() * JrowPose;
-                        targetPosePoint = JrowPose.transpose() * JrowPoint;
-                        targetPoseRes -= JrowPose.transpose() * res;
+                        targetPosePose += loss_weight * JrowPose.transpose() * JrowPose;
+                        targetPosePoint = loss_weight * JrowPose.transpose() * JrowPoint;
+                        targetPoseRes -= loss_weight * JrowPose.transpose() * res;
                     }
-                    targetPointPoint += JrowPoint.transpose() * JrowPoint;
-                    targetPointRes -= JrowPoint.transpose() * res;
+                    targetPointPoint += loss_weight * JrowPoint.transpose() * JrowPoint;
+                    targetPointRes -= loss_weight * JrowPoint.transpose() * res;
                 }
 
                 if (!constant)
@@ -673,12 +677,13 @@ double BARec::computeCost()
                     {
                         auto c  = res.squaredNorm();
                         auto rw = Kernel::huberWeight<T>(baOptions.huberStereo, c);
-                        // we need to sqrt the weight here because it will get squared again later
-                        auto sqrtrw = sqrt(rw(1));
-                        res *= sqrtrw;
+                        newChi2 += rw(0);
                     }
+                    else
 #endif
-                    newChi2 += res.squaredNorm();
+                    {
+                        newChi2 += res.squaredNorm();
+                    }
                 }
                 else
                 {
@@ -689,13 +694,15 @@ double BARec::computeCost()
 #if 1
                     if (baOptions.huberMono > 0)
                     {
-                        auto c      = res.squaredNorm();
-                        auto rw     = Kernel::huberWeight<T>(baOptions.huberMono, c);
-                        auto sqrtrw = sqrt(rw(1));
-                        res *= sqrtrw;
+                        auto c  = res.squaredNorm();
+                        auto rw = Kernel::huberWeight<T>(baOptions.huberMono, c);
+                        newChi2 += rw(0);
                     }
+                    else
 #endif
-                    newChi2 += res.squaredNorm();
+                    {
+                        newChi2 += res.squaredNorm();
+                    }
                 }
             }
         }

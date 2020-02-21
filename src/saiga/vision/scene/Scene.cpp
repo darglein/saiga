@@ -8,6 +8,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/vision/kernels/Robust.h"
 #include "saiga/vision/util/Random.h"
 
 #include <fstream>
@@ -232,15 +233,13 @@ Saiga::Statistics<double> Scene::depthStatistics()
 void Scene::removeOutliersFactor(float factor)
 {
     SAIGA_ASSERT(valid());
-    auto sr = statistics();
+    auto sr        = statistics();
     auto threshold = std::max(sr.median * factor, 1.0);
     removeOutliers(threshold);
 }
 
 void Scene::removeOutliers(float threshold)
 {
-
-
     int pointsRemoved = 0;
     for (SceneImage& im : images)
     {
@@ -364,7 +363,7 @@ std::vector<int> Scene::validPoints()
     return res;
 }
 
-double Scene::chi2()
+double Scene::chi2(double huber)
 {
     double error = 0;
 
@@ -379,6 +378,13 @@ double Scene::chi2()
         {
             if (!o) continue;
             sqerror = residualNorm2(im, o);
+
+
+            if (huber > 0)
+            {
+                auto rw = Kernel::huberWeight<double>(huber, sqerror);
+                sqerror = rw(0);
+            }
 
             if (o.depth > 0)
                 stereoEdges++;
