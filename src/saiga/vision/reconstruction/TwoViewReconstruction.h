@@ -91,7 +91,7 @@ TwoViewReconstruction::TwoViewReconstruction()
     scene.extrinsics.push_back(Extrinsics(SE3()));
     scene.extrinsics.push_back(Extrinsics(SE3()));
 
-    //    scene.extrinsics[0].constant = true;
+    scene.extrinsics[0].constant = true;
 
     int maxPoints = 2000;
     scene.worldPoints.reserve(maxPoints);
@@ -206,7 +206,7 @@ double TwoViewReconstruction::getMedianDepth()
 int TwoViewReconstruction::optimize(int its, float thresholdChi1)
 {
     ba_options.huberMono   = thresholdChi1;
-    op_options.debugOutput = true;
+    op_options.debugOutput = false;
     auto threshold2        = thresholdChi1 * thresholdChi1;
 
     ba.create(scene);
