@@ -15,3 +15,4 @@
 #include "imageView.h"
 #include "managedImage.h"
 #include "templatedImage.h"
+#include "ImageDraw.h"

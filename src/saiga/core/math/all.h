@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "HomogeneousLSE.h"
 #include "String.h"
 #include "imath.h"
 #include "math.h"

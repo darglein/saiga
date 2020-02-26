@@ -76,13 +76,11 @@ class SAIGA_CORE_API ObjModelLoader
 
 
     // ================== Parser Tmp Variables ================
-    StringViewParser lineParser = {" ,\n", true};
-    StringViewParser faceParser = {"/", false};
+
     std::vector<IndexedVertex2> ivs;
     void parseLine();
 
     void parseF();
-    IndexedVertex2 parseIV(std::string_view line);
 };
 
 }  // namespace Saiga

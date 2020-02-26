@@ -21,6 +21,37 @@
 
 namespace Saiga
 {
+
+static StringViewParser lineParser = {" ,\n", true};
+static StringViewParser faceParser = {"/", false};
+
+
+// parsing index vertex
+// examples:
+// v1/vt1/vn1        12/51/1
+// v1//vn1           51//4
+inline IndexedVertex2 parseIV(std::string_view line)
+{
+    IndexedVertex2 iv;
+#if 0
+    std::vector<std::string> s = split(line, '/');
+    if (s.size() > 0 && s[0].size() > 0) iv.v = std::atoi(s[0].c_str()) - 1;
+    if (s.size() > 1 && s[1].size() > 0) iv.t = std::atoi(s[1].c_str()) - 1;
+    if (s.size() > 2 && s[2].size() > 0) iv.n = std::atoi(s[2].c_str()) - 1;
+#else
+    faceParser.set(line);
+    std::string_view tmp;
+    tmp = faceParser.next();
+    if (!tmp.empty()) iv.v = to_long(tmp) - 1;
+    tmp = faceParser.next();
+    if (!tmp.empty()) iv.t = to_long(tmp) - 1;
+    tmp = faceParser.next();
+    if (!tmp.empty()) iv.n = to_long(tmp) - 1;
+#endif
+    return iv;
+}
+
+
 ObjModelLoader::ObjModelLoader(const std::string& file) : file(file)
 {
     loadFile(file);
@@ -418,30 +449,6 @@ void ObjModelLoader::parseF()
 }
 
 
-// parsing index vertex
-// examples:
-// v1/vt1/vn1        12/51/1
-// v1//vn1           51//4
-IndexedVertex2 ObjModelLoader::parseIV(std::string_view line)
-{
-    IndexedVertex2 iv;
-#if 0
-    std::vector<std::string> s = split(line, '/');
-    if (s.size() > 0 && s[0].size() > 0) iv.v = std::atoi(s[0].c_str()) - 1;
-    if (s.size() > 1 && s[1].size() > 0) iv.t = std::atoi(s[1].c_str()) - 1;
-    if (s.size() > 2 && s[2].size() > 0) iv.n = std::atoi(s[2].c_str()) - 1;
-#else
-    faceParser.set(line);
-    std::string_view tmp;
-    tmp = faceParser.next();
-    if (!tmp.empty()) iv.v = to_long(tmp) - 1;
-    tmp = faceParser.next();
-    if (!tmp.empty()) iv.t = to_long(tmp) - 1;
-    tmp = faceParser.next();
-    if (!tmp.empty()) iv.n = to_long(tmp) - 1;
-#endif
-    return iv;
-}
 
 
 }  // namespace Saiga
