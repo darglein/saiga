@@ -38,7 +38,7 @@ class BundleAdjustmentTest
    public:
     BundleAdjustmentTest()
     {
-        opoptions.debugOutput            = false;
+        opoptions.debugOutput            = true;
         opoptions.debug                  = false;
         opoptions.maxIterations          = 500;
         opoptions.maxIterativeIterations = 50;
@@ -79,8 +79,8 @@ class BundleAdjustmentTest
         auto scene1 = solveRec(options);
         auto scene2 = solveCeres(options);
 
-        //        std::cout << scene.chi2(options.huberMono) << " " << scene1.chi2(options.huberMono) << " "
-        //                  << scene2.chi2(options.huberMono) << std::endl;
+        std::cout << scene.chi2(options.huberMono) << " " << scene1.chi2(options.huberMono) << " "
+                  << scene2.chi2(options.huberMono) << std::endl;
 
         ExpectClose(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-5);
     }
@@ -109,7 +109,7 @@ class BundleAdjustmentTest
    private:
     OptimizationOptions opoptions;
 };
-
+#if 0
 TEST(BundleAdjustment, Default)
 {
     for (int i = 0; i < 10; ++i)
@@ -139,10 +139,11 @@ TEST(BundleAdjustment, PartialConstant)
         test.test(options);
     }
 }
-
+#endif
 TEST(BundleAdjustment, Huber)
 {
-    for (int i = 0; i < 10; ++i)
+    Random::setSeed(923652);
+    for (int i = 0; i < 1; ++i)
     {
         BundleAdjustmentTest test;
         BAOptions options;

@@ -446,20 +446,16 @@ double BARec::computeQuadraticForm()
                     if (extr2.constant) JrowPose.setZero();
 
 
-#if 1
                     T loss_weight = 1.0;
+                    auto res_2    = res.squaredNorm();
                     if (baOptions.huberStereo > 0)
                     {
-                        auto c      = res.squaredNorm();
-                        auto rw     = Kernel::huberWeight<T>(baOptions.huberStereo, c);
+                        //                        auto rw = Kernel::HuberLoss<T>(baOptions.huberStereo, res_2);
+                        auto rw     = Kernel::CauchyLoss<T>(baOptions.huberStereo, res_2);
+                        res_2       = rw(0);
                         loss_weight = rw(1);
-                        newChi2 += rw(0);
                     }
-                    else
-#endif
-                    {
-                        newChi2 += res.squaredNorm();
-                    }
+                    newChi2 += res_2;
 
                     if (!constant)
                     {
@@ -482,20 +478,17 @@ double BARec::computeQuadraticForm()
                     KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
-#if 1
                     T loss_weight = 1.0;
+                    auto res_2    = res.squaredNorm();
                     if (baOptions.huberMono > 0)
                     {
-                        auto c      = res.squaredNorm();
-                        auto rw     = Kernel::huberWeight<T>(baOptions.huberMono, c);
+                        //                        auto rw = Kernel::HuberLoss<T>(baOptions.huberMono, res_2);
+                        auto rw     = Kernel::CauchyLoss<T>(baOptions.huberMono, res_2);
+                        res_2       = rw(0);
                         loss_weight = rw(1);
-                        newChi2 += rw(0);
                     }
-                    else
-#endif
-                    {
-                        newChi2 += res.squaredNorm();
-                    }
+                    newChi2 += res_2;
+
 
                     if (!constant)
                     {
@@ -671,38 +664,30 @@ double BARec::computeCost()
                 {
                     using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
                     KernelType::ResidualType res;
-                    res = KernelType::evaluateResidual(scam, extr, wp, ip.point, ip.depth, w);
-#if 1
+                    res        = KernelType::evaluateResidual(scam, extr, wp, ip.point, ip.depth, w);
+                    auto res_2 = res.squaredNorm();
                     if (baOptions.huberStereo > 0)
                     {
-                        auto c  = res.squaredNorm();
-                        auto rw = Kernel::huberWeight<T>(baOptions.huberStereo, c);
-                        newChi2 += rw(0);
+                        //                        auto rw = Kernel::HuberLoss<T>(baOptions.huberStereo, res_2);
+                        auto rw = Kernel::CauchyLoss<T>(baOptions.huberStereo, res_2);
+                        res_2   = rw(0);
                     }
-                    else
-#endif
-                    {
-                        newChi2 += res.squaredNorm();
-                    }
+                    newChi2 += res_2;
                 }
                 else
                 {
                     using KernelType = Saiga::Kernel::BAPosePointMono<T>;
                     KernelType::ResidualType res;
 
-                    res = KernelType::evaluateResidual(camera, extr, wp, ip.point, w);
-#if 1
+                    res        = KernelType::evaluateResidual(camera, extr, wp, ip.point, w);
+                    auto res_2 = res.squaredNorm();
                     if (baOptions.huberMono > 0)
                     {
-                        auto c  = res.squaredNorm();
-                        auto rw = Kernel::huberWeight<T>(baOptions.huberMono, c);
-                        newChi2 += rw(0);
+                        //                        auto rw = Kernel::HuberLoss<T>(baOptions.huberMono, res_2);
+                        auto rw = Kernel::CauchyLoss<T>(baOptions.huberMono, res_2);
+                        res_2   = rw(0);
                     }
-                    else
-#endif
-                    {
-                        newChi2 += res.squaredNorm();
-                    }
+                    newChi2 += res_2;
                 }
             }
         }

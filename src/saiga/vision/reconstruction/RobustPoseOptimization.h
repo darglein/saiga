@@ -18,7 +18,7 @@
 
 namespace Saiga
 {
-template <typename T, bool Normalized = false>
+template <typename T, bool Normalized = false, Kernel::LossFunction loss_function = Kernel::LossFunction::Huber>
 struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 {
    private:
@@ -150,38 +150,38 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                         Vec3 res;
                         StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth, res, JrowS,
                                                                   o.weight);
-                        auto c2 = res.squaredNorm();
+                        auto res_2 = res.squaredNorm();
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
-                            if (c2 > chi2s)
+                            if (res_2 > chi2s)
                             {
                                 outlier[i] = true;
                                 continue;
                             }
                         }
+                        T loss_weight = 1.0;
                         if (robust)
                         {
-                            auto rw       = Kernel::huberWeight(chi1Stereo, c2);
-                            auto sqrtLoss = sqrt(rw(1));
-                            JrowS *= sqrtLoss;
-                            res *= sqrtLoss;
+                            auto rw     = Kernel::Loss(loss_function, chi1Stereo, res_2);
+                            res_2       = rw(0);
+                            loss_weight = rw(1);
                         }
-                        chi2sum += c2;
-                        JtJ += (JrowS.transpose() * JrowS);
-                        Jtb += JrowS.transpose() * res;
+                        chi2sum += res_2;
+                        JtJ += loss_weight * (JrowS.transpose() * JrowS);
+                        Jtb += loss_weight * JrowS.transpose() * res;
                         inliers++;
                     }
                     else
                     {
                         Vec2 res;
                         MonoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, res, JrowM, o.weight);
-                        auto c2 = res.squaredNorm();
+                        auto res_2 = res.squaredNorm();
 #if 1
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
-                            if (c2 > chi2m)
+                            if (res_2 > chi2m)
                             {
                                 outlier[i] = true;
                                 continue;
@@ -189,17 +189,17 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                         }
 #endif
 
+                        T loss_weight = 1.0;
                         if (robust)
                         {
-                            auto rw       = Kernel::huberWeight(chi1Mono, c2);
-                            auto sqrtLoss = sqrt(rw(1));
-                            JrowM *= sqrtLoss;
-                            res *= sqrtLoss;
+                            auto rw     = Kernel::Loss(loss_function, chi1Mono, res_2);
+                            res_2       = rw(0);
+                            loss_weight = rw(1);
                         }
 
-                        chi2sum += c2;
-                        JtJ += (JrowM.transpose() * JrowM);
-                        Jtb += JrowM.transpose() * res;
+                        chi2sum += res_2;
+                        JtJ += loss_weight * (JrowM.transpose() * JrowM);
+                        Jtb += loss_weight * JrowM.transpose() * res;
                         inliers++;
                     }
                 }
@@ -392,7 +392,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                             }
                             if (robust)
                             {
-                                auto rw       = Kernel::huberWeight(chi1Stereo, c2);
+                                auto rw       = Kernel::HuberLoss(chi1Stereo, c2);
                                 auto sqrtLoss = sqrt(rw(1));
                                 JrowS *= sqrtLoss;
                                 res *= sqrtLoss;
@@ -421,7 +421,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 
                             if (robust)
                             {
-                                auto rw       = Kernel::huberWeight(chi1Mono, c2);
+                                auto rw       = Kernel::HuberLoss(chi1Mono, c2);
                                 auto sqrtLoss = sqrt(rw(1));
                                 JrowM *= sqrtLoss;
                                 res *= sqrtLoss;

@@ -77,15 +77,19 @@ std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A, ArrayView<const 
     std::vector<double> rpe;
     if (A.empty()) return rpe;
 
-    for (auto i : Range(1, N))
+    int diff = 4;
+
+    if (N < diff) return rpe;
+
+    for (auto i : Range(diff, N))
     {
         auto [a_id, a_se] = A[i];
         auto [b_id, b_se] = B[i];
         SAIGA_ASSERT(a_id == b_id);
 
 
-        auto [a_id_prev, a_se_prev] = A[i - 1];
-        auto [b_id_prev, b_se_prev] = B[i - 1];
+        auto [a_id_prev, a_se_prev] = A[i - diff];
+        auto [b_id_prev, b_se_prev] = B[i - diff];
 
         auto a_rel = a_se.inverse() * a_se_prev;
         auto b_rel = b_se.inverse() * b_se_prev;

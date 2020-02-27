@@ -49,8 +49,10 @@ OptimizationResults CeresBA::initAndSolve()
         if (scene.extrinsics[i].constant) problem.SetParameterBlockConstant(scene.extrinsics[i].se3.data());
     }
 
-    ceres::HuberLoss lossFunctionMono(baOptions.huberMono);
-    ceres::HuberLoss lossFunctionStereo(baOptions.huberStereo);
+    //    ceres::HuberLoss lossFunctionMono(baOptions.huberMono);
+    //    ceres::HuberLoss lossFunctionStereo(baOptions.huberStereo);
+    ceres::CauchyLoss lossFunctionMono(baOptions.huberMono);
+    ceres::CauchyLoss lossFunctionStereo(baOptions.huberStereo);
 
     ceres::LossFunction* lossStereo = baOptions.huberStereo > 0 ? &lossFunctionStereo : nullptr;
     ceres::LossFunction* lossMono   = baOptions.huberMono > 0 ? &lossFunctionMono : nullptr;

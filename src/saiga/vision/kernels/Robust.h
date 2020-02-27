@@ -36,16 +36,16 @@ namespace Kernel
  *
  */
 template <typename T>
-inline Eigen::Matrix<T, 3, 1> huberWeight(T _deltaChi1, T residualSquared)
+inline Eigen::Matrix<T, 2, 1> HuberLoss(T _deltaChi1, T residualSquared)
 {
-    Eigen::Matrix<T, 3, 1> result;
+    Eigen::Matrix<T, 2, 1> result;
     T thresholdChi2 = _deltaChi1 * _deltaChi1;
     if (residualSquared <= thresholdChi2)
     {
         // inlier
         result(0) = residualSquared;
         result(1) = 1;
-        result(2) = 0;
+        //        result(2) = 0;
         return result;
     }
     else
@@ -53,38 +53,64 @@ inline Eigen::Matrix<T, 3, 1> huberWeight(T _deltaChi1, T residualSquared)
         // outlier
         T sqrte   = sqrt(residualSquared);  // absolut value of the error
         result(0) = 2 * sqrte * _deltaChi1 - thresholdChi2;
-        result(1) = _deltaChi1 / sqrte;
-        result(2) = -0.5 * result(1) / residualSquared;
-        return result;  // rho'(e)  = delta / sqrt(e)
+        result(1) = std::max(std::numeric_limits<T>::min(), _deltaChi1 / sqrte);
+        // result(2) = -0.5 * result(1) / residualSquared;
+        return result;
     }
 }
 
-
-#if 1
-struct IdentityRobustification
+// Squared loss near 0 until the threshold.
+// After that log(x) to strongly reduce weight of outliers.
+template <typename T>
+inline Eigen::Matrix<T, 2, 1> CauchyLoss(T _deltaChi1, T residualSquared)
 {
-    template <typename ResidualType, typename JacobiType>
-    void operator()(ResidualType&, JacobiType&) const
-    {
-    }
-};
+    Eigen::Matrix<T, 2, 1> result;
+
+    auto b_ = _deltaChi1 * _deltaChi1;
+    auto c_ = (1 / b_);
+
+    const double sum = 1.0 + residualSquared * c_;
+    const double inv = 1.0 / sum;
+
+    // 'sum' and 'inv' are always positive, assuming that 's' is.
+    result(0) = b_ * log(sum);
+    result(1) = std::max(std::numeric_limits<double>::min(), inv);
+    //    result(2) = -c_ * (inv * inv);
+    return result;
+}
 
 template <typename T>
-struct HuberRobustification
+inline Eigen::Matrix<T, 2, 1> IdentityLoss(T _deltaChi1, T residualSquared)
 {
-    T delta;
-    HuberRobustification(T _delta = 1) : delta(_delta) {}
+    Eigen::Matrix<T, 2, 1> result;
+    result(0) = residualSquared;
+    result(1) = 1;
+    return result;
+}
 
-    template <typename ResidualType, typename JacobiType>
-    void apply(ResidualType& res, JacobiType& Jrow) const
-    {
-        auto e = res.squaredNorm();
-        auto w = huberWeight(delta, e)(1);
-        res *= w;
-        Jrow *= w;
-    }
+
+enum class LossFunction
+{
+    Identity,
+    Huber,
+    Cauchy,
 };
-#endif
+
+
+template <typename T>
+inline Eigen::Matrix<T, 2, 1> Loss(LossFunction function, T _deltaChi1, T residualSquared)
+{
+    switch (function)
+    {
+        case LossFunction::Identity:
+            return IdentityLoss(_deltaChi1, residualSquared);
+        case LossFunction::Huber:
+            return HuberLoss(_deltaChi1, residualSquared);
+        case LossFunction::Cauchy:
+            return CauchyLoss(_deltaChi1, residualSquared);
+    }
+}
+
 
 }  // namespace Kernel
 }  // namespace Saiga
