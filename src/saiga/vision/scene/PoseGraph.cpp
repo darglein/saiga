@@ -187,6 +187,16 @@ void PoseGraph::load(const std::string& file)
     sortEdges();
 }
 
+void PoseGraph::AddVertexEdge(int from, int to, double weight)
+{
+    PoseEdge pe;
+    pe.from = from;
+    pe.to   = to;
+    pe.weight = weight;
+    pe.setRel(poses[from].se3, poses[to].se3);
+    edges.push_back(pe);
+}
+
 void PoseGraph::sortEdges()
 {
     // first swap if j > i

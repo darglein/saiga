@@ -91,6 +91,9 @@ struct SAIGA_VISION_API PoseGraph
     void save(const std::string& file);
     void load(const std::string& file);
 
+    // Add an edge which solidates the current vertex positions.
+    void AddVertexEdge(int from, int to, double weight);
+
     /**
      * Ensures that i < j, and all edges are sorted by from->to.
      */
