@@ -42,7 +42,9 @@ else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
 endif()
 
-
+target_compile_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_CXX_FLAGS}>")
+#target_compile_options(${MODULE_NAME}  PUBLIC ${SAIGA_CXX_FLAGS})
+set_target_properties(${MODULE_NAME} PROPERTIES CXX_STANDARD 17)
 target_link_libraries(${MODULE_NAME} PUBLIC ${CORE_LIBS} ${CORE_TARGETS} )
 target_link_libraries(${MODULE_NAME} PRIVATE std::filesystem)
 

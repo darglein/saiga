@@ -65,14 +65,14 @@ class KeyPoint
     T response;
     int octave;
 
-    KeyPoint() : point(), size(0), angle(-1), response(0), octave(0) {}
+    HD KeyPoint() : point(), size(0), angle(-1), response(0), octave(0) {}
 
-    explicit KeyPoint(Vec2 _pt, T _size = 0, T _angle = -1, T _response = 0, int _octave = 0)
+    HD explicit KeyPoint(Vec2 _pt, T _size = 0, T _angle = -1, T _response = 0, int _octave = 0)
         : point(_pt), size(_size), angle(_angle), response(_response), octave(_octave)
     {
     }
 
-    KeyPoint(T _x, T _y, T _size = 0, T _angle = -1, T _response = 0, int _octave = 0)
+    HD KeyPoint(T _x, T _y, T _size = 0, T _angle = -1, T _response = 0, int _octave = 0)
         : point(_x, _y), size(_size), angle(_angle), response(_response), octave(_octave)
     {
     }
@@ -215,10 +215,10 @@ struct BruteForceMatcher
     void match(_InputIterator first1, int n, _InputIterator first2, int m)
     {
         distances.resize(n, m);
-        for (auto i : Range(0, n))
+        for (auto i : Range<int>(0, n))
         {
             auto d2 = first2;
-            for (auto j : Range(0, m))
+            for (auto j : Range<int>(0, m))
             {
                 distances(i, j) = distance(*first1, *d2);
                 ++d2;
@@ -234,14 +234,14 @@ struct BruteForceMatcher
     void matchKnn2(_InputIterator first1, int n, _InputIterator first2, int m)
     {
         knn2.resize(n, 2);
-        for (auto i : Range(0, n))
+        for (auto i : Range<int>(0, n))
         {
             // init best to infinity distance
             knn2(i, 0) = {1000, -1};
             knn2(i, 1) = knn2(i, 0);
 
             auto d2 = first2;
-            for (auto j : Range(0, m))
+            for (auto j : Range<int>(0, m))
             {
                 auto dis = distance(*first1, *d2);
 

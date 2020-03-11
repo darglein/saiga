@@ -98,11 +98,11 @@ if(SAIGA_MODULE_CORE)
 endif()
 
 if(MODULE_CORE)
+  if(SAIGA_MODULE_EXTRA)
+      include (Dependencies_extra)
+  endif()
     if(SAIGA_MODULE_CUDA)
         include (Dependencies_cuda)
-    endif()
-    if(SAIGA_MODULE_EXTRA)
-        include (Dependencies_extra)
     endif()
     if(SAIGA_MODULE_OPENGL)
         include (Dependencies_opengl)
@@ -229,12 +229,6 @@ write_basic_package_version_file(
     VERSION ${SAIGA_VERSION}
     COMPATIBILITY AnyNewerVersion
     )
-
-############# C++ Standard and Filesystem stuff ###############
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 
 ############# SOURCE ###############
 
