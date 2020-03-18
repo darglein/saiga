@@ -11,30 +11,9 @@
 #include "saiga/config.h"
 #include "saiga/core/math/imath.h"
 #include "saiga/core/util/DataStructures/ArrayView.h"
-#include "saiga/core/util/assert.h"
 #include "saiga/cuda/cuda.h"
 #include "saiga/cuda/cudaTimer.h"
 #include "saiga/cuda/thrust_helper.h"
-
-
-
-#define CHECK_CUDA_ERROR(cudaFunction)                                                                              \
-    {                                                                                                               \
-        cudaError_t cudaErrorCode = cudaFunction;                                                                   \
-        ((cudaErrorCode == cudaSuccess)                                                                             \
-             ? static_cast<void>(0)                                                                                 \
-             : Saiga::saiga_assert_fail(#cudaFunction " == cudaSuccess", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION, \
-                                        cudaGetErrorString(cudaErrorCode)));                                        \
-    }
-
-#if defined(CUDA_DEBUG)
-#    define CUDA_SYNC_CHECK_ERROR()                    \
-        {                                              \
-            CHECK_CUDA_ERROR(cudaDeviceSynchronize()); \
-        }
-#else
-#    define CUDA_SYNC_CHECK_ERROR() (static_cast<void>(0))
-#endif
 
 
 

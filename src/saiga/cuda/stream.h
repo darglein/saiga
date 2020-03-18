@@ -8,6 +8,7 @@
 
 #include "saiga/cuda/cudaHelper.h"
 
+#include <nvToolsExtCudaRt.h>
 
 namespace Saiga
 {
@@ -36,6 +37,13 @@ class SAIGA_CUDA_API CudaStream
     // this call returns immediately
     void waitForEvent(cudaEvent_t event);
 
+    // Block until this stream is completed
+    void synchronize();
+
+
+    // Set a ressource name using the cuda extension API.
+    // Useful for debugging
+    inline void setName(const std::string& name) { nvtxNameCudaStreamA(stream, name.c_str()); }
 
     operator cudaStream_t() const;
 

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/cuda/cudaHelper.h"
+#include "saiga/cuda/cuda.h"
 
 namespace Saiga
 {
@@ -28,18 +28,42 @@ namespace CUDA
 class SAIGA_CUDA_API CudaEvent
 {
    public:
-    cudaEvent_t event;
+    cudaEvent_t event = 0;
 
 
-    CudaEvent() { cudaEventCreate(&event); }
+    CudaEvent() { create(); }
+    ~CudaEvent() { destroy(); }
 
-    ~CudaEvent() { cudaEventDestroy(event); }
+    void destroy()
+    {
+        if (event)
+        {
+            CHECK_CUDA_ERROR(cudaEventDestroy(event));
+            event = 0;
+        }
+    }
+
+    void create()
+    {
+        if (!event)
+        {
+            CHECK_CUDA_ERROR(cudaEventCreate(&event));
+        }
+    }
+
+    void reset()
+    {
+        destroy();
+        create();
+    }
 
     // Place this event into the command stream
-    void record(cudaStream_t stream = 0) { cudaEventRecord(event, stream); }
+    void record(cudaStream_t stream = 0) { CHECK_CUDA_ERROR(cudaEventRecord(event, stream)); }
+
+    void wait(cudaStream_t stream) { CHECK_CUDA_ERROR(cudaStreamWaitEvent(stream, event, 0)); }
 
     // Wait until this event is completed
-    void synchronize() { cudaEventSynchronize(event); }
+    void synchronize() { CHECK_CUDA_ERROR(cudaEventSynchronize(event)); }
 
     // Test if the event is completed (returns immediately)
     bool isCompleted() { return cudaEventQuery(event) == cudaSuccess; }
@@ -49,7 +73,7 @@ class SAIGA_CUDA_API CudaEvent
     static float elapsedTime(CudaEvent& first, CudaEvent& second)
     {
         float time;
-        cudaEventElapsedTime(&time, first, second);
+        CHECK_CUDA_ERROR(cudaEventElapsedTime(&time, first, second));
         return time;
     }
 

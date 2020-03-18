@@ -9,8 +9,9 @@
 #include "saiga/config.h"
 
 //#include <cuda.h>
-#include <cuda_runtime.h>
+#include "saiga/core/util/assert.h"
 
+#include <cuda_runtime.h>
 #define SAIGA_CUDA_INCLUDED
 
 
@@ -22,4 +23,24 @@
 #endif
 #if !defined(__launch_bounds__)
 #    define __launch_bounds__
+#endif
+
+
+
+#define CHECK_CUDA_ERROR(cudaFunction)                                                                              \
+    {                                                                                                               \
+        cudaError_t cudaErrorCode = cudaFunction;                                                                   \
+        ((cudaErrorCode == cudaSuccess)                                                                             \
+             ? static_cast<void>(0)                                                                                 \
+             : Saiga::saiga_assert_fail(#cudaFunction " == cudaSuccess", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION, \
+                                        cudaGetErrorString(cudaErrorCode)));                                        \
+    }
+
+#if defined(CUDA_DEBUG)
+#    define CUDA_SYNC_CHECK_ERROR()                    \
+        {                                              \
+            CHECK_CUDA_ERROR(cudaDeviceSynchronize()); \
+        }
+#else
+#    define CUDA_SYNC_CHECK_ERROR() (static_cast<void>(0))
 #endif

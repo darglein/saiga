@@ -65,9 +65,9 @@ class KeyPoint
     T response;
     int octave;
 
-    HD KeyPoint() : point(), size(0), angle(-1), response(0), octave(0) {}
+    HD KeyPoint() {}
 
-    HD explicit KeyPoint(Vec2 _pt, T _size = 0, T _angle = -1, T _response = 0, int _octave = 0)
+    HD explicit KeyPoint(const Vec2& _pt, T _size = 0, T _angle = -1, T _response = 0, int _octave = 0)
         : point(_pt), size(_size), angle(_angle), response(_response), octave(_octave)
     {
     }
@@ -83,11 +83,23 @@ class KeyPoint
                octave == other.octave;
     }
 
+    bool operator<(const KeyPoint& other) const
+    {
+        return response < other.response;
+    }
+
+
     friend std::ostream& operator<<(std::ostream& os, const KeyPoint& kpt)
     {
-        os << kpt.point << ": size=" << kpt.size << ", angle=" << kpt.angle << ", response=" << kpt.response
+        os << kpt.point.transpose() << ": size=" << kpt.size << ", angle=" << kpt.angle << ", response=" << kpt.response
            << ", octave=" << kpt.octave;
         return os;
+    }
+
+    template <typename CastType>
+    KeyPoint<CastType> cast()
+    {
+        return KeyPoint<CastType>(point.template cast<CastType>(), size, angle, response, octave);
     }
 };
 

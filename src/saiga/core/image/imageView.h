@@ -67,7 +67,10 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     HD inline ImageView(const ImageView<NoConstType>& other) : ImageBase(other), data(other.data) {}
 
     // size in bytes
-    HD inline int size() { return height * pitchBytes; }
+    HD inline int size() const { return height * pitchBytes; }
+
+    HD inline bool empty() const { return width == 0 | height == 0; }
+
 
     // a view to a sub image
     HD inline ImageView<T> subImageView(int startY, int startX, int h, int w)
@@ -229,41 +232,58 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         }
     }
 
-    template <typename T2>
-    inline void copyTo(ImageView<T2> a) const
+    // If the destination is of the same type we use a raw byte-wise copy.
+    inline void copyTo(ImageView<T> dst) const
     {
-        SAIGA_ASSERT(height == a.height && width == a.width);
+        SAIGA_ASSERT(height == dst.height && width == dst.width);
+        if (pitchBytes == dst.pitchBytes)
+        {
+            memcpy(dst.data, data, size());
+        }
+        else
+        {
+            for (int y = 0; y < height; ++y)
+            {
+                memcpy(dst.rowPtr(y), rowPtr(y), width * sizeof(T));
+            }
+        }
+    }
+
+    template <typename T2>
+    inline void copyTo(ImageView<T2> dst) const
+    {
+        SAIGA_ASSERT(height == dst.height && width == dst.width);
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
             {
-                a(y, x) = (*this)(y, x);
+                dst(y, x) = (*this)(y, x);
             }
         }
     }
 
     template <typename T2, typename Op>
-    inline void copyToTransform(ImageView<T2> a, Op op) const
+    inline void copyToTransform(ImageView<T2> dst, Op op) const
     {
-        SAIGA_ASSERT(height == a.height && width == a.width);
+        SAIGA_ASSERT(height == dst.height && width == dst.width);
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
             {
-                a(y, x) = op((*this)(y, x));
+                dst(y, x) = op((*this)(y, x));
             }
         }
     }
 
     template <typename T2, typename MT>
-    inline void copyTo(ImageView<T2> a, MT alpha) const
+    inline void copyTo(ImageView<T2> dst, MT alpha) const
     {
-        SAIGA_ASSERT(height == a.height && width == a.width);
+        SAIGA_ASSERT(height == dst.height && width == dst.width);
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
             {
-                a(y, x) = (*this)(y, x) * alpha;
+                dst(y, x) = (*this)(y, x) * alpha;
             }
         }
     }
@@ -423,12 +443,20 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     }
 
 
+    HD inline void mirrorToEdge(int& y, int& x)
+    {
+        x = (x < 0) ? -x : x;
+        y = (y < 0) ? -y : y;
+
+        x = (x > width - 1) ? (width - 1) - (x - (width - 1)) : x;
+        y = (y > height - 1) ? (height - 1) - (y - (height - 1)) : y;
+    }
 
     HD inline void clampToEdge(int& y, int& x)
     {
 #ifdef SAIGA_ON_DEVICE
-        x = std::min(max(0, x), width - 1);
-        y = std::min(max(0, y), height - 1);
+        x = min(max(0, x), width - 1);
+        y = min(max(0, y), height - 1);
 #else
         x      = std::min(std::max(0, x), width - 1);
         y      = std::min(std::max(0, y), height - 1);
