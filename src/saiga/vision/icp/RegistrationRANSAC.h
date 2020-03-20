@@ -10,10 +10,10 @@
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/icp/ICPAlign.h"
 
+#include <array>
 #include <chrono>
 #include <random>
 #include <vector>
-#include <array>
 
 namespace Saiga
 {
@@ -33,6 +33,13 @@ class RegistrationProjectRANSAC
     double threshold;
 
 
+    void clear()
+    {
+        points1.clear();
+        points2.clear();
+        ips1.clear();
+        ips2.clear();
+    }
     //
     /**
      * Compute T which maps from 1 to 2
