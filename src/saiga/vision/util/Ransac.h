@@ -92,10 +92,10 @@ class RansacBase
 #pragma omp for
         for (int it = 0; it < params.maxIterations; ++it)
         {
-            auto&& model     = models[it];
-            auto&& inlier    = inliers[it];
-            auto&& residual  = residuals[it];
-            auto&& numInlier = numInliers[it];
+            auto& model     = models[it];
+            auto& inlier    = inliers[it];
+            auto& residual  = residuals[it];
+            auto& numInlier = numInliers[it];
 
             numInlier = 0;
             residual.resize(N);

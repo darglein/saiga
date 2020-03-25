@@ -33,8 +33,10 @@ class TwoViewReconstruction
     void init(const RansacParameters& fivePointParams) { fpr.init(fivePointParams); }
 
     inline void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2);
-    inline double medianAngle();
     inline int NumPointWithAngleAboveThreshold(double angle);
+
+    inline double medianAngle();
+    inline double medianAngleByDepth();
 
     // scales the scene so that the median depth is d
     inline void setMedianDepth(double d);
@@ -173,6 +175,15 @@ double TwoViewReconstruction::medianAngle()
     return tmpArray[tmpArray.size() / 2];
 }
 
+double TwoViewReconstruction::medianAngleByDepth()
+{
+    double medianDepthKF2 = getMedianDepth();
+    auto c1               = pose1().inverse().translation();
+    auto c2               = pose2().inverse().translation();
+    double baseline       = (c1 - c2).norm();
+    return atan2(baseline / 2.0, medianDepthKF2);
+}
+
 int TwoViewReconstruction::NumPointWithAngleAboveThreshold(double angle)
 {
     int count = 0;
@@ -196,6 +207,7 @@ double TwoViewReconstruction::getMedianDepth()
     tmpArray.clear();
     for (auto& wp2 : scene.worldPoints)
     {
+        if (!wp2.valid) continue;
         auto wp = wp2.p;
         tmpArray.push_back(wp.z());
     }
@@ -205,15 +217,18 @@ double TwoViewReconstruction::getMedianDepth()
 
 int TwoViewReconstruction::optimize(int its, float thresholdChi1)
 {
-    ba_options.huberMono   = thresholdChi1;
-    op_options.debugOutput = false;
-    auto threshold2        = thresholdChi1 * thresholdChi1;
+    ba_options.huberMono     = thresholdChi1;
+    op_options.debugOutput   = false;
+    op_options.minChi2Delta  = 1e-10;
+    op_options.maxIterations = its;
+    auto threshold2          = thresholdChi1 * thresholdChi1;
 
     ba.create(scene);
     ba.initAndSolve(op_options, ba_options);
 
     // recompute inliers
-    inlierCount = 0;
+    inlierCount        = 0;
+    int removed_points = 0;
     for (int i = 0; i < N; ++i)
     {
         if (!inlierMask[i]) continue;
@@ -227,9 +242,9 @@ int TwoViewReconstruction::optimize(int its, float thresholdChi1)
         else
         {
             inlierMask[i] = false;
+            removed_points++;
         }
     }
-
     return inlierCount;
 }
 
