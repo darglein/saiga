@@ -60,7 +60,7 @@ class SAIGA_TEMPLATE alignas(16) Plane
     HD vec3 getPoint() const;
 
 
-    friend std::ostream& operator<<(std::ostream& os, const Plane& ca);
+    friend std::ostream& operator<<(std::ostream& os, const Plane& plane);
 };
 
 }  // namespace Saiga

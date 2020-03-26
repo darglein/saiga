@@ -9,7 +9,7 @@
 #include "internal/noGraphicsAPI.h"
 namespace Saiga
 {
-int Sphere::intersectAabb(const AABB& other)
+int Sphere::intersectAabb(const AABB& other) const
 {
     if (!intersectAabb2(other)) return 0;
 
@@ -23,14 +23,14 @@ int Sphere::intersectAabb(const AABB& other)
     return 2;
 }
 
-void Sphere::getMinimumAabb(AABB& box)
+void Sphere::getMinimumAabb(AABB& box) const
 {
     vec3 rad(r + 1, r + 1, r + 1);
     box.min = pos - rad;
     box.max = pos + rad;
 }
 
-bool Sphere::intersectAabb2(const AABB& other)
+bool Sphere::intersectAabb2(const AABB& other) const
 {
     float s, d = 0;
 
@@ -53,12 +53,12 @@ bool Sphere::intersectAabb2(const AABB& other)
     return d <= r * r;
 }
 
-bool Sphere::contains(vec3 p)
+bool Sphere::contains(vec3 p) const
 {
     return length(vec3(p - pos)) < r;
 }
 
-bool Sphere::intersect(const Sphere& other)
+bool Sphere::intersect(const Sphere& other) const
 {
     return distance(other.pos, pos) < r + other.r;
 }

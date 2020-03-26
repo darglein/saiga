@@ -8,6 +8,7 @@
 
 #include "saiga/core/util/assert.h"
 
+#include "Frustum.h"
 #include "Mesh.h"
 #include "triangle.h"
 #include "vertex.h"
@@ -71,6 +72,11 @@ class LineMesh : public Mesh<_VertexType>
      * Initializes a K matrix with a 90 degree FOV and creates the frustum.
      */
     void createFrustumCV(float farPlaneLimit, int w, int h);
+
+    /**
+     * Initializes a K matrix with a 90 degree FOV and creates the frustum.
+     */
+    void createFrustum(const Frustum& frustum);
 };
 
 

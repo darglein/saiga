@@ -11,7 +11,7 @@ namespace Saiga
 {
 std::ostream& operator<<(std::ostream& os, const Plane& pl)
 {
-    os << "x * " << pl.normal << " - " << pl.d << " = 0";
+    os << "n = (" << pl.normal.transpose() << ")   d = " << pl.d;
     return os;
 }
 

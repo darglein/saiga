@@ -67,6 +67,9 @@ struct Intrinsics4Base
         cy *= s;
     }
 
+    // This is only 100% correct if cx is at the center of the image.
+    T FieldOfViewX() { return 2 * atan2(2 * cx, 2 * fx); }
+
     Mat3 matrix()
     {
         Mat3 k;

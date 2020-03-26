@@ -27,13 +27,13 @@ class SAIGA_CORE_API Sphere
 
 
 
-    int intersectAabb(const AABB& other);
-    bool intersectAabb2(const AABB& other);
+    int intersectAabb(const AABB& other) const;
+    bool intersectAabb2(const AABB& other) const;
 
-    void getMinimumAabb(AABB& box);
+    void getMinimumAabb(AABB& box) const;
 
-    bool contains(vec3 p);
-    bool intersect(const Sphere& other);
+    bool contains(vec3 p) const;
+    bool intersect(const Sphere& other) const;
 
     //    TriangleMesh* createMesh(int rings, int sectors);
     //    void addToBuffer(std::vector<VertexNT> &vertices, std::vector<GLuint> &indices, int rings, int sectors);

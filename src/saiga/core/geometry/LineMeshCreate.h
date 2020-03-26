@@ -170,4 +170,81 @@ void LineMesh<VertexType, IndexType>::createFrustumCV(const mat3& K, float farPl
 
                5, 7, 6, 7};
 }
+
+
+template <typename VertexType, typename IndexType>
+void LineMesh<VertexType, IndexType>::createFrustum(const Frustum& frustum)
+{
+    for (int i = 0; i < 8; ++i)
+    {
+        VertexType v;
+        v.position = make_vec4(frustum.vertices[i], 1);
+        vertices.push_back(v);
+    }
+
+    indices = {
+        // near plane
+        0,
+        1,
+        1,
+        3,
+        3,
+        2,
+        2,
+        0,
+        // far plane
+        4,
+        5,
+        5,
+        7,
+        7,
+        6,
+        6,
+        4,
+        // sides
+        0,
+        4,
+        1,
+        5,
+        2,
+        6,
+        3,
+        7,
+    };
+
+#if 1
+    vertices.clear();
+    indices.clear();
+    auto tris = frustum.ToTriangleList();
+
+    for (auto tri : tris)
+    {
+        int id = vertices.size();
+        VertexType v;
+        v.position = make_vec4(tri.a, 1);
+        vertices.push_back(v);
+        v.position = make_vec4(tri.b, 1);
+        vertices.push_back(v);
+        v.position = make_vec4(tri.c, 1);
+        vertices.push_back(v);
+        v.position = make_vec4(tri.center(), 1);
+        vertices.push_back(v);
+        v.position = make_vec4(tri.center() + tri.normal(), 1);
+        vertices.push_back(v);
+
+        indices.push_back(id + 0);
+        indices.push_back(id + 1);
+
+        indices.push_back(id + 1);
+        indices.push_back(id + 2);
+
+        indices.push_back(id + 2);
+        indices.push_back(id + 0);
+
+        indices.push_back(id + 3);
+        indices.push_back(id + 4);
+    }
+#endif
+}
+
 }  // namespace Saiga

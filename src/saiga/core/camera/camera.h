@@ -6,11 +6,11 @@
 
 #pragma once
 
+#include "saiga/core/geometry/Frustum.h"
+#include "saiga/core/geometry/object3d.h"
+#include "saiga/core/geometry/plane.h"
+#include "saiga/core/geometry/sphere.h"
 #include "saiga/core/math/math.h"
-
-#include <saiga/core/geometry/object3d.h>
-#include <saiga/core/geometry/plane.h>
-#include <saiga/core/geometry/sphere.h>
 
 namespace Saiga
 {
@@ -26,7 +26,7 @@ struct ViewPort
 
 
 
-class SAIGA_CORE_API Camera : public Object3D
+class SAIGA_CORE_API Camera : public Object3D, public Frustum
 {
    public:
     std::string name;
@@ -40,9 +40,7 @@ class SAIGA_CORE_API Camera : public Object3D
     float zNear, zFar;
     //    float nw,nh,fw,fh; //dimensions of near and far plane
 
-    vec3 vertices[8];       // corners of the truncated pyramid
-    Plane planes[6];        // for exact frustum culling
-    Sphere boundingSphere;  // for fast frustum culling
+    //    Frustum frustum;
 
     bool vulkanTransform = false;
 
@@ -71,59 +69,6 @@ class SAIGA_CORE_API Camera : public Object3D
     float toNormalizedDepth(float d);
 
 
-    enum IntersectionResult
-    {
-        OUTSIDE = 0,
-        INSIDE,
-        INTERSECT
-    };
-
-    // culling stuff
-    IntersectionResult pointInFrustum(const vec3& p);
-    IntersectionResult sphereInFrustum(const Sphere& s);
-
-    IntersectionResult pointInSphereFrustum(const vec3& p);
-    IntersectionResult sphereInSphereFrustum(const Sphere& s);
-
-    /**
-     * Return the intervall (min,max) when all vertices of the frustum are
-     * projected to the axis 'd'. To dedect an overlap in intervalls the axis
-     * does not have to be normalized.
-     *
-     * @brief projectedIntervall
-     * @param d
-     * @return
-     */
-    vec2 projectedIntervall(const vec3& d);
-
-    /**
-     * Returns the side of the plane on which the frustum is.
-     * +1 on the positive side
-     * -1 on the negative side
-     * 0 the plane is intersecting the frustum
-     *
-     * @brief sideOfPlane
-     * @param plane
-     * @return
-     */
-    int sideOfPlane(const Plane& plane);
-
-    /**
-     * Exact frustum-frustum intersection with the Separating Axes Theorem (SAT).
-     * This test is expensive, so it should be only used when important.
-     *
-     * Number of Operations:
-     * 6+6=12  sideOfPlane(const Plane &plane), for testing the faces of the frustum.
-     * 6*6*2=72  projectedIntervall(const vec3 &d), for testing all cross product of pairs of non parallel edges
-     *
-     * http://www.geometrictools.com/Documentation/MethodOfSeparatingAxes.pdf
-     * @brief intersectSAT
-     * @param other
-     * @return
-     */
-
-    bool intersectSAT(Camera* other);
-
 
     /**
      * Calculates the frustum planes by backprojecting the unit cube to world space.
@@ -131,15 +76,6 @@ class SAIGA_CORE_API Camera : public Object3D
 
     void recalculatePlanesFromMatrices();
 
-    /**
-     * Returns unique edges of the frustum.
-     * A frustum has 6 unique edges ( non parallel edges).
-     * @brief getEdge
-     * @param i has to be in range (0 ... 5)
-     * @return
-     */
-
-    std::pair<vec3, vec3> getEdge(int i);
 
     vec3 projectToViewSpace(vec3 worldPosition);
 
@@ -150,7 +86,7 @@ class SAIGA_CORE_API Camera : public Object3D
     vec3 inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h);
 
 
-    virtual void recomputeProj(){};
+    virtual void recomputeProj() {}
 
     void imgui();
 
