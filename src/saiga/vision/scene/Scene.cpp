@@ -382,7 +382,8 @@ double Scene::chi2(double huber)
 
             if (huber > 0)
             {
-                auto rw = Kernel::CauchyLoss<double>(huber, sqerror);
+                //                auto rw = Kernel::CauchyLoss<double>(huber, sqerror);
+                auto rw = Kernel::HuberLoss<double>(huber, sqerror);
                 sqerror = rw(0);
             }
 

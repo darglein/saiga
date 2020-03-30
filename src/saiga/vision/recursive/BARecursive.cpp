@@ -450,8 +450,8 @@ double BARec::computeQuadraticForm()
                     auto res_2    = res.squaredNorm();
                     if (baOptions.huberStereo > 0)
                     {
-                        //                        auto rw = Kernel::HuberLoss<T>(baOptions.huberStereo, res_2);
-                        auto rw     = Kernel::CauchyLoss<T>(baOptions.huberStereo, res_2);
+                        auto rw = Kernel::HuberLoss<T>(baOptions.huberStereo, res_2);
+                        //                        auto rw     = Kernel::CauchyLoss<T>(baOptions.huberStereo, res_2);
                         res_2       = rw(0);
                         loss_weight = rw(1);
                     }
@@ -482,8 +482,8 @@ double BARec::computeQuadraticForm()
                     auto res_2    = res.squaredNorm();
                     if (baOptions.huberMono > 0)
                     {
-                        //                        auto rw = Kernel::HuberLoss<T>(baOptions.huberMono, res_2);
-                        auto rw     = Kernel::CauchyLoss<T>(baOptions.huberMono, res_2);
+                        auto rw = Kernel::HuberLoss<T>(baOptions.huberMono, res_2);
+                        //                        auto rw     = Kernel::CauchyLoss<T>(baOptions.huberMono, res_2);
                         res_2       = rw(0);
                         loss_weight = rw(1);
                     }
@@ -668,9 +668,9 @@ double BARec::computeCost()
                     auto res_2 = res.squaredNorm();
                     if (baOptions.huberStereo > 0)
                     {
-                        //                        auto rw = Kernel::HuberLoss<T>(baOptions.huberStereo, res_2);
-                        auto rw = Kernel::CauchyLoss<T>(baOptions.huberStereo, res_2);
-                        res_2   = rw(0);
+                        auto rw = Kernel::HuberLoss<T>(baOptions.huberStereo, res_2);
+                        //                        auto rw = Kernel::CauchyLoss<T>(baOptions.huberStereo, res_2);
+                        res_2 = rw(0);
                     }
                     newChi2 += res_2;
                 }
@@ -683,9 +683,9 @@ double BARec::computeCost()
                     auto res_2 = res.squaredNorm();
                     if (baOptions.huberMono > 0)
                     {
-                        //                        auto rw = Kernel::HuberLoss<T>(baOptions.huberMono, res_2);
-                        auto rw = Kernel::CauchyLoss<T>(baOptions.huberMono, res_2);
-                        res_2   = rw(0);
+                        auto rw = Kernel::HuberLoss<T>(baOptions.huberMono, res_2);
+                        //                        auto rw = Kernel::CauchyLoss<T>(baOptions.huberMono, res_2);
+                        res_2 = rw(0);
                     }
                     newChi2 += res_2;
                 }
