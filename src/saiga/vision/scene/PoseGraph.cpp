@@ -217,6 +217,19 @@ void PoseGraph::sortEdges()
     std::sort(edges.begin(), edges.end());
 }
 
+void PoseGraph::transform(const SE3& T)
+{
+    for (auto& v : poses)
+    {
+        v.se3 = sim3(T * se3Scale(v.se3).first, v.se3.scale());
+    }
+    for (auto& e : edges)
+    {
+        e.from_pose = sim3(T * se3Scale(e.from_pose).first, e.from_pose.scale());
+        e.to_pose   = sim3(T * se3Scale(e.to_pose).first, e.to_pose.scale());
+    }
+}
+
 void PoseGraph::invertPoses()
 {
     for (auto& v : poses)
@@ -246,7 +259,11 @@ bool PoseGraph::imgui()
         invertPoses();
         changed = true;
     }
-
+    if (ImGui::Button("Random Transform"))
+    {
+        transform(Random::randomSE3());
+        changed = true;
+    }
 
     static float sigma = 0.01;
     ImGui::InputFloat("sigma", &sigma);

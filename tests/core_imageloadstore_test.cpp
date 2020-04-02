@@ -8,13 +8,12 @@
 #include "saiga/core/image/freeimage.h"
 #include "saiga/core/image/png_wrapper.h"
 #include "saiga/core/math/random.h"
+#include "saiga/core/util/FileSystem.h"
 
 #include "internal/stb_image_read_wrapper.h"
 #include "internal/stb_image_write_wrapper.h"
 
 #include "gtest/gtest.h"
-
-#include "saiga/core/util/FileSystem.h"
 using namespace Saiga;
 
 
@@ -34,6 +33,7 @@ TemplatedImage<T> randomImage(int h, int w)
 template <typename T>
 void testSaveLoadLibPNG(const TemplatedImage<T>& img)
 {
+#ifdef SAIGA_USE_PNG
     std::string file = "loadstoretest_libpng.png";
     std::filesystem::remove(file);
     EXPECT_TRUE(PNG::save(img, file));
@@ -43,8 +43,8 @@ void testSaveLoadLibPNG(const TemplatedImage<T>& img)
 
     EXPECT_EQ(img.dimensions(), img2.dimensions());
     EXPECT_EQ(img, img2);
+#endif
 }
-
 
 
 // Creates a templated image of type T and saves it on a disk.

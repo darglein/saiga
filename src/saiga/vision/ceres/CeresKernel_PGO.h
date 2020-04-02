@@ -42,10 +42,16 @@ struct CostPGO
         auto error_  = inverseMeasurement * est_j_i;
 //        auto error_ = from.inverse() * to * inverseMeasurement;
 #else
+
+        // = dlog(measurement_T_i_j * inv(estimate_T_w_j) * estimate_T_w_i)
+        // C * v1->estimate() * v2->estimate().inverse();
+        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
+
+
+
         //        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
         //        auto error_ = from * to.inverse() * inverseMeasurement.inverse(); // working
-        auto error_ = inverseMeasurement * to * from.inverse();
-
+        //        auto error_ = inverseMeasurement * to * from.inverse();
 
 //        auto est_j_i = from.inverse() * to;
 //        auto error_  = est_j_i * inverseMeasurement.inverse();

@@ -114,6 +114,7 @@ struct SAIGA_VISION_API PoseGraph
      */
     void sortEdges();
 
+    void transform(const SE3& T);
     void invertPoses();
 
     bool imgui();
