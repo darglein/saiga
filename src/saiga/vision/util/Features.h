@@ -83,10 +83,7 @@ class KeyPoint
                octave == other.octave;
     }
 
-    bool operator<(const KeyPoint& other) const
-    {
-        return response < other.response;
-    }
+    bool operator<(const KeyPoint& other) const { return response < other.response; }
 
 
     friend std::ostream& operator<<(std::ostream& os, const KeyPoint& kpt)
@@ -109,7 +106,7 @@ using DescriptorSIFT = std::array<float, 128>;
 
 
 
-#ifndef WIN32
+#if !defined(WIN32) && defined(EIGEN_ARCH_i386_OR_x86_64)
 // use the popcnt instruction
 // this will be the fastest implementation if it is available
 // more here: https://github.com/kimwalisch/libpopcnt
