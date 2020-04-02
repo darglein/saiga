@@ -120,7 +120,7 @@ class FORB
      * @param b
      * @return distance
      */
-#if !defined(WIN32) && defined(EIGEN_ARCH_i386_OR_x86_64)
+#if !defined(WIN32) && EIGEN_ARCH_i386_OR_x86_64
     static inline int popcnt64(uint64_t x)
     {
         __asm__("popcnt %1, %0" : "=r"(x) : "0"(x));

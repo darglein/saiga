@@ -106,7 +106,7 @@ using DescriptorSIFT = std::array<float, 128>;
 
 
 
-#if !defined(WIN32) && defined(EIGEN_ARCH_i386_OR_x86_64)
+#if !defined(WIN32) && EIGEN_ARCH_i386_OR_x86_64
 // use the popcnt instruction
 // this will be the fastest implementation if it is available
 // more here: https://github.com/kimwalisch/libpopcnt
