@@ -10,7 +10,10 @@
 #include "saiga/core/util/ConsoleColor.h"
 #include "saiga/core/util/table.h"
 
-#include <immintrin.h>
+#ifdef EIGEN_VECTORIZE_AVX2
+#    include <immintrin.h>
+#endif
+
 using namespace Saiga;
 
 bool allTestsOk = true;
