@@ -61,7 +61,7 @@ OptimizationResults g2oPGO::initAndSolve()
         auto ge = new EdgeSim3<LSD>();
         ge->setVertex(0, vertex_from);
         ge->setVertex(1, vertex_to);
-        ge->setMeasurement(e.meassurement);
+        ge->setMeasurement(e.meassurement());
         //        ge->setMeasurementFromState();
         ge->information() = Eigen::Matrix<double, PGOTransformation::DoF, PGOTransformation::DoF>::Identity();
         optimizer.addEdge(ge);

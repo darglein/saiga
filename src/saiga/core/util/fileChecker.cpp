@@ -7,11 +7,11 @@
 
 #include "saiga/core/util/fileChecker.h"
 
+#include "saiga/core/util/FileSystem.h"
 #include "saiga/core/util/directory.h"
 
 #include "internal/noGraphicsAPI.h"
 
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 

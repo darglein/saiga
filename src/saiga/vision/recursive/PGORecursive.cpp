@@ -148,7 +148,7 @@ double PGORec::computeQuadraticForm()
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(x_u[i], x_u[j], e.meassurement.inverse(), res, Jrowi, Jrowj,
+            KernelType::evaluateResidualAndJacobian(x_u[i], x_u[j], e.meassurement().inverse(), res, Jrowi, Jrowj,
                                                     e.weight);
 
             if (scene.poses[i].constant) Jrowi.setZero();
@@ -222,7 +222,7 @@ double PGORec::computeCost()
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidual(x_u[i], x_u[j], e.meassurement.inverse(), res, e.weight);
+            KernelType::evaluateResidual(x_u[i], x_u[j], e.meassurement().inverse(), res, e.weight);
 
             auto c = res.squaredNorm();
             chi2 += c;
@@ -256,6 +256,7 @@ bool PGORec::addDelta()
 
         //        std::cout << t.transpose() << std::endl;
         x_u[i] = PGOTransformation::exp(t) * x_u[i];
+        //        x_u[i] = x_u[i] * PGOTransformation::exp(t);
     }
     return true;
 }

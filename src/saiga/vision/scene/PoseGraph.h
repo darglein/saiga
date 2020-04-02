@@ -27,15 +27,19 @@ struct SAIGA_VISION_API PoseEdge
 
     int from = -1, to = -1;
     double weight = 1;
-    TransformationType meassurement;
+
+    TransformationType from_pose, to_pose;
+    //    TransformationType meassurement;
 
     // Computes the relative pose as it is defined here
     void setRel(const TransformationType& from, const TransformationType& to)
     {
+        from_pose = from;
+        to_pose   = to;
 #ifdef LSD_REL
-        meassurement = from.inverse() * to;
+//        meassurement = from.inverse() * to;
 #else
-        meassurement = to * from.inverse();
+//        meassurement = to * from.inverse();
 #endif
     }
 
@@ -43,17 +47,28 @@ struct SAIGA_VISION_API PoseEdge
     TangentType residual(const TransformationType& from, const TransformationType& to)
     {
 #ifdef LSD_REL
-        auto error_ = from.inverse() * to * meassurement.inverse();
+        auto error_ = from.inverse() * to * meassurement().inverse();
 #else
-        auto error_  = meassurement * from * to.inverse();
+        auto error_ = meassurement() * from * to.inverse();
 #endif
         return error_.log() * weight;
+    }
+
+    TransformationType meassurement() const
+    {
+#ifdef LSD_REL
+        //        return from_pose.inverse() * to_pose;
+        return from_pose.inverse() * to_pose;
+#else
+        return to_pose * from_pose.inverse();
+#endif
     }
 
     void invert()
     {
         std::swap(from, to);
-        meassurement = meassurement.inverse();
+        std::swap(from_pose, to_pose);
+        //        meassurement = meassurement.inverse();
     }
 
     bool operator<(const PoseEdge& other) { return std::tie(from, to) < std::tie(other.from, other.to); }
@@ -98,6 +113,8 @@ struct SAIGA_VISION_API PoseGraph
      * Ensures that i < j, and all edges are sorted by from->to.
      */
     void sortEdges();
+
+    void invertPoses();
 
     bool imgui();
 };

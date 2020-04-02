@@ -16,6 +16,7 @@ struct Sim3Plus
     template <typename T>
     bool operator()(const T* _x, const T* _delta, T* _x_plus_delta) const
     {
+        static_assert(!FIX_SCALE, "sdf");
         using Vec7 = Eigen::Matrix<T, 7, 1>;
 
         Eigen::Map<Sophus::Sim3<T> const> const x(_x);
@@ -27,8 +28,9 @@ struct Sim3Plus
         if (FIX_SCALE) delta2[6] = T(0);
 
 
-        //        x_plus_delta = x * Sophus::Sim3<T>::exp(delta2);
-        x_plus_delta = Sophus::Sim3<T>::exp(delta2) * x;
+
+        //        x_plus_delta = x * Sophus::Sim3<T>::exp(-delta2);
+        x_plus_delta = Sophus::Sim3<T>::exp(-delta2) * x;
 
         return true;
     }

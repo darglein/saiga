@@ -126,10 +126,9 @@ inline std::ostream& operator<<(std::ostream& os, const Sophus::SE3<T>& se3)
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const Sophus::Sim3<T>& sim3)
 {
-    Saiga::Quat q = sim3.rxso3().quaternion();
-    Saiga::Vec3 t = sim3.translation();
-    os << "Sim3(ScaledQuat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "),Vec3(" << t(0) << ","
-       << t(1) << "," << t(2) << "))";
+    auto se3_scale = Saiga::se3Scale(sim3);
+
+    os << "Sim3(" << se3_scale.first << " Scale=" << se3_scale.second << ")";
     return os;
 }
 

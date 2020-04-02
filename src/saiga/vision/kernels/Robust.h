@@ -109,6 +109,7 @@ inline Eigen::Matrix<T, 2, 1> Loss(LossFunction function, T _deltaChi1, T residu
         case LossFunction::Cauchy:
             return CauchyLoss(_deltaChi1, residualSquared);
     }
+    return Eigen::Matrix<T, 2, 1>::Zero();
 }
 
 

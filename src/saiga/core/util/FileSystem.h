@@ -8,6 +8,16 @@
 
 #include "saiga/saiga_modules.h"
 
-#ifdef SAIGA_USE_FILESYSTEM
+#if __has_include(<filesystem>)
 #    include <filesystem>
+#else
+#    include <experimental/filesystem>
+
+// Make the experimental::filesystem namespace in std
+// After this we can just write std::filesystem
+namespace std
+{
+namespace filesystem = experimental::filesystem;
+}
+
 #endif

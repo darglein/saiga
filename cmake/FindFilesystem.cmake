@@ -117,7 +117,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Normalize and check the component list we were given
 set(want_components ${Filesystem_FIND_COMPONENTS})
 if(Filesystem_FIND_COMPONENTS STREQUAL "")
-    set(want_components Final)
+    set(want_components Final Experimental)
 endif()
 
 # Warn on any unrecognized components
@@ -155,6 +155,15 @@ if(find_experimental)
 else()
     set(_CXX_FILESYSTEM_HAVE_EXPERIMENTAL_HEADER FALSE)
 endif()
+
+
+if(Filesystem_FIND_REQUIRED)
+  if(NOT _CXX_FILESYSTEM_HAVE_HEADER AND NOT _CXX_FILESYSTEM_HAVE_EXPERIMENTAL_HEADER)
+    message(FATAL_ERROR "Could not find filesystem header")
+    return()
+  endif()
+endif()
+
 
 if(_CXX_FILESYSTEM_HAVE_HEADER)
     set(_have_fs TRUE)

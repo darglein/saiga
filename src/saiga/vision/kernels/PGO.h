@@ -32,7 +32,9 @@ struct PGO
 #ifdef LSD_REL
         auto error_ = from.inverse() * to * inverseMeasurement;
 #else
-        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
+        //        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
+        //        auto error_ = from * to.inverse() * inverseMeasurement.inverse();
+        auto error_ = inverseMeasurement * to * from.inverse();
 #endif
         res = error_.log() * weight;
     }
@@ -45,7 +47,10 @@ struct PGO
         JrowTo   = from.inverse().Adj() * weight;
         JrowFrom = -JrowTo;
 #else
-        std::terminate();
+        auto error_ = inverseMeasurement * to * from.inverse();
+        JrowFrom    = error_.Adj();
+        JrowTo      = -JrowTo;
+//        std::terminate();
 #endif
     }
 

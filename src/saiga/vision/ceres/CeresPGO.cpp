@@ -54,6 +54,7 @@ OptimizationResults CeresPGO::initAndSolve()
     for (size_t i = 0; i < scene.poses.size(); ++i)
     {
         problem.AddParameterBlock(scene.poses[i].se3.data(), 7, &camera_parameterization);
+        //        problem.AddParameterBlock(scene.poses[i].se3.data(), 7);
         if (scene.poses[i].constant)
         {
             problem.SetParameterBlockConstant(scene.poses[i].se3.data());
@@ -75,7 +76,7 @@ OptimizationResults CeresPGO::initAndSolve()
         auto vertex_to   = scene.poses[e.to].se3.data();
 
 #ifdef AUTO_DIFF
-        CostFunctionType* cost = CostPGO::create(e.meassurement.inverse());
+        CostFunctionType* cost = CostPGO::create(e.meassurement().inverse());
 #else
         CostFunctionType* cost = new CostFunctionType(e.meassurement.inverse());
 #endif

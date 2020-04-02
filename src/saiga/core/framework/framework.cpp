@@ -163,15 +163,19 @@ void printSaigaInfo()
 void initSaigaSample()
 {
     SaigaParameters saigaParameters;
-    saigaParameters.shaderDirectory = {SAIGA_PROJECT_SOURCE_DIR "/shader"};
-
-    std::string dataDir              = SAIGA_PROJECT_SOURCE_DIR "/data";
-    saigaParameters.textureDirectory = {dataDir, dataDir + "/textures"};
-    saigaParameters.modelDirectory   = {dataDir, dataDir + "/models"};
-    saigaParameters.fontDirectory    = {dataDir, dataDir + "/fonts"};
-    saigaParameters.dataDirectory    = {dataDir};
-
     saigaParameters.fromConfigFile("config.ini");
+    saigaParameters.shaderDirectory.push_back(SAIGA_PROJECT_SOURCE_DIR "/shader");
+
+
+    std::string dataDir = SAIGA_PROJECT_SOURCE_DIR "/data";
+    saigaParameters.textureDirectory.push_back(dataDir);
+    saigaParameters.modelDirectory.push_back(dataDir);
+    saigaParameters.fontDirectory.push_back(dataDir);
+    saigaParameters.dataDirectory.push_back(dataDir);
+
+    saigaParameters.textureDirectory.push_back(dataDir + "/textures");
+    saigaParameters.modelDirectory.push_back(dataDir + "/models");
+    saigaParameters.fontDirectory.push_back(dataDir + "/fonts");
 
     initSaiga(saigaParameters);
     catchSegFaults();
@@ -183,6 +187,7 @@ void initSaiga(const SaigaParameters& params)
     {
         return;
     }
+
 
     FP::resetSSECSR();
 

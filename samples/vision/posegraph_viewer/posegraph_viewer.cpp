@@ -29,7 +29,9 @@
 
 Sample::Sample()
 {
-    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".posegraph");
+    std::cout << Saiga::SearchPathes::data << std::endl;
+    //    Saiga::SearchPathes::data.getFiles(datasets, "vision", ".posegraph");
+    Saiga::SearchPathes::data.getFiles(datasets, "user", ".posegraph");
     std::sort(datasets.begin(), datasets.end());
     std::cout << "Found " << datasets.size() << " posegraph datasets" << std::endl;
 
@@ -61,9 +63,19 @@ void Sample::update(float dt)
             int i = e.from;
             int j = e.to;
 
-            vec3 p1 = inverseMatchingSE3(scene.poses[i].se3).inverse().translation().cast<float>();
-            vec3 p2 = inverseMatchingSE3(scene.poses[j].se3).inverse().translation().cast<float>();
+            vec3 p1;
+            vec3 p2;
 
+            if (render_inverse)
+            {
+                p1 = inverseMatchingSE3(scene.poses[i].se3).inverse().translation().cast<float>();
+                p2 = inverseMatchingSE3(scene.poses[j].se3).inverse().translation().cast<float>();
+            }
+            else
+            {
+                p1 = inverseMatchingSE3(scene.poses[i].se3).translation().cast<float>();
+                p2 = inverseMatchingSE3(scene.poses[j].se3).translation().cast<float>();
+            }
             PointVertex pc1;
             PointVertex pc2;
 
@@ -94,9 +106,16 @@ void Sample::renderOverlay(Camera* cam)
     for (auto& i : scene.poses)
     {
         Saiga::SE3 se3 = inverseMatchingSE3(i.se3);
-        mat4 v         = (se3.matrix()).cast<float>();
-        v              = Saiga::cvViewToGLView(v);
-        v              = mat4(inverse(v));
+        if (render_inverse)
+        {
+        }
+        else
+        {
+            se3 = se3.inverse();
+        }
+        mat4 v = (se3.matrix()).cast<float>();
+        v      = Saiga::cvViewToGLView(v);
+        v      = mat4(inverse(v));
 
         //            std::cout << v << std::endl;
         //        vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
@@ -114,7 +133,14 @@ void Sample::renderFinal(Camera* cam)
     ImGui::Text("Rms: %f", rms);
     ImGui::Text("chi2: %f", chi2);
 
-    scene.imgui();
+    if (ImGui::Checkbox("render_inverse", &render_inverse))
+    {
+        change = true;
+    }
+    if (scene.imgui())
+    {
+        change = true;
+    }
 
     ImGui::Separator();
 
@@ -131,7 +157,7 @@ void Sample::renderFinal(Camera* cam)
         ImGui::Combo("Dataset", &currentItem, strings.data(), strings.size());
         if (ImGui::Button("Load Dataset"))
         {
-            scene.load(Saiga::SearchPathes::data(datasets[currentItem]));
+            scene.load(datasets[currentItem]);
             //            scene.poses[0].constant = true;
             change = true;
         }
@@ -194,13 +220,8 @@ void Sample::renderFinal(Camera* cam)
 
 int main(const int argc, const char* argv[])
 {
-    using namespace Saiga;
-
-    {
-        Sample example;
-
-        example.run();
-    }
-
+    Saiga::initSaigaSample();
+    Sample example;
+    example.run();
     return 0;
 }

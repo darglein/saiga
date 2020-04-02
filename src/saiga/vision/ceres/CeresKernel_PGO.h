@@ -37,12 +37,22 @@ struct CostPGO
 
         Sophus::Sim3<T> inverseMeasurement = _inverseMeasurement.cast<T>();
 #ifdef LSD_REL
-        auto error_ = from.inverse() * to * inverseMeasurement;
+        //        auto est_j_i = to * from.inverse();
+        auto est_j_i = from.inverse() * to;
+        auto error_  = inverseMeasurement * est_j_i;
+//        auto error_ = from.inverse() * to * inverseMeasurement;
 #else
-        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
+        //        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
+        //        auto error_ = from * to.inverse() * inverseMeasurement.inverse(); // working
+        auto error_ = inverseMeasurement * to * from.inverse();
+
+
+//        auto est_j_i = from.inverse() * to;
+//        auto error_  = est_j_i * inverseMeasurement.inverse();
 #endif
 
         residual = error_.log() * weight;
+        //        residual[6] = T(0);
 
 
         return true;
@@ -50,6 +60,11 @@ struct CostPGO
 
    private:
     PGOTransformation _inverseMeasurement;
+
+    //    Quat meas_q;
+    //    Vec3 meas_t;
+    //    double meas_scale;
+
     double weight;
 };
 
