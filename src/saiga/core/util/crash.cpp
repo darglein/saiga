@@ -92,7 +92,8 @@ void crit_err_hdlr(int sig_num, siginfo_t* info, void* ucontext)
 #    elif defined(__arm__)
     caller_address = (void*)uc->uc_mcontext.arm_pc;
 #    else
-#        error Unsupported architecture. // TODO: Add support for other arch.
+    caller_address = nullptr;
+    (void)uc;
 #    endif
 
     std::cout << "signal " << sig_num << " (" << strsignal(sig_num) << ")"
