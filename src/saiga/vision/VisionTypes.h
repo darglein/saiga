@@ -117,7 +117,7 @@ inline std::ostream& operator<<(std::ostream& os, const Sophus::SE3<T>& se3)
 {
     Saiga::Quat q = se3.unit_quaternion();
     Saiga::Vec3 t = se3.translation();
-    os << "SE3(Quat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "),Vec3(" << t(0) << "," << t(1)
+    os << "SE3(Quatwxyz(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "),Vec3(" << t(0) << "," << t(1)
        << "," << t(2) << "))";
     return os;
 }
