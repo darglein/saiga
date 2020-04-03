@@ -14,14 +14,14 @@ namespace Saiga
 {
 PoseGraph::PoseGraph(const Scene& scene, int minEdges)
 {
-    poses.reserve(scene.extrinsics.size());
+    vertices.reserve(scene.extrinsics.size());
     for (auto& p : scene.extrinsics)
     {
         PoseVertex pv;
         pv.T_w_i    = p.se3.inverse();
         pv.constant = p.constant;
         pv.constant = false;
-        poses.push_back(pv);
+        vertices.push_back(pv);
     }
 
 
@@ -53,7 +53,7 @@ PoseGraph::PoseGraph(const Scene& scene, int minEdges)
                 PoseEdge e;
                 e.from = i;
                 e.to   = j;
-                e.setRel(poses[i].Pose(), poses[j].Pose());
+                e.setRel(vertices[i].Pose(), vertices[j].Pose());
                 edges.push_back(e);
             }
         }
@@ -63,7 +63,7 @@ PoseGraph::PoseGraph(const Scene& scene, int minEdges)
 
 void PoseGraph::addNoise(double stddev)
 {
-    for (auto& e : poses)
+    for (auto& e : vertices)
     {
         if (e.constant) continue;
         e.T_w_i.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
@@ -79,12 +79,12 @@ void PoseGraph::addNoise(double stddev)
 
 PoseEdge::TangentType PoseGraph::residual6(const PoseEdge& edge)
 {
-    return edge.residual(poses[edge.from].Pose(), poses[edge.to].Pose());
+    return edge.residual(vertices[edge.from].Pose(), vertices[edge.to].Pose());
 }
 
 double PoseGraph::density()
 {
-    return double((edges.size() * 2) + poses.size()) / double(poses.size() * poses.size());
+    return double((edges.size() * 2) + vertices.size()) / double(vertices.size() * vertices.size());
 }
 
 double PoseGraph::chi2()
@@ -108,8 +108,8 @@ void PoseGraph::save(const std::string& file)
     strm.precision(20);
     strm << std::scientific;
 
-    strm << poses.size() << " " << edges.size() << " " << (int)fixScale << std::endl;
-    for (auto& e : poses)
+    strm << vertices.size() << " " << edges.size() << " " << (int)fixScale << std::endl;
+    for (auto& e : vertices)
     {
         strm << e.constant << " " << e.Pose().params().transpose() << std::endl;
     }
@@ -150,11 +150,11 @@ void PoseGraph::load(const std::string& file)
     int num_vertices, num_edges, _fixScale;
     strm >> num_vertices >> num_edges >> _fixScale;
     fixScale = _fixScale;
-    poses.resize(num_vertices);
+    vertices.resize(num_vertices);
     edges.resize(num_edges);
     std::cout << "Vertices/Edges: " << num_vertices << "/" << num_edges << std::endl;
 
-    for (auto& e : poses)
+    for (auto& e : vertices)
     {
         Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> v2(e.T_w_i.data());
         Sophus::Vector<double, SE3::num_parameters> v;
@@ -180,11 +180,12 @@ void PoseGraph::load(const std::string& file)
 
 void PoseGraph::AddVertexEdge(int from, int to, double weight)
 {
+    SAIGA_ASSERT(from != to);
     PoseEdge pe;
     pe.from   = from;
     pe.to     = to;
     pe.weight = weight;
-    pe.setRel(poses[from].Pose(), poses[to].Pose());
+    pe.setRel(vertices[from].Pose(), vertices[to].Pose());
     edges.push_back(pe);
 }
 
@@ -202,7 +203,7 @@ void PoseGraph::sortEdges()
 
 void PoseGraph::transform(const SE3& T)
 {
-    for (auto& v : poses)
+    for (auto& v : vertices)
     {
         v.T_w_i = T * v.T_w_i;
     }
@@ -214,7 +215,7 @@ void PoseGraph::transform(const SE3& T)
 
 void PoseGraph::invertPoses()
 {
-    for (auto& v : poses)
+    for (auto& v : vertices)
     {
         v.T_w_i = v.T_w_i.inverse();
     }
@@ -263,14 +264,14 @@ bool PoseGraph::imgui()
 std::ostream& operator<<(std::ostream& strm, PoseGraph& pg)
 {
     strm << "[PoseGraph]" << std::endl;
-    strm << " Poses: " << pg.poses.size() << std::endl;
+    strm << " Poses: " << pg.vertices.size() << std::endl;
     strm << " Edges: " << pg.edges.size() << std::endl;
     strm << " Rms: " << pg.rms() << std::endl;
     strm << " Chi2: " << pg.chi2() << std::endl;
     strm << " Density: " << pg.density() * 100 << "%" << std::endl;
 
     int constantNodes = 0;
-    for (auto e : pg.poses)
+    for (auto e : pg.vertices)
         if (e.constant) constantNodes++;
     strm << " Constant Poses: " << constantNodes << std::endl;
 

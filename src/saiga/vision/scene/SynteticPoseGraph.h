@@ -6,8 +6,12 @@
 
 #pragma once
 
-#include "saiga/vision/scene/Scene.h"
+#include "saiga/vision/scene/PoseGraph.h"
 
 namespace Saiga
 {
+namespace SyntheticPoseGraph
+{
+SAIGA_VISION_API PoseGraph CreateLinearPoseGraph(int num_vertices, int num_connections);
+}
 }  // namespace Saiga

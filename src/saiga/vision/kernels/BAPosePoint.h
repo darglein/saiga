@@ -61,47 +61,52 @@ struct BAPosePointMono
         auto zzinv = 1 / zz;
 
         // =================== Residual ================
-        Vec2 proj = camera.project(pc);
-        res       = observed - proj;
+        //        Vec2 proj = camera.project(pc);
+        auto x_over_z = x / z;
+        auto y_over_z = y / z;
+
+        Vec2 proj = camera.normalizedToImage({x_over_z, y_over_z});
+
+        res = observed - proj;
         res *= weight;
 
 
         // =================== Pose ================
         // Translation
-        JrowPose(0, 0) = -zinv;
+        JrowPose(0, 0) = zinv;
         JrowPose(0, 1) = 0;
-        JrowPose(0, 2) = x * zzinv;
+        JrowPose(0, 2) = -x * zzinv;
         JrowPose(1, 0) = 0;
-        JrowPose(1, 1) = -zinv;
-        JrowPose(1, 2) = y * zzinv;
+        JrowPose(1, 1) = zinv;
+        JrowPose(1, 2) = -y * zzinv;
 
 
         // Rotation
-        JrowPose(0, 3) = y * x * zzinv;
-        JrowPose(0, 4) = -(1 + (x * x) * zzinv);
-        JrowPose(0, 5) = y * zinv;
-        JrowPose(1, 3) = -(-1 - (y * y) * zzinv);
-        JrowPose(1, 4) = -x * y * zzinv;
-        JrowPose(1, 5) = -x * zinv;
+        JrowPose(0, 3) = -y * x * zzinv;
+        JrowPose(0, 4) = (1 + (x * x) * zzinv);
+        JrowPose(0, 5) = -y * zinv;
+        JrowPose(1, 3) = (-1 - (y * y) * zzinv);
+        JrowPose(1, 4) = x * y * zzinv;
+        JrowPose(1, 5) = x * zinv;
 
         JrowPose.row(0) *= camera.fx * weight;
         JrowPose.row(1) *= camera.fy * weight;
+
 
 
         // =================== Point ================
 
         auto R = extr.so3().matrix();
 
-        JrowPoint(0, 0) = -R(0, 0) * zinv + x * R(2, 0) * zzinv;
-        JrowPoint(0, 1) = -R(0, 1) * zinv + x * R(2, 1) * zzinv;
-        JrowPoint(0, 2) = -R(0, 2) * zinv + x * R(2, 2) * zzinv;
+        auto mul_x      = zinv * camera.fx * weight;
+        JrowPoint(0, 0) = (R(0, 0) - x_over_z * R(2, 0)) * mul_x;
+        JrowPoint(0, 1) = (R(0, 1) - x_over_z * R(2, 1)) * mul_x;
+        JrowPoint(0, 2) = (R(0, 2) - x_over_z * R(2, 2)) * mul_x;
 
-        JrowPoint(1, 0) = -R(1, 0) * zinv + y * R(2, 0) * zzinv;
-        JrowPoint(1, 1) = -R(1, 1) * zinv + y * R(2, 1) * zzinv;
-        JrowPoint(1, 2) = -R(1, 2) * zinv + y * R(2, 2) * zzinv;
-
-        JrowPoint.row(0) *= camera.fx * weight;
-        JrowPoint.row(1) *= camera.fy * weight;
+        auto mul_y      = zinv * camera.fy * weight;
+        JrowPoint(1, 0) = (R(1, 0) - y_over_z * R(2, 0)) * mul_y;
+        JrowPoint(1, 1) = (R(1, 1) - y_over_z * R(2, 1)) * mul_y;
+        JrowPoint(1, 2) = (R(1, 2) - y_over_z * R(2, 2)) * mul_y;
     }
 };
 
@@ -218,9 +223,9 @@ struct BAPosePointStereo
         JrowPose(2, 4) = JrowPose(0, 4) + camera.bf * x * zzinv;
         JrowPose(2, 5) = JrowPose(0, 5);
 
-        JrowPose.row(0) *= weight;
-        JrowPose.row(1) *= weight;
-        JrowPose.row(2) *= weight;
+        JrowPose.row(0) *= -weight;
+        JrowPose.row(1) *= -weight;
+        JrowPose.row(2) *= -weight;
 
 
         // =================== Point ================
@@ -242,9 +247,9 @@ struct BAPosePointStereo
         JrowPoint(2, 1) = JrowPoint(0, 1) - camera.bf * R(2, 1) * zzinv;
         JrowPoint(2, 2) = JrowPoint(0, 2) - camera.bf * R(2, 2) * zzinv;
 
-        JrowPoint.row(0) *= weight;
-        JrowPoint.row(1) *= weight;
-        JrowPoint.row(2) *= weight;
+        JrowPoint.row(0) *= -weight;
+        JrowPoint.row(1) *= -weight;
+        JrowPoint.row(2) *= -weight;
     }
 };
 

@@ -40,7 +40,9 @@ OptimizationResults CeresPGO::initAndSolve()
 
 #ifdef AUTO_DIFF
 
-    Saiga::test::LocalParameterizationSim3<false> camera_parameterization;
+    //    Saiga::test::LocalParameterizationSim3<false> camera_parameterization;
+    //    Saiga::test::LocalParameterizationSim3<false> camera_parameterization;
+    Sophus::test::LocalParameterizationSE3_Autodiff camera_parameterization;
 
 #else
 #    ifdef PGO_SIM3
@@ -51,13 +53,13 @@ OptimizationResults CeresPGO::initAndSolve()
 #    endif
 #endif
 
-    for (size_t i = 0; i < scene.poses.size(); ++i)
+    for (size_t i = 0; i < scene.vertices.size(); ++i)
     {
-        problem.AddParameterBlock(scene.poses[i].T_w_i.data(), 7, &camera_parameterization);
+        problem.AddParameterBlock(scene.vertices[i].T_w_i.data(), 7, &camera_parameterization);
         //        problem.AddParameterBlock(scene.poses[i].se3.data(), 7);
-        if (scene.poses[i].constant)
+        if (scene.vertices[i].constant)
         {
-            problem.SetParameterBlockConstant(scene.poses[i].T_w_i.data());
+            problem.SetParameterBlockConstant(scene.vertices[i].T_w_i.data());
         }
     }
 #ifdef AUTO_DIFF
@@ -72,8 +74,8 @@ OptimizationResults CeresPGO::initAndSolve()
     // Add all transformation edges
     for (auto& e : scene.edges)
     {
-        auto vertex_from = scene.poses[e.from].T_w_i.data();
-        auto vertex_to   = scene.poses[e.to].T_w_i.data();
+        auto vertex_from = scene.vertices[e.from].T_w_i.data();
+        auto vertex_to   = scene.vertices[e.to].T_w_i.data();
 
 #ifdef AUTO_DIFF
         CostFunctionType* cost = CostPGO::create(e.meassurement().inverse());

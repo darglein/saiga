@@ -19,7 +19,7 @@ void PGORec::init()
 {
     auto& scene = *_scene;
 
-    n = scene.poses.size();
+    n = scene.vertices.size();
     b.resize(n);
     delta_x.resize(n);
 
@@ -28,7 +28,7 @@ void PGORec::init()
 
     // Make a copy of the initial parameters
     int i = 0;
-    for (auto& e : scene.poses)
+    for (auto& e : scene.vertices)
     {
         x_u[i++] = e.Pose();
     }
@@ -148,11 +148,10 @@ double PGORec::computeQuadraticForm()
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(x_u[i], x_u[j], e.meassurement().inverse(), res, Jrowi, Jrowj,
-                                                    e.weight);
+            KernelType::evaluateResidualAndJacobian(e.meassurement(), x_u[i], x_u[j], res, Jrowi, Jrowj, e.weight);
 
-            if (scene.poses[i].constant) Jrowi.setZero();
-            if (scene.poses[j].constant) Jrowj.setZero();
+            if (scene.vertices[i].constant) Jrowi.setZero();
+            if (scene.vertices[j].constant) Jrowj.setZero();
 
             auto c = res.squaredNorm();
 
@@ -222,7 +221,7 @@ double PGORec::computeCost()
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidual(x_u[i], x_u[j], e.meassurement().inverse(), res, e.weight);
+            KernelType::evaluateResidual(e.meassurement(), x_u[i], x_u[j], res, e.weight);
 
             auto c = res.squaredNorm();
             chi2 += c;
@@ -248,7 +247,7 @@ bool PGORec::addDelta()
 
     for (int i = 0; i < n; ++i)
     {
-        if (scene.poses[i].constant) continue;
+        if (scene.vertices[i].constant) continue;
         auto t = delta_x(i).get();
 #ifdef PGO_SIM3
         if (scene.fixScale) t[6] = 0;
@@ -291,7 +290,7 @@ void PGORec::finalize()
     //    {
     for (int i = 0; i < n; ++i)
     {
-        auto& p = scene.poses[i];
+        auto& p = scene.vertices[i];
         if (!p.constant) p.SetPose(x_u[i]);
     }
 }

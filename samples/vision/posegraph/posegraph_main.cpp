@@ -100,7 +100,7 @@ void test_to_file(const OptimizationOptions& baoptions, const std::string& file,
               << "Time_LS"
               << "Time_Total";
 
-        strm << file << "," << scene.edges.size() << "," << scene.poses.size() << "," << scene.density() << ","
+        strm << file << "," << scene.edges.size() << "," << scene.vertices.size() << "," << scene.density() << ","
              << (int)baoptions.solverType << "," << (int)baoptions.maxIterations;
 
         for (auto& s : solvers)

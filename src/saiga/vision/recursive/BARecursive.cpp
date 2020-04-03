@@ -463,10 +463,10 @@ double BARec::computeQuadraticForm()
                         auto& targetPoseRes  = b.u(actualOffset).get();
                         targetPosePose += loss_weight * JrowPose.transpose() * JrowPose;
                         targetPosePoint = loss_weight * JrowPose.transpose() * JrowPoint;
-                        targetPoseRes -= loss_weight * JrowPose.transpose() * res;
+                        targetPoseRes += loss_weight * JrowPose.transpose() * res;
                     }
                     targetPointPoint += loss_weight * JrowPoint.transpose() * JrowPoint;
-                    targetPointRes -= loss_weight * JrowPoint.transpose() * res;
+                    targetPointRes += loss_weight * JrowPoint.transpose() * res;
                 }
                 else
                 {
@@ -496,10 +496,10 @@ double BARec::computeQuadraticForm()
                         auto& targetPoseRes  = b.u(actualOffset).get();
                         targetPosePose += loss_weight * JrowPose.transpose() * JrowPose;
                         targetPosePoint = loss_weight * JrowPose.transpose() * JrowPoint;
-                        targetPoseRes -= loss_weight * JrowPose.transpose() * res;
+                        targetPoseRes += loss_weight * JrowPose.transpose() * res;
                     }
                     targetPointPoint += loss_weight * JrowPoint.transpose() * JrowPoint;
-                    targetPointRes -= loss_weight * JrowPoint.transpose() * res;
+                    targetPointRes += loss_weight * JrowPoint.transpose() * res;
                 }
 
                 if (!constant)
@@ -544,7 +544,10 @@ bool BARec::addDelta()
 
 
         auto t  = delta_x.u(offset).get();
-        x_u[id] = SE3::exp(t) * x_u[id];
+        x_u[id] = Sophus::se3_expd(t) * x_u[id];
+
+        //        x_u[id].translation() += t.head<3>();
+        //        x_u[id].so3() = Sophus::SO3d::exp(t.tail<3>()) * x_u[id].so3();
     }
 
     for (int i = 0; i < m; ++i)

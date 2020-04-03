@@ -37,7 +37,7 @@ class Sample : public SampleWindowForward
     std::vector<vec3> boxOffsets;
     bool change = false;
 
-    bool render_inverse = true;
+    bool render_inverse = false;
     //    bool uploadChanges = true;
     float rms  = 0;
     float chi2 = 0;

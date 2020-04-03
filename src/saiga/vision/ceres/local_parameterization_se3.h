@@ -1,6 +1,7 @@
 #pragma once
 #include "saiga/vision/sophus/Sophus.h"
 
+#include <ceres/autodiff_local_parameterization.h>
 #include <ceres/local_parameterization.h>
 
 namespace Sophus
@@ -92,6 +93,28 @@ class LocalParameterizationSE32 : public ceres::LocalParameterization
     virtual int LocalSize() const { return SE3d::DoF; }
 };
 
+
+
+// use for analytical diff with lie algebra
+class LocalParameterizationSE3_Autodiff_Kernel
+{
+   public:
+    virtual ~LocalParameterizationSE3_Autodiff_Kernel() {}
+
+    template <typename T>
+    bool operator()(const T* _x, const T* _delta, T* _x_plus_delta) const
+    {
+        using Vec6 = Eigen::Matrix<T, 6, 1>;
+        Eigen::Map<Sophus::SE3<T> const> const x(_x);
+        Eigen::Map<Vec6 const> const delta(_delta);
+        Eigen::Map<Sophus::SE3<T>> x_plus_delta(_x_plus_delta);
+
+        x_plus_delta = Sophus::SE3<T>::exp(delta) * x;
+        return true;
+    }
+};
+using LocalParameterizationSE3_Autodiff =
+    ceres::AutoDiffLocalParameterization<LocalParameterizationSE3_Autodiff_Kernel, 7, 6>;
 
 }  // namespace test
 }  // namespace Sophus

@@ -26,40 +26,39 @@ struct PGO
     using PoseDiaBlockType  = Eigen::Matrix<T, VarCountPose, VarCountPose, Eigen::RowMajor>;
 
 
-    static inline void evaluateResidual(const TransformationType& from, const TransformationType& to,
-                                        const TransformationType& inverseMeasurement, ResidualType& res, T weight)
+    static inline void evaluateResidual(const TransformationType& T_i_j, const TransformationType& T_w_i,
+                                        const TransformationType& T_w_j, ResidualType& res, T weight)
     {
-#ifdef LSD_REL
-        auto error_ = from.inverse() * to * inverseMeasurement;
-#else
-        //        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
-        //        auto error_ = from * to.inverse() * inverseMeasurement.inverse();
-        auto error_ = inverseMeasurement * to * from.inverse();
-#endif
-        res = error_.log() * weight;
+        Sophus::SE3d T_j_i = T_w_j.inverse() * T_w_i;
+        res                = Sophus::se3_logd(T_i_j * T_j_i) * weight;
     }
 
-    static inline void evaluateJacobian(const TransformationType& from, const TransformationType& to,
-                                        const TransformationType& inverseMeasurement, PoseJacobiType& JrowFrom,
-                                        PoseJacobiType& JrowTo, T weight)
+    static inline void evaluateResidualAndJacobian(const TransformationType& T_i_j, const TransformationType& T_w_i,
+                                                   const TransformationType& T_w_j, ResidualType& res,
+                                                   PoseJacobiType& d_res_d_T_w_i, PoseJacobiType& d_res_d_T_w_j,
+                                                   T weight)
     {
-#ifdef LSD_REL
-        JrowTo   = from.inverse().Adj() * weight;
-        JrowFrom = -JrowTo;
-#else
-        auto error_ = inverseMeasurement * to * from.inverse();
-        JrowFrom    = error_.Adj();
-        JrowTo      = -JrowTo;
-//        std::terminate();
-#endif
-    }
+        Sophus::SE3d T_j_i = T_w_j.inverse() * T_w_i;
 
-    static inline void evaluateResidualAndJacobian(const TransformationType& from, const TransformationType& to,
-                                                   const TransformationType& inverseMeasurement, ResidualType& res,
-                                                   PoseJacobiType& JrowFrom, PoseJacobiType& JrowTo, T weight)
-    {
-        evaluateResidual(from, to, inverseMeasurement, res, weight);
-        evaluateJacobian(from, to, inverseMeasurement, JrowFrom, JrowTo, weight);
+        res = Sophus::se3_logd(T_i_j * T_j_i) * weight;
+
+        Sophus::Matrix6d J;
+        Sophus::rightJacobianInvSE3Decoupled(res, J);
+
+        Eigen::Matrix3d R = T_w_i.so3().inverse().matrix();
+
+        Sophus::Matrix6d Adj;
+        Adj.setZero();
+        Adj.topLeftCorner<3, 3>()     = R;
+        Adj.bottomRightCorner<3, 3>() = R;
+
+
+        d_res_d_T_w_i = J * Adj;
+
+
+
+        Adj.topRightCorner<3, 3>() = Sophus::SO3d::hat(T_j_i.inverse().translation()) * R;
+        d_res_d_T_w_j              = -J * Adj;
     }
 };
 

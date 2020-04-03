@@ -104,10 +104,10 @@ TEST(PoseGraph, LoadStore)
     pg2.load("test.posegraph");
 
     // compare vertices
-    for (int i = 0; i < pg1.poses.size(); ++i)
+    for (int i = 0; i < pg1.vertices.size(); ++i)
     {
-        auto v1 = pg1.poses[i];
-        auto v2 = pg2.poses[i];
+        auto v1 = pg1.vertices[i];
+        auto v2 = pg2.vertices[i];
         EXPECT_EQ(v1.constant, v2.constant);
         EXPECT_EQ(v1.Pose().matrix(), v2.Pose().matrix());
     }

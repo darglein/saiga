@@ -98,7 +98,7 @@ struct SAIGA_VISION_API PoseGraph
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    AlignedVector<PoseVertex> poses;
+    AlignedVector<PoseVertex> vertices;
     AlignedVector<PoseEdge> edges;
     bool fixScale = true;
 

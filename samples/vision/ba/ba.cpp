@@ -69,8 +69,8 @@ void Sample::update(float dt)
         for (auto e : pg.edges)
         {
             if (!scene.images[e.from].valid() || !scene.images[e.to].valid()) continue;
-            auto p1 = pg.poses[e.from].Pose().inverse().translation();
-            auto p2 = pg.poses[e.to].Pose().inverse().translation();
+            auto p1 = pg.vertices[e.from].Pose().inverse().translation();
+            auto p2 = pg.vertices[e.to].Pose().inverse().translation();
 
             if ((p1 - p2).norm() > maxEdgeDistance) continue;
             //            if (p1.norm() > 10 || p2.norm() > 10) continue;

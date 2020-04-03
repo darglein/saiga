@@ -32,9 +32,9 @@ OptimizationResults g2oPGO::initAndSolve()
     optimizer.setAlgorithm(solver);
 
     // Add all pose vertices
-    for (int i = 0; i < (int)scene.poses.size(); ++i)
+    for (int i = 0; i < (int)scene.vertices.size(); ++i)
     {
-        auto& img         = scene.poses[i];
+        auto& img         = scene.vertices[i];
         VertexSim3* v_se3 = new VertexSim3();
         v_se3->setId(i);
         v_se3->setEstimate(img.Pose());
@@ -99,10 +99,10 @@ OptimizationResults g2oPGO::initAndSolve()
         }
     }
 
-    for (size_t i = 0; i < scene.poses.size(); ++i)
+    for (size_t i = 0; i < scene.vertices.size(); ++i)
     {
         VertexSim3* v_se3 = static_cast<VertexSim3*>(optimizer.vertex(i));
-        auto& e           = scene.poses[i].T_w_i;
+        auto& e           = scene.vertices[i].T_w_i;
         e                 = v_se3->estimate();
     }
 

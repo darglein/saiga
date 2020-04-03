@@ -15,6 +15,7 @@
 #include "saiga/core/util/directory.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/scene/BALDataset.h"
+#include "saiga/vision/scene/SynteticPoseGraph.h"
 //#include "saiga/vision/Eigen_GLM.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/ceres/CeresPGO.h"
@@ -68,13 +69,13 @@ void Sample::update(float dt)
 
             if (render_inverse)
             {
-                p1 = inverseMatchingSE3(scene.poses[i].Sim3Pose()).inverse().translation().cast<float>();
-                p2 = inverseMatchingSE3(scene.poses[j].Sim3Pose()).inverse().translation().cast<float>();
+                p1 = inverseMatchingSE3(scene.vertices[i].Sim3Pose()).inverse().translation().cast<float>();
+                p2 = inverseMatchingSE3(scene.vertices[j].Sim3Pose()).inverse().translation().cast<float>();
             }
             else
             {
-                p1 = inverseMatchingSE3(scene.poses[i].Sim3Pose()).translation().cast<float>();
-                p2 = inverseMatchingSE3(scene.poses[j].Sim3Pose()).translation().cast<float>();
+                p1 = scene.vertices[i].Pose().translation().cast<float>();
+                p2 = scene.vertices[j].Pose().translation().cast<float>();
             }
             PointVertex pc1;
             PointVertex pc2;
@@ -103,9 +104,9 @@ void Sample::renderOverlay(Camera* cam)
 
 
 
-    for (auto& i : scene.poses)
+    for (auto& i : scene.vertices)
     {
-        Saiga::SE3 se3 = inverseMatchingSE3(i.Sim3Pose());
+        Saiga::SE3 se3 = i.Pose();
         if (render_inverse)
         {
         }
@@ -148,7 +149,12 @@ void Sample::renderFinal(Camera* cam)
 
     ImGui::Separator();
 
+    if (ImGui::Button("Syntetic Linear"))
+    {
+        scene = SyntheticPoseGraph::CreateLinearPoseGraph(20, 3);
 
+        change = true;
+    }
 #if 1
     {
         std::vector<const char*> strings;
@@ -173,10 +179,10 @@ void Sample::renderFinal(Camera* cam)
         if (ImGui::Button("Load BAL Dataset"))
         {
             Saiga::BALDataset bal(baldatasets[currentItem]);
-            Saiga::Scene sc         = bal.makeScene();
-            scene                   = Saiga::PoseGraph(sc);
-            scene.poses[0].constant = true;
-            change                  = true;
+            Saiga::Scene sc            = bal.makeScene();
+            scene                      = Saiga::PoseGraph(sc);
+            scene.vertices[0].constant = true;
+            change                     = true;
             std::cout << scene.chi2() << std::endl;
         }
     }

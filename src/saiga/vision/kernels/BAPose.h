@@ -76,7 +76,7 @@ struct BAPoseMono
 
         // Tx
         Jrow(0, 0) = fxw * zinv;
-        Jrow(0, 1) = fxw * 0;
+        Jrow(0, 1) = 0;
         Jrow(0, 2) = fxw * -x * zzinv;
         // Rx
         Jrow(0, 3) = fyw * -y * x * zzinv;
@@ -85,7 +85,7 @@ struct BAPoseMono
         //        Jrow.row(0) *= camera.fx * weight;
 
         // Ty
-        Jrow(1, 0) = fxw * 0;
+        Jrow(1, 0) = 0;
         Jrow(1, 1) = fxw * zinv;
         Jrow(1, 2) = fxw * -y * zzinv;
         // Ry
@@ -146,16 +146,15 @@ struct BAPoseStereo
         auto zinv  = 1 / z;
         auto zzinv = 1 / zz;
 
-#if 1
         auto fxw = camera.fx * weight;
         auto fyw = camera.fy * weight;
         auto bfw = camera.bf * weight;
 
         // Translation
         Jrow(0, 0) = fxw * zinv;
-        Jrow(0, 1) = fxw * 0;
+        Jrow(0, 1) = 0;
         Jrow(0, 2) = fxw * -x * zzinv;
-        Jrow(1, 0) = fyw * 0;
+        Jrow(1, 0) = 0;
         Jrow(1, 1) = fyw * zinv;
         Jrow(1, 2) = fyw * -y * zzinv;
 
@@ -175,33 +174,6 @@ struct BAPoseStereo
         Jrow(2, 3) = Jrow(0, 3) + bfw * y * zzinv;
         Jrow(2, 4) = Jrow(0, 4) - bfw * x * zzinv;
         Jrow(2, 5) = Jrow(0, 5);
-#else
-        // Rotation
-        Jrow(0, 3) = -y * x * zzinv;
-        Jrow(0, 4) = (1 + (x * x) * zzinv);
-        Jrow(0, 5) = -y * zinv;
-        Jrow(1, 3) = (-1 - (y * y) * zzinv);
-        Jrow(1, 4) = x * y * zzinv;
-        Jrow(1, 5) = x * zinv;
-
-
-        Jrow.row(0) *= camera.fx;
-        Jrow.row(1) *= camera.fy;
-
-
-        Jrow(2, 0) = Jrow(0, 0);
-        Jrow(2, 1) = 0;
-        Jrow(2, 2) = Jrow(0, 2) + camera.bf * zzinv;
-
-        Jrow(2, 3) = Jrow(0, 3) + camera.bf * y * zzinv;
-        Jrow(2, 4) = Jrow(0, 4) - camera.bf * x * zzinv;
-        Jrow(2, 5) = Jrow(0, 5);
-
-
-
-        // use weight
-        Jrow *= weight;
-#endif
     }
 };
 

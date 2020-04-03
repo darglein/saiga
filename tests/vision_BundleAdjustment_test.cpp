@@ -23,9 +23,9 @@ class BundleAdjustmentTest
    public:
     BundleAdjustmentTest()
     {
-        opoptions.debugOutput            = true;
+        opoptions.debugOutput            = false;
         opoptions.debug                  = false;
-        opoptions.maxIterations          = 500;
+        opoptions.maxIterations          = 10;
         opoptions.maxIterativeIterations = 50;
         opoptions.iterativeTolerance     = 1e-10;
         opoptions.numThreads             = 1;
@@ -64,13 +64,13 @@ class BundleAdjustmentTest
         auto scene1 = solveRec(options);
         auto scene2 = solveCeres(options);
 
-        std::cout << scene.chi2(options.huberMono) << " " << scene1.chi2(options.huberMono) << " "
-                  << scene2.chi2(options.huberMono) << std::endl;
+        //        std::cout << scene.chi2(options.huberMono) << " " << scene1.chi2(options.huberMono) << " "
+        //                  << scene2.chi2(options.huberMono) << std::endl;
 
-        ExpectCloseRelative(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-5);
+        ExpectCloseRelative(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-1);
     }
 
-    void buildScene()
+    void buildScene(bool with_depth = false)
     {
         SynteticScene sscene;
         sscene.numCameras     = 3;
@@ -78,6 +78,17 @@ class BundleAdjustmentTest
         sscene.numWorldPoints = 100;
         scene                 = sscene.circleSphere();
 
+
+        if (with_depth)
+        {
+            for (auto& img : scene.images)
+            {
+                for (auto& obs : img.stereoPoints)
+                {
+                    obs.depth = 1.0;
+                }
+            }
+        }
         // 2 cm point noise
         scene.addWorldPointNoise(0.05);
 
@@ -85,6 +96,8 @@ class BundleAdjustmentTest
         scene.addImagePointNoise(2.0);
 
         scene.addExtrinsicNoise(0.01);
+
+
 
         //        scene.extrinsics[0].constant = true;
     }
@@ -94,12 +107,24 @@ class BundleAdjustmentTest
    private:
     OptimizationOptions opoptions;
 };
-#if 0
+
 TEST(BundleAdjustment, Default)
 {
     for (int i = 0; i < 10; ++i)
     {
         BundleAdjustmentTest test;
+        test.buildScene(false);
+        BAOptions options;
+        test.test(options);
+    }
+}
+
+TEST(BundleAdjustment, DefaultDepth)
+{
+    for (int i = 0; i < 10; ++i)
+    {
+        BundleAdjustmentTest test;
+        test.buildScene(true);
         BAOptions options;
         test.test(options);
     }
@@ -124,7 +149,7 @@ TEST(BundleAdjustment, PartialConstant)
         test.test(options);
     }
 }
-#endif
+
 TEST(BundleAdjustment, Huber)
 {
     Random::setSeed(923652);
