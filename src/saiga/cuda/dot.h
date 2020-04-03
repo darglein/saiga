@@ -71,7 +71,7 @@ __device__ inline T dotLocalVector(ArrayView<T> v1, ArrayView<T> v2)
 template <typename T, unsigned int BLOCK_SIZE>
 __global__ void dot(ArrayView<T> v1, ArrayView<T> v2, T* out)
 {
-    __shared__ T shared[BLOCK_SIZE / WARP_SIZE];
+    __shared__ T shared[BLOCK_SIZE / SAIGA_WARP_SIZE];
 
 
     T sum = dotLocalVector<T, BLOCK_SIZE>(v1, v2);

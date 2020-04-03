@@ -37,7 +37,7 @@ OptimizationResults g2oPGO::initAndSolve()
         auto& img         = scene.poses[i];
         VertexSim3* v_se3 = new VertexSim3();
         v_se3->setId(i);
-        v_se3->setEstimate(img.se3);
+        v_se3->setEstimate(img.Pose());
         v_se3->fixScale = scene.fixScale;
         // fix the first camera
         v_se3->setFixed(img.constant);
@@ -63,7 +63,8 @@ OptimizationResults g2oPGO::initAndSolve()
         ge->setVertex(1, vertex_to);
         ge->setMeasurement(e.meassurement());
         //        ge->setMeasurementFromState();
-        ge->information() = Eigen::Matrix<double, PGOTransformation::DoF, PGOTransformation::DoF>::Identity();
+        using PGOTransformation = SE3;
+        ge->information()       = Eigen::Matrix<double, PGOTransformation::DoF, PGOTransformation::DoF>::Identity();
         optimizer.addEdge(ge);
 
         ge->computeError();
@@ -101,7 +102,7 @@ OptimizationResults g2oPGO::initAndSolve()
     for (size_t i = 0; i < scene.poses.size(); ++i)
     {
         VertexSim3* v_se3 = static_cast<VertexSim3*>(optimizer.vertex(i));
-        auto& e           = scene.poses[i].se3;
+        auto& e           = scene.poses[i].T_w_i;
         e                 = v_se3->estimate();
     }
 

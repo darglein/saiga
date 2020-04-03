@@ -18,11 +18,7 @@ PoseGraph::PoseGraph(const Scene& scene, int minEdges)
     for (auto& p : scene.extrinsics)
     {
         PoseVertex pv;
-#ifdef PGO_SIM3
-        pv.se3 = sim3(p.se3, 1.0);
-#else
-        pv.se3 = p.se3;
-#endif
+        pv.T_w_i    = p.se3.inverse();
         pv.constant = p.constant;
         pv.constant = false;
         poses.push_back(pv);
@@ -57,7 +53,7 @@ PoseGraph::PoseGraph(const Scene& scene, int minEdges)
                 PoseEdge e;
                 e.from = i;
                 e.to   = j;
-                e.setRel(poses[i].se3, poses[j].se3);
+                e.setRel(poses[i].Pose(), poses[j].Pose());
                 edges.push_back(e);
             }
         }
@@ -70,11 +66,9 @@ void PoseGraph::addNoise(double stddev)
     for (auto& e : poses)
     {
         if (e.constant) continue;
-        e.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
+        e.T_w_i.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
 
-#ifdef PGO_SIM3
-        e.se3.setScale(e.se3.scale() * Random::sampleDouble(0.7, 1.3));
-#endif
+
         //        Quat q = e.se3.unit_quaternion();
         //        Quat q = e.se3.rxso3().quaternion();
         //        q.coeffs() += Random::gaussRandMatrix<Vec4>(0, stddev);
@@ -85,14 +79,7 @@ void PoseGraph::addNoise(double stddev)
 
 PoseEdge::TangentType PoseGraph::residual6(const PoseEdge& edge)
 {
-    auto& _from = poses[edge.from].se3;
-    auto& _to   = poses[edge.to].se3;
-#ifdef LSD_REL
-    auto error_ = _from.inverse() * _to * edge.meassurement().inverse();
-#else
-    auto error_ = edge.meassurement().inverse() * _to * _from.inverse();
-#endif
-    return error_.log() * edge.weight;
+    return edge.residual(poses[edge.from].Pose(), poses[edge.to].Pose());
 }
 
 double PoseGraph::density()
@@ -124,13 +111,12 @@ void PoseGraph::save(const std::string& file)
     strm << poses.size() << " " << edges.size() << " " << (int)fixScale << std::endl;
     for (auto& e : poses)
     {
-        strm << e.constant << " " << e.se3.params().transpose() << std::endl;
+        strm << e.constant << " " << e.Pose().params().transpose() << std::endl;
     }
     for (auto& e : edges)
     {
         strm << e.from << " " << e.to << " " << e.weight << std::endl;
-        strm << e.from_pose.params().transpose() << std::endl;
-        strm << e.to_pose.params().transpose() << std::endl;
+        strm << e.T_i_j.params().transpose() << std::endl;
     }
 }
 
@@ -170,7 +156,7 @@ void PoseGraph::load(const std::string& file)
 
     for (auto& e : poses)
     {
-        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> v2(e.se3.data());
+        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> v2(e.T_w_i.data());
         Sophus::Vector<double, SE3::num_parameters> v;
         strm >> e.constant >> v;
         v2 = v;
@@ -178,15 +164,12 @@ void PoseGraph::load(const std::string& file)
 
     for (auto& e : edges)
     {
-        Sophus::Vector<double, SE3::num_parameters> from_v, to_v;
+        Sophus::Vector<double, SE3::num_parameters> from_v;
         strm >> e.from >> e.to >> e.weight;
         strm >> from_v;
-        strm >> to_v;
 
-        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> from_map(e.from_pose.data());
-        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> to_map(e.to_pose.data());
+        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> from_map(e.T_i_j.data());
         from_map = from_v;
-        to_map   = to_v;
 
         //        SAIGA_ASSERT(e.from_pose.scale() == 1);
         //        e.setRel(poses[e.from].se3, poses[e.to].se3);
@@ -201,7 +184,7 @@ void PoseGraph::AddVertexEdge(int from, int to, double weight)
     pe.from   = from;
     pe.to     = to;
     pe.weight = weight;
-    pe.setRel(poses[from].se3, poses[to].se3);
+    pe.setRel(poses[from].Pose(), poses[to].Pose());
     edges.push_back(pe);
 }
 
@@ -221,12 +204,11 @@ void PoseGraph::transform(const SE3& T)
 {
     for (auto& v : poses)
     {
-        v.se3 = sim3(T * se3Scale(v.se3).first, v.se3.scale());
+        v.T_w_i = T * v.T_w_i;
     }
     for (auto& e : edges)
     {
-        e.from_pose = sim3(T * se3Scale(e.from_pose).first, e.from_pose.scale());
-        e.to_pose   = sim3(T * se3Scale(e.to_pose).first, e.to_pose.scale());
+        e.T_i_j = T * e.T_i_j;
     }
 }
 
@@ -234,13 +216,11 @@ void PoseGraph::invertPoses()
 {
     for (auto& v : poses)
     {
-        //        v.se3 = v.se3.inverse();
-        v.se3 = sim3(se3Scale(v.se3).first.inverse(), se3Scale(v.se3).second);
+        v.T_w_i = v.T_w_i.inverse();
     }
     for (auto& e : edges)
     {
-        e.from_pose = e.from_pose.inverse();
-        e.to_pose   = e.to_pose.inverse();
+        e.T_i_j = e.T_i_j.inverse();
     }
 }
 

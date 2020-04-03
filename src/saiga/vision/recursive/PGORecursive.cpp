@@ -30,7 +30,7 @@ void PGORec::init()
     int i = 0;
     for (auto& e : scene.poses)
     {
-        x_u[i++] = e.se3;
+        x_u[i++] = e.Pose();
     }
 
     // Compute structure of S
@@ -292,7 +292,7 @@ void PGORec::finalize()
     for (int i = 0; i < n; ++i)
     {
         auto& p = scene.poses[i];
-        if (!p.constant) p.se3 = x_u[i];
+        if (!p.constant) p.SetPose(x_u[i]);
     }
 }
 

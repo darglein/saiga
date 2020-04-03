@@ -4,11 +4,11 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/math/math.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/tests/test_helper.h"
-#include "saiga/core/math/math.h"
 using namespace Saiga;
 // cuobjdump globalMemory --dump-sass -arch sm_61 > sass.txt
 
@@ -98,17 +98,17 @@ __global__ static void integrateEulerSharedVector(Saiga::ArrayView<Particle> src
 {
     static_assert(sizeof(Particle) % sizeof(int4) == 0, "Invalid particle size");
 
-    const unsigned int WARPS_PER_BLOCK = BLOCK_SIZE / WARP_SIZE;
-    __shared__ Particle tmp[WARPS_PER_BLOCK][WARP_SIZE];
+    const unsigned int WARPS_PER_BLOCK = BLOCK_SIZE / SAIGA_WARP_SIZE;
+    __shared__ Particle tmp[WARPS_PER_BLOCK][SAIGA_WARP_SIZE];
 
 
     Saiga::CUDA::ThreadInfo<> ti;
 
     const auto cycles = sizeof(Particle) / sizeof(int4);
-    const auto step   = WARP_SIZE;
+    const auto step   = SAIGA_WARP_SIZE;
 
     // Start offset into particle array for this warp
-    auto warpStart = ti.warp_id * WARP_SIZE;
+    auto warpStart = ti.warp_id * SAIGA_WARP_SIZE;
 
     // Check if complete warp is outside
     if (warpStart >= srcParticles.size()) return;

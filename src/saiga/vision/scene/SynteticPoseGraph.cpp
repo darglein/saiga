@@ -3,12 +3,10 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/vision/util/Random.h"
 
-#pragma once
-
-//#define LSD_REL
-
-#define PGO_SIM3
+#include "SynteticScene.h"
 namespace Saiga
 {
-}
+}  // namespace Saiga

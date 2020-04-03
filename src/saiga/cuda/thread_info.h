@@ -26,7 +26,7 @@ namespace CUDA
  * Note: It is important to use unsigend ints here, because then the compiler can replace expensive integer divisions
  * with fast bit shifts. The same counts when accessing these variables. Either use "auto" or "unsigend int".
  */
-template <unsigned int THREADS_PER_BLOCK = 0, unsigned int LOCAL_WARP_SIZE = WARP_SIZE>
+template <unsigned int THREADS_PER_BLOCK = 0, unsigned int LOCAL_WARP_SIZE = SAIGA_WARP_SIZE>
 struct ThreadInfo
 {
     unsigned int local_thread_id;  // local thread id in the block PTX: %tid.x

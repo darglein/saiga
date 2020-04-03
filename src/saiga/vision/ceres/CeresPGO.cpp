@@ -53,11 +53,11 @@ OptimizationResults CeresPGO::initAndSolve()
 
     for (size_t i = 0; i < scene.poses.size(); ++i)
     {
-        problem.AddParameterBlock(scene.poses[i].se3.data(), 7, &camera_parameterization);
+        problem.AddParameterBlock(scene.poses[i].T_w_i.data(), 7, &camera_parameterization);
         //        problem.AddParameterBlock(scene.poses[i].se3.data(), 7);
         if (scene.poses[i].constant)
         {
-            problem.SetParameterBlockConstant(scene.poses[i].se3.data());
+            problem.SetParameterBlockConstant(scene.poses[i].T_w_i.data());
         }
     }
 #ifdef AUTO_DIFF
@@ -72,8 +72,8 @@ OptimizationResults CeresPGO::initAndSolve()
     // Add all transformation edges
     for (auto& e : scene.edges)
     {
-        auto vertex_from = scene.poses[e.from].se3.data();
-        auto vertex_to   = scene.poses[e.to].se3.data();
+        auto vertex_from = scene.poses[e.from].T_w_i.data();
+        auto vertex_to   = scene.poses[e.to].T_w_i.data();
 
 #ifdef AUTO_DIFF
         CostFunctionType* cost = CostPGO::create(e.meassurement().inverse());

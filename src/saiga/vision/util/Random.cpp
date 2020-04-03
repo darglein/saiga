@@ -40,6 +40,11 @@ SE3 randomSE3()
     return SE3(q, t);
 }
 
+Sim3 randomSim3()
+{
+    return sim3(randomSE3(), sampleDouble(0.1, 2));
+}
+
 Quat randomQuat()
 {
     Vec4 qc = Vec4::Random();

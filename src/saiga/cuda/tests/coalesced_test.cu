@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/time/timer.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/shfl_helper.h"
@@ -11,7 +12,6 @@
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/core/time/timer.h"
 
 namespace Saiga
 {
@@ -51,13 +51,13 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void copyUnCoalesced(ArrayView<T
 template <typename T, int ElementSize, unsigned int BLOCK_SIZE>
 __launch_bounds__(BLOCK_SIZE) __global__ static void copyFullCoalesced(ArrayView<T> data, ArrayView<T> result)
 {
-    const int elementsPerWarp = ElementSize * WARP_SIZE;
+    const int elementsPerWarp = ElementSize * SAIGA_WARP_SIZE;
 
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
 
     auto N             = data.size();
     auto Nelements     = N / ElementSize;
-    auto requiredWarps = CUDA::getBlockCount(Nelements, WARP_SIZE);
+    auto requiredWarps = CUDA::getBlockCount(Nelements, SAIGA_WARP_SIZE);
 
 
     // grid stride loop
@@ -65,7 +65,7 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void copyFullCoalesced(ArrayView
     {
         auto warpStart = wId * elementsPerWarp;
 
-        for (auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE)
+        for (auto e = ti.lane_id; e < elementsPerWarp; e += SAIGA_WARP_SIZE)
         {
             auto globalOffset = warpStart + e;
             if (globalOffset < N)
@@ -132,11 +132,11 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced(Array
 {
     CUDA::ThreadInfo<BLOCK_SIZE> ti;
 
-    const int elementsPerWarp = ElementSize * WARP_SIZE;
+    const int elementsPerWarp = ElementSize * SAIGA_WARP_SIZE;
 
     auto N             = data.size();
     auto Nelements     = N / ElementSize;
-    auto requiredWarps = CUDA::getBlockCount(Nelements, WARP_SIZE);
+    auto requiredWarps = CUDA::getBlockCount(Nelements, SAIGA_WARP_SIZE);
 
 
     //    __shared__ double buffer[elementsPerBlock];
@@ -154,9 +154,9 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced(Array
         auto warpStart     = ti.warp_id * elementsPerWarp;
 
         // strided copy
-        for (auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE)
+        for (auto e = ti.lane_id; e < elementsPerWarp; e += SAIGA_WARP_SIZE)
         {
-            auto localMatrix  = ti.warp_lane * WARP_SIZE + e / ElementSize;
+            auto localMatrix  = ti.warp_lane * SAIGA_WARP_SIZE + e / ElementSize;
             auto localOffset  = e % ElementSize;
             auto globalOffset = warpStart + e;
             if (globalOffset < N)
@@ -183,9 +183,9 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced(Array
         }
 
         // strided copy
-        for (auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE)
+        for (auto e = ti.lane_id; e < elementsPerWarp; e += SAIGA_WARP_SIZE)
         {
-            auto localMatrix  = ti.warp_lane * WARP_SIZE + e / ElementSize;
+            auto localMatrix  = ti.warp_lane * SAIGA_WARP_SIZE + e / ElementSize;
             auto localOffset  = e % ElementSize;
             auto globalOffset = warpStart + e;
             if (globalOffset < N)
@@ -212,7 +212,7 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced2(Arra
     const int vectorsPerElement = 1;
 #endif
 
-    //    const int vectorsPerWarp = fullVectorsPerElement * WARP_SIZE;
+    //    const int vectorsPerWarp = fullVectorsPerElement * SAIGA_WARP_SIZE;
 
     const int tileSizeBytes      = 64;
     const int tileSizeVectors    = tileSizeBytes / sizeof(VectorType);
@@ -236,7 +236,7 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced2(Arra
     auto N             = data.size();
     auto Nelements     = N / ElementSize;
     auto NVectors      = N * sizeof(T) / sizeof(VectorType);
-    auto requiredWarps = CUDA::getBlockCount(Nelements, WARP_SIZE);
+    auto requiredWarps = CUDA::getBlockCount(Nelements, SAIGA_WARP_SIZE);
 
     VectorType* global       = reinterpret_cast<VectorType*>(data.data());
     VectorType* globalResult = reinterpret_cast<VectorType*>(result.data());
@@ -251,14 +251,14 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced2(Arra
         //        auto warpStart = ti.warp_id * vectorsPerWarp;
         auto blockStart = ti.block_id * fullVectorsPerBlock;
 
-        auto warpOffset = ti.warp_lane * WARP_SIZE;  // start matrix of this warp in block local shared memory
+        auto warpOffset = ti.warp_lane * SAIGA_WARP_SIZE;  // start matrix of this warp in block local shared memory
 
 #if 1
         for (int t = 0; t < fullTiles; ++t)
         {
             auto tileOffset = t * fullVectorsPerTile;
             // strided copy
-            for (auto e = ti.lane_id; e < fullVectorsPerTile * WARP_SIZE; e += WARP_SIZE)
+            for (auto e = ti.lane_id; e < fullVectorsPerTile * SAIGA_WARP_SIZE; e += SAIGA_WARP_SIZE)
             {
                 auto localMatrix = warpOffset + e / fullVectorsPerTile;
                 auto localOffset = e % fullVectorsPerTile;
@@ -278,9 +278,9 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced2(Arra
 
 #else
         // strided copy
-        for (auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE)
+        for (auto e = ti.lane_id; e < elementsPerWarp; e += SAIGA_WARP_SIZE)
         {
-            auto localMatrix                 = ti.warp_lane * WARP_SIZE + e / N;
+            auto localMatrix                 = ti.warp_lane * SAIGA_WARP_SIZE + e / N;
             auto localOffset                 = e % N;
             buffer[localMatrix][localOffset] = data[warpStart + e];
         }
@@ -307,8 +307,8 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced2(Arra
         //            }
 
         //            //strided copy
-        //            for(auto e = ti.lane_id; e < elementsPerTile * WARP_SIZE; e += WARP_SIZE){
-        //                auto localMatrix = ti.warp_lane * WARP_SIZE + e / elementsPerTile;
+        //            for(auto e = ti.lane_id; e < elementsPerTile * SAIGA_WARP_SIZE; e += SAIGA_WARP_SIZE){
+        //                auto localMatrix = ti.warp_lane * SAIGA_WARP_SIZE + e / elementsPerTile;
         //                auto localOffset = e % elementsPerTile;
         //                result[tileOffset+warpStart+e] = buffer[localMatrix][localOffset];
         //            }
@@ -322,8 +322,8 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced2(Arra
         //        }
 
         ////        strided copy
-        //        for(auto e = ti.lane_id; e < elementsPerWarp; e += WARP_SIZE){
-        //            auto localMatrix = ti.warp_lane * WARP_SIZE + e / N;
+        //        for(auto e = ti.lane_id; e < elementsPerWarp; e += SAIGA_WARP_SIZE){
+        //            auto localMatrix = ti.warp_lane * SAIGA_WARP_SIZE + e / N;
         //            auto localOffset = e % N;
         //            result[warpStart+e] = buffer[localMatrix][localOffset];
         //        }
@@ -337,7 +337,7 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced2(Arra
                 buffer[localMatrixId][i] = local[i + tileOffset];
             }
             // strided copy
-            for (auto e = ti.lane_id; e < fullVectorsPerTile * WARP_SIZE; e += WARP_SIZE)
+            for (auto e = ti.lane_id; e < fullVectorsPerTile * SAIGA_WARP_SIZE; e += SAIGA_WARP_SIZE)
             {
                 auto localMatrix = warpOffset + e / fullVectorsPerTile;
                 auto localOffset = e % fullVectorsPerTile;
@@ -356,7 +356,8 @@ __launch_bounds__(BLOCK_SIZE) __global__ static void sharedMemoryCoalesced2(Arra
 template <typename T, int ElementSize, unsigned int BLOCK_SIZE, typename VectorType = int4, int localWarpSize2 = -1>
 __launch_bounds__(BLOCK_SIZE) __global__ static void shuffleCopy(ArrayView<T> data, ArrayView<T> result)
 {
-    const int localWarpSize     = localWarpSize2 == -1 ? int(L2_CACHE_LINE_SIZE / sizeof(VectorType)) : localWarpSize2;
+    const int localWarpSize =
+        localWarpSize2 == -1 ? int(SAIGA_L2_CACHE_LINE_SIZE / sizeof(VectorType)) : localWarpSize2;
     const int vectorsPerElement = CUDA::getBlockCount(ElementSize * sizeof(T), sizeof(VectorType));
 
     auto N             = data.size();

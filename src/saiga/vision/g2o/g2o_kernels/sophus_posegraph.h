@@ -21,7 +21,7 @@
 
 namespace Saiga
 {
-using G2OSim3VertexType = PGOTransformation;
+using G2OSim3VertexType = SE3;
 
 class SAIGA_VISION_API VertexSim3 : public g2o::BaseVertex<G2OSim3VertexType::DoF, G2OSim3VertexType>
 {
@@ -41,7 +41,7 @@ class SAIGA_VISION_API VertexSim3 : public g2o::BaseVertex<G2OSim3VertexType::Do
 #endif
         //#ifdef LSD_REL
 
-        Sim3 s = G2OSim3VertexType::exp(update);
+        G2OSim3VertexType s = G2OSim3VertexType::exp(update);
         setEstimate(s * estimate());
         //#else
         //        //        setEstimate(estimate() * SE3::exp(update));
@@ -76,8 +76,8 @@ class SAIGA_VISION_API EdgeSim3
         }
         else
         {
-            Sim3 error_ = _measurement * from * to.inverse();
-            _error      = error_.log();
+            G2OSim3VertexType error_ = _measurement * from * to.inverse();
+            _error                   = error_.log();
         }
     }
 
@@ -91,7 +91,7 @@ class SAIGA_VISION_API EdgeSim3
         }
         else
         {
-            g2o::BaseBinaryEdge<7, Sim3, VertexSim3, VertexSim3>::linearizeOplus();
+            g2o::BaseBinaryEdge<G2OSim3VertexType::DoF, G2OSim3VertexType, VertexSim3, VertexSim3>::linearizeOplus();
         }
     }
 

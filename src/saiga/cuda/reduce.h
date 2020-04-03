@@ -54,8 +54,8 @@ __device__ inline T warpReduceMax(T val)
 template <typename T, unsigned int BLOCK_SIZE>
 __device__ inline T blockReduceSum(T val, T* shared)
 {
-    int lane = threadIdx.x & (WARP_SIZE - 1);
-    int wid  = threadIdx.x / WARP_SIZE;
+    int lane = threadIdx.x & (SAIGA_WARP_SIZE - 1);
+    int wid  = threadIdx.x / SAIGA_WARP_SIZE;
 
     val = warpReduceSum(val);
 
@@ -63,16 +63,16 @@ __device__ inline T blockReduceSum(T val, T* shared)
 
     __syncthreads();
 
-    val = (threadIdx.x < BLOCK_SIZE / WARP_SIZE) ? shared[lane] : 0;
+    val = (threadIdx.x < BLOCK_SIZE / SAIGA_WARP_SIZE) ? shared[lane] : 0;
 
-    if (wid == 0) val = warpReduceSum<T, BLOCK_SIZE / WARP_SIZE>(val);  // Final reduce within first warp
+    if (wid == 0) val = warpReduceSum<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(val);  // Final reduce within first warp
     return val;
 }
 
 template <typename T, unsigned int BLOCK_SIZE>
 __device__ inline T blockReduceAtomicSum(T val, T* shared)
 {
-    int lane = threadIdx.x & (WARP_SIZE - 1);
+    int lane = threadIdx.x & (SAIGA_WARP_SIZE - 1);
 
     // Each warp reduces with registers
     val = warpReduceSum(val);

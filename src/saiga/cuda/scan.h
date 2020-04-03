@@ -41,13 +41,13 @@ __device__ inline T blockInclusiveScan(const CUDA::ThreadInfo<BLOCK_SIZE>& ti, T
     __syncthreads();
 
 
-    if (ti.local_thread_id < BLOCK_SIZE / WARP_SIZE)
+    if (ti.local_thread_id < BLOCK_SIZE / SAIGA_WARP_SIZE)
     {
         // Scan in first warp
         T valWarp          = shared[ti.lane_id];
-        valWarp            = warpInclusiveScan<T, BLOCK_SIZE / WARP_SIZE>(valWarp, ti.lane_id);
+        valWarp            = warpInclusiveScan<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(valWarp, ti.lane_id);
         shared[ti.lane_id] = valWarp;
-        if (ti.lane_id == BLOCK_SIZE / WARP_SIZE - 1)
+        if (ti.lane_id == BLOCK_SIZE / SAIGA_WARP_SIZE - 1)
         {
             *sharedBlockPrefix = valWarp;
         }
@@ -73,8 +73,8 @@ template <unsigned int BLOCK_SIZE, typename T>
 __device__ inline T blockInclusiveScan(T val, T* shared, T* sharedBlockPrefix)
 {
     auto local_thread_id = threadIdx.x;
-    auto lane_id         = local_thread_id & (WARP_SIZE - 1);
-    auto warp_lane       = local_thread_id / WARP_SIZE;
+    auto lane_id         = local_thread_id & (SAIGA_WARP_SIZE - 1);
+    auto warp_lane       = local_thread_id / SAIGA_WARP_SIZE;
 
     T prefix = *sharedBlockPrefix;
     if (local_thread_id == 0) val += prefix;
@@ -86,13 +86,13 @@ __device__ inline T blockInclusiveScan(T val, T* shared, T* sharedBlockPrefix)
     __syncthreads();
 
 
-    if (local_thread_id < BLOCK_SIZE / WARP_SIZE)
+    if (local_thread_id < BLOCK_SIZE / SAIGA_WARP_SIZE)
     {
         // Scan in first warp
         T valWarp       = shared[lane_id];
-        valWarp         = warpInclusiveScan<T, BLOCK_SIZE / WARP_SIZE>(valWarp, lane_id);
+        valWarp         = warpInclusiveScan<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(valWarp, lane_id);
         shared[lane_id] = valWarp;
-        if (lane_id == BLOCK_SIZE / WARP_SIZE - 1)
+        if (lane_id == BLOCK_SIZE / SAIGA_WARP_SIZE - 1)
         {
             *sharedBlockPrefix = valWarp;
         }
@@ -134,7 +134,7 @@ __global__ __launch_bounds__(BLOCK_SIZE) void tiledSinglePassScan(ArrayView<unsi
     __shared__ int orderedBlockId;
     __shared__ unsigned int blockExclusive;
     __shared__ unsigned int currentTilePrefix;
-    __shared__ unsigned int shared[BLOCK_SIZE / WARP_SIZE];
+    __shared__ unsigned int shared[BLOCK_SIZE / SAIGA_WARP_SIZE];
 
     // this alone requires 8 * 5 * 256 = 10240 registers per block
     unsigned int elementsLocal[TILES_PER_BLOCK][ELEMENTS_PER_VECTOR + 1];
@@ -221,7 +221,7 @@ __global__ __launch_bounds__(BLOCK_SIZE) void tiledSinglePassScan(ArrayView<unsi
     if (ti.local_thread_id == 0)
     {
         // the inclusive prefix of that block is still stored in shared memory
-        unsigned int blockSum = shared[BLOCK_SIZE / WARP_SIZE - 1];
+        unsigned int blockSum = shared[BLOCK_SIZE / SAIGA_WARP_SIZE - 1];
 
 
         aggregate[block] = (((blockSum) & ((1 << 30) - 1)) | (1 << 30));

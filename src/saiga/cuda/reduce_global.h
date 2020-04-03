@@ -59,7 +59,7 @@ __device__ inline T reduceLocalVector(ArrayView<T> in)
 template <typename T, unsigned int BLOCK_SIZE>
 __global__ void reduceBlockShared(ArrayView<T> in, T* out)
 {
-    __shared__ T shared[BLOCK_SIZE / WARP_SIZE];
+    __shared__ T shared[BLOCK_SIZE / SAIGA_WARP_SIZE];
 
     T sum = reduceLocalVector<T, BLOCK_SIZE>(in);
     sum   = blockReduceSum<T, BLOCK_SIZE>(sum, shared);
@@ -81,7 +81,7 @@ __global__ void reduceAtomic(ArrayView<T> in, T* out)
 {
     T sum    = reduceLocalVector<T, BLOCK_SIZE>(in);
     sum      = warpReduceSum(sum);
-    int lane = threadIdx.x & (WARP_SIZE - 1);
+    int lane = threadIdx.x & (SAIGA_WARP_SIZE - 1);
     if (lane == 0) atomicAdd(out, sum);
 }
 

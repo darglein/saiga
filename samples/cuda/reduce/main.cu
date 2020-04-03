@@ -4,11 +4,11 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/math/math.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/reduce.h"
-#include "saiga/core/math/math.h"
 
 #include <iostream>
 #include <vector>
@@ -25,7 +25,6 @@ __global__ static void warpReduceSimple(ArrayView<T> data, ArrayView<T> output)
 {
     ThreadInfo<> ti;
     if (ti.thread_id >= data.size()) return;
-
 }
 
 static void reduceTest()
@@ -52,7 +51,7 @@ static void reduceTest()
         // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(data.begin(), data.end());
-        std::cout << "warpReduceSimple=" <<  res << ", thrust::reduce=" << tres << std::endl;
+        std::cout << "warpReduceSimple=" << res << ", thrust::reduce=" << tres << std::endl;
         SAIGA_ASSERT(res == tres);
     }
 }
@@ -68,7 +67,7 @@ int main(int argc, char* argv[])
 template <typename T>
 __device__ inline T warpReduceSum(T val)
 {
-#pragma unroll
+#    pragma unroll
     for (int offset = 16; offset > 0; offset /= 2)
     {
         auto v = Saiga::CUDA::shfl_down(val, offset);
@@ -94,7 +93,7 @@ __global__ static void warpReduceSimple(ArrayView<T> data, ArrayView<T> output)
 template <typename T>
 __device__ inline T blockReduceSum(T val, T& blockSum)
 {
-    int lane = threadIdx.x & (WARP_SIZE - 1);
+    int lane = threadIdx.x & (SAIGA_WARP_SIZE - 1);
 
     // Each warp reduces with registers
     val = warpReduceSum(val);
@@ -188,7 +187,7 @@ static void reduceTest()
         // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(data.begin(), data.end());
-        std::cout << "warpReduceSimple=" <<  res << ", thrust::reduce=" << tres << std::endl;
+        std::cout << "warpReduceSimple=" << res << ", thrust::reduce=" << tres << std::endl;
         SAIGA_ASSERT(res == tres);
     }
 
@@ -202,7 +201,7 @@ static void reduceTest()
         // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(data.begin(), data.end());
-        std::cout << "blockReduceSimple=" <<  res << ", thrust::reduce=" << tres << std::endl;
+        std::cout << "blockReduceSimple=" << res << ", thrust::reduce=" << tres << std::endl;
         SAIGA_ASSERT(res == tres);
     }
 
@@ -214,7 +213,7 @@ static void reduceTest()
         // Validate output with thrust::reduce
         T res  = output[0];
         T tres = thrust::reduce(d_data.begin(), d_data.end());
-        std::cout << "globalReduceSimple=" <<  res << ", thrust::reduce=" << tres << std::endl;
+        std::cout << "globalReduceSimple=" << res << ", thrust::reduce=" << tres << std::endl;
         SAIGA_ASSERT(res == tres);
     }
 

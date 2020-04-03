@@ -68,13 +68,13 @@ void Sample::update(float dt)
 
             if (render_inverse)
             {
-                p1 = inverseMatchingSE3(scene.poses[i].se3).inverse().translation().cast<float>();
-                p2 = inverseMatchingSE3(scene.poses[j].se3).inverse().translation().cast<float>();
+                p1 = inverseMatchingSE3(scene.poses[i].Sim3Pose()).inverse().translation().cast<float>();
+                p2 = inverseMatchingSE3(scene.poses[j].Sim3Pose()).inverse().translation().cast<float>();
             }
             else
             {
-                p1 = inverseMatchingSE3(scene.poses[i].se3).translation().cast<float>();
-                p2 = inverseMatchingSE3(scene.poses[j].se3).translation().cast<float>();
+                p1 = inverseMatchingSE3(scene.poses[i].Sim3Pose()).translation().cast<float>();
+                p2 = inverseMatchingSE3(scene.poses[j].Sim3Pose()).translation().cast<float>();
             }
             PointVertex pc1;
             PointVertex pc2;
@@ -105,7 +105,7 @@ void Sample::renderOverlay(Camera* cam)
 
     for (auto& i : scene.poses)
     {
-        Saiga::SE3 se3 = inverseMatchingSE3(i.se3);
+        Saiga::SE3 se3 = inverseMatchingSE3(i.Sim3Pose());
         if (render_inverse)
         {
         }

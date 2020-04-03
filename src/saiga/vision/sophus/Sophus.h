@@ -21,3 +21,5 @@
 #    include "External/se3.hpp"
 #    include "External/sim3.hpp"
 #endif
+
+#include "sophus_utils.h"

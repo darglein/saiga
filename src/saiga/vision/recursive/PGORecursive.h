@@ -16,6 +16,7 @@ namespace Saiga
 class SAIGA_VISION_API PGORec : public PGOBase, public LMOptimizer
 {
    public:
+    using PGOTransformation = SE3;
     // ============== Recusrive Matrix Types ==============
 
     static constexpr int pgoBlockSizeCamera = PGOTransformation::DoF;

@@ -15,6 +15,7 @@ namespace Saiga
 {
 struct CostPGO
 {
+    using PGOTransformation = SE3;
     CostPGO(const PGOTransformation& invMeassurement, double weight = 1)
         : _inverseMeasurement(invMeassurement), weight(weight)
     {
@@ -31,11 +32,11 @@ struct CostPGO
     template <typename T>
     bool operator()(const T* const _from, const T* const _to, T* _residual) const
     {
-        Eigen::Map<Sophus::Sim3<T> const> const from(_from);
-        Eigen::Map<Sophus::Sim3<T> const> const to(_to);
+        Eigen::Map<Sophus::SE3<T> const> const from(_from);
+        Eigen::Map<Sophus::SE3<T> const> const to(_to);
         Eigen::Map<Eigen::Matrix<T, PGOTransformation::DoF, 1>> residual(_residual);
 
-        Sophus::Sim3<T> inverseMeasurement = _inverseMeasurement.cast<T>();
+        Sophus::SE3<T> inverseMeasurement = _inverseMeasurement.cast<T>();
 #ifdef LSD_REL
         //        auto est_j_i = to * from.inverse();
         auto est_j_i = from.inverse() * to;
@@ -75,9 +76,11 @@ struct CostPGO
 };
 
 
-class CostPGOAnalytic : public ceres::SizedCostFunction<PGOTransformation::DoF, 7, 7>
+class CostPGOAnalytic : public ceres::SizedCostFunction<7, 7, 7>
 {
    public:
+    using PGOTransformation = SE3;
+
     static constexpr int DOF = PGOTransformation::DoF;
     using T                  = double;
 
@@ -92,8 +95,8 @@ class CostPGOAnalytic : public ceres::SizedCostFunction<PGOTransformation::DoF, 
 
     virtual bool Evaluate(double const* const* _parameters, double* _residuals, double** _jacobians) const
     {
-        Eigen::Map<Sophus::Sim3<T> const> const from(_parameters[0]);
-        Eigen::Map<Sophus::Sim3<T> const> const to(_parameters[1]);
+        Eigen::Map<Sophus::SE3<T> const> const from(_parameters[0]);
+        Eigen::Map<Sophus::SE3<T> const> const to(_parameters[1]);
         Eigen::Map<Eigen::Matrix<T, DOF, 1>> residual(_residuals);
 
 

@@ -102,10 +102,10 @@
 #    define SAIGA_HAS_STRING_VIEW
 #endif
 
-#define WARP_SIZE 32
-#define L1_CACHE_LINE_SIZE 128
-#define L2_CACHE_LINE_SIZE 32
-#define MAX_THREADS_PER_SM 2048
+#define SAIGA_WARP_SIZE 32
+#define SAIGA_L1_CACHE_LINE_SIZE 128
+#define SAIGA_L2_CACHE_LINE_SIZE 32
+#define SAIGA_MAX_THREADS_PER_SM 2048
 
 // ============== CUDA Stuff ==============
 

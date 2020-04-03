@@ -20,55 +20,47 @@ namespace Saiga
 {
 struct SAIGA_VISION_API PoseEdge
 {
-    using TransformationType = PGOTransformation;
-    using TangentType        = typename TransformationType::Tangent;
+    using TransformationType = SE3;
+    using TangentType        = SE3::Tangent;
+
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     int from = -1, to = -1;
     double weight = 1;
 
-    TransformationType from_pose, to_pose;
-    //    TransformationType meassurement;
+    SE3 T_i_j;
+    double scale = 1.0;
 
     // Computes the relative pose as it is defined here
-    void setRel(const TransformationType& from, const TransformationType& to)
+    void setRel(const SE3& T_w_i, const SE3& T_w_j)
     {
-        from_pose = from;
-        to_pose   = to;
-#ifdef LSD_REL
-//        meassurement = from.inverse() * to;
-#else
-//        meassurement = to * from.inverse();
-#endif
+        T_i_j = T_w_i.inverse() * T_w_j;
+        scale = 1.0;
+    }
+
+    void setRel(const Sim3& T_w_i, const Sim3& T_w_j)
+    {
+        auto ss_T_w_i = se3Scale(T_w_i);
+        auto ss_T_w_j = se3Scale(T_w_i);
+        setRel(ss_T_w_i.first, ss_T_w_j.first);
+
+        scale = (1.0 / ss_T_w_j.second) * ss_T_w_i.second;
     }
 
     // Computes the relative pose as it is defined here
-    TangentType residual(const TransformationType& from, const TransformationType& to)
+    TangentType residual(const TransformationType& T_w_i, const TransformationType& T_w_j) const
     {
-#ifdef LSD_REL
-        auto error_ = from.inverse() * to * meassurement().inverse();
-#else
-        auto error_ = meassurement() * from * to.inverse();
-#endif
-        return error_.log() * weight;
+        TransformationType T_j_i = T_w_j.inverse() * T_w_i;
+        return Sophus::se3_logd(T_i_j * T_j_i);
     }
 
-    TransformationType meassurement() const
-    {
-#ifdef LSD_REL
-        //        return from_pose.inverse() * to_pose;
-        return from_pose.inverse() * to_pose;
-#else
-        return to_pose * from_pose.inverse();
-#endif
-    }
+    TransformationType meassurement() const { return T_i_j; }
 
     void invert()
     {
         std::swap(from, to);
-        std::swap(from_pose, to_pose);
-        //        meassurement = meassurement.inverse();
+        T_i_j = T_i_j.inverse();
     }
 
     bool operator<(const PoseEdge& other) { return std::tie(from, to) < std::tie(other.from, other.to); }
@@ -79,8 +71,27 @@ struct SAIGA_VISION_API PoseVertex
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    PGOTransformation se3;
+    SE3 T_w_i;
+    double scale = 1.0;
+
     bool constant = false;
+
+
+    SE3 Pose() const { return T_w_i; }
+    Sim3 Sim3Pose() const { return sim3(T_w_i, scale); }
+
+    void SetPose(const SE3& v)
+    {
+        T_w_i = v;
+        scale = 1;
+    }
+
+    void SetPose(const Sim3& v)
+    {
+        auto ss = se3Scale(v);
+        T_w_i   = ss.first;
+        scale   = ss.second;
+    }
 };
 
 struct SAIGA_VISION_API PoseGraph

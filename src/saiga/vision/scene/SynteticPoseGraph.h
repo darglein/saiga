@@ -6,9 +6,8 @@
 
 #pragma once
 
-//#define LSD_REL
+#include "saiga/vision/scene/Scene.h"
 
-#define PGO_SIM3
 namespace Saiga
 {
-}
+}  // namespace Saiga

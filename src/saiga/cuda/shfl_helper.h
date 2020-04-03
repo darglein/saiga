@@ -37,7 +37,7 @@ __device__ inline double __shfl_down(double var, unsigned int srcLane, int width
 #endif
 
 template <typename T, typename ShuffleType = int>
-__device__ inline T shfl(T var, unsigned int srcLane, int width = WARP_SIZE)
+__device__ inline T shfl(T var, unsigned int srcLane, int width = SAIGA_WARP_SIZE)
 {
     static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
     ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
@@ -53,7 +53,7 @@ __device__ inline T shfl(T var, unsigned int srcLane, int width = WARP_SIZE)
 }
 
 template <typename T, typename ShuffleType = int>
-__device__ inline T shfl_down(T var, unsigned int srcLane, int width = WARP_SIZE)
+__device__ inline T shfl_down(T var, unsigned int srcLane, int width = SAIGA_WARP_SIZE)
 {
     static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
     ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
@@ -69,7 +69,7 @@ __device__ inline T shfl_down(T var, unsigned int srcLane, int width = WARP_SIZE
 }
 
 template <typename T, typename ShuffleType = int>
-__device__ inline T shfl_up(T var, unsigned int srcLane, int width = WARP_SIZE)
+__device__ inline T shfl_up(T var, unsigned int srcLane, int width = SAIGA_WARP_SIZE)
 {
     static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
     ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
@@ -85,7 +85,7 @@ __device__ inline T shfl_up(T var, unsigned int srcLane, int width = WARP_SIZE)
 }
 
 template <typename T, typename ShuffleType = int>
-__device__ inline T shfl_xor(T var, unsigned int srcLane, int width = WARP_SIZE)
+__device__ inline T shfl_xor(T var, unsigned int srcLane, int width = SAIGA_WARP_SIZE)
 {
     static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
     ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
