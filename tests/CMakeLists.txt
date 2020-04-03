@@ -39,6 +39,7 @@ if(MODULE_VISION)
   endif()
   saiga_test(vision_motionModel "saiga_vision")
   saiga_test(vision_PoseEstimation "saiga_vision")
+  saiga_test(vision_numeric_derivative "saiga_vision")
 endif()
 
 

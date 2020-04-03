@@ -14,10 +14,25 @@
 
 #include "gtest/gtest.h"
 
-#include "compare_numbers.h"
+using namespace Saiga;
 
-namespace Saiga
+
+bool ExpectClose(double x, double y, double max_abs_relative_difference)
 {
+    double absolute_difference = fabs(x - y);
+    double relative_difference = absolute_difference / std::max(fabs(x), fabs(y));
+    if (x == 0 || y == 0)
+    {
+        // If x or y is exactly zero, then relative difference doesn't have any
+        // meaning. Take the absolute difference instead.
+        relative_difference = absolute_difference;
+    }
+
+    EXPECT_NEAR(relative_difference, 0.0, max_abs_relative_difference);
+    return relative_difference <= max_abs_relative_difference;
+}
+
+
 class BundleAdjustmentTest
 {
    public:
@@ -67,7 +82,7 @@ class BundleAdjustmentTest
         std::cout << scene.chi2(options.huberMono) << " " << scene1.chi2(options.huberMono) << " "
                   << scene2.chi2(options.huberMono) << std::endl;
 
-        ExpectCloseRelative(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-5);
+        ExpectClose(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-5);
     }
 
     void buildScene()
@@ -137,5 +152,3 @@ TEST(BundleAdjustment, Huber)
         test.test(options);
     }
 }
-
-}  // namespace Saiga
