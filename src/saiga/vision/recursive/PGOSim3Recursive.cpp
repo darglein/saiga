@@ -1,4 +1,4 @@
-﻿#include "PGORecursive.h"
+﻿#include "PGOSim3Recursive.h"
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/time/timer.h"
@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-void PGORec::init()
+void PGOSim3Rec::init()
 {
     auto& scene = *_scene;
 
@@ -30,7 +30,7 @@ void PGORec::init()
     int i = 0;
     for (auto& e : scene.vertices)
     {
-        x_u[i++] = e.Pose();
+        x_u[i++] = e.Sim3Pose();
     }
 
     // Compute structure of S
@@ -102,14 +102,14 @@ void PGORec::init()
     }
 }
 
-double PGORec::computeQuadraticForm()
+double PGOSim3Rec::computeQuadraticForm()
 {
     auto& scene = *_scene;
 
     //    SAIGA_BLOCK_TIMER();
     //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     // using T          = BlockPGOScalar;
-    using KernelType = Saiga::Kernel::PGO<PGOTransformation>;
+    using KernelType = Saiga::Kernel::PGOSim3<double>;
 
     b.setZero();
 
@@ -148,7 +148,7 @@ double PGORec::computeQuadraticForm()
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(e.GetSE3(), x_u[i], x_u[j], res, Jrowi, Jrowj, e.weight);
+            KernelType::evaluateResidualAndJacobian(e.T_i_j, x_u[i], x_u[j], res, Jrowi, Jrowj, e.weight);
 
             if (scene.vertices[i].constant) Jrowi.setZero();
             if (scene.vertices[j].constant) Jrowj.setZero();
@@ -200,13 +200,13 @@ double PGORec::computeQuadraticForm()
 }
 
 
-double PGORec::computeCost()
+double PGOSim3Rec::computeCost()
 {
     auto& scene = *_scene;
 
     //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     // using T          = BlockPGOScalar;
-    using KernelType = Saiga::Kernel::PGO<PGOTransformation>;
+    using KernelType = Saiga::Kernel::PGOSim3<double>;
 
 
 
@@ -221,7 +221,7 @@ double PGORec::computeCost()
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidual(e.GetSE3(), x_u[i], x_u[j], res, e.weight);
+            KernelType::evaluateResidual(e.T_i_j, x_u[i], x_u[j], res, e.weight);
 
             auto c = res.squaredNorm();
             chi2 += c;
@@ -230,7 +230,7 @@ double PGORec::computeCost()
     return chi2;
 }
 
-void PGORec::addLambda(double lambda)
+void PGOSim3Rec::addLambda(double lambda)
 {
     // apply lm
     for (int i = 0; i < n; ++i)
@@ -240,7 +240,7 @@ void PGORec::addLambda(double lambda)
     }
 }
 
-bool PGORec::addDelta()
+bool PGOSim3Rec::addDelta()
 {
     auto& scene = *_scene;
     oldx_u      = x_u;
@@ -249,20 +249,22 @@ bool PGORec::addDelta()
     {
         if (scene.vertices[i].constant) continue;
         auto t = delta_x(i).get();
-        //#ifdef PGO_SIM3
-        //        if (scene.fixScale) t[6] = 0;
-        //#endif
+
+        if (scene.fixScale) t[6] = 0;
+
+        //        t[6] = 0;
+
 
         //        std::cout << t.transpose() << std::endl;
         //        x_u[i] = PGOTransformation::exp(t) * x_u[i];
-        //        x_u[i] = Sophus::se3_expd(t) * x_u[i];
+        //        x_u[i] = Sophus::dsim3_expd(t) * x_u[i];
         Sophus::decoupled_inc(t, x_u[i]);
         //        x_u[i] = x_u[i] * PGOTransformation::exp(t);
     }
     return true;
 }
 
-void PGORec::solveLinearSystem()
+void PGOSim3Rec::solveLinearSystem()
 {
     using namespace Eigen::Recursive;
 
@@ -279,11 +281,11 @@ void PGORec::solveLinearSystem()
     solver.solve(S, delta_x, b, loptions);
 }
 
-void PGORec::revertDelta()
+void PGOSim3Rec::revertDelta()
 {
     x_u = oldx_u;
 }
-void PGORec::finalize()
+void PGOSim3Rec::finalize()
 {
     auto& scene = *_scene;
 

@@ -75,14 +75,14 @@ inline typename Sim3<Scalar>::Tangent sim3_logd(const Sim3<Scalar>& se3)
 }
 
 template <typename Scalar>
-inline typename Sim3<Scalar>::Tangent dsim3_logd(const DSim3<Scalar>& sim3)
+inline Eigen::Vector<Scalar, 7> dsim3_logd(const DSim3<Scalar>& sim3)
 {
-    typename Sim3<Scalar>::Tangent upsilon_omega;
+    Eigen::Vector<Scalar, 7> upsilon_omega_scale;
 
-    upsilon_omega.template head<6>() = se3_logd(sim3.se3());
-    upsilon_omega(6)                 = log(sim3.scale());
+    upsilon_omega_scale.template head<6>() = se3_logd(sim3.se3());
+    upsilon_omega_scale(6)                 = log(sim3.scale());
 
-    return upsilon_omega;
+    return upsilon_omega_scale;
 }
 
 

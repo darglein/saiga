@@ -10,6 +10,7 @@
 
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/random.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/cv.h"
 #include "saiga/core/util/directory.h"
@@ -23,6 +24,7 @@
 #include "saiga/vision/g2o/g2oPoseGraph.h"
 #include "saiga/vision/recursive/BAPointOnly.h"
 #include "saiga/vision/recursive/PGORecursive.h"
+#include "saiga/vision/recursive/PGOSim3Recursive.h"
 
 #if defined(SAIGA_VULKAN_INCLUDED)
 #    error Vulkan was included somewhere.
@@ -168,6 +170,8 @@ void Sample::renderFinal(Camera* cam)
 
     if (ImGui::Button("Syntetic CircleWithDrift"))
     {
+        Saiga::Random::setSeed(39486);
+        srand(39457);
         scene  = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0);
         change = true;
     }
@@ -251,6 +255,18 @@ void Sample::renderFinal(Camera* cam)
         }
         change = true;
     }
+    if (ImGui::Button("Solve Recursive Sim3"))
+    {
+        Saiga::PGOSim3Rec barec;
+        barec.optimizationOptions = baoptions;
+        barec.create(scene);
+        {
+            SAIGA_BLOCK_TIMER();
+            barec.initAndSolve();
+        }
+        change = true;
+    }
+
 
     if (ImGui::Button("Solve Ceres"))
     {
