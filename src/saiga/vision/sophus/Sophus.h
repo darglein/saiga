@@ -22,4 +22,5 @@
 #    include "External/sim3.hpp"
 #endif
 
+#include "decoupled_sim3.h"
 #include "sophus_utils.h"

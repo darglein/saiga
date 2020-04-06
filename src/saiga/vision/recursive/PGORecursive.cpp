@@ -148,7 +148,7 @@ double PGORec::computeQuadraticForm()
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(e.meassurement(), x_u[i], x_u[j], res, Jrowi, Jrowj, e.weight);
+            KernelType::evaluateResidualAndJacobian(e.GetSE3(), x_u[i], x_u[j], res, Jrowi, Jrowj, e.weight);
 
             if (scene.vertices[i].constant) Jrowi.setZero();
             if (scene.vertices[j].constant) Jrowj.setZero();
@@ -221,7 +221,7 @@ double PGORec::computeCost()
         {
             KernelType::PoseJacobiType Jrowi, Jrowj;
             KernelType::ResidualType res;
-            KernelType::evaluateResidual(e.meassurement(), x_u[i], x_u[j], res, e.weight);
+            KernelType::evaluateResidual(e.GetSE3(), x_u[i], x_u[j], res, e.weight);
 
             auto c = res.squaredNorm();
             chi2 += c;

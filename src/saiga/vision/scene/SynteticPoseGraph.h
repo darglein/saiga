@@ -12,6 +12,10 @@ namespace Saiga
 {
 namespace SyntheticPoseGraph
 {
-SAIGA_VISION_API PoseGraph CreateLinearPoseGraph(int num_vertices, int num_connections);
-}
+SAIGA_VISION_API PoseGraph Linear(int num_vertices, int num_connections);
+SAIGA_VISION_API PoseGraph Circle(double radius, int num_vertices, int num_connections);
+
+SAIGA_VISION_API PoseGraph CircleWithDrift(double radius, int num_vertices, int num_connections, double sigma,
+                                           double sigma_scale);
+}  // namespace SyntheticPoseGraph
 }  // namespace Saiga

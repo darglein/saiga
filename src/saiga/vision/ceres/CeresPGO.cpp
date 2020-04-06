@@ -37,39 +37,26 @@ OptimizationResults CeresPGO::initAndSolve()
     ceres::Problem problem(problemOptions);
 
 
+    Sophus::test::LocalParameterizationSE3_Autodiff camera_parameterization_se3;
+    Sophus::test::LocalParameterizationDSim3_Autodiff camera_parameterization_sim3;
 
-#ifdef AUTO_DIFF
-
-    //    Saiga::test::LocalParameterizationSim3<false> camera_parameterization;
-    //    Saiga::test::LocalParameterizationSim3<false> camera_parameterization;
-    Sophus::test::LocalParameterizationSE3_Autodiff camera_parameterization;
-
-#else
-#    ifdef PGO_SIM3
-    test::LocalParameterizationSim3_IdentityJ camera_parameterization;
-    camera_parameterization.fixScale = scene.fixScale;
-#    else
-    Sophus::test::LocalParameterizationSE32 camera_parameterization;
-#    endif
-#endif
 
     for (size_t i = 0; i < scene.vertices.size(); ++i)
     {
-        problem.AddParameterBlock(scene.vertices[i].T_w_i.data(), 7, &camera_parameterization);
+        ceres::LocalParameterization* lp = scene.fixScale
+                                               ? (ceres::LocalParameterization*)&camera_parameterization_se3
+                                               : (ceres::LocalParameterization*)&camera_parameterization_sim3;
+
+        auto global_size = scene.fixScale ? 7 : 8;
+        problem.AddParameterBlock(scene.vertices[i].T_w_i.data(), global_size, lp);
         //        problem.AddParameterBlock(scene.poses[i].se3.data(), 7);
         if (scene.vertices[i].constant)
         {
             problem.SetParameterBlockConstant(scene.vertices[i].T_w_i.data());
         }
     }
-#ifdef AUTO_DIFF
-    using CostFunctionType = CostPGO::CostFunctionType;
-#else
-    using CostFunctionType           = CostPGOAnalytic;
-#endif
 
-
-    std::vector<std::unique_ptr<CostFunctionType>> monoCostFunctions;
+    std::vector<std::unique_ptr<ceres::CostFunction>> monoCostFunctions;
 
     // Add all transformation edges
     for (auto& e : scene.edges)
@@ -77,24 +64,21 @@ OptimizationResults CeresPGO::initAndSolve()
         auto vertex_from = scene.vertices[e.from].T_w_i.data();
         auto vertex_to   = scene.vertices[e.to].T_w_i.data();
 
-#ifdef AUTO_DIFF
-        CostFunctionType* cost = CostPGO::create(e.meassurement().inverse());
-#else
-        CostFunctionType* cost = new CostFunctionType(e.meassurement.inverse());
-#endif
-        monoCostFunctions.emplace_back(cost);
+        ceres::CostFunction* cost = scene.fixScale ? (ceres::CostFunction*)CostPGO::create(e.T_i_j.se3())
+                                                   : (ceres::CostFunction*)CostPGODSim3::create(e.T_i_j);
         problem.AddResidualBlock(cost, nullptr, vertex_from, vertex_to);
+        monoCostFunctions.emplace_back(cost);
+
+        //        auto test = CostPGODSim3::create(e.T_i_j);
+        //        CostPGODSim3 test(e.T_i_j);
+        //        Eigen::Matrix<double, 7, 1> residual;
+        //        test(vertex_from, vertex_to, residual.data());
+        //        std::cout << "i " << scene.vertices[e.from].T_w_i << std::endl;
+        //        std::cout << "res " << residual.transpose() << std::endl;
     }
 
-
-
-    //    double costInit = 0;
-    //    ceres::Problem::EvaluateOptions defaultEvalOptions;
-    //    problem.Evaluate(defaultEvalOptions, &costInit, nullptr, nullptr, nullptr);
-
     ceres::Solver::Options ceres_options = make_options(optimizationOptions);
-
-    OptimizationResults result = ceres_solve(ceres_options, problem);
+    OptimizationResults result           = ceres_solve(ceres_options, problem);
     return result;
 }
 

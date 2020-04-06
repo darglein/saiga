@@ -41,8 +41,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "saiga/vision/VisionIncludes.h"
 
-namespace Sophus {
-
+namespace Sophus
+{
 /// @brief Decoupled version of logmap for SE(3)
 ///
 /// For SE(3) element vector
@@ -55,22 +55,36 @@ namespace Sophus {
 /// @param[in] SE(3) member
 /// @return tangent vector (6x1 vector)
 template <typename Scalar>
-inline typename SE3<Scalar>::Tangent se3_logd(const SE3<Scalar> &se3) {
-  typename SE3<Scalar>::Tangent upsilon_omega;
-  upsilon_omega.template tail<3>() = se3.so3().log();
-  upsilon_omega.template head<3>() = se3.translation();
+inline typename SE3<Scalar>::Tangent se3_logd(const SE3<Scalar>& se3)
+{
+    typename SE3<Scalar>::Tangent upsilon_omega;
+    upsilon_omega.template tail<3>() = se3.so3().log();
+    upsilon_omega.template head<3>() = se3.translation();
 
-  return upsilon_omega;
+    return upsilon_omega;
 }
 
 template <typename Scalar>
-inline typename Sim3<Scalar>::Tangent sim3_logd(const Sim3<Scalar> &se3) {
+inline typename Sim3<Scalar>::Tangent sim3_logd(const Sim3<Scalar>& se3)
+{
     typename Sim3<Scalar>::Tangent upsilon_omega;
     upsilon_omega.template tail<4>() = se3.rxso3().log();
     upsilon_omega.template head<3>() = se3.translation();
 
     return upsilon_omega;
 }
+
+template <typename Scalar>
+inline typename Sim3<Scalar>::Tangent dsim3_logd(const DSim3<Scalar>& sim3)
+{
+    typename Sim3<Scalar>::Tangent upsilon_omega;
+
+    upsilon_omega.template head<6>() = se3_logd(sim3.se3());
+    upsilon_omega(6)                 = log(sim3.scale());
+
+    return upsilon_omega;
+}
+
 
 /// @brief Decoupled version of expmap for SE(3)
 ///
@@ -84,15 +98,24 @@ inline typename Sim3<Scalar>::Tangent sim3_logd(const Sim3<Scalar> &se3) {
 /// @param[in] tangent vector (6x1 vector)
 /// @return  SE(3) member
 template <typename Derived>
-inline SE3<typename Derived::Scalar> se3_expd(
-    const Eigen::MatrixBase<Derived> &upsilon_omega) {
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
-  EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 6);
+inline SE3<typename Derived::Scalar> se3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 6);
 
-  using Scalar = typename Derived::Scalar;
+    using Scalar = typename Derived::Scalar;
 
-  return SE3<Scalar>(SO3<Scalar>::exp(upsilon_omega.template tail<3>()),
-                     upsilon_omega.template head<3>());
+    return SE3<Scalar>(SO3<Scalar>::exp(upsilon_omega.template tail<3>()), upsilon_omega.template head<3>());
+}
+
+template <typename Derived>
+inline DSim3<typename Derived::Scalar> dsim3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 7);
+
+    using Scalar = typename Derived::Scalar;
+    return DSim3<Scalar>(se3_expd(upsilon_omega.template head<6>()), exp(upsilon_omega(6)));
 }
 
 /// @brief Right Jacobian for SO(3)
@@ -104,31 +127,31 @@ inline SE3<typename Derived::Scalar> se3_expd(
 /// @param[in] phi (3x1 vector)
 /// @param[out] J_phi (3x3 matrix)
 template <typename Derived1, typename Derived2>
-inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
-                             const Eigen::MatrixBase<Derived2> &J_phi) {
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-  EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
-  EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
+inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
+    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
 
-  using Scalar = typename Derived1::Scalar;
+    using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
+    Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
 
-  Scalar phi_norm2 = phi.squaredNorm();
-  Scalar phi_norm = std::sqrt(phi_norm2);
-  Scalar phi_norm3 = phi_norm2 * phi_norm;
+    Scalar phi_norm2 = phi.squaredNorm();
+    Scalar phi_norm  = std::sqrt(phi_norm2);
+    Scalar phi_norm3 = phi_norm2 * phi_norm;
 
-  J.setIdentity();
+    J.setIdentity();
 
-  if (Sophus::Constants<Scalar>::epsilon() < phi_norm) {
-    Eigen::Matrix<Scalar, 3, 3> phi_hat = Sophus::SO3<Scalar>::hat(phi);
-    Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
+    if (Sophus::Constants<Scalar>::epsilon() < phi_norm)
+    {
+        Eigen::Matrix<Scalar, 3, 3> phi_hat  = Sophus::SO3<Scalar>::hat(phi);
+        Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
 
-    J -= phi_hat * (1 - std::cos(phi_norm)) / phi_norm2;
-    J += phi_hat2 * (phi_norm - std::sin(phi_norm)) / phi_norm3;
-  }
+        J -= phi_hat * (1 - std::cos(phi_norm)) / phi_norm2;
+        J += phi_hat2 * (phi_norm - std::sin(phi_norm)) / phi_norm3;
+    }
 }
 
 /// @brief Right Inverse Jacobian for SO(3)
@@ -140,31 +163,30 @@ inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
 /// @param[in] phi (3x1 vector)
 /// @param[out] J_phi (3x3 matrix)
 template <typename Derived1, typename Derived2>
-inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
-                                const Eigen::MatrixBase<Derived2> &J_phi) {
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-  EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
-  EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
+inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
+    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
 
-  using Scalar = typename Derived1::Scalar;
+    using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
+    Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
 
-  Scalar phi_norm2 = phi.squaredNorm();
-  Scalar phi_norm = std::sqrt(phi_norm2);
+    Scalar phi_norm2 = phi.squaredNorm();
+    Scalar phi_norm  = std::sqrt(phi_norm2);
 
-  J.setIdentity();
+    J.setIdentity();
 
-  if (Sophus::Constants<Scalar>::epsilon() < phi_norm) {
-    Eigen::Matrix<Scalar, 3, 3> phi_hat = Sophus::SO3<Scalar>::hat(phi);
-    Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
+    if (Sophus::Constants<Scalar>::epsilon() < phi_norm)
+    {
+        Eigen::Matrix<Scalar, 3, 3> phi_hat  = Sophus::SO3<Scalar>::hat(phi);
+        Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
 
-    J += phi_hat / 2;
-    J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) /
-                                         (2 * phi_norm * std::sin(phi_norm)));
-  }
+        J += phi_hat / 2;
+        J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) / (2 * phi_norm * std::sin(phi_norm)));
+    }
 }
 
 /// @brief Left Jacobian for SO(3)
@@ -176,31 +198,31 @@ inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
 /// @param[in] phi (3x1 vector)
 /// @param[out] J_phi (3x3 matrix)
 template <typename Derived1, typename Derived2>
-inline void leftJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
-                            const Eigen::MatrixBase<Derived2> &J_phi) {
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-  EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
-  EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
+inline void leftJacobianSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
+    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
 
-  using Scalar = typename Derived1::Scalar;
+    using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
+    Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
 
-  Scalar phi_norm2 = phi.squaredNorm();
-  Scalar phi_norm = std::sqrt(phi_norm2);
-  Scalar phi_norm3 = phi_norm2 * phi_norm;
+    Scalar phi_norm2 = phi.squaredNorm();
+    Scalar phi_norm  = std::sqrt(phi_norm2);
+    Scalar phi_norm3 = phi_norm2 * phi_norm;
 
-  J.setIdentity();
+    J.setIdentity();
 
-  if (Sophus::Constants<Scalar>::epsilon() < phi_norm) {
-    Eigen::Matrix<Scalar, 3, 3> phi_hat = Sophus::SO3<Scalar>::hat(phi);
-    Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
+    if (Sophus::Constants<Scalar>::epsilon() < phi_norm)
+    {
+        Eigen::Matrix<Scalar, 3, 3> phi_hat  = Sophus::SO3<Scalar>::hat(phi);
+        Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
 
-    J += phi_hat * (1 - std::cos(phi_norm)) / phi_norm2;
-    J += phi_hat2 * (phi_norm - std::sin(phi_norm)) / phi_norm3;
-  }
+        J += phi_hat * (1 - std::cos(phi_norm)) / phi_norm2;
+        J += phi_hat2 * (phi_norm - std::sin(phi_norm)) / phi_norm3;
+    }
 }
 
 /// @brief Left Inverse Jacobian for SO(3)
@@ -212,31 +234,30 @@ inline void leftJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
 /// @param[in] phi (3x1 vector)
 /// @param[out] J_phi (3x3 matrix)
 template <typename Derived1, typename Derived2>
-inline void leftJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
-                               const Eigen::MatrixBase<Derived2> &J_phi) {
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-  EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
-  EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
+inline void leftJacobianInvSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
+    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
 
-  using Scalar = typename Derived1::Scalar;
+    using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
+    Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
 
-  Scalar phi_norm2 = phi.squaredNorm();
-  Scalar phi_norm = std::sqrt(phi_norm2);
+    Scalar phi_norm2 = phi.squaredNorm();
+    Scalar phi_norm  = std::sqrt(phi_norm2);
 
-  J.setIdentity();
+    J.setIdentity();
 
-  if (Sophus::Constants<Scalar>::epsilon() < phi_norm) {
-    Eigen::Matrix<Scalar, 3, 3> phi_hat = Sophus::SO3<Scalar>::hat(phi);
-    Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
+    if (Sophus::Constants<Scalar>::epsilon() < phi_norm)
+    {
+        Eigen::Matrix<Scalar, 3, 3> phi_hat  = Sophus::SO3<Scalar>::hat(phi);
+        Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
 
-    J -= phi_hat / 2;
-    J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) /
-                                         (2 * phi_norm * std::sin(phi_norm)));
-  }
+        J -= phi_hat / 2;
+        J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) / (2 * phi_norm * std::sin(phi_norm)));
+    }
 }
 
 /// @brief Right Jacobian for decoupled SE(3)
@@ -248,25 +269,22 @@ inline void leftJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
 /// @param[in] phi (6x1 vector)
 /// @param[out] J_phi (6x6 matrix)
 template <typename Derived1, typename Derived2>
-inline void rightJacobianSE3Decoupled(
-    const Eigen::MatrixBase<Derived1> &phi,
-    const Eigen::MatrixBase<Derived2> &J_phi) {
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-  EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 6);
-  EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 6, 6);
+inline void rightJacobianSE3Decoupled(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 6);
+    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 6, 6);
 
-  using Scalar = typename Derived1::Scalar;
+    using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
+    Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
 
-  J.setZero();
+    J.setZero();
 
-  Eigen::Matrix<Scalar, 3, 1> omega = phi.template tail<3>();
-  rightJacobianSO3(omega, J.template bottomRightCorner<3, 3>());
-  J.template topLeftCorner<3, 3>() =
-      Sophus::SO3<Scalar>::exp(omega).inverse().matrix();
+    Eigen::Matrix<Scalar, 3, 1> omega = phi.template tail<3>();
+    rightJacobianSO3(omega, J.template bottomRightCorner<3, 3>());
+    J.template topLeftCorner<3, 3>() = Sophus::SO3<Scalar>::exp(omega).inverse().matrix();
 }
 
 /// @brief Right Inverse Jacobian for decoupled SE(3)
@@ -279,25 +297,39 @@ inline void rightJacobianSE3Decoupled(
 /// @param[in] phi (6x1 vector)
 /// @param[out] J_phi (6x6 matrix)
 template <typename Derived1, typename Derived2>
-inline void rightJacobianInvSE3Decoupled(
-    const Eigen::MatrixBase<Derived1> &phi,
-    const Eigen::MatrixBase<Derived2> &J_phi) {
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-  EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-  EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 6);
-  EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 6, 6);
+inline void rightJacobianInvSE3Decoupled(const Eigen::MatrixBase<Derived1>& phi,
+                                         const Eigen::MatrixBase<Derived2>& J_phi)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 6);
+    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 6, 6);
 
-  using Scalar = typename Derived1::Scalar;
+    using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
+    Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
 
-  J.setZero();
+    J.setZero();
 
-  Eigen::Matrix<Scalar, 3, 1> omega = phi.template tail<3>();
-  rightJacobianInvSO3(omega, J.template bottomRightCorner<3, 3>());
-  J.template topLeftCorner<3, 3>() = Sophus::SO3<Scalar>::exp(omega).matrix();
+    Eigen::Matrix<Scalar, 3, 1> omega = phi.template tail<3>();
+    rightJacobianInvSO3(omega, J.template bottomRightCorner<3, 3>());
+    J.template topLeftCorner<3, 3>() = Sophus::SO3<Scalar>::exp(omega).matrix();
 }
+
+template <typename Scalar>
+inline void decoupled_inc(const Sophus::Vector6d& inc, Sophus::SE3<Scalar>& T)
+{
+    T.translation() += inc.head<3>();
+    T.so3() = Sophus::SO3d::exp(inc.tail<3>()) * T.so3();
+}
+
+template <typename Scalar>
+inline void decoupled_inc(const Sophus::Vector7d& inc, Sophus::DSim3<Scalar>& T)
+{
+    decoupled_inc(inc.head<6>(), T.se3());
+    T.scale() = exp(inc(6)) * T.scale();
+}
+
 
 
 }  // namespace Sophus

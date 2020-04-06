@@ -18,7 +18,7 @@ PoseGraph::PoseGraph(const Scene& scene, int minEdges)
     for (auto& p : scene.extrinsics)
     {
         PoseVertex pv;
-        pv.T_w_i    = p.se3.inverse();
+        pv.SetPose(p.se3.inverse());
         pv.constant = p.constant;
         pv.constant = false;
         vertices.push_back(pv);
@@ -66,7 +66,7 @@ void PoseGraph::addNoise(double stddev)
     for (auto& e : vertices)
     {
         if (e.constant) continue;
-        e.T_w_i.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
+        //        e.T_w_i.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
 
 
         //        Quat q = e.se3.unit_quaternion();
@@ -79,7 +79,7 @@ void PoseGraph::addNoise(double stddev)
 
 PoseEdge::TangentType PoseGraph::residual6(const PoseEdge& edge)
 {
-    return edge.residual(vertices[edge.from].Pose(), vertices[edge.to].Pose());
+    return edge.residual(vertices[edge.from].Sim3Pose(), vertices[edge.to].Sim3Pose());
 }
 
 double PoseGraph::density()
@@ -156,8 +156,8 @@ void PoseGraph::load(const std::string& file)
 
     for (auto& e : vertices)
     {
-        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> v2(e.T_w_i.data());
-        Sophus::Vector<double, SE3::num_parameters> v;
+        Eigen::Map<Sophus::Vector<double, 8>> v2(e.T_w_i.data());
+        Sophus::Vector<double, 8> v;
         strm >> e.constant >> v;
         v2 = v;
     }
@@ -203,14 +203,14 @@ void PoseGraph::sortEdges()
 
 void PoseGraph::transform(const SE3& T)
 {
-    for (auto& v : vertices)
-    {
-        v.T_w_i = T * v.T_w_i;
-    }
-    for (auto& e : edges)
-    {
-        e.T_i_j = T * e.T_i_j;
-    }
+    //    for (auto& v : vertices)
+    //    {
+    //        v.T_w_i.se3 = T * v.T_w_i.se3;
+    //    }
+    //    for (auto& e : edges)
+    //    {
+    //        e.T_i_j.se3 = T * e.T_i_j.se3;
+    //    }
 }
 
 void PoseGraph::invertPoses()

@@ -61,7 +61,7 @@ OptimizationResults g2oPGO::initAndSolve()
         auto ge = new EdgeSim3<LSD>();
         ge->setVertex(0, vertex_from);
         ge->setVertex(1, vertex_to);
-        ge->setMeasurement(e.meassurement());
+        ge->setMeasurement(e.GetSE3());
         //        ge->setMeasurementFromState();
         using PGOTransformation = SE3;
         ge->information()       = Eigen::Matrix<double, PGOTransformation::DoF, PGOTransformation::DoF>::Identity();
@@ -103,7 +103,7 @@ OptimizationResults g2oPGO::initAndSolve()
     {
         VertexSim3* v_se3 = static_cast<VertexSim3*>(optimizer.vertex(i));
         auto& e           = scene.vertices[i].T_w_i;
-        e                 = v_se3->estimate();
+        //        e                 = v_se3->estimate();
     }
 
     {

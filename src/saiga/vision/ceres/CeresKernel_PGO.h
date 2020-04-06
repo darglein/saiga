@@ -15,14 +15,10 @@ namespace Saiga
 {
 struct CostPGO
 {
-    using PGOTransformation = SE3;
-    CostPGO(const PGOTransformation& invMeassurement, double weight = 1)
-        : _inverseMeasurement(invMeassurement), weight(weight)
-    {
-    }
+    CostPGO(const SE3& T_i_j, double weight = 1) : T_i_j_(T_i_j), weight(weight) {}
 
     using CostType         = CostPGO;
-    using CostFunctionType = ceres::AutoDiffCostFunction<CostType, PGOTransformation::DoF, 7, 7>;
+    using CostFunctionType = ceres::AutoDiffCostFunction<CostType, SE3::DoF, 7, 7>;
     template <typename... Types>
     static CostFunctionType* create(const Types&... args)
     {
@@ -30,50 +26,55 @@ struct CostPGO
     }
 
     template <typename T>
-    bool operator()(const T* const _from, const T* const _to, T* _residual) const
+    bool operator()(const T* const T_w_i_ptr, const T* const T_w_j_ptr, T* residual_ptr) const
     {
-        Eigen::Map<Sophus::SE3<T> const> const from(_from);
-        Eigen::Map<Sophus::SE3<T> const> const to(_to);
-        Eigen::Map<Eigen::Matrix<T, PGOTransformation::DoF, 1>> residual(_residual);
+        Eigen::Map<Sophus::SE3<T> const> const T_w_i(T_w_i_ptr);
+        Eigen::Map<Sophus::SE3<T> const> const T_w_j(T_w_j_ptr);
+        Eigen::Map<Eigen::Matrix<T, SE3::DoF, 1>> residual(residual_ptr);
 
-        Sophus::SE3<T> inverseMeasurement = _inverseMeasurement.cast<T>();
-#ifdef LSD_REL
-        //        auto est_j_i = to * from.inverse();
-        auto est_j_i = from.inverse() * to;
-        auto error_  = inverseMeasurement * est_j_i;
-//        auto error_ = from.inverse() * to * inverseMeasurement;
-#else
-
-        // = dlog(measurement_T_i_j * inv(estimate_T_w_j) * estimate_T_w_i)
-        // C * v1->estimate() * v2->estimate().inverse();
-        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
-
-
-
-        //        auto error_ = inverseMeasurement.inverse() * from * to.inverse();
-        //        auto error_ = from * to.inverse() * inverseMeasurement.inverse(); // working
-        //        auto error_ = inverseMeasurement * to * from.inverse();
-
-//        auto est_j_i = from.inverse() * to;
-//        auto error_  = est_j_i * inverseMeasurement.inverse();
-#endif
-
-        residual = error_.log() * weight;
-        //        residual[6] = T(0);
-
-
+        auto T_j_i = T_w_j.inverse() * T_w_i;
+        residual   = Sophus::se3_logd(T_i_j_.cast<T>() * T_j_i) * T(weight);
         return true;
     }
 
    private:
-    PGOTransformation _inverseMeasurement;
-
-    //    Quat meas_q;
-    //    Vec3 meas_t;
-    //    double meas_scale;
-
+    SE3 T_i_j_;
     double weight;
 };
+
+
+struct CostPGODSim3
+{
+    CostPGODSim3(const DSim3& T_i_j, double weight = 1) : T_i_j_(T_i_j), weight(weight) {}
+
+    using CostType         = CostPGODSim3;
+    using CostFunctionType = ceres::AutoDiffCostFunction<CostType, 7, 8, 8>;
+    template <typename... Types>
+    static CostFunctionType* create(const Types&... args)
+    {
+        return new CostFunctionType(new CostType(args...));
+    }
+
+    template <typename T>
+    bool operator()(const T* const T_w_i_ptr, const T* const T_w_j_ptr, T* residual_ptr) const
+    {
+        Sophus::DSim3<T> T_w_i = Sophus::PointerToDSim3(T_w_i_ptr);
+        Sophus::DSim3<T> T_w_j = Sophus::PointerToDSim3(T_w_j_ptr);
+
+        //        std::cout << T_w_i << std::endl;
+        //        std::cout << T_w_j << std::endl;
+        Eigen::Map<Eigen::Matrix<T, 7, 1>> residual(residual_ptr);
+
+        auto T_j_i = T_w_j.inverse() * T_w_i;
+        residual   = Sophus::dsim3_logd(T_i_j_.cast<T>() * T_j_i) * T(weight);
+        return true;
+    }
+
+   private:
+    DSim3 T_i_j_;
+    double weight;
+};
+
 
 
 class CostPGOAnalytic : public ceres::SizedCostFunction<7, 7, 7>

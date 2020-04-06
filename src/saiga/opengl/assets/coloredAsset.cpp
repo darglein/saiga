@@ -23,6 +23,17 @@ void LineVertexColoredAsset::loadDefaultShaders()
     this->forwardShader   = shaderLoader.load<MVPColorShader>(shaderStr);
     this->wireframeshader = shaderLoader.load<MVPColorShader>(shaderStr);
 }
+
+void LineVertexColoredAsset::SetShaderColor(const vec4& color)
+{
+    deferredShader->bind();
+    deferredShader->uploadColor(color);
+    deferredShader->unbind();
+
+    forwardShader->bind();
+    forwardShader->uploadColor(color);
+    forwardShader->unbind();
+}
 void TexturedAsset::loadDefaultShaders()
 {
     this->deferredShader =

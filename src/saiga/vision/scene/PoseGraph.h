@@ -21,7 +21,7 @@ namespace Saiga
 struct SAIGA_VISION_API PoseEdge
 {
     using TransformationType = SE3;
-    using TangentType        = SE3::Tangent;
+    using TangentType        = Sim3::Tangent;
 
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -29,33 +29,33 @@ struct SAIGA_VISION_API PoseEdge
     int from = -1, to = -1;
     double weight = 1;
 
-    SE3 T_i_j;
-    double scale = 1.0;
+    DSim3 T_i_j;
+
 
     // Computes the relative pose as it is defined here
     void setRel(const SE3& T_w_i, const SE3& T_w_j)
     {
-        T_i_j = T_w_i.inverse() * T_w_j;
-        scale = 1.0;
+        T_i_j.se3()   = T_w_i.inverse() * T_w_j;
+        T_i_j.scale() = 1.0;
     }
 
-    void setRel(const Sim3& T_w_i, const Sim3& T_w_j)
-    {
-        auto ss_T_w_i = se3Scale(T_w_i);
-        auto ss_T_w_j = se3Scale(T_w_i);
-        setRel(ss_T_w_i.first, ss_T_w_j.first);
-
-        scale = (1.0 / ss_T_w_j.second) * ss_T_w_i.second;
-    }
+    void setRel(const DSim3& T_w_i, const DSim3& T_w_j) { T_i_j = T_w_i.inverse() * T_w_j; }
 
     // Computes the relative pose as it is defined here
-    TangentType residual(const TransformationType& T_w_i, const TransformationType& T_w_j) const
+    Sim3::Tangent residual(const DSim3& T_w_i, const DSim3& T_w_j) const
     {
-        TransformationType T_j_i = T_w_j.inverse() * T_w_i;
-        return Sophus::se3_logd(T_i_j * T_j_i);
+        DSim3 T_j_i = T_w_j.inverse() * T_w_i;
+        return Sophus::dsim3_logd(T_i_j * T_j_i);
     }
 
-    TransformationType meassurement() const { return T_i_j; }
+    SE3::Tangent residual_se3(const SE3& T_w_i, const SE3& T_w_j) const
+    {
+        SE3 T_j_i = T_w_j.inverse() * T_w_i;
+        return Sophus::se3_logd(T_i_j.se3() * T_j_i);
+    }
+
+
+    SE3 GetSE3() const { return T_i_j.se3(); }
 
     void invert()
     {
@@ -71,27 +71,22 @@ struct SAIGA_VISION_API PoseVertex
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    SE3 T_w_i;
-    double scale = 1.0;
+    DSim3 T_w_i;
+
 
     bool constant = false;
 
 
-    SE3 Pose() const { return T_w_i; }
-    Sim3 Sim3Pose() const { return sim3(T_w_i, scale); }
+    SE3 Pose() const { return T_w_i.se3(); }
+    DSim3 Sim3Pose() const { return T_w_i; }
 
     void SetPose(const SE3& v)
     {
-        T_w_i = v;
-        scale = 1;
+        T_w_i.se3()   = v;
+        T_w_i.scale() = 1;
     }
 
-    void SetPose(const Sim3& v)
-    {
-        auto ss = se3Scale(v);
-        T_w_i   = ss.first;
-        scale   = ss.second;
-    }
+    void SetPose(const DSim3& v) { T_w_i = v; }
 };
 
 struct SAIGA_VISION_API PoseGraph

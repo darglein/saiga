@@ -28,6 +28,8 @@ class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<LineMesh<Verte
     static constexpr const char* shaderStr = "asset/LineVertexColoredAsset.glsl";
     void loadDefaultShaders();
 
+    void SetShaderColor(const vec4& color);
+
     virtual ~LineVertexColoredAsset() {}
 };
 

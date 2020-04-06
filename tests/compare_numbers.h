@@ -36,8 +36,10 @@ inline bool ExpectCloseRelative(const Eigen::DenseBase<Derived>& a, const Eigen:
         {
             if(!ExpectCloseRelative(a(i,j),b(i,j),max_abs_relative_difference)){
                 found = true;
+                break;
             }
         }
+        if(found) break;
     }
     if(found){
         // Make it easier understandable

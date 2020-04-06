@@ -42,9 +42,14 @@ Sample::Sample()
     std::cout << "Found " << baldatasets.size() << " BAL datasets" << std::endl;
 
 
-    frustum.createFrustum(camera.proj, 0.01);
-    frustum.setColor(vec4{0, 1, 0, 1});
+    frustum.createFrustum(camera.proj, 0.05);
+    frustum.setColor(vec4{1, 1, 1, 1});
     frustum.create();
+
+    baoptions.solverType   = OptimizationOptions::SolverType::Direct;
+    baoptions.minChi2Delta = 1e-10;
+    // in most cases only a few iterations are required, but setting the max to more doesn't really hurt
+    baoptions.maxIterations = 50;
 }
 
 
@@ -121,6 +126,7 @@ void Sample::renderOverlay(Camera* cam)
         //            std::cout << v << std::endl;
         //        vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
 
+        frustum.SetShaderColor(i.constant ? vec4(1, 0, 0, 1) : vec4(0, 1, 0, 1));
         frustum.render(cam, v);
     }
 }
@@ -151,10 +157,39 @@ void Sample::renderFinal(Camera* cam)
 
     if (ImGui::Button("Syntetic Linear"))
     {
-        scene = SyntheticPoseGraph::CreateLinearPoseGraph(20, 3);
-
+        scene  = SyntheticPoseGraph::Linear(100, 3);
         change = true;
     }
+    if (ImGui::Button("Syntetic Circle"))
+    {
+        scene  = SyntheticPoseGraph::Circle(5, 250, 6);
+        change = true;
+    }
+
+    if (ImGui::Button("Syntetic CircleWithDrift"))
+    {
+        scene  = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0);
+        change = true;
+    }
+
+
+    if (ImGui::Button("Syntetic CircleWithDriftAndScale"))
+    {
+        scene  = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0.005);
+        change = true;
+    }
+
+
+    if (ImGui::Button("Print Scene Scale"))
+    {
+        int i = 0;
+        for (auto v : scene.vertices)
+        {
+            std::cout << i << " : " << v.Sim3Pose().scale() << std::endl;
+            i++;
+        }
+    }
+
 #if 1
     {
         std::vector<const char*> strings;
@@ -197,7 +232,10 @@ void Sample::renderFinal(Camera* cam)
         Saiga::g2oPGO ba;
         ba.optimizationOptions = baoptions;
         ba.create(scene);
-        ba.initAndSolve();
+        {
+            SAIGA_BLOCK_TIMER();
+            ba.initAndSolve();
+        }
         change = true;
     }
 
@@ -207,7 +245,10 @@ void Sample::renderFinal(Camera* cam)
         Saiga::PGORec barec;
         barec.optimizationOptions = baoptions;
         barec.create(scene);
-        barec.initAndSolve();
+        {
+            SAIGA_BLOCK_TIMER();
+            barec.initAndSolve();
+        }
         change = true;
     }
 
@@ -216,7 +257,10 @@ void Sample::renderFinal(Camera* cam)
         Saiga::CeresPGO barec;
         barec.optimizationOptions = baoptions;
         barec.create(scene);
-        barec.initAndSolve();
+        {
+            SAIGA_BLOCK_TIMER();
+            barec.initAndSolve();
+        }
         change = true;
     }
 

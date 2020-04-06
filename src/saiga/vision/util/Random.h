@@ -38,6 +38,7 @@ void setRandom(MatrixType& M)
 
 SAIGA_VISION_API extern SE3 randomSE3();
 SAIGA_VISION_API extern Sim3 randomSim3();
+SAIGA_VISION_API extern DSim3 randomDSim3();
 
 /**
  * Add random noise to a SE3. Usefull to test iterative solvers if they converge back to the original value.
