@@ -86,7 +86,7 @@ PoseGraph CircleWithDrift(double radius, int num_vertices, int num_connections, 
     pg.edges.clear();
     auto pg_cpy = pg;
 
-    pg.fixScale = sigma_scale == 1.0;
+    pg.fixScale = sigma_scale == 0;
 
     double scale_drift = 1 + sigma_scale;
 

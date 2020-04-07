@@ -9,6 +9,7 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/ceres/CeresPGO.h"
 #include "saiga/vision/recursive/PGORecursive.h"
+#include "saiga/vision/recursive/PGOSim3Recursive.h"
 #include "saiga/vision/scene/SynteticPoseGraph.h"
 
 #include "gtest/gtest.h"
@@ -22,24 +23,30 @@ class PoseGraphOptimizationTest
    public:
     PoseGraphOptimizationTest()
     {
-        opoptions.debugOutput            = true;
-        opoptions.debug                  = false;
-        opoptions.maxIterations          = 500;
-        opoptions.maxIterativeIterations = 50;
-        opoptions.iterativeTolerance     = 1e-10;
-        opoptions.numThreads             = 1;
-        opoptions.buildExplizitSchur     = true;
-
-        buildScene();
+        opoptions.debugOutput   = false;
+        opoptions.debug         = false;
+        opoptions.maxIterations = 50;
+        opoptions.solverType    = OptimizationOptions::SolverType::Direct;
     }
 
     PoseGraph solveRec()
     {
         PoseGraph cpy = scene;
-        PGORec ba;
-        ba.optimizationOptions = opoptions;
-        ba.create(cpy);
-        ba.initAndSolve();
+
+        if (cpy.fixScale)
+        {
+            PGORec ba;
+            ba.optimizationOptions = opoptions;
+            ba.create(cpy);
+            ba.initAndSolve();
+        }
+        else
+        {
+            PGOSim3Rec ba;
+            ba.optimizationOptions = opoptions;
+            ba.create(cpy);
+            ba.initAndSolve();
+        }
         return cpy;
     }
 
@@ -49,7 +56,6 @@ class PoseGraphOptimizationTest
         CeresPGO ba;
         ba.optimizationOptions = opoptions;
         ba.create(cpy);
-        //        SAIGA_BLOCK_TIMER();
         ba.initAndSolve();
         return cpy;
     }
@@ -59,13 +65,21 @@ class PoseGraphOptimizationTest
     {
         auto scene1 = solveRec();
         auto scene2 = solveCeres();
-
-        std::cout << scene.chi2() << " " << scene1.chi2() << " " << scene2.chi2() << std::endl;
-
-        //        ExpectClose(scene1.chi2(), scene2.chi2(), 1e-5);
+        ExpectCloseRelative(scene1.chi2(), scene2.chi2(), 1e-5);
     }
 
-    void buildScene() { scene.load(Saiga::SearchPathes::data("user/kitty_old.posegraph")); }
+    void buildScene(bool with_scale_drift)
+    {
+        if (with_scale_drift)
+        {
+            scene = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0.005);
+        }
+        else
+        {
+            scene = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0);
+        }
+        scene.addNoise(0.01);
+    }
 
 
    private:
@@ -75,7 +89,7 @@ class PoseGraphOptimizationTest
 
 TEST(PoseGraph, LoadStore)
 {
-    PoseGraph pg1 = SyntheticPoseGraph::CircleWithDrift(3, 4, 3, 0.01, 0.01);
+    PoseGraph pg1 = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0);
 
     pg1.sortEdges();
     pg1.save("test.posegraph");
@@ -103,16 +117,23 @@ TEST(PoseGraph, LoadStore)
         ExpectCloseRelative(e1.T_i_j.params(), e2.T_i_j.params(), 1e-20);
     }
 }
-#if 0
-TEST(PoseGraphOptimization, Default)
+TEST(PoseGraphOptimization, LoopClosingSE3)
 {
-    Saiga::initSaigaSample();
-    for (int i = 0; i < 1; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         PoseGraphOptimizationTest test;
+        test.buildScene(false);
         test.test();
     }
 }
-#endif
+TEST(PoseGraphOptimization, LoopClosingSim3)
+{
+    for (int i = 0; i < 5; ++i)
+    {
+        PoseGraphOptimizationTest test;
+        test.buildScene(true);
+        test.test();
+    }
+}
 
 }  // namespace Saiga

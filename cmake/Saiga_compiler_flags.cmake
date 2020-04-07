@@ -32,6 +32,8 @@ endif()
 
 message(STATUS "Detected Compiler:  ${SAIGA_COMPILER_STRING}")
 message(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}" )
+
+
 ######### warnings #########
 
 if(SAIGA_CXX_MSVC)

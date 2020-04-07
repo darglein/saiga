@@ -17,8 +17,8 @@ namespace EigenHelper
 struct SAIGA_CORE_API EigenCompileFlags
 {
     int versionWorld, versionMajor, versionMinor;
-    bool debug = true;
-
+    bool debug     = true;
+    bool fast_math = false;
     // x86-64
     bool fma  = false;
     bool sse3 = false, ssse3 = false;
@@ -47,7 +47,9 @@ struct SAIGA_CORE_API EigenCompileFlags
         versionWorld = EIGEN_WORLD_VERSION;
         versionMajor = EIGEN_MAJOR_VERSION;
         versionMinor = EIGEN_MINOR_VERSION;
-
+#if defined(FAST_MATH) || defined(__FAST_MATH__)
+        fast_math = true;
+#endif
 #ifdef EIGEN_NO_DEBUG
         debug = false;
 #endif

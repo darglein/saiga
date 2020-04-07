@@ -15,33 +15,11 @@
 
 namespace Saiga
 {
-Table* table;
-void PrintVectorEnabled(const std::string& intruction_set, bool enabled)
-{
-    (*table) << intruction_set << (enabled ? ConsoleColor::GREEN : ConsoleColor::RED) << (enabled ? "YES" : "NO")
-             << ConsoleColor::RESET;
-}
-
 void CheckVectorInstructions()
 {
-    table = new Table({10, 0, 1, 0});
     EigenHelper::EigenCompileFlags flags;
     flags.create<938476>();
-
-    std::cout << "Enabled Vector Instructions:" << std::endl;
-    PrintVectorEnabled("fma", flags.fma);
-    PrintVectorEnabled("sse3", flags.sse3);
-    PrintVectorEnabled("ssse3", flags.ssse3);
-    PrintVectorEnabled("sse41", flags.sse41);
-    PrintVectorEnabled("sse42", flags.sse42);
-    PrintVectorEnabled("avx", flags.avx);
-    PrintVectorEnabled("avx2", flags.avx2);
-    PrintVectorEnabled("avx512", flags.avx512);
-    PrintVectorEnabled("neon", flags.neon);
-    PrintVectorEnabled("vsx", flags.vsx);
-    PrintVectorEnabled("altivec", flags.altivec);
-    PrintVectorEnabled("zvector", flags.zvector);
-    std::cout << std::endl;
+    std::cout << flags << std::endl;
 }
 void CheckEigenVectorAlignment()
 {
@@ -168,7 +146,6 @@ TEST(Vectorization, AVX512)
 
 int main()
 {
-    Saiga::CheckVectorInstructions();
     Saiga::CheckEigenVectorAlignment();
     testing::InitGoogleTest();
     return RUN_ALL_TESTS();

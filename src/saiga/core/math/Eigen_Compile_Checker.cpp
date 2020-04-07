@@ -25,6 +25,8 @@ std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags)
 
     table << "|"
           << "Debug " << flags.debug << "|";
+    table << "|"
+          << "FAST_MATH " << flags.fast_math << "|";
 
     table << "|"
           << "FMA " << flags.fma << "|";
@@ -38,6 +40,14 @@ std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags)
           << "AVX/AVX2 " << to_string(flags.avx) + "/" + to_string(flags.avx2) << "|";
     table << "|"
           << "AVX512 " << flags.avx512 << "|";
+    table << "|"
+          << "NEON " << flags.neon << "|";
+    table << "|"
+          << "VSX " << flags.vsx << "|";
+    table << "|"
+          << "ALTIVEC" << flags.altivec << "|";
+    table << "|"
+          << "ZVECTOR " << flags.zvector << "|";
 
     strm << "===============================" << std::endl;
 
