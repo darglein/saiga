@@ -6,13 +6,12 @@
 
 #include "EuRoCDataset.h"
 
+#include "saiga/core/util/FileSystem.h"
 #include "saiga/core/util/ProgressBar.h"
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/camera/TimestampMatcher.h"
-
-#include "saiga/core/util/FileSystem.h"
 
 #ifdef SAIGA_USE_YAML_CPP
 
@@ -316,8 +315,11 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
                 //                    ground_truth[a.gthigh].second;
                 frame.groundTruth = slerp(ground_truth[a.gtlow].second, ground_truth[a.gthigh].second, a.gtAlpha);
 
-                frame.grayImg.load(leftFile);
-                frame.grayImg2.load(rightFile);
+                if (!params.only_first_image || i == 0)
+                {
+                    frame.grayImg.load(leftFile);
+                    frame.grayImg2.load(rightFile);
+                }
             }
             frame.timeStamp = cam0_images[a.left].first / 1e9;
             loadingBar.addProgress(1);

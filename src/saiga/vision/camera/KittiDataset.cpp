@@ -6,14 +6,13 @@
 
 #include "KittiDataset.h"
 
+#include "saiga/core/util/FileSystem.h"
 #include "saiga/core/util/ProgressBar.h"
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/vision/camera/TimestampMatcher.h"
-
-#include "saiga/core/util/FileSystem.h"
 
 namespace Saiga
 {
@@ -157,11 +156,13 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
             std::string rightFile = rightImageDir + "/" + leadingZeroString(i, 6) + ".png";
 
             frame.id = id;
-            frame.grayImg.load(leftFile);
-            frame.grayImg2.load(rightFile);
-
-            SAIGA_ASSERT(frame.grayImg);
-            SAIGA_ASSERT(frame.grayImg2);
+            if (!params.only_first_image || i == 0)
+            {
+                frame.grayImg.load(leftFile);
+                frame.grayImg2.load(rightFile);
+                SAIGA_ASSERT(frame.grayImg);
+                SAIGA_ASSERT(frame.grayImg2);
+            }
 
 
             if (!groundTruth.empty()) frame.groundTruth = groundTruth[i];

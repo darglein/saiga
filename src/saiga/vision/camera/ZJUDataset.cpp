@@ -287,26 +287,29 @@ void ZJUDataset::load(const std::string& datasetDir, bool multithreaded)
             f.timeStamp   = framesRaw[i].timestamp;
             f.id          = i;
 
-            Image cimg(imageDir + "/" + imgStr);
-            if (cimg.type == UC1)
+            if (!params.only_first_image || i == 0)
             {
-                //                frames[i] = std::move(cimg);
-                GrayImageType imgGray(cimg.h, cimg.w);
-                cimg.getImageView<unsigned char>().copyTo(imgGray.getImageView());
-                f.grayImg = imgGray;
-            }
-            else if (cimg.type == UC3 || cimg.type == UC3)
-            {
-                // this is currently only the case for "black frames"
-                GrayImageType imgGray(cimg.h, cimg.w);
-                f.grayImg = imgGray;
-            }
-            else
-            {
-                SAIGA_EXIT_ERROR("Unknown image type");
-            }
+                Image cimg(imageDir + "/" + imgStr);
+                if (cimg.type == UC1)
+                {
+                    //                frames[i] = std::move(cimg);
+                    GrayImageType imgGray(cimg.h, cimg.w);
+                    cimg.getImageView<unsigned char>().copyTo(imgGray.getImageView());
+                    f.grayImg = imgGray;
+                }
+                else if (cimg.type == UC3 || cimg.type == UC3)
+                {
+                    // this is currently only the case for "black frames"
+                    GrayImageType imgGray(cimg.h, cimg.w);
+                    f.grayImg = imgGray;
+                }
+                else
+                {
+                    SAIGA_EXIT_ERROR("Unknown image type");
+                }
 
-            SAIGA_ASSERT(cimg.w == intrinsics.imageSize.w);
+                SAIGA_ASSERT(cimg.w == intrinsics.imageSize.w);
+            }
 
 
 

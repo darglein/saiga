@@ -78,6 +78,11 @@ struct SAIGA_VISION_API DatasetParameters
     // Load images in parallel with omp
     bool multiThreadedLoad = true;
 
+
+    // Load only the first image of the sequence. All other meta data (GT+IMU) are still loaded normally.
+    // This can be used to save disk usage, if, for example, the features are precomputed and stored in a file.
+    bool only_first_image = false;
+
     void fromConfigFile(const std::string& file);
 };
 

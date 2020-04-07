@@ -70,13 +70,13 @@ void Sample::update(float dt)
         if (!leftTexture)
         {
             leftTexture = std::make_shared<Texture>();
-            leftTexture->fromImage(leftImage, false, false);
+            leftTexture->fromImage(leftImage, true, false);
         }
 
         if (!rightTexture)
         {
             rightTexture = std::make_shared<Texture>();
-            rightTexture->fromImage(rightImage, false, false);
+            rightTexture->fromImage(rightImage, true, false);
         }
 
 
@@ -127,10 +127,9 @@ void Sample::renderFinal(Camera* cam)
     dparams.maxFrames    = 10000;
 
 #ifdef SAIGA_USE_YAML_CPP
-    if (ImGui::Button("Load From File"))
+    if (ImGui::Button("Load From File TUM RGBD"))
     {
         //        dparams.dir  = dir;
-        dparams.dir  = "/home/dari/Projects/snake/code/data/tum/rgbd_dataset_freiburg1_desk/";
         rgbdcamera   = std::make_unique<TumRGBDCamera>(dparams);
         leftTexture  = nullptr;
         rightTexture = nullptr;
@@ -142,7 +141,6 @@ void Sample::renderFinal(Camera* cam)
     if (ImGui::Button("Load From File Euroc"))
     {
         dparams.dir  = dir;
-        dparams.dir  = "/home/dari/Projects/snake/code/data/euroc/MH_01/mav0/";
         stereocamera = std::make_unique<EuRoCDataset>(dparams);
         leftTexture  = nullptr;
         rightTexture = nullptr;
