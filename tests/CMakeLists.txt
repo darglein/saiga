@@ -16,7 +16,7 @@ function(saiga_test NAME)
 
   add_test(
     NAME ${TEST_TARGET}
-    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PROG_NAME}
+    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TARGET}
     )
 
   #set working directory for visual studio so the project can be executed from the ide
