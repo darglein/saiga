@@ -123,14 +123,14 @@ inline std::ostream& operator<<(std::ostream& os, const Sophus::SE3<T>& se3)
 }
 
 
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const Sophus::Sim3<T>& sim3)
-{
-    auto se3_scale = Saiga::se3Scale(sim3);
+// template <typename T>
+// inline std::ostream& operator<<(std::ostream& os, const Sophus::Sim3<T>& sim3)
+//{
+//    auto se3_scale = Saiga::se3Scale(sim3);
 
-    os << "Sim3(" << se3_scale.first << " Scale=" << se3_scale.second << ")";
-    return os;
-}
+//    os << "Sim3(" << se3_scale.first << " Scale=" << se3_scale.second << ")";
+//    return os;
+//}
 
 template <typename T>
 inline bool operator==(const Sophus::SE3<T>& a, const Sophus::SE3<T>& b)

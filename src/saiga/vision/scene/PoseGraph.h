@@ -21,7 +21,7 @@ namespace Saiga
 struct SAIGA_VISION_API PoseEdge
 {
     using TransformationType = SE3;
-    using TangentType        = Sim3::Tangent;
+    using TangentType        = DSim3::Tangent;
 
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -42,7 +42,7 @@ struct SAIGA_VISION_API PoseEdge
     void setRel(const DSim3& T_w_i, const DSim3& T_w_j) { T_i_j = T_w_i.inverse() * T_w_j; }
 
     // Computes the relative pose as it is defined here
-    Sim3::Tangent residual(const DSim3& T_w_i, const DSim3& T_w_j) const
+    DSim3::Tangent residual(const DSim3& T_w_i, const DSim3& T_w_j) const
     {
         DSim3 T_j_i = T_w_j.inverse() * T_w_i;
         return Sophus::dsim3_logd(T_i_j * T_j_i);

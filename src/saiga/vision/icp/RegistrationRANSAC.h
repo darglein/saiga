@@ -97,7 +97,7 @@ class RegistrationProjectRANSAC
 
             if (scalePtr)
             {
-                Sim3 T = sim3(rel, scale);
+                DSim3 T(rel, scale);
                 // if we have that much scale drift something is broken an
                 if (scale > 0.2 && scale < 5) currentInliers = numInliers(T);
             }

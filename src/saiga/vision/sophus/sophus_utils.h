@@ -78,10 +78,8 @@ template <typename Scalar>
 inline Eigen::Vector<Scalar, 7> dsim3_logd(const DSim3<Scalar>& sim3)
 {
     Eigen::Vector<Scalar, 7> upsilon_omega_scale;
-
     upsilon_omega_scale.template head<6>() = se3_logd(sim3.se3());
     upsilon_omega_scale(6)                 = log(sim3.scale());
-
     return upsilon_omega_scale;
 }
 
@@ -315,6 +313,30 @@ inline void rightJacobianInvSE3Decoupled(const Eigen::MatrixBase<Derived1>& phi,
     rightJacobianInvSO3(omega, J.template bottomRightCorner<3, 3>());
     J.template topLeftCorner<3, 3>() = Sophus::SO3<Scalar>::exp(omega).matrix();
 }
+
+
+template <typename Derived1, typename Derived2>
+inline void rightJacobianInvDSim3Decoupled(const Eigen::MatrixBase<Derived1>& phi,
+                                           const Eigen::MatrixBase<Derived2>& J_phi)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 7);
+    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 7, 7);
+
+    using Scalar = typename Derived1::Scalar;
+
+    Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
+
+    J.setZero();
+
+    Eigen::Matrix<Scalar, 3, 1> omega = phi.template segment<3>(3);
+    J.template topLeftCorner<3, 3>()  = Sophus::SO3<Scalar>::exp(omega).matrix() * exp(phi(6));
+    rightJacobianInvSO3(omega, J.template block<3, 3>(3, 3));
+    J(6, 6) = 1;
+}
+
+
 
 template <typename Scalar>
 inline void decoupled_inc(const Sophus::Vector6d& inc, Sophus::SE3<Scalar>& T)

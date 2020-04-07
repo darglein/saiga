@@ -65,7 +65,7 @@ TEST(Sohpus, Sim3_Identity)
 
 TEST(Sohpus, Sim3_Point)
 {
-    Sim3 a = Random::randomSim3();
+    Sophus::Sim3d a = Random::randomSim3();
     Sophus::DSim3<double> da(a);
     Vec3 x = Vec3::Random();
 
@@ -83,17 +83,17 @@ TEST(Sohpus, Sim3_Point)
 
 TEST(Sohpus, Sim3_Inverse)
 {
-    Sim3 a = Random::randomSim3();
+    Sophus::Sim3d a = Random::randomSim3();
     Sophus::DSim3<double> da(a);
 
     auto q = a.rxso3().quaternion().normalized();
     auto t = a.translation();
     auto s = a.scale();
 
-    Sim3 y1    = a.inverse();
-    Quat q_y   = q.inverse();
-    double s_y = 1.0 / s;
-    Vec3 t_y   = -s_y * (q_y * t);
+    Sophus::Sim3d y1 = a.inverse();
+    Quat q_y         = q.inverse();
+    double s_y       = 1.0 / s;
+    Vec3 t_y         = -s_y * (q_y * t);
 
     auto y3 = da.inverse();
 
@@ -116,8 +116,8 @@ TEST(Sohpus, Sim3_Inverse)
 
 TEST(Sohpus, Sim3_Sim3)
 {
-    Sim3 a = Random::randomSim3();
-    Sim3 b = Random::randomSim3();
+    Sophus::Sim3d a = Random::randomSim3();
+    Sophus::Sim3d b = Random::randomSim3();
 
     Sophus::DSim3<double> da(a);
     Sophus::DSim3<double> db(b);
@@ -130,10 +130,10 @@ TEST(Sohpus, Sim3_Sim3)
     auto t_b = b.translation();
     auto s_b = b.scale();
 
-    Sim3 y1    = a * b;
-    Quat q_y   = (q_a * q_b).normalized();
-    Vec3 t_y   = s_a * (q_a * t_b) + t_a;
-    double s_y = s_a * s_b;
+    Sophus::Sim3d y1 = a * b;
+    Quat q_y         = (q_a * q_b).normalized();
+    Vec3 t_y         = s_a * (q_a * t_b) + t_a;
+    double s_y       = s_a * s_b;
 
     auto y3 = da * db;
 
@@ -145,5 +145,15 @@ TEST(Sohpus, Sim3_Sim3)
     ExpectCloseRelative(y3.se3().translation(), t_y, 1e-10);
     ExpectCloseRelative(y3.scale(), s_y, 1e-10);
 }
+
+TEST(Sohpus, Map)
+{
+    std::array<double, 8> data;
+    std::fill(data.begin(), data.end(), 0.0);
+
+
+    //    Eigen::Map<DSim3> dsim3_data(data.data());
+}
+
 
 }  // namespace Saiga

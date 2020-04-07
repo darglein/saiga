@@ -42,6 +42,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/VisionTypes.h"
 
+
+
 namespace Sophus
 {
 template <typename T>
@@ -49,11 +51,15 @@ struct DSim3
 {
     static constexpr int DoF = 7;
     using Scalar             = T;
+    using Tangent            = Eigen::Vector<T, DoF>;
 
     DSim3()
     {
         se3()   = SE3<T>();
         scale() = 1.0;
+
+        static_assert(sizeof(DSim3<T>) == 8 * sizeof(T), "DSim size is incorrect!");
+        static_assert(alignof(DSim3<T>) == 8 * sizeof(T), "DSim size is incorrect!");
     }
     DSim3(const SE3<T>& se3, T scale)
     {
@@ -111,10 +117,7 @@ struct DSim3
     }
 
     T* data() { return data_.data(); }
-
-
     Eigen::Vector<T, 8> params() const { return data_; }
-
 
     template <typename G>
     DSim3<G> cast() const
@@ -122,18 +125,12 @@ struct DSim3
         return DSim3<G>(data_.template cast<G>());
     }
 
-
-
     SE3<T>& se3() { return *((SE3<T>*)data_.data()); }
-
     T& scale() { return data_(7); }
-
-
     const SE3<T>& se3() const { return *((const SE3<T>*)data_.data()); }
-
     T scale() const { return data_(7); }
 
-   private:
+   protected:
     Eigen::Vector<T, 8> data_;
 };
 
@@ -162,7 +159,6 @@ inline void DSim3ToPointer(const DSim3<T>& sim3, T* ptr)
     Eigen::Map<Eigen::Vector<T, 8>> x(ptr);
     x = sim3.params();
 }
-
 
 
 }  // namespace Sophus

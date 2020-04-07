@@ -37,7 +37,7 @@ void setRandom(MatrixType& M)
 }
 
 SAIGA_VISION_API extern SE3 randomSE3();
-SAIGA_VISION_API extern Sim3 randomSim3();
+SAIGA_VISION_API extern Sophus::Sim3d randomSim3();
 SAIGA_VISION_API extern DSim3 randomDSim3();
 
 /**

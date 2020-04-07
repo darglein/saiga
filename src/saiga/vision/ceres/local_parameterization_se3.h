@@ -124,9 +124,10 @@ class LocalParameterizationDSim3_Autodiff_Kernel
     bool operator()(const T* _x, const T* _delta, T* _x_plus_delta) const
     {
         using Vec7 = Eigen::Matrix<T, 7, 1>;
-        //        Eigen::Map<Sophus::DSim3<T> const> const x(_x);
 
-        Sophus::DSim3<T> x = PointerToDSim3(_x);
+        const Sophus::DSim3<T>& x = ((const Sophus::DSim3<T>*)(_x))[0];
+
+        //        Sophus::DSim3<T> x = PointerToDSim3(_x);
         Eigen::Map<Vec7 const> const delta(_delta);
 
         //        Eigen::Map<Sophus::DSim3<T>> x_plus_delta(_x_plus_delta);

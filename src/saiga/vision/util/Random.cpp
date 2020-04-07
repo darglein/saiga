@@ -40,9 +40,12 @@ SE3 randomSE3()
     return SE3(q, t);
 }
 
-Sim3 randomSim3()
+Sophus::Sim3d randomSim3()
 {
-    return sim3(randomSE3(), sampleDouble(0.1, 2));
+    auto a = randomSE3();
+    Sophus::Sim3d result(a.unit_quaternion(), a.translation());
+    result.setScale(sampleDouble(0.1, 2));
+    return result;
 }
 
 DSim3 randomDSim3()

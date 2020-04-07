@@ -14,29 +14,29 @@
 
 namespace Saiga
 {
-using SE3   = Sophus::SE3d;
-using SO3   = Sophus::SO3d;
-using Sim3  = Sophus::Sim3d;
+using SE3 = Sophus::SE3d;
+using SO3 = Sophus::SO3d;
+// using Sim3  = Sophus::Sim3d;
 using DSim3 = Sophus::DSim3<double>;
 
 
 // No idea why this method doesn't exist in sophus
-template <typename T>
-inline Sophus::Sim3<T> sim3(const Sophus::SE3<T>& se3, T scale)
-{
-    Sophus::Sim3<T> s(se3.unit_quaternion(), se3.translation());
-    s.setScale(scale);
-    return s;
-}
+// template <typename T>
+// inline Sophus::Sim3<T> sim3(const Sophus::SE3<T>& se3, T scale)
+//{
+//    Sophus::Sim3<T> s(se3.unit_quaternion(), se3.translation());
+//    s.setScale(scale);
+//    return s;
+//}
 
-// extract se3 + scale from sim3
-template <typename T>
-inline std::pair<Sophus::SE3<T>, T> se3Scale(const Sophus::Sim3<T>& sim3)
-{
-    double scale = sim3.scale();
-    Sophus::SE3<T> se3(sim3.rxso3().quaternion().normalized(), sim3.translation());
-    return {se3, scale};
-}
+//// extract se3 + scale from sim3
+// template <typename T>
+// inline std::pair<Sophus::SE3<T>, T> se3Scale(const Sophus::Sim3<T>& sim3)
+//{
+//    double scale = sim3.scale();
+//    Sophus::SE3<T> se3(sim3.rxso3().quaternion().normalized(), sim3.translation());
+//    return {se3, scale};
+//}
 
 
 // Returns the SE3 which is inversely matching the given sim3:

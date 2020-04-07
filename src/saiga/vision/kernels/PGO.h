@@ -91,31 +91,22 @@ struct PGOSim3
         TransformationType T_j_i = T_w_j.inverse() * T_w_i;
         res                      = Sophus::dsim3_logd(T_i_j * T_j_i) * weight;
 
-        Sophus::Matrix6d J;
-        Sophus::rightJacobianInvSE3Decoupled(res.template head<6>(), J);
-        J.template topLeftCorner<3, 3>() *= exp(res(6));
+        Sophus::Matrix7d J;
+        Sophus::rightJacobianInvDSim3Decoupled(res, J);
 
         Eigen::Matrix3d R = T_w_i.se3().so3().inverse().matrix();
 
-        Sophus::Matrix6d Adj;
+        Sophus::Matrix7d Adj;
         Adj.setZero();
-        Adj.topLeftCorner<3, 3>()     = (1.0 / T_w_i.scale()) * R;
-        Adj.bottomRightCorner<3, 3>() = R;
+        Adj.topLeftCorner<3, 3>() = (1.0 / T_w_i.scale()) * R;
+        Adj.block<3, 3>(3, 3)     = R;
+        Adj(6, 6)                 = 1;
+        d_res_d_T_w_i             = J * Adj;
 
 
-        d_res_d_T_w_i.setZero();
-        d_res_d_T_w_i.template topLeftCorner<6, 6>() = J * Adj;
-        d_res_d_T_w_i(6, 6)                          = 1.0;
-
-
-
-        Adj.topRightCorner<3, 3>() = Sophus::SO3d::hat(T_j_i.se3().inverse().translation()) * R;
-
-        d_res_d_T_w_j.setZero();
-        d_res_d_T_w_j.template topLeftCorner<6, 6>() = -J * Adj;
-        d_res_d_T_w_j.template block<3, 1>(0, 6)     = J.topLeftCorner<3, 3>() * T_j_i.inverse().se3().translation();
-        //        d_res_d_T_w_j *= exp(res(6));
-        d_res_d_T_w_j(6, 6) = -1.0;
+        Adj.block<3, 3>(0, 3) = Sophus::SO3d::hat(T_j_i.inverse().se3().translation()) * R;
+        Adj.block<3, 1>(0, 6) = -T_j_i.inverse().se3().translation();
+        d_res_d_T_w_j         = -J * Adj;
     }
 };
 

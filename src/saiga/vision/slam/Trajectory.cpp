@@ -54,7 +54,7 @@ std::pair<SE3, double> align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pa
         return {{}, 0};
     }
 
-    Sim3 rel = sim3(relSe3, scale);
+    DSim3 rel(relSe3, scale);
 
 
 
@@ -64,7 +64,7 @@ std::pair<SE3, double> align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pa
     {
         auto& c = corrs[i];
         error += c.residualPointToPoint();
-        A[i].second = se3Scale(rel * sim3(A[i].second, 1.0)).first;
+        A[i].second = (rel * DSim3(A[i].second, 1.0)).se3();
     }
 
     return {relSe3, scale};
