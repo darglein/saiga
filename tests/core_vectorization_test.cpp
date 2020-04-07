@@ -41,13 +41,50 @@ void CheckVectorInstructions()
     PrintVectorEnabled("vsx", flags.vsx);
     PrintVectorEnabled("altivec", flags.altivec);
     PrintVectorEnabled("zvector", flags.zvector);
+    std::cout << std::endl;
+}
+void CheckEigenVectorAlignment()
+{
+    Table table({20, 10, 10});
+
+    table << "Type"
+          << "size"
+          << "alignment";
+
+    using vec8  = Eigen::Vector<float, 8>;
+    using vec16 = Eigen::Vector<float, 16>;
+    using vec32 = Eigen::Vector<float, 32>;
+
+    table << "vec2<float>" << sizeof(vec2) << alignof(vec2);
+    table << "vec3<float>" << sizeof(vec3) << alignof(vec3);
+    table << "vec4<float>" << sizeof(vec4) << alignof(vec4);
+    table << "vec8<float>" << sizeof(vec8) << alignof(vec8);
+    table << "vec16<float>" << sizeof(vec16) << alignof(vec16);
+    table << "vec32<float>" << sizeof(vec32) << alignof(vec32);
+
+    using Vec8  = Eigen::Vector<double, 8>;
+    using Vec16 = Eigen::Vector<double, 16>;
+    using Vec32 = Eigen::Vector<double, 32>;
+
+    table << ""
+          << ""
+          << "";
+    table << "Vec2<double>" << sizeof(Vec2) << alignof(Vec2);
+    table << "Vec3<double>" << sizeof(Vec3) << alignof(Vec3);
+    table << "Vec4<double>" << sizeof(Vec4) << alignof(Vec4);
+    table << "Vec8<double>" << sizeof(Vec8) << alignof(Vec8);
+    table << "Vec16<double>" << sizeof(Vec16) << alignof(Vec16);
+    table << "Vec32<double>" << sizeof(vec32) << alignof(Vec32);
+
+
+    std::cout << std::endl;
 }
 
 #ifdef EIGEN_VECTORIZE_NEON
 #    include <arm_neon.h>
 TEST(Vectorization, Neon)
 {
-    int data[4] = {1, 2, 3, 4};
+    unsigned int data[4] = {1, 2, 3, 4};
 
     volatile uint32x4_t first  = vld1q_u32(data);
     volatile uint32x4_t second = vld1q_u32(data);
@@ -132,6 +169,7 @@ TEST(Vectorization, AVX512)
 int main()
 {
     Saiga::CheckVectorInstructions();
+    Saiga::CheckEigenVectorAlignment();
     testing::InitGoogleTest();
     return RUN_ALL_TESTS();
 }
