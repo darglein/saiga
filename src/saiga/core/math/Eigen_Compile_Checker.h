@@ -18,12 +18,25 @@ struct SAIGA_CORE_API EigenCompileFlags
 {
     int versionWorld, versionMajor, versionMinor;
     bool debug = true;
-    bool fma   = false;
+
+    // x86-64
+    bool fma  = false;
     bool sse3 = false, ssse3 = false;
     bool sse41 = false, sse42 = false;
     bool avx = false, avx2 = false;
     bool avx512 = false;
 
+    // arm
+    bool neon = false;
+
+    // vsx
+    bool vsx = false;
+
+    // altivec
+    bool altivec = false;
+
+    // s390x
+    bool zvector = false;
 
     /**
      * Use a useless template here, so the function is generated again for every project.
@@ -61,6 +74,18 @@ struct SAIGA_CORE_API EigenCompileFlags
 #endif
 #ifdef EIGEN_VECTORIZE_AVX512
         avx512 = true;
+#endif
+#ifdef EIGEN_VECTORIZE_VSX
+        vsx = true;
+#endif
+#ifdef EIGEN_VECTORIZE_NEON
+        neon = true;
+#endif
+#ifdef EIGEN_VECTORIZE_ALTIVEC
+        altivec = true;
+#endif
+#ifdef EIGEN_VECTORIZE_ZVECTOR
+        zvector = true;
 #endif
     }
 
