@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/vision/VisionIncludes.h"
-
+#include "saiga/vision/cameraModel/Intrinsics4.h"
 
 namespace Saiga
 {
@@ -83,5 +83,22 @@ Eigen::Matrix<T, 2, 1> undistortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& po
     return {x, y};
 
 }  // namespace Kernel
+
+/**
+ * Undistorts all points from begin to end and writes them to output.
+ */
+template <typename _InputIterator1, typename _InputIterator2, typename _T>
+inline void undistortAll(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __output,
+                         const Intrinsics4Base<_T>& intr, const DistortionBase<_T>& dis)
+{
+    for (; __first1 != __last1; ++__first1, (void)++__output)
+    {
+        auto tmp  = *__first1;  // make sure it works inplace
+        tmp       = intr.unproject2(tmp);
+        tmp       = undistortNormalizedPoint(tmp, dis);
+        tmp       = intr.normalizedToImage(tmp);
+        *__output = tmp;
+    }
+}
 
 }  // namespace Saiga

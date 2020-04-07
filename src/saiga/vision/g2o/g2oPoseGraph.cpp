@@ -101,8 +101,8 @@ OptimizationResults g2oPGO::initAndSolve()
 
     for (size_t i = 0; i < scene.vertices.size(); ++i)
     {
-        VertexSim3* v_se3 = static_cast<VertexSim3*>(optimizer.vertex(i));
-        auto& e           = scene.vertices[i].T_w_i;
+        //        VertexSim3* v_se3 = static_cast<VertexSim3*>(optimizer.vertex(i));
+        //        auto& e           = scene.vertices[i].T_w_i;
         //        e                 = v_se3->estimate();
     }
 

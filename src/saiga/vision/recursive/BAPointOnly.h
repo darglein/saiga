@@ -8,7 +8,7 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API BAPointOnly : public BABase, public LMOptimizer
+class SAIGA_VISION_API BAPointOnly : public BABase
 {
    public:
     static constexpr int blockSizePoint = 3;
@@ -26,7 +26,16 @@ class SAIGA_VISION_API BAPointOnly : public BABase, public LMOptimizer
     BAPointOnly() : BABase("Point Only BA") {}
     virtual ~BAPointOnly() {}
 
-    virtual void create(Scene& scene) override { _scene = &scene; }
+    virtual void create(Scene& scene) { _scene = &scene; }
+
+    OptimizationOptions optimizationOptions;
+
+
+    void initAndSolve()
+    {
+        init();
+        solve();
+    }
 
    private:
     int n;
@@ -37,24 +46,24 @@ class SAIGA_VISION_API BAPointOnly : public BABase, public LMOptimizer
     AlignedVector<Vec3> x_v, oldx_v;
     AlignedVector<Vec3> delta_x;
 
+    std::vector<double> chi2_per_point, chi2_per_point_new;
     // ============= Multi Threading Stuff ===========
     int threads = 1;
     std::vector<AlignedVector<DiagType>> diagTemp;
     std::vector<AlignedVector<ResType>> resTemp;
-    std::vector<double> localChi2;
     // ============== LM Functions ==============
 
-    virtual void init() override;
-    virtual double computeQuadraticForm() override;
-    virtual void addLambda(double lambda) override;
-    virtual bool addDelta() override;
-    virtual void revertDelta() override;
-    virtual void solveLinearSystem() override;
-    virtual double computeCost() override;
-    virtual void finalize() override;
+    virtual void init();
+    void solve();
+    virtual double computeQuadraticForm();
+    virtual void addLambda(double lambda);
+    virtual bool addDelta();
+    virtual void solveLinearSystem();
+    virtual double computeCost();
+    virtual void finalize();
 
-    virtual void setThreadCount(int n) override { threads = n; }
-    virtual bool supportOMP() override { return true; }
+    virtual void setThreadCount(int n) { threads = n; }
+    virtual bool supportOMP() { return true; }
 };
 
 

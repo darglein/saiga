@@ -102,7 +102,6 @@ double PoseGraph::chi2()
 void PoseGraph::save(const std::string& file)
 {
     std::cout << "Saving PoseGraph to " << file << "." << std::endl;
-    std::cout << "chi2 " << chi2() << std::endl;
     std::ofstream strm(file);
     SAIGA_ASSERT(strm.is_open());
     strm.precision(20);
@@ -111,7 +110,7 @@ void PoseGraph::save(const std::string& file)
     strm << vertices.size() << " " << edges.size() << " " << (int)fixScale << std::endl;
     for (auto& e : vertices)
     {
-        strm << e.constant << " " << e.Pose().params().transpose() << std::endl;
+        strm << e.constant << " " << e.T_w_i.params().transpose() << std::endl;
     }
     for (auto& e : edges)
     {
@@ -152,7 +151,7 @@ void PoseGraph::load(const std::string& file)
     fixScale = _fixScale;
     vertices.resize(num_vertices);
     edges.resize(num_edges);
-    std::cout << "Vertices/Edges: " << num_vertices << "/" << num_edges << std::endl;
+
 
     for (auto& e : vertices)
     {
@@ -164,18 +163,11 @@ void PoseGraph::load(const std::string& file)
 
     for (auto& e : edges)
     {
-        Sophus::Vector<double, SE3::num_parameters> from_v;
+        Sophus::Vector<double, 8> from_v;
         strm >> e.from >> e.to >> e.weight;
         strm >> from_v;
-
-        Eigen::Map<Sophus::Vector<double, SE3::num_parameters>> from_map(e.T_i_j.data());
-        from_map = from_v;
-
-        //        SAIGA_ASSERT(e.from_pose.scale() == 1);
-        //        e.setRel(poses[e.from].se3, poses[e.to].se3);
+        e.T_i_j = DSim3(from_v);
     }
-    std::sort(edges.begin(), edges.end());
-    sortEdges();
 }
 
 void PoseGraph::AddVertexEdge(int from, int to, double weight)

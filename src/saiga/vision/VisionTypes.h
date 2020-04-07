@@ -73,23 +73,6 @@ SAIGA_VISION_API extern Mat3 enforceRank2(const Mat3& M);
 
 SAIGA_VISION_API extern Vec3 infinityVec3();
 
-/**
- * Undistorts all points from begin to end and writes them to output.
- */
-template <typename _InputIterator1, typename _InputIterator2, typename _T>
-inline void undistortAll(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __output,
-                         const Intrinsics4Base<_T>& intr, const DistortionBase<_T>& dis)
-{
-    for (; __first1 != __last1; ++__first1, (void)++__output)
-    {
-        auto tmp  = *__first1;  // make sure it works inplace
-        tmp       = intr.unproject2(tmp);
-        tmp       = undistortNormalizedPoint(tmp, dis);
-        tmp       = intr.normalizedToImage(tmp);
-        *__output = tmp;
-    }
-}
-
 
 }  // namespace Saiga
 

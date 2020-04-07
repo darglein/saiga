@@ -203,7 +203,17 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         }
     }
 
-    Imu::Frame ImuDataForFrame(int frame) override { return imuDataForFrame[frame]; }
+    Imu::Frame ImuDataForFrame(int frame) override
+    {
+        if (frame < imuDataForFrame.size())
+        {
+            return imuDataForFrame[frame];
+        }
+        else
+        {
+            return {};
+        }
+    }
 
     virtual std::optional<Imu::Sensor> getIMU() override
     {

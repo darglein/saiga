@@ -16,23 +16,20 @@ class RegistrationTest
     {
         // Get random ground truth
         groundTruthTransformation      = Random::randomSE3();
-        groundTruthTransformationScale = sim3(groundTruthTransformation, gtscale);
+        groundTruthTransformationScale = DSim3(groundTruthTransformation, gtscale);
 
 
         std::cout << groundTruthTransformation << std::endl;
         std::cout << groundTruthTransformationScale << std::endl;
-        auto test = se3Scale(groundTruthTransformationScale);
-        std::cout << test.first << " " << test.second << std::endl;
+        std::cout << groundTruthTransformationScale << std::endl;
         std::cout << std::endl;
 
         std::cout << groundTruthTransformationScale.inverse() << std::endl;
-        test = se3Scale(groundTruthTransformationScale.inverse());
-        std::cout << test.first << " " << test.second << std::endl;
 
 
         std::cout << std::endl;
-        Quat eigR = groundTruthTransformationScale.rxso3().quaternion().normalized();
-        Vec3 eigt = groundTruthTransformationScale.translation();
+        Quat eigR = groundTruthTransformationScale.se3().unit_quaternion();
+        Vec3 eigt = groundTruthTransformationScale.se3().translation();
         double s  = groundTruthTransformationScale.scale();
         eigt *= (1. / s);  //[R t/s;0 1]
 
@@ -40,7 +37,7 @@ class RegistrationTest
 
         std::cout << correctedTiw << std::endl;
         std::cout << correctedTiw.inverse() << std::endl;
-        std::cout << se3Scale(groundTruthTransformationScale.inverse()).first.inverse() << std::endl;
+        std::cout << groundTruthTransformationScale << std::endl;
 
 
         std::terminate();
@@ -78,13 +75,13 @@ class RegistrationTest
         {
             SE3 r           = Random::randomSE3();
             r.translation() = points[i];
-            Sim3 rs         = sim3(r, 1.0);
+            DSim3 rs        = DSim3(r, 1.0);
 
             gt.emplace_back(i, r);
             tracking.emplace_back(i, invT * r);
 
-            Sim3 transformedSe3 = invTs * rs;
-            SE3 backToSe3       = se3Scale(transformedSe3).first;
+            DSim3 transformedSe3 = invTs * rs;
+            SE3 backToSe3        = transformedSe3.se3();
 
             trackingScaled.emplace_back(i, backToSe3);
         }
@@ -108,11 +105,10 @@ class RegistrationTest
         double scale;
         auto result = ICP::pointToPointDirect(pointCloudScaled, &scale);
 
-        auto [gtse3, gts] = se3Scale(groundTruthTransformationScale);
 
-        auto et = translationalError(gtse3, result);
-        auto rt = rotationalError(gtse3, result);
-        auto es = std::abs(gts - scale);
+        auto et = translationalError(groundTruthTransformationScale.se3(), result);
+        auto rt = rotationalError(groundTruthTransformationScale.se3(), result);
+        auto es = std::abs(groundTruthTransformationScale.scale() - scale);
 
         std::cout << "Error T/R/S: " << et << " " << rt << " " << es << std::endl;
         std::cout << std::endl;
@@ -144,7 +140,7 @@ class RegistrationTest
     SE3 groundTruthTransformation;
     AlignedVector<ICP::Correspondence> pointCloud;
 
-    Sim3 groundTruthTransformationScale;
+    DSim3 groundTruthTransformationScale;
     AlignedVector<ICP::Correspondence> pointCloudScaled;
 
 

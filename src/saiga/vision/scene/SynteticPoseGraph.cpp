@@ -124,26 +124,6 @@ PoseGraph CircleWithDrift(double radius, int num_vertices, int num_connections, 
         pg.vertices.back().T_w_i.scale() = 1.0 / pow(scale_drift, num_vertices - 1);
     }
 
-    {
-        // add "loop edges" from last to first few, using the transformed pose
-        int i = pg.vertices.size() - 1;
-        for (int j = 1; j < num_connections; ++j)
-        {
-            //            pg.AddVertexEdge(i, (i + j) % num_vertices, 1.0);
-
-            //            SE3 drift = Sophus::se3_expd(Sophus::Vector6d::Random() * sigma);
-            //            PoseEdge pe;
-            //            pe.from   = i;
-            //            pe.to     = (i + j) % num_vertices;
-            //            pe.weight = 1;
-            //            pe.setRel(pg.vertices[i].Pose(), pg.vertices[pe.to].Pose());
-            //            pe.T_i_j = drift * pe.T_i_j;
-            //            pg.edges.push_back(pe);
-        }
-    }
-
-
-
     pg.sortEdges();
 
     return pg;

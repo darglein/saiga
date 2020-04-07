@@ -33,11 +33,42 @@ void BAPointOnly::init()
     }
 
     // ===== Threading Tmps ======
-    localChi2.resize(threads);
     diagTemp.resize(threads - 1);
     resTemp.resize(threads - 1);
     for (auto& a : diagTemp) a.resize(n);
     for (auto& a : resTemp) a.resize(n);
+
+    chi2_per_point.resize(n);
+    chi2_per_point_new.resize(n);
+}
+
+void BAPointOnly::solve()
+{
+    std::cout << "BAPointOnly " << optimizationOptions.maxIterations << std::endl;
+    for (auto k = 0; k < optimizationOptions.maxIterations; ++k)
+    {
+        auto chi2_before = computeQuadraticForm();
+        addLambda(1e-4);
+        solveLinearSystem();
+        addDelta();
+        auto chi2 = computeCost();
+
+        for (int i = 0; i < n; ++i)
+        {
+            // revert if chi2 got worse
+            if (chi2_per_point_new[i] > chi2_per_point[i])
+            {
+                x_v[i] = oldx_v[i];
+            }
+        }
+
+        if (optimizationOptions.debugOutput)
+
+        {
+            std::cout << "it " << k << " " << chi2_before << " -> " << chi2 << std::endl;
+        }
+    }
+    finalize();
 }
 
 double BAPointOnly::computeQuadraticForm()
@@ -52,30 +83,23 @@ double BAPointOnly::computeQuadraticForm()
 
     //    double newChi2 = 0;
 
-    int tid = OMP::getThreadNum();
 
-    double& newChi2 = localChi2[tid];
-    newChi2         = 0;
     DiagType* diagArray;
     ResType* resArray;
 
-    if (tid == 0)
-    {
-        // thread 0 directly writes into the recursive matrix
-        diagArray = diagBlocks.data();
-        resArray  = resBlocks.data();
-    }
-    else
-    {
-        diagArray = diagTemp[tid - 1].data();
-        resArray  = resTemp[tid - 1].data();
-    }
 
+    // thread 0 directly writes into the recursive matrix
+    diagArray = diagBlocks.data();
+    resArray  = resBlocks.data();
+
+
+    double chi2_sum = 0;
     // every thread has to zero its own local copy
     for (int i = 0; i < n; ++i)
     {
         diagArray[i].setZero();
         resArray[i].setZero();
+        chi2_per_point[i] = 0;
     }
 
 #pragma omp for
@@ -110,10 +134,11 @@ double BAPointOnly::computeQuadraticForm()
                 res *= sqrtrw;
 
                 auto c = res.squaredNorm();
-                newChi2 += c;
+                chi2_per_point[i] += c;
+                chi2_sum += c;
 
                 targetJ += JrowPoint.transpose() * JrowPoint;
-                targetRes -= JrowPoint.transpose() * res;
+                targetRes += JrowPoint.transpose() * res;
             }
             else
             {
@@ -128,43 +153,25 @@ double BAPointOnly::computeQuadraticForm()
                 res *= sqrtrw;
 
                 auto c = res.squaredNorm();
-                newChi2 += c;
+                chi2_per_point[i] += c;
+                chi2_sum += c;
 
                 targetJ += JrowPoint.transpose() * JrowPoint;
-                targetRes -= JrowPoint.transpose() * res;
+                targetRes += JrowPoint.transpose() * res;
             }
         }
     }
-
-#pragma omp for
-    for (int i = 0; i < n; ++i)
-    {
-        for (int j = 0; j < threads - 1; ++j)
-        {
-            diagBlocks[i] += diagTemp[j][i];
-            resBlocks[i] += resTemp[j][i];
-        }
-    }
-
-
-
-    double chi2 = 0;
-    for (int i = 0; i < threads; ++i)
-    {
-        chi2 += localChi2[i];
-    }
-
-    return chi2;
+    return chi2_sum;
 }
 
 double BAPointOnly::computeCost()
 {
-    Scene& scene = *_scene;
-
-    int tid = OMP::getThreadNum();
-
-    double& newChi2 = localChi2[tid];
-    newChi2         = 0;
+    Scene& scene    = *_scene;
+    double chi2_sum = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        chi2_per_point_new[i] = 0;
+    }
 
 #pragma omp for
     for (int i = 0; i < (int)scene.images.size(); ++i)
@@ -197,7 +204,8 @@ double BAPointOnly::computeCost()
                 res *= sqrtrw;
 
                 auto c = res.squaredNorm();
-                newChi2 += c;
+                chi2_per_point_new[i] += c;
+                chi2_sum += c;
             }
             else
             {
@@ -210,18 +218,14 @@ double BAPointOnly::computeCost()
                 res *= sqrtrw;
 
                 auto c = res.squaredNorm();
-                newChi2 += c;
+                chi2_per_point_new[i] += c;
+                chi2_sum += c;
             }
         }
     }
 
-    double chi2 = 0;
-    for (int i = 0; i < threads; ++i)
-    {
-        chi2 += localChi2[i];
-    }
 
-    return chi2;
+    return chi2_sum;
 }
 
 bool BAPointOnly::addDelta()
@@ -235,16 +239,6 @@ bool BAPointOnly::addDelta()
     return true;
 }
 
-
-void BAPointOnly::revertDelta()
-{
-//    x_v = oldx_v;
-#pragma omp for
-    for (int i = 0; i < n; ++i)
-    {
-        x_v[i] = oldx_v[i];
-    }
-}
 
 void BAPointOnly::finalize()
 {

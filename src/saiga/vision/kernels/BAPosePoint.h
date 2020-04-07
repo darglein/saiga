@@ -61,7 +61,6 @@ struct BAPosePointMono
         auto zzinv = 1 / zz;
 
         // =================== Residual ================
-        //        Vec2 proj = camera.project(pc);
         auto x_over_z = x / z;
         auto y_over_z = y / z;
 
