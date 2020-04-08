@@ -132,7 +132,7 @@ void BARec::init()
     //    std::cout << n << " " << totalN << " " << constantN << std::endl;
 
 
-    SAIGA_ASSERT(n > 0 && m > 0);
+    //    SAIGA_ASSERT(n > 0 && m > 0);
 
     A.resize(n, m);
     //    U.resize(n);

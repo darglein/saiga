@@ -108,6 +108,15 @@ class BundleAdjustmentTest
     OptimizationOptions opoptions;
 };
 
+TEST(BundleAdjustment, Empty)
+{
+    Scene scene;
+
+    BARec ba;
+    ba.create(scene);
+    ba.initAndSolve();
+}
+
 TEST(BundleAdjustment, Default)
 {
     for (int i = 0; i < 10; ++i)

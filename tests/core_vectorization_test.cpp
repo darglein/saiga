@@ -146,6 +146,7 @@ TEST(Vectorization, AVX512)
 
 int main()
 {
+    Saiga::CheckVectorInstructions();
     Saiga::CheckEigenVectorAlignment();
     testing::InitGoogleTest();
     return RUN_ALL_TESTS();

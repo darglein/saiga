@@ -44,7 +44,7 @@ void BAPointOnly::init()
 
 void BAPointOnly::solve()
 {
-    std::cout << "BAPointOnly " << optimizationOptions.maxIterations << std::endl;
+    //    std::cout << "BAPointOnly " << optimizationOptions.maxIterations << std::endl;
     for (auto k = 0; k < optimizationOptions.maxIterations; ++k)
     {
         auto chi2_before = computeQuadraticForm();
