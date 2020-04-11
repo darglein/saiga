@@ -21,6 +21,7 @@ void DatasetParameters::fromConfigFile(const std::string& file)
     INI_GETADD_LONG(ini, group, maxFrames);
     INI_GETADD_BOOL(ini, group, multiThreadedLoad);
     INI_GETADD_BOOL(ini, group, only_first_image);
+    INI_GETADD_BOOL(ini, group, preload);
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 }  // namespace Saiga

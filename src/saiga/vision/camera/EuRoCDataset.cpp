@@ -295,38 +295,44 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
         int N = assos.size();
         frames.resize(N);
 
+        stereo_image_files.resize(N);
 
-        SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
-#    pragma omp parallel for if (params.multiThreadedLoad)
         for (int i = 0; i < N; ++i)
         {
             auto a      = assos[i];
             auto& frame = frames[i];
+            frame.id    = i;
 
 
             std::string leftFile  = params.dir + "/cam0/data/" + cam0_images[a.left].second;
             std::string rightFile = params.dir + "/cam1/data/" + cam1_images[a.right].second;
+            stereo_image_files[i] = {leftFile, rightFile};
 
-            frame.id = i;
             if (a.gtlow >= 0 && a.gthigh >= 0 && a.gtlow != a.gthigh)
             {
-                //                Vec3 gtpos =
-                //                    (1.0 - a.gtAlpha) * ground_truth[a.gtlow].second + a.gtAlpha *
-                //                    ground_truth[a.gthigh].second;
                 frame.groundTruth = slerp(ground_truth[a.gtlow].second, ground_truth[a.gthigh].second, a.gtAlpha);
-
-                if (!params.only_first_image || i == 0)
-                {
-                    frame.grayImg.load(leftFile);
-                    frame.grayImg2.load(rightFile);
-                }
             }
             frame.timeStamp = cam0_images[a.left].first / 1e9;
-            loadingBar.addProgress(1);
+
+            if (params.preload)
+            {
+                LoadImageData(frame);
+            }
         }
     }
 
     computeImuDataPerFrame();
+}
+
+void EuRoCDataset::LoadImageData(StereoFrameData& data)
+{
+    // Load if it's not loaded already
+    if (data.grayImg.rows == 0)
+    {
+        auto& str = stereo_image_files[data.id];
+        data.grayImg.load(str.first);
+        data.grayImg2.load(str.second);
+    }
 }
 
 

@@ -83,6 +83,9 @@ struct SAIGA_VISION_API DatasetParameters
     // This can be used to save disk usage, if, for example, the features are precomputed and stored in a file.
     bool only_first_image = false;
 
+    // Load all images to ram at the beginning.
+    bool preload = true;
+
     void fromConfigFile(const std::string& file);
 };
 
@@ -127,7 +130,12 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         }
 
 
-        auto&& img = frames[this->currentId];
+        auto& img = frames[this->currentId];
+        SAIGA_ASSERT(this->currentId == img.id);
+        if (!params.only_first_image || this->currentId == 0)
+        {
+            LoadImageData(img);
+        }
         this->currentId++;
         data = std::move(img);
         return true;
@@ -135,6 +143,9 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
     virtual bool isOpened() override { return this->currentId < (int)frames.size(); }
     size_t getFrameCount() { return frames.size(); }
+
+
+    virtual void LoadImageData(FrameType& data) {}
 
     // Saves the groundtruth in TUM-Trajectory format:
     // <timestamp> <translation x y z> <rotation x y z w>
