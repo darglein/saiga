@@ -32,7 +32,7 @@ class TwoViewReconstruction
     // must be called once before running compute!
     void init(const RansacParameters& fivePointParams) { fpr.init(fivePointParams); }
 
-    inline void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2);
+    inline void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, int threads);
     inline int NumPointWithAngleAboveThreshold(double angle);
 
     inline double medianAngle();
@@ -105,55 +105,51 @@ TwoViewReconstruction::TwoViewReconstruction()
 
 
 
-void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2)
+void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, int threads)
 {
     N = points1.size();
     inliers.clear();
     inliers.reserve(N);
     inlierMask.resize(N);
 
-    //    inlierCount = computeERansac(points1.data(), points2.data(), points1.size(), E, T(), inliers, inlierMask);
+    pose1() = SE3();
 
-    //#pragma omp parallel num_threads(1)
-    //    {
-    pose1()     = SE3();
-    inlierCount = fpr.solve(points1, points2, E, pose2(), inliers, inlierMask);
-    //    }
-
-
-    // triangulate points
     scene.worldPoints.clear();
-    scene.worldPoints.reserve(inlierCount);
-
-    //    scene.extrinsics[1].se3 = T();
-
     scene.images[0].stereoPoints.resize(N);
     scene.images[1].stereoPoints.resize(N);
     scene.worldPoints.resize(N);
 
-    for (int i = 0; i < N; ++i)
+
+#pragma omp parallel num_threads(threads)
     {
-        auto&& wp  = scene.worldPoints[i];
-        auto&& ip1 = scene.images[0].stereoPoints[i];
-        auto&& ip2 = scene.images[1].stereoPoints[i];
-        if (!inlierMask[i])
+        inlierCount = fpr.solve(points1, points2, E, pose2(), inliers, inlierMask);
+
+        // triangulate points
+#pragma omp for
+        for (int i = 0; i < N; ++i)
         {
-            // outlier
-            wp.valid = false;
-            ip1.wp   = -1;
-            ip2.wp   = -1;
-            continue;
+            auto&& wp  = scene.worldPoints[i];
+            auto&& ip1 = scene.images[0].stereoPoints[i];
+            auto&& ip2 = scene.images[1].stereoPoints[i];
+            if (!inlierMask[i])
+            {
+                // outlier
+                wp.valid = false;
+                ip1.wp   = -1;
+                ip2.wp   = -1;
+                continue;
+            }
+
+            // inlier
+            wp.p     = triangulation.triangulateHomogeneous(pose1(), pose2(), points1[i], points2[i]);
+            wp.valid = true;
+
+            ip1.wp    = i;
+            ip1.point = points1[i];
+
+            ip2.wp    = i;
+            ip2.point = points2[i];
         }
-
-        // inlier
-        wp.p     = triangulation.triangulateHomogeneous(pose1(), pose2(), points1[i], points2[i]);
-        wp.valid = true;
-
-        ip1.wp    = i;
-        ip1.point = points1[i];
-
-        ip2.wp    = i;
-        ip2.point = points2[i];
     }
     scene.fixWorldPointReferences();
     SAIGA_ASSERT(scene);

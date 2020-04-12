@@ -274,6 +274,39 @@ struct BruteForceMatcher
         }
     }
 
+    void matchKnn2_omp(Saiga::ArrayView<DescriptorORB> desc1, Saiga::ArrayView<DescriptorORB> desc2, int threads)
+    {
+        knn2.resize(desc1.size(), 2);
+
+#pragma omp parallel for num_threads(threads)
+        for (int i = 0; i < desc1.size(); ++i)
+        {
+            // init best to infinity distance
+            knn2(i, 0) = {1000, -1};
+            knn2(i, 1) = knn2(i, 0);
+
+
+            for (int j = 0; j < desc2.size(); ++j)
+            {
+                auto dis = distance(desc1[i], desc2[j]);
+
+                if (dis < knn2(i, 0).first)
+                {
+                    // set second best to old best
+                    knn2(i, 1) = knn2(i, 0);
+                    // create new best
+                    knn2(i, 0).first  = dis;
+                    knn2(i, 0).second = j;
+                }
+                else if (dis < knn2(i, 1).first)
+                {
+                    // override second best
+                    knn2(i, 1).first  = dis;
+                    knn2(i, 1).second = j;
+                }
+            }
+        }
+    }
 
     /**
      * Filter matches by ratio test and threshold.

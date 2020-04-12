@@ -322,6 +322,8 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
     }
 
     computeImuDataPerFrame();
+
+    std::cout << "Loading done." << std::endl;
 }
 
 void EuRoCDataset::LoadImageData(StereoFrameData& data)
