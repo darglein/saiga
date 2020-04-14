@@ -8,12 +8,18 @@
 #include "saiga/core/image/freeimage.h"
 #include "saiga/core/image/png_wrapper.h"
 #include "saiga/core/math/random.h"
+#include "saiga/core/time/all.h"
 #include "saiga/core/util/FileSystem.h"
 
 #include "internal/stb_image_read_wrapper.h"
 #include "internal/stb_image_write_wrapper.h"
 
 #include "gtest/gtest.h"
+
+#ifdef SAIGA_USE_OPENCV
+#    include "saiga/extra/opencv/opencv.h"
+#endif
+
 using namespace Saiga;
 
 
@@ -36,10 +42,10 @@ void testSaveLoadLibPNG(const TemplatedImage<T>& img)
 #ifdef SAIGA_USE_PNG
     std::string file = "loadstoretest_libpng.png";
     std::filesystem::remove(file);
-    EXPECT_TRUE(PNG::save(img, file));
+    EXPECT_TRUE(LibPNG::save(file, img));
 
     TemplatedImage<T> img2;
-    EXPECT_TRUE(PNG::load(img2, file));
+    EXPECT_TRUE(LibPNG::load(file, img2));
 
     EXPECT_EQ(img.dimensions(), img2.dimensions());
     EXPECT_EQ(img, img2);
@@ -160,4 +166,63 @@ TEST(ImageLoadStore, F1)
     using T  = float;
     auto img = randomImage<T>(128, 128);
     //    testSaveLoadFreeimage(img, "tiff");
+}
+
+TEST(ImageLoadStoreBenchmark, PNG_UC4)
+{
+    using T  = ucvec4;
+    auto img = randomImage<T>(512, 512);
+
+
+#ifdef SAIGA_USE_PNG
+    {
+        std::string file   = "loadstoretest_libpng.png";
+        auto store_measure = measureObject(50, [&]() {
+            std::filesystem::remove(file);
+            EXPECT_TRUE(LibPNG::save(file, img));
+        });
+
+        auto load_measure = measureObject(50, [&]() {
+            TemplatedImage<T> img2;
+            EXPECT_TRUE(LibPNG::load(file, img2));
+        });
+
+        std::cout << "LibPNG Median Store Time: " << store_measure.median << std::endl;
+        std::cout << "LibPNG Median Load Time: " << load_measure.median << std::endl;
+    }
+#endif
+
+#ifdef SAIGA_USE_FREEIMAGE
+    {
+        std::string file   = "loadstoretest_freeimage.png";
+        auto store_measure = measureObject(50, [&]() {
+            std::filesystem::remove(file);
+            EXPECT_TRUE(FIP::save(file, img));
+        });
+
+        auto load_measure = measureObject(50, [&]() {
+            TemplatedImage<T> img2;
+            EXPECT_TRUE(FIP::load(file, img2, 0));
+        });
+
+        std::cout << "Freeimage Median Store Time: " << store_measure.median << std::endl;
+        std::cout << "Freeimage Median Load Time: " << load_measure.median << std::endl;
+    }
+#endif
+
+#ifdef SAIGA_USE_OPENCV
+    {
+        std::string file   = "loadstoretest_opencv.png";
+        auto m             = Saiga::ImageViewToMat(img.getImageView());
+        auto store_measure = measureObject(50, [&]() {
+            std::filesystem::remove(file);
+            cv::imwrite(file, m);
+        });
+
+        auto load_measure = measureObject(50, [&]() { cv::Mat img2 = cv::imread(file); });
+
+        std::cout << "OpenCV Median Store Time: " << store_measure.median << std::endl;
+        std::cout << "OpenCV Median Load Time: " << load_measure.median << std::endl;
+    }
+#endif
 }

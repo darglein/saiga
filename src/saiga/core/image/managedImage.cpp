@@ -123,7 +123,7 @@ bool Image::load(const std::string& _path)
     // use libpng for png images
     if (type == "png")
     {
-        return PNG::load(*this, path, false);
+        return LibPNG::load(path, *this, false);
     }
 #endif
 
@@ -169,7 +169,7 @@ bool Image::save(const std::string& path) const
     // use libpng for png images
     if (type == "png")
     {
-        return PNG::save(*this, path, false);
+        return LibPNG::save(path, *this, false);
     }
 #endif
 

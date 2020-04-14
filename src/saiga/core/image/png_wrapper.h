@@ -20,47 +20,12 @@
 
 namespace Saiga
 {
-namespace PNG
+namespace LibPNG
 {
-using uchar = unsigned char;
+SAIGA_CORE_API bool save(const std::string& path, const Image& img, bool invertY = false);
+SAIGA_CORE_API bool load(const std::string& path, Image& img, bool invertY = false);
 
-struct SAIGA_CORE_API PngImage
-{
-    // image size
-    size_t width, height;
-
-    // number of bits per color. 8 for basic rgb(a) images
-    int bit_depth;
-    // PNG_COLOR_TYPE_GRAY,PNG_COLOR_TYPE_GRAY_ALPHA,PNG_COLOR_TYPE_RGB, PNG_COLOR_TYPE_RGB_ALPHA
-    int color_type;
-
-    // raw image data
-    std::vector<uchar> data;
-    uchar* data2;
-
-    int rowAlignment = 4;
-    size_t bytesPerRow;
-
-
-    void* rowPtr(int i) { return data.data() + bytesPerRow * i; }
-    ImageType saigaType() const;
-    void fromSaigaType(ImageType t);
-};
-
-
-//    SAIGA_LOCAL void pngVersionInfo();
-
-//    SAIGA_LOCAL bool readPNG (PngImage *img, const std::string &path, bool invertY = false);
-//    SAIGA_LOCAL bool writePNG(PngImage *img, const std::string &path, bool invertY = false);
-
-//    SAIGA_LOCAL void convert(PNG::PngImage& src, Image& dst);
-//    SAIGA_LOCAL void convert(Image &src, PNG::PngImage &dst);
-
-
-SAIGA_CORE_API bool save(const Image& img, const std::string& path, bool invertY = false);
-SAIGA_CORE_API bool load(Image& img, const std::string& path, bool invertY = false);
-
-}  // namespace PNG
+}  // namespace LibPNG
 }  // namespace Saiga
 
 #endif
