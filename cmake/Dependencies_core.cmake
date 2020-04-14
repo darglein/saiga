@@ -16,7 +16,7 @@ unset(MODULE_CORE)
 find_package(GLM QUIET)
 PackageHelper(GLM "${GLM_FOUND}" "${GLM_INCLUDE_DIRS}" "")
 if (GLM_FOUND)
-    SET(SAIGA_USE_GLM 1)
+  SET(SAIGA_USE_GLM 1)
 endif()
 
 #Eigen is now required
@@ -26,7 +26,7 @@ SET(SAIGA_USE_EIGEN 1)
 
 #dbghelp for crash.cpp
 if(WIN32)
-    SET(LIBS ${LIBS} DbgHelp)
+  SET(LIBS ${LIBS} DbgHelp)
 endif(WIN32)
 
 ############# Optional Libraries ###############
@@ -36,7 +36,7 @@ endif(WIN32)
 # SDL2
 find_package(SDL2 QUIET)
 if (SDL2_FOUND)
-    SET(SAIGA_USE_SDL 1)
+  SET(SAIGA_USE_SDL 1)
 endif()
 PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
 
@@ -44,7 +44,7 @@ PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
 #GLFW
 find_package(GLFW 3.2 QUIET)
 if (GLFW_FOUND)
-    SET(SAIGA_USE_GLFW 1)
+  SET(SAIGA_USE_GLFW 1)
 endif ()
 PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
 
@@ -53,7 +53,7 @@ PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
 #openal
 find_package(OpenAL QUIET)
 if(OPENAL_FOUND)
-    SET(SAIGA_USE_OPENAL 1)
+  SET(SAIGA_USE_OPENAL 1)
 endif()
 PackageHelper(OpenAL ${OPENAL_FOUND} "${OPENAL_INCLUDE_DIR}" "${OPENAL_LIBRARY}")
 
@@ -61,7 +61,7 @@ PackageHelper(OpenAL ${OPENAL_FOUND} "${OPENAL_INCLUDE_DIR}" "${OPENAL_LIBRARY}"
 #alut
 find_package(ALUT QUIET)
 if(ALUT_FOUND)
-    SET(SAIGA_USE_ALUT 1)
+  SET(SAIGA_USE_ALUT 1)
 endif()
 PackageHelper(ALUT ${ALUT_FOUND} "${ALUT_INCLUDE_DIRS}" "${ALUT_LIBRARIES}")
 
@@ -69,28 +69,31 @@ PackageHelper(ALUT ${ALUT_FOUND} "${ALUT_INCLUDE_DIRS}" "${ALUT_LIBRARIES}")
 #opus
 find_package(Opus QUIET)
 if(OPUS_FOUND)
-    SET(SAIGA_USE_OPUS 1)
+  SET(SAIGA_USE_OPUS 1)
 endif()
 PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
 
 #openmp
 if(SAIGA_CXX_WCLANG)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
-    find_library(OMP_LIB libomp PATH_SUFFIXES lib)
-    message(STATUS ${OMP_LIB})
-    SET(LIBS ${LIBS} ${OMP_LIB})
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
+  find_library(OMP_LIB libomp PATH_SUFFIXES lib)
+  message(STATUS ${OMP_LIB})
+  SET(LIBS ${LIBS} ${OMP_LIB})
 else()
-    find_package(OpenMP)
-    if(OPENMP_FOUND)
-        # This line doesn't work with nvcc + gcc8.3. Just uncomment it.
-        if(SAIGA_CXX_GNU)
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-            PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
-        else()
-            PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
-        endif()
-    endif()
+  find_package(OpenMP)
+  PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
+  if(OPENMP_FOUND)
+    list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
+  endif()
+
+  #        # This line doesn't work with nvcc + gcc8.3. Just uncomment it.
+  #        if(SAIGA_CXX_GNU)
+  #            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  #        else()
+  #            PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
+  #        endif()
+  #    endif()
 endif()
 
 
@@ -102,13 +105,13 @@ PackageHelper(FreeImagePlus ${FREEIMAGEPLUS_FOUND} "${FREEIMAGEPLUS_INCLUDE_PATH
 find_package(FreeImage QUIET)
 PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_PATH}" "${FREEIMAGE_LIBRARIES}")
 if(FREEIMAGE_FOUND AND FREEIMAGEPLUS_FOUND)
-    SET(SAIGA_USE_FREEIMAGE 1)
+  SET(SAIGA_USE_FREEIMAGE 1)
 endif()
 
 #png
 find_package(PNG QUIET)
 if(PNG_FOUND)
-    SET(SAIGA_USE_PNG 1)
+  SET(SAIGA_USE_PNG 1)
 endif()
 PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
 
@@ -124,7 +127,7 @@ PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
 #openmesh
 find_package(OpenMesh QUIET)
 if(OPENMESH_FOUND)
-    SET(SAIGA_USE_OPENMESH 1)
+  SET(SAIGA_USE_OPENMESH 1)
 endif()
 PackageHelper(OpenMesh ${OPENMESH_FOUND} "${OPENMESH_INCLUDE_DIRS}" "${OPENMESH_LIBRARIES}")
 

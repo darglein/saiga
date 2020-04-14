@@ -69,11 +69,11 @@ endif()
 PackageHelperTarget(ceres CERES_FOUND)
 
 #cholmod
-find_package(Cholmod REQUIRED)
+find_package(CHOLMOD REQUIRED)
 if(CHOLMOD_FOUND)
     SET(SAIGA_USE_CHOLMOD 1)
 endif()
-PackageHelper(Cholmod ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIES}")
+PackageHelper(CHOLMOD ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIES}")
 
 
 

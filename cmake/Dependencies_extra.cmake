@@ -35,8 +35,8 @@ PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRAR
 
 
 #gphoto2
-find_package(Gphoto2 QUIET)
-PackageHelper(Gphoto2 "${GPHOTO2_FOUND}" "${Gphoto2_INCLUDE_DIRS}" "${Gphoto2_LIBRARIES}")
+find_package(GPHOTO2 QUIET)
+PackageHelper(GPHOTO2 "${GPHOTO2_FOUND}" "${Gphoto2_INCLUDE_DIRS}" "${Gphoto2_LIBRARIES}")
 if(GPHOTO2_FOUND)
     SET(SAIGA_USE_GPHOTO2 1)
 endif()
