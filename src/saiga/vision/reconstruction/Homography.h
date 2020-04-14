@@ -46,6 +46,7 @@ class SAIGA_VISION_API HomographyRansac : public RansacBase<HomographyRansac, Ma
     using Model = Mat3;
 
    public:
+    HomographyRansac(){}
     HomographyRansac(const RansacParameters& params) : Base(params) {}
 
     int solve(ArrayView<const Vec2> _points1, ArrayView<const Vec2> _points2, Mat3& bestH)

@@ -561,6 +561,7 @@ class FivePointRansac : public RansacBase<FivePointRansac, std::pair<Mat3, SE3>,
 
 #pragma omp single
         {
+            //            std::cout << "best idx " << idx << std::endl;
             bestE = models[idx].first;
             bestT = models[idx].second;
 

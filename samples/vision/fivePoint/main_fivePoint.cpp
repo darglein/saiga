@@ -12,6 +12,7 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/reconstruction/FivePoint.h"
+#include "saiga/vision/reconstruction/TwoViewReconstruction.h"
 #include "saiga/vision/scene/Scene.h"
 #include "saiga/vision/util/Features.h"
 
@@ -94,16 +95,36 @@ int main(int, char**)
         double epipolarTheshold   = 1.5 / 535.4;
         rparams.residualThreshold = epipolarTheshold * epipolarTheshold;
         rparams.reserveN          = 2000;
-        rparams.threads           = 4;
-        FivePointRansac fran(rparams);
+        rparams.threads           = 8;
 
-        SAIGA_BLOCK_TIMER();
 
-#pragma omp parallel num_threads(rparams.threads)
+        for (int i = 0; i < 1; ++i)
         {
-            num = fran.solve(npoints1, npoints2, E, rel, inliers, inlierMask);
+            SAIGA_BLOCK_TIMER();
+            FivePointRansac fran(rparams);
+#pragma omp parallel num_threads(rparams.threads)
+            {
+                num = fran.solve(npoints1, npoints2, E, rel, inliers, inlierMask);
+            }
+            std::cout << num << std::endl;
         }
         SAIGA_ASSERT(num == inliers.size());
+
+
+
+        TwoViewReconstruction tvr;
+        tvr.init(rparams);
+        for (int i = 0; i < 50; ++i)
+        {
+            SAIGA_BLOCK_TIMER();
+            tvr.compute(npoints1, npoints2, rparams.threads);
+            //            std::cout << tvr.inlierCount << std::endl;
+        }
+    }
+
+    return 0;
+
+    {
     }
 
 

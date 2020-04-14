@@ -82,11 +82,11 @@ class RansacBase
         int tid = OMP::getThreadNum();
         // compute random sample subsets
         std::uniform_int_distribution<int> dis(0, N - 1);
-        auto&& gen = generators[tid];
+        auto& gen = generators[tid];
 
 
-        auto&& bestModel = threadLocalBestModel[tid]();
-        bestModel        = {0, 0};
+        auto& bestModel = threadLocalBestModel[tid]();
+        bestModel       = {0, 0};
 
 
 #pragma omp for
@@ -132,9 +132,10 @@ class RansacBase
             int bestCount = 0;
             for (int th = 0; th < params.threads; ++th)
             {
-                auto&& thbestModel = threadLocalBestModel[tid]();
+                auto&& thbestModel = threadLocalBestModel[th]();
                 auto inl           = thbestModel.first;
                 auto it            = thbestModel.second;
+                //                std::cout << "th best " << th << " " << it << " " << inl << std::endl;
                 if (inl > bestCount)
                 {
                     bestCount = inl;

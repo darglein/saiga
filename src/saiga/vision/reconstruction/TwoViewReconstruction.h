@@ -123,8 +123,6 @@ void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<con
 #pragma omp parallel num_threads(threads)
     {
         inlierCount = fpr.solve(points1, points2, E, pose2(), inliers, inlierMask);
-
-        // triangulate points
 #pragma omp for
         for (int i = 0; i < N; ++i)
         {
@@ -153,7 +151,7 @@ void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<con
     }
     scene.fixWorldPointReferences();
     SAIGA_ASSERT(scene);
-}
+}  // namespace Saiga
 
 double TwoViewReconstruction::medianAngle()
 {
