@@ -43,6 +43,8 @@ else ()
 endif()
 
 target_compile_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_CXX_FLAGS}>")
+target_link_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_LD_FLAGS}>")
+
 #target_compile_options(${MODULE_NAME}  PUBLIC ${SAIGA_CXX_FLAGS})
 set_target_properties(${MODULE_NAME} PROPERTIES CXX_STANDARD 17)
 target_link_libraries(${MODULE_NAME} PUBLIC ${CORE_LIBS} ${CORE_TARGETS} )

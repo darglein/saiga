@@ -85,6 +85,7 @@ else()
   PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
   if(OPENMP_FOUND)
     list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
+    list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
   endif()
 
   #        # This line doesn't work with nvcc + gcc8.3. Just uncomment it.
