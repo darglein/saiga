@@ -83,6 +83,9 @@ struct SAIGA_VISION_API DatasetParameters
     // This can be used to save disk usage, if, for example, the features are precomputed and stored in a file.
     bool only_first_image = false;
 
+    // Force monocular load. Don't load second image or depth map for stereo and rgbd sensors.
+    bool force_monocular = false;
+
     // Load all images to ram at the beginning.
     bool preload = true;
 

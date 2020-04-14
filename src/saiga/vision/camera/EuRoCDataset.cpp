@@ -332,8 +332,13 @@ void EuRoCDataset::LoadImageData(StereoFrameData& data)
     if (data.grayImg.rows == 0)
     {
         auto& str = stereo_image_files[data.id];
+
         data.grayImg.load(str.first);
-        data.grayImg2.load(str.second);
+
+        if (!params.force_monocular)
+        {
+            data.grayImg2.load(str.second);
+        }
     }
 }
 
