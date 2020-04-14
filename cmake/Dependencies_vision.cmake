@@ -69,7 +69,7 @@ endif()
 PackageHelperTarget(ceres CERES_FOUND)
 
 #cholmod
-find_package(CHOLMOD REQUIRED)
+find_package(CHOLMOD QUIET)
 if(CHOLMOD_FOUND)
     SET(SAIGA_USE_CHOLMOD 1)
 endif()

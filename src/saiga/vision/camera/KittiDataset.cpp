@@ -159,9 +159,13 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
             if (!params.only_first_image || i == 0)
             {
                 frame.grayImg.load(leftFile);
-                frame.grayImg2.load(rightFile);
                 SAIGA_ASSERT(frame.grayImg);
-                SAIGA_ASSERT(frame.grayImg2);
+
+                if (!params.force_monocular)
+                {
+                    frame.grayImg2.load(rightFile);
+                    SAIGA_ASSERT(frame.grayImg2);
+                }
             }
 
 
