@@ -151,7 +151,7 @@ void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<con
     }
     scene.fixWorldPointReferences();
     SAIGA_ASSERT(scene);
-}  // namespace Saiga
+}
 
 double TwoViewReconstruction::medianAngle()
 {
@@ -164,6 +164,10 @@ double TwoViewReconstruction::medianAngle()
         if (!wp2.valid) continue;
         auto A = TriangulationAngle(c1, c2, wp2.p);
         tmpArray.push_back(A);
+    }
+    if (tmpArray.empty())
+    {
+        return 0;
     }
     std::sort(tmpArray.begin(), tmpArray.end());
     return tmpArray[tmpArray.size() / 2];
@@ -204,6 +208,10 @@ double TwoViewReconstruction::getMedianDepth()
         if (!wp2.valid) continue;
         auto wp = wp2.p;
         tmpArray.push_back(wp.z());
+    }
+    if (tmpArray.empty())
+    {
+        return 0;
     }
     std::sort(tmpArray.begin(), tmpArray.end());
     return tmpArray[tmpArray.size() / 2];
