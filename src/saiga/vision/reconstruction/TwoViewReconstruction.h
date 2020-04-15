@@ -30,7 +30,11 @@ class TwoViewReconstruction
    public:
     inline TwoViewReconstruction();
     // must be called once before running compute!
-    void init(const RansacParameters& fivePointParams) { fpr.init(fivePointParams); }
+    void init(const RansacParameters& fivePointParams)
+    {
+        fpr.init(fivePointParams);
+        tmpArray.reserve(fivePointParams.reserveN);
+    }
 
     inline void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, int threads);
     inline int NumPointWithAngleAboveThreshold(double angle);
