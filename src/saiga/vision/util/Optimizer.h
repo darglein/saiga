@@ -47,6 +47,11 @@ struct SAIGA_VISION_API OptimizationOptions
     double initialLambda = 1.00e-04;
     int numThreads       = 4;
 
+    // Tests if the chi2 has actually decreased.
+    // Strongly recommended to set this to true.
+    // Otherwise the optimizer might decrease the quality
+    bool simple_solver = false;
+
     bool debugOutput = false;
     bool debug       = false;
 

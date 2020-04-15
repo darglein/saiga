@@ -62,7 +62,7 @@ std::ostream& operator<<(std::ostream& strm, const OptimizationOptions& op)
 
 OptimizationResults LMOptimizer::solve()
 {
-    double current_chi2 = 0;
+    double current_chi2 = std::numeric_limits<double>::max();
 
     OptimizationResults result;
     result.linear_solver_time = 0;
@@ -71,6 +71,11 @@ OptimizationResults LMOptimizer::solve()
     //    double test = computeCost();
     //    std::cout << "test : " << test << std::endl;
     //    return result;
+    if (optimizationOptions.debugOutput)
+    {
+        std::cout << "Staring lm solver with " << optimizationOptions.maxIterations << " iterations." << std::endl;
+    }
+
 
     for (auto i = 0; i < optimizationOptions.maxIterations; ++i)
     {
@@ -88,6 +93,27 @@ OptimizationResults LMOptimizer::solve()
             }
         }
 
+        if (optimizationOptions.simple_solver)
+        {
+            if (chi2 > current_chi2)
+            {
+                // revert and break
+                revertDelta();
+                std::cout << "Early terminate  decrease " << std::endl;
+                break;
+            }
+            else if (chi2 + optimizationOptions.minChi2Delta > current_chi2)
+            {
+                std::cout << "Early terminate  " << std::endl;
+                break;
+            }
+            if (optimizationOptions.debugOutput)
+            {
+                std::cout << "It fast " << i << ": " << 0.5 * current_chi2 << " -> " << 0.5 * chi2 << std::endl;
+            }
+            current_chi2 = chi2;
+        }
+
 
 
         addLambda(lambda);
@@ -95,8 +121,6 @@ OptimizationResults LMOptimizer::solve()
         {
             current_chi2        = chi2;
             result.cost_initial = chi2;
-            //            if (optimizationOptions.debugOutput) std::cout << "initial_chi2 = " << 0.5 * current_chi2 <<
-            //            std::endl;
         }
         result.cost_final = chi2;
 
@@ -108,6 +132,12 @@ OptimizationResults LMOptimizer::solve()
         result.linear_solver_time += ltime;
 
         addDelta();
+
+        if (optimizationOptions.simple_solver)
+        {
+            continue;
+        }
+
 
         double newChi2 = computeCost();
 
