@@ -549,8 +549,12 @@ class FivePointRansac : public RansacBase<FivePointRansac, std::pair<Mat3, SE3>,
     int solve(ArrayView<const Vec2> _points1, ArrayView<const Vec2> _points2, Mat3& bestE, SE3& bestT,
               std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
     {
-        points1 = _points1;
-        points2 = _points2;
+#pragma omp single
+        {
+            points1 = _points1;
+            points2 = _points2;
+            N       = points1.size();
+        }
 
 
 

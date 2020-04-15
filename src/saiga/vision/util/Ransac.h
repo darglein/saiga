@@ -78,10 +78,10 @@ class RansacBase
     {
         SAIGA_ASSERT(params.maxIterations > 0);
         SAIGA_ASSERT(OMP::getNumThreads() == params.threads);
-        N       = _N;
+
         int tid = OMP::getThreadNum();
         // compute random sample subsets
-        std::uniform_int_distribution<int> dis(0, N - 1);
+        std::uniform_int_distribution<int> dis(0, _N - 1);
         auto& gen = generators[tid];
 
 
@@ -98,8 +98,8 @@ class RansacBase
             auto& numInlier = numInliers[it];
 
             numInlier = 0;
-            residual.resize(N);
-            inlier.resize(N);
+            residual.resize(_N);
+            inlier.resize(_N);
 
             Subset set;
             for (auto j : Range(0, ModelSize))
@@ -110,7 +110,7 @@ class RansacBase
 
             if (!derived().computeModel(set, model)) continue;
 
-            for (int j = 0; j < N; ++j)
+            for (int j = 0; j < _N; ++j)
             {
                 residual[j] = derived().computeResidual(model, j);
 
@@ -128,6 +128,7 @@ class RansacBase
 
 #pragma omp single
         {
+            N             = _N;
             bestIdx       = 0;
             int bestCount = 0;
             for (int th = 0; th < params.threads; ++th)

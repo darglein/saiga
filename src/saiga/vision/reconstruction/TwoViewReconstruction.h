@@ -126,7 +126,13 @@ void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<con
 
 #pragma omp parallel num_threads(threads)
     {
-        inlierCount = fpr.solve(points1, points2, E, pose2(), inliers, inlierMask);
+        int inl = fpr.solve(points1, points2, E, pose2(), inliers, inlierMask);
+
+        if (OMP::getThreadNum() == 0)
+        {
+            inlierCount = inl;
+        }
+
 #pragma omp for
         for (int i = 0; i < N; ++i)
         {

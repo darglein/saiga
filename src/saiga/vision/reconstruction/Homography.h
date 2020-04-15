@@ -2,6 +2,7 @@
 
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/util/Ransac.h"
+
 #include <array>
 
 // This code here is inspired (and partially copied) from Colmap.
@@ -46,7 +47,7 @@ class SAIGA_VISION_API HomographyRansac : public RansacBase<HomographyRansac, Ma
     using Model = Mat3;
 
    public:
-    HomographyRansac(){}
+    HomographyRansac() {}
     HomographyRansac(const RansacParameters& params) : Base(params) {}
 
     int solve(ArrayView<const Vec2> _points1, ArrayView<const Vec2> _points2, Mat3& bestH)
@@ -58,7 +59,13 @@ class SAIGA_VISION_API HomographyRansac : public RansacBase<HomographyRansac, Ma
 
 #pragma omp parallel num_threads(params.threads)
         {
-            idx = compute(points1.size());
+            int l_idx = compute(points1.size());
+
+            if (OMP::getThreadNum() == 0)
+            {
+                // fix write/write face condition
+                idx = l_idx;
+            }
         }
         bestH = models[idx];
         return numInliers[idx];
