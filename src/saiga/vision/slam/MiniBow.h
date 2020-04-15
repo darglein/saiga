@@ -205,10 +205,10 @@ class BowVector : public std::map<WordId, WordValue>
         }
     }
 };
-class FeatureVector : public std::map<NodeId, std::vector<unsigned int>>
+class FeatureVector : public std::map<NodeId, std::vector<int>>
 {
    public:
-    void addFeature(NodeId id, unsigned int i_feature)
+    void addFeature(NodeId id, int i_feature)
     {
         FeatureVector::iterator vit = this->lower_bound(id);
 
@@ -218,7 +218,7 @@ class FeatureVector : public std::map<NodeId, std::vector<unsigned int>>
         }
         else
         {
-            vit = this->insert(vit, FeatureVector::value_type(id, std::vector<unsigned int>()));
+            vit = this->insert(vit, FeatureVector::value_type(id, std::vector<int>()));
             vit->second.push_back(i_feature);
         }
     }

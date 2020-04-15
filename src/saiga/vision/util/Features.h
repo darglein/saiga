@@ -172,6 +172,7 @@ inline float distance(const DescriptorSIFT& a, const DescriptorSIFT& b)
 }
 
 
+
 template <typename T>
 struct MeanMatcher
 {
@@ -211,6 +212,106 @@ struct MeanMatcher
             }
         }
         return BestIdx;
+    }
+
+    inline T MeanDescriptor(const std::vector<T>& descriptors)
+    {
+        static_assert(std::is_same<T, DescriptorORB>::value, "Only implemented for ORB so far.");
+
+        if (descriptors.empty())
+        {
+            return {};
+        }
+        else if (descriptors.size() == 1)
+        {
+            return descriptors[0];
+        }
+        else
+        {
+            std::vector<int> sum(32 * 8, 0);
+
+            for (size_t i = 0; i < descriptors.size(); ++i)
+            {
+                const auto& d          = descriptors[i];
+                const unsigned char* p = (const unsigned char*)d.data();
+                for (int j = 0; j < 32; ++j, ++p)
+                {
+                    if (*p & (1 << 7)) ++sum[j * 8];
+                    if (*p & (1 << 6)) ++sum[j * 8 + 1];
+                    if (*p & (1 << 5)) ++sum[j * 8 + 2];
+                    if (*p & (1 << 4)) ++sum[j * 8 + 3];
+                    if (*p & (1 << 3)) ++sum[j * 8 + 4];
+                    if (*p & (1 << 2)) ++sum[j * 8 + 5];
+                    if (*p & (1 << 1)) ++sum[j * 8 + 6];
+                    if (*p & (1)) ++sum[j * 8 + 7];
+                }
+            }
+
+            T mean;
+            std::fill(mean.begin(), mean.end(), 0);
+            unsigned char* p = (unsigned char*)mean.data();
+            const int N2     = (int)descriptors.size() / 2 + descriptors.size() % 2;
+            for (size_t i = 0; i < sum.size(); ++i)
+            {
+                if (sum[i] >= N2)
+                {
+                    // set bit
+                    *p |= 1 << (7 - (i % 8));
+                }
+                if (i % 8 == 7) ++p;
+            }
+            return mean;
+        }
+    }
+
+    inline T MeanDescriptorp(const std::vector<const T*>& descriptors)
+    {
+        static_assert(std::is_same<T, DescriptorORB>::value, "Only implemented for ORB so far.");
+
+        if (descriptors.empty())
+        {
+            return {};
+        }
+        else if (descriptors.size() == 1)
+        {
+            return *descriptors[0];
+        }
+        else
+        {
+            std::vector<int> sum(32 * 8, 0);
+
+            for (size_t i = 0; i < descriptors.size(); ++i)
+            {
+                const auto& d          = *descriptors[i];
+                const unsigned char* p = (const unsigned char*)d.data();
+                for (int j = 0; j < 32; ++j, ++p)
+                {
+                    if (*p & (1 << 7)) ++sum[j * 8];
+                    if (*p & (1 << 6)) ++sum[j * 8 + 1];
+                    if (*p & (1 << 5)) ++sum[j * 8 + 2];
+                    if (*p & (1 << 4)) ++sum[j * 8 + 3];
+                    if (*p & (1 << 3)) ++sum[j * 8 + 4];
+                    if (*p & (1 << 2)) ++sum[j * 8 + 5];
+                    if (*p & (1 << 1)) ++sum[j * 8 + 6];
+                    if (*p & (1)) ++sum[j * 8 + 7];
+                }
+            }
+
+            T mean;
+            std::fill(mean.begin(), mean.end(), 0);
+            unsigned char* p = (unsigned char*)mean.data();
+            const int N2     = (int)descriptors.size() / 2 + descriptors.size() % 2;
+            for (size_t i = 0; i < sum.size(); ++i)
+            {
+                if (sum[i] >= N2)
+                {
+                    // set bit
+                    *p |= 1 << (7 - (i % 8));
+                }
+                if (i % 8 == 7) ++p;
+            }
+            return mean;
+        }
     }
 };
 

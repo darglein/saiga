@@ -20,8 +20,8 @@ namespace Saiga
 using Descriptor    = MiniBow::FORB::TDescriptor;
 using OrbVocabulary = MiniBow::TemplatedVocabulary<Descriptor, MiniBow::FORB, MiniBow::L1Scoring>;
 
-using Descriptor2    = MiniBow2::FORB::TDescriptor;
-using OrbVocabulary2 = MiniBow2::TemplatedVocabulary<Descriptor, MiniBow2::FORB, MiniBow2::L1Scoring>;
+using Descriptor2    = MiniBow2::Descriptor;
+using OrbVocabulary2 = MiniBow2::TemplatedVocabulary<Descriptor>;
 
 const int images           = 3;
 const int featuresPerImage = 1000;
@@ -52,20 +52,31 @@ void testVocMatching(const std::vector<std::vector<Descriptor>>& features, OrbVo
     double out = 0;
 
     std::vector<std::pair<MiniBow::BowVector, MiniBow::FeatureVector>> bows(features.size());
-    for (int i = 0; i < features.size(); i++)
+
     {
-        voc.transform(features[i], bows[i].first, bows[i].second, 4);
+        SAIGA_BLOCK_TIMER();
+        for (int k = 0; k < 100; ++k)
+        {
+            for (int i = 0; i < features.size(); i++)
+            {
+                voc.transform(features[i], bows[i].first, bows[i].second, 4);
+            }
+        }
     }
 
 
     {
-        for (int i = 0; i < features.size(); i++)
+        SAIGA_BLOCK_TIMER();
+        for (int k = 0; k < 100; ++k)
         {
-            for (int j = 0; j < features.size(); j++)
+            for (int i = 0; i < features.size(); i++)
             {
-                double score = voc.score(bows[i].first, bows[j].first);
-                out += score;
-                std::cout << "Image " << i << " vs Image " << j << ": " << score << std::endl;
+                for (int j = 0; j < features.size(); j++)
+                {
+                    double score = voc.score(bows[i].first, bows[j].first);
+                    out += score;
+                    //                std::cout << "Image " << i << " vs Image " << j << ": " << score << std::endl;
+                }
             }
         }
     }
@@ -81,24 +92,34 @@ void testVocMatching(const std::vector<std::vector<Descriptor>>& features, OrbVo
     double out = 0;
 
     std::vector<std::pair<MiniBow2::BowVector, MiniBow2::FeatureVector>> bows(features.size());
-    for (int i = 0; i < features.size(); i++)
     {
-        voc.transform(features[i], bows[i].first, bows[i].second, 4);
-    }
-
-
-    {
-        for (int i = 0; i < features.size(); i++)
+        SAIGA_BLOCK_TIMER();
+        for (int k = 0; k < 100; ++k)
         {
-            for (int j = 0; j < features.size(); j++)
+            for (int i = 0; i < features.size(); i++)
             {
-                double score = voc.score(bows[i].first, bows[j].first);
-                out += score;
-                std::cout << "Image " << i << " vs Image " << j << ": " << score << std::endl;
+                voc.transform(features[i], bows[i].first, bows[i].second, 4);
             }
         }
     }
-    //    std::cout << "Score time: " << time / (features.size() * features.size()) << "ms" << std::endl;
+
+
+    {
+        SAIGA_BLOCK_TIMER();
+        for (int k = 0; k < 100; ++k)
+        {
+            for (int i = 0; i < features.size(); i++)
+            {
+                for (int j = 0; j < features.size(); j++)
+                {
+                    double score = voc.score(bows[i].first, bows[j].first);
+                    out += score;
+                    //                std::cout << "Image " << i << " vs Image " << j << ": " << score << std::endl;
+                }
+            }
+        }
+    }
+    //        std::cout << "Score time: " << time / (features.size() * features.size()) << "ms" << std::endl;
 }
 
 
@@ -113,6 +134,49 @@ TEST(Sohpus, SE3_Point)
 
     std::vector<std::vector<Descriptor>> features;
     loadFeatures(features);
+
+
+    MiniBow::BowVector bv;
+    MiniBow::FeatureVector fv;
+
+    MiniBow2::BowVector bv2;
+    MiniBow2::FeatureVector fv2;
+
+    orbVoc.transform(features.front(), bv, fv, 4);
+    orbVoc2.transform(features.front(), bv2, fv2, 4);
+
+    EXPECT_EQ(bv.size(), bv2.size());
+    EXPECT_EQ(fv.size(), fv2.size());
+
+    {
+        auto it1 = bv.begin();
+        auto it2 = bv2.begin();
+
+        while (it1 != bv.end() && it2 != bv2.end())
+        {
+            EXPECT_EQ(it1->first, it2->first);
+            EXPECT_EQ(it1->second, it2->second);
+            ++it1;
+            ++it2;
+        }
+    }
+    {
+        auto it1 = fv.begin();
+        auto it2 = fv2.begin();
+
+        while (it1 != fv.end() && it2 != fv2.end())
+        {
+            EXPECT_EQ(it1->first, it2->first);
+
+            // the feature reference must not be sorted
+            std::sort(it1->second.begin(), it1->second.end());
+            std::sort(it2->second.begin(), it2->second.end());
+            EXPECT_EQ(it1->second, it2->second);
+            ++it1;
+            ++it2;
+        }
+    }
+
 
     std::cout << "Testing Matching with ORB-SLAM Voc..." << std::endl;
     testVocMatching(features, orbVoc);
