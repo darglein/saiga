@@ -47,6 +47,7 @@ if(MODULE_VISION)
   saiga_test(vision_PoseEstimation "saiga_vision")
   saiga_test(vision_numeric_derivative "saiga_vision")
   saiga_test(vision_sophus "saiga_vision")
+  saiga_test(vision_bow "saiga_vision")
 endif()
 
 
