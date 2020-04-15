@@ -16,6 +16,19 @@
 
 namespace Saiga
 {
+OptimizationResults BAPointOnly::initAndSolve()
+{
+    OptimizationResults result;
+    float time = 0;
+    {
+        ScopedTimer tim(time);
+        init();
+        result = solve();
+    }
+    result.total_time = time;
+    return result;
+}
+
 void BAPointOnly::init()
 {
     Scene& scene = *_scene;
@@ -42,16 +55,24 @@ void BAPointOnly::init()
     chi2_per_point_new.resize(n);
 }
 
-void BAPointOnly::solve()
+OptimizationResults BAPointOnly::solve()
 {
+    OptimizationResults result;
     //    std::cout << "BAPointOnly " << optimizationOptions.maxIterations << std::endl;
+    double chi2;
     for (auto k = 0; k < optimizationOptions.maxIterations; ++k)
     {
         auto chi2_before = computeQuadraticForm();
+
+        if (k == 0)
+        {
+            result.cost_initial = chi2_before;
+        }
+
         addLambda(1e-4);
         solveLinearSystem();
         addDelta();
-        auto chi2 = computeCost();
+        chi2 = computeCost();
 
         for (int i = 0; i < n; ++i)
         {
@@ -62,13 +83,17 @@ void BAPointOnly::solve()
             }
         }
 
+
+
         if (optimizationOptions.debugOutput)
 
         {
             std::cout << "it " << k << " " << chi2_before << " -> " << chi2 << std::endl;
         }
     }
+    result.cost_final = chi2;
     finalize();
+    return result;
 }
 
 double BAPointOnly::computeQuadraticForm()

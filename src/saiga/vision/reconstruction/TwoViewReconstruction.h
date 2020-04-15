@@ -150,7 +150,7 @@ void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<con
         }
     }
     scene.fixWorldPointReferences();
-    SAIGA_ASSERT(scene);
+    //    SAIGA_ASSERT(scene);
 }
 
 double TwoViewReconstruction::medianAngle()

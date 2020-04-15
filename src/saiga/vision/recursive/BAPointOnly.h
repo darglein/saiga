@@ -31,11 +31,7 @@ class SAIGA_VISION_API BAPointOnly : public BABase
     OptimizationOptions optimizationOptions;
 
 
-    void initAndSolve()
-    {
-        init();
-        solve();
-    }
+    OptimizationResults initAndSolve();
 
    private:
     int n;
@@ -54,7 +50,7 @@ class SAIGA_VISION_API BAPointOnly : public BABase
     // ============== LM Functions ==============
 
     virtual void init();
-    void solve();
+    OptimizationResults solve();
     virtual double computeQuadraticForm();
     virtual void addLambda(double lambda);
     virtual bool addDelta();

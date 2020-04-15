@@ -1370,8 +1370,8 @@ void TemplatedVocabulary<TDescriptor, F, Scoring>::transform(const TDescriptor& 
                                                              WordValue& weight, NodeId* nid, int levelsup) const
 {
     // propagate the feature down the tree
-    std::vector<NodeId> nodes;
-    typename std::vector<NodeId>::const_iterator nit;
+    //    std::vector<NodeId> nodes;
+    //    typename std::vector<NodeId>::const_iterator nit;
 
     // level at which the node must be stored in nid, if given
     const int nid_level = m_L - levelsup;
@@ -1383,12 +1383,12 @@ void TemplatedVocabulary<TDescriptor, F, Scoring>::transform(const TDescriptor& 
     do
     {
         ++current_level;
-        nodes    = m_nodes[final_id].children;
-        final_id = nodes[0];
+        auto& nodes = m_nodes[final_id].children;
+        final_id    = nodes[0];
 
         double best_d = F::distance(feature, m_nodes[final_id].descriptor);
 
-        for (nit = nodes.begin() + 1; nit != nodes.end(); ++nit)
+        for (auto nit = nodes.begin() + 1; nit != nodes.end(); ++nit)
         {
             NodeId id = *nit;
             double d  = F::distance(feature, m_nodes[id].descriptor);

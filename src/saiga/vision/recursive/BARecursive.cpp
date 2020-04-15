@@ -59,7 +59,11 @@ void BARec::init()
 
 
     // currently the scene must be in a valid state
-    SAIGA_ASSERT(scene);
+
+    if(optimizationOptions.debugOutput)
+    {
+        SAIGA_ASSERT(scene);
+    }
 
     if (optimizationOptions.solverType == OptimizationOptions::SolverType::Direct)
     {
