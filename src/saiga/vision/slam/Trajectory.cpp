@@ -89,7 +89,7 @@ std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A, ArrayView<const 
 
 
         auto [a_id_prev, a_se_prev] = A[i - diff];
-        auto [b_id_prev, b_se_prev] = B[i - diff];
+        auto b_se_prev              = B[i - diff].second;
 
         auto a_rel = a_se.inverse() * a_se_prev;
         auto b_rel = b_se.inverse() * b_se_prev;

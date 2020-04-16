@@ -68,7 +68,10 @@ std::unique_ptr<ReconstructionTest> test;
 
 TEST(TwoViewReconstruction, Load)
 {
-    Random::setSeed(9236521);
+    auto seed        = Random::generateTimeBasedSeed();
+    ransacRandomSeed = seed;
+    Random::setSeed(seed);
+
     test = std::make_unique<ReconstructionTest>();
 
     EXPECT_EQ(test->keys1.size(), 1007);
@@ -121,7 +124,7 @@ TEST(TwoViewReconstruction, EssentialMatrix)
     double ref_angle_by_depth = degrees(0.0435928);
     double ref_angle          = degrees(0.0754463);
 
-    for (int i = 0; i < 100; ++i)
+    for (int i = 0; i < 10; ++i)
     {
         test->tvr.compute(test->npoints1, test->npoints2, test->five_point_ransac_params.threads);
         EXPECT_GT(test->tvr.inlierCount, 270);
@@ -143,7 +146,6 @@ TEST(TwoViewReconstruction, EssentialMatrix)
 
         ExpectCloseRelative(t2, ref_t, 0.1, false);
         ExpectCloseRelative(q2.coeffs(), ref_q.coeffs(), 0.01, false);
-
 
         ExpectCloseRelative(degrees(test->tvr.medianAngleByDepth()), ref_angle_by_depth, 0.15);
         ExpectCloseRelative(degrees(test->tvr.medianAngle()), ref_angle, 0.15);

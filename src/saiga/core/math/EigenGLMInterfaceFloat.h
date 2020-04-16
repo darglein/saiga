@@ -47,7 +47,7 @@ constexpr float smoothstep(float edge0, float edge1, float x)
 }
 
 
-constexpr float fract(float a)
+inline float fract(float a)
 {
     return a - std::floor(a);
 }

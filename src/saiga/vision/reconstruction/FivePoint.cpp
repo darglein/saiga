@@ -373,7 +373,7 @@ bool bestEUsing6Points(const std::vector<Mat3>& es, const Vec2* points1, const V
     double minError = std::numeric_limits<double>::infinity();
 
     bool gotResult = false;
-    for (int e = 0; e < es.size(); ++e)
+    for (int e = 0; e < (int)es.size(); ++e)
     {
         auto E = es[e];
         // first decompose into the 4 transformations

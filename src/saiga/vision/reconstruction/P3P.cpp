@@ -160,7 +160,7 @@ std::optional<SE3> P3P::bestSolution(ArrayView<const SE3> candidates, const Vec3
     double min_reproj = std::numeric_limits<double>::max();
 
     // Pick solution with smallest reprojection error and positive z
-    for (int i = 0; i < candidates.size(); i++)
+    for (int i = 0; i < (int)candidates.size(); i++)
     {
         Vec3 p   = candidates[i] * fourthWorldPoint;
         double z = p.z();

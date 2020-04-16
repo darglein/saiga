@@ -122,9 +122,6 @@ int main(int, char**)
             bf >> keys2 >> des2;
         }
     }
-    int n = des1.size();
-    int m = des2.size();
-
     BruteForceMatcher<DescriptorORB> matcher;
     matcher.matchKnn2(des1, des2);
     matcher.filterMatches(100, 0.8);

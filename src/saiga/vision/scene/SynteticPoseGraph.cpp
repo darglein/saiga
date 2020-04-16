@@ -92,7 +92,7 @@ PoseGraph CircleWithDrift(double radius, int num_vertices, int num_connections, 
 
 
     // vertices
-    for (int i = 1; i < pg.vertices.size(); ++i)
+    for (int i = 1; i < (int)pg.vertices.size(); ++i)
     {
         SE3 drift = Sophus::se3_expd(Sophus::Vector6d::Random() * sigma);
         DSim3 drift_sim(drift, 1);

@@ -59,7 +59,7 @@ OptimizationResults BAPointOnly::solve()
 {
     OptimizationResults result;
     //    std::cout << "BAPointOnly " << optimizationOptions.maxIterations << std::endl;
-    double chi2;
+    double chi2 = std::numeric_limits<double>::infinity();
     for (auto k = 0; k < optimizationOptions.maxIterations; ++k)
     {
         auto chi2_before = computeQuadraticForm();
