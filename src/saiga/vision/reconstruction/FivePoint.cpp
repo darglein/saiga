@@ -427,15 +427,13 @@ bool bestEUsing6Points(const std::vector<Mat3>& es, const Vec2* points1, const V
     return gotResult;
 }
 
-int computeERansac(const Vec2* points1, const Vec2* points2, int N, Mat3& bestE, SE3& bestT,
-                   std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
+int computeERansac(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, const RansacParameters& params,
+                   Mat3& bestE, SE3& bestT, std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
 {
+    int N = points1.size();
     inlierMask.resize(N);
 
-    int maxIterations        = 200;
     constexpr int sampleSize = 6;
-    double epipolarTheshold  = 1.5 / 535.4;
-    double thresholdSquared  = epipolarTheshold * epipolarTheshold;
 
     //    std::uniform_int_distribution<unsigned int> dis(0, N - 1);
     //    std::mt19937 gen = std::mt19937(92730469346UL);
@@ -445,7 +443,7 @@ int computeERansac(const Vec2* points1, const Vec2* points2, int N, Mat3& bestE,
 
     int bestInliers = 0;
 
-    for (int i = 0; i < maxIterations; ++i)
+    for (int i = 0; i < params.maxIterations; ++i)
     {
         for (auto j : Range(0, sampleSize))
         {
@@ -476,7 +474,7 @@ int computeERansac(const Vec2* points1, const Vec2* points2, int N, Mat3& bestE,
         for (int i = 0; i < N; ++i)
         {
             auto dSquared = EpipolarDistanceSquared(points1[i], points2[i], localBestE);
-            if (dSquared < thresholdSquared)
+            if (dSquared < params.residualThreshold)
             {
                 inlierMatches.push_back(i);
                 numInliers++;

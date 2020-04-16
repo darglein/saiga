@@ -6,11 +6,11 @@
 
 
 #include "saiga/core/math/all.h"
+
 #include "gtest/gtest.h"
 
-namespace Saiga{
-
-
+namespace Saiga
+{
 inline bool ExpectCloseRelative(double x, double y, double max_abs_relative_difference)
 {
     double absolute_difference = fabs(x - y);
@@ -26,29 +26,51 @@ inline bool ExpectCloseRelative(double x, double y, double max_abs_relative_diff
     return relative_difference <= max_abs_relative_difference;
 }
 
-template <typename Derived>
-inline bool ExpectCloseRelative(const Eigen::DenseBase<Derived>& a, const Eigen::DenseBase<Derived>& b, double max_abs_relative_difference)
+inline bool ExpectClose(double x, double y, double max_difference)
 {
-    bool found = false;
-    for(int i =0;i < a.rows(); ++i)
+    double absolute_difference = fabs(x - y);
+    EXPECT_NEAR(x, y, max_difference);
+    return absolute_difference <= max_difference;
+}
+
+template <typename Derived1, typename Derived2>
+inline bool ExpectCloseRelative(const Eigen::DenseBase<Derived1>& a, const Eigen::DenseBase<Derived2>& b,
+                                double max_abs_relative_difference, bool relative = true)
+{
+    EXPECT_EQ(a.rows(), b.rows());
+    EXPECT_EQ(a.cols(), b.cols());
+
+    if (a.rows() != b.rows() || a.cols() != b.cols())
     {
-        for(int j =0;j < a.cols(); ++j)
+        return false;
+    }
+
+    bool found = false;
+    for (int i = 0; i < a.rows(); ++i)
+    {
+        for (int j = 0; j < a.cols(); ++j)
         {
-            if(!ExpectCloseRelative(a(i,j),b(i,j),max_abs_relative_difference)){
+            auto x     = a(i, j);
+            auto y     = b(i, j);
+            auto d     = max_abs_relative_difference;
+            bool close = relative ? ExpectCloseRelative(x, y, d) : ExpectClose(x, y, d);
+            if (!close)
+            {
                 found = true;
                 break;
             }
         }
-        if(found) break;
+        if (found) break;
     }
-    if(found){
+    if (found)
+    {
         // Make it easier understandable
         std::cout << "Matrix ExpectCloseRelative failed." << std::endl;
         std::cout << "a: " << std::endl << a << std::endl << std::endl;
-        std::cout << "b: " << std::endl <<b << std::endl << std::endl;
+        std::cout << "b: " << std::endl << b << std::endl << std::endl;
     }
 
     return found;
 }
 
-}
+}  // namespace Saiga

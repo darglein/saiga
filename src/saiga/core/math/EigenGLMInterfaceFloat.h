@@ -40,14 +40,14 @@ constexpr float clamp(float v, float mi, float ma)
     return std::min(ma, std::max(mi, v));
 }
 
-HD inline float smoothstep(float edge0, float edge1, float x)
+constexpr float smoothstep(float edge0, float edge1, float x)
 {
     float t = clamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
     return t * t * (3.0f - 2.0f * t);
 }
 
 
-HD inline float fract(float a)
+constexpr float fract(float a)
 {
     return a - std::floor(a);
 }

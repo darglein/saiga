@@ -53,7 +53,7 @@ int main(int, char**)
     int m = des2.size();
 
     BruteForceMatcher<DescriptorORB> matcher;
-    matcher.matchKnn2(des1.begin(), n, des2.begin(), m);
+    matcher.matchKnn2(des1, des2);
     matcher.filterMatches(100, 0.8);
 
 
@@ -74,15 +74,23 @@ int main(int, char**)
     }
 
 
+    RansacParameters rparams;
+    rparams.maxIterations     = 200;
+    double epipolarTheshold   = 1.5 / 535.4;
+    rparams.residualThreshold = epipolarTheshold * epipolarTheshold;
+    rparams.reserveN          = 2000;
+    rparams.threads           = 8;
+
 
     Mat3 E;
     std::vector<int> inliers;
     std::vector<char> inlierMask;
     SE3 rel;
     int num;
+
     {
         SAIGA_BLOCK_TIMER();
-        num = computeERansac(npoints1.data(), npoints2.data(), matcher.matches.size(), E, rel, inliers, inlierMask);
+        num = computeERansac(npoints1, npoints2, rparams, E, rel, inliers, inlierMask);
         SAIGA_ASSERT(num == inliers.size());
     }
 
@@ -90,14 +98,6 @@ int main(int, char**)
 
 
     {
-        RansacParameters rparams;
-        rparams.maxIterations     = 200;
-        double epipolarTheshold   = 1.5 / 535.4;
-        rparams.residualThreshold = epipolarTheshold * epipolarTheshold;
-        rparams.reserveN          = 2000;
-        rparams.threads           = 8;
-
-
         for (int i = 0; i < 1; ++i)
         {
             SAIGA_BLOCK_TIMER();

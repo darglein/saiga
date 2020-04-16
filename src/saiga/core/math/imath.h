@@ -14,14 +14,14 @@ namespace Saiga
 {
 // returns the smallest x number with: x * b >= a
 template <typename T>
-HD SAIGA_CONSTEXPR inline T iDivUp(T a, T b)
+HD constexpr T iDivUp(T a, T b)
 {
     static_assert(std::is_integral<T>::value, "T must be integral!");
     return (a + b - T(1)) / b;
 }
 
 template <typename T>
-HD SAIGA_CONSTEXPR inline T iDivDown(T a, T b)
+HD constexpr T iDivDown(T a, T b)
 {
     static_assert(std::is_integral<T>::value, "T must be integral!");
     return a / b;
@@ -37,7 +37,7 @@ HD SAIGA_CONSTEXPR inline T iDivDown(T a, T b)
  * @return The smallest multiple of \p b that is not less than \p a
  */
 template <typename T, typename U>
-HD SAIGA_CONSTEXPR inline T iAlignUp(T a, U b)
+HD constexpr T iAlignUp(T a, U b)
 {
     static_assert(std::is_integral<T>::value && std::is_integral<U>::value, "only applicable to integral types");
     return (a % b != 0) ? (a - a % b + b) : a;
@@ -53,26 +53,26 @@ HD SAIGA_CONSTEXPR inline T iAlignUp(T a, U b)
  */
 //
 template <typename T, typename U>
-HD SAIGA_CONSTEXPR inline T iAlignDown(T a, U b)
+HD constexpr T iAlignDown(T a, U b)
 {
     static_assert(std::is_integral<T>::value && std::is_integral<U>::value, "only applicable to integral types");
     return a - a % b;
 }
 
 
-HD constexpr inline int iFloor(float value)
+HD constexpr int iFloor(float value)
 {
     int i = (int)value;
     return i - (i > value);
 }
 
-HD constexpr inline int iCeil(float value)
+HD constexpr int iCeil(float value)
 {
     int i = (int)value;
     return i + (i < value);
 }
 
-HD constexpr inline int iRound(float value)
+HD constexpr int iRound(float value)
 {
     return (int)(value + (value >= 0 ? 0.5f : -0.5f));
 }

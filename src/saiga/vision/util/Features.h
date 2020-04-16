@@ -340,20 +340,20 @@ struct BruteForceMatcher
         std::cout << "distance sum: " << sum << " avg: " << double(sum) / (n * m) << std::endl;
     }
 
-    template <typename _InputIterator>
-    void matchKnn2(_InputIterator first1, int n, _InputIterator first2, int m)
+    void matchKnn2(Saiga::ArrayView<DescriptorORB> desc1, Saiga::ArrayView<DescriptorORB> desc2)
     {
-        knn2.resize(n, 2);
-        for (auto i : Range<int>(0, n))
+        knn2.resize(desc1.size(), 2);
+
+        for (int i = 0; i < desc1.size(); ++i)
         {
             // init best to infinity distance
             knn2(i, 0) = {1000, -1};
             knn2(i, 1) = knn2(i, 0);
 
-            auto d2 = first2;
-            for (auto j : Range<int>(0, m))
+
+            for (int j = 0; j < desc2.size(); ++j)
             {
-                auto dis = distance(*first1, *d2);
+                auto dis = distance(desc1[i], desc2[j]);
 
                 if (dis < knn2(i, 0).first)
                 {
@@ -369,9 +369,7 @@ struct BruteForceMatcher
                     knn2(i, 1).first  = dis;
                     knn2(i, 1).second = j;
                 }
-                ++d2;
             }
-            ++first1;
         }
     }
 

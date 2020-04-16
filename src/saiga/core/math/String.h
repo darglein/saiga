@@ -37,25 +37,16 @@ void fromIniString(const std::string& str, Eigen::Matrix<_Scalar, _Rows, _Cols>&
         for (int j = 0; j < M.cols(); ++j) M(i, j) = FromStringConverter<_Scalar>::convert(arr[i * M.cols() + j]);
 }
 
-inline std::ostream& operator<<(std::ostream& os, const Saiga::quat& v)
+
+template <typename T, int N>
+inline std::istream& operator>>(std::istream& is, Saiga::Vector<T, N>& v)
 {
-    os << v.coeffs();
-    return os;
+    //    is >> v(0) >> v(1);
+    for (int i = 0; i < N; ++i)
+    {
+        is >> v(i);
+    }
+    return is;
 }
 
-inline std::istream& operator>>(std::istream& is, Saiga::vec2& v)
-{
-    is >> v(0) >> v(1);
-    return is;
-}
-inline std::istream& operator>>(std::istream& is, Saiga::vec3& v)
-{
-    is >> v(0) >> v(1) >> v(2);
-    return is;
-}
-inline std::istream& operator>>(std::istream& is, Saiga::vec4& v)
-{
-    is >> v(0) >> v(1) >> v(2) >> v(3);
-    return is;
-}
 }  // namespace Saiga

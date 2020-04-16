@@ -49,7 +49,8 @@ SAIGA_VISION_API bool bestEUsing6Points(const std::vector<Mat3>& es, const Vec2*
                                         Mat3& bestE, SE3& bestT);
 
 
-SAIGA_VISION_API int computeERansac(const Vec2* points1, const Vec2* points2, int N, Mat3& bestE, SE3& bestT,
+SAIGA_VISION_API int computeERansac(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2,
+                                    const RansacParameters& params, Mat3& bestE, SE3& bestT,
                                     std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask);
 
 
