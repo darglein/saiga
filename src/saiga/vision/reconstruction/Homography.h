@@ -20,13 +20,7 @@ SAIGA_VISION_API Mat3 homography(ArrayView<const Vec2> points1, ArrayView<const 
 /**
  * The transformation error for a corresponding point pair.
  */
-inline double homographyResidual(const Vec2& p1, const Vec2& p2, const Mat3& H)
-{
-    Vec3 p      = H * p1.homogeneous();
-    double invz = 1.0 / p(2);
-    Vec2 res(p2(0) - p(0) * invz, p2(1) - p(1) * invz);
-    return res.squaredNorm();
-}
+SAIGA_VISION_API double homographyResidual(const Vec2& p1, const Vec2& p2, const Mat3& H);
 
 #if 0
 // solves H = aK * [R|t] for [R|t]
@@ -50,43 +44,11 @@ class SAIGA_VISION_API HomographyRansac : public RansacBase<HomographyRansac, Ma
     HomographyRansac() {}
     HomographyRansac(const RansacParameters& params) : Base(params) {}
 
-    int solve(ArrayView<const Vec2> _points1, ArrayView<const Vec2> _points2, Mat3& bestH)
-    {
-        points1 = _points1;
-        points2 = _points2;
+    int solve(ArrayView<const Vec2> _points1, ArrayView<const Vec2> _points2, Mat3& bestH);
 
-        int idx;
+    bool computeModel(const Subset& set, Model& model);
 
-#pragma omp parallel num_threads(params.threads)
-        {
-            int l_idx = compute(points1.size());
-
-            if (OMP::getThreadNum() == 0)
-            {
-                // fix write/write face condition
-                idx = l_idx;
-            }
-        }
-        bestH = models[idx];
-        return numInliers[idx];
-    }
-
-
-
-    bool computeModel(const Subset& set, Model& model)
-    {
-        std::array<Vec2, 4> p1;
-        std::array<Vec2, 4> p2;
-        for (auto i : Range(0, (int)set.size()))
-        {
-            p1[i] = points1[set[i]];
-            p2[i] = points2[set[i]];
-        }
-        model = homography(p1, p2);
-        return true;
-    }
-
-    double computeResidual(const Model& model, int i) { return homographyResidual(points1[i], points2[i], model); }
+    double computeResidual(const Model& model, int i);
 
     ArrayView<const Vec2> points1;
     ArrayView<const Vec2> points2;
