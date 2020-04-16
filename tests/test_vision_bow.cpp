@@ -44,6 +44,62 @@ void loadFeatures(std::vector<std::vector<Descriptor>>& features)
 
 
 
+void testVocCreation(const std::vector<std::vector<Descriptor>>& features, OrbVocabulary& voc)
+{
+    // branching factor and depth levels
+    const int k = 9;
+    const int L = 3;
+    auto weight = MiniBow::TF_IDF;
+
+
+
+    voc = OrbVocabulary(k, L, weight);
+
+    std::cout << "Creating a small " << k << "^" << L << " vocabulary..." << std::endl;
+    voc.create(features);
+    std::cout << "Vocabulary information: " << std::endl << voc << std::endl << std::endl;
+
+
+    //    exit(0);
+    std::cout << "Testing loading saving..." << std::endl;
+
+    voc.saveRaw("testvoc.minibow");
+    std::cout << voc << std::endl;
+    OrbVocabulary db2;
+    db2.loadRaw("testvoc.minibow");
+    std::cout << db2 << std::endl;
+    std::cout << "... done." << std::endl << std::endl;
+}
+
+
+
+void testVocCreation(const std::vector<std::vector<Descriptor>>& features, OrbVocabulary2& voc)
+{
+    // branching factor and depth levels
+    const int k = 9;
+    const int L = 3;
+
+
+
+    voc = OrbVocabulary2(k, L);
+
+    std::cout << "Creating a small " << k << "^" << L << " vocabulary..." << std::endl;
+    voc.create(features);
+    std::cout << "Vocabulary information: " << std::endl << voc << std::endl << std::endl;
+
+
+    //    exit(0);
+    std::cout << "Testing loading saving..." << std::endl;
+
+    voc.saveRaw("testvoc.minibow");
+    std::cout << voc << std::endl;
+    OrbVocabulary db2;
+    db2.loadRaw("testvoc.minibow");
+    std::cout << db2 << std::endl;
+    std::cout << "... done." << std::endl << std::endl;
+}
+
+
 void testVocMatching(const std::vector<std::vector<Descriptor>>& features, OrbVocabulary& voc)
 {
     // lets do something with this vocabulary
@@ -125,15 +181,28 @@ void testVocMatching(const std::vector<std::vector<Descriptor>>& features, OrbVo
 
 TEST(Sohpus, SE3_Point)
 {
-    OrbVocabulary orbVoc("ORBvoc.minibow");
+    std::vector<std::vector<Descriptor>> features;
+    loadFeatures(features);
+
+
+    srand(23053250);
+    OrbVocabulary trainedVoc;
+    testVocCreation(features, trainedVoc);
+
+    srand(23053250);
+    OrbVocabulary2 trainedVoc2;
+    testVocCreation(features, trainedVoc2);
+
+
+    //    OrbVocabulary orbVoc("ORBvoc.minibow");
+    OrbVocabulary orbVoc = trainedVoc;
     std::cout << orbVoc << std::endl;
 
 
-    OrbVocabulary2 orbVoc2("ORBvoc.minibow");
+    //    OrbVocabulary2 orbVoc2("ORBvoc.minibow");
+    OrbVocabulary2 orbVoc2 = trainedVoc2;
     std::cout << orbVoc2 << std::endl;
 
-    std::vector<std::vector<Descriptor>> features;
-    loadFeatures(features);
 
 
     MiniBow::BowVector bv;
