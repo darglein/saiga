@@ -90,7 +90,7 @@ int main(int, char**)
 
     BruteForceMatcher<DescriptorORB> matcher;
     matcher.match(des1.begin(), n, des2.begin(), m);
-    matcher.matchKnn2(des1.begin(), n, des2.begin(), m);
+    matcher.matchKnn2(des1, des2);
     matcher.filterMatches(50, 0.6);
     return 0;
 }

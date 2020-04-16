@@ -126,7 +126,7 @@ int main(int, char**)
     int m = des2.size();
 
     BruteForceMatcher<DescriptorORB> matcher;
-    matcher.matchKnn2(des1.begin(), n, des2.begin(), m);
+    matcher.matchKnn2(des1, des2);
     matcher.filterMatches(100, 0.8);
 
 
