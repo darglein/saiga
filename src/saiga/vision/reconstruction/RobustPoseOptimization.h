@@ -148,13 +148,15 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                     if (o.stereo())
                     {
                         Vec3 res;
-                        StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth, res, JrowS,
-                                                                  o.weight);
-                        auto res_2 = res.squaredNorm();
+                        bool correct_depth = StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth,
+                                                                                       res, JrowS, o.weight);
+                        auto res_2         = res.squaredNorm();
+
+
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
-                            if (res_2 > chi2s)
+                            if (res_2 > chi2s || !correct_depth)
                             {
                                 outlier[i] = true;
                                 continue;
@@ -175,13 +177,14 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                     else
                     {
                         Vec2 res;
-                        MonoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, res, JrowM, o.weight);
+                        bool correct_depth =
+                            MonoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, res, JrowM, o.weight);
                         auto res_2 = res.squaredNorm();
 #if 1
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
-                            if (res_2 > chi2m)
+                            if (res_2 > chi2m || !correct_depth)
                             {
                                 outlier[i] = true;
                                 continue;

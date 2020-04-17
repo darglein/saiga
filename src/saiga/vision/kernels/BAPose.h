@@ -43,7 +43,7 @@ struct BAPoseMono
         return res;
     }
 
-    static inline void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const WorldPoint& wp,
+    static inline bool evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const WorldPoint& wp,
                                                    const Vec2& observed, ResidualType& res, JacobiType& Jrow, T weight)
     {
         Vec3 pc = extr * wp;
@@ -93,6 +93,8 @@ struct BAPoseMono
         Jrow(1, 4) = fyw * x * y * zzinv;
         Jrow(1, 5) = fyw * x * zinv;
         //        Jrow.row(1) *= camera.fy * weight;
+
+        return z > 0;
     }
 };  // namespace Kernel
 
@@ -127,7 +129,7 @@ struct BAPoseStereo
         return res;
     }
 
-    static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const WorldPoint& wp,
+    static bool evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr, const WorldPoint& wp,
                                             const Vec2& observed, T observedDepth, ResidualType& res, JacobiType& Jrow,
                                             T weight)
     {
@@ -174,6 +176,8 @@ struct BAPoseStereo
         Jrow(2, 3) = Jrow(0, 3) + bfw * y * zzinv;
         Jrow(2, 4) = Jrow(0, 4) - bfw * x * zzinv;
         Jrow(2, 5) = Jrow(0, 5);
+
+        return z > 0;
     }
 };
 
