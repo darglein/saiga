@@ -16,6 +16,11 @@
 #    include <vector_types.h>
 #endif
 
+#if __has_include(<opencv2/core/cuda.hpp>)
+#    define SAIGA_WITH_OPENCV_CUDA
+#    include <opencv2/core/cuda.hpp>
+#endif
+
 // here are only some cv::Mat <-> ImageView conversions
 // so saiga's cuda image processing can be used
 // Note: these functions DON'T copy the actual image data
@@ -25,10 +30,20 @@ namespace Saiga
 template <typename T>
 inline ImageView<T> MatToImageView(cv::Mat& img)
 {
-    auto res = ImageView<T>(img.rows, img.cols, img.step, img.data);
-    SAIGA_ASSERT(res.size() == img.step[0] * img.rows);
+    auto res = ImageView<T>(img.rows, img.cols, (size_t)img.step, img.data);
+    SAIGA_ASSERT(res.size() == (size_t)img.step * img.rows);
     return res;
 }
+
+#ifdef SAIGA_WITH_OPENCV_CUDA
+template <typename T>
+inline ImageView<T> MatToImageView(cv::cuda::GpuMat& img)
+{
+    auto res = ImageView<T>(img.rows, img.cols, (size_t)img.step, img.data);
+    SAIGA_ASSERT(res.size() == (size_t)img.step * img.rows);
+    return res;
+}
+#endif
 
 template <typename T>
 inline cv::Mat ImageViewToMat(ImageView<T> img)
