@@ -114,7 +114,11 @@ struct SAIGA_VISION_API RGBDIntrinsics : public MonocularIntrinsics
     // Maximum depth (in meters) above which the depth values should be considered as outliers
     double maxDepth = 10;
 
-    StereoCamera4 stereoCamera() const { return StereoCamera4(model.K, bf); }
+    StereoCamera4 stereoCamera() const
+    {
+        SAIGA_ASSERT(bf != 0);
+        return StereoCamera4(model.K, bf);
+    }
     /**
      *  Reads all paramters from the given config file.
      *  Creates the file with the default values if it doesn't exist.
@@ -136,6 +140,12 @@ struct SAIGA_VISION_API StereoIntrinsics : public MonocularIntrinsics
     double bf = 0;
 
     SE3 left_to_right;
+
+    StereoCamera4 stereoCamera() const
+    {
+        SAIGA_ASSERT(bf != 0);
+        return StereoCamera4(model.K, bf);
+    }
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const StereoIntrinsics& value);

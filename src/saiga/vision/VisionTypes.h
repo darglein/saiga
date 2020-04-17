@@ -10,6 +10,7 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/cameraModel/Distortion.h"
 #include "saiga/vision/cameraModel/Intrinsics4.h"
+#include "saiga/vision/cameraModel/Rectify.h"
 
 namespace Saiga
 {

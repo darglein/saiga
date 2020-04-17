@@ -155,5 +155,4 @@ using StereoCamera4  = StereoCamera4Base<double>;
 using StereoCamera4f = StereoCamera4Base<float>;
 
 
-
 }  // namespace Saiga

@@ -75,7 +75,6 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
     }
 
 
-    std::cout << intrinsics << std::endl;
 
     std::vector<double> timestamps;
     {
@@ -179,6 +178,9 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
         intrinsics.imageSize      = firstFrame.grayImg.dimensions();
         intrinsics.rightImageSize = firstFrame.grayImg2.dimensions();
     }
+
+
+    std::cout << intrinsics << std::endl;
 }
 
 }  // namespace Saiga
