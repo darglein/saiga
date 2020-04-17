@@ -6,6 +6,7 @@
 
 #include "TumRGBDCamera.h"
 
+#include "saiga/core/util/FileSystem.h"
 #include "saiga/core/util/ProgressBar.h"
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/file.h"
@@ -14,7 +15,6 @@
 #include "TimestampMatcher.h"
 
 #include <algorithm>
-#include "saiga/core/util/FileSystem.h"
 #include <fstream>
 #include <thread>
 namespace Saiga
@@ -79,23 +79,57 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params) : DatasetCameraBase<RGBDFrameData>(_params)
+TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params, int freiburg) : DatasetCameraBase<RGBDFrameData>(_params)
 {
     std::cout << "Loading TUM RGBD Dataset: " << params.dir << std::endl;
 
-
-    auto intrinsics_file = params.dir + "/intrinsics.ini";
-    SAIGA_ASSERT(std::filesystem::exists(intrinsics_file));
-
-    _intrinsics.fromConfigFile(intrinsics_file);
-
-
-
-    if (_intrinsics.depthFactor != 5000)
+    if (freiburg == -1)
     {
-        std::cerr << "Depth Factor should be 5000." << std::endl;
-        _intrinsics.depthFactor = 5000;
+        std::filesystem::path p(_params.dir);
+        std::string dir = p.parent_path().filename();
+        auto pos        = dir.find("freiburg");
+
+        if (pos < dir.size())
+        {
+            std::string number = dir.substr(pos + 8, 1);
+            freiburg           = std::atoi(number.c_str());
+        }
     }
+
+    _intrinsics.fps         = 30;
+    _intrinsics.depthFactor = 5000;
+
+    _intrinsics.imageSize.width       = 640;
+    _intrinsics.imageSize.height      = 480;
+    _intrinsics.depthImageSize.width  = 640;
+    _intrinsics.depthImageSize.height = 480;
+    _intrinsics.bf                    = 40;
+
+    if (freiburg == 1)
+    {
+        _intrinsics.model.K   = Intrinsics4(517.306408, 516.469215, 318.643040, 255.313989);
+        _intrinsics.model.dis = Distortion(0.262383, -0.953104, -0.005358, 0.002628, 1.163314);
+    }
+    else if (freiburg == 2)
+    {
+        _intrinsics.model.K   = Intrinsics4(520.908620, 521.007327, 325.141442, 249.701764);
+        _intrinsics.model.dis = Distortion(0.231222, -0.784899, -0.003257, -0.000105, 0.917205);
+    }
+    else if (freiburg == 3)
+    {
+        _intrinsics.model.K   = Intrinsics4(535.4, 539.2, 320.1, 247.6);
+        _intrinsics.model.dis = Distortion(0, 0, 0, 0, 0);
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("Invalid Freiburg");
+    }
+
+    _intrinsics.depthModel = _intrinsics.model;
+
+    std::cout << "Loaded Freiburg " << freiburg << " params:" << std::endl;
+    std::cout << _intrinsics << std::endl;
+
     associate(params.dir);
     load(params.dir, params.multiThreadedLoad);
 }

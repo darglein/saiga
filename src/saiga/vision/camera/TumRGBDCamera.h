@@ -45,7 +45,9 @@ class SAIGA_VISION_API TumRGBDCamera : public DatasetCameraBase<RGBDFrameData>
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };
 
-    TumRGBDCamera(const DatasetParameters& params);
+    // If freiburg == -1 then the name is parsed from the dataset directory.
+    // Otherwise it should be 1,2, or 3.
+    TumRGBDCamera(const DatasetParameters& params, int freiburg = -1);
     ~TumRGBDCamera();
 
 

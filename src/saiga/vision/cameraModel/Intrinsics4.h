@@ -127,6 +127,7 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
         return {Intrinsics4Base<T>::template cast<G>(), static_cast<G>(bf)};
     }
 
+    double disparity(double x, double z) const { return x - bf / z; }
     Vec3 projectStereo(const Vec3& X) const
     {
         auto invz        = T(1) / X(2);

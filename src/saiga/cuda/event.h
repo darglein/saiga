@@ -60,6 +60,7 @@ class SAIGA_CUDA_API CudaEvent
     // Place this event into the command stream
     void record(cudaStream_t stream = 0) { CHECK_CUDA_ERROR(cudaEventRecord(event, stream)); }
 
+    // Non-block stream wait
     void wait(cudaStream_t stream) { CHECK_CUDA_ERROR(cudaStreamWaitEvent(stream, event, 0)); }
 
     // Wait until this event is completed

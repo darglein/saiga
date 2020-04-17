@@ -134,6 +134,8 @@ struct SAIGA_VISION_API StereoIntrinsics : public MonocularIntrinsics
 
     // BaseLine * fx
     double bf = 0;
+
+    SE3 left_to_right;
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const StereoIntrinsics& value);

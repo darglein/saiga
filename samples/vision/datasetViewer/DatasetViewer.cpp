@@ -129,7 +129,7 @@ void Sample::renderFinal(Camera* cam)
 #ifdef SAIGA_USE_YAML_CPP
     if (ImGui::Button("Load From File TUM RGBD"))
     {
-        //        dparams.dir  = dir;
+        dparams.dir  = dir;
         rgbdcamera   = std::make_unique<TumRGBDCamera>(dparams);
         leftTexture  = nullptr;
         rightTexture = nullptr;
