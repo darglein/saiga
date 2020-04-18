@@ -74,6 +74,7 @@ class DebugLock : private MutexType
     void Release()
     {
         std::unique_lock l(debug_lock);
+        SAIGA_ASSERT(std::this_thread::get_id() != std::thread::id());
         SAIGA_ASSERT(owner == std::this_thread::get_id(), "double release");
         owner = std::thread::id();
     }

@@ -97,6 +97,14 @@ using Intrinsics4  = Intrinsics4Base<double>;
 using Intrinsics4f = Intrinsics4Base<float>;
 
 template <typename T>
+std::ostream& operator<<(std::ostream& strm, const Intrinsics4Base<T> intr)
+{
+    strm << intr.coeffs().transpose();
+    return strm;
+}
+
+
+template <typename T>
 struct StereoCamera4Base : public Intrinsics4Base<T>
 {
     using Vec5 = Eigen::Matrix<T, 5, 1>;
@@ -154,5 +162,11 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
 using StereoCamera4  = StereoCamera4Base<double>;
 using StereoCamera4f = StereoCamera4Base<float>;
 
+template <typename T>
+std::ostream& operator<<(std::ostream& strm, const StereoCamera4Base<T> intr)
+{
+    strm << intr.coeffs().transpose();
+    return strm;
+}
 
 }  // namespace Saiga
