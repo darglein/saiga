@@ -411,8 +411,11 @@ TEST(NumericDerivative, BundleAdjustment)
         Vec6 eps = Vec6::Zero();
         res2     = EvaluateNumeric(
             [=](auto p) {
-                auto se3 = Sophus::se3_expd(p) * pose_c_w;
-                return BundleAdjustment(intr, observation, se3, wp);
+                auto pose_c_w_new = Sophus::se3_expd(p) * pose_c_w;
+                //                auto pose_c_w_new = pose_c_w;
+                //                Sophus::decoupled_inc(p, pose_c_w_new);
+
+                return BundleAdjustment(intr, observation, pose_c_w_new, wp);
             },
             eps, &J_pose_2);
     }
@@ -611,7 +614,7 @@ TEST(NumericDerivative, RelativePose)
         Vec6 eps = Vec6::Zero();
         res2     = EvaluateNumeric(
             [=](auto p) {
-                //                auto se3 = Sophus::se3_expd(p) * pose_w_j;
+                //                auto pose_w_j_new = Sophus::se3_expd(p) * pose_w_j;
                 auto pose_w_j_new = pose_w_j;
                 Sophus::decoupled_inc(p, pose_w_j_new);
 
@@ -686,7 +689,7 @@ TEST(NumericDerivative, RelativePoseSim3)
         Vec7 eps = Vec7::Zero();
         res2     = EvaluateNumeric(
             [=](auto p) {
-                //                auto pose_w_i_new = Sophus::se3_expd(p) * pose_w_i;
+                //                auto pose_w_i_new = Sophus::dsim3_expd(p) * pose_w_i;
 
                 auto pose_w_i_new = pose_w_i;
                 decoupled_inc(p, pose_w_i_new);
@@ -700,7 +703,7 @@ TEST(NumericDerivative, RelativePoseSim3)
         Vec7 eps = Vec7::Zero();
         res2     = EvaluateNumeric(
             [=](auto p) {
-                //                auto se3 = Sophus::se3_expd(p) * pose_w_j;
+                //                auto pose_w_j_new = Sophus::dsim3_expd(p) * pose_w_j;
                 auto pose_w_j_new = pose_w_j;
                 decoupled_inc(p, pose_w_j_new);
 

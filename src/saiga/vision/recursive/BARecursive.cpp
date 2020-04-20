@@ -551,9 +551,11 @@ bool BARec::addDelta()
 
 
 
-        auto t  = delta_x.u(offset).get();
+        auto t = delta_x.u(offset).get();
+
         x_u[id] = Sophus::se3_expd(t) * x_u[id];
 
+        //        Sophus::decoupled_inc(t, x_u[id]);
         //        x_u[id].translation() += t.head<3>();
         //        x_u[id].so3() = Sophus::SO3d::exp(t.tail<3>()) * x_u[id].so3();
     }
