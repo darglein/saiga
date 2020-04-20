@@ -46,7 +46,7 @@ struct BAPosePointMono
         return res;
     }
 
-    EIGEN_ALWAYS_INLINE static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr,
+    EIGEN_ALWAYS_INLINE static bool evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr,
                                                                 const Vec3& wp, const Vec2& observed, T weight,
                                                                 ResidualType& res, PoseJacobiType& JrowPose,
                                                                 PointJacobiType& JrowPoint)
@@ -106,6 +106,8 @@ struct BAPosePointMono
         JrowPoint(1, 0) = (R(1, 0) - y_over_z * R(2, 0)) * mul_y;
         JrowPoint(1, 1) = (R(1, 1) - y_over_z * R(2, 1)) * mul_y;
         JrowPoint(1, 2) = (R(1, 2) - y_over_z * R(2, 2)) * mul_y;
+
+        return z > 0;
     }
 };
 
@@ -156,7 +158,7 @@ struct BAPosePointStereo
         return res;
     }
 
-    EIGEN_ALWAYS_INLINE static void evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr,
+    EIGEN_ALWAYS_INLINE static bool evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr,
                                                                 const Vec3& wp, const Vec2& observed, T observedDepth,
                                                                 T weight, ResidualType& res, PoseJacobiType& JrowPose,
                                                                 PointJacobiType& JrowPoint)
@@ -249,6 +251,8 @@ struct BAPosePointStereo
         JrowPoint.row(0) *= -weight;
         JrowPoint.row(1) *= -weight;
         JrowPoint.row(2) *= -weight;
+
+        return z > 0;
     }
 };
 

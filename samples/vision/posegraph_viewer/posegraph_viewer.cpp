@@ -43,6 +43,8 @@ Sample::Sample()
     std::sort(baldatasets.begin(), baldatasets.end());
     std::cout << "Found " << baldatasets.size() << " BAL datasets" << std::endl;
 
+    float aspect = window->getAspectRatio();
+    camera.setProj(60.0f, aspect, 0.1f, 500.0f);
 
     frustum.createFrustum(camera.proj, 0.05);
     frustum.setColor(vec4{1, 1, 1, 1});

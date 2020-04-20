@@ -16,7 +16,7 @@ namespace Saiga
 struct Rectification
 {
     Intrinsics4 K_src;
-    Distortion D_src;
+    Saiga::Distortion D_src;
 
     Quat R;
     Intrinsics4 K_dst;

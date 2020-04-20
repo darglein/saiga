@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/VisionIncludes.h"
+#include "saiga/core/math/math.h"
 #include "saiga/vision/cameraModel/Intrinsics4.h"
 
 namespace Saiga

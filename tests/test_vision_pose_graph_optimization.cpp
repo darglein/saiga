@@ -92,6 +92,9 @@ TEST(PoseGraph, LoadStore)
     PoseGraph pg1 = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0);
 
     pg1.sortEdges();
+    pg1.fixScale = false;
+
+    pg1.edges[0].weight = 5;
     pg1.save("test.posegraph");
 
     PoseGraph pg2;
@@ -113,6 +116,7 @@ TEST(PoseGraph, LoadStore)
         auto e2 = pg2.edges[i];
         EXPECT_EQ(e1.from, e2.from);
         EXPECT_EQ(e1.to, e2.to);
+        EXPECT_EQ(e1.weight, e2.weight);
 
         ExpectCloseRelative(e1.T_i_j.params(), e2.T_i_j.params(), 1e-20);
     }

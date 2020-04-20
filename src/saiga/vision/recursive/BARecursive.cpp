@@ -60,7 +60,7 @@ void BARec::init()
 
     // currently the scene must be in a valid state
 
-    if(optimizationOptions.debugOutput)
+    if (optimizationOptions.debugOutput)
     {
         SAIGA_ASSERT(scene);
     }
@@ -445,8 +445,8 @@ double BARec::computeQuadraticForm()
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, w, res, JrowPose,
-                                                            JrowPoint);
+                    bool valid_depth = KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, w,
+                                                                               res, JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
 
@@ -459,6 +459,9 @@ double BARec::computeQuadraticForm()
                         res_2       = rw(0);
                         loss_weight = rw(1);
                     }
+                    if (!valid_depth) loss_weight = 0;
+
+
                     newChi2 += res_2;
 
                     if (!constant)
@@ -479,7 +482,8 @@ double BARec::computeQuadraticForm()
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res, JrowPose, JrowPoint);
+                    bool valid_depth = KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res,
+                                                                               JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
                     T loss_weight = 1.0;
@@ -493,7 +497,7 @@ double BARec::computeQuadraticForm()
                     }
                     newChi2 += res_2;
 
-
+                    if (!valid_depth) loss_weight = 0;
                     if (!constant)
                     {
                         auto& targetPosePose = A.u.diagonal()(actualOffset).get();

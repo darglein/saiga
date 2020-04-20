@@ -21,18 +21,63 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
     // Kitti was recorded with 10 fps
     intrinsics.fps = 10;
 
-    VLOG(1) << "Loading KittiDataset Stereo Dataset: " << params.dir;
+    std::cout << "Loading KittiDataset Stereo Dataset: " << params.dir << std::endl;
 
-    auto leftImageDir    = params.dir + "/image_0";
-    auto rightImageDir   = params.dir + "/image_1";
-    auto calibFile       = params.dir + "/calib.txt";
-    auto timesFile       = params.dir + "/times.txt";
-    auto groundtruthFile = params.groundTruth;
+    auto leftImageDir  = params.dir + "/image_0";
+    auto rightImageDir = params.dir + "/image_1";
+    auto calibFile     = params.dir + "/calib.txt";
+    auto timesFile     = params.dir + "/times.txt";
+    //    auto groundtruthFile = params.groundTruth;
 
     SAIGA_ASSERT(std::filesystem::exists(leftImageDir));
     SAIGA_ASSERT(std::filesystem::exists(rightImageDir));
     SAIGA_ASSERT(std::filesystem::exists(calibFile));
     SAIGA_ASSERT(std::filesystem::exists(timesFile));
+
+
+    std::filesystem::path p(params.dir + "/");
+    std::string sequence_number_str = p.parent_path().filename();
+    int sequence_number             = std::atoi(sequence_number_str.c_str());
+    SAIGA_ASSERT(sequence_number >= 0 && sequence_number <= 20);
+
+
+    // search for ground truth
+    std::string groundtruthFile = "";
+    if (hasEnding(groundtruthFile, ".txt"))
+    {
+        SAIGA_ASSERT(std::filesystem::exists(groundtruthFile));
+    }
+    else
+    {
+        groundtruthFile = "";
+    }
+
+    if (groundtruthFile.empty())
+    {
+        auto target_file = sequence_number_str + ".txt";
+
+        FileChecker checker;
+        checker.addSearchPath(params.dir);
+        checker.addSearchPath(params.dir + "/..");
+        checker.addSearchPath(params.dir + "/../poses/");
+        checker.addSearchPath(params.dir + "/../../");
+        checker.addSearchPath(params.dir + "/../../poses/");
+
+        //        std::cout << sequence_number_str << std::endl;
+        //        std::cout << checker << std::endl;
+
+        groundtruthFile = checker.getFile(target_file);
+    }
+
+
+    if (!groundtruthFile.empty())
+    {
+        std::cout << "Found Ground Truth: " << groundtruthFile << std::endl;
+    }
+
+    SAIGA_ASSERT(!groundtruthFile.empty());
+
+
 
     {
         // load calibration matrices
@@ -90,11 +135,11 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
 
     std::vector<SE3> groundTruth;
 
-    if (std::filesystem::exists(params.groundTruth))
+    if (!groundtruthFile.empty())
     {
         // load ground truth
         std::cout << "loading ground truth " << std::endl;
-        auto lines = File::loadFileStringArray(params.groundTruth);
+        auto lines = File::loadFileStringArray(groundtruthFile);
 
         StringViewParser parser(" ");
 

@@ -33,7 +33,7 @@ inline ImageView<T> MatToImageView(cv::Mat& img)
     auto res = ImageView<T>(img.rows, img.cols, (size_t)img.step, img.data);
     SAIGA_ASSERT(res.size() == (size_t)img.step * img.rows);
 
-    SAIGA_ASSERT(!(img.type() == CV_8UC1 ^ typeid(T) == typeid(uchar)));
+    SAIGA_ASSERT(!((img.type() == CV_8UC1) ^ (typeid(T) == typeid(uchar))));
 
     return res;
 }

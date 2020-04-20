@@ -135,7 +135,15 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
         return {Intrinsics4Base<T>::template cast<G>(), static_cast<G>(bf)};
     }
 
-    double disparity(double x, double z) const { return x - bf / z; }
+    // convert an image point + its depth to the predicted point in the right image.
+    // We subtract the disparity
+    double LeftPointToRight(double x, double z) const { return x - bf / z; }
+
+    // depth     = baseline * fx / disparity
+    // disparity = baseline * fx / depth
+    double DepthToDisparity(double depth) { return bf / depth; }
+    double DisparityToDepth(double disparity) { return bf / disparity; }
+
     Vec3 projectStereo(const Vec3& X) const
     {
         auto invz        = T(1) / X(2);
