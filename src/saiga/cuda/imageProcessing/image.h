@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/cuda/cudaHelper.h"
 #include "saiga/core/image/image.h"
+#include "saiga/cuda/cudaHelper.h"
 
 namespace Saiga
 {
@@ -23,67 +23,106 @@ namespace CUDA
  */
 
 template <typename T>
-void copyImage(ImageView<T> imgSrc, ImageView<T> imgDst, enum cudaMemcpyKind kind)
+void CopyImage(ImageView<const T> src, ImageView<T> dst, enum cudaMemcpyKind kind)
 {
-    SAIGA_ASSERT(imgSrc.width == imgDst.width && imgSrc.height == imgDst.height);
-    CHECK_CUDA_ERROR(cudaMemcpy2D(imgDst.data, imgDst.pitchBytes, imgSrc.data, imgSrc.pitchBytes,
-                                  imgSrc.width * sizeof(T), imgSrc.height, kind));
+    SAIGA_ASSERT(src.dimensions() == dst.dimensions());
+    CHECK_CUDA_ERROR(
+        cudaMemcpy2D(dst.data, dst.pitchBytes, src.data, src.pitchBytes, src.width * sizeof(T), src.height, kind));
 }
 
-
-
-// with these two functions we are able to use CudaImage from cpp files.
-SAIGA_CUDA_API void resizeDeviceVector(thrust::device_vector<unsigned char>& v, int size);
-SAIGA_CUDA_API void copyDeviceVector(const thrust::device_vector<unsigned char>& src,
-                                   thrust::device_vector<unsigned char>& dst);
+template <typename T>
+void CopyImageAsync(ImageView<const T> src, ImageView<T> dst, enum cudaMemcpyKind kind, cudaStream_t stream)
+{
+    SAIGA_ASSERT(src.dimensions() == dst.dimensions());
+    CHECK_CUDA_ERROR(cudaMemcpy2DAsync(dst.data, dst.pitchBytes, src.data, src.pitchBytes, src.width * sizeof(T),
+                                       src.height, kind, stream));
+}
 
 
 
 template <typename T>
 struct CudaImage : public ImageBase
 {
-    thrust::device_vector<unsigned char> vdata;
+    ImageType type = TYPE_UNKNOWN;
+
 
     CudaImage() {}
+
+    ~CudaImage() { clear(); }
+
+
+    CudaImage(const CudaImage<T>& other) { *this = other; }
+
+    CudaImage& operator=(const CudaImage<T>& other)
+    {
+        create(other.h, other.w);
+        CopyImage(other.getConstImageView(), getImageView(), cudaMemcpyDeviceToDevice);
+        return *this;
+    }
 
     /**
      * Creates an uninitialized device image with the given parameters.
      */
-    CudaImage(int h, int w, int p = 0) : ImageBase(h, w, p == 0 ? sizeof(T) * w : p) { create(); }
+    CudaImage(int h, int w) : ImageBase(h, w, 0) { create(); }
 
 
-    CudaImage(const ImageView<T>& h_img) { upload(h_img); }
+    CudaImage(ImageView<const T> h_img) { upload(h_img); }
 
+    void clear()
+    {
+        if (data_)
+        {
+            cudaFree(data_);
+            data_ = nullptr;
+        }
+    }
 
 
     /**
      * Uploads the given host-imageview.
      * Allocates the required memory, if necessary.
      */
-    void upload(ImageView<T> h_img)
+    void upload(ImageView<const T> h_img, cudaStream_t stream = 0)
     {
         this->ImageBase::operator=(h_img);
         create();
-        copyImage(h_img, getImageView(), cudaMemcpyHostToDevice);
+        CopyImageAsync(h_img, getImageView(), cudaMemcpyHostToDevice, stream);
     }
 
     // download a host imageview from the device
-    inline void download(ImageView<T> h_img) { copyImage(getImageView(), h_img, cudaMemcpyDeviceToHost); }
+    void download(ImageView<T> h_img, cudaStream_t stream = 0)
+    {
+        CopyImageAsync(getConstImageView(), h_img, cudaMemcpyDeviceToHost, stream);
+    }
+
+    void download(TemplatedImage<T>& h_img, cudaStream_t stream = 0)
+    {
+        h_img.create(h, w);
+        CopyImageAsync(getConstImageView(), h_img.getImageView(), cudaMemcpyDeviceToHost, stream);
+    }
 
     /**
      * Allocates the device memory from image parameters.
      */
-    void create() { resizeDeviceVector(vdata, this->size()); }
-
-    void create(int h, int w, int p = 0)
+    void create()
     {
-        this->width      = w;
-        this->height     = h;
-        this->pitchBytes = p == 0 ? sizeof(T) * w : p;
+        clear();
+        size_t pitch = 0;
+        cudaMallocPitch(&data_, &pitch, width * sizeof(T), height);
+        SAIGA_ASSERT(data_);
+        SAIGA_ASSERT(pitch > 0);
+        pitchBytes = pitch;
+    }
+
+    void create(int h, int w)
+    {
+        this->width  = w;
+        this->height = h;
         create();
     }
 
-    T* data() { return reinterpret_cast<T*>(vdata.data().get()); }
+    T* data() { return reinterpret_cast<T*>(data_); }
+    const T* data() const { return reinterpret_cast<const T*>(data_); }
 
 
     ImageView<T> getImageView()
@@ -93,25 +132,17 @@ struct CudaImage : public ImageBase
         return res;
     }
 
-    operator ImageView<T>() { return getImageView(); }
+    ImageView<const T> getConstImageView() const
+    {
+        ImageView<const T> res(*this);
+        res.data = data_;
+        return res;
+    }
+
+   protected:
+    unsigned char* data_ = nullptr;
 };
 
-
-template <typename T>
-void convert(Image& src, CudaImage<T>& dst)
-{
-    dst.upload(src.getImageView<T>());
-}
-
-
-template <typename T>
-void convert(CudaImage<T>& src, Image& dst)
-{
-    dst.setFormatFromImageView(src);
-
-    //    dst.type = ImageTypeTemplate<T>::type;
-    CUDA::copyImage(src, dst.getImageView<T>(), cudaMemcpyDeviceToHost);
-}
 
 }  // namespace CUDA
 }  // namespace Saiga

@@ -7,7 +7,9 @@ endif()
 
 function(saiga_test NAME)
   set(TEST_TARGET ${NAME})
-  add_executable(${TEST_TARGET} ${NAME}.cpp)
+
+  FILE(GLOB TEST_SRC  "${NAME}*")
+  add_executable(${TEST_TARGET} ${TEST_SRC})
   message(STATUS "Test enabled:      ${NAME}")
 
 
@@ -49,6 +51,10 @@ if(MODULE_VISION)
   saiga_test(test_vision_numeric_derivative "saiga_vision")
   saiga_test(test_vision_sophus "saiga_vision")
   saiga_test(test_vision_two_view_reconstruction "saiga_vision")
+endif()
+
+if(MODULE_CUDA)
+  saiga_test(test_cuda_image "saiga_cuda")
 endif()
 
 

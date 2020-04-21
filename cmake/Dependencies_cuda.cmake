@@ -53,6 +53,15 @@ if(CUDA_FOUND)
         endif()
     endif()
 
+    find_package(CUDAToolkit REQUIRED)
+    PackageHelperTarget(CUDA::cudart CUDA_FOUND)
+    # filter
+    PackageHelperTarget(CUDA::nppif CUDA_FOUND)
+    # geometry (resize)
+    PackageHelperTarget(CUDA::nppig CUDA_FOUND)
+    PackageHelperTarget(CUDA::nvToolsExt CUDA_FOUND)
+
+
 
 
 
