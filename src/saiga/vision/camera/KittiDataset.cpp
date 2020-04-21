@@ -41,6 +41,20 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
     SAIGA_ASSERT(sequence_number >= 0 && sequence_number <= 20);
 
 
+
+    if (sequence_number <= 2)
+    {
+        intrinsics.depth_bias = 1.00255;
+    }
+    else if (sequence_number == 3)
+    {
+        intrinsics.depth_bias = 0.994022;
+    }
+    else if (sequence_number >= 4)
+    {
+        intrinsics.depth_bias = 0.992174;
+    }
+
     // search for ground truth
     std::string groundtruthFile = "";
     if (hasEnding(groundtruthFile, ".txt"))
