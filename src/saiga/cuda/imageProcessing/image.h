@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include "saiga/core/image/image.h"
 #include "saiga/cuda/cudaHelper.h"
+// cuda helper must currently before arrayview
+#include "saiga/core/image/image.h"
 
 namespace Saiga
 {
