@@ -5,9 +5,10 @@
  */
 
 
+#include "saiga/cuda/imageProcessing/NppiHelper.h"
+//
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/image/all.h"
-#include "saiga/cuda/imageProcessing/NppiHelper.h"
 #include "saiga/cuda/imageProcessing/image.h"
 
 #include "gtest/gtest.h"
