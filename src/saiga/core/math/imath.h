@@ -60,7 +60,8 @@ HD constexpr T iAlignDown(T a, U b)
 }
 
 
-HD constexpr int iFloor(float value)
+template <typename T>
+HD constexpr int iFloor(T value)
 {
     int i = (int)value;
     return i - (i > value);

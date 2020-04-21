@@ -51,6 +51,7 @@ if(MODULE_VISION)
   saiga_test(test_vision_numeric_derivative "saiga_vision")
   saiga_test(test_vision_sophus "saiga_vision")
   saiga_test(test_vision_two_view_reconstruction "saiga_vision")
+  saiga_test(test_vision_feature_grid "saiga_vision")
 endif()
 
 if(MODULE_CUDA)
