@@ -38,16 +38,6 @@ inline ImageView<T> MatToImageView(cv::Mat& img)
     return res;
 }
 
-#ifdef SAIGA_WITH_OPENCV_CUDA
-template <typename T>
-inline ImageView<T> MatToImageView(cv::cuda::GpuMat& img)
-{
-    auto res = ImageView<T>(img.rows, img.cols, (size_t)img.step, img.data);
-    SAIGA_ASSERT(res.size() == (size_t)img.step * img.rows);
-    return res;
-}
-#endif
-
 template <typename T>
 inline cv::Mat ImageViewToMat(ImageView<T> img)
 {
@@ -64,6 +54,32 @@ inline cv::Mat ImageViewToMat(ImageView<T> img)
     return cv::Mat(img.height, img.width, type, img.data, img.pitchBytes);
 }
 
+
+#ifdef SAIGA_WITH_OPENCV_CUDA
+template <typename T>
+inline ImageView<T> MatToImageView(cv::cuda::GpuMat& img)
+{
+    auto res = ImageView<T>(img.rows, img.cols, (size_t)img.step, img.data);
+    SAIGA_ASSERT(res.size() == (size_t)img.step * img.rows);
+    return res;
+}
+
+template <typename T>
+inline cv::cuda::GpuMat ImageViewToGpuMat(ImageView<T> img)
+{
+    int type = -1;
+#if defined(SAIGA_CUDA_INCLUDED)
+    if (typeid(T) == typeid(uchar3)) type = CV_8UC3;
+    if (typeid(T) == typeid(uchar4)) type = CV_8UC4;
+#endif
+    if (typeid(T) == typeid(float)) type = CV_32FC1;
+    if (typeid(T) == typeid(ucvec3)) type = CV_8UC3;
+    if (typeid(T) == typeid(ucvec4)) type = CV_8UC4;
+    if (typeid(T) == typeid(uchar)) type = CV_8UC1;
+    SAIGA_ASSERT(type != -1);
+    return cv::cuda::GpuMat(img.height, img.width, type, img.data, img.pitchBytes);
+}
+#endif
 
 /**
  * Computes the scaled intrinsics matrix of K.
