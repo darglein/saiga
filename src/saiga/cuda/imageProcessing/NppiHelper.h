@@ -20,8 +20,9 @@
 
 #pragma once
 
+#include "saiga/cuda/cudaHelper.h"
+//
 #include "saiga/core/image/imageView.h"
-#include "saiga/cuda/cuda.h"
 
 #include <npp.h>
 #include <nppi.h>
