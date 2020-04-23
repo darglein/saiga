@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "gphoto.h"
+#pragma once
 
 #include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/file.h"
@@ -12,7 +12,7 @@
 
 #include "internal/noGraphicsAPI.h"
 
-#include "gphoto2/gphoto2.h"
+#include "gphoto.h"
 
 #include <fcntl.h>
 #include <stdarg.h>
@@ -24,7 +24,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "gphoto2/gphoto2-camera.h"
+
 
 #define CHECK_GP(_X)                                                                             \
     {                                                                                            \
@@ -49,6 +49,7 @@ GPhoto::GPhoto() : imageBuffer(10)
 
     eventThread = std::thread(&GPhoto::eventLoop, this);
 }
+
 
 GPhoto::~GPhoto()
 {

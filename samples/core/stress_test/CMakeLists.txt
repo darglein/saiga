@@ -1,5 +1,5 @@
 include(saiga_sample_macros)
-list(APPEND required_modules "saiga_extra")
+list(APPEND required_modules "saiga_core")
 
 # Make sure this always compiles with optimizations
 set(CMAKE_BUILD_TYPE Release)

@@ -35,7 +35,7 @@ if(MODULE_CORE)
   saiga_test(test_core_vectorization)
 
   if(OpenCV_FOUND AND MODULE_EXTRA)
-    saiga_test(test_core_image_load_store "saiga_extra")
+    saiga_test(test_core_image_load_store ${EXTRA_LIBS})
   else()
     saiga_test(test_core_image_load_store)
   endif()

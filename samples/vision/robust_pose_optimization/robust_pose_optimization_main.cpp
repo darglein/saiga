@@ -101,7 +101,7 @@ class RPOTest
         int inliers;
 
         {
-            inliers = rpo.optimizePoseRobust(wps, obs, outlier, p, K);
+            inliers = rpo.optimizePoseRobust(wps, obs, outlier, p, K, pose, 0);
         }
         return inliers;
     }

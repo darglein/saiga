@@ -8,10 +8,14 @@
 
 #include "saiga/config.h"
 #include "saiga/core/image/image.h"
-#include "saiga/core/util/file.h"
 #include "saiga/core/util/Thread/SynchronizedBuffer.h"
+#include "saiga/core/util/file.h"
+
+#include "gphoto2/gphoto2.h"
 
 #include <thread>
+
+#include "gphoto2/gphoto2-camera.h"
 
 namespace Saiga
 {
@@ -92,3 +96,6 @@ class SAIGA_EXTRA_API GPhoto
 };
 
 }  // namespace Saiga
+
+
+#include "gphoto.inl"

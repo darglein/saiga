@@ -15,7 +15,6 @@
 #include "saiga/core/util/Thread/threadPool.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/tostring.h"
-#include "saiga/extra/network/RGBDCameraNetwork.h"
 #include "saiga/vision/camera/all.h"
 
 #if defined(SAIGA_VULKAN_INCLUDED)
