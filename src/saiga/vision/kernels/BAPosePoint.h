@@ -139,19 +139,18 @@ struct BAPosePointStereo
 
 
     EIGEN_ALWAYS_INLINE static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr,
-                                                             const Vec3& wp, const Vec2& observed, T observedDepth,
-                                                             T weight)
+                                                             const Vec3& wp, const Vec2& observed,
+                                                             T observed_stereo_point, T weight)
     {
         Vec3 pc   = extr * wp;
         Vec3 proj = camera.project3(pc);
 
         Vec3 obs3;
-        obs3 << observed(0), observed(1), observedDepth;
+        obs3 << observed(0), observed(1), observed_stereo_point;
 
         //        Vec3 res = reprojectionErrorDepth(obs3, proj, camera.bf);
-        T stereoPointObs = obs3(0) - camera.bf / obs3(2);
-        T stereoPoint    = proj(0) - camera.bf / proj(2);
-        Vec3 res         = {observed(0) - proj(0), obs3(1) - proj(1), stereoPointObs - stereoPoint};
+        T stereoPoint = proj(0) - camera.bf / proj(2);
+        Vec3 res      = {observed(0) - proj(0), obs3(1) - proj(1), observed_stereo_point - stereoPoint};
 
 
         res *= weight;
@@ -159,9 +158,9 @@ struct BAPosePointStereo
     }
 
     EIGEN_ALWAYS_INLINE static bool evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr,
-                                                                const Vec3& wp, const Vec2& observed, T observedDepth,
-                                                                T weight, ResidualType& res, PoseJacobiType& JrowPose,
-                                                                PointJacobiType& JrowPoint)
+                                                                const Vec3& wp, const Vec2& observed,
+                                                                T observed_stereo_point, T weight, ResidualType& res,
+                                                                PoseJacobiType& JrowPose, PointJacobiType& JrowPoint)
     {
         Vec3 pc   = extr * wp;
         Vec2 proj = camera.project(pc);
@@ -185,8 +184,8 @@ struct BAPosePointStereo
 
         auto disparity = proj(0) - camera.bf / pc(2);
 
-        T stereoPointObs = observed(0) - camera.bf / observedDepth;
-        double diff2     = stereoPointObs - disparity;
+        //        T stereoPointObs = observed(0) - camera.bf / observedDepth;
+        double diff2 = observed_stereo_point - disparity;
 
         res(2) = diff2;
 

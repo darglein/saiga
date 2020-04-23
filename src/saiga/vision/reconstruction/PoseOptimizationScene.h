@@ -16,7 +16,6 @@
 
 namespace Saiga
 {
-
 template <typename T>
 struct ObsBase
 {
@@ -40,8 +39,8 @@ struct ObsBase
 };
 
 template <typename T>
-struct PoseOptimizationScene{
-
+struct PoseOptimizationScene
+{
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     StereoCamera4Base<T> K;
@@ -51,22 +50,43 @@ struct PoseOptimizationScene{
     AlignedVector<ObsBase<T>> obs;
     AlignedVector<int> outlier;
 
+    Sophus::SE3<T> prediction;
+    double prediction_weight = 1;
 
-    double rms()
+
+    double chi2()
     {
-        double result =0;
-        for(int i =0; i < obs.size(); ++i)
+        double result = 0;
+        for (int i = 0; i < obs.size(); ++i)
         {
-            Vec2 ip =  K.project(pose * wps[i]);
+            Vec2 ip      = K.project(pose * wps[i]);
             double error = (ip - obs[i].ip).squaredNorm();
             result += error;
-
+        }
+        result += predictionError();
+        return result;
+    }
+    double rms()
+    {
+        double result = 0;
+        for (int i = 0; i < obs.size(); ++i)
+        {
+            Vec2 ip      = K.project(pose * wps[i]);
+            double error = (ip - obs[i].ip).squaredNorm();
+            result += error;
         }
         result /= obs.size();
         result = sqrt(result);
         return result;
     }
 
+    double predictionError()
+    {
+        Sophus::SE3d T_j_i   = prediction.inverse() * pose;
+        Sophus::Vector6d res = Sophus::se3_logd(T_j_i);
+        Vec6 residual        = res * prediction_weight;
+        return residual.squaredNorm();
+    }
 };
 
 

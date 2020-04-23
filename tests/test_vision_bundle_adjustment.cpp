@@ -70,7 +70,7 @@ class BundleAdjustmentTest
         ExpectCloseRelative(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-1);
     }
 
-    void buildScene(bool with_depth = false)
+    void buildScene(bool with_depth = false, bool with_stereo = false)
     {
         SynteticScene sscene;
         sscene.numCameras     = 3;
@@ -86,6 +86,19 @@ class BundleAdjustmentTest
                 for (auto& obs : img.stereoPoints)
                 {
                     obs.depth = 1.0;
+                }
+            }
+        }
+
+        if (with_stereo)
+        {
+            for (auto& img : scene.images)
+            {
+                for (auto& obs : img.stereoPoints)
+                {
+                    obs.depth = 1.0;
+
+                    obs.stereo_x = obs.GetStereoPoint(scene.bf);
                 }
             }
         }
@@ -138,6 +151,18 @@ TEST(BundleAdjustment, DefaultDepth)
         test.test(options);
     }
 }
+
+TEST(BundleAdjustment, DefaultStereo)
+{
+    for (int i = 0; i < 10; ++i)
+    {
+        BundleAdjustmentTest test;
+        test.buildScene(false, true);
+        BAOptions options;
+        test.test(options);
+    }
+}
+
 
 TEST(BundleAdjustment, PartialConstant)
 {

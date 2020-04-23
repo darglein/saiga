@@ -69,6 +69,7 @@ std::array<SE3, 4> decomposeEssentialMatrix2(Mat3& E)
         // scaling the essential matrix by -1 is allowed
         E = -E;
         decomposeEssentialMatrix(E, R1, R2, t1, t2);
+        E = -E;
     }
     Quat q1(R1);
     Quat q2(R2);

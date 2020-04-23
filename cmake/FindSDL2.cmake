@@ -114,7 +114,7 @@ ENDIF(NOT SDL2_BUILDING_LIBRARY)
 # frameworks may already provide it.
 # But for non-OSX systems, I will use the CMake Threads package.
 IF(NOT APPLE)
-  FIND_PACKAGE(Threads)
+  FIND_PACKAGE(Threads QUIET)
 ENDIF(NOT APPLE)
 
 # MinGW needs an additional library, mwindows

@@ -103,11 +103,12 @@ OptimizationResults CeresBA::initAndSolve()
             double w = ip.weight * scene.scale();
 
 
-            if (ip.depth > 0)
+            if (ip.IsStereoOrDepth())
             {
 #ifdef BA_AUTODIFF
-                auto stereoPoint   = ip.point(0) - scene.bf / ip.depth;
-                auto cost_function = CostBAStereo<>::create(camera, ip.point, stereoPoint, scene.bf, Vec2(w, w));
+                //                auto stereoPoint   = ip.point(0) - scene.bf / ip.depth;
+                auto stereo_point  = ip.GetStereoPoint(scene.bf);
+                auto cost_function = CostBAStereo<>::create(camera, ip.point, stereo_point, scene.bf, Vec2(w, w));
 
                 problem.AddResidualBlock(cost_function, lossStereo, extr.data(), wp.data());
 #else

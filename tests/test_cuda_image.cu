@@ -116,6 +116,11 @@ TEST(CudaImage, GaussFilter)
 
 int main()
 {
+#ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
+    std::cout << "NPPI stream context found!" << std::endl;
+#else
+    std::cout << "NPPI stream context not found!" << std::endl;
+#endif
     Saiga::initSaigaSampleNoWindow();
     testing::InitGoogleTest();
 

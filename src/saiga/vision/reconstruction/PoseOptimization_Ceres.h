@@ -58,6 +58,44 @@ struct PoseOptimizationCeresCost
 };
 
 
+
+template <typename ScalarType>
+struct PosePredictionCeresCost
+{
+    // Helper function to simplify the "add residual" part for creating ceres problems
+    using CostType = PosePredictionCeresCost;
+    // Note: The first number is the number of residuals
+    //       The following number sthe size of the residual blocks (without local parametrization)
+    using CostFunctionType = ceres::AutoDiffCostFunction<CostType, 6, 7>;
+    template <typename... Types>
+    static CostFunctionType* create(Types... args)
+    {
+        return new CostFunctionType(new CostType(args...));
+    }
+
+    template <typename T>
+    bool operator()(const T* const _extrinsics, T* _residuals) const
+    {
+        Eigen::Map<Sophus::SE3<T> const> const se3(_extrinsics);
+        Eigen::Map<Eigen::Matrix<T, 6, 1>> residual(_residuals);
+
+        Sophus::SE3<T> T_j_i       = prediction.template cast<T>().inverse() * se3;
+        Eigen::Matrix<T, 6, 1> res = Sophus::se3_logd(T_j_i);
+        residual                   = res * prediction_weight;
+
+
+        return true;
+    }
+
+    PosePredictionCeresCost(SE3 prediction, double prediction_weight)
+        : prediction(prediction), prediction_weight(prediction_weight)
+    {
+    }
+
+    SE3 prediction;
+    double prediction_weight;
+};
+
 template <typename T>
 OptimizationResults OptimizePoseCeres(PoseOptimizationScene<T>& scene)
 {
@@ -80,6 +118,9 @@ OptimizationResults OptimizePoseCeres(PoseOptimizationScene<T>& scene)
         if (huber > 0) loss = new ceres::HuberLoss(huber);
         problem.AddResidualBlock(cost, loss, scene.pose.data());
     }
+
+    auto* cost_pp = PosePredictionCeresCost<T>::create(scene.prediction, scene.prediction_weight);
+    problem.AddResidualBlock(cost_pp, nullptr, scene.pose.data());
 
     ceres::Solver::Options ceres_options;
     ceres_options.minimizer_progress_to_stdout = true;

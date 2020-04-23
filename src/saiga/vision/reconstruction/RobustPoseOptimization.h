@@ -18,6 +18,61 @@
 
 namespace Saiga
 {
+inline Vec6 SmoothPose(const SE3& pose, const SE3& expected, double scale,
+                       Matrix<double, 6, 6>* jacobian_pose = nullptr)
+{
+    Sophus::SE3d T_j_i   = expected.inverse() * pose;
+    Sophus::Vector6d res = Sophus::se3_logd(T_j_i);
+    Vec6 residual        = res * scale;
+
+    if (jacobian_pose)
+    {
+        Sophus::Matrix6d J;
+        Sophus::rightJacobianInvSE3Decoupled(res, J);
+
+        Eigen::Matrix3d R = scale * pose.so3().inverse().matrix();
+
+        Sophus::Matrix6d Adj;
+        Adj.setZero();
+        Adj.topLeftCorner<3, 3>()     = R;
+        Adj.bottomRightCorner<3, 3>() = R;
+        Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(pose.inverse().translation()) * R;
+
+        *jacobian_pose = J * Adj;
+    }
+
+    return residual;
+}
+
+
+inline Vec6 SmoothPoseRotation(const SE3& pose, const SE3& expected, double scale,
+                               Matrix<double, 6, 6>* jacobian_pose = nullptr)
+{
+    Sophus::SE3d T_j_i   = expected.inverse() * pose;
+    Sophus::Vector6d res = Sophus::se3_logd(T_j_i);
+    res.head<3>().setZero();
+    Vec6 residual = res * scale;
+
+    if (jacobian_pose)
+    {
+        Sophus::Matrix6d J;
+        Sophus::rightJacobianInvSE3Decoupled(res, J);
+
+        Eigen::Matrix3d R = scale * pose.so3().inverse().matrix();
+
+        Sophus::Matrix6d Adj;
+        Adj.setZero();
+        //        Adj.topLeftCorner<3, 3>()     = R;
+        Adj.bottomRightCorner<3, 3>() = R;
+        //        Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(pose.inverse().translation()) * R;
+
+        *jacobian_pose = J * Adj;
+    }
+
+    return residual;
+}
+
+
 template <typename T, bool Normalized = false, Kernel::LossFunction loss_function = Kernel::LossFunction::Huber>
 struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 {
@@ -91,11 +146,12 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
 
     int optimizePoseRobust(PoseOptimizationScene<T>& scene)
     {
-        return optimizePoseRobust(scene.wps, scene.obs, scene.outlier, scene.pose, scene.K);
+        return optimizePoseRobust(scene.wps, scene.obs, scene.outlier, scene.pose, scene.K, scene.prediction,
+                                  scene.prediction_weight);
     }
 
     int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<int>& outlier,
-                           SE3Type& guess, const CameraType& camera)
+                           SE3Type& guess, const CameraType& camera, const SE3Type& prediction, T prediction_weight)
     {
         StereoJ JrowS;
         MonoJ JrowM;
@@ -206,8 +262,25 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                         inliers++;
                     }
                 }
+
+                if (prediction_weight > 0)
+                {
+                    JType J_smooth;
+                    //                    Vec6 res = SmoothPose(guess, prediction, prediction_weight, &J_smooth);
+                    Vec6 res = SmoothPoseRotation(guess, prediction, prediction_weight, &J_smooth);
+
+
+
+                    chi2sum += res.squaredNorm();
+                    JtJ += J_smooth.transpose() * J_smooth;
+                    Jtb -= J_smooth.transpose() * res;
+                }
+
+
                 T deltaChi  = lastChi2sum - chi2sum;
                 lastChi2sum = chi2sum;
+
+
 
 #if 0
                 std::cout << outerIt << " Robust: " << robust << " "
@@ -247,7 +320,8 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                 {
                     x = JtJ.ldlt().solve(Jtb);
                 }
-                guess = SE3Type::exp(x) * guess;
+                //                guess = SE3Type::exp(x) * guess;
+                guess = Sophus::se3_expd(x) * guess;
 
 
                 // early termination if the error doesn't change

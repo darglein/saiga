@@ -18,14 +18,6 @@ endif()
 
 
 
-#boost
-find_package(Boost QUIET COMPONENTS thread system)
-if(Boost_FOUND)
-    SET(SAIGA_USE_BOOST 1)
-endif()
-PackageHelper(Boost "${Boost_FOUND}" "${Boost_INCLUDE_DIRS}" "${Boost_LIBRARIES}")
-
-
 #opencv
 find_package(OpenCV QUIET)
 if(OpenCV_FOUND)

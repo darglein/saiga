@@ -432,6 +432,69 @@ TEST(NumericDerivative, BundleAdjustment)
     ExpectCloseRelative(J_point_2, J_point_3, 1e-5);
 }
 
+
+
+Vec6 SmoothPose(const SE3& pose, const SE3& expected, double scale, Matrix<double, 6, 6>* jacobian_pose = nullptr)
+{
+    Sophus::SE3d T_j_i   = expected.inverse() * pose;
+    Sophus::Vector6d res = Sophus::se3_logd(T_j_i);
+    Vec6 residual        = res * scale;
+
+    if (jacobian_pose)
+    {
+        Sophus::Matrix6d J;
+        Sophus::rightJacobianInvSE3Decoupled(res, J);
+
+        Eigen::Matrix3d R = scale * pose.so3().inverse().matrix();
+
+        Sophus::Matrix6d Adj;
+        Adj.setZero();
+        Adj.topLeftCorner<3, 3>()     = R;
+        Adj.bottomRightCorner<3, 3>() = R;
+        Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(pose.inverse().translation()) * R;
+
+        *jacobian_pose = J * Adj;
+    }
+
+    return residual;
+}
+
+
+
+TEST(NumericDerivative, SmoothPoseEstimation)
+{
+    SE3 pose_c_w   = Random::randomSE3();
+    SE3 prediction = Sophus::se3_expd(Sophus::Vector6d::Random() / 100) * pose_c_w;
+
+
+    Matrix<double, 6, 6> J_pose_1, J_pose_2;
+    Vec6 res1, res2;
+
+    double scale = 0.1;
+
+    res1 = SmoothPose(pose_c_w, prediction, scale, &J_pose_1);
+
+    {
+        Vec6 eps = Vec6::Zero();
+        res2     = EvaluateNumeric(
+            [=](auto p) {
+                auto pose_c_w_new = Sophus::se3_expd(p) * pose_c_w;
+
+
+                //                auto pose_c_w_new = pose_c_w;
+                //                Sophus::decoupled_inc(p, pose_c_w_new);
+                return SmoothPose(pose_c_w_new, prediction, scale);
+            },
+            eps, &J_pose_2);
+    }
+
+    ExpectCloseRelative(res1, res2, 1e-5);
+    ExpectCloseRelative(J_pose_1, J_pose_2, 1e-5);
+
+    std::terminate();
+}
+
+
 /// @brief Right Jacobian for decoupled SE(3)
 ///
 /// For \f$ \exp(x) \in SE(3) \f$ provides a Jacobian that approximates the sum

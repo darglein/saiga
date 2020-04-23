@@ -84,7 +84,9 @@ struct SAIGA_VISION_API StereoImagePoint
 
     int wp = -1;
 
-    double depth = 0;
+    double depth    = -1;
+    double stereo_x = -1;
+
     Eigen::Vector2d point;
     float weight = 1;
 
@@ -95,6 +97,9 @@ struct SAIGA_VISION_API StereoImagePoint
     Eigen::Vector2d repPoint;
 
     explicit operator bool() const { return wp != -1 && !outlier; }
+
+    bool IsStereoOrDepth() { return depth > 0 || stereo_x >= 0; }
+    double GetStereoPoint(double bf) { return stereo_x >= 0 ? stereo_x : point(0) - bf / depth; }
 };
 
 struct SAIGA_VISION_API DenseConstraint

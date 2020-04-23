@@ -41,43 +41,42 @@ class RPOTest
             scene.wps.push_back(wp);
         }
 
-        scene.outlier.resize(scene.obs.size(), false);
-        std::cout << scene.rms() << std::endl;
-        scene.pose = Random::JitterPose(scene.pose, 0.01, 0.02);
-        std::cout << scene.rms() << std::endl;
-    }
+        std::cout << "[RPOTest]" << std::endl;
+        std::cout << "Target Pose: " << scene.pose << std::endl;
 
-    void applyScale(double s)
-    {
+        scene.outlier.resize(scene.obs.size(), false);
+        scene.pose              = Random::JitterPose(scene.pose, 0.01, 0.02);
+        scene.prediction        = Random::JitterPose(scene.pose, 0.01, 0.02);
+        scene.prediction_weight = 100000;
         for (auto& wp : scene.wps)
         {
-            wp *= s;
+            //            wp *= 1.2;
         }
-        std::cout << scene.rms() << std::endl;
+
+        std::cout << "Prediction Pose: " << scene.prediction << std::endl;
+        std::cout << "Initial RMS: " << scene.chi2() << std::endl;
     }
 
-    void solveOld()
+
+
+    void solveSaiga()
     {
-        AlignedVector<int> outlier(scene.wps.size(), false);
-
-        RobustPoseOptimization<T, false> rpo;
-        int inliers = rpo.optimizePoseRobust(scene);
-        std::cout << "rpo inliers: " << inliers << std::endl;
-
-        std::cout << scene.rms() << std::endl;
+        auto cpy = scene;
+        RobustPoseOptimization<T, false> rpo(923475094325, 981450945);
+        rpo.optimizePoseRobust(cpy);
+        std::cout << cpy.pose << std::endl;
+        std::cout << "solveSaiga rms: " << cpy.chi2() << std::endl;
+        std::cout << "solveSaiga pred. error: " << cpy.predictionError() << std::endl;
     }
 
 
     void solveCeres()
     {
-        AlignedVector<int> outlier(scene.wps.size(), false);
-
-        RobustPoseOptimization<T, false> rpo;
-        //        int inliers = rpo.optimizePoseRobust(scene);
-        OptimizePoseCeres(scene);
-        //        std::cout << "rpo inliers: " << inliers << std::endl;
-
-        std::cout << scene.rms() << std::endl;
+        auto cpy = scene;
+        OptimizePoseCeres(cpy);
+        std::cout << cpy.pose << std::endl;
+        std::cout << "solveCeres rms: " << cpy.chi2() << std::endl;
+        std::cout << "solveCeres pred. error: " << cpy.predictionError() << std::endl;
     }
 
 
@@ -95,7 +94,6 @@ class RPOTest
 TEST(PoseEstimation, Sim3)
 {
     RPOTest test;
-    //    test.solveOld();
-    test.applyScale(20);
+    test.solveSaiga();
     test.solveCeres();
 }

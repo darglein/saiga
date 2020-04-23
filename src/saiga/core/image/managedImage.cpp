@@ -119,13 +119,15 @@ bool Image::load(const std::string& _path)
         return loadRaw(path);
     }
 
-#ifdef SAIGA_USE_PNG
     // use libpng for png images
     if (type == "png")
     {
+#ifdef SAIGA_USE_PNG
         return LibPNG::load(path, *this, false);
-    }
+#else
+        std::cerr << "Warning: Using .png without libpng. This might be slow." << std::endl;
 #endif
+    }
 
 
     // use libfreeimage if available
@@ -165,13 +167,14 @@ bool Image::save(const std::string& path) const
     }
 
 
-#ifdef SAIGA_USE_PNG
-    // use libpng for png images
     if (type == "png")
     {
+#ifdef SAIGA_USE_PNG
         return LibPNG::save(path, *this, false);
-    }
+#else
+        std::cerr << "Warning: Using .png without libpng. This might be slow." << std::endl;
 #endif
+    }
 
 #ifdef SAIGA_USE_FREEIMAGE
     return FIP::save(path, *this);

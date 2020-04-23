@@ -6,8 +6,8 @@
 
 #include "gphoto.h"
 
-#include "saiga/core/util/file.h"
 #include "saiga/core/util/Thread/threadName.h"
+#include "saiga/core/util/file.h"
 #include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -26,14 +26,14 @@
 
 #include "gphoto2/gphoto2-camera.h"
 
-#define CHECK_GP(_X)                                                              \
-    {                                                                             \
-        auto ret = _X;                                                            \
-        if (ret != GP_OK)                                                         \
-        {                                                                         \
+#define CHECK_GP(_X)                                                                             \
+    {                                                                                            \
+        auto ret = _X;                                                                           \
+        if (ret != GP_OK)                                                                        \
+        {                                                                                        \
             std::cout << "Gphoto error in " << #_X << std::endl << "code: " << ret << std::endl; \
-            SAIGA_ASSERT(0);                                                      \
-        }                                                                         \
+            SAIGA_ASSERT(0);                                                                     \
+        }                                                                                        \
     }
 
 namespace Saiga
@@ -227,143 +227,5 @@ void GPhoto::eventLoop()
     gp_file_free(file);
 }
 
-
-
-#if 0
-std::vector<GPhoto::queue_entry>
-GPhoto::waitCaptureComplete ()
-{
-    CameraFilePath	*path;
-    int		retval;
-
-    std::vector<GPhoto::queue_entry> queue;
-
-    while(true)
-    {
-
-        Event e = getEvent();
-
-        std::cout << "got event " << e.evtype << std::endl;
-        path = (CameraFilePath	*)e.data;
-        switch (e.evtype) {
-
-        case GP_EVENT_CAPTURE_COMPLETE:
-            return queue;
-        case GP_EVENT_UNKNOWN:
-        case GP_EVENT_TIMEOUT:
-        case GP_EVENT_FOLDER_ADDED:
-            break;
-        case GP_EVENT_FILE_ADDED:
-            fprintf (stderr, "File %s / %s added to queue.\n", path->folder, path->name);
-            queue_entry qe;
-            qe.offset = 0;
-            qe.path = *path;
-            queue.push_back(qe);
-            break;
-        }
-    }
-    return queue;
-
-    if (complete)
-    {
-        complete = false;
-
-        queue_entry qe = queue[1];
-
-        uint64_t	size = buffersize;
-
-
-        //        retval = gp_camera_file_read (camera,
-        //                                      qe.path.folder,
-        //                                      qe.path.name,
-        //                                      GP_FILE_TYPE_NORMAL,
-        //                                      qe.offset,
-        //                                      buffer,
-        //                                      &size,
-        //                                      context
-        //                                      );
-
-        CameraFile *file;
-        retval = gp_file_new(&file);
-        printf("  Retval: %d\n", retval);
-        retval = gp_camera_file_get(camera, qe.path.folder, qe.path.name,
-                                    GP_FILE_TYPE_NORMAL, file, context);
-        printf("  Retval: %d\n", retval);
-
-
-
-        const char	*data;
-        gp_file_get_data_and_size (file, &data, &size);
-
-        std::cout << "size " << size << std::endl;
-
-
-        //        auto fd = open(qe.path.name, O_RDWR, 0644);
-
-        //        std::cout << "fd " << fd << " " << qe.path.name << std::endl;
-        //            if (-1 == lseek(fd, qe.offset, SEEK_SET))
-        //                perror("lseek");
-        //            if (-1 == write (fd, data, size))
-        //                perror("write");
-        //         close (fd);
-
-
-        ArrayView<const char> adata(data,size);
-        //        File::saveFileBinary("test.jpg",adata);
-
-
-        Image img;
-        img.loadFromMemory(adata);
-
-        img.save("test.png");
-        //        fipImage fimg;
-
-        //        fipMemoryIO fipmem( (BYTE*)adata.data(),adata.size());
-        //        fimg.loadFromMemory(fipmem);
-        //        fimg.save("test.png");
-
-        //        fimg.saveToMemory()
-
-
-        gp_file_free(file);
-
-        fprintf(stderr,"done camera readfile size was %d\n", size);
-        if (retval != GP_OK) {
-            fprintf (stderr,"gp_camera_file_read failed: %d\n", retval);
-            return;
-        }
-    }
-    return;
-}
-
-
-
-void GPhoto::clearEventQueue()
-{
-    Event e;
-
-    while(true){
-        e = getEvent();
-        if(e.evtype == GP_EVENT_TIMEOUT)
-            return;
-    }
-}
-
-
-
-void GPhoto::trigger()
-{
-    auto retval = gp_camera_trigger_capture (camera, context);
-    std::cout << "trigger " << retval << std::endl;
-
-    //    CameraFilePath camera_file_path;
-    //    auto retval = gp_camera_capture(camera, GP_CAPTURE_IMAGE, &camera_file_path, context);
-
-    //    CameraFile* camera_file;
-    //    gp_file_new(&camera_file);
-    //    auto retval = gp_camera_capture_preview(camera, camera_file, context);
-}
-
-#endif
 
 }  // namespace Saiga

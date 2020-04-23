@@ -131,4 +131,4 @@ set(CORE_LIBS ${LIBS})
 set(CORE_TARGETS ${LIB_TARGETS})
 set(MODULE_CORE 1)
 
-message(STATUS "${LIBS}")
+#message(STATUS "${LIBS}")

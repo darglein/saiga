@@ -158,14 +158,15 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         strm << std::setprecision(20);
         for (auto& f : frames)
         {
-            double time = f.timeStamp;
-            SAIGA_ASSERT(f.groundTruth);
-
-            SE3 pose = f.groundTruth.value();
-            Vec3 t   = pose.translation();
-            Quat q   = pose.unit_quaternion();
-            strm << time << " " << t(0) << " " << t(1) << " " << t(2) << " " << q.x() << " " << q.y() << " " << q.z()
-                 << " " << q.w() << std::endl;
+            if (f.groundTruth)
+            {
+                double time = f.timeStamp;
+                SE3 pose    = f.groundTruth.value();
+                Vec3 t      = pose.translation();
+                Quat q      = pose.unit_quaternion();
+                strm << time << " " << t(0) << " " << t(1) << " " << t(2) << " " << q.x() << " " << q.y() << " "
+                     << q.z() << " " << q.w() << std::endl;
+            }
         }
     }
 

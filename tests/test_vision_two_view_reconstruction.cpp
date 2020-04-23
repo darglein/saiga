@@ -127,8 +127,10 @@ TEST(TwoViewReconstruction, EssentialMatrix)
     for (int i = 0; i < 10; ++i)
     {
         test->tvr.compute(test->npoints1, test->npoints2, test->five_point_ransac_params.threads);
-        EXPECT_GT(test->tvr.inlierCount, 270);
-        EXPECT_LT(test->tvr.inlierCount, 290);
+        EXPECT_GT(test->tvr.inlierCount, 260);
+        EXPECT_LT(test->tvr.inlierCount, 300);
+
+        ExpectCloseRelative(test->tvr.E, EssentialMatrix(test->tvr.pose1(), test->tvr.pose2()), 1e-5);
 
         auto be = test->tvr.inlierCount;
         test->tvr.optimize(5, 1.5 / 535.4);
@@ -149,6 +151,35 @@ TEST(TwoViewReconstruction, EssentialMatrix)
 
         ExpectCloseRelative(degrees(test->tvr.medianAngleByDepth()), ref_angle_by_depth, 0.15);
         ExpectCloseRelative(degrees(test->tvr.medianAngle()), ref_angle, 0.15);
+
+        // compute epipolar distances of inliers
+
+        Mat3 E = EssentialMatrix(test->tvr.pose1(), test->tvr.pose2());
+        Mat3 F = FundamentalMatrix(E, test->intr, test->intr);
+
+        for (auto i = 0; i < test->tvr.N; ++i)
+        {
+            if (!test->tvr.inlierMask[i]) continue;
+
+            Vec2 p1 = test->tvr.scene.images[0].stereoPoints[i].point;
+            Vec2 p2 = test->tvr.scene.images[1].stereoPoints[i].point;
+
+            auto d12 = sqrt(EpipolarDistanceSquared(p1, p2, E)) * test->intr.fx;
+            auto d21 = sqrt(EpipolarDistanceSquared(p2, p1, E.transpose())) * test->intr.fx;
+
+            EXPECT_LT(d12, 2.0);
+            EXPECT_LT(d21, 2.0);
+
+            // do the same for the fundamental matrix
+            Vec2 ip1 = test->intr.normalizedToImage(p1);
+            Vec2 ip2 = test->intr.normalizedToImage(p2);
+
+            auto fd12 = sqrt(EpipolarDistanceSquared(ip1, ip2, F));
+            auto fd21 = sqrt(EpipolarDistanceSquared(ip2, ip1, F.transpose()));
+
+            EXPECT_LT(fd12, 2.0);
+            EXPECT_LT(fd21, 2.0);
+        }
     }
 }
 

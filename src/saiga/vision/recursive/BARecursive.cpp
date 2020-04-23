@@ -438,15 +438,16 @@ double BARec::computeQuadraticForm()
                 BDiag& targetPointPoint = bdiagArray[j];
                 BRes& targetPointRes    = bresArray[j];
 
-                if (ip.depth > 0)
+                if (ip.IsStereoOrDepth())
                 {
                     using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
                     KernelType::PoseJacobiType JrowPose;
                     KernelType::PointJacobiType JrowPoint;
                     KernelType::ResidualType res;
 
-                    bool valid_depth = KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, w,
-                                                                               res, JrowPose, JrowPoint);
+                    auto stereo_point = ip.GetStereoPoint(scene.bf);
+                    bool valid_depth  = KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, stereo_point,
+                                                                               w, res, JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
 
@@ -673,12 +674,13 @@ double BARec::computeCost()
                 SAIGA_ASSERT(j >= 0);
                 auto& wp = x_v[j];
 
-                if (ip.depth > 0)
+                if (ip.IsStereoOrDepth())
                 {
                     using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
                     KernelType::ResidualType res;
-                    res        = KernelType::evaluateResidual(scam, extr, wp, ip.point, ip.depth, w);
-                    auto res_2 = res.squaredNorm();
+                    auto stereo_point = ip.GetStereoPoint(scene.bf);
+                    res               = KernelType::evaluateResidual(scam, extr, wp, ip.point, stereo_point, w);
+                    auto res_2        = res.squaredNorm();
                     if (baOptions.huberStereo > 0)
                     {
                         auto rw = Kernel::HuberLoss<T>(baOptions.huberStereo, res_2);

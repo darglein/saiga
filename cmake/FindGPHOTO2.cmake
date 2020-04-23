@@ -18,7 +18,7 @@
 # From: https://github.com/darktable-org/darktable/blob/master/cmake/modules/FindGphoto2.cmake
 #=============================================================================
 
-include(FindPkgConfig)
+#include(FindPkgConfig)
 
 SET(GPHOTO2_FIND_REQUIRED ${Gphoto2_FIND_REQUIRED})
 
@@ -33,10 +33,10 @@ mark_as_advanced(GPHOTO2_LIBRARY)
 mark_as_advanced(GPHOTO2_PORT_LIBRARY)
 
 # Detect libgphoto2 version
-pkg_check_modules(PC_GPHOTO2 libgphoto2)
-if(PC_GPHOTO2_FOUND)
-    set(GPHOTO2_VERSION_STRING "${PC_GPHOTO2_VERSION}")
-endif()
+#pkg_check_modules(PC_GPHOTO2 libgphoto2)
+#if(PC_GPHOTO2_FOUND)
+#    set(GPHOTO2_VERSION_STRING "${PC_GPHOTO2_VERSION}")
+#endif()
 
 # handle the QUIETLY and REQUIRED arguments and set GPHOTO2_FOUND to TRUE if
 # all listed variables are TRUE

@@ -2,15 +2,8 @@
 
 set(MODULE_NAME "saiga_extra")
 
+add_subdirectory(opencv)
 
-
-if(Boost_FOUND)
-    add_subdirectory(network)
-endif()
-
-if(OpenCV_FOUND)
-    add_subdirectory(opencv)
-endif()
 
 if(GPHOTO2_FOUND)
     add_subdirectory(gphoto2)

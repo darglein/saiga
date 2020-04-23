@@ -58,8 +58,8 @@ template <typename Scalar>
 inline typename SE3<Scalar>::Tangent se3_logd(const SE3<Scalar>& se3)
 {
     typename SE3<Scalar>::Tangent upsilon_omega;
-    upsilon_omega.template tail<3>() = se3.so3().log();
     upsilon_omega.template head<3>() = se3.translation();
+    upsilon_omega.template tail<3>() = se3.so3().log();
 
     return upsilon_omega;
 }
