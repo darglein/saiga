@@ -9,6 +9,7 @@
 //
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/image/all.h"
+#include "saiga/cuda/CudaInfo.h"
 #include "saiga/cuda/imageProcessing/image.h"
 
 #include "gtest/gtest.h"
@@ -121,6 +122,9 @@ int main()
 #else
     std::cout << "NPPI stream context not found!" << std::endl;
 #endif
+    Saiga::CUDA::initCUDA();
+    Saiga::CUDA::printCUDAInfo();
+
     Saiga::initSaigaSampleNoWindow();
     testing::InitGoogleTest();
 

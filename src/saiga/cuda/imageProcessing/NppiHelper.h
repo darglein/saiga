@@ -28,12 +28,13 @@
 #include <nppi.h>
 
 
-#define CHECK_NPPI_ERROR(function)                                                                                    \
-    {                                                                                                                 \
-        auto error_code = function;                                                                                   \
-        ((error_code == NPP_SUCCESS)                                                                                  \
-             ? static_cast<void>(0)                                                                                   \
-             : Saiga::saiga_assert_fail(#function " == NPP_SUCCESS", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION, "")); \
+#define CHECK_NPPI_ERROR(function)                                                                              \
+    {                                                                                                           \
+        auto error_code = function;                                                                             \
+        ((error_code == NPP_SUCCESS)                                                                            \
+             ? static_cast<void>(0)                                                                             \
+             : Saiga::saiga_assert_fail(#function " == NPP_SUCCESS", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION, \
+                                        "Error code: " + std::to_string(error_code)));                          \
     }
 
 
