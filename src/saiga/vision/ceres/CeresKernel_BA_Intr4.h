@@ -225,7 +225,8 @@ class CostBAStereoAnalytic : public ceres::SizedCostFunction<3, 7, 3>
             Kernel::PoseJacobiType jpose;
             Kernel::PointJacobiType jpoint;
             Kernel::ResidualType res;
-            Kernel::evaluateResidualAndJacobian(intr, se3, wp, observed, observedDepth, weight, res, jpose, jpoint);
+            Kernel::evaluateResidualAndJacobian(intr, se3, wp, observed, observedDepth, weight, weight, res, jpose,
+                                                jpoint);
 
             residual = res;
 

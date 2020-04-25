@@ -266,8 +266,9 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustPoseOptimization
                 if (prediction_weight > 0)
                 {
                     JType J_smooth;
-                    //                    Vec6 res = SmoothPose(guess, prediction, prediction_weight, &J_smooth);
-                    Vec6 res = SmoothPoseRotation(guess, prediction, prediction_weight, &J_smooth);
+                    Vec6 res = SmoothPose(guess, prediction, prediction_weight, &J_smooth);
+                    //                    Vec6 res = SmoothPoseRotation(guess, prediction, prediction_weight,
+                    //                    &J_smooth);
 
 
 

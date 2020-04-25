@@ -38,18 +38,20 @@
     }
 
 
-#if NPP_VERSION_MAJOR > 10 || (NPP_VERSION_MAJOR == 10 && NPP_VERSION_MINOR >= 1)
+#if (NPP_VERSION_MAJOR > 10 || (NPP_VERSION_MAJOR == 10 && NPP_VERSION_MINOR >= 1)) && !defined(NPPI_USE_OLD_CONTEXT)
 #    define SAIGA_NPPI_HAS_STREAM_CONTEXT
 #endif
 
 #ifndef SAIGA_NPPI_HAS_STREAM_CONTEXT
-struct NppStreamContext
+struct SaigaNppStreamContext
 {
     cudaStream_t hStream;
 };
+#else
+using SaigaNppStreamContext = NppStreamContext;
 #endif
 
-using SaigaNppStreamContext = NppStreamContext;
+
 
 // This file contains helper functions for interfacing with the NPPI library.
 // As NPPI mostly consists of image processing utilities, most method have ImageViews as parameters.

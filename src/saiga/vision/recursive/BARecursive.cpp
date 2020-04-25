@@ -447,7 +447,7 @@ double BARec::computeQuadraticForm()
 
                     auto stereo_point = ip.GetStereoPoint(scene.bf);
                     bool valid_depth  = KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, stereo_point,
-                                                                               w, res, JrowPose, JrowPoint);
+                                                                               w, w * 0.2, res, JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
 

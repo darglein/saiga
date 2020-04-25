@@ -159,8 +159,9 @@ struct BAPosePointStereo
 
     EIGEN_ALWAYS_INLINE static bool evaluateResidualAndJacobian(const CameraType& camera, const SE3Type& extr,
                                                                 const Vec3& wp, const Vec2& observed,
-                                                                T observed_stereo_point, T weight, ResidualType& res,
-                                                                PoseJacobiType& JrowPose, PointJacobiType& JrowPoint)
+                                                                T observed_stereo_point, T weight, T weight_depth,
+                                                                ResidualType& res, PoseJacobiType& JrowPose,
+                                                                PointJacobiType& JrowPoint)
     {
         Vec3 pc   = extr * wp;
         Vec2 proj = camera.project(pc);
@@ -225,7 +226,7 @@ struct BAPosePointStereo
 
         JrowPose.row(0) *= -weight;
         JrowPose.row(1) *= -weight;
-        JrowPose.row(2) *= -weight;
+        JrowPose.row(2) *= -weight_depth;
 
 
         // =================== Point ================
@@ -249,7 +250,7 @@ struct BAPosePointStereo
 
         JrowPoint.row(0) *= -weight;
         JrowPoint.row(1) *= -weight;
-        JrowPoint.row(2) *= -weight;
+        JrowPoint.row(2) *= -weight_depth;
 
         return z > 0;
     }
