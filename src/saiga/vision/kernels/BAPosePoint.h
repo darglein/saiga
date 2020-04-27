@@ -140,7 +140,7 @@ struct BAPosePointStereo
 
     EIGEN_ALWAYS_INLINE static ResidualType evaluateResidual(const CameraType& camera, const SE3Type& extr,
                                                              const Vec3& wp, const Vec2& observed,
-                                                             T observed_stereo_point, T weight)
+                                                             T observed_stereo_point, T weight, T weight_depth)
     {
         Vec3 pc   = extr * wp;
         Vec3 proj = camera.project3(pc);
@@ -153,7 +153,9 @@ struct BAPosePointStereo
         Vec3 res      = {observed(0) - proj(0), obs3(1) - proj(1), observed_stereo_point - stereoPoint};
 
 
-        res *= weight;
+        res(0) *= weight;
+        res(1) *= weight;
+        res(2) *= weight_depth;
         return res;
     }
 
@@ -183,16 +185,15 @@ struct BAPosePointStereo
 
         // =================== Residual ================
 
-        auto disparity = proj(0) - camera.bf / pc(2);
+        auto right_point = proj(0) - camera.bf / pc(2);
+        res(2)           = observed_stereo_point - right_point;
 
-        //        T stereoPointObs = observed(0) - camera.bf / observedDepth;
-        double diff2 = observed_stereo_point - disparity;
-
-        res(2) = diff2;
+        res(0) *= weight;
+        res(1) *= weight;
+        res(2) *= weight_depth;
 
         //        T stereoPoint    = proj(0) - camera.bf / proj(2);
         //        res              = {observed(0) - proj(0), obs3(1) - proj(1), stereoPointObs - stereoPoint};
-        res *= weight;
 
 
         // =================== Pose ================

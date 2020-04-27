@@ -217,7 +217,7 @@ class CostBAStereoAnalytic : public ceres::SizedCostFunction<3, 7, 3>
         if (!_jacobians)
         {
             // only compute residuals
-            residual = Kernel::evaluateResidual(intr, se3, wp, observed, observedDepth, weight);
+            residual = Kernel::evaluateResidual(intr, se3, wp, observed, observedDepth, weight, weight);
         }
         else
         {

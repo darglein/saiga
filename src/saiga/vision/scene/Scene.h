@@ -175,8 +175,8 @@ class SAIGA_VISION_API Scene
     // to scale towards [-1,1] range for floating point precision
     double globalScale = 1;
 
-    double bf = 1;
-
+    double bf            = 1;
+    double stereo_weight = 1;
     // similar to vector::clear:
     // reset, but keep memory
     void clear();

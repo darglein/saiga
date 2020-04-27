@@ -446,8 +446,8 @@ double BARec::computeQuadraticForm()
                     KernelType::ResidualType res;
 
                     auto stereo_point = ip.GetStereoPoint(scene.bf);
-                    bool valid_depth  = KernelType::evaluateResidualAndJacobian(scam, extr, wp, ip.point, stereo_point,
-                                                                               w, w * 0.2, res, JrowPose, JrowPoint);
+                    bool valid_depth  = KernelType::evaluateResidualAndJacobian(
+                        scam, extr, wp, ip.point, stereo_point, w, w * scene.stereo_weight, res, JrowPose, JrowPoint);
                     if (extr2.constant) JrowPose.setZero();
 
 
@@ -679,7 +679,8 @@ double BARec::computeCost()
                     using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
                     KernelType::ResidualType res;
                     auto stereo_point = ip.GetStereoPoint(scene.bf);
-                    res               = KernelType::evaluateResidual(scam, extr, wp, ip.point, stereo_point, w);
+                    res               = KernelType::evaluateResidual(scam, extr, wp, ip.point, stereo_point, w,
+                                                       w * scene.stereo_weight);
                     auto res_2        = res.squaredNorm();
                     if (baOptions.huberStereo > 0)
                     {
