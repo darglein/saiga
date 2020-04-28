@@ -73,6 +73,8 @@ if(SAIGA_CXX_WCLANG)
   find_library(OMP_LIB libomp PATH_SUFFIXES lib)
   message(STATUS ${OMP_LIB})
   SET(LIBS ${LIBS} ${OMP_LIB})
+elseif(SAIGA_CXX_MSVC)
+
 else()
   find_package(OpenMP)
   PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
