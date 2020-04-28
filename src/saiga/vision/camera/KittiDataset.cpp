@@ -36,7 +36,7 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
 
 
     std::filesystem::path p(params.dir + "/");
-    std::string sequence_number_str = p.parent_path().filename();
+    std::string sequence_number_str = p.parent_path().filename().string();
     int sequence_number             = std::atoi(sequence_number_str.c_str());
     SAIGA_ASSERT(sequence_number >= 0 && sequence_number <= 21);
 

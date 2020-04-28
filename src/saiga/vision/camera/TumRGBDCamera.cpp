@@ -86,7 +86,7 @@ TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params, int freiburg) : D
     if (freiburg == -1)
     {
         std::filesystem::path p(_params.dir + "/");
-        std::string dir = p.parent_path().filename();
+        std::string dir = p.parent_path().filename().string();
         auto pos        = dir.find("freiburg");
 
         if (pos < dir.size())
