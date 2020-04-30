@@ -100,6 +100,7 @@ struct SAIGA_VISION_API StereoImagePoint
 
     bool IsStereoOrDepth() { return depth > 0 || stereo_x >= 0; }
     double GetStereoPoint(double bf) { return stereo_x >= 0 ? stereo_x : point(0) - bf / depth; }
+    double GetStereoPoint2(double bf) { return point(0) - bf / depth; }
 };
 
 struct SAIGA_VISION_API DenseConstraint
