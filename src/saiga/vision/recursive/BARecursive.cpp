@@ -219,6 +219,7 @@ void BARec::init()
     }
 
     // ===== Threading Tmps ======
+    //    std::cout << "threads: " << threads << std::endl;
     SAIGA_ASSERT(threads > 0);
     localChi2.resize(threads);
     pointDiagTemp.resize(threads - 1);
@@ -235,7 +236,16 @@ void BARec::init()
                               ? Eigen::Recursive::LinearSolverOptions::SolverType::Direct
                               : Eigen::Recursive::LinearSolverOptions::SolverType::Iterative;
     loptions.buildExplizitSchur = optimizationOptions.buildExplizitSchur;
-    solver.analyzePattern(A, loptions);
+
+    if (threads == 1)
+    {
+        solver.analyzePattern(A, loptions);
+    }
+    else
+    {
+        solver.analyzePattern_omp(A, loptions);
+    }
+
 #if 0
 
     // Create sparsity histogram of the schur complement
@@ -331,7 +341,6 @@ void BARec::init()
 double BARec::computeQuadraticForm()
 {
     Scene& scene = *_scene;
-    SAIGA_ASSERT(threads == OMP::getNumThreads());
 
     //    SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
 
@@ -354,6 +363,7 @@ double BARec::computeQuadraticForm()
     {
         int tid = OMP::getThreadNum();
 
+        SAIGA_ASSERT(threads == OMP::getNumThreads());
 
         double& newChi2 = localChi2[tid];
         newChi2         = 0;
@@ -380,8 +390,12 @@ double BARec::computeQuadraticForm()
         }
 
         //#pragma omp for
-        for (auto&& info : validImages)
+//        for (auto&& info : validImages)
+#pragma omp for
+        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
         {
+            auto info = validImages[valid_id];
+
             // int imgid        = info.sceneImageId;
             int actualOffset = info.variableId;
 
@@ -531,41 +545,50 @@ double BARec::computeQuadraticForm()
     }
 
 
-    double chi2 = 0;
-    for (int i = 0; i < threads; ++i)
+#pragma omp single
     {
-        chi2 += localChi2[i];
+        chi2_sum = 0;
+        for (int i = 0; i < threads; ++i)
+        {
+            chi2_sum += localChi2[i];
+        }
     }
 
-    return chi2;
+    return chi2_sum;
 }
 
 bool BARec::addDelta()
 {
-    for (auto&& info : validImages)
+    //#pragma omp parallel num_threads(threads)
     {
-        if (info.isConstant()) continue;
+#pragma omp for
+        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        {
+            auto info = validImages[valid_id];
+            if (info.isConstant()) continue;
 
-        auto id     = info.validId;
-        auto offset = info.variableId;
-        oldx_u[id]  = x_u[id];
+            auto id     = info.validId;
+            auto offset = info.variableId;
+            oldx_u[id]  = x_u[id];
 
 
 
-        auto t = delta_x.u(offset).get();
+            auto t = delta_x.u(offset).get();
 
-        x_u[id] = Sophus::se3_expd(t) * x_u[id];
+            x_u[id] = Sophus::se3_expd(t) * x_u[id];
 
-        //        Sophus::decoupled_inc(t, x_u[id]);
-        //        x_u[id].translation() += t.head<3>();
-        //        x_u[id].so3() = Sophus::SO3d::exp(t.tail<3>()) * x_u[id].so3();
-    }
+            //        Sophus::decoupled_inc(t, x_u[id]);
+            //        x_u[id].translation() += t.head<3>();
+            //        x_u[id].so3() = Sophus::SO3d::exp(t.tail<3>()) * x_u[id].so3();
+        }
 
-    for (int i = 0; i < m; ++i)
-    {
-        oldx_v[i] = x_v[i];
-        auto t    = delta_x.v(i).get();
-        x_v[i] += t;
+#pragma omp for
+        for (int i = 0; i < m; ++i)
+        {
+            oldx_v[i] = x_v[i];
+            auto t    = delta_x.v(i).get();
+            x_v[i] += t;
+        }
     }
     return true;
 }
@@ -576,8 +599,10 @@ void BARec::revertDelta()
     {
         //#pragma omp for nowait
         //        for (int i = 0; i < x_u.size(); ++i)
-        for (auto&& info : validImages)
+#pragma omp for
+        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
         {
+            auto info = validImages[valid_id];
             if (info.isConstant()) continue;
 
             x_u[info.validId] = oldx_u[info.validId];
@@ -599,9 +624,10 @@ void BARec::finalize()
 
     //#pragma omp parallel num_threads(threads)
     {
-        //#pragma omp for nowait
-        for (auto&& info : validImages)
+#pragma omp for
+        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
         {
+            auto info = validImages[valid_id];
             if (info.isConstant()) continue;
 
             auto& extr = scene.extrinsics[info.sceneImageId];
@@ -621,10 +647,18 @@ void BARec::finalize()
 
 void BARec::addLambda(double lambda)
 {
-    //#pragma omp parallel num_threads(threads)
+    if (threads == 1)
     {
         applyLMDiagonal(A.u, lambda);
         applyLMDiagonal(A.v, lambda);
+    }
+    else
+    {
+        //#pragma omp parallel num_threads(threads)
+        {
+            applyLMDiagonal_omp(A.u, lambda);
+            applyLMDiagonal_omp(A.v, lambda);
+        }
     }
 }
 
@@ -633,10 +667,19 @@ void BARec::addLambda(double lambda)
 void BARec::solveLinearSystem()
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
-    //#pragma omp parallel num_threads(threads)
+
+    if (threads == 1)
     {
         solver.solve(A, delta_x, b, loptions);
     }
+    else
+    {
+        //#pragma omp parallel num_threads(threads)
+        {
+            solver.solve_omp(A, delta_x, b, loptions);
+        }
+    }
+    //#pragma omp single
 }
 
 double BARec::computeCost()
@@ -645,7 +688,6 @@ double BARec::computeCost()
 
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
 
-    SAIGA_ASSERT(threads == 1);
     using T = BlockBAScalar;
 
     //#pragma omp parallel num_threads(threads)
@@ -654,9 +696,11 @@ double BARec::computeCost()
 
         double& newChi2 = localChi2[tid];
         newChi2         = 0;
-        //#pragma omp for
-        for (auto&& info : validImages)
+        //        for (auto&& info : validImages)
+#pragma omp for
+        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
         {
+            auto info = validImages[valid_id];
             SAIGA_ASSERT(info);
             auto& img  = scene.images[info.sceneImageId];
             auto& extr = x_u[info.validId];
@@ -709,12 +753,15 @@ double BARec::computeCost()
         }
     }
 
-    double chi2 = 0;
-    for (int i = 0; i < threads; ++i)
+#pragma omp single
     {
-        chi2 += localChi2[i];
+        chi2_sum = 0;
+        for (int i = 0; i < threads; ++i)
+        {
+            chi2_sum += localChi2[i];
+        }
     }
 
-    return chi2;
+    return chi2_sum;
 }
 }  // namespace Saiga

@@ -117,6 +117,7 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     std::vector<AlignedVector<BDiag>> pointDiagTemp;
     std::vector<AlignedVector<BRes>> pointResTemp;
     std::vector<double> localChi2;
+    double chi2_sum;
 
 
     // ============== LM Functions ==============

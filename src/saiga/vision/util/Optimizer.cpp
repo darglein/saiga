@@ -209,7 +209,7 @@ OptimizationResults LMOptimizer::solveOMP()
     bool running = true;
     bool revert  = false;
 
-    // use this thread block for the complete optimizer
+// use this thread block for the complete optimizer
 #pragma omp parallel num_threads(optimizationOptions.numThreads)
     {
         int tid = OMP::getThreadNum();
@@ -218,6 +218,8 @@ OptimizationResults LMOptimizer::solveOMP()
             double chi2;
 
             chi2 = computeQuadraticForm();
+
+            //            continue;
 
             if (optimizationOptions.debug)
             {

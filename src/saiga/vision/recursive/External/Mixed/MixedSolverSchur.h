@@ -47,7 +47,6 @@ class MixedSymmetricRecursiveSolver<
     using XUType = typename XType::UType;
     using XVType = typename XType::VType;
 
-    static constexpr bool denseSchur = false;
     //    using S1Type = Eigen::Matrix<UBlock, -1,-1,Eigen::RowMajor>;
     using S1Type = Eigen::SparseMatrix<UBlock, Eigen::RowMajor>;
 
@@ -56,10 +55,10 @@ class MixedSymmetricRecursiveSolver<
 
     using InnerSolver1 = MixedSymmetricRecursiveSolver<S1Type, XUType>;
 
-    void analyzePattern(const AType& A, const LinearSolverOptions& solverOptions)
+    void resize(int n, int m)
     {
-        n = A.u.rows();
-        m = A.v.rows();
+        this->n = n;
+        this->m = m;
 
         Vinv.resize(m);
         Y.resize(n, m);
@@ -67,7 +66,13 @@ class MixedSymmetricRecursiveSolver<
         ej.resize(n);
         q.resize(m);
         S1.resize(n, n);
+        P.resize(n);
+        tmp.resize(n);
+    }
 
+    void analyzePattern(const AType& A, const LinearSolverOptions& solverOptions)
+    {
+        resize(A.u.rows(), A.v.rows());
 
         if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
         {
@@ -147,11 +152,9 @@ class MixedSymmetricRecursiveSolver<
         // A special implicit schur solver.
         // We cannot use the recursive inner solver here.
         // (Maybe a todo for the future)
-        RecursiveDiagonalPreconditioner<UBlock> P;
         Eigen::Index iters = solverOptions.maxIterativeIterations;
         double tol         = solverOptions.iterativeTolerance;
 
-        P.resize(n);
 
         if (explizitSchur)
         {
@@ -222,13 +225,16 @@ class MixedSymmetricRecursiveSolver<
     XVType q;
     AVType Vinv;
     AWType Y;
-    S1Type S1;
-    //    S2Type S2;
     Eigen::DiagonalMatrix<UBlock, -1> Sdiag;
     XUType ej;
+    XUType tmp;
 
+    std::vector<int> transposeTargets;
     AWTType WT;
 
+    RecursiveDiagonalPreconditioner<UBlock> P;
+
+    S1Type S1;
     InnerSolver1 solver1;
     //    InnerSolver2 solver2;
 

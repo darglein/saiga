@@ -46,6 +46,19 @@ class BundleAdjustmentTest
         return cpy;
     }
 
+    Scene solveRecOMP(const BAOptions& options)
+    {
+        Scene cpy = scene;
+        BARec ba;
+        ba.optimizationOptions = opoptions;
+        ba.baOptions           = options;
+        ba.create(cpy);
+        //        SAIGA_BLOCK_TIMER();
+        ba.initOMP();
+        ba.solveOMP();
+        return cpy;
+    }
+
     Scene solveCeres(const BAOptions& options)
     {
         Scene cpy = scene;
@@ -117,8 +130,9 @@ class BundleAdjustmentTest
 
     Scene scene;
 
-   private:
     OptimizationOptions opoptions;
+
+   private:
 };
 
 TEST(BundleAdjustment, Empty)
@@ -140,6 +154,22 @@ TEST(BundleAdjustment, Default)
         test.test(options);
     }
 }
+
+TEST(BundleAdjustment, DefaultParallel)
+{
+    BundleAdjustmentTest test;
+    test.buildScene(false);
+    test.opoptions.numThreads = 8;
+
+    BAOptions options;
+    auto ref1 = test.solveRec(options);
+    auto ref2 = test.solveRecOMP(options);
+
+    std::cout << ref1.chi2() << std::endl;
+    std::cout << ref2.chi2() << std::endl;
+    //    exit(0);
+}
+
 
 TEST(BundleAdjustment, DefaultDepth)
 {

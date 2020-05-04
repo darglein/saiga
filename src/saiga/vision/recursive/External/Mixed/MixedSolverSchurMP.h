@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "../Cholesky.h"
 #include "../Core.h"
 #include "MixedSolver.h"
 
@@ -38,21 +39,56 @@ class MixedSymmetricRecursiveSolver<
     using S1Type = Eigen::SparseMatrix<UBlock, Eigen::RowMajor>;
     using S2Type = Eigen::SparseMatrix<VBlock, Eigen::RowMajor>;
 
+    using InnerSolver1 = MixedSymmetricRecursiveSolver<S1Type, XUType>;
+
+    void resize(int n, int m)
+    {
+        this->n = n;
+        this->m = m;
+
+        Vinv.resize(m);
+        Y.resize(n, m);
+        Sdiag.resize(n);
+        ej.resize(n);
+        q.resize(m);
+        S1.resize(n, n);
+        P.resize(n);
+        tmp.resize(n);
+    }
+
+
     void analyzePattern(const AType& A, const LinearSolverOptions& solverOptions)
+    {
+        resize(A.u.rows(), A.v.rows());
+
+        if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
+        {
+            hasWT         = true;
+            explizitSchur = true;
+        }
+        else
+        {
+            // TODO: add heurisitc here
+            hasWT = true;
+            if (solverOptions.buildExplizitSchur)
+                explizitSchur = true;
+            else
+                explizitSchur = false;
+        }
+
+        if (hasWT)
+        {
+            transposeStructureOnly(A.w, WT);
+        }
+
+        patternAnalyzed = true;
+    }
+
+    void analyzePattern_omp(const AType& A, const LinearSolverOptions& solverOptions)
     {
 #pragma omp single
         {
-            n = A.u.rows();
-            m = A.v.rows();
-
-            Vinv.resize(m);
-            Y.resize(n, m);
-            Sdiag.resize(n);
-            ej.resize(n);
-            q.resize(m);
-            S1.resize(n, n);
-            P.resize(n);
-            tmp.resize(n);
+            resize(A.u.rows(), A.v.rows());
 
 
             if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
@@ -90,8 +126,128 @@ class MixedSymmetricRecursiveSolver<
         const XVType& eb = b.v;
 
 
-
         if (!patternAnalyzed) analyzePattern(A, solverOptions);
+
+        if (hasWT)
+        {
+            transposeValueOnly(A.w, WT);
+        }
+
+#if 1
+        // U schur (S1)
+        for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
+        multSparseDiag(W, Vinv, Y);
+
+        if (explizitSchur)
+        {
+            eigen_assert(hasWT);
+            S1            = (Y * WT).template triangularView<Eigen::Upper>();
+            S1            = -S1;
+            S1.diagonal() = U.diagonal() + S1.diagonal();
+
+            //            S2            = (Y * WT).template triangularView<Eigen::Upper>();
+            //            S2            = -S2;
+            //            S2.diagonal() = U.diagonal() + S2.diagonal();
+
+            //            std::cout << expand(S1) << std::endl << std::endl;
+            //            std::cout << expand(S2) << std::endl << std::endl;
+        }
+        else
+        {
+            diagInnerProductTransposed(Y, W, Sdiag);
+            Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
+        }
+
+        //        std::cout << expand(Sdiag.toDenseMatrix()) << std::endl << std::endl;
+        //        exit(0);
+        ej = ea + -(Y * eb);
+        da.setZero();
+
+        //        exit(0);
+
+        // A special implicit schur solver.
+        // We cannot use the recursive inner solver here.
+        // (Maybe a todo for the future)
+        Eigen::Index iters = solverOptions.maxIterativeIterations;
+        double tol         = solverOptions.iterativeTolerance;
+
+
+        if (explizitSchur)
+        {
+            P.compute(S1);
+            //            std::cout << expand(P.m_invdiag) << std::endl << std::endl;
+        }
+        else
+        {
+            P.compute(Sdiag);
+            //            std::cout << expand(P.m_invdiag) << std::endl << std::endl;
+        }
+
+        XUType tmp(n);
+
+
+        recursive_conjugate_gradient(
+            [&](const XUType& v, XUType& result) {
+                // x = U * p - Y * WT * p
+                if (explizitSchur)
+                {
+                    //                    if constexpr (denseSchur)
+                    //                        denseMV(S1, v, result);
+                    //                    else
+                    result = S1.template selfadjointView<Eigen::Upper>() * v;
+                    //                    std::cout << expand(result) << std::endl << std::endl;
+                }
+                else
+                {
+                    if (hasWT)
+                    {
+                        tmp = Y * (WT * v);
+                    }
+                    else
+                    {
+                        multSparseRowTransposedVector(W, v, q);
+                        tmp = Y * q;
+                    }
+                    result = (U.diagonal().array() * v.array()) - tmp.array();
+                    //                    std::cout << expand(result) << std::endl << std::endl;
+                }
+            },
+            ej, da, P, iters, tol);
+
+
+
+        // finalize
+        if (hasWT)
+        {
+            q = WT * da;
+        }
+        else
+        {
+            multSparseRowTransposedVector(W, da, q);
+        }
+        q  = eb - q;
+        db = multDiagVector(Vinv, q);
+#else
+        // V schur (S1)
+        for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
+        Y = multSparseDiag(W, Vinv);
+#endif
+    }
+
+    void solve_omp(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
+    {
+        // Some references for easier access
+        const AUType& U  = A.u;
+        const AVType& V  = A.v;
+        const AWType& W  = A.w;
+        XUType& da       = x.u;
+        XVType& db       = x.v;
+        const XUType& ea = b.u;
+        const XVType& eb = b.v;
+
+
+
+        if (!patternAnalyzed) analyzePattern_omp(A, solverOptions);
 
 
         transposeValueOnly_omp(A.w, WT, transposeTargets);
@@ -163,7 +319,6 @@ class MixedSymmetricRecursiveSolver<
     XVType q;
     AVType Vinv;
     AWType Y;
-    S1Type S1;
     Eigen::DiagonalMatrix<UBlock, -1> Sdiag;
     XUType ej;
     XUType tmp;
@@ -172,6 +327,8 @@ class MixedSymmetricRecursiveSolver<
     AWTType WT;
 
     RecursiveDiagonalPreconditioner<UBlock> P;
+    S1Type S1;
+    InnerSolver1 solver1;
 
     bool patternAnalyzed = false;
     bool hasWT           = true;
