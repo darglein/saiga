@@ -70,26 +70,25 @@ std::pair<SE3, double> align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pa
     return {relSe3, scale};
 }
 
-std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A, ArrayView<const std::pair<int, SE3>> B)
+std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A, ArrayView<const std::pair<int, SE3>> B, int difference)
 {
     SAIGA_ASSERT(A.size() == B.size());
     int N = A.size();
     std::vector<double> rpe;
     if (A.empty()) return rpe;
 
-    int diff = 4;
 
-    if (N < diff) return rpe;
+    if (N < difference) return rpe;
 
-    for (auto i : Range(diff, N))
+    for (auto i : Range(difference, N))
     {
         auto [a_id, a_se] = A[i];
         auto [b_id, b_se] = B[i];
         SAIGA_ASSERT(a_id == b_id);
 
 
-        auto [a_id_prev, a_se_prev] = A[i - diff];
-        auto b_se_prev              = B[i - diff].second;
+        auto [a_id_prev, a_se_prev] = A[i - difference];
+        auto b_se_prev              = B[i - difference].second;
 
         auto a_rel = a_se.inverse() * a_se_prev;
         auto b_rel = b_se.inverse() * b_se_prev;

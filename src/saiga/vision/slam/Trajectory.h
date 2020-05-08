@@ -48,7 +48,7 @@ SAIGA_VISION_API extern std::pair<SE3, double> align(ArrayView<std::pair<int, SE
  * sum_i (a[i].inverse()*a[i-1] - b[i].inverse()*b[i-1])^2
  */
 SAIGA_VISION_API extern std::vector<double> rpe(ArrayView<const std::pair<int, SE3>> A,
-                                                ArrayView<const std::pair<int, SE3>> B);
+                                                ArrayView<const std::pair<int, SE3>> B, int difference);
 /**
  * Root mean squared absolute trajectory error (ate)
  * sum_i (a[i] - b[i])^2
