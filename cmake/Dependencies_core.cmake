@@ -92,6 +92,10 @@ else()
   #    endif()
 endif()
 
+if(SAIGA_CXX_MSVC)
+  add_definitions(-D_OPENMP)
+endif()
+
 
 
 #libfreeimage
