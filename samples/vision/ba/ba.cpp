@@ -101,7 +101,7 @@ void Sample::renderOverlay(Camera* cam)
     lineSoup.render(cam);
 
 
-    for (auto& i : scene.extrinsics)
+    for (auto& i : scene.images)
     {
         Saiga::SE3 se3 = i.se3;
         mat4 v         = (se3.matrix()).cast<float>();

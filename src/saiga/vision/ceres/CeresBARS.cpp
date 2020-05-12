@@ -38,9 +38,9 @@ OptimizationResults CeresBARS::initAndSolve()
 
     Sophus::test::LocalParameterizationSE3 camera_parameterization;
 
-    for (size_t i = 0; i < scene.extrinsics.size(); ++i)
+    for (size_t i = 0; i < scene.images.size(); ++i)
     {
-        problem.AddParameterBlock(scene.extrinsics[i].se3.data(), 7, &camera_parameterization);
+        problem.AddParameterBlock(scene.images[i].se3.data(), 7, &camera_parameterization);
     }
 
     ceres::HuberLoss lossFunctionMono(baOptions.huberMono);
@@ -79,7 +79,7 @@ OptimizationResults CeresBARS::initAndSolve()
     std::vector<std::array<double, 2 * 8>> mixedData;
 
 
-    for (auto& img : scene.extrinsics)
+    for (auto& img : scene.images)
     {
         auto& extr = img.se3;
 
@@ -103,7 +103,7 @@ OptimizationResults CeresBARS::initAndSolve()
     {
         //        auto& extr   = scene.extrinsics[img.extr].se3;
         //        auto& extr = scene.extrinsics[img.extr].se3;
-        auto& extr   = mixedData[img.extr];
+        auto& extr   = img.se3;
         auto& camera = scene.intrinsics[img.intr];
 
         for (auto& ip : img.stereoPoints)
@@ -134,22 +134,23 @@ OptimizationResults CeresBARS::initAndSolve()
 
     for (auto& img : scene.images)
     {
-        auto& extr = scene.extrinsics[img.extr].se3;
+        auto& extr = img.se3;
 
 
-        auto data = mixedData[img.extr];
+        SAIGA_EXIT_ERROR("not implemented");
+        //        auto data = mixedData[img.extr];
 
 
-        Eigen::Map<Sophus::SE3<double>> s1(data.data());
+        //        Eigen::Map<Sophus::SE3<double>> s1(data.data());
 
         //        Eigen::Map<Sophus::SE3<double>> s2(data.data() + 8);
         //        auto rel = s2 * s1.inverse();
         //        std::cout << "Rel: " << rel << std::endl;
 
-        Eigen::Map<Vec6> s2(data.data() + 8);
+        //        Eigen::Map<Vec6> s2(data.data() + 8);
         //        std::cout << s2.transpose() << std::endl;
 
-        extr = s1;
+        //        extr = s1;
     }
 
 

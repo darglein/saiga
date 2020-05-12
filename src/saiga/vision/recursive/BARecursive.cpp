@@ -18,6 +18,8 @@
 #include <fstream>
 #include <numeric>
 
+
+
 #define RECURSIVE_BA_USE_TIMERS false
 
 namespace Saiga
@@ -103,7 +105,7 @@ void BARec::init()
         info.sceneImageId = i;
         info.validId      = validId++;
 
-        bool constant = scene.extrinsics[img.extr].constant;
+        bool constant = img.constant;
 
         int realOffset = constant ? -1 : nonConstantN;
 
@@ -155,7 +157,7 @@ void BARec::init()
     for (auto&& info : validImages)
     {
         auto& img         = scene.images[info.sceneImageId];
-        x_u[info.validId] = scene.extrinsics[img.extr].se3;
+        x_u[info.validId] = img.se3;
     }
 
     for (int i = 0; i < (int)validPoints.size(); ++i)
@@ -409,7 +411,7 @@ double BARec::computeQuadraticForm()
 
             auto& img    = scene.images[info.sceneImageId];
             auto& extr   = x_u[info.validId];
-            auto& extr2  = scene.extrinsics[img.extr];
+            auto& extr2  = img;
             auto& camera = scene.intrinsics[img.intr];
             StereoCamera4 scam(camera, scene.bf);
 
@@ -630,7 +632,7 @@ void BARec::finalize()
             auto info = validImages[valid_id];
             if (info.isConstant()) continue;
 
-            auto& extr = scene.extrinsics[info.sceneImageId];
+            auto& extr = scene.images[info.sceneImageId];
             extr.se3   = x_u[info.validId];
         }
 #pragma omp for

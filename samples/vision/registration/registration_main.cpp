@@ -120,7 +120,7 @@ class RegistrationTest
         Trajectory::align(gt, tracking, false);
 
         auto ate = Statistics(Trajectory::ate(gt, tracking)).max;
-        auto rpe = Statistics(Trajectory::rpe(gt, tracking)).max;
+        auto rpe = Statistics(Trajectory::rpe(gt, tracking, 1)).max;
         std::cout << "ATE/RPE " << ate << " " << rpe << std::endl;
         std::cout << std::endl;
     }
@@ -130,7 +130,7 @@ class RegistrationTest
         std::cout << "Testing Sim3 trajectory alignment..." << std::endl;
         Trajectory::align(gt, trackingScaled, true);
         auto ate = Statistics(Trajectory::ate(gt, trackingScaled)).max;
-        auto rpe = Statistics(Trajectory::rpe(gt, trackingScaled)).max;
+        auto rpe = Statistics(Trajectory::rpe(gt, trackingScaled, 1)).max;
         std::cout << "ATE/RPE " << ate << " " << rpe << std::endl;
         std::cout << std::endl;
     }

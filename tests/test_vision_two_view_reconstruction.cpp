@@ -167,8 +167,8 @@ TEST(TwoViewReconstruction, EssentialMatrix)
             auto d12 = sqrt(EpipolarDistanceSquared(p1, p2, E)) * test->intr.fx;
             auto d21 = sqrt(EpipolarDistanceSquared(p2, p1, E.transpose())) * test->intr.fx;
 
-            EXPECT_LT(d12, 2.0);
-            EXPECT_LT(d21, 2.0);
+            EXPECT_LT(d12, 2.5);
+            EXPECT_LT(d21, 2.5);
 
             // do the same for the fundamental matrix
             Vec2 ip1 = test->intr.normalizedToImage(p1);
@@ -177,8 +177,8 @@ TEST(TwoViewReconstruction, EssentialMatrix)
             auto fd12 = sqrt(EpipolarDistanceSquared(ip1, ip2, F));
             auto fd21 = sqrt(EpipolarDistanceSquared(ip2, ip1, F.transpose()));
 
-            EXPECT_LT(fd12, 2.0);
-            EXPECT_LT(fd21, 2.0);
+            EXPECT_LT(fd12, 2.5);
+            EXPECT_LT(fd21, 2.5);
         }
     }
 }

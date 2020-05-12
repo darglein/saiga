@@ -46,8 +46,8 @@ class SAIGA_VISION_API TwoViewReconstruction
     // optimize with bundle adjustment
     int optimize(int its, float thresholdChi1);
 
-    SE3& pose1() { return scene.extrinsics[0].se3; }
-    SE3& pose2() { return scene.extrinsics[1].se3; }
+    SE3& pose1() { return scene.images[0].se3; }
+    SE3& pose2() { return scene.images[1].se3; }
 
     void clear();
 

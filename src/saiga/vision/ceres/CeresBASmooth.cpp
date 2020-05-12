@@ -40,10 +40,10 @@ OptimizationResults CeresBASmooth::initAndSolve()
 
     Sophus::test::LocalParameterizationSE3 camera_parameterization;
 
-    for (size_t i = 0; i < scene.extrinsics.size(); ++i)
+    for (size_t i = 0; i < scene.images.size(); ++i)
     {
-        problem.AddParameterBlock(scene.extrinsics[i].se3.data(), 7, &camera_parameterization);
-        if (scene.extrinsics[i].constant) problem.SetParameterBlockConstant(scene.extrinsics[i].se3.data());
+        problem.AddParameterBlock(scene.images[i].se3.data(), 7, &camera_parameterization);
+        if (scene.images[i].constant) problem.SetParameterBlockConstant(scene.images[i].se3.data());
     }
 
 
@@ -87,7 +87,7 @@ OptimizationResults CeresBASmooth::initAndSolve()
 
     for (auto& img : scene.images)
     {
-        auto& extr   = scene.extrinsics[img.extr].se3;
+        auto& extr   = img.se3;
         auto& camera = scene.intrinsics[img.intr];
         for (auto& ip : img.stereoPoints)
         {
@@ -104,9 +104,9 @@ OptimizationResults CeresBASmooth::initAndSolve()
 
     for (auto& sc : scene.smoothnessConstraints)
     {
-        auto& p1 = scene.extrinsics[scene.images[sc.ex1].extr].se3;
-        auto& p2 = scene.extrinsics[scene.images[sc.ex2].extr].se3;
-        auto& p3 = scene.extrinsics[scene.images[sc.ex3].extr].se3;
+        auto& p1 = scene.images[sc.ex1].se3;
+        auto& p2 = scene.images[sc.ex2].se3;
+        auto& p3 = scene.images[sc.ex3].se3;
         auto w   = sc.weight;
 
         auto cost_function = CostSmoothBA::create(w);

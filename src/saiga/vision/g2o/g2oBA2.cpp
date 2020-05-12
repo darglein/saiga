@@ -72,7 +72,7 @@ OptimizationResults g2oBA2::initAndSolve()
 
         g2o::VertexSE3* v_se3 = new g2o::VertexSE3();
         v_se3->setId(validId);
-        auto e = scene.extrinsics[img.extr];
+        auto& e = img;
         v_se3->setEstimate((e.se3));
         v_se3->setFixed(e.constant);
         optimizer.addVertex(v_se3);
@@ -232,7 +232,7 @@ OptimizationResults g2oBA2::initAndSolve()
     {
         int vertex            = i + extrStartId;
         g2o::VertexSE3* v_se3 = static_cast<g2o::VertexSE3*>(optimizer.vertex(vertex));
-        auto& e               = scene.extrinsics[validImages[i]];
+        auto& e               = scene.images[validImages[i]];
         auto se3              = v_se3->estimate();
         e.se3                 = (se3);
     }

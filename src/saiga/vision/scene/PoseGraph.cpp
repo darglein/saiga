@@ -14,8 +14,8 @@ namespace Saiga
 {
 PoseGraph::PoseGraph(const Scene& scene, int minEdges)
 {
-    vertices.reserve(scene.extrinsics.size());
-    for (auto& p : scene.extrinsics)
+    vertices.reserve(scene.images.size());
+    for (auto& p : scene.images)
     {
         PoseVertex pv;
         pv.SetPose(p.se3.inverse());
@@ -25,7 +25,7 @@ PoseGraph::PoseGraph(const Scene& scene, int minEdges)
     }
 
 
-    int n = scene.extrinsics.size();
+    int n = scene.images.size();
     std::vector<std::vector<int>> schurStructure;
     schurStructure.clear();
     schurStructure.resize(n, std::vector<int>(n, 0));

@@ -89,7 +89,7 @@ class SAIGA_VISION_API BALDataset
 
         Intrinsics4 intr() { return {f, f, 0, 0}; }
 
-        Extrinsics extr()
+        std::pair<SE3, bool> extr()
         {
             // Frome the BAL Docu:
             // the positive x-axis points right, and the positive y-axis points up (in addition, in the camera

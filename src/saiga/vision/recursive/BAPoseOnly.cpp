@@ -27,7 +27,7 @@ void BAPoseOnly::init()
 
     for (int i = 0; i < n; ++i)
     {
-        x_v[i] = scene.extrinsics[i].se3;
+        x_v[i] = scene.images[i].se3;
     }
 }
 
@@ -175,7 +175,7 @@ void BAPoseOnly::finalize()
 
     for (int i = 0; i < n; ++i)
     {
-        scene.extrinsics[i].se3 = x_v[i];
+        scene.images[i].se3 = x_v[i];
     }
 }
 

@@ -10,19 +10,24 @@
 
 namespace Saiga
 {
+namespace SynteticScene
+{
+/**
+ * Generates #numWorldPoints 3D points at the origin in a sphere with radius 1.
+ * Generates #numCameras cameras equally distributed on a circle in the x-z plane
+ * Each camera has #numImagePoints (random) references to world points.
+ */
+SAIGA_VISION_API Scene CircleSphere(int numWorldPoints, int numCameras, int numImagePoints);
+
+
+
 /**
  * This module generates syntetic Scenes for testing purposes.
  * Checkout the vision/vision_ba sample to see the generated scenes
  */
-class SAIGA_VISION_API SynteticScene
+class SAIGA_VISION_API SceneCreator
 {
    public:
-    /**
-     * Generates #numWorldPoints 3D points at the origin in a sphere with radius 1.
-     * Generates #numCameras cameras equally distributed on a circle in the x-z plane
-     * Each camera has #numImagePoints (random) references to world points.
-     */
-    Scene circleSphere(int numWorldPoints, int numCameras, int numImagePoints);
     Scene circleSphere();  // use the class members as parameters
 
 
@@ -36,4 +41,5 @@ class SAIGA_VISION_API SynteticScene
     int numCameras     = 125;
     int numImagePoints = 350;
 };
+}  // namespace SynteticScene
 }  // namespace Saiga

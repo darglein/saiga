@@ -14,15 +14,10 @@ TwoViewReconstruction::TwoViewReconstruction()
     scene.intrinsics.push_back(intr);
     scene.images.resize(2);
 
-    scene.images[0].extr = 0;
     scene.images[0].intr = 0;
-    scene.images[1].extr = 1;
     scene.images[1].intr = 0;
 
-    scene.extrinsics.push_back(Extrinsics(SE3()));
-    scene.extrinsics.push_back(Extrinsics(SE3()));
-
-    scene.extrinsics[0].constant = true;
+    scene.images[0].constant = true;
 
     int maxPoints = 2000;
     scene.worldPoints.reserve(maxPoints);

@@ -131,7 +131,7 @@ double BAPointOnly::computeQuadraticForm()
     for (int i = 0; i < (int)scene.images.size(); ++i)
     {
         auto& img   = scene.images[i];
-        auto extr   = scene.extrinsics[img.extr].se3;
+        auto extr   = img.se3;
         auto camera = scene.intrinsics[img.intr];
         StereoCamera4 scam(camera, scene.bf);
 
@@ -202,7 +202,7 @@ double BAPointOnly::computeCost()
     for (int i = 0; i < (int)scene.images.size(); ++i)
     {
         auto& img   = scene.images[i];
-        auto extr   = scene.extrinsics[img.extr].se3;
+        auto extr   = img.se3;
         auto camera = scene.intrinsics[img.intr];
         StereoCamera4 scam(camera, scene.bf);
 

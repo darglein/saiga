@@ -132,13 +132,12 @@ int main(int, char**)
     scene.intrinsics.push_back(intr);
     scene.images.resize(2);
 
-    scene.images[0].extr = 0;
     scene.images[0].intr = 0;
-    scene.images[1].extr = 1;
     scene.images[1].intr = 0;
 
-    scene.extrinsics.push_back(Extrinsics(SE3()));
-    scene.extrinsics.push_back(Extrinsics(rel));
+    scene.images[0].se3 = SE3();
+    scene.images[0].se3 = rel;
+
 
     Triangulation<double> triangulation;
     for (int i = 0; i < num; ++i)

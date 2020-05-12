@@ -39,7 +39,9 @@ class MixedSymmetricRecursiveSolver<
     using S1Type = Eigen::SparseMatrix<UBlock, Eigen::RowMajor>;
     using S2Type = Eigen::SparseMatrix<VBlock, Eigen::RowMajor>;
 
+    using LDLT         = Eigen::RecursiveSimplicialLDLT<S1Type, Eigen::Upper>;
     using InnerSolver1 = MixedSymmetricRecursiveSolver<S1Type, XUType>;
+
 
     void resize(int n, int m)
     {
@@ -65,6 +67,7 @@ class MixedSymmetricRecursiveSolver<
         {
             hasWT         = true;
             explizitSchur = true;
+            ldlt          = nullptr;
         }
         else
         {
@@ -165,11 +168,6 @@ class MixedSymmetricRecursiveSolver<
 
         //        exit(0);
 
-        // A special implicit schur solver.
-        // We cannot use the recursive inner solver here.
-        // (Maybe a todo for the future)
-        Eigen::Index iters = solverOptions.maxIterativeIterations;
-        double tol         = solverOptions.iterativeTolerance;
 
 
         if (explizitSchur)
@@ -183,36 +181,56 @@ class MixedSymmetricRecursiveSolver<
             //            std::cout << expand(P.m_invdiag) << std::endl << std::endl;
         }
 
-        XUType tmp(n);
 
+        if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
+        {
+            // Direct recusive ldlt solver
+            if (!ldlt)
+            {
+                ldlt = std::make_unique<LDLT>();
+                ldlt->compute(S1);
+            }
+            else
+            {
+                ldlt->factorize(S1);
+            }
+            da = ldlt->solve(ej);
+        }
+        else
+        {
+            // Iterative CG solver
+            Eigen::Index iters = solverOptions.maxIterativeIterations;
+            double tol         = solverOptions.iterativeTolerance;
+            //            XUType tmp(n);
 
-        recursive_conjugate_gradient(
-            [&](const XUType& v, XUType& result) {
-                // x = U * p - Y * WT * p
-                if (explizitSchur)
-                {
-                    //                    if constexpr (denseSchur)
-                    //                        denseMV(S1, v, result);
-                    //                    else
-                    result = S1.template selfadjointView<Eigen::Upper>() * v;
-                    //                    std::cout << expand(result) << std::endl << std::endl;
-                }
-                else
-                {
-                    if (hasWT)
+            recursive_conjugate_gradient(
+                [&](const XUType& v, XUType& result) {
+                    // x = U * p - Y * WT * p
+                    if (explizitSchur)
                     {
-                        tmp = Y * (WT * v);
+                        //                    if constexpr (denseSchur)
+                        //                        denseMV(S1, v, result);
+                        //                    else
+                        result = S1.template selfadjointView<Eigen::Upper>() * v;
+                        //                    std::cout << expand(result) << std::endl << std::endl;
                     }
                     else
                     {
-                        multSparseRowTransposedVector(W, v, q);
-                        tmp = Y * q;
+                        if (hasWT)
+                        {
+                            tmp = Y * (WT * v);
+                        }
+                        else
+                        {
+                            multSparseRowTransposedVector(W, v, q);
+                            tmp = Y * q;
+                        }
+                        result = (U.diagonal().array() * v.array()) - tmp.array();
+                        //                    std::cout << expand(result) << std::endl << std::endl;
                     }
-                    result = (U.diagonal().array() * v.array()) - tmp.array();
-                    //                    std::cout << expand(result) << std::endl << std::endl;
-                }
-            },
-            ej, da, P, iters, tol);
+                },
+                ej, da, P, iters, tol);
+        }
 
 
 
@@ -328,7 +346,9 @@ class MixedSymmetricRecursiveSolver<
 
     RecursiveDiagonalPreconditioner<UBlock> P;
     S1Type S1;
-    InnerSolver1 solver1;
+    //    InnerSolver1 solver1;
+
+    std::unique_ptr<LDLT> ldlt;
 
     bool patternAnalyzed = false;
     bool hasWT           = true;

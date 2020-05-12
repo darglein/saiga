@@ -16,18 +16,6 @@
 
 namespace Saiga
 {
-struct SAIGA_VISION_API Extrinsics
-{
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    SE3 se3;
-    bool constant = false;
-    SE3 velocity;
-
-    Extrinsics() = default;
-    Extrinsics(const SE3& se3, bool c = false) : se3(se3), constant(c) {}
-};
-
 struct SAIGA_VISION_API WorldPoint
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -103,43 +91,20 @@ struct SAIGA_VISION_API StereoImagePoint
     double GetStereoPoint2(double bf) { return point(0) - bf / depth; }
 };
 
-struct SAIGA_VISION_API DenseConstraint
-{
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    bool print = false;
-    Eigen::Vector2d initialProjection;
-    // The depth + the (fixed) extrinsics of the reference is enough to project this point to the
-    // target frame. Then we can compute the photometric and geometric error with the projected depth
-    // and the reference intensity
-    double referenceDepth;
-    double referenceIntensity;
-
-    Eigen::Vector2d referencePoint;
-
-    int targetImageId = 0;
-    float weight      = 1;
-
-    // reference point projected to world space
-    // (only works if the reference se3 is fixed)
-    Eigen::Vector3d referenceWorldPoint;
-};
-
 struct SAIGA_VISION_API SceneImage
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+
+    SE3 se3;
+    bool constant = false;
+    SE3 velocity;
+
+
+
     int intr = -1;
-    int extr = -1;
     AlignedVector<StereoImagePoint> stereoPoints;
-    AlignedVector<DenseConstraint> densePoints;
     float imageWeight = 1;
-
-    float imageScale = 1;
-    Saiga::TemplatedImage<float> intensity;
-    Saiga::TemplatedImage<float> gIx, gIy;
-
-    Saiga::TemplatedImage<float> depth;
-    Saiga::TemplatedImage<float> gDx, gDy;
 
     int validPoints = 0;
 
@@ -164,7 +129,6 @@ class SAIGA_VISION_API Scene
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     AlignedVector<Intrinsics4> intrinsics;
-    AlignedVector<Extrinsics> extrinsics;
     AlignedVector<WorldPoint> worldPoints;
     AlignedVector<SceneImage> images;
 
@@ -254,6 +218,8 @@ class SAIGA_VISION_API Scene
     void save(const std::string& file);
     void load(const std::string& file);
     double chi2Huber(double huber);
+
+    bool operator==(const Scene& other);
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, Scene& scene);

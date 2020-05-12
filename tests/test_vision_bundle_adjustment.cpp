@@ -7,6 +7,7 @@
 #include "saiga/config.h"
 #include "saiga/core/Core.h"
 #include "saiga/core/time/all.h"
+#include "saiga/core/util/table.h"
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/recursive/BAPointOnly.h"
 #include "saiga/vision/recursive/BARecursive.h"
@@ -83,15 +84,52 @@ class BundleAdjustmentTest
         ExpectCloseRelative(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-1);
     }
 
+    void BenchmarkRecursive(const OptimizationOptions& op_options, const BAOptions& options)
+    {
+        int its = 20;
+        std::vector<double> timings;
+
+
+
+        BARec ba;
+        ba.optimizationOptions = op_options;
+        ba.baOptions           = options;
+
+
+        for (int i = 0; i < its; ++i)
+        {
+            Scene cpy = scene;
+
+            float time;
+            {
+                ScopedTimer tim(time);
+                ba.create(cpy);
+                ba.initAndSolve();
+                //                ba.initOMP();
+                //                ba.solveOMP();
+            }
+            timings.push_back(time);
+        }
+
+        static bool first = true;
+        Table tab({15, 15, 15, 15});
+        if (first)
+        {
+            tab << "Type"
+                << "Expl."
+                << "Simple LM"
+                << "Time(ms)";
+            first = false;
+        }
+        tab << (op_options.solverType == OptimizationOptions::SolverType::Direct ? "Direct" : "Iterative")
+            << op_options.buildExplizitSchur << op_options.simple_solver << Statistics(timings).median;
+    }
+
+
+
     void buildScene(bool with_depth = false, bool with_stereo = false)
     {
-        SynteticScene sscene;
-        sscene.numCameras     = 3;
-        sscene.numImagePoints = 100;
-        sscene.numWorldPoints = 100;
-        scene                 = sscene.circleSphere();
-
-
+        scene = SynteticScene::CircleSphere(100, 3, 100);
         if (with_depth)
         {
             for (auto& img : scene.images)
@@ -134,6 +172,43 @@ class BundleAdjustmentTest
 
    private:
 };
+
+TEST(Scene, LoadStore)
+{
+    Scene scene = SynteticScene::CircleSphere(2500, 65, 250);
+    scene.save("test.scene");
+
+    Scene scene2;
+    scene2.load("test.scene");
+
+    EXPECT_EQ(scene.intrinsics.size(), scene2.intrinsics.size());
+    EXPECT_EQ(scene.images.size(), scene2.images.size());
+    EXPECT_EQ(scene.worldPoints.size(), scene2.worldPoints.size());
+
+    for (int i = 0; i < (int)std::min(scene.worldPoints.size(), scene2.worldPoints.size()); ++i)
+    {
+        EXPECT_EQ(scene.worldPoints[i].p, scene.worldPoints[i].p);
+        EXPECT_EQ(scene.worldPoints[i].valid, scene.worldPoints[i].valid);
+    }
+
+    for (int i = 0; i < (int)std::min(scene.images.size(), scene2.images.size()); ++i)
+    {
+        EXPECT_EQ(scene.images[i].se3, scene.images[i].se3);
+        EXPECT_EQ(scene.images[i].constant, scene.images[i].constant);
+        EXPECT_EQ(scene.images[i].intr, scene.images[i].intr);
+        EXPECT_EQ(scene.images[i].imageWeight, scene.images[i].imageWeight);
+        EXPECT_EQ(scene.images[i].validPoints, scene.images[i].validPoints);
+        EXPECT_EQ(scene.images[i].stereoPoints.size(), scene.images[i].stereoPoints.size());
+
+        for (int j = 0; j < (int)std::min(scene.images[j].stereoPoints.size(), scene2.images[j].stereoPoints.size());
+             ++j)
+        {
+            EXPECT_EQ(scene.images[i].stereoPoints[j].wp, scene.images[i].stereoPoints[j].wp);
+            EXPECT_EQ(scene.images[i].stereoPoints[j].point, scene.images[i].stereoPoints[j].point);
+        }
+    }
+}
+
 
 TEST(BundleAdjustment, Empty)
 {
@@ -199,7 +274,7 @@ TEST(BundleAdjustment, PartialConstant)
     for (int i = 0; i < 10; ++i)
     {
         BundleAdjustmentTest test;
-        test.scene.extrinsics[0].constant = true;
+        test.scene.images[0].constant = true;
         BAOptions options;
         test.test(options);
     }
@@ -207,8 +282,8 @@ TEST(BundleAdjustment, PartialConstant)
     for (int i = 0; i < 10; ++i)
     {
         BundleAdjustmentTest test;
-        test.scene.extrinsics[0].constant = true;
-        test.scene.extrinsics[1].constant = true;
+        test.scene.images[0].constant = true;
+        test.scene.images[1].constant = true;
         BAOptions options;
         test.test(options);
     }
@@ -225,6 +300,90 @@ TEST(BundleAdjustment, Huber)
         options.huberStereo = 0.1;
         test.test(options);
     }
+}
+
+TEST(BundleAdjustment, SLAM_LBA)
+{
+    //    Saiga::initSaigaSampleNoWindow();
+
+
+#if 1
+    Scene scene         = SynteticScene::CircleSphere(2500, 65, 250);
+    int constant_images = 40;
+#else
+    Scene scene         = SynteticScene::CircleSphere(1800, 40, 250);
+    int constant_images = 20;
+#endif
+
+    for (int i = 0; i < constant_images; ++i)
+    {
+        scene.images[i].constant = true;
+    }
+    //    std::cout << scene << std::endl;
+    //    }
+    //    Scene scene;
+    //    scene.load("vision/local_ba.scene");
+    scene.addWorldPointNoise(0.01);
+    scene.addImagePointNoise(0.1);
+
+    //    std::cout << scene << std::endl;
+
+    OptimizationOptions local_op_options;
+    local_op_options.debugOutput            = false;
+    local_op_options.maxIterations          = 3;
+    local_op_options.maxIterativeIterations = 30;
+    local_op_options.iterativeTolerance     = 1e-20;
+    local_op_options.solverType             = OptimizationOptions::SolverType::Direct;
+    local_op_options.buildExplizitSchur     = true;
+    local_op_options.simple_solver          = true;
+    local_op_options.numThreads             = 1;
+
+    // Huber makes (almost)  no difference
+    BAOptions local_ba_options;
+    local_ba_options.huberMono   = 2.4;
+    local_ba_options.huberStereo = 2.8;
+
+
+
+    BundleAdjustmentTest test;
+    test.scene = scene;
+    test.test(local_ba_options);
+
+
+    //    test.BenchmarkRecursive("Default", local_op_options, local_ba_options);
+
+    local_op_options.buildExplizitSchur = true;
+    local_op_options.simple_solver      = true;
+    local_op_options.solverType         = OptimizationOptions::SolverType::Iterative;
+    test.BenchmarkRecursive(local_op_options, local_ba_options);
+
+    local_op_options.buildExplizitSchur = true;
+    local_op_options.simple_solver      = false;
+    local_op_options.solverType         = OptimizationOptions::SolverType::Iterative;
+    test.BenchmarkRecursive(local_op_options, local_ba_options);
+
+    local_op_options.buildExplizitSchur = false;
+    local_op_options.simple_solver      = true;
+    local_op_options.solverType         = OptimizationOptions::SolverType::Iterative;
+    test.BenchmarkRecursive(local_op_options, local_ba_options);
+
+    local_op_options.buildExplizitSchur = false;
+    local_op_options.simple_solver      = false;
+    local_op_options.solverType         = OptimizationOptions::SolverType::Iterative;
+    test.BenchmarkRecursive(local_op_options, local_ba_options);
+
+    local_op_options.buildExplizitSchur = true;
+    local_op_options.simple_solver      = false;
+    local_op_options.solverType         = OptimizationOptions::SolverType::Direct;
+    test.BenchmarkRecursive(local_op_options, local_ba_options);
+
+    local_op_options.buildExplizitSchur = true;
+    local_op_options.simple_solver      = true;
+    local_op_options.solverType         = OptimizationOptions::SolverType::Direct;
+    test.BenchmarkRecursive(local_op_options, local_ba_options);
+
+
+    //    test.BenchmarkRecursive("Huber", local_op_options, local_ba_options);
 }
 
 }  // namespace Saiga

@@ -9,7 +9,9 @@
 #include "saiga/vision/util/Random.h"
 namespace Saiga
 {
-Scene SynteticScene::circleSphere(int numWorldPoints, int numCameras, int numImagePoints)
+namespace SynteticScene
+{
+Scene CircleSphere(int numWorldPoints, int numCameras, int numImagePoints)
 {
     Scene scene;
 
@@ -31,18 +33,15 @@ Scene SynteticScene::circleSphere(int numWorldPoints, int numCameras, int numIma
         double cr = 3;
         Vec3 position(cr * sin(alpha * 2 * M_PI), 0, cr * cos(alpha * 2 * M_PI));
 
-        Extrinsics extr;
-        SE3 v;
-        v.so3() = onb(-position.normalized(), Vec3(0, -1, 0));
-        ;
-        v.translation() = position;
-        extr.se3        = v.inverse();
-        scene.extrinsics.push_back(extr);
-
-
         SceneImage si;
+        SE3 v;
+        v.so3()         = onb(-position.normalized(), Vec3(0, -1, 0));
+        v.translation() = position;
+        si.se3          = v.inverse();
+
+
+
         si.intr = 0;
-        si.extr = i;
 
 #if 1
         auto refs = Random::uniqueIndices(numImagePoints, numWorldPoints);
@@ -51,7 +50,7 @@ Scene SynteticScene::circleSphere(int numWorldPoints, int numCameras, int numIma
         {
             StereoImagePoint mip;
             mip.wp    = refs[j];
-            auto p    = extr.se3 * scene.worldPoints[mip.wp].p;
+            auto p    = si.se3 * scene.worldPoints[mip.wp].p;
             mip.point = intr.project(p);
             si.stereoPoints.push_back(mip);
         }
@@ -77,12 +76,12 @@ Scene SynteticScene::circleSphere(int numWorldPoints, int numCameras, int numIma
     return scene;
 }
 
-Scene SynteticScene::circleSphere()
+Scene SceneCreator::circleSphere()
 {
-    return circleSphere(numWorldPoints, numCameras, numImagePoints);
+    return CircleSphere(numWorldPoints, numCameras, numImagePoints);
 }
 
-void SynteticScene::imgui()
+void SceneCreator::imgui()
 {
     ImGui::PushID(6832657);
     ImGui::Text("Syntetic Scene");
@@ -91,4 +90,5 @@ void SynteticScene::imgui()
     ImGui::InputInt("numImagePoints", &numImagePoints);
     ImGui::PopID();
 }
+}  // namespace SynteticScene
 }  // namespace Saiga

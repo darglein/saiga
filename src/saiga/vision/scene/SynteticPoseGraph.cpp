@@ -49,7 +49,6 @@ PoseGraph Circle(double radius, int num_vertices, int num_connections)
 
         Vec3 position(radius * sin(alpha * 2 * M_PI), 0, radius * cos(alpha * 2 * M_PI));
 
-        Extrinsics extr;
         SE3 t;
         t.so3()         = onb(position.normalized().cross(Vec3(0, -1, 0)), Vec3(0, 1, 0));
         t.translation() = position;

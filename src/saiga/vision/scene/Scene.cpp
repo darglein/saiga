@@ -23,7 +23,7 @@ Eigen::Vector3d Scene::residual3(const SceneImage& img, const StereoImagePoint& 
     SAIGA_ASSERT(ip.depth > 0);
 
     // project to screen
-    auto p = extrinsics[img.extr].se3 * wp.p;
+    auto p = img.se3 * wp.p;
     auto z = p(2);
 
 
@@ -54,7 +54,7 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
     SAIGA_ASSERT(wp);
 
     // project to screen
-    auto p  = extrinsics[img.extr].se3 * wp.p;
+    auto p  = img.se3 * wp.p;
     auto z  = p(2);
     auto p2 = intrinsics[img.intr].project(p);
     auto w  = ip.weight * img.imageWeight * scale();
@@ -69,7 +69,6 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
 void Scene::clear()
 {
     intrinsics.clear();
-    extrinsics.clear();
     worldPoints.clear();
     images.clear();
 }
@@ -77,7 +76,6 @@ void Scene::clear()
 void Scene::reserve(int _images, int points, int observations)
 {
     intrinsics.reserve(1);
-    extrinsics.reserve(_images);
     worldPoints.reserve(points);
     images.reserve(_images);
 }
@@ -98,7 +96,7 @@ double Scene::depth(const SceneImage& img, const StereoImagePoint& ip)
     SAIGA_ASSERT(wp);
 
     // project to screen
-    auto p = extrinsics[img.extr].se3 * wp.p;
+    auto p = img.se3 * wp.p;
     auto z = p(2);
 
     return z;
@@ -112,7 +110,7 @@ void Scene::transformScene(const Saiga::SE3& transform)
     }
 
 
-    for (Extrinsics& e : extrinsics)
+    for (SceneImage& e : images)
     {
         e.se3 = e.se3 * transform.inverse();
     }
@@ -124,7 +122,7 @@ void Scene::rescale(double s)
     {
         wp.p = s * wp.p;
     }
-    for (Extrinsics& e : extrinsics)
+    for (SceneImage& e : images)
     {
         e.se3.translation() = s * e.se3.translation();
     }
@@ -177,9 +175,8 @@ bool Scene::valid() const
     int imgid = 0;
     for (const SceneImage& i : images)
     {
-        if (i.extr < 0 || i.intr < 0) return false;
-
-        if (i.extr >= (int)extrinsics.size() || i.intr >= (int)intrinsics.size()) return false;
+        if (i.intr < 0) return false;
+        if (i.intr >= (int)intrinsics.size()) return false;
 
         for (auto& ip : i.stereoPoints)
         {
@@ -430,69 +427,6 @@ double Scene::rms()
     return error2;
 }
 
-
-double Scene::rmsDense()
-{
-    using T = double;
-
-    double rms            = 0;
-    int totalObservations = 0;
-
-    for (SceneImage& im : images)
-    {
-        auto& e2      = extrinsics[im.extr];
-        auto& se3_ref = e2.se3;
-        auto& intr    = intrinsics[im.intr];
-
-        for (DenseConstraint& dc : im.densePoints)
-        {
-            SceneImage& target = images[dc.targetImageId];
-            auto se3_tar       = extrinsics[target.extr].se3;
-
-
-            // Transform from the reference to world space
-            Vec3 ip_ref(T(dc.referencePoint(0)), T(dc.referencePoint(1)), T(1));
-            ip_ref(0) = (ip_ref(0) - T(intr.cx)) / T(intr.fx);
-            ip_ref(1) = (ip_ref(1) - T(intr.cy)) / T(intr.fy);
-            ip_ref *= T(dc.referenceDepth);
-
-            Vec3 wp = se3_ref.inverse() * ip_ref;
-
-
-            Vec3 pc = se3_tar * wp;
-
-            auto x = pc(0);
-            auto y = pc(1);
-            auto z = pc(2);
-
-
-            Vec2 ip(T(intr.fx) * x / z + T(intr.cx), T(intr.fy) * y / z + T(intr.cy));
-
-            auto I = target.intensity.getImageView().inter(ip(1), ip(0));
-            auto D = target.depth.getImageView().inter(ip(1), ip(0));
-
-            Vec2 error(T(dc.referenceIntensity) - I, T(bf) / z - T(bf) * D);
-
-
-
-            SAIGA_ASSERT(error.allFinite());
-            //            std::cout << error.transpose() << std::endl;
-            //            std::cout << cI << " " << obs(0) << std::endl;
-            //            std::cout << cD << " " << z << std::endl;
-            //            std::cout << error.squaredNorm() << std::endl;
-
-            rms += error.squaredNorm();
-            totalObservations++;
-        }
-    }
-
-    //    exit(0);
-
-    rms /= totalObservations;
-    rms = sqrt(rms);
-    return rms;
-}
-
 double Scene::getSchurDensity()
 {
     std::vector<std::vector<int>> schurStructure;
@@ -547,7 +481,7 @@ void Scene::addImagePointNoise(double stddev)
 
 void Scene::addExtrinsicNoise(double stddev)
 {
-    for (auto& e : extrinsics)
+    for (SceneImage& e : images)
     {
         e.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
     }
@@ -567,7 +501,7 @@ void Scene::applyErrorToImagePoints()
             SAIGA_ASSERT(wp);
 
             // project to screen
-            auto p  = extrinsics[img.extr].se3 * wp.p;
+            auto p  = img.se3 * wp.p;
             auto p2 = intrinsics[img.intr].project(p);
 
             ip.point = p2;
@@ -615,7 +549,7 @@ void Scene::removeNegativeProjections()
         for (auto& o : im.stereoPoints)
         {
             if (o.wp < 0) continue;
-            auto p = extrinsics[im.extr].se3 * worldPoints[o.wp].p;
+            auto p = im.se3 * worldPoints[o.wp].p;
             if (p(2) <= 0)
             {
                 o.wp = -1;

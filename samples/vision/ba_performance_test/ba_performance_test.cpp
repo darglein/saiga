@@ -26,11 +26,7 @@ using namespace Saiga;
 
 void buildScene(Scene& scene)
 {
-    SynteticScene sscene;
-    sscene.numCameras     = 3;
-    sscene.numImagePoints = 3;
-    sscene.numWorldPoints = 3;
-    scene                 = sscene.circleSphere();
+    scene = SynteticScene::CircleSphere(3, 3, 3);
     scene.addWorldPointNoise(0.01);
     //    scene.addImagePointNoise(1.0);
     //    scene.addExtrinsicNoise(0.01);
@@ -257,9 +253,9 @@ int main(int, char**)
     baoptions.solverType = OptimizationOptions::SolverType::Iterative;
     std::cout << baoptions << std::endl;
 
-    for (int i = 0; i < scene.extrinsics.size() / 2; ++i)
+    for (int i = 0; i < scene.images.size() / 2; ++i)
     {
-        scene.extrinsics[i].constant = true;
+        scene.images[i].constant = true;
     }
 
     std::vector<std::shared_ptr<BABase>> solvers;

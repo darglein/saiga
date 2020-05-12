@@ -44,7 +44,7 @@ class Sample : public SampleWindowForward
     Saiga::Object3D teapotTrans;
 
     Saiga::Scene scene;
-    Saiga::SynteticScene sscene;
+    Saiga::SynteticScene::SceneCreator sscene;
 
     // bool displayModels = true;
     // bool showImgui     = true;

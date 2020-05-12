@@ -47,6 +47,8 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Eigen::Recursive::Matrix
             // Use Cholmod's supernodal factorization for very large or very dense matrices.
             double density  = A.nonZeros() / (double(A.rows()) * A.cols());
             bool useCholmod = A.rows() > 1000 || density > 0.1;
+            //            useCholmod      = false;
+            //            std::cout << "use cholmod " << useCholmod << " d: " << density << std::endl;
             if (useCholmod)
             {
                 if (!expandS) expandS = std::make_unique<ExpandedType>();
@@ -124,6 +126,7 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Eigen::Recursive::Matrix
                     // This line computes the factorization without analyzing the structure again
                     ldlt->factorize(A);
                 }
+                //                std::cout << "ldlt compute" << std::endl;
                 x = ldlt->solve(b);
             }
         }

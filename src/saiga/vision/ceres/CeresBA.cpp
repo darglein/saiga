@@ -43,10 +43,10 @@ OptimizationResults CeresBA::initAndSolve()
 #else
     Sophus::test::LocalParameterizationSE32 camera_parameterization;
 #endif
-    for (size_t i = 0; i < scene.extrinsics.size(); ++i)
+    for (size_t i = 0; i < scene.images.size(); ++i)
     {
-        problem.AddParameterBlock(scene.extrinsics[i].se3.data(), 7, &camera_parameterization);
-        if (scene.extrinsics[i].constant) problem.SetParameterBlockConstant(scene.extrinsics[i].se3.data());
+        problem.AddParameterBlock(scene.images[i].se3.data(), 7, &camera_parameterization);
+        if (scene.images[i].constant) problem.SetParameterBlockConstant(scene.images[i].se3.data());
     }
 
     ceres::HuberLoss lossFunctionMono(baOptions.huberMono);
@@ -90,7 +90,7 @@ OptimizationResults CeresBA::initAndSolve()
     {
         if (!img) continue;
 
-        auto& extr   = scene.extrinsics[img.extr].se3;
+        auto& extr   = img.se3;
         auto& camera = scene.intrinsics[img.intr];
         StereoCamera4 scam(camera, scene.bf);
 

@@ -92,7 +92,7 @@ BALDataset::BALDataset(const std::string& file)
 
     undistortAll();
     std::cout << "> Done. num_cameras " << num_cameras << " num_points " << num_points << " num_observations "
-         << num_observations << " Rms: " << rms() << std::endl;
+              << num_observations << " Rms: " << rms() << std::endl;
 }
 
 void BALDataset::undistortAll()
@@ -167,6 +167,7 @@ double BALDataset::rms()
 
 Scene BALDataset::makeScene()
 {
+    SAIGA_EXIT_ERROR("not implemented after extrinsic change");
     Scene scene;
     std::vector<double> fs;
     for (BALCamera& c : cameras)
@@ -175,10 +176,8 @@ Scene BALDataset::makeScene()
 
         SceneImage si;
         si.intr = id;
-        si.extr = id;
         scene.images.push_back(si);
         scene.intrinsics.push_back(c.intr());
-        scene.extrinsics.push_back(c.extr());
         fs.push_back(c.f);
     }
 
