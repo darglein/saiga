@@ -12,6 +12,7 @@
 #include "../Core.h"
 #include "MixedSolver.h"
 
+#include <memory>
 namespace Eigen::Recursive
 {
 /**
