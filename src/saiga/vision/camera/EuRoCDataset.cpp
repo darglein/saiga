@@ -70,6 +70,27 @@ struct Associations
 
 EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase<StereoFrameData>(_params)
 {
+    Load();
+    computeImuDataPerFrame();
+
+    std::cout << "Loading done." << std::endl;
+}
+
+void EuRoCDataset::LoadImageData(StereoFrameData& data)
+{
+    //    std::cout << "EuRoCDataset::LoadImageData " << data.id << std::endl;
+    SAIGA_ASSERT(data.grayImg.rows == 0);
+    // Load if it's not loaded already
+
+    data.grayImg.load(data.file);
+    if (!params.force_monocular)
+    {
+        data.grayImg2.load(data.file2);
+    }
+}
+
+int EuRoCDataset::LoadMetaData()
+{
     std::cout << "Loading EuRoCDataset Stereo Dataset: " << params.dir << std::endl;
 
     auto leftImageSensor  = params.dir + "/cam0/sensor.yaml";
@@ -298,50 +319,23 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
         int N = assos.size();
         frames.resize(N);
 
-        stereo_image_files.resize(N);
-
         for (int i = 0; i < N; ++i)
         {
             auto a      = assos[i];
             auto& frame = frames[i];
             frame.id    = i;
-
-
-            std::string leftFile  = params.dir + "/cam0/data/" + cam0_images[a.left].second;
-            std::string rightFile = params.dir + "/cam1/data/" + cam1_images[a.right].second;
-            stereo_image_files[i] = {leftFile, rightFile};
-
             if (a.gtlow >= 0 && a.gthigh >= 0 && a.gtlow != a.gthigh)
             {
                 frame.groundTruth = slerp(ground_truth[a.gtlow].second, ground_truth[a.gthigh].second, a.gtAlpha);
             }
             frame.timeStamp = cam0_images[a.left].first / 1e9;
 
-            if (params.preload)
-            {
-                LoadImageData(frame);
-            }
+
+
+            frame.file  = params.dir + "/cam0/data/" + cam0_images[a.left].second;
+            frame.file2 = params.dir + "/cam1/data/" + cam1_images[a.right].second;
         }
-    }
-
-    computeImuDataPerFrame();
-
-    std::cout << "Loading done." << std::endl;
-}
-
-void EuRoCDataset::LoadImageData(StereoFrameData& data)
-{
-    // Load if it's not loaded already
-    if (data.grayImg.rows == 0)
-    {
-        auto& str = stereo_image_files[data.id];
-
-        data.grayImg.load(str.first);
-
-        if (!params.force_monocular)
-        {
-            data.grayImg2.load(str.second);
-        }
+        return N;
     }
 }
 

@@ -57,6 +57,7 @@ struct MonocularFrameData : public FrameMetaData
 {
     GrayImageType grayImg;
     RGBImageType colorImg;
+    std::string file;
 
     static constexpr CameraInputType cameraType = CameraInputType::Mono;
 };
@@ -67,6 +68,7 @@ struct MonocularFrameData : public FrameMetaData
 struct RGBDFrameData : public MonocularFrameData
 {
     DepthImageType depthImg;
+    std::string depth_file;
 
     static constexpr CameraInputType cameraType = CameraInputType::RGBD;
 };
@@ -78,6 +80,7 @@ struct StereoFrameData : public MonocularFrameData
 {
     GrayImageType grayImg2;
     RGBImageType colorImg2;
+    std::string file2;
 
     static constexpr CameraInputType cameraType = CameraInputType::Stereo;
 };

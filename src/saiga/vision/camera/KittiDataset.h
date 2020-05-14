@@ -21,6 +21,9 @@ class SAIGA_VISION_API KittiDataset : public DatasetCameraBase<StereoFrameData>
    public:
     KittiDataset(const DatasetParameters& params);
 
+    virtual int LoadMetaData() override;
+    virtual void LoadImageData(StereoFrameData& data) override;
+
     StereoIntrinsics intrinsics;
 };
 

@@ -58,7 +58,12 @@ class SAIGA_VISION_API TumRGBDCamera : public DatasetCameraBase<RGBDFrameData>
 
     void saveRaw(const std::string& dir);
 
+    virtual void LoadImageData(RGBDFrameData& data) override;
+    virtual int LoadMetaData() override;
+
+
    private:
+    int freiburg;
     void associate(const std::string& datasetDir);
     void load(const std::string& datasetDir, bool multithreaded);
 

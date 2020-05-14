@@ -79,13 +79,71 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params, int freiburg) : DatasetCameraBase<RGBDFrameData>(_params)
+TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params, int freiburg)
+    : DatasetCameraBase<RGBDFrameData>(_params), freiburg(freiburg)
+{
+    Load();
+}
+
+TumRGBDCamera::~TumRGBDCamera() {}
+
+
+SE3 TumRGBDCamera::getGroundTruth(int frame)
+{
+    SAIGA_ASSERT(frame >= 0 && frame < (int)tumframes.size());
+    GroundTruth gt = tumframes[frame].gt;
+    return gt.se3;
+}
+
+void TumRGBDCamera::saveRaw(const std::string& dir)
+{
+    std::cout << "Saving TUM dataset as Saiga-Raw dataset in " << dir << std::endl;
+#pragma omp parallel for
+    for (int i = 0; i < (int)frames.size(); ++i)
+    {
+        auto str  = Saiga::leadingZeroString(i, 5);
+        auto& tmp = frames[i];
+        tmp.colorImg.save(std::string(dir) + str + ".png");
+        tmp.depthImg.save(std::string(dir) + str + ".saigai");
+    }
+    std::cout << "... Done saving the raw dataset." << std::endl;
+}
+
+void TumRGBDCamera::LoadImageData(RGBDFrameData& data)
+{
+    Image cimg(data.file);
+    Image dimg(data.depth_file);
+    if (cimg.type == UC3)
+    {
+        // convert to rgba
+        ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), data.colorImg);
+    }
+    else if (cimg.type == UC4)
+    {
+        cimg.getImageView<ucvec4>().copyTo(data.colorImg.getImageView());
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("invalid image type");
+    }
+
+    if (dimg.type == US1)
+    {
+        dimg.getImageView<unsigned short>().copyTo(data.depthImg.getImageView(), 1.0 / intrinsics().depthFactor);
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("invalid image type");
+    }
+}
+
+int TumRGBDCamera::LoadMetaData()
 {
     std::cout << "Loading TUM RGBD Dataset: " << params.dir << std::endl;
 
     if (freiburg == -1)
     {
-        std::filesystem::path p(_params.dir + "/");
+        std::filesystem::path p(params.dir + "/");
         std::string dir = p.parent_path().filename().string();
         auto pos        = dir.find("freiburg");
 
@@ -132,30 +190,7 @@ TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params, int freiburg) : D
 
     associate(params.dir);
     load(params.dir, params.multiThreadedLoad);
-}
-
-TumRGBDCamera::~TumRGBDCamera() {}
-
-
-SE3 TumRGBDCamera::getGroundTruth(int frame)
-{
-    SAIGA_ASSERT(frame >= 0 && frame < (int)tumframes.size());
-    GroundTruth gt = tumframes[frame].gt;
-    return gt.se3;
-}
-
-void TumRGBDCamera::saveRaw(const std::string& dir)
-{
-    std::cout << "Saving TUM dataset as Saiga-Raw dataset in " << dir << std::endl;
-#pragma omp parallel for
-    for (int i = 0; i < (int)frames.size(); ++i)
-    {
-        auto str  = Saiga::leadingZeroString(i, 5);
-        auto& tmp = frames[i];
-        tmp.colorImg.save(std::string(dir) + str + ".png");
-        tmp.depthImg.save(std::string(dir) + str + ".saigai");
-    }
-    std::cout << "... Done saving the raw dataset." << std::endl;
+    return frames.size();
 }
 
 
@@ -266,13 +301,12 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
     }
 
     {
-        SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
-#pragma omp parallel for if (params.multiThreadedLoad)
+        //        SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
+        //#pragma omp parallel for if (params.multiThreadedLoad)
         for (int i = 0; i < N; ++i)
         {
             TumFrame d = tumframes[i];
-            Image cimg(datasetDir + "/" + d.rgb.img);
-            Image dimg(datasetDir + "/" + d.depth.img);
+
 
             RGBDFrameData& f = frames[i];
             //            makeFrameData(f);
@@ -280,37 +314,17 @@ void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
             f.id = i;
             f.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
             f.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
-            f.timeStamp = d.rgb.timestamp;
+            f.timeStamp  = d.rgb.timestamp;
+            f.file       = datasetDir + "/" + d.rgb.img;
+            f.depth_file = datasetDir + "/" + d.depth.img;
 
-            if (cimg.type == UC3)
-            {
-                // convert to rgba
-                ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), f.colorImg);
-            }
-            else if (cimg.type == UC4)
-            {
-                cimg.getImageView<ucvec4>().copyTo(f.colorImg.getImageView());
-            }
-            else
-            {
-                SAIGA_EXIT_ERROR("invalid image type");
-            }
-
-            if (dimg.type == US1)
-            {
-                dimg.getImageView<unsigned short>().copyTo(f.depthImg.getImageView(), 1.0 / intrinsics().depthFactor);
-            }
-            else
-            {
-                SAIGA_EXIT_ERROR("invalid image type");
-            }
 
             if (d.gt.timestamp != -1)
             {
                 f.groundTruth = d.gt.se3;
             }
 
-            loadingBar.addProgress(1);
+            //            loadingBar.addProgress(1);
         }
     }
     //    computeImuDataPerFrame();

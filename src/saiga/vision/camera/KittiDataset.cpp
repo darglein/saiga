@@ -20,7 +20,11 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
 {
     // Kitti was recorded with 10 fps
     intrinsics.fps = 10;
+    Load();
+}
 
+int KittiDataset::LoadMetaData()
+{
     std::cout << "Loading KittiDataset Stereo Dataset: " << params.dir << std::endl;
 
     auto leftImageDir  = params.dir + "/image_0";
@@ -230,36 +234,22 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
         N = params.maxFrames;
 
 
-
-        SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
-#pragma omp parallel for if (params.multiThreadedLoad)
         for (int id = 0; id < params.maxFrames; ++id)
         {
             auto& frame = frames[id];
 
             int i = id + params.startFrame;
 
-            std::string leftFile  = leftImageDir + "/" + leadingZeroString(i, 6) + ".png";
-            std::string rightFile = rightImageDir + "/" + leadingZeroString(i, 6) + ".png";
+            frame.file  = leftImageDir + "/" + leadingZeroString(i, 6) + ".png";
+            frame.file2 = rightImageDir + "/" + leadingZeroString(i, 6) + ".png";
 
             frame.id = id;
-            if (!params.only_first_image || i == 0)
-            {
-                frame.grayImg.load(leftFile);
-                SAIGA_ASSERT(frame.grayImg);
 
-                if (!params.force_monocular)
-                {
-                    frame.grayImg2.load(rightFile);
-                    SAIGA_ASSERT(frame.grayImg2);
-                }
-            }
 
 
             if (!groundTruth.empty()) frame.groundTruth = groundTruth[i];
 
             frame.timeStamp = timestamps[i];
-            loadingBar.addProgress(1);
         }
 
         auto firstFrame           = frames.front();
@@ -269,6 +259,18 @@ KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase
 
 
     std::cout << intrinsics << std::endl;
+    return frames.size();
+}
+
+void KittiDataset::LoadImageData(StereoFrameData& data)
+{
+    SAIGA_ASSERT(data.grayImg.rows == 0);
+
+    data.grayImg.load(data.file);
+    if (!params.force_monocular)
+    {
+        data.grayImg2.load(data.file2);
+    }
 }
 
 }  // namespace Saiga

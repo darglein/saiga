@@ -43,6 +43,10 @@ class SAIGA_VISION_API ZJUDataset : public DatasetCameraBase<MonocularFrameData>
 
     MonocularIntrinsics intrinsics;
 
+
+    virtual void LoadImageData(MonocularFrameData& data) override;
+    virtual int LoadMetaData() override;
+
    private:
     void associate(const std::string& datasetDir);
     void load(const std::string& datasetDir, bool multithreaded);

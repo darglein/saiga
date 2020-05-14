@@ -5,8 +5,9 @@
  */
 
 #pragma once
-
 #include "saiga/core/time/timer.h"
+#include "saiga/core/util/ProgressBar.h"
+#include "saiga/core/util/Thread/omp.h"
 #include "saiga/vision/imu/Imu.h"
 
 #include "CameraData.h"
@@ -67,7 +68,7 @@ struct SAIGA_VISION_API DatasetParameters
     std::string dir;
 
     // Ground truth file. Only used for the kitti dataset. The other datasets have them included in the main directory.
-    std::string groundTruth;
+    //    std::string groundTruth;
 
     // Throw away all frames before 'startFrame'
     int startFrame = 0;
@@ -90,6 +91,8 @@ struct SAIGA_VISION_API DatasetParameters
     bool preload = true;
 
     void fromConfigFile(const std::string& file);
+
+    friend std::ostream& operator<<(std::ostream& strm, const DatasetParameters& params);
 };
 
 /**
@@ -107,6 +110,49 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         lastFrameTime = timer.stop();
         nextFrameTime = lastFrameTime + timeStep;
     }
+
+    void Load()
+    {
+        std::cout << params << std::endl;
+
+        int num_images = LoadMetaData();
+        SAIGA_ASSERT(frames.size() == num_images);
+        //        frames.resize(num_images);
+        computeImuDataPerFrame();
+
+        if (params.preload)
+        {
+            SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + std::to_string(num_images) + " images ",
+                                                num_images);
+
+            int threads = std::max<int>(OMP::getMaxThreads(), 8);
+
+#pragma omp parallel for if (params.multiThreadedLoad) num_threads(threads)
+            for (int i = 0; i < num_images; ++i)
+            {
+                if ((!params.only_first_image || this->currentId == 0))
+                {
+                    LoadImageData(frames[i]);
+                }
+                loadingBar.addProgress(1);
+            }
+        }
+    }
+
+    // Load the dataset meta data. This information must be stored in the derived loader class, because it can differ
+    // between datasets.
+    //  - Intrinsics
+    //  - Ground Truth
+    //  - Image Names - timestamps
+    //  - IMU measurements
+    //  -  ...
+    //
+    // Returns the number of images.
+    virtual int LoadMetaData() { return 0; }
+
+    virtual void LoadImageData(FrameType& data) {}
+
+
 
     bool getImageSync(FrameType& data) override
     {
@@ -135,7 +181,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
         auto& img = frames[this->currentId];
         SAIGA_ASSERT(this->currentId == img.id);
-        if (!params.only_first_image || this->currentId == 0)
+        if (!params.preload && (!params.only_first_image || this->currentId == 0))
         {
             LoadImageData(img);
         }
@@ -148,7 +194,6 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
     size_t getFrameCount() { return frames.size(); }
 
 
-    virtual void LoadImageData(FrameType& data) {}
 
     // Saves the groundtruth in TUM-Trajectory format:
     // <timestamp> <translation x y z> <rotation x y z w>
@@ -186,8 +231,9 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         for (int i = 0; i < frames.size(); ++i)
         {
             Imu::Frame& imuFrame = imuDataForFrame[i];
-            auto& a              = frames[i];
-            imuFrame.timestamp   = a.timeStamp;
+
+            auto& a            = frames[i];
+            imuFrame.timestamp = a.timeStamp;
             for (; currentImuid < imuData.size(); ++currentImuid)
             {
                 auto id = imuData[currentImuid];
@@ -201,6 +247,9 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
                     break;
                 }
             }
+
+
+            if (imuFrame.imu_data_since_last_frame.empty()) continue;
 
             // not a valid meassurement after this frame
             // -> use last one if it exists

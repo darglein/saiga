@@ -53,7 +53,11 @@ class Sample : public SampleWindowForward
 
 
 
-    char dir[256]    = "recording/";
+    //    char dir[256]    = "recording/";
+    //    char dir[256] = "/ssd2/slam/euroc/MH_01/mav0/";
+    //    char dir[256] = "/ssd2/slam/kitti/dataset/sequences/00/";
+    char dir[256] = "/ssd2/slam/ismar/ismar_test/C1_test/";
+
     int frameId      = 0;
     bool initTexture = false;
 

@@ -26,7 +26,37 @@
 namespace Saiga
 {
 ZJUDataset::ZJUDataset(const DatasetParameters& params) : DatasetCameraBase<MonocularFrameData>(params)
+{
+    Load();
+}
 
+void ZJUDataset::LoadImageData(MonocularFrameData& data)
+{
+    SAIGA_ASSERT(data.grayImg.rows == 0);
+
+    Image cimg(data.file);
+    if (cimg.type == UC1)
+    {
+        //                frames[i] = std::move(cimg);
+        GrayImageType imgGray(cimg.h, cimg.w);
+        cimg.getImageView<unsigned char>().copyTo(imgGray.getImageView());
+        data.grayImg = imgGray;
+    }
+    else if (cimg.type == UC3 || cimg.type == UC3)
+    {
+        // this is currently only the case for "black frames"
+        GrayImageType imgGray(cimg.h, cimg.w);
+        data.grayImg = imgGray;
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("Unknown image type");
+    }
+
+    SAIGA_ASSERT(cimg.w == intrinsics.imageSize.w);
+}
+
+int ZJUDataset::LoadMetaData()
 {
     std::cout << "Loading ZJUDataset: " << params.dir << std::endl;
 
@@ -121,6 +151,7 @@ ZJUDataset::ZJUDataset(const DatasetParameters& params) : DatasetCameraBase<Mono
 
     associate(params.dir);
     load(params.dir, params.multiThreadedLoad);
+    return frames.size();
 }
 
 
@@ -274,49 +305,18 @@ void ZJUDataset::load(const std::string& datasetDir, bool multithreaded)
     std::string imageDir = datasetDir + "/camera/images";
 
 
+
+    for (int i = 0; i < N; ++i)
     {
-        SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
-#    pragma omp parallel for if (multithreaded)
-        for (int i = 0; i < N; ++i)
-        {
-            auto imgStr           = framesRaw[i].image;
-            MonocularFrameData& f = frames[i];
+        auto imgStr           = framesRaw[i].image;
+        MonocularFrameData& f = frames[i];
 
 
-            f.groundTruth = framesRaw[i].gt;
-            f.timeStamp   = framesRaw[i].timestamp;
-            f.id          = i;
-
-            if (!params.only_first_image || i == 0)
-            {
-                Image cimg(imageDir + "/" + imgStr);
-                if (cimg.type == UC1)
-                {
-                    //                frames[i] = std::move(cimg);
-                    GrayImageType imgGray(cimg.h, cimg.w);
-                    cimg.getImageView<unsigned char>().copyTo(imgGray.getImageView());
-                    f.grayImg = imgGray;
-                }
-                else if (cimg.type == UC3 || cimg.type == UC3)
-                {
-                    // this is currently only the case for "black frames"
-                    GrayImageType imgGray(cimg.h, cimg.w);
-                    f.grayImg = imgGray;
-                }
-                else
-                {
-                    SAIGA_EXIT_ERROR("Unknown image type");
-                }
-
-                SAIGA_ASSERT(cimg.w == intrinsics.imageSize.w);
-            }
-
-
-
-            loadingBar.addProgress(1);
-        }
+        f.groundTruth = framesRaw[i].gt;
+        f.timeStamp   = framesRaw[i].timestamp;
+        f.id          = i;
+        f.file        = imageDir + "/" + imgStr;
     }
-    computeImuDataPerFrame();
 }
 
 

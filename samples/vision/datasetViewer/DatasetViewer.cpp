@@ -124,8 +124,9 @@ void Sample::renderFinal(Camera* cam)
     DatasetParameters dparams;
     dparams.playback_fps      = 25;
     dparams.startFrame        = 10;
-    dparams.maxFrames         = 10000;
+    dparams.maxFrames         = 100;
     dparams.multiThreadedLoad = true;
+    dparams.preload           = true;
 
 #ifdef SAIGA_USE_YAML_CPP
     if (ImGui::Button("Load From File TUM RGBD"))
@@ -152,11 +153,11 @@ void Sample::renderFinal(Camera* cam)
 
     if (ImGui::Button("Load From File Kitti"))
     {
-        dparams.dir         = dir;
-        dparams.groundTruth = dir;
-        stereocamera        = std::make_unique<KittiDataset>(dparams);
-        leftTexture         = nullptr;
-        rightTexture        = nullptr;
+        dparams.dir = dir;
+        //        dparams.groundTruth = dir;
+        stereocamera = std::make_unique<KittiDataset>(dparams);
+        leftTexture  = nullptr;
+        rightTexture = nullptr;
 
         cameraType = KittiDataset::FrameType::cameraType;
     }
