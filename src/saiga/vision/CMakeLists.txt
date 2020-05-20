@@ -16,6 +16,7 @@ add_subdirectory(slam)
 add_subdirectory(sophus)
 add_subdirectory(util)
 add_subdirectory(torch)
+add_subdirectory(features)
 
 if (OPENCV_FOUND)
     add_subdirectory(orb)

@@ -15,42 +15,6 @@ namespace Saiga
  * Eigen Points and no 'class_id' member.
  * @brief The Keypoint struct
  */
-/*
-struct Point
-{
-int x;
-int y;
-
-Point() : x(0), y(0) {}
-
-Point(int _x, int _y) : x(_x), y(_y) {}
-
-bool inline operator==(const Point &other) const
-{
-   return x == other.x && y == other.y;
-}
-
-
-template <typename T> inline
-friend Point operator*(const T s, const Point& pt)
-{
-   return Point(pt.x*s, pt.y*s);
-}
-
-template <typename T> inline
-friend void operator*=(Point& pt, const T s)
-{
-   pt.x*=s;
-   pt.y*=s;
-}
-
-friend std::ostream& operator<<(std::ostream& os, const Point& pt)
-{
-   os << "[" << pt.x << "," << pt.y << "]";
-   return os;
-}
-};
- */
 template <typename T = float>
 class KeyPoint
 {
@@ -104,6 +68,20 @@ class KeyPoint
 using DescriptorORB  = std::array<uint64_t, 4>;
 using DescriptorSIFT = std::array<float, 128>;
 
+
+// Debug method to print orb descriptors
+inline std::string OrbDescriptorToBitString(const DescriptorORB& desc)
+{
+    std::string result;
+    for (auto i : desc)
+    {
+        for (int j = 0; j < 64; ++j)
+        {
+            result.push_back(((i >> j) & 1) ? '1' : '0');
+        }
+    }
+    return result;
+}
 
 
 #if !defined(WIN32) && EIGEN_ARCH_i386_OR_x86_64

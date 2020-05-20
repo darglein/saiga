@@ -18,7 +18,7 @@
 #pragma once
 
 #include "saiga/core/util/BinaryFile.h"
-#include "saiga/vision/util/Features.h"
+#include "saiga/vision/features/Features.h"
 
 #include <algorithm>
 #include <array>

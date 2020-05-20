@@ -134,7 +134,7 @@ OptimizationResults CeresBARS::initAndSolve()
 
     for (auto& img : scene.images)
     {
-        auto& extr = img.se3;
+        //        auto& extr = img.se3;
 
 
         SAIGA_EXIT_ERROR("not implemented");

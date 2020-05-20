@@ -3,7 +3,7 @@
 
 #include "saiga/core/image/imageView.h"
 #include "saiga/core/image/templatedImage.h"
-#include "saiga/vision/util/Features.h"
+#include "saiga/vision/features/Features.h"
 
 #include "ORB_config.h"
 

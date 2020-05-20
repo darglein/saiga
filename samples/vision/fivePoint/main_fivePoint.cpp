@@ -14,7 +14,7 @@
 #include "saiga/vision/reconstruction/FivePoint.h"
 #include "saiga/vision/reconstruction/TwoViewReconstruction.h"
 #include "saiga/vision/scene/Scene.h"
-#include "saiga/vision/util/Features.h"
+#include "saiga/vision/features/Features.h"
 
 #include <numeric>
 using namespace Saiga;

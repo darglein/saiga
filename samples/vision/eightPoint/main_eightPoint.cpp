@@ -13,7 +13,7 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/reconstruction/EightPoint.h"
 #include "saiga/vision/scene/Scene.h"
-#include "saiga/vision/util/Features.h"
+#include "saiga/vision/features/Features.h"
 
 #include <numeric>
 using namespace Saiga;

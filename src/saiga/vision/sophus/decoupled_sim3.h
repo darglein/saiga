@@ -73,7 +73,7 @@ struct DSim3
         this->scale() = sim3.scale();
     }
 
-    DSim3(const Eigen::Vector<T, 8> data) : data_(data) {}
+    DSim3(const Eigen::Vector<T, 8>& data) : data_(data) {}
 
     template <class OtherDerived, typename PointDerived>
     DSim3(SO3Base<OtherDerived> const& so3, const Eigen::MatrixBase<PointDerived>& t, T scale)

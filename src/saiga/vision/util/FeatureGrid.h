@@ -9,7 +9,7 @@
 #include "saiga/core/util/Range.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/vision/VisionTypes.h"
-#include "saiga/vision/util/Features.h"
+#include "saiga/vision/features/Features.h"
 namespace Saiga
 {
 template <typename T, int _Rows, int _Cols>
