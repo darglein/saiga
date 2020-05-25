@@ -12,6 +12,7 @@
 #include "saiga/vision/camera/CameraBase.h"
 #include "saiga/vision/camera/RGBDCamera.h"
 
+#ifdef SAIGA_USE_YAML_CPP
 
 // Loads datasets from the "ZJU - SenseTime VISLAM Benchmark"
 // http://www.zjucvg.net/eval-vislam/
@@ -56,4 +57,7 @@ class SAIGA_VISION_API ZJUDataset : public DatasetCameraBase<MonocularFrameData>
     AlignedVector<IsmarFrame> framesRaw;
 };
 
+
 }  // namespace Saiga
+
+#endif
