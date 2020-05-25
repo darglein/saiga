@@ -3,14 +3,9 @@
 
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/Thread/omp.h"
-#include "saiga/extra/opencv/opencv.h"
 
 #include "OrbPattern.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
 using namespace std;
 
@@ -34,7 +29,7 @@ float ORB::ComputeAngle(Saiga::ImageView<unsigned char> image, const Saiga::vec2
 
 
     //    const uchar* center = &image.at<uchar>(cvRound(pt.y()), cvRound(pt.x()));
-    const uchar* center = &image(Saiga::iRound(pt.y()), Saiga::iRound(pt.x()));
+    const unsigned char* center = &image(Saiga::iRound(pt.y()), Saiga::iRound(pt.x()));
 
     // Treat the center line differently, v=0
     for (int u = -HALF_PATCH_SIZE; u <= HALF_PATCH_SIZE; ++u) m_10 += u * center[u];
@@ -55,7 +50,7 @@ float ORB::ComputeAngle(Saiga::ImageView<unsigned char> image, const Saiga::vec2
         m_01 += v * v_sum;
     }
 
-    return cv::fastAtan2((float)m_01, (float)m_10);
+    return atan2((float)m_01, (float)m_10);
 }
 
 
@@ -71,8 +66,10 @@ DescriptorORB ORB::ComputeDescriptor(Saiga::ImageView<unsigned char> image, cons
     float angle = Saiga::radians(angle_degrees);
     float a = (float)cos(angle), b = (float)sin(angle);
 
-    const uchar* center = &image(cvRound(point.y()), cvRound(point.x()));
-    const int step      = (int)image.pitchBytes;
+#if 0
+    const unsigned char* center = &image(iRound(point.y()), iRound(point.x()));
+    const int step              = (int)image.pitchBytes;
+#endif
 
 
     auto GET_VALUE = [&](int idx) -> int {
@@ -80,8 +77,8 @@ DescriptorORB ORB::ComputeDescriptor(Saiga::ImageView<unsigned char> image, cons
 #if 1
         float fx = point.x() + (pattern[idx].x() * a - pattern[idx].y() * b);
         float fy = point.y() + (pattern[idx].x() * b + pattern[idx].y() * a);
-        int x    = cvRound(fx);
-        int y    = cvRound(fy);
+        int x    = iRound(fx);
+        int y    = iRound(fy);
         return image(y, x);
 #else
         return center[cvRound(pattern[idx].x() * b + pattern[idx].y() * a) * step +
@@ -90,7 +87,7 @@ DescriptorORB ORB::ComputeDescriptor(Saiga::ImageView<unsigned char> image, cons
     };
 
 
-#pragma unroll
+    //#pragma unroll
     for (int i = 0; i < 32; ++i, pattern += 16)
     {
         int t0, t1, val;
@@ -119,7 +116,7 @@ DescriptorORB ORB::ComputeDescriptor(Saiga::ImageView<unsigned char> image, cons
         t1 = GET_VALUE(15);
         val |= (t0 < t1) << 7;
 
-        desc[i] = (uchar)val;
+        desc[i] = (unsigned char)val;
     }
     return result;
 }

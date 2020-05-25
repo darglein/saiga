@@ -3,12 +3,7 @@
 
 #include "saiga/core/time/all.h"
 #include "saiga/core/util/Thread/omp.h"
-#include "saiga/extra/opencv/opencv.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
 using namespace std;
 
@@ -25,10 +20,10 @@ std::vector<int> AngleUmax()
     // pre-compute the end of a row in a circular patch
     u_max.resize(HALF_PATCH_SIZE + 1);
 
-    int v, v0, vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
-    int vmin         = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
+    int v, v0, vmax = Saiga::iFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
+    int vmin         = Saiga::iCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
     const double hp2 = HALF_PATCH_SIZE * HALF_PATCH_SIZE;
-    for (v = 0; v <= vmax; ++v) u_max[v] = cvRound(sqrt(hp2 - v * v));
+    for (v = 0; v <= vmax; ++v) u_max[v] = Saiga::iRound(sqrt(hp2 - v * v));
 
     // Make sure we are symmetric
     for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
