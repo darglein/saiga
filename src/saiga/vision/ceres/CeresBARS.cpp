@@ -132,7 +132,7 @@ OptimizationResults CeresBARS::initAndSolve()
     OptimizationResults result = ceres_solve(ceres_options, problem);
 
 
-    for (auto& img : scene.images)
+    //    for (auto& img : scene.images)
     {
         //        auto& extr = img.se3;
 
