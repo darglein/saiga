@@ -140,6 +140,43 @@ struct CudaImage : public ImageBase
         return res;
     }
 
+    cudaResourceDesc GetResourceDescriptor()
+    {
+        cudaResourceDesc resDesc = {};
+        resDesc.resType          = cudaResourceTypePitch2D;
+        resDesc.res.pitch2D.desc = cudaCreateChannelDesc<T>();
+
+        resDesc.res.pitch2D.devPtr       = (void*)data();
+        resDesc.res.pitch2D.width        = width;
+        resDesc.res.pitch2D.height       = height;
+        resDesc.res.pitch2D.pitchInBytes = pitchBytes;
+
+        return resDesc;
+    }
+
+    cudaTextureObject_t GetTextureObject(cudaTextureAddressMode address_mode = cudaAddressModeWrap,
+                                         cudaTextureFilterMode filter_mode   = cudaFilterModePoint,
+                                         cudaTextureReadMode read_mode       = cudaReadModeElementType,
+                                         int normalized_coords               = 0)
+    {
+        // Specify texture
+        auto resDesc = GetResourceDescriptor();
+
+        // Specify texture object parameters
+        cudaTextureDesc texDesc  = {};
+        texDesc.addressMode[0]   = address_mode;
+        texDesc.addressMode[1]   = address_mode;
+        texDesc.filterMode       = filter_mode;
+        texDesc.readMode         = read_mode;
+        texDesc.normalizedCoords = normalized_coords;
+
+        // Create texture object
+        cudaTextureObject_t texObj = 0;
+        CHECK_CUDA_ERROR(cudaCreateTextureObject(&texObj, &resDesc, &texDesc, NULL));
+
+        return texObj;
+    }
+
    protected:
     unsigned char* data_ = nullptr;
 };

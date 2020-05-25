@@ -49,8 +49,8 @@ float ORB::ComputeAngle(Saiga::ImageView<unsigned char> image, const Saiga::vec2
         }
         m_01 += v * v_sum;
     }
-
-    return atan2((float)m_01, (float)m_10);
+    float angle = Saiga::degrees(atan2((float)m_01, (float)m_10));
+    return (angle < 0) * 360 + angle;
 }
 
 

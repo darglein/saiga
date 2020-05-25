@@ -113,6 +113,98 @@ TEST(CudaImage, GaussFilter)
     result.save("gray_very_gauss.png");
 }
 
+
+__global__ static void ReadValue(ImageView<unsigned char> image, int row, int col, ArrayView<int> target)
+{
+    int tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid >= 1) return;
+
+
+    int v     = image(row, col);
+    target[0] = v;
+}
+
+
+texture<unsigned char, cudaTextureType2D, cudaReadModeElementType> texture_reference;
+
+__global__ static void ReadValueTexRef(int w, int h, int row, int col, ArrayView<int> target)
+{
+    int tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid >= 1) return;
+
+    float u = float(col) / w;
+    float v = float(row) / h;
+    float f = tex2D(texture_reference, u, v);
+
+    printf("%f,%f,%f\n", u, v, f);
+
+    //    int val   = tex2D(texture_reference, float(col) / w, float(row) / h);
+    int val   = tex2D(texture_reference, col, row);
+    target[0] = val;
+}
+
+__global__ static void ReadValueTexObj(cudaTextureObject_t texObj, int w, int h, int row, int col,
+                                       ArrayView<int> target)
+{
+    int tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid >= 1) return;
+
+    float u = float(col) / w;
+    float v = float(row) / h;
+    float f = tex2D<unsigned char>(texObj, u, v);
+
+    printf("%f,%f,%f\n", u, v, f);
+
+    //    int val   = tex2D(texture_reference, float(col) / w, float(row) / h);
+    int val   = tex2D<unsigned char>(texObj, col + 0.9, row);
+    target[0] = val;
+}
+
+TEST(CudaImage, ImageAccess)
+{
+    int r     = 67;
+    int c     = 180;
+    int value = test->image_1(r, c);
+
+
+    {
+        // Test if reading from a simple cuda kernel works.
+        thrust::device_vector<int> target(1);
+        ReadValue<<<1, 1>>>(test->d_image_1.getImageView(), r, c, target);
+        int value2 = target[0];
+        EXPECT_EQ(value, value2);
+    }
+
+    {
+        // Texture reference
+
+        cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<unsigned char>();
+        size_t offset;
+        CHECK_CUDA_ERROR(cudaBindTexture2D(&offset, texture_reference, test->d_image_1.data(), channelDesc,
+                                           test->d_image_1.cols, test->d_image_1.rows, test->d_image_1.pitchBytes));
+
+        thrust::device_vector<int> target(1);
+        ReadValueTexRef<<<1, 1>>>(test->d_image_1.cols, test->d_image_1.rows, r, c, target);
+        int value2 = target[0];
+        EXPECT_EQ(value, value2);
+    }
+
+    {
+        // Texture object
+
+        auto img = test->d_image_1.getImageView();
+
+        auto texObj = test->d_image_1.GetTextureObject();
+
+
+        thrust::device_vector<int> target(1);
+        ReadValueTexObj<<<1, 1>>>(texObj, test->d_image_1.cols, test->d_image_1.rows, r, c, target);
+        int value2 = target[0];
+        EXPECT_EQ(value, value2);
+    }
+}
+
+
 }  // namespace Saiga
 
 int main()

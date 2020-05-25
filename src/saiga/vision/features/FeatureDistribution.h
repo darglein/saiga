@@ -1,42 +1,32 @@
 /**
- * This file is part of ORB-SLAM2.
- *
- * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
- * For more information see <https://github.com/raulmur/ORB_SLAM2>
- *
- * ORB-SLAM2 is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * ORB-SLAM2 is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
  */
 
 #pragma once
 
-
-#include "saiga/core/image/all.h"
+#include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/vision/features/Features.h"
 
 #include <vector>
 
-
-
 namespace Saiga
 {
-class SAIGA_VISION_API Distributor
+// Selects N keypoints from an input array of M keypoints with M >> N.
+// The keypoints are selected so that they are evenly distributed over the image and keypoints with a high response are
+// preferred. This class implements a quadtree-based algorithm similar to the algorithm found in ORB-SLAM2. Differences
+// are in the way how the remaining keypoints are selected and the impolementation itself. This implemenation is around
+// 2x more efficient than the reference impl. of ORB-SLAM2.
+//
+// This class is not thread safe, because it uses local variables during execution!!!
+// Use one object of this class for each thread!
+class SAIGA_VISION_API QuadtreeFeatureDistributor
 {
    public:
-    Distributor() = default;
-    std::vector<Saiga::KeyPoint<float>> DistributeOctTree(ArrayView<KeyPoint<float>> keypoints,
-                                                          const vec2& min_position, const vec2& max_position,
-                                                          int target_n);
+    QuadtreeFeatureDistributor() = default;
+    std::vector<Saiga::KeyPoint<float>> Distribute(ArrayView<KeyPoint<float>> keypoints, const vec2& min_position,
+                                                   const vec2& max_position, int target_n);
 
    private:
     class QuadtreeNode
@@ -49,7 +39,7 @@ class SAIGA_VISION_API Distributor
         }
         std::array<QuadtreeNode, 4> splitAndSort(ArrayView<KeyPoint<float>> keypoints,
                                                  std::array<std::vector<KeyPoint<float>>, 4>& local_kps);
-        int Size() const { return to - from; }
+        int NumKeypoints() const { return to - from; }
 
         // The other opposite corner is at (corner.x + size, corner.y + size)
         vec2 corner;
@@ -63,7 +53,8 @@ class SAIGA_VISION_API Distributor
     std::array<std::vector<KeyPoint<float>>, 4> local_kps;
 };
 
-
+// Temporal keypoint filter to remove keypoints at the exact same image coordinates over multiple frames. Such keypoints
+// are often a result from image noise.
 class TemporalKeypointFilter
 {
    public:

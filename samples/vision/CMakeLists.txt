@@ -8,9 +8,6 @@ add_subdirectory(derive)
 add_subdirectory(pnp)
 add_subdirectory(registration)
 
-if(OPENCV_FOUND)
-add_subdirectory(orb)
-endif()
 
 if(SAIGA_USE_EIGENRECURSIVE)
     #    add_subdirectory(block_matrices)

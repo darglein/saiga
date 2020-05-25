@@ -12,6 +12,7 @@
 #    define SAIGA_HAS_OMP
 #endif
 
+#include "saiga/core/util/env.h"
 /**
  * This is a preprocessor wrapper for openmp.
  * With that we can make sure code runs with and without openmp.
@@ -56,6 +57,32 @@ inline void setNumThreads(int t)
 #else
 #endif
 }
+
+
+enum class WaitPolicy
+{
+    Default,
+    Active,
+    Passive,
+};
+
+inline void setWaitPolicy(WaitPolicy p)
+{
+    switch (p)
+    {
+        case WaitPolicy::Default:
+            SetEnv("OMP_WAIT_POLICY", "DEFAULT", true);
+            break;
+        case WaitPolicy::Active:
+            SetEnv("OMP_WAIT_POLICY", "ACTIVE", true);
+            break;
+        case WaitPolicy::Passive:
+            SetEnv("OMP_WAIT_POLICY", "PASSIVE", true);
+            break;
+    }
+}
+
+
 
 }  // namespace OMP
 }  // namespace Saiga
