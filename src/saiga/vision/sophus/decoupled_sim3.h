@@ -51,7 +51,7 @@ struct DSim3
 {
     static constexpr int DoF = 7;
     using Scalar             = T;
-    using Tangent            = Eigen::Vector<T, DoF>;
+    using Tangent            = Eigen::Matrix<T, DoF,1>;
 
     DSim3()
     {
@@ -73,7 +73,7 @@ struct DSim3
         this->scale() = sim3.scale();
     }
 
-    DSim3(const Eigen::Vector<T, 8>& data) : data_(data) {}
+    DSim3(const Eigen::Matrix<T, 8,1>& data) : data_(data) {}
 
     template <class OtherDerived, typename PointDerived>
     DSim3(SO3Base<OtherDerived> const& so3, const Eigen::MatrixBase<PointDerived>& t, T scale)
@@ -117,7 +117,7 @@ struct DSim3
     }
 
     T* data() { return data_.data(); }
-    Eigen::Vector<T, 8> params() const { return data_; }
+    Eigen::Matrix<T, 8,1> params() const { return data_; }
 
     template <typename G>
     DSim3<G> cast() const
@@ -131,7 +131,7 @@ struct DSim3
     T scale() const { return data_(7); }
 
    protected:
-    Eigen::Vector<T, 8> data_;
+    Eigen::Matrix<T, 8,1> data_;
 };
 
 using DSim3d = DSim3<double>;

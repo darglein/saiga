@@ -10,6 +10,7 @@
 #include "saiga/core/geometry/plane.h"
 #include "saiga/core/geometry/sphere.h"
 #include "saiga/core/math/math.h"
+#include <array>
 
 namespace Saiga
 {

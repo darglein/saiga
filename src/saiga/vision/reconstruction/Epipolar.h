@@ -10,7 +10,7 @@
 #include "saiga/vision/VisionTypes.h"
 
 #include "Triangulation.h"
-
+#include <array>
 
 namespace Saiga
 {

@@ -67,21 +67,22 @@ endif()
 PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
 
+
 #openmp
 if(SAIGA_CXX_WCLANG)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
   find_library(OMP_LIB libomp PATH_SUFFIXES lib)
   message(STATUS ${OMP_LIB})
   SET(LIBS ${LIBS} ${OMP_LIB})
-elseif(SAIGA_CXX_MSVC)
-
 else()
-  find_package(OpenMP)
-  PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
-  if(OPENMP_FOUND)
-    list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
-    list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
-  endif()
+  find_package(OpenMP REQUIRED)
+  
+	PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
+ # PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
+ # if(OPENMP_FOUND)
+ #   list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
+ #   list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
+ # endif()
 
   #        # This line doesn't work with nvcc + gcc8.3. Just uncomment it.
   #        if(SAIGA_CXX_GNU)
@@ -92,9 +93,6 @@ else()
   #    endif()
 endif()
 
-if(SAIGA_CXX_MSVC)
-  add_definitions(-D_OPENMP)
-endif()
 
 
 
