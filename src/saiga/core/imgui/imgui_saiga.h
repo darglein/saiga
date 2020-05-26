@@ -64,7 +64,7 @@ class SAIGA_CORE_API IMTable : public Saiga::Table
     IMTable(const std::string& name, const std::vector<int>& colum_width, const std::vector<std::string>& colum_name);
     void Render();
 
-   private:
+   public:
     std::string header;
     ImGui::IMConsole console;
 };

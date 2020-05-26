@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/util/assert.h"
 
 #include <iomanip>
 #include <iostream>
@@ -34,7 +35,7 @@ class SAIGA_CORE_API Table
     int numCols    = 0;
     int precision  = -1;
     std::vector<int> colWidth;
-    std::ostream* strm;
+    std::ostream* strm = nullptr;
 
    public:
     Table() : strm(&std::cout) {}
@@ -49,6 +50,7 @@ class SAIGA_CORE_API Table
     template <typename T>
     Table& operator<<(const T& t)
     {
+        SAIGA_ASSERT(strm);
         if (precision > 0)
         {
             (*strm) << std::setprecision(precision);

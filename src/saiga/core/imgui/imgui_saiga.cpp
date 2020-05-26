@@ -266,6 +266,8 @@ IMTable::IMTable(const std::string& name, const std::vector<int>& colum_width,
                  const std::vector<std::string>& colum_name)
     : Table(colum_width), console(name)
 {
+    SAIGA_ASSERT(colum_width.size() == colum_name.size());
+
     std::stringstream header_strm;
     setStream(header_strm);
     for (auto cn : colum_name)
