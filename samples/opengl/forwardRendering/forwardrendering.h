@@ -25,6 +25,7 @@ class Sample : public SampleWindowForward
     Skybox skybox;
 
    private:
+    bool add_values_to_console = true;
     GLPointCloud pointCloud;
     LineSoup lineSoup;
     LineVertexColoredAsset frustum;

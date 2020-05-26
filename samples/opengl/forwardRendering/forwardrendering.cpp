@@ -13,6 +13,10 @@
 
 ImGui::IMConsole console;
 
+
+
+ImGui::IMTable test_table("Fancy Table", {10, 10}, {"First", "Second"});
+
 Sample::Sample()
 {
     for (int i = 0; i < 10000; ++i)
@@ -86,15 +90,22 @@ void Sample::renderOverlay(Camera* cam)
 }
 
 
-
 void Sample::renderFinal(Camera* cam)
 {
+    if (add_values_to_console)
+    {
+        console << Random::sampleDouble(0, 100000) << std::endl;
+        test_table << Random::sampleDouble(0, 100000) << Random::sampleDouble(0, 100000);
+    }
+
+
     Base::renderFinal(cam);
 
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("test");
 
+    ImGui::Checkbox("add_values_to_console", &add_values_to_console);
     if (ImGui::Button("add"))
     {
         console << "asdf " << 234 << std::endl;
@@ -110,6 +121,7 @@ void Sample::renderFinal(Camera* cam)
 
 
     console.render();
+    test_table.Render();
 }
 int main(const int argc, const char* argv[])
 {

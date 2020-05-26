@@ -10,6 +10,7 @@
 #include "saiga/core/math/math.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Align.h"
+#include "saiga/core/util/table.h"
 
 #include <vector>
 
@@ -23,6 +24,9 @@ class SAIGA_CORE_API IMConsole : public std::ostream, protected std::streambuf
               const Saiga::ivec2& size = {500, 250});
 
     void render();
+    void BeginWindow();
+    void EndWindow();
+    void RenderTextArea();
 
     // additionally log to the given file.
     // Note: calling this method will clear the exsisting content!
@@ -45,6 +49,25 @@ class SAIGA_CORE_API IMConsole : public std::ostream, protected std::streambuf
     std::shared_ptr<std::ofstream> outFile;
 };
 
+// An ImGUi table window where you can add new lines like in Saiga::Table.
+// Example:
+//
+//   ImGui::IMTable test_table("Fancy Table", {10, 10}, {"First", "Second"});
+//   test_table << 2346346 << 1424;
+//   test_table << 23 << 1424;
+//
+//   test_table.Render();
+//
+class SAIGA_CORE_API IMTable : public Saiga::Table
+{
+   public:
+    IMTable(const std::string& name, const std::vector<int>& colum_width, const std::vector<std::string>& colum_name);
+    void Render();
+
+   private:
+    std::string header;
+    ImGui::IMConsole console;
+};
 
 
 class SAIGA_CORE_API Graph

@@ -79,6 +79,9 @@ DescriptorORB ORB::ComputeDescriptor(Saiga::ImageView<unsigned char> image, cons
         float fy = point.y() + (pattern[idx].x() * b + pattern[idx].y() * a);
         int x    = iRound(fx);
         int y    = iRound(fy);
+
+        //        SAIGA_ASSERT(image.inImage(y, x));
+        //        image.clampToEdge(y, x);
         return image(y, x);
 #else
         return center[cvRound(pattern[idx].x() * b + pattern[idx].y() * a) * step +

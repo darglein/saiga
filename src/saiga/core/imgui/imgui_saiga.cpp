@@ -178,10 +178,26 @@ IMConsole::IMConsole(const std::string& name, const Saiga::ivec2& position, cons
 
 void IMConsole::render()
 {
+    BeginWindow();
+    RenderTextArea();
+    EndWindow();
+}
+
+void IMConsole::BeginWindow()
+{
     ImGui::SetNextWindowPos(ImVec2(position(0), position(1)), ImGuiCond_Once);
     ImGui::SetNextWindowSize(ImVec2(size(0), size(1)), ImGuiCond_Once);
     ImGui::Begin(name.c_str());
+}
 
+void IMConsole::EndWindow()
+{
+    ImGui::End();
+}
+
+
+void IMConsole::RenderTextArea()
+{
     float footer_height_to_reserve =
         ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();  // 1 separator, 1 input text
 
@@ -207,10 +223,7 @@ void IMConsole::render()
         ImGui::SetScrollY(GetScrollMaxY());
         scrollDownAtNextRender = false;
     }
-
-
     ImGui::EndChild();
-    ImGui::End();
 }
 
 void IMConsole::setOutputFile(const std::string& file)
@@ -240,11 +253,38 @@ int IMConsole::overflow(int c)
     return 0;
 }
 
+
+
 bool StringCombo(const char* label, int* current_item, const std::vector<std::string>& data)
 {
     std::vector<const char*> strings;
     for (auto& d : data) strings.push_back(d.data());
     return ImGui::Combo(label, current_item, strings.data(), strings.size());
+}
+
+IMTable::IMTable(const std::string& name, const std::vector<int>& colum_width,
+                 const std::vector<std::string>& colum_name)
+    : Table(colum_width), console(name)
+{
+    std::stringstream header_strm;
+    setStream(header_strm);
+    for (auto cn : colum_name)
+    {
+        (*this) << cn;
+    }
+
+    header = header_strm.str();
+    setStream(console);
+}
+
+
+void IMTable::Render()
+{
+    console.BeginWindow();
+    ImGui::Text("%s", header.c_str());
+    ImGui::Separator();
+    console.RenderTextArea();
+    console.EndWindow();
 }
 
 }  // namespace ImGui

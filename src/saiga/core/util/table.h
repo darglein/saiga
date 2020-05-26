@@ -38,7 +38,9 @@ class SAIGA_CORE_API Table
 
    public:
     Table() : strm(&std::cout) {}
-    Table(std::vector<int> colWidth, std::ostream& strm = std::cout);
+    Table(const std::vector<int>& colWidth, std::ostream& strm = std::cout);
+
+    void setStream(std::ostream& strm) { this->strm = &strm; }
 
     void setColWidth(std::vector<int> colWidth);
 
