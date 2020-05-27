@@ -4,11 +4,12 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/opengl.h"
-
+#include "saiga/core/util/ConsoleColor.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/ini/ini.h"
+#include "saiga/core/util/table.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/shader/shaderPartLoader.h"
 #include "saiga/opengl/texture/TextureLoader.h"
@@ -17,14 +18,17 @@
 #include <glbinding/glbinding.h>
 
 
-namespace Saiga
+namespace gl
 {
 std::ostream& operator<<(std::ostream& os, GLenum g)
 {
     os << (int)g;
     return os;
 }
+}  // namespace gl
 
+namespace Saiga
+{
 bool openglinitialized = false;
 
 void initOpenGL(glbinding::GetProcAddress func)
@@ -36,14 +40,13 @@ void initOpenGL(glbinding::GetProcAddress func)
 
 
     openglinitialized = true;
-    std::cout << "> OpenGL initialized" << std::endl;
     printOpenGLVersion();
 
     switch (getOpenGLVendor())
     {
         case OpenGLVendor::Nvidia:
             ShaderPartLoader::addLineDirectives = true;
-            std::cout << "Enabling #line directives for NVIDIA driver." << std::endl;
+            VLOG(1) << "Enabling #line directives for NVIDIA driver.";
             break;
         default:
             break;
@@ -52,30 +55,41 @@ void initOpenGL(glbinding::GetProcAddress func)
 
 void printOpenGLVersion()
 {
-    std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
-    std::cout << "GLSL version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
-    std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
-    std::cout << "Vendor: " << glGetString(GL_VENDOR) << " - ";
+    std::cout << ConsoleColor::YELLOW;
+    Table table({2, 18, 41, 2});
 
-    switch (getOpenGLVendor())
-    {
-        case OpenGLVendor::Nvidia:
-            std::cout << "Nvidia";
-            break;
-        case OpenGLVendor::Ati:
-            std::cout << "Ati";
-            break;
-        case OpenGLVendor::Intel:
-            std::cout << "Intel";
-            break;
-        case OpenGLVendor::Mesa:
-            std::cout << "Mesa";
-            break;
-        default:
-            std::cout << "Unknown";
-            break;
-    }
-    std::cout << std::endl;
+    std::cout << "=========================== OpenGL ===========================" << std::endl;
+    table << "|"
+          << "OpenGL Version" << glGetString(GL_VERSION) << "|";
+    table << "|"
+          << "GLSL Version" << glGetString(GL_SHADING_LANGUAGE_VERSION) << "|";
+    table << "|"
+          << "Renderer" << glGetString(GL_RENDERER) << "|";
+    table << "|"
+          << "Vendor" << glGetString(GL_VENDOR) << "|";
+    std::cout << "==============================================================" << std::endl;
+
+    std::cout << ConsoleColor::RESET;
+
+    //    switch (getOpenGLVendor())
+    //    {
+    //        case OpenGLVendor::Nvidia:
+    //            std::cout << "Nvidia";
+    //            break;
+    //        case OpenGLVendor::Ati:
+    //            std::cout << "Ati";
+    //            break;
+    //        case OpenGLVendor::Intel:
+    //            std::cout << "Intel";
+    //            break;
+    //        case OpenGLVendor::Mesa:
+    //            std::cout << "Mesa";
+    //            break;
+    //        default:
+    //            std::cout << "Unknown";
+    //            break;
+    //    }
+    //    std::cout << std::endl;
 }
 
 

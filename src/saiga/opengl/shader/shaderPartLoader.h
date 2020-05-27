@@ -5,8 +5,9 @@
  */
 
 #pragma once
-
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/easylogging++.h"
+#include "saiga/core/util/tostring.h"
 #include "saiga/opengl/opengl_helper.h"
 #include "saiga/opengl/shader/shaderpart.h"
 
@@ -68,12 +69,12 @@ std::shared_ptr<shader_t> ShaderPartLoader::createShader()
     shader->createProgram();
 
 #ifndef SAIGA_RELEASE
-    std::cout << "Loaded: " << file << " ( ";
+    std::string type_str;
     for (auto& sp : shaders)
     {
-        std::cout << sp->type << " ";
+        type_str += to_string(sp->type) + " ";
     }
-    std::cout << ") Id=" << shader->program << std::endl;
+    VLOG(1) << "Loaded: " << file << " ( " << type_str << ") Id=" << shader->program;
 #endif
 
     shader->name = file;

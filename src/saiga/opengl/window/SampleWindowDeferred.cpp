@@ -35,8 +35,6 @@ SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
     sun->setAmbientIntensity(0.3f);
     sun->createShadowMap(2048, 2048);
     sun->enableShadows();
-
-    std::cout << "Program Initialized!" << std::endl;
 }
 
 SampleWindowDeferred::~SampleWindowDeferred() {}

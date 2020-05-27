@@ -28,7 +28,7 @@ void DatasetParameters::fromConfigFile(const std::string& file)
 
 std::ostream& operator<<(std::ostream& strm, const DatasetParameters& params)
 {
-    strm << params.dir << std::endl;
+    strm << params.dir;
     return strm;
 }
 }  // namespace Saiga

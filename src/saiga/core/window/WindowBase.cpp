@@ -23,7 +23,6 @@ WindowBase::~WindowBase() {}
 
 void WindowBase::close()
 {
-    std::cout << "Window: close" << std::endl;
     running = false;
 }
 

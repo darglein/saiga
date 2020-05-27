@@ -8,6 +8,7 @@
 #include "MainLoop.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/util/tostring.h"
 
@@ -140,9 +141,9 @@ void MainLoop::startMainLoop(MainLoopParameters params)
     gameTime.printInfoMsg = printInfoMsg;
     running               = true;
 
-    std::cout << "> Starting the main loop..." << std::endl;
-    std::cout << "> updatesPerSecond=" << params.updatesPerSecond << " framesPerSecond=" << params.framesPerSecond
-              << " maxFrameSkip=" << params.maxFrameSkip << std::endl;
+    VLOG(1) << "> Starting the main loop...";
+    VLOG(1) << "> updatesPerSecond=" << params.updatesPerSecond << " framesPerSecond=" << params.framesPerSecond
+            << " maxFrameSkip=" << params.maxFrameSkip;
 
 
     if (params.updatesPerSecond <= 0) params.updatesPerSecond = gameTime.base.count();
@@ -231,8 +232,8 @@ void MainLoop::startMainLoop(MainLoopParameters params)
     }
 
     auto gt = std::chrono::duration_cast<std::chrono::seconds>(gameTime.getTime());
-    std::cout << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/"
-              << numFrames << std::endl;
+    VLOG(1) << "> Main loop finished in " << gt.count() << "s  Total number of updates/frames: " << numUpdates << "/"
+            << numFrames;
 }
 
 void MainLoop::renderImGuiInline()

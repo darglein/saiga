@@ -108,7 +108,6 @@ bool OpenGLWindow::create()
 
     glDebugMessageCallback(Error::DebugLogConst, NULL);
 
-    std::cout << ">> Window inputs initialized!" << std::endl;
     assert_no_glerror();
 
     return true;

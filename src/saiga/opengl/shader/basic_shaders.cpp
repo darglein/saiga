@@ -19,7 +19,7 @@ void MVPShader::checkUniforms()
 
     location_cameraData = getUniformBlockLocation("cameraData");
 
-    if (location_cameraData != -1) setUniformBlockBinding(location_cameraData, CAMERA_DATA_BINDING_POINT);
+    if (location_cameraData != GL_INVALID_INDEX) setUniformBlockBinding(location_cameraData, CAMERA_DATA_BINDING_POINT);
 }
 
 

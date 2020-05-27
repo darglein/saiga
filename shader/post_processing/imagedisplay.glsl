@@ -11,6 +11,8 @@
 
 layout(location=0) in vec3 in_position;
 
+#include "camera.glsl"
+
 out vec2 tc;
 
 

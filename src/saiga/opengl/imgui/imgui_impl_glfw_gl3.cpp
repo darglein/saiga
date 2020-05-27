@@ -97,10 +97,6 @@ ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParamete
 
     glfw_EventHandler::addKeyListener(this, 15);
     glfw_EventHandler::addMouseListener(this, 15);
-
-
-
-    std::cout << "Imgui Initialized!" << std::endl;
 }
 
 ImGui_GLFW_Renderer::~ImGui_GLFW_Renderer() {}

@@ -105,11 +105,11 @@ struct FeatureGridBounds2
         Cols        = ceil(g_size.x());
 
 
-        std::cout << "[FeatureGrid] ";
-        std::cout << Cols << "x" << Rows << " ";
-        std::cout << "[" << bmin.transpose() << "] [" << bmax.transpose() << "] ";
-        std::cout << "Cell Size: " << cellSize.transpose();
-        std::cout << std::endl;
+        //        std::cout << "[FeatureGrid] ";
+        //        std::cout << Cols << "x" << Rows << " ";
+        //        std::cout << "[" << bmin.transpose() << "] [" << bmax.transpose() << "] ";
+        //        std::cout << "Cell Size: " << cellSize.transpose();
+        //        std::cout << std::endl;
     }
 };
 

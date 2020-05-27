@@ -6,9 +6,9 @@
 
 #include "saiga/opengl/shader/shaderPartLoader.h"
 
+#include "saiga/core/util/fileChecker.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/shader/shader.h"
-#include "saiga/core/util/fileChecker.h"
 
 #include <algorithm>
 #include <fstream>
@@ -234,12 +234,12 @@ void ShaderPartLoader::reloadShader(std::shared_ptr<Shader> shader)
     shader->shaders = shaders;
     shader->createProgram();
 
-    std::cout << "Loaded: " << file << " ( ";
+    std::string type_str;
     for (auto& sp : shaders)
     {
-        std::cout << sp->type << " ";
+        type_str += to_string(sp->type) + " ";
     }
-    std::cout << ")" << std::endl;
+    VLOG(1) << "Loaded: " << file << " ( " << type_str << ") Id=" << shader->program;
 
     assert_no_glerror();
 }

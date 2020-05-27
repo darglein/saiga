@@ -26,8 +26,6 @@ SampleWindowForward::SampleWindowForward() : StandaloneWindow("config.ini")
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
     ObjAssetLoader assetLoader;
     groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
-
-    std::cout << "Program Initialized!" << std::endl;
 }
 
 void SampleWindowForward::update(float dt)
@@ -47,10 +45,8 @@ void SampleWindowForward::interpolate(float dt, float interpolation)
 
 void SampleWindowForward::renderOverlay(Camera* cam)
 {
-    if(showSkybox)
-    skybox.render(cam);
-    if(showGrid)
-    groundPlane.renderForward(cam);
+    if (showSkybox) skybox.render(cam);
+    if (showGrid) groundPlane.renderForward(cam);
 }
 
 void SampleWindowForward::renderFinal(Camera* cam)

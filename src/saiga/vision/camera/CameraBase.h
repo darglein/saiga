@@ -113,8 +113,6 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
     void Load()
     {
-        std::cout << params << std::endl;
-
         int num_images = LoadMetaData();
         SAIGA_ASSERT(frames.size() == num_images);
         //        frames.resize(num_images);

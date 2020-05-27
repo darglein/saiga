@@ -11,10 +11,13 @@
 #include "opengl.h"
 
 #include <vector>
-namespace Saiga
+
+namespace gl
 {
 SAIGA_OPENGL_API std::ostream& operator<<(std::ostream& os, GLenum g);
-
+}
+namespace Saiga
+{
 SAIGA_OPENGL_API void initOpenGL(glbinding::GetProcAddress func);
 SAIGA_OPENGL_API void terminateOpenGL();
 SAIGA_OPENGL_API bool OpenGLisInitialized();
@@ -60,6 +63,8 @@ struct SAIGA_OPENGL_API OpenGLParameters
 
     int versionMajor = 3;
     int versionMinor = 2;
+
+    bool verbose = false;
 
     /**
      *  Reads all paramters from the given config file.

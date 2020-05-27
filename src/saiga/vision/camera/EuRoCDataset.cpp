@@ -72,8 +72,6 @@ EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase
 {
     Load();
     computeImuDataPerFrame();
-
-    std::cout << "Loading done." << std::endl;
 }
 
 void EuRoCDataset::LoadImageData(StereoFrameData& data)
@@ -156,7 +154,7 @@ int EuRoCDataset::LoadMetaData()
         imu.acceleration_sigma       = config["accelerometer_noise_density"].as<double>();
         imu.acceleration_random_walk = config["accelerometer_random_walk"].as<double>();
 
-        std::cout << imu << std::endl;
+        VLOG(1) << imu;
     }
 
 
@@ -216,13 +214,13 @@ int EuRoCDataset::LoadMetaData()
 
     groundTruthToCamera = extrinsics_gt.inverse() * extrinsics_cam0;
 
-    std::cout << "Body: " << extrinsics_gt << std::endl;
-    std::cout << "Left: " << extrinsics_cam0 << std::endl;
-    std::cout << "Right: " << extrinsics_cam1 << std::endl;
+    //    std::cout << "Body: " << extrinsics_gt << std::endl;
+    //    std::cout << "Left: " << extrinsics_cam0 << std::endl;
+    //    std::cout << "Right: " << extrinsics_cam1 << std::endl;
 
     //    intrinsics.left_to_right = extrinsics_cam1 * extrinsics_cam0.inverse();
     intrinsics.left_to_right = extrinsics_cam1.inverse() * extrinsics_cam0;
-    std::cout << "Left->Right: " << intrinsics.left_to_right << std::endl;
+    //    std::cout << "Left->Right: " << intrinsics.left_to_right << std::endl;
 
     {
         // == Imu Data ==
@@ -270,7 +268,7 @@ int EuRoCDataset::LoadMetaData()
               << " ground truth meassurements." << std::endl;
 
     SAIGA_ASSERT(intrinsics.imageSize == intrinsics.rightImageSize);
-    std::cout << intrinsics << std::endl;
+    VLOG(1) << intrinsics;
 
 
 

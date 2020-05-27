@@ -96,10 +96,6 @@ ImGui_SDL_Renderer::ImGui_SDL_Renderer(SDL_Window* window, const ImGuiParameters
 #    else
     (void)window;
 #    endif
-
-
-
-    std::cout << "Imgui Initialized!" << std::endl;
 }
 
 
