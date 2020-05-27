@@ -58,6 +58,9 @@ if(MODULE_CUDA)
   saiga_test(test_cuda_image "saiga_cuda")
   saiga_test(test_cuda_simple "saiga_cuda")
   saiga_test(test_cuda_thrust "saiga_cuda")
+  if(MODULE_VISION)
+    saiga_test(test_cuda_orb "saiga_cuda" "saiga_vision")
+  endif()
 endif()
 
 
