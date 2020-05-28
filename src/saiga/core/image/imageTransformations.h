@@ -28,6 +28,11 @@ SAIGA_CORE_API void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> ds
 // just sets the color channels to the gray value
 SAIGA_CORE_API void Gray8ToRGBA(ImageView<unsigned char> src, ImageView<ucvec4> dst, unsigned char alpha = 255);
 
+
+
+SAIGA_CORE_API void ScaleDown2(ImageView<const ucvec4> src, ImageView<ucvec4> dst);
+
+
 SAIGA_CORE_API float sharpness(ImageView<const unsigned char> src);
 /**
  * Converts a floating point image to a 8-bit image and saves it.

@@ -11,10 +11,7 @@
 #include "saiga/vision/camera/all.h"
 
 
-Sample::Sample()
-{
-    std::cout << "init done" << std::endl;
-}
+Sample::Sample() {}
 
 
 void Sample::update(float dt)
@@ -128,15 +125,28 @@ void Sample::renderFinal(Camera* cam)
     dparams.multiThreadedLoad = true;
     dparams.preload           = true;
 
+
+    if (ImGui::Button("Load From File Scannet"))
+    {
+        dparams.dir  = dir;
+        rgbdcamera   = std::make_unique<ScannetDataset>(dparams);
+        leftTexture  = nullptr;
+        rightTexture = nullptr;
+
+        cameraType = TumRGBDDataset::FrameType::cameraType;
+    }
+
+
+
 #ifdef SAIGA_USE_YAML_CPP
     if (ImGui::Button("Load From File TUM RGBD"))
     {
         dparams.dir  = dir;
-        rgbdcamera   = std::make_unique<TumRGBDCamera>(dparams);
+        rgbdcamera   = std::make_unique<TumRGBDDataset>(dparams);
         leftTexture  = nullptr;
         rightTexture = nullptr;
 
-        cameraType = TumRGBDCamera::FrameType::cameraType;
+        cameraType = TumRGBDDataset::FrameType::cameraType;
     }
 
 

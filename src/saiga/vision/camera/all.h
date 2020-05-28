@@ -11,4 +11,6 @@
 #include "KittiDataset.h"
 #include "RGBDCamera.h"
 #include "RGBDCameraOpenni.h"
-#include "TumRGBDCamera.h"
+#include "ScannetDataset.h"
+#include "TumRGBDDataset.h"
+#include "ZJUDataset.h"

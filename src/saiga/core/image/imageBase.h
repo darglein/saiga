@@ -7,19 +7,21 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/Range.h"
-
 namespace Saiga
 {
 struct ImageDimensions
 {
-    union {
+    union
+    {
         int h;
         int height;
         int r;
         int rows;
     };
-    union {
+    union
+    {
         int w;
         int width;
         int c;
@@ -28,6 +30,8 @@ struct ImageDimensions
     HD ImageDimensions() : h(0), w(0) {}
     HD ImageDimensions(int h, int w) : h(h), w(w) {}
 
+
+    HD inline ivec2 Vector() const { return ivec2(w, h); }
     HD inline std::pair<int, int> pair() const { return {h, w}; }
     HD inline bool valid() const { return h > 0 && w > 0; }
     HD inline explicit operator bool() { return valid(); }

@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API TumRGBDCamera : public DatasetCameraBase<RGBDFrameData>
+class SAIGA_VISION_API TumRGBDDataset : public DatasetCameraBase<RGBDFrameData>
 {
    public:
     struct GroundTruth
@@ -47,8 +47,8 @@ class SAIGA_VISION_API TumRGBDCamera : public DatasetCameraBase<RGBDFrameData>
 
     // If freiburg == -1 then the name is parsed from the dataset directory.
     // Otherwise it should be 1,2, or 3.
-    TumRGBDCamera(const DatasetParameters& params, int freiburg = -1);
-    ~TumRGBDCamera();
+    TumRGBDDataset(const DatasetParameters& params, int freiburg = -1);
+    ~TumRGBDDataset();
 
 
     SE3 getGroundTruth(int frame);

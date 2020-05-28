@@ -169,6 +169,22 @@ bool save(const std::string& path, ImageView<float> img, float vmin, float vmax)
     return simg.save(path);
 }
 
+void ScaleDown2(ImageView<const ucvec4> src, ImageView<ucvec4> dst)
+{
+    for (int i : dst.rowRange())
+    {
+        for (int j : dst.colRange())
+        {
+            int i_src = i * 2;
+            int j_src = j * 2;
+            ivec4 sum = src(i_src, j_src).cast<int>() + src(i_src + 1, j_src).cast<int>() +
+                        src(i_src, j_src + 1).cast<int>() + src(i_src + 1, j_src + 1).cast<int>();
+            sum /= 4;
+            dst(i, j) = sum.cast<unsigned char>();
+        }
+    }
+}
+
 
 
 }  // namespace ImageTransformation

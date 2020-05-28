@@ -38,13 +38,19 @@ struct SyncedConsoleProgressBar
     {
         SAIGA_ASSERT(end >= 0);
         print();
-        run();
+        if (end > 0)
+        {
+            run();
+        }
     }
 
     ~SyncedConsoleProgressBar()
     {
         running = false;
-        st.join();
+        if (st.joinable())
+        {
+            st.join();
+        }
     }
     void addProgress(int i) { current += i; }
 
@@ -74,13 +80,16 @@ struct SyncedConsoleProgressBar
     {
         SAIGA_ASSERT(current <= end);
         strm << "\r" << header << " [";
-        auto progress = double(current) / end;
+        auto progress = end == 0 ? 0 : double(current) / end;
         int barLength = progress * length;
         for (auto i = 0; i < barLength; ++i)
         {
             strm << "=";
         }
-        for (auto i = barLength; i < length; ++i) strm << " ";
+        for (auto i = barLength; i < length; ++i)
+        {
+            strm << " ";
+        }
 
         strm << "] " << progress * 100 << "% " << std::flush;
     }

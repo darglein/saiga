@@ -27,7 +27,6 @@ Sample::Sample()
 {
     Saiga::createGlobalThreadPool(8);
     Saiga::setThreadName("main");
-    std::cout << "init done" << std::endl;
 }
 
 

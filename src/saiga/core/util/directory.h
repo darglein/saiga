@@ -20,8 +20,6 @@ namespace Saiga
 class SAIGA_CORE_API Directory
 {
    public:
-    std::string dirname;
-    DIR* dir = nullptr;
     Directory(const std::string& dir);
     ~Directory();
 
@@ -51,6 +49,10 @@ class SAIGA_CORE_API Directory
     bool existsFile(const std::string& file);
 
     std::string operator()() { return dirname; }
+
+   private:
+    std::string dirname;
+    DIR* dir = nullptr;
 };
 
 }  // namespace Saiga

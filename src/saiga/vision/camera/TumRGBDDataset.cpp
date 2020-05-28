@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "TumRGBDCamera.h"
+#include "TumRGBDDataset.h"
 
 #include "saiga/core/util/FileSystem.h"
 #include "saiga/core/util/ProgressBar.h"
@@ -19,9 +19,9 @@
 #include <thread>
 namespace Saiga
 {
-static AlignedVector<TumRGBDCamera::CameraData> readCameraData(std::string file)
+static AlignedVector<TumRGBDDataset::CameraData> readCameraData(std::string file)
 {
-    AlignedVector<TumRGBDCamera::CameraData> data;
+    AlignedVector<TumRGBDDataset::CameraData> data;
     {
         std::ifstream strm(file);
         SAIGA_ASSERT(strm.is_open());
@@ -31,7 +31,7 @@ static AlignedVector<TumRGBDCamera::CameraData> readCameraData(std::string file)
             if (line.empty() || line[0] == '#') continue;
             std::vector<std::string> elements = Saiga::split(line, ' ');
             SAIGA_ASSERT(elements.size() == 2);
-            TumRGBDCamera::CameraData d;
+            TumRGBDDataset::CameraData d;
             d.timestamp = Saiga::to_double(elements[0]);
             d.img       = elements[1];
             data.push_back(d);
@@ -41,9 +41,9 @@ static AlignedVector<TumRGBDCamera::CameraData> readCameraData(std::string file)
     return data;
 }
 
-static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
+static AlignedVector<TumRGBDDataset::GroundTruth> readGT(std::string file)
 {
-    AlignedVector<TumRGBDCamera::GroundTruth> data;
+    AlignedVector<TumRGBDDataset::GroundTruth> data;
     {
         std::ifstream strm(file);
         SAIGA_ASSERT(strm.is_open());
@@ -53,7 +53,7 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
             if (line.empty() || line[0] == '#') continue;
             std::vector<std::string> elements = Saiga::split(line, ' ');
             SAIGA_ASSERT(elements.size() == 8);
-            TumRGBDCamera::GroundTruth d;
+            TumRGBDDataset::GroundTruth d;
             d.timestamp = Saiga::to_double(elements[0]);
 
             Vec3 t;
@@ -79,23 +79,23 @@ static AlignedVector<TumRGBDCamera::GroundTruth> readGT(std::string file)
 
 
 
-TumRGBDCamera::TumRGBDCamera(const DatasetParameters& _params, int freiburg)
+TumRGBDDataset::TumRGBDDataset(const DatasetParameters& _params, int freiburg)
     : DatasetCameraBase<RGBDFrameData>(_params), freiburg(freiburg)
 {
     Load();
 }
 
-TumRGBDCamera::~TumRGBDCamera() {}
+TumRGBDDataset::~TumRGBDDataset() {}
 
 
-SE3 TumRGBDCamera::getGroundTruth(int frame)
+SE3 TumRGBDDataset::getGroundTruth(int frame)
 {
     SAIGA_ASSERT(frame >= 0 && frame < (int)tumframes.size());
     GroundTruth gt = tumframes[frame].gt;
     return gt.se3;
 }
 
-void TumRGBDCamera::saveRaw(const std::string& dir)
+void TumRGBDDataset::saveRaw(const std::string& dir)
 {
     std::cout << "Saving TUM dataset as Saiga-Raw dataset in " << dir << std::endl;
 #pragma omp parallel for
@@ -109,7 +109,7 @@ void TumRGBDCamera::saveRaw(const std::string& dir)
     std::cout << "... Done saving the raw dataset." << std::endl;
 }
 
-void TumRGBDCamera::LoadImageData(RGBDFrameData& data)
+void TumRGBDDataset::LoadImageData(RGBDFrameData& data)
 {
     Image cimg(data.file);
     Image dimg(data.depth_file);
@@ -137,7 +137,7 @@ void TumRGBDCamera::LoadImageData(RGBDFrameData& data)
     }
 }
 
-int TumRGBDCamera::LoadMetaData()
+int TumRGBDDataset::LoadMetaData()
 {
     std::cout << "Loading TUM RGBD Dataset: " << params.dir << std::endl;
 
@@ -194,7 +194,7 @@ int TumRGBDCamera::LoadMetaData()
 }
 
 
-void TumRGBDCamera::associate(const std::string& datasetDir)
+void TumRGBDDataset::associate(const std::string& datasetDir)
 {
     AlignedVector<CameraData> rgbData   = readCameraData(datasetDir + "/rgb.txt");
     AlignedVector<CameraData> depthData = readCameraData(datasetDir + "/depth.txt");
@@ -263,7 +263,7 @@ void TumRGBDCamera::associate(const std::string& datasetDir)
 }
 
 
-void TumRGBDCamera::load(const std::string& datasetDir, bool multithreaded)
+void TumRGBDDataset::load(const std::string& datasetDir, bool multithreaded)
 {
     SAIGA_ASSERT(params.startFrame < tumframes.size());
     tumframes.erase(tumframes.begin(), tumframes.begin() + params.startFrame);
