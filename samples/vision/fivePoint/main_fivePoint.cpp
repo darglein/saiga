@@ -11,10 +11,10 @@
 #include "saiga/core/util/BinaryFile.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/features/Features.h"
 #include "saiga/vision/reconstruction/FivePoint.h"
 #include "saiga/vision/reconstruction/TwoViewReconstruction.h"
 #include "saiga/vision/scene/Scene.h"
-#include "saiga/vision/features/Features.h"
 
 #include <numeric>
 using namespace Saiga;
@@ -139,7 +139,7 @@ int main(int, char**)
     scene.images[0].se3 = rel;
 
 
-    Triangulation<double> triangulation;
+
     for (int i = 0; i < num; ++i)
     {
         int idx = inliers[i];
@@ -155,7 +155,7 @@ int main(int, char**)
         scene.images[1].stereoPoints.push_back(ip2);
 
         WorldPoint wp;
-        wp.p = triangulation.triangulateHomogeneous(SE3(), rel, npoints1[idx], npoints2[idx]);
+        wp.p = TriangulateHomogeneous<double>(SE3(), rel, npoints1[idx], npoints2[idx]);
         scene.worldPoints.push_back(wp);
     }
     scene.fixWorldPointReferences();
