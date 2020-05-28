@@ -62,7 +62,7 @@ class SAIGA_VISION_API TwoViewReconstruction
 
     std::vector<double> tmpArray;
     FivePointRansac fpr;
-    Triangulation<double> triangulation;
+//    Triangulation<double> triangulation;
 
     OptimizationOptions op_options;
     BAOptions ba_options;

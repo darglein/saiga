@@ -73,7 +73,7 @@ void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<con
             }
 
             // inlier
-            wp.p     = triangulation.triangulateHomogeneous(pose1(), pose2(), points1[i], points2[i]);
+            wp.p     = TriangulateHomogeneous<double, true>(pose1(), pose2(), points1[i], points2[i]);
             wp.valid = true;
 
             ip1.wp    = i;

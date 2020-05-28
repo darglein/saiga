@@ -123,7 +123,8 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
             SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + std::to_string(num_images) + " images ",
                                                 num_images);
 
-            int threads = std::max<int>(OMP::getMaxThreads(), 8);
+            // More than 8 doesn't improve performance even on NVME SSDs.
+            int threads = std::min<int>(OMP::getMaxThreads(), 8);
 
 #pragma omp parallel for if (params.multiThreadedLoad) num_threads(threads)
             for (int i = 0; i < num_images; ++i)

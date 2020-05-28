@@ -83,7 +83,6 @@ std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* po
     int bestCount                    = 0;
     std::array<SE3, 4> possibilities = decomposeEssentialMatrix2(E);
 
-    Triangulation<double> triangulation;
 
     for (int i = 0; i < 4; ++i)
     {
@@ -93,7 +92,7 @@ std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* po
         int count = 0;
         for (int j = 0; j < N; ++j)
         {
-            auto wp     = triangulation.triangulateHomogeneous(SE3(), T, points1[j], points2[j]);
+            auto wp     = TriangulateHomogeneous<double, true>(SE3(), T, points1[j], points2[j]);
             Vec3 otherP = T * wp;
 
 

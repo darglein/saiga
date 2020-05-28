@@ -368,7 +368,7 @@ bool bestEUsing6Points(const std::vector<Mat3>& es, const Vec2* points1, const V
 {
     const int N = 6;
     std::array<Vec3, 6> wps;
-    Triangulation<double, false> triangulation;
+
 
     double minError = std::numeric_limits<double>::infinity();
 
@@ -390,7 +390,7 @@ bool bestEUsing6Points(const std::vector<Mat3>& es, const Vec2* points1, const V
             for (int j = 0; j < N; ++j)
             {
                 auto& wp    = wps[j];
-                wp          = triangulation.triangulateHomogeneous(SE3(), T, points1[j], points2[j]);
+                wp          = TriangulateHomogeneous<double, false>(SE3(), T, points1[j], points2[j]);
                 Vec3 otherP = T * wp;
                 if (wp.z() <= 0 || otherP.z() <= 0)
                 {

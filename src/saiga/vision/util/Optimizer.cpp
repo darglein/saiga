@@ -99,12 +99,18 @@ OptimizationResults LMOptimizer::solve()
             {
                 // revert and break
                 revertDelta();
-                std::cout << "Early terminate  decrease " << std::endl;
+                if (optimizationOptions.debugOutput)
+                {
+                    std::cout << "Early terminate  decrease " << std::endl;
+                }
                 break;
             }
             else if (chi2 + optimizationOptions.minChi2Delta > current_chi2)
             {
-                std::cout << "Early terminate  " << std::endl;
+                if (optimizationOptions.debugOutput)
+                {
+                    std::cout << "Early terminate  " << std::endl;
+                }
                 break;
             }
             if (optimizationOptions.debugOutput)
