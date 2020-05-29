@@ -17,6 +17,7 @@
  */
 #pragma once
 
+#include "saiga/core/time/all.h"
 #include "saiga/core/util/BinaryFile.h"
 #include "saiga/vision/features/Features.h"
 
@@ -35,15 +36,17 @@
 namespace MiniBow2
 {
 using WordId     = int;
-using WordValue  = double;
+using WordValue  = float;
 using NodeId     = int;
 using Descriptor = Saiga::DescriptorORB;
 
 class BowVector : public std::vector<std::pair<WordId, WordValue>>
+// class BowVector : public std::map<WordId, WordValue>
 {
    public:
     void set(std::vector<std::pair<WordId, WordValue>>& words)
     {
+#if 1
         reserve(words.size());
 
 
@@ -53,6 +56,7 @@ class BowVector : public std::vector<std::pair<WordId, WordValue>>
         WordId current = -1;
         for (auto& f : words)
         {
+            //            SAIGA_ASSERT(f.first >= 0);
             if (f.first == -1) continue;
 
             if (f.first != current)
@@ -65,6 +69,12 @@ class BowVector : public std::vector<std::pair<WordId, WordValue>>
                 back().second += (f.second);
             }
         }
+#else
+        for (auto& f : words)
+        {
+            this->operator[](f.first) += f.second;
+        }
+#endif
         normalize();
     }
 
@@ -74,7 +84,7 @@ class BowVector : public std::vector<std::pair<WordId, WordValue>>
      */
     void normalize()
     {
-        double norm = 0.0;
+        WordValue norm = 0.0;
         {
             for (auto it = begin(); it != end(); ++it) norm += std::abs(it->second);
         }
@@ -86,10 +96,12 @@ class BowVector : public std::vector<std::pair<WordId, WordValue>>
 };
 
 class FeatureVector : public std::vector<std::pair<NodeId, std::vector<int>>>
+// class FeatureVector : public std::map<NodeId, std::vector<int>>
 {
    public:
     void setFeatures(std::vector<std::pair<NodeId, int>>& features)
     {
+#if 1
         reserve(features.size());
 
         std::sort(features.begin(), features.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
@@ -98,10 +110,13 @@ class FeatureVector : public std::vector<std::pair<NodeId, std::vector<int>>>
         for (auto& f : features)
         {
             if (f.first == -1) continue;
+            SAIGA_ASSERT(f.first >= 0);
+
+
 
             if (f.first != current)
             {
-                push_back({f.first, {f.second}});
+                push_back({f.first, { f.second }});
                 current = f.first;
             }
             else
@@ -109,16 +124,23 @@ class FeatureVector : public std::vector<std::pair<NodeId, std::vector<int>>>
                 back().second.push_back(f.second);
             }
         }
+#else
+
+        for (auto& f : features)
+        {
+            this->operator[](f.first).push_back(f.second);
+        }
+#endif
     }
 
-    static double score(const BowVector& v1, const BowVector& v2)
+    static WordValue score(const BowVector& v1, const BowVector& v2)
     {
         BowVector::const_iterator v1_it, v2_it;
         const BowVector::const_iterator v1_end = v1.end();
         const BowVector::const_iterator v2_end = v2.end();
         v1_it                                  = v1.begin();
         v2_it                                  = v2.begin();
-        double score                           = 0;
+        WordValue score                        = 0;
         while (v1_it != v1_end && v2_it != v2_end)
         {
             const WordValue& vi = v1_it->second;
@@ -141,7 +163,7 @@ class FeatureVector : public std::vector<std::pair<NodeId, std::vector<int>>>
                                          [](const auto& a, const auto& b) { return a.first < b.first; });
             }
         }
-        score = -score / 2.0;
+        score = score * WordValue(-0.5);
 
         return score;
     }
@@ -216,7 +238,8 @@ class TemplatedVocabulary
      * @param fv (out) feature vector of nodes and feature indexes
      * @param levelsup levels to go up the vocabulary tree to get the node index
      */
-    void transform(const std::vector<Descriptor>& features, BowVector& v, FeatureVector& fv, int levelsup) const;
+    void transform(const std::vector<Descriptor>& features, BowVector& v, FeatureVector& fv, int levelsup,
+                   int num_threads = 1) const;
 
 
     /**
@@ -226,7 +249,7 @@ class TemplatedVocabulary
      * @return score between vectors
      * @note the vectors must be already sorted and normalized if necessary
      */
-    inline double score(const BowVector& a, const BowVector& b) const { return Scoring::score(a, b); }
+    inline WordValue score(const BowVector& a, const BowVector& b) const { return Scoring::score(a, b); }
 
     /**
      * Returns the id of the node that is "levelsup" levels from the word given
@@ -858,32 +881,48 @@ float TemplatedVocabulary<Descriptor>::getEffectiveLevels() const
 
 template <class Descriptor>
 void TemplatedVocabulary<Descriptor>::transform(const std::vector<Descriptor>& features, BowVector& v,
-                                                FeatureVector& fv, int levelsup) const
+                                                FeatureVector& fv, int levelsup, int num_threads) const
 {
+    SAIGA_ASSERT(num_threads > 0);
     int N = features.size();
 
-    tmp_bow_data.clear();
-    tmp_feature_data.clear();
+    tmp_bow_data.resize(N);
+    tmp_feature_data.resize(N);
 
     v.clear();
     fv.clear();
 
-    for (int i = 0; i < N; ++i)
+#pragma omp parallel num_threads(num_threads)
     {
-        auto T = transform(features[i], levelsup);
-
-        auto w = std::get<1>(T);
-
-        if (w > 0)
+#pragma omp for
+        for (int i = 0; i < N; ++i)
         {
-            tmp_bow_data.emplace_back(std::get<0>(T), std::get<1>(T));
-            tmp_feature_data.emplace_back(std::get<2>(T), i);
+            auto [word_id, weight, nid] = transform(features[i], levelsup);
+
+            if (weight > 0)
+            {
+                tmp_bow_data[i]     = {word_id, weight};
+                tmp_feature_data[i] = {nid, i};
+            }
+            else
+            {
+                tmp_bow_data[i]     = {-1, weight};
+                tmp_feature_data[i] = {-1, i};
+            }
+        }
+
+
+
+#pragma omp single
+        {
+#pragma omp task
+            {
+                v.set(tmp_bow_data);
+            }
+
+            fv.setFeatures(tmp_feature_data);
         }
     }
-
-
-    v.set(tmp_bow_data);
-    fv.setFeatures(tmp_feature_data);
 }
 
 
@@ -1008,7 +1047,9 @@ void TemplatedVocabulary<Descriptor>::loadRaw(const std::string& file)
     m_nodes.resize(nodecount);
     for (Node& n : m_nodes)
     {
-        bf >> n.id >> n.parent >> n.weight >> n.word_id >> n.descriptor;
+        double weight;
+        bf >> n.id >> n.parent >> weight >> n.word_id >> n.descriptor;
+        n.weight = weight;
         if (n.id != 0) m_nodes[n.parent].children.push_back(n.id);
     }
 
@@ -1033,7 +1074,8 @@ void TemplatedVocabulary<Descriptor>::saveRaw(const std::string& file) const
     bf << (size_t)m_nodes.size();
     for (const Node& n : m_nodes)
     {
-        bf << n.id << n.parent << n.weight << n.word_id << n.descriptor;
+        double weight = n.weight;
+        bf << n.id << n.parent << weight << n.word_id << n.descriptor;
     }
     // words
     std::vector<std::pair<int, int>> words;

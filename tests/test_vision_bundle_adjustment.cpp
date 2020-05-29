@@ -51,12 +51,14 @@ class BundleAdjustmentTest
     {
         Scene cpy = scene;
         BARec ba;
-        ba.optimizationOptions = opoptions;
-        ba.baOptions           = options;
+        ba.optimizationOptions      = opoptions;
+        ba.baOptions                = options;
+        ba.baOptions.helper_threads = 8;
         ba.create(cpy);
         //        SAIGA_BLOCK_TIMER();
-        ba.initOMP();
-        ba.solveOMP();
+        ba.initAndSolve();
+        //        ba.initOMP();
+        //        ba.solveOMP();
         return cpy;
     }
 
@@ -104,7 +106,7 @@ class BundleAdjustmentTest
             {
                 ScopedTimer tim(time);
                 ba.create(cpy);
-                ba.initAndSolve();
+                auto res = ba.initAndSolve();
                 //                ba.initOMP();
                 //                ba.solveOMP();
             }
@@ -112,17 +114,20 @@ class BundleAdjustmentTest
         }
 
         static bool first = true;
-        Table tab({15, 15, 15, 15});
+        Table tab({15, 15, 15, 15, 15, 15});
         if (first)
         {
             tab << "Type"
                 << "Expl."
                 << "Simple LM"
+                << "Helper Threads"
+                << "Solver Threads"
                 << "Time(ms)";
             first = false;
         }
         tab << (op_options.solverType == OptimizationOptions::SolverType::Direct ? "Direct" : "Iterative")
-            << op_options.buildExplizitSchur << op_options.simple_solver << Statistics(timings).median;
+            << op_options.buildExplizitSchur << op_options.simple_solver << options.helper_threads
+            << options.solver_threads << Statistics(timings).median;
     }
 
 
@@ -382,6 +387,27 @@ TEST(BundleAdjustment, SLAM_LBA)
     local_op_options.solverType         = OptimizationOptions::SolverType::Direct;
     test.BenchmarkRecursive(local_op_options, local_ba_options);
 
+
+    std::cout << std::endl;
+    for (int i = 1; i < 8; ++i)
+    {
+        local_ba_options.helper_threads     = i;
+        local_op_options.buildExplizitSchur = true;
+        local_op_options.simple_solver      = true;
+        local_op_options.solverType         = OptimizationOptions::SolverType::Iterative;
+        test.BenchmarkRecursive(local_op_options, local_ba_options);
+    }
+
+    //    std::cout << std::endl;
+    //    for (int i = 1; i < 8; ++i)
+    //    {
+    //        local_ba_options.helper_threads     = i;
+    //        local_ba_options.solver_threads     = i;
+    //        local_op_options.buildExplizitSchur = true;
+    //        local_op_options.simple_solver      = true;
+    //        local_op_options.solverType         = OptimizationOptions::SolverType::Iterative;
+    //        test.BenchmarkRecursive(local_op_options, local_ba_options);
+    //    }
 
     //    test.BenchmarkRecursive("Huber", local_op_options, local_ba_options);
 }

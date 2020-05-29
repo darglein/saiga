@@ -112,7 +112,7 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
 
     Eigen::Recursive::LinearSolverOptions loptions;
     // ============= Multi Threading Stuff ===========
-    int threads = 1;
+    //    int threads = 1;
     // each thread gets one vector
     std::vector<AlignedVector<BDiag>> pointDiagTemp;
     std::vector<AlignedVector<BRes>> pointResTemp;
@@ -130,9 +130,6 @@ class SAIGA_VISION_API BARec : public BABase, public LMOptimizer
     virtual void solveLinearSystem() override;
     virtual double computeCost() override;
     virtual void finalize() override;
-
-    virtual void setThreadCount(int n) override { threads = n; }
-    virtual bool supportOMP() override { return true; }
 };
 
 
