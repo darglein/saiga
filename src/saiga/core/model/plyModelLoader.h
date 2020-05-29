@@ -11,9 +11,18 @@
 
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 namespace Saiga
 {
+
+namespace PLYLoaderDetail {
+    template<typename VertexType>
+    static inline int print(std::vector<std::string> &header);
+    template<typename VertexType>
+    static inline void write(char *ptr, VertexType v);
+};
+
 class SAIGA_CORE_API PLYLoader
 {
    public:
@@ -66,13 +75,7 @@ class SAIGA_CORE_API PLYLoader
 
         header.push_back("element vertex " + to_string(mesh.vertices.size()));
 
-        header.push_back("property float x");
-        header.push_back("property float y");
-        header.push_back("property float z");
-
-        header.push_back("property float red");
-        header.push_back("property float green");
-        header.push_back("property float blue");
+        int vertexSize = PLYLoaderDetail::print<VertexType>(header);
 
         header.push_back("element face " + to_string(mesh.faces.size()));
         header.push_back("property list uchar int vertex_indices");
@@ -88,27 +91,11 @@ class SAIGA_CORE_API PLYLoader
 
         int dataStart = data.size();
 
-        int vertexSize = 3 * sizeof(float) + 3 * sizeof(float);
         data.resize(data.size() + vertexSize * mesh.vertices.size());
         char* ptr = data.data() + dataStart;
         for (auto v : mesh.vertices)
         {
-            float* f = (float*)ptr;
-            f[0]     = v.position.x;
-            f[1]     = v.position.y;
-            f[2]     = v.position.z;
-
-            float* c = (float*)(f + 3);
-            //            c[0] = 255;
-            //            c[1] = 255;
-            //            c[2] = 255;
-
-            //            vec3 col = Color::srgb2linearrgb(v.color);
-            c[0] = v.color.x;
-            c[1] = v.color.y;
-            c[2] = v.color.z;
-
-
+            PLYLoaderDetail::write(ptr, v);
             ptr += vertexSize;
         }
 
@@ -138,5 +125,80 @@ class SAIGA_CORE_API PLYLoader
     }
 };
 
+namespace PLYLoaderDetail {
+    template<>
+    inline int print<Vertex>(std::vector<std::string> &header)
+    {
+        header.push_back("property float x");
+        header.push_back("property float y");
+        header.push_back("property float z");
+        return 3*sizeof(float);
+    }
+
+    template<>
+    inline int print<VertexN>(std::vector<std::string> &header)
+    {
+        int ret = print<Vertex>(header);
+        header.push_back("property float nx");
+        header.push_back("property float ny");
+        header.push_back("property float nz");
+        return ret + 3*sizeof(float);
+    }
+
+    template<>
+    inline int print<VertexC>(std::vector<std::string> &header)
+    {
+        int ret = print<Vertex>(header);
+        header.push_back("property float red");
+        header.push_back("property float green");
+        header.push_back("property float blue");
+        return ret + 3*sizeof(float);
+    }
+
+    template<>
+    inline int print<VertexNC>(std::vector<std::string> &header)
+    {
+        int ret = print<VertexN>(header);
+        header.push_back("property float red");
+        header.push_back("property float green");
+        header.push_back("property float blue");
+        return ret + 3*sizeof(float);
+    }
+
+    template<>
+    inline void write(char*ptr, Vertex v) {
+        float* f = (float*)ptr;
+        f[0]     = v.position.x();
+        f[1]     = v.position.y();
+        f[2]     = v.position.z();
+    }
+
+    template<>
+    inline void write(char*ptr, VertexN v) {
+        write(ptr, Vertex{v.position});
+        float* f = (float*)ptr + 3;
+        f[0]     = v.normal.x();
+        f[1]     = v.normal.y();
+        f[2]     = v.normal.z();
+    }
+
+    template<>
+    inline void write(char*ptr, VertexC v) {
+        write(ptr, Vertex{v.position});
+        float* f = (float*)ptr + 3;
+        f[0]     = v.color.x();
+        f[1]     = v.color.y();
+        f[2]     = v.color.z();
+    }
+
+    template<>
+    inline void write(char*ptr, VertexNC v) {
+        write(ptr, VertexN{v.position, v.normal});
+        float* f = (float*)ptr + 6;
+        f[0]     = v.color.x();
+        f[1]     = v.color.y();
+        f[2]     = v.color.z();
+    }
+};
 
 }  // namespace Saiga

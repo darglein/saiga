@@ -201,13 +201,20 @@ void PLYLoader::parseMeshBinary()
     int faceStart = dataStart + vertexCount * vertexSize;
     char* start   = data.data() + faceStart;
 
+    int countSize = sizeoftype(faceVertexCountType);
+
     for (int i = 0; i < faceCount; ++i)
     {
-        int c = start[0];
+        int c = 0;
+        if (countSize == 1) {
+            c = *reinterpret_cast<unsigned char*>(start);
+        } else if (countSize == 4) {
+            c = *reinterpret_cast<int*>(start);
+        }
+        start += countSize;
 
         SAIGA_ASSERT(c == 3);
 
-        start++;
         uint32_t* face = reinterpret_cast<uint32_t*>(start);
         mesh.addFace(face);
 
