@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-int AABB::maxDimension()
+int AABB::maxDimension() const
 {
     vec3 d = max - min;
 
@@ -102,7 +102,7 @@ vec3 AABB::cornerPoint(int cornerIndex) const
     }
 }
 
-bool AABB::contains(const vec3& p)
+bool AABB::contains(const vec3& p) const
 {
     if (min[0] > p[0] || max[0] < p[0]) return false;
     if (min[1] > p[1] || max[1] < p[1]) return false;
@@ -111,7 +111,7 @@ bool AABB::contains(const vec3& p)
     return true;  // overlap
 }
 
-std::vector<Triangle> AABB::toTriangles()
+std::vector<Triangle> AABB::toTriangles() const
 {
     std::vector<Triangle> res = {
         // bottom

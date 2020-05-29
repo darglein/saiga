@@ -1,4 +1,5 @@
 /**
+
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -29,10 +30,10 @@ class Bezier
     void degreeElavation();
 
     // subdivide this bezier curve c times. Each step doubles the number of output curves.
-    std::vector<Bezier<P>> subdivide(int c = 1);
+    std::vector<Bezier<P>> subdivide(int c = 1) const;
 
     // returns a line that approximates the bezier curve. subdivisions=0 returns the controlpolygon.
-    std::vector<P> createLine(int subdivisions = 0);
+    std::vector<P> createLine(int subdivisions = 0) const;
 };
 
 template <typename P>
@@ -74,7 +75,7 @@ void Bezier<P>::degreeElavation()
 
 
 template <typename P>
-std::vector<Bezier<P>> Bezier<P>::subdivide(int c)
+std::vector<Bezier<P>> Bezier<P>::subdivide(int c) const
 {
     if (c == 0)
     {
@@ -108,7 +109,7 @@ std::vector<Bezier<P>> Bezier<P>::subdivide(int c)
 }
 
 template <typename P>
-std::vector<P> Bezier<P>::createLine(int subdivisions)
+std::vector<P> Bezier<P>::createLine(int subdivisions) const
 {
     auto sub = subdivide(subdivisions);
     std::vector<P> line;

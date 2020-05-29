@@ -28,7 +28,7 @@ class SAIGA_CORE_API AABB
 
 
     // returns the axis with the maximum extend
-    int maxDimension();
+    int maxDimension() const;
 
     void makeNegative();
     void growBox(const vec3& v);
@@ -40,21 +40,21 @@ class SAIGA_CORE_API AABB
     void ensureValidity();
 
 
-    vec3 getHalfExtends();
+    vec3 getHalfExtends() const;
 
 
 
-    void getMinimumAabb(AABB& box) { box = *this; }
+    void getMinimumAabb(AABB& box) const { box = *this; }
 
     vec3 cornerPoint(int i) const;
 
     vec3 getPosition() const;
     void setPosition(const vec3& v);
 
-    bool contains(const vec3& p);
+    bool contains(const vec3& p) const;
 
     // A list the 12 triangles (2 for each face)
-    std::vector<Triangle> toTriangles();
+    std::vector<Triangle> toTriangles() const;
 
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const AABB& dt);

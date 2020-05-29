@@ -188,8 +188,6 @@ int ObjectMedianBVH::construct(int start, int end)
         node2._right = r;
     }
 
-
-
     return nodeid;
 }
 
