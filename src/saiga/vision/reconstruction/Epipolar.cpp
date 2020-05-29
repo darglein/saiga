@@ -26,6 +26,15 @@ Mat3 FundamentalMatrix(const Mat3& E, const Intrinsics4& K1, const Intrinsics4& 
     return F;
 }
 
+
+Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, const Intrinsics4& K2)
+{
+    Mat3 E = K2.matrix().transpose() * F * K1.matrix();
+    E *= 1.0 / E(2, 2);
+    return E;
+}
+
+
 double EpipolarDistanceSquared(const Vec2& p1, const Vec2& p2, const Mat3& F)
 {
     Vec3 np1(p1(0), p1(1), 1);
@@ -92,7 +101,7 @@ std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* po
         int count = 0;
         for (int j = 0; j < N; ++j)
         {
-            auto wp     = TriangulateHomogeneous<double, true>(SE3(), T, points1[j], points2[j]);
+            auto wp     = TriangulateHomogeneous<double, false>(SE3(), T, points1[j], points2[j]);
             Vec3 otherP = T * wp;
 
 
@@ -107,7 +116,6 @@ std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* po
             }
         }
 
-        //        std::cout << "Conf " << i << " Infront: " << count << std::endl;
         if (count > bestCount)
         {
             bestCount = count;
@@ -116,5 +124,37 @@ std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* po
     }
     return {possibilities[bestT], bestCount};
 }
+
+std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* points2, ArrayView<char> inlier_mask,
+                                                int N, int num_threads)
+{
+    std::array<SE3, 4> possibilities = decomposeEssentialMatrix2(E);
+    std::array<int, 4> counts;
+
+#pragma omp parallel for num_threads(num_threads)
+    for (int i = 0; i < 4; ++i)
+    {
+        auto T = possibilities[i];
+        // Triangulate all points and count how many points are in front of both cameras
+        // the transformation with the most valid points wins.
+        int count = 0;
+        for (int j = 0; j < N; ++j)
+        {
+            if (!inlier_mask[j]) continue;
+            auto wp     = TriangulateHomogeneous<double, false>(SE3(), T, points1[j], points2[j]);
+            Vec3 otherP = T * wp;
+            if (wp.z() > 0 && otherP.z() > 0)
+            {
+                count++;
+            }
+        }
+        counts[i] = count;
+    }
+
+    int idx = std::distance(counts.begin(), std::max_element(counts.begin(), counts.end()));
+    return {possibilities[idx], counts[idx]};
+    ;
+}
+
 
 }  // namespace Saiga

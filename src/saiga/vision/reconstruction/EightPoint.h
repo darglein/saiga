@@ -5,9 +5,9 @@
  */
 
 #pragma once
-
 #include "saiga/core/math/HomogeneousLSE.h"
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/util/Ransac.h"
 
 #include "Epipolar.h"
 
@@ -15,6 +15,9 @@
 
 namespace Saiga
 {
+// Computes the fundamental matrix F from 8 point correspondences.
+SAIGA_VISION_API Mat3 FundamentalMatrixEightPoint(Vec2* points0, Vec2* points1);
+
 template <typename T>
 class EightPoint
 {
@@ -30,36 +33,7 @@ class EightPoint
     template <typename _InputIterator>
     Mat3 computeF(_InputIterator points1, _InputIterator points2)
     {
-        Eigen::Matrix<T, 8, 9, Eigen::RowMajor> A(8, 9);
-
-        for (int i = 0; i < 8; ++i)
-        {
-            auto& p = *points1;
-            auto& q = *points2;
-
-            T px = p(0);
-            T py = p(1);
-            T qx = q(0);
-            T qy = q(1);
-
-            std::array<double, 9> ax = {px * qx, px * qy, px, py * qx, py * qy, py, qx, qy, 1};
-            for (int j = 0; j < 9; ++j)
-            {
-                A(i, j) = ax[j];
-            }
-
-            ++points1;
-            ++points2;
-        }
-
-        Vec9 f;
-        solveHomogeneousJacobiSVD(A, f);
-
-        Mat3 F;
-        F << f(0), f(3), f(6), f(1), f(4), f(7), f(2), f(5), f(8);
-        F = enforceRank2(F);
-        F = F * (1.0 / F(2, 2));
-        return F;
+        return FundamentalMatrixEightPoint(points1, points2);
     }
 
 
@@ -67,7 +41,7 @@ class EightPoint
     {
         int maxIterations        = 1000;
         constexpr int sampleSize = 8;
-        double epipolarTheshold  = 1;
+        double epipolarTheshold  = 1.5;
         double thresholdSquared  = epipolarTheshold * epipolarTheshold;
 
         std::uniform_int_distribution<unsigned int> dis(0, N - 1);
@@ -120,6 +94,28 @@ class EightPoint
 
    private:
     std::mt19937 gen = std::mt19937(92730469346UL);
+};
+
+
+
+class SAIGA_VISION_API EightPointRansac : public RansacBase<EightPointRansac, Mat3, 8>
+{
+    using Model = Mat3;
+    using Base  = RansacBase<EightPointRansac, Model, 8>;
+
+   public:
+    EightPointRansac() {}
+    EightPointRansac(const RansacParameters& params) : Base(params) {}
+
+    int solve(ArrayView<const Vec2> _points1, ArrayView<const Vec2> _points2, Mat3& bestF,
+              std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask);
+
+    bool computeModel(const Subset& set, Model& model);
+
+    double computeResidual(const Model& model, int i);
+
+    ArrayView<const Vec2> points1;
+    ArrayView<const Vec2> points2;
 };
 
 

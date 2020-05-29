@@ -10,6 +10,7 @@
 #include "saiga/vision/VisionTypes.h"
 
 #include "Triangulation.h"
+
 #include <array>
 
 namespace Saiga
@@ -52,6 +53,9 @@ SAIGA_VISION_API Mat3 EssentialMatrix(const SE3& a, const SE3& b);
  */
 SAIGA_VISION_API Mat3 FundamentalMatrix(const Mat3& E, const Intrinsics4& K1, const Intrinsics4& K2);
 
+
+SAIGA_VISION_API Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, const Intrinsics4& K2);
+
 /**
  * Computes the squared distance of point 2 to the epipolar line of point 1.
  */
@@ -68,5 +72,8 @@ SAIGA_VISION_API void decomposeEssentialMatrix(const Mat3& E, Mat3& R1, Mat3& R2
 SAIGA_VISION_API std::array<SE3, 4> decomposeEssentialMatrix2(Mat3& E);
 
 SAIGA_VISION_API std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* points2, int N);
+
+SAIGA_VISION_API std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* points2,
+                                                                 ArrayView<char> inlier_mask, int N, int num_threads);
 
 }  // namespace Saiga

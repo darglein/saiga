@@ -50,11 +50,15 @@ void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<con
 
 #pragma omp parallel num_threads(threads)
     {
-        int inl = fpr.solve(points1, points2, E, pose2(), inliers, inlierMask);
+        int num_inliers;
 
-        if (OMP::getThreadNum() == 0)
         {
-            inlierCount = inl;
+            SAIGA_BLOCK_TIMER();
+            num_inliers = fpr.solve(points1, points2, E, pose2(), inliers, inlierMask);
+        }
+#pragma omp single
+        {
+            inlierCount = num_inliers;
         }
 
 #pragma omp for
@@ -202,5 +206,93 @@ void TwoViewReconstruction::setMedianDepth(double d)
     auto factor = d / md;
     scene.rescale(factor);
 }
+
+void TwoViewReconstructionEightPoint::init(const RansacParameters& ransac_params, Intrinsics4 K)
+{
+    epr.init(ransac_params);
+    tmpArray.reserve(ransac_params.reserveN);
+    scene.intrinsics.front() = K;
+}
+
+void TwoViewReconstructionEightPoint::compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, int threads)
+{
+    N = points1.size();
+    inliers.clear();
+    inliers.reserve(N);
+    inlierMask.resize(N);
+
+    pose1() = SE3();
+
+    scene.worldPoints.clear();
+    scene.images[0].stereoPoints.resize(N);
+    scene.images[1].stereoPoints.resize(N);
+    scene.worldPoints.resize(N);
+
+    Intrinsics4& K = scene.intrinsics.front();
+
+    AlignedVector<Vec2> npoints1(N), npoints2(N);
+
+#pragma omp parallel num_threads(threads)
+    {
+        {
+            inlierCount = epr.solve(points1, points2, F, inliers, inlierMask);
+        }
+
+#pragma omp for
+        for (int i = 0; i < N; ++i)
+        {
+            npoints1[i] = K.unproject2(points1[i]);
+            npoints2[i] = K.unproject2(points2[i]);
+        }
+    }
+
+    // Compute E and normalize
+
+    //        if (OMP::getThreadNum() == 0)
+
+
+
+    {
+        E = EssentialMatrix(F, K, K);
+
+
+
+        auto [rel, relcount] =
+            getValidTransformationFromE(E, npoints1.data(), npoints2.data(), inlierMask, npoints1.size(), threads);
+
+        pose1() = SE3();
+        pose2() = rel;
+    }
+
+#pragma omp parallel num_threads(threads)
+    {
+#pragma omp for
+        for (int i = 0; i < N; ++i)
+        {
+            auto&& wp  = scene.worldPoints[i];
+            auto&& ip1 = scene.images[0].stereoPoints[i];
+            auto&& ip2 = scene.images[1].stereoPoints[i];
+            if (!inlierMask[i])
+            {
+                // outlier
+                wp.valid = false;
+                ip1.wp   = -1;
+                ip2.wp   = -1;
+                continue;
+            }
+
+            // inlier
+            wp.p     = TriangulateHomogeneous<double, true>(pose1(), pose2(), npoints1[i], npoints2[i]);
+            wp.valid = true;
+
+            ip1.wp    = i;
+            ip1.point = points1[i];
+
+            ip2.wp    = i;
+            ip2.point = points2[i];
+        }
+    }
+    scene.fixWorldPointReferences();
+}  // namespace Saiga
 
 }  // namespace Saiga
