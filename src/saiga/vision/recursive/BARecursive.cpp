@@ -47,7 +47,7 @@ void BARec::reserve(int n, int m)
 
 void BARec::init()
 {
-    SAIGA_ASSERT(1 == OMP::getNumThreads());
+    //    OMP::setWaitPolicy(OMP::WaitPolicy::Active);
     //    threads = 4;
     //    std::cout << "Test sizes: " << sizeof(Scene) << " " << sizeof(BARec)<< " " << sizeof(BABase)<< " " <<
     //    sizeof(LMOptimizer) << std::endl; std::cout << "Test sizes2: " << sizeof(BAMatrix) << " " <<
@@ -221,11 +221,11 @@ void BARec::init()
     }
 
     // ===== Threading Tmps ======
-    //    std::cout << "threads: " << threads << std::endl;
-    SAIGA_ASSERT(threads > 0);
-    localChi2.resize(threads);
-    pointDiagTemp.resize(threads - 1);
-    pointResTemp.resize(threads - 1);
+
+    SAIGA_ASSERT(baOptions.helper_threads > 0);
+    localChi2.resize(baOptions.helper_threads);
+    pointDiagTemp.resize(baOptions.helper_threads - 1);
+    pointResTemp.resize(baOptions.helper_threads - 1);
     for (auto& a : pointDiagTemp) a.resize(m);
     for (auto& a : pointResTemp) a.resize(m);
 
@@ -239,7 +239,7 @@ void BARec::init()
                               : Eigen::Recursive::LinearSolverOptions::SolverType::Iterative;
     loptions.buildExplizitSchur = optimizationOptions.buildExplizitSchur;
 
-    if (threads == 1)
+    if (baOptions.solver_threads == 1)
     {
         solver.analyzePattern(A, loptions);
     }
@@ -361,11 +361,9 @@ double BARec::computeQuadraticForm()
 
 
 
-    //#pragma omp parallel num_threads(threads)
+#pragma omp parallel num_threads(baOptions.helper_threads)
     {
         int tid = OMP::getThreadNum();
-
-        SAIGA_ASSERT(threads == OMP::getNumThreads());
 
         double& newChi2 = localChi2[tid];
         newChi2         = 0;
@@ -391,8 +389,6 @@ double BARec::computeQuadraticForm()
             bresArray[i].setZero();
         }
 
-        //#pragma omp for
-//        for (auto&& info : validImages)
 #pragma omp for
         for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
         {
@@ -538,7 +534,7 @@ double BARec::computeQuadraticForm()
 #pragma omp for
         for (int i = 0; i < m; ++i)
         {
-            for (int j = 0; j < threads - 1; ++j)
+            for (int j = 0; j < baOptions.helper_threads - 1; ++j)
             {
                 A.v.diagonal()(i).get() += pointDiagTemp[j][i];
                 b.v(i).get() += pointResTemp[j][i];
@@ -547,23 +543,21 @@ double BARec::computeQuadraticForm()
     }
 
 
-#pragma omp single
+    chi2_sum = 0;
+    for (int i = 0; i < baOptions.helper_threads; ++i)
     {
-        chi2_sum = 0;
-        for (int i = 0; i < threads; ++i)
-        {
-            chi2_sum += localChi2[i];
-        }
+        chi2_sum += localChi2[i];
     }
+
 
     return chi2_sum;
 }
 
 bool BARec::addDelta()
 {
-    //#pragma omp parallel num_threads(threads)
+    //#pragma omp parallel num_threads(baOptions.helper_threads)
     {
-#pragma omp for
+#pragma omp for nowait
         for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
@@ -598,6 +592,7 @@ bool BARec::addDelta()
 void BARec::revertDelta()
 {
     //#pragma omp parallel num_threads(threads)
+    //#pragma omp parallel num_threads(baOptions.helper_threads)
     {
         //#pragma omp for nowait
         //        for (int i = 0; i < x_u.size(); ++i)
@@ -625,8 +620,9 @@ void BARec::finalize()
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
 
     //#pragma omp parallel num_threads(threads)
+    //#pragma omp parallel num_threads(baOptions.helper_threads)
     {
-#pragma omp for
+#pragma omp for nowait
         for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
@@ -649,19 +645,19 @@ void BARec::finalize()
 
 void BARec::addLambda(double lambda)
 {
-    if (threads == 1)
+    //    if (1 == 1)
+    //    {
+    //        applyLMDiagonal(A.u, lambda);
+    //        applyLMDiagonal(A.v, lambda);
+    //    }
+    //    else
+    //    {
+    //#pragma omp parallel num_threads(baOptions.helper_threads)
     {
-        applyLMDiagonal(A.u, lambda);
-        applyLMDiagonal(A.v, lambda);
+        applyLMDiagonal_omp(A.u, lambda);
+        applyLMDiagonal_omp(A.v, lambda);
     }
-    else
-    {
-        //#pragma omp parallel num_threads(threads)
-        {
-            applyLMDiagonal_omp(A.u, lambda);
-            applyLMDiagonal_omp(A.v, lambda);
-        }
-    }
+    //    }
 }
 
 
@@ -670,13 +666,13 @@ void BARec::solveLinearSystem()
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(RECURSIVE_BA_USE_TIMERS && optimizationOptions.debugOutput);
 
-    if (threads == 1)
+    if (baOptions.solver_threads == 1)
     {
         solver.solve(A, delta_x, b, loptions);
     }
     else
     {
-        //#pragma omp parallel num_threads(threads)
+#pragma omp parallel num_threads(baOptions.solver_threads)
         {
             solver.solve_omp(A, delta_x, b, loptions);
         }
@@ -692,13 +688,12 @@ double BARec::computeCost()
 
     using T = BlockBAScalar;
 
-    //#pragma omp parallel num_threads(threads)
+#pragma omp parallel num_threads(baOptions.helper_threads)
     {
         int tid = OMP::getThreadNum();
 
         double& newChi2 = localChi2[tid];
         newChi2         = 0;
-        //        for (auto&& info : validImages)
 #pragma omp for
         for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
         {
@@ -755,14 +750,13 @@ double BARec::computeCost()
         }
     }
 
-#pragma omp single
+
+    chi2_sum = 0;
+    for (int i = 0; i < baOptions.helper_threads; ++i)
     {
-        chi2_sum = 0;
-        for (int i = 0; i < threads; ++i)
-        {
-            chi2_sum += localChi2[i];
-        }
+        chi2_sum += localChi2[i];
     }
+
 
     return chi2_sum;
 }

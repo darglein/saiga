@@ -19,6 +19,8 @@ struct SAIGA_VISION_API BAOptions
     float huberMono   = -1;
     float huberStereo = -1;
 
+    int helper_threads = 1;
+    int solver_threads = 1;
 
     void imgui();
 };

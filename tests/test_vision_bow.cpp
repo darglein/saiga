@@ -24,7 +24,7 @@ using Descriptor2    = MiniBow2::Descriptor;
 using OrbVocabulary2 = MiniBow2::TemplatedVocabulary<Descriptor>;
 
 const int images           = 3;
-const int featuresPerImage = 1000;
+const int featuresPerImage = 2000;
 void loadFeatures(std::vector<std::vector<Descriptor>>& features)
 {
     features.clear();
@@ -179,7 +179,7 @@ void testVocMatching(const std::vector<std::vector<Descriptor>>& features, OrbVo
 }
 
 
-TEST(Sohpus, SE3_Point)
+TEST(BoW, Full)
 {
     std::vector<std::vector<Descriptor>> features;
     loadFeatures(features);
@@ -224,7 +224,7 @@ TEST(Sohpus, SE3_Point)
         while (it1 != bv.end() && it2 != bv2.end())
         {
             EXPECT_EQ(it1->first, it2->first);
-            EXPECT_EQ(it1->second, it2->second);
+            EXPECT_NEAR(it1->second, it2->second, 0.001);
             ++it1;
             ++it2;
         }
@@ -252,4 +252,43 @@ TEST(Sohpus, SE3_Point)
     testVocMatching(features, orbVoc2);
 }
 
+TEST(BoW, Orb)
+{
+    OrbVocabulary2 orbVoc2;
+    try
+    {
+        orbVoc2.loadRaw("ORBvoc.minibow");
+        std::cout << orbVoc2 << std::endl;
+    }
+    catch (std::exception e)
+    {
+        std::cout << "Could not load ORB voc. Skipping test..." << std::endl;
+        return;
+    }
+
+    std::vector<std::vector<Descriptor>> features;
+    loadFeatures(features);
+
+    MiniBow2::BowVector ref_bv;
+    MiniBow2::FeatureVector ref_fv;
+    orbVoc2.transform(features.front(), ref_bv, ref_fv, 4, 1);
+
+    for (int i = 1; i < 16; ++i)
+    {
+        MiniBow2::BowVector bv;
+        MiniBow2::FeatureVector fv;
+        orbVoc2.transform(features.front(), bv, fv, 4, i);
+
+        EXPECT_EQ(ref_bv, bv);
+        EXPECT_EQ(ref_fv, fv);
+
+        auto stat = measureObject(50, [&]() { orbVoc2.transform(features.front(), bv, fv, 4, i); });
+        std::cout << "Transform with " << i << " threads: " << stat.median << " ms." << std::endl;
+    }
+
+
+    //    auto stat = measureObject(50, [&]() { orbVoc2.transform(features.front(), bv2, fv2, 4, 2); });
+    //    auto stat = measureObject(50, [&]() { orbVoc2.transform(features.front(), bv2, fv2, 4, 4); });
+    //    std::cout << stat << std::endl;
+}
 }  // namespace Saiga

@@ -87,7 +87,7 @@ int main(int, char**)
     int num;
 
     {
-        SAIGA_BLOCK_TIMER();
+        //        SAIGA_BLOCK_TIMER();
         num = computeERansac(npoints1, npoints2, rparams, E, rel, inliers, inlierMask);
         SAIGA_ASSERT(num == inliers.size());
     }
@@ -98,7 +98,7 @@ int main(int, char**)
     {
         for (int i = 0; i < 1; ++i)
         {
-            SAIGA_BLOCK_TIMER();
+            //            SAIGA_BLOCK_TIMER();
             FivePointRansac fran(rparams);
 #pragma omp parallel num_threads(rparams.threads)
             {
@@ -114,10 +114,11 @@ int main(int, char**)
         tvr.init(rparams);
         for (int i = 0; i < 50; ++i)
         {
-            SAIGA_BLOCK_TIMER();
+            //            SAIGA_BLOCK_TIMER();
             tvr.compute(npoints1, npoints2, rparams.threads);
             //            std::cout << tvr.inlierCount << std::endl;
         }
+        std::cout << tvr.scene << std::endl;
     }
 
     return 0;

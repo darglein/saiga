@@ -8,6 +8,7 @@
 #include "saiga/core/time/all.h"
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/ba/BAWrapper.h"
+#include "saiga/vision/reconstruction/EightPoint.h"
 #include "saiga/vision/reconstruction/FivePoint.h"
 #include "saiga/vision/scene/Scene.h"
 
@@ -62,13 +63,25 @@ class SAIGA_VISION_API TwoViewReconstruction
 
     std::vector<double> tmpArray;
     FivePointRansac fpr;
-//    Triangulation<double> triangulation;
+    //    Triangulation<double> triangulation;
 
     OptimizationOptions op_options;
     BAOptions ba_options;
     BAWrapper ba;
 };
 
+
+class SAIGA_VISION_API TwoViewReconstructionEightPoint : public TwoViewReconstruction
+{
+   public:
+    // must be called once before running compute!
+    void init(const RansacParameters& ransac_params, Intrinsics4 K);
+    void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, int threads);
+
+   private:
+    Mat3 F;
+    EightPointRansac epr;
+};
 
 
 }  // namespace Saiga

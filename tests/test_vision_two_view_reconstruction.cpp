@@ -12,10 +12,11 @@
 #include "saiga/core/util/BinaryFile.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/features/Features.h"
+#include "saiga/vision/reconstruction/EightPoint.h"
 #include "saiga/vision/reconstruction/FivePoint.h"
 #include "saiga/vision/reconstruction/TwoViewReconstruction.h"
 #include "saiga/vision/scene/Scene.h"
-#include "saiga/vision/features/Features.h"
 
 #include "gtest/gtest.h"
 
@@ -124,6 +125,9 @@ TEST(TwoViewReconstruction, EssentialMatrix)
     double ref_angle_by_depth = degrees(0.0435928);
     double ref_angle          = degrees(0.0754463);
 
+
+    EightPoint<double> eightpoint;
+
     for (int i = 0; i < 10; ++i)
     {
         test->tvr.compute(test->npoints1, test->npoints2, test->five_point_ransac_params.threads);
@@ -156,6 +160,25 @@ TEST(TwoViewReconstruction, EssentialMatrix)
 
         Mat3 E = EssentialMatrix(test->tvr.pose1(), test->tvr.pose2());
         Mat3 F = FundamentalMatrix(E, test->intr, test->intr);
+
+
+        Mat3 F2;
+        std::vector<int> inliers;
+        std::vector<char> inlier_mask;
+        eightpoint.computeFRansac(test->points1.data(), test->points2.data(), test->points1.size(), F2, inliers);
+
+
+        RansacParameters params;
+        params.maxIterations     = 200;
+        params.residualThreshold = 4;
+        Mat3 F3;
+        EightPointRansac epr(params);
+        epr.solve(test->points1, test->points2, F3, inliers, inlier_mask);
+
+        std::cout << F << std::endl;
+        std::cout << F2 << std::endl;
+        std::cout << F3 << std::endl;
+        std::cout << std::endl;
 
         for (auto i = 0; i < test->tvr.N; ++i)
         {

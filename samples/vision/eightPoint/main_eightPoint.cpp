@@ -13,6 +13,7 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/features/Features.h"
 #include "saiga/vision/reconstruction/EightPoint.h"
+#include "saiga/vision/reconstruction/TwoViewReconstruction.h"
 #include "saiga/vision/scene/Scene.h"
 
 #include <numeric>
@@ -77,8 +78,11 @@ int main(int, char**)
 
 
     // Compute E and normalize
-    Mat3 E = intr.matrix().transpose() * F * intr.matrix();
-    E *= 1.0 / E(2, 2);
+    //    Mat3 E = intr.matrix().transpose() * F * intr.matrix();
+    //    Mat3 E = intr.matrix() * F * intr.matrix().transpose();
+    //    E *= 1.0 / E(2, 2);
+
+    Mat3 E = EssentialMatrix(F, intr, intr);
 
     // normalized inlier points
     std::vector<Vec2> npoints1, npoints2;
@@ -90,16 +94,16 @@ int main(int, char**)
     }
     auto [rel, relcount] = getValidTransformationFromE(E, npoints1.data(), npoints2.data(), npoints1.size());
 
-
     Scene scene;
     scene.intrinsics.push_back(intr);
     scene.images.resize(2);
 
-    scene.images[0].intr = 0;
-    scene.images[1].intr = 0;
+    scene.images[0].intr     = 0;
+    scene.images[1].intr     = 0;
+    scene.images[0].constant = true;
 
-    scene.images[0].se3 = SE3();
-    scene.images[0].se3 = rel;
+    scene.images[1].se3 = SE3();
+    scene.images[1].se3 = rel;
 
     //    scene.worldPoints.resize(npoints1.size());
 
@@ -118,7 +122,8 @@ int main(int, char**)
         scene.images[1].stereoPoints.push_back(ip2);
 
         WorldPoint wp;
-        wp.p = TriangulateHomogeneous<double>(SE3(), rel, npoints1[i], npoints2[i]);
+        wp.p     = TriangulateHomogeneous<double, true>(SE3(), rel, npoints1[i], npoints2[i]);
+        wp.valid = true;
         scene.worldPoints.push_back(wp);
     }
     scene.fixWorldPointReferences();
@@ -128,6 +133,23 @@ int main(int, char**)
     std::cout << scene << std::endl;
 
     scene.save("eightPoint.scene");
+
+
+    RansacParameters rparams;
+    rparams.maxIterations     = 1000;
+    double epipolarTheshold   = 1.5;
+    rparams.residualThreshold = epipolarTheshold * epipolarTheshold;
+    rparams.reserveN          = 2000;
+    rparams.threads           = 4;
+
+
+
+    TwoViewReconstructionEightPoint tvr;
+    tvr.init(rparams, intr);
+    tvr.compute(points1, points2, rparams.threads);
+    tvr.optimize(3, 1.5);
+
+    std::cout << tvr.scene << std::endl;
 
 
     return 0;

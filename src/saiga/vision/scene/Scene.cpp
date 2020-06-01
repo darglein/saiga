@@ -50,8 +50,8 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
 {
     WorldPoint& wp = worldPoints[ip.wp];
 
-    SAIGA_ASSERT(ip);
-    SAIGA_ASSERT(wp);
+    //    SAIGA_ASSERT(ip);
+    //    SAIGA_ASSERT(wp);
 
     // project to screen
     auto p  = img.se3 * wp.p;
