@@ -214,7 +214,9 @@ void TwoViewReconstructionEightPoint::init(const RansacParameters& ransac_params
     scene.intrinsics.front() = K;
 }
 
-void TwoViewReconstructionEightPoint::compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, int threads)
+void TwoViewReconstructionEightPoint::compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2,
+                                              ArrayView<const Vec2> normalized_points1,
+                                              ArrayView<const Vec2> normalized_points2, int threads)
 {
     N = points1.size();
     inliers.clear();
@@ -230,35 +232,16 @@ void TwoViewReconstructionEightPoint::compute(ArrayView<const Vec2> points1, Arr
 
     Intrinsics4& K = scene.intrinsics.front();
 
-    AlignedVector<Vec2> npoints1(N), npoints2(N);
 
 #pragma omp parallel num_threads(threads)
     {
-        {
-            inlierCount = epr.solve(points1, points2, F, inliers, inlierMask);
-        }
-
-#pragma omp for
-        for (int i = 0; i < N; ++i)
-        {
-            npoints1[i] = K.unproject2(points1[i]);
-            npoints2[i] = K.unproject2(points2[i]);
-        }
+        inlierCount = epr.solve(points1, points2, F, inliers, inlierMask);
     }
 
-    // Compute E and normalize
-
-    //        if (OMP::getThreadNum() == 0)
-
-
-
     {
-        E = EssentialMatrix(F, K, K);
-
-
-
-        auto [rel, relcount] =
-            getValidTransformationFromE(E, npoints1.data(), npoints2.data(), inlierMask, npoints1.size(), threads);
+        E                    = EssentialMatrix(F, K, K);
+        auto [rel, relcount] = getValidTransformationFromE(E, normalized_points1.data(), normalized_points2.data(),
+                                                           inlierMask, normalized_points1.size(), threads);
 
         pose1() = SE3();
         pose2() = rel;
@@ -282,7 +265,7 @@ void TwoViewReconstructionEightPoint::compute(ArrayView<const Vec2> points1, Arr
             }
 
             // inlier
-            wp.p     = TriangulateHomogeneous<double, true>(pose1(), pose2(), npoints1[i], npoints2[i]);
+            wp.p = TriangulateHomogeneous<double, true>(pose1(), pose2(), normalized_points1[i], normalized_points2[i]);
             wp.valid = true;
 
             ip1.wp    = i;
@@ -293,6 +276,6 @@ void TwoViewReconstructionEightPoint::compute(ArrayView<const Vec2> points1, Arr
         }
     }
     scene.fixWorldPointReferences();
-}  // namespace Saiga
+}
 
 }  // namespace Saiga
