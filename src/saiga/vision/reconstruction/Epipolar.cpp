@@ -86,7 +86,7 @@ std::array<SE3, 4> decomposeEssentialMatrix2(Mat3& E)
     return possibilities;
 }
 
-std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* points2, int N)
+std::pair<SE3, int> getValidTransformationFromE(Mat3& E, const Vec2* points1, const Vec2* points2, int N)
 {
     int bestT                        = 0;
     int bestCount                    = 0;
@@ -125,8 +125,8 @@ std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* po
     return {possibilities[bestT], bestCount};
 }
 
-std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* points2, ArrayView<char> inlier_mask,
-                                                int N, int num_threads)
+std::pair<SE3, int> getValidTransformationFromE(Mat3& E, const Vec2* points1, const Vec2* points2,
+                                                ArrayView<char> inlier_mask, int N, int num_threads)
 {
     std::array<SE3, 4> possibilities = decomposeEssentialMatrix2(E);
     std::array<int, 4> counts;

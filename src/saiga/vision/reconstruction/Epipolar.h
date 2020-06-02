@@ -71,9 +71,10 @@ SAIGA_VISION_API void decomposeEssentialMatrix(const Mat3& E, Mat3& R1, Mat3& R2
 
 SAIGA_VISION_API std::array<SE3, 4> decomposeEssentialMatrix2(Mat3& E);
 
-SAIGA_VISION_API std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* points2, int N);
+SAIGA_VISION_API std::pair<SE3, int> getValidTransformationFromE(Mat3& E, const Vec2* points1, const Vec2* points2,
+                                                                 int N);
 
-SAIGA_VISION_API std::pair<SE3, int> getValidTransformationFromE(Mat3& E, Vec2* points1, Vec2* points2,
+SAIGA_VISION_API std::pair<SE3, int> getValidTransformationFromE(Mat3& E, const Vec2* points1, const Vec2* points2,
                                                                  ArrayView<char> inlier_mask, int N, int num_threads);
 
 }  // namespace Saiga

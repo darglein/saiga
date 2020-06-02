@@ -25,9 +25,9 @@ Vec3 TriangulateHomogeneous(const SE3& s1, const SE3& s2, const Vec2& p1, const 
 {
     using Vec4 = Eigen::Matrix<T, 4, 1>;
     using Vec3 = Eigen::Matrix<T, 3, 1>;
-    using Vec2 = Eigen::Matrix<T, 2, 1>;
+    //    using Vec2 = Eigen::Matrix<T, 2, 1>;
     using Mat4 = Eigen::Matrix<T, 4, 4>;
-    using SE3  = Sophus::SE3<T>;
+    //    using SE3  = Sophus::SE3<T>;
 
     Mat4 P1 = s1.matrix();
     Mat4 P2 = s2.matrix();
