@@ -144,12 +144,12 @@ int main(int, char**)
 
 
 
-    TwoViewReconstructionEightPoint tvr;
-    tvr.init(rparams, intr);
-    tvr.compute(points1, points2, rparams.threads);
-    tvr.optimize(3, 1.5);
+    //    TwoViewReconstructionEightPoint tvr;
+    //    tvr.init(rparams, intr);
+    //    tvr.compute(points1, points2, rparams.threads);
+    //    tvr.optimize(3, 1.5);
+    //    std::cout << tvr.scene << std::endl;
 
-    std::cout << tvr.scene << std::endl;
 
 
     return 0;
