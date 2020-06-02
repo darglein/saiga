@@ -10,6 +10,7 @@
 #include "saiga/config.h"
 
 #include <thread>
+#include <string>
 
 namespace Saiga
 {

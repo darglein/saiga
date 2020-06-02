@@ -10,6 +10,7 @@
 #include "saiga/core/math/math.h"
 
 #include <vector>
+#include <fstream>
 
 namespace Saiga
 {
