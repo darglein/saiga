@@ -117,7 +117,7 @@ class TriangleMesh : public Mesh<vertex_t>
      * Converts the index face data structur to a simple triangle list.
      */
 
-    void toTriangleList(std::vector<Triangle>& output);
+    void toTriangleList(std::vector<Triangle>& output) const;
 
     /*
      * Adds the complete mesh 'other' to the current mesh.
@@ -143,14 +143,14 @@ class TriangleMesh : public Mesh<vertex_t>
     /**
      * Computes the size in bytes for this triangle mesh.
      */
-    size_t size();
+    size_t size() const;
     void free();
 
-    int numIndices() { return faces.size() * 3; }
+    int numIndices() const { return faces.size() * 3; }
 
 
 
-    bool isValid();
+    bool isValid() const;
 
     /**
      * Sorts the vertices by (x,y,z) lexical.
@@ -176,7 +176,7 @@ class TriangleMesh : public Mesh<vertex_t>
     friend std::ostream& operator<<(std::ostream& os, const TriangleMesh<v, i>& dt);
 
 
-    std::vector<index_t> getIndexList()
+    std::vector<index_t> getIndexList() const
     {
         std::vector<index_t> indices(numIndices());
         std::copy(&faces[0].v1, &faces[0].v1 + numIndices(), indices.data());
@@ -186,7 +186,7 @@ class TriangleMesh : public Mesh<vertex_t>
     /**
      * Writes this mesh in OFF format to the given output stream.
      */
-    void saveMeshOff(std::ostream& strm);
+    void saveMeshOff(std::ostream& strm) const;
 
    public:
     //    std::vector<vertex_t> vertices;
@@ -297,10 +297,10 @@ void TriangleMesh<vertex_t, index_t>::invertMesh()
 }
 
 template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::toTriangleList(std::vector<Triangle>& output)
+void TriangleMesh<vertex_t, index_t>::toTriangleList(std::vector<Triangle>& output) const
 {
     Triangle t;
-    for (Face& f : faces)
+    for (const Face& f : faces)
     {
         t.a = make_vec3(vertices[f.v1].position);
         t.b = make_vec3(vertices[f.v2].position);
@@ -347,7 +347,7 @@ void TriangleMesh<vertex_t, index_t>::addMesh(const TriangleMesh<mesh_vertex_t, 
 }
 
 template <typename vertex_t, typename index_t>
-size_t TriangleMesh<vertex_t, index_t>::size()
+size_t TriangleMesh<vertex_t, index_t>::size() const
 {
     return faces.capacity() * sizeof(Face) + vertices.capacity() * sizeof(vertex_t) +
            sizeof(TriangleMesh<vertex_t, index_t>);
@@ -424,7 +424,7 @@ void TriangleMesh<vertex_t, index_t>::removeUnusedVertices()
 
 
 template <typename vertex_t, typename index_t>
-bool TriangleMesh<vertex_t, index_t>::isValid()
+bool TriangleMesh<vertex_t, index_t>::isValid() const
 {
     // check if all referenced vertices exist
     for (Face f : faces)
@@ -514,18 +514,18 @@ void TriangleMesh<vertex_t, index_t>::removeDegenerateFaces()
 }
 
 template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm)
+void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm) const
 {
     strm << "OFF" << std::endl;
     // first line: number of vertices, number of faces, number of edges (can be ignored)
     strm << vertices.size() << " " << faces.size() << " 0" << std::endl;
 
-    for (auto& v : vertices)
+    for (auto const& v : vertices)
     {
         strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << std::endl;
     }
 
-    for (auto& f : faces)
+    for (auto const& f : faces)
     {
         strm << "3"
              << " " << f[0] << " " << f[1] << " " << f[2] << std::endl;

@@ -14,22 +14,22 @@ vec3 Triangle::center() const
     return (a + b + c) * float(1.0f / 3.0f);
 }
 
-float Triangle::minimalAngle()
+float Triangle::minimalAngle() const
 {
     return acos(cosMinimalAngle());
 }
 
-float Triangle::cosMinimalAngle()
+float Triangle::cosMinimalAngle() const
 {
     return std::max(std::max(cosAngleAtCorner(0), cosAngleAtCorner(1)), cosAngleAtCorner(2));
 }
 
-float Triangle::angleAtCorner(int i)
+float Triangle::angleAtCorner(int i) const
 {
     return acos(cosAngleAtCorner(i));
 }
 
-float Triangle::cosAngleAtCorner(int i)
+float Triangle::cosAngleAtCorner(int i) const
 {
     vec3 center = a;
     vec3 left   = b;
@@ -58,7 +58,7 @@ float Triangle::cosAngleAtCorner(int i)
     return dot(normalize(vec3(left - center)), normalize(vec3(right - center)));
 }
 
-bool Triangle::isDegenerate()
+bool Triangle::isDegenerate() const
 {
     for (int i = 0; i < 3; ++i)
     {
@@ -70,7 +70,7 @@ bool Triangle::isDegenerate()
     //    !std::isfinite(angleAtCorner(2));
 }
 
-vec3 Triangle::normal()
+vec3 Triangle::normal() const
 {
     return normalize(cross(b - a, c - a));
 }

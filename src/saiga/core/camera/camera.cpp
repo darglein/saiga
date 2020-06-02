@@ -60,7 +60,7 @@ void Camera::recalculatePlanes()
     recalculatePlanesFromMatrices();
 }
 
-float Camera::linearDepth(float d)
+float Camera::linearDepth(float d) const
 {
     float f = zFar;
     float n = zNear;
@@ -71,7 +71,7 @@ float Camera::linearDepth(float d)
     return (2 * n) / l;
 }
 
-float Camera::nonlinearDepth(float l)
+float Camera::nonlinearDepth(float l) const
 {
     float f = zFar;
     float n = zNear;
@@ -83,7 +83,7 @@ float Camera::nonlinearDepth(float l)
     return d;
 }
 
-float Camera::toViewDepth(float d)
+float Camera::toViewDepth(float d) const
 {
     vec4 a(0, 0, d * 2 - 1, 1);
     a = inverse(proj) * a;
@@ -91,7 +91,7 @@ float Camera::toViewDepth(float d)
     return a[2];
 }
 
-float Camera::toNormalizedDepth(float d)
+float Camera::toNormalizedDepth(float d) const
 {
     vec4 a(0, 0, d, 1);
     a = proj * a;
@@ -131,19 +131,19 @@ void Camera::recalculatePlanesFromMatrices()
 }
 
 
-vec3 Camera::projectToViewSpace(vec3 worldPosition)
+vec3 Camera::projectToViewSpace(vec3 worldPosition) const
 {
     return make_vec3(view * make_vec4(worldPosition, 1));
 }
 
-vec3 Camera::projectToNDC(vec3 worldPosition)
+vec3 Camera::projectToNDC(vec3 worldPosition) const
 {
     vec4 p = (viewProj * make_vec4(worldPosition, 1));
     p /= p[3];
     return make_vec3(p);
 }
 
-vec2 Camera::projectToScreenSpace(vec3 worldPosition, int w, int h)
+vec2 Camera::projectToScreenSpace(vec3 worldPosition, int w, int h) const
 {
     vec3 p  = projectToNDC(worldPosition);
     vec2 ip = make_vec2(p);
@@ -154,7 +154,7 @@ vec2 Camera::projectToScreenSpace(vec3 worldPosition, int w, int h)
     return ip;
 }
 
-vec3 Camera::inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h)
+vec3 Camera::inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h) const
 {
     //        ip /= vec2(w, h);
     ip[0] /= w;

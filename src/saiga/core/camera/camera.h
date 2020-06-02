@@ -62,11 +62,11 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
     virtual void recalculatePlanes();
 
     // linearize the depth (for rendering)
-    float linearDepth(float d);
-    float nonlinearDepth(float l);
+    float linearDepth(float d) const;
+    float nonlinearDepth(float l) const;
 
-    float toViewDepth(float d);
-    float toNormalizedDepth(float d);
+    float toViewDepth(float d) const;
+    float toNormalizedDepth(float d) const;
 
 
 
@@ -77,13 +77,13 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
     void recalculatePlanesFromMatrices();
 
 
-    vec3 projectToViewSpace(vec3 worldPosition);
+    vec3 projectToViewSpace(vec3 worldPosition) const;
 
-    vec3 projectToNDC(vec3 worldPosition);
+    vec3 projectToNDC(vec3 worldPosition) const;
 
-    vec2 projectToScreenSpace(vec3 worldPosition, int w, int h);
+    vec2 projectToScreenSpace(vec3 worldPosition, int w, int h) const;
 
-    vec3 inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h);
+    vec3 inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h) const;
 
 
     virtual void recomputeProj() {}

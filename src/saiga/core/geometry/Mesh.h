@@ -56,7 +56,7 @@ class Mesh
      * Computes the size in bytes for this mesh.
      * Returns the actual RAM size therefore uses capacity.
      */
-    size_t size() { return sizeof(VertexType) * vertices.capacity(); }
+    size_t size() const { return sizeof(VertexType) * vertices.capacity(); }
 
     void freeMemory()
     {
@@ -64,7 +64,7 @@ class Mesh
         vertices.shrink_to_fit();
     }
 
-    AABB aabb();
+    AABB aabb() const;
 
     void normalizePosition()
     {
@@ -103,7 +103,7 @@ void Mesh<VertexType>::transform(const mat4& T)
 }
 
 template <typename VertexType>
-AABB Mesh<VertexType>::aabb()
+AABB Mesh<VertexType>::aabb() const
 {
     AABB box;
     box.makeNegative();

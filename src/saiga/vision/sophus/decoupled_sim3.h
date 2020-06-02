@@ -147,7 +147,7 @@ inline std::ostream& operator<<(std::ostream& os, const Sophus::DSim3<T>& sim3)
 template <typename T>
 inline DSim3<T> PointerToDSim3(const T* ptr)
 {
-    Eigen::Map<const Eigen::Vector<T, 8>> const x(ptr);
+    Eigen::Map<const Vector<T, 8>> const x(ptr);
     DSim3<T> result(x);
     return result;
 }
@@ -156,7 +156,7 @@ inline DSim3<T> PointerToDSim3(const T* ptr)
 template <typename T>
 inline void DSim3ToPointer(const DSim3<T>& sim3, T* ptr)
 {
-    Eigen::Map<Eigen::Vector<T, 8>> x(ptr);
+    Eigen::Map<Vector<T, 8>> x(ptr);
     x = sim3.params();
 }
 

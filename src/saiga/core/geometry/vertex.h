@@ -47,6 +47,11 @@ struct SAIGA_CORE_API VertexN : public Vertex
 struct SAIGA_CORE_API VertexC : public Vertex
 {
     vec4 color = make_vec4(1);
+    VertexC() {}
+    VertexC(const vec3& position) : Vertex(position) {}
+    VertexC(const vec4& position) : Vertex(position) {}
+    VertexC(const vec3& position, const vec3& color) : Vertex(position), color(make_vec4(color, 1)) {}
+    VertexC(const vec4& position, const vec4& color) : Vertex(position), color(color) {}
 };
 
 

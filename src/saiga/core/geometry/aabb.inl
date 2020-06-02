@@ -61,7 +61,7 @@ inline void AABB::setPosition(const vec3& v)
     translate(mid);
 }
 
-inline vec3 AABB::getHalfExtends()
+inline vec3 AABB::getHalfExtends() const
 {
     return 0.5f * (max - min);
 }

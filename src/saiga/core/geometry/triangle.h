@@ -38,8 +38,8 @@ class SAIGA_CORE_API Triangle
      * @brief minimalAngle
      * @return
      */
-    float minimalAngle();
-    float cosMinimalAngle();
+    float minimalAngle() const;
+    float cosMinimalAngle() const;
 
     /**
      * Computes the inner angle at a triangle corner.
@@ -50,20 +50,20 @@ class SAIGA_CORE_API Triangle
      * @param i
      * @return
      */
-    float angleAtCorner(int i);
-    float cosAngleAtCorner(int i);
+    float angleAtCorner(int i) const;
+    float cosAngleAtCorner(int i) const;
 
     /**
      * Check if this triangle is broken.
      */
-    bool isDegenerate();
+    bool isDegenerate() const;
 
 
     /**
      * Computes the normal with a cross product.
      * The positive side is with counter-clock-wise ordering.
      */
-    vec3 normal();
+    vec3 normal() const;
 
     friend SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const Triangle& dt);
 };

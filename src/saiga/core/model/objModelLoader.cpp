@@ -225,6 +225,11 @@ void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh)
 void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh)
 {
     //    SAIGA_ASSERT(texCoords.size() == outVertices.size());
+    if (vertexColors.empty())
+    {
+        computeVertexColorAndData();
+    }
+    SAIGA_ASSERT(vertexData.size() == outVertices.size());
 
     mesh.faces.reserve(outTriangles.size());
     for (ObjTriangle& oj : outTriangles)
