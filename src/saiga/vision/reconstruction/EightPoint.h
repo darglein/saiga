@@ -29,12 +29,7 @@ class EightPoint
     using Mat3 = Eigen::Matrix<T, 3, 3>;
 
 
-
-    template <typename _InputIterator>
-    Mat3 computeF(_InputIterator points1, _InputIterator points2)
-    {
-        return FundamentalMatrixEightPoint(points1, points2);
-    }
+    Mat3 computeF(Vec2* points1, Vec2* points2) { return FundamentalMatrixEightPoint(points1, points2); }
 
 
     int computeFRansac(Vec2* points1, Vec2* points2, int N, Mat3& bestF, std::vector<int>& bestInlierMatches)
@@ -62,7 +57,7 @@ class EightPoint
                 B[j]     = points2[idx];
             }
 
-            Mat3 F = computeF(A.begin(), B.begin());
+            Mat3 F = computeF(A.data(), B.data());
 
             std::vector<int> inlierMatches;
             int numInliers = 0;

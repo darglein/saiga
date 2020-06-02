@@ -48,10 +48,10 @@ class RPOTest
         scene.pose              = Random::JitterPose(scene.pose, 0.01, 0.02);
         scene.prediction        = Random::JitterPose(scene.pose, 0.01, 0.02);
         scene.prediction_weight = 100000;
-        for (auto& wp : scene.wps)
-        {
-            //            wp *= 1.2;
-        }
+        //        for (auto& wp : scene.wps)
+        //        {
+        //            wp *= 1.2;
+        //        }
 
         std::cout << "Prediction Pose: " << scene.prediction << std::endl;
         std::cout << "Initial RMS: " << scene.chi2() << std::endl;
