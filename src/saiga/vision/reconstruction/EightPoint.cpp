@@ -10,11 +10,46 @@
 
 namespace Saiga
 {
-Mat3 FundamentalMatrixEightPoint(Vec2* points1, Vec2* points2)
+Mat3 NormalizePoints(const Vec2* src_points, Vec2* dst_points, int N)
+{
+    Vec2 center = Vec2::Zero();
+    for (int i = 0; i < N; ++i)
+    {
+        center += src_points[i];
+    }
+    center /= N;
+
+
+    double averageDistance = 0;
+    for (int i = 0; i < N; ++i)
+    {
+        averageDistance += (src_points[i] - center).norm();
+    }
+    averageDistance /= N;
+
+    double targetDistance = std::sqrt(2.0);
+    double scale          = targetDistance / averageDistance;
+
+
+    for (int i = 0; i < N; ++i)
+    {
+        dst_points[i] = (src_points[i] - center) * scale;
+    }
+
+    Mat3 T = Mat3::Identity();
+
+    T(0, 2) = -center.x();
+    T(1, 2) = -center.y();
+
+    T       = T * scale;
+    T(2, 2) = 1;
+    return T;
+}
+
+Mat3 FundamentalMatrixEightPoint(const Vec2* points1, const Vec2* points2)
 {
     using T = double;
     Eigen::Matrix<T, 8, 9, Eigen::RowMajor> A(8, 9);
-
     for (int i = 0; i < 8; ++i)
     {
         auto& p = *points1;
@@ -38,6 +73,15 @@ Mat3 FundamentalMatrixEightPoint(Vec2* points1, Vec2* points2)
     return F;
 }
 
+Mat3 FundamentalMatrixEightPointNormalized(const Vec2* points1, const Vec2* points2)
+{
+    std::array<Vec2, 8> normalized_points1, normalized_points2;
+    Mat3 T1 = NormalizePoints(points1, normalized_points1.data(), 8);
+    Mat3 T2 = NormalizePoints(points2, normalized_points2.data(), 8);
+    Mat3 F  = FundamentalMatrixEightPoint(normalized_points1.data(), normalized_points2.data());
+    F       = T2.transpose() * F * T1;
+    return F;
+}
 
 int EightPointRansac::solve(ArrayView<const Vec2> _points1, ArrayView<const Vec2> _points2, Mat3& bestE,
                             std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
@@ -94,5 +138,7 @@ double EightPointRansac::computeResidual(const EightPointRansac::Model& model, i
 {
     return EpipolarDistanceSquared(points1[i], points2[i], model);
 }
+
+
 
 }  // namespace Saiga

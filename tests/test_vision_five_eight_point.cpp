@@ -119,11 +119,27 @@ TEST(EpipolarGeometry, EpipolarDistance)
 TEST(EpipolarGeometry, EightPointAlgorithm)
 {
     FiveEightPointTest test;
+
+
+    TwoViewReconstructionEightPoint tvr;
+    RansacParameters params;
+    params.maxIterations     = 2000;
+    double epipolarTheshold  = 1.5;
+    params.residualThreshold = epipolarTheshold * epipolarTheshold;
+    params.reserveN          = 2000;
+    params.threads           = 8;
+    tvr.init(params, test.scene.intrinsics[0]);
+
     for (int i = 0; i < 50; ++i)
     {
         int offset = Random::uniformInt(0, test.N - 8);
-        auto F     = FundamentalMatrixEightPoint(test.points1.data() + offset, test.points2.data() + offset);
-        F          = NormalizeEpipolarMatrix(F);
+        //        auto F     = FundamentalMatrixEightPoint(test.normalized_points1.data() + offset,
+        //                                             test.normalized_points2.data() + offset);
+        //        F          = test.K2.inverse().matrix().transpose() * F * test.K1.inverse().matrix();
+
+        //        auto F = FundamentalMatrixEightPoint(test.points1.data() + offset, test.points2.data() + offset);
+        auto F = FundamentalMatrixEightPointNormalized(test.points1.data() + offset, test.points2.data() + offset);
+        F      = NormalizeEpipolarMatrix(F);
 
         auto E = EssentialMatrix(F, test.K1, test.K2);
 

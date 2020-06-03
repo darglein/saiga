@@ -16,7 +16,10 @@
 namespace Saiga
 {
 // Computes the fundamental matrix F from 8 point correspondences.
-SAIGA_VISION_API Mat3 FundamentalMatrixEightPoint(Vec2* points0, Vec2* points1);
+SAIGA_VISION_API Mat3 FundamentalMatrixEightPoint(const Vec2* points0, const Vec2* points1);
+
+SAIGA_VISION_API Mat3 NormalizePoints(const Vec2* src_points, Vec2* dst_points, int N);
+SAIGA_VISION_API Mat3 FundamentalMatrixEightPointNormalized(const Vec2* points0, const Vec2* points1);
 
 
 class SAIGA_VISION_API EightPointRansac : public RansacBase<EightPointRansac, Mat3, 8>
