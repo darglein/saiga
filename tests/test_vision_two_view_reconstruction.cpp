@@ -126,7 +126,6 @@ TEST(TwoViewReconstruction, EssentialMatrix)
     double ref_angle          = degrees(0.0754463);
 
 
-    EightPoint<double> eightpoint;
 
     for (int i = 0; i < 10; ++i)
     {
@@ -165,8 +164,6 @@ TEST(TwoViewReconstruction, EssentialMatrix)
         Mat3 F2;
         std::vector<int> inliers;
         std::vector<char> inlier_mask;
-        eightpoint.computeFRansac(test->points1.data(), test->points2.data(), test->points1.size(), F2, inliers);
-
 
         RansacParameters params;
         params.maxIterations     = 200;

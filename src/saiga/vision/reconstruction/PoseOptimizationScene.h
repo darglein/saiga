@@ -51,7 +51,7 @@ struct PoseOptimizationScene
     AlignedVector<int> outlier;
 
     Sophus::SE3<T> prediction;
-    double prediction_weight = 1;
+    double prediction_weight = 0;
 
 
     double chi2()

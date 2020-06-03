@@ -33,50 +33,59 @@ class RPOTest
         {
             Obs o;
             o.ip = Vec2(Random::sampleDouble(0, w), Random::sampleDouble(0, h));
-            scene.obs.push_back(o);
+
 
             double depth = Random::sampleDouble(1, 5);
             Vec3 wp      = scene.K.unproject(o.ip, depth);
             wp           = scene.pose.inverse() * wp;
+
+
+            if (Random::sampleDouble(0, 1) < 0.1)
+            {
+                o.depth = depth;
+            }
+
+            scene.obs.push_back(o);
             scene.wps.push_back(wp);
         }
-
-        std::cout << "[RPOTest]" << std::endl;
-        std::cout << "Target Pose: " << scene.pose << std::endl;
 
         scene.outlier.resize(scene.obs.size(), false);
         scene.pose              = Random::JitterPose(scene.pose, 0.01, 0.02);
         scene.prediction        = Random::JitterPose(scene.pose, 0.01, 0.02);
-        scene.prediction_weight = 100000;
-        //        for (auto& wp : scene.wps)
-        //        {
-        //            wp *= 1.2;
-        //        }
-
-        std::cout << "Prediction Pose: " << scene.prediction << std::endl;
-        std::cout << "Initial RMS: " << scene.chi2() << std::endl;
+        scene.prediction_weight = 0;
     }
 
 
 
-    void solveSaiga()
+    double solveSaiga()
     {
         auto cpy = scene;
         RobustPoseOptimization<T, false> rpo(923475094325, 981450945);
         rpo.optimizePoseRobust(cpy);
-        std::cout << cpy.pose << std::endl;
-        std::cout << "solveSaiga rms: " << cpy.chi2() << std::endl;
-        std::cout << "solveSaiga pred. error: " << cpy.predictionError() << std::endl;
+        return cpy.chi2();
     }
 
 
-    void solveCeres()
+    double solveSaigaMP()
     {
         auto cpy = scene;
-        OptimizePoseCeres(cpy);
-        std::cout << cpy.pose << std::endl;
-        std::cout << "solveCeres rms: " << cpy.chi2() << std::endl;
-        std::cout << "solveCeres pred. error: " << cpy.predictionError() << std::endl;
+        RobustPoseOptimization<T, false> rpo(923475094325, 981450945);
+        rpo.optimizePoseRobust(cpy.wps, cpy.obs, cpy.outlier, cpy.pose, cpy.K, 4);
+        return cpy.chi2();
+    }
+
+
+    double solveCeres()
+    {
+        auto cpy = scene;
+        OptimizePoseCeres(cpy, false);
+        return cpy.chi2();
+    }
+
+    void TestBasic()
+    {
+        EXPECT_NEAR(solveSaiga(), solveCeres(), 1e-5);
+        EXPECT_NEAR(solveSaiga(), solveSaigaMP(), 1e-5);
     }
 
 
@@ -93,7 +102,9 @@ class RPOTest
 
 TEST(PoseEstimation, Sim3)
 {
-    RPOTest test;
-    test.solveSaiga();
-    test.solveCeres();
+    for (int i = 0; i < 1; ++i)
+    {
+        RPOTest test;
+        test.TestBasic();
+    }
 }

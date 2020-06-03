@@ -97,7 +97,7 @@ struct PosePredictionCeresCost
 };
 
 template <typename T>
-OptimizationResults OptimizePoseCeres(PoseOptimizationScene<T>& scene)
+OptimizationResults OptimizePoseCeres(PoseOptimizationScene<T>& scene, bool smooth)
 {
     ceres::Problem::Options problemOptions;
     ceres::Problem problem(problemOptions);
@@ -119,11 +119,14 @@ OptimizationResults OptimizePoseCeres(PoseOptimizationScene<T>& scene)
         problem.AddResidualBlock(cost, loss, scene.pose.data());
     }
 
-    auto* cost_pp = PosePredictionCeresCost<T>::create(scene.prediction, scene.prediction_weight);
-    problem.AddResidualBlock(cost_pp, nullptr, scene.pose.data());
+    if (smooth)
+    {
+        auto* cost_pp = PosePredictionCeresCost<T>::create(scene.prediction, scene.prediction_weight);
+        problem.AddResidualBlock(cost_pp, nullptr, scene.pose.data());
+    }
 
     ceres::Solver::Options ceres_options;
-    ceres_options.minimizer_progress_to_stdout = true;
+    ceres_options.minimizer_progress_to_stdout = false;
     return ceres_solve(ceres_options, problem);
 }
 

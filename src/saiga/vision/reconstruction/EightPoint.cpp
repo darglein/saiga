@@ -19,25 +19,11 @@ Mat3 FundamentalMatrixEightPoint(Vec2* points1, Vec2* points2)
     {
         auto& p = *points1;
         auto& q = *points2;
-
-        T px = p(0);
-        T py = p(1);
-        T qx = q(0);
-        T qy = q(1);
-
-        //        std::array<T, 9> ax = {px * qx, px * qy, px, py * qx, py * qy, py, qx, qy, 1};
-
-        //        Eigen::Matrix<T, 1, 9> row;
-        //        row << px * qx, px * qy, px, py * qx, py * qy, py, qx, qy, 1;
-        //        A.row(i) = row;
-
+        T px    = p(0);
+        T py    = p(1);
+        T qx    = q(0);
+        T qy    = q(1);
         A.row(i) << px * qx, px * qy, px, py * qx, py * qy, py, qx, qy, 1;
-
-        //        for (int j = 0; j < 9; ++j)
-        //        {
-        //            A(i, j) = ax[j];
-        //        }
-
         ++points1;
         ++points2;
     }

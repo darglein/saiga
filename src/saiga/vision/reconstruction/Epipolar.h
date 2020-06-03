@@ -41,6 +41,7 @@ namespace Saiga
  *
  */
 SAIGA_VISION_API Mat3 EssentialMatrix(const SE3& a, const SE3& b);
+SAIGA_VISION_API Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, const Intrinsics4& K2);
 
 
 /**
@@ -54,7 +55,6 @@ SAIGA_VISION_API Mat3 EssentialMatrix(const SE3& a, const SE3& b);
 SAIGA_VISION_API Mat3 FundamentalMatrix(const Mat3& E, const Intrinsics4& K1, const Intrinsics4& K2);
 
 
-SAIGA_VISION_API Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, const Intrinsics4& K2);
 
 /**
  * Computes the squared distance of point 2 to the epipolar line of point 1.
