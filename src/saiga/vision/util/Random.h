@@ -18,6 +18,8 @@ namespace Random
 
 SAIGA_VISION_API Vec3 ballRand(double radius);
 
+SAIGA_VISION_API Vec3 sphericalRand(double radius);
+
 
 
 template <typename MatrixType>

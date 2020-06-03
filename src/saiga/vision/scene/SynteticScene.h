@@ -17,7 +17,7 @@ namespace SynteticScene
  * Generates #numCameras cameras equally distributed on a circle in the x-z plane
  * Each camera has #numImagePoints (random) references to world points.
  */
-SAIGA_VISION_API Scene CircleSphere(int numWorldPoints, int numCameras, int numImagePoints);
+SAIGA_VISION_API Scene CircleSphere(int numWorldPoints, int numCameras, int numImagePoints, bool random_sphere);
 
 
 
@@ -40,6 +40,7 @@ class SAIGA_VISION_API SceneCreator
     int numWorldPoints = 9000;
     int numCameras     = 125;
     int numImagePoints = 350;
+    bool random_sphere = false;
 };
 }  // namespace SynteticScene
 }  // namespace Saiga

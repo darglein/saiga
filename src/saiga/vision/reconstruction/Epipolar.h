@@ -55,6 +55,10 @@ SAIGA_VISION_API Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, cons
 SAIGA_VISION_API Mat3 FundamentalMatrix(const Mat3& E, const Intrinsics4& K1, const Intrinsics4& K2);
 
 
+// Normalize essential or fundamental matrix.
+SAIGA_VISION_API Mat3 NormalizeEpipolarMatrix(const Mat3& EorF);
+
+
 
 /**
  * Computes the squared distance of point 2 to the epipolar line of point 1.

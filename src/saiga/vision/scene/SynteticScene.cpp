@@ -11,7 +11,7 @@ namespace Saiga
 {
 namespace SynteticScene
 {
-Scene CircleSphere(int numWorldPoints, int numCameras, int numImagePoints)
+Scene CircleSphere(int numWorldPoints, int numCameras, int numImagePoints, bool random_sphere)
 {
     Scene scene;
 
@@ -31,11 +31,18 @@ Scene CircleSphere(int numWorldPoints, int numCameras, int numImagePoints)
         double alpha = double(i) / numCameras;
 
         double cr = 3;
-        Vec3 position(cr * sin(alpha * 2 * M_PI), 0, cr * cos(alpha * 2 * M_PI));
+
+        Vec3 position;
+        if (random_sphere)
+            position = Random::sphericalRand(cr);
+        else
+            position = Vec3(cr * sin(alpha * 2 * M_PI), 0, cr * cos(alpha * 2 * M_PI));
 
         SceneImage si;
         SE3 v;
-        v.so3()         = onb(-position.normalized(), Vec3(0, -1, 0));
+
+        Vec3 up         = random_sphere ? Random::sphericalRand(1) : Vec3(0, -1, 0);
+        v.so3()         = onb(-position.normalized(), up);
         v.translation() = position;
         si.se3          = v.inverse();
 
@@ -78,7 +85,7 @@ Scene CircleSphere(int numWorldPoints, int numCameras, int numImagePoints)
 
 Scene SceneCreator::circleSphere()
 {
-    return CircleSphere(numWorldPoints, numCameras, numImagePoints);
+    return CircleSphere(numWorldPoints, numCameras, numImagePoints, random_sphere);
 }
 
 void SceneCreator::imgui()
@@ -88,6 +95,7 @@ void SceneCreator::imgui()
     ImGui::InputInt("numWorldPoints", &numWorldPoints);
     ImGui::InputInt("numCameras", &numCameras);
     ImGui::InputInt("numImagePoints", &numImagePoints);
+    ImGui::Checkbox("random_sphere", &random_sphere);
     ImGui::PopID();
 }
 }  // namespace SynteticScene

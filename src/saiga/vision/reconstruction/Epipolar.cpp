@@ -14,26 +14,35 @@ Mat3 EssentialMatrix(const SE3& a, const SE3& b)
     //    SE3 rel = b * a.inverse();
     //    return rel.rotationMatrix() * skew(rel.translation());
     SE3 T  = b * a.inverse();
-    Mat3 E = skew(T.translation()) * T.rotationMatrix();
-    E *= 1.0 / E(2, 2);
-    return E;
+    Mat3 E = skew(T.translation().normalized()) * T.rotationMatrix();
+    return NormalizeEpipolarMatrix(E);
+}
+
+Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, const Intrinsics4& K2)
+{
+    Mat3 E = K2.matrix().transpose() * F * K1.matrix();
+    return NormalizeEpipolarMatrix(E);
 }
 
 Mat3 FundamentalMatrix(const Mat3& E, const Intrinsics4& K1, const Intrinsics4& K2)
 {
     Mat3 F = K2.inverse().matrix().transpose() * E * K1.inverse().matrix();
-    F *= 1.0 / F(2, 2);
-    return F;
+    return NormalizeEpipolarMatrix(F);
 }
 
-
-Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, const Intrinsics4& K2)
+Mat3 NormalizeEpipolarMatrix(const Mat3& EorF)
 {
-    Mat3 E = K2.matrix().transpose() * F * K1.matrix();
-    E *= 1.0 / E(2, 2);
-    return E;
-}
+    double l = EorF.norm();
 
+    Mat3 result = EorF;
+
+    if (l > 1e-10)
+    {
+        result *= (1.0 / l);
+    }
+
+    return result;
+}
 
 double EpipolarDistanceSquared(const Vec2& p1, const Vec2& p2, const Mat3& F)
 {
@@ -155,6 +164,7 @@ std::pair<SE3, int> getValidTransformationFromE(Mat3& E, const Vec2* points1, co
     return {possibilities[idx], counts[idx]};
     ;
 }
+
 
 
 }  // namespace Saiga

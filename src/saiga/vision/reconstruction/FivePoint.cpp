@@ -356,7 +356,6 @@ int fivePointNister(Vec2* points0, Vec2* points1, std::vector<Mat3>& es)
         Evec /= Evec.norm();
 
         Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>> E(Evec.data());
-        E = E * (1.0 / E(2, 2));
         es.push_back(E);
     }
 
@@ -386,7 +385,6 @@ bool bestEUsing6Points(const std::vector<Mat3>& es, const Vec2* points1, const V
             auto& T = Ts[i];
             // triangulate 6 points
             // only if all points are in front the conf is valid
-            bool allPointsValid = true;
             for (int j = 0; j < N; ++j)
             {
                 auto& wp    = wps[j];
@@ -394,33 +392,24 @@ bool bestEUsing6Points(const std::vector<Mat3>& es, const Vec2* points1, const V
                 Vec3 otherP = T * wp;
                 if (wp.z() <= 0 || otherP.z() <= 0)
                 {
-                    // at least one point is invalid -> invalid configuration
-                    allPointsValid = false;
                     break;
                 }
 
+
                 if (j == 5)
                 {
-                    // compute reprojection error of 6th point
-                    // keep T with smallest error
-                    auto& wp      = wps[5];
-                    double error1 = (Vec2(wp(0) / wp(2), wp(1) / wp(2)) - points1[j]).norm();
-                    double error2 = (Vec2(otherP(0) / otherP(2), otherP(1) / otherP(2)) - points2[j]).norm();
-                    double error  = std::min(error1, error2);
-                    if (error < minError)
+                    double error1 = (Vec2(wp(0) / wp(2), wp(1) / wp(2)) - points1[j]).squaredNorm();
+                    double error2 = (Vec2(otherP(0) / otherP(2), otherP(1) / otherP(2)) - points2[j]).squaredNorm();
+                    double reprojection_error = std::max(error1, error2);
+
+                    if (reprojection_error < minError)
                     {
-                        minError = error;
-                        bestE    = E;
-                        bestT    = T;
-                        break;
+                        minError  = reprojection_error;
+                        bestE     = E;
+                        bestT     = T;
+                        gotResult = true;
                     }
                 }
-            }
-
-            if (allPointsValid)
-            {
-                gotResult = true;
-                break;
             }
         }
     }

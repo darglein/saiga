@@ -29,6 +29,19 @@ Vec3 ballRand(double radius)
     return result;
 }
 
+Vec3 sphericalRand(double radius)
+{
+    float z = sampleDouble(-1.0, 1.0);
+    float a = sampleDouble(0.0, pi<double>() * 2.0);
+
+    float r = sqrt(1.0 - z * z);
+
+    float x = r * cos(a);
+    float y = r * sin(a);
+
+    return Vec3(x, y, z) * radius;
+}
+
 SE3 randomSE3()
 {
     Vec3 t  = Vec3::Random();

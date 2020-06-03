@@ -36,6 +36,16 @@ message(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}" )
 
 ######### warnings #########
 
+
+if(SAIGA_CXX_MSVC)
+    # Force to always compile with W1
+    if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
+        string(REGEX REPLACE "/W[0-4]" "/W1" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1")
+    endif()
+endif()
+
 if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
   list(APPEND SAIGA_CXX_FLAGS "-Wall")
   list(APPEND SAIGA_CXX_FLAGS "-Werror=return-type")
@@ -103,7 +113,7 @@ endif()
 if(SAIGA_FULL_OPTIMIZE)
     if(SAIGA_CXX_MSVC)
         #todo check if avx is present
-        set(SAIGA_CXX_FLAGS "${SAIGA_CXX_FLAGS} /Oi /Ot /Oy /GL /fp:fast /Gy /arch:AVX2")
+        set(SAIGA_CXX_FLAGS "${SAIGA_CXX_FLAGS} /Oi /Ot /Oy /GL /fp:fast /Gy")
         set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} /LTCG")
         add_definitions(-D__FMA__)
     endif()

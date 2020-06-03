@@ -67,9 +67,6 @@ struct SAIGA_VISION_API DatasetParameters
     // Root directory of the dataset. The exact value depends on the dataset type.
     std::string dir;
 
-    // Ground truth file. Only used for the kitti dataset. The other datasets have them included in the main directory.
-    //    std::string groundTruth;
-
     // Throw away all frames before 'startFrame'
     int startFrame = 0;
 
