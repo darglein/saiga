@@ -36,17 +36,6 @@ message(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}" )
 
 ######### warnings #########
 
-if(SAIGA_CXX_MSVC)
-    #set(SAIGA_CXX_FLAGS "${SAIGA_CXX_FLAGS} /W1")
-    # Force to always compile with W1
-    if(SAIGA_CXX_FLAGS MATCHES "/W[0-4]")
-        string(REGEX REPLACE "/W[0-4]" "/W1" SAIGA_CXX_FLAGS "${SAIGA_CXX_FLAGS}")
-    else()
-        set(SAIGA_CXX_FLAGS "${SAIGA_CXX_FLAGS} /W1")
-    endif()
-endif()
-
-
 if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
   list(APPEND SAIGA_CXX_FLAGS "-Wall")
   list(APPEND SAIGA_CXX_FLAGS "-Werror=return-type")
