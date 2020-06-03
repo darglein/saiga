@@ -252,9 +252,12 @@ int KittiDataset::LoadMetaData()
             frame.timeStamp = timestamps[i];
         }
 
-        auto firstFrame           = frames.front();
-        intrinsics.imageSize      = firstFrame.grayImg.dimensions();
-        intrinsics.rightImageSize = firstFrame.grayImg2.dimensions();
+        {
+            auto firstFrame = frames.front();
+            LoadImageData(firstFrame);
+            intrinsics.imageSize      = firstFrame.grayImg.dimensions();
+            intrinsics.rightImageSize = firstFrame.grayImg2.dimensions();
+        }
     }
 
 
