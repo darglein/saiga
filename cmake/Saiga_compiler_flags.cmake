@@ -96,6 +96,12 @@ if(SAIGA_STRICT_FP)
     endif()
 endif()
 
+if(SAIGA_FAST_MATH)
+  if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
+       list(APPEND SAIGA_CXX_FLAGS "-ffast-math")
+  endif()
+endif()
+
 ######### debug and optimization #########
 
 if(SAIGA_CUDA_DEBUG)

@@ -49,7 +49,7 @@ std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags)
     table << "|"
           << "ZVECTOR " << flags.zvector << "|";
 
-    strm << "===============================" << std::endl;
+    strm << "===============================";
 
     strm.unsetf(std::ios_base::floatfield);
     strm << ConsoleColor::RESET;

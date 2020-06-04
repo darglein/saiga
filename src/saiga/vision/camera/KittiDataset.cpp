@@ -177,7 +177,6 @@ int KittiDataset::LoadMetaData()
             if (l.empty()) continue;
             timestamps.push_back(Saiga::to_double(l));
         }
-        std::cout << "got " << timestamps.size() << " timestamps" << std::endl;
     }
 
     std::vector<SE3> groundTruth;
@@ -185,7 +184,6 @@ int KittiDataset::LoadMetaData()
     if (!groundtruthFile.empty())
     {
         // load ground truth
-        std::cout << "loading ground truth " << std::endl;
         auto lines = File::loadFileStringArray(groundtruthFile);
 
         StringViewParser parser(" ");
@@ -261,7 +259,7 @@ int KittiDataset::LoadMetaData()
     }
 
 
-    std::cout << intrinsics << std::endl;
+    VLOG(1) << intrinsics;
     return frames.size();
 }
 

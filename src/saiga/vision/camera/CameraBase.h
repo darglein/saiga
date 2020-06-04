@@ -103,9 +103,14 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
     {
         timeStep = std::chrono::duration_cast<tick_t>(
             std::chrono::duration<double, std::micro>(1000000.0 / params.playback_fps));
+        ResetTime();
+    }
+
+    void ResetTime()
+    {
         timer.start();
         lastFrameTime = timer.stop();
-        nextFrameTime = lastFrameTime + timeStep;
+        nextFrameTime = lastFrameTime;
     }
 
     void Load()
@@ -133,6 +138,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
                 loadingBar.addProgress(1);
             }
         }
+        ResetTime();
     }
 
     // Load the dataset meta data. This information must be stored in the derived loader class, because it can differ
