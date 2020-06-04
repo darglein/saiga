@@ -72,6 +72,8 @@ endif()
 
 DefaultBuildType(RelWithDebInfo)
 
+add_definitions()
+
 
 set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/External)
 

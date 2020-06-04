@@ -48,8 +48,16 @@
  * double foo = 3.14;
  * INI_GETADD_DOUBLE(ini, "Math", foo);
  */
-#define INI_GETADD_BOOL(_ini, _section, _variable) (_variable) = (_ini).GetAddBool(_section, #_variable, _variable)
-#define INI_GETADD_LONG(_ini, _section, _variable) (_variable) = (_ini).GetAddLong(_section, #_variable, _variable)
-#define INI_GETADD_STRING(_ini, _section, _variable) \
-    (_variable) = (_ini).GetAddString(_section, #_variable, _variable.c_str())
-#define INI_GETADD_DOUBLE(_ini, _section, _variable) (_variable) = (_ini).GetAddDouble(_section, #_variable, _variable)
+#define INI_GETADD_BOOL_COMMENT(_ini, _section, _variable, _comment) \
+    (_variable) = (_ini).GetAddBool(_section, #_variable, _variable, _comment)
+#define INI_GETADD_LONG_COMMENT(_ini, _section, _variable, _comment) \
+    (_variable) = (_ini).GetAddLong(_section, #_variable, _variable, _comment)
+#define INI_GETADD_STRING_COMMENT(_ini, _section, _variable, _comment) \
+    (_variable) = (_ini).GetAddString(_section, #_variable, _variable.c_str(), _comment)
+#define INI_GETADD_DOUBLE_COMMENT(_ini, _section, _variable, _comment) \
+    (_variable) = (_ini).GetAddDouble(_section, #_variable, _variable, _comment)
+
+#define INI_GETADD_BOOL(_ini, _section, _variable) INI_GETADD_BOOL_COMMENT(_ini, _section, _variable, 0)
+#define INI_GETADD_LONG(_ini, _section, _variable) INI_GETADD_LONG_COMMENT(_ini, _section, _variable, 0)
+#define INI_GETADD_STRING(_ini, _section, _variable) INI_GETADD_STRING_COMMENT(_ini, _section, _variable, 0)
+#define INI_GETADD_DOUBLE(_ini, _section, _variable) INI_GETADD_DOUBLE_COMMENT(_ini, _section, _variable, 0)

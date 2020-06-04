@@ -118,20 +118,9 @@ TEST(EpipolarGeometry, EpipolarDistance)
 
 TEST(EpipolarGeometry, EightPointAlgorithm)
 {
-    FiveEightPointTest test;
-
-
-    TwoViewReconstructionEightPoint tvr;
-    RansacParameters params;
-    params.maxIterations     = 2000;
-    double epipolarTheshold  = 1.5;
-    params.residualThreshold = epipolarTheshold * epipolarTheshold;
-    params.reserveN          = 2000;
-    params.threads           = 8;
-    tvr.init(params, test.scene.intrinsics[0]);
-
-    for (int i = 0; i < 50; ++i)
+    for (int i = 0; i < 0; ++i)
     {
+        FiveEightPointTest test;
         int offset = Random::uniformInt(0, test.N - 8);
         //        auto F     = FundamentalMatrixEightPoint(test.normalized_points1.data() + offset,
         //                                             test.normalized_points2.data() + offset);
@@ -149,6 +138,7 @@ TEST(EpipolarGeometry, EightPointAlgorithm)
         auto T = result.first;
 
 
+
         Vec3 t     = T.translation().normalized();
         Vec3 ref_t = test.reference_T.translation().normalized();
         if (t(2) < 0) t *= -1;
@@ -163,6 +153,37 @@ TEST(EpipolarGeometry, EightPointAlgorithm)
         if (ref_q(3) < 0) ref_q *= -1;
 
         ExpectCloseRelative(q, ref_q, 1e-5, false);
+
+
+        {
+            TwoViewReconstructionEightPoint tvr;
+            RansacParameters params;
+            params.maxIterations     = 500;
+            double epipolarTheshold  = 1.5;
+            params.residualThreshold = epipolarTheshold * epipolarTheshold;
+            params.reserveN          = 2000;
+            params.threads           = 8;
+            tvr.init(params, test.scene.intrinsics[0]);
+
+            tvr.compute(test.points1, test.points2, test.normalized_points1, test.normalized_points2);
+
+            auto T = tvr.pose2();
+
+            Vec3 t     = T.translation().normalized();
+            Vec3 ref_t = test.reference_T.translation().normalized();
+            if (t(2) < 0) t *= -1;
+            if (ref_t(2) < 0) ref_t *= -1;
+
+            ExpectCloseRelative(t, ref_t, 1e-5, false);
+
+            Vec4 q     = T.unit_quaternion().coeffs();
+            Vec4 ref_q = test.reference_T.unit_quaternion().coeffs();
+
+            if (q(3) < 0) q *= -1;
+            if (ref_q(3) < 0) ref_q *= -1;
+
+            ExpectCloseRelative(q, ref_q, 1e-5, false);
+        }
     }
 }
 
@@ -209,6 +230,39 @@ TEST(EpipolarGeometry, FivePointAlgorithm)
         }
     }
     std::cout << "failed " << failed << std::endl;
+}
+
+TEST(EpipolarGeometry, Benchmark)
+{
+    int its = 50;
+    {
+        Mat3 sum;
+        FiveEightPointTest test;
+        auto stat = measureObject(its, [&]() {
+            int offset = Random::uniformInt(0, test.N - 8);
+            sum += FundamentalMatrixEightPoint(test.points1.data() + offset, test.points2.data() + offset);
+        });
+        std::cout << "FundamentalMatrixEightPoint: " << stat.median << " ms." << std::endl;
+    }
+    {
+        Mat3 sum;
+        FiveEightPointTest test;
+        auto stat = measureObject(its, [&]() {
+            int offset = Random::uniformInt(0, test.N - 8);
+            sum += FundamentalMatrixEightPointNormalized(test.points1.data() + offset, test.points2.data() + offset);
+        });
+        std::cout << "FundamentalMatrixEightPointNormalized: " << stat.median << " ms." << std::endl;
+    }
+    {
+        std::vector<Mat3> es;
+        FiveEightPointTest test;
+        auto stat = measureObject(its, [&]() {
+            int offset = Random::uniformInt(0, test.N - 8);
+            es.clear();
+            fivePointNister(test.points1.data() + offset, test.points2.data() + offset, es);
+        });
+        std::cout << "fivePointNister: " << stat.median << " ms." << std::endl;
+    }
 }
 
 }  // namespace Saiga

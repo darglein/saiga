@@ -86,6 +86,17 @@ macro(DefaultBuildType _default_value)
         set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
             "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
     endif()
-
     message(STATUS "\nBuild Type: ${CMAKE_BUILD_TYPE}")
+
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+      add_definitions(-DCMAKE_DEBUG)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+      add_definitions(-DCMAKE_RELEASE)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+      add_definitions(-DCMAKE_MINSIZEREL)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+      add_definitions(-DCMAKE_RELWITHDEBINFO)
+    else()
+      message(FATAL_ERROR "Unknown CMAKE_BUILD_TYPE")
+    endif()
 endmacro()

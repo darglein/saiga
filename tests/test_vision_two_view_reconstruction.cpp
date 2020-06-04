@@ -129,11 +129,20 @@ TEST(TwoViewReconstruction, EssentialMatrix)
 
     for (int i = 0; i < 10; ++i)
     {
-        test->tvr.compute(test->npoints1, test->npoints2, test->five_point_ransac_params.threads);
+        test->tvr.compute(test->npoints1, test->npoints2);
         EXPECT_GT(test->tvr.inlierCount, 260);
         EXPECT_LT(test->tvr.inlierCount, 300);
 
-        ExpectCloseRelative(test->tvr.E, EssentialMatrix(test->tvr.pose1(), test->tvr.pose2()), 1e-5);
+        auto ref_E = EssentialMatrix(test->tvr.pose1(), test->tvr.pose2());
+        if (ref_E(2, 2) < 0)
+        {
+            ref_E *= -1;
+        }
+        if (test->tvr.E(2, 2) < 0)
+        {
+            test->tvr.E *= -1;
+        }
+        ExpectCloseRelative(test->tvr.E, ref_E, 1e-5);
 
         auto be = test->tvr.inlierCount;
         test->tvr.optimize(5, 1.5 / 535.4);
@@ -160,22 +169,6 @@ TEST(TwoViewReconstruction, EssentialMatrix)
         Mat3 E = EssentialMatrix(test->tvr.pose1(), test->tvr.pose2());
         Mat3 F = FundamentalMatrix(E, test->intr, test->intr);
 
-
-        Mat3 F2;
-        std::vector<int> inliers;
-        std::vector<char> inlier_mask;
-
-        RansacParameters params;
-        params.maxIterations     = 200;
-        params.residualThreshold = 4;
-        Mat3 F3;
-        EightPointRansac epr(params);
-        epr.solve(test->points1, test->points2, F3, inliers, inlier_mask);
-
-        std::cout << F << std::endl;
-        std::cout << F2 << std::endl;
-        std::cout << F3 << std::endl;
-        std::cout << std::endl;
 
         for (auto i = 0; i < test->tvr.N; ++i)
         {

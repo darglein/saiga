@@ -57,7 +57,6 @@ void printOpenGLVersion()
 {
     std::cout << ConsoleColor::YELLOW;
     Table table({2, 18, 41, 2});
-
     std::cout << "=========================== OpenGL ===========================" << std::endl;
     table << "|"
           << "OpenGL Version" << glGetString(GL_VERSION) << "|";
@@ -68,28 +67,7 @@ void printOpenGLVersion()
     table << "|"
           << "Vendor" << glGetString(GL_VENDOR) << "|";
     std::cout << "==============================================================" << std::endl;
-
     std::cout << ConsoleColor::RESET;
-
-    //    switch (getOpenGLVendor())
-    //    {
-    //        case OpenGLVendor::Nvidia:
-    //            std::cout << "Nvidia";
-    //            break;
-    //        case OpenGLVendor::Ati:
-    //            std::cout << "Ati";
-    //            break;
-    //        case OpenGLVendor::Intel:
-    //            std::cout << "Intel";
-    //            break;
-    //        case OpenGLVendor::Mesa:
-    //            std::cout << "Mesa";
-    //            break;
-    //        default:
-    //            std::cout << "Unknown";
-    //            break;
-    //    }
-    //    std::cout << std::endl;
 }
 
 

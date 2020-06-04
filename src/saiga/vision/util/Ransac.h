@@ -65,6 +65,8 @@ class RansacBase
         }
     }
 
+    const RansacParameters& Params() const { return params; }
+
    protected:
     // indices of subset
     using Subset = std::array<int, ModelSize>;

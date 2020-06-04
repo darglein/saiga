@@ -99,10 +99,24 @@ void SaigaParameters::fromConfigFile(const std::string& file)
 
 void printSaigaInfo()
 {
-    std::cout << ConsoleColor::BLUE;
-    Table table({2, 18, 10, 1});
+#ifdef CMAKE_RELWITHDEBINFO
+    auto cmake_build_type = "RelWithDebInfo";
+#endif
+#ifdef CMAKE_DEBUG
+    auto cmake_build_type = "Debug";
+#endif
+#ifdef CMAKE_RELEASE
+    auto cmake_build_type = "Release";
+#endif
+#ifdef CMAKE_MINSIZEREL
+    auto cmake_build_type = "MinSizeRel";
+#endif
 
-    std::cout << "============ SAIGA ============" << std::endl;
+
+    std::cout << ConsoleColor::BLUE;
+    Table table({2, 18, 16, 1});
+
+    std::cout << "=============== Saiga ===============" << std::endl;
     table << "|"
           << "Saiga Version" << SAIGA_VERSION << "|";
     table << "|"
@@ -116,9 +130,20 @@ void printSaigaInfo()
     table << "|"
           << "  -> Version" << SAIGA_COMPILER_VERSION << "|";
     table << "|"
+          << "Build Type" << cmake_build_type << "|";
+    table << "|"
           << "Debug"
           <<
 #ifndef NDEBUG
+        "1"
+#else
+        "0"
+#endif
+          << "|";
+    table << "|"
+          << "Eigen Debug"
+          <<
+#ifndef EIGEN_NO_DEBUG
         "1"
 #else
         "0"
@@ -154,7 +179,7 @@ void printSaigaInfo()
 #endif
           << "|";
 
-    std::cout << "===============================" << std::endl;
+    std::cout << "=====================================" << std::endl;
     std::cout.unsetf(std::ios_base::floatfield);
     std::cout << ConsoleColor::RESET;
 }

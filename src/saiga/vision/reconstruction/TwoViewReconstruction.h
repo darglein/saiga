@@ -34,7 +34,7 @@ class SAIGA_VISION_API TwoViewReconstruction
     // must be called once before running compute!
     void init(const RansacParameters& fivePointParams);
 
-    void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, int threads);
+    void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2);
     int NumPointWithAngleAboveThreshold(double angle);
 
     double medianAngle();
@@ -77,9 +77,10 @@ class SAIGA_VISION_API TwoViewReconstructionEightPoint : public TwoViewReconstru
     // must be called once before running compute!
     void init(const RansacParameters& ransac_params, Intrinsics4 K);
     void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, ArrayView<const Vec2> normalized_points1,
-                 ArrayView<const Vec2> normalized_points2, int threads);
+                 ArrayView<const Vec2> normalized_points2);
 
    private:
+    static constexpr bool solve_normalized = true;
     Mat3 F;
     EightPointRansac epr;
 };

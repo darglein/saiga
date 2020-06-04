@@ -33,7 +33,7 @@ void TwoViewReconstruction::init(const RansacParameters& fivePointParams)
     tmpArray.reserve(fivePointParams.reserveN);
 }
 
-void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, int threads)
+void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2)
 {
     N = points1.size();
     inliers.clear();
@@ -47,13 +47,13 @@ void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<con
     scene.images[1].stereoPoints.resize(N);
     scene.worldPoints.resize(N);
 
+    int threads = fpr.Params().threads;
 
 #pragma omp parallel num_threads(threads)
     {
         int num_inliers;
 
         {
-            SAIGA_BLOCK_TIMER();
             num_inliers = fpr.solve(points1, points2, E, pose2(), inliers, inlierMask);
         }
 #pragma omp single
@@ -209,14 +209,23 @@ void TwoViewReconstruction::setMedianDepth(double d)
 
 void TwoViewReconstructionEightPoint::init(const RansacParameters& ransac_params, Intrinsics4 K)
 {
-    epr.init(ransac_params);
+    if (solve_normalized)
+    {
+        auto cpy = ransac_params;
+        cpy.residualThreshold /= (K.fx * K.fx);
+        epr.init(cpy);
+    }
+    else
+    {
+        epr.init(ransac_params);
+    }
     tmpArray.reserve(ransac_params.reserveN);
     scene.intrinsics.front() = K;
 }
 
 void TwoViewReconstructionEightPoint::compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2,
                                               ArrayView<const Vec2> normalized_points1,
-                                              ArrayView<const Vec2> normalized_points2, int threads)
+                                              ArrayView<const Vec2> normalized_points2)
 {
     N = points1.size();
     inliers.clear();
@@ -232,13 +241,27 @@ void TwoViewReconstructionEightPoint::compute(ArrayView<const Vec2> points1, Arr
 
     Intrinsics4& K = scene.intrinsics.front();
 
+    int threads = epr.Params().threads;
 
 #pragma omp parallel num_threads(threads)
     {
-        inlierCount = epr.solve(points1, points2, F, inliers, inlierMask);
+        if (solve_normalized)
+        {
+            inlierCount = epr.solve(normalized_points1, normalized_points2, F, inliers, inlierMask);
+        }
+        else
+        {
+            inlierCount = epr.solve(points1, points2, F, inliers, inlierMask);
+        }
     }
 
     {
+        if (solve_normalized)
+        {
+            // Transform back to unnormalized space
+            F = K.inverse().matrix().transpose() * F * K.inverse().matrix();
+        }
+
         E                    = EssentialMatrix(F, K, K);
         auto [rel, relcount] = getValidTransformationFromE(E, normalized_points1.data(), normalized_points2.data(),
                                                            inlierMask, normalized_points1.size(), threads);
