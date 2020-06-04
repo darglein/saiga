@@ -83,7 +83,6 @@ std::ostream& operator<<(std::ostream& strm, const StereoIntrinsics& value)
     strm << "Fps:              " << value.fps << std::endl;
     strm << "B * fx:           " << value.bf << std::endl;
     strm << "B (meters):       " << value.bf / value.model.K.fx << std::endl;
-    strm << "DepthBias:        " << value.depth_bias << std::endl;
     return strm;
 }
 }  // namespace Saiga

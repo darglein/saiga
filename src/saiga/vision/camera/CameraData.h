@@ -144,10 +144,6 @@ struct SAIGA_VISION_API StereoIntrinsics : public MonocularIntrinsics
 
     SE3 left_to_right;
 
-    // An additional factor applied to the depth values.
-    // new_depth = depth * bias
-    double depth_bias = 0;
-
     StereoCamera4 stereoCamera() const
     {
         SAIGA_ASSERT(bf != 0);

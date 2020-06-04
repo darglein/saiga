@@ -46,47 +46,47 @@ int KittiDataset::LoadMetaData()
 
 
 
-    std::array<double, 22> bias_table = {
-        0.0531029,   // 00
-        -0.0526353,  // 01
-        0,           // 02
-        -0.0112762,  // 03
-        -0.0271705,  // 04
-        -0.0827276,  // 05
-        -0.160229,   // 06
-        0.0324279,   // 07
-        -0.0223322,  // 08
-        0.0144021,   // 09
-        0,           // 10
-        -0.0124689,  // 11
-        0,           // 12
-        -0.0545794,  // 13
-        -0.0262804,  // 14
-        0.00235434,  // 15
-        0.0669488,   // 16
-        0.10344,     // 17
-        -0.0482539,  // 18
-        0.0173151,   // 19
-        -0.0721045,  // 20
-        0.156678,    // 21
-    };
+    //    std::array<double, 22> bias_table = {
+    //        0.0531029,   // 00
+    //        -0.0526353,  // 01
+    //        0,           // 02
+    //        -0.0112762,  // 03
+    //        -0.0271705,  // 04
+    //        -0.0827276,  // 05
+    //        -0.160229,   // 06
+    //        0.0324279,   // 07
+    //        -0.0223322,  // 08
+    //        0.0144021,   // 09
+    //        0,           // 10
+    //        -0.0124689,  // 11
+    //        0,           // 12
+    //        -0.0545794,  // 13
+    //        -0.0262804,  // 14
+    //        0.00235434,  // 15
+    //        0.0669488,   // 16
+    //        0.10344,     // 17
+    //        -0.0482539,  // 18
+    //        0.0173151,   // 19
+    //        -0.0721045,  // 20
+    //        0.156678,    // 21
+    //    };
 
 
 
-    if (sequence_number <= 2)
-    {
-        intrinsics.depth_bias = 1.00255;
-    }
-    else if (sequence_number == 3)
-    {
-        intrinsics.depth_bias = 0.994022;
-    }
-    else if (sequence_number >= 4)
-    {
-        intrinsics.depth_bias = 0.992174;
-    }
+    //    if (sequence_number <= 2)
+    //    {
+    //        intrinsics.depth_bias = 1.00255;
+    //    }
+    //    else if (sequence_number == 3)
+    //    {
+    //        intrinsics.depth_bias = 0.994022;
+    //    }
+    //    else if (sequence_number >= 4)
+    //    {
+    //        intrinsics.depth_bias = 0.992174;
+    //    }
 
-    intrinsics.depth_bias = bias_table[sequence_number];
+    //    intrinsics.depth_bias = bias_table[sequence_number];
 
     // search for ground truth
     std::string groundtruthFile = "";
