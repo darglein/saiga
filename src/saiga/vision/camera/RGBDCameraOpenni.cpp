@@ -45,7 +45,6 @@ RGBDCameraOpenni::RGBDCameraOpenni(const RGBDIntrinsics& intr) : _intrinsics(int
 
 RGBDCameraOpenni::~RGBDCameraOpenni()
 {
-    std::cout << "~RGBDCameraOpenni" << std::endl;
 }
 
 

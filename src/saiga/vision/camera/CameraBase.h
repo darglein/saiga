@@ -76,11 +76,6 @@ struct SAIGA_VISION_API DatasetParameters
     // Load images in parallel with omp
     bool multiThreadedLoad = true;
 
-
-    // Load only the first image of the sequence. All other meta data (GT+IMU) are still loaded normally.
-    // This can be used to save disk usage, if, for example, the features are precomputed and stored in a file.
-    bool only_first_image = false;
-
     // Force monocular load. Don't load second image or depth map for stereo and rgbd sensors.
     bool force_monocular = false;
 
@@ -131,10 +126,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 #pragma omp parallel for if (params.multiThreadedLoad) num_threads(threads)
             for (int i = 0; i < num_images; ++i)
             {
-                if ((!params.only_first_image || this->currentId == 0))
-                {
-                    LoadImageData(frames[i]);
-                }
+                LoadImageData(frames[i]);
                 loadingBar.addProgress(1);
             }
         }
@@ -183,7 +175,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
         auto& img = frames[this->currentId];
         SAIGA_ASSERT(this->currentId == img.id);
-        if (!params.preload && (!params.only_first_image || this->currentId == 0))
+        if (!params.preload)
         {
             LoadImageData(img);
         }

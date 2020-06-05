@@ -16,7 +16,7 @@
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/opengl/window/SampleWindowForward.h"
 #include "saiga/opengl/world/TextureDisplay.h"
-#include "saiga/vision/camera/RGBDCamera.h"
+#include "saiga/vision/camera/CameraBase.h"
 using namespace Saiga;
 
 
