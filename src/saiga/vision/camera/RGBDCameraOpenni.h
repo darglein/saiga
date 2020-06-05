@@ -11,8 +11,7 @@
 #ifdef SAIGA_USE_OPENNI2
 #    include "saiga/core/image/image.h"
 #    include "saiga/core/util/Thread/SynchronizedBuffer.h"
-
-#    include "RGBDCamera.h"
+#    include "saiga/vision/camera/CameraBase.h"
 
 #    include <thread>
 
@@ -26,30 +25,21 @@ class VideoFrameRef;
 
 namespace Saiga
 {
-class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
+class SAIGA_VISION_API RGBDCameraOpenni : public CameraBase<RGBDFrameData>
 {
    public:
     RGBDCameraOpenni(const RGBDIntrinsics& intr);
     virtual ~RGBDCameraOpenni();
-
-
 
     /**
      * Blocks until a new image arrives.
      */
     virtual bool getImageSync(RGBDFrameData& data) override;
 
-    /**
-     * Tries to return the last dslr image.
-     * If none are ready a nullptr is returned.
-     */
-    virtual bool getImage(RGBDFrameData& data) override;
 
 
     virtual void close() override;
     virtual bool isOpened() override;
-
-
 
     /**
      * Tries to open a camera and set the given parameters.
@@ -67,27 +57,21 @@ class SAIGA_VISION_API RGBDCameraOpenni : public RGBDCamera
 
 
     void imgui();
+    const RGBDIntrinsics& intrinsics() { return _intrinsics; }
 
    private:
-    //    SynchronizedBuffer<std::unique_ptr<RGBDFrameData>> frameBuffer;
-
-    //    std::unique_ptr<RGBDFrameData> tmp;
-
     std::shared_ptr<openni::Device> device;
     std::shared_ptr<openni::VideoStream> depth, color;
     std::shared_ptr<openni::VideoFrameRef> m_depthFrame, m_colorFrame;
 
     void resetCamera();
-    bool waitFrame(RGBDFrameData& data, bool wait);
+    bool waitFrame(RGBDFrameData& data);
     bool readDepth(DepthImageType::ViewType depthImg);
     bool readColor(RGBImageType::ViewType colorImg);
 
-    //    std::thread eventThread;
-
     bool foundCamera = false;
-    //    bool running     = false;
-    float depthFactor;
-    bool updateS = false;
+    bool updateS     = false;
+    RGBDIntrinsics _intrinsics;
     void updateSettingsIntern();
 };
 

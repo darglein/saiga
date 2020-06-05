@@ -85,13 +85,11 @@ struct StereoFrameData : public MonocularFrameData
     static constexpr CameraInputType cameraType = CameraInputType::Stereo;
 };
 
-struct BaseIntrinsics
+
+
+struct SAIGA_VISION_API MonocularIntrinsics
 {
     int fps = 30;
-};
-
-struct SAIGA_VISION_API MonocularIntrinsics : public BaseIntrinsics
-{
     ImageDimensions imageSize;
     PinholeCamera model;
 
@@ -101,6 +99,30 @@ struct SAIGA_VISION_API MonocularIntrinsics : public BaseIntrinsics
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const MonocularIntrinsics& value);
+
+
+
+struct SAIGA_VISION_API StereoIntrinsics : public MonocularIntrinsics
+{
+    ImageDimensions rightImageSize;
+    PinholeCamera rightModel;
+
+    // BaseLine * fx
+    double bf = 0;
+
+    // Maximum depth (in meters) above which the depth values should be considered as outliers
+    double maxDepth = 10;
+
+
+    SE3 left_to_right;
+
+    StereoCamera4 stereoCamera() const
+    {
+        SAIGA_ASSERT(bf != 0);
+        return StereoCamera4(model.K, bf);
+    }
+};
+
 
 // All required intrinsics for the depth sensor
 struct SAIGA_VISION_API RGBDIntrinsics : public MonocularIntrinsics
@@ -134,22 +156,6 @@ struct SAIGA_VISION_API RGBDIntrinsics : public MonocularIntrinsics
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value);
 
-struct SAIGA_VISION_API StereoIntrinsics : public MonocularIntrinsics
-{
-    ImageDimensions rightImageSize;
-    PinholeCamera rightModel;
-
-    // BaseLine * fx
-    double bf = 0;
-
-    SE3 left_to_right;
-
-    StereoCamera4 stereoCamera() const
-    {
-        SAIGA_ASSERT(bf != 0);
-        return StereoCamera4(model.K, bf);
-    }
-};
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const StereoIntrinsics& value);
 

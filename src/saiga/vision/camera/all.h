@@ -9,7 +9,6 @@
 #include "EuRoCDataset.h"
 #include "FileRGBDCamera.h"
 #include "KittiDataset.h"
-#include "RGBDCamera.h"
 #include "RGBDCameraOpenni.h"
 #include "ScannetDataset.h"
 #include "TumRGBDDataset.h"

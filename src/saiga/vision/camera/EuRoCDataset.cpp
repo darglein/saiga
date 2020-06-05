@@ -220,6 +220,7 @@ int EuRoCDataset::LoadMetaData()
 
     //    intrinsics.left_to_right = extrinsics_cam1 * extrinsics_cam0.inverse();
     intrinsics.left_to_right = extrinsics_cam1.inverse() * extrinsics_cam0;
+    intrinsics.maxDepth = 35;
     //    std::cout << "Left->Right: " << intrinsics.left_to_right << std::endl;
 
     {

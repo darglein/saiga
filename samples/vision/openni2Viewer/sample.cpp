@@ -32,6 +32,7 @@ Sample::Sample()
 
 void Sample::update(float dt)
 {
+    //    SAIGA_BLOCK_TIMER();
     if (!rgbdcamera) return;
 
     Saiga::RGBDFrameData newFrameData;
@@ -54,6 +55,7 @@ void Sample::update(float dt)
         }
         frameId++;
     }
+
 
     if (!rgbdcamera) return;
 
@@ -101,6 +103,7 @@ void Sample::update(float dt)
 
 void Sample::renderFinal(Camera* cam)
 {
+    //    SAIGA_BLOCK_TIMER();
     if (rgbdcamera)
     {
         display.render(texture.get(), {0, 0}, {frameData.colorImg.width, frameData.colorImg.height});
@@ -127,6 +130,9 @@ void Sample::renderFinal(Camera* cam)
     ImGui::InputInt("fps", &fps);
 
     Saiga::RGBDIntrinsics intr;
+    intr.imageSize.w = 640;
+    intr.imageSize.h = 480;
+
     intr.depthImageSize.w = depthWidth;
     intr.depthImageSize.h = depthHeight;
     intr.fps              = fps;
@@ -156,7 +162,7 @@ void Sample::renderFinal(Camera* cam)
         initTexture = true;
     }
 
-    if (ImGui::Button("Openni"))
+    if (!rgbdcamera || ImGui::Button("Openni"))
     {
         intr.depthFactor = 1000.0;
         rgbdcamera       = std::make_unique<Saiga::RGBDCameraOpenni>(intr);

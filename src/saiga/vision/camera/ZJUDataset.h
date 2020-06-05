@@ -10,7 +10,6 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/camera/CameraBase.h"
-#include "saiga/vision/camera/RGBDCamera.h"
 
 #ifdef SAIGA_USE_YAML_CPP
 

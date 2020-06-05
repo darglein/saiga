@@ -28,27 +28,31 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
 
+    auto group = "RGBD-Sensor";
 
-    INI_GETADD_LONG(ini, "Sensor", fps);
-    INI_GETADD_DOUBLE(ini, "Sensor", depthFactor);
+    INI_GETADD_LONG(ini, group, fps);
 
-    imageSize.w = ini.GetAddLong("Color", "width", imageSize.w);
-    imageSize.h = ini.GetAddLong("Color", "height", imageSize.h);
 
-    depthImageSize.w = ini.GetAddLong("Depth", "width", depthImageSize.w);
-    depthImageSize.h = ini.GetAddLong("Depth", "height", depthImageSize.h);
+    INI_GETADD_DOUBLE_COMMENT(ini, group, depthFactor, "# The depth values are divided by this value to get meters.");
+    INI_GETADD_DOUBLE_COMMENT(ini, group, maxDepth, "# Depth values above this value are unstable.");
 
-    // K
+    INI_GETADD_LONG_COMMENT(ini, group, imageSize.w, "# RGB Image");
+    INI_GETADD_LONG(ini, group, imageSize.h);
+
+    INI_GETADD_LONG_COMMENT(ini, group, depthImageSize.w, "# Depth Image");
+    INI_GETADD_LONG(ini, group, depthImageSize.h);
+
+
     auto Kstr = toIniString(model.K);
-    Kstr      = ini.GetAddString("ColorIntr", "K", Kstr.c_str(), "#fx,fy,cx,cy");
+    Kstr      = ini.GetAddString(group, "K", Kstr.c_str(), "#fx,fy,cx,cy");
     fromIniString(Kstr, model.K);
 
 
-    INI_GETADD_DOUBLE(ini, "ColorIntr", bf);
+    INI_GETADD_DOUBLE(ini, group, bf);
 
     // Dis
     auto Dstr = toIniString(model.dis);
-    Dstr      = ini.GetAddString("ColorIntr", "dis", Dstr.c_str(), "#p1,p2,p3,p4,p5");
+    Dstr      = ini.GetAddString(group, "dis", Dstr.c_str(), "#p1,p2,p3,p4,p5");
     fromIniString(Dstr, model.dis);
 
 

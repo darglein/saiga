@@ -9,8 +9,8 @@
 #include "saiga/config.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/camera/CameraBase.h"
 
-#include "RGBDCamera.h"
 
 // The meta data is given in .yaml files so we need that dependency.
 #ifdef SAIGA_USE_YAML_CPP

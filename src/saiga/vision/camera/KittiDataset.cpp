@@ -164,6 +164,7 @@ int KittiDataset::LoadMetaData()
         intrinsics.model.K      = K1;
         intrinsics.rightModel.K = K2;
         intrinsics.bf           = bf;
+        intrinsics.maxDepth     = 35;
     }
 
 

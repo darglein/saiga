@@ -9,8 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/vision/VisionTypes.h"
-
-#include "RGBDCamera.h"
+#include "saiga/vision/camera/CameraBase.h"
 
 
 

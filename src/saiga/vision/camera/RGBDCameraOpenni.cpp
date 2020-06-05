@@ -32,10 +32,7 @@ namespace Saiga
 
 
 
-RGBDCameraOpenni::RGBDCameraOpenni(const RGBDIntrinsics& intr)
-    : RGBDCamera(intr),
-      //      frameBuffer(10),
-      depthFactor(1.0 / intr.depthFactor)
+RGBDCameraOpenni::RGBDCameraOpenni(const RGBDIntrinsics& intr) : _intrinsics(intr)
 {
     CHECK_NI(openni::OpenNI::initialize());
 
@@ -54,26 +51,16 @@ RGBDCameraOpenni::~RGBDCameraOpenni()
 
 bool RGBDCameraOpenni::getImageSync(RGBDFrameData& data)
 {
-    makeFrameData(data);
-    while (!waitFrame(data, true))
+    data.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
+    data.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
+    data.id = currentId++;
+    while (!waitFrame(data))
     {
         if (!foundCamera) return false;
     }
     return true;
 }
 
-bool RGBDCameraOpenni::getImage(RGBDFrameData& data)
-{
-    makeFrameData(data);
-
-    bool ret = waitFrame(data, false);
-
-    if (ret)
-    {
-        return true;
-    }
-    return false;
-}
 
 void RGBDCameraOpenni::close()
 {
@@ -101,6 +88,8 @@ void RGBDCameraOpenni::imgui()
 bool RGBDCameraOpenni::tryOpen()
 {
     resetCamera();
+
+    std::cout << intrinsics() << std::endl;
 
     openni::Status rc = openni::STATUS_OK;
 
@@ -186,12 +175,12 @@ void RGBDCameraOpenni::resetCamera()
     device = std::make_shared<openni::Device>();
 }
 
-bool RGBDCameraOpenni::waitFrame(RGBDFrameData& data, bool wait)
+bool RGBDCameraOpenni::waitFrame(RGBDFrameData& data)
 {
     openni::VideoStream* streams[2] = {depth.get(), color.get()};
     int streamIndex;
 
-    int timeout = wait ? 1000 : 0;
+    int timeout = 1000;
 
     if (!device->isValid() || !depth->isValid() || !color->isValid())
     {
@@ -199,37 +188,16 @@ bool RGBDCameraOpenni::waitFrame(RGBDFrameData& data, bool wait)
         foundCamera = false;
     }
 
-    auto wret = openni::OpenNI::waitForAnyStream(streams, 2, &streamIndex, timeout);
-    if (wret != openni::STATUS_OK)
-    {
-        return false;
-    }
-
-    setNextFrame(data);
+    auto wret = openni::OpenNI::waitForAnyStream(streams, 1, &streamIndex, timeout);
+    if (wret != openni::STATUS_OK) return false;
+    readColor(data.colorImg);
 
 
-    bool ret = true;
-    if (streamIndex == 0)
-    {
-        ret &= readDepth(data.depthImg);
+    wret = openni::OpenNI::waitForAnyStream(streams, 1, &streamIndex, timeout);
+    if (wret != openni::STATUS_OK) return false;
+    readDepth(data.depthImg);
 
-        wret = openni::OpenNI::waitForAnyStream(streams + 1, 1, &streamIndex, timeout);
-        if (wret != openni::STATUS_OK) return false;
-
-        ret &= readColor(data.colorImg);
-    }
-    else
-    {
-        ret &= readColor(data.colorImg);
-
-        wret = openni::OpenNI::waitForAnyStream(streams, 1, &streamIndex, timeout);
-        if (wret != openni::STATUS_OK) return false;
-
-        ret &= readDepth(data.depthImg);
-    }
-
-
-    return ret;
+    return true;
 }
 
 bool RGBDCameraOpenni::readDepth(DepthImageType::ViewType depthImg)
@@ -242,11 +210,12 @@ bool RGBDCameraOpenni::readDepth(DepthImageType::ViewType depthImg)
     ImageView<uint16_t> rawDepthImg(m_depthFrame->getHeight(), m_depthFrame->getWidth(),
                                     m_depthFrame->getStrideInBytes(), (void*)m_depthFrame->getData());
 
+    auto depth_factor = 1.0 / intrinsics().depthFactor;
     for (int i = 0; i < rawDepthImg.height; ++i)
     {
         for (int j = 0; j < rawDepthImg.width; ++j)
         {
-            depthImg(i, j) = rawDepthImg(i, rawDepthImg.width - j - 1) * depthFactor;
+            depthImg(i, j) = rawDepthImg(i, rawDepthImg.width - j - 1) * depth_factor;
         }
     }
 
