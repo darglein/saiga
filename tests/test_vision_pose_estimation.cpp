@@ -70,7 +70,7 @@ class RPOTest
     {
         auto cpy = scene;
         RobustPoseOptimization<T, false> rpo(923475094325, 981450945);
-        rpo.optimizePoseRobust(cpy.wps, cpy.obs, cpy.outlier, cpy.pose, cpy.K, 4);
+        rpo.optimizePoseRobust(cpy.wps, cpy.obs, cpy.outlier, cpy.pose, cpy.K);
         return cpy.chi2();
     }
 

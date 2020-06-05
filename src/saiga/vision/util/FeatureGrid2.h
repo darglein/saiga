@@ -103,13 +103,6 @@ struct FeatureGridBounds2
         Vec2 g_size = (bmax - bmin).array() / cellSize.array();
         Rows        = ceil(g_size.y());
         Cols        = ceil(g_size.x());
-
-
-        //        std::cout << "[FeatureGrid] ";
-        //        std::cout << Cols << "x" << Rows << " ";
-        //        std::cout << "[" << bmin.transpose() << "] [" << bmax.transpose() << "] ";
-        //        std::cout << "Cell Size: " << cellSize.transpose();
-        //        std::cout << std::endl;
     }
 };
 
@@ -183,37 +176,6 @@ struct FeatureGrid2
         }
 
         SAIGA_ASSERT(totalCount == N);
-
-#if 0
-        {
-            // Some debug checks + prints
-
-            // Permute kp array
-            std::vector<KeyPoint<T>> cpy(N);
-            for (int i = 0; i < N; ++i)
-            {
-                cpy[permutation[i]] = kps[i];
-            }
-
-            // Go for each cell over all keypoints and check if they project to
-            // this cell
-            for (int i = 0; i < Rows; ++i)
-            {
-                for (int j = 0; j < Cols; ++j)
-                {
-                    for (int c : cellIt({j, i}))
-                    {
-                        CellId cid2;
-                        bounds.cell(cpy[c].point, cid2);
-                        SAIGA_ASSERT(cid2.first == j && cid2.second == i);
-                    }
-                }
-            }
-            std::cout << "Grid debug check OK!" << std::endl;
-        }
-#endif
-
-
         return permutation;
     }
 

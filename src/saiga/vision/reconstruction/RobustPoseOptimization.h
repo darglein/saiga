@@ -97,18 +97,17 @@ struct SAIGA_ALIGN_CACHE RobustPoseOptimization
     }
 
     int optimizePoseRobust(const AlignedVector<Vec3>& wps, const AlignedVector<Obs>& obs, AlignedVector<int>& outlier,
-                           SE3Type& guess, const CameraType& camera, int threads = 1)
+                           SE3Type& guess, const CameraType& camera)
     {
+        constexpr int threads = 1;
         locals.resize(threads);
         int N = wps.size();
 
-#pragma omp parallel num_threads(threads)
+        //#pragma omp parallel num_threads(threads)
         {
             for (auto outerIt : Range(0, maxOuterIts))
             {
                 bool robust = outerIt < (maxOuterIts - 1);
-                //            JType JtJ;
-                //            BType Jtb;
                 lastChi2sum = std::numeric_limits<T>::infinity();
                 lastGuess   = guess;
 
@@ -134,7 +133,7 @@ struct SAIGA_ALIGN_CACHE RobustPoseOptimization
                         local.chi2    = 0;
                         local.inliers = 0;
 
-#pragma omp for
+                        //#pragma omp for
                         for (int i = 0; i < N; ++i)
                         {
                             if (outlier[i]) continue;
@@ -177,7 +176,6 @@ struct SAIGA_ALIGN_CACHE RobustPoseOptimization
                                 bool correct_depth = MonoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip,
                                                                                              res, JrowM, o.weight);
                                 auto res_2         = res.squaredNorm();
-#if 1
                                 // Remove outliers
                                 if (outerIt > 0 && innerIt == 0)
                                 {
@@ -187,7 +185,6 @@ struct SAIGA_ALIGN_CACHE RobustPoseOptimization
                                         continue;
                                     }
                                 }
-#endif
 
                                 T loss_weight = 1.0;
                                 if (robust)
@@ -205,7 +202,7 @@ struct SAIGA_ALIGN_CACHE RobustPoseOptimization
                         }
                     }
 
-#pragma omp single
+                    //#pragma omp single
                     {
                         auto& JtJ = locals[0].JtJ;
                         auto& Jtb = locals[0].Jtb;
