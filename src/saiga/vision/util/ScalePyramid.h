@@ -15,9 +15,9 @@ struct SAIGA_VISION_API ScalePyramid
     // Maybe this will be changed to a template later.
     using T = double;
 
-    ScalePyramid(int levels = 1, T scale_factor = 1);
+    ScalePyramid(int levels = 1, T scale_factor = 1, int total_features = 1000);
 
-    bool IsValidScaleLevel(int level) { return level >= 0 && level < (int)scale_per_level.size(); }
+    bool IsValidScaleLevel(int level) { return level >= 0 && level < num_levels; }
 
 
     // Given the distance to a point and the observed scale level, this function computes the min and max distance this
@@ -26,10 +26,10 @@ struct SAIGA_VISION_API ScalePyramid
     std::pair<T, T> EstimateMinMaxDistance(T distance_to_world_point, int level_of_keypoint)
     {
         // The distance we expect on the scale level 0
-        T max_distance = distance_to_world_point * scale_per_level[level_of_keypoint];
+        T max_distance = distance_to_world_point * Scale(level_of_keypoint);
 
         // The distance at the maximum scale level
-        T min_distance = max_distance / scale_per_level[levels - 1];
+        T min_distance = max_distance / Scale(num_levels - 1);
 
         // The keypoint can be right on the edge of a scale level
         // -> Add one more level to min and max
@@ -43,7 +43,7 @@ struct SAIGA_VISION_API ScalePyramid
     T PredictScaleLevel(T reference_distance_to_world_point, int reference_level_of_keypoint, T distance_to_world_point)
     {
         // The distance we expect on the scale level 0
-        T max_distance = reference_distance_to_world_point * scale_per_level[reference_level_of_keypoint];
+        T max_distance = reference_distance_to_world_point * Scale(reference_level_of_keypoint);
 
 
         // We assume the keypoint has scale = 1 at maxDistance.
@@ -75,38 +75,53 @@ struct SAIGA_VISION_API ScalePyramid
     }
 
 
-    T ScaleForContiniousLevel(T level) { return pow(scale_factor, level); }
+    inline T ScaleForContiniousLevel(T level) { return pow(scale_factor, level); }
+    inline T Scale(int level) { return levels[level].scale; }
+    inline T SquaredScale(int level) { return levels[level].squared_scale; }
+    inline T InverseScale(int level) { return levels[level].inv_scale; }
+    inline T InverseSquaredScale(int level) { return levels[level].inv_squared_scale; }
+    inline T Factor() { return scale_factor; }
+    inline int Features(int level) { return levels[level].num_features; }
 
 
     // Number of scale levels.
-    int levels;
+    int num_levels;
+
+    int total_num_features;
 
     // The scale factor between the levels
     T scale_factor;
 
 
+   private:
     // ====
     // Precomputed values (in the constructor) from the variables above.
 
     // log(scale_factor).
     T log_scale_factor;
 
-    // The scale factors for each level:
-    // factor[i] = scale_factor^i
-    std::vector<T> scale_per_level;
+    struct Level
+    {
+        // The scale factors for each level:
+        // factor[i] = scale_factor^i
+        T scale;
 
-    // Inverse scale factors.
-    // factor[i] = 1.0 / scale_factor^i
-    std::vector<T> inv_scale_per_level;
+        // Inverse scale factors.
+        // factor[i] = 1.0 / scale_factor^i
+        T squared_scale;
 
-    // Squared scale factors
-    // factor[i] = (scale_factor^i)^2
-    std::vector<T> squared_scale_per_level;
+        // Squared scale factors
+        // factor[i] = (scale_factor^i)^2
+        T inv_scale;
 
-    // Inverse squared scale factors
-    // factor[i] = 1.0 / (scale_factor^i)^2
-    std::vector<T> inv_squared_scale_per_level;
+        // Inverse squared scale factors
+        // factor[i] = 1.0 / (scale_factor^i)^2
+        T inv_squared_scale;
 
+        int num_features;
+    };
+
+    std::vector<Level> levels;
 
     static constexpr T scale_prediction_error_threshold = 1.2;
 };
