@@ -28,9 +28,8 @@ ScalePyramid::ScalePyramid(int _levels, ScalePyramid::T scale_factor, int total_
     levels[0].inv_squared_scale = 1;
 
 
-    float factor = 1.0f / scale_factor;
-    float nDesiredFeaturesPerScale =
-        total_num_features * (1 - factor) / (1 - (float)pow((double)factor, (double)num_levels));
+    T factor                   = 1.0 / scale_factor;
+    T nDesiredFeaturesPerScale = total_num_features * (1 - factor) / (1 - std::pow(factor, num_levels));
 
     int sumFeatures = 0;
 
@@ -58,9 +57,9 @@ ScalePyramid::ScalePyramid(int _levels, ScalePyramid::T scale_factor, int total_
 std::ostream& operator<<(std::ostream& strm, const ScalePyramid& sp)
 {
     strm << "[ScalePyramid] " << std::endl;
-    //    strm << "Levels       : " << sp.num_levels << std::endl;
-    //    strm << "Scale Factor : " << sp.scale_factor << std::endl;
-    //    strm << "Scales       : " << to_string(sp.scale_per_level.begin(), sp.scale_per_level.end());
+    strm << "Levels       : " << sp.num_levels << std::endl;
+    strm << "Scale Factor : " << sp.scale_factor << std::endl;
+    strm << "Total Features : " << sp.total_num_features << std::endl;
     return strm;
 }
 

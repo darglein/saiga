@@ -18,99 +18,104 @@ unset(CMAKE_CUDA_COMPILER)
 include(CheckLanguage)
 
 if(SAIGA_MODULE_CUDA)
-    check_language(CUDA)
-    if(CMAKE_CUDA_COMPILER)
-        enable_language(CUDA)
-        set(CUDA_FOUND TRUE)
-    else()
-        set(CUDA_FOUND FALSE)
-    endif()
-else()
+  check_language(CUDA)
+  if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+    set(CUDA_FOUND TRUE)
+  else()
     set(CUDA_FOUND FALSE)
+  endif()
+else()
+  set(CUDA_FOUND FALSE)
 endif()
 
 
 
 if(CUDA_FOUND)
-    #message(STATUS "Found CUDA: ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
-    # We need this to get the actual cuda libraries, because
-    # one sample only is linked with the host compiler and therefore
-    # does not automatically link to the cuda runtime.
+  #message(STATUS "Found CUDA: ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
+  # We need this to get the actual cuda libraries, because
+  # one sample only is linked with the host compiler and therefore
+  # does not automatically link to the cuda runtime.
 
-    if(SAIGA_CUDA_BLSP)
-        find_package(CUDA REQUIRED QUIET)
+  if(SAIGA_CUDA_BLSP)
+    find_package(CUDA REQUIRED QUIET)
 
-        SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
+    SET(ALL_CUDA_LIBS ${CUDA_LIBRARIES})
 
-        if(CUDA_cusparse_LIBRARY)
-            SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cusparse_LIBRARY})
-            SET(SAIGA_USE_CUSPARSE 1)
-        endif()
-
-        if(CUDA_cublas_LIBRARY)
-            SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cublas_LIBRARY})
-            SET(SAIGA_USE_CUBLAS 1)
-        endif()
+    if(CUDA_cusparse_LIBRARY)
+      SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cusparse_LIBRARY})
+      SET(SAIGA_USE_CUSPARSE 1)
     endif()
 
-    find_package(CUDAToolkit REQUIRED)
-    PackageHelperTarget(CUDA::cudart CUDA_FOUND)
-    # filter
-    PackageHelperTarget(CUDA::nppif CUDA_FOUND)
-    # geometry (resize)
-    PackageHelperTarget(CUDA::nppig CUDA_FOUND)
-    PackageHelperTarget(CUDA::nvToolsExt CUDA_FOUND)
-
-
-
-
-
-    if(SAIGA_CUDA_COMP)
-        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_30,code=sm_30")
-        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_30,code=compute_30")
-        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_52,code=compute_52")
+    if(CUDA_cublas_LIBRARY)
+      SET(ALL_CUDA_LIBS ${ALL_CUDA_LIBS} ${CUDA_cublas_LIBRARY})
+      SET(SAIGA_USE_CUBLAS 1)
     endif()
-    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_52,code=sm_52")
+  endif()
 
-    if(${CMAKE_CUDA_COMPILER_VERSION} VERSION_GREATER_EQUAL "9")
-        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_61,code=sm_61") # Pascal
-    endif()
-
-    #SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70") # Volta
-
-    if(${CMAKE_CUDA_COMPILER_VERSION} VERSION_GREATER_EQUAL "10")
-        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_75,code=sm_75") # Turing
-    endif()
+  find_package(CUDAToolkit REQUIRED)
+  PackageHelperTarget(CUDA::cudart CUDA_FOUND)
+  # filter
+  PackageHelperTarget(CUDA::nppif CUDA_FOUND)
+  # geometry (resize)
+  PackageHelperTarget(CUDA::nppig CUDA_FOUND)
+  PackageHelperTarget(CUDA::nvToolsExt CUDA_FOUND)
 
 
-    if(SAIGA_CUDA_RDC)
-        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --relocatable-device-code=true") # for dynamic parallelism
-    else()
 
-        if(SAIGA_CUDA_COMP AND SAIGA_CUDA_RDC)
-            message(FATAL_ERROR "Invalid combination.")
-        endif()
 
-    endif()
 
-    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math --expt-relaxed-constexpr")
-    #ignore warning "__device__ on defaulted function..."
-    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored")
+  if(SAIGA_CUDA_COMP)
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_30,code=sm_30")
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_30,code=compute_30")
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_52,code=compute_52")
+  endif()
+  SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_52,code=sm_52")
 
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND ${SAIGA_LIBSTDCPP})
-        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -stdlib=libstdc++")
+  if(${CMAKE_CUDA_COMPILER_VERSION} VERSION_GREATER_EQUAL "9")
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_61,code=sm_61") # Pascal
+  endif()
+
+  #SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_70,code=sm_70") # Volta
+
+  if(${CMAKE_CUDA_COMPILER_VERSION} VERSION_GREATER_EQUAL "10")
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_75,code=sm_75") # Turing
+  endif()
+
+
+  if(SAIGA_CUDA_RDC)
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --relocatable-device-code=true") # for dynamic parallelism
+  else()
+
+    if(SAIGA_CUDA_COMP AND SAIGA_CUDA_RDC)
+      message(FATAL_ERROR "Invalid combination.")
     endif()
 
-    if(BUILD_SHARED)
-        SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -DSAIGA_DLL_EXPORTS")
-    endif()
-    SET(SAIGA_USE_CUDA 1)
+  endif()
 
-    set(MODULE_CUDA 1)
+
+  if(NOT MSVC)
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fopenmp")
+  endif()
+
+  SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math --expt-relaxed-constexpr")
+  #ignore warning "__device__ on defaulted function..."
+  SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored")
+
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND ${SAIGA_LIBSTDCPP})
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -stdlib=libstdc++")
+  endif()
+
+  if(BUILD_SHARED)
+    SET(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -DSAIGA_DLL_EXPORTS")
+  endif()
+  SET(SAIGA_USE_CUDA 1)
+
+  set(MODULE_CUDA 1)
 
 else()
-    SET(SAIGA_USE_CUDA 0)
-    set(MODULE_CUDA 0)
+  SET(SAIGA_USE_CUDA 0)
+  set(MODULE_CUDA 0)
 endif()
 
 #PackageHelper(CUDA "${CUDA_FOUND}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "${ALL_CUDA_LIBS}")
@@ -118,7 +123,7 @@ endif()
 
 
 if(SAIGA_EIGEN_AND_CUDA)
-    message(STATUS "Enabled Eigen with CUDA -> Eigen ${Eigen3_VERSION} Cuda ${CUDA_VERSION}")
+  message(STATUS "Enabled Eigen with CUDA -> Eigen ${Eigen3_VERSION} Cuda ${CUDA_VERSION}")
 endif()
 
 
