@@ -114,6 +114,18 @@ struct FeatureGrid2
     int Rows;
     int Cols;
 
+    // Returns a permuation vector which has to be applied like this:
+    //   int N = keypoints.size();
+    //   std::vector<KeyPoint<float>> keypoints2(N);
+    //   std::vector<Saiga::DescriptorORB> descriptors2(N);
+    //
+    //   for (int i = 0; i < N; ++i)
+    //   {
+    //       keypoints2[permutation[i]]   = keypoints[i];
+    //       descriptors2[permutation[i]] = descriptors[i];
+    //   }
+    //   descriptors.swap(descriptors2);
+    //   keypoints.swap(keypoints2);
     template <typename T, int cell_size>
     std::vector<int> create(const FeatureGridBounds2<T, cell_size>& bounds, const std::vector<KeyPoint<T>>& kps)
     {

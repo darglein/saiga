@@ -27,6 +27,7 @@
  */
 #pragma once
 
+#include "saiga/config.h"
 #include "saiga/core/image/imageView.h"
 #include "saiga/core/image/templatedImage.h"
 #include "saiga/vision/features/FeatureDistribution.h"
@@ -35,6 +36,8 @@
 #include "saiga/vision/util/ScalePyramid.h"
 
 #include <vector>
+
+#ifdef SAIGA_USE_OPENCV
 
 namespace Saiga
 {
@@ -77,3 +80,5 @@ class SAIGA_VISION_API ORBExtractor
 };
 
 }  // namespace Saiga
+
+#endif

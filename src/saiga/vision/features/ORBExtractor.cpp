@@ -60,15 +60,17 @@
 
 #include "ORBExtractor.h"
 
-#include "saiga/core/time/all.h"
-#include "saiga/core/util/Thread/omp.h"
-#include "saiga/extra/opencv/opencv.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <vector>
+#ifdef SAIGA_USE_OPENCV
+
+#    include "saiga/core/time/all.h"
+#    include "saiga/core/util/Thread/omp.h"
+#    include "saiga/extra/opencv/opencv.h"
+
+#    include <opencv2/core/core.hpp>
+#    include <opencv2/features2d/features2d.hpp>
+#    include <opencv2/highgui/highgui.hpp>
+#    include <opencv2/imgproc/imgproc.hpp>
 
 
 namespace Saiga
@@ -88,7 +90,7 @@ ORBExtractor::ORBExtractor(int _nfeatures, float _scaleFactor, int _nlevels, int
 void ORBExtractor::DetectKeypoints()
 {
     const float W = 30;
-#pragma omp parallel for num_threads(num_threads) schedule(dynamic)
+#    pragma omp parallel for num_threads(num_threads) schedule(dynamic)
     for (int level = 0; level < num_levels; ++level)
     {
         auto& level_data = levels[level];
@@ -196,7 +198,7 @@ void ORBExtractor::Detect(Saiga::ImageView<unsigned char> inputImage, std::vecto
     outputDescriptors.resize(nkeypoints);
     _keypoints.resize(nkeypoints);
 
-#pragma omp parallel for num_threads(num_threads) schedule(dynamic)
+#    pragma omp parallel for num_threads(num_threads) schedule(dynamic)
     for (int level = 0; level < num_levels; ++level)
     {
         auto& level_data    = levels[level];
@@ -286,3 +288,5 @@ void ORBExtractor::ComputePyramid(Saiga::ImageView<unsigned char> image)
 }
 
 }  // namespace Saiga
+
+#endif

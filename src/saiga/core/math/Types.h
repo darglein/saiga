@@ -29,8 +29,9 @@ using Vec6 = Vector<double, 6>;
 using Vec7 = Vector<double, 7>;
 using Vec9 = Vector<double, 9>;
 
-using Mat4 = Matrix<double, 4, 4>;
+using Mat2 = Matrix<double, 2, 2>;
 using Mat3 = Matrix<double, 3, 3>;
+using Mat4 = Matrix<double, 4, 4>;
 
 
 // ===== Single Precision  ======
