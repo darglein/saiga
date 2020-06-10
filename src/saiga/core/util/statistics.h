@@ -16,7 +16,7 @@
 
 namespace Saiga
 {
-template <typename T>
+template <typename T = double>
 class Statistics
 {
    public:

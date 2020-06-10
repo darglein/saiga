@@ -89,7 +89,7 @@ struct StereoFrameData : public MonocularFrameData
 
 struct SAIGA_VISION_API MonocularIntrinsics
 {
-    int fps = 30;
+    int fps = -1;
     ImageDimensions imageSize;
     PinholeCamera model;
 
