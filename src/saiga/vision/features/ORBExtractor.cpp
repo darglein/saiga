@@ -251,7 +251,6 @@ void ORBExtractor::AllocatePyramid(int rows, int cols)
 
         level_data.image_with_border.create(level_rows_with_border, level_cols_with_border);
         level_data.image = level_data.image_with_border.getImageView().subImageView(EDGE_THRESHOLD, EDGE_THRESHOLD,
-
                                                                                     level_rows, level_cols);
         level_data.image_gauss.create(level_rows, level_cols);
 

@@ -52,6 +52,16 @@ class SAIGA_VISION_API ORBExtractor
     void Detect(Saiga::ImageView<unsigned char> inputImage, std::vector<KeypointType>& keypoints,
                 std::vector<Saiga::DescriptorORB>& outputDescriptors);
 
+    // Can be called after 'Detect' to return the scaled image on the given level.
+    // The imageview is invalidated after calling detect again.
+    ImageView<unsigned char> GetImage(int level){
+        return levels[level].image;
+    }
+
+    ScalePyramid getPyramid(){
+        return pyramid;
+    }
+
    protected:
     void AllocatePyramid(int rows, int cols);
     void ComputePyramid(Saiga::ImageView<unsigned char> image);

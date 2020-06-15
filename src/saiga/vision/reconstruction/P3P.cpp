@@ -189,33 +189,92 @@ std::optional<SE3> P3P::solve4(ArrayView<const Vec3> worldPoints, ArrayView<cons
     return bestSolution(ArrayView<SE3>(multiResults).head(n), worldPoints[3], normalizedImagePoints[3]);
 }
 
+int P3PRansac::solve(ArrayView<const Vec3> _worldPoints, ArrayView<const Vec2> _normalizedImagePoints, SE3& bestT,
+                     std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
+{
+#pragma omp single
+    {
+        worldPoints           = _worldPoints;
+        normalizedImagePoints = _normalizedImagePoints;
+        N                     = _worldPoints.size();
+    }
+
+
+    int idx;
+    idx = compute(_worldPoints.size());
+
+#pragma omp single
+    {
+        bestT      = models[idx];
+        inlierMask = inliers[idx];
+
+        bestInlierMatches.clear();
+        bestInlierMatches.reserve(numInliers[idx]);
+        for (int i = 0; i < N; ++i)
+        {
+            if (inliers[idx][i]) bestInlierMatches.push_back(i);
+        }
+    }
+
+    return numInliers[idx];
+}
+
+bool P3PRansac::computeModel(const RansacBase::Subset& set, P3PRansac::Model& model)
+{
+    std::array<Vec3, 4> A;
+    std::array<Vec2, 4> B;
+
+    for (auto i : Range(0, (int)set.size()))
+    {
+        A[i] = worldPoints[set[i]];
+        B[i] = normalizedImagePoints[set[i]];
+    }
+
+    auto res = P3P::solve4(A, B);
+
+
+    if (res.has_value())
+    {
+        model = res.value();
+        return true;
+    }
+
+    return false;
+}
+
+double P3PRansac::computeResidual(const P3PRansac::Model& model, int i)
+{
+    Vec2 ip = (model * worldPoints[i]).hnormalized();
+    return (ip - normalizedImagePoints[i]).squaredNorm();
+}
+
 
 #if 0
-    SE3 refinePose(const SE3& pose, const Vec3* worldPoints, const Vec2* normalizedImagePoints, int N, int iterations)
+SE3 refinePose(const SE3& pose, const Vec3* worldPoints, const Vec2* normalizedImagePoints, int N, int iterations)
+{
+    using MonoKernel = typename Saiga::Kernel::BAPoseMono<T, false, true>;
+    using JType      = Eigen::Matrix<T, 6, 6>;
+    using BType      = Eigen::Matrix<T, 6, 1>;
+    typename MonoKernel::CameraType dummy;
+
+    typename MonoKernel::JacobiType JrowM;
+    JType JtJ;
+    BType Jtb;
+
+    SE3 guess = pose;
+    for (auto it : Range(0, iterations))
     {
-        using MonoKernel = typename Saiga::Kernel::BAPoseMono<T, false, true>;
-        using JType      = Eigen::Matrix<T, 6, 6>;
-        using BType      = Eigen::Matrix<T, 6, 1>;
-        typename MonoKernel::CameraType dummy;
+        JtJ.setZero();
+        Jtb.setZero();
+        double chi2sum = 0;
 
-        typename MonoKernel::JacobiType JrowM;
-        JType JtJ;
-        BType Jtb;
-
-        SE3 guess = pose;
-        for (auto it : Range(0, iterations))
+        for (auto i : Range(0, N))
         {
-            JtJ.setZero();
-            Jtb.setZero();
-            double chi2sum = 0;
+            auto&& wp = worldPoints[i];
+            auto&& ip = normalizedImagePoints[i];
 
-            for (auto i : Range(0, N))
-            {
-                auto&& wp = worldPoints[i];
-                auto&& ip = normalizedImagePoints[i];
-
-                Vec2 res;
-                MonoKernel::evaluateResidualAndJacobian(dummy, guess, wp, ip, res, JrowM, 1);
+            Vec2 res;
+            MonoKernel::evaluateResidualAndJacobian(dummy, guess, wp, ip, res, JrowM, 1);
                 auto c2 = res.squaredNorm();
 
                 chi2sum += c2;

@@ -9,8 +9,8 @@
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/util/Ransac.h"
 
-#include <optional>
 #include <array>
+#include <optional>
 
 namespace Saiga
 {
@@ -71,56 +71,13 @@ class SAIGA_VISION_API P3PRansac : public RansacBase<P3PRansac, SE3, 4>
 
 
     int solve(ArrayView<const Vec3> _worldPoints, ArrayView<const Vec2> _normalizedImagePoints, SE3& bestT,
-              std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask)
-    {
-        worldPoints           = _worldPoints;
-        normalizedImagePoints = _normalizedImagePoints;
-
-        int idx;
-        idx        = compute(_worldPoints.size());
-        bestT      = models[idx];
-        inlierMask = inliers[idx];
-
-        bestInlierMatches.clear();
-        bestInlierMatches.reserve(numInliers[idx]);
-        for (int i = 0; i < N; ++i)
-        {
-            if (inliers[idx][i]) bestInlierMatches.push_back(i);
-        }
-
-        return numInliers[idx];
-    }
+              std::vector<int>& bestInlierMatches, std::vector<char>& inlierMask);
 
 
 
-    bool computeModel(const Subset& set, Model& model)
-    {
-        std::array<Vec3, 4> A;
-        std::array<Vec2, 4> B;
+    bool computeModel(const Subset& set, Model& model);
 
-        for (auto i : Range(0, (int)set.size()))
-        {
-            A[i] = worldPoints[set[i]];
-            B[i] = normalizedImagePoints[set[i]];
-        }
-
-        auto res = P3P::solve4(A, B);
-
-
-        if (res.has_value())
-        {
-            model = res.value();
-            return true;
-        }
-
-        return false;
-    }
-
-    double computeResidual(const Model& model, int i)
-    {
-        Vec2 ip = (model * worldPoints[i]).hnormalized();
-        return (ip - normalizedImagePoints[i]).squaredNorm();
-    }
+    double computeResidual(const Model& model, int i);
 
    private:
     ArrayView<const Vec3> worldPoints;

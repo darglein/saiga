@@ -17,6 +17,12 @@
 
 namespace Saiga
 {
+// EuRoC Stereo MAV dataset (flying drones)
+// The dataset directory in the params should be the path to mav0/.
+// For example:
+//   DatasetParameters params;
+//   params.dir = "/ssd2/slam/euroc/V1_03/mav0";
+//   auto c = std::make_unique<Saiga::EuRoCDataset>(params);
 class SAIGA_VISION_API EuRoCDataset : public DatasetCameraBase<StereoFrameData>
 {
    public:
@@ -28,6 +34,12 @@ class SAIGA_VISION_API EuRoCDataset : public DatasetCameraBase<StereoFrameData>
 
     virtual void LoadImageData(StereoFrameData& data) override;
     virtual int LoadMetaData() override;
+
+
+    static std::vector<std::string> DatasetNames()
+    {
+        return {"V1_01", "V1_02", "V1_03", "V2_01", "V2_02", "V2_03", "MH_01", "MH_02", "MH_03", "MH_04", "MH_05"};
+    }
 
    private:
     SE3 extrinsics_cam0, extrinsics_cam1, extrinsics_gt;
