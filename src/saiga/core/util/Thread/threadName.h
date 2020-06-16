@@ -9,8 +9,8 @@
 
 #include "saiga/config.h"
 
-#include <thread>
 #include <string>
+#include <thread>
 
 namespace Saiga
 {
@@ -44,16 +44,12 @@ class SAIGA_CORE_API ScopedThread : public std::thread
     {
     }
     ScopedThread(ScopedThread&& __t) { swap(__t); }
-    ScopedThread& operator=(ScopedThread&& __t) noexcept
-    {
-        if (joinable()) std::terminate();
-        swap(__t);
-        return *this;
-    }
+    ScopedThread& operator=(ScopedThread&& __t) noexcept;
     ~ScopedThread()
     {
         if (joinable()) join();
     }
+
    private:
     // Scoped Threads are not allowed to detach.
     // Note: Upcasting ScopedThread to std::thread and then detaching is UB

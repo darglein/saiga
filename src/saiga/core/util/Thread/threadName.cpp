@@ -6,6 +6,7 @@
 
 #include "threadName.h"
 
+#include "saiga/core/util/assert.h"
 #ifdef __APPLE__
 #    include <pthread.h>
 #endif
@@ -79,6 +80,16 @@ void setThreadName(std::thread& thread, const std::string& name)
     auto handle = thread.native_handle();
     pthread_setname_np(handle, name.c_str());
 #endif
+}
+
+ScopedThread& ScopedThread::operator=(ScopedThread&& __t) noexcept
+{
+    if (joinable())
+    {
+        SAIGA_EXIT_ERROR("Cannot assign to a running thread.");
+    }
+    swap(__t);
+    return *this;
 }
 
 
