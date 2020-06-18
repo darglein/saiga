@@ -170,6 +170,26 @@ struct ImageTypeTemplate<int>
     using ChannelType               = int;
     static constexpr ImageType type = I1;
 };
+
+template <>
+struct ImageTypeTemplate<ivec2>
+{
+    using ChannelType               = int;
+    static constexpr ImageType type = I2;
+};
+template <>
+struct ImageTypeTemplate<ivec3>
+{
+    using ChannelType               = int;
+    static constexpr ImageType type = I3;
+};
+template <>
+struct ImageTypeTemplate<ivec4>
+{
+    using ChannelType               = int;
+    static constexpr ImageType type = I4;
+};
+
 template <>
 struct ImageTypeTemplate<unsigned int>
 {
