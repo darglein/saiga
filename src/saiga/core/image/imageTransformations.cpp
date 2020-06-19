@@ -28,6 +28,19 @@ void addAlphaChannel(ImageView<const ucvec3> src, ImageView<ucvec4> dst, unsigne
     }
 }
 
+void RemoveAlphaChannel(ImageView<const ucvec4> src, ImageView<ucvec3> dst, unsigned char alpha)
+{
+    SAIGA_ASSERT(src.width == dst.width && src.height == dst.height);
+    for (int i = 0; i < src.height; ++i)
+    {
+        for (int j = 0; j < src.width; ++j)
+        {
+            dst(i, j) = src(i,j).head<3>();
+        }
+    }
+}
+
+
 void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4> dst, uint16_t minD, uint16_t maxD)
 {
     SAIGA_ASSERT(src.width == dst.width && src.height == dst.height);
@@ -184,6 +197,7 @@ void ScaleDown2(ImageView<const ucvec4> src, ImageView<ucvec4> dst)
         }
     }
 }
+
 
 
 
