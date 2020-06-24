@@ -18,9 +18,9 @@
 #include "saiga/opengl/window/sdl_window.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/util/DepthmapPreprocessor.h"
 
 #include "decimate.h"
-#include "imageProcessor.h"
 
 #include <set>
 
@@ -31,7 +31,7 @@ using namespace Saiga;
 class Sample : public StandaloneWindow<WindowManagement::SDL, Forward_Renderer>, public SDL_KeyListener
 {
    public:
-    ImageProcessor::Settings ip_settings;
+    DepthProcessor2::Settings ip_settings;
     SimpleTriangulator::Settings st_settings;
     RQT_Triangulator::Settings rqt_settings;
     QuadricDecimater::Settings qd_settings;

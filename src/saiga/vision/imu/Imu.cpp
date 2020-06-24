@@ -53,7 +53,7 @@ void Imu::Frame::sanityCheck(const Sensor& sensor)
 
     for (auto d : imu_data_since_last_frame)
     {
-        SAIGA_ASSERT(d.timestamp < timestamp);
+        SAIGA_ASSERT(d.timestamp <= timestamp);
     }
 }
 

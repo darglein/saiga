@@ -111,14 +111,14 @@ void Sample::scale_down_depth_image()
 
 void Sample::preprocess_occlusion_edges()
 {
-    ImageProcessor ip(ip_settings);
+    DepthProcessor2 ip(ip_settings);
     ip.remove_occlusion_edges(loaded_depth_image);
 }
 
 void Sample::blur_depth_image()
 {
     TemplatedImage<float> result(loaded_depth_image.height, loaded_depth_image.width);
-    ImageProcessor ip(ip_settings);
+    DepthProcessor2 ip(ip_settings);
     ip.filter_gaussian(loaded_depth_image, result);
 
     loaded_depth_image = result;

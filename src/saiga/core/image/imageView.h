@@ -44,7 +44,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     using RawDataType8 = typename std::conditional<std::is_const<T>::value, const uint8_t, uint8_t>::type;
     using NoConstType  = typename std::remove_const<T>::type;
     using Type         = T;
-    union {
+    union
+    {
         RawDataType* data;
         RawDataType8* data8;
         T* dataT;
@@ -310,7 +311,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         {
             for (int j = 0; j < dst.width; ++j)
             {
-                std::array<float, 4> vs;
+                std::array<T, 4> vs;
                 for (int di = 0; di < 2; ++di)
                 {
                     for (int dj = 0; dj < 2; ++dj)

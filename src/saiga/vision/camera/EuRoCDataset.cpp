@@ -71,7 +71,6 @@ struct Associations
 EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase<StereoFrameData>(_params)
 {
     Load();
-    computeImuDataPerFrame();
 }
 
 void EuRoCDataset::LoadImageData(StereoFrameData& data)
@@ -267,7 +266,7 @@ int EuRoCDataset::LoadMetaData()
 
 
     std::cout << "Found " << cam1_images.size() << " images and " << ground_truth.size()
-              << " ground truth meassurements." << std::endl;
+              << " ground truth meassurements and " << imuData.size() << " IMU meassurements." << std::endl;
 
     SAIGA_ASSERT(intrinsics.imageSize == intrinsics.rightImageSize);
     VLOG(1) << intrinsics;

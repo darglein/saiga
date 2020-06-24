@@ -52,7 +52,7 @@ class SAIGA_OPENGL_API Framebuffer
      * drawToAll: to all attached color buffers is drawn. The order is given by the attachment order.
      *      So the first attached texture has the ID 0. To map different ids to textures use drawTo()
      *
-     * drawToNone: to no color buffer is drawn.
+     * drawToNone: to no color buffer is drawn. only depth + stencil if they are attached.
      *
      * drawTo: to the passed buffer ids is drawn.
      */

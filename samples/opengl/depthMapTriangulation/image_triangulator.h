@@ -9,8 +9,9 @@
 #include "saiga/core/geometry/openMeshWrapper.h"
 #include "saiga/opengl/assets/all.h"
 #include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/util/DepthmapPreprocessor.h"
 
-#include "imageProcessor.h"
+
 
 namespace Saiga
 {
@@ -99,12 +100,12 @@ class RQT_Triangulator : public Triangulator
     // -------------- vertex selection --------------
 
     // adds a vertex and all its dependencies to the selected vertices using the dependency_graph
-    void resolve_dependencies(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image, Point2D vertex,
+    void resolve_dependencies(MyMesh& mesh, ImageView<const vec3> unprojected_image, Point2D vertex,
                               ImageView<MyMesh::VertexHandle> selected_vertices);
 
     // Uses a metric to determine when to split a quadtree, selects the needed
     // vertices, resolves dependencies. This function selects all neccessary vertices for the whole RQT
-    void select_vertices_for_RQT(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image,
+    void select_vertices_for_RQT(MyMesh& mesh, ImageView<const vec3> unprojected_image,
                                  ImageView<MyMesh::VertexHandle> selected_vertices);
 
     // -------------- actual triangulation --------------
@@ -121,8 +122,7 @@ class RQT_Triangulator : public Triangulator
     // close to http://www.iquilezles.org/www/articles/triangledistance/triangledistance.htm
     // allows a greater error in the distance, taken from the decimate enhanced error:
     // error /= pow(edge_to_camera_distance, 2)
-    bool check_metric(const OpenMesh::Vec3f& point, const OpenMesh::Vec3f& triangle_vertex,
-                      const OpenMesh::Vec3f& normal, float threshold);
+    bool check_metric(const vec3& point, const vec3& triangle_vertex, const vec3& normal, float threshold);
 
     // evaluates whether a triangle exceeds a given error threashold or not using the point to plane distance for every
     // pixel
@@ -135,9 +135,8 @@ class RQT_Triangulator : public Triangulator
     //					-------		-------
     // a, b, c: Points of the triangle. Always given in counter-clock-wise order with "a" being the primarily left most
     // and secondarily upper most point
-    bool check_triangle_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> unprojected_image,
-                                                 int triangle_orientation, float threshold, Point2D a, Point2D b,
-                                                 Point2D c);
+    bool check_triangle_error_threshold_exceeded(ImageView<const vec3> unprojected_image, int triangle_orientation,
+                                                 float threshold, Point2D a, Point2D b, Point2D c);
 
     // This function checks whether a given quad of a RQT should be divided. The used metric can be seen in
     // check_triangle_error_threshold_exceeded.
@@ -146,8 +145,7 @@ class RQT_Triangulator : public Triangulator
     //					a--d
     //					|  |
     //					b--c
-    bool check_quad_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> unprojected_image,
-                                             int triangle_orientation, float threshold, Point2D a, Point2D b, Point2D c,
-                                             Point2D d);
+    bool check_quad_error_threshold_exceeded(ImageView<const vec3> unprojected_image, int triangle_orientation,
+                                             float threshold, Point2D a, Point2D b, Point2D c, Point2D d);
 };
 }  // namespace Saiga

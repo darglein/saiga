@@ -67,12 +67,12 @@ void SimpleTriangulator::add_vertices_to_mesh(ImageView<const float> depthImageV
     SAIGA_ASSERT(pixel_vertices.height == height);
     SAIGA_ASSERT(pixel_vertices.width == width);
 
-    ImageProcessor::Settings ip_settings;
+    DepthProcessor2::Settings ip_settings;
     ip_settings.cameraParameters = settings.cameraParameters;
-    ImageProcessor ip(ip_settings);
+    DepthProcessor2 ip(ip_settings);
 
-    std::vector<OpenMesh::Vec3f> unprojected_image_vector(height * width);
-    ImageView<OpenMesh::Vec3f> unprojected_image(height, width, unprojected_image_vector.data());
+    std::vector<vec3> unprojected_image_vector(height * width);
+    ImageView<vec3> unprojected_image(height, width, unprojected_image_vector.data());
     ip.unproject_depth_image(depthImageView, unprojected_image);
 
     // iterate the pixels and add the not broken ones to the mesh
@@ -84,7 +84,8 @@ void SimpleTriangulator::add_vertices_to_mesh(ImageView<const float> depthImageV
             // add the vertex and color it
             if (depthImageView(h, w) != settings.broken_values)
             {
-                vh = mesh.add_vertex(unprojected_image(h, w));
+                vec3 p = unprojected_image(h, w);
+                vh     = mesh.add_vertex(OpenMesh::Vec3f(p[0], p[1], p[2]));
                 if (mesh.has_vertex_colors())
                 {
                     mesh.set_color(vh,
@@ -187,14 +188,13 @@ RQT_Triangulator::RQT_Triangulator(const Settings& settings_in) : settings(setti
 
 void RQT_Triangulator::triangulate_image(ImageView<const float> depthImage, OpenTriangleMesh& mesh_out)
 {
-    ImageProcessor::Settings ip_settings;
+    DepthProcessor2::Settings ip_settings;
     ip_settings.cameraParameters = settings.cameraParameters;
-    ImageProcessor ip(ip_settings);
+    DepthProcessor2 ip(ip_settings);
 
     // unproject the image
-    std::vector<OpenMesh::Vec3f> unprojected_image_vector(settings.image_height * settings.image_width);
-    ImageView<OpenMesh::Vec3f> unprojected_image(settings.image_height, settings.image_width,
-                                                 unprojected_image_vector.data());
+    std::vector<vec3> unprojected_image_vector(settings.image_height * settings.image_width);
+    ImageView<vec3> unprojected_image(settings.image_height, settings.image_width, unprojected_image_vector.data());
     ip.unproject_depth_image(depthImage, unprojected_image);
 
     // create an ImageView for the selected vertices
@@ -389,8 +389,8 @@ void RQT_Triangulator::create_dependency_graph()
     dependency_graph(RQT_side_len - 1, RQT_side_len - 1).clear();
 }
 
-void RQT_Triangulator::resolve_dependencies(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image,
-                                            Point2D vertex, ImageView<MyMesh::VertexHandle> selected_vertices)
+void RQT_Triangulator::resolve_dependencies(MyMesh& mesh, ImageView<const vec3> unprojected_image, Point2D vertex,
+                                            ImageView<MyMesh::VertexHandle> selected_vertices)
 {
     // create a heap of vertices left to add to the selected_vertices
     std::vector<Point2D> vertex_heap;
@@ -414,7 +414,8 @@ void RQT_Triangulator::resolve_dependencies(MyMesh& mesh, ImageView<const OpenMe
         if (selected_vertices(y, x) != MyMesh::VertexHandle()) continue;
 
         // add the current vertex to the selected vertices
-        selected_vertices(y, x) = mesh.add_vertex(unprojected_image(y, x));
+        vec3 p                  = unprojected_image(y, x);
+        selected_vertices(y, x) = mesh.add_vertex(OpenMesh::Vec3f(p[0], p[1], p[2]));
         if (mesh.has_vertex_colors())
         {
             mesh.set_color(selected_vertices(y, x), OpenMesh::Vec3f((float)y / (float)unprojected_image.height,
@@ -432,7 +433,7 @@ void RQT_Triangulator::resolve_dependencies(MyMesh& mesh, ImageView<const OpenMe
     }
 }
 
-void RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh, ImageView<const OpenMesh::Vec3f> unprojected_image,
+void RQT_Triangulator::select_vertices_for_RQT(MyMesh& mesh, ImageView<const vec3> unprojected_image,
                                                ImageView<MyMesh::VertexHandle> selected_vertices)
 {
     int image_width  = unprojected_image.width;
@@ -847,8 +848,7 @@ void RQT_Triangulator::triangulate_RQT_selected_vertices(MyMesh& current_mesh,
 
 // ----------- error calculation stuff -----------
 
-bool RQT_Triangulator::check_metric(const OpenMesh::Vec3f& point, const OpenMesh::Vec3f& triangle_vertex,
-                                    const OpenMesh::Vec3f& normal, float threshold)
+bool RQT_Triangulator::check_metric(const vec3& point, const vec3& triangle_vertex, const vec3& normal, float threshold)
 {
     // if the depth of the current pixel is broken, we can split immediately without checking the actual metric
     if (point[2] == settings.broken_values) return true;
@@ -857,16 +857,17 @@ bool RQT_Triangulator::check_metric(const OpenMesh::Vec3f& point, const OpenMesh
     float dist = dot(normal, point - triangle_vertex);
 
     // dist / depth^2
-    return dist / (point.length() * point.length()) > threshold;
+    return dist / (point.norm() * point.norm()) > threshold;
 }
 
-bool RQT_Triangulator::check_triangle_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> unprojected_image,
+bool RQT_Triangulator::check_triangle_error_threshold_exceeded(ImageView<const vec3> unprojected_image,
                                                                int triangle_orientation, float threshold, Point2D a,
                                                                Point2D b, Point2D c)
 {
-    OpenMesh::Vec3f a_v = unprojected_image(a.second, a.first);
-    OpenMesh::Vec3f b_v = unprojected_image(b.second, b.first);
-    OpenMesh::Vec3f c_v = unprojected_image(c.second, c.first);
+    vec3 a_v = unprojected_image(a.second, a.first);
+    vec3 b_v = unprojected_image(b.second, b.first);
+    vec3 c_v = unprojected_image(c.second, c.first);
+
 
     // if the triangle to be checked is represented by broken values, we immediately split
     if (a_v[2] == settings.broken_values || b_v[2] == settings.broken_values || c_v[2] == settings.broken_values)
@@ -875,7 +876,7 @@ bool RQT_Triangulator::check_triangle_error_threshold_exceeded(ImageView<const O
     }
 
     // compute triangle plane like in QuadricDecimater::calculate_fundamental_error_matrix
-    OpenMesh::Vec3f normal = cross((b_v - a_v), (c_v - a_v));
+    vec3 normal = (b_v - a_v).cross(c_v - a_v);
     normal.normalize();
 
     int counter = 0;
@@ -925,7 +926,7 @@ bool RQT_Triangulator::check_triangle_error_threshold_exceeded(ImageView<const O
     return false;
 }
 
-bool RQT_Triangulator::check_quad_error_threshold_exceeded(ImageView<const OpenMesh::Vec3f> unprojected_image,
+bool RQT_Triangulator::check_quad_error_threshold_exceeded(ImageView<const vec3> unprojected_image,
                                                            int triangle_orientation, float threshold, Point2D a,
                                                            Point2D b, Point2D c, Point2D d)
 {

@@ -231,7 +231,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
             for (; currentImuid < imuData.size(); ++currentImuid)
             {
                 auto id = imuData[currentImuid];
-                if (id.timestamp < a.timeStamp)
+                if (id.timestamp <= a.timeStamp)
                 {
                     imuFrame.imu_data_since_last_frame.push_back(id);
                 }
