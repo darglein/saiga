@@ -27,7 +27,7 @@ namespace Saiga
 // 1403636579813555456,1403636579813555456.png
 // 1403636579863555584,1403636579863555584.png
 // ...
-std::vector<std::pair<double, std::string>> loadTimestapDataCSV(const std::string& file)
+static std::vector<std::pair<double, std::string>> loadTimestapDataCSV(const std::string& file)
 {
     auto lines = File::loadFileStringArray(file);
     File::removeWindowsLineEnding(lines);
@@ -48,7 +48,10 @@ std::vector<std::pair<double, std::string>> loadTimestapDataCSV(const std::strin
         auto svImg = csvParser.next();
         if (svImg.empty()) continue;
 
-        data.emplace_back(to_double(svTime), svImg);
+        double t = to_double(svTime);
+        // The data is given in nano seconds
+        t = t / 1e9;
+        data.emplace_back(t, svImg);
     }
     std::sort(data.begin(), data.end());
     return data;
@@ -199,7 +202,7 @@ int EuRoCDataset::LoadMetaData()
             q.w() = dataq(3);
 
 
-            auto time = to_double(svTime);
+            auto time = to_double(svTime) / 1e9;
             gtTimes.push_back(time);
             ground_truth.emplace_back(time, SE3(q, data));
         }
@@ -210,6 +213,8 @@ int EuRoCDataset::LoadMetaData()
 
         std::sort(ground_truth.begin(), ground_truth.end(), [](auto a, auto b) { return a.first < b.first; });
     }
+
+
 
     groundTruthToCamera = extrinsics_gt.inverse() * extrinsics_cam0;
 
@@ -263,6 +268,9 @@ int EuRoCDataset::LoadMetaData()
         }
     }
 
+    std::cout << std::setprecision(20);
+    std::cout << "First image at " << cam0_images.front().first << " " << cam1_images.front().first << " First IMU at "
+              << imuData.front().timestamp << " First GT at " << ground_truth.front().first << std::endl;
 
 
     std::cout << "Found " << cam1_images.size() << " images and " << ground_truth.size()
@@ -296,10 +304,17 @@ int EuRoCDataset::LoadMetaData()
             a.gthigh               = id2;
             a.gtAlpha              = alpha;
 
-            if (a.right == -1 || a.gtlow == -1 || a.gthigh == -1) continue;
+
+
+            if (a.right == -1 || a.gtlow == -1 || a.gthigh == -1)
+            {
+                //                std::cout << i << " " << a.right << " " << a.gtlow << " " << a.gthigh << std::endl;
+                continue;
+            }
             assos.push_back(a);
         }
     }
+    std::cout << "assos: " << assos.size() << std::endl;
 
 
 
@@ -327,7 +342,7 @@ int EuRoCDataset::LoadMetaData()
             {
                 frame.groundTruth = slerp(ground_truth[a.gtlow].second, ground_truth[a.gthigh].second, a.gtAlpha);
             }
-            frame.timeStamp = cam0_images[a.left].first / 1e9;
+            frame.timeStamp = cam0_images[a.left].first;
 
 
 

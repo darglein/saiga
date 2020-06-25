@@ -264,6 +264,13 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
                 imuFrame.sanityCheck(imu.value());
             }
         }
+
+        if (!imuDataForFrame.empty())
+        {
+            // Clear first frame.
+            // It doesn't really make much sense because it contains the data from the previous to this frame.
+            imuDataForFrame.front() = Imu::Frame();
+        }
     }
 
     Imu::Frame ImuDataForFrame(int frame) override

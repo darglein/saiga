@@ -27,8 +27,19 @@ class TimestampMatcher
         // greater or equal to) value, or last if no such element is found.
         auto equalOrGreaterIt = std::lower_bound(rightTimes.begin(), rightTimes.end(), leftTime);
 
-        // we don't want to reference the border because there might be clamping
-        if (equalOrGreaterIt == rightTimes.end() || equalOrGreaterIt == rightTimes.begin()) return -1;
+        // didn't find a lower bound
+        // remove, because there might be clamping
+        if (equalOrGreaterIt == rightTimes.end())
+        {
+            return -1;
+        }
+
+        // lower bound smaller than the smallest from right
+        // -> accept only if equal
+        if (equalOrGreaterIt == rightTimes.begin() && leftTime < rightTimes.front())
+        {
+            return -1;
+        }
 
         auto equalOrSmallerIt = equalOrGreaterIt - 1;
 
