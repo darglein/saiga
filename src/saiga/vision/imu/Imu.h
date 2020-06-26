@@ -105,6 +105,14 @@ struct SAIGA_VISION_API Data
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+    static Data InterpolateAlpha(const Data& before, const Data& after, double alpha)
+    {
+        Data result;
+        result.omega        = (1.0 - alpha) * before.omega + alpha * after.omega;
+        result.acceleration = (1.0 - alpha) * before.acceleration + alpha * after.acceleration;
+        result.timestamp    = (1.0 - alpha) * before.timestamp + alpha * after.timestamp;
+        return result;
+    }
 
     static Data Interpolate(const Data& before, const Data& after, double new_timestamp)
     {
@@ -112,13 +120,7 @@ struct SAIGA_VISION_API Data
         SAIGA_ASSERT(before.timestamp <= new_timestamp);
         SAIGA_ASSERT(after.timestamp >= new_timestamp);
         double alpha = (new_timestamp - before.timestamp) / (after.timestamp - before.timestamp);
-
-
-        Data result;
-        result.omega        = (1.0 - alpha) * before.omega + alpha * after.omega;
-        result.acceleration = (1.0 - alpha) * before.acceleration + alpha * after.acceleration;
-        result.timestamp    = new_timestamp;
-        return result;
+        return InterpolateAlpha(before, after, alpha);
     }
 
     void Transform(const Mat3& q)
@@ -150,43 +152,68 @@ struct Sensor
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::Sensor& sensor);
 
 
-// Camera frames appear in lower frequency than IMU meassurements. This structs is a collection of all IMU meassurements
-// between two camera frames. If this Frame objects belongs to camera frame i, then it contains all IMU data from frame
-// (i-1) to frame i. For sanity, the timestamp of this camera frame should be larger than all the IMU datas.
-//
-// This struct also contains an interpolated IMU meassurement exactly at the image time. To compute this interpolated
-// value, one IMU meassurement after the image is required. Implementations of live sensors should therefore return the
-// image only after one more IMU input has arrived.
-struct SAIGA_VISION_API Frame
+struct SAIGA_VISION_API ImuSequence
 {
     // Timestamp of the image.
-    double timestamp = std::numeric_limits<double>::infinity();
+    double time_begin = std::numeric_limits<double>::infinity();
+    double time_end   = std::numeric_limits<double>::infinity();
 
     // All meassurements since the last frame. The frame 0 contains all meassurements since the beginning. All elements
     // in this array should have a smaller timestamp than 'timestamp' above.
-    std::vector<Imu::Data> imu_data_since_last_frame;
-
-    // The clostest imu data right after this image frame. The timestamp difference between this and 'timestamp' from
-    // above should be less than the imu frequency.
-    Imu::Data imu_directly_after_this_frame;
+    std::vector<Imu::Data> data;
 
 
-    Imu::Data interpolated_imu;
-
-
-    void Transform(const Mat3& q)
+    bool Valid() const
     {
-        interpolated_imu.Transform(q);
-        imu_directly_after_this_frame.Transform(q);
-        for (auto& d : imu_data_since_last_frame)
+        if (!std::isfinite(time_begin) || !std::isfinite(time_begin))
         {
-            d.Transform(q);
+            return false;
         }
+        return true;
     }
 
-    void computeInterpolatedImuValue();
+    // Adds another Sequence to the end.
+    // A double value at the border is removed.
+    void Add(const ImuSequence& other);
+};
 
-    void sanityCheck(const Sensor& sensor);
+
+// Inserts missing values into the sequences at the 'border'.
+SAIGA_VISION_API void InterpolateMissingValues(ArrayView<ImuSequence> sequences);
+
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::ImuSequence& sequence);
+
+struct SAIGA_VISION_API Preintegration
+{
+    Preintegration(const Vec3& bias_gyro = Vec3::Zero(), const Vec3& bias_accel = Vec3::Zero())
+        : bias_gyro_lin(bias_gyro), bias_accel_lin(bias_accel)
+    {
+    }
+
+    void Add(const Data& data, double dt) { Add(data.omega, data.acceleration, dt); }
+
+    // The main integration function.
+    // This assumes a constant w and a for dt time.
+    void Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias, double dt);
+
+    // Adds the complete sequence using forward integration (explicit Euler).
+    void IntegrateForward(const ImuSequence& sequence);
+
+    void IntegrateMidPoint(const ImuSequence& sequence);
+
+
+    // Integrated values (Initialized to identity/0);
+    double delta_t = 0;
+    Quat delta_R   = Quat::Identity();
+
+    // Derivative w.r.t. the gyro bias
+    Mat3 J_R_Biasg = Mat3::Zero();
+
+
+   private:
+    // Linear bias, which is subtracted from the meassurements.
+    // Private because changing the bias invalidates the preintegration.
+    Vec3 bias_gyro_lin, bias_accel_lin;
 };
 
 

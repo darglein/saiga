@@ -53,6 +53,7 @@ if(MODULE_VISION)
   saiga_test(test_vision_two_view_reconstruction "saiga_vision")
   saiga_test(test_vision_feature_grid "saiga_vision")
   saiga_test(test_vision_five_eight_point "saiga_vision")
+  saiga_test(test_vision_imu "saiga_vision")
 endif()
 
 if(MODULE_CUDA)

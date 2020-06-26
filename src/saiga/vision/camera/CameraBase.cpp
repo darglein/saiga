@@ -20,6 +20,7 @@ void DatasetParameters::fromConfigFile(const std::string& file)
     INI_GETADD_LONG(ini, group, maxFrames);
     INI_GETADD_BOOL(ini, group, multiThreadedLoad);
     INI_GETADD_BOOL(ini, group, preload);
+    INI_GETADD_BOOL(ini, group, normalize_timestamps);
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 

@@ -268,9 +268,10 @@ int EuRoCDataset::LoadMetaData()
         }
     }
 
-    std::cout << std::setprecision(20);
-    std::cout << "First image at " << cam0_images.front().first << " " << cam1_images.front().first << " First IMU at "
-              << imuData.front().timestamp << " First GT at " << ground_truth.front().first << std::endl;
+    //    std::cout << std::setprecision(20);
+    //    std::cout << "First image at " << cam0_images.front().first << " " << cam1_images.front().first << " First IMU
+    //    at "
+    //              << imuData.front().timestamp << " First GT at " << ground_truth.front().first << std::endl;
 
 
     std::cout << "Found " << cam1_images.size() << " images and " << ground_truth.size()
@@ -279,6 +280,17 @@ int EuRoCDataset::LoadMetaData()
     SAIGA_ASSERT(intrinsics.imageSize == intrinsics.rightImageSize);
     VLOG(1) << intrinsics;
 
+
+
+    if (params.normalize_timestamps)
+    {
+        double first_time = cam0_images.front().first;
+
+        for (auto& i : cam0_images) i.first -= first_time;
+        for (auto& i : cam1_images) i.first -= first_time;
+        for (auto& i : ground_truth) i.first -= first_time;
+        for (auto& i : imuData) i.timestamp -= first_time;
+    }
 
 
     std::vector<Associations> assos;

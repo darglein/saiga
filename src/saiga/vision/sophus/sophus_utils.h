@@ -39,7 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "saiga/vision/VisionIncludes.h"
+#include "saiga/vision/sophus/SophusSelector.h"
 
 namespace Sophus
 {

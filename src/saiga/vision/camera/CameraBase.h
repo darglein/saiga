@@ -32,7 +32,7 @@ class CameraBase2
 
     // Optional IMU data if the camera provides it.
     // The returned vector contains all data from frame-1 to frame.
-    virtual Imu::Frame ImuDataForFrame(int frame) { return {}; }
+    virtual Imu::ImuSequence ImuDataForFrame(int frame) { return {}; }
     virtual std::optional<Imu::Sensor> getIMU() { return {}; }
 };
 
@@ -82,6 +82,9 @@ struct SAIGA_VISION_API DatasetParameters
     // Load all images to ram at the beginning.
     bool preload = true;
 
+    // Subtract the timestamp of the first image from everything.
+    bool normalize_timestamps = false;
+
     void fromConfigFile(const std::string& file);
 
     friend std::ostream& operator<<(std::ostream& strm, const DatasetParameters& params);
@@ -105,7 +108,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
     {
         timer.start();
         lastFrameTime = timer.stop();
-        nextFrameTime = lastFrameTime;
+        nextFrameTime = lastFrameTime + timeStep;
     }
 
     void Load()
@@ -222,58 +225,46 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         imuDataForFrame.resize(frames.size());
         int currentImuid = 0;
 
+        // Initialize imu sequences
         for (int i = 0; i < frames.size(); ++i)
         {
-            Imu::Frame& imuFrame = imuDataForFrame[i];
+            Imu::ImuSequence& imuFrame = imuDataForFrame[i];
 
-            auto& a            = frames[i];
-            imuFrame.timestamp = a.timeStamp;
+            auto& frame       = frames[i];
+            imuFrame.time_end = frame.timeStamp;
             for (; currentImuid < imuData.size(); ++currentImuid)
             {
                 auto id = imuData[currentImuid];
-                if (id.timestamp <= a.timeStamp)
+                if (id.timestamp <= frame.timeStamp)
                 {
-                    imuFrame.imu_data_since_last_frame.push_back(id);
+                    imuFrame.data.push_back(id);
                 }
                 else
                 {
-                    imuFrame.imu_directly_after_this_frame = id;
                     break;
                 }
             }
 
 
-            if (imuFrame.imu_data_since_last_frame.empty()) continue;
-
-            // not a valid meassurement after this frame
-            // -> use last one if it exists
-            // This is not really correct but an approximation that only effects the last frame of a dataset.
-            if (!std::isfinite(imuFrame.imu_directly_after_this_frame.timestamp))
+            if (i >= 1)
             {
-                if (!imuFrame.imu_data_since_last_frame.empty())
-                {
-                    imuFrame.imu_directly_after_this_frame           = imuFrame.imu_data_since_last_frame.back();
-                    imuFrame.imu_directly_after_this_frame.timestamp = imuFrame.timestamp;
-                }
-            }
-
-            imuFrame.computeInterpolatedImuValue();
-            auto imu = getIMU();
-            if (imu)
-            {
-                imuFrame.sanityCheck(imu.value());
+                imuFrame.time_begin = imuDataForFrame[i - 1].time_end;
             }
         }
+
+
 
         if (!imuDataForFrame.empty())
         {
             // Clear first frame.
             // It doesn't really make much sense because it contains the data from the previous to this frame.
-            imuDataForFrame.front() = Imu::Frame();
+            //            imuDataForFrame.front() = Imu::ImuSequence();
         }
+
+        Imu::InterpolateMissingValues(imuDataForFrame);
     }
 
-    Imu::Frame ImuDataForFrame(int frame) override
+    Imu::ImuSequence ImuDataForFrame(int frame) override
     {
         if (frame < imuDataForFrame.size())
         {
@@ -296,7 +287,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
     Imu::Sensor imu;
     std::vector<Imu::Data> imuData;
-    std::vector<Imu::Frame> imuDataForFrame;
+    std::vector<Imu::ImuSequence> imuDataForFrame;
 
    private:
     Timer timer;
