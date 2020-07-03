@@ -58,6 +58,7 @@ void testSaveLoadLibPNG(const TemplatedImage<T>& img)
 template <typename T>
 void testSaveLoadFreeimage(const TemplatedImage<T>& img, const std::string& type = "png")
 {
+#ifdef SAIGA_USE_FREEIMAGE
     std::string file = "loadstoretest_freeimage." + type;
     std::filesystem::remove(file);
     EXPECT_TRUE(FIP::save(file, img));
@@ -69,6 +70,7 @@ void testSaveLoadFreeimage(const TemplatedImage<T>& img, const std::string& type
 
     EXPECT_EQ(img.dimensions(), img2.dimensions());
     EXPECT_EQ(img.getConstImageView(), img2.getConstImageView());
+#endif
 }
 
 
