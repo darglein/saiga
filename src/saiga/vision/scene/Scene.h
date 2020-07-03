@@ -114,13 +114,19 @@ struct SAIGA_VISION_API SceneImage
 };
 
 
-struct SmoothConstraint
+
+// Enforces that two keyframes have the given relative pose.
+// For example,
+struct RelPoseConstraint
 {
-    // smoothness regulizer between 3 poses
-    // cost with p1,p2,p3 the corresponding poses:
-    // C = w*(log(p1*p2inv)-log(p2*p3inv))
-    int ex1 = -1, ex2 = -1, ex3 = -1;
-    double weight = 1;
+    // Index of the images
+    int img1 = -1, img2 = -1;
+
+    SE3 rel_pose;
+
+    // Rotation and translation is weighted separately
+    double weight_rotation    = 0;
+    double weight_translation = 0;
 };
 
 class SAIGA_VISION_API Scene
@@ -132,8 +138,8 @@ class SAIGA_VISION_API Scene
     AlignedVector<WorldPoint> worldPoints;
     AlignedVector<SceneImage> images;
 
-    // optional, only works with ceres smooth ba solver
-    AlignedVector<SmoothConstraint> smoothnessConstraints;
+
+    AlignedVector<RelPoseConstraint> rel_pose_constraints;
 
 
 

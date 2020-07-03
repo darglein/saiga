@@ -18,6 +18,7 @@
 #include "ceres/solver.h"
 
 #include "CeresKernel_BA_Intr4.h"
+#include "CeresKernel_SmoothBA.h"
 #include "local_parameterization_se3.h"
 
 #define BA_AUTODIFF
@@ -140,6 +141,23 @@ OptimizationResults CeresBA::initAndSolve()
         }
     }
 
+
+    for (auto& rel_constraint : scene.rel_pose_constraints)
+    {
+        auto& p1 = scene.images[rel_constraint.img1].se3;
+        auto& p2 = scene.images[rel_constraint.img2].se3;
+#if 0
+        CostRelPose c(rel_constraint.rel_pose.inverse(), rel_constraint.weight_rotation,
+                      rel_constraint.weight_translation);
+        Vec6 residual;
+        c(p1.data(), p2.data(), residual.data());
+        std::cout << "ceres res: " << residual.transpose() << std::endl;
+#endif
+
+        auto cost_function = CostRelPose::create(rel_constraint.rel_pose.inverse(), rel_constraint.weight_rotation,
+                                                 rel_constraint.weight_translation);
+        problem.AddResidualBlock(cost_function, nullptr, p1.data(), p2.data());
+    }
 
 
     //    double costInit = 0;

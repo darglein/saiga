@@ -172,6 +172,7 @@ struct SAIGA_VISION_API ImuSequence
         return true;
     }
 
+    double DeltaTime() { return time_end - time_begin; }
     // Adds another Sequence to the end.
     // A double value at the border is removed.
     void Add(const ImuSequence& other);

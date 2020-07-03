@@ -102,16 +102,16 @@ OptimizationResults CeresBASmooth::initAndSolve()
         }
     }
 
-    for (auto& sc : scene.smoothnessConstraints)
-    {
-        auto& p1 = scene.images[sc.ex1].se3;
-        auto& p2 = scene.images[sc.ex2].se3;
-        auto& p3 = scene.images[sc.ex3].se3;
-        auto w   = sc.weight;
+    //    for (auto& sc : scene.smoothnessConstraints)
+    //    {
+    //        auto& p1 = scene.images[sc.ex1].se3;
+    //        auto& p2 = scene.images[sc.ex2].se3;
+    //        auto& p3 = scene.images[sc.ex3].se3;
+    //        auto w   = sc.weight;
 
-        auto cost_function = CostSmoothBA::create(w);
-        problem.AddResidualBlock(cost_function, nullptr, p1.data(), p2.data(), p3.data());
-    }
+    //        auto cost_function = CostSmoothBA::create(w);
+    //        problem.AddResidualBlock(cost_function, nullptr, p1.data(), p2.data(), p3.data());
+    //    }
 
 
     ceres::Solver::Options ceres_options = make_options(optimizationOptions);
