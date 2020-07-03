@@ -146,6 +146,9 @@ void InterpolateMissingValues(ArrayView<Imu::ImuSequence> sequences)
     {
         Imu::ImuSequence& current = sequences[i];
         Imu::ImuSequence& next    = sequences[i + 1];
+
+        if(current.data.empty() || next.data.empty()) continue;
+
         SAIGA_ASSERT(current.time_end == next.time_begin);
 
         double t = current.time_end;

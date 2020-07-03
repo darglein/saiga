@@ -15,9 +15,28 @@
 #include <memory>
 namespace Eigen::Recursive
 {
-/**
- * Multi threaded implementation.
- */
+// Schur Solver for the following format:
+//
+//   | U   W  |  |x1|    |a|
+//   | WT  V  |  |x2| =  |b|
+//
+// U: Block Diagonal
+// V: Block Diagonal
+// W: Sparse Block
+//
+// Solution: (https://en.wikipedia.org/wiki/Schur_complement)
+//
+// Schur Matrix
+//    S = U - W * V^-1 * WT
+// Right Hand Side of Schur System
+//   r1 = a - W * V^-1 * b
+// Solve for x1
+//    S * x1 = r1
+// Solve for x2
+//   r2 = b - WT * x1
+//   x2 = V^-1 * r
+//
+//
 template <typename UBlock, typename VBlock, typename WBlock, typename XType>
 class MixedSymmetricRecursiveSolver<
     SymmetricMixedMatrix2<Eigen::DiagonalMatrix<UBlock, -1>, Eigen::DiagonalMatrix<VBlock, -1>,
@@ -137,24 +156,19 @@ class MixedSymmetricRecursiveSolver<
             transposeValueOnly(A.w, WT);
         }
 
-#if 1
-        // U schur (S1)
+        // Invert V
         for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
+
+        // Y = W * V^-1
         multSparseDiag(W, Vinv, Y);
 
         if (explizitSchur)
         {
             eigen_assert(hasWT);
+            // S = U - W * V^-1 * WT
             S1            = (Y * WT).template triangularView<Eigen::Upper>();
             S1            = -S1;
             S1.diagonal() = U.diagonal() + S1.diagonal();
-
-            //            S2            = (Y * WT).template triangularView<Eigen::Upper>();
-            //            S2            = -S2;
-            //            S2.diagonal() = U.diagonal() + S2.diagonal();
-
-            //            std::cout << expand(S1) << std::endl << std::endl;
-            //            std::cout << expand(S2) << std::endl << std::endl;
         }
         else
         {
@@ -162,25 +176,8 @@ class MixedSymmetricRecursiveSolver<
             Sdiag.diagonal() = U.diagonal() - Sdiag.diagonal();
         }
 
-        //        std::cout << expand(Sdiag.toDenseMatrix()) << std::endl << std::endl;
-        //        exit(0);
+        // r = a - W * V^-1 * b
         ej = ea + -(Y * eb);
-        da.setZero();
-
-        //        exit(0);
-
-
-
-        if (explizitSchur)
-        {
-            P.compute(S1);
-            //            std::cout << expand(P.m_invdiag) << std::endl << std::endl;
-        }
-        else
-        {
-            P.compute(Sdiag);
-            //            std::cout << expand(P.m_invdiag) << std::endl << std::endl;
-        }
 
 
         if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
@@ -199,6 +196,16 @@ class MixedSymmetricRecursiveSolver<
         }
         else
         {
+            if (explizitSchur)
+            {
+                P.compute(S1);
+            }
+            else
+            {
+                P.compute(Sdiag);
+            }
+            da.setZero();
+
             // Iterative CG solver
             Eigen::Index iters = solverOptions.maxIterativeIterations;
             double tol         = solverOptions.iterativeTolerance;
@@ -246,11 +253,6 @@ class MixedSymmetricRecursiveSolver<
         }
         q  = eb - q;
         db = multDiagVector(Vinv, q);
-#else
-        // V schur (S1)
-        for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
-        Y = multSparseDiag(W, Vinv);
-#endif
     }
 
     void solve_omp(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
