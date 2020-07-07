@@ -231,10 +231,15 @@ struct SAIGA_VISION_API Preintegration
     // Integrated values (Initialized to identity/0);
     double delta_t = 0;
     Quat delta_R   = Quat::Identity();
+    Vec3 delta_x   = Vec3::Zero();
+    Vec3 delta_v   = Vec3::Zero();
 
     // Derivative w.r.t. the gyro bias
     Mat3 J_R_Biasg = Mat3::Zero();
 
+    // Derivative w.r.t. the acc bias
+    Mat3 J_P_Biasa = Mat3::Zero();
+    Mat3 J_V_Biasa = Mat3::Zero();
 
    private:
     // Linear bias, which is subtracted from the meassurements.

@@ -50,6 +50,14 @@ OptimizationResults CeresBA::initAndSolve()
         if (scene.images[i].constant) problem.SetParameterBlockConstant(scene.images[i].se3.data());
     }
 
+
+    for (size_t i = 0; i < scene.worldPoints.size(); ++i)
+    {
+        problem.AddParameterBlock(scene.worldPoints[i].p.data(), 3);
+        if (scene.worldPoints[i].constant) problem.SetParameterBlockConstant(scene.worldPoints[i].p.data());
+    }
+
+
     ceres::HuberLoss lossFunctionMono(baOptions.huberMono);
     ceres::HuberLoss lossFunctionStereo(baOptions.huberStereo);
     //    ceres::CauchyLoss lossFunctionMono(baOptions.huberMono);

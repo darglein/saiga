@@ -21,7 +21,8 @@ struct SAIGA_VISION_API WorldPoint
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     Eigen::Vector3d p;
-    bool valid = false;
+    bool valid    = false;
+    bool constant = false;
 
     // Pair < ImageID, ImagePointID >
     std::vector<std::pair<int, int> > stereoreferences;

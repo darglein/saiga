@@ -91,14 +91,27 @@ void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias,
     }
 
     Vec3 omega = omega_with_bias - bias_gyro_lin;
-    //        Vec3 acc   = acc_with_bias - bias_accel_lin;
+    Vec3 acc   = acc_with_bias - bias_accel_lin;
+    double dt2 = dt * dt;
 
     Quat dR = Sophus::SO3d::exp(omega * dt).unit_quaternion();
     Mat3 Jr;
     Sophus::rightJacobianSO3(omega * dt, Jr);
+
+    // jacobian of delta measurements w.r.t bias of gyro/acc
+    // update P first, then V, then R
+    J_P_Biasa += J_V_Biasa * dt - 0.5 * delta_R.matrix() * dt2;
+    //    J_P_Biasg += _J_V_Biasg*dt - 0.5*_delta_R*skew(acc)*_J_R_Biasg*dt2;
+    J_V_Biasa += -delta_R.matrix() * dt;
+    //    J_V_Biasg += -_delta_R*skew(acc)*_J_R_Biasg*dt;
+
     J_R_Biasg = dR.inverse().matrix() * J_R_Biasg - Jr * dt;
-    delta_R   = (delta_R * dR).normalized();
+
+
     delta_t += dt;
+    delta_x += delta_v * dt + 0.5 * dt2 * (delta_R * acc);  // P_k+1 = P_k + V_k*dt + R_k*a_k*dt*dt/2
+    delta_v += dt * (delta_R * acc);
+    delta_R = (delta_R * dR).normalized();
 }
 
 void Preintegration::IntegrateForward(const Imu::ImuSequence& sequence)
