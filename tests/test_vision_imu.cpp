@@ -56,12 +56,13 @@ static std::vector<std::pair<Imu::ImuSequence, SE3>> RandomTrajectory(int N, int
 TEST(Imu, SolveGyroBias)
 {
     auto test_trajectory = [](auto trajectory, auto bias) -> double {
-        std::vector<std::pair<const Imu::ImuSequence*, Quat>> solver_data;
-        for (int i = 0; i < trajectory.size(); ++i)
+        std::vector<std::tuple<const Imu::ImuSequence*, Quat, Quat>> solver_data;
+        for (int i = 1; i < trajectory.size(); ++i)
         {
-            solver_data.push_back({&trajectory[i].first, trajectory[i].second.unit_quaternion()});
+            solver_data.push_back({&trajectory[i].first, trajectory[i - 1].second.unit_quaternion(),
+                                   trajectory[i].second.unit_quaternion()});
         }
-        Vec3 bias2 = SolveGlobalGyroBias(solver_data, 2);
+        Vec3 bias2 = Imu::SolveGlobalGyroBias(solver_data, 2);
         return (bias - bias2).norm();
     };
 

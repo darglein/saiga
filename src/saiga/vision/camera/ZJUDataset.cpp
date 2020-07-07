@@ -140,12 +140,13 @@ int ZJUDataset::LoadMetaData()
         imu.sensor_to_body = SE3(qua, p);
 
         imu.frequency                = config["frequency"].as<double>();
+        imu.frequency_sqrt           = sqrt(imu.frequency);
         imu.omega_sigma              = config["intrinsic"]["sigma_w"].as<double>();
         imu.omega_random_walk        = config["intrinsic"]["sigma_bw"].as<double>();
         imu.acceleration_sigma       = config["intrinsic"]["sigma_a"].as<double>();
         imu.acceleration_random_walk = config["intrinsic"]["sigma_ba"].as<double>();
 
-        //        std::cout << imu << std::endl;
+        std::cout << imu << std::endl;
     }
 
 
@@ -258,6 +259,17 @@ void ZJUDataset::associate(const std::string& datasetDir)
             }
             imuData.emplace_back(omega, acceleration, time);
         }
+    }
+
+
+    if (params.normalize_timestamps)
+    {
+        double first_time = images.front().first;
+
+        for (auto& i : images) i.first -= first_time;
+        for (auto& i : gt) i.first -= first_time;
+        for (auto& i : gtTimes) i -= first_time;
+        for (auto& i : imuData) i.timestamp -= first_time;
     }
 
     for (auto&& r : images)

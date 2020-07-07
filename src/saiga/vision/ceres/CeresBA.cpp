@@ -119,8 +119,8 @@ OptimizationResults CeresBA::initAndSolve()
                                          wp.data());
 #endif
                 // With this ordering the schur complement is computed in the correct order
-                ordering->AddElementToGroup(wp.data(), 0);
-                ordering->AddElementToGroup(extr.data(), 1);
+                //                ordering->AddElementToGroup(wp.data(), 0);
+                //                ordering->AddElementToGroup(extr.data(), 1);
             }
             else
             {
@@ -135,8 +135,8 @@ OptimizationResults CeresBA::initAndSolve()
                                          wp.data());
 #endif
                 // With this ordering the schur complement is computed in the correct order
-                ordering->AddElementToGroup(wp.data(), 0);
-                ordering->AddElementToGroup(extr.data(), 1);
+                //                ordering->AddElementToGroup(wp.data(), 0);
+                //                ordering->AddElementToGroup(extr.data(), 1);
             }
         }
     }
@@ -146,12 +146,14 @@ OptimizationResults CeresBA::initAndSolve()
     {
         auto& p1 = scene.images[rel_constraint.img1].se3;
         auto& p2 = scene.images[rel_constraint.img2].se3;
+
 #if 0
         CostRelPose c(rel_constraint.rel_pose.inverse(), rel_constraint.weight_rotation,
                       rel_constraint.weight_translation);
         Vec6 residual;
         c(p1.data(), p2.data(), residual.data());
-        std::cout << "ceres res: " << residual.transpose() << std::endl;
+        std::cout << "ceres rel " << rel_constraint.img1 << " - " << rel_constraint.img2 << ": " << residual.transpose()
+                  << std::endl;
 #endif
 
         auto cost_function = CostRelPose::create(rel_constraint.rel_pose.inverse(), rel_constraint.weight_rotation,
@@ -166,7 +168,7 @@ OptimizationResults CeresBA::initAndSolve()
 
 
     ceres::Solver::Options ceres_options = make_options(optimizationOptions);
-    ceres_options.linear_solver_ordering = ordering;
+    //    ceres_options.linear_solver_ordering = ordering;
 
 
 

@@ -120,7 +120,12 @@ struct SAIGA_VISION_API Data
         SAIGA_ASSERT(before.timestamp <= new_timestamp);
         SAIGA_ASSERT(after.timestamp >= new_timestamp);
         double alpha = (new_timestamp - before.timestamp) / (after.timestamp - before.timestamp);
-        return InterpolateAlpha(before, after, alpha);
+
+        Data result;
+        result.omega        = (1.0 - alpha) * before.omega + alpha * after.omega;
+        result.acceleration = (1.0 - alpha) * before.acceleration + alpha * after.acceleration;
+        result.timestamp    = new_timestamp;
+        return result;
     }
 
     void Transform(const Mat3& q)
@@ -135,15 +140,24 @@ SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::Data& d
 
 struct Sensor
 {
-    // Number of meassueremnt per second in [hz]
-    double frequency;
+    // Number of measurement per second
+    // Hz
+    double frequency = -1;
+    // sqrt(Hz)
+    double frequency_sqrt = -1;
 
-    // Standard deviation of the sensor noise
-    double acceleration_sigma;
-    double acceleration_random_walk;
-
+    // Standard deviation of the sensor noise per timestep
+    // rad / s / sqrt(Hz)
     double omega_sigma;
+
+    // rad / s^2 / sqrt(Hz)
     double omega_random_walk;
+
+    // m / s^2 / sqrt(Hz)
+    double acceleration_sigma;
+
+    // m / s^3 / sqrt(Hz)
+    double acceleration_random_walk;
 
     // Transformation from the sensor coordinate system to the devices' coordinate system.
     SE3 sensor_to_body;
@@ -162,6 +176,17 @@ struct SAIGA_VISION_API ImuSequence
     // in this array should have a smaller timestamp than 'timestamp' above.
     std::vector<Imu::Data> data;
 
+
+    bool complete() const
+    {
+        if (data.empty()) return false;
+
+        if (time_begin == data.front().timestamp && time_end == data.back().timestamp)
+        {
+            return true;
+        }
+        return false;
+    }
 
     bool Valid() const
     {

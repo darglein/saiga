@@ -151,6 +151,7 @@ int EuRoCDataset::LoadMetaData()
         imu.sensor_to_body = SE3::fitToSE3(m);
 
         imu.frequency                = config["rate_hz"].as<double>();
+        imu.frequency_sqrt           = sqrt(imu.frequency);
         imu.omega_sigma              = config["gyroscope_noise_density"].as<double>();
         imu.omega_random_walk        = config["gyroscope_random_walk"].as<double>();
         imu.acceleration_sigma       = config["accelerometer_noise_density"].as<double>();

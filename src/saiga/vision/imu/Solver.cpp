@@ -7,7 +7,7 @@
 #include "Solver.h"
 namespace Saiga::Imu
 {
-Vec3 SolveGlobalGyroBias(ArrayView<std::pair<const ImuSequence*, Quat> > data, int max_its)
+Vec3 SolveGlobalGyroBias(ArrayView<std::tuple<const Imu::ImuSequence*, Quat, Quat> > data, int max_its)
 {
     Vec3 current_bias = Vec3::Zero();
     for (int its = 0; its < max_its; ++its)
@@ -15,17 +15,16 @@ Vec3 SolveGlobalGyroBias(ArrayView<std::pair<const ImuSequence*, Quat> > data, i
         double chi2 = 0;
         Mat3 JtJ    = Mat3::Zero();
         Vec3 Jtb    = Vec3::Zero();
-        for (int i = 1; i < data.size(); ++i)
+        for (int i = 0; i < data.size(); ++i)
         {
-            auto& d1 = data[i - 1];
-            auto& d2 = data[i];
+            auto& d = data[i];
 
             // the preintegration is from previous to current
             Imu::Preintegration preint(current_bias);
-            preint.IntegrateForward(*d2.first);
+            preint.IntegrateForward(*std::get<0>(d));
 
             // 1. Compute residual
-            Quat relative_rotation = d1.second.inverse() * d2.second;
+            Quat relative_rotation = std::get<1>(d).inverse() * std::get<2>(d);
             Quat delta_rotation    = preint.delta_R.inverse() * relative_rotation;
             Vec3 residual          = Sophus::SO3d(delta_rotation).log();
 

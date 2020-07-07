@@ -42,6 +42,19 @@ std::ostream& operator<<(std::ostream& strm, const Imu::ImuSequence& sequence)
 
 void ImuSequence::Add(const ImuSequence& other)
 {
+    if (!Valid())
+    {
+        *this = other;
+        return;
+    }
+
+
+    if (!other.Valid())
+    {
+        return;
+    }
+
+
     SAIGA_ASSERT(time_end == other.time_begin);
     time_end = other.time_end;
 
@@ -110,7 +123,7 @@ void Preintegration::IntegrateForward(const Imu::ImuSequence& sequence)
     Add(last_value, sequence.time_end - last_value.timestamp);
 
 
-    SAIGA_ASSERT(std::abs(delta_t - (sequence.time_end - sequence.time_begin)) < 1e-10);
+    // SAIGA_ASSERT(std::abs(delta_t - (sequence.time_end - sequence.time_begin)) < 1e-10);
 }
 
 void Preintegration::IntegrateMidPoint(const Imu::ImuSequence& sequence)
@@ -147,7 +160,7 @@ void InterpolateMissingValues(ArrayView<Imu::ImuSequence> sequences)
         Imu::ImuSequence& current = sequences[i];
         Imu::ImuSequence& next    = sequences[i + 1];
 
-        if(current.data.empty() || next.data.empty()) continue;
+        if (current.data.empty() || next.data.empty()) continue;
 
         SAIGA_ASSERT(current.time_end == next.time_begin);
 

@@ -71,6 +71,7 @@ void Scene::clear()
     intrinsics.clear();
     worldPoints.clear();
     images.clear();
+    rel_pose_constraints.clear();
 }
 
 void Scene::reserve(int _images, int points, int observations)

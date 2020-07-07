@@ -51,7 +51,8 @@ struct PoseOptimizationScene
     AlignedVector<int> outlier;
 
     Sophus::SE3<T> prediction;
-    double prediction_weight = 0;
+    double weight_rotation    = 0;
+    double weight_translation = 0;
 
 
     double chi2()
@@ -84,7 +85,7 @@ struct PoseOptimizationScene
     {
         Sophus::SE3d T_j_i   = prediction.inverse() * pose;
         Sophus::Vector6d res = Sophus::se3_logd(T_j_i);
-        Vec6 residual        = res * prediction_weight;
+        Vec6 residual        = res * weight_rotation;
         return residual.squaredNorm();
     }
 };
