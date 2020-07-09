@@ -121,7 +121,7 @@ OptimizationResults OptimizePoseCeres(PoseOptimizationScene<T>& scene, bool smoo
 
     if (smooth)
     {
-        auto* cost_pp = PosePredictionCeresCost<T>::create(scene.prediction, scene.prediction_weight);
+        auto* cost_pp = PosePredictionCeresCost<T>::create(scene.prediction, scene.weight_rotation);
         problem.AddResidualBlock(cost_pp, nullptr, scene.pose.data());
     }
 

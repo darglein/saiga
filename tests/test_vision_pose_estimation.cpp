@@ -50,9 +50,9 @@ class RPOTest
         }
 
         scene.outlier.resize(scene.obs.size(), false);
-        scene.pose              = Random::JitterPose(scene.pose, 0.01, 0.02);
-        scene.prediction        = Random::JitterPose(scene.pose, 0.01, 0.02);
-        scene.prediction_weight = 0;
+        scene.pose            = Random::JitterPose(scene.pose, 0.01, 0.02);
+        scene.prediction      = Random::JitterPose(scene.pose, 0.01, 0.02);
+        scene.weight_rotation = 0;
     }
 
 
