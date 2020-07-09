@@ -327,7 +327,7 @@ int EuRoCDataset::LoadMetaData()
             assos.push_back(a);
         }
     }
-    std::cout << "assos: " << assos.size() << std::endl;
+    //    std::cout << "assos: " << assos.size() << std::endl;
 
 
 
