@@ -72,6 +72,14 @@ std::optional<SE3> MotionModel::predictVelocityForFrame(int frameId)
     return v;
 }
 
+void MotionModel::ScaleLinearVelocity(double scale)
+{
+    for(auto& d : data)
+    {
+        d.velocity.translation() *= scale;
+    }
+}
+
 
 #if 0
 SE3 MotionModel::computeVelocity()

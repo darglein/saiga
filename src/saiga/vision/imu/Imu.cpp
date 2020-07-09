@@ -3,8 +3,9 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
 #include "Imu.h"
+
+#include "saiga/vision/util/Random.h"
 namespace Saiga
 {
 namespace Imu
@@ -77,6 +78,41 @@ void ImuSequence::Add(const ImuSequence& other)
     for (int i = 1; i < other.data.size(); ++i)
     {
         data.push_back(other.data[i]);
+    }
+}
+
+void ImuSequence::AddNoise(double sigma_omega, double sigma_acc)
+{
+    for (auto& i : data)
+    {
+        i.omega += Random::gaussRandMatrix<Vec3>(0, sigma_omega);
+        i.acceleration += Random::gaussRandMatrix<Vec3>(0, sigma_acc);
+    }
+}
+
+void ImuSequence::AddBias(const Vec3& bias_gyro, const Vec3& bias_acc)
+{
+    for (auto& i : data)
+    {
+        i.omega += bias_gyro;
+        i.acceleration += bias_acc;
+    }
+}
+
+void ImuSequence::AddGravity(const Vec3& bias_gyro, const Quat& initial_orientation, const Vec3& global_gravity)
+{
+    Preintegration preint(bias_gyro);
+    auto g = global_gravity;
+
+    Quat R = initial_orientation;
+    data[0].acceleration += R.inverse() * g;
+    //    data[0].acceleration += R * g;
+
+    for (int i = 1; i < data.size(); ++i)
+    {
+        double dt = data[i].timestamp - data[i - 1].timestamp;
+        preint.Add(data[i - 1].omega, Vec3::Zero(), dt);
+        data[i].acceleration += (R * preint.delta_R).inverse() * g;
     }
 }
 
@@ -163,6 +199,17 @@ void Preintegration::IntegrateMidPoint(const Imu::ImuSequence& sequence)
 
 
     SAIGA_ASSERT(std::abs(delta_t - (sequence.time_end - sequence.time_begin)) < 1e-10);
+}
+
+std::pair<SE3, Vec3> Preintegration::Predict(const SE3& initial_pose, const Vec3& initial_velocity,
+                                             const Vec3& g_) const
+{
+    auto g               = g_;
+    Quat new_orientation = (initial_pose.unit_quaternion() * delta_R).normalized();
+    Vec3 new_velocity    = initial_velocity + g * delta_t + initial_pose.so3() * delta_v;
+    Vec3 new_position    = initial_pose.translation() + initial_velocity * delta_t + 0.5 * g * delta_t * delta_t +
+                        initial_pose.so3() * delta_x;
+    return {SE3(new_orientation, new_position), new_velocity};
 }
 
 void InterpolateMissingValues(ArrayView<Imu::ImuSequence> sequences)

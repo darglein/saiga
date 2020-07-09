@@ -60,6 +60,11 @@ class SAIGA_VISION_API MotionModel
      */
     std::optional<SE3> predictVelocityForFrame(int frameId);
 
+
+    // Multiplies the linear velocity by 'scale'.
+    // The rotation stays unchanged.
+    void ScaleLinearVelocity(double scale);
+
     void clear() { data.clear(); }
 
    private:

@@ -201,6 +201,13 @@ struct SAIGA_VISION_API ImuSequence
     // Adds another Sequence to the end.
     // A double value at the border is removed.
     void Add(const ImuSequence& other);
+
+    // ====== Methods for testing robustness ======
+    void AddNoise(double sigma_omega, double sigma_acc);
+    void AddBias(const Vec3& bias_gyro, const Vec3& bias_acc);
+
+    // Integrates the orientation and adds the gravity in local space.
+    void AddGravity(const Vec3& bias_gyro, const Quat& initial_orientation, const Vec3& global_gravity);
 };
 
 
@@ -226,6 +233,13 @@ struct SAIGA_VISION_API Preintegration
     void IntegrateForward(const ImuSequence& sequence);
 
     void IntegrateMidPoint(const ImuSequence& sequence);
+
+
+
+    // Predicts the state after this sequence.
+    //
+    std::pair<SE3, Vec3> Predict(const SE3& initial_pose, const Vec3& initial_velocity, const Vec3& g) const;
+
 
 
     // Integrated values (Initialized to identity/0);
