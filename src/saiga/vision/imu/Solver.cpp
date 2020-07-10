@@ -30,9 +30,10 @@ Vec3 SolveGlobalGyroBias(ArrayView<ImuPosePair> data)
         //        std::cout << d.pose2->unit_quaternion() << std::endl;
 
         // 1. Compute residual
-        Quat relative_rotation = d.pose1->unit_quaternion().inverse() * d.pose2->unit_quaternion();
-        Quat delta_rotation    = preint.delta_R.inverse() * relative_rotation;
-        Vec3 residual          = Sophus::SO3d(delta_rotation).log();
+
+        SO3 relative_rotation = d.pose1->so3().inverse() * d.pose2->so3();
+        SO3 delta_rotation    = preint.delta_R.inverse() * relative_rotation;
+        Vec3 residual         = Sophus::SO3d(delta_rotation).log();
 
 
         // 2. Compute Jacobian

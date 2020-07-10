@@ -204,6 +204,8 @@ int EuRoCDataset::LoadMetaData()
 
 
             auto time = to_double(svTime) / 1e9;
+
+            time += params.ground_truth_time_offset;
             gtTimes.push_back(time);
             ground_truth.emplace_back(time, SE3(q, data));
         }

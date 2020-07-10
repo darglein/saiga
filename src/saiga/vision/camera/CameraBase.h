@@ -85,6 +85,10 @@ struct SAIGA_VISION_API DatasetParameters
     // Subtract the timestamp of the first image from everything.
     bool normalize_timestamps = false;
 
+    // Time offset added to ground truth trajectory.
+    // Can be used if the ground truth data was synchronized badly.
+    double ground_truth_time_offset = 0;
+
     void fromConfigFile(const std::string& file);
 
     friend std::ostream& operator<<(std::ostream& strm, const DatasetParameters& params);

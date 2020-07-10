@@ -21,6 +21,7 @@ void DatasetParameters::fromConfigFile(const std::string& file)
     INI_GETADD_BOOL(ini, group, multiThreadedLoad);
     INI_GETADD_BOOL(ini, group, preload);
     INI_GETADD_BOOL(ini, group, normalize_timestamps);
+    INI_GETADD_DOUBLE(ini, group, ground_truth_time_offset);
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 

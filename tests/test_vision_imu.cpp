@@ -84,7 +84,7 @@ static std::vector<std::pair<Imu::ImuSequence, SE3>> RandomTrajectory2(int N, in
     {
         result[i].first.AddNoise(sigma_gyro, sigma_acc);
         result[i].first.AddBias(bias_gyro, bias_acc);
-        result[i].first.AddGravity(bias_gyro, result[i - 1].second.unit_quaternion(), g);
+        result[i].first.AddGravity(bias_gyro, result[i - 1].second.so3(), g);
     }
 #if 0
 

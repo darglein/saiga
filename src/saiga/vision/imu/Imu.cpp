@@ -23,8 +23,13 @@ std::ostream& operator<<(std::ostream& strm, const Imu::Sensor& sensor)
 {
     strm << "[IMU::Sensor]" << std::endl;
     strm << "Frequency:          " << sensor.frequency << " hz" << std::endl;
-    strm << "Acceleration Noise: " << sensor.acceleration_sigma << "" << sensor.acceleration_random_walk << std::endl;
-    strm << "Omega Noise:        " << sensor.omega_sigma << "" << sensor.omega_random_walk << std::endl;
+    strm << "Acc Noise:          " << sensor.acceleration_sigma << " / " << sensor.acceleration_random_walk
+         << std::endl;
+    strm << "Acc Noise Scaled:   " << sensor.acceleration_sigma * sqrt(sensor.frequency) << " / "
+         << sensor.acceleration_random_walk * sqrt(sensor.frequency) << std::endl;
+    strm << "Gyro Noise:         " << sensor.omega_sigma << " / " << sensor.omega_random_walk << std::endl;
+    strm << "Gyro Noise Scaled:  " << sensor.omega_sigma * sqrt(sensor.frequency) << " / "
+         << sensor.omega_random_walk * sqrt(sensor.frequency) << std::endl;
     strm << "Extrinsics          " << sensor.sensor_to_body << std::endl;
     return strm;
 }
@@ -99,12 +104,12 @@ void ImuSequence::AddBias(const Vec3& bias_gyro, const Vec3& bias_acc)
     }
 }
 
-void ImuSequence::AddGravity(const Vec3& bias_gyro, const Quat& initial_orientation, const Vec3& global_gravity)
+void ImuSequence::AddGravity(const Vec3& bias_gyro, const SO3& initial_orientation, const Vec3& global_gravity)
 {
     Preintegration preint(bias_gyro);
     auto g = global_gravity;
 
-    Quat R = initial_orientation;
+    SO3 R = initial_orientation;
     data[0].acceleration += R.inverse() * g;
     //    data[0].acceleration += R * g;
 
@@ -130,7 +135,7 @@ void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias,
     Vec3 acc   = acc_with_bias - bias_accel_lin;
     double dt2 = dt * dt;
 
-    Quat dR = Sophus::SO3d::exp(omega * dt).unit_quaternion();
+    SO3 dR = Sophus::SO3d::exp(omega * dt);
     Mat3 Jr;
     Sophus::rightJacobianSO3(omega * dt, Jr);
 
@@ -147,7 +152,7 @@ void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias,
     delta_t += dt;
     delta_x += delta_v * dt + 0.5 * dt2 * (delta_R * acc);  // P_k+1 = P_k + V_k*dt + R_k*a_k*dt*dt/2
     delta_v += dt * (delta_R * acc);
-    delta_R = (delta_R * dR).normalized();
+    delta_R = (delta_R * dR);
 }
 
 void Preintegration::IntegrateForward(const Imu::ImuSequence& sequence)
@@ -204,10 +209,10 @@ void Preintegration::IntegrateMidPoint(const Imu::ImuSequence& sequence)
 std::pair<SE3, Vec3> Preintegration::Predict(const SE3& initial_pose, const Vec3& initial_velocity,
                                              const Vec3& g_) const
 {
-    auto g               = g_;
-    Quat new_orientation = (initial_pose.unit_quaternion() * delta_R).normalized();
-    Vec3 new_velocity    = initial_velocity + g * delta_t + initial_pose.so3() * delta_v;
-    Vec3 new_position    = initial_pose.translation() + initial_velocity * delta_t + 0.5 * g * delta_t * delta_t +
+    auto g              = g_;
+    SO3 new_orientation = (initial_pose.so3() * delta_R);
+    Vec3 new_velocity   = initial_velocity + g * delta_t + initial_pose.so3() * delta_v;
+    Vec3 new_position   = initial_pose.translation() + initial_velocity * delta_t + 0.5 * g * delta_t * delta_t +
                         initial_pose.so3() * delta_x;
     return {SE3(new_orientation, new_position), new_velocity};
 }

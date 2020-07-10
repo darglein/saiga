@@ -161,6 +161,7 @@ struct Sensor
 
     // Transformation from the sensor coordinate system to the devices' coordinate system.
     SE3 sensor_to_body;
+
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::Sensor& sensor);
@@ -207,7 +208,7 @@ struct SAIGA_VISION_API ImuSequence
     void AddBias(const Vec3& bias_gyro, const Vec3& bias_acc);
 
     // Integrates the orientation and adds the gravity in local space.
-    void AddGravity(const Vec3& bias_gyro, const Quat& initial_orientation, const Vec3& global_gravity);
+    void AddGravity(const Vec3& bias_gyro, const SO3& initial_orientation, const Vec3& global_gravity);
 };
 
 
@@ -244,9 +245,9 @@ struct SAIGA_VISION_API Preintegration
 
     // Integrated values (Initialized to identity/0);
     double delta_t = 0;
-    Quat delta_R   = Quat::Identity();
-    Vec3 delta_x   = Vec3::Zero();
-    Vec3 delta_v   = Vec3::Zero();
+    SO3 delta_R;
+    Vec3 delta_x = Vec3::Zero();
+    Vec3 delta_v = Vec3::Zero();
 
     // Derivative w.r.t. the gyro bias
     Mat3 J_R_Biasg = Mat3::Zero();
