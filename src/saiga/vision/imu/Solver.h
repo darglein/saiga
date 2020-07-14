@@ -24,7 +24,7 @@ struct ImuPosePair
 // Notes:
 //   - In a perfect world, the problem is linear, but usually 2 iterations are recommended.
 //   - If you're computing the bias for a VI system, make sure to transform the camera frame to the IMU frame.
-SAIGA_VISION_API Vec3 SolveGlobalGyroBias(ArrayView<ImuPosePair> data);
+SAIGA_VISION_API std::pair<Vec3, double> SolveGlobalGyroBias(ArrayView<ImuPosePair> data);
 
 
 

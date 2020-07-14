@@ -138,8 +138,9 @@ TEST(Imu, SolveGyroBias)
             //            solver_data.push_back({&trajectory[i].first, trajectory[i - 1].second.unit_quaternion(),
             //                                   trajectory[i].second.unit_quaternion()});
         }
-        Vec3 bias2 = Imu::SolveGlobalGyroBias(solver_data);
-        return (bias - bias2).norm();
+        auto bias_error = Imu::SolveGlobalGyroBias(solver_data);
+        std::cout << bias_error.second << std::endl;
+        return (bias - bias_error.first).norm();
     };
 
 

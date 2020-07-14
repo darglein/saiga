@@ -53,7 +53,7 @@ inline Eigen::Matrix<T, 2, 1> HuberLoss(T _deltaChi1, T residualSquared)
         // outlier
         T sqrte   = sqrt(residualSquared);  // absolut value of the error
         result(0) = 2 * sqrte * _deltaChi1 - thresholdChi2;
-        result(1) = std::max(std::numeric_limits<T>::min(), _deltaChi1 / sqrte);
+        result(1) = std::max(std::numeric_limits<T>::min(), result(0) / residualSquared);
         // result(2) = -0.5 * result(1) / residualSquared;
         return result;
     }
@@ -70,11 +70,10 @@ inline Eigen::Matrix<T, 2, 1> CauchyLoss(T _deltaChi1, T residualSquared)
     auto c_ = (1 / b_);
 
     const double sum = 1.0 + residualSquared * c_;
-    const double inv = 1.0 / sum;
 
     // 'sum' and 'inv' are always positive, assuming that 's' is.
     result(0) = b_ * log(sum);
-    result(1) = std::max(std::numeric_limits<double>::min(), inv);
+    result(1) = std::max(std::numeric_limits<double>::min(), result(0) / residualSquared);
     //    result(2) = -c_ * (inv * inv);
     return result;
 }

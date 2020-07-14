@@ -3,13 +3,13 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
 #include "Solver.h"
 
+#include "saiga/vision/kernels/Robust.h"
 #include "saiga/vision/util/Random.h"
 namespace Saiga::Imu
 {
-Vec3 SolveGlobalGyroBias(ArrayView<ImuPosePair> data)
+std::pair<Vec3, double> SolveGlobalGyroBias(ArrayView<ImuPosePair> data)
 {
     Vec3 current_bias = Vec3::Zero();
 
@@ -42,24 +42,42 @@ Vec3 SolveGlobalGyroBias(ArrayView<ImuPosePair> data)
         Mat3 J = Jlinv * preint.J_R_Biasg;
 
 
+
         // 3. Scale by inverse time
         // Assuming additive gaussian noise,
-        double sigma_inv = 1.0 / (preint.delta_t);
-        J *= sigma_inv;
-        residual *= sigma_inv;
+        double weight1 = 1.0 / (preint.delta_t);
+        residual *= weight1;
+        J *= weight1;
+
+
+        double res_2 = residual.squaredNorm();
+        //        double res21 = res_2;
+
+        double norm_before = residual.squaredNorm();
+
+        // robust
+        auto rw = Kernel::HuberLoss<double>(0.01, res_2);
+        res_2   = rw(0);
+        residual *= rw(1);
+        J *= rw(1);
 
 
         // 4. Add to JtJ and Jtb.
-        chi2 += residual.squaredNorm();
+        chi2 += res_2;
         JtJ += J.transpose() * J;
         Jtb += J.transpose() * residual;
+
+        std::cout << i << " " << norm_before << " -> " << residual.squaredNorm() << " " << rw(0) << " " << rw(1)
+                  << " dt: " << preint.delta_t << std::endl;
     }
 
     // 5. Solve and add delta to current estimate
     Vec3 x = JtJ.ldlt().solve(Jtb);
     current_bias += x;
 
-    return current_bias;
+    double rmse = sqrt(chi2 / data.size());
+
+    return {current_bias, rmse};
 }
 
 
@@ -132,8 +150,8 @@ std::pair<double, Vec3> SolveScaleGravityLinear(ArrayView<ImuPoseTriplet> data)
     Eigen::DiagonalMatrix<double, 4> S;
     S.diagonal() = svd.singularValues();
 
-    double condition_number = S.diagonal()(0) / S.diagonal()(3);
-    std::cout << "c = " << condition_number << std::endl;
+    //    double condition_number = S.diagonal()(0) / S.diagonal()(3);
+    //    std::cout << "c = " << condition_number << std::endl;
 
     // Then x = vt'*winv*u'*B
     Vec4 x        = V * S.inverse() * U.transpose() * B;
@@ -246,8 +264,8 @@ std::tuple<double, Vec3, Vec3> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTrip
     Eigen::DiagonalMatrix<double, 6> S;
     S.diagonal() = svd.singularValues();
 
-    double condition_number = S.diagonal()(0) / S.diagonal()(5);
-    std::cout << "c = " << condition_number << std::endl;
+    //    double condition_number = S.diagonal()(0) / S.diagonal()(5);
+    //    std::cout << "c = " << condition_number << std::endl;
 
 
     // Then y = vt'*winv*u'*D
