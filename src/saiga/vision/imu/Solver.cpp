@@ -9,7 +9,7 @@
 #include "saiga/vision/util/Random.h"
 namespace Saiga::Imu
 {
-std::pair<Vec3, double> SolveGlobalGyroBias(ArrayView<ImuPosePair> data)
+std::pair<Vec3, double> SolveGlobalGyroBias(ArrayView<ImuPosePair> data, double huber_threshold)
 {
     Vec3 current_bias = Vec3::Zero();
 
@@ -50,25 +50,19 @@ std::pair<Vec3, double> SolveGlobalGyroBias(ArrayView<ImuPosePair> data)
         J *= weight1;
 
 
-        double res_2 = residual.squaredNorm();
-        //        double res21 = res_2;
-
-        double norm_before = residual.squaredNorm();
-
-        // robust
-        auto rw = Kernel::HuberLoss<double>(0.01, res_2);
-        res_2   = rw(0);
-        residual *= rw(1);
-        J *= rw(1);
-
+        double res_2       = residual.squaredNorm();
+        auto rw            = Kernel::CauchyLoss<double>(huber_threshold, res_2);
+        res_2              = rw(0);
+        double loss_weight = rw(1);
 
         // 4. Add to JtJ and Jtb.
         chi2 += res_2;
-        JtJ += J.transpose() * J;
-        Jtb += J.transpose() * residual;
+        JtJ += loss_weight * (J.transpose() * J);
+        Jtb += loss_weight * (J.transpose() * residual);
 
-        std::cout << i << " " << norm_before << " -> " << residual.squaredNorm() << " " << rw(0) << " " << rw(1)
-                  << " dt: " << preint.delta_t << std::endl;
+        //        std::cout << i << " " << norm_before << " -> " << residual.squaredNorm() << " " << rw(0) << " " <<
+        //        rw(1)
+        //                  << " dt: " << preint.delta_t << std::endl;
     }
 
     // 5. Solve and add delta to current estimate
