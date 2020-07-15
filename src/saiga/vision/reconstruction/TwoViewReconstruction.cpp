@@ -88,6 +88,8 @@ void TwoViewReconstruction::compute(ArrayView<const Vec2> points1, ArrayView<con
         }
     }
     scene.fixWorldPointReferences();
+
+
     //    SAIGA_ASSERT(scene);
 }
 
@@ -157,6 +159,19 @@ double TwoViewReconstruction::getMedianDepth()
 
 int TwoViewReconstruction::optimize(int its, float thresholdChi1)
 {
+    scene.rel_pose_constraints.clear();
+    if (rel_pose_weight_rotation > 0 || rel_pose_weight_translation > 0)
+    {
+        RelPoseConstraint rpc;
+        rpc.img1               = 0;
+        rpc.img2               = 1;
+        rpc.rel_pose           = rel_pose_prediction;
+        rpc.weight_rotation    = rel_pose_weight_rotation;
+        rpc.weight_translation = rel_pose_weight_translation;
+        scene.rel_pose_constraints.push_back(rpc);
+    }
+
+
     ba_options.huberMono     = thresholdChi1;
     op_options.debugOutput   = false;
     op_options.minChi2Delta  = 1e-10;

@@ -152,6 +152,7 @@ OptimizationResults CeresBA::initAndSolve()
 
     for (auto& rel_constraint : scene.rel_pose_constraints)
     {
+        if (rel_constraint.weight_rotation == 0 && rel_constraint.weight_translation == 0) continue;
         auto& p1 = scene.images[rel_constraint.img1].se3;
         auto& p2 = scene.images[rel_constraint.img2].se3;
 

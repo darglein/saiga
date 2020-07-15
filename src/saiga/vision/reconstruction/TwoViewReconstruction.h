@@ -63,11 +63,16 @@ class SAIGA_VISION_API TwoViewReconstruction
 
     std::vector<double> tmpArray;
     FivePointRansac fpr;
-    //    Triangulation<double> triangulation;
+
+    // Relative pose constraints during initialization.
+    // For example provided by an IMU
+    double rel_pose_weight_rotation    = 0;
+    double rel_pose_weight_translation = 0;
+    SE3 rel_pose_prediction;
 
     OptimizationOptions op_options;
     BAOptions ba_options;
-    BAWrapper ba;
+    BAWrapper ba = {BAWrapper::Framework::Ceres};
 };
 
 
