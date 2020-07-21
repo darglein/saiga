@@ -12,36 +12,14 @@
 
 namespace Eigen::Recursive
 {
-/**
- * A symmetric 2x2 Matrix, where each element has a different type.
- * Layout:
- *
- * | U  W |
- * | WT V |
- *
- */
-template <typename U, typename V, typename W, typename WT>
-struct SymmetricMixedMatrix22
-{
-    using UType  = U;
-    using VType  = V;
-    using WType  = W;
-    using WTType = WT;
-
-    UType u;
-    VType v;
-    WType w;
-    WTType wt;
-
-    void resize(int n, int m)
-    {
-        u.resize(n);
-        v.resize(m);
-        w.resize(n, m);
-        wt.resize(m, n);
-    }
-};
-
+//
+// A symmetric 2x2 Matrix, where each element has a different type.
+// Layout:
+//
+// | U  W |
+// | WT V |
+//
+//
 template <typename U, typename V, typename W>
 struct SymmetricMixedMatrix2
 {
@@ -62,12 +40,12 @@ struct SymmetricMixedMatrix2
 };
 
 
-/**
- * A simple 2x1 vector with two different types.
- *
- * | U |
- * | V |
- */
+//
+// A simple 2x1 vector with two different types.
+//
+// | U |
+// | V |
+//
 template <typename U, typename V>
 struct MixedVector2
 {

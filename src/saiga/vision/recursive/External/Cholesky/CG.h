@@ -103,7 +103,7 @@ class RecursiveDiagonalPreconditioner
             m_invdiag.resize(N);
         }
 
-#pragma omp for
+        //#pragma omp for
         for (int j = 0; j < N; ++j)
         {
             m_invdiag(j) = inverseCholesky(mat.diagonal()(j));
@@ -123,7 +123,7 @@ class RecursiveDiagonalPreconditioner
     void _solve_impl(const Rhs& b, Dest& x) const
     {
         //        x = m_invdiag.array() * b.array();
-#pragma omp for
+        //#pragma omp for
         for (int i = 0; i < b.rows(); ++i)
         {
             x(i) = m_invdiag(i) * b(i);

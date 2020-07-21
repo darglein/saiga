@@ -107,34 +107,6 @@ class MixedSymmetricRecursiveSolver<
         patternAnalyzed = true;
     }
 
-    void analyzePattern_omp(const AType& A, const LinearSolverOptions& solverOptions)
-    {
-#pragma omp single
-        {
-            resize(A.u.rows(), A.v.rows());
-
-
-            if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
-            {
-                std::terminate();
-                hasWT         = true;
-                explizitSchur = true;
-            }
-            else
-            {
-                // TODO: add heurisitc here
-                hasWT         = true;
-                explizitSchur = true;
-            }
-
-            if (hasWT)
-            {
-                transposeStructureOnly_omp(A.w, WT, transposeTargets);
-            }
-
-            patternAnalyzed = true;
-        }
-    }
 
 
     void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
@@ -253,6 +225,36 @@ class MixedSymmetricRecursiveSolver<
         }
         q  = eb - q;
         db = multDiagVector(Vinv, q);
+    }
+
+
+    void analyzePattern_omp(const AType& A, const LinearSolverOptions& solverOptions)
+    {
+#pragma omp single
+        {
+            resize(A.u.rows(), A.v.rows());
+
+
+            if (solverOptions.solverType == LinearSolverOptions::SolverType::Direct)
+            {
+                std::terminate();
+                hasWT         = true;
+                explizitSchur = true;
+            }
+            else
+            {
+                // TODO: add heurisitc here
+                hasWT         = true;
+                explizitSchur = true;
+            }
+
+            if (hasWT)
+            {
+                transposeStructureOnly_omp(A.w, WT, transposeTargets);
+            }
+
+            patternAnalyzed = true;
+        }
     }
 
     void solve_omp(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
