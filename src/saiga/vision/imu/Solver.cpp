@@ -76,11 +76,16 @@ std::pair<Vec3, double> SolveGlobalGyroBias(ArrayView<ImuPosePair> data, double 
 
 
 
-std::pair<double, Vec3> SolveScaleGravityLinear(ArrayView<ImuPoseTriplet> data)
+std::pair<double, Vec3> SolveScaleGravityLinear(ArrayView<ImuPoseTriplet> data, const SE3& pose_to_imu)
 {
     int N = data.size() + 2;
     double scale_start;
     Vec3 gravity_start;
+
+
+    Mat3 Rcb = pose_to_imu.unit_quaternion().matrix();
+    Vec3 pcb = pose_to_imu.translation();
+
 
     Eigen::MatrixXd A(3 * (N - 2), 4);
     Eigen::MatrixXd B(3 * (N - 2), 1);
@@ -111,18 +116,19 @@ std::pair<double, Vec3> SolveScaleGravityLinear(ArrayView<ImuPoseTriplet> data)
         // Rotation of camera, Rwc
         Mat3 Rc1 = Twc1.unit_quaternion().matrix();
         Mat3 Rc2 = Twc2.unit_quaternion().matrix();
-        //            Mat3 Rc3 = Twc3.unit_quaternion().matrix();
+        Mat3 Rc3 = Twc3.unit_quaternion().matrix();
 
         // Stack to A/B matrix
         // lambda*s + beta*g = gamma
         Vec3 lambda = (pc2 - pc1) * dt23 + (pc2 - pc3) * dt12;
         Mat3 beta   = 0.5 * Mat3::Identity() * (dt12 * dt12 * dt23 + dt12 * dt23 * dt23);
 
-        //            Vec3 gamma = (Rc3 - Rc2) * pcb * dt12 + (Rc1 - Rc2) * pcb * dt23 + Rc1 * Rcb * dp12 * dt23 -
-        //                         Rc2 * Rcb * dp23 * dt12 - Rc1 * Rcb * dv12 * dt12 * dt23;
-
+#if 0
         Vec3 gamma = Rc1 * dp12 * dt23 - Rc2 * dp23 * dt12 - Rc1 * dv12 * dt12 * dt23;
-        //            Vec3 gamma = Vec3::Zero();
+#else
+        Vec3 gamma = (Rc3 - Rc2) * pcb * dt12 + (Rc1 - Rc2) * pcb * dt23 + Rc1 * Rcb * dp12 * dt23 -
+                     Rc2 * Rcb * dp23 * dt12 - Rc1 * Rcb * dv12 * dt12 * dt23;
+#endif
 
 
         A.block<3, 1>(3 * i, 0) = lambda * weight;
@@ -132,23 +138,15 @@ std::pair<double, Vec3> SolveScaleGravityLinear(ArrayView<ImuPoseTriplet> data)
 
 
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinV | Eigen::ComputeThinU);
-    Eigen::MatrixXd U = svd.matrixU();
-    Eigen::MatrixXd V = svd.matrixV();
 
-    //    std::cout << A << std::endl;
-    //    std::cout << B << std::endl;
 
-    //    exit(0);
-    SAIGA_ASSERT(U.cols() == 4);
-
-    Eigen::DiagonalMatrix<double, 4> S;
-    S.diagonal() = svd.singularValues();
-
+    //    Eigen::DiagonalMatrix<double, 4> S;
+    //    S.diagonal() = svd.singularValues();
     //    double condition_number = S.diagonal()(0) / S.diagonal()(3);
     //    std::cout << "c = " << condition_number << std::endl;
 
-    // Then x = vt'*winv*u'*B
-    Vec4 x        = V * S.inverse() * U.transpose() * B;
+    Vec4 x = svd.solve(B);
+
     scale_start   = x(0);
     gravity_start = x.segment<3>(1);
 
@@ -157,8 +155,12 @@ std::pair<double, Vec3> SolveScaleGravityLinear(ArrayView<ImuPoseTriplet> data)
 
 
 
-std::tuple<double, Vec3, Vec3> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTriplet> data, const Vec3& gravity_estimate)
+std::tuple<double, Vec3, Vec3, double> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTriplet> data,
+                                                                   const Vec3& gravity_estimate, const SE3& pose_to_imu)
 {
+    Mat3 Rcb = pose_to_imu.unit_quaternion().matrix();
+    Vec3 pcb = pose_to_imu.translation();
+
     int N = data.size() + 2;
     // Step 3.
     // Use gravity magnitude 9.8 as constraint
@@ -178,6 +180,7 @@ std::tuple<double, Vec3, Vec3> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTrip
     double theta      = std::atan2(normgIxgwn, gI.dot(gwn));
 
 
+    double chi2 = 0;
 
     Mat3 Rwi = Sophus::SO3d::exp(vhat * theta).matrix();
 
@@ -212,7 +215,7 @@ std::tuple<double, Vec3, Vec3> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTrip
         SE3 Twc2 = *triplet.pose2;
         SE3 Twc3 = *triplet.pose3;
 
-        double weight = 1.0 / (dt12 + dt23) * triplet.weight;
+        double weight = 100.0 / (dt12 + dt23) * triplet.weight;
 
         //        double weight = 1;
 
@@ -224,26 +227,37 @@ std::tuple<double, Vec3, Vec3> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTrip
         // Rotation of camera, Rwc
         Mat3 Rc1 = Twc1.unit_quaternion().matrix();
         Mat3 Rc2 = Twc2.unit_quaternion().matrix();
-        //        Mat3 Rc3 = Twc3.unit_quaternion().matrix();
+        Mat3 Rc3 = Twc3.unit_quaternion().matrix();
 
 
         // Stack to C/D matrix
         // lambda*s + phi*dthetaxy + zeta*ba = psi
         Vec3 lambda = (pc2 - pc1) * dt23 + (pc2 - pc3) * dt12;
+        Mat3 phi    = -0.5 * (dt12 * dt12 * dt23 + dt12 * dt23 * dt23) * Rwi * skew(GI);
 
-        Mat3 phi = -0.5 * (dt12 * dt12 * dt23 + dt12 * dt23 * dt23) * Rwi *
-                   skew(GI);  // note: this has a '-', different to paper
-
-        //            Mat3 zeta = Rc2 * Rcb * Jpba23 * dt12 + Rc1 * Rcb * Jvba12 * dt12 * dt23 - Rc1 * Rcb * Jpba12
-        //            * dt23;
+#if 0
         Mat3 zeta = Rc2 * Jpba23 * dt12 + Rc1 * Jvba12 * dt12 * dt23 - Rc1 * Jpba12 * dt23;
-
-        //            Vec3 psi = Rc1 * Rcb * dp12 * dt23 - (Rc2 - Rc3) * pcb * dt12 - Rc2 * Rcb * dp23 * dt12 -
-        //                       Rc1 * Rcb * dv12 * dt23 * dt12 -
-        //                       0.5 * Rwi * GI * (dt12 * dt12 * dt23 + dt12 * dt23 * dt23);
-
         Vec3 psi = Rc1 * dp12 * dt23 - Rc2 * dp23 * dt12 - Rc1 * dv12 * dt23 * dt12 -
                    0.5 * Rwi * GI * (dt12 * dt12 * dt23 + dt12 * dt23 * dt23);
+#else
+        Mat3 zeta = Rc2 * Rcb * Jpba23 * dt12 + Rc1 * Rcb * Jvba12 * dt12 * dt23 - Rc1 * Rcb * Jpba12 * dt23;
+
+        Vec3 psi = Rc1 * Rcb * dp12 * dt23 - (Rc2 - Rc3) * pcb * dt12 - Rc2 * Rcb * dp23 * dt12 -
+                   Rc1 * Rcb * dv12 * dt23 * dt12 - 0.5 * Rwi * GI * (dt12 * dt12 * dt23 + dt12 * dt23 * dt23);
+#endif
+
+
+        Vec3 residual = (lambda - psi) * weight;
+
+        //        auto rw = Kernel::CauchyLoss(0.3, residual.squaredNorm());
+        //        weight *= sqrt(rw(1));
+        //        chi2 += rw(0);
+        chi2 += residual.squaredNorm();
+
+
+
+        //        chi2 += residual.squaredNorm();
+        //        std::cout << i << " " << residual.norm() << std::endl;
 
         C.block<3, 1>(3 * i, 0) = lambda * weight;
         C.block<3, 2>(3 * i, 1) = phi.block<3, 2>(0, 0) * weight;
@@ -252,23 +266,19 @@ std::tuple<double, Vec3, Vec3> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTrip
     }
 
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(C, Eigen::ComputeThinV | Eigen::ComputeThinU);
-    Eigen::MatrixXd U = svd.matrixU();
-    Eigen::MatrixXd V = svd.matrixV();
 
-    Eigen::DiagonalMatrix<double, 6> S;
-    S.diagonal() = svd.singularValues();
-
+    //    Eigen::DiagonalMatrix<double, 6> S;
+    //    S.diagonal() = svd.singularValues();
     //    double condition_number = S.diagonal()(0) / S.diagonal()(5);
     //    std::cout << "c = " << condition_number << std::endl;
 
 
-    // Then y = vt'*winv*u'*D
-    Eigen::MatrixXd y = V * S.inverse() * U.transpose() * D;
-    double scale      = y(0);
+    Vec6 y       = svd.solve(D);
+    double scale = y(0);
 
 
-    Vec2 dthetaxy = y.block<2, 1>(1, 0);
-    Vec3 bias_acc = y.block<3, 1>(3, 0);
+    Vec2 dthetaxy = y.segment<2>(1);
+    Vec3 bias_acc = y.segment<3>(3);
 
 
     // dtheta = [dx;dy;0]
@@ -276,7 +286,10 @@ std::tuple<double, Vec3, Vec3> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTrip
     Mat3 Rwi_    = Rwi * Sophus::SO3d::exp(dtheta).matrix();
     Vec3 gravity = Rwi_ * GI;
 
-    return {scale, gravity, bias_acc};
+    double rmse = sqrt(chi2 / N);
+    //    std::cout << "RMSE: " << rmse << std::endl;
+
+    return {scale, gravity, bias_acc, rmse};
 }
 
 std::vector<Synthetic::State> Synthetic::GenerateStates(int N, double dt, double sigma_angular_acceleration,

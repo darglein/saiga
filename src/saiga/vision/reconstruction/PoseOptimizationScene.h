@@ -85,7 +85,11 @@ struct PoseOptimizationScene
     {
         Sophus::SE3d T_j_i   = prediction.inverse() * pose;
         Sophus::Vector6d res = Sophus::se3_logd(T_j_i);
-        Vec6 residual        = res * weight_rotation;
+
+        res.template segment<3>(0) *= T(weight_translation);
+        res.template segment<3>(3) *= T(weight_rotation);
+
+        Vec6 residual = res;
         return residual.squaredNorm();
     }
 };

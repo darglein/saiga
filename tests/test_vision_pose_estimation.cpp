@@ -10,6 +10,7 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/vision/reconstruction/PoseOptimization_Ceres.h"
 #include "saiga/vision/reconstruction/RobustPoseOptimization.h"
+#include "saiga/vision/reconstruction/RobustSmoothPoseOptimization.h"
 #include "saiga/vision/util/Random.h"
 
 #include "gtest/gtest.h"
@@ -50,9 +51,13 @@ class RPOTest
         }
 
         scene.outlier.resize(scene.obs.size(), false);
-        scene.pose            = Random::JitterPose(scene.pose, 0.01, 0.02);
-        scene.prediction      = Random::JitterPose(scene.pose, 0.01, 0.02);
-        scene.weight_rotation = 0;
+        scene.pose       = Random::JitterPose(scene.pose, 0.04, 0.01);
+        scene.prediction = Random::JitterPose(scene.pose, 0.04, 0.01);
+        scene.pose       = scene.prediction;
+        //        scene.weight_rotation = 100000;
+        scene.weight_translation = 100000;
+        std::cout << "Init : " << scene.pose << std::endl;
+        std::cout << "Pred : " << scene.prediction << std::endl;
     }
 
 
@@ -60,17 +65,10 @@ class RPOTest
     double solveSaiga()
     {
         auto cpy = scene;
-        RobustPoseOptimization<T, false> rpo(923475094325, 981450945);
+        //        RobustPoseOptimization<T, false> rpo(923475094325, 981450945);
+        RobustSmoothPoseOptimization<T, false> rpo(923475094325, 981450945);
         rpo.optimizePoseRobust(cpy);
-        return cpy.chi2();
-    }
-
-
-    double solveSaigaMP()
-    {
-        auto cpy = scene;
-        RobustPoseOptimization<T, false> rpo(923475094325, 981450945);
-        rpo.optimizePoseRobust(cpy.wps, cpy.obs, cpy.outlier, cpy.pose, cpy.K);
+        std::cout << "Saiga: " << cpy.pose << std::endl;
         return cpy.chi2();
     }
 
@@ -78,14 +76,15 @@ class RPOTest
     double solveCeres()
     {
         auto cpy = scene;
-        OptimizePoseCeres(cpy, false);
+        OptimizePoseCeres(cpy, true);
+        std::cout << "ceres: " << cpy.pose << std::endl;
         return cpy.chi2();
     }
 
     void TestBasic()
     {
         EXPECT_NEAR(solveSaiga(), solveCeres(), 1e-5);
-        EXPECT_NEAR(solveSaiga(), solveSaigaMP(), 1e-5);
+        //        EXPECT_NEAR(solveSaiga(), solveSaigaMP(), 1e-5);
     }
 
 

@@ -43,10 +43,13 @@ struct ImuPoseTriplet
     double weight = 1.0;
 };
 
-SAIGA_VISION_API std::pair<double, Vec3> SolveScaleGravityLinear(ArrayView<ImuPoseTriplet> data);
+// pose_to_imu is the right-multiplicative transformation from the input space to imu space.
+SAIGA_VISION_API std::pair<double, Vec3> SolveScaleGravityLinear(ArrayView<ImuPoseTriplet> data,
+                                                                 const SE3& pose_to_imu);
 
-SAIGA_VISION_API std::tuple<double, Vec3, Vec3> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTriplet> data,
-                                                                            const Vec3& gravity_estimate);
+SAIGA_VISION_API std::tuple<double, Vec3, Vec3, double> SolveScaleGravityBiasLinear(ArrayView<ImuPoseTriplet> data,
+                                                                                    const Vec3& gravity_estimate,
+                                                                                    const SE3& pose_to_imu);
 
 
 namespace Synthetic

@@ -350,6 +350,7 @@ Vec2 BundleAdjustmentCompact(const Intrinsics4& camera, const Vec2& observation,
     auto zzinv = 1 / zz;
     if (jacobian_pose)
     {
+        jacobian_pose->setZero();
         // divion by z (this is a little verbose and can be simplified by a lot).
         (*jacobian_pose)(0, 0) = zinv;
         (*jacobian_pose)(0, 1) = 0;
@@ -359,6 +360,7 @@ Vec2 BundleAdjustmentCompact(const Intrinsics4& camera, const Vec2& observation,
         (*jacobian_pose)(1, 2) = -y * zzinv;
 
 
+#if 1
         // rotation
         (*jacobian_pose)(0, 3) = -y * x * zzinv;
         (*jacobian_pose)(0, 4) = (1 + (x * x) * zzinv);
@@ -366,6 +368,7 @@ Vec2 BundleAdjustmentCompact(const Intrinsics4& camera, const Vec2& observation,
         (*jacobian_pose)(1, 3) = (-1 - (y * y) * zzinv);
         (*jacobian_pose)(1, 4) = x * y * zzinv;
         (*jacobian_pose)(1, 5) = x * zinv;
+#endif
 
         (*jacobian_pose).row(0) *= camera.fx;
         (*jacobian_pose).row(1) *= camera.fy;
@@ -548,9 +551,10 @@ TEST(NumericDerivative, RotatePointProjectSim3)
 // Source:
 // https://gitlab.com/VladyslavUsenko/basalt/-/blob/24e378a7a100d7d6f5133b34e16a09bb0cc98459/include/basalt/utils/nfr.h#L43-73
 //
-inline Sophus::Vector6d relPoseError(const Sophus::SE3d& T_i_j, const Sophus::SE3d& T_w_i, const Sophus::SE3d& T_w_j,
-                                     Sophus::Matrix6d* d_res_d_T_w_i = nullptr,
-                                     Sophus::Matrix6d* d_res_d_T_w_j = nullptr)
+// using the decoupled inc
+inline Sophus::Vector6d relPoseErrorDecoupled(const Sophus::SE3d& T_i_j, const Sophus::SE3d& T_w_i,
+                                              const Sophus::SE3d& T_w_j, Sophus::Matrix6d* d_res_d_T_w_i = nullptr,
+                                              Sophus::Matrix6d* d_res_d_T_w_j = nullptr)
 {
     Sophus::SE3d T_j_i   = T_w_j.inverse() * T_w_i;
     Sophus::Vector6d res = Sophus::se3_logd(T_i_j * T_j_i);
@@ -583,6 +587,90 @@ inline Sophus::Vector6d relPoseError(const Sophus::SE3d& T_i_j, const Sophus::SE
 }
 
 
+TEST(NumericDerivative, RelativePoseDecoupled)
+{
+    SE3 pose_w_i = Random::randomSE3();
+    SE3 pose_w_j = Random::randomSE3();
+    SE3 pose_i_j = Sophus::se3_expd(Sophus::Vector6d::Random() / 100) * pose_w_i.inverse() * pose_w_j;
+
+    Matrix<double, 6, 6> J_pose_i_1, J_pose_j_1, J_pose_i_2, J_pose_j_2;
+    J_pose_i_1.setZero();
+    J_pose_j_1.setZero();
+    J_pose_i_2.setZero();
+    J_pose_j_2.setZero();
+    Vec6 res1, res2;
+
+    res1 = relPoseErrorDecoupled(pose_i_j, pose_w_i, pose_w_j, &J_pose_i_1, &J_pose_j_1);
+
+    {
+        Vec6 eps = Vec6::Zero();
+        res2     = EvaluateNumeric(
+            [=](auto p) {
+                //                auto pose_w_i_new = Sophus::se3_expd(p) * pose_w_i;
+
+                auto pose_w_i_new = pose_w_i;
+                Sophus::decoupled_inc(p, pose_w_i_new);
+
+                return relPoseErrorDecoupled(pose_i_j, pose_w_i_new, pose_w_j);
+            },
+            eps, &J_pose_i_2);
+    }
+
+    {
+        Vec6 eps = Vec6::Zero();
+        res2     = EvaluateNumeric(
+            [=](auto p) {
+                //                auto pose_w_j_new = Sophus::se3_expd(p) * pose_w_j;
+                auto pose_w_j_new = pose_w_j;
+                Sophus::decoupled_inc(p, pose_w_j_new);
+
+                return relPoseErrorDecoupled(pose_i_j, pose_w_i, pose_w_j_new);
+            },
+            eps, &J_pose_j_2);
+    }
+
+    ExpectCloseRelative(res1, res2, 1e-5);
+    ExpectCloseRelative(J_pose_i_1, J_pose_i_2, 1e-5);
+    ExpectCloseRelative(J_pose_j_1, J_pose_j_2, 1e-5);
+}
+
+
+// using left multiplied se3_expd
+inline Sophus::Vector6d relPoseError(const Sophus::SE3d& T_i_j, const Sophus::SE3d& T_w_i, const Sophus::SE3d& T_w_j,
+                                     Sophus::Matrix6d* d_res_d_T_w_i = nullptr,
+                                     Sophus::Matrix6d* d_res_d_T_w_j = nullptr)
+{
+    Sophus::SE3d T_j_i   = T_w_j.inverse() * T_w_i;
+    Sophus::Vector6d res = Sophus::se3_logd(T_i_j * T_j_i);
+
+    if (d_res_d_T_w_i || d_res_d_T_w_j)
+    {
+        Sophus::Matrix6d J;
+        Sophus::rightJacobianInvSE3Decoupled(res, J);
+
+        Eigen::Matrix3d R = T_w_i.so3().inverse().matrix();
+
+        Sophus::Matrix6d Adj;
+        Adj.setZero();
+        Adj.topLeftCorner<3, 3>()     = R;
+        Adj.bottomRightCorner<3, 3>() = R;
+        Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(T_w_i.inverse().translation()) * R;
+
+        Sophus::Matrix6d J_pose = J * Adj;
+        if (d_res_d_T_w_i)
+        {
+            *d_res_d_T_w_i = J_pose;
+        }
+
+        if (d_res_d_T_w_j)
+        {
+            *d_res_d_T_w_j = -J_pose;
+        }
+    }
+
+    return res;
+}
+
 TEST(NumericDerivative, RelativePose)
 {
     SE3 pose_w_i = Random::randomSE3();
@@ -602,10 +690,10 @@ TEST(NumericDerivative, RelativePose)
         Vec6 eps = Vec6::Zero();
         res2     = EvaluateNumeric(
             [=](auto p) {
-                //                auto pose_w_i_new = Sophus::se3_expd(p) * pose_w_i;
+                auto pose_w_i_new = Sophus::se3_expd(p) * pose_w_i;
 
-                auto pose_w_i_new = pose_w_i;
-                Sophus::decoupled_inc(p, pose_w_i_new);
+                //                auto pose_w_i_new = pose_w_i;
+                //                Sophus::decoupled_inc(p, pose_w_i_new);
 
                 return relPoseError(pose_i_j, pose_w_i_new, pose_w_j);
             },
@@ -616,9 +704,9 @@ TEST(NumericDerivative, RelativePose)
         Vec6 eps = Vec6::Zero();
         res2     = EvaluateNumeric(
             [=](auto p) {
-                //                auto pose_w_j_new = Sophus::se3_expd(p) * pose_w_j;
-                auto pose_w_j_new = pose_w_j;
-                Sophus::decoupled_inc(p, pose_w_j_new);
+                auto pose_w_j_new = Sophus::se3_expd(p) * pose_w_j;
+                //                auto pose_w_j_new = pose_w_j;
+                //                Sophus::decoupled_inc(p, pose_w_j_new);
 
                 return relPoseError(pose_i_j, pose_w_i, pose_w_j_new);
             },
@@ -718,4 +806,67 @@ TEST(NumericDerivative, RelativePoseSim3)
     ExpectCloseRelative(J_pose_i_1, J_pose_i_2, 1e-8);
     ExpectCloseRelative(J_pose_j_1, J_pose_j_2, 1e-8);
 }
+
+
+// for smooth pose estimation during slam.
+inline Sophus::Vector6d SmoothPose(const Sophus::SE3d& T_w_i, const Sophus::SE3d& T_w_j, double weight_rotation,
+                                   double weight_translation, Sophus::Matrix6d* d_res_d_T_w_i = nullptr)
+{
+    Sophus::SE3d T_j_i   = T_w_j.inverse() * T_w_i;
+    Sophus::Vector6d res = Sophus::se3_logd(T_j_i);
+
+    Vec6 residual = res;
+    residual.template segment<3>(0) *= (weight_translation);
+    residual.template segment<3>(3) *= (weight_rotation);
+
+    if (d_res_d_T_w_i)
+    {
+        Sophus::Matrix6d J;
+        Sophus::rightJacobianInvSE3Decoupled(res, J);
+
+        Eigen::Matrix3d R = T_w_i.so3().inverse().matrix();
+
+        Sophus::Matrix6d Adj;
+        Adj.setZero();
+        Adj.topLeftCorner<3, 3>()     = R * weight_translation;
+        Adj.bottomRightCorner<3, 3>() = R * weight_rotation;
+        Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(T_w_i.inverse().translation()) * R * weight_translation;
+
+        *d_res_d_T_w_i = J * Adj;
+    }
+
+    return residual;
+}
+
+
+TEST(NumericDerivative, SmoothPose)
+{
+    SE3 pose_w_i = Random::randomSE3();
+    SE3 pose_w_j = Sophus::se3_expd(Sophus::Vector6d::Random() / 10) * pose_w_i;
+
+    double wr = 50;
+    double wt = 75;
+
+    Matrix<double, 6, 6> J_pose_i_1, J_pose_i_2;
+    J_pose_i_1.setZero();
+    J_pose_i_2.setZero();
+    Vec6 res1, res2;
+
+    res1 = SmoothPose(pose_w_i, pose_w_j, wr, wt, &J_pose_i_1);
+
+    {
+        Vec6 eps = Vec6::Zero();
+        res2     = EvaluateNumeric(
+            [=](auto p) {
+                auto pose_w_i_new = Sophus::se3_expd(p) * pose_w_i;
+                return SmoothPose(pose_w_i_new, pose_w_j, wr, wt);
+            },
+            eps, &J_pose_i_2);
+    }
+
+    ExpectCloseRelative(res1, res2, 1e-5);
+    ExpectCloseRelative(J_pose_i_1, J_pose_i_2, 1e-5);
+}
+
+
 }  // namespace Saiga

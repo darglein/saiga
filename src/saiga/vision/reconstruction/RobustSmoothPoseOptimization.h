@@ -18,59 +18,35 @@
 
 namespace Saiga
 {
-inline Vec6 SmoothPose(const SE3& pose, const SE3& expected, double scale,
-                       Matrix<double, 6, 6>* jacobian_pose = nullptr)
+inline Vec6 SmoothPose(const SE3& T_w_i, const SE3& T_w_j, double weight_rotation, double weight_translation,
+                       Matrix<double, 6, 6>* d_res_d_T_w_i = nullptr)
 {
-    Sophus::SE3d T_j_i   = expected.inverse() * pose;
+    Sophus::SE3d T_j_i   = T_w_j.inverse() * T_w_i;
     Sophus::Vector6d res = Sophus::se3_logd(T_j_i);
-    Vec6 residual        = res * scale;
 
-    if (jacobian_pose)
+    Vec6 residual = res;
+    residual.template segment<3>(0) *= (weight_translation);
+    residual.template segment<3>(3) *= (weight_rotation);
+
+    if (d_res_d_T_w_i)
     {
         Sophus::Matrix6d J;
         Sophus::rightJacobianInvSE3Decoupled(res, J);
 
-        Eigen::Matrix3d R = scale * pose.so3().inverse().matrix();
+        Eigen::Matrix3d R = T_w_i.so3().inverse().matrix();
 
         Sophus::Matrix6d Adj;
         Adj.setZero();
-        Adj.topLeftCorner<3, 3>()     = R;
-        Adj.bottomRightCorner<3, 3>() = R;
-        Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(pose.inverse().translation()) * R;
+        Adj.topLeftCorner<3, 3>()     = R * weight_translation;
+        Adj.bottomRightCorner<3, 3>() = R * weight_rotation;
+        Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(T_w_i.inverse().translation()) * R * weight_translation;
 
-        *jacobian_pose = J * Adj;
+        *d_res_d_T_w_i = J * Adj;
     }
 
     return residual;
 }
 
-
-inline Vec6 SmoothPoseRotation(const SE3& pose, const SE3& expected, double scale,
-                               Matrix<double, 6, 6>* jacobian_pose = nullptr)
-{
-    Sophus::SE3d T_j_i   = expected.inverse() * pose;
-    Sophus::Vector6d res = Sophus::se3_logd(T_j_i);
-    res.head<3>().setZero();
-    Vec6 residual = res * scale;
-
-    if (jacobian_pose)
-    {
-        Sophus::Matrix6d J;
-        Sophus::rightJacobianInvSE3Decoupled(res, J);
-
-        Eigen::Matrix3d R = scale * pose.so3().inverse().matrix();
-
-        Sophus::Matrix6d Adj;
-        Adj.setZero();
-        //        Adj.topLeftCorner<3, 3>()     = R;
-        Adj.bottomRightCorner<3, 3>() = R;
-        //        Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(pose.inverse().translation()) * R;
-
-        *jacobian_pose = J * Adj;
-    }
-
-    return residual;
-}
 
 
 template <typename T, bool Normalized = false, Kernel::LossFunction loss_function = Kernel::LossFunction::Huber>
@@ -237,14 +213,15 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustSmoothPoseOptimization
                     }
                 }
 
-                if (weight_rotation > 0)
+                if (weight_rotation > 0 || weight_translation > 0)
                 {
                     JType J_smooth;
-                    //                    Vec6 res = SmoothPose(guess, prediction, prediction_weight, &J_smooth);
-                    Vec6 res = SmoothPoseRotation(guess, prediction, weight_rotation, &J_smooth);
 
+                    Vec6 res = SmoothPose(guess, prediction, weight_rotation, weight_translation, &J_smooth);
 
-
+                    //                    std::cout << "visual " << chi2sum << " imu T " << res.head<3>().squaredNorm()
+                    //                    << " imu R "
+                    //                              << res.tail<3>().squaredNorm() << std::endl;
                     chi2sum += res.squaredNorm();
                     JtJ += J_smooth.transpose() * J_smooth;
                     Jtb -= J_smooth.transpose() * res;

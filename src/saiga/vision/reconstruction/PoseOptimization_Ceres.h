@@ -81,19 +81,25 @@ struct PosePredictionCeresCost
 
         Sophus::SE3<T> T_j_i       = prediction.template cast<T>().inverse() * se3;
         Eigen::Matrix<T, 6, 1> res = Sophus::se3_logd(T_j_i);
-        residual                   = res * prediction_weight;
+
+
+        res.template segment<3>(0) *= T(weight_translation);
+        res.template segment<3>(3) *= T(weight_rotation);
+
+        residual = res;
 
 
         return true;
     }
 
-    PosePredictionCeresCost(SE3 prediction, double prediction_weight)
-        : prediction(prediction), prediction_weight(prediction_weight)
+    PosePredictionCeresCost(SE3 prediction, double weight_rotation, double weight_translation)
+        : prediction(prediction), weight_rotation(weight_rotation), weight_translation(weight_translation)
     {
     }
 
     SE3 prediction;
-    double prediction_weight;
+    double weight_rotation;
+    double weight_translation;
 };
 
 template <typename T>
@@ -121,11 +127,13 @@ OptimizationResults OptimizePoseCeres(PoseOptimizationScene<T>& scene, bool smoo
 
     if (smooth)
     {
-        auto* cost_pp = PosePredictionCeresCost<T>::create(scene.prediction, scene.weight_rotation);
+        auto* cost_pp =
+            PosePredictionCeresCost<T>::create(scene.prediction, scene.weight_rotation, scene.weight_translation);
         problem.AddResidualBlock(cost_pp, nullptr, scene.pose.data());
     }
 
     ceres::Solver::Options ceres_options;
+    ceres_options.max_num_iterations           = 50;
     ceres_options.minimizer_progress_to_stdout = false;
     return ceres_solve(ceres_options, problem);
 }
