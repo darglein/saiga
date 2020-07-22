@@ -206,13 +206,15 @@ TEST(Imu, SolveGravityScale)
         //        Vec3 bias2 = Imu::SolveGlobalGyroBias(solver_data, 2);
         Vec3 gravity = Vec3(0, 0, 1);
         double predicted_scale;
-        std::tie(predicted_scale, gravity) = Imu::SolveScaleGravityLinear(solver_data);
+        std::tie(predicted_scale, gravity) = Imu::SolveScaleGravityLinear(solver_data, SE3());
 
         std::cout << "s = " << predicted_scale << " g = " << gravity.transpose() << std::endl;
 
+        double error;
         double scale_delta;
         Vec3 bias_delta;
-        std::tie(scale_delta, gravity, bias_delta) = Imu::SolveScaleGravityBiasLinear(solver_data, gravity);
+        std::tie(scale_delta, gravity, bias_delta, error) =
+            Imu::SolveScaleGravityBiasLinear(solver_data, gravity, SE3());
 
         double scale = scale_delta;
 
