@@ -25,7 +25,7 @@ class PoseGraphOptimizationTest
     {
         opoptions.debugOutput   = false;
         opoptions.debug         = false;
-        opoptions.maxIterations = 50;
+        opoptions.maxIterations = 20;
         opoptions.solverType    = OptimizationOptions::SolverType::Direct;
     }
 
@@ -65,7 +65,10 @@ class PoseGraphOptimizationTest
     {
         auto scene1 = solveRec();
         auto scene2 = solveCeres();
-        ExpectCloseRelative(scene1.chi2(), scene2.chi2(), 1e-5);
+
+        std::cout << scene.chi2() << " -> (Saiga) " << scene1.chi2() << " (Ceres) " << scene2.chi2() << std::endl;
+
+        ExpectClose(scene1.chi2(), scene2.chi2(), 1e-5);
     }
 
     void buildScene(bool with_scale_drift)
@@ -81,6 +84,12 @@ class PoseGraphOptimizationTest
         scene.addNoise(0.01);
     }
 
+    void buildSimpleScene(int num_cameras)
+    {
+        scene = SyntheticPoseGraph::Linear(num_cameras, 1);
+
+        scene.addNoise(1.1);
+    }
 
    private:
     PoseGraph scene;
@@ -121,6 +130,16 @@ TEST(PoseGraph, LoadStore)
         ExpectCloseRelative(e1.T_i_j.params(), e2.T_i_j.params(), 1e-20);
     }
 }
+
+TEST(PoseGraphOptimization, SimpleLinear)
+{
+    PoseGraphOptimizationTest test;
+    test.buildSimpleScene(4);
+    test.test();
+
+    //    exit(0);
+}
+
 TEST(PoseGraphOptimization, LoopClosingSE3)
 {
     for (int i = 0; i < 5; ++i)

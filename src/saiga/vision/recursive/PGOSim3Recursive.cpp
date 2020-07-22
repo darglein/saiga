@@ -109,7 +109,7 @@ double PGOSim3Rec::computeQuadraticForm()
     //    SAIGA_BLOCK_TIMER();
     //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     // using T          = BlockPGOScalar;
-    using KernelType = Saiga::Kernel::PGOSim3<double>;
+    //    using KernelType = Saiga::Kernel::PGOSim3<double>;
 
     b.setZero();
 
@@ -146,9 +146,8 @@ double PGOSim3Rec::computeQuadraticForm()
         auto& target_jr = b(j).get();
 
         {
-            KernelType::PoseJacobiType Jrowi, Jrowj;
-            KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(e.T_i_j, x_u[i], x_u[j], res, Jrowi, Jrowj, e.weight);
+            Eigen::Matrix<double, 7, 7> Jrowi, Jrowj;
+            Vec7 res = relPoseError(e.T_i_j, x_u[i], x_u[j], e.weight, e.weight, &Jrowi, &Jrowj);
 
             if (scene.vertices[i].constant) Jrowi.setZero();
             if (scene.vertices[j].constant) Jrowj.setZero();
@@ -204,11 +203,6 @@ double PGOSim3Rec::computeCost()
 {
     auto& scene = *_scene;
 
-    //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
-    // using T          = BlockPGOScalar;
-    using KernelType = Saiga::Kernel::PGOSim3<double>;
-
-
 
     double chi2 = 0;
     for (size_t k = 0; k < scene.edges.size(); ++k)
@@ -219,9 +213,7 @@ double PGOSim3Rec::computeCost()
 
 
         {
-            KernelType::PoseJacobiType Jrowi, Jrowj;
-            KernelType::ResidualType res;
-            KernelType::evaluateResidual(e.T_i_j, x_u[i], x_u[j], res, e.weight);
+            Vec7 res = relPoseError(e.T_i_j, x_u[i], x_u[j], e.weight, e.weight);
 
             auto c = res.squaredNorm();
             chi2 += c;
@@ -251,15 +243,7 @@ bool PGOSim3Rec::addDelta()
         auto t = delta_x(i).get();
 
         if (scene.fixScale) t[6] = 0;
-
-        //        t[6] = 0;
-
-
-        //        std::cout << t.transpose() << std::endl;
-        //        x_u[i] = PGOTransformation::exp(t) * x_u[i];
-        //        x_u[i] = Sophus::dsim3_expd(t) * x_u[i];
-        Sophus::decoupled_inc(t, x_u[i]);
-        //        x_u[i] = x_u[i] * PGOTransformation::exp(t);
+        x_u[i] = Sophus::dsim3_expd(t) * x_u[i];
     }
     return true;
 }

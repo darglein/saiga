@@ -10,40 +10,25 @@
 #include "saiga/vision/pgo/PGOConfig.h"
 namespace Saiga
 {
-namespace Kernel
+// using left multiplied se3_expd
+inline Sophus::Vector6d relPoseError(const Sophus::SE3d& T_i_j, const Sophus::SE3d& T_w_i, const Sophus::SE3d& T_w_j,
+                                     double weight_rotation, double weight_translation,
+                                     Sophus::Matrix6d* d_res_d_T_w_i = nullptr,
+                                     Sophus::Matrix6d* d_res_d_T_w_j = nullptr)
 {
-// Works both for SE3 and Sim3
-template <typename TransformationType = SE3>
-struct PGO
-{
-    static constexpr int ResCount     = TransformationType::DoF;
-    static constexpr int VarCountPose = TransformationType::DoF;
+    Sophus::SE3d T_j_i        = T_w_j.inverse() * T_w_i;
+    Sophus::Vector6d res      = Sophus::se3_logd(T_i_j * T_j_i);
+    Sophus::Vector6d residual = res;
+    residual.head<3>() *= weight_translation;
+    residual.tail<3>() *= weight_rotation;
 
-    using T                 = typename TransformationType::Scalar;
-    using ResidualType      = Eigen::Matrix<T, ResCount, 1>;
-    using ResidualBlockType = Eigen::Matrix<T, VarCountPose, 1>;
-    using PoseJacobiType    = Eigen::Matrix<T, ResCount, VarCountPose, Eigen::RowMajor>;
-    using PoseDiaBlockType  = Eigen::Matrix<T, VarCountPose, VarCountPose, Eigen::RowMajor>;
-
-
-    static inline void evaluateResidual(const TransformationType& T_i_j, const TransformationType& T_w_i,
-                                        const TransformationType& T_w_j, ResidualType& res, T weight)
+    if (d_res_d_T_w_i || d_res_d_T_w_j)
     {
-        TransformationType T_j_i = T_w_j.inverse() * T_w_i;
-        res                      = Sophus::se3_logd(T_i_j * T_j_i) * weight;
-    }
-
-    static inline void evaluateResidualAndJacobian(const TransformationType& T_i_j, const TransformationType& T_w_i,
-                                                   const TransformationType& T_w_j, ResidualType& res,
-                                                   PoseJacobiType& d_res_d_T_w_i, PoseJacobiType& d_res_d_T_w_j,
-                                                   T weight)
-    {
-        Sophus::SE3d T_j_i = T_w_j.inverse() * T_w_i;
-
-        res = Sophus::se3_logd(T_i_j * T_j_i) * weight;
-
         Sophus::Matrix6d J;
         Sophus::rightJacobianInvSE3Decoupled(res, J);
+
+        J.topLeftCorner<3, 3>() *= weight_translation;
+        J.bottomRightCorner<3, 3>() *= weight_rotation;
 
         Eigen::Matrix3d R = T_w_i.so3().inverse().matrix();
 
@@ -51,48 +36,94 @@ struct PGO
         Adj.setZero();
         Adj.topLeftCorner<3, 3>()     = R;
         Adj.bottomRightCorner<3, 3>() = R;
+        Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(T_w_i.inverse().translation()) * R;
 
+        if (d_res_d_T_w_i)
+        {
+            *d_res_d_T_w_i = J * Adj;
+        }
 
-        d_res_d_T_w_i = J * Adj;
-
-
-
-        Adj.topRightCorner<3, 3>() = Sophus::SO3d::hat(T_j_i.inverse().translation()) * R;
-        d_res_d_T_w_j              = -J * Adj;
+        if (d_res_d_T_w_j)
+        {
+            if (d_res_d_T_w_i)
+            {
+                *d_res_d_T_w_j = -(*d_res_d_T_w_i);
+            }
+            else
+            {
+                *d_res_d_T_w_j = -J * Adj;
+            }
+        }
     }
-};
 
-template <typename T>
-struct PGOSim3
+    return residual;
+}
+
+
+
+inline Sophus::Vector6d relPoseErrorView(const Sophus::SE3d& T_i_j, const Sophus::SE3d& T_w_i,
+                                         const Sophus::SE3d& T_w_j, double weight_rotation, double weight_translation,
+                                         Sophus::Matrix6d* d_res_d_T_w_i = nullptr,
+                                         Sophus::Matrix6d* d_res_d_T_w_j = nullptr)
 {
-    using TransformationType = Sophus::DSim3<T>;
-
-    static constexpr int ResCount     = TransformationType::DoF;
-    static constexpr int VarCountPose = TransformationType::DoF;
-
-    using ResidualType      = Eigen::Matrix<T, ResCount, 1>;
-    using ResidualBlockType = Eigen::Matrix<T, VarCountPose, 1>;
-    using PoseJacobiType    = Eigen::Matrix<T, ResCount, VarCountPose, Eigen::RowMajor>;
-    using PoseDiaBlockType  = Eigen::Matrix<T, VarCountPose, VarCountPose, Eigen::RowMajor>;
+    Sophus::SE3d T_j_i        = T_w_j * T_w_i.inverse();
+    Sophus::Vector6d res      = Sophus::se3_logd(T_i_j * T_j_i);
+    Sophus::Vector6d residual = res;
+    residual.head<3>() *= weight_translation;
+    residual.tail<3>() *= weight_rotation;
 
 
-    static inline void evaluateResidual(const TransformationType& T_i_j, const TransformationType& T_w_i,
-                                        const TransformationType& T_w_j, ResidualType& res, T weight)
+    if (d_res_d_T_w_i || d_res_d_T_w_j)
     {
-        TransformationType T_j_i = T_w_j.inverse() * T_w_i;
-        res                      = Sophus::dsim3_logd(T_i_j * T_j_i) * weight;
+        Sophus::Matrix6d J;
+        Sophus::rightJacobianInvSE3Decoupled(res, J);
+
+        J.topLeftCorner<3, 3>() *= weight_translation;
+        J.bottomRightCorner<3, 3>() *= weight_rotation;
+
+        if (d_res_d_T_w_i)
+        {
+            d_res_d_T_w_i->setZero();
+            *d_res_d_T_w_i = -J;
+        }
+
+        if (d_res_d_T_w_j)
+        {
+            Eigen::Matrix3d R = T_j_i.so3().inverse().matrix();
+            Sophus::Matrix6d Adj;
+            Adj.setZero();
+            Adj.topLeftCorner<3, 3>()     = R;
+            Adj.bottomRightCorner<3, 3>() = R;
+            Adj.topRightCorner<3, 3>()    = Sophus::SO3d::hat(T_j_i.inverse().translation()) * R;
+            d_res_d_T_w_j->setZero();
+            (*d_res_d_T_w_j) = J * Adj;
+        }
     }
 
-    static inline void evaluateResidualAndJacobian(const TransformationType& T_i_j, const TransformationType& T_w_i,
-                                                   const TransformationType& T_w_j, ResidualType& res,
-                                                   PoseJacobiType& d_res_d_T_w_i, PoseJacobiType& d_res_d_T_w_j,
-                                                   T weight)
-    {
-        TransformationType T_j_i = T_w_j.inverse() * T_w_i;
-        res                      = Sophus::dsim3_logd(T_i_j * T_j_i) * weight;
+    return residual;
+}
 
+
+
+inline Sophus::Vector7d relPoseError(const Sophus::DSim3<double>& T_i_j, const Sophus::DSim3<double>& T_w_i,
+                                     const Sophus::DSim3<double>& T_w_j, double weight_rotation,
+                                     double weight_translation, Sophus::Matrix7d* d_res_d_T_w_i = nullptr,
+                                     Sophus::Matrix7d* d_res_d_T_w_j = nullptr)
+{
+    Sophus::DSim3<double> T_j_i = T_w_j.inverse() * T_w_i;
+    Sophus::Vector7d res        = Sophus::dsim3_logd(T_i_j * T_j_i);
+    Sophus::Vector7d residual   = res;
+
+    residual.head<3>() *= weight_translation;
+    residual.segment<3>(3) *= weight_rotation;
+
+    if (d_res_d_T_w_i || d_res_d_T_w_j)
+    {
         Sophus::Matrix7d J;
         Sophus::rightJacobianInvDSim3Decoupled(res, J);
+
+        J.topLeftCorner<3, 3>() *= weight_translation;
+        J.block<3, 3>(3, 3) *= weight_rotation;
 
         Eigen::Matrix3d R = T_w_i.se3().so3().inverse().matrix();
 
@@ -100,17 +131,32 @@ struct PGOSim3
         Adj.setZero();
         Adj.topLeftCorner<3, 3>() = (1.0 / T_w_i.scale()) * R;
         Adj.block<3, 3>(3, 3)     = R;
-        Adj(6, 6)                 = 1;
-        d_res_d_T_w_i             = J * Adj;
+
+        Adj.block<3, 3>(0, 3) = Sophus::SO3d::hat(T_w_i.inverse().se3().translation()) * R;
+        Adj.block<3, 1>(0, 6) = -T_w_i.inverse().se3().translation();
+
+        Adj(6, 6) = 1;
 
 
-        Adj.block<3, 3>(0, 3) = Sophus::SO3d::hat(T_j_i.inverse().se3().translation()) * R;
-        Adj.block<3, 1>(0, 6) = -T_j_i.inverse().se3().translation();
-        d_res_d_T_w_j         = -J * Adj;
+        if (d_res_d_T_w_i)
+        {
+            *d_res_d_T_w_i = J * Adj;
+        }
+
+        if (d_res_d_T_w_j)
+        {
+            if (d_res_d_T_w_i)
+            {
+                *d_res_d_T_w_j = -(*d_res_d_T_w_i);
+            }
+            else
+            {
+                *d_res_d_T_w_j = -J * Adj;
+            }
+        }
     }
-};
 
+    return residual;
+}
 
-
-}  // namespace Kernel
 }  // namespace Saiga

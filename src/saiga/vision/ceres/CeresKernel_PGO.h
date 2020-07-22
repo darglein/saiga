@@ -76,7 +76,7 @@ struct CostPGODSim3
 };
 
 
-
+#if 0
 class CostPGOAnalytic : public ceres::SizedCostFunction<7, 7, 7>
 {
    public:
@@ -85,7 +85,7 @@ class CostPGOAnalytic : public ceres::SizedCostFunction<7, 7, 7>
     static constexpr int DOF = PGOTransformation::DoF;
     using T                  = double;
 
-    using Kernel = Saiga::Kernel::PGO<PGOTransformation>;
+    using Kernel = Saiga::Kernel::PGO<double>;
 
     CostPGOAnalytic(const PGOTransformation& invMeassurement, double weight = 1)
         : _inverseMeasurement(invMeassurement), weight(weight)
@@ -142,5 +142,6 @@ class CostPGOAnalytic : public ceres::SizedCostFunction<7, 7, 7>
     PGOTransformation _inverseMeasurement;
     double weight;
 };
+#endif
 
 }  // namespace Saiga

@@ -40,13 +40,13 @@ void PGORec::init()
     S.reserve(N);
 
     // Compute outer structure pointer
+    // Note: the row is smaller than the column, which means we are in the upper right part of the matrix.
     for (auto& e : scene.edges)
     {
         int i = e.from;
         int j = e.to;
         SAIGA_ASSERT(i != j);
         SAIGA_ASSERT(i < j);
-
         S.outerIndexPtr()[i]++;
     }
 
@@ -106,10 +106,6 @@ double PGORec::computeQuadraticForm()
 {
     auto& scene = *_scene;
 
-    //    SAIGA_BLOCK_TIMER();
-    //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
-    // using T          = BlockPGOScalar;
-    using KernelType = Saiga::Kernel::PGO<PGOTransformation>;
 
     b.setZero();
 
@@ -146,9 +142,8 @@ double PGORec::computeQuadraticForm()
         auto& target_jr = b(j).get();
 
         {
-            KernelType::PoseJacobiType Jrowi, Jrowj;
-            KernelType::ResidualType res;
-            KernelType::evaluateResidualAndJacobian(e.GetSE3(), x_u[i], x_u[j], res, Jrowi, Jrowj, e.weight);
+            Eigen::Matrix<double, 6, 6> Jrowi, Jrowj;
+            Vec6 res = relPoseError(e.GetSE3(), x_u[i], x_u[j], e.weight, e.weight, &Jrowi, &Jrowj);
 
             if (scene.vertices[i].constant) Jrowi.setZero();
             if (scene.vertices[j].constant) Jrowj.setZero();
@@ -158,22 +153,12 @@ double PGORec::computeQuadraticForm()
             // JtJ
             target_ij = Jrowi.transpose() * Jrowj;
 
-            auto ii = (Jrowi.transpose() * Jrowi).eval();
-            auto jj = (Jrowj.transpose() * Jrowj).eval();
-            //#pragma omp critical
-            {
-                target_ii += ii;
-                target_jj += jj;
-            }
-            auto ir = Jrowi.transpose() * res;
-            auto jr = Jrowj.transpose() * res;
-            //#pragma omp critical
-            {
-                // Jtb
-                target_ir -= ir;
-                target_jr -= jr;
-            }
+            target_ii += Jrowi.transpose() * Jrowi;
+            target_jj += Jrowj.transpose() * Jrowj;
 
+            // Jtb
+            target_ir -= Jrowi.transpose() * res;
+            target_jr -= Jrowj.transpose() * res;
 
 
             chi2local += c;
@@ -206,7 +191,7 @@ double PGORec::computeCost()
 
     //    SAIGA_OPTIONAL_BLOCK_TIMER(optimizationOptions.debugOutput);
     // using T          = BlockPGOScalar;
-    using KernelType = Saiga::Kernel::PGO<PGOTransformation>;
+    //    using KernelType = Saiga::Kernel::PGO<double>;
 
 
 
@@ -219,9 +204,13 @@ double PGORec::computeCost()
 
 
         {
-            KernelType::PoseJacobiType Jrowi, Jrowj;
-            KernelType::ResidualType res;
-            KernelType::evaluateResidual(e.GetSE3(), x_u[i], x_u[j], res, e.weight);
+            //            KernelType::PoseJacobiType Jrowi, Jrowj;
+            //            KernelType::ResidualType res;
+            //            KernelType::evaluateResidual(e.GetSE3(), x_u[i], x_u[j], res, e.weight);
+
+            //  Eigen::Matrix<double, 6, 6> Ji, Jj;
+
+            Vec6 res = relPoseError(e.GetSE3(), x_u[i], x_u[j], e.weight, e.weight);
 
             auto c = res.squaredNorm();
             chi2 += c;
@@ -255,8 +244,8 @@ bool PGORec::addDelta()
 
         //        std::cout << t.transpose() << std::endl;
         //        x_u[i] = PGOTransformation::exp(t) * x_u[i];
-        //        x_u[i] = Sophus::se3_expd(t) * x_u[i];
-        Sophus::decoupled_inc(t, x_u[i]);
+        x_u[i] = Sophus::se3_expd(t) * x_u[i];
+        //        Sophus::decoupled_inc(t, x_u[i]);
         //        x_u[i] = x_u[i] * PGOTransformation::exp(t);
     }
     return true;

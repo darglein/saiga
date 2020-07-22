@@ -393,6 +393,14 @@ double Scene::chi2(double huber)
         }
     }
 
+    for (auto& rpc : rel_pose_constraints)
+    {
+        auto& p1 = images[rpc.img1].se3;
+        auto& p2 = images[rpc.img2].se3;
+        error += rpc.Residual(p1, p2).squaredNorm();
+    }
+
+
     return error;
 }
 

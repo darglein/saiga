@@ -123,7 +123,19 @@ struct RelPoseConstraint
     // Index of the images
     int img1 = -1, img2 = -1;
 
+    // left multiplication from p1 to p2, where p1 and p2 are world->camera transformations
     SE3 rel_pose;
+
+    void SetRelPose(const SE3& p1, const SE3& p2) { rel_pose = p2 * p1.inverse(); }
+
+    Vec6 Residual(const SE3& p1, const SE3& p2)
+    {
+        SE3 rel  = p2 * p1.inverse();
+        Vec6 res = (rel_pose.inverse() * rel).log();
+        res.head<3>() *= weight_translation;
+        res.tail<3>() *= weight_rotation;
+        return res;
+    }
 
     // Rotation and translation is weighted separately
     double weight_rotation    = 0;
@@ -225,8 +237,6 @@ class SAIGA_VISION_API Scene
     void save(const std::string& file);
     void load(const std::string& file);
     double chi2Huber(double huber);
-
-    bool operator==(const Scene& other);
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, Scene& scene);

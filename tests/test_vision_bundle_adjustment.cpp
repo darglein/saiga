@@ -11,6 +11,7 @@
 #include "saiga/vision/ceres/CeresBA.h"
 #include "saiga/vision/recursive/BAPointOnly.h"
 #include "saiga/vision/recursive/BARecursive.h"
+#include "saiga/vision/recursive/BARecursiveRel.h"
 #include "saiga/vision/scene/SynteticScene.h"
 
 #include "gtest/gtest.h"
@@ -47,6 +48,19 @@ class BundleAdjustmentTest
         return cpy;
     }
 
+    Scene solveRecRel(const BAOptions& options)
+    {
+        Scene cpy = scene;
+        BARecRel ba;
+        ba.optimizationOptions = opoptions;
+        ba.baOptions           = options;
+        ba.create(cpy);
+        //        SAIGA_BLOCK_TIMER();
+        ba.initAndSolve();
+        return cpy;
+    }
+
+
     Scene solveRecOMP(const BAOptions& options)
     {
         Scene cpy = scene;
@@ -79,14 +93,16 @@ class BundleAdjustmentTest
     {
         auto scene1 = solveRec(options);
         auto scene2 = solveCeres(options);
+        auto scene3 = solveRecRel(options);
 
         //        std::cout << scene.chi2(options.huberMono) << " " << scene1.chi2(options.huberMono) << " "
         //                  << scene2.chi2(options.huberMono) << std::endl;
 
         ExpectCloseRelative(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-1);
+        ExpectCloseRelative(scene1.chi2(options.huberMono), scene3.chi2(options.huberMono), 1e-1);
     }
 
-    void BenchmarkRecursive(const OptimizationOptions& op_options, const BAOptions& options)
+    void BenchmarkRecursive(const OptimizationOptions& op_options, const BAOptions& options, bool rel = false)
     {
         int its = 20;
         std::vector<double> timings;
@@ -97,24 +113,32 @@ class BundleAdjustmentTest
         ba.optimizationOptions = op_options;
         ba.baOptions           = options;
 
+        BARecRel barel;
+        barel.optimizationOptions = op_options;
+        barel.baOptions           = options;
 
         for (int i = 0; i < its; ++i)
         {
-            Scene cpy = scene;
-
             float time;
+            if (rel)
             {
+                Scene cpy = scene;
+                ScopedTimer tim(time);
+                barel.create(cpy);
+                auto res = barel.initAndSolve();
+            }
+            else
+            {
+                Scene cpy = scene;
                 ScopedTimer tim(time);
                 ba.create(cpy);
                 auto res = ba.initAndSolve();
-                //                ba.initOMP();
-                //                ba.solveOMP();
             }
             timings.push_back(time);
         }
 
         static bool first = true;
-        Table tab({15, 15, 15, 15, 15, 15});
+        Table tab({15, 15, 15, 15, 15, 15, 15});
         if (first)
         {
             tab << "Type"
@@ -122,12 +146,13 @@ class BundleAdjustmentTest
                 << "Simple LM"
                 << "Helper Threads"
                 << "Solver Threads"
+                << "Rel Pose"
                 << "Time(ms)";
             first = false;
         }
         tab << (op_options.solverType == OptimizationOptions::SolverType::Direct ? "Direct" : "Iterative")
             << op_options.buildExplizitSchur << op_options.simple_solver << options.helper_threads
-            << options.solver_threads << Statistics(timings).median;
+            << options.solver_threads << rel << Statistics(timings).median;
     }
 
 
@@ -224,7 +249,7 @@ TEST(BundleAdjustment, Empty)
     ba.initAndSolve();
 }
 
-TEST(BundleAdjustment, Default)
+TEST(BundleAdjustment, Default2)
 {
     for (int i = 0; i < 10; ++i)
     {
@@ -361,6 +386,7 @@ TEST(BundleAdjustment, SLAM_LBA)
     local_op_options.simple_solver      = true;
     local_op_options.solverType         = OptimizationOptions::SolverType::Iterative;
     test.BenchmarkRecursive(local_op_options, local_ba_options);
+    test.BenchmarkRecursive(local_op_options, local_ba_options, true);
 
     local_op_options.buildExplizitSchur = true;
     local_op_options.simple_solver      = false;

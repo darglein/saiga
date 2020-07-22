@@ -198,11 +198,6 @@ void Scene::load(const std::string& file)
     SAIGA_ASSERT(valid());
 }
 
-bool Scene::operator==(const Scene& other)
-{
-    return true;
-}
-
 
 std::ostream& operator<<(std::ostream& strm, Scene& scene)
 {
