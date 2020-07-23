@@ -27,7 +27,7 @@ class BundleAdjustmentTest
     {
         opoptions.debugOutput            = false;
         opoptions.debug                  = false;
-        opoptions.maxIterations          = 10;
+        opoptions.maxIterations          = 15;
         opoptions.maxIterativeIterations = 50;
         opoptions.iterativeTolerance     = 1e-10;
         opoptions.numThreads             = 1;
@@ -83,7 +83,7 @@ class BundleAdjustmentTest
                   << " -> (Saiga Rel) " << scene2.chi2(options.huberMono) << " (Ceres) "
                   << scene3.chi2(options.huberMono) << std::endl;
 
-        ExpectClose(scene2.chi2(options.huberMono), scene3.chi2(options.huberMono), 1e-1);
+        ExpectClose(scene2.chi2(options.huberMono), scene3.chi2(options.huberMono), 1);
     }
 
     void BenchmarkRecursive(const OptimizationOptions& op_options, const BAOptions& options)
