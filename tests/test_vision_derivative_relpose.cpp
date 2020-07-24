@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/vision/kernels/BAPose.h"
+
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/util/Random.h"
 

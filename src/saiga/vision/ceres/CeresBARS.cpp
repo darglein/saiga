@@ -69,11 +69,11 @@ OptimizationResults CeresBARS::initAndSolve()
     auto ordering = std::make_shared<ceres::ParameterBlockOrdering>();
 
 
-    std::vector<std::unique_ptr<CostBAMonoAnalytic>> monoCostFunctions;
-    std::vector<std::unique_ptr<CostBAStereoAnalytic>> stereoCostFunctions;
+    //    std::vector<std::unique_ptr<CostBAMonoAnalytic>> monoCostFunctions;
+    //    std::vector<std::unique_ptr<CostBAStereoAnalytic>> stereoCostFunctions;
 
-    monoCostFunctions.reserve(monoCount);
-    stereoCostFunctions.reserve(stereoCount);
+    //    monoCostFunctions.reserve(monoCount);
+    //    stereoCostFunctions.reserve(stereoCount);
 
 
     std::vector<std::array<double, 2 * 8>> mixedData;

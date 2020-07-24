@@ -88,11 +88,11 @@ OptimizationResults CeresBA::initAndSolve()
     auto ordering = std::make_shared<ceres::ParameterBlockOrdering>();
 
 
-    std::vector<std::unique_ptr<CostBAMonoAnalytic>> monoCostFunctions;
-    std::vector<std::unique_ptr<CostBAStereoAnalytic>> stereoCostFunctions;
+    //    std::vector<std::unique_ptr<CostBAMonoAnalytic>> monoCostFunctions;
+    //    std::vector<std::unique_ptr<CostBAStereoAnalytic>> stereoCostFunctions;
 
-    monoCostFunctions.reserve(monoCount);
-    stereoCostFunctions.reserve(stereoCount);
+    //    monoCostFunctions.reserve(monoCount);
+    //    stereoCostFunctions.reserve(stereoCount);
 
 
     for (auto& img : scene.images)
@@ -116,8 +116,9 @@ OptimizationResults CeresBA::initAndSolve()
             {
 #ifdef BA_AUTODIFF
                 //                auto stereoPoint   = ip.point(0) - scene.bf / ip.depth;
-                auto stereo_point  = ip.GetStereoPoint(scene.bf);
-                auto cost_function = CostBAStereo<>::create(camera, ip.point, stereo_point, scene.bf, Vec2(w, w));
+                auto stereo_point = ip.GetStereoPoint(scene.bf);
+                auto cost_function =
+                    CostBAStereo<>::create(camera, ip.point, stereo_point, scene.bf, Vec2(w, w * scene.stereo_weight));
 
                 problem.AddResidualBlock(cost_function, lossStereo, extr.data(), wp.data());
 #else

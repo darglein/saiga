@@ -8,6 +8,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
 #include "saiga/vision/util/Random.h"
 
@@ -29,7 +30,7 @@ Eigen::Vector3d Scene::residual3(const SceneImage& img, const StereoImagePoint& 
 
     auto p2 = intrinsics[img.intr].project(p);
 
-    auto w = ip.weight * img.imageWeight * scale();
+    auto w = ip.weight * scale();
 
     Eigen::Vector3d res;
     res.head<2>() = (ip.point - p2);
@@ -41,7 +42,7 @@ Eigen::Vector3d Scene::residual3(const SceneImage& img, const StereoImagePoint& 
 
     res *= w;
 
-    if (z <= 0) res *= 10000000;
+    // if (z <= 0) res *= 10000000;
 
     return res;
 }
@@ -57,12 +58,12 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
     auto p  = img.se3 * wp.p;
     auto z  = p(2);
     auto p2 = intrinsics[img.intr].project(p);
-    auto w  = ip.weight * img.imageWeight * scale();
+    auto w  = ip.weight * scale();
     Eigen::Vector2d res;
     res.head<2>() = (ip.point - p2);
     res *= w;
 
-    if (z <= 0) res *= 10000000;
+    // if (z <= 0) res *= 10000000;
     return res;
 }
 
@@ -368,38 +369,62 @@ double Scene::chi2(double huber)
     int stereoEdges = 0;
     int monoEdges   = 0;
 
-    for (SceneImage& im : images)
+    for (int i = 0; i < images.size(); ++i)
     {
-        double sqerror;
+        SceneImage& im     = images[i];
+        double image_error = 0;
 
         for (auto& o : im.stereoPoints)
         {
-            if (!o) continue;
-            sqerror = residualNorm2(im, o);
+            //            if (!o) continue;
 
+
+            double res_2 = residualNorm2(im, o);
+
+
+            //            if (i == 5 && o.wp == 33)
+            //            {
+            //                std::cout << "test " << o.wp << " " << res_2 << " " << worldPoints[o.wp].p.transpose() <<
+            //                " "
+            //                          << o.point.transpose() << std::endl;
+            //            }
 
             if (huber > 0)
             {
                 //                auto rw = Kernel::CauchyLoss<double>(huber, sqerror);
-                auto rw = Kernel::HuberLoss<double>(huber, sqerror);
-                sqerror = rw(0);
+                auto rw = Kernel::HuberLoss<double>(huber, res_2);
+                res_2   = rw(0);
             }
+
 
             if (o.depth > 0)
                 stereoEdges++;
             else
                 monoEdges++;
-            error += sqerror;
+            image_error += res_2;
         }
+        error += image_error;
+        //        std::cout << "Rep " << i << " " << image_error << std::endl;
     }
 
+    //    std::cout << "BA error: " << error << std::endl;
+
+    //    std::cout << "RPC SIze: " << rel_pose_constraints.size() << std::endl;
     for (auto& rpc : rel_pose_constraints)
     {
+        SAIGA_ASSERT(rpc.img1 >= 0);
+        SAIGA_ASSERT(rpc.img2 >= 0);
         auto& p1 = images[rpc.img1].se3;
         auto& p2 = images[rpc.img2].se3;
-        error += rpc.Residual(p1, p2).squaredNorm();
+        auto e   = rpc.Residual(p1, p2).squaredNorm();
+        error += e;
+        //        std::cout << "RPC " << rpc.img1 << " - " << rpc.img2 << " Error: " << e << std::endl;
     }
 
+    //    for (auto& i : images)
+    //    {
+    //        std::cout << i.se3 << std::endl;
+    //    }
 
     return error;
 }
@@ -568,6 +593,16 @@ void Scene::removeNegativeProjections()
     }
     fixWorldPointReferences();
     std::cout << "removed " << removedObs << " negative projections" << std::endl;
+}
+
+Vec6 RelPoseConstraint::Residual(const SE3& p1, const SE3& p2)
+{
+    Vec6 res = relPoseErrorView(rel_pose.inverse(), p1, p2, weight_rotation, weight_translation);
+    //    SE3 rel  = p2 * p1.inverse();
+    //    Vec6 res = Sophus::se3_logd(rel_pose.inverse() * rel);
+    //    res.head<3>() *= weight_translation;
+    //    res.tail<3>() *= weight_rotation;
+    return res;
 }
 
 

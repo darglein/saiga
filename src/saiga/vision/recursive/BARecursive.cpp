@@ -9,8 +9,7 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Algorithm.h"
 #include "saiga/core/util/Thread/omp.h"
-#include "saiga/vision/kernels/BAPose.h"
-#include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/kernels/BA.h"
 #include "saiga/vision/kernels/Robust.h"
 #include "saiga/vision/util/HistogramImage.h"
 #include "saiga/vision/util/LM.h"
@@ -359,6 +358,10 @@ double BARec::computeQuadraticForm()
 
     SAIGA_ASSERT(A.w.IsRowMajor);
 
+    if (n == 0)
+    {
+        return 0;
+    }
 
 
 #pragma omp parallel num_threads(baOptions.helper_threads)
@@ -407,7 +410,6 @@ double BARec::computeQuadraticForm()
 
             auto& img    = scene.images[info.sceneImageId];
             auto& extr   = x_u[info.validId];
-            auto& extr2  = img;
             auto& camera = scene.intrinsics[img.intr];
             StereoCamera4 scam(camera, scene.bf);
 
@@ -435,33 +437,25 @@ double BARec::computeQuadraticForm()
                     }
                     continue;
                 }
-                BlockBAScalar w = ip.weight * img.imageWeight * scene.scale();
+                BlockBAScalar w = ip.weight * scene.scale();
                 int j           = pointToValidMap[ip.wp];
 
 
-                //                auto& wp        = scene.worldPoints[ip.wp].p;
                 auto& wp = x_v[j];
 
-                //                WElem targetPosePoint;
                 WElem& targetPosePoint = A.w.valuePtr()[k].get();
 
-                //                BDiag& targetPointPoint = A.v.diagonal()(j).get();
-                //                BRes& targetPointRes    = b.v(j).get();
                 BDiag& targetPointPoint = bdiagArray[j];
                 BRes& targetPointRes    = bresArray[j];
 
                 if (ip.IsStereoOrDepth())
                 {
-                    using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
-                    KernelType::PoseJacobiType JrowPose;
-                    KernelType::PointJacobiType JrowPoint;
-                    KernelType::ResidualType res;
-
                     auto stereo_point = ip.GetStereoPoint(scene.bf);
-                    bool valid_depth  = KernelType::evaluateResidualAndJacobian(
-                        scam, extr, wp, ip.point, stereo_point, w, w * scene.stereo_weight, res, JrowPose, JrowPoint);
-                    if (extr2.constant) JrowPose.setZero();
 
+                    Matrix<double, 3, 6> JrowPose;
+                    Matrix<double, 3, 3> JrowPoint;
+                    auto [res, depth] = BundleAdjustmentStereo(scam, ip.point, stereo_point, extr, wp, w,
+                                                               w * scene.stereo_weight, &JrowPose, &JrowPoint);
 
                     T loss_weight = 1.0;
                     auto res_2    = res.squaredNorm();
@@ -472,7 +466,7 @@ double BARec::computeQuadraticForm()
                         res_2       = rw(0);
                         loss_weight = rw(1);
                     }
-                    if (!valid_depth) loss_weight = 0;
+                    //                    if (!valid_depth) loss_weight = 0;
 
 
                     newChi2 += res_2;
@@ -483,21 +477,16 @@ double BARec::computeQuadraticForm()
                         auto& targetPoseRes  = b.u(actualOffset).get();
                         targetPosePose += loss_weight * JrowPose.transpose() * JrowPose;
                         targetPosePoint = loss_weight * JrowPose.transpose() * JrowPoint;
-                        targetPoseRes += loss_weight * JrowPose.transpose() * res;
+                        targetPoseRes -= loss_weight * JrowPose.transpose() * res;
                     }
                     targetPointPoint += loss_weight * JrowPoint.transpose() * JrowPoint;
-                    targetPointRes += loss_weight * JrowPoint.transpose() * res;
+                    targetPointRes -= loss_weight * JrowPoint.transpose() * res;
                 }
                 else
                 {
-                    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
-                    KernelType::PoseJacobiType JrowPose;
-                    KernelType::PointJacobiType JrowPoint;
-                    KernelType::ResidualType res;
-
-                    bool valid_depth = KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res,
-                                                                               JrowPose, JrowPoint);
-                    if (extr2.constant) JrowPose.setZero();
+                    Matrix<double, 2, 6> JrowPose;
+                    Matrix<double, 2, 3> JrowPoint;
+                    auto [res, depth] = BundleAdjustment(camera, ip.point, extr, wp, w, &JrowPose, &JrowPoint);
 
                     T loss_weight = 1.0;
                     auto res_2    = res.squaredNorm();
@@ -510,17 +499,17 @@ double BARec::computeQuadraticForm()
                     }
                     newChi2 += res_2;
 
-                    if (!valid_depth) loss_weight = 0;
+                    //                    if (!valid_depth) loss_weight = 0;
                     if (!constant)
                     {
                         auto& targetPosePose = A.u.diagonal()(actualOffset).get();
                         auto& targetPoseRes  = b.u(actualOffset).get();
                         targetPosePose += loss_weight * JrowPose.transpose() * JrowPose;
                         targetPosePoint = loss_weight * JrowPose.transpose() * JrowPoint;
-                        targetPoseRes += loss_weight * JrowPose.transpose() * res;
+                        targetPoseRes -= loss_weight * JrowPose.transpose() * res;
                     }
                     targetPointPoint += loss_weight * JrowPoint.transpose() * JrowPoint;
-                    targetPointRes += loss_weight * JrowPoint.transpose() * res;
+                    targetPointRes -= loss_weight * JrowPoint.transpose() * res;
                 }
 
                 if (!constant)
@@ -657,6 +646,7 @@ void BARec::addLambda(double lambda)
         applyLMDiagonal_omp(A.u, lambda);
         applyLMDiagonal_omp(A.v, lambda);
     }
+
     //    }
 }
 
@@ -710,19 +700,17 @@ double BARec::computeCost()
             for (auto& ip : img.stereoPoints)
             {
                 if (!ip) continue;
-                BlockBAScalar w = ip.weight * img.imageWeight * scene.scale();
+                BlockBAScalar w = ip.weight * scene.scale();
                 int j           = pointToValidMap[ip.wp];
                 SAIGA_ASSERT(j >= 0);
                 auto& wp = x_v[j];
 
                 if (ip.IsStereoOrDepth())
                 {
-                    using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
-                    KernelType::ResidualType res;
                     auto stereo_point = ip.GetStereoPoint(scene.bf);
-                    res               = KernelType::evaluateResidual(scam, extr, wp, ip.point, stereo_point, w,
-                                                       w * scene.stereo_weight);
-                    auto res_2        = res.squaredNorm();
+                    auto [res, depth] =
+                        BundleAdjustmentStereo(scam, ip.point, stereo_point, extr, wp, w, w * scene.stereo_weight);
+                    auto res_2 = res.squaredNorm();
                     if (baOptions.huberStereo > 0)
                     {
                         auto rw = Kernel::HuberLoss<T>(baOptions.huberStereo, res_2);
@@ -733,10 +721,8 @@ double BARec::computeCost()
                 }
                 else
                 {
-                    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
-                    KernelType::ResidualType res;
+                    auto [res, depth] = BundleAdjustment(scam, ip.point, extr, wp, w);
 
-                    res        = KernelType::evaluateResidual(camera, extr, wp, ip.point, w);
                     auto res_2 = res.squaredNorm();
                     if (baOptions.huberMono > 0)
                     {

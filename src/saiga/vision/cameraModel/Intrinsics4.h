@@ -90,7 +90,7 @@ struct Intrinsics4Base
 
     // convert to eigen vector
     Vec4 coeffs() const { return {fx, fy, cx, cy}; }
-    void coeffs(Vec4 v) { (*this) = v; }
+    void coeffs(const Vec4& v) { (*this) = v; }
 };
 
 using Intrinsics4  = Intrinsics4Base<double>;
@@ -161,7 +161,7 @@ struct StereoCamera4Base : public Intrinsics4Base<T>
         v << this->fx, this->fy, this->cx, this->cy, bf;
         return v;
     }
-    void coeffs(Vec5 v) { (*this) = v; }
+    void coeffs(const Vec5& v) { (*this) = v; }
 
     // Baseline in meters
     T baseLine() { return bf / fx; }

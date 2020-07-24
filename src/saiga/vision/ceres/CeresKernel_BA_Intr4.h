@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/vision/VisionTypes.h"
-#include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/kernels/BA.h"
 
 #include "ceres/autodiff_cost_function.h"
 
@@ -128,14 +128,13 @@ struct CostBAStereo
     double bf;
     Vec2 weights;
 };
-
+#if 0
 
 class CostBAMonoAnalytic : public ceres::SizedCostFunction<2, 7, 3>
 {
    public:
     using T = double;
 
-    using Kernel = Saiga::Kernel::BAPosePointMono<double>;
 
     CostBAMonoAnalytic(const Intrinsics4& intr, const Eigen::Vector2d& observed, double weight = 1)
         : intr(intr), observed(observed), weight(weight)
@@ -155,11 +154,12 @@ class CostBAMonoAnalytic : public ceres::SizedCostFunction<2, 7, 3>
         if (!_jacobians)
         {
             // only compute residuals
-            residual = Kernel::evaluateResidual(intr, se3, wp, observed, weight);
+//            residual = Kernel::evaluateResidual(intr, se3, wp, observed, weight);
         }
         else
         {
             // compute both
+
             Kernel::PoseJacobiType jpose;
             Kernel::PointJacobiType jpoint;
             Kernel::ResidualType res;
@@ -180,6 +180,7 @@ class CostBAMonoAnalytic : public ceres::SizedCostFunction<2, 7, 3>
                 jpoint2 = jpoint;
                 //                std::cout << jpoint2 << std::endl;
             }
+
         }
 
         return true;
@@ -253,5 +254,5 @@ class CostBAStereoAnalytic : public ceres::SizedCostFunction<3, 7, 3>
     Eigen::Vector2d observed;
     double weight, observedDepth;
 };
-
+#endif
 }  // namespace Saiga

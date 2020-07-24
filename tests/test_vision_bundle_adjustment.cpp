@@ -13,6 +13,8 @@
 #include "saiga/vision/recursive/BARecursive.h"
 #include "saiga/vision/recursive/BARecursiveRel.h"
 #include "saiga/vision/scene/SynteticScene.h"
+//#include "saiga/vision/scene/SynteticScene.h"
+
 
 #include "gtest/gtest.h"
 
@@ -27,9 +29,9 @@ class BundleAdjustmentTest
     {
         opoptions.debugOutput            = false;
         opoptions.debug                  = false;
-        opoptions.maxIterations          = 10;
-        opoptions.maxIterativeIterations = 50;
-        opoptions.iterativeTolerance     = 1e-10;
+        opoptions.maxIterations          = 50;
+        opoptions.maxIterativeIterations = 100;
+        opoptions.iterativeTolerance     = 1e-20;
         opoptions.numThreads             = 1;
         opoptions.buildExplizitSchur     = true;
 
@@ -94,12 +96,13 @@ class BundleAdjustmentTest
         auto scene1 = solveRec(options);
         auto scene2 = solveCeres(options);
         auto scene3 = solveRecRel(options);
+        //        auto scene3 = scen
 
-        //        std::cout << scene.chi2(options.huberMono) << " " << scene1.chi2(options.huberMono) << " "
-        //                  << scene2.chi2(options.huberMono) << std::endl;
+        std::cout << scene.chi2(options.huberMono) << " -> " << scene1.chi2(options.huberMono) << " "
+                  << scene2.chi2(options.huberMono) << std::endl;
 
-        ExpectCloseRelative(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-1);
-        ExpectCloseRelative(scene1.chi2(options.huberMono), scene3.chi2(options.huberMono), 1e-1);
+        ExpectClose(scene1.chi2(options.huberMono), scene2.chi2(options.huberMono), 1e-1);
+        ExpectClose(scene1.chi2(options.huberMono), scene3.chi2(options.huberMono), 1e-1);
     }
 
     void BenchmarkRecursive(const OptimizationOptions& op_options, const BAOptions& options, bool rel = false)
@@ -159,7 +162,7 @@ class BundleAdjustmentTest
 
     void buildScene(bool with_depth = false, bool with_stereo = false)
     {
-        scene = SynteticScene::CircleSphere(100, 3, 100);
+        scene = SynteticScene::CircleSphere(100, 10, 20);
         if (with_depth)
         {
             for (auto& img : scene.images)
@@ -171,18 +174,6 @@ class BundleAdjustmentTest
             }
         }
 
-        if (with_stereo)
-        {
-            for (auto& img : scene.images)
-            {
-                for (auto& obs : img.stereoPoints)
-                {
-                    obs.depth = 1.0;
-
-                    obs.stereo_x = obs.GetStereoPoint(scene.bf);
-                }
-            }
-        }
         // 2 cm point noise
         scene.addWorldPointNoise(0.05);
 
@@ -226,7 +217,6 @@ TEST(Scene, LoadStore)
         EXPECT_EQ(scene.images[i].se3, scene.images[i].se3);
         EXPECT_EQ(scene.images[i].constant, scene.images[i].constant);
         EXPECT_EQ(scene.images[i].intr, scene.images[i].intr);
-        EXPECT_EQ(scene.images[i].imageWeight, scene.images[i].imageWeight);
         EXPECT_EQ(scene.images[i].validPoints, scene.images[i].validPoints);
         EXPECT_EQ(scene.images[i].stereoPoints.size(), scene.images[i].stereoPoints.size());
 
@@ -244,12 +234,41 @@ TEST(BundleAdjustment, Empty)
 {
     Scene scene;
 
-    BARec ba;
-    ba.create(scene);
-    ba.initAndSolve();
+    //    BARec ba;
+    //    ba.create(scene);
+    //    ba.initAndSolve();
 }
 
-TEST(BundleAdjustment, Default2)
+TEST(BundleAdjustment, PointOnly)
+{
+    for (int i = 0; i < 10; ++i)
+    {
+        BundleAdjustmentTest test;
+        test.buildScene(false);
+        BAOptions options;
+
+        for (auto& i : test.scene.images)
+        {
+            i.constant = true;
+        }
+
+        auto res_ceres = test.solveCeres(options);
+
+        auto cpy = test.scene;
+        BAPointOnly bapo;
+        bapo.create(cpy);
+        bapo.optimizationOptions = test.opoptions;
+        bapo.baOptions           = options;
+        bapo.initAndSolve();
+
+
+        ExpectClose(res_ceres.chi2(), cpy.chi2(), 1e-1);
+
+        std::cout << test.scene.chi2() << " -> " << res_ceres.chi2() << " " << cpy.chi2() << std::endl;
+    }
+}
+
+TEST(BundleAdjustment, Default)
 {
     for (int i = 0; i < 10; ++i)
     {
@@ -259,6 +278,7 @@ TEST(BundleAdjustment, Default2)
         test.test(options);
     }
 }
+
 
 TEST(BundleAdjustment, DefaultParallel)
 {
@@ -278,21 +298,10 @@ TEST(BundleAdjustment, DefaultParallel)
 
 TEST(BundleAdjustment, DefaultDepth)
 {
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         BundleAdjustmentTest test;
         test.buildScene(true);
-        BAOptions options;
-        test.test(options);
-    }
-}
-
-TEST(BundleAdjustment, DefaultStereo)
-{
-    for (int i = 0; i < 10; ++i)
-    {
-        BundleAdjustmentTest test;
-        test.buildScene(false, true);
         BAOptions options;
         test.test(options);
     }
@@ -319,6 +328,7 @@ TEST(BundleAdjustment, PartialConstant)
     }
 }
 
+
 TEST(BundleAdjustment, Huber)
 {
     Random::setSeed(923652);
@@ -328,7 +338,7 @@ TEST(BundleAdjustment, Huber)
         BAOptions options;
         options.huberMono   = 1;
         options.huberStereo = 0.1;
-        test.test(options);
+        //        test.test(options);
     }
 }
 

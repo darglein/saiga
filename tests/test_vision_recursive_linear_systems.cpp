@@ -5,7 +5,7 @@
  */
 #undef NDEBUG
 
-#include "saiga/vision/kernels/BAPose.h"
+
 #include "saiga/vision/recursive/External/Cholesky/CG.h"
 #include "saiga/vision/recursive/External/Core/NeutralElements.h"
 #include "saiga/vision/recursive/Recursive.h"

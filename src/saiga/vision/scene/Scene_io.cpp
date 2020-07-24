@@ -106,7 +106,7 @@ void Scene::save(const std::string& file)
     for (auto& img : images)
     {
         strm << img.constant << " " << img.se3.params().transpose() << " " << img.velocity.params().transpose() << " ";
-        strm << img.intr << " " << img.imageWeight << " " << img.stereoPoints.size() << std::endl;
+        strm << img.intr << " " << img.stereoPoints.size() << std::endl;
         for (auto& ip : img.stereoPoints)
         {
             strm << ip.wp << " " << ip.depth << " " << ip.point.transpose() << " " << ip.weight << std::endl;
@@ -123,6 +123,7 @@ void Scene::load(const std::string& file)
 {
     std::cout << "Loading scene from " << file << "." << std::endl;
 
+    (*this)       = Scene();
     std::string f = SearchPathes::data(file);
     if (f.empty())
     {
@@ -181,7 +182,7 @@ void Scene::load(const std::string& file)
 
 
         int numpoints;
-        strm >> img.intr >> img.imageWeight >> numpoints;
+        strm >> img.intr >> numpoints;
         img.stereoPoints.resize(numpoints);
         for (auto& ip : img.stereoPoints)
         {

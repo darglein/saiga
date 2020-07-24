@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/vision/VisionTypes.h"
-#include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/kernels/BA.h"
 
 #include "ceres/autodiff_cost_function.h"
 

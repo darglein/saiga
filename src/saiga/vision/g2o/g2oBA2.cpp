@@ -120,7 +120,7 @@ OptimizationResults g2oBA2::initAndSolve()
         for (auto& ip : img.stereoPoints)
         {
             if (!ip) continue;
-            double w = ip.weight * img.imageWeight * scene.scale();
+            double w = ip.weight * scene.scale();
 
             int wpvertexid = pointToValidMap[ip.wp] + wpStartId;
             auto vertex_wp = dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(wpvertexid));

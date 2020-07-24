@@ -128,7 +128,12 @@ class MixedSymmetricRecursiveSolver<
         }
 
         // Invert V
-        for (int i = 0; i < m; ++i) Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
+        for (int i = 0; i < m; ++i)
+        {
+            //            Vinv.diagonal()(i) = V.diagonal()(i).get().inverse();
+
+            Vinv.diagonal()(i) = Recursive::inverseCholesky(V.diagonal()(i));
+        }
 
         // Y = W * V^-1
         multSparseDiag(W, Vinv, Y);

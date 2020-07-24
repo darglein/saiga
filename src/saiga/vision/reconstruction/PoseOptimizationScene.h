@@ -9,7 +9,6 @@
 #include "saiga/core/util/Range.h"
 #include "saiga/core/util/Thread/omp.h"
 #include "saiga/vision/VisionTypes.h"
-#include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/Robust.h"
 
 #include <vector>

@@ -12,8 +12,7 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Algorithm.h"
 #include "saiga/core/util/Thread/omp.h"
-#include "saiga/vision/kernels/BAPose.h"
-#include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/kernels/BA.h"
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/kernels/Robust.h"
 #include "saiga/vision/util/HistogramImage.h"
@@ -140,6 +139,7 @@ void BARecRel::init()
         pointToValidMap[i] = validId;
         validPoints.push_back(i);
     }
+    //    SAIGA_ASSERT(validPoints.size() == scene.worldPoints.size());
 
     n = totalN - constantN;
     m = validPoints.size();
@@ -237,11 +237,22 @@ void BARecRel::init()
     {
         // ==== Rel pose constraints and matrix A.u ====
         // this is copied from PGO
-
+        scene.SortRelPoseConstraints();
         auto& S = A.u;
+        S.setZero();
+
 
 
         int N = n;
+
+
+        //        S.reserve();
+
+        // make room for the diagonal element
+        for (int i = 0; i < n; ++i)
+        {
+            S.outerIndexPtr()[i] = 1;
+        }
 
         // Compute outer structure pointer
         // Note: the row is smaller than the column, which means we are in the upper right part of the matrix.
@@ -262,11 +273,14 @@ void BARecRel::init()
 
         S.reserve(N);
 
-        // make room for the diagonal element
-        for (int i = 0; i < n; ++i)
+
+        for (int i = 0; i < N; ++i)
         {
-            S.outerIndexPtr()[i]++;
+            S.innerIndexPtr()[i] = -923875;
+            S.valuePtr()[i]      = ADiag::Ones() * std::numeric_limits<double>::infinity();
         }
+
+
 
         exclusive_scan(S.outerIndexPtr(), S.outerIndexPtr() + S.outerSize(), S.outerIndexPtr(), 0);
         S.outerIndexPtr()[S.outerSize()] = N;
@@ -297,6 +311,7 @@ void BARecRel::init()
 
             S.innerIndexPtr()[offseti] = j.variableId;
 
+            SAIGA_ASSERT(offseti < S.data().allocatedSize());
 
             edgeOffsets[k] = offseti;
         }
@@ -318,6 +333,8 @@ void BARecRel::init()
     for (auto& a : pointDiagTemp) a.resize(m);
     for (auto& a : pointResTemp) a.resize(m);
 
+    SAIGA_ASSERT(baOptions.helper_threads == 1);
+    SAIGA_ASSERT(baOptions.solver_threads == 1);
 
 
     // Setup the linear solver and anlyze the pattern
@@ -425,6 +442,7 @@ void BARecRel::init()
     }
 }
 
+
 double BARecRel::computeQuadraticForm()
 {
     Scene& scene = *_scene;
@@ -444,9 +462,13 @@ double BARecRel::computeQuadraticForm()
 
     SAIGA_ASSERT(A.w.IsRowMajor);
 
+    if (n == 0)
+    {
+        return 0;
+    }
 
 
-    //#pragma omp parallel num_threads(baOptions.helper_threads)
+#pragma omp parallel num_threads(baOptions.helper_threads)
     {
         int tid = OMP::getThreadNum();
 
@@ -474,7 +496,7 @@ double BARecRel::computeQuadraticForm()
             bresArray[i].setZero();
         }
 
-        //#pragma omp for
+#pragma omp for
         for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
@@ -492,7 +514,6 @@ double BARecRel::computeQuadraticForm()
 
             auto& img    = scene.images[info.sceneImageId];
             auto& extr   = x_u[info.validId];
-            auto& extr2  = img;
             auto& camera = scene.intrinsics[img.intr];
             StereoCamera4 scam(camera, scene.bf);
 
@@ -502,8 +523,7 @@ double BARecRel::computeQuadraticForm()
             {
                 // each thread can direclty right into A.u and b.u because
                 // we parallize over images
-                //                auto& targetPosePose = A.u.diagonal()(actualOffset).get();
-                auto& targetPosePose = A.u.valuePtr()[A.u.outerIndexPtr()[actualOffset]].get();
+                auto& targetPosePose = A.u.diagonal()(actualOffset).get();
                 auto& targetPoseRes  = b.u(actualOffset).get();
                 targetPosePose.setZero();
                 targetPoseRes.setZero();
@@ -521,7 +541,7 @@ double BARecRel::computeQuadraticForm()
                     }
                     continue;
                 }
-                BlockBAScalar w = ip.weight * img.imageWeight * scene.scale();
+                BlockBAScalar w = ip.weight * scene.scale();
                 int j           = pointToValidMap[ip.wp];
 
 
@@ -538,16 +558,12 @@ double BARecRel::computeQuadraticForm()
 
                 if (ip.IsStereoOrDepth())
                 {
-                    using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
-                    KernelType::PoseJacobiType JrowPose;
-                    KernelType::PointJacobiType JrowPoint;
-                    KernelType::ResidualType res;
-
                     auto stereo_point = ip.GetStereoPoint(scene.bf);
-                    bool valid_depth  = KernelType::evaluateResidualAndJacobian(
-                        scam, extr, wp, ip.point, stereo_point, w, w * scene.stereo_weight, res, JrowPose, JrowPoint);
-                    if (extr2.constant) JrowPose.setZero();
 
+                    Matrix<double, 3, 6> JrowPose;
+                    Matrix<double, 3, 3> JrowPoint;
+                    auto [res, depth] = BundleAdjustmentStereo(scam, ip.point, stereo_point, extr, wp, w,
+                                                               w * scene.stereo_weight, &JrowPose, &JrowPoint);
 
                     T loss_weight = 1.0;
                     auto res_2    = res.squaredNorm();
@@ -558,33 +574,27 @@ double BARecRel::computeQuadraticForm()
                         res_2       = rw(0);
                         loss_weight = rw(1);
                     }
-                    if (!valid_depth) loss_weight = 0;
+                    //                    if (!valid_depth) loss_weight = 0;
 
 
                     newChi2 += res_2;
 
                     if (!constant)
                     {
-                        //                        auto& targetPosePose = A.u.diagonal()(actualOffset).get();
-                        auto& targetPosePose = A.u.valuePtr()[A.u.outerIndexPtr()[actualOffset]].get();
+                        auto& targetPosePose = A.u.diagonal()(actualOffset).get();
                         auto& targetPoseRes  = b.u(actualOffset).get();
                         targetPosePose += loss_weight * JrowPose.transpose() * JrowPose;
                         targetPosePoint = loss_weight * JrowPose.transpose() * JrowPoint;
-                        targetPoseRes += loss_weight * JrowPose.transpose() * res;
+                        targetPoseRes -= loss_weight * JrowPose.transpose() * res;
                     }
                     targetPointPoint += loss_weight * JrowPoint.transpose() * JrowPoint;
-                    targetPointRes += loss_weight * JrowPoint.transpose() * res;
+                    targetPointRes -= loss_weight * JrowPoint.transpose() * res;
                 }
                 else
                 {
-                    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
-                    KernelType::PoseJacobiType JrowPose;
-                    KernelType::PointJacobiType JrowPoint;
-                    KernelType::ResidualType res;
-
-                    bool valid_depth = KernelType::evaluateResidualAndJacobian(camera, extr, wp, ip.point, w, res,
-                                                                               JrowPose, JrowPoint);
-                    if (extr2.constant) JrowPose.setZero();
+                    Matrix<double, 2, 6> JrowPose;
+                    Matrix<double, 2, 3> JrowPoint;
+                    auto [res, depth] = BundleAdjustment(camera, ip.point, extr, wp, w, &JrowPose, &JrowPoint);
 
                     T loss_weight = 1.0;
                     auto res_2    = res.squaredNorm();
@@ -597,18 +607,17 @@ double BARecRel::computeQuadraticForm()
                     }
                     newChi2 += res_2;
 
-                    if (!valid_depth) loss_weight = 0;
+                    //                    if (!valid_depth) loss_weight = 0;
                     if (!constant)
                     {
-                        //                        auto& targetPosePose = A.u.diagonal()(actualOffset).get();
-                        auto& targetPosePose = A.u.valuePtr()[A.u.outerIndexPtr()[actualOffset]].get();
+                        auto& targetPosePose = A.u.diagonal()(actualOffset).get();
                         auto& targetPoseRes  = b.u(actualOffset).get();
                         targetPosePose += loss_weight * JrowPose.transpose() * JrowPose;
                         targetPosePoint = loss_weight * JrowPose.transpose() * JrowPoint;
-                        targetPoseRes += loss_weight * JrowPose.transpose() * res;
+                        targetPoseRes -= loss_weight * JrowPose.transpose() * res;
                     }
                     targetPointPoint += loss_weight * JrowPoint.transpose() * JrowPoint;
-                    targetPointRes += loss_weight * JrowPoint.transpose() * res;
+                    targetPointRes -= loss_weight * JrowPoint.transpose() * res;
                 }
 
                 if (!constant)
@@ -634,8 +643,8 @@ double BARecRel::computeQuadraticForm()
     double chi2_rel = 0;
     for (int c = 0; c < scene.rel_pose_constraints.size(); ++c)
     {
-        auto e       = scene.rel_pose_constraints[c];
-        auto& offset = edgeOffsets[c];
+        auto e = scene.rel_pose_constraints[c];
+
 
         auto i = validImages[camera_to_valid_map[e.img1]];
         auto j = validImages[camera_to_valid_map[e.img2]];
@@ -668,6 +677,7 @@ double BARecRel::computeQuadraticForm()
         {
             // std::cout << "add edge " << i.sceneImageId << " " << j.sceneImageId << " " << offset << std::endl;
             SAIGA_ASSERT(edgeOffsets[c] != -1);
+            auto& offset    = edgeOffsets[c];
             auto& target_ij = A.u.valuePtr()[offset].get();
             target_ij       = Jrowi.transpose() * Jrowj;
         }
@@ -707,7 +717,7 @@ bool BARecRel::addDelta()
 
 
 
-            auto t = delta_x.u(offset).get();
+            Vec6 t = delta_x.u(offset).get();
 
             x_u[id] = Sophus::se3_expd(t) * x_u[id];
 
@@ -720,7 +730,8 @@ bool BARecRel::addDelta()
         for (int i = 0; i < m; ++i)
         {
             oldx_v[i] = x_v[i];
-            auto t    = delta_x.v(i).get();
+            Vec3 t    = delta_x.v(i).get();
+            //            std::cout << i << " dp " << t.transpose() << std::endl;
             x_v[i] += t;
         }
     }
@@ -772,10 +783,12 @@ void BARecRel::finalize()
 #pragma omp for
         for (int i = 0; i < validPoints.size(); ++i)
         {
-            Eigen::Matrix<BlockBAScalar, 3, 1> t;
             auto id = validPoints[i];
-            auto& p = scene.worldPoints[id].p;
-            p       = x_v[i];
+
+            auto& wp = scene.worldPoints[id];
+            SAIGA_ASSERT(wp);
+
+            wp.p = x_v[i];
         }
     }
 }
@@ -786,22 +799,14 @@ void BARecRel::addLambda(double lambda)
     // apply lm
     for (int i = 0; i < A.u.rows(); ++i)
     {
-        auto& d = A.u.valuePtr()[A.u.outerIndexPtr()[i]].get();
+        //        auto& d = A.u.valuePtr()[A.u.outerIndexPtr()[i]].get();
+        auto& d = A.u.diagonal()(i).get();
         applyLMDiagonalInner(d, lambda);
     }
     //    if (1 == 1)
     //    //    {
     //    applyLMDiagonal(A.u, lambda);
     applyLMDiagonal(A.v, lambda);
-    //    //    }
-    //    //    else
-    //    //    {
-    //    //#pragma omp parallel num_threads(baOptions.helper_threads)
-    //    {
-    //        applyLMDiagonal_omp(A.u, lambda);
-    //        applyLMDiagonal_omp(A.v, lambda);
-    //    }
-    //    }
 }
 
 
@@ -844,19 +849,22 @@ double BARecRel::computeCost()
             for (auto& ip : img.stereoPoints)
             {
                 if (!ip) continue;
-                BlockBAScalar w = ip.weight * img.imageWeight * scene.scale();
+                BlockBAScalar w = ip.weight * scene.scale();
                 int j           = pointToValidMap[ip.wp];
                 SAIGA_ASSERT(j >= 0);
                 auto& wp = x_v[j];
 
                 if (ip.IsStereoOrDepth())
                 {
-                    using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
-                    KernelType::ResidualType res;
+                    //                    using KernelType = Saiga::Kernel::BAPosePointStereo<T>;
+                    //                    KernelType::ResidualType res;
                     auto stereo_point = ip.GetStereoPoint(scene.bf);
-                    res               = KernelType::evaluateResidual(scam, extr, wp, ip.point, stereo_point, w,
-                                                       w * scene.stereo_weight);
-                    auto res_2        = res.squaredNorm();
+                    auto [res, depth] =
+                        BundleAdjustmentStereo(scam, ip.point, stereo_point, extr, wp, w, w * scene.stereo_weight);
+                    //                    res               = KernelType::evaluateResidual(scam, extr, wp, ip.point,
+                    //                    stereo_point, w,
+                    //                                                       w * scene.stereo_weight);
+                    auto res_2 = res.squaredNorm();
                     if (baOptions.huberStereo > 0)
                     {
                         auto rw = Kernel::HuberLoss<T>(baOptions.huberStereo, res_2);
@@ -867,10 +875,12 @@ double BARecRel::computeCost()
                 }
                 else
                 {
-                    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
-                    KernelType::ResidualType res;
+                    //                    using KernelType = Saiga::Kernel::BAPosePointMono<T>;
+                    //                    KernelType::ResidualType res;
+                    //                    res        = KernelType::evaluateResidual(camera, extr, wp, ip.point, w);
 
-                    res        = KernelType::evaluateResidual(camera, extr, wp, ip.point, w);
+                    auto [res, depth] = BundleAdjustment(scam, ip.point, extr, wp, w);
+
                     auto res_2 = res.squaredNorm();
                     if (baOptions.huberMono > 0)
                     {
@@ -884,21 +894,24 @@ double BARecRel::computeCost()
         }
     }
 
-
     double chi2_rel = 0;
     for (int c = 0; c < scene.rel_pose_constraints.size(); ++c)
     {
-        auto e = scene.rel_pose_constraints[c];
+        auto rpc = scene.rel_pose_constraints[c];
 
 
-        auto i = validImages[camera_to_valid_map[e.img1]];
-        auto j = validImages[camera_to_valid_map[e.img2]];
+        SAIGA_ASSERT(camera_to_valid_map[rpc.img1] >= 0);
+        SAIGA_ASSERT(camera_to_valid_map[rpc.img2] >= 0);
+        auto i = validImages[camera_to_valid_map[rpc.img1]];
+        auto j = validImages[camera_to_valid_map[rpc.img2]];
 
 
 
-        Vec6 res = relPoseErrorView(e.rel_pose.inverse(), x_u[i.validId], x_u[j.validId], e.weight_rotation,
-                                    e.weight_translation);
+        Vec6 res = relPoseErrorView(rpc.rel_pose.inverse(), x_u[i.validId], x_u[j.validId], rpc.weight_rotation,
+                                    rpc.weight_translation);
 
+        //        std::cout << "RPC BA " << rpc.img1 << " - " << rpc.img2 << " Error: " << res.squaredNorm() <<
+        //        std::endl;
         chi2_rel += res.squaredNorm();
     }
 
@@ -908,6 +921,10 @@ double BARecRel::computeCost()
     {
         chi2_sum += localChi2[i];
     }
+
+
+    //    finalize();
+    //    std::cout << "chi2 sum " << chi2_sum << " chi2 scene " << scene.chi2() << std::endl;
 
 
     return chi2_sum;

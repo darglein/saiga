@@ -13,6 +13,7 @@
 #include "saiga/vision/recursive/BARecursive.h"
 #include "saiga/vision/recursive/BARecursiveRel.h"
 #include "saiga/vision/scene/SynteticScene.h"
+#include "saiga/vision/util/Random.h"
 
 #include "gtest/gtest.h"
 
@@ -25,13 +26,14 @@ class BundleAdjustmentTest
    public:
     BundleAdjustmentTest()
     {
-        opoptions.debugOutput            = false;
+        opoptions.debugOutput            = true;
         opoptions.debug                  = false;
-        opoptions.maxIterations          = 15;
-        opoptions.maxIterativeIterations = 50;
+        opoptions.maxIterations          = 4;
+        opoptions.maxIterativeIterations = 40;
         opoptions.iterativeTolerance     = 1e-10;
         opoptions.numThreads             = 1;
         opoptions.buildExplizitSchur     = true;
+        opoptions.solverType             = OptimizationOptions::SolverType::Iterative;
 
         buildScene();
     }
@@ -51,12 +53,21 @@ class BundleAdjustmentTest
     Scene solveRecRel(const BAOptions& options)
     {
         Scene cpy = scene;
-        BARecRel ba;
-        ba.optimizationOptions = opoptions;
-        ba.baOptions           = options;
-        ba.create(cpy);
-        //        SAIGA_BLOCK_TIMER();
-        ba.initAndSolve();
+
+        {
+            BARecRel ba_rel;
+            ba_rel.optimizationOptions = opoptions;
+            ba_rel.baOptions           = options;
+            ba_rel.create(cpy);
+            ba_rel.initAndSolve();
+        }
+
+        if (0)
+        {
+            BAPointOnly bapoint;
+            bapoint.create(cpy);
+            bapoint.initAndSolve();
+        }
         return cpy;
     }
 
@@ -69,86 +80,59 @@ class BundleAdjustmentTest
         ba.create(cpy);
         //        SAIGA_BLOCK_TIMER();
         ba.initAndSolve();
+
         return cpy;
     }
 
-
+    BARecRel ba_rel;
     void test(const BAOptions& options)
     {
         auto scene1 = solveRec(options);
+
         auto scene2 = solveRecRel(options);
         auto scene3 = solveCeres(options);
 
-        std::cout << scene.chi2(options.huberMono) << " -> (Saiga) " << scene1.chi2(options.huberMono)
-                  << " -> (Saiga Rel) " << scene2.chi2(options.huberMono) << " (Ceres) "
-                  << scene3.chi2(options.huberMono) << std::endl;
+        scene.chi2();
+        std::cout << "saiga rel" << std::endl;
+        scene2.chi2();
+        std::cout << "ceres rel" << std::endl;
+        scene3.chi2();
+        //        auto scene1 = scene2;
+        //        std::cout << scene.chi2(options.huberMono) << " -> (Saiga) " << scene1.chi2(options.huberMono)
+        //                  << " -> (Saiga Rel) " << scene2.chi2(options.huberMono) << " (Ceres) "
+        //                  << scene3.chi2(options.huberMono) << std::endl;
 
-        ExpectClose(scene2.chi2(options.huberMono), scene3.chi2(options.huberMono), 1);
+        //        ExpectClose(scene2.chi2(options.huberMono), scene3.chi2(options.huberMono), 1);
     }
-
-    void BenchmarkRecursive(const OptimizationOptions& op_options, const BAOptions& options)
-    {
-        int its = 20;
-        std::vector<double> timings;
-
-
-
-        BARec ba;
-        ba.optimizationOptions = op_options;
-        ba.baOptions           = options;
-
-
-        for (int i = 0; i < its; ++i)
-        {
-            Scene cpy = scene;
-
-            float time;
-            {
-                ScopedTimer tim(time);
-                ba.create(cpy);
-                auto res = ba.initAndSolve();
-                //                ba.initOMP();
-                //                ba.solveOMP();
-            }
-            timings.push_back(time);
-        }
-
-        static bool first = true;
-        Table tab({15, 15, 15, 15, 15, 15});
-        if (first)
-        {
-            tab << "Type"
-                << "Expl."
-                << "Simple LM"
-                << "Helper Threads"
-                << "Solver Threads"
-                << "Time(ms)";
-            first = false;
-        }
-        tab << (op_options.solverType == OptimizationOptions::SolverType::Direct ? "Direct" : "Iterative")
-            << op_options.buildExplizitSchur << op_options.simple_solver << options.helper_threads
-            << options.solver_threads << Statistics(timings).median;
-    }
-
 
 
     void buildScene()
     {
-        scene = SynteticScene::CircleSphere(100, 3, 100);
+        //        int seed = Random::rand();
+        int seed = 298783728;
 
+
+        Random::setSeed(seed);
+
+        std::cout << "seed " << seed << std::endl;
+        int wps  = Random::uniformInt(200, 500);
+        int cams = Random::uniformInt(5, 10);
+        int obs  = Random::uniformInt(50, 100);
+        scene    = SynteticScene::CircleSphere(wps, cams, obs);
+
+        std::cout << "Creating Scene " << wps << "/" << cams << "/" << obs << std::endl;
         for (auto& img : scene.images)
         {
             for (auto& obs : img.stereoPoints)
             {
                 if (Random::sampleDouble(0, 1) < 0.2)
                 {
-                    obs.depth = 1.0;
+                    //                    obs.depth = 1.0;
                 }
             }
         }
 
-
-
+        //        exit(0);
         // 2 cm point noise
         scene.addWorldPointNoise(0.05);
 
@@ -157,8 +141,16 @@ class BundleAdjustmentTest
 
         scene.addExtrinsicNoise(0.01);
 
+        for (auto& img : scene.images)
+        {
+            if (Random::sampleDouble(0, 1) < 0.1)
+            {
+                //                img.constant = true;
+            }
+        }
 
         scene.images.front().constant = true;
+
 
 
         for (int i = 1; i < (int)scene.images.size(); ++i)
@@ -168,15 +160,22 @@ class BundleAdjustmentTest
 
             RelPoseConstraint rpc;
             rpc.SetRelPose(p1, p2);
+            rpc.rel_pose           = Random::JitterPose(rpc.rel_pose, 0.1, 0.00);
             rpc.img1               = i - 1;
             rpc.img2               = i;
-            rpc.weight_rotation    = 50;
-            rpc.weight_translation = 100;
+            rpc.weight_rotation    = 500;
+            rpc.weight_translation = 1000;
             scene.rel_pose_constraints.push_back(rpc);
         }
 
 
 
+        std::cout << "before " << scene.chi2() << " " << scene.images.size() << std::endl;
+        scene.compress();
+        std::cout << "after " << scene.chi2() << " " << scene.images.size() << std::endl;
+
+        scene.load("test_rel.scene");
+        std::cout << scene << std::endl;
         //        scene.
 
 
@@ -195,11 +194,10 @@ TEST(BundleAdjustmentRelpose, Empty)
 {
     for (int i = 0; i < 1; ++i)
     {
-        BundleAdjustmentTest test;
-        test.buildScene();
-        test.scene.rel_pose_constraints.clear();
-        BAOptions options;
-        test.test(options);
+        //        BundleAdjustmentTest test;
+        //        test.scene.rel_pose_constraints.clear();
+        //        BAOptions options;
+        //        test.test(options);
     }
 }
 
@@ -209,7 +207,6 @@ TEST(BundleAdjustmentRelpose, Default)
     for (int i = 0; i < 1; ++i)
     {
         BundleAdjustmentTest test;
-        test.buildScene();
         BAOptions options;
         test.test(options);
     }

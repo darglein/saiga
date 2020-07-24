@@ -4,7 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/vision/kernels/BAPose.h"
+
+#include "saiga/vision/kernels/BA.h"
 #include "saiga/vision/kernels/PGO.h"
 #include "saiga/vision/util/Random.h"
 
@@ -248,8 +249,9 @@ TEST(NumericDerivative, RotatePointProject)
 }
 
 
-Vec2 BundleAdjustment(const Intrinsics4& camera, const Vec2& observation, const SE3& pose, const Vec3& point,
-                      Matrix<double, 2, 6>* jacobian_pose = nullptr, Matrix<double, 2, 3>* jacobian_point = nullptr)
+Vec2 BundleAdjustmentVerbose(const Intrinsics4& camera, const Vec2& observation, const SE3& pose, const Vec3& point,
+                             double weight, Matrix<double, 2, 6>* jacobian_pose = nullptr,
+                             Matrix<double, 2, 3>* jacobian_point = nullptr)
 {
     Vec3 p      = pose * point;
     Vec2 p_by_z = Vec2(p(0) / p(2), p(1) / p(2));
@@ -257,7 +259,7 @@ Vec2 BundleAdjustment(const Intrinsics4& camera, const Vec2& observation, const 
     Vec2 residual;
     residual(0) = camera.fx * p_by_z(0) + camera.cx - observation(0);
     residual(1) = camera.fy * p_by_z(1) + camera.cy - observation(1);
-
+    residual *= weight;
     auto x = p(0);
     auto y = p(1);
     auto z = p(2);
@@ -306,6 +308,8 @@ Vec2 BundleAdjustment(const Intrinsics4& camera, const Vec2& observation, const 
         (*jacobian_pose)(1, 3) *= camera.fy;
         (*jacobian_pose)(1, 4) *= camera.fy;
         (*jacobian_pose)(1, 5) *= camera.fy;
+
+        (*jacobian_pose) *= weight;
     }
 
     if (jacobian_point)
@@ -325,67 +329,8 @@ Vec2 BundleAdjustment(const Intrinsics4& camera, const Vec2& observation, const 
         (*jacobian_point)(1, 0) *= camera.fy;
         (*jacobian_point)(1, 1) *= camera.fy;
         (*jacobian_point)(1, 2) *= camera.fy;
-    }
-    return residual;
-}
 
-
-Vec2 BundleAdjustmentCompact(const Intrinsics4& camera, const Vec2& observation, const SE3& pose, const Vec3& point,
-                             Matrix<double, 2, 6>* jacobian_pose  = nullptr,
-                             Matrix<double, 2, 3>* jacobian_point = nullptr)
-{
-    Vec3 p      = pose * point;
-    Vec2 p_by_z = Vec2(p(0) / p(2), p(1) / p(2));
-
-    Vec2 residual;
-    residual(0) = camera.fx * p_by_z(0) + camera.cx - observation(0);
-    residual(1) = camera.fy * p_by_z(1) + camera.cy - observation(1);
-
-    auto x     = p(0);
-    auto y     = p(1);
-    auto z     = p(2);
-    auto zz    = z * z;
-    auto zinv  = 1 / z;
-    auto zzinv = 1 / zz;
-    if (jacobian_pose)
-    {
-        jacobian_pose->setZero();
-        // divion by z (this is a little verbose and can be simplified by a lot).
-        (*jacobian_pose)(0, 0) = zinv;
-        (*jacobian_pose)(0, 1) = 0;
-        (*jacobian_pose)(0, 2) = -x * zzinv;
-        (*jacobian_pose)(1, 0) = 0;
-        (*jacobian_pose)(1, 1) = zinv;
-        (*jacobian_pose)(1, 2) = -y * zzinv;
-
-
-#if 1
-        // rotation
-        (*jacobian_pose)(0, 3) = -y * x * zzinv;
-        (*jacobian_pose)(0, 4) = (1 + (x * x) * zzinv);
-        (*jacobian_pose)(0, 5) = -y * zinv;
-        (*jacobian_pose)(1, 3) = (-1 - (y * y) * zzinv);
-        (*jacobian_pose)(1, 4) = x * y * zzinv;
-        (*jacobian_pose)(1, 5) = x * zinv;
-#endif
-
-        (*jacobian_pose).row(0) *= camera.fx;
-        (*jacobian_pose).row(1) *= camera.fy;
-    }
-
-    if (jacobian_point)
-    {
-        auto R = pose.so3().matrix();
-
-        (*jacobian_point)(0, 0) = (R(0, 0) - p_by_z(0) * R(2, 0)) * zinv;
-        (*jacobian_point)(0, 1) = (R(0, 1) - p_by_z(0) * R(2, 1)) * zinv;
-        (*jacobian_point)(0, 2) = (R(0, 2) - p_by_z(0) * R(2, 2)) * zinv;
-        (*jacobian_point)(1, 0) = (R(1, 0) - p_by_z(1) * R(2, 0)) * zinv;
-        (*jacobian_point)(1, 1) = (R(1, 1) - p_by_z(1) * R(2, 1)) * zinv;
-        (*jacobian_point)(1, 2) = (R(1, 2) - p_by_z(1) * R(2, 2)) * zinv;
-
-        (*jacobian_point).row(0) *= camera.fx;
-        (*jacobian_point).row(1) *= camera.fy;
+        (*jacobian_point) *= weight;
     }
     return residual;
 }
@@ -402,12 +347,13 @@ TEST(NumericDerivative, BundleAdjustment)
     Vec2 projection  = intr.project(pose_c_w * wp);
     Vec2 observation = projection + Vec2::Random() * 0.1;
 
+    double weight = 6;
     Matrix<double, 2, 6> J_pose_1, J_pose_2, J_pose_3;
     Matrix<double, 2, 3> J_point_1, J_point_2, J_point_3;
     Vec2 res1, res2, res3;
 
-    res1 = BundleAdjustment(intr, observation, pose_c_w, wp, &J_pose_1, &J_point_1);
-    res3 = BundleAdjustmentCompact(intr, observation, pose_c_w, wp, &J_pose_3, &J_point_3);
+    res1 = BundleAdjustment(intr, observation, pose_c_w, wp, weight, &J_pose_1, &J_point_1).first;
+    res3 = BundleAdjustmentVerbose(intr, observation, pose_c_w, wp, weight, &J_pose_3, &J_point_3);
 
     {
         Vec6 eps = Vec6::Zero();
@@ -417,13 +363,13 @@ TEST(NumericDerivative, BundleAdjustment)
                 //                auto pose_c_w_new = pose_c_w;
                 //                Sophus::decoupled_inc(p, pose_c_w_new);
 
-                return BundleAdjustment(intr, observation, pose_c_w_new, wp);
+                return BundleAdjustment(intr, observation, pose_c_w_new, wp, weight).first;
             },
             eps, &J_pose_2);
     }
     {
-        res2 =
-            EvaluateNumeric([=](auto p) { return BundleAdjustment(intr, observation, pose_c_w, p); }, wp, &J_point_2);
+        res2 = EvaluateNumeric([=](auto p) { return BundleAdjustment(intr, observation, pose_c_w, p, weight).first; },
+                               wp, &J_point_2);
     }
 
     ExpectCloseRelative(res1, res2, 1e-5);
@@ -435,6 +381,52 @@ TEST(NumericDerivative, BundleAdjustment)
 }
 
 
+
+TEST(NumericDerivative, BundleAdjustmentStereo)
+{
+    SE3 pose_c_w = Random::randomSE3();
+    Vec3 wp      = Vec3::Random();
+    StereoCamera4 intr;
+    intr.coeffs(Vec5::Random());
+
+    double stereo_point = Random::sampleDouble(-1, 1);
+
+    Vec2 projection  = intr.project(pose_c_w * wp);
+    Vec2 observation = projection + Vec2::Random() * 0.1;
+
+    double weight       = 6;
+    double weight_depth = 0.7;
+    Matrix<double, 3, 6> J_pose_1, J_pose_2;
+    Matrix<double, 3, 3> J_point_1, J_point_2;
+    Vec3 res1, res2;
+
+    res1 = BundleAdjustmentStereo(intr, observation, stereo_point, pose_c_w, wp, weight, weight_depth, &J_pose_1,
+                                  &J_point_1)
+               .first;
+
+
+    {
+        Vec6 eps = Vec6::Zero();
+        res2     = EvaluateNumeric(
+            [=](auto p) {
+                auto pose_c_w_new = Sophus::se3_expd(p) * pose_c_w;
+                return BundleAdjustmentStereo(intr, observation, stereo_point, pose_c_w_new, wp, weight, weight_depth)
+                    .first;
+            },
+            eps, &J_pose_2);
+    }
+    {
+        res2 = EvaluateNumeric(
+            [=](auto p) {
+                return BundleAdjustmentStereo(intr, observation, stereo_point, pose_c_w, p, weight, weight_depth).first;
+            },
+            wp, &J_point_2);
+    }
+
+    ExpectCloseRelative(res1, res2, 1e-5);
+    ExpectCloseRelative(J_pose_1, J_pose_2, 1e-5);
+    ExpectCloseRelative(J_point_1, J_point_2, 1e-5);
+}
 
 /// @brief Right Jacobian for decoupled SE(3)
 ///

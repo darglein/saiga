@@ -4,7 +4,7 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/Thread/omp.h"
 #include "saiga/vision/VisionIncludes.h"
-#include "saiga/vision/kernels/BAPose.h"
+#include "saiga/vision/kernels/BA.h"
 #include "saiga/vision/util/LM.h"
 
 #include "Eigen/Sparse"
@@ -55,43 +55,35 @@ double BAPoseOnly::computeQuadraticForm()
             if (!ip) continue;
             auto wp   = scene.worldPoints[ip.wp].p;
             auto extr = x_v[i];
-            auto w    = ip.weight * img.imageWeight * scene.scale();
+            auto w    = ip.weight * scene.scale();
 
-            if (ip.depth > 0)
+            if (ip.IsStereoOrDepth())
             {
-                using StereoKernel = Saiga::Kernel::BAPoseStereo<T>;
-                StereoKernel::JacobiType JrowPoint;
-                StereoKernel::ResidualType res;
-                StereoKernel::evaluateResidualAndJacobian(scam, extr, wp, ip.point, ip.depth, res, JrowPoint, 1.0);
+                auto stereo_point = ip.GetStereoPoint(scene.bf);
 
+                Matrix<double, 3, 6> JrowPose;
+                auto [res, depth] = BundleAdjustmentStereo(scam, ip.point, stereo_point, extr, wp, w,
+                                                           w * scene.stereo_weight, &JrowPose, nullptr);
 
-                auto sqrtrw = sqrt(w);
-                JrowPoint *= sqrtrw;
-                res *= sqrtrw;
 
                 auto c = res.squaredNorm();
                 chi2 += c;
 
-                targetJ += JrowPoint.transpose() * JrowPoint;
-                targetRes += JrowPoint.transpose() * res;
+                targetJ += JrowPose.transpose() * JrowPose;
+                targetRes += JrowPose.transpose() * res;
             }
             else
             {
-                using MonoKernel = Saiga::Kernel::BAPoseMono<T>;
-                MonoKernel::JacobiType JrowPoint;
-                MonoKernel::ResidualType res;
-                MonoKernel::evaluateResidualAndJacobian(camera, extr, wp, ip.point, res, JrowPoint, 1.0);
+                Matrix<double, 2, 6> JrowPose;
+                auto [res, depth] = BundleAdjustment(camera, ip.point, extr, wp, w, &JrowPose, nullptr);
 
 
-                auto sqrtrw = sqrt(w);
-                JrowPoint *= sqrtrw;
-                res *= sqrtrw;
 
                 auto c = res.squaredNorm();
                 chi2 += c;
 
-                targetJ += JrowPoint.transpose() * JrowPoint;
-                targetRes += JrowPoint.transpose() * res;
+                targetJ += JrowPose.transpose() * JrowPose;
+                targetRes += JrowPose.transpose() * res;
             }
         }
     }
@@ -116,27 +108,19 @@ double BAPoseOnly::computeCost()
             if (!ip) continue;
             auto wp   = scene.worldPoints[ip.wp].p;
             auto extr = x_v[i];
-            auto w    = ip.weight * img.imageWeight * scene.scale();
-            if (ip.depth > 0)
+            auto w    = ip.weight * scene.scale();
+            if (ip.IsStereoOrDepth())
             {
-                using StereoKernel = Saiga::Kernel::BAPoseStereo<T>;
-                StereoKernel::ResidualType res;
-                res = StereoKernel::evaluateResidual(scam, extr, wp, ip.point, ip.depth, 1.0);
-
-                auto sqrtrw = sqrt(w);
-                res *= sqrtrw;
+                auto stereo_point = ip.GetStereoPoint(scene.bf);
+                auto [res, depth] =
+                    BundleAdjustmentStereo(scam, ip.point, stereo_point, extr, wp, w, w * scene.stereo_weight);
 
                 auto c = res.squaredNorm();
                 chi2 += c;
             }
             else
             {
-                using MonoKernel = Saiga::Kernel::BAPoseMono<T>;
-                MonoKernel::ResidualType res;
-                res = MonoKernel::evaluateResidual(camera, extr, wp, ip.point, 1.0);
-
-                auto sqrtrw = sqrt(w);
-                res *= sqrtrw;
+                auto [res, depth] = BundleAdjustment(scam, ip.point, extr, wp, w);
 
                 auto c = res.squaredNorm();
                 chi2 += c;

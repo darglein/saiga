@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/vision/VisionTypes.h"
-#include "saiga/vision/kernels/BAPosePoint.h"
+#include "saiga/vision/kernels/BA.h"
 
 #include "ceres/autodiff_cost_function.h"
 
@@ -20,7 +20,7 @@ struct CostBARSMono
     using CostType = CostBARSMono;
     // Note: The first number is the number of residuals
     //       The following number sthe size of the residual blocks (without local parametrization)
-    using CostFunctionType = ceres::AutoDiffCostFunction<CostType, 2, 7,7, 3>;
+    using CostFunctionType = ceres::AutoDiffCostFunction<CostType, 2, 7, 7, 3>;
     template <typename... Types>
     static CostFunctionType* create(const Types&... args)
     {
@@ -28,9 +28,10 @@ struct CostBARSMono
     }
 
     template <typename T>
-    bool operator()(const T* const _extrinsics1, const T* const _extrinsics2, const T* const _worldPoint, T* _residuals) const
+    bool operator()(const T* const _extrinsics1, const T* const _extrinsics2, const T* const _worldPoint,
+                    T* _residuals) const
     {
-        using SE3 = Sophus::SE3<T>;
+        using SE3  = Sophus::SE3<T>;
         using Vec2 = Eigen::Matrix<T, 2, 1>;
         using Vec3 = Eigen::Matrix<T, 3, 1>;
         using Vec6 = Eigen::Matrix<T, 6, 1>;
@@ -44,21 +45,20 @@ struct CostBARSMono
 
 
 
-
-        double h = observed.y();
+        double h    = observed.y();
         double hrel = h / 480;
 
 
         SE3 vse = SE3::exp(velocity * hrel);
 
-//        SE3 se3 = slerp<T>(start,end,T(hrel));
-        SE3 se3 =  vse * start ;
+        //        SE3 se3 = slerp<T>(start,end,T(hrel));
+        SE3 se3 = vse * start;
 
 
 
         Vec3 pc = se3 * wp;
-        T x = pc(0) / pc(2);
-        T y = pc(1) / pc(2);
+        T x     = pc(0) / pc(2);
+        T y     = pc(1) / pc(2);
 
         x = T(intr.fx) * x + T(intr.cx);
         y = T(intr.fy) * y + T(intr.cy);

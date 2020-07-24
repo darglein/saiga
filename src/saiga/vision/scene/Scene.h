@@ -73,8 +73,7 @@ struct SAIGA_VISION_API StereoImagePoint
 
     int wp = -1;
 
-    double depth    = -1;
-    double stereo_x = -1;
+    double depth = -1;
 
     Eigen::Vector2d point;
     float weight = 1;
@@ -87,9 +86,8 @@ struct SAIGA_VISION_API StereoImagePoint
 
     explicit operator bool() const { return wp != -1 && !outlier; }
 
-    bool IsStereoOrDepth() { return depth > 0 || stereo_x >= 0; }
-    double GetStereoPoint(double bf) { return stereo_x >= 0 ? stereo_x : point(0) - bf / depth; }
-    double GetStereoPoint2(double bf) { return point(0) - bf / depth; }
+    bool IsStereoOrDepth() { return depth > 0; }
+    double GetStereoPoint(double bf) { return point(0) - bf / depth; }
 };
 
 struct SAIGA_VISION_API SceneImage
@@ -105,7 +103,7 @@ struct SAIGA_VISION_API SceneImage
 
     int intr = -1;
     AlignedVector<StereoImagePoint> stereoPoints;
-    float imageWeight = 1;
+
 
     int validPoints = 0;
 
@@ -128,18 +126,16 @@ struct RelPoseConstraint
 
     void SetRelPose(const SE3& p1, const SE3& p2) { rel_pose = p2 * p1.inverse(); }
 
-    Vec6 Residual(const SE3& p1, const SE3& p2)
-    {
-        SE3 rel  = p2 * p1.inverse();
-        Vec6 res = (rel_pose.inverse() * rel).log();
-        res.head<3>() *= weight_translation;
-        res.tail<3>() *= weight_rotation;
-        return res;
-    }
+    Vec6 Residual(const SE3& p1, const SE3& p2);
 
     // Rotation and translation is weighted separately
     double weight_rotation    = 0;
     double weight_translation = 0;
+
+    bool operator<(const RelPoseConstraint& other) const
+    {
+        return std::tie(img1, img2) < std::tie(other.img1, other.img2);
+    }
 };
 
 class SAIGA_VISION_API Scene
@@ -153,7 +149,7 @@ class SAIGA_VISION_API Scene
 
 
     AlignedVector<RelPoseConstraint> rel_pose_constraints;
-
+    void SortRelPoseConstraints() { std::sort(rel_pose_constraints.begin(), rel_pose_constraints.end()); }
 
 
     // to scale towards [-1,1] range for floating point precision

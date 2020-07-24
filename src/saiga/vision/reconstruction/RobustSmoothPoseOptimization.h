@@ -9,7 +9,6 @@
 #include "saiga/core/util/Range.h"
 #include "saiga/core/util/Thread/omp.h"
 #include "saiga/vision/VisionTypes.h"
-#include "saiga/vision/kernels/BAPose.h"
 #include "saiga/vision/kernels/Robust.h"
 
 #include "PoseOptimizationScene.h"
@@ -61,10 +60,8 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustSmoothPoseOptimization
     using Obs        = ObsBase<T>;
 
     static constexpr int JParams = 6;
-    using StereoKernel           = typename Saiga::Kernel::BAPoseStereo<T, false>;
-    using MonoKernel             = typename Saiga::Kernel::BAPoseMono<T, false, Normalized>;
-    using StereoJ                = typename StereoKernel::JacobiType;
-    using MonoJ                  = typename MonoKernel::JacobiType;
+    using StereoJ                = Eigen::Matrix<T, 3, 6>;
+    using MonoJ                  = Eigen::Matrix<T, 2, 6>;
     using JType                  = Eigen::Matrix<T, JParams, JParams>;
     using BType                  = Eigen::Matrix<T, JParams, 1>;
     using CompactJ               = Eigen::Matrix<T, 6, 6>;
@@ -151,18 +148,19 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustSmoothPoseOptimization
                     auto& o  = obs[i];
                     auto& wp = wps[i];
 
+
                     if (o.stereo())
                     {
-                        Vec3 res;
-                        bool correct_depth = StereoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, o.depth,
-                                                                                       res, JrowS, o.weight);
-                        auto res_2         = res.squaredNorm();
+                        auto stereo_point = o.ip(0) - camera.bf / o.depth;
+                        auto [res, depth] = BundleAdjustmentStereo(camera, o.ip, stereo_point, guess, wp, o.weight,
+                                                                   o.weight, &JrowS, nullptr);
+                        auto res_2        = res.squaredNorm();
 
 
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
-                            if (res_2 > chi2s || !correct_depth)
+                            if (res_2 > chi2s || depth < 0)
                             {
                                 outlier[i] = true;
                                 continue;
@@ -177,20 +175,18 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustSmoothPoseOptimization
                         }
                         chi2sum += res_2;
                         JtJ += loss_weight * (JrowS.transpose() * JrowS);
-                        Jtb += loss_weight * JrowS.transpose() * res;
+                        Jtb -= loss_weight * JrowS.transpose() * res;
                         inliers++;
                     }
                     else
                     {
-                        Vec2 res;
-                        bool correct_depth =
-                            MonoKernel::evaluateResidualAndJacobian(camera, guess, wp, o.ip, res, JrowM, o.weight);
-                        auto res_2 = res.squaredNorm();
+                        auto [res, depth] = BundleAdjustment(camera, o.ip, guess, wp, o.weight, &JrowM, nullptr);
+                        auto res_2        = res.squaredNorm();
 #if 1
                         // Remove outliers
                         if (outerIt > 0 && innerIt == 0)
                         {
-                            if (res_2 > chi2m || !correct_depth)
+                            if (res_2 > chi2m || depth < 0)
                             {
                                 outlier[i] = true;
                                 continue;
@@ -208,7 +204,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustSmoothPoseOptimization
 
                         chi2sum += res_2;
                         JtJ += loss_weight * (JrowM.transpose() * JrowM);
-                        Jtb += loss_weight * JrowM.transpose() * res;
+                        Jtb -= loss_weight * JrowM.transpose() * res;
                         inliers++;
                     }
                 }
