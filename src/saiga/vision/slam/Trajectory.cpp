@@ -8,12 +8,128 @@
 
 #include "saiga/core/util/Range.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/vision/ceres/CeresHelper.h"
+#include "saiga/vision/ceres/local_parameterization_se3.h"
+#include "saiga/vision/ceres/local_parameterization_sim3.h"
 #include "saiga/vision/icp/ICPAlign.h"
 
+#include "ceres/autodiff_cost_function.h"
 namespace Saiga
 {
 namespace Trajectory
 {
+std::ostream& operator<<(std::ostream& strm, const Scene& scene)
+{
+    strm << "[Trajectory] N = " << scene.vertices.size() << " Scale = " << scene.scale
+         << " T = " << scene.transformation << " Chi2 = " << scene.chi2();
+    return strm;
+}
+
+void Scene::InitialAlignment()
+{
+    // fit trajectories with icp
+    AlignedVector<ICP::Correspondence> corrs;
+    for (auto& v : vertices)
+    {
+        ICP::Correspondence c;
+        c.srcPoint = v.estimate.translation();
+        c.refPoint = v.ground_truth.translation();
+        corrs.push_back(c);
+    }
+
+    SE3 relSe3 = ICP::pointToPointDirect(corrs, optimize_scale ? &scale : nullptr);
+
+
+    transformation = relSe3;
+
+    if (scale < 0.0001 || scale > 1000 || !std::isfinite(scale))
+    {
+        std::cout << "Trajectory::align invalid scale: " << scale << std::endl;
+    }
+}
+
+#ifdef SAIGA_USE_CERES
+
+
+
+struct CostAlign
+{
+    // Helper function to simplify the "add residual" part for creating ceres problems
+    using CostType = CostAlign;
+    // Note: The first number is the number of residuals
+    //       The following number sthe size of the residual blocks (without local parametrization)
+    using CostFunctionType = ceres::AutoDiffCostFunction<CostType, 3, 7, 7, 1>;
+    template <typename... Types>
+    static CostFunctionType* create(Types... args)
+    {
+        return new CostFunctionType(new CostType(args...));
+    }
+
+    template <typename T>
+    bool operator()(const T* const _extrinsics, const T* const _transformation, const T* const _scale,
+                    T* _residuals) const
+    {
+        Eigen::Map<Sophus::SE3<T> const> const extrinsics(_extrinsics);
+        Eigen::Map<Sophus::SE3<T> const> const transformation(_transformation);
+        const T& scale = *_scale;
+
+        Eigen::Map<Eigen::Matrix<T, 3, 1>> residual(_residuals);
+
+
+        Sophus::SE3<T> e = obs.estimate.cast<T>();
+        e.translation() *= scale;
+        e = e * extrinsics;
+        e = transformation * e;
+
+        residual = e.translation() - obs.ground_truth.translation().cast<T>();
+
+        return true;
+    }
+
+    CostAlign(const Observation& obs) : obs(obs) {}
+
+    Observation obs;
+};
+
+
+
+void Scene::OptimizeCeres()
+{
+    ceres::Problem::Options problemOptions;
+    ceres::Problem problem(problemOptions);
+
+    auto se3_parameterization = new Sophus::test::LocalParameterizationSE3;
+
+    problem.AddParameterBlock(extrinsics.data(), 7, se3_parameterization);
+    problem.AddParameterBlock(transformation.data(), 7, se3_parameterization);
+    problem.AddParameterBlock(&scale, 1);
+
+    if (!optimize_scale)
+    {
+        problem.SetParameterBlockConstant(&scale);
+    }
+
+    if (!optimize_extrinsics)
+    {
+        problem.SetParameterBlockConstant(extrinsics.data());
+    }
+
+    for (auto& v : vertices)
+    {
+        auto cost = CostAlign::create(v);
+        problem.AddResidualBlock(cost, nullptr, extrinsics.data(), transformation.data(), &scale);
+    }
+
+    ceres::Solver::Options ceres_options;
+    ceres_options.max_num_iterations           = 50;
+    ceres_options.minimizer_progress_to_stdout = false;
+    ceres_options.function_tolerance           = 1e-30;
+    ceres_options.gradient_tolerance           = 1e-30;
+    ceres_options.parameter_tolerance          = 1e-30;
+    ceres_solve(ceres_options, problem);
+}
+#endif
+
 std::pair<SE3, double> align(ArrayView<std::pair<int, SE3>> A, ArrayView<std::pair<int, SE3>> B, bool computeScale)
 {
     SAIGA_ASSERT(A.size() == B.size());
@@ -129,6 +245,8 @@ std::vector<double> are(ArrayView<const std::pair<int, SE3>> A, ArrayView<const 
     }
     return ate;
 }
+
+
 
 }  // namespace Trajectory
 }  // namespace Saiga

@@ -300,8 +300,13 @@ void BARecRel::init()
         {
             edgeOffsets[k] = -1;
             auto e         = scene.rel_pose_constraints[k];
-            auto i         = validImages[camera_to_valid_map[e.img1]];
-            auto j         = validImages[camera_to_valid_map[e.img2]];
+
+            auto id_i = camera_to_valid_map[e.img1];
+            auto id_j = camera_to_valid_map[e.img2];
+            if (id_i < 0 || id_j < 0) continue;
+
+            auto i = validImages[id_i];
+            auto j = validImages[id_j];
 
             if (i.isConstant() || j.isConstant()) continue;
 
@@ -646,10 +651,12 @@ double BARecRel::computeQuadraticForm()
         auto e = scene.rel_pose_constraints[c];
 
 
-        auto i = validImages[camera_to_valid_map[e.img1]];
-        auto j = validImages[camera_to_valid_map[e.img2]];
+        auto id_i = camera_to_valid_map[e.img1];
+        auto id_j = camera_to_valid_map[e.img2];
+        if (id_i < 0 || id_j < 0) continue;
 
-
+        auto i = validImages[id_i];
+        auto j = validImages[id_j];
 
         Eigen::Matrix<double, 6, 6> Jrowi, Jrowj;
         Vec6 res = relPoseErrorView(e.rel_pose.inverse(), x_u[i.validId], x_u[j.validId], e.weight_rotation,
@@ -900,12 +907,13 @@ double BARecRel::computeCost()
         auto rpc = scene.rel_pose_constraints[c];
 
 
-        SAIGA_ASSERT(camera_to_valid_map[rpc.img1] >= 0);
-        SAIGA_ASSERT(camera_to_valid_map[rpc.img2] >= 0);
-        auto i = validImages[camera_to_valid_map[rpc.img1]];
-        auto j = validImages[camera_to_valid_map[rpc.img2]];
 
+        auto id_i = camera_to_valid_map[rpc.img1];
+        auto id_j = camera_to_valid_map[rpc.img2];
+        if (id_i < 0 || id_j < 0) continue;
 
+        auto i = validImages[id_i];
+        auto j = validImages[id_j];
 
         Vec6 res = relPoseErrorView(rpc.rel_pose.inverse(), x_u[i.validId], x_u[j.validId], rpc.weight_rotation,
                                     rpc.weight_translation);

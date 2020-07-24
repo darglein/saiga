@@ -47,7 +47,6 @@ class SAIGA_VISION_API EuRoCDataset : public DatasetCameraBase<StereoFrameData>
 
     // Tmp loading data
     std::vector<std::pair<double, std::string>> cam0_images, cam1_images;
-    std::vector<std::pair<double, SE3>> ground_truth;
 };
 
 }  // namespace Saiga

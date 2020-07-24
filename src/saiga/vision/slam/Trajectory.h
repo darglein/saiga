@@ -34,6 +34,60 @@ namespace Saiga
 {
 namespace Trajectory
 {
+struct Observation
+{
+    SE3 estimate;
+    SE3 ground_truth;
+};
+
+struct SAIGA_VISION_API Scene
+{
+    AlignedVector<Observation> vertices;
+
+    // right mult from estimate to ground_truth space
+    SE3 extrinsics;
+
+    SE3 transformation;
+    double scale = 1;
+
+    SE3 TransformVertex(const SE3& v) const
+    {
+        SE3 e = v;
+        e.translation() *= scale;
+        e = e * extrinsics;
+        e = transformation * e;
+        return e;
+    }
+
+    double chi2() const
+    {
+        double error = 0;
+        for (auto& o : vertices)
+        {
+            SE3 e         = TransformVertex(o.estimate);
+            Vec3 residual = e.translation() - o.ground_truth.translation();
+            error += residual.squaredNorm();
+        }
+        return error;
+    }
+
+    double rmse() const { return sqrt(chi2() / vertices.size()); }
+
+
+
+    // Optimization parameters
+    bool optimize_scale      = true;
+    bool optimize_extrinsics = false;
+
+    void InitialAlignment();
+#ifdef SAIGA_USE_CERES
+    void OptimizeCeres();
+#endif
+};
+
+
+SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Scene& scene);
+
 using TrajectoryType = AlignedVector<std::pair<int, SE3>>;
 
 /**

@@ -30,6 +30,8 @@ class CameraBase2
     SE3 GroundTruthToCamera() { return CameraToGroundTruth().inverse(); }
 
 
+    virtual std::vector<std::pair<double, SE3>> GetGroundTruth() const { return {}; }
+
     // Optional IMU data if the camera provides it.
     // The returned vector contains all data from frame-1 to frame.
     virtual Imu::ImuSequence ImuDataForFrame(int frame) { return {}; }
@@ -194,6 +196,7 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
     virtual bool isOpened() override { return this->currentId < (int)frames.size(); }
     size_t getFrameCount() { return frames.size(); }
 
+    std::vector<std::pair<double, SE3>> GetGroundTruth() const override { return ground_truth; }
 
 
     // Saves the groundtruth in TUM-Trajectory format:
@@ -292,6 +295,8 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
     Imu::Sensor imu;
     std::vector<Imu::Data> imuData;
     std::vector<Imu::ImuSequence> imuDataForFrame;
+
+    std::vector<std::pair<double, SE3>> ground_truth;
 
    private:
     Timer timer;
