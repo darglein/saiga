@@ -117,11 +117,14 @@ int EuRoCDataset::LoadMetaData()
         intrinsics.imageSize.w = res(0);
         intrinsics.imageSize.h = res(1);
         // 4 parameter rad-tan model
-        intrinsics.model.dis.segment<4>(0) = readYamlMatrix<Vec4>(config["distortion_coefficients"]);
-        intrinsics.model.dis(4)            = 0;
-        Mat4 m                             = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
-        extrinsics_cam0                    = SE3::fitToSE3(m);
-        cam0_images                        = loadTimestapDataCSV(params.dir + "/cam0/data.csv");
+        Vec4 d                  = readYamlMatrix<Vec4>(config["distortion_coefficients"]);
+        intrinsics.model.dis.k1 = d(0);
+        intrinsics.model.dis.k2 = d(1);
+        intrinsics.model.dis.p1 = d(2);
+        intrinsics.model.dis.p2 = d(3);
+        Mat4 m                  = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
+        extrinsics_cam0         = SE3::fitToSE3(m);
+        cam0_images             = loadTimestapDataCSV(params.dir + "/cam0/data.csv");
     }
 
     {
@@ -135,11 +138,14 @@ int EuRoCDataset::LoadMetaData()
         intrinsics.rightImageSize.w = res(0);
         intrinsics.rightImageSize.h = res(1);
         // 4 parameter rad-tan model
-        intrinsics.rightModel.dis.segment<4>(0) = readYamlMatrix<Vec4>(config["distortion_coefficients"]);
-        intrinsics.rightModel.dis(4)            = 0;
-        Mat4 m                                  = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
-        extrinsics_cam1                         = SE3::fitToSE3(m);
-        cam1_images                             = loadTimestapDataCSV(params.dir + "/cam1/data.csv");
+        Vec4 d                       = readYamlMatrix<Vec4>(config["distortion_coefficients"]);
+        intrinsics.rightModel.dis.k1 = d(0);
+        intrinsics.rightModel.dis.k2 = d(1);
+        intrinsics.rightModel.dis.p1 = d(2);
+        intrinsics.rightModel.dis.p2 = d(3);
+        Mat4 m                       = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
+        extrinsics_cam1              = SE3::fitToSE3(m);
+        cam1_images                  = loadTimestapDataCSV(params.dir + "/cam1/data.csv");
     }
 
     {

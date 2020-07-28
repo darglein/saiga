@@ -19,11 +19,37 @@ namespace Saiga
  * If the camera is given as a 4 parameter rad-tan just set k3=0.
  */
 template <typename T>
-using DistortionBase = Eigen::Matrix<T, 5, 1>;
+struct DistortionBase
+{
+    T k1 = 0;
+    T k2 = 0;
+    T k3 = 0;
+    T k4 = 0;
+    T k5 = 0;
+    T k6 = 0;
+    T p1 = 0;
+    T p2 = 0;
+
+    Eigen::Matrix<T, 8, 1> Coeffs() const
+    {
+        Eigen::Matrix<T, 8, 1> result;
+        result << k1, k2, k3, k4, k5, k6, p1, p2;
+        return result;
+    }
+
+
+    Eigen::Matrix<T, 8, 1> OpenCVOrder()
+    {
+        Eigen::Matrix<T, 8, 1> result;
+        result << k1, k2, p1, p2, k3, k4, k5, k6;
+        return result;
+    }
+};
 
 // Use double by default here
 using Distortion  = DistortionBase<double>;
 using Distortionf = DistortionBase<float>;
+
 
 
 /**
@@ -34,11 +60,11 @@ Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& poin
 {
     T x  = point.x();
     T y  = point.y();
-    T k1 = distortion(0);
-    T k2 = distortion(1);
-    T p1 = distortion(2);
-    T p2 = distortion(3);
-    T k3 = distortion(4);
+    T k1 = distortion.k1;
+    T k2 = distortion.k2;
+    T k3 = distortion.k3;
+    T p1 = distortion.p1;
+    T p2 = distortion.p2;
 
     T x2 = x * x, y2 = y * y;
     T r2 = x2 + y2, _2xy = T(2) * x * y;
@@ -59,11 +85,11 @@ Eigen::Matrix<T, 2, 1> undistortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& po
 {
     T x  = point.x();
     T y  = point.y();
-    T k1 = distortion(0);
-    T k2 = distortion(1);
-    T p1 = distortion(2);
-    T p2 = distortion(3);
-    T k3 = distortion(4);
+    T k1 = distortion.k1;
+    T k2 = distortion.k2;
+    T k3 = distortion.k3;
+    T p1 = distortion.p1;
+    T p2 = distortion.p2;
 
     T x0 = x;
     T y0 = y;

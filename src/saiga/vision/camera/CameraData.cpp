@@ -17,7 +17,7 @@ std::ostream& operator<<(std::ostream& strm, const MonocularIntrinsics& value)
 {
     strm << "[MonocularIntrinsics]" << std::endl;
     strm << "K: " << value.model.K.coeffs().transpose() << std::endl;
-    strm << "Distortion: " << value.model.dis.transpose() << std::endl;
+    strm << "Distortion: " << value.model.dis.Coeffs().transpose() << std::endl;
     strm << "Color: " << value.imageSize.w << "x" << value.imageSize.h << std::endl;
     strm << "Fps: " << value.fps << std::endl;
     return strm;
@@ -51,9 +51,10 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
     INI_GETADD_DOUBLE(ini, group, bf);
 
     // Dis
-    auto Dstr = toIniString(model.dis);
-    Dstr      = ini.GetAddString(group, "dis", Dstr.c_str(), "#p1,p2,p3,p4,p5");
-    fromIniString(Dstr, model.dis);
+    SAIGA_EXIT_ERROR("not implemented");
+    //    auto Dstr = toIniString(model.dis);
+    //    Dstr      = ini.GetAddString(group, "dis", Dstr.c_str(), "#p1,p2,p3,p4,p5");
+    //    fromIniString(Dstr, model.dis);
 
 
     double scale = double(depthImageSize.w) / imageSize.w;
@@ -68,7 +69,7 @@ std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value)
     strm << "[RGBDIntrinsics]" << std::endl;
     strm << "K: " << value.model.K.coeffs().transpose() << std::endl;
     strm << "depthK: " << value.depthModel.K.coeffs().transpose() << std::endl;
-    strm << "Distortion: " << value.model.dis.transpose() << std::endl;
+    strm << "Distortion: " << value.model.dis.Coeffs().transpose() << std::endl;
     strm << "Color: " << value.imageSize.w << "x" << value.imageSize.h << std::endl;
     strm << "Depth: " << value.depthImageSize.w << "x" << value.depthImageSize.h << std::endl;
     strm << "Fps: " << value.fps << std::endl;
@@ -80,8 +81,8 @@ std::ostream& operator<<(std::ostream& strm, const StereoIntrinsics& value)
     strm << "[StereoIntrinsics]" << std::endl;
     strm << "K:                " << value.model.K.coeffs().transpose() << std::endl;
     strm << "K right:          " << value.rightModel.K.coeffs().transpose() << std::endl;
-    strm << "Distortion:       " << value.model.dis.transpose() << std::endl;
-    strm << "Distortion right: " << value.rightModel.dis.transpose() << std::endl;
+    strm << "Distortion:       " << value.model.dis.Coeffs().transpose() << std::endl;
+    strm << "Distortion right: " << value.rightModel.dis.Coeffs().transpose() << std::endl;
     strm << "Color:            " << value.imageSize.w << "x" << value.imageSize.h << std::endl;
     strm << "Color:            " << value.rightImageSize.w << "x" << value.rightImageSize.h << std::endl;
     strm << "Fps:              " << value.fps << std::endl;

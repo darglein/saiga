@@ -38,3 +38,7 @@ if(SAIGA_USE_EIGENRECURSIVE)
         endif()
     endif()
 endif()
+
+if(SAIGA_USE_K4A)
+  add_subdirectory(kinect_azure)
+endif()

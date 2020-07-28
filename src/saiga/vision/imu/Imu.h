@@ -13,29 +13,15 @@
 
 namespace Saiga::Imu
 {
-using OmegaType        = Vec3;
-using AccelerationType = Vec3;
-
-template <typename T>
-using VelocityBase = Vector<T, 3>;
-using Velocity     = VelocityBase<double>;
-
-template <typename T>
-using GyroBiasBase = Vector<T, 3>;
-using GyroBias     = GyroBiasBase<double>;
-
-template <typename T>
-using AccBiasBase = Vector<T, 3>;
-using AccBias     = AccBiasBase<double>;
-
 // (Linear) velocity and ImuBias stacked as
 // [Velocity | GyroBias | AccBias]
 template <typename T>
 struct VelocityAndBiasBase
 {
-    VelocityBase<T> velocity  = VelocityBase<T>::Zero();
-    GyroBiasBase<T> gyro_bias = GyroBiasBase<T>::Zero();
-    AccBiasBase<T> acc_bias   = AccBiasBase<T>::Zero();
+    using Vec3     = Vector<T, 3>;
+    Vec3 velocity  = Vec3::Zero();
+    Vec3 gyro_bias = Vec3::Zero();
+    Vec3 acc_bias  = Vec3::Zero();
 
     template <typename G>
     VelocityAndBiasBase<G> cast() const
@@ -89,10 +75,10 @@ Vector<T, 3> QuaternionToOmega(Eigen::Quaternion<T> q)
 struct SAIGA_VISION_API Data
 {
     // Angular velocity in [rad/s] given by the gyroscope.
-    OmegaType omega;
+    Vec3 omega;
 
     // Linear acceleration in [m/s^2] given my the accelerometer.
-    AccelerationType acceleration;
+    Vec3 acceleration;
 
     // Timestamp of the sensor reading in [s]
     double timestamp = std::numeric_limits<double>::infinity();
@@ -161,7 +147,6 @@ struct Sensor
 
     // Transformation from the sensor coordinate system to the devices' coordinate system.
     SE3 sensor_to_body;
-
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::Sensor& sensor);
@@ -219,8 +204,9 @@ SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::ImuSequ
 
 struct SAIGA_VISION_API Preintegration
 {
-    Preintegration(const Vec3& bias_gyro = Vec3::Zero(), const Vec3& bias_accel = Vec3::Zero())
-        : bias_gyro_lin(bias_gyro), bias_accel_lin(bias_accel)
+    Preintegration(const Vec3& bias_gyro = Vec3::Zero(), const Vec3& bias_accel = Vec3::Zero(), double cov_gyro = 0,
+                   double cov_acc = 0)
+        : bias_gyro_lin(bias_gyro), bias_accel_lin(bias_accel), cov_gyro(cov_gyro), cov_acc(cov_acc)
     {
     }
 
@@ -256,10 +242,16 @@ struct SAIGA_VISION_API Preintegration
     Mat3 J_P_Biasa = Mat3::Zero();
     Mat3 J_V_Biasa = Mat3::Zero();
 
+    // noise covariance propagation of delta measurements
+    Eigen::Matrix<double, 9, 9> cov_P_V_Phi;
+
    private:
     // Linear bias, which is subtracted from the meassurements.
     // Private because changing the bias invalidates the preintegration.
     Vec3 bias_gyro_lin, bias_accel_lin;
+
+    double cov_gyro = 0;
+    double cov_acc  = 0;
 };
 
 

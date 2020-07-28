@@ -47,6 +47,7 @@
 #cmakedefine SAIGA_USE_GLM
 #cmakedefine SAIGA_USE_G2O
 #cmakedefine SAIGA_USE_CERES
+#cmakedefine SAIGA_USE_K4A
 #cmakedefine SAIGA_VR
 #cmakedefine SAIGA_SYSTEM_EIGENRECURSIVE
 #cmakedefine SAIGA_USE_EIGENRECURSIVE

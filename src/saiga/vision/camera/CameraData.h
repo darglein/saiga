@@ -89,6 +89,9 @@ struct StereoFrameData : public MonocularFrameData
 
 struct SAIGA_VISION_API MonocularIntrinsics
 {
+    // All color images are stored in BGR instead of RGB
+    bool bgr = false;
+
     int fps = -1;
     ImageDimensions imageSize;
     PinholeCamera model;

@@ -63,10 +63,10 @@ endif()
 
 #ceres
 find_package(Ceres QUIET)
+PackageHelperTarget(ceres CERES_FOUND)
 if(CERES_FOUND)
     SET(SAIGA_USE_CERES 1)
 endif()
-PackageHelperTarget(ceres CERES_FOUND)
 
 #cholmod
 find_package(CHOLMOD QUIET)
@@ -97,6 +97,7 @@ if(SAIGA_WITH_MKL)
 endif()
 
 
+
 #openni2
 find_package(OpenNI2 QUIET)
 if(OPENNI2_FOUND)
@@ -104,7 +105,12 @@ if(OPENNI2_FOUND)
 endif()
 PackageHelper(OpenNI2 "${OPENNI2_FOUND}" "${OPENNI2_INCLUDE_DIRS}" "${OPENNI2_LIBRARIES}")
 
-
+#kinect azure sdk
+find_package(k4a QUIET)
+PackageHelperTarget(k4a::k4a K4A_FOUND)
+if(K4A_FOUND)
+    SET(SAIGA_USE_K4A 1)
+endif()
 
 set(VISION_INCLUDES ${PACKAGE_INCLUDES})
 set(VISION_LIBS ${LIBS})

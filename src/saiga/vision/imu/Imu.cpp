@@ -139,6 +139,26 @@ void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias,
     Mat3 Jr;
     Sophus::rightJacobianSO3(omega * dt, Jr);
 
+
+
+    // noise covariance propagation of delta measurements
+    // err_k+1 = A*err_k + B*err_gyro + C*err_acc
+    Mat3 I3x3               = Mat3::Identity();
+    Matrix<double, 9, 9> A  = Matrix<double, 9, 9>::Identity();
+    A.block<3, 3>(6, 6)     = dR.inverse().matrix();
+    A.block<3, 3>(3, 6)     = -delta_R.matrix() * skew(acc) * dt;
+    A.block<3, 3>(0, 6)     = -0.5 * delta_R.matrix() * skew(acc) * dt2;
+    A.block<3, 3>(0, 3)     = I3x3 * dt;
+    Matrix<double, 9, 3> Bg = Matrix<double, 9, 3>::Zero();
+    Bg.block<3, 3>(6, 0)    = Jr * dt;
+    Matrix<double, 9, 3> Ca = Matrix<double, 9, 3>::Zero();
+    Ca.block<3, 3>(3, 0)    = delta_R.matrix() * dt;
+    Ca.block<3, 3>(0, 0)    = 0.5 * delta_R.matrix() * dt2;
+
+
+    cov_P_V_Phi = A * cov_P_V_Phi * A.transpose() + Bg * cov_gyro * Bg.transpose() + Ca * cov_acc * Ca.transpose();
+
+
     // jacobian of delta measurements w.r.t bias of gyro/acc
     // update P first, then V, then R
     J_P_Biasa += J_V_Biasa * dt - 0.5 * delta_R.matrix() * dt2;

@@ -12,7 +12,6 @@
 
 namespace Saiga
 {
-
 struct Rectification
 {
     Intrinsics4 K_src;
@@ -21,16 +20,16 @@ struct Rectification
     Quat R;
     Intrinsics4 K_dst;
 
-    double bf =  0;
+    double bf = 0;
 
 
     void Identity(const Intrinsics4& K, double bf)
     {
-        K_src = K;
-        K_dst = K;
-        R = Quat::Identity();
-        D_src = Distortion::Zero();
-        this->bf =   bf;
+        K_src    = K;
+        K_dst    = K;
+        R        = Quat::Identity();
+        D_src    = Distortion();
+        this->bf = bf;
     }
     // unrectified -> rectified
     Vec2 Forward(const Vec2& x)

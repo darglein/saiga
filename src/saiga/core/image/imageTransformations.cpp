@@ -28,14 +28,14 @@ void addAlphaChannel(ImageView<const ucvec3> src, ImageView<ucvec4> dst, unsigne
     }
 }
 
-void RemoveAlphaChannel(ImageView<const ucvec4> src, ImageView<ucvec3> dst, unsigned char alpha)
+void RemoveAlphaChannel(ImageView<const ucvec4> src, ImageView<ucvec3> dst)
 {
     SAIGA_ASSERT(src.width == dst.width && src.height == dst.height);
     for (int i = 0; i < src.height; ++i)
     {
         for (int j = 0; j < src.width; ++j)
         {
-            dst(i, j) = src(i,j).head<3>();
+            dst(i, j) = src(i, j).head<3>();
         }
     }
 }
@@ -197,7 +197,6 @@ void ScaleDown2(ImageView<const ucvec4> src, ImageView<ucvec4> dst)
         }
     }
 }
-
 
 
 
