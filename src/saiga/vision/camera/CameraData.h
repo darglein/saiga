@@ -11,6 +11,7 @@
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/cameraModel/CameraModel.h"
+#include "saiga/vision/imu/Imu.h"
 
 #include <optional>
 
@@ -34,7 +35,7 @@ enum class CameraInputType : int
 /**
  * The base class for all different camera types.
  */
-struct FrameMetaData
+struct SAIGA_VISION_API FrameMetaData
 {
     // The first frame should have id = 0
     // -1 means the frame is invalid.
@@ -46,6 +47,11 @@ struct FrameMetaData
 
     // Some datasets provide ground truth poses
     std::optional<SE3> groundTruth;
+
+    Imu::ImuSequence imu_data;
+
+    void Save(const std::string& dir) const;
+    void Load(const std::string& dir);
 };
 
 /**
@@ -53,7 +59,7 @@ struct FrameMetaData
  * In some cases a gray image instead of rgb is transmitted.
  * Use colorImg.valid() to check for a good image.
  */
-struct MonocularFrameData : public FrameMetaData
+struct SAIGA_VISION_API MonocularFrameData : public FrameMetaData
 {
     GrayImageType grayImg;
     RGBImageType colorImg;
@@ -65,18 +71,21 @@ struct MonocularFrameData : public FrameMetaData
 /**
  * Color + Depth
  */
-struct RGBDFrameData : public MonocularFrameData
+struct SAIGA_VISION_API RGBDFrameData : public MonocularFrameData
 {
     DepthImageType depthImg;
     std::string depth_file;
 
     static constexpr CameraInputType cameraType = CameraInputType::RGBD;
+
+    void Save(const std::string& dir) const;
+    void Load(const std::string& dir);
 };
 
 /**
  * Monocular + a second image
  */
-struct StereoFrameData : public MonocularFrameData
+struct SAIGA_VISION_API StereoFrameData : public MonocularFrameData
 {
     GrayImageType grayImg2;
     RGBImageType colorImg2;

@@ -54,15 +54,10 @@ class Sample : public SampleWindowForward
 
 
 
-    //    char dir[256]    = "recording/";
-    //    char dir[256] = "/ssd2/slam/euroc/MH_01/mav0/";
-    //    char dir[256] = "/ssd2/slam/kitti/dataset/sequences/00/";
-    //    char dir[256] = "/ssd2/slam/ismar/ismar_test/C1_test/";
-    //    char dir[256] = "/ssd2/slam/tum/rgbd_dataset_freiburg3_long_office_household/";
-    char dir[256] = "/ssd2/scannet/scenes/scene0000_00/";
-
-    int frameId      = 0;
-    bool initTexture = false;
+    std::string out_dir;
+    char dir[256]  = "recording/";
+    bool recording = false;
+    int frameId    = 0;
 
 
     ImGui::HzTimeGraph tg;

@@ -114,6 +114,26 @@ static std::vector<std::pair<Imu::ImuSequence, SE3>> RandomTrajectory2(int N, in
     return result;
 }
 
+
+TEST(Imu, SaveLoad)
+{
+    auto s = GenerateRandomSequence(10, 5, 0.1);
+
+
+    for (auto seq : s)
+    {
+        if (!finite(seq.time_begin)) continue;
+
+        seq.Save("seq.txt");
+
+        Imu::ImuSequence seq2;
+        seq2.Load("seq.txt");
+
+        EXPECT_EQ(seq.time_begin, seq2.time_begin);
+        EXPECT_EQ(seq.time_end, seq2.time_end);
+    }
+}
+
 TEST(Imu, SolveGyroBias)
 {
     //    return;

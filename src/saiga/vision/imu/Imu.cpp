@@ -5,7 +5,11 @@
  */
 #include "Imu.h"
 
+#include "saiga/core/util/BinaryFile.h"
 #include "saiga/vision/util/Random.h"
+
+#include <fstream>
+#include <iomanip>
 namespace Saiga
 {
 namespace Imu
@@ -44,6 +48,24 @@ std::ostream& operator<<(std::ostream& strm, const Imu::ImuSequence& sequence)
         strm << i.timestamp << ": " << i.omega.transpose() << std::endl;
     }
     return strm;
+}
+
+void ImuSequence::FixBorder()
+{
+    SAIGA_ASSERT(Valid());
+    SAIGA_ASSERT(data.size() >= 2);
+
+    if (data.front().timestamp < time_begin)
+    {
+        SAIGA_ASSERT(data[1].timestamp >= time_begin);
+        data[0] = Imu::Data::Interpolate(data[0], data[1], time_begin);
+    }
+
+    if (data.back().timestamp > time_end)
+    {
+        SAIGA_ASSERT(data[data.size() - 2].timestamp <= time_end);
+        data[data.size() - 1] = Imu::Data::Interpolate(data[data.size() - 2], data[data.size() - 1], time_end);
+    }
 }
 
 void ImuSequence::Add(const ImuSequence& other)
@@ -119,6 +141,20 @@ void ImuSequence::AddGravity(const Vec3& bias_gyro, const SO3& initial_orientati
         preint.Add(data[i - 1].omega, Vec3::Zero(), dt);
         data[i].acceleration += (R * preint.delta_R).inverse() * g;
     }
+}
+
+void ImuSequence::Save(const std::string& dir) const
+{
+    BinaryFile ostream(dir, std::ios_base::out);
+    ostream << time_begin << time_end;
+    ostream << data;
+}
+
+void ImuSequence::Load(const std::string& dir)
+{
+    BinaryFile istream(dir, std::ios_base::in);
+    istream >> time_begin >> time_end;
+    istream >> data;
 }
 
 void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias, double dt)

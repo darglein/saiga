@@ -8,7 +8,6 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/ProgressBar.h"
 #include "saiga/core/util/Thread/omp.h"
-#include "saiga/vision/imu/Imu.h"
 
 #include "CameraData.h"
 
@@ -32,9 +31,6 @@ class CameraBase2
 
     virtual std::vector<std::pair<double, SE3>> GetGroundTruth() const { return {}; }
 
-    // Optional IMU data if the camera provides it.
-    // The returned vector contains all data from frame-1 to frame.
-    virtual Imu::ImuSequence ImuDataForFrame(int frame) { return {}; }
     virtual std::optional<Imu::Sensor> getIMU() { return {}; }
 };
 
@@ -260,28 +256,16 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
         }
 
 
-
-        if (!imuDataForFrame.empty())
-        {
-            // Clear first frame.
-            // It doesn't really make much sense because it contains the data from the previous to this frame.
-            //            imuDataForFrame.front() = Imu::ImuSequence();
-        }
-
         Imu::InterpolateMissingValues(imuDataForFrame);
+
+
+        for (int i = 0; i < frames.size(); ++i)
+        {
+            frames[i].imu_data = imuDataForFrame[i];
+        }
     }
 
-    Imu::ImuSequence ImuDataForFrame(int frame) override
-    {
-        if (frame < imuDataForFrame.size())
-        {
-            return imuDataForFrame[frame];
-        }
-        else
-        {
-            return {};
-        }
-    }
+
 
     virtual std::optional<Imu::Sensor> getIMU() override
     {

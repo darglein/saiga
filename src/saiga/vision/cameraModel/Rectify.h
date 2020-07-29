@@ -35,7 +35,7 @@ struct Rectification
     Vec2 Forward(const Vec2& x)
     {
         Vec2 p   = K_src.unproject2(x);
-        p        = undistortNormalizedPoint(p, D_src);
+        p        = undistortPointGN(p, p, D_src);
         Vec3 p_r = R * Vec3(p(0), p(1), 1);
         p        = Vec2(p_r(0) / p_r(2), p_r(1) / p_r(2));
         return K_dst.normalizedToImage(p);
@@ -47,7 +47,7 @@ struct Rectification
         Vec2 p   = K_dst.unproject2(x);
         Vec3 p_r = R.inverse() * Vec3(p(0), p(1), 1);
         p        = Vec2(p_r(0) / p_r(2), p_r(1) / p_r(2));
-        p        = distortNormalizedPoint(p, D_src);
+        p        = distortNormalizedPoint2(p, D_src);
         return K_src.normalizedToImage(p);
     }
 };

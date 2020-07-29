@@ -24,7 +24,7 @@
 // Most of these are copied from samples in the Azure SDK.
 namespace Saiga
 {
-class KinectCamera : public CameraBase<RGBDFrameData>
+class SAIGA_VISION_API KinectCamera : public CameraBase<RGBDFrameData>
 {
    public:
     KinectCamera();
@@ -32,21 +32,30 @@ class KinectCamera : public CameraBase<RGBDFrameData>
     KinectCamera(const KinectCamera&) = delete;
     KinectCamera& operator=(const KinectCamera&) = delete;
 
-    virtual bool getImageSync(RGBDFrameData& data);
+    virtual bool getImageSync(RGBDFrameData& data) override;
     bool Open();
 
+    virtual SE3 CameraToGroundTruth() override { return cam_to_imu; }
 
     std::string SerialNumber();
     const RGBDIntrinsics& intrinsics() { return _intrinsics; }
+
+
+    virtual std::optional<Imu::Sensor> getIMU() override { return imu; }
 
    private:
     k4a::device device;
     k4a::calibration calibration;
     RGBDIntrinsics _intrinsics;
+    SE3 cam_to_imu;
+    Imu::Sensor imu;
+
+
+
+    std::vector<Imu::Data> last_imu_data;
+    double last_time = 0;
 };
 
-
-void print_calibration();
 }  // namespace Saiga
 
 #endif

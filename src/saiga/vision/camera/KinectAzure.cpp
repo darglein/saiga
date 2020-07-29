@@ -50,12 +50,40 @@ KinectCamera::KinectCamera()
         //        _intrinsics.depthImageSize.w = depth.resolution_width;
         //        _intrinsics.depthImageSize.h = depth.resolution_height;
         _intrinsics.depthImageSize = _intrinsics.imageSize;
+        _intrinsics.depthModel     = _intrinsics.model;
     }
 
     {
         _intrinsics.bgr = true;
+
+        // Approx. 10cm Baseline
+        _intrinsics.bf = 0.1 * _intrinsics.model.K.fx;
     }
 
+
+    auto get_extrinsics = [&](auto src, auto dst) {
+        auto extr = calibration.extrinsics[src][dst];
+
+        Mat3 R = Eigen::Map<Eigen::Matrix<float, 3, 3, Eigen::RowMajor>>(extr.rotation).cast<double>();
+
+        // t is given in (mm)
+        Vec3 t = Eigen::Map<Eigen::Matrix<float, 3, 1>>(extr.translation).cast<double>() * (1.0 / 1000.0);
+
+        SE3 T(R, t);
+        return T;
+    };
+
+
+    auto cam_to_gyro = get_extrinsics(K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_GYRO);
+    auto cam_to_acc  = get_extrinsics(K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_ACCEL);
+
+    cam_to_imu = SE3(cam_to_gyro.so3(), cam_to_acc.translation()).inverse();
+
+
+    imu.frequency      = 1600;
+    imu.frequency_sqrt = sqrt(imu.frequency);
+
+    std::cout << _intrinsics << std::endl;
     //    std::cout << "params " << color.intrinsics.parameter_count << std::endl;
     //    auto intr = color.intrinsics.parameters;
 }
@@ -92,9 +120,10 @@ bool KinectCamera::Open()
     config.camera_fps               = K4A_FRAMES_PER_SECOND_30;
     config.synchronized_images_only = true;
 
-    _intrinsics.fps = 15;
+    _intrinsics.fps = 30;
 
     device.start_cameras(&config);
+    device.start_imu();
     calibration = device.get_calibration(config.depth_mode, config.color_resolution);
 
 
@@ -103,6 +132,8 @@ bool KinectCamera::Open()
               << calibration.color_camera_calibration.resolution_height << std::endl;
     std::cout << "   Depth: " << calibration.depth_camera_calibration.resolution_width << " x "
               << calibration.depth_camera_calibration.resolution_height << std::endl;
+
+
 
     return true;
 }
@@ -122,45 +153,93 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
         return false;
     }
 
-    // Probe for a color image
-    k4a::image image;
-    image = capture.get_color_image();
-    if (image)
+
+    k4a::image k4a_color = capture.get_color_image();
+    k4a::image k4a_depth = capture.get_depth_image();
+
+    double t_color = k4a_color.get_device_timestamp().count() / (1000.0 * 1000.0);
+    //    double t_depth = k4a_depth.get_device_timestamp().count() / (1000.0 * 1000.0);
+
+    data.timeStamp = t_color;
+
+
+    std::vector<Imu::Data> imu_data;
+    while (true)
     {
-        ImageView<ucvec4> view(image.get_height_pixels(), image.get_width_pixels(), image.get_stride_bytes(),
-                               image.get_buffer());
+        k4a_imu_sample_t imu_sample;
+        if (device.get_imu_sample(&imu_sample, std::chrono::milliseconds(0)))
+        {
+            Imu::Data sample;
+            sample.timestamp = imu_sample.gyro_timestamp_usec / (1000.0 * 1000);
+
+
+            sample.acceleration =
+                Vec3(imu_sample.acc_sample.xyz.x, imu_sample.acc_sample.xyz.y, imu_sample.acc_sample.xyz.z);
+
+            sample.omega =
+                Vec3(imu_sample.gyro_sample.xyz.x, imu_sample.gyro_sample.xyz.y, imu_sample.gyro_sample.xyz.z);
+
+            //            std::cout << sample << std::endl;
+            imu_data.push_back(sample);
+
+            if (sample.timestamp >= t_color)
+            {
+                break;
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+
+
+    // Add last 2 samples at the front
+    if (last_imu_data.size() >= 2)
+    {
+        imu_data.insert(imu_data.begin(), last_imu_data.end() - 2, last_imu_data.end());
+        data.imu_data.data       = imu_data;
+        data.imu_data.time_begin = last_time;
+        data.imu_data.time_end   = data.timeStamp;
+
+        data.imu_data.FixBorder();
+        SAIGA_ASSERT(data.imu_data.Valid());
+        SAIGA_ASSERT(data.imu_data.complete());
+    }
+
+    last_imu_data = imu_data;
+    last_time     = data.timeStamp;
+
+    {
+        // Probe for a color image
+
+
+        SAIGA_ASSERT(k4a_color);
+
+        ImageView<ucvec4> view(k4a_color.get_height_pixels(), k4a_color.get_width_pixels(),
+                               k4a_color.get_stride_bytes(), k4a_color.get_buffer());
         view.copyTo(data.colorImg.getImageView());
+
+        data.colorImg.getImageView().swapChannels(0, 2);
     }
 
-    // probe for a IR16 image
-    image = capture.get_ir_image();
-    if (image)
-    {
-    }
-    else
-    {
-    }
 
-    // Probe for a depth16 image
-    image = capture.get_depth_image();
-    if (image)
+
     {
+        SAIGA_ASSERT(k4a_depth);
+
         static k4a::transformation T(calibration);
-        SAIGA_BLOCK_TIMER();
-        auto transformed_depth = T.depth_image_to_color_camera(image);
+        //        SAIGA_BLOCK_TIMER();
+        auto transformed_depth = T.depth_image_to_color_camera(k4a_depth);
 
 
-        ImageView<unsigned short> view2(image.get_height_pixels(), image.get_width_pixels(), image.get_stride_bytes(),
-                                        image.get_buffer());
+        ImageView<unsigned short> view2(k4a_depth.get_height_pixels(), k4a_depth.get_width_pixels(),
+                                        k4a_depth.get_stride_bytes(), k4a_depth.get_buffer());
 
 
         ImageView<unsigned short> view(transformed_depth.get_height_pixels(), transformed_depth.get_width_pixels(),
                                        transformed_depth.get_stride_bytes(), transformed_depth.get_buffer());
 
-
-#    if 1
-        //        int i = 400;
-        //        int j = 300;
         for (auto i : view.rowRange())
         {
             for (auto j : view.colRange())
@@ -169,9 +248,16 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
                 data.depthImg(i, j) = d / 1000.f;
             }
         }
-#    endif
     }
 
+
+
+    // Access the accelerometer readings
+    //    if (imu_sample != NULL)
+    //    {
+    //        printf(" | Accelerometer temperature:%.2f x:%.4f y:%.4f z: %.4f\n", imu_sample.temperature,
+    //               imu_sample.acc_sample.xyz.x, imu_sample.acc_sample.xyz.y, imu_sample.acc_sample.xyz.z);
+    //    }
 
     return true;
 }
@@ -179,68 +265,6 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
 std::string KinectCamera::SerialNumber()
 {
     return device.get_serialnum();
-}
-
-
-void print_calibration()
-{
-    using std::cout;
-    using std::endl;
-
-    uint32_t device_count = k4a_device_get_installed_count();
-    cout << "Found " << device_count << " connected devices:" << endl;
-    cout << std::fixed << std::setprecision(6);
-
-    for (uint8_t deviceIndex = 0; deviceIndex < device_count; deviceIndex++)
-    {
-        k4a_device_t device = NULL;
-        if (K4A_RESULT_SUCCEEDED != k4a_device_open(deviceIndex, &device))
-        {
-            cout << deviceIndex << ": Failed to open device" << endl;
-            exit(-1);
-        }
-
-        k4a_calibration_t calibration;
-
-        k4a_device_configuration_t deviceConfig = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-        deviceConfig.color_format               = K4A_IMAGE_FORMAT_COLOR_MJPG;
-        deviceConfig.color_resolution           = K4A_COLOR_RESOLUTION_1080P;
-        deviceConfig.depth_mode                 = K4A_DEPTH_MODE_NFOV_UNBINNED;
-        deviceConfig.camera_fps                 = K4A_FRAMES_PER_SECOND_30;
-        deviceConfig.wired_sync_mode            = K4A_WIRED_SYNC_MODE_STANDALONE;
-        deviceConfig.synchronized_images_only   = true;
-
-        // get calibration
-        if (K4A_RESULT_SUCCEEDED !=
-            k4a_device_get_calibration(device, deviceConfig.depth_mode, deviceConfig.color_resolution, &calibration))
-        {
-            cout << "Failed to get calibration" << endl;
-            exit(-1);
-        }
-
-        auto calib = calibration.depth_camera_calibration;
-
-        cout << "resolution width: " << calib.resolution_width << endl;
-        cout << "resolution height: " << calib.resolution_height << endl;
-        cout << "principal point x: " << calib.intrinsics.parameters.param.cx << endl;
-        cout << "principal point y: " << calib.intrinsics.parameters.param.cy << endl;
-        cout << "focal length x: " << calib.intrinsics.parameters.param.fx << endl;
-        cout << "focal length y: " << calib.intrinsics.parameters.param.fy << endl;
-        cout << "radial distortion coefficients:" << endl;
-        cout << "k1: " << calib.intrinsics.parameters.param.k1 << endl;
-        cout << "k2: " << calib.intrinsics.parameters.param.k2 << endl;
-        cout << "k3: " << calib.intrinsics.parameters.param.k3 << endl;
-        cout << "k4: " << calib.intrinsics.parameters.param.k4 << endl;
-        cout << "k5: " << calib.intrinsics.parameters.param.k5 << endl;
-        cout << "k6: " << calib.intrinsics.parameters.param.k6 << endl;
-        cout << "center of distortion in Z=1 plane, x: " << calib.intrinsics.parameters.param.codx << endl;
-        cout << "center of distortion in Z=1 plane, y: " << calib.intrinsics.parameters.param.cody << endl;
-        cout << "tangential distortion coefficient x: " << calib.intrinsics.parameters.param.p1 << endl;
-        cout << "tangential distortion coefficient y: " << calib.intrinsics.parameters.param.p2 << endl;
-        cout << "metric radius: " << calib.intrinsics.parameters.param.metric_radius << endl;
-
-        k4a_device_close(device);
-    }
 }
 
 

@@ -8,6 +8,7 @@
 
 #include "EuRoCDataset.h"
 #include "FileRGBDCamera.h"
+#include "KinectAzure.h"
 #include "KittiDataset.h"
 #include "RGBDCameraOpenni.h"
 #include "ScannetDataset.h"

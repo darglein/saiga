@@ -183,6 +183,8 @@ struct SAIGA_VISION_API ImuSequence
         return true;
     }
 
+    void FixBorder();
+
     double DeltaTime() { return time_end - time_begin; }
     // Adds another Sequence to the end.
     // A double value at the border is removed.
@@ -194,6 +196,9 @@ struct SAIGA_VISION_API ImuSequence
 
     // Integrates the orientation and adds the gravity in local space.
     void AddGravity(const Vec3& bias_gyro, const SO3& initial_orientation, const Vec3& global_gravity);
+
+    void Save(const std::string& dir) const;
+    void Load(const std::string& dir);
 };
 
 

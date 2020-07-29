@@ -8,9 +8,12 @@
 
 #include "KinectAzureViewer.h"
 
+#include "saiga/core/util/Thread/all.h"
 #include "saiga/vision/camera/all.h"
 
-#include "KinectAzure.h"
+#include <filesystem>
+
+
 
 Sample::Sample()
 {
@@ -19,6 +22,8 @@ Sample::Sample()
     rightTexture = nullptr;
 
     cameraType = KinectCamera::FrameType::cameraType;
+
+    createGlobalThreadPool(8);
 }
 
 
@@ -36,20 +41,27 @@ void Sample::update(float dt)
         {
             leftImage   = frameData.colorImg;
             leftTexture = std::make_shared<Texture>();
-            leftTexture->fromImage(leftImage, false, false);
+            leftTexture->fromImage(leftImage, true, false);
         }
 
         if (!rightTexture)
         {
             rightTexture = std::make_shared<Texture>();
             rightImage.create(frameData.depthImg.height, frameData.depthImg.width);
-            rightTexture->fromImage(rightImage, false, false);
+            rightTexture->fromImage(rightImage, true, false);
+        }
+
+        if (recording)
+        {
+            auto str       = Saiga::leadingZeroString(frameId, 5);
+            auto frame_dir = out_dir + "/" + str + "/";
+            std::filesystem::create_directory(frame_dir);
+            globalThreadPool->enqueue([=]() { frameData.Save(frame_dir); });
+            frameId++;
         }
 
 
-
         leftImage = frameData.colorImg;
-        leftImage.getImageView().swapChannels(0, 2);
         Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, rightImage, 0, 8);
 
         leftTexture->updateFromImage(leftImage);
@@ -79,91 +91,16 @@ void Sample::renderFinal(Camera* cam)
 
     ImGui::InputText("Output Dir", dir, 256);
 
-    static int depthWidth  = 320;
-    static int depthHeight = 240;
-    static int fps         = 30;
 
-    ImGui::InputInt("depthWidth", &depthWidth);
-    ImGui::InputInt("depthHeight", &depthHeight);
-    ImGui::InputInt("fps", &fps);
-
-    Saiga::RGBDIntrinsics intr;
-    //    intr.depthImageSize.w = depthWidth;
-    //    intr.depthImageSize.h = depthHeight;
-    intr.fps = fps;
-
-
-    DatasetParameters dparams;
-    dparams.playback_fps      = 25;
-    dparams.startFrame        = 10;
-    dparams.maxFrames         = 100;
-    dparams.multiThreadedLoad = true;
-    dparams.preload           = true;
-
-
-    if (ImGui::Button("Load From File Scannet"))
+    if (ImGui::Checkbox("Recording", &recording))
     {
-        dparams.dir  = dir;
-        rgbdcamera   = std::make_unique<ScannetDataset>(dparams);
-        leftTexture  = nullptr;
-        rightTexture = nullptr;
-
-        cameraType = TumRGBDDataset::FrameType::cameraType;
-    }
-
-
-
-#ifdef SAIGA_USE_YAML_CPP
-    if (ImGui::Button("Load From File TUM RGBD"))
-    {
-        dparams.dir  = dir;
-        rgbdcamera   = std::make_unique<TumRGBDDataset>(dparams);
-        leftTexture  = nullptr;
-        rightTexture = nullptr;
-
-        cameraType = TumRGBDDataset::FrameType::cameraType;
-    }
-
-
-    if (ImGui::Button("Load From File Euroc"))
-    {
-        dparams.dir  = dir;
-        stereocamera = std::make_unique<EuRoCDataset>(dparams);
-        leftTexture  = nullptr;
-        rightTexture = nullptr;
-
-        cameraType = EuRoCDataset::FrameType::cameraType;
-    }
-#endif
-
-    if (ImGui::Button("Load From File Kitti"))
-    {
-        dparams.dir = dir;
-        //        dparams.groundTruth = dir;
-        stereocamera = std::make_unique<KittiDataset>(dparams);
-        leftTexture  = nullptr;
-        rightTexture = nullptr;
-
-        cameraType = KittiDataset::FrameType::cameraType;
-    }
-
-#ifdef SAIGA_USE_OPENNI2
-    if (ImGui::Button("Openni"))
-    {
-        intr.depthFactor = 1000.0;
-        rgbdcamera       = std::make_unique<Saiga::RGBDCameraOpenni>(intr);
-        initTexture      = true;
-    }
-    Saiga::RGBDCameraOpenni* cam2 = dynamic_cast<Saiga::RGBDCameraOpenni*>(rgbdcamera.get());
-    if (cam2)
-    {
-        cam2->imgui();
-    }
-#endif
-
-    if (ImGui::Button("Clear"))
-    {
-        rgbdcamera = nullptr;
+        if (recording)
+        {
+            out_dir = dir;
+            frameId = 0;
+            std::filesystem::remove_all(out_dir);
+            std::filesystem::create_directory(out_dir);
+        }
     }
 
     ImGui::Text("Frame: %d", frameId);
