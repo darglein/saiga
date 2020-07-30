@@ -69,17 +69,28 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
         // Depth Intrinsics
         // K
         auto Kstr = toIniString(depthModel.K);
-        Kstr      = ini.GetAddString(group, "color_K", Kstr.c_str(), "#fx,fy,cx,cy");
+        Kstr      = ini.GetAddString(group, "depth_K", Kstr.c_str(), "#fx,fy,cx,cy");
         fromIniString(Kstr, depthModel.K);
 
         // Dis
         Eigen::Matrix<double, 8, 1> dis = depthModel.dis.Coeffs();
         auto Dstr                       = toIniString(dis);
-        Dstr                            = ini.GetAddString(group, "color_dis", Dstr.c_str(), "#k1-k6 p1-p2");
+        Dstr                            = ini.GetAddString(group, "depth_dis", Dstr.c_str(), "#k1-k6 p1-p2");
         fromIniString(Dstr, dis);
         depthModel.dis = Distortion(dis);
     }
 
+    {
+        // extrinsics
+        Eigen::Matrix<double, 7, 1> v = camera_to_body.params();
+        auto Dstr                     = toIniString(v);
+        Dstr                          = ini.GetAddString(group, "camera_to_body", Dstr.c_str(), "#SE3 (quat,vec3)");
+        fromIniString(Dstr, v);
+
+
+        Eigen::Map<Sophus::Vector<double, 7>> pose_map(camera_to_body.data());
+        pose_map = v;
+    }
 
 
     if (ini.changed()) ini.SaveFile(file.c_str());

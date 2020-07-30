@@ -105,6 +105,13 @@ struct SAIGA_VISION_API MonocularIntrinsics
     ImageDimensions imageSize;
     PinholeCamera model;
 
+
+    // Transforms the model-pose of the camera to the mode-pose of the body by right multiplication.
+    //
+    //  SE3 camera_pose = camera_view.inverse();
+    //  SE3 body_pose = camera_pose * camera_to_body;
+    SE3 camera_to_body;
+
     StereoCamera4 dummyStereoCamera() const { return StereoCamera4(model.K, 1); }
 
     static constexpr CameraInputType cameraType = CameraInputType::Mono;

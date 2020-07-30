@@ -35,20 +35,17 @@ class SAIGA_VISION_API KinectCamera : public CameraBase<RGBDFrameData>
     virtual bool getImageSync(RGBDFrameData& data) override;
     bool Open();
 
-    virtual SE3 CameraToGroundTruth() override { return cam_to_imu; }
 
     std::string SerialNumber();
     const RGBDIntrinsics& intrinsics() { return _intrinsics; }
 
 
-    virtual std::optional<Imu::Sensor> getIMU() override { return imu; }
 
    private:
     k4a::device device;
     k4a::calibration calibration;
     RGBDIntrinsics _intrinsics;
     SE3 cam_to_imu;
-    Imu::Sensor imu;
 
 
 

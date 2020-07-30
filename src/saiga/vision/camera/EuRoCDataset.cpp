@@ -153,17 +153,20 @@ int EuRoCDataset::LoadMetaData()
         // Load camera meta data
         YAML::Node config = YAML::LoadFile(imuSensor);
         VLOG(1) << config["comment"].as<std::string>();
-        Mat4 m             = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
-        imu.sensor_to_body = SE3::fitToSE3(m);
+        Mat4 m = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
 
-        imu.frequency                = config["rate_hz"].as<double>();
-        imu.frequency_sqrt           = sqrt(imu.frequency);
-        imu.omega_sigma              = config["gyroscope_noise_density"].as<double>();
-        imu.omega_random_walk        = config["gyroscope_random_walk"].as<double>();
-        imu.acceleration_sigma       = config["accelerometer_noise_density"].as<double>();
-        imu.acceleration_random_walk = config["accelerometer_random_walk"].as<double>();
 
-        VLOG(1) << imu;
+        imu                 = Imu::Sensor();
+        imu->sensor_to_body = SE3::fitToSE3(m);
+
+        imu->frequency                = config["rate_hz"].as<double>();
+        imu->frequency_sqrt           = sqrt(imu->frequency);
+        imu->omega_sigma              = config["gyroscope_noise_density"].as<double>();
+        imu->omega_random_walk        = config["gyroscope_random_walk"].as<double>();
+        imu->acceleration_sigma       = config["accelerometer_noise_density"].as<double>();
+        imu->acceleration_random_walk = config["accelerometer_random_walk"].as<double>();
+
+        VLOG(1) << *imu;
     }
 
 
@@ -225,7 +228,8 @@ int EuRoCDataset::LoadMetaData()
 
 
 
-    groundTruthToCamera = extrinsics_gt.inverse() * extrinsics_cam0;
+    groundTruthToCamera       = extrinsics_gt.inverse() * extrinsics_cam0;
+    intrinsics.camera_to_body = groundTruthToCamera.inverse();
 
     //    std::cout << "Body: " << extrinsics_gt << std::endl;
     //    std::cout << "Left: " << extrinsics_cam0 << std::endl;

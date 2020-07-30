@@ -58,7 +58,7 @@ class Sample : public SampleWindowForward
     //    char dir[256] = "/ssd2/slam/kitti/dataset/sequences/00/";
     //    char dir[256] = "/ssd2/slam/ismar/ismar_test/C1_test/";
     //    char dir[256] = "/ssd2/slam/tum/rgbd_dataset_freiburg3_long_office_household/";
-    char dir[256] = "/ssd2/scannet/scenes/scene0000_00/";
+    char dir[256] = "/home/dari/Projects/saiga/build/bin/recording/";
 
     int frameId      = 0;
     bool initTexture = false;

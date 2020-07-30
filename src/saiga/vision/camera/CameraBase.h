@@ -24,14 +24,12 @@ class CameraBase2
 
     virtual void close() {}
     virtual bool isOpened() { return true; }
-    // transforms the pose to the ground truth reference frame.
-    virtual SE3 CameraToGroundTruth() { return SE3(); }
-    SE3 GroundTruthToCamera() { return CameraToGroundTruth().inverse(); }
 
 
     virtual std::vector<std::pair<double, SE3>> GetGroundTruth() const { return {}; }
 
-    virtual std::optional<Imu::Sensor> getIMU() { return {}; }
+    std::optional<Imu::Sensor> getIMU() { return imu; }
+    std::optional<Imu::Sensor> imu;
 };
 
 /**
@@ -267,16 +265,9 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
 
 
-    virtual std::optional<Imu::Sensor> getIMU() override
-    {
-        return imuData.empty() ? std::optional<Imu::Sensor>() : imu;
-    }
-
    protected:
     AlignedVector<FrameType> frames;
     DatasetParameters params;
-
-    Imu::Sensor imu;
     std::vector<Imu::Data> imuData;
     std::vector<Imu::ImuSequence> imuDataForFrame;
 

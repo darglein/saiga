@@ -9,7 +9,6 @@
 #include "KinectAzureViewer.h"
 
 #include "saiga/core/util/Thread/all.h"
-#include "saiga/vision/camera/all.h"
 
 #include <filesystem>
 
@@ -54,7 +53,7 @@ void Sample::update(float dt)
         if (recording)
         {
             auto str       = Saiga::leadingZeroString(frameId, 5);
-            auto frame_dir = out_dir + "/" + str + "/";
+            auto frame_dir = frame_out_dir + "/" + str + "/";
             std::filesystem::create_directory(frame_dir);
             globalThreadPool->enqueue([=]() { frameData.Save(frame_dir); });
             frameId++;
@@ -96,10 +95,16 @@ void Sample::renderFinal(Camera* cam)
     {
         if (recording)
         {
-            out_dir = dir;
+            std::string out_dir = dir;
+            frame_out_dir       = out_dir + "/frames/";
+
             frameId = 0;
             std::filesystem::remove_all(out_dir);
             std::filesystem::create_directory(out_dir);
+            std::filesystem::create_directory(frame_out_dir);
+
+            auto intr = rgbdcamera->intrinsics();
+            intr.fromConfigFile(out_dir + "/camera.ini");
         }
     }
 

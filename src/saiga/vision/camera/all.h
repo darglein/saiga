@@ -11,6 +11,7 @@
 #include "KinectAzure.h"
 #include "KittiDataset.h"
 #include "RGBDCameraOpenni.h"
+#include "SaigaDataset.h"
 #include "ScannetDataset.h"
 #include "TumRGBDDataset.h"
 #include "ZJUDataset.h"

@@ -117,7 +117,8 @@ int ZJUDataset::LoadMetaData()
     t.y() = extrT[1];
     t.z() = extrT[2];
 
-    groundTruthToCamera = SE3(q, t);
+    groundTruthToCamera       = SE3(q, t);
+    intrinsics.camera_to_body = groundTruthToCamera.inverse();
 
     //    std::cout << "Extrinsics: " << groundTruthToCamera << std::endl;
 
@@ -137,16 +138,17 @@ int ZJUDataset::LoadMetaData()
         qua.z() = q(2);
         qua.w() = q(3);
 
-        imu.sensor_to_body = SE3(qua, p);
+        imu                 = Imu::Sensor();
+        imu->sensor_to_body = SE3(qua, p);
 
-        imu.frequency                = config["frequency"].as<double>();
-        imu.frequency_sqrt           = sqrt(imu.frequency);
-        imu.omega_sigma              = config["intrinsic"]["sigma_w"].as<double>();
-        imu.omega_random_walk        = config["intrinsic"]["sigma_bw"].as<double>();
-        imu.acceleration_sigma       = config["intrinsic"]["sigma_a"].as<double>();
-        imu.acceleration_random_walk = config["intrinsic"]["sigma_ba"].as<double>();
+        imu->frequency                = config["frequency"].as<double>();
+        imu->frequency_sqrt           = sqrt(imu->frequency);
+        imu->omega_sigma              = config["intrinsic"]["sigma_w"].as<double>();
+        imu->omega_random_walk        = config["intrinsic"]["sigma_bw"].as<double>();
+        imu->acceleration_sigma       = config["intrinsic"]["sigma_a"].as<double>();
+        imu->acceleration_random_walk = config["intrinsic"]["sigma_ba"].as<double>();
 
-        std::cout << imu << std::endl;
+        std::cout << *imu << std::endl;
     }
 
 

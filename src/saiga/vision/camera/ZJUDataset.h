@@ -39,7 +39,6 @@ class SAIGA_VISION_API ZJUDataset : public DatasetCameraBase<MonocularFrameData>
 
     ZJUDataset(const DatasetParameters& params);
 
-    virtual SE3 CameraToGroundTruth() override { return groundTruthToCamera.inverse(); }
 
     MonocularIntrinsics intrinsics;
 

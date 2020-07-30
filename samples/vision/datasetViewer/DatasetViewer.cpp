@@ -136,6 +136,15 @@ void Sample::renderFinal(Camera* cam)
         cameraType = TumRGBDDataset::FrameType::cameraType;
     }
 
+    if (ImGui::Button("Load From File Saiga"))
+    {
+        dparams.dir  = dir;
+        rgbdcamera   = std::make_unique<SaigaDataset>(dparams);
+        leftTexture  = nullptr;
+        rightTexture = nullptr;
+
+        cameraType = SaigaDataset::FrameType::cameraType;
+    }
 
 
 #ifdef SAIGA_USE_YAML_CPP

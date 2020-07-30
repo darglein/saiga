@@ -17,6 +17,7 @@
 #include "saiga/opengl/window/SampleWindowForward.h"
 #include "saiga/opengl/world/TextureDisplay.h"
 #include "saiga/vision/camera/CameraBase.h"
+#include "saiga/vision/camera/all.h"
 using namespace Saiga;
 #include <k4a/k4a.h>
 
@@ -39,7 +40,7 @@ class Sample : public SampleWindowForward
     TextureDisplay display;
 
 
-    std::unique_ptr<CameraBase<RGBDFrameData>> rgbdcamera;
+    std::unique_ptr<KinectCamera> rgbdcamera;
     std::unique_ptr<CameraBase<MonocularFrameData>> monocamera;
     std::unique_ptr<CameraBase<StereoFrameData>> stereocamera;
 
@@ -54,7 +55,7 @@ class Sample : public SampleWindowForward
 
 
 
-    std::string out_dir;
+    std::string frame_out_dir;
     char dir[256]  = "recording/";
     bool recording = false;
     int frameId    = 0;

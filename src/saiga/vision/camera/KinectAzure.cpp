@@ -79,11 +79,22 @@ KinectCamera::KinectCamera()
 
     cam_to_imu = SE3(cam_to_gyro.so3(), cam_to_acc.translation()).inverse();
 
+    _intrinsics.camera_to_body = cam_to_imu;
 
-    imu.frequency      = 1600;
-    imu.frequency_sqrt = sqrt(imu.frequency);
+    imu                 = Imu::Sensor();
+    imu->frequency      = 1600;
+    imu->frequency_sqrt = sqrt(imu->frequency);
 
     std::cout << _intrinsics << std::endl;
+
+
+
+    for (int i = 0; i < 10; ++i)
+    {
+        RGBDFrameData d;
+        getImageSync(d);
+    }
+
     //    std::cout << "params " << color.intrinsics.parameter_count << std::endl;
     //    auto intr = color.intrinsics.parameters;
 }

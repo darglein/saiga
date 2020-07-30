@@ -30,7 +30,6 @@ class SAIGA_VISION_API EuRoCDataset : public DatasetCameraBase<StereoFrameData>
 
     StereoIntrinsics intrinsics;
 
-    virtual SE3 CameraToGroundTruth() override { return groundTruthToCamera.inverse(); }
 
     virtual void LoadImageData(StereoFrameData& data) override;
     virtual int LoadMetaData() override;
