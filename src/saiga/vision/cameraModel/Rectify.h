@@ -47,7 +47,7 @@ struct Rectification
         Vec2 p   = K_dst.unproject2(x);
         Vec3 p_r = R.inverse() * Vec3(p(0), p(1), 1);
         p        = Vec2(p_r(0) / p_r(2), p_r(1) / p_r(2));
-        p        = distortNormalizedPoint2(p, D_src);
+        p        = distortNormalizedPoint(p, D_src);
         return K_src.normalizedToImage(p);
     }
 };

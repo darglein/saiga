@@ -156,14 +156,16 @@ void FrameMetaData::Load(const std::string& dir)
 void RGBDFrameData::Save(const std::string& dir) const
 {
     FrameMetaData::Save(dir);
-    colorImg.save(dir + "/color.png");
-    depthImg.save(dir + "/depth.saigai");
+    if (colorImg.valid()) colorImg.save(dir + "/color.png");
+    if (grayImg.valid()) grayImg.save(dir + "/gray.png");
+    if (depthImg.valid()) depthImg.save(dir + "/depth.saigai");
 }
 
 void RGBDFrameData::Load(const std::string& dir)
 {
     FrameMetaData::Load(dir);
     colorImg.load(dir + "/color.png");
+    grayImg.load(dir + "/gray.png");
     depthImg.load(dir + "/depth.saigai");
 }
 

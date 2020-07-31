@@ -36,6 +36,18 @@ void Sample::update(float dt)
         if (!rgbdcamera->getImage(frameData)) return;
         tg.addTime();
 
+        if (!frameData.colorImg.valid() && frameData.grayImg.valid())
+        {
+            frameData.colorImg.create(frameData.grayImg.dimensions());
+            ImageTransformation::Gray8ToRGBA(frameData.grayImg.getImageView(), frameData.colorImg.getImageView());
+        }
+        else if (frameData.colorImg.valid() && !frameData.grayImg.valid())
+        {
+            frameData.grayImg.create(frameData.colorImg.dimensions());
+            ImageTransformation::RGBAToGray8(frameData.colorImg.getImageView(), frameData.grayImg.getImageView());
+            ImageTransformation::Gray8ToRGBA(frameData.grayImg.getImageView(), frameData.colorImg.getImageView());
+        }
+
         if (!leftTexture)
         {
             leftImage   = frameData.colorImg;
@@ -61,7 +73,8 @@ void Sample::update(float dt)
 
 
         leftImage = frameData.colorImg;
-        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, rightImage, 0, 8);
+        //        Saiga::ImageTransformation::depthToRGBA_HSV(frameData.depthImg, rightImage, 0, 5);
+        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, rightImage, 0, 7);
 
         leftTexture->updateFromImage(leftImage);
         rightTexture->updateFromImage(rightImage);
@@ -116,13 +129,13 @@ void Sample::renderFinal(Camera* cam)
 
 int main(const int argc, const char* argv[])
 {
-    using namespace Saiga;
+    // This should be only called if this is a sample located in saiga/samples
+    initSaigaSample();
 
-    {
-        Sample example;
+    Sample example;
 
-        example.run();
-    }
+    example.run();
+
 
     return 0;
 }

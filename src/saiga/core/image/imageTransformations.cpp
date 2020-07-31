@@ -65,11 +65,36 @@ void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst, float minD, 
         {
             float d = src(i, j);
             d       = (d - minD) / maxD;
+            d       = clamp(d, 0.0f, 1.0f);
 
             dst(i, j) = ucvec4(d * 255, d * 255, d * 255, 255);
         }
     }
 }
+
+void depthToRGBA_HSV(ImageView<const float> src, ImageView<ucvec4> dst, float minD, float maxD)
+{
+    SAIGA_ASSERT(src.width == dst.width && src.height == dst.height);
+    for (int i = 0; i < src.height; ++i)
+    {
+        for (int j = 0; j < src.width; ++j)
+        {
+            float d = src(i, j);
+            d       = (d - minD) / maxD;
+
+            d = clamp(d, 0.0f, 1.0f);
+
+            vec3 hsv(d * (240.0 / 360.0), 1, 1);
+            Saiga::Color c(Color::hsv2rgb(hsv));
+            //            unsigned char c = Saiga::iRound(f * 255.0f);
+            dst(i, j)[0] = c.r;
+            dst(i, j)[1] = c.g;
+            dst(i, j)[2] = c.b;
+        }
+    }
+}
+
+
 
 // const vec3 rgbToGray(0.2126f, 0.7152f, 0.0722f);
 const vec3 rgbToGray(0.299f, 0.587f, 0.114f);  // opencv values

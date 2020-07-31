@@ -22,13 +22,13 @@ struct RecursiveRandom
 template <>
 struct RecursiveRandom<double>
 {
-    static void set(double& value) { value = ((double)rand() / RAND_MAX) * 2.0 - 1.0; }
+    static void set(double& value) { value = ((double)rand() / double(RAND_MAX)) * 2.0 - 1.0; }
 };
 
 template <>
 struct RecursiveRandom<float>
 {
-    static void set(double& value) { value = ((float)rand() / RAND_MAX) * 2.0f - 1.0f; }
+    static void set(double& value) { value = ((float)rand() / float(RAND_MAX)) * 2.0f - 1.0f; }
 };
 
 

@@ -123,11 +123,14 @@ bool KinectCamera::Open()
     SAIGA_ASSERT(device);
 
 
-    k4a_device_configuration_t config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    config.color_format               = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-    config.color_resolution           = K4A_COLOR_RESOLUTION_720P;
-    config.depth_mode                 = K4A_DEPTH_MODE_NFOV_UNBINNED;
-    //    config.depth_mode               = K4A_DEPTH_MODE_NFOV_2X2BINNED;
+    config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    //    config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
+    config.color_format = K4A_IMAGE_FORMAT_COLOR_NV12;
+    //    config.color_format     = K4A_IMAGE_FORMAT_COLOR_MJPG;
+    config.color_resolution = K4A_COLOR_RESOLUTION_720P;
+    config.depth_mode       = K4A_DEPTH_MODE_NFOV_2X2BINNED;
+    //    config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    //    config.depth_mode               = K4A_DEPTH_MODE_WFOV_UNBINNED;
     config.camera_fps               = K4A_FRAMES_PER_SECOND_30;
     config.synchronized_images_only = true;
 
@@ -151,8 +154,6 @@ bool KinectCamera::Open()
 
 bool KinectCamera::getImageSync(RGBDFrameData& data)
 {
-    data.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
-    data.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
     data.id = currentId++;
 
     k4a::capture capture;
@@ -177,32 +178,16 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
     std::vector<Imu::Data> imu_data;
     while (true)
     {
-        k4a_imu_sample_t imu_sample;
-        if (device.get_imu_sample(&imu_sample, std::chrono::milliseconds(0)))
-        {
-            Imu::Data sample;
-            sample.timestamp = imu_sample.gyro_timestamp_usec / (1000.0 * 1000);
+        Imu::Data sample = GetImuSample(8);
+        imu_data.push_back(sample);
 
-
-            sample.acceleration =
-                Vec3(imu_sample.acc_sample.xyz.x, imu_sample.acc_sample.xyz.y, imu_sample.acc_sample.xyz.z);
-
-            sample.omega =
-                Vec3(imu_sample.gyro_sample.xyz.x, imu_sample.gyro_sample.xyz.y, imu_sample.gyro_sample.xyz.z);
-
-            //            std::cout << sample << std::endl;
-            imu_data.push_back(sample);
-
-            if (sample.timestamp >= t_color)
-            {
-                break;
-            }
-        }
-        else
+        //        std::cout << sample << std::endl;
+        if (sample.timestamp >= t_color)
         {
             break;
         }
     }
+    //    std::cout << "imu data size: " << imu_data.size() << " Imu frequency: " << imu_data.size() * 30 << std::endl;
 
 
     // Add last 2 samples at the front
@@ -221,11 +206,13 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
     last_imu_data = imu_data;
     last_time     = data.timeStamp;
 
+    SAIGA_ASSERT(k4a_color);
+
+
+    if (config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
     {
         // Probe for a color image
-
-
-        SAIGA_ASSERT(k4a_color);
+        data.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
 
         ImageView<ucvec4> view(k4a_color.get_height_pixels(), k4a_color.get_width_pixels(),
                                k4a_color.get_stride_bytes(), k4a_color.get_buffer());
@@ -233,12 +220,24 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
 
         data.colorImg.getImageView().swapChannels(0, 2);
     }
-
-
-
+    else if (config.color_format == K4A_IMAGE_FORMAT_COLOR_NV12)
     {
-        SAIGA_ASSERT(k4a_depth);
+        ImageView<unsigned char> view(k4a_color.get_height_pixels(), k4a_color.get_width_pixels(),
+                                      k4a_color.get_stride_bytes(), k4a_color.get_buffer());
+        data.grayImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
 
+        view.copyTo(data.grayImg.getImageView());
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("unknown color format");
+    }
+
+
+
+    if (k4a_depth)
+    {
+        data.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
         static k4a::transformation T(calibration);
         //        SAIGA_BLOCK_TIMER();
         auto transformed_depth = T.depth_image_to_color_camera(k4a_depth);
@@ -276,6 +275,42 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
 std::string KinectCamera::SerialNumber()
 {
     return device.get_serialnum();
+}
+
+Imu::Data KinectCamera::GetImuSample(int num_merge_samples)
+{
+    Imu::Data result;
+    result.omega.setZero();
+    result.acceleration.setZero();
+    result.timestamp = 0;
+
+    for (int i = 0; i < num_merge_samples; ++i)
+    {
+        k4a_imu_sample_t imu_sample;
+        // if (device.get_imu_sample(&imu_sample, std::chrono::milliseconds(0)))
+        if (device.get_imu_sample(&imu_sample, std::chrono::milliseconds(K4A_WAIT_INFINITE)))
+        {
+            double t   = imu_sample.gyro_timestamp_usec / (1000.0 * 1000);
+            Vec3 acc   = Vec3(imu_sample.acc_sample.xyz.x, imu_sample.acc_sample.xyz.y, imu_sample.acc_sample.xyz.z);
+            Vec3 omega = Vec3(imu_sample.gyro_sample.xyz.x, imu_sample.gyro_sample.xyz.y, imu_sample.gyro_sample.xyz.z);
+
+            result.timestamp += t;
+            result.acceleration += acc;
+            result.omega += omega;
+        }
+        else
+        {
+            SAIGA_EXIT_ERROR("Could not read imu sample");
+        }
+    }
+
+    double f = 1.0 / num_merge_samples;
+    result.timestamp *= f;
+    result.acceleration *= f;
+    result.omega *= f;
+    return result;
+
+    // Combine all samples into a single sample
 }
 
 

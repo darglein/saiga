@@ -21,6 +21,7 @@ SAIGA_CORE_API void RemoveAlphaChannel(ImageView<const ucvec4> src, ImageView<uc
 // depth to rgb image only for visualizaion
 SAIGA_CORE_API void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4> dst, uint16_t minD, uint16_t maxD);
 SAIGA_CORE_API void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst, float minD = 0, float maxD = 7);
+SAIGA_CORE_API void depthToRGBA_HSV(ImageView<const float> src, ImageView<ucvec4> dst, float minD = 0, float maxD = 7);
 
 SAIGA_CORE_API void RGBAToGray8(ImageView<const ucvec4> src, ImageView<unsigned char> dst);
 // with scale = 1 the resulting grayscale will be in the range 0..255

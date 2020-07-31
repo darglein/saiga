@@ -41,7 +41,14 @@ class SAIGA_VISION_API KinectCamera : public CameraBase<RGBDFrameData>
 
 
 
+    Imu::Data GetImuSample(int num_merge_samples);
+
+
+
+    k4a::calibration GetCalibration() { return calibration; }
+
    private:
+    k4a_device_configuration_t config;
     k4a::device device;
     k4a::calibration calibration;
     RGBDIntrinsics _intrinsics;

@@ -69,35 +69,11 @@ using Distortionf = DistortionBase<float>;
 /**
  * The OpenCV distortion model applied to a point in normalized image coordinates.
  */
-template <typename T>
-Eigen::Matrix<T, 2, 1> distortNormalizedPoint235(const Eigen::Matrix<T, 2, 1>& point,
-                                                 const DistortionBase<T>& distortion)
-{
-    T x  = point.x();
-    T y  = point.y();
-    T k1 = distortion.k1;
-    T k2 = distortion.k2;
-    T k3 = distortion.k3;
-    T p1 = distortion.p1;
-    T p2 = distortion.p2;
-
-    SAIGA_ASSERT(distortion.k4 == 0);
-
-    T x2 = x * x, y2 = y * y;
-    T r2 = x2 + y2, _2xy = T(2) * x * y;
-    T radial      = (T(1) + ((k3 * r2 + k2) * r2 + k1) * r2);
-    T tangentialX = p1 * _2xy + p2 * (r2 + T(2) * x2);
-    T tangentialY = p1 * (r2 + T(2) * y2) + p2 * _2xy;
-    T xd          = (x * radial + tangentialX);
-    T yd          = (y * radial + tangentialY);
-    return {xd, yd};
-}
-
 
 
 template <typename T>
-Eigen::Matrix<T, 2, 1> distortNormalizedPoint2(const Eigen::Matrix<T, 2, 1>& point, const DistortionBase<T>& distortion,
-                                               Matrix<double, 2, 2>* J_point = nullptr)
+Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& point, const DistortionBase<T>& distortion,
+                                              Matrix<double, 2, 2>* J_point = nullptr)
 {
     T x  = point.x();
     T y  = point.y();
@@ -188,7 +164,7 @@ Eigen::Matrix<T, 2, 1> undistortPointGN(const Eigen::Matrix<T, 2, 1>& point, con
     for (int it = 0; it < iterations; ++it)
     {
         Mat2 J;
-        Vec2 res = distortNormalizedPoint2(x, d, &J) - point;
+        Vec2 res = distortNormalizedPoint(x, d, &J) - point;
 
         T chi2 = res.squaredNorm();
 
@@ -211,7 +187,7 @@ Eigen::Matrix<T, 2, 1> undistortPointGN(const Eigen::Matrix<T, 2, 1>& point, con
 
 
     // Final check
-    T chi2 = (distortNormalizedPoint2(x, d) - point).squaredNorm();
+    T chi2 = (distortNormalizedPoint(x, d) - point).squaredNorm();
     if (chi2 > last_chi2)
     {
         x = last_point;
@@ -257,35 +233,6 @@ Eigen::Matrix<T, 2, 1> undistortNormalizedPoint1235(const Eigen::Matrix<T, 2, 1>
 
 
 
-template <typename T>
-Eigen::Matrix<T, 2, 1> undistortNormalizedPoint73(const Eigen::Matrix<T, 2, 1>& point,
-                                                  const Eigen::Matrix<T, 2, 1>& guess,
-                                                  const DistortionBase<T>& distortion, int iterations = 5)
-{
-    T x  = guess.x();
-    T y  = guess.y();
-    T k1 = distortion.k1;
-    T k2 = distortion.k2;
-    T k3 = distortion.k3;
-    T p1 = distortion.p1;
-    T p2 = distortion.p2;
-
-    T x0 = point.x();
-    T y0 = point.y();
-    // compensate distortion iteratively
-    for (int j = 0; j < iterations; j++)
-    {
-        T x2 = x * x, y2 = y * y;
-        T r2 = x2 + y2, _2xy = T(2) * x * y;
-        T radial      = T(1) / (T(1) + ((k3 * r2 + k2) * r2 + k1) * r2);
-        T tangentialX = p1 * _2xy + p2 * (r2 + T(2) * x2);
-        T tangentialY = p1 * (r2 + T(2) * y2) + p2 * _2xy;
-
-        x = (x0 - tangentialX) * radial;
-        y = (y0 - tangentialY) * radial;
-    }
-    return {x, y};
-}
 /**
  * Undistorts all points from begin to end and writes them to output.
  */

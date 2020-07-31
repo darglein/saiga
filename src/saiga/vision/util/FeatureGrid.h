@@ -87,7 +87,7 @@ struct FeatureGridBounds
         // undistort inplace
 
         std::vector<Vec2> undistortedPoints = points;
-        Saiga::undistortAll(points.begin(), points.end(), undistortedPoints.begin(), intr, dist.eval());
+        Saiga::undistortAll(points.begin(), points.end(), undistortedPoints.begin(), intr, dist);
 
 
         // find min/max

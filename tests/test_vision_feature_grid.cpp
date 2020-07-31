@@ -21,9 +21,13 @@ struct FeatureGridTest
     {
         // This are the camera parameters from the EuRoC dataset.
         intr = Intrinsics4(458.654, 457.296, 367.215, 248.375);
-        dis  = Distortion(-0.283408, 0.0739591, 0.00019359, 1.76187e-05, 0);
-        w    = 752;
-        h    = 480;
+
+        Vector<double, 8> c;
+        c << -0.0284351, -2.47131, 1.7389, -0.145427, -2.26192, 1.63544, 0.00128128, -0.000454588;
+
+        dis = Distortion(c);
+        w   = 752;
+        h   = 480;
     }
 
 
