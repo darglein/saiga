@@ -27,7 +27,23 @@ namespace Saiga
 class SAIGA_VISION_API KinectCamera : public CameraBase<RGBDFrameData>
 {
    public:
-    KinectCamera();
+    struct KinectParams
+    {
+        // True: RGB, False: Greyscale
+        bool color = true;
+
+        // narrow or wide fov
+        // Note: wide is only supported with 30 fps.
+        bool narrow_depth = true;
+
+        // Merge consecutive imu values
+        int imu_merge_count = 4;
+
+        int fps = 30;
+    };
+
+
+    KinectCamera(const KinectParams& kinect_params);
     ~KinectCamera();
     KinectCamera(const KinectCamera&) = delete;
     KinectCamera& operator=(const KinectCamera&) = delete;
@@ -53,7 +69,8 @@ class SAIGA_VISION_API KinectCamera : public CameraBase<RGBDFrameData>
     k4a::calibration calibration;
     RGBDIntrinsics _intrinsics;
     SE3 cam_to_imu;
-
+    KinectParams kinect_params;
+    k4a::transformation T;
 
 
     std::vector<Imu::Data> last_imu_data;

@@ -16,7 +16,7 @@
 #ifdef SAIGA_USE_K4A
 namespace Saiga
 {
-KinectCamera::KinectCamera()
+KinectCamera::KinectCamera(const KinectParams& kinect_params) : kinect_params(kinect_params)
 {
     Open();
 
@@ -82,7 +82,7 @@ KinectCamera::KinectCamera()
     _intrinsics.camera_to_body = cam_to_imu;
 
     imu                 = Imu::Sensor();
-    imu->frequency      = 1600;
+    imu->frequency      = 1666;
     imu->frequency_sqrt = sqrt(imu->frequency);
 
     std::cout << _intrinsics << std::endl;
@@ -124,22 +124,47 @@ bool KinectCamera::Open()
 
 
     config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    //    config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-    config.color_format = K4A_IMAGE_FORMAT_COLOR_NV12;
-    //    config.color_format     = K4A_IMAGE_FORMAT_COLOR_MJPG;
+
+    if (kinect_params.color)
+    {
+        config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
+    }
+    else
+    {
+        config.color_format = K4A_IMAGE_FORMAT_COLOR_NV12;
+    }
+
+    if (kinect_params.narrow_depth)
+    {
+        config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    }
+    else
+    {
+        config.depth_mode = K4A_DEPTH_MODE_WFOV_UNBINNED;
+    }
+
     config.color_resolution = K4A_COLOR_RESOLUTION_720P;
-    config.depth_mode       = K4A_DEPTH_MODE_NFOV_2X2BINNED;
-    //    config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-    //    config.depth_mode               = K4A_DEPTH_MODE_WFOV_UNBINNED;
-    config.camera_fps               = K4A_FRAMES_PER_SECOND_30;
+
+
+    if (kinect_params.fps == 15)
+    {
+        config.camera_fps = K4A_FRAMES_PER_SECOND_15;
+        _intrinsics.fps   = 15;
+    }
+    else
+    {
+        config.camera_fps = K4A_FRAMES_PER_SECOND_30;
+        _intrinsics.fps   = 30;
+    }
+
     config.synchronized_images_only = true;
 
-    _intrinsics.fps = 30;
 
     device.start_cameras(&config);
     device.start_imu();
     calibration = device.get_calibration(config.depth_mode, config.color_resolution);
 
+    T = k4a::transformation(calibration);
 
     std::cout << "Kinect Azure Opened. ID: " << SerialNumber() << std::endl;
     std::cout << "   Color: " << calibration.color_camera_calibration.resolution_width << " x "
@@ -238,7 +263,7 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
     if (k4a_depth)
     {
         data.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
-        static k4a::transformation T(calibration);
+
         //        SAIGA_BLOCK_TIMER();
         auto transformed_depth = T.depth_image_to_color_camera(k4a_depth);
 

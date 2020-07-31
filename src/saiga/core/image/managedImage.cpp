@@ -107,7 +107,8 @@ bool Image::load(const std::string& _path)
 
     if (path.empty())
     {
-        std::cout << "could not find " << _path << std::endl;
+        //        std::cout << "could not find " << _path << std::endl;
+        return false;
     }
 
     bool erg         = false;

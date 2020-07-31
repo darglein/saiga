@@ -66,6 +66,14 @@ int SaigaDataset::LoadMetaData()
 
     std::sort(frame_dirs.begin(), frame_dirs.end());
 
+
+    if (params.maxFrames >= 0)
+    {
+        frame_dirs.resize(std::min((size_t)params.maxFrames, frame_dirs.size()));
+    }
+    params.maxFrames = frame_dirs.size();
+
+
     frames.resize(frame_dirs.size());
 
     for (int i = 0; i < frames.size(); ++i)
@@ -80,68 +88,6 @@ int SaigaDataset::LoadMetaData()
     imu->frequency_sqrt = sqrt(imu->frequency);
 
     return frame_dirs.size();
-#if 0
-    if (freiburg == -1)
-    {
-        std::filesystem::path p(params.dir + "/");
-        std::string dir = p.parent_path().filename().string();
-        auto pos        = dir.find("freiburg");
-
-        if (pos < dir.size())
-        {
-            std::string number = dir.substr(pos + 8, 1);
-            freiburg           = std::atoi(number.c_str());
-        }
-    }
-
-    _intrinsics.fps         = 30;
-    _intrinsics.depthFactor = 5000;
-
-    _intrinsics.imageSize.width       = 640;
-    _intrinsics.imageSize.height      = 480;
-    _intrinsics.depthImageSize.width  = 640;
-    _intrinsics.depthImageSize.height = 480;
-    _intrinsics.bf                    = 40;
-
-    if (freiburg == 1)
-    {
-        _intrinsics.model.K = Intrinsics4(517.306408, 516.469215, 318.643040, 255.313989);
-        // 0.262383 , -0.953104, -0.005358, 0.002628, 1.163314;
-        _intrinsics.model.dis.k1 = 0.262383;
-        _intrinsics.model.dis.k2 = -0.953104;
-        _intrinsics.model.dis.p1 = -0.005358;
-        _intrinsics.model.dis.p2 = 0.002628;
-        _intrinsics.model.dis.k3 = 1.163314;
-    }
-    else if (freiburg == 2)
-    {
-        _intrinsics.model.K = Intrinsics4(520.908620, 521.007327, 325.141442, 249.701764);
-        //        _intrinsics.model.dis << 0.231222, -0.784899, -0.003257, -0.000105, 0.917205;
-        _intrinsics.model.dis.k1 = 0.231222;
-        _intrinsics.model.dis.k2 = -0.784899;
-        _intrinsics.model.dis.p1 = -0.003257;
-        _intrinsics.model.dis.p2 = -0.000105;
-        _intrinsics.model.dis.k3 = 0.917205;
-    }
-    else if (freiburg == 3)
-    {
-        _intrinsics.model.K = Intrinsics4(535.4, 539.2, 320.1, 247.6);
-        //        _intrinsics.model.dis << 0, 0, 0, 0, 0;
-    }
-    else
-    {
-        SAIGA_EXIT_ERROR("Invalid Freiburg");
-    }
-
-    _intrinsics.depthModel = _intrinsics.model;
-
-    VLOG(1) << "Found Freiburg " << freiburg << " dataset.";
-    VLOG(1) << _intrinsics;
-
-    associate(params.dir);
-    load(params.dir, params.multiThreadedLoad);
-    return frames.size();
-#endif
 }
 
 

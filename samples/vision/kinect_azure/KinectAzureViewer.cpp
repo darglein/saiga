@@ -16,12 +16,6 @@
 
 Sample::Sample()
 {
-    rgbdcamera   = std::make_unique<KinectCamera>();
-    leftTexture  = nullptr;
-    rightTexture = nullptr;
-
-    cameraType = KinectCamera::FrameType::cameraType;
-
     createGlobalThreadPool(8);
 }
 
@@ -41,12 +35,14 @@ void Sample::update(float dt)
             frameData.colorImg.create(frameData.grayImg.dimensions());
             ImageTransformation::Gray8ToRGBA(frameData.grayImg.getImageView(), frameData.colorImg.getImageView());
         }
-        else if (frameData.colorImg.valid() && !frameData.grayImg.valid())
-        {
-            frameData.grayImg.create(frameData.colorImg.dimensions());
-            ImageTransformation::RGBAToGray8(frameData.colorImg.getImageView(), frameData.grayImg.getImageView());
-            ImageTransformation::Gray8ToRGBA(frameData.grayImg.getImageView(), frameData.colorImg.getImageView());
-        }
+        //        else if (frameData.colorImg.valid() && !frameData.grayImg.valid())
+        //        {
+        //            frameData.grayImg.create(frameData.colorImg.dimensions());
+        //            ImageTransformation::RGBAToGray8(frameData.colorImg.getImageView(),
+        //            frameData.grayImg.getImageView());
+        //            ImageTransformation::Gray8ToRGBA(frameData.grayImg.getImageView(),
+        //            frameData.colorImg.getImageView());
+        //        }
 
         if (!leftTexture)
         {
@@ -119,6 +115,23 @@ void Sample::renderFinal(Camera* cam)
             auto intr = rgbdcamera->intrinsics();
             intr.fromConfigFile(out_dir + "/camera.ini");
         }
+    }
+
+    static KinectCamera::KinectParams params;
+
+    ImGui::Checkbox("color", &params.color);
+    ImGui::Checkbox("narrow_depth", &params.narrow_depth);
+    ImGui::InputInt("imu_merge_count", &params.imu_merge_count);
+    ImGui::InputInt("fps", &params.fps);
+
+
+    if (ImGui::Button("Open"))
+    {
+        rgbdcamera   = nullptr;
+        rgbdcamera   = std::make_unique<KinectCamera>(params);
+        leftTexture  = nullptr;
+        rightTexture = nullptr;
+        cameraType   = KinectCamera::FrameType::cameraType;
     }
 
     ImGui::Text("Frame: %d", frameId);
