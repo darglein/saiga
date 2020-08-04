@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/time/all.h"
 #include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/assert.h"
 
@@ -42,6 +43,7 @@ struct SyncedConsoleProgressBar
         {
             run();
         }
+        timer.start();
     }
 
     ~SyncedConsoleProgressBar()
@@ -55,6 +57,7 @@ struct SyncedConsoleProgressBar
     void addProgress(int i) { current += i; }
 
    private:
+    TimerBase timer;
     std::ostream& strm;
     ScopedThread st;
     std::string header;
@@ -72,7 +75,9 @@ struct SyncedConsoleProgressBar
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
             print();
-            strm << "Done." << std::endl;
+            auto time = timer.stop();
+            strm << "Done in " << std::chrono::duration_cast<std::chrono::duration<float>>(time).count() << " seconds."
+                 << std::endl;
         });
     }
 

@@ -82,7 +82,7 @@ KinectCamera::KinectCamera(const KinectParams& kinect_params) : kinect_params(ki
     _intrinsics.camera_to_body = cam_to_imu;
 
     imu                 = Imu::Sensor();
-    imu->frequency      = 1666;
+    imu->frequency      = 1666 / kinect_params.imu_merge_count;
     imu->frequency_sqrt = sqrt(imu->frequency);
 
     std::cout << _intrinsics << std::endl;
