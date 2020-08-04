@@ -215,10 +215,7 @@ void Sample::renderFinal(Camera* cam)
 
         if (ImGui::CollapsingHeader("Preprocess Options"))
         {
-            ImGui::InputFloat("hyst min", &ip_settings.hyst_min);
-            ImGui::InputFloat("hyst max", &ip_settings.hyst_max);
-            ImGui::InputFloat("gauss standard deviation", &ip_settings.gauss_standard_deviation);
-            ImGui::InputInt("gauss radius", &ip_settings.gauss_radius);
+            ip_settings.imgui();
         }
         if (ImGui::CollapsingHeader("RQT Options"))
         {

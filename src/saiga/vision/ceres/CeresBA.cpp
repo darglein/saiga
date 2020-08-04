@@ -33,8 +33,8 @@ OptimizationResults CeresBA::initAndSolve()
 
     ceres::Problem::Options problemOptions;
     problemOptions.local_parameterization_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
-    problemOptions.cost_function_ownership          = ceres::DO_NOT_TAKE_OWNERSHIP;
-    problemOptions.loss_function_ownership          = ceres::DO_NOT_TAKE_OWNERSHIP;
+    //    problemOptions.cost_function_ownership          = ceres::DO_NOT_TAKE_OWNERSHIP;
+    problemOptions.loss_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
 
     ceres::Problem problem(problemOptions);
 
@@ -85,7 +85,7 @@ OptimizationResults CeresBA::initAndSolve()
         }
     }
 
-    auto ordering = std::make_shared<ceres::ParameterBlockOrdering>();
+    //    auto ordering = std::make_shared<ceres::ParameterBlockOrdering>();
 
 
     //    std::vector<std::unique_ptr<CostBAMonoAnalytic>> monoCostFunctions;

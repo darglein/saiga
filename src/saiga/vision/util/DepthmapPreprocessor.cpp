@@ -807,4 +807,12 @@ void DepthProcessor2::use_hysteresis_threshold(ImageView<float> depth_image, Ima
     }
 }
 
+void DepthProcessor2::Settings::imgui()
+{
+    ImGui::InputFloat("hyst min", &hyst_min);
+    ImGui::InputFloat("hyst max", &hyst_max);
+    ImGui::InputFloat("gauss standard deviation", &gauss_standard_deviation);
+    ImGui::InputInt("gauss radius", &gauss_radius);
+}
+
 }  // namespace Saiga

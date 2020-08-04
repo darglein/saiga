@@ -86,15 +86,23 @@ class SAIGA_VISION_API DepthProcessor2
         // ... is greater than hyst_max, it gets deleted
         // ... is lower than hyst_min, it doesn't get deleted
         // ... lies between those values, it gets deleted only if a neighbouring pixel gets deleted. This may also
-        // propagate across the image
+        // propagate across the ismage
         float hyst_min = 12.0f;
         float hyst_max = 23.0f;
 
         // camera parameters of the camera that took the picture which gets processed
         StereoCamera4Base<float> cameraParameters;
+
+        void imgui();
     };
 
     DepthProcessor2(const Settings& settings_in);
+
+    void Process(ImageView<float> depthImageView)
+    {
+        remove_occlusion_edges(depthImageView);
+        filter_gaussian(depthImageView, depthImageView);
+    }
 
     // combines most of the
     void remove_occlusion_edges(ImageView<float> depthImageView);
