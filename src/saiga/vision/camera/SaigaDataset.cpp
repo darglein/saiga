@@ -12,6 +12,7 @@
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/vision/util/DepthmapPreprocessor.h"
 
 #include "TimestampMatcher.h"
 
@@ -20,7 +21,8 @@
 #include <thread>
 namespace Saiga
 {
-SaigaDataset::SaigaDataset(const DatasetParameters& _params) : DatasetCameraBase<RGBDFrameData>(_params)
+SaigaDataset::SaigaDataset(const DatasetParameters& _params, bool scale_down_depth)
+    : DatasetCameraBase<RGBDFrameData>(_params), scale_down_depth(scale_down_depth)
 {
     Load();
 }
@@ -34,6 +36,13 @@ void SaigaDataset::LoadImageData(RGBDFrameData& data)
     auto old_id = data.id;
     data.Load(data.file);
     data.id = old_id;
+
+    if (scale_down_depth)
+    {
+        TemplatedImage<float> tmp(_intrinsics.depthImageSize);
+        DMPP::scaleDown2median(data.depthImg.getImageView(), tmp.getImageView());
+        data.depthImg = tmp;
+    }
 }
 
 int SaigaDataset::LoadMetaData()
@@ -51,6 +60,13 @@ int SaigaDataset::LoadMetaData()
     _intrinsics.fromConfigFile(camera_file);
 
 
+
+    if (scale_down_depth)
+    {
+        _intrinsics.depthModel.K.scale(0.5);
+        _intrinsics.depthImageSize.width /= 2;
+        _intrinsics.depthImageSize.height /= 2;
+    }
 
     std::cout << _intrinsics << std::endl;
 

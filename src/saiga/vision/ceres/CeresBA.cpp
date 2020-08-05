@@ -153,10 +153,11 @@ OptimizationResults CeresBA::initAndSolve()
 
     for (auto& rel_constraint : scene.rel_pose_constraints)
     {
-        if (rel_constraint.weight_rotation == 0 && rel_constraint.weight_translation == 0) continue;
         auto& p1 = scene.images[rel_constraint.img1].se3;
         auto& p2 = scene.images[rel_constraint.img2].se3;
 
+        if (rel_constraint.weight_rotation > 0 || rel_constraint.weight_translation > 0)
+        {
 #if 0
         CostRelPose c(rel_constraint.rel_pose.inverse(), rel_constraint.weight_rotation,
                       rel_constraint.weight_translation);
@@ -166,9 +167,24 @@ OptimizationResults CeresBA::initAndSolve()
                   << std::endl;
 #endif
 
-        auto cost_function = CostRelPose::create(rel_constraint.rel_pose.inverse(), rel_constraint.weight_rotation,
-                                                 rel_constraint.weight_translation);
-        problem.AddResidualBlock(cost_function, nullptr, p1.data(), p2.data());
+            auto cost_function = CostRelPose::create(rel_constraint.rel_pose.inverse(), rel_constraint.weight_rotation,
+                                                     rel_constraint.weight_translation);
+            problem.AddResidualBlock(cost_function, nullptr, p1.data(), p2.data());
+        }
+
+        for (auto& dr : rel_constraint.rel_depth_constraints)
+        {
+            //            CostDenseDepth c(dr.img1_normalized_point, dr.n, dr.d, dr.weight);
+            //            double residual;
+            //            c(p1.data(), p2.data(), &residual);
+            //            std::cout << "rel depth res: " << residual << std::endl;
+
+            if (dr.weight > 0)
+            {
+                auto cost_function = CostDenseDepth::create(dr.img1_normalized_point, dr.n, dr.d, dr.weight);
+                problem.AddResidualBlock(cost_function, nullptr, p1.data(), p2.data());
+            }
+        }
     }
 
 

@@ -110,4 +110,41 @@ struct CostRelPose
 };
 
 
+struct CostDenseDepth
+{
+    CostDenseDepth(const Vec3& source_point, const Vec3& dest_normal, double dest_d, double weight)
+        : source_point(source_point), dest_normal(dest_normal), dest_d(dest_d), weight(weight)
+    {
+    }
+
+    using CostType         = CostDenseDepth;
+    using CostFunctionType = ceres::AutoDiffCostFunction<CostType, 1, 7, 7>;
+    template <typename... Types>
+    static CostFunctionType* create(const Types&... args)
+    {
+        return new CostFunctionType(new CostType(args...));
+    }
+
+    template <typename T>
+    bool operator()(const T* const _pose1, const T* const _pose2, T* residual_ptr) const
+    {
+        Eigen::Map<Sophus::SE3<T> const> const pose1(_pose1);
+        Eigen::Map<Sophus::SE3<T> const> const pose2(_pose2);
+
+        Eigen::Matrix<T, 3, 1> transformed_point = pose2 * pose1.inverse() * source_point.cast<T>();
+
+        T res = transformed_point.dot(dest_normal.cast<T>()) + T(dest_d);
+
+        residual_ptr[0] = res * T(weight);
+        return true;
+    }
+
+   private:
+    Vec3 source_point;
+    Vec3 dest_normal;
+    double dest_d;
+    double weight;
+};
+
+
 }  // namespace Saiga

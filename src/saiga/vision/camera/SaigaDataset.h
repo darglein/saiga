@@ -19,7 +19,7 @@ class SAIGA_VISION_API SaigaDataset : public DatasetCameraBase<RGBDFrameData>
    public:
     // If freiburg == -1 then the name is parsed from the dataset directory.
     // Otherwise it should be 1,2, or 3.
-    SaigaDataset(const DatasetParameters& params);
+    SaigaDataset(const DatasetParameters& params, bool scale_down_depth = false);
     ~SaigaDataset();
 
 
@@ -34,6 +34,7 @@ class SAIGA_VISION_API SaigaDataset : public DatasetCameraBase<RGBDFrameData>
    private:
     RGBDIntrinsics _intrinsics;
     std::vector<std::string> frame_dirs;
+    bool scale_down_depth;
 };
 
 }  // namespace Saiga

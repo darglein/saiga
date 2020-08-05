@@ -136,6 +136,28 @@ struct RelPoseConstraint
     {
         return std::tie(img1, img2) < std::tie(other.img1, other.img2);
     }
+
+
+    struct RelDepth
+    {
+        // Projecting this point from img1 to img2 should match the depth in 2
+        //        Vec2 img1_point;
+        //        double img1_depth;
+        Vec3 img1_normalized_point;
+        double weight = 1;
+
+        // Target plane in normalized form
+        Vec3 n;
+        double d;
+
+        double Residual(const SE3& p1, const SE3& p2)
+        {
+            Vec3 p = p2 * p1.inverse() * img1_normalized_point;
+            return (p.dot(n) + d) * weight;
+        }
+    };
+
+    std::vector<RelDepth> rel_depth_constraints;
 };
 
 class SAIGA_VISION_API Scene

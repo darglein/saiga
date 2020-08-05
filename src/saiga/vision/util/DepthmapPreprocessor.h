@@ -57,7 +57,7 @@ class SAIGA_VISION_API DMPP
 
     void setCamera(const Intrinsics4& c) { camera = c; }
 
-    void scaleDown2median(DepthMap src, DepthMap dst);
+    static void scaleDown2median(DepthMap src, DepthMap dst);
     void fillHoles(DepthMap vsrc, DepthMap vdst);
     void applyFilterToImage(DepthMap vsrc, DepthMap vdst);
     void computeMinMax(DepthMap vsrc, float& dmin, float& dmax);
