@@ -198,9 +198,9 @@ void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias,
     // jacobian of delta measurements w.r.t bias of gyro/acc
     // update P first, then V, then R
     J_P_Biasa += J_V_Biasa * dt - 0.5 * delta_R.matrix() * dt2;
-    //    J_P_Biasg += _J_V_Biasg*dt - 0.5*_delta_R*skew(acc)*_J_R_Biasg*dt2;
+    J_P_Biasg += J_V_Biasg * dt - 0.5 * delta_R.matrix() * skew(acc) * J_R_Biasg * dt2;
     J_V_Biasa += -delta_R.matrix() * dt;
-    //    J_V_Biasg += -_delta_R*skew(acc)*_J_R_Biasg*dt;
+    J_V_Biasg += -delta_R.matrix() * skew(acc) * J_R_Biasg * dt;
 
     J_R_Biasg = dR.inverse().matrix() * J_R_Biasg - Jr * dt;
 

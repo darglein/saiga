@@ -214,6 +214,7 @@ struct SAIGA_VISION_API Preintegration
         : bias_gyro_lin(bias_gyro), bias_accel_lin(bias_accel), cov_gyro(cov_gyro), cov_acc(cov_acc)
     {
     }
+    Preintegration(const VelocityAndBias& vb) : Preintegration(vb.gyro_bias, vb.acc_bias) {}
 
     void Add(const Data& data, double dt) { Add(data.omega, data.acceleration, dt); }
 
@@ -242,6 +243,9 @@ struct SAIGA_VISION_API Preintegration
 
     // Derivative w.r.t. the gyro bias
     Mat3 J_R_Biasg = Mat3::Zero();
+    Mat3 J_P_Biasg = Mat3::Zero();
+    Mat3 J_V_Biasg = Mat3::Zero();
+
 
     // Derivative w.r.t. the acc bias
     Mat3 J_P_Biasa = Mat3::Zero();

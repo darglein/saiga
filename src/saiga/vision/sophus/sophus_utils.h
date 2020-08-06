@@ -75,9 +75,9 @@ inline typename Sim3<Scalar>::Tangent sim3_logd(const Sim3<Scalar>& se3)
 }
 
 template <typename Scalar>
-inline Eigen::Matrix<Scalar, 7,1> dsim3_logd(const DSim3<Scalar>& sim3)
+inline Eigen::Matrix<Scalar, 7, 1> dsim3_logd(const DSim3<Scalar>& sim3)
 {
-	Eigen::Matrix<Scalar, 7, 1> upsilon_omega_scale;
+    Eigen::Matrix<Scalar, 7, 1> upsilon_omega_scale;
     upsilon_omega_scale.template head<6>() = se3_logd(sim3.se3());
     upsilon_omega_scale(6)                 = log(sim3.scale());
     return upsilon_omega_scale;
@@ -152,40 +152,6 @@ inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen
     }
 }
 
-/// @brief Right Inverse Jacobian for SO(3)
-///
-/// For \f$ \exp(x) \in SO(3) \f$ provides an inverse Jacobian that approximates
-/// the logmap of the right multiplication of expmap of the arguments with a sum
-/// for small \f$ \epsilon \f$.  Can be used to compute:  \f$ \log
-/// (\exp(\phi) \exp(\epsilon)) \approx \phi + J_{\phi} \epsilon\f$
-/// @param[in] phi (3x1 vector)
-/// @param[out] J_phi (3x3 matrix)
-template <typename Derived1, typename Derived2>
-inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
-{
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
-    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
-
-    using Scalar = typename Derived1::Scalar;
-
-    Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
-
-    Scalar phi_norm2 = phi.squaredNorm();
-    Scalar phi_norm  = std::sqrt(phi_norm2);
-
-    J.setIdentity();
-
-    if (Sophus::Constants<Scalar>::epsilon() < phi_norm)
-    {
-        Eigen::Matrix<Scalar, 3, 3> phi_hat  = Sophus::SO3<Scalar>::hat(phi);
-        Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
-
-        J += phi_hat / 2;
-        J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) / (2 * phi_norm * std::sin(phi_norm)));
-    }
-}
 
 /// @brief Left Jacobian for SO(3)
 ///
@@ -222,6 +188,42 @@ inline void leftJacobianSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen:
         J += phi_hat2 * (phi_norm - std::sin(phi_norm)) / phi_norm3;
     }
 }
+
+/// @brief Right Inverse Jacobian for SO(3)
+///
+/// For \f$ \exp(x) \in SO(3) \f$ provides an inverse Jacobian that approximates
+/// the logmap of the right multiplication of expmap of the arguments with a sum
+/// for small \f$ \epsilon \f$.  Can be used to compute:  \f$ \log
+/// (\exp(\phi) \exp(\epsilon)) \approx \phi + J_{\phi} \epsilon\f$
+/// @param[in] phi (3x1 vector)
+/// @param[out] J_phi (3x3 matrix)
+template <typename Derived1, typename Derived2>
+inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
+    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
+
+    using Scalar = typename Derived1::Scalar;
+
+    Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
+
+    Scalar phi_norm2 = phi.squaredNorm();
+    Scalar phi_norm  = std::sqrt(phi_norm2);
+
+    J.setIdentity();
+
+    if (Sophus::Constants<Scalar>::epsilon() < phi_norm)
+    {
+        Eigen::Matrix<Scalar, 3, 3> phi_hat  = Sophus::SO3<Scalar>::hat(phi);
+        Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
+
+        J += phi_hat / 2;
+        J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) / (2 * phi_norm * std::sin(phi_norm)));
+    }
+}
+
 
 /// @brief Left Inverse Jacobian for SO(3)
 ///
