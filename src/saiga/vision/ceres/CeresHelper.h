@@ -53,7 +53,8 @@ inline ceres::Solver::Options make_options(const Saiga::OptimizationOptions& opt
     return ceres_options;
 }
 
-inline Saiga::OptimizationResults ceres_solve(const ceres::Solver::Options& ceres_options, ceres::Problem& problem)
+inline Saiga::OptimizationResults ceres_solve(const ceres::Solver::Options& ceres_options, ceres::Problem& problem,
+                                              bool print_full_report = false)
 {
     ceres::Solver::Summary summaryTest;
 
@@ -62,10 +63,11 @@ inline Saiga::OptimizationResults ceres_solve(const ceres::Solver::Options& cere
     }
 
     //    std::cout << "linear solver time " << summaryTest.linear_solver_time_in_seconds << "s." << std::endl;
-    if (summaryTest.termination_type == ceres::FAILURE)
+    if (print_full_report || summaryTest.termination_type == ceres::FAILURE)
     {
         std::cout << summaryTest.FullReport() << std::endl;
     }
+
 
 
     OptimizationResults result;

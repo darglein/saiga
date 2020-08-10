@@ -140,5 +140,48 @@ class LocalParameterizationDSim3_Autodiff_Kernel
 using LocalParameterizationDSim3_Autodiff =
     ceres::AutoDiffLocalParameterization<LocalParameterizationDSim3_Autodiff_Kernel, 8, 7>;
 
+
+
+// use for analytical diff with lie algebra
+template <bool LEFT_MULT = true>
+class LocalParameterizationSO3Lie : public ceres::LocalParameterization
+{
+   public:
+    virtual ~LocalParameterizationSO3Lie() {}
+
+    virtual bool Plus(double const* T_raw, double const* delta_raw, double* T_plus_delta_raw) const
+    {
+        Eigen::Map<SO3d const> const T(T_raw);
+        Eigen::Map<Vector3d const> const delta(delta_raw);
+        Eigen::Map<SO3d> T_plus_delta(T_plus_delta_raw);
+
+        if (LEFT_MULT)
+        {
+            T_plus_delta = SO3d::exp(delta) * T;
+        }
+        else
+        {
+            T_plus_delta = T * SO3d::exp(delta);
+        }
+
+        return true;
+    }
+
+    // Jacobian of SE3 plus operation for Ceres
+    //
+    // Dx T * exp(x)  with  x=0
+    //
+    virtual bool ComputeJacobian(double const* T_raw, double* jacobian_raw) const
+    {
+        Eigen::Map<Eigen::Matrix<double, 4, 3, Eigen::RowMajor>> jacobian_r(jacobian_raw);
+        jacobian_r.setZero();
+        jacobian_r.block<3, 3>(0, 0).setIdentity();
+        return true;
+    }
+
+    virtual int GlobalSize() const { return SO3d::num_parameters; }
+    virtual int LocalSize() const { return SO3d::DoF; }
+};
+
 }  // namespace test
 }  // namespace Sophus

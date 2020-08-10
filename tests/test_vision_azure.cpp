@@ -18,7 +18,8 @@ TEST(Azure, Open)
 {
     try
     {
-        camera = std::make_unique<KinectCamera>();
+        KinectCamera::KinectParams params;
+        camera = std::make_unique<KinectCamera>(params);
     }
     catch (std::exception e)
     {

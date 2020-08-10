@@ -56,6 +56,13 @@ inline Sophus::SE3<T> scale(const Sophus::SE3<T>& a, double alpha)
  * Construct a skew symmetric matrix from a vector.
  * Also know as 'cross product matrix' or 'hat operator'.
  * https://en.wikipedia.org/wiki/Hat_operator
+ *
+ * Vector [x,y,z] transforms to Matrix
+ *
+ * |  0  -z   y |
+ * |  z   0  -x |
+ * | -y   x   0 |
+ *
  */
 SAIGA_VISION_API extern Mat3 skew(const Vec3& a);
 

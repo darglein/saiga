@@ -36,6 +36,20 @@ struct VelocityAndBiasBase
 using VelocityAndBias = VelocityAndBiasBase<double>;
 
 
+struct Gravity
+{
+    // This is constant
+    Vec3 unit_gravity = Vec3(0, 9.81, 0);
+
+    // The rotation is optimized to ensure |g| = 9.81
+    SO3 R;
+
+    Vec3 Get() const { return R * unit_gravity; }
+
+    void Set(const Vec3& g) { R = SO3(Quat::FromTwoVectors(Vec3(0, 9.81, 0), g)); }
+};
+
+
 // The angular velocity (omega) is a combined angle-axis representation.
 // The length of omega is the angle and the direction is the axis.
 template <typename T>
@@ -120,6 +134,7 @@ struct SAIGA_VISION_API Data
         //        acceleration = q * acceleration;
     }
 };
+
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::Data& data);
 
@@ -207,61 +222,9 @@ SAIGA_VISION_API void InterpolateMissingValues(ArrayView<ImuSequence> sequences)
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const Imu::ImuSequence& sequence);
 
-struct SAIGA_VISION_API Preintegration
-{
-    Preintegration(const Vec3& bias_gyro = Vec3::Zero(), const Vec3& bias_accel = Vec3::Zero(), double cov_gyro = 0,
-                   double cov_acc = 0)
-        : bias_gyro_lin(bias_gyro), bias_accel_lin(bias_accel), cov_gyro(cov_gyro), cov_acc(cov_acc)
-    {
-    }
-    Preintegration(const VelocityAndBias& vb) : Preintegration(vb.gyro_bias, vb.acc_bias) {}
-
-    void Add(const Data& data, double dt) { Add(data.omega, data.acceleration, dt); }
-
-    // The main integration function.
-    // This assumes a constant w and a for dt time.
-    void Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias, double dt);
-
-    // Adds the complete sequence using forward integration (explicit Euler).
-    void IntegrateForward(const ImuSequence& sequence);
-
-    void IntegrateMidPoint(const ImuSequence& sequence);
-
-
-
-    // Predicts the state after this sequence.
-    //
-    std::pair<SE3, Vec3> Predict(const SE3& initial_pose, const Vec3& initial_velocity, const Vec3& g) const;
-
-
-
-    // Integrated values (Initialized to identity/0);
-    double delta_t = 0;
-    SO3 delta_R;
-    Vec3 delta_x = Vec3::Zero();
-    Vec3 delta_v = Vec3::Zero();
-
-    // Derivative w.r.t. the gyro bias
-    Mat3 J_R_Biasg = Mat3::Zero();
-    Mat3 J_P_Biasg = Mat3::Zero();
-    Mat3 J_V_Biasg = Mat3::Zero();
-
-
-    // Derivative w.r.t. the acc bias
-    Mat3 J_P_Biasa = Mat3::Zero();
-    Mat3 J_V_Biasa = Mat3::Zero();
-
-    // noise covariance propagation of delta measurements
-    Eigen::Matrix<double, 9, 9> cov_P_V_Phi;
-
-   private:
-    // Linear bias, which is subtracted from the meassurements.
-    // Private because changing the bias invalidates the preintegration.
-    Vec3 bias_gyro_lin, bias_accel_lin;
-
-    double cov_gyro = 0;
-    double cov_acc  = 0;
-};
+// Generates N sequences with K elements.
+// The first sequence will be emtpy.
+SAIGA_VISION_API std::vector<ImuSequence> GenerateRandomSequence(int N, int K, double dt);
 
 
 }  // namespace Saiga::Imu

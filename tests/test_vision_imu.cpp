@@ -253,14 +253,13 @@ TEST(Imu, SolveGravityScale)
     //    Vec3 bias_acc     = Vec3::Zero();
     Vec3 bias_acc  = Vec3(0.02, 0.1, 0.1);
     Vec3 bias_gyro = Vec3::Zero();
-    //    Vec3 g            = Vec3(0, 9.81, 0);
-    //    Vec3 g = Vec3::Zero(1,0,0);
+
     Vec3 g = Vec3(-0.195012, 9.09673, 3.6671);
 
 
     // With added noise the error is expected to be in the same range as sigma
 
-    for (int i = 0; i < 2; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         auto trajectory = RandomTrajectory2(10, 100, sigma_gyro, sigma_acc, bias_gyro, bias_acc, g, dt);
 
@@ -273,8 +272,7 @@ TEST(Imu, SolveGravityScale)
         std::cout << "target scale " << (1.0 / target_scale) << std::endl;
         auto scale = test_trajectory(trajectory, bias_acc);
 
-        //        std::cout << "scale: " << scale << std::endl;
-        //        EXPECT_LE(test_trajectory(trajectory, gyro_bias, acc_bias), -1);
+        EXPECT_NEAR(scale, (1.0 / target_scale), 0.1);
     }
 }
 

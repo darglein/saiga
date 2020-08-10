@@ -6,6 +6,7 @@
 #include "Imu.h"
 
 #include "saiga/core/util/BinaryFile.h"
+#include "saiga/vision/imu/all.h"
 #include "saiga/vision/util/Random.h"
 
 #include <fstream>
@@ -157,122 +158,6 @@ void ImuSequence::Load(const std::string& dir)
     istream >> data;
 }
 
-void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias, double dt)
-{
-    //    std::cout << "Add " << dt << " " << omega_with_bias.transpose() << std::endl;
-
-
-    if (dt == 0)
-    {
-        return;
-    }
-
-    Vec3 omega = omega_with_bias - bias_gyro_lin;
-    Vec3 acc   = acc_with_bias - bias_accel_lin;
-    double dt2 = dt * dt;
-
-    SO3 dR = Sophus::SO3d::exp(omega * dt);
-    Mat3 Jr;
-    Sophus::rightJacobianSO3(omega * dt, Jr);
-
-
-
-    // noise covariance propagation of delta measurements
-    // err_k+1 = A*err_k + B*err_gyro + C*err_acc
-    Mat3 I3x3               = Mat3::Identity();
-    Matrix<double, 9, 9> A  = Matrix<double, 9, 9>::Identity();
-    A.block<3, 3>(6, 6)     = dR.inverse().matrix();
-    A.block<3, 3>(3, 6)     = -delta_R.matrix() * skew(acc) * dt;
-    A.block<3, 3>(0, 6)     = -0.5 * delta_R.matrix() * skew(acc) * dt2;
-    A.block<3, 3>(0, 3)     = I3x3 * dt;
-    Matrix<double, 9, 3> Bg = Matrix<double, 9, 3>::Zero();
-    Bg.block<3, 3>(6, 0)    = Jr * dt;
-    Matrix<double, 9, 3> Ca = Matrix<double, 9, 3>::Zero();
-    Ca.block<3, 3>(3, 0)    = delta_R.matrix() * dt;
-    Ca.block<3, 3>(0, 0)    = 0.5 * delta_R.matrix() * dt2;
-
-
-    cov_P_V_Phi = A * cov_P_V_Phi * A.transpose() + Bg * cov_gyro * Bg.transpose() + Ca * cov_acc * Ca.transpose();
-
-
-    // jacobian of delta measurements w.r.t bias of gyro/acc
-    // update P first, then V, then R
-    J_P_Biasa += J_V_Biasa * dt - 0.5 * delta_R.matrix() * dt2;
-    J_P_Biasg += J_V_Biasg * dt - 0.5 * delta_R.matrix() * skew(acc) * J_R_Biasg * dt2;
-    J_V_Biasa += -delta_R.matrix() * dt;
-    J_V_Biasg += -delta_R.matrix() * skew(acc) * J_R_Biasg * dt;
-
-    J_R_Biasg = dR.inverse().matrix() * J_R_Biasg - Jr * dt;
-
-
-    delta_t += dt;
-    delta_x += delta_v * dt + 0.5 * dt2 * (delta_R * acc);  // P_k+1 = P_k + V_k*dt + R_k*a_k*dt*dt/2
-    delta_v += dt * (delta_R * acc);
-    delta_R = (delta_R * dR);
-}
-
-void Preintegration::IntegrateForward(const Imu::ImuSequence& sequence)
-{
-    SAIGA_ASSERT(sequence.Valid());
-    if (sequence.data.empty()) return;
-
-    //
-    auto first_value = sequence.data.front();
-    SAIGA_ASSERT(first_value.timestamp >= sequence.time_begin);
-
-    auto last_value = sequence.data.back();
-    SAIGA_ASSERT(last_value.timestamp <= sequence.time_end);
-
-    Add(first_value, first_value.timestamp - sequence.time_begin);
-
-    for (int i = 0; i < sequence.data.size() - 1; ++i)
-    {
-        Add(sequence.data[i], sequence.data[i + 1].timestamp - sequence.data[i].timestamp);
-    }
-
-    Add(last_value, sequence.time_end - last_value.timestamp);
-
-
-    // SAIGA_ASSERT(std::abs(delta_t - (sequence.time_end - sequence.time_begin)) < 1e-10);
-}
-
-void Preintegration::IntegrateMidPoint(const Imu::ImuSequence& sequence)
-{
-    SAIGA_ASSERT(sequence.Valid());
-    if (sequence.data.empty()) return;
-
-    //
-    auto first_value = sequence.data.front();
-    SAIGA_ASSERT(first_value.timestamp >= sequence.time_begin);
-
-    auto last_value = sequence.data.back();
-    SAIGA_ASSERT(last_value.timestamp <= sequence.time_end);
-
-    Add(first_value, first_value.timestamp - sequence.time_begin);
-
-    for (int i = 0; i < sequence.data.size() - 1; ++i)
-    {
-        auto mid_point = Data::InterpolateAlpha(sequence.data[i], sequence.data[i + 1], 0.5);
-        Add(mid_point, sequence.data[i + 1].timestamp - sequence.data[i].timestamp);
-    }
-
-    Add(last_value, sequence.time_end - last_value.timestamp);
-
-
-    SAIGA_ASSERT(std::abs(delta_t - (sequence.time_end - sequence.time_begin)) < 1e-10);
-}
-
-std::pair<SE3, Vec3> Preintegration::Predict(const SE3& initial_pose, const Vec3& initial_velocity,
-                                             const Vec3& g_) const
-{
-    auto g              = g_;
-    SO3 new_orientation = (initial_pose.so3() * delta_R);
-    Vec3 new_velocity   = initial_velocity + g * delta_t + initial_pose.so3() * delta_v;
-    Vec3 new_position   = initial_pose.translation() + initial_velocity * delta_t + 0.5 * g * delta_t * delta_t +
-                        initial_pose.so3() * delta_x;
-    return {SE3(new_orientation, new_position), new_velocity};
-}
-
 void InterpolateMissingValues(ArrayView<Imu::ImuSequence> sequences)
 {
     // Find correct end of sequence i by interpolating between i and i+1
@@ -298,6 +183,48 @@ void InterpolateMissingValues(ArrayView<Imu::ImuSequence> sequences)
             next.data.insert(next.data.begin(), in);
         }
     }
+}
+
+std::vector<ImuSequence> GenerateRandomSequence(int N, int K, double dt)
+{
+    SAIGA_ASSERT(dt > 0);
+    SAIGA_ASSERT(N >= 2);
+    SAIGA_ASSERT(K > 0);
+    std::vector<Imu::ImuSequence> data;
+    double t = 0;
+
+    data.push_back(Imu::ImuSequence());
+    data.front().time_end = t;
+
+
+    Vec3 o   = Vec3::Random() * 0.02;
+    Vec3 acc = Vec3::Random() * 0.2;
+
+    for (int i = 0; i < N - 1; ++i)
+    {
+        Imu::ImuSequence seq;
+        seq.time_begin = t;
+
+
+        int this_K = K;  // Random::uniformInt(K / 2, K * 10);
+        for (int k = 0; k < this_K; ++k)
+        {
+            Imu::Data id;
+            o += Vec3::Random() * 0.01 * dt;
+            acc += Vec3::Random() * 0.1 * dt;
+            id.omega        = o;
+            id.acceleration = acc;  // Vec3::Random() * 0.1;
+            id.timestamp    = t;
+            seq.data.push_back(id);
+            t += dt;
+        }
+        seq.time_end = t;
+
+        data.push_back(seq);
+    }
+    Imu::InterpolateMissingValues(data);
+
+    return data;
 }
 
 

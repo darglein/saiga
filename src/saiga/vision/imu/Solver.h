@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/imu/Imu.h"
+#include "saiga/vision/imu/all.h"
 
 
 namespace Saiga::Imu

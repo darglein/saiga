@@ -93,33 +93,11 @@ Vec3 RotatePoint(const SE3& pose, const Vec3& point, Matrix<double, 3, 6>* jacob
 {
     Vec3 residual = pose * point;
 
-    auto x = residual(0);
-    auto y = residual(1);
-    auto z = residual(2);
-
     if (jacobian_pose)
     {
         // translation
-        (*jacobian_pose)(0, 0) = 1;
-        (*jacobian_pose)(0, 1) = 0;
-        (*jacobian_pose)(0, 2) = 0;
-        (*jacobian_pose)(1, 0) = 0;
-        (*jacobian_pose)(1, 1) = 1;
-        (*jacobian_pose)(1, 2) = 0;
-        (*jacobian_pose)(2, 0) = 0;
-        (*jacobian_pose)(2, 1) = 0;
-        (*jacobian_pose)(2, 2) = 1;
-
-        // rotation
-        (*jacobian_pose)(0, 3) = 0;
-        (*jacobian_pose)(0, 4) = z;
-        (*jacobian_pose)(0, 5) = -y;
-        (*jacobian_pose)(1, 3) = -z;
-        (*jacobian_pose)(1, 4) = 0;
-        (*jacobian_pose)(1, 5) = x;
-        (*jacobian_pose)(2, 3) = y;
-        (*jacobian_pose)(2, 4) = -x;
-        (*jacobian_pose)(2, 5) = 0;
+        jacobian_pose->block<3, 3>(0, 0).setIdentity();
+        jacobian_pose->block<3, 3>(0, 3) = -skew(residual);
     }
 
     if (jacobian_point)
@@ -153,6 +131,58 @@ TEST(NumericDerivative, RotatePoint)
     }
     {
         res2 = EvaluateNumeric([=](auto p) { return RotatePoint(pose_c_w, p); }, wp, &J_point_2);
+    }
+
+    ExpectCloseRelative(res1, res2, 1e-5);
+    ExpectCloseRelative(J_pose_1, J_pose_2, 1e-5);
+    ExpectCloseRelative(J_point_1, J_point_2, 1e-5);
+}
+
+
+Vec3 RotatePointTwice(const SO3& pose, const SO3& pose2, const Vec3& point,
+                      Matrix<double, 3, 3>* jacobian_pose = nullptr, Matrix<double, 3, 3>* jacobian_point = nullptr)
+{
+    Vec3 residual = pose2 * pose * point;
+
+    if (jacobian_pose)
+    {
+        // translation
+        jacobian_pose->block<3, 3>(0, 0) = pose2.matrix() * -skew(pose * point);
+    }
+
+    if (jacobian_point)
+    {
+        (*jacobian_point) = pose2.matrix() * pose.matrix();
+    }
+    return residual;
+}
+
+
+TEST(NumericDerivative, RotatePointTwice)
+{
+    SO3 pose1 = Random::randomSE3().so3();
+    SO3 pose2 = Random::randomSE3().so3();
+    Vec3 wp   = Vec3::Random();
+
+
+
+    Matrix<double, 3, 3> J_pose_1, J_pose_2;
+    Matrix<double, 3, 3> J_point_1, J_point_2;
+    Vec3 res1, res2;
+
+    res1 = RotatePointTwice(pose1, pose2, wp, &J_pose_1, &J_point_1);
+
+    {
+        Vec3 eps = Vec3::Zero();
+        res2     = EvaluateNumeric(
+            [=](auto p) {
+                auto se3 = Sophus::SO3d::exp(p) * pose1;
+                return RotatePointTwice(se3, pose2, wp);
+            },
+            eps, &J_pose_2);
+    }
+    {
+        res2 = EvaluateNumeric([=](auto p) { return RotatePointTwice(pose1, pose2, p); }, wp, &J_point_2);
     }
 
     ExpectCloseRelative(res1, res2, 1e-5);
