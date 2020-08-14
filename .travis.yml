@@ -27,7 +27,8 @@ addons:
     - clang-9
     - libeigen3-dev
   snaps:
-    - cmake
+    - name: cmake
+      confinement: classic
     
 env:
   - OMP_NUM_THREADS=4
