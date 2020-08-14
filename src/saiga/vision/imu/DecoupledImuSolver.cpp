@@ -28,7 +28,7 @@ void DecoupledImuSolver::init()
     S.resize(num_params, num_params);
 
     b.resize(num_params);
-    x.resize(N * params_per_state + global_params);
+    x.resize(num_params);
 
     // edges + diagonal + top row with diag
     non_zeros = scene.edges.size() + num_params + (num_params - 1);
