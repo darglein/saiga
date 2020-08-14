@@ -383,12 +383,12 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
 
         if (ad)
         {
-            auto f = ImuErrorAD::create(s1, s2, e, Vec3(weight_P, weight_V, weight_R));
+            auto f = ImuErrorAD::create(s1, s2, e, WeightPVR());
             problem.AddResidualBlock(f, nullptr, gravity.R.data(), &scale, vba, vbg, v1, v2);
         }
         else
         {
-            auto f = new ImuError(s1, s2, e, Vec3(weight_P, weight_V, weight_R));
+            auto f = new ImuError(s1, s2, e, WeightPVR());
             problem.AddResidualBlock(f, nullptr, gravity.R.data(), &scale, vba, vbg, v1, v2);
         }
 
