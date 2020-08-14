@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#undef NDEBUG
+//#undef NDEBUG
 
 #include "DecoupledImuSolver.h"
 
@@ -22,19 +22,23 @@ void DecoupledImuSolver::init()
     N           = scene.states.size();
 
     SAIGA_ASSERT(!params.use_global_bias);
-#if 0
-    //    num_params  = N * params_per_state + global_params;
-    //    JtJ.resize(num_params, num_params);
-    //    Jtb.resize(num_params);
-#else
+
     num_params = N + 1;
+    S.setZero();
     S.resize(num_params, num_params);
+
     b.resize(num_params);
     x.resize(N * params_per_state + global_params);
 
     // edges + diagonal + top row with diag
     non_zeros = scene.edges.size() + num_params + (num_params - 1);
-    S.reserve(non_zeros);
+    S.resizeNonZeros(non_zeros);
+    //    S.reserve(non_zeros);
+
+    for (int i = 0; i < S.outerSize(); ++i)
+    {
+        SAIGA_ASSERT(S.outerIndexPtr()[i] == 0);
+    }
 
     // Compute outer structure pointer
     // Note: the row is smaller than the column, which means we are in the upper right part of the matrix.
@@ -59,8 +63,8 @@ void DecoupledImuSolver::init()
     int n = exclusive_scan(S.outerIndexPtr(), S.outerIndexPtr() + S.outerSize(), S.outerIndexPtr(), 0);
     S.outerIndexPtr()[S.outerSize()] = non_zeros;
 
-    SAIGA_ASSERT(n == non_zeros);
 
+    SAIGA_ASSERT(n == non_zeros);
 
 
     // insert diagonal index
@@ -78,6 +82,7 @@ void DecoupledImuSolver::init()
     }
 
     // Precompute the offset in the sparse matrix for every edge
+    edgeOffsets.clear();
     edgeOffsets.reserve(scene.edges.size());
     std::vector<int> localOffsets(S.rows(), 1);
     for (auto& e : scene.edges)
@@ -89,16 +94,17 @@ void DecoupledImuSolver::init()
 
         int offseti = S.outerIndexPtr()[i] + li;
 
+
+        SAIGA_ASSERT(offseti < S.nonZeros());
+        SAIGA_ASSERT(j < S.rows());
         S.innerIndexPtr()[offseti] = j;
 
 
         edgeOffsets.emplace_back(offseti);
     }
 
-
-
     // ====
-
+    states_without_preint.clear();
     std::vector<bool> has_preint(scene.states.size(), false);
     for (auto& e : scene.edges)
     {
@@ -109,7 +115,7 @@ void DecoupledImuSolver::init()
         if (!has_preint[i]) states_without_preint.push_back(i);
     }
 
-#endif
+    solver.Init();
 }
 
 double DecoupledImuSolver::computeQuadraticForm()
@@ -123,11 +129,6 @@ double DecoupledImuSolver::computeQuadraticForm()
         S.valuePtr()[i].get().setZero();
     }
 
-#if 1
-    //    JtJ.setZero();
-    //    Jtb.setZero();
-
-
     Matrix<double, 9, 3> _J_biasa, _J_biasg;
     Matrix<double, 9, 3> _J_v1, _J_v2;
     Matrix<double, 9, 1> _J_scale;
@@ -135,8 +136,8 @@ double DecoupledImuSolver::computeQuadraticForm()
 
 
 
-    Matrix<double, 9, 1>* J_scale = params.solve_scale ? &_J_scale : nullptr;
-    Matrix<double, 9, 3>* J_g     = params.solve_gravity ? &_J_g : nullptr;
+    Matrix<double, 9, 1>* J_scale = (params.solver_flags & IMU_SOLVE_SCALE) ? &_J_scale : nullptr;
+    Matrix<double, 9, 3>* J_g     = (params.solver_flags & IMU_SOLVE_GRAVITY) ? &_J_g : nullptr;
 
 
     Matrix<double, 6, 6> J_a_g_i, J_a_g_j;
@@ -153,20 +154,16 @@ double DecoupledImuSolver::computeQuadraticForm()
         auto& s2 = scene.states[j];
 
 
-        Matrix<double, 9, 3>* J_biasa = !s1.constant && params.solve_bias_acc ? &_J_biasa : nullptr;
-        Matrix<double, 9, 3>* J_biasg = !s1.constant && params.solve_bias_gyro ? &_J_biasg : nullptr;
-        Matrix<double, 9, 3>* J_v1    = !s1.constant && params.solve_velocity ? &_J_v1 : nullptr;
-        Matrix<double, 9, 3>* J_v2    = !s2.constant && params.solve_velocity ? &_J_v2 : nullptr;
+        Matrix<double, 9, 3>* J_biasa = (!s1.constant && (params.solver_flags & IMU_SOLVE_BA)) ? &_J_biasa : nullptr;
+        Matrix<double, 9, 3>* J_biasg = (!s1.constant && (params.solver_flags & IMU_SOLVE_BG)) ? &_J_biasg : nullptr;
+        Matrix<double, 9, 3>* J_v1    = (!s1.constant && (params.solver_flags & IMU_SOLVE_VELOCITY)) ? &_J_v1 : nullptr;
+        Matrix<double, 9, 3>* J_v2    = (!s2.constant && (params.solver_flags & IMU_SOLVE_VELOCITY)) ? &_J_v2 : nullptr;
 
-        //        *e.preint = Imu::Preintegration(s1.velocity_and_bias);
-        //        e.preint->IntegrateMidPoint(*e.data, true);
 
         auto& Vi = s1.velocity_and_bias.velocity;
         auto& Vj = s2.velocity_and_bias.velocity;
         auto& p1 = s1.pose;
         auto& p2 = s2.pose;
-
-        // SAIGA_ASSERT(s1.delta_bias.acc_bias.squaredNorm() == 0);
 
 
         Vec9 res = e.preint->ImuError(s1.delta_bias, Vi, p1, Vj, p2, scene.gravity, scene.scale,
@@ -186,27 +183,22 @@ double DecoupledImuSolver::computeQuadraticForm()
         if (J_v1) J1.block<9, 3>(0, 6) = *J_v1;
         if (J_v2) J2.block<9, 3>(0, 6) = *J_v2;
 
-
-
-#    if 0
-        int offset_i = i * params_per_state + global_params;
-        int offset_j = j * params_per_state + global_params;
-        auto target_ii = JtJ.block<9, 9>(offset_i, offset_i);
-        auto target_jj = JtJ.block<9, 9>(offset_j, offset_j);
-        auto target_ij = JtJ.block<9, 9>(offset_i, offset_j);
-
-        auto target_ir = Jtb.segment<9>(offset_i);
-        auto target_jr = Jtb.segment<9>(offset_j);
-#    else
         int offset_i = i + 1;
         int offset_j = j + 1;
+
+        SAIGA_ASSERT(offset_i < b.rows());
+        SAIGA_ASSERT(offset_j < b.rows());
+
+        SAIGA_ASSERT(offset_i >= 0 && offset_i < S.outerSize());
+        SAIGA_ASSERT(offset_j >= 0 && offset_j < S.outerSize());
+        SAIGA_ASSERT(edgeOffsets[edge_id] >= 0 && edgeOffsets[edge_id] < S.nonZeros());
 
         auto& target_ii = S.valuePtr()[S.outerIndexPtr()[offset_i]].get();
         auto& target_jj = S.valuePtr()[S.outerIndexPtr()[offset_j]].get();
         auto& target_ij = S.valuePtr()[edgeOffsets[edge_id]].get();
         auto& target_ir = b(offset_i).get();
         auto& target_jr = b(offset_j).get();
-#    endif
+
 
         target_ii += J1.transpose() * J1;
         target_jj += J2.transpose() * J2;
@@ -218,94 +210,76 @@ double DecoupledImuSolver::computeQuadraticForm()
 
         if (J_g)
         {
-            //            auto target_gg = JtJ.block<3, 3>(0, 0);
             auto target_gg = S.valuePtr()[0].get().block<3, 3>(0, 0);
             target_gg += (*J_g).transpose() * (*J_g);
 
-            //            auto target_gr = Jtb.segment<3>(0, 0);
             auto target_gr = b(0).get().segment<3>(0, 0);
             target_gr -= (*J_g).transpose() * (res);
             if (J_scale)
             {
-                //                auto target_gs = JtJ.block<3, 1>(0, 3);
                 auto target_gs = S.valuePtr()[0].get().block<3, 1>(0, 3);
                 target_gs += (*J_g).transpose() * (*J_scale);
             }
 
             if (J_biasa)
             {
-                //                auto target_gba = JtJ.block<3, 3>(0, offset_i);
-
                 auto target_gba = S.valuePtr()[offset_i].get().block<3, 3>(0, 0);
                 target_gba += (*J_g).transpose() * (*J_biasa);
             }
             if (J_biasg)
             {
-                //                auto target_gbg = JtJ.block<3, 3>(0, offset_i + 3);
                 auto target_gbg = S.valuePtr()[offset_i].get().block<3, 3>(0, 3);
                 target_gbg += (*J_g).transpose() * (*J_biasg);
             }
-#    if 1
 
             if (J_v1)
             {
-                //                auto target_gv1 = JtJ.block<3, 3>(0, offset_i + 6);
                 auto target_gv1 = S.valuePtr()[offset_i].get().block<3, 3>(0, 6);
                 target_gv1 += (*J_g).transpose() * (*J_v1);
             }
 
             if (J_v2)
             {
-                //                auto target_gv2 = JtJ.block<3, 3>(0, offset_j + 6);
                 auto target_gv2 = S.valuePtr()[offset_j].get().block<3, 3>(0, 6);
                 target_gv2 += (*J_g).transpose() * (*J_v2);
             }
-#    endif
         }
-#    if 1
         if (J_scale)
         {
-            //            auto target_ss = JtJ.block<1, 1>(3, 3);
             auto target_ss = S.valuePtr()[0].get().block<1, 1>(3, 3);
             target_ss += (*J_scale).transpose() * (*J_scale);
 
-            //            auto target_sr = Jtb.segment<1>(3);
             auto target_sr = b(0).get().segment<1>(3);
             target_sr -= (*J_scale).transpose() * (res);
 
             if (J_biasa)
             {
-                //                auto target_sba = JtJ.block<1, 3>(3, offset_i);
                 auto target_sba = S.valuePtr()[offset_i].get().block<1, 3>(3, 0);
                 target_sba += (*J_scale).transpose() * (*J_biasa);
             }
             if (J_biasg)
             {
-                //                auto target_sbg = JtJ.block<1, 3>(3, offset_i + 3);
                 auto target_sbg = S.valuePtr()[offset_i].get().block<1, 3>(3, 3);
                 target_sbg += (*J_scale).transpose() * (*J_biasg);
             }
 
             if (J_v1)
             {
-                //                auto target_sv1 = JtJ.block<1, 3>(3, offset_i + 6);
                 auto target_sv1 = S.valuePtr()[offset_i].get().block<1, 3>(3, 6);
                 target_sv1 += (*J_scale).transpose() * (*J_v1);
             }
 
             if (J_v2)
             {
-                //                auto target_sv2 = JtJ.block<1, 3>(3, offset_j + 6);
                 auto target_sv2 = S.valuePtr()[offset_j].get().block<1, 3>(3, 6);
                 target_sv2 += (*J_scale).transpose() * (*J_v2);
             }
         }
-#    endif
 
         double r = res.squaredNorm();
         SAIGA_ASSERT(std::isfinite(r));
 
-        if (params.solve_bias_acc || params.solve_bias_gyro)
+        if ((params.solver_flags & IMU_SOLVE_BA) || (params.solver_flags & IMU_SOLVE_BG))
         {
             Vec6 res_bias_change = e.preint->BiasChangeError(
                 s1.velocity_and_bias, s1.delta_bias, s2.velocity_and_bias, s2.delta_bias,
@@ -338,7 +312,7 @@ double DecoupledImuSolver::computeQuadraticForm()
     }
 
 
-#    if 0
+#if 0
     auto JtJ = expand(S);
     auto Jtb = expand(b);
     std::cout << "[Gradient Jtb]" << std::endl;
@@ -350,10 +324,8 @@ double DecoupledImuSolver::computeQuadraticForm()
     JtJ = JtJ.selfadjointView<Eigen::Upper>();
     std::cout << JtJ << std::endl << std::endl;
     std::cout << "|J| = " << JtJ.norm() << std::endl;
-#    endif
-    return chi2;
 #endif
-    return 0;
+    return chi2;
 }
 
 void DecoupledImuSolver::addLambda(double lambda)
@@ -436,9 +408,9 @@ bool DecoupledImuSolver::addDelta()
         auto delta_bg = x(offset_i).get().segment<3>(0 + 3);
         auto delta_v  = x(offset_i).get().segment<3>(0 + 6);
 
-        if (params.solve_velocity) s.velocity_and_bias.velocity += delta_v;
-        if (params.solve_bias_acc) s.delta_bias.acc_bias += delta_ba;
-        if (params.solve_bias_gyro) s.delta_bias.gyro_bias += delta_bg;
+        if (params.solver_flags & IMU_SOLVE_VELOCITY) s.velocity_and_bias.velocity += delta_v;
+        if (params.solver_flags & IMU_SOLVE_BA) s.delta_bias.acc_bias += delta_ba;
+        if (params.solver_flags & IMU_SOLVE_BG) s.delta_bias.gyro_bias += delta_bg;
     }
 
     RecomputePreint(false);
@@ -466,9 +438,9 @@ void DecoupledImuSolver::revertDelta()
         auto delta_v  = x(offset_i).get().segment<3>(0 + 6);
 
 
-        if (params.solve_velocity) s.velocity_and_bias.velocity -= delta_v;
-        if (params.solve_bias_acc) s.delta_bias.acc_bias -= delta_ba;
-        if (params.solve_bias_gyro) s.delta_bias.gyro_bias -= delta_bg;
+        if (params.solver_flags & IMU_SOLVE_VELOCITY) s.velocity_and_bias.velocity -= delta_v;
+        if (params.solver_flags & IMU_SOLVE_BA) s.delta_bias.acc_bias -= delta_ba;
+        if (params.solver_flags & IMU_SOLVE_BG) s.delta_bias.gyro_bias -= delta_bg;
     }
     RecomputePreint(false);
 }
@@ -488,12 +460,6 @@ void DecoupledImuSolver::solveLinearSystem()
 
 
     solver.solve(S, x, b, loptions);
-    // solve
-    //    auto JtJ = expand(S);
-    //    auto Jtb = expand(b);
-
-    //    Eigen::LDLT<Eigen::Matrix<double, -1, -1>, Eigen::Upper> ldlt(JtJ);
-    //    x = ldlt.solve(Jtb);
 }
 
 double DecoupledImuSolver::computeCost()
@@ -511,17 +477,10 @@ double DecoupledImuSolver::computeCost()
         auto& s1 = scene.states[i];
         auto& s2 = scene.states[j];
 
-        //        *e.preint = Imu::Preintegration(s1.velocity_and_bias);
-        //        e.preint->IntegrateMidPoint(*e.data, true);
-
         auto& Vi = s1.velocity_and_bias.velocity;
         auto& Vj = s2.velocity_and_bias.velocity;
         auto& p1 = s1.pose;
         auto& p2 = s2.pose;
-
-
-        // VelocityAndBias delta;
-
 
 
         Vec9 res = e.preint->ImuError(s1.delta_bias, Vi, p1, Vj, p2, scene.gravity, scene.scale,
@@ -529,7 +488,7 @@ double DecoupledImuSolver::computeCost()
 
         double r = res.squaredNorm();
 
-        if (params.solve_bias_acc || params.solve_bias_gyro)
+        if ((params.solver_flags & IMU_SOLVE_BA) || (params.solver_flags & IMU_SOLVE_BG))
         {
             Vec6 res_bias_change = e.preint->BiasChangeError(s1.velocity_and_bias, s1.delta_bias, s2.velocity_and_bias,
                                                              s2.delta_bias, scene.weight_change_a * e.weight_bias(0),

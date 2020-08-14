@@ -33,16 +33,26 @@ struct SAIGA_VISION_API NavEdge
     Vec2 weight_bias = Vec2(1, 1);
 };
 
+enum ImuSolverFlags
+{
+    IMU_SOLVE_BA       = 1,
+    IMU_SOLVE_BG       = 2,
+    IMU_SOLVE_VELOCITY = 4,
+    IMU_SOLVE_GRAVITY  = 8,
+    IMU_SOLVE_SCALE    = 16,
+};
+
 class SAIGA_VISION_API DecoupledImuScene
 {
    public:
     struct SolverOptions
     {  // Solver options
-        bool solve_bias_gyro = true;
-        bool solve_bias_acc  = true;
-        bool solve_velocity  = true;
-        bool solve_gravity   = true;
-        bool solve_scale     = false;
+        //        bool solve_bias_gyro = true;
+        //        bool solve_bias_acc  = true;
+        //        bool solve_velocity  = true;
+        //        bool solve_gravity   = true;
+        //        bool solve_scale     = false;
+        int solver_flags = IMU_SOLVE_BA | IMU_SOLVE_BG | IMU_SOLVE_VELOCITY | IMU_SOLVE_GRAVITY;
 
         bool use_global_bias = false;
         int max_its          = 3;
@@ -89,6 +99,7 @@ class SAIGA_VISION_API DecoupledImuScene
         {
             SAIGA_ASSERT(e.data->time_begin == states[e.from].time);
             SAIGA_ASSERT(e.data->time_end == states[e.to].time);
+            SAIGA_ASSERT(e.data->time_end - e.data->time_begin > 0);
         }
     }
 

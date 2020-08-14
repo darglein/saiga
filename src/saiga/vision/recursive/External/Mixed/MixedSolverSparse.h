@@ -38,6 +38,14 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Eigen::Recursive::Matrix
     //    using CholmodLDLT = Eigen::SimplicialLLT<ExpandedType, Eigen::Upper>;
 #endif
 
+    void Init()
+    {
+        ldlt = nullptr;
+#ifdef SOLVER_USE_CHOLMOD
+        cholmodldlt = nullptr;
+#endif
+    }
+
     void solve(AType& A, XType& x, XType& b, const LinearSolverOptions& solverOptions = LinearSolverOptions())
     {
         int n = A.rows();
@@ -45,11 +53,9 @@ class MixedSymmetricRecursiveSolver<Eigen::SparseMatrix<Eigen::Recursive::Matrix
         {
 #ifdef SOLVER_USE_CHOLMOD
             // Use Cholmod's supernodal factorization for very large or very dense matrices.
-            double density  = A.nonZeros() / (double(A.rows()) * A.cols());
-            bool useCholmod = A.rows() > 1000 || density > 0.1;
-            //            useCholmod      = false;
-            //            std::cout << "use cholmod " << useCholmod << " d: " << density << std::endl;
-            if (useCholmod)
+            //            double density = A.nonZeros() / (double(A.rows()) * A.cols());
+            // bool useCholmod = A.rows() > 1000 || density > 0.1;
+            if (solverOptions.cholmod)
             {
                 if (!expandS) expandS = std::make_unique<ExpandedType>();
                 sparseBlockToFlatMatrix(A, *expandS);

@@ -309,12 +309,12 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
             problem.AddParameterBlock(global_bias_acc.data(), 3, nullptr);
             problem.AddParameterBlock(global_bias_gyro.data(), 3, nullptr);
 
-            if (!params.solve_bias_acc) problem.SetParameterBlockConstant(global_bias_acc.data());
-            if (!params.solve_bias_gyro) problem.SetParameterBlockConstant(global_bias_gyro.data());
+            if (!(params.solver_flags & IMU_SOLVE_BA)) problem.SetParameterBlockConstant(global_bias_acc.data());
+            if (!(params.solver_flags & IMU_SOLVE_BG)) problem.SetParameterBlockConstant(global_bias_gyro.data());
         }
 
-        if (!params.solve_scale) problem.SetParameterBlockConstant(&scale);
-        if (!params.solve_gravity) problem.SetParameterBlockConstant(gravity.R.data());
+        if (!(params.solver_flags & IMU_SOLVE_SCALE)) problem.SetParameterBlockConstant(&scale);
+        if (!(params.solver_flags & IMU_SOLVE_GRAVITY)) problem.SetParameterBlockConstant(gravity.R.data());
     }
 
 
@@ -329,9 +329,9 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
         problem.AddParameterBlock(bg, 3, nullptr);
         problem.AddParameterBlock(v, 3, nullptr);
 
-        if (s.constant || !params.solve_bias_acc) problem.SetParameterBlockConstant(ba);
-        if (s.constant || !params.solve_bias_gyro) problem.SetParameterBlockConstant(bg);
-        if (s.constant || !params.solve_velocity) problem.SetParameterBlockConstant(v);
+        if (s.constant || !(params.solver_flags & IMU_SOLVE_BA)) problem.SetParameterBlockConstant(ba);
+        if (s.constant || !(params.solver_flags & IMU_SOLVE_BG)) problem.SetParameterBlockConstant(bg);
+        if (s.constant || !(params.solver_flags & IMU_SOLVE_VELOCITY)) problem.SetParameterBlockConstant(v);
     }
 
 
@@ -341,7 +341,6 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
         auto& e  = edges[i];
         auto& s1 = states[e.from];
         auto& s2 = states[e.to];
-
 
         double* v1 = s1.velocity_and_bias.velocity.data();
         double* v2 = s2.velocity_and_bias.velocity.data();
@@ -368,7 +367,7 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
             //            std::cout << "random walk " << wg << " / " << wa << std::endl;
 
 
-            if (params.solve_bias_acc || params.solve_bias_gyro)
+            if ((params.solver_flags & IMU_SOLVE_BA) || (params.solver_flags & IMU_SOLVE_BG))
             {
                 double dt          = std::abs(s2.time - s1.time);
                 double weight_time = 1.0 / sqrt(dt);

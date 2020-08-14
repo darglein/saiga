@@ -68,6 +68,7 @@ void PGORec::init()
     }
 
     // Precompute the offset in the sparse matrix for every edge
+    edgeOffsets.clear();
     edgeOffsets.reserve(scene.edges.size());
     std::vector<int> localOffsets(n, 1);
     for (auto& e : scene.edges)
@@ -84,6 +85,8 @@ void PGORec::init()
 
         edgeOffsets.emplace_back(offseti);
     }
+
+    solver.Init();
 
     // Create a sparsity histogram
     if (false && optimizationOptions.debugOutput)

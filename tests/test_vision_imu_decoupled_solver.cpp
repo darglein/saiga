@@ -3,8 +3,8 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
 #include "saiga/core/time/all.h"
+#include "saiga/core/util/table.h"
 #include "saiga/vision/imu/all.h"
 #include "saiga/vision/util/Random.h"
 
@@ -19,11 +19,7 @@ namespace Imu
 static DecoupledImuScene::SolverOptions DefaultSolverOptions()
 {
     DecoupledImuScene::SolverOptions options;
-    options.solve_bias_acc               = false;
-    options.solve_bias_gyro              = false;
-    options.solve_velocity               = false;
-    options.solve_gravity                = false;
-    options.solve_scale                  = false;
+    options.solver_flags                 = 0;
     options.max_its                      = 10;
     options.bias_recompute_delta_squared = 0;  // 0.1;
                                                //    options.bias_recompute_delta_squared = 0.1;
@@ -38,34 +34,60 @@ static OptimizationOptions DefaultOptOptions()
     return oopts;
 }
 
-static DecoupledImuScene MakeScene(DecoupledImuScene::SolverOptions options)
+static DecoupledImuScene MakeScene(DecoupledImuScene::SolverOptions options, int N = 100, int K = 50)
 {
     DecoupledImuScene scene;
-    scene.MakeRandom(200, 50, 1.0 / 100.0);
+    scene.MakeRandom(N, K, 1.0 / 100.0);
 
 
 
     for (auto& s : scene.states)
     {
-        if (options.solve_bias_acc) s.velocity_and_bias.acc_bias += Vec3::Random() * 0.1;
-        if (options.solve_bias_gyro) s.velocity_and_bias.gyro_bias += Vec3::Random() * 0.1;
-        if (options.solve_velocity) s.velocity_and_bias.velocity += Vec3::Random() * 0.1;
+        if (options.solver_flags & IMU_SOLVE_BA) s.velocity_and_bias.acc_bias += Vec3::Random() * 0.1;
+        if (options.solver_flags & IMU_SOLVE_BG) s.velocity_and_bias.gyro_bias += Vec3::Random() * 0.1;
+        if (options.solver_flags & IMU_SOLVE_VELOCITY) s.velocity_and_bias.velocity += Vec3::Random() * 0.1;
     }
-    if (options.solve_scale) scene.scale += Random::sampleDouble(-0.2, 0.2);
-    if (options.solve_gravity) scene.gravity.R = scene.gravity.R * SO3::exp(Vec3::Random() * 0.1);
+    if (options.solver_flags & IMU_SOLVE_SCALE) scene.scale += Random::sampleDouble(-0.2, 0.2);
+    if (options.solver_flags & IMU_SOLVE_GRAVITY) scene.gravity.R = scene.gravity.R * SO3::exp(Vec3::Random() * 0.1);
     scene.PreintAll();
+    scene.SanityCheck();
     return scene;
 }
+
+
+TEST(ImuDecoupledSolver, ReuseSolver)
+{
+    DecoupledImuScene::SolverOptions options = DefaultSolverOptions();
+    options.solver_flags = IMU_SOLVE_BA | IMU_SOLVE_BG | IMU_SOLVE_VELOCITY | IMU_SOLVE_GRAVITY | IMU_SOLVE_SCALE;
+
+
+    DecoupledImuSolver solver;
+    solver.optimizationOptions               = DefaultOptOptions();
+    solver.optimizationOptions.maxIterations = 5;
+    solver.optimizationOptions.debugOutput   = false;
+
+    {
+        auto scene = MakeScene(options, 2, 10);
+        scene.PreintAll();
+        solver.Create(scene, options);
+        solver.initAndSolve();
+        EXPECT_LE(scene.chi2(), 0.1);
+
+
+        scene = MakeScene(options, 3, 100);
+        scene.PreintAll();
+        solver.Create(scene, options);
+        solver.initAndSolve();
+        EXPECT_LE(scene.chi2(), 0.1);
+    }
+}
+
 
 
 TEST(ImuDecoupledSolver, AllWithConstant)
 {
     DecoupledImuScene::SolverOptions options = DefaultSolverOptions();
-    options.solve_bias_acc                   = true;
-    options.solve_bias_gyro                  = true;
-    options.solve_velocity                   = true;
-    options.solve_gravity                    = true;
-    options.solve_scale                      = true;
+    options.solver_flags = IMU_SOLVE_BA | IMU_SOLVE_BG | IMU_SOLVE_VELOCITY | IMU_SOLVE_GRAVITY | IMU_SOLVE_SCALE;
 
 
     DecoupledImuScene scene = MakeScene(options);
@@ -110,11 +132,7 @@ TEST(ImuDecoupledSolver, AllWithConstant)
 TEST(ImuDecoupledSolver, All)
 {
     DecoupledImuScene::SolverOptions options = DefaultSolverOptions();
-    options.solve_bias_acc                   = true;
-    options.solve_bias_gyro                  = true;
-    options.solve_velocity                   = true;
-    options.solve_gravity                    = true;
-    options.solve_scale                      = true;
+    options.solver_flags = IMU_SOLVE_BA | IMU_SOLVE_BG | IMU_SOLVE_VELOCITY | IMU_SOLVE_GRAVITY | IMU_SOLVE_SCALE;
 
 
     DecoupledImuScene scene = MakeScene(options);
@@ -144,14 +162,11 @@ TEST(ImuDecoupledSolver, All)
 }
 
 
+
 TEST(ImuDecoupledSolver, Bias)
 {
     DecoupledImuScene::SolverOptions options = DefaultSolverOptions();
-    options.solve_bias_acc                   = true;
-    options.solve_bias_gyro                  = true;
-    options.solve_velocity                   = false;
-    options.solve_gravity                    = false;
-    options.solve_scale                      = false;
+    options.solver_flags                     = IMU_SOLVE_BA | IMU_SOLVE_BG;
 
 
     DecoupledImuScene scene = MakeScene(options);
@@ -183,11 +198,7 @@ TEST(ImuDecoupledSolver, Bias)
 TEST(ImuDecoupledSolver, Scale)
 {
     DecoupledImuScene::SolverOptions options = DefaultSolverOptions();
-    options.solve_bias_acc                   = false;
-    options.solve_bias_gyro                  = false;
-    options.solve_velocity                   = false;
-    options.solve_gravity                    = false;
-    options.solve_scale                      = true;
+    options.solver_flags                     = IMU_SOLVE_SCALE;
 
 
     DecoupledImuScene scene = MakeScene(options);
@@ -219,11 +230,7 @@ TEST(ImuDecoupledSolver, Scale)
 TEST(ImuDecoupledSolver, Gravity)
 {
     DecoupledImuScene::SolverOptions options = DefaultSolverOptions();
-    options.solve_bias_acc                   = false;
-    options.solve_bias_gyro                  = false;
-    options.solve_velocity                   = false;
-    options.solve_gravity                    = true;
-    options.solve_scale                      = false;
+    options.solver_flags                     = IMU_SOLVE_GRAVITY;
 
 
     DecoupledImuScene scene = MakeScene(options);
@@ -257,11 +264,7 @@ TEST(ImuDecoupledSolver, Gravity)
 TEST(ImuDecoupledSolver, Velocity)
 {
     DecoupledImuScene::SolverOptions options = DefaultSolverOptions();
-    options.solve_bias_acc                   = false;
-    options.solve_bias_gyro                  = false;
-    options.solve_velocity                   = true;
-    options.solve_gravity                    = false;
-    options.solve_scale                      = false;
+    options.solver_flags                     = IMU_SOLVE_VELOCITY;
 
 
     DecoupledImuScene scene = MakeScene(options);
@@ -287,6 +290,73 @@ TEST(ImuDecoupledSolver, Velocity)
 
         EXPECT_NEAR(cpy1.chi2(), cpy2.chi2(), 1e-3);
         EXPECT_NEAR(cpy2.chi2(), cpy3.chi2(), 1e-3);
+    }
+}
+
+
+
+TEST(ImuDecoupledSolver, All_Benchmark)
+{
+    DecoupledImuScene::SolverOptions options = DefaultSolverOptions();
+    options.solver_flags = IMU_SOLVE_BA | IMU_SOLVE_BG | IMU_SOLVE_VELOCITY | IMU_SOLVE_GRAVITY | IMU_SOLVE_SCALE;
+    options.max_its      = 5;
+    options.bias_recompute_delta_squared = 0.01;
+
+
+    Table tab({20, 5, 5, 10});
+    tab << "Name"
+        << "N"
+        << "K"
+        << "Time (ms)";
+
+    std::vector<int> ns = {20, 50, 100, 500};
+    std::vector<int> ks = {20, 50, 100};
+
+    DecoupledImuSolver solver;
+    solver.optimizationOptions             = DefaultOptOptions();
+    solver.optimizationOptions.debugOutput = false;
+
+    for (int N : ns)
+    {
+        for (int K : ks)
+        {
+            DecoupledImuScene scene = MakeScene(options, N, K);
+
+            {
+                float t;
+                auto cpy1 = scene;
+                cpy1.PreintAll();
+                {
+                    ScopedTimer tim(t);
+                    cpy1.SolveCeres(options, true);
+                }
+                tab << "Ceres AD" << N << K << t;
+            }
+            {
+                float t;
+                auto cpy1 = scene;
+                cpy1.PreintAll();
+                {
+                    ScopedTimer tim(t);
+                    cpy1.SolveCeres(options, false);
+                }
+                tab << "Ceres" << N << K << t;
+            }
+            {
+                float t;
+                auto cpy1 = scene;
+                cpy1.PreintAll();
+
+
+                {
+                    ScopedTimer tim(t);
+                    solver.Create(cpy1, options);
+                    auto r = solver.initAndSolve();
+                }
+                tab << "Saiga" << N << K << t;
+            }
+            tab << "" << N << K << "";
+        }
     }
 }
 

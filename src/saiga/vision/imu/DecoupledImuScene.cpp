@@ -82,6 +82,7 @@ void DecoupledImuScene::MakeRandom(int N, int K, double dt)
     for (int i = 0; i < N - 1; ++i)
     {
         auto& s1      = states[i];
+        auto& s2      = states[i + 1];
         auto& e       = edges[i];
         e.weight_bias = Vec2::Random();
         e.weight_pvr  = Random::sampleDouble(0.5, 1.9);
@@ -89,6 +90,9 @@ void DecoupledImuScene::MakeRandom(int N, int K, double dt)
         //        e.weight_pvr  = 10;
         e.data->AddBias(s1.velocity_and_bias.gyro_bias, s1.velocity_and_bias.acc_bias);
         e.data->AddGravity(s1.velocity_and_bias.gyro_bias, s1.pose.so3(), -gravity.Get());
+
+        s1.time = e.data->time_begin;
+        s2.time = e.data->time_end;
     }
 
 
@@ -158,7 +162,7 @@ double DecoupledImuScene::chi2Print(double th) const
                                       weight_change_a * e.weight_bias(0), weight_change_g * e.weight_bias(1));
         double r = residual.squaredNorm() + res_bias_change.squaredNorm();
 
-        if (!std::isfinite(r))
+        if (!std::isfinite(r) || r > th)
         {
             std::cout << "Edge " << e.from << " -> " << e.to << " dt: " << preint.delta_t
                       << " Res: " << residual.squaredNorm() << std::endl;
@@ -175,6 +179,7 @@ double DecoupledImuScene::chi2Print(double th) const
             std::cout << e.weight_bias.transpose() << std::endl;
             std::cout << residual.transpose() << std::endl;
             std::cout << res_bias_change.transpose() << std::endl;
+            std::cout << std::endl;
         }
 
 
