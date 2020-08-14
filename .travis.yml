@@ -7,20 +7,28 @@ matrix:
   fast_finish: true
   include:
   - os: linux
-    dist: bionic
+    dist: focal
     sudo: required
     compiler: gcc
-    env: CXX=g++-8
+    env: CXX=g++-9
   - os: linux
-    dist: bionic
+    dist: focal
     sudo: required
     compiler: clang
-    env: CXX=clang++-8
+    env: CXX=clang++-9
   - os: windows
   #- os: osx
     #osx_image: xcode11.2
 
-
+addons:
+  apt:
+    packages:
+    - g++-9
+    - clang-9
+    - libeigen3-dev
+  snaps:
+    - cmake
+    
 env:
   - OMP_NUM_THREADS=4
   
@@ -29,7 +37,6 @@ before_install:
 
   
 install:
-   - if [ $TRAVIS_OS_NAME = linux ]; then $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; fi
    - if [ $TRAVIS_OS_NAME = osx ]; then $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; fi
    - if [ $TRAVIS_OS_NAME = windows ]; then $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh; fi
 
