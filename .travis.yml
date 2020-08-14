@@ -29,6 +29,12 @@ addons:
     - clang-10
     - libeigen3-dev
     - libomp-dev
+    - libgtest-dev
+    # adf
+    - libegl1-mesa-dev
+    - libsdl2-dev
+    - libglfw3-dev
+    - libpng-dev
   snaps:
     - name: cmake
       confinement: classic
