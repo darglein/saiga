@@ -3,16 +3,18 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-#include "saiga/core/time/all.h"
-#include "saiga/vision/ceres/CeresHelper.h"
-#include "saiga/vision/ceres/local_parameterization_se3.h"
-#include "saiga/vision/imu/CeresPreintegration.h"
-
 #include "DecoupledImuScene.h"
 
-#include "ceres/autodiff_cost_function.h"
-#include "ceres/evaluation_callback.h"
-#include "ceres/local_parameterization.h"
+#ifdef SAIGA_USE_CERES
+
+#    include "saiga/core/time/all.h"
+#    include "saiga/vision/ceres/CeresHelper.h"
+#    include "saiga/vision/ceres/local_parameterization_se3.h"
+#    include "saiga/vision/imu/CeresPreintegration.h"
+
+#    include "ceres/autodiff_cost_function.h"
+#    include "ceres/evaluation_callback.h"
+#    include "ceres/local_parameterization.h"
 namespace Saiga::Imu
 {
 struct ImuErrorAD
@@ -392,12 +394,12 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
 
 
 
-#if 0
+#    if 0
         CostGyroBias c(s1, s2, e, Snake::mono_intrinsics.camera_to_body);
         Matrix<double, 9, 1> residual;
         c(vbg, vba, g_r.coeffs().data(), v1, v2, &scale, residual.data());
         std::cout << i << " " << residual.transpose() << std::endl;
-#endif
+#    endif
     }
 
 
@@ -416,7 +418,7 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
 
     //    double aft = chi2();
 
-#if 0
+#    if 0
     std::cout << "imu solve " << bef << " -> " << aft << std::endl;
     std::cout << "imu solve " << result.cost_initial << " -> " << result.cost_final << " in " << result.total_time
               << " ( " << result.linear_solver_time << ")" << std::endl;
@@ -446,7 +448,7 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
         std::cout << " G: " << gravity.Get().transpose();
         std::cout << " S: " << scale << std::endl;
     }
-#endif
+#    endif
 
     //    for (auto s : states)
     //    {
@@ -457,3 +459,5 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
 
 
 }  // namespace Saiga::Imu
+
+#endif

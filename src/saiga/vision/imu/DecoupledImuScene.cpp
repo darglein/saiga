@@ -5,12 +5,8 @@
  */
 #include "DecoupledImuScene.h"
 
-#include "saiga/vision/ceres/CeresHelper.h"
-#include "saiga/vision/imu/CeresPreintegration.h"
 #include "saiga/vision/util/Random.h"
 
-#include "ceres/autodiff_cost_function.h"
-#include "ceres/local_parameterization.h"
 namespace Saiga::Imu
 {
 void DecoupledImuScene::MakeRandom(int N, int K, double dt)

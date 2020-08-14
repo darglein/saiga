@@ -8,12 +8,17 @@
 
 #include "saiga/core/util/Range.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/vision/ceres/CeresHelper.h"
-#include "saiga/vision/ceres/local_parameterization_se3.h"
-#include "saiga/vision/ceres/local_parameterization_sim3.h"
 #include "saiga/vision/icp/ICPAlign.h"
 
-#include "ceres/autodiff_cost_function.h"
+
+#ifdef SAIGA_USE_CERES
+#    include "saiga/vision/ceres/CeresHelper.h"
+#    include "saiga/vision/ceres/local_parameterization_se3.h"
+#    include "saiga/vision/ceres/local_parameterization_sim3.h"
+
+#    include "ceres/autodiff_cost_function.h"
+#endif
+
 namespace Saiga
 {
 namespace Trajectory

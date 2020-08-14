@@ -50,7 +50,7 @@ before_script:
 script:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" || "$TRAVIS_OS_NAME" == "osx" ]]; then
-      /snap/cmake/current/cmake $TRAVIS_BUILD_DIR 
+      /snap/bin/cmake $TRAVIS_BUILD_DIR 
       make -j2
       sudo make install
       ctest --output-on-failure -j 4
