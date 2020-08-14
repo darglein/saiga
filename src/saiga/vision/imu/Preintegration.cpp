@@ -14,7 +14,7 @@ namespace Saiga
 {
 namespace Imu
 {
-void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias, double dt)
+void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias, double dt, bool derive)
 {
     //    std::cout << "Add " << dt << " " << omega_with_bias.transpose() << std::endl;
 
@@ -68,7 +68,7 @@ void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias,
     delta_R = (delta_R * dR);
 }
 
-void Preintegration::IntegrateForward(const Imu::ImuSequence& sequence)
+void Preintegration::IntegrateForward(const Imu::ImuSequence& sequence, bool derive)
 {
     SAIGA_ASSERT(sequence.Valid());
     if (sequence.data.empty()) return;
@@ -80,20 +80,20 @@ void Preintegration::IntegrateForward(const Imu::ImuSequence& sequence)
     auto last_value = sequence.data.back();
     SAIGA_ASSERT(last_value.timestamp <= sequence.time_end);
 
-    Add(first_value, first_value.timestamp - sequence.time_begin);
+    Add(first_value, first_value.timestamp - sequence.time_begin, derive);
 
     for (int i = 0; i < sequence.data.size() - 1; ++i)
     {
-        Add(sequence.data[i], sequence.data[i + 1].timestamp - sequence.data[i].timestamp);
+        Add(sequence.data[i], sequence.data[i + 1].timestamp - sequence.data[i].timestamp, derive);
     }
 
-    Add(last_value, sequence.time_end - last_value.timestamp);
+    Add(last_value, sequence.time_end - last_value.timestamp, derive);
 
 
     // SAIGA_ASSERT(std::abs(delta_t - (sequence.time_end - sequence.time_begin)) < 1e-10);
 }
 
-void Preintegration::IntegrateMidPoint(const Imu::ImuSequence& sequence)
+void Preintegration::IntegrateMidPoint(const Imu::ImuSequence& sequence, bool derive)
 {
     SAIGA_ASSERT(sequence.Valid());
     if (sequence.data.empty()) return;
@@ -105,15 +105,15 @@ void Preintegration::IntegrateMidPoint(const Imu::ImuSequence& sequence)
     auto last_value = sequence.data.back();
     SAIGA_ASSERT(last_value.timestamp <= sequence.time_end);
 
-    Add(first_value, first_value.timestamp - sequence.time_begin);
+    Add(first_value, first_value.timestamp - sequence.time_begin, derive);
 
     for (int i = 0; i < sequence.data.size() - 1; ++i)
     {
         auto mid_point = Data::InterpolateAlpha(sequence.data[i], sequence.data[i + 1], 0.5);
-        Add(mid_point, sequence.data[i + 1].timestamp - sequence.data[i].timestamp);
+        Add(mid_point, sequence.data[i + 1].timestamp - sequence.data[i].timestamp, derive);
     }
 
-    Add(last_value, sequence.time_end - last_value.timestamp);
+    Add(last_value, sequence.time_end - last_value.timestamp, derive);
 
 
     SAIGA_ASSERT(std::abs(delta_t - (sequence.time_end - sequence.time_begin)) < 1e-10);
@@ -131,11 +131,18 @@ std::pair<SE3, Vec3> Preintegration::Predict(const SE3& initial_pose, const Vec3
 }
 
 Vec9 Preintegration::ImuError(const VelocityAndBias& delta_bias_i, const Vec3& v_i, const SE3& _pose_i, const Vec3& v_j,
-                              const SE3& _pose_j, const Gravity& g, double scale, const Vec3& weight_pvr,
+                              const SE3& _pose_j, const Gravity& g, double scale, const Vec3& _weight_pvr,
                               Matrix<double, 9, 3>* J_biasa, Matrix<double, 9, 3>* J_biasg, Matrix<double, 9, 3>* J_v1,
                               Matrix<double, 9, 3>* J_v2, Matrix<double, 9, 6>* J_p1, Matrix<double, 9, 6>* J_p2,
                               Matrix<double, 9, 1>* J_scale, Matrix<double, 9, 3>* J_g) const
 {
+    double time_weight = 1.0 / sqrt(delta_t);
+    SAIGA_ASSERT(std::isfinite(time_weight));
+
+    Vec3 weight_pvr = _weight_pvr * time_weight;
+
+
+
     Vec9 residual = Vec9::Zero();
 
     SE3 pose_i = _pose_i;
@@ -270,6 +277,46 @@ Vec9 Preintegration::ImuError(const VelocityAndBias& delta_bias_i, const Vec3& v
     }
 
     return residual;
+}
+
+Vec6 Preintegration::BiasChangeError(const VelocityAndBias& bias_i, const VelocityAndBias& delta_bias_i,
+                                     const VelocityAndBias& bias_j, const VelocityAndBias& delta_bias_j,
+                                     double _weight_acc, double _weight_gyro, Matrix<double, 6, 6>* J_a_g_i,
+                                     Matrix<double, 6, 6>* J_a_g_j) const
+{
+    double time_weight = 1.0 / sqrt(delta_t);
+
+
+    SAIGA_ASSERT(std::isfinite(time_weight));
+
+    double weight_acc  = _weight_acc * time_weight;
+    double weight_gyro = _weight_gyro * time_weight;
+
+    Vec3 bias_diff_acc  = (bias_i.acc_bias + delta_bias_i.acc_bias) - (bias_j.acc_bias + delta_bias_j.acc_bias);
+    Vec3 bias_diff_gyro = (bias_i.gyro_bias + delta_bias_i.gyro_bias) - (bias_j.gyro_bias + delta_bias_j.gyro_bias);
+    Vec6 result;
+    result.segment<3>(0) = bias_diff_acc * weight_acc;
+    result.segment<3>(3) = bias_diff_gyro * weight_gyro;
+
+    if (J_a_g_i)
+    {
+        J_a_g_i->setZero();
+        J_a_g_i->diagonal()(0) = weight_acc;
+        J_a_g_i->diagonal()(1) = weight_acc;
+        J_a_g_i->diagonal()(2) = weight_acc;
+
+        J_a_g_i->diagonal()(3) = weight_gyro;
+        J_a_g_i->diagonal()(4) = weight_gyro;
+        J_a_g_i->diagonal()(5) = weight_gyro;
+    }
+
+    if (J_a_g_j)
+    {
+        SAIGA_ASSERT(J_a_g_i);
+        (*J_a_g_j) = -(*J_a_g_i);
+    }
+
+    return result;
 }
 
 

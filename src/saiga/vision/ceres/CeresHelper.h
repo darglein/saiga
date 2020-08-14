@@ -118,27 +118,26 @@ inline void printDebugJacobi(ceres::Problem& problem, int maxRows = 10, bool pri
     std::cout << "cost: " << costFinal << std::endl;
 
     {
-        std::cout << "[Residual r]" << std::endl;
-        double residualSum = 0;
-        for (int i = 0; i < std::min<int>(maxRows, residuals.size()); ++i)
+        Eigen::Matrix<double, -1, 1> r(std::min<int>(maxRows, residuals.size()));
+
+        for (int i = 0; i < r.rows(); ++i)
         {
-            auto g = residuals[i];
-            residualSum += g;
-            std::cout << g << " ";
+            r(i) = residuals[i];
         }
-        std::cout << std::endl << "Sum = " << residualSum << std::endl;
+        std::cout << "[Residual r]" << std::endl;
+        std::cout << r.transpose() << std::endl;
+        std::cout << "|r| = " << r.norm() << std::endl << std::endl;
     }
 
     {
-        std::cout << "[Gradient -Jr]" << std::endl;
-        double gradientSum = 0;
-        for (int i = 0; i < std::min<int>(maxRows, gradient.size()); ++i)
+        Eigen::Matrix<double, -1, 1> g(std::min<int>(maxRows, gradient.size()));
+        for (int i = 0; i < g.rows(); ++i)
         {
-            auto g = gradient[i];
-            gradientSum += g;
-            std::cout << g << " ";
+            g(i) = gradient[i];
         }
-        std::cout << std::endl << "Sum = " << gradientSum << std::endl;
+        std::cout << "[Gradient -Jr]" << std::endl;
+        std::cout << g.transpose() << std::endl;
+        std::cout << "|g| = " << g.norm() << std::endl << std::endl;
     }
 
 
@@ -165,7 +164,7 @@ inline void printDebugJacobi(ceres::Problem& problem, int maxRows = 10, bool pri
         //        for (auto d : residuals) std::cout << d << " ";
         //        std::cout << std::endl;
 
-
+#if 0
         // Only print a few rows because it could get very big
         for (int i = 0; i < std::min<int>(maxRows, ematrix.rows()); ++i)
         {
@@ -175,14 +174,18 @@ inline void printDebugJacobi(ceres::Problem& problem, int maxRows = 10, bool pri
             }
             std::cout << std::endl;
         }
-
+#else
+        std::cout << ematrix.toDense() << std::endl;
+#endif
         std::cout << "|J| = " << ematrix.norm() << std::endl;
 
 
         if (printJtJ)
         {
-            SM JtJ = (ematrix.transpose() * ematrix).triangularView<Eigen::Upper>();
-            std::cout << "JtJ" << std::endl << JtJ.toDense() << std::endl << std::endl;
+            SM JtJ = (ematrix.transpose() * ematrix);  // .triangularView<Eigen::Upper>();
+            std::cout << "[JtJ]" << std::endl;
+            std::cout << JtJ.toDense() << std::endl << std::endl;
+            std::cout << "|J| = " << JtJ.norm() << std::endl;
         }
     }
 }

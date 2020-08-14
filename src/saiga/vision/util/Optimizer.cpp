@@ -16,8 +16,9 @@ namespace Saiga
 {
 std::ostream& operator<<(std::ostream& strm, const OptimizationResults& op)
 {
-    strm << "[" << op.name << "] " << op.cost_initial << "->" << op.cost_final << " in " << op.total_time / 1000.0
-         << "(" << op.linear_solver_time / 1000.0 << ")";
+    strm << "[" << op.name << "] " << op.cost_initial << " -> " << op.cost_final
+         << " | Timings (ms): Total=" << op.total_time << " Lin=" << op.linear_solver_time << " JtJ=" << op.jtj_time
+         << "";
     if (!op.success) strm << " FAILED!";
     return strm;
 }
@@ -68,18 +69,37 @@ OptimizationResults LMOptimizer::solve()
     result.linear_solver_time = 0;
 
 
-    //    double test = computeCost();
-    //    std::cout << "test : " << test << std::endl;
-    //    return result;
+
+    Table debug_output_table({8, 15, 15, 15, 15});
     if (optimizationOptions.debugOutput)
     {
-        std::cout << "Staring lm solver with " << optimizationOptions.maxIterations << " iterations." << std::endl;
+        debug_output_table << "iter"
+                           << "cost"
+                           << "lambda"
+                           << "jtj_time (ms)"
+                           << "solve_time (ms)";
     }
 
 
     for (auto i = 0; i < optimizationOptions.maxIterations; ++i)
     {
-        double chi2 = computeQuadraticForm();
+        double chi2;
+        double jtime = 0;
+        {
+            Saiga::ScopedTimer<double> timer(jtime);
+
+            chi2 = computeQuadraticForm();
+        }
+        result.jtj_time += jtime;
+
+
+
+        if (optimizationOptions.debugOutput && i == 0)
+        {
+            //                std::cout << "It fast " << i << ": " << 0.5 * current_chi2 << " -> " << 0.5 * chi2 <<
+            //                std::endl;
+            debug_output_table << i << chi2 << lambda << 0 << 0;
+        }
 
 
         if (optimizationOptions.debug)
@@ -113,10 +133,6 @@ OptimizationResults LMOptimizer::solve()
                 }
                 break;
             }
-            if (optimizationOptions.debugOutput)
-            {
-                std::cout << "It fast " << i << ": " << 0.5 * current_chi2 << " -> " << 0.5 * chi2 << std::endl;
-            }
             current_chi2 = chi2;
         }
 
@@ -141,6 +157,10 @@ OptimizationResults LMOptimizer::solve()
 
         if (optimizationOptions.simple_solver)
         {
+            if (optimizationOptions.debugOutput)
+            {
+                debug_output_table << (i + 1) << chi2 << lambda << jtime << ltime;
+            }
             continue;
         }
 
@@ -163,13 +183,14 @@ OptimizationResults LMOptimizer::solve()
             revertDelta();
             if (optimizationOptions.debugOutput)
             {
-                std::cerr << "It " << i << ": Invalid lm step. lambda: " << oldLambda << " -> " << lambda << std::endl;
+                std::cerr << "It " << (i + 1) << ": Invalid lm step. lambda: " << oldLambda << " -> " << lambda
+                          << std::endl;
             }
         }
 
         if (optimizationOptions.debugOutput)
         {
-            std::cout << "It " << i << ": " << 0.5 * chi2 << " -> " << 0.5 * newChi2 << std::endl;
+            debug_output_table << (i + 1) << newChi2 << lambda << jtime << ltime;
         }
 
         if (std::abs(chi2 - newChi2) < optimizationOptions.minChi2Delta)

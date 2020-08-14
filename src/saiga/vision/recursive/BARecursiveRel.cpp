@@ -258,12 +258,18 @@ void BARecRel::init()
         // Note: the row is smaller than the column, which means we are in the upper right part of the matrix.
         for (auto& e : scene.rel_pose_constraints)
         {
-            auto i = validImages[camera_to_valid_map[e.img1]];
-            auto j = validImages[camera_to_valid_map[e.img2]];
+            int valid_i = camera_to_valid_map[e.img1];
+            int valid_j = camera_to_valid_map[e.img2];
+
+            SAIGA_ASSERT(valid_i >= 0 && valid_i < validImages.size());
+            SAIGA_ASSERT(valid_j >= 0 && valid_j < validImages.size());
+
+            auto i = validImages[valid_i];
+            auto j = validImages[valid_j];
 
             if (i.isConstant() || j.isConstant()) continue;
 
-            //            SAIGA_ASSERT(i != -1);
+            SAIGA_ASSERT(i.variableId >= 0 && i.variableId < S.outerSize());
             //            SAIGA_ASSERT(i != j);
             //            SAIGA_ASSERT(i < j);
 
@@ -667,7 +673,6 @@ double BARecRel::computeQuadraticForm()
         {
             auto& target_ii = A.u.valuePtr()[A.u.outerIndexPtr()[i.variableId]].get();
             auto& target_ir = b.u(i.variableId).get();
-
             target_ii += Jrowi.transpose() * Jrowi;
             target_ir -= Jrowi.transpose() * res;
         }

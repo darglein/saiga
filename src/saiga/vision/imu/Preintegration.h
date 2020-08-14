@@ -27,16 +27,16 @@ struct SAIGA_VISION_API Preintegration
     }
     Preintegration(const VelocityAndBias& vb) : Preintegration(vb.gyro_bias, vb.acc_bias) {}
 
-    void Add(const Data& data, double dt) { Add(data.omega, data.acceleration, dt); }
+    void Add(const Data& data, double dt, bool derive) { Add(data.omega, data.acceleration, dt, derive); }
 
     // The main integration function.
     // This assumes a constant w and a for dt time.
-    void Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias, double dt);
+    void Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias, double dt, bool derive);
 
     // Adds the complete sequence using forward integration (explicit Euler).
-    void IntegrateForward(const ImuSequence& sequence);
+    void IntegrateForward(const ImuSequence& sequence, bool derive);
 
-    void IntegrateMidPoint(const ImuSequence& sequence);
+    void IntegrateMidPoint(const ImuSequence& sequence, bool derive);
 
 
 
@@ -54,6 +54,12 @@ struct SAIGA_VISION_API Preintegration
                   Matrix<double, 9, 3>* J_v1 = nullptr, Matrix<double, 9, 3>* J_v2 = nullptr,
                   Matrix<double, 9, 6>* J_p1 = nullptr, Matrix<double, 9, 6>* J_p2 = nullptr,
                   Matrix<double, 9, 1>* J_scale = nullptr, Matrix<double, 9, 3>* J_g = nullptr) const;
+
+
+    Vec6 BiasChangeError(const VelocityAndBias& bias_i, const VelocityAndBias& delta_bias_i,
+                         const VelocityAndBias& bias_j, const VelocityAndBias& delta_bias_j, double weight_acc,
+                         double weight_gyro, Matrix<double, 6, 6>* J_a_g_i = nullptr,
+                         Matrix<double, 6, 6>* J_a_g_j = nullptr) const;
 
     // Integrated values (Initialized to identity/0);
     double delta_t = 0;
@@ -77,6 +83,9 @@ struct SAIGA_VISION_API Preintegration
     double cov_gyro = 0;
     double cov_acc  = 0;
 #endif
+
+    Vec3 GetBiasAcc() { return bias_accel_lin; }
+    Vec3 GetBiasGyro() { return bias_gyro_lin; }
 
    private:
     // Linear bias, which is subtracted from the meassurements.

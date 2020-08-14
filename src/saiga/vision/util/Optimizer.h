@@ -20,6 +20,7 @@ struct SAIGA_VISION_API OptimizationResults
 
     double init_time          = 0;
     double linear_solver_time = 0;
+    double jtj_time           = 0;
     double total_time         = 0;
 
     bool success = false;

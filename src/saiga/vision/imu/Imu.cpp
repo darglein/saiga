@@ -139,7 +139,7 @@ void ImuSequence::AddGravity(const Vec3& bias_gyro, const SO3& initial_orientati
     for (int i = 1; i < data.size(); ++i)
     {
         double dt = data[i].timestamp - data[i - 1].timestamp;
-        preint.Add(data[i - 1].omega, Vec3::Zero(), dt);
+        preint.Add(data[i - 1].omega, Vec3::Zero(), dt, false);
         data[i].acceleration += (R * preint.delta_R).inverse() * g;
     }
 }

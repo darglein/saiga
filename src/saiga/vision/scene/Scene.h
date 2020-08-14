@@ -105,11 +105,12 @@ struct SAIGA_VISION_API SceneImage
     AlignedVector<StereoImagePoint> stereoPoints;
 
 
-    int validPoints = 0;
+    int validPoints     = 0;
+    int rel_constraints = 0;
 
 
     explicit operator bool() const { return valid(); }
-    bool valid() const { return validPoints > 0; }
+    bool valid() const { return validPoints > 0 || rel_constraints > 0; }
 };
 
 

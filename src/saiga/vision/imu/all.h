@@ -6,7 +6,8 @@
 
 #pragma once
 
+#include "DecoupledImuScene.h"
+#include "DecoupledImuSolver.h"
 #include "Imu.h"
 #include "Preintegration.h"
 #include "Solver.h"
-#include "DecoupledImuScene.h"

@@ -110,7 +110,7 @@ double PGORec::computeQuadraticForm()
     b.setZero();
 
     // set diagonal elements of S to zero
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; i < S.rows(); ++i)
     {
         S.valuePtr()[S.outerIndexPtr()[i]].get().setZero();
     }

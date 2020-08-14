@@ -60,24 +60,31 @@ struct ImuDerivTest
     ImuDerivTest()
     {
         // Random::setSeed(95665);
-        s              = GenerateRandomSequence(10, 5, 0.1)[1];
+        s = GenerateRandomSequence(10, 5, 0.1)[1];
+
         vb_i.velocity  = Vec3::Random();
         vb_i.gyro_bias = Vec3::Random();
         vb_i.acc_bias  = Vec3::Random();
-        vb_j           = vb_i;
-        g.R            = Random::randomSE3().so3();
-        pose_i         = Random::randomSE3();
-        scale          = 10;  // Random::sampleDouble(0.5, 2);
+
+        vb_j.velocity  = Vec3::Random();
+        vb_j.gyro_bias = Vec3::Random();
+        vb_j.acc_bias  = Vec3::Random();
+
+
+
+        g.R    = Random::randomSE3().so3();
+        pose_i = Random::randomSE3();
+        scale  = 10;  // Random::sampleDouble(0.5, 2);
         {
             Imu::Preintegration preint(vb_i.gyro_bias, vb_i.acc_bias);
-            preint.IntegrateMidPoint(s);
+            preint.IntegrateMidPoint(s, true);
             auto p_v      = preint.Predict(pose_i, vb_i.velocity, g.Get());
             pose_j        = Sophus::se3_expd(Sophus::Vector6d::Random() * 0.2) * p_v.first;
             vb_j.velocity = p_v.second + Vec3::Random() * 0.01;
         }
 
         preint = Imu::Preintegration(vb_i);
-        preint.IntegrateMidPoint(s);
+        preint.IntegrateMidPoint(s, true);
 
         //        delta_bias_i.acc_bias  = Vec3::Random() * 0.01;
         //        delta_bias_i.gyro_bias = Vec3::Random() * 0.01;
@@ -96,8 +103,88 @@ struct ImuDerivTest
     Vec3 weight_pvr;
 
 
-    Imu::VelocityAndBias delta_bias_i;
+    Imu::VelocityAndBias delta_bias_i, delta_bias_j;
 };
+
+
+TEST(ImuDerivatives, BiasChange)
+{
+    ImuDerivTest data;
+
+    data.delta_bias_i.acc_bias  = Vec3::Random() * 0.5;
+    data.delta_bias_i.gyro_bias = Vec3::Random() * 0.5;
+
+    data.delta_bias_j.acc_bias  = Vec3::Random() * 0.5;
+    data.delta_bias_j.gyro_bias = Vec3::Random() * 0.5;
+
+    Vec6 res1, res2;
+    Matrix<double, 6, 6> J_a_g_i, J_a_g_i_numeric;
+    Matrix<double, 6, 6> J_a_g_j, J_a_g_j_numeric;
+
+    double w_a = 5;
+    double w_g = 3;
+    res1 = data.preint.BiasChangeError(data.vb_i, data.delta_bias_i, data.vb_j, data.delta_bias_j, w_a, w_g, &J_a_g_i,
+                                       &J_a_g_j);
+
+    {
+        Vec6 bias_ag;
+        bias_ag.segment<3>(0) = data.vb_i.acc_bias;
+        bias_ag.segment<3>(3) = data.vb_i.gyro_bias;
+        res2                  = EvaluateNumeric(
+            [=](auto p) {
+                Imu::VelocityAndBias vb_i = data.vb_i;
+
+                vb_i.acc_bias  = p.template segment<3>(0);
+                vb_i.gyro_bias = p.template segment<3>(3);
+
+                vb_i.acc_bias += data.delta_bias_i.acc_bias;
+                vb_i.gyro_bias += data.delta_bias_i.gyro_bias;
+
+                Imu::VelocityAndBias vb_j = data.vb_j;
+                vb_j.acc_bias += data.delta_bias_j.acc_bias;
+                vb_j.gyro_bias += data.delta_bias_j.gyro_bias;
+
+                Imu::VelocityAndBias empty_delta;
+
+                Imu::Preintegration preint(vb_i);
+                preint.IntegrateMidPoint(data.s, true);
+                return data.preint.BiasChangeError(vb_i, empty_delta, vb_j, empty_delta, w_a, w_g);
+            },
+            bias_ag, &J_a_g_i_numeric);
+    }
+
+    {
+        Vec6 bias_ag;
+        bias_ag.segment<3>(0) = data.vb_j.acc_bias;
+        bias_ag.segment<3>(3) = data.vb_j.gyro_bias;
+        res2                  = EvaluateNumeric(
+            [=](auto p) {
+                Imu::VelocityAndBias vb_i = data.vb_i;
+
+
+                vb_i.acc_bias += data.delta_bias_i.acc_bias;
+                vb_i.gyro_bias += data.delta_bias_i.gyro_bias;
+
+                Imu::VelocityAndBias vb_j = data.vb_j;
+
+                vb_j.acc_bias  = p.template segment<3>(0);
+                vb_j.gyro_bias = p.template segment<3>(3);
+
+                vb_j.acc_bias += data.delta_bias_j.acc_bias;
+                vb_j.gyro_bias += data.delta_bias_j.gyro_bias;
+
+                Imu::VelocityAndBias empty_delta;
+
+                Imu::Preintegration preint(vb_i);
+                preint.IntegrateMidPoint(data.s, true);
+                return data.preint.BiasChangeError(vb_i, empty_delta, vb_j, empty_delta, w_a, w_g);
+            },
+            bias_ag, &J_a_g_j_numeric);
+    }
+    ExpectCloseRelative(res1, res2, 1e-5);
+    ExpectCloseRelative(J_a_g_i, J_a_g_i_numeric, 1e-5);
+    ExpectCloseRelative(J_a_g_j, J_a_g_j_numeric, 1e-5);
+}
 
 TEST(ImuDerivatives, BiasGyro)
 {
@@ -122,7 +209,7 @@ TEST(ImuDerivatives, BiasGyro)
                 Imu::VelocityAndBias empty_delta;
 
                 Imu::Preintegration preint(vb);
-                preint.IntegrateMidPoint(data.s);
+                preint.IntegrateMidPoint(data.s, true);
                 return preint.ImuError(empty_delta, vb.velocity, data.pose_i, data.vb_j.velocity, data.pose_j, data.g,
                                        data.scale, data.weight_pvr);
             },
@@ -151,7 +238,7 @@ TEST(ImuDerivatives, BiasGyroDelta)
 
         // Compute reference by preintegration
         Imu::Preintegration preint2(vb);
-        preint2.IntegrateMidPoint(data.s);
+        preint2.IntegrateMidPoint(data.s, true);
 
 
         res1 = preint2.ImuError(empty_delta, data.vb_i.velocity, data.pose_i, data.vb_j.velocity, data.pose_j, data.g,
@@ -186,7 +273,7 @@ TEST(ImuDerivatives, BiasAcc)
 
                 Imu::VelocityAndBias empty_delta;
                 Imu::Preintegration preint(vb);
-                preint.IntegrateMidPoint(data.s);
+                preint.IntegrateMidPoint(data.s, true);
 
                 return preint.ImuError(empty_delta, vb.velocity, data.pose_i, data.vb_j.velocity, data.pose_j, data.g,
                                        data.scale, data.weight_pvr);

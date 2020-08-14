@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/imu/all.h"
+#include "saiga/vision/imu/Preintegration.h"
 
 
 namespace Saiga::Imu
@@ -15,7 +15,10 @@ struct SAIGA_VISION_API NavState
 {
     SE3 pose;
     Imu::VelocityAndBias velocity_and_bias;
+
+    Imu::VelocityAndBias delta_bias;
     double time;
+    bool constant = false;
 };
 
 struct SAIGA_VISION_API NavEdge
@@ -23,6 +26,11 @@ struct SAIGA_VISION_API NavEdge
     Preintegration* preint = nullptr;
     ImuSequence* data      = nullptr;
     int from, to;
+
+    double weight_pvr = 1;
+
+    // (acc,gyro)
+    Vec2 weight_bias = Vec2(1, 1);
 };
 
 class SAIGA_VISION_API DecoupledImuScene
@@ -37,7 +45,9 @@ class SAIGA_VISION_API DecoupledImuScene
         bool solve_scale     = false;
 
         bool use_global_bias = false;
-        int max_its          = 10;
+        int max_its          = 3;
+
+        double bias_recompute_delta_squared = 0.01;
     };
 
     Vec3 global_bias_gyro = Vec3::Zero();
@@ -56,7 +66,22 @@ class SAIGA_VISION_API DecoupledImuScene
     double weight_V = 1;
     double weight_R = 100;
 
+    double weight_change_a = 200;
+    double weight_change_g = 1000;
 
+    Vec3 WeightPVR() { return Vec3(weight_P, weight_V, weight_R); }
+
+
+    void PreintAll()
+    {
+        for (auto& e : edges)
+        {
+            auto& s1 = states[e.from];
+
+            *e.preint = Imu::Preintegration(s1.velocity_and_bias);
+            e.preint->IntegrateMidPoint(*e.data, true);
+        }
+    }
 
     void SanityCheck()
     {
@@ -68,10 +93,13 @@ class SAIGA_VISION_API DecoupledImuScene
     }
 
     void SolveCeres(const SolverOptions& params, bool ad = true);
+    void Solve(const SolverOptions& params);
+
 
     void MakeRandom(int N, int K, double dt);
 
     double chi2() const;
+    double chi2Print(double th) const;
 };
 
 SAIGA_VISION_API std::ostream& operator<<(std::ostream& strm, const DecoupledImuScene& scene);
