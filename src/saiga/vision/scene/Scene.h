@@ -110,7 +110,7 @@ struct SAIGA_VISION_API SceneImage
 
 
     explicit operator bool() const { return valid(); }
-    bool valid() const { return validPoints > 0 ; }
+    bool valid() const { return validPoints > 0 || rel_constraints > 0; }
 };
 
 
