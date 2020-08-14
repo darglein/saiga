@@ -24,7 +24,9 @@ addons:
   apt:
     packages:
     - g++-9
+    - g++-10
     - clang-9
+    - clang-10
     - libeigen3-dev
   snaps:
     - name: cmake
@@ -48,7 +50,7 @@ before_script:
 script:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" || "$TRAVIS_OS_NAME" == "osx" ]]; then
-      cmake $TRAVIS_BUILD_DIR 
+      /snap/cmake/current/cmake $TRAVIS_BUILD_DIR 
       make -j2
       sudo make install
       ctest --output-on-failure -j 4
