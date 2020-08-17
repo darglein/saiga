@@ -52,14 +52,17 @@ void Preintegration::Add(const Vec3& omega_with_bias, const Vec3& acc_with_bias,
     cov_P_V_Phi = A * cov_P_V_Phi * A.transpose() + Bg * cov_gyro * Bg.transpose() + Ca * cov_acc * Ca.transpose();
 #endif
 
-    // jacobian of delta measurements w.r.t bias of gyro/acc
-    // update P first, then V, then R
-    J_P_Biasa += J_V_Biasa * dt - 0.5 * delta_R.matrix() * dt2;
-    J_P_Biasg += J_V_Biasg * dt - 0.5 * delta_R.matrix() * skew(acc) * J_R_Biasg * dt2;
-    J_V_Biasa += -delta_R.matrix() * dt;
-    J_V_Biasg += -delta_R.matrix() * skew(acc) * J_R_Biasg * dt;
+    if (derive)
+    {
+        // jacobian of delta measurements w.r.t bias of gyro/acc
+        // update P first, then V, then R
+        J_P_Biasa += J_V_Biasa * dt - 0.5 * delta_R.matrix() * dt2;
+        J_P_Biasg += J_V_Biasg * dt - 0.5 * delta_R.matrix() * skew(acc) * J_R_Biasg * dt2;
+        J_V_Biasa += -delta_R.matrix() * dt;
+        J_V_Biasg += -delta_R.matrix() * skew(acc) * J_R_Biasg * dt;
 
-    J_R_Biasg = dR.inverse().matrix() * J_R_Biasg - Jr * dt;
+        J_R_Biasg = dR.inverse().matrix() * J_R_Biasg - Jr * dt;
+    }
 
 
     delta_t += dt;

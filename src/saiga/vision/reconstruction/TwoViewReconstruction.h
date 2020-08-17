@@ -72,7 +72,7 @@ class SAIGA_VISION_API TwoViewReconstruction
 
     OptimizationOptions op_options;
     BAOptions ba_options;
-    BAWrapper ba = {BAWrapper::Framework::Ceres};
+    BAWrapper ba = {BAWrapper::Framework::Recursive};
 };
 
 
