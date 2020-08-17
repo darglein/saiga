@@ -29,9 +29,9 @@ void CheckEigenVectorAlignment()
           << "size"
           << "alignment";
 
-    using vec8  = Eigen::Vector<float, 8>;
-    using vec16 = Eigen::Vector<float, 16>;
-    using vec32 = Eigen::Vector<float, 32>;
+    using vec8  = Eigen::Matrix<float, 8, 1>;
+    using vec16 = Eigen::Matrix<float, 16, 1>;
+    using vec32 = Eigen::Matrix<float, 32, 1>;
 
     table << "vec2<float>" << sizeof(vec2) << alignof(vec2);
     table << "vec3<float>" << sizeof(vec3) << alignof(vec3);
@@ -40,9 +40,9 @@ void CheckEigenVectorAlignment()
     table << "vec16<float>" << sizeof(vec16) << alignof(vec16);
     table << "vec32<float>" << sizeof(vec32) << alignof(vec32);
 
-    using Vec8  = Eigen::Vector<double, 8>;
-    using Vec16 = Eigen::Vector<double, 16>;
-    using Vec32 = Eigen::Vector<double, 32>;
+    using Vec8  = Eigen::Matrix<double, 8, 1>;
+    using Vec16 = Eigen::Matrix<double, 16, 1>;
+    using Vec32 = Eigen::Matrix<double, 32, 1>;
 
     table << ""
           << ""

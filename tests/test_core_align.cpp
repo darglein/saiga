@@ -94,20 +94,3 @@ TEST(Align, AlignStruct)
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(new Align128()) % 128);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(new AlignLarge()) % (1024 * 32));
 }
-
-
-TEST(Eigen, Allocate)
-{
-    //    Eigen::Vector<double, -1> x;
-    //    std::cout << x.data() << std::endl;
-    //    x.resize(1000);
-    //    std::cout << x.data() << std::endl;
-    //    x.resize(1000);
-    //    std::cout << x.data() << std::endl;
-    //    x.resize(800);
-    //    std::cout << x.data() << std::endl;
-    //    x.resize(6);
-    //    std::cout << x.data() << std::endl;
-    //    x.resize(7);
-    //    std::cout << x.data() << std::endl;
-}
