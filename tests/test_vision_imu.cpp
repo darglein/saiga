@@ -70,7 +70,7 @@ static std::vector<std::pair<Imu::ImuSequence, SE3>> RandomTrajectory2(int N, in
     {
         Imu::Preintegration preint;
         //        preint.IntegrateMidPoint(data[i]);
-        preint.IntegrateForward(data[i]);
+        preint.IntegrateForward(data[i], true);
 
         auto pose_v = preint.Predict(pose, v, Vec3::Zero());
 
@@ -146,7 +146,7 @@ TEST(Imu, SolveGyroBias)
         for (int i = 1; i < trajectory.size(); ++i)
         {
             preints[i] = Imu::Preintegration(Vec3::Zero());
-            preints[i].IntegrateForward(trajectory[i].first);
+            preints[i].IntegrateForward(trajectory[i].first, true);
             //            preints[i].IntegrateMidPoint(trajectory[i].first);
 
             Imu::ImuPosePair ipp;
@@ -208,7 +208,7 @@ TEST(Imu, SolveGravityScale)
         {
             preintegration[i] = Imu::Preintegration(Vec3::Zero(), Vec3::Zero());
             //            preintegration[i].IntegrateMidPoint(trajectory[i].first);
-            preintegration[i].IntegrateForward(trajectory[i].first);
+            preintegration[i].IntegrateForward(trajectory[i].first, true);
         }
 
 

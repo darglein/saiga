@@ -79,6 +79,12 @@ class SAIGA_VISION_API DecoupledImuScene
     double weight_change_a = 200;
     double weight_change_g = 1000;
 
+    void Clear(){
+        states.clear();
+        edges.clear();
+        local_imu_data = nullptr;
+    }
+
     Vec3 WeightPVR() { return Vec3(weight_P, weight_V, weight_R); }
 
 
