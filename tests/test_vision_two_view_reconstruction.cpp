@@ -142,7 +142,7 @@ TEST(TwoViewReconstruction, EssentialMatrix)
         {
             test->tvr.E *= -1;
         }
-        ExpectCloseRelative(test->tvr.E, ref_E, 1e-5);
+        ExpectCloseRelative(test->tvr.E, ref_E, 1e-3);
 
         auto be = test->tvr.inlierCount;
         test->tvr.optimize(5, 1.5 / 535.4);

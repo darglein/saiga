@@ -192,6 +192,13 @@ std::ostream& operator<<(std::ostream& strm, const DecoupledImuScene& scene)
     strm << " Edges: " << scene.edges.size() << std::endl;
     strm << " Chi2: " << scene.chi2() << std::endl;
 
+
+    for (auto& s : scene.states)
+    {
+        std::cout << "> State " << s.time << ": " << s.velocity_and_bias.gyro_bias.transpose() << " | "
+                  << s.velocity_and_bias.acc_bias.transpose() << std::endl;
+    }
+
     //    for (auto& e : scene.edges)
     //    {
     //        std::cout << *e.data << std::endl;
