@@ -795,9 +795,9 @@ void BARecRel::finalize()
 #pragma omp for
         for (int i = 0; i < validPoints.size(); ++i)
         {
-            auto id = validPoints[i];
-
+            auto id  = validPoints[i];
             auto& wp = scene.worldPoints[id];
+            if (wp.constant) continue;
             SAIGA_ASSERT(wp);
 
             wp.p = x_v[i];
