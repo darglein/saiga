@@ -10,6 +10,7 @@
 #include "saiga/vision/ba/BAWrapper.h"
 #include "saiga/vision/reconstruction/EightPoint.h"
 #include "saiga/vision/reconstruction/FivePoint.h"
+#include "saiga/vision/recursive/BARecursiveRel.h"
 #include "saiga/vision/scene/Scene.h"
 
 namespace Saiga
@@ -72,7 +73,8 @@ class SAIGA_VISION_API TwoViewReconstruction
 
     OptimizationOptions op_options;
     BAOptions ba_options;
-    BAWrapper ba = {BAWrapper::Framework::Recursive};
+    BARecRel ba;
+    //    BAWrapper ba = {BAWrapper::Framework::Recursive};
 };
 
 

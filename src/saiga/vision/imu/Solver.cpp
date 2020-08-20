@@ -11,46 +11,21 @@ namespace Saiga::Imu
 {
 std::pair<Vec3, double> SolveGlobalGyroBias(ArrayView<ImuPosePair> data, double huber_threshold)
 {
-    Vec3 current_bias = Vec3::Zero();
-
     double chi2 = 0;
     Mat3 JtJ    = Mat3::Zero();
     Vec3 Jtb    = Vec3::Zero();
     for (int i = 0; i < data.size(); ++i)
     {
-        auto& d = data[i];
+        ImuPosePair& d = data[i];
 
         // the preintegration is from previous to current
-        //        Imu::Preintegration preint(current_bias);
-        //        preint.IntegrateMidPoint(*std::get<0>(d));
+        const Preintegration& preint = *d.preint_12;
 
-        auto& preint = *d.preint_12;
-
-        //        std::cout << d.pose1->unit_quaternion() << std::endl;
-        //        std::cout << d.pose2->unit_quaternion() << std::endl;
-
-        // 1. Compute residual
-
-        SO3 relative_rotation = d.pose1->so3().inverse() * d.pose2->so3();
-        SO3 delta_rotation    = preint.delta_R.inverse() * relative_rotation;
-        Vec3 residual         = Sophus::SO3d(delta_rotation).log();
-
-
-        // 2. Compute Jacobian
-        Mat3 Jlinv;
-        Sophus::leftJacobianInvSO3(residual, Jlinv);
-        Mat3 J = Jlinv * preint.J_R_Biasg;
-
-
-
-        // 3. Scale by inverse time
-        // Assuming additive gaussian noise,
-        double weight1 = 1.0 / (preint.delta_t);
-        residual *= weight1;
-        J *= weight1;
-
+        Mat3 J;
+        Vec3 residual = preint.RotationalError(d.pose1->so3(), d.pose2->so3(), &J);
 
         double res_2       = residual.squaredNorm();
+        d.chi2_residual    = res_2;
         auto rw            = Kernel::CauchyLoss<double>(huber_threshold, res_2);
         res_2              = rw(0);
         double loss_weight = rw(1);
@@ -58,20 +33,14 @@ std::pair<Vec3, double> SolveGlobalGyroBias(ArrayView<ImuPosePair> data, double 
         // 4. Add to JtJ and Jtb.
         chi2 += res_2;
         JtJ += loss_weight * (J.transpose() * J);
-        Jtb += loss_weight * (J.transpose() * residual);
-
-        //        std::cout << i << " " << norm_before << " -> " << residual.squaredNorm() << " " << rw(0) << " " <<
-        //        rw(1)
-        //                  << " dt: " << preint.delta_t << std::endl;
+        Jtb -= loss_weight * (J.transpose() * residual);
     }
 
     // 5. Solve and add delta to current estimate
-    Vec3 x = JtJ.ldlt().solve(Jtb);
-    current_bias += x;
-
+    Vec3 x      = JtJ.ldlt().solve(Jtb);
     double rmse = sqrt(chi2 / data.size());
 
-    return {current_bias, rmse};
+    return {x, rmse};
 }
 
 

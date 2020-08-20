@@ -61,6 +61,9 @@ struct SAIGA_VISION_API Preintegration
                          double weight_gyro, Matrix<double, 6, 6>* J_a_g_i = nullptr,
                          Matrix<double, 6, 6>* J_a_g_j = nullptr) const;
 
+
+    Vec3 RotationalError(const SO3& pose_i, const SO3& pose_j, Matrix<double, 3, 3>* J_g = nullptr) const;
+
     // Integrated values (Initialized to identity/0);
     double delta_t = 0;
     SO3 delta_R;

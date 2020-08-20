@@ -16,6 +16,9 @@ struct ImuPosePair
     const SE3* pose1;
     const SE3* pose2;
     const Imu::Preintegration* preint_12;
+
+    // Residual squared norm (before robust cost function). Written by the solver.
+    double chi2_residual = 0;
 };
 
 // Computes a global gyro bias which minimizes the relative rotational error.
