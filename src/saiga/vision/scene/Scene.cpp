@@ -244,7 +244,7 @@ void Scene::removeOutliers(float threshold)
     {
         for (auto& o : im.stereoPoints)
         {
-            if (!o.wp) continue;
+            if (!o) continue;
             double r = std::sqrt(residualNorm2(im, o));
             if (r > threshold)
             {
@@ -253,7 +253,8 @@ void Scene::removeOutliers(float threshold)
             }
         }
     }
-    std::cout << "Removed " << pointsRemoved << " outlier observations above the threshold " << threshold << std::endl;
+    //    std::cout << "Removed " << pointsRemoved << " outlier observations above the threshold " << threshold <<
+    //    std::endl;
     fixWorldPointReferences();
 }
 
@@ -376,37 +377,22 @@ double Scene::chi2(double huber)
 
         for (auto& o : im.stereoPoints)
         {
-            //            if (!o) continue;
-
-
+            if (!o) continue;
             double res_2 = residualNorm2(im, o);
-
-
-            //            if (i == 5 && o.wp == 33)
-            //            {
-            //                std::cout << "test " << o.wp << " " << res_2 << " " << worldPoints[o.wp].p.transpose() <<
-            //                " "
-            //                          << o.point.transpose() << std::endl;
-            //            }
 
             if (huber > 0)
             {
-                //                auto rw = Kernel::CauchyLoss<double>(huber, sqerror);
                 auto rw = Kernel::HuberLoss<double>(huber, res_2);
                 res_2   = rw(0);
             }
-
-
-            if (o.depth > 0)
-                stereoEdges++;
-            else
-                monoEdges++;
             image_error += res_2;
         }
         error += image_error;
         //        std::cout << "Rep " << i << " " << image_error << std::endl;
     }
 
+    //    std::cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " chi2: " << error
+    //              << std::endl;
     //    std::cout << "BA error: " << error << std::endl;
 
     //    std::cout << "RPC SIze: " << rel_pose_constraints.size() << std::endl;
@@ -439,26 +425,44 @@ double Scene::rms()
 
     for (SceneImage& im : images)
     {
-        double sqerror;
-
         for (auto& o : im.stereoPoints)
         {
             if (!o) continue;
-            sqerror = residualNorm2(im, o);
+            double res_2 = residualNorm2(im, o);
 
             if (o.depth > 0)
                 stereoEdges++;
             else
                 monoEdges++;
-            error += sqerror;
+            error += res_2;
         }
     }
 
     auto error2 = error / (monoEdges + stereoEdges);
     error2      = sqrt(error2);
     //    std::cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
-    //         << " chi2: " << error << std::endl;
+    //              << " chi2: " << error << std::endl;
     return error2;
+}
+
+
+void Scene::rmsPrint()
+{
+    for (int i = 0; i < images.size(); ++i)
+    {
+        SceneImage& im     = images[i];
+        double image_error = 0;
+        for (int j = 0; j < im.stereoPoints.size(); ++j)
+        {
+            auto& o = im.stereoPoints[j];
+            if (!o) continue;
+            double res_2 = residualNorm2(im, o);
+
+            image_error += res_2;
+            std::cout << "(" << i << ", " << j << ") " << res_2 << ", " << sqrt(res_2) << std::endl;
+        }
+        std::cout << "Image " << i << " Chi2: " << image_error << std::endl;
+    }
 }
 
 double Scene::getSchurDensity()

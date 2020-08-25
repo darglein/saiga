@@ -87,7 +87,7 @@ class SAIGA_VISION_API TwoViewReconstructionEightPoint : public TwoViewReconstru
                  ArrayView<const Vec2> normalized_points2);
 
    private:
-    static constexpr bool solve_normalized = true;
+    static constexpr bool solve_normalized = false;
     Mat3 F;
     EightPointRansac epr;
 };
