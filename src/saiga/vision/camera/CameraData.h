@@ -112,6 +112,8 @@ struct SAIGA_VISION_API MonocularIntrinsics
     //  SE3 body_pose = camera_pose * camera_to_body;
     SE3 camera_to_body;
 
+    SE3 camera_to_gt;
+
     StereoCamera4 dummyStereoCamera() const { return StereoCamera4(model.K, 1); }
 
     static constexpr CameraInputType cameraType = CameraInputType::Mono;

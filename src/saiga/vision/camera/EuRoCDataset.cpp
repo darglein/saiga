@@ -71,7 +71,8 @@ struct Associations
 };
 
 
-EuRoCDataset::EuRoCDataset(const DatasetParameters& _params) : DatasetCameraBase<StereoFrameData>(_params)
+EuRoCDataset::EuRoCDataset(const DatasetParameters& _params, Sequence sequence)
+    : DatasetCameraBase<StereoFrameData>(_params), sequence(sequence)
 {
     Load();
 }
@@ -101,6 +102,7 @@ int EuRoCDataset::LoadMetaData()
     SAIGA_ASSERT(std::filesystem::exists(rightImageSensor));
     SAIGA_ASSERT(std::filesystem::exists(imuSensor));
 
+    FindSequence();
 
     {
         // == Cam 0 ==
@@ -171,15 +173,20 @@ int EuRoCDataset::LoadMetaData()
 
 
 
+    auto vicon0_file = params.dir + "/" + "vicon0/sensor.yaml";
+    auto leica0_file = params.dir + "/" + "leica0/sensor.yaml";
+
+    if (use_raw_gt_data && std::filesystem::exists(vicon0_file))
     {
-        // == Ground truth position ==
+        YAML::Node config = YAML::LoadFile(vicon0_file);
+        Mat4 m            = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
+        extrinsics_gt     = SE3::fitToSE3(m);
 
-        auto sensorFile = params.dir + "/" + "state_groundtruth_estimate0/data.csv";
 
+        auto data_file = params.dir + "/" + "vicon0/data.csv";
 
-        auto lines = File::loadFileStringArray(sensorFile);
+        auto lines = File::loadFileStringArray(data_file);
         StringViewParser csvParser(", ");
-        std::vector<double> gtTimes;
         for (auto&& l : lines)
         {
             if (l.empty()) continue;
@@ -215,27 +222,109 @@ int EuRoCDataset::LoadMetaData()
             auto time = to_double(svTime) / 1e9;
 
             time += params.ground_truth_time_offset;
-            gtTimes.push_back(time);
+            ground_truth.emplace_back(time, SE3(q, data));
+        }
+    }
+    else if (use_raw_gt_data && std::filesystem::exists(leica0_file))
+    {
+        YAML::Node config = YAML::LoadFile(leica0_file);
+        Mat4 m            = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
+        extrinsics_gt     = SE3::fitToSE3(m);
+
+        auto data_file = params.dir + "/" + "leica0/data.csv";
+
+        auto lines = File::loadFileStringArray(data_file);
+        StringViewParser csvParser(", ");
+        for (auto&& l : lines)
+        {
+            if (l.empty()) continue;
+            if (l[0] == '#') continue;
+            csvParser.set(l);
+
+            auto svTime = csvParser.next();
+            if (svTime.empty()) continue;
+
+            Vec3 data;
+            for (int i = 0; i < 3; ++i)
+            {
+                auto sv = csvParser.next();
+                SAIGA_ASSERT(!sv.empty());
+                data(i) = to_double(sv);
+            }
+            auto time = to_double(svTime) / 1e9;
+
+            time += params.ground_truth_time_offset;
+            ground_truth.emplace_back(time, SE3(Quat::Identity(), data));
+
+            //            std::cout << "gt " << ground_truth.back().second << std::endl;
+        }
+        // extrinsics_gt = SE3();
+        std::cout << "extr " << extrinsics_gt << std::endl;
+    }
+    else
+    {
+        //        SAIGA_EXIT_ERROR("no gt file");
+        // == Ground truth position ==
+        auto sensorFile = params.dir + "/" + "state_groundtruth_estimate0/data.csv";
+
+
+        auto lines = File::loadFileStringArray(sensorFile);
+        StringViewParser csvParser(", ");
+        for (auto&& l : lines)
+        {
+            if (l.empty()) continue;
+            if (l[0] == '#') continue;
+            csvParser.set(l);
+
+            auto svTime = csvParser.next();
+            if (svTime.empty()) continue;
+
+            Vec3 data;
+            for (int i = 0; i < 3; ++i)
+            {
+                auto sv = csvParser.next();
+                SAIGA_ASSERT(!sv.empty());
+                data(i) = to_double(sv);
+            }
+
+            Vec4 dataq;
+            for (int i = 0; i < 4; ++i)
+            {
+                auto sv = csvParser.next();
+                SAIGA_ASSERT(!sv.empty());
+                dataq(i) = to_double(sv);
+            }
+
+            Quat q;
+            q.x() = dataq(0);
+            q.y() = dataq(1);
+            q.z() = dataq(2);
+            q.w() = dataq(3);
+
+
+            auto time = to_double(svTime) / 1e9;
+
+            time += params.ground_truth_time_offset;
             ground_truth.emplace_back(time, SE3(q, data));
         }
 
         YAML::Node config = YAML::LoadFile(params.dir + "/state_groundtruth_estimate0/sensor.yaml");
         Mat4 m            = readYamlMatrix<Mat4>(config["T_BS"]["data"]);
         extrinsics_gt     = SE3::fitToSE3(m);
-
-        std::sort(ground_truth.begin(), ground_truth.end(), [](auto a, auto b) { return a.first < b.first; });
     }
 
 
+    std::sort(ground_truth.begin(), ground_truth.end(), [](auto a, auto b) { return a.first < b.first; });
 
-    groundTruthToCamera       = extrinsics_gt.inverse() * extrinsics_cam0;
-    intrinsics.camera_to_body = groundTruthToCamera.inverse();
+    // SE3 groundTruthToCamera = extrinsics_gt.inverse() * extrinsics_cam0;
+    intrinsics.camera_to_gt   = extrinsics_cam0.inverse() * extrinsics_gt;
+    intrinsics.camera_to_body = extrinsics_cam0.inverse();
 
-    //    std::cout << "Body: " << extrinsics_gt << std::endl;
-    //    std::cout << "Left: " << extrinsics_cam0 << std::endl;
-    //    std::cout << "Right: " << extrinsics_cam1 << std::endl;
+    std::cout << "Camera -> GT  : " << intrinsics.camera_to_gt << std::endl;
+    std::cout << "Camera -> Body: " << intrinsics.camera_to_body << std::endl;
 
-    //    intrinsics.left_to_right = extrinsics_cam1 * extrinsics_cam0.inverse();
+
+
     intrinsics.left_to_right = extrinsics_cam1.inverse() * extrinsics_cam0;
     intrinsics.maxDepth      = 35;
     intrinsics.bf            = intrinsics.left_to_right.translation().norm() * intrinsics.model.K.fx;
@@ -336,6 +425,20 @@ int EuRoCDataset::LoadMetaData()
                 //                std::cout << i << " " << a.right << " " << a.gtlow << " " << a.gthigh << std::endl;
                 continue;
             }
+
+#    if 0
+            double max_time_diff =
+                std::max(std::abs(gt_timestamps[id1] - a.timestamp), std::abs(gt_timestamps[id2] - a.timestamp));
+
+            if (max_time_diff > 0.5)
+            {
+                a.gtlow  = -1;
+                a.gthigh = -1;
+            }
+#    endif
+
+
+
             assos.push_back(a);
         }
     }
@@ -367,6 +470,10 @@ int EuRoCDataset::LoadMetaData()
             {
                 frame.groundTruth = slerp(ground_truth[a.gtlow].second, ground_truth[a.gthigh].second, a.gtAlpha);
             }
+            else
+            {
+                // std::cout << "no gt for frame " << i << std::endl;
+            }
             frame.timeStamp = cam0_images[a.left].first;
 
 
@@ -376,6 +483,124 @@ int EuRoCDataset::LoadMetaData()
         }
         return N;
     }
+}
+
+void EuRoCDataset::FindSequence()
+{
+    if (sequence == UNKNOWN)
+    {
+        // Try to extract sequence from file
+        std::filesystem::path p(params.dir + "/");
+        std::string dir = p.parent_path().filename().string();
+
+        int found = 0;
+        if (dir.find("mav0") < dir.size())
+        {
+            dir = p.parent_path().parent_path().filename().string();
+        }
+
+        if (dir.find("MH") < dir.size())
+        {
+            if (dir.find("01") < dir.size())
+            {
+                sequence = MH_01;
+                found++;
+            }
+            if (dir.find("02") < dir.size())
+            {
+                sequence = MH_02;
+                found++;
+            }
+            if (dir.find("03") < dir.size())
+            {
+                sequence = MH_03;
+                found++;
+            }
+            if (dir.find("04") < dir.size())
+            {
+                sequence = MH_04;
+                found++;
+            }
+            if (dir.find("05") < dir.size())
+            {
+                sequence = MH_05;
+                found++;
+            }
+        }
+
+        if (dir.find("V1") < dir.size())
+        {
+            if (dir.find("01") < dir.size())
+            {
+                sequence = V1_01;
+                found++;
+            }
+            if (dir.find("02") < dir.size())
+            {
+                sequence = V1_02;
+                found++;
+            }
+            if (dir.find("03") < dir.size())
+            {
+                sequence = V1_03;
+                found++;
+            }
+        }
+
+        if (dir.find("V2") < dir.size())
+        {
+            if (dir.find("01") < dir.size())
+            {
+                sequence = V2_01;
+                found++;
+            }
+            if (dir.find("02") < dir.size())
+            {
+                sequence = V2_02;
+                found++;
+            }
+            if (dir.find("03") < dir.size())
+            {
+                sequence = V2_03;
+                found++;
+            }
+        }
+
+        SAIGA_ASSERT(found == 1);
+        SAIGA_ASSERT(sequence != UNKNOWN);
+
+        std::cout << "Extracted Sequence from file name: " << DatasetNames()[int(sequence)] << std::endl;
+    }
+    else
+    {
+        std::cout << "Using sequence parameter: " << DatasetNames()[int(sequence)] << std::endl;
+    }
+
+
+
+    // These values were computed with snake-slam by temporal alignment of the trajectories.
+    const std::pair<double, bool> offsets[] = {// MH
+                                               {0.006, false},
+                                               {0.011, false},
+                                               {0.012, false},
+                                               {0.029, false},
+                                               {0.032, false},
+                                               // V1
+                                               {0.010, true},
+                                               {0.013, true},
+                                               {0.042, true},
+                                               // V2
+                                               {-0.217, true},
+                                               {-0.209, true},
+                                               {-0.200, true}};
+
+
+
+    params.ground_truth_time_offset = -offsets[int(sequence)].first;
+    use_raw_gt_data                 = offsets[int(sequence)].second;
+
+    std::cout << "Use Raw GT data: " << use_raw_gt_data << std::endl;
+    std::cout << "Ground truth offset: " << params.ground_truth_time_offset << std::endl;
 }
 
 

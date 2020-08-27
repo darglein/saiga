@@ -119,7 +119,7 @@ int ZJUDataset::LoadMetaData()
 
     groundTruthToCamera       = SE3(q, t);
     intrinsics.camera_to_body = groundTruthToCamera.inverse();
-
+    intrinsics.camera_to_gt   = intrinsics.camera_to_body;
     //    std::cout << "Extrinsics: " << groundTruthToCamera << std::endl;
 
 
