@@ -4,7 +4,6 @@
  * See LICENSE file for more information.
  */
 
-//#undef NDEBUG
 
 #include "BARecursiveRel.h"
 

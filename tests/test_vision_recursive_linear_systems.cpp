@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-#undef NDEBUG
 
 
 #include "saiga/vision/recursive/External/Cholesky/CG.h"
