@@ -58,6 +58,8 @@ class SAIGA_VISION_API DecoupledImuScene
         int max_its          = 3;
 
         double bias_recompute_delta_squared = 0.01;
+
+        bool final_recompute = true;
     };
 
     Vec3 global_bias_gyro = Vec3::Zero();
@@ -79,7 +81,8 @@ class SAIGA_VISION_API DecoupledImuScene
     double weight_change_a = 200;
     double weight_change_g = 1000;
 
-    void Clear(){
+    void Clear()
+    {
         states.clear();
         edges.clear();
         local_imu_data = nullptr;
