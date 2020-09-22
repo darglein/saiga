@@ -73,6 +73,10 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
      * see VertexBuffer::updateVertexBuffer for more details
      */
     void updateFromMesh(TriangleMesh<vertex_t, index_t>& buffer, int vertex_count, int vertex_offset);
+
+    int IndexCount() { return ibuffer_t::getElementCount(); }
+
+    int VertexCount() { return vbuffer_t::getElementCount(); }
 };
 
 template <class vertex_t, class index_t>
