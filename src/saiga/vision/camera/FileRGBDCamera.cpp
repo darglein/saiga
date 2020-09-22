@@ -16,7 +16,7 @@
 namespace Saiga
 {
 FileRGBDCamera::FileRGBDCamera(const DatasetParameters& params, const RGBDIntrinsics& intr)
-    : DatasetCameraBase<RGBDFrameData>(params), _intrinsics(intr)
+    : DatasetCameraBase(params), _intrinsics(intr)
 {
     std::cout << "Loading File RGBD Dataset: " << params.dir << std::endl;
     preload(params.dir, params.multiThreadedLoad);
@@ -90,8 +90,8 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
             //            f->depthImg.load(dir() + depthImages[i]);
         }
 
-        f.depthImg = std::move(dimg);
-        f.colorImg = std::move(cimg);
+        f.depth_image = std::move(dimg);
+        f.image_rgb = std::move(cimg);
         loadingBar.addProgress(1);
     }
 

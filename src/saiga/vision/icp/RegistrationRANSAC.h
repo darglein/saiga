@@ -9,6 +9,7 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/icp/ICPAlign.h"
+#include "saiga/vision/util/Ransac.h"
 
 #include <array>
 #include <chrono>

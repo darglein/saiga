@@ -25,28 +25,29 @@
 
 namespace Saiga
 {
-ZJUDataset::ZJUDataset(const DatasetParameters& params) : DatasetCameraBase<MonocularFrameData>(params)
+ZJUDataset::ZJUDataset(const DatasetParameters& params) : DatasetCameraBase(params)
 {
+    camera_type = CameraInputType::Mono;
     Load();
 }
 
-void ZJUDataset::LoadImageData(MonocularFrameData& data)
+void ZJUDataset::LoadImageData(FrameData& data)
 {
-    SAIGA_ASSERT(data.grayImg.rows == 0);
+    SAIGA_ASSERT(data.image.rows == 0);
 
-    Image cimg(data.file);
+    Image cimg(data.image_file);
     if (cimg.type == UC1)
     {
         //                frames[i] = std::move(cimg);
         GrayImageType imgGray(cimg.h, cimg.w);
         cimg.getImageView<unsigned char>().copyTo(imgGray.getImageView());
-        data.grayImg = imgGray;
+        data.image = imgGray;
     }
     else if (cimg.type == UC3 || cimg.type == UC3)
     {
         // this is currently only the case for "black frames"
         GrayImageType imgGray(cimg.h, cimg.w);
-        data.grayImg = imgGray;
+        data.image = imgGray;
     }
     else
     {
@@ -322,14 +323,14 @@ void ZJUDataset::load(const std::string& datasetDir, bool multithreaded)
 
     for (int i = 0; i < N; ++i)
     {
-        auto imgStr           = framesRaw[i].image;
-        MonocularFrameData& f = frames[i];
+        auto imgStr  = framesRaw[i].image;
+        FrameData& f = frames[i];
 
 
         f.groundTruth = framesRaw[i].gt;
         f.timeStamp   = framesRaw[i].timestamp;
         f.id          = i;
-        f.file        = imageDir + "/" + imgStr;
+        f.image_file  = imageDir + "/" + imgStr;
     }
 }
 

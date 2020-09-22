@@ -27,7 +27,7 @@ namespace Saiga
 // The sequence parameter is used to add time offsets to the ground truth data.
 // If set to unknown, we try to extract the sequence from the file name.
 //
-class SAIGA_VISION_API EuRoCDataset : public DatasetCameraBase<StereoFrameData>
+class SAIGA_VISION_API EuRoCDataset : public DatasetCameraBase
 {
    public:
     enum Sequence
@@ -51,7 +51,7 @@ class SAIGA_VISION_API EuRoCDataset : public DatasetCameraBase<StereoFrameData>
     StereoIntrinsics intrinsics;
 
 
-    virtual void LoadImageData(StereoFrameData& data) override;
+    virtual void LoadImageData(FrameData& data) override;
     virtual int LoadMetaData() override;
 
 

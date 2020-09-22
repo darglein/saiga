@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API FileRGBDCamera : public DatasetCameraBase<RGBDFrameData>
+class SAIGA_VISION_API FileRGBDCamera : public DatasetCameraBase
 {
    public:
     FileRGBDCamera(const DatasetParameters& params, const RGBDIntrinsics& intr);

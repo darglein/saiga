@@ -27,7 +27,7 @@
 //     IMU: 100Hz
 namespace Saiga
 {
-class SAIGA_VISION_API ZJUDataset : public DatasetCameraBase<MonocularFrameData>
+class SAIGA_VISION_API ZJUDataset : public DatasetCameraBase
 {
    public:
     struct IsmarFrame
@@ -43,7 +43,7 @@ class SAIGA_VISION_API ZJUDataset : public DatasetCameraBase<MonocularFrameData>
     MonocularIntrinsics intrinsics;
 
 
-    virtual void LoadImageData(MonocularFrameData& data) override;
+    virtual void LoadImageData(FrameData& data) override;
     virtual int LoadMetaData() override;
 
    private:

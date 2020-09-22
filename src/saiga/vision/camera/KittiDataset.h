@@ -15,13 +15,13 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API KittiDataset : public DatasetCameraBase<StereoFrameData>
+class SAIGA_VISION_API KittiDataset : public DatasetCameraBase
 {
    public:
     KittiDataset(const DatasetParameters& params);
 
     virtual int LoadMetaData() override;
-    virtual void LoadImageData(StereoFrameData& data) override;
+    virtual void LoadImageData(FrameData& data) override;
 
     StereoIntrinsics intrinsics;
 };

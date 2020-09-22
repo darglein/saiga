@@ -16,3 +16,18 @@ using tickd_t      = std::chrono::duration<double, game_ratio_t>;
 
 // using a floating point type here because we need to do alot of interpolation stuff
 using animationtime_t = std::chrono::duration<double>;
+
+inline std::string CurrentTimeString(const std::string& format)
+{
+    const int b_size = 200;
+    time_t rawtime;
+    struct tm* timeinfo;
+    char buffer[b_size];
+
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    strftime(buffer, b_size, format.c_str(), timeinfo);
+
+    return std::string(buffer);
+}

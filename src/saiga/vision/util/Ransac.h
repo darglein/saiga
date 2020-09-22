@@ -170,7 +170,22 @@ class RansacBase
     Derived& derived() { return *static_cast<Derived*>(this); }
 };
 
+inline int RansacIterationsFromProbability(int input_N, double probability, int minInliers, int maxIterations)
+{
+    // Adjust Parameters according to number of correspondences
+    float epsilon = (float)minInliers / input_N;
 
+    // Set RANSAC iterations according to probability, epsilon, and max iterations
+    int nIterations;
+
+    if (minInliers >= input_N)
+        nIterations = 1;
+    else
+        nIterations = ceil(log(1 - probability) / log(1 - pow(epsilon, 3)));
+
+    nIterations = std::max(1, std::min(nIterations, maxIterations));
+    return nIterations;
+}
 
 // double inlierProb  = 0.7;
 // double successProb = 0.999;

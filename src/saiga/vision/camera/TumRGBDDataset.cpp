@@ -80,7 +80,7 @@ static AlignedVector<TumRGBDDataset::GroundTruth> readGT(std::string file)
 
 
 TumRGBDDataset::TumRGBDDataset(const DatasetParameters& _params, int freiburg)
-    : DatasetCameraBase<RGBDFrameData>(_params), freiburg(freiburg)
+    : DatasetCameraBase(_params), freiburg(freiburg)
 {
     Load();
 }
@@ -103,24 +103,24 @@ void TumRGBDDataset::saveRaw(const std::string& dir)
     {
         auto str  = Saiga::leadingZeroString(i, 5);
         auto& tmp = frames[i];
-        tmp.colorImg.save(std::string(dir) + str + ".png");
-        tmp.depthImg.save(std::string(dir) + str + ".saigai");
+        tmp.image_rgb.save(std::string(dir) + str + ".png");
+        tmp.depth_image.save(std::string(dir) + str + ".saigai");
     }
     std::cout << "... Done saving the raw dataset." << std::endl;
 }
 
-void TumRGBDDataset::LoadImageData(RGBDFrameData& data)
+void TumRGBDDataset::LoadImageData(FrameData& data)
 {
-    Image cimg(data.file);
+    Image cimg(data.image_file);
     Image dimg(data.depth_file);
     if (cimg.type == UC3)
     {
         // convert to rgba
-        ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), data.colorImg);
+        ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), data.image_rgb);
     }
     else if (cimg.type == UC4)
     {
-        cimg.getImageView<ucvec4>().copyTo(data.colorImg.getImageView());
+        cimg.getImageView<ucvec4>().copyTo(data.image_rgb.getImageView());
     }
     else
     {
@@ -129,7 +129,7 @@ void TumRGBDDataset::LoadImageData(RGBDFrameData& data)
 
     if (dimg.type == US1)
     {
-        dimg.getImageView<unsigned short>().copyTo(data.depthImg.getImageView(), 1.0 / intrinsics().depthFactor);
+        dimg.getImageView<unsigned short>().copyTo(data.depth_image.getImageView(), 1.0 / intrinsics().depthFactor);
     }
     else
     {
@@ -315,14 +315,14 @@ void TumRGBDDataset::load(const std::string& datasetDir, bool multithreaded)
             TumFrame d = tumframes[i];
 
 
-            RGBDFrameData& f = frames[i];
+            FrameData& f = frames[i];
             //            makeFrameData(f);
 
             f.id = i;
-            f.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
-            f.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
+            f.image_rgb.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
+            f.depth_image.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
             f.timeStamp  = d.rgb.timestamp;
-            f.file       = datasetDir + "/" + d.rgb.img;
+            f.image_file       = datasetDir + "/" + d.rgb.img;
             f.depth_file = datasetDir + "/" + d.depth.img;
 
 

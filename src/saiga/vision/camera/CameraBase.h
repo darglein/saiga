@@ -17,10 +17,21 @@
 
 namespace Saiga
 {
-class CameraBase2
+/**
+ * Interface class for different datset inputs.
+ */
+class SAIGA_TEMPLATE CameraBase
 {
    public:
-    virtual ~CameraBase2() {}
+    virtual ~CameraBase() {}
+
+    // Blocks until the next image is available
+    // Returns true if success.
+    virtual bool getImageSync(FrameData& data) = 0;
+
+    // Returns false if no image is currently available
+    virtual bool getImage(FrameData& data) { return getImageSync(data); }
+
 
     virtual void close() {}
     virtual bool isOpened() { return true; }
@@ -30,28 +41,12 @@ class CameraBase2
 
     std::optional<Imu::Sensor> getIMU() { return imu; }
     std::optional<Imu::Sensor> imu;
-};
 
-/**
- * Interface class for different datset inputs.
- */
-template <typename _FrameType>
-class SAIGA_TEMPLATE CameraBase : public CameraBase2
-{
-   public:
-    using FrameType = _FrameType;
-    virtual ~CameraBase() {}
-
-    // Blocks until the next image is available
-    // Returns true if success.
-    virtual bool getImageSync(FrameType& data) = 0;
-
-    // Returns false if no image is currently available
-    virtual bool getImage(FrameType& data) { return getImageSync(data); }
-
+    CameraInputType CameraType() const { return camera_type; }
 
    protected:
-    int currentId = 0;
+    CameraInputType camera_type = CameraInputType::Unknown;
+    int currentId               = 0;
 };
 
 
@@ -93,48 +88,14 @@ struct SAIGA_VISION_API DatasetParameters
 /**
  * Interface for cameras that read datasets.
  */
-template <typename FrameType>
-class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
+class SAIGA_VISION_API DatasetCameraBase : public CameraBase
 {
    public:
-    DatasetCameraBase(const DatasetParameters& params) : params(params)
-    {
-        timeStep = std::chrono::duration_cast<tick_t>(
-            std::chrono::duration<double, std::micro>(1000000.0 / params.playback_fps));
-        ResetTime();
-    }
+    DatasetCameraBase(const DatasetParameters& params);
 
-    void ResetTime()
-    {
-        timer.start();
-        lastFrameTime = timer.stop();
-        nextFrameTime = lastFrameTime + timeStep;
-    }
+    void ResetTime();
 
-    void Load()
-    {
-        int num_images = LoadMetaData();
-        SAIGA_ASSERT(frames.size() == num_images);
-        //        frames.resize(num_images);
-        computeImuDataPerFrame();
-
-        if (params.preload)
-        {
-            SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + std::to_string(num_images) + " images ",
-                                                num_images);
-
-            // More than 8 doesn't improve performance even on NVME SSDs.
-            int threads = std::min<int>(OMP::getMaxThreads(), 8);
-
-#pragma omp parallel for if (params.multiThreadedLoad) num_threads(threads)
-            for (int i = 0; i < num_images; ++i)
-            {
-                LoadImageData(frames[i]);
-                loadingBar.addProgress(1);
-            }
-        }
-        ResetTime();
-    }
+    void Load();
 
     // Load the dataset meta data. This information must be stored in the derived loader class, because it can differ
     // between datasets.
@@ -147,45 +108,11 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
     // Returns the number of images.
     virtual int LoadMetaData() { return 0; }
 
-    virtual void LoadImageData(FrameType& data) {}
+    virtual void LoadImageData(FrameData& data) {}
 
 
 
-    bool getImageSync(FrameType& data) override
-    {
-        if (!this->isOpened())
-        {
-            return false;
-        }
-
-
-        auto t = timer.stop();
-
-        if (t < nextFrameTime)
-        {
-            std::this_thread::sleep_for(nextFrameTime - t);
-            nextFrameTime += timeStep;
-        }
-        else if (t < nextFrameTime + timeStep)
-        {
-            nextFrameTime += timeStep;
-        }
-        else
-        {
-            nextFrameTime = t + timeStep;
-        }
-
-
-        auto& img = frames[this->currentId];
-        SAIGA_ASSERT(this->currentId == img.id);
-        if (!params.preload)
-        {
-            LoadImageData(img);
-        }
-        this->currentId++;
-        data = std::move(img);
-        return true;
-    }
+    bool getImageSync(FrameData& data) override;
 
     virtual bool isOpened() override { return this->currentId < (int)frames.size(); }
     size_t getFrameCount() { return frames.size(); }
@@ -195,78 +122,17 @@ class SAIGA_TEMPLATE DatasetCameraBase : public CameraBase<FrameType>
 
     // Saves the groundtruth in TUM-Trajectory format:
     // <timestamp> <translation x y z> <rotation x y z w>
-    void saveGroundTruthTrajectory(const std::string& file)
-    {
-        std::ofstream strm(file);
-        strm << std::setprecision(20);
-        for (auto& f : frames)
-        {
-            if (f.groundTruth)
-            {
-                double time = f.timeStamp;
-                SE3 pose    = f.groundTruth.value();
-                Vec3 t      = pose.translation();
-                Quat q      = pose.unit_quaternion();
-                strm << time << " " << t(0) << " " << t(1) << " " << t(2) << " " << q.x() << " " << q.y() << " "
-                     << q.z() << " " << q.w() << std::endl;
-            }
-        }
-    }
+    void saveGroundTruthTrajectory(const std::string& file);
 
     // Completely removes the frames between from and to
-    void eraseFrames(int from, int to)
-    {
-        frames.erase(frames.begin() + from, frames.begin() + to);
-        imuDataForFrame.erase(imuDataForFrame.begin() + from, imuDataForFrame.begin() + to);
-    }
+    void eraseFrames(int from, int to);
 
-    void computeImuDataPerFrame()
-    {
-        // Create IMU per frame vector by adding all imu datas from frame_i to frame_i+1 to frame_i+1.
-        imuDataForFrame.resize(frames.size());
-        int currentImuid = 0;
-
-        // Initialize imu sequences
-        for (int i = 0; i < frames.size(); ++i)
-        {
-            Imu::ImuSequence& imuFrame = imuDataForFrame[i];
-
-            auto& frame       = frames[i];
-            imuFrame.time_end = frame.timeStamp;
-            for (; currentImuid < imuData.size(); ++currentImuid)
-            {
-                auto id = imuData[currentImuid];
-                if (id.timestamp <= frame.timeStamp)
-                {
-                    imuFrame.data.push_back(id);
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-
-            if (i >= 1)
-            {
-                imuFrame.time_begin = imuDataForFrame[i - 1].time_end;
-            }
-        }
-
-
-        Imu::InterpolateMissingValues(imuDataForFrame);
-
-
-        for (int i = 0; i < frames.size(); ++i)
-        {
-            frames[i].imu_data = imuDataForFrame[i];
-        }
-    }
+    void computeImuDataPerFrame();
 
 
 
    protected:
-    AlignedVector<FrameType> frames;
+    AlignedVector<FrameData> frames;
     DatasetParameters params;
     std::vector<Imu::Data> imuData;
     std::vector<Imu::ImuSequence> imuDataForFrame;

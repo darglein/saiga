@@ -35,7 +35,7 @@ void Sample::update(float dt)
     //    SAIGA_BLOCK_TIMER();
     if (!rgbdcamera) return;
 
-    Saiga::RGBDFrameData newFrameData;
+    Saiga::FrameData newFrameData;
     auto gotFrame = rgbdcamera->getImage(newFrameData);
 
     if (gotFrame)
@@ -49,8 +49,8 @@ void Sample::update(float dt)
             auto str = Saiga::leadingZeroString(frameId, 5);
             auto tmp = frameData;
             Saiga::globalThreadPool->enqueue([=]() {
-                tmp.colorImg.save(std::string(dir) + str + ".png");
-                tmp.depthImg.save(std::string(dir) + str + ".saigai");
+                tmp.image_rgb.save(std::string(dir) + str + ".png");
+                tmp.depth_image.save(std::string(dir) + str + ".saigai");
             });
         }
         frameId++;
@@ -69,10 +69,10 @@ void Sample::update(float dt)
 
         rgbdcamera->getImageSync(frameData);
 
-        std::cout << "create image texture: " << frameData.depthImg.height << "x" << frameData.depthImg.width
+        std::cout << "create image texture: " << frameData.depth_image.height << "x" << frameData.depth_image.width
                   << std::endl;
 
-        rgbImage.create(frameData.colorImg.h, frameData.colorImg.w);
+        rgbImage.create(frameData.image_rgb.h, frameData.image_rgb.w);
         //    Saiga::ImageTransformation::addAlphaChannel(frameData->colorImg.getImageView(),rgbImage.getImageView());
 
         texture = std::make_shared<Texture>();
@@ -81,10 +81,10 @@ void Sample::update(float dt)
 
         texture2 = std::make_shared<Texture>();
         //    Saiga::TemplatedImage<ucvec4> depthmg(frameData->depthImg.height,frameData->depthImg.width);
-        depthmg.create(frameData.depthImg.height, frameData.depthImg.width);
-        std::cout << frameData.depthImg << std::endl;
+        depthmg.create(frameData.depth_image.height, frameData.depth_image.width);
+        std::cout << frameData.depth_image << std::endl;
         std::cout << depthmg << std::endl;
-        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg.getImageView(), depthmg.getImageView(), 0, 7000);
+        Saiga::ImageTransformation::depthToRGBA(frameData.depth_image.getImageView(), depthmg.getImageView(), 0, 7000);
         texture2->fromImage(depthmg, false, false);
 
 
@@ -94,8 +94,8 @@ void Sample::update(float dt)
 
     if (updateTexture)
     {
-        texture->updateFromImage(frameData.colorImg);
-        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, depthmg, 0, 8);
+        texture->updateFromImage(frameData.image_rgb);
+        Saiga::ImageTransformation::depthToRGBA(frameData.depth_image, depthmg, 0, 8);
         texture2->updateFromImage(depthmg);
         updateTexture = false;
     }
@@ -106,9 +106,9 @@ void Sample::renderFinal(Camera* cam)
     //    SAIGA_BLOCK_TIMER();
     if (rgbdcamera)
     {
-        display.render(texture.get(), {0, 0}, {frameData.colorImg.width, frameData.colorImg.height});
-        display.render(texture2.get(), {frameData.colorImg.width, 0},
-                       {frameData.depthImg.width, frameData.depthImg.height});
+        display.render(texture.get(), {0, 0}, {frameData.image_rgb.width, frameData.image_rgb.height});
+        display.render(texture2.get(), {frameData.image_rgb.width, 0},
+                       {frameData.depth_image.width, frameData.depth_image.height});
     }
     Base::renderFinal(cam);
 

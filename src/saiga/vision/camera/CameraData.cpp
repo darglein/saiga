@@ -153,20 +153,56 @@ void FrameMetaData::Load(const std::string& dir)
     imu_data.Load(dir + "/imu.txt");
 }
 
-void RGBDFrameData::Save(const std::string& dir) const
+CameraInputType FrameData::CameraType()
 {
-    FrameMetaData::Save(dir);
-    if (colorImg.valid()) colorImg.save(dir + "/color.png");
-    if (grayImg.valid()) grayImg.save(dir + "/gray.png");
-    if (depthImg.valid()) depthImg.save(dir + "/depth.saigai");
+    if (right_image || right_image_rgb)
+    {
+        return CameraInputType::Stereo;
+    }
+
+    if (depth_image)
+    {
+        return CameraInputType::RGBD;
+    }
+
+    if (image || image_rgb)
+    {
+        return CameraInputType::Mono;
+    }
+
+    return CameraInputType::Unknown;
 }
 
-void RGBDFrameData::Load(const std::string& dir)
+void FrameData::Save(const std::string& dir) const
+{
+    FrameMetaData::Save(dir);
+
+    // mono
+    if (image_rgb.valid()) image_rgb.save(dir + "/color.png");
+    if (image.valid()) image.save(dir + "/gray.png");
+
+    // rgbd
+    if (depth_image.valid()) depth_image.save(dir + "/depth.saigai");
+
+    // stereo
+    if (right_image_rgb.valid()) right_image_rgb.save(dir + "/right_color.png");
+    if (right_image.valid()) right_image.save(dir + "/right_gray.png");
+}
+
+void FrameData::Load(const std::string& dir)
 {
     FrameMetaData::Load(dir);
-    colorImg.load(dir + "/color.png");
-    grayImg.load(dir + "/gray.png");
-    depthImg.load(dir + "/depth.saigai");
+
+    // mono
+    image_rgb.load(dir + "/color.png");
+    image.load(dir + "/gray.png");
+
+    // rgbd
+    depth_image.load(dir + "/depth.saigai");
+
+    // stereo
+    right_image_rgb.load(dir + "/right_color.png");
+    right_image.load(dir + "/right_gray.png");
 }
 
 }  // namespace Saiga

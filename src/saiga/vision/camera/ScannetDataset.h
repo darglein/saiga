@@ -51,7 +51,7 @@ namespace Saiga
 //   ScannetDataset dataset(params);
 //   ...
 //
-class SAIGA_VISION_API ScannetDataset : public DatasetCameraBase<RGBDFrameData>
+class SAIGA_VISION_API ScannetDataset : public DatasetCameraBase
 {
    public:
     ScannetDataset(const DatasetParameters& params, bool scale_down_color = true, bool scale_down_depth = true);
@@ -61,7 +61,7 @@ class SAIGA_VISION_API ScannetDataset : public DatasetCameraBase<RGBDFrameData>
     RGBDIntrinsics intrinsics() { return _intrinsics; }
 
 
-    virtual void LoadImageData(RGBDFrameData& data) override;
+    virtual void LoadImageData(FrameData& data) override;
     virtual int LoadMetaData() override;
 
 

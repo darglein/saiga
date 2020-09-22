@@ -41,8 +41,8 @@ class Sample : public SampleWindowForward
 
 
     std::unique_ptr<KinectCamera> rgbdcamera;
-    std::unique_ptr<CameraBase<MonocularFrameData>> monocamera;
-    std::unique_ptr<CameraBase<StereoFrameData>> stereocamera;
+    std::unique_ptr<CameraBase> monocamera;
+    std::unique_ptr<CameraBase> stereocamera;
 
     RGBAImageType leftImage;
     RGBAImageType rightImage;

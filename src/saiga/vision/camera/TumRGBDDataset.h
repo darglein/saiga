@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API TumRGBDDataset : public DatasetCameraBase<RGBDFrameData>
+class SAIGA_VISION_API TumRGBDDataset : public DatasetCameraBase
 {
    public:
     struct GroundTruth
@@ -57,7 +57,7 @@ class SAIGA_VISION_API TumRGBDDataset : public DatasetCameraBase<RGBDFrameData>
 
     void saveRaw(const std::string& dir);
 
-    virtual void LoadImageData(RGBDFrameData& data) override;
+    virtual void LoadImageData(FrameData& data) override;
     virtual int LoadMetaData() override;
 
 

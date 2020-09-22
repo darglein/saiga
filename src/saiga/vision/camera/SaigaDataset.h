@@ -14,7 +14,7 @@
 
 namespace Saiga
 {
-class SAIGA_VISION_API SaigaDataset : public DatasetCameraBase<RGBDFrameData>
+class SAIGA_VISION_API SaigaDataset : public DatasetCameraBase
 {
    public:
     // If freiburg == -1 then the name is parsed from the dataset directory.
@@ -27,7 +27,7 @@ class SAIGA_VISION_API SaigaDataset : public DatasetCameraBase<RGBDFrameData>
     RGBDIntrinsics intrinsics() { return _intrinsics; }
 
 
-    virtual void LoadImageData(RGBDFrameData& data) override;
+    virtual void LoadImageData(FrameData& data) override;
     virtual int LoadMetaData() override;
 
 

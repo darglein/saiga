@@ -24,7 +24,7 @@
 // Most of these are copied from samples in the Azure SDK.
 namespace Saiga
 {
-class SAIGA_VISION_API KinectCamera : public CameraBase<RGBDFrameData>
+class SAIGA_VISION_API KinectCamera : public CameraBase
 {
    public:
     struct KinectParams
@@ -48,7 +48,7 @@ class SAIGA_VISION_API KinectCamera : public CameraBase<RGBDFrameData>
     KinectCamera(const KinectCamera&) = delete;
     KinectCamera& operator=(const KinectCamera&) = delete;
 
-    virtual bool getImageSync(RGBDFrameData& data) override;
+    virtual bool getImageSync(FrameData& data) override;
     bool Open();
 
 

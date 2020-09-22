@@ -26,9 +26,10 @@ using GrayFloatImageType = TemplatedImage<float>;
 
 enum class CameraInputType : int
 {
-    Mono   = 0,
-    RGBD   = 1,
-    Stereo = 2,
+    Mono    = 0,
+    RGBD    = 1,
+    Stereo  = 2,
+    Unknown = 3,
 };
 
 
@@ -59,41 +60,29 @@ struct SAIGA_VISION_API FrameMetaData
  * In some cases a gray image instead of rgb is transmitted.
  * Use colorImg.valid() to check for a good image.
  */
-struct SAIGA_VISION_API MonocularFrameData : public FrameMetaData
+struct SAIGA_VISION_API FrameData : public FrameMetaData
 {
-    GrayImageType grayImg;
-    RGBImageType colorImg;
-    std::string file;
+    // The image data either as rgb or gray image.
+    // In stereo mode, this is the left camera image.
+    GrayImageType image;
+    RGBImageType image_rgb;
+    std::string image_file;
 
-    static constexpr CameraInputType cameraType = CameraInputType::Mono;
-};
-
-/**
- * Color + Depth
- */
-struct SAIGA_VISION_API RGBDFrameData : public MonocularFrameData
-{
-    DepthImageType depthImg;
+    // Only valid in RGBD mode.
+    DepthImageType depth_image;
     std::string depth_file;
 
-    static constexpr CameraInputType cameraType = CameraInputType::RGBD;
+    // Only valid in stereo mode.
+    // Contains the right camera image.
+    GrayImageType right_image;
+    RGBImageType right_image_rgb;
+    std::string right_image_file;
+
+    CameraInputType CameraType();
 
     void Save(const std::string& dir) const;
     void Load(const std::string& dir);
 };
-
-/**
- * Monocular + a second image
- */
-struct SAIGA_VISION_API StereoFrameData : public MonocularFrameData
-{
-    GrayImageType grayImg2;
-    RGBImageType colorImg2;
-    std::string file2;
-
-    static constexpr CameraInputType cameraType = CameraInputType::Stereo;
-};
-
 
 
 struct SAIGA_VISION_API MonocularIntrinsics

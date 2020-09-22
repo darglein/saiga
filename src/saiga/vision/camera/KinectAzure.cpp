@@ -18,6 +18,7 @@ namespace Saiga
 {
 KinectCamera::KinectCamera(const KinectParams& kinect_params) : kinect_params(kinect_params)
 {
+    camera_type = CameraInputType::RGBD;
     Open();
 
 
@@ -91,7 +92,7 @@ KinectCamera::KinectCamera(const KinectParams& kinect_params) : kinect_params(ki
 
     for (int i = 0; i < 10; ++i)
     {
-        RGBDFrameData d;
+        FrameData d;
         getImageSync(d);
     }
 
@@ -177,7 +178,7 @@ bool KinectCamera::Open()
     return true;
 }
 
-bool KinectCamera::getImageSync(RGBDFrameData& data)
+bool KinectCamera::getImageSync(FrameData& data)
 {
     data.id = currentId++;
 
@@ -237,21 +238,21 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
     if (config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
     {
         // Probe for a color image
-        data.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
+        data.image_rgb.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
 
         ImageView<ucvec4> view(k4a_color.get_height_pixels(), k4a_color.get_width_pixels(),
                                k4a_color.get_stride_bytes(), k4a_color.get_buffer());
-        view.copyTo(data.colorImg.getImageView());
+        view.copyTo(data.image_rgb.getImageView());
 
-        data.colorImg.getImageView().swapChannels(0, 2);
+        data.image_rgb.getImageView().swapChannels(0, 2);
     }
     else if (config.color_format == K4A_IMAGE_FORMAT_COLOR_NV12)
     {
         ImageView<unsigned char> view(k4a_color.get_height_pixels(), k4a_color.get_width_pixels(),
                                       k4a_color.get_stride_bytes(), k4a_color.get_buffer());
-        data.grayImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
+        data.image.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
 
-        view.copyTo(data.grayImg.getImageView());
+        view.copyTo(data.image.getImageView());
     }
     else
     {
@@ -262,7 +263,7 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
 
     if (k4a_depth)
     {
-        data.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
+        data.depth_image.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
 
         //        SAIGA_BLOCK_TIMER();
         auto transformed_depth = T.depth_image_to_color_camera(k4a_depth);
@@ -279,8 +280,8 @@ bool KinectCamera::getImageSync(RGBDFrameData& data)
         {
             for (auto j : view.colRange())
             {
-                auto d              = view(i, j);
-                data.depthImg(i, j) = d / 1000.f;
+                auto d                 = view(i, j);
+                data.depth_image(i, j) = d / 1000.f;
             }
         }
     }

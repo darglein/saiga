@@ -25,7 +25,7 @@ class VideoFrameRef;
 
 namespace Saiga
 {
-class SAIGA_VISION_API RGBDCameraOpenni : public CameraBase<RGBDFrameData>
+class SAIGA_VISION_API RGBDCameraOpenni : public CameraBase
 {
    public:
     RGBDCameraOpenni(const RGBDIntrinsics& intr);
@@ -34,7 +34,7 @@ class SAIGA_VISION_API RGBDCameraOpenni : public CameraBase<RGBDFrameData>
     /**
      * Blocks until a new image arrives.
      */
-    virtual bool getImageSync(RGBDFrameData& data) override;
+    virtual bool getImageSync(FrameData& data) override;
 
 
 
@@ -65,7 +65,7 @@ class SAIGA_VISION_API RGBDCameraOpenni : public CameraBase<RGBDFrameData>
     std::shared_ptr<openni::VideoFrameRef> m_depthFrame, m_colorFrame;
 
     void resetCamera();
-    bool waitFrame(RGBDFrameData& data);
+    bool waitFrame(FrameData& data);
     bool readDepth(DepthImageType::ViewType depthImg);
     bool readColor(RGBImageType::ViewType colorImg);
 

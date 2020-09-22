@@ -26,14 +26,14 @@ void Sample::update(float dt)
     {
         if (!rgbdcamera) return;
 
-        Saiga::RGBDFrameData frameData;
+        Saiga::FrameData frameData;
         if (!rgbdcamera->getImage(frameData)) return;
         tg.addTime();
 
-        if (!frameData.colorImg.valid() && frameData.grayImg.valid())
+        if (!frameData.image_rgb.valid() && frameData.image.valid())
         {
-            frameData.colorImg.create(frameData.grayImg.dimensions());
-            ImageTransformation::Gray8ToRGBA(frameData.grayImg.getImageView(), frameData.colorImg.getImageView());
+            frameData.image_rgb.create(frameData.image.dimensions());
+            ImageTransformation::Gray8ToRGBA(frameData.image.getImageView(), frameData.image_rgb.getImageView());
         }
         //        else if (frameData.colorImg.valid() && !frameData.grayImg.valid())
         //        {
@@ -46,7 +46,7 @@ void Sample::update(float dt)
 
         if (!leftTexture)
         {
-            leftImage   = frameData.colorImg;
+            leftImage   = frameData.image_rgb;
             leftTexture = std::make_shared<Texture>();
             leftTexture->fromImage(leftImage, true, false);
         }
@@ -54,7 +54,7 @@ void Sample::update(float dt)
         if (!rightTexture)
         {
             rightTexture = std::make_shared<Texture>();
-            rightImage.create(frameData.depthImg.height, frameData.depthImg.width);
+            rightImage.create(frameData.depth_image.height, frameData.depth_image.width);
             rightTexture->fromImage(rightImage, true, false);
         }
 
@@ -68,9 +68,9 @@ void Sample::update(float dt)
         }
 
 
-        leftImage = frameData.colorImg;
+        leftImage = frameData.image_rgb;
         //        Saiga::ImageTransformation::depthToRGBA_HSV(frameData.depthImg, rightImage, 0, 5);
-        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, rightImage, 0, 7);
+        Saiga::ImageTransformation::depthToRGBA(frameData.depth_image, rightImage, 0, 7);
 
         leftTexture->updateFromImage(leftImage);
         rightTexture->updateFromImage(rightImage);
@@ -131,7 +131,7 @@ void Sample::renderFinal(Camera* cam)
         rgbdcamera   = std::make_unique<KinectCamera>(params);
         leftTexture  = nullptr;
         rightTexture = nullptr;
-        cameraType   = KinectCamera::FrameType::cameraType;
+        cameraType   = rgbdcamera->CameraType();
     }
 
     ImGui::Text("Frame: %d", frameId);

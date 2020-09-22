@@ -72,21 +72,22 @@ struct Associations
 
 
 EuRoCDataset::EuRoCDataset(const DatasetParameters& _params, Sequence sequence)
-    : DatasetCameraBase<StereoFrameData>(_params), sequence(sequence)
+    : DatasetCameraBase(_params), sequence(sequence)
 {
+    camera_type = CameraInputType::Stereo;
     Load();
 }
 
-void EuRoCDataset::LoadImageData(StereoFrameData& data)
+void EuRoCDataset::LoadImageData(FrameData& data)
 {
     //    std::cout << "EuRoCDataset::LoadImageData " << data.id << std::endl;
-    SAIGA_ASSERT(data.grayImg.rows == 0);
+    SAIGA_ASSERT(data.image.rows == 0);
     // Load if it's not loaded already
 
-    data.grayImg.load(data.file);
+    data.image.load(data.image_file);
     if (!params.force_monocular)
     {
-        data.grayImg2.load(data.file2);
+        data.right_image.load(data.right_image_file);
     }
 }
 
@@ -478,8 +479,8 @@ int EuRoCDataset::LoadMetaData()
 
 
 
-            frame.file  = params.dir + "/cam0/data/" + cam0_images[a.left].second;
-            frame.file2 = params.dir + "/cam1/data/" + cam1_images[a.right].second;
+            frame.image_file       = params.dir + "/cam0/data/" + cam0_images[a.left].second;
+            frame.right_image_file = params.dir + "/cam1/data/" + cam1_images[a.right].second;
         }
         return N;
     }

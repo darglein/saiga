@@ -20,13 +20,13 @@ void Sample::update(float dt)
     {
         if (!rgbdcamera) return;
 
-        Saiga::RGBDFrameData frameData;
+        Saiga::FrameData frameData;
         if (!rgbdcamera->getImage(frameData)) return;
         tg.addTime();
 
         if (!leftTexture)
         {
-            leftImage   = frameData.colorImg;
+            leftImage   = frameData.image_rgb;
             leftTexture = std::make_shared<Texture>();
             leftTexture->fromImage(leftImage, false, false);
         }
@@ -34,13 +34,13 @@ void Sample::update(float dt)
         if (!rightTexture)
         {
             rightTexture = std::make_shared<Texture>();
-            rightImage.create(frameData.depthImg.height, frameData.depthImg.width);
+            rightImage.create(frameData.depth_image.height, frameData.depth_image.width);
             rightTexture->fromImage(rightImage, false, false);
         }
 
 
-        leftImage = frameData.colorImg;
-        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, rightImage, 0, 8);
+        leftImage = frameData.image_rgb;
+        Saiga::ImageTransformation::depthToRGBA(frameData.depth_image, rightImage, 0, 8);
 
         leftTexture->updateFromImage(leftImage);
         rightTexture->updateFromImage(rightImage);
@@ -50,16 +50,16 @@ void Sample::update(float dt)
     {
         if (!stereocamera) return;
 
-        Saiga::StereoFrameData frameData;
+        Saiga::FrameData frameData;
         if (!stereocamera->getImage(frameData)) return;
         tg.addTime();
 
 
-        leftImageGray  = frameData.grayImg;
-        rightImageGray = frameData.grayImg2;
+        leftImageGray  = frameData.image;
+        rightImageGray = frameData.right_image;
 
-        leftImage.create(frameData.grayImg.dimensions());
-        rightImage.create(frameData.grayImg2.dimensions());
+        leftImage.create(frameData.image.dimensions());
+        rightImage.create(frameData.right_image.dimensions());
 
         Saiga::ImageTransformation::Gray8ToRGBA(leftImageGray, leftImage);
         Saiga::ImageTransformation::Gray8ToRGBA(rightImageGray, rightImage);
@@ -133,7 +133,7 @@ void Sample::renderFinal(Camera* cam)
         leftTexture  = nullptr;
         rightTexture = nullptr;
 
-        cameraType = TumRGBDDataset::FrameType::cameraType;
+        cameraType = rgbdcamera->CameraType();
     }
 
     if (ImGui::Button("Load From File Saiga"))
@@ -143,7 +143,7 @@ void Sample::renderFinal(Camera* cam)
         leftTexture  = nullptr;
         rightTexture = nullptr;
 
-        cameraType = SaigaDataset::FrameType::cameraType;
+        cameraType = rgbdcamera->CameraType();
     }
 
 
@@ -155,7 +155,7 @@ void Sample::renderFinal(Camera* cam)
         leftTexture  = nullptr;
         rightTexture = nullptr;
 
-        cameraType = TumRGBDDataset::FrameType::cameraType;
+        cameraType = rgbdcamera->CameraType();
     }
 
 
@@ -165,8 +165,7 @@ void Sample::renderFinal(Camera* cam)
         stereocamera = std::make_unique<EuRoCDataset>(dparams);
         leftTexture  = nullptr;
         rightTexture = nullptr;
-
-        cameraType = EuRoCDataset::FrameType::cameraType;
+        cameraType   = stereocamera->CameraType();
     }
 #endif
 
@@ -177,8 +176,7 @@ void Sample::renderFinal(Camera* cam)
         stereocamera = std::make_unique<KittiDataset>(dparams);
         leftTexture  = nullptr;
         rightTexture = nullptr;
-
-        cameraType = KittiDataset::FrameType::cameraType;
+        cameraType   = stereocamera->CameraType();
     }
 
 #ifdef SAIGA_USE_OPENNI2

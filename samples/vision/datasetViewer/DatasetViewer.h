@@ -38,9 +38,9 @@ class Sample : public SampleWindowForward
     TextureDisplay display;
 
 
-    std::unique_ptr<CameraBase<RGBDFrameData>> rgbdcamera;
-    std::unique_ptr<CameraBase<MonocularFrameData>> monocamera;
-    std::unique_ptr<CameraBase<StereoFrameData>> stereocamera;
+    std::unique_ptr<CameraBase> rgbdcamera;
+    std::unique_ptr<CameraBase> monocamera;
+    std::unique_ptr<CameraBase> stereocamera;
 
     RGBAImageType leftImage;
     RGBAImageType rightImage;
