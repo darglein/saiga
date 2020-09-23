@@ -99,9 +99,10 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
 std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value)
 {
     strm << "[RGBDIntrinsics]" << std::endl;
-    strm << "K: " << value.model.K.coeffs().transpose() << std::endl;
-    strm << "depthK: " << value.depthModel.K.coeffs().transpose() << std::endl;
-    strm << "Distortion: " << value.model.dis.Coeffs().transpose() << std::endl;
+    strm << "K : " << value.model.K.coeffs().transpose() << std::endl;
+    strm << "dK: " << value.depthModel.K.coeffs().transpose() << std::endl;
+    strm << "Distortion : " << value.model.dis.Coeffs().transpose() << std::endl;
+    strm << "dDistortion: " << value.depthModel.dis.Coeffs().transpose() << std::endl;
     strm << "Color: " << value.imageSize.w << "x" << value.imageSize.h << std::endl;
     strm << "Depth: " << value.depthImageSize.w << "x" << value.depthImageSize.h << std::endl;
     strm << "Fps: " << value.fps << std::endl;

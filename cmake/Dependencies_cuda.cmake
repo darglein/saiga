@@ -122,10 +122,6 @@ endif()
 
 
 
-if(SAIGA_EIGEN_AND_CUDA)
-  message(STATUS "Enabled Eigen with CUDA -> Eigen ${Eigen3_VERSION} Cuda ${CUDA_VERSION}")
-endif()
-
 
 set(CUDA_INCLUDES ${PACKAGE_INCLUDES})
 set(CUDA_LIBS ${LIBS})
