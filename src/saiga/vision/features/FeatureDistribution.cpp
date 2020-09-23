@@ -15,6 +15,7 @@ namespace Saiga
 std::array<QuadtreeFeatureDistributor::QuadtreeNode, 4> QuadtreeFeatureDistributor::QuadtreeNode::splitAndSort(
     ArrayView<KeyPoint<float>> keypoints, std::array<std::vector<KeyPoint<float>>, 4>& local_kps)
 {
+    SAIGA_ASSERT(from <= to);
     vec2 new_size = size * 0.5f;
     vec2 center   = corner + new_size;
 
@@ -33,8 +34,7 @@ std::array<QuadtreeFeatureDistributor::QuadtreeNode, 4> QuadtreeFeatureDistribut
 
 
         int idx = (less_y << 1) + less_x;
-
-        SAIGA_ASSERT(local_kps[idx].size() <= local_kps[idx].capacity());
+        SAIGA_ASSERT(idx >= 0 && idx < 4);
         local_kps[idx].push_back(kp);
     }
 
