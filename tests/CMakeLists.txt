@@ -6,8 +6,6 @@ if(NOT GTEST_FOUND)
 endif()
 
 function(saiga_test FILE_NAME)
-
-
   string(REGEX REPLACE "\\.[^.]*$" "" NAME ${FILE_NAME})
 
   set(TEST_TARGET ${NAME})
@@ -24,12 +22,13 @@ function(saiga_test FILE_NAME)
     COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TARGET}
     )
 
+
+  set_property(TARGET ${TEST_TARGET} PROPERTY CUDA_ARCHITECTURES 50)
   #set working directory for visual studio so the project can be executed from the ide
   set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
   set_target_properties(${PROG_NAME} PROPERTIES FOLDER tests/${PREFIX})
   set_target_properties(${PROG_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 endfunction()
-
 
 
 if(MODULE_CORE)

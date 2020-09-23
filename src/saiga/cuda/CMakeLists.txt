@@ -27,7 +27,7 @@ target_link_libraries(${MODULE_NAME} ${CUDA_LIBS})
 target_link_libraries(${MODULE_NAME} ${CUDA_TARGETS})
 
 
- #set_property(TARGET ${MODULE_NAME} PROPERTY CUDA_ARCHITECTURES 30 61 72)
+ set_property(TARGET ${MODULE_NAME} PROPERTY CUDA_ARCHITECTURES 50)
 
 
 target_include_directories(
