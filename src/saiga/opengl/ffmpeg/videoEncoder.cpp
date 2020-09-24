@@ -71,7 +71,6 @@ void VideoEncoder::renderGUI()
                 codec = AV_CODEC_ID_RAWVIDEO;
                 break;
         }
-
         encoder.videoCodecId = codec;
 
 

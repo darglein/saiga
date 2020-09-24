@@ -199,7 +199,6 @@ void Sample::update(float dt)
 {
     // Update the camera position
     camera.update(dt);
-    sun->fitShadowToCamera(&camera);
 }
 
 void Sample::interpolate(float dt, float interpolation)
@@ -209,164 +208,150 @@ void Sample::interpolate(float dt, float interpolation)
     camera.interpolate(dt, interpolation);
 }
 
-void Sample::render(Camera* cam)
-{
-    // Render all objects from the viewpoint of 'cam'
-    //    groundPlane.render(cam);
-    if (showReduced)
-        cube2.render(cam);
-    else
-        cube1.render(cam);
-}
 
-void Sample::renderDepth(Camera* cam)
+void Sample::render(Camera* camera, RenderPass render_pass)
 {
-    // Render the depth of all objects from the viewpoint of 'cam'
-    // This will be called automatically for shadow casting light sources to create shadow maps
-    //    groundPlane.renderDepth(cam);
-    if (showReduced)
-        cube2.renderDepth(cam);
-    else
-        cube1.renderDepth(cam);
-}
-
-void Sample::renderOverlay(Camera* cam)
-{
-    Base::renderOverlay(cam);
-    if (wireframe)
+    if (render_pass == RenderPass::Forward)
     {
-        glEnable(GL_POLYGON_OFFSET_LINE);
-        glPolygonOffset(-10, -10);
         if (showReduced)
-            cube2.renderWireframe(cam);
+            cube2.render(camera);
         else
-            cube1.renderWireframe(cam);
-        glDisable(GL_POLYGON_OFFSET_LINE);
-        assert_no_glerror();
+            cube1.render(camera);
+
+        if (wireframe)
+        {
+            glEnable(GL_POLYGON_OFFSET_LINE);
+            glPolygonOffset(-10, -10);
+            if (showReduced)
+                cube2.renderWireframe(camera);
+            else
+                cube1.renderWireframe(camera);
+            glDisable(GL_POLYGON_OFFSET_LINE);
+            assert_no_glerror();
+        }
     }
-}
-
-void Sample::renderFinal(Camera* cam)
-{
-    // The final render path (after post processing).
-    // Usually the GUI is rendered here.
-
+    else if (render_pass == RenderPass::GUI)
     {
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
-        ImGui::Begin("An Imgui Window :D");
+        // The final render path (after post processing).
+        // Usually the GUI is rendered here.
 
-
-        static char fileOff[256] = "output2.off";
-        ImGui::InputText("off file", fileOff, 256);
-
-        if (ImGui::Button("Test saiga::halfedge"))
         {
-            Saiga::Timer t;
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+            ImGui::Begin("An Imgui Window :D");
 
-            t.start();
-            Saiga::HalfEdgeMesh<VertexNC, GLuint> hem(baseMesh);
-            t.stop();
 
-            std::cout << "to halfedge: " << t.getTimeMS() << std::endl;
+            static char fileOff[256] = "output2.off";
+            ImGui::InputText("off file", fileOff, 256);
 
+            if (ImGui::Button("Test saiga::halfedge"))
             {
-                ScopedTimerPrint tim("isValid");
-                SAIGA_ASSERT(hem.isValid());
+                Saiga::Timer t;
+
+                t.start();
+                Saiga::HalfEdgeMesh<VertexNC, GLuint> hem(baseMesh);
+                t.stop();
+
+                std::cout << "to halfedge: " << t.getTimeMS() << std::endl;
+
+                {
+                    ScopedTimerPrint tim("isValid");
+                    SAIGA_ASSERT(hem.isValid());
+                }
+
+
+                {
+                    ScopedTimerPrint tim("to ifs");
+                    TriangleMesh<VertexNC, GLuint> m;
+                    hem.toIFS(m);
+                }
             }
 
 
+            if (ImGui::Button("Load .off"))
             {
-                ScopedTimerPrint tim("to ifs");
-                TriangleMesh<VertexNC, GLuint> m;
-                hem.toIFS(m);
+                OpenMesh::TriMesh_ArrayKernelT<> mesh;
+                //            OpenTriangleMesh mesh;
+                loadOpenMesh(mesh, fileOff);
+
+                openMeshToTriangleMesh(mesh, baseMesh);
+
+                baseMesh.computePerVertexNormal();
+
+                AssetLoader assetLoader;
+                auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
+                cube1.asset     = bunnyAsset;
             }
+
+            static char fileObj[256] = "bunny.obj";
+            ImGui::InputText("obj file", fileObj, 256);
+
+            if (ImGui::Button("Load .obj"))
+            {
+                ObjAssetLoader assetLoader;
+                assetLoader.loadMeshNC(fileObj, baseMesh);
+                auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
+                cube1.asset     = bunnyAsset;
+            }
+
+            if (ImGui::CollapsingHeader("Decimation"))
+            {
+                ImGui::Checkbox("useQuadric", &useQuadric);
+                ImGui::SameLine();
+                ImGui::InputFloat("quadricMaxError", &quadricMaxError);
+
+                ImGui::Checkbox("useAspectRatio", &useAspectRatio);
+                ImGui::SameLine();
+                ImGui::InputFloat("ratio", &ratio);
+                ImGui::InputFloat("errorTolerance", &errorTolerance);
+
+
+
+                ImGui::Checkbox("useHausdorf", &useHausdorf);
+                ImGui::SameLine();
+                ImGui::InputFloat("hausError", &hausError);
+
+                ImGui::Checkbox("useNormalDev", &useNormalDev);
+                ImGui::SameLine();
+                ImGui::InputFloat("normalDev", &normalDev);
+
+
+
+                ImGui::Checkbox("useNormalFlip", &useNormalFlip);
+                ImGui::SameLine();
+                ImGui::InputFloat("maxNormalDev", &maxNormalDev);
+
+
+                ImGui::Checkbox("useRoundness", &useRoundness);
+                ImGui::SameLine();
+                ImGui::InputFloat("minRoundness", &minRoundness);
+            }
+
+
+
+            ImGui::Separator();
+
+
+
+            ImGui::Checkbox("showReduced", &showReduced);
+            ImGui::Checkbox("wireframe", &wireframe);
+            ImGui::Checkbox("writeToFile", &writeToFile);
+
+
+
+            if (ImGui::Button("Reduce"))
+            {
+                reduce();
+            }
+
+
+            ImGui::Separator();
+            ImGui::Text("Base Mesh: V %d F %d ", (int)baseMesh.vertices.size(), (int)baseMesh.faces.size());
+            ImGui::Text("Reduced Mesh: V %d F %d ", (int)reducedMesh.vertices.size(), (int)reducedMesh.faces.size());
+
+
+            ImGui::End();
         }
-
-
-        if (ImGui::Button("Load .off"))
-        {
-            OpenMesh::TriMesh_ArrayKernelT<> mesh;
-            //            OpenTriangleMesh mesh;
-            loadOpenMesh(mesh, fileOff);
-
-            openMeshToTriangleMesh(mesh, baseMesh);
-
-            baseMesh.computePerVertexNormal();
-
-            AssetLoader assetLoader;
-            auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
-            cube1.asset     = bunnyAsset;
-        }
-
-        static char fileObj[256] = "bunny.obj";
-        ImGui::InputText("obj file", fileObj, 256);
-
-        if (ImGui::Button("Load .obj"))
-        {
-            ObjAssetLoader assetLoader;
-            assetLoader.loadMeshNC(fileObj, baseMesh);
-            auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
-            cube1.asset     = bunnyAsset;
-        }
-
-        if (ImGui::CollapsingHeader("Decimation"))
-        {
-            ImGui::Checkbox("useQuadric", &useQuadric);
-            ImGui::SameLine();
-            ImGui::InputFloat("quadricMaxError", &quadricMaxError);
-
-            ImGui::Checkbox("useAspectRatio", &useAspectRatio);
-            ImGui::SameLine();
-            ImGui::InputFloat("ratio", &ratio);
-            ImGui::InputFloat("errorTolerance", &errorTolerance);
-
-
-
-            ImGui::Checkbox("useHausdorf", &useHausdorf);
-            ImGui::SameLine();
-            ImGui::InputFloat("hausError", &hausError);
-
-            ImGui::Checkbox("useNormalDev", &useNormalDev);
-            ImGui::SameLine();
-            ImGui::InputFloat("normalDev", &normalDev);
-
-
-
-            ImGui::Checkbox("useNormalFlip", &useNormalFlip);
-            ImGui::SameLine();
-            ImGui::InputFloat("maxNormalDev", &maxNormalDev);
-
-
-            ImGui::Checkbox("useRoundness", &useRoundness);
-            ImGui::SameLine();
-            ImGui::InputFloat("minRoundness", &minRoundness);
-        }
-
-
-
-        ImGui::Separator();
-
-
-
-        ImGui::Checkbox("showReduced", &showReduced);
-        ImGui::Checkbox("wireframe", &wireframe);
-        ImGui::Checkbox("writeToFile", &writeToFile);
-
-
-
-        if (ImGui::Button("Reduce"))
-        {
-            reduce();
-        }
-
-
-        ImGui::Separator();
-        ImGui::Text("Base Mesh: V %d F %d ", (int)baseMesh.vertices.size(), (int)baseMesh.faces.size());
-        ImGui::Text("Reduced Mesh: V %d F %d ", (int)reducedMesh.vertices.size(), (int)reducedMesh.faces.size());
-
-
-        ImGui::End();
     }
 }
 

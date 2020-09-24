@@ -6,16 +6,18 @@
 
 
 #include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
+
 
 using namespace Saiga;
 
 class Sample : public SampleWindowDeferred
 {
-   public:
     using Base = SampleWindowDeferred;
 
+   public:
     Sample()
     {
         ObjAssetLoader assetLoader;
@@ -40,21 +42,21 @@ class Sample : public SampleWindowDeferred
 
         ShadowQuality sq = ShadowQuality::HIGH;
 
-
-
         pointLight = renderer->lighting.createPointLight();
-        pointLight->setAttenuation(AttenuationPresets::Quadratic);
+        //        pointLight->setAttenuation(AttenuationPresets::Quadratic);
+        pointLight->setAttenuation(vec3(0, 0, 5));
         pointLight->setIntensity(2);
         pointLight->setRadius(10);
-        pointLight->setPosition(vec3(10, 3, 0));
+        pointLight->setPosition(vec3(9, 3, 0));
         pointLight->setColorDiffuse(make_vec3(1));
         pointLight->calculateModel();
         //        pointLight->createShadowMap(256,256,sq);
         pointLight->createShadowMap(512, 512, sq);
         pointLight->enableShadows();
+        pointLight->setVolumetric(true);
 
         spotLight = renderer->lighting.createSpotLight();
-        spotLight->setAttenuation(AttenuationPresets::Quadratic);
+        spotLight->setAttenuation(vec3(0, 0, 5));
         spotLight->setIntensity(2);
         spotLight->setRadius(8);
         spotLight->setPosition(vec3(-10, 5, 0));
@@ -62,6 +64,7 @@ class Sample : public SampleWindowDeferred
         spotLight->calculateModel();
         spotLight->createShadowMap(512, 512, sq);
         spotLight->enableShadows();
+        spotLight->setVolumetric(true);
 
         boxLight = renderer->lighting.createBoxLight();
         boxLight->setIntensity(1.0);
@@ -74,8 +77,11 @@ class Sample : public SampleWindowDeferred
         boxLight->calculateModel();
         boxLight->createShadowMap(512, 512, sq);
         boxLight->enableShadows();
+        boxLight->setVolumetric(true);
 
-        //    sun->disableShadows();
+
+        renderer->lighting.renderVolumetric = true;
+
 
         std::cout << "Program Initialized!" << std::endl;
     }
@@ -83,7 +89,6 @@ class Sample : public SampleWindowDeferred
     void render(Camera* cam) override
     {
         Base::render(cam);
-        // Render all objects from the viewpoint of 'cam'
         cube1.render(cam);
         cube2.render(cam);
         sphere.render(cam);
@@ -91,8 +96,6 @@ class Sample : public SampleWindowDeferred
     void renderDepth(Camera* cam) override
     {
         Base::renderDepth(cam);
-        // Render the depth of all objects from the viewpoint of 'cam'
-        // This will be called automatically for shadow casting light sources to create shadow maps
         cube1.renderDepth(cam);
         cube2.renderDepth(cam);
         sphere.render(cam);
@@ -102,15 +105,9 @@ class Sample : public SampleWindowDeferred
     SimpleAssetObject cube1, cube2;
     SimpleAssetObject sphere;
 
-
     std::shared_ptr<BoxLight> boxLight;
     std::shared_ptr<PointLight> pointLight;
     std::shared_ptr<SpotLight> spotLight;
-
-    float rotationSpeed    = 0.1;
-    bool showimguidemo     = false;
-    bool lightDebug        = false;
-    bool pointLightShadows = false;
 };
 
 

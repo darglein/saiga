@@ -43,20 +43,18 @@ void SampleWindowForward::interpolate(float dt, float interpolation)
 
 
 
-void SampleWindowForward::renderOverlay(Camera* cam)
+void SampleWindowForward::render(Camera* camera, RenderPass render_pass)
 {
-    if (showSkybox) skybox.render(cam);
-    if (showGrid) groundPlane.renderForward(cam);
-}
-
-void SampleWindowForward::renderFinal(Camera* cam)
-{
-    // The final render path (after post processing).
-    // Usually the GUI is rendered here.
-
-    window->renderImGui();
-
+    if (render_pass == RenderPass::Forward)
     {
+        if (showSkybox) skybox.render(camera);
+        if (showGrid) groundPlane.renderForward(camera);
+    }
+    else if (render_pass == RenderPass::GUI)
+    {
+        window->renderImGui();
+
+
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");
@@ -64,8 +62,6 @@ void SampleWindowForward::renderFinal(Camera* cam)
         ImGui::End();
     }
 }
-
-
 void SampleWindowForward::keyPressed(SDL_Keysym key)
 {
     switch (key.scancode)

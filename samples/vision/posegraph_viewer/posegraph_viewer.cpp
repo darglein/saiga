@@ -106,185 +106,188 @@ void Sample::update(float dt)
 }
 
 
-void Sample::renderOverlay(Camera* cam)
+
+void Sample::render(Camera* camera, RenderPass render_pass)
 {
-    //    Base::renderOverlay(cam);
-    lineSoup.render(cam);
-
-
-
-    for (auto& i : scene.vertices)
+    if (render_pass == RenderPass::Forward)
     {
-        Saiga::SE3 se3 = i.Pose();
-        if (render_inverse)
+        lineSoup.render(camera);
+
+
+
+        for (auto& i : scene.vertices)
         {
-        }
-        else
-        {
-            se3 = se3.inverse();
-        }
-        mat4 v = (se3.matrix()).cast<float>();
-        v      = Saiga::cvViewToGLView(v);
-        v      = mat4(inverse(v));
+            Saiga::SE3 se3 = i.Pose();
+            if (render_inverse)
+            {
+            }
+            else
+            {
+                se3 = se3.inverse();
+            }
+            mat4 v = (se3.matrix()).cast<float>();
+            v      = Saiga::cvViewToGLView(v);
+            v      = mat4(inverse(v));
 
-        //            std::cout << v << std::endl;
-        //        vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
+            //            std::cout << v << std::endl;
+            //        vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
 
-        frustum.SetShaderColor(i.constant ? vec4(1, 0, 0, 1) : vec4(0, 1, 0, 1));
-        frustum.render(cam, v);
-    }
-}
-
-void Sample::renderFinal(Camera* cam)
-{
-    Base::renderFinal(cam);
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Pose Graph Viewer");
-
-    ImGui::Text("Rms: %f", rms);
-    ImGui::Text("chi2: %f", chi2);
-
-    if (ImGui::Checkbox("render_inverse", &render_inverse))
-    {
-        change = true;
-    }
-    if (scene.imgui())
-    {
-        change = true;
-    }
-
-    ImGui::Separator();
-
-    baoptions.imgui();
-
-    ImGui::Separator();
-
-    if (ImGui::Button("Syntetic Linear"))
-    {
-        scene  = SyntheticPoseGraph::Linear(100, 3);
-        change = true;
-    }
-    if (ImGui::Button("Syntetic Circle"))
-    {
-        scene  = SyntheticPoseGraph::Circle(5, 250, 6);
-        change = true;
-    }
-
-    if (ImGui::Button("Syntetic CircleWithDrift"))
-    {
-        Saiga::Random::setSeed(39486);
-        srand(39457);
-        scene  = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0);
-        change = true;
-    }
-
-
-    if (ImGui::Button("Syntetic CircleWithDriftAndScale"))
-    {
-        scene  = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0.005);
-        change = true;
-    }
-
-
-    if (ImGui::Button("Print Scene Scale"))
-    {
-        int i = 0;
-        for (auto v : scene.vertices)
-        {
-            std::cout << i << " : " << v.Sim3Pose().scale() << std::endl;
-            i++;
+            frustum.SetShaderColor(i.constant ? vec4(1, 0, 0, 1) : vec4(0, 1, 0, 1));
+            frustum.render(camera, v);
         }
     }
-
-#if 1
+    else if (render_pass == RenderPass::GUI)
     {
-        std::vector<const char*> strings;
-        for (auto& d : datasets) strings.push_back(d.data());
-        static int currentItem = 0;
-        ImGui::Combo("Dataset", &currentItem, strings.data(), strings.size());
-        if (ImGui::Button("Load Dataset"))
+        //        Base::renderFinal(cam);
+        ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Pose Graph Viewer");
+
+        ImGui::Text("Rms: %f", rms);
+        ImGui::Text("chi2: %f", chi2);
+
+        if (ImGui::Checkbox("render_inverse", &render_inverse))
         {
-            scene.load(datasets[currentItem]);
-            //            scene.poses[0].constant = true;
             change = true;
         }
-    }
+        if (scene.imgui())
+        {
+            change = true;
+        }
+
+        ImGui::Separator();
+
+        baoptions.imgui();
+
+        ImGui::Separator();
+
+        if (ImGui::Button("Syntetic Linear"))
+        {
+            scene  = SyntheticPoseGraph::Linear(100, 3);
+            change = true;
+        }
+        if (ImGui::Button("Syntetic Circle"))
+        {
+            scene  = SyntheticPoseGraph::Circle(5, 250, 6);
+            change = true;
+        }
+
+        if (ImGui::Button("Syntetic CircleWithDrift"))
+        {
+            Saiga::Random::setSeed(39486);
+            srand(39457);
+            scene  = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0);
+            change = true;
+        }
+
+
+        if (ImGui::Button("Syntetic CircleWithDriftAndScale"))
+        {
+            scene  = SyntheticPoseGraph::CircleWithDrift(5, 250, 6, 0.01, 0.005);
+            change = true;
+        }
+
+
+        if (ImGui::Button("Print Scene Scale"))
+        {
+            int i = 0;
+            for (auto v : scene.vertices)
+            {
+                std::cout << i << " : " << v.Sim3Pose().scale() << std::endl;
+                i++;
+            }
+        }
+
+#if 1
+        {
+            std::vector<const char*> strings;
+            for (auto& d : datasets) strings.push_back(d.data());
+            static int currentItem = 0;
+            ImGui::Combo("Dataset", &currentItem, strings.data(), strings.size());
+            if (ImGui::Button("Load Dataset"))
+            {
+                scene.load(datasets[currentItem]);
+                //            scene.poses[0].constant = true;
+                change = true;
+            }
+        }
 #endif
 
 
-    {
-        std::vector<const char*> strings;
-        for (auto& d : baldatasets) strings.push_back(d.data());
-        static int currentItem = 0;
-        ImGui::Combo("BAL Dataset", &currentItem, strings.data(), strings.size());
-        if (ImGui::Button("Load BAL Dataset"))
         {
-            Saiga::BALDataset bal(baldatasets[currentItem]);
-            Saiga::Scene sc            = bal.makeScene();
-            scene                      = Saiga::PoseGraph(sc);
-            scene.vertices[0].constant = true;
-            change                     = true;
-            std::cout << scene.chi2() << std::endl;
+            std::vector<const char*> strings;
+            for (auto& d : baldatasets) strings.push_back(d.data());
+            static int currentItem = 0;
+            ImGui::Combo("BAL Dataset", &currentItem, strings.data(), strings.size());
+            if (ImGui::Button("Load BAL Dataset"))
+            {
+                Saiga::BALDataset bal(baldatasets[currentItem]);
+                Saiga::Scene sc            = bal.makeScene();
+                scene                      = Saiga::PoseGraph(sc);
+                scene.vertices[0].constant = true;
+                change                     = true;
+                std::cout << scene.chi2() << std::endl;
+            }
         }
-    }
 
-    //    if (ImGui::Button("Reload"))
-    //    {
-    //        scene.load(Saiga::SearchPathes::data("vision/loop.posegraph"));
-    //    }
+        //    if (ImGui::Button("Reload"))
+        //    {
+        //        scene.load(Saiga::SearchPathes::data("vision/loop.posegraph"));
+        //    }
 
-    if (ImGui::Button("Solve G2O"))
-    {
-        Saiga::g2oPGO ba;
-        ba.optimizationOptions = baoptions;
-        ba.create(scene);
+        if (ImGui::Button("Solve G2O"))
         {
-            SAIGA_BLOCK_TIMER();
-            ba.initAndSolve();
+            Saiga::g2oPGO ba;
+            ba.optimizationOptions = baoptions;
+            ba.create(scene);
+            {
+                SAIGA_BLOCK_TIMER();
+                ba.initAndSolve();
+            }
+            change = true;
         }
-        change = true;
-    }
 
-    //    barec.imgui();
-    if (ImGui::Button("Solve Recursive"))
-    {
-        Saiga::PGORec barec;
-        barec.optimizationOptions = baoptions;
-        barec.create(scene);
+        //    barec.imgui();
+        if (ImGui::Button("Solve Recursive"))
         {
-            SAIGA_BLOCK_TIMER();
-            barec.initAndSolve();
+            Saiga::PGORec barec;
+            barec.optimizationOptions = baoptions;
+            barec.create(scene);
+            {
+                SAIGA_BLOCK_TIMER();
+                barec.initAndSolve();
+            }
+            change = true;
         }
-        change = true;
-    }
-    if (ImGui::Button("Solve Recursive Sim3"))
-    {
-        Saiga::PGOSim3Rec barec;
-        barec.optimizationOptions = baoptions;
-        barec.create(scene);
+        if (ImGui::Button("Solve Recursive Sim3"))
         {
-            SAIGA_BLOCK_TIMER();
-            barec.initAndSolve();
+            Saiga::PGOSim3Rec barec;
+            barec.optimizationOptions = baoptions;
+            barec.create(scene);
+            {
+                SAIGA_BLOCK_TIMER();
+                barec.initAndSolve();
+            }
+            change = true;
         }
-        change = true;
-    }
 
 
-    if (ImGui::Button("Solve Ceres"))
-    {
-        Saiga::CeresPGO barec;
-        barec.optimizationOptions = baoptions;
-        barec.create(scene);
+        if (ImGui::Button("Solve Ceres"))
         {
-            SAIGA_BLOCK_TIMER();
-            barec.initAndSolve();
+            Saiga::CeresPGO barec;
+            barec.optimizationOptions = baoptions;
+            barec.create(scene);
+            {
+                SAIGA_BLOCK_TIMER();
+                barec.initAndSolve();
+            }
+            change = true;
         }
-        change = true;
+
+
+        ImGui::End();
     }
-
-
-    ImGui::End();
 }
+
 
 int main(const int argc, const char* argv[])
 {
