@@ -7,10 +7,10 @@
 #pragma once
 
 #include "saiga/core/geometry/object3d.h"
+#include "saiga/core/util/color.h"
+#include "saiga/opengl/rendering/deferredRendering/lighting/shadowmap.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
-#include "saiga/opengl/rendering/deferredRendering/lighting/shadowmap.h"
-#include "saiga/core/util/color.h"
 
 #include <functional>
 
@@ -18,7 +18,7 @@ namespace Saiga
 {
 class SAIGA_OPENGL_API LightShader : public DeferredShader
 {
-public:
+   public:
     GLint location_lightColorDiffuse, location_lightColorSpecular;  // rgba, rgb=color, a=intensity [0,1]
     GLint location_depthBiasMV, location_depthTex, location_readShadowMap;
     GLint location_shadowMapSize;  // vec4(w,h,1/w,1/h)
@@ -74,12 +74,16 @@ using DepthFunction = std::function<void(Camera*)>;
 
 class SAIGA_OPENGL_API Light : public Object3D
 {
-public:
-    vec4 colorDiffuse  = make_vec4(1);
+   public:
+    // [R,G,B,Intensity]
+    vec4 colorDiffuse = make_vec4(1);
+    // [R,G,B,Intensity]
     vec4 colorSpecular = make_vec4(1);
     // density of the participating media
     float volumetricDensity = 0.02f;
 
+    // glPolygonOffset(slope, units)
+    vec2 polygon_offset = vec2(2.0f, 10.0f);
 
 
     Light() {}
@@ -131,12 +135,11 @@ public:
 
     void renderImGui();
 
-protected:
+   protected:
     bool visible = true, active = true, selected = false, culled = false;
     // shadow map
     bool castShadows = false;
     bool volumetric  = false;
-
 };
 
 }  // namespace Saiga

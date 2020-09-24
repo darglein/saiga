@@ -64,7 +64,7 @@ class VRSample : public StandaloneWindow<WindowManagement::SDL, VRRenderer>, pub
         cube2.translateGlobal(vec3(-11, 1, 2));
         cube2.calculateModel();
 
-        auto sphereAsset = assetLoader.loadBasicAsset("teapot.obj");
+        auto sphereAsset = assetLoader.loadColoredAsset("teapot.obj");
         sphere.asset     = sphereAsset;
         sphere.translateGlobal(vec3(0, 1, 8));
         sphere.rotateLocal(vec3(0, 1, 0), 180);

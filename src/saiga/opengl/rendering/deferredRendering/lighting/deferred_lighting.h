@@ -5,7 +5,6 @@
  */
 
 #pragma once
-
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/opengl/framebuffer.h"
@@ -14,6 +13,8 @@
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
 #include "saiga/opengl/vertex.h"
+
+#include <set>
 
 namespace Saiga
 {
@@ -79,23 +80,20 @@ class SAIGA_OPENGL_API DeferredLighting
     void setRenderDebug(bool b) { drawDebug = b; }
     void createLightMeshes();
 
-    std::shared_ptr<DirectionalLight> createDirectionalLight();
-    std::shared_ptr<PointLight> createPointLight();
-    std::shared_ptr<SpotLight> createSpotLight();
-    std::shared_ptr<BoxLight> createBoxLight();
+    //    std::shared_ptr<DirectionalLight> createDirectionalLight();
+    //    std::shared_ptr<PointLight> createPointLight();
+    //    std::shared_ptr<SpotLight> createSpotLight();
+    //    std::shared_ptr<BoxLight> createBoxLight();
 
-    void removeLight(std::shared_ptr<DirectionalLight> l);
-    void removeLight(std::shared_ptr<PointLight> l);
-    void removeLight(std::shared_ptr<SpotLight> l);
-    void removeLight(std::shared_ptr<BoxLight> l);
+    void AddLight(std::shared_ptr<DirectionalLight> l) { directionalLights.insert(l); }
+    void AddLight(std::shared_ptr<PointLight> l) { pointLights.insert(l); }
+    void AddLight(std::shared_ptr<SpotLight> l) { spotLights.insert(l); }
+    void AddLight(std::shared_ptr<BoxLight> l) { boxLights.insert(l); }
 
-
-    void initRender();
-    void render(Camera* cam, const ViewPort& viewPort);
-    void postprocessVolumetric();
-    void renderDepthMaps(RenderingInterface* renderer);
-    void renderDebug(Camera* cam);
-
+    void removeLight(std::shared_ptr<DirectionalLight> l) { directionalLights.erase(l); }
+    void removeLight(std::shared_ptr<PointLight> l) { pointLights.erase(l); }
+    void removeLight(std::shared_ptr<SpotLight> l) { spotLights.erase(l); }
+    void removeLight(std::shared_ptr<BoxLight> l) { boxLights.erase(l); }
 
     void setShader(std::shared_ptr<SpotLightShader> spotLightShader,
                    std::shared_ptr<SpotLightShader> spotLightShadowShader);
@@ -105,6 +103,14 @@ class SAIGA_OPENGL_API DeferredLighting
                    std::shared_ptr<DirectionalLightShader> directionalLightShadowShader);
     void setShader(std::shared_ptr<BoxLightShader> boxLightShader,
                    std::shared_ptr<BoxLightShader> boxLightShadowShader);
+
+    void initRender();
+    void render(Camera* cam, const ViewPort& viewPort);
+    void postprocessVolumetric();
+    void renderDepthMaps(RenderingInterface* renderer);
+    void renderDebug(Camera* cam);
+
+
 
     void setDebugShader(std::shared_ptr<MVPColorShader> shader);
     void setStencilShader(std::shared_ptr<MVPShader> stencilShader);
@@ -134,19 +140,19 @@ class SAIGA_OPENGL_API DeferredLighting
 
     std::shared_ptr<PointLightShader> pointLightShader, pointLightShadowShader, pointLightVolumetricShader;
     lightMesh_t pointLightMesh;
-    std::vector<std::shared_ptr<PointLight> > pointLights;
+    std::set<std::shared_ptr<PointLight> > pointLights;
 
     std::shared_ptr<SpotLightShader> spotLightShader, spotLightShadowShader, spotLightVolumetricShader;
     lightMesh_t spotLightMesh;
-    std::vector<std::shared_ptr<SpotLight> > spotLights;
+    std::set<std::shared_ptr<SpotLight> > spotLights;
 
     std::shared_ptr<BoxLightShader> boxLightShader, boxLightShadowShader, boxLightVolumetricShader;
     lightMesh_t boxLightMesh;
-    std::vector<std::shared_ptr<BoxLight> > boxLights;
+    std::set<std::shared_ptr<BoxLight> > boxLights;
 
     std::shared_ptr<DirectionalLightShader> directionalLightShader, directionalLightShadowShader;
     lightMesh_t directionalLightMesh;
-    std::vector<std::shared_ptr<DirectionalLight> > directionalLights;
+    std::set<std::shared_ptr<DirectionalLight> > directionalLights;
 
     ShaderPart::ShaderCodeInjections volumetricInjection;
     ShaderPart::ShaderCodeInjections shadowInjection;

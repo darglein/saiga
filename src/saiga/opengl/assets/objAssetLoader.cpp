@@ -56,7 +56,7 @@ void ObjAssetLoader::loadMeshNC(const std::string& file, TriangleMesh<VertexNC, 
 }
 
 
-std::shared_ptr<ColoredAsset> ObjAssetLoader::loadBasicAsset(const std::string& file, bool normalize)
+std::shared_ptr<ColoredAsset> ObjAssetLoader::loadColoredAsset(const std::string& file, bool normalize)
 {
     std::shared_ptr<ColoredAsset> asset = std::make_shared<ColoredAsset>();
     loadMeshNC(file, *asset, normalize);

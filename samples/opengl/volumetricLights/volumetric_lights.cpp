@@ -33,7 +33,7 @@ class Sample : public SampleWindowDeferred
         cube2.translateGlobal(vec3(-11, 1, 2));
         cube2.calculateModel();
 
-        auto sphereAsset = assetLoader.loadBasicAsset("teapot.obj");
+        auto sphereAsset = assetLoader.loadColoredAsset("teapot.obj");
         sphere.asset     = sphereAsset;
         sphere.translateGlobal(vec3(0, 1, 8));
         sphere.rotateLocal(vec3(0, 1, 0), 180);
@@ -42,7 +42,8 @@ class Sample : public SampleWindowDeferred
 
         ShadowQuality sq = ShadowQuality::HIGH;
 
-        pointLight = renderer->lighting.createPointLight();
+        pointLight = std::make_shared<PointLight>();
+        renderer->lighting.AddLight(pointLight);
         //        pointLight->setAttenuation(AttenuationPresets::Quadratic);
         pointLight->setAttenuation(vec3(0, 0, 5));
         pointLight->setIntensity(2);
@@ -55,7 +56,8 @@ class Sample : public SampleWindowDeferred
         pointLight->enableShadows();
         pointLight->setVolumetric(true);
 
-        spotLight = renderer->lighting.createSpotLight();
+        spotLight = std::make_shared<SpotLight>();
+        renderer->lighting.AddLight(spotLight);
         spotLight->setAttenuation(vec3(0, 0, 5));
         spotLight->setIntensity(2);
         spotLight->setRadius(8);
@@ -66,7 +68,8 @@ class Sample : public SampleWindowDeferred
         spotLight->enableShadows();
         spotLight->setVolumetric(true);
 
-        boxLight = renderer->lighting.createBoxLight();
+        boxLight = std::make_shared<BoxLight>();
+        renderer->lighting.AddLight(boxLight);
         boxLight->setIntensity(1.0);
 
         //        boxLight->setPosition(vec3(0,2,10));

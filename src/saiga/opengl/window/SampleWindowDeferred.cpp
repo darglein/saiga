@@ -28,11 +28,8 @@ SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
     groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
 
     // create one directional light
-    sun = renderer->lighting.createDirectionalLight();
-    sun->setDirection(vec3(-1, -3, -2));
-    sun->setColorDiffuse(LightColorPresets::DirectSunlight);
-    sun->setIntensity(1.0);
-    sun->setAmbientIntensity(0.3f);
+    sun = std::make_shared<DirectionalLight>();
+    renderer->lighting.AddLight(sun);
     sun->createShadowMap(2048, 2048);
     sun->enableShadows();
 }

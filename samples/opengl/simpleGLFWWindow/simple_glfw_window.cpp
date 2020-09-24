@@ -87,7 +87,8 @@ class Sample : public StandaloneWindow<WindowManagement::GLFW, DeferredRenderer>
         groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
 
         // create one directional light
-        sun = renderer->lighting.createDirectionalLight();
+        sun = std::make_shared<DirectionalLight>();
+        renderer->lighting.AddLight(sun);
         sun->setDirection(vec3(-1, -3, -2));
         sun->setColorDiffuse(LightColorPresets::DirectSunlight);
         sun->setIntensity(1.0);

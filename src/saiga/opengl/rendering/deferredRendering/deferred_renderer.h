@@ -50,7 +50,7 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
 
     vec4 lightingClearColor = vec4(0, 0, 0, 0);
 
-    int shadowSamples = 16;
+    int shadowSamples = 4;
 
     bool offsetGeometry = false;
     float offsetFactor = 1.0f, offsetUnits = 1.0f;

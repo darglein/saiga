@@ -31,7 +31,37 @@ void DeferredLighting::loadShaders()
 {
     const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
 
+    if (!directionalLightShader)
+    {
+        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
+        directionalLightShader = shaderLoader.load<DirectionalLightShader>(names.directionalLightShader);
+        directionalLightShadowShader =
+            shaderLoader.load<DirectionalLightShader>(names.directionalLightShader, shadowInjection);
+    }
 
+    if (!pointLightShader)
+    {
+        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
+        pointLightShader                         = shaderLoader.load<PointLightShader>(names.pointLightShader);
+        pointLightShadowShader     = shaderLoader.load<PointLightShader>(names.pointLightShader, shadowInjection);
+        pointLightVolumetricShader = shaderLoader.load<PointLightShader>(names.pointLightShader, volumetricInjection);
+    }
+
+    if (!spotLightShader)
+    {
+        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
+        spotLightShader                          = shaderLoader.load<SpotLightShader>(names.spotLightShader);
+        spotLightShadowShader     = shaderLoader.load<SpotLightShader>(names.spotLightShader, shadowInjection);
+        spotLightVolumetricShader = shaderLoader.load<SpotLightShader>(names.spotLightShader, volumetricInjection);
+    }
+
+    if (!boxLightShader)
+    {
+        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
+        boxLightShader                           = shaderLoader.load<BoxLightShader>(names.boxLightShader);
+        boxLightShadowShader     = shaderLoader.load<BoxLightShader>(names.boxLightShader, shadowInjection);
+        boxLightVolumetricShader = shaderLoader.load<BoxLightShader>(names.boxLightShader, volumetricInjection);
+    }
 
     stencilShader = shaderLoader.load<MVPShader>(names.stencilShader);
 }
@@ -194,12 +224,14 @@ void DeferredLighting::renderDepthMaps(RenderingInterface* renderer)
     glEnable(GL_POLYGON_OFFSET_FILL);
 
     float shadowMult = backFaceShadows ? -1 : 1;
-    glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
+
     if (backFaceShadows)
         glCullFace(GL_FRONT);
     else
         glCullFace(GL_BACK);
 
+
+    //        glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
 
     shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
     DepthFunction depthFunc = [&](Camera* cam) -> void {
@@ -208,22 +240,29 @@ void DeferredLighting::renderDepthMaps(RenderingInterface* renderer)
     };
     for (auto& light : directionalLights)
     {
+        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
+        //        glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
         light->renderShadowmap(depthFunc, shadowCameraBuffer);
     }
     for (auto& light : boxLights)
     {
+        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
         light->renderShadowmap(depthFunc, shadowCameraBuffer);
     }
     for (auto& light : spotLights)
     {
+        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
         light->renderShadowmap(depthFunc, shadowCameraBuffer);
     }
     for (auto& light : pointLights)
     {
+        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
         light->renderShadowmap(depthFunc, shadowCameraBuffer);
     }
     glCullFace(GL_BACK);
     glDisable(GL_POLYGON_OFFSET_FILL);
+
+    glPolygonOffset(0, 0);
 }
 
 void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
@@ -363,9 +402,9 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
     if (drawDebug)
     {
-        glDepthMask(GL_TRUE);
+        //        glDepthMask(GL_TRUE);
         renderDebug(cam);
-        glDepthMask(GL_FALSE);
+        //        glDepthMask(GL_FALSE);
     }
 
 
@@ -516,12 +555,11 @@ void DeferredLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : pointLights)
     {
-        mat4 sm    = obj->model * scale(make_vec3(0.05));
+        mat4 sm    = obj->model * scale(make_vec3(0.01));
         vec4 color = obj->colorDiffuse;
         if (!obj->isActive() || !obj->isVisible())
         {
-            // render as black if light is turned off
-            color = vec4(0);
+            continue;
         }
         debugShader->uploadModel(sm);
         debugShader->uploadColor(color);
@@ -532,7 +570,10 @@ void DeferredLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : pointLights)
     {
-        //        if(obj->isSelected()){
+        if (!obj->isActive() || !obj->isVisible())
+        {
+            continue;
+        }
         debugShader->uploadModel(obj->model);
         debugShader->uploadColor(obj->colorDiffuse);
         pointLightMesh.draw();
@@ -548,12 +589,11 @@ void DeferredLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : spotLights)
     {
-        mat4 sm    = obj->model * scale(make_vec3(0.05));
+        mat4 sm    = obj->model * scale(make_vec3(0.01));
         vec4 color = obj->colorDiffuse;
         if (!obj->isActive() || !obj->isVisible())
         {
-            // render as black if light is turned off
-            color = make_vec4(0);
+            continue;
         }
         debugShader->uploadModel(sm);
         debugShader->uploadColor(color);
@@ -564,11 +604,13 @@ void DeferredLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : spotLights)
     {
-        //        if(obj->isSelected()){
+        if (!obj->isActive() || !obj->isVisible())
+        {
+            continue;
+        }
         debugShader->uploadModel(obj->model);
         debugShader->uploadColor(obj->colorDiffuse);
         spotLightMesh.draw();
-        //        }
     }
     spotLightMesh.unbind();
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -726,85 +768,34 @@ void DeferredLighting::createLightMeshes()
     boxLightMesh.fromMesh(*bb);
 }
 
-std::shared_ptr<DirectionalLight> DeferredLighting::createDirectionalLight()
-{
-    if (!directionalLightShader)
-    {
-        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
-        directionalLightShader = shaderLoader.load<DirectionalLightShader>(names.directionalLightShader);
-        directionalLightShadowShader =
-            shaderLoader.load<DirectionalLightShader>(names.directionalLightShader, shadowInjection);
-    }
+// std::shared_ptr<DirectionalLight> DeferredLighting::createDirectionalLight()
+//{
+//    std::shared_ptr<DirectionalLight> l = std::make_shared<DirectionalLight>();
+//    directionalLights.insert(l);
+//    return l;
+//}
 
-    std::shared_ptr<DirectionalLight> l = std::make_shared<DirectionalLight>();
-    directionalLights.push_back(l);
-    return l;
-}
+// std::shared_ptr<PointLight> DeferredLighting::createPointLight()
+//{
+//    std::shared_ptr<PointLight> l = std::make_shared<PointLight>();
+//    pointLights.insert(l);
+//    return l;
+//}
 
-std::shared_ptr<PointLight> DeferredLighting::createPointLight()
-{
-    if (!pointLightShader)
-    {
-        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
-        pointLightShader                         = shaderLoader.load<PointLightShader>(names.pointLightShader);
-        pointLightShadowShader     = shaderLoader.load<PointLightShader>(names.pointLightShader, shadowInjection);
-        pointLightVolumetricShader = shaderLoader.load<PointLightShader>(names.pointLightShader, volumetricInjection);
-    }
+// std::shared_ptr<SpotLight> DeferredLighting::createSpotLight()
+//{
+//    std::shared_ptr<SpotLight> l = std::make_shared<SpotLight>();
+//    spotLights.insert(l);
+//    return l;
+//}
 
-    std::shared_ptr<PointLight> l = std::make_shared<PointLight>();
-    pointLights.push_back(l);
-    return l;
-}
+// std::shared_ptr<BoxLight> DeferredLighting::createBoxLight()
+//{
+//    std::shared_ptr<BoxLight> l = std::make_shared<BoxLight>();
+//    boxLights.insert(l);
+//    return l;
+//}
 
-std::shared_ptr<SpotLight> DeferredLighting::createSpotLight()
-{
-    if (!spotLightShader)
-    {
-        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
-        spotLightShader                          = shaderLoader.load<SpotLightShader>(names.spotLightShader);
-        spotLightShadowShader     = shaderLoader.load<SpotLightShader>(names.spotLightShader, shadowInjection);
-        spotLightVolumetricShader = shaderLoader.load<SpotLightShader>(names.spotLightShader, volumetricInjection);
-    }
-
-    std::shared_ptr<SpotLight> l = std::make_shared<SpotLight>();
-    spotLights.push_back(l);
-    return l;
-}
-
-std::shared_ptr<BoxLight> DeferredLighting::createBoxLight()
-{
-    if (!boxLightShader)
-    {
-        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
-        boxLightShader                           = shaderLoader.load<BoxLightShader>(names.boxLightShader);
-        boxLightShadowShader     = shaderLoader.load<BoxLightShader>(names.boxLightShader, shadowInjection);
-        boxLightVolumetricShader = shaderLoader.load<BoxLightShader>(names.boxLightShader, volumetricInjection);
-    }
-
-    std::shared_ptr<BoxLight> l = std::make_shared<BoxLight>();
-    boxLights.push_back(l);
-    return l;
-}
-
-void DeferredLighting::removeLight(std::shared_ptr<DirectionalLight> l)
-{
-    directionalLights.erase(std::find(directionalLights.begin(), directionalLights.end(), l));
-}
-
-void DeferredLighting::removeLight(std::shared_ptr<PointLight> l)
-{
-    pointLights.erase(std::find(pointLights.begin(), pointLights.end(), l));
-}
-
-void DeferredLighting::removeLight(std::shared_ptr<SpotLight> l)
-{
-    spotLights.erase(std::find(spotLights.begin(), spotLights.end(), l));
-}
-
-void DeferredLighting::removeLight(std::shared_ptr<BoxLight> l)
-{
-    boxLights.erase(std::find(boxLights.begin(), boxLights.end(), l));
-}
 
 
 template <typename T>

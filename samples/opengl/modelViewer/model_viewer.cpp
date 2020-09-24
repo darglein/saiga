@@ -101,7 +101,7 @@ class Sample : public SampleWindowDeferred
             if (ImGui::Button("Load OBJ with Vertex Color"))
             {
                 ObjAssetLoader assetLoader;
-                auto asset = assetLoader.loadBasicAsset(std::string(file.data()));
+                auto asset = assetLoader.loadColoredAsset(std::string(file.data()));
                 if (asset) object.asset = asset;
             }
 

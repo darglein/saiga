@@ -18,7 +18,7 @@ class Sample : public SampleWindowDeferred
     {
         // This simple AssetLoader can create assets from meshes and generate some generic debug assets
         ObjAssetLoader assetLoader;
-        teapot.asset = assetLoader.loadBasicAsset("models/Cornell.obj");
+        teapot.asset = assetLoader.loadColoredAsset("models/Cornell.obj");
         //    teapot.asset = assetLoader.loadTexturedAsset("models/box.obj");
         teapot.translateGlobal(vec3(0, 0, 0));
         teapot.calculateModel();
@@ -34,7 +34,8 @@ class Sample : public SampleWindowDeferred
         std::cout << "Program Initialized!" << std::endl;
 
 
-        pointLight = renderer->lighting.createPointLight();
+        pointLight = std::make_shared<PointLight>();
+        renderer->lighting.AddLight(pointLight);
         pointLight->setAttenuation(AttenuationPresets::Quadratic);
         pointLight->setIntensity(1);
         pointLight->setRadius(3);

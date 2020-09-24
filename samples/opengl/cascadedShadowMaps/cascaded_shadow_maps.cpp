@@ -50,7 +50,8 @@ class Sample : public SampleWindowDeferred
 
         Base::sun->setActive(false);
 
-        sun = renderer->lighting.createDirectionalLight();
+        sun = std::make_shared<DirectionalLight>();
+        renderer->lighting.AddLight(sun);
         sun->setDirection(vec3(-1, -2, -2.5));
         //    sun->setDirection(vec3(0,-1,0));
         sun->setColorDiffuse(LightColorPresets::DirectSunlight);

@@ -14,14 +14,6 @@ namespace Saiga
 {
 namespace Random
 {
-// SAIGA_VISION_API Vec3 linearRand(Vec3 low, Vec3 high);
-
-SAIGA_VISION_API Vec3 ballRand(double radius);
-
-SAIGA_VISION_API Vec3 sphericalRand(double radius);
-
-
-
 template <typename MatrixType>
 MatrixType gaussRandMatrix(double mean = 0, double stddev = 1)
 {

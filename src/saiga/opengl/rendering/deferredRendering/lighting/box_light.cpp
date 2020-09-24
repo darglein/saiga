@@ -19,7 +19,10 @@ void BoxLightShader::checkUniforms()
 //==================================
 
 
-BoxLight::BoxLight() {}
+BoxLight::BoxLight()
+{
+    polygon_offset = vec2(2.0, 50.0);
+}
 
 void BoxLight::createShadowMap(int w, int h, ShadowQuality quality)
 {

@@ -39,7 +39,7 @@ class SampleVideoRecording : public SampleWindowDeferred
         cube2.translateGlobal(vec3(3, 1, 5));
         cube2.calculateModel();
 
-        auto sphereAsset = assetLoader.loadBasicAsset("teapot.obj");
+        auto sphereAsset = assetLoader.loadColoredAsset("teapot.obj");
         sphere.asset     = sphereAsset;
         sphere.translateGlobal(vec3(-2, 1, 0));
         sphere.rotateLocal(vec3(0, 1, 0), 180);

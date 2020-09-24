@@ -81,6 +81,9 @@ SAIGA_CORE_API uint64_t urand64();
 SAIGA_CORE_API std::vector<int> uniqueIndices(int sampleCount, int indexSize);
 
 
+SAIGA_CORE_API Vec3 ballRand(double radius);
+
+SAIGA_CORE_API Vec3 sphericalRand(double radius);
 
 }  // namespace Random
 
@@ -129,4 +132,6 @@ Eigen::Quaternion<Scalar> randomQuat()
 
 
 SAIGA_CORE_API extern vec2 diskRand(float Radius);
+
+
 }  // namespace Saiga

@@ -17,7 +17,7 @@ class Sample : public SampleWindowDeferred
     {
         // This simple AssetLoader can create assets from meshes and generate some generic debug assets
         ObjAssetLoader assetLoader;
-        teapot.asset = assetLoader.loadBasicAsset("models/teapot.obj");
+        teapot.asset = assetLoader.loadColoredAsset("models/teapot.obj");
         teapot.translateGlobal(vec3(0, 1, 0));
         teapot.calculateModel();
 

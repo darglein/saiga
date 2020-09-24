@@ -39,7 +39,7 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::SDL, Deferre
         // This simple AssetLoader can create assets from meshes and generate some generic debug assets
         ObjAssetLoader assetLoader;
 
-        teapot.asset = assetLoader.loadBasicAsset("models/teapot.obj");
+        teapot.asset = assetLoader.loadColoredAsset("models/teapot.obj");
         //    teapot.asset = assetLoader.loadTexturedAsset("cat.obj");
         teapot.translateGlobal(vec3(0, 1, 0));
         teapot.calculateModel();
@@ -47,7 +47,8 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::SDL, Deferre
         groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
 
         // create one directional light
-        sun = renderer->lighting.createDirectionalLight();
+        sun = std::make_shared<DirectionalLight>();
+        renderer->lighting.AddLight(sun);
         sun->setDirection(vec3(-1, -3, -2));
         sun->setColorDiffuse(LightColorPresets::DirectSunlight);
         sun->setIntensity(1.0);

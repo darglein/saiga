@@ -28,7 +28,10 @@ void SpotLightShader::uploadShadowPlanes(float f, float n)
     Shader::upload(location_shadowPlanes, vec2(f, n));
 }
 
-SpotLight::SpotLight() {}
+SpotLight::SpotLight()
+{
+    polygon_offset = vec2(2.0, 100.0);
+}
 
 
 void SpotLight::calculateCamera()

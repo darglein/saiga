@@ -5,9 +5,9 @@
  */
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
-#include "saiga/core/util/assert.h"
 
 namespace Saiga
 {
@@ -25,7 +25,10 @@ void PointLightShader::uploadShadowPlanes(float f, float n)
 }
 
 
-PointLight::PointLight() {}
+PointLight::PointLight()
+{
+    polygon_offset = vec2(2.0, 100.0);
+}
 
 
 PointLight& PointLight::operator=(const PointLight& light)
