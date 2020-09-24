@@ -86,20 +86,18 @@ class Sample : public SampleWindowDeferred
         std::cout << "Program Initialized!" << std::endl;
     }
 
-    void render(Camera* cam) override
+    void render(Camera* cam, RenderPass render_pass) override
     {
-        Base::render(cam);
-        cube1.render(cam);
-        cube2.render(cam);
-        sphere.render(cam);
+        Base::render(cam, render_pass);
+        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        {
+            cube1.render(cam);
+            cube2.render(cam);
+            sphere.render(cam);
+        }
     }
-    void renderDepth(Camera* cam) override
-    {
-        Base::renderDepth(cam);
-        cube1.renderDepth(cam);
-        cube2.renderDepth(cam);
-        sphere.render(cam);
-    }
+
+
 
    private:
     SimpleAssetObject cube1, cube2;

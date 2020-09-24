@@ -84,37 +84,6 @@ void Sample::update(float dt)
 }
 
 
-void Sample::render(Camera* cam)
-{
-    SampleWindowDeferred::render(cam);
-    for (auto& cube : cubes) cube.render(cam);
-}
-
-void Sample::renderDepth(Camera* cam)
-{
-    SampleWindowDeferred::renderDepth(cam);
-    for (auto& cube : cubes) cube.renderDepth(cam);
-}
-
-void Sample::renderOverlay(Camera* cam)
-{
-    SampleWindowDeferred::renderOverlay(cam);
-    physics.render(cam);
-}
-
-void Sample::renderFinal(Camera* cam)
-{
-    // The final render path (after post processing).
-    // Usually the GUI is rendered here.
-
-    {
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
-        ImGui::Begin("An Imgui Window :D");
-
-        ImGui::End();
-    }
-}
 
 int main(int argc, char* args[])
 {

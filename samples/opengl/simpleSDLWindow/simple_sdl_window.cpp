@@ -23,19 +23,17 @@ class Sample : public SampleWindowDeferred
 
         std::cout << "Program Initialized!" << std::endl;
     }
-    void render(Camera* cam) override
+
+    void render(Camera* cam, RenderPass render_pass) override
     {
-        // The sample draws the debug plane
-        SampleWindowDeferred::render(cam);
-        teapot.render(cam);
+        Base::render(cam, render_pass);
+        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        {
+            teapot.render(cam, render_pass);
+        }
     }
-    void renderDepth(Camera* cam) override
-    {
-        // Render the depth of all objects from the viewpoint of 'cam'
-        // This will be called automatically for shadow casting light sources to create shadow maps
-        SampleWindowDeferred::render(cam);
-        teapot.renderDepth(cam);
-    }
+
+
 
    private:
     SimpleAssetObject teapot;

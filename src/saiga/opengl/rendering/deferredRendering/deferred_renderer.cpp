@@ -151,7 +151,7 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     }
 
 
-    DeferredRenderingInterface* renderingInterface = dynamic_cast<DeferredRenderingInterface*>(rendering);
+    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
 
@@ -214,7 +214,7 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         auto camera = c.first;
         bindCamera(camera);
         setViewPort(c.second);
-        renderingInterface->renderOverlay(camera);
+        renderingInterface->render(camera, RenderPass::Forward);
     }
     stopTimer(OVERLAY);
 
@@ -270,7 +270,7 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
             SAIGA_ASSERT(ImGui::GetCurrentContext());
             imgui->beginFrame();
         }
-        renderingInterface->renderFinal(nullptr);
+        renderingInterface->render(nullptr, RenderPass::GUI);
         if (imgui)
         {
             imgui->endFrame();
@@ -362,8 +362,8 @@ void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::View
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(params.wireframeLineSize);
     }
-    DeferredRenderingInterface* renderingInterface = dynamic_cast<DeferredRenderingInterface*>(rendering);
-    renderingInterface->render(camera.first);
+    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
+    renderingInterface->render(camera.first, RenderPass::Deferred);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
@@ -386,7 +386,7 @@ void DeferredRenderer::renderDepthMaps()
 {
     startTimer(DEPTHMAPS);
 
-    DeferredRenderingInterface* renderingInterface = dynamic_cast<DeferredRenderingInterface*>(rendering);
+    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     lighting.renderDepthMaps(renderingInterface);
 
 

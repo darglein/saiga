@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/camera/camera.h"
+#include "saiga/core/window/Interfaces.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
@@ -27,7 +28,6 @@ class PointLight;
 class DirectionalLight;
 class BoxLight;
 
-class DeferredRenderingInterface;
 
 struct DeferredLightingShaderNames
 {
@@ -93,7 +93,7 @@ class SAIGA_OPENGL_API DeferredLighting
     void initRender();
     void render(Camera* cam, const ViewPort& viewPort);
     void postprocessVolumetric();
-    void renderDepthMaps(DeferredRenderingInterface* renderer);
+    void renderDepthMaps(RenderingInterface* renderer);
     void renderDebug(Camera* cam);
 
 

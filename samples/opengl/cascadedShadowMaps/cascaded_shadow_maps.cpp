@@ -91,34 +91,21 @@ class Sample : public SampleWindowDeferred
         // doing it in the interpolate step will reduce latency
         camera.interpolate(dt, interpolation);
     }
-    void render(Camera* cam) override
-    {
-        // Render all objects from the viewpoint of 'cam'
-        groundPlane.render(cam);
 
-        for (auto& c : cubes)
-        {
-            c.render(cam);
-        }
-    }
-    void renderDepth(Camera* cam) override
-    {
-        // Render the depth of all objects from the viewpoint of 'cam'
-        // This will be called automatically for shadow casting light sources to create shadow maps
-        groundPlane.renderDepth(cam);
 
-        for (auto& c : cubes)
+    void render(Camera* cam, RenderPass render_pass) override
+    {
+        Base::render(cam, render_pass);
+        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
         {
-            c.renderDepth(cam);
+            groundPlane.render(cam);
+
+            for (auto& c : cubes)
+            {
+                c.render(cam);
+            }
         }
-    }
-    void renderOverlay(Camera* cam) override
-    {
-        // The skybox is rendered after lighting and before post processing
-        skybox.render(cam);
-    }
-    void renderFinal(Camera* cam) override
-    {
+        else if (render_pass == RenderPass::GUI)
         {
             ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);

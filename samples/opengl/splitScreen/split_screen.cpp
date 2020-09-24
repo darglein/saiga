@@ -137,29 +137,24 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::SDL, Deferre
     {
         if (!ImGui::captureMouse()) cameras[activeCamera].interpolate(dt, interpolation);
     }
-    void render(Camera* cam) override
-    {
-        groundPlane.render(cam);
-        teapot.render(cam);
-    }
-    void renderDepth(Camera* cam) override
-    {
-        groundPlane.renderDepth(cam);
-        teapot.renderDepth(cam);
-    }
-    void renderOverlay(Camera* cam) override
-    {
-        skybox.sunDir = vec3(sun->getDirection());
-        skybox.render(cam);
-    }
-    void renderFinal(Camera* cam) override
-    {
-        // The final render path (after post processing).
-        // Usually the GUI is rendered here.
 
-        window->renderImGui();
-
+    void render(Camera* cam, RenderPass render_pass) override
+    {
+        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
         {
+            groundPlane.render(cam, render_pass);
+            teapot.render(cam, render_pass);
+        }
+        else if (render_pass == RenderPass::Forward)
+        {
+            skybox.sunDir = vec3(sun->getDirection());
+            skybox.render(cam);
+        }
+        else if (render_pass == RenderPass::GUI)
+        {
+            window->renderImGui();
+
+
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
             ImGui::Begin("Split Screen");
@@ -178,6 +173,8 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::SDL, Deferre
             ImGui::End();
         }
     }
+
+
 
     void keyPressed(SDL_Keysym key) override
     {

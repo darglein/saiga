@@ -80,22 +80,16 @@ class Sample : public SampleWindowDeferred
         std::cout << "Program Initialized!" << std::endl;
     }
 
-    void render(Camera* cam) override
+
+    void render(Camera* cam, RenderPass render_pass) override
     {
-        Base::render(cam);
-        // Render all objects from the viewpoint of 'cam'
-        cube1.render(cam);
-        cube2.render(cam);
-        sphere.render(cam);
-    }
-    void renderDepth(Camera* cam) override
-    {
-        Base::renderDepth(cam);
-        // Render the depth of all objects from the viewpoint of 'cam'
-        // This will be called automatically for shadow casting light sources to create shadow maps
-        cube1.renderDepth(cam);
-        cube2.renderDepth(cam);
-        sphere.render(cam);
+        Base::render(cam, render_pass);
+        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        {
+            cube1.render(cam);
+            cube2.render(cam);
+            sphere.render(cam);
+        }
     }
 
    private:
@@ -106,11 +100,6 @@ class Sample : public SampleWindowDeferred
     std::shared_ptr<BoxLight> boxLight;
     std::shared_ptr<PointLight> pointLight;
     std::shared_ptr<SpotLight> spotLight;
-
-    float rotationSpeed    = 0.1;
-    bool showimguidemo     = false;
-    bool lightDebug        = false;
-    bool pointLightShadows = false;
 };
 
 

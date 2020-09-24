@@ -66,47 +66,39 @@ class SampleVideoRecording : public SampleWindowDeferred
             cameraInterpolation.update(camera);
         }
     }
-    void render(Camera* cam) override
-    {
-        Base::render(cam);
 
-        cube1.render(cam);
-        cube2.render(cam);
-        sphere.render(cam);
-    }
-    void renderDepth(Camera* cam) override
+
+    void render(Camera* cam, RenderPass render_pass) override
     {
-        Base::renderDepth(cam);
-        cube1.renderDepth(cam);
-        cube2.renderDepth(cam);
-        sphere.render(cam);
-    }
-    void renderOverlay(Camera* cam) override
-    {
-        Base::renderOverlay(cam);
-        // The skybox is rendered after lighting and before post processing
-        cameraInterpolation.render();
-    }
-    void renderFinal(Camera* cam) override
-    {
-        Base::renderFinal(cam);
+        Base::render(cam, render_pass);
+        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
         {
-            ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
-            ImGui::Begin("Video Encoding");
-            enc.renderGUI();
-
-            ImGui::End();
+            cube1.render(cam);
+            cube2.render(cam);
+            sphere.render(cam);
         }
-
+        else if (render_pass == RenderPass::GUI)
         {
-            ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
-            ImGui::Begin("Camera");
-            cameraInterpolation.renderGui(camera);
-            ImGui::End();
+            {
+                ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+                ImGui::Begin("Video Encoding");
+                enc.renderGUI();
+
+                ImGui::End();
+            }
+
+            {
+                ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+                ImGui::Begin("Camera");
+                cameraInterpolation.renderGui(camera);
+                ImGui::End();
+            }
         }
     }
+
+
 
    private:
     SimpleAssetObject cube1, cube2;

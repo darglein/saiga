@@ -114,29 +114,26 @@ class Sample : public StandaloneWindow<WindowManagement::GLFW, DeferredRenderer>
         // doing it in the interpolate step will reduce latency
         camera.interpolate(dt, interpolation);
     }
-    void render(Camera* cam) override
+
+    void render(Camera* cam, RenderPass render_pass) override
     {
-        // Render all objects from the viewpoint of 'cam'
-        groundPlane.render(cam);
-        cube1.render(cam);
-        cube2.render(cam);
-        sphere.render(cam);
+        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        {
+            groundPlane.render(cam);
+            cube1.render(cam);
+            cube2.render(cam);
+            sphere.render(cam);
+        }
+        else if (render_pass == RenderPass::Forward)
+        {
+            skybox.sunDir = vec3(sun->getDirection());
+            skybox.render(cam);
+        }
+        else if (render_pass == RenderPass::GUI)
+        {
+            window->renderImGui();
+        }
     }
-    void renderDepth(Camera* cam) override
-    {
-        // Render the depth of all objects from the viewpoint of 'cam'
-        // This will be called automatically for shadow casting light sources to create shadow maps
-        groundPlane.renderDepth(cam);
-        cube1.renderDepth(cam);
-        cube2.renderDepth(cam);
-        sphere.render(cam);
-    }
-    void renderOverlay(Camera* cam) override
-    {
-        // The skybox is rendered after lighting and before post processing
-        skybox.render(cam);
-    }
-    void renderFinal(Camera* cam) override { window->renderImGui(); }
 
     virtual bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) override
     {

@@ -38,86 +38,92 @@ class Sample : public SampleWindowDeferred
             camera.mouseRotateAroundPoint(autoRotateSpeed, 0, camera.rotationPoint, up);
         }
     }
-    void renderDepth(Camera* cam) override
-    {
-        Base::renderDepth(cam);
-        object.renderDepth(cam);
-    }
-    void renderOverlay(Camera* cam) override
-    {
-        Base::renderOverlay(cam);
 
-        TexturedAsset* ta = dynamic_cast<TexturedAsset*>(object.asset.get());
-        SAIGA_ASSERT(ta);
 
-        if (renderObject)
+    void render(Camera* cam, RenderPass render_pass) override
+    {
+        if (render_pass == RenderPass::Shadow)
         {
-            if (renderGeometry)
+            object.renderDepth(cam);
+        }
+        else if (render_pass == RenderPass::Forward)
+        {
+            TexturedAsset* ta = dynamic_cast<TexturedAsset*>(object.asset.get());
+            SAIGA_ASSERT(ta);
+
+            if (renderObject)
             {
-                ta->deferredShader = normalShader;
+                if (renderGeometry)
+                {
+                    ta->deferredShader = normalShader;
+                }
+                else
+                {
+                    ta->deferredShader = textureShader;
+                }
+                object.render(cam);
             }
-            else
+
+            if (renderWireframe)
             {
-                ta->deferredShader = textureShader;
+                glEnable(GL_POLYGON_OFFSET_LINE);
+                //        glLineWidth(1);
+                glPolygonOffset(0, -500);
+
+                object.renderWireframe(cam);
+                glDisable(GL_POLYGON_OFFSET_LINE);
             }
-            object.render(cam);
         }
-
-        if (renderWireframe)
+        else if (render_pass == RenderPass::GUI)
         {
-            glEnable(GL_POLYGON_OFFSET_LINE);
-            //        glLineWidth(1);
-            glPolygonOffset(0, -500);
+            window->renderImGui();
 
-            object.renderWireframe(cam);
-            glDisable(GL_POLYGON_OFFSET_LINE);
+
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
+            ImGui::Begin("Model Viewer");
+
+
+            ImGui::Checkbox("renderGeometry", &renderGeometry);
+            ImGui::Checkbox("renderWireframe", &renderWireframe);
+            ImGui::Checkbox("renderObject", &renderObject);
+
+            ImGui::InputText("File", file.data(), file.size());
+
+
+            if (ImGui::Button("Load OBJ with Texture"))
+            {
+                ObjAssetLoader assetLoader;
+                auto asset = assetLoader.loadTexturedAsset(std::string(file.data()));
+                if (asset) object.asset = asset;
+            }
+
+            if (ImGui::Button("Load OBJ with Vertex Color"))
+            {
+                ObjAssetLoader assetLoader;
+                auto asset = assetLoader.loadBasicAsset(std::string(file.data()));
+                if (asset) object.asset = asset;
+            }
+
+
+            ImGui::End();
+
+            ImGui::SetNextWindowPos(ImVec2(0, 400), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+            ImGui::Begin("Camera");
+
+
+            ImGui::Checkbox("autoRotate", &autoRotate);
+            if (ImGui::Button("Set Rotation Point to Position"))
+            {
+                camera.rotationPoint = make_vec3(camera.position);
+            }
+            camera.imgui();
+            ImGui::End();
         }
     }
-    void renderFinal(Camera* cam) override
-    {
-        Base::renderFinal(cam);
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Model Viewer");
 
 
-        ImGui::Checkbox("renderGeometry", &renderGeometry);
-        ImGui::Checkbox("renderWireframe", &renderWireframe);
-        ImGui::Checkbox("renderObject", &renderObject);
-
-        ImGui::InputText("File", file.data(), file.size());
-
-
-        if (ImGui::Button("Load OBJ with Texture"))
-        {
-            ObjAssetLoader assetLoader;
-            auto asset = assetLoader.loadTexturedAsset(std::string(file.data()));
-            if (asset) object.asset = asset;
-        }
-
-        if (ImGui::Button("Load OBJ with Vertex Color"))
-        {
-            ObjAssetLoader assetLoader;
-            auto asset = assetLoader.loadBasicAsset(std::string(file.data()));
-            if (asset) object.asset = asset;
-        }
-
-
-        ImGui::End();
-
-        ImGui::SetNextWindowPos(ImVec2(0, 400), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Camera");
-
-
-        ImGui::Checkbox("autoRotate", &autoRotate);
-        if (ImGui::Button("Set Rotation Point to Position"))
-        {
-            camera.rotationPoint = make_vec3(camera.position);
-        }
-        camera.imgui();
-        ImGui::End();
-    }
 
    private:
     SimpleAssetObject object;

@@ -183,7 +183,7 @@ void DeferredLighting::initRender()
     lightAccumulationBuffer.unbind();
 }
 
-void DeferredLighting::renderDepthMaps(DeferredRenderingInterface* renderer)
+void DeferredLighting::renderDepthMaps(RenderingInterface* renderer)
 {
     // When GL_POLYGON_OFFSET_FILL, GL_POLYGON_OFFSET_LINE, or GL_POLYGON_OFFSET_POINT is enabled,
     // each fragment's depth value will be offset after it is interpolated from the depth values of the appropriate
@@ -204,7 +204,7 @@ void DeferredLighting::renderDepthMaps(DeferredRenderingInterface* renderer)
     shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
     DepthFunction depthFunc = [&](Camera* cam) -> void {
         renderedDepthmaps++;
-        renderer->renderDepth(cam);
+        renderer->render(cam, RenderPass::Shadow);
     };
     for (auto& light : directionalLights)
     {
