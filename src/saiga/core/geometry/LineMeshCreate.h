@@ -14,6 +14,9 @@ namespace Saiga
 template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::createGrid(const ivec2& dimension, const vec2& spacing)
 {
+    this->vertices.clear();
+    this->indices.clear();
+
     vec2 size = dimension.cast<float>().array() * spacing.array();
 
 
@@ -40,6 +43,7 @@ void LineMesh<VertexType, IndexType>::createGrid(const ivec2& dimension, const v
     }
 
 
+
     for (auto v : vertices)
     {
         VertexType ver;
@@ -49,8 +53,32 @@ void LineMesh<VertexType, IndexType>::createGrid(const ivec2& dimension, const v
 }
 
 template <typename VertexType, typename IndexType>
+void LineMesh<VertexType, IndexType>::createAABB(const AABB& box)
+{
+    this->vertices.clear();
+    this->indices.clear();
+
+    for (int i = 0; i < 8; i++)
+    {
+        VertexType ver;
+        ver.position = make_vec4(box.cornerPoint(i), 1);
+        this->vertices.push_back(ver);
+    }
+
+
+    indices = {0, 1, 1, 2, 2, 3, 3, 0,
+
+               4, 5, 5, 6, 6, 7, 7, 4,
+
+               0, 4, 1, 5, 2, 6, 3, 7};
+}
+
+template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::createFrustum(const mat4& proj, float farPlaneDistance, bool vulkanTransform)
 {
+    this->vertices.clear();
+    this->indices.clear();
+
     float d = 1.0f;
     vec4 bl(-1, -1, d, 1);
     vec4 br(1, -1, d, 1);
@@ -127,6 +155,9 @@ void LineMesh<VertexType, IndexType>::createFrustumCV(float farPlaneLimit, int w
 template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::createFrustumCV(const mat3& K, float farPlaneDistance, int w, int h)
 {
+    this->vertices.clear();
+    this->indices.clear();
+
     vec3 bl(0, h, 1);
     vec3 br(w, h, 1);
     vec3 tl(0, 0, 1);
@@ -175,6 +206,9 @@ void LineMesh<VertexType, IndexType>::createFrustumCV(const mat3& K, float farPl
 template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::createFrustum(const Frustum& frustum)
 {
+    this->vertices.clear();
+    this->indices.clear();
+
     for (int i = 0; i < 8; ++i)
     {
         VertexType v;

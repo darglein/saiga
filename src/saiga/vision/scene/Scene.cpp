@@ -55,8 +55,8 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
     //    SAIGA_ASSERT(wp);
 
     // project to screen
-    auto p  = img.se3 * wp.p;
-    auto z  = p(2);
+    auto p = img.se3 * wp.p;
+    // auto z  = p(2);
     auto p2 = intrinsics[img.intr].project(p);
     auto w  = ip.weight * scale();
     Eigen::Vector2d res;
@@ -367,8 +367,8 @@ double Scene::chi2(double huber)
 {
     double error = 0;
 
-    int stereoEdges = 0;
-    int monoEdges   = 0;
+    //    int stereoEdges = 0;
+    //    int monoEdges   = 0;
 
     for (int i = 0; i < images.size(); ++i)
     {

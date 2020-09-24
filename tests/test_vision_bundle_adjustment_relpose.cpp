@@ -121,16 +121,6 @@ class BundleAdjustmentTest
         scene    = SynteticScene::CircleSphere(wps, cams, obs);
 
         std::cout << "Creating Scene " << wps << "/" << cams << "/" << obs << std::endl;
-        for (auto& img : scene.images)
-        {
-            for (auto& obs : img.stereoPoints)
-            {
-                if (Random::sampleDouble(0, 1) < 0.2)
-                {
-                    //                    obs.depth = 1.0;
-                }
-            }
-        }
 
         //        exit(0);
         // 2 cm point noise
@@ -141,13 +131,6 @@ class BundleAdjustmentTest
 
         scene.addExtrinsicNoise(0.01);
 
-        for (auto& img : scene.images)
-        {
-            if (Random::sampleDouble(0, 1) < 0.1)
-            {
-                //                img.constant = true;
-            }
-        }
 
         scene.images.front().constant = true;
 

@@ -26,7 +26,7 @@
 #include <vector>
 using namespace Saiga;
 using Saiga::Vulkan::Memory::BufferMemoryLocation;
-class VulkanExample : public VulkanSDLExampleBase, public Saiga::SDL_KeyListener
+class VulkanExample : public VulkanSDLExampleBase
 {
     std::array<std::string, 5> image_names{"cat.png", "red-panda.png", "dog.png", "pika.png", "ludi.png"};
     std::array<std::shared_ptr<Saiga::Image>, 5> images;

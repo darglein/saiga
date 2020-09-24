@@ -24,8 +24,8 @@ TEST(Distortion, Derivative)
     Distortion d(c);
 
 
-    Vec2 ref = Vec2::Random();
-    Vec2 p   = Vec2::Random();
+
+    Vec2 p = Vec2::Random();
     Matrix<double, 2, 2> J1, J2;
 
     Vec2 res1 = distortNormalizedPoint(p, d, &J1);
