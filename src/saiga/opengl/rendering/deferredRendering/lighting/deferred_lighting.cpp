@@ -839,7 +839,6 @@ void DeferredLighting::renderImGui(bool* p_open)
     ImGui::Checkbox("useTimers", &useTimers);
     ImGui::Checkbox("stencilCulling", &stencilCulling);
     ImGui::Checkbox("lightDepthTest", &lightDepthTest);
-    ImGui::Checkbox("renderVolumetric", &renderVolumetric);
 
 
     ImGui::Text("Render Time (without shadow map computation)");

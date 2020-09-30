@@ -80,7 +80,7 @@ class SAIGA_OPENGL_API Light : public Object3D
     // [R,G,B,Intensity]
     vec4 colorSpecular = make_vec4(1);
     // density of the participating media
-    float volumetricDensity = 0.02f;
+    float volumetricDensity = 0.04f;
 
     // glPolygonOffset(slope, units)
     vec2 polygon_offset = vec2(2.0f, 10.0f);

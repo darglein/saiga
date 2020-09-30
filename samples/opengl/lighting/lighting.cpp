@@ -23,7 +23,7 @@ class Sample : public SampleWindowDeferred
         Random::setSeed(23461);
 
         float aspect = window->getAspectRatio();
-        camera.setProj(60.0f, aspect, 0.1f, 50.0f);
+        camera.setProj(60.0f, aspect, 0.1f, 100.0f);
 
 
         auto sphereMesh = TriangleMeshGenerator::createMesh(Sphere(make_vec3(0), 1), 4);
