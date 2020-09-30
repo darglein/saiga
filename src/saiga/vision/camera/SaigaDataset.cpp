@@ -62,11 +62,17 @@ int SaigaDataset::LoadMetaData()
 
 
 
-    if (scale_down_depth)
+    if (scale_down_depth && _intrinsics.imageSize.width == _intrinsics.depthImageSize.width)
     {
         _intrinsics.depthModel.K.scale(0.5);
         _intrinsics.depthImageSize.width /= 2;
         _intrinsics.depthImageSize.height /= 2;
+        std::cout << "Scaling down depth image." << std::endl;
+    }
+    else
+    {
+        std::cout << "Don't scale down." << std::endl;
+        scale_down_depth = false;
     }
 
     std::cout << _intrinsics << std::endl;
