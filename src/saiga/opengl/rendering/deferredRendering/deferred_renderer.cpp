@@ -264,6 +264,11 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     }
 
     {
+        glEnable(GL_BLEND);
+        glBlendEquation(GL_FUNC_ADD);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_TEST);
         // final render pass
         if (imgui)
         {
