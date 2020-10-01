@@ -76,8 +76,8 @@ struct SyncedConsoleProgressBar
             }
             print();
             auto time = timer.stop();
-            strm << "Done in " << std::chrono::duration_cast<std::chrono::duration<float>>(time).count() << " seconds."
-                 << std::endl;
+            double s  = std::chrono::duration_cast<std::chrono::duration<double>>(time).count();
+            strm << "Done in " << s << " seconds. (" << (s / end) << " s/element)" << std::endl;
         });
     }
 
@@ -96,7 +96,7 @@ struct SyncedConsoleProgressBar
             strm << " ";
         }
 
-        strm << "] " << progress * 100 << "% " << std::flush;
+        strm << "] " << current << "/" << end << " " << std::flush;
     }
 };
 

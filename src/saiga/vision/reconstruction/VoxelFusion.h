@@ -33,6 +33,9 @@ struct SAIGA_VISION_API FusionParams
 #endif
     bool use_confidence = true;
 
+    // the truncation distance will be always greater than (min_truncation_factor * voxelSize)
+    float min_truncation_factor = 6;
+
     float newWeight = 1;
     float maxWeight = 250;
 
@@ -41,41 +44,38 @@ struct SAIGA_VISION_API FusionParams
     void imgui();
 };
 
-struct SAIGA_VISION_API FusionImage
+class SAIGA_VISION_API FusionImage
 {
+   public:
     // Set by the user
     ImageView<const float> depthMap;
+    SE3 V;
 
     // Confidence for every depth value
     TemplatedImage<float> confidence;
     TemplatedImage<vec3> unprojected_position;
 
-
-    SE3 V;
-
     std::vector<ivec3> visible_blocks;
-    std::vector<ivec3> truncated_blocks;
+    //    std::vector<ivec3> truncated_blocks;
 };
 
 
 struct SAIGA_VISION_API FusionScene
 {
+    // Set by the user
     std::vector<FusionImage> images;
     std::shared_ptr<std::vector<TemplatedImage<float>>> local_depth_images;
-
-    ImageDimensions depth_map_size;
-    double bf;
     Intrinsics4 K;
     Distortion dis;
-
-    int Size() const { return images.size(); }
-
-
     FusionParams params;
+
+    FusionScene() {}
+    int Size() const { return images.size(); }
     void imgui();
     virtual void Fuse();
 
    protected:
+    ImageDimensions depth_map_size;
     std::shared_ptr<SparseTSDF<8>> tsdf;
 
     std::vector<std::array<vec3, 3>> triangle_soup;

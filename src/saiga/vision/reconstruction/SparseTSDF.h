@@ -8,6 +8,7 @@
 #include "saiga/core/geometry/all.h"
 #include "saiga/core/image/all.h"
 #include "saiga/core/util/ProgressBar.h"
+#include "saiga/core/util/Thread/SpinLock.h"
 #include "saiga/core/util/Thread/omp.h"
 
 #include "MarchingCubes.h"
@@ -55,9 +56,11 @@ struct SAIGA_TEMPLATE SparseTSDF
         : voxel_size(voxel_size),
           voxel_size_inv(1.0 / voxel_size),
           hash_size(hash_size),
-          first_hashed_block(hash_size, -1)
+          blocks(reserve_blocks),
+          first_hashed_block(hash_size, -1),
+          hash_locks(hash_size)
+
     {
-        blocks.reserve(reserve_blocks);
         block_size_inv = 1.0 / (voxel_size * VOXEL_BLOCK_SIZE);
 
         std::cout << "SparseTSDF created. Allocated Memory: " << Memory() / (1000 * 1000) << " MB." << std::endl;
@@ -71,7 +74,7 @@ struct SAIGA_TEMPLATE SparseTSDF
         strm << "[SparseTSDF]" << std::endl;
         strm << "  VoxelSize    " << voxel_size << std::endl;
         strm << "  hash_size    " << hash_size << std::endl;
-        strm << "  Blocks       " << current_blocks << "/" << blocks.capacity() << std::endl;
+        strm << "  Blocks       " << current_blocks << "/" << blocks.size() << std::endl;
         strm << "  Mem Blocks   " << mem_blocks / (1000.0 * 1000) << " MB" << std::endl;
         strm << "  Mem Hash     " << mem_hash / (1000.0 * 1000) << " MB" << std::endl;
     }
@@ -84,28 +87,15 @@ struct SAIGA_TEMPLATE SparseTSDF
     }
 
     // Returns the voxel block or 0 if it doesn't exist.
-    VoxelBlock* GetBlock(const VoxelBlockIndex& i)
-    {
-        int block_id = first_hashed_block[H(i)];
+    VoxelBlock* GetBlock(const VoxelBlockIndex& i) { return GetBlock(i, H(i)); }
 
-        while (block_id != -1)
-        {
-            auto* block = &blocks[block_id];
-            if (block->index == i)
-            {
-                return block;
-            }
-
-            block_id = block->next_index;
-        }
-        return nullptr;
-    }
 
     // Insert a new block into the TSDF and returns a pointer to it.
     // If the block already exists, nothing is inserted.
     VoxelBlock* InsertBlock(const VoxelBlockIndex& i)
     {
-        auto block = GetBlock(i);
+        int h      = H(i);
+        auto block = GetBlock(i, h);
 
         if (block)
         {
@@ -114,13 +104,48 @@ struct SAIGA_TEMPLATE SparseTSDF
         }
 
         // Create block and insert as the first element.
-        blocks.push_back({});
+        int new_index = current_blocks.fetch_add(1);
+
+        if (new_index >= blocks.size())
+        {
+            blocks.resize(blocks.size() * 2);
+        }
+
         int hash                 = H(i);
-        auto* new_block          = &blocks[current_blocks];
+        auto* new_block          = &blocks[new_index];
         new_block->index         = i;
         new_block->next_index    = first_hashed_block[hash];
-        first_hashed_block[hash] = current_blocks;
-        current_blocks++;
+        first_hashed_block[hash] = new_index;
+        return new_block;
+    }
+
+    VoxelBlock* InsertBlockLock(const VoxelBlockIndex& i)
+    {
+        int h = H(i);
+
+        std::unique_lock lock(hash_locks[h]);
+
+        auto block = GetBlock(i, h);
+
+        if (block)
+        {
+            // block already exists
+            return block;
+        }
+
+        // Create block and insert as the first element.
+        int new_index = current_blocks.fetch_add(1);
+
+        if (new_index >= blocks.size())
+        {
+            SAIGA_EXIT_ERROR("Resizing not allowed during parallel insertion!");
+        }
+
+        int hash                 = H(i);
+        auto* new_block          = &blocks[new_index];
+        new_block->index         = i;
+        new_block->next_index    = first_hashed_block[hash];
+        first_hashed_block[hash] = new_index;
         return new_block;
     }
 
@@ -259,9 +284,10 @@ struct SAIGA_TEMPLATE SparseTSDF
 
 
     unsigned int hash_size;
-    int current_blocks = 0;
+    std::atomic_int current_blocks = 0;
     std::vector<VoxelBlock> blocks;
     std::vector<int> first_hashed_block;
+    std::vector<SpinLock> hash_locks;
 
     int H(const VoxelBlockIndex& i)
     {
@@ -269,6 +295,24 @@ struct SAIGA_TEMPLATE SparseTSDF
         int result     = u % hash_size;
         SAIGA_ASSERT(result >= 0 && result < hash_size);
         return result;
+    }
+
+    // Returns the voxel block or 0 if it doesn't exist.
+    VoxelBlock* GetBlock(const VoxelBlockIndex& i, int hash)
+    {
+        int block_id = first_hashed_block[hash];
+
+        while (block_id != -1)
+        {
+            auto* block = &blocks[block_id];
+            if (block->index == i)
+            {
+                return block;
+            }
+
+            block_id = block->next_index;
+        }
+        return nullptr;
     }
 };
 

@@ -15,6 +15,10 @@ namespace Saiga
 {
 void FusionScene::Preprocess()
 {
+    if (images.empty()) return;
+
+    depth_map_size = images.front().depthMap.dimensions();
+
     unproject_undistort_map.create(depth_map_size);
 
 
@@ -30,12 +34,13 @@ void FusionScene::Preprocess()
         }
     }
 
-    tsdf = std::make_unique<SparseTSDF<8>>(params.voxelSize, 10 * 1000, 5 * 1000 * 1000);
+    tsdf = std::make_unique<SparseTSDF<8>>(params.voxelSize, 250 * 1000, 5 * 1000 * 1000);
 }
 
 void FusionScene::AnalyseSparseStructure()
 {
     SyncedConsoleProgressBar loading_bar(std::cout, "Analysing Structure", Size());
+
 
 #pragma omp parallel for
     for (int i = 0; i < Size(); ++i)
@@ -49,15 +54,17 @@ void FusionScene::AnalyseSparseStructure()
             dm.unprojected_position.makeZero();
         }
 
-        std::set<std::tuple<int, int, int>> leset;
+        //        std::set<std::tuple<int, int, int>> leset;
 
-        for (auto i : dm.depthMap.rowRange())
+        //        for (auto i : dm.depthMap.rowRange())
+        for (int i = 0; i < dm.depthMap.rows; ++i)
         {
             for (auto j : dm.depthMap.colRange())
             {
                 auto depth = dm.depthMap(i, j);
 
-                double truncation_distance = params.truncationDistance + params.truncationDistanceScale * depth;
+                float truncation_distance = params.truncationDistance + params.truncationDistanceScale * depth;
+                truncation_distance = std::max(params.min_truncation_factor * params.voxelSize, truncation_distance);
 
                 if (depth <= 0 || depth > params.maxIntegrationDistance) continue;
 
@@ -65,6 +72,9 @@ void FusionScene::AnalyseSparseStructure()
                 float min_depth = clamp(depth - truncation_distance, 0, params.maxIntegrationDistance);
                 float max_depth = clamp(depth + truncation_distance, 0, params.maxIntegrationDistance);
 
+
+                //                min_depth = depth - 1;
+                //                max_depth = depth + 1;
 
                 vec2 p       = unproject_undistort_map(i, j);
                 vec3 ray_min = invV * (vec3(p(0), p(1), 1) * min_depth);
@@ -130,7 +140,8 @@ void FusionScene::AnalyseSparseStructure()
 
                 while (true)
                 {
-                    leset.insert({idCurrentVoxel(0), idCurrentVoxel(1), idCurrentVoxel(2)});
+                    //                    leset.insert({idCurrentVoxel(0), idCurrentVoxel(1), idCurrentVoxel(2)});
+                    tsdf->InsertBlockLock(idCurrentVoxel);
                     // Traverse voxel grid
                     if (tMax.x() < tMax.y() && tMax.x() < tMax.z())
                     {
@@ -154,14 +165,33 @@ void FusionScene::AnalyseSparseStructure()
             }
         }
 
-        dm.truncated_blocks.clear();
-        for (auto i : leset)
-        {
-            dm.truncated_blocks.push_back({std::get<0>(i), std::get<1>(i), std::get<2>(i)});
-        }
+        //        dm.truncated_blocks.clear();
+        //        for (auto i : leset)
+        //        {
+        //            dm.truncated_blocks.push_back({std::get<0>(i), std::get<1>(i), std::get<2>(i)});
+        //        }
 
         loading_bar.addProgress(1);
     }
+}
+
+void FusionScene::Allocate()
+{
+    //    return;
+    //    SyncedConsoleProgressBar loadingBar(std::cout, "Allocating", Size());
+
+    //#pragma omp parallel for
+    //    for (int i = 0; i < Size(); ++i)
+    //    {
+    //        auto& dm = images[i];
+    //        for (auto i : dm.truncated_blocks)
+    //        {
+    //            tsdf->InsertBlockLock(i);
+    //        }
+    //        loadingBar.addProgress(1);
+
+    //        dm.truncated_blocks = {};
+    //    }
 }
 
 
@@ -226,6 +256,140 @@ void FusionScene::ComputeWeight()
 
 void FusionScene::Integrate()
 {
+#if 0
+    {
+        SyncedConsoleProgressBar loading_bar(std::cout, "Integrate", Size());
+
+        auto K2 = K;
+        K2.fx *= 0.95;
+        K2.fy *= 0.95;
+
+
+        for (int i = 0; i < Size(); ++i)
+        {
+            auto& dm = images[i];
+            dm.visible_blocks.clear();
+
+
+#    pragma omp parallel for
+            for (int i = 0; i < tsdf->current_blocks; ++i)
+            {
+                auto& block = tsdf->blocks[i];
+                auto id     = block.index;
+                Vec3 c      = tsdf->BlockCenter(block.index).cast<double>();
+
+                // project to image
+                Vec3 pos = dm.V * c;
+
+                Vec2 np           = pos.head<2>() / pos.z();
+                double voxelDepth = pos.z();
+
+                if (voxelDepth < 0 || voxelDepth > params.maxIntegrationDistance + 0.4) continue;
+
+                np      = distortNormalizedPoint(np, dis);
+                Vec2 ip = K2.normalizedToImage(np);
+
+                // nearest neighbour lookup
+                ip      = ip.array().round();
+                int ipx = ip(0);
+                int ipy = ip(1);
+
+                if (!dm.depthMap.inImage(ipy, ipx))
+                {
+                    continue;
+                }
+
+                //                dm.visible_blocks.push_back(block.index);
+
+                for (int i = 0; i < tsdf->VOXEL_BLOCK_SIZE; ++i)
+                {
+                    for (int j = 0; j < tsdf->VOXEL_BLOCK_SIZE; ++j)
+                    {
+                        for (int k = 0; k < tsdf->VOXEL_BLOCK_SIZE; ++k)
+                        {
+                            Vec3 global_pos = tsdf->GlobalPosition(id, i, j, k).cast<double>();
+                            auto& cell      = block.data[i][j][k];
+
+
+
+                            // project to image
+                            Vec3 pos = dm.V * global_pos;
+
+                            Vec2 np           = pos.head<2>() / pos.z();
+                            double voxelDepth = pos.z();
+
+                            np = distortNormalizedPoint(np, dis);
+
+
+                            Vec2 ip = K.normalizedToImage(np);
+
+                            // the voxel is behind the camera
+                            if (voxelDepth <= 0) continue;
+
+                            // nearest neighbour lookup
+                            ip      = ip.array().round();
+                            int ipx = ip(0);
+                            int ipy = ip(1);
+
+                            if (!dm.depthMap.inImage(ipy, ipx))
+                            {
+                                continue;
+                            }
+
+                            auto imageDepth = dm.depthMap(ipy, ipx);
+                            if (imageDepth <= 0) continue;
+
+                            if (imageDepth > params.maxIntegrationDistance) continue;
+
+
+
+                            float confidence = params.use_confidence ? dm.confidence(ipy, ipx) : 1;
+
+                            if (confidence <= 0) continue;
+
+                            double surface_distance = imageDepth - voxelDepth;
+
+                            float truncation_distance =
+                                params.truncationDistance + params.truncationDistanceScale * imageDepth;
+                            truncation_distance =
+                                std::max(params.min_truncation_factor * params.voxelSize, truncation_distance);
+
+                            if (surface_distance >= -truncation_distance)
+                            {
+                                auto new_tsdf       = surface_distance;
+                                auto current_tsdf   = cell.distance;
+                                auto current_weight = cell.weight;
+
+                                auto add_weight = params.newWeight * confidence;
+
+                                if (current_weight == 0)
+                                {
+                                    cell.distance = new_tsdf;
+                                    cell.weight   = add_weight;
+                                }
+                                else
+                                {
+                                    double updated_tsdf = (current_weight * current_tsdf + add_weight * new_tsdf) /
+                                                          (current_weight + add_weight);
+
+                                    auto new_weight = current_weight + add_weight;
+
+                                    new_weight = std::min(params.maxWeight, new_weight);
+
+                                    cell.distance = updated_tsdf;
+                                    cell.weight   = new_weight;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            loading_bar.addProgress(1);
+        }
+    }
+    return;
+#endif
+
     {
         SyncedConsoleProgressBar loading_bar(std::cout, "Visibility", Size());
 
@@ -241,9 +405,11 @@ void FusionScene::Integrate()
             dm.visible_blocks.clear();
 
 
-            for (auto& block : tsdf->blocks)
+            //            for (auto& block : tsdf->blocks)
+            for (int i = 0; i < tsdf->current_blocks; ++i)
             {
-                Vec3 c = tsdf->BlockCenter(block.index).cast<double>();
+                auto block = tsdf->blocks[i];
+                Vec3 c     = tsdf->BlockCenter(block.index).cast<double>();
 
                 // project to image
                 Vec3 pos = dm.V * c;
@@ -340,20 +506,24 @@ void FusionScene::Integrate()
                             //                    double lambda = Vec3(pos(0), pos(1), 1).norm();
                             //                    double sdf    = (-1.f) * ((1.f / lambda) * pos.norm() - imageDepth);
                             //                    double sdf = (ipUnproj - pos).norm();
-                            double sdf = imageDepth - voxelDepth;
+                            double surface_distance = imageDepth - voxelDepth;
 
                             //                    if (imageDepth < voxelDepth) sdf *= -1;
 
 
 
-                            double truncation_distance =
+                            float truncation_distance =
                                 params.truncationDistance + params.truncationDistanceScale * imageDepth;
+                            truncation_distance =
+                                std::max(params.min_truncation_factor * params.voxelSize, truncation_distance);
 
                             //                    if ( std::abs(sdf) < -truncation_distance)
-                            if (sdf >= -truncation_distance)
+                            if (surface_distance >= -truncation_distance)
                             {
                                 //                        sdf = std::clamp(sdf,-truncation_distance)
-                                auto new_tsdf       = std::min(1., sdf / truncation_distance);
+                                //                                auto new_tsdf       = std::min(1., sdf /
+                                //                                truncation_distance);
+                                auto new_tsdf       = surface_distance;  // std::min(1., sdf);
                                 auto current_tsdf   = cell.distance;
                                 auto current_weight = cell.weight;
 
@@ -431,30 +601,14 @@ void FusionScene::ExtractMesh()
 }
 
 
-void FusionScene::Allocate()
-{
-    SyncedConsoleProgressBar loadingBar(std::cout, "Allocating", Size());
-    for (int i = 0; i < Size(); ++i)
-    {
-        auto& dm = images[i];
-        for (auto i : dm.truncated_blocks)
-        {
-            tsdf->InsertBlock(i);
-        }
-        loadingBar.addProgress(1);
-
-        dm.truncated_blocks = {};
-    }
-}
-
 
 void FusionScene::Fuse()
 {
     std::cout << "Fusing " << Size() << " depth maps..." << std::endl;
     Preprocess();
     AnalyseSparseStructure();
-    ComputeWeight();
     Allocate();
+    ComputeWeight();
     Integrate();
     ExtractMesh();
     tsdf->Print(std::cout);
