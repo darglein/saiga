@@ -82,6 +82,15 @@ struct SAIGA_VISION_API FrameData : public FrameMetaData
 
     void Save(const std::string& dir) const;
     void Load(const std::string& dir);
+
+    void FreeImageData()
+    {
+        image.free();
+        image_rgb.free();
+        depth_image.free();
+        right_image.free();
+        right_image_rgb.free();
+    }
 };
 
 
