@@ -7,6 +7,7 @@
 #pragma once
 #include "saiga/core/geometry/all.h"
 #include "saiga/core/image/all.h"
+#include "saiga/core/util/BinaryFile.h"
 #include "saiga/core/util/ProgressBar.h"
 #include "saiga/core/util/Thread/SpinLock.h"
 #include "saiga/core/util/Thread/omp.h"
@@ -24,17 +25,16 @@ namespace Saiga
 //
 // The voxel blocks are stored sparse using a hashmap. For each hashbucket,
 // we store a linked-list with all blocks inside this bucket.
-template <int _VOXEL_BLOCK_SIZE>
-struct SAIGA_TEMPLATE SparseTSDF
+struct SAIGA_VISION_API SparseTSDF
 {
-    static constexpr int VOXEL_BLOCK_SIZE = _VOXEL_BLOCK_SIZE;
+    static constexpr int VOXEL_BLOCK_SIZE = 8;
     using VoxelBlockIndex                 = ivec3;
 
     // Each TSDF voxel consists of the (signed) distance to the surface and a confidence weight.
     // If desired, you can add a RGB member to estimate the color during integration.
     struct Voxel
     {
-        float distance = std::numeric_limits<float>::infinity();
+        float distance = 0;
         float weight   = 0;
     };
 
@@ -61,23 +61,17 @@ struct SAIGA_TEMPLATE SparseTSDF
           hash_locks(hash_size)
 
     {
+        static_assert(sizeof(VoxelBlock::data) == 8 * 8 * 8 * 2 * sizeof(float), "Incorrect Voxel Size");
         block_size_inv = 1.0 / (voxel_size * VOXEL_BLOCK_SIZE);
 
         std::cout << "SparseTSDF created. Allocated Memory: " << Memory() / (1000 * 1000) << " MB." << std::endl;
     }
 
-    void Print(std::ostream& strm)
-    {
-        size_t mem_blocks = blocks.capacity() * sizeof(VoxelBlock);
-        size_t mem_hash   = first_hashed_block.capacity() * sizeof(int);
+    SparseTSDF(const std::string& file) { Load(file); }
 
-        strm << "[SparseTSDF]" << std::endl;
-        strm << "  VoxelSize    " << voxel_size << std::endl;
-        strm << "  hash_size    " << hash_size << std::endl;
-        strm << "  Blocks       " << current_blocks << "/" << blocks.size() << std::endl;
-        strm << "  Mem Blocks   " << mem_blocks / (1000.0 * 1000) << " MB" << std::endl;
-        strm << "  Mem Hash     " << mem_hash / (1000.0 * 1000) << " MB" << std::endl;
-    }
+    SAIGA_VISION_API friend std::ostream& operator<<(std::ostream& os, const SparseTSDF& tsdf);
+
+
 
     size_t Memory()
     {
@@ -173,107 +167,11 @@ struct SAIGA_TEMPLATE SparseTSDF
     using Triangle = std::array<vec3, 3>;
 
     // Triangle surface extraction on the sparse TSDF.
-    std::vector<std::vector<Triangle>> ExtractSurface(double iso, int threads = OMP::getMaxThreads())
-    {
-        SyncedConsoleProgressBar loading_bar(std::cout, "Extracing surface", current_blocks);
+    // Returns for each block a list of triangles
+    std::vector<std::vector<Triangle>> ExtractSurface(double iso, int threads = OMP::getMaxThreads());
 
-        //        std::vector<std::vector<std::array<vec3, 3>>> triangle_soup_thread(threads);
-
-        // Each block generates a list of triangles
-        std::vector<std::vector<Triangle>> triangle_soup_per_block(current_blocks);
-
-#pragma omp parallel for num_threads(threads)
-        for (int b = 0; b < current_blocks; ++b)
-        {
-            auto& triangle_soup = triangle_soup_per_block[b];
-            auto& block         = blocks[b];
-            // Compute positions and values of (n+1) x (n+1) x (n+1) block.
-            // The (+1) data point is taken from neighbouring blocks to close the holes.
-            std::pair<vec3, float> local_data[VOXEL_BLOCK_SIZE + 1][VOXEL_BLOCK_SIZE + 1][VOXEL_BLOCK_SIZE + 1];
-
-            // Fill from own block
-            for (int i = 0; i < VOXEL_BLOCK_SIZE + 1; ++i)
-            {
-                for (int j = 0; j < VOXEL_BLOCK_SIZE + 1; ++j)
-                {
-                    for (int k = 0; k < VOXEL_BLOCK_SIZE + 1; ++k)
-                    {
-                        int li = i % VOXEL_BLOCK_SIZE;
-                        int lj = j % VOXEL_BLOCK_SIZE;
-                        int lk = k % VOXEL_BLOCK_SIZE;
-
-                        int bi = i / VOXEL_BLOCK_SIZE;
-                        int bj = j / VOXEL_BLOCK_SIZE;
-                        int bk = k / VOXEL_BLOCK_SIZE;
-
-                        VoxelBlockIndex read_block_id = block.index + ivec3(bk, bj, bi);
-
-                        auto* read_block = GetBlock(read_block_id);
-
-
-                        vec3 p = GlobalPosition(block.index, i, j, k);
-
-                        if (read_block)
-                        {
-                            float dis           = read_block->data[li][lj][lk].distance;
-                            local_data[i][j][k] = {p, dis};
-                        }
-                        else
-                        {
-                            local_data[i][j][k] = {p, std::numeric_limits<float>::infinity()};
-                        }
-                    }
-                }
-            }
-
-
-            // create triangles
-            for (int i = 0; i < VOXEL_BLOCK_SIZE; ++i)
-            {
-                for (int j = 0; j < VOXEL_BLOCK_SIZE; ++j)
-                {
-                    for (int k = 0; k < VOXEL_BLOCK_SIZE; ++k)
-                    {
-                        std::array<std::pair<vec3, float>, 8> cell;
-
-                        cell[0] = local_data[i][j][k];
-                        cell[1] = local_data[i][j][k + 1];
-                        cell[2] = local_data[i + 1][j][k + 1];
-                        cell[3] = local_data[i + 1][j][k];
-                        cell[4] = local_data[i][j + 1][k];
-                        cell[5] = local_data[i][j + 1][k + 1];
-                        cell[6] = local_data[i + 1][j + 1][k + 1];
-                        cell[7] = local_data[i + 1][j + 1][k];
-
-                        bool finite = true;
-
-                        for (auto i = 0; i < 8; ++i)
-                        {
-                            finite &= std::isfinite(cell[i].second);
-                        }
-
-                        if (!finite)
-                        {
-                            continue;
-                        }
-
-                        auto [triangles, count] = MarchingCubes(cell, iso);
-
-
-                        for (int n = 0; n < count; ++n)
-                        {
-                            auto tri = triangles[n];
-                            triangle_soup.push_back(tri);
-                        }
-                    }
-                }
-            }
-            loading_bar.addProgress(1);
-        }
-
-
-        return triangle_soup_per_block;
-    }
+    // Create a triangle mesh from the list of triangles
+    TriangleMesh<VertexNC, uint32_t> CreateMesh(const std::vector<std::vector<Triangle>>& triangles);
 
 
    public:
@@ -288,6 +186,12 @@ struct SAIGA_TEMPLATE SparseTSDF
     std::vector<VoxelBlock> blocks;
     std::vector<int> first_hashed_block;
     std::vector<SpinLock> hash_locks;
+
+    void Save(const std::string& file);
+
+    void Load(const std::string& file);
+
+    bool operator==(const SparseTSDF& other) const;
 
     int H(const VoxelBlockIndex& i)
     {

@@ -18,8 +18,8 @@ void FusionScene::Preprocess()
     if (images.empty()) return;
 
     depth_map_size = images.front().depthMap.dimensions();
-
     unproject_undistort_map.create(depth_map_size);
+
 
 
     for (auto i : unproject_undistort_map.rowRange())
@@ -34,7 +34,10 @@ void FusionScene::Preprocess()
         }
     }
 
-    tsdf = std::make_unique<SparseTSDF<8>>(params.voxelSize, 250 * 1000, 5 * 1000 * 1000);
+    triangle_soup_inclusive_prefix_sum.clear();
+    triangle_soup.clear();
+    mesh.clear();
+    tsdf = std::make_unique<SparseTSDF>(params.voxelSize, 250 * 1000, 5 * 1000 * 1000);
 }
 
 void FusionScene::AnalyseSparseStructure()
@@ -239,6 +242,8 @@ void FusionScene::ComputeWeight()
 
                 float w = v.dot(n);
                 w       = clamp(w, 0, 1);
+
+                //                if (w < 0.5) w = 0;
 
                 float wd =
                     1.0 / (depth + 1);  // (params.maxIntegrationDistance - depth) / params.maxIntegrationDistance;
@@ -480,17 +485,50 @@ void FusionScene::Integrate()
                             // the voxel is behind the camera
                             if (voxelDepth <= 0) continue;
 
-                            // nearest neighbour lookup
-                            ip      = ip.array().round();
-                            int ipx = ip(0);
-                            int ipy = ip(1);
 
-                            if (!dm.depthMap.inImage(ipy, ipx))
+                            // nearest neighbour lookup
+                            Vec2 ip_rounded = ip.array().round();
+                            int ipx         = ip_rounded(0);
+                            int ipy         = ip_rounded(1);
+
+                            if (dm.depthMap.distanceFromEdge(ipy, ipx) <= 2)
                             {
                                 continue;
                             }
 
-                            auto imageDepth = dm.depthMap(ipy, ipx);
+
+
+                            float imageDepth;
+
+                            if (params.bilinear_intperpolation)
+                            {
+                                // Bilinear interpolation (reduces artifacts)
+                                int ipx = std::floor(ip(0));
+                                int ipy = std::floor(ip(1));
+                                auto a1 = dm.depthMap(ipy, ipx);
+                                auto a2 = dm.depthMap(ipy + 1, ipx);
+                                auto a3 = dm.depthMap(ipy + 1, ipx + 1);
+                                auto a4 = dm.depthMap(ipy, ipx + 1);
+                                if (a1 <= 0 || a2 <= 0 || a3 <= 0 || a4 <= 0) continue;
+                                imageDepth = dm.depthMap.inter(ip(1), ip(0));
+
+
+                                //                                if (params.test)
+                                //                                {
+                                //                                    float min_d = std::min(std::min(std::min(a1, a2),
+                                //                                    a3), a4); float max_d =
+                                //                                    std::max(std::max(std::max(a1, a2), a3), a4); if
+                                //                                    (max_d - min_d > 0.01)
+                                //                                    {
+                                //                                        continue;
+                                //                                    }
+                                //                                }
+                            }
+                            else
+                            {
+                                imageDepth = dm.depthMap(ipy, ipx);
+                            }
+
                             if (imageDepth <= 0) continue;
 
                             if (imageDepth > params.maxIntegrationDistance) continue;
@@ -528,6 +566,8 @@ void FusionScene::Integrate()
                                 auto current_weight = cell.weight;
 
                                 auto add_weight = params.newWeight * confidence;
+
+
 
                                 if (current_weight == 0)
                                 {
@@ -574,23 +614,24 @@ void FusionScene::ExtractMesh()
         triangle_soup_inclusive_prefix_sum.push_back(sum);
     }
 
-    for (auto& t : triangle_soup)
-    {
-        VertexNC tri[3];
-        for (int i = 0; i < 3; ++i)
-        {
-            tri[i].position.head<3>() = t[i].cast<float>();
-            tri[i].color              = vec4(1, 1, 1, 1);
-        }
-        mesh.addTriangle(tri);
-    }
+    mesh = tsdf->CreateMesh(triangle_soup_per_block);
+    //    for (auto& t : triangle_soup)
+    //    {
+    //        VertexNC tri[3];
+    //        for (int i = 0; i < 3; ++i)
+    //        {
+    //            tri[i].position.head<3>() = t[i].cast<float>();
+    //            tri[i].color              = vec4(1, 1, 1, 1);
+    //        }
+    //        mesh.addTriangle(tri);
+    //    }
 
-    {
-        mesh.sortVerticesByPosition();
-        mesh.removeSubsequentDuplicates();
-        mesh.removeDegenerateFaces();
-        mesh.computePerVertexNormal();
-    }
+    //    {
+    //        mesh.sortVerticesByPosition();
+    //        mesh.removeSubsequentDuplicates();
+    //        mesh.removeDegenerateFaces();
+    //        mesh.computePerVertexNormal();
+    //    }
 
 
     {
@@ -611,7 +652,7 @@ void FusionScene::Fuse()
     ComputeWeight();
     Integrate();
     ExtractMesh();
-    tsdf->Print(std::cout);
+    std::cout << *tsdf << std::endl;
 }
 
 
@@ -634,7 +675,15 @@ void FusionParams::imgui()
     ImGui::InputFloat("maxIntegrationDistance", &maxIntegrationDistance);
     ImGui::InputFloat("newWeight", &newWeight);
     ImGui::InputFloat("maxWeight", &maxWeight);
+    ImGui::InputFloat("min_truncation_factor", &min_truncation_factor);
     ImGui::Checkbox("use_confidence", &use_confidence);
+    ImGui::Checkbox("bilinear_intperpolation", &bilinear_intperpolation);
+    ImGui::Checkbox("test", &test);
+
+    static char buffer[256];
+    std::copy(out_file.begin(), out_file.end(), buffer);
+    ImGui::InputText("Out File", buffer, 256);
+    out_file = std::string(buffer);
 }
 
 

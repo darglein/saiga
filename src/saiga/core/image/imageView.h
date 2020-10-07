@@ -157,7 +157,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         {
             x0 = 0;
             ax = 0;
-        };
+        }
         if (x0 >= width)
         {
             x0 = width - 1;

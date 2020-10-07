@@ -5,7 +5,6 @@
  */
 
 #include "saiga/opengl/window/SampleWindowDeferred.h"
-
 using namespace Saiga;
 
 class Sample : public SampleWindowDeferred

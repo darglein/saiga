@@ -31,8 +31,9 @@ struct SAIGA_VISION_API FusionParams
     float truncationDistanceScale = 0.02;
     float maxIntegrationDistance  = 5;
 #endif
-    bool use_confidence = true;
-
+    bool use_confidence          = true;
+    bool test                    = false;
+    bool bilinear_intperpolation = true;
     // the truncation distance will be always greater than (min_truncation_factor * voxelSize)
     float min_truncation_factor = 6;
 
@@ -74,9 +75,9 @@ struct SAIGA_VISION_API FusionScene
     void imgui();
     virtual void Fuse();
 
-   protected:
+
     ImageDimensions depth_map_size;
-    std::shared_ptr<SparseTSDF<8>> tsdf;
+    std::shared_ptr<SparseTSDF> tsdf;
 
     std::vector<std::array<vec3, 3>> triangle_soup;
     TriangleMesh<VertexNC, uint32_t> mesh;

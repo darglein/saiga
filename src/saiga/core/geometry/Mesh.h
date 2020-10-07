@@ -93,7 +93,7 @@ class Mesh
 template <typename VertexType>
 void Mesh<VertexType>::transform(const mat4& T)
 {
-    for (auto&& v : vertices)
+    for (auto& v : vertices)
     {
         // Make sure it works for user defined w components
         vec4 p     = make_vec4(make_vec3(v.position), 1);

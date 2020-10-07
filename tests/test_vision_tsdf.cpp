@@ -45,17 +45,33 @@ class TSDFTest
 
 std::unique_ptr<TSDFTest> test;
 
-TEST(TSDF, Load)
+TEST(TSDF, Create)
 {
     test = std::make_unique<TSDFTest>();
     EXPECT_TRUE(test->depth_image.valid());
 }
 
-TEST(TSDF, Load2)
+TEST(TSDF, Fuse)
 {
-    //    std::atomic_int a;
     test->scene.Fuse();
 }
+
+TEST(TSDF, LoadStore)
+{
+    SparseTSDF test2(10, 10, 10);
+
+    EXPECT_TRUE(!(test2 == *test->scene.tsdf));
+    EXPECT_EQ(test2, test2);
+    EXPECT_EQ(*test->scene.tsdf, *test->scene.tsdf);
+
+    test->scene.tsdf->Save("tsdf.dat");
+    test2.Load("tsdf.dat");
+    EXPECT_EQ(test2, *test->scene.tsdf);
+
+    test2.blocks[12].data[5][3][1].distance = 10;
+    EXPECT_TRUE(!(test2 == *test->scene.tsdf));
+}
+
 
 }  // namespace Saiga
 
