@@ -147,6 +147,7 @@ void SparseTSDF::Save(const std::string& file)
 void SparseTSDF::Load(const std::string& file)
 {
     BinaryFile strm(file, std::ios_base::in);
+    SAIGA_ASSERT(strm.strm.is_open());
     strm >> voxel_size >> voxel_size_inv >> block_size_inv >> hash_size >> current_blocks;
     strm >> blocks;
     strm >> first_hashed_block;

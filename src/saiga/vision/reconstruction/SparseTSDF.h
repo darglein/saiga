@@ -46,13 +46,14 @@ struct SAIGA_VISION_API SparseTSDF
     // The next_index points to the next voxel block in the same hash bucket.
     struct VoxelBlock
     {
-        Voxel data[VOXEL_BLOCK_SIZE][VOXEL_BLOCK_SIZE][VOXEL_BLOCK_SIZE];
+        //        Voxel data[VOXEL_BLOCK_SIZE][VOXEL_BLOCK_SIZE][VOXEL_BLOCK_SIZE];
+        std::array<std::array<std::array<Voxel, 8>, 8>, 8> data;
         VoxelBlockIndex index = VoxelBlockIndex(-973454, -973454, -973454);
         int next_index        = -1;
     };
 
 
-    SparseTSDF(float voxel_size, int reserve_blocks, int hash_size)
+    SparseTSDF(float voxel_size = 0.01, int reserve_blocks = 100000, int hash_size = 100000)
         : voxel_size(voxel_size),
           voxel_size_inv(1.0 / voxel_size),
           hash_size(hash_size),
@@ -201,8 +202,12 @@ struct SAIGA_VISION_API SparseTSDF
         return result;
     }
 
-    // Returns the voxel block or 0 if it doesn't exist.
-    VoxelBlock* GetBlock(const VoxelBlockIndex& i, int hash)
+
+    int GetBlockId(const VoxelBlockIndex& i) { return GetBlockId(i, H(i)); }
+
+    // Returns the actual (memory) block id
+    // returns -1 if it does not exist
+    int GetBlockId(const VoxelBlockIndex& i, int hash)
     {
         int block_id = first_hashed_block[hash];
 
@@ -211,13 +216,44 @@ struct SAIGA_VISION_API SparseTSDF
             auto* block = &blocks[block_id];
             if (block->index == i)
             {
-                return block;
+                break;
             }
 
             block_id = block->next_index;
         }
-        return nullptr;
+        return block_id;
     }
+
+    VoxelBlock* GetBlock(const VoxelBlockIndex& i, int hash)
+    {
+        auto id = GetBlockId(i, hash);
+        if (id >= 0)
+        {
+            return &blocks[id];
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    // Returns the voxel block or 0 if it doesn't exist.
+    //    VoxelBlock* GetBlock(const VoxelBlockIndex& i, int hash)
+    //    {
+    //        int block_id = first_hashed_block[hash];
+
+    //        while (block_id != -1)
+    //        {
+    //            auto* block = &blocks[block_id];
+    //            if (block->index == i)
+    //            {
+    //                return block;
+    //            }
+
+    //            block_id = block->next_index;
+    //        }
+    //        return nullptr;
+    //    }
 };
 
 
