@@ -9,7 +9,10 @@ function(cuda_sample _name)
   target_link_libraries(${TARGET_NAME} "saiga_cuda")
   target_include_directories(${TARGET_NAME} PUBLIC ".")
 
-  set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES 50)
+  #set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES 52)
+
+  set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
+  target_compile_options(${TARGET_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
 
 
   #set working directory for visual studio so the project can be executed from the ide

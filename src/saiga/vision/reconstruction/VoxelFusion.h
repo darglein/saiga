@@ -37,7 +37,10 @@ struct SAIGA_VISION_API FusionParams
     // the truncation distance will be always greater than (min_truncation_factor * voxelSize)
     float min_truncation_factor = 6;
 
-    float newWeight = 1;
+    // clamp signed distance to +- this value
+    float sd_clamp = 100;
+
+    float newWeight = 0.1;
     float maxWeight = 250;
 
     std::string out_file = "outmesh_sparse.off";

@@ -23,11 +23,13 @@ function(saiga_test FILE_NAME)
     )
 
 
-  set_property(TARGET ${TEST_TARGET} PROPERTY CUDA_ARCHITECTURES 50)
+  set_property(TARGET ${TEST_TARGET} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
+  target_compile_options(${TEST_TARGET} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
+
   #set working directory for visual studio so the project can be executed from the ide
-  set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
-  set_target_properties(${PROG_NAME} PROPERTIES FOLDER tests/${PREFIX})
-  set_target_properties(${PROG_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+  set_target_properties(${TEST_TARGET} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
+  set_target_properties(${TEST_TARGET} PROPERTIES FOLDER tests/${PREFIX})
+  set_target_properties(${TEST_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 endfunction()
 
 

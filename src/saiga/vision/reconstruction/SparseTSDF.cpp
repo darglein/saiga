@@ -183,12 +183,37 @@ std::ostream& operator<<(std::ostream& strm, const SparseTSDF& tsdf)
     size_t mem_blocks = tsdf.blocks.capacity() * sizeof(SparseTSDF::VoxelBlock);
     size_t mem_hash   = tsdf.first_hashed_block.capacity() * sizeof(int);
 
+    // Compute some statistics
+    std::vector<double> distances;
+    std::vector<double> weights;
+    for (int b = 0; b < tsdf.current_blocks; ++b)
+    {
+        auto& block = tsdf.blocks[b];
+
+        for (auto& z : block.data)
+            for (auto& y : z)
+                for (auto& x : y)
+                {
+                    if (x.weight > 0)
+                    {
+                        distances.push_back(x.distance);
+                        weights.push_back(x.weight);
+                    }
+                }
+    }
+
+    Statistics d_st(distances);
+    Statistics w_st(weights);
+
     strm << "[SparseTSDF]" << std::endl;
     strm << "  VoxelSize    " << tsdf.voxel_size << std::endl;
     strm << "  hash_size    " << tsdf.hash_size << std::endl;
     strm << "  Blocks       " << tsdf.current_blocks << "/" << tsdf.blocks.size() << std::endl;
     strm << "  Mem Blocks   " << mem_blocks / (1000.0 * 1000) << " MB" << std::endl;
     strm << "  Mem Hash     " << mem_hash / (1000.0 * 1000) << " MB" << std::endl;
+    strm << "  Distance     [" << d_st.min << ", " << d_st.max << "]" << std::endl;
+    strm << "  Weight       [" << w_st.min << ", " << w_st.max << "]" << std::endl;
+
     return strm;
 }
 

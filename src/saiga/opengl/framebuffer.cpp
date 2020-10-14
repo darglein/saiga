@@ -45,6 +45,9 @@ void Framebuffer::destroy()
     if (!id) return;
     glDeleteFramebuffers(1, &id);
     id = 0;
+
+    colorBuffers.clear();depthBuffer = nullptr;
+    stencilBuffer = nullptr;
 }
 
 

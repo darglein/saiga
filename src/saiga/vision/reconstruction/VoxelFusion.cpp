@@ -546,6 +546,8 @@ void FusionScene::Integrate()
                             //                    double sdf = (ipUnproj - pos).norm();
                             double surface_distance = imageDepth - voxelDepth;
 
+                            surface_distance = clamp(surface_distance, -params.sd_clamp, params.sd_clamp);
+
                             //                    if (imageDepth < voxelDepth) sdf *= -1;
 
 

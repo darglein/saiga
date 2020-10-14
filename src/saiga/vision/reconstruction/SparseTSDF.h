@@ -65,7 +65,7 @@ struct SAIGA_VISION_API SparseTSDF
         static_assert(sizeof(VoxelBlock::data) == 8 * 8 * 8 * 2 * sizeof(float), "Incorrect Voxel Size");
         block_size_inv = 1.0 / (voxel_size * VOXEL_BLOCK_SIZE);
 
-        std::cout << "SparseTSDF created. Allocated Memory: " << Memory() / (1000 * 1000) << " MB." << std::endl;
+//        std::cout << "SparseTSDF created. Allocated Memory: " << Memory() / (1000 * 1000) << " MB." << std::endl;
     }
 
     SparseTSDF(const std::string& file) { Load(file); }
@@ -174,6 +174,9 @@ struct SAIGA_VISION_API SparseTSDF
     // Create a triangle mesh from the list of triangles
     TriangleMesh<VertexNC, uint32_t> CreateMesh(const std::vector<std::vector<Triangle>>& triangles);
 
+    void Compact(){
+        blocks.resize(current_blocks);
+    }
 
    public:
     float voxel_size;
