@@ -18,6 +18,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <array>
 
 namespace Saiga
 {

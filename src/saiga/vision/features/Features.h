@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/vision/VisionIncludes.h"
+#include <array>
 
 namespace Saiga
 {
