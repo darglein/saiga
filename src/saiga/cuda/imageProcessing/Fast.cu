@@ -493,7 +493,7 @@ __device__ __forceinline__ int diffType(const int v, const int x, const int th)
     return static_cast<int>(diff < -th) + (static_cast<int>(diff > th) << 1);
 }
 
-__device__ void calcMask(const uint C[4], const int v, const int th, int& mask1, int& mask2)
+__device__ void calcMask(const uint32_t C[4], const int v, const int th, int& mask1, int& mask2)
 {
     mask1 = 0;
     mask2 = 0;
@@ -615,7 +615,7 @@ __device__ __forceinline__ bool isKeyPoint(int mask1, int mask2)
            (__popc(mask2) > 8 && (c_table[(mask2 >> 3) - 63] & (1 << (mask2 & 7))));
 }
 
-__device__ int cornerScore(const uint C[4], const int v, const int threshold)
+__device__ int cornerScore(const uint32_t C[4], const int v, const int threshold)
 {
     // binary search in [threshold + 1, 255]
 
@@ -643,21 +643,21 @@ __device__ int cornerScore(const uint C[4], const int v, const int threshold)
 __device__ int isKeyPoint2(Saiga::ImageView<unsigned char> img, const int i, const int j, const int threshold)
 {
     int v;
-    uint C[4] = {0, 0, 0, 0};
+    uint32_t C[4] = {0, 0, 0, 0};
 
-    C[2] |= static_cast<uint>(img(i - 3, j - 1)) << 8;
-    C[2] |= static_cast<uint>(img(i - 3, j));
-    C[1] |= static_cast<uint>(img(i - 3, j + 1)) << (3 * 8);
+    C[2] |= static_cast<uint32_t>(img(i - 3, j - 1)) << 8;
+    C[2] |= static_cast<uint32_t>(img(i - 3, j));
+    C[1] |= static_cast<uint32_t>(img(i - 3, j + 1)) << (3 * 8);
 
-    C[2] |= static_cast<uint>(img(i - 2, j - 2)) << (2 * 8);
-    C[1] |= static_cast<uint>(img(i - 2, j + 2)) << (2 * 8);
+    C[2] |= static_cast<uint32_t>(img(i - 2, j - 2)) << (2 * 8);
+    C[1] |= static_cast<uint32_t>(img(i - 2, j + 2)) << (2 * 8);
 
-    C[2] |= static_cast<uint>(img(i - 1, j - 3)) << (3 * 8);
-    C[1] |= static_cast<uint>(img(i - 1, j + 3)) << 8;
+    C[2] |= static_cast<uint32_t>(img(i - 1, j - 3)) << (3 * 8);
+    C[1] |= static_cast<uint32_t>(img(i - 1, j + 3)) << 8;
 
-    C[3] |= static_cast<uint>(img(i, j - 3));
+    C[3] |= static_cast<uint32_t>(img(i, j - 3));
     v = static_cast<int>(img(i, j));
-    C[1] |= static_cast<uint>(img(i, j + 3));
+    C[1] |= static_cast<uint32_t>(img(i, j + 3));
 
     int d1 = diffType(v, C[1] & 0xff, threshold);
     int d2 = diffType(v, C[3] & 0xff, threshold);
@@ -666,15 +666,15 @@ __device__ int isKeyPoint2(Saiga::ImageView<unsigned char> img, const int i, con
     {
         return 0;
     }
-    C[3] |= static_cast<uint>(img(i + 1, j - 3)) << 8;
-    C[0] |= static_cast<uint>(img(i + 1, j + 3)) << (3 * 8);
+    C[3] |= static_cast<uint32_t>(img(i + 1, j - 3)) << 8;
+    C[0] |= static_cast<uint32_t>(img(i + 1, j + 3)) << (3 * 8);
 
-    C[3] |= static_cast<uint>(img(i + 2, j - 2)) << (2 * 8);
-    C[0] |= static_cast<uint>(img(i + 2, j + 2)) << (2 * 8);
+    C[3] |= static_cast<uint32_t>(img(i + 2, j - 2)) << (2 * 8);
+    C[0] |= static_cast<uint32_t>(img(i + 2, j + 2)) << (2 * 8);
 
-    C[3] |= static_cast<uint>(img(i + 3, j - 1)) << (3 * 8);
-    C[0] |= static_cast<uint>(img(i + 3, j));
-    C[0] |= static_cast<uint>(img(i + 3, j + 1)) << 8;
+    C[3] |= static_cast<uint32_t>(img(i + 3, j - 1)) << (3 * 8);
+    C[0] |= static_cast<uint32_t>(img(i + 3, j));
+    C[0] |= static_cast<uint32_t>(img(i + 3, j + 1)) << 8;
 
     int mask1 = 0;
     int mask2 = 0;

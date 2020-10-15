@@ -18,7 +18,7 @@
 #    include "saiga/core/math/math.h"
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #    include <malloc.h>
 #endif
 
@@ -49,7 +49,7 @@ inline void* aligned_malloc(size_t size)
 {
     void* ptr              = nullptr;
     auto size_with_padding = iAlignUp(size, Alignment);
-#ifdef WIN32
+#ifdef _WIN32
     // Windows doesn't implement std::aligned_alloc :(
     ptr = _aligned_malloc(size_with_padding, Alignment);
 #elif defined(IS_CUDA)
@@ -81,7 +81,7 @@ inline void* aligned_malloc(size_t size)
 
 inline void aligned_free(void* ptr)
 {
-#ifdef WIN32
+#ifdef _WIN32
     _aligned_free(ptr);
 #else
     // Posix memalign can also be freeded with std::free!

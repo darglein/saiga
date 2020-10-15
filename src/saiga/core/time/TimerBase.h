@@ -13,7 +13,7 @@
 #include <string>
 namespace Saiga
 {
-#ifdef WIN32
+#ifdef _WIN32
 #    if _MSC_VER < 1900  // VS2015 and newer
 #        error Your compiler is too old.
 #    endif
