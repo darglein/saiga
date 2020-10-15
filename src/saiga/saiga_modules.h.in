@@ -34,6 +34,7 @@
 #cmakedefine SAIGA_USE_CHOLMOD
 
 #cmakedefine SAIGA_USE_CUDA
+#cmakedefine SAIGA_USE_CUDA_TOOLKIT
 #cmakedefine SAIGA_USE_CUSPARSE
 #cmakedefine SAIGA_USE_YAML_CPP
 #cmakedefine SAIGA_USE_MKL

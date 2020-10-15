@@ -1,8 +1,10 @@
 find_package(GTest QUIET)
+PackageHelperTarget(GTest::GTest GTest_FOUND)
 
 if(NOT GTEST_FOUND)
   message(STATUS "GTest not found. Tests disabled.")
   return()
+else()
 endif()
 
 function(saiga_test FILE_NAME)

@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
+﻿cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
 set(LIB_NAME saiga)
 set(LIB_EXPORT saiga-export)

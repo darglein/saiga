@@ -1,8 +1,8 @@
 /**
  * This file is part of ORB-SLAM2.
  *
- * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
- * For more information see <https://github.com/raulmur/ORB_SLAM2>
+ * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University
+ * of Zaragoza) For more information see <https://github.com/raulmur/ORB_SLAM2>
  *
  * ORB-SLAM2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,82 +28,80 @@
 #include "saiga/vision/features/FeatureDistribution.h"
 #include "saiga/vision/util/ScalePyramid.h"
 
+#ifdef SAIGA_USE_CUDA_TOOLKIT
 
-namespace Saiga
-{
-class SAIGA_CUDA_API ORBExtractorGPU
-{
-   public:
-    ORBExtractorGPU(int nfeatures, float scaleFactor, int nlevels, int iniThFAST, int minThFAST);
+namespace Saiga {
+class SAIGA_CUDA_API ORBExtractorGPU {
+public:
+  ORBExtractorGPU(int nfeatures, float scaleFactor, int nlevels, int iniThFAST,
+                  int minThFAST);
 
-    ~ORBExtractorGPU();
+  ~ORBExtractorGPU();
 
-    // Compute the ORB features and descriptors on an image.
-    // ORB are dispersed on the image using an octree.
-    // Mask is ignored in the current implementation.
-    int Detect(Saiga::ImageView<unsigned char> image, std::vector<Saiga::KeyPoint<float>>& keypoints,
-               std::vector<Saiga::DescriptorORB>& descriptors);
+  // Compute the ORB features and descriptors on an image.
+  // ORB are dispersed on the image using an octree.
+  // Mask is ignored in the current implementation.
+  int Detect(Saiga::ImageView<unsigned char> image,
+             std::vector<Saiga::KeyPoint<float>> &keypoints,
+             std::vector<Saiga::DescriptorORB> &descriptors);
 
+private:
+  // Pyramid allocation is not done in the constructor. It is deferred until the
+  // first image arrives.
+  void AllocatePyramid(int rows, int cols);
+  void ComputePyramid(Saiga::ImageView<unsigned char> image);
+  void ComputeKeypoints(std::vector<Saiga::KeyPoint<float>> &keypoints,
+                        std::vector<Saiga::DescriptorORB> &descriptors);
 
-   private:
-    // Pyramid allocation is not done in the constructor. It is deferred until the first image arrives.
-    void AllocatePyramid(int rows, int cols);
-    void ComputePyramid(Saiga::ImageView<unsigned char> image);
-    void ComputeKeypoints(std::vector<Saiga::KeyPoint<float>>& keypoints,
-                          std::vector<Saiga::DescriptorORB>& descriptors);
+  void DownloadAndDistribute(int level);
+  struct Level {
+    int N;
+    int fast_min_x, fast_min_y;
+    int fast_max_x, fast_max_y;
+    Saiga::ImageView<unsigned char> fast_image_view;
 
-    void DownloadAndDistribute(int level);
-    struct Level
-    {
-        int N;
-        int fast_min_x, fast_min_y;
-        int fast_max_x, fast_max_y;
-        Saiga::ImageView<unsigned char> fast_image_view;
+    Saiga::CUDA::CudaImage<unsigned char> image;
+    Saiga::CUDA::CudaImage<unsigned char> image_gauss;
 
-        Saiga::CUDA::CudaImage<unsigned char> image;
-        Saiga::CUDA::CudaImage<unsigned char> image_gauss;
+    cudaTextureObject_t image_obj, image_gauss_obj;
 
-        cudaTextureObject_t image_obj, image_gauss_obj;
+    std::unique_ptr<Saiga::CUDA::Fast> fast;
 
-        std::unique_ptr<Saiga::CUDA::Fast> fast;
+    void Reserve(int initial_N, int final_N);
 
-        void Reserve(int initial_N, int final_N);
+    Saiga::pinned_vector<Saiga::KeyPoint<float>> h_keypoints;
+    thrust::device_vector<Saiga::KeyPoint<float>> keypoints;
+    thrust::device_vector<Saiga::DescriptorORB> descriptors;
+    Saiga::pinned_vector<Saiga::DescriptorORB> h_descriptors;
 
-        Saiga::pinned_vector<Saiga::KeyPoint<float>> h_keypoints;
-        thrust::device_vector<Saiga::KeyPoint<float>> keypoints;
-        thrust::device_vector<Saiga::DescriptorORB> descriptors;
-        Saiga::pinned_vector<Saiga::DescriptorORB> h_descriptors;
+    Saiga::CUDA::CudaStream stream;
+    Saiga::CUDA::CudaEvent image_ready;
+    Saiga::CUDA::CudaEvent gauss_ready;
+    SaigaNppStreamContext context;
 
-        Saiga::CUDA::CudaStream stream;
-        Saiga::CUDA::CudaEvent image_ready;
-        Saiga::CUDA::CudaEvent gauss_ready;
-        SaigaNppStreamContext context;
+    Saiga::QuadtreeFeatureDistributor dis;
 
-        Saiga::QuadtreeFeatureDistributor dis;
+    void download() { N = fast->Download(h_keypoints, stream); }
 
-        void download() { N = fast->Download(h_keypoints, stream); }
+    void filter();
+  };
 
-        void filter();
-    };
+  Saiga::CUDA::ORB orb;
+  std::vector<Level> levels;
 
-    Saiga::CUDA::ORB orb;
-    std::vector<Level> levels;
+  std::vector<Saiga::ivec2> pattern;
 
-    std::vector<Saiga::ivec2> pattern;
+  Saiga::CUDA::CudaStream download_stream;
+  Saiga::CUDA::CudaStream orb_stream;
+  Saiga::CUDA::CudaStream descriptor_stream;
 
-    Saiga::CUDA::CudaStream download_stream;
-    Saiga::CUDA::CudaStream orb_stream;
-    Saiga::CUDA::CudaStream descriptor_stream;
+  int nlevels;
+  int iniThFAST;
+  int minThFAST;
 
-
-    int nlevels;
-    int iniThFAST;
-    int minThFAST;
-
-
-    Saiga::ScalePyramid pyramid;
+  Saiga::ScalePyramid pyramid;
 };
 
+} // namespace Saiga
 
-
-}  // namespace Saiga
+#endif
