@@ -55,6 +55,8 @@ if(CUDA_FOUND)
 
   if(NOT MSVC)
     list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=-fopenmp")
+else()
+ list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=/openmp")
   endif()
 
   list(APPEND SAIGA_CUDA_FLAGS "-use_fast_math")

@@ -64,7 +64,7 @@
 #include <thread>
 #include <vector>
 
-#ifdef SAIGA_USE_CUDA_TOOLKIT
+#if defined(SAIGA_USE_CUDA_TOOLKIT) && !defined(_WIN32)
 const int PATCH_SIZE = 31;
 
 namespace Saiga

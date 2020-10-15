@@ -28,7 +28,7 @@
 #include "saiga/vision/features/FeatureDistribution.h"
 #include "saiga/vision/util/ScalePyramid.h"
 
-#ifdef SAIGA_USE_CUDA_TOOLKIT
+#if defined(SAIGA_USE_CUDA_TOOLKIT) && !defined(_WIN32)
 
 namespace Saiga {
 class SAIGA_CUDA_API ORBExtractorGPU {
@@ -84,6 +84,10 @@ private:
     void download() { N = fast->Download(h_keypoints, stream); }
 
     void filter();
+
+	Level() {}
+	//Level (Level& other) = delete;
+	//Level& operator=(Level& other) = delete;
   };
 
   Saiga::CUDA::ORB orb;
