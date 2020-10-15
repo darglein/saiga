@@ -8,7 +8,6 @@
 
 #include "saiga/cuda/cudaHelper.h"
 
-#include <nvToolsExtCudaRt.h>
 
 namespace Saiga
 {
@@ -43,7 +42,7 @@ class SAIGA_CUDA_API CudaStream
 
     // Set a ressource name using the cuda extension API.
     // Useful for debugging
-    inline void setName(const std::string& name) { nvtxNameCudaStreamA(stream, name.c_str()); }
+	void setName(const std::string& name);
 
     operator cudaStream_t() const;
 

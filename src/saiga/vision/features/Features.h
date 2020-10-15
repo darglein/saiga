@@ -85,7 +85,7 @@ inline std::string OrbDescriptorToBitString(const DescriptorORB& desc)
 }
 
 
-#if !defined(WIN32) && EIGEN_ARCH_i386_OR_x86_64
+#if !defined(_WIN32) && EIGEN_ARCH_i386_OR_x86_64
 // use the popcnt instruction
 // this will be the fastest implementation if it is available
 // more here: https://github.com/kimwalisch/libpopcnt

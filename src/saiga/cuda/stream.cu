@@ -6,6 +6,11 @@
 
 #include "stream.h"
 
+#ifndef _WIN32
+#include <nvToolsExtCudaRt.h>
+#endif
+
+
 
 
 namespace Saiga
@@ -48,6 +53,11 @@ Saiga::CUDA::CudaStream::operator cudaStream_t() const
     return stream;
 }
 
+void CudaStream::setName(const std::string& name) { 
+#ifndef _WIN32
+	nvtxNameCudaStreamA(stream, name.c_str());
+#endif
+}
 
 }  // namespace CUDA
 }  // namespace Saiga
