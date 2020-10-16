@@ -22,7 +22,7 @@ if(SAIGA_USE_EIGENRECURSIVE)
 
 
 
-    if(SAIGA_MODULE_EXTRA AND OPENMESH_FOUND)
+    if(SAIGA_MODULE_EXTRA AND OPENMESH_FOUND AND CERES_FOUND)
         add_subdirectory(arap)
     endif()
 
