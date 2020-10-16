@@ -6,7 +6,7 @@
 
 #include "stream.h"
 
-#ifndef _WIN32
+#if !defined(_WIN32) && defined(SAIGA_USE_CUDA_TOOLKIT)
 #include <nvToolsExtCudaRt.h>
 #endif
 
@@ -54,7 +54,7 @@ Saiga::CUDA::CudaStream::operator cudaStream_t() const
 }
 
 void CudaStream::setName(const std::string& name) { 
-#ifndef _WIN32
+#if !defined(_WIN32) && defined(SAIGA_USE_CUDA_TOOLKIT)
 	nvtxNameCudaStreamA(stream, name.c_str());
 #endif
 }
