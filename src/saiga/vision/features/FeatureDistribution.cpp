@@ -80,7 +80,7 @@ std::vector<KeyPoint<float>> QuadtreeFeatureDistributor::Distribute(ArrayView<Ke
     inner_nodes.reserve(target_n * 4);
     leaf_nodes.reserve(target_n * 4);
 
-    if (keypoints.size() <= target_n)
+    if ((int)keypoints.size() <= target_n)
     {
         return {keypoints.begin(), keypoints.end()};
     }
@@ -180,7 +180,7 @@ std::vector<KeyPoint<float>> QuadtreeFeatureDistributor::Distribute(ArrayView<Ke
     }
 
 
-    for (int i = last_processed_inner; i < inner_nodes.size(); ++i)
+    for (size_t i = last_processed_inner; i < inner_nodes.size(); ++i)
     {
         add_best_to_result(inner_nodes[i]);
     }

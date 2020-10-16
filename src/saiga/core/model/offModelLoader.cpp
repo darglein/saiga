@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2017 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -15,10 +15,10 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include <array>
 
 namespace Saiga
 {
@@ -48,7 +48,7 @@ bool OffModelLoader::loadFile(const std::string& _file)
     std::vector<std::string> data = File::loadFileStringArray(file);
     File::removeWindowsLineEnding(data);
 
-    int num_vertices, num_faces;
+    int num_vertices = 0, num_faces = 0;
 
     for (auto& line : data)
     {
@@ -89,7 +89,7 @@ bool OffModelLoader::loadFile(const std::string& _file)
 
             mesh.vertices.push_back(v);
 
-            if (mesh.vertices.size() == num_vertices)
+            if ((int)mesh.vertices.size() == num_vertices)
             {
                 state = ParsingState::FACES;
             }
@@ -117,7 +117,7 @@ bool OffModelLoader::loadFile(const std::string& _file)
             }
 
 
-            if (mesh.faces.size() == num_faces)
+            if ((int)mesh.faces.size() == num_faces)
             {
                 state = ParsingState::DONE;
             }

@@ -50,7 +50,7 @@ void DatasetCameraBase::Load()
     SAIGA_ASSERT(this->camera_type != CameraInputType::Unknown);
 
     int num_images = LoadMetaData();
-    SAIGA_ASSERT(frames.size() == num_images);
+    SAIGA_ASSERT((int)frames.size() == num_images);
     //        frames.resize(num_images);
     computeImuDataPerFrame();
 
@@ -136,10 +136,10 @@ void DatasetCameraBase::computeImuDataPerFrame()
 {
     // Create IMU per frame vector by adding all imu datas from frame_i to frame_i+1 to frame_i+1.
     imuDataForFrame.resize(frames.size());
-    int currentImuid = 0;
+    size_t currentImuid = 0;
 
     // Initialize imu sequences
-    for (int i = 0; i < frames.size(); ++i)
+    for (size_t i = 0; i < frames.size(); ++i)
     {
         Imu::ImuSequence& imuFrame = imuDataForFrame[i];
 
@@ -169,7 +169,7 @@ void DatasetCameraBase::computeImuDataPerFrame()
     Imu::InterpolateMissingValues(imuDataForFrame);
 
 
-    for (int i = 0; i < frames.size(); ++i)
+    for (size_t i = 0; i < frames.size(); ++i)
     {
         frames[i].imu_data = imuDataForFrame[i];
     }
