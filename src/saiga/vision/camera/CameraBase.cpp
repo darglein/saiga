@@ -56,7 +56,7 @@ void DatasetCameraBase::Load()
 
     if (params.preload)
     {
-        SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + std::to_string(num_images) + " images ",
+        ProgressBar loadingBar(std::cout, "Loading " + std::to_string(num_images) + " images ",
                                             num_images);
 
         // More than 8 doesn't improve performance even on NVME SSDs.

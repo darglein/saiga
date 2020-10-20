@@ -50,7 +50,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
     int N = params.maxFrames;
     frames.resize(N);
 
-    SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
+    ProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
 
 #pragma omp parallel for if (multithreaded)
     for (int i = 0; i < N; ++i)

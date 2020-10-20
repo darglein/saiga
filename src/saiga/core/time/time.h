@@ -7,9 +7,11 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/util/tostring.h"
 
 #include <chrono>
-
+#include <sstream>
+#include <string>
 using game_ratio_t = std::nano;
 using tick_t       = std::chrono::duration<int64_t, game_ratio_t>;
 using tickd_t      = std::chrono::duration<double, game_ratio_t>;
@@ -30,4 +32,25 @@ inline std::string CurrentTimeString(const std::string& format)
     strftime(buffer, b_size, format.c_str(), timeinfo);
 
     return std::string(buffer);
+}
+
+
+
+template <typename DurationType>
+inline std::string DurationToString(const DurationType& duration)
+{
+    // current time
+    uint64_t h = std::chrono::duration_cast<std::chrono::hours>(duration).count();
+    uint64_t m = std::chrono::duration_cast<std::chrono::minutes>(duration).count() % 60;
+    uint64_t s = std::chrono::duration_cast<std::chrono::seconds>(duration).count() % 60;
+
+    std::stringstream strm;
+
+    if (h > 0)
+    {
+        strm << Saiga::leadingZeroString(h, 2) << ":";
+    }
+
+    strm << Saiga::leadingZeroString(m, 2) << ":" << Saiga::leadingZeroString(s, 2);
+    return strm.str();
 }

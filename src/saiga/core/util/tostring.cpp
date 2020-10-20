@@ -40,7 +40,11 @@ std::string concat(const std::vector<std::string>& s, char delim)
 std::string leadingZeroString(int number, int characterCount)
 {
     std::string n = Saiga::to_string(number);
-    SAIGA_ASSERT((int)n.size() <= characterCount);
+    if (n.size() > characterCount)
+    {
+        return n;
+    }
+
     std::string nleading(characterCount - n.size(), '0');
     nleading.insert(nleading.end(), n.begin(), n.end());
     return nleading;

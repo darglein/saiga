@@ -42,7 +42,7 @@ void FusionScene::Preprocess()
 
 void FusionScene::AnalyseSparseStructure()
 {
-    SyncedConsoleProgressBar loading_bar(std::cout, "Analysing Structure", Size());
+    ProgressBar loading_bar(std::cout, "Analysing Structure", Size());
 
 
 #pragma omp parallel for
@@ -204,7 +204,7 @@ void FusionScene::ComputeWeight()
     {
         return;
     }
-    SyncedConsoleProgressBar loading_bar(std::cout, "ComputeWeight", Size());
+    ProgressBar loading_bar(std::cout, "ComputeWeight", Size());
 #pragma omp parallel for
     for (int i = 0; i < Size(); ++i)
     {
@@ -396,7 +396,7 @@ void FusionScene::Integrate()
 #endif
 
     {
-        SyncedConsoleProgressBar loading_bar(std::cout, "Visibility", Size());
+        ProgressBar loading_bar(std::cout, "Visibility", Size());
 
         auto K2 = K;
         K2.fx *= 0.95;
@@ -444,7 +444,7 @@ void FusionScene::Integrate()
     }
 
     {
-        SyncedConsoleProgressBar loading_bar(std::cout, "Integrate", Size());
+        ProgressBar loading_bar(std::cout, "Integrate", Size());
 
         for (int i = 0; i < Size(); ++i)
         {

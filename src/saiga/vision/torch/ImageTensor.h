@@ -19,6 +19,11 @@ namespace Saiga
  */
 inline void PrintTensorInfo(at::Tensor t)
 {
+    if(!t.has_storage())
+    {
+        std::cout << "[undefined tensor]" << std::endl;
+        return;
+    }
     auto mi = t.min().item().toFloat();
     auto ma = t.max().item().toFloat();
 

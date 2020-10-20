@@ -10,7 +10,7 @@ namespace Saiga
 {
 std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double iso, int threads)
 {
-    SyncedConsoleProgressBar loading_bar(std::cout, "Extracing surface", current_blocks);
+    ProgressBar loading_bar(std::cout, "Extracing surface", current_blocks);
 
     //        std::vector<std::vector<std::array<vec3, 3>>> triangle_soup_thread(threads);
 
