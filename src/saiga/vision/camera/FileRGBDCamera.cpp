@@ -32,8 +32,8 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
 
     std::vector<std::string> rgbImages;
     std::vector<std::string> depthImages;
-    dir.getFiles(rgbImages, ".png");
-    dir.getFiles(depthImages, ".saigai");
+    rgbImages   = dir.getFilesEnding(".png");
+    depthImages = dir.getFilesEnding(".saigai");
 
 
     SAIGA_ASSERT(rgbImages.size() == depthImages.size());
@@ -91,7 +91,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
         }
 
         f.depth_image = std::move(dimg);
-        f.image_rgb = std::move(cimg);
+        f.image_rgb   = std::move(cimg);
         loadingBar.addProgress(1);
     }
 

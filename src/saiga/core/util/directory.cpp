@@ -33,9 +33,10 @@ Directory::~Directory()
     if (dir) closedir(dir);
 }
 
-void Directory::getFiles(std::vector<std::string>& out)
+std::vector<std::string> Directory::getFiles()
 {
-    if (!dir) return;
+    std::vector<std::string> out;
+    if (!dir) return out;
 
     struct dirent* ent;
     rewinddir(dir);
@@ -61,31 +62,31 @@ void Directory::getFiles(std::vector<std::string>& out)
             }
         }
     }
+    return out;
 }
 
 
-void Directory::getFiles(std::vector<std::string>& out, const std::string& ending)
+std::vector<std::string> Directory::getFilesEnding(const std::string& ending)
 {
-    std::vector<std::string> tmp;
-    getFiles(tmp);
-    auto e = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasEnding(s, ending); });
+    auto tmp = getFiles();
+    auto e   = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasEnding(s, ending); });
     tmp.erase(e, tmp.end());
-    out.insert(out.end(), tmp.begin(), tmp.end());
+    return tmp;
 }
 
-void Directory::getFilesPrefix(std::vector<std::string>& out, const std::string& prefix)
+std::vector<std::string> Directory::getFilesPrefix(const std::string& prefix)
 {
-    std::vector<std::string> tmp;
-    getFiles(tmp);
-    auto e = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasPrefix(s, prefix); });
+    auto tmp = getFiles();
+    auto e   = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasPrefix(s, prefix); });
     tmp.erase(e, tmp.end());
-    out.insert(out.end(), tmp.begin(), tmp.end());
+    return tmp;
 }
 
 
-void Directory::getDirectories(std::vector<std::string>& out)
+std::vector<std::string> Directory::getDirectories()
 {
-    if (!dir) return;
+    std::vector<std::string> out;
+    if (!dir) return out;
 
     struct dirent* ent;
     while ((ent = readdir(dir)) != NULL)
@@ -96,17 +97,17 @@ void Directory::getDirectories(std::vector<std::string>& out)
             out.push_back(str);
         }
     }
+    return out;
 }
 
 
-void Directory::getDirectories(std::vector<std::string>& out, const std::string& ending)
+std::vector<std::string> Directory::getDirectories(const std::string& ending)
 {
-    std::vector<std::string> tmp;
-    getDirectories(tmp);
+    auto tmp = getDirectories();
 
     auto e = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasEnding(s, ending); });
     tmp.erase(e, tmp.end());
-    out.insert(out.end(), tmp.begin(), tmp.end());
+    return tmp;
     //    for(auto& str : tmp)
     //    {
     //        if(hasEnding(str,ending))
@@ -118,8 +119,7 @@ void Directory::getDirectories(std::vector<std::string>& out, const std::string&
 
 bool Directory::existsFile(const std::string& file)
 {
-    std::vector<std::string> all;
-    getFiles(all);
+    auto all = getFiles();
     return std::find(all.begin(), all.end(), file) != all.end();
 }
 

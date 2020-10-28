@@ -37,12 +37,12 @@ void FusionScene::Preprocess()
     triangle_soup_inclusive_prefix_sum.clear();
     triangle_soup.clear();
     mesh.clear();
-    tsdf = std::make_unique<SparseTSDF>(params.voxelSize, 250 * 1000, 5 * 1000 * 1000);
+    tsdf = std::make_unique<SparseTSDF>(params.voxelSize, params.block_count, params.hash_size);
 }
 
 void FusionScene::AnalyseSparseStructure()
 {
-    ProgressBar loading_bar(std::cout, "Analysing Structure", Size());
+    ProgressBar loading_bar(std::cout, "Analysing  ", Size());
 
 
 #pragma omp parallel for
@@ -178,25 +178,6 @@ void FusionScene::AnalyseSparseStructure()
     }
 }
 
-void FusionScene::Allocate()
-{
-    //    return;
-    //    SyncedConsoleProgressBar loadingBar(std::cout, "Allocating", Size());
-
-    //#pragma omp parallel for
-    //    for (int i = 0; i < Size(); ++i)
-    //    {
-    //        auto& dm = images[i];
-    //        for (auto i : dm.truncated_blocks)
-    //        {
-    //            tsdf->InsertBlockLock(i);
-    //        }
-    //        loadingBar.addProgress(1);
-
-    //        dm.truncated_blocks = {};
-    //    }
-}
-
 
 void FusionScene::ComputeWeight()
 {
@@ -204,7 +185,7 @@ void FusionScene::ComputeWeight()
     {
         return;
     }
-    ProgressBar loading_bar(std::cout, "ComputeWeight", Size());
+    ProgressBar loading_bar(std::cout, "Comp Weight", Size());
 #pragma omp parallel for
     for (int i = 0; i < Size(); ++i)
     {
@@ -263,7 +244,7 @@ void FusionScene::Integrate()
 {
 #if 0
     {
-        SyncedConsoleProgressBar loading_bar(std::cout, "Integrate", Size());
+        ProgressBar loading_bar(std::cout, "Integrate", Size());
 
         auto K2 = K;
         K2.fx *= 0.95;
@@ -396,7 +377,7 @@ void FusionScene::Integrate()
 #endif
 
     {
-        ProgressBar loading_bar(std::cout, "Visibility", Size());
+        ProgressBar loading_bar(std::cout, "Visibility ", Size());
 
         auto K2 = K;
         K2.fx *= 0.95;
@@ -444,7 +425,7 @@ void FusionScene::Integrate()
     }
 
     {
-        ProgressBar loading_bar(std::cout, "Integrate", Size());
+        ProgressBar loading_bar(std::cout, "Integrate  ", Size());
 
         for (int i = 0; i < Size(); ++i)
         {
@@ -616,7 +597,7 @@ void FusionScene::ExtractMesh()
         triangle_soup_inclusive_prefix_sum.push_back(sum);
     }
 
-    mesh = tsdf->CreateMesh(triangle_soup_per_block);
+    mesh = tsdf->CreateMesh(triangle_soup_per_block, params.post_process_mesh);
     //    for (auto& t : triangle_soup)
     //    {
     //        VertexNC tri[3];
@@ -650,11 +631,25 @@ void FusionScene::Fuse()
     std::cout << "Fusing " << Size() << " depth maps..." << std::endl;
     Preprocess();
     AnalyseSparseStructure();
-    Allocate();
     ComputeWeight();
     Integrate();
     ExtractMesh();
     std::cout << *tsdf << std::endl;
+}
+
+
+void FusionScene::FuseIncrement(const FusionImage& image, bool first)
+{
+    images.clear();
+    images.push_back(image);
+
+    if (first)
+    {
+        Preprocess();
+    }
+    AnalyseSparseStructure();
+    ComputeWeight();
+    Integrate();
 }
 
 

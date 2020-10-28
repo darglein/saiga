@@ -20,22 +20,30 @@ class TSDFTest
    public:
     TSDFTest()
     {
+        Random::setSeed(34976346);
+        srand(45727);
         depth_image.load("bar.saigai");
+        depth_image.getImageView().set(1.0f);
         scene.K =
             Intrinsics4(5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02, 2.3691517848391885e+02);
         scene.dis = Distortion();
 
         scene.params.maxIntegrationDistance = 5;
         scene.params.voxelSize              = 0.01;
+        scene.params.truncationDistance     = 0.01;
+        scene.params.post_process_mesh      = false;
+        scene.params.block_count            = 1000 * 1000;
         // scene.params.truncationDistance     = 1;
         FusionImage fi;
         fi.depthMap = depth_image.getImageView();
         fi.V        = SE3();
 
-        for (int i = 0; i < 10; ++i)
+        for (int i = 0; i < 1; ++i)
         {
+            fi.V.translation() += Vec3::Random() * 0.01;
             scene.images.push_back(fi);
         }
+        scene.params.out_file = "tsdf.off";
     }
 
     TemplatedImage<float> depth_image;
@@ -54,7 +62,39 @@ TEST(TSDF, Create)
 TEST(TSDF, Fuse)
 {
     test->scene.Fuse();
+
+
+    //    SparseTSDF t2 = *test->scene.tsdf;
+    //    exit(0);
 }
+
+TEST(TSDF, SmallHash)
+{
+    FusionScene scene2;
+    scene2                  = test->scene;
+    scene2.params.hash_size = 100;
+    scene2.params.out_file  = "tsdf_small_hash.off";
+    scene2.Fuse();
+    EXPECT_EQ(test->scene.tsdf->current_blocks, scene2.tsdf->current_blocks);
+}
+
+TEST(TSDF, IncrementalFuse)
+{
+    FusionScene scene2;
+    scene2 = test->scene;
+    scene2.images.clear();
+    scene2.params.out_file = "tsdf_incr.off";
+    for (int i = 0; i < test->scene.images.size(); ++i)
+    {
+        scene2.FuseIncrement(test->scene.images[i], i == 0);
+    }
+    scene2.ExtractMesh();
+    std::cout << *scene2.tsdf << std::endl;
+
+    EXPECT_EQ(test->scene.tsdf->current_blocks, scene2.tsdf->current_blocks);
+}
+
+
 
 TEST(TSDF, LoadStore)
 {

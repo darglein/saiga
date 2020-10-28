@@ -10,7 +10,7 @@ namespace Saiga
 {
 std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double iso, int threads)
 {
-    ProgressBar loading_bar(std::cout, "Extracing surface", current_blocks);
+    ProgressBar loading_bar(std::cout, "Ex. Surface", current_blocks);
 
     //        std::vector<std::vector<std::array<vec3, 3>>> triangle_soup_thread(threads);
 
@@ -51,7 +51,9 @@ std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double
                     if (read_block)
                     {
                         float dis           = read_block->data[li][lj][lk].distance;
-                        local_data[i][j][k] = {p, dis};
+                        float wei           = read_block->data[li][lj][lk].weight;
+                        local_data[i][j][k] = {p, wei > 0 ? dis : std::numeric_limits<float>::infinity()};
+                        //                        local_data[i][j][k] = {p, dis};
                     }
                     else
                     {
@@ -110,7 +112,8 @@ std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double
     return triangle_soup_per_block;
 }
 
-TriangleMesh<VertexNC, uint32_t> SparseTSDF::CreateMesh(const std::vector<std::vector<SparseTSDF::Triangle>>& triangles)
+TriangleMesh<VertexNC, uint32_t> SparseTSDF::CreateMesh(const std::vector<std::vector<SparseTSDF::Triangle>>& triangles,
+                                                        bool post_process)
 {
     TriangleMesh<VertexNC, uint32_t> mesh;
 
@@ -128,10 +131,13 @@ TriangleMesh<VertexNC, uint32_t> SparseTSDF::CreateMesh(const std::vector<std::v
         }
     }
 
-    mesh.sortVerticesByPosition();
-    mesh.removeSubsequentDuplicates();
-    mesh.removeDegenerateFaces();
-    mesh.computePerVertexNormal();
+    if (post_process)
+    {
+        mesh.sortVerticesByPosition();
+        mesh.removeSubsequentDuplicates();
+        mesh.removeDegenerateFaces();
+        mesh.computePerVertexNormal();
+    }
 
     return mesh;
 }
@@ -151,6 +157,7 @@ void SparseTSDF::Load(const std::string& file)
     strm >> voxel_size >> voxel_size_inv >> block_size_inv >> hash_size >> current_blocks;
     strm >> blocks;
     strm >> first_hashed_block;
+    // hash_locks.resize(first_hashed_block.size());
 }
 
 bool SparseTSDF::operator==(const SparseTSDF& other) const
@@ -180,8 +187,8 @@ bool SparseTSDF::operator==(const SparseTSDF& other) const
 
 std::ostream& operator<<(std::ostream& strm, const SparseTSDF& tsdf)
 {
-    size_t mem_blocks = tsdf.blocks.capacity() * sizeof(SparseTSDF::VoxelBlock);
-    size_t mem_hash   = tsdf.first_hashed_block.capacity() * sizeof(int);
+    size_t mem_blocks = tsdf.blocks.size() * sizeof(SparseTSDF::VoxelBlock);
+    size_t mem_hash   = tsdf.first_hashed_block.size() * sizeof(int);
 
     // Compute some statistics
     std::vector<double> distances;

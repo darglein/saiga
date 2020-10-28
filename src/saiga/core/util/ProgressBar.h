@@ -25,7 +25,7 @@ namespace Saiga
  *
  * Usage Parallel Image loading:
  *
- * SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
+ * ProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
  * #pragma omp parallel for
  * for (int i = 0; i < N; ++i)
  * {
@@ -95,6 +95,11 @@ struct ProgressBar
 
     void print()
     {
+
+        auto f
+             = strm.flags() ;
+
+
         //        SAIGA_ASSERT(current <= end);
         double progress  = end == 0 ? 0 : double(current) / end;
         auto time        = timer.stop();
@@ -146,7 +151,8 @@ struct ProgressBar
             strm << " " << postfix;
         }
         strm << std::flush;
-
+        strm  << std::setprecision(6);
+        strm.flags( f );
         //        strm << std::endl;
     }
 };

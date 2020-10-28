@@ -43,6 +43,10 @@ struct SAIGA_VISION_API FusionParams
     float newWeight = 0.1;
     float maxWeight = 250;
 
+    int hash_size          = 5 * 1000 * 1000;
+    int block_count        = 25 * 1000;
+    bool post_process_mesh = true;
+
     std::string out_file = "outmesh_sparse.off";
 
     void imgui();
@@ -78,6 +82,7 @@ struct SAIGA_VISION_API FusionScene
     void imgui();
     virtual void Fuse();
 
+    void FuseIncrement(const FusionImage& image, bool first);
 
     ImageDimensions depth_map_size;
     std::shared_ptr<SparseTSDF> tsdf;
@@ -92,7 +97,6 @@ struct SAIGA_VISION_API FusionScene
     void Preprocess();
     void AnalyseSparseStructure();
     void ComputeWeight();
-    void Allocate();
     void Integrate();
     void ExtractMesh();
 };

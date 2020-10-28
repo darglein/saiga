@@ -308,7 +308,7 @@ void TumRGBDDataset::load(const std::string& datasetDir, bool multithreaded)
     }
 
     {
-        //        SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
+        //        ProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
         //#pragma omp parallel for if (params.multiThreadedLoad)
         for (int i = 0; i < N; ++i)
         {

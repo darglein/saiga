@@ -79,8 +79,8 @@ int SaigaDataset::LoadMetaData()
 
     Directory d(frame_dir);
 
-    frame_dirs.clear();
-    d.getDirectories(frame_dirs);
+
+    frame_dirs = d.getDirectories();
 
     frame_dirs.erase(
         std::remove_if(frame_dirs.begin(), frame_dirs.end(),
