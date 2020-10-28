@@ -104,9 +104,15 @@ TEST(TSDF, LoadStore)
     EXPECT_EQ(test2, test2);
     EXPECT_EQ(*test->scene.tsdf, *test->scene.tsdf);
 
+    std::cout << *test->scene.tsdf << std::endl;
+    test->scene.tsdf->Compact();
+    std::cout << *test->scene.tsdf << std::endl;
+    exit(0);
     test->scene.tsdf->Save("tsdf.dat");
     test2.Load("tsdf.dat");
     EXPECT_EQ(test2, *test->scene.tsdf);
+
+
 
     test2.blocks[12].data[5][3][1].distance = 10;
     EXPECT_TRUE(!(test2 == *test->scene.tsdf));
