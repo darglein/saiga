@@ -14,8 +14,8 @@ namespace Random
 {
 SE3 randomSE3()
 {
-    Vec3 t  = Vec3::Random();
-    Vec4 qc = Vec4::Random();
+    Vec3 t  = MatrixUniform<Vec3>();
+    Vec4 qc = MatrixUniform<Vec4>();
     Quat q;
     q.coeffs() = qc;
     q.normalize();
@@ -36,15 +36,6 @@ DSim3 randomDSim3()
     return DSim3(randomSE3(), sampleDouble(0.1, 2));
 }
 
-Quat randomQuat()
-{
-    Vec4 qc = Vec4::Random();
-    Quat q;
-    q.coeffs() = qc;
-    q.normalize();
-    if (q.w() < 0) q.coeffs() *= -1;
-    return q;
-}
 
 
 

@@ -505,7 +505,7 @@ void Scene::addWorldPointNoise(double stddev)
 {
     for (auto& wp : worldPoints)
     {
-        wp.p += Random::gaussRandMatrix<Vec3>(0, stddev);
+        wp.p += Random::MatrixGauss<Vec3>(0, stddev);
     }
 }
 
@@ -513,7 +513,7 @@ void Scene::addImagePointNoise(double stddev)
 {
     for (auto& img : images)
     {
-        for (auto& mp : img.stereoPoints) mp.point += Random::gaussRandMatrix<Vec2>(0, stddev);
+        for (auto& mp : img.stereoPoints) mp.point += Random::MatrixGauss<Vec2>(0, stddev);
     }
 }
 
@@ -521,7 +521,7 @@ void Scene::addExtrinsicNoise(double stddev)
 {
     for (SceneImage& e : images)
     {
-        e.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
+        e.se3.translation() += Random::MatrixGauss<Vec3>(0, stddev);
     }
 }
 

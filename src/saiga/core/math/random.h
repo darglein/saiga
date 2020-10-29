@@ -85,6 +85,36 @@ SAIGA_CORE_API Vec3 ballRand(double radius);
 
 SAIGA_CORE_API Vec3 sphericalRand(double radius);
 
+template <typename MatrixType>
+MatrixType MatrixUniform(typename MatrixType::Scalar low = -1, typename MatrixType::Scalar high = 1)
+{
+    MatrixType M;
+    for (int i = 0; i < M.rows(); ++i)
+        for (int j = 0; j < M.cols(); ++j) M(i, j) = sampleDouble(low, high);
+    return M;
+}
+
+template <typename MatrixType>
+MatrixType MatrixGauss(typename MatrixType::Scalar mean = 0, typename MatrixType::Scalar stddev = 1)
+{
+    MatrixType M;
+    for (int i = 0; i < M.rows(); ++i)
+        for (int j = 0; j < M.cols(); ++j) M(i, j) = gaussRand(mean, stddev);
+    return M;
+}
+
+template <typename Scalar>
+Eigen::Quaternion<Scalar> randomQuat()
+{
+    using Vec = Vector<Scalar, 4>;
+    Vec r     = Random::MatrixUniform<Vec>(0, 1);
+    Quat q;
+    q.coeffs() = r;
+    q.normalize();
+    if (q.w() < 0) q.coeffs() *= -1;
+    return q;
+}
+
 }  // namespace Random
 
 
@@ -111,17 +141,6 @@ inline typename Derived::PlainObject linearRand(const Eigen::DenseBase<Derived>&
 }
 
 
-template <typename Scalar>
-Eigen::Quaternion<Scalar> randomQuat()
-{
-    using Vec = Vector<Scalar, 4>;
-    Vec r     = linearRand(Vec::Zero(), Vec::Ones());
-    Quat q;
-    q.coeffs() = r;
-    q.normalize();
-    if (q.w() < 0) q.coeffs() *= -1;
-    return q;
-}
 
 // SAIGA_CORE_API extern vec2 linearRand(const vec2& low, const vec2& high);
 

@@ -43,9 +43,10 @@ struct SAIGA_VISION_API FusionParams
     float newWeight = 0.1;
     float maxWeight = 250;
 
-    int hash_size          = 5 * 1000 * 1000;
-    int block_count        = 25 * 1000;
-    bool post_process_mesh = true;
+    float max_distance_error = 0.01;
+    int hash_size            = 5 * 1000 * 1000;
+    int block_count          = 25 * 1000;
+    bool post_process_mesh   = true;
 
     std::string out_file = "outmesh_sparse.off";
 

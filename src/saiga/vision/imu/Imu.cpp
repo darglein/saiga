@@ -113,8 +113,8 @@ void ImuSequence::AddNoise(double sigma_omega, double sigma_acc)
 {
     for (auto& i : data)
     {
-        i.omega += Random::gaussRandMatrix<Vec3>(0, sigma_omega);
-        i.acceleration += Random::gaussRandMatrix<Vec3>(0, sigma_acc);
+        i.omega += Random::MatrixGauss<Vec3>(0, sigma_omega);
+        i.acceleration += Random::MatrixGauss<Vec3>(0, sigma_acc);
     }
 }
 
