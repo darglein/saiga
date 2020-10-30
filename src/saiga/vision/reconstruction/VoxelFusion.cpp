@@ -581,7 +581,7 @@ void FusionScene::Integrate()
                             {
                                 float updated_tsdf;
 
-
+#if 0
                                 if (std::abs(current_tsdf - new_tsdf) < params.max_distance_error)
                                 {
                                     updated_tsdf = (current_weight * current_tsdf + add_weight * new_tsdf) /
@@ -598,6 +598,11 @@ void FusionScene::Integrate()
                                         updated_tsdf = new_tsdf;
                                     }
                                 }
+#else
+
+                                updated_tsdf = (current_weight * current_tsdf + add_weight * new_tsdf) /
+                                               (current_weight + add_weight);
+#endif
 
                                 auto new_weight = current_weight + add_weight;
 
