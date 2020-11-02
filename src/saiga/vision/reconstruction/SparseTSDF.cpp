@@ -142,6 +142,7 @@ TriangleMesh<VertexNC, uint32_t> SparseTSDF::CreateMesh(const std::vector<std::v
     return mesh;
 }
 
+
 void SparseTSDF::Save(const std::string& file)
 {
     BinaryFile strm(file, std::ios_base::out);
@@ -184,6 +185,28 @@ bool SparseTSDF::operator==(const SparseTSDF& other) const
 
     return true;
 }
+
+
+void SparseTSDF::SetForAll(float distance, float weight)
+{
+    for (int b = 0; b < current_blocks; ++b)
+    {
+        auto& block = blocks[b];
+
+        for (auto& z : block.data)
+        {
+            for (auto& y : z)
+            {
+                for (auto& x : y)
+                {
+                    x.distance = distance;
+                    x.weight   = weight;
+                }
+            }
+        }
+    }
+}
+
 
 std::ostream& operator<<(std::ostream& strm, const SparseTSDF& tsdf)
 {

@@ -19,7 +19,7 @@ class Sample : public SampleWindowDeferred
     Sample()
     {
         normalShader  = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset_normal.glsl");
-        textureShader = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset.glsl");
+        textureShader = shaderLoader.load<MVPTextureShader>("asset/texturedAsset.glsl");
         ObjAssetLoader assetLoader;
 
 

@@ -72,14 +72,15 @@ struct SAIGA_VISION_API SparseTSDF
     SparseTSDF(const std::string& file) { Load(file); }
 
 
-    SparseTSDF(const SparseTSDF& other){
-        voxel_size = other.voxel_size;
-        voxel_size_inv = other.voxel_size_inv;
-        hash_size = other.hash_size;
-        blocks = other.blocks;
+    SparseTSDF(const SparseTSDF& other)
+    {
+        voxel_size         = other.voxel_size;
+        voxel_size_inv     = other.voxel_size_inv;
+        hash_size          = other.hash_size;
+        blocks             = other.blocks;
         first_hashed_block = other.first_hashed_block;
-        hash_locks =     std::vector<SpinLock>(hash_size);
-        current_blocks = other.current_blocks.load();
+        hash_locks         = std::vector<SpinLock>(hash_size);
+        current_blocks     = other.current_blocks.load();
     }
 
     SAIGA_VISION_API friend std::ostream& operator<<(std::ostream& os, const SparseTSDF& tsdf);
@@ -188,7 +189,10 @@ struct SAIGA_VISION_API SparseTSDF
 
     void Compact() { blocks.resize(current_blocks); }
 
-    int Size() { return current_blocks;}
+    int Size() { return current_blocks; }
+
+    // Sets all voxels to this values
+    void SetForAll(float distance, float weight);
 
    public:
     float voxel_size;
@@ -204,12 +208,15 @@ struct SAIGA_VISION_API SparseTSDF
     std::vector<SpinLock> hash_locks;
 
 
-    void Clear(){
+    void Clear()
+    {
         current_blocks = 0;
-        for(auto& b : blocks){
+        for (auto& b : blocks)
+        {
             b = VoxelBlock();
         }
-        for(auto& i : first_hashed_block){
+        for (auto& i : first_hashed_block)
+        {
             i = -1;
         }
     }

@@ -22,17 +22,36 @@ class TSDFTest
     {
         Random::setSeed(34976346);
         srand(45727);
-        depth_image.load("bar.saigai");
-        depth_image.getImageView().set(1.0f);
+
+        TemplatedImage<float> input("bar.saigai");
+        depth_image.create(input.h / 2, input.w / 2);
+        DMPP::scaleDown2median(input.getImageView(), depth_image.getImageView());
+
+
+        // depth_image.getImageView().set(1.0f);
         scene.K =
             Intrinsics4(5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02, 2.3691517848391885e+02);
+        scene.K.scale(0.5);
         scene.dis = Distortion();
 
         scene.params.maxIntegrationDistance = 5;
-        scene.params.voxelSize              = 0.01;
-        scene.params.truncationDistance     = 0.01;
+        scene.params.voxelSize              = 0.05;
+        scene.params.truncationDistance     = 0.2;
         scene.params.post_process_mesh      = false;
-        scene.params.block_count            = 1000 * 1000;
+        scene.params.block_count            = 10000;
+        scene.params.hash_size              = 10000;
+
+        scene.params.extract_iso = 0;
+
+
+
+        DepthProcessor2::Settings settings;
+        settings.cameraParameters = StereoCamera4(scene.K, 0.1 * scene.K.fx).cast<float>();
+        DepthProcessor2 dp(settings);
+        dp.Process(depth_image.getImageView());
+
+
+
         // scene.params.truncationDistance     = 1;
         FusionImage fi;
         fi.depthMap = depth_image.getImageView();
@@ -61,11 +80,13 @@ TEST(TSDF, Create)
 
 TEST(TSDF, Fuse)
 {
+    test->scene.params.point_based = false;
     test->scene.Fuse();
-
+    test->scene.params.point_based = true;
+    test->scene.Fuse();
+    exit(0);
 
     //    SparseTSDF t2 = *test->scene.tsdf;
-    //    exit(0);
 }
 
 TEST(TSDF, SmallHash)
