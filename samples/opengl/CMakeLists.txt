@@ -25,6 +25,8 @@ if (SDL2_FOUND)
         add_subdirectory(depthMapTriangulation)
         add_subdirectory(openMeshSample)
     endif ()
+    
+    add_subdirectory(standardForward)
 
 endif ()
 
