@@ -32,6 +32,7 @@ class BundleAdjustmentTest
         opoptions.maxIterations          = 50;
         opoptions.maxIterativeIterations = 100;
         opoptions.iterativeTolerance     = 1e-20;
+        opoptions.minChi2Delta           = 1e-20;
         opoptions.numThreads             = 1;
         opoptions.buildExplizitSchur     = true;
 

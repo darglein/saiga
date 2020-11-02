@@ -1,13 +1,13 @@
 find_package(GTest QUIET)
+PackageHelperTarget(GTest::GTest GTest_FOUND)
 
 if(NOT GTEST_FOUND)
   message(STATUS "GTest not found. Tests disabled.")
   return()
+else()
 endif()
 
 function(saiga_test FILE_NAME)
-
-
   string(REGEX REPLACE "\\.[^.]*$" "" NAME ${FILE_NAME})
 
   set(TEST_TARGET ${NAME})
@@ -24,18 +24,22 @@ function(saiga_test FILE_NAME)
     COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TARGET}
     )
 
-  #set working directory for visual studio so the project can be executed from the ide
-  set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
-  set_target_properties(${PROG_NAME} PROPERTIES FOLDER tests/${PREFIX})
-  set_target_properties(${PROG_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
-endfunction()
 
+  set_property(TARGET ${TEST_TARGET} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
+  target_compile_options(${TEST_TARGET} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
+
+  #set working directory for visual studio so the project can be executed from the ide
+  set_target_properties(${TEST_TARGET} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
+  set_target_properties(${TEST_TARGET} PROPERTIES FOLDER tests/${PREFIX})
+  set_target_properties(${TEST_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+endfunction()
 
 
 if(MODULE_CORE)
   saiga_test(test_core_align.cpp)
   saiga_test(test_core_frustum.cpp)
   saiga_test(test_core_vectorization.cpp)
+  saiga_test(test_core_progressbar.cpp)
 
   if(OpenCV_FOUND AND MODULE_EXTRA)
     saiga_test(test_core_image_load_store.cpp ${EXTRA_LIBS})
@@ -64,6 +68,7 @@ if(MODULE_VISION)
   saiga_test(test_vision_imu.cpp "saiga_vision")
   saiga_test(test_vision_imu_derivatives.cpp "saiga_vision")
   saiga_test(test_vision_robust_cost_function.cpp "saiga_vision")
+  saiga_test(test_vision_tsdf.cpp "saiga_vision")
   saiga_test(test_vision_recursive_linear_systems.cpp "saiga_vision")
   if(K4A_FOUND)
     saiga_test(test_vision_azure.cpp "saiga_vision")

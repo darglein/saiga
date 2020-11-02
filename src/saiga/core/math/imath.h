@@ -27,7 +27,6 @@ HD constexpr T iDivDown(T a, T b)
     return a / b;
 }
 
-
 /**
  * Align the value \p a to the next multiple of \p b
  * @tparam T Type of the value to align
@@ -59,24 +58,20 @@ HD constexpr T iAlignDown(T a, U b)
     return a - a % b;
 }
 
-
 template <typename T>
 HD constexpr int iFloor(T value)
 {
-    int i = (int)value;
-    return i - (i > value);
+    return ((int)value) - (((int)value) > value);
 }
 
 HD constexpr int iCeil(float value)
 {
-    int i = (int)value;
-    return i + (i < value);
+    return ((int)value) + (((int)value) < value);
 }
 
 HD constexpr int iRound(float value)
 {
     return (int)(value + (value >= 0 ? 0.5f : -0.5f));
 }
-
 
 }  // namespace Saiga

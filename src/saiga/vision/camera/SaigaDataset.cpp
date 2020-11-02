@@ -22,8 +22,9 @@
 namespace Saiga
 {
 SaigaDataset::SaigaDataset(const DatasetParameters& _params, bool scale_down_depth)
-    : DatasetCameraBase<RGBDFrameData>(_params), scale_down_depth(scale_down_depth)
+    : DatasetCameraBase(_params), scale_down_depth(scale_down_depth)
 {
+    camera_type = CameraInputType::RGBD;
     Load();
 }
 
@@ -31,17 +32,17 @@ SaigaDataset::~SaigaDataset() {}
 
 
 
-void SaigaDataset::LoadImageData(RGBDFrameData& data)
+void SaigaDataset::LoadImageData(FrameData& data)
 {
     auto old_id = data.id;
-    data.Load(data.file);
+    data.Load(data.image_file);
     data.id = old_id;
 
     if (scale_down_depth)
     {
         TemplatedImage<float> tmp(_intrinsics.depthImageSize);
-        DMPP::scaleDown2median(data.depthImg.getImageView(), tmp.getImageView());
-        data.depthImg = tmp;
+        DMPP::scaleDown2median(data.depth_image.getImageView(), tmp.getImageView());
+        data.depth_image = tmp;
     }
 }
 
@@ -61,19 +62,25 @@ int SaigaDataset::LoadMetaData()
 
 
 
-    if (scale_down_depth)
+    if (scale_down_depth && _intrinsics.imageSize.width == _intrinsics.depthImageSize.width)
     {
         _intrinsics.depthModel.K.scale(0.5);
         _intrinsics.depthImageSize.width /= 2;
         _intrinsics.depthImageSize.height /= 2;
+        std::cout << "Scaling down depth image." << std::endl;
+    }
+    else
+    {
+        std::cout << "Don't scale down." << std::endl;
+        scale_down_depth = false;
     }
 
     std::cout << _intrinsics << std::endl;
 
     Directory d(frame_dir);
 
-    frame_dirs.clear();
-    d.getDirectories(frame_dirs);
+
+    frame_dirs = d.getDirectories();
 
     frame_dirs.erase(
         std::remove_if(frame_dirs.begin(), frame_dirs.end(),
@@ -94,8 +101,8 @@ int SaigaDataset::LoadMetaData()
 
     for (int i = 0; i < frames.size(); ++i)
     {
-        frames[i].file = frame_dir + "/" + frame_dirs[i] + "/";
-        frames[i].id   = i;
+        frames[i].image_file = frame_dir + "/" + frame_dirs[i] + "/";
+        frames[i].id         = i;
     }
 
 

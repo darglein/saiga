@@ -156,7 +156,7 @@ class TriangleMesh : public Mesh<vertex_t>
      * Sorts the vertices by (x,y,z) lexical.
      * The face indices are correct to match the new vertices.
      */
-    void sortVerticesByPosition();
+    void sortVerticesByPosition(double epsilon = 1e-5);
 
 
     /**
@@ -165,7 +165,7 @@ class TriangleMesh : public Mesh<vertex_t>
      *
      * The face indices are updated accordingly.
      */
-    void removeSubsequentDuplicates();
+    void removeSubsequentDuplicates(double epsilon = 1e-5);
 
     /**
      * Removes all triangles, which reference a vertex twice
@@ -437,15 +437,24 @@ bool TriangleMesh<vertex_t, index_t>::isValid() const
 }
 
 template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::sortVerticesByPosition()
+void TriangleMesh<vertex_t, index_t>::sortVerticesByPosition(double epsilon)
 {
+    double eps_squared = epsilon * epsilon;
+
     std::vector<int> tmp_indices(vertices.size());
     std::vector<int> tmp_indices2(vertices.size());
     std::iota(tmp_indices.begin(), tmp_indices.end(), 0);
 
     std::sort(tmp_indices.begin(), tmp_indices.end(), [&](int a, int b) {
-        auto p1 = vertices[a].position;
-        auto p2 = vertices[b].position;
+        vec4 p1 = vertices[a].position;
+        vec4 p2 = vertices[b].position;
+
+        vec4 p3 = (p1 - p2);
+        p3      = p3.array() * p3.array();
+
+        p1[0] = p3[0] < eps_squared ? p2[0] : p1[0];
+        p1[1] = p3[1] < eps_squared ? p2[1] : p1[1];
+        p1[2] = p3[2] < eps_squared ? p2[2] : p1[2];
 
         return std::tie(p1[0], p1[1], p1[2]) < std::tie(p2[0], p2[1], p2[2]);
     });
@@ -467,9 +476,11 @@ void TriangleMesh<vertex_t, index_t>::sortVerticesByPosition()
 }
 
 template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::removeSubsequentDuplicates()
+void TriangleMesh<vertex_t, index_t>::removeSubsequentDuplicates(double epsilon)
 {
     if (vertices.size() <= 1) return;
+
+    double eps_squared = epsilon * epsilon;
 
     std::vector<int> tmp_indices(vertices.size());
     std::vector<bool> valid(vertices.size(), false);
@@ -480,8 +491,8 @@ void TriangleMesh<vertex_t, index_t>::removeSubsequentDuplicates()
 
     for (int i = 0; i < vertices.size(); ++i)
     {
-        auto p = vertices[i].position;
-        if (p != currentPos || i == 0)
+        auto& p = vertices[i].position;
+        if (i == 0 || (p - currentPos).squaredNorm() > eps_squared)
         {
             new_vertices.push_back(vertices[i]);
             currentIdx++;
@@ -516,21 +527,24 @@ void TriangleMesh<vertex_t, index_t>::removeDegenerateFaces()
 template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm) const
 {
-    strm << "OFF" << std::endl;
+    strm << "OFF"
+         << "\n";
     // first line: number of vertices, number of faces, number of edges (can be ignored)
-    strm << vertices.size() << " " << faces.size() << " 0" << std::endl;
+    strm << vertices.size() << " " << faces.size() << " 0"
+         << "\n";
 
     for (auto const& v : vertices)
     {
-        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << std::endl;
+        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << "\n";
     }
 
     for (auto const& f : faces)
     {
         strm << "3"
-             << " " << f[0] << " " << f[1] << " " << f[2] << std::endl;
+             << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
     }
 }
+
 
 template <typename vertex_t, typename index_t>
 std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t, index_t>& dt)

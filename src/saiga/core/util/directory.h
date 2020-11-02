@@ -27,23 +27,23 @@ class SAIGA_CORE_API Directory
     /**
      * Gets all regular files in this directory.
      */
-    void getFiles(std::vector<std::string>& out);
+    std::vector<std::string> getFiles();
 
     /**
      * Like above, but only if the file ends on "ending"
      */
-    void getFiles(std::vector<std::string>& out, const std::string& ending);
+    std::vector<std::string> getFilesEnding(const std::string& ending);
 
     /**
      * Like above, but only if the file starts with "prefix"
      */
-    void getFilesPrefix(std::vector<std::string>& out, const std::string& prefix);
+    std::vector<std::string> getFilesPrefix(const std::string& prefix);
 
     /**
      * Gets all directories in this directory.
      */
-    void getDirectories(std::vector<std::string>& out);
-    void getDirectories(std::vector<std::string>& out, const std::string& ending);
+    std::vector<std::string> getDirectories();
+    std::vector<std::string> getDirectories(const std::string& ending);
 
 
     bool existsFile(const std::string& file);

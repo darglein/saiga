@@ -12,6 +12,25 @@
 
 namespace Saiga
 {
+void SimpleAssetObject::render(Camera* camera, RenderPass render_pass)
+{
+    switch (render_pass)
+    {
+        case RenderPass::Forward:
+            renderForward(camera);
+            break;
+        case RenderPass::Deferred:
+            render(camera);
+            break;
+        case RenderPass::Shadow:
+        case RenderPass::DepthPrepass:
+            renderDepth(camera);
+            break;
+        default:
+            SAIGA_EXIT_ERROR("unknown render pass");
+    }
+}
+
 void SimpleAssetObject::render(Camera* cam)
 {
     SAIGA_ASSERT(asset);

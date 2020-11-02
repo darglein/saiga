@@ -4,95 +4,218 @@
  * See LICENSE file for more information.
  */
 
-#include "lighting.h"
-
 #include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/math/random.h"
 #include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/opengl/window/SampleWindowDeferred.h"
 
-Sample::Sample()
+using namespace Saiga;
+
+class Sample : public SampleWindowDeferred
 {
-    ObjAssetLoader assetLoader;
+   public:
+    using Base = SampleWindowDeferred;
+
+    Sample()
+    {
+        ObjAssetLoader assetLoader;
+
+        Random::setSeed(23461);
+
+        float aspect = window->getAspectRatio();
+        camera.setProj(60.0f, aspect, 0.1f, 100.0f);
 
 
-    auto cubeAsset = assetLoader.loadTexturedAsset("box.obj");
+        auto sphereMesh = TriangleMeshGenerator::createMesh(Sphere(make_vec3(0), 1), 4);
+        auto sphere     = assetLoader.assetFromMesh(*sphereMesh, Colors::gray);
 
-    cube1.asset = cubeAsset;
-    cube2.asset = cubeAsset;
-    cube1.translateGlobal(vec3(11, 1, -2));
-    cube1.calculateModel();
-
-    cube2.translateGlobal(vec3(-11, 1, 2));
-    cube2.calculateModel();
-
-    auto sphereAsset = assetLoader.loadBasicAsset("teapot.obj");
-    sphere.asset     = sphereAsset;
-    sphere.translateGlobal(vec3(0, 1, 8));
-    sphere.rotateLocal(vec3(0, 1, 0), 180);
-    sphere.calculateModel();
-
-
-    ShadowQuality sq = ShadowQuality::HIGH;
+        int s            = 20;
+        bounding_box.min = vec3(-s, 0, -s);
+        bounding_box.max = vec3(s, 10, s);
+        for (int i = 0; i < 25; ++i)
+        {
+            SimpleAssetObject obj;
+            obj.asset   = sphere;
+            float scale = linearRand(0.5, 1.5);
+            obj.setScale(vec3(scale, scale, scale));
+            obj.translateGlobal(linearRand(vec3(-s, scale, -s), vec3(s, scale, s)));
+            obj.calculateModel();
+            objects.push_back(obj);
+        }
 
 
+        auto stickMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-0.2, 0, -0.2), vec3(0.2, 2, 0.2)));
+        auto stick     = assetLoader.assetFromMesh(*stickMesh, Colors::gray);
 
-    pointLight = renderer->lighting.createPointLight();
-    pointLight->setAttenuation(AttenuationPresets::Quadratic);
-    pointLight->setIntensity(2);
-    pointLight->setRadius(10);
-    pointLight->setPosition(vec3(10, 3, 0));
-    pointLight->setColorDiffuse(make_vec3(1));
-    pointLight->calculateModel();
-    //        pointLight->createShadowMap(256,256,sq);
-    pointLight->createShadowMap(512, 512, sq);
-    pointLight->enableShadows();
+        for (int i = 0; i < 25; ++i)
+        {
+            SimpleAssetObject obj;
+            obj.asset   = stick;
+            float scale = linearRand(0.5, 1.5);
+            obj.setScale(vec3(scale, scale, scale));
+            obj.translateGlobal(linearRand(vec3(-s, 0, -s), vec3(s, 0, s)));
+            obj.calculateModel();
+            objects.push_back(obj);
+        }
 
-    spotLight = renderer->lighting.createSpotLight();
-    spotLight->setAttenuation(AttenuationPresets::Quadratic);
-    spotLight->setIntensity(2);
-    spotLight->setRadius(8);
-    spotLight->setPosition(vec3(-10, 5, 0));
-    spotLight->setColorDiffuse(make_vec3(1));
-    spotLight->calculateModel();
-    spotLight->createShadowMap(512, 512, sq);
-    spotLight->enableShadows();
 
-    boxLight = renderer->lighting.createBoxLight();
-    boxLight->setIntensity(1.0);
-
-    //        boxLight->setPosition(vec3(0,2,10));
-    //        boxLight->rotateLocal(vec3(1,0,0),30);
-    boxLight->setView(vec3(0, 2, 10), vec3(0, 0, 13), vec3(0, 1, 0));
-    boxLight->setColorDiffuse(make_vec3(1));
-    boxLight->setScale(vec3(5, 5, 8));
-    boxLight->calculateModel();
-    boxLight->createShadowMap(512, 512, sq);
-    boxLight->enableShadows();
-
-    //    sun->disableShadows();
-
-    std::cout << "Program Initialized!" << std::endl;
-}
+        renderer->lighting.removeLight(sun);
 
 
 
-void Sample::render(Camera* cam)
-{
-    Base::render(cam);
-    // Render all objects from the viewpoint of 'cam'
-    cube1.render(cam);
-    cube2.render(cam);
-    sphere.render(cam);
-}
+        ShadowQuality sq = ShadowQuality::HIGH;
 
-void Sample::renderDepth(Camera* cam)
-{
-    Base::renderDepth(cam);
-    // Render the depth of all objects from the viewpoint of 'cam'
-    // This will be called automatically for shadow casting light sources to create shadow maps
-    cube1.renderDepth(cam);
-    cube2.renderDepth(cam);
-    sphere.render(cam);
-}
+        //        sun->disableShadows();
+        //        sun->setIntensity(0);
+        //        sun->setAmbientIntensity(0.1);
+
+        for (int i = 0; i < 10; ++i)
+        {
+            auto light = std::make_shared<PointLight>();
+            renderer->lighting.AddLight(light);
+
+            light->setAttenuation(AttenuationPresets::Quadratic);
+            light->setIntensity(2);
+
+
+            light->setRadius(linearRand(5, 30));
+
+            light->setPosition(linearRand(vec3(-s, 1, -s), vec3(s, 5, s)));
+
+            light->setColorDiffuse(make_vec3(1));
+            light->calculateModel();
+
+            light->createShadowMap(512, 512, sq);
+            light->enableShadows();
+
+            point_lights.push_back(light);
+        }
+
+
+
+        for (int i = 0; i < 15; ++i)
+        {
+            auto light = std::make_shared<SpotLight>();
+            renderer->lighting.AddLight(light);
+
+            light->setAttenuation(AttenuationPresets::Quadratic);
+            light->setIntensity(2);
+            light->setRadius(linearRand(8, 15));
+
+            light->setPosition(linearRand(vec3(-s, 3, -s), vec3(s, 8, s)));
+
+            light->setAngle(linearRand(40, 85));
+            // light->setDirection(vec3(0, -5, 0) + linearRand(make_vec3(-2), make_vec3(2)));
+
+            light->setColorDiffuse(make_vec3(1));
+            light->calculateModel();
+
+            light->createShadowMap(512, 512, sq);
+            light->enableShadows();
+
+            spot_lights.push_back(light);
+        }
+
+        for (int i = 0; i < 2; ++i)
+        {
+            auto light = std::make_shared<DirectionalLight>();
+            renderer->lighting.AddLight(light);
+            light->createShadowMap(2048, 2048, 3, ShadowQuality::LOW);
+            light->enableShadows();
+
+            light->setAmbientIntensity(0);
+
+            vec3 dir = Random::sphericalRand(1).cast<float>();
+            if (dir.y() > 0) dir.y() *= -1;
+
+            //            dir = vec3(-1, -1, -1);
+            light->setIntensity(0.7);
+            light->setDirection(dir);
+            directional_lights.push_back(light);
+        }
+
+        //        boxLight = std::make_shared<BoxLight>();
+        //        renderer->lighting.AddLight(boxLight);
+        //        boxLight->setIntensity(1.0);
+
+        //        //        boxLight->setPosition(vec3(0,2,10));
+        //        //        boxLight->rotateLocal(vec3(1,0,0),30);
+        //        boxLight->setView(vec3(0, 2, 10), vec3(0, 0, 13), vec3(0, 1, 0));
+        //        boxLight->setColorDiffuse(make_vec3(1));
+        //        boxLight->setScale(vec3(5, 5, 8));
+        //        boxLight->calculateModel();
+        //        boxLight->createShadowMap(512, 512, sq);
+        //        boxLight->enableShadows();
+
+        //    sun->disableShadows();
+
+
+        std::cout << "Program Initialized!" << std::endl;
+    }
+
+
+    void update(float dt) override
+    {
+        Base::update(dt);
+        for (auto l : point_lights)
+        {
+            l->setActive(current_type == 0);
+        }
+        for (auto l : spot_lights)
+        {
+            l->setActive(current_type == 1);
+        }
+        for (auto l : box_lights)
+        {
+            l->setActive(current_type == 2);
+        }
+        for (auto l : directional_lights)
+        {
+            l->setActive(current_type == 3);
+            l->fitShadowToCamera(&camera);
+            l->fitNearPlaneToScene(bounding_box);
+        }
+    }
+
+
+    void render(Camera* cam, RenderPass render_pass) override
+    {
+        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        {
+            Base::render(cam, render_pass);
+            for (auto& o : objects)
+            {
+                o.render(cam, render_pass);
+            }
+        }
+
+        if (render_pass == RenderPass::GUI)
+        {
+            renderer->lighting.renderImGui();
+
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
+            ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_Once);
+            ImGui::Begin("Lighting");
+
+            static const char* types[4] = {"Point Light", "Spot Light", "Box Light", "Directional Light"};
+            ImGui::Combo("Codec", &current_type, types, 4);
+
+            ImGui::End();
+        }
+    }
+
+   private:
+    std::vector<SimpleAssetObject> objects;
+
+
+    int current_type = 0;
+    std::vector<std::shared_ptr<BoxLight>> box_lights;
+    std::vector<std::shared_ptr<PointLight>> point_lights;
+    std::vector<std::shared_ptr<SpotLight>> spot_lights;
+    std::vector<std::shared_ptr<DirectionalLight>> directional_lights;
+
+    AABB bounding_box;
+};
 
 
 

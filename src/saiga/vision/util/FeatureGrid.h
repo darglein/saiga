@@ -36,7 +36,7 @@ struct FeatureGridBounds
 
     bool inImage(const Vec2& point) const
     {
-        return point(0) >= bmin(0) & point(1) >= bmin(1) & point(0) < bmax(0) & point(1) < bmax(1);
+        return (point(0) >= bmin(0)) & (point(1) >= bmin(1)) & (point(0) < bmax(0)) & (point(1) < bmax(1));
     }
 
 

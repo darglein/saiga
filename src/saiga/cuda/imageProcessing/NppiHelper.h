@@ -1,8 +1,8 @@
 /**
  * This file is part of ORB-SLAM2.
  *
- * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
- * For more information see <https://github.com/raulmur/ORB_SLAM2>
+ * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University
+ * of Zaragoza) For more information see <https://github.com/raulmur/ORB_SLAM2>
  *
  * ORB-SLAM2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,39 +24,39 @@
 //
 #include "saiga/core/image/imageView.h"
 
-#include <npp.h>
-#include <nppi.h>
+#ifdef SAIGA_USE_CUDA_TOOLKIT
 
+#    include <npp.h>
+#    include <nppi.h>
 
-#define CHECK_NPPI_ERROR(function)                                                                              \
-    {                                                                                                           \
-        auto error_code = function;                                                                             \
-        ((error_code == NPP_SUCCESS)                                                                            \
-             ? static_cast<void>(0)                                                                             \
-             : Saiga::saiga_assert_fail(#function " == NPP_SUCCESS", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION, \
-                                        "Error code: " + std::to_string(error_code)));                          \
-    }
+#    define CHECK_NPPI_ERROR(function)                                                                              \
+        {                                                                                                           \
+            auto error_code = function;                                                                             \
+            ((error_code == NPP_SUCCESS)                                                                            \
+                 ? static_cast<void>(0)                                                                             \
+                 : Saiga::saiga_assert_fail(#function " == NPP_SUCCESS", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION, \
+                                            "Error code: " + std::to_string(error_code)));                          \
+        }
 
+#    if (NPP_VERSION_MAJOR > 10 || (NPP_VERSION_MAJOR == 10 && NPP_VERSION_MINOR >= 1)) && \
+        !defined(NPPI_USE_OLD_CONTEXT)
+#        define SAIGA_NPPI_HAS_STREAM_CONTEXT
+#    endif
 
-#if (NPP_VERSION_MAJOR > 10 || (NPP_VERSION_MAJOR == 10 && NPP_VERSION_MINOR >= 1)) && !defined(NPPI_USE_OLD_CONTEXT)
-#    define SAIGA_NPPI_HAS_STREAM_CONTEXT
-#endif
-
-#ifndef SAIGA_NPPI_HAS_STREAM_CONTEXT
+#    ifndef SAIGA_NPPI_HAS_STREAM_CONTEXT
 struct SaigaNppStreamContext
 {
     cudaStream_t hStream;
 };
-#else
+#    else
 using SaigaNppStreamContext = NppStreamContext;
-#endif
-
-
+#    endif
 
 // This file contains helper functions for interfacing with the NPPI library.
-// As NPPI mostly consists of image processing utilities, most method have ImageViews as parameters.
-// This is also a reference, if you want to apply similar operations on images of different types.
-// Then you usually can just copy/paste the function and rename the nppi call.
+// As NPPI mostly consists of image processing utilities, most method have
+// ImageViews as parameters. This is also a reference, if you want to apply
+// similar operations on images of different types. Then you usually can just
+// copy/paste the function and rename the nppi call.
 namespace Saiga
 {
 namespace NPPI
@@ -64,9 +64,9 @@ namespace NPPI
 inline SaigaNppStreamContext CreateStreamContextWithStream(cudaStream_t stream)
 {
     SaigaNppStreamContext context;
-#ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
+#    ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
     CHECK_NPPI_ERROR(nppGetStreamContext(&context));
-#endif
+#    endif
     context.hStream = stream;
     return context;
 }
@@ -97,28 +97,29 @@ inline void GaussFilter(ImageView<const unsigned char> src, ImageView<unsigned c
     NppiPoint offset;
     offset.x = 0;
     offset.y = 0;
-#ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
+#    ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
     CHECK_NPPI_ERROR(nppiFilterGaussBorder_8u_C1R_Ctx(src.data8, src.pitchBytes, GetSize(src), offset, dst.data8,
                                                       dst.pitchBytes, GetSize(dst), NPP_MASK_SIZE_7_X_7,
                                                       NPP_BORDER_REPLICATE, context));
-#else
+#    else
     CHECK_NPPI_ERROR(nppiFilterGaussBorder_8u_C1R(src.data8, src.pitchBytes, GetSize(src), offset, dst.data8,
                                                   dst.pitchBytes, GetSize(dst), NPP_MASK_SIZE_7_X_7,
                                                   NPP_BORDER_REPLICATE));
-#endif
+#    endif
 }
 
 inline void ResizeLinear(ImageView<const unsigned char> src, ImageView<unsigned char> dst,
                          const SaigaNppStreamContext& context)
 {
-#ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
+#    ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
     CHECK_NPPI_ERROR(nppiResize_8u_C1R_Ctx(src.data8, src.pitchBytes, GetSize(src), GetRoi(src), dst.data8,
                                            dst.pitchBytes, GetSize(dst), GetRoi(dst), NPPI_INTER_LINEAR, context));
-#else
+#    else
     CHECK_NPPI_ERROR(nppiResize_8u_C1R(src.data8, src.pitchBytes, GetSize(src), GetRoi(src), dst.data8, dst.pitchBytes,
                                        GetSize(dst), GetRoi(dst), NPPI_INTER_LINEAR));
-#endif
+#    endif
 }
 
 }  // namespace NPPI
 }  // namespace Saiga
+#endif

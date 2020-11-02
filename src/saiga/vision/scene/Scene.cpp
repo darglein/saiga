@@ -55,8 +55,8 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
     //    SAIGA_ASSERT(wp);
 
     // project to screen
-    auto p  = img.se3 * wp.p;
-    auto z  = p(2);
+    auto p = img.se3 * wp.p;
+    // auto z  = p(2);
     auto p2 = intrinsics[img.intr].project(p);
     auto w  = ip.weight * scale();
     Eigen::Vector2d res;
@@ -244,7 +244,7 @@ void Scene::removeOutliers(float threshold)
     {
         for (auto& o : im.stereoPoints)
         {
-            if (!o.wp) continue;
+            if (!o) continue;
             double r = std::sqrt(residualNorm2(im, o));
             if (r > threshold)
             {
@@ -253,7 +253,8 @@ void Scene::removeOutliers(float threshold)
             }
         }
     }
-    std::cout << "Removed " << pointsRemoved << " outlier observations above the threshold " << threshold << std::endl;
+    //    std::cout << "Removed " << pointsRemoved << " outlier observations above the threshold " << threshold <<
+    //    std::endl;
     fixWorldPointReferences();
 }
 
@@ -366,8 +367,8 @@ double Scene::chi2(double huber)
 {
     double error = 0;
 
-    int stereoEdges = 0;
-    int monoEdges   = 0;
+    //    int stereoEdges = 0;
+    //    int monoEdges   = 0;
 
     for (int i = 0; i < images.size(); ++i)
     {
@@ -376,37 +377,22 @@ double Scene::chi2(double huber)
 
         for (auto& o : im.stereoPoints)
         {
-            //            if (!o) continue;
-
-
+            if (!o) continue;
             double res_2 = residualNorm2(im, o);
-
-
-            //            if (i == 5 && o.wp == 33)
-            //            {
-            //                std::cout << "test " << o.wp << " " << res_2 << " " << worldPoints[o.wp].p.transpose() <<
-            //                " "
-            //                          << o.point.transpose() << std::endl;
-            //            }
 
             if (huber > 0)
             {
-                //                auto rw = Kernel::CauchyLoss<double>(huber, sqerror);
                 auto rw = Kernel::HuberLoss<double>(huber, res_2);
                 res_2   = rw(0);
             }
-
-
-            if (o.depth > 0)
-                stereoEdges++;
-            else
-                monoEdges++;
             image_error += res_2;
         }
         error += image_error;
         //        std::cout << "Rep " << i << " " << image_error << std::endl;
     }
 
+    //    std::cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " chi2: " << error
+    //              << std::endl;
     //    std::cout << "BA error: " << error << std::endl;
 
     //    std::cout << "RPC SIze: " << rel_pose_constraints.size() << std::endl;
@@ -439,26 +425,44 @@ double Scene::rms()
 
     for (SceneImage& im : images)
     {
-        double sqerror;
-
         for (auto& o : im.stereoPoints)
         {
             if (!o) continue;
-            sqerror = residualNorm2(im, o);
+            double res_2 = residualNorm2(im, o);
 
             if (o.depth > 0)
                 stereoEdges++;
             else
                 monoEdges++;
-            error += sqerror;
+            error += res_2;
         }
     }
 
     auto error2 = error / (monoEdges + stereoEdges);
     error2      = sqrt(error2);
     //    std::cout << "Scene stereo/mono/dense " << stereoEdges << "/" << monoEdges << "/" << 0 << " Error: " << error2
-    //         << " chi2: " << error << std::endl;
+    //              << " chi2: " << error << std::endl;
     return error2;
+}
+
+
+void Scene::rmsPrint()
+{
+    for (int i = 0; i < images.size(); ++i)
+    {
+        SceneImage& im     = images[i];
+        double image_error = 0;
+        for (int j = 0; j < im.stereoPoints.size(); ++j)
+        {
+            auto& o = im.stereoPoints[j];
+            if (!o) continue;
+            double res_2 = residualNorm2(im, o);
+
+            image_error += res_2;
+            std::cout << "(" << i << ", " << j << ") " << res_2 << ", " << sqrt(res_2) << std::endl;
+        }
+        std::cout << "Image " << i << " Chi2: " << image_error << std::endl;
+    }
 }
 
 double Scene::getSchurDensity()
@@ -501,7 +505,7 @@ void Scene::addWorldPointNoise(double stddev)
 {
     for (auto& wp : worldPoints)
     {
-        wp.p += Random::gaussRandMatrix<Vec3>(0, stddev);
+        wp.p += Random::MatrixGauss<Vec3>(0, stddev);
     }
 }
 
@@ -509,7 +513,7 @@ void Scene::addImagePointNoise(double stddev)
 {
     for (auto& img : images)
     {
-        for (auto& mp : img.stereoPoints) mp.point += Random::gaussRandMatrix<Vec2>(0, stddev);
+        for (auto& mp : img.stereoPoints) mp.point += Random::MatrixGauss<Vec2>(0, stddev);
     }
 }
 
@@ -517,7 +521,7 @@ void Scene::addExtrinsicNoise(double stddev)
 {
     for (SceneImage& e : images)
     {
-        e.se3.translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
+        e.se3.translation() += Random::MatrixGauss<Vec3>(0, stddev);
     }
 }
 

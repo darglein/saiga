@@ -16,8 +16,9 @@
 
 namespace Saiga
 {
-KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase<StereoFrameData>(params_)
+KittiDataset::KittiDataset(const DatasetParameters& params_) : DatasetCameraBase(params_)
 {
+    camera_type = CameraInputType::Stereo;
     // Kitti was recorded with 10 fps
     intrinsics.fps = 10;
     Load();
@@ -239,8 +240,8 @@ int KittiDataset::LoadMetaData()
 
             int i = id + params.startFrame;
 
-            frame.file  = leftImageDir + "/" + leadingZeroString(i, 6) + ".png";
-            frame.file2 = rightImageDir + "/" + leadingZeroString(i, 6) + ".png";
+            frame.image_file       = leftImageDir + "/" + leadingZeroString(i, 6) + ".png";
+            frame.right_image_file = rightImageDir + "/" + leadingZeroString(i, 6) + ".png";
 
             frame.id = id;
 
@@ -254,8 +255,8 @@ int KittiDataset::LoadMetaData()
         {
             auto firstFrame = frames.front();
             LoadImageData(firstFrame);
-            intrinsics.imageSize      = firstFrame.grayImg.dimensions();
-            intrinsics.rightImageSize = firstFrame.grayImg2.dimensions();
+            intrinsics.imageSize      = firstFrame.image.dimensions();
+            intrinsics.rightImageSize = firstFrame.right_image.dimensions();
         }
     }
 
@@ -264,14 +265,14 @@ int KittiDataset::LoadMetaData()
     return frames.size();
 }
 
-void KittiDataset::LoadImageData(StereoFrameData& data)
+void KittiDataset::LoadImageData(FrameData& data)
 {
-    SAIGA_ASSERT(data.grayImg.rows == 0);
+    SAIGA_ASSERT(data.image.rows == 0);
 
-    data.grayImg.load(data.file);
+    data.image.load(data.image_file);
     if (!params.force_monocular)
     {
-        data.grayImg2.load(data.file2);
+        data.right_image.load(data.right_image_file);
     }
 }
 

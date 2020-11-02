@@ -35,6 +35,7 @@ class SAIGA_CUDA_API Interop
     {
         if (mapped) unmap();
         if (graphic_resource) CHECK_CUDA_ERROR(cudaGraphicsUnregisterResource(graphic_resource));
+        graphic_resource = nullptr;
     }
 
     // Maps graphic resource to be accessed by CUDA. Wrapper for cudaGraphicsMapResources

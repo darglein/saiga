@@ -28,11 +28,8 @@ SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
     groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
 
     // create one directional light
-    sun = renderer->lighting.createDirectionalLight();
-    sun->setDirection(vec3(-1, -3, -2));
-    sun->setColorDiffuse(LightColorPresets::DirectSunlight);
-    sun->setIntensity(1.0);
-    sun->setAmbientIntensity(0.3f);
+    sun = std::make_shared<DirectionalLight>();
+    renderer->lighting.AddLight(sun);
     sun->createShadowMap(2048, 2048);
     sun->enableShadows();
 }
@@ -53,37 +50,23 @@ void SampleWindowDeferred::interpolate(float dt, float interpolation)
     if (!ImGui::captureMouse()) camera.interpolate(dt, interpolation);
 }
 
-void SampleWindowDeferred::render(Camera* cam)
-{
-    // Render all objects from the viewpoint of 'cam'
-    if (showGrid) groundPlane.render(cam);
-}
 
-void SampleWindowDeferred::renderDepth(Camera* cam)
+void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
 {
-    // Render the depth of all objects from the viewpoint of 'cam'
-    // This will be called automatically for shadow casting light sources to create shadow maps
-    if (showGrid) groundPlane.renderDepth(cam);
-}
-
-void SampleWindowDeferred::renderOverlay(Camera* cam)
-{
-    // The skybox is rendered after lighting and before post processing
-    if (showSkybox)
+    if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+    {
+        groundPlane.render(cam, render_pass);
+    }
+    else if (render_pass == RenderPass::Forward)
     {
         skybox.sunDir = vec3(sun->getDirection());
         skybox.render(cam);
     }
-}
-
-void SampleWindowDeferred::renderFinal(Camera* cam)
-{
-    // The final render path (after post processing).
-    // Usually the GUI is rendered here.
-
-    window->renderImGui();
-
+    else if (render_pass == RenderPass::GUI)
     {
+        window->renderImGui();
+
+
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
         ImGui::Begin("Saiga Sample Base");

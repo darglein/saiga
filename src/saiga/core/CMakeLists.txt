@@ -27,7 +27,6 @@ endif ()
 
 # the internal files are added to core
 SET(SAIGA_ALL_FILES
-    Core
     ${SAIGA_ALL_FILES}
     ${SAIGA_INTERNAL_SOURCE}
     ${SAIGA_INTERNAL_HEADERS}

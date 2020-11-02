@@ -91,7 +91,7 @@ __global__ void calcOrb_kernel(cudaTextureObject_t tex, Saiga::ImageView<unsigne
     const auto* pattern = ((int2*)c_pattern) + 16 * tid;
 
     unsigned char* desc  = (unsigned char*)&descriptors[id];
-    const float factorPI = (float)(M_PI / 180.f);
+    const float factorPI = (float)(pi<float>() / 180.f);
     float angle          = (float)kpt.angle * factorPI;
     float a = (float)cosf(angle), b = (float)sinf(angle);
 
@@ -210,8 +210,8 @@ __global__ void IC_Angle_kernel(cudaTextureObject_t tex, Saiga::ImageView<unsign
     if (threadIdx.x == 0)
     {
         float kp_dir = atan2((float)m_01, (float)m_10);
-        kp_dir += (kp_dir < 0) * (2.0f * float(M_PI));
-        kp_dir *= 180.0f / float(M_PI);
+        kp_dir += (kp_dir < 0) * (2.0f * float(pi<float>()));
+        kp_dir *= 180.0f / float(pi<float>());
 
         keypoints[ptidx].angle = kp_dir;
     }

@@ -1588,7 +1588,7 @@ void TemplatedVocabulary<TDescriptor, F, Scoring>::saveRaw(const std::string& fi
     }
     // words
     std::vector<std::pair<int, int>> words;
-    for (auto i = 0; i < m_words.size(); ++i)
+    for (auto i = 0; i < (int)m_words.size(); ++i)
     {
         words.emplace_back(i, m_words[i]->id);
     }

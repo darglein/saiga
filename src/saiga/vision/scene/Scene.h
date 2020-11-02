@@ -207,7 +207,7 @@ class SAIGA_VISION_API Scene
 
     double chi2(double huber = 0);
     double rms();
-    double rmsDense();
+    void rmsPrint();
 
     /**
      * Compute the non-zero density of the schur complement S.

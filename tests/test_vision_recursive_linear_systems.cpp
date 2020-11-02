@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-#undef NDEBUG
 
 
 #include "saiga/vision/recursive/External/Cholesky/CG.h"
@@ -140,12 +139,11 @@ TEST(RecursiveLinearSolver, BA)
 
     using BlockBAScalar = double;
 
-    using ADiag  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera, Eigen::RowMajor>;
-    using BDiag  = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizePoint, Eigen::RowMajor>;
-    using WElem  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizePoint, Eigen::RowMajor>;
-    using WTElem = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizeCamera, Eigen::RowMajor>;
-    using ARes   = Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>;
-    using BRes   = Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>;
+    using ADiag = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera, Eigen::RowMajor>;
+    using BDiag = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizePoint, Eigen::RowMajor>;
+    using WElem = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizePoint, Eigen::RowMajor>;
+    using ARes  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>;
+    using BRes  = Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>;
 
     // Block structured diagonal matrices
     using UType = Eigen::DiagonalMatrix<Eigen::Recursive::MatrixScalar<ADiag>, -1>;
@@ -308,12 +306,11 @@ TEST(RecursiveLinearSolver, BARelPose)
 
     using BlockBAScalar = double;
 
-    using ADiag  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera, Eigen::RowMajor>;
-    using BDiag  = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizePoint, Eigen::RowMajor>;
-    using WElem  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizePoint, Eigen::RowMajor>;
-    using WTElem = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizeCamera, Eigen::RowMajor>;
-    using ARes   = Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>;
-    using BRes   = Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>;
+    using ADiag = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizeCamera, Eigen::RowMajor>;
+    using BDiag = Eigen::Matrix<BlockBAScalar, blockSizePoint, blockSizePoint, Eigen::RowMajor>;
+    using WElem = Eigen::Matrix<BlockBAScalar, blockSizeCamera, blockSizePoint, Eigen::RowMajor>;
+    using ARes  = Eigen::Matrix<BlockBAScalar, blockSizeCamera, 1>;
+    using BRes  = Eigen::Matrix<BlockBAScalar, blockSizePoint, 1>;
 
 
     using UType = Eigen::SparseMatrix<Eigen::Recursive::MatrixScalar<ADiag>, Eigen::RowMajor>;

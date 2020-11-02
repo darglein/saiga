@@ -6,14 +6,18 @@
 
 #pragma once
 
+
+#ifndef SAIGA_USE_FFMPEG
+#    error Saiga was compiled without FFMPEG
+#endif
 #include "saiga/config.h"
-#include "saiga/opengl/ffmpeg/ffmpegEncoder.h"
 
-
+#include <memory>
 
 namespace Saiga
 {
 class OpenGLWindow;
+class FFMPEGEncoder;
 
 /**
  * A wrapper class for the ffmpeg encoder.
@@ -22,7 +26,7 @@ class OpenGLWindow;
 class SAIGA_OPENGL_API VideoEncoder
 {
    public:
-    FFMPEGEncoder encoder;
+    std::shared_ptr<FFMPEGEncoder> encoder;
     OpenGLWindow* window;
     VideoEncoder(OpenGLWindow* window);
 

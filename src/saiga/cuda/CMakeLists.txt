@@ -25,7 +25,14 @@ endif()
 target_link_libraries(${MODULE_NAME} ${ALL_CUDA_LIBS})
 target_link_libraries(${MODULE_NAME} ${CUDA_LIBS})
 target_link_libraries(${MODULE_NAME} ${CUDA_TARGETS})
+#set_target_properties(${MODULE_NAME} PROPERTIES CXX_STANDARD 17)
 
+#list(APPEND SAIGA_CUDA_FLAGS "-std=c++14")
+
+
+
+set_property(TARGET ${MODULE_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
+target_compile_options(${MODULE_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
 
 target_include_directories(
     ${MODULE_NAME}

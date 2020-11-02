@@ -178,8 +178,10 @@ int TwoViewReconstruction::optimize(int its, float thresholdChi1)
     op_options.maxIterations = its;
     auto threshold2          = thresholdChi1 * thresholdChi1;
 
+    ba.optimizationOptions = op_options;
+    ba.baOptions           = ba_options;
     ba.create(scene);
-    ba.initAndSolve(op_options, ba_options);
+    ba.initAndSolve();
 
     // recompute inliers
     inlierCount        = 0;

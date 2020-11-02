@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+﻿cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
 set(LIB_NAME saiga)
 set(LIB_EXPORT saiga-export)
@@ -12,7 +12,7 @@ include(helper_macros)
 
 set (SAIGA_VERSION_MAJOR 1)
 set (SAIGA_VERSION_MINOR 3)
-set (SAIGA_VERSION_PATCH 0)
+set (SAIGA_VERSION_PATCH 1)
 set(SAIGA_VERSION ${SAIGA_VERSION_MAJOR}.${SAIGA_VERSION_MINOR}.${SAIGA_VERSION_PATCH})
 
 # Turn on the ability to create folders to organize projects (.vcproj)

@@ -68,13 +68,21 @@ class SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public U
         WindowParameters windowParameters;
         OpenGLParameters openglParameters;
         RenderingParameters rendererParameters;
+        MainLoopParameters mainLoopParameters;
+
 
         windowParameters.fromConfigFile(config);
         openglParameters.fromConfigFile(config);
         rendererParameters.fromConfigFile(config);
         mainLoopParameters.fromConfigFile(config);
 
-        create(windowParameters, openglParameters, rendererParameters);
+        create(windowParameters, openglParameters, rendererParameters, mainLoopParameters);
+    }
+
+    StandaloneWindow(const WindowParameters& windowParameters, const OpenGLParameters& openglParameters,
+                     const RenderingParameters& rendererParameters, const MainLoopParameters& mainLoopParameters)
+    {
+        create(windowParameters, openglParameters, rendererParameters, mainLoopParameters);
     }
 
     ~StandaloneWindow()
@@ -87,10 +95,11 @@ class SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public U
 
    private:
     void create(const WindowParameters& windowParameters, const OpenGLParameters& openglParameters,
-                const RenderingParameters& rendererParameters)
+                const RenderingParameters& rendererParameters, const MainLoopParameters& mainLoopParameters)
     {
-        window   = std::make_unique<WindowManagment>(windowParameters, openglParameters);
-        renderer = std::make_unique<Renderer>(*window, rendererParameters);
+        this->mainLoopParameters = mainLoopParameters;
+        window                   = std::make_unique<WindowManagment>(windowParameters, openglParameters);
+        renderer                 = std::make_unique<Renderer>(*window, rendererParameters);
 
 
         window->setUpdateObject(*this);

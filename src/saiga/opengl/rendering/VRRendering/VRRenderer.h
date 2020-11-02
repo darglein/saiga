@@ -22,7 +22,7 @@ struct SAIGA_OPENGL_API VRRenderingParameters : public RenderingParameters
 class SAIGA_OPENGL_API VRRenderer : public OpenGLRenderer
 {
    public:
-    using InterfaceType = ForwardRenderingInterface;
+    using InterfaceType = RenderingInterface;
     using ParameterType = VRRenderingParameters;
 
     VRRenderingParameters params;

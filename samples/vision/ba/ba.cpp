@@ -90,149 +90,138 @@ void Sample::update(float dt)
         lineSoup.updateBuffer();
     }
 }
-
-
-void Sample::renderOverlay(Camera* cam)
+void Sample::render(Camera* camera, RenderPass render_pass)
 {
-    Base::renderOverlay(cam);
-
-    pointCloud.render(cam);
-
-    lineSoup.render(cam);
-
-
-    for (auto& i : scene.images)
+    if (render_pass == RenderPass::Forward)
     {
-        Saiga::SE3 se3 = i.se3;
-        mat4 v         = (se3.matrix()).cast<float>();
-        v              = Saiga::cvViewToGLView(v);
-        v              = mat4(inverse(v));
+        pointCloud.render(camera);
+        lineSoup.render(camera);
+        for (auto& i : scene.images)
+        {
+            Saiga::SE3 se3 = i.se3;
+            mat4 v         = (se3.matrix()).cast<float>();
+            v              = Saiga::cvViewToGLView(v);
+            v              = mat4(inverse(v));
+            frustum.render(camera, v);
+        }
+    }
+    else if (render_pass == RenderPass::GUI)
+    {
+        ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Scene Loading");
 
-        //            std::cout << v << std::endl;
-        //        vec4 color = i.constant ? vec4(0, 0, 1, 0) : vec4(1, 0, 0, 0);
+        ImGui::InputInt("minMatchEdge", &minMatchEdge);
+        ImGui::InputFloat("maxEdgeDistance", &maxEdgeDistance);
 
-        frustum.render(cam, v);
+        sscene.imgui();
+        if (ImGui::Button("Syntetic - circleSphere"))
+        {
+            scene  = sscene.circleSphere();
+            change = true;
+        }
+
+        ImGui::Separator();
+
+
+        std::vector<const char*> strings;
+        for (auto& d : datasets) strings.push_back(d.data());
+        static int currentItem = 0;
+        ImGui::Combo("dataset", &currentItem, strings.data(), strings.size());
+        if (ImGui::Button("load BAL"))
+        {
+            Saiga::BALDataset bald(datasets[currentItem]);
+            scene = bald.makeScene();
+            scene.compress();
+            scene.sortByWorldPointId();
+            change = true;
+        }
+
+        static std::array<char, 512> file = {0};
+        ImGui::InputText("File", file.data(), file.size());
+
+        if (ImGui::Button("load saiga scene"))
+        {
+            scene.load(std::string(file.data()));
+            std::cout << scene << std::endl;
+            change = true;
+        }
+
+
+        ImGui::End();
+
+
+
+        ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Vision BA Sample");
+
+
+
+        static int its = 1;
+        ImGui::SliderInt("its", &its, 0, 10);
+
+        if (ImGui::Button("Bundle Adjust G2O"))
+        {
+            SAIGA_BLOCK_TIMER();
+            Saiga::g2oBA2 ba;
+            ba.baOptions = baoptions;
+            ba.create(scene);
+            ba.initAndSolve();
+            change = true;
+        }
+
+        if (ImGui::Button("Bundle Adjust ceres"))
+        {
+            SAIGA_BLOCK_TIMER();
+            Saiga::CeresBA ba;
+            ba.baOptions = baoptions;
+            ba.create(scene);
+            ba.initAndSolve();
+            change = true;
+        }
+
+
+        //    if (ImGui::Button("poseOnlySparse"))
+        //    {
+        //        SAIGA_BLOCK_TIMER();
+        //        Saiga::BAPoseOnly ba;
+        //        ba.poseOnlySparse(scene, its);
+        //        change = true;
+        //    }
+
+
+
+        baoptions.imgui();
+        if (ImGui::Button("sba recursive"))
+        {
+            SAIGA_BLOCK_TIMER();
+            //        Saiga::BARec barec;
+            barec.baOptions = baoptions;
+            barec.create(scene);
+            barec.initAndSolve();
+            change = true;
+        }
+
+        if (ImGui::Button("posePointSparse"))
+        {
+            SAIGA_BLOCK_TIMER();
+            Saiga::BAPointOnly ba;
+            ba.baOptions = baoptions;
+            ba.create(scene);
+            ba.initAndSolve();
+            change = true;
+        }
+
+
+        ImGui::End();
+
+        ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Scene");
+        ImGui::Text("RMS: %f", rms);
+        change |= scene.imgui();
+
+        ImGui::End();
     }
 }
-
-void Sample::renderFinal(Camera* cam)
-{
-    Base::renderFinal(cam);
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Scene Loading");
-
-    ImGui::InputInt("minMatchEdge", &minMatchEdge);
-    ImGui::InputFloat("maxEdgeDistance", &maxEdgeDistance);
-
-    sscene.imgui();
-    if (ImGui::Button("Syntetic - circleSphere"))
-    {
-        scene  = sscene.circleSphere();
-        change = true;
-    }
-
-    ImGui::Separator();
-
-
-    std::vector<const char*> strings;
-    for (auto& d : datasets) strings.push_back(d.data());
-    static int currentItem = 0;
-    ImGui::Combo("dataset", &currentItem, strings.data(), strings.size());
-    if (ImGui::Button("load BAL"))
-    {
-        Saiga::BALDataset bald(datasets[currentItem]);
-        scene = bald.makeScene();
-        scene.compress();
-        scene.sortByWorldPointId();
-        change = true;
-    }
-
-    static std::array<char, 512> file = {0};
-    ImGui::InputText("File", file.data(), file.size());
-
-    if (ImGui::Button("load saiga scene"))
-    {
-        scene.load(std::string(file.data()));
-        std::cout << scene << std::endl;
-        change = true;
-    }
-
-
-    ImGui::End();
-
-
-
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Vision BA Sample");
-
-
-
-    static int its = 1;
-    ImGui::SliderInt("its", &its, 0, 10);
-
-    if (ImGui::Button("Bundle Adjust G2O"))
-    {
-        SAIGA_BLOCK_TIMER();
-        Saiga::g2oBA2 ba;
-        ba.baOptions = baoptions;
-        ba.create(scene);
-        ba.initAndSolve();
-        change = true;
-    }
-
-    if (ImGui::Button("Bundle Adjust ceres"))
-    {
-        SAIGA_BLOCK_TIMER();
-        Saiga::CeresBA ba;
-        ba.baOptions = baoptions;
-        ba.create(scene);
-        ba.initAndSolve();
-        change = true;
-    }
-
-
-    //    if (ImGui::Button("poseOnlySparse"))
-    //    {
-    //        SAIGA_BLOCK_TIMER();
-    //        Saiga::BAPoseOnly ba;
-    //        ba.poseOnlySparse(scene, its);
-    //        change = true;
-    //    }
-
-
-
-    baoptions.imgui();
-    if (ImGui::Button("sba recursive"))
-    {
-        SAIGA_BLOCK_TIMER();
-        //        Saiga::BARec barec;
-        barec.baOptions = baoptions;
-        barec.create(scene);
-        barec.initAndSolve();
-        change = true;
-    }
-
-    if (ImGui::Button("posePointSparse"))
-    {
-        SAIGA_BLOCK_TIMER();
-        Saiga::BAPointOnly ba;
-        ba.baOptions = baoptions;
-        ba.create(scene);
-        ba.initAndSolve();
-        change = true;
-    }
-
-
-    ImGui::End();
-
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Scene");
-    ImGui::Text("RMS: %f", rms);
-    change |= scene.imgui();
-
-    ImGui::End();
-}
-
 
 int main(const int argc, const char* argv[])
 {

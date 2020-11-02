@@ -71,7 +71,7 @@ class SAIGA_OPENGL_API CascadedShadowmap : public ShadowmapBase
     std::shared_ptr<ArrayTexture2D> depthTexture;
 
    public:
-    CascadedShadowmap(int w, int h, int numCascades, ShadowQuality quality = ShadowQuality::LOW);
+    CascadedShadowmap(int w, int h, int numCascades, ShadowQuality quality = ShadowQuality::MEDIUM);
     ~CascadedShadowmap() {}
 
     //    std::shared_ptr<raw_Texture> getDepthTexture(unsigned int n){

@@ -4,7 +4,6 @@
  * See LICENSE file for more information.
  */
 
-//#undef NDEBUG
 
 #include "DecoupledImuSolver.h"
 
@@ -505,7 +504,10 @@ double DecoupledImuSolver::computeCost()
 
 void DecoupledImuSolver::finalize()
 {
-    RecomputePreint(true);
+    if (params.final_recompute)
+    {
+        RecomputePreint(true);
+    }
 }
 
 

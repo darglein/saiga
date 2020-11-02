@@ -61,7 +61,7 @@ struct DSim3
         static_assert(sizeof(DSim3<T>) == 8 * sizeof(T), "DSim size is incorrect!");
         //        static_assert(alignof(DSim3<T>) == 8 * sizeof(T), "DSim size is incorrect!");
     }
-    DSim3(const SE3<T>& se3, T scale)
+    DSim3(const SE3<T>& se3, T scale = T(1))
     {
         this->se3()   = se3;
         this->scale() = scale;

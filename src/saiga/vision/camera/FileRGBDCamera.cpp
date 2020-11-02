@@ -16,7 +16,7 @@
 namespace Saiga
 {
 FileRGBDCamera::FileRGBDCamera(const DatasetParameters& params, const RGBDIntrinsics& intr)
-    : DatasetCameraBase<RGBDFrameData>(params), _intrinsics(intr)
+    : DatasetCameraBase(params), _intrinsics(intr)
 {
     std::cout << "Loading File RGBD Dataset: " << params.dir << std::endl;
     preload(params.dir, params.multiThreadedLoad);
@@ -32,8 +32,8 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
 
     std::vector<std::string> rgbImages;
     std::vector<std::string> depthImages;
-    dir.getFiles(rgbImages, ".png");
-    dir.getFiles(depthImages, ".saigai");
+    rgbImages   = dir.getFilesEnding(".png");
+    depthImages = dir.getFilesEnding(".saigai");
 
 
     SAIGA_ASSERT(rgbImages.size() == depthImages.size());
@@ -50,7 +50,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
     int N = params.maxFrames;
     frames.resize(N);
 
-    SyncedConsoleProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
+    ProgressBar loadingBar(std::cout, "Loading " + to_string(N) + " images ", N);
 
 #pragma omp parallel for if (multithreaded)
     for (int i = 0; i < N; ++i)
@@ -90,8 +90,8 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
             //            f->depthImg.load(dir() + depthImages[i]);
         }
 
-        f.depthImg = std::move(dimg);
-        f.colorImg = std::move(cimg);
+        f.depth_image = std::move(dimg);
+        f.image_rgb   = std::move(cimg);
         loadingBar.addProgress(1);
     }
 

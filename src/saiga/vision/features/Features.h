@@ -8,6 +8,8 @@
 
 #include "saiga/vision/VisionIncludes.h"
 
+#include <array>
+
 namespace Saiga
 {
 /**
@@ -84,7 +86,7 @@ inline std::string OrbDescriptorToBitString(const DescriptorORB& desc)
 }
 
 
-#if !defined(WIN32) && EIGEN_ARCH_i386_OR_x86_64
+#if !defined(_WIN32) && EIGEN_ARCH_i386_OR_x86_64
 // use the popcnt instruction
 // this will be the fastest implementation if it is available
 // more here: https://github.com/kimwalisch/libpopcnt
@@ -322,14 +324,14 @@ struct BruteForceMatcher
     {
         knn2.resize(desc1.size(), 2);
 
-        for (int i = 0; i < desc1.size(); ++i)
+        for (int i = 0; i < (int)desc1.size(); ++i)
         {
             // init best to infinity distance
             knn2(i, 0) = {1000, -1};
             knn2(i, 1) = knn2(i, 0);
 
 
-            for (int j = 0; j < desc2.size(); ++j)
+            for (int j = 0; j < (int)desc2.size(); ++j)
             {
                 auto dis = distance(desc1[i], desc2[j]);
 
@@ -356,14 +358,14 @@ struct BruteForceMatcher
         knn2.resize(desc1.size(), 2);
 
 #pragma omp parallel for num_threads(threads)
-        for (int i = 0; i < desc1.size(); ++i)
+        for (int i = 0; i < (int)desc1.size(); ++i)
         {
             // init best to infinity distance
             knn2(i, 0) = {1000, -1};
             knn2(i, 1) = knn2(i, 0);
 
 
-            for (int j = 0; j < desc2.size(); ++j)
+            for (int j = 0; j < (int)desc2.size(); ++j)
             {
                 auto dis = distance(desc1[i], desc2[j]);
 

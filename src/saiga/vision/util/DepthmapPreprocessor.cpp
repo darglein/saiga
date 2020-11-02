@@ -497,6 +497,11 @@ void DepthProcessor2::unproject_depth_image(ImageView<const float> depth_imageVi
 
 void DepthProcessor2::filter_gaussian(ImageView<const float> input, ImageView<float> output)
 {
+    if (settings.gauss_radius == 0)
+    {
+        input.copyTo(output);
+    }
+
     std::vector<float> filter((settings.gauss_radius * 2) + 1);
     for (int i = -settings.gauss_radius; i <= settings.gauss_radius; ++i)
     {

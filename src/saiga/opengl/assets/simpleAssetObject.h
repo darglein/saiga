@@ -7,6 +7,7 @@
 #pragma once
 #include "saiga/config.h"
 #include "saiga/core/geometry/object3d.h"
+#include "saiga/core/window/Interfaces.h"
 
 #include <memory>
 
@@ -19,6 +20,8 @@ class SAIGA_OPENGL_API SimpleAssetObject : public Object3D
 {
    public:
     std::shared_ptr<Asset> asset;
+
+    void render(Camera* camera, RenderPass render_pass);
 
     void render(Camera* cam);
     void renderForward(Camera* cam);

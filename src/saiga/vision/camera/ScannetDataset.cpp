@@ -21,19 +21,20 @@
 namespace Saiga
 {
 ScannetDataset::ScannetDataset(const DatasetParameters& _params, bool scale_down_color, bool scale_down_depth)
-    : DatasetCameraBase<RGBDFrameData>(_params), scale_down_color(scale_down_color), scale_down_depth(scale_down_depth)
+    : DatasetCameraBase(_params), scale_down_color(scale_down_color), scale_down_depth(scale_down_depth)
 {
+    camera_type = CameraInputType::RGBD;
     Load();
 }
 
 
-void ScannetDataset::LoadImageData(RGBDFrameData& data)
+void ScannetDataset::LoadImageData(FrameData& data)
 {
-    data.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
-    data.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
+    data.image_rgb.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
+    data.depth_image.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
 
 
-    Image cimg(data.file);
+    Image cimg(data.image_file);
     Image dimg(data.depth_file);
 
     SAIGA_ASSERT(cimg.valid());
@@ -45,12 +46,12 @@ void ScannetDataset::LoadImageData(RGBDFrameData& data)
         {
             RGBImageType tmp(cimg.h, cimg.w);
             ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), tmp);
-            ImageTransformation::ScaleDown2(tmp.getImageView(), data.colorImg.getImageView());
+            ImageTransformation::ScaleDown2(tmp.getImageView(), data.image_rgb.getImageView());
         }
         else
         {
             // convert to rgba
-            ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), data.colorImg);
+            ImageTransformation::addAlphaChannel(cimg.getImageView<ucvec3>(), data.image_rgb);
         }
     }
     else if (cimg.type == UC4)
@@ -59,11 +60,11 @@ void ScannetDataset::LoadImageData(RGBDFrameData& data)
         {
             RGBImageType tmp(cimg.h, cimg.w);
             cimg.getImageView<ucvec4>().copyTo(tmp.getImageView());
-            ImageTransformation::ScaleDown2(tmp.getImageView(), data.colorImg.getImageView());
+            ImageTransformation::ScaleDown2(tmp.getImageView(), data.image_rgb.getImageView());
         }
         else
         {
-            cimg.getImageView<ucvec4>().copyTo(data.colorImg.getImageView());
+            cimg.getImageView<ucvec4>().copyTo(data.image_rgb.getImageView());
         }
     }
     else
@@ -79,11 +80,11 @@ void ScannetDataset::LoadImageData(RGBDFrameData& data)
         {
             DepthImageType tmp(dimg.h, dimg.w);
             dimg.getImageView<unsigned short>().copyTo(tmp.getImageView(), 1.0 / intrinsics().depthFactor);
-            dmpp.scaleDown2median(tmp.getImageView(), data.depthImg.getImageView());
+            dmpp.scaleDown2median(tmp.getImageView(), data.depth_image.getImageView());
         }
         else
         {
-            dimg.getImageView<unsigned short>().copyTo(data.depthImg.getImageView(), 1.0 / intrinsics().depthFactor);
+            dimg.getImageView<unsigned short>().copyTo(data.depth_image.getImageView(), 1.0 / intrinsics().depthFactor);
         }
     }
     else
@@ -155,7 +156,7 @@ int ScannetDataset::LoadMetaData()
     Directory color_dir(params.dir + "/color/");
 
     std::vector<std::string> files;
-    color_dir.getFiles(files, ".jpg");
+    files = color_dir.getFilesEnding(".jpg");
 
     int N = files.size();
 
@@ -173,7 +174,7 @@ int ScannetDataset::LoadMetaData()
         auto number_str = std::to_string(i + params.startFrame);
 
         frame.timeStamp  = i * 0.1;
-        frame.file       = params.dir + "/color/" + number_str + ".jpg";
+        frame.image_file = params.dir + "/color/" + number_str + ".jpg";
         frame.depth_file = params.dir + "/depth/" + number_str + ".png";
 
         auto pose_str = params.dir + "/pose/" + number_str + ".txt";

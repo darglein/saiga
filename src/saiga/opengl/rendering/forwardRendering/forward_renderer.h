@@ -11,21 +11,6 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API ForwardRenderingInterface : public RenderingInterfaceBase
-{
-   public:
-    virtual ~ForwardRenderingInterface() {}
-
-    // forward rendering path after lighting, but before post processing
-    // this could be used for transparent objects
-    virtual void renderOverlay(Camera* cam) {}
-
-    // forward rendering path after lighting and after post processing
-    virtual void renderFinal(Camera* cam) {}
-    // protected:
-    //    RendererBase& parentRenderer;
-};
-
 struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
 {
     void fromConfigFile(const std::string& file) { RenderingParameters::fromConfigFile(file); }
@@ -34,7 +19,7 @@ struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
 class SAIGA_OPENGL_API Forward_Renderer : public OpenGLRenderer
 {
    public:
-    using InterfaceType = ForwardRenderingInterface;
+    using InterfaceType = RenderingInterface;
     using ParameterType = ForwardRenderingParameters;
 
     ParameterType params;

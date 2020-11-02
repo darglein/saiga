@@ -187,109 +187,112 @@ void Sample::interpolate(float dt, float interpolation)
     if (!ImGui::captureMouse()) camera.interpolate(dt, interpolation);
 }
 
-void Sample::renderOverlay(Camera* cam)
-{
-    //    meshObject.renderForward(cam);
 
-    if (wireframe)
+void Sample::render(Camera* camera, RenderPass render_pass)
+{
+    if (render_pass == RenderPass::Forward)
     {
-        glEnable(GL_POLYGON_OFFSET_LINE);
-        glPolygonOffset(-10, -10);
-        meshObject.renderWireframe(cam);
-        glDisable(GL_POLYGON_OFFSET_LINE);
-        assert_no_glerror();
+        if (wireframe)
+        {
+            glEnable(GL_POLYGON_OFFSET_LINE);
+            glPolygonOffset(-10, -10);
+            meshObject.renderWireframe(camera);
+            glDisable(GL_POLYGON_OFFSET_LINE);
+            assert_no_glerror();
+        }
     }
-}
-
-void Sample::renderFinal(Camera* cam)
-{
-    // The final render path (after post processing).
-    // Usually the GUI is rendered here.
-
+    else if (render_pass == RenderPass::GUI)
     {
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
-        ImGui::Begin("An Imgui Window :D");
+        // The final render path (after post processing).
+        // Usually the GUI is rendered here.
 
-        ImGui::InputText("current image", depth_image_input, 100);
+        {
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+            ImGui::Begin("An Imgui Window :D");
 
-        if (ImGui::CollapsingHeader("Preprocess Options"))
-        {
-            ip_settings.imgui();
-        }
-        if (ImGui::CollapsingHeader("RQT Options"))
-        {
-            ImGui::InputFloat("RQT threshold", &rqt_settings.RQT_error_threshold, 0.0f, 0.0f, "%.10f");
-        }
-        if (ImGui::CollapsingHeader("Reduction Options"))
-        {
-            ImGui::InputInt("max_decimations", &qd_settings.max_decimations);
-            ImGui::InputFloat("quadricMaxError", &qd_settings.quadricMaxError, 0.0f, 0.0f, "%.10f");
-            ImGui::Checkbox("check_self_intersections", &qd_settings.check_self_intersections);
-            ImGui::Checkbox("check_folding_triangles", &qd_settings.check_folding_triangles);
-            ImGui::InputFloat("folding_triangle_constant", &qd_settings.folding_triangle_constant);
-            ImGui::Checkbox("only_collapse_roughly_parallel_borders",
-                            &qd_settings.only_collapse_roughly_parallel_borders);
+            ImGui::InputText("current image", depth_image_input, 100);
+
+            if (ImGui::CollapsingHeader("Preprocess Options"))
+            {
+                ip_settings.imgui();
+            }
+            if (ImGui::CollapsingHeader("RQT Options"))
+            {
+                ImGui::InputFloat("RQT threshold", &rqt_settings.RQT_error_threshold, 0.0f, 0.0f, "%.10f");
+            }
+            if (ImGui::CollapsingHeader("Reduction Options"))
+            {
+                ImGui::InputInt("max_decimations", &qd_settings.max_decimations);
+                ImGui::InputFloat("quadricMaxError", &qd_settings.quadricMaxError, 0.0f, 0.0f, "%.10f");
+                ImGui::Checkbox("check_self_intersections", &qd_settings.check_self_intersections);
+                ImGui::Checkbox("check_folding_triangles", &qd_settings.check_folding_triangles);
+                ImGui::InputFloat("folding_triangle_constant", &qd_settings.folding_triangle_constant);
+                ImGui::Checkbox("only_collapse_roughly_parallel_borders",
+                                &qd_settings.only_collapse_roughly_parallel_borders);
+                ImGui::Separator();
+                ImGui::Checkbox("check_interior_angles", &qd_settings.check_interior_angles);
+                ImGui::InputFloat("minimal_interior_angle_rad", &qd_settings.minimal_interior_angle_rad, 0.0f, 0.0f,
+                                  "%.6f");
+                ImGui::InputFloat("interior_angle_constant", &qd_settings.interior_angle_constant);
+            }
+
             ImGui::Separator();
-            ImGui::Checkbox("check_interior_angles", &qd_settings.check_interior_angles);
-            ImGui::InputFloat("minimal_interior_angle_rad", &qd_settings.minimal_interior_angle_rad, 0.0f, 0.0f,
-                              "%.6f");
-            ImGui::InputFloat("interior_angle_constant", &qd_settings.interior_angle_constant);
-        }
+            if (ImGui::Button("1 load depth image"))
+            {
+                load_depth_image();
+                scale_down_depth_image();
+            }
+            ImGui::Separator();
+            if (ImGui::Button("2 preprocess depth image"))
+            {
+                preprocess_occlusion_edges();
+                blur_depth_image();
+            }
+            ImGui::Separator();
+            if (ImGui::Button("3 triangulate naive"))
+            {
+                triangulate_naive();
+            }
+            if (ImGui::Button("3 triangulate RQT"))
+            {
+                triangulate_RQT();
+            }
+            ImGui::Separator();
+            if (ImGui::Button("4 reduce_quadric"))
+            {
+                reduce_quadric();
+            }
 
-        ImGui::Separator();
-        if (ImGui::Button("1 load depth image"))
-        {
-            load_depth_image();
-            scale_down_depth_image();
-        }
-        ImGui::Separator();
-        if (ImGui::Button("2 preprocess depth image"))
-        {
-            preprocess_occlusion_edges();
-            blur_depth_image();
-        }
-        ImGui::Separator();
-        if (ImGui::Button("3 triangulate naive"))
-        {
-            triangulate_naive();
-        }
-        if (ImGui::Button("3 triangulate RQT"))
-        {
-            triangulate_RQT();
-        }
-        ImGui::Separator();
-        if (ImGui::Button("4 reduce_quadric"))
-        {
-            reduce_quadric();
-        }
+            static std::array<char, 512> mesh_file = {0};
+            ImGui::InputText("File", mesh_file.data(), mesh_file.size());
+            if (ImGui::Button("Load Mesh"))
+            {
+                depthmesh.clear();
+                ObjModelLoader modelLoader(std::string(mesh_file.data()));
+                modelLoader.toTriangleMesh(depthmesh);
+                depthmesh.setColor(vec4(1, 0, 0, 1));
+                depthmesh.computePerVertexNormal();
+                depthmesh.normalizeScale();
+                depthmesh.normalizePosition();
+                // This simple AssetLoader can create assets from meshes and generate some generic debug assets
+                ObjAssetLoader assetLoader;
+                meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+                meshObject.calculateModel();
+            }
 
-        static std::array<char, 512> mesh_file = {0};
-        ImGui::InputText("File", mesh_file.data(), mesh_file.size());
-        if (ImGui::Button("Load Mesh"))
-        {
-            depthmesh.clear();
-            ObjModelLoader modelLoader(std::string(mesh_file.data()));
-            modelLoader.toTriangleMesh(depthmesh);
-            depthmesh.setColor(vec4(1, 0, 0, 1));
-            depthmesh.computePerVertexNormal();
-            depthmesh.normalizeScale();
-            depthmesh.normalizePosition();
-            // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-            ObjAssetLoader assetLoader;
-            meshObject.asset = assetLoader.assetFromMesh(depthmesh);
-            meshObject.calculateModel();
+            ImGui::Separator();
+            ImGui::Checkbox("wireframe", &wireframe);
+
+            ImGui::Separator();
+            ImGui::Text("Primitives: V %d F %d ", (int)depthmesh.vertices.size(), (int)depthmesh.faces.size());
+
+            ImGui::End();
         }
-
-        ImGui::Separator();
-        ImGui::Checkbox("wireframe", &wireframe);
-
-        ImGui::Separator();
-        ImGui::Text("Primitives: V %d F %d ", (int)depthmesh.vertices.size(), (int)depthmesh.faces.size());
-
-        ImGui::End();
     }
 }
+
+
 
 void Sample::keyPressed(SDL_Keysym key)
 {

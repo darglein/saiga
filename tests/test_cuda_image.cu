@@ -4,7 +4,6 @@
  * See LICENSE file for more information.
  */
 
-
 #include "saiga/cuda/imageProcessing/NppiHelper.h"
 //
 #include "saiga/core/framework/framework.h"
@@ -34,26 +33,26 @@ class CudaImageTest
         image_1.save("gray.png");
         image_4.save("rgba.png");
 
+#ifdef SAIGA_USE_CUDA_TOOLKIT
         context = NPPI::CreateStreamContextWithStream(0);
+#endif
     }
-
 
     TemplatedImage<unsigned char> image_1;
     TemplatedImage<ucvec4> image_4;
 
     CUDA::CudaImage<unsigned char> d_image_1;
     CUDA::CudaImage<ucvec4> d_image_4;
-
+#ifdef SAIGA_USE_CUDA_TOOLKIT
     SaigaNppStreamContext context;
+#endif
 };
-
 
 std::unique_ptr<CudaImageTest> test;
 
 TEST(CudaImage, UploadDownload)
 {
     test = std::make_unique<CudaImageTest>();
-
 
     // with explicit upload download method
     test->d_image_4.upload(test->image_4.getConstImageView());
@@ -69,13 +68,13 @@ TEST(CudaImage, UploadDownload)
     test->d_image_4.download(result.getImageView());
     EXPECT_EQ(result.getImageView(), test->image_4.getImageView());
 
-
     test->d_image_1.upload(test->image_1.getConstImageView());
     test->d_image_4.upload(test->image_4.getConstImageView());
 }
 
 TEST(CudaImage, Resize)
 {
+#ifdef SAIGA_USE_CUDA_TOOLKIT
     CUDA::CudaImage<unsigned char> img_small;
     TemplatedImage<unsigned char> result;
 
@@ -93,10 +92,12 @@ TEST(CudaImage, Resize)
     NPPI::ResizeLinear(test->d_image_1.getConstImageView(), img_small.getImageView(), test->context);
     img_small.download(result);
     result.save("gray_very_small.png");
+#endif
 }
 
 TEST(CudaImage, GaussFilter)
 {
+#ifdef SAIGA_USE_CUDA_TOOLKIT
     CUDA::CudaImage<unsigned char> filtered_image;
     CUDA::CudaImage<unsigned char> cpy_filtered_image;
     TemplatedImage<unsigned char> result;
@@ -111,19 +112,17 @@ TEST(CudaImage, GaussFilter)
     NPPI::GaussFilter(cpy_filtered_image.getConstImageView(), filtered_image.getImageView(), test->context);
     filtered_image.download(result);
     result.save("gray_very_gauss.png");
+#endif
 }
-
 
 __global__ static void ReadValue(ImageView<unsigned char> image, int row, int col, ArrayView<int> target)
 {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= 1) return;
 
-
     int v     = image(row, col);
     target[0] = v;
 }
-
 
 texture<unsigned char, cudaTextureType2D, cudaReadModeElementType> texture_reference;
 
@@ -166,7 +165,6 @@ TEST(CudaImage, ImageAccess)
     int c     = 180;
     int value = test->image_1(r, c);
 
-
     {
         // Test if reading from a simple cuda kernel works.
         thrust::device_vector<int> target(1);
@@ -196,14 +194,12 @@ TEST(CudaImage, ImageAccess)
 
         auto texObj = test->d_image_1.GetTextureObject();
 
-
         thrust::device_vector<int> target(1);
         ReadValueTexObj<<<1, 1>>>(texObj, test->d_image_1.cols, test->d_image_1.rows, r, c, target);
         int value2 = target[0];
         EXPECT_EQ(value, value2);
     }
 }
-
 
 }  // namespace Saiga
 

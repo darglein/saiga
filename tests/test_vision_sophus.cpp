@@ -26,7 +26,7 @@ TEST(Sohpus, SE3_Point)
     Vec3 y1 = a * x;
     Vec3 y2 = q * x + t;
 
-    ExpectCloseRelative(y1, y2, 1e-20);
+    ExpectCloseRelative(y1, y2, 1e-10);
 }
 
 TEST(Sohpus, SE3_SE3)
@@ -46,8 +46,8 @@ TEST(Sohpus, SE3_SE3)
     Vec3 y_t = a_q * b_t + a_t;
 
 
-    ExpectCloseRelative(y1.unit_quaternion().coeffs(), y_q.coeffs(), 1e-20);
-    ExpectCloseRelative(y1.translation(), y_t, 1e-20);
+    ExpectCloseRelative(y1.unit_quaternion().coeffs(), y_q.coeffs(), 1e-10);
+    ExpectCloseRelative(y1.translation(), y_t, 1e-10);
 }
 
 TEST(Sohpus, Sim3_Identity)

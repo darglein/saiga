@@ -4,119 +4,137 @@
  * See LICENSE file for more information.
  */
 
-#include "vr.h"
+
 
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/sdl/sdl_camera.h"
+#include "saiga/core/sdl/sdl_eventhandler.h"
+#include "saiga/opengl/assets/all.h"
+#include "saiga/opengl/assets/objAssetLoader.h"
+#include "saiga/opengl/rendering/VRRendering/VRRenderer.h"
+#include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
+#include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/opengl/window/SampleWindowForward.h"
+#include "saiga/opengl/window/sdl_window.h"
+#include "saiga/opengl/world/proceduralSkybox.h"
+using namespace Saiga;
 
-VRSample::VRSample() : StandaloneWindow("config.ini")
+class VRSample : public StandaloneWindow<WindowManagement::SDL, VRRenderer>, public SDL_KeyListener
 {
-    // create a perspective camera
-    float aspect = window->getAspectRatio();
-    camera.setProj(60.0f, aspect, 0.1f, 50.0f);
-    camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
-    camera.enableInput();
+   public:
+    SDLCamera<PerspectiveCamera> camera;
 
-    // Set the camera from which view the scene is rendered
-    window->setCamera(&camera);
+    SimpleAssetObject cube1, cube2;
+    SimpleAssetObject groundPlane;
+    SimpleAssetObject sphere;
 
-
-    ObjAssetLoader assetLoader;
+    ProceduralSkybox skybox;
 
 
-    auto cubeAsset = assetLoader.loadTexturedAsset("box.obj");
-
-    cube1.asset = cubeAsset;
-    cube2.asset = cubeAsset;
-    cube1.translateGlobal(vec3(11, 1, -2));
-    cube1.calculateModel();
-
-    cube2.translateGlobal(vec3(-11, 1, 2));
-    cube2.calculateModel();
-
-    auto sphereAsset = assetLoader.loadBasicAsset("teapot.obj");
-    sphere.asset     = sphereAsset;
-    sphere.translateGlobal(vec3(0, 1, 8));
-    sphere.rotateLocal(vec3(0, 1, 0), 180);
-    sphere.calculateModel();
-
-    groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
+    float rotationSpeed    = 0.1;
+    bool showimguidemo     = false;
+    bool lightDebug        = false;
+    bool pointLightShadows = false;
 
 
-    std::cout << "Program Initialized!" << std::endl;
-}
-
-VRSample::~VRSample() {}
-
-void VRSample::update(float dt)
-{
-    // Update the camera position
-    camera.update(dt);
-}
-
-void VRSample::interpolate(float dt, float interpolation)
-{
-    // Update the camera rotation. This could also be done in 'update' but
-    // doing it in the interpolate step will reduce latency
-    camera.interpolate(dt, interpolation);
-}
-
-
-void VRSample::renderOverlay(Camera* cam)
-{
-    // The skybox is rendered after lighting and before post processing
-    groundPlane.renderForward(cam);
-    skybox.render(cam);
-}
-
-void VRSample::renderFinal(Camera* cam)
-{
-    // The final render path (after post processing).
-    // Usually the GUI is rendered here.
-
-
-
+    VRSample() : StandaloneWindow("config.ini")
     {
-        ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
-        ImGui::Begin("An Imgui Window :D");
+        // create a perspective camera
+        float aspect = window->getAspectRatio();
+        camera.setProj(60.0f, aspect, 0.1f, 50.0f);
+        camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
+        camera.enableInput();
 
-        ImGui::SliderFloat("Rotation Speed", &rotationSpeed, 0, 10);
+        // Set the camera from which view the scene is rendered
+        window->setCamera(&camera);
 
-        if (ImGui::Button("Reload Shaders"))
+
+        ObjAssetLoader assetLoader;
+
+
+        auto cubeAsset = assetLoader.loadTexturedAsset("box.obj");
+
+        cube1.asset = cubeAsset;
+        cube2.asset = cubeAsset;
+        cube1.translateGlobal(vec3(11, 1, -2));
+        cube1.calculateModel();
+
+        cube2.translateGlobal(vec3(-11, 1, 2));
+        cube2.calculateModel();
+
+        auto sphereAsset = assetLoader.loadColoredAsset("teapot.obj");
+        sphere.asset     = sphereAsset;
+        sphere.translateGlobal(vec3(0, 1, 8));
+        sphere.rotateLocal(vec3(0, 1, 0), 180);
+        sphere.calculateModel();
+
+        groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
+
+
+        std::cout << "Program Initialized!" << std::endl;
+    }
+    ~VRSample() {}
+
+    void update(float dt) override
+    {
+        // Update the camera position
+        camera.update(dt);
+    }
+    void interpolate(float dt, float interpolation) override
+    {
+        // Update the camera rotation. This could also be done in 'update' but
+        // doing it in the interpolate step will reduce latency
+        camera.interpolate(dt, interpolation);
+    }
+
+    void render(Camera* camera, RenderPass render_pass) override
+    {
+        if (render_pass == RenderPass::Forward)
         {
-            shaderLoader.reload();
+            // The skybox is rendered after lighting and before post processing
+            groundPlane.renderForward(camera);
+            skybox.render(camera);
         }
+        else if (render_pass == RenderPass::GUI)
+        {
+            ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+            ImGui::Begin("An Imgui Window :D");
 
-        ImGui::End();
+            ImGui::SliderFloat("Rotation Speed", &rotationSpeed, 0, 10);
+
+            if (ImGui::Button("Reload Shaders"))
+            {
+                shaderLoader.reload();
+            }
+
+            ImGui::End();
+        }
     }
 
-    // parentWindow.renderImGui();
-}
 
-
-void VRSample::keyPressed(SDL_Keysym key)
-{
-    switch (key.scancode)
+    void keyPressed(SDL_Keysym key) override
     {
-        case SDL_SCANCODE_ESCAPE:
-            window->close();
-            break;
-        default:
-            break;
+        switch (key.scancode)
+        {
+            case SDL_SCANCODE_ESCAPE:
+                window->close();
+                break;
+            default:
+                break;
+        }
     }
-}
+    void keyReleased(SDL_Keysym key) override {}
+};
 
-void VRSample::keyReleased(SDL_Keysym key) {}
+
 
 int main(int argc, char* args[])
 {
-    // This should be only called if this is a sample located in saiga/samples
     initSaigaSample();
-
     VRSample window;
     window.run();
-
     return 0;
 }

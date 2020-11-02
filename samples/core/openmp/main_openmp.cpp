@@ -97,14 +97,14 @@ void reduction()
 
 void tasks()
 {
-	//doesn't work on msvc
-#ifndef WIN32
+    // doesn't work on msvc
+#ifndef _WIN32
     std::cout << "Starting OpenMP tasks..." << std::endl;
-#pragma omp parallel num_threads(4)
+#    pragma omp parallel num_threads(4)
     {
-#pragma omp single nowait
+#    pragma omp single nowait
         {
-#pragma omp task
+#    pragma omp task
             {
                 report(1337);
                 std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -114,7 +114,7 @@ void tasks()
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
         //#pragma omp taskwait
-#pragma omp for
+#    pragma omp for
         for (int i = 0; i < 20; ++i)
         {
             report(i);

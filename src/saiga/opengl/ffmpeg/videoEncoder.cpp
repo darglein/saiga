@@ -10,6 +10,7 @@
 
 #    include "saiga/core/imgui/imgui.h"
 #    include "saiga/core/util/assert.h"
+#    include "saiga/opengl/ffmpeg/ffmpegEncoder.h"
 #    include "saiga/opengl/window/OpenGLWindow.h"
 
 #    include "videoEncoder.h"
@@ -17,22 +18,22 @@
 
 namespace Saiga
 {
-VideoEncoder::VideoEncoder(OpenGLWindow* window)
-    : encoder(file, window->getWidth(), window->getHeight(), window->getWidth(), window->getHeight(), 60),
-      window(window)
+VideoEncoder::VideoEncoder(OpenGLWindow* window) : window(window)
 {
+    encoder = std::make_shared<FFMPEGEncoder>(file, window->getWidth(), window->getHeight(), window->getWidth(),
+                                              window->getHeight(), 60);
 }
 
 void VideoEncoder::update()
 {
-    if (encoder.isRunning())
+    if (encoder->isRunning())
     {
-        auto img = encoder.getFrameBuffer();
+        auto img = encoder->getFrameBuffer();
         // read the current framebuffer to the buffer
         //        window->readToExistingImage(*img);
         *img = window->ScreenshotDefaultFramebuffer();
         // add an image to the video stream
-        encoder.addFrame(img);
+        encoder->addFrame(img);
     }
 }
 
@@ -42,13 +43,13 @@ void VideoEncoder::renderGUI()
         ImGui::PushID(346436);
 
         ImGui::InputText("Output File", file, 256);
-        encoder.filename = file;
+        encoder->filename = file;
 
 
-        ImGui::InputInt("Output Width", &encoder.outWidth);
-        ImGui::InputInt("Output Height", &encoder.outHeight);
-        ImGui::InputInt("Output FPS", &encoder.outFps);
-        ImGui::InputInt("Output Bitrate", &encoder.bitRate);
+        ImGui::InputInt("Output Width", &encoder->outWidth);
+        ImGui::InputInt("Output Height", &encoder->outHeight);
+        ImGui::InputInt("Output FPS", &encoder->outFps);
+        ImGui::InputInt("Output Bitrate", &encoder->bitRate);
 
 
         static const char* codecitems[4] = {"AV_CODEC_ID_H264", "AV_CODEC_ID_MPEG2VIDEO", "AV_CODEC_ID_MPEG4",
@@ -71,20 +72,19 @@ void VideoEncoder::renderGUI()
                 codec = AV_CODEC_ID_RAWVIDEO;
                 break;
         }
-
-        encoder.videoCodecId = codec;
-
+        encoder->videoCodecId = codec;
 
 
-        if (!encoder.isRunning() && ImGui::Button("Start Recording"))
+
+        if (!encoder->isRunning() && ImGui::Button("Start Recording"))
         {
-            encoder.inWidth  = window->getWidth();
-            encoder.inHeight = window->getHeight();
-            encoder.startEncoding();
+            encoder->inWidth  = window->getWidth();
+            encoder->inHeight = window->getHeight();
+            encoder->startEncoding();
         }
-        if (encoder.isRunning() && ImGui::Button("Stop Recording"))
+        if (encoder->isRunning() && ImGui::Button("Stop Recording"))
         {
-            encoder.finishEncoding();
+            encoder->finishEncoding();
         }
 
         ImGui::PopID();

@@ -7,16 +7,29 @@
 #pragma once
 
 
-#include "saiga/opengl/window/SampleWindowDeferred.h"
+#include "saiga/opengl/window/SampleWindowForward.h"
 
 
 using namespace Saiga;
 
-class Sample : public SampleWindowDeferred
+class Sample : public SampleWindowForward
 {
-    using Base = SampleWindowDeferred;
+    using Base = SampleWindowForward;
 
    public:
+    Sample();
+    ~Sample();
+
+    void reduce();
+
+    void update(float dt) override;
+    void interpolate(float dt, float interpolation) override;
+
+
+    virtual void render(Camera* camera, RenderPass render_pass) override;
+
+
+   private:
     bool useAspectRatio   = true;
     float ratio           = 3;
     float errorTolerance  = 1;
@@ -41,16 +54,4 @@ class Sample : public SampleWindowDeferred
 
     TriangleMesh<VertexNC, GLuint> baseMesh;
     TriangleMesh<VertexNC, GLuint> reducedMesh;
-
-    Sample();
-    ~Sample();
-
-    void reduce();
-
-    void update(float dt) override;
-    void interpolate(float dt, float interpolation) override;
-    void render(Camera* cam) override;
-    void renderDepth(Camera* cam) override;
-    void renderOverlay(Camera* cam) override;
-    void renderFinal(Camera* cam) override;
 };

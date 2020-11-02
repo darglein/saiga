@@ -22,7 +22,7 @@ if(SAIGA_USE_EIGENRECURSIVE)
 
 
 
-    if(SAIGA_MODULE_EXTRA AND OPENMESH_FOUND)
+    if(SAIGA_MODULE_EXTRA AND OPENMESH_FOUND AND CERES_FOUND)
         add_subdirectory(arap)
     endif()
 
@@ -32,9 +32,6 @@ if(SAIGA_USE_EIGENRECURSIVE)
         if(G2O_FOUND)
             add_subdirectory(ba)
             add_subdirectory(posegraph_viewer)
-        endif()
-        if(OPENNI2_FOUND AND SAIGA_MODULE_EXTRA)
-            add_subdirectory(openni2Viewer)
         endif()
     endif()
 endif()

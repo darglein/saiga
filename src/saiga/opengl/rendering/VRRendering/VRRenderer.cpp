@@ -55,8 +55,7 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
     quadMesh.fromMesh(*qb);
 
 
-    framebufferToDebugWindowShader =
-        shaderLoader.load<PostProcessingShader>("post_processing/VRToDebugWindow.glsl");
+    framebufferToDebugWindowShader = shaderLoader.load<PostProcessingShader>("post_processing/VRToDebugWindow.glsl");
     assert_no_glerror();
 }
 
@@ -73,7 +72,7 @@ void VRRenderer::render(const RenderInfo& renderInfo)
 
     auto [cameraLeft, cameraRight] = vr.getEyeCameras(*camera);
 
-    ForwardRenderingInterface* renderingInterface = dynamic_cast<ForwardRenderingInterface*>(rendering);
+    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
     glViewport(0, 0, vr.renderWidth(), vr.renderHeight());
@@ -119,7 +118,7 @@ void VRRenderer::render(const RenderInfo& renderInfo)
         SAIGA_ASSERT(ImGui::GetCurrentContext());
         imgui->beginFrame();
     }
-    renderingInterface->renderFinal(camera);
+    renderingInterface->render(camera, RenderPass::GUI);
     if (imgui)
     {
         imgui->endFrame();
@@ -133,7 +132,7 @@ void VRRenderer::render(const RenderInfo& renderInfo)
 
 void VRRenderer::renderEye(Camera* camera, vr::Hmd_Eye eye, Framebuffer& target)
 {
-    ForwardRenderingInterface* renderingInterface = dynamic_cast<ForwardRenderingInterface*>(rendering);
+    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
     camera->recalculatePlanes();
@@ -148,7 +147,7 @@ void VRRenderer::renderEye(Camera* camera, vr::Hmd_Eye eye, Framebuffer& target)
     glDepthMask(GL_TRUE);
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    renderingInterface->renderOverlay(camera);
+    renderingInterface->render(camera, RenderPass::Forward);
 
     target.unbind();
 }

@@ -50,7 +50,7 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
 
     vec4 lightingClearColor = vec4(0, 0, 0, 0);
 
-    int shadowSamples = 16;
+    int shadowSamples = 4;
 
     bool offsetGeometry = false;
     float offsetFactor = 1.0f, offsetUnits = 1.0f;
@@ -62,32 +62,34 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
     void fromConfigFile(const std::string& file) {}
 };
 
-class SAIGA_OPENGL_API DeferredRenderingInterface : public RenderingInterfaceBase
-{
-   public:
-    virtual ~DeferredRenderingInterface() {}
 
-    // rendering into the gbuffer
-    virtual void render(Camera* cam) {}
 
-    // render depth maps for shadow lights
-    virtual void renderDepth(Camera* cam) {}
+// class SAIGA_OPENGL_API DeferredRenderingInterface : public RenderingInterfaceBase
+//{
+//   public:
+//    virtual ~DeferredRenderingInterface() {}
 
-    // forward rendering path after lighting, but before post processing
-    // this could be used for transparent objects
-    virtual void renderOverlay(Camera* cam) {}
+//    // rendering into the gbuffer
+//    virtual void render(Camera* cam) {}
 
-    // forward rendering path after lighting and after post processing
-    virtual void renderFinal(Camera* cam) {}
-    // protected:
-    //    RendererBase& parentRenderer;
-};
+//    // render depth maps for shadow lights
+//    virtual void renderDepth(Camera* cam) {}
+
+//    // forward rendering path after lighting, but before post processing
+//    // this could be used for transparent objects
+//    virtual void renderOverlay(Camera* cam) {}
+
+//    // forward rendering path after lighting and after post processing
+//    virtual void renderFinal(Camera* cam) {}
+//    // protected:
+//    //    RendererBase& parentRenderer;
+//};
 
 
 class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 {
    public:
-    using InterfaceType = DeferredRenderingInterface;
+    using InterfaceType = RenderingInterface;
     using ParameterType = DeferredRenderingParameters;
 
     DeferredLighting lighting;

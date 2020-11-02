@@ -62,15 +62,12 @@ TEST(CudaThrust, UploadDownload)
 
     thrust::host_vector<int> H2 = D;
 
-    EXPECT_EQ(H, D);
     EXPECT_EQ(H, H2);
 
     H[2] = 1924;
-    EXPECT_NE(H, D);
-
-
     D[2] = 1924;
-    EXPECT_EQ(H, D);
+    H2   = D;
+    EXPECT_EQ(H, H2);
 }
 
 TEST(CudaThrust, Sort)
@@ -86,7 +83,9 @@ TEST(CudaThrust, Sort)
     thrust::sort(H.begin(), H.end());
     thrust::sort(D.begin(), D.end());
 
-    EXPECT_EQ(H, D);
+
+    thrust::host_vector<int> H2 = D;
+    EXPECT_EQ(H, H2);
 }
 
 
@@ -104,7 +103,8 @@ TEST(CudaThrust, CustomSort)
     thrust::sort(H.begin(), H.end());
     thrust::sort(D.begin(), D.end());
 
-    EXPECT_EQ(H, D);
+    thrust::host_vector<MySortStruct> H2 = D;
+    EXPECT_EQ(H, H2);
 }
 
 TEST(CudaThrust, Maximum)

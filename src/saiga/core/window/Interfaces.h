@@ -60,6 +60,26 @@ class SAIGA_CORE_API RenderingInterfaceBase
     virtual ~RenderingInterfaceBase() {}
 };
 
+
+enum class RenderPass
+{
+    Forward,
+    Deferred,
+    Shadow,
+    DepthPrepass,
+    GUI
+};
+
+
+class SAIGA_CORE_API RenderingInterface : public RenderingInterfaceBase
+{
+   public:
+    virtual ~RenderingInterface() {}
+
+    virtual void render(Camera* camera, RenderPass render_pass) {}
+};
+
+
 /**
  * Base class for applications to make them updateable.
  * The mainloop will call the appropriate functions.

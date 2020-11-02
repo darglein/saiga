@@ -103,6 +103,36 @@ uint64_t generateTimeBasedSeed()
 }
 
 
+Vec3 ballRand(double radius)
+{
+    SAIGA_ASSERT(radius >= 0);
+    // Credits to random.inl from the glm library
+    auto r2 = radius * radius;
+    Vec3 low(-radius, -radius, -radius);
+    Vec3 high(radius, radius, radius);
+    double lenRes;
+    Vec3 result;
+    do
+    {
+        result = linearRand(low, high);
+        lenRes = result.squaredNorm();
+    } while (lenRes > r2);
+    return result;
+}
+
+Vec3 sphericalRand(double radius)
+{
+    float z = Random::sampleDouble(-1.0, 1.0);
+    float a = Random::sampleDouble(0.0, pi<double>() * 2.0);
+
+    float r = sqrt(1.0 - z * z);
+
+    float x = r * cos(a);
+    float y = r * sin(a);
+
+    return Vec3(x, y, z) * radius;
+}
+
 
 }  // namespace Random
 
@@ -120,5 +150,6 @@ vec2 diskRand(float Radius)
     return Result;
 }
 
-// namespace Random
+
+
 }  // namespace Saiga

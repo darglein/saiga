@@ -46,7 +46,7 @@ struct Gravity
 
     Vec3 Get() const { return R * unit_gravity; }
 
-    void Set(const Vec3& g) { R = SO3(Quat::FromTwoVectors(Vec3(0, 9.81, 0), g)); }
+    void Set(const Vec3& g) { R = SO3(Quat::FromTwoVectors(unit_gravity, g)); }
 };
 
 

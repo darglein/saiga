@@ -91,8 +91,8 @@ void FileChecker::getFiles(std::vector<std::string>& out, const std::string& pre
         std::cout << dir << std::endl;
         Directory d(dir);
 
-        std::vector<std::string> tmp;
-        d.getFiles(tmp, ending);
+
+        auto tmp = d.getFilesEnding(ending);
         for (auto& s : tmp)
         {
             s = dir + "/" + s;

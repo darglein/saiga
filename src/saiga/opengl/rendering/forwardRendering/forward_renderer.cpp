@@ -29,7 +29,7 @@ void Forward_Renderer::render(const RenderInfo& renderInfo)
 
     auto camera = renderInfo.cameras.front().first;
 
-    ForwardRenderingInterface* renderingInterface = dynamic_cast<ForwardRenderingInterface*>(rendering);
+    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
     glViewport(0, 0, outputWidth, outputHeight);
@@ -51,7 +51,7 @@ void Forward_Renderer::render(const RenderInfo& renderInfo)
     glDepthMask(GL_TRUE);
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    renderingInterface->renderOverlay(camera);
+    renderingInterface->render(camera, RenderPass::Forward);
 
 
     Framebuffer::bindDefaultFramebuffer();
@@ -64,7 +64,8 @@ void Forward_Renderer::render(const RenderInfo& renderInfo)
         SAIGA_ASSERT(ImGui::GetCurrentContext());
         imgui->beginFrame();
     }
-    renderingInterface->renderFinal(camera);
+
+    renderingInterface->render(camera, RenderPass::GUI);
     if (imgui)
     {
         imgui->endFrame();

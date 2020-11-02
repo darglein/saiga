@@ -322,6 +322,24 @@ Vec6 Preintegration::BiasChangeError(const VelocityAndBias& bias_i, const Veloci
     return result;
 }
 
+Vec3 Preintegration::RotationalError(const SO3& pose_i, const SO3& pose_j, Matrix<double, 3, 3>* J_g) const
+{
+    double time_weight = 1.0 / sqrt(delta_t);
+
+    SO3 rRij      = pose_j.inverse() * pose_i * delta_R;
+    Vec3 rPhiij   = rRij.log();
+    Vec3 residual = rPhiij * time_weight;
+
+    if (J_g)
+    {
+        Mat3 Jlinv;
+        Sophus::leftJacobianInvSO3(rPhiij, Jlinv);
+        *J_g = Jlinv * J_R_Biasg * time_weight;
+    }
+
+    return residual;
+}
+
 
 
 }  // namespace Imu

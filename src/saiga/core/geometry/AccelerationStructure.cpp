@@ -49,7 +49,7 @@ std::vector<RayTriangleIntersection> BruteForce::getAll(const Ray& ray)
 BVH::BVH(const std::vector<Saiga::Triangle>& triangles)
 {
     static_assert(sizeof(BVHNode) == 8 * sizeof(float), "Node size broken.");
-    for (int i = 0; i < triangles.size(); ++i)
+    for (size_t i = 0; i < triangles.size(); ++i)
     {
         this->triangles.push_back({triangles[i], i});
     }

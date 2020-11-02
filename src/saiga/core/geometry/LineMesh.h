@@ -52,6 +52,9 @@ class LineMesh : public Mesh<_VertexType>
     void createGrid(const ivec2& dimension, const vec2& spacing);
 
 
+    void createAABB(const AABB& box);
+
+
     /**
      * Debug camera frustum.
      * Created by backprojecting the "far-plane corners" of the unit cube.
@@ -98,6 +101,7 @@ void LineMesh<VertexType, IndexType>::fromLineList()
     indices.resize(vertices.size());
     for (IndexType i = 0; i < indices.size(); ++i) indices[i] = i;
 }
+
 
 
 }  // namespace Saiga

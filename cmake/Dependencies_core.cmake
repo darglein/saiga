@@ -13,7 +13,7 @@ unset(MODULE_CORE)
 
 
 #Eigen is now required
-find_package(Eigen3 REQUIRED QUIET)
+find_package(Eigen3 3.3.90 REQUIRED QUIET)
 PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
 SET(SAIGA_USE_EIGEN 1)
 

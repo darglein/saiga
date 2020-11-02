@@ -8,137 +8,184 @@
 
 #include "KinectAzureViewer.h"
 
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/sdl/sdl_camera.h"
+#include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/core/util/Thread/all.h"
+#include "saiga/core/util/ini/ini.h"
+#include "saiga/core/window/Interfaces.h"
+#include "saiga/opengl/window/SampleWindowForward.h"
+#include "saiga/opengl/world/TextureDisplay.h"
+#include "saiga/vision/camera/CameraBase.h"
+#include "saiga/vision/camera/all.h"
 
 #include <filesystem>
+using namespace Saiga;
+#include <k4a/k4a.h>
 
 
 
-Sample::Sample()
+class Sample : public SampleWindowForward
 {
-    createGlobalThreadPool(8);
-}
+    using Base = SampleWindowForward;
+
+   public:
+    Sample() { createGlobalThreadPool(8); }
 
 
-void Sample::update(float dt)
-{
-    if (cameraType == CameraInputType::RGBD)
+    void update(float dt) override
     {
-        if (!rgbdcamera) return;
-
-        Saiga::RGBDFrameData frameData;
-        if (!rgbdcamera->getImage(frameData)) return;
-        tg.addTime();
-
-        if (!frameData.colorImg.valid() && frameData.grayImg.valid())
+        if (cameraType == CameraInputType::RGBD)
         {
-            frameData.colorImg.create(frameData.grayImg.dimensions());
-            ImageTransformation::Gray8ToRGBA(frameData.grayImg.getImageView(), frameData.colorImg.getImageView());
-        }
-        //        else if (frameData.colorImg.valid() && !frameData.grayImg.valid())
-        //        {
-        //            frameData.grayImg.create(frameData.colorImg.dimensions());
-        //            ImageTransformation::RGBAToGray8(frameData.colorImg.getImageView(),
-        //            frameData.grayImg.getImageView());
-        //            ImageTransformation::Gray8ToRGBA(frameData.grayImg.getImageView(),
-        //            frameData.colorImg.getImageView());
-        //        }
+            if (!rgbdcamera) return;
 
-        if (!leftTexture)
-        {
-            leftImage   = frameData.colorImg;
-            leftTexture = std::make_shared<Texture>();
-            leftTexture->fromImage(leftImage, true, false);
-        }
+            Saiga::FrameData frameData;
+            if (!rgbdcamera->getImage(frameData)) return;
+            tg.addTime();
 
-        if (!rightTexture)
-        {
-            rightTexture = std::make_shared<Texture>();
-            rightImage.create(frameData.depthImg.height, frameData.depthImg.width);
-            rightTexture->fromImage(rightImage, true, false);
-        }
+            if (!frameData.image_rgb.valid() && frameData.image.valid())
+            {
+                frameData.image_rgb.create(frameData.image.dimensions());
+                ImageTransformation::Gray8ToRGBA(frameData.image.getImageView(), frameData.image_rgb.getImageView());
+            }
+            //        else if (frameData.colorImg.valid() && !frameData.grayImg.valid())
+            //        {
+            //            frameData.grayImg.create(frameData.colorImg.dimensions());
+            //            ImageTransformation::RGBAToGray8(frameData.colorImg.getImageView(),
+            //            frameData.grayImg.getImageView());
+            //            ImageTransformation::Gray8ToRGBA(frameData.grayImg.getImageView(),
+            //            frameData.colorImg.getImageView());
+            //        }
 
-        if (recording)
-        {
-            auto str       = Saiga::leadingZeroString(frameId, 5);
-            auto frame_dir = frame_out_dir + "/" + str + "/";
-            std::filesystem::create_directory(frame_dir);
-            globalThreadPool->enqueue([=]() { frameData.Save(frame_dir); });
-            frameId++;
-        }
+            if (!leftTexture)
+            {
+                leftImage   = frameData.image_rgb;
+                leftTexture = std::make_shared<Texture>();
+                leftTexture->fromImage(leftImage, true, false);
+            }
 
+            if (!rightTexture)
+            {
+                rightTexture = std::make_shared<Texture>();
+                rightImage.create(frameData.depth_image.height, frameData.depth_image.width);
+                rightTexture->fromImage(rightImage, true, false);
+            }
 
-        leftImage = frameData.colorImg;
-        //        Saiga::ImageTransformation::depthToRGBA_HSV(frameData.depthImg, rightImage, 0, 5);
-        Saiga::ImageTransformation::depthToRGBA(frameData.depthImg, rightImage, 0, 7);
-
-        leftTexture->updateFromImage(leftImage);
-        rightTexture->updateFromImage(rightImage);
-    }
-}
-
-void Sample::renderFinal(Camera* cam)
-{
-    if (leftImage.valid() && leftTexture)
-    {
-        display.render(leftTexture.get(), {0, 0}, {leftImage.w, leftImage.h}, true);
-    }
-    if (rightImage.valid() && rightTexture)
-    {
-        display.render(rightTexture.get(), {leftImage.w, 0}, {rightImage.w, rightImage.h}, true);
-    }
-
-    Base::renderFinal(cam);
-
-    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(500, 600), ImGuiCond_FirstUseEver);
-    ImGui::Begin("DatasetViewer");
-
-    tg.renderImGui();
+            if (recording)
+            {
+                auto str       = Saiga::leadingZeroString(frameId, 5);
+                auto frame_dir = frame_out_dir + "/" + str + "/";
+                std::filesystem::create_directory(frame_dir);
+                globalThreadPool->enqueue([=]() { frameData.Save(frame_dir); });
+                frameId++;
+            }
 
 
-    ImGui::InputText("Output Dir", dir, 256);
+            leftImage = frameData.image_rgb;
+            //        Saiga::ImageTransformation::depthToRGBA_HSV(frameData.depthImg, rightImage, 0, 5);
+            Saiga::ImageTransformation::depthToRGBA(frameData.depth_image, rightImage, 0, 7);
 
-
-    if (ImGui::Checkbox("Recording", &recording))
-    {
-        if (recording)
-        {
-            std::string out_dir = dir;
-            frame_out_dir       = out_dir + "/frames/";
-
-            frameId = 0;
-            std::filesystem::remove_all(out_dir);
-            std::filesystem::create_directory(out_dir);
-            std::filesystem::create_directory(frame_out_dir);
-
-            auto intr = rgbdcamera->intrinsics();
-            intr.fromConfigFile(out_dir + "/camera.ini");
+            leftTexture->updateFromImage(leftImage);
+            rightTexture->updateFromImage(rightImage);
         }
     }
-
-    static KinectCamera::KinectParams params;
-
-    ImGui::Checkbox("color", &params.color);
-    ImGui::Checkbox("narrow_depth", &params.narrow_depth);
-    ImGui::InputInt("imu_merge_count", &params.imu_merge_count);
-    ImGui::InputInt("fps", &params.fps);
-
-
-    if (ImGui::Button("Open"))
+    void render(Camera* camera, RenderPass render_pass) override
     {
-        rgbdcamera   = nullptr;
-        rgbdcamera   = std::make_unique<KinectCamera>(params);
-        leftTexture  = nullptr;
-        rightTexture = nullptr;
-        cameraType   = KinectCamera::FrameType::cameraType;
+        if (render_pass == RenderPass::GUI)
+        {
+            if (leftImage.valid() && leftTexture)
+            {
+                display.render(leftTexture.get(), {0, 0}, {leftImage.w, leftImage.h}, true);
+            }
+            if (rightImage.valid() && rightTexture)
+            {
+                display.render(rightTexture.get(), {leftImage.w, 0}, {rightImage.w, rightImage.h}, true);
+            }
+
+            // Base::renderFinal(cam);
+
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(500, 600), ImGuiCond_FirstUseEver);
+            ImGui::Begin("DatasetViewer");
+
+            tg.renderImGui();
+
+
+            ImGui::InputText("Output Dir", dir, 256);
+
+
+            if (ImGui::Checkbox("Recording", &recording))
+            {
+                if (recording)
+                {
+                    std::string out_dir = dir;
+                    frame_out_dir       = out_dir + "/frames/";
+
+                    frameId = 0;
+                    std::filesystem::remove_all(out_dir);
+                    std::filesystem::create_directory(out_dir);
+                    std::filesystem::create_directory(frame_out_dir);
+
+                    auto intr = rgbdcamera->intrinsics();
+                    intr.fromConfigFile(out_dir + "/camera.ini");
+                }
+            }
+
+            static KinectCamera::KinectParams params;
+
+            ImGui::Checkbox("color", &params.color);
+            ImGui::Checkbox("narrow_depth", &params.narrow_depth);
+            ImGui::InputInt("imu_merge_count", &params.imu_merge_count);
+            ImGui::InputInt("fps", &params.fps);
+
+
+            if (ImGui::Button("Open"))
+            {
+                rgbdcamera   = nullptr;
+                rgbdcamera   = std::make_unique<KinectCamera>(params);
+                leftTexture  = nullptr;
+                rightTexture = nullptr;
+                cameraType   = rgbdcamera->CameraType();
+            }
+
+            ImGui::Text("Frame: %d", frameId);
+
+
+            ImGui::End();
+        }
     }
 
-    ImGui::Text("Frame: %d", frameId);
+   private:
+    std::shared_ptr<Texture> leftTexture, rightTexture;
+    TextureDisplay display;
 
 
-    ImGui::End();
-}
+    std::unique_ptr<KinectCamera> rgbdcamera;
+    std::unique_ptr<CameraBase> monocamera;
+    std::unique_ptr<CameraBase> stereocamera;
+
+    RGBAImageType leftImage;
+    RGBAImageType rightImage;
+
+    GrayImageType leftImageGray;
+    GrayImageType rightImageGray;
+
+
+    CameraInputType cameraType = CameraInputType::Mono;
+
+
+
+    std::string frame_out_dir;
+    char dir[256]  = "recording/";
+    bool recording = false;
+    int frameId    = 0;
+
+
+    ImGui::HzTimeGraph tg;
+};
+
+
 
 int main(const int argc, const char* argv[])
 {

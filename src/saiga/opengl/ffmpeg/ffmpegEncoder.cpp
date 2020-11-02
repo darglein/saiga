@@ -108,7 +108,7 @@ void FFMPEGEncoder::scaleFrame(std::shared_ptr<EncoderImageType> image, AVFrame*
     int inLinesize[1]  = {(int)image->pitchBytes};  // RGB stride
 
     // flip
-    if (true)
+    if (false)
     {
         inData[0] += inLinesize[0] * (image->height - 1);
         inLinesize[0] = -inLinesize[0];

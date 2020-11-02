@@ -66,13 +66,13 @@ void PoseGraph::addNoise(double stddev)
     for (auto& e : vertices)
     {
         if (e.constant) continue;
-        //        e.T_w_i.se3().translation() += Random::gaussRandMatrix<Vec3>(0, stddev);
+        //        e.T_w_i.se3().translation() += Random::MatrixGauss<Vec3>(0, stddev);
         e.T_w_i.se3() = Random::JitterPose(e.T_w_i.se3(), stddev, stddev);
 
 
         //        Quat q = e.se3.unit_quaternion();
         //        Quat q = e.se3.rxso3().quaternion();
-        //        q.coeffs() += Random::gaussRandMatrix<Vec4>(0, stddev);
+        //        q.coeffs() += Random::MatrixGauss<Vec4>(0, stddev);
         //        q.normalize();
         //        e.se3.setQuaternion(q);
     }

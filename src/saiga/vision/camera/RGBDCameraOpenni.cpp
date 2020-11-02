@@ -34,6 +34,7 @@ namespace Saiga
 
 RGBDCameraOpenni::RGBDCameraOpenni(const RGBDIntrinsics& intr) : _intrinsics(intr)
 {
+    camera_type = CameraInputType::RGBD;
     CHECK_NI(openni::OpenNI::initialize());
 
     while (!tryOpen())
@@ -43,15 +44,13 @@ RGBDCameraOpenni::RGBDCameraOpenni(const RGBDIntrinsics& intr) : _intrinsics(int
     }
 }
 
-RGBDCameraOpenni::~RGBDCameraOpenni()
-{
-}
+RGBDCameraOpenni::~RGBDCameraOpenni() {}
 
 
-bool RGBDCameraOpenni::getImageSync(RGBDFrameData& data)
+bool RGBDCameraOpenni::getImageSync(FrameData& data)
 {
-    data.colorImg.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
-    data.depthImg.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
+    data.image_rgb.create(intrinsics().imageSize.h, intrinsics().imageSize.w);
+    data.depth_image.create(intrinsics().depthImageSize.h, intrinsics().depthImageSize.w);
     data.id = currentId++;
     while (!waitFrame(data))
     {
@@ -174,7 +173,7 @@ void RGBDCameraOpenni::resetCamera()
     device = std::make_shared<openni::Device>();
 }
 
-bool RGBDCameraOpenni::waitFrame(RGBDFrameData& data)
+bool RGBDCameraOpenni::waitFrame(FrameData& data)
 {
     openni::VideoStream* streams[2] = {depth.get(), color.get()};
     int streamIndex;
@@ -189,12 +188,12 @@ bool RGBDCameraOpenni::waitFrame(RGBDFrameData& data)
 
     auto wret = openni::OpenNI::waitForAnyStream(streams, 1, &streamIndex, timeout);
     if (wret != openni::STATUS_OK) return false;
-    readColor(data.colorImg);
+    readColor(data.image_rgb);
 
 
     wret = openni::OpenNI::waitForAnyStream(streams, 1, &streamIndex, timeout);
     if (wret != openni::STATUS_OK) return false;
-    readDepth(data.depthImg);
+    readDepth(data.depth_image);
 
     return true;
 }

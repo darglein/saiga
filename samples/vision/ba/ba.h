@@ -25,8 +25,7 @@ class Sample : public SampleWindowForward
     Sample();
 
     void update(float dt) override;
-    void renderOverlay(Camera* cam) override;
-    void renderFinal(Camera* cam) override;
+    void render(Camera* camera, RenderPass render_pass) override;
 
    private:
     // render objects
