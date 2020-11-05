@@ -29,10 +29,11 @@ void render(AssetMaterial material, vec3 position, vec3 normal)
 #elif defined(DEPTH)
 #else
     vec3 light_direction = (view * vec4(1.0, 1.25, 2.0, 0.0)).rgb;
+    float intensity       = 0.5;
     float Iamb = 0.05;
-    float Idiff = 1.0 * intensityDiffuse(normal, light_direction);
+    float Idiff = intensity * intensityDiffuse(normal, light_direction);
 
-    vec4 color = material.color * (Idiff + Iamb);
+    vec4 color = material.color * min(Idiff + Iamb, 1.0);
 
     out_color = vec4(color.rgb, 1);
 #endif

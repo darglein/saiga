@@ -14,18 +14,6 @@ namespace Saiga
 {
 class ShaderLoader;
 
-class SAIGA_OPENGL_API StandardForwardRenderingInterface : public RenderingInterfaceBase
-{
-   public:
-    virtual ~StandardForwardRenderingInterface() {}
-
-    // Forward rendering path
-    virtual void renderOverlay(Camera* cam) {}
-
-    // Forward rendering path on top of final render result
-    virtual void renderFinal(Camera* cam) {}
-};
-
 struct SAIGA_OPENGL_API StandardForwardRenderingParameters : public RenderingParameters
 {
     void fromConfigFile(const std::string& file) { RenderingParameters::fromConfigFile(file); }
@@ -34,7 +22,7 @@ struct SAIGA_OPENGL_API StandardForwardRenderingParameters : public RenderingPar
 class SAIGA_OPENGL_API StandardForwardRenderer : public OpenGLRenderer
 {
    public:
-    using InterfaceType = StandardForwardRenderingInterface;
+    using InterfaceType = RenderingInterface;
     using ParameterType = StandardForwardRenderingParameters;
 
     ParameterType params;
@@ -43,6 +31,9 @@ class SAIGA_OPENGL_API StandardForwardRenderer : public OpenGLRenderer
 
     StandardForwardRenderer(OpenGLWindow& window, const ParameterType& params = ParameterType());
     virtual ~StandardForwardRenderer() {}
+
+    virtual void render(const RenderInfo& renderInfo) override;
+    // void renderImGui(bool* p_open = nullptr) override;
 
     void resize(int width, int height);
 
@@ -57,21 +48,13 @@ class SAIGA_OPENGL_API StandardForwardRenderer : public OpenGLRenderer
     float getBlockTime(StandardForwardTimingBlock timingBlock) { return timers[timingBlock].getTimeMS(); }
     virtual float getTotalRenderTime() override { return timers[StandardForwardTimingBlock::TOTAL].getTimeMS(); }
 
-    virtual void render(const RenderInfo& renderInfo) override;
-
    private:
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
     ShaderLoader shaderLoader;
 
    protected:
-    void startTimer(StandardForwardTimingBlock timingBlock)
-    {
-        timers[timingBlock].startTimer();
-    }
-    void stopTimer(StandardForwardTimingBlock timingBlock)
-    {
-        timers[timingBlock].stopTimer();
-    }
+    void startTimer(StandardForwardTimingBlock timingBlock) { timers[timingBlock].startTimer(); }
+    void stopTimer(StandardForwardTimingBlock timingBlock) { timers[timingBlock].stopTimer(); }
 };
 
 }  // namespace Saiga

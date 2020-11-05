@@ -27,11 +27,11 @@ StandardForwardRenderer::StandardForwardRenderer(OpenGLWindow& window, const Par
     {
         t.create();
     }
-    
+
     std::cout << "Standard Forward Renderer initialized. Render resolution: " << window.getWidth() << "x" << window.getHeight() << std::endl;
 }
 
-void StandardForwardRenderer::render(const RenderInfo& renderInfo)
+void StandardForwardRenderer::render(const Saiga::RenderInfo& renderInfo)
 {
     if (!rendering) return;
 
@@ -40,7 +40,7 @@ void StandardForwardRenderer::render(const RenderInfo& renderInfo)
 
     auto camera = renderInfo.cameras.front().first;
 
-    StandardForwardRenderingInterface* renderingInterface = dynamic_cast<StandardForwardRenderingInterface*>(rendering);
+    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
     glViewport(0, 0, outputWidth, outputHeight);
@@ -65,10 +65,10 @@ void StandardForwardRenderer::render(const RenderInfo& renderInfo)
     glDepthMask(GL_TRUE);
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    
+
     // forward pass with lighting
     lighting.initRender();
-    renderingInterface->renderOverlay(camera);
+    renderingInterface->render(camera, RenderPass::Forward);
     lighting.endRender();
 
     stopTimer(FORWARD);
@@ -80,13 +80,13 @@ void StandardForwardRenderer::render(const RenderInfo& renderInfo)
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
-    // final render pass
+    // gui render pass
     if (imgui)
     {
         SAIGA_ASSERT(ImGui::GetCurrentContext());
         imgui->beginFrame();
     }
-    renderingInterface->renderFinal(camera);
+    renderingInterface->render(camera, RenderPass::GUI);
     if (imgui)
     {
         imgui->endFrame();
