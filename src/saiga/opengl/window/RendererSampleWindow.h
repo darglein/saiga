@@ -12,7 +12,7 @@
 #    include "saiga/core/sdl/all.h"
 #    include "saiga/opengl/assets/all.h"
 #    include "saiga/opengl/rendering/renderer.h"
-#    include "saiga/opengl/rendering/standardForwardRendering/standardForwardRendering.h"
+#    include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #    include "saiga/opengl/window/WindowTemplate.h"
 #    include "saiga/opengl/window/sdl_window.h"
 #    include "saiga/opengl/world/proceduralSkybox.h"
@@ -28,7 +28,7 @@ namespace Saiga
  * @brief The RendererSampleWindow class
  */
 
-class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, StandardForwardRenderer>,
+class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, ForwardRenderer>,
                                               public SDL_KeyListener
 {
    public:

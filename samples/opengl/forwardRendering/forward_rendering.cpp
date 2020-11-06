@@ -1,85 +1,39 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2020 Paul Himmler
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
-
-
-#include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
+#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/window/SampleWindowForward.h"
+#include "saiga/opengl/window/RendererSampleWindow.h"
 #include "saiga/opengl/world/skybox.h"
-
 
 using namespace Saiga;
 
-ImGui::IMConsole console;
-ImGui::IMTable test_table("Fancy Table", {10, 10}, {"First", "Second"});
-
-
-class Sample : public SampleWindowForward
+class Sample : public RendererSampleWindow
 {
-    using Base = SampleWindowForward;
+    using Base = RendererSampleWindow;
 
    public:
     Sample()
     {
-        for (int i = 0; i < 10000; ++i)
-        {
-            PointVertex v;
-            v.position = linearRand(make_vec3(-3), make_vec3(3));
-            v.color    = linearRand(make_vec3(0), make_vec3(1));
-            pointCloud.points.push_back(v);
-        }
-        pointCloud.updateBuffer();
+        ObjAssetLoader assetLoader;
+        auto showAsset = assetLoader.loadColoredAsset("show_model.obj");
 
-        {
-            // let's just draw the coordiante axis
-            PointVertex v;
+        show.asset = showAsset;
 
-            // x
-            v.color    = vec3(1, 0, 0);
-            v.position = vec3(-1, 0, 0);
-            lineSoup.lines.push_back(v);
-            v.position = vec3(1, 0, 0);
-            lineSoup.lines.push_back(v);
+        const char* shaderStr = renderer->getMainShaderSource();
 
-            // y
-            v.color    = vec3(0, 1, 0);
-            v.position = vec3(0, -1, 0);
-            lineSoup.lines.push_back(v);
-            v.position = vec3(0, 1, 0);
-            lineSoup.lines.push_back(v);
+        auto deferredShader =
+            shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+        auto depthShader     = shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
+        auto forwardShader   = shaderLoader.load<MVPColorShader>(shaderStr);
+        auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
-            // z
-            v.color    = vec3(0, 0, 1);
-            v.position = vec3(0, 0, -1);
-            lineSoup.lines.push_back(v);
-            v.position = vec3(0, 0, 1);
-            lineSoup.lines.push_back(v);
-
-            lineSoup.translateGlobal(vec3(5, 5, 5));
-            lineSoup.calculateModel();
-
-            lineSoup.lineWidth = 3;
-            lineSoup.updateBuffer();
-        }
-
-
-        //    frustum.vertices.resize(2);
-        //    frustum.vertices[0].position = vec4(0, 0, 0, 0);
-        //    frustum.vertices[1].position = vec4(10, 10, 10, 0);
-        //    frustum.fromLineList();
-
-        //    frustum.createGrid({100, 100}, {0.1, 0.1});
-        frustum.createFrustum(camera.proj, 1);
-        frustum.setColor(vec4{0, 1, 0, 1});
-
-        frustum.create();
-
+        showAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 
         std::cout << "Program Initialized!" << std::endl;
     }
@@ -92,51 +46,13 @@ class Sample : public SampleWindowForward
 
         if (render_pass == RenderPass::Forward)
         {
-            pointCloud.render(camera);
-            lineSoup.render(camera);
-            frustum.renderForward(camera, mat4::Identity());
-        }
-        else if (render_pass == RenderPass::GUI)
-        {
-            if (add_values_to_console)
-            {
-                console << Random::sampleDouble(0, 100000) << std::endl;
-                test_table << Random::sampleDouble(0, 100000) << Random::sampleDouble(0, 100000);
-            }
-
-            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
-            ImGui::Begin("test");
-
-            ImGui::Checkbox("add_values_to_console", &add_values_to_console);
-            if (ImGui::Button("add"))
-            {
-                console << "asdf " << 234 << std::endl;
-            }
-
-            if (ImGui::Button("Screenshot"))
-            {
-                window->ScreenshotDefaultFramebuffer().save("screenshot.png");
-            }
-
-            ImGui::End();
-
-
-
-            console.render();
-            test_table.Render();
+            show.renderForward(camera);
         }
     }
 
-
    private:
-    Skybox skybox;
-    bool add_values_to_console = true;
-    GLPointCloud pointCloud;
-    LineSoup lineSoup;
-    LineVertexColoredAsset frustum;
+    SimpleAssetObject show;
 };
-
 
 int main(const int argc, const char* argv[])
 {

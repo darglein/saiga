@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2020 Paul Himmler
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,21 +8,33 @@
 
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/opengl/assets/asset.h"
 #include "saiga/opengl/framebuffer.h"
+#include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
+
 
 namespace Saiga
 {
-Forward_Renderer::Forward_Renderer(OpenGLWindow& window, const ParameterType& params)
-    : OpenGLRenderer(window), params(params)
+ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& params)
+    : OpenGLRenderer(window), params(params), lighting()
 {
-    timer.create();
+    lighting.init(window.getWidth(), window.getHeight());
+
+    int timerCount = ForwardTimingBlock::COUNT;
+    timers.resize(timerCount);
+    for (auto& t : timers)
+    {
+        t.create();
+    }
+
+    std::cout << " Forward Renderer initialized. Render resolution: " << window.getWidth() << "x" << window.getHeight()
+              << std::endl;
 }
 
-void Forward_Renderer::render(const RenderInfo& renderInfo)
+void ForwardRenderer::render(const Saiga::RenderInfo& renderInfo)
 {
     if (!rendering) return;
-
 
     SAIGA_ASSERT(rendering);
     SAIGA_ASSERT(renderInfo);
@@ -34,14 +46,17 @@ void Forward_Renderer::render(const RenderInfo& renderInfo)
 
     glViewport(0, 0, outputWidth, outputHeight);
 
-    timer.startTimer();
-
     if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
+
+
+    startTimer(TOTAL);
 
 
     camera->recalculatePlanes();
     bindCamera(camera);
 
+
+    startTimer(FORWARD);
 
     Framebuffer::bindDefaultFramebuffer();
     glEnable(GL_CULL_FACE);
@@ -51,20 +66,27 @@ void Forward_Renderer::render(const RenderInfo& renderInfo)
     glDepthMask(GL_TRUE);
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    renderingInterface->render(camera, RenderPass::Forward);
 
+    // forward pass with lighting
+    lighting.initRender();
+    renderingInterface->render(camera, RenderPass::Forward);
+    lighting.endRender();
+
+    stopTimer(FORWARD);
+
+
+    startTimer(FINAL);
 
     Framebuffer::bindDefaultFramebuffer();
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
-    // final render pass
+    // gui render pass
     if (imgui)
     {
         SAIGA_ASSERT(ImGui::GetCurrentContext());
         imgui->beginFrame();
     }
-
     renderingInterface->render(camera, RenderPass::GUI);
     if (imgui)
     {
@@ -72,9 +94,17 @@ void Forward_Renderer::render(const RenderInfo& renderInfo)
         imgui->render();
     }
 
+    stopTimer(FORWARD);
+
     if (params.useGlFinish) glFinish();
 
-    timer.stopTimer();
+    stopTimer(TOTAL);
+}
+
+void ForwardRenderer::resize(int width, int height)
+{
+    lighting.resize(width, height);
+    OpenGLRenderer::resize(width, height);
 }
 
 

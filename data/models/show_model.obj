@@ -1,6 +1,6 @@
-# Blender v2.90.0 OBJ File: 'material_show_model.blend'
+# Blender v2.90.0 OBJ File: 'show_model.blend'
 # www.blender.org
-mtllib material_show_model.mtl
+mtllib show_model.mtl
 o Floor_Cube.001
 v -24.000000 -1.199518 17.997379
 v -24.000000 -0.999518 17.997379

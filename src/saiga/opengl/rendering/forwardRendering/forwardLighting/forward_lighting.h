@@ -22,7 +22,7 @@ struct StandardPointLight // for now
     float intensity = 600.0f;
 };
 
-class SAIGA_OPENGL_API BasicForwardLighting
+class SAIGA_OPENGL_API ForwardLighting
 {
    public:
     vec4 clearColor;
@@ -31,8 +31,8 @@ class SAIGA_OPENGL_API BasicForwardLighting
 
     bool debugDraw;
 
-    BasicForwardLighting();
-    ~BasicForwardLighting();
+    ForwardLighting();
+    ~ForwardLighting();
 
     void init(int width, int height);
     void resize(int width, int height);
