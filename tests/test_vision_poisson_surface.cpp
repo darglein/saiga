@@ -26,20 +26,20 @@ class PoissonTest
     {
         long w = 100;
 
-        normal_grid.resize({w, w, w});
+        normal_grid.resize(w, w, w);
         normal_grid.setZero();
 
-        divergence_grid.resize({w, w, w});
+        divergence_grid.resize(w, w, w);
         divergence_grid.setZero();
 
 
-        sdf_grid.resize({w, w, w});
+        sdf_grid.resize(w, w, w);
         sdf_grid.setZero();
 
 
-        ui.resize({w, w, w});
+        ui.resize(w, w, w);
 
-        uo.resize({w, w, w});
+        uo.resize(w, w, w);
     }
 
     void smoothNormals()
