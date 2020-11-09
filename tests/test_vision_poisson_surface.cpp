@@ -24,7 +24,7 @@ class PoissonTest
    public:
     PoissonTest()
     {
-        int w = 100;
+        long w = 100;
 
         normal_grid.resize({w, w, w});
         normal_grid.setZero();
