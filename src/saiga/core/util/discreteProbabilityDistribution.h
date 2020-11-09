@@ -26,19 +26,18 @@ namespace Saiga
 template <typename real_t = float>
 class SAIGA_TEMPLATE DiscreteProbabilityDistribution
 {
+   public:
     static_assert(std::is_floating_point<real_t>::value, "Only floating point types allowed!");
+    // O(n)
+    DiscreteProbabilityDistribution( std::vector<real_t> probabilities);
+    // O(1)
+    int sample();
 
    private:
     std::default_random_engine re;
     int n;
     std::vector<int> alias;
     std::vector<real_t> prob;
-
-   public:
-    // O(n)
-    DiscreteProbabilityDistribution(std::vector<real_t> probabilities);
-    // O(1)
-    int sample();
 };
 
 template <typename real_t>

@@ -187,6 +187,26 @@ bool SparseTSDF::operator==(const SparseTSDF& other) const
 }
 
 
+void SparseTSDF::ClampDistance(float distance)
+{
+    for (int b = 0; b < current_blocks; ++b)
+    {
+        auto& block = blocks[b];
+
+        for (auto& z : block.data)
+        {
+            for (auto& y : z)
+            {
+                for (auto& x : y)
+                {
+                    x.distance = clamp(x.distance,-distance,distance);
+                }
+            }
+        }
+    }
+}
+
+
 void SparseTSDF::SetForAll(float distance, float weight)
 {
     for (int b = 0; b < current_blocks; ++b)

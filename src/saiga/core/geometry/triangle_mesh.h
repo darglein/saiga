@@ -91,6 +91,7 @@ class TriangleMesh : public Mesh<vertex_t>
 
     void addQuad(vertex_t verts[4]);
     void addTriangle(vertex_t verts[3]);
+    void addTriangle(const Triangle& t);
 
     /*
      * Adds 2 Triangles given by 4 vertices and form a quad.
@@ -117,7 +118,7 @@ class TriangleMesh : public Mesh<vertex_t>
      * Converts the index face data structur to a simple triangle list.
      */
 
-    void toTriangleList(std::vector<Triangle>& output) const;
+    std::vector<Triangle> toTriangleList() const;
 
     /*
      * Adds the complete mesh 'other' to the current mesh.
@@ -171,6 +172,8 @@ class TriangleMesh : public Mesh<vertex_t>
      * Removes all triangles, which reference a vertex twice
      */
     void removeDegenerateFaces();
+
+    float distancePointMesh(const vec3& x);
 
     template <typename v, typename i>
     friend std::ostream& operator<<(std::ostream& os, const TriangleMesh<v, i>& dt);
@@ -236,6 +239,17 @@ void TriangleMesh<vertex_t, index_t>::addTriangle(vertex_t verts[])
 }
 
 template <typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t, index_t>::addTriangle(const Triangle& t)
+{
+    vertex_t ts[3];
+    ts[0].position = make_vec4(t.a,1);
+    ts[1].position = make_vec4(t.b,1);
+    ts[2].position = make_vec4(t.c,1);
+    addTriangle(ts);
+}
+
+
+template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::addQuad(index_t inds[])
 {
     faces.push_back(Face(inds[0], inds[1], inds[2]));
@@ -297,8 +311,9 @@ void TriangleMesh<vertex_t, index_t>::invertMesh()
 }
 
 template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::toTriangleList(std::vector<Triangle>& output) const
+std::vector<Triangle> TriangleMesh<vertex_t, index_t>::toTriangleList() const
 {
+    std::vector<Triangle> output;
     Triangle t;
     for (const Face& f : faces)
     {
@@ -307,6 +322,7 @@ void TriangleMesh<vertex_t, index_t>::toTriangleList(std::vector<Triangle>& outp
         t.c = make_vec3(vertices[f.v3].position);
         output.push_back(t);
     }
+    return output;
 }
 
 template <typename vertex_t, typename index_t>
@@ -525,6 +541,22 @@ void TriangleMesh<vertex_t, index_t>::removeDegenerateFaces()
 }
 
 template <typename vertex_t, typename index_t>
+float TriangleMesh<vertex_t, index_t>::distancePointMesh(const vec3& x)
+{
+    float dis = std::numeric_limits<float>::infinity();
+
+    for (const Face& f : faces)
+    {
+        Triangle t;
+        t.a = make_vec3(vertices[f.v1].position);
+        t.b = make_vec3(vertices[f.v2].position);
+        t.c = make_vec3(vertices[f.v3].position);
+        dis = std::min(dis, t.Distance(x));
+    }
+    return dis;
+}
+
+template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm) const
 {
     strm << "OFF"
@@ -544,6 +576,7 @@ void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm) const
              << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
     }
 }
+
 
 
 template <typename vertex_t, typename index_t>

@@ -15,6 +15,11 @@ namespace Saiga
 {
 void FusionScene::Preprocess()
 {
+    triangle_soup_inclusive_prefix_sum.clear();
+    triangle_soup.clear();
+    mesh.clear();
+    tsdf = std::make_unique<SparseTSDF>(params.voxelSize, params.block_count, params.hash_size);
+
     if (images.empty()) return;
 
     depth_map_size = images.front().depthMap.dimensions();
@@ -30,31 +35,6 @@ void FusionScene::Preprocess()
             p = undistortPointGN(p, p, dis);
 
             unproject_undistort_map(i, j) = p.cast<float>();
-        }
-    }
-
-    triangle_soup_inclusive_prefix_sum.clear();
-    triangle_soup.clear();
-    mesh.clear();
-    tsdf = std::make_unique<SparseTSDF>(params.voxelSize, params.block_count, params.hash_size);
-}
-
-
-void FusionScene::AllocateAroundPoint(const vec3& p)
-{
-    auto block_id = tsdf->GetBlockIndex(p);
-
-    int r = 1;
-
-    for (int z = -r; z <= r; ++z)
-    {
-        for (int y = -r; y <= r; ++y)
-        {
-            for (int x = -r; x <= r; ++x)
-            {
-                ivec3 current_id = ivec3(x, y, z) + block_id;
-                tsdf->InsertBlock(current_id);
-            }
         }
     }
 }
@@ -112,7 +92,7 @@ void FusionScene::AnalyseSparseStructure()
 
                 if (params.point_based)
                 {
-                    AllocateAroundPoint(center);
+                    tsdf->AllocateAroundPoint(center);
                     continue;
                 }
 

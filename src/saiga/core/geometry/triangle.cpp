@@ -6,9 +6,19 @@
 
 #include "triangle.h"
 
+#include "saiga/core/math/random.h"
+
 #include "internal/noGraphicsAPI.h"
 namespace Saiga
 {
+void Triangle::ScaleUniform(float f)
+{
+    auto cen = center().cast<double>();
+    a = ((a.cast<double>() - cen) * f + cen).cast<float>();
+    b = ((b.cast<double>() - cen) * f + cen).cast<float>();
+    c = ((c.cast<double>() - cen) * f + cen).cast<float>();
+}
+
 vec3 Triangle::center() const
 {
     return (a + b + c) * float(1.0f / 3.0f);
@@ -70,9 +80,97 @@ bool Triangle::isDegenerate() const
     //    !std::isfinite(angleAtCorner(2));
 }
 
+float Triangle::Area() const
+{
+    return 0.5f * cross(b - a, c - a).norm();
+}
+
+vec3 Triangle::RandomPointOnSurface() const
+{
+    auto bary = Random::MatrixUniform<vec3>(0, 1);
+
+    // make sure they sum up to 1
+    bary = bary / bary.array().sum();
+
+    return a * bary(0) + b * bary(1) + c * bary(2);
+}
+
 vec3 Triangle::normal() const
 {
     return normalize(cross(b - a, c - a));
+}
+
+float mag2(const vec3& x)
+{
+    return x.dot(x);
+}
+
+// find distance x0 is from segment x1-x2
+static float point_segment_distance(const Vec3f& x0, const Vec3f& x1, const Vec3f& x2)
+{
+    Vec3f dx(x2 - x1);
+    float m2 = mag2(dx);
+    // find parameter value of closest point on segment
+    float s12 = (float)(dot(x2 - x0, dx) / m2);
+    if (s12 < 0)
+    {
+        s12 = 0;
+    }
+    else if (s12 > 1)
+    {
+        s12 = 1;
+    }
+    // and find the distance
+    return distance(x0, s12 * x1 + (1 - s12) * x2);
+}
+
+vec3 Triangle::BarycentricCoordinates(const vec3& x0) const
+{
+    auto x1 = a;
+    auto x2 = b;
+    auto x3 = c;
+    // first find barycentric coordinates of closest point on infinite plane
+    Vec3f x13(x1 - x3), x23(x2 - x3), x03(x0 - x3);
+    float m13 = mag2(x13), m23 = mag2(x23), d = dot(x13, x23);
+    float invdet = 1.f / std::max(m13 * m23 - d * d, 1e-30f);
+    float a = dot(x13, x03), b = dot(x23, x03);
+    // the barycentric coordinates themselves
+    float w23 = invdet * (m23 * a - d * b);
+    float w31 = invdet * (m13 * b - d * a);
+    float w12 = 1 - w23 - w31;
+
+    return {w12, w23, w31};
+}
+
+float Triangle::Distance(const vec3& x0) const
+{
+    auto x1 = a;
+    auto x2 = b;
+    auto x3 = c;
+    // first find barycentric coordinates of closest point on infinite plane
+    Vec3f x13(x1 - x3), x23(x2 - x3), x03(x0 - x3);
+    float m13 = mag2(x13), m23 = mag2(x23), d = dot(x13, x23);
+    float invdet = 1.f / std::max(m13 * m23 - d * d, 1e-30f);
+    float a = dot(x13, x03), b = dot(x23, x03);
+    // the barycentric coordinates themselves
+    float w23 = invdet * (m23 * a - d * b);
+    float w31 = invdet * (m13 * b - d * a);
+    float w12 = 1 - w23 - w31;
+
+
+    if (w23 >= 0 && w31 >= 0 && w12 >= 0)
+    {  // if we're inside the triangle
+        return distance(x0, w23 * x1 + w31 * x2 + w12 * x3);
+    }
+    else
+    {                 // we have to clamp to one of the edges
+        if (w23 > 0)  // this rules out edge 2-3 for us
+            return std::min(point_segment_distance(x0, x1, x2), point_segment_distance(x0, x1, x3));
+        else if (w31 > 0)  // this rules out edge 1-3
+            return std::min(point_segment_distance(x0, x1, x2), point_segment_distance(x0, x2, x3));
+        else  // w12 must be >0, ruling out edge 1-2
+            return std::min(point_segment_distance(x0, x1, x3), point_segment_distance(x0, x2, x3));
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const Triangle& t)

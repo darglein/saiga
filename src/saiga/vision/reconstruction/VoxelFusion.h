@@ -106,8 +106,7 @@ struct SAIGA_VISION_API FusionScene
     void IntegratePointBased();
     void ExtractMesh();
 
-   private:
-    void AllocateAroundPoint(const vec3& p);
+
 };
 
 

@@ -157,6 +157,22 @@ struct SAIGA_VISION_API SparseTSDF
         return new_block;
     }
 
+    void AllocateAroundPoint(const vec3& position, int r = 1)
+    {
+        auto block_id = GetBlockIndex(position);
+        for (int z = -r; z <= r; ++z)
+        {
+            for (int y = -r; y <= r; ++y)
+            {
+                for (int x = -r; x <= r; ++x)
+                {
+                    ivec3 current_id = ivec3(x, y, z) + block_id;
+                    InsertBlock(current_id);
+                }
+            }
+        }
+    }
+
     VoxelBlockIndex GetBlockIndex(const vec3& position)
     {
         vec3 normalized_position = (position - make_vec3(0.5f * voxel_size)) * block_size_inv;
@@ -190,6 +206,8 @@ struct SAIGA_VISION_API SparseTSDF
     void Compact() { blocks.resize(current_blocks); }
 
     int Size() { return current_blocks; }
+
+    void ClampDistance(float distance);
 
     // Sets all voxels to this values
     void SetForAll(float distance, float weight);
