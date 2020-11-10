@@ -69,9 +69,11 @@ std::shared_ptr<SparseTSDF> MeshToTSDF(const std::vector<Triangle>& triangles, f
         }
     }
 
+    AccelerationStructure::ObjectMedianBVH bvh(triangles);
+    bvh.triangle_epsilon = 0;
     {
         ProgressBar bar(std::cout, "M2TSDF Compute Unsigned Distance", tsdf->current_blocks);
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < tsdf->current_blocks; ++i)
         {
             auto& b = tsdf->blocks[i];
@@ -83,10 +85,15 @@ std::shared_ptr<SparseTSDF> MeshToTSDF(const std::vector<Triangle>& triangles, f
                     {
                         vec3 global_pos = tsdf->GlobalPosition(b.index, i, j, k);
 
-                        float dis;
-                        {
-                            dis = Distance(triangles, global_pos);
-                        }
+                        //                        float dis  = Distance(triangles, global_pos);
+                        float dis = bvh.ClosestPoint(global_pos).first;
+
+                        // SAIGA_ASSERT(dis == dis2);
+                        //                        if (dis != dis2)
+                        //                        {
+                        //                            std::cout << ":o " << dis << " " << dis2 << std::endl;
+                        //                        }
+
                         b.data[i][j][k].distance = -dis;
                         b.data[i][j][k].weight   = 1;
                     }
@@ -97,12 +104,11 @@ std::shared_ptr<SparseTSDF> MeshToTSDF(const std::vector<Triangle>& triangles, f
     }
 
 
-    auto triangles_cpy = triangles;
+    //    auto triangles_cpy = triangles;
     //    for (auto& t : triangles_cpy)
     //    {
     //        t.ScaleUniform(1.000125);
     //    }
-    AccelerationStructure::ObjectMedianBVH bvh(triangles_cpy);
 
 
 
@@ -122,7 +128,7 @@ std::shared_ptr<SparseTSDF> MeshToTSDF(const std::vector<Triangle>& triangles, f
         }
 
         ProgressBar bar(std::cout, "M2TSDF Compute Sign", tsdf->current_blocks);
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < tsdf->current_blocks; ++i)
         {
             auto& b = tsdf->blocks[i];

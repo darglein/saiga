@@ -7,8 +7,8 @@
 #pragma once
 
 #include "saiga/core/math/math.h"
+#include "saiga/core/math/random.h"
 
-#include <random>
 #include <vector>
 
 namespace Saiga
@@ -29,12 +29,12 @@ class SAIGA_TEMPLATE DiscreteProbabilityDistribution
    public:
     static_assert(std::is_floating_point<real_t>::value, "Only floating point types allowed!");
     // O(n)
-    DiscreteProbabilityDistribution( std::vector<real_t> probabilities);
+    DiscreteProbabilityDistribution(std::vector<real_t> probabilities);
     // O(1)
     int sample();
 
    private:
-    std::default_random_engine re;
+    //    std::default_random_engine re;
     int n;
     std::vector<int> alias;
     std::vector<real_t> prob;
@@ -42,7 +42,7 @@ class SAIGA_TEMPLATE DiscreteProbabilityDistribution
 
 template <typename real_t>
 DiscreteProbabilityDistribution<real_t>::DiscreteProbabilityDistribution(std::vector<real_t> probabilities)
-    : re(std::random_device()())
+//    : re(std::random_device()())
 {
     n = probabilities.size();
 
@@ -107,13 +107,15 @@ DiscreteProbabilityDistribution<real_t>::DiscreteProbabilityDistribution(std::ve
 template <typename real_t>
 int DiscreteProbabilityDistribution<real_t>::sample()
 {
-    std::uniform_int_distribution<int> uniform_dist(0, n - 1);
-    int i = uniform_dist(re);
+    //    std::uniform_int_distribution<int> uniform_dist(0, n - 1);
+    //    int i = uniform_dist(re);
+    int i = Random::uniformInt(0, n - 1);
 
-    std::uniform_real_distribution<real_t> uniform_distf(0, 1);
-    float f = uniform_distf(re);
+    //    std::uniform_real_distribution<real_t> uniform_distf(0, 1);
+    //    float f = uniform_distf(re);
 
-    return (f <= prob[i]) ? i : alias[i];
+
+    return (Random::sampleBool(prob[i])) ? i : alias[i];
 }
 
 }  // namespace Saiga

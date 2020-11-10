@@ -68,12 +68,11 @@ bool RaySphere(const Ray& ray, const Sphere& sphere, float& t1, float& t2)
 
 
 RayTriangleIntersection RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const vec3& B,
-                                    const vec3& C)
+                                    const vec3& C, float epsilon)
 {
     RayTriangleIntersection inter;
 
 
-    const float EPSILON_RAYTRIANGLE = 0.000001f;
     vec3 e1, e2;  // Edge1, Edge2
     vec3 P, Q, T;
     float det, inv_det, u, v;
@@ -93,7 +92,7 @@ RayTriangleIntersection RayTriangle(const vec3& direction, const vec3& origin, c
     det = dot(e1, P);
 
     // NOT CULLING
-    if (det > -EPSILON_RAYTRIANGLE && det < EPSILON_RAYTRIANGLE) return inter;
+    if (det > -epsilon && det < epsilon) return inter;
     inv_det = 1.f / det;
 
     // calculate distance from V1 to ray origin
@@ -115,7 +114,7 @@ RayTriangleIntersection RayTriangle(const vec3& direction, const vec3& origin, c
 
     t = dot(e2, Q) * inv_det;
 
-    if (t > EPSILON_RAYTRIANGLE)
+    if (t > epsilon)
     {
         inter.valid = true;
         inter.t     = t;
@@ -126,7 +125,7 @@ RayTriangleIntersection RayTriangle(const vec3& direction, const vec3& origin, c
 }
 
 
-RayTriangleIntersection RayTriangle(const Ray& r, const Triangle& tri)
+RayTriangleIntersection RayTriangle(const Ray& r, const Triangle& tri, float epsilon)
 {
     const vec3& direction = r.direction;
     const vec3& origin    = r.origin;
@@ -134,7 +133,7 @@ RayTriangleIntersection RayTriangle(const Ray& r, const Triangle& tri)
     const vec3& A = tri.a;
     const vec3& B = tri.b;
     const vec3& C = tri.c;
-    return RayTriangle(direction, origin, A, B, C);
+    return RayTriangle(direction, origin, A, B, C, epsilon);
 }
 
 bool RayPlane(const Ray& r, const Plane& p, float& t)

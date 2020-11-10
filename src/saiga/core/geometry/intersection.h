@@ -35,7 +35,7 @@ SAIGA_CORE_API bool PlanePlane(const Plane& p1, const Plane& p2, Ray& outRay);
  * t2 is always greater or equal to t1
  */
 SAIGA_CORE_API bool RaySphere(const vec3& rayOrigin, const vec3& rayDir, const vec3& spherePos, float sphereRadius,
-                            float& t1, float& t2);
+                              float& t1, float& t2);
 SAIGA_CORE_API bool RaySphere(const Ray& ray, const Sphere& sphere, float& t1, float& t2);
 
 /**
@@ -54,14 +54,15 @@ struct RayTriangleIntersection
     explicit operator bool() const { return valid; }
 };
 SAIGA_CORE_API RayTriangleIntersection RayTriangle(const vec3& direction, const vec3& origin, const vec3& A,
-                                                 const vec3& B, const vec3& C);
-SAIGA_CORE_API RayTriangleIntersection RayTriangle(const Ray& r, const Triangle& tri);
+                                                   const vec3& B, const vec3& C, float epsilon = 0.00001);
+SAIGA_CORE_API RayTriangleIntersection RayTriangle(const Ray& r, const Triangle& tri, float epsilon = 0.00001);
 
 
 
 SAIGA_CORE_API bool RayPlane(const Ray& r, const Plane& p, float& t);
 
-SAIGA_CORE_API bool RayAABB(const vec3& origin, const vec3& direction, const vec3& boxmin, const vec3& boxmax, float& t);
+SAIGA_CORE_API bool RayAABB(const vec3& origin, const vec3& direction, const vec3& boxmin, const vec3& boxmax,
+                            float& t);
 SAIGA_CORE_API bool RayAABB(const Ray& r, const AABB& bb, float& t);
 
 

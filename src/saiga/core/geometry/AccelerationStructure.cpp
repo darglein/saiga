@@ -19,7 +19,7 @@ RayTriangleIntersection BruteForce::getClosest(const Ray& ray)
     for (size_t i = 0; i < triangles.size(); ++i)
     {
         auto& tri  = triangles[i];
-        auto inter = Intersection::RayTriangle(ray, tri);
+        auto inter = Intersection::RayTriangle(ray, tri, triangle_epsilon);
         if (inter && inter < result)
         {
             inter.triangleIndex = i;
@@ -35,7 +35,7 @@ std::vector<RayTriangleIntersection> BruteForce::getAll(const Ray& ray)
     for (size_t i = 0; i < triangles.size(); ++i)
     {
         auto& tri  = triangles[i];
-        auto inter = Intersection::RayTriangle(ray, tri);
+        auto inter = Intersection::RayTriangle(ray, tri, triangle_epsilon);
         if (inter)
         {
             inter.triangleIndex = i;
@@ -70,6 +70,17 @@ std::vector<Intersection::RayTriangleIntersection> BVH::getAll(const Ray& ray)
     return result;
 }
 
+std::pair<float, int> BVH::ClosestPoint(const vec3& p)
+{
+    std::pair<float, int> result = {std::numeric_limits<float>::infinity(), -1};
+    if (!nodes.empty())
+    {
+        ClosestPoint(0, p, result);
+        result.first = sqrt(result.first);
+    }
+    return result;
+}
+
 AABB BVH::computeBox(int start, int end)
 {
     AABB box;
@@ -81,6 +92,9 @@ AABB BVH::computeBox(int start, int end)
         box.growBox(t.b);
         box.growBox(t.c);
     }
+
+    box.min -= vec3(bvh_epsilon, bvh_epsilon, bvh_epsilon);
+    box.max += vec3(bvh_epsilon, bvh_epsilon, bvh_epsilon);
     return box;
 }
 
@@ -111,7 +125,7 @@ void BVH::getClosest(int node, const Ray& ray, Intersection::RayTriangleIntersec
         // Leaf node -> intersect with triangles
         for (uint32_t i = n._left; i < n._right; ++i)
         {
-            auto inter = Intersection::RayTriangle(ray, triangles[i].first);
+            auto inter = Intersection::RayTriangle(ray, triangles[i].first, triangle_epsilon);
             if (inter && inter < result)
             {
                 inter.triangleIndex = triangles[i].second;
@@ -127,8 +141,11 @@ void BVH::getAll(int node, const Ray& ray, std::vector<Intersection::RayTriangle
 
     float aabbT;
 
-    // The ray missed the box
-    if (!Intersection::RayAABB(ray, n.box, aabbT)) return;
+    if (!Intersection::RayAABB(ray, n.box, aabbT))
+    {
+        // The ray missed the box
+        return;
+    }
 
     if (n._inner)
     {
@@ -140,11 +157,65 @@ void BVH::getAll(int node, const Ray& ray, std::vector<Intersection::RayTriangle
         // Leaf node -> intersect with triangles
         for (uint32_t i = n._left; i < n._right; ++i)
         {
-            auto inter = Intersection::RayTriangle(ray, triangles[i].first);
+            auto inter = Intersection::RayTriangle(ray, triangles[i].first, triangle_epsilon);
             if (inter)
             {
                 inter.triangleIndex = triangles[i].second;
                 result.push_back(inter);
+            }
+        }
+    }
+}
+
+void BVH::ClosestPoint(int node, const vec3& p, std::pair<float, int>& result)
+{
+    BVHNode& n = nodes[node];
+
+
+    if (n._inner)
+    {
+        auto& l = nodes[n._left];
+        auto& r = nodes[n._right];
+
+        auto ld = l.box.DistanceSquared(p);
+        auto rd = r.box.DistanceSquared(p);
+
+        // go into closest box first
+        if (ld < rd)
+        {
+            if (ld < result.first)
+            {
+                ClosestPoint(n._left, p, result);
+            }
+            if (rd < result.first)
+            {
+                ClosestPoint(n._right, p, result);
+            }
+        }
+        else
+        {
+            if (rd < result.first)
+            {
+                ClosestPoint(n._right, p, result);
+            }
+            if (ld < result.first)
+            {
+                ClosestPoint(n._left, p, result);
+            }
+        }
+    }
+    else
+    {
+        // Leaf node -> compute triangle distance
+        for (uint32_t i = n._left; i < n._right; ++i)
+        {
+            auto& tri = triangles[i].first;
+            auto d    = tri.Distance(p);
+            d         = d * d;
+            if (d < result.first)
+            {
+                result.first  = d;
+                result.second = triangles[i].second;
             }
         }
     }

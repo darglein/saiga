@@ -53,6 +53,9 @@ class SAIGA_CORE_API AABB
 
     bool contains(const vec3& p) const;
 
+    // Point to AABB distance
+    float DistanceSquared(const vec3& p) const;
+
     // A list the 12 triangles (2 for each face)
     std::vector<Triangle> toTriangles() const;
 
