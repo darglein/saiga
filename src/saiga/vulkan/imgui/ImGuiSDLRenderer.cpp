@@ -62,7 +62,7 @@ void ImGuiSDLRenderer::init(SDL_Window* window, float width, float height)
 
     //    io.RenderDrawListsFn = ImGui_ImplSdlGL3_RenderDrawLists;   // Alternatively you can set this to NULL and call
     //    ImGui::GetDrawData() after ImGui::Render() to get the same ImDrawData pointer.
-    io.RenderDrawListsFn  = 0;
+    // io.RenderDrawListsFn  = 0;
     io.SetClipboardTextFn = ImGui_ImplSdlGL3_SetClipboardText;
     io.GetClipboardTextFn = ImGui_ImplSdlGL3_GetClipboardText;
 

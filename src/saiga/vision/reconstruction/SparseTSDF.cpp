@@ -199,7 +199,7 @@ void SparseTSDF::ClampDistance(float distance)
             {
                 for (auto& x : y)
                 {
-                    x.distance = clamp(x.distance,-distance,distance);
+                    x.distance = clamp(x.distance, -distance, distance);
                 }
             }
         }
@@ -262,7 +262,7 @@ std::ostream& operator<<(std::ostream& strm, const SparseTSDF& tsdf)
     strm << "  Mem Blocks   " << mem_blocks / (1000.0 * 1000) << " MB" << std::endl;
     strm << "  Mem Hash     " << mem_hash / (1000.0 * 1000) << " MB" << std::endl;
     strm << "  Distance     [" << d_st.min << ", " << d_st.max << "]" << std::endl;
-    strm << "  Weight       [" << w_st.min << ", " << w_st.max << "]" << std::endl;
+    strm << "  Weight       [" << w_st.min << ", " << w_st.max << "]";
 
     return strm;
 }

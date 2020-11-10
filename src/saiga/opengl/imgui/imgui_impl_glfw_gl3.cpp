@@ -86,8 +86,8 @@ ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParamete
     io.KeyMap[ImGuiKey_Y]          = GLFW_KEY_Y;
     io.KeyMap[ImGuiKey_Z]          = GLFW_KEY_Z;
 
-    io.RenderDrawListsFn = 0;  // Alternatively you can set this to NULL and call ImGui::GetDrawData() after
-                               // ImGui::Render() to get the same ImDrawData pointer.
+    //    io.RenderDrawListsFn = 0;  // Alternatively you can set this to NULL and call ImGui::GetDrawData() after
+    // ImGui::Render() to get the same ImDrawData pointer.
     io.SetClipboardTextFn = ImGui_ImplGlfwGL3_SetClipboardText;
     //    io.SetClipboardTextFn = [this](const char*text){this->ImGui_ImplGlfwGL3_SetClipboardText(text);};
     io.GetClipboardTextFn = ImGui_ImplGlfwGL3_GetClipboardText;

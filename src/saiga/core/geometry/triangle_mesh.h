@@ -153,6 +153,8 @@ class TriangleMesh : public Mesh<vertex_t>
 
     bool isValid() const;
 
+    bool empty() const { return faces.empty() || vertices.empty();}
+
     /**
      * Sorts the vertices by (x,y,z) lexical.
      * The face indices are correct to match the new vertices.
