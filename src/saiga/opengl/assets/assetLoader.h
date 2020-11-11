@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/opengl/animation/boneShader.h"
 #include "saiga/core/util/color.h"
+#include "saiga/opengl/animation/boneShader.h"
 
 #include "animatedAsset.h"
 #include "coloredAsset.h"
@@ -17,29 +17,8 @@ namespace Saiga
 class SAIGA_OPENGL_API AssetLoader
 {
    public:
-    std::shared_ptr<MVPShader> basicAssetShader;
-    std::shared_ptr<MVPShader> basicAssetForwardShader;
-    std::shared_ptr<MVPShader> basicAssetDepthshader;
-    std::shared_ptr<MVPShader> basicAssetWireframeShader;
-
-    std::shared_ptr<MVPShader> texturedAssetShader;
-    std::shared_ptr<MVPShader> texturedAssetForwardShader;
-    std::shared_ptr<MVPShader> texturedAssetDepthShader;
-    std::shared_ptr<MVPShader> texturedAssetWireframeShader;
-
-    std::shared_ptr<BoneShader> animatedAssetShader;
-    std::shared_ptr<BoneShader> animatedAssetForwardShader;
-    std::shared_ptr<BoneShader> animatedAssetDepthshader;
-    std::shared_ptr<BoneShader> animatedAssetWireframeShader;
-
     AssetLoader();
     virtual ~AssetLoader();
-
-    void loadBasicShaders();
-    void loadTextureShaders();
-    void loadAnimatedShaders();
-
-
 
     /**
      * Creates a plane with a checker board texture.

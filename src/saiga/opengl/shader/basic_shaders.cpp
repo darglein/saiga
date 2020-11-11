@@ -18,7 +18,6 @@ void MVPShader::checkUniforms()
     location_userData = getUniformLocation("userData");
 
     location_cameraData = getUniformBlockLocation("cameraData");
-
     if (location_cameraData != GL_INVALID_INDEX) setUniformBlockBinding(location_cameraData, CAMERA_DATA_BINDING_POINT);
 }
 
@@ -49,18 +48,18 @@ void MVPTextureShader::uploadTexture(TextureBase* texture)
 
 
 
-void FBShader::checkUniforms()
-{
-    MVPShader::checkUniforms();
-    location_texture = getUniformLocation("text");
-}
+// void FBShader::checkUniforms()
+//{
+//    MVPShader::checkUniforms();
+//    location_texture = getUniformLocation("text");
+//}
 
-void FBShader::uploadFramebuffer(Framebuffer* fb)
-{
-    //    fb->colorBuffers[0]->bind(0);
-    //    upload(location_texture,0);
-    //    upload(location_texture,fb->colorBuffers[0],0);
-}
+// void FBShader::uploadFramebuffer(Framebuffer* fb)
+//{
+//    //    fb->colorBuffers[0]->bind(0);
+//    //    upload(location_texture,0);
+//    //    upload(location_texture,fb->colorBuffers[0],0);
+//}
 
 void DeferredShader::checkUniforms()
 {

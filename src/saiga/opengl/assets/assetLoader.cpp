@@ -19,32 +19,6 @@ AssetLoader::AssetLoader() {}
 AssetLoader::~AssetLoader() {}
 
 
-void AssetLoader::loadBasicShaders()
-{
-    if (basicAssetShader) return;
-    basicAssetShader          = shaderLoader.load<MVPShader>("geometry/deferred_mvp_model.glsl");
-    basicAssetForwardShader   = shaderLoader.load<MVPShader>("geometry/deferred_mvp_model_forward.glsl");
-    basicAssetDepthshader     = shaderLoader.load<MVPShader>("geometry/deferred_mvp_model_depth.glsl");
-    basicAssetWireframeShader = shaderLoader.load<MVPShader>("geometry/deferred_mvp_model_wireframe.glsl");
-}
-
-void AssetLoader::loadTextureShaders()
-{
-    if (texturedAssetShader) return;
-    texturedAssetShader          = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset.glsl");
-    texturedAssetForwardShader   = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset.glsl");
-    texturedAssetDepthShader     = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset_depth.glsl");
-    texturedAssetWireframeShader = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset_wireframe.glsl");
-}
-
-void AssetLoader::loadAnimatedShaders()
-{
-    if (animatedAssetShader) return;
-    animatedAssetShader          = shaderLoader.load<BoneShader>("geometry/deferred_mvp_bones.glsl");
-    animatedAssetDepthshader     = shaderLoader.load<BoneShader>("geometry/deferred_mvp_bones_depth.glsl");
-    animatedAssetWireframeShader = shaderLoader.load<BoneShader>("geometry/deferred_mvp_bones.glsl");
-}
-
 
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugPlaneAsset(vec2 size, float quadSize, Color color1, Color color2)
 {

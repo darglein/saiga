@@ -58,7 +58,7 @@ endif ()
 PackageHelper(FFMPEG ${FFMPEG_FOUND} "${FFMPEG_INCLUDE_DIR}" "${FFMPEG_LIBRARIES}")
 
 #assimp
-find_package(ASSIMP 4.0 QUIET)
+find_package(ASSIMP 5.0)
 if(ASSIMP_FOUND)
     SET(SAIGA_USE_ASSIMP 1)
 endif()
