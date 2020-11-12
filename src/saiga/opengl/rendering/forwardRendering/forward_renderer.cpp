@@ -26,47 +26,64 @@ ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& para
         t.create();
     }
 
+    lighting.init(window.getWidth(), window.getHeight(), false);
+
     std::cout << " Forward Renderer initialized. Render resolution: " << window.getWidth() << "x" << window.getHeight()
               << std::endl;
 }
 
-void ForwardRenderer::render(const Saiga::RenderInfo& renderInfo)
+void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
 {
     if (!rendering) return;
+
+    Saiga::RenderInfo renderInfo = _renderInfo;
 
     SAIGA_ASSERT(rendering);
     SAIGA_ASSERT(renderInfo);
 
-    auto camera = renderInfo.cameras.front().first;
+    // if we have multiple cameras defined the user has to specify the viewports of each individual camera
+    SAIGA_ASSERT(params.userViewPort || renderInfo.cameras.size() == 1);
+
+
+    if (renderInfo.cameras.size() == 1)
+    {
+        renderInfo.cameras.front().second = ViewPort({0, 0}, {outputWidth, outputHeight});
+    }
 
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
-
-    glViewport(0, 0, outputWidth, outputHeight);
 
     if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
 
 
     startTimer(TOTAL);
-
-
-    camera->recalculatePlanes();
-    bindCamera(camera);
-
-
     startTimer(FORWARD);
 
-    Framebuffer::bindDefaultFramebuffer();
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    for (auto c : renderInfo.cameras)
+    {
+        auto camera = c.first;
+        camera->recalculatePlanes();
+        bindCamera(camera);
 
-    // forward pass with lighting
-    lighting.render(renderingInterface, camera);
+        setViewPort(c.second);
+
+        // renderDepthMaps();
+
+        Framebuffer::bindDefaultFramebuffer();
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+        // forward pass with lighting
+        lighting.initRender();
+        if (cullLights) lighting.cullLights(camera);
+        renderingInterface->render(camera, RenderPass::Forward);
+        lighting.render(c.first, c.second);
+    }
 
     stopTimer(FORWARD);
 
@@ -83,7 +100,7 @@ void ForwardRenderer::render(const Saiga::RenderInfo& renderInfo)
         SAIGA_ASSERT(ImGui::GetCurrentContext());
         imgui->beginFrame();
     }
-    renderingInterface->render(camera, RenderPass::GUI);
+    renderingInterface->render(nullptr, RenderPass::GUI);
     if (imgui)
     {
         imgui->endFrame();
@@ -101,6 +118,12 @@ void ForwardRenderer::resize(int width, int height)
 {
     lighting.resize(width, height);
     OpenGLRenderer::resize(width, height);
+}
+
+void ForwardRenderer::renderImGui(bool* p_open)
+{
+    OpenGLRenderer::renderImGui(p_open);
+    ImGui::Checkbox("Cull Lights", &cullLights);
 }
 
 

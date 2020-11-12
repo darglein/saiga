@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/query/gpuTimer.h"
-#include "saiga/opengl/rendering/forwardRendering/forwardLighting/forward_lighting.h"
+#include "saiga/opengl/rendering/lighting/forward_lighting.h"
 #include "saiga/opengl/rendering/renderer.h"
 
 namespace Saiga
@@ -35,7 +35,7 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     virtual ~ForwardRenderer() {}
 
     virtual void render(const RenderInfo& renderInfo) override;
-    // void renderImGui(bool* p_open = nullptr) override;
+    virtual void renderImGui(bool* p_open = nullptr) override;
 
     void resize(int width, int height);
 
@@ -64,6 +64,8 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     void stopTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].stopTimer(); }
 
     const char* mainShaderSource = "asset/forwardColoredAsset.glsl";
+
+    bool cullLights = false;
 };
 
 }  // namespace Saiga

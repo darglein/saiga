@@ -9,14 +9,12 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/window/Interfaces.h"
+#include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
 
-#include "saiga/opengl/rendering/lighting/point_light.h"
-
 namespace Saiga
 {
-
 #define MAX_PL_COUNT 1024
 
 struct LightData
@@ -42,35 +40,22 @@ class SAIGA_OPENGL_API MVPColorShaderFL : public MVPColorShader
     }
 };
 
-class SAIGA_OPENGL_API ForwardLighting
+class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 {
    public:
-    vec4 clearColor;
-    int lightCount;
-
     UniformBuffer pointLightBuffer;
-
-    bool debugDraw;
 
     ForwardLighting();
     ~ForwardLighting();
 
-    void init(int width, int height);
-    void resize(int width, int height);
+    void initRender() override;
 
-    void addPointLight(std::shared_ptr<PointLight> light);
-    void removePointLight(std::shared_ptr<PointLight> light);
-    std::vector<std::shared_ptr<PointLight> > pointLights;
+    void render(Camera* cam, const ViewPort& viewPort) override;
 
-    void render(RenderingInterface* renderingInterface, Camera* camera);
+    void renderImGui(bool* p_open = NULL) override;
 
-
-    void printTimings();
-    void renderImGui(bool* p_open = NULL);
-
-
-    int width;
-    int height;
+   private:
+    int plCount;
 };
 
 }  // namespace Saiga

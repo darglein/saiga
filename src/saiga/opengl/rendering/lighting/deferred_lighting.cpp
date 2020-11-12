@@ -29,37 +29,22 @@ DeferredLighting::~DeferredLighting() {}
 
 void DeferredLighting::loadShaders()
 {
-    const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
+    RendererLighting::loadShaders();
 
-    if (!directionalLightShader)
-    {
-        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
-        directionalLightShader = shaderLoader.load<DirectionalLightShader>(names.directionalLightShader);
-        directionalLightShadowShader =
-            shaderLoader.load<DirectionalLightShader>(names.directionalLightShader, shadowInjection);
-    }
+    const RendererLightingShaderNames& names = RendererLightingShaderNames();
 
-    if (!pointLightShader)
+    if (!pointLightVolumetricShader)
     {
-        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
-        pointLightShader                         = shaderLoader.load<PointLightShader>(names.pointLightShader);
-        pointLightShadowShader     = shaderLoader.load<PointLightShader>(names.pointLightShader, shadowInjection);
         pointLightVolumetricShader = shaderLoader.load<PointLightShader>(names.pointLightShader, volumetricInjection);
     }
 
-    if (!spotLightShader)
+    if (!spotLightVolumetricShader)
     {
-        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
-        spotLightShader                          = shaderLoader.load<SpotLightShader>(names.spotLightShader);
-        spotLightShadowShader     = shaderLoader.load<SpotLightShader>(names.spotLightShader, shadowInjection);
         spotLightVolumetricShader = shaderLoader.load<SpotLightShader>(names.spotLightShader, volumetricInjection);
     }
 
-    if (!boxLightShader)
+    if (!boxLightVolumetricShader)
     {
-        const DeferredLightingShaderNames& names = DeferredLightingShaderNames();
-        boxLightShader                           = shaderLoader.load<BoxLightShader>(names.boxLightShader);
-        boxLightShadowShader     = shaderLoader.load<BoxLightShader>(names.boxLightShader, shadowInjection);
         boxLightVolumetricShader = shaderLoader.load<BoxLightShader>(names.boxLightShader, volumetricInjection);
     }
 
@@ -68,24 +53,7 @@ void DeferredLighting::loadShaders()
 
 void DeferredLighting::init(int _width, int _height, bool _useTimers)
 {
-    this->width  = _width;
-    this->height = _height;
-    useTimers    = _useTimers;
-
-    if (useTimers)
-    {
-        timers2.resize(5);
-        for (int i = 0; i < 5; ++i)
-        {
-            timers2[i].create();
-        }
-        timerStrings.resize(5);
-        timerStrings[0] = "Init";
-        timerStrings[1] = "Point Lights";
-        timerStrings[2] = "Spot Lights";
-        timerStrings[3] = "Box Lights";
-        timerStrings[4] = "Directional Lights";
-    }
+    RendererLighting::init(_width, _height, _useTimers);
 
     lightAccumulationBuffer.create();
 
@@ -124,11 +92,6 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers)
     volumetricBuffer.check();
     volumetricBuffer.unbind();
 
-
-    int shadowSamplesX = round(sqrt((float)shadowSamples));
-    shadowInjection.emplace_back(GL_FRAGMENT_SHADER, "#define SHADOWS", 1);
-    shadowInjection.emplace_back(GL_FRAGMENT_SHADER, "#define SHADOW_SAMPLES_X " + std::to_string(shadowSamplesX), 2);
-
     volumetricInjection.emplace_back(GL_FRAGMENT_SHADER, "#define VOLUMETRIC", 3);
 
     volumetricInjection.insert(volumetricInjection.end(), shadowInjection.begin(), shadowInjection.end());
@@ -136,8 +99,8 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers)
 
 void DeferredLighting::resize(int _width, int _height)
 {
-    this->width  = _width;
-    this->height = _height;
+    RendererLighting::resize(_width, _height);
+
     lightAccumulationBuffer.resize(_width, _height);
 }
 
@@ -185,21 +148,9 @@ void DeferredLighting::cullLights(Camera* cam)
     renderVolumetric = visibleVolumetricLights > 0;
 }
 
-void DeferredLighting::printTimings()
-{
-    if (!useTimers) return;
-    for (int i = 0; i < 5; ++i)
-    {
-        std::cout << "\t " << getTime(i) << "ms " << timerStrings[i] << std::endl;
-    }
-}
-
-
 void DeferredLighting::initRender()
 {
-    totalLights       = 0;
-    renderedDepthmaps = 0;
-    totalLights       = directionalLights.size() + spotLights.size() + pointLights.size() + boxLights.size();
+    RendererLighting::initRender();
 
     lightAccumulationBuffer.bind();
     if (renderVolumetric)
@@ -213,60 +164,10 @@ void DeferredLighting::initRender()
     lightAccumulationBuffer.unbind();
 }
 
-void DeferredLighting::renderDepthMaps(RenderingInterface* renderer)
-{
-    // When GL_POLYGON_OFFSET_FILL, GL_POLYGON_OFFSET_LINE, or GL_POLYGON_OFFSET_POINT is enabled,
-    // each fragment's depth value will be offset after it is interpolated from the depth values of the appropriate
-    // vertices. The value of the offset is factor×DZ+r×units, where DZ is a measurement of the change in depth
-    // relative to the screen area of the polygon, and r is the smallest value that is guaranteed to produce a
-    // resolvable offset for a given implementation. The offset is added before the depth test is performed and
-    // before the value is written into the depth buffer.
-    glEnable(GL_POLYGON_OFFSET_FILL);
-
-    float shadowMult = backFaceShadows ? -1 : 1;
-
-    if (backFaceShadows)
-        glCullFace(GL_FRONT);
-    else
-        glCullFace(GL_BACK);
-
-
-    //        glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
-
-    shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-    DepthFunction depthFunc = [&](Camera* cam) -> void {
-        renderedDepthmaps++;
-        renderer->render(cam, RenderPass::Shadow);
-    };
-    for (auto& light : directionalLights)
-    {
-        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-        //        glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
-        light->renderShadowmap(depthFunc, shadowCameraBuffer);
-    }
-    for (auto& light : boxLights)
-    {
-        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-        light->renderShadowmap(depthFunc, shadowCameraBuffer);
-    }
-    for (auto& light : spotLights)
-    {
-        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-        light->renderShadowmap(depthFunc, shadowCameraBuffer);
-    }
-    for (auto& light : pointLights)
-    {
-        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-        light->renderShadowmap(depthFunc, shadowCameraBuffer);
-    }
-    glCullFace(GL_BACK);
-    glDisable(GL_POLYGON_OFFSET_FILL);
-
-    glPolygonOffset(0, 0);
-}
-
 void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 {
+    // Does nothing
+    RendererLighting::render(cam, viewPort);
     //    gbuffer.blitDepth(lightAccumulationBuffer.getId());
 
     startTimer(0);
@@ -543,113 +444,6 @@ void DeferredLighting::renderDirectionalLights(Camera* cam, const ViewPort& vp, 
 }
 
 
-void DeferredLighting::renderDebug(Camera* cam)
-{
-    if (!debugShader) debugShader = shaderLoader.load<MVPColorShader>("lighting/debugmesh.glsl");
-
-    debugShader->bind();
-
-    // ======================= Pointlights ===================
-
-    pointLightMesh.bind();
-    // center
-    for (auto& obj : pointLights)
-    {
-        mat4 sm    = obj->model * scale(make_vec3(0.01));
-        vec4 color = obj->colorDiffuse;
-        if (!obj->isActive() || !obj->isVisible())
-        {
-            continue;
-        }
-        debugShader->uploadModel(sm);
-        debugShader->uploadColor(color);
-        pointLightMesh.draw();
-    }
-
-    // render outline
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    for (auto& obj : pointLights)
-    {
-        if (!obj->isActive() || !obj->isVisible())
-        {
-            continue;
-        }
-        debugShader->uploadModel(obj->model);
-        debugShader->uploadColor(obj->colorDiffuse);
-        pointLightMesh.draw();
-        //        }
-    }
-    pointLightMesh.unbind();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-
-    //==================== Spotlights ==================
-
-    spotLightMesh.bind();
-    // center
-    for (auto& obj : spotLights)
-    {
-        mat4 sm    = obj->model * scale(make_vec3(0.01));
-        vec4 color = obj->colorDiffuse;
-        if (!obj->isActive() || !obj->isVisible())
-        {
-            continue;
-        }
-        debugShader->uploadModel(sm);
-        debugShader->uploadColor(color);
-        spotLightMesh.draw();
-    }
-
-    // render outline
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    for (auto& obj : spotLights)
-    {
-        if (!obj->isActive() || !obj->isVisible())
-        {
-            continue;
-        }
-        debugShader->uploadModel(obj->model);
-        debugShader->uploadColor(obj->colorDiffuse);
-        spotLightMesh.draw();
-    }
-    spotLightMesh.unbind();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-
-    //==================== Box lights ====================
-
-    boxLightMesh.bind();
-    // center
-    for (auto& obj : boxLights)
-    {
-        mat4 sm    = obj->model * scale(make_vec3(0.05));
-        vec4 color = obj->colorDiffuse;
-        if (!obj->isActive() || !obj->isVisible())
-        {
-            // render as black if light is turned off
-            color = vec4(0);
-        }
-        debugShader->uploadModel(sm);
-        debugShader->uploadColor(color);
-        boxLightMesh.draw();
-    }
-
-    // render outline
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    for (auto& obj : boxLights)
-    {
-        //        if(obj->isSelected()){
-        debugShader->uploadModel(obj->model);
-        debugShader->uploadColor(obj->colorDiffuse);
-        boxLightMesh.draw();
-        //        }
-    }
-    boxLightMesh.unbind();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    debugShader->unbind();
-}
-
 void DeferredLighting::blitGbufferDepthToAccumulationBuffer()
 {
     //    glEnable(GL_DEPTH_TEST);
@@ -699,74 +493,11 @@ void DeferredLighting::applyVolumetricLightBuffer()
 }
 
 
-void DeferredLighting::setShader(std::shared_ptr<SpotLightShader> spotLightShader,
-                                 std::shared_ptr<SpotLightShader> spotLightShadowShader)
-{
-    this->spotLightShader       = spotLightShader;
-    this->spotLightShadowShader = spotLightShadowShader;
-}
-
-void DeferredLighting::setShader(std::shared_ptr<PointLightShader> pointLightShader,
-                                 std::shared_ptr<PointLightShader> pointLightShadowShader)
-{
-    this->pointLightShader       = pointLightShader;
-    this->pointLightShadowShader = pointLightShadowShader;
-}
-
-void DeferredLighting::setShader(std::shared_ptr<DirectionalLightShader> directionalLightShader,
-                                 std::shared_ptr<DirectionalLightShader> directionalLightShadowShader)
-{
-    this->directionalLightShader       = directionalLightShader;
-    this->directionalLightShadowShader = directionalLightShadowShader;
-}
-
-void DeferredLighting::setShader(std::shared_ptr<BoxLightShader> boxLightShader,
-                                 std::shared_ptr<BoxLightShader> boxLightShadowShader)
-{
-    this->boxLightShader       = boxLightShader;
-    this->boxLightShadowShader = boxLightShadowShader;
-}
-
-void DeferredLighting::setDebugShader(std::shared_ptr<MVPColorShader> shader)
-{
-    this->debugShader = shader;
-}
-
 void DeferredLighting::setStencilShader(std::shared_ptr<MVPShader> stencilShader)
 {
     this->stencilShader = stencilShader;
 }
 
-
-
-void DeferredLighting::createLightMeshes()
-{
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    directionalLightMesh.fromMesh(*qb);
-
-
-    // the create mesh returns a sphere with outer radius of 1
-    // but here we want the inner radius to be 1
-    // we estimate the required outer radius with apothem of regular polygons
-    float n = 4.9;
-    float r = 1.0f / cos(pi<float>() / n);
-    //    std::cout << "point light radius " << r << std::endl;
-    Sphere s(make_vec3(0), r);
-    auto sb = TriangleMeshGenerator::createMesh(s, 1);
-    //    sb->createBuffers(pointLightMesh);
-    pointLightMesh.fromMesh(*sb);
-
-
-    Cone c(make_vec3(0), vec3(0, 1, 0), 1.0f, 1.0f);
-    auto cb = TriangleMeshGenerator::createMesh(c, 10);
-    //    cb->createBuffers(spotLightMesh);
-    spotLightMesh.fromMesh(*cb);
-
-    AABB box(make_vec3(-1), make_vec3(1));
-    auto bb = TriangleMeshGenerator::createMesh(box);
-    //    bb->createBuffers(boxLightMesh);
-    boxLightMesh.fromMesh(*bb);
-}
 
 // std::shared_ptr<DirectionalLight> DeferredLighting::createDirectionalLight()
 //{
@@ -796,63 +527,15 @@ void DeferredLighting::createLightMeshes()
 //    return l;
 //}
 
-
-
-template <typename T>
-static void imGuiLightBox(int id, const std::string& name, T& lights)
-{
-    ImGui::NewLine();
-    ImGui::Separator();
-    ImGui::NewLine();
-    ImGui::PushID(id);
-    if (ImGui::CollapsingHeader(name.c_str()))
-    {
-        int i = 0;
-        for (auto& light : lights)
-        {
-            ImGui::PushID(i);
-            if (ImGui::CollapsingHeader(to_string(i).c_str()))
-            {
-                light->renderImGui();
-            }
-            i++;
-            ImGui::PopID();
-        }
-    }
-    ImGui::PopID();
-}
-
 void DeferredLighting::renderImGui(bool* p_open)
 {
+    RendererLighting::renderImGui(p_open);
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
     ImGui::Begin("DeferredLighting", p_open);
-
-    ImGui::Text("resolution: %dx%d", width, height);
-    ImGui::Text("visibleLights/totalLights: %d/%d", visibleLights, totalLights);
-    ImGui::Text("renderedDepthmaps: %d", renderedDepthmaps);
-    ImGui::Text("shadowSamples: %d", shadowSamples);
-    ImGui::ColorEdit4("clearColor ", &clearColor[0]);
-    ImGui::Checkbox("drawDebug", &drawDebug);
-    ImGui::Checkbox("useTimers", &useTimers);
     ImGui::Checkbox("stencilCulling", &stencilCulling);
-    ImGui::Checkbox("lightDepthTest", &lightDepthTest);
-
-
-    ImGui::Text("Render Time (without shadow map computation)");
-    for (int i = 0; i < 5; ++i)
-    {
-        ImGui::Text("  %f ms %s", getTime(i), timerStrings[i].c_str());
-    }
-    ImGui::Checkbox("backFaceShadows", &backFaceShadows);
-    ImGui::InputFloat("shadowOffsetFactor", &shadowOffsetFactor, 0.1, 1);
-    ImGui::InputFloat("shadowOffsetUnits", &shadowOffsetUnits, 0.1, 1);
-    imGuiLightBox(0, "Directional Lights", directionalLights);
-    imGuiLightBox(1, "Spot Lights", spotLights);
-    imGuiLightBox(2, "Point Lights", pointLights);
-    imGuiLightBox(3, "Box Lights", boxLights);
 
     ImGui::End();
 }
