@@ -5,11 +5,11 @@
  */
 
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/math/random.h"
 #include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/RendererSampleWindow.h"
 #include "saiga/opengl/world/skybox.h"
+
 
 using namespace Saiga;
 
@@ -28,10 +28,10 @@ class Sample : public RendererSampleWindow
         const char* shaderStr = renderer->getMainShaderSource();
 
         auto deferredShader =
-            shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
-        auto depthShader     = shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
-        auto forwardShader   = shaderLoader.load<MVPColorShader>(shaderStr);
-        auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
+            shaderLoader.load<MVPColorShaderFL>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+        auto depthShader   = shaderLoader.load<MVPColorShaderFL>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
+        auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr);
+        auto wireframeShader = shaderLoader.load<MVPColorShaderFL>(shaderStr);
 
         showAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 
@@ -47,6 +47,10 @@ class Sample : public RendererSampleWindow
         if (render_pass == RenderPass::Forward)
         {
             show.renderForward(camera);
+        }
+        else if (render_pass == RenderPass::GUI)
+        {
+            renderer->lighting.renderImGui();
         }
     }
 

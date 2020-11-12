@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/rendering/deferredRendering/lighting/spot_light.h"
+#include "saiga/opengl/rendering/lighting/spot_light.h"
 
 #include "saiga/core/imgui/imgui.h"
 

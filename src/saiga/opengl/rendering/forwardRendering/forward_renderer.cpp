@@ -19,8 +19,6 @@ namespace Saiga
 ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& params)
     : OpenGLRenderer(window), params(params), lighting()
 {
-    lighting.init(window.getWidth(), window.getHeight());
-
     int timerCount = ForwardTimingBlock::COUNT;
     timers.resize(timerCount);
     for (auto& t : timers)
@@ -68,9 +66,7 @@ void ForwardRenderer::render(const Saiga::RenderInfo& renderInfo)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // forward pass with lighting
-    lighting.initRender();
-    renderingInterface->render(camera, RenderPass::Forward);
-    lighting.endRender();
+    lighting.render(renderingInterface, camera);
 
     stopTimer(FORWARD);
 

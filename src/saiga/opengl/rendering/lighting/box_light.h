@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/opengl/rendering/deferredRendering/lighting/directional_light.h"
+#include "saiga/opengl/rendering/lighting/directional_light.h"
 
 namespace Saiga
 {

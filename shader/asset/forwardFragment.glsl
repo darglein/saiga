@@ -20,41 +20,56 @@ struct AssetMaterial
     vec4 data;
 };
 
-struct PointLight
+#define MAX_PL_COUNT 1024
+
+layout (std140) uniform lightDataBlock
 {
-    vec3 position;
-    vec4 color; // (w is intensity)
-    vec4 attenuation;
+    vec4 plPositions[MAX_PL_COUNT];
+    vec4 plColors[MAX_PL_COUNT];
+    vec4 plAttenuations[MAX_PL_COUNT];
+    int plCount;
 };
 
-void render(AssetMaterial material, vec3 position, vec3 normal, PointLight pl)
+void render(AssetMaterial material, vec3 position, vec3 normal)
 {
 #if defined(DEFERRED)
     setGbufferData(vec3(material.color), normal, material.data);
 #elif defined(DEPTH)
 #else
-    float Iamb = 0.002;
+    vec3 lighting = vec3(0);
 
-    vec3 fragmentLightDir = normalize(pl.position - position);
-    float intensity = pl.color.w;
-
-    float visibility = 1.0;
-
-    float att = getAttenuation(pl.attenuation, distance(position, pl.position));
-    float localIntensity = intensity * att * visibility;
-
-    float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
-    float Ispec = 0;
-    if(Idiff > 0)
-        Ispec = localIntensity * material.data.x  * intensitySpecular(position, normal, fragmentLightDir, 40);
+    for(int c = 0; c < plCount; ++c)
+    {
+        vec3 plPosition = (view * vec4(plPositions[c].rgb, 0.0)).rgb;
+        vec4 plColor = plColors[c];
+        vec4 plAttenuation = plAttenuations[c];
 
 
-    vec3 color = pl.color.rgb * (
-                Iamb  * material.color.rgb +
-                Idiff * material.color.rgb +
-                Ispec * pl.color.w * pl.color.rgb);
+        vec3 fragmentLightDir = normalize(plPosition - position);
+        float intensity = plColor.w;
 
-    out_color = vec4(color, 1);
+        float visibility = 1.0;
+
+        float att = getAttenuation(plAttenuation, distance(position, plPosition));
+        float localIntensity = intensity * att * visibility;
+
+        float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
+        float Ispec = 0;
+        if(Idiff > 0)
+            Ispec = localIntensity * material.data.x  * intensitySpecular(position, normal, fragmentLightDir, 40);
+
+
+        vec3 color = plColor.rgb * (
+                    Idiff * material.color.rgb +
+                    Ispec * plColor.w * plColor.rgb);
+
+        lighting += color;
+    }
+
+    float Iamb = 0.02;
+    lighting += Iamb * material.color.rgb;
+
+    out_color = vec4(lighting, 1);
 #endif
 }
 

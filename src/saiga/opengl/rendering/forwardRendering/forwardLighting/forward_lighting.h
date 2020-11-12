@@ -6,20 +6,40 @@
 
 #pragma once
 
+#include "saiga/core/camera/camera.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/window/Interfaces.h"
 #include "saiga/opengl/shader/basic_shaders.h"
+#include "saiga/opengl/uniformBuffer.h"
+
+#include "saiga/opengl/rendering/lighting/point_light.h"
 
 namespace Saiga
 {
 
-struct StandardPointLightParameters // for now
+#define MAX_PL_COUNT 1024
+
+struct LightData
 {
+    vec4 plPositions[MAX_PL_COUNT];
+    vec4 plColors[MAX_PL_COUNT];
+    vec4 plAttenuations[MAX_PL_COUNT];
+    int plCount;
 };
-struct StandardPointLight // for now
+
+#define LIGHT_DATA_BINDING_POINT 2
+
+class SAIGA_OPENGL_API MVPColorShaderFL : public MVPColorShader
 {
-    StandardPointLight(const StandardPointLightParameters& params) {}
-    vec3 position = make_vec3(0.0);
-    float intensity = 600.0f;
+   public:
+    GLint location_lightDataBlock;
+
+    virtual void checkUniforms() override
+    {
+        MVPColorShader::checkUniforms();
+        location_lightDataBlock = getUniformBlockLocation("lightDataBlock");
+        setUniformBlockBinding(location_lightDataBlock, LIGHT_DATA_BINDING_POINT);
+    }
 };
 
 class SAIGA_OPENGL_API ForwardLighting
@@ -27,7 +47,8 @@ class SAIGA_OPENGL_API ForwardLighting
    public:
     vec4 clearColor;
     int lightCount;
-    int visibleLights;
+
+    UniformBuffer pointLightBuffer;
 
     bool debugDraw;
 
@@ -37,12 +58,12 @@ class SAIGA_OPENGL_API ForwardLighting
     void init(int width, int height);
     void resize(int width, int height);
 
-    std::shared_ptr<StandardPointLight> addPointLight(StandardPointLightParameters params);
-    void removePointLight(std::shared_ptr<StandardPointLight> light);
-    std::vector<std::shared_ptr<StandardPointLight> > pointLights;
+    void addPointLight(std::shared_ptr<PointLight> light);
+    void removePointLight(std::shared_ptr<PointLight> light);
+    std::vector<std::shared_ptr<PointLight> > pointLights;
 
-    void initRender();
-    void endRender();
+    void render(RenderingInterface* renderingInterface, Camera* camera);
+
 
     void printTimings();
     void renderImGui(bool* p_open = NULL);
@@ -52,4 +73,4 @@ class SAIGA_OPENGL_API ForwardLighting
     int height;
 };
 
-} // namespace Saiga
+}  // namespace Saiga

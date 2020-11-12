@@ -41,7 +41,6 @@ in vec3 v_normal;
 in vec4 v_color;
 in vec4 v_data;
 
-
 #include "forwardFragment.glsl"
 
 void main()
@@ -49,9 +48,6 @@ void main()
     AssetMaterial material;
     material.color = v_color * color;
     material.data = v_data;
-    PointLight pl;
-    pl.position = (view * vec4(0.0, 10.0, 0., 0.0)).rgb;
-    pl.color = vec4(1.0, 0.3, 0.1, 1.0);
-    pl.attenuation = vec4(1.0, 1.0, 1.0, 20.0); // Quadratic
-    render(material, v_position, v_normal, pl);
+
+    render(material, v_position, v_normal);
 }

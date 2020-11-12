@@ -8,7 +8,7 @@
 
 #include "saiga/core/geometry/object3d.h"
 #include "saiga/core/util/color.h"
-#include "saiga/opengl/rendering/deferredRendering/lighting/shadowmap.h"
+#include "saiga/opengl/rendering/lighting/shadowmap.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
 
