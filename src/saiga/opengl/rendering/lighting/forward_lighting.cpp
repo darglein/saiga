@@ -17,7 +17,11 @@ namespace Saiga
 {
 ForwardLighting::ForwardLighting() : RendererLighting()
 {
-    pointLightBuffer.createGLBuffer(nullptr, sizeof(LightData), GL_DYNAMIC_DRAW);
+    lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLightData) * MAX_PL_COUNT, GL_DYNAMIC_DRAW);
+    lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLightData) * MAX_SL_COUNT, GL_DYNAMIC_DRAW);
+    lightDataBufferBox.createGLBuffer(nullptr, sizeof(BoxLightData) * MAX_BL_COUNT, GL_DYNAMIC_DRAW);
+    lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * MAX_DL_COUNT, GL_DYNAMIC_DRAW);
+    lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 }
 
 ForwardLighting::~ForwardLighting() {}
@@ -25,21 +29,85 @@ ForwardLighting::~ForwardLighting() {}
 void ForwardLighting::initRender()
 {
     RendererLighting::initRender();
-    pointLightBuffer.bind(LIGHT_DATA_BINDING_POINT);
+    lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
+    lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
+    lightDataBufferBox.bind(BOX_LIGHT_DATA_BINDING_POINT);
+    lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
+    lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
+    LightInfo li;
     LightData ld;
-    ld.plCount = 0;
+    li.pointLightCount       = 0;
+    li.spotLightCount        = 0;
+    li.boxLightCount         = 0;
+    li.directionalLightCount = 0;
+
+    // Point Lights
+    PointLightData glPointLight;
     for (auto pl : pointLights)
     {
         if (!pl->shouldRender()) continue;
-        ld.plPositions[ld.plCount]    = make_vec4(pl->getPosition(), 0.0f);
-        ld.plColors[ld.plCount]       = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
-        ld.plAttenuations[ld.plCount] = make_vec4(pl->getAttenuation(), pl->getRadius());
-        ld.plCount++;
-        if (ld.plCount >= MAX_PL_COUNT) break;  // just ignore too many lights...
+        glPointLight.position              = make_vec4(pl->getPosition(), 0.0f);
+        glPointLight.colorDiffuse          = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
+        glPointLight.colorSpecular         = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
+        glPointLight.attenuation           = make_vec4(pl->getAttenuation(), pl->getRadius());
+        ld.pointLights[li.pointLightCount] = glPointLight;
+        li.pointLightCount++;
+        if (li.pointLightCount >= MAX_PL_COUNT) break;  // just ignore too many lights...
     }
-    pointLightBuffer.updateBuffer(&ld, sizeof(LightData), 0);
-    plCount       = ld.plCount;
-    visibleLights = plCount;
+    lightDataBufferPoint.updateBuffer(&ld.pointLights[0], sizeof(PointLightData) * li.pointLightCount, 0);
+
+    // Spot Lights
+    SpotLightData glSpotLight;
+    for (auto sl : spotLights)
+    {
+        if (!sl->shouldRender()) continue;
+        float cosa                = cos(radians(sl->getAngle() * 0.95f));  // make border smoother
+        glSpotLight.position      = make_vec4(sl->getPosition(), cosa);
+        glSpotLight.colorDiffuse  = make_vec4(sl->getColorDiffuse(), sl->getIntensity());
+        glSpotLight.colorSpecular = make_vec4(sl->getColorSpecular(), 1.0f);  // specular Intensity?
+        glSpotLight.attenuation   = make_vec4(sl->getAttenuation(), sl->getRadius());
+        glSpotLight.direction     = make_vec4(0);
+        glSpotLight.direction += sl->getModelMatrix().col(1);
+        ld.spotLights[li.spotLightCount] = glSpotLight;
+        li.spotLightCount++;
+        if (li.spotLightCount >= MAX_SL_COUNT) break;  // just ignore too many lights...
+    }
+    lightDataBufferSpot.updateBuffer(&ld.spotLights[0], sizeof(SpotLightData) * li.spotLightCount, 0);
+
+    // Box Lights
+    BoxLightData glBoxLight;
+    // for (auto pl : pointLights)
+    //{
+    //    if (!pl->shouldRender()) continue;
+    //    glPointLight.position          = make_vec4(pl->getPosition(), 0.0f);
+    //    glPointLight.colorDiffuse      = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
+    //    glPointLight.colorSpecular     = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
+    //    glPointLight.attenuation       = make_vec4(pl->getAttenuation(), pl->getRadius());
+    //    ld.boxLights[li.boxLightCount] = glBoxLight;
+    //    li.boxLightCount++;
+    //    if (li.boxLightCount >= MAX_BL_COUNT) break;  // just ignore too many lights...
+    //}
+    lightDataBufferBox.updateBuffer(&ld.boxLights[0], sizeof(BoxLightData) * li.boxLightCount, 0);
+
+    // Directional Lights
+    DirectionalLightData glDirectionalLight;
+    // for (auto pl : pointLights)
+    //{
+    //    if (!pl->shouldRender()) continue;
+    //    glPointLight.position      = make_vec4(pl->getPosition(), 0.0f);
+    //    glPointLight.colorDiffuse  = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
+    //    glPointLight.colorSpecular = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
+    //    glPointLight.attenuation   = make_vec4(pl->getAttenuation(), pl->getRadius());
+    //    ld.directionaLLights[li.directionalLightCount] = glDirectionalLight;
+    //    li.directionalLightCount++;
+    //    if (li.directionalLightCount >= MAX_DL_COUNT) break;  // just ignore too many lights...
+    //}
+    lightDataBufferDirectional.updateBuffer(&ld.directionalLights[0],
+                                            sizeof(DirectionalLightData) * li.directionalLightCount, 0);
+
+
+    lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
+    visibleLights = li.pointLightCount + li.spotLightCount + li.boxLightCount + li.directionalLightCount;
 }
 
 void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
@@ -60,11 +128,6 @@ void ForwardLighting::renderImGui(bool* p_open)
 {
     RendererLighting::renderImGui();
     if (!ImGui::Begin("ForwardLighting")) return;
-    ImGui::Text("Rendered Point Lights: %d", plCount);
-    if (ImGui::Button("Clear Point Lights"))
-    {
-        pointLights.clear();
-    }
 
     int32_t count = pointLights.size();
     if (ImGui::InputInt("Point Light Count (wanted)", &count))
@@ -81,7 +144,7 @@ void ForwardLighting::renderImGui(bool* p_open)
 
                 light->setRadius(linearRand(2, 8));
 
-                light->setPosition(linearRand(vec3(-16, 0.5, -16), vec3(16, 2, 16)));
+                light->setPosition(linearRand(vec3(-16, 0.5, -16), vec3(16, light->getRadius(), 16)));
 
                 light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
                 light->calculateModel();
@@ -107,6 +170,53 @@ void ForwardLighting::renderImGui(bool* p_open)
             float intensity = pl->getIntensity();
             intensity       = 1.0f / pl->getRadius();
             pl->setIntensity(intensity);
+        }
+    }
+
+
+
+    count = spotLights.size();
+    if (ImGui::InputInt("Spot Light Count (wanted)", &count))
+    {
+        if (count > spotLights.size())
+        {
+            count -= spotLights.size();
+            for (int32_t i = 0; i < count; ++i)
+            {
+                std::shared_ptr<SpotLight> light = std::make_shared<SpotLight>();
+                light->setAttenuation(AttenuationPresets::Quadratic);
+                light->setIntensity(1);
+
+
+                light->setRadius(linearRand(2, 8));
+
+                light->setPosition(linearRand(vec3(-16, 1, -16), vec3(16, light->getRadius(), 16)));
+                light->setAngle(linearRand(35, 65));
+
+                light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+                light->calculateModel();
+
+                light->createShadowMap(512, 512, ShadowQuality::HIGH);
+                light->enableShadows();
+                AddLight(light);
+            }
+        }
+        else if (count < spotLights.size())
+        {
+            count = spotLights.size() - count;
+            for (int32_t i = 0; i < count; ++i)
+            {
+                spotLights.erase(--spotLights.end());
+            }
+        }
+    }
+    if (ImGui::Button("Normalize Spot Lights"))
+    {
+        for (auto sl : spotLights)
+        {
+            float intensity = sl->getIntensity();
+            intensity       = 1.0f / sl->getRadius();
+            sl->setIntensity(intensity);
         }
     }
     ImGui::End();
