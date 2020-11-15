@@ -19,6 +19,8 @@ layout(location=0) out vec4 out_color;
 #include "camera.glsl"
 vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal);
 vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal);
+vec3 calculateBoxLights(AssetMaterial material, vec3 position, vec3 normal);
+vec3 calculateDirectionalLights(AssetMaterial material, vec3 position, vec3 normal);
 #endif
 
 
@@ -56,7 +58,7 @@ struct DirectionalLightData
     vec4 position; // xyz, w unused
     vec4 colorDiffuse; // rgb intensity
     vec4 colorSpecular; // rgb specular intensity
-    vec4 direction; // xyz, w unused
+    vec4 direction; // xyz, w ambient intensity
 };
 
 layout (std140) uniform lightDataBlockPoint
@@ -76,7 +78,7 @@ layout (std140) uniform lightDataBlockBox
 
 layout (std140) uniform lightDataBlockDirectional
 {
-    DirectionalLightData directionaLLights[MAX_DL_COUNT];
+    DirectionalLightData directionalLights[MAX_DL_COUNT];
 };
 
 layout (std140) uniform lightInfoBlock
@@ -97,9 +99,8 @@ void render(AssetMaterial material, vec3 position, vec3 normal)
 
     lighting += calculatePointLights(material, position, normal);
     lighting += calculateSpotLights(material, position, normal);
-
-    float Iamb = 0.02;
-    lighting += Iamb * material.color.rgb;
+    lighting += calculateBoxLights(material, position, normal);
+    lighting += calculateDirectionalLights(material, position, normal);
 
     out_color = vec4(lighting, 1);
 #endif
@@ -143,7 +144,6 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal)
     return result;
 }
 
-
 vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
 {
     vec3 result = vec3(0);
@@ -181,4 +181,50 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
     }
     return result;
 }
+
+vec3 calculateBoxLights(AssetMaterial material, vec3 position, vec3 normal)
+{
+    vec3 result = vec3(0);
+    //for(int c = 0; c < boxLightCount; ++c)
+    //{
+    //    vec3 color = lightColorDiffuse.rgb * (
+    //                Idiff * material.color.rgb +
+    //                Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
+//
+    //    result += color;
+    //}
+    return result;
+}
+
+vec3 calculateDirectionalLights(AssetMaterial material, vec3 position, vec3 normal)
+{
+    vec3 result = vec3(0);
+    for(int c = 0; c < directionalLightCount; ++c)
+    {
+        DirectionalLightData dl = directionalLights[c];
+        vec4 lightColorDiffuse = dl.colorDiffuse;
+        vec4 lightColorSpecular = dl.colorSpecular;
+        float ambientIntensity = dl.direction.w;
+
+        vec3 fragmentLightDir = normalize((view * vec4(-dl.direction.rgb, 0.0)).rgb);
+        float intensity       = lightColorDiffuse.w;
+        float visibility      = 1.0;
+        float localIntensity  = intensity * visibility;
+
+        float Iamb  = ambientIntensity;
+        float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
+        float Ispec = 0;
+        if (Idiff > 0) Ispec = localIntensity * material.data.x * intensitySpecular(position, normal, fragmentLightDir, 40);
+
+        float Iemissive = material.data.y;
+
+        vec3 color = lightColorDiffuse.rgb *
+                    (Idiff * material.color.rgb + Ispec * lightColorSpecular.w * lightColorSpecular.rgb + Iamb * material.color.rgb) +
+                    Iemissive * material.color.rgb;
+
+        result += color;
+    }
+    return result;
+}
+
 #endif

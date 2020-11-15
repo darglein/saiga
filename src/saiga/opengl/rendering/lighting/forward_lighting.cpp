@@ -76,32 +76,31 @@ void ForwardLighting::initRender()
 
     // Box Lights
     BoxLightData glBoxLight;
-    // for (auto pl : pointLights)
-    //{
-    //    if (!pl->shouldRender()) continue;
-    //    glPointLight.position          = make_vec4(pl->getPosition(), 0.0f);
-    //    glPointLight.colorDiffuse      = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
-    //    glPointLight.colorSpecular     = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
-    //    glPointLight.attenuation       = make_vec4(pl->getAttenuation(), pl->getRadius());
-    //    ld.boxLights[li.boxLightCount] = glBoxLight;
-    //    li.boxLightCount++;
-    //    if (li.boxLightCount >= MAX_BL_COUNT) break;  // just ignore too many lights...
-    //}
+    for (auto bl : boxLights)
+    {
+        if (!bl->shouldRender()) continue;
+        glBoxLight.position            = make_vec4(bl->getPosition(), 0.0f);
+        glBoxLight.colorDiffuse        = make_vec4(bl->getColorDiffuse(), bl->getIntensity());
+        glBoxLight.colorSpecular       = make_vec4(bl->getColorSpecular(), 1.0f);  // specular Intensity?
+        ld.boxLights[li.boxLightCount] = glBoxLight;
+        li.boxLightCount++;
+        if (li.boxLightCount >= MAX_BL_COUNT) break;  // just ignore too many lights...
+    }
     lightDataBufferBox.updateBuffer(&ld.boxLights[0], sizeof(BoxLightData) * li.boxLightCount, 0);
 
     // Directional Lights
     DirectionalLightData glDirectionalLight;
-    // for (auto pl : pointLights)
-    //{
-    //    if (!pl->shouldRender()) continue;
-    //    glPointLight.position      = make_vec4(pl->getPosition(), 0.0f);
-    //    glPointLight.colorDiffuse  = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
-    //    glPointLight.colorSpecular = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
-    //    glPointLight.attenuation   = make_vec4(pl->getAttenuation(), pl->getRadius());
-    //    ld.directionaLLights[li.directionalLightCount] = glDirectionalLight;
-    //    li.directionalLightCount++;
-    //    if (li.directionalLightCount >= MAX_DL_COUNT) break;  // just ignore too many lights...
-    //}
+    for (auto dl : directionalLights)
+    {
+        if (!dl->shouldRender()) continue;
+        glDirectionalLight.position      = make_vec4(dl->getPosition(), 0.0f);
+        glDirectionalLight.colorDiffuse  = make_vec4(dl->getColorDiffuse(), dl->getIntensity());
+        glDirectionalLight.colorSpecular = make_vec4(dl->getColorSpecular(), 1.0f);  // specular Intensity?
+        glDirectionalLight.direction     = make_vec4(dl->getDirection(), 0.0f);
+        ld.directionalLights[li.directionalLightCount] = glDirectionalLight;
+        li.directionalLightCount++;
+        if (li.directionalLightCount >= MAX_DL_COUNT) break;  // just ignore too many lights...
+    }
     lightDataBufferDirectional.updateBuffer(&ld.directionalLights[0],
                                             sizeof(DirectionalLightData) * li.directionalLightCount, 0);
 
@@ -173,8 +172,6 @@ void ForwardLighting::renderImGui(bool* p_open)
         }
     }
 
-
-
     count = spotLights.size();
     if (ImGui::InputInt("Spot Light Count (wanted)", &count))
     {
@@ -217,6 +214,39 @@ void ForwardLighting::renderImGui(bool* p_open)
             float intensity = sl->getIntensity();
             intensity       = 1.0f / sl->getRadius();
             sl->setIntensity(intensity);
+        }
+    }
+
+    count = directionalLights.size();
+    if (ImGui::InputInt("Directional Light Count (wanted)", &count))
+    {
+        if (count > directionalLights.size())
+        {
+            count -= directionalLights.size();
+            for (int32_t i = 0; i < count; ++i)
+            {
+                std::shared_ptr<DirectionalLight> light = std::make_shared<DirectionalLight>();
+
+                light->createShadowMap(2048, 2048, 3, ShadowQuality::LOW);
+                light->enableShadows();
+
+                light->setAmbientIntensity(0.01);
+
+                vec3 dir = Random::sphericalRand(1).cast<float>();
+                if (dir.y() > 0) dir.y() *= -1;
+
+                light->setIntensity(0.7);
+            light->setDirection(dir);
+                AddLight(light);
+            }
+        }
+        else if (count < directionalLights.size())
+        {
+            count = directionalLights.size() - count;
+            for (int32_t i = 0; i < count; ++i)
+            {
+                directionalLights.erase(--directionalLights.end());
+            }
         }
     }
     ImGui::End();
