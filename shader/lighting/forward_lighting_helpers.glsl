@@ -4,25 +4,8 @@
  * See LICENSE file for more information.
  */
 
-struct AssetMaterial
-{
-    vec4 color;
-    vec4 data;
-};
-
-#if defined(DEFERRED)
-#include "geometry/geometry_helper_fs.glsl"
-#elif defined(DEPTH)
-#else
-layout(location=0) out vec4 out_color;
 #include "lighting/light_models.glsl"
 #include "camera.glsl"
-vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal);
-vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal);
-vec3 calculateBoxLights(AssetMaterial material, vec3 position, vec3 normal);
-vec3 calculateDirectionalLights(AssetMaterial material, vec3 position, vec3 normal);
-#endif
-
 
 #define MAX_PL_COUNT 1024
 #define MAX_SL_COUNT 750
@@ -89,26 +72,12 @@ layout (std140) uniform lightInfoBlock
     int directionalLightCount;
 };
 
-void render(AssetMaterial material, vec3 position, vec3 normal)
+struct AssetMaterial
 {
-#if defined(DEFERRED)
-    setGbufferData(vec3(material.color), normal, material.data);
-#elif defined(DEPTH)
-#else
-    vec3 lighting = vec3(0);
+    vec4 color;
+    vec4 data;
+};
 
-    lighting += calculatePointLights(material, position, normal);
-    lighting += calculateSpotLights(material, position, normal);
-    lighting += calculateBoxLights(material, position, normal);
-    lighting += calculateDirectionalLights(material, position, normal);
-
-    out_color = vec4(lighting, 1);
-#endif
-}
-
-#if defined(DEFERRED)
-#elif defined(DEPTH)
-#else
 vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal)
 {
     vec3 result = vec3(0);
@@ -226,5 +195,3 @@ vec3 calculateDirectionalLights(AssetMaterial material, vec3 position, vec3 norm
     }
     return result;
 }
-
-#endif

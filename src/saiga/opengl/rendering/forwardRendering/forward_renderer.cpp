@@ -57,17 +57,15 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
 
 
     startTimer(TOTAL);
-    startTimer(FORWARD);
 
     for (auto c : renderInfo.cameras)
     {
+        startTimer(FORWARD);
         auto camera = c.first;
         camera->recalculatePlanes();
         bindCamera(camera);
 
         setViewPort(c.second);
-
-        // renderDepthMaps();
 
         Framebuffer::bindDefaultFramebuffer();
         glEnable(GL_CULL_FACE);
@@ -83,10 +81,8 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
         if (cullLights) lighting.cullLights(camera);
         renderingInterface->render(camera, RenderPass::Forward);
         lighting.render(c.first, c.second);
+        stopTimer(FORWARD);
     }
-
-    stopTimer(FORWARD);
-
 
     startTimer(FINAL);
 
@@ -107,7 +103,7 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
         imgui->render();
     }
 
-    stopTimer(FORWARD);
+    stopTimer(FINAL);
 
     if (params.useGlFinish) glFinish();
 

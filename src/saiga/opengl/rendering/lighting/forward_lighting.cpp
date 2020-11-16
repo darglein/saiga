@@ -6,8 +6,6 @@
 
 #include "forward_lighting.h"
 
-#include "saiga/core/imgui/imgui.h"
-#include "saiga/core/math/random.h"
 #include "saiga/opengl/rendering/lighting/box_light.h"
 #include "saiga/opengl/rendering/lighting/directional_light.h"
 #include "saiga/opengl/rendering/lighting/point_light.h"
@@ -28,6 +26,7 @@ ForwardLighting::~ForwardLighting() {}
 
 void ForwardLighting::initRender()
 {
+    startTimer(0);
     RendererLighting::initRender();
     lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
     lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
@@ -107,6 +106,7 @@ void ForwardLighting::initRender()
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.boxLightCount + li.directionalLightCount;
+    stopTimer(0);
 }
 
 void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
@@ -126,130 +126,6 @@ void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
 void ForwardLighting::renderImGui(bool* p_open)
 {
     RendererLighting::renderImGui();
-    if (!ImGui::Begin("ForwardLighting")) return;
-
-    int32_t count = pointLights.size();
-    if (ImGui::InputInt("Point Light Count (wanted)", &count))
-    {
-        if (count > pointLights.size())
-        {
-            count -= pointLights.size();
-            for (int32_t i = 0; i < count; ++i)
-            {
-                std::shared_ptr<PointLight> light = std::make_shared<PointLight>();
-                light->setAttenuation(AttenuationPresets::Quadratic);
-                light->setIntensity(1);
-
-
-                light->setRadius(linearRand(2, 8));
-
-                light->setPosition(linearRand(vec3(-16, 0.5, -16), vec3(16, light->getRadius(), 16)));
-
-                light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-                light->calculateModel();
-
-                light->createShadowMap(512, 512, ShadowQuality::HIGH);
-                light->enableShadows();
-                AddLight(light);
-            }
-        }
-        else if (count < pointLights.size())
-        {
-            count = pointLights.size() - count;
-            for (int32_t i = 0; i < count; ++i)
-            {
-                pointLights.erase(--pointLights.end());
-            }
-        }
-    }
-    if (ImGui::Button("Normalize Point Lights"))
-    {
-        for (auto pl : pointLights)
-        {
-            float intensity = pl->getIntensity();
-            intensity       = 1.0f / pl->getRadius();
-            pl->setIntensity(intensity);
-        }
-    }
-
-    count = spotLights.size();
-    if (ImGui::InputInt("Spot Light Count (wanted)", &count))
-    {
-        if (count > spotLights.size())
-        {
-            count -= spotLights.size();
-            for (int32_t i = 0; i < count; ++i)
-            {
-                std::shared_ptr<SpotLight> light = std::make_shared<SpotLight>();
-                light->setAttenuation(AttenuationPresets::Quadratic);
-                light->setIntensity(1);
-
-
-                light->setRadius(linearRand(2, 8));
-
-                light->setPosition(linearRand(vec3(-16, 1, -16), vec3(16, light->getRadius(), 16)));
-                light->setAngle(linearRand(35, 65));
-
-                light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-                light->calculateModel();
-
-                light->createShadowMap(512, 512, ShadowQuality::HIGH);
-                light->enableShadows();
-                AddLight(light);
-            }
-        }
-        else if (count < spotLights.size())
-        {
-            count = spotLights.size() - count;
-            for (int32_t i = 0; i < count; ++i)
-            {
-                spotLights.erase(--spotLights.end());
-            }
-        }
-    }
-    if (ImGui::Button("Normalize Spot Lights"))
-    {
-        for (auto sl : spotLights)
-        {
-            float intensity = sl->getIntensity();
-            intensity       = 1.0f / sl->getRadius();
-            sl->setIntensity(intensity);
-        }
-    }
-
-    count = directionalLights.size();
-    if (ImGui::InputInt("Directional Light Count (wanted)", &count))
-    {
-        if (count > directionalLights.size())
-        {
-            count -= directionalLights.size();
-            for (int32_t i = 0; i < count; ++i)
-            {
-                std::shared_ptr<DirectionalLight> light = std::make_shared<DirectionalLight>();
-
-                light->createShadowMap(2048, 2048, 3, ShadowQuality::LOW);
-                light->enableShadows();
-
-                light->setAmbientIntensity(0.01);
-
-                vec3 dir = Random::sphericalRand(1).cast<float>();
-                if (dir.y() > 0) dir.y() *= -1;
-
-                light->setIntensity(0.7);
-            light->setDirection(dir);
-                AddLight(light);
-            }
-        }
-        else if (count < directionalLights.size())
-        {
-            count = directionalLights.size() - count;
-            for (int32_t i = 0; i < count; ++i)
-            {
-                directionalLights.erase(--directionalLights.end());
-            }
-        }
-    }
-    ImGui::End();
 }
 
 }  // namespace Saiga

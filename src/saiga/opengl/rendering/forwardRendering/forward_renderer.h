@@ -63,7 +63,7 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     void startTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].startTimer(); }
     void stopTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].stopTimer(); }
 
-    const char* mainShaderSource = "asset/forwardColoredAsset.glsl";
+    const char* mainShaderSource = "asset/ColoredAsset.glsl";
 
     bool cullLights = false;
 };
