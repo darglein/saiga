@@ -84,6 +84,10 @@ class SAIGA_CORE_API GrowAndShrinkDecomposition : public RectangularDecompositio
 
     int its = 5000;
 
+    double weight_v0 = 10;
+    double weight_v1 = 1;
+    double weight_v2 = 0;
+
    private:
     int cost_radius = 0;
     int N           = 10;
@@ -92,16 +96,24 @@ class SAIGA_CORE_API GrowAndShrinkDecomposition : public RectangularDecompositio
     int not_improved_in_a_row = 0;
 
     // <decomp, cost>
-    std::vector<std::pair<Decomposition, int>> decomps;
+    std::vector<std::pair<Decomposition, double>> decomps;
 
     void RandomStepGrow(Decomposition& decomp);
     void RandomStepMerge(Decomposition& decomp);
-    int Cost(const Decomposition& decomp)
+    double Cost(const Decomposition& decomp)
     {
-        return decomp.ExpandedVolume(cost_radius) * 100 + decomp.rectangles.size();
+        if (cost_radius == 0)
+        {
+            return decomp.ExpandedVolume(0) * weight_v0 + decomp.rectangles.size() * 0.01;
+        }
+        else
+        {
+            return decomp.ExpandedVolume(0) * weight_v0 + decomp.ExpandedVolume(1) * weight_v1 +
+                   decomp.rectangles.size() * 0.01;
+        }
     }
 
-    std::pair<Decomposition, int>& Best()
+    std::pair<Decomposition, double>& Best()
     {
         auto min_ele =
             std::min_element(decomps.begin(), decomps.end(), [](auto& a, auto& b) { return a.second < b.second; });

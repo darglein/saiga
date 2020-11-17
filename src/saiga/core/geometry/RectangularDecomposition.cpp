@@ -365,7 +365,7 @@ Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
             }
 
 
-            //            std::cout << "It " << it << " " << min_el->first << std::endl;
+            //            std::cout << "It " << it << " " << min_el->first << " C = " << min_el->second << std::endl;
         }
     }
     return Best().first;
