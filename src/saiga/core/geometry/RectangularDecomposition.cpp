@@ -217,6 +217,7 @@ std::ostream& operator<<(std::ostream& strm, const Decomposition& decomp)
 
 Decomposition TrivialRectangularDecomposition::Compute(ArrayView<const ivec3> points)
 {
+    if (points.empty()) return {};
     Decomposition result;
     for (auto p : points)
     {
@@ -227,6 +228,7 @@ Decomposition TrivialRectangularDecomposition::Compute(ArrayView<const ivec3> po
 
 Decomposition RowMergeDecomposition::Compute(ArrayView<const ivec3> points)
 {
+    if (points.empty()) return {};
     int dim = 0;
 
     int s1 = (dim + 1) % 3;
@@ -278,6 +280,7 @@ std::vector<ivec3> RemoveDuplicates(ArrayView<const ivec3> points)
 
 Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
 {
+    if (points.empty()) return {};
     {
         // Initialization
         if (0)
