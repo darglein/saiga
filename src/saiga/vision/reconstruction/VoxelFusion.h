@@ -49,6 +49,10 @@ struct SAIGA_VISION_API FusionParams
     int block_count          = 25 * 1000;
     bool post_process_mesh   = true;
 
+    // added to projet image points.
+    // for example -0.5 for opengl renders
+    Vec2 ip_offset = Vec2::Zero();
+
 
     bool point_based     = false;
     std::string out_file = "outmesh_sparse.off";
@@ -105,8 +109,6 @@ struct SAIGA_VISION_API FusionScene
     void Integrate();
     void IntegratePointBased();
     void ExtractMesh();
-
-
 };
 
 

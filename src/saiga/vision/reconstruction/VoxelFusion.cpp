@@ -340,6 +340,7 @@ void FusionScene::Integrate()
 
 
                             Vec2 ip = K.normalizedToImage(np);
+                            ip += params.ip_offset;
 
                             // the voxel is behind the camera
                             if (voxelDepth <= 0) continue;
