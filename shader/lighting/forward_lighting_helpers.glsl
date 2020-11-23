@@ -7,10 +7,18 @@
 #include "lighting/light_models.glsl"
 #include "camera.glsl"
 
-#define MAX_PL_COUNT 1024
-#define MAX_SL_COUNT 750
-#define MAX_BL_COUNT 1024
-#define MAX_DL_COUNT 1024
+#ifndef MAX_PL_COUNT
+#define MAX_PL_COUNT 256
+#endif
+#ifndef MAX_SL_COUNT
+#define MAX_SL_COUNT 256
+#endif
+#ifndef MAX_BL_COUNT
+#define MAX_BL_COUNT 256
+#endif
+#ifndef MAX_DL_COUNT
+#define MAX_DL_COUNT 256
+#endif
 
 struct PointLightData
 {
@@ -84,7 +92,7 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal)
     for(int c = 0; c < pointLightCount; ++c)
     {
         PointLightData pl = pointLights[c];
-        vec3 lightPosition = (view * vec4(pl.position.xyz, 0.0)).rgb;
+        vec3 lightPosition = (view * vec4(pl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = pl.colorDiffuse;
         vec4 lightColorSpecular = pl.colorSpecular;
         vec4 lightAttenuation = pl.attenuation;
@@ -119,7 +127,7 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
     for(int c = 0; c < spotLightCount; ++c)
     {
         SpotLightData sl = spotLights[c];
-        vec3 lightPosition = (view * vec4(sl.position.xyz, 0.0)).rgb;
+        vec3 lightPosition = (view * vec4(sl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = sl.colorDiffuse;
         vec4 lightColorSpecular = sl.colorSpecular;
         vec4 lightAttenuation = sl.attenuation;

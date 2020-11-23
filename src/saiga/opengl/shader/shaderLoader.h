@@ -53,7 +53,7 @@ std::shared_ptr<shader_t> ShaderLoader::load(const std::string& name, const Shad
     std::shared_ptr<shader_t> object;
     if (inCache)
     {
-        object = std::static_pointer_cast<shader_t>(objectBase); // dynamic? :(
+        object = std::dynamic_pointer_cast<shader_t>(objectBase);
     }
     else
     {

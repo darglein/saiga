@@ -15,14 +15,46 @@ namespace Saiga
 {
 ForwardLighting::ForwardLighting() : RendererLighting()
 {
-    lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLightData) * MAX_PL_COUNT, GL_DYNAMIC_DRAW);
-    lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLightData) * MAX_SL_COUNT, GL_DYNAMIC_DRAW);
-    lightDataBufferBox.createGLBuffer(nullptr, sizeof(BoxLightData) * MAX_BL_COUNT, GL_DYNAMIC_DRAW);
-    lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * MAX_DL_COUNT, GL_DYNAMIC_DRAW);
+    lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * maximumNumberOfDirectionalLights,
+                                              GL_DYNAMIC_DRAW);
+    lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLightData) * maximumNumberOfPointLights, GL_DYNAMIC_DRAW);
+    lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLightData) * maximumNumberOfSpotLights, GL_DYNAMIC_DRAW);
+    lightDataBufferBox.createGLBuffer(nullptr, sizeof(BoxLightData) * maximumNumberOfBoxLights, GL_DYNAMIC_DRAW);
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 }
 
 ForwardLighting::~ForwardLighting() {}
+
+void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
+{
+    maxDirectionalLights = std::max(0, maxDirectionalLights);
+    maxPointLights       = std::max(0, maxPointLights);
+    maxSpotLights        = std::max(0, maxSpotLights);
+    maxBoxLights         = std::max(0, maxBoxLights);
+
+    if (maximumNumberOfDirectionalLights != maxDirectionalLights)
+    {
+        lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * maxDirectionalLights,
+                                                  GL_DYNAMIC_DRAW);
+    }
+    if (maximumNumberOfPointLights != maxPointLights)
+    {
+        lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLightData) * maxPointLights, GL_DYNAMIC_DRAW);
+    }
+    if (maximumNumberOfSpotLights != maxSpotLights)
+    {
+        lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLightData) * maxSpotLights, GL_DYNAMIC_DRAW);
+    }
+    if (maximumNumberOfBoxLights != maxBoxLights)
+    {
+        lightDataBufferBox.createGLBuffer(nullptr, sizeof(BoxLightData) * maxBoxLights, GL_DYNAMIC_DRAW);
+    }
+
+    maximumNumberOfDirectionalLights = maxDirectionalLights;
+    maximumNumberOfPointLights       = maxPointLights;
+    maximumNumberOfSpotLights        = maxSpotLights;
+    maximumNumberOfBoxLights         = maxBoxLights;
+}
 
 void ForwardLighting::initRender()
 {
@@ -44,21 +76,22 @@ void ForwardLighting::initRender()
     PointLightData glPointLight;
     for (auto pl : pointLights)
     {
+        if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
         if (!pl->shouldRender()) continue;
-        glPointLight.position              = make_vec4(pl->getPosition(), 0.0f);
-        glPointLight.colorDiffuse          = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
-        glPointLight.colorSpecular         = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
-        glPointLight.attenuation           = make_vec4(pl->getAttenuation(), pl->getRadius());
-        ld.pointLights[li.pointLightCount] = glPointLight;
+        glPointLight.position      = make_vec4(pl->getPosition(), 0.0f);
+        glPointLight.colorDiffuse  = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
+        glPointLight.colorSpecular = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
+        glPointLight.attenuation   = make_vec4(pl->getAttenuation(), pl->getRadius());
+        ld.pointLights.push_back(glPointLight);
         li.pointLightCount++;
-        if (li.pointLightCount >= MAX_PL_COUNT) break;  // just ignore too many lights...
     }
-    lightDataBufferPoint.updateBuffer(&ld.pointLights[0], sizeof(PointLightData) * li.pointLightCount, 0);
+    lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLightData) * li.pointLightCount, 0);
 
     // Spot Lights
     SpotLightData glSpotLight;
     for (auto sl : spotLights)
     {
+        if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
         if (!sl->shouldRender()) continue;
         float cosa                = cos(radians(sl->getAngle() * 0.95f));  // make border smoother
         glSpotLight.position      = make_vec4(sl->getPosition(), cosa);
@@ -67,40 +100,39 @@ void ForwardLighting::initRender()
         glSpotLight.attenuation   = make_vec4(sl->getAttenuation(), sl->getRadius());
         glSpotLight.direction     = make_vec4(0);
         glSpotLight.direction += sl->getModelMatrix().col(1);
-        ld.spotLights[li.spotLightCount] = glSpotLight;
+        ld.spotLights.push_back(glSpotLight);
         li.spotLightCount++;
-        if (li.spotLightCount >= MAX_SL_COUNT) break;  // just ignore too many lights...
     }
-    lightDataBufferSpot.updateBuffer(&ld.spotLights[0], sizeof(SpotLightData) * li.spotLightCount, 0);
+    lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLightData) * li.spotLightCount, 0);
 
     // Box Lights
     BoxLightData glBoxLight;
     for (auto bl : boxLights)
     {
+        if (li.boxLightCount >= maximumNumberOfBoxLights) break;  // just ignore too many lights...
         if (!bl->shouldRender()) continue;
-        glBoxLight.position            = make_vec4(bl->getPosition(), 0.0f);
-        glBoxLight.colorDiffuse        = make_vec4(bl->getColorDiffuse(), bl->getIntensity());
-        glBoxLight.colorSpecular       = make_vec4(bl->getColorSpecular(), 1.0f);  // specular Intensity?
-        ld.boxLights[li.boxLightCount] = glBoxLight;
+        glBoxLight.position      = make_vec4(bl->getPosition(), 0.0f);
+        glBoxLight.colorDiffuse  = make_vec4(bl->getColorDiffuse(), bl->getIntensity());
+        glBoxLight.colorSpecular = make_vec4(bl->getColorSpecular(), 1.0f);  // specular Intensity?
+        ld.boxLights.push_back(glBoxLight);
         li.boxLightCount++;
-        if (li.boxLightCount >= MAX_BL_COUNT) break;  // just ignore too many lights...
     }
-    lightDataBufferBox.updateBuffer(&ld.boxLights[0], sizeof(BoxLightData) * li.boxLightCount, 0);
+    lightDataBufferBox.updateBuffer(ld.boxLights.data(), sizeof(BoxLightData) * li.boxLightCount, 0);
 
     // Directional Lights
     DirectionalLightData glDirectionalLight;
     for (auto dl : directionalLights)
     {
+        if (li.directionalLightCount >= maximumNumberOfDirectionalLights) break;  // just ignore too many lights...
         if (!dl->shouldRender()) continue;
         glDirectionalLight.position      = make_vec4(dl->getPosition(), 0.0f);
         glDirectionalLight.colorDiffuse  = make_vec4(dl->getColorDiffuse(), dl->getIntensity());
         glDirectionalLight.colorSpecular = make_vec4(dl->getColorSpecular(), 1.0f);  // specular Intensity?
         glDirectionalLight.direction     = make_vec4(dl->getDirection(), 0.0f);
-        ld.directionalLights[li.directionalLightCount] = glDirectionalLight;
+        ld.directionalLights.push_back(glDirectionalLight);
         li.directionalLightCount++;
-        if (li.directionalLightCount >= MAX_DL_COUNT) break;  // just ignore too many lights...
     }
-    lightDataBufferDirectional.updateBuffer(&ld.directionalLights[0],
+    lightDataBufferDirectional.updateBuffer(ld.directionalLights.data(),
                                             sizeof(DirectionalLightData) * li.directionalLightCount, 0);
 
 

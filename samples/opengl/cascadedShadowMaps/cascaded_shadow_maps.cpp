@@ -117,7 +117,7 @@ class Sample : public SampleWindowDeferred
             //=======
             if (ImGui::Checkbox("debugLightShader", &debugLightShader))
             {
-                DeferredLightingShaderNames n;
+                RendererLightingShaderNames n;
                 if (debugLightShader)
                 {
                     n.directionalLightShader = "lighting/light_cascaded.glsl";

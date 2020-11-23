@@ -16,7 +16,11 @@ using namespace Saiga;
 
 class Sample : public RendererSampleWindow
 {
-    using Base = RendererSampleWindow;
+    using Base                                            = RendererSampleWindow;
+    int maximumNumberOfRendererSupportedDirectionalLights = 256;
+    int maximumNumberOfRendererSupportedPointLights       = 256;
+    int maximumNumberOfRendererSupportedSpotLights        = 256;
+    int maximumNumberOfRendererSupportedBoxLights         = 256;
 
    public:
     Sample()
@@ -28,14 +32,29 @@ class Sample : public RendererSampleWindow
 
         const char* shaderStr = renderer->getMainShaderSource();
 
+        renderer->setLightMaxima(maximumNumberOfRendererSupportedDirectionalLights,
+                                 maximumNumberOfRendererSupportedPointLights,
+                                 maximumNumberOfRendererSupportedSpotLights, maximumNumberOfRendererSupportedBoxLights);
+
         auto deferredShader =
-            shaderLoader.load<MVPColorShaderFL>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
-        auto depthShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
+            shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+        auto depthShader = shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
+
         ShaderPart::ShaderCodeInjections sci;
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
         sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
-        auto forwardShader   = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
-        auto wireframeShader = shaderLoader.load<MVPColorShaderFL>(shaderStr);
+
+        sci.emplace_back(GL_FRAGMENT_SHADER,
+                         "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights), 2);
+        sci.emplace_back(GL_FRAGMENT_SHADER,
+                         "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights), 2);
+        sci.emplace_back(GL_FRAGMENT_SHADER,
+                         "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 2);
+        sci.emplace_back(GL_FRAGMENT_SHADER,
+                         "#define MAX_BL_COUNT" + std::to_string(maximumNumberOfRendererSupportedBoxLights), 2);
+        auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
+
+        auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
         showAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 
@@ -58,6 +77,64 @@ class Sample : public RendererSampleWindow
 
 
             if (!ImGui::Begin("Rendering Lighting Sample")) return;
+
+            bool supportChanged =
+                ImGui::InputInt("Renderer Supported Point Lights", &maximumNumberOfRendererSupportedPointLights);
+            supportChanged |=
+                ImGui::InputInt("Renderer Supported Spot Lights", &maximumNumberOfRendererSupportedSpotLights);
+            supportChanged |=
+                ImGui::InputInt("Renderer Supported Box Lights", &maximumNumberOfRendererSupportedBoxLights);
+            supportChanged |= ImGui::InputInt("Renderer Supported Directional Lights",
+                                              &maximumNumberOfRendererSupportedDirectionalLights);
+
+
+            maximumNumberOfRendererSupportedDirectionalLights =
+                std::max(0, maximumNumberOfRendererSupportedDirectionalLights);
+            maximumNumberOfRendererSupportedPointLights = std::max(0, maximumNumberOfRendererSupportedPointLights);
+            maximumNumberOfRendererSupportedSpotLights  = std::max(0, maximumNumberOfRendererSupportedSpotLights);
+            maximumNumberOfRendererSupportedBoxLights   = std::max(0, maximumNumberOfRendererSupportedBoxLights);
+
+            if (supportChanged)
+            {
+                renderer->setLightMaxima(
+                    maximumNumberOfRendererSupportedDirectionalLights, maximumNumberOfRendererSupportedPointLights,
+                    maximumNumberOfRendererSupportedSpotLights, maximumNumberOfRendererSupportedBoxLights);
+
+
+                const char* shaderStr = renderer->getMainShaderSource();
+
+                auto deferredShader =
+                    shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+                auto depthShader =
+                    shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
+
+                ShaderPart::ShaderCodeInjections sci;
+                sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
+                sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
+
+                sci.emplace_back(
+                    GL_FRAGMENT_SHADER,
+                    "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights), 2);
+                sci.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights),
+                                 2);
+                sci.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights),
+                                 2);
+                sci.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define MAX_BL_COUNT" + std::to_string(maximumNumberOfRendererSupportedBoxLights), 2);
+                auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
+
+                auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
+
+                std::static_pointer_cast<ColoredAsset>(show.asset)
+                    ->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
 
             int32_t count = renderer->lighting.pointLights.size();
             if (ImGui::InputInt("Point Light Count (wanted)", &count))
@@ -96,8 +173,7 @@ class Sample : public RendererSampleWindow
             {
                 for (auto pl : renderer->lighting.pointLights)
                 {
-                    float intensity = pl->getIntensity();
-                    intensity       = 1.0f / pl->getRadius();
+                    float intensity = 1.0f / pl->getRadius();
                     pl->setIntensity(intensity);
                 }
             }
@@ -140,8 +216,7 @@ class Sample : public RendererSampleWindow
             {
                 for (auto sl : renderer->lighting.spotLights)
                 {
-                    float intensity = sl->getIntensity();
-                    intensity       = 1.0f / sl->getRadius();
+                    float intensity = 1.0f / sl->getRadius();
                     sl->setIntensity(intensity);
                 }
             }

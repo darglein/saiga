@@ -15,11 +15,6 @@
 
 namespace Saiga
 {
-#define MAX_PL_COUNT 1024
-#define MAX_SL_COUNT 750
-#define MAX_BL_COUNT 1024
-#define MAX_DL_COUNT 1024
-
 struct PointLightData
 {
     vec4 position;       // xyz, w unused
@@ -54,10 +49,10 @@ struct DirectionalLightData
 
 struct LightData
 {
-    PointLightData pointLights[MAX_PL_COUNT];
-    SpotLightData spotLights[MAX_SL_COUNT];
-    BoxLightData boxLights[MAX_BL_COUNT];
-    DirectionalLightData directionalLights[MAX_DL_COUNT];
+    std::vector<PointLightData> pointLights;
+    std::vector<SpotLightData> spotLights;
+    std::vector<BoxLightData> boxLights;
+    std::vector<DirectionalLightData> directionalLights;
 };
 
 struct LightInfo
@@ -87,13 +82,17 @@ class SAIGA_OPENGL_API MVPColorShaderFL : public MVPColorShader
     {
         MVPColorShader::checkUniforms();
         location_lightDataBlockPoint = getUniformBlockLocation("lightDataBlockPoint");
-        if (location_lightDataBlockPoint != GL_INVALID_INDEX) setUniformBlockBinding(location_lightDataBlockPoint, POINT_LIGHT_DATA_BINDING_POINT);
+        if (location_lightDataBlockPoint != GL_INVALID_INDEX)
+            setUniformBlockBinding(location_lightDataBlockPoint, POINT_LIGHT_DATA_BINDING_POINT);
         location_lightDataBlockSpot = getUniformBlockLocation("lightDataBlockSpot");
-        if (location_lightDataBlockSpot != GL_INVALID_INDEX) setUniformBlockBinding(location_lightDataBlockSpot, SPOT_LIGHT_DATA_BINDING_POINT);
+        if (location_lightDataBlockSpot != GL_INVALID_INDEX)
+            setUniformBlockBinding(location_lightDataBlockSpot, SPOT_LIGHT_DATA_BINDING_POINT);
         location_lightDataBlockBox = getUniformBlockLocation("lightDataBlockBox");
-        if (location_lightDataBlockBox != GL_INVALID_INDEX) setUniformBlockBinding(location_lightDataBlockBox, BOX_LIGHT_DATA_BINDING_POINT);
+        if (location_lightDataBlockBox != GL_INVALID_INDEX)
+            setUniformBlockBinding(location_lightDataBlockBox, BOX_LIGHT_DATA_BINDING_POINT);
         location_lightDataBlockDirectional = getUniformBlockLocation("lightDataBlockDirectional");
-        if (location_lightDataBlockDirectional != GL_INVALID_INDEX) setUniformBlockBinding(location_lightDataBlockDirectional, DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
+        if (location_lightDataBlockDirectional != GL_INVALID_INDEX)
+            setUniformBlockBinding(location_lightDataBlockDirectional, DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
 
 
         location_lightInfoBlock = getUniformBlockLocation("lightInfoBlock");
@@ -118,6 +117,14 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
     void render(Camera* cam, const ViewPort& viewPort) override;
 
     void renderImGui(bool* p_open = NULL) override;
+
+    void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights);
+
+   private:
+    int maximumNumberOfDirectionalLights = 256;
+    int maximumNumberOfPointLights       = 256;
+    int maximumNumberOfSpotLights        = 256;
+    int maximumNumberOfBoxLights         = 256;
 };
 
 }  // namespace Saiga

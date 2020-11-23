@@ -16,6 +16,12 @@ class ShaderLoader;
 
 struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
 {
+    int maximumNumberOfDirectionalLights = 256;
+    int maximumNumberOfPointLights       = 256;
+    int maximumNumberOfSpotLights        = 256;
+    int maximumNumberOfBoxLights         = 256;
+
+
     void fromConfigFile(const std::string& file) { RenderingParameters::fromConfigFile(file); }
 };
 
@@ -27,7 +33,6 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     using InterfaceType = RenderingInterface;
     using ParameterType = ForwardRenderingParameters;
 
-    ParameterType params;
 
     ForwardLighting lighting;
 
@@ -39,10 +44,7 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
 
     void resize(int width, int height);
 
-    inline const char* getMainShaderSource()
-    {
-        return mainShaderSource;
-    }
+    inline const char* getMainShaderSource() { return mainShaderSource; }
 
     enum ForwardTimingBlock
     {
@@ -55,7 +57,25 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     float getBlockTime(ForwardTimingBlock timingBlock) { return timers[timingBlock].getTimeMS(); }
     virtual float getTotalRenderTime() override { return timers[ForwardTimingBlock::TOTAL].getTimeMS(); }
 
+    inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
+    {
+        params.maximumNumberOfDirectionalLights       = maxDirectionalLights;
+        params.maximumNumberOfPointLights             = maxPointLights;
+        params.maximumNumberOfSpotLights              = maxSpotLights;
+        params.maximumNumberOfBoxLights               = maxBoxLights;
+
+        params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
+        params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
+        params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
+        params.maximumNumberOfBoxLights         = std::max(0, params.maximumNumberOfBoxLights);
+
+        lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
+                                params.maximumNumberOfSpotLights, params.maximumNumberOfBoxLights);
+    }
+
    private:
+    ParameterType params;
+
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
     ShaderLoader shaderLoader;
 
