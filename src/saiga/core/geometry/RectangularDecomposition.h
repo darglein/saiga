@@ -36,6 +36,31 @@ struct SAIGA_CORE_API Decomposition
 
     Decomposition ShrinkIfPossible() const;
 
+
+    Decomposition MergeNeighborsSave() const;
+
+    std::vector<std::pair<int, int>> NeighborList(int distance) const;
+
+    std::vector<int> AllIntersectingRects(const Rect& r)
+    {
+        std::vector<int> result;
+        //        for (auto r2 : rectangles)
+        for (int i = 0; i < rectangles.size(); ++i)
+        {
+            if (r.Intersect(rectangles[i]))
+            {
+                result.push_back(i);
+            }
+        }
+        return result;
+    }
+
+    void RemoveEmpty()
+    {
+        rectangles.erase(std::remove_if(rectangles.begin(), rectangles.end(), [](auto& a) { return a.Empty(); }),
+                         rectangles.end());
+    }
+
     int Volume() const
     {
         int sum = 0;
@@ -49,7 +74,7 @@ struct SAIGA_CORE_API Decomposition
         for (auto& r : rectangles) sum += r.Expand(radius).Volume();
         return sum;
     }
-};
+};  // namespace RectangularDecomposition
 
 SAIGA_CORE_API std::ostream& operator<<(std::ostream& strm, const Decomposition& decomp);
 
@@ -59,7 +84,43 @@ class SAIGA_CORE_API RectangularDecompositionAlgorithm
    public:
     virtual ~RectangularDecompositionAlgorithm() {}
     virtual Decomposition Compute(ArrayView<const ivec3> points) = 0;
+
+    virtual Decomposition Optimize(const Decomposition& decomp) { return decomp; }
+
+
+    // We define the convolution cost as a weighted sum of the expaned rectangles.
+    // The weights are given as
+    // [c, r0, r1, r2, ....]
+    //
+    // c is a costant cost
+    // ri is the rectangle volume expanded by i.
+    float ConvolutionCost(const Rect& rect)
+    {
+        SAIGA_ASSERT(!conv_cost_weights.empty());
+        if (rect.Empty()) return 0;
+
+
+        float result = conv_cost_weights[0];
+        for (int i = 1; i < conv_cost_weights.size(); ++i)
+        {
+            result += rect.Expand(i - 1).Volume() * conv_cost_weights[i];
+        }
+
+        return result;
+    }
+
+    float ConvolutionCost(const Decomposition& decomp)
+    {
+        float sum = 0;
+        for (auto& r : decomp.rectangles) sum += ConvolutionCost(r);
+        return sum;
+    }
+    std::vector<float> conv_cost_weights = {0, 1};
 };
+
+// =========================================
+// Actual decompositions which generate a list of rectangles from a point cloud
+// =========================================
 
 class SAIGA_CORE_API TrivialRectangularDecomposition : public RectangularDecompositionAlgorithm
 {
@@ -75,6 +136,30 @@ class SAIGA_CORE_API RowMergeDecomposition : public RectangularDecompositionAlgo
     virtual Decomposition Compute(ArrayView<const ivec3> points) override;
 };
 
+class SAIGA_CORE_API OctTreeDecomposition : public RectangularDecompositionAlgorithm
+{
+   public:
+    // Combines all neighboring elements in x-direction with the same (y,z) coordinate.
+    virtual Decomposition Compute(ArrayView<const ivec3> points) override;
+
+    float merge_factor = 1.0;
+};
+
+// =========================================
+// These 'decompositions' are actually only optimizing an existing decomposition
+// therefore they also implement the 'optimize' virtual function
+// =========================================
+
+class SAIGA_CORE_API SaveMergeDecomposition : public RectangularDecompositionAlgorithm
+{
+   public:
+    // Combines all neighboring elements in x-direction with the same (y,z) coordinate.
+    virtual Decomposition Compute(ArrayView<const ivec3> points) override;
+    virtual Decomposition Optimize(const Decomposition& decomp) override;
+};
+
+
+
 class SAIGA_CORE_API GrowAndShrinkDecomposition : public RectangularDecompositionAlgorithm
 {
    public:
@@ -82,17 +167,11 @@ class SAIGA_CORE_API GrowAndShrinkDecomposition : public RectangularDecompositio
     virtual Decomposition Compute(ArrayView<const ivec3> points) override;
 
 
-    int its = 5000;
-
-    double weight_v0 = 10;
-    double weight_v1 = 1;
-    double weight_v2 = 0;
+    int its          = 1000;
+    int converge_its = 100;
 
    private:
-    int cost_radius = 0;
-    int N           = 10;
-
-    int current_best          = 94755745;
+    double current_best       = 1e50;
     int not_improved_in_a_row = 0;
 
     // <decomp, cost>
@@ -100,18 +179,6 @@ class SAIGA_CORE_API GrowAndShrinkDecomposition : public RectangularDecompositio
 
     void RandomStepGrow(Decomposition& decomp);
     void RandomStepMerge(Decomposition& decomp);
-    double Cost(const Decomposition& decomp)
-    {
-        if (cost_radius == 0)
-        {
-            return decomp.ExpandedVolume(0) * weight_v0 + decomp.rectangles.size() * 0.01;
-        }
-        else
-        {
-            return decomp.ExpandedVolume(0) * weight_v0 + decomp.ExpandedVolume(1) * weight_v1 +
-                   decomp.rectangles.size() * 0.01;
-        }
-    }
 
     std::pair<Decomposition, double>& Best()
     {

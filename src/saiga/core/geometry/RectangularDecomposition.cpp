@@ -10,31 +10,22 @@
 
 #include <iomanip>
 
-namespace std
-{
-template <>
-struct hash<Saiga::ivec3>
-{
-    std::size_t operator()(const Saiga::ivec3& k) const
-    {
-        using std::hash;
-        using std::size_t;
-        using std::string;
 
-        // Compute individual hash values for first,
-        // second and third and combine them using XOR
-        // and bit shifting:
-
-        return ((hash<int>()(k(0)) ^ (hash<int>()(k(1)) << 1)) >> 1) ^ (hash<int>()(k(2)) << 1);
-    }
-};
-
-}  // namespace std
 
 namespace Saiga
 {
 namespace RectangularDecomposition
 {
+std::vector<ivec3> RemoveDuplicates(ArrayView<const ivec3> points)
+{
+    std::vector<ivec3> result(points.begin(), points.end());
+    std::sort(result.begin(), result.end(),
+              [](auto a, auto b) { return std::tie(a(0), a(1), a(2)) < std::tie(b(0), b(1), b(2)); });
+    result.erase(std::unique(result.begin(), result.end()), result.end());
+    return result;
+}
+
+
 bool Decomposition::ContainsAll(ArrayView<const ivec3> points) const
 {
     for (auto& p : points)
@@ -59,55 +50,21 @@ bool Decomposition::ContainsAll(ArrayView<const ivec3> points) const
 
 Decomposition Decomposition::RemoveFullyContained() const
 {
-    std::unordered_map<ivec3, int> map;
-
-
-    auto add_to_map = [&](const Rect& r, int n) {
-        for (int z = r.begin(2); z < r.end(2); ++z)
-        {
-            for (int y = r.begin(1); y < r.end(1); ++y)
-            {
-                for (int x = r.begin(0); x < r.end(0); ++x)
-                {
-                    map[ivec3(x, y, z)] += n;
-                }
-            }
-        }
-    };
-
-    auto removeable = [&](const Rect& r) {
-        for (int z = r.begin(2); z < r.end(2); ++z)
-        {
-            for (int y = r.begin(1); y < r.end(1); ++y)
-            {
-                for (int x = r.begin(0); x < r.end(0); ++x)
-                {
-                    if (map[ivec3(x, y, z)] <= 0) return false;
-                }
-            }
-        }
-        return true;
-    };
-
-
+    PointHashMap<3> map;
     for (auto& r : rectangles)
     {
-        add_to_map(r, 1);
+        map.Add(r, 1);
     }
-
-
-    auto cp = rectangles;
-    //    std::sort(cp.begin(), cp.end(), [](auto a, auto b) { return a.Volume() < b.Volume(); });
-
 
 
     Decomposition result;
 
-    for (auto& r : cp)
+    for (auto& r : rectangles)
     {
-        add_to_map(r, -1);
-        if (removeable(r))
+        map.Add(r, -1);
+        if (map.AllGreater(r, 0))
         {
+            //            std::cout << "remove " << r << std::endl;
         }
         else
         {
@@ -120,53 +77,18 @@ Decomposition Decomposition::RemoveFullyContained() const
 
 Decomposition Decomposition::ShrinkIfPossible() const
 {
-    std::unordered_map<ivec3, int> map;
+    PointHashMap<3> map;
+    for (auto& r : rectangles)
+    {
+        map.Add(r, 1);
+    }
 
-
-    auto add_to_map = [&](const Rect& r, int n) {
-        for (int z = r.begin(2); z < r.end(2); ++z)
-        {
-            for (int y = r.begin(1); y < r.end(1); ++y)
-            {
-                for (int x = r.begin(0); x < r.end(0); ++x)
-                {
-                    map[ivec3(x, y, z)] += n;
-                }
-            }
-        }
-    };
-
-    auto removeable = [&](const Rect& r) {
-        for (int z = r.begin(2); z < r.end(2); ++z)
-        {
-            for (int y = r.begin(1); y < r.end(1); ++y)
-            {
-                for (int x = r.begin(0); x < r.end(0); ++x)
-                {
-                    if (map[ivec3(x, y, z)] <= 0) return false;
-                }
-            }
-        }
-        return true;
-    };
-
+    Decomposition result;
+    result.rectangles.reserve(rectangles.size());
 
     for (auto& r : rectangles)
     {
-        add_to_map(r, 1);
-    }
-
-
-    auto cp = rectangles;
-    //    std::sort(cp.begin(), cp.end(), [](auto a, auto b) { return a.Volume() < b.Volume(); });
-
-
-
-    Decomposition result;
-
-    for (auto& r : cp)
-    {
-        add_to_map(r, -1);
+        map.Add(r, -1);
 
         // init with empty
         Rect keep_rect = r;
@@ -183,27 +105,98 @@ Decomposition Decomposition::ShrinkIfPossible() const
                 r1.end(axis)   = z;
                 r2.begin(axis) = z;
 
-                if (removeable_rect.Volume() < r1.Volume() && removeable(r1))
+                if (removeable_rect.Volume() < r1.Volume() && map.AllGreater(r1, 0))
                 {
                     removeable_rect = r1;
                     keep_rect       = r2;
                 }
 
-                if (removeable_rect.Volume() < r2.Volume() && removeable(r2))
+                if (removeable_rect.Volume() < r2.Volume() && map.AllGreater(r2, 0))
                 {
                     removeable_rect = r2;
                     keep_rect       = r1;
                 }
             }
         }
-
-
         if (keep_rect.Volume() > 0)
         {
             result.rectangles.push_back(keep_rect);
         }
     }
 
+    return result;
+}
+
+Decomposition Decomposition::MergeNeighborsSave() const
+{
+    Decomposition result = *this;
+
+    bool changed = true;
+    while (changed)
+    {
+        changed = false;
+#if 1
+        for (int i = 0; i < result.rectangles.size(); ++i)
+        {
+            auto& r1 = result.rectangles[i];
+            if (r1.Volume() == 0) continue;
+
+            for (int j = i + 1; j < result.rectangles.size(); ++j)
+            {
+                auto& r2 = result.rectangles[j];
+                if (r2.Volume() == 0) continue;
+
+                if (r1.Distance(r2) == 0 && Rect(r1, r2).Volume() == r1.Volume() + r2.Volume())
+                {
+                    r1 = Rect(r1, r2);
+                    r2.setZero();
+                    changed = true;
+                }
+            }
+        }
+#else
+
+        auto neighs = result.NeighborList();
+        for (auto n : neighs)
+        {
+            auto& r1 = result.rectangles[n.first];
+            if (r1.Volume() == 0) continue;
+            auto& r2 = result.rectangles[n.second];
+            if (r2.Volume() == 0) continue;
+
+            if (r1.Distance(r2) == 0 && Rect(r1, r2).Volume() == r1.Volume() + r2.Volume())
+            {
+                r1 = Rect(r1, r2);
+                r2.setZero();
+                changed = true;
+            }
+        }
+#endif
+        result.RemoveEmpty();
+    }
+
+    return result;
+}
+
+std::vector<std::pair<int, int>> Decomposition::NeighborList(int distance) const
+{
+    std::vector<std::pair<int, int>> result;
+    for (int i = 0; i < rectangles.size(); ++i)
+    {
+        auto& r1 = rectangles[i];
+        if (r1.Volume() == 0) continue;
+
+        for (int j = i + 1; j < rectangles.size(); ++j)
+        {
+            auto& r2 = rectangles[j];
+            if (r2.Volume() == 0) continue;
+
+            if (r1.Distance(r2) <= distance)
+            {
+                result.push_back({i, j});
+            }
+        }
+    }
     return result;
 }
 
@@ -229,11 +222,11 @@ Decomposition TrivialRectangularDecomposition::Compute(ArrayView<const ivec3> po
 Decomposition RowMergeDecomposition::Compute(ArrayView<const ivec3> points)
 {
     if (points.empty()) return {};
-    int dim = 0;
+    int dim = 1;
 
     int s1 = (dim + 1) % 3;
     int s2 = (dim + 2) % 3;
-    int s3 = (dim + 3) % 3;
+    int s3 = dim;
 
 
     Decomposition result;
@@ -244,12 +237,13 @@ Decomposition RowMergeDecomposition::Compute(ArrayView<const ivec3> points)
     std::sort(copy.begin(), copy.end(),
               [=](auto a, auto b) { return std::tie(a(s1), a(s2), a(s3)) < std::tie(b(s1), b(s2), b(s3)); });
 
-    Rect current = points.front();
 
-    for (int i = 1; i < points.size(); ++i)
+    Rect current = Rect(copy.front());
+
+
+    for (int i = 1; i < copy.size(); ++i)
     {
         auto index = copy[i];
-
 
         ivec3 offset = ivec3::Zero();
         offset(s3)   = current.Size()(s3);
@@ -269,58 +263,322 @@ Decomposition RowMergeDecomposition::Compute(ArrayView<const ivec3> points)
     return result;
 }
 
-std::vector<ivec3> RemoveDuplicates(ArrayView<const ivec3> points)
+uint64_t BitInterleave64(uint64_t x)
 {
-    std::vector<ivec3> result(points.begin(), points.end());
-    std::sort(result.begin(), result.end(),
-              [](auto a, auto b) { return std::tie(a(0), a(1), a(2)) < std::tie(b(0), b(1), b(2)); });
-    result.erase(std::unique(result.begin(), result.end()), result.end());
+    x &= 0x1fffff;
+    x = (x | x << 32) & 0x1f00000000ffff;
+    x = (x | x << 16) & 0x1f0000ff0000ff;
+    x = (x | x << 8) & 0x100f00f00f00f00f;
+    x = (x | x << 4) & 0x10c30c30c30c30c3;
+    x = (x | x << 2) & 0x1249249249249249;
+    return x;
+}
+
+uint64_t Morton2D(const ivec3& v)
+{
+    uint64_t x = BitInterleave64(v.x());
+    uint64_t y = BitInterleave64(v.y());
+    uint64_t z = BitInterleave64(v.z());
+    return x | (y << 1) | (z << 2);
+}
+
+Decomposition OctTreeDecomposition::Compute(ArrayView<const ivec3> points)
+{
+    Decomposition result;
+    if (points.empty()) return result;
+
+    ivec3 corner = points.front();
+    for (auto& p : points)
+    {
+        corner = corner.array().min(p.array());
+    }
+
+
+    std::vector<std::pair<uint64_t, Rect>> copy, merged_list;
+
+    for (auto p : points)
+    {
+        ivec3 shifted_p = p - corner;
+        copy.emplace_back(Morton2D(shifted_p), shifted_p);
+    }
+
+    std::sort(copy.begin(), copy.end(), [](auto a, auto b) { return a.first < b.first; });
+
+
+
+    for (int bit = 3; bit < 64; bit += 3)
+    {
+        //        std::cout << "it " << bit << " " << copy.size() << " " << merged_list.size() << std::endl;
+        uint64_t mask = (~0UL) << bit;
+        //    std::cout << std::hex << mask << std::endl;
+
+
+        int range_begin = 0;
+        int range_end   = 0;
+
+        for (int i = 0; i < copy.size(); ++i)
+        {
+            auto& prev = copy[range_begin];
+            auto& curr = copy[i];
+
+            //            std::cout << i << ", " << (curr.first & mask) << " | " << copy[i].second << std::endl;
+            // check if prev an current have same morton code except last bits
+
+
+
+            //            std::cout << (prev.first & mask) << " " << (curr.first & mask) << std::endl;
+
+            if ((prev.first & mask) == (curr.first & mask) && i != copy.size() - 1)
+            {
+                //                std::cout << "merge " << bit << " " << prev.second << " with " << curr.second <<
+                //                std::endl;
+                //                merged_list.push_back({prev.first & mask, Rect(prev.second, curr.second)});
+                //                prev.second.end = prev.second.begin;
+                //                curr.second.end = curr.second.begin;
+                //                i++;
+                range_end++;
+            }
+            else
+            {
+                if (i == copy.size() - 1)
+                {
+                    range_end++;
+                }
+
+                // Let's merge all elemnts in the range
+                Rect merged_range = copy[range_begin].second;
+                for (auto j = range_begin + 1; j < range_end; ++j)
+                {
+                    merged_range = Rect(merged_range, copy[j].second);
+                }
+
+
+                int volume_sum = 0;
+                for (int j = range_begin; j < range_end; ++j)
+                {
+                    volume_sum += copy[j].second.Volume();
+                }
+
+
+
+                float factor = volume_sum / float(merged_range.Volume());
+                if (factor >= merge_factor)
+                {
+                    merged_list.push_back({prev.first & mask, merged_range});
+                    for (int j = range_begin; j < range_end; ++j)
+                    {
+                        copy[j].second.setZero();
+                    }
+                }
+                range_begin = i;
+                range_end   = range_begin + 1;
+            }
+        }
+
+        for (auto& c : copy)
+        {
+            if (c.second.Volume() > 0)
+            {
+                result.rectangles.push_back(c.second);
+            }
+        }
+
+        copy = merged_list;
+        merged_list.clear();
+        //        std::cout << std::endl;
+    }
+
+    for (auto& ml : copy)
+    {
+        result.rectangles.push_back(ml.second);
+    }
+
+
+    for (auto& ml : merged_list)
+    {
+        result.rectangles.push_back(ml.second);
+    }
+
+
+    for (auto& r : result.rectangles)
+    {
+        r.begin += corner;
+        r.end += corner;
+    }
+
+
+
+    return result.MergeNeighborsSave();
+}
+
+Decomposition SaveMergeDecomposition::Compute(ArrayView<const ivec3> points)
+{
+    if (points.empty()) return {};
+    OctTreeDecomposition octree;
+    Decomposition result = octree.Compute(points);
+
+    // First do a 'save' optimization without increasing v0
+    auto tmp          = conv_cost_weights;
+    conv_cost_weights = {0.1, 1};
+    result            = Optimize(result);
+    //    std::cout << result << std::endl;
+
+    // Second do the actual optimization with the user defined cost
+    conv_cost_weights = tmp;
+    result            = Optimize(result);
+    //    std::cout << result << std::endl;
+
+    return result;
+}
+
+Decomposition SaveMergeDecomposition::Optimize(const Decomposition& decomp)
+{
+    Decomposition result = decomp;
+
+    bool changed = true;
+    while (changed)
+    {
+        changed = false;
+
+        auto neighs = result.NeighborList(1);
+        for (auto n : neighs)
+        {
+            auto& r1 = result.rectangles[n.first];
+            if (r1.Volume() == 0) continue;
+            auto& r2 = result.rectangles[n.second];
+            if (r2.Volume() == 0) continue;
+
+            SAIGA_ASSERT(!r1.Intersect(r2));
+
+            // 1. Let's compute the merged rectangle and then check later if this merge is viable
+            Rect merged = Rect(r1, r2);
+
+            // 2. Compute all intersecting rects towards the new merged Rectangle
+            auto inters = result.AllIntersectingRects(merged);
+            std::vector<std::tuple<Rect, Rect, Rect>> shrunk(inters.size());
+            bool found = false;
+
+            // 3. Check if all intersecting rects can be shrunk to the merged rect.
+            for (int i = 0; i < inters.size(); ++i)
+            {
+                auto& r = result.rectangles[inters[i]];
+
+
+                if (inters[i] == n.first)
+                {
+                    std::get<0>(shrunk[i]) = r1;
+                    continue;
+                }
+
+                if (inters[i] == n.second)
+                {
+                    std::get<0>(shrunk[i]) = r2;
+                    continue;
+                }
+                SAIGA_ASSERT(!r1.Intersect(r));
+                SAIGA_ASSERT(!r2.Intersect(r));
+
+                if (!merged.ShrinkOtherToThis(r, std::get<0>(shrunk[i]), std::get<1>(shrunk[i]),
+                                              std::get<2>(shrunk[i])))
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            // We found one rect which cannot be shrunk -> abort
+            if (found)
+            {
+                continue;
+            }
+
+
+            // 4. Compute merged volume and compute it to the transformed volume
+#if 1
+            float old_cost = 0;
+            for (int i = 0; i < inters.size(); ++i)
+            {
+                auto& r = result.rectangles[inters[i]];
+                old_cost += ConvolutionCost(r);
+            }
+
+            // The new cost is the merged rectangle + all outer rects
+            float new_cost = ConvolutionCost(merged);
+            for (auto r : shrunk)
+            {
+                new_cost += ConvolutionCost(std::get<1>(r));
+                new_cost += ConvolutionCost(std::get<2>(r));
+            }
+#else
+            float new_cost = ConvolutionCost(merged);
+            float old_cost = 0;
+            for (auto r : shrunk)
+            {
+                //                shrunk_volume += r.first.Volume();
+                old_cost += ConvolutionCost(std::get<0>(r));
+            }
+#endif
+
+
+
+            // 5. If the merged colume is smaller or equal (equal is also good because we removed one rectangle),
+            //    then apply the merge by setting r1 to the merged rect and all other intersections to the inner shrunk
+            //    results.
+            if (new_cost < old_cost)
+            {
+#if 1
+                for (int i = 0; i < inters.size(); ++i)
+                {
+                    auto& r = result.rectangles[inters[i]];
+
+                    if (inters[i] == n.first)
+                    {
+                        r = merged;
+                    }
+                    else
+                    {
+                        //                        r = shrunk[i].second;
+                        r = std::get<1>(shrunk[i]);
+                        result.rectangles.push_back(std::get<2>(shrunk[i]));
+                    }
+                }
+
+                changed = true;
+#endif
+            }
+        }
+
+        if (changed)
+        {
+            result.RemoveEmpty();
+        }
+    }
+
     return result;
 }
 
 Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
 {
+    //    SAIGA_BLOCK_TIMER();
     if (points.empty()) return {};
     {
-        // Initialization
-        if (0)
-        {
-            RowMergeDecomposition rm;
-            auto d = rm.Compute(points);
-            decomps.push_back({d, Cost(d)});
-        }
+        SaveMergeDecomposition triv;
+        triv.conv_cost_weights = conv_cost_weights;
+        auto d                 = triv.Compute(points);
 
+        decomps.push_back({d, ConvolutionCost(d)});
 
-        TrivialRectangularDecomposition triv;
-        for (int i = 0; i < N; ++i)
-        {
-            auto d = triv.Compute(points);
-            decomps.push_back({d, Cost(d)});
-        }
 
         current_best          = Best().second;
         not_improved_in_a_row = 0;
     }
 
     {
-        int swap_it = its / 2;
         // SAIGA_BLOCK_TIMER();
         for (int it = 0; it < its; ++it)
         {
-            if (it == swap_it)
             {
-                cost_radius = 1;
-                for (auto& d : decomps)
-                {
-                    d.second = Cost(d.first);
-                }
-                not_improved_in_a_row = 0;
-                current_best          = Best().second;
-            }
-#pragma omp parallel for num_threads(decomps.size())
-            for (int d = 0; d < decomps.size(); ++d)
-            {
-                auto& dec = decomps[d];
+                auto& dec = decomps[0];
                 // find a grow that reduces the cost
                 for (int l = 0; l < 1; ++l)
                 {
@@ -328,7 +586,7 @@ Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
                     //                    RandomStepGrow(cpy.first);
                     RandomStepMerge(cpy.first);
 
-                    cpy.second = Cost(cpy.first);
+                    cpy.second = ConvolutionCost(cpy.first);
                     if (cpy.second < dec.second)
                     {
                         dec = cpy;
@@ -357,13 +615,9 @@ Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
             {
                 not_improved_in_a_row++;
 
-                if (not_improved_in_a_row == 100)
+                if (not_improved_in_a_row == converge_its)
                 {
-                    if (it < swap_it)
-                        it = swap_it - 1;
-                    else
-                        break;
-                    not_improved_in_a_row = 0;
+                    break;
                 }
             }
 
@@ -383,7 +637,7 @@ void GrowAndShrinkDecomposition::RandomStepMerge(Decomposition& decomp)
     for (int i = 0; i < decomp.rectangles.size(); ++i)
     {
         auto& r2 = decomp.rectangles[i];
-        if (i != ind && r.Distance(r2) <= cost_radius + 1)
+        if (i != ind && r.Distance(r2) <= 2)
         {
             indices.push_back(i);
         }
