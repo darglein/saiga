@@ -17,6 +17,8 @@
 #include <iostream>
 #include <mutex>
 #include <string>
+
+#include <condition_variable>
 namespace Saiga
 {
 /**
@@ -51,6 +53,7 @@ struct ProgressBar
     ~ProgressBar()
     {
         running = false;
+        cv.notify_one();
         if (st.joinable())
         {
             st.join();
@@ -72,8 +75,8 @@ struct ProgressBar
     std::string postfix;
     std::atomic_bool running = true;
     std::atomic_int current  = 0;
-    SpinLock lock;
-
+    std::mutex lock;
+    std::condition_variable cv;
     int end;
     int length;
 
@@ -83,7 +86,9 @@ struct ProgressBar
             while (running && current.load() < end)
             {
                 print();
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                //                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::unique_lock<std::mutex> l(lock);
+                cv.wait_for(l, std::chrono::milliseconds(100));
             }
             print();
             strm << std::endl;
@@ -95,9 +100,7 @@ struct ProgressBar
 
     void print()
     {
-
-        auto f
-             = strm.flags() ;
+        auto f = strm.flags();
 
 
         //        SAIGA_ASSERT(current <= end);
@@ -151,8 +154,8 @@ struct ProgressBar
             strm << " " << postfix;
         }
         strm << std::flush;
-        strm  << std::setprecision(6);
-        strm.flags( f );
+        strm << std::setprecision(6);
+        strm.flags(f);
         //        strm << std::endl;
     }
 };
