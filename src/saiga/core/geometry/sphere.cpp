@@ -63,6 +63,11 @@ bool Sphere::intersect(const Sphere& other) const
     return distance(other.pos, pos) < r + other.r;
 }
 
+float Sphere::sdf(vec3 p) const
+{
+    return (p - pos).norm() - r;
+}
+
 std::ostream& operator<<(std::ostream& os, const Saiga::Sphere& s)
 {
     os << "Sphere: " << s.pos << s.r;

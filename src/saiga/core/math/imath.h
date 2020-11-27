@@ -74,4 +74,11 @@ HD constexpr int iRound(float value)
     return (int)(value + (value >= 0 ? 0.5f : -0.5f));
 }
 
+// Like integer division, but also rounds down on negative numbers.
+HD constexpr int iFloorDiv(int a, int b)
+{
+    int d = a / b;
+    return d * b == a ? d : d - ((a < 0) ^ (b < 0));
+}
+
 }  // namespace Saiga

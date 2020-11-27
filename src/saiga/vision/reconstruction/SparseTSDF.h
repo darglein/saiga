@@ -29,6 +29,7 @@ struct SAIGA_VISION_API SparseTSDF
 {
     static constexpr int VOXEL_BLOCK_SIZE = 8;
     using VoxelBlockIndex                 = ivec3;
+    using VoxelIndex                      = ivec3;
 
     // Each TSDF voxel consists of the (signed) distance to the surface and a confidence weight.
     // If desired, you can add a RGB member to estimate the color during integration.
@@ -173,11 +174,201 @@ struct SAIGA_VISION_API SparseTSDF
         }
     }
 
-    VoxelBlockIndex GetBlockIndex(const vec3& position)
+    // Returns the 8 voxel ids + weights for a trilinear access
+    std::array<std::pair<VoxelIndex, float>, 8> TrilinearAccess(const vec3& position)
     {
-        vec3 normalized_position = (position - make_vec3(0.5f * voxel_size)) * block_size_inv;
-        return normalized_position.array().floor().cast<int>();
+        vec3 normalized_pos = (position * voxel_size_inv);
+        vec3 ipos           = (normalized_pos).array().floor();
+        vec3 frac           = normalized_pos - ipos;
+
+
+        VoxelIndex corner = ipos.cast<int>();
+
+        std::array<std::pair<VoxelIndex, float>, 8> result;
+        result[0] = {corner + ivec3(0, 0, 0), (1.0f - frac.x()) * (1.0f - frac.y()) * (1.0f - frac.z())};
+        result[1] = {corner + ivec3(0, 0, 1), (1.0f - frac.x()) * (1.0f - frac.y()) * (frac.z())};
+        result[2] = {corner + ivec3(0, 1, 0), (1.0f - frac.x()) * (frac.y()) * (1.0f - frac.z())};
+        result[3] = {corner + ivec3(0, 1, 1), (1.0f - frac.x()) * (frac.y()) * (frac.z())};
+
+        result[4] = {corner + ivec3(1, 0, 0), (frac.x()) * (1.0f - frac.y()) * (1.0f - frac.z())};
+        result[5] = {corner + ivec3(1, 0, 1), (frac.x()) * (1.0f - frac.y()) * (frac.z())};
+        result[6] = {corner + ivec3(1, 1, 0), (frac.x()) * (frac.y()) * (1.0f - frac.z())};
+        result[7] = {corner + ivec3(1, 1, 1), (frac.x()) * (frac.y()) * (frac.z())};
+
+
+        return result;
     }
+
+    // Returns the 8 voxel ids + weights for a trilinear access
+    bool TrilinearAccess(const vec3& position, Voxel& result)
+    {
+        result.distance      = 0;
+        result.weight        = 0;
+        auto indices_weights = TrilinearAccess(position);
+
+        float w_sum = 0;
+        for (auto& iw : indices_weights)
+        {
+            auto v = GetVoxel(iw.first);
+            if (v.weight == 0) return false;
+
+            result.distance += v.distance * iw.second;
+            result.weight += v.weight * iw.second;
+            w_sum += iw.second;
+        }
+
+        SAIGA_ASSERT(std::abs(w_sum - 1) < 0.0001);
+
+        return true;
+    }
+
+    // The sdf gradient on the surface (sdf=0) has the same direction as the surface normal.
+    vec3 TrilinearGradient(const vec3& position)
+    {
+        Voxel vx1, vx2;
+        TrilinearAccess(position - vec3(voxel_size * 0.5, 0, 0), vx1);
+        TrilinearAccess(position + vec3(voxel_size * 0.5, 0, 0), vx2);
+
+        Voxel vy1, vy2;
+        TrilinearAccess(position - vec3(0, voxel_size * 0.5, 0), vy1);
+        TrilinearAccess(position + vec3(0, voxel_size * 0.5, 0), vy2);
+
+        Voxel vz1, vz2;
+        TrilinearAccess(position - vec3(0, 0, voxel_size * 0.5), vz1);
+        TrilinearAccess(position + vec3(0, 0, voxel_size * 0.5), vz2);
+
+        vec3 grad = vec3((vx2.distance - vx1.distance), (vy2.distance - vy1.distance), (vz2.distance - vz1.distance)) /
+                    float(voxel_size);
+        return grad;
+    }
+
+    // The normal is the normalized gradient.
+    // This function is only valid close to the surface.
+    vec3 TrilinearNormal(const vec3& position)
+    {
+        vec3 grad = TrilinearGradient(position);
+        float l   = grad.norm();
+        return l < 0.00001 ? grad : grad / l;
+    }
+
+    VoxelIndex VirtualVoxelIndex(const vec3& position)
+    {
+        vec3 normalized_pos = position * voxel_size_inv;
+        ivec3 ipos          = normalized_pos.array().round().cast<int>();
+        return ipos;
+    }
+
+    VoxelBlockIndex GetBlockIndex(VoxelIndex virtual_voxel)
+    {
+        int x = iFloorDiv(virtual_voxel.x(), VOXEL_BLOCK_SIZE);
+        int y = iFloorDiv(virtual_voxel.y(), VOXEL_BLOCK_SIZE);
+        int z = iFloorDiv(virtual_voxel.z(), VOXEL_BLOCK_SIZE);
+        return {x, y, z};
+    }
+
+    VoxelIndex GetLocalOffset(VoxelBlockIndex block, VoxelIndex virtual_voxel)
+    {
+        VoxelIndex result = virtual_voxel - block * VOXEL_BLOCK_SIZE;
+
+        SAIGA_ASSERT((result.array() >= ivec3::Zero().array()).all());
+        SAIGA_ASSERT((result.array() < ivec3(VOXEL_BLOCK_SIZE, VOXEL_BLOCK_SIZE, VOXEL_BLOCK_SIZE).array()).all());
+        return result;
+    }
+
+    Voxel GetVoxel(VoxelIndex virtual_voxel)
+    {
+        auto block_id = GetBlockIndex(virtual_voxel);
+        auto block    = GetBlock(block_id);
+        if (block)
+        {
+            ivec3 local_offset = GetLocalOffset(block_id, virtual_voxel);
+            return block->data[local_offset.z()][local_offset.y()][local_offset.x()];
+        }
+        else
+        {
+            return {0, 0};
+        }
+    }
+
+    float IntersectionLinear(float t1, float t2, float d1, float d2) const { return t1 + (d1 / (d1 - d2)) * (t2 - t1); }
+
+    template <int bisect_iterations>
+    bool findIntersectionBisection(vec3 ray_origin, vec3 ray_dir, float t1, float t2, float d1, float d2, float& t)
+    {
+        float a     = t1;
+        float b     = t2;
+        float aDist = d1;
+        float bDist = d2;
+        float c     = 0.0f;
+        c           = IntersectionLinear(a, b, aDist, bDist);
+
+        for (int i = 0; i < bisect_iterations; i++)
+        {
+            SAIGA_ASSERT(c >= t1);
+            SAIGA_ASSERT(c <= t2);
+
+            Voxel sample;
+            if (!TrilinearAccess(ray_origin + c * ray_dir, sample)) return false;
+
+            float cDist = sample.distance;
+            if (aDist * cDist > 0.0)
+            {
+                a     = c;
+                aDist = cDist;
+            }
+            else
+            {
+                b     = c;
+                bDist = cDist;
+            }
+            c = IntersectionLinear(a, b, aDist, bDist);
+        }
+
+        t = c;
+
+        return true;
+    }
+    // Intersects the given ray with the implicit surface.
+    template <int bisect_iterations>
+    float RaySurfaceIntersection(vec3 ray_origin, vec3 ray_dir, float min_t, float max_t, float step)
+    {
+        float current_t = min_t;
+        float last_t;
+
+        Voxel last_sample;
+
+        while (current_t < max_t)
+        {
+            vec3 current_pos = ray_origin + ray_dir * current_t;
+
+            Voxel current_sample;
+            if (TrilinearAccess(current_pos, current_sample))
+            {
+                SAIGA_ASSERT(current_sample.weight > 0);
+                if (last_sample.weight > 0 && last_sample.distance > 0.0f && current_sample.distance < 0.0f)
+                {
+                    float t_bi = 0;
+                    if (findIntersectionBisection<bisect_iterations>(ray_origin, ray_dir, last_t, current_t,
+                                                                     last_sample.distance, current_sample.distance,
+                                                                     t_bi))
+                    {
+                        float result_t = t_bi;
+                        SAIGA_ASSERT(result_t >= last_t);
+                        SAIGA_ASSERT(result_t <= current_t);
+                        return result_t;
+                    }
+                }
+            }
+            last_sample = current_sample;
+            last_t      = current_t;
+            current_t += step;
+        }
+
+        return max_t;
+    }
+
+
+    VoxelBlockIndex GetBlockIndex(const vec3& position) { return GetBlockIndex(VirtualVoxelIndex(position)); }
 
     vec3 BlockCenter(const VoxelBlockIndex& i)
     {
@@ -185,9 +376,11 @@ struct SAIGA_VISION_API SparseTSDF
         return GlobalPosition(i, half_size, half_size, half_size);
     }
 
-    // The bottom right corner of this voxelblock
+    // The bottom left corner of this voxelblock
     vec3 GlobalBlockOffset(const VoxelBlockIndex& i) { return i.cast<float>() * voxel_size * VOXEL_BLOCK_SIZE; }
 
+    // Global position of one grid point.
+    // Arguments: voxel block + relative index in this block
     vec3 GlobalPosition(const VoxelBlockIndex& i, int z, int y, int x)
     {
         return vec3(x, y, z) * voxel_size + GlobalBlockOffset(i);

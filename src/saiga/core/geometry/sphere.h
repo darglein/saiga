@@ -35,6 +35,12 @@ class SAIGA_CORE_API Sphere
     bool contains(vec3 p) const;
     bool intersect(const Sphere& other) const;
 
+    // Signed distance to sphere surface.
+    // >0 means outside
+    // <0 means inside
+    // =0 on the surface
+    float sdf(vec3 p) const;
+
     //    TriangleMesh* createMesh(int rings, int sectors);
     //    void addToBuffer(std::vector<VertexNT> &vertices, std::vector<GLuint> &indices, int rings, int sectors);
 
