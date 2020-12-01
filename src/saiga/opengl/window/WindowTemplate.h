@@ -28,6 +28,14 @@ using SDLWindow = void;
 }
 #endif
 
+#ifdef SAIGA_USE_EGL
+#    include "saiga/opengl/egl/offscreen_window.h"
+#else
+namespace Saiga
+{
+using OffscreenWindow = void;
+}
+#endif
 
 
 namespace Saiga
@@ -35,7 +43,8 @@ namespace Saiga
 enum class WindowManagement
 {
     SDL,
-    GLFW
+    GLFW,
+    EGL
 };
 
 template <WindowManagement WM>
@@ -54,6 +63,13 @@ struct GetWindowType<WindowManagement::GLFW>
 {
     using Type = glfw_Window;
 };
+
+template <>
+struct GetWindowType<WindowManagement::EGL>
+{
+    using Type = OffscreenWindow;
+};
+
 
 
 template <WindowManagement WM, typename Renderer>

@@ -117,10 +117,7 @@ void VRRenderer::render(const RenderInfo& renderInfo)
     {
         SAIGA_ASSERT(ImGui::GetCurrentContext());
         imgui->beginFrame();
-    }
-    renderingInterface->render(camera, RenderPass::GUI);
-    if (imgui)
-    {
+        renderingInterface->render(camera, RenderPass::GUI);
         imgui->endFrame();
         imgui->render();
     }

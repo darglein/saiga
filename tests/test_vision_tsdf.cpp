@@ -99,6 +99,70 @@ TEST(TSDF, Create)
     }
 }
 
+TEST(TSDF, InsertRemoveBlock)
+{
+    {
+        SparseTSDF tsdf(1, 1000, 1000);
+        tsdf.InsertBlock({0, 0, 0});
+        EXPECT_TRUE(tsdf.GetBlock({0, 0, 0}));
+        EXPECT_EQ(tsdf.Bounds(), iRect<3>(ivec3(0, 0, 0), ivec3(1, 1, 1)));
+        tsdf.InsertBlock({2, 1, -1});
+        EXPECT_EQ(tsdf.Bounds(), iRect<3>(ivec3(0, 0, -1), ivec3(3, 2, 1)));
+
+        EXPECT_TRUE(tsdf.GetBlock({2, 1, -1}));
+        tsdf.EraseBlockWithHole({2, 1, -1}, tsdf.H({2, 1, -1}));
+        EXPECT_FALSE(tsdf.GetBlock({2, 1, -1}));
+    }
+
+    {
+        SparseTSDF tsdf(1, 1, 1);
+        tsdf.InsertBlock({0, 0, 0});
+        tsdf.InsertBlock({2, 1, -1});
+        tsdf.InsertBlock({4, 1, -1});
+        tsdf.InsertBlock({1, 1, -1});
+
+        EXPECT_TRUE(tsdf.EraseBlock({2, 1, -1}));
+        EXPECT_EQ(tsdf.Bounds(), iRect<3>(ivec3(0, 0, -1), ivec3(5, 2, 1)));
+        EXPECT_FALSE(tsdf.GetBlock({2, 1, -1}));
+
+        EXPECT_TRUE(tsdf.EraseBlock({4, 1, -1}));
+        EXPECT_EQ(tsdf.Bounds(), iRect<3>(ivec3(0, 0, -1), ivec3(2, 2, 1)));
+        EXPECT_FALSE(tsdf.GetBlock({4, 1, -1}));
+
+        EXPECT_EQ(tsdf.current_blocks, tsdf.NumBlocksInRect(tsdf.Bounds()));
+
+        EXPECT_EQ(tsdf.current_blocks, 2);
+        tsdf.EraseEmptyBlocks();
+        EXPECT_EQ(tsdf.current_blocks, 0);
+    }
+}
+
+TEST(TSDF, Crop)
+{
+    Random::setSeed(394765346);
+
+    for (int k = 0; k < 10; ++k)
+    {
+        SparseTSDF tsdf(1, 37, 37);
+
+        for (int i = 0; i < 1000; ++i)
+        {
+            ivec3 r(Random::uniformInt(-10, 11), Random::uniformInt(-10, 11), Random::uniformInt(-10, 11));
+            tsdf.InsertBlock(r);
+        }
+        iRect<3> rect(ivec3(-3, -2, -4), ivec3(2, 7, 100));
+
+        int before_in_rect = tsdf.NumBlocksInRect(rect);
+        EXPECT_LT(before_in_rect, tsdf.current_blocks);
+
+        tsdf.CropToRect(rect);
+
+        EXPECT_EQ(tsdf.current_blocks, tsdf.NumBlocksInRect(rect));
+        EXPECT_EQ(before_in_rect, tsdf.NumBlocksInRect(rect));
+    }
+}
+
+
 TEST(TSDF, VirtualVoxelIndex)
 {
     {
@@ -129,6 +193,7 @@ TEST(TSDF, VirtualVoxelIndex)
         EXPECT_EQ(tsdf.GetBlockIndex(ivec3{-8, -9, 8}), ivec3(-1, -2, 1));
     }
 }
+
 
 TEST(TSDF, GetVoxel)
 {

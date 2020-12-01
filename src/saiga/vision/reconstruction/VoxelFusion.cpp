@@ -15,6 +15,8 @@ namespace Saiga
 {
 void FusionScene::Preprocess()
 {
+    ProgressBar loading_bar(std::cout, "Preprocess ", depth_map_size.rows);
+
     triangle_soup_inclusive_prefix_sum.clear();
     triangle_soup.clear();
     mesh.clear();
@@ -25,8 +27,8 @@ void FusionScene::Preprocess()
     depth_map_size = images.front().depthMap.dimensions();
     unproject_undistort_map.create(depth_map_size);
 
-
-    for (auto i : unproject_undistort_map.rowRange())
+#pragma omp parallel for
+    for (int i = 0; i < unproject_undistort_map.rows; ++i)
     {
         for (auto j : unproject_undistort_map.colRange())
         {
@@ -36,6 +38,7 @@ void FusionScene::Preprocess()
 
             unproject_undistort_map(i, j) = p.cast<float>();
         }
+        loading_bar.addProgress(1);
     }
 }
 
@@ -90,6 +93,7 @@ void FusionScene::AnalyseSparseStructure()
                     dm.unprojected_position(i, j) = center;
                 }
 
+                SAIGA_ASSERT(!params.point_based);
                 if (params.point_based)
                 {
                     tsdf->AllocateAroundPoint(center);
@@ -366,9 +370,9 @@ void FusionScene::Integrate()
                                 int ipx = std::floor(ip(0));
                                 int ipy = std::floor(ip(1));
                                 auto a1 = dm.depthMap(ipy, ipx);
+                                auto a4 = dm.depthMap(ipy, ipx + 1);
                                 auto a2 = dm.depthMap(ipy + 1, ipx);
                                 auto a3 = dm.depthMap(ipy + 1, ipx + 1);
-                                auto a4 = dm.depthMap(ipy, ipx + 1);
                                 if (a1 <= 0 || a2 <= 0 || a3 <= 0 || a4 <= 0) continue;
                                 imageDepth = dm.depthMap.inter(ip(1), ip(0));
 
@@ -386,6 +390,7 @@ void FusionScene::Integrate()
                             }
                             else
                             {
+                                SAIGA_EXIT_ERROR("unimplemented");
                                 imageDepth = dm.depthMap(ipy, ipx);
                             }
 
@@ -406,7 +411,7 @@ void FusionScene::Integrate()
                             //                    double sdf = (ipUnproj - pos).norm();
                             double surface_distance = imageDepth - voxelDepth;
 
-                            surface_distance = clamp(surface_distance, -params.sd_clamp, params.sd_clamp);
+
 
                             //                    if (imageDepth < voxelDepth) sdf *= -1;
 
@@ -414,9 +419,9 @@ void FusionScene::Integrate()
 
                             float truncation_distance =
                                 params.truncationDistance + params.truncationDistanceScale * imageDepth;
-                            //                            truncation_distance =
-                            //                                std::max(params.min_truncation_factor * params.voxelSize,
-                            //                                truncation_distance);
+
+                            truncation_distance =
+                                std::max(params.min_truncation_factor * params.voxelSize, truncation_distance);
 
                             //                    if ( std::abs(sdf) < -truncation_distance)
 
@@ -429,10 +434,14 @@ void FusionScene::Integrate()
                             auto current_tsdf   = cell.distance;
                             auto current_weight = cell.weight;
 
-                            // auto distance_error = std::abs(current_tsdf - surface_distance);
 
-                            //                            if (current_weight > 0 && current_tsdf - surface_distance >
-                            //                            params.max_distance_error)
+                            new_tsdf = clamp(new_tsdf, -params.sd_clamp, params.sd_clamp);
+
+                            //                            auto distance_error = std::abs(current_tsdf -
+                            //                            surface_distance);
+
+                            //                            if (current_weight > 0 && current_tsdf - new_tsdf >
+                            //                            truncation_distance)
                             //                            {
                             //                                continue;
                             //                            }

@@ -51,6 +51,22 @@ struct SAIGA_VISION_API SparseTSDF
         std::array<std::array<std::array<Voxel, 8>, 8>, 8> data;
         VoxelBlockIndex index = VoxelBlockIndex(-973454, -973454, -973454);
         int next_index        = -1;
+
+        // the weight of all voxels is 0
+        bool Empty()
+        {
+            for (auto& vz : data)
+            {
+                for (auto& vy : vz)
+                {
+                    for (auto& v : vy)
+                    {
+                        if (v.weight > 0) return false;
+                    }
+                }
+            }
+            return true;
+        }
     };
 
 
@@ -126,6 +142,66 @@ struct SAIGA_VISION_API SparseTSDF
         new_block->next_index    = first_hashed_block[hash];
         first_hashed_block[hash] = new_index;
         return new_block;
+    }
+
+    bool EraseBlock(const VoxelBlockIndex& i)
+    {
+        int block_id = GetBlockId(i);
+        //        if (block_id < 0) return false;
+        SAIGA_ASSERT(block_id >= 0);
+
+        int h = H(i);
+        if (!EraseBlockWithHole(i, h)) return false;
+
+        if (block_id == current_blocks - 1)
+        {
+            // The removed block is at the end of the array -> just remove
+            //            std::cout << "remove end" << std::endl;
+            current_blocks--;
+            return true;
+        }
+        else
+        {
+            SAIGA_ASSERT(current_blocks >= 2);
+            // The removed block is somewhere in the middle
+            // -> Remove last
+            auto last_b = blocks[current_blocks - 1];
+            int last_h  = H(last_b.index);
+            SAIGA_ASSERT(GetBlockId(last_b.index) == current_blocks - 1);
+
+            EraseBlockWithHole(last_b.index, last_h);
+            auto* new_block = &blocks[block_id];
+
+            *new_block                 = last_b;
+            new_block->next_index      = first_hashed_block[last_h];
+            first_hashed_block[last_h] = block_id;
+            current_blocks--;
+            return true;
+        }
+    }
+
+    bool EraseBlockWithHole(const VoxelBlockIndex& i, int hash)
+    {
+        int* block_id_ptr = &first_hashed_block[hash];
+
+        bool found = false;
+
+        while (*block_id_ptr != -1)
+        {
+            auto& b = blocks[*block_id_ptr];
+
+            if (b.index == i)
+            {
+                found = true;
+                break;
+            }
+
+            block_id_ptr = &b.next_index;
+        }
+        if (!found) return false;
+
+        *block_id_ptr = blocks[*block_id_ptr].next_index;
+        return true;
     }
 
     VoxelBlock* InsertBlockLock(const VoxelBlockIndex& i)
@@ -330,19 +406,27 @@ struct SAIGA_VISION_API SparseTSDF
     }
     // Intersects the given ray with the implicit surface.
     template <int bisect_iterations>
-    float RaySurfaceIntersection(vec3 ray_origin, vec3 ray_dir, float min_t, float max_t, float step)
+    float RaySurfaceIntersection(vec3 ray_origin, vec3 ray_dir, float min_t, float max_t, float step,
+                                 bool verbose = false)
     {
         float current_t = min_t;
         float last_t;
 
         Voxel last_sample;
+        float current_step = step;
 
         while (current_t < max_t)
         {
             vec3 current_pos = ray_origin + ray_dir * current_t;
 
             Voxel current_sample;
-            if (TrilinearAccess(current_pos, current_sample))
+            bool tril = TrilinearAccess(current_pos, current_sample);
+
+            if (verbose)
+            {
+                std::cout << "Trace " << current_t << " " << tril << " " << current_sample.distance << std::endl;
+            }
+            if (tril)
             {
                 SAIGA_ASSERT(current_sample.weight > 0);
                 if (last_sample.weight > 0 && last_sample.distance > 0.0f && current_sample.distance < 0.0f)
@@ -358,14 +442,30 @@ struct SAIGA_VISION_API SparseTSDF
                         return result_t;
                     }
                 }
+
+                //                current_step = std::max(voxel_size,std::min(std::abs(current_sample.distance),step));
+            }
+            else
+            {
+                //                current_step = step;
             }
             last_sample = current_sample;
             last_t      = current_t;
-            current_t += step;
+            current_t += current_step;
         }
 
         return max_t;
     }
+
+    // Computes the 3D box which contains all valid blocks.
+    iRect<3> Bounds();
+    int NumBlocksInRect(const iRect<3>& rect);
+
+    // Removes all block, where every weight is 0
+    void EraseEmptyBlocks();
+
+    // Erase all blocks not included in rect
+    void CropToRect(const iRect<3>& rect);
 
 
     VoxelBlockIndex GetBlockIndex(const vec3& position) { return GetBlockIndex(VirtualVoxelIndex(position)); }
@@ -480,24 +580,6 @@ struct SAIGA_VISION_API SparseTSDF
             return nullptr;
         }
     }
-
-    // Returns the voxel block or 0 if it doesn't exist.
-    //    VoxelBlock* GetBlock(const VoxelBlockIndex& i, int hash)
-    //    {
-    //        int block_id = first_hashed_block[hash];
-
-    //        while (block_id != -1)
-    //        {
-    //            auto* block = &blocks[block_id];
-    //            if (block->index == i)
-    //            {
-    //                return block;
-    //            }
-
-    //            block_id = block->next_index;
-    //        }
-    //        return nullptr;
-    //    }
 };
 
 

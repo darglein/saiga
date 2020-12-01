@@ -50,6 +50,8 @@ class SAIGA_TEMPLATE iRect
         return s(0) * s(1) * s(2);
     }
 
+    bool operator==(const iRect& other) const { return begin == other.begin && end == other.end; }
+
     iRect Add(const ivec3& value) const { return iRect(begin + value, end + value); }
 
     bool Contains(const Vec& index) const
@@ -139,8 +141,8 @@ class SAIGA_TEMPLATE iRect
         SAIGA_ASSERT(sum_contain <= 2);
         if (sum_contain <= 1) return false;
 
-        int axis       = (!contain(0) * 0) + (!contain(1) * 1) + (!contain(2) * 2);
-        int move_begin = begin_test(axis);
+        int axis = (!contain(0) * 0) + (!contain(1) * 1) + (!contain(2) * 2);
+        //        int move_begin = begin_test(axis);
 
         if (end(axis) <= other.begin(axis) || begin(axis) >= other.end(axis))
         {

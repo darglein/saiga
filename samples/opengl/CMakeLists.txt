@@ -28,7 +28,7 @@ if (SDL2_FOUND)
 endif ()
 
 if (EGL_FOUND)
-    #add_subdirectory(offscreenRendering)
+    add_subdirectory(simpleEGLRendering)
 endif ()
 
 if(OPENVR_FOUND)
