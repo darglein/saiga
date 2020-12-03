@@ -166,7 +166,9 @@ struct SAIGA_VISION_API SparseTSDF
             // The removed block is somewhere in the middle
             // -> Remove last
             auto last_b = blocks[current_blocks - 1];
-            int last_h  = H(last_b.index);
+            SAIGA_ASSERT(last_b.index != i);
+
+            int last_h = H(last_b.index);
             SAIGA_ASSERT(GetBlockId(last_b.index) == current_blocks - 1);
 
             EraseBlockWithHole(last_b.index, last_h);

@@ -141,16 +141,22 @@ TEST(TSDF, Crop)
 {
     Random::setSeed(394765346);
 
-    for (int k = 0; k < 10; ++k)
+    for (int k = 0; k < 100; ++k)
     {
-        SparseTSDF tsdf(1, 37, 37);
+        SparseTSDF tsdf(1, 500, 500);
 
         for (int i = 0; i < 1000; ++i)
         {
             ivec3 r(Random::uniformInt(-10, 11), Random::uniformInt(-10, 11), Random::uniformInt(-10, 11));
             tsdf.InsertBlock(r);
         }
-        iRect<3> rect(ivec3(-3, -2, -4), ivec3(2, 7, 100));
+
+        ivec3 pos(Random::uniformInt(-10, 11), Random::uniformInt(-10, 11), Random::uniformInt(-10, 11));
+        iRect<3> rect(pos);
+        rect.Expand(Random::uniformInt(0, 20));
+
+
+        //        (ivec3(-3, -2, -4), ivec3(2, 7, 100));
 
         int before_in_rect = tsdf.NumBlocksInRect(rect);
         EXPECT_LT(before_in_rect, tsdf.current_blocks);
