@@ -34,9 +34,11 @@ struct SpotLightData
 
 struct BoxLightData
 {
-    vec4 position;       // xyz, w unused
-    vec4 colorDiffuse;   // rgb intensity
-    vec4 colorSpecular;  // rgb specular intensity
+    vec4 colorDiffuse;  // rgb intensity
+    vec4 colorSpecular; // rgb specular intensity
+    vec4 min_w;         // xyz, w unused
+    vec4 max_w;         // xyz, w unused
+    vec4 direction;     // xyz, w ambient intensity
 };
 
 struct DirectionalLightData

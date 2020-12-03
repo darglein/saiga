@@ -111,9 +111,12 @@ void ForwardLighting::initRender()
     {
         if (li.boxLightCount >= maximumNumberOfBoxLights) break;  // just ignore too many lights...
         if (!bl->shouldRender()) continue;
-        glBoxLight.position      = make_vec4(bl->getPosition(), 0.0f);
         glBoxLight.colorDiffuse  = make_vec4(bl->getColorDiffuse(), bl->getIntensity());
         glBoxLight.colorSpecular = make_vec4(bl->getColorSpecular(), 1.0f);  // specular Intensity?
+        glBoxLight.min_w = bl->getModelMatrix() * make_vec4(make_vec3(-0.5f), 1.0f);
+        glBoxLight.max_w = bl->getModelMatrix() * make_vec4(make_vec3(+0.5f), 1.0f);
+        glBoxLight.direction     = make_vec4(0);
+        glBoxLight.direction += bl->getModelMatrix().col(2);
         ld.boxLights.push_back(glBoxLight);
         li.boxLightCount++;
     }

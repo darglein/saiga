@@ -39,9 +39,11 @@ struct SpotLightData
 
 struct BoxLightData
 {
-    vec4 position; // xyz, w unused
-    vec4 colorDiffuse; // rgb intensity
+    vec4 colorDiffuse;  // rgb intensity
     vec4 colorSpecular; // rgb specular intensity
+    vec4 min_w;         // xyz, w unused
+    vec4 max_w;         // xyz, w unused
+    vec4 direction;     // xyz, w ambient intensity
 };
 
 struct DirectionalLightData
@@ -162,14 +164,39 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
 vec3 calculateBoxLights(AssetMaterial material, vec3 position, vec3 normal)
 {
     vec3 result = vec3(0);
-    //for(int c = 0; c < boxLightCount; ++c)
-    //{
-    //    vec3 color = lightColorDiffuse.rgb * (
-    //                Idiff * material.color.rgb +
-    //                Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
-//
-    //    result += color;
-    //}
+    for(int c = 0; c < boxLightCount; ++c)
+    {
+        BoxLightData bl = boxLights[c];
+        vec4 lightColorDiffuse = bl.colorDiffuse;
+        vec4 lightColorSpecular = bl.colorSpecular;
+
+        vec3 bounds[2];
+
+        bounds[0] = (view * bl.min_w).rgb;
+        bounds[1] = (view * bl.max_w).rgb;
+
+        if(any(lessThan(position, bounds[0])) || any(greaterThan(position, bounds[1])))
+        {
+            continue;
+        }
+        //result = vec3(0.5);
+        //continue;
+
+        vec3 fragmentLightDir = normalize((view * vec4(bl.direction.rgb, 0.0)).rgb);
+        float intensity       = lightColorDiffuse.w;
+        float visibility      = 1.0;
+        float localIntensity  = intensity * visibility;
+
+        float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
+        float Ispec = 0;
+        if (Idiff > 0) Ispec = localIntensity * material.data.x * intensitySpecular(position, normal, fragmentLightDir, 40);
+
+        vec3 color = lightColorDiffuse.rgb * (
+                    Idiff * material.color.rgb +
+                    Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
+
+        result += color;
+    }
     return result;
 }
 
