@@ -42,9 +42,10 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     virtual void render(const RenderInfo& renderInfo) override;
     virtual void renderImGui(bool* p_open = nullptr) override;
 
-    void resize(int width, int height);
+    void resize(int windowWidth, int windowHeight) override;
 
-    inline const char* getMainShaderSource() { return mainShaderSource; }
+    inline const char* getColoredShaderSource() { return coloredShaderSource; }
+    inline const char* getTexturedShaderSource() { return texturedShaderSource; }
 
     enum ForwardTimingBlock
     {
@@ -77,13 +78,15 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     ParameterType params;
 
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
+    bool showLightingImgui = false;
     ShaderLoader shaderLoader;
 
    protected:
     void startTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].startTimer(); }
     void stopTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].stopTimer(); }
 
-    const char* mainShaderSource = "asset/ColoredAsset.glsl";
+    const char* coloredShaderSource = "asset/ColoredAsset.glsl";
+    const char* texturedShaderSource = "asset/TexturedAsset.glsl";
 
     bool cullLights = false;
 };

@@ -1,34 +1,57 @@
-/**
+﻿/**
  * Copyright (c) 2020 Paul Himmler
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
-#include "forward_lighting.h"
+#include "uber_deferred_lighting.h"
 
-#include "saiga/opengl/rendering/lighting/box_light.h"
-#include "saiga/opengl/rendering/lighting/directional_light.h"
-#include "saiga/opengl/rendering/lighting/point_light.h"
-#include "saiga/opengl/rendering/lighting/spot_light.h"
+#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/imath.h"
+#include "saiga/core/util/tostring.h"
+#include "saiga/opengl/error.h"
+#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/rendering/program.h"
+#include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/opengl/texture/CubeTexture.h"
 
 namespace Saiga
 {
 using namespace uber;
 
-ForwardLighting::ForwardLighting() : RendererLighting()
+UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(framebuffer)
 {
+    createLightMeshes();
+    shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
+
     lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * maximumNumberOfDirectionalLights,
                                               GL_DYNAMIC_DRAW);
     lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLightData) * maximumNumberOfPointLights, GL_DYNAMIC_DRAW);
     lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLightData) * maximumNumberOfSpotLights, GL_DYNAMIC_DRAW);
     lightDataBufferBox.createGLBuffer(nullptr, sizeof(BoxLightData) * maximumNumberOfBoxLights, GL_DYNAMIC_DRAW);
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
+
+
+    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
+    quadMesh.fromMesh(*qb);
 }
 
-ForwardLighting::~ForwardLighting() {}
+UberDeferredLighting::~UberDeferredLighting() {}
 
-void ForwardLighting::initRender()
+void UberDeferredLighting::loadShaders()
 {
+    RendererLighting::loadShaders();
+
+    const RendererLightingShaderNames& names = RendererLightingShaderNames();
+
+    lightingShader = shaderLoader.load<UberDeferredLightingShader>(names.lightingUberShader);
+}
+
+void UberDeferredLighting::initRender()
+{
+    // TODO Paul: We should refactor this for all single light pass renderers.
     startTimer(0);
     RendererLighting::initRender();
     lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
@@ -115,10 +138,25 @@ void ForwardLighting::initRender()
     stopTimer(0);
 }
 
-void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
+void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 {
     // Does nothing
     RendererLighting::render(cam, viewPort);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    // Lighting Uber Shader
+    lightingShader->bind();
+    lightingShader->uploadFramebuffer(&gbuffer);
+    lightingShader->uploadScreenSize(viewPort.getVec4());
+    lightingShader->uploadInvProj(inverse(cam->proj));
+    quadMesh.bindAndDraw();
+    lightingShader->unbind();
+    assert_no_glerror();
+
+    // reset state
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
 
     if (drawDebug)
     {
@@ -126,10 +164,12 @@ void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
         renderDebug(cam);
         //        glDepthMask(GL_FALSE);
     }
+
     assert_no_glerror();
 }
 
-void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
+void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights,
+                                          int maxBoxLights)
 {
     maxDirectionalLights = std::max(0, maxDirectionalLights);
     maxPointLights       = std::max(0, maxPointLights);
@@ -160,9 +200,9 @@ void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLight
     maximumNumberOfBoxLights         = maxBoxLights;
 }
 
-void ForwardLighting::renderImGui(bool* p_open)
+void UberDeferredLighting::renderImGui(bool* p_open)
 {
-    RendererLighting::renderImGui();
+    RendererLighting::renderImGui(p_open);
 }
 
 }  // namespace Saiga

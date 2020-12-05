@@ -11,7 +11,7 @@
 #else
 layout(location=0) out vec4 out_color;
 #if defined(FORWARD_LIT)
-#include "lighting/forward_lighting_helpers.glsl"
+#include "lighting/uber_lighting_helpers.glsl"
 #endif
 #endif
 

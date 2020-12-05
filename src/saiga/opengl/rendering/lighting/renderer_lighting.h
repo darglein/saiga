@@ -37,7 +37,67 @@ struct RendererLightingShaderNames
     std::string boxLightShader         = "lighting/light_box.glsl";
     std::string debugShader            = "lighting/debugmesh.glsl";
     std::string stencilShader          = "lighting/stenciltest.glsl";
+    std::string lightingUberShader     = "lighting/lighting_uber.glsl";
 };
+
+namespace uber
+{
+struct PointLightData
+{
+    vec4 position;       // xyz, w unused
+    vec4 colorDiffuse;   // rgb intensity
+    vec4 colorSpecular;  // rgb specular intensity
+    vec4 attenuation;    // xyz radius
+};
+
+struct SpotLightData
+{
+    vec4 position;       // xyz, w angle
+    vec4 colorDiffuse;   // rgb intensity
+    vec4 colorSpecular;  // rgb specular intensity
+    vec4 attenuation;    // xyz radius
+    vec4 direction;      // xyzw
+};
+
+struct BoxLightData
+{
+    vec4 colorDiffuse;   // rgb intensity
+    vec4 colorSpecular;  // rgb specular intensity
+    vec4 min_w;          // xyz, w unused
+    vec4 max_w;          // xyz, w unused
+    vec4 direction;      // xyz, w ambient intensity
+};
+
+struct DirectionalLightData
+{
+    vec4 position;       // xyz, w unused
+    vec4 colorDiffuse;   // rgb intensity
+    vec4 colorSpecular;  // rgb specular intensity
+    vec4 direction;      // xyz, w unused
+};
+
+struct LightData
+{
+    std::vector<PointLightData> pointLights;
+    std::vector<SpotLightData> spotLights;
+    std::vector<BoxLightData> boxLights;
+    std::vector<DirectionalLightData> directionalLights;
+};
+
+struct LightInfo
+{
+    int pointLightCount;
+    int spotLightCount;
+    int boxLightCount;
+    int directionalLightCount;
+};
+}  // namespace uber
+
+#define POINT_LIGHT_DATA_BINDING_POINT 2
+#define SPOT_LIGHT_DATA_BINDING_POINT 3
+#define BOX_LIGHT_DATA_BINDING_POINT 4
+#define DIRECTIONAL_LIGHT_DATA_BINDING_POINT 5
+#define LIGHT_INFO_BINDING_POINT 6
 
 
 class SAIGA_OPENGL_API RendererLighting
@@ -101,6 +161,8 @@ class SAIGA_OPENGL_API RendererLighting
     void printTimings();
     virtual void renderImGui(bool* p_open = NULL);
 
+    virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights);
+
 
    public:
     int width, height;
@@ -145,5 +207,11 @@ class SAIGA_OPENGL_API RendererLighting
         if (!useTimers) return 0;
         return timers2[timer].getTimeMS();
     }
+
+   protected:
+    int maximumNumberOfDirectionalLights = 256;
+    int maximumNumberOfPointLights       = 256;
+    int maximumNumberOfSpotLights        = 256;
+    int maximumNumberOfBoxLights         = 256;
 };
 }  // namespace Saiga

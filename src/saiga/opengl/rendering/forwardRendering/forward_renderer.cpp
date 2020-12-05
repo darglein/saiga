@@ -28,11 +28,11 @@ ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& para
 
     lighting.init(window.getWidth(), window.getHeight(), false);
     this->params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
-    this->params.maximumNumberOfPointLights = std::max(0, params.maximumNumberOfPointLights);
-    this->params.maximumNumberOfSpotLights = std::max(0, params.maximumNumberOfSpotLights);
-    this->params.maximumNumberOfBoxLights = std::max(0, params.maximumNumberOfBoxLights);
+    this->params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
+    this->params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
+    this->params.maximumNumberOfBoxLights         = std::max(0, params.maximumNumberOfBoxLights);
     lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                               params.maximumNumberOfSpotLights, params.maximumNumberOfBoxLights);
+                            params.maximumNumberOfSpotLights, params.maximumNumberOfBoxLights);
 
     std::cout << " Forward Renderer initialized. Render resolution: " << window.getWidth() << "x" << window.getHeight()
               << std::endl;
@@ -64,6 +64,11 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
 
     startTimer(TOTAL);
 
+    if (params.wireframe)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glLineWidth(params.wireframeLineSize);
+    }
     for (auto c : renderInfo.cameras)
     {
         startTimer(FORWARD);
@@ -89,6 +94,7 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
         lighting.render(c.first, c.second);
         stopTimer(FORWARD);
     }
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     startTimer(FINAL);
 
@@ -111,21 +117,43 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
 
     stopTimer(FINAL);
 
+    glDisable(GL_BLEND);
+
     if (params.useGlFinish) glFinish();
 
     stopTimer(TOTAL);
+
+    assert_no_glerror();
 }
 
-void ForwardRenderer::resize(int width, int height)
+void ForwardRenderer::resize(int windowWidth, int windowHeight)
 {
-    lighting.resize(width, height);
-    OpenGLRenderer::resize(width, height);
+    OpenGLRenderer::resize(windowWidth, windowHeight);
+    lighting.resize(windowWidth, windowHeight);
 }
 
 void ForwardRenderer::renderImGui(bool* p_open)
 {
     OpenGLRenderer::renderImGui(p_open);
+    ImGui::Begin("Forward Renderer", p_open);
+    ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);
+
+    ImGui::Text("Render Time");
+    ImGui::Text("%fms - Forward pass", getBlockTime(FORWARD));
+    ImGui::Text("%fms - Final pass", getBlockTime(FINAL));
+    ImGui::Text("%fms - Total", getBlockTime(TOTAL));
+
+    ImGui::Separator();
+
+    ImGui::Checkbox("Show Lighting UI", &showLightingImgui);
+
+    ImGui::End();
+
+    if (showLightingImgui)
+    {
+        lighting.renderImGui(&showLightingImgui);
+    }
 }
 
 

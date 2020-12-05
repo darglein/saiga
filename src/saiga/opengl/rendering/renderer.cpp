@@ -28,6 +28,12 @@ OpenGLRenderer::~OpenGLRenderer() {}
 
 void OpenGLRenderer::resize(int windowWidth, int windowHeight)
 {
+    if (windowWidth <= 0 || windowHeight <= 0)
+    {
+        std::cerr << "Warning: The window size must be greater than zero." << std::endl;
+        windowWidth  = std::max(windowWidth, 1);
+        windowHeight = std::max(windowHeight, 1);
+    }
     outputWidth  = windowWidth;
     outputHeight = windowHeight;
     //    std::cout << "resize to " << windowWidth << "x" << windowHeight << std::endl;

@@ -150,6 +150,7 @@ void DeferredLighting::cullLights(Camera* cam)
 
 void DeferredLighting::initRender()
 {
+    startTimer(0);
     RendererLighting::initRender();
 
     lightAccumulationBuffer.bind();
@@ -170,7 +171,6 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     RendererLighting::render(cam, viewPort);
     //    gbuffer.blitDepth(lightAccumulationBuffer.getId());
 
-    startTimer(0);
 
 
     // viewport is maybe different after shadow map rendering

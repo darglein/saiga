@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "lighting/light_models.glsl"
+#include "light_models.glsl"
 #include "camera.glsl"
 
 #ifndef MAX_PL_COUNT
