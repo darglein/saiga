@@ -37,8 +37,10 @@ ImageType saigaType(int color_type, int bit_depth)
         case PNG_COLOR_TYPE_RGB_ALPHA:
             channels = 4;
             break;
+        default:
+            std::cout << "unknown png color type: " << color_type << std::endl;
+            SAIGA_EXIT_ERROR("Unknown Color Type");
     }
-    SAIGA_ASSERT(channels != -1);
 
     ImageElementType elementType = ImageElementType::IET_ELEMENT_UNKNOWN;
     switch (bit_depth)

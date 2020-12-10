@@ -70,7 +70,7 @@ struct SAIGA_VISION_API SparseTSDF
     };
 
 
-    SparseTSDF(float voxel_size = 0.01, int reserve_blocks = 100000, int hash_size = 100000)
+    SparseTSDF(float voxel_size = 0.01, int reserve_blocks = 1000, int hash_size = 100000)
         : voxel_size(voxel_size),
           voxel_size_inv(1.0 / voxel_size),
           hash_size(hash_size),
@@ -493,7 +493,8 @@ struct SAIGA_VISION_API SparseTSDF
 
     // Triangle surface extraction on the sparse TSDF.
     // Returns for each block a list of triangles
-    std::vector<std::vector<Triangle>> ExtractSurface(double iso, int threads = OMP::getMaxThreads());
+    std::vector<std::vector<Triangle>> ExtractSurface(double iso, int threads = OMP::getMaxThreads(),
+                                                      bool verbose = true);
 
     // Create a triangle mesh from the list of triangles
     TriangleMesh<VertexNC, uint32_t> CreateMesh(const std::vector<std::vector<Triangle>>& triangles, bool post_process);
@@ -535,8 +536,12 @@ struct SAIGA_VISION_API SparseTSDF
     }
 
     void Save(const std::string& file);
-
     void Load(const std::string& file);
+
+    // Use zlib compression.
+    // Only valid if saiga was compiled with zlib support.
+    void SaveCompressed(const std::string& file);
+    void LoadCompressed(const std::string& file);
 
     bool operator==(const SparseTSDF& other) const;
 

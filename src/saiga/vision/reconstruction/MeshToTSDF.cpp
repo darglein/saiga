@@ -52,22 +52,53 @@ std::shared_ptr<SparseTSDF> MeshToTSDF(const std::vector<Triangle>& triangles, f
     std::shared_ptr<SparseTSDF> tsdf = std::make_shared<SparseTSDF>(voxel_size);
 
     {
-        auto points = MeshToPointCloud(triangles, 10000000);
-
-        ProgressBar bar(std::cout, "M2TSDF Allocate", points.size());
-        for (auto& p : points)
-        {
-            tsdf->AllocateAroundPoint(p, r);
-            bar.addProgress(1);
-        }
-
+        auto points = MeshToPointCloud(triangles, 1000000);
+        ProgressBar bar(std::cout, "M2TSDF Allocate V", triangles.size());
         for (auto& t : triangles)
         {
-            tsdf->AllocateAroundPoint(t.a);
-            tsdf->AllocateAroundPoint(t.b);
-            tsdf->AllocateAroundPoint(t.c);
+            tsdf->AllocateAroundPoint(t.a, 1);
+            tsdf->AllocateAroundPoint(t.b, 1);
+            tsdf->AllocateAroundPoint(t.c, 1);
+            bar.addProgress(1);
+        }
+        ProgressBar bar2(std::cout, "M2TSDF Allocate P1", points.size());
+        for (auto& p : points)
+        {
+            tsdf->AllocateAroundPoint(p, 1);
+            bar2.addProgress(1);
         }
     }
+
+    {
+        for (int i = 0; i < r - 1; ++i)
+        {
+            std::vector<ivec3> current_blocks;
+            for (auto bi = 0; bi < tsdf->current_blocks; ++bi)
+            {
+                current_blocks.push_back(tsdf->blocks[bi].index);
+            }
+            ProgressBar bar(std::cout, "M2TSDF Expand", current_blocks.size());
+
+            for (auto block_id : current_blocks)
+            {
+                for (int z = -1; z <= 1; ++z)
+                {
+                    for (int y = -1; y <= 1; ++y)
+                    {
+                        for (int x = -1; x <= 1; ++x)
+                        {
+                            ivec3 current_id = ivec3(x, y, z) + block_id;
+                            tsdf->InsertBlock(current_id);
+                        }
+                    }
+                }
+                bar.addProgress(1);
+            }
+        }
+        std::cout << "Allocated blocks = " << tsdf->current_blocks << std::endl;
+    }
+
+
 
     AccelerationStructure::ObjectMedianBVH bvh(triangles);
     bvh.triangle_epsilon = 0;

@@ -6,6 +6,8 @@
 
 #include "SparseTSDF.h"
 
+#include "saiga/core/util/file.h"
+#include "saiga/core/util/zlib.h"
 namespace Saiga
 {
 iRect<3> SparseTSDF::Bounds()
@@ -61,9 +63,10 @@ void SparseTSDF::CropToRect(const iRect<3>& rect)
     }
 }
 
-std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double iso, int threads)
+std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double iso, int threads, bool verbose)
 {
-    ProgressBar loading_bar(std::cout, "Ex. Surface", current_blocks);
+    std::stringstream sstrm;
+    ProgressBar loading_bar(verbose ? std::cout : sstrm, "Ex. Surface", current_blocks);
 
     //        std::vector<std::vector<std::array<vec3, 3>>> triangle_soup_thread(threads);
 
@@ -211,7 +214,34 @@ void SparseTSDF::Load(const std::string& file)
     strm >> voxel_size >> voxel_size_inv >> block_size_inv >> hash_size >> current_blocks;
     strm >> blocks;
     strm >> first_hashed_block;
-    // hash_locks.resize(first_hashed_block.size());
+}
+
+void SparseTSDF::SaveCompressed(const std::string& file)
+{
+#ifdef SAIGA_USE_ZLIB
+    BinaryOutputVector strm;
+    strm << voxel_size << voxel_size_inv << block_size_inv << hash_size << current_blocks;
+    strm << blocks;
+    strm << first_hashed_block;
+    auto compressed = compress(strm.data.data(), strm.data.size());
+    File::saveFileBinary(file, compressed.data(), compressed.size());
+#else
+    SAIGA_EXIT_ERROR("zlib not found.");
+#endif
+}
+
+void SparseTSDF::LoadCompressed(const std::string& file)
+{
+#ifdef SAIGA_USE_ZLIB
+    auto compressed_data = File::loadFileBinary(file);
+    auto data            = uncompress(compressed_data.data());
+    BinaryInputVector strm(data.data(), data.size());
+    strm >> voxel_size >> voxel_size_inv >> block_size_inv >> hash_size >> current_blocks;
+    strm >> blocks;
+    strm >> first_hashed_block;
+#else
+    SAIGA_EXIT_ERROR("zlib not found.");
+#endif
 }
 
 bool SparseTSDF::operator==(const SparseTSDF& other) const

@@ -3,8 +3,8 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
 #include "saiga/core/Core.h"
+#include "saiga/core/model/plyModelLoader.h"
 #include "saiga/vision/reconstruction/MarchingCubes.h"
 #include "saiga/vision/reconstruction/SparseTSDF.h"
 #include "saiga/vision/reconstruction/VoxelFusion.h"
@@ -89,9 +89,14 @@ TEST(TSDF, Create)
     auto tris  = test->tsdf->ExtractSurface(0);
     test->mesh = test->tsdf->CreateMesh(tris, false);
 
-    std::ofstream strm("tsdf_sphere.off");
-    test->mesh.saveMeshOff(strm);
+    {
+        std::ofstream strm("tsdf_sphere.off");
+        test->mesh.saveMeshOff(strm);
+    }
 
+    PLYLoader::save("tsdf_sphere.ply", test->mesh);
+
+    exit(0);
     // Test if mesh vertices are on the sphere
     for (auto v : test->mesh.vertices)
     {

@@ -26,6 +26,7 @@
 
 //image loading
 #cmakedefine SAIGA_USE_PNG
+#cmakedefine SAIGA_USE_ZLIB
 #cmakedefine SAIGA_USE_FREEIMAGE
 
 #cmakedefine SAIGA_USE_FFMPEG

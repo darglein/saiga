@@ -747,6 +747,7 @@ void FusionScene::ExtractMesh()
     //    }
 
 
+    if (!params.out_file.empty())
     {
         std::ofstream strm(params.out_file);
         mesh.saveMeshOff(strm);
