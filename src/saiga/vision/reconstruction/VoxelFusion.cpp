@@ -15,7 +15,6 @@ namespace Saiga
 {
 void FusionScene::Preprocess()
 {
-    ProgressBar loading_bar(std::cout, "Preprocess ", depth_map_size.rows);
 
     triangle_soup_inclusive_prefix_sum.clear();
     triangle_soup.clear();
@@ -27,6 +26,7 @@ void FusionScene::Preprocess()
     depth_map_size = images.front().depthMap.dimensions();
     unproject_undistort_map.create(depth_map_size);
 
+    ProgressBar loading_bar(std::cout, "Preprocess ", depth_map_size.rows);
 #pragma omp parallel for
     for (int i = 0; i < unproject_undistort_map.rows; ++i)
     {
@@ -156,7 +156,7 @@ void FusionScene::AnalyseSparseStructure()
                 while (true)
                 {
                     //                    leset.insert({idCurrentVoxel(0), idCurrentVoxel(1), idCurrentVoxel(2)});
-                    tsdf->InsertBlockLock(idCurrentVoxel);
+                    tsdf->InsertBlock(idCurrentVoxel);
                     // Traverse voxel grid
                     if (tMax.x() < tMax.y() && tMax.x() < tMax.z())
                     {
