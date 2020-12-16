@@ -424,14 +424,16 @@ struct SAIGA_VISION_API SparseTSDF
             Voxel current_sample;
             bool tril = TrilinearAccess(current_pos, current_sample);
 
-            if (verbose)
-            {
-                std::cout << "Trace " << current_t << " " << tril << " " << current_sample.distance << std::endl;
-            }
             if (tril)
             {
+                if (verbose)
+                {
+                    std::cout << "Trace " << current_t << " (" << current_sample.weight << ","
+                              << current_sample.distance << ")" << std::endl;
+                }
+
                 SAIGA_ASSERT(current_sample.weight > 0);
-                if (last_sample.weight > 0 && last_sample.distance > 0.0f && current_sample.distance < 0.0f)
+                if (!verbose && last_sample.weight > 0 && last_sample.distance > 0.0f && current_sample.distance < 0.0f)
                 {
                     float t_bi = 0;
                     if (findIntersectionBisection<bisect_iterations>(ray_origin, ray_dir, last_t, current_t,
@@ -504,6 +506,9 @@ struct SAIGA_VISION_API SparseTSDF
     int Size() { return current_blocks; }
 
     void ClampDistance(float distance);
+
+    // The number of inserted voxels with weight==0
+    int NumZeroVoxels();
 
     // Sets all voxels to this values
     void SetForAll(float distance, float weight);

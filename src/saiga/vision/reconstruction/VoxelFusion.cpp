@@ -15,7 +15,6 @@ namespace Saiga
 {
 void FusionScene::Preprocess()
 {
-
     triangle_soup_inclusive_prefix_sum.clear();
     triangle_soup.clear();
     mesh.clear();
@@ -337,8 +336,8 @@ void FusionScene::Integrate()
                             // project to image
                             Vec3 pos = dm.V * global_pos;
 
-                            Vec2 np           = pos.head<2>() / pos.z();
-                            double voxelDepth = pos.z();
+                            Vec2 np          = pos.head<2>() / pos.z();
+                            float voxelDepth = pos.z();
 
                             np = distortNormalizedPoint(np, dis);
 
@@ -375,18 +374,6 @@ void FusionScene::Integrate()
                                 auto a3 = dm.depthMap(ipy + 1, ipx + 1);
                                 if (a1 <= 0 || a2 <= 0 || a3 <= 0 || a4 <= 0) continue;
                                 imageDepth = dm.depthMap.inter(ip(1), ip(0));
-
-
-                                //                                if (params.test)
-                                //                                {
-                                //                                    float min_d = std::min(std::min(std::min(a1, a2),
-                                //                                    a3), a4); float max_d =
-                                //                                    std::max(std::max(std::max(a1, a2), a3), a4); if
-                                //                                    (max_d - min_d > 0.01)
-                                //                                    {
-                                //                                        continue;
-                                //                                    }
-                                //                                }
                             }
                             else
                             {
@@ -394,81 +381,94 @@ void FusionScene::Integrate()
                                 imageDepth = dm.depthMap(ipy, ipx);
                             }
 
+                            // No valid depth
                             if (imageDepth <= 0) continue;
-
                             if (imageDepth > params.maxIntegrationDistance) continue;
-
-
-
                             float confidence = params.use_confidence ? dm.confidence(ipy, ipx) : 1;
-
                             if (confidence <= 0) continue;
 
-                            //                    Vec3 ipUnproj = dm->K.unproject(ip, imageDepth);
-
-                            //                    double lambda = Vec3(pos(0), pos(1), 1).norm();
-                            //                    double sdf    = (-1.f) * ((1.f / lambda) * pos.norm() - imageDepth);
-                            //                    double sdf = (ipUnproj - pos).norm();
-                            double surface_distance = imageDepth - voxelDepth;
-
-
-
-                            //                    if (imageDepth < voxelDepth) sdf *= -1;
-
-
-
+                            // current td
                             float truncation_distance =
                                 params.truncationDistance + params.truncationDistanceScale * imageDepth;
-
                             truncation_distance =
                                 std::max(params.min_truncation_factor * params.voxelSize, truncation_distance);
 
-                            //                    if ( std::abs(sdf) < -truncation_distance)
 
-                            if (surface_distance < -truncation_distance)
+                            float new_tsdf       = imageDepth - voxelDepth;
+                            auto new_weight      = params.newWeight * confidence;
+                            float current_tsdf   = cell.distance;
+                            float current_weight = cell.weight;
+
+
+                            if (params.ground_truth_fuse)
+                            {
+                                // A fusion algorithm which assumes perfect input data.
+                                // Therefore we don't need to average the distance results
+                                // It is enough to use the minimum observation
+                                if (new_tsdf < -truncation_distance * 3)
+                                {
+                                    continue;
+                                }
+
+
+                                new_tsdf = clamp(new_tsdf, -params.sd_clamp, params.sd_clamp);
+
+
+
+                                if (current_weight == 0)
+                                {
+                                    cell.distance = new_tsdf;
+                                    cell.weight   = new_weight;
+                                }
+
+
+                                if (current_tsdf < 0 && new_tsdf > 0)
+                                {
+                                    cell.distance = new_tsdf;
+                                    cell.weight   = new_weight;
+                                }
+
+                                if (current_tsdf < 0 && new_tsdf < 0)
+                                {
+                                    cell.distance = std::max(current_tsdf, new_tsdf);
+                                    cell.weight   = std::min(params.maxWeight, current_weight + new_weight);
+                                }
+
+                                if (current_tsdf > 0 && new_tsdf > 0)
+                                {
+                                    cell.distance = std::min(current_tsdf, new_tsdf);
+                                    cell.weight   = std::min(params.maxWeight, current_weight + new_weight);
+                                }
+
+                                if (current_tsdf > 0 && new_tsdf < 0)
+                                {
+                                    // do nothing
+                                }
+
+                                continue;
+                            }
+
+
+
+                            if (new_tsdf < -truncation_distance)
                             {
                                 continue;
                             }
 
-                            auto new_tsdf       = surface_distance;  // std::min(1., sdf);
-                            auto current_tsdf   = cell.distance;
-                            auto current_weight = cell.weight;
-
 
                             new_tsdf = clamp(new_tsdf, -params.sd_clamp, params.sd_clamp);
-
-                            //                            auto distance_error = std::abs(current_tsdf -
-                            //                            surface_distance);
-
-                            //                            if (current_weight > 0 && current_tsdf - new_tsdf >
-                            //                            truncation_distance)
-                            //                            {
-                            //                                continue;
-                            //                            }
-
-                            //                            if (current_weight > 0 &&
-                            //                                std::abs(current_tsdf) + params.max_distance_error <
-                            //                                std::abs(surface_distance))
-                            //                            {
-                            //                                continue;
-                            //                            }
-
-
-
-                            auto add_weight = params.newWeight * confidence;
 
 
 
                             if (current_weight == 0)
                             {
                                 cell.distance = new_tsdf;
-                                cell.weight   = add_weight;
+                                cell.weight   = new_weight;
                             }
                             else
                             {
-                                float updated_tsdf;
-
 #if 0
+                                float updated_tsdf;
                                 if (std::abs(current_tsdf - new_tsdf) < params.max_distance_error)
                                 {
                                     updated_tsdf = (current_weight * current_tsdf + add_weight * new_tsdf) /
@@ -487,16 +487,13 @@ void FusionScene::Integrate()
                                 }
 #else
 
-                                updated_tsdf = (current_weight * current_tsdf + add_weight * new_tsdf) /
-                                               (current_weight + add_weight);
+                                float updated_tsdf = (current_weight * current_tsdf + new_weight * new_tsdf) /
+                                                     (current_weight + new_weight);
 #endif
 
-                                auto new_weight = current_weight + add_weight;
-
-                                new_weight = std::min(params.maxWeight, new_weight);
-
-                                cell.distance = updated_tsdf;
-                                cell.weight   = new_weight;
+                                float updated_weight = std::min(params.maxWeight, current_weight + new_weight);
+                                cell.distance        = updated_tsdf;
+                                cell.weight          = updated_weight;
                             }
                         }
                     }

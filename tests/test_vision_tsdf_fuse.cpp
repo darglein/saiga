@@ -43,6 +43,8 @@ class TSDFTest
 
         scene.params.extract_iso = 0;
 
+        scene.params.ground_truth_fuse = true;
+
 
 
         DepthProcessor2::Settings settings;

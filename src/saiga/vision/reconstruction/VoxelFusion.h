@@ -34,6 +34,11 @@ struct SAIGA_VISION_API FusionParams
     bool use_confidence          = true;
     bool test                    = false;
     bool bilinear_intperpolation = true;
+
+    // The input data is perfect (no outliers, noise)
+    // -> Use a large truncation distance, but min/max the distance
+    bool ground_truth_fuse = false;
+
     // the truncation distance will be always greater than (min_truncation_factor * voxelSize)
     float min_truncation_factor = 6;
 

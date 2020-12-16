@@ -289,6 +289,27 @@ void SparseTSDF::ClampDistance(float distance)
     }
 }
 
+int SparseTSDF::NumZeroVoxels()
+{
+    int n = 0;
+    for (int b = 0; b < current_blocks; ++b)
+    {
+        auto& block = blocks[b];
+
+        for (auto& z : block.data)
+        {
+            for (auto& y : z)
+            {
+                for (auto& x : y)
+                {
+                    if (x.weight == 0) n++;
+                }
+            }
+        }
+    }
+    return n;
+}
+
 
 void SparseTSDF::SetForAll(float distance, float weight)
 {
