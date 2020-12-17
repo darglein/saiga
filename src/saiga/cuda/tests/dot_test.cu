@@ -4,13 +4,13 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/time/timer.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/cusparseHelper.h"
 #include "saiga/cuda/dot.h"
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/core/time/timer.h"
 
 #include <thrust/inner_product.h>
 
@@ -47,7 +47,7 @@ void dotTest()
         {
             float time;
             {
-                ScopedTimer<float> t(&time);
+                Saiga::ScopedTimer<float> t(&time);
                 for (int i = 0; i < N; ++i)
                 {
                     ref += h1[i] * h2[i];
@@ -62,7 +62,7 @@ void dotTest()
             float time;
             elementType sum;
             {
-                CUDA::CudaScopedTimer t(time);
+                CUDA::ScopedTimer t(time);
                 sum = thrust::inner_product(v1.begin(), v1.end(), v2.begin(), 0);
             }
             pth.addMeassurement("thrust::inner_product", time);
@@ -96,7 +96,7 @@ void dotTest()
                 const int blockSize = 256;
                 SAIGA_ASSERT(0);
                 //                static auto numBlocks = max_active_blocks(dot<elementType,blockSize>,blockSize,0);
-                CUDA::CudaScopedTimer t2(time);
+                CUDA::ScopedTimer t2(time);
                 dot<elementType, blockSize><<<1, blockSize>>>(v1, v2, thrust::raw_pointer_cast(d_res.data()));
             }
             elementType sum = d_res[0];
@@ -125,7 +125,7 @@ void dotTest()
         {
             float time;
             {
-                ScopedTimer<float> t(&time);
+                Saiga::ScopedTimer<float> t(&time);
                 for (int i = 0; i < N; ++i)
                 {
                     ref += h1[i] * h2[i];
@@ -140,7 +140,7 @@ void dotTest()
             float time;
             elementType sum;
             {
-                CUDA::CudaScopedTimer t(time);
+                CUDA::ScopedTimer t(time);
                 sum = thrust::inner_product(v1.begin(), v1.end(), v2.begin(), 0);
             }
             pth.addMeassurement("thrust::inner_product", time);
@@ -174,7 +174,7 @@ void dotTest()
                 const int blockSize = 256;
                 SAIGA_ASSERT(0);
                 //                static auto numBlocks = max_active_blocks(dot<elementType,blockSize>,blockSize,0);
-                CUDA::CudaScopedTimer t2(time);
+                CUDA::ScopedTimer t2(time);
                 dot<elementType, blockSize><<<1, blockSize>>>(v1, v2, thrust::raw_pointer_cast(d_res.data()));
             }
             elementType sum = d_res[0];

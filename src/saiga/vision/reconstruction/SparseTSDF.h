@@ -508,7 +508,7 @@ struct SAIGA_VISION_API SparseTSDF
     void ClampDistance(float distance);
 
     // The number of inserted voxels with weight==0
-    int NumZeroVoxels();
+    int NumZeroVoxels() const;
 
     // Sets all voxels to this values
     void SetForAll(float distance, float weight);

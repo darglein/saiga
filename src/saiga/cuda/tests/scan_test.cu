@@ -4,12 +4,12 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/time/timer.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/scan.h"
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/core/time/timer.h"
 
 namespace Saiga
 {
@@ -53,7 +53,7 @@ void scanTest()
     {
         float time;
         {
-            ScopedTimer<float> t(&time);
+            Saiga::ScopedTimer<float> t(&time);
             if (exclusive)
             {
                 int sum = 0;
@@ -80,7 +80,7 @@ void scanTest()
     {
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             if (exclusive)
             {
                 thrust::exclusive_scan(v.begin(), v.end(), d_res.begin());
@@ -105,7 +105,7 @@ void scanTest()
 
         auto NUM_BLOCKS = CUDA::getBlockCount(N, ELEMENTS_PER_BLOCK);
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             CUDA::tiledSinglePassScan<exclusive, THREADS_PER_BLOCK, TILES_PER_BLOCK, int4, true>
                 <<<NUM_BLOCKS, THREADS_PER_BLOCK>>>(v, d_res, aggregate);
         }
@@ -141,7 +141,7 @@ void scanTest()
     {
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             cudaMemcpy(thrust::raw_pointer_cast(d_res.data()), thrust::raw_pointer_cast(v.data()), N * sizeof(int),
                        cudaMemcpyDeviceToDevice);
         }

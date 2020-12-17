@@ -120,46 +120,46 @@ static void constantTest()
 
     cudaMemcpyToSymbol(cweights, weight.data().get(), weight.size() * sizeof(int), cudaMemcpyDeviceToDevice);
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { addWeight<false, true, false><<<BLOCKS, BLOCK_SIZE>>>(src, dest, weight); });
         pth.addMeassurement("addWeight global broadcast", st.median);
     }
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { addWeight<false, true, true><<<BLOCKS, BLOCK_SIZE>>>(src, dest, weight); });
         pth.addMeassurement("addWeight global broadcast ldg", st.median);
     }
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { addWeight<false, false, false><<<BLOCKS, BLOCK_SIZE>>>(src, dest, weight); });
         pth.addMeassurement("addWeight global coalesced", st.median);
     }
 
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { addWeight<false, false, true><<<BLOCKS, BLOCK_SIZE>>>(src, dest, weight); });
         pth.addMeassurement("addWeight global coalesced ldg", st.median);
     }
 
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { addWeightShared<false><<<BLOCKS, BLOCK_SIZE>>>(src, dest, weight); });
         pth.addMeassurement("addWeight shared coalesced", st.median);
     }
 
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { addWeightShared<true><<<BLOCKS, BLOCK_SIZE>>>(src, dest, weight); });
         pth.addMeassurement("addWeight shared broadcast", st.median);
     }
 
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { addWeight<true, true, false><<<BLOCKS, BLOCK_SIZE>>>(src, dest, weight); });
         pth.addMeassurement("addWeight constant broadcast", st.median);
     }
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { addWeight<true, false, false><<<BLOCKS, BLOCK_SIZE>>>(src, dest, weight); });
         pth.addMeassurement("addWeight constant coalesced", st.median);
     }

@@ -289,7 +289,7 @@ void SparseTSDF::ClampDistance(float distance)
     }
 }
 
-int SparseTSDF::NumZeroVoxels()
+int SparseTSDF::NumZeroVoxels() const
 {
     int n = 0;
     for (int b = 0; b < current_blocks; ++b)
@@ -366,7 +366,11 @@ std::ostream& operator<<(std::ostream& strm, const SparseTSDF& tsdf)
     strm << "  Mem Blocks   " << mem_blocks / (1000.0 * 1000) << " MB" << std::endl;
     strm << "  Mem Hash     " << mem_hash / (1000.0 * 1000) << " MB" << std::endl;
     strm << "  Distance     [" << d_st.min << ", " << d_st.max << "]" << std::endl;
-    strm << "  Weight       [" << w_st.min << ", " << w_st.max << "]";
+    strm << "  Weight       [" << w_st.min << ", " << w_st.max << "]" << std::endl;
+
+    float z_factor = tsdf.NumZeroVoxels() / (tsdf.current_blocks * 8.f * 8 * 8);
+    strm << "  Num Zero V.  " << tsdf.NumZeroVoxels() << "/" << tsdf.current_blocks * 8.f * 8 * 8 << " = "
+         << z_factor * 100 << "%";
 
     return strm;
 }

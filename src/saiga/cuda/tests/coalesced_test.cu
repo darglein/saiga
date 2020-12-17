@@ -524,7 +524,7 @@ void coalescedCopyTest2(int ElementCount)
         d_result             = result;
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             copyUnCoalesced<ElementType, ElementSize, BLOCK_SIZE>
                 <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
@@ -541,7 +541,7 @@ void coalescedCopyTest2(int ElementCount)
         d_result             = result;
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             sharedMemoryUnCoalesced<ElementType, ElementSize, BLOCK_SIZE>
                 <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
@@ -556,7 +556,7 @@ void coalescedCopyTest2(int ElementCount)
         d_result             = result;
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             sharedMemoryCoalesced<ElementType, ElementSize, BLOCK_SIZE>
                 <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
@@ -571,7 +571,7 @@ void coalescedCopyTest2(int ElementCount)
         d_result             = result;
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             sharedMemoryCoalesced2<ElementType, ElementSize, BLOCK_SIZE>
                 <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
             //            sharedMemoryCoalesced2<ElementType,ElementSize,BLOCK_SIZE> <<<
@@ -588,7 +588,7 @@ void coalescedCopyTest2(int ElementCount)
         d_result             = result;
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             copyFullCoalesced<ElementType, ElementSize, BLOCK_SIZE>
                 <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
@@ -604,7 +604,7 @@ void coalescedCopyTest2(int ElementCount)
         d_result             = result;
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             shuffleCopy<ElementType, ElementSize, BLOCK_SIZE>
                 <<<CUDA::getBlockCount(ElementCount, BLOCK_SIZE), BLOCK_SIZE>>>(d_data, d_result);
         }
@@ -622,7 +622,7 @@ void coalescedCopyTest2(int ElementCount)
         result = result;
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             cudaMemcpy(thrust::raw_pointer_cast(d_result.data()), thrust::raw_pointer_cast(d_data.data()),
                        d_data.size() * sizeof(ElementType), cudaMemcpyDeviceToDevice);
         }
