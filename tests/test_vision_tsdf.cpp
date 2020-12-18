@@ -243,19 +243,19 @@ TEST(TSDF, TrilinearInterpolation)
 
     SparseTSDF::Voxel v;
 
-    EXPECT_TRUE(tsdf.TrilinearAccess(vec3(0, 0, 0), v));
+    EXPECT_TRUE(tsdf.TrilinearAccess(vec3(0, 0, 0), v, 0));
     EXPECT_EQ(v.distance, 0);
 
-    EXPECT_TRUE(tsdf.TrilinearAccess(vec3(0, 0, 1), v));
+    EXPECT_TRUE(tsdf.TrilinearAccess(vec3(0, 0, 1), v, 0));
     EXPECT_EQ(v.distance, 1);
 
-    EXPECT_TRUE(tsdf.TrilinearAccess(vec3(0, 0, 0.25), v));
+    EXPECT_TRUE(tsdf.TrilinearAccess(vec3(0, 0, 0.25), v, 0));
     EXPECT_EQ(v.distance, 0.25);
 
-    EXPECT_FALSE(tsdf.TrilinearAccess(vec3(-0.0001, 0, 0.25), v));
+    EXPECT_FALSE(tsdf.TrilinearAccess(vec3(-0.0001, 0, 0.25), v, 0));
     EXPECT_EQ(v.distance, 0);
 
-    EXPECT_FALSE(tsdf.TrilinearAccess(vec3(3, 3, 3), v));
+    EXPECT_FALSE(tsdf.TrilinearAccess(vec3(3, 3, 3), v, 0));
     EXPECT_EQ(v.distance, 0);
 }
 TEST(TSDF, BasicFunctions)
@@ -299,8 +299,8 @@ TEST(TSDF, Trace)
             Ray ray(dir.cast<float>(), camera_pos.cast<float>());
 
             float t_max = 3;
-            float t =
-                test->tsdf->RaySurfaceIntersection<2>(ray.origin, ray.direction, 0, t_max, test->tsdf->voxel_size * 3);
+            float t     = test->tsdf->RaySurfaceIntersection<2>(ray.origin, ray.direction, 0, t_max,
+                                                            test->tsdf->voxel_size * 3, 1.5);
 
 
             if (t < t_max)
@@ -310,7 +310,7 @@ TEST(TSDF, Trace)
                 float error = std::abs(test->sphere.sdf(p_trace));
                 errors.push_back(error);
 
-                vec3 n  = test->tsdf->TrilinearNormal(p_trace);
+                vec3 n  = test->tsdf->TrilinearNormal(p_trace, 0);
                 float c = std::max(n.dot(vec3(0, 0, -1)), 0.f) * 255;
 
                 rgb_image(y, x) = ucvec3(c, c, c);

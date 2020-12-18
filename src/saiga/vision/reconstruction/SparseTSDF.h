@@ -278,7 +278,7 @@ struct SAIGA_VISION_API SparseTSDF
     }
 
     // Returns the 8 voxel ids + weights for a trilinear access
-    bool TrilinearAccess(const vec3& position, Voxel& result)
+    bool TrilinearAccess(const vec3& position, Voxel& result, float min_weight)
     {
         result.distance      = 0;
         result.weight        = 0;
@@ -288,7 +288,7 @@ struct SAIGA_VISION_API SparseTSDF
         for (auto& iw : indices_weights)
         {
             auto v = GetVoxel(iw.first);
-            if (v.weight == 0) return false;
+            if (v.weight <= min_weight) return false;
 
             result.distance += v.distance * iw.second;
             result.weight += v.weight * iw.second;
@@ -301,30 +301,32 @@ struct SAIGA_VISION_API SparseTSDF
     }
 
     // The sdf gradient on the surface (sdf=0) has the same direction as the surface normal.
-    vec3 TrilinearGradient(const vec3& position)
+    vec3 TrilinearGradient(const vec3& position, float min_weight)
     {
+        vec3 grad = vec3::Zero();
         Voxel vx1, vx2;
-        TrilinearAccess(position - vec3(voxel_size * 0.5, 0, 0), vx1);
-        TrilinearAccess(position + vec3(voxel_size * 0.5, 0, 0), vx2);
+
+        if (!TrilinearAccess(position - vec3(voxel_size * 0.5, 0, 0), vx1, min_weight)) return grad;
+        if (!TrilinearAccess(position + vec3(voxel_size * 0.5, 0, 0), vx2, min_weight)) return grad;
 
         Voxel vy1, vy2;
-        TrilinearAccess(position - vec3(0, voxel_size * 0.5, 0), vy1);
-        TrilinearAccess(position + vec3(0, voxel_size * 0.5, 0), vy2);
+        if (!TrilinearAccess(position - vec3(0, voxel_size * 0.5, 0), vy1, min_weight)) return grad;
+        if (!TrilinearAccess(position + vec3(0, voxel_size * 0.5, 0), vy2, min_weight)) return grad;
 
         Voxel vz1, vz2;
-        TrilinearAccess(position - vec3(0, 0, voxel_size * 0.5), vz1);
-        TrilinearAccess(position + vec3(0, 0, voxel_size * 0.5), vz2);
+        if (!TrilinearAccess(position - vec3(0, 0, voxel_size * 0.5), vz1, min_weight)) return grad;
+        if (!TrilinearAccess(position + vec3(0, 0, voxel_size * 0.5), vz2, min_weight)) return grad;
 
-        vec3 grad = vec3((vx2.distance - vx1.distance), (vy2.distance - vy1.distance), (vz2.distance - vz1.distance)) /
-                    float(voxel_size);
+        grad = vec3((vx2.distance - vx1.distance), (vy2.distance - vy1.distance), (vz2.distance - vz1.distance)) /
+               float(voxel_size);
         return grad;
     }
 
     // The normal is the normalized gradient.
     // This function is only valid close to the surface.
-    vec3 TrilinearNormal(const vec3& position)
+    vec3 TrilinearNormal(const vec3& position, float min_weight)
     {
-        vec3 grad = TrilinearGradient(position);
+        vec3 grad = TrilinearGradient(position, min_weight);
         float l   = grad.norm();
         return l < 0.00001 ? grad : grad / l;
     }
@@ -371,7 +373,8 @@ struct SAIGA_VISION_API SparseTSDF
     float IntersectionLinear(float t1, float t2, float d1, float d2) const { return t1 + (d1 / (d1 - d2)) * (t2 - t1); }
 
     template <int bisect_iterations>
-    bool findIntersectionBisection(vec3 ray_origin, vec3 ray_dir, float t1, float t2, float d1, float d2, float& t)
+    bool findIntersectionBisection(vec3 ray_origin, vec3 ray_dir, float t1, float t2, float d1, float d2, float& t,
+                                   float min_weight)
     {
         float a     = t1;
         float b     = t2;
@@ -386,7 +389,7 @@ struct SAIGA_VISION_API SparseTSDF
             SAIGA_ASSERT(c <= t2);
 
             Voxel sample;
-            if (!TrilinearAccess(ray_origin + c * ray_dir, sample)) return false;
+            if (!TrilinearAccess(ray_origin + c * ray_dir, sample, min_weight)) return false;
 
             float cDist = sample.distance;
             if (aDist * cDist > 0.0)
@@ -409,7 +412,7 @@ struct SAIGA_VISION_API SparseTSDF
     // Intersects the given ray with the implicit surface.
     template <int bisect_iterations>
     float RaySurfaceIntersection(vec3 ray_origin, vec3 ray_dir, float min_t, float max_t, float step,
-                                 bool verbose = false)
+                                 float min_confidence = 0, bool verbose = false)
     {
         float current_t = min_t;
         float last_t;
@@ -422,7 +425,7 @@ struct SAIGA_VISION_API SparseTSDF
             vec3 current_pos = ray_origin + ray_dir * current_t;
 
             Voxel current_sample;
-            bool tril = TrilinearAccess(current_pos, current_sample);
+            bool tril = TrilinearAccess(current_pos, current_sample, min_confidence);
 
             if (tril)
             {
@@ -438,7 +441,7 @@ struct SAIGA_VISION_API SparseTSDF
                     float t_bi = 0;
                     if (findIntersectionBisection<bisect_iterations>(ray_origin, ray_dir, last_t, current_t,
                                                                      last_sample.distance, current_sample.distance,
-                                                                     t_bi))
+                                                                     t_bi, min_confidence))
                     {
                         float result_t = t_bi;
                         SAIGA_ASSERT(result_t >= last_t);
