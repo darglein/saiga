@@ -405,7 +405,7 @@ void FusionScene::Integrate()
                                 // A fusion algorithm which assumes perfect input data.
                                 // Therefore we don't need to average the distance results
                                 // It is enough to use the minimum observation
-                                if (new_tsdf < -truncation_distance * 3)
+                                if (new_tsdf < -truncation_distance * params.ground_truth_trunc_factor)
                                 {
                                     continue;
                                 }
@@ -711,7 +711,7 @@ void FusionScene::ExtractMesh()
 {
     mesh.clear();
 
-    auto triangle_soup_per_block = tsdf->ExtractSurface(params.extract_iso);
+    auto triangle_soup_per_block = tsdf->ExtractSurface(params.extract_iso, params.extract_outlier_factor, 0, 4, true);
 
     int sum = 0;
     for (auto& v : triangle_soup_per_block)
@@ -808,7 +808,6 @@ void FusionParams::imgui()
     ImGui::InputFloat("newWeight", &newWeight);
     ImGui::InputFloat("maxWeight", &maxWeight);
     ImGui::InputFloat("min_truncation_factor", &min_truncation_factor);
-    ImGui::InputFloat("max_distance_error", &max_distance_error);
     ImGui::Checkbox("use_confidence", &use_confidence);
     ImGui::Checkbox("bilinear_intperpolation", &bilinear_intperpolation);
 

@@ -498,8 +498,13 @@ struct SAIGA_VISION_API SparseTSDF
 
     // Triangle surface extraction on the sparse TSDF.
     // Returns for each block a list of triangles
-    std::vector<std::vector<Triangle>> ExtractSurface(double iso, int threads = OMP::getMaxThreads(),
-                                                      bool verbose = true);
+    //
+    // Voxels with a weight below 'min_weight' are considered as empty
+    //
+    // If the absolute distance of a voxel is larger than outlier_factor*voxel_sie the voxel is discarded
+    // and no trianges are generated.
+    std::vector<std::vector<Triangle>> ExtractSurface(double iso, float outlier_factor, float min_weight, int threads,
+                                                      bool verbose);
 
     // Create a triangle mesh from the list of triangles
     TriangleMesh<VertexNC, uint32_t> CreateMesh(const std::vector<std::vector<Triangle>>& triangles, bool post_process);

@@ -63,7 +63,8 @@ void SparseTSDF::CropToRect(const iRect<3>& rect)
     }
 }
 
-std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double iso, int threads, bool verbose)
+std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double iso, float outlier_factor,
+                                                                          float min_weight, int threads, bool verbose)
 {
     std::stringstream sstrm;
     ProgressBar loading_bar(verbose ? std::cout : sstrm, "Ex. Surface", current_blocks);
@@ -108,7 +109,7 @@ std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double
                     {
                         float dis           = read_block->data[li][lj][lk].distance;
                         float wei           = read_block->data[li][lj][lk].weight;
-                        local_data[i][j][k] = {p, wei > 0 ? dis : std::numeric_limits<float>::infinity()};
+                        local_data[i][j][k] = {p, wei > min_weight ? dis : std::numeric_limits<float>::infinity()};
                         //                        local_data[i][j][k] = {p, dis};
                     }
                     else
@@ -138,11 +139,18 @@ std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double
                     cell[6] = local_data[i + 1][j + 1][k + 1];
                     cell[7] = local_data[i + 1][j + 1][k];
 
-                    bool finite = true;
+                    bool finite   = true;
+                    float abs_max = 0;
 
                     for (auto i = 0; i < 8; ++i)
                     {
                         finite &= std::isfinite(cell[i].second);
+                        abs_max = std::max(abs_max, std::abs(cell[i].second));
+                    }
+
+                    if (abs_max > outlier_factor * voxel_size)
+                    {
+                        continue;
                     }
 
                     if (!finite)

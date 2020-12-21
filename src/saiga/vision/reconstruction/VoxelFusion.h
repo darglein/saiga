@@ -37,7 +37,8 @@ struct SAIGA_VISION_API FusionParams
 
     // The input data is perfect (no outliers, noise)
     // -> Use a large truncation distance, but min/max the distance
-    bool ground_truth_fuse = false;
+    bool ground_truth_fuse          = false;
+    float ground_truth_trunc_factor = 1.0f;
 
     // the truncation distance will be always greater than (min_truncation_factor * voxelSize)
     float min_truncation_factor = 6;
@@ -45,14 +46,14 @@ struct SAIGA_VISION_API FusionParams
     // clamp signed distance to +- this value
     float sd_clamp = 100;
 
-    float extract_iso = 0;
-    float newWeight   = 0.1;
-    float maxWeight   = 250;
+    float extract_iso            = 0;
+    float extract_outlier_factor = 8;
+    float newWeight              = 0.1;
+    float maxWeight              = 250;
 
-    float max_distance_error = 0.01;
-    int hash_size            = 5 * 1000 * 1000;
-    int block_count          = 25 * 1000;
-    bool post_process_mesh   = true;
+    int hash_size          = 5 * 1000 * 1000;
+    int block_count        = 25 * 1000;
+    bool post_process_mesh = true;
 
     // added to projet image points.
     // for example -0.5 for opengl renders

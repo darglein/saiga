@@ -86,7 +86,7 @@ TEST(TSDF, Create)
 
 
 
-    auto tris  = test->tsdf->ExtractSurface(0);
+    auto tris  = test->tsdf->ExtractSurface(0, 4, 0, 1, true);
     test->mesh = test->tsdf->CreateMesh(tris, false);
 
     {
@@ -96,7 +96,7 @@ TEST(TSDF, Create)
 
     PLYLoader::save("tsdf_sphere.ply", test->mesh);
 
-    exit(0);
+    //    exit(0);
     // Test if mesh vertices are on the sphere
     for (auto v : test->mesh.vertices)
     {
