@@ -306,19 +306,44 @@ struct SAIGA_VISION_API SparseTSDF
         vec3 grad = vec3::Zero();
         Voxel vx1, vx2;
 
-        if (!TrilinearAccess(position - vec3(voxel_size * 0.5, 0, 0), vx1, min_weight)) return grad;
-        if (!TrilinearAccess(position + vec3(voxel_size * 0.5, 0, 0), vx2, min_weight)) return grad;
+        float h = voxel_size * 0.5;
+
+        if (!TrilinearAccess(position - vec3(h, 0, 0), vx1, min_weight)) return grad;
+        if (!TrilinearAccess(position + vec3(h, 0, 0), vx2, min_weight)) return grad;
 
         Voxel vy1, vy2;
-        if (!TrilinearAccess(position - vec3(0, voxel_size * 0.5, 0), vy1, min_weight)) return grad;
-        if (!TrilinearAccess(position + vec3(0, voxel_size * 0.5, 0), vy2, min_weight)) return grad;
+        if (!TrilinearAccess(position - vec3(0, h, 0), vy1, min_weight)) return grad;
+        if (!TrilinearAccess(position + vec3(0, h, 0), vy2, min_weight)) return grad;
 
         Voxel vz1, vz2;
-        if (!TrilinearAccess(position - vec3(0, 0, voxel_size * 0.5), vz1, min_weight)) return grad;
-        if (!TrilinearAccess(position + vec3(0, 0, voxel_size * 0.5), vz2, min_weight)) return grad;
+        if (!TrilinearAccess(position - vec3(0, 0, h), vz1, min_weight)) return grad;
+        if (!TrilinearAccess(position + vec3(0, 0, h), vz2, min_weight)) return grad;
 
         grad = vec3((vx2.distance - vx1.distance), (vy2.distance - vy1.distance), (vz2.distance - vz1.distance)) /
-               float(voxel_size);
+               float(2 * h);
+        return grad;
+    }
+
+    vec3 Gradient(VoxelIndex virtual_voxel, float min_weight)
+    {
+        vec3 grad = vec3::Zero();
+
+        float h = voxel_size;
+
+        Voxel vx1 = GetVoxel(virtual_voxel - VoxelIndex(1, 0, 0));
+        Voxel vx2 = GetVoxel(virtual_voxel + VoxelIndex(1, 0, 0));
+        if (vx1.weight <= min_weight || vx2.weight <= min_weight) return grad;
+
+        Voxel vy1 = GetVoxel(virtual_voxel - VoxelIndex(0, 1, 0));
+        Voxel vy2 = GetVoxel(virtual_voxel + VoxelIndex(0, 1, 0));
+        if (vy1.weight <= min_weight || vy2.weight <= min_weight) return grad;
+
+        Voxel vz1 = GetVoxel(virtual_voxel - VoxelIndex(0, 0, 1));
+        Voxel vz2 = GetVoxel(virtual_voxel + VoxelIndex(0, 0, 1));
+        if (vz1.weight <= min_weight || vz2.weight <= min_weight) return grad;
+
+        grad = vec3((vx2.distance - vx1.distance), (vy2.distance - vy1.distance), (vz2.distance - vz1.distance)) /
+               float(h * 2.f);
         return grad;
     }
 
