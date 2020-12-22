@@ -17,7 +17,7 @@ namespace Saiga
 // Modifications:
 // - template IndexType
 // - from/to member variables
-template <typename IndexType = int>
+template <typename IndexType = int, typename Comp = std::not_equal_to<IndexType>>
 class Range
 {
    public:
@@ -27,26 +27,26 @@ class Range
         IndexType num;
 
        public:
-        explicit iterator(IndexType _num) : num(_num) {}
-        iterator& operator++()
+        HD inline explicit iterator(IndexType _num) : num(_num) {}
+
+        // pre-increment
+        HD inline iterator& operator++()
         {
             ++num;
             return *this;
         }
-        iterator operator++(int)
+
+        HD inline bool operator!=(iterator other) const
         {
-            iterator retval = *this;
-            ++(*this);
-            return retval;
+            Comp ne;
+            return ne(num, other.num);
         }
-        bool operator==(iterator other) const { return num == other.num; }
-        bool operator!=(iterator other) const { return !(*this == other); }
-        IndexType operator*() const { return num; }
+        HD inline IndexType operator*() const { return num; }
     };
 
-    Range(IndexType _from, IndexType _to) : from(_from), to(_to) {}
-    iterator begin() { return iterator(from); }
-    iterator end() { return iterator(to); }
+    HD inline Range(IndexType _from, IndexType _to) : from(_from), to(_to) {}
+    HD inline iterator begin() { return iterator(from); }
+    HD inline iterator end() { return iterator(to); }
 
     IndexType from, to;
 };
