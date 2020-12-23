@@ -32,6 +32,7 @@ class SAIGA_CUDA_API CudaEvent
 
 
     CudaEvent() { create(); }
+    CudaEvent(const CudaEvent& other) { create(); }
     ~CudaEvent() { destroy(); }
 
     void destroy()
@@ -81,7 +82,7 @@ class SAIGA_CUDA_API CudaEvent
     {
         float time;
         auto result = cudaEventElapsedTime(&time, first, second);
-            SAIGA_ASSERT(result == cudaSuccess || result == cudaErrorNotReady);
+        SAIGA_ASSERT(result == cudaSuccess || result == cudaErrorNotReady);
         return result == cudaSuccess ? time : -1;
     }
 
