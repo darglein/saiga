@@ -38,8 +38,9 @@ namespace Saiga
  */
 struct ProgressBar
 {
-    ProgressBar(std::ostream& strm, const std::string header, int end, int length = 30)
-        : strm(strm), prefix(header), end(end), length(length)
+    ProgressBar(std::ostream& strm, const std::string header, int end, int length = 30,
+                bool show_remaining_time = false)
+        : strm(strm), prefix(header), end(end), length(length), show_remaining_time(show_remaining_time)
     {
         SAIGA_ASSERT(end >= 0);
         print();
@@ -79,6 +80,7 @@ struct ProgressBar
     std::condition_variable cv;
     int end;
     int length;
+    bool show_remaining_time;
 
     void run()
     {
@@ -137,9 +139,14 @@ struct ProgressBar
 
         {
             // Time
-            auto remaining_time = time * (1 / progress) - time;
-            strm << "[" << DurationToString(time) << "<" << DurationToString(remaining_time) << "] ";
-            //            strm << "[" <<  << "] ";
+            strm << "[" << DurationToString(time);
+
+            if (show_remaining_time)
+            {
+                auto remaining_time = time * (1 / progress) - time;
+                strm << "<" << DurationToString(remaining_time);
+            }
+            strm << "] ";
         }
 
         {

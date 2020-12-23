@@ -76,6 +76,9 @@ class TSDFTest
     Sphere sphere = Sphere(vec3(0, 0, 0), 0.5);
     std::shared_ptr<SparseTSDF> tsdf;
     TriangleMesh<VertexNC, uint32_t> mesh;
+
+    BlockSparseGrid<int, 4> test;
+    BlockSparseGrid<int, 8> test2;
 };
 
 std::unique_ptr<TSDFTest> test;
@@ -300,7 +303,7 @@ TEST(TSDF, Trace)
 
             float t_max = 3;
             float t     = test->tsdf->RaySurfaceIntersection<2>(ray.origin, ray.direction, 0, t_max,
-                                                            test->tsdf->voxel_size * 3, 1.5);
+                                                            test->tsdf->voxel_size * 3, 0);
 
 
             if (t < t_max)

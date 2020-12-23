@@ -10,32 +10,6 @@
 #include "saiga/core/util/zlib.h"
 namespace Saiga
 {
-iRect<3> SparseTSDF::Bounds()
-{
-    if (current_blocks == 0) return {};
-
-    iRect<3> result(blocks.front().index);
-
-    for (int i = 0; i < current_blocks; ++i)
-    {
-        auto& b = blocks[i];
-        result  = iRect<3>(result, iRect<3>(b.index));
-    }
-    return result;
-}
-
-int SparseTSDF::NumBlocksInRect(const iRect<3>& rect)
-{
-    int n = 0;
-    for (int i = 0; i < current_blocks; ++i)
-    {
-        auto& b = blocks[i];
-        n += rect.Contains(b.index);
-    }
-    return n;
-}
-
-
 void SparseTSDF::EraseEmptyBlocks()
 {
     for (int i = 0; i < current_blocks; ++i)
@@ -44,19 +18,6 @@ void SparseTSDF::EraseEmptyBlocks()
         if (b.Empty())
         {
             // std::cout << "erase empty " << b.index.transpose() << std::endl;
-            EraseBlock(b.index);
-            i--;
-        }
-    }
-}
-
-void SparseTSDF::CropToRect(const iRect<3>& rect)
-{
-    for (int i = 0; i < current_blocks; ++i)
-    {
-        auto& b = blocks[i];
-        if (!rect.Contains(b.index))
-        {
             EraseBlock(b.index);
             i--;
         }

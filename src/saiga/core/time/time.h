@@ -52,7 +52,7 @@ inline std::string DurationToString(const DurationType& duration)
         strm << Saiga::leadingZeroString(h, 2) << ":";
     }
 
-    strm << Saiga::leadingZeroString(m, 2) << ":" << Saiga::leadingZeroString(s, 2) << ":"
-         << Saiga::leadingZeroString(ms, 4);
+    strm << Saiga::leadingZeroString(m, 2) << ":" << Saiga::leadingZeroString(s, 2);
+    strm << ":" << Saiga::leadingZeroString(ms, 4);
     return strm.str();
 }
