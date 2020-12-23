@@ -285,7 +285,7 @@ struct SAIGA_TEMPLATE BlockSparseGrid
         }
         else
         {
-            return {0, 0};
+            return Voxel();
         }
     }
 
