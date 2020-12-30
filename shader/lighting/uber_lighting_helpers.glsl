@@ -41,9 +41,8 @@ struct BoxLightData
 {
     vec4 colorDiffuse;  // rgb intensity
     vec4 colorSpecular; // rgb specular intensity
-    vec4 min_w;         // xyz, w unused
-    vec4 max_w;         // xyz, w unused
     vec4 direction;     // xyz, w ambient intensity
+    mat4 lightMatrix;
 };
 
 struct DirectionalLightData
@@ -163,6 +162,7 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
 
 vec3 calculateBoxLights(AssetMaterial material, vec3 position, vec3 normal)
 {
+    mat4 invCameraView = inverse(view);
     vec3 result = vec3(0);
     for(int c = 0; c < boxLightCount; ++c)
     {
@@ -170,17 +170,11 @@ vec3 calculateBoxLights(AssetMaterial material, vec3 position, vec3 normal)
         vec4 lightColorDiffuse = bl.colorDiffuse;
         vec4 lightColorSpecular = bl.colorSpecular;
 
-        vec3 bounds[2];
-
-        bounds[0] = (view * bl.min_w).rgb;
-        bounds[1] = (view * bl.max_w).rgb;
-
-        if(any(lessThan(position, bounds[0])) || any(greaterThan(position, bounds[1])))
-        {
+        vec4 vLight =  bl.lightMatrix * invCameraView * vec4(position,1);
+        vLight = vLight / vLight.w;
+        bool fragmentOutside = vLight.x<0 || vLight.x>1 || vLight.y<0 || vLight.y>1 || vLight.z<0 || vLight.z<1;
+        if(fragmentOutside)
             continue;
-        }
-        //result = vec3(0.5);
-        //continue;
 
         vec3 fragmentLightDir = normalize((view * vec4(bl.direction.rgb, 0.0)).rgb);
         float intensity       = lightColorDiffuse.w;

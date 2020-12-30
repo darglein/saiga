@@ -29,9 +29,11 @@ class Sample : public RendererSampleWindow
         auto showAsset = assetLoader.loadColoredAsset("show_model.obj");
 
         show.asset = showAsset;
+// show.multScale(make_vec3(0.01f));
+// show.calculateModel();
 
-        // Next is needed for forward.
-        /*
+// Next is needed for forward.
+#ifdef SINGLE_PASS_FORWARD_PIPELINE
         const char* shaderStr = renderer->getColoredShaderSource();
 
         renderer->setLightMaxima(maximumNumberOfRendererSupportedDirectionalLights,
@@ -59,7 +61,7 @@ class Sample : public RendererSampleWindow
         auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
         showAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
-        */
+#endif
 
         std::cout << "Program Initialized!" << std::endl;
     }
@@ -70,16 +72,18 @@ class Sample : public RendererSampleWindow
     {
         Base::render(camera, render_pass);
 
-
+#ifdef SINGLE_PASS_DEFERRED_PIPELINE
         if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
         {
             show.render(camera);
         }
-        //if (render_pass == RenderPass::Forward)
-        //{
-        //    show.renderForward(camera);
-        //}
-        else if (render_pass == RenderPass::GUI)
+#elif defined(SINGLE_PASS_FORWARD_PIPELINE)
+        if (render_pass == RenderPass::Forward)
+        {
+            show.renderForward(camera);
+        }
+#endif
+        if (render_pass == RenderPass::GUI)
         {
             if (!ImGui::Begin("Rendering Lighting Sample")) return;
 
@@ -107,35 +111,36 @@ class Sample : public RendererSampleWindow
 
 
                 // Next is needed for forward.
-                /*
-                        const char* shaderStr = renderer->getColoredShaderSource();
+#ifdef SINGLE_PASS_FORWARD_PIPELINE
+                const char* shaderStr = renderer->getColoredShaderSource();
 
-                        auto deferredShader =
-                            shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
-                        auto depthShader =
-                            shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
+                auto deferredShader =
+                    shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+                auto depthShader =
+                    shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEPTH", 1}});
 
-                        ShaderPart::ShaderCodeInjections sci;
-                        sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
-                        sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
+                ShaderPart::ShaderCodeInjections sci;
+                sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
+                sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
 
-                        sci.emplace_back(
-                            GL_FRAGMENT_SHADER,
-                            "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights),
-                   2); sci.emplace_back(GL_FRAGMENT_SHADER,
-                                         "#define MAX_PL_COUNT" +
-                   std::to_string(maximumNumberOfRendererSupportedPointLights), 2); sci.emplace_back(GL_FRAGMENT_SHADER,
-                                         "#define MAX_SL_COUNT" +
-                   std::to_string(maximumNumberOfRendererSupportedSpotLights), 2); sci.emplace_back(GL_FRAGMENT_SHADER,
-                                         "#define MAX_BL_COUNT" +
-                   std::to_string(maximumNumberOfRendererSupportedBoxLights), 2); auto forwardShader =
-                   shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
+                sci.emplace_back(
+                    GL_FRAGMENT_SHADER,
+                    "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights), 2);
+                sci.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights),
+                                 2);
+                sci.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights),
+                                 2);
+                sci.emplace_back(GL_FRAGMENT_SHADER,
+                                 "#define MAX_BL_COUNT" + std::to_string(maximumNumberOfRendererSupportedBoxLights), 2);
+                auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
 
-                        auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
+                auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
-                        std::static_pointer_cast<ColoredAsset>(show.asset)
-                            ->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
-                */
+                std::static_pointer_cast<ColoredAsset>(show.asset)
+                    ->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
+#endif
             }
 
             ImGui::Spacing();
@@ -239,9 +244,7 @@ class Sample : public RendererSampleWindow
                         std::shared_ptr<BoxLight> light = std::make_shared<BoxLight>();
                         light->setIntensity(1);
 
-
-                        light->setView(linearRand(vec3(-16, light->getScale().y() * 0.25, -16),
-                                                  vec3(16, light->getScale().y() * 0.75, 16)),
+                        light->setView(linearRand(vec3(-16, 0, -16), vec3(16, 1, 16)),
                                        linearRand(vec3(-16, -2, -16), vec3(16, 0, 16)), vec3(0, 1, 0));
 
                         light->setScale(linearRand(vec3(2, 2, 2), vec3(5, 5, 5)));

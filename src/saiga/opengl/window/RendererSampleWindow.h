@@ -11,8 +11,9 @@
 
 #    include "saiga/core/sdl/all.h"
 #    include "saiga/opengl/assets/all.h"
-#    include "saiga/opengl/rendering/renderer.h"
 #    include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
+#    include "saiga/opengl/rendering/renderer.h"
+#    include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #    include "saiga/opengl/window/WindowTemplate.h"
 #    include "saiga/opengl/window/sdl_window.h"
 #    include "saiga/opengl/world/proceduralSkybox.h"
@@ -28,8 +29,17 @@ namespace Saiga
  * @brief The RendererSampleWindow class
  */
 
+#define SINGLE_PASS_DEFERRED_PIPELINE
+#define SINGLE_PASS_FORWARD_PIPELINE
+
+#ifdef SINGLE_PASS_DEFERRED_PIPELINE
+#undef SINGLE_PASS_FORWARD_PIPELINE
 class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, UberDeferredRenderer>,
                                               public SDL_KeyListener
+#elif defined(SINGLE_PASS_FORWARD_PIPELINE)
+class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, ForwardRenderer>,
+                                              public SDL_KeyListener
+#endif
 {
    public:
     RendererSampleWindow();

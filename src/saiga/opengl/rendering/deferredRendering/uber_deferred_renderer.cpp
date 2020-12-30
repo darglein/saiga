@@ -130,7 +130,6 @@ void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         bindCamera(camera);
 
         setViewPort(c.second);
-
         renderGBuffer(c);
 
         if (cullLights) lighting.cullLights(camera);
@@ -140,10 +139,11 @@ void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     }
     assert_no_glerror();
 
+    Framebuffer::bindDefaultFramebuffer();
 
     if (params.writeDepthToOverlayBuffer)
     {
-        writeGbufferDepthToCurrentFramebuffer();
+        // writeGbufferDepthToCurrentFramebuffer();
     }
     else
     {
@@ -166,10 +166,8 @@ void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     // write depth to default framebuffer
     if (params.writeDepthToDefaultFramebuffer)
     {
-        Framebuffer::bindDefaultFramebuffer();
         writeGbufferDepthToCurrentFramebuffer();
     }
-
 
     startTimer(FINAL);
     glViewport(0, 0, renderWidth, renderHeight);
@@ -315,13 +313,14 @@ void UberDeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga:
 
 
     Framebuffer::bindDefaultFramebuffer();
+    writeGbufferDepthToCurrentFramebuffer();
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     lighting.render(camera.first, camera.second);
 
