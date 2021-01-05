@@ -36,6 +36,21 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
 
     auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
     quadMesh.fromMesh(*qb);
+
+    ClustererParameters params;
+    lightClusterer = std::make_shared<Clusterer>(params);
+}
+
+void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
+{
+    RendererLighting::init(_width, _height, _useTimers);
+    lightClusterer->init(_width, _height, _useTimers);
+}
+
+void UberDeferredLighting::resize(int _width, int _height)
+{
+    RendererLighting::resize(_width, _height);
+    lightClusterer->resize(_width, _height);
 }
 
 UberDeferredLighting::~UberDeferredLighting() {}
@@ -66,8 +81,19 @@ void UberDeferredLighting::initRender()
     li.boxLightCount         = 0;
     li.directionalLightCount = 0;
 
+    std::vector<PointLightClusterData> plc;
+    std::vector<SpotLightClusterData> slc;
+    std::vector<BoxLightClusterData> blc;
+    if (lightClusterer)
+    {
+        plc = lightClusterer->pointLightClusterData();
+        slc = lightClusterer->spotLightClusterData();
+        blc = lightClusterer->boxLightClusterData();
+    }
+
     // Point Lights
     PointLightData glPointLight;
+    PointLightClusterData clPointLight;
     for (auto pl : pointLights)
     {
         if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
@@ -77,12 +103,21 @@ void UberDeferredLighting::initRender()
         glPointLight.colorSpecular = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
         glPointLight.attenuation   = make_vec4(pl->getAttenuation(), pl->getRadius());
         ld.pointLights.push_back(glPointLight);
+
+        if (lightClusterer)
+        {
+            clPointLight.world_center = pl->getPosition();
+            clPointLight.radius       = pl->getRadius();
+            plc.push_back(clPointLight);
+        }
+
         li.pointLightCount++;
     }
     lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLightData) * li.pointLightCount, 0);
 
     // Spot Lights
     SpotLightData glSpotLight;
+    SpotLightClusterData clSpotLight;
     for (auto sl : spotLights)
     {
         if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
@@ -95,12 +130,21 @@ void UberDeferredLighting::initRender()
         glSpotLight.direction     = make_vec4(0);
         glSpotLight.direction += sl->getModelMatrix().col(1);
         ld.spotLights.push_back(glSpotLight);
+
+        if (lightClusterer)
+        {
+            clSpotLight.world_center = sl->getPosition() + glSpotLight.direction * sl->getRadius() * 0.5;
+            clSpotLight.radius       = sl->getRadius() * 0.5;  // TODO Paul: Is that correct?
+            slc.push_back(clSpotLight);
+        }
+
         li.spotLightCount++;
     }
     lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLightData) * li.spotLightCount, 0);
 
     // Box Lights
     BoxLightData glBoxLight;
+    BoxLightClusterData clBoxLight;
     const mat4 biasMatrix = make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
     for (auto bl : boxLights)
     {
@@ -113,6 +157,14 @@ void UberDeferredLighting::initRender()
         bl->calculateCamera();
         glBoxLight.lightMatrix = biasMatrix * bl->shadowCamera.proj * bl->shadowCamera.view;
         ld.boxLights.push_back(glBoxLight);
+
+        if (lightClusterer)
+        {
+            clBoxLight.world_center = vec3(bl->position.x(), bl->position.y(), bl->position.z());
+            clBoxLight.radius = std::max(bl->scale.x(), bl->scale.y(), bl->scale.z());  // TODO Paul: Is that correct?
+            blc.push_back(clBoxLight);
+        }
+
         li.boxLightCount++;
     }
     lightDataBufferBox.updateBuffer(ld.boxLights.data(), sizeof(BoxLightData) * li.boxLightCount, 0);
@@ -143,6 +195,20 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 {
     // Does nothing
     RendererLighting::render(cam, viewPort);
+    if (lightClusterer)
+    {
+        lightClusterer->clusterLights(cam, viewPort);
+        bool is_dirty;
+        const std::unordered_map<LightID, ClusterID> clusteredLightData =
+            lightClusterer->getLightToClusterMap(is_dirty);
+        if (is_dirty)
+        {
+            // This does only happen if clusterLights was not called beforehand.
+        }
+        // At this point we can use clustering information in the lighting uber shader.
+    }
+
+
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // Lighting Uber Shader

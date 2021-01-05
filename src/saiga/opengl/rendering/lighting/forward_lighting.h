@@ -9,13 +9,13 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/window/Interfaces.h"
+#include "saiga/opengl/rendering/lighting/light_clusterer.h"
 #include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
 
 namespace Saiga
 {
-
 class SAIGA_OPENGL_API MVPColorShaderFL : public MVPColorShader
 {
    public:
@@ -67,6 +67,9 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
     void renderImGui(bool* p_open = NULL) override;
 
     void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights) override;
+
+   public:
+    std::shared_ptr<Clusterer> lightClusterer;
 };
 
 }  // namespace Saiga

@@ -11,6 +11,7 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
+#include "saiga/opengl/rendering/lighting/light_clusterer.h"
 #include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
@@ -72,6 +73,8 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
     ~UberDeferredLighting();
 
     void loadShaders() override;
+    void init(int _width, int _height, bool _useTimers) override;
+    void resize(int width, int height) override;
 
     void initRender() override;
     void render(Camera* cam, const ViewPort& viewPort) override;
@@ -84,6 +87,7 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
     std::shared_ptr<UberDeferredLightingShader> lightingShader;
     GBuffer& gbuffer;
     IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
+    std::shared_ptr<Clusterer> lightClusterer;
 };
 
 }  // namespace Saiga
