@@ -47,7 +47,7 @@ class SAIGA_OPENGL_API LightToClusterComputeShader : public Shader
 
     GLint location_lightToClusterMap;  // light to cluster map
 
-    virtual void checkUniforms() override;
+    virtual void checkUniforms() override{};
 };
 
 class SAIGA_OPENGL_API BuildClusterComputeShader : public Shader
@@ -57,7 +57,7 @@ class SAIGA_OPENGL_API BuildClusterComputeShader : public Shader
 
     GLint location_clusters;  // clusters
 
-    virtual void checkUniforms() override;
+    virtual void checkUniforms() override{};
 };
 
 struct SAIGA_OPENGL_API ClustererParameters
@@ -73,18 +73,18 @@ class SAIGA_OPENGL_API Clusterer
    public:
     // vars
 
-    Clusterer(ClustererParameters _params = ClustererParameters());
+    Clusterer(ClustererParameters _params = ClustererParameters()){};
     Clusterer& operator=(Clusterer& c) = delete;
-    ~Clusterer();
+    ~Clusterer(){};
 
-    void init(int width, int height, bool _useTimers);
-    void resize(int width, int height);
+    void init(int width, int height, bool _useTimers){};
+    void resize(int width, int height){};
 
     inline void enable3DClusters(bool enabled) { clusterThreeDimensional = enabled; }
 
     inline bool clusters3D() { return clusterThreeDimensional; }
 
-    void loadComputeShaders();
+    void loadComputeShaders(){};
 
     inline std::vector<PointLightClusterData>& pointLightClusterData()
     {
@@ -104,7 +104,7 @@ class SAIGA_OPENGL_API Clusterer
         return boxLightsClusterData;
     }
 
-    void clusterLights(Camera* cam, const ViewPort& viewPort);
+    void clusterLights(Camera* cam, const ViewPort& viewPort){};
 
     const std::unordered_map<LightID, ClusterID>& getLightToClusterMap(bool& dirty)
     {
@@ -112,15 +112,14 @@ class SAIGA_OPENGL_API Clusterer
         return lightToClusterMap;
     }
 
-    void setDebugShader(std::shared_ptr<MVPColorShader> shader);
+    void setDebugShader(std::shared_ptr<MVPColorShader> shader){};
 
-    void printTimings();
-    void renderImGui(bool* p_open = NULL);
-    void renderDebug(bool* p_open = NULL);
+    void printTimings(){};
+    void renderImGui(bool* p_open = NULL){};
+    void renderDebug(bool* p_open = NULL){};
 
    public:
     int width, height;
-    std::shared_ptr<MVPColorShader> debugShader;
 
     // the vertex position is sufficient. no normals and texture coordinates needed.
     typedef IndexedVertexBuffer<Vertex, GLushort> lightMesh_t;

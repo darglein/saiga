@@ -16,6 +16,26 @@
 
 namespace Saiga
 {
+#ifdef SHADER_STORAGE_BUFFER
+class SAIGA_OPENGL_API MVPColorShaderFL : public MVPColorShader
+{
+   public:
+    GLint location_lightInfoBlock;
+
+    GLint location_invProj;
+
+    virtual void checkUniforms() override
+    {
+        MVPColorShader::checkUniforms();
+
+        location_lightInfoBlock = getUniformBlockLocation("lightInfoBlock");
+        setUniformBlockBinding(location_lightInfoBlock, LIGHT_INFO_BINDING_POINT);
+
+
+        location_invProj = getUniformLocation("invProj");
+    }
+};
+#else
 class SAIGA_OPENGL_API MVPColorShaderFL : public MVPColorShader
 {
    public:
@@ -46,6 +66,7 @@ class SAIGA_OPENGL_API MVPColorShaderFL : public MVPColorShader
         setUniformBlockBinding(location_lightInfoBlock, LIGHT_INFO_BINDING_POINT);
     }
 };
+#endif
 
 class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 {

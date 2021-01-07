@@ -53,6 +53,29 @@ struct DirectionalLightData
     vec4 direction; // xyz, w ambient intensity
 };
 
+#ifdef SHADER_STORAGE_BUFFER
+// Shader storage buffers are enabled
+layout (std430, binding = 2) buffer lightDataBlockPoint
+{
+    PointLightData pointLights[MAX_PL_COUNT];
+};
+
+layout (std430, binding = 3) buffer lightDataBlockSpot
+{
+    SpotLightData spotLights[MAX_SL_COUNT];
+};
+
+layout (std430, binding = 4) buffer lightDataBlockBox
+{
+    BoxLightData boxLights[MAX_BL_COUNT];
+};
+
+layout (std430, binding = 5) buffer lightDataBlockDirectional
+{
+    DirectionalLightData directionalLights[MAX_DL_COUNT];
+};
+#else
+// No shader storage buffer
 layout (std140) uniform lightDataBlockPoint
 {
     PointLightData pointLights[MAX_PL_COUNT];
@@ -72,6 +95,7 @@ layout (std140) uniform lightDataBlockDirectional
 {
     DirectionalLightData directionalLights[MAX_DL_COUNT];
 };
+#endif
 
 layout (std140) uniform lightInfoBlock
 {

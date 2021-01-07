@@ -182,11 +182,4 @@ inline void Buffer::unmapBuffer()
     assert_no_glerror();
 }
 
-
-class SAIGA_OPENGL_API ShaderStorageBuffer : public Buffer
-{
-   public:
-    ShaderStorageBuffer() : Buffer(GL_SHADER_STORAGE_BUFFER) {}
-};
-
 }  // namespace Saiga

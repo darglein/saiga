@@ -23,7 +23,7 @@ void main()
 
 
 ##GL_FRAGMENT_SHADER
-#version 330
+#version 430 core
 
 #define SINGLE_PASS_LIGHTING
 #include "lighting_helper_fs.glsl"

@@ -29,6 +29,8 @@ class PointLight;
 class DirectionalLight;
 class BoxLight;
 
+#define SHADER_STORAGE_BUFFER
+
 struct RendererLightingShaderNames
 {
     std::string pointLightShader       = "lighting/light_point.glsl";
@@ -97,7 +99,6 @@ struct LightInfo
 #define BOX_LIGHT_DATA_BINDING_POINT 4
 #define DIRECTIONAL_LIGHT_DATA_BINDING_POINT 5
 #define LIGHT_INFO_BINDING_POINT 6
-
 
 class SAIGA_OPENGL_API RendererLighting
 {

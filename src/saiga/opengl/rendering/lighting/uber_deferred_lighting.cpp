@@ -26,6 +26,16 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
     createLightMeshes();
     shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
 
+    int maxSize = UniformBuffer::getMaxUniformBlockSize();
+#ifdef SHADER_STORAGE_BUFFER
+    maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+#endif
+    maximumNumberOfDirectionalLights =
+        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLightData));
+    maximumNumberOfPointLights = std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLightData));
+    maximumNumberOfSpotLights  = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLightData));
+    maximumNumberOfBoxLights   = std::clamp(maximumNumberOfBoxLights, 0, maxSize / (int)sizeof(BoxLightData));
+
     lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * maximumNumberOfDirectionalLights,
                                               GL_DYNAMIC_DRAW);
     lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLightData) * maximumNumberOfPointLights, GL_DYNAMIC_DRAW);
@@ -61,7 +71,16 @@ void UberDeferredLighting::loadShaders()
 
     const RendererLightingShaderNames& names = RendererLightingShaderNames();
 
-    lightingShader = shaderLoader.load<UberDeferredLightingShader>(names.lightingUberShader);
+    ShaderPart::ShaderCodeInjections sci;
+
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfDirectionalLights), 1);
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfPointLights), 2);
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfSpotLights), 3);
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_BL_COUNT" + std::to_string(maximumNumberOfBoxLights), 4);
+#ifdef SHADER_STORAGE_BUFFER
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define SHADER_STORAGE_BUFFER", 5);
+#endif
+    lightingShader = shaderLoader.load<UberDeferredLightingShader>(names.lightingUberShader, sci);
 }
 
 void UberDeferredLighting::initRender()
@@ -113,7 +132,6 @@ void UberDeferredLighting::initRender()
 
         li.pointLightCount++;
     }
-    lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLightData) * li.pointLightCount, 0);
 
     // Spot Lights
     SpotLightData glSpotLight;
@@ -133,14 +151,15 @@ void UberDeferredLighting::initRender()
 
         if (lightClusterer)
         {
-            clSpotLight.world_center = sl->getPosition() + glSpotLight.direction * sl->getRadius() * 0.5;
-            clSpotLight.radius       = sl->getRadius() * 0.5;  // TODO Paul: Is that correct?
+            clSpotLight.world_center = sl->getPosition() + vec3(glSpotLight.direction.x(), glSpotLight.direction.y(),
+                                                                glSpotLight.direction.z()) *
+                                                               sl->getRadius() * 0.5;
+            clSpotLight.radius = sl->getRadius() * 0.5;  // TODO Paul: Is that correct?
             slc.push_back(clSpotLight);
         }
 
         li.spotLightCount++;
     }
-    lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLightData) * li.spotLightCount, 0);
 
     // Box Lights
     BoxLightData glBoxLight;
@@ -161,13 +180,13 @@ void UberDeferredLighting::initRender()
         if (lightClusterer)
         {
             clBoxLight.world_center = vec3(bl->position.x(), bl->position.y(), bl->position.z());
-            clBoxLight.radius = std::max(bl->scale.x(), bl->scale.y(), bl->scale.z());  // TODO Paul: Is that correct?
+            clBoxLight.radius =
+                std::max(bl->scale.x(), std::max(bl->scale.y(), bl->scale.z()));  // TODO Paul: Is that correct?
             blc.push_back(clBoxLight);
         }
 
         li.boxLightCount++;
     }
-    lightDataBufferBox.updateBuffer(ld.boxLights.data(), sizeof(BoxLightData) * li.boxLightCount, 0);
 
     // Directional Lights
     DirectionalLightData glDirectionalLight;
@@ -182,9 +201,12 @@ void UberDeferredLighting::initRender()
         ld.directionalLights.push_back(glDirectionalLight);
         li.directionalLightCount++;
     }
+
+    lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLightData) * li.pointLightCount, 0);
+    lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLightData) * li.spotLightCount, 0);
+    lightDataBufferBox.updateBuffer(ld.boxLights.data(), sizeof(BoxLightData) * li.boxLightCount, 0);
     lightDataBufferDirectional.updateBuffer(ld.directionalLights.data(),
                                             sizeof(DirectionalLightData) * li.directionalLightCount, 0);
-
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.boxLightCount + li.directionalLightCount;
@@ -242,6 +264,17 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
     maxSpotLights        = std::max(0, maxSpotLights);
     maxBoxLights         = std::max(0, maxBoxLights);
 
+    int maxSize = UniformBuffer::getMaxUniformBlockSize();
+#ifdef SHADER_STORAGE_BUFFER
+    maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+#endif
+    maximumNumberOfDirectionalLights =
+        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLightData));
+    maximumNumberOfPointLights = std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLightData));
+    maximumNumberOfSpotLights  = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLightData));
+    maximumNumberOfBoxLights   = std::clamp(maximumNumberOfBoxLights, 0, maxSize / (int)sizeof(BoxLightData));
+
+
     if (maximumNumberOfDirectionalLights != maxDirectionalLights)
     {
         lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * maxDirectionalLights,
@@ -264,6 +297,18 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
     maximumNumberOfPointLights       = maxPointLights;
     maximumNumberOfSpotLights        = maxSpotLights;
     maximumNumberOfBoxLights         = maxBoxLights;
+
+    const RendererLightingShaderNames& names = RendererLightingShaderNames();
+
+    ShaderPart::ShaderCodeInjections sci;
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfDirectionalLights), 1);
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfPointLights), 2);
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfSpotLights), 3);
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_BL_COUNT" + std::to_string(maximumNumberOfBoxLights), 4);
+#ifdef SHADER_STORAGE_BUFFER
+    sci.emplace_back(GL_FRAGMENT_SHADER, "#define SHADER_STORAGE_BUFFER", 5);
+#endif
+    lightingShader = shaderLoader.load<UberDeferredLightingShader>(names.lightingUberShader, sci);
 }
 
 void UberDeferredLighting::renderImGui(bool* p_open)

@@ -15,12 +15,37 @@
 #include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
+#ifdef SHADER_STORAGE_BUFFER
+#    include "saiga/opengl/shaderStorageBuffer.h"
+#endif
 #include "saiga/opengl/vertex.h"
 
 #include <set>
 
 namespace Saiga
 {
+#ifdef SHADER_STORAGE_BUFFER
+class SAIGA_OPENGL_API UberDeferredLightingShader : public DeferredShader
+{
+   public:
+    GLint location_lightInfoBlock;
+
+    GLint location_invProj;
+
+    virtual void checkUniforms() override
+    {
+        DeferredShader::checkUniforms();
+
+        location_lightInfoBlock = getUniformBlockLocation("lightInfoBlock");
+        setUniformBlockBinding(location_lightInfoBlock, LIGHT_INFO_BINDING_POINT);
+
+
+        location_invProj = getUniformLocation("invProj");
+    }
+
+    inline void uploadInvProj(const mat4& mat) { Shader::upload(location_invProj, mat); }
+};
+#else
 class SAIGA_OPENGL_API UberDeferredLightingShader : public DeferredShader
 {
    public:
@@ -58,14 +83,22 @@ class SAIGA_OPENGL_API UberDeferredLightingShader : public DeferredShader
 
     inline void uploadInvProj(const mat4& mat) { Shader::upload(location_invProj, mat); }
 };
+#endif
 
 class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
 {
    public:
+#ifdef SHADER_STORAGE_BUFFER
+    ShaderStorageBuffer lightDataBufferPoint;
+    ShaderStorageBuffer lightDataBufferSpot;
+    ShaderStorageBuffer lightDataBufferBox;
+    ShaderStorageBuffer lightDataBufferDirectional;
+#else
     UniformBuffer lightDataBufferPoint;
     UniformBuffer lightDataBufferSpot;
     UniformBuffer lightDataBufferBox;
     UniformBuffer lightDataBufferDirectional;
+#endif
     UniformBuffer lightInfoBuffer;
 
     UberDeferredLighting(GBuffer& gbuffer);
