@@ -90,6 +90,7 @@ void depthToRGBA_HSV(ImageView<const float> src, ImageView<ucvec4> dst, float mi
             dst(i, j)[0] = c.r;
             dst(i, j)[1] = c.g;
             dst(i, j)[2] = c.b;
+            dst(i, j)[3] = 255;
         }
     }
 }

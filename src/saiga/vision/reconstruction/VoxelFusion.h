@@ -60,6 +60,7 @@ struct SAIGA_VISION_API FusionParams
     Vec2 ip_offset = Vec2::Zero();
 
 
+    bool verbose         = true;
     bool point_based     = false;
     std::string out_file = "outmesh_sparse.off";
 
@@ -107,6 +108,7 @@ struct SAIGA_VISION_API FusionScene
     std::vector<int> triangle_soup_inclusive_prefix_sum;
 
     TemplatedImage<vec2> unproject_undistort_map;
+
 
     void Preprocess();
     void AnalyseSparseStructure();

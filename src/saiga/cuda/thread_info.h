@@ -7,7 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/util/Range.h"
 
+#include <cooperative_groups.h>
+#include <cuda_occupancy.h>
 namespace Saiga
 {
 namespace CUDA
@@ -68,6 +71,46 @@ struct ThreadInfo
         num_warps       = num_warps_block * num_blocks;
     }
 };
+
+
+struct KernelInfo
+{
+    int block_size;
+    int max_blocks_per_sm;
+    int max_blocks_on_device;
+
+    int LaunchGrid(int n) { return std::min(iDivUp(n, block_size), max_blocks_on_device); }
+};
+
+template <typename K>
+KernelInfo GetKernelInfo(K kernel, int block_size, int dynamic_smem = 0)
+{
+    cudaDeviceProp props;
+    int device;
+    cudaGetDevice(&device);
+    cudaGetDeviceProperties(&props, device);
+
+    int num_blocks;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&num_blocks, kernel, block_size, dynamic_smem);
+
+    KernelInfo ki;
+    ki.block_size           = block_size;
+    ki.max_blocks_per_sm    = num_blocks;
+    ki.max_blocks_on_device = ki.max_blocks_per_sm * props.multiProcessorCount;
+    return ki;
+}
+
+
+template <typename Group>
+HD StridedRange<int> ParallelFor(Group b, int n)
+{
+    return StridedRange<int>(b.thread_rank(), n, b.size());
+}
+
+__device__ inline StridedRange<int> GridStrideLoop(int n)
+{
+    return ParallelFor(cooperative_groups::this_grid(), n);
+}
 
 }  // namespace CUDA
 }  // namespace Saiga

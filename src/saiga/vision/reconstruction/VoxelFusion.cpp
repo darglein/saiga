@@ -13,6 +13,8 @@
 
 namespace Saiga
 {
+static std::stringstream strm;
+
 void FusionScene::Preprocess()
 {
     triangle_soup_inclusive_prefix_sum.clear();
@@ -25,7 +27,7 @@ void FusionScene::Preprocess()
     depth_map_size = images.front().depthMap.dimensions();
     unproject_undistort_map.create(depth_map_size);
 
-    ProgressBar loading_bar(std::cout, "Preprocess ", depth_map_size.rows);
+    ProgressBar loading_bar(params.verbose ? std::cout : strm, "Preprocess ", depth_map_size.rows);
 #pragma omp parallel for
     for (int i = 0; i < unproject_undistort_map.rows; ++i)
     {
@@ -45,7 +47,7 @@ void FusionScene::Preprocess()
 
 void FusionScene::AnalyseSparseStructure()
 {
-    ProgressBar loading_bar(std::cout, "Analysing  ", Size());
+    ProgressBar loading_bar(params.verbose ? std::cout : strm, "Analysing  ", Size());
 
     // #pragma omp parallel for
     for (int i = 0; i < Size(); ++i)
@@ -196,7 +198,7 @@ void FusionScene::ComputeWeight()
     {
         return;
     }
-    ProgressBar loading_bar(std::cout, "Comp Weight", Size());
+    ProgressBar loading_bar(params.verbose ? std::cout : strm, "Comp Weight", Size());
 #pragma omp parallel for
     for (int i = 0; i < Size(); ++i)
     {
@@ -253,7 +255,7 @@ void FusionScene::ComputeWeight()
 void FusionScene::Visibility()
 {
     {
-        ProgressBar loading_bar(std::cout, "Visibility ", Size());
+        ProgressBar loading_bar(params.verbose ? std::cout : strm, "Visibility ", Size());
 
         auto K2 = K;
         K2.fx *= 0.95;
@@ -306,7 +308,7 @@ void FusionScene::Integrate()
 {
     Visibility();
     {
-        ProgressBar loading_bar(std::cout, "Integrate  ", Size());
+        ProgressBar loading_bar(params.verbose ? std::cout : strm, "Integrate  ", Size());
 
         for (int i = 0; i < Size(); ++i)
         {
@@ -377,8 +379,9 @@ void FusionScene::Integrate()
                             }
                             else
                             {
-                                SAIGA_EXIT_ERROR("unimplemented");
+                                // SAIGA_EXIT_ERROR("unimplemented");
                                 imageDepth = dm.depthMap(ipy, ipx);
+                                if (imageDepth <= 0) continue;
                             }
 
                             // No valid depth
@@ -511,7 +514,7 @@ void FusionScene::IntegratePointBased()
     tsdf->SetForAll(500, 0);
 
     {
-        ProgressBar loading_bar(std::cout, "IntegrateP ", Size());
+        ProgressBar loading_bar(params.verbose ? std::cout : strm, "IntegrateP ", Size());
 
         for (int i = 0; i < Size(); ++i)
         {
@@ -711,7 +714,8 @@ void FusionScene::ExtractMesh()
 {
     mesh.clear();
 
-    auto triangle_soup_per_block = tsdf->ExtractSurface(params.extract_iso, params.extract_outlier_factor, 0, 4, true);
+    auto triangle_soup_per_block =
+        tsdf->ExtractSurface(params.extract_iso, params.extract_outlier_factor, 0, 4, params.verbose);
 
     int sum = 0;
     for (auto& v : triangle_soup_per_block)
@@ -748,7 +752,10 @@ void FusionScene::ExtractMesh()
     {
         std::ofstream strm(params.out_file);
         mesh.saveMeshOff(strm);
-        std::cout << mesh << " saved as " << params.out_file << std::endl;
+        if (params.verbose)
+        {
+            std::cout << mesh << " saved as " << params.out_file << std::endl;
+        }
     }
 }
 
