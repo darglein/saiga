@@ -34,7 +34,7 @@ struct SAIGA_VISION_API FusionParams
     bool use_confidence              = true;
     bool test                        = false;
     bool bilinear_intperpolation     = true;
-    bool increase_visibility_frustum = true;
+    bool increase_visibility_frustum = false;
 
     // The input data is perfect (no outliers, noise)
     // -> Use a large truncation distance, but min/max the distance
