@@ -22,7 +22,15 @@ namespace Saiga
 {
 namespace LibPNG
 {
-SAIGA_CORE_API bool save(const std::string& path, const Image& img, bool invertY = false);
+enum class Compression
+{
+    fast,
+    medium,
+    best
+};
+
+SAIGA_CORE_API bool save(const std::string& path, const Image& img, bool invertY = false,
+                         Compression compression = Compression::medium);
 SAIGA_CORE_API bool load(const std::string& path, Image& img, bool invertY = false);
 
 }  // namespace LibPNG

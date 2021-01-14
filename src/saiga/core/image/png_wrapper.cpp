@@ -224,7 +224,7 @@ bool load(const std::string& path, Image& img, bool invertY)
 /* returns 0 for success, 2 for libpng problem, 4 for out of memory, 11 for
  *  unexpected pnmtype; note that outfile might be stdout */
 
-static int writepng_init(const Image& img, PNGLoadStore* pngls)
+static int writepng_init(const Image& img, PNGLoadStore* pngls, Compression compression)
 {
     png_structp png_ptr; /* note:  temporary variables! */
     png_infop info_ptr;
@@ -309,10 +309,27 @@ static int writepng_init(const Image& img, PNGLoadStore* pngls)
                  PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
 
-    png_set_compression_strategy(png_ptr, Z_RLE);
-    //    png_set_filter(png_ptr, PNG_FILTER_TYPE_BASE, PNG_FILTER_SUB);
-    png_set_filter(png_ptr, PNG_FILTER_TYPE_BASE, PNG_FILTER_NONE);
-    png_set_compression_level(png_ptr, Z_BEST_SPEED);
+    switch (compression)
+    {
+        case Compression::fast:
+            png_set_compression_strategy(png_ptr, Z_RLE);
+            png_set_filter(png_ptr, PNG_FILTER_TYPE_BASE, PNG_FILTER_NONE);
+            png_set_compression_level(png_ptr, Z_BEST_SPEED);
+            break;
+        case Compression::medium:
+            png_set_compression_strategy(png_ptr, Z_RLE);
+            png_set_filter(png_ptr, PNG_FILTER_TYPE_BASE, PNG_FILTER_SUB);
+            png_set_compression_level(png_ptr, Z_DEFAULT_COMPRESSION);
+            break;
+        case Compression::best:
+            png_set_compression_strategy(png_ptr, Z_DEFAULT_STRATEGY);
+            png_set_filter(png_ptr, PNG_FILTER_TYPE_BASE, PNG_FILTER_SUB);
+            png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
+            break;
+        default:
+            SAIGA_EXIT_ERROR("Unknown Compression");
+    }
+
 
 
     /* write all chunks up to (but not including) first IDAT */
@@ -371,7 +388,7 @@ static void writepng_encode_image(const Image& img, PNGLoadStore* pngls, bool in
 }
 
 
-bool save(const std::string& path, const Image& img, bool invertY)
+bool save(const std::string& path, const Image& img, bool invertY, Compression compression)
 {
     PNGLoadStore pngls;
 
@@ -385,7 +402,7 @@ bool save(const std::string& path, const Image& img, bool invertY)
     pngls.outfile = fp;
 
 
-    if (writepng_init(img, &pngls) != 0)
+    if (writepng_init(img, &pngls, compression) != 0)
     {
         std::cout << "error write png init" << std::endl;
     }
