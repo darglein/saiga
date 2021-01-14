@@ -258,8 +258,12 @@ void FusionScene::Visibility()
         ProgressBar loading_bar(params.verbose ? std::cout : strm, "Visibility ", Size());
 
         auto K2 = K;
-        K2.fx *= 0.95;
-        K2.fy *= 0.95;
+
+        if (params.increase_visibility_frustum)
+        {
+            K2.fx *= 0.95;
+            K2.fy *= 0.95;
+        }
 
 
 #pragma omp parallel for
@@ -410,7 +414,7 @@ void FusionScene::Integrate()
                                 // It is enough to use the minimum observation
                                 if (new_tsdf < -truncation_distance * params.ground_truth_trunc_factor)
                                 {
-                                    continue;
+                                    //                                    continue;
                                 }
 
 

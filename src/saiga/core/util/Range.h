@@ -25,14 +25,15 @@ class Range
     class iterator
     {
         IndexType num;
+        IndexType stride;
 
        public:
-        HD inline explicit iterator(IndexType _num) : num(_num) {}
+        HD inline explicit iterator(IndexType _num, IndexType _stride) : num(_num), stride(_stride) {}
 
         // pre-increment
         HD inline iterator& operator++()
         {
-            ++num;
+            num += stride;
             return *this;
         }
 
@@ -44,11 +45,17 @@ class Range
         HD inline IndexType operator*() const { return num; }
     };
 
-    HD inline Range(IndexType _from, IndexType _to) : from(_from), to(_to) {}
-    HD inline iterator begin() { return iterator(from); }
-    HD inline iterator end() { return iterator(to); }
+    HD inline Range(IndexType _from, IndexType _to, IndexType _stride = 1) : from(_from), to(_to), stride(_stride) {}
+    HD inline iterator begin() { return iterator(from, stride); }
+    HD inline iterator end() { return iterator(to, stride); }
+    HD inline Range<IndexType, Comp> inverse()
+    {
+        static_assert(std::is_same<Comp, std::not_equal_to<IndexType>>::value,
+                      "Inverse only valid for not_equal comparison!");
+        return Range<IndexType, Comp>(to - stride, from - stride, -stride);
+    }
 
-    IndexType from, to;
+    IndexType from, to, stride;
 };
 
 

@@ -31,9 +31,10 @@ struct SAIGA_VISION_API FusionParams
     float truncationDistanceScale = 0.02;
     float maxIntegrationDistance  = 5;
 #endif
-    bool use_confidence          = true;
-    bool test                    = false;
-    bool bilinear_intperpolation = true;
+    bool use_confidence              = true;
+    bool test                        = false;
+    bool bilinear_intperpolation     = true;
+    bool increase_visibility_frustum = true;
 
     // The input data is perfect (no outliers, noise)
     // -> Use a large truncation distance, but min/max the distance
