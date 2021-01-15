@@ -192,6 +192,7 @@ class TriangleMesh : public Mesh<vertex_t>
      * Writes this mesh in OFF format to the given output stream.
      */
     void saveMeshOff(std::ostream& strm) const;
+    void saveMeshOffColor(std::ostream& strm) const;
 
    public:
     //    std::vector<vertex_t> vertices;
@@ -579,7 +580,27 @@ void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm) const
     }
 }
 
+template <typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t, index_t>::saveMeshOffColor(std::ostream& strm) const
+{
+    strm << "COFF"
+         << "\n";
+    // first line: number of vertices, number of faces, number of edges (can be ignored)
+    strm << vertices.size() << " " << faces.size() << " 0"
+         << "\n";
 
+    for (auto const& v : vertices)
+    {
+        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << " ";
+        strm << v.color[0] << " " << v.color[1] << " " << v.color[2] << " " << v.color[3] << "\n";
+    }
+
+    for (auto const& f : faces)
+    {
+        strm << "3"
+             << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
+    }
+}
 
 template <typename vertex_t, typename index_t>
 std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t, index_t>& dt)
