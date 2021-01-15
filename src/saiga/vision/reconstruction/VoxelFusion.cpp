@@ -414,7 +414,7 @@ void FusionScene::Integrate()
                                 // It is enough to use the minimum observation
                                 if (new_tsdf < -truncation_distance * params.ground_truth_trunc_factor)
                                 {
-                                    //                                    continue;
+                                    continue;
                                 }
 
 
