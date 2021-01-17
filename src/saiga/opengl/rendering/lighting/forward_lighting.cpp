@@ -17,6 +17,14 @@ using namespace uber;
 
 ForwardLighting::ForwardLighting() : RendererLighting()
 {
+    int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+
+    maximumNumberOfDirectionalLights =
+        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLightData));
+    maximumNumberOfPointLights = std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLightData));
+    maximumNumberOfSpotLights  = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLightData));
+    maximumNumberOfBoxLights   = std::clamp(maximumNumberOfBoxLights, 0, maxSize / (int)sizeof(BoxLightData));
+
     lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * maximumNumberOfDirectionalLights,
                                               GL_DYNAMIC_DRAW);
     lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLightData) * maximumNumberOfPointLights, GL_DYNAMIC_DRAW);
@@ -56,7 +64,6 @@ void ForwardLighting::initRender()
         ld.pointLights.push_back(glPointLight);
         li.pointLightCount++;
     }
-    lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLightData) * li.pointLightCount, 0);
 
     // Spot Lights
     SpotLightData glSpotLight;
@@ -74,7 +81,6 @@ void ForwardLighting::initRender()
         ld.spotLights.push_back(glSpotLight);
         li.spotLightCount++;
     }
-    lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLightData) * li.spotLightCount, 0);
 
     // Box Lights
     BoxLightData glBoxLight;
@@ -92,7 +98,6 @@ void ForwardLighting::initRender()
         ld.boxLights.push_back(glBoxLight);
         li.boxLightCount++;
     }
-    lightDataBufferBox.updateBuffer(ld.boxLights.data(), sizeof(BoxLightData) * li.boxLightCount, 0);
 
     // Directional Lights
     DirectionalLightData glDirectionalLight;
@@ -107,9 +112,12 @@ void ForwardLighting::initRender()
         ld.directionalLights.push_back(glDirectionalLight);
         li.directionalLightCount++;
     }
+
+    lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLightData) * li.pointLightCount, 0);
+    lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLightData) * li.spotLightCount, 0);
+    lightDataBufferBox.updateBuffer(ld.boxLights.data(), sizeof(BoxLightData) * li.boxLightCount, 0);
     lightDataBufferDirectional.updateBuffer(ld.directionalLights.data(),
                                             sizeof(DirectionalLightData) * li.directionalLightCount, 0);
-
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.boxLightCount + li.directionalLightCount;
@@ -132,10 +140,20 @@ void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
 
 void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
 {
+
     maxDirectionalLights = std::max(0, maxDirectionalLights);
     maxPointLights       = std::max(0, maxPointLights);
     maxSpotLights        = std::max(0, maxSpotLights);
     maxBoxLights         = std::max(0, maxBoxLights);
+
+    int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+
+    maximumNumberOfDirectionalLights =
+        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLightData));
+    maximumNumberOfPointLights = std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLightData));
+    maximumNumberOfSpotLights  = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLightData));
+    maximumNumberOfBoxLights   = std::clamp(maximumNumberOfBoxLights, 0, maxSize / (int)sizeof(BoxLightData));
+
 
     if (maximumNumberOfDirectionalLights != maxDirectionalLights)
     {

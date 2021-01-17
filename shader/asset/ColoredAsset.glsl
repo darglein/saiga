@@ -37,7 +37,7 @@ void main()
 
 
 ##GL_FRAGMENT_SHADER
-#version 330
+#version 430 core
 
 uniform vec4 color = vec4(1,1,1,1);
 

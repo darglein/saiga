@@ -20,7 +20,7 @@ namespace Saiga
  *
  * Usage:
  *
- * 1. Create an buffer block in a GLSL shader:
+ * 1. Create a buffer block in a GLSL shader:
  *
  * ...
  * layout (std430) buffer histogram_data

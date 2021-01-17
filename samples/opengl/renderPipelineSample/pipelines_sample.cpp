@@ -32,10 +32,8 @@ class Sample : public RendererSampleWindow
         // show.multScale(make_vec3(0.01f));
         // show.calculateModel();
 
-        int maxSize = UniformBuffer::getMaxUniformBlockSize();
-#ifdef SHADER_STORAGE_BUFFER
-        maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-#endif
+        int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+
         maximumNumberOfRendererSupportedDirectionalLights = std::clamp(
             maximumNumberOfRendererSupportedDirectionalLights, 0, maxSize / (int)sizeof(uber::DirectionalLightData));
         maximumNumberOfRendererSupportedPointLights =
@@ -114,10 +112,8 @@ class Sample : public RendererSampleWindow
 
             if (supportChanged)
             {
-                int maxSize = UniformBuffer::getMaxUniformBlockSize();
-#ifdef SHADER_STORAGE_BUFFER
-                maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-#endif
+                int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+
                 maximumNumberOfRendererSupportedDirectionalLights =
                     std::clamp(maximumNumberOfRendererSupportedDirectionalLights, 0,
                                maxSize / (int)sizeof(uber::DirectionalLightData));

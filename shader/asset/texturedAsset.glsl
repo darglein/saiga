@@ -36,7 +36,7 @@ void main() {
 
 
 ##GL_FRAGMENT_SHADER
-#version 330
+#version 430 core
 
 uniform sampler2D image;
 uniform float userData; //blue channel of data texture in gbuffer. Not used in lighting.

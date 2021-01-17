@@ -112,7 +112,7 @@ class SAIGA_OPENGL_API Clusterer
         return lightToClusterMap;
     }
 
-    void setDebugShader(std::shared_ptr<MVPColorShader> shader){};
+    void setDebugShader(std::shared_ptr<Shader> shader){};
 
     void printTimings(){};
     void renderImGui(bool* p_open = NULL){};

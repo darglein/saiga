@@ -29,7 +29,7 @@ namespace Saiga
  * @brief The RendererSampleWindow class
  */
 
-#define SINGLE_PASS_DEFERRED_PIPELINE
+//#define SINGLE_PASS_DEFERRED_PIPELINE
 #define SINGLE_PASS_FORWARD_PIPELINE
 
 #ifdef SINGLE_PASS_DEFERRED_PIPELINE

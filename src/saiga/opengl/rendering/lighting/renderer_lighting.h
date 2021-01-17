@@ -29,8 +29,6 @@ class PointLight;
 class DirectionalLight;
 class BoxLight;
 
-#define SHADER_STORAGE_BUFFER
-
 struct RendererLightingShaderNames
 {
     std::string pointLightShader       = "lighting/light_point.glsl";
