@@ -143,6 +143,10 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
  * Save the tensor so it can be loaded from python and C++.
  * For Python loading just use
  *    x = torch.load(path)
+ *
+ * Python -> c++
+ *   std::vector<char> f = get_the_bytes();
+ *   torch::IValue x = torch::pickle_load(f);
  */
 inline bool SaveTensor(at::Tensor t, const std::string& file)
 {

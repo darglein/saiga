@@ -286,6 +286,9 @@ struct SAIGA_VISION_API SparseTSDF : public BlockSparseGrid<TSDFVoxel, 8>
 
     void ClampDistance(float distance);
 
+    // Sets all voxels to 0 where the abs distance is > theshold
+    void EraseAboveDistance(float threshold);
+
     // The number of inserted voxels with weight==0
     int NumZeroVoxels() const;
 
