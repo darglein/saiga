@@ -44,6 +44,8 @@ class SAIGA_TEMPLATE iRect
     bool Empty() const { return end == begin; }
 
     Vec Size() const { return end - begin; }
+
+    Vec Center() const { return (begin + end) / 2; }
     int Volume() const
     {
         auto s = Size();
@@ -71,14 +73,17 @@ class SAIGA_TEMPLATE iRect
         return dx < 0 && dy < 0 && dz < 0;
     }
 
+    // Distance > 0  the rectangles have at least 1 cell space between them
+    // Distance == 0 the rectangles are touching
+    // Distance < 0  the rectangles are overlapping
     int Distance(const iRect& other) const
     {
-        SAIGA_ASSERT(!Empty());
-        SAIGA_ASSERT(!other.Empty());
+        //        SAIGA_ASSERT(!Empty());
+        //        SAIGA_ASSERT(!other.Empty());
 
-        int dx = std::max({begin.x() - other.end.x(), 0, other.begin.x() - end.x()});
-        int dy = std::max({begin.y() - other.end.y(), 0, other.begin.y() - end.y()});
-        int dz = std::max({begin.z() - other.end.z(), 0, other.begin.z() - end.z()});
+        int dx = std::max({begin.x() - other.end.x(), other.begin.x() - end.x()});
+        int dy = std::max({begin.y() - other.end.y(), other.begin.y() - end.y()});
+        int dz = std::max({begin.z() - other.end.z(), other.begin.z() - end.z()});
         return std::max({dx, dy, dz});
     }
 
@@ -103,6 +108,24 @@ class SAIGA_TEMPLATE iRect
         return iRect(begin - Vec(radius, radius, radius), end + Vec(radius, radius, radius));
     }
 
+
+    int maxDimension() const
+    {
+        auto d = Size();
+
+        int m  = -1;
+        int mi = -1;
+
+        for (int i = 0; i < 3; ++i)
+        {
+            if (d[i] > m)
+            {
+                mi = i;
+                m  = d[i];
+            }
+        }
+        return mi;
+    }
 
 
     bool ShrinkOtherToThis(const iRect other, iRect& output_inner, iRect& output_outer_l, iRect& output_outer_r)

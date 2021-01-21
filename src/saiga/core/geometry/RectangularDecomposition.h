@@ -11,6 +11,7 @@
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/DataStructures/ArrayView.h"
 
+#include "RectilinearCover.h"
 #include "aabb.h"
 #include "intersection.h"
 #include "ray.h"
@@ -20,9 +21,6 @@ namespace Saiga
 {
 namespace RectangularDecomposition
 {
-using Rect = iRect<3>;
-
-
 SAIGA_CORE_API std::vector<ivec3> RemoveDuplicates(ArrayView<const ivec3> points);
 
 struct SAIGA_CORE_API Decomposition
@@ -35,31 +33,6 @@ struct SAIGA_CORE_API Decomposition
     Decomposition RemoveFullyContained() const;
 
     Decomposition ShrinkIfPossible() const;
-
-
-    Decomposition MergeNeighborsSave() const;
-
-    std::vector<std::pair<int, int>> NeighborList(int distance) const;
-
-    std::vector<int> AllIntersectingRects(const Rect& r)
-    {
-        std::vector<int> result;
-        //        for (auto r2 : rectangles)
-        for (int i = 0; i < rectangles.size(); ++i)
-        {
-            if (r.Intersect(rectangles[i]))
-            {
-                result.push_back(i);
-            }
-        }
-        return result;
-    }
-
-    void RemoveEmpty()
-    {
-        rectangles.erase(std::remove_if(rectangles.begin(), rectangles.end(), [](auto& a) { return a.Empty(); }),
-                         rectangles.end());
-    }
 
     int Volume() const
     {
@@ -88,34 +61,7 @@ class SAIGA_CORE_API RectangularDecompositionAlgorithm
     virtual Decomposition Optimize(const Decomposition& decomp) { return decomp; }
 
 
-    // We define the convolution cost as a weighted sum of the expaned rectangles.
-    // The weights are given as
-    // [c, r0, r1, r2, ....]
-    //
-    // c is a costant cost
-    // ri is the rectangle volume expanded by i.
-    float ConvolutionCost(const Rect& rect)
-    {
-        SAIGA_ASSERT(!conv_cost_weights.empty());
-        if (rect.Empty()) return 0;
-
-
-        float result = conv_cost_weights[0];
-        for (int i = 1; i < conv_cost_weights.size(); ++i)
-        {
-            result += rect.Expand(i - 1).Volume() * conv_cost_weights[i];
-        }
-
-        return result;
-    }
-
-    float ConvolutionCost(const Decomposition& decomp)
-    {
-        float sum = 0;
-        for (auto& r : decomp.rectangles) sum += ConvolutionCost(r);
-        return sum;
-    }
-    std::vector<float> conv_cost_weights = {0, 1};
+    VolumeCost cost;
 };
 
 // =========================================

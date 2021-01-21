@@ -8,6 +8,8 @@
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
 
+#include "RectilinearOptimization.h"
+
 #include <iomanip>
 
 
@@ -127,79 +129,6 @@ Decomposition Decomposition::ShrinkIfPossible() const
     return result;
 }
 
-Decomposition Decomposition::MergeNeighborsSave() const
-{
-    Decomposition result = *this;
-
-    bool changed = true;
-    while (changed)
-    {
-        changed = false;
-#if 1
-        for (int i = 0; i < result.rectangles.size(); ++i)
-        {
-            auto& r1 = result.rectangles[i];
-            if (r1.Volume() == 0) continue;
-
-            for (int j = i + 1; j < result.rectangles.size(); ++j)
-            {
-                auto& r2 = result.rectangles[j];
-                if (r2.Volume() == 0) continue;
-
-                if (r1.Distance(r2) == 0 && Rect(r1, r2).Volume() == r1.Volume() + r2.Volume())
-                {
-                    r1 = Rect(r1, r2);
-                    r2.setZero();
-                    changed = true;
-                }
-            }
-        }
-#else
-
-        auto neighs = result.NeighborList();
-        for (auto n : neighs)
-        {
-            auto& r1 = result.rectangles[n.first];
-            if (r1.Volume() == 0) continue;
-            auto& r2 = result.rectangles[n.second];
-            if (r2.Volume() == 0) continue;
-
-            if (r1.Distance(r2) == 0 && Rect(r1, r2).Volume() == r1.Volume() + r2.Volume())
-            {
-                r1 = Rect(r1, r2);
-                r2.setZero();
-                changed = true;
-            }
-        }
-#endif
-        result.RemoveEmpty();
-    }
-
-    return result;
-}
-
-std::vector<std::pair<int, int>> Decomposition::NeighborList(int distance) const
-{
-    std::vector<std::pair<int, int>> result;
-    for (int i = 0; i < rectangles.size(); ++i)
-    {
-        auto& r1 = rectangles[i];
-        if (r1.Volume() == 0) continue;
-
-        for (int j = i + 1; j < rectangles.size(); ++j)
-        {
-            auto& r2 = rectangles[j];
-            if (r2.Volume() == 0) continue;
-
-            if (r1.Distance(r2) <= distance)
-            {
-                result.push_back({i, j});
-            }
-        }
-    }
-    return result;
-}
-
 std::ostream& operator<<(std::ostream& strm, const Decomposition& decomp)
 {
     strm << "[Decomp] N = " << std::setw(6) << decomp.rectangles.size() << "  V0 = " << std::setw(6) << decomp.Volume()
@@ -284,6 +213,7 @@ uint64_t Morton2D(const ivec3& v)
 
 Decomposition OctTreeDecomposition::Compute(ArrayView<const ivec3> points)
 {
+    SAIGA_BLOCK_TIMER();
     Decomposition result;
     if (points.empty()) return result;
 
@@ -345,7 +275,7 @@ Decomposition OctTreeDecomposition::Compute(ArrayView<const ivec3> points)
                     range_end++;
                 }
 
-                // Let's merge all elemnts in the range
+                // Let's merge all elements in the range
                 Rect merged_range = copy[range_begin].second;
                 for (auto j = range_begin + 1; j < range_end; ++j)
                 {
@@ -407,25 +337,27 @@ Decomposition OctTreeDecomposition::Compute(ArrayView<const ivec3> points)
     }
 
 
-
-    return result.MergeNeighborsSave();
+    //    return result;
+    MergeNeighborsSave(result.rectangles);
+    return result;
 }
 
 Decomposition SaveMergeDecomposition::Compute(ArrayView<const ivec3> points)
 {
+    SAIGA_BLOCK_TIMER();
     if (points.empty()) return {};
     OctTreeDecomposition octree;
     Decomposition result = octree.Compute(points);
 
     // First do a 'save' optimization without increasing v0
-    auto tmp          = conv_cost_weights;
-    conv_cost_weights = {0.1, 1};
-    result            = Optimize(result);
+    auto tmp = cost;
+    cost     = VolumeCost({0.1, 1});
+    result   = Optimize(result);
     //    std::cout << result << std::endl;
 
     // Second do the actual optimization with the user defined cost
-    conv_cost_weights = tmp;
-    result            = Optimize(result);
+    cost   = tmp;
+    result = Optimize(result);
     //    std::cout << result << std::endl;
 
     return result;
@@ -433,14 +365,14 @@ Decomposition SaveMergeDecomposition::Compute(ArrayView<const ivec3> points)
 
 Decomposition SaveMergeDecomposition::Optimize(const Decomposition& decomp)
 {
+    SAIGA_BLOCK_TIMER("SaveMergeDecomposition::Optimize");
     Decomposition result = decomp;
 
     bool changed = true;
     while (changed)
     {
-        changed = false;
-
-        auto neighs = result.NeighborList(1);
+        changed     = false;
+        auto neighs = NeighborList(result.rectangles, 1);
         for (auto n : neighs)
         {
             auto& r1 = result.rectangles[n.first];
@@ -454,7 +386,7 @@ Decomposition SaveMergeDecomposition::Optimize(const Decomposition& decomp)
             Rect merged = Rect(r1, r2);
 
             // 2. Compute all intersecting rects towards the new merged Rectangle
-            auto inters = result.AllIntersectingRects(merged);
+            auto inters = AllIntersectingRects(result.rectangles, merged);
             std::vector<std::tuple<Rect, Rect, Rect>> shrunk(inters.size());
             bool found = false;
 
@@ -494,30 +426,20 @@ Decomposition SaveMergeDecomposition::Optimize(const Decomposition& decomp)
 
 
             // 4. Compute merged volume and compute it to the transformed volume
-#if 1
             float old_cost = 0;
             for (int i = 0; i < inters.size(); ++i)
             {
                 auto& r = result.rectangles[inters[i]];
-                old_cost += ConvolutionCost(r);
+                old_cost += cost(r);
             }
 
             // The new cost is the merged rectangle + all outer rects
-            float new_cost = ConvolutionCost(merged);
+            float new_cost = cost(merged);
             for (auto r : shrunk)
             {
-                new_cost += ConvolutionCost(std::get<1>(r));
-                new_cost += ConvolutionCost(std::get<2>(r));
+                new_cost += cost(std::get<1>(r));
+                new_cost += cost(std::get<2>(r));
             }
-#else
-            float new_cost = ConvolutionCost(merged);
-            float old_cost = 0;
-            for (auto r : shrunk)
-            {
-                //                shrunk_volume += r.first.Volume();
-                old_cost += ConvolutionCost(std::get<0>(r));
-            }
-#endif
 
 
 
@@ -526,7 +448,6 @@ Decomposition SaveMergeDecomposition::Optimize(const Decomposition& decomp)
             //    results.
             if (new_cost < old_cost)
             {
-#if 1
                 for (int i = 0; i < inters.size(); ++i)
                 {
                     auto& r = result.rectangles[inters[i]];
@@ -537,20 +458,16 @@ Decomposition SaveMergeDecomposition::Optimize(const Decomposition& decomp)
                     }
                     else
                     {
-                        //                        r = shrunk[i].second;
                         r = std::get<1>(shrunk[i]);
                         result.rectangles.push_back(std::get<2>(shrunk[i]));
                     }
                 }
-
                 changed = true;
-#endif
             }
         }
-
         if (changed)
         {
-            result.RemoveEmpty();
+            RemoveEmpty(result.rectangles);
         }
     }
 
@@ -559,14 +476,14 @@ Decomposition SaveMergeDecomposition::Optimize(const Decomposition& decomp)
 
 Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
 {
-    //    SAIGA_BLOCK_TIMER();
+    SAIGA_BLOCK_TIMER();
     if (points.empty()) return {};
     {
         SaveMergeDecomposition triv;
-        triv.conv_cost_weights = conv_cost_weights;
-        auto d                 = triv.Compute(points);
+        triv.cost = cost;
+        auto d    = triv.Compute(points);
 
-        decomps.push_back({d, ConvolutionCost(d)});
+        decomps.push_back({d, cost(d.rectangles)});
 
 
         current_best          = Best().second;
@@ -574,10 +491,11 @@ Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
     }
 
     {
-        // SAIGA_BLOCK_TIMER();
+        SAIGA_BLOCK_TIMER("GrowAndShrinkDecomposition iteration");
         for (int it = 0; it < its; ++it)
         {
             {
+                //                SAIGA_BLOCK_TIMER("random step");
                 auto& dec = decomps[0];
                 // find a grow that reduces the cost
                 for (int l = 0; l < 1; ++l)
@@ -586,7 +504,7 @@ Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
                     //                    RandomStepGrow(cpy.first);
                     RandomStepMerge(cpy.first);
 
-                    cpy.second = ConvolutionCost(cpy.first);
+                    cpy.second = cost(cpy.first.rectangles);
                     if (cpy.second < dec.second)
                     {
                         dec = cpy;
@@ -622,7 +540,7 @@ Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
             }
 
 
-            //            std::cout << "It " << it << " " << min_el->first << " C = " << min_el->second << std::endl;
+            std::cout << "It " << it << " " << min_el->first << " C = " << min_el->second << std::endl;
         }
     }
     return Best().first;

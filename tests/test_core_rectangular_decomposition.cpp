@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 #include "saiga/config.h"
+#include "saiga/core/framework/framework.h"
 #include "saiga/core/geometry/RectangularDecomposition.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
@@ -93,12 +94,18 @@ TEST(RectangularDecomposition, RectIntersect)
         rectangles.push_back(Rect(p, p + s));
     }
 
+    DiscreteBVH bvh(rectangles);
+
     for (auto& r1 : rectangles)
     {
+        int intersecting_rectangles = 0;
         for (auto& r2 : rectangles)
         {
             bool intersec = r1.Intersect(r2);
             EXPECT_EQ(intersec, r2.Intersect(r1));
+            EXPECT_EQ(intersec, r1.Distance(r2) < 0);
+
+            intersecting_rectangles += intersec;
 
             auto p1s = r1.ToPoints();
             auto p2s = r2.ToPoints();
@@ -126,6 +133,10 @@ TEST(RectangularDecomposition, RectIntersect)
             }
             EXPECT_EQ(intersec, intersecp2);
         }
+
+        std::vector<int> result;
+        bvh.DistanceIntersect(r1, -1, result);
+        EXPECT_EQ(intersecting_rectangles, result.size());
     }
 }
 
@@ -203,7 +214,8 @@ void TestDecomp(ArrayView<const ivec3> points)
 {
     std::cout << "[Decomp] " << typeid(T).name() << std::endl;
     T decomp_system;
-    decomp_system.conv_cost_weights = {1, 2, 1, 1};
+    decomp_system.cost = VolumeCost({1, 2, 1, 1});
+    //    decomp_system.conv_cost_weights = {1, 2, 1, 1};
     Decomposition result;
     float time;
     {
@@ -214,7 +226,8 @@ void TestDecomp(ArrayView<const ivec3> points)
     //    EXPECT_TRUE(result.RemoveFullyContained().ContainsAll(points));
     //    EXPECT_TRUE(result.ShrinkIfPossible().ContainsAll(points));
     // EXPECT_EQ(triv_result.rectangles.size(), points.size());
-    std::cout << result << " C = " << decomp_system.ConvolutionCost(result) << std::endl;
+    std::cout << result << " C = " << decomp_system.cost(result.rectangles) << std::endl;
+    //    std::cout << result << " C = " << decomp_system.conv_cost_weights(result) << std::endl;
     //    std::cout << result.RemoveFullyContained() << std::endl;
     //    std::cout << result.ShrinkIfPossible() << std::endl;
     std::cout << "Evaluation Time: " << time << " ms." << std::endl;
@@ -223,6 +236,7 @@ void TestDecomp(ArrayView<const ivec3> points)
 
 TEST(RectangularDecomposition, Decomposition)
 {
+    return;
     Random::setSeed(10587235);
     srand(390476);
     //    auto points = RandomPointCloud(20, 3);
@@ -276,4 +290,17 @@ TEST(RectangularDecomposition, Decomposition)
     //    std::cout << gs_result << std::endl;
     //    std::cout << gs_result.RemoveFullyContained() << std::endl;
     //    std::cout << gs_result.ShrinkIfPossible() << std::endl;
+}
+
+TEST(RectangularDecomposition, Benchmark)
+{
+    Random::setSeed(3904763);
+    auto points = RandomRectanglePointCloud(3000, 100, 4);
+    std::cout << "points " << points.size() << std::endl;
+
+    TestDecomp<TrivialRectangularDecomposition>(points);
+    TestDecomp<RowMergeDecomposition>(points);
+    TestDecomp<OctTreeDecomposition>(points);
+    TestDecomp<SaveMergeDecomposition>(points);
+    //    TestDecomp<GrowAndShrinkDecomposition>(points);
 }

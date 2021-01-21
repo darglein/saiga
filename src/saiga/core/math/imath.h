@@ -12,9 +12,10 @@
 
 namespace Saiga
 {
+// upwards rounding division for positve numbers
 // returns the smallest x number with: x * b >= a
-template <typename T>
-HD constexpr T iDivUp(T a, T b)
+template <typename T, typename U>
+HD constexpr T iDivUp(T a, U b)
 {
     static_assert(std::is_integral<T>::value, "T must be integral!");
     return (a + b - T(1)) / b;
