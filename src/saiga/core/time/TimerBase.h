@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <string>
 namespace Saiga
 {

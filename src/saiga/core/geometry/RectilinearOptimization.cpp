@@ -11,6 +11,7 @@
 #include <iomanip>
 
 
+constexpr bool verbose = false;
 
 namespace Saiga
 {
@@ -109,7 +110,7 @@ void MergeNeighborsSave(RectangleList& rectangles)
 std::vector<std::pair<int, int>> NeighborList(RectangleList& rectangles, int distance)
 {
 #if 1
-    SAIGA_BLOCK_TIMER();
+    SAIGA_OPTIONAL_BLOCK_TIMER(verbose);
     DiscreteBVH bvh(rectangles);
 
     std::vector<std::pair<int, int>> result;
@@ -323,6 +324,131 @@ void ShrinkIfPossible(RectangleList& rectangles)
         }
     }
     rectangles = result;
+}
+
+
+static bool RandomStepMerge(RectangleList& rectangles)
+{
+    int ind = Random::uniformInt(0, rectangles.size() - 1);
+    auto& r = rectangles[ind];
+
+    std::vector<int> indices;
+    for (int i = 0; i < rectangles.size(); ++i)
+    {
+        auto& r2 = rectangles[i];
+        if (i != ind && r.Distance(r2) <= 2)
+        {
+            indices.push_back(i);
+        }
+    }
+
+    if (indices.empty())
+    {
+        return false;
+    }
+
+    auto& r2 = rectangles[indices[Random::uniformInt(0, indices.size() - 1)]];
+
+    r  = Rect(r, r2);
+    r2 = Rect();
+    std::swap(rectangles.back(), rectangles[ind]);
+
+    return true;
+}
+
+void MergeShrink(PointView points, RectangleList& rectangles, int its, int converge_its, const Cost& cost)
+{
+    int not_improved_in_a_row = 0;
+    RectangleList current_decomp;
+    float current_cost;
+
+    current_decomp        = rectangles;
+    current_cost          = cost(current_decomp);
+    not_improved_in_a_row = 0;
+
+    {
+        SAIGA_OPTIONAL_BLOCK_TIMER(verbose);
+        for (int it = 0; it < its; ++it)
+        {
+            // find a grow that reduces the cost
+
+            auto cpy      = current_decomp;
+            auto new_cost = current_cost;
+            //                    RandomStepGrow(cpy.first);
+            if (RandomStepMerge(cpy))
+            {
+                //                ShrinkIfPossible(cpy);
+                ShrinkIfPossible2(cpy, points);
+                RemoveEmpty(cpy);
+                new_cost = cost(cpy);
+            }
+
+            if (new_cost < current_cost)
+            {
+                current_decomp        = cpy;
+                current_cost          = new_cost;
+                not_improved_in_a_row = 0;
+            }
+            else
+            {
+                not_improved_in_a_row++;
+            }
+
+            if (not_improved_in_a_row == converge_its)
+            {
+                break;
+            }
+
+            if (verbose)
+            {
+                std::cout << "It " << it << " " << current_decomp.size() << " C = " << current_cost << std::endl;
+            }
+        }
+    }
+    rectangles = current_decomp;
+}
+
+static Rect Shrink(Rect rect, PointView points)
+{
+    // std::cout << "Shring " << rect << " " << points.size() << std::endl;
+    if (points.empty())
+    {
+        return Rect();
+    }
+
+
+    Rect result = Rect(points.front());
+
+    for (int i = 1; i < points.size(); ++i)
+    {
+        result = Rect(result, Rect(points[i]));
+    }
+    return result;
+}
+void ShrinkIfPossible2(RectangleList& rectangles, PointView points)
+{
+    DiscreteBVH bvh(rectangles);
+
+    std::vector<int> rect_ids(points.size());
+    for (int i = 0; i < points.size(); ++i)
+    {
+        std::vector<int> inds;
+        bvh.DistanceIntersect(Rect(points[i]), -1, inds);
+        SAIGA_ASSERT(!inds.empty());
+        int idx     = *std::min_element(inds.begin(), inds.end());
+        rect_ids[i] = idx;
+    }
+
+    std::vector<std::vector<ivec3>> points_per_rect(rectangles.size());
+    for (int i = 0; i < points.size(); ++i)
+    {
+        points_per_rect[rect_ids[i]].push_back(points[i]);
+    }
+
+    for (int i = 0; i < rectangles.size(); ++i)
+    {
+        rectangles[i] = Shrink(rectangles[i], points_per_rect[i]);
+    }
 }
 
 

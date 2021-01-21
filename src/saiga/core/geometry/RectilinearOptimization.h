@@ -14,16 +14,19 @@ namespace RectangularDecomposition
 {
 using RectangleList = std::vector<Rect>;
 
+SAIGA_CORE_API void MergeNeighborsSave(RectangleList& rectangles);
+
+SAIGA_CORE_API void MergeNeighbors(RectangleList& rectangles, const Cost& cost);
+
+SAIGA_CORE_API void MergeShrink(PointView points, RectangleList& rectangles, int its, int converge_its,
+                                const Cost& cost);
+
+
 // Removes all rectangles with volume == 0
-void RemoveEmpty(RectangleList& rectangles);
+SAIGA_CORE_API void RemoveEmpty(RectangleList& rectangles);
 
-
-void ShrinkIfPossible(RectangleList& rectangles);
-
-
-void MergeNeighborsSave(RectangleList& rectangles);
-
-void MergeNeighbors(RectangleList& rectangles, const Cost& cost);
+SAIGA_CORE_API void ShrinkIfPossible(RectangleList& rectangles);
+SAIGA_CORE_API void ShrinkIfPossible2(RectangleList& rectangles, PointView points);
 
 std::vector<std::pair<int, int>> NeighborList(RectangleList& rectangles, int distance);
 

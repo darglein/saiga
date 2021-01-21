@@ -12,6 +12,7 @@
 
 #include <iomanip>
 
+constexpr bool verbose = false;
 
 
 namespace Saiga
@@ -28,75 +29,19 @@ std::vector<ivec3> RemoveDuplicates(ArrayView<const ivec3> points)
 }
 
 
-bool Decomposition::ContainsAll(ArrayView<const ivec3> points) const
-{
-    for (auto& p : points)
-    {
-        bool found = false;
-        for (auto& rect : rectangles)
-        {
-            if (rect.Contains(p))
-            {
-                found = true;
-                break;
-            }
-        }
 
-        if (!found)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-Decomposition Decomposition::RemoveFullyContained() const
-{
-    PointHashMap<3> map;
-    for (auto& r : rectangles)
-    {
-        map.Add(r, 1);
-    }
-
-
-    Decomposition result;
-
-    for (auto& r : rectangles)
-    {
-        map.Add(r, -1);
-        if (map.AllGreater(r, 0))
-        {
-            //            std::cout << "remove " << r << std::endl;
-        }
-        else
-        {
-            result.rectangles.push_back(r);
-        }
-    }
-
-    return result;
-}
-
-std::ostream& operator<<(std::ostream& strm, const Decomposition& decomp)
-{
-    strm << "[Decomp] N = " << std::setw(6) << decomp.rectangles.size() << "  V0 = " << std::setw(6) << decomp.Volume()
-         << "  V1 = " << std::setw(6) << decomp.ExpandedVolume(1) << "  V2 = " << std::setw(6)
-         << decomp.ExpandedVolume(2);
-    return strm;
-}
-
-Decomposition TrivialRectangularDecomposition::Compute(ArrayView<const ivec3> points)
+RectangleList DecomposeTrivial(ArrayView<const ivec3> points)
 {
     if (points.empty()) return {};
-    Decomposition result;
+    RectangleList result;
     for (auto p : points)
     {
-        result.rectangles.push_back(Rect(p));
+        result.push_back(Rect(p));
     }
     return result;
 }
 
-Decomposition RowMergeDecomposition::Compute(ArrayView<const ivec3> points)
+RectangleList DecomposeRowMerge(ArrayView<const ivec3> points)
 {
     if (points.empty()) return {};
     int dim = 1;
@@ -106,7 +51,7 @@ Decomposition RowMergeDecomposition::Compute(ArrayView<const ivec3> points)
     int s3 = dim;
 
 
-    Decomposition result;
+    RectangleList result;
     if (points.empty()) return result;
 
 
@@ -131,11 +76,11 @@ Decomposition RowMergeDecomposition::Compute(ArrayView<const ivec3> points)
         }
         else
         {
-            result.rectangles.push_back(current);
+            result.push_back(current);
             current = Rect(index);
         }
     }
-    result.rectangles.push_back(current);
+    result.push_back(current);
 
     return result;
 }
@@ -159,10 +104,10 @@ uint64_t Morton2D(const ivec3& v)
     return x | (y << 1) | (z << 2);
 }
 
-Decomposition OctTreeDecomposition::Compute(ArrayView<const ivec3> points)
+RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor)
 {
-    SAIGA_BLOCK_TIMER();
-    Decomposition result;
+    SAIGA_OPTIONAL_BLOCK_TIMER(verbose);
+    RectangleList result;
     if (points.empty()) return result;
 
     ivec3 corner = points.front();
@@ -257,7 +202,7 @@ Decomposition OctTreeDecomposition::Compute(ArrayView<const ivec3> points)
         {
             if (c.second.Volume() > 0)
             {
-                result.rectangles.push_back(c.second);
+                result.push_back(c.second);
             }
         }
 
@@ -268,17 +213,17 @@ Decomposition OctTreeDecomposition::Compute(ArrayView<const ivec3> points)
 
     for (auto& ml : copy)
     {
-        result.rectangles.push_back(ml.second);
+        result.push_back(ml.second);
     }
 
 
     for (auto& ml : merged_list)
     {
-        result.rectangles.push_back(ml.second);
+        result.push_back(ml.second);
     }
 
 
-    for (auto& r : result.rectangles)
+    for (auto& r : result)
     {
         r.begin += corner;
         r.end += corner;
@@ -286,134 +231,9 @@ Decomposition OctTreeDecomposition::Compute(ArrayView<const ivec3> points)
 
 
     //    return result;
-    MergeNeighborsSave(result.rectangles);
+    //    MergeNeighborsSave(result);
     return result;
 }
-
-Decomposition SaveMergeDecomposition::Compute(ArrayView<const ivec3> points)
-{
-    SAIGA_BLOCK_TIMER();
-    if (points.empty()) return {};
-    OctTreeDecomposition octree;
-    Decomposition result = octree.Compute(points);
-
-    // First do a 'save' optimization without increasing v0
-    auto tmp = cost;
-    cost     = VolumeCost({0.1, 1});
-    result   = Optimize(result);
-    //    std::cout << result << std::endl;
-
-    // Second do the actual optimization with the user defined cost
-    cost   = tmp;
-    result = Optimize(result);
-    //    std::cout << result << std::endl;
-
-    return result;
-}
-
-Decomposition SaveMergeDecomposition::Optimize(const Decomposition& decomp)
-{
-    SAIGA_BLOCK_TIMER("SaveMergeDecomposition::Optimize");
-    Decomposition result = decomp;
-
-    MergeNeighbors(result.rectangles, cost);
-    return result;
-}
-
-Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
-{
-    SAIGA_BLOCK_TIMER();
-    if (points.empty()) return {};
-    {
-        SaveMergeDecomposition triv;
-        triv.cost             = cost;
-        current_decomp        = triv.Compute(points);
-        current_cost          = cost(current_decomp.rectangles);
-        not_improved_in_a_row = 0;
-    }
-
-    {
-        SAIGA_BLOCK_TIMER("GrowAndShrinkDecomposition iteration");
-        for (int it = 0; it < its; ++it)
-        {
-            // find a grow that reduces the cost
-
-            auto cpy = current_decomp;
-            //                    RandomStepGrow(cpy.first);
-            RandomStepMerge(cpy.rectangles);
-
-            auto c = cost(cpy.rectangles);
-            if (c < current_cost)
-            {
-                current_decomp        = cpy;
-                current_cost          = c;
-                not_improved_in_a_row = 0;
-            }
-            else
-            {
-                not_improved_in_a_row++;
-            }
-
-            if (not_improved_in_a_row == converge_its)
-            {
-                break;
-            }
-            std::cout << "It " << it << " " << current_decomp << " C = " << current_cost << std::endl;
-        }
-    }
-    return current_decomp;
-}
-
-void GrowAndShrinkDecomposition::RandomStepMerge(RectangleList& rectangles)
-{
-    int ind = Random::uniformInt(0, rectangles.size() - 1);
-    auto& r = rectangles[ind];
-
-    std::vector<int> indices;
-    for (int i = 0; i < rectangles.size(); ++i)
-    {
-        auto& r2 = rectangles[i];
-        if (i != ind && r.Distance(r2) <= 2)
-        {
-            indices.push_back(i);
-        }
-    }
-
-    if (indices.empty())
-    {
-        return;
-    }
-
-    auto& r2 = rectangles[indices[Random::uniformInt(0, indices.size() - 1)]];
-
-    r  = Rect(r, r2);
-    r2 = Rect();
-    std::swap(rectangles.back(), rectangles[ind]);
-
-    ShrinkIfPossible(rectangles);
-}
-
-void GrowAndShrinkDecomposition::RandomStepGrow(RectangleList& rectangles)
-{
-    int ind = Random::uniformInt(0, rectangles.size() - 1);
-
-    int id = Random::uniformInt(0, 5);
-
-    if (id < 3)
-    {
-        rectangles[ind].begin(id) -= 1;
-    }
-    else
-    {
-        rectangles[ind].end(id - 3) += 1;
-    }
-
-    // move to last spot
-    std::swap(rectangles.back(), rectangles[ind]);
-
-    ShrinkIfPossible(rectangles);
-}
-
 
 
 }  // namespace RectangularDecomposition

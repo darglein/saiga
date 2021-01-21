@@ -6,6 +6,7 @@
 #include "saiga/config.h"
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/geometry/RectangularDecomposition.h"
+#include "saiga/core/geometry/RectilinearOptimization.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
 
@@ -14,6 +15,35 @@
 using namespace Saiga;
 using namespace RectangularDecomposition;
 
+
+
+void CheckCover(const RectangleList& result, ArrayView<const ivec3> points, bool exact)
+{
+    auto cpy = result;
+    DiscreteBVH bvh(cpy);
+
+    for (auto& p : points)
+    {
+        std::vector<int> res;
+        bvh.DistanceIntersect(Rect(p), -1, res);
+
+        if (exact)
+        {
+            EXPECT_EQ(res.size(), 1);
+        }
+        else
+        {
+            EXPECT_GE(res.size(), 1);
+        }
+    }
+
+
+    if (exact)
+    {
+        auto v = Volume(result);
+        EXPECT_EQ(v, points.size());
+    }
+}
 inline ivec3 RandomIvec3(int min_value, int max_value)
 {
     ivec3 p;
@@ -44,12 +74,6 @@ inline std::vector<ivec3> RandomRectanglePointCloud(int N, int radius, int r_siz
         ivec3 s = RandomIvec3(1, r_size);
         rectangles.push_back(Rect(p, p + s));
     }
-
-
-#if 0
-    rectangles.clear();
-    rectangles.push_back(Rect(ivec3(0, 0, 0), ivec3(6, 7, 3)));
-#endif
 
     std::vector<ivec3> points;
     for (auto r : rectangles)
@@ -142,7 +166,6 @@ TEST(RectangularDecomposition, RectIntersect)
 
 TEST(RectangularDecomposition, Shrink)
 {
-    if (1)
     {
         Rect r1(ivec3(0, 0, 0), ivec3(4, 4, 1));
         Rect r2(ivec3(2, 1, 0), ivec3(8, 3, 1));
@@ -152,13 +175,6 @@ TEST(RectangularDecomposition, Shrink)
 
         Rect o_in, o_out_l, o_out_r;
         EXPECT_TRUE(r1.ShrinkOtherToThis(r2, o_in, o_out_l, o_out_r));
-
-        //    std::cout << o_in << std::endl;
-        //    std::cout << o_out << std::endl;
-
-        //        EXPECT_EQ(o_out_l.begin, ivec3(4, 1, 0));
-        //        EXPECT_EQ(o_out_l.end, r2.end);
-
         EXPECT_EQ(o_in.begin, r2.begin);
         EXPECT_EQ(o_in.end, ivec3(4, 3, 1));
 
@@ -202,95 +218,151 @@ TEST(RectangularDecomposition, Shrink)
 
         EXPECT_EQ(o_out_l.Volume(), 2);
         EXPECT_EQ(o_out_r.Volume(), 5);
-        //        std::cout << o_in << std::endl;
-        //        std::cout << o_out_l << std::endl;
-        //        std::cout << o_out_r << std::endl;
     }
 }
 
-
-template <typename T>
-void TestDecomp(ArrayView<const ivec3> points)
+TEST(RectangularDecomposition, ShrinkIfPossible)
 {
-    std::cout << "[Decomp] " << typeid(T).name() << std::endl;
-    T decomp_system;
-    decomp_system.cost = VolumeCost({1, 2, 1, 1});
-    //    decomp_system.conv_cost_weights = {1, 2, 1, 1};
-    Decomposition result;
-    float time;
     {
-        ScopedTimer tm(time);
-        result = decomp_system.Compute(points);
+        RectangleList rectangles = {Rect(ivec3(0, 0, 0), ivec3(4, 4, 4)), Rect(ivec3(0, 0, 0), ivec3(4, 4, 4))};
+        std::cout << to_string(rectangles) << std::endl;
+
+        std::vector<ivec3> points;
+        auto ps = rectangles.front().ToPoints();
+        points.insert(points.end(), ps.begin(), ps.end());
+
+
+        {
+            auto cpy = rectangles;
+            ShrinkIfPossible(cpy);
+            EXPECT_EQ(Volume(cpy), 64);
+            std::cout << to_string(cpy) << std::endl;
+        }
+
+        {
+            auto cpy = rectangles;
+            ShrinkIfPossible2(cpy, points);
+            EXPECT_EQ(Volume(cpy), 64);
+            std::cout << to_string(cpy) << std::endl;
+        }
     }
-    EXPECT_TRUE(result.ContainsAll(points));
-    //    EXPECT_TRUE(result.RemoveFullyContained().ContainsAll(points));
-    //    EXPECT_TRUE(result.ShrinkIfPossible().ContainsAll(points));
-    // EXPECT_EQ(triv_result.rectangles.size(), points.size());
-    std::cout << result << " C = " << decomp_system.cost(result.rectangles) << std::endl;
-    //    std::cout << result << " C = " << decomp_system.conv_cost_weights(result) << std::endl;
-    //    std::cout << result.RemoveFullyContained() << std::endl;
-    //    std::cout << result.ShrinkIfPossible() << std::endl;
-    std::cout << "Evaluation Time: " << time << " ms." << std::endl;
-    std::cout << std::endl;
+
+    {
+        RectangleList rectangles = {Rect(ivec3(0, 0, 0), ivec3(4, 4, 4)), Rect(ivec3(3, 0, 0), ivec3(7, 4, 4))};
+        std::cout << to_string(rectangles) << std::endl;
+
+        std::vector<ivec3> points;
+        auto ps = Rect(ivec3(0, 0, 0), ivec3(4, 4, 4)).ToPoints();
+        points.insert(points.end(), ps.begin(), ps.end());
+
+        ps = Rect(ivec3(4, 0, 0), ivec3(7, 4, 4)).ToPoints();
+        points.insert(points.end(), ps.begin(), ps.end());
+
+
+        {
+            auto cpy = rectangles;
+            ShrinkIfPossible(cpy);
+            //            EXPECT_EQ(Volume(cpy), 64);
+            std::cout << to_string(cpy) << std::endl;
+        }
+
+        {
+            auto cpy = rectangles;
+            ShrinkIfPossible2(cpy, points);
+            //            EXPECT_EQ(Volume(cpy), 64);
+            std::cout << to_string(cpy) << std::endl;
+        }
+    }
+
+    for (int i = 0; i < 10; ++i)
+    {
+        auto points     = RandomRectanglePointCloud(100, 10, 6);
+        auto rectangles = DecomposeOctTree(points);
+        // points.resize(points.size() / 2);
+        auto old_points = points;
+        points.clear();
+        for (auto p : old_points)
+        {
+            if (Random::sampleBool(0.5)) points.push_back(p);
+        }
+
+
+        CheckCover(rectangles, points, false);
+
+        auto cpy2 = rectangles;
+        ShrinkIfPossible2(cpy2, points);
+        RemoveEmpty(cpy2);
+        CheckCover(cpy2, points, false);
+
+        EXPECT_LE(cpy2.size(), rectangles.size());
+    }
 }
 
-TEST(RectangularDecomposition, Decomposition)
+
+TEST(RectangularDecomposition, Decompose)
 {
-    return;
     Random::setSeed(10587235);
     srand(390476);
-    //    auto points = RandomPointCloud(20, 3);
-    auto points = RandomRectanglePointCloud(100, 10, 6);
 
-    std::cout << "Points: " << points.size() << std::endl;
-
-    ivec3 corner = points.front();
-    for (auto& p : points)
+    for (int i = 0; i < 20; ++i)
     {
-        corner = corner.array().min(p.array());
+        auto points = RandomRectanglePointCloud(100, 10, 6);
+        CheckCover(DecomposeTrivial(points), points, true);
+        CheckCover(DecomposeRowMerge(points), points, true);
+        CheckCover(DecomposeOctTree(points), points, true);
     }
-    for (auto& p : points)
-    {
-        p -= corner;
-    }
-
-    TestDecomp<TrivialRectangularDecomposition>(points);
-    TestDecomp<RowMergeDecomposition>(points);
-    TestDecomp<OctTreeDecomposition>(points);
-    TestDecomp<SaveMergeDecomposition>(points);
-    //    exit(0);
-    TestDecomp<GrowAndShrinkDecomposition>(points);
-
-
-    //    RowMergeDecomposition rm_decomp;
-    //    auto rm_result = rm_decomp.Compute(points);
-    //    EXPECT_TRUE(rm_result.ContainsAll(points));
-    //    EXPECT_TRUE(rm_result.RemoveFullyContained().ContainsAll(points));
-    //    EXPECT_TRUE(rm_result.ShrinkIfPossible().ContainsAll(points));
-    //    std::cout << rm_result << std::endl;
-    //    std::cout << rm_result.RemoveFullyContained() << std::endl;
-    //    std::cout << rm_result.ShrinkIfPossible() << std::endl;
-
-    //    OctTreeDecomposition ot_decomp;
-    //    auto ot_result = ot_decomp.Compute(points);
-    //    EXPECT_TRUE(ot_result.ContainsAll(points));
-    //    EXPECT_TRUE(ot_result.RemoveFullyContained().ContainsAll(points));
-    //    EXPECT_TRUE(ot_result.ShrinkIfPossible().ContainsAll(points));
-    //    std::cout << ot_result << std::endl;
-    //    std::cout << ot_result.RemoveFullyContained() << std::endl;
-    //    std::cout << ot_result.ShrinkIfPossible() << std::endl;
-
-
-
-    //    GrowAndShrinkDecomposition gs_decomp;
-    //    auto gs_result = gs_decomp.Compute(points);
-    //    EXPECT_TRUE(gs_result.ContainsAll(points));
-    //    EXPECT_TRUE(gs_result.RemoveFullyContained().ContainsAll(points));
-    //    EXPECT_TRUE(gs_result.ShrinkIfPossible().ContainsAll(points));
-    //    std::cout << gs_result << std::endl;
-    //    std::cout << gs_result.RemoveFullyContained() << std::endl;
-    //    std::cout << gs_result.ShrinkIfPossible() << std::endl;
 }
+
+TEST(RectangularDecomposition, MergeNeighborSave)
+{
+    for (int i = 0; i < 10; ++i)
+    {
+        auto points     = RandomRectanglePointCloud(100, 10, 6);
+        auto rectangles = DecomposeTrivial(points);
+
+        auto old_n = rectangles.size();
+        MergeNeighborsSave(rectangles);
+        CheckCover(rectangles, points, true);
+        auto new_n = rectangles.size();
+        std::cout << "merge save " << old_n << " -> " << new_n << std::endl;
+    }
+}
+
+TEST(RectangularDecomposition, MergeNeighbor)
+{
+    VolumeCost cost({0, 8, 4, 1});
+    for (int i = 0; i < 10; ++i)
+    {
+        auto points     = RandomRectanglePointCloud(100, 10, 6);
+        auto rectangles = DecomposeTrivial(points);
+
+        std::pair<int, float> old_n = {rectangles.size(), cost(rectangles)};
+        MergeNeighbors(rectangles, cost);
+        CheckCover(rectangles, points, false);
+        std::pair<int, float> new_n = {rectangles.size(), cost(rectangles)};
+        std::cout << "merge " << old_n.first << "(" << old_n.second << ")"
+                  << " -> " << new_n.first << "(" << new_n.second << ")" << std::endl;
+    }
+}
+
+TEST(RectangularDecomposition, MergeShrink)
+{
+    VolumeCost cost({0, 8, 4, 1});
+    for (int i = 0; i < 10; ++i)
+    {
+        auto points     = RandomRectanglePointCloud(100, 10, 6);
+        auto rectangles = DecomposeTrivial(points);
+        MergeNeighbors(rectangles, cost);
+
+        std::pair<int, float> old_n = {rectangles.size(), cost(rectangles)};
+        MergeShrink(points, rectangles, 100, 50, cost);
+        CheckCover(rectangles, points, false);
+        std::pair<int, float> new_n = {rectangles.size(), cost(rectangles)};
+        std::cout << "merge " << old_n.first << "(" << old_n.second << ")"
+                  << " -> " << new_n.first << "(" << new_n.second << ")" << std::endl;
+    }
+}
+
 
 TEST(RectangularDecomposition, Benchmark)
 {
@@ -298,9 +370,9 @@ TEST(RectangularDecomposition, Benchmark)
     auto points = RandomRectanglePointCloud(500, 15, 3);
     std::cout << "points " << points.size() << std::endl;
 
-    TestDecomp<TrivialRectangularDecomposition>(points);
-    TestDecomp<RowMergeDecomposition>(points);
-    TestDecomp<OctTreeDecomposition>(points);
-    TestDecomp<SaveMergeDecomposition>(points);
-    TestDecomp<GrowAndShrinkDecomposition>(points);
+    //    TestDecomp<TrivialRectangularDecomposition>(points);
+    //    TestDecomp<RowMergeDecomposition>(points);
+    //    TestDecomp<OctTreeDecomposition>(points);
+    //    TestDecomp<SaveMergeDecomposition>(points);
+    //    TestDecomp<GrowAndShrinkDecomposition>(points);
 }

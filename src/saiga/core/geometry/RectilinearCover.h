@@ -5,16 +5,19 @@
  */
 
 #pragma once
-
 #include "saiga/config.h"
 #include "saiga/core/geometry/iRect.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/DataStructures/ArrayView.h"
 
+#include <iomanip>
+#include <sstream>
+
 namespace Saiga
 {
 namespace RectangularDecomposition
 {
+using PointView     = ArrayView<const ivec3>;
 using Rect          = iRect<3>;
 using RectangleList = std::vector<Rect>;
 
@@ -182,6 +185,29 @@ struct DiscreteBVH
     std::vector<Rect>& leaves;
     std::vector<Node> nodes;
 };
+
+inline int Volume(const RectangleList& rectangles, int radius = 0)
+{
+    int v = 0;
+    for (auto r : rectangles)
+    {
+        v += r.Expand(radius).Volume();
+    }
+    return v;
+}
+
+inline std::string to_string(const RectangleList& rectangles)
+{
+    std::stringstream strm;
+    strm << "[RectangleList] N = " << std::setw(6) << rectangles.size();
+    strm << " V0 = " << std::setw(6) << Volume(rectangles);
+    strm << " V1 = " << std::setw(6) << Volume(rectangles, 1);
+    strm << " V2 = " << std::setw(6) << Volume(rectangles, 2);
+
+    //    strm << "  V0 = " << std::setw(6) << decomp.Volume() << "  V1 = " << std::setw(6) << decomp.ExpandedVolume(1)
+    //         << "  V2 = " << std::setw(6) << decomp.ExpandedVolume(2);
+    return strm.str();
+}
 
 }  // namespace RectangularDecomposition
 }  // namespace Saiga
