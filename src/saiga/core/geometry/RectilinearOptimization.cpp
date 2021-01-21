@@ -274,6 +274,57 @@ std::vector<int> AllIntersectingRects(const RectangleList& rectangles, const Rec
     return result;
 }
 
+void ShrinkIfPossible(RectangleList& rectangles)
+{
+    PointHashMap<3> map;
+    for (auto& r : rectangles)
+    {
+        map.Add(r, 1);
+    }
+
+    RectangleList result;
+    result.reserve(rectangles.size());
+
+    for (auto& r : rectangles)
+    {
+        map.Add(r, -1);
+
+        // init with empty
+        Rect keep_rect = r;
+        Rect removeable_rect(r.begin, r.begin);
+
+
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            for (int z = r.begin(axis); z <= r.end(axis); ++z)
+            {
+                Rect r1 = r;
+                Rect r2 = r;
+
+                r1.end(axis)   = z;
+                r2.begin(axis) = z;
+
+                if (removeable_rect.Volume() < r1.Volume() && map.AllGreater(r1, 0))
+                {
+                    removeable_rect = r1;
+                    keep_rect       = r2;
+                }
+
+                if (removeable_rect.Volume() < r2.Volume() && map.AllGreater(r2, 0))
+                {
+                    removeable_rect = r2;
+                    keep_rect       = r1;
+                }
+            }
+        }
+        if (keep_rect.Volume() > 0)
+        {
+            result.push_back(keep_rect);
+        }
+    }
+    rectangles = result;
+}
+
 
 }  // namespace RectangularDecomposition
 }  // namespace Saiga

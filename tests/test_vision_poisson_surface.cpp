@@ -199,7 +199,7 @@ class PoissonTest
         }
 
         std::ofstream strm("poisson.off");
-        mesh.saveMeshOff(strm);
+        saveMeshOff(mesh, strm);
     }
 
 

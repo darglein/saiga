@@ -153,7 +153,7 @@ class TriangleMesh : public Mesh<vertex_t>
 
     bool isValid() const;
 
-    bool empty() const { return faces.empty() || vertices.empty();}
+    bool empty() const { return faces.empty() || vertices.empty(); }
 
     /**
      * Sorts the vertices by (x,y,z) lexical.
@@ -191,8 +191,8 @@ class TriangleMesh : public Mesh<vertex_t>
     /**
      * Writes this mesh in OFF format to the given output stream.
      */
-    void saveMeshOff(std::ostream& strm) const;
-    void saveMeshOffColor(std::ostream& strm) const;
+    //    void saveMeshOff(std::ostream& strm) const;
+    //    void saveMeshOffColor(std::ostream& strm) const;
 
    public:
     //    std::vector<vertex_t> vertices;
@@ -245,9 +245,9 @@ template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::addTriangle(const Triangle& t)
 {
     vertex_t ts[3];
-    ts[0].position = make_vec4(t.a,1);
-    ts[1].position = make_vec4(t.b,1);
-    ts[2].position = make_vec4(t.c,1);
+    ts[0].position = make_vec4(t.a, 1);
+    ts[1].position = make_vec4(t.b, 1);
+    ts[2].position = make_vec4(t.c, 1);
     addTriangle(ts);
 }
 
@@ -560,53 +560,55 @@ float TriangleMesh<vertex_t, index_t>::distancePointMesh(const vec3& x)
 }
 
 template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm) const
-{
-    strm << "OFF"
-         << "\n";
-    // first line: number of vertices, number of faces, number of edges (can be ignored)
-    strm << vertices.size() << " " << faces.size() << " 0"
-         << "\n";
-
-    for (auto const& v : vertices)
-    {
-        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << "\n";
-    }
-
-    for (auto const& f : faces)
-    {
-        strm << "3"
-             << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
-    }
-}
-
-template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::saveMeshOffColor(std::ostream& strm) const
-{
-    strm << "COFF"
-         << "\n";
-    // first line: number of vertices, number of faces, number of edges (can be ignored)
-    strm << vertices.size() << " " << faces.size() << " 0"
-         << "\n";
-
-    for (auto const& v : vertices)
-    {
-        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << " ";
-        strm << v.color[0] << " " << v.color[1] << " " << v.color[2] << " " << v.color[3] << "\n";
-    }
-
-    for (auto const& f : faces)
-    {
-        strm << "3"
-             << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
-    }
-}
-
-template <typename vertex_t, typename index_t>
 std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t, index_t>& dt)
 {
     os << "TriangleMesh. V=" << dt.vertices.size() << " F=" << dt.faces.size();
     return os;
 }
+
+
+template <typename vertex_t, typename index_t>
+void saveMeshOff(const TriangleMesh<vertex_t, index_t>& mesh, std::ostream& strm)
+{
+    strm << "OFF"
+         << "\n";
+    // first line: number of vertices, number of faces, number of edges (can be ignored)
+    strm << mesh.vertices.size() << " " << mesh.faces.size() << " 0"
+         << "\n";
+
+    for (auto const& v : mesh.vertices)
+    {
+        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << "\n";
+    }
+
+    for (auto const& f : mesh.faces)
+    {
+        strm << "3"
+             << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
+    }
+}
+
+template <typename vertex_t, typename index_t>
+void saveMeshOffColor(const TriangleMesh<vertex_t, index_t>& mesh, std::ostream& strm)
+{
+    strm << "COFF"
+         << "\n";
+    // first line: number of vertices, number of faces, number of edges (can be ignored)
+    strm << mesh.vertices.size() << " " << mesh.faces.size() << " 0"
+         << "\n";
+
+    for (auto const& v : mesh.vertices)
+    {
+        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << " ";
+        strm << v.color[0] << " " << v.color[1] << " " << v.color[2] << " " << v.color[3] << "\n";
+    }
+
+    for (auto const& f : mesh.faces)
+    {
+        strm << "3"
+             << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
+    }
+}
+
 
 }  // namespace Saiga

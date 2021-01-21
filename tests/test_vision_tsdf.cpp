@@ -94,7 +94,7 @@ TEST(TSDF, Create)
 
     {
         std::ofstream strm("tsdf_sphere.off");
-        test->mesh.saveMeshOff(strm);
+        saveMeshOff(test->mesh, strm);
     }
 
     PLYLoader::save("tsdf_sphere.ply", test->mesh);

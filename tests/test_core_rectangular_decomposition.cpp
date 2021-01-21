@@ -295,12 +295,12 @@ TEST(RectangularDecomposition, Decomposition)
 TEST(RectangularDecomposition, Benchmark)
 {
     Random::setSeed(3904763);
-    auto points = RandomRectanglePointCloud(3000, 100, 4);
+    auto points = RandomRectanglePointCloud(500, 15, 3);
     std::cout << "points " << points.size() << std::endl;
 
     TestDecomp<TrivialRectangularDecomposition>(points);
     TestDecomp<RowMergeDecomposition>(points);
     TestDecomp<OctTreeDecomposition>(points);
     TestDecomp<SaveMergeDecomposition>(points);
-    //    TestDecomp<GrowAndShrinkDecomposition>(points);
+    TestDecomp<GrowAndShrinkDecomposition>(points);
 }

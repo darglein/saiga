@@ -77,58 +77,6 @@ Decomposition Decomposition::RemoveFullyContained() const
     return result;
 }
 
-Decomposition Decomposition::ShrinkIfPossible() const
-{
-    PointHashMap<3> map;
-    for (auto& r : rectangles)
-    {
-        map.Add(r, 1);
-    }
-
-    Decomposition result;
-    result.rectangles.reserve(rectangles.size());
-
-    for (auto& r : rectangles)
-    {
-        map.Add(r, -1);
-
-        // init with empty
-        Rect keep_rect = r;
-        Rect removeable_rect(r.begin, r.begin);
-
-
-        for (int axis = 0; axis < 3; ++axis)
-        {
-            for (int z = r.begin(axis); z <= r.end(axis); ++z)
-            {
-                Rect r1 = r;
-                Rect r2 = r;
-
-                r1.end(axis)   = z;
-                r2.begin(axis) = z;
-
-                if (removeable_rect.Volume() < r1.Volume() && map.AllGreater(r1, 0))
-                {
-                    removeable_rect = r1;
-                    keep_rect       = r2;
-                }
-
-                if (removeable_rect.Volume() < r2.Volume() && map.AllGreater(r2, 0))
-                {
-                    removeable_rect = r2;
-                    keep_rect       = r1;
-                }
-            }
-        }
-        if (keep_rect.Volume() > 0)
-        {
-            result.rectangles.push_back(keep_rect);
-        }
-    }
-
-    return result;
-}
-
 std::ostream& operator<<(std::ostream& strm, const Decomposition& decomp)
 {
     strm << "[Decomp] N = " << std::setw(6) << decomp.rectangles.size() << "  V0 = " << std::setw(6) << decomp.Volume()
@@ -368,109 +316,7 @@ Decomposition SaveMergeDecomposition::Optimize(const Decomposition& decomp)
     SAIGA_BLOCK_TIMER("SaveMergeDecomposition::Optimize");
     Decomposition result = decomp;
 
-    bool changed = true;
-    while (changed)
-    {
-        changed     = false;
-        auto neighs = NeighborList(result.rectangles, 1);
-        for (auto n : neighs)
-        {
-            auto& r1 = result.rectangles[n.first];
-            if (r1.Volume() == 0) continue;
-            auto& r2 = result.rectangles[n.second];
-            if (r2.Volume() == 0) continue;
-
-            SAIGA_ASSERT(!r1.Intersect(r2));
-
-            // 1. Let's compute the merged rectangle and then check later if this merge is viable
-            Rect merged = Rect(r1, r2);
-
-            // 2. Compute all intersecting rects towards the new merged Rectangle
-            auto inters = AllIntersectingRects(result.rectangles, merged);
-            std::vector<std::tuple<Rect, Rect, Rect>> shrunk(inters.size());
-            bool found = false;
-
-            // 3. Check if all intersecting rects can be shrunk to the merged rect.
-            for (int i = 0; i < inters.size(); ++i)
-            {
-                auto& r = result.rectangles[inters[i]];
-
-
-                if (inters[i] == n.first)
-                {
-                    std::get<0>(shrunk[i]) = r1;
-                    continue;
-                }
-
-                if (inters[i] == n.second)
-                {
-                    std::get<0>(shrunk[i]) = r2;
-                    continue;
-                }
-                SAIGA_ASSERT(!r1.Intersect(r));
-                SAIGA_ASSERT(!r2.Intersect(r));
-
-                if (!merged.ShrinkOtherToThis(r, std::get<0>(shrunk[i]), std::get<1>(shrunk[i]),
-                                              std::get<2>(shrunk[i])))
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            // We found one rect which cannot be shrunk -> abort
-            if (found)
-            {
-                continue;
-            }
-
-
-            // 4. Compute merged volume and compute it to the transformed volume
-            float old_cost = 0;
-            for (int i = 0; i < inters.size(); ++i)
-            {
-                auto& r = result.rectangles[inters[i]];
-                old_cost += cost(r);
-            }
-
-            // The new cost is the merged rectangle + all outer rects
-            float new_cost = cost(merged);
-            for (auto r : shrunk)
-            {
-                new_cost += cost(std::get<1>(r));
-                new_cost += cost(std::get<2>(r));
-            }
-
-
-
-            // 5. If the merged colume is smaller or equal (equal is also good because we removed one rectangle),
-            //    then apply the merge by setting r1 to the merged rect and all other intersections to the inner shrunk
-            //    results.
-            if (new_cost < old_cost)
-            {
-                for (int i = 0; i < inters.size(); ++i)
-                {
-                    auto& r = result.rectangles[inters[i]];
-
-                    if (inters[i] == n.first)
-                    {
-                        r = merged;
-                    }
-                    else
-                    {
-                        r = std::get<1>(shrunk[i]);
-                        result.rectangles.push_back(std::get<2>(shrunk[i]));
-                    }
-                }
-                changed = true;
-            }
-        }
-        if (changed)
-        {
-            RemoveEmpty(result.rectangles);
-        }
-    }
-
+    MergeNeighbors(result.rectangles, cost);
     return result;
 }
 
@@ -480,13 +326,9 @@ Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
     if (points.empty()) return {};
     {
         SaveMergeDecomposition triv;
-        triv.cost = cost;
-        auto d    = triv.Compute(points);
-
-        decomps.push_back({d, cost(d.rectangles)});
-
-
-        current_best          = Best().second;
+        triv.cost             = cost;
+        current_decomp        = triv.Compute(points);
+        current_cost          = cost(current_decomp.rectangles);
         not_improved_in_a_row = 0;
     }
 
@@ -494,67 +336,43 @@ Decomposition GrowAndShrinkDecomposition::Compute(ArrayView<const ivec3> points)
         SAIGA_BLOCK_TIMER("GrowAndShrinkDecomposition iteration");
         for (int it = 0; it < its; ++it)
         {
+            // find a grow that reduces the cost
+
+            auto cpy = current_decomp;
+            //                    RandomStepGrow(cpy.first);
+            RandomStepMerge(cpy.rectangles);
+
+            auto c = cost(cpy.rectangles);
+            if (c < current_cost)
             {
-                //                SAIGA_BLOCK_TIMER("random step");
-                auto& dec = decomps[0];
-                // find a grow that reduces the cost
-                for (int l = 0; l < 1; ++l)
-                {
-                    auto cpy = dec;
-                    //                    RandomStepGrow(cpy.first);
-                    RandomStepMerge(cpy.first);
-
-                    cpy.second = cost(cpy.first.rectangles);
-                    if (cpy.second < dec.second)
-                    {
-                        dec = cpy;
-                        break;
-                    }
-                }
-            }
-
-            auto min_el =
-                std::min_element(decomps.begin(), decomps.end(), [](auto& a, auto& b) { return a.second < b.second; });
-            auto max_el =
-                std::max_element(decomps.begin(), decomps.end(), [](auto& a, auto& b) { return a.second < b.second; });
-
-            if (max_el->second > min_el->second + 1)
-            {
-                //                *max_el = *min_el;
-            }
-
-
-            if (min_el->second < current_best)
-            {
-                current_best          = min_el->second;
+                current_decomp        = cpy;
+                current_cost          = c;
                 not_improved_in_a_row = 0;
             }
             else
             {
                 not_improved_in_a_row++;
-
-                if (not_improved_in_a_row == converge_its)
-                {
-                    break;
-                }
             }
 
-
-            std::cout << "It " << it << " " << min_el->first << " C = " << min_el->second << std::endl;
+            if (not_improved_in_a_row == converge_its)
+            {
+                break;
+            }
+            std::cout << "It " << it << " " << current_decomp << " C = " << current_cost << std::endl;
         }
     }
-    return Best().first;
+    return current_decomp;
 }
 
-void GrowAndShrinkDecomposition::RandomStepMerge(Decomposition& decomp)
+void GrowAndShrinkDecomposition::RandomStepMerge(RectangleList& rectangles)
 {
-    int ind = Random::uniformInt(0, decomp.rectangles.size() - 1);
-    auto& r = decomp.rectangles[ind];
+    int ind = Random::uniformInt(0, rectangles.size() - 1);
+    auto& r = rectangles[ind];
 
     std::vector<int> indices;
-    for (int i = 0; i < decomp.rectangles.size(); ++i)
+    for (int i = 0; i < rectangles.size(); ++i)
     {
-        auto& r2 = decomp.rectangles[i];
+        auto& r2 = rectangles[i];
         if (i != ind && r.Distance(r2) <= 2)
         {
             indices.push_back(i);
@@ -566,34 +384,34 @@ void GrowAndShrinkDecomposition::RandomStepMerge(Decomposition& decomp)
         return;
     }
 
-    auto& r2 = decomp.rectangles[indices[Random::uniformInt(0, indices.size() - 1)]];
+    auto& r2 = rectangles[indices[Random::uniformInt(0, indices.size() - 1)]];
 
     r  = Rect(r, r2);
     r2 = Rect();
-    std::swap(decomp.rectangles.back(), decomp.rectangles[ind]);
+    std::swap(rectangles.back(), rectangles[ind]);
 
-    decomp = decomp.ShrinkIfPossible();
+    ShrinkIfPossible(rectangles);
 }
 
-void GrowAndShrinkDecomposition::RandomStepGrow(Decomposition& decomp)
+void GrowAndShrinkDecomposition::RandomStepGrow(RectangleList& rectangles)
 {
-    int ind = Random::uniformInt(0, decomp.rectangles.size() - 1);
+    int ind = Random::uniformInt(0, rectangles.size() - 1);
 
     int id = Random::uniformInt(0, 5);
 
     if (id < 3)
     {
-        decomp.rectangles[ind].begin(id) -= 1;
+        rectangles[ind].begin(id) -= 1;
     }
     else
     {
-        decomp.rectangles[ind].end(id - 3) += 1;
+        rectangles[ind].end(id - 3) += 1;
     }
 
     // move to last spot
-    std::swap(decomp.rectangles.back(), decomp.rectangles[ind]);
+    std::swap(rectangles.back(), rectangles[ind]);
 
-    decomp = decomp.ShrinkIfPossible();
+    ShrinkIfPossible(rectangles);
 }
 
 

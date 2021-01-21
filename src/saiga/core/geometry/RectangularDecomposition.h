@@ -32,7 +32,6 @@ struct SAIGA_CORE_API Decomposition
     // This are rectangles which are duplicates or fully contained in other rectangles.
     Decomposition RemoveFullyContained() const;
 
-    Decomposition ShrinkIfPossible() const;
 
     int Volume() const
     {
@@ -117,21 +116,14 @@ class SAIGA_CORE_API GrowAndShrinkDecomposition : public RectangularDecompositio
     int converge_its = 100;
 
    private:
-    double current_best       = 1e50;
     int not_improved_in_a_row = 0;
 
     // <decomp, cost>
-    std::vector<std::pair<Decomposition, double>> decomps;
+    Decomposition current_decomp;
+    float current_cost;
 
-    void RandomStepGrow(Decomposition& decomp);
-    void RandomStepMerge(Decomposition& decomp);
-
-    std::pair<Decomposition, double>& Best()
-    {
-        auto min_ele =
-            std::min_element(decomps.begin(), decomps.end(), [](auto& a, auto& b) { return a.second < b.second; });
-        return *min_ele;
-    }
+    void RandomStepGrow(RectangleList& decomp);
+    void RandomStepMerge(RectangleList& decomp);
 };
 
 }  // namespace RectangularDecomposition

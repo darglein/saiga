@@ -18,6 +18,9 @@ using RectangleList = std::vector<Rect>;
 void RemoveEmpty(RectangleList& rectangles);
 
 
+void ShrinkIfPossible(RectangleList& rectangles);
+
+
 void MergeNeighborsSave(RectangleList& rectangles);
 
 void MergeNeighbors(RectangleList& rectangles, const Cost& cost);
