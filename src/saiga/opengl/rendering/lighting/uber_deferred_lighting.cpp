@@ -95,15 +95,7 @@ void UberDeferredLighting::initRender()
     li.boxLightCount         = 0;
     li.directionalLightCount = 0;
 
-    std::vector<PointLightClusterData> plc;
-    std::vector<SpotLightClusterData> slc;
-    std::vector<BoxLightClusterData> blc;
-    if (lightClusterer)
-    {
-        plc = lightClusterer->pointLightClusterData();
-        slc = lightClusterer->spotLightClusterData();
-        blc = lightClusterer->boxLightClusterData();
-    }
+    if (lightClusterer) lightClusterer->clearLightData();
 
     // Point Lights
     PointLightData glPointLight;
@@ -122,7 +114,7 @@ void UberDeferredLighting::initRender()
         {
             clPointLight.world_center = pl->getPosition();
             clPointLight.radius       = pl->getRadius();
-            plc.push_back(clPointLight);
+            lightClusterer->addPointLight(clPointLight);
         }
 
         li.pointLightCount++;
@@ -150,7 +142,7 @@ void UberDeferredLighting::initRender()
                                                                 glSpotLight.direction.z()) *
                                                                sl->getRadius() * 0.5;
             clSpotLight.radius = sl->getRadius() * 0.5;  // TODO Paul: Is that correct?
-            slc.push_back(clSpotLight);
+            lightClusterer->addSpotLight(clSpotLight);
         }
 
         li.spotLightCount++;
@@ -177,7 +169,7 @@ void UberDeferredLighting::initRender()
             clBoxLight.world_center = vec3(bl->position.x(), bl->position.y(), bl->position.z());
             clBoxLight.radius =
                 std::max(bl->scale.x(), std::max(bl->scale.y(), bl->scale.z()));  // TODO Paul: Is that correct?
-            blc.push_back(clBoxLight);
+            lightClusterer->addBoxLight(clBoxLight);
         }
 
         li.boxLightCount++;
@@ -215,14 +207,8 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     if (lightClusterer)
     {
         lightClusterer->clusterLights(cam, viewPort);
-        bool is_dirty;
-        const std::unordered_map<LightID, ClusterID> clusteredLightData =
-            lightClusterer->getLightToClusterMap(is_dirty);
-        if (is_dirty)
-        {
-            // This does only happen if clusterLights was not called beforehand.
-        }
-        // At this point we can use clustering information in the lighting uber shader.
+
+        // At this point we can use clustering information in the lighting uber shader with the right binding points.
     }
 
 

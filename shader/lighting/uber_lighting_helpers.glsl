@@ -82,14 +82,68 @@ layout (std140) uniform lightInfoBlock
     int directionalLightCount;
 };
 
+struct cluster
+{
+    int offset;
+    int plCount;
+    int slCount;
+    int blCount;
+};
+
+layout (std430, binding = 7) buffer clusterBuffer
+{
+    int clusterX;
+    int clusterY;
+    int clusterZ;
+    int screenWidth;
+    int screenHeight;
+    cluster clusterList[];
+};
+
+struct clusterItem
+{
+    int plIdx;
+    int slIdx;
+    int blIdx;
+};
+
+layout (std430, binding = 8) buffer itemBuffer
+{
+    clusterItem itemList[];
+};
+
 struct AssetMaterial
 {
     vec4 color;
     vec4 data;
 };
 
+uint getClusterIndex(vec3 pixelCoord, int tileWidth, int tileHeight)
+{
+    uint zSplit = 0;  // getDepthSlice(pixelCoord.z());
+    uvec3 clusters    = uvec3(pixelCoord.x / tileWidth, pixelCoord.y / tileHeight, zSplit);
+    uint clusterIndex  = clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
+    return clusterIndex;
+}
+
+vec3 calculatePointLightsClustered(AssetMaterial material, vec3 position, vec3 normal)
+{
+    vec3 result = vec3(0);
+    int tileWidth  = screenWidth / clusterX;
+    int tileHeight = screenHeight / clusterY;
+
+    uint zSplit = 0;
+    uvec3 clusters    = uvec3(gl_FragCoord.x / tileWidth, gl_FragCoord.y / tileHeight, zSplit);
+    uint clusterIndex = clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
+    //uint tileIndex = getClusterIndex(gl_FragCoord.xyz, tileWidth, tileHeight);
+    float normLightCount = float(clusterList[clusterIndex].slCount) / 256;
+    return vec3(normLightCount);
+}
+
 vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal)
 {
+    return calculatePointLightsClustered(material, position, normal);
+
     vec3 result = vec3(0);
     for(int c = 0; c < pointLightCount; ++c)
     {
