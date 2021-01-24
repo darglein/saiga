@@ -235,15 +235,13 @@ bool AABBAABB(const AABB& bb1, const AABB& bb2)
 // Jim Arvo Graphics Gems
 bool SphereAABB(const vec3& c, float r, const AABB& bb)
 {
-    float sqDist       = 0;
-    if (c[0] < bb.min[0]) sqDist += (bb.min[0] - c[0]) * (bb.min[0] - c[0]);
-    if (c[0] > bb.max[0]) sqDist += (c[0] - bb.max[0]) * (c[0] - bb.max[0]);
+    float sqDist = 0;
 
-    if (c[1] < bb.min[1]) sqDist += (bb.min[1] - c[1]) * (bb.min[1] - c[1]);
-    if (c[1] > bb.max[1]) sqDist += (c[1] - bb.max[1]) * (c[1] - bb.max[1]);
-
-    if (c[2] < bb.min[2]) sqDist += (bb.min[2] - c[2]) * (bb.min[2] - c[2]);
-    if (c[2] > bb.max[2]) sqDist += (c[2] - bb.max[2]) * (c[2] - bb.max[2]);
+    for (int i = 0; i < 3; i++)
+    {
+        if (c[i] < bb.min[i]) sqDist += (bb.min[i] - c[i]) * (bb.min[i] - c[i]);
+        if (c[i] > bb.max[i]) sqDist += (c[i] - bb.max[i]) * (c[i] - bb.max[i]);
+    }
 
     float rSqared = r * r;
     return (sqDist <= rSqared);

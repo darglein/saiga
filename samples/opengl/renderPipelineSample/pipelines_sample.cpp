@@ -186,9 +186,9 @@ class Sample : public RendererSampleWindow
                         light->setIntensity(1);
 
 
-                        light->setRadius(linearRand(2, 8));
+                        light->setRadius(linearRand(0.1f, 4.0f));
 
-                        light->setPosition(linearRand(vec3(-16, 0.5, -16), vec3(16, light->getRadius(), 16)));
+                        light->setPosition(linearRand(vec3(-16, 0.05f, -16), vec3(16, light->getRadius(), 16)));
 
                         light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
                         light->calculateModel();

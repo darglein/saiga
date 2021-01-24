@@ -19,16 +19,16 @@ namespace Saiga
 {
 struct clusterItem
 {
-    int plIdx;
-    int slIdx;
-    int blIdx;
+    int plIdx = -1;
+    int slIdx = -1;
+    int blIdx = -1;
 };
 struct cluster
 {
-    int offset;
-    int plCount;
-    int slCount;
-    int blCount;
+    int offset  = 0;
+    int plCount = 0;
+    int slCount = 0;
+    int blCount = 0;
 };
 
 struct PointLightClusterData
@@ -165,7 +165,7 @@ class SAIGA_OPENGL_API Clusterer
     int width, height;
     float depth;
 
-    int splitX = 16, splitY = 8, splitZ = 1;
+    int splitX = 1, splitY = 1, splitZ = 1;
     // 16, 8, 24 ...
 
     bool clusterThreeDimensional = false;
@@ -213,9 +213,9 @@ class SAIGA_OPENGL_API Clusterer
         int clusterZ;
         int screenWidth;
         int screenHeight;
-        int p0;
-        int p1;
-        int p2;
+        int p0 = 0;
+        int p1 = 0;
+        int p2 = 0;
         std::vector<cluster> clusterList;
         /*
          * ClusterList

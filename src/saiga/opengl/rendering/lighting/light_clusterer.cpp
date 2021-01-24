@@ -19,8 +19,6 @@ Clusterer::Clusterer(ClustererParameters _params)
     useTimers               = _params.useTimers;
     clustersDirty           = true;
 
-    if (clusterThreeDimensional) splitZ = 24;
-
     clusterListBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
     itemListBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
 
@@ -35,6 +33,11 @@ void Clusterer::init(int _width, int _height, bool _useTimers)
     height        = _height;
     useTimers     = _useTimers;
     clustersDirty = true;
+
+    splitX = _width / 100;
+    splitY = _height / 100;
+
+    if (clusterThreeDimensional) splitZ = 8;  // TODO Paul!
 
     if (useTimers)
     {
@@ -52,89 +55,84 @@ void Clusterer::resize(int _width, int _height)
     width         = _width;
     height        = _height;
     clustersDirty = true;
+
+    splitX = _width / 100;
+    splitY = _height / 100;
+
+    if (clusterThreeDimensional) splitZ = 8;  // TODO Paul!
 }
 
 void Clusterer::loadComputeShaders() {}
 
 void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
 {
-    startTimer(1);
-    clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
-
     float current_depth_range = cam->zFar - cam->zNear;
     if (clusterThreeDimensional && depth != current_depth_range) clustersDirty = true;
     depth = current_depth_range;
 
     if (clustersDirty) build_clusters(cam);
 
-    std::set<int> debug_count_lights;
-    int debug_max_lights_per_cluster = 0;
+    startTimer(1);
 
-
-    int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
-    int realItemListSize          = 0;
+    int realItemListSize = 0;
 
     itemBuffer.itemList.clear();
+    int maxClusterItemsPerCluster = 64;  // TODO Paul: Hardcoded?
     itemBuffer.itemList.resize(maxClusterItemsPerCluster * culling_cluster.size());
-    int clusterBaseItemOffset = 0;
-    int clusterBaseItemIdx    = 0;
 
-    int clusterIdx = 0;
-    for (auto c : culling_cluster)
+    int PlsInCluster   = 0;
+    int SlsInCluster   = 0;
+    int BlsInCluster   = 0;
+    int itemsInCluster = 0;
+    int plIdx          = 0;
+
+    for (long c = 0; c < culling_cluster.size(); ++c)
     {
-        int PlsInCluster   = 0;
-        int SlsInCluster   = 0;
-        int BlsInCluster   = 0;
-        int itemsInCluster = 0;
+        PlsInCluster   = 0;
+        SlsInCluster   = 0;
+        BlsInCluster   = 0;
+        itemsInCluster = 0;
+        plIdx          = 0;
 
-
-        AABB clusterAABB = c.bounds;
-        int plIdx        = 0;
-        for (PointLightClusterData plc : pointLightsClusterData)
+        const AABB& clusterAABB = culling_cluster[c].bounds;
+        for (PointLightClusterData& plc : pointLightsClusterData)
         {
-            vec3 view_c(cam->projectToViewSpace(plc.world_center));
-            if (Intersection::SphereAABB(view_c, plc.radius, clusterAABB))
+            vec3 view_c(cam->projectToViewSpace(plc.world_center));  // These seeam to cost the most ... But maybe the
+                                                                     // AABBs are just completely broken ...
+            if (Intersection::SphereAABB(view_c, plc.radius,
+                                         clusterAABB))  // These seeam to cost the most ... But maybe the AABBs are just
+                                                        // completely broken ...
             {
-                if (PlsInCluster > maxClusterItemsPerCluster)
-                {
-                    assert(false);
-                }
-                itemBuffer.itemList.at(clusterBaseItemIdx + PlsInCluster).plIdx = plIdx;
+                if (PlsInCluster >= maxClusterItemsPerCluster) break;  // TODO Paul...
+                itemBuffer.itemList.at(realItemListSize + PlsInCluster).plIdx = plIdx;
                 PlsInCluster++;
-                debug_count_lights.insert(plIdx);
             }
             plIdx++;
         }
 
         itemsInCluster = std::max(std::max(PlsInCluster, SlsInCluster), BlsInCluster);
 
-
-        cluster& gpuCluster = clusterBuffer.clusterList.at(clusterIdx);
-        gpuCluster.offset   = clusterBaseItemOffset;
+        cluster& gpuCluster = clusterBuffer.clusterList.at(c);
+        gpuCluster.offset   = realItemListSize;
         gpuCluster.plCount  = PlsInCluster;
         gpuCluster.slCount  = SlsInCluster;
         gpuCluster.blCount  = BlsInCluster;
 
-        clusterIdx++;
         realItemListSize += itemsInCluster;
-        debug_max_lights_per_cluster = std::max(debug_max_lights_per_cluster, itemsInCluster);
-        clusterBaseItemOffset += itemsInCluster * sizeof(clusterItem);
-        clusterBaseItemIdx += itemsInCluster;
     }
 
-    itemBuffer.itemList.resize(realItemListSize);
-    int clusterBufferSize =
-        sizeof(int) * 8 + sizeof(clusterBuffer.clusterList) + sizeof(cluster) * clusterBuffer.clusterList.size();
-    clusterListBuffer.updateBuffer(&clusterBuffer, clusterBufferSize, 0);
-
-    itemListBuffer.fill(itemBuffer.itemList.data(), sizeof(clusterItem) * sizeof(itemBuffer.itemList.size()),
-                        GL_DYNAMIC_DRAW);
+    clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
     itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+
+    int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
+    clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, offsetof(clusterBuffer_t, p0));
+
+    itemListBuffer.updateBuffer(itemBuffer.itemList.data(), sizeof(clusterItem) * realItemListSize, 0);
     stopTimer(1);
     // For now:
-    // printTimings();
-    // std::cout << "Lights in at least one cluster: \t " << debug_count_lights.size() << std::endl;
-    // std::cout << "Max number of lights in any cluster: \t " << debug_max_lights_per_cluster << std::endl;
+    static int frame_delim = 0;
+    if (frame_delim % 30 == 0) printTimings();
+    frame_delim++;
 }
 
 void Clusterer::build_clusters(Camera* cam)
@@ -152,6 +150,8 @@ void Clusterer::build_clusters(Camera* cam)
     int clusterCount = splitX * splitY * splitZ;
     clusterBuffer.clusterList.clear();
     clusterBuffer.clusterList.resize(clusterCount);
+    int clusterBufferSize = sizeof(clusterBuffer) + sizeof(cluster) * clusterBuffer.clusterList.size();
+    clusterListBuffer.createGLBuffer(&clusterBuffer, clusterBufferSize, GL_DYNAMIC_DRAW);
 
     int tileWidth  = width / splitX;
     int tileHeight = height / splitY;
@@ -203,9 +203,13 @@ void Clusterer::build_clusters(Camera* cam)
             }
         }
     }
-    int clusterBufferSize =
-        sizeof(int) * 8 + sizeof(clusterBuffer.clusterList) + sizeof(cluster) * clusterBuffer.clusterList.size();
-    clusterListBuffer.fill(&clusterBuffer, clusterBufferSize, GL_DYNAMIC_DRAW);
+
+    itemBuffer.itemList.clear();
+    int maxClusterItemsPerCluster = 64;  // TODO Paul: Hardcoded?
+    itemBuffer.itemList.resize(maxClusterItemsPerCluster * culling_cluster.size());
+    itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), sizeof(clusterItem) * itemBuffer.itemList.size(),
+                                  GL_DYNAMIC_DRAW);
+
     stopTimer(0);
 }
 }  // namespace Saiga

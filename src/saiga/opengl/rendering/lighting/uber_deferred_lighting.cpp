@@ -46,6 +46,7 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
     quadMesh.fromMesh(*qb);
 
     ClustererParameters params;
+    //params.clusterThreeDimensional = true;
     lightClusterer = std::make_shared<Clusterer>(params);
 }
 
