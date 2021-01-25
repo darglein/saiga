@@ -473,17 +473,18 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 
     HD inline T borderRead(int y, int x, const T& borderValue) { return inImage(y, x) ? (*this)(y, x) : borderValue; }
 
-    inline void findMinMax(T& minV, T& maxV)
+    template<typename U>
+    inline void findMinMax(U& minV, U& maxV) const
     {
-        minV = std::numeric_limits<T>::max();
-        maxV = std::numeric_limits<T>::min();
+        minV = std::numeric_limits<U>::max();
+        maxV = std::numeric_limits<U>::min();
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
             {
                 auto v = (*this)(y, x);
-                minV   = std::min(minV, v);
-                maxV   = std::max(maxV, v);
+                minV   = std::min<U>(minV, v);
+                maxV   = std::max<U>(maxV, v);
             }
         }
     }

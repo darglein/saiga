@@ -291,7 +291,7 @@ struct SAIGA_TEMPLATE BlockSparseGrid
 
 
     // Computes the 3D box which contains all valid blocks.
-    iRect<3> Bounds()
+    iRect<3> Bounds() const
     {
         if (current_blocks == 0) return {};
 

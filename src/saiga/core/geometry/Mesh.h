@@ -74,12 +74,15 @@ class Mesh
     }
 
 
-    void normalizeScale()
+    void normalizeScale(float padding = 0)
     {
         auto box = aabb();
 
-        const auto s = 1 / std::max(std::max(box.max[0], box.max[1]), box.max[2]);
-        //        float s = 1.0 / box.max.array().max();
+        float total_max = box.max.array().maxCoeff();
+        float total_min = box.min.array().minCoeff();
+        float size = total_max - total_min;
+        const auto s = 1 / (size + 2 * padding * size);
+        //        float s = 1.0 /
         mat4 t = scale(make_vec3(s));
         transform(t);
     }

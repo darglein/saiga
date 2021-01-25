@@ -303,6 +303,27 @@ int SparseTSDF::NumZeroVoxels() const
     return n;
 }
 
+int SparseTSDF::NumNonZeroVoxels() const
+{
+    int n = 0;
+    for (int b = 0; b < current_blocks; ++b)
+    {
+        auto& block = blocks[b];
+
+        for (auto& z : block.data)
+        {
+            for (auto& y : z)
+            {
+                for (auto& x : y)
+                {
+                    if (x.weight != 0) n++;
+                }
+            }
+        }
+    }
+    return n;
+}
+
 
 void SparseTSDF::SetForAll(float distance, float weight)
 {
@@ -361,9 +382,21 @@ std::ostream& operator<<(std::ostream& strm, const SparseTSDF& tsdf)
     strm << "  Distance     [" << d_st.min << ", " << d_st.max << "]" << std::endl;
     strm << "  Weight       [" << w_st.min << ", " << w_st.max << "]" << std::endl;
 
-    float z_factor = tsdf.NumZeroVoxels() / (tsdf.current_blocks * 8.f * 8 * 8);
-    strm << "  Num Zero V.  " << tsdf.NumZeroVoxels() << "/" << tsdf.current_blocks * 8 * 8 * 8 << " = "
-         << z_factor * 100 << "%";
+    int total     = tsdf.current_blocks * 8 * 8 * 8;
+    int nnz       = tsdf.NumNonZeroVoxels();
+    float density = nnz / (tsdf.current_blocks * 8.f * 8 * 8);
+    strm << "  Block Density  " << nnz << "/" << total << " = " << density * 100 << "%" << std::endl;
+
+    float total_size    = tsdf.Bounds().Volume() * 8 * 8 * 8;
+    float total_density = nnz / total_size;
+    strm << "  Total Density  " << nnz << "/" << total_size << " = " << total_density * 100 << "%";
+
+    auto bounds = tsdf.Bounds();
+    strm << "  Block Bounds " << bounds << std::endl;
+
+    bounds.begin *= 8;
+    bounds.end *= 8;
+    strm << "  Voxel Bounds " << bounds << std::endl;
 
     return strm;
 }

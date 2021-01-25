@@ -42,6 +42,9 @@ struct VolumeCost : public Cost
     float operator()(const Rect& r) const override
     {
         if (r.Empty()) return 0;
+
+        if (r.Volume() > max_volume) return std::numeric_limits<float>::infinity();
+
         float result = weights[0];
         for (int i = 1; i < weights.size(); ++i)
         {
@@ -61,6 +64,9 @@ struct VolumeCost : public Cost
     }
 
     std::vector<float> weights;
+
+    // if the volume is larger than this value we set the cost to inf
+    int max_volume = 1000 * 1000;
 };
 
 

@@ -291,6 +291,7 @@ struct SAIGA_VISION_API SparseTSDF : public BlockSparseGrid<TSDFVoxel, 8>
 
     // The number of inserted voxels with weight==0
     int NumZeroVoxels() const;
+    int NumNonZeroVoxels() const;
 
     // Sets all voxels to this values
     void SetForAll(float distance, float weight);
