@@ -14,15 +14,12 @@ namespace Saiga
 void Triangle::ScaleUniform(float f)
 {
     auto cen = center().cast<double>();
-    a = ((a.cast<double>() - cen) * f + cen).cast<float>();
-    b = ((b.cast<double>() - cen) * f + cen).cast<float>();
-    c = ((c.cast<double>() - cen) * f + cen).cast<float>();
+    a        = ((a.cast<double>() - cen) * f + cen).cast<float>();
+    b        = ((b.cast<double>() - cen) * f + cen).cast<float>();
+    c        = ((c.cast<double>() - cen) * f + cen).cast<float>();
 }
 
-vec3 Triangle::center() const
-{
-    return (a + b + c) * float(1.0f / 3.0f);
-}
+
 
 float Triangle::minimalAngle() const
 {
@@ -80,25 +77,17 @@ bool Triangle::isDegenerate() const
     //    !std::isfinite(angleAtCorner(2));
 }
 
-float Triangle::Area() const
-{
-    return 0.5f * cross(b - a, c - a).norm();
-}
+
 
 vec3 Triangle::RandomPointOnSurface() const
 {
     auto bary = Random::MatrixUniform<vec3>(0, 1);
-
     // make sure they sum up to 1
     bary = bary / bary.array().sum();
-
     return a * bary(0) + b * bary(1) + c * bary(2);
 }
 
-vec3 Triangle::normal() const
-{
-    return normalize(cross(b - a, c - a));
-}
+
 
 float mag2(const vec3& x)
 {

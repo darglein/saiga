@@ -13,18 +13,41 @@ namespace Saiga
 {
 /**
  * Simple class for a 3D triangle consiting of the 3 corner points a, b, and c.
+ *
+ * This class can be used in CUDA, however not all member functions are available there.
  * @brief The Triangle class
  */
-
 class SAIGA_CORE_API Triangle
 {
    public:
     vec3 a, b, c;
 
    public:
-    Triangle() {}
-    Triangle(const vec3& a, const vec3& b, const vec3& c) : a(a), b(b), c(c) {}
+    HD Triangle() {}
+    HD Triangle(const vec3& a, const vec3& b, const vec3& c) : a(a), b(b), c(c) {}
 
+    /**
+     * Mean center: (a+b+c) / 3
+     * @brief center
+     * @return
+     */
+    HD vec3 center() const { return (a + b + c) * float(1.0f / 3.0f); }
+
+    HD float Area() const { return 0.5f * cross(b - a, c - a).norm(); }
+
+
+    /**
+     * Computes the normal with a cross product.
+     * The positive side is with counter-clock-wise ordering.
+     */
+    HD vec3 normal() const { return normalize(cross(b - a, c - a)); }
+
+
+    // ================== Defined in triangle.cpp ==================
+    // These function are currently not usable in cuda.
+    // =============================================================
+
+    vec3 RandomPointOnSurface() const;
 
     // Scale this triangle uniformly by the given factor.
     //  - Translate by -center
@@ -32,12 +55,6 @@ class SAIGA_CORE_API Triangle
     //  - Translate by center
     // Something like t.ScaleUniform(1.0005) can be used to achieve a slight overlap during raytracing.
     void ScaleUniform(float f);
-    /**
-     * Mean center: (a+b+c) / 3
-     * @brief center
-     * @return
-     */
-    vec3 center() const;
 
     /**
      * Computes and returns the minial angle of the corners.
@@ -65,15 +82,6 @@ class SAIGA_CORE_API Triangle
      */
     bool isDegenerate() const;
 
-    float Area() const;
-
-    vec3 RandomPointOnSurface() const;
-
-    /**
-     * Computes the normal with a cross product.
-     * The positive side is with counter-clock-wise ordering.
-     */
-    vec3 normal() const;
 
     // Returns the barycentric coordinates of point x projected to the triangle plane
     vec3 BarycentricCoordinates(const vec3& x) const;

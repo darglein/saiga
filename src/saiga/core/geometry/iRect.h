@@ -12,6 +12,8 @@
 #include <iostream>
 #include <vector>
 
+#include <unordered_map>
+
 namespace Saiga
 {
 // AABB-like iRectangle with integer coordinates

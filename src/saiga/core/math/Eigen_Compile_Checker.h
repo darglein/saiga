@@ -128,5 +128,15 @@ void checkEigenCompabitilty()
     }
 }
 
+// These functions can be used to check if the vector alignment of saiga matches to
+// your code. Especially using CUDA the alignment is sometimes wrong and results in weird errors.
+// Use the following snipped:
+//
+//
+SAIGA_CORE_API size_t saiga_alignof_vec2();
+SAIGA_CORE_API size_t saiga_alignof_vec4();
+SAIGA_CORE_API size_t saiga_alignof_mat4();
+SAIGA_CORE_API size_t saiga_alignof_Mat4();
+
 }  // namespace EigenHelper
 }  // namespace Saiga

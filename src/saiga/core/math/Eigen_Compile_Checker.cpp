@@ -63,5 +63,25 @@ EigenCompileFlags getSaigaEigenCompileFlags()
     return f;
 }
 
+size_t saiga_alignof_vec2()
+{
+    return alignof(vec2);
+}
+
+size_t saiga_alignof_vec4()
+{
+    return alignof(vec4);
+}
+
+size_t saiga_alignof_mat4()
+{
+    return alignof(mat4);
+}
+
+size_t saiga_alignof_Mat4()
+{
+    return alignof(Mat4);
+}
+
 }  // namespace EigenHelper
 }  // namespace Saiga

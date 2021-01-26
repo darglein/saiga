@@ -5,6 +5,7 @@
  */
 
 #include "saiga/config.h"
+#include "saiga/core/Core.h"
 #include "saiga/core/math/all.h"
 #include "saiga/core/util/Align.h"
 
@@ -31,6 +32,11 @@ struct SAIGA_ALIGN(32768) AlignLarge
 
 TEST(Align, aligned_malloc)
 {
+    std::cout << alignof(PerspectiveCamera) << std::endl;
+    std::cout << sizeof(PerspectiveCamera) << std::endl;
+    std::cout << alignof(mat4) << std::endl;
+    std::cout << sizeof(mat4) << std::endl;
+
     size_t alocSize = 12345;
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(aligned_malloc<4>(alocSize)) % 4);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(aligned_malloc<8>(alocSize)) % 8);

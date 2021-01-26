@@ -26,6 +26,7 @@ void RemoveEmpty(RectangleList& rectangles)
 
 void MergeNeighborsSave(RectangleList& rectangles)
 {
+    if (rectangles.empty()) return;
     while (true)
     {
         int merged = 0;
@@ -157,6 +158,7 @@ std::vector<std::pair<int, int>> NeighborList(RectangleList& rectangles, int dis
 
 void MergeNeighbors(RectangleList& rectangles, const Cost& cost)
 {
+    if (rectangles.empty()) return;
     bool changed = true;
     while (changed)
     {
@@ -358,6 +360,7 @@ static bool RandomStepMerge(RectangleList& rectangles)
 
 void MergeShrink(PointView points, RectangleList& rectangles, int its, int converge_its, const Cost& cost)
 {
+    if (rectangles.empty()) return;
     int not_improved_in_a_row = 0;
     RectangleList current_decomp;
     float current_cost;
