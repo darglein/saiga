@@ -22,7 +22,7 @@ namespace Saiga
  * n: the plane normal
  * d: the distance to the origin (projected to n)
  */
-class SAIGA_TEMPLATE EIGEN_ALIGN16 Plane
+class SAIGA_TEMPLATE Plane
 {
    public:
     vec3 normal;

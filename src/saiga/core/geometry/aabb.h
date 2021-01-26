@@ -16,7 +16,7 @@
 namespace Saiga
 {
 // This class can be used in CUDA, however not all member functions are available there.
-class SAIGA_CORE_API EIGEN_ALIGN8 AABB
+class SAIGA_CORE_API AABB
 {
    public:
     vec3 min = make_vec3(0);
