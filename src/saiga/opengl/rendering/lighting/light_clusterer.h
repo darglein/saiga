@@ -8,12 +8,15 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/geometry/aabb.h"
 #include "saiga/core/geometry/intersection.h"
+#include "saiga/core/time/timer.h"
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/shaderStorageBuffer.h"
+#include "saiga/opengl/world/LineSoup.h"
+#include "saiga/opengl/world/pointCloud.h"
 
 namespace Saiga
 {
@@ -134,38 +137,48 @@ class SAIGA_OPENGL_API Clusterer
         {
             std::cout << "\t " << getTime(i) << "ms " << timerStrings[i] << std::endl;
         }
+        std::cout << "\t " << lightAssignmentTimer.getTimeMS() << "ms "
+                  << "CPU Light Assignment" << std::endl;
     };
     void renderImGui(bool* p_open = NULL){};
-    void renderDebug(bool* p_open = NULL){};
+    void renderDebug(Camera* cam)
+    {
+        debugCluster.render(cam);
+        debugLights.render(cam);
+    };
 
    public:
+    LineSoup debugCluster;
+    GLPointCloud debugLights;
+
     std::vector<PointLightClusterData> pointLightsClusterData;
 
     std::vector<SpotLightClusterData> spotLightsClusterData;
 
     std::vector<BoxLightClusterData> boxLightsClusterData;
 
-    std::vector<FilteredMultiFrameOpenGLTimer> timers2;
+    std::vector<FilteredMultiFrameOpenGLTimer> gpuTimers;
+    Timer lightAssignmentTimer;
     std::vector<std::string> timerStrings;
     void startTimer(int timer)
     {
-        if (useTimers) timers2[timer].startTimer();
+        if (useTimers) gpuTimers[timer].startTimer();
     }
     void stopTimer(int timer)
     {
-        if (useTimers) timers2[timer].stopTimer();
+        if (useTimers) gpuTimers[timer].stopTimer();
     }
     float getTime(int timer)
     {
         if (!useTimers) return 0;
-        return timers2[timer].getTimeMS();
+        return gpuTimers[timer].getTimeMS();
     }
 
    private:
     int width, height;
     float depth;
 
-    int splitX = 1, splitY = 1, splitZ = 1;
+    int splitX = 16, splitY = 8, splitZ = 2;
     // 16, 8, 24 ...
 
     bool clusterThreeDimensional = false;
@@ -213,6 +226,10 @@ class SAIGA_OPENGL_API Clusterer
         int clusterZ;
         int screenWidth;
         int screenHeight;
+        float zNear;
+        float zFar;
+        float bias;
+        float scale;
         int p0 = 0;
         int p1 = 0;
         int p2 = 0;
@@ -228,7 +245,7 @@ class SAIGA_OPENGL_API Clusterer
 
     struct cluster_bounds
     {
-        AABB bounds;
+        std::array<Plane, 6> planes;
     };
 
     std::vector<cluster_bounds> culling_cluster;

@@ -97,6 +97,10 @@ layout (std430, binding = 7) buffer clusterBuffer
     int clusterZ;
     int screenWidth;
     int screenHeight;
+    float zNear;
+    float zFar;
+    float bias;
+    float scale;
     cluster clusterList[];
 };
 
@@ -118,51 +122,39 @@ struct AssetMaterial
     vec4 data;
 };
 
-// TODO Paul: Fix!
 float linearDepth(float d){
 
     float depthRange = 2.0 * d - 1.0;
-    float zFar = 80.0;
-    float zNear = 0.1;
     float linear = 2.0 * zNear * zFar / (zFar + zNear - depthRange * (zFar - zNear));
     return linear;
 }
 
-uint getClusterIndex(vec3 pixelCoord, int tileWidth, int tileHeight, float scale, float bias)
+uint getClusterIndex(vec2 pixelCoord, int tileWidth, int tileHeight, float depth)
 {
-    uint zSplit       = uint(max(log2(linearDepth(pixelCoord.z)) * scale + bias, 0.0));
+    uint zSplit       = uint(max(log2(linearDepth(depth)) * scale - bias, 0.0));
     uvec3 clusters    = uvec3(pixelCoord.x / tileWidth, pixelCoord.y / tileHeight, zSplit);
     uint clusterIndex = clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
     return clusterIndex;
 }
 
-vec3 debugCluster()
+vec3 debugCluster(float depth)
 {
     int tileWidth  = screenWidth / clusterX;
     int tileHeight = screenHeight / clusterY;
 
-    float scale = float(clusterZ) / log2(80.0 / 0.1);
-    float bias = float(clusterZ) * log2(0.1) / log2(80.0 / 0.1);
-
-    uint zSplit       = uint(max(log2(linearDepth(gl_FragCoord.z)) * scale + bias, 0.0));
-    uvec3 clusters    = uvec3(gl_FragCoord.x / tileWidth, gl_FragCoord.y / tileHeight, zSplit);
-    uint clusterIndex = clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
-    //uint tileIndex = getClusterIndex(gl_FragCoord.xyz, tileWidth, tileHeight);
-    float normLightCount = float(clusterList[clusterIndex].plCount) / 64;
+    uint clusterIndex = getClusterIndex(gl_FragCoord.xy, tileWidth, tileHeight, depth);
+    float normLightCount = float(clusterList[clusterIndex].plCount) / 256;
     return vec3(normLightCount, 1.0 - normLightCount, 0.0);
 }
 
-vec3 calculatePointLightsClustered(AssetMaterial material, vec3 position, vec3 normal)
+vec3 calculatePointLightsClustered(AssetMaterial material, vec3 position, vec3 normal, float depth)
 {
-    //return debugCluster();
+    //return debugCluster(depth);
     vec3 result = vec3(0);
     int tileWidth  = screenWidth / clusterX;
     int tileHeight = screenHeight / clusterY;
 
-    float scale = float(clusterZ) / log2(80.0 / 0.1);
-    float bias = float(clusterZ) * log2(0.1) / log2(80.0 / 0.1);
-
-    uint clusterIndex = getClusterIndex(gl_FragCoord.xyz, tileWidth, tileHeight, scale, bias);
+    uint clusterIndex = getClusterIndex(gl_FragCoord.xy, tileWidth, tileHeight, depth);
 
     uint lightCount           = clusterList[clusterIndex].plCount;
     uint baseLightIndexOffset = clusterList[clusterIndex].offset;

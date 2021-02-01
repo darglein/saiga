@@ -46,20 +46,20 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
     quadMesh.fromMesh(*qb);
 
     ClustererParameters params;
-    //params.clusterThreeDimensional = true;
+    // params.clusterThreeDimensional = true;
     lightClusterer = std::make_shared<Clusterer>(params);
 }
 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
 {
     RendererLighting::init(_width, _height, _useTimers);
-    lightClusterer->init(_width, _height, _useTimers);
+    if (lightClusterer) lightClusterer->init(_width, _height, _useTimers);
 }
 
 void UberDeferredLighting::resize(int _width, int _height)
 {
     RendererLighting::resize(_width, _height);
-    lightClusterer->resize(_width, _height);
+    if (lightClusterer) lightClusterer->resize(_width, _height);
 }
 
 UberDeferredLighting::~UberDeferredLighting() {}
@@ -235,6 +235,7 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
         renderDebug(cam);
         // glDepthMask(GL_FALSE);
     }
+    lightClusterer->renderDebug(cam);
     assert_no_glerror();
 }
 
