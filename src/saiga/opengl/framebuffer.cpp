@@ -55,6 +55,7 @@ void Framebuffer::destroy()
 void Framebuffer::bind()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, id);
+    assert_no_glerror();
 }
 
 void Framebuffer::unbind()

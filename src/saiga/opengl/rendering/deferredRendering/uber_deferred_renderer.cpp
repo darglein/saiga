@@ -122,7 +122,9 @@ void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
 
     clearGBuffer();
 
+    assert_no_glerror();
     lighting.initRender();
+    assert_no_glerror();
     for (auto c : renderInfo.cameras)
     {
         auto camera = c.first;
@@ -322,11 +324,12 @@ void UberDeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga:
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    assert_no_glerror();
     lighting.render(camera.first, camera.second);
+    assert_no_glerror();
 
     stopTimer(LIGHTING);
 
-    assert_no_glerror();
 }
 
 void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
@@ -376,12 +379,12 @@ void UberDeferredRenderer::renderImGui(bool* p_open)
     ImGui::Checkbox("Cull Lights", &cullLights);
 
     ImGui::Text("Render Time");
-    ImGui::Text("%fms - Geometry pass", getBlockTime(GEOMETRYPASS));
-    ImGui::Text("%fms - Depthmaps", getBlockTime(DEPTHMAPS));
-    ImGui::Text("%fms - Lighting", getBlockTime(LIGHTING));
-    ImGui::Text("%fms - Overlay pass", getBlockTime(OVERLAY));
-    ImGui::Text("%fms - Final pass", getBlockTime(FINAL));
-    ImGui::Text("%fms - Total", getBlockTime(TOTAL));
+    ImGui::Text("%fms - Geometry pass", getTime(GEOMETRYPASS));
+    ImGui::Text("%fms - Depthmaps", getTime(DEPTHMAPS));
+    ImGui::Text("%fms - Lighting", getTime(LIGHTING));
+    ImGui::Text("%fms - Overlay pass", getTime(OVERLAY));
+    ImGui::Text("%fms - Final pass", getTime(FINAL));
+    ImGui::Text("%fms - Total", getTime(TOTAL));
 
     ImGui::Separator();
 

@@ -87,8 +87,17 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
         COUNT,
     };
 
-    float getBlockTime(UberDeferredTimingBlock timingBlock) { return timers[timingBlock].getTimeMS(); }
-    virtual float getTotalRenderTime() override { return timers[UberDeferredTimingBlock::TOTAL].getTimeMS(); }
+    float getTime(UberDeferredTimingBlock timer)
+    {
+        if (!params.useGPUTimers && timer != TOTAL) return 0;
+        return timers[timer].getTimeMS();
+    }
+    float getUnsmoothedTimeMS(UberDeferredTimingBlock timer)
+    {
+        if (!params.useGPUTimers && timer != TOTAL) return 0;
+        return timers[timer].MultiFrameOpenGLTimer::getTimeMS();
+    }
+    float getTotalRenderTime() override { return getUnsmoothedTimeMS(UberDeferredRenderer::UberDeferredTimingBlock::TOTAL); }
 
     inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
     {

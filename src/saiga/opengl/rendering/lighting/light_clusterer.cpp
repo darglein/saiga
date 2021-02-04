@@ -67,13 +67,12 @@ void Clusterer::loadComputeShaders() {}
 
 void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
 {
+    assert_no_glerror();
     float current_depth_range = cam->zFar - cam->zNear;
     if (clusterThreeDimensional && depth != current_depth_range) clustersDirty = true;
     depth = current_depth_range;
 
-    // startTimer(0);
     if (clustersDirty) build_clusters(cam);
-        // stopTimer(0);
 
 #ifdef DEBUG_DRAW
     static int lastSize = pointLightsClusterData.size();
@@ -167,15 +166,17 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
 
     lightAssignmentTimer.stop();
 
-    // startTimer(1);
-    clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
-    itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+    startTimer(1);
 
     int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
     clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, offsetof(clusterBuffer_t, p0));
 
     itemListBuffer.updateBuffer(itemBuffer.itemList.data(), sizeof(clusterItem) * itemBuffer.itemList.size(), 0);
-    // stopTimer(1);
+
+    clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
+    itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+    stopTimer(1);
+    assert_no_glerror();
     // For now:
     static int frame_delim = 0;
     if (frame_delim % 30 == 0) printTimings();
@@ -366,11 +367,14 @@ void Clusterer::build_clusters(Camera* cam)
     debugCluster.updateBuffer();
 #endif
 
+    startTimer(0);
     itemBuffer.itemList.clear();
     int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
     itemBuffer.itemList.resize(maxClusterItemsPerCluster * culling_cluster.size());
     int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
     itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), sizeof(clusterItem) * itemBuffer.itemList.size(),
                                   GL_DYNAMIC_DRAW);
+
+    stopTimer(0);
 }
 }  // namespace Saiga

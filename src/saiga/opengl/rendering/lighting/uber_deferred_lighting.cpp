@@ -84,11 +84,6 @@ void UberDeferredLighting::initRender()
     // TODO Paul: We should refactor this for all single light pass renderers.
     startTimer(0);
     RendererLighting::initRender();
-    lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferBox.bind(BOX_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
-    lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
     LightInfo li;
     LightData ld;
     li.pointLightCount       = 0;
@@ -198,6 +193,12 @@ void UberDeferredLighting::initRender()
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.boxLightCount + li.directionalLightCount;
+
+    lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
+    lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
+    lightDataBufferBox.bind(BOX_LIGHT_DATA_BINDING_POINT);
+    lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
+    lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
     stopTimer(0);
 }
 
