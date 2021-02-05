@@ -293,6 +293,7 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
 void UberDeferredLighting::renderImGui(bool* p_open)
 {
     RendererLighting::renderImGui(p_open);
+    lightClusterer->renderImGui();
 }
 
 }  // namespace Saiga

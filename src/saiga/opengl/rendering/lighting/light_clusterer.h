@@ -140,16 +140,17 @@ class SAIGA_OPENGL_API Clusterer
         std::cout << "\t " << lightAssignmentTimer.getTimeMS() << "ms "
                   << "CPU Light Assignment" << std::endl;
     };
-    void renderImGui(bool* p_open = NULL){};
+
+    void renderImGui(bool* p_open = NULL);
+
     void renderDebug(Camera* cam)
     {
+        if(!renderDebugEnabled)
+            return;
         debugCluster.render(cam);
-        debugLights.render(cam);
     };
 
    public:
-    LineSoup debugCluster;
-    GLPointCloud debugLights;
 
     std::vector<PointLightClusterData> pointLightsClusterData;
 
@@ -178,11 +179,14 @@ class SAIGA_OPENGL_API Clusterer
     int width, height;
     float depth;
 
-    int splitX = 16, splitY = 8, splitZ = 2;
+    int splitX = 16, splitY = 8, splitZ = 1;
     // 16, 8, 24 ...
 
     bool clusterThreeDimensional = false;
     bool useTimers;
+    bool renderDebugEnabled = false;
+    bool debugFrustumToView = false;
+    LineSoup debugCluster;
 
     bool clustersDirty = true;
 
@@ -262,9 +266,6 @@ class SAIGA_OPENGL_API Clusterer
 
     ShaderStorageBuffer clusterListBuffer;
     ShaderStorageBuffer itemListBuffer;
-
-
-    std::shared_ptr<MVPColorShader> debugShader;
 
 #ifdef GPU_LIGHT_ASSIGNMENT
     std::shared_ptr<BuildClusterComputeShader> buildClusterShader2D;

@@ -7,12 +7,11 @@
 #pragma once
 #include "saiga/opengl/rendering/lighting/light_clusterer.h"
 
-//#define DEBUG_DRAW
-#define DEBUG_IN_SCREEN_SPACE
+#include "saiga/core/imgui/imgui.h"
+
 
 namespace Saiga
 {
-
 Clusterer::Clusterer(ClustererParameters _params)
 {
     clusterThreeDimensional = _params.clusterThreeDimensional;
@@ -34,11 +33,6 @@ void Clusterer::init(int _width, int _height, bool _useTimers)
     useTimers     = _useTimers;
     clustersDirty = true;
 
-    // splitX = 16;
-    // splitY = 8;
-    //
-    // if (clusterThreeDimensional) splitZ = 8;  // TODO Paul!
-
     if (useTimers)
     {
         gpuTimers.resize(2);
@@ -56,11 +50,6 @@ void Clusterer::resize(int _width, int _height)
     width         = _width;
     height        = _height;
     clustersDirty = true;
-
-    // splitX = 16;
-    // splitY = 8;
-    //
-    // if (clusterThreeDimensional) splitZ = 8;  // TODO Paul!
 }
 
 void Clusterer::loadComputeShaders() {}
@@ -74,16 +63,6 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
 
     if (clustersDirty) build_clusters(cam);
 
-#ifdef DEBUG_DRAW
-    static int lastSize = pointLightsClusterData.size();
-
-    if (lastSize == pointLightsClusterData.size()) return;
-    lastSize = pointLightsClusterData.size();
-
-    debugLights.points.clear();
-    debugLights.pointSize = 6;
-#endif
-
     lightAssignmentTimer.start();
 
     // memset(itemBuffer.itemList.data(), 0, sizeof(clusterItem) * itemBuffer.itemList.size());
@@ -91,24 +70,24 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
 
     std::vector<vec4> view_space_lights(pointLightsClusterData.size());
 
-    #pragma omp parallel for schedule(dynamic)
+    PointVertex v;
+#pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < pointLightsClusterData.size(); ++i)
     {
         PointLightClusterData& plc = pointLightsClusterData[i];
         view_space_lights[i]       = make_vec4(cam->projectToViewSpace(plc.world_center), plc.radius);
     }
 
-    #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
     for (int c = 0; c < culling_cluster.size(); ++c)
     {
         const auto& cluster_planes = culling_cluster[c].planes;
         std::vector<int> registered(view_space_lights.size(), -1);
 
-        #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < view_space_lights.size(); ++i)
         {
-            vec4& plc = view_space_lights[i];
-            PointVertex v;
+            vec4& plc         = view_space_lights[i];
             bool intersection = true;
             float distance;
             vec3 sphereCenter  = make_vec3(plc);
@@ -125,13 +104,7 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
             if (intersection)
             {
                 registered.at(i) = i;
-#ifdef DEBUG_DRAW
-            v.color           = vec3(1, 1, 0);
-            v.position = sphereCenter;
-            debugLights.points.push_back(v);
-#endif
             }
-
         }
 
         cluster& gpuCluster = clusterBuffer.clusterList.at(c);
@@ -142,7 +115,8 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
         {
             int& idx = registered.at(i);
             if (idx < 0) continue;
-            if (i >= maxClusterItemsPerCluster) break;  // TODO Paul...
+            if (count >= maxClusterItemsPerCluster)  // TODO Paul...
+                break;
             itemBuffer.itemList.at(gpuCluster.offset + count++).plIdx = idx;
         }
 
@@ -151,20 +125,9 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
         gpuCluster.blCount = 0;
     }
 
-#ifdef DEBUG_DRAW
-#    ifdef DEBUG_IN_SCREEN_SPACE
-    debugLights.setModelMatrix(cam->getModelMatrix());  // is inverse view.
-    debugLights.translateLocal(vec3(0, 0, -0.0001f));
-#    else
-    debugLights.setPosition(make_vec4(0));
-    debugLights.translateGlobal(vec3(0, 6, 0));
-    debugLights.setScale(make_vec3(0.33f));
-#    endif
-    debugLights.calculateModel();
-    debugLights.updateBuffer();
-#endif
-
+#pragma omp barrier
     lightAssignmentTimer.stop();
+
 
     startTimer(1);
 
@@ -177,10 +140,6 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
     itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
     stopTimer(1);
     assert_no_glerror();
-    // For now:
-    static int frame_delim = 0;
-    if (frame_delim % 30 == 0) printTimings();
-    frame_delim++;
 }
 
 void Clusterer::build_clusters(Camera* cam)
@@ -192,10 +151,10 @@ void Clusterer::build_clusters(Camera* cam)
 
     clusterBuffer.screenWidth  = width;
     clusterBuffer.screenHeight = height;
-    clusterBuffer.zNear = cam->zNear;
-    clusterBuffer.zFar = cam->zFar;
-    clusterBuffer.scale = (float)(splitZ) / log2(cam->zFar /cam->zNear);
-    clusterBuffer.bias = ((float)splitZ * log2(cam->zNear) / log2(cam->zFar / cam->zNear));
+    clusterBuffer.zNear        = cam->zNear;
+    clusterBuffer.zFar         = cam->zFar;
+    clusterBuffer.scale        = (float)(splitZ) / log2(cam->zFar / cam->zNear);
+    clusterBuffer.bias         = ((float)splitZ * log2(cam->zNear) / log2(cam->zFar / cam->zNear));
 
     // Calculate Cluster Planes in View Space.
     int clusterCount = splitX * splitY * splitZ;
@@ -210,7 +169,7 @@ void Clusterer::build_clusters(Camera* cam)
 
     culling_cluster.clear();
     culling_cluster.resize(clusterCount);
-    debugCluster.lines.clear();
+    if (renderDebugEnabled && debugFrustumToView) debugCluster.lines.clear();
 
     // const vec3 eyeView(0.0); Not required because it is zero.
 
@@ -249,58 +208,59 @@ void Clusterer::build_clusters(Camera* cam)
                 vec3 viewFarClusterBR(zeroZIntersection(viewNearPlaneBR, tileFar));
                 vec3 viewFarClusterTR(zeroZIntersection(viewNearPlaneTR, tileFar));
 
-#ifdef DEBUG_DRAW
-                PointVertex v;
-                v.color = vec3(1, 0.25, 0);
+                if (renderDebugEnabled && debugFrustumToView)
+                {
+                    PointVertex v;
+                    v.color = vec3(1, 0.25, 0);
 
-                v.position = viewNearClusterBL;
-                debugCluster.lines.push_back(v);
-                v.position = viewNearClusterTL;
-                debugCluster.lines.push_back(v);
-                debugCluster.lines.push_back(v);
-                v.position = viewNearClusterTR;
-                debugCluster.lines.push_back(v);
-                debugCluster.lines.push_back(v);
-                v.position = viewNearClusterBR;
-                debugCluster.lines.push_back(v);
-                debugCluster.lines.push_back(v);
-                v.position = viewNearClusterBL;
-                debugCluster.lines.push_back(v);
+                    v.position = viewNearClusterBL;
+                    debugCluster.lines.push_back(v);
+                    v.position = viewNearClusterTL;
+                    debugCluster.lines.push_back(v);
+                    debugCluster.lines.push_back(v);
+                    v.position = viewNearClusterTR;
+                    debugCluster.lines.push_back(v);
+                    debugCluster.lines.push_back(v);
+                    v.position = viewNearClusterBR;
+                    debugCluster.lines.push_back(v);
+                    debugCluster.lines.push_back(v);
+                    v.position = viewNearClusterBL;
+                    debugCluster.lines.push_back(v);
 
-                v.position = viewFarClusterBL;
-                debugCluster.lines.push_back(v);
-                v.position = viewFarClusterTL;
-                debugCluster.lines.push_back(v);
-                debugCluster.lines.push_back(v);
-                v.position = viewFarClusterTR;
-                debugCluster.lines.push_back(v);
-                debugCluster.lines.push_back(v);
-                v.position = viewFarClusterBR;
-                debugCluster.lines.push_back(v);
-                debugCluster.lines.push_back(v);
-                v.position = viewFarClusterBL;
-                debugCluster.lines.push_back(v);
+                    v.position = viewFarClusterBL;
+                    debugCluster.lines.push_back(v);
+                    v.position = viewFarClusterTL;
+                    debugCluster.lines.push_back(v);
+                    debugCluster.lines.push_back(v);
+                    v.position = viewFarClusterTR;
+                    debugCluster.lines.push_back(v);
+                    debugCluster.lines.push_back(v);
+                    v.position = viewFarClusterBR;
+                    debugCluster.lines.push_back(v);
+                    debugCluster.lines.push_back(v);
+                    v.position = viewFarClusterBL;
+                    debugCluster.lines.push_back(v);
 
-                v.position = viewNearClusterBL;
-                debugCluster.lines.push_back(v);
-                v.position = viewFarClusterBL;
-                debugCluster.lines.push_back(v);
+                    v.position = viewNearClusterBL;
+                    debugCluster.lines.push_back(v);
+                    v.position = viewFarClusterBL;
+                    debugCluster.lines.push_back(v);
 
-                v.position = viewNearClusterTL;
-                debugCluster.lines.push_back(v);
-                v.position = viewFarClusterTL;
-                debugCluster.lines.push_back(v);
+                    v.position = viewNearClusterTL;
+                    debugCluster.lines.push_back(v);
+                    v.position = viewFarClusterTL;
+                    debugCluster.lines.push_back(v);
 
-                v.position = viewNearClusterBR;
-                debugCluster.lines.push_back(v);
-                v.position = viewFarClusterBR;
-                debugCluster.lines.push_back(v);
+                    v.position = viewNearClusterBR;
+                    debugCluster.lines.push_back(v);
+                    v.position = viewFarClusterBR;
+                    debugCluster.lines.push_back(v);
 
-                v.position = viewNearClusterTR;
-                debugCluster.lines.push_back(v);
-                v.position = viewFarClusterTR;
-                debugCluster.lines.push_back(v);
-#endif
+                    v.position = viewNearClusterTR;
+                    debugCluster.lines.push_back(v);
+                    v.position = viewFarClusterTR;
+                    debugCluster.lines.push_back(v);
+                }
 
                 vec3 p0, p1, p2;
 
@@ -353,19 +313,21 @@ void Clusterer::build_clusters(Camera* cam)
         }
     }
 
-#ifdef DEBUG_DRAW
-    debugCluster.lineWidth = 1;
-#    ifdef DEBUG_IN_SCREEN_SPACE
-    debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
-    debugCluster.translateLocal(vec3(0, 0, -0.0001f));
-#    else
-    debugCluster.setPosition(make_vec4(0));
-    debugCluster.translateGlobal(vec3(0, 6, 0));
-    debugCluster.setScale(make_vec3(0.33f));
-#    endif
-    debugCluster.calculateModel();
-    debugCluster.updateBuffer();
+    if (renderDebugEnabled && debugFrustumToView)
+    {
+        debugCluster.lineWidth = 1;
+
+        debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
+        debugCluster.translateLocal(vec3(0, 0, -0.0001f));
+#if 0
+        debugCluster.setPosition(make_vec4(0));
+        debugCluster.translateGlobal(vec3(0, 6, 0));
+        debugCluster.setScale(make_vec3(0.33f));
 #endif
+        debugCluster.calculateModel();
+        debugCluster.updateBuffer();
+        debugFrustumToView = false;
+    }
 
     startTimer(0);
     itemBuffer.itemList.clear();
@@ -376,5 +338,57 @@ void Clusterer::build_clusters(Camera* cam)
                                   GL_DYNAMIC_DRAW);
 
     stopTimer(0);
+}
+
+
+void Clusterer::renderImGui(bool* p_open)
+{
+    ImGui::Begin("Clusterer", p_open);
+
+    ImGui::Text("resolution: %dx%d", width, height);
+    if (ImGui::Checkbox("renderDebugEnabled", &renderDebugEnabled) && renderDebugEnabled)
+    {
+        clustersDirty      = true;
+        debugFrustumToView = true;
+    }
+    if (renderDebugEnabled)
+        if (ImGui::Button("debugFrustumToView")) debugFrustumToView = true;
+
+    if (ImGui::Checkbox("useTimers", &useTimers) && useTimers)
+    {
+        gpuTimers.resize(2);
+        gpuTimers[0].create();
+        gpuTimers[1].create();
+        timerStrings.resize(2);
+        timerStrings[0] = "Rebuilding Clusters";
+        timerStrings[1] = "Light Assignment Buffer Update";
+        lightAssignmentTimer.stop();
+    }
+
+
+    if (useTimers)
+    {
+        ImGui::Text("Render Time (without shadow map computation)");
+        for (int i = 0; i < 2; ++i)
+        {
+            ImGui::Text("  %f ms %s", getTime(i), timerStrings[i].c_str());
+        }
+        ImGui::Text("  %f ms %s", lightAssignmentTimer.getTimeMS(), "CPU Light Assignment");
+    }
+    ImGui::Checkbox("clusterThreeDimensional", &clusterThreeDimensional);
+    bool changed = false;
+    changed |= ImGui::SliderInt("splitX", &splitX, 1, 32);
+    changed |= ImGui::SliderInt("splitY", &splitY, 1, 32);
+    if (clusterThreeDimensional)
+    {
+        changed |= ImGui::SliderInt("splitZ", &splitZ, 1, 32);
+    }
+    else
+        splitZ = 1;
+
+
+    clustersDirty |= changed | debugFrustumToView;
+
+    ImGui::End();
 }
 }  // namespace Saiga
