@@ -337,7 +337,7 @@ void Clusterer::build_clusters(Camera* cam)
 
     int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
     int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-    SAIGA_ASSERT(maxBlockSize < itemBufferSize, "Item SSB size too big!");
+    SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
 
     itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
 
