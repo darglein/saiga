@@ -18,6 +18,7 @@ Clusterer::Clusterer(ClustererParameters _params)
     useTimers               = _params.useTimers;
     clustersDirty           = true;
 
+    infoBuffer.createGLBuffer(nullptr, sizeof(infoBuf_t), GL_DYNAMIC_DRAW);
     clusterListBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
     itemListBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
 
@@ -128,14 +129,15 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
 #pragma omp barrier
     lightAssignmentTimer.stop();
 
-
     startTimer(1);
 
     int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-    clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, offsetof(clusterBuffer_t, p0));
+    clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
-    itemListBuffer.updateBuffer(itemBuffer.itemList.data(), sizeof(clusterItem) * itemBuffer.itemList.size(), 0);
+    int itemListSize = sizeof(clusterItem) * itemBuffer.itemList.size();
+    itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
 
+    infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
     clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
     itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
     stopTimer(1);
@@ -144,27 +146,27 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
 
 void Clusterer::build_clusters(Camera* cam)
 {
-    clustersDirty          = false;
-    clusterBuffer.clusterX = splitX;
-    clusterBuffer.clusterY = splitY;
-    clusterBuffer.clusterZ = splitZ;
+    clustersDirty              = false;
+    clusterInfoBuffer.clusterX = splitX;
+    clusterInfoBuffer.clusterY = splitY;
+    clusterInfoBuffer.clusterZ = splitZ;
 
-    clusterBuffer.screenWidth  = width;
-    clusterBuffer.screenHeight = height;
-    clusterBuffer.zNear        = cam->zNear;
-    clusterBuffer.zFar         = cam->zFar;
-    clusterBuffer.scale        = (float)(splitZ) / log2(cam->zFar / cam->zNear);
-    clusterBuffer.bias         = ((float)splitZ * log2(cam->zNear) / log2(cam->zFar / cam->zNear));
+    clusterInfoBuffer.screenWidth  = width;
+    clusterInfoBuffer.screenHeight = height;
+    clusterInfoBuffer.zNear        = cam->zNear;
+    clusterInfoBuffer.zFar         = cam->zFar;
+    clusterInfoBuffer.scale        = (float)(splitZ) / log2(cam->zFar / cam->zNear);
+    clusterInfoBuffer.bias         = -((float)splitZ * log2(cam->zNear) / log2(cam->zFar / cam->zNear));
+
 
     // Calculate Cluster Planes in View Space.
     int clusterCount = splitX * splitY * splitZ;
     clusterBuffer.clusterList.clear();
     clusterBuffer.clusterList.resize(clusterCount);
-    int clusterBufferSize = sizeof(clusterBuffer) + sizeof(cluster) * clusterBuffer.clusterList.size();
-    clusterListBuffer.createGLBuffer(&clusterBuffer, clusterBufferSize, GL_DYNAMIC_DRAW);
+    clusterInfoBuffer.clusterListCount = clusterCount;
 
-    int tileWidth  = width / splitX;
-    int tileHeight = height / splitY;
+    int tileWidth  = std::ceil((float)width / (float)splitX);
+    int tileHeight = std::ceil((float)height / (float)splitY);
 
 
     culling_cluster.clear();
@@ -172,8 +174,6 @@ void Clusterer::build_clusters(Camera* cam)
     if (renderDebugEnabled && debugFrustumToView) debugCluster.lines.clear();
 
     // const vec3 eyeView(0.0); Not required because it is zero.
-
-    // Using AABB. This is not perfectly exact, but good enough and faster.
 
     for (int x = 0; x < splitX; ++x)
     {
@@ -333,9 +333,18 @@ void Clusterer::build_clusters(Camera* cam)
     itemBuffer.itemList.clear();
     int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
     itemBuffer.itemList.resize(maxClusterItemsPerCluster * culling_cluster.size());
-    int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-    itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), sizeof(clusterItem) * itemBuffer.itemList.size(),
-                                  GL_DYNAMIC_DRAW);
+    clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
+
+    int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
+    int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+    SAIGA_ASSERT(maxBlockSize < itemBufferSize, "Item SSB size too big!");
+
+    itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
+
+    int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
+    clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
+
+    infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
 
     stopTimer(0);
 }

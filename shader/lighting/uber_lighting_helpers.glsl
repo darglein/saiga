@@ -90,7 +90,7 @@ struct cluster
     int blCount;
 };
 
-layout (std430, binding = 7) buffer clusterBuffer
+layout (std430, binding = 7) buffer clusterInfoBuffer
 {
     int clusterX;
     int clusterY;
@@ -101,6 +101,13 @@ layout (std430, binding = 7) buffer clusterBuffer
     float zFar;
     float bias;
     float scale;
+
+    int clusterListCount;
+    int itemListCount;
+};
+
+layout (std430, binding = 8) buffer clusterBuffer
+{
     cluster clusterList[];
 };
 
@@ -111,7 +118,7 @@ struct clusterItem
     int blIdx;
 };
 
-layout (std430, binding = 8) buffer itemBuffer
+layout (std430, binding = 9) buffer itemBuffer
 {
     clusterItem itemList[];
 };
@@ -129,20 +136,20 @@ float linearDepth(float d){
     return linear;
 }
 
-uint getClusterIndex(vec2 pixelCoord, int tileWidth, int tileHeight, float depth)
+int getClusterIndex(vec2 pixelCoord, int tileWidth, int tileHeight, float depth)
 {
-    uint zSplit       = uint(max(log2(linearDepth(depth)) * scale - bias, 0.0));
-    uvec3 clusters    = uvec3(pixelCoord.x / tileWidth, pixelCoord.y / tileHeight, zSplit);
-    uint clusterIndex = clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
+    int zSplit       = int(max(log2(linearDepth(depth)) * scale + bias, 0.0));
+    ivec3 clusters    = ivec3(pixelCoord.x / tileWidth, pixelCoord.y / tileHeight, zSplit);
+    int clusterIndex = clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
     return clusterIndex;
 }
 
 vec3 debugCluster(float depth)
 {
-    int tileWidth  = screenWidth / clusterX;
-    int tileHeight = screenHeight / clusterY;
+    int tileWidth  = int(ceil(float(screenWidth) / float(clusterX)));
+    int tileHeight = int(ceil(float(screenHeight) / float(clusterY)));
 
-    uint clusterIndex = getClusterIndex(gl_FragCoord.xy, tileWidth, tileHeight, depth);
+    int clusterIndex = getClusterIndex(gl_FragCoord.xy, tileWidth, tileHeight, depth);
     float normLightCount = float(clusterList[clusterIndex].plCount) / 256.0;
     return vec3(normLightCount, 1.0 - normLightCount, 0.0);
 }
@@ -151,17 +158,37 @@ vec3 calculatePointLightsClustered(AssetMaterial material, vec3 position, vec3 n
 {
     //return debugCluster(depth);
     vec3 result = vec3(0);
-    int tileWidth  = screenWidth / clusterX;
-    int tileHeight = screenHeight / clusterY;
+    int tileWidth  = int(ceil(float(screenWidth) / float(clusterX)));
+    int tileHeight = int(ceil(float(screenHeight) / float(clusterY)));
 
-    uint clusterIndex = getClusterIndex(gl_FragCoord.xy, tileWidth, tileHeight, depth);
+    int clusterIndex = getClusterIndex(gl_FragCoord.xy, tileWidth, tileHeight, depth);
 
-    uint lightCount           = clusterList[clusterIndex].plCount;
-    uint baseLightIndexOffset = clusterList[clusterIndex].offset;
-
-    for(uint i = 0; i < lightCount; i++)
+    if(clusterIndex > clusterListCount - 1)
     {
-        uint lightVectorIndex = itemList[baseLightIndexOffset + i].plIdx;
+        return vec3(1, 0, 0);
+    }
+    if(clusterIndex < 0)
+    {
+        return vec3(1, 0, 0);
+    }
+
+    int lightCount           = clusterList[clusterIndex].plCount;
+    int baseLightIndexOffset = clusterList[clusterIndex].offset;
+
+    if(baseLightIndexOffset + lightCount -1 > itemListCount - 1)
+    {
+        return vec3(1, 1, 0);
+    }
+    if(baseLightIndexOffset < 0 || lightCount < 0)
+    {
+        return vec3(1, 0, 0);
+    }
+
+    for(int i = 0; i < lightCount; i++)
+    {
+        int lightVectorIndex = itemList[baseLightIndexOffset + i].plIdx;
+        if(lightVectorIndex >= pointLightCount)
+            return vec3(0, 0, 0);
         PointLightData pl = pointLights[lightVectorIndex];
         vec3 lightPosition = (view * vec4(pl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = pl.colorDiffuse;

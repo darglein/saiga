@@ -223,8 +223,9 @@ class SAIGA_OPENGL_API Clusterer
 
     vec3 zeroZIntersection(vec3 through, float z) { return through * z / through.z(); }
 
-    struct clusterBuffer_t
+    struct infoBuf_t
     {
+
         int clusterX;
         int clusterY;
         int clusterZ;
@@ -234,9 +235,13 @@ class SAIGA_OPENGL_API Clusterer
         float zFar;
         float bias;
         float scale;
-        int p0 = 0;
-        int p1 = 0;
-        int p2 = 0;
+
+        int clusterListCount;
+        int itemListCount;
+    } clusterInfoBuffer;
+
+    struct clusterBuffer_t
+    {
         std::vector<cluster> clusterList;
         /*
          * ClusterList
@@ -264,6 +269,7 @@ class SAIGA_OPENGL_API Clusterer
          */
     } itemBuffer;
 
+    ShaderStorageBuffer infoBuffer;
     ShaderStorageBuffer clusterListBuffer;
     ShaderStorageBuffer itemListBuffer;
 
