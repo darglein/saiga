@@ -48,6 +48,7 @@ target_link_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_LD_
 set_target_properties(${MODULE_NAME} PROPERTIES CXX_STANDARD 17)
 target_link_libraries(${MODULE_NAME} PUBLIC ${CORE_LIBS} ${CORE_TARGETS} )
 target_link_libraries(${MODULE_NAME} PRIVATE std::filesystem)
+target_link_options(${MODULE_NAME} PUBLIC ${SAIGA_LD_FLAGS})
 
 target_include_directories(
     ${MODULE_NAME}

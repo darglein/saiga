@@ -24,6 +24,10 @@ if (SDL2_FOUND)
         add_subdirectory(depthMapTriangulation)
         add_subdirectory(openMeshSample)
     endif ()
+    
+    if(FREETYPE_FOUND)
+        add_subdirectory(text_rendering)
+    endif()
 
 endif ()
 
