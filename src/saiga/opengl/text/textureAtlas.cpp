@@ -126,7 +126,6 @@ void TextureAtlas::createTextureAtlas(std::vector<FontLoader::Glyph>& glyphs, in
     calculateTextureAtlasLayout(glyphs);
 
     atlas.create(atlasHeight, atlasWidth);
-    atlas.create();
     atlas.makeZero();
 
     std::cout << "AtlasWidth " << atlasWidth << " AtlasHeight " << atlasHeight << std::endl;

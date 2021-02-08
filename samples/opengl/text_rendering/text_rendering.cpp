@@ -15,7 +15,7 @@ class Sample : public SampleWindowDeferred
    public:
     Sample()
     {
-        text_atlas.loadFont("SourceSansPro-Regular.ttf", 50);
+        text_atlas.loadFont("SourceSansPro-Regular.ttf", 40);
 
         text_overlay = TextOverlay2D(window->getWidth(), window->getHeight());
 

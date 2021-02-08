@@ -7,9 +7,9 @@
 #pragma once
 
 #include "saiga/core/geometry/object3d.h"
+#include "saiga/core/util/encoding.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/text/textParameters.h"
-#include "saiga/core/util/encoding.h"
 
 #ifndef SAIGA_USE_FREETYPE
 #    error Saiga was compiled without freetype.
@@ -60,7 +60,7 @@ class SAIGA_OPENGL_API Text : public Object3D
     int capacity;   // size of the gpu buffer
     int lines = 1;  // number of '\n' + 1
 
-    vec2 startPos = vec2(0);  // bottom left corner of first character
+    vec2 startPos = vec2(0, 0);  // bottom left corner of first character
 
     bool normalize;  // normalized text is centered around the origin
     //    std::string label;
@@ -75,7 +75,7 @@ class SAIGA_OPENGL_API Text : public Object3D
     bool compressText(utf32string& str, int& start, int& lines);
 
     // adds 'text' to the end of this triangle mesh. This will add 4 vertices and 4 indices per character (2 Triangles).
-    void addTextToMesh(const utf32string& text, vec2 offset = vec2(0));
+    void addTextToMesh(const utf32string& text, vec2 offset = vec2(0, 0));
 };
 
 }  // namespace Saiga
