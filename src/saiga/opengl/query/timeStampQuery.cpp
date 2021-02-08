@@ -6,16 +6,25 @@
 
 #include "saiga/opengl/query/timeStampQuery.h"
 
+#include "saiga/core/util/assert.h"
 namespace Saiga
 {
-TimeStampQuery::TimeStampQuery() {}
+QueryObject::QueryObject() {}
 
-TimeStampQuery::~TimeStampQuery()
+QueryObject::~QueryObject()
 {
-    if (id) glDeleteQueries(1, &id);
+    destroy();
 }
 
-void TimeStampQuery::create()
+QueryObject::QueryObject(const QueryObject& other) : QueryObject()
+{
+    if (other.id)
+    {
+        create();
+    }
+}
+
+void QueryObject::create()
 {
     if (!id) glGenQueries(1, &id);
     // prevent potential gl erros.
@@ -23,27 +32,40 @@ void TimeStampQuery::create()
     waitTimestamp();
 }
 
-void TimeStampQuery::record()
+void QueryObject::destroy()
 {
+    if (id)
+    {
+        glDeleteQueries(1, &id);
+        id = 0;
+    }
+}
+
+void QueryObject::record()
+{
+    SAIGA_ASSERT(id);
     glQueryCounter(id, GL_TIMESTAMP);
 }
 
-bool TimeStampQuery::isAvailable()
+bool QueryObject::isAvailable()
 {
+    SAIGA_ASSERT(id);
     GLint res = 0;
     glGetQueryObjectiv(id, GL_QUERY_RESULT_AVAILABLE, &res);
     return res != 0;
 }
 
-GLuint64 TimeStampQuery::getTimestamp()
+GLuint64 QueryObject::getTimestamp()
 {
+    SAIGA_ASSERT(id);
     GLuint64 time = 0;
     glGetQueryObjectui64v(id, GL_QUERY_RESULT, &time);
     return time;
 }
 
-GLuint64 TimeStampQuery::waitTimestamp()
+GLuint64 QueryObject::waitTimestamp()
 {
+    SAIGA_ASSERT(id);
     while (!isAvailable())
     {
     }

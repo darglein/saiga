@@ -45,7 +45,7 @@ class SAIGA_OPENGL_API MultiFrameOpenGLTimer
     GLuint64 getTimeNS();
 
    private:
-    TimeStampQuery queries[2][2];
+    QueryObject queries[2][2];
 
     int queryBackBuffer = 0, queryFrontBuffer = 1;
     GLuint64 time = 0;
@@ -82,7 +82,7 @@ class SAIGA_OPENGL_API OpenGLTimer
     float getTimeMS();
 
    protected:
-    TimeStampQuery queries[2];
+    QueryObject queries[2];
     GLuint64 time;
 };
 

@@ -145,7 +145,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     //        std::cout << angle << camera.position << std::endl;
 
     quat qrot = angleAxis(radians(angle * 0.3f), axis);
-    this->rot = qrot * this->rot;
+    this->rot = normalize(qrot * this->rot);
     vec3 p    = qrot * (make_vec3(this->position) - point);
 
     p += point;
@@ -177,7 +177,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     //        std::cout << angle << camera.position << std::endl;
 
     quat qrot      = angleAxis(radians(angle), axis);
-    this->rot      = qrot * this->rot;
+    this->rot      = normalize(qrot * this->rot);
     this->position = make_vec4(qrot * (this->getPosition() - point), 1);
 
 

@@ -50,6 +50,10 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
 
 
     void setView(const mat4& v);
+
+    //  eye    Position of the camera
+    //  center    Position where the camera is looking at
+    //  up    Normalized up vector, how the camera is oriented.
     void setView(const vec3& eye, const vec3& center, const vec3& up);
 
 
