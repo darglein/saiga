@@ -13,24 +13,24 @@ class Sample : public SampleWindowDeferred
     using Base = SampleWindowDeferred;
 
    public:
-    Sample() : layout(window->getWidth(), window->getHeight())
+    Sample()
     {
-        // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-        ObjAssetLoader assetLoader;
-        teapot.asset = assetLoader.loadColoredAsset("models/teapot.obj");
-        teapot.translateGlobal(vec3(0, 1, 0));
-        teapot.calculateModel();
+        text_atlas.loadFont("SourceSansPro-Regular.ttf", 50);
 
-
-        text_atlas.loadFont("SourceSansPro-Regular.ttf");
         text_overlay = TextOverlay2D(window->getWidth(), window->getHeight());
 
-        text = std::make_shared<Text>(&text_atlas, "test", false);
+        text = std::make_shared<Text>(&text_atlas, "Saiga Text Rendering", false);
+        text->params.setGlow(vec4(1, 0, 0, 1), 1);
+        text->params.setColor(vec4(1, 1, 1, 1), 0.02);
         text_overlay.addText(text.get());
+        text_overlay.PositionText2d(text.get(), vec2(0, 0.7), 0.2);
 
-        AABB bb = text->getAabb();
-        vec2 relPos(0.5, 0.5);
-        layout.transform(text.get(), bb, relPos, 0.1, Layout::LEFT, Layout::RIGHT);
+
+        counter_text = std::make_shared<Text>(&text_atlas, "test", false);
+        counter_text->params.setColor(vec4(0, 0, 0, 1), 0.02);
+        counter_text->params.setOutline(vec4(1, 1, 1, 1), 0.05, 0.02);
+        text_overlay.addText(counter_text.get());
+        text_overlay.PositionText2d(counter_text.get(), vec2(0.1, 0.4), 0.2);
 
         std::cout << "Program Initialized!" << std::endl;
     }
@@ -38,7 +38,7 @@ class Sample : public SampleWindowDeferred
     void update(float dt) override
     {
         Base::update(dt);
-        text->updateText(std::to_string(count));
+        counter_text->updateText("Frame " + std::to_string(count));
         count++;
     }
 
@@ -46,7 +46,11 @@ class Sample : public SampleWindowDeferred
     {
         if (render_pass == RenderPass::GUI)
         {
-            renderer->bindCamera(&layout.cam);
+            glDisable(GL_DEPTH_TEST);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+            renderer->bindCamera(text_overlay.GetCamera());
             text_overlay.render();
         }
     }
@@ -54,11 +58,9 @@ class Sample : public SampleWindowDeferred
 
 
    private:
-    SimpleAssetObject teapot;
-
     std::shared_ptr<Text> text;
+    std::shared_ptr<Text> counter_text;
     TextOverlay2D text_overlay;
-    Layout layout;
     TextureAtlas text_atlas;
     int count = 0;
 };

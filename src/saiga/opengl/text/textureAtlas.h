@@ -75,6 +75,10 @@ class SAIGA_OPENGL_API TextureAtlas
     float additionalLineSpacing      = 0;
     float additionalCharacterSpacing = 0;
 
+
+    void writeAtlasToFiles();
+    bool readAtlasFromFiles();
+
    private:
     // distance between characters in texture atlas
     int charPaddingX = 0;
@@ -91,20 +95,19 @@ class SAIGA_OPENGL_API TextureAtlas
     int numCharacters = 0;
     //    std::vector<character_info> characterInfoMap = std::vector<character_info>(maxNumCharacters);
 
+    TemplatedImage<unsigned char> atlas;
     std::shared_ptr<Texture> textureAtlas = nullptr;
     AABB maxCharacter;
     // std::string font;
     std::string uniqueFontString;
 
 
-    void createTextureAtlas(Image& outImg, std::vector<FontLoader::Glyph>& glyphs, int downsample, int searchRadius);
+    void createTextureAtlas(std::vector<FontLoader::Glyph>& glyphs, int downsample, int searchRadius);
     void calculateTextureAtlasLayout(std::vector<FontLoader::Glyph>& glyphs);
     void padGlyphsToDivisor(std::vector<FontLoader::Glyph>& glyphs, int divisor);
     void convertToSDF(std::vector<FontLoader::Glyph>& glyphs, int divisor, int searchRadius);
     std::vector<ivec2> generateSDFsamples(int searchRadius);
 
-    void writeAtlasToFiles(Image& img);
-    bool readAtlasFromFiles();
 
     void initFont();
 };

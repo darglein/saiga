@@ -9,6 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/math/math.h"
+#include "saiga/opengl/rendering/overlay/Layout.h"
 
 #include <memory>
 #include <vector>
@@ -21,25 +22,24 @@ class Text;
 class SAIGA_OPENGL_API TextOverlay2D
 {
    public:
-    mat4 proj;
     std::vector<Text*> texts;
 
-    int width, height;
-
-    TextOverlay2D(const mat4& proj);
     TextOverlay2D(int width = 1, int height = 1);
     void render();
-    void render(Camera* camera);
 
     // text stuff
     void addText(Text* text);
     void removeText(Text* text);
 
-    void loadShader();
+    Camera* GetCamera() { return &layout.cam; }
 
+    void PositionText2d(Text* text, vec2 position, float size, Layout::Alignment alignmentX = Layout::LEFT,
+                        Layout::Alignment alignmentY = Layout::LEFT);
 
    private:
     std::shared_ptr<TextShader> textShader = nullptr;
+    Layout layout;
+    void loadShader();
 };
 
 }  // namespace Saiga

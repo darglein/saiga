@@ -14,15 +14,8 @@
 
 namespace Saiga
 {
-TextOverlay2D::TextOverlay2D(const mat4& proj)
+TextOverlay2D::TextOverlay2D(int width, int height) : layout(width, height)
 {
-    this->proj = proj;
-    loadShader();
-}
-
-TextOverlay2D::TextOverlay2D(int width, int height) : width(width), height(height)
-{
-    this->proj = ortho(0.0f, (float)width, 0.0f, (float)height, -1.0f, 1.0f);
     loadShader();
 }
 
@@ -36,15 +29,6 @@ void TextOverlay2D::render()
     textShader->unbind();
 }
 
-void TextOverlay2D::render(Camera* camera)
-{
-    textShader->bind();
-    for (Text*& text : texts)
-    {
-        if (text->visible) text->render(textShader);
-    }
-    textShader->unbind();
-}
 
 void TextOverlay2D::addText(Text* text)
 {
@@ -54,6 +38,13 @@ void TextOverlay2D::addText(Text* text)
 void TextOverlay2D::removeText(Text* text)
 {
     texts.erase(std::remove(texts.begin(), texts.end(), text), texts.end());
+}
+
+void TextOverlay2D::PositionText2d(Text* text, vec2 position, float size, Layout::Alignment alignmentX,
+                                   Layout::Alignment alignmentY)
+{
+    AABB bb = text->getAabb();
+    layout.transform(text, bb, position, size, alignmentX, alignmentY);
 }
 
 void TextOverlay2D::loadShader()
