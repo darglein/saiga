@@ -22,19 +22,19 @@ class SAIGA_OPENGL_API SpotLightShader : public AttenuatedLightShader
 
 
 
-class SAIGA_OPENGL_API SpotLight : public AttenuatedLight
+class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenuation
 {
     friend class DeferredLighting;
 
    protected:
     float angle = 60.0f;
-    std::shared_ptr<SimpleShadowmap> shadowmap;
+    std::unique_ptr<SimpleShadowmap> shadowmap;
 
    public:
     float shadowNearPlane = 0.1f;
     PerspectiveCamera shadowCamera;
-    vec3 direction;
-    vec3 position;
+    vec3 direction = vec3(0, -1, 0);
+    vec3 position  = vec3(0, 0, 0);
     vec3 getPosition() { return position; }
     void setPosition(const vec3& p) { position = p; }
 
@@ -43,18 +43,16 @@ class SAIGA_OPENGL_API SpotLight : public AttenuatedLight
      */
 
     SpotLight();
-    virtual ~SpotLight() override {}
+    virtual ~SpotLight() {}
     void bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* shadowCamera);
 
 
-    void setRadius(float value) override;
 
     void createShadowMap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
 
 
     mat4 ModelMatrix();
 
-    void recalculateScale();
     void setAngle(float value);
     float getAngle() const { return angle; }
 

@@ -10,6 +10,8 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/opengl/error.h"
 
+#include "attenuated_light.h"
+
 namespace Saiga
 {
 void AttenuatedLightShader::checkUniforms()
@@ -25,62 +27,12 @@ void AttenuatedLightShader::uploadA(vec3& attenuation, float cutoffRadius)
 }
 
 
-float AttenuatedLight::evaluateAttenuation(float distance)
+void LightDistanceAttenuation::renderImGui()
 {
-    // normalize the distance, so the attenuation is independent of the radius
-    float x = distance / cutoffRadius;
-
-    return 1.0f / (attenuation[0] + attenuation[1] * x + attenuation[2] * x * x);
-}
-
-vec3 AttenuatedLight::getAttenuation() const
-{
-    return attenuation;
-}
-
-float AttenuatedLight::getAttenuation(float r)
-{
-    float x = r / cutoffRadius;
-    return 1.0 / (attenuation[0] + attenuation[1] * x + attenuation[2] * x * x);
-}
-
-void AttenuatedLight::setAttenuation(const vec3& value)
-{
-    attenuation = value;
-}
-
-
-float AttenuatedLight::getRadius() const
-{
-    return cutoffRadius;
-}
-
-
-void AttenuatedLight::setRadius(float value)
-{
-    cutoffRadius = value;
-    // this->setScale(make_vec3(cutoffRadius));
-}
-
-void AttenuatedLight::bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera* cam)
-{
-    if (volumetric) shader->uploadVolumetricDensity(volumetricDensity);
-    shader->uploadColorDiffuse(colorDiffuse, intensity);
-    shader->uploadColorSpecular(colorSpecular, intensity_specular);
-    // shader->uploadModel(model);
-    shader->uploadA(attenuation, cutoffRadius);
-    assert_no_glerror();
-}
-
-
-void AttenuatedLight::renderImGui()
-{
-    Light::renderImGui();
     ImGui::InputFloat3("attenuation", &attenuation[0]);
-    float c = evaluateAttenuation(cutoffRadius);
+    float c = Evaluate(radius);
     ImGui::Text("Cutoff Intensity: %f", c);
-    bool changed = ImGui::InputFloat("cutoffRadius", &cutoffRadius);
-    //    if (changed) this->setScale(make_vec3(cutoffRadius));
+    ImGui::InputFloat("cutoffRadius", &radius);
 }
 
 

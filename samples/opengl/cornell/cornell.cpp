@@ -36,7 +36,6 @@ class Sample : public SampleWindowDeferred
 
         pointLight = std::make_shared<PointLight>();
         renderer->lighting.AddLight(pointLight);
-        pointLight->setAttenuation(AttenuationPresets::Quadratic);
         pointLight->setIntensity(1);
         pointLight->setRadius(3);
         pointLight->position = (vec3(0, 1.5, 0));

@@ -31,22 +31,9 @@ PointLight::PointLight()
 }
 
 
-
-float PointLight::getRadius() const
-{
-    return cutoffRadius;
-}
-
-
-void PointLight::setRadius(float value)
-{
-    cutoffRadius = value;
-    // this->setScale(make_vec3(cutoffRadius));
-}
-
 mat4 PointLight::ModelMatrix()
 {
-    vec3 scale    = make_vec3(cutoffRadius);
+    vec3 scale    = make_vec3(radius);
     vec3 position = (this->position);
 
     return createTRSmatrix(position, quat::Identity(), scale);
@@ -54,7 +41,12 @@ mat4 PointLight::ModelMatrix()
 
 void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* cam)
 {
-    AttenuatedLight::bindUniforms(shader, cam);
+    shader->uploadA(attenuation, radius);
+
+    if (volumetric) shader->uploadVolumetricDensity(volumetricDensity);
+    shader->uploadColorDiffuse(colorDiffuse, intensity);
+    shader->uploadColorSpecular(colorSpecular, intensity_specular);
+
     shader->uploadModel(ModelMatrix());
     shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
     shader->uploadInvProj(inverse(cam->proj));
@@ -71,8 +63,7 @@ void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* 
 
 void PointLight::createShadowMap(int w, int h, ShadowQuality quality)
 {
-    shadowmap = std::make_shared<CubeShadowmap>(w, h, quality);
-    //    shadowmap->createCube(w,h);
+    shadowmap   = std::make_unique<CubeShadowmap>(w, h, quality);
     castShadows = true;
 }
 
@@ -105,12 +96,12 @@ void PointLight::calculateCamera(int face)
     vec3 dir(gCameraDirections[face].Target);
     vec3 up(gCameraDirections[face].Up);
     shadowCamera.setView(pos, pos + dir, up);
-    shadowCamera.setProj(90.0f, 1, shadowNearPlane, cutoffRadius);
+    shadowCamera.setProj(90.0f, 1, shadowNearPlane, radius);
 }
 
 bool PointLight::cullLight(Camera* cam)
 {
-    Sphere s(position, cutoffRadius);
+    Sphere s(position, radius);
     this->culled = cam->sphereInFrustum(s) == Camera::OUTSIDE;
     //    this->culled = false;
     //    std::cout<<culled<<endl;
@@ -141,7 +132,8 @@ bool PointLight::renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuf
 
 void PointLight::renderImGui()
 {
-    AttenuatedLight::renderImGui();
+    LightBase::renderImGui();
+    LightDistanceAttenuation::renderImGui();
     ImGui::InputFloat("shadowNearPlane", &shadowNearPlane);
 }
 

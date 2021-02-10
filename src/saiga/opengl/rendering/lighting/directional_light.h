@@ -39,10 +39,10 @@ class SAIGA_OPENGL_API DirectionalLightShader : public LightShader
     void uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures);
 };
 
-class SAIGA_OPENGL_API DirectionalLight : public Light
+class SAIGA_OPENGL_API DirectionalLight : public LightBase
 {
    protected:
-    std::shared_ptr<CascadedShadowmap> shadowmap;
+    std::unique_ptr<CascadedShadowmap> shadowmap;
 
     // bounding box of every cascade frustum
     std::vector<AABB> orthoBoxes;
@@ -80,7 +80,7 @@ class SAIGA_OPENGL_API DirectionalLight : public Light
     int numCascades = 1;
 
    public:
-    DirectionalLight() : Light(LightColorPresets::DirectSunlight, 1)
+    DirectionalLight() : LightBase(LightColorPresets::DirectSunlight, 1)
     {
         setDirection(vec3(-1, -3, -2));
         polygon_offset = vec2(2.0, 50.0);

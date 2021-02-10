@@ -69,7 +69,9 @@ static const vec3 ClearBlueSky   = Color::srgb2linearrgb(Color(64, 156, 255));
 
 using DepthFunction = std::function<void(Camera*)>;
 
-class SAIGA_OPENGL_API Light
+
+
+class SAIGA_OPENGL_API LightBase
 {
    public:
     // [R,G,B,Intensity]
@@ -86,13 +88,13 @@ class SAIGA_OPENGL_API Light
     vec2 polygon_offset = vec2(2.0f, 10.0f);
 
 
-    Light() {}
-    Light(const vec3& color, float intensity)
+    LightBase() {}
+    LightBase(const vec3& color, float intensity)
     {
         setColorDiffuse(color);
         setIntensity(intensity);
     }
-    ~Light() {}
+    ~LightBase() {}
 
     void setColorDiffuse(const vec3& color) { this->colorDiffuse = color; }
     void setColorSpecular(const vec3& color) { this->colorSpecular = color; }

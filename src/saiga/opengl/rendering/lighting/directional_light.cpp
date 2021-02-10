@@ -101,7 +101,7 @@ void DirectionalLight::createShadowMap(int w, int h, int _numCascades, ShadowQua
     SAIGA_ASSERT(_numCascades > 0 && _numCascades <= MAX_CASCADES);
     this->numCascades = _numCascades;
     //    Light::createShadowMap(resX,resY);
-    shadowmap = std::make_shared<CascadedShadowmap>(w, h, _numCascades, quality);
+    shadowmap = std::make_unique<CascadedShadowmap>(w, h, _numCascades, quality);
     //    shadowmap->createCascaded(w,h,numCascades);
     orthoBoxes.resize(_numCascades);
 
@@ -460,7 +460,7 @@ bool DirectionalLight::renderShadowmap(DepthFunction f, UniformBuffer& shadowCam
 
 void DirectionalLight::renderImGui()
 {
-    Light::renderImGui();
+    LightBase::renderImGui();
     ImGui::InputFloat("ambientIntensity", &ambientIntensity, 0.1, 1);
     ImGui::InputFloat("Cascade Interpolate Range", &cascadeInterpolateRange);
     if (ImGui::Direction("Direction", direction))

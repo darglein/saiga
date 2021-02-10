@@ -81,7 +81,7 @@ void LightShader::uploadShadowMapSize(ivec2 s)
 //}
 
 
-mat4 Light::viewToLightTransform(const Camera& camera, const Camera& shadowCamera)
+mat4 LightBase::viewToLightTransform(const Camera& camera, const Camera& shadowCamera)
 {
     // glm like glsl is column major!
     const mat4 biasMatrix = make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
@@ -90,7 +90,7 @@ mat4 Light::viewToLightTransform(const Camera& camera, const Camera& shadowCamer
     return biasMatrix * shadowCamera.proj * shadowCamera.view * camera.model;
 }
 
-void Light::renderImGui()
+void LightBase::renderImGui()
 {
     ImGui::Checkbox("active", &active);
     ImGui::Checkbox("castShadows", &castShadows);

@@ -38,7 +38,7 @@ class Sample : public RendererSampleWindow
         maximumNumberOfRendererSupportedDirectionalLights = std::clamp(
             maximumNumberOfRendererSupportedDirectionalLights, 0, maxSize / (int)sizeof(uber::DirectionalLightData));
         maximumNumberOfRendererSupportedPointLights =
-            std::clamp(maximumNumberOfRendererSupportedPointLights, 0, maxSize / (int)sizeof(uber::PointLightData));
+            std::clamp(maximumNumberOfRendererSupportedPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
         maximumNumberOfRendererSupportedSpotLights =
             std::clamp(maximumNumberOfRendererSupportedSpotLights, 0, maxSize / (int)sizeof(uber::SpotLightData));
 
@@ -113,7 +113,7 @@ class Sample : public RendererSampleWindow
                     std::clamp(maximumNumberOfRendererSupportedDirectionalLights, 0,
                                maxSize / (int)sizeof(uber::DirectionalLightData));
                 maximumNumberOfRendererSupportedPointLights = std::clamp(maximumNumberOfRendererSupportedPointLights, 0,
-                                                                         maxSize / (int)sizeof(uber::PointLightData));
+                                                                         maxSize / (int)sizeof(PointLight::ShaderData));
                 maximumNumberOfRendererSupportedSpotLights  = std::clamp(maximumNumberOfRendererSupportedSpotLights, 0,
                                                                         maxSize / (int)sizeof(uber::SpotLightData));
 
@@ -173,7 +173,7 @@ class Sample : public RendererSampleWindow
                     for (int32_t i = 0; i < count; ++i)
                     {
                         std::shared_ptr<PointLight> light = std::make_shared<PointLight>();
-                        light->setAttenuation(AttenuationPresets::Quadratic);
+
                         light->setIntensity(1);
 
 
@@ -225,7 +225,6 @@ class Sample : public RendererSampleWindow
                     for (int32_t i = 0; i < count; ++i)
                     {
                         std::shared_ptr<SpotLight> light = std::make_shared<SpotLight>();
-                        light->setAttenuation(AttenuationPresets::Quadratic);
                         light->setIntensity(1);
 
 

@@ -44,12 +44,17 @@ void SpotLight::calculateCamera()
     vec3 up  = make_vec3(M.col(0));
 
     shadowCamera.setView(pos, pos - dir, up);
-    shadowCamera.setProj(2 * angle, 1, shadowNearPlane, cutoffRadius);
+    shadowCamera.setProj(2 * angle, 1, shadowNearPlane, radius);
 }
 
 void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* cam)
 {
-    AttenuatedLight::bindUniforms(shader, cam);
+    shader->uploadA(attenuation, radius);
+
+    if (volumetric) shader->uploadVolumetricDensity(volumetricDensity);
+    shader->uploadColorDiffuse(colorDiffuse, intensity);
+    shader->uploadColorSpecular(colorSpecular, intensity_specular);
+
     float cosa = cos(radians(angle * 0.95f));  // make border smoother
     shader->uploadAngle(cosa);
     shader->uploadModel(ModelMatrix());
@@ -65,31 +70,17 @@ void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* ca
 }
 
 
-void SpotLight::recalculateScale()
-{
-    //    float l = tan(radians(angle)) * cutoffRadius;
-    //    vec3 scale(l, cutoffRadius, l);
-    //    this->setScale(scale);
-}
-
-void SpotLight::setRadius(float value)
-{
-    cutoffRadius = value;
-    recalculateScale();
-}
 
 void SpotLight::createShadowMap(int w, int h, ShadowQuality quality)
 {
-    //    Light::createShadowMap(resX,resY);
-    //    float farplane = 50.0f;
-    shadowmap = std::make_shared<SimpleShadowmap>(w, h, quality);
-    //    shadowmap->createFlat(w,h);
+    shadowmap   = std::make_unique<SimpleShadowmap>(w, h, quality);
+    castShadows = true;
 }
 
 mat4 SpotLight::ModelMatrix()
 {
-    float l = tan(radians(angle)) * cutoffRadius;
-    vec3 scale(l, cutoffRadius, l);
+    float l = tan(radians(angle)) * radius;
+    vec3 scale(l, radius, l);
     quat rot = rotation(normalize(direction), vec3(0, -1, 0));
     return createTRSmatrix((position), rot, scale);
 }
@@ -97,13 +88,11 @@ mat4 SpotLight::ModelMatrix()
 void SpotLight::setAngle(float value)
 {
     this->angle = value;
-    recalculateScale();
 }
 
 void SpotLight::setDirection(vec3 dir)
 {
     direction = dir;
-    //    rot       = rotation(normalize(dir), vec3(0, -1, 0));
 }
 
 bool SpotLight::cullLight(Camera* cam)
@@ -137,12 +126,10 @@ bool SpotLight::renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuff
 
 void SpotLight::renderImGui()
 {
-    AttenuatedLight::renderImGui();
-    if (ImGui::SliderFloat("Angle", &angle, 0, 85))
-    {
-        //        recalculateScale();
-        //        calculateModel();
-    }
+    LightBase::renderImGui();
+    LightDistanceAttenuation::renderImGui();
+    ImGui::SliderFloat("Angle", &angle, 0, 85);
+
     ImGui::InputFloat("shadowNearPlane", &shadowNearPlane);
 }
 

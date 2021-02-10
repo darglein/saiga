@@ -23,14 +23,25 @@ class SAIGA_OPENGL_API PointLightShader : public AttenuatedLightShader
 
 
 
-class SAIGA_OPENGL_API PointLight : public AttenuatedLight
+class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenuation
 {
     friend class DeferredLighting;
 
    protected:
-    std::shared_ptr<CubeShadowmap> shadowmap;
+    std::unique_ptr<CubeShadowmap> shadowmap;
 
    public:
+    struct ShaderData
+    {
+        vec4 position;       // xyz, w unused
+        vec4 colorDiffuse;   // rgb intensity
+        vec4 colorSpecular;  // rgb specular intensity
+        vec4 attenuation;    // xyz radius
+    };
+    // TODO: Paul
+    ShaderData GetShaderData() { return ShaderData(); }
+
+
     vec3 position;
 
     void setPosition(const vec3& p) { position = p; }
@@ -48,8 +59,6 @@ class SAIGA_OPENGL_API PointLight : public AttenuatedLight
     void bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* shadowCamera);
 
 
-    float getRadius() const;
-    virtual void setRadius(float value);
 
     mat4 ModelMatrix();
 

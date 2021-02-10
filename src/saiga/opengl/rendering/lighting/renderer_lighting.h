@@ -10,6 +10,9 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
+#include "saiga/opengl/rendering/lighting/directional_light.h"
+#include "saiga/opengl/rendering/lighting/point_light.h"
+#include "saiga/opengl/rendering/lighting/spot_light.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
 #include "saiga/opengl/vertex.h"
@@ -23,9 +26,6 @@ class SpotLightShader;
 class DirectionalLightShader;
 class LightAccumulationShader;
 
-class SpotLight;
-class PointLight;
-class DirectionalLight;
 
 struct RendererLightingShaderNames
 {
@@ -39,14 +39,6 @@ struct RendererLightingShaderNames
 
 namespace uber
 {
-struct PointLightData
-{
-    vec4 position;       // xyz, w unused
-    vec4 colorDiffuse;   // rgb intensity
-    vec4 colorSpecular;  // rgb specular intensity
-    vec4 attenuation;    // xyz radius
-};
-
 struct SpotLightData
 {
     vec4 position;       // xyz, w angle
@@ -66,7 +58,7 @@ struct DirectionalLightData
 
 struct LightData
 {
-    std::vector<PointLightData> pointLights;
+    std::vector<PointLight::ShaderData> pointLights;
     std::vector<SpotLightData> spotLights;
     std::vector<DirectionalLightData> directionalLights;
 };

@@ -74,7 +74,6 @@ class Sample : public SampleWindowDeferred
             auto light = std::make_shared<PointLight>();
             renderer->lighting.AddLight(light);
 
-            light->setAttenuation(AttenuationPresets::Quadratic);
             light->setIntensity(2);
 
 
@@ -98,7 +97,6 @@ class Sample : public SampleWindowDeferred
             auto light = std::make_shared<SpotLight>();
             renderer->lighting.AddLight(light);
 
-            light->setAttenuation(AttenuationPresets::Quadratic);
             light->setIntensity(2);
             light->setRadius(linearRand(8, 15));
 
