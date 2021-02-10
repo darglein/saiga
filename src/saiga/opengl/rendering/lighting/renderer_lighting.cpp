@@ -99,17 +99,6 @@ void RendererLighting::cullLights(Camera* cam)
         }
     }
 
-    for (auto& light : boxLights)
-    {
-        if (light->isActive())
-        {
-            light->calculateCamera();
-            light->shadowCamera.recalculatePlanes();
-            bool visible = !light->cullLight(cam);
-            visibleLights += visible;
-        }
-    }
-
 
     for (auto& light : pointLights)
     {
@@ -136,7 +125,7 @@ void RendererLighting::initRender()
     totalLights       = 0;
     visibleLights     = 0;
     renderedDepthmaps = 0;
-    totalLights       = directionalLights.size() + spotLights.size() + pointLights.size() + boxLights.size();
+    totalLights       = directionalLights.size() + spotLights.size() + pointLights.size();
     visibleLights     = totalLights;
 }
 
@@ -171,11 +160,7 @@ void RendererLighting::renderDepthMaps(RenderingInterface* renderer)
         //        glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
         light->renderShadowmap(depthFunc, shadowCameraBuffer);
     }
-    for (auto& light : boxLights)
-    {
-        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-        light->renderShadowmap(depthFunc, shadowCameraBuffer);
-    }
+
     for (auto& light : spotLights)
     {
         glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
@@ -273,36 +258,6 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
-    //==================== Box lights ====================
-
-    boxLightMesh.bind();
-    // center
-    for (auto& obj : boxLights)
-    {
-        mat4 sm    = obj->model * scale(make_vec3(0.05));
-        vec4 color = obj->colorDiffuse;
-        if (!obj->isActive() || !obj->isVisible())
-        {
-            // render as black if light is turned off
-            color = vec4(0);
-        }
-        debugShader->uploadModel(sm);
-        debugShader->uploadColor(color);
-        boxLightMesh.draw();
-    }
-
-    // render outline
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    for (auto& obj : boxLights)
-    {
-        //        if(obj->isSelected()){
-        debugShader->uploadModel(obj->model);
-        debugShader->uploadColor(obj->colorDiffuse);
-        boxLightMesh.draw();
-        //        }
-    }
-    boxLightMesh.unbind();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     debugShader->unbind();
 }
@@ -328,12 +283,6 @@ void RendererLighting::setShader(std::shared_ptr<DirectionalLightShader> directi
     this->directionalLightShadowShader = directionalLightShadowShader;
 }
 
-void RendererLighting::setShader(std::shared_ptr<BoxLightShader> boxLightShader,
-                                 std::shared_ptr<BoxLightShader> boxLightShadowShader)
-{
-    this->boxLightShader       = boxLightShader;
-    this->boxLightShadowShader = boxLightShadowShader;
-}
 
 void RendererLighting::setDebugShader(std::shared_ptr<MVPColorShader> shader)
 {
@@ -377,11 +326,6 @@ void RendererLighting::createLightMeshes()
     auto cb = TriangleMeshGenerator::createMesh(c, 10);
     //    cb->createBuffers(spotLightMesh);
     spotLightMesh.fromMesh(*cb);
-
-    AABB box(make_vec3(-1), make_vec3(1));
-    auto bb = TriangleMeshGenerator::createMesh(box);
-    //    bb->createBuffers(boxLightMesh);
-    boxLightMesh.fromMesh(*bb);
 }
 
 
@@ -454,7 +398,6 @@ void RendererLighting::renderImGui(bool* p_open)
     imGuiLightBox(0, "Directional Lights", directionalLights);
     imGuiLightBox(1, "Spot Lights", spotLights);
     imGuiLightBox(2, "Point Lights", pointLights);
-    imGuiLightBox(3, "Box Lights", boxLights);
 
     ImGui::End();
 }

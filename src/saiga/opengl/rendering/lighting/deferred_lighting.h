@@ -23,8 +23,8 @@ class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
 {
    public:
     int visibleVolumetricLights;
-    int currentStencilId = 0;
-    bool renderVolumetric    = false;
+    int currentStencilId  = 0;
+    bool renderVolumetric = false;
 
     std::shared_ptr<Texture> ssaoTexture;
 
@@ -69,7 +69,6 @@ class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
 
     std::shared_ptr<SpotLightShader> spotLightVolumetricShader;
 
-    std::shared_ptr<BoxLightShader> boxLightVolumetricShader;
 
     ShaderPart::ShaderCodeInjections volumetricInjection;
 

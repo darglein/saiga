@@ -43,11 +43,6 @@ void DeferredLighting::loadShaders()
         spotLightVolumetricShader = shaderLoader.load<SpotLightShader>(names.spotLightShader, volumetricInjection);
     }
 
-    if (!boxLightVolumetricShader)
-    {
-        boxLightVolumetricShader = shaderLoader.load<BoxLightShader>(names.boxLightShader, volumetricInjection);
-    }
-
     stencilShader = shaderLoader.load<MVPShader>(names.stencilShader);
 }
 
@@ -126,19 +121,6 @@ void DeferredLighting::cullLights(Camera* cam)
             visibleVolumetricLights += (visible && light->isVolumetric());
         }
     }
-
-    for (auto& light : boxLights)
-    {
-        if (light->isActive())
-        {
-            light->calculateCamera();
-            light->shadowCamera.recalculatePlanes();
-            bool visible = !light->cullLight(cam);
-            visibleLights += visible;
-            visibleVolumetricLights += (visible && light->isVolumetric());
-        }
-    }
-
 
     for (auto& light : pointLights)
     {
@@ -251,13 +233,6 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     }
     stopTimer(2);
 
-    startTimer(3);
-    for (auto& l : boxLights)
-    {
-        renderLightVolume<std::shared_ptr<BoxLight>, std::shared_ptr<BoxLightShader>>(
-            boxLightMesh, l, cam, viewPort, boxLightShader, boxLightShadowShader, boxLightVolumetricShader);
-    }
-    stopTimer(3);
     assert_no_glerror();
 
     // reset depth test to default value
