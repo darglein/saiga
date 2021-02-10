@@ -232,21 +232,5 @@ bool AABBAABB(const AABB& bb1, const AABB& bb2)
     return AABBAABB(bb1.min, bb1.max, bb2.min, bb2.max);
 }
 
-// Jim Arvo Graphics Gems
-bool SphereAABB(const vec3& c, float r, const AABB& bb)
-{
-    float sqDist = 0;
-
-    for (int i = 0; i < 3; i++)
-    {
-        if (c[i] < bb.min[i]) sqDist += (bb.min[i] - c[i]) * (bb.min[i] - c[i]);
-        if (c[i] > bb.max[i]) sqDist += (c[i] - bb.max[i]) * (c[i] - bb.max[i]);
-    }
-
-    float rSqared = r * r;
-    return (sqDist <= rSqared);
-}
-
-
 }  // namespace Intersection
 }  // namespace Saiga

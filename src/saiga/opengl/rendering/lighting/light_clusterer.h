@@ -145,13 +145,12 @@ class SAIGA_OPENGL_API Clusterer
 
     void renderDebug(Camera* cam)
     {
-        if(!renderDebugEnabled)
-            return;
+        if (!renderDebugEnabled) return;
         debugCluster.render(cam);
+        debugPoints.render(cam);
     };
 
    public:
-
     std::vector<PointLightClusterData> pointLightsClusterData;
 
     std::vector<SpotLightClusterData> spotLightsClusterData;
@@ -177,33 +176,31 @@ class SAIGA_OPENGL_API Clusterer
 
    private:
     int width, height;
-    float depth;
 
-    int splitX = 16, splitY = 8, splitZ = 1;
-    // 16, 8, 24 ...
+    int screenSpaceTileSize = 128;
+    int depthSplits = 1;
 
     bool clusterThreeDimensional = false;
     bool useTimers;
     bool renderDebugEnabled = false;
     bool debugFrustumToView = false;
     LineSoup debugCluster;
+    GLPointCloud debugPoints;
 
     bool clustersDirty = true;
 
     void build_clusters(Camera* cam);
 
-    vec4 viewPosFromScreenPos(vec4 screen, Camera* cam)
+    vec4 viewPosFromScreenPos(vec4 screen, const mat4& inverseProjection)
     {
         // to ndc
-        vec2 ndc(screen.x() / width, screen.y() / height);
+        vec2 ndc(clamp(screen.x() / width, 0.0, 1.0), clamp(screen.y() / height, 0.0, 1.0));
 
         // to clip
         vec4 clip(ndc.x() * 2.0f - 1.0f, ndc.y() * 2.0f - 1.0f, screen.z(), screen.w());
 
         // to view
-        cam->recomputeProj();
-        mat4 invP(inverse(cam->proj));
-        vec4 view(invP * clip);
+        vec4 view(inverseProjection * clip);
         view /= view.w();
 
         return view;
@@ -225,10 +222,9 @@ class SAIGA_OPENGL_API Clusterer
 
     struct infoBuf_t
     {
-
         int clusterX;
         int clusterY;
-        int clusterZ;
+        int screenSpaceTileSize;
         int screenWidth;
         int screenHeight;
         float zNear;

@@ -26,11 +26,13 @@ class Sample : public RendererSampleWindow
     Sample()
     {
         ObjAssetLoader assetLoader;
-        auto showAsset = assetLoader.loadColoredAsset("show_model.obj");
+        auto showAsset = assetLoader.loadDebugPlaneAsset(vec2(20, 20));
+        //auto showAsset = assetLoader.loadColoredAsset("show_model.obj");
 
         show.asset = showAsset;
+        show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
         // show.multScale(make_vec3(0.01f));
-        // show.calculateModel();
+        show.calculateModel();
 
         int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
@@ -186,11 +188,19 @@ class Sample : public RendererSampleWindow
                         light->setIntensity(1);
 
 
+                        /*
                         light->setRadius(linearRand(0.1f, 4.0f));
 
-                        light->setPosition(linearRand(vec3(-16, 0.05f, -16), vec3(16, light->getRadius(), 16)));
+                        light->setPosition(linearRand(vec3(-16, 0.0f, -16), vec3(16, 0.0f, 16)));
 
                         light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+                        light->calculateModel();
+                        */
+                        light->setRadius(1.0f);
+
+                        light->setPosition(vec3(0, 0.1f, 0));
+
+                        light->setColorDiffuse(vec3(1, 1, 1));
                         light->calculateModel();
 
                         light->disableShadows();

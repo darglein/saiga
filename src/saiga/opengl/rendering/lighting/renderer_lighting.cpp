@@ -237,7 +237,7 @@ void RendererLighting::renderDebug(Camera* cam)
         {
             continue;
         }
-        debugShader->uploadModel(obj->model);
+        debugShader->uploadModel(obj->getModelMatrix());
         debugShader->uploadColor(obj->colorDiffuse);
         pointLightMesh.draw();
         //        }

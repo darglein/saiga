@@ -94,7 +94,7 @@ layout (std430, binding = 7) buffer clusterInfoBuffer
 {
     int clusterX;
     int clusterY;
-    int clusterZ;
+    int screenSpaceTileSize;
     int screenWidth;
     int screenHeight;
     float zNear;
@@ -136,32 +136,32 @@ float linearDepth(float d){
     return linear;
 }
 
-int getClusterIndex(vec2 pixelCoord, int tileWidth, int tileHeight, float depth)
+int getClusterIndex(vec2 pixelCoord, float depth)
 {
     int zSplit       = int(max(log2(linearDepth(depth)) * scale + bias, 0.0));
-    ivec3 clusters    = ivec3(pixelCoord.x / tileWidth, pixelCoord.y / tileHeight, zSplit);
+    ivec3 clusters   = ivec3(pixelCoord.x / screenSpaceTileSize, pixelCoord.y / screenSpaceTileSize, zSplit);
     int clusterIndex = clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
     return clusterIndex;
 }
 
 vec3 debugCluster(float depth)
 {
-    int tileWidth  = int(ceil(float(screenWidth) / float(clusterX)));
-    int tileHeight = int(ceil(float(screenHeight) / float(clusterY)));
-
-    int clusterIndex = getClusterIndex(gl_FragCoord.xy, tileWidth, tileHeight, depth);
-    float normLightCount = float(clusterList[clusterIndex].plCount) / 256.0;
+    int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
+    /*
+    float normLightCount = float(clusterList[clusterIndex].plCount) / 2.0;
     return vec3(normLightCount, 1.0 - normLightCount, 0.0);
+    */
+    if(clusterList[clusterIndex].plCount > 0)
+        return vec3(1,0,0);
+    return vec3(0,1,0);
 }
 
 vec3 calculatePointLightsClustered(AssetMaterial material, vec3 position, vec3 normal, float depth)
 {
-    //return debugCluster(depth);
+    return debugCluster(depth);
     vec3 result = vec3(0);
-    int tileWidth  = int(ceil(float(screenWidth) / float(clusterX)));
-    int tileHeight = int(ceil(float(screenHeight) / float(clusterY)));
 
-    int clusterIndex = getClusterIndex(gl_FragCoord.xy, tileWidth, tileHeight, depth);
+    int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
 
     if(clusterIndex > clusterListCount - 1)
     {
