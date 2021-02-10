@@ -17,7 +17,9 @@
 namespace Saiga
 {
 ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& params)
+
     : OpenGLRenderer(window), params(params), lighting()
+
 {
     int timerCount = ForwardTimingBlock::COUNT;
     timers.resize(timerCount);
@@ -39,6 +41,7 @@ ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& para
 }
 
 void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
+
 {
     if (!rendering) return;
 

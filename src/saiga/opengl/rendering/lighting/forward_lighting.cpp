@@ -6,7 +6,6 @@
 
 #include "forward_lighting.h"
 
-#include "saiga/opengl/rendering/lighting/box_light.h"
 #include "saiga/opengl/rendering/lighting/directional_light.h"
 #include "saiga/opengl/rendering/lighting/point_light.h"
 #include "saiga/opengl/rendering/lighting/spot_light.h"
@@ -82,22 +81,7 @@ void ForwardLighting::initRender()
         li.spotLightCount++;
     }
 
-    // Box Lights
-    BoxLightData glBoxLight;
-    const mat4 biasMatrix = make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
-    for (auto bl : boxLights)
-    {
-        if (li.boxLightCount >= maximumNumberOfBoxLights) break;  // just ignore too many lights...
-        if (!bl->shouldRender()) continue;
-        glBoxLight.colorDiffuse  = make_vec4(bl->getColorDiffuse(), bl->getIntensity());
-        glBoxLight.colorSpecular = make_vec4(bl->getColorSpecular(), 1.0f);  // specular Intensity?
-        glBoxLight.direction     = make_vec4(0);
-        glBoxLight.direction += bl->getModelMatrix().col(2);
-        bl->calculateCamera();
-        glBoxLight.lightMatrix = biasMatrix * bl->shadowCamera.proj * bl->shadowCamera.view;
-        ld.boxLights.push_back(glBoxLight);
-        li.boxLightCount++;
-    }
+
 
     // Directional Lights
     DirectionalLightData glDirectionalLight;
@@ -140,7 +124,6 @@ void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
 
 void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
 {
-
     maxDirectionalLights = std::max(0, maxDirectionalLights);
     maxPointLights       = std::max(0, maxPointLights);
     maxSpotLights        = std::max(0, maxSpotLights);

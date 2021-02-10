@@ -144,32 +144,7 @@ void UberDeferredLighting::initRender()
         li.spotLightCount++;
     }
 
-    // Box Lights
-    BoxLightData glBoxLight;
-    BoxLightClusterData clBoxLight;
-    const mat4 biasMatrix = make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
-    for (auto bl : boxLights)
-    {
-        if (li.boxLightCount >= maximumNumberOfBoxLights) break;  // just ignore too many lights...
-        if (!bl->shouldRender()) continue;
-        glBoxLight.colorDiffuse  = make_vec4(bl->getColorDiffuse(), bl->getIntensity());
-        glBoxLight.colorSpecular = make_vec4(bl->getColorSpecular(), 1.0f);  // specular Intensity?
-        glBoxLight.direction     = make_vec4(0);
-        glBoxLight.direction += bl->getModelMatrix().col(2);
-        bl->calculateCamera();
-        glBoxLight.lightMatrix = biasMatrix * bl->shadowCamera.proj * bl->shadowCamera.view;
-        ld.boxLights.push_back(glBoxLight);
 
-        if (lightClusterer)
-        {
-            clBoxLight.world_center = vec3(bl->position.x(), bl->position.y(), bl->position.z());
-            clBoxLight.radius =
-                std::max(bl->scale.x(), std::max(bl->scale.y(), bl->scale.z()));  // TODO Paul: Is that correct?
-            lightClusterer->addBoxLight(clBoxLight);
-        }
-
-        li.boxLightCount++;
-    }
 
     // Directional Lights
     DirectionalLightData glDirectionalLight;

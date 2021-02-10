@@ -4,7 +4,6 @@
  * See LICENSE file for more information.
  */
 
-#pragma once
 #include "saiga/opengl/rendering/lighting/light_clusterer.h"
 
 #include "saiga/core/imgui/imgui.h"

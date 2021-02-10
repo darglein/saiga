@@ -66,7 +66,6 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
 class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 {
    public:
-    using InterfaceType = RenderingInterface;
     using ParameterType = DeferredRenderingParameters;
 
     DeferredLighting lighting;

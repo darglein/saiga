@@ -73,7 +73,7 @@ struct GetWindowType<WindowManagement::EGL>
 
 
 template <WindowManagement WM, typename Renderer>
-class SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public Updating
+class SAIGA_TEMPLATE StandaloneWindow : public RenderingInterface, public Updating
 {
    public:
     using WindowManagment     = typename GetWindowType<WM>::Type;

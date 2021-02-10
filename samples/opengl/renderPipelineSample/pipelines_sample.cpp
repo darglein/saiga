@@ -27,7 +27,7 @@ class Sample : public RendererSampleWindow
     {
         ObjAssetLoader assetLoader;
         auto showAsset = assetLoader.loadDebugPlaneAsset(vec2(20, 20));
-        //auto showAsset = assetLoader.loadColoredAsset("show_model.obj");
+        // auto showAsset = assetLoader.loadColoredAsset("show_model.obj");
 
         show.asset = showAsset;
         show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
@@ -270,49 +270,6 @@ class Sample : public RendererSampleWindow
                 }
             }
 
-            count = renderer->lighting.boxLights.size();
-            if (ImGui::InputInt("Box Light Count (wanted)", &count))
-            {
-                if (count > maximumNumberOfRendererSupportedBoxLights)
-                    count = maximumNumberOfRendererSupportedBoxLights;
-                if (count > renderer->lighting.boxLights.size())
-                {
-                    count -= renderer->lighting.boxLights.size();
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        std::shared_ptr<BoxLight> light = std::make_shared<BoxLight>();
-                        light->setIntensity(1);
-
-                        light->setView(linearRand(vec3(-16, 0, -16), vec3(16, 1, 16)),
-                                       linearRand(vec3(-16, -2, -16), vec3(16, 0, 16)), vec3(0, 1, 0));
-
-                        light->setScale(linearRand(vec3(2, 2, 2), vec3(5, 5, 5)));
-
-                        light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-                        light->calculateModel();
-
-                        light->disableShadows();
-                        renderer->lighting.AddLight(light);
-                    }
-                }
-                else if (count < renderer->lighting.boxLights.size())
-                {
-                    count = renderer->lighting.boxLights.size() - count;
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        renderer->lighting.boxLights.erase(--renderer->lighting.boxLights.end());
-                    }
-                }
-            }
-            if (ImGui::Button("Normalize Box Lights"))
-            {
-                for (auto bl : renderer->lighting.boxLights)
-                {
-                    float maxSize   = bl->getScale().maxCoeff();
-                    float intensity = 1.0f / maxSize;
-                    bl->setIntensity(intensity);
-                }
-            }
 
             count = renderer->lighting.directionalLights.size();
             if (ImGui::InputInt("Directional Light Count (wanted)", &count))

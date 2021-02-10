@@ -30,7 +30,6 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     class Asset;
 
    public:
-    using InterfaceType = RenderingInterface;
     using ParameterType = ForwardRenderingParameters;
 
 
