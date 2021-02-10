@@ -165,10 +165,6 @@ class Sample : public SampleWindowDeferred
         {
             l->setActive(current_type == 1);
         }
-        for (auto l : box_lights)
-        {
-            l->setActive(current_type == 2);
-        }
         for (auto l : directional_lights)
         {
             l->setActive(current_type == 3);
@@ -209,7 +205,6 @@ class Sample : public SampleWindowDeferred
 
 
     int current_type = 0;
-    std::vector<std::shared_ptr<BoxLight>> box_lights;
     std::vector<std::shared_ptr<PointLight>> point_lights;
     std::vector<std::shared_ptr<SpotLight>> spot_lights;
     std::vector<std::shared_ptr<DirectionalLight>> directional_lights;

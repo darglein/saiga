@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "saiga/opengl/rendering/deferredRendering/lighting/box_light.h"
 #include "saiga/opengl/rendering/deferredRendering/lighting/directional_light.h"
 #include "saiga/opengl/rendering/deferredRendering/lighting/point_light.h"
 #include "saiga/opengl/rendering/deferredRendering/lighting/spot_light.h"

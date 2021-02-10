@@ -88,12 +88,10 @@ class SAIGA_OPENGL_API DeferredLighting
     void AddLight(std::shared_ptr<DirectionalLight> l) { directionalLights.insert(l); }
     void AddLight(std::shared_ptr<PointLight> l) { pointLights.insert(l); }
     void AddLight(std::shared_ptr<SpotLight> l) { spotLights.insert(l); }
-    void AddLight(std::shared_ptr<BoxLight> l) { boxLights.insert(l); }
 
     void removeLight(std::shared_ptr<DirectionalLight> l) { directionalLights.erase(l); }
     void removeLight(std::shared_ptr<PointLight> l) { pointLights.erase(l); }
     void removeLight(std::shared_ptr<SpotLight> l) { spotLights.erase(l); }
-    void removeLight(std::shared_ptr<BoxLight> l) { boxLights.erase(l); }
 
     void setShader(std::shared_ptr<SpotLightShader> spotLightShader,
                    std::shared_ptr<SpotLightShader> spotLightShadowShader);
@@ -101,8 +99,6 @@ class SAIGA_OPENGL_API DeferredLighting
                    std::shared_ptr<PointLightShader> pointLightShadowShader);
     void setShader(std::shared_ptr<DirectionalLightShader> directionalLightShader,
                    std::shared_ptr<DirectionalLightShader> directionalLightShadowShader);
-    void setShader(std::shared_ptr<BoxLightShader> boxLightShader,
-                   std::shared_ptr<BoxLightShader> boxLightShadowShader);
 
     void initRender();
     void render(Camera* cam, const ViewPort& viewPort);
@@ -145,10 +141,6 @@ class SAIGA_OPENGL_API DeferredLighting
     std::shared_ptr<SpotLightShader> spotLightShader, spotLightShadowShader, spotLightVolumetricShader;
     lightMesh_t spotLightMesh;
     std::set<std::shared_ptr<SpotLight> > spotLights;
-
-    std::shared_ptr<BoxLightShader> boxLightShader, boxLightShadowShader, boxLightVolumetricShader;
-    lightMesh_t boxLightMesh;
-    std::set<std::shared_ptr<BoxLight> > boxLights;
 
     std::shared_ptr<DirectionalLightShader> directionalLightShader, directionalLightShadowShader;
     lightMesh_t directionalLightMesh;

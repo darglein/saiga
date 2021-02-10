@@ -68,20 +68,6 @@ class Sample : public SampleWindowDeferred
         spotLight->enableShadows();
         spotLight->setVolumetric(true);
 
-        boxLight = std::make_shared<BoxLight>();
-        renderer->lighting.AddLight(boxLight);
-        boxLight->setIntensity(1.0);
-
-        //        boxLight->setPosition(vec3(0,2,10));
-        //        boxLight->rotateLocal(vec3(1,0,0),30);
-        boxLight->setView(vec3(0, 2, 10), vec3(0, 0, 13), vec3(0, 1, 0));
-        boxLight->setColorDiffuse(make_vec3(1));
-        boxLight->setScale(vec3(5, 5, 8));
-        boxLight->calculateModel();
-        boxLight->createShadowMap(512, 512, sq);
-        boxLight->enableShadows();
-        boxLight->setVolumetric(true);
-
 
         renderer->lighting.renderVolumetric = true;
 
@@ -106,7 +92,6 @@ class Sample : public SampleWindowDeferred
     SimpleAssetObject cube1, cube2;
     SimpleAssetObject sphere;
 
-    std::shared_ptr<BoxLight> boxLight;
     std::shared_ptr<PointLight> pointLight;
     std::shared_ptr<SpotLight> spotLight;
 };
