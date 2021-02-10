@@ -78,18 +78,23 @@ inline void setViewPort(const ViewPort& vp)
     glViewport(vp.position(0), vp.position(1), vp.size(0), vp.size(1));
 }
 
+inline void setScissor(const ViewPort& vp)
+{
+    glScissor(vp.position(0), vp.position(1), vp.size(0), vp.size(1));
+}
+
+
 inline ViewPort getViewPort()
 {
     GLint gl_vp[4];
-    glGetIntegerv( GL_VIEWPORT, gl_vp );
+    glGetIntegerv(GL_VIEWPORT, gl_vp);
 
     ViewPort result;
     result.position(0) = gl_vp[0];
     result.position(1) = gl_vp[1];
-    result.size(0) = gl_vp[2];
-    result.size(1) = gl_vp[3];
+    result.size(0)     = gl_vp[2];
+    result.size(1)     = gl_vp[3];
     return result;
-
 }
 
 }  // namespace Saiga

@@ -18,6 +18,9 @@ void ProceduralSkyboxBase::imgui()
     ImGui::SliderFloat("sunIntensity", &sunIntensity, 0, 2);
     ImGui::SliderFloat("sunSize", &sunSize, 0, 2);
     ImGui::Direction("sunDir", sunDir);
+    ImGui::ColorPicker3("sunColor", &sunColor(0));
+    ImGui::ColorPicker3("highSkyColor", &highSkyColor(0));
+    ImGui::ColorPicker3("lowSkyColor", &lowSkyColor(0));
 }
 
 }  // namespace Saiga

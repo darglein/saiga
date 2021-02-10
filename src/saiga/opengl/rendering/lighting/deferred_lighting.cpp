@@ -109,6 +109,11 @@ void DeferredLighting::cullLights(Camera* cam)
     visibleLights           = directionalLights.size();
     visibleVolumetricLights = 0;
 
+    for (auto& light : directionalLights)
+    {
+        light->fitShadowToCamera(cam);
+    }
+
     // cull lights that are not visible
     for (auto& light : spotLights)
     {

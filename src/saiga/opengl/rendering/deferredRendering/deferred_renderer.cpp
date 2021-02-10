@@ -99,10 +99,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
               << std::endl;
 }
 
-DeferredRenderer::~DeferredRenderer() {}
-
-
-
 void DeferredRenderer::resize(int windowWidth, int windowHeight)
 {
     if (windowWidth <= 0 || windowHeight <= 0)
@@ -159,20 +155,9 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
 
     startTimer(TOTAL);
 
-    // When GL_FRAMEBUFFER_SRGB is disabled, the system assumes that the color written by the fragment shader
-    // is in whatever colorspace the image it is being written to is. Therefore, no colorspace correction is performed.
-    // If GL_FRAMEBUFFER_SRGB is enabled however, then if the destination image is in the sRGB colorspace
-    // (as queried through glGetFramebufferAttachmentParameter(GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING)​),
-    // then it will assume the shader's output is in the linear RGB colorspace.
-    // It will therefore convert the output from linear RGB to sRGB.
-    //    if (params.srgbWrites)
-    //        glEnable(GL_FRAMEBUFFER_SRGB); //no reason to switch it off
 
+    params.maskUsedPixels = true;
 
-
-    clearGBuffer();
-
-    lighting.initRender();
     for (auto c : renderInfo.cameras)
     {
         auto camera = c.first;
@@ -180,16 +165,26 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         bindCamera(camera);
 
         setViewPort(c.second);
+
+        glEnable(GL_SCISSOR_TEST);
+        setScissor(c.second);
+        clearGBuffer();
+        lighting.initRender();
+        glDisable(GL_SCISSOR_TEST);
+
+
         renderGBuffer(c);
         renderSSAO(c);
 
         lighting.cullLights(camera);
+
         renderDepthMaps();
 
 
         bindCamera(camera);
         setViewPort(c.second);
         renderLighting(c);
+        renderingInterface->render(camera, RenderPass::Forward);
     }
     assert_no_glerror();
 
@@ -197,15 +192,15 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     //    return;
 
 
-
     if (params.writeDepthToOverlayBuffer)
     {
-        //        writeGbufferDepthToCurrentFramebuffer();
+        writeGbufferDepthToCurrentFramebuffer();
     }
     else
     {
         glClear(GL_DEPTH_BUFFER_BIT);
     }
+#if 0
 
     startTimer(OVERLAY);
 
@@ -214,9 +209,9 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         auto camera = c.first;
         bindCamera(camera);
         setViewPort(c.second);
-        renderingInterface->render(camera, RenderPass::Forward);
     }
     stopTimer(OVERLAY);
+#endif
 
     glViewport(0, 0, renderWidth, renderHeight);
 
@@ -302,7 +297,7 @@ void DeferredRenderer::clearGBuffer()
 {
     gbuffer.bind();
 
-    glViewport(0, 0, renderWidth, renderHeight);
+    // glViewport(0, 0, renderWidth, renderHeight);
 
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
 

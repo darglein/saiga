@@ -49,12 +49,6 @@ void RendererLighting::loadShaders()
         spotLightShader       = shaderLoader.load<SpotLightShader>(names.spotLightShader);
         spotLightShadowShader = shaderLoader.load<SpotLightShader>(names.spotLightShader, shadowInjection);
     }
-
-    if (!boxLightShader)
-    {
-        boxLightShader       = shaderLoader.load<BoxLightShader>(names.boxLightShader);
-        boxLightShadowShader = shaderLoader.load<BoxLightShader>(names.boxLightShader, shadowInjection);
-    }
 }
 
 void RendererLighting::init(int _width, int _height, bool _useTimers)

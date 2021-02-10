@@ -52,6 +52,9 @@ void main()
 uniform mat4 model;
 layout(location = 0) uniform vec4 params;
 layout(location = 1) uniform vec3 lightDir = vec3(0, -1, 0);
+layout(location = 2) uniform vec3 sunColor = vec3(1,1,1);
+layout(location = 3) uniform vec3 highSkyColor = vec3(43, 99, 192) / 255.0f;
+layout(location = 4) uniform vec3 lowSkyColor = vec3(97, 161, 248) / 255.0f;
 
 in vec2 texCoord;
 in vec4 pos;
@@ -64,13 +67,15 @@ layout(location = 0) out vec4 out_color;
 vec3 blueSkyAndSun(vec3 viewDir2, vec3 cameraPos2, vec3 lightDir, bool linearRGB, float sunIntensity, float sunSize,
                    float horizonHeight, float skyboxDistance)
 {
-    vec3 darkBlueSky = vec3(43, 99, 192) / 255.0f;
-    vec3 blueSky     = vec3(97, 161, 248) / 255.0f;
+    vec3 highSky = highSkyColor;
+    vec3 lowSky     = lowSkyColor;
+
+
 
     if (linearRGB)
     {
-        darkBlueSky = pow(darkBlueSky, vec3(2.2f));
-        blueSky     = pow(blueSky, vec3(2.2f));
+        highSky = pow(highSky, vec3(2.2f));
+        lowSky     = pow(lowSky, vec3(2.2f));
     }
 
     // direction of current viewing ray
@@ -87,10 +92,11 @@ vec3 blueSkyAndSun(vec3 viewDir2, vec3 cameraPos2, vec3 lightDir, bool linearRGB
     // exponential gradient
     float a = -exp(-h * 3) + 1;
 
-    vec3 col = mix(blueSky, darkBlueSky, a);
+    vec3 col = mix(lowSky, highSky, a);
 
     // fade out bottom border to black
     col = mix(col, vec3(0), smoothstep(0.0, -0.2, h));
+
     //    col = mix(col,vec3(0),step(0,-h));
 
     if (h < -10) return vec3(0);
@@ -124,10 +130,8 @@ vec3 blueSkyAndSun(vec3 viewDir2, vec3 cameraPos2, vec3 lightDir, bool linearRGB
     }
     sunperc = max(sunperc, 0);
 
-    vec3 suncolor = (1.0 - max(0.0, middayperc)) * vec3(1.5, 1.2, middayperc + 0.5) +
-                    max(0.0, middayperc) * vec3(1.0, 1.0, 1.0) * 2.0;
-    vec3 color = suncolor * sunperc;
-    return sunIntensity * (col * 1.0 + 0.8 * color);
+     vec3 color = ( (sunColor) * 1.4) * sunperc ;
+    return sunIntensity * (col *1.0 + 0.8 * color) ;
 }
 
 void main()
