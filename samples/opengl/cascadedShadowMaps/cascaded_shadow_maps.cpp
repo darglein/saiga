@@ -117,11 +117,11 @@ class Sample : public SampleWindowDeferred
             //=======
             if (ImGui::Checkbox("debugLightShader", &debugLightShader))
             {
-                RendererLightingShaderNames n;
-                if (debugLightShader)
-                {
-                    n.directionalLightShader = "lighting/light_cascaded.glsl";
-                }
+                //                DeferredLightingShaderNames n;
+                //                if (debugLightShader)
+                //                {
+                //                    n.directionalLightShader = "lighting/light_cascaded.glsl";
+                //                }
                 //            parentWindow.getRenderer()->lighting.loadShaders(n);
             }
             ImGui::Checkbox("fitShadowToCamera", &fitShadowToCamera);

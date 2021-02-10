@@ -1,17 +1,11 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2017 Darius Rückert 
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 
-#ifdef SINGLE_PASS_LIGHTING
-#include "uber_lighting_helpers.glsl"
-#else
 #include "camera.glsl"
-#include "light_models.glsl"
-#endif
-
 uniform mat4 model;
 
 uniform mat4 invProj;
@@ -34,6 +28,7 @@ uniform vec4 lightColorSpecular; //rgba, rgb=color, a=intensity [0,1]
 
 uniform vec4 shadowMapSize;  //vec4(w,h,1/w,1/h)
 
+#include "light_models.glsl"
 
 float random(vec4 seed4){
     float dot_product = dot(seed4, vec4(12.9898,78.233,45.164,94.673));
