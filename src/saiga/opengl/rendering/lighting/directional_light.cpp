@@ -382,8 +382,8 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
 
 void DirectionalLight::bindUniforms(DirectionalLightShader& shader, Camera* cam)
 {
-    shader.uploadColorDiffuse(colorDiffuse);
-    shader.uploadColorSpecular(colorSpecular);
+    shader.uploadColorDiffuse(colorDiffuse, intensity);
+    shader.uploadColorSpecular(colorSpecular, intensity_specular);
     shader.uploadAmbientIntensity(ambientIntensity);
 
     vec3 viewd = -normalize(make_vec3(cam->view * make_vec4(direction, 0)));

@@ -39,9 +39,9 @@ class Sample : public SampleWindowDeferred
         pointLight->setAttenuation(AttenuationPresets::Quadratic);
         pointLight->setIntensity(1);
         pointLight->setRadius(3);
-        pointLight->setPosition(vec3(0, 1.5, 0));
+        pointLight->position = (vec3(0, 1.5, 0));
         pointLight->setColorDiffuse(make_vec3(1));
-        pointLight->calculateModel();
+
         //        pointLight->createShadowMap(256,256,sq);
         pointLight->createShadowMap(1024, 1024, ShadowQuality::HIGH);
     }

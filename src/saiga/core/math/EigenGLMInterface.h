@@ -137,6 +137,8 @@ SAIGA_CORE_API extern quat make_quat(const mat4& m);
 SAIGA_CORE_API extern mat4 lookAt(const vec3& eye, const vec3& center, const vec3& up);
 SAIGA_CORE_API extern mat4 perspective(float fovy, float aspect, float zNear, float zFar);
 SAIGA_CORE_API extern mat4 ortho(float left, float right, float bottom, float top, float zNear, float zFar);
+
+SAIGA_CORE_API extern mat4 createTRSmatrix(const vec3& t, const quat& r, const vec3& s);
 SAIGA_CORE_API extern mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s);
 
 

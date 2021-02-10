@@ -31,16 +31,6 @@ PointLight::PointLight()
 }
 
 
-PointLight& PointLight::operator=(const PointLight& light)
-{
-    model         = light.model;
-    colorDiffuse  = light.colorDiffuse;
-    colorSpecular = light.colorSpecular;
-    attenuation   = light.attenuation;
-    cutoffRadius  = light.cutoffRadius;
-    return *this;
-}
-
 
 float PointLight::getRadius() const
 {
@@ -51,12 +41,21 @@ float PointLight::getRadius() const
 void PointLight::setRadius(float value)
 {
     cutoffRadius = value;
-    this->setScale(make_vec3(cutoffRadius));
+    // this->setScale(make_vec3(cutoffRadius));
+}
+
+mat4 PointLight::ModelMatrix()
+{
+    vec3 scale    = make_vec3(cutoffRadius);
+    vec3 position = (this->position);
+
+    return createTRSmatrix(position, quat::Identity(), scale);
 }
 
 void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* cam)
 {
     AttenuatedLight::bindUniforms(shader, cam);
+    shader->uploadModel(ModelMatrix());
     shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
     shader->uploadInvProj(inverse(cam->proj));
     if (this->castShadows)
@@ -102,7 +101,7 @@ void PointLight::bindFace(int face)
 
 void PointLight::calculateCamera(int face)
 {
-    vec3 pos(this->getPosition());
+    vec3 pos(position);
     vec3 dir(gCameraDirections[face].Target);
     vec3 up(gCameraDirections[face].Up);
     shadowCamera.setView(pos, pos + dir, up);
@@ -111,7 +110,7 @@ void PointLight::calculateCamera(int face)
 
 bool PointLight::cullLight(Camera* cam)
 {
-    Sphere s(getPosition(), cutoffRadius);
+    Sphere s(position, cutoffRadius);
     this->culled = cam->sphereInFrustum(s) == Camera::OUTSIDE;
     //    this->culled = false;
     //    std::cout<<culled<<endl;

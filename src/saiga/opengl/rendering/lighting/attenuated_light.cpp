@@ -24,17 +24,6 @@ void AttenuatedLightShader::uploadA(vec3& attenuation, float cutoffRadius)
     Shader::upload(location_attenuation, make_vec4(attenuation, cutoffRadius));
 }
 
-AttenuatedLight::AttenuatedLight() {}
-
-AttenuatedLight& AttenuatedLight::operator=(const AttenuatedLight& light)
-{
-    model         = light.model;
-    colorDiffuse  = light.colorDiffuse;
-    colorSpecular = light.colorSpecular;
-    attenuation   = light.attenuation;
-    cutoffRadius  = light.cutoffRadius;
-    return *this;
-}
 
 float AttenuatedLight::evaluateAttenuation(float distance)
 {
@@ -70,15 +59,15 @@ float AttenuatedLight::getRadius() const
 void AttenuatedLight::setRadius(float value)
 {
     cutoffRadius = value;
-    this->setScale(make_vec3(cutoffRadius));
+    // this->setScale(make_vec3(cutoffRadius));
 }
 
 void AttenuatedLight::bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera* cam)
 {
     if (volumetric) shader->uploadVolumetricDensity(volumetricDensity);
-    shader->uploadColorDiffuse(colorDiffuse);
-    shader->uploadColorSpecular(colorSpecular);
-    shader->uploadModel(model);
+    shader->uploadColorDiffuse(colorDiffuse, intensity);
+    shader->uploadColorSpecular(colorSpecular, intensity_specular);
+    // shader->uploadModel(model);
     shader->uploadA(attenuation, cutoffRadius);
     assert_no_glerror();
 }
@@ -91,7 +80,7 @@ void AttenuatedLight::renderImGui()
     float c = evaluateAttenuation(cutoffRadius);
     ImGui::Text("Cutoff Intensity: %f", c);
     bool changed = ImGui::InputFloat("cutoffRadius", &cutoffRadius);
-    if (changed) this->setScale(make_vec3(cutoffRadius));
+    //    if (changed) this->setScale(make_vec3(cutoffRadius));
 }
 
 

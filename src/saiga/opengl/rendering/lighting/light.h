@@ -29,10 +29,7 @@ class SAIGA_OPENGL_API LightShader : public DeferredShader
 
     void uploadVolumetricDensity(float density);
 
-    void uploadColorDiffuse(vec4& color);
     void uploadColorDiffuse(vec3& color, float intensity);
-
-    void uploadColorSpecular(vec4& color);
     void uploadColorSpecular(vec3& color, float intensity);
 
     void uploadDepthBiasMV(const mat4& mat);
@@ -72,13 +69,16 @@ static const vec3 ClearBlueSky   = Color::srgb2linearrgb(Color(64, 156, 255));
 
 using DepthFunction = std::function<void(Camera*)>;
 
-class SAIGA_OPENGL_API Light : public Object3D
+class SAIGA_OPENGL_API Light
 {
    public:
     // [R,G,B,Intensity]
-    vec4 colorDiffuse = make_vec4(1);
+    vec3 colorDiffuse = make_vec3(1);
+    float intensity   = 1;
+
     // [R,G,B,Intensity]
-    vec4 colorSpecular = make_vec4(1);
+    vec3 colorSpecular       = make_vec3(1);
+    float intensity_specular = 1;
     // density of the participating media
     float volumetricDensity = 0.04f;
 
@@ -92,38 +92,20 @@ class SAIGA_OPENGL_API Light : public Object3D
         setColorDiffuse(color);
         setIntensity(intensity);
     }
-    Light(const vec4& color) { setColorDiffuse(color); }
     ~Light() {}
 
-    void setColorDiffuse(const vec3& color) { this->colorDiffuse = make_vec4(color, this->colorDiffuse[3]); }
-    void setColorDiffuse(const vec4& color) { this->colorDiffuse = color; }
-    void setColorSpecular(const vec3& color) { this->colorSpecular = make_vec4(color, this->colorSpecular[3]); }
-    void setColorSpecular(const vec4& color) { this->colorSpecular = color; }
-    void setIntensity(float f) { this->colorDiffuse[3] = f; }
-    void addIntensity(float f) { this->colorDiffuse[3] += f; }
+    void setColorDiffuse(const vec3& color) { this->colorDiffuse = color; }
+    void setColorSpecular(const vec3& color) { this->colorSpecular = color; }
+    void setIntensity(float f) { intensity = f; }
 
-    vec3 getColorSpecular() const { return make_vec3(colorSpecular); }
-    vec3 getColorDiffuse() const { return make_vec3(colorDiffuse); }
-    float getIntensity() const { return colorDiffuse[3]; }
+    vec3 getColorSpecular() const { return colorSpecular; }
+    vec3 getColorDiffuse() const { return colorDiffuse; }
+    float getIntensity() const { return intensity; }
 
-    //    void setActive(bool _active) { this->active = _active; }
-    //    bool isActive() const { return active; }
-    //    void setVisible(bool _visible) { this->visible = _visible; }
-    //    bool isVisible() const { return visible; }
-    //    void setSelected(bool _selected) { this->selected = _selected; }
-    //    bool isSelected() const { return selected; }
-    //    void setVolumetric(bool _volumetric) { this->volumetric = _volumetric; }
-    //    bool isVolumetric() const { return volumetric; }
-
-    //    bool castShadows const { return castShadows; }
-    //    void enableShadows() { castShadows = true; }
-    //    void disableShadows() { castShadows = false; }
-    //    void setCastShadows(bool s) { castShadows = s; }
 
     bool shouldCalculateShadowMap() { return castShadows && active && !culled; }
     bool shouldRender() { return active && !culled; }
 
-    void bindUniformsStencil(MVPShader& shader);
 
     /**
      * computes the transformation matrix from view space of "camera" to

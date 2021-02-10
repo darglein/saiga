@@ -190,7 +190,7 @@ class Sample : public RendererSampleWindow
                         light->setPosition(vec3(0, 0.1f, 0));
 
                         light->setColorDiffuse(vec3(1, 1, 1));
-                        light->calculateModel();
+
 
                         light->castShadows = false;
                         renderer->lighting.AddLight(light);
@@ -235,7 +235,7 @@ class Sample : public RendererSampleWindow
                         light->setAngle(linearRand(35, 65));
 
                         light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-                        light->calculateModel();
+
 
                         light->castShadows = false;
                         renderer->lighting.AddLight(light);

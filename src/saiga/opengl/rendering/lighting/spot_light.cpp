@@ -36,9 +36,13 @@ SpotLight::SpotLight()
 
 void SpotLight::calculateCamera()
 {
-    vec3 dir = make_vec3(this->getUpVector());
+    mat4 M   = ModelMatrix();
     vec3 pos = vec3(getPosition());
-    vec3 up  = make_vec3(getRightVector());
+
+
+    vec3 dir = make_vec3(M.col(1));
+    vec3 up  = make_vec3(M.col(0));
+
     shadowCamera.setView(pos, pos - dir, up);
     shadowCamera.setProj(2 * angle, 1, shadowNearPlane, cutoffRadius);
 }
@@ -48,6 +52,7 @@ void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* ca
     AttenuatedLight::bindUniforms(shader, cam);
     float cosa = cos(radians(angle * 0.95f));  // make border smoother
     shader->uploadAngle(cosa);
+    shader->uploadModel(ModelMatrix());
     shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
     shader->uploadInvProj(inverse(cam->proj));
     if (this->castShadows)
@@ -62,9 +67,9 @@ void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* ca
 
 void SpotLight::recalculateScale()
 {
-    float l = tan(radians(angle)) * cutoffRadius;
-    vec3 scale(l, cutoffRadius, l);
-    this->setScale(scale);
+    //    float l = tan(radians(angle)) * cutoffRadius;
+    //    vec3 scale(l, cutoffRadius, l);
+    //    this->setScale(scale);
 }
 
 void SpotLight::setRadius(float value)
@@ -81,6 +86,14 @@ void SpotLight::createShadowMap(int w, int h, ShadowQuality quality)
     //    shadowmap->createFlat(w,h);
 }
 
+mat4 SpotLight::ModelMatrix()
+{
+    float l = tan(radians(angle)) * cutoffRadius;
+    vec3 scale(l, cutoffRadius, l);
+    quat rot = rotation(normalize(direction), vec3(0, -1, 0));
+    return createTRSmatrix((position), rot, scale);
+}
+
 void SpotLight::setAngle(float value)
 {
     this->angle = value;
@@ -89,7 +102,8 @@ void SpotLight::setAngle(float value)
 
 void SpotLight::setDirection(vec3 dir)
 {
-    rot = rotation(normalize(dir), vec3(0, -1, 0));
+    direction = dir;
+    //    rot       = rotation(normalize(dir), vec3(0, -1, 0));
 }
 
 bool SpotLight::cullLight(Camera* cam)
@@ -126,8 +140,8 @@ void SpotLight::renderImGui()
     AttenuatedLight::renderImGui();
     if (ImGui::SliderFloat("Angle", &angle, 0, 85))
     {
-        recalculateScale();
-        calculateModel();
+        //        recalculateScale();
+        //        calculateModel();
     }
     ImGui::InputFloat("shadowNearPlane", &shadowNearPlane);
 }

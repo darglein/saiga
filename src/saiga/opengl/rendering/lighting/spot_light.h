@@ -33,6 +33,10 @@ class SAIGA_OPENGL_API SpotLight : public AttenuatedLight
    public:
     float shadowNearPlane = 0.1f;
     PerspectiveCamera shadowCamera;
+    vec3 direction;
+    vec3 position;
+    vec3 getPosition() { return position; }
+    void setPosition(const vec3& p) { position = p; }
 
     /**
      * The default direction of the mesh is negative y
@@ -46,6 +50,9 @@ class SAIGA_OPENGL_API SpotLight : public AttenuatedLight
     void setRadius(float value) override;
 
     void createShadowMap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
+
+
+    mat4 ModelMatrix();
 
     void recalculateScale();
     void setAngle(float value);

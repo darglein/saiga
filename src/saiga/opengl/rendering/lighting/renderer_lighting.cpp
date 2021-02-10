@@ -197,8 +197,8 @@ void RendererLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : pointLights)
     {
-        mat4 sm    = obj->model * scale(make_vec3(0.01));
-        vec4 color = obj->colorDiffuse;
+        mat4 sm    = obj->ModelMatrix() * scale(make_vec3(0.01));
+        vec4 color = make_vec4(obj->colorDiffuse, 1);
         if (!obj->active || !obj->visible)
         {
             continue;
@@ -212,12 +212,13 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : pointLights)
     {
+        vec4 color = make_vec4(obj->colorDiffuse, 1);
         if (!obj->active || !obj->visible)
         {
             continue;
         }
-        debugShader->uploadModel(obj->getModelMatrix());
-        debugShader->uploadColor(obj->colorDiffuse);
+        debugShader->uploadModel(obj->ModelMatrix());
+        debugShader->uploadColor(color);
         pointLightMesh.draw();
         //        }
     }
@@ -231,8 +232,8 @@ void RendererLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : spotLights)
     {
-        mat4 sm    = obj->model * scale(make_vec3(0.01));
-        vec4 color = obj->colorDiffuse;
+        vec4 color = make_vec4(obj->colorDiffuse, 1);
+        mat4 sm    = obj->ModelMatrix() * scale(make_vec3(0.01));
         if (!obj->active || !obj->visible)
         {
             continue;
@@ -246,12 +247,13 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : spotLights)
     {
+        vec4 color = make_vec4(obj->colorDiffuse, 1);
         if (!obj->active || !obj->visible)
         {
             continue;
         }
-        debugShader->uploadModel(obj->model);
-        debugShader->uploadColor(obj->colorDiffuse);
+        debugShader->uploadModel(obj->ModelMatrix());
+        debugShader->uploadColor(color);
         spotLightMesh.draw();
     }
     spotLightMesh.unbind();

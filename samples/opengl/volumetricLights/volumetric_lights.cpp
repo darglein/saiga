@@ -50,7 +50,7 @@ class Sample : public SampleWindowDeferred
         pointLight->setRadius(10);
         pointLight->setPosition(vec3(9, 3, 0));
         pointLight->setColorDiffuse(make_vec3(1));
-        pointLight->calculateModel();
+
         //        pointLight->createShadowMap(256,256,sq);
         pointLight->createShadowMap(512, 512, sq);
 
@@ -63,7 +63,6 @@ class Sample : public SampleWindowDeferred
         spotLight->setRadius(8);
         spotLight->setPosition(vec3(-10, 5, 0));
         spotLight->setColorDiffuse(make_vec3(1));
-        spotLight->calculateModel();
         spotLight->createShadowMap(512, 512, sq);
         spotLight->volumetric = true;
 

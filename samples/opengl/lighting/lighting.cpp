@@ -80,10 +80,10 @@ class Sample : public SampleWindowDeferred
 
             light->setRadius(linearRand(5, 30));
 
-            light->setPosition(linearRand(vec3(-s, 1, -s), vec3(s, 5, s)));
+            light->position = (linearRand(vec3(-s, 1, -s), vec3(s, 5, s)));
 
             light->setColorDiffuse(make_vec3(1));
-            light->calculateModel();
+
 
             light->createShadowMap(512, 512, sq);
             light->castShadows = true;
@@ -102,13 +102,12 @@ class Sample : public SampleWindowDeferred
             light->setIntensity(2);
             light->setRadius(linearRand(8, 15));
 
-            light->setPosition(linearRand(vec3(-s, 3, -s), vec3(s, 8, s)));
+            light->position = (linearRand(vec3(-s, 3, -s), vec3(s, 8, s)));
 
             light->setAngle(linearRand(40, 85));
             // light->setDirection(vec3(0, -5, 0) + linearRand(make_vec3(-2), make_vec3(2)));
 
             light->setColorDiffuse(make_vec3(1));
-            light->calculateModel();
 
             light->createShadowMap(512, 512, sq);
             light->castShadows = true;

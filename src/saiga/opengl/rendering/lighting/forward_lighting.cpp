@@ -52,7 +52,7 @@ void ForwardLighting::initRender()
     {
         if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
         if (!pl->shouldRender()) continue;
-        glPointLight.position      = make_vec4(pl->getPosition(), 0.0f);
+        //        glPointLight.position      = make_vec4(pl->getPosition(), 0.0f);
         glPointLight.colorDiffuse  = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
         glPointLight.colorSpecular = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
         glPointLight.attenuation   = make_vec4(pl->getAttenuation(), pl->getRadius());
@@ -72,7 +72,7 @@ void ForwardLighting::initRender()
         glSpotLight.colorSpecular = make_vec4(sl->getColorSpecular(), 1.0f);  // specular Intensity?
         glSpotLight.attenuation   = make_vec4(sl->getAttenuation(), sl->getRadius());
         glSpotLight.direction     = make_vec4(0);
-        glSpotLight.direction += sl->getModelMatrix().col(1);
+        glSpotLight.direction += sl->ModelMatrix().col(1);
         ld.spotLights.push_back(glSpotLight);
         li.spotLightCount++;
     }
@@ -85,7 +85,7 @@ void ForwardLighting::initRender()
     {
         if (li.directionalLightCount >= maximumNumberOfDirectionalLights) break;  // just ignore too many lights...
         if (!dl->shouldRender()) continue;
-        glDirectionalLight.position      = make_vec4(dl->getPosition(), 0.0f);
+        // glDirectionalLight.position      = make_vec4(dl->getPosition(), 0.0f);
         glDirectionalLight.colorDiffuse  = make_vec4(dl->getColorDiffuse(), dl->getIntensity());
         glDirectionalLight.colorSpecular = make_vec4(dl->getColorSpecular(), 1.0f);  // specular Intensity?
         glDirectionalLight.direction     = make_vec4(dl->getDirection(), 0.0f);

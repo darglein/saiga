@@ -30,10 +30,6 @@ void LightShader::uploadVolumetricDensity(float density)
 }
 
 
-void LightShader::uploadColorDiffuse(vec4& color)
-{
-    Shader::upload(location_lightColorDiffuse, color);
-}
 
 void LightShader::uploadColorDiffuse(vec3& color, float intensity)
 {
@@ -41,10 +37,6 @@ void LightShader::uploadColorDiffuse(vec3& color, float intensity)
     Shader::upload(location_lightColorDiffuse, c);
 }
 
-void LightShader::uploadColorSpecular(vec4& color)
-{
-    Shader::upload(location_lightColorSpecular, color);
-}
 
 void LightShader::uploadColorSpecular(vec3& color, float intensity)
 {
@@ -88,11 +80,6 @@ void LightShader::uploadShadowMapSize(ivec2 s)
 
 //}
 
-
-void Light::bindUniformsStencil(MVPShader& shader)
-{
-    shader.uploadModel(model);
-}
 
 mat4 Light::viewToLightTransform(const Camera& camera, const Camera& shadowCamera)
 {

@@ -31,14 +31,17 @@ class SAIGA_OPENGL_API PointLight : public AttenuatedLight
     std::shared_ptr<CubeShadowmap> shadowmap;
 
    public:
+    vec3 position;
+
+    void setPosition(const vec3& p) { position = p; }
+    vec3 getPosition() { return position; }
     float shadowNearPlane = 0.1f;
     PerspectiveCamera shadowCamera;
 
 
     PointLight();
     virtual ~PointLight() {}
-
-    PointLight& operator=(const PointLight& light);
+    PointLight& operator=(const PointLight& light) = delete;
 
 
 
@@ -47,6 +50,8 @@ class SAIGA_OPENGL_API PointLight : public AttenuatedLight
 
     float getRadius() const;
     virtual void setRadius(float value);
+
+    mat4 ModelMatrix();
 
 
     void createShadowMap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
