@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2020 Paul Himmler
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -21,35 +21,91 @@ namespace Saiga
 class PointLightShader;
 class SpotLightShader;
 class DirectionalLightShader;
-class BoxLightShader;
 class LightAccumulationShader;
 
 class SpotLight;
 class PointLight;
 class DirectionalLight;
-class BoxLight;
 
-
-struct DeferredLightingShaderNames
+struct RendererLightingShaderNames
 {
     std::string pointLightShader       = "lighting/light_point.glsl";
     std::string spotLightShader        = "lighting/light_spot.glsl";
     std::string directionalLightShader = "lighting/light_directional.glsl";
-    std::string boxLightShader         = "lighting/light_box.glsl";
     std::string debugShader            = "lighting/debugmesh.glsl";
     std::string stencilShader          = "lighting/stenciltest.glsl";
+    std::string lightingUberShader     = "lighting/lighting_uber.glsl";
 };
 
+namespace uber
+{
+struct PointLightData
+{
+    vec4 position;       // xyz, w unused
+    vec4 colorDiffuse;   // rgb intensity
+    vec4 colorSpecular;  // rgb specular intensity
+    vec4 attenuation;    // xyz radius
+};
 
-class SAIGA_OPENGL_API DeferredLighting
+struct SpotLightData
+{
+    vec4 position;       // xyz, w angle
+    vec4 colorDiffuse;   // rgb intensity
+    vec4 colorSpecular;  // rgb specular intensity
+    vec4 attenuation;    // xyz radius
+    vec4 direction;      // xyzw
+};
+
+struct BoxLightData
+{
+    vec4 colorDiffuse;   // rgb intensity
+    vec4 colorSpecular;  // rgb specular intensity
+    vec4 direction;      // xyz, w ambient intensity
+    mat4 lightMatrix;
+};
+
+struct DirectionalLightData
+{
+    vec4 position;       // xyz, w unused
+    vec4 colorDiffuse;   // rgb intensity
+    vec4 colorSpecular;  // rgb specular intensity
+    vec4 direction;      // xyz, w unused
+};
+
+struct LightData
+{
+    std::vector<PointLightData> pointLights;
+    std::vector<SpotLightData> spotLights;
+    std::vector<BoxLightData> boxLights;
+    std::vector<DirectionalLightData> directionalLights;
+};
+
+struct LightInfo
+{
+    int pointLightCount;
+    int spotLightCount;
+    int boxLightCount;
+    int directionalLightCount;
+};
+}  // namespace uber
+
+#define POINT_LIGHT_DATA_BINDING_POINT 2
+#define SPOT_LIGHT_DATA_BINDING_POINT 3
+#define BOX_LIGHT_DATA_BINDING_POINT 4
+#define DIRECTIONAL_LIGHT_DATA_BINDING_POINT 5
+#define LIGHT_INFO_BINDING_POINT 6
+
+#define LIGHT_CLUSTER_INFO_BINDING_POINT 7
+#define LIGHT_CLUSTER_LIST_BINDING_POINT 8
+#define LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT 9
+
+class SAIGA_OPENGL_API RendererLighting
 {
    public:
     vec4 clearColor = make_vec4(0);
     int totalLights;
     int visibleLights;
-    int visibleVolumetricLights;
     int renderedDepthmaps;
-    int currentStencilId = 0;
 
     int shadowSamples = 16;  // Quadratic number (1,4,9,16,...)
 
@@ -60,30 +116,18 @@ class SAIGA_OPENGL_API DeferredLighting
     bool backFaceShadows     = false;
     float shadowOffsetFactor = 2;
     float shadowOffsetUnits  = 10;
-    bool renderVolumetric    = false;
 
-    std::shared_ptr<Texture> ssaoTexture;
+    RendererLighting();
+    RendererLighting& operator=(RendererLighting& l) = delete;
+    ~RendererLighting();
 
-    std::shared_ptr<Texture> lightAccumulationTexture;
-    std::shared_ptr<Texture> volumetricLightTexture, volumetricLightTexture2;
-    Framebuffer lightAccumulationBuffer, volumetricBuffer;
+    virtual void init(int width, int height, bool _useTimers);
+    virtual void resize(int width, int height);
 
-    DeferredLighting(GBuffer& gbuffer);
-    DeferredLighting& operator=(DeferredLighting& l) = delete;
-    ~DeferredLighting();
-
-    void init(int width, int height, bool _useTimers);
-    void resize(int width, int height);
-
-    void loadShaders();
-
-    void setRenderDebug(bool b) { drawDebug = b; }
+    virtual void loadShaders();
     void createLightMeshes();
 
-    //    std::shared_ptr<DirectionalLight> createDirectionalLight();
-    //    std::shared_ptr<PointLight> createPointLight();
-    //    std::shared_ptr<SpotLight> createSpotLight();
-    //    std::shared_ptr<BoxLight> createBoxLight();
+    void setRenderDebug(bool b) { drawDebug = b; }
 
     void AddLight(std::shared_ptr<DirectionalLight> l) { directionalLights.insert(l); }
     void AddLight(std::shared_ptr<PointLight> l) { pointLights.insert(l); }
@@ -100,45 +144,34 @@ class SAIGA_OPENGL_API DeferredLighting
     void setShader(std::shared_ptr<DirectionalLightShader> directionalLightShader,
                    std::shared_ptr<DirectionalLightShader> directionalLightShadowShader);
 
-    void initRender();
-    void render(Camera* cam, const ViewPort& viewPort);
-    void postprocessVolumetric();
-    void renderDepthMaps(RenderingInterface* renderer);
-    void renderDebug(Camera* cam);
-
-
+    virtual void initRender();
+    virtual void render(Camera* cam, const ViewPort& viewPort);
+    virtual void renderDepthMaps(RenderingInterface* renderer);
+    virtual void renderDebug(Camera* cam);
 
     void setDebugShader(std::shared_ptr<MVPColorShader> shader);
-    void setStencilShader(std::shared_ptr<MVPShader> stencilShader);
 
-    // add the volumetric light texture that was previously rendered to the scene
-    void applyVolumetricLightBuffer();
-
-
-    void cullLights(Camera* cam);
+    virtual void cullLights(Camera* cam);
 
     void printTimings();
-    void renderImGui(bool* p_open = NULL);
+    virtual void renderImGui(bool* p_open = NULL);
+
+    virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights);
 
 
    public:
     int width, height;
     std::shared_ptr<MVPColorShader> debugShader;
-    std::shared_ptr<MVPTextureShader> textureShader;
-    std::shared_ptr<MVPTextureShader> volumetricBlurShader;
-    std::shared_ptr<Shader> volumetricBlurShader2;
     UniformBuffer shadowCameraBuffer;
 
     // the vertex position is sufficient. no normals and texture coordinates needed.
     typedef IndexedVertexBuffer<Vertex, GLushort> lightMesh_t;
 
-
-
-    std::shared_ptr<PointLightShader> pointLightShader, pointLightShadowShader, pointLightVolumetricShader;
+    std::shared_ptr<PointLightShader> pointLightShader, pointLightShadowShader;
     lightMesh_t pointLightMesh;
     std::set<std::shared_ptr<PointLight> > pointLights;
 
-    std::shared_ptr<SpotLightShader> spotLightShader, spotLightShadowShader, spotLightVolumetricShader;
+    std::shared_ptr<SpotLightShader> spotLightShader, spotLightShadowShader;
     lightMesh_t spotLightMesh;
     std::set<std::shared_ptr<SpotLight> > spotLights;
 
@@ -146,16 +179,9 @@ class SAIGA_OPENGL_API DeferredLighting
     lightMesh_t directionalLightMesh;
     std::set<std::shared_ptr<DirectionalLight> > directionalLights;
 
-    ShaderPart::ShaderCodeInjections volumetricInjection;
     ShaderPart::ShaderCodeInjections shadowInjection;
 
-    std::shared_ptr<MVPShader> stencilShader;
-    GBuffer& gbuffer;
-
-
     bool lightDepthTest = true;
-    bool stencilCulling = true;
-
 
     std::vector<FilteredMultiFrameOpenGLTimer> timers2;
     std::vector<std::string> timerStrings;
@@ -173,44 +199,10 @@ class SAIGA_OPENGL_API DeferredLighting
         return timers2[timer].getTimeMS();
     }
 
-    void blitGbufferDepthToAccumulationBuffer();
-    void setupStencilPass();
-    void setupLightPass(bool isVolumetric);
-
-    template <typename T, typename shader_t>
-    void renderLightVolume(lightMesh_t& mesh, T obj, Camera* cam, const ViewPort& vp, shader_t shader,
-                           shader_t shaderShadow, shader_t shaderVolumetric);
-
-
-    void renderDirectionalLights(Camera* cam, const ViewPort& vp, bool shadow);
+   protected:
+    int maximumNumberOfDirectionalLights = 256;
+    int maximumNumberOfPointLights       = 256;
+    int maximumNumberOfSpotLights        = 256;
+    int maximumNumberOfBoxLights         = 256;
 };
-
-
-template <typename T, typename shader_t>
-inline void DeferredLighting::renderLightVolume(lightMesh_t& mesh, T obj, Camera* cam, const ViewPort& vp,
-                                                shader_t shaderNormal, shader_t shaderShadow, shader_t shaderVolumetric)
-{
-    if (!obj->shouldRender()) return;
-
-    if (stencilCulling)
-    {
-        setupStencilPass();
-        stencilShader->bind();
-
-        obj->bindUniformsStencil(*stencilShader);
-        mesh.bindAndDraw();
-        stencilShader->unbind();
-    }
-
-    setupLightPass(obj->isVolumetric());
-    shader_t shader = (obj->hasShadows() ? (obj->isVolumetric() ? shaderVolumetric : shaderShadow) : shaderNormal);
-    shader->bind();
-    shader->DeferredShader::uploadFramebuffer(&gbuffer);
-    shader->uploadScreenSize(vp.getVec4());
-
-    obj->bindUniforms(shader, cam);
-    mesh.bindAndDraw();
-    shader->unbind();
-}
-
 }  // namespace Saiga

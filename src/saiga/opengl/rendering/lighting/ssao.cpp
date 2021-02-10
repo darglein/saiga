@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/rendering/deferredRendering/lighting/ssao.h"
+#include "saiga/opengl/rendering/lighting/ssao.h"
 
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/image/imageGenerator.h"

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/opengl/rendering/deferredRendering/lighting/attenuated_light.h"
+#include "saiga/opengl/rendering/lighting/attenuated_light.h"
 
 namespace Saiga
 {

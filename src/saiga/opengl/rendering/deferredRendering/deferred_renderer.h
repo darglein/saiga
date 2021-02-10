@@ -8,9 +8,9 @@
 
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
-#include "saiga/opengl/rendering/deferredRendering/lighting/deferred_lighting.h"
-#include "saiga/opengl/rendering/deferredRendering/lighting/ssao.h"
 #include "saiga/opengl/rendering/deferredRendering/postProcessor.h"
+#include "saiga/opengl/rendering/lighting/deferred_lighting.h"
+#include "saiga/opengl/rendering/lighting/ssao.h"
 #include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/smaa/SMAA.h"
