@@ -6,22 +6,11 @@
 
 #pragma once
 
+#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/lighting/point_light.h"
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API SpotLightShader : public AttenuatedLightShader
-{
-   public:
-    GLint location_angle;
-    GLint location_shadowPlanes;
-    virtual void checkUniforms();
-    void uploadAngle(float angle);
-    void uploadShadowPlanes(float f, float n);
-};
-
-
-
 class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenuation
 {
     friend class DeferredLighting;

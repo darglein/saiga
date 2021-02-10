@@ -11,20 +11,6 @@
 
 namespace Saiga
 {
-void PointLightShader::checkUniforms()
-{
-    AttenuatedLightShader::checkUniforms();
-    location_shadowPlanes = getUniformLocation("shadowPlanes");
-}
-
-
-
-void PointLightShader::uploadShadowPlanes(float f, float n)
-{
-    Shader::upload(location_shadowPlanes, vec2(f, n));
-}
-
-
 PointLight::PointLight()
 {
     polygon_offset = vec2(2.0, 100.0);

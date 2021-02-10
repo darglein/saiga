@@ -11,67 +11,6 @@
 
 namespace Saiga
 {
-void LightShader::checkUniforms()
-{
-    DeferredShader::checkUniforms();
-    location_lightColorDiffuse  = getUniformLocation("lightColorDiffuse");
-    location_lightColorSpecular = getUniformLocation("lightColorSpecular");
-    location_depthBiasMV        = getUniformLocation("depthBiasMV");
-    location_depthTex           = getUniformLocation("depthTex");
-    location_readShadowMap      = getUniformLocation("readShadowMap");
-    location_shadowMapSize      = getUniformLocation("shadowMapSize");
-    location_invProj            = getUniformLocation("invProj");
-    location_volumetricDensity  = getUniformLocation("volumetricDensity");
-}
-
-void LightShader::uploadVolumetricDensity(float density)
-{
-    Shader::upload(location_volumetricDensity, density);
-}
-
-
-
-void LightShader::uploadColorDiffuse(vec3& color, float intensity)
-{
-    vec4 c = make_vec4(color, intensity);
-    Shader::upload(location_lightColorDiffuse, c);
-}
-
-
-void LightShader::uploadColorSpecular(vec3& color, float intensity)
-{
-    vec4 c = make_vec4(color, intensity);
-    Shader::upload(location_lightColorSpecular, c);
-}
-
-void LightShader::uploadDepthBiasMV(const mat4& mat)
-{
-    Shader::upload(location_depthBiasMV, mat);
-}
-
-void LightShader::uploadInvProj(const mat4& mat)
-{
-    Shader::upload(location_invProj, mat);
-}
-
-void LightShader::uploadDepthTexture(std::shared_ptr<TextureBase> texture)
-{
-    texture->bind(5);
-    Shader::upload(location_depthTex, 5);
-}
-
-void LightShader::uploadShadow(float shadow)
-{
-    Shader::upload(location_readShadowMap, shadow);
-}
-
-void LightShader::uploadShadowMapSize(ivec2 s)
-{
-    auto w = s[0];
-    auto h = s[1];
-    Shader::upload(location_shadowMapSize, vec4(w, h, 1.0f / w, 1.0f / h));
-}
-
 // void Light::createShadowMap(int resX, int resY){
 
 ////    std::cout<<"Light::createShadowMap"<<endl;

@@ -5,24 +5,12 @@
  */
 
 #pragma once
-
 #include "saiga/core/camera/camera.h"
 #include "saiga/opengl/rendering/lighting/attenuated_light.h"
+#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API PointLightShader : public AttenuatedLightShader
-{
-   public:
-    GLint location_shadowPlanes;
-
-    virtual void checkUniforms();
-
-    void uploadShadowPlanes(float f, float n);
-};
-
-
-
 class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenuation
 {
     friend class DeferredLighting;

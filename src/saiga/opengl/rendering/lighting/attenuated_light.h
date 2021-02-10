@@ -11,15 +11,6 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API AttenuatedLightShader : public LightShader
-{
-   public:
-    GLint location_attenuation;
-
-    virtual void checkUniforms();
-    virtual void uploadA(vec3& attenuation, float cutoffRadius);
-};
-
 namespace AttenuationPresets
 {
 static const vec3 NONE = vec3(1, 0, 0);  // Cutoff = 1

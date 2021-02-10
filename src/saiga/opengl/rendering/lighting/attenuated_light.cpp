@@ -14,19 +14,6 @@
 
 namespace Saiga
 {
-void AttenuatedLightShader::checkUniforms()
-{
-    LightShader::checkUniforms();
-    location_attenuation = getUniformLocation("attenuation");
-}
-
-
-void AttenuatedLightShader::uploadA(vec3& attenuation, float cutoffRadius)
-{
-    Shader::upload(location_attenuation, make_vec4(attenuation, cutoffRadius));
-}
-
-
 void LightDistanceAttenuation::renderImGui()
 {
     ImGui::InputFloat3("attenuation", &attenuation[0]);

@@ -16,30 +16,6 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API LightShader : public DeferredShader
-{
-   public:
-    GLint location_lightColorDiffuse, location_lightColorSpecular;  // rgba, rgb=color, a=intensity [0,1]
-    GLint location_depthBiasMV, location_depthTex, location_readShadowMap;
-    GLint location_shadowMapSize;  // vec4(w,h,1/w,1/h)
-    GLint location_invProj;        // required to compute the viewspace position from the gbuffer
-    GLint location_volumetricDensity;
-
-    virtual void checkUniforms();
-
-    void uploadVolumetricDensity(float density);
-
-    void uploadColorDiffuse(vec3& color, float intensity);
-    void uploadColorSpecular(vec3& color, float intensity);
-
-    void uploadDepthBiasMV(const mat4& mat);
-    void uploadDepthTexture(std::shared_ptr<TextureBase> texture);
-    void uploadShadow(float shadow);
-    void uploadShadowMapSize(ivec2 s);
-    void uploadInvProj(const mat4& mat);
-};
-
-
 namespace LightColorPresets
 {
 // some values were taken from here

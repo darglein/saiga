@@ -10,24 +10,6 @@
 
 namespace Saiga
 {
-void SpotLightShader::checkUniforms()
-{
-    AttenuatedLightShader::checkUniforms();
-    location_angle        = getUniformLocation("angle");
-    location_shadowPlanes = getUniformLocation("shadowPlanes");
-}
-
-
-void SpotLightShader::uploadAngle(float angle)
-{
-    Shader::upload(location_angle, angle);
-}
-
-void SpotLightShader::uploadShadowPlanes(float f, float n)
-{
-    Shader::upload(location_shadowPlanes, vec2(f, n));
-}
-
 SpotLight::SpotLight()
 {
     polygon_offset = vec2(2.0, 100.0);

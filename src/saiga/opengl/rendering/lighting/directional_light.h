@@ -7,37 +7,13 @@
 #pragma once
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/Align.h"
+#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/lighting/light.h"
 #include "saiga/opengl/uniformBuffer.h"
-
 namespace Saiga
 {
 #define MAX_CASCADES 5
 
-
-class SAIGA_OPENGL_API DirectionalLightShader : public LightShader
-{
-   public:
-    GLint location_direction, location_ambientIntensity;
-    GLint location_ssaoTexture;
-    GLint location_depthTexures;
-    GLint location_viewToLightTransforms;
-    GLint location_depthCuts;
-    GLint location_numCascades;
-    GLint location_cascadeInterpolateRange;
-
-    virtual void checkUniforms();
-    void uploadDirection(vec3& direction);
-    void uploadAmbientIntensity(float i);
-    void uploadSsaoTexture(std::shared_ptr<TextureBase> texture);
-
-    void uploadDepthTextures(std::vector<std::shared_ptr<TextureBase>>& textures);
-    void uploadViewToLightTransforms(AlignedVector<mat4>& transforms);
-    void uploadDepthCuts(std::vector<float>& depthCuts);
-    void uploadNumCascades(int n);
-    void uploadCascadeInterpolateRange(float r);
-    void uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures);
-};
 
 class SAIGA_OPENGL_API DirectionalLight : public LightBase
 {
