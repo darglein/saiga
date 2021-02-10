@@ -146,6 +146,11 @@ void DeferredLighting::cullLights(Camera* cam)
     visibleLights           = directionalLights.size();
     visibleVolumetricLights = 0;
 
+    for (auto& light : directionalLights)
+    {
+        light->fitShadowToCamera(cam);
+    }
+
     // cull lights that are not visible
     for (auto& light : spotLights)
     {
@@ -241,7 +246,7 @@ void DeferredLighting::renderDepthMaps(RenderingInterface* renderer)
     for (auto& light : directionalLights)
     {
         glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-        //        glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
+        // light->fitShadowToCamera(view_camera);
         light->renderShadowmap(depthFunc, shadowCameraBuffer);
     }
     for (auto& light : boxLights)

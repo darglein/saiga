@@ -11,40 +11,26 @@
 
 namespace Saiga
 {
-void ProceduralSkyboxShader::checkUniforms()
-{
-    MVPShader::checkUniforms();
-    location_params = Shader::getUniformLocation("params");
-}
-
-void ProceduralSkyboxShader::uploadParams(vec3 sunDir, float horizonHeight, float distance, float sunIntensity,
-                                          float sunSize)
-{
-    vec4 params = vec4(horizonHeight, distance, sunIntensity, sunSize);
-    Shader::upload(0, params);
-    Shader::upload(1, sunDir);
-}
-
-
-
-ProceduralSkybox::ProceduralSkybox()
+ProceduralSkybox::ProceduralSkybox(const std::string& shader_str)
 {
     auto sb = TriangleMeshGenerator::createFullScreenQuadMesh();
-
     sb->transform(translate(vec3(0, 0, 1 - epsilon<float>())));
-
-    //    sb->createBuffers(mesh);
     mesh.fromMesh(*sb);
-
-    shader = shaderLoader.load<ProceduralSkyboxShader>("geometry/proceduralSkybox.glsl");
+    shader = shaderLoader.load<MVPShader>(shader_str);
 }
 
 
-void ProceduralSkybox::render(Camera* cam)
+void ProceduralSkybox::render(Camera* cam, const mat4& model)
 {
     shader->bind();
     shader->uploadModel(model);
-    shader->uploadParams(sunDir, horizonHeight, distance, sunIntensity, sunSize);
+
+    vec4 params = vec4(horizonHeight, distance, sunIntensity, sunSize);
+    shader->upload(0, params);
+    shader->upload(1, sunDir);
+    shader->upload(2, sunColor);
+    shader->upload(3, highSkyColor);
+    shader->upload(4, lowSkyColor);
     mesh.bindAndDraw();
 
     shader->unbind();

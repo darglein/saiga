@@ -16,26 +16,15 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API ProceduralSkyboxShader : public MVPShader
-{
-   public:
-    GLint location_params;
-
-
-    virtual void checkUniforms();
-    virtual void uploadParams(vec3 sunDir, float horizonHeight, float distance, float sunIntensity, float sunSize);
-};
-
 class SAIGA_OPENGL_API ProceduralSkybox : public ProceduralSkyboxBase
 {
    public:
+    ProceduralSkybox(const std::string& shader_str = "geometry/proceduralSkybox.glsl");
+    void render(Camera* cam, const mat4& model = mat4::Identity());
+
+   protected:
     IndexedVertexBuffer<VertexNT, GLuint> mesh;
-    std::shared_ptr<ProceduralSkyboxShader> shader;
-    mat4 model = mat4::Identity();
-
-    ProceduralSkybox();
-
-    void render(Camera* cam);
+    std::shared_ptr<MVPShader> shader;
 };
 
 }  // namespace Saiga

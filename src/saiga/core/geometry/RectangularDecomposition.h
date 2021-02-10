@@ -32,7 +32,7 @@ SAIGA_CORE_API RectangleList DecomposeTrivial(PointView points);
 SAIGA_CORE_API RectangleList DecomposeRowMerge(PointView points);
 
 // Combines all neighboring elements in x-direction with the same (y,z) coordinate.
-SAIGA_CORE_API RectangleList DecomposeOctTree(PointView points, float merge_factor = 1.0);
+SAIGA_CORE_API RectangleList DecomposeOctTree(PointView points, float merge_factor = 1.0, bool merge_layer = true);
 
 }  // namespace RectangularDecomposition
 }  // namespace Saiga

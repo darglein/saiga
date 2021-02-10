@@ -25,6 +25,10 @@ class SAIGA_CORE_API ProceduralSkyboxBase
     float sunIntensity  = 1;
     float sunSize       = 1;
     vec3 sunDir         = vec3(0, -1, 0);
+    vec3 sunColor       = vec3(220, 155, 45) / 255.0f;
+    vec3 highSkyColor   = vec3(43, 99, 192) / 255.0f;
+    vec3 lowSkyColor    = vec3(97, 161, 248) / 255.0f;
+
     void imgui();
 };
 

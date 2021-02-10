@@ -104,7 +104,7 @@ uint64_t Morton2D(const ivec3& v)
     return x | (y << 1) | (z << 2);
 }
 
-RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor)
+RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor, bool merge_layer)
 {
     SAIGA_OPTIONAL_BLOCK_TIMER(verbose);
     RectangleList result;
@@ -129,7 +129,8 @@ RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor
 
 
 
-    for (int bit = 3; bit < 64; bit += 3)
+    //     for (int bit = 3; bit < 64; bit += 3)
+    for (int bit = 1; bit < 64; bit += 1)
     {
         //        std::cout << "it " << bit << " " << copy.size() << " " << merged_list.size() << std::endl;
         uint64_t mask = (~0UL) << bit;
@@ -168,12 +169,15 @@ RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor
                     range_end++;
                 }
 
+                // std::cout << "merge " << range_end - range_begin << std::endl;
+
                 // Let's merge all elements in the range
                 Rect merged_range = copy[range_begin].second;
                 for (auto j = range_begin + 1; j < range_end; ++j)
                 {
                     merged_range = Rect(merged_range, copy[j].second);
                 }
+
 
 
                 int volume_sum = 0;
@@ -193,6 +197,18 @@ RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor
                         copy[j].second.setZero();
                     }
                 }
+#if 0
+                else
+                {
+                    for (int j = range_begin; j < range_end; ++j)
+                    {
+                        merged_list.push_back(copy[j]);
+                        copy[j].second.setZero();
+                    }
+                }
+#endif
+
+
                 range_begin = i;
                 range_end   = range_begin + 1;
             }

@@ -63,29 +63,6 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
 };
 
 
-
-// class SAIGA_OPENGL_API DeferredRenderingInterface : public RenderingInterfaceBase
-//{
-//   public:
-//    virtual ~DeferredRenderingInterface() {}
-
-//    // rendering into the gbuffer
-//    virtual void render(Camera* cam) {}
-
-//    // render depth maps for shadow lights
-//    virtual void renderDepth(Camera* cam) {}
-
-//    // forward rendering path after lighting, but before post processing
-//    // this could be used for transparent objects
-//    virtual void renderOverlay(Camera* cam) {}
-
-//    // forward rendering path after lighting and after post processing
-//    virtual void renderFinal(Camera* cam) {}
-//    // protected:
-//    //    RendererBase& parentRenderer;
-//};
-
-
 class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 {
    public:
@@ -98,7 +75,7 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 
     DeferredRenderer(OpenGLWindow& window, DeferredRenderingParameters _params = DeferredRenderingParameters());
     DeferredRenderer& operator=(DeferredRenderer& l) = delete;
-    virtual ~DeferredRenderer();
+    virtual ~DeferredRenderer() {}
 
     void render(const RenderInfo& renderInfo) override;
     void renderImGui(bool* p_open = nullptr) override;
@@ -156,7 +133,7 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 
     void clearGBuffer();
     void renderGBuffer(const std::pair<Camera*, ViewPort>& camera);
-    void renderDepthMaps();  // render the scene from the lights perspective (don't need user camera here)
+    void renderDepthMaps();
     void renderLighting(const std::pair<Camera*, ViewPort>& camera);
     void renderSSAO(const std::pair<Camera*, ViewPort>& camera);
 

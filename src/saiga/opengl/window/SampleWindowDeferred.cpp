@@ -73,6 +73,7 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
         ImGui::Checkbox("showSkybox", &showSkybox);
         ImGui::Checkbox("showGrid", &showGrid);
         camera.imgui();
+        skybox.imgui();
         ImGui::End();
     }
 }
