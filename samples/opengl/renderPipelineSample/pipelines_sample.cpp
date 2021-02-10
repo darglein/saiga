@@ -117,9 +117,9 @@ class Sample : public RendererSampleWindow
                 maximumNumberOfRendererSupportedSpotLights  = std::clamp(maximumNumberOfRendererSupportedSpotLights, 0,
                                                                         maxSize / (int)sizeof(uber::SpotLightData));
 
-                renderer->setLightMaxima(
-                    maximumNumberOfRendererSupportedDirectionalLights, maximumNumberOfRendererSupportedPointLights,
-                    maximumNumberOfRendererSupportedSpotLights);
+                renderer->setLightMaxima(maximumNumberOfRendererSupportedDirectionalLights,
+                                         maximumNumberOfRendererSupportedPointLights,
+                                         maximumNumberOfRendererSupportedSpotLights);
 
 
                 // Next is needed for forward.
@@ -192,7 +192,7 @@ class Sample : public RendererSampleWindow
                         light->setColorDiffuse(vec3(1, 1, 1));
                         light->calculateModel();
 
-                        light->disableShadows();
+                        light->castShadows = false;
                         renderer->lighting.AddLight(light);
                     }
                 }
@@ -237,7 +237,7 @@ class Sample : public RendererSampleWindow
                         light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
                         light->calculateModel();
 
-                        light->disableShadows();
+                        light->castShadows = false;
                         renderer->lighting.AddLight(light);
                     }
                 }
@@ -272,7 +272,7 @@ class Sample : public RendererSampleWindow
                     {
                         std::shared_ptr<DirectionalLight> light = std::make_shared<DirectionalLight>();
 
-                        light->disableShadows();
+                        light->castShadows = false;
 
                         light->setAmbientIntensity(0.01);
 

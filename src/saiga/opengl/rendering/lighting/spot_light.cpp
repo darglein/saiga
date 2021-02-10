@@ -50,7 +50,7 @@ void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* ca
     shader->uploadAngle(cosa);
     shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
     shader->uploadInvProj(inverse(cam->proj));
-    if (this->hasShadows())
+    if (this->castShadows)
     {
         shader->uploadDepthBiasMV(viewToLightTransform(*cam, this->shadowCamera));
         shader->uploadDepthTexture(shadowmap->getDepthTexture());
@@ -95,7 +95,7 @@ void SpotLight::setDirection(vec3 dir)
 bool SpotLight::cullLight(Camera* cam)
 {
     // do an exact frustum-frustum intersection if this light casts shadows, else do only a quick check.
-    if (this->hasShadows())
+    if (this->castShadows)
         this->culled = !this->shadowCamera.intersectSAT(*cam);
     else
         this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere) == Camera::OUTSIDE;

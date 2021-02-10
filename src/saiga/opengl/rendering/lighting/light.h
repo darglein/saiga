@@ -106,20 +106,19 @@ class SAIGA_OPENGL_API Light : public Object3D
     vec3 getColorDiffuse() const { return make_vec3(colorDiffuse); }
     float getIntensity() const { return colorDiffuse[3]; }
 
-    void setActive(bool _active) { this->active = _active; }
-    bool isActive() const { return active; }
-    void setVisible(bool _visible) { this->visible = _visible; }
-    bool isVisible() const { return visible; }
-    void setSelected(bool _selected) { this->selected = _selected; }
-    bool isSelected() const { return selected; }
-    void setVolumetric(bool _volumetric) { this->volumetric = _volumetric; }
-    bool isVolumetric() const { return volumetric; }
+    //    void setActive(bool _active) { this->active = _active; }
+    //    bool isActive() const { return active; }
+    //    void setVisible(bool _visible) { this->visible = _visible; }
+    //    bool isVisible() const { return visible; }
+    //    void setSelected(bool _selected) { this->selected = _selected; }
+    //    bool isSelected() const { return selected; }
+    //    void setVolumetric(bool _volumetric) { this->volumetric = _volumetric; }
+    //    bool isVolumetric() const { return volumetric; }
 
-
-    bool hasShadows() const { return castShadows; }
-    void enableShadows() { castShadows = true; }
-    void disableShadows() { castShadows = false; }
-    void setCastShadows(bool s) { castShadows = s; }
+    //    bool castShadows const { return castShadows; }
+    //    void enableShadows() { castShadows = true; }
+    //    void disableShadows() { castShadows = false; }
+    //    void setCastShadows(bool s) { castShadows = s; }
 
     bool shouldCalculateShadowMap() { return castShadows && active && !culled; }
     bool shouldRender() { return active && !culled; }
@@ -135,7 +134,7 @@ class SAIGA_OPENGL_API Light : public Object3D
 
     void renderImGui();
 
-   protected:
+    //   protected:
     bool visible = true, active = true, selected = false, culled = false;
     // shadow map
     bool castShadows = false;

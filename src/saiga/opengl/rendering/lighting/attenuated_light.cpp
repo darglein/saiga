@@ -75,7 +75,7 @@ void AttenuatedLight::setRadius(float value)
 
 void AttenuatedLight::bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera* cam)
 {
-    if (isVolumetric()) shader->uploadVolumetricDensity(volumetricDensity);
+    if (volumetric) shader->uploadVolumetricDensity(volumetricDensity);
     shader->uploadColorDiffuse(colorDiffuse);
     shader->uploadColorSpecular(colorSpecular);
     shader->uploadModel(model);

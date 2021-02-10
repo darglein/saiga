@@ -59,7 +59,7 @@ void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* 
     AttenuatedLight::bindUniforms(shader, cam);
     shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
     shader->uploadInvProj(inverse(cam->proj));
-    if (this->hasShadows())
+    if (this->castShadows)
     {
         shader->uploadDepthBiasMV(viewToLightTransform(*cam, this->shadowCamera));
         shader->uploadDepthTexture(shadowmap->getDepthTexture());
@@ -74,6 +74,7 @@ void PointLight::createShadowMap(int w, int h, ShadowQuality quality)
 {
     shadowmap = std::make_shared<CubeShadowmap>(w, h, quality);
     //    shadowmap->createCube(w,h);
+    castShadows = true;
 }
 
 

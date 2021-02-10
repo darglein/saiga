@@ -53,8 +53,8 @@ class Sample : public SampleWindowDeferred
         pointLight->calculateModel();
         //        pointLight->createShadowMap(256,256,sq);
         pointLight->createShadowMap(512, 512, sq);
-        pointLight->enableShadows();
-        pointLight->setVolumetric(true);
+
+        pointLight->volumetric = true;
 
         spotLight = std::make_shared<SpotLight>();
         renderer->lighting.AddLight(spotLight);
@@ -65,8 +65,7 @@ class Sample : public SampleWindowDeferred
         spotLight->setColorDiffuse(make_vec3(1));
         spotLight->calculateModel();
         spotLight->createShadowMap(512, 512, sq);
-        spotLight->enableShadows();
-        spotLight->setVolumetric(true);
+        spotLight->volumetric = true;
 
 
         renderer->lighting.renderVolumetric = true;

@@ -25,7 +25,7 @@ class Sample : public SampleWindowDeferred
 
         showGrid = false;
 
-        sun->setActive(false);
+        sun->active = false;
 
         float aspect = window->getAspectRatio();
         camera.setProj(35.0f, aspect, 0.1f, 100.0f);
@@ -44,7 +44,6 @@ class Sample : public SampleWindowDeferred
         pointLight->calculateModel();
         //        pointLight->createShadowMap(256,256,sq);
         pointLight->createShadowMap(1024, 1024, ShadowQuality::HIGH);
-        pointLight->enableShadows();
     }
 
 

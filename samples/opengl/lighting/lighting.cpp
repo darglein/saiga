@@ -86,7 +86,7 @@ class Sample : public SampleWindowDeferred
             light->calculateModel();
 
             light->createShadowMap(512, 512, sq);
-            light->enableShadows();
+            light->castShadows = true;
 
             point_lights.push_back(light);
         }
@@ -111,7 +111,7 @@ class Sample : public SampleWindowDeferred
             light->calculateModel();
 
             light->createShadowMap(512, 512, sq);
-            light->enableShadows();
+            light->castShadows = true;
 
             spot_lights.push_back(light);
         }
@@ -121,7 +121,7 @@ class Sample : public SampleWindowDeferred
             auto light = std::make_shared<DirectionalLight>();
             renderer->lighting.AddLight(light);
             light->createShadowMap(2048, 2048, 3, ShadowQuality::LOW);
-            light->enableShadows();
+            light->castShadows = true;
 
             light->setAmbientIntensity(0);
 
@@ -143,15 +143,15 @@ class Sample : public SampleWindowDeferred
         Base::update(dt);
         for (auto l : point_lights)
         {
-            l->setActive(current_type == 0);
+            l->active = (current_type == 0);
         }
         for (auto l : spot_lights)
         {
-            l->setActive(current_type == 1);
+            l->active = (current_type == 1);
         }
         for (auto l : directional_lights)
         {
-            l->setActive(current_type == 2);
+            l->active = (current_type == 2);
             l->fitShadowToCamera(&camera);
             l->fitNearPlaneToScene(bounding_box);
         }

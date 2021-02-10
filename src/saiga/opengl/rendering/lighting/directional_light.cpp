@@ -114,6 +114,7 @@ void DirectionalLight::createShadowMap(int w, int h, int _numCascades, ShadowQua
         depthCutsRelative[i] = float(i) / _numCascades;
     }
     depthCutsRelative.back() = 1.0f;
+    castShadows              = true;
 }
 
 
@@ -391,7 +392,7 @@ void DirectionalLight::bindUniforms(DirectionalLightShader& shader, Camera* cam)
     mat4 ip = inverse(cam->proj);
     shader.uploadInvProj(ip);
 
-    if (this->hasShadows())
+    if (this->castShadows)
     {
         const mat4 biasMatrix =
             make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);

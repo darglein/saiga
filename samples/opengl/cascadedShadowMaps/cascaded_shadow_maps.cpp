@@ -48,7 +48,7 @@ class Sample : public SampleWindowDeferred
 
         // create one directional light
 
-        Base::sun->setActive(false);
+        Base::sun->active = false;
 
         sun = std::make_shared<DirectionalLight>();
         renderer->lighting.AddLight(sun);
@@ -58,7 +58,7 @@ class Sample : public SampleWindowDeferred
         sun->setIntensity(1.0);
         sun->setAmbientIntensity(0.02f);
         sun->createShadowMap(512, 512);
-        sun->enableShadows();
+        sun->castShadows = true;
 
         camera.recalculateMatrices();
         camera.recalculatePlanes();

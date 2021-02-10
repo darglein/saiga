@@ -112,23 +112,23 @@ void DeferredLighting::cullLights(Camera* cam)
     // cull lights that are not visible
     for (auto& light : spotLights)
     {
-        if (light->isActive())
+        if (light->active)
         {
             light->calculateCamera();
             light->shadowCamera.recalculatePlanes();
             bool visible = !light->cullLight(cam);
             visibleLights += visible;
-            visibleVolumetricLights += (visible && light->isVolumetric());
+            visibleVolumetricLights += (visible && light->volumetric);
         }
     }
 
     for (auto& light : pointLights)
     {
-        if (light->isActive())
+        if (light->active)
         {
             bool visible = !light->cullLight(cam);
             visibleLights += visible;
-            visibleVolumetricLights += (visible && light->isVolumetric());
+            visibleVolumetricLights += (visible && light->volumetric);
         }
     }
 
@@ -412,7 +412,7 @@ void DeferredLighting::renderDirectionalLights(Camera* cam, const ViewPort& vp, 
     for (auto& obj : directionalLights)
     {
         bool render =
-            (shadow && obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->hasShadows());
+            (shadow && obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->castShadows);
         if (render)
         {
             obj->bindUniforms(*shader, cam);

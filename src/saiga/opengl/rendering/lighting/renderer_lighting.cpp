@@ -90,7 +90,7 @@ void RendererLighting::cullLights(Camera* cam)
     // cull lights that are not visible
     for (auto& light : spotLights)
     {
-        if (light->isActive())
+        if (light->active)
         {
             light->calculateCamera();
             light->shadowCamera.recalculatePlanes();
@@ -102,7 +102,7 @@ void RendererLighting::cullLights(Camera* cam)
 
     for (auto& light : pointLights)
     {
-        if (light->isActive())
+        if (light->active)
         {
             bool visible = !light->cullLight(cam);
             visibleLights += visible;
@@ -199,7 +199,7 @@ void RendererLighting::renderDebug(Camera* cam)
     {
         mat4 sm    = obj->model * scale(make_vec3(0.01));
         vec4 color = obj->colorDiffuse;
-        if (!obj->isActive() || !obj->isVisible())
+        if (!obj->active || !obj->visible)
         {
             continue;
         }
@@ -212,7 +212,7 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : pointLights)
     {
-        if (!obj->isActive() || !obj->isVisible())
+        if (!obj->active || !obj->visible)
         {
             continue;
         }
@@ -233,7 +233,7 @@ void RendererLighting::renderDebug(Camera* cam)
     {
         mat4 sm    = obj->model * scale(make_vec3(0.01));
         vec4 color = obj->colorDiffuse;
-        if (!obj->isActive() || !obj->isVisible())
+        if (!obj->active || !obj->visible)
         {
             continue;
         }
@@ -246,7 +246,7 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : spotLights)
     {
-        if (!obj->isActive() || !obj->isVisible())
+        if (!obj->active || !obj->visible)
         {
             continue;
         }
