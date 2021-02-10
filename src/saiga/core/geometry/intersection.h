@@ -71,6 +71,9 @@ HD inline bool SphereSphere(const Sphere& s1, const Sphere& s2);
 HD inline bool AABBAABB(const vec3& min1, const vec3& max1, const vec3& min2, const vec3& max2);
 HD inline bool AABBAABB(const AABB& bb1, const AABB& bb2);
 
+
+SAIGA_CORE_API bool SphereAABB(const vec3& c, float r, const AABB& bb2);
+
 }  // namespace Intersection
 }  // namespace Saiga
 

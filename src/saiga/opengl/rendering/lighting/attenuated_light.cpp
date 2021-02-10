@@ -4,11 +4,11 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/rendering/deferredRendering/lighting/attenuated_light.h"
+#include "saiga/opengl/rendering/lighting/attenuated_light.h"
 
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/opengl/error.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/opengl/error.h"
 
 namespace Saiga
 {
@@ -90,7 +90,8 @@ void AttenuatedLight::renderImGui()
     ImGui::InputFloat3("attenuation", &attenuation[0]);
     float c = evaluateAttenuation(cutoffRadius);
     ImGui::Text("Cutoff Intensity: %f", c);
-    ImGui::InputFloat("cutoffRadius", &cutoffRadius);
+    bool changed = ImGui::InputFloat("cutoffRadius", &cutoffRadius);
+    if (changed) this->setScale(make_vec3(cutoffRadius));
 }
 
 

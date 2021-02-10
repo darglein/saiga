@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/opengl/rendering/deferredRendering/lighting/point_light.h"
+#include "saiga/opengl/rendering/lighting/point_light.h"
 
 namespace Saiga
 {
