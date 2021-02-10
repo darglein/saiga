@@ -10,11 +10,16 @@
 
 namespace Saiga
 {
-inline AABB::AABB() {}
+inline float AABB::DistanceSquared(const vec3& p) const
+{
+    // Distance along each axis
+    float dx = std::max({min.x() - p.x(), 0.f, p.x() - max.x()});
+    float dy = std::max({min.y() - p.y(), 0.f, p.y() - max.y()});
+    float dz = std::max({min.z() - p.z(), 0.f, p.z() - max.z()});
+    // total distance squared
+    return dx * dx + dy * dy + dz * dz;
+}
 
-inline AABB::AABB(const vec3& min, const vec3& max) : min(min), max(max) {}
-
-inline AABB::~AABB() {}
 
 inline void AABB::transform(const mat4& trafo)
 {

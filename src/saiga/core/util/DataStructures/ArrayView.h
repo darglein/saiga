@@ -88,8 +88,9 @@ struct SAIGA_TEMPLATE ArrayView
 
     HD reference operator[](size_t id) const SAIGA_NOEXCEPT { return data_[id]; }
 
-    HD reference back() SAIGA_NOEXCEPT { return data_[n - 1]; }
 
+    HD reference front() const SAIGA_NOEXCEPT { return data_[0]; }
+    HD reference back() SAIGA_NOEXCEPT { return data_[n - 1]; }
     HD const_reference back() const SAIGA_NOEXCEPT { return data_[n - 1]; }
 
 
@@ -101,6 +102,7 @@ struct SAIGA_TEMPLATE ArrayView
     HD iterator begin() const SAIGA_NOEXCEPT { return data_; }
 
     HD iterator end() const SAIGA_NOEXCEPT { return data_ + n; }
+
 
 
     // remove elements from the right and left

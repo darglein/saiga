@@ -13,15 +13,23 @@
 
 namespace Saiga
 {
+static std::stringstream strm;
+
 void FusionScene::Preprocess()
 {
+    triangle_soup_inclusive_prefix_sum.clear();
+    triangle_soup.clear();
+    mesh.clear();
+    tsdf = std::make_unique<SparseTSDF>(params.voxelSize, params.block_count, params.hash_size);
+
     if (images.empty()) return;
 
     depth_map_size = images.front().depthMap.dimensions();
     unproject_undistort_map.create(depth_map_size);
 
-
-    for (auto i : unproject_undistort_map.rowRange())
+    ProgressBar loading_bar(params.verbose ? std::cout : strm, "Preprocess ", depth_map_size.rows);
+#pragma omp parallel for
+    for (int i = 0; i < unproject_undistort_map.rows; ++i)
     {
         for (auto j : unproject_undistort_map.colRange())
         {
@@ -31,31 +39,7 @@ void FusionScene::Preprocess()
 
             unproject_undistort_map(i, j) = p.cast<float>();
         }
-    }
-
-    triangle_soup_inclusive_prefix_sum.clear();
-    triangle_soup.clear();
-    mesh.clear();
-    tsdf = std::make_unique<SparseTSDF>(params.voxelSize, params.block_count, params.hash_size);
-}
-
-
-void FusionScene::AllocateAroundPoint(const vec3& p)
-{
-    auto block_id = tsdf->GetBlockIndex(p);
-
-    int r = 1;
-
-    for (int z = -r; z <= r; ++z)
-    {
-        for (int y = -r; y <= r; ++y)
-        {
-            for (int x = -r; x <= r; ++x)
-            {
-                ivec3 current_id = ivec3(x, y, z) + block_id;
-                tsdf->InsertBlock(current_id);
-            }
-        }
+        loading_bar.addProgress(1);
     }
 }
 
@@ -63,7 +47,7 @@ void FusionScene::AllocateAroundPoint(const vec3& p)
 
 void FusionScene::AnalyseSparseStructure()
 {
-    ProgressBar loading_bar(std::cout, "Analysing  ", Size());
+    ProgressBar loading_bar(params.verbose ? std::cout : strm, "Analysing  ", Size());
 
     // #pragma omp parallel for
     for (int i = 0; i < Size(); ++i)
@@ -110,9 +94,10 @@ void FusionScene::AnalyseSparseStructure()
                     dm.unprojected_position(i, j) = center;
                 }
 
+                SAIGA_ASSERT(!params.point_based);
                 if (params.point_based)
                 {
-                    AllocateAroundPoint(center);
+                    tsdf->AllocateAroundPoint(center);
                     continue;
                 }
 
@@ -172,7 +157,7 @@ void FusionScene::AnalyseSparseStructure()
                 while (true)
                 {
                     //                    leset.insert({idCurrentVoxel(0), idCurrentVoxel(1), idCurrentVoxel(2)});
-                    tsdf->InsertBlockLock(idCurrentVoxel);
+                    tsdf->InsertBlock(idCurrentVoxel);
                     // Traverse voxel grid
                     if (tMax.x() < tMax.y() && tMax.x() < tMax.z())
                     {
@@ -213,7 +198,7 @@ void FusionScene::ComputeWeight()
     {
         return;
     }
-    ProgressBar loading_bar(std::cout, "Comp Weight", Size());
+    ProgressBar loading_bar(params.verbose ? std::cout : strm, "Comp Weight", Size());
 #pragma omp parallel for
     for (int i = 0; i < Size(); ++i)
     {
@@ -270,11 +255,15 @@ void FusionScene::ComputeWeight()
 void FusionScene::Visibility()
 {
     {
-        ProgressBar loading_bar(std::cout, "Visibility ", Size());
+        ProgressBar loading_bar(params.verbose ? std::cout : strm, "Visibility ", Size());
 
         auto K2 = K;
-        K2.fx *= 0.95;
-        K2.fy *= 0.95;
+
+        if (params.increase_visibility_frustum)
+        {
+            K2.fx *= 0.95;
+            K2.fy *= 0.95;
+        }
 
 
 #pragma omp parallel for
@@ -323,7 +312,7 @@ void FusionScene::Integrate()
 {
     Visibility();
     {
-        ProgressBar loading_bar(std::cout, "Integrate  ", Size());
+        ProgressBar loading_bar(params.verbose ? std::cout : strm, "Integrate  ", Size());
 
         for (int i = 0; i < Size(); ++i)
         {
@@ -353,13 +342,14 @@ void FusionScene::Integrate()
                             // project to image
                             Vec3 pos = dm.V * global_pos;
 
-                            Vec2 np           = pos.head<2>() / pos.z();
-                            double voxelDepth = pos.z();
+                            Vec2 np          = pos.head<2>() / pos.z();
+                            float voxelDepth = pos.z();
 
                             np = distortNormalizedPoint(np, dis);
 
 
                             Vec2 ip = K.normalizedToImage(np);
+                            ip += params.ip_offset;
 
                             // the voxel is behind the camera
                             if (voxelDepth <= 0) continue;
@@ -385,100 +375,107 @@ void FusionScene::Integrate()
                                 int ipx = std::floor(ip(0));
                                 int ipy = std::floor(ip(1));
                                 auto a1 = dm.depthMap(ipy, ipx);
+                                auto a4 = dm.depthMap(ipy, ipx + 1);
                                 auto a2 = dm.depthMap(ipy + 1, ipx);
                                 auto a3 = dm.depthMap(ipy + 1, ipx + 1);
-                                auto a4 = dm.depthMap(ipy, ipx + 1);
                                 if (a1 <= 0 || a2 <= 0 || a3 <= 0 || a4 <= 0) continue;
                                 imageDepth = dm.depthMap.inter(ip(1), ip(0));
-
-
-                                //                                if (params.test)
-                                //                                {
-                                //                                    float min_d = std::min(std::min(std::min(a1, a2),
-                                //                                    a3), a4); float max_d =
-                                //                                    std::max(std::max(std::max(a1, a2), a3), a4); if
-                                //                                    (max_d - min_d > 0.01)
-                                //                                    {
-                                //                                        continue;
-                                //                                    }
-                                //                                }
                             }
                             else
                             {
+                                // SAIGA_EXIT_ERROR("unimplemented");
                                 imageDepth = dm.depthMap(ipy, ipx);
+                                if (imageDepth <= 0) continue;
                             }
 
+                            // No valid depth
                             if (imageDepth <= 0) continue;
-
                             if (imageDepth > params.maxIntegrationDistance) continue;
-
-
-
                             float confidence = params.use_confidence ? dm.confidence(ipy, ipx) : 1;
-
                             if (confidence <= 0) continue;
 
-                            //                    Vec3 ipUnproj = dm->K.unproject(ip, imageDepth);
-
-                            //                    double lambda = Vec3(pos(0), pos(1), 1).norm();
-                            //                    double sdf    = (-1.f) * ((1.f / lambda) * pos.norm() - imageDepth);
-                            //                    double sdf = (ipUnproj - pos).norm();
-                            double surface_distance = imageDepth - voxelDepth;
-
-                            surface_distance = clamp(surface_distance, -params.sd_clamp, params.sd_clamp);
-
-                            //                    if (imageDepth < voxelDepth) sdf *= -1;
-
-
-
+                            // current td
                             float truncation_distance =
                                 params.truncationDistance + params.truncationDistanceScale * imageDepth;
-                            //                            truncation_distance =
-                            //                                std::max(params.min_truncation_factor * params.voxelSize,
-                            //                                truncation_distance);
+                            truncation_distance =
+                                std::max(params.min_truncation_factor * params.voxelSize, truncation_distance);
 
-                            //                    if ( std::abs(sdf) < -truncation_distance)
 
-                            if (surface_distance < -truncation_distance)
+                            float new_tsdf       = imageDepth - voxelDepth;
+                            auto new_weight      = params.newWeight * confidence;
+                            float current_tsdf   = cell.distance;
+                            float current_weight = cell.weight;
+
+
+                            if (params.ground_truth_fuse)
+                            {
+                                // A fusion algorithm which assumes perfect input data.
+                                // Therefore we don't need to average the distance results
+                                // It is enough to use the minimum observation
+                                if (new_tsdf < -truncation_distance * params.ground_truth_trunc_factor)
+                                {
+                                    continue;
+                                }
+
+
+                                new_tsdf = clamp(new_tsdf, -params.sd_clamp, params.sd_clamp);
+
+
+
+                                if (current_weight == 0)
+                                {
+                                    cell.distance = new_tsdf;
+                                    cell.weight   = new_weight;
+                                }
+
+
+                                if (current_tsdf < 0 && new_tsdf > 0)
+                                {
+                                    cell.distance = new_tsdf;
+                                    cell.weight   = new_weight;
+                                }
+
+                                if (current_tsdf < 0 && new_tsdf < 0)
+                                {
+                                    cell.distance = std::max(current_tsdf, new_tsdf);
+                                    cell.weight   = std::min(params.maxWeight, current_weight + new_weight);
+                                }
+
+                                if (current_tsdf > 0 && new_tsdf > 0)
+                                {
+                                    cell.distance = std::min(current_tsdf, new_tsdf);
+                                    cell.weight   = std::min(params.maxWeight, current_weight + new_weight);
+                                }
+
+                                if (current_tsdf > 0 && new_tsdf < 0)
+                                {
+                                    // do nothing
+                                }
+
+                                continue;
+                            }
+
+
+
+                            if (new_tsdf < -truncation_distance)
                             {
                                 continue;
                             }
 
-                            auto new_tsdf       = surface_distance;  // std::min(1., sdf);
-                            auto current_tsdf   = cell.distance;
-                            auto current_weight = cell.weight;
 
-                            // auto distance_error = std::abs(current_tsdf - surface_distance);
-
-                            //                            if (current_weight > 0 && current_tsdf - surface_distance >
-                            //                            params.max_distance_error)
-                            //                            {
-                            //                                continue;
-                            //                            }
-
-                            //                            if (current_weight > 0 &&
-                            //                                std::abs(current_tsdf) + params.max_distance_error <
-                            //                                std::abs(surface_distance))
-                            //                            {
-                            //                                continue;
-                            //                            }
-
-
-
-                            auto add_weight = params.newWeight * confidence;
+                            new_tsdf = clamp(new_tsdf, -params.sd_clamp, params.sd_clamp);
 
 
 
                             if (current_weight == 0)
                             {
                                 cell.distance = new_tsdf;
-                                cell.weight   = add_weight;
+                                cell.weight   = new_weight;
                             }
                             else
                             {
-                                float updated_tsdf;
-
 #if 0
+                                float updated_tsdf;
                                 if (std::abs(current_tsdf - new_tsdf) < params.max_distance_error)
                                 {
                                     updated_tsdf = (current_weight * current_tsdf + add_weight * new_tsdf) /
@@ -497,16 +494,13 @@ void FusionScene::Integrate()
                                 }
 #else
 
-                                updated_tsdf = (current_weight * current_tsdf + add_weight * new_tsdf) /
-                                               (current_weight + add_weight);
+                                float updated_tsdf = (current_weight * current_tsdf + new_weight * new_tsdf) /
+                                                     (current_weight + new_weight);
 #endif
 
-                                auto new_weight = current_weight + add_weight;
-
-                                new_weight = std::min(params.maxWeight, new_weight);
-
-                                cell.distance = updated_tsdf;
-                                cell.weight   = new_weight;
+                                float updated_weight = std::min(params.maxWeight, current_weight + new_weight);
+                                cell.distance        = updated_tsdf;
+                                cell.weight          = updated_weight;
                             }
                         }
                     }
@@ -524,7 +518,7 @@ void FusionScene::IntegratePointBased()
     tsdf->SetForAll(500, 0);
 
     {
-        ProgressBar loading_bar(std::cout, "IntegrateP ", Size());
+        ProgressBar loading_bar(params.verbose ? std::cout : strm, "IntegrateP ", Size());
 
         for (int i = 0; i < Size(); ++i)
         {
@@ -724,7 +718,8 @@ void FusionScene::ExtractMesh()
 {
     mesh.clear();
 
-    auto triangle_soup_per_block = tsdf->ExtractSurface(params.extract_iso);
+    auto triangle_soup_per_block =
+        tsdf->ExtractSurface(params.extract_iso, params.extract_outlier_factor, 0, 4, params.verbose);
 
     int sum = 0;
     for (auto& v : triangle_soup_per_block)
@@ -757,10 +752,14 @@ void FusionScene::ExtractMesh()
     //    }
 
 
+    if (!params.out_file.empty())
     {
         std::ofstream strm(params.out_file);
-        mesh.saveMeshOff(strm);
-        std::cout << mesh << " saved as " << params.out_file << std::endl;
+        saveMeshOff(mesh, strm);
+        if (params.verbose)
+        {
+            std::cout << mesh << " saved as " << params.out_file << std::endl;
+        }
     }
 }
 
@@ -820,7 +819,6 @@ void FusionParams::imgui()
     ImGui::InputFloat("newWeight", &newWeight);
     ImGui::InputFloat("maxWeight", &maxWeight);
     ImGui::InputFloat("min_truncation_factor", &min_truncation_factor);
-    ImGui::InputFloat("max_distance_error", &max_distance_error);
     ImGui::Checkbox("use_confidence", &use_confidence);
     ImGui::Checkbox("bilinear_intperpolation", &bilinear_intperpolation);
 

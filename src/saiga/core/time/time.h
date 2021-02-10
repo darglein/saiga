@@ -40,9 +40,10 @@ template <typename DurationType>
 inline std::string DurationToString(const DurationType& duration)
 {
     // current time
-    uint64_t h = std::chrono::duration_cast<std::chrono::hours>(duration).count();
-    uint64_t m = std::chrono::duration_cast<std::chrono::minutes>(duration).count() % 60;
-    uint64_t s = std::chrono::duration_cast<std::chrono::seconds>(duration).count() % 60;
+    uint64_t h  = std::chrono::duration_cast<std::chrono::hours>(duration).count();
+    uint64_t m  = std::chrono::duration_cast<std::chrono::minutes>(duration).count() % 60;
+    uint64_t s  = std::chrono::duration_cast<std::chrono::seconds>(duration).count() % 60;
+    uint64_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() % 1000;
 
     std::stringstream strm;
 
@@ -52,5 +53,6 @@ inline std::string DurationToString(const DurationType& duration)
     }
 
     strm << Saiga::leadingZeroString(m, 2) << ":" << Saiga::leadingZeroString(s, 2);
+    strm << ":" << Saiga::leadingZeroString(ms, 4);
     return strm.str();
 }

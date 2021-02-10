@@ -13,10 +13,10 @@ namespace Saiga
 {
 void AnimatedAsset::loadDefaultShaders()
 {
-    this->deferredShader  = shaderLoader.load<BoneShader>(deferredShaderStr);
-    this->forwardShader   = shaderLoader.load<BoneShader>(forwardShaderStr);
-    this->depthshader     = shaderLoader.load<BoneShader>(depthShaderStr);
-    this->wireframeshader = shaderLoader.load<BoneShader>(wireframeShaderStr);
+    this->deferredShader  = shaderLoader.load<BoneShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+    this->forwardShader   = shaderLoader.load<BoneShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
+    this->depthshader     = shaderLoader.load<BoneShader>(shaderStr);
+    this->wireframeshader = shaderLoader.load<BoneShader>(shaderStr);
 }
 
 void AnimatedAsset::render(Camera* cam, const mat4& model, UniformBuffer& boneMatrices)

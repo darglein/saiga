@@ -18,3 +18,4 @@
 #include "saiga/opengl/uniformBuffer.h"
 #include "saiga/opengl/vertex.h"
 #include "saiga/opengl/vertexBuffer.h"
+#include "saiga/opengl/assets/all.h"

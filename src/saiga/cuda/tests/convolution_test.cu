@@ -219,7 +219,7 @@ void convolutionTest2(int w, int h)
     {
         thrust::device_vector<float> d_kernel = h_kernel;
         dest                                  = src;
-        auto st                               = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st                               = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { convolveSinglePassSeparateInner75(imgSrc, imgDst, d_kernel, KERNEL_RADIUS); });
         pth.addMeassurement("convolveSinglePassSeparateInner75", st.median);
         // checkRes(h_ref,thrust::host_vector<float>(dest));
@@ -231,7 +231,7 @@ void convolutionTest2(int w, int h)
         thrust::device_vector<float> d_kernel = h_kernel;
         //        dest = src;
         thrust::fill(dest.begin(), dest.end(), 0.0f);
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { convolveSinglePassSeparateInnerShuffle(imgSrc, imgDst, d_kernel, KERNEL_RADIUS); });
         pth.addMeassurement("convolveSinglePassSeparateInnerShuffle", st.median);
 
@@ -250,11 +250,11 @@ void convolutionTest2(int w, int h)
         tmp                                   = src;
         thrust::device_vector<float> d_kernel = h_kernel;
 
-        auto st1 = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st1 = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { convolveRow(imgSrc, imgTmp, d_kernel, KERNEL_RADIUS); });
         pth.addMeassurement("GPU Convolve Separate Row", st1.median);
 
-        auto st2 = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st2 = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { convolveCol(imgTmp, imgDst, d_kernel, KERNEL_RADIUS); });
         pth.addMeassurement("GPU Convolve Separate Col", st2.median);
         pth.addMeassurement("GPU Convolve Separate Total", st1.median + st2.median);
@@ -264,7 +264,7 @@ void convolutionTest2(int w, int h)
 #endif
 
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             cudaMemcpy(thrust::raw_pointer_cast(dest.data()), thrust::raw_pointer_cast(src.data()), N * sizeof(int),
                        cudaMemcpyDeviceToDevice);
         });

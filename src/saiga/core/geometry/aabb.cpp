@@ -111,6 +111,7 @@ bool AABB::contains(const vec3& p) const
     return true;  // overlap
 }
 
+
 std::vector<Triangle> AABB::toTriangles() const
 {
     std::vector<Triangle> res = {

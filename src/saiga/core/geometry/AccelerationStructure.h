@@ -30,6 +30,9 @@ class SAIGA_CORE_API Base
 
     virtual RayTriangleIntersection getClosest(const Ray& ray)          = 0;
     virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) = 0;
+
+    float bvh_epsilon      = 0.0001;
+    float triangle_epsilon = 0.00001;
 };
 
 
@@ -83,6 +86,7 @@ class SAIGA_CORE_API BVH : public Base
 
     virtual RayTriangleIntersection getClosest(const Ray& ray) override;
     virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) override;
+    virtual std::pair<float, int> ClosestPoint(const vec3& p);
 
    protected:
     std::vector<std::pair<Triangle, int>> triangles;
@@ -94,6 +98,7 @@ class SAIGA_CORE_API BVH : public Base
     // Recursive traversal
     void getClosest(int node, const Ray& ray, RayTriangleIntersection& result);
     void getAll(int node, const Ray& ray, std::vector<RayTriangleIntersection>& result);
+    void ClosestPoint(int node, const vec3& p, std::pair<float, int>& result);
 };
 
 class SAIGA_CORE_API ObjectMedianBVH : public BVH

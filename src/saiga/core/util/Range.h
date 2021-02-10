@@ -17,7 +17,7 @@ namespace Saiga
 // Modifications:
 // - template IndexType
 // - from/to member variables
-template <typename IndexType = int>
+template <typename IndexType = int, typename Comp = std::not_equal_to<IndexType>>
 class Range
 {
    public:
@@ -25,31 +25,73 @@ class Range
     class iterator
     {
         IndexType num;
+        IndexType stride;
 
        public:
-        explicit iterator(IndexType _num) : num(_num) {}
-        iterator& operator++()
+        HD inline explicit iterator(IndexType _num, IndexType _stride) : num(_num), stride(_stride) {}
+
+        // pre-increment
+        HD inline iterator& operator++()
         {
-            ++num;
+            num += stride;
             return *this;
         }
-        iterator operator++(int)
+
+        HD inline bool operator!=(iterator other) const
         {
-            iterator retval = *this;
-            ++(*this);
-            return retval;
+            Comp ne;
+            return ne(num, other.num);
         }
-        bool operator==(iterator other) const { return num == other.num; }
-        bool operator!=(iterator other) const { return !(*this == other); }
-        IndexType operator*() const { return num; }
+        HD inline IndexType operator*() const { return num; }
     };
 
-    Range(IndexType _from, IndexType _to) : from(_from), to(_to) {}
-    iterator begin() { return iterator(from); }
-    iterator end() { return iterator(to); }
+    HD inline Range(IndexType _from, IndexType _to, IndexType _stride = 1) : from(_from), to(_to), stride(_stride) {}
+    HD inline iterator begin() { return iterator(from, stride); }
+    HD inline iterator end() { return iterator(to, stride); }
+    HD inline Range<IndexType, Comp> inverse()
+    {
+        static_assert(std::is_same<Comp, std::not_equal_to<IndexType>>::value,
+                      "Inverse only valid for not_equal comparison!");
+        return Range<IndexType, Comp>(to - stride, from - stride, -stride);
+    }
 
-    IndexType from, to;
+    IndexType from, to, stride;
 };
+
+
+template <typename IndexType = int>
+class StridedRange
+{
+   public:
+    class iterator
+    {
+        IndexType num;
+        IndexType stride;
+
+       public:
+        HD inline explicit iterator(IndexType _num, IndexType _stride) : num(_num), stride(_stride) {}
+
+        // pre-increment
+        HD inline iterator& operator++()
+        {
+            num += stride;
+            return *this;
+        }
+
+        HD inline bool operator!=(iterator other) const { return num < other.num; }
+        HD inline IndexType operator*() const { return num; }
+    };
+
+    HD inline StridedRange(IndexType _from, IndexType _to, IndexType _stride = 1)
+        : from(_from), to(_to), stride(_stride)
+    {
+    }
+    HD inline iterator begin() { return iterator(from, stride); }
+    HD inline iterator end() { return iterator(to, stride); }
+
+    IndexType from, to, stride;
+};
+
 
 /**
  * An indirect range iterator for index-value iteration.

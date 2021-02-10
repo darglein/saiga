@@ -93,7 +93,7 @@ void recursionTest()
         const int BLOCK_SIZE = 128;
         d_data               = data;
         {
-            CUDA::CudaScopedTimerPrint t("recurseFact");
+            CUDA::ScopedTimerPrint t("recurseFact");
             recurseFact<ElementType, BLOCK_SIZE><<<CUDA::getBlockCount(N, BLOCK_SIZE), BLOCK_SIZE>>>(d_data);
         }
         CUDA_SYNC_CHECK_ERROR();
@@ -112,7 +112,7 @@ void recursionTest()
         const int BLOCK_SIZE = 128;
         d_data               = data;
         {
-            CUDA::CudaScopedTimerPrint t("recurseFib");
+            CUDA::ScopedTimerPrint t("recurseFib");
             recurseFib<ElementType, BLOCK_SIZE><<<CUDA::getBlockCount(N, BLOCK_SIZE), BLOCK_SIZE>>>(d_data);
         }
         CUDA_SYNC_CHECK_ERROR();

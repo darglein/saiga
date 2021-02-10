@@ -36,7 +36,7 @@ void memcpyTest()
     // Test 10 times and use the median time
     int its = 500;
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             cudaMemcpy(thrust::raw_pointer_cast(dest.data()), thrust::raw_pointer_cast(src.data()), N * sizeof(int),
                        cudaMemcpyDeviceToDevice);
         });
@@ -49,7 +49,7 @@ void memcpyTest()
         auto size =src.size() * sizeof(int) / sizeof(T);
         auto srcv = Saiga::ArrayView<T>( (T*)thrust::raw_pointer_cast(src.data()),size );
         auto dstv = Saiga::ArrayView<T>( (T*)thrust::raw_pointer_cast(dest.data()),size);
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             copy<T><<<THREAD_BLOCK(size, BLOCK_SIZE)>>>(srcv,dstv);
         });
         pth.addMeassurement("copy 4", st.median);
@@ -60,7 +60,7 @@ void memcpyTest()
         auto size =src.size() * sizeof(int) / sizeof(T);
         auto srcv = Saiga::ArrayView<T>( (T*)thrust::raw_pointer_cast(src.data()),size );
         auto dstv = Saiga::ArrayView<T>( (T*)thrust::raw_pointer_cast(dest.data()),size);
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             copy<T><<<THREAD_BLOCK(size, BLOCK_SIZE)>>>(srcv,dstv);
         });
         pth.addMeassurement("copy 8", st.median);
@@ -70,7 +70,7 @@ void memcpyTest()
         auto size =src.size() * sizeof(int) / sizeof(T);
         auto srcv = Saiga::ArrayView<T>( (T*)thrust::raw_pointer_cast(src.data()),size );
         auto dstv = Saiga::ArrayView<T>( (T*)thrust::raw_pointer_cast(dest.data()),size);
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             copy<T><<<THREAD_BLOCK(size, BLOCK_SIZE)>>>(srcv,dstv);
         });
         pth.addMeassurement("copy 16", st.median);

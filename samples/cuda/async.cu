@@ -106,7 +106,7 @@ static void uploadProcessDownloadAsync(int N, int slices, int streamCount)
 
 
 
-        Saiga::CUDA::CudaScopedTimerPrint tim("uploadProcessDownloadAsync " + std::to_string(slices));
+        Saiga::CUDA::ScopedTimerPrint tim("uploadProcessDownloadAsync " + std::to_string(slices));
 
         for (int i = 0; i < slices; ++i)
         {

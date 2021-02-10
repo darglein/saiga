@@ -27,11 +27,11 @@ namespace CUDA
  * }
  *
  */
-class SAIGA_CUDA_API CudaScopedTimer
+class SAIGA_CUDA_API ScopedTimer
 {
    public:
-    CudaScopedTimer(float& time, cudaStream_t stream = 0) : time(time), stream(stream) { start.record(stream); }
-    ~CudaScopedTimer()
+    ScopedTimer(float& time, cudaStream_t stream = 0) : time(time), stream(stream) { start.record(stream); }
+    ~ScopedTimer()
     {
         stop.record(stream);
         stop.synchronize();
@@ -47,14 +47,14 @@ class SAIGA_CUDA_API CudaScopedTimer
 
 
 
-class SAIGA_CUDA_API CudaScopedTimerPrint
+class SAIGA_CUDA_API ScopedTimerPrint
 {
    public:
-    CudaScopedTimerPrint(const std::string& name, cudaStream_t stream = 0) : name(name), stream(stream)
+    ScopedTimerPrint(const std::string& name, cudaStream_t stream = 0) : name(name), stream(stream)
     {
         start.record(stream);
     }
-    ~CudaScopedTimerPrint()
+    ~ScopedTimerPrint()
     {
         stop.record(stream);
         stop.synchronize();
@@ -69,6 +69,51 @@ class SAIGA_CUDA_API CudaScopedTimerPrint
     CudaEvent start, stop;
     cudaStream_t stream;
 };
+
+/**
+ * Asynchronous CUDA GPU timer.
+ *
+ * Meassuers the time of the CUDA calls between startTimer and stopTimer.
+ * These calls do not empty the GPU command queue and return immediately.
+ *
+ */
+class SAIGA_CUDA_API MultiFrameTimer
+{
+   public:
+    MultiFrameTimer(cudaStream_t stream = 0) : stream(stream) {}
+    ~MultiFrameTimer() {}
+
+    void startTimer() { events[queryBackBuffer][0].record(stream); }
+    float stopTimer()
+    {
+        events[queryBackBuffer][1].record(stream);
+
+
+        time = -1;
+
+        // Skip first iteration, because calling elapsed time on an events without a previous record
+        // results in an error.
+        if (n > 0)
+        {
+            time = CudaEvent::elapsedTime(events[queryFrontBuffer][0], events[queryFrontBuffer][1]);
+        }
+        swap();
+        n++;
+        return time;
+    }
+
+    float getTimeMS() { return time; }
+
+   private:
+    CudaEvent events[2][2];
+    cudaStream_t stream;
+    int queryBackBuffer = 0, queryFrontBuffer = 1;
+    float time = -1;
+    int n      = 0;
+
+    void swap() { std::swap(queryBackBuffer, queryFrontBuffer); }
+};
+
 
 
 }  // namespace CUDA

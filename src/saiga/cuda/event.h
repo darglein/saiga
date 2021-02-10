@@ -32,6 +32,7 @@ class SAIGA_CUDA_API CudaEvent
 
 
     CudaEvent() { create(); }
+    CudaEvent(const CudaEvent& other) { create(); }
     ~CudaEvent() { destroy(); }
 
     void destroy()
@@ -67,15 +68,22 @@ class SAIGA_CUDA_API CudaEvent
     void synchronize() { CHECK_CUDA_ERROR(cudaEventSynchronize(event)); }
 
     // Test if the event is completed (returns immediately)
-    bool isCompleted() { return cudaEventQuery(event) == cudaSuccess; }
+    bool isCompleted()
+    {
+        auto result = cudaEventQuery(event);
+        SAIGA_ASSERT(result == cudaSuccess || result == cudaErrorNotReady);
+        return result == cudaSuccess;
+    }
 
 
 
+    // Returns -1 if the time is not ready yet
     static float elapsedTime(CudaEvent& first, CudaEvent& second)
     {
         float time;
-        CHECK_CUDA_ERROR(cudaEventElapsedTime(&time, first, second));
-        return time;
+        auto result = cudaEventElapsedTime(&time, first, second);
+        SAIGA_ASSERT(result == cudaSuccess || result == cudaErrorNotReady);
+        return result == cudaSuccess ? time : -1;
     }
 
     operator cudaEvent_t() const { return event; }

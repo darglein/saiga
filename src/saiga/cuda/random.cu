@@ -80,7 +80,7 @@ void randomTest()
     {
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             initRandom(states, 495673603);
         }
         pth.addMeassurement("initRandom", time);
@@ -90,7 +90,7 @@ void randomTest()
         thrust::device_vector<float> outF(states.size(), 0);
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             const size_t THREADS_PER_BLOCK = 256;
             const size_t NUM_BLOCKS        = getBlockCount(states.size(), THREADS_PER_BLOCK);
             random_test<THREADS_PER_BLOCK, 1><<<NUM_BLOCKS, THREADS_PER_BLOCK>>>(states, outF);
@@ -102,7 +102,7 @@ void randomTest()
         thrust::device_vector<float> outF(states.size(), 0);
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             const size_t THREADS_PER_BLOCK = 256;
             const size_t NUM_BLOCKS        = getBlockCount(states.size(), THREADS_PER_BLOCK);
             random_test<THREADS_PER_BLOCK, 10><<<NUM_BLOCKS, THREADS_PER_BLOCK>>>(states, outF);
@@ -114,7 +114,7 @@ void randomTest()
         thrust::device_vector<float> outF(states.size(), 0);
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             const size_t THREADS_PER_BLOCK = 256;
             const size_t NUM_BLOCKS        = getBlockCount(states.size(), THREADS_PER_BLOCK);
             random_test<THREADS_PER_BLOCK, 100><<<NUM_BLOCKS, THREADS_PER_BLOCK>>>(states, outF);

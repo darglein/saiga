@@ -19,7 +19,7 @@
 #include <thread>
 #include <vector>
 
-typedef struct ALCdevice ALCdevice;
+typedef struct ALCdevice_struct ALCdevice;
 
 namespace Saiga
 {

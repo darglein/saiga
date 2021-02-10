@@ -17,10 +17,9 @@ class SAIGA_CORE_API Ray
     vec3 direction;
     vec3 origin;
 
-    Ray(const vec3& dir = make_vec3(0), const vec3& ori = make_vec3(0)) : direction(dir), origin(ori) {}
-
-
-    vec3 positionOnRay(float t) const { return origin + t * direction; }
+    HD Ray() : direction(make_vec3(0)), origin(make_vec3(0)) {}
+    HD Ray(const vec3& dir, const vec3& ori) : direction(dir), origin(ori) {}
+    HD vec3 positionOnRay(float t) const { return origin + t * direction; }
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Ray& dt);
 };

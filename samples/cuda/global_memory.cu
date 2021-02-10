@@ -176,7 +176,7 @@ void particleTest()
 
     {
         particles = hp;
-        auto st   = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st   = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { integrateEulerBase<<<THREAD_BLOCK(N, BLOCK_SIZE)>>>(particles, particles2, 0.1f); });
         ref = particles2;
         pth.addMeassurement("integrateEulerBase", st.median);
@@ -186,7 +186,7 @@ void particleTest()
 
     {
         particles = hp;
-        auto st   = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st   = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { integrateEulerVector<<<THREAD_BLOCK(N, BLOCK_SIZE)>>>(particles, particles2, 0.1f); });
         test = particles2;
         SAIGA_ASSERT(test == ref);
@@ -197,7 +197,7 @@ void particleTest()
 
     {
         particles = hp;
-        auto st   = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st   = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { integrateEulerInverseVector<<<THREAD_BLOCK(N, BLOCK_SIZE)>>>(pr, vm, pr2, vm2, 0.1f); });
         pth.addMeassurement("integrateEulerInverseVector", st.median);
         CUDA_SYNC_CHECK_ERROR();
@@ -206,7 +206,7 @@ void particleTest()
 
     {
         particles = hp;
-        auto st   = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st   = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             integrateEulerSharedVector<BLOCK_SIZE><<<THREAD_BLOCK(N, BLOCK_SIZE)>>>(particles, particles2, 0.1f);
         });
         test      = particles2;
@@ -216,7 +216,7 @@ void particleTest()
 
 
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             cudaMemcpy(particles2.data().get(), particles.data().get(), N * sizeof(Particle), cudaMemcpyDeviceToDevice);
         });
         pth.addMeassurement("cudaMemcpy", st.median);
@@ -243,7 +243,7 @@ void memcpyTest()
     {
         float t = 0;
         {
-            Saiga::CUDA::CudaScopedTimer timer(t);
+            Saiga::CUDA::ScopedTimer timer(t);
             cudaMemcpy(dest.data().get(), src.data().get(), N * sizeof(int), cudaMemcpyDeviceToDevice);
         }
         double bandwidth = readWrites / t / (1000 * 1000);
@@ -254,7 +254,7 @@ void memcpyTest()
     // Test 10 times and use the median time
     int its = 50;
     {
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             cudaMemcpy(thrust::raw_pointer_cast(dest.data()), thrust::raw_pointer_cast(src.data()), N * sizeof(int),
                        cudaMemcpyDeviceToDevice);
         });

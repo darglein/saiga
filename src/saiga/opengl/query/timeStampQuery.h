@@ -10,15 +10,21 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API TimeStampQuery
+class SAIGA_OPENGL_API QueryObject
 {
    private:
     GLuint id = 0;
 
    public:
-    TimeStampQuery();
-    ~TimeStampQuery();
+    QueryObject();
+    ~QueryObject();
+
+    // Note: The query state is not copied.
+    QueryObject(const QueryObject& other);
+
+    // Create/destroy the underlying OpenGL objects.
     void create();
+    void destroy();
 
     /**
      * Places this query in the command queue.

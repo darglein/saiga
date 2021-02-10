@@ -6,11 +6,29 @@
 
 #include "SparseTSDF.h"
 
+#include "saiga/core/util/file.h"
+#include "saiga/core/util/zlib.h"
 namespace Saiga
 {
-std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double iso, int threads)
+void SparseTSDF::EraseEmptyBlocks()
 {
-    ProgressBar loading_bar(std::cout, "Ex. Surface", current_blocks);
+    for (int i = 0; i < current_blocks; ++i)
+    {
+        auto& b = blocks[i];
+        if (b.Empty())
+        {
+            // std::cout << "erase empty " << b.index.transpose() << std::endl;
+            EraseBlock(b.index);
+            i--;
+        }
+    }
+}
+
+std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double iso, float outlier_factor,
+                                                                          float min_weight, int threads, bool verbose)
+{
+    std::stringstream sstrm;
+    ProgressBar loading_bar(verbose ? std::cout : sstrm, "Ex. Surface", current_blocks);
 
     //        std::vector<std::vector<std::array<vec3, 3>>> triangle_soup_thread(threads);
 
@@ -52,7 +70,7 @@ std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double
                     {
                         float dis           = read_block->data[li][lj][lk].distance;
                         float wei           = read_block->data[li][lj][lk].weight;
-                        local_data[i][j][k] = {p, wei > 0 ? dis : std::numeric_limits<float>::infinity()};
+                        local_data[i][j][k] = {p, wei > min_weight ? dis : std::numeric_limits<float>::infinity()};
                         //                        local_data[i][j][k] = {p, dis};
                     }
                     else
@@ -82,11 +100,18 @@ std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double
                     cell[6] = local_data[i + 1][j + 1][k + 1];
                     cell[7] = local_data[i + 1][j + 1][k];
 
-                    bool finite = true;
+                    bool finite   = true;
+                    float abs_max = 0;
 
                     for (auto i = 0; i < 8; ++i)
                     {
                         finite &= std::isfinite(cell[i].second);
+                        abs_max = std::max(abs_max, std::abs(cell[i].second));
+                    }
+
+                    if (abs_max > outlier_factor * voxel_size)
+                    {
+                        continue;
                     }
 
                     if (!finite)
@@ -158,7 +183,34 @@ void SparseTSDF::Load(const std::string& file)
     strm >> voxel_size >> voxel_size_inv >> block_size_inv >> hash_size >> current_blocks;
     strm >> blocks;
     strm >> first_hashed_block;
-    // hash_locks.resize(first_hashed_block.size());
+}
+
+void SparseTSDF::SaveCompressed(const std::string& file)
+{
+#ifdef SAIGA_USE_ZLIB
+    BinaryOutputVector strm;
+    strm << voxel_size << voxel_size_inv << block_size_inv << hash_size << current_blocks;
+    strm << blocks;
+    strm << first_hashed_block;
+    auto compressed = compress(strm.data.data(), strm.data.size());
+    File::saveFileBinary(file, compressed.data(), compressed.size());
+#else
+    SAIGA_EXIT_ERROR("zlib not found.");
+#endif
+}
+
+void SparseTSDF::LoadCompressed(const std::string& file)
+{
+#ifdef SAIGA_USE_ZLIB
+    auto compressed_data = File::loadFileBinary(file);
+    auto data            = uncompress(compressed_data.data());
+    BinaryInputVector strm(data.data(), data.size());
+    strm >> voxel_size >> voxel_size_inv >> block_size_inv >> hash_size >> current_blocks;
+    strm >> blocks;
+    strm >> first_hashed_block;
+#else
+    SAIGA_EXIT_ERROR("zlib not found.");
+#endif
 }
 
 bool SparseTSDF::operator==(const SparseTSDF& other) const
@@ -184,6 +236,92 @@ bool SparseTSDF::operator==(const SparseTSDF& other) const
     }
 
     return true;
+}
+
+
+void SparseTSDF::ClampDistance(float distance)
+{
+    for (int b = 0; b < current_blocks; ++b)
+    {
+        auto& block = blocks[b];
+
+        for (auto& z : block.data)
+        {
+            for (auto& y : z)
+            {
+                for (auto& x : y)
+                {
+                    x.distance = clamp(x.distance, -distance, distance);
+                }
+            }
+        }
+    }
+}
+
+void SparseTSDF::EraseAboveDistance(float threshold)
+{
+    for (int i = 0; i < current_blocks; ++i)
+    {
+        auto& b = blocks[i];
+
+
+        for (int i = 0; i < VOXEL_BLOCK_SIZE; ++i)
+        {
+            for (int j = 0; j < VOXEL_BLOCK_SIZE; ++j)
+            {
+                for (int k = 0; k < VOXEL_BLOCK_SIZE; ++k)
+                {
+                    if (std::abs(b.data[i][j][k].distance) > threshold)
+                    {
+                        b.data[i][j][k].weight   = 0;
+                        b.data[i][j][k].distance = 0;
+                    }
+                }
+            }
+        }
+    }
+}
+
+int SparseTSDF::NumZeroVoxels() const
+{
+    int n = 0;
+    for (int b = 0; b < current_blocks; ++b)
+    {
+        auto& block = blocks[b];
+
+        for (auto& z : block.data)
+        {
+            for (auto& y : z)
+            {
+                for (auto& x : y)
+                {
+                    if (x.weight == 0) n++;
+                }
+            }
+        }
+    }
+    return n;
+}
+
+int SparseTSDF::NumNonZeroVoxels() const
+{
+    int n = 0;
+    for (int b = 0; b < current_blocks; ++b)
+    {
+        auto& block = blocks[b];
+
+        for (auto& z : block.data)
+        {
+            for (auto& y : z)
+            {
+                for (auto& x : y)
+                {
+                    if (x.weight != 0) n++;
+                }
+            }
+        }
+    }
+    return n;
 }
 
 
@@ -243,6 +381,22 @@ std::ostream& operator<<(std::ostream& strm, const SparseTSDF& tsdf)
     strm << "  Mem Hash     " << mem_hash / (1000.0 * 1000) << " MB" << std::endl;
     strm << "  Distance     [" << d_st.min << ", " << d_st.max << "]" << std::endl;
     strm << "  Weight       [" << w_st.min << ", " << w_st.max << "]" << std::endl;
+
+    int total     = tsdf.current_blocks * 8 * 8 * 8;
+    int nnz       = tsdf.NumNonZeroVoxels();
+    float density = nnz / (tsdf.current_blocks * 8.f * 8 * 8);
+    strm << "  Block Density  " << nnz << "/" << total << " = " << density * 100 << "%" << std::endl;
+
+    float total_size    = tsdf.Bounds().Volume() * 8 * 8 * 8;
+    float total_density = nnz / total_size;
+    strm << "  Total Density  " << nnz << "/" << total_size << " = " << total_density * 100 << "%";
+
+    auto bounds = tsdf.Bounds();
+    strm << "  Block Bounds " << bounds << std::endl;
+
+    bounds.begin *= 8;
+    bounds.end *= 8;
+    strm << "  Voxel Bounds " << bounds << std::endl;
 
     return strm;
 }

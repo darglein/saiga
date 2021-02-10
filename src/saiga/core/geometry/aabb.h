@@ -15,6 +15,7 @@
 
 namespace Saiga
 {
+// This class can be used in CUDA, however not all member functions are available there.
 class SAIGA_CORE_API AABB
 {
    public:
@@ -22,36 +23,40 @@ class SAIGA_CORE_API AABB
     vec3 max = make_vec3(0);
 
    public:
-    AABB();
-    AABB(const vec3& min, const vec3& max);
-    ~AABB();
+    HD AABB() {}
+    HD AABB(const vec3& min, const vec3& max) : min(min), max(max) {}
 
-
+    vec3 getPosition() const;
+    void setPosition(const vec3& v);
     // returns the axis with the maximum extend
     int maxDimension() const;
 
     void makeNegative();
-    void growBox(const vec3& v);
-    void growBox(const AABB& v);
 
     void transform(const mat4& trafo);
     void translate(const vec3& v);
     void scale(const vec3& s);
-    void ensureValidity();
 
 
     vec3 getHalfExtends() const;
 
 
+    // Point to AABB distance
+    float DistanceSquared(const vec3& p) const;
 
+    // ================== Defined in aabb.cpp ==================
+    // These function are currently not usable in cuda.
+    // =============================================================
+
+    void growBox(const vec3& v);
+    void growBox(const AABB& v);
+    void ensureValidity();
     void getMinimumAabb(AABB& box) const { box = *this; }
 
     vec3 cornerPoint(int i) const;
 
-    vec3 getPosition() const;
-    void setPosition(const vec3& v);
-
     bool contains(const vec3& p) const;
+
 
     // A list the 12 triangles (2 for each face)
     std::vector<Triangle> toTriangles() const;

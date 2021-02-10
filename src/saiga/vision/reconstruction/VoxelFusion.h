@@ -31,25 +31,37 @@ struct SAIGA_VISION_API FusionParams
     float truncationDistanceScale = 0.02;
     float maxIntegrationDistance  = 5;
 #endif
-    bool use_confidence          = true;
-    bool test                    = false;
-    bool bilinear_intperpolation = true;
+    bool use_confidence              = true;
+    bool test                        = false;
+    bool bilinear_intperpolation     = true;
+    bool increase_visibility_frustum = false;
+
+    // The input data is perfect (no outliers, noise)
+    // -> Use a large truncation distance, but min/max the distance
+    bool ground_truth_fuse          = false;
+    float ground_truth_trunc_factor = 1.0f;
+
     // the truncation distance will be always greater than (min_truncation_factor * voxelSize)
     float min_truncation_factor = 6;
 
     // clamp signed distance to +- this value
     float sd_clamp = 100;
 
-    float extract_iso = 0;
-    float newWeight   = 0.1;
-    float maxWeight   = 250;
+    float extract_iso            = 0;
+    float extract_outlier_factor = 8;
+    float newWeight              = 0.1;
+    float maxWeight              = 250;
 
-    float max_distance_error = 0.01;
-    int hash_size            = 5 * 1000 * 1000;
-    int block_count          = 25 * 1000;
-    bool post_process_mesh   = true;
+    int hash_size          = 5 * 1000 * 1000;
+    int block_count        = 25 * 1000;
+    bool post_process_mesh = true;
+
+    // added to projet image points.
+    // for example -0.5 for opengl renders
+    Vec2 ip_offset = Vec2::Zero();
 
 
+    bool verbose         = true;
     bool point_based     = false;
     std::string out_file = "outmesh_sparse.off";
 
@@ -98,6 +110,7 @@ struct SAIGA_VISION_API FusionScene
 
     TemplatedImage<vec2> unproject_undistort_map;
 
+
     void Preprocess();
     void AnalyseSparseStructure();
     void ComputeWeight();
@@ -105,9 +118,6 @@ struct SAIGA_VISION_API FusionScene
     void Integrate();
     void IntegratePointBased();
     void ExtractMesh();
-
-   private:
-    void AllocateAroundPoint(const vec3& p);
 };
 
 

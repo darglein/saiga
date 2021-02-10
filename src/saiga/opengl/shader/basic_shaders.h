@@ -48,14 +48,14 @@ class SAIGA_OPENGL_API MVPTextureShader : public MVPShader
 };
 
 
-class SAIGA_OPENGL_API FBShader : public MVPShader
-{
-   public:
-    GLint location_texture;
+// class SAIGA_OPENGL_API FBShader : public MVPShader
+//{
+//   public:
+//    GLint location_texture;
 
-    virtual void checkUniforms();
-    virtual void uploadFramebuffer(Framebuffer* fb);
-};
+//    virtual void checkUniforms();
+//    virtual void uploadFramebuffer(Framebuffer* fb);
+//};
 
 class SAIGA_OPENGL_API DeferredShader : public MVPShader
 {

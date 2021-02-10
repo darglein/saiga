@@ -8,9 +8,9 @@
 #ifdef SAIGA_USE_FREETYPE
 #    include "saiga/core/geometry/triangle_mesh.h"
 #    include "saiga/opengl/framebuffer.h"
+#    include "saiga/opengl/rendering/overlay/textDebugOverlay.h"
 #    include "saiga/opengl/shader/basic_shaders.h"
 #    include "saiga/opengl/shader/shaderLoader.h"
-#    include "saiga/opengl/rendering/overlay/textDebugOverlay.h"
 #    include "saiga/opengl/text/text.h"
 #    include "saiga/opengl/text/textShader.h"
 #    include "saiga/opengl/text/textureAtlas.h"
@@ -37,7 +37,7 @@ void TextDebugOverlay::render()
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    overlay.render(&layout.cam);
+    overlay.render();
 }
 
 int TextDebugOverlay::createItem(const std::string& name)
@@ -57,7 +57,7 @@ int TextDebugOverlay::createItem(const std::string& name)
 
     int y = id;
 
-    vec2 relPos(0);
+    vec2 relPos(0, 0);
     relPos[0] = borderX;
     //    relPos[0] = 0.5;
     relPos[1] = 1.0f - ((y) * (paddingY + textSize) + borderY);

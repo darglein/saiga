@@ -126,7 +126,10 @@ bool OffModelLoader::loadFile(const std::string& _file)
 
     mesh.computePerVertexNormal();
 
-    SAIGA_ASSERT(state == ParsingState::DONE);
+    if(state != ParsingState::DONE){
+        std::cout << "Parsing failed!" << std::endl;
+        return false;
+    }
 
 
     std::cout << "[OffModelLoader] Done. " << mesh << std::endl;

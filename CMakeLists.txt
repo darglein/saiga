@@ -49,6 +49,7 @@ OptionsHelper(SAIGA_PCH "Generate a precompiled header" OFF)
 OptionsHelper(SAIGA_OPENMP "Enable OPENMP" ON)
 OptionsHelper(SAIGA_LIBSTDCPP "Use the GCC std lib for the clang compiler" OFF)
 OptionsHelper(SAIGA_DEBUG_ASAN "Enable the address sanitizer. Does not work in combination with TSAN." OFF)
+OptionsHelper(SAIGA_DEBUG_MSAN "Enable the memory sanitizer. Does not work in combination with TSAN." OFF)
 OptionsHelper(SAIGA_DEBUG_TSAN "Enable the thread sanitizer. Does not work in combination with ASAN." OFF)
 OptionsHelper(SAIGA_DEBIAN_BUILD "Saiga is currently build into a Debian Package. This will overwrite a lot of compile flags." OFF)
 
@@ -152,6 +153,7 @@ endif()
 message(STATUS "\nCompiler Flags:")
 
 message(STATUS "SAIGA_CXX_FLAGS: ${SAIGA_CXX_FLAGS}")
+message(STATUS "SAIGA_LD_FLAGS: ${SAIGA_LD_FLAGS}")
 
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")

@@ -77,6 +77,7 @@ class SAIGA_CORE_API Graph
     virtual ~Graph() {}
     void addValue(float t);
     void renderImGui();
+    void SetName(const std::string& n) { name = n; }
 
    protected:
     virtual void renderImGuiDerived();

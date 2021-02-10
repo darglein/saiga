@@ -8,4 +8,3 @@
 
 #include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/query/timeStampQuery.h"
-#include "saiga/opengl/query/timerQuery.h"

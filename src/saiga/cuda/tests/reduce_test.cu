@@ -38,7 +38,7 @@ void reduceTest()
     {
         float time;
         {
-            ScopedTimer<float> t(&time);
+            Saiga::ScopedTimer<float> t(&time);
             for (int i = 0; i < N; ++i)
             {
                 res += h[i];
@@ -54,7 +54,7 @@ void reduceTest()
         float time;
         int sum;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             sum = thrust::reduce(v.begin(), v.end());
         }
         SAIGA_ASSERT(sum == res);
@@ -68,7 +68,7 @@ void reduceTest()
         SAIGA_ASSERT(0);
         //        static auto numBlocks = CUDA::max_active_blocks(reduceBlockShared<int,blockSize>,blockSize,0);
         {
-            CUDA::CudaScopedTimer t2(time);
+            CUDA::ScopedTimer t2(time);
             reduceBlockShared<int, blockSize><<<1, blockSize>>>(v, thrust::raw_pointer_cast(res.data()));
         }
         pth.addMeassurement("reduceBlockShared", time);
@@ -84,7 +84,7 @@ void reduceTest()
         float time;
         {
             SAIGA_ASSERT(0);
-            CUDA::CudaScopedTimer t2(time);
+            CUDA::ScopedTimer t2(time);
             reduceBlockSharedAtomic<int, blockSize><<<1, blockSize>>>(v, thrust::raw_pointer_cast(res.data()));
         }
         pth.addMeassurement("reduceBlockSharedAtomic", time);
@@ -100,7 +100,7 @@ void reduceTest()
         float time;
         {
             SAIGA_ASSERT(0);
-            CUDA::CudaScopedTimer t2(time);
+            CUDA::ScopedTimer t2(time);
             reduceAtomic<int, blockSize><<<1, blockSize>>>(v, thrust::raw_pointer_cast(res.data()));
         }
         pth.addMeassurement("reduceAtomic", time);

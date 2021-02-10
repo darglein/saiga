@@ -28,14 +28,6 @@ namespace Saiga
  */
 class SAIGA_OPENGL_API MultiFrameOpenGLTimer
 {
-   private:
-    TimeStampQuery queries[2][2];
-
-    int queryBackBuffer = 0, queryFrontBuffer = 1;
-    GLuint64 time = 0;
-
-    void swapQueries();
-
    public:
     MultiFrameOpenGLTimer();
     ~MultiFrameOpenGLTimer();
@@ -51,6 +43,14 @@ class SAIGA_OPENGL_API MultiFrameOpenGLTimer
     float getTimeMS();
     double getTimeMSd();
     GLuint64 getTimeNS();
+
+   private:
+    QueryObject queries[2][2];
+
+    int queryBackBuffer = 0, queryFrontBuffer = 1;
+    GLuint64 time = 0;
+
+    void swapQueries();
 };
 
 /**
@@ -60,30 +60,30 @@ class SAIGA_OPENGL_API MultiFrameOpenGLTimer
 
 class SAIGA_OPENGL_API FilteredMultiFrameOpenGLTimer : public MultiFrameOpenGLTimer
 {
-   private:
-    double currentTimeMS = 0;
-
    public:
     double alpha = 0.05;
 
     void stopTimer();
     float getTimeMS();
     double getTimeMSd();
+
+   private:
+    double currentTimeMS = 0;
 };
 
 
 class SAIGA_OPENGL_API OpenGLTimer
 {
-   protected:
-    TimeStampQuery queries[2];
-    GLuint64 time;
-
    public:
     OpenGLTimer();
 
     void start();
     GLuint64 stop();
     float getTimeMS();
+
+   protected:
+    QueryObject queries[2];
+    GLuint64 time;
 };
 
 

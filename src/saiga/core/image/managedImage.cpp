@@ -6,7 +6,10 @@
 
 #include "saiga/core/image/managedImage.h"
 
+#include "saiga/core/util/BinaryFile.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/file.h"
+#include "saiga/core/util/zlib.h"
 
 // for the load and save function
 #include "saiga/core/image/freeimage.h"
@@ -185,70 +188,77 @@ bool Image::save(const std::string& path) const
     return saveImageSTB(path, *this);
 }
 
-#define SAIGA_BINARY_IMAGE_MAGIC_NUMBER 8574385
+constexpr int saiga_image_magic_number            = 8574385;
+constexpr int saiga_compressed_image_magic_number = 198760233;
+constexpr size_t saiga_image_header_size          = 4 * sizeof(int);
+
 
 
 bool Image::loadRaw(const std::string& path)
 {
     clear();
-    std::fstream stream;
 
-    try
-    {
-        stream.open(path, std::ios::in | std::ios::binary);
-    }
-    catch (const std::fstream::failure& e)
-    {
-        std::cout << e.what() << std::endl;
-        std::cout << "Exception opening/reading file\n";
-        return false;
-    }
+
+
+    auto data = File::loadFileBinary(path);
+    BinaryInputVector stream(data.data(), data.size());
 
     int magic;
-    stream.read((char*)&magic, sizeof(int));
-    stream.read((char*)&width, sizeof(int));
-    stream.read((char*)&height, sizeof(int));
-    stream.read((char*)&type, sizeof(int));
-    pitchBytes = 0;
-
-    SAIGA_ASSERT(magic == SAIGA_BINARY_IMAGE_MAGIC_NUMBER);
-    SAIGA_ASSERT(type != TYPE_UNKNOWN);
+    stream >> magic >> width >> height >> type;
 
 
-    create();
 
-    int es = elementSize(type);
-    for (int i = 0; i < height; ++i)
+    bool compress = false;
+    if (magic == saiga_image_magic_number)
     {
-        // store it compact
-        stream.read((char*)rowPtr(i), width * es);
+        compress = false;
+    }
+    else if (magic == saiga_compressed_image_magic_number)
+    {
+        compress = true;
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("invalid magic number");
     }
 
-    stream.close();
+    pitchBytes = 0;
+    create();
+    SAIGA_ASSERT(type != TYPE_UNKNOWN);
+    int es = elementSize(type);
+
+    if (compress)
+    {
+#ifdef SAIGA_USE_ZLIB
+        auto uncompressed = Saiga::uncompress(stream.data + stream.current);
+        size_t line_size  = width * es;
+        for (int i = 0; i < height; ++i)
+        {
+            size_t offset = i * width * es;
+            memcpy(rowPtr(i), uncompressed.data() + offset, line_size);
+        }
+#else
+        SAIGA_EXIT_ERROR("zlib required!");
+#endif
+    }
+    else
+    {
+        for (int i = 0; i < height; ++i)
+        {
+            stream.read((char*)rowPtr(i), width * es);
+        }
+    }
 
     return true;
 }
 
-bool Image::saveRaw(const std::string& path) const
+bool Image::saveRaw(const std::string& path, bool do_compress) const
 {
-    std::fstream stream;
+    BinaryOutputVector stream;
 
-    try
-    {
-        stream.open(path, std::ios::out | std::ios::binary);
-    }
-    catch (const std::fstream::failure& e)
-    {
-        std::cout << e.what() << std::endl;
-        std::cout << "Exception opening/reading file\n";
-        return false;
-    }
-
-    int magic = 8574385;
-    stream.write((char*)&magic, sizeof(int));
-    stream.write((char*)&width, sizeof(int));
-    stream.write((char*)&height, sizeof(int));
-    stream.write((char*)&type, sizeof(int));
+    int magic = do_compress ? saiga_compressed_image_magic_number : saiga_image_magic_number;
+    stream << magic << width << height << type;
+    SAIGA_ASSERT(stream.data.size() == saiga_image_header_size);
 
     int es = elementSize(type);
     for (int i = 0; i < height; ++i)
@@ -256,9 +266,22 @@ bool Image::saveRaw(const std::string& path) const
         // store it compact
         stream.write((char*)rowPtr(i), width * es);
     }
-    stream.flush();
-    stream.close();
 
+#ifdef SAIGA_USE_ZLIB
+    if (do_compress)
+    {
+        auto compressed_data =
+            Saiga::compress(stream.data.data() + saiga_image_header_size, stream.data.size() - saiga_image_header_size);
+
+        std::ofstream is(path, std::ios::binary | std::ios::out);
+        is.write(stream.data.data(), saiga_image_header_size);
+        is.write((const char*)compressed_data.data(), compressed_data.size());
+    }
+    else
+#endif
+    {
+        File::saveFileBinary(path, stream.data.data(), stream.data.size());
+    }
     return true;
 }
 

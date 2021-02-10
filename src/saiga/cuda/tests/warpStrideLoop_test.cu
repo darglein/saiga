@@ -4,12 +4,12 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/time/timer.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/reduce.h"
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/core/time/timer.h"
 
 namespace Saiga
 {
@@ -133,7 +133,7 @@ void warpStrideLoopTest2()
     {
         float time;
         {
-            ScopedTimer<float> t(&time);
+            Saiga::ScopedTimer<float> t(&time);
             for (int k = 0; k < K; ++k)
             {
                 int res = 0;
@@ -155,7 +155,7 @@ void warpStrideLoopTest2()
 
         float time;
         {
-            CUDA::CudaScopedTimer t2(time);
+            CUDA::ScopedTimer t2(time);
             batchReduce<ReduceType, blockSize, LOCAL_WARP_SIZE, N><<<numBlocks, blockSize>>>(in, out);
         }
         pth.addMeassurement("batch reduce warpsize = 1", time);
@@ -171,7 +171,7 @@ void warpStrideLoopTest2()
 
         float time;
         {
-            CUDA::CudaScopedTimer t2(time);
+            CUDA::ScopedTimer t2(time);
             batchReduce<ReduceType, blockSize, LOCAL_WARP_SIZE, N><<<numBlocks, blockSize>>>(in, out);
         }
         pth.addMeassurement("batch reduce 1", time);
@@ -186,7 +186,7 @@ void warpStrideLoopTest2()
 
         float time;
         {
-            CUDA::CudaScopedTimer t2(time);
+            CUDA::ScopedTimer t2(time);
             batchReduce2<ReduceType, blockSize, LOCAL_WARP_SIZE, N><<<numBlocks, blockSize>>>(in, out);
         }
         pth.addMeassurement("batch reduce 2", time);

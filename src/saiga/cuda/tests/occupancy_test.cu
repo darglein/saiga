@@ -96,7 +96,7 @@ void occupancyTest2()
             float time;
             const size_t NUM_BLOCKS = CUDA::getBlockCount(N * sizeof(int) / sizeof(vectorT), THREADS_PER_BLOCK);
             {
-                CUDA::CudaScopedTimer t(time);
+                CUDA::ScopedTimer t(time);
                 copy<THREADS_PER_BLOCK, vectorT><<<NUM_BLOCKS, THREADS_PER_BLOCK, targetSharedMem>>>(
                     thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(dest.data()), N * sizeof(int));
             }
@@ -110,7 +110,7 @@ void occupancyTest2()
     {
         float time;
         {
-            CUDA::CudaScopedTimer t(time);
+            CUDA::ScopedTimer t(time);
             cudaMemcpy(thrust::raw_pointer_cast(dest.data()), thrust::raw_pointer_cast(src.data()), N * sizeof(int),
                        cudaMemcpyDeviceToDevice);
         }

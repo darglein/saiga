@@ -107,10 +107,7 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
     {
         SAIGA_ASSERT(ImGui::GetCurrentContext());
         imgui->beginFrame();
-    }
-    renderingInterface->render(nullptr, RenderPass::GUI);
-    if (imgui)
-    {
+        renderingInterface->render(nullptr, RenderPass::GUI);
         imgui->endFrame();
         imgui->render();
     }

@@ -24,8 +24,8 @@ int main(int argc, char* args[])
     TriangleMesh<VertexNC, uint32_t> mesh;
     loader.toTriangleMesh(mesh);
 
-    std::vector<Triangle> triangles;
-    mesh.toTriangleList(triangles);
+
+    auto triangles = mesh.toTriangleList();
 
 
     AccelerationStructure::ObjectMedianBVH bf(triangles);

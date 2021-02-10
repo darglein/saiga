@@ -136,8 +136,10 @@ class SAIGA_CORE_API Image : public ImageBase
 
     // save in a custom saiga format
     // this can handle all image types
+    // If the compress flag is set, we apply zlib lossless compression.
+    // Loading dosen't change for compressed files, because we store a flag in the header.
     bool loadRaw(const std::string& path);
-    bool saveRaw(const std::string& path) const;
+    bool saveRaw(const std::string& path, bool compress = false) const;
 
     /**
      * Tries to convert the given image to a storable format.

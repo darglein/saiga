@@ -25,12 +25,16 @@ if (SDL2_FOUND)
         add_subdirectory(depthMapTriangulation)
         add_subdirectory(openMeshSample)
     endif ()
+    
+    if(FREETYPE_FOUND)
+        add_subdirectory(text_rendering)
+    endif()
 
 
 endif ()
 
 if (EGL_FOUND)
-    #add_subdirectory(offscreenRendering)
+    add_subdirectory(simpleEGLRendering)
 endif ()
 
 if(OPENVR_FOUND)

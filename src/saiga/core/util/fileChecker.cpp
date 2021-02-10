@@ -112,9 +112,16 @@ void FileChecker::addSearchPath(const std::vector<std::string>& paths)
 
 bool FileChecker::existsFile(const std::string& file)
 {
-    return std::filesystem::exists(file);
-    //    std::ifstream infile(file);
-    //    return infile.good();
+    try
+    {
+        return std::filesystem::exists(file);
+    }
+    catch (std::filesystem::filesystem_error e)
+    {
+        // A filesystem error when checking if a file exists should usually not happen.
+        // But if it does this file is certainly not readable.
+        return false;
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const FileChecker& fc)

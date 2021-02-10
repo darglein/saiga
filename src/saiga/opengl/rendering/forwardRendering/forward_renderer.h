@@ -34,6 +34,7 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     using ParameterType = ForwardRenderingParameters;
 
 
+    ParameterType params;
     ForwardLighting lighting;
 
     ForwardRenderer(OpenGLWindow& window, const ParameterType& params = ParameterType());
@@ -60,10 +61,10 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
 
     inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
     {
-        params.maximumNumberOfDirectionalLights       = maxDirectionalLights;
-        params.maximumNumberOfPointLights             = maxPointLights;
-        params.maximumNumberOfSpotLights              = maxSpotLights;
-        params.maximumNumberOfBoxLights               = maxBoxLights;
+        params.maximumNumberOfDirectionalLights = maxDirectionalLights;
+        params.maximumNumberOfPointLights       = maxPointLights;
+        params.maximumNumberOfSpotLights        = maxSpotLights;
+        params.maximumNumberOfBoxLights         = maxBoxLights;
 
         params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
         params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
@@ -75,8 +76,6 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     }
 
    private:
-    ParameterType params;
-
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
     bool showLightingImgui = false;
     ShaderLoader shaderLoader;
@@ -85,7 +84,7 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     void startTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].startTimer(); }
     void stopTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].stopTimer(); }
 
-    const char* coloredShaderSource = "asset/ColoredAsset.glsl";
+    const char* coloredShaderSource  = "asset/ColoredAsset.glsl";
     const char* texturedShaderSource = "asset/TexturedAsset.glsl";
 
     bool cullLights = false;

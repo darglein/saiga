@@ -357,12 +357,12 @@ void initImGui(const ImGuiParameters& params)
 
 #define COL_ALPHA(_col, _alpha) ImVec4(_col[0], _col[1], _col[2], _alpha);
 
-    colors[ImGuiCol_Text]          = COL_ALPHA(color_text, 1.00f);
-    colors[ImGuiCol_TextDisabled]  = COL_ALPHA(color_text, 0.58f);
-    colors[ImGuiCol_WindowBg]      = COL_ALPHA(color_background_low, 0.95f);
-    colors[ImGuiCol_ChildWindowBg] = COL_ALPHA(color_background_low, 0.58f);
-    colors[ImGuiCol_Border]        = COL_ALPHA(color_highlight_high, 0.00f);
-    colors[ImGuiCol_BorderShadow]  = COL_ALPHA(color_background_low, 0.00f);
+    colors[ImGuiCol_Text]         = COL_ALPHA(color_text, 1.00f);
+    colors[ImGuiCol_TextDisabled] = COL_ALPHA(color_text, 0.58f);
+    colors[ImGuiCol_WindowBg]     = COL_ALPHA(color_background_low, 0.95f);
+    colors[ImGuiCol_ChildBg]      = COL_ALPHA(color_background_low, 0.58f);
+    colors[ImGuiCol_Border]       = COL_ALPHA(color_highlight_high, 0.00f);
+    colors[ImGuiCol_BorderShadow] = COL_ALPHA(color_background_low, 0.00f);
 
     // Background of checkbox, radio button, plot, slider, text input
     colors[ImGuiCol_FrameBg]        = COL_ALPHA(color_background_high, 1.00f);

@@ -10,3 +10,4 @@
 #include "Model.h"
 #include "objModelLoader.h"
 #include "plyModelLoader.h"
+#include "offModelLoader.h"

@@ -97,7 +97,6 @@ endif()
 
 
 #libfreeimage
-
 find_package(FreeImagePlus QUIET)
 PackageHelper(FreeImagePlus ${FREEIMAGEPLUS_FOUND} "${FREEIMAGEPLUS_INCLUDE_PATH}" "${FREEIMAGEPLUS_LIBRARIES}")
 find_package(FreeImage QUIET)
@@ -105,6 +104,13 @@ PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_PATH}" "${FREEIM
 if(FREEIMAGE_FOUND AND FREEIMAGEPLUS_FOUND)
   SET(SAIGA_USE_FREEIMAGE 1)
 endif()
+
+#zlib
+find_package(ZLIB QUIET)
+if(ZLIB_FOUND)
+  SET(SAIGA_USE_ZLIB 1)
+endif()
+PackageHelper(ZLIB ${ZLIB_FOUND} "${ZLIB_INCLUDE_DIRS}" "${ZLIB_LIBRARIES}")
 
 #png
 find_package(PNG QUIET)

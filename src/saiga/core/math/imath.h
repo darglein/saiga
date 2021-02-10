@@ -12,9 +12,10 @@
 
 namespace Saiga
 {
+// upwards rounding division for positve numbers
 // returns the smallest x number with: x * b >= a
-template <typename T>
-HD constexpr T iDivUp(T a, T b)
+template <typename T, typename U>
+HD constexpr T iDivUp(T a, U b)
 {
     static_assert(std::is_integral<T>::value, "T must be integral!");
     return (a + b - T(1)) / b;
@@ -72,6 +73,13 @@ HD constexpr int iCeil(float value)
 HD constexpr int iRound(float value)
 {
     return (int)(value + (value >= 0 ? 0.5f : -0.5f));
+}
+
+// Like integer division, but also rounds down on negative numbers.
+HD constexpr int iFloorDiv(int a, int b)
+{
+    int d = a / b;
+    return d * b == a ? d : d - ((a < 0) ^ (b < 0));
 }
 
 }  // namespace Saiga

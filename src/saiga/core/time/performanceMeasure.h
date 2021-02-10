@@ -50,6 +50,25 @@ inline Statistics<float> measureObject(int its, F f)
     return Statistics<float>(timings);
 }
 
+// with preprocess
+template <typename TimerType = ScopedTimer<float>, typename F, typename F2>
+inline Statistics<float> measureObject(int its, F f, F2 f_pre)
+{
+    std::vector<float> timings(its);
+    for (int i = 0; i < its; ++i)
+    {
+        f_pre();
+        float time;
+        {
+            TimerType tim(time);
+            f();
+        }
+        timings[i] = time;
+    };
+    return Statistics<float>(timings);
+}
+
+
 template <typename TimerType = ScopedTimer<float>, typename F>
 inline Statistics<float> measureObject(const std::string& name, int its, F f)
 {

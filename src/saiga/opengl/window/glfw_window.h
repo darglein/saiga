@@ -30,8 +30,6 @@ class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeList
    public:
     GLFWwindow* window = nullptr;
 
-    bool recordingVideo = false;
-
     glfw_Window(WindowParameters windowParameters, OpenGLParameters openglParameters);
     virtual ~glfw_Window();
 

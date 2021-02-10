@@ -157,7 +157,7 @@ void randomAccessTest2(int numIndices, int numElements)
     {
         d_result = result;
 
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { randomAccessSimple<ElementType, BLOCK_SIZE, K><<<BLOCKS, BLOCK_SIZE>>>(d_data, d_result); });
         test.addMeassurement("randomAccessSimple", st.median);
         outstrm << test.bandwidth(st.median) << ",";
@@ -171,7 +171,7 @@ void randomAccessTest2(int numIndices, int numElements)
         d_result = result;
 
         //        cudaFuncSetCacheConfig(randomAccessConstRestricted<ElementType,BLOCK_SIZE,K>,cudaFuncCachePreferShared);
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             randomAccessConstRestricted<ElementType, BLOCK_SIZE, K>
                 <<<BLOCKS, BLOCK_SIZE>>>(d_data, d_data.data().get(), d_result);
         });
@@ -186,7 +186,7 @@ void randomAccessTest2(int numIndices, int numElements)
     {
         d_result = result;
 
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(its, [&]() {
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
             randomAccessLdg<ElementType, BLOCK_SIZE, K><<<BLOCKS, BLOCK_SIZE>>>(d_data, d_result);
         });
         test.addMeassurement("randomAccessLdg", st.median);
@@ -204,7 +204,7 @@ void randomAccessTest2(int numIndices, int numElements)
         cudaBindTexture(0, dataTexture, d_data.data().get(), d_data.size() * sizeof(ElementType));
         d_result = result;
 
-        auto st = Saiga::measureObject<Saiga::CUDA::CudaScopedTimer>(
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
             its, [&]() { randomAccessTexture<ElementType, BLOCK_SIZE, K><<<BLOCKS, BLOCK_SIZE>>>(d_data, d_result); });
         test.addMeassurement("randomAccessTexture", st.median);
         outstrm << test.bandwidth(st.median);

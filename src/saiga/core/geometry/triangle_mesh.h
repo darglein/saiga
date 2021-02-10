@@ -91,6 +91,7 @@ class TriangleMesh : public Mesh<vertex_t>
 
     void addQuad(vertex_t verts[4]);
     void addTriangle(vertex_t verts[3]);
+    void addTriangle(const Triangle& t);
 
     /*
      * Adds 2 Triangles given by 4 vertices and form a quad.
@@ -117,7 +118,7 @@ class TriangleMesh : public Mesh<vertex_t>
      * Converts the index face data structur to a simple triangle list.
      */
 
-    void toTriangleList(std::vector<Triangle>& output) const;
+    std::vector<Triangle> toTriangleList() const;
 
     /*
      * Adds the complete mesh 'other' to the current mesh.
@@ -152,6 +153,8 @@ class TriangleMesh : public Mesh<vertex_t>
 
     bool isValid() const;
 
+    bool empty() const { return faces.empty() || vertices.empty(); }
+
     /**
      * Sorts the vertices by (x,y,z) lexical.
      * The face indices are correct to match the new vertices.
@@ -172,6 +175,8 @@ class TriangleMesh : public Mesh<vertex_t>
      */
     void removeDegenerateFaces();
 
+    float distancePointMesh(const vec3& x);
+
     template <typename v, typename i>
     friend std::ostream& operator<<(std::ostream& os, const TriangleMesh<v, i>& dt);
 
@@ -186,7 +191,8 @@ class TriangleMesh : public Mesh<vertex_t>
     /**
      * Writes this mesh in OFF format to the given output stream.
      */
-    void saveMeshOff(std::ostream& strm) const;
+    //    void saveMeshOff(std::ostream& strm) const;
+    //    void saveMeshOffColor(std::ostream& strm) const;
 
    public:
     //    std::vector<vertex_t> vertices;
@@ -234,6 +240,17 @@ void TriangleMesh<vertex_t, index_t>::addTriangle(vertex_t verts[])
 
     faces.push_back(Face(index, index + 1, index + 2));
 }
+
+template <typename vertex_t, typename index_t>
+void TriangleMesh<vertex_t, index_t>::addTriangle(const Triangle& t)
+{
+    vertex_t ts[3];
+    ts[0].position = make_vec4(t.a, 1);
+    ts[1].position = make_vec4(t.b, 1);
+    ts[2].position = make_vec4(t.c, 1);
+    addTriangle(ts);
+}
+
 
 template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::addQuad(index_t inds[])
@@ -297,8 +314,9 @@ void TriangleMesh<vertex_t, index_t>::invertMesh()
 }
 
 template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::toTriangleList(std::vector<Triangle>& output) const
+std::vector<Triangle> TriangleMesh<vertex_t, index_t>::toTriangleList() const
 {
+    std::vector<Triangle> output;
     Triangle t;
     for (const Face& f : faces)
     {
@@ -307,6 +325,7 @@ void TriangleMesh<vertex_t, index_t>::toTriangleList(std::vector<Triangle>& outp
         t.c = make_vec3(vertices[f.v3].position);
         output.push_back(t);
     }
+    return output;
 }
 
 template <typename vertex_t, typename index_t>
@@ -525,26 +544,20 @@ void TriangleMesh<vertex_t, index_t>::removeDegenerateFaces()
 }
 
 template <typename vertex_t, typename index_t>
-void TriangleMesh<vertex_t, index_t>::saveMeshOff(std::ostream& strm) const
+float TriangleMesh<vertex_t, index_t>::distancePointMesh(const vec3& x)
 {
-    strm << "OFF"
-         << "\n";
-    // first line: number of vertices, number of faces, number of edges (can be ignored)
-    strm << vertices.size() << " " << faces.size() << " 0"
-         << "\n";
+    float dis = std::numeric_limits<float>::infinity();
 
-    for (auto const& v : vertices)
+    for (const Face& f : faces)
     {
-        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << "\n";
+        Triangle t;
+        t.a = make_vec3(vertices[f.v1].position);
+        t.b = make_vec3(vertices[f.v2].position);
+        t.c = make_vec3(vertices[f.v3].position);
+        dis = std::min(dis, t.Distance(x));
     }
-
-    for (auto const& f : faces)
-    {
-        strm << "3"
-             << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
-    }
+    return dis;
 }
-
 
 template <typename vertex_t, typename index_t>
 std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t, index_t>& dt)
@@ -552,5 +565,50 @@ std::ostream& operator<<(std::ostream& os, const TriangleMesh<vertex_t, index_t>
     os << "TriangleMesh. V=" << dt.vertices.size() << " F=" << dt.faces.size();
     return os;
 }
+
+
+template <typename vertex_t, typename index_t>
+void saveMeshOff(const TriangleMesh<vertex_t, index_t>& mesh, std::ostream& strm)
+{
+    strm << "OFF"
+         << "\n";
+    // first line: number of vertices, number of faces, number of edges (can be ignored)
+    strm << mesh.vertices.size() << " " << mesh.faces.size() << " 0"
+         << "\n";
+
+    for (auto const& v : mesh.vertices)
+    {
+        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << "\n";
+    }
+
+    for (auto const& f : mesh.faces)
+    {
+        strm << "3"
+             << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
+    }
+}
+
+template <typename vertex_t, typename index_t>
+void saveMeshOffColor(const TriangleMesh<vertex_t, index_t>& mesh, std::ostream& strm)
+{
+    strm << "COFF"
+         << "\n";
+    // first line: number of vertices, number of faces, number of edges (can be ignored)
+    strm << mesh.vertices.size() << " " << mesh.faces.size() << " 0"
+         << "\n";
+
+    for (auto const& v : mesh.vertices)
+    {
+        strm << v.position[0] << " " << v.position[1] << " " << v.position[2] << " ";
+        strm << v.color[0] << " " << v.color[1] << " " << v.color[2] << " " << v.color[3] << "\n";
+    }
+
+    for (auto const& f : mesh.faces)
+    {
+        strm << "3"
+             << " " << f[0] << " " << f[1] << " " << f[2] << "\n";
+    }
+}
+
 
 }  // namespace Saiga

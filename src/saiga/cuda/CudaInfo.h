@@ -15,8 +15,6 @@ namespace Saiga
 {
 namespace CUDA
 {
-
-
 // Beginning of GPU Architecture definitions
 inline int _ConvertSMVer2Cores(int major, int minor)
 {
@@ -151,13 +149,20 @@ inline int gpuGetMaxGflopsDeviceId()
     return max_perf_device;
 }
 
-inline void initCUDA() {
+inline void initCUDA()
+{
     int runtimeVersion;
-    cudaRuntimeGetVersion(&runtimeVersion);
-    int driverVersion;
-    cudaDriverGetVersion(&driverVersion);
-
+    auto err = cudaRuntimeGetVersion(&runtimeVersion);
+    if (err != cudaSuccess)
+    {
+        std::cout << "Invalid CUDA Runtime!" << std::endl;
+        std::cout << "Please install a CUDA cabable Graphics Driver and restart the computer!" << std::endl;
+        exit(1);
+    }
     std::cout << "CUDA Runtime Version: " << runtimeVersion << std::endl;
+
+    int driverVersion;
+    CHECK_CUDA_ERROR(cudaDriverGetVersion(&driverVersion));
     std::cout << "CUDA Driver Version: " << driverVersion << std::endl;
 
 #ifdef CUDA_DEBUG
@@ -233,5 +238,3 @@ inline void printCUDAInfo()
 
 }  // namespace CUDA
 }  // namespace Saiga
-
-
