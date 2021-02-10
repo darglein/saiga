@@ -33,7 +33,6 @@ void render(AssetMaterial material, vec3 position, vec3 normal)
 
     lighting += calculatePointLights(material, position, normal);
     lighting += calculateSpotLights(material, position, normal);
-    lighting += calculateBoxLights(material, position, normal);
     lighting += calculateDirectionalLights(material, position, normal);
 
     out_color = vec4(lighting, 1);

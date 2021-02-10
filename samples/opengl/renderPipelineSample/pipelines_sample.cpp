@@ -20,7 +20,6 @@ class Sample : public RendererSampleWindow
     int maximumNumberOfRendererSupportedDirectionalLights = 256;
     int maximumNumberOfRendererSupportedPointLights       = 256;
     int maximumNumberOfRendererSupportedSpotLights        = 256;
-    int maximumNumberOfRendererSupportedBoxLights         = 256;
 
    public:
     Sample()
@@ -42,8 +41,6 @@ class Sample : public RendererSampleWindow
             std::clamp(maximumNumberOfRendererSupportedPointLights, 0, maxSize / (int)sizeof(uber::PointLightData));
         maximumNumberOfRendererSupportedSpotLights =
             std::clamp(maximumNumberOfRendererSupportedSpotLights, 0, maxSize / (int)sizeof(uber::SpotLightData));
-        maximumNumberOfRendererSupportedBoxLights =
-            std::clamp(maximumNumberOfRendererSupportedBoxLights, 0, maxSize / (int)sizeof(uber::BoxLightData));
 
 // Next is needed for forward.
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
@@ -51,7 +48,7 @@ class Sample : public RendererSampleWindow
 
         renderer->setLightMaxima(maximumNumberOfRendererSupportedDirectionalLights,
                                  maximumNumberOfRendererSupportedPointLights,
-                                 maximumNumberOfRendererSupportedSpotLights, maximumNumberOfRendererSupportedBoxLights);
+                                 maximumNumberOfRendererSupportedSpotLights);
 
         auto deferredShader = shaderLoader.load<MVPColorShader>(shaderStr,
                                                                 {{ GL_FRAGMENT_SHADER,
@@ -69,8 +66,6 @@ class Sample : public RendererSampleWindow
                          "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights), 3);
         sci.emplace_back(GL_FRAGMENT_SHADER,
                          "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_BL_COUNT" + std::to_string(maximumNumberOfRendererSupportedBoxLights), 5);
         auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
 
         auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
@@ -106,8 +101,6 @@ class Sample : public RendererSampleWindow
                 ImGui::InputInt("Renderer Supported Point Lights", &maximumNumberOfRendererSupportedPointLights);
             supportChanged |=
                 ImGui::InputInt("Renderer Supported Spot Lights", &maximumNumberOfRendererSupportedSpotLights);
-            supportChanged |=
-                ImGui::InputInt("Renderer Supported Box Lights", &maximumNumberOfRendererSupportedBoxLights);
             supportChanged |= ImGui::InputInt("Renderer Supported Directional Lights",
                                               &maximumNumberOfRendererSupportedDirectionalLights);
 
@@ -123,12 +116,10 @@ class Sample : public RendererSampleWindow
                                                                          maxSize / (int)sizeof(uber::PointLightData));
                 maximumNumberOfRendererSupportedSpotLights  = std::clamp(maximumNumberOfRendererSupportedSpotLights, 0,
                                                                         maxSize / (int)sizeof(uber::SpotLightData));
-                maximumNumberOfRendererSupportedBoxLights =
-                    std::clamp(maximumNumberOfRendererSupportedBoxLights, 0, maxSize / (int)sizeof(uber::BoxLightData));
 
                 renderer->setLightMaxima(
                     maximumNumberOfRendererSupportedDirectionalLights, maximumNumberOfRendererSupportedPointLights,
-                    maximumNumberOfRendererSupportedSpotLights, maximumNumberOfRendererSupportedBoxLights);
+                    maximumNumberOfRendererSupportedSpotLights);
 
 
                 // Next is needed for forward.
@@ -157,8 +148,6 @@ class Sample : public RendererSampleWindow
                 sci.emplace_back(GL_FRAGMENT_SHADER,
                                  "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights),
                                  4);
-                sci.emplace_back(GL_FRAGMENT_SHADER,
-                                 "#define MAX_BL_COUNT" + std::to_string(maximumNumberOfRendererSupportedBoxLights), 5);
                 auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
 
                 auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);

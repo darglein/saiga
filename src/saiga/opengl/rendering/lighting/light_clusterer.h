@@ -31,7 +31,6 @@ struct cluster
     int offset  = 0;
     int plCount = 0;
     int slCount = 0;
-    int blCount = 0;
 };
 
 struct PointLightClusterData
@@ -46,25 +45,18 @@ struct SpotLightClusterData
     float radius;       // should be sufficient -> bounding sphere instead of transformed cone
 };
 
-struct BoxLightClusterData
-{
-    vec3 world_center;
-    float radius;  // should be sufficient -> bounding sphere instead of transformed box
-};
-
 #ifdef GPU_LIGHT_ASSIGNMENT
 class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
 {
    public:
     GLint location_clusterDataBlockPointLights;  // pointLightClusterData array
     GLint location_clusterDataBlockSpotLights;   // spotLightClusterData array
-    GLint location_clusterDataBlockBoxLights;    // boxLightClusterData array
     GLint location_clusterInfoBlock;             // number of lights in cluster arrays
 
     // Gets accessed based on pixel world space position (or screen space on 2D clustering)
     GLint location_clusterList;  // clusters
     /*
-     * Looks like this: [offset, plCount, slCount, blCount], [offset, plCount, slCount, blCount] ...
+     * Looks like this: [offset, plCount, slCount], [offset, plCount, slCount] ...
      * So for each cluster we store an offset in the itemList and the number of specific lights that were assigned.
      */
     GLint location_itemList;  // itemList
@@ -115,14 +107,11 @@ class SAIGA_OPENGL_API Clusterer
     {
         pointLightsClusterData.clear();
         spotLightsClusterData.clear();
-        boxLightsClusterData.clear();
     }
 
     inline void addPointLight(PointLightClusterData& plc) { pointLightsClusterData.push_back(plc); }
 
     inline void addSpotLight(SpotLightClusterData& slc) { spotLightsClusterData.push_back(slc); }
-
-    inline void addBoxLight(BoxLightClusterData& blc) { boxLightsClusterData.push_back(blc); }
 
     // Binds Cluster and Item ShaderStoragBuffers at the end.
     void clusterLights(Camera* cam, const ViewPort& viewPort);
@@ -154,8 +143,6 @@ class SAIGA_OPENGL_API Clusterer
     std::vector<PointLightClusterData> pointLightsClusterData;
 
     std::vector<SpotLightClusterData> spotLightsClusterData;
-
-    std::vector<BoxLightClusterData> boxLightsClusterData;
 
     std::vector<FilteredMultiFrameOpenGLTimer> gpuTimers;
     Timer lightAssignmentTimer;
@@ -242,7 +229,7 @@ class SAIGA_OPENGL_API Clusterer
         /*
          * ClusterList
          * Gets accessed based on pixel world space position (or screen space on 2D clustering)
-         * Looks like this: [offset, plCount, slCount, blCount, dlCount], [offset, plCount, slCount, blCount, dlCount]
+         * Looks like this: [offset, plCount, slCount, dlCount], [offset, plCount, slCount, dlCount]
          * ... So for each cluster we store an offset in the itemList and the number of specific lights that were
          * assigned.
          */

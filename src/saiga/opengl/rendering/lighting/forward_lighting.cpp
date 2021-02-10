@@ -22,13 +22,11 @@ ForwardLighting::ForwardLighting() : RendererLighting()
         std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLightData));
     maximumNumberOfPointLights = std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLightData));
     maximumNumberOfSpotLights  = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLightData));
-    maximumNumberOfBoxLights   = std::clamp(maximumNumberOfBoxLights, 0, maxSize / (int)sizeof(BoxLightData));
 
     lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * maximumNumberOfDirectionalLights,
                                               GL_DYNAMIC_DRAW);
     lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLightData) * maximumNumberOfPointLights, GL_DYNAMIC_DRAW);
     lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLightData) * maximumNumberOfSpotLights, GL_DYNAMIC_DRAW);
-    lightDataBufferBox.createGLBuffer(nullptr, sizeof(BoxLightData) * maximumNumberOfBoxLights, GL_DYNAMIC_DRAW);
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 }
 
@@ -40,14 +38,12 @@ void ForwardLighting::initRender()
     RendererLighting::initRender();
     lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
     lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferBox.bind(BOX_LIGHT_DATA_BINDING_POINT);
     lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
     lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
     LightInfo li;
     LightData ld;
     li.pointLightCount       = 0;
     li.spotLightCount        = 0;
-    li.boxLightCount         = 0;
     li.directionalLightCount = 0;
 
     // Point Lights
@@ -99,12 +95,11 @@ void ForwardLighting::initRender()
 
     lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLightData) * li.pointLightCount, 0);
     lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLightData) * li.spotLightCount, 0);
-    lightDataBufferBox.updateBuffer(ld.boxLights.data(), sizeof(BoxLightData) * li.boxLightCount, 0);
     lightDataBufferDirectional.updateBuffer(ld.directionalLights.data(),
                                             sizeof(DirectionalLightData) * li.directionalLightCount, 0);
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
-    visibleLights = li.pointLightCount + li.spotLightCount + li.boxLightCount + li.directionalLightCount;
+    visibleLights = li.pointLightCount + li.spotLightCount + li.directionalLightCount;
     stopTimer(0);
 }
 
@@ -122,12 +117,11 @@ void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
     assert_no_glerror();
 }
 
-void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
+void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
 {
     maxDirectionalLights = std::max(0, maxDirectionalLights);
     maxPointLights       = std::max(0, maxPointLights);
     maxSpotLights        = std::max(0, maxSpotLights);
-    maxBoxLights         = std::max(0, maxBoxLights);
 
     int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
@@ -135,7 +129,6 @@ void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLight
         std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLightData));
     maximumNumberOfPointLights = std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLightData));
     maximumNumberOfSpotLights  = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLightData));
-    maximumNumberOfBoxLights   = std::clamp(maximumNumberOfBoxLights, 0, maxSize / (int)sizeof(BoxLightData));
 
 
     if (maximumNumberOfDirectionalLights != maxDirectionalLights)
@@ -151,15 +144,10 @@ void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLight
     {
         lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLightData) * maxSpotLights, GL_DYNAMIC_DRAW);
     }
-    if (maximumNumberOfBoxLights != maxBoxLights)
-    {
-        lightDataBufferBox.createGLBuffer(nullptr, sizeof(BoxLightData) * maxBoxLights, GL_DYNAMIC_DRAW);
-    }
 
     maximumNumberOfDirectionalLights = maxDirectionalLights;
     maximumNumberOfPointLights       = maxPointLights;
     maximumNumberOfSpotLights        = maxSpotLights;
-    maximumNumberOfBoxLights         = maxBoxLights;
 }
 
 void ForwardLighting::renderImGui(bool* p_open)

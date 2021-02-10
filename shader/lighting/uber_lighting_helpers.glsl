@@ -13,9 +13,6 @@
 #ifndef MAX_SL_COUNT
 #define MAX_SL_COUNT 256
 #endif
-#ifndef MAX_BL_COUNT
-#define MAX_BL_COUNT 256
-#endif
 #ifndef MAX_DL_COUNT
 #define MAX_DL_COUNT 256
 #endif
@@ -37,14 +34,6 @@ struct SpotLightData
     vec4 direction;      // xyzw
 };
 
-struct BoxLightData
-{
-    vec4 colorDiffuse;  // rgb intensity
-    vec4 colorSpecular; // rgb specular intensity
-    vec4 direction;     // xyz, w ambient intensity
-    mat4 lightMatrix;
-};
-
 struct DirectionalLightData
 {
     vec4 position; // xyz, w unused
@@ -64,11 +53,6 @@ layout (std430, binding = 3) buffer lightDataBlockSpot
     SpotLightData spotLights[MAX_SL_COUNT];
 };
 
-layout (std430, binding = 4) buffer lightDataBlockBox
-{
-    BoxLightData boxLights[MAX_BL_COUNT];
-};
-
 layout (std430, binding = 5) buffer lightDataBlockDirectional
 {
     DirectionalLightData directionalLights[MAX_DL_COUNT];
@@ -78,7 +62,6 @@ layout (std140, binding = 6) uniform lightInfoBlock
 {
     int pointLightCount;
     int spotLightCount;
-    int boxLightCount;
     int directionalLightCount;
 };
 
@@ -87,7 +70,6 @@ struct cluster
     int offset;
     int plCount;
     int slCount;
-    int blCount;
 };
 
 layout (std430, binding = 7) buffer clusterInfoBuffer
@@ -158,7 +140,7 @@ vec3 debugCluster(float depth)
 
 vec3 calculatePointLightsClustered(AssetMaterial material, vec3 position, vec3 normal, float depth)
 {
-    return debugCluster(depth);
+    //return debugCluster(depth);
     vec3 result = vec3(0);
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
@@ -282,40 +264,6 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
         if(Idiff > 0)
             Ispec = localIntensity * material.data.x  * intensitySpecular(position, normal, fragmentLightDir, 40);
 
-
-        vec3 color = lightColorDiffuse.rgb * (
-                    Idiff * material.color.rgb +
-                    Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
-
-        result += color;
-    }
-    return result;
-}
-
-vec3 calculateBoxLights(AssetMaterial material, vec3 position, vec3 normal)
-{
-    mat4 invCameraView = inverse(view);
-    vec3 result = vec3(0);
-    for(int c = 0; c < boxLightCount; ++c)
-    {
-        BoxLightData bl = boxLights[c];
-        vec4 lightColorDiffuse = bl.colorDiffuse;
-        vec4 lightColorSpecular = bl.colorSpecular;
-
-        vec4 vLight =  bl.lightMatrix * invCameraView * vec4(position,1);
-        vLight = vLight / vLight.w;
-        bool fragmentOutside = vLight.x<0 || vLight.x>1 || vLight.y<0 || vLight.y>1 || vLight.z<0 || vLight.z<1;
-        if(fragmentOutside)
-            continue;
-
-        vec3 fragmentLightDir = normalize((view * vec4(bl.direction.rgb, 0.0)).rgb);
-        float intensity       = lightColorDiffuse.w;
-        float visibility      = 1.0;
-        float localIntensity  = intensity * visibility;
-
-        float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
-        float Ispec = 0;
-        if (Idiff > 0) Ispec = localIntensity * material.data.x * intensitySpecular(position, normal, fragmentLightDir, 40);
 
         vec3 color = lightColorDiffuse.rgb * (
                     Idiff * material.color.rgb +

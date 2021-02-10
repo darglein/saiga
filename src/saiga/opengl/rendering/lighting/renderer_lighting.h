@@ -56,14 +56,6 @@ struct SpotLightData
     vec4 direction;      // xyzw
 };
 
-struct BoxLightData
-{
-    vec4 colorDiffuse;   // rgb intensity
-    vec4 colorSpecular;  // rgb specular intensity
-    vec4 direction;      // xyz, w ambient intensity
-    mat4 lightMatrix;
-};
-
 struct DirectionalLightData
 {
     vec4 position;       // xyz, w unused
@@ -76,7 +68,6 @@ struct LightData
 {
     std::vector<PointLightData> pointLights;
     std::vector<SpotLightData> spotLights;
-    std::vector<BoxLightData> boxLights;
     std::vector<DirectionalLightData> directionalLights;
 };
 
@@ -84,7 +75,6 @@ struct LightInfo
 {
     int pointLightCount;
     int spotLightCount;
-    int boxLightCount;
     int directionalLightCount;
 };
 }  // namespace uber
@@ -156,7 +146,7 @@ class SAIGA_OPENGL_API RendererLighting
     void printTimings();
     virtual void renderImGui(bool* p_open = NULL);
 
-    virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights);
+    virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights);
 
 
    public:
@@ -203,6 +193,5 @@ class SAIGA_OPENGL_API RendererLighting
     int maximumNumberOfDirectionalLights = 256;
     int maximumNumberOfPointLights       = 256;
     int maximumNumberOfSpotLights        = 256;
-    int maximumNumberOfBoxLights         = 256;
 };
 }  // namespace Saiga

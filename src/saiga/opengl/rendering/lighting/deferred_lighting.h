@@ -46,7 +46,6 @@ class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
     //    std::shared_ptr<DirectionalLight> createDirectionalLight();
     //    std::shared_ptr<PointLight> createPointLight();
     //    std::shared_ptr<SpotLight> createSpotLight();
-    //    std::shared_ptr<BoxLight> createBoxLight();
 
     void initRender() override;
     void render(Camera* cam, const ViewPort& viewPort) override;

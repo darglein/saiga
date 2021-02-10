@@ -20,7 +20,6 @@ struct SAIGA_OPENGL_API UberDeferredRenderingParameters : public RenderingParame
     int maximumNumberOfDirectionalLights = 256;
     int maximumNumberOfPointLights       = 256;
     int maximumNumberOfSpotLights        = 256;
-    int maximumNumberOfBoxLights         = 256;
 
     /**
      * When true the depth of the gbuffer is blitted to the default framebuffer.
@@ -99,21 +98,19 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     }
     float getTotalRenderTime() override { return getUnsmoothedTimeMS(UberDeferredRenderer::UberDeferredTimingBlock::TOTAL); }
 
-    inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
+    inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
     {
         // TODO Paul: Refactor!
         params.maximumNumberOfDirectionalLights       = maxDirectionalLights;
         params.maximumNumberOfPointLights             = maxPointLights;
         params.maximumNumberOfSpotLights              = maxSpotLights;
-        params.maximumNumberOfBoxLights               = maxBoxLights;
 
         params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
         params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
         params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
-        params.maximumNumberOfBoxLights         = std::max(0, params.maximumNumberOfBoxLights);
 
         lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                                params.maximumNumberOfSpotLights, params.maximumNumberOfBoxLights);
+                                params.maximumNumberOfSpotLights);
     }
 
     void resize(int outputWidth, int outputHeight) override;

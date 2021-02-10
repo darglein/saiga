@@ -116,7 +116,6 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
 
         gpuCluster.plCount = visibleLightCount;
         gpuCluster.slCount = 0;
-        gpuCluster.blCount = 0;
     }
 
     lightAssignmentTimer.stop();

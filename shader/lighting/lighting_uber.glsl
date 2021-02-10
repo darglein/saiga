@@ -45,7 +45,6 @@ void main()
 
     lighting += calculatePointLightsClustered(material, position, normal, depth);
     lighting += calculateSpotLights(material, position, normal);
-    lighting += calculateBoxLights(material, position, normal);
     lighting += calculateDirectionalLights(material, position, normal);
 
     out_color = vec4(lighting, 1);

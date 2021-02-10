@@ -289,17 +289,15 @@ void RendererLighting::setDebugShader(std::shared_ptr<MVPColorShader> shader)
     this->debugShader = shader;
 }
 
-void RendererLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
+void RendererLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
 {
     maxDirectionalLights = std::max(0, maxDirectionalLights);
     maxPointLights       = std::max(0, maxPointLights);
     maxSpotLights        = std::max(0, maxSpotLights);
-    maxBoxLights         = std::max(0, maxBoxLights);
 
     maximumNumberOfDirectionalLights = maxDirectionalLights;
     maximumNumberOfPointLights       = maxPointLights;
     maximumNumberOfSpotLights        = maxSpotLights;
-    maximumNumberOfBoxLights         = maxBoxLights;
 }
 
 
