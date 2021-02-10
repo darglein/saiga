@@ -63,6 +63,22 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     }
     ~DirectionalLight() {}
 
+    struct ShaderData
+    {
+        vec4 colorDiffuse;   // rgb intensity
+        vec4 colorSpecular;  // rgb specular intensity
+        vec4 direction;      // xyz, w unused
+    };
+
+    inline ShaderData GetShaderData()
+    {
+        ShaderData data;
+        data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
+        data.colorSpecular = make_vec4(colorSpecular, 1.0f);
+        data.direction     = make_vec4(direction, 0.0f);
+        return data;
+    }
+
     /**
      * Creates the shadow map with the given number of cascades, and initializes depthCutsRelative
      * to a uniform range.

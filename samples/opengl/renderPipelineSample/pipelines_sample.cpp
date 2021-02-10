@@ -36,11 +36,11 @@ class Sample : public RendererSampleWindow
         int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
         maximumNumberOfRendererSupportedDirectionalLights = std::clamp(
-            maximumNumberOfRendererSupportedDirectionalLights, 0, maxSize / (int)sizeof(uber::DirectionalLightData));
+            maximumNumberOfRendererSupportedDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLight::ShaderData));
         maximumNumberOfRendererSupportedPointLights =
             std::clamp(maximumNumberOfRendererSupportedPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
         maximumNumberOfRendererSupportedSpotLights =
-            std::clamp(maximumNumberOfRendererSupportedSpotLights, 0, maxSize / (int)sizeof(uber::SpotLightData));
+            std::clamp(maximumNumberOfRendererSupportedSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
 
 // Next is needed for forward.
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
@@ -111,11 +111,11 @@ class Sample : public RendererSampleWindow
 
                 maximumNumberOfRendererSupportedDirectionalLights =
                     std::clamp(maximumNumberOfRendererSupportedDirectionalLights, 0,
-                               maxSize / (int)sizeof(uber::DirectionalLightData));
+                               maxSize / (int)sizeof(DirectionalLight::ShaderData));
                 maximumNumberOfRendererSupportedPointLights = std::clamp(maximumNumberOfRendererSupportedPointLights, 0,
                                                                          maxSize / (int)sizeof(PointLight::ShaderData));
                 maximumNumberOfRendererSupportedSpotLights  = std::clamp(maximumNumberOfRendererSupportedSpotLights, 0,
-                                                                        maxSize / (int)sizeof(uber::SpotLightData));
+                                                                        maxSize / (int)sizeof(SpotLight::ShaderData));
 
                 renderer->setLightMaxima(maximumNumberOfRendererSupportedDirectionalLights,
                                          maximumNumberOfRendererSupportedPointLights,
@@ -176,20 +176,11 @@ class Sample : public RendererSampleWindow
 
                         light->setIntensity(1);
 
-
-                        /*
                         light->setRadius(linearRand(0.1f, 4.0f));
 
-                        light->setPosition(linearRand(vec3(-16, 0.0f, -16), vec3(16, 0.0f, 16)));
+                        light->setPosition(linearRand(vec3(-16, 0.09f, -16), vec3(16, light->getRadius(), 16)));
 
                         light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-                        light->calculateModel();
-                        */
-                        light->setRadius(1.0f);
-
-                        light->setPosition(vec3(0, 0.1f, 0));
-
-                        light->setColorDiffuse(vec3(1, 1, 1));
 
 
                         light->castShadows = false;

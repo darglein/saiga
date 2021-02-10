@@ -19,16 +19,17 @@ ForwardLighting::ForwardLighting() : RendererLighting()
     int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
     maximumNumberOfDirectionalLights =
-        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLightData));
+        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLight::ShaderData));
     maximumNumberOfPointLights =
         std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
-    maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLightData));
+    maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
 
-    lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * maximumNumberOfDirectionalLights,
-                                              GL_DYNAMIC_DRAW);
+    lightDataBufferDirectional.createGLBuffer(
+        nullptr, sizeof(DirectionalLight::ShaderData) * maximumNumberOfDirectionalLights, GL_DYNAMIC_DRAW);
     lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLight::ShaderData) * maximumNumberOfPointLights,
                                         GL_DYNAMIC_DRAW);
-    lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLightData) * maximumNumberOfSpotLights, GL_DYNAMIC_DRAW);
+    lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLight::ShaderData) * maximumNumberOfSpotLights,
+                                       GL_DYNAMIC_DRAW);
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 }
 
@@ -49,56 +50,39 @@ void ForwardLighting::initRender()
     li.directionalLightCount = 0;
 
     // Point Lights
-    PointLight::ShaderData glPointLight;
     for (auto pl : pointLights)
     {
         if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
         if (!pl->shouldRender()) continue;
-        //        glPointLight.position      = make_vec4(pl->getPosition(), 0.0f);
-        glPointLight.colorDiffuse  = make_vec4(pl->getColorDiffuse(), pl->getIntensity());
-        glPointLight.colorSpecular = make_vec4(pl->getColorSpecular(), 1.0f);  // specular Intensity?
-        glPointLight.attenuation   = make_vec4(pl->attenuation, pl->getRadius());
-        ld.pointLights.push_back(glPointLight);
+        ld.pointLights.push_back(pl->GetShaderData());
+
         li.pointLightCount++;
     }
 
     // Spot Lights
-    SpotLightData glSpotLight;
     for (auto sl : spotLights)
     {
         if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
         if (!sl->shouldRender()) continue;
-        float cosa                = cos(radians(sl->getAngle() * 0.95f));  // make border smoother
-        glSpotLight.position      = make_vec4(sl->getPosition(), cosa);
-        glSpotLight.colorDiffuse  = make_vec4(sl->getColorDiffuse(), sl->getIntensity());
-        glSpotLight.colorSpecular = make_vec4(sl->getColorSpecular(), 1.0f);  // specular Intensity?
-        glSpotLight.attenuation   = make_vec4(sl->attenuation, sl->getRadius());
-        glSpotLight.direction     = make_vec4(0);
-        glSpotLight.direction += sl->ModelMatrix().col(1);
-        ld.spotLights.push_back(glSpotLight);
+        ld.spotLights.push_back(sl->GetShaderData());
+
         li.spotLightCount++;
     }
 
-
-
     // Directional Lights
-    DirectionalLightData glDirectionalLight;
     for (auto dl : directionalLights)
     {
         if (li.directionalLightCount >= maximumNumberOfDirectionalLights) break;  // just ignore too many lights...
         if (!dl->shouldRender()) continue;
-        // glDirectionalLight.position      = make_vec4(dl->getPosition(), 0.0f);
-        glDirectionalLight.colorDiffuse  = make_vec4(dl->getColorDiffuse(), dl->getIntensity());
-        glDirectionalLight.colorSpecular = make_vec4(dl->getColorSpecular(), 1.0f);  // specular Intensity?
-        glDirectionalLight.direction     = make_vec4(dl->getDirection(), 0.0f);
-        ld.directionalLights.push_back(glDirectionalLight);
+        ld.directionalLights.push_back(dl->GetShaderData());
+
         li.directionalLightCount++;
     }
 
     lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLight::ShaderData) * li.pointLightCount, 0);
-    lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLightData) * li.spotLightCount, 0);
+    lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLight::ShaderData) * li.spotLightCount, 0);
     lightDataBufferDirectional.updateBuffer(ld.directionalLights.data(),
-                                            sizeof(DirectionalLightData) * li.directionalLightCount, 0);
+                                            sizeof(DirectionalLight::ShaderData) * li.directionalLightCount, 0);
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.directionalLightCount;
@@ -128,15 +112,15 @@ void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLight
     int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
     maximumNumberOfDirectionalLights =
-        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLightData));
+        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLight::ShaderData));
     maximumNumberOfPointLights =
         std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
-    maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLightData));
+    maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
 
 
     if (maximumNumberOfDirectionalLights != maxDirectionalLights)
     {
-        lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLightData) * maxDirectionalLights,
+        lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLight::ShaderData) * maxDirectionalLights,
                                                   GL_DYNAMIC_DRAW);
     }
     if (maximumNumberOfPointLights != maxPointLights)
@@ -145,7 +129,7 @@ void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLight
     }
     if (maximumNumberOfSpotLights != maxSpotLights)
     {
-        lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLightData) * maxSpotLights, GL_DYNAMIC_DRAW);
+        lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLight::ShaderData) * maxSpotLights, GL_DYNAMIC_DRAW);
     }
 
     maximumNumberOfDirectionalLights = maxDirectionalLights;

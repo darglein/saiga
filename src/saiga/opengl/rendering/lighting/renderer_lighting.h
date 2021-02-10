@@ -39,28 +39,12 @@ struct RendererLightingShaderNames
 
 namespace uber
 {
-struct SpotLightData
-{
-    vec4 position;       // xyz, w angle
-    vec4 colorDiffuse;   // rgb intensity
-    vec4 colorSpecular;  // rgb specular intensity
-    vec4 attenuation;    // xyz radius
-    vec4 direction;      // xyzw
-};
-
-struct DirectionalLightData
-{
-    vec4 position;       // xyz, w unused
-    vec4 colorDiffuse;   // rgb intensity
-    vec4 colorSpecular;  // rgb specular intensity
-    vec4 direction;      // xyz, w unused
-};
 
 struct LightData
 {
     std::vector<PointLight::ShaderData> pointLights;
-    std::vector<SpotLightData> spotLights;
-    std::vector<DirectionalLightData> directionalLights;
+    std::vector<SpotLight::ShaderData> spotLights;
+    std::vector<DirectionalLight::ShaderData> directionalLights;
 };
 
 struct LightInfo

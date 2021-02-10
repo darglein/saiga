@@ -26,8 +26,16 @@ class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenu
         vec4 colorSpecular;  // rgb specular intensity
         vec4 attenuation;    // xyz radius
     };
-    // TODO: Paul
-    ShaderData GetShaderData() { return ShaderData(); }
+
+    inline ShaderData GetShaderData()
+    {
+        ShaderData data;
+        data.position      = make_vec4(position, 0.0f);
+        data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
+        data.colorSpecular = make_vec4(colorSpecular, 1.0f);
+        data.attenuation   = make_vec4(attenuation, radius);
+        return data;
+    }
 
 
     vec3 position;

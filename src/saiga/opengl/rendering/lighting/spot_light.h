@@ -20,6 +20,27 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
     std::unique_ptr<SimpleShadowmap> shadowmap;
 
    public:
+    struct ShaderData
+    {
+        vec4 position;       // xyz, w angle
+        vec4 colorDiffuse;   // rgb intensity
+        vec4 colorSpecular;  // rgb specular intensity
+        vec4 attenuation;    // xyz radius
+        vec4 direction;      // xyzw
+    };
+
+    inline ShaderData GetShaderData()
+    {
+        ShaderData data;
+        float cosa         = cos(radians(angle * 0.95f));  // make border smoother
+        data.position      = make_vec4(position, cosa);
+        data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
+        data.colorSpecular = make_vec4(colorSpecular, 1.0f);
+        data.attenuation   = make_vec4(attenuation, radius);
+        data.direction     = ModelMatrix().col(1);
+        return data;
+    }
+
     float shadowNearPlane = 0.1f;
     PerspectiveCamera shadowCamera;
     vec3 direction = vec3(0, -1, 0);

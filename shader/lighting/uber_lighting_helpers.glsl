@@ -36,7 +36,6 @@ struct SpotLightData
 
 struct DirectionalLightData
 {
-    vec4 position; // xyz, w unused
     vec4 colorDiffuse; // rgb intensity
     vec4 colorSpecular; // rgb specular intensity
     vec4 direction; // xyz, w ambient intensity
