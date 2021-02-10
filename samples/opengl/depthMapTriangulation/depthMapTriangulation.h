@@ -28,7 +28,7 @@
 
 using namespace Saiga;
 
-class Sample : public StandaloneWindow<WindowManagement::SDL, Forward_Renderer>, public SDL_KeyListener
+class Sample : public StandaloneWindow<WindowManagement::SDL, ForwardRenderer>, public SDL_KeyListener
 {
    public:
     DepthProcessor2::Settings ip_settings;

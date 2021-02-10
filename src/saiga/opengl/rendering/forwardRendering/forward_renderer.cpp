@@ -13,13 +13,13 @@
 
 namespace Saiga
 {
-Forward_Renderer::Forward_Renderer(OpenGLWindow& window, const ParameterType& params)
+ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& params)
     : OpenGLRenderer(window), params(params)
 {
     timer.create();
 }
 
-void Forward_Renderer::render(const RenderInfo& renderInfo)
+void ForwardRenderer::render(const RenderInfo& renderInfo)
 {
     if (!rendering) return;
 

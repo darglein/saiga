@@ -16,16 +16,15 @@ struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
     void fromConfigFile(const std::string& file) { RenderingParameters::fromConfigFile(file); }
 };
 
-class SAIGA_OPENGL_API Forward_Renderer : public OpenGLRenderer
+class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
 {
    public:
-    using InterfaceType = RenderingInterface;
     using ParameterType = ForwardRenderingParameters;
 
     ParameterType params;
 
-    Forward_Renderer(OpenGLWindow& window, const ParameterType& params = ParameterType());
-    virtual ~Forward_Renderer() {}
+    ForwardRenderer(OpenGLWindow& window, const ParameterType& params = ParameterType());
+    virtual ~ForwardRenderer() {}
 
     virtual float getTotalRenderTime() override { return timer.getTimeMS(); }
     virtual void render(const RenderInfo& renderInfo) override;

@@ -30,7 +30,7 @@ namespace Saiga
  *
  * @brief The SampleWindowForward class
  */
-class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManagement::SDL, Forward_Renderer>,
+class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManagement::SDL, ForwardRenderer>,
                                              public SDL_KeyListener
 {
    public:

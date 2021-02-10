@@ -13,7 +13,7 @@
 
 using namespace Saiga;
 
-class Sample : public StandaloneWindow<WindowManagement::EGL, Forward_Renderer>
+class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
 {
    public:
     PerspectiveCamera camera;

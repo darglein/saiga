@@ -134,22 +134,6 @@ class Sample : public SampleWindowDeferred
             directional_lights.push_back(light);
         }
 
-        //        boxLight = std::make_shared<BoxLight>();
-        //        renderer->lighting.AddLight(boxLight);
-        //        boxLight->setIntensity(1.0);
-
-        //        //        boxLight->setPosition(vec3(0,2,10));
-        //        //        boxLight->rotateLocal(vec3(1,0,0),30);
-        //        boxLight->setView(vec3(0, 2, 10), vec3(0, 0, 13), vec3(0, 1, 0));
-        //        boxLight->setColorDiffuse(make_vec3(1));
-        //        boxLight->setScale(vec3(5, 5, 8));
-        //        boxLight->calculateModel();
-        //        boxLight->createShadowMap(512, 512, sq);
-        //        boxLight->enableShadows();
-
-        //    sun->disableShadows();
-
-
         std::cout << "Program Initialized!" << std::endl;
     }
 
@@ -167,7 +151,7 @@ class Sample : public SampleWindowDeferred
         }
         for (auto l : directional_lights)
         {
-            l->setActive(current_type == 3);
+            l->setActive(current_type == 2);
             l->fitShadowToCamera(&camera);
             l->fitNearPlaneToScene(bounding_box);
         }
@@ -193,8 +177,8 @@ class Sample : public SampleWindowDeferred
             ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_Once);
             ImGui::Begin("Lighting");
 
-            static const char* types[4] = {"Point Light", "Spot Light", "Box Light", "Directional Light"};
-            ImGui::Combo("Codec", &current_type, types, 4);
+            static const char* types[3] = {"Point Light", "Spot Light", "Directional Light"};
+            ImGui::Combo("Codec", &current_type, types, 3);
 
             ImGui::End();
         }
