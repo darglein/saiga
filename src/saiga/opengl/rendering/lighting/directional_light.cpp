@@ -298,45 +298,6 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
     //                );
 }
 
-void DirectionalLight::bindUniforms(DirectionalLightShader& shader, Camera* cam)
-{
-    shader.uploadColorDiffuse(colorDiffuse, intensity);
-    shader.uploadColorSpecular(colorSpecular, intensity_specular);
-    shader.uploadAmbientIntensity(ambientIntensity);
-
-    vec3 viewd = -normalize(make_vec3(cam->view * make_vec4(direction, 0)));
-    shader.uploadDirection(viewd);
-
-    mat4 ip = inverse(cam->proj);
-    shader.uploadInvProj(ip);
-
-    if (this->castShadows)
-    {
-        const mat4 biasMatrix =
-            make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
-
-        AlignedVector<mat4> viewToLight(numCascades);
-
-        for (int i = 0; i < numCascades; ++i)
-        {
-            this->shadowCamera.setProj(orthoBoxes[i]);
-            mat4 shadow    = biasMatrix * this->shadowCamera.proj * this->shadowCamera.view * cam->model;
-            viewToLight[i] = shadow;
-        }
-
-        //        shader.uploadDepthBiasMV(shadow);
-        shader.uploadViewToLightTransforms(viewToLight);
-        shader.uploadDepthCuts(depthCuts);
-        //        shader.uploadDepthTexture(shadowmap->getDepthTexture(0));
-        //        shader.uploadDepthTextures(shadowmap->getDepthTextures());
-        shader.uploadDepthTextures(shadowmap->getDepthTexture());
-        shader.uploadShadowMapSize(shadowmap->getSize());
-        shader.uploadNumCascades(numCascades);
-        shader.uploadCascadeInterpolateRange(cascadeInterpolateRange);
-    }
-}
-
-
 
 void DirectionalLight::setDepthCutsRelative(const std::vector<float>& value)
 {

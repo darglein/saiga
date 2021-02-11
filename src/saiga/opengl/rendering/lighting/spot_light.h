@@ -13,12 +13,6 @@ namespace Saiga
 {
 class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenuation
 {
-    friend class DeferredLighting;
-
-   protected:
-    float angle = 60.0f;
-    std::unique_ptr<SimpleShadowmap> shadowmap;
-
    public:
     struct ShaderData
     {
@@ -37,24 +31,25 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
         data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
         data.colorSpecular = make_vec4(colorSpecular, 1.0f);
         data.attenuation   = make_vec4(attenuation, radius);
-        data.direction     = ModelMatrix().col(1);
+        data.direction     = make_vec4(direction, 0);
         return data;
     }
 
-    float shadowNearPlane = 0.1f;
+    float shadowNearPlane = 0.01f;
     PerspectiveCamera shadowCamera;
     vec3 direction = vec3(0, -1, 0);
     vec3 position  = vec3(0, 0, 0);
     vec3 getPosition() { return position; }
     void setPosition(const vec3& p) { position = p; }
 
+    float angle = 60.0f;
+    std::unique_ptr<SimpleShadowmap> shadowmap;
     /**
      * The default direction of the mesh is negative y
      */
 
     SpotLight();
     virtual ~SpotLight() {}
-    void bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* shadowCamera);
 
 
 

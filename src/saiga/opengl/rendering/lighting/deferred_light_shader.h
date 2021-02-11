@@ -46,6 +46,10 @@ class SAIGA_OPENGL_API AttenuatedLightShader : public LightShader
     virtual void uploadA(vec3& attenuation, float cutoffRadius);
 };
 
+class PointLight;
+class SpotLight;
+class DirectionalLight;
+
 class SAIGA_OPENGL_API PointLightShader : public AttenuatedLightShader
 {
    public:
@@ -54,6 +58,8 @@ class SAIGA_OPENGL_API PointLightShader : public AttenuatedLightShader
     virtual void checkUniforms();
 
     void uploadShadowPlanes(float f, float n);
+
+    void SetUniforms(PointLight* light, Camera* shadow_camera);
 };
 
 
@@ -65,6 +71,8 @@ class SAIGA_OPENGL_API SpotLightShader : public AttenuatedLightShader
     virtual void checkUniforms();
     void uploadAngle(float angle);
     void uploadShadowPlanes(float f, float n);
+
+    void SetUniforms(SpotLight* light, Camera* shadow_camera);
 };
 
 
@@ -90,6 +98,8 @@ class SAIGA_OPENGL_API DirectionalLightShader : public LightShader
     void uploadNumCascades(int n);
     void uploadCascadeInterpolateRange(float r);
     void uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures);
+
+    void SetUniforms(DirectionalLight* light, Camera* shadow_camera);
 };
 
 

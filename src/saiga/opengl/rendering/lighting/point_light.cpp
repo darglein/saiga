@@ -25,27 +25,6 @@ mat4 PointLight::ModelMatrix()
     return createTRSmatrix(position, quat::Identity(), scale);
 }
 
-void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* cam)
-{
-    shader->uploadA(attenuation, radius);
-
-    if (volumetric) shader->uploadVolumetricDensity(volumetricDensity);
-    shader->uploadColorDiffuse(colorDiffuse, intensity);
-    shader->uploadColorSpecular(colorSpecular, intensity_specular);
-
-    shader->uploadModel(ModelMatrix());
-    shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
-    shader->uploadInvProj(inverse(cam->proj));
-    if (this->castShadows)
-    {
-        shader->uploadDepthBiasMV(viewToLightTransform(*cam, this->shadowCamera));
-        shader->uploadDepthTexture(shadowmap->getDepthTexture());
-        shader->uploadShadowMapSize(shadowmap->getSize());
-    }
-    assert_no_glerror();
-}
-
-
 
 void PointLight::createShadowMap(int w, int h, ShadowQuality quality)
 {

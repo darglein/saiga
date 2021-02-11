@@ -18,39 +18,11 @@ SpotLight::SpotLight()
 
 void SpotLight::calculateCamera()
 {
-    mat4 M   = ModelMatrix();
-    vec3 pos = vec3(getPosition());
-
-
-    vec3 dir = make_vec3(M.col(1));
-    vec3 up  = make_vec3(M.col(0));
-
-    shadowCamera.setView(pos, pos - dir, up);
+    mat4 M             = ModelMatrix();
+    shadowCamera.model = M;
+    shadowCamera.updateFromModel();
     shadowCamera.setProj(2 * angle, 1, shadowNearPlane, radius);
 }
-
-void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* cam)
-{
-    shader->uploadA(attenuation, radius);
-
-    if (volumetric) shader->uploadVolumetricDensity(volumetricDensity);
-    shader->uploadColorDiffuse(colorDiffuse, intensity);
-    shader->uploadColorSpecular(colorSpecular, intensity_specular);
-
-    float cosa = cos(radians(angle * 0.95f));  // make border smoother
-    shader->uploadAngle(cosa);
-    shader->uploadModel(ModelMatrix());
-    shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
-    shader->uploadInvProj(inverse(cam->proj));
-    if (this->castShadows)
-    {
-        shader->uploadDepthBiasMV(viewToLightTransform(*cam, this->shadowCamera));
-        shader->uploadDepthTexture(shadowmap->getDepthTexture());
-        shader->uploadShadowMapSize(shadowmap->getSize());
-    }
-    assert_no_glerror();
-}
-
 
 
 void SpotLight::createShadowMap(int w, int h, ShadowQuality quality)
@@ -62,9 +34,9 @@ void SpotLight::createShadowMap(int w, int h, ShadowQuality quality)
 mat4 SpotLight::ModelMatrix()
 {
     float l = tan(radians(angle)) * radius;
-    vec3 scale(l, radius, l);
-    quat rot = rotation(normalize(direction), vec3(0, -1, 0));
-    return createTRSmatrix((position), rot, scale);
+    vec3 s(l, l, radius);
+    quat rot = rotation(vec3(0, 0, -1), normalize(direction));
+    return createTRSmatrix((position), rot, s);
 }
 
 void SpotLight::setAngle(float value)

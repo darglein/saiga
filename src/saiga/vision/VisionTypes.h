@@ -66,16 +66,6 @@ inline Sophus::SE3<T> scale(const Sophus::SE3<T>& a, double alpha)
  */
 SAIGA_VISION_API extern Mat3 skew(const Vec3& a);
 
-/**
- * Pixar Revised ONB
- * https://graphics.pixar.com/library/OrthonormalB/paper.pdf
- */
-SAIGA_VISION_API extern Mat3 onb(const Vec3& n);
-
-/**
- * Simple ONB from a direction and an up vector.
- */
-SAIGA_VISION_API extern Mat3 onb(const Vec3& dir, const Vec3& up);
 
 SAIGA_VISION_API extern Mat3 enforceRank2(const Mat3& M);
 

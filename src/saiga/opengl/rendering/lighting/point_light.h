@@ -13,11 +13,6 @@ namespace Saiga
 {
 class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenuation
 {
-    friend class DeferredLighting;
-
-   protected:
-    std::unique_ptr<CubeShadowmap> shadowmap;
-
    public:
     struct ShaderData
     {
@@ -45,14 +40,11 @@ class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenu
     float shadowNearPlane = 0.1f;
     PerspectiveCamera shadowCamera;
 
+    std::unique_ptr<CubeShadowmap> shadowmap;
 
     PointLight();
     virtual ~PointLight() {}
     PointLight& operator=(const PointLight& light) = delete;
-
-
-
-    void bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* shadowCamera);
 
 
 
