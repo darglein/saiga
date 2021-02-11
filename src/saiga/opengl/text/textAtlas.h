@@ -21,7 +21,7 @@ namespace Saiga
 // Paper: Distance Transforms of Sampled Functions
 // https://cs.brown.edu/~pff/papers/dt-final.pdf
 
-class SAIGA_OPENGL_API TextureAtlas
+class SAIGA_OPENGL_API TextAtlas
 {
    public:
     struct character_info
@@ -38,8 +38,8 @@ class SAIGA_OPENGL_API TextureAtlas
         vec2 tcMax = vec2(0, 0);
     };
 
-    TextureAtlas();
-    ~TextureAtlas();
+    TextAtlas();
+    ~TextAtlas();
 
     /**
      * Loads a True Type font (.ttf) with libfreetype.

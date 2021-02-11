@@ -24,18 +24,6 @@ void AttenuatedLightShader::uploadA(vec3& attenuation, float cutoffRadius)
     Shader::upload(location_attenuation, make_vec4(attenuation, cutoffRadius));
 }
 
-AttenuatedLight::AttenuatedLight() {}
-
-AttenuatedLight& AttenuatedLight::operator=(const AttenuatedLight& light)
-{
-    model         = light.model;
-    colorDiffuse  = light.colorDiffuse;
-    colorSpecular = light.colorSpecular;
-    attenuation   = light.attenuation;
-    cutoffRadius  = light.cutoffRadius;
-    return *this;
-}
-
 float AttenuatedLight::evaluateAttenuation(float distance)
 {
     // normalize the distance, so the attenuation is independent of the radius

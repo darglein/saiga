@@ -14,7 +14,7 @@
 #    include "saiga/core/util/fileChecker.h"
 #    include "saiga/core/util/tostring.h"
 #    include "saiga/opengl/text/fontLoader.h"
-#    include "saiga/opengl/text/textureAtlas.h"
+//#    include "saiga/opengl/text/textAtlas.h"
 #    include "saiga/opengl/texture/Texture.h"
 #    include "saiga/opengl/texture/TextureLoader.h"
 

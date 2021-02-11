@@ -65,9 +65,8 @@ class SAIGA_OPENGL_API AttenuatedLight : public Light
     float cutoffRadius;
 
    public:
-    AttenuatedLight();
+    AttenuatedLight() {}
     virtual ~AttenuatedLight() {}
-    AttenuatedLight& operator=(const AttenuatedLight& light);
 
     // evaluates the attenuation formula at a given radius
     float evaluateAttenuation(float distance);

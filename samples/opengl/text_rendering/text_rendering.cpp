@@ -61,7 +61,7 @@ class Sample : public SampleWindowDeferred
     std::shared_ptr<Text> text;
     std::shared_ptr<Text> counter_text;
     TextOverlay2D text_overlay;
-    TextureAtlas text_atlas;
+    TextAtlas text_atlas;
     int count = 0;
 };
 

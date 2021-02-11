@@ -114,7 +114,7 @@ void Light::renderImGui()
     // todo: check srgb
     ImGui::ColorEdit3("colorDiffuse", &colorDiffuse[0]);
     ImGui::ColorEdit3("colorSpecular", &colorSpecular[0]);
-    auto str = to_string(visible) + "/" + to_string(selected) + "/" + to_string(culled);
+    auto str = to_string(visible) + "/" + to_string(culled);
     ImGui::Text("visible/selected/culled: %s", str.c_str());
 }
 

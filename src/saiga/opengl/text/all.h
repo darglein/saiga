@@ -9,5 +9,5 @@
 #include "saiga/opengl/text/TextOverlay2D.h"
 #include "saiga/opengl/text/TextOverlay3D.h"
 #include "saiga/opengl/text/text.h"
+#include "saiga/opengl/text/textAtlas.h"
 #include "saiga/opengl/text/textShader.h"
-#include "saiga/opengl/text/textureAtlas.h"
