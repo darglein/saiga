@@ -322,10 +322,11 @@ void RendererLighting::createLightMeshes()
     pointLightMesh.fromMesh(*sb);
 
 
-    Cone c(make_vec3(0), vec3(0, 1, 0), 1.0f, 1.0f);
+    Cone c(make_vec3(0), vec3(0, 0, -1), 1.0f, 1.0f);
     auto cb = TriangleMeshGenerator::createMesh(c, 10);
     //    cb->createBuffers(spotLightMesh);
     spotLightMesh.fromMesh(*cb);
+    //    spotLightMesh.fromMesh(*sb);
 }
 
 

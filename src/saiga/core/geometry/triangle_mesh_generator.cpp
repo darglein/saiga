@@ -301,6 +301,9 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Cone& co
         mesh->faces.push_back(face);
     }
 
+    mat4 t = make_mat4(rotation(vec3(0, -1, 0), cone.direction));
+    mesh->transform(t);
+
     return std::shared_ptr<default_mesh_t>(mesh);
 }
 

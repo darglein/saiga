@@ -17,7 +17,7 @@ namespace Saiga
 
 class SAIGA_OPENGL_API DirectionalLight : public LightBase
 {
-   protected:
+   public:
     std::unique_ptr<CascadedShadowmap> shadowmap;
 
     // bounding box of every cascade frustum
@@ -114,8 +114,6 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
      */
     void bindCascade(int n);
 
-    // Bind the uniforms for light rendering
-    void bindUniforms(DirectionalLightShader& shader, Camera* shadowCamera);
 
     // see description for depthCutsRelative for more info
     void setDepthCutsRelative(const std::vector<float>& value);

@@ -415,7 +415,8 @@ void DeferredLighting::renderDirectionalLights(Camera* cam, const ViewPort& vp, 
             (shadow && obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->castShadows);
         if (render)
         {
-            obj->bindUniforms(*shader, cam);
+            shader->SetUniforms(obj.get(), cam);
+            //            obj->bindUniforms(*shader, cam);
             directionalLightMesh.draw();
         }
     }
