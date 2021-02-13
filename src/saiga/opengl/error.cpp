@@ -102,7 +102,7 @@ void Error::DebugLogConst(GLenum source, GLenum type, GLuint id, GLenum severity
     (void)length;
 
 
-    // if (ignoreMap.find(id) != ignoreMap.end()) return;
+    if (ignoreMap.find(id) != ignoreMap.end()) return;
 
 
 
