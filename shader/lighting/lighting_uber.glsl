@@ -43,7 +43,7 @@ void main()
 
     vec3 lighting = vec3(0);
 
-    lighting += calculatePointLightsClustered(material, position, normal, depth);
+    lighting += calculatePointLights(material, position, normal, depth);
     lighting += calculateSpotLights(material, position, normal);
     lighting += calculateDirectionalLights(material, position, normal);
 

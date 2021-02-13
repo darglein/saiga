@@ -73,6 +73,7 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
     GBuffer& gbuffer;
     IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
     std::shared_ptr<Clusterer> lightClusterer;
+    bool lightClustererEnabled = true;
 };
 
 }  // namespace Saiga

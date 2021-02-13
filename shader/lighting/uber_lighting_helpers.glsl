@@ -73,6 +73,7 @@ struct cluster
 
 layout (std430, binding = 7) buffer clusterInfoBuffer
 {
+    int clusterEnabled;
     int clusterX;
     int clusterY;
     int screenSpaceTileSize;
@@ -85,6 +86,7 @@ layout (std430, binding = 7) buffer clusterInfoBuffer
 
     int clusterListCount;
     int itemListCount;
+    int tileDebug;
 };
 
 layout (std430, binding = 8) buffer clusterBuffer
@@ -96,7 +98,6 @@ struct clusterItem
 {
     int plIdx;
     int slIdx;
-    int blIdx;
 };
 
 layout (std430, binding = 9) buffer itemBuffer
@@ -128,18 +129,18 @@ int getClusterIndex(vec2 pixelCoord, float depth)
 vec3 debugCluster(float depth)
 {
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
-    /*
-    float normLightCount = float(clusterList[clusterIndex].plCount) / 2.0;
-    return vec3(normLightCount, 1.0 - normLightCount, 0.0);
-    */
-    if(clusterList[clusterIndex].plCount > 0)
-        return vec3(1,0,0);
-    return vec3(0,1,0);
+    float normLightCount = float(clusterList[clusterIndex].plCount + clusterList[clusterIndex].slCount) / float(tileDebug);
+    return vec3(normLightCount, 0.0, 1.0 - normLightCount);
 }
 
-vec3 calculatePointLightsClustered(AssetMaterial material, vec3 position, vec3 normal, float depth)
+vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal);
+
+vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, float depth)
 {
-    //return debugCluster(depth);
+    if(clusterEnabled == 0)
+        return calculatePointLightsNoClusters(material, position, normal);
+    if(tileDebug > 0)
+        return debugCluster(depth);
     vec3 result = vec3(0);
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
@@ -200,7 +201,76 @@ vec3 calculatePointLightsClustered(AssetMaterial material, vec3 position, vec3 n
     return result;
 }
 
-vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal)
+/*
+vec3 calculateSpotLightsClustered(AssetMaterial material, vec3 position, vec3 normal, float depth)
+{
+    if(tileDebug > 0)
+        return debugCluster(depth);
+    vec3 result = vec3(0);
+
+    int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
+
+    if(clusterIndex > clusterListCount - 1)
+    {
+        return vec3(1, 0, 0);
+    }
+    if(clusterIndex < 0)
+    {
+        return vec3(1, 0, 0);
+    }
+
+    int lightCount           = clusterList[clusterIndex].slCount;
+    int baseLightIndexOffset = clusterList[clusterIndex].offset;
+
+    if(baseLightIndexOffset + lightCount -1 > itemListCount - 1)
+    {
+        return vec3(1, 1, 0);
+    }
+    if(baseLightIndexOffset < 0 || lightCount < 0)
+    {
+        return vec3(1, 0, 0);
+    }
+
+    for(int i = 0; i < lightCount; i++)
+    {
+        int lightVectorIndex = itemList[baseLightIndexOffset + i].slIdx;
+        if(lightVectorIndex >= spotLightCount)
+            return vec3(0, 0, 0);
+        SpotLightData sl = spotLights[lightVectorIndex];
+        vec3 lightPosition = (view * vec4(sl.position.xyz, 1)).rgb;
+        vec4 lightColorDiffuse = sl.colorDiffuse;
+        vec4 lightColorSpecular = sl.colorSpecular;
+        vec4 lightAttenuation = sl.attenuation;
+        vec3 lightDirection = normalize((view * sl.direction).rgb);
+        float lightAngle = sl.position.w;
+
+
+        vec3 fragmentLightDir = normalize(lightPosition - position);
+        float intensity = lightColorDiffuse.w;
+
+        float visibility = 1.0;
+
+        float distanceToLight = length(dot(position - lightPosition, lightDirection));
+        float att = spotAttenuation(fragmentLightDir, lightAngle, lightDirection) * getAttenuation(lightAttenuation, distanceToLight);
+        float localIntensity = intensity * att * visibility;
+
+        float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
+        float Ispec = 0;
+        if(Idiff > 0)
+            Ispec = localIntensity * material.data.x  * intensitySpecular(position, normal, fragmentLightDir, 40);
+
+
+        vec3 color = lightColorDiffuse.rgb * (
+                    Idiff * material.color.rgb +
+                    Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
+
+        result += color;
+    }
+    return result;
+}
+*/
+
+vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal)
 {
     vec3 result = vec3(0);
     for(int c = 0; c < pointLightCount; ++c)

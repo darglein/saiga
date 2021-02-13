@@ -47,7 +47,6 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
     quadMesh.fromMesh(*qb);
 
     ClustererParameters params;
-    // params.clusterThreeDimensional = true;
     lightClusterer = std::make_shared<Clusterer>(params);
 }
 
@@ -90,29 +89,22 @@ void UberDeferredLighting::initRender()
     li.spotLightCount        = 0;
     li.directionalLightCount = 0;
 
-    if (lightClusterer) lightClusterer->clearLightData();
+    if (lightClustererEnabled) lightClusterer->clearLightData();
 
     // Point Lights
-    PointLightClusterData clPointLight;
     for (auto pl : pointLights)
     {
         if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
         if (!pl->shouldRender()) continue;
         ld.pointLights.push_back(pl->GetShaderData());
 
-        if (lightClusterer)
-        {
-            clPointLight.world_center = pl->position;
-            clPointLight.radius       = pl->getRadius();
-            lightClusterer->addPointLight(clPointLight);
-        }
+        if (lightClustererEnabled) lightClusterer->addPointLight(pl->position, pl->radius);
 
         li.pointLightCount++;
     }
 
     // Spot Lights
     SpotLight::ShaderData glSpotLight;
-    SpotLightClusterData clSpotLight;
     for (auto sl : spotLights)
     {
         if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
@@ -120,13 +112,19 @@ void UberDeferredLighting::initRender()
         glSpotLight = sl->GetShaderData();
         ld.spotLights.push_back(glSpotLight);
 
-        if (lightClusterer)
+        if (lightClustererEnabled)
         {
-            clSpotLight.world_center = sl->getPosition() + vec3(glSpotLight.direction.x(), glSpotLight.direction.y(),
-                                                                glSpotLight.direction.z()) *
-                                                               sl->getRadius() * 0.5;
-            clSpotLight.radius = sl->getRadius() * 0.5;  // TODO Paul: Is that correct?
-            lightClusterer->addSpotLight(clSpotLight);
+            float rad = radians(sl->getAngle());
+            float l   = tan(rad) * sl->radius;
+            float radius;
+            if (rad > pi<float>() * 0.25f)
+                radius = l * tan(rad);
+            else
+                radius = l * 0.5f / pow(cos(sl->getAngle()), 2.0f);
+            vec3 world_center =
+                sl->getPosition() +
+                vec3(glSpotLight.direction.x(), glSpotLight.direction.y(), glSpotLight.direction.z()) * radius;
+            lightClusterer->addSpotLight(world_center, radius);
         }
 
         li.spotLightCount++;
@@ -162,10 +160,9 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 {
     // Does nothing
     RendererLighting::render(cam, viewPort);
-    if (lightClusterer)
+    if (lightClustererEnabled)
     {
         lightClusterer->clusterLights(cam, viewPort);
-
         // At this point we can use clustering information in the lighting uber shader with the right binding points.
     }
 
@@ -192,7 +189,8 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
         renderDebug(cam);
         // glDepthMask(GL_FALSE);
     }
-    lightClusterer->renderDebug(cam);
+    if(lightClustererEnabled)
+        lightClusterer->renderDebug(cam);
     assert_no_glerror();
 }
 
@@ -240,7 +238,18 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
 void UberDeferredLighting::renderImGui(bool* p_open)
 {
     RendererLighting::renderImGui(p_open);
-    lightClusterer->renderImGui();
+    ImGui::Begin("UberDefferedLighting", p_open);
+    bool changed          = ImGui::Checkbox("lightClustererEnabled", &lightClustererEnabled);
+    if (changed)
+    {
+        if (lightClustererEnabled)
+            lightClusterer->enable();
+        else
+            lightClusterer->disable();
+    }
+    ImGui::End();
+
+    if (lightClustererEnabled) lightClusterer->renderImGui();
 }
 
 }  // namespace Saiga

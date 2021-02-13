@@ -37,7 +37,7 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
         data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
         data.colorSpecular = make_vec4(colorSpecular, 1.0f);
         data.attenuation   = make_vec4(attenuation, radius);
-        data.direction     = ModelMatrix().col(1);
+        data.direction     = make_vec4(normalize(make_vec3(ModelMatrix().col(1))), 0.0);
         return data;
     }
 
