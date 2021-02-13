@@ -7,3 +7,4 @@
 #pragma once
 
 #include "saiga/opengl/rendering/forwardRendering/forward_renderer.h"
+#include "saiga/opengl/rendering/lighting/all.h"

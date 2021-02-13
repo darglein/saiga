@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2020 Paul Himmler
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,30 +7,86 @@
 #pragma once
 
 #include "saiga/opengl/query/gpuTimer.h"
+#include "saiga/opengl/rendering/lighting/forward_lighting.h"
 #include "saiga/opengl/rendering/renderer.h"
 
 namespace Saiga
 {
+class ShaderLoader;
+
 struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
 {
+    int maximumNumberOfDirectionalLights = 256;
+    int maximumNumberOfPointLights       = 256;
+    int maximumNumberOfSpotLights        = 256;
+    int maximumNumberOfBoxLights         = 256;
+
+
     void fromConfigFile(const std::string& file) { RenderingParameters::fromConfigFile(file); }
 };
 
 class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
 {
+    class Asset;
+
    public:
     using ParameterType = ForwardRenderingParameters;
 
+
     ParameterType params;
+    ForwardLighting lighting;
 
     ForwardRenderer(OpenGLWindow& window, const ParameterType& params = ParameterType());
     virtual ~ForwardRenderer() {}
 
-    virtual float getTotalRenderTime() override { return timer.getTimeMS(); }
     virtual void render(const RenderInfo& renderInfo) override;
+    virtual void renderImGui(bool* p_open = nullptr) override;
+
+    void resize(int windowWidth, int windowHeight) override;
+
+    inline const char* getColoredShaderSource() { return coloredShaderSource; }
+    inline const char* getTexturedShaderSource() { return texturedShaderSource; }
+
+    enum ForwardTimingBlock
+    {
+        TOTAL = 0,
+        FORWARD,
+        FINAL,
+        COUNT,
+    };
+
+    float getBlockTime(ForwardTimingBlock timingBlock) { return timers[timingBlock].getTimeMS(); }
+    virtual float getTotalRenderTime() override { return timers[ForwardTimingBlock::TOTAL].getTimeMS(); }
+
+    inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
+    {
+        params.maximumNumberOfDirectionalLights = maxDirectionalLights;
+        params.maximumNumberOfPointLights       = maxPointLights;
+        params.maximumNumberOfSpotLights        = maxSpotLights;
+        params.maximumNumberOfBoxLights         = maxBoxLights;
+
+        params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
+        params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
+        params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
+        params.maximumNumberOfBoxLights         = std::max(0, params.maximumNumberOfBoxLights);
+
+        lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
+                                params.maximumNumberOfSpotLights, params.maximumNumberOfBoxLights);
+    }
 
    private:
-    FilteredMultiFrameOpenGLTimer timer;
+    std::vector<FilteredMultiFrameOpenGLTimer> timers;
+    bool showLightingImgui = false;
+    ShaderLoader shaderLoader;
+
+   protected:
+    void startTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].startTimer(); }
+    void stopTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].stopTimer(); }
+
+    const char* coloredShaderSource  = "asset/ColoredAsset.glsl";
+    const char* texturedShaderSource = "asset/TexturedAsset.glsl";
+
+    bool cullLights = false;
 };
 
 }  // namespace Saiga

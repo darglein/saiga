@@ -78,17 +78,27 @@ void VideoEncoder::renderGUI()
 
         if (!encoder->isRunning() && ImGui::Button("Start Recording"))
         {
-            encoder->inWidth  = window->getWidth();
-            encoder->inHeight = window->getHeight();
-            encoder->startEncoding();
+            startRecording();
         }
         if (encoder->isRunning() && ImGui::Button("Stop Recording"))
         {
-            encoder->finishEncoding();
+            stopRecording();
         }
 
         ImGui::PopID();
     }
+}
+
+void VideoEncoder::startRecording()
+{
+    encoder->inWidth  = window->getWidth();
+    encoder->inHeight = window->getHeight();
+    encoder->startEncoding();
+}
+
+void VideoEncoder::stopRecording()
+{
+    encoder->finishEncoding();
 }
 
 }  // namespace Saiga

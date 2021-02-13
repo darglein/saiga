@@ -20,7 +20,7 @@ namespace Saiga
 {
 #ifdef SAIGA_USE_FREETYPE
 
-class TextureAtlas;
+class TextAtlas;
 
 class Text;
 
@@ -46,7 +46,7 @@ class SAIGA_OPENGL_API TextDebugOverlay
 
 
     TextOverlay2D overlay;
-    TextureAtlas* textureAtlas;
+    TextAtlas* textureAtlas;
 
     Text* text;
 
@@ -57,7 +57,7 @@ class SAIGA_OPENGL_API TextDebugOverlay
     TextDebugOverlay(int w, int h);
     ~TextDebugOverlay();
 
-    void init(TextureAtlas* textureAtlas);
+    void init(TextAtlas* textureAtlas);
     void render();
 
     int createItem(const std::string& name);

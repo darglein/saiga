@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/text/textureAtlas.h"
+#include "saiga/opengl/text/textAtlas.h"
 
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/util/assert.h"
@@ -25,15 +25,15 @@ namespace Saiga
 
 
 
-TextureAtlas::TextureAtlas() {}
+TextAtlas::TextAtlas() {}
 
-TextureAtlas::~TextureAtlas()
+TextAtlas::~TextAtlas()
 {
     //    delete textureAtlas;
 }
 
-void TextureAtlas::loadFont(const std::string& _font, int fontSize, int quality, int searchRange, bool bufferToFile,
-                            const std::vector<Unicode::UnicodeBlock>& blocks)
+void TextAtlas::loadFont(const std::string& _font, int fontSize, int quality, int searchRange, bool bufferToFile,
+                         const std::vector<Unicode::UnicodeBlock>& blocks)
 {
     std::string font = SearchPathes::font(_font);
     if (font == "")
@@ -92,13 +92,13 @@ void TextureAtlas::loadFont(const std::string& _font, int fontSize, int quality,
 }
 
 
-void TextureAtlas::initFont()
+void TextAtlas::initFont()
 {
     invalidCharacter = getCharacterInfo('?');
 }
 
 
-const TextureAtlas::character_info& TextureAtlas::getCharacterInfo(int c)
+const TextAtlas::character_info& TextAtlas::getCharacterInfo(int c)
 {
     auto it = characterInfoMap.find(c);
     if (it == characterInfoMap.end())
@@ -111,7 +111,7 @@ const TextureAtlas::character_info& TextureAtlas::getCharacterInfo(int c)
 
 
 
-void TextureAtlas::createTextureAtlas(std::vector<FontLoader::Glyph>& glyphs, int downsample, int searchRadius)
+void TextAtlas::createTextureAtlas(std::vector<FontLoader::Glyph>& glyphs, int downsample, int searchRadius)
 {
     numCharacters = glyphs.size();
     std::cout << "TextureAtlas::createTextureAtlas: Number of glyphs = " << numCharacters << std::endl;
@@ -138,7 +138,7 @@ void TextureAtlas::createTextureAtlas(std::vector<FontLoader::Glyph>& glyphs, in
     numCharacters = characterInfoMap.size();
 }
 
-void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph>& glyphs)
+void TextAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph>& glyphs)
 {
     int charsPerRow = ceil(sqrt((float)glyphs.size()));
 
@@ -206,7 +206,7 @@ void TextureAtlas::calculateTextureAtlasLayout(std::vector<FontLoader::Glyph>& g
     }
 }
 
-void TextureAtlas::padGlyphsToDivisor(std::vector<FontLoader::Glyph>& glyphs, int divisor)
+void TextAtlas::padGlyphsToDivisor(std::vector<FontLoader::Glyph>& glyphs, int divisor)
 {
     for (FontLoader::Glyph& g : glyphs)
     {
@@ -236,7 +236,7 @@ void TextureAtlas::padGlyphsToDivisor(std::vector<FontLoader::Glyph>& glyphs, in
     }
 }
 
-void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph>& glyphs, int divisor, int searchRadius)
+void TextAtlas::convertToSDF(std::vector<FontLoader::Glyph>& glyphs, int divisor, int searchRadius)
 {
     SAIGA_ASSERT(divisor % 2 == 1);
     int halfDivisor = (divisor / 2);
@@ -316,7 +316,7 @@ void TextureAtlas::convertToSDF(std::vector<FontLoader::Glyph>& glyphs, int divi
     }
 }
 
-std::vector<ivec2> TextureAtlas::generateSDFsamples(int searchRadius)
+std::vector<ivec2> TextAtlas::generateSDFsamples(int searchRadius)
 {
     std::vector<ivec2> samplePositions;
     for (int x = -searchRadius; x <= searchRadius; ++x)
@@ -345,7 +345,7 @@ std::vector<ivec2> TextureAtlas::generateSDFsamples(int searchRadius)
     return samplePositions;
 }
 
-void TextureAtlas::writeAtlasToFiles()
+void TextAtlas::writeAtlasToFiles()
 {
     std::string str = uniqueFontString + ".png";
 
@@ -368,7 +368,7 @@ void TextureAtlas::writeAtlasToFiles()
     stream.close();
 }
 
-bool TextureAtlas::readAtlasFromFiles()
+bool TextAtlas::readAtlasFromFiles()
 {
     std::ifstream stream(uniqueFontString, std::ifstream::binary);
     if (!stream.is_open()) return false;

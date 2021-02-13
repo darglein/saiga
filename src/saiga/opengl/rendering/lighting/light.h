@@ -77,6 +77,9 @@ class SAIGA_OPENGL_API Light : public Object3D
    public:
     // [R,G,B,Intensity]
     vec4 colorDiffuse = make_vec4(1);
+
+
+
     // [R,G,B,Intensity]
     vec4 colorSpecular = make_vec4(1);
     // density of the participating media

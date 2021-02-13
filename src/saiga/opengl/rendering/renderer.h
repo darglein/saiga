@@ -31,7 +31,7 @@ struct SAIGA_OPENGL_API RenderingParameters
 
 
     // adds a 'glfinish' at the end of the rendering. usefull for debugging.
-    bool useGlFinish = false;
+    bool useGlFinish = true;
 
 
     vec4 clearColor = vec4(0, 0, 0, 0);
