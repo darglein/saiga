@@ -7,7 +7,6 @@
 #pragma once
 
 #include "saiga/cuda/cudaHelper.h"
-#include "saiga/cuda/interop.h"
 #include "saiga/opengl/opengl.h"
 
 #include <iostream>
@@ -19,7 +18,7 @@ namespace Saiga
 {
 namespace CUDA
 {
-class SAIGA_CUDA_API Interop
+class Interop
 {
    public:
     ~Interop() { unregisterBuffer(); }
