@@ -21,6 +21,159 @@
 
 namespace Saiga
 {
+ObjMaterialLoader::ObjMaterialLoader(const std::string& file) : file(file)
+{
+    loadFile(file);
+}
+
+bool ObjMaterialLoader::loadFile(const std::string& _file)
+{
+    file = _file;
+    std::ifstream stream(file, std::ios::in);
+    if (!stream.is_open())
+    {
+        return false;
+    }
+
+
+    std::cout << "ObjMaterialLoader: loading file " << file << std::endl;
+
+
+    while (!stream.eof())
+    {
+        std::string line;
+        std::getline(stream, line);
+        // remove carriage return from windows
+        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+        parseLine(line);
+    }
+    return true;
+}
+
+UnifiedMaterial ObjMaterialLoader::getMaterial(const std::string& name)
+{
+    for (UnifiedMaterial& m : materials)
+    {
+        if (m.name == name) return m;
+    }
+    std::cout << "Warning material '" << name << "' not found!" << std::endl;
+    return UnifiedMaterial("default");
+}
+
+
+void ObjMaterialLoader::parseLine(const std::string& line)
+{
+    std::stringstream sstream(line);
+
+    std::string header;
+    sstream >> header;
+
+    std::string rest;
+    std::getline(sstream, rest);
+
+    // remove first white space
+    if (rest[0] == ' ' && rest.size() > 1)
+    {
+        rest = rest.substr(1);
+    }
+
+    std::stringstream restStream(rest);
+
+    if (header == "newmtl")
+    {
+        UnifiedMaterial m(rest);
+        materials.push_back(m);
+        currentMaterial = &materials[materials.size() - 1];
+    }
+    if (currentMaterial == nullptr)
+    {
+        return;
+    }
+
+    //    if(header == "Kd"){
+    //        restStream >> currentMaterial->color;
+    //    }
+
+#if 0
+    if (header == "Ns")
+    {
+        restStream >> currentMaterial->Ns;
+    }
+    else if (header == "Ni")
+    {
+        restStream >> currentMaterial->Ni;
+    }
+    else if (header == "d")
+    {
+        restStream >> currentMaterial->d;
+    }
+    else if (header == "Tr")
+    {
+        restStream >> currentMaterial->Tr;
+    }
+    else if (header == "Tf")
+    {
+        restStream >> currentMaterial->Tf;
+    }
+    else if (header == "illum")
+    {
+        restStream >> currentMaterial->illum;
+    }
+#endif
+    if (header == "Ka")
+    {
+        restStream >> currentMaterial->color_ambient;
+    }
+    else if (header == "Kd")
+    {
+        restStream >> currentMaterial->color_diffuse;
+    }
+    else if (header == "Ks")
+    {
+        restStream >> currentMaterial->color_specular;
+    }
+    else if (header == "Ke")
+    {
+        restStream >> currentMaterial->color_emissive;
+    }
+    else if (header == "map_Kd")
+    {
+        currentMaterial->texture_diffuse = getPathImage(rest);
+    }
+    else if (header == "map_d")
+    {
+        //        TextureParameters tp;
+        //        tp.srgb = false;
+        currentMaterial->texture_alpha = getPathImage(rest);
+        //        if(currentMaterial->map_d) currentMaterial->map_d->setWrap(GL_REPEAT);
+    }
+    else if (header == "map_bump" || header == "bump")
+    {
+        //        TextureParameters tp;
+        //        tp.srgb = false;
+        currentMaterial->texture_normal = getPathImage(rest);
+        //        if(currentMaterial->map_bump) currentMaterial->map_bump->setWrap(GL_REPEAT);
+    }
+}
+
+std::string ObjMaterialLoader::getPathImage(const std::string& str)
+{
+    std::string result;
+
+    // first search relative to the parent
+    result = SearchPathes::model.getRelative(file, str);
+    if (!result.empty()) return result;
+
+
+    // no search in the image dir
+    result = SearchPathes::image.getRelative(file, str);
+    if (!result.empty()) return result;
+
+    std::cout << str << " " << file << " " << result << std::endl;
+    SAIGA_ASSERT(!result.empty());
+    return result;
+}
+
 
 static StringViewParser lineParser = {" ,\n", true};
 static StringViewParser faceParser = {"/", false};
@@ -141,7 +294,7 @@ void ObjModelLoader::separateVerticesByGroup()
 
             for (int j = 0; j < 3; ++j)
             {
-                int index = face.v[j];
+                int index = face[j];
                 if (vertexReference[index] == INVALID_VERTEX_ID) vertexReference[index] = t;
                 if (vertexReference[index] != t)
                 {
@@ -149,7 +302,7 @@ void ObjModelLoader::separateVerticesByGroup()
                     VertexNT v   = outVertices[index];
                     int newIndex = outVertices.size();
                     outVertices.push_back(v);
-                    face.v[j] = newIndex;
+                    face[j] = newIndex;
                     vertexReference.push_back(t);
                     //                    SAIGA_ASSERT(0);
                 }
@@ -162,9 +315,9 @@ void ObjModelLoader::calculateMissingNormals()
 {
     for (auto tri : outTriangles)
     {
-        auto& v1 = outVertices[tri.v[0]];
-        auto& v2 = outVertices[tri.v[1]];
-        auto& v3 = outVertices[tri.v[2]];
+        auto& v1 = outVertices[tri[0]];
+        auto& v2 = outVertices[tri[1]];
+        auto& v3 = outVertices[tri[2]];
 
         vec3 normal = normalize(cross(make_vec3(v3.position - v1.position), make_vec3(v2.position - v1.position)));
 
@@ -186,9 +339,9 @@ void ObjModelLoader::computeVertexColorAndData()
             ObjTriangle& face = outTriangles[i + tg.startFace];
             for (int f = 0; f < 3; ++f)
             {
-                int index            = face.v[f];
-                vertexColors[index]  = tg.material.color;
-                float spec           = dot(tg.material.Ks, make_vec3(1)) / 3.0f;
+                int index            = face[f];
+                vertexColors[index]  = tg.material.color_diffuse;
+                float spec           = dot(tg.material.color_specular, make_vec4(1)) / 4.0f;
                 vertexData[index][0] = spec;
             }
         }
@@ -206,7 +359,7 @@ void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh)
     mesh.faces.reserve(outTriangles.size());
     for (ObjTriangle& oj : outTriangles)
     {
-        mesh.addFace(oj.v);
+        mesh.addFace(oj(0), oj(1), oj(2));
     }
 
     mesh.vertices.reserve(outTriangles.size());
@@ -234,7 +387,7 @@ void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh)
     mesh.faces.reserve(outTriangles.size());
     for (ObjTriangle& oj : outTriangles)
     {
-        mesh.addFace(oj.v);
+        mesh.addFace(oj(0), oj(1), oj(2));
     }
 
     mesh.vertices.reserve(outTriangles.size());
@@ -304,7 +457,7 @@ void ObjModelLoader::createVertexIndexList()
                 index = outVertices.size();
                 outVertices.push_back(verte);
             }
-            fa.v[i] = index;
+            fa[i] = index;
         }
 
         outTriangles.push_back(fa);
@@ -452,7 +605,6 @@ void ObjModelLoader::parseF()
 
     faces.insert(faces.end(), nf.begin(), nf.end());
 }
-
 
 
 

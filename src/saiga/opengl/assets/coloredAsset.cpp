@@ -16,6 +16,56 @@ void ColoredAsset::loadDefaultShaders()
     this->forwardShader   = shaderLoader.load<MVPColorShader>(shaderStr);
     this->wireframeshader = shaderLoader.load<MVPColorShader>(shaderStr);
 }
+
+ColoredAsset::ColoredAsset(const UnifiedModel& model)
+{
+    loadDefaultShaders();
+
+    SAIGA_ASSERT(model.HasPosition());
+
+    faces.reserve(model.NumFaces());
+    for (auto& f : model.triangles)
+    {
+        faces.push_back({f(0), f(1), f(2)});
+    }
+
+
+    vertices.resize(model.NumVertices());
+    for (int i = 0; i < model.NumVertices(); ++i)
+    {
+        vertices[i].position = make_vec4(model.position[i], 1);
+    }
+
+    if (model.HasColor())
+    {
+        for (int i = 0; i < model.NumVertices(); ++i)
+        {
+            vertices[i].color = model.color[i];
+        }
+    }
+    else
+    {
+        for (int i = 0; i < model.NumVertices(); ++i)
+        {
+            vertices[i].color = vec4(1, 1, 1, 1);
+        }
+    }
+
+    if (model.HasNormal())
+    {
+        for (int i = 0; i < model.NumVertices(); ++i)
+        {
+            vertices[i].normal = make_vec4(model.normal[i], 0);
+        }
+    }
+    else
+    {
+        computePerVertexNormal();
+    }
+
+    std::cout << faces.size() << " " << vertices.size() << std::endl;
+    create();
+}
 void LineVertexColoredAsset::loadDefaultShaders()
 {
     this->deferredShader  = shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});

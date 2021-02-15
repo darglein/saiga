@@ -9,6 +9,7 @@
 #include "saiga/opengl/assets/asset.h"
 #include "saiga/opengl/texture/Texture.h"
 
+
 namespace Saiga
 {
 class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<VertexColoredModel, MVPColorShader>
@@ -16,6 +17,10 @@ class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<VertexColoredModel, MVPC
    public:
     static constexpr const char* shaderStr = "asset/ColoredAsset.glsl";
     void loadDefaultShaders();
+
+    ColoredAsset() {}
+    ColoredAsset(const UnifiedModel& model);
+
 
     virtual ~ColoredAsset() {}
 };

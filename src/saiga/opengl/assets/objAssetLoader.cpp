@@ -26,7 +26,7 @@ void ObjAssetLoader::loadMeshNC(const std::string& file, TriangleMesh<VertexNC, 
 
     for (ObjTriangle& oj : ol.outTriangles)
     {
-        tmesh.addFace(oj.v);
+        tmesh.addFace(oj(0), oj(1), oj(2));
     }
 
     for (VertexNT& v : ol.outVertices)
@@ -46,9 +46,9 @@ void ObjAssetLoader::loadMeshNC(const std::string& file, TriangleMesh<VertexNC, 
             ObjTriangle& face = ol.outTriangles[i + tg.startFace];
             for (int f = 0; f < 3; ++f)
             {
-                int index                     = face.v[f];
-                tmesh.vertices[index].color   = tg.material.color;
-                float spec                    = dot(tg.material.Ks, make_vec3(1)) / 3.0f;
+                int index                     = face[f];
+                tmesh.vertices[index].color   = tg.material.color_diffuse;
+                float spec                    = dot(tg.material.color_specular, make_vec4(1)) / 4.0f;
                 tmesh.vertices[index].data[0] = spec;
             }
         }
@@ -74,7 +74,8 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
 
     for (ObjTriangle& oj : ol.outTriangles)
     {
-        tmesh.addFace(oj.v);
+        //        tmesh.addFace(oj.v);
+        tmesh.addFace(oj(0), oj(1), oj(2));
     }
 
     for (VertexNT& v : ol.outVertices)
@@ -91,7 +92,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
         TexturedAsset::TextureGroup tg;
         tg.indices    = otg.faces * 3;
         tg.startIndex = otg.startFace * 3;
-        tg.texture    = TextureLoader::instance()->load(otg.material.map_Kd);
+        tg.texture    = TextureLoader::instance()->load(otg.material.texture_diffuse);
         if (tg.texture)
         {
             tg.texture->setWrap(GL_REPEAT);
@@ -107,8 +108,9 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
             ObjTriangle& face = ol.outTriangles[i + tg.startFace];
             for (int f = 0; f < 3; ++f)
             {
-                int index                     = face.v[f];
-                float spec                    = dot(tg.material.Ks, make_vec3(1)) / 3.0f;
+                int index = face[f];
+                //                float spec                    = dot(tg.material.Ks, make_vec3(1)) / 3.0f;
+                float spec                    = dot(tg.material.color_specular, make_vec4(1)) / 4.0f;
                 tmesh.vertices[index].data[0] = spec;
             }
         }

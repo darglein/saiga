@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/model/all.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
 #include "saiga/opengl/window/message_box.h"
 using namespace Saiga;
@@ -20,6 +21,10 @@ class Sample : public SampleWindowDeferred
         teapot.asset = assetLoader.loadColoredAsset("models/teapot.obj");
         teapot.translateGlobal(vec3(0, 1, 0));
         teapot.calculateModel();
+
+        UnifiedModel tea("models/teapot.obj");
+
+        teapot.asset = std::make_shared<ColoredAsset>(tea);
 
         std::cout << "Program Initialized!" << std::endl;
     }
@@ -43,11 +48,6 @@ class Sample : public SampleWindowDeferred
 
 int main(int argc, char* args[])
 {
-    MessageBox("test", "sdlghseg");
-    return 0;
-
-
-
     // This should be only called if this is a sample located in saiga/samples
     initSaigaSample();
     Sample window;

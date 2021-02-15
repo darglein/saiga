@@ -138,7 +138,7 @@ void TexturedModel::loadObj(const std::string& file)
 
 
         Material m;
-        m.diffuse   = otg.material.map_Kd;
+        m.diffuse   = otg.material.texture_diffuse;
         tg.material = m;
 
         groups.push_back(tg);

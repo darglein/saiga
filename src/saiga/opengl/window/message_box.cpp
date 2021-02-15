@@ -17,8 +17,8 @@ namespace Saiga
 {
 void MessageBox(const std::string& title, const std::string& content)
 {
-#ifdef SAIGA_USE_SDL456
-    SDL_ShowSimpleMessageBox(0, title, content, nullptr);
+#ifdef SAIGA_USE_SDL
+    SDL_ShowSimpleMessageBox(0, title.c_str(), content.c_str(), nullptr);
 #else
     std::cout << ">> " << title << std::endl;
     std::cout << ">> " << content << std::endl;

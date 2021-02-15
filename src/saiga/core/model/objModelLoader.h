@@ -11,7 +11,8 @@
 #include "saiga/core/util/Align.h"
 #include "saiga/core/util/tostring.h"
 
-#include "objMaterialLoader.h"
+#include "UnifiedModel.h"
+
 namespace Saiga
 {
 #define INVALID_VERTEX_ID -911365965
@@ -28,13 +29,43 @@ struct SAIGA_CORE_API ObjTriangleGroup
 {
     int startFace = 0;
     int faces     = 0;
-    ObjMaterial material;
+    UnifiedMaterial material;
 };
 
-struct SAIGA_CORE_API ObjTriangle
+// struct SAIGA_CORE_API ObjTriangle
+//{
+//    uint32_t v[3];
+//};
+
+using ObjTriangle = ivec3;
+
+
+class SAIGA_CORE_API ObjMaterialLoader
 {
-    uint32_t v[3];
+   public:
+    std::string file;
+    bool verbose = false;
+
+   public:
+    ObjMaterialLoader() {}
+    ObjMaterialLoader(const std::string& file);
+
+
+
+    bool loadFile(const std::string& file);
+
+    UnifiedMaterial getMaterial(const std::string& name);
+
+   private:
+    std::vector<UnifiedMaterial> materials;
+    UnifiedMaterial* currentMaterial = nullptr;
+    void parseLine(const std::string& line);
+
+    // tries to find a file from the material (for example a texture)
+    // returns the absolute path to that file
+    std::string getPathImage(const std::string& s);
 };
+
 
 class SAIGA_CORE_API ObjModelLoader
 {
