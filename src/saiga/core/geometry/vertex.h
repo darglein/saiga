@@ -109,7 +109,6 @@ struct SAIGA_CORE_API VertexNC : public VertexN
     {
     }
     VertexNC(const vec4& position, const vec4& normal, const vec4& color) : VertexN(position, normal), color(color) {}
-
     VertexNC(const VertexNT& v) : VertexNC(v.position, v.normal) {}
 
     bool operator==(const VertexNC& other) const;

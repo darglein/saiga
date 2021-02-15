@@ -44,7 +44,8 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
 
     bool vulkanTransform = false;
 
-    Camera();
+
+    Camera() {}
     virtual ~Camera() {}
 
 

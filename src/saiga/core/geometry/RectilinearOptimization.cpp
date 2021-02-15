@@ -156,11 +156,12 @@ std::vector<std::pair<int, int>> NeighborList(RectangleList& rectangles, int dis
     return result;
 }
 
-void MergeNeighbors(RectangleList& rectangles, const Cost& cost)
+int MergeNeighbors(RectangleList& rectangles, const Cost& cost, int max_iterations)
 {
-    if (rectangles.empty()) return;
+    if (rectangles.empty()) return 0;
     bool changed = true;
-    while (changed)
+    int it       = 0;
+    for (; it < max_iterations && changed; ++it)
     {
         changed     = false;
         auto neighs = NeighborList(rectangles, 1);
@@ -261,6 +262,7 @@ void MergeNeighbors(RectangleList& rectangles, const Cost& cost)
             RemoveEmpty(rectangles);
         }
     }
+    return it;
 }
 
 std::vector<int> AllIntersectingRects(const RectangleList& rectangles, const Rect& r)

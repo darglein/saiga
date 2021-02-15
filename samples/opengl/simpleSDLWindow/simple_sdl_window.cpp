@@ -5,6 +5,7 @@
  */
 
 #include "saiga/opengl/window/SampleWindowDeferred.h"
+#include "saiga/opengl/window/message_box.h"
 using namespace Saiga;
 
 class Sample : public SampleWindowDeferred
@@ -42,6 +43,11 @@ class Sample : public SampleWindowDeferred
 
 int main(int argc, char* args[])
 {
+    MessageBox("test", "sdlghseg");
+    return 0;
+
+
+
     // This should be only called if this is a sample located in saiga/samples
     initSaigaSample();
     Sample window;

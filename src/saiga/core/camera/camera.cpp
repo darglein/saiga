@@ -19,8 +19,6 @@ namespace Saiga
 {
 #define ANG2RAD 3.14159265358979323846 / 180.0
 
-Camera::Camera() {}
-
 
 
 void Camera::setView(const mat4& v)
