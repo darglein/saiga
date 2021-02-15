@@ -26,7 +26,6 @@ class Sample : public SampleWindowDeferred
         auto asset   = assetLoader.loadTexturedAsset("box.obj");
         object.asset = asset;
 
-
         std::cout << "Program Initialized!" << std::endl;
     }
 

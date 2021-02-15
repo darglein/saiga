@@ -19,7 +19,11 @@ class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<VertexColoredModel, MVPC
     void loadDefaultShaders();
 
     ColoredAsset() {}
+
+
+    ColoredAsset(const TriangleMesh<VertexNC, uint32_t>& mesh);
     ColoredAsset(const UnifiedModel& model);
+    ColoredAsset(const std::string& file) : ColoredAsset(UnifiedModel(file)) {}
 
 
     virtual ~ColoredAsset() {}
@@ -56,6 +60,11 @@ class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TexturedModel, MVPTextu
         std::shared_ptr<Texture> texture;
     };
     std::vector<TextureGroup> groups;
+
+
+    TexturedAsset() {}
+    TexturedAsset(const UnifiedModel& model);
+    TexturedAsset(const std::string& file) : TexturedAsset(UnifiedModel(file)) {}
 
     virtual ~TexturedAsset() {}
 

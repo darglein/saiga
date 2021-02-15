@@ -51,10 +51,8 @@ class VRSample : public StandaloneWindow<WindowManagement::SDL, VRRenderer>, pub
         window->setCamera(&camera);
 
 
-        ObjAssetLoader assetLoader;
 
-
-        auto cubeAsset = assetLoader.loadTexturedAsset("box.obj");
+        auto cubeAsset = std::make_shared<TexturedAsset>("box.obj");
 
         cube1.asset = cubeAsset;
         cube2.asset = cubeAsset;
@@ -64,12 +62,13 @@ class VRSample : public StandaloneWindow<WindowManagement::SDL, VRRenderer>, pub
         cube2.translateGlobal(vec3(-11, 1, 2));
         cube2.calculateModel();
 
-        auto sphereAsset = assetLoader.loadColoredAsset("teapot.obj");
+        auto sphereAsset = std::make_shared<ColoredAsset>("teapot.obj");
         sphere.asset     = sphereAsset;
         sphere.translateGlobal(vec3(0, 1, 8));
         sphere.rotateLocal(vec3(0, 1, 0), 180);
         sphere.calculateModel();
 
+        AssetLoader assetLoader;
         groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
 
 
@@ -91,10 +90,16 @@ class VRSample : public StandaloneWindow<WindowManagement::SDL, VRRenderer>, pub
 
     void render(Camera* camera, RenderPass render_pass) override
     {
+        sphere.render(camera, render_pass);
+        cube1.render(camera, render_pass);
+        cube2.render(camera, render_pass);
+
+
         if (render_pass == RenderPass::Forward)
         {
             // The skybox is rendered after lighting and before post processing
             groundPlane.renderForward(camera);
+
             skybox.render(camera);
         }
         else if (render_pass == RenderPass::GUI)

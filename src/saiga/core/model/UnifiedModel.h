@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/geometry/vertex.h"
+#include "saiga/core/util/Range.h"
 
 #include <vector>
 
@@ -33,6 +35,8 @@ struct UnifiedMaterialGroup
     int startFace  = 0;
     int numFaces   = 0;
     int materialId = -1;
+
+    Range<int> range() const { return Range<int>(startFace, startFace + numFaces); }
 };
 
 class SAIGA_CORE_API UnifiedModel
@@ -49,6 +53,7 @@ class SAIGA_CORE_API UnifiedModel
     std::vector<vec3> normal;
     std::vector<vec4> color;
     std::vector<vec2> texture_coordinates;
+    std::vector<vec4> data;
 
     // Face data for surface meshes stored as index-face set
     std::vector<ivec3> triangles;
@@ -58,13 +63,40 @@ class SAIGA_CORE_API UnifiedModel
     std::vector<UnifiedMaterial> materials;
     std::vector<UnifiedMaterialGroup> material_groups;
 
+
+    std::vector<vec4> ComputeVertexColorFromMaterial() const;
+
     // Check status
     bool HasPosition() const { return !position.empty(); }
     bool HasNormal() const { return !normal.empty(); }
     bool HasColor() const { return !color.empty(); }
     bool HasTC() const { return !texture_coordinates.empty(); }
+    bool HasData() const { return !data.empty(); }
     bool HasMaterials() const { return !materials.empty(); }
+
+
+    // Conversion Functions from unified model -> Triangle mesh
+    // The basic conversion functions for the saiga vertices are defined below,
+    // however you can also define conversions for custom vertex types.
+    template <typename VertexType, typename IndexType>
+    TriangleMesh<VertexType, IndexType> Mesh() const;
 };
+
+template <typename VertexType, typename IndexType>
+TriangleMesh<VertexType, IndexType> UnifiedModel::Mesh() const
+{
+    throw std::runtime_error(
+        "UnifiedModel::Mesh() not implemented for the specified vertex type. See saiga/core/model/UnifiedModel.h for "
+        "more information.");
+}
+
+
+template <>
+TriangleMesh<VertexNC, uint32_t> UnifiedModel::Mesh() const;
+
+
+template <>
+TriangleMesh<VertexNTD, uint32_t> UnifiedModel::Mesh() const;
 
 
 }  // namespace Saiga

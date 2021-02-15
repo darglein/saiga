@@ -38,7 +38,8 @@ Sample::Sample()
     ObjAssetLoader assetLoader;
 
 
-    assetLoader.loadMeshNC("box.obj", baseMesh);
+    //    assetLoader.loadMeshNC("box.obj", baseMesh);
+    baseMesh    = UnifiedModel("box.obj").Mesh<VertexNC, GLuint>();
     reducedMesh = baseMesh;
 
     //    auto bunnyAsset = assetLoader.loadBasicAsset("objs/bunny.obj");
@@ -289,9 +290,16 @@ void Sample::render(Camera* camera, RenderPass render_pass)
             if (ImGui::Button("Load .obj"))
             {
                 ObjAssetLoader assetLoader;
-                assetLoader.loadMeshNC(fileObj, baseMesh);
-                auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
-                cube1.asset     = bunnyAsset;
+                //                assetLoader.loadMeshNC(fileObj, baseMesh);
+
+                baseMesh = UnifiedModel(fileObj).Mesh<VertexNC, GLuint>();
+
+
+                cube1.asset = std::make_shared<ColoredAsset>(baseMesh);
+                //                auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
+
+
+                //                cube1.asset     = bunnyAsset;
             }
 
             if (ImGui::CollapsingHeader("Decimation"))

@@ -17,55 +17,15 @@ void ColoredAsset::loadDefaultShaders()
     this->wireframeshader = shaderLoader.load<MVPColorShader>(shaderStr);
 }
 
-ColoredAsset::ColoredAsset(const UnifiedModel& model)
+ColoredAsset::ColoredAsset(const TriangleMesh<VertexNC, uint32_t>& mesh)
 {
-    loadDefaultShaders();
-
-    SAIGA_ASSERT(model.HasPosition());
-
-    faces.reserve(model.NumFaces());
-    for (auto& f : model.triangles)
-    {
-        faces.push_back({f(0), f(1), f(2)});
-    }
-
-
-    vertices.resize(model.NumVertices());
-    for (int i = 0; i < model.NumVertices(); ++i)
-    {
-        vertices[i].position = make_vec4(model.position[i], 1);
-    }
-
-    if (model.HasColor())
-    {
-        for (int i = 0; i < model.NumVertices(); ++i)
-        {
-            vertices[i].color = model.color[i];
-        }
-    }
-    else
-    {
-        for (int i = 0; i < model.NumVertices(); ++i)
-        {
-            vertices[i].color = vec4(1, 1, 1, 1);
-        }
-    }
-
-    if (model.HasNormal())
-    {
-        for (int i = 0; i < model.NumVertices(); ++i)
-        {
-            vertices[i].normal = make_vec4(model.normal[i], 0);
-        }
-    }
-    else
-    {
-        computePerVertexNormal();
-    }
-
-    std::cout << faces.size() << " " << vertices.size() << std::endl;
+    this->vertices = mesh.vertices;
+    this->faces    = mesh.faces;
     create();
 }
+
+ColoredAsset::ColoredAsset(const UnifiedModel& model) : ColoredAsset(model.Mesh<VertexNC, uint32_t>()) {}
+
 void LineVertexColoredAsset::loadDefaultShaders()
 {
     this->deferredShader  = shaderLoader.load<MVPColorShader>(shaderStr, {{GL_FRAGMENT_SHADER, "#define DEFERRED", 1}});
@@ -84,6 +44,31 @@ void LineVertexColoredAsset::SetShaderColor(const vec4& color)
     forwardShader->uploadColor(color);
     forwardShader->unbind();
 }
+
+TexturedAsset::TexturedAsset(const UnifiedModel& model)
+{
+    this->TriangleMesh<VertexNTD, uint32_t>::operator=(model.Mesh<VertexNTD, uint32_t>());
+    create();
+
+
+    for (auto& mg : model.material_groups)
+    {
+        auto& material = model.materials[mg.materialId];
+
+        TexturedAsset::TextureGroup tg;
+        tg.startIndex = mg.startFace * 3;
+        tg.indices    = mg.numFaces * 3;
+        tg.texture    = TextureLoader::instance()->load(material.texture_diffuse);
+        if (tg.texture)
+        {
+            tg.texture->setWrap(GL_REPEAT);
+            tg.texture->generateMipmaps();
+            groups.push_back(tg);
+        }
+    }
+}
+
+
 void TexturedAsset::loadDefaultShaders()
 {
     this->deferredShader =
@@ -92,6 +77,8 @@ void TexturedAsset::loadDefaultShaders()
     this->forwardShader   = shaderLoader.load<MVPTextureShader>(shaderStr);
     this->wireframeshader = shaderLoader.load<MVPTextureShader>(shaderStr);
 }
+
+
 void TexturedAsset::render(Camera* cam, const mat4& model)
 {
     renderGroups(deferredShader, cam, model);

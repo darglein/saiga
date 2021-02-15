@@ -16,14 +16,8 @@ class Sample : public SampleWindowDeferred
    public:
     Sample()
     {
-        // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-        ObjAssetLoader assetLoader;
-        teapot.asset = assetLoader.loadColoredAsset("models/Cornell.obj");
-        //    teapot.asset = assetLoader.loadTexturedAsset("models/box.obj");
-        teapot.translateGlobal(vec3(0, 0, 0));
-        teapot.calculateModel();
-
-        showGrid = false;
+        box.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/Cornell.obj"));
+        showGrid  = false;
 
         sun->setActive(false);
 
@@ -53,13 +47,13 @@ class Sample : public SampleWindowDeferred
         Base::render(cam, render_pass);
         if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
         {
-            teapot.render(cam);
+            box.render(cam);
         }
     }
 
 
    private:
-    SimpleAssetObject teapot;
+    SimpleAssetObject box;
     std::shared_ptr<PointLight> pointLight;
 };
 

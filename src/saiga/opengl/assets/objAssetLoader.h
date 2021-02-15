@@ -16,7 +16,7 @@ class SAIGA_OPENGL_API ObjAssetLoader : public AssetLoader
     ObjAssetLoader();
     virtual ~ObjAssetLoader();
 
-    void loadMeshNC(const std::string& file, TriangleMesh<VertexNC, GLuint>& mesh, bool normalize = false);
+    //    void loadMeshNC(const std::string& file, TriangleMesh<VertexNC, GLuint>& mesh, bool normalize = false);
 
     std::shared_ptr<ColoredAsset> loadColoredAsset(const std::string& file, bool normalize = false);
     std::shared_ptr<TexturedAsset> loadTexturedAsset(const std::string& file, bool normalize = false);

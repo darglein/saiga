@@ -55,7 +55,10 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
 {
     if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
     {
-        groundPlane.render(cam, render_pass);
+        if (showGrid)
+        {
+            groundPlane.render(cam, render_pass);
+        }
     }
     else if (render_pass == RenderPass::Forward)
     {

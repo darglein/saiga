@@ -15,16 +15,6 @@
 
 namespace Saiga
 {
-#define INVALID_VERTEX_ID -911365965
-struct SAIGA_CORE_API IndexedVertex2
-{
-    int v = INVALID_VERTEX_ID;
-    int n = INVALID_VERTEX_ID;
-    int t = INVALID_VERTEX_ID;
-};
-
-
-
 struct SAIGA_CORE_API ObjTriangleGroup
 {
     int startFace = 0;
@@ -32,12 +22,6 @@ struct SAIGA_CORE_API ObjTriangleGroup
     UnifiedMaterial material;
 };
 
-// struct SAIGA_CORE_API ObjTriangle
-//{
-//    uint32_t v[3];
-//};
-
-using ObjTriangle = ivec3;
 
 
 class SAIGA_CORE_API ObjMaterialLoader
@@ -84,7 +68,7 @@ class SAIGA_CORE_API ObjModelLoader
     AlignedVector<vec4> vertexData;    // x: specular
     AlignedVector<vec4> vertexColors;  // only when given by the material. Otherwise: white!
     std::vector<VertexNT> outVertices;
-    std::vector<ObjTriangle> outTriangles;
+    std::vector<ivec3> outTriangles;
     std::vector<ObjTriangleGroup> triangleGroups;
     void separateVerticesByGroup();
     void calculateMissingNormals();
@@ -93,10 +77,21 @@ class SAIGA_CORE_API ObjModelLoader
     void toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh);
     void toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh);
 
+
+    static constexpr int INVALID_VERTEX_ID = -911365965;
+    struct SAIGA_CORE_API IndexedVertex2
+    {
+        int v = INVALID_VERTEX_ID;
+        int n = INVALID_VERTEX_ID;
+        int t = INVALID_VERTEX_ID;
+    };
+
+
    private:
     std::vector<vec3> vertices;
     std::vector<vec3> normals;
     std::vector<vec2> texCoords;
+
     std::vector<std::vector<IndexedVertex2>> faces;
 
     ObjMaterialLoader materialLoader;

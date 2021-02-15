@@ -59,8 +59,8 @@ Sample::Sample() : StandaloneWindow("config.ini")
     triangulate_naive();
 
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-    ObjAssetLoader assetLoader;
-    meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+    //    ObjAssetLoader assetLoader;
+    meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
     meshObject.calculateModel();
 
     std::cout << "Program Initialized!" << std::endl;

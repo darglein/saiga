@@ -27,7 +27,8 @@ class Sample : public SampleWindowDeferred
 
 
         auto sphereMesh = TriangleMeshGenerator::createMesh(Sphere(make_vec3(0), 1), 4);
-        auto sphere     = assetLoader.assetFromMesh(*sphereMesh, Colors::gray);
+        //        sphereMesh->setColor()
+        auto sphere = assetLoader.assetFromMesh(*sphereMesh, Colors::gray);
 
         int s            = 20;
         bounding_box.min = vec3(-s, 0, -s);

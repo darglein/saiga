@@ -183,9 +183,9 @@ static StringViewParser faceParser = {"/", false};
 // examples:
 // v1/vt1/vn1        12/51/1
 // v1//vn1           51//4
-inline IndexedVertex2 parseIV(std::string_view line)
+inline ObjModelLoader::IndexedVertex2 parseIV(std::string_view line)
 {
-    IndexedVertex2 iv;
+    ObjModelLoader::IndexedVertex2 iv;
 #if 0
     std::vector<std::string> s = split(line, '/');
     if (s.size() > 0 && s[0].size() > 0) iv.v = std::atoi(s[0].c_str()) - 1;
@@ -290,7 +290,7 @@ void ObjModelLoader::separateVerticesByGroup()
         ObjTriangleGroup& tg = triangleGroups[t];
         for (int i = 0; i < tg.faces; ++i)
         {
-            ObjTriangle& face = outTriangles[i + tg.startFace];
+            ivec3& face = outTriangles[i + tg.startFace];
 
             for (int j = 0; j < 3; ++j)
             {
@@ -336,7 +336,7 @@ void ObjModelLoader::computeVertexColorAndData()
     {
         for (int i = 0; i < tg.faces; ++i)
         {
-            ObjTriangle& face = outTriangles[i + tg.startFace];
+            ivec3& face = outTriangles[i + tg.startFace];
             for (int f = 0; f < 3; ++f)
             {
                 int index            = face[f];
@@ -357,7 +357,7 @@ void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh)
 
     SAIGA_ASSERT(vertexColors.size() == outVertices.size());
     mesh.faces.reserve(outTriangles.size());
-    for (ObjTriangle& oj : outTriangles)
+    for (ivec3& oj : outTriangles)
     {
         mesh.addFace(oj(0), oj(1), oj(2));
     }
@@ -385,7 +385,7 @@ void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh)
     SAIGA_ASSERT(vertexData.size() == outVertices.size());
 
     mesh.faces.reserve(outTriangles.size());
-    for (ObjTriangle& oj : outTriangles)
+    for (ivec3& oj : outTriangles)
     {
         mesh.addFace(oj(0), oj(1), oj(2));
     }
@@ -411,7 +411,7 @@ void ObjModelLoader::createVertexIndexList()
 
     for (std::vector<IndexedVertex2>& f : faces)
     {
-        ObjTriangle fa;
+        ivec3 fa;
         for (int i = 0; i < 3; i++)
         {
             IndexedVertex2& currentVertex = f[i];
@@ -464,7 +464,8 @@ void ObjModelLoader::createVertexIndexList()
     }
 }
 
-std::vector<std::vector<IndexedVertex2>> ObjModelLoader::triangulateFace(const std::vector<IndexedVertex2>& f)
+std::vector<std::vector<ObjModelLoader::IndexedVertex2>> ObjModelLoader::triangulateFace(
+    const std::vector<IndexedVertex2>& f)
 {
     std::vector<std::vector<IndexedVertex2>> newFaces;
 
