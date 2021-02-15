@@ -93,7 +93,7 @@ class SMAA
     std::shared_ptr<SMAANeighborhoodBlendingShader> smaaNeighborhoodBlendingShader;
 
 
-    IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
+    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     ivec2 screenSize;
 
     Quality quality = Quality::SMAA_PRESET_HIGH;

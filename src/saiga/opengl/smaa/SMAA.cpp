@@ -103,8 +103,7 @@ SMAA::SMAA(int w, int h)
     searchTex->create(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, GL_RED, GL_R8, GL_UNSIGNED_BYTE, searchTexBytes);
 
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
 }
 
 void SMAA::loadShader(SMAA::Quality _quality)

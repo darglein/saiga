@@ -64,7 +64,19 @@ class SAIGA_CORE_API UnifiedModel
     std::vector<UnifiedMaterialGroup> material_groups;
 
 
+    // Transforms this model inplace
+    // returns a reference to this
+    UnifiedModel& transform(const mat4& T);
+
+    // Overwrite the color of every vertex
+    // returns a reference to this
+    UnifiedModel& SetVertexColor(const vec4& color);
+
+    AABB BoundingBox();
+
+
     std::vector<vec4> ComputeVertexColorFromMaterial() const;
+
 
     // Check status
     bool HasPosition() const { return !position.empty(); }
@@ -90,9 +102,15 @@ TriangleMesh<VertexType, IndexType> UnifiedModel::Mesh() const
         "more information.");
 }
 
+template <>
+TriangleMesh<Vertex, uint32_t> UnifiedModel::Mesh() const;
 
 template <>
 TriangleMesh<VertexNC, uint32_t> UnifiedModel::Mesh() const;
+
+
+template <>
+TriangleMesh<VertexNT, uint32_t> UnifiedModel::Mesh() const;
 
 
 template <>

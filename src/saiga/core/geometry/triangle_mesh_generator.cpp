@@ -196,19 +196,6 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float 
     return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createQuadMesh()
-{
-    default_mesh_t* mesh = new default_mesh_t();
-    mesh->vertices.push_back(VertexNT(vec3(0, 0, 0), vec3(0, 1, 0), vec2(0, 0)));
-    mesh->vertices.push_back(VertexNT(vec3(1, 0, 0), vec3(0, 1, 0), vec2(1, 0)));
-    mesh->vertices.push_back(VertexNT(vec3(1, 0, 1), vec3(0, 1, 0), vec2(1, 1)));
-    mesh->vertices.push_back(VertexNT(vec3(0, 0, 1), vec3(0, 1, 0), vec2(0, 1)));
-
-    mesh->faces.push_back(Face(0, 2, 1));
-    mesh->faces.push_back(Face(0, 3, 2));
-    return std::shared_ptr<default_mesh_t>(mesh);
-}
-
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createFullScreenQuadMesh()
 {
     default_mesh_t* mesh = new default_mesh_t();
@@ -234,42 +221,6 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Plane& p
     mesh->faces.push_back(Face(0, 3, 2));
     return std::shared_ptr<default_mesh_t>(mesh);
 }
-
-std::shared_ptr<TriangleMesh<VertexNT, uint32_t> > TriangleMeshGenerator::createTesselatedPlane(int verticesX,
-                                                                                                int verticesY)
-{
-    default_mesh_t* mesh = new default_mesh_t();
-
-    for (int i = 0; i < verticesY; ++i)
-    {
-        float alphaY = float(i) / (verticesY - 1);
-        for (int j = 0; j < verticesX; ++j)
-        {
-            float alphaX = float(j) / (verticesX - 1);
-            VertexNT v(vec3(mix(-1.0f, 1.0f, alphaX), 0, mix(-1.0f, 1.0f, alphaY)), vec3(0, 1, 0),
-                       vec2(alphaX, alphaY));
-            mesh->vertices.push_back(v);
-        }
-    }
-
-    for (int i = 0; i < verticesY - 1; ++i)
-    {
-        for (int j = 0; j < verticesX - 1; ++j)
-        {
-            int indices[4] = {
-                i * verticesX + j,
-                (i + 1) * verticesX + j,
-                (i + 1) * verticesX + j + 1,
-                i * verticesX + j + 1,
-            };
-            mesh->faces.push_back(Face(indices[0], indices[1], indices[2]));
-            mesh->faces.push_back(Face(indices[2], indices[3], indices[0]));
-        }
-    }
-    return std::shared_ptr<default_mesh_t>(mesh);
-}
-
-
 
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Cone& cone, int sectors)
 {
@@ -386,39 +337,6 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createSkyboxMesh(const AA
     return mesh;
 }
 
-
-
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createGridMesh(unsigned int w, unsigned int h)
-{
-    default_mesh_t* mesh = new default_mesh_t();
-
-    // creating uniform grid with w*h vertices
-    // the resulting mesh will fill the quad (-1,0,-1) - (1,0,1)
-    float dw = (2.0 / w);
-    float dh = (2.0 / h);
-    for (unsigned int y = 0; y < h; y++)
-    {
-        for (unsigned int x = 0; x < w; x++)
-        {
-            float fx = (float)x * dw - 1.0f;
-            float fy = (float)y * dh - 1.0f;
-            VertexNT v(vec3(fx, 0.0f, fy), vec3(0, 1, 0), vec2(0));
-            mesh->addVertex(v);
-        }
-    }
-
-
-    for (unsigned int y = 0; y < h - 1; y++)
-    {
-        for (unsigned int x = 0; x < w - 1; x++)
-        {
-            uint32_t quad[] = {y * w + x, (y + 1) * w + x, (y + 1) * w + x + 1, y * w + x + 1};
-            mesh->addQuad(quad);
-        }
-    }
-
-    return std::shared_ptr<default_mesh_t>(mesh);
-}
 
 
 }  // namespace Saiga

@@ -18,14 +18,14 @@ namespace Saiga
 {
 DeferredDebugOverlay::DeferredDebugOverlay(int width, int height) : layout(width, height)
 {
-    auto tm = TriangleMeshGenerator::createFullScreenQuadMesh();
+    auto tm = FullScreenQuad();
 
     float aspect = float(width) / height;
-    tm->transform(scale(vec3(aspect, 1, 1)));
+    tm.transform(scale(vec3(aspect, 1, 1)));
 
-    meshBB = tm->aabb();
+    meshBB = tm.BoundingBox();
 
-    buffer.fromMesh(*tm);
+    buffer.fromMesh(tm);
 
 
     setScreenPosition(&color, 0);

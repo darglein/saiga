@@ -306,8 +306,10 @@ void RendererLighting::setLightMaxima(int maxDirectionalLights, int maxPointLigh
 
 void RendererLighting::createLightMeshes()
 {
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    directionalLightMesh.fromMesh(*qb);
+    //    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
+    //    directionalLightMesh.fromMesh(*qb);
+
+    directionalLightMesh.fromMesh(FullScreenQuad());
 
 
     // the create mesh returns a sphere with outer radius of 1

@@ -51,8 +51,7 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
     }
 
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
 
 
     framebufferToDebugWindowShader = shaderLoader.load<PostProcessingShader>("post_processing/VRToDebugWindow.glsl");

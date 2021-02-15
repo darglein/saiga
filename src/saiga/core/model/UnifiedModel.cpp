@@ -71,6 +71,46 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
     std::cout << "type " << type << std::endl;
 }
 
+UnifiedModel& UnifiedModel::transform(const mat4& T)
+{
+    if (HasPosition())
+    {
+        for (auto& p : position)
+        {
+            p = (T * make_vec4(p, 1)).head<3>();
+        }
+    }
+    if (HasNormal())
+    {
+        for (auto& n : normal)
+        {
+            n = (T * make_vec4(n, 0)).head<3>();
+        }
+    }
+    return *this;
+}
+
+UnifiedModel& UnifiedModel::SetVertexColor(const vec4& c)
+{
+    color.resize(position.size());
+    for (auto& co : color)
+    {
+        co = c;
+    }
+    return *this;
+}
+
+AABB UnifiedModel::BoundingBox()
+{
+    AABB box;
+    box.makeNegative();
+    for (auto& p : position)
+    {
+        box.growBox(p);
+    }
+    return box;
+}
+
 std::vector<vec4> UnifiedModel::ComputeVertexColorFromMaterial() const
 {
     std::vector<vec4> color;
@@ -88,6 +128,34 @@ std::vector<vec4> UnifiedModel::ComputeVertexColorFromMaterial() const
     }
     return color;
 }
+
+
+template <>
+TriangleMesh<Vertex, uint32_t> UnifiedModel::Mesh() const
+{
+    SAIGA_ASSERT(HasPosition());
+
+
+
+    TriangleMesh<Vertex, uint32_t> mesh;
+
+    mesh.faces.reserve(NumFaces());
+    for (auto& f : triangles)
+    {
+        mesh.faces.push_back({f(0), f(1), f(2)});
+    }
+
+
+    mesh.vertices.resize(NumVertices());
+    for (int i = 0; i < NumVertices(); ++i)
+    {
+        mesh.vertices[i].position = make_vec4(position[i], 1);
+    }
+
+
+    return mesh;
+}
+
 
 template <>
 TriangleMesh<VertexNC, uint32_t> UnifiedModel::Mesh() const
@@ -145,6 +213,45 @@ TriangleMesh<VertexNC, uint32_t> UnifiedModel::Mesh() const
     {
         mesh.computePerVertexNormal();
     }
+
+    return mesh;
+}
+
+
+template <>
+TriangleMesh<VertexNT, uint32_t> UnifiedModel::Mesh() const
+{
+    SAIGA_ASSERT(HasPosition());
+    SAIGA_ASSERT(HasTC());
+
+    TriangleMesh<VertexNT, uint32_t> mesh;
+
+    mesh.faces.reserve(NumFaces());
+    for (auto& f : triangles)
+    {
+        mesh.faces.push_back({f(0), f(1), f(2)});
+    }
+
+
+    mesh.vertices.resize(NumVertices());
+    for (int i = 0; i < NumVertices(); ++i)
+    {
+        mesh.vertices[i].position = make_vec4(position[i], 1);
+        mesh.vertices[i].texture  = texture_coordinates[i];
+    }
+
+    if (HasNormal())
+    {
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            mesh.vertices[i].normal = make_vec4(normal[i], 0);
+        }
+    }
+    else
+    {
+        mesh.computePerVertexNormal();
+    }
+
 
     return mesh;
 }

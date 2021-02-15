@@ -15,8 +15,7 @@ namespace Saiga
 {
 TextureDisplay::TextureDisplay()
 {
-    auto tm = TriangleMeshGenerator::createFullScreenQuadMesh();
-    buffer.fromMesh(*tm);
+    buffer.fromMesh(FullScreenQuad());
     shader = shaderLoader.load<MVPTextureShader>("post_processing/imagedisplay.glsl");
 }
 

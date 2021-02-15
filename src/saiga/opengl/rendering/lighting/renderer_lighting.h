@@ -165,7 +165,7 @@ class SAIGA_OPENGL_API RendererLighting
     UniformBuffer shadowCameraBuffer;
 
     // the vertex position is sufficient. no normals and texture coordinates needed.
-    typedef IndexedVertexBuffer<Vertex, GLushort> lightMesh_t;
+    typedef IndexedVertexBuffer<Vertex, uint32_t> lightMesh_t;
 
     std::shared_ptr<PointLightShader> pointLightShader, pointLightShadowShader;
     lightMesh_t pointLightMesh;
