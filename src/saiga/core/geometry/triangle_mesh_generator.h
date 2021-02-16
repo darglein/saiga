@@ -21,21 +21,21 @@ class SAIGA_CORE_API TriangleMeshGenerator
     typedef TriangleMesh<VertexNT, uint32_t>::Face Face;
 
    public:
-    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createMesh(const Sphere& sphere, int rings, int sectors);
-    // TODO: uv mapping
-    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createMesh(const Sphere& sphere, int resolution);
+    //    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> UVSphereMesh(const Sphere& sphere, int rings, int
+    //    sectors);
+    //    // TODO: uv mapping
+    //    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> IcoSphereMesh(const Sphere& sphere, int resolution);
 
-    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createCylinderMesh(float radius, float height,
-                                                                                int sectors);
+    //    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createCylinderMesh(float radius, float height,
+    //                                                                                int sectors);
 
-    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createMesh(const Plane& plane);
+    //    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> PlaneMesh(const Plane& plane);
 
-    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createFullScreenQuadMesh();
 
-    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createMesh(const Cone& cone, int sectors);
+    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> ConeMesh(const Cone& cone, int sectors);
 
-    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createMesh(const AABB& box);
-    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createSkyboxMesh(const AABB& box);
+    //    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> BoxMesh(const AABB& box);
+    //    static std::shared_ptr<TriangleMesh<VertexNT, uint32_t>> createSkyboxMesh(const AABB& box);
 };
 
 

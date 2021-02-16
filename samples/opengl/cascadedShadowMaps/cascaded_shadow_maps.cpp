@@ -24,12 +24,10 @@ class Sample : public SampleWindowDeferred
         AssetLoader assetLoader;
 
         float height = 20;
-        // First create the triangle mesh of a cube
-        auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-1, 0, -1), vec3(1, height, 1)));
 
-        // To render a triangle mesh we need to wrap it into an asset. This creates the required OpenGL buffers and
-        // provides render functions.
-        auto cubeAsset = assetLoader.assetFromMesh(*cubeMesh, Colors::blue);
+
+        auto cubeAsset = std::make_shared<ColoredAsset>(
+            BoxMesh(AABB(vec3(-1, 0, -1), vec3(1, height, 1))).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
 
         float s = 200;
 

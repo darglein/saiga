@@ -42,8 +42,9 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    //    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
+    //    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
 
     ClustererParameters params;
     // params.clusterThreeDimensional = true;

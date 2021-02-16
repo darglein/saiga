@@ -15,7 +15,8 @@ namespace Saiga
 {
 typedef TriangleMesh<VertexNT, uint32_t> default_mesh_t;
 
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere& sphere, int rings, int sectors)
+#if 0
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::UVSphereMesh(const Sphere& sphere, int rings, int sectors)
 {
     default_mesh_t* mesh = new default_mesh_t();
     float const R        = 1.f / (float)(rings);
@@ -64,7 +65,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere& 
     return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere& sphere, int resolution)
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::IcoSphereMesh(const Sphere& sphere, int resolution)
 {
     (void)sphere;
     default_mesh_t* mesh = new default_mesh_t();
@@ -140,7 +141,6 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Sphere& 
 }
 
 
-
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float radius, float height, int sectors)
 {
     default_mesh_t* mesh = new default_mesh_t();
@@ -196,20 +196,8 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createCylinderMesh(float 
     return std::shared_ptr<default_mesh_t>(mesh);
 }
 
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createFullScreenQuadMesh()
-{
-    default_mesh_t* mesh = new default_mesh_t();
-    mesh->vertices.push_back(VertexNT(vec3(-1, -1, 0), vec3(0, 0, 1), vec2(0, 0)));
-    mesh->vertices.push_back(VertexNT(vec3(1, -1, 0), vec3(0, 0, 1), vec2(1, 0)));
-    mesh->vertices.push_back(VertexNT(vec3(1, 1, 0), vec3(0, 0, 1), vec2(1, 1)));
-    mesh->vertices.push_back(VertexNT(vec3(-1, 1, 0), vec3(0, 0, 1), vec2(0, 1)));
 
-    mesh->faces.push_back(Face(0, 2, 3));
-    mesh->faces.push_back(Face(0, 1, 2));
-    return std::shared_ptr<default_mesh_t>(mesh);
-}
-
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Plane& plane)
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::PlaneMesh(const Plane& plane)
 {
     default_mesh_t* mesh = new default_mesh_t();
     mesh->vertices.push_back(VertexNT(vec3(-1, 0, -1), vec3(0, 1, 0), vec2(0, 0)));
@@ -221,8 +209,9 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Plane& p
     mesh->faces.push_back(Face(0, 3, 2));
     return std::shared_ptr<default_mesh_t>(mesh);
 }
+#endif
 
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Cone& cone, int sectors)
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::ConeMesh(const Cone& cone, int sectors)
 {
     default_mesh_t* mesh = new default_mesh_t();
     mesh->vertices.push_back(VertexNT(vec3(0, 0, 0), vec3(0, 1, 0), vec2(0, 0)));              // top
@@ -256,7 +245,8 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const Cone& co
 }
 
 
-std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const AABB& box)
+#if 0
+std::shared_ptr<default_mesh_t> TriangleMeshGenerator::BoxMesh(const AABB& box)
 {
     default_mesh_t* mesh = new default_mesh_t();
 
@@ -281,7 +271,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const AABB& bo
     //    };
 
     // cube strip
-#define CUBE_EPSILON 0.0001f
+#    define CUBE_EPSILON 0.0001f
     vec2 texCoords[]{{1.0f / 6.0f, 0.0f},
                      {0.0f / 6.0f, 0.0f},
                      {0.0f / 6.0f, 1.0f},
@@ -327,7 +317,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createMesh(const AABB& bo
 
 std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createSkyboxMesh(const AABB& box)
 {
-    std::shared_ptr<default_mesh_t> mesh = createMesh(box);
+    std::shared_ptr<default_mesh_t> mesh = BoxMesh(box);
 
 
     for (unsigned int i = 0; i < mesh->faces.size(); i++)
@@ -336,7 +326,7 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::createSkyboxMesh(const AA
     }
     return mesh;
 }
-
+#endif
 
 
 }  // namespace Saiga

@@ -40,12 +40,10 @@ class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
         // This simple AssetLoader can create assets from meshes and generate some generic debug assets
         AssetLoader assetLoader;
 
-        // First create the triangle mesh of a cube
-        auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(make_vec3(-1), make_vec3(1)));
 
-        // To render a triangle mesh we need to wrap it into an asset. This creates the required OpenGL buffers and
-        // provides render functions.
-        auto cubeAsset = assetLoader.assetFromMesh(*cubeMesh, Colors::blue);
+
+        auto cubeAsset = std::make_shared<ColoredAsset>(
+            BoxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
 
         // Rendering an asset at a user defined location is done most efficiently with a 4x4 transformation matrix,
         // that is passed to the shader as a uniform. The SimpleAssetObject does exactly this. It contains a
@@ -68,9 +66,12 @@ class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
         cube2.calculateModel();
 
 
-        auto sphereMesh  = TriangleMeshGenerator::createMesh(Sphere(make_vec3(0), 1), 2);
-        auto sphereAsset = assetLoader.assetFromMesh(*sphereMesh, Colors::green);
-        sphere.asset     = sphereAsset;
+        //        auto sphereMesh  = TriangleMeshGenerator::IcoSphereMesh(Sphere(make_vec3(0), 1), 2);
+        //        auto sphereAsset = assetLoader.assetFromMesh(*sphereMesh, Colors::green);
+
+        auto sphereAsset = std::make_shared<ColoredAsset>(
+            IcoSphereMesh(Sphere(make_vec3(0), 1), 2).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
+        sphere.asset = sphereAsset;
         sphere.translateGlobal(vec3(-2, 1, 0));
         sphere.calculateModel();
 

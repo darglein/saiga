@@ -32,16 +32,17 @@ static TriangleMesh<VertexNC, uint32_t> ArrowMeshY(float radius, float length, c
     float coneR = radius * 1.5f;
 
 
-    auto cylinderMesh = TriangleMeshGenerator::createCylinderMesh(radius, length - coneH, 12);
+    //    auto cylinderMesh = TriangleMeshGenerator::createCylinderMesh(radius, length - coneH, 12);
+    auto cylinderMesh = CylinderMesh(radius, length - coneH, 12).Mesh<VertexNC, uint32_t>();
     mat4 m            = translate(vec3(0, (length - coneH) * 0.5f, 0));
-    cylinderMesh->transform(m);
+    cylinderMesh.transform(m);
 
-    auto coneMesh = TriangleMeshGenerator::createMesh(Cone(make_vec3(0), vec3(0, 1, 0), coneR, coneH), 12);
+    auto coneMesh = TriangleMeshGenerator::ConeMesh(Cone(make_vec3(0), vec3(0, 1, 0), coneR, coneH), 12);
     m             = translate(vec3(0, length, 0));
     coneMesh->transform(m);
 
     TriangleMesh<VertexNC, uint32_t> mesh;
-    mesh.addMesh(*cylinderMesh);
+    mesh.addMesh(cylinderMesh);
     mesh.addMesh(*coneMesh);
     mesh.setColor(color);
     return mesh;

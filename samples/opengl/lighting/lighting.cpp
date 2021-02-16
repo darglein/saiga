@@ -26,9 +26,28 @@ class Sample : public SampleWindowDeferred
         camera.setProj(60.0f, aspect, 0.1f, 100.0f);
 
 
-        auto sphereMesh = TriangleMeshGenerator::createMesh(Sphere(make_vec3(0), 1), 4);
+        //        auto sphereMesh = TriangleMeshGenerator::IcoSphereMesh(Sphere(make_vec3(0), 1), 4);
+        //        auto sphere = assetLoader.assetFromMesh(*sphereMesh, Colors::gray);
+
+        //        auto sphere = std::make_shared<ColoredAsset>(
+        //            UVSphereMesh(Sphere(make_vec3(0), 1), 20, 20).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
+
+        //        auto sphere = std::make_shared<ColoredAsset>(
+        //            IcoSphereMesh(Sphere(make_vec3(0), 1), 4).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
+
+
+        //        auto sphere = std::make_shared<ColoredAsset>(CylinderMesh(1, 2, 10).SetVertexColor(vec4(0.7, 0.7, 0.7,
+        //        1)));
+        //        auto sphere = std::make_shared<ColoredAsset>(ConeMesh(Cone(), 10).SetVertexColor(vec4(0.7, 0.7, 0.7,
+        //        1)));
+
+        //        auto sphere = std::make_shared<ColoredAsset>(PlaneMesh(Plane()).SetVertexColor(vec4(0.7, 0.7, 0.7,
+        //        1)));
+
+        auto sphere = std::make_shared<ColoredAsset>(
+            BoxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
+
         //        sphereMesh->setColor()
-        auto sphere = assetLoader.assetFromMesh(*sphereMesh, Colors::gray);
 
         int s            = 20;
         bounding_box.min = vec3(-s, 0, -s);
@@ -45,8 +64,12 @@ class Sample : public SampleWindowDeferred
         }
 
 
-        auto stickMesh = TriangleMeshGenerator::createMesh(AABB(vec3(-0.2, 0, -0.2), vec3(0.2, 2, 0.2)));
-        auto stick     = assetLoader.assetFromMesh(*stickMesh, Colors::gray);
+        //        auto stickMesh = TriangleMeshGenerator::BoxMesh(AABB(vec3(-0.2, 0, -0.2), vec3(0.2, 2, 0.2)));
+
+        auto stick = std::make_shared<ColoredAsset>(
+            BoxMesh(AABB(vec3(-0.2, 0, -0.2), vec3(0.2, 2, 0.2))).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
+
+        //        auto stick = assetLoader.assetFromMesh(*stickMesh, Colors::gray);
 
         for (int i = 0; i < 25; ++i)
         {

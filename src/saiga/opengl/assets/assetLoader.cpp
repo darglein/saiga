@@ -52,13 +52,13 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(ivec2 size, floa
 
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
 {
-    auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
+    auto plainMesh = PlaneMesh(Plane()).Mesh<VertexNT, uint32_t>();
     mat4 S         = scale(vec3(size[0], 1, size[1]));
-    plainMesh->transform(S);
+    plainMesh.transform(S);
 
     auto asset = std::make_shared<TexturedAsset>();
 
-    asset->addMesh(*plainMesh);
+    asset->addMesh(plainMesh);
 
     for (auto& v : asset->vertices)
     {
@@ -67,7 +67,7 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_p
 
     TexturedAsset::TextureGroup tg;
     tg.startIndex = 0;
-    tg.indices    = plainMesh->numIndices();
+    tg.indices    = plainMesh.numIndices();
     tg.texture    = texture;
     asset->groups.push_back(tg);
     asset->create();
@@ -109,18 +109,20 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugGrid(int numX, int numY, flo
 std::shared_ptr<ColoredAsset> AssetLoader::loadDebugArrow(float radius, float length, vec4 color)
 {
     //    auto plainMesh = TriangleMeshGenerator::createMesh(Plane());
-    auto cylinderMesh = TriangleMeshGenerator::createCylinderMesh(radius, length, 12);
-    mat4 m            = translate(vec3(0, length * 0.5f, 0));
-    cylinderMesh->transform(m);
+    //    auto cylinderMesh = TriangleMeshGenerator::createCylinderMesh(radius, length, 12);
+    auto cylinderMesh = CylinderMesh(radius, length, 12).Mesh<VertexNC, uint32_t>();
+
+    mat4 m = translate(vec3(0, length * 0.5f, 0));
+    cylinderMesh.transform(m);
 
     float coneH   = length * 0.3f;
     float coneR   = radius * 1.3f;
-    auto coneMesh = TriangleMeshGenerator::createMesh(Cone(make_vec3(0), vec3(0, 1, 0), coneR, coneH), 12);
+    auto coneMesh = TriangleMeshGenerator::ConeMesh(Cone(make_vec3(0), vec3(0, 1, 0), coneR, coneH), 12);
     m             = translate(vec3(0, length + coneH, 0));
     coneMesh->transform(m);
 
     auto asset = std::make_shared<ColoredAsset>();
-    asset->addMesh(*cylinderMesh);
+    asset->addMesh(cylinderMesh);
     asset->addMesh(*coneMesh);
 
     for (auto& v : asset->vertices)

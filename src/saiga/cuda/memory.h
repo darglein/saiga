@@ -71,25 +71,38 @@ __device__ inline void vectorArrayCopy(const T* source, T* dest)
  */
 __device__ __forceinline__ unsigned int loadNoL1Cache4(unsigned int const* ptr)
 {
+#if !defined(WIN32)
     unsigned int retval;
     asm volatile("ld.cg.u32 %0, [%1];" : "=r"(retval) : "l"(ptr));
     return retval;
+#else
+    return *ptr;
+#endif
 }
+
 
 __device__ __forceinline__ uint2 loadNoL1Cache8(uint2 const* ptr)
 {
+#if !defined(WIN32)
     uint2 retval;
     asm volatile("ld.cg.v2.u32 {%0, %1}, [%2];" : "=r"(retval.x), "=r"(retval.y) : "l"(ptr));
     return retval;
+#else
+    return *ptr;
+#endif
 }
 
 __device__ __forceinline__ uint4 loadNoL1Cache16(uint4 const* ptr)
 {
+#if !defined(WIN32)
     uint4 retval;
     asm volatile("ld.cg.v4.u32 {%0, %1, %2, %3}, [%4];"
                  : "=r"(retval.x), "=r"(retval.y), "=r"(retval.z), "=r"(retval.w)
                  : "l"(ptr));
     return retval;
+#else
+    return *ptr;
+#endif
 }
 
 template <typename T>

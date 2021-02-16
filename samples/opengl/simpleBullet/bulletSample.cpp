@@ -17,12 +17,9 @@ Sample::Sample()
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
     AssetLoader assetLoader;
 
-    // First create the triangle mesh of a cube
-    auto cubeMesh = TriangleMeshGenerator::createMesh(AABB(make_vec3(-1), make_vec3(1)));
 
-
-
-    cubeAsset = assetLoader.assetFromMesh(*cubeMesh, Colors::blue);
+    cubeAsset = std::make_shared<ColoredAsset>(
+        BoxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
 
 
 

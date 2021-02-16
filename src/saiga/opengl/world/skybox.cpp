@@ -12,9 +12,9 @@ namespace Saiga
 {
 Skybox::Skybox()
 {
-    AABB bb(make_vec3(-1), make_vec3(1));
-    auto sb = TriangleMeshGenerator::createSkyboxMesh(bb);
-    mesh.fromMesh(*sb);
+    //    AABB bb(make_vec3(-1), make_vec3(1));
+    //    auto sb = TriangleMeshGenerator::createSkyboxMesh(bb);
+    mesh.fromMesh(SkyboxMesh(AABB(make_vec3(-1), make_vec3(1))));
 }
 
 void Skybox::setPosition(const vec3& p)

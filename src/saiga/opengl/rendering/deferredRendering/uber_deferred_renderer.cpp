@@ -60,8 +60,8 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
     lighting.loadShaders();
 
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    //    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
+    quadMesh.fromMesh(FullScreenQuad());
 
     int numTimers = UberDeferredTimingBlock::COUNT;
     if (!params.useGPUTimers) numTimers = 1;  // still use one rendering timer :)
@@ -329,7 +329,6 @@ void UberDeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga:
     assert_no_glerror();
 
     stopTimer(LIGHTING);
-
 }
 
 void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()

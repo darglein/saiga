@@ -319,13 +319,14 @@ void RendererLighting::createLightMeshes()
     float r = 1.0f / cos(pi<float>() / n);
     //    std::cout << "point light radius " << r << std::endl;
     Sphere s(make_vec3(0), r);
-    auto sb = TriangleMeshGenerator::createMesh(s, 1);
+    //    auto sb = TriangleMeshGenerator::IcoSphereMesh(s, 1);
     //    sb->createBuffers(pointLightMesh);
-    pointLightMesh.fromMesh(*sb);
+    //    pointLightMesh.fromMesh(*sb);
+    pointLightMesh.fromMesh(IcoSphereMesh(s, 1));
 
 
     Cone c(make_vec3(0), vec3(0, 1, 0), 1.0f, 1.0f);
-    auto cb = TriangleMeshGenerator::createMesh(c, 10);
+    auto cb = TriangleMeshGenerator::ConeMesh(c, 10);
     //    cb->createBuffers(spotLightMesh);
     spotLightMesh.fromMesh(*cb);
 }
