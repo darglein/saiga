@@ -10,8 +10,8 @@
 
 namespace Saiga
 {
-template <typename VertexType, typename IndexType>
-TriangleMesh<VertexType, IndexType> UnifiedModel::Mesh() const
+template <typename VertexType>
+std::vector<VertexType> UnifiedModel::VertexList() const
 {
     throw std::runtime_error(
         "UnifiedModel::Mesh() not implemented for the specified vertex type. See saiga/core/model/UnifiedModel.h for "
@@ -19,19 +19,30 @@ TriangleMesh<VertexType, IndexType> UnifiedModel::Mesh() const
 }
 
 template <>
-TriangleMesh<Vertex, uint32_t> UnifiedModel::Mesh() const;
+std::vector<Vertex> UnifiedModel::VertexList() const;
 
 template <>
-TriangleMesh<VertexNC, uint32_t> UnifiedModel::Mesh() const;
-
-
-template <>
-TriangleMesh<VertexNT, uint32_t> UnifiedModel::Mesh() const;
+std::vector<VertexNC> UnifiedModel::VertexList() const;
 
 
 template <>
-TriangleMesh<VertexNTD, uint32_t> UnifiedModel::Mesh() const;
+std::vector<VertexNT> UnifiedModel::VertexList() const;
 
 
+template <>
+std::vector<VertexNTD> UnifiedModel::VertexList() const;
+
+
+template <typename IndexType>
+std::vector<Vector<IndexType, 3>> UnifiedModel::IndexList() const
+{
+    std::vector<Vector<IndexType, 3>> result;
+    result.reserve(triangles.size());
+    for (auto& t : triangles)
+    {
+        result.emplace_back(t.cast<IndexType>());
+    }
+    return result;
+}
 
 }  // namespace Saiga

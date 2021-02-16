@@ -91,7 +91,19 @@ class SAIGA_CORE_API UnifiedModel
     // The basic conversion functions for the saiga vertices are defined below,
     // however you can also define conversions for custom vertex types.
     template <typename VertexType, typename IndexType>
-    TriangleMesh<VertexType, IndexType> Mesh() const;
+    TriangleMesh<VertexType, IndexType> Mesh() const
+    {
+        TriangleMesh<VertexType, IndexType> mesh;
+        mesh.vertices = VertexList<VertexType>();
+        mesh.faces    = IndexList<IndexType>();
+        return mesh;
+    }
+
+    template <typename VertexType>
+    std::vector<VertexType> VertexList() const;
+
+    template <typename IndexType>
+    std::vector<Vector<IndexType, 3>> IndexList() const;
 };
 
 

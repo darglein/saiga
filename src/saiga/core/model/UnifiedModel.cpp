@@ -131,25 +131,18 @@ std::vector<vec4> UnifiedModel::ComputeVertexColorFromMaterial() const
 
 
 template <>
-TriangleMesh<Vertex, uint32_t> UnifiedModel::Mesh() const
+std::vector<Vertex> UnifiedModel::VertexList() const
 {
     SAIGA_ASSERT(HasPosition());
 
 
 
-    TriangleMesh<Vertex, uint32_t> mesh;
+    std::vector<Vertex> mesh;
 
-    mesh.faces.reserve(NumFaces());
-    for (auto& f : triangles)
-    {
-        mesh.faces.push_back({(uint32_t)f(0), f(1), f(2)});
-    }
-
-
-    mesh.vertices.resize(NumVertices());
+    mesh.resize(NumVertices());
     for (int i = 0; i < NumVertices(); ++i)
     {
-        mesh.vertices[i].position = make_vec4(position[i], 1);
+        mesh[i].position = make_vec4(position[i], 1);
     }
 
 
@@ -158,32 +151,25 @@ TriangleMesh<Vertex, uint32_t> UnifiedModel::Mesh() const
 
 
 template <>
-TriangleMesh<VertexNC, uint32_t> UnifiedModel::Mesh() const
+std::vector<VertexNC> UnifiedModel::VertexList() const
 {
     SAIGA_ASSERT(HasPosition());
 
 
-
-    TriangleMesh<VertexNC, uint32_t> mesh;
-
-    mesh.faces.reserve(NumFaces());
-    for (auto& f : triangles)
-    {
-        mesh.faces.push_back({f(0), f(1), f(2)});
-    }
+    std::vector<VertexNC> mesh;
 
 
-    mesh.vertices.resize(NumVertices());
+    mesh.resize(NumVertices());
     for (int i = 0; i < NumVertices(); ++i)
     {
-        mesh.vertices[i].position = make_vec4(position[i], 1);
+        mesh[i].position = make_vec4(position[i], 1);
     }
 
     if (HasColor())
     {
         for (int i = 0; i < NumVertices(); ++i)
         {
-            mesh.vertices[i].color = color[i];
+            mesh[i].color = color[i];
         }
     }
     else if (HasMaterials())
@@ -191,14 +177,14 @@ TriangleMesh<VertexNC, uint32_t> UnifiedModel::Mesh() const
         auto color = ComputeVertexColorFromMaterial();
         for (int i = 0; i < NumVertices(); ++i)
         {
-            mesh.vertices[i].color = color[i];
+            mesh[i].color = color[i];
         }
     }
     else
     {
         for (int i = 0; i < NumVertices(); ++i)
         {
-            mesh.vertices[i].color = vec4(1, 1, 1, 1);
+            mesh[i].color = vec4(1, 1, 1, 1);
         }
     }
 
@@ -206,96 +192,69 @@ TriangleMesh<VertexNC, uint32_t> UnifiedModel::Mesh() const
     {
         for (int i = 0; i < NumVertices(); ++i)
         {
-            mesh.vertices[i].normal = make_vec4(normal[i], 0);
+            mesh[i].normal = make_vec4(normal[i], 0);
         }
     }
-    else
-    {
-        mesh.computePerVertexNormal();
-    }
-
     return mesh;
 }
 
 
 template <>
-TriangleMesh<VertexNT, uint32_t> UnifiedModel::Mesh() const
+std::vector<VertexNT> UnifiedModel::VertexList() const
 {
     SAIGA_ASSERT(HasPosition());
     SAIGA_ASSERT(HasTC());
 
-    TriangleMesh<VertexNT, uint32_t> mesh;
-
-    mesh.faces.reserve(NumFaces());
-    for (auto& f : triangles)
-    {
-        mesh.faces.push_back({f(0), f(1), f(2)});
-    }
+    std::vector<VertexNT> mesh;
 
 
-    mesh.vertices.resize(NumVertices());
+    mesh.resize(NumVertices());
     for (int i = 0; i < NumVertices(); ++i)
     {
-        mesh.vertices[i].position = make_vec4(position[i], 1);
-        mesh.vertices[i].texture  = texture_coordinates[i];
+        mesh[i].position = make_vec4(position[i], 1);
+        mesh[i].texture  = texture_coordinates[i];
     }
 
     if (HasNormal())
     {
         for (int i = 0; i < NumVertices(); ++i)
         {
-            mesh.vertices[i].normal = make_vec4(normal[i], 0);
+            mesh[i].normal = make_vec4(normal[i], 0);
         }
     }
-    else
-    {
-        mesh.computePerVertexNormal();
-    }
-
 
     return mesh;
 }
 
 template <>
-TriangleMesh<VertexNTD, uint32_t> UnifiedModel::Mesh() const
+std::vector<VertexNTD> UnifiedModel::VertexList() const
 {
     SAIGA_ASSERT(HasPosition());
     SAIGA_ASSERT(HasTC());
 
-    TriangleMesh<VertexNTD, uint32_t> mesh;
 
-    mesh.faces.reserve(NumFaces());
-    for (auto& f : triangles)
-    {
-        mesh.faces.push_back({f(0), f(1), f(2)});
-    }
+    std::vector<VertexNTD> mesh;
 
-
-    mesh.vertices.resize(NumVertices());
+    mesh.resize(NumVertices());
     for (int i = 0; i < NumVertices(); ++i)
     {
-        mesh.vertices[i].position = make_vec4(position[i], 1);
-        mesh.vertices[i].texture  = texture_coordinates[i];
+        mesh[i].position = make_vec4(position[i], 1);
+        mesh[i].texture  = texture_coordinates[i];
     }
 
     if (HasNormal())
     {
         for (int i = 0; i < NumVertices(); ++i)
         {
-            mesh.vertices[i].normal = make_vec4(normal[i], 0);
+            mesh[i].normal = make_vec4(normal[i], 0);
         }
     }
-    else
-    {
-        mesh.computePerVertexNormal();
-    }
-
 
     if (HasData())
     {
         for (int i = 0; i < NumVertices(); ++i)
         {
-            mesh.vertices[i].data = data[i];
+            mesh[i].data = data[i];
         }
     }
 
