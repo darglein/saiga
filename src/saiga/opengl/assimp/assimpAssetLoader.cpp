@@ -50,6 +50,9 @@ std::shared_ptr<ColoredAsset> AssimpAssetLoader::loadBasicAsset(const std::strin
 
 std::shared_ptr<TexturedAsset> AssimpAssetLoader::loadTexturedAsset(const std::string& file, bool normalize)
 {
+    SAIGA_ASSERT(0);
+    return nullptr;
+#    if 0
     AssimpLoader al(file);
 
     al.printInfo();
@@ -102,6 +105,7 @@ std::shared_ptr<TexturedAsset> AssimpAssetLoader::loadTexturedAsset(const std::s
     asset->create();
 
     return std::shared_ptr<TexturedAsset>(asset);
+#    endif
 }
 
 std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::string& file, bool normalize)

@@ -52,14 +52,20 @@ class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TexturedModel, MVPTextu
     void loadDefaultShaders() override;
 
 
-    class SAIGA_OPENGL_API TextureGroup
-    {
-       public:
-        int startIndex;
-        int indices;
-        std::shared_ptr<Texture> texture;
-    };
-    std::vector<TextureGroup> groups;
+    //    class SAIGA_OPENGL_API TextureGroup
+    //    {
+    //       public:
+    //        int startIndex;
+    //        int indices;
+    //        std::shared_ptr<Texture> texture;
+    //    };
+    //    std::vector<TextureGroup> groups;
+
+
+    std::vector<UnifiedMaterial> materials;
+    std::vector<UnifiedMaterialGroup> groups;
+
+    std::vector<std::shared_ptr<Texture> > textures;
 
 
     TexturedAsset() {}

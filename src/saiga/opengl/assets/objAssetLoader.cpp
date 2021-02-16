@@ -70,6 +70,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
 {
     return std::make_shared<TexturedAsset>(UnifiedModel(file));
 
+#if 0
     ObjModelLoader ol(file);
 
     //    TexturedAsset* asset = new TexturedAsset();
@@ -121,6 +122,7 @@ std::shared_ptr<TexturedAsset> ObjAssetLoader::loadTexturedAsset(const std::stri
     }
     asset->create();
     return asset;
+#endif
 }
 
 }  // namespace Saiga

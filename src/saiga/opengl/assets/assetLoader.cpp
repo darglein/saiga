@@ -52,6 +52,7 @@ std::shared_ptr<ColoredAsset> AssetLoader::loadDebugPlaneAsset2(ivec2 size, floa
 
 std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_ptr<Texture> texture, vec2 size)
 {
+    throw std::runtime_error("not implemented");
     auto plainMesh = PlaneMesh(Plane()).Mesh<VertexNT, uint32_t>();
     mat4 S         = scale(vec3(size[0], 1, size[1]));
     plainMesh.transform(S);
@@ -65,11 +66,11 @@ std::shared_ptr<TexturedAsset> AssetLoader::loadDebugTexturedPlane(std::shared_p
         v.data = vec4(0.5, 0, 0, 0);
     }
 
-    TexturedAsset::TextureGroup tg;
-    tg.startIndex = 0;
-    tg.indices    = plainMesh.numIndices();
-    tg.texture    = texture;
-    asset->groups.push_back(tg);
+    // TexturedAsset::TextureGroup tg;
+    // tg.startIndex = 0;
+    // tg.indices    = plainMesh.numIndices();
+    // tg.texture    = texture;
+    // asset->groups.push_back(tg);
     asset->create();
 
     return asset;

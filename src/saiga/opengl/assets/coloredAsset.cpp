@@ -45,25 +45,41 @@ void LineVertexColoredAsset::SetShaderColor(const vec4& color)
     forwardShader->unbind();
 }
 
-TexturedAsset::TexturedAsset(const UnifiedModel& model)
+TexturedAsset::TexturedAsset(const UnifiedModel& model) : groups(model.material_groups), materials(model.materials)
 {
     this->TriangleMesh<VertexNTD, uint32_t>::operator=(model.Mesh<VertexNTD, uint32_t>());
     create();
 
 
-    for (auto& mg : model.material_groups)
-    {
-        auto& material = model.materials[mg.materialId];
+    //    for (auto& mg : model.material_groups)
+    //    {
+    //        auto& material = model.materials[mg.materialId];
 
-        TexturedAsset::TextureGroup tg;
-        tg.startIndex = mg.startFace * 3;
-        tg.indices    = mg.numFaces * 3;
-        tg.texture    = TextureLoader::instance()->load(material.texture_diffuse);
-        if (tg.texture)
+    //        TexturedAsset::TextureGroup tg;
+    //        //        tg.startIndex = mg.startFace * 3;
+    //        //        tg.indices    = mg.numFaces * 3;
+    //        tg.texture = TextureLoader::instance()->load(material.texture_diffuse);
+    //        if (tg.texture)
+    //        {
+    //            tg.texture->setWrap(GL_REPEAT);
+    //            tg.texture->generateMipmaps();
+    //            groups.push_back(tg);
+    //        }
+    //    }
+
+
+    for (auto& material : model.materials)
+    {
+        auto texture = TextureLoader::instance()->load(material.texture_diffuse);
+        if (texture)
         {
-            tg.texture->setWrap(GL_REPEAT);
-            tg.texture->generateMipmaps();
-            groups.push_back(tg);
+            texture->setWrap(GL_REPEAT);
+            texture->generateMipmaps();
+            textures.push_back(texture);
+        }
+        else
+        {
+            throw std::runtime_error("Could not load texture " + material.texture_diffuse);
         }
     }
 }
@@ -99,12 +115,10 @@ void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camer
     shader->bind();
     shader->uploadModel(model);
     buffer.bind();
-    for (TextureGroup& tg : groups)
+    for (auto& tg : groups)
     {
-        shader->uploadTexture(tg.texture.get());
-        int start = 0;
-        start += tg.startIndex;
-        buffer.draw(tg.indices, start);
+        shader->uploadTexture(textures[tg.materialId].get());
+        buffer.draw(tg.numFaces * 3, tg.startFace * 3);
     }
     buffer.unbind();
     shader->unbind();
