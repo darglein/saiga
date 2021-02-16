@@ -15,13 +15,13 @@
 
 namespace Saiga
 {
-
-namespace PLYLoaderDetail {
-    template<typename VertexType>
-    static inline int print(std::vector<std::string> &header);
-    template<typename VertexType>
-    static inline void write(char *ptr, VertexType v);
-};
+namespace PLYLoaderDetail
+{
+template <typename VertexType>
+static inline int print(std::vector<std::string>& header);
+template <typename VertexType>
+static inline void write(char* ptr, VertexType v);
+};  // namespace PLYLoaderDetail
 
 class SAIGA_CORE_API PLYLoader
 {
@@ -109,9 +109,9 @@ class SAIGA_CORE_API PLYLoader
         {
             ptr[0]    = 3;
             int* fptr = (int*)(ptr + 1);
-            fptr[0]   = f.v1;
-            fptr[1]   = f.v2;
-            fptr[2]   = f.v3;
+            fptr[0]   = f(0);
+            fptr[1]   = f(1);
+            fptr[2]   = f(2);
             ptr += faceSize;
         }
 
@@ -125,80 +125,85 @@ class SAIGA_CORE_API PLYLoader
     }
 };
 
-namespace PLYLoaderDetail {
-    template<>
-    inline int print<Vertex>(std::vector<std::string> &header)
-    {
-        header.push_back("property float x");
-        header.push_back("property float y");
-        header.push_back("property float z");
-        return 3*sizeof(float);
-    }
+namespace PLYLoaderDetail
+{
+template <>
+inline int print<Vertex>(std::vector<std::string>& header)
+{
+    header.push_back("property float x");
+    header.push_back("property float y");
+    header.push_back("property float z");
+    return 3 * sizeof(float);
+}
 
-    template<>
-    inline int print<VertexN>(std::vector<std::string> &header)
-    {
-        int ret = print<Vertex>(header);
-        header.push_back("property float nx");
-        header.push_back("property float ny");
-        header.push_back("property float nz");
-        return ret + 3*sizeof(float);
-    }
+template <>
+inline int print<VertexN>(std::vector<std::string>& header)
+{
+    int ret = print<Vertex>(header);
+    header.push_back("property float nx");
+    header.push_back("property float ny");
+    header.push_back("property float nz");
+    return ret + 3 * sizeof(float);
+}
 
-    template<>
-    inline int print<VertexC>(std::vector<std::string> &header)
-    {
-        int ret = print<Vertex>(header);
-        header.push_back("property float red");
-        header.push_back("property float green");
-        header.push_back("property float blue");
-        return ret + 3*sizeof(float);
-    }
+template <>
+inline int print<VertexC>(std::vector<std::string>& header)
+{
+    int ret = print<Vertex>(header);
+    header.push_back("property float red");
+    header.push_back("property float green");
+    header.push_back("property float blue");
+    return ret + 3 * sizeof(float);
+}
 
-    template<>
-    inline int print<VertexNC>(std::vector<std::string> &header)
-    {
-        int ret = print<VertexN>(header);
-        header.push_back("property float red");
-        header.push_back("property float green");
-        header.push_back("property float blue");
-        return ret + 3*sizeof(float);
-    }
+template <>
+inline int print<VertexNC>(std::vector<std::string>& header)
+{
+    int ret = print<VertexN>(header);
+    header.push_back("property float red");
+    header.push_back("property float green");
+    header.push_back("property float blue");
+    return ret + 3 * sizeof(float);
+}
 
-    template<>
-    inline void write(char*ptr, Vertex v) {
-        float* f = (float*)ptr;
-        f[0]     = v.position.x();
-        f[1]     = v.position.y();
-        f[2]     = v.position.z();
-    }
+template <>
+inline void write(char* ptr, Vertex v)
+{
+    float* f = (float*)ptr;
+    f[0]     = v.position.x();
+    f[1]     = v.position.y();
+    f[2]     = v.position.z();
+}
 
-    template<>
-    inline void write(char*ptr, VertexN v) {
-        write(ptr, Vertex{v.position});
-        float* f = (float*)ptr + 3;
-        f[0]     = v.normal.x();
-        f[1]     = v.normal.y();
-        f[2]     = v.normal.z();
-    }
+template <>
+inline void write(char* ptr, VertexN v)
+{
+    write(ptr, Vertex{v.position});
+    float* f = (float*)ptr + 3;
+    f[0]     = v.normal.x();
+    f[1]     = v.normal.y();
+    f[2]     = v.normal.z();
+}
 
-    template<>
-    inline void write(char*ptr, VertexC v) {
-        write(ptr, Vertex{v.position});
-        float* f = (float*)ptr + 3;
-        f[0]     = v.color.x();
-        f[1]     = v.color.y();
-        f[2]     = v.color.z();
-    }
+template <>
+inline void write(char* ptr, VertexC v)
+{
+    write(ptr, Vertex{v.position});
+    float* f = (float*)ptr + 3;
+    f[0]     = v.color.x();
+    f[1]     = v.color.y();
+    f[2]     = v.color.z();
+}
 
-    template<>
-    inline void write(char*ptr, VertexNC v) {
-        write(ptr, VertexN{v.position, v.normal});
-        float* f = (float*)ptr + 6;
-        f[0]     = v.color.x();
-        f[1]     = v.color.y();
-        f[2]     = v.color.z();
-    }
-};
+template <>
+inline void write(char* ptr, VertexNC v)
+{
+    write(ptr, VertexN{v.position, v.normal});
+    float* f = (float*)ptr + 6;
+    f[0]     = v.color.x();
+    f[1]     = v.color.y();
+    f[2]     = v.color.z();
+}
+};  // namespace PLYLoaderDetail
 
 }  // namespace Saiga

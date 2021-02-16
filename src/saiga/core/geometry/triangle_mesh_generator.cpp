@@ -230,14 +230,14 @@ std::shared_ptr<default_mesh_t> TriangleMeshGenerator::ConeMesh(const Cone& cone
     for (int s = 0; s < sectors; s++)
     {
         Face face;
-        face.v1 = s + 2;
-        face.v2 = ((s + 1) % sectors) + 2;
-        face.v3 = 0;
+        face(0) = s + 2;
+        face(1) = ((s + 1) % sectors) + 2;
+        face(2) = 0;
         mesh->faces.push_back(face);
 
-        face.v1 = 1;
-        face.v2 = ((s + 1) % sectors) + 2;
-        face.v3 = s + 2;
+        face(0) = 1;
+        face(1) = ((s + 1) % sectors) + 2;
+        face(2) = s + 2;
         mesh->faces.push_back(face);
     }
 

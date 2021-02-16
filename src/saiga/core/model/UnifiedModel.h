@@ -94,27 +94,8 @@ class SAIGA_CORE_API UnifiedModel
     TriangleMesh<VertexType, IndexType> Mesh() const;
 };
 
-template <typename VertexType, typename IndexType>
-TriangleMesh<VertexType, IndexType> UnifiedModel::Mesh() const
-{
-    throw std::runtime_error(
-        "UnifiedModel::Mesh() not implemented for the specified vertex type. See saiga/core/model/UnifiedModel.h for "
-        "more information.");
-}
-
-template <>
-TriangleMesh<Vertex, uint32_t> UnifiedModel::Mesh() const;
-
-template <>
-TriangleMesh<VertexNC, uint32_t> UnifiedModel::Mesh() const;
-
-
-template <>
-TriangleMesh<VertexNT, uint32_t> UnifiedModel::Mesh() const;
-
-
-template <>
-TriangleMesh<VertexNTD, uint32_t> UnifiedModel::Mesh() const;
-
 
 }  // namespace Saiga
+
+
+#include "UnifiedModel.hpp"

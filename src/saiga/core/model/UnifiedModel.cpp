@@ -142,7 +142,7 @@ TriangleMesh<Vertex, uint32_t> UnifiedModel::Mesh() const
     mesh.faces.reserve(NumFaces());
     for (auto& f : triangles)
     {
-        mesh.faces.push_back({f(0), f(1), f(2)});
+        mesh.faces.push_back({(uint32_t)f(0), f(1), f(2)});
     }
 
 
