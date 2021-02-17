@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "Model.h"
+#include "saiga/core/geometry/triangle_mesh.h"
 
 namespace Saiga
 {

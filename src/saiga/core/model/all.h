@@ -6,7 +6,9 @@
 
 #pragma once
 
-#include "Model.h"
+
+#include "LineModelColored.h"
+#include "ModelVertexColored.h"
 #include "UnifiedModel.h"
 #include "objModelLoader.h"
 #include "offModelLoader.h"

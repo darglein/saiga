@@ -9,7 +9,6 @@
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
-#include "saiga/core/model/ModelLoader.h"
 #include "saiga/core/model/objModelLoader.h"
 #include "saiga/core/model/plyModelLoader.h"
 #include "saiga/core/time/all.h"
