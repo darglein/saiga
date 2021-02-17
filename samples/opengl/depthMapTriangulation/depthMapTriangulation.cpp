@@ -269,8 +269,9 @@ void Sample::render(Camera* camera, RenderPass render_pass)
             if (ImGui::Button("Load Mesh"))
             {
                 depthmesh.clear();
-                ObjModelLoader modelLoader(std::string(mesh_file.data()));
-                modelLoader.toTriangleMesh(depthmesh);
+                //                ObjModelLoader modelLoader(std::string(mesh_file.data()));
+                //                modelLoader.toTriangleMesh(depthmesh);
+                depthmesh = UnifiedModel(std::string(mesh_file.data())).Mesh<VertexNC, uint32_t>();
                 depthmesh.setColor(vec4(1, 0, 0, 1));
                 depthmesh.computePerVertexNormal();
                 depthmesh.normalizeScale();

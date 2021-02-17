@@ -38,6 +38,8 @@ Vec3 LinearFunction(const Vec2& x, Matrix<double, 3, 2>* jacobian = nullptr)
 
 TEST(NumericDerivative, Linear)
 {
+    Random::setSeed(903476346);
+    srand(976157);
     Vec2 params = Vec2::Random();
     Matrix<double, 3, 2> J1, J2;
 

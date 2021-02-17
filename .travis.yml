@@ -40,7 +40,7 @@ addons:
       confinement: classic
     
 env:
-  - OMP_NUM_THREADS=4
+  - OMP_NUM_THREADS=2
   
 before_install:
   - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get update -qq; fi
@@ -61,7 +61,7 @@ script:
       /snap/bin/cmake  -DCMAKE_PREFIX_PATH="/home/travis/install" $TRAVIS_BUILD_DIR 
       make -j2
       sudo make install
-      ctest --output-on-failure -j 4
+      ctest --output-on-failure
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then

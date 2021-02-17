@@ -15,40 +15,7 @@
 
 namespace Saiga
 {
-struct SAIGA_CORE_API ObjTriangleGroup
-{
-    int startFace = 0;
-    int faces     = 0;
-    UnifiedMaterial material;
-};
-
-
-
-class SAIGA_CORE_API ObjMaterialLoader
-{
-   public:
-    std::string file;
-    bool verbose = false;
-
-   public:
-    ObjMaterialLoader() {}
-    ObjMaterialLoader(const std::string& file);
-
-
-
-    bool loadFile(const std::string& file);
-
-    UnifiedMaterial getMaterial(const std::string& name);
-
-   private:
-    std::vector<UnifiedMaterial> materials;
-    UnifiedMaterial* currentMaterial = nullptr;
-    void parseLine(const std::string& line);
-
-    // tries to find a file from the material (for example a texture)
-    // returns the absolute path to that file
-    std::string getPathImage(const std::string& s);
-};
+SAIGA_CORE_API std::vector<UnifiedMaterial> LoadMTL(const std::string& file);
 
 
 class SAIGA_CORE_API ObjModelLoader
@@ -65,17 +32,20 @@ class SAIGA_CORE_API ObjModelLoader
 
     bool loadFile(const std::string& file);
 
-    AlignedVector<vec4> vertexData;    // x: specular
-    AlignedVector<vec4> vertexColors;  // only when given by the material. Otherwise: white!
+    //    AlignedVector<vec4> vertexData;    // x: specular
+    //    AlignedVector<vec4> vertexColors;  // only when given by the material. Otherwise: white!
     std::vector<VertexNT> outVertices;
-    std::vector<ivec3> outTriangles;
-    std::vector<ObjTriangleGroup> triangleGroups;
+    // std::vector<ivec3> outTriangles;
+
+    UnifiedModel out_model;
+    //    std::vector<UnifiedMaterialGroup> triangleGroups;
+    //    std::vector<UnifiedMaterial> materials;
     void separateVerticesByGroup();
     void calculateMissingNormals();
     void computeVertexColorAndData();
 
-    void toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh);
-    void toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh);
+    //    void toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh);
+    //    void toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh);
 
 
     static constexpr int INVALID_VERTEX_ID = -911365965;
@@ -94,7 +64,6 @@ class SAIGA_CORE_API ObjModelLoader
 
     std::vector<std::vector<IndexedVertex2>> faces;
 
-    ObjMaterialLoader materialLoader;
 
     void createVertexIndexList();
 

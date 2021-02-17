@@ -8,6 +8,7 @@
 
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/geometry/vertex.h"
+#include "saiga/core/image/managedImage.h"
 #include "saiga/core/util/Range.h"
 
 #include <vector>
@@ -62,6 +63,7 @@ class SAIGA_CORE_API UnifiedModel
     // The material group defines which faces have which material.
     std::vector<UnifiedMaterial> materials;
     std::vector<UnifiedMaterialGroup> material_groups;
+    std::vector<Image> textures;
 
 
     // Transforms this model inplace

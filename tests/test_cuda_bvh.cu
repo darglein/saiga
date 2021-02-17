@@ -42,10 +42,8 @@ TEST(BVH, IntersectionRayTriangle)
     camera.setProj(60.0f, 1, 0.1f, 50.0f, true);
     camera.setView(vec3(0, 3, 6), vec3(0, 0, 0), vec3(0, 1, 0));
 
-    ObjModelLoader loader("teapot.obj");
+    auto mesh = UnifiedModel("teapot.obj").Mesh<VertexNC, uint32_t>();
 
-    TriangleMesh<VertexNC, uint32_t> mesh;
-    loader.toTriangleMesh(mesh);
 
 
     auto triangles = mesh.toTriangleList();

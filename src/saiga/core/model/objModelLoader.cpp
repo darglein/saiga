@@ -21,162 +21,128 @@
 
 namespace Saiga
 {
-ObjMaterialLoader::ObjMaterialLoader(const std::string& file) : file(file)
+static StringViewParser lineParser = {" ,\n", true};
+static StringViewParser faceParser = {"/", false};
+
+
+struct ObjLine
 {
-    loadFile(file);
-}
+    std::string key;
+    std::vector<std::string> values;
 
-bool ObjMaterialLoader::loadFile(const std::string& _file)
-{
-    file = _file;
-    std::ifstream stream(file, std::ios::in);
-    if (!stream.is_open())
+    ObjLine() {}
+    ObjLine(const std::string& line)
     {
-        return false;
-    }
+        lineParser.set(line);
+        key = lineParser.next();
 
+        while (true)
+        {
+            auto value = lineParser.next();
+            if (!value.empty())
+            {
+                values.push_back(std::string(value));
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+};
 
-    std::cout << "ObjMaterialLoader: loading file " << file << std::endl;
-
-
-    while (!stream.eof())
-    {
-        std::string line;
-        std::getline(stream, line);
-        // remove carriage return from windows
-        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-        parseLine(line);
-    }
-    return true;
-}
-
-UnifiedMaterial ObjMaterialLoader::getMaterial(const std::string& name)
-{
-    for (UnifiedMaterial& m : materials)
-    {
-        if (m.name == name) return m;
-    }
-    std::cout << "Warning material '" << name << "' not found!" << std::endl;
-    return UnifiedMaterial("default");
-}
-
-
-void ObjMaterialLoader::parseLine(const std::string& line)
-{
-    std::stringstream sstream(line);
-
-    std::string header;
-    sstream >> header;
-
-    std::string rest;
-    std::getline(sstream, rest);
-
-    // remove first white space
-    if (rest[0] == ' ' && rest.size() > 1)
-    {
-        rest = rest.substr(1);
-    }
-
-    std::stringstream restStream(rest);
-
-    if (header == "newmtl")
-    {
-        UnifiedMaterial m(rest);
-        materials.push_back(m);
-        currentMaterial = &materials[materials.size() - 1];
-    }
-    if (currentMaterial == nullptr)
-    {
-        return;
-    }
-
-    //    if(header == "Kd"){
-    //        restStream >> currentMaterial->color;
-    //    }
-
-#if 0
-    if (header == "Ns")
-    {
-        restStream >> currentMaterial->Ns;
-    }
-    else if (header == "Ni")
-    {
-        restStream >> currentMaterial->Ni;
-    }
-    else if (header == "d")
-    {
-        restStream >> currentMaterial->d;
-    }
-    else if (header == "Tr")
-    {
-        restStream >> currentMaterial->Tr;
-    }
-    else if (header == "Tf")
-    {
-        restStream >> currentMaterial->Tf;
-    }
-    else if (header == "illum")
-    {
-        restStream >> currentMaterial->illum;
-    }
-#endif
-    if (header == "Ka")
-    {
-        restStream >> currentMaterial->color_ambient;
-    }
-    else if (header == "Kd")
-    {
-        restStream >> currentMaterial->color_diffuse;
-    }
-    else if (header == "Ks")
-    {
-        restStream >> currentMaterial->color_specular;
-    }
-    else if (header == "Ke")
-    {
-        restStream >> currentMaterial->color_emissive;
-    }
-    else if (header == "map_Kd")
-    {
-        currentMaterial->texture_diffuse = getPathImage(rest);
-    }
-    else if (header == "map_d")
-    {
-        //        TextureParameters tp;
-        //        tp.srgb = false;
-        currentMaterial->texture_alpha = getPathImage(rest);
-        //        if(currentMaterial->map_d) currentMaterial->map_d->setWrap(GL_REPEAT);
-    }
-    else if (header == "map_bump" || header == "bump")
-    {
-        //        TextureParameters tp;
-        //        tp.srgb = false;
-        currentMaterial->texture_normal = getPathImage(rest);
-        //        if(currentMaterial->map_bump) currentMaterial->map_bump->setWrap(GL_REPEAT);
-    }
-}
-
-std::string ObjMaterialLoader::getPathImage(const std::string& str)
+static std::string getPathImage(const std::string& base, const std::string& str)
 {
     std::string result;
 
     // first search relative to the parent
-    result = SearchPathes::model.getRelative(file, str);
+    result = SearchPathes::model.getRelative(base, str);
     if (!result.empty()) return result;
 
 
     // no search in the image dir
-    result = SearchPathes::image.getRelative(file, str);
+    result = SearchPathes::image.getRelative(base, str);
     if (!result.empty()) return result;
 
-    std::cout << str << " " << file << " " << result << std::endl;
+    std::cout << str << " " << base << " " << result << std::endl;
     SAIGA_ASSERT(!result.empty());
     return result;
 }
 
 
-static StringViewParser lineParser = {" ,\n", true};
-static StringViewParser faceParser = {"/", false};
+
+std::vector<UnifiedMaterial> LoadMTL(const std::string& file)
+{
+    std::vector<UnifiedMaterial> materials;
+    UnifiedMaterial* currentMaterial = nullptr;
+
+    std::cout << "ObjMaterialLoader: loading file " << file << std::endl;
+    auto file_strs = File::loadFileStringArray(file);
+    File::removeWindowsLineEnding(file_strs);
+    for (auto& raw_line : file_strs)
+    {
+        //        parseLine(line);
+        ObjLine line(raw_line);
+
+        if (line.key == "newmtl")
+        {
+            SAIGA_ASSERT(line.values.size() == 1);
+            UnifiedMaterial m(line.values.front());
+            materials.push_back(m);
+            currentMaterial = &materials[materials.size() - 1];
+        }
+        if (currentMaterial == nullptr)
+        {
+            continue;
+        }
+
+        if (line.key == "Ka")
+        {
+            for (int i = 0; i < std::min<int>(4, line.values.size()); ++i)
+            {
+                currentMaterial->color_ambient(i) = to_double(line.values[i]);
+            }
+        }
+        else if (line.key == "Kd")
+        {
+            for (int i = 0; i < std::min<int>(4, line.values.size()); ++i)
+            {
+                currentMaterial->color_diffuse(i) = to_double(line.values[i]);
+            }
+        }
+        else if (line.key == "Ks")
+        {
+            for (int i = 0; i < std::min<int>(4, line.values.size()); ++i)
+            {
+                currentMaterial->color_specular(i) = to_double(line.values[i]);
+            }
+        }
+        else if (line.key == "Ke")
+        {
+            for (int i = 0; i < std::min<int>(4, line.values.size()); ++i)
+            {
+                currentMaterial->color_emissive(i) = to_double(line.values[i]);
+            }
+        }
+        else if (line.key == "map_Kd")
+        {
+            SAIGA_ASSERT(line.values.size() == 1);
+            currentMaterial->texture_diffuse = getPathImage(file, line.values.front());
+        }
+        else if (line.key == "map_d")
+        {
+            SAIGA_ASSERT(line.values.size() == 1);
+            currentMaterial->texture_alpha = getPathImage(file, line.values.front());
+        }
+        else if (line.key == "map_bump" || line.key == "bump")
+        {
+            SAIGA_ASSERT(line.values.size() == 1);
+            currentMaterial->texture_normal = getPathImage(file, line.values.front());
+        }
+    }
+    return materials;
+}
+
 
 
 // parsing index vertex
@@ -230,10 +196,10 @@ bool ObjModelLoader::loadFile(const std::string& _file)
 
     std::cout << "[ObjModelLoader] Loading " << file << std::endl;
 
-    ObjTriangleGroup tg;
+    UnifiedMaterialGroup tg;
     tg.startFace = 0;
-    tg.faces     = 0;
-    triangleGroups.push_back(tg);
+    tg.numFaces  = 0;
+    out_model.material_groups.push_back(tg);
 
     std::vector<std::string> data;
     {
@@ -251,18 +217,18 @@ bool ObjModelLoader::loadFile(const std::string& _file)
     }
 
     // finish last group
-    ObjTriangleGroup& lastGroup = triangleGroups[triangleGroups.size() - 1];
-    lastGroup.faces             = faces.size() - lastGroup.startFace;
+    UnifiedMaterialGroup& lastGroup = out_model.material_groups[out_model.material_groups.size() - 1];
+    lastGroup.numFaces              = faces.size() - lastGroup.startFace;
 
 
     // remove groups with 0 faces
-    triangleGroups.erase(std::remove_if(triangleGroups.begin(), triangleGroups.end(),
-                                        [](const ObjTriangleGroup& otg) { return otg.faces == 0; }),
-                         triangleGroups.end());
+    out_model.material_groups.erase(std::remove_if(out_model.material_groups.begin(), out_model.material_groups.end(),
+                                                   [](const UnifiedMaterialGroup& otg) { return otg.numFaces == 0; }),
+                                    out_model.material_groups.end());
 
     std::cout << "[ObjModelLoader] Done.  "
               << "V " << vertices.size() << " N " << normals.size() << " T " << texCoords.size() << " F "
-              << faces.size() << " Material Groups " << triangleGroups.size() << std::endl;
+              << faces.size() << " Material Groups " << out_model.material_groups.size() << std::endl;
 
 
 
@@ -285,12 +251,12 @@ void ObjModelLoader::separateVerticesByGroup()
 
     std::vector<int> vertexReference(outVertices.size(), INVALID_VERTEX_ID);
 
-    for (int t = 0; t < (int)triangleGroups.size(); ++t)
+    for (int t = 0; t < (int)out_model.material_groups.size(); ++t)
     {
-        ObjTriangleGroup& tg = triangleGroups[t];
-        for (int i = 0; i < tg.faces; ++i)
+        UnifiedMaterialGroup& tg = out_model.material_groups[t];
+        for (int i = 0; i < tg.numFaces; ++i)
         {
-            ivec3& face = outTriangles[i + tg.startFace];
+            ivec3& face = out_model.triangles[i + tg.startFace];
 
             for (int j = 0; j < 3; ++j)
             {
@@ -313,7 +279,7 @@ void ObjModelLoader::separateVerticesByGroup()
 
 void ObjModelLoader::calculateMissingNormals()
 {
-    for (auto tri : outTriangles)
+    for (auto tri : out_model.triangles)
     {
         auto& v1 = outVertices[tri[0]];
         auto& v2 = outVertices[tri[1]];
@@ -327,27 +293,27 @@ void ObjModelLoader::calculateMissingNormals()
     }
 }
 
+#if 0
 void ObjModelLoader::computeVertexColorAndData()
 {
     vertexColors.resize(outVertices.size(), make_vec4(1));
     vertexData.resize(outVertices.size(), make_vec4(0));
 
-    for (ObjTriangleGroup& tg : triangleGroups)
+    for (UnifiedMaterialGroup& tg : out_model.material_groups)
     {
-        for (int i = 0; i < tg.faces; ++i)
+        for (int i = 0; i < tg.numFaces; ++i)
         {
-            ivec3& face = outTriangles[i + tg.startFace];
+            ivec3& face = out_model.triangles[i + tg.startFace];
             for (int f = 0; f < 3; ++f)
             {
                 int index            = face[f];
-                vertexColors[index]  = tg.material.color_diffuse;
-                float spec           = dot(tg.material.color_specular, make_vec4(1)) / 4.0f;
+                vertexColors[index]  = out_model.materials[tg.materialId].color_diffuse;
+                float spec           = dot(out_model.materials[tg.materialId].color_specular, make_vec4(1)) / 4.0f;
                 vertexData[index][0] = spec;
             }
         }
     }
 }
-
 void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh)
 {
     if (vertexColors.empty())
@@ -356,8 +322,8 @@ void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh)
     }
 
     SAIGA_ASSERT(vertexColors.size() == outVertices.size());
-    mesh.faces.reserve(outTriangles.size());
-    for (ivec3& oj : outTriangles)
+    mesh.faces.reserve( out_model.triangles.size());
+    for (ivec3& oj :  out_model.triangles)
     {
         mesh.addFace(oj(0), oj(1), oj(2));
     }
@@ -402,6 +368,7 @@ void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh)
         mesh.addVertex(vn);
     }
 }
+#endif
 
 void ObjModelLoader::createVertexIndexList()
 {
@@ -460,7 +427,7 @@ void ObjModelLoader::createVertexIndexList()
             fa[i] = index;
         }
 
-        outTriangles.push_back(fa);
+        out_model.triangles.push_back(fa);
     }
 }
 
@@ -506,46 +473,58 @@ void ObjModelLoader::parseLine()
     else if (header == "usemtl")
     {
         // finish current group and create new one
-        if (!triangleGroups.empty())
+        if (!out_model.material_groups.empty())
         {
-            ObjTriangleGroup& currentGroup = triangleGroups[triangleGroups.size() - 1];
-            currentGroup.faces             = faces.size() - currentGroup.startFace;
+            UnifiedMaterialGroup& currentGroup = out_model.material_groups[out_model.material_groups.size() - 1];
+            currentGroup.numFaces              = faces.size() - currentGroup.startFace;
         }
-        ObjTriangleGroup newGroup;
+        UnifiedMaterialGroup newGroup;
         newGroup.startFace = faces.size();
-        newGroup.material  = materialLoader.getMaterial(std::string(lineParser.next()));
-        triangleGroups.push_back(newGroup);
+
+        //         newGroup.material  = materialLoader.getMaterial(std::string(lineParser.next()));
+        //        newGroup.materialId = materialLoader.getMaterialId(std::string(lineParser.next()));
+
+        std::string mtl_name = std::string(lineParser.next());
+        int mtl_id           = -1;
+        for (int i = 0; i < out_model.materials.size(); ++i)
+        {
+            if (out_model.materials[i].name == mtl_name)
+            {
+                mtl_id = i;
+                break;
+            }
+        }
+        newGroup.materialId = mtl_id;
+
+        out_model.material_groups.push_back(newGroup);
     }
     else if (header == "mtllib")
     {
         FileChecker fc;
-        materialLoader.loadFile(fc.getRelative(file, std::string(lineParser.next())));
+
+        std::string mtl_file = fc.getRelative(file, std::string(lineParser.next()));
+
+        out_model.materials = LoadMTL(mtl_file);
     }
     else if (header == "g")
     {
-        //        std::cout<<"Found Group: "<<line<<endl;
     }
     else if (header == "o")
     {
-        //        std::cout<<"Found Object: "<<line<<endl;
     }
     else if (header == "s")
     {
-        // smooth shading
     }
     else if (header == "v")
     {
-        //        parseV(rest);
         vec3 v;
         v(0) = to_double(lineParser.next());
         v(1) = to_double(lineParser.next());
         v(2) = to_double(lineParser.next());
         vertices.push_back(v);
-        //        to_double()
     }
     else if (header == "vt")
     {
-        //        parseVT(rest);
         vec2 v;
         v(0) = to_double(lineParser.next());
         v(1) = to_double(lineParser.next());
@@ -553,7 +532,6 @@ void ObjModelLoader::parseLine()
     }
     else if (header == "vn")
     {
-        //        parseVN(rest);
         vec3 v;
         v(0) = to_double(lineParser.next());
         v(1) = to_double(lineParser.next());

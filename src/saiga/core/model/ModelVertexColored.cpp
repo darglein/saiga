@@ -110,41 +110,41 @@ void VertexColoredModel::createCheckerBoard(ivec2 size, float quadSize, const ve
     }
 }
 
-void VertexColoredModel::loadObj(const std::string& file)
-{
-    Saiga::ObjModelLoader loader(file);
-    loader.computeVertexColorAndData();
-    loader.toTriangleMesh(*this);
-}
+// void VertexColoredModel::loadObj(const std::string& file)
+//{
+//    Saiga::ObjModelLoader loader(file);
+//    loader.computeVertexColorAndData();
+//    loader.toTriangleMesh(*this);
+//}
 
-void VertexColoredModel::loadPly(const std::string& file)
-{
-    Saiga::PLYLoader loader(file);
-    this->TriangleMesh<VertexNC, uint32_t>::operator=(loader.mesh);
-}
+// void VertexColoredModel::loadPly(const std::string& file)
+//{
+//    Saiga::PLYLoader loader(file);
+//    this->TriangleMesh<VertexNC, uint32_t>::operator=(loader.mesh);
+//}
 
-void TexturedModel::loadObj(const std::string& file)
-{
-    Saiga::ObjModelLoader loader(file);
-    loader.computeVertexColorAndData();
-    loader.toTriangleMesh(*this);
+// void TexturedModel::loadObj(const std::string& file)
+//{
+//    Saiga::ObjModelLoader loader(file);
+//    loader.computeVertexColorAndData();
+//    loader.toTriangleMesh(*this);
 
-    for (ObjTriangleGroup& otg : loader.triangleGroups)
-    {
-        if (otg.faces == 0) continue;
+//    for (ObjTriangleGroup& otg : loader.triangleGroups)
+//    {
+//        if (otg.faces == 0) continue;
 
-        TextureGroup tg;
-        tg.indices    = otg.faces * 3;
-        tg.startIndex = otg.startFace * 3;
+//        TextureGroup tg;
+//        tg.indices    = otg.faces * 3;
+//        tg.startIndex = otg.startFace * 3;
 
 
-        Material m;
-        m.diffuse   = otg.material.texture_diffuse;
-        tg.material = m;
+//        Material m;
+//        m.diffuse   = otg.material.texture_diffuse;
+//        tg.material = m;
 
-        groups.push_back(tg);
-    }
-}
+//        groups.push_back(tg);
+//    }
+//}
 
 
 }  // namespace Saiga

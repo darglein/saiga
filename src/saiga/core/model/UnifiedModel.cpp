@@ -33,6 +33,8 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
         std::cout << "load obj" << std::endl;
         ObjModelLoader loader(full_file);
 
+        *this = loader.out_model;
+
         for (auto& v : loader.outVertices)
         {
             position.push_back(v.position.head<3>());
@@ -40,27 +42,31 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
             texture_coordinates.push_back(v.texture);
         }
 
-        for (auto& c : loader.vertexColors)
-        {
-            color.push_back(c);
-        }
+        //        for (auto& c : loader.vertexColors)
+        //        {
+        //            color.push_back(c);
+        //        }
 
-        for (auto& f : loader.outTriangles)
-        {
-            triangles.push_back(f);
-        }
+        //        triangles = loader.out_model.triangles;
+        //        for (auto& f : loader.outTriangles)
+        //        {
+        //            triangles.push_back(f);
+        //        }
 
-        for (int i = 0; i < loader.triangleGroups.size(); ++i)
-        {
-            auto& tg = loader.triangleGroups[i];
-            materials.push_back(tg.material);
+        //        materials       = loader.out_model.materials;
+        //        material_groups = loader.out_model.material_groups;
 
-            UnifiedMaterialGroup umg;
-            umg.startFace  = tg.startFace;
-            umg.numFaces   = tg.faces;
-            umg.materialId = i;
-            material_groups.push_back(umg);
-        }
+        //        for (int i = 0; i < loader.triangleGroups.size(); ++i)
+        //        {
+        //            auto& tg = loader.triangleGroups[i];
+        //            //            materials.push_back(tg.material);
+
+        //            UnifiedMaterialGroup umg;
+        //            umg.startFace  = tg.startFace;
+        //            umg.numFaces   = tg.numFaces;
+        //            umg.materialId = i;
+        //            material_groups.push_back(umg);
+        //        }
     }
     else
     {

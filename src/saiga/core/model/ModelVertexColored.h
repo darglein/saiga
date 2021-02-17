@@ -22,8 +22,8 @@ class SAIGA_CORE_API VertexColoredModel : public TriangleMesh<VertexNC, uint32_t
     void createCoordinateSystem(float scale, bool full = true);
 
     void createCheckerBoard(ivec2 size, float quadSize, const vec4& color1, const vec4& color2);
-    void loadObj(const std::string& file);
-    void loadPly(const std::string& file);
+    //    void loadObj(const std::string& file);
+    //    void loadPly(const std::string& file);
 };
 
 
@@ -46,7 +46,7 @@ class SAIGA_CORE_API TexturedModel : public TriangleMesh<VertexNTD, uint32_t>
     std::vector<TextureGroup> groups;
 
 
-    void loadObj(const std::string& file);
+    //    void loadObj(const std::string& file);
 };
 
 

@@ -53,13 +53,15 @@ VulkanExample::VulkanExample()
     textureDes = textureDisplay.createAndUpdateDescriptorSet(*texture);
 
 
-    box.loadObj("box.obj");
+    SAIGA_EXIT_ERROR("not implemented");
+    //    box.loadObj("box.obj");
 
     //    box.loadObj("cat.obj");
     box.init(renderer->base());
     box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
 
-    teapot.loadObj("teapot.obj");
+    SAIGA_EXIT_ERROR("not implemented");
+    //    teapot.loadObj("teapot.obj");
     teapot.computePerVertexNormal();
     teapot.init(renderer->base());
     teapotTrans.setScale(vec3(2, 2, 2));
