@@ -268,20 +268,23 @@ void TriangleMesh<vertex_t, index_t>::subdivideFace(int f)
 {
     Face face = faces[f];
 
-#define _TM_POS(xs) (vertices[face.xs].position)
     // create 3 new vertices in the middle of the edges
 
-    int v1 = addVertex(vertex_t(vec4((_TM_POS(v1) + _TM_POS(v2)) / 2.0f)));
-    int v2 = addVertex(vertex_t(vec4((_TM_POS(v1) + _TM_POS(v3)) / 2.0f)));
-    int v3 = addVertex(vertex_t(vec4((_TM_POS(v2) + _TM_POS(v3)) / 2.0f)));
+    auto p1 = vertices[face(0)].position;
+    auto p2 = vertices[face(1)].position;
+    auto p3 = vertices[face(2)].position;
+
+    int v1 = addVertex(vertex_t(vec4((p1 + p2) / 2.0f)));
+    int v2 = addVertex(vertex_t(vec4((p1 + p3) / 2.0f)));
+    int v3 = addVertex(vertex_t(vec4((p2 + p3) / 2.0f)));
 
 
-    faces.push_back(Face(face.v2, v3, v1));
+    faces.push_back(Face(face(1), v3, v1));
 
-    faces.push_back(Face(face.v3, v2, v3));
+    faces.push_back(Face(face(2), v2, v3));
 
     faces.push_back(Face(v1, v3, v2));
-    faces[f] = Face(face.v1, v1, v2);
+    faces[f] = Face(face(0), v1, v2);
 }
 
 
