@@ -291,9 +291,9 @@ void TriangleMesh<vertex_t, index_t>::invertFace(int f)
 {
     Face& face = faces[f];
     Face face2;
-    face2.v1 = face.v3;
-    face2.v2 = face.v2;
-    face2.v3 = face.v1;
+    face2(0) = face(2);
+    face2(1) = face(1);
+    face2(2) = face(0);
     face     = face2;
 }
 
@@ -303,9 +303,9 @@ void TriangleMesh<vertex_t, index_t>::invertMesh()
     for (Face& face : faces)
     {
         Face face2;
-        face2.v1 = face.v3;
-        face2.v2 = face.v2;
-        face2.v3 = face.v1;
+        face2(0) = face(2);
+        face2(1) = face(1);
+        face2(2) = face(0);
         face     = face2;
     }
 
@@ -450,9 +450,9 @@ bool TriangleMesh<vertex_t, index_t>::isValid() const
     // check if all referenced vertices exist
     for (Face f : faces)
     {
-        if (f.v1 < 0 || f.v1 >= vertices.size()) return false;
-        if (f.v2 < 0 || f.v2 >= vertices.size()) return false;
-        if (f.v3 < 0 || f.v3 >= vertices.size()) return false;
+        if (f(0) < 0 || f(0) >= vertices.size()) return false;
+        if (f(1) < 0 || f(1) >= vertices.size()) return false;
+        if (f(2) < 0 || f(2) >= vertices.size()) return false;
     }
     return true;
 }
