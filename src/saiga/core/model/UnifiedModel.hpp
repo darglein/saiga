@@ -19,18 +19,18 @@ std::vector<VertexType> UnifiedModel::VertexList() const
 }
 
 template <>
-std::vector<Vertex> UnifiedModel::VertexList() const;
+SAIGA_CORE_API std::vector<Vertex> UnifiedModel::VertexList() const;
 
 template <>
-std::vector<VertexNC> UnifiedModel::VertexList() const;
-
-
-template <>
-std::vector<VertexNT> UnifiedModel::VertexList() const;
+SAIGA_CORE_API std::vector<VertexNC> UnifiedModel::VertexList() const;
 
 
 template <>
-std::vector<VertexNTD> UnifiedModel::VertexList() const;
+SAIGA_CORE_API std::vector<VertexNT> UnifiedModel::VertexList() const;
+
+
+template <>
+SAIGA_CORE_API std::vector<VertexNTD> UnifiedModel::VertexList() const;
 
 
 template <typename IndexType>
