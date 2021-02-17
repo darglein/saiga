@@ -7,8 +7,9 @@
 #include "saiga/config.h"
 #ifdef SAIGA_USE_SDL
 
-#    include "SampleWindowDeferred.h"
+#    include "saiga/core/geometry/triangle_mesh_generator.h"
 
+#    include "SampleWindowDeferred.h"
 namespace Saiga
 {
 SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
@@ -24,8 +25,12 @@ SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
 
 
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-    ObjAssetLoader assetLoader;
-    groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
+    //    ObjAssetLoader assetLoader;
+    //    groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick,
+    //    Colors::gray);
+
+    groundPlane.asset =
+        std::make_shared<ColoredAsset>(CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray));
 
     // create one directional light
     sun = std::make_shared<DirectionalLight>();

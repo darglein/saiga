@@ -10,7 +10,6 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/sdl/all.h"
 #include "saiga/opengl/assets/all.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
@@ -36,15 +35,15 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::SDL, Deferre
         setupCameras();
 
 
-        // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-        ObjAssetLoader assetLoader;
-
-        teapot.asset = assetLoader.loadColoredAsset("models/teapot.obj");
-        //    teapot.asset = assetLoader.loadTexturedAsset("cat.obj");
+        teapot.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/teapot.obj"));
         teapot.translateGlobal(vec3(0, 1, 0));
         teapot.calculateModel();
 
-        groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
+        // groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick,
+        // Colors::gray);
+
+        groundPlane.asset = std::make_shared<ColoredAsset>(
+            CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray));
 
         // create one directional light
         sun = std::make_shared<DirectionalLight>();

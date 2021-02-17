@@ -31,6 +31,8 @@ class SAIGA_CORE_API AABB
     // returns the axis with the maximum extend
     int maxDimension() const;
 
+    float maxSize() const;
+
     void makeNegative();
 
     void transform(const mat4& trafo);

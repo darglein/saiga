@@ -18,8 +18,6 @@ class Sample : public SampleWindowDeferred
 
     Sample()
     {
-        ObjAssetLoader assetLoader;
-
         Random::setSeed(23461);
 
         float aspect = window->getAspectRatio();

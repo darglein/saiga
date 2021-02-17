@@ -10,7 +10,6 @@
 #include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/core/util/statistics.h"
 #include "saiga/opengl/assets/all.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"

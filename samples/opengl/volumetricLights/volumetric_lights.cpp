@@ -20,10 +20,7 @@ class Sample : public SampleWindowDeferred
    public:
     Sample()
     {
-        ObjAssetLoader assetLoader;
-
-
-        auto cubeAsset = assetLoader.loadTexturedAsset("box.obj");
+        auto cubeAsset = std::make_shared<TexturedAsset>(UnifiedModel("box.obj"));
 
         cube1.asset = cubeAsset;
         cube2.asset = cubeAsset;
@@ -33,7 +30,7 @@ class Sample : public SampleWindowDeferred
         cube2.translateGlobal(vec3(-11, 1, 2));
         cube2.calculateModel();
 
-        auto sphereAsset = assetLoader.loadColoredAsset("teapot.obj");
+        auto sphereAsset = std::make_shared<ColoredAsset>(UnifiedModel("teapot.obj"));
         sphere.asset     = sphereAsset;
         sphere.translateGlobal(vec3(0, 1, 8));
         sphere.rotateLocal(vec3(0, 1, 0), 180);

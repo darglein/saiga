@@ -18,15 +18,50 @@ class Sample : public SampleWindowDeferred
     using Base = SampleWindowDeferred;
     Sample()
     {
+        float aspect = window->getAspectRatio();
+        camera.setProj(60.0f, aspect, 0.1f, 5.0f);
+        camera.setView(vec3(0, 1, 2), vec3(0, 0, 0), vec3(0, 1, 0));
+        camera.movementSpeed     = 0.3;
+        camera.movementSpeedFast = 3;
+
+        sun->disableShadows();
+
+
         normalShader  = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset_normal.glsl");
         textureShader = shaderLoader.load<MVPTextureShader>("asset/texturedAsset.glsl");
-        ObjAssetLoader assetLoader;
 
 
-        auto asset   = assetLoader.loadTexturedAsset("box.obj");
-        object.asset = asset;
+        //        auto asset   = assetLoader.loadTexturedAsset("box.obj");
+        //        ObjAssetLoader assetLoader;
+        //        auto asset   = assetLoader.loadTexturedAsset("user/sponza/sponza.obj");
+        //        object.asset = asset;
+
+
+        Load("user/sponza/sponza.obj");
+        //        Load("user/lost-empire/lost_empire.obj");
+        //        Load("user/living_room/living_room.obj");
+        //        Load("user/fireplace_room/fireplace_room.obj");
+        //        Load("box.obj");
+
+
 
         std::cout << "Program Initialized!" << std::endl;
+    }
+
+    void Load(const std::string& file)
+    {
+        UnifiedModel model(file);
+
+
+        std::cout << model.BoundingBox() << std::endl;
+        model.Normalize();
+        std::cout << model.BoundingBox() << std::endl;
+
+        std::cout << model << std::endl;
+
+
+        object.asset = std::make_shared<TexturedAsset>(model);
+        //        object.asset = std::make_shared<ColoredAsset>(model);
     }
 
     void update(float dt) override
@@ -45,22 +80,26 @@ class Sample : public SampleWindowDeferred
         {
             object.renderDepth(cam);
         }
+        else if (render_pass == RenderPass::Deferred)
+        {
+            object.render(cam, render_pass);
+        }
         else if (render_pass == RenderPass::Forward)
         {
-            TexturedAsset* ta = dynamic_cast<TexturedAsset*>(object.asset.get());
-            SAIGA_ASSERT(ta);
+            //            TexturedAsset* ta = dynamic_cast<TexturedAsset*>(object.asset.get());
+            //            SAIGA_ASSERT(ta);
 
             if (renderObject)
             {
                 if (renderGeometry)
                 {
-                    ta->deferredShader = normalShader;
+                    //                    ta->deferredShader = normalShader;
                 }
                 else
                 {
-                    ta->deferredShader = textureShader;
+                    //                    ta->deferredShader = textureShader;
                 }
-                object.render(cam);
+                //                object.render(cam);
             }
 
             if (renderWireframe)
@@ -92,15 +131,17 @@ class Sample : public SampleWindowDeferred
 
             if (ImGui::Button("Load OBJ with Texture"))
             {
-                ObjAssetLoader assetLoader;
-                auto asset = assetLoader.loadTexturedAsset(std::string(file.data()));
+                //                ObjAssetLoader assetLoader;
+                //                auto asset = assetLoader.loadTexturedAsset(std::string(file.data()));
+                auto asset = std::make_shared<TexturedAsset>(UnifiedModel(std::string(file.data())));
                 if (asset) object.asset = asset;
             }
 
             if (ImGui::Button("Load OBJ with Vertex Color"))
             {
-                ObjAssetLoader assetLoader;
-                auto asset = assetLoader.loadColoredAsset(std::string(file.data()));
+                //                ObjAssetLoader assetLoader;
+                //                auto asset = assetLoader.loadColoredAsset(std::string(file.data()));
+                auto asset = std::make_shared<ColoredAsset>(UnifiedModel(std::string(file.data())));
                 if (asset) object.asset = asset;
             }
 

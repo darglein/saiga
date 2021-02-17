@@ -11,7 +11,6 @@
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/model/objModelLoader.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/vision/util/DepthmapPreprocessor.h"
 
@@ -277,8 +276,9 @@ void Sample::render(Camera* camera, RenderPass render_pass)
                 depthmesh.normalizeScale();
                 depthmesh.normalizePosition();
                 // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-                ObjAssetLoader assetLoader;
-                meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+                //                ObjAssetLoader assetLoader;
+                //                meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+                meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
                 meshObject.calculateModel();
             }
 

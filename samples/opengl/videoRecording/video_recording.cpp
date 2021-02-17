@@ -9,7 +9,6 @@
 #include "saiga/core/math/String.h"
 #include "saiga/opengl/animation/cameraAnimation.h"
 #include "saiga/opengl/assets/all.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/ffmpeg/ffmpegEncoder.h"
 #include "saiga/opengl/ffmpeg/videoEncoder.h"
 #include "saiga/opengl/shader/shaderLoader.h"
@@ -26,10 +25,7 @@ class SampleVideoRecording : public SampleWindowDeferred
 
     SampleVideoRecording() : enc(window.get())
     {
-        ObjAssetLoader assetLoader;
-
-
-        auto cubeAsset = assetLoader.loadTexturedAsset("box.obj");
+        auto cubeAsset = std::make_shared<ColoredAsset>(UnifiedModel("models/teapot.obj"));
 
         cube1.asset = cubeAsset;
         cube2.asset = cubeAsset;
@@ -39,8 +35,7 @@ class SampleVideoRecording : public SampleWindowDeferred
         cube2.translateGlobal(vec3(3, 1, 5));
         cube2.calculateModel();
 
-        auto sphereAsset = assetLoader.loadColoredAsset("teapot.obj");
-        sphere.asset     = sphereAsset;
+        sphere.asset = cubeAsset;
         sphere.translateGlobal(vec3(-2, 1, 0));
         sphere.rotateLocal(vec3(0, 1, 0), 180);
         sphere.calculateModel();

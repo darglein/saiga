@@ -42,7 +42,8 @@ class Sample : public SampleWindowDeferred
 
         sceneBB = AABB(vec3(-s, 0, -s), vec3(s, height, s));
 
-        groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(s, s), 1.0f, Colors::lightgray, Colors::gray);
+        groundPlane.asset = std::make_shared<ColoredAsset>(
+            CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray));
 
         // create one directional light
 

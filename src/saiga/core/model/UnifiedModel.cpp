@@ -106,7 +106,21 @@ UnifiedModel& UnifiedModel::SetVertexColor(const vec4& c)
     return *this;
 }
 
-AABB UnifiedModel::BoundingBox()
+UnifiedModel& UnifiedModel::Normalize()
+{
+    auto box = BoundingBox();
+    float s  = 2.0 / box.maxSize();
+    vec3 p   = box.getPosition();
+
+    mat4 S = scale(vec3(s, s, s));
+    mat4 T = translate(-p);
+
+
+
+    return transform(S * T);
+}
+
+AABB UnifiedModel::BoundingBox() const
 {
     AABB box;
     box.makeNegative();
@@ -265,6 +279,21 @@ std::vector<VertexNTD> UnifiedModel::VertexList() const
     }
 
     return mesh;
+}
+
+
+std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model)
+{
+    std::cout << "[UnifiedModel] " << model.name << "\n";
+    std::cout << "  Vertices " << model.position.size() << " Triangles " << model.triangles.size() << "\n";
+    std::cout << "  Bounding Box " << model.BoundingBox() << "\n";
+    std::cout << "Materials\n";
+    for (auto& m : model.materials)
+    {
+        std::cout << "  " << m.name << ", " << m.color_diffuse.transpose() << ", tex: " << m.texture_diffuse << "\n";
+    }
+
+    return strm;
 }
 
 }  // namespace Saiga

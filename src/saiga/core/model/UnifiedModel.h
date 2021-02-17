@@ -25,6 +25,7 @@ struct UnifiedMaterial
     vec4 color_emissive = vec4(0, 1, 0, 0);
     std::string texture_diffuse;
     std::string texture_normal;
+    std::string texture_bump;
     std::string texture_alpha;
 
     UnifiedMaterial() {}
@@ -48,6 +49,9 @@ class SAIGA_CORE_API UnifiedModel
 
     int NumVertices() const { return position.size(); }
     int NumFaces() const { return triangles.size(); }
+
+
+    std::string name;
 
     // Vertex Data
     std::vector<vec3> position;
@@ -74,7 +78,11 @@ class SAIGA_CORE_API UnifiedModel
     // returns a reference to this
     UnifiedModel& SetVertexColor(const vec4& color);
 
-    AABB BoundingBox();
+
+
+    UnifiedModel& Normalize();
+
+    AABB BoundingBox() const;
 
 
     std::vector<vec4> ComputeVertexColorFromMaterial() const;
@@ -106,6 +114,8 @@ class SAIGA_CORE_API UnifiedModel
 
     template <typename IndexType>
     std::vector<Vector<IndexType, 3>> IndexList() const;
+
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model);
 };
 
 

@@ -34,4 +34,10 @@ SAIGA_CORE_API UnifiedModel BoxMesh(const AABB& box);
 
 SAIGA_CORE_API UnifiedModel SkyboxMesh(const AABB& box);
 
+
+SAIGA_CORE_API UnifiedModel CheckerBoardPlane(const ivec2& size, float quadSize, const vec4& color1,
+                                              const vec4& color2);
+
+
+
 }  // namespace Saiga

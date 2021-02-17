@@ -15,13 +15,14 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 
 namespace Saiga
 {
-static StringViewParser lineParser = {" ,\n", true};
+static StringViewParser lineParser = {"\t ,\n", true};
 static StringViewParser faceParser = {"/", false};
 
 
@@ -51,9 +52,14 @@ struct ObjLine
     }
 };
 
-static std::string getPathImage(const std::string& base, const std::string& str)
+static std::string getPathImage(const std::string& base, std::string str)
 {
     std::string result;
+
+
+
+    std::replace(str.begin(), str.end(), '\\', '/');
+
 
     // first search relative to the parent
     result = SearchPathes::model.getRelative(base, str);
@@ -64,8 +70,17 @@ static std::string getPathImage(const std::string& base, const std::string& str)
     result = SearchPathes::image.getRelative(base, str);
     if (!result.empty()) return result;
 
-    std::cout << str << " " << base << " " << result << std::endl;
-    SAIGA_ASSERT(!result.empty());
+    if (result.empty())
+    {
+        std::cout << "Could not find image " << str << std::endl;
+
+        std::filesystem::path pa(str);
+
+        std::cout << "Could not find image " << pa.make_preferred().c_str() << std::endl;
+        throw std::runtime_error("File not found!");
+    }
+    //    std::cout << str << " " << base << " " << result << std::endl;
+    //    SAIGA_ASSERT(!result.empty());
     return result;
 }
 
@@ -137,7 +152,7 @@ std::vector<UnifiedMaterial> LoadMTL(const std::string& file)
         else if (line.key == "map_bump" || line.key == "bump")
         {
             SAIGA_ASSERT(line.values.size() == 1);
-            currentMaterial->texture_normal = getPathImage(file, line.values.front());
+            currentMaterial->texture_bump = getPathImage(file, line.values.front());
         }
     }
     return materials;

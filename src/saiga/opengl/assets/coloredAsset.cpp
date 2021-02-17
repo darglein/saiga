@@ -70,6 +70,12 @@ TexturedAsset::TexturedAsset(const UnifiedModel& model) : groups(model.material_
 
     for (auto& material : model.materials)
     {
+        if (material.texture_diffuse.empty())
+        {
+            textures.push_back(nullptr);
+            continue;
+        }
+
         auto texture = TextureLoader::instance()->load(material.texture_diffuse);
         if (texture)
         {
@@ -117,7 +123,11 @@ void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camer
     buffer.bind();
     for (auto& tg : groups)
     {
-        shader->uploadTexture(textures[tg.materialId].get());
+        auto& tex = textures[tg.materialId];
+        if (tex)
+        {
+            shader->uploadTexture(tex.get());
+        }
         buffer.draw(tg.numFaces * 3, tg.startFace * 3);
     }
     buffer.unbind();

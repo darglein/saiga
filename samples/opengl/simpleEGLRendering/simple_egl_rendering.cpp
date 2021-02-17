@@ -75,8 +75,8 @@ class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
         sphere.translateGlobal(vec3(-2, 1, 0));
         sphere.calculateModel();
 
-        groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
-
+        groundPlane.asset = std::make_shared<ColoredAsset>(
+            CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray));
 
 
         std::cout << "Program Initialized!" << std::endl;

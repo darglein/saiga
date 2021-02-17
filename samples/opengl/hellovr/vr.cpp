@@ -11,7 +11,6 @@
 #include "saiga/core/sdl/sdl_camera.h"
 #include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/opengl/assets/all.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/rendering/VRRendering/VRRenderer.h"
 #include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/opengl/rendering/renderer.h"
@@ -68,8 +67,8 @@ class VRSample : public StandaloneWindow<WindowManagement::SDL, VRRenderer>, pub
         sphere.rotateLocal(vec3(0, 1, 0), 180);
         sphere.calculateModel();
 
-        AssetLoader assetLoader;
-        groundPlane.asset = assetLoader.loadDebugPlaneAsset(vec2(20, 20), 1.0f, Colors::lightgray, Colors::gray);
+        groundPlane.asset = std::make_shared<ColoredAsset>(
+            CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray));
 
 
         std::cout << "Program Initialized!" << std::endl;

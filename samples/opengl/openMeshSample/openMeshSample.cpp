@@ -14,7 +14,6 @@
 #include "saiga/core/geometry/openMeshWrapper.h"
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 #include "OpenMesh/Tools/Decimater/DecimaterT.hh"
@@ -34,21 +33,15 @@ using namespace OpenMesh;
 
 Sample::Sample()
 {
-    // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-    ObjAssetLoader assetLoader;
-
-
-    //    assetLoader.loadMeshNC("box.obj", baseMesh);
     baseMesh    = UnifiedModel("box.obj").Mesh<VertexNC, GLuint>();
     reducedMesh = baseMesh;
 
-    //    auto bunnyAsset = assetLoader.loadBasicAsset("objs/bunny.obj");
-    auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
+    auto bunnyAsset = std::make_shared<ColoredAsset>(baseMesh);
     cube1.asset     = bunnyAsset;
     cube1.translateGlobal(vec3(0, 1, 0));
     cube1.calculateModel();
 
-    auto bunnyAsset2 = assetLoader.assetFromMesh(reducedMesh);
+    auto bunnyAsset2 = std::make_shared<ColoredAsset>(reducedMesh);
     cube2.asset      = bunnyAsset2;
     cube2.translateGlobal(vec3(-0, 1, 0));
     cube2.calculateModel();
@@ -289,17 +282,8 @@ void Sample::render(Camera* camera, RenderPass render_pass)
 
             if (ImGui::Button("Load .obj"))
             {
-                ObjAssetLoader assetLoader;
-                //                assetLoader.loadMeshNC(fileObj, baseMesh);
-
-                baseMesh = UnifiedModel(fileObj).Mesh<VertexNC, GLuint>();
-
-
+                baseMesh    = UnifiedModel(fileObj).Mesh<VertexNC, GLuint>();
                 cube1.asset = std::make_shared<ColoredAsset>(baseMesh);
-                //                auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
-
-
-                //                cube1.asset     = bunnyAsset;
             }
 
             if (ImGui::CollapsingHeader("Decimation"))

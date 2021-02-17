@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include "saiga/opengl/assets/objAssetLoader.h"
-
 #include <saiga/opengl/assets/animatedAsset.h>
 #include <saiga/opengl/assets/animatedAssetObject.h>
 #include <saiga/opengl/assets/asset.h>
