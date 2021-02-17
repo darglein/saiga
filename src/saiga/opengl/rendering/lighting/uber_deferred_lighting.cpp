@@ -238,7 +238,7 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
 void UberDeferredLighting::renderImGui(bool* p_open)
 {
     RendererLighting::renderImGui(p_open);
-    ImGui::Begin("UberDefferedLighting", p_open);
+    ImGui::Begin("UberDeferredLighting", p_open);
     bool changed          = ImGui::Checkbox("lightClustererEnabled", &lightClustererEnabled);
     if (changed)
     {

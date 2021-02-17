@@ -184,6 +184,8 @@ class SAIGA_OPENGL_API Clusterer
    private:
     int width, height;
 
+    int m_mode = 0;
+
     int screenSpaceTileSize = 128;
     int depthSplits         = 1;
     mat4 cached_projection;
@@ -198,7 +200,12 @@ class SAIGA_OPENGL_API Clusterer
 
     bool clustersDirty = true;
 
-    void build_clusters(Camera* cam);
+
+    void clusterLightsSixPlanes(Camera* cam, const ViewPort& viewPort);
+    void clusterLightsPlaneArrays(Camera* cam, const ViewPort& viewPort);
+
+    void buildClustersSixPlanes(Camera* cam);
+    void buildClustersPlaneArrays(Camera* cam);
 
     vec4 viewPosFromScreenPos(vec4 screen, const mat4& inverseProjection)
     {
@@ -259,12 +266,24 @@ class SAIGA_OPENGL_API Clusterer
          */
     } clusterBuffer;
 
+    //
+    // Structures for 6 plane cluster boundaries.
+    //
+
     struct cluster_bounds
     {
         std::array<Plane, 6> planes;
     };
 
     std::vector<cluster_bounds> culling_cluster;
+
+    //
+    // Structures for plane arrays.
+    //
+
+    std::vector<Plane> planes_x;
+    std::vector<Plane> planes_y;
+    std::vector<Plane> planes_z;
 
     struct itemBuffer_t
     {
