@@ -49,6 +49,7 @@ before_install:
 install:
    - if [ $TRAVIS_OS_NAME = osx ]; then $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; fi
    - if [ $TRAVIS_OS_NAME = windows ]; then $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh; fi
+   - if [ $TRAVIS_OS_NAME = linux ]; then $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; fi
 
 before_script:
   - mkdir ~/saiga_build
@@ -57,7 +58,7 @@ before_script:
 script:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" || "$TRAVIS_OS_NAME" == "osx" ]]; then
-      /snap/bin/cmake $TRAVIS_BUILD_DIR 
+      /snap/bin/cmake  -DCMAKE_PREFIX_PATH="/home/travis/install" $TRAVIS_BUILD_DIR 
       make -j2
       sudo make install
       ctest --output-on-failure -j 4

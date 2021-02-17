@@ -33,9 +33,9 @@ UnifiedModel UVSphereMesh(const Sphere& sphere, int rings, int sectors)
     {
         for (int s = 0; s < sectors; s++)
         {
-            float y = sphere.r * sin(-M_PI_2 + M_PI * r * R);
-            float x = sphere.r * cos(2 * M_PI * s * S) * sin(M_PI * r * R);
-            float z = sphere.r * sin(2 * M_PI * s * S) * sin(M_PI * r * R);
+            float y = sphere.r * sin(-two_pi<float>() + pi<float>() * r * R);
+            float x = sphere.r * cos(2 * pi<float>() * s * S) * sin(pi<float>() * r * R);
+            float z = sphere.r * sin(2 * pi<float>() * s * S) * sin(pi<float>() * r * R);
 
             model.position.push_back(vec3(x, y, z));
             model.normal.push_back(vec3(x, y, z).normalized());
@@ -139,18 +139,18 @@ UnifiedModel CylinderMesh(float radius, float height, int sectors)
 
     for (int s = 0; s < sectors; s++)
     {
-        float x = radius * cos(2 * M_PI * s * S);
+        float x = radius * cos(2 * pi<float>() * s * S);
         float y = -height / 2;
-        float z = radius * sin(2 * M_PI * s * S);
+        float z = radius * sin(2 * pi<float>() * s * S);
 
         model.position.push_back(vec3(x, y, z));
     }
 
     for (int s = 0; s < sectors; s++)
     {
-        float x = radius * cos(2 * M_PI * s * S);
+        float x = radius * cos(2 * pi<float>() * s * S);
         float y = height / 2;
-        float z = radius * sin(2 * M_PI * s * S);
+        float z = radius * sin(2 * pi<float>() * s * S);
 
         model.position.push_back(vec3(x, y, z));
     }
@@ -205,8 +205,8 @@ UnifiedModel ConeMesh(const Cone& cone, int sectors)
 
     for (int s = 0; s < sectors; s++)
     {
-        float x = r * sin((float)s * R * M_PI * 2.0f);
-        float y = r * cos((float)s * R * M_PI * 2.0f);
+        float x = r * sin((float)s * R * pi<float>() * 2.0f);
+        float y = r * cos((float)s * R * pi<float>() * 2.0f);
         model.position.push_back(vec3(x, -cone.height, y));
     }
 
