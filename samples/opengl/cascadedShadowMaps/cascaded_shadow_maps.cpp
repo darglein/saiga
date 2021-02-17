@@ -20,9 +20,6 @@ class Sample : public SampleWindowDeferred
 
     Sample()
     {
-        // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-        AssetLoader assetLoader;
-
         float height = 20;
 
 

@@ -137,8 +137,8 @@ void Sample::triangulate_naive()
     copyVertexColor(m, depthmesh);
     depthmesh.computePerVertexNormal();
 
-    AssetLoader assetLoader;
-    meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+
+    meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
 }
 
 void Sample::triangulate_RQT()
@@ -151,8 +151,7 @@ void Sample::triangulate_RQT()
     copyVertexColor(m, depthmesh);
     depthmesh.computePerVertexNormal();
 
-    AssetLoader assetLoader;
-    meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+    meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
 }
 
 void Sample::reduce_quadric()
@@ -169,8 +168,7 @@ void Sample::reduce_quadric()
     copyVertexColor(mesh, depthmesh);
     depthmesh.computePerVertexNormal();
 
-    AssetLoader assetLoader;
-    meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+    meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
 }
 
 void Sample::update(float dt)

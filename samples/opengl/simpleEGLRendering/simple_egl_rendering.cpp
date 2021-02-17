@@ -35,13 +35,6 @@ class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
         // Set the camera from which view the scene is rendered
         window->setCamera(&camera);
 
-
-
-        // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-        AssetLoader assetLoader;
-
-
-
         auto cubeAsset = std::make_shared<ColoredAsset>(
             BoxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
 

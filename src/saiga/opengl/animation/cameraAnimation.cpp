@@ -212,8 +212,8 @@ void Interpolation::createAsset()
 
 #    endif
 
-    AssetLoader al;
-    cameraPathAsset = al.nonTriangleMesh(vertices, indices, GL_LINES, vec4(1, 0, 0, 1));
+    //    AssetLoader al;
+    //    cameraPathAsset = al.nonTriangleMesh(vertices, indices, GL_LINES, vec4(1, 0, 0, 1));
 }
 
 

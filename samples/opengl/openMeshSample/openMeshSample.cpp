@@ -183,8 +183,7 @@ void Sample::reduce()
 
         reducedMesh.computePerVertexNormal();
 
-        AssetLoader assetLoader;
-        auto bunnyAsset2 = assetLoader.assetFromMesh(reducedMesh);
+        auto bunnyAsset2 = std::make_shared<ColoredAsset>(reducedMesh);
         cube2.asset      = bunnyAsset2;
     }
 }
@@ -272,8 +271,7 @@ void Sample::render(Camera* camera, RenderPass render_pass)
 
                 baseMesh.computePerVertexNormal();
 
-                AssetLoader assetLoader;
-                auto bunnyAsset = assetLoader.assetFromMesh(baseMesh);
+                auto bunnyAsset = std::make_shared<ColoredAsset>(baseMesh);
                 cube1.asset     = bunnyAsset;
             }
 
