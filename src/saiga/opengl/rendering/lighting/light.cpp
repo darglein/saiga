@@ -34,8 +34,8 @@ void LightBase::renderImGui()
     ImGui::Checkbox("active", &active);
     ImGui::Checkbox("castShadows", &castShadows);
     ImGui::Checkbox("volumetric", &volumetric);
-    ImGui::InputFloat("intensity", &colorDiffuse[3], 0.1, 1);
-    ImGui::InputFloat("specular intensity", &colorSpecular[3], 0.1, 1);
+    ImGui::InputFloat("intensity", &intensity, 0.1, 1);
+    ImGui::InputFloat("specular intensity", &intensity_specular, 0.1, 1);
     ImGui::SliderFloat("volumetricDensity", &volumetricDensity, 0.0f, 0.5f);
     // todo: check srgb
     ImGui::ColorEdit3("colorDiffuse", &colorDiffuse[0]);
