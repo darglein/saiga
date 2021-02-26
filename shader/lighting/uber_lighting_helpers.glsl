@@ -62,6 +62,8 @@ layout (std140, binding = 6) uniform lightInfoBlock
     int pointLightCount;
     int spotLightCount;
     int directionalLightCount;
+
+    int clusterEnabled;
 };
 
 struct cluster
@@ -73,7 +75,6 @@ struct cluster
 
 layout (std430, binding = 7) buffer clusterInfoBuffer
 {
-    int clusterEnabled;
     int clusterX;
     int clusterY;
     int screenSpaceTileSize;
@@ -96,8 +97,7 @@ layout (std430, binding = 8) buffer clusterBuffer
 
 struct clusterItem
 {
-    int plIdx;
-    int slIdx;
+    int lightIdx;
 };
 
 layout (std430, binding = 9) buffer itemBuffer
@@ -157,18 +157,14 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
     int lightCount           = clusterList[clusterIndex].plCount;
     int baseLightIndexOffset = clusterList[clusterIndex].offset;
 
-    if(baseLightIndexOffset + lightCount -1 > itemListCount - 1)
+    if(baseLightIndexOffset + lightCount - 1 > itemListCount - 1)
     {
         return vec3(1, 1, 0);
-    }
-    if(baseLightIndexOffset < 0 || lightCount < 0)
-    {
-        return vec3(1, 0, 0);
     }
 
     for(int i = 0; i < lightCount; i++)
     {
-        int lightVectorIndex = itemList[baseLightIndexOffset + i].plIdx;
+        int lightVectorIndex = itemList[baseLightIndexOffset + i].lightIdx;
         if(lightVectorIndex >= pointLightCount)
             return vec3(0, 0, 0);
         PointLightData pl = pointLights[lightVectorIndex];

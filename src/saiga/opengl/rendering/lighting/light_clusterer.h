@@ -22,14 +22,13 @@ namespace Saiga
 {
 struct clusterItem
 {
-    int plIdx = -1;
-    int slIdx = -1;
+    int lightIdx = -1;
 };
 struct cluster
 {
-    int offset  = 0;
-    int plCount = 0;
-    int slCount = 0;
+    int offset  = -1;
+    int plCount = -1;
+    int slCount = -1;
 };
 
 struct PointLightClusterData
@@ -90,6 +89,7 @@ struct SAIGA_OPENGL_API ClustererParameters
 
 class SAIGA_OPENGL_API Clusterer
 {
+
    public:
     Clusterer(ClustererParameters _params = ClustererParameters());
     Clusterer& operator=(Clusterer& c) = delete;
@@ -120,24 +120,8 @@ class SAIGA_OPENGL_API Clusterer
         spotLightsClusterData.emplace_back(position, radius);
     }
 
-    inline void enable()
-    {
-        clusterInfoBuffer.enabled = true;
-        clustersDirty             = true;
-        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
-    }
-
-    inline void disable()
-    {
-        clusterInfoBuffer.enabled = false;
-        clustersDirty             = true;
-        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
-    }
-
-    // Binds Cluster and Item ShaderStoragBuffers at the end.
-    void clusterLights(Camera* cam, const ViewPort& viewPort);
-
-    void setDebugShader(std::shared_ptr<Shader> shader){};
+    // Binds Cluster and Item ShaderStorageBuffers at the end.
+    virtual void clusterLights(Camera* cam, const ViewPort& viewPort) = 0;
 
     void printTimings()
     {
@@ -153,7 +137,7 @@ class SAIGA_OPENGL_API Clusterer
 
     void renderImGui(bool* p_open = NULL);
 
-    void renderDebug(Camera* cam)
+    virtual void renderDebug(Camera* cam)
     {
         if (!renderDebugEnabled) return;
         debugCluster.render(cam);
@@ -181,10 +165,8 @@ class SAIGA_OPENGL_API Clusterer
         return gpuTimers[timer].getTimeMS();
     }
 
-   private:
+   protected:
     int width, height;
-
-    int m_mode = 0;
 
     int screenSpaceTileSize = 128;
     int depthSplits         = 1;
@@ -199,13 +181,6 @@ class SAIGA_OPENGL_API Clusterer
     bool tileDebugView = false;
 
     bool clustersDirty = true;
-
-
-    void clusterLightsSixPlanes(Camera* cam, const ViewPort& viewPort);
-    void clusterLightsPlaneArrays(Camera* cam, const ViewPort& viewPort);
-
-    void buildClustersSixPlanes(Camera* cam);
-    void buildClustersPlaneArrays(Camera* cam);
 
     vec4 viewPosFromScreenPos(vec4 screen, const mat4& inverseProjection)
     {
@@ -238,7 +213,6 @@ class SAIGA_OPENGL_API Clusterer
 
     struct infoBuf_t
     {
-        int enabled;
         int clusterX;
         int clusterY;
         int screenSpaceTileSize;
@@ -266,25 +240,6 @@ class SAIGA_OPENGL_API Clusterer
          */
     } clusterBuffer;
 
-    //
-    // Structures for 6 plane cluster boundaries.
-    //
-
-    struct cluster_bounds
-    {
-        std::array<Plane, 6> planes;
-    };
-
-    std::vector<cluster_bounds> culling_cluster;
-
-    //
-    // Structures for plane arrays.
-    //
-
-    std::vector<Plane> planes_x;
-    std::vector<Plane> planes_y;
-    std::vector<Plane> planes_z;
-
     struct itemBuffer_t
     {
         std::vector<clusterItem> itemList;
@@ -304,5 +259,9 @@ class SAIGA_OPENGL_API Clusterer
     std::shared_ptr<BuildClusterComputeShader> buildClusterShader3D;
     std::shared_ptr<LightAssignmentComputeShader> buildLightToClusterMapShader;
 #endif
+    virtual bool fillImGui();
+private:
+    void beginImGui(bool* p_open = NULL);
+    void endImGui();
 };
 }  // namespace Saiga

@@ -12,6 +12,7 @@
 #    include "saiga/core/sdl/all.h"
 #    include "saiga/opengl/assets/all.h"
 #    include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
+#    include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #    include "saiga/opengl/rendering/renderer.h"
 #    include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #    include "saiga/opengl/window/WindowTemplate.h"
@@ -30,11 +31,17 @@ namespace Saiga
  */
 
 #define SINGLE_PASS_DEFERRED_PIPELINE
+#define MULTI_PASS_DEFERRED_PIPELINE
 #define SINGLE_PASS_FORWARD_PIPELINE
 
 #ifdef SINGLE_PASS_DEFERRED_PIPELINE
+#undef MULTI_PASS_DEFERRED_PIPELINE
 #undef SINGLE_PASS_FORWARD_PIPELINE
 class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, UberDeferredRenderer>,
+                                              public SDL_KeyListener
+#elif defined(MULTI_PASS_DEFERRED_PIPELINE)
+#undef SINGLE_PASS_FORWARD_PIPELINE
+class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, DeferredRenderer>,
                                               public SDL_KeyListener
 #elif defined(SINGLE_PASS_FORWARD_PIPELINE)
 class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, ForwardRenderer>,

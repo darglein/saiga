@@ -14,6 +14,8 @@
 
 using namespace Saiga;
 
+#define LIGHT_SEED 9
+
 class Sample : public RendererSampleWindow
 {
     using Base                                            = RendererSampleWindow;
@@ -24,6 +26,7 @@ class Sample : public RendererSampleWindow
    public:
     Sample()
     {
+        Random::setSeed(LIGHT_SEED);  // SEED
         ObjAssetLoader assetLoader;
         auto showAsset = assetLoader.loadDebugPlaneAsset(vec2(20, 20));
         // auto showAsset = assetLoader.loadColoredAsset("show_model.obj");
@@ -32,6 +35,23 @@ class Sample : public RendererSampleWindow
         show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
         // show.multScale(make_vec3(0.01f));
         show.calculateModel();
+
+        // FIXME Remove:
+
+        camera.position = vec4(0.303574, 2.61311, -1.76473, 1);
+        camera.rot      = quat(0.953246, -0.302067, -0.00831885, -0.00263611);
+        Random::setSeed(LIGHT_SEED);
+
+        std::shared_ptr<PointLight> light = std::make_shared<PointLight>();
+        light->setRadius(linearRand(0.5, 4.0));
+        light->setIntensity(1.0f / light->getRadius());
+        light->setPosition(linearRand(vec3(-16, light->getRadius() * 0.5, -16), vec3(16, light->getRadius(), 16)));
+        light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+        light->castShadows = false;
+        renderer->lighting.AddLight(light);
+        pointLights.push_back(light);
+
+        // End
 
         int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
@@ -161,47 +181,25 @@ class Sample : public RendererSampleWindow
             ImGui::Separator();
             ImGui::Spacing();
 
-
             int32_t count = renderer->lighting.pointLights.size();
             if (ImGui::InputInt("Point Light Count (wanted)", &count))
             {
                 if (count > maximumNumberOfRendererSupportedPointLights)
                     count = maximumNumberOfRendererSupportedPointLights;
-                if (count > renderer->lighting.pointLights.size())
+                renderer->lighting.pointLights.clear();
+                pointLights.clear();
+                Random::setSeed(LIGHT_SEED);
+                for (int32_t i = 0; i < count; ++i)
                 {
-                    count -= renderer->lighting.pointLights.size();
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        std::shared_ptr<PointLight> light = std::make_shared<PointLight>();
-
-                        light->setIntensity(1);
-
-                        light->setRadius(linearRand(0.1f, 4.0f));
-
-                        light->setPosition(linearRand(vec3(-16, 0.09f, -16), vec3(16, light->getRadius(), 16)));
-
-                        light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-
-
-                        light->castShadows = false;
-                        renderer->lighting.AddLight(light);
-                    }
-                }
-                else if (count < renderer->lighting.pointLights.size())
-                {
-                    count = renderer->lighting.pointLights.size() - count;
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        renderer->lighting.pointLights.erase(--renderer->lighting.pointLights.end());
-                    }
-                }
-            }
-            if (ImGui::Button("Normalize Point Lights"))
-            {
-                for (auto pl : renderer->lighting.pointLights)
-                {
-                    float intensity = 1.0f / pl->getRadius();
-                    pl->setIntensity(intensity);
+                    std::shared_ptr<PointLight> light = std::make_shared<PointLight>();
+                    light->setRadius(linearRand(0.5, 4.0));
+                    light->setIntensity(1.0f / light->getRadius());
+                    light->setPosition(
+                        linearRand(vec3(-16, light->getRadius() * 0.5, -16), vec3(16, light->getRadius(), 16)));
+                    light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+                    light->castShadows = false;
+                    renderer->lighting.AddLight(light);
+                    pointLights.push_back(light);
                 }
             }
 
@@ -210,94 +208,57 @@ class Sample : public RendererSampleWindow
             {
                 if (count > maximumNumberOfRendererSupportedSpotLights)
                     count = maximumNumberOfRendererSupportedSpotLights;
-                if (count > renderer->lighting.spotLights.size())
+                renderer->lighting.spotLights.clear();
+                spotLights.clear();
+                Random::setSeed(LIGHT_SEED);
+                for (int32_t i = 0; i < count; ++i)
                 {
-                    count -= renderer->lighting.spotLights.size();
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        std::shared_ptr<SpotLight> light = std::make_shared<SpotLight>();
-                        light->setIntensity(1);
-
-
-                        light->setRadius(linearRand(1, 4));
-
-                        light->setPosition(linearRand(vec3(-16, 1, -16), vec3(16, light->getRadius(), 16)));
-                        light->setAngle(linearRand(25, 55));
-
-                        light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-
-
-                        light->castShadows = false;
-                        renderer->lighting.AddLight(light);
-                    }
-                }
-                else if (count < renderer->lighting.spotLights.size())
-                {
-                    count = renderer->lighting.spotLights.size() - count;
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        renderer->lighting.spotLights.erase(--renderer->lighting.spotLights.end());
-                    }
+                    std::shared_ptr<SpotLight> light = std::make_shared<SpotLight>();
+                    light->setRadius(linearRand(1.0, 4.0));
+                    light->setIntensity(1.0);
+                    light->setPosition(linearRand(vec3(-16, 1, -16), vec3(16, light->getRadius(), 16)));
+                    light->setAngle(linearRand(25, 55));
+                    light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+                    light->direction   = linearRand(vec3(-0.5, -0.5, -0.5), vec3(0.5, 0.5, 0.5));
+                    light->castShadows = false;
+                    renderer->lighting.AddLight(light);
+                    spotLights.push_back(light);
                 }
             }
-            if (ImGui::Button("Normalize Spot Lights"))
-            {
-                for (auto sl : renderer->lighting.spotLights)
-                {
-                    float intensity = 1.0f / sl->getRadius();
-                    sl->setIntensity(intensity);
-                }
-            }
-
 
             count = renderer->lighting.directionalLights.size();
             if (ImGui::InputInt("Directional Light Count (wanted)", &count))
             {
                 if (count > maximumNumberOfRendererSupportedDirectionalLights)
                     count = maximumNumberOfRendererSupportedDirectionalLights;
-                if (count > renderer->lighting.directionalLights.size())
+                renderer->lighting.directionalLights.clear();
+                directionalLights.clear();
+                Random::setSeed(LIGHT_SEED);
+                for (int32_t i = 0; i < count; ++i)
                 {
-                    count -= renderer->lighting.directionalLights.size();
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        std::shared_ptr<DirectionalLight> light = std::make_shared<DirectionalLight>();
-
-                        light->castShadows = false;
-
-                        light->setAmbientIntensity(0.01);
-
-                        vec3 dir = Random::sphericalRand(1).cast<float>();
-                        if (dir.y() > 0) dir.y() *= -1;
-
-                        light->setIntensity(0.7);
-                        light->setDirection(dir);
-                        renderer->lighting.AddLight(light);
-                    }
-                }
-                else if (count < renderer->lighting.directionalLights.size())
-                {
-                    count = renderer->lighting.directionalLights.size() - count;
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        renderer->lighting.directionalLights.erase(--renderer->lighting.directionalLights.end());
-                    }
+                    std::shared_ptr<DirectionalLight> light = std::make_shared<DirectionalLight>();
+                    light->createShadowMap(1, 1, 1, ShadowQuality::LOW);  // FIXME Has to be called?
+                    light->castShadows = false;
+                    light->setAmbientIntensity(0.01);
+                    vec3 dir = Random::sphericalRand(1).cast<float>();
+                    if (dir.y() > 0) dir.y() *= -1;
+                    light->setIntensity(0.75);
+                    light->setDirection(dir);
+                    renderer->lighting.AddLight(light);
+                    directionalLights.push_back(light);
                 }
             }
-            if (ImGui::Button("Normalize Directional Lights"))
-            {
-                for (auto dl : renderer->lighting.directionalLights)
-                {
-                    float intensity = dl->getIntensity();
-                    intensity       = 1.0f / renderer->lighting.directionalLights.size();
-                    dl->setIntensity(intensity);
-                }
-            }
+
             ImGui::End();
         }
     }
 
    private:
     SimpleAssetObject show;
+
+    std::vector<std::shared_ptr<PointLight>> pointLights;
+    std::vector<std::shared_ptr<SpotLight>> spotLights;
+    std::vector<std::shared_ptr<DirectionalLight>> directionalLights;
 };
 
 int main(const int argc, const char* argv[])

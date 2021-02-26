@@ -27,7 +27,7 @@ class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenu
         ShaderData data;
         data.position      = make_vec4(position, 0.0f);
         data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
-        data.colorSpecular = make_vec4(colorSpecular, 1.0f);
+        data.colorSpecular = make_vec4(colorSpecular, intensity_specular);
         data.attenuation   = make_vec4(attenuation, radius);
         return data;
     }
