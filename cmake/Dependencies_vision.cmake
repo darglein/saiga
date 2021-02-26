@@ -116,7 +116,6 @@ set(VISION_INCLUDES ${PACKAGE_INCLUDES})
 set(VISION_LIBS ${LIBS})
 set(VISION_TARGETS saiga_core ${LIB_TARGETS})
 
-message(STATUS ${VISION_TARGETS})
 
 message(STATUS "Saiga vision enabled.")
 SET(MODULE_VISION 1)

@@ -102,7 +102,7 @@ endif()
 
 
 #assimp
-find_package(ASSIMP 5.0)
+find_package(ASSIMP 5.0 QUIET)
 if(ASSIMP_FOUND)
     SET(SAIGA_USE_ASSIMP 1)
 endif()
