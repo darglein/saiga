@@ -52,20 +52,32 @@ void AssimpLoader::loadFile(const std::string& _file)
     {
         printInfo();
     }
+
+    loadBones();
 }
 
 void AssimpLoader::printInfo()
 {
     std::cout << ">> AssimpLoader: " << file << " ";
-    std::cout << "Animations " << scene->mNumAnimations << ", Cameras " << scene->mNumCameras << ", Lights "
-              << scene->mNumLights << ", Materials " << scene->mNumMaterials << ", Meshes " << scene->mNumMeshes
-              << ", Textures " << scene->mNumTextures << std::endl;
+    std::cout << "Cameras " << scene->mNumCameras << ", Lights " << scene->mNumLights << ", Materials "
+              << scene->mNumMaterials << ", Meshes " << scene->mNumMeshes << ", Textures " << scene->mNumTextures
+              << std::endl;
 
+    std::cout << "> Meshes " << scene->mNumMeshes << std::endl;
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
     {
         const aiMesh* mesh = scene->mMeshes[m];
-        std::cout << ">>> Mesh " << m << " " << mesh->mName.C_Str() << ": Material id " << mesh->mMaterialIndex
-                  << ", Vertices " << mesh->mNumVertices << ", Faces " << mesh->mNumFaces << std::endl;
+        std::cout << " " << m << " " << mesh->mName.C_Str() << ": Material id " << mesh->mMaterialIndex << ", Vertices "
+                  << mesh->mNumVertices << ", Faces " << mesh->mNumFaces << std::endl;
+    }
+
+    std::cout << "> Animations " << scene->mNumAnimations << std::endl;
+    for (unsigned int m = 0; m < scene->mNumAnimations; ++m)
+    {
+        const aiAnimation* anim = scene->mAnimations[m];
+        std::cout << " " << m << " " << anim->mName.C_Str() << ": Channels " << anim->mNumChannels << " MeshChannels "
+                  << anim->mNumMeshChannels << " duration " << anim->mDuration << " tps " << anim->mTicksPerSecond
+                  << std::endl;
     }
 }
 
@@ -188,6 +200,29 @@ UnifiedModel AssimpLoader::Model()
             SAIGA_ASSERT(model.position.size() == model.texture_coordinates.size());
         }
 
+
+
+        if (mesh->HasBones())
+        {
+            model.bone_info.resize(model.position.size());
+            for (unsigned int i = 0; i < mesh->mNumBones; ++i)
+            {
+                aiBone* b = mesh->mBones[i];
+                for (unsigned int j = 0; j < b->mNumWeights; ++j)
+                {
+                    aiVertexWeight vw = b->mWeights[j];
+                    int vid           = vw.mVertexId + current_vertex;
+
+                    auto& bi = model.bone_info[vid];
+
+                    bi.addBone(i, vw.mWeight);
+
+                    //                    vertex_t& bv      = out.vertices[vw->mVertexId];
+                    //                    loadBoneWeight(bv, i, vw->mWeight);
+                }
+            }
+        }
+
         if (mesh->HasFaces())
         {
             for (unsigned int i = 0; i < mesh->mNumFaces; ++i)
@@ -206,6 +241,23 @@ UnifiedModel AssimpLoader::Model()
 
 
         current_vertex += mesh->mNumVertices;
+    }
+
+
+    model.animation_system.boneMap      = boneMap;
+    model.animation_system.nodeindexMap = nodeindexMap;
+    model.animation_system.boneOffsets  = boneOffsets;
+    for (unsigned int i = 0; i < model.animation_system.boneOffsets.size(); ++i)
+    {
+        model.animation_system.inverseBoneOffsets.push_back(inverse(model.animation_system.boneOffsets[i]));
+    }
+
+    int animationCount = scene->mNumAnimations;
+
+    model.animation_system.animations.resize(animationCount);
+    for (int i = 0; i < animationCount; ++i)
+    {
+        getAnimation(i, 0, model.animation_system.animations[i]);
     }
 
     return model;

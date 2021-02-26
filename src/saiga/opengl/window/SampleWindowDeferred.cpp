@@ -75,8 +75,8 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
         window->renderImGui();
 
 
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
         ImGui::Begin("Saiga Sample Base");
         ImGui::Checkbox("showSkybox", &showSkybox);
         ImGui::Checkbox("showGrid", &showGrid);

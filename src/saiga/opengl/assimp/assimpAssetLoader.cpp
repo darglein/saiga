@@ -108,6 +108,7 @@ std::shared_ptr<TexturedAsset> AssimpAssetLoader::loadTexturedAsset(const std::s
 #    endif
 }
 
+#    if 0
 std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::string& file, bool normalize)
 {
     AssimpLoader al(file);
@@ -143,10 +144,9 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
 
     for (BoneVertexCD& bv : asset->vertices)
     {
-        bv.normalizeWeights();
+        bv.bone_info.normalizeWeights();
     }
 
-    asset->boneCount    = al.boneOffsets.size();
     asset->boneMap      = al.boneMap;
     asset->nodeindexMap = al.nodeindexMap;
     asset->boneOffsets  = al.boneOffsets;
@@ -174,6 +174,6 @@ std::shared_ptr<Asset> AssimpAssetLoader::loadAsset(const std::string& file)
 {
     return loadBasicAsset(file);
 }
-
+#    endif
 }  // namespace Saiga
 #endif

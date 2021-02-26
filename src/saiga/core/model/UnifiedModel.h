@@ -8,7 +8,9 @@
 
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/geometry/vertex.h"
+// #include "saiga/core/model/
 #include "saiga/core/image/managedImage.h"
+#include "saiga/core/model/animation.h"
 #include "saiga/core/util/Range.h"
 
 #include <vector>
@@ -49,6 +51,7 @@ class SAIGA_CORE_API UnifiedModel
    public:
     UnifiedModel() {}
     UnifiedModel(const std::string& file_name);
+    ~UnifiedModel();
 
     int NumVertices() const { return position.size(); }
     int NumFaces() const { return triangles.size(); }
@@ -62,6 +65,7 @@ class SAIGA_CORE_API UnifiedModel
     std::vector<vec4> color;
     std::vector<vec2> texture_coordinates;
     std::vector<vec4> data;
+    std::vector<BoneInfo> bone_info;
 
     // Face data for surface meshes stored as index-face set
     std::vector<ivec3> triangles;
@@ -71,6 +75,9 @@ class SAIGA_CORE_API UnifiedModel
     std::vector<UnifiedMaterial> materials;
     std::vector<UnifiedMaterialGroup> material_groups;
     std::vector<Image> textures;
+
+    // Bone Data (only used for animated models)
+    AnimationSystem animation_system;
 
 
     // Transforms this model inplace
@@ -98,6 +105,7 @@ class SAIGA_CORE_API UnifiedModel
     bool HasTC() const { return !texture_coordinates.empty(); }
     bool HasData() const { return !data.empty(); }
     bool HasMaterials() const { return !materials.empty(); }
+    bool HasBones() const { return !bone_info.empty(); }
 
 
     // Conversion Functions from unified model -> Triangle mesh

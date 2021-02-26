@@ -44,21 +44,16 @@ class SAIGA_OPENGL_API AnimatedAsset : public BasicAsset<AnimatedModel, MVPShade
    public:
     // Default shaders
     // If you want to use your own load them and override the shader memebers in BasicAsset.
+    //    static constexpr const char* shaderStr = "asset/AnimatedAsset.glsl";
     static constexpr const char* shaderStr = "asset/AnimatedAsset.glsl";
+
     void loadDefaultShaders() override;
 
     using BasicAsset<AnimatedModel, MVPShader>::render;
     using BasicAsset<AnimatedModel, MVPShader>::renderDepth;
 
-    int boneCount;
 
-    std::map<std::string, int> boneMap;
-    std::map<std::string, int> nodeindexMap;
-
-    AlignedVector<mat4> boneOffsets;
-    AlignedVector<mat4> inverseBoneOffsets;
-
-    std::vector<Animation> animations;
+    AnimationSystem animation_system;
 
     AnimatedAsset() {}
     AnimatedAsset(const UnifiedModel& model);

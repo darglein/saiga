@@ -76,4 +76,37 @@ class SAIGA_OPENGL_API Animation
     void print();
 };
 
+class SAIGA_OPENGL_API AnimationSystem
+{
+   public:
+    std::map<std::string, int> boneMap;
+    std::map<std::string, int> nodeindexMap;
+    AlignedVector<mat4> boneOffsets;
+    AlignedVector<mat4> inverseBoneOffsets;
+    std::vector<Animation> animations;
+
+
+    animationtime_t animationTotalTime    = animationtime_t(0);
+    animationtime_t animationTimeAtUpdate = animationtime_t(0);
+    animationtime_t animationTimeAtRender = animationtime_t(0);
+    int activeAnimation                   = 0;
+    AnimationFrame currentFrame;
+
+
+    float interpolate_alpha     = 0;
+    int interpolating_animation = 0;
+    AnimationFrame interpolateFrame;
+
+
+    float interpolate_speed = 5;
+    float animation_speed   = 1;
+
+    void SetAnimation(int id, bool interpolate);
+    void update(float dt);
+    void interpolate(float dt, float alpha);
+    AlignedVector<mat4> Matrices();
+
+    void imgui();
+};
+
 }  // namespace Saiga

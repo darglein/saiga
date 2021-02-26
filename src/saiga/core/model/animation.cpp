@@ -6,6 +6,7 @@
 
 #include "animation.h"
 
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
 
 #include <algorithm>
@@ -65,6 +66,57 @@ void Animation::print()
         std::cout << af.time.count() << ", ";
     }
     std::cout << "]" << std::endl;
+}
+
+void AnimationSystem::SetAnimation(int id, bool interpolate)
+{
+    SAIGA_ASSERT(id >= 0 && id < (int)animations.size());
+
+    if (interpolate && id != activeAnimation)
+    {
+        interpolating_animation = activeAnimation;
+        interpolateFrame        = currentFrame;
+        interpolate_alpha       = 1;
+    }
+    activeAnimation    = id;
+    animationTotalTime = animations[id].duration;
+}
+
+void AnimationSystem::update(float dt)
+{
+    animationTimeAtUpdate += animationtime_t(dt * animation_speed);
+    interpolate_alpha -= dt * interpolate_speed;
+    interpolate_alpha = std::max<float>(interpolate_alpha, 0);
+    // loop animation constantly
+    if (animationTimeAtUpdate >= animationTotalTime) animationTimeAtUpdate -= animationTotalTime;
+}
+
+void AnimationSystem::interpolate(float dt, float alpha)
+{
+    animationTimeAtRender = animationTimeAtUpdate + animationtime_t(animation_speed * dt * alpha);
+    if (animationTimeAtRender >= animationTotalTime) animationTimeAtRender -= animationTotalTime;
+
+    animations[activeAnimation].getFrame(animationTimeAtRender, currentFrame);
+
+    if (interpolate_alpha > 0)
+    {
+        currentFrame = AnimationFrame(currentFrame, interpolateFrame, interpolate_alpha);
+    }
+}
+
+AlignedVector<mat4> AnimationSystem::Matrices()
+{
+    return currentFrame.getBoneMatrices(animations[activeAnimation]);
+}
+
+void AnimationSystem::imgui()
+{
+    ImGui::Text("AnimationSystem");
+    ImGui::Text("Active Animation %d", activeAnimation);
+    ImGui::Text("Animation Time %f", animationTimeAtUpdate.count());
+    ImGui::Text("Animation Interpolate %f", interpolate_alpha);
+    ImGui::InputFloat("interpolate_speed", &interpolate_speed);
+    ImGui::InputFloat("animation_speed", &animation_speed);
 }
 
 }  // namespace Saiga

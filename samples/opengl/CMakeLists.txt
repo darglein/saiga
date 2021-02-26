@@ -17,6 +17,10 @@ if (SDL2_FOUND)
         add_subdirectory(videoRecording)
     endif ()
 
+    if (ASSIMP_FOUND)
+        add_subdirectory(bone_animation)
+    endif ()
+    
     if (BULLET_FOUND)
         add_subdirectory(simpleBullet)
     endif ()

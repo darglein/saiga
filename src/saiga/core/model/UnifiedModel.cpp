@@ -65,6 +65,10 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
 #endif
 }
 
+
+UnifiedModel::~UnifiedModel() {}
+
+
 UnifiedModel& UnifiedModel::transform(const mat4& T)
 {
     if (HasPosition())
@@ -307,6 +311,63 @@ std::vector<VertexNTD> UnifiedModel::VertexList() const
 }
 
 
+template <>
+std::vector<BoneVertexCD> UnifiedModel::VertexList() const
+{
+    std::vector<BoneVertexCD> mesh;
+
+    SAIGA_ASSERT(HasPosition());
+    SAIGA_ASSERT(HasBones());
+
+
+    mesh.resize(NumVertices());
+    for (int i = 0; i < NumVertices(); ++i)
+    {
+        mesh[i].position = make_vec4(position[i], 1);
+    }
+
+    for (int i = 0; i < NumVertices(); ++i)
+    {
+        mesh[i].bone_info = bone_info[i];
+        mesh[i].bone_info.normalizeWeights();
+    }
+
+    if (HasColor())
+    {
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            mesh[i].color = color[i];
+        }
+    }
+    else if (HasMaterials())
+    {
+        auto color = ComputeVertexColorFromMaterial();
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            mesh[i].color = color[i];
+        }
+    }
+    else
+    {
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            mesh[i].color = vec4(1, 1, 1, 1);
+        }
+    }
+
+    if (HasNormal())
+    {
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            mesh[i].normal = make_vec4(normal[i], 0);
+        }
+    }
+
+
+    return mesh;
+}
+
+
 std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model)
 {
     std::cout << "[UnifiedModel] " << model.name << "\n";
@@ -320,5 +381,6 @@ std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model)
 
     return strm;
 }
+
 
 }  // namespace Saiga

@@ -54,12 +54,13 @@ void OpenGLWindow::renderImGui(bool* p_open)
     mainLoop.renderImGuiInline();
 
 
-    ImGui::Text("Camera Position: %s", to_string(getCamera()->getPosition()).c_str());
-    ImGui::Text("Camera Direction: %s", to_string(-make_vec3(getCamera()->getDirection())).c_str());
+    ImGui::Text("Camera Position: %s", to_string(getCamera()->getPosition().transpose()).c_str());
+    ImGui::Text("Camera Direction: %s", to_string(-make_vec3(getCamera()->getDirection()).transpose()).c_str());
     if (ImGui::Button("Printf camera"))
     {
-        std::cout << "camera.position = vec4" << getCamera()->position << ";" << std::endl;
-        std::cout << "camera.rot = quat" << getCamera()->rot << ";" << std::endl;
+        std::cout << "camera.position = vec4(" << getCamera()->position(0) << ", " << getCamera()->position(1) << ", "
+                  << getCamera()->position(2) << ", " << getCamera()->position(3) << ");" << std::endl;
+        std::cout << "camera.rot = " << getCamera()->rot << ";" << std::endl;
         //        createTRSmatrix()
     }
 

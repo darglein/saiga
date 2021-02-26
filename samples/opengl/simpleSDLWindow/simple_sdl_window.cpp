@@ -16,20 +16,9 @@ class Sample : public SampleWindowDeferred
    public:
     Sample()
     {
-        //        teapot.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/teapot.obj"));
-        teapot.asset = std::make_shared<ColoredAsset>(
-            UnifiedModel("/home/dari/Projects/saiga/data/user/animation/dog-model-textured-rigged-idle-animation.fbx"));
-
-        teapot.asset = std::make_shared<AnimatedAsset>(
-            UnifiedModel("/home/dari/Projects/saiga/data/user/animation/dog-model-textured-rigged-idle-animation.fbx"));
-
-
+        teapot.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/teapot.obj"));
         teapot.translateGlobal(vec3(0, 1, 0));
         teapot.calculateModel();
-
-        //        UnifiedModel tea("models/teapot.obj");
-
-        //        teapot.asset = std::make_shared<ColoredAsset>(tea);
 
         std::cout << "Program Initialized!" << std::endl;
     }

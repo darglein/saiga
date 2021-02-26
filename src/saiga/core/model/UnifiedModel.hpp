@@ -32,6 +32,8 @@ SAIGA_CORE_API std::vector<VertexNT> UnifiedModel::VertexList() const;
 template <>
 SAIGA_CORE_API std::vector<VertexNTD> UnifiedModel::VertexList() const;
 
+template <>
+SAIGA_CORE_API std::vector<BoneVertexCD> UnifiedModel::VertexList() const;
 
 template <typename IndexType>
 std::vector<Vector<IndexType, 3>> UnifiedModel::IndexList() const
