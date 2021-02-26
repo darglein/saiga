@@ -29,12 +29,14 @@ endif(WIN32)
 #set(CMAKE_FIND_DEBUG_MODE TRUE)
 # SDL2
 find_package(SDL2 REQUIRED)
-if (SDL2_FOUND)
-  SET(SAIGA_USE_SDL 1)
-endif()
+
 #PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARIES}")
 PackageHelperTarget(SDL2::SDL2 SDL2_FOUND)
 PackageHelperTarget(SDL2::SDL2main SDL2_FOUND)
+
+if (SDL2_FOUND)
+  SET(SAIGA_USE_SDL 1)
+endif()
 
 
 #message(FATAL_ERROR "blas ${SDL2_INCLUDE_DIR} ${SDL2_LIBRARIES}")
