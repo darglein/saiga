@@ -10,6 +10,7 @@
 
 namespace Saiga
 {
+
 CPUPlaneClusterer::CPUPlaneClusterer(ClustererParameters _params) : Clusterer(_params) {}
 
 CPUPlaneClusterer::~CPUPlaneClusterer() {}
@@ -29,7 +30,8 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         clusterCache[c].clear();
     }
 
-    int itemCount = 0;
+    int itemCount     = 0;
+    int clusterCountZ = planesZ.size() - 2;
 
     if (renderDebugEnabled && debugFrustumToView) debugLights.lines.clear();
 
@@ -111,7 +113,6 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         }
 
 
-
         if (!refinement)
         {
             // This is without the sphere refinement
@@ -122,7 +123,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                     for (int x = x0; x < x1; ++x)
                     {
                         int tileIndex = x + clusterInfoBuffer.clusterX * y +
-                                        (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
+                                        (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * (clusterCountZ - z);
 
                         clusterCache[tileIndex].push_back(i);
                         itemCount++;
@@ -178,8 +179,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                 Sphere zLight = lightSphere;
                 if (z != centerZ)
                 {
-                    Plane plane =
-                        (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
+                    Plane plane = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
                     vec4 circle = plane.intersectingCircle(zLight.pos, zLight.r);
                     zLight.pos  = make_vec3(circle);
                     zLight.r    = circle.w();
@@ -190,8 +190,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                     Sphere yLight = zLight;
                     if (y != centerY)
                     {
-                        Plane plane = (y < centerY) ? planesY[y + 1]
-                                                    : planesY[y].invert();
+                        Plane plane = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
                         vec4 circle = plane.intersectingCircle(yLight.pos, yLight.r);
                         yLight.pos  = make_vec3(circle);
                         yLight.r    = circle.w();
@@ -208,7 +207,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                     for (x; x < xs; ++x)
                     {
                         int tileIndex = x + clusterInfoBuffer.clusterX * y +
-                                        (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
+                                        (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * (clusterCountZ - z);
 
                         clusterCache[tileIndex].push_back(i);
                         itemCount++;
@@ -493,7 +492,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         }
     }
 
-    int numZPlanes = planesZ.size() - 1;
+    int numZPlanes = gridCount[2];
     for (int z = 0; z < planesZ.size(); ++z)
     {
         vec4 screenSpaceC(width / 2, height / 2, -1.0, 1.0);  // Center Point
@@ -501,8 +500,8 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         vec3 viewNearPlaneC(make_vec3(viewPosFromScreenPos(screenSpaceC, invProjection)));
 
         // Doom Depth Split, because it looks good.
-        //float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
-        float tileFar  = -camNear * pow(camFar / camNear, (float)(numZPlanes - z) / gridCount[2]);
+        // float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
+        float tileFar = -camNear * pow(camFar / camNear, (float)(numZPlanes - z) / gridCount[2]);
 
         vec3 viewFarClusterC(zeroZIntersection(viewNearPlaneC, tileFar));
 

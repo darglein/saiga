@@ -5,6 +5,7 @@
  */
 
 
+#include "saiga/core/geometry/intersection.h"
 #include "saiga/core/geometry/plane.h"
 #include "saiga/core/geometry/sphere.h"
 
@@ -12,6 +13,31 @@
 
 namespace Saiga
 {
+static bool intersectSAT(vec3 points[8], const Sphere& sphere)
+{
+    vec3 frustumCenter = points[0] + points[1] + points[2] + points[3] + points[4] + points[5] + points[6] + points[7];
+    frustumCenter /= 8.0f;
+
+    float max = -10000000.0f;
+
+    const vec3 frustumCenterToSphereCenter = sphere.pos - frustumCenter;
+    const vec3 axis                        = frustumCenterToSphereCenter.normalized();
+
+    for (int i = 0; i < 8; ++i)
+    {
+        vec3& currentCorner = points[i];
+        vec3 v              = currentCorner - frustumCenter;
+        float proj          = dot(v, axis);
+
+        if (max < proj) max = proj;
+    }
+
+    if (length(frustumCenterToSphereCenter) - max - sphere.r > 0 && length(frustumCenterToSphereCenter) > 0)
+        return false;
+    else
+        return true;
+}
+
 class ClustererTest : public ::testing::Test
 {
    protected:
@@ -216,6 +242,42 @@ class ClustererTest : public ::testing::Test
         }
     }
 
+    void clusterLightsSAT()
+    {
+        clusterCacheSat.resize(clusterCount);
+        for (int c = 0; c < clusterCount; ++c)
+        {
+            clusterCacheSat[c].clear();
+            clusterCacheSat[c].reserve(avgAllowedItemsPerCluster);
+        }
+
+        int itemCount = 0;
+
+        for (int i = 0; i < clusterData.size(); ++i)
+        {
+            Sphere& sphere = clusterData[i];
+
+            for (int x = 0; x < clusterX; ++x)
+            {
+                for (int y = 0; y < clusterY; ++y)
+                {
+                    for (int z = 0; z < clusterZ; ++z)
+                    {
+                        int tileIndex = x + clusterX * y + (clusterX * clusterY) * z;
+
+                        clusterPoints pts = points[tileIndex];
+
+                        if (intersectSAT(&pts.nBL, sphere))
+                        {
+                            clusterCacheSat[tileIndex].push_back(i);
+                            itemCount++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     void buildClusters(int x_cl, int y_cl, int z_cl, float dx = 1, float dy = 1, float dz = 1)
     {
         clusterX     = x_cl;
@@ -240,11 +302,37 @@ class ClustererTest : public ::testing::Test
             Plane near(vec3(0.0f, 0.0f, z * dz), vec3(0.0f, 0.0f, 1.0f));
             planesZ.push_back(near);
         }
+
+        points.resize(clusterCount);
+        for (int x = 0; x < x_cl; ++x)
+        {
+            for (int y = 0; y < y_cl; ++y)
+            {
+                for (int z = 0; z < z_cl; ++z)
+                {
+                    clusterPoints pts;
+                    pts.nBL = vec3(x, y, z);
+                    pts.nBR = vec3(x + 1, y, z);
+                    pts.nTL = vec3(x, y + 1, z);
+                    pts.nTR = vec3(x + 1, y + 1, z);
+                    pts.fBL = vec3(x, y, z + 1);
+                    pts.fBR = vec3(x + 1, y, z + 1);
+                    pts.fTL = vec3(x, y + 1, z + 1);
+                    pts.fTR = vec3(x + 1, y + 1, z + 1);
+
+                    int tileIndex = x + clusterX * y + (clusterX * clusterY) * z;
+
+                    points.at(tileIndex) = pts;
+                }
+            }
+        }
+
         clusterData.clear();
     }
 
-    void PrintCache()
+    void PrintCache(int cacheNum)
     {
+        auto& cache = cacheNum == 1 ? clusterCacheSat : clusterCache;
         for (int z = 0; z < clusterZ; ++z)
         {
             Eigen::Matrix<int, -1, -1> mat(clusterY, clusterX);
@@ -252,17 +340,58 @@ class ClustererTest : public ::testing::Test
             {
                 for (int x = 0; x < clusterX; ++x)
                 {
-                    mat(y, x) = clusterCache[x + clusterX * y + (clusterX * clusterY) * z].size();
+                    mat(y, x) = cache[x + clusterX * y + (clusterX * clusterY) * z].size();
                 }
             }
             std::cout << "Layer z = " << z << std::endl;
             std::cout << mat << std::endl;
         }
     }
+
+    bool cacheCompare()
+    {
+        bool valid = true;
+        for (int c = 0; c < clusterCount; ++c)
+        {
+            valid &= clusterCacheSat[c].size() == clusterCache[c].size();
+            if (clusterCacheSat[c].size() != clusterCache[c].size())
+            {
+                std::cout << "Cluster " << c << " : is: " << clusterCache[c].size()
+                          << " , expected: " << clusterCacheSat[c].size() << std::endl;
+            }
+
+            for (int i = 0; i < clusterCacheSat[c].size(); ++i)
+            {
+                valid &= clusterCacheSat[c][i] == clusterCache[c][i];
+                if (clusterCacheSat[c][i] != clusterCache[c][i])
+                {
+                    std::cout << "Cluster " << c << " at " << i << " : is: " << clusterCache[c][i]
+                              << " , expected: " << clusterCacheSat[c][i] << std::endl;
+                }
+            }
+        }
+        return valid;
+    }
+
     std::vector<Plane> planesX;
     std::vector<Plane> planesY;
     std::vector<Plane> planesZ;
     std::vector<Sphere> clusterData;
+
+    struct clusterPoints
+    {
+        vec3 nBL;
+        vec3 nBR;
+        vec3 nTL;
+        vec3 nTR;
+
+        vec3 fBL;
+        vec3 fBR;
+        vec3 fTL;
+        vec3 fTR;
+    };
+
+    std::vector<clusterPoints> points;
 
     int clusterCount = 0;
     int clusterX     = 0;
@@ -272,9 +401,8 @@ class ClustererTest : public ::testing::Test
 
     int avgAllowedItemsPerCluster = 128;
     std::vector<std::vector<int>> clusterCache;
+    std::vector<std::vector<int>> clusterCacheSat;
 };
-
-
 
 TEST_F(ClustererTest, 2dXY)
 {
@@ -285,7 +413,11 @@ TEST_F(ClustererTest, 2dXY)
 
     refinement = true;
     clusterLights();
-    PrintCache();
+    clusterLightsSAT();
+
+    PrintCache(0);
+    PrintCache(1);
+    ASSERT_EQ(cacheCompare(), true);
 }
 
 TEST_F(ClustererTest, sixPlanesOneSphereNoRefinement)
@@ -351,6 +483,8 @@ TEST_F(ClustererTest, sixPlanesOneSphereWithRefinement)
     clusterData.push_back(sphereInside);
 
     clusterLights();
+    clusterLightsSAT();
+    ASSERT_EQ(cacheCompare(), true);
 
     ASSERT_EQ(clusterCache[0].size(), 1);  // one item
     ASSERT_EQ(clusterCache[0][0], 0);      // index 0
@@ -361,6 +495,8 @@ TEST_F(ClustererTest, sixPlanesOneSphereWithRefinement)
     clusterData.push_back(sphereOutside);
 
     clusterLights();
+    clusterLightsSAT();
+    ASSERT_EQ(cacheCompare(), true);
 
     ASSERT_EQ(clusterCache[0].size(), 0);  // no item
 
@@ -370,6 +506,8 @@ TEST_F(ClustererTest, sixPlanesOneSphereWithRefinement)
     clusterData.push_back(sphereIntersecting);
 
     clusterLights();
+    clusterLightsSAT();
+    ASSERT_EQ(cacheCompare(), true);
 
     ASSERT_EQ(clusterCache[0].size(), 1);  // one item
     ASSERT_EQ(clusterCache[0][0], 0);      // index 0
@@ -380,6 +518,8 @@ TEST_F(ClustererTest, sixPlanesOneSphereWithRefinement)
     clusterData.push_back(sphereIntersectingHigherEnd);
 
     clusterLights();
+    clusterLightsSAT();
+    ASSERT_EQ(cacheCompare(), true);
 
     ASSERT_EQ(clusterCache[0].size(), 1);  // one item
     ASSERT_EQ(clusterCache[0][0], 0);      // index 0
@@ -390,6 +530,8 @@ TEST_F(ClustererTest, sixPlanesOneSphereWithRefinement)
     clusterData.push_back(sphereAroundCluster);
 
     clusterLights();
+    clusterLightsSAT();
+    ASSERT_EQ(cacheCompare(), true);
 
     ASSERT_EQ(clusterCache[0].size(), 1);  // one item
     ASSERT_EQ(clusterCache[0][0], 0);      // index 0
@@ -416,6 +558,8 @@ TEST_F(ClustererTest, ThreeCubedClustersThreeSpheresLowEnd)
     refinement = true;
 
     clusterLights();
+    clusterLightsSAT();
+    ASSERT_EQ(cacheCompare(), true);
 
     for (int z = 0; z < 3; ++z)
     {
@@ -455,6 +599,8 @@ TEST_F(ClustererTest, ThreeCubedClustersThreeSpheresHighEnd)
     refinement = true;
 
     clusterLights();
+    clusterLightsSAT();
+    ASSERT_EQ(cacheCompare(), true);
 
     for (int z = 0; z < 3; ++z)
     {
@@ -490,6 +636,8 @@ TEST_F(ClustererTest, ThreeCubedClustersOneSphereCenter)
     refinement = true;
 
     clusterLights();
+    clusterLightsSAT();
+    ASSERT_EQ(cacheCompare(), true);
 
     for (int z = 0; z < 3; ++z)
     {
@@ -525,6 +673,8 @@ TEST_F(ClustererTest, ThreeCubedClustersOneSphereCenterBigger)
     refinement = true;
 
     clusterLights();
+    clusterLightsSAT();
+    ASSERT_EQ(cacheCompare(), true);
 
     for (int c = 0; c < clusterCount; ++c)
     {
