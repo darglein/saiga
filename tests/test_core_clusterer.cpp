@@ -216,39 +216,49 @@ class ClustererTest : public ::testing::Test
         }
     }
 
-    void buildClusters(int x_cl, int y_cl, int z_cl)
+    void buildClusters(int x_cl, int y_cl, int z_cl, float dx = 1, float dy = 1, float dz = 1)
     {
         clusterX     = x_cl;
         clusterY     = y_cl;
+        clusterZ     = z_cl;
         clusterCount = x_cl * y_cl * z_cl;
-
-        Plane right(vec3(1.0f, 0.0f, 0.0f), vec3(1.0f, 0.0f, 0.0f));
-
-        Plane bottom(vec3(0.0f, -1.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
-        Plane top(vec3(0.0f, 1.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
-
-        Plane near(vec3(0.0f, 0.0f, 1.0f), vec3(0.0f, 0.0f, -1.0f));
-        Plane far(vec3(0.0f, 0.0f, -1.0f), vec3(0.0f, 0.0f, -1.0f));
 
         for (int x = 0; x <= x_cl; ++x)
         {
-            Plane left(vec3((float)x, 0.0f, 0.0f), vec3(1.0f, 0.0f, 0.0f));
+            Plane left(vec3(x * dx, 0.0f, 0.0f), vec3(1.0f, 0.0f, 0.0f));
             planesX.push_back(left);
         }
 
         for (int y = 0; y <= y_cl; ++y)
         {
-            Plane bottom(vec3(0.0f, (float)y, 0.0f), vec3(0.0f, 1.0f, 0.0f));
+            Plane bottom(vec3(0.0f, y * dy, 0.0f), vec3(0.0f, 1.0f, 0.0f));
             planesY.push_back(bottom);
         }
 
         for (int z = 0; z <= z_cl; ++z)
         {
-            Plane near(vec3(0.0f, 0.0f, (float)z), vec3(0.0f, 0.0f, 1.0f));
+            Plane near(vec3(0.0f, 0.0f, z * dz), vec3(0.0f, 0.0f, 1.0f));
             planesZ.push_back(near);
         }
+        clusterData.clear();
     }
 
+    void PrintCache()
+    {
+        for (int z = 0; z < clusterZ; ++z)
+        {
+            Eigen::Matrix<int, -1, -1> mat(clusterY, clusterX);
+            for (int y = 0; y < clusterY; ++y)
+            {
+                for (int x = 0; x < clusterX; ++x)
+                {
+                    mat(y, x) = clusterCache[x + clusterX * y + (clusterX * clusterY) * z].size();
+                }
+            }
+            std::cout << "Layer z = " << z << std::endl;
+            std::cout << mat << std::endl;
+        }
+    }
     std::vector<Plane> planesX;
     std::vector<Plane> planesY;
     std::vector<Plane> planesZ;
@@ -257,11 +267,26 @@ class ClustererTest : public ::testing::Test
     int clusterCount = 0;
     int clusterX     = 0;
     int clusterY     = 0;
+    int clusterZ     = 0;
     bool refinement  = false;
 
     int avgAllowedItemsPerCluster = 128;
     std::vector<std::vector<int>> clusterCache;
 };
+
+
+
+TEST_F(ClustererTest, 2dXY)
+{
+    buildClusters(10, 10, 1, 1, 1, 0.001);
+    Sphere s(vec3(5, 5, 0.0005f), 3.1);
+
+    clusterData.push_back(s);
+
+    refinement = true;
+    clusterLights();
+    PrintCache();
+}
 
 TEST_F(ClustererTest, sixPlanesOneSphereNoRefinement)
 {
@@ -505,7 +530,6 @@ TEST_F(ClustererTest, ThreeCubedClustersOneSphereCenterBigger)
     {
         ASSERT_EQ(clusterCache[c].size(), 1);  // 1 item in each cluster
     }
-
 }
 
 }  // namespace Saiga
