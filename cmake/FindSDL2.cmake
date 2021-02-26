@@ -65,9 +65,8 @@
 # (To distribute this file outside of CMake, substitute the full
 #  License text for the above reference.)
 
+set(SDL2_BUILDING_LIBRARY 1)
 SET(SDL2_SEARCH_PATHS
-  ~/Library/Frameworks
-  /Library/Frameworks
   /usr/local
   /usr
   /sw # Fink
@@ -76,10 +75,10 @@ SET(SDL2_SEARCH_PATHS
   /opt
 )
 
-FIND_PATH(SDL2_INCLUDE_DIR SDL.h
+FIND_PATH(SDL2_INCLUDE_DIR SDL2/SDL.h
   HINTS
   $ENV{SDL2DIR}
-  PATH_SUFFIXES include/SDL2 include SDL2
+  PATH_SUFFIXES include
   PATHS ${SDL2_SEARCH_PATHS}
 )
 

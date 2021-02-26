@@ -30,9 +30,10 @@ endif(WIN32)
 # SDL2
 find_package(SDL2 REQUIRED)
 
-#PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARIES}")
-PackageHelperTarget(SDL2::SDL2 SDL2_FOUND)
-PackageHelperTarget(SDL2::SDL2main SDL2_FOUND)
+PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
+
+#PackageHelperTarget(SDL2::SDL2 SDL2_FOUND)
+#PackageHelperTarget(SDL2::SDL2main SDL2_FOUND)
 
 if (SDL2_FOUND)
   SET(SAIGA_USE_SDL 1)
@@ -103,10 +104,10 @@ endif()
 
 #assimp
 find_package(ASSIMP 5.0 QUIET)
+PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
 if(ASSIMP_FOUND)
     SET(SAIGA_USE_ASSIMP 1)
 endif()
-PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
 
 
 #libfreeimage
