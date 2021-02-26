@@ -60,6 +60,9 @@ class SAIGA_OPENGL_API AnimatedAsset : public BasicAsset<AnimatedModel, MVPShade
 
     std::vector<Animation> animations;
 
+    AnimatedAsset() {}
+    AnimatedAsset(const UnifiedModel& model);
+
 
     void render(Camera* cam, const mat4& model, UniformBuffer& boneMatrices);
     void renderDepth(Camera* cam, const mat4& model, UniformBuffer& boneMatrices);

@@ -6,8 +6,8 @@
 
 #include "saiga/config.h"
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
+#    include "saiga/core/model/assimpLoader.h"
 #    include "saiga/opengl/assimp/assimpAssetLoader.h"
-#    include "saiga/opengl/assimp/assimpLoader.h"
 #    include "saiga/opengl/shader/shaderLoader.h"
 #    include "saiga/opengl/texture/TextureLoader.h"
 

@@ -9,7 +9,8 @@
 #include "saiga/core/math/math.h"
 #include "saiga/core/time/time.h"
 #include "saiga/core/util/Align.h"
-#include "saiga/opengl/animation/animationFrame.h"
+
+#include "animationFrame.h"
 
 namespace Saiga
 {

@@ -30,7 +30,10 @@ struct UnifiedMaterial
 
     UnifiedMaterial() {}
     UnifiedMaterial(const std::string& name) : name(name) {}
+
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& strm, const UnifiedMaterial& material);
 };
+
 
 struct UnifiedMaterialGroup
 {
@@ -116,6 +119,10 @@ class SAIGA_CORE_API UnifiedModel
     std::vector<Vector<IndexType, 3>> IndexList() const;
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model);
+
+
+   private:
+    void LocateTextures(const std::string& base);
 };
 
 

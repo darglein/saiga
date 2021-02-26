@@ -7,7 +7,8 @@
 #include "animationFrame.h"
 
 #include "saiga/core/util/assert.h"
-#include "saiga/opengl/animation/animation.h"
+
+#include "animation.h"
 
 namespace Saiga
 {

@@ -10,15 +10,17 @@
 
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
 
-#include <assimp/Importer.hpp>  // C++ importer interface
-#include <assimp/cimport.h>
-#include <assimp/postprocess.h>  // Post processing flags
-#include <assimp/scene.h>        // Output data structure
-#include <map>
-#include <saiga/opengl/animation/animation.h>
+#    include "saiga/core/geometry/triangle_mesh.h"
+#    include "saiga/core/model/UnifiedModel.h"
+#    include "saiga/core/model/animation.h"
 
-#include <saiga/core/geometry/triangle_mesh.h>
-#include <type_traits>
+#    include <assimp/Importer.hpp>  // C++ importer interface
+#    include <assimp/cimport.h>
+#    include <assimp/postprocess.h>  // Post processing flags
+#    include <assimp/scene.h>        // Output data structure
+#    include <map>
+
+#    include <type_traits>
 
 namespace Saiga
 {
@@ -40,7 +42,7 @@ class SAIGA_OPENGL_API AssimpLoader
 {
    public:
     std::string file;
-    bool verbose = false;
+    bool verbose = true;
 
     const aiScene* scene = nullptr;
     Assimp::Importer importer;
@@ -60,11 +62,14 @@ class SAIGA_OPENGL_API AssimpLoader
     AssimpLoader(const std::string& file);
 
     void printInfo();
-    void printMaterialInfo(const aiMaterial* material);
     void loadBones();
 
 
     void loadFile(const std::string& _file);
+
+
+
+    UnifiedModel Model();
 
 
     template <typename vertex_t>
@@ -110,23 +115,23 @@ class SAIGA_OPENGL_API AssimpLoader
 
 
 // type trait that checks if a member name exists in a type
-#define HAS_MEMBER(_M, _NAME)                          \
-    template <typename T>                              \
-    class _NAME                                        \
-    {                                                  \
-        typedef char one;                              \
-        typedef long two;                              \
-        template <typename C>                          \
-        static one test(decltype(&C::_M));             \
-        template <typename C>                          \
-        static two test(...);                          \
-                                                       \
-       public:                                         \
-        enum                                           \
-        {                                              \
-            value = sizeof(test<T>(0)) == sizeof(char) \
-        };                                             \
-    };
+#    define HAS_MEMBER(_M, _NAME)                          \
+        template <typename T>                              \
+        class _NAME                                        \
+        {                                                  \
+            typedef char one;                              \
+            typedef long two;                              \
+            template <typename C>                          \
+            static one test(decltype(&C::_M));             \
+            template <typename C>                          \
+            static two test(...);                          \
+                                                           \
+           public:                                         \
+            enum                                           \
+            {                                              \
+                value = sizeof(test<T>(0)) == sizeof(char) \
+            };                                             \
+        };
 
 
 HAS_MEMBER(position, has_position)
@@ -135,22 +140,22 @@ HAS_MEMBER(texture, has_texture)
 HAS_MEMBER(boneIndices, has_boneIndices)
 HAS_MEMBER(boneWeights, has_boneWeights)
 
-#define ENABLE_IF_FUNCTION(_NAME, _P1, _P2, _TRAIT) \
-    template <class T>                              \
-    void _NAME(_P1, _P2, typename std::enable_if<_TRAIT<T>::value, T>::type* = 0)
+#    define ENABLE_IF_FUNCTION(_NAME, _P1, _P2, _TRAIT) \
+        template <class T>                              \
+        void _NAME(_P1, _P2, typename std::enable_if<_TRAIT<T>::value, T>::type* = 0)
 
-#define ENABLED_FUNCTION(_NAME, _P1, _P2, _TRAIT)   \
-    ENABLE_IF_FUNCTION(_NAME, _P1, _P2, !_TRAIT) {} \
-    ENABLE_IF_FUNCTION(_NAME, _P1, _P2, _TRAIT)
+#    define ENABLED_FUNCTION(_NAME, _P1, _P2, _TRAIT)   \
+        ENABLE_IF_FUNCTION(_NAME, _P1, _P2, !_TRAIT) {} \
+        ENABLE_IF_FUNCTION(_NAME, _P1, _P2, _TRAIT)
 
 
-#define ENABLE_IF_FUNCTION3(_NAME, _P1, _P2, _P3, _TRAIT) \
-    template <class T>                                    \
-    void _NAME(_P1, _P2, _P3, typename std::enable_if<_TRAIT<T>::value, T>::type* = 0)
+#    define ENABLE_IF_FUNCTION3(_NAME, _P1, _P2, _P3, _TRAIT) \
+        template <class T>                                    \
+        void _NAME(_P1, _P2, _P3, typename std::enable_if<_TRAIT<T>::value, T>::type* = 0)
 
-#define ENABLED_FUNCTION3(_NAME, _P1, _P2, _P3, _TRAIT)   \
-    ENABLE_IF_FUNCTION3(_NAME, _P1, _P2, _P3, !_TRAIT) {} \
-    ENABLE_IF_FUNCTION3(_NAME, _P1, _P2, _P3, _TRAIT)
+#    define ENABLED_FUNCTION3(_NAME, _P1, _P2, _P3, _TRAIT)   \
+        ENABLE_IF_FUNCTION3(_NAME, _P1, _P2, _P3, !_TRAIT) {} \
+        ENABLE_IF_FUNCTION3(_NAME, _P1, _P2, _P3, _TRAIT)
 
 
 

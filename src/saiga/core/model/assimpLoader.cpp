@@ -6,6 +6,8 @@
 
 #include "assimpLoader.h"
 
+#include "saiga/core/util/fileChecker.h"
+
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
 #    include "saiga/core/util/assert.h"
 
@@ -19,7 +21,14 @@ AssimpLoader::AssimpLoader(const std::string& _file) : file(_file)
 
 void AssimpLoader::loadFile(const std::string& _file)
 {
-    file = _file;
+    this->file = SearchPathes::model(_file);
+    if (file == "")
+    {
+        std::cerr << "Could not open file " << _file << std::endl;
+        std::cerr << SearchPathes::model << std::endl;
+        return;
+    }
+
     importer.SetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
 
     int flags = aiProcess_Triangulate;
@@ -55,37 +64,154 @@ void AssimpLoader::printInfo()
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
     {
         const aiMesh* mesh = scene->mMeshes[m];
-        std::cout << ">>> Mesh " << m << ": Material id " << mesh->mMaterialIndex << ", Vertices " << mesh->mNumVertices
-                  << ", Faces " << mesh->mNumFaces << std::endl;
+        std::cout << ">>> Mesh " << m << " " << mesh->mName.C_Str() << ": Material id " << mesh->mMaterialIndex
+                  << ", Vertices " << mesh->mNumVertices << ", Faces " << mesh->mNumFaces << std::endl;
     }
+}
+
+static vec3 convert_color(aiColor3D aiv)
+{
+    return vec3(aiv.r, aiv.g, aiv.b);
+}
+
+static vec4 convert_color(aiColor4D aiv)
+{
+    return vec4(aiv.r, aiv.g, aiv.b, aiv.a);
+}
+
+static vec3 convert_vector(aiVector3D aiv)
+{
+    return vec3(aiv.x, aiv.y, aiv.z);
+}
+
+
+
+static UnifiedMaterial ConvertMaterial(const aiMaterial* material)
+{
+    UnifiedMaterial mat;
+
+    aiString name;
+    aiString texture_diffuse;
+
+
+    aiColor3D color_diffuse(0.f, 0.f, 0.f);
+    aiColor3D color_emissive(0.f, 0.f, 0.f);
+    aiColor3D color_specular(0.f, 0.f, 0.f);
+
+
+    material->Get(AI_MATKEY_NAME, name);
+
+    material->GetTexture(aiTextureType_DIFFUSE, 0, &texture_diffuse);
+
+    material->Get(AI_MATKEY_COLOR_DIFFUSE, color_diffuse);
+    material->Get(AI_MATKEY_COLOR_EMISSIVE, color_emissive);
+    material->Get(AI_MATKEY_COLOR_SPECULAR, color_specular);
+
+
+    mat.name            = name.C_Str();
+    mat.texture_diffuse = texture_diffuse.C_Str();
+
+    mat.color_diffuse = make_vec4(convert_color(color_diffuse), 1);
+    return mat;
+}
+
+
+UnifiedModel AssimpLoader::Model()
+{
+    UnifiedModel model;
+
 
     for (unsigned int m = 0; m < scene->mNumMaterials; ++m)
     {
         const aiMaterial* material = scene->mMaterials[m];
-        printMaterialInfo(material);
+
+        model.materials.push_back(ConvertMaterial(material));
     }
+
+
+    int current_vertex = 0;
+    int current_face   = 0;
+
+    for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
+    {
+        const aiMesh* mesh = scene->mMeshes[m];
+
+
+        UnifiedMaterialGroup umg;
+        umg.startFace  = current_face;
+        umg.numFaces   = mesh->mNumFaces;
+        umg.materialId = mesh->mMaterialIndex;
+
+        model.material_groups.push_back(umg);
+
+
+
+        if (mesh->HasPositions())
+        {
+            for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
+            {
+                model.position.push_back(convert_vector(mesh->mVertices[i]));
+            }
+        }
+        else
+        {
+            throw std::runtime_error("A model without position is invalid!");
+        }
+
+        if (mesh->HasNormals())
+        {
+            for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
+            {
+                model.normal.push_back(convert_vector(mesh->mNormals[i]));
+            }
+            SAIGA_ASSERT(model.position.size() == model.normal.size());
+        }
+
+        if (mesh->HasVertexColors(0))
+        {
+            SAIGA_ASSERT(!mesh->HasVertexColors(1));
+            model.color.resize(current_vertex);
+
+            for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
+            {
+                model.color.push_back(convert_color(mesh->mColors[0][i]));
+            }
+            SAIGA_ASSERT(model.position.size() == model.color.size());
+        }
+
+        if (mesh->HasTextureCoords(0))
+        {
+            for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
+            {
+                model.texture_coordinates.push_back(convert_vector(mesh->mTextureCoords[0][i]).head<2>());
+            }
+            SAIGA_ASSERT(model.position.size() == model.texture_coordinates.size());
+        }
+
+        if (mesh->HasFaces())
+        {
+            for (unsigned int i = 0; i < mesh->mNumFaces; ++i)
+            {
+                aiFace* f = mesh->mFaces + i;
+                if (f->mNumIndices == 3)
+                {
+                    ivec3 f1(f->mIndices[0], f->mIndices[1], f->mIndices[2]);
+
+                    f1 += ivec3(current_vertex, current_vertex, current_vertex);
+                    model.triangles.push_back(f1);
+                    current_face++;
+                }
+            }
+        }
+
+
+        current_vertex += mesh->mNumVertices;
+    }
+
+    return model;
 }
 
-void AssimpLoader::printMaterialInfo(const aiMaterial* material)
-{
-    aiString texturepath;
-    material->GetTexture(aiTextureType_DIFFUSE, 0, &texturepath);
 
-    aiColor3D cd(0.f, 0.f, 0.f);
-    material->Get(AI_MATKEY_COLOR_DIFFUSE, cd);
-
-    aiColor3D ce(0.f, 0.f, 0.f);
-    material->Get(AI_MATKEY_COLOR_EMISSIVE, ce);
-
-    aiColor3D cs(0.f, 0.f, 0.f);
-    material->Get(AI_MATKEY_COLOR_SPECULAR, cs);
-
-
-    std::cout << ">>>> Material: "
-              << "Color Diffuse (" << cd.r << " " << cd.g << " " << cd.b << "), Color Emissive (" << ce.r << " " << ce.g
-              << " " << ce.b << "), Color Specular (" << cs.r << " " << cs.g << " " << cs.b << "), Diffuse texture "
-              << texturepath.C_Str() << std::endl;
-}
 
 void AssimpLoader::loadBones()
 {

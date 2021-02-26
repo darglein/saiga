@@ -14,12 +14,21 @@
 #include "objModelLoader.h"
 #include "plyModelLoader.h"
 
+#ifdef SAIGA_USE_ASSIMP
+#    include "saiga/core/model/assimpLoader.h"
+#endif
+
 namespace Saiga
 {
+std::ostream& operator<<(std::ostream& strm, const UnifiedMaterial& material)
+{
+    std::cout << "[Mat] " << std::setw(20) << material.name << material.color_diffuse.transpose()
+              << ", tex: " << material.texture_diffuse;
+    return strm;
+}
+
 UnifiedModel::UnifiedModel(const std::string& file_name)
 {
-    std::cout << "Loading Unified Model " << file_name << std::endl;
-
     auto full_file = SearchPathes::model(file_name);
     if (full_file.empty())
     {
@@ -30,51 +39,30 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
 
     if (type == "obj")
     {
-        std::cout << "load obj" << std::endl;
         ObjModelLoader loader(full_file);
-
         *this = loader.out_model;
-
         for (auto& v : loader.outVertices)
         {
             position.push_back(v.position.head<3>());
             normal.push_back(v.normal.head<3>());
             texture_coordinates.push_back(v.texture);
         }
-
-        //        for (auto& c : loader.vertexColors)
-        //        {
-        //            color.push_back(c);
-        //        }
-
-        //        triangles = loader.out_model.triangles;
-        //        for (auto& f : loader.outTriangles)
-        //        {
-        //            triangles.push_back(f);
-        //        }
-
-        //        materials       = loader.out_model.materials;
-        //        material_groups = loader.out_model.material_groups;
-
-        //        for (int i = 0; i < loader.triangleGroups.size(); ++i)
-        //        {
-        //            auto& tg = loader.triangleGroups[i];
-        //            //            materials.push_back(tg.material);
-
-        //            UnifiedMaterialGroup umg;
-        //            umg.startFace  = tg.startFace;
-        //            umg.numFaces   = tg.numFaces;
-        //            umg.materialId = i;
-        //            material_groups.push_back(umg);
-        //        }
     }
+#ifdef SAIGA_USE_ASSIMP
     else
     {
-        throw std::runtime_error("Unknown model file format " + to_string(type));
+        AssimpLoader al(full_file);
+        *this = al.Model();
+        LocateTextures(full_file);
     }
-
-
-    std::cout << "type " << type << std::endl;
+#else
+    else
+    {
+        throw std::runtime_error(
+            "Unknown model file format " + to_string(type) +
+            "\n You can compile saiga with Assimp to increase the number of supported file formats.");
+    }
+#endif
 }
 
 UnifiedModel& UnifiedModel::transform(const mat4& T)
@@ -147,6 +135,43 @@ std::vector<vec4> UnifiedModel::ComputeVertexColorFromMaterial() const
         }
     }
     return color;
+}
+
+void UnifiedModel::LocateTextures(const std::string& base)
+{
+    auto search = [base](std::string str) -> std::string {
+        if (str.empty()) return "";
+        std::string result;
+
+
+
+        std::replace(str.begin(), str.end(), '\\', '/');
+
+
+        // first search relative to the parent
+        result = SearchPathes::model.getRelative(base, str);
+        if (!result.empty()) return result;
+
+
+        // no search in the image dir
+        result = SearchPathes::image.getRelative(base, str);
+        if (!result.empty()) return result;
+
+        if (result.empty())
+        {
+            std::cout << "Could not find image " << str << std::endl;
+            throw std::runtime_error("File not found!");
+        }
+        return result;
+    };
+
+    for (auto& mat : materials)
+    {
+        mat.texture_diffuse = search(mat.texture_diffuse);
+        mat.texture_normal  = search(mat.texture_normal);
+        mat.texture_bump    = search(mat.texture_bump);
+        mat.texture_alpha   = search(mat.texture_alpha);
+    }
 }
 
 
@@ -290,7 +315,7 @@ std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model)
     std::cout << "Materials\n";
     for (auto& m : model.materials)
     {
-        std::cout << "  " << m.name << ", " << m.color_diffuse.transpose() << ", tex: " << m.texture_diffuse << "\n";
+        strm << " " << m << std::endl;
     }
 
     return strm;

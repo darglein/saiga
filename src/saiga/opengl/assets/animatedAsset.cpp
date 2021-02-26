@@ -19,6 +19,8 @@ void AnimatedAsset::loadDefaultShaders()
     this->wireframeshader = shaderLoader.load<BoneShader>(shaderStr);
 }
 
+AnimatedAsset::AnimatedAsset(const UnifiedModel& model) {}
+
 void AnimatedAsset::render(Camera* cam, const mat4& model, UniformBuffer& boneMatrices)
 {
     std::shared_ptr<BoneShader> bs = std::static_pointer_cast<BoneShader>(this->deferredShader);
