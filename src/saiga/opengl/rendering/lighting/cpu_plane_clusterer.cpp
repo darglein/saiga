@@ -493,6 +493,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         }
     }
 
+    int numZPlanes = planesZ.size() - 1;
     for (int z = 0; z < planesZ.size(); ++z)
     {
         vec4 screenSpaceC(width / 2, height / 2, -1.0, 1.0);  // Center Point
@@ -500,12 +501,12 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         vec3 viewNearPlaneC(make_vec3(viewPosFromScreenPos(screenSpaceC, invProjection)));
 
         // Doom Depth Split, because it looks good.
-        float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
-        // float tileFar  = -camNear * pow(camFar / camNear, (float)(z + 1) / gridCount[2]);
+        //float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
+        float tileFar  = -camNear * pow(camFar / camNear, (float)(numZPlanes - z) / gridCount[2]);
 
-        vec3 viewNearClusterC(zeroZIntersection(viewNearPlaneC, tileNear));
+        vec3 viewFarClusterC(zeroZIntersection(viewNearPlaneC, tileFar));
 
-        planesZ[z] = Plane(viewNearClusterC, vec3(0, 0, -1));
+        planesZ[z] = Plane(viewFarClusterC, vec3(0, 0, 1));
 
         if (renderDebugEnabled && debugFrustumToView)
         {
@@ -519,10 +520,10 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
             vec3 viewBR(make_vec3(viewPosFromScreenPos(screenSpaceBR, invProjection)));
             vec3 viewTR(make_vec3(viewPosFromScreenPos(screenSpaceTR, invProjection)));
 
-            vec3 viewNearPlaneBL(zeroZIntersection(viewBL, tileNear));
-            vec3 viewNearPlaneTL(zeroZIntersection(viewTL, tileNear));
-            vec3 viewNearPlaneBR(zeroZIntersection(viewBR, tileNear));
-            vec3 viewNearPlaneTR(zeroZIntersection(viewTR, tileNear));
+            vec3 viewNearPlaneBL(zeroZIntersection(viewBL, tileFar));
+            vec3 viewNearPlaneTL(zeroZIntersection(viewTL, tileFar));
+            vec3 viewNearPlaneBR(zeroZIntersection(viewBR, tileFar));
+            vec3 viewNearPlaneTR(zeroZIntersection(viewTR, tileFar));
 
             v.position = viewNearPlaneBL;
             debugCluster.lines.push_back(v);
