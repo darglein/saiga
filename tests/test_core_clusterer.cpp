@@ -244,8 +244,8 @@ class ClustererTest : public ::testing::Test
 
         for (int z = 0; z <= z_cl; ++z)
         {
-            Plane far(vec3(0.0f, 0.0f, -(float)(z_cl - z)), vec3(0.0f, 0.0f, 1.0f));
-            planesZ.push_back(far);
+            Plane near(vec3(0.0f, 0.0f, (float)z), vec3(0.0f, 0.0f, 1.0f));
+            planesZ.push_back(near);
         }
     }
 
@@ -267,7 +267,7 @@ TEST_F(ClustererTest, sixPlanesOneSphereNoRefinement)
 {
     buildClusters(1, 1, 1);
 
-    Sphere sphereInside(vec3(0.5f, 0.5f, -0.5f), 0.25f);
+    Sphere sphereInside(vec3(0.5f, 0.5f, 0.5f), 0.25f);
 
     clusterData.push_back(sphereInside);
 
@@ -295,7 +295,7 @@ TEST_F(ClustererTest, sixPlanesOneSphereNoRefinement)
     ASSERT_EQ(clusterCache[0].size(), 1);  // one item
     ASSERT_EQ(clusterCache[0][0], 0);      // index 0
 
-    Sphere sphereIntersectingHigherEnd(vec3(1.0f, 1.0f, -1.0f), 0.5f);
+    Sphere sphereIntersectingHigherEnd(vec3(1.0f, 1.0f, 1.0f), 0.5f);
 
     clusterData.clear();
     clusterData.push_back(sphereIntersectingHigherEnd);
@@ -305,7 +305,7 @@ TEST_F(ClustererTest, sixPlanesOneSphereNoRefinement)
     ASSERT_EQ(clusterCache[0].size(), 1);  // one item
     ASSERT_EQ(clusterCache[0][0], 0);      // index 0
 
-    Sphere sphereAroundCluster(vec3(0.5f, 0.5f, -0.5f), 4.0f);
+    Sphere sphereAroundCluster(vec3(0.5f, 0.5f, 0.5f), 4.0f);
 
     clusterData.clear();
     clusterData.push_back(sphereAroundCluster);
@@ -321,7 +321,7 @@ TEST_F(ClustererTest, sixPlanesOneSphereWithRefinement)
     refinement = true;
     buildClusters(1, 1, 1);
 
-    Sphere sphereInside(vec3(0.5f, 0.5f, -0.5f), 0.25f);
+    Sphere sphereInside(vec3(0.5f, 0.5f, 0.5f), 0.25f);
 
     clusterData.push_back(sphereInside);
 
@@ -349,7 +349,7 @@ TEST_F(ClustererTest, sixPlanesOneSphereWithRefinement)
     ASSERT_EQ(clusterCache[0].size(), 1);  // one item
     ASSERT_EQ(clusterCache[0][0], 0);      // index 0
 
-    Sphere sphereIntersectingHigherEnd(vec3(1.0f, 1.0f, -1.0f), 0.5f);
+    Sphere sphereIntersectingHigherEnd(vec3(1.0f, 1.0f, 1.0f), 0.5f);
 
     clusterData.clear();
     clusterData.push_back(sphereIntersectingHigherEnd);
@@ -359,7 +359,7 @@ TEST_F(ClustererTest, sixPlanesOneSphereWithRefinement)
     ASSERT_EQ(clusterCache[0].size(), 1);  // one item
     ASSERT_EQ(clusterCache[0][0], 0);      // index 0
 
-    Sphere sphereAroundCluster(vec3(0.5f, 0.5f, -0.5f), 4.0f);
+    Sphere sphereAroundCluster(vec3(0.5f, 0.5f, 0.5f), 4.0f);
 
     clusterData.clear();
     clusterData.push_back(sphereAroundCluster);
@@ -376,9 +376,9 @@ TEST_F(ClustererTest, ThreeCubedClustersThreeSpheresLowEnd)
 
     Sphere sphereOnEdge(vec3(0.0f, 0.0f, 0.0f), 2.5f);
     clusterData.push_back(sphereOnEdge);
-    Sphere sphereCenterOutside(vec3(-0.1f, -0.1f, 0.1f), 2.7f);
+    Sphere sphereCenterOutside(vec3(-0.1f, -0.1f, -0.1f), 2.7f);
     clusterData.push_back(sphereCenterOutside);
-    Sphere sphereCenterInside(vec3(0.1f, 0.1f, -0.1f), 2.4f);
+    Sphere sphereCenterInside(vec3(0.1f, 0.1f, 0.1f), 2.4f);
     clusterData.push_back(sphereCenterInside);
 
     clusterLights();
@@ -400,7 +400,7 @@ TEST_F(ClustererTest, ThreeCubedClustersThreeSpheresLowEnd)
             {
                 int tileIndex = x + clusterX * y + (clusterX * clusterY) * z;
 
-                if ((x == 2 && y == 2) || (x == 2 && z == 0) || (y == 2 && z == 0))
+                if ((x == 2 && y == 2) || (x == 2 && z == 2) || (y == 2 && z == 2))
                     ASSERT_EQ(clusterCache[tileIndex].size(), 0);  // no item in the cluster
                 else
                     ASSERT_EQ(clusterCache[tileIndex].size(), 3);  // 3 items in the cluster
@@ -413,11 +413,11 @@ TEST_F(ClustererTest, ThreeCubedClustersThreeSpheresHighEnd)
 {
     buildClusters(3, 3, 3);
 
-    Sphere sphereOnEdge(vec3(3.0f, 3.0f, -3.0f), 2.5f);
+    Sphere sphereOnEdge(vec3(3.0f, 3.0f, 3.0f), 2.5f);
     clusterData.push_back(sphereOnEdge);
-    Sphere sphereCenterOutside(vec3(3.1f, 3.1f, -3.1f), 2.7f);
+    Sphere sphereCenterOutside(vec3(3.1f, 3.1f, 3.1f), 2.7f);
     clusterData.push_back(sphereCenterOutside);
-    Sphere sphereCenterInside(vec3(2.9f, 2.9f, -2.9f), 2.4f);
+    Sphere sphereCenterInside(vec3(2.9f, 2.9f, 2.9f), 2.4f);
     clusterData.push_back(sphereCenterInside);
 
     clusterLights();
@@ -439,7 +439,7 @@ TEST_F(ClustererTest, ThreeCubedClustersThreeSpheresHighEnd)
             {
                 int tileIndex = x + clusterX * y + (clusterX * clusterY) * z;
 
-                if ((x == 0 && y == 0) || (x == 0 && z == 2) || (y == 0 && z == 2))
+                if ((x == 0 && y == 0) || (x == 0 && z == 0) || (y == 0 && z == 0))
                     ASSERT_EQ(clusterCache[tileIndex].size(), 0);  // no item in the cluster
                 else
                     ASSERT_EQ(clusterCache[tileIndex].size(), 3);  // 3 items in the cluster
@@ -452,7 +452,7 @@ TEST_F(ClustererTest, ThreeCubedClustersOneSphereCenter)
 {
     buildClusters(3, 3, 3);
 
-    Sphere sphereCenter(vec3(1.5f, 1.5f, -1.5f), 0.65f);
+    Sphere sphereCenter(vec3(1.5f, 1.5f, 1.5f), 0.65f);
     clusterData.push_back(sphereCenter);
 
     clusterLights();
