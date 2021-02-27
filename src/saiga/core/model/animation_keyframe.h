@@ -17,7 +17,7 @@ namespace Saiga
 {
 class Animation;
 
-class SAIGA_OPENGL_API AnimationNode
+class SAIGA_CORE_API AnimationNode
 {
    public:
     // these are the local transformations of this node relative to the parent node
@@ -46,7 +46,7 @@ class SAIGA_OPENGL_API AnimationNode
     void traverse(mat4 t, AlignedVector<mat4>& out_boneMatrices, std::vector<AnimationNode>& nodes);
 };
 
-class SAIGA_OPENGL_API AnimationKeyframe
+class SAIGA_CORE_API AnimationKeyframe
 {
    private:
     AlignedVector<mat4> boneMatrices;
