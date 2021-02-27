@@ -8,7 +8,13 @@ git clone https://github.com/Microsoft/vcpkg.git $VCPKGDIR
 cd $VCPKGDIR
 ./bootstrap-vcpkg.bat
 ./vcpkg integrate install
+./vcpkg install zlib
+./vcpkg install libpng
 ./vcpkg install sdl2
+./vcpkg install freetype
+./vcpkg install assimp
+./vcpkg install glfw3
+./vcpkg install gtest
 
 #ls -a installed/x64-windows
 cd ..
