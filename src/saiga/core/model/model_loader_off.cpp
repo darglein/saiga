@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "offModelLoader.h"
+#include "model_loader_off.h"
 
 #include "saiga/core/math/String.h"
 #include "saiga/core/time/all.h"
@@ -126,7 +126,8 @@ bool OffModelLoader::loadFile(const std::string& _file)
 
     mesh.computePerVertexNormal();
 
-    if(state != ParsingState::DONE){
+    if (state != ParsingState::DONE)
+    {
         std::cout << "Parsing failed!" << std::endl;
         return false;
     }

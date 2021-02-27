@@ -10,7 +10,7 @@
 #include "saiga/core/geometry/openMeshWrapper.h"
 #include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/model/objModelLoader.h"
+#include "saiga/core/model/model_loader_obj.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/vision/util/DepthmapPreprocessor.h"
 

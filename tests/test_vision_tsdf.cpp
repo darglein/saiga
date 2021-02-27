@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 #include "saiga/core/Core.h"
-#include "saiga/core/model/plyModelLoader.h"
+#include "saiga/core/model/model_loader_ply.h"
 #include "saiga/vision/reconstruction/MarchingCubes.h"
 #include "saiga/vision/reconstruction/SparseTSDF.h"
 #include "saiga/vision/reconstruction/VoxelFusion.h"

@@ -13,20 +13,20 @@
 #include <iostream>
 namespace Saiga
 {
-const AnimationFrame& Animation::getKeyFrame(int frameIndex)
+const AnimationKeyframe& Animation::getKeyFrame(int frameIndex)
 {
     SAIGA_ASSERT(frameIndex >= 0 && frameIndex < frameCount);
     return keyFrames[frameIndex];
 }
 
-void Animation::getFrame(animationtime_t time, AnimationFrame& out)
+void Animation::getFrame(animationtime_t time, AnimationKeyframe& out)
 {
     // here time is given in animation time base
     time = std::max(std::min(time, duration), animationtime_t(0));
 
     // seach for correct frame interval
     int frame = 0;
-    for (AnimationFrame& af : keyFrames)
+    for (AnimationKeyframe& af : keyFrames)
     {
         if (af.time >= time)
         {
@@ -36,8 +36,8 @@ void Animation::getFrame(animationtime_t time, AnimationFrame& out)
     }
     int prevFrame = std::max(0, frame - 1);
 
-    AnimationFrame& k0 = keyFrames[prevFrame];
-    AnimationFrame& k1 = keyFrames[frame];
+    AnimationKeyframe& k0 = keyFrames[prevFrame];
+    AnimationKeyframe& k1 = keyFrames[frame];
 
     if (frame == prevFrame)
     {
@@ -46,10 +46,10 @@ void Animation::getFrame(animationtime_t time, AnimationFrame& out)
     }
 
     float alpha = ((time - k0.time).count() / (k1.time - k0.time).count());
-    out         = AnimationFrame(k0, k1, alpha);
+    out         = AnimationKeyframe(k0, k1, alpha);
 }
 
-void Animation::getFrameNormalized(double time, AnimationFrame& out)
+void Animation::getFrameNormalized(double time, AnimationKeyframe& out)
 {
     time = clamp(time, 0.0, 1.0);
     SAIGA_ASSERT(time >= 0 && time <= 1);
@@ -61,7 +61,7 @@ void Animation::print()
     std::cout << "[Animation] " + name << " Frames=" << frameCount << " duration=" << duration.count() << "s"
               << std::endl;
     std::cout << "\tKeyframes: [";
-    for (AnimationFrame& af : keyFrames)
+    for (AnimationKeyframe& af : keyFrames)
     {
         std::cout << af.time.count() << ", ";
     }
@@ -100,7 +100,7 @@ void AnimationSystem::interpolate(float dt, float alpha)
 
     if (interpolate_alpha > 0)
     {
-        currentFrame = AnimationFrame(currentFrame, interpolateFrame, interpolate_alpha);
+        currentFrame = AnimationKeyframe(currentFrame, interpolateFrame, interpolate_alpha);
     }
 }
 

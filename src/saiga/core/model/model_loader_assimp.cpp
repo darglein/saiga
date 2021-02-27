@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "assimpLoader.h"
+#include "model_loader_assimp.h"
 
 #include "saiga/core/util/fileChecker.h"
 
@@ -315,7 +315,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation& out)
     out.boneCount   = boneCount;
 
     auto tps = curanim->mTicksPerSecond;
-    for (AnimationFrame& af : out.keyFrames)
+    for (AnimationKeyframe& af : out.keyFrames)
     {
         af.time = af.time / tps;
         af.calculateBoneMatrices(out);
@@ -326,7 +326,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation& out)
 }
 
 
-void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationFrame>& animationFrames)
+void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames)
 {
     aiVectorKey *p0, *s0;
     aiQuatKey* r0;
@@ -392,8 +392,8 @@ void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationFrame
             an.keyFramed = true;
         }
         // k.initTree();
-        AnimationFrame& k = animationFrames[frame];
-        k.nodeCount       = nodeCount;
+        AnimationKeyframe& k = animationFrames[frame];
+        k.nodeCount          = nodeCount;
         SAIGA_ASSERT(rootNode == 0);
         //        k.boneOffsets = boneOffsets;
         k.nodes = animationNodes;

@@ -6,7 +6,7 @@
 
 
 #pragma once
-
+#include "saiga/core/geometry/LineMesh.h"
 #include "saiga/core/geometry/PointCloud.h"
 #include "saiga/core/model/all.h"
 #include "saiga/core/util/DataStructures/ArrayView.h"

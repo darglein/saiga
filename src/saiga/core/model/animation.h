@@ -10,7 +10,7 @@
 #include "saiga/core/time/time.h"
 #include "saiga/core/util/Align.h"
 
-#include "animationFrame.h"
+#include "animation_keyframe.h"
 
 namespace Saiga
 {
@@ -33,7 +33,7 @@ class SAIGA_OPENGL_API Animation
    public:
     std::string name;
 
-    std::vector<AnimationFrame> keyFrames;
+    std::vector<AnimationKeyframe> keyFrames;
 
     // number of keyframes
     int frameCount = 0;
@@ -52,7 +52,7 @@ class SAIGA_OPENGL_API Animation
      * Returns the keyframe at the given index.
      */
 
-    const AnimationFrame& getKeyFrame(int frameIndex);
+    const AnimationKeyframe& getKeyFrame(int frameIndex);
 
     /**
      * Returns the interpolated frame at animation time.
@@ -60,7 +60,7 @@ class SAIGA_OPENGL_API Animation
      * The input time will be clamped to [0,duration]
      */
 
-    void getFrame(animationtime_t time, AnimationFrame& out);
+    void getFrame(animationtime_t time, AnimationKeyframe& out);
 
     /**
      * Returns the interpolated frame similar to @getFrame(float time, AnimationFrame &out);
@@ -68,7 +68,7 @@ class SAIGA_OPENGL_API Animation
      * A interpolation from 0 to 1 will always play the complete animation.
      */
 
-    void getFrameNormalized(double time, AnimationFrame& out);
+    void getFrameNormalized(double time, AnimationKeyframe& out);
 
     /**
      * Prints all important information of this animation to stdout
@@ -90,12 +90,12 @@ class SAIGA_OPENGL_API AnimationSystem
     animationtime_t animationTimeAtUpdate = animationtime_t(0);
     animationtime_t animationTimeAtRender = animationtime_t(0);
     int activeAnimation                   = 0;
-    AnimationFrame currentFrame;
+    AnimationKeyframe currentFrame;
 
 
     float interpolate_alpha     = 0;
     int interpolating_animation = 0;
-    AnimationFrame interpolateFrame;
+    AnimationKeyframe interpolateFrame;
 
 
     float interpolate_speed = 5;

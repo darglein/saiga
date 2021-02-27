@@ -11,11 +11,11 @@
 
 #include "internal/noGraphicsAPI.h"
 
-#include "objModelLoader.h"
-#include "plyModelLoader.h"
+#include "model_loader_obj.h"
+#include "model_loader_ply.h"
 
 #ifdef SAIGA_USE_ASSIMP
-#    include "saiga/core/model/assimpLoader.h"
+#    include "saiga/core/model/model_loader_assimp.h"
 #endif
 
 namespace Saiga

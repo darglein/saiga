@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "objModelLoader.h"
+#include "model_loader_obj.h"
 
 #include "saiga/core/math/String.h"
 #include "saiga/core/time/all.h"

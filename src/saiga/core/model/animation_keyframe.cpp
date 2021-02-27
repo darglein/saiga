@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "animationFrame.h"
+#include "animation_keyframe.h"
 
 #include "saiga/core/util/assert.h"
 
@@ -66,7 +66,7 @@ void AnimationNode::traverse(mat4 m, AlignedVector<mat4>& out_boneMatrices, std:
 
 
 
-AnimationFrame::AnimationFrame(const AnimationFrame& k0, const AnimationFrame& k1, float alpha)
+AnimationKeyframe::AnimationKeyframe(const AnimationKeyframe& k0, const AnimationKeyframe& k1, float alpha)
 {
     SAIGA_ASSERT(k0.nodeCount == k1.nodeCount);
 
@@ -93,7 +93,7 @@ AnimationFrame::AnimationFrame(const AnimationFrame& k0, const AnimationFrame& k
 }
 
 
-void AnimationFrame::calculateBoneMatrices(const Animation& parent)
+void AnimationKeyframe::calculateBoneMatrices(const Animation& parent)
 {
     boneMatrices.resize(parent.boneCount);
     nodes[0].traverse(mat4::Identity(), boneMatrices, nodes);
@@ -103,13 +103,13 @@ void AnimationFrame::calculateBoneMatrices(const Animation& parent)
     }
 }
 
-const AlignedVector<mat4>& AnimationFrame::getBoneMatrices(const Animation& parent)
+const AlignedVector<mat4>& AnimationKeyframe::getBoneMatrices(const Animation& parent)
 {
     if (boneMatrices.size() == 0) calculateBoneMatrices(parent);
     return boneMatrices;
 }
 
-void AnimationFrame::setBoneMatrices(const AlignedVector<mat4>& value)
+void AnimationKeyframe::setBoneMatrices(const AlignedVector<mat4>& value)
 {
     //    SAIGA_ASSERT(value.size() == boneCount);
     boneMatrices = value;

@@ -46,7 +46,7 @@ class SAIGA_OPENGL_API AnimationNode
     void traverse(mat4 t, AlignedVector<mat4>& out_boneMatrices, std::vector<AnimationNode>& nodes);
 };
 
-class SAIGA_OPENGL_API AnimationFrame
+class SAIGA_OPENGL_API AnimationKeyframe
 {
    private:
     AlignedVector<mat4> boneMatrices;
@@ -57,10 +57,10 @@ class SAIGA_OPENGL_API AnimationFrame
                         // node, but a nodes can be parents of other nodes without directly having a bone.
     std::vector<AnimationNode> nodes;
 
-    AnimationFrame() {}
+    AnimationKeyframe() {}
 
     // linear interpolation of k0 and k1.
-    AnimationFrame(const AnimationFrame& k0, const AnimationFrame& k1, float alpha);
+    AnimationKeyframe(const AnimationKeyframe& k0, const AnimationKeyframe& k1, float alpha);
 
     void calculateBoneMatrices(const Animation& parent);
     const AlignedVector<mat4>& getBoneMatrices(const Animation& parent);

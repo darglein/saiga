@@ -99,9 +99,9 @@ class SAIGA_OPENGL_API AssimpLoader
     void getAnimation(int animationId, int meshId, Animation& out);
 
     void transformmesh(const aiMesh* amesh, AlignedVector<mat4>& boneMatrices);
-    void createFrames(const aiMesh* mesh, aiAnimation* anim, std::vector<AnimationFrame>& animationFrames);
+    void createFrames(const aiMesh* mesh, aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames);
 
-    void createKeyFrames(aiAnimation* anim, std::vector<AnimationFrame>& animationFrames);
+    void createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames);
     int createNodeTree(aiNode* node);
     mat4 composematrix(vec3 t, quat q, vec3 s);
 
