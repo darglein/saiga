@@ -127,7 +127,7 @@ void BARecRel::init()
         validImages.push_back(info);
     }
 
-    SAIGA_ASSERT(totalN == validImages.size());
+    SAIGA_ASSERT(totalN == (int)validImages.size());
 
     for (int i = 0; i < (int)scene.worldPoints.size(); ++i)
     {
@@ -260,8 +260,8 @@ void BARecRel::init()
             int valid_i = camera_to_valid_map[e.img1];
             int valid_j = camera_to_valid_map[e.img2];
 
-            SAIGA_ASSERT(valid_i >= 0 && valid_i < validImages.size());
-            SAIGA_ASSERT(valid_j >= 0 && valid_j < validImages.size());
+            SAIGA_ASSERT(valid_i >= 0 && valid_i < (int)validImages.size());
+            SAIGA_ASSERT(valid_j >= 0 && valid_j < (int)validImages.size());
 
             auto i = validImages[valid_i];
             auto j = validImages[valid_j];
@@ -301,7 +301,7 @@ void BARecRel::init()
         // Precompute the offset in the sparse matrix for every edge
         edgeOffsets.reserve(scene.rel_pose_constraints.size());
         std::vector<int> localOffsets(n, 1);
-        for (int k = 0; k < scene.rel_pose_constraints.size(); ++k)
+        for (int k = 0; k < (int)scene.rel_pose_constraints.size(); ++k)
         {
             edgeOffsets[k] = -1;
             auto e         = scene.rel_pose_constraints[k];
@@ -507,7 +507,7 @@ double BARecRel::computeQuadraticForm()
         }
 
 #pragma omp for
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
 
@@ -651,7 +651,7 @@ double BARecRel::computeQuadraticForm()
 
 
     double chi2_rel = 0;
-    for (int c = 0; c < scene.rel_pose_constraints.size(); ++c)
+    for (int c = 0; c < (int)scene.rel_pose_constraints.size(); ++c)
     {
         auto e = scene.rel_pose_constraints[c];
 
@@ -717,7 +717,7 @@ bool BARecRel::addDelta()
     //#pragma omp parallel num_threads(baOptions.helper_threads)
     {
 #pragma omp for nowait
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
             if (info.isConstant()) continue;
@@ -757,7 +757,7 @@ void BARecRel::revertDelta()
         //#pragma omp for nowait
         //        for (int i = 0; i < x_u.size(); ++i)
 #pragma omp for
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
             if (info.isConstant()) continue;
@@ -765,7 +765,7 @@ void BARecRel::revertDelta()
             x_u[info.validId] = oldx_u[info.validId];
         }
 #pragma omp for nowait
-        for (int i = 0; i < x_v.size(); ++i)
+        for (int i = 0; i < (int)x_v.size(); ++i)
         {
             x_v[i] = oldx_v[i];
         }
@@ -783,7 +783,7 @@ void BARecRel::finalize()
     //#pragma omp parallel num_threads(baOptions.helper_threads)
     {
 #pragma omp for nowait
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
             if (info.isConstant()) continue;
@@ -792,7 +792,7 @@ void BARecRel::finalize()
             extr.se3   = x_u[info.validId];
         }
 #pragma omp for
-        for (int i = 0; i < validPoints.size(); ++i)
+        for (int i = 0; i < (int)validPoints.size(); ++i)
         {
             auto id  = validPoints[i];
             auto& wp = scene.worldPoints[id];
@@ -845,7 +845,7 @@ double BARecRel::computeCost()
         double& newChi2 = localChi2[tid];
         newChi2         = 0;
 #pragma omp for
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
             SAIGA_ASSERT(info);
@@ -906,7 +906,7 @@ double BARecRel::computeCost()
     }
 
     double chi2_rel = 0;
-    for (int c = 0; c < scene.rel_pose_constraints.size(); ++c)
+    for (int c = 0; c < (int)scene.rel_pose_constraints.size(); ++c)
     {
         auto rpc = scene.rel_pose_constraints[c];
 

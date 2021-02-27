@@ -453,9 +453,9 @@ bool TriangleMesh<vertex_t, index_t>::isValid() const
     // check if all referenced vertices exist
     for (Face f : faces)
     {
-        if (f(0) < 0 || f(0) >= vertices.size()) return false;
-        if (f(1) < 0 || f(1) >= vertices.size()) return false;
-        if (f(2) < 0 || f(2) >= vertices.size()) return false;
+        if (f(0) < 0 || f(0) >= (int)vertices.size()) return false;
+        if (f(1) < 0 || f(1) >= (int)vertices.size()) return false;
+        if (f(2) < 0 || f(2) >= (int)vertices.size()) return false;
     }
     return true;
 }
@@ -513,7 +513,7 @@ void TriangleMesh<vertex_t, index_t>::removeSubsequentDuplicates(double epsilon)
     int currentIdx = -1;
     vec4 currentPos;
 
-    for (int i = 0; i < vertices.size(); ++i)
+    for (int i = 0; i < (int)vertices.size(); ++i)
     {
         auto& p = vertices[i].position;
         if (i == 0 || (p - currentPos).squaredNorm() > eps_squared)

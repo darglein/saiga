@@ -78,7 +78,7 @@ void testVocMatching(const std::vector<std::vector<Descriptor>>& features, OrbVo
     float time;
     {
         auto stats1 = measureObject(50, [&]() {
-            for (int i = 0; i < features.size(); i++)
+            for (int i = 0; i < (int)features.size(); i++)
             {
                 voc.transform(features[i], bows[i].first, bows[i].second, 4);
             }
@@ -88,7 +88,7 @@ void testVocMatching(const std::vector<std::vector<Descriptor>>& features, OrbVo
 
 #pragma omp parallel num_threads(4)
             {
-                for (int i = 0; i < features.size(); i++)
+                for (int i = 0; i < (int)features.size(); i++)
                 {
                     voc.transformOMP(features[i], bows[i].first, bows[i].second, 4);
                 }
@@ -102,9 +102,9 @@ void testVocMatching(const std::vector<std::vector<Descriptor>>& features, OrbVo
 
     {
         ScopedTimer tim(time);
-        for (int i = 0; i < features.size(); i++)
+        for (int i = 0; i < (int)features.size(); i++)
         {
-            for (int j = 0; j < features.size(); j++)
+            for (int j = 0; j < (int)features.size(); j++)
             {
                 double score = voc.score(bows[i].first, bows[j].first);
                 out += score;

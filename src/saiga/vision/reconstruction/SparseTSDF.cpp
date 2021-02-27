@@ -224,7 +224,7 @@ bool SparseTSDF::operator==(const SparseTSDF& other) const
 
     if (blocks.size() != other.blocks.size()) return false;
 
-    for (int i = 0; i < std::min(blocks.size(), other.blocks.size()); ++i)
+    for (int i = 0; i < (int)std::min(blocks.size(), other.blocks.size()); ++i)
     {
         auto& b1 = blocks[i];
         auto& b2 = other.blocks[i];

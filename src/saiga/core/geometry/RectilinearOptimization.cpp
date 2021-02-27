@@ -32,7 +32,7 @@ void MergeNeighborsSave(RectangleList& rectangles)
         int merged = 0;
 #if 1
         DiscreteBVH bvh(rectangles);
-        for (int i = 0; i < bvh.leaves.size(); ++i)
+        for (int i = 0; i < (int)bvh.leaves.size(); ++i)
         {
             auto& r1 = bvh.leaves[i];
             if (r1.Volume() == 0) continue;
@@ -115,7 +115,7 @@ std::vector<std::pair<int, int>> NeighborList(RectangleList& rectangles, int dis
     DiscreteBVH bvh(rectangles);
 
     std::vector<std::pair<int, int>> result;
-    for (int i = 0; i < rectangles.size(); ++i)
+    for (int i = 0; i < (int)rectangles.size(); ++i)
     {
         auto& r1 = rectangles[i];
         if (r1.Volume() == 0) continue;
@@ -183,7 +183,7 @@ int MergeNeighbors(RectangleList& rectangles, const Cost& cost, int max_iteratio
             bool found = false;
 
             // 3. Check if all intersecting rects can be shrunk to the merged rect.
-            for (int i = 0; i < inters.size(); ++i)
+            for (int i = 0; i < (int)inters.size(); ++i)
             {
                 auto& r = rectangles[inters[i]];
 
@@ -219,7 +219,7 @@ int MergeNeighbors(RectangleList& rectangles, const Cost& cost, int max_iteratio
 
             // 4. Compute merged volume and compute it to the transformed volume
             float old_cost = 0;
-            for (int i = 0; i < inters.size(); ++i)
+            for (int i = 0; i < (int)inters.size(); ++i)
             {
                 auto& r = rectangles[inters[i]];
                 old_cost += cost(r);
@@ -240,7 +240,7 @@ int MergeNeighbors(RectangleList& rectangles, const Cost& cost, int max_iteratio
             //    results.
             if (new_cost < old_cost)
             {
-                for (int i = 0; i < inters.size(); ++i)
+                for (int i = 0; i < (int)inters.size(); ++i)
                 {
                     auto& r = rectangles[inters[i]];
 
@@ -269,7 +269,7 @@ std::vector<int> AllIntersectingRects(const RectangleList& rectangles, const Rec
 {
     std::vector<int> result;
     //        for (auto r2 : rectangles)
-    for (int i = 0; i < rectangles.size(); ++i)
+    for (int i = 0; i < (int)rectangles.size(); ++i)
     {
         if (r.Intersect(rectangles[i]))
         {
@@ -337,7 +337,7 @@ static bool RandomStepMerge(RectangleList& rectangles)
     auto& r = rectangles[ind];
 
     std::vector<int> indices;
-    for (int i = 0; i < rectangles.size(); ++i)
+    for (int i = 0; i < (int)rectangles.size(); ++i)
     {
         auto& r2 = rectangles[i];
         if (i != ind && r.Distance(r2) <= 2)
@@ -424,7 +424,7 @@ static Rect Shrink(Rect rect, PointView points)
 
     Rect result = Rect(points.front());
 
-    for (int i = 1; i < points.size(); ++i)
+    for (int i = 1; i < (int)points.size(); ++i)
     {
         result = Rect(result, Rect(points[i]));
     }
@@ -435,7 +435,7 @@ void ShrinkIfPossible2(RectangleList& rectangles, PointView points)
     DiscreteBVH bvh(rectangles);
 
     std::vector<int> rect_ids(points.size());
-    for (int i = 0; i < points.size(); ++i)
+    for (int i = 0; i < (int)points.size(); ++i)
     {
         std::vector<int> inds;
         bvh.DistanceIntersect(Rect(points[i]), -1, inds);
@@ -445,12 +445,12 @@ void ShrinkIfPossible2(RectangleList& rectangles, PointView points)
     }
 
     std::vector<std::vector<ivec3>> points_per_rect(rectangles.size());
-    for (int i = 0; i < points.size(); ++i)
+    for (int i = 0; i < (int)points.size(); ++i)
     {
         points_per_rect[rect_ids[i]].push_back(points[i]);
     }
 
-    for (int i = 0; i < rectangles.size(); ++i)
+    for (int i = 0; i < (int)rectangles.size(); ++i)
     {
         rectangles[i] = Shrink(rectangles[i], points_per_rect[i]);
     }

@@ -426,7 +426,7 @@ void RQT_Triangulator::resolve_dependencies(MyMesh& mesh, ImageView<const vec3> 
         // add the vertices dependencies to the heap
         ImageView<std::vector<Point2D>> dependency_graph =
             ImageView<std::vector<Point2D>>(RQT_side_len, RQT_side_len, dependency_graph_vector.data());
-        for (int i = 0; i < dependency_graph(y, x).size(); ++i)
+        for (int i = 0; i < (int)dependency_graph(y, x).size(); ++i)
         {
             vertex_heap.push_back(dependency_graph(y, x)[i]);
         }
@@ -605,7 +605,7 @@ void RQT_Triangulator::triangulate_RQT_selected_vertices(MyMesh& current_mesh,
     MyMesh::VertexHandle curr_center_vh;
     int curr_y, curr_x;
     int curr_max_y, curr_max_x;
-    int curr_side_len, next_side_len, step_small, step_mid;
+    int curr_side_len, next_side_len, step_mid;
     // curr_triangulation == false: top left to bottom right, true: top right to bottom left
     bool curr_triangulation;
     // flags to help determine the correct triangulation
@@ -619,7 +619,6 @@ void RQT_Triangulator::triangulate_RQT_selected_vertices(MyMesh& current_mesh,
         curr_max_y         = curr_y + curr_side_len - 1;
         curr_max_x         = curr_x + curr_side_len - 1;
         step_mid           = curr_side_len / 2;
-        step_small         = step_mid / 2;
         next_side_len      = step_mid + 1;
         curr_triangulation = std::get<2>(quad_heap.back());
         quad_heap.pop_back();

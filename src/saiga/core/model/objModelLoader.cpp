@@ -501,7 +501,7 @@ void ObjModelLoader::parseLine()
 
         std::string mtl_name = std::string(lineParser.next());
         int mtl_id           = -1;
-        for (int i = 0; i < out_model.materials.size(); ++i)
+        for (size_t i = 0; i < out_model.materials.size(); ++i)
         {
             if (out_model.materials[i].name == mtl_name)
             {

@@ -3,7 +3,7 @@ mkdir $VCPKGDIR
 cd "C:/Users/travis/"
 
 
-export VCPKG_DEFAULT_TRIPLET=x86-windows
+export VCPKG_DEFAULT_TRIPLET=x64-windows
 git clone https://github.com/Microsoft/vcpkg.git $VCPKGDIR
 cd $VCPKGDIR
 ./bootstrap-vcpkg.bat
@@ -11,6 +11,7 @@ cd $VCPKGDIR
 ./vcpkg install sdl2
 ls
 ls installed
+ls installed/x64-windows
 cd ..
 
 SRC_DIR="C:/Users/travis/eigen"

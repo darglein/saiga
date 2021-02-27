@@ -46,7 +46,7 @@ struct VolumeCost : public Cost
         if (r.Volume() > max_volume) return std::numeric_limits<float>::infinity();
 
         float result = weights[0];
-        for (int i = 1; i < weights.size(); ++i)
+        for (int i = 1; i < (int)weights.size(); ++i)
         {
             result += r.Expand(i - 1).Volume() * weights[i];
         }
@@ -116,7 +116,7 @@ struct DiscreteBVH
 
     void DistanceIntersect(Rect r, int distance, std::vector<int>& result, int node = 0)
     {
-        SAIGA_ASSERT(node >= 0 && node < nodes.size());
+        SAIGA_ASSERT(node >= 0 && node < (int)nodes.size());
         Node& n = nodes[node];
         if (n.box.Distance(r) > distance) return;
 

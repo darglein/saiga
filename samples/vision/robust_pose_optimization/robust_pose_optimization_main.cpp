@@ -144,10 +144,10 @@ int main(int, char**)
     std::cout << "inliers: " << inliers << std::endl;
     //    sum += test_float.optimize();
     //    auto a = measureObject("Float", its, [&]() { sum += test_float.optimize(); });
-    int sum = 0;
+    //    int sum = 0;
     //    auto b  = measureObject("Double", its, [&]() { sum += test_double.optimize(); });
     //    std::cout << "Sum: " << sum << std::endl;
-    sum = 0;
+    //    sum = 0;
     //    auto c = measureObject("Double", its, [&]() { sum += test_double.optimizeOMP(); });
     //    std::cout << "Sum: " << sum << std::endl;
     //    std::cout << a.median << " " << b.median << std::endl;

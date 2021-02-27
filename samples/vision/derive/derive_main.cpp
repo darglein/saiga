@@ -112,7 +112,7 @@ void numericDeriv(JType& JA, JType& JB)
 void analyticDeriv(JType& JA, JType& JB)
 {
     auto A = n1.v;
-    auto B = n2.v;
+    //    auto B = n2.v;
     //    auto meas = e.meassurement;
     //#ifdef LSD_REL
     //    JB = A.inverse().Adj();
