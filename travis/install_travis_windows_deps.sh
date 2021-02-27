@@ -12,7 +12,7 @@ cd $VCPKGDIR
 ./vcpkg install libpng
 ./vcpkg install sdl2
 ./vcpkg install freetype
-./vcpkg install assimp
+travis_wait 30 ./vcpkg install assimp
 ./vcpkg install glfw3
 ./vcpkg install gtest
 
