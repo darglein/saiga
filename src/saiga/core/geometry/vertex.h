@@ -128,7 +128,7 @@ constexpr int MAX_BONES_PER_VERTEX = 4;
 using BoneIndices = std::array<int, MAX_BONES_PER_VERTEX>;
 using BoneWeights = std::array<float, MAX_BONES_PER_VERTEX>;
 
-struct SAIGA_OPENGL_API BoneInfo
+struct SAIGA_CORE_API BoneInfo
 {
     BoneIndices bone_indices;
     BoneWeights bone_weights;
@@ -153,7 +153,7 @@ struct SAIGA_OPENGL_API BoneInfo
 };
 
 
-struct SAIGA_OPENGL_API BoneVertex
+struct SAIGA_CORE_API BoneVertex
 {
    public:
     //    int32_t boneIndices[MAX_BONES_PER_VERTEX];
@@ -173,13 +173,13 @@ struct SAIGA_OPENGL_API BoneVertex
 };
 
 
-struct SAIGA_OPENGL_API BoneVertexT : public BoneVertex
+struct SAIGA_CORE_API BoneVertexT : public BoneVertex
 {
    public:
     vec2 texture;
 };
 
-struct SAIGA_OPENGL_API BoneVertexCD : public BoneVertex
+struct SAIGA_CORE_API BoneVertexCD : public BoneVertex
 {
    public:
     vec4 color;

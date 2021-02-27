@@ -28,7 +28,7 @@ namespace Saiga
  */
 
 
-class SAIGA_OPENGL_API Animation
+class SAIGA_CORE_API Animation
 {
    public:
     std::string name;
@@ -76,7 +76,7 @@ class SAIGA_OPENGL_API Animation
     void print();
 };
 
-class SAIGA_OPENGL_API AnimationSystem
+class SAIGA_CORE_API AnimationSystem
 {
    public:
     std::map<std::string, int> boneMap;
