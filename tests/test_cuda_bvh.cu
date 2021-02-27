@@ -24,12 +24,12 @@
 
 namespace Saiga
 {
-__global__ static void addFive(Ray ray, ArrayView<Triangle> triangles, ArrayView<float> output)
-{
-    int tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid >= triangles.size()) return;
-    auto t = triangles[tid];
-}
+//__global__ static void addFive(Ray ray, ArrayView<Triangle> triangles, ArrayView<float> output)
+//{
+//    int tid = blockDim.x * blockIdx.x + threadIdx.x;
+//    if (tid >= triangles.size()) return;
+//    auto t = triangles[tid];
+//}
 
 TEST(BVH, IntersectionRayTriangle)
 {

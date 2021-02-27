@@ -12,6 +12,7 @@
 
 namespace Saiga
 {
+#if 0
 void LineModelColored::createGrid(int numX, int numY, float quadSize, vec4 color)
 {
     vec2 size = vec2(numX, numY) * quadSize;
@@ -169,6 +170,6 @@ void LineModelColored::createFrustumCV(const mat3& K, float farPlaneLimit, const
 
                     5, 7, 6, 7};
 }
-
+#endif
 
 }  // namespace Saiga

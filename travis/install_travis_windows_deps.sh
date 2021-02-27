@@ -9,9 +9,8 @@ cd $VCPKGDIR
 ./bootstrap-vcpkg.bat
 ./vcpkg integrate install
 ./vcpkg install sdl2
-ls
-ls installed
-ls installed/x64-windows
+
+#ls -a installed/x64-windows
 cd ..
 
 SRC_DIR="C:/Users/travis/eigen"

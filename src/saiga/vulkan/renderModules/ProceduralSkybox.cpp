@@ -36,8 +36,9 @@ void ProceduralSkybox::renderTexture(vk::CommandBuffer cmd, StaticDescriptorSet 
 void ProceduralSkybox::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
 {
     PipelineBase::init(vulkanDevice, 1);
-    addDescriptorSetLayout({
-        {0,{11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment},
+    addDescriptorSetLayout({{
+        0,
+        {11, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment},
     }});
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
     shaderPipeline.load(device, {"vulkan/skybox.vert", "vulkan/skybox.frag"});
@@ -47,7 +48,8 @@ void ProceduralSkybox::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
     info.blendAttachmentState.blendEnable = true;
     create(renderPass, info);
 
-    blitMesh.createFullscreenQuad();
+    SAIGA_EXIT_ERROR("todo");
+    //    blitMesh.createFullscreenQuad();
     blitMesh.init(vulkanDevice);
 }
 

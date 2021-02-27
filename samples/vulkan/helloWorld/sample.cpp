@@ -68,13 +68,14 @@ VulkanExample::VulkanExample()
     teapotTrans.translateGlobal(vec3(0, 2, 0));
     teapotTrans.calculateModel();
 
-    plane.createCheckerBoard(ivec2(20, 20), 1.0f, Saiga::Colors::firebrick, Saiga::Colors::gray);
+    SAIGA_EXIT_ERROR("todo");
+    //    plane.createCheckerBoard(ivec2(20, 20), 1.0f, Saiga::Colors::firebrick, Saiga::Colors::gray);
     plane.init(renderer->base());
 
-    grid.createGrid(10, 10);
+    //    grid.createGrid(10, 10);
     grid.init(renderer->base());
 
-    frustum.createFrustum(camera.proj, 2, make_vec4(1), true);
+    //    frustum.createFrustum(camera.proj, 2, make_vec4(1), true);
     frustum.init(renderer->base());
 
     pointCloud.init(base, 1000 * 1000);

@@ -23,7 +23,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_VULKAN_API VulkanVertexColoredAsset : public VertexColoredModel
+class SAIGA_VULKAN_API VulkanVertexColoredAsset : public TriangleMesh<VertexNC, uint32_t>
 {
    public:
     VertexBuffer<VertexType> vertexBuffer;
@@ -37,10 +37,13 @@ class SAIGA_VULKAN_API VulkanVertexColoredAsset : public VertexColoredModel
 };
 
 
-class SAIGA_VULKAN_API VulkanLineVertexColoredAsset : public LineModelColored
+class SAIGA_VULKAN_API VulkanLineVertexColoredAsset
 {
    public:
+    using IndexType  = uint32_t;
     using VertexType = VertexNC;
+    LineMesh<VertexType, IndexType> mesh;
+
     VertexBuffer<VertexType> vertexBuffer;
 
     void init(VulkanBase& base);
@@ -71,7 +74,7 @@ class SAIGA_VULKAN_API VulkanPointCloudAsset
 
 
 
-class SAIGA_VULKAN_API VulkanTexturedAsset : public TexturedModel
+class SAIGA_VULKAN_API VulkanTexturedAsset : public TriangleMesh<VertexNTD, uint32_t>
 {
    public:
     VertexBuffer<VertexType> vertexBuffer;

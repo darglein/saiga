@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<VertexColoredModel, MVPColorShader>
+class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<TriangleMesh<VertexNC, uint32_t>, MVPColorShader>
 {
    public:
     static constexpr const char* shaderStr = "asset/ColoredAsset.glsl";
@@ -43,7 +43,7 @@ class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<LineMesh<Verte
 };
 
 
-class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TexturedModel, MVPTextureShader>
+class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TriangleMesh<VertexNTD, uint32_t>, MVPTextureShader>
 {
    public:
     // Default shaders

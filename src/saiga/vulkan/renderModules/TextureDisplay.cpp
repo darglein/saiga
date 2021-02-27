@@ -47,7 +47,8 @@ void TextureDisplay::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
     info.blendAttachmentState.blendEnable = VK_TRUE;
     create(renderPass, info);
 
-    blitMesh.createFullscreenQuad();
+    SAIGA_EXIT_ERROR("todo");
+    //    blitMesh.createFullscreenQuad();
     blitMesh.init(vulkanDevice);
 }
 
