@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/world/skybox.h"
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 
 namespace Saiga
 {

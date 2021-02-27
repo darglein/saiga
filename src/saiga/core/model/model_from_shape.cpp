@@ -5,9 +5,8 @@
  */
 
 
-#include "triangle_mesh_generator2.h"
+#include "model_from_shape.h"
 
-#include "internal/noGraphicsAPI.h"
 namespace Saiga
 {
 UnifiedModel FullScreenQuad()

@@ -5,7 +5,7 @@
  */
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"

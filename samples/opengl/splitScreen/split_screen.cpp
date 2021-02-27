@@ -6,7 +6,7 @@
 
 
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/sdl/all.h"
 #include "saiga/opengl/assets/all.h"

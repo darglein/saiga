@@ -6,15 +6,11 @@
 
 #pragma once
 
+#include "saiga/core/geometry/all.h"
 #include "saiga/core/model/UnifiedModel.h"
 
-#include "cone.h"
-#include "plane.h"
-#include "sphere.h"
 
-#include <memory>
 
-#include "triangle_mesh.h"
 namespace Saiga
 {
 SAIGA_CORE_API UnifiedModel FullScreenQuad();

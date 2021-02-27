@@ -7,7 +7,7 @@
 #include "saiga/config.h"
 #ifdef SAIGA_USE_SDL
 
-#    include "saiga/core/geometry/triangle_mesh_generator.h"
+#    include "saiga/core/model/model_from_shape.h"
 
 #    include "SampleWindowForward.h"
 

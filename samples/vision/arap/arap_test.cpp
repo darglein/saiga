@@ -6,7 +6,7 @@
 #include "saiga/core/framework/framework.h"
 #include "saiga/core/geometry/half_edge_mesh.h"
 #include "saiga/core/geometry/openMeshWrapper.h"
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/model/model_loader_obj.h"

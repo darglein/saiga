@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/texture/CubeTexture.h"

@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/shader/shaderLoader.h"
