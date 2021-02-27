@@ -37,10 +37,9 @@
 #include "saiga/opengl/opengl.h"
 
 #ifdef SAIGA_USE_SDL
+#    include "saiga/core/sdl/saiga_sdl.h"
 
-#    include <SDL2/SDL.h>
-
-#    include <SDL2/SDL_syswm.h>
+#    include <SDL_syswm.h>
 
 namespace Saiga
 {

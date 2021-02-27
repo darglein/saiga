@@ -8,7 +8,7 @@
 
 #include <iostream>
 #ifdef SAIGA_USE_SDL
-#    include <SDL2/SDL.h>
+#    include "saiga/core/sdl/saiga_sdl.h"
 #endif
 #ifdef SAIGA_USE_GLFW
 #    include <GLFW/glfw3.h>

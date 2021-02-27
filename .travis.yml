@@ -65,7 +65,7 @@ script:
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
-      cmake -DCMAKE_PREFIX_PATH="C:/Users/travis/install" -G "Visual Studio 15 2017 Win64" $TRAVIS_BUILD_DIR 
+      cmake -DCMAKE_PREFIX_PATH="C:/Users/travis/install;C:/Users/travis/vcpkg/intalled" -G "Visual Studio 15 2017 Win64" $TRAVIS_BUILD_DIR 
       cmake --build . -j2
     fi
 

@@ -9,10 +9,10 @@
 #include "saiga/config.h"
 #ifdef SAIGA_USE_SDL
 #    include "saiga/core/imgui/imgui.h"
+#    include "saiga/core/sdl/saiga_sdl.h"
 #    include "saiga/vulkan/Shader/ShaderPipeline.h"
 
 #    include "ImGuiSDLRenderer.h"
-#    include "SDL2/SDL.h"
 
 #    if defined(SAIGA_OPENGL_INCLUDED)
 #        error OpenGL was included somewhere.

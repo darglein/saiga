@@ -1,9 +1,17 @@
+VCPKGDIR="C:/Users/travis/vcpkg"
+mkdir $VCPKGDIR
+cd "C:/Users/travis/"
+
+
 export VCPKG_DEFAULT_TRIPLET=x86-windows
-git clone https://github.com/Microsoft/vcpkg.git
-cd vcpkg
+git clone https://github.com/Microsoft/vcpkg.git $VCPKGDIR
+cd $VCPKGDIR
 ./bootstrap-vcpkg.bat
 ./vcpkg integrate install
 ./vcpkg install sdl2
+ls
+ls installed
+cd ..
 
 SRC_DIR="C:/Users/travis/eigen"
 INSTALL_DIR="C:/Users/travis/install"
