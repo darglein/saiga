@@ -47,9 +47,17 @@ before_install:
 
   
 install:
-   - if [ $TRAVIS_OS_NAME = osx ]; then $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; fi
-   - if [ $TRAVIS_OS_NAME = windows ]; then $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh; fi
-   - if [ $TRAVIS_OS_NAME = linux ]; then $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; fi
+   - if [ $TRAVIS_OS_NAME = osx ]; then 
+        $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; 
+     fi
+   - if [ $TRAVIS_OS_NAME = windows ]; then 
+        $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh;
+        cd "C:/Users/travis/vcpkg"
+        travis_wait 30 ./vcpkg install assimp
+     fi
+   - if [ $TRAVIS_OS_NAME = linux ]; then 
+        $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; 
+     fi
 
 before_script:
   - mkdir ~/saiga_build
@@ -65,7 +73,12 @@ script:
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
-      ll -a "C:/Users/travis/vcpkg/installed/x64-windows/"
+      echo "ls base"
+      ls -al "C:/Users/travis/vcpkg/installed/x64-windows/"
+      echo "ls bin"
+      ls -al "C:/Users/travis/vcpkg/installed/x64-windows/bin"
+      echo "ls lib"
+      ls -al "C:/Users/travis/vcpkg/installed/x64-windows/lib"
       cmake -DCMAKE_PREFIX_PATH="C:/Users/travis/install;C:/Users/travis/vcpkg/installed/x64-windows/" -G "Visual Studio 15 2017 Win64" $TRAVIS_BUILD_DIR 
       cmake --build . -j2
     fi

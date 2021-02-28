@@ -43,12 +43,15 @@ endif()
 #message(FATAL_ERROR "blas ${SDL2_INCLUDE_DIR} ${SDL2_LIBRARIES}")
 
 #GLFW
-find_package(GLFW 3.2 QUIET)
-if (GLFW_FOUND)
-  SET(SAIGA_USE_GLFW 1)
-endif ()
-PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
+#find_package(GLFW 3.2 QUIET)
+#if (GLFW_FOUND)
+#  SET(SAIGA_USE_GLFW 1)
+#endif ()
+#PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
 
+find_package(glfw3 CONFIG REQUIRED)
+PackageHelperTarget(glfw GLFW_FOUND)
+#target_link_libraries(main PRIVATE glfw)
 
 
 #openal
