@@ -1,4 +1,4 @@
-find_package(GTest QUIET)
+find_package(GTest REQUIRED)
 PackageHelperTarget(GTest::gtest GTest_FOUND)
 
 if(NOT GTEST_FOUND)

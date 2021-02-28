@@ -44,13 +44,13 @@ endif()
 
 #GLFW
 #find_package(GLFW 3.2 QUIET)
-#if (GLFW_FOUND)
-#  SET(SAIGA_USE_GLFW 1)
-#endif ()
 #PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
 
 find_package(glfw3 CONFIG REQUIRED)
 PackageHelperTarget(glfw GLFW_FOUND)
+if (GLFW_FOUND)
+  SET(SAIGA_USE_GLFW 1)
+endif ()
 #target_link_libraries(main PRIVATE glfw)
 
 
@@ -88,7 +88,7 @@ if(SAIGA_CXX_WCLANG)
 else()
   find_package(OpenMP REQUIRED)
   
-	PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
+PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
  # PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
  # if(OPENMP_FOUND)
  #   list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
@@ -106,11 +106,16 @@ endif()
 
 
 #assimp
-find_package(ASSIMP 5.0 QUIET)
+find_package(ASSIMP REQUIRED)
 PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
+
+#set(CMAKE_FIND_DEBUG_MODE TRUE)
+#find_package(assimp CONFIG REQUIRED)
+#PackageHelperTarget(assimp::assimp ASSIMP_FOUND)
 if(ASSIMP_FOUND)
     SET(SAIGA_USE_ASSIMP 1)
 endif()
+#message(FATAL_ERROR asdf)
 
 
 #libfreeimage
