@@ -52,8 +52,8 @@ install:
      fi
    - if [ $TRAVIS_OS_NAME = windows ]; then 
         $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh;
-        cd "C:/Users/travis/vcpkg"
-        travis_wait 30 ./vcpkg install assimp
+        cd "C:/Users/travis/vcpkg";
+        travis_wait 30 ./vcpkg install assimp;
      fi
    - if [ $TRAVIS_OS_NAME = linux ]; then 
         $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; 
