@@ -16,6 +16,7 @@ using namespace Saiga;
 
 TEST(MotionModel, SimpleAccess)
 {
+    Random::setSeed(30467436);
     MotionModel::Settings settings;
     settings.valid_range = 2;
     MotionModel mm(settings);

@@ -1,5 +1,6 @@
-find_package(GTest REQUIRED)
-PackageHelperTarget(GTest::gtest GTest_FOUND)
+#find_package(GTest REQUIRED)
+find_package(GTest CONFIG REQUIRED)
+PackageHelperTarget(GTest::gtest GTEST_FOUND)
 
 if(NOT GTEST_FOUND)
   message(STATUS "GTest not found. Tests disabled.")
@@ -16,7 +17,7 @@ function(saiga_test FILE_NAME)
   message(STATUS "Test enabled:      ${NAME}")
 
 
-  target_link_libraries(${TARGET_NAME} PUBLIC saiga_core GTest::GTest GTest::Main)
+  target_link_libraries(${TARGET_NAME} PUBLIC saiga_core GTest::gtest GTest::gtest_main)
   target_link_libraries(${TARGET_NAME} PUBLIC ${ARGN})
 
   add_test(
