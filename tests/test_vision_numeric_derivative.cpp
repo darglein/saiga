@@ -16,6 +16,7 @@
 
 namespace Saiga
 {
+#ifndef WIN32
 Vec3 LinearFunction(const Vec2& x, Matrix<double, 3, 2>* jacobian = nullptr)
 {
     Vec3 result;
@@ -570,5 +571,5 @@ TEST(NumericDerivative, RotatePointProjectSim3)
 }
 
 
-
+#endif
 }  // namespace Saiga

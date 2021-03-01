@@ -211,7 +211,7 @@ class PoissonTest
     Eigen::Tensor<double, 3> sdf_grid;
 
 
-    float voxel_size = 0.01;
+    double voxel_size = 0.01;
 
     // sphere
     Vec3 c   = Vec3(0.5, 0.5, 0.5);

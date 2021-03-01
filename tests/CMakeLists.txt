@@ -1,6 +1,16 @@
 #find_package(GTest REQUIRED)
-find_package(GTest CONFIG REQUIRED)
-PackageHelperTarget(GTest::gtest GTEST_FOUND)
+
+find_package(GTest CONFIG)
+if (TARGET GTest::gtest)
+  PackageHelperTarget(GTest::gtest GTEST_FOUND)
+else()
+  find_package(GTest QUIET)
+  PackageHelperTarget(GTest::gtest GTEST_FOUND)
+endif()
+
+
+
+
 
 if(NOT GTEST_FOUND)
   message(STATUS "GTest not found. Tests disabled.")
