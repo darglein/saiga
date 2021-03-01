@@ -47,19 +47,19 @@ before_install:
 
   
 install:
-   - if [ $TRAVIS_OS_NAME = osx ]; then 
+   - if [ $TRAVIS_OS_NAME = osx ]; then;
         $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; 
-     fi
-   - if [ $TRAVIS_OS_NAME = windows ]; then
-        export VCPKG_DIR="C:/Users/travis/vcpkg"
-        export VCPKG_INSTALL_DIR="$VCPKG_DIR/installed/x64-windows"
+     fi;
+   - if [ $TRAVIS_OS_NAME = windows ]; then;
+        export VCPKG_DIR="C:/Users/travis/vcpkg";
+        export VCPKG_INSTALL_DIR="$VCPKG_DIR/installed/x64-windows";
         $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh;
         cd "C:/Users/travis/vcpkg";
         #travis_wait 30 ./vcpkg install assimp;
-     fi
-   - if [ $TRAVIS_OS_NAME = linux ]; then 
+     fi;
+   - if [ $TRAVIS_OS_NAME = linux ]; then;
         $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; 
-     fi
+     fi;
 
 before_script:
   - mkdir ~/saiga_build
