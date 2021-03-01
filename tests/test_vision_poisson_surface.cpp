@@ -48,10 +48,10 @@ class PoissonTest
         {
             // Sample point on sphere
             Vec3 n = Random::sphericalRand(r);
-            Vec3 p = n + c;
+            Vec3 p = (n + c) * (1.0 / voxel_size);
 
             // Compute grid point
-            ivec3 cell_index = (p / voxel_size).array().round().cast<int>();
+            ivec3 cell_index = (p).array().round().cast<int>();
             normal_grid(cell_index(2), cell_index(1), cell_index(0)) += n.normalized();
         }
     }

@@ -10,8 +10,15 @@
 
 #include "gtest/gtest.h"
 
+#include "compare_numbers.h"
+
 using namespace Saiga;
 
+
+void TestSE3(const SE3& a, const SE3& b)
+{
+    ExpectCloseRelative(a.matrix(), b.matrix(), 1e-10);
+}
 
 
 TEST(MotionModel, SimpleAccess)
@@ -27,18 +34,19 @@ TEST(MotionModel, SimpleAccess)
     mm.addRelativeMotion(v, 8);
     mm.addRelativeMotion(v, 5000);
 
+
     // Direct access
-    EXPECT_EQ(v, mm.predictVelocityForFrame(5));
-    EXPECT_EQ(v, mm.predictVelocityForFrame(8));
-    EXPECT_EQ(v, mm.predictVelocityForFrame(5000));
+    TestSE3(v, mm.predictVelocityForFrame(5).value());
+    TestSE3(v, mm.predictVelocityForFrame(8).value());
+    TestSE3(v, mm.predictVelocityForFrame(5000).value());
 
     // Easy extrapolation
-    EXPECT_EQ(v, mm.predictVelocityForFrame(6));
-    EXPECT_EQ(v, mm.predictVelocityForFrame(7));
-    EXPECT_EQ(v, mm.predictVelocityForFrame(9));
-    EXPECT_EQ(v, mm.predictVelocityForFrame(10));
-    EXPECT_EQ(v, mm.predictVelocityForFrame(5001));
-    EXPECT_EQ(v, mm.predictVelocityForFrame(5002));
+    TestSE3(v, mm.predictVelocityForFrame(6).value());
+    TestSE3(v, mm.predictVelocityForFrame(7).value());
+    TestSE3(v, mm.predictVelocityForFrame(9).value());
+    TestSE3(v, mm.predictVelocityForFrame(10).value());
+    TestSE3(v, mm.predictVelocityForFrame(5001).value());
+    TestSE3(v, mm.predictVelocityForFrame(5002).value());
 
     // Extrapolation too far
     EXPECT_FALSE(mm.predictVelocityForFrame(0).has_value());

@@ -1,6 +1,6 @@
 #find_package(GTest REQUIRED)
 
-find_package(GTest CONFIG)
+find_package(GTest CONFIG QUIET)
 if (TARGET GTest::gtest)
   PackageHelperTarget(GTest::gtest GTEST_FOUND)
 else()
