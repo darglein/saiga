@@ -19,6 +19,8 @@
 #include "compare_numbers.h"
 namespace Saiga
 {
+#ifndef WIN32
+
 class PoissonTest
 {
    public:
@@ -229,4 +231,5 @@ TEST(PoissonSurfaceReconstruction, Grid)
 }
 
 
+#endif
 }  // namespace Saiga
