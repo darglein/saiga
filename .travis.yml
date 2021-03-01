@@ -1,6 +1,9 @@
 # This script is partially copied from the ceres-solver:
 # https://github.com/ceres-solver/ceres-solver/blob/master/.travis.yml
-
+#
+# Test this script on
+# https://config.travis-ci.com/explore
+#
 language: cpp
 
 matrix:
@@ -43,7 +46,7 @@ env:
   - OMP_NUM_THREADS=2
   
 before_install:
-  - if [ $TRAVIS_OS_NAME = linux ]; then apt-get update -qq; fi
+  - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get update -qq; fi
 
   
 install:
@@ -56,7 +59,7 @@ install:
         $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh;
         cd "C:/Users/travis/vcpkg";
      fi;
-   - if [ $TRAVIS_OS_NAME = linux ]; then;
+   - if [ $TRAVIS_OS_NAME = linux ]; then
         $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; 
      fi;
 
@@ -69,7 +72,7 @@ script:
     if [[ "$TRAVIS_OS_NAME" == "linux" || "$TRAVIS_OS_NAME" == "osx" ]]; then
       /snap/bin/cmake  -DCMAKE_PREFIX_PATH="/home/travis/install" $TRAVIS_BUILD_DIR 
       make -j2
-      make install
+      sudo make install
       ctest --output-on-failure
     fi
   - |
