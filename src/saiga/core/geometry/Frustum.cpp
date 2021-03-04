@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include <iostream>
-
 #include "Frustum.h"
+
+#include <iostream>
 
 namespace Saiga
 {
@@ -187,7 +187,7 @@ bool Frustum::intersectSAT(const Frustum& other) const
     for (int i = 0; i < 6; ++i)
     {
         if (other.sideOfPlane(planes[i]) > 0)
-        {   // other is entirely on positive side
+        {  // other is entirely on positive side
             //            std::cout << "plane fail1 " << i << std::endl;
             return false;
         }
@@ -197,7 +197,7 @@ bool Frustum::intersectSAT(const Frustum& other) const
     for (int i = 0; i < 6; ++i)
     {
         if (this->sideOfPlane(other.planes[i]) > 0)
-        {   // this is entirely on positive side
+        {  // this is entirely on positive side
             //            std::cout << "plane fail2 " << i << std::endl;
             return false;
         }
@@ -225,6 +225,42 @@ bool Frustum::intersectSAT(const Frustum& other) const
     return true;
 }
 
+bool Frustum::intersectSAT(const Sphere& s) const
+{
+    for (int i = 0; i < 6; ++i)
+    {
+        if (planes[i].distance(s.pos) >= s.r)
+        {
+            return false;
+        }
+    }
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const vec3& v = vertices[i];
+        vec3 d        = (v - s.pos).normalized();
+        vec2 i1       = this->projectedIntervall(d);
+        vec2 i2       = s.projectedIntervall(d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+    }
+
+    for (int i = 0; i < 12; ++i)
+    {
+        auto edge          = this->getEdge(i);
+        vec3 A             = edge.first;
+        vec3 B             = edge.second;
+        vec3 AP            = (s.pos - A);
+        vec3 AB            = (B - A);
+        vec3 closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        vec3 d  = (closestOnEdge - s.pos).normalized();
+        vec2 i1 = this->projectedIntervall(d);
+        vec2 i2 = s.projectedIntervall(d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+    }
+
+    return true;
+}
 
 std::pair<vec3, vec3> Frustum::getEdge(int i) const
 {

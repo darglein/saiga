@@ -14,198 +14,6 @@ CPUPlaneClusterer::CPUPlaneClusterer(ClustererParameters _params) : Clusterer(_p
 
 CPUPlaneClusterer::~CPUPlaneClusterer() {}
 
-static vec2 projectedFrustumIntervall(vec3 points[8], const vec3& d)
-{
-    vec2 ret(1000000, -1000000);
-    for (int i = 0; i < 8; ++i)
-    {
-        float t = dot(d, points[i]);
-        ret[0]  = std::min(ret[0], t);
-        ret[1]  = std::max(ret[1], t);
-    }
-    return ret;
-}
-
-static vec2 projectedSphereIntervall(const Sphere& s, const vec3& d)
-{
-    vec2 ret;
-    float t = dot(d, s.pos);
-    ret[0]  = std::min(t - s.r, t + s.r);
-    ret[1]  = std::max(t + s.r, t - s.r);
-    return ret;
-}
-
-static bool intersectSAT(Plane planes[6], vec3 points[8], const Sphere& sphere)
-{
-    for (int i = 0; i < 6; ++i)
-    {
-        if (planes[i].distance(sphere.pos) >= sphere.r)
-        {
-            return false;
-        }
-    }
-
-    for (int i = 0; i < 8; ++i)
-    {
-        vec3& v  = points[i];
-        vec3 d  = (v - sphere.pos).normalized();
-        vec2 i1 = projectedFrustumIntervall(points, d);
-        vec2 i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-    }
-
-    const vec3& nBL = points[0];
-    const vec3& nBR = points[1];
-    const vec3& nTL = points[2];
-    const vec3& nTR = points[3];
-    const vec3& fBL = points[4];
-    const vec3& fBR = points[5];
-    const vec3& fTL = points[6];
-    const vec3& fTR = points[7];
-
-    vec3 A, B, P, AB, AP, closestOnEdge, d;
-    vec2 i1, i2;
-    P = sphere.pos;
-
-    // edges
-    {
-        // edge 0
-        A             = nBL;
-        B             = nBR;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 1
-        A             = nTL;
-        B             = nTR;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 2
-        A             = nBL;
-        B             = nTL;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 3
-        A             = nBR;
-        B             = nTR;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 4
-        A             = fBL;
-        B             = fBR;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 5
-        A             = fTL;
-        B             = fTR;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 6
-        A             = fBL;
-        B             = fTL;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 7
-        A             = fBR;
-        B             = fTR;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 8
-        A             = nBL;
-        B             = fBL;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 9
-        A             = nBR;
-        B             = fBR;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 10
-        A             = nTL;
-        B             = fTL;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-        // edge 11
-        A             = nTR;
-        B             = fTR;
-        AP = (P - A);
-        AB = (B - A);
-        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
-
-        d  = (closestOnEdge - sphere.pos).normalized();
-        i1 = projectedFrustumIntervall(points, d);
-        i2 = projectedSphereIntervall(sphere, d);
-        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
-    }
-
-    return true;
-}
-
 void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewPort)
 {
     assert_no_glerror();
@@ -431,15 +239,25 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
                         clusterDebugPoints& pts = debugPoints[tileIndex];
 
-                        std::vector<Plane> planes(6);
-                        planes[0] = planesX[x].invert();
-                        planes[1] = planesX[x + 1];
-                        planes[2] = planesY[y].invert();
-                        planes[3] = planesY[y + 1];
-                        planes[4] = planesZ[z].invert();
-                        planes[5] = planesZ[z + 1];
+                        Frustum fr;
 
-                        if (intersectSAT(planes.data(), &pts.nBL, sphere))
+                        fr.planes[0] = planesZ[z + 1];
+                        fr.planes[1] = planesZ[z].invert();
+                        fr.planes[2] = planesY[y + 1];
+                        fr.planes[3] = planesY[y].invert();
+                        fr.planes[5] = planesX[x].invert();
+                        fr.planes[4] = planesX[x + 1];
+
+                        fr.vertices[0] = pts.nTL;
+                        fr.vertices[1] = pts.nTR;
+                        fr.vertices[2] = pts.nBL;
+                        fr.vertices[3] = pts.nBR;
+                        fr.vertices[4] = pts.fTL;
+                        fr.vertices[5] = pts.fTR;
+                        fr.vertices[6] = pts.fBL;
+                        fr.vertices[7] = pts.fBR;
+
+                        if (fr.intersectSAT(sphere))
                         {
                             clusterCache[tileIndex].push_back(i);
                             itemCount++;

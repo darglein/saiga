@@ -68,6 +68,15 @@ float Sphere::sdf(vec3 p) const
     return (p - pos).norm() - r;
 }
 
+vec2 Sphere::projectedIntervall(const vec3& d) const
+{
+    vec2 ret;
+    float t = dot(d, pos);
+    ret[0]  = std::min(t - r, t + r);
+    ret[1]  = std::max(t + r, t - r);
+    return ret;
+}
+
 std::ostream& operator<<(std::ostream& os, const Saiga::Sphere& s)
 {
     os << "Sphere: " << s.pos << s.r;
