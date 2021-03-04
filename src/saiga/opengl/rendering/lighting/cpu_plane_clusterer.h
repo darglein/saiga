@@ -62,7 +62,9 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
     std::vector<clusterDebugPoints> debugPoints;
     LineSoup debugLights;
 
-    bool renderClusterDebug = false; // TODO Paul: -> UI!
-    bool renderLightsDebug = true; // TODO Paul: -> UI!
+    bool renderClusterDebug = false;  // TODO Paul: -> UI!
+    bool renderLightsDebug  = true;   // TODO Paul: -> UI!
+
+    bool SAT     = false;
 };
 }  // namespace Saiga

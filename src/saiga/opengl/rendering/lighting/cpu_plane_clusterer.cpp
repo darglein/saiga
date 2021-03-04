@@ -10,10 +10,201 @@
 
 namespace Saiga
 {
-
 CPUPlaneClusterer::CPUPlaneClusterer(ClustererParameters _params) : Clusterer(_params) {}
 
 CPUPlaneClusterer::~CPUPlaneClusterer() {}
+
+static vec2 projectedFrustumIntervall(vec3 points[8], const vec3& d)
+{
+    vec2 ret(1000000, -1000000);
+    for (int i = 0; i < 8; ++i)
+    {
+        float t = dot(d, points[i]);
+        ret[0]  = std::min(ret[0], t);
+        ret[1]  = std::max(ret[1], t);
+    }
+    return ret;
+}
+
+static vec2 projectedSphereIntervall(const Sphere& s, const vec3& d)
+{
+    vec2 ret;
+    float t = dot(d, s.pos);
+    ret[0]  = std::min(t - s.r, t + s.r);
+    ret[1]  = std::max(t + s.r, t - s.r);
+    return ret;
+}
+
+static bool intersectSAT(Plane planes[6], vec3 points[8], const Sphere& sphere)
+{
+    for (int i = 0; i < 6; ++i)
+    {
+        if (planes[i].distance(sphere.pos) >= sphere.r)
+        {
+            return false;
+        }
+    }
+
+    for (int i = 0; i < 8; ++i)
+    {
+        vec3& v  = points[i];
+        vec3 d  = (v - sphere.pos).normalized();
+        vec2 i1 = projectedFrustumIntervall(points, d);
+        vec2 i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+    }
+
+    const vec3& nBL = points[0];
+    const vec3& nBR = points[1];
+    const vec3& nTL = points[2];
+    const vec3& nTR = points[3];
+    const vec3& fBL = points[4];
+    const vec3& fBR = points[5];
+    const vec3& fTL = points[6];
+    const vec3& fTR = points[7];
+
+    vec3 A, B, P, AB, AP, closestOnEdge, d;
+    vec2 i1, i2;
+    P = sphere.pos;
+
+    // edges
+    {
+        // edge 0
+        A             = nBL;
+        B             = nBR;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 1
+        A             = nTL;
+        B             = nTR;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 2
+        A             = nBL;
+        B             = nTL;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 3
+        A             = nBR;
+        B             = nTR;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 4
+        A             = fBL;
+        B             = fBR;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 5
+        A             = fTL;
+        B             = fTR;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 6
+        A             = fBL;
+        B             = fTL;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 7
+        A             = fBR;
+        B             = fTR;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 8
+        A             = nBL;
+        B             = fBL;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 9
+        A             = nBR;
+        B             = fBR;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 10
+        A             = nTL;
+        B             = fTL;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+        // edge 11
+        A             = nTR;
+        B             = fTR;
+        AP = (P - A);
+        AB = (B - A);
+        closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        d  = (closestOnEdge - sphere.pos).normalized();
+        i1 = projectedFrustumIntervall(points, d);
+        i2 = projectedSphereIntervall(sphere, d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+    }
+
+    return true;
+}
 
 void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewPort)
 {
@@ -34,183 +225,225 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     int clusterCountZ = planesZ.size() - 2;
 
     if (renderDebugEnabled && debugFrustumToView) debugLights.lines.clear();
-
-    for (int i = 0; i < pointLightsClusterData.size(); ++i)
+    if (!SAT)
     {
-        PointLightClusterData& plc = pointLightsClusterData[i];
-        vec3 sphereCenter          = cam->projectToViewSpace(plc.world_center);
-        float sphereRadius         = plc.radius;
+        for (int i = 0; i < pointLightsClusterData.size(); ++i)
+        {
+            PointLightClusterData& plc = pointLightsClusterData[i];
+            vec3 sphereCenter          = cam->projectToViewSpace(plc.world_center);
+            float sphereRadius         = plc.radius;
 
-        int x0 = 0, x1 = planesX.size() - 1;
-        int y0 = 0, y1 = planesY.size() - 1;
-        int z0 = 0, z1 = planesZ.size() - 1;
+            int x0 = 0, x1 = planesX.size() - 1;
+            int y0 = 0, y1 = planesY.size() - 1;
+            int z0 = 0, z1 = planesZ.size() - 1;
 
-        int centerOutsideZ = 0;
-        int centerOutsideY = 0;
-
-
-        while (z0 < z1 && planesZ[z0].distance(sphereCenter) >= sphereRadius)
-        {
-            z0++;
-        }
-        if (--z0 < 0 && planesZ[0].distance(sphereCenter) < 0)
-        {
-            centerOutsideZ--;
-        }
-        z0 = std::max(0, z0);
-        while (z1 >= z0 && -planesZ[z1].distance(sphereCenter) >= sphereRadius)
-        {
-            --z1;
-        }
-        if (++z1 > (int)planesZ.size() - 1 && planesZ[(int)planesZ.size() - 1].distance(sphereCenter) > 0)
-        {
-            centerOutsideZ++;
-        }
-        z1 = std::min(z1, (int)planesZ.size() - 1);
-        if (z0 >= z1)
-        {
-            continue;
-        }
+            int centerOutsideZ = 0;
+            int centerOutsideY = 0;
 
 
-        while (y0 < y1 && planesY[y0].distance(sphereCenter) >= sphereRadius)
-        {
-            y0++;
-        }
-        if (--y0 < 0 && planesY[0].distance(sphereCenter) < 0)
-        {
-            centerOutsideY--;
-        }
-        y0 = std::max(0, y0);
-        while (y1 >= y0 && -planesY[y1].distance(sphereCenter) >= sphereRadius)
-        {
-            --y1;
-        }
-        if (++y1 > (int)planesY.size() - 1 && planesY[(int)planesY.size() - 1].distance(sphereCenter) > 0)
-        {
-            centerOutsideY++;
-        }
-        y1 = std::min(y1, (int)planesY.size() - 1);
-        if (y0 >= y1)
-        {
-            continue;
-        }
-
-
-        while (x0 < x1 && planesX[x0].distance(sphereCenter) >= sphereRadius)
-        {
-            x0++;
-        }
-        x0 = std::max(0, --x0);
-        while (x1 >= x0 && -planesX[x1].distance(sphereCenter) >= sphereRadius)
-        {
-            --x1;
-        }
-        x1 = std::min(++x1, (int)planesX.size() - 1);
-        if (x0 >= x1)
-        {
-            continue;
-        }
-
-
-        if (!refinement)
-        {
-            // This is without the sphere refinement
-            for (int z = z0; z < z1; ++z)
+            while (z0 < z1 && planesZ[z0].distance(sphereCenter) >= sphereRadius)
             {
-                for (int y = y0; y < y1; ++y)
-                {
-                    for (int x = x0; x < x1; ++x)
-                    {
-                        int tileIndex = x + clusterInfoBuffer.clusterX * y +
-                                        (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * (clusterCountZ - z);
-
-                        clusterCache[tileIndex].push_back(i);
-                        itemCount++;
-                    }
-                }
+                z0++;
             }
-        }
-        else
-        {
-            if (centerOutsideZ < 0)
+            if (--z0 < 0 && planesZ[0].distance(sphereCenter) < 0)
             {
-                z0 = -(int)planesZ.size() * 2;
+                centerOutsideZ--;
             }
-            if (centerOutsideZ > 0)
-            {
-                z1 = (int)planesZ.size() * 2;
-            }
-            int cz      = (z0 + z1);
-            int centerZ = cz / 2;
-            if (centerOutsideZ == 0 && cz % 2 == 0)
-            {
-                float d0 = planesZ[z0].distance(sphereCenter);
-                float d1 = -planesZ[z1].distance(sphereCenter);
-                if (d0 <= d1) centerZ -= 1;
-            }
-
-            if (centerOutsideY < 0)
-            {
-                y0 = -(int)planesY.size() * 2;
-            }
-            if (centerOutsideY > 0)
-            {
-                y1 = (int)planesY.size() * 2;
-            }
-            int cy      = (y0 + y1);
-            int centerY = cy / 2;
-            if (centerOutsideY == 0 && cy % 2 == 0)
-            {
-                float d0 = planesY[y0].distance(sphereCenter);
-                float d1 = -planesY[y1].distance(sphereCenter);
-                if (d0 <= d1) centerY -= 1;
-            }
-
-            Sphere lightSphere(sphereCenter, sphereRadius);
-
             z0 = std::max(0, z0);
-            z1 = std::min(z1, (int)planesZ.size() - 1);
-            y0 = std::max(0, y0);
-            y1 = std::min(y1, (int)planesY.size() - 1);
-
-            for (int z = z0; z < z1; ++z)
+            while (z1 >= z0 && -planesZ[z1].distance(sphereCenter) >= sphereRadius)
             {
-                Sphere zLight = lightSphere;
-                if (z != centerZ)
-                {
-                    Plane plane = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
-                    vec4 circle = plane.intersectingCircle(zLight.pos, zLight.r);
-                    zLight.pos  = make_vec3(circle);
-                    zLight.r    = circle.w();
-                    if (zLight.r < 1e-5) continue;
-                }
-                for (int y = y0; y < y1; ++y)
-                {
-                    Sphere yLight = zLight;
-                    if (y != centerY)
-                    {
-                        Plane plane = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
-                        vec4 circle = plane.intersectingCircle(yLight.pos, yLight.r);
-                        yLight.pos  = make_vec3(circle);
-                        yLight.r    = circle.w();
-                        yLight.r    = circle.w();
-                        if (yLight.r < 1e-5) continue;
-                    }
-                    int x = x0;
-                    while (x < x1 && planesX[x].distance(yLight.pos) >= yLight.r) x++;
-                    x      = std::max(x0, --x);
-                    int xs = x1;
-                    while (xs >= x && -planesX[xs].distance(yLight.pos) >= yLight.r) --xs;
-                    xs = std::min(++xs, x1);
+                --z1;
+            }
+            if (++z1 > (int)planesZ.size() - 1 && planesZ[(int)planesZ.size() - 1].distance(sphereCenter) > 0)
+            {
+                centerOutsideZ++;
+            }
+            z1 = std::min(z1, (int)planesZ.size() - 1);
+            if (z0 >= z1)
+            {
+                continue;
+            }
 
-                    for (x; x < xs; ++x)
+
+            while (y0 < y1 && planesY[y0].distance(sphereCenter) >= sphereRadius)
+            {
+                y0++;
+            }
+            if (--y0 < 0 && planesY[0].distance(sphereCenter) < 0)
+            {
+                centerOutsideY--;
+            }
+            y0 = std::max(0, y0);
+            while (y1 >= y0 && -planesY[y1].distance(sphereCenter) >= sphereRadius)
+            {
+                --y1;
+            }
+            if (++y1 > (int)planesY.size() - 1 && planesY[(int)planesY.size() - 1].distance(sphereCenter) > 0)
+            {
+                centerOutsideY++;
+            }
+            y1 = std::min(y1, (int)planesY.size() - 1);
+            if (y0 >= y1)
+            {
+                continue;
+            }
+
+
+            while (x0 < x1 && planesX[x0].distance(sphereCenter) >= sphereRadius)
+            {
+                x0++;
+            }
+            x0 = std::max(0, --x0);
+            while (x1 >= x0 && -planesX[x1].distance(sphereCenter) >= sphereRadius)
+            {
+                --x1;
+            }
+            x1 = std::min(++x1, (int)planesX.size() - 1);
+            if (x0 >= x1)
+            {
+                continue;
+            }
+
+
+            if (!refinement)
+            {
+                // This is without the sphere refinement
+                for (int z = z0; z < z1; ++z)
+                {
+                    for (int y = y0; y < y1; ++y)
+                    {
+                        for (int x = x0; x < x1; ++x)
+                        {
+                            int tileIndex =
+                                x + clusterInfoBuffer.clusterX * y +
+                                (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * (clusterCountZ - z);
+
+                            clusterCache[tileIndex].push_back(i);
+                            itemCount++;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (centerOutsideZ < 0)
+                {
+                    z0 = -(int)planesZ.size() * 2;
+                }
+                if (centerOutsideZ > 0)
+                {
+                    z1 = (int)planesZ.size() * 2;
+                }
+                int cz      = (z0 + z1);
+                int centerZ = cz / 2;
+                if (centerOutsideZ == 0 && cz % 2 == 0)
+                {
+                    float d0 = planesZ[z0].distance(sphereCenter);
+                    float d1 = -planesZ[z1].distance(sphereCenter);
+                    if (d0 <= d1) centerZ -= 1;
+                }
+
+                if (centerOutsideY < 0)
+                {
+                    y0 = -(int)planesY.size() * 2;
+                }
+                if (centerOutsideY > 0)
+                {
+                    y1 = (int)planesY.size() * 2;
+                }
+                int cy      = (y0 + y1);
+                int centerY = cy / 2;
+                if (centerOutsideY == 0 && cy % 2 == 0)
+                {
+                    float d0 = planesY[y0].distance(sphereCenter);
+                    float d1 = -planesY[y1].distance(sphereCenter);
+                    if (d0 <= d1) centerY -= 1;
+                }
+
+                Sphere lightSphere(sphereCenter, sphereRadius);
+
+                z0 = std::max(0, z0);
+                z1 = std::min(z1, (int)planesZ.size() - 1);
+                y0 = std::max(0, y0);
+                y1 = std::min(y1, (int)planesY.size() - 1);
+
+                for (int z = z0; z < z1; ++z)
+                {
+                    Sphere zLight = lightSphere;
+                    if (z != centerZ)
+                    {
+                        Plane plane = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
+                        vec4 circle = plane.intersectingCircle(zLight.pos, zLight.r);
+                        zLight.pos  = make_vec3(circle);
+                        zLight.r    = circle.w();
+                        if (zLight.r < 1e-5) continue;
+                    }
+                    for (int y = y0; y < y1; ++y)
+                    {
+                        Sphere yLight = zLight;
+                        if (y != centerY)
+                        {
+                            Plane plane = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
+                            vec4 circle = plane.intersectingCircle(yLight.pos, yLight.r);
+                            yLight.pos  = make_vec3(circle);
+                            yLight.r    = circle.w();
+                            yLight.r    = circle.w();
+                            if (yLight.r < 1e-5) continue;
+                        }
+                        int x = x0;
+                        while (x < x1 && planesX[x].distance(yLight.pos) >= yLight.r) x++;
+                        x      = std::max(x0, --x);
+                        int xs = x1;
+                        while (xs >= x && -planesX[xs].distance(yLight.pos) >= yLight.r) --xs;
+                        xs = std::min(++xs, x1);
+
+                        for (x; x < xs; ++x)
+                        {
+                            int tileIndex =
+                                x + clusterInfoBuffer.clusterX * y +
+                                (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * (clusterCountZ - z);
+
+                            clusterCache[tileIndex].push_back(i);
+                            itemCount++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < pointLightsClusterData.size(); ++i)
+        {
+            auto& cData = pointLightsClusterData[i];
+            vec3 sphereCenter          = cam->projectToViewSpace(cData.world_center);
+            float sphereRadius         = cData.radius;
+            Sphere sphere(sphereCenter, sphereRadius);
+
+            for (int x = 0; x < clusterInfoBuffer.clusterX; ++x)
+            {
+                for (int y = 0; y < clusterInfoBuffer.clusterY; ++y)
+                {
+                    for (int z = 0; z < planesZ.size() - 1; ++z)
                     {
                         int tileIndex = x + clusterInfoBuffer.clusterX * y +
-                                        (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * (clusterCountZ - z);
+                                        (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
 
-                        clusterCache[tileIndex].push_back(i);
-                        itemCount++;
+                        clusterDebugPoints& pts = debugPoints[tileIndex];
+
+                        std::vector<Plane> planes(6);
+                        planes[0] = planesX[x].invert();
+                        planes[1] = planesX[x + 1];
+                        planes[2] = planesY[y].invert();
+                        planes[3] = planesY[y + 1];
+                        planes[4] = planesZ[z].invert();
+                        planes[5] = planesZ[z + 1];
+
+                        if (intersectSAT(planes.data(), &pts.nBL, sphere))
+                        {
+                            clusterCache[tileIndex].push_back(i);
+                            itemCount++;
+                        }
                     }
                 }
             }
@@ -547,7 +780,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         }
     }
 
-    if (renderDebugEnabled && debugFrustumToView)
+    if (SAT || (renderDebugEnabled && debugFrustumToView))
     {
         debugPoints.resize(clusterCount);
         for (int x = 0; x < (int)gridCount[0]; ++x)
@@ -645,6 +878,8 @@ bool CPUPlaneClusterer::fillImGui()
     ImGui::Text("avgAllowedItemsPerCluster: %d", avgAllowedItemsPerCluster);
 
     ImGui::Text("ItemListByteSize: %d", itemBuffer.itemList.size() * sizeof(clusterItem));
+
+    changed |= ImGui::Checkbox("SAT Debug", &SAT);
 
     return changed;
 }
