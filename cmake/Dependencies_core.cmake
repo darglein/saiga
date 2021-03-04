@@ -57,12 +57,12 @@ endif(WIN32)
 
 #set(CMAKE_FIND_DEBUG_MODE TRUE)
 # SDL2
-find_package(SDL2 REQUIRED)
-
-PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
-
-#PackageHelperTarget(SDL2::SDL2 SDL2_FOUND)
-#PackageHelperTarget(SDL2::SDL2main SDL2_FOUND)
+if(TARGET SDL2)
+  PackageHelperTarget(SDL2 SDL2_FOUND)
+else()
+  find_package(SDL2 REQUIRED)
+  PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
+endif()
 
 if (SDL2_FOUND)
   SET(SAIGA_USE_SDL 1)
