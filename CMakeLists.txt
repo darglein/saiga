@@ -342,17 +342,6 @@ endif()
 
 
 
-# Request that saiga be built with --std=c++14
-# As this is a public compile feature anything that links to saiga
-# will also build with -std=c++14
-
-# This currently does not work with cuda
-#target_compile_features(${LIB_NAME} PUBLIC cxx_std_17)
-
-#set_property(TARGET ${LIB_NAME} PROPERTY CXX_STANDARD 17)
-#set_property(TARGET ${LIB_NAME} PROPERTY CUDA_STANDARD 14)
-
-
 
 
 

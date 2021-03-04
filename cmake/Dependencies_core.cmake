@@ -146,9 +146,9 @@ PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
 
 
 #c++17 filesystem
-find_package(Filesystem REQUIRED QUIET)
-SET(SAIGA_USE_FILESYSTEM 1)
-PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
+#find_package(Filesystem REQUIRED QUIET)
+#SET(SAIGA_USE_FILESYSTEM 1)
+#PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
 #if(FILESYSTEM_FOUND)
 #endif()
 
