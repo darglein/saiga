@@ -56,7 +56,7 @@ class SAIGA_OPENGL_API SSAO
 
     void renderImGui();
 
-   protected:
+   public:
     std::shared_ptr<MVPTextureShader> blurShader;
     std::shared_ptr<SSAOShader> ssaoShader = nullptr;
 

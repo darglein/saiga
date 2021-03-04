@@ -23,7 +23,8 @@ namespace Saiga
 std::ostream& operator<<(std::ostream& strm, const UnifiedMaterial& material)
 {
     std::cout << "[Mat] " << std::setw(20) << material.name << material.color_diffuse.transpose()
-              << ", tex: " << material.texture_diffuse;
+              << ", tex: " << material.texture_diffuse << ", " << material.texture_normal << ", "
+              << material.texture_bump << ", " << material.texture_alpha << ", " << material.texture_emissive;
     return strm;
 }
 
@@ -47,6 +48,7 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
             normal.push_back(v.normal.head<3>());
             texture_coordinates.push_back(v.texture);
         }
+        LocateTextures(full_file);
     }
 #ifdef SAIGA_USE_ASSIMP
     else
@@ -98,10 +100,10 @@ UnifiedModel& UnifiedModel::SetVertexColor(const vec4& c)
     return *this;
 }
 
-UnifiedModel& UnifiedModel::Normalize()
+UnifiedModel& UnifiedModel::Normalize(float dimensions)
 {
     auto box = BoundingBox();
-    float s  = 2.0 / box.maxSize();
+    float s  = dimensions / box.maxSize();
     vec3 p   = box.getPosition();
 
     mat4 S = scale(vec3(s, s, s));
@@ -141,6 +143,20 @@ std::vector<vec4> UnifiedModel::ComputeVertexColorFromMaterial() const
     return color;
 }
 
+std::vector<Triangle> UnifiedModel::TriangleSoup() const
+{
+    std::vector<Triangle> result;
+    for (auto t : triangles)
+    {
+        Triangle tri;
+        tri.a = position[t(0)];
+        tri.b = position[t(1)];
+        tri.c = position[t(2)];
+        result.push_back(tri);
+    }
+    return result;
+}
+
 void UnifiedModel::LocateTextures(const std::string& base)
 {
     auto search = [base](std::string str) -> std::string {
@@ -164,17 +180,18 @@ void UnifiedModel::LocateTextures(const std::string& base)
         if (result.empty())
         {
             std::cout << "Could not find image " << str << std::endl;
-            throw std::runtime_error("File not found!");
+            // throw std::runtime_error("File not found!");
         }
         return result;
     };
 
     for (auto& mat : materials)
     {
-        mat.texture_diffuse = search(mat.texture_diffuse);
-        mat.texture_normal  = search(mat.texture_normal);
-        mat.texture_bump    = search(mat.texture_bump);
-        mat.texture_alpha   = search(mat.texture_alpha);
+        mat.texture_diffuse  = search(mat.texture_diffuse);
+        mat.texture_normal   = search(mat.texture_normal);
+        mat.texture_bump     = search(mat.texture_bump);
+        mat.texture_alpha    = search(mat.texture_alpha);
+        mat.texture_emissive = search(mat.texture_emissive);
     }
 }
 

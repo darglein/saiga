@@ -36,6 +36,7 @@ class SAIGA_OPENGL_API VideoEncoder
     // Can be used externally, for example, by mapping it to a key.
     void startRecording();
     void stopRecording();
+    bool isEncoding();
 
    private:
     int codecId    = 0;

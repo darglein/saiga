@@ -60,8 +60,7 @@ void AssimpLoader::printInfo()
 {
     std::cout << ">> AssimpLoader: " << file << " ";
     std::cout << "Cameras " << scene->mNumCameras << ", Lights " << scene->mNumLights << ", Materials "
-              << scene->mNumMaterials << ", Meshes " << scene->mNumMeshes << ", Textures " << scene->mNumTextures
-              << std::endl;
+              << scene->mNumMaterials << ", Meshes " << scene->mNumMeshes << std::endl;
 
     std::cout << "> Meshes " << scene->mNumMeshes << std::endl;
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
@@ -77,6 +76,14 @@ void AssimpLoader::printInfo()
         const aiAnimation* anim = scene->mAnimations[m];
         std::cout << " " << m << " " << anim->mName.C_Str() << ": Channels " << anim->mNumChannels << " MeshChannels "
                   << anim->mNumMeshChannels << " duration " << anim->mDuration << " tps " << anim->mTicksPerSecond
+                  << std::endl;
+    }
+
+    std::cout << "> Textures " << scene->mNumTextures << std::endl;
+    for (unsigned int m = 0; m < scene->mNumTextures; ++m)
+    {
+        aiTexture* tex = scene->mTextures[m];
+        std::cout << tex->mFilename.C_Str() << " " << tex->achFormatHint << " " << tex->mWidth << "x" << tex->mHeight
                   << std::endl;
     }
 }
@@ -103,7 +110,8 @@ static UnifiedMaterial ConvertMaterial(const aiMaterial* material)
     UnifiedMaterial mat;
 
     aiString name;
-    aiString texture_diffuse;
+
+    aiString texture_diffuse, texture_emissive;
 
 
     aiColor3D color_diffuse(0.f, 0.f, 0.f);
@@ -114,14 +122,39 @@ static UnifiedMaterial ConvertMaterial(const aiMaterial* material)
     material->Get(AI_MATKEY_NAME, name);
 
     material->GetTexture(aiTextureType_DIFFUSE, 0, &texture_diffuse);
+    material->GetTexture(aiTextureType_EMISSIVE, 0, &texture_emissive);
+
+    std::cout << "Texture Counts: " << material->GetTextureCount(aiTextureType_NONE) << " "
+              << material->GetTextureCount(aiTextureType_DIFFUSE) << " "
+              << material->GetTextureCount(aiTextureType_SPECULAR) << " "
+              << material->GetTextureCount(aiTextureType_AMBIENT) << " "
+              << material->GetTextureCount(aiTextureType_EMISSIVE) << " "
+              << material->GetTextureCount(aiTextureType_HEIGHT) << " "
+              << material->GetTextureCount(aiTextureType_NORMALS) << " "
+              << material->GetTextureCount(aiTextureType_SHININESS) << " "
+              << material->GetTextureCount(aiTextureType_OPACITY) << " "
+              << material->GetTextureCount(aiTextureType_DISPLACEMENT) << " "
+              << material->GetTextureCount(aiTextureType_LIGHTMAP) << " "
+              << material->GetTextureCount(aiTextureType_REFLECTION) << " "
+              << material->GetTextureCount(aiTextureType_BASE_COLOR) << " "
+              << material->GetTextureCount(aiTextureType_NORMAL_CAMERA) << " "
+              << material->GetTextureCount(aiTextureType_EMISSION_COLOR) << " "
+              << material->GetTextureCount(aiTextureType_METALNESS) << " "
+              << material->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) << " "
+              << material->GetTextureCount(aiTextureType_AMBIENT_OCCLUSION) << " "
+              << material->GetTextureCount(aiTextureType_UNKNOWN) << std::endl;
+
+
 
     material->Get(AI_MATKEY_COLOR_DIFFUSE, color_diffuse);
     material->Get(AI_MATKEY_COLOR_EMISSIVE, color_emissive);
     material->Get(AI_MATKEY_COLOR_SPECULAR, color_specular);
 
 
-    mat.name            = name.C_Str();
-    mat.texture_diffuse = texture_diffuse.C_Str();
+    mat.name             = name.C_Str();
+    mat.texture_diffuse  = texture_diffuse.C_Str();
+    mat.texture_emissive = texture_emissive.C_Str();
+
 
     mat.color_diffuse = make_vec4(convert_color(color_diffuse), 1);
     return mat;
@@ -197,7 +230,7 @@ UnifiedModel AssimpLoader::Model()
             {
                 model.texture_coordinates.push_back(convert_vector(mesh->mTextureCoords[0][i]).head<2>());
             }
-            SAIGA_ASSERT(model.position.size() == model.texture_coordinates.size());
+            // SAIGA_ASSERT(model.position.size() == model.texture_coordinates.size());
         }
 
 

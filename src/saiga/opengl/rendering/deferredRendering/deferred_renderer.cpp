@@ -5,8 +5,8 @@
  */
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
@@ -130,6 +130,14 @@ void DeferredRenderer::resize(int windowWidth, int windowHeight)
 void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
 {
     if (!rendering) return;
+
+
+    if (params.useSSAO && !ssao)
+    {
+        ssao                 = std::make_shared<SSAO>(renderWidth, renderHeight);
+        lighting.ssaoTexture = ssao->bluredTexture;
+    }
+
 
 
     Saiga::RenderInfo renderInfo = _renderInfo;

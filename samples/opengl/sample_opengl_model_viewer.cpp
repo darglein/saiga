@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
 
@@ -37,7 +37,12 @@ class Sample : public SampleWindowDeferred
         //        object.asset = asset;
 
 
-        Load("user/sponza/sponza.obj");
+        //        Load("user/sponza/sponza.obj");
+
+        //        Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/bedroom.glb");
+        Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/iscv2.obj");
+
+
         //        Load("user/lost-empire/lost_empire.obj");
         //        Load("user/living_room/living_room.obj");
         //        Load("user/fireplace_room/fireplace_room.obj");
@@ -60,7 +65,10 @@ class Sample : public SampleWindowDeferred
         std::cout << model << std::endl;
 
 
-        object.asset = std::make_shared<TexturedAsset>(model);
+        auto ta      = std::make_shared<TexturedAsset>(model);
+        object.asset = ta;
+
+
         //        object.asset = std::make_shared<ColoredAsset>(model);
     }
 

@@ -29,6 +29,7 @@ struct UnifiedMaterial
     std::string texture_normal;
     std::string texture_bump;
     std::string texture_alpha;
+    std::string texture_emissive;
 
     UnifiedMaterial() {}
     UnifiedMaterial(const std::string& name) : name(name) {}
@@ -90,12 +91,14 @@ class SAIGA_CORE_API UnifiedModel
 
 
 
-    UnifiedModel& Normalize();
+    UnifiedModel& Normalize(float dimensions = 2.0f);
 
     AABB BoundingBox() const;
 
 
     std::vector<vec4> ComputeVertexColorFromMaterial() const;
+
+    std::vector<Triangle> TriangleSoup() const;
 
 
     // Check status

@@ -52,38 +52,6 @@ struct ObjLine
     }
 };
 
-static std::string getPathImage(const std::string& base, std::string str)
-{
-    std::string result;
-
-
-
-    std::replace(str.begin(), str.end(), '\\', '/');
-
-
-    // first search relative to the parent
-    result = SearchPathes::model.getRelative(base, str);
-    if (!result.empty()) return result;
-
-
-    // no search in the image dir
-    result = SearchPathes::image.getRelative(base, str);
-    if (!result.empty()) return result;
-
-    if (result.empty())
-    {
-        std::cout << "Could not find image " << str << std::endl;
-
-        std::filesystem::path pa(str);
-
-        std::cout << "Could not find image " << pa.make_preferred().c_str() << std::endl;
-        throw std::runtime_error("File not found!");
-    }
-    //    std::cout << str << " " << base << " " << result << std::endl;
-    //    SAIGA_ASSERT(!result.empty());
-    return result;
-}
-
 
 
 std::vector<UnifiedMaterial> LoadMTL(const std::string& file)
@@ -141,18 +109,18 @@ std::vector<UnifiedMaterial> LoadMTL(const std::string& file)
         }
         else if (line.key == "map_Kd")
         {
-            SAIGA_ASSERT(line.values.size() == 1);
-            currentMaterial->texture_diffuse = getPathImage(file, line.values.front());
+            // SAIGA_ASSERT(line.values.size() == 1);
+            currentMaterial->texture_diffuse = line.values.back();
         }
         else if (line.key == "map_d")
         {
             SAIGA_ASSERT(line.values.size() == 1);
-            currentMaterial->texture_alpha = getPathImage(file, line.values.front());
+            currentMaterial->texture_alpha = line.values.front();
         }
         else if (line.key == "map_bump" || line.key == "bump")
         {
             SAIGA_ASSERT(line.values.size() == 1);
-            currentMaterial->texture_bump = getPathImage(file, line.values.front());
+            currentMaterial->texture_bump = line.values.front();
         }
     }
     return materials;
