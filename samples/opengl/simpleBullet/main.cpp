@@ -5,7 +5,7 @@
  */
 
 
-#include "saiga/core/sdl/sdl.h"
+#include "saiga/core/sdl/saiga_sdl.h"
 #include "saiga/core/util/crash.h"
 
 #include "bulletSample.h"

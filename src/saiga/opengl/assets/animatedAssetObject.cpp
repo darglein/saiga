@@ -12,6 +12,7 @@
 
 namespace Saiga
 {
+#if 0
 void AnimatedAssetObject::setAnimation(int id)
 {
     SAIGA_ASSERT(id >= 0 && id < (int)asset->animations.size());
@@ -67,5 +68,5 @@ void AnimatedAssetObject::renderRaw()
 {
     asset->renderRaw();
 }
-
+#endif
 }  // namespace Saiga

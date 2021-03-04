@@ -113,16 +113,15 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     int getRenderWidth() { return renderWidth; }
     int getRenderHeight() { return renderHeight; }
 
-    // Everything is protected, so if you need access to these variables write your own renderer and derive from this
-    // class.
-   protected:
+
+   public:
     int renderWidth, renderHeight;
     std::shared_ptr<SSAO> ssao;
     std::shared_ptr<SMAA> smaa;
     GBuffer gbuffer;
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
-    IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
+    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
     std::shared_ptr<Texture> blackDummyTexture;
     bool showLightingImgui = false;

@@ -55,9 +55,9 @@ void triangleMeshToOpenMesh(const TriangleMesh<vertex_t, index_t>& src, MeshT& d
         //        face_vhandles[1] = typename MeshT::VertexHandle(f.v2);
         //        face_vhandles[2] = typename MeshT::VertexHandle(f.v3);
 
-        face_vhandles[0] = handles[f.v1];
-        face_vhandles[1] = handles[f.v2];
-        face_vhandles[2] = handles[f.v3];
+        face_vhandles[0] = handles[f(0)];
+        face_vhandles[1] = handles[f(1)];
+        face_vhandles[2] = handles[f(2)];
         dst.add_face(face_vhandles);
     }
 }

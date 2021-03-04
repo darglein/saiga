@@ -122,7 +122,7 @@ TEST(Imu, SaveLoad)
 
     for (auto seq : s)
     {
-        if (!finite(seq.time_begin)) continue;
+        if (!std::isfinite(seq.time_begin)) continue;
 
         seq.Save("seq.txt");
 

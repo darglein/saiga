@@ -6,15 +6,15 @@
 
 #include "saiga/opengl/world/skybox.h"
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 
 namespace Saiga
 {
 Skybox::Skybox()
 {
-    AABB bb(make_vec3(-1), make_vec3(1));
-    auto sb = TriangleMeshGenerator::createSkyboxMesh(bb);
-    mesh.fromMesh(*sb);
+    //    AABB bb(make_vec3(-1), make_vec3(1));
+    //    auto sb = TriangleMeshGenerator::createSkyboxMesh(bb);
+    mesh.fromMesh(SkyboxMesh(AABB(make_vec3(-1), make_vec3(1))));
 }
 
 void Skybox::setPosition(const vec3& p)

@@ -11,7 +11,6 @@
 
 #    include "saiga/core/sdl/all.h"
 #    include "saiga/opengl/assets/all.h"
-#    include "saiga/opengl/assets/objAssetLoader.h"
 #    include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #    include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #    include "saiga/opengl/rendering/renderer.h"

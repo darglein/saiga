@@ -81,10 +81,18 @@ bool Triangle::isDegenerate() const
 
 vec3 Triangle::RandomPointOnSurface() const
 {
+#if 0
     auto bary = Random::MatrixUniform<vec3>(0, 1);
     // make sure they sum up to 1
     bary = bary / bary.array().sum();
     return a * bary(0) + b * bary(1) + c * bary(2);
+#else
+    auto r = Random::MatrixUniform<vec2>(0, 1);
+
+    auto r1 = sqrt(r(0));
+    auto r2 = r(1);
+    return (1 - r1) * a + (r1 * (1 - r2)) * b + r2 * r1 * c;
+#endif
 }
 
 
@@ -99,7 +107,7 @@ static float point_segment_distance(const Vec3f& x0, const Vec3f& x1, const Vec3
 {
     Vec3f dx(x2 - x1);
     float m2 = mag2(dx);
-    // find parameter value of closest point on segment
+    // find parameter value of closest point on segment+++
     float s12 = (float)(dot(x2 - x0, dx) / m2);
     if (s12 < 0)
     {
@@ -164,7 +172,7 @@ float Triangle::Distance(const vec3& x0) const
 
 std::ostream& operator<<(std::ostream& os, const Triangle& t)
 {
-    os << "Triangle: " << t.a << t.b << t.c;
+    os << "Triangle: " << t.a.transpose() << "," << t.b.transpose() << "," << t.c.transpose();
     return os;
 }
 

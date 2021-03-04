@@ -50,6 +50,8 @@ if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
   list(APPEND SAIGA_CXX_FLAGS "-Wall")
   list(APPEND SAIGA_CXX_FLAGS "-Werror=return-type")
   list(APPEND SAIGA_CXX_FLAGS "-Wno-strict-aliasing")
+  list(APPEND SAIGA_CXX_FLAGS "-Wno-sign-compare")
+
 endif()
 
 if (SAIGA_CXX_CLANG)

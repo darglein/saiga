@@ -39,9 +39,9 @@ macro(saiga_make_benchmark_sample)
     endif()
     if(SAIGA_CXX_MSVC)
         #todo check if avx is present
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Oi /Ot /Oy /GL /fp:fast /Gy /arch:AVX2")
-        set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} /LTCG")
-        add_definitions(-D__FMA__)
+        # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Oi /Ot /Oy /GL /fp:fast /Gy /arch:AVX2")
+        # set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} /LTCG")
+        # add_definitions(-D__FMA__)
     endif()
 endmacro()
 

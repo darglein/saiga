@@ -95,6 +95,7 @@ void VulkanTexturedAsset::init(VulkanBase& base)
 
     textures.clear();
 
+#if 0
     // load textures
     for (auto& tg : groups)
     {
@@ -118,6 +119,7 @@ void VulkanTexturedAsset::init(VulkanBase& base)
 
         textures.push_back(tex);
     }
+#endif
 }
 void VulkanTexturedAsset::render(vk::CommandBuffer cmd)
 {

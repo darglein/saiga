@@ -101,6 +101,11 @@ void VideoEncoder::stopRecording()
     encoder->finishEncoding();
 }
 
+bool VideoEncoder::isEncoding()
+{
+    return encoder->isRunning();
+}
+
 }  // namespace Saiga
 
 #endif

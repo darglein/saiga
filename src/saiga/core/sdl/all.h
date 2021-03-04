@@ -5,9 +5,7 @@
  */
 
 #pragma once
-
-#include "sdl.h"
-
+#include "saiga_sdl.h"
 #include "sdl_camera.h"
 #include "sdl_eventhandler.h"
 #include "sdl_listener.h"

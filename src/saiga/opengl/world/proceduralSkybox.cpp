@@ -6,16 +6,14 @@
 
 #include "saiga/opengl/world/proceduralSkybox.h"
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
 {
 ProceduralSkybox::ProceduralSkybox(const std::string& shader_str)
 {
-    auto sb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    sb->transform(translate(vec3(0, 0, 1 - epsilon<float>())));
-    mesh.fromMesh(*sb);
+    mesh.fromMesh(FullScreenQuad().transform(translate(vec3(0, 0, 1 - epsilon<float>()))));
     shader = shaderLoader.load<MVPShader>(shader_str);
 }
 

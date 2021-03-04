@@ -63,7 +63,7 @@ RectangleList DecomposeRowMerge(ArrayView<const ivec3> points)
     Rect current = Rect(copy.front());
 
 
-    for (int i = 1; i < copy.size(); ++i)
+    for (int i = 1; i < (int)copy.size(); ++i)
     {
         auto index = copy[i];
 
@@ -140,7 +140,7 @@ RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor
         int range_begin = 0;
         int range_end   = 0;
 
-        for (int i = 0; i < copy.size(); ++i)
+        for (int i = 0; i < (int)copy.size(); ++i)
         {
             auto& prev = copy[range_begin];
             auto& curr = copy[i];
@@ -152,7 +152,7 @@ RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor
 
             //            std::cout << (prev.first & mask) << " " << (curr.first & mask) << std::endl;
 
-            if ((prev.first & mask) == (curr.first & mask) && i != copy.size() - 1)
+            if ((prev.first & mask) == (curr.first & mask) && i != (int)copy.size() - 1)
             {
                 //                std::cout << "merge " << bit << " " << prev.second << " with " << curr.second <<
                 //                std::endl;
@@ -164,7 +164,7 @@ RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor
             }
             else
             {
-                if (i == copy.size() - 1)
+                if (i == (int)copy.size() - 1)
                 {
                     range_end++;
                 }

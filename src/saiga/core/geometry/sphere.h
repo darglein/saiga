@@ -20,10 +20,8 @@ class SAIGA_CORE_API Sphere
     float r;
 
 
-    Sphere(void) {}
-
-    Sphere(const vec3& p, float r) : pos(p), r(r) {}
-    ~Sphere(void) {}
+    HD Sphere() { static_assert(sizeof(Sphere) == 16, "Sphere must be 16 byte"); }
+    HD Sphere(const vec3& p, float r) : pos(p), r(r) {}
 
 
 

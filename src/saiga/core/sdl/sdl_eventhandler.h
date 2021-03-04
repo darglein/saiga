@@ -7,10 +7,10 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/sdl/saiga_sdl.h"
 #include "saiga/core/util/keyboard.h"
 #include "saiga/core/util/mouse.h"
 
-#include <SDL2/SDL.h>
 #include <vector>
 
 #include "sdl_listener.h"

@@ -337,7 +337,7 @@ TEST(RectangularDecomposition, MergeNeighbor)
         auto rectangles = DecomposeTrivial(points);
 
         std::pair<int, float> old_n = {rectangles.size(), cost(rectangles)};
-        MergeNeighbors(rectangles, cost);
+        MergeNeighbors(rectangles, cost, 100);
         CheckCover(rectangles, points, false);
         std::pair<int, float> new_n = {rectangles.size(), cost(rectangles)};
         std::cout << "merge " << old_n.first << "(" << old_n.second << ")"
@@ -352,7 +352,7 @@ TEST(RectangularDecomposition, MergeShrink)
     {
         auto points     = RandomRectanglePointCloud(100, 10, 6);
         auto rectangles = DecomposeTrivial(points);
-        MergeNeighbors(rectangles, cost);
+        MergeNeighbors(rectangles, cost, 100);
 
         std::pair<int, float> old_n = {rectangles.size(), cost(rectangles)};
         MergeShrink(points, rectangles, 100, 50, cost);

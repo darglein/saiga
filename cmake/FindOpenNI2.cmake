@@ -25,7 +25,7 @@ if(NOT WIN32)
                PATH_SUFFIXES lib)
 
   include(FindPackageHandleStandardArgs)
-  find_package_handle_standard_args(USB_10 DEFAULT_MSG USB_10_LIBRARY USB_10_INCLUDE_DIR)
+  #find_package_handle_standard_args(USB_10 DEFAULT_MSG USB_10_LIBRARY USB_10_INCLUDE_DIR)
 
 	mark_as_advanced(USB_10_INCLUDE_DIR USB_10_LIBRARY)
   if(NOT USB_10_FOUND)

@@ -119,7 +119,7 @@ void BARec::init()
         validImages.push_back(info);
     }
 
-    SAIGA_ASSERT(totalN == validImages.size());
+    SAIGA_ASSERT(totalN == (int)validImages.size());
 
     for (int i = 0; i < (int)scene.worldPoints.size(); ++i)
     {
@@ -393,7 +393,7 @@ double BARec::computeQuadraticForm()
         }
 
 #pragma omp for
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
 
@@ -547,7 +547,7 @@ bool BARec::addDelta()
     //#pragma omp parallel num_threads(baOptions.helper_threads)
     {
 #pragma omp for nowait
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
             if (info.isConstant()) continue;
@@ -586,7 +586,7 @@ void BARec::revertDelta()
         //#pragma omp for nowait
         //        for (int i = 0; i < x_u.size(); ++i)
 #pragma omp for
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
             if (info.isConstant()) continue;
@@ -594,7 +594,7 @@ void BARec::revertDelta()
             x_u[info.validId] = oldx_u[info.validId];
         }
 #pragma omp for nowait
-        for (int i = 0; i < x_v.size(); ++i)
+        for (int i = 0; i < (int)x_v.size(); ++i)
         {
             x_v[i] = oldx_v[i];
         }
@@ -612,7 +612,7 @@ void BARec::finalize()
     //#pragma omp parallel num_threads(baOptions.helper_threads)
     {
 #pragma omp for nowait
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
             if (info.isConstant()) continue;
@@ -621,7 +621,7 @@ void BARec::finalize()
             extr.se3   = x_u[info.validId];
         }
 #pragma omp for
-        for (int i = 0; i < validPoints.size(); ++i)
+        for (int i = 0; i < (int)validPoints.size(); ++i)
         {
             Eigen::Matrix<BlockBAScalar, 3, 1> t;
             auto id = validPoints[i];
@@ -685,7 +685,7 @@ double BARec::computeCost()
         double& newChi2 = localChi2[tid];
         newChi2         = 0;
 #pragma omp for
-        for (auto valid_id = 0; valid_id < validImages.size(); ++valid_id)
+        for (auto valid_id = 0; valid_id < (int)validImages.size(); ++valid_id)
         {
             auto info = validImages[valid_id];
             SAIGA_ASSERT(info);

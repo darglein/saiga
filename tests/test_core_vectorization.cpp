@@ -86,10 +86,10 @@ TEST(Vectorization, Neon)
 #ifdef EIGEN_VECTORIZE_SSE
 TEST(Vectorization, SSE)
 {
-    volatile __m128i first  = _mm_set_epi32(1, 2, 3, 4);
-    volatile __m128i second = _mm_set_epi32(1, 2, 3, 4);
-    volatile __m128i result = _mm_add_epi32(first, second);
-    volatile int* values    = (int*)&result;
+    __m128i first  = _mm_set_epi32(1, 2, 3, 4);
+    __m128i second = _mm_set_epi32(1, 2, 3, 4);
+    __m128i result = _mm_add_epi32(first, second);
+    int* values    = (int*)&result;
 
     int sum = 0;
     int ref = 0;
@@ -105,10 +105,10 @@ TEST(Vectorization, SSE)
 #ifdef EIGEN_VECTORIZE_AVX2
 TEST(Vectorization, AVX2)
 {
-    volatile __m256i first  = _mm256_set_epi32(1, 2, 3, 4, 5, 6, 7, 8);
-    volatile __m256i second = _mm256_set_epi32(1, 2, 3, 4, 5, 6, 7, 8);
-    volatile __m256i result = _mm256_add_epi32(first, second);
-    volatile int* values    = (int*)&result;
+    __m256i first  = _mm256_set_epi32(1, 2, 3, 4, 5, 6, 7, 8);
+    __m256i second = _mm256_set_epi32(1, 2, 3, 4, 5, 6, 7, 8);
+    __m256i result = _mm256_add_epi32(first, second);
+    int* values    = (int*)&result;
 
     int sum = 0;
     int ref = 0;
@@ -125,10 +125,10 @@ TEST(Vectorization, AVX2)
 #ifdef EIGEN_VECTORIZE_AVX512
 TEST(Vectorization, AVX512)
 {
-    volatile __m512i first  = _mm512_set_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
-    volatile __m512i second = _mm512_set_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
-    volatile __m512i result = _mm512_add_epi32(first, second);
-    volatile int* values    = (int*)&result;
+    __m512i first  = _mm512_set_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+    __m512i second = _mm512_set_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+    __m512i result = _mm512_add_epi32(first, second);
+    int* values    = (int*)&result;
 
     int sum = 0;
     int ref = 0;

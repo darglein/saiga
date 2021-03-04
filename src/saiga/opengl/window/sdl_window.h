@@ -12,10 +12,9 @@
 #    error Saiga was compiled without SDL2.
 #endif
 
+#include "saiga/core/sdl/saiga_sdl.h"
 #include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
-
-#include <SDL2/SDL.h>
 
 #undef main
 

@@ -6,7 +6,7 @@
 
 #include "TexturedAssetRenderer.h"
 
-#include "saiga/core/model/objModelLoader.h"
+#include "saiga/core/model/model_loader_obj.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
 

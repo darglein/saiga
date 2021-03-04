@@ -57,12 +57,7 @@ if (FFMPEG_FOUND)
 endif ()
 PackageHelper(FFMPEG ${FFMPEG_FOUND} "${FFMPEG_INCLUDE_DIR}" "${FFMPEG_LIBRARIES}")
 
-#assimp
-find_package(ASSIMP 5.0)
-if(ASSIMP_FOUND)
-    SET(SAIGA_USE_ASSIMP 1)
-endif()
-PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
+
 
 
 ## OpenVR / steamVR

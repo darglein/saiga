@@ -6,7 +6,7 @@
 
 #include "saiga/opengl/rendering/lighting/ssao.h"
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/image/imageGenerator.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
@@ -73,8 +73,7 @@ void SSAO::init(int w, int h)
     ssao_framebuffer2.check();
     ssao_framebuffer2.unbind();
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
 
     ssaoShader = shaderLoader.load<SSAOShader>("post_processing/ssao2.glsl");
     blurShader = shaderLoader.load<MVPTextureShader>("post_processing/ssao_blur.glsl");

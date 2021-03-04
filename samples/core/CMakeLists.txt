@@ -1,23 +1,36 @@
-add_subdirectory(benchmarkIPScaling)
-add_subdirectory(benchmarkMemcpy)
-add_subdirectory(benchmarkDisk)
-add_subdirectory(nullspace)
+macro(saiga_core_sample FILE_NAME)
+  string(REGEX REPLACE "\\.[^.]*$" "" NAME ${FILE_NAME})
 
-add_subdirectory(helloWorld)
-add_subdirectory(raytracing)
-add_subdirectory(ini)
-add_subdirectory(threadPool)
-add_subdirectory(randomNumbers)
-add_subdirectory(imageProcessing)
-add_subdirectory(fractals)
-add_subdirectory(filesystem)
+  set(TARGET_NAME ${NAME})
 
-add_subdirectory(eigen)
-add_subdirectory(stress_test)
+  add_executable(${TARGET_NAME} ${FILE_NAME})
+  message(STATUS "Sample enabled:      ${NAME}")
 
-if(OPENMP_FOUND)
-    add_subdirectory(openmp)
-endif()
 
+  target_link_libraries(${TARGET_NAME} PUBLIC saiga_core)
+  target_link_libraries(${TARGET_NAME} PUBLIC ${ARGN})
+
+  #set working directory for visual studio so the project can be executed from the ide
+  set_target_properties(${TARGET_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
+  set_target_properties(${TARGET_NAME} PROPERTIES FOLDER tests/${PREFIX})
+  set_target_properties(${TARGET_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+endmacro()
+
+
+saiga_core_sample(sample_core_benchmark_disk.cpp)
+saiga_core_sample(sample_core_benchmark_ipscaling.cpp)
+saiga_core_sample(sample_core_benchmark_memcpy.cpp)
+saiga_core_sample(sample_core_eigen.cpp)
+saiga_core_sample(sample_core_filesystem.cpp)
+saiga_core_sample(sample_core_fractals.cpp)
+saiga_core_sample(sample_core_helloWorld.cpp)
+saiga_core_sample(sample_core_imageprocessing.cpp)
+saiga_core_sample(sample_core_ini.cpp)
+saiga_core_sample(sample_core_nullspace.cpp)
+saiga_core_sample(sample_core_openmp.cpp)
+saiga_core_sample(sample_core_random.cpp)
+saiga_core_sample(sample_core_raytracing.cpp)
+saiga_core_sample(sample_core_stress.cpp)
+saiga_core_sample(sample_core_threadpool.cpp)
 
 

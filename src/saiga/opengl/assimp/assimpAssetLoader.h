@@ -6,11 +6,12 @@
 
 #pragma once
 
-#include "saiga/opengl/assets/assetLoader.h"
+#include "saiga/opengl/assets/animatedAsset.h"
+#include "saiga/opengl/assets/coloredAsset.h"
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API AssimpAssetLoader : public AssetLoader
+class SAIGA_OPENGL_API AssimpAssetLoader
 {
    public:
     AssimpAssetLoader();

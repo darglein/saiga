@@ -69,9 +69,7 @@ std::unique_ptr<ReconstructionTest> test;
 
 TEST(TwoViewReconstruction, Load)
 {
-    auto seed        = Random::generateTimeBasedSeed();
-    ransacRandomSeed = seed;
-    Random::setSeed(seed);
+    Random::setSeed(5685684568);
 
     test = std::make_unique<ReconstructionTest>();
 

@@ -19,6 +19,8 @@
 #include "compare_numbers.h"
 namespace Saiga
 {
+#ifndef WIN32
+
 class PoissonTest
 {
    public:
@@ -48,10 +50,10 @@ class PoissonTest
         {
             // Sample point on sphere
             Vec3 n = Random::sphericalRand(r);
-            Vec3 p = n + c;
+            Vec3 p = (n + c) * (1.0 / voxel_size);
 
             // Compute grid point
-            ivec3 cell_index = (p / voxel_size).array().round().cast<int>();
+            ivec3 cell_index = (p).array().round().cast<int>();
             normal_grid(cell_index(2), cell_index(1), cell_index(0)) += n.normalized();
         }
     }
@@ -211,7 +213,7 @@ class PoissonTest
     Eigen::Tensor<double, 3> sdf_grid;
 
 
-    float voxel_size = 0.01;
+    double voxel_size = 0.01;
 
     // sphere
     Vec3 c   = Vec3(0.5, 0.5, 0.5);
@@ -229,4 +231,5 @@ TEST(PoissonSurfaceReconstruction, Grid)
 }
 
 
+#endif
 }  // namespace Saiga

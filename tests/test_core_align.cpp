@@ -23,7 +23,7 @@ struct SAIGA_ALIGN(128) Align128
 };
 
 
-struct SAIGA_ALIGN(32768) AlignLarge
+struct SAIGA_ALIGN(2048) AlignLarge
 {
     int a;
 };
@@ -61,7 +61,7 @@ TEST(Align, AlignedVector)
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<int, 128>(alocSize).data()) % 128);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<int, 1024>(alocSize).data()) % 1024);
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<int, 1024 * 4096>(alocSize).data()) % (1024 * 4096));
-    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<AlignLarge>(alocSize).data()) % 32768);
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(AlignedVector<AlignLarge>(alocSize).data()) % 2048);
 }
 
 TEST(Align, AlignedVector_Resize)
@@ -82,10 +82,10 @@ TEST(Align, AligendSmartPtr)
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(ptr.get()) % 1024);
 
     auto ptr2 = make_aligned_shared<AlignLarge>();
-    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(ptr2.get()) % 32768);
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(ptr2.get()) % 2048);
 
     auto ptr3 = make_aligned_unique<AlignLarge>();
-    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(ptr3.get()) % 32768);
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(ptr3.get()) % 2048);
 }
 
 
@@ -94,9 +94,9 @@ TEST(Align, AlignStruct)
     Align128 test;
     AlignLarge test2;
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(&test) % 128);
-    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(&test2) % 32768);
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(&test2) % 2048);
 
 
     EXPECT_EQ(0, reinterpret_cast<uintptr_t>(new Align128()) % 128);
-    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(new AlignLarge()) % (1024 * 32));
+    EXPECT_EQ(0, reinterpret_cast<uintptr_t>(new AlignLarge()) % (2048));
 }

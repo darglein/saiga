@@ -13,6 +13,8 @@
 #include "numeric_derivative.h"
 namespace Saiga
 {
+#ifndef WIN32
+
 // Generates smooth imu measurements
 std::vector<Imu::ImuSequence> GenerateRandomSequence(int N, int K, double dt)
 {
@@ -435,5 +437,6 @@ TEST(ImuDerivatives, Gravity)
     ExpectCloseRelative(J_g, J_g_numeric, 1e-5);
 }
 
+#endif
 
 }  // namespace Saiga

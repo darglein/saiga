@@ -104,7 +104,7 @@ struct SAIGA_TEMPLATE BlockSparseGrid
         // Create block and insert as the first element.
         int new_index = current_blocks.fetch_add(1);
 
-        if (new_index >= blocks.size())
+        if (new_index >= (int)blocks.size())
         {
             blocks.resize(blocks.size() * 2);
         }
@@ -196,7 +196,7 @@ struct SAIGA_TEMPLATE BlockSparseGrid
         // Create block and insert as the first element.
         int new_index = current_blocks.fetch_add(1);
 
-        if (new_index >= blocks.size())
+        if (new_index >= (int)blocks.size())
         {
             SAIGA_EXIT_ERROR("Resizing not allowed during parallel insertion!");
         }
@@ -387,7 +387,7 @@ struct SAIGA_TEMPLATE BlockSparseGrid
     {
         unsigned int u = i.x() + i.y() * 1000 + i.z() * 1000 * 1000;
         int result     = u % hash_size;
-        SAIGA_ASSERT(result >= 0 && result < hash_size);
+        SAIGA_ASSERT(result >= 0 && result < (int)hash_size);
         return result;
     }
 

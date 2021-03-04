@@ -17,6 +17,35 @@ find_package(Eigen3 3.3.90 REQUIRED QUIET)
 PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
 SET(SAIGA_USE_EIGEN 1)
 
+
+
+
+#openmp
+if(SAIGA_CXX_WCLANG)
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
+  find_library(OMP_LIB libomp PATH_SUFFIXES lib)
+  message(STATUS ${OMP_LIB})
+  SET(LIBS ${LIBS} ${OMP_LIB})
+else()
+  find_package(OpenMP REQUIRED)
+
+PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
+ # PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
+ # if(OPENMP_FOUND)
+ #   list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
+ #   list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
+ # endif()
+
+  #        # This line doesn't work with nvcc + gcc8.3. Just uncomment it.
+  #        if(SAIGA_CXX_GNU)
+  #            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  #        else()
+  #            PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
+  #        endif()
+  #    endif()
+endif()
+
+
 #dbghelp for crash.cpp
 if(WIN32)
   SET(LIBS ${LIBS} DbgHelp)
@@ -26,21 +55,32 @@ endif(WIN32)
 
 
 
+#set(CMAKE_FIND_DEBUG_MODE TRUE)
 # SDL2
-find_package(SDL2 QUIET)
+find_package(SDL2 REQUIRED)
+
+PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
+
+#PackageHelperTarget(SDL2::SDL2 SDL2_FOUND)
+#PackageHelperTarget(SDL2::SDL2main SDL2_FOUND)
+
 if (SDL2_FOUND)
   SET(SAIGA_USE_SDL 1)
 endif()
-PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
 
+
+#message(FATAL_ERROR "blas ${SDL2_INCLUDE_DIR} ${SDL2_LIBRARIES}")
 
 #GLFW
-find_package(GLFW 3.2 QUIET)
+#find_package(GLFW 3.2 QUIET)
+#PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
+
+find_package(glfw3 CONFIG REQUIRED)
+PackageHelperTarget(glfw GLFW_FOUND)
 if (GLFW_FOUND)
   SET(SAIGA_USE_GLFW 1)
 endif ()
-PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
-
+#target_link_libraries(main PRIVATE glfw)
 
 
 #openal
@@ -68,32 +108,17 @@ PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
 
 
-#openmp
-if(SAIGA_CXX_WCLANG)
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
-  find_library(OMP_LIB libomp PATH_SUFFIXES lib)
-  message(STATUS ${OMP_LIB})
-  SET(LIBS ${LIBS} ${OMP_LIB})
-else()
-  find_package(OpenMP REQUIRED)
-  
-	PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
- # PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
- # if(OPENMP_FOUND)
- #   list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
- #   list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
- # endif()
+#assimp
+find_package(ASSIMP QUIET)
+PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
 
-  #        # This line doesn't work with nvcc + gcc8.3. Just uncomment it.
-  #        if(SAIGA_CXX_GNU)
-  #            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  #        else()
-  #            PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
-  #        endif()
-  #    endif()
+#set(CMAKE_FIND_DEBUG_MODE TRUE)
+#find_package(assimp CONFIG REQUIRED)
+#PackageHelperTarget(assimp::assimp ASSIMP_FOUND)
+if(ASSIMP_FOUND)
+    SET(SAIGA_USE_ASSIMP 1)
 endif()
-
-
+#message(FATAL_ERROR asdf)
 
 
 #libfreeimage

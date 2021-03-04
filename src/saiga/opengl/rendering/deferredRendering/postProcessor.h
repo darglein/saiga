@@ -94,7 +94,7 @@ class SAIGA_OPENGL_API PostProcessor
     GBuffer* gbuffer;
     int currentBuffer = 0;
     int lastBuffer    = 1;
-    IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
+    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::vector<std::shared_ptr<PostProcessingShader> > postProcessingEffects;
     std::shared_ptr<PostProcessingShader> passThroughShader;
 

@@ -1,0 +1,409 @@
+/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#ifndef _USE_MATH_DEFINES
+#    define _USE_MATH_DEFINES
+#endif
+
+
+#include "saiga/core/geometry/half_edge_mesh.h"
+#include "saiga/core/geometry/openMeshWrapper.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/model_from_shape.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+
+#include "OpenMesh/Tools/Decimater/DecimaterT.hh"
+#include "OpenMesh/Tools/Decimater/ModAspectRatioT.hh"
+#include "OpenMesh/Tools/Decimater/ModEdgeLengthT.hh"
+#include "OpenMesh/Tools/Decimater/ModHausdorffT.hh"
+#include "OpenMesh/Tools/Decimater/ModIndependentSetsT.hh"
+#include "OpenMesh/Tools/Decimater/ModNormalDeviationT.hh"
+#include "OpenMesh/Tools/Decimater/ModNormalFlippingT.hh"
+#include "OpenMesh/Tools/Decimater/ModProgMeshT.hh"
+#include "OpenMesh/Tools/Decimater/ModQuadricT.hh"
+#include "OpenMesh/Tools/Decimater/ModRoundnessT.hh"
+
+
+
+using namespace OpenMesh;
+
+
+#include "saiga/opengl/window/SampleWindowForward.h"
+
+
+using namespace Saiga;
+
+class Sample : public SampleWindowForward
+{
+    using Base = SampleWindowForward;
+
+   public:
+    Sample();
+    ~Sample();
+
+    void reduce();
+
+    void update(float dt) override;
+    void interpolate(float dt, float interpolation) override;
+
+
+    virtual void render(Camera* camera, RenderPass render_pass) override;
+
+
+   private:
+    bool useAspectRatio   = true;
+    float ratio           = 3;
+    float errorTolerance  = 1;
+    bool useQuadric       = false;
+    float quadricMaxError = 0.001;
+    bool useHausdorf      = false;
+    float hausError       = 0.01;
+    bool useNormalDev     = false;
+    float normalDev       = 20;
+    bool useNormalFlip    = true;
+    float maxNormalDev    = 8;
+    bool useRoundness     = false;
+    float minRoundness    = 0.4;
+
+    bool showReduced = false;
+    bool writeToFile = false;
+    bool wireframe   = true;
+
+    SimpleAssetObject cube1, cube2;
+    SimpleAssetObject sphere;
+
+
+    TriangleMesh<VertexNC, GLuint> baseMesh;
+    TriangleMesh<VertexNC, GLuint> reducedMesh;
+};
+
+
+Sample::Sample()
+{
+    baseMesh    = UnifiedModel("box.obj").Mesh<VertexNC, GLuint>();
+    reducedMesh = baseMesh;
+
+    auto bunnyAsset = std::make_shared<ColoredAsset>(baseMesh);
+    cube1.asset     = bunnyAsset;
+    cube1.translateGlobal(vec3(0, 1, 0));
+    cube1.calculateModel();
+
+    auto bunnyAsset2 = std::make_shared<ColoredAsset>(reducedMesh);
+    cube2.asset      = bunnyAsset2;
+    cube2.translateGlobal(vec3(-0, 1, 0));
+    cube2.calculateModel();
+
+
+    std::cout << "Program Initialized!" << std::endl;
+}
+
+Sample::~Sample()
+{
+    // We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
+}
+
+
+template <class MeshT>
+class ModNone : public OpenMesh::Decimater::ModBaseT<MeshT>
+{
+   public:
+    // Defines the types Self, Handle, Base, Mesh, and CollapseInfo
+    // and the memberfunction name()
+    DECIMATING_MODULE(ModNone, MeshT, None);
+
+    ModNone(MeshT& _mesh) : Base(_mesh, false) { Base::set_binary(false); }
+
+
+    virtual float collapse_priority(const CollapseInfo& _ci) override { return 0; }
+
+    virtual void initialize(void) override { Base::set_binary(false); }
+};
+
+
+void Sample::reduce()
+{
+#ifdef OM_DEBUG
+    std::cerr << "Warning OpenMesh debug is ON" << std::endl;
+#endif
+
+
+    using MyMesh = OpenTriangleMesh;
+    MyMesh mesh;
+
+    {
+        ScopedTimerPrint tim("convert mesh");
+
+        triangleMeshToOpenMesh(baseMesh, mesh);
+        copyVertexColor(baseMesh, mesh);
+    }
+
+
+    mesh.request_face_normals();
+    mesh.update_face_normals();
+
+    // =========================================================================================================
+
+
+
+    typedef Decimater::DecimaterT<MyMesh> Decimater;
+    Decimater decimater(mesh);
+
+    using HModQuadric = OpenMesh::Decimater::ModQuadricT<MyMesh>::Handle;
+    using HModAspect  = OpenMesh::Decimater::ModAspectRatioT<MyMesh>::Handle;
+
+
+    HModQuadric hModQuadric, hModQuadric2;
+    HModAspect hModAspect;
+    //    HModAspect hModAspect;
+
+    ModNone<MyMesh>::Handle none;
+
+
+    decimater.add(none);
+    //    decimater.module(hModQuadric2).unset_max_err();
+
+    //    decimater.add(hModQuadric2);
+    //    decimater.module(hModQuadric2).unset_max_err();
+
+    if (useQuadric)
+    {
+        decimater.add(hModQuadric);
+        decimater.module(hModQuadric).set_max_err(quadricMaxError);
+    }
+
+    if (useAspectRatio)
+    {
+        decimater.add(hModAspect);
+        decimater.module(hModAspect).set_aspect_ratio(ratio);
+        //        decimater.module(hModAspect).set_error_tolerance_factor(errorTolerance);
+    }
+
+
+    OpenMesh::Decimater::ModHausdorffT<MyMesh>::Handle haus;
+    if (useHausdorf)
+    {
+        decimater.add(haus);
+        decimater.module(haus).set_tolerance(hausError);
+    }
+
+    OpenMesh::Decimater::ModNormalDeviationT<MyMesh>::Handle nd;
+    if (useNormalDev)
+    {
+        decimater.add(nd);
+        decimater.module(nd).set_normal_deviation(normalDev);
+    }
+
+    OpenMesh::Decimater::ModNormalFlippingT<MyMesh>::Handle nf;
+    if (useNormalFlip)
+    {
+        decimater.add(nf);
+        decimater.module(nf).set_max_normal_deviation(maxNormalDev);
+    }
+
+    OpenMesh::Decimater::ModRoundnessT<MyMesh>::Handle r;
+    if (useRoundness)
+    {
+        decimater.add(r);
+        decimater.module(r).set_min_roundness(minRoundness);
+    }
+
+
+
+    decimater.initialize();
+
+
+    {
+        ScopedTimerPrint tim("decimate");
+        decimater.decimate();
+    }
+
+
+    mesh.garbage_collection();
+
+
+
+    {
+        ScopedTimerPrint tim("convert mesh");
+        openMeshToTriangleMesh(mesh, reducedMesh);
+
+        copyVertexColor(mesh, reducedMesh);
+
+        reducedMesh.computePerVertexNormal();
+
+        auto bunnyAsset2 = std::make_shared<ColoredAsset>(reducedMesh);
+        cube2.asset      = bunnyAsset2;
+    }
+}
+
+void Sample::update(float dt)
+{
+    // Update the camera position
+    camera.update(dt);
+}
+
+void Sample::interpolate(float dt, float interpolation)
+{
+    // Update the camera rotation. This could also be done in 'update' but
+    // doing it in the interpolate step will reduce latency
+    camera.interpolate(dt, interpolation);
+}
+
+
+void Sample::render(Camera* camera, RenderPass render_pass)
+{
+    if (render_pass == RenderPass::Forward)
+    {
+        if (showReduced)
+            cube2.render(camera);
+        else
+            cube1.render(camera);
+
+        if (wireframe)
+        {
+            glEnable(GL_POLYGON_OFFSET_LINE);
+            glPolygonOffset(-10, -10);
+            if (showReduced)
+                cube2.renderWireframe(camera);
+            else
+                cube1.renderWireframe(camera);
+            glDisable(GL_POLYGON_OFFSET_LINE);
+            assert_no_glerror();
+        }
+    }
+    else if (render_pass == RenderPass::GUI)
+    {
+        // The final render path (after post processing).
+        // Usually the GUI is rendered here.
+
+        {
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+            ImGui::Begin("An Imgui Window :D");
+
+
+            static char fileOff[256] = "output2.off";
+            ImGui::InputText("off file", fileOff, 256);
+
+            if (ImGui::Button("Test saiga::halfedge"))
+            {
+                Saiga::Timer t;
+
+                t.start();
+                Saiga::HalfEdgeMesh<VertexNC, GLuint> hem(baseMesh);
+                t.stop();
+
+                std::cout << "to halfedge: " << t.getTimeMS() << std::endl;
+
+                {
+                    ScopedTimerPrint tim("isValid");
+                    SAIGA_ASSERT(hem.isValid());
+                }
+
+
+                {
+                    ScopedTimerPrint tim("to ifs");
+                    TriangleMesh<VertexNC, GLuint> m;
+                    hem.toIFS(m);
+                }
+            }
+
+
+            if (ImGui::Button("Load .off"))
+            {
+                OpenMesh::TriMesh_ArrayKernelT<> mesh;
+                //            OpenTriangleMesh mesh;
+                loadOpenMesh(mesh, fileOff);
+
+                openMeshToTriangleMesh(mesh, baseMesh);
+
+                baseMesh.computePerVertexNormal();
+
+                auto bunnyAsset = std::make_shared<ColoredAsset>(baseMesh);
+                cube1.asset     = bunnyAsset;
+            }
+
+            static char fileObj[256] = "bunny.obj";
+            ImGui::InputText("obj file", fileObj, 256);
+
+            if (ImGui::Button("Load .obj"))
+            {
+                baseMesh    = UnifiedModel(fileObj).Mesh<VertexNC, GLuint>();
+                cube1.asset = std::make_shared<ColoredAsset>(baseMesh);
+            }
+
+            if (ImGui::CollapsingHeader("Decimation"))
+            {
+                ImGui::Checkbox("useQuadric", &useQuadric);
+                ImGui::SameLine();
+                ImGui::InputFloat("quadricMaxError", &quadricMaxError);
+
+                ImGui::Checkbox("useAspectRatio", &useAspectRatio);
+                ImGui::SameLine();
+                ImGui::InputFloat("ratio", &ratio);
+                ImGui::InputFloat("errorTolerance", &errorTolerance);
+
+
+
+                ImGui::Checkbox("useHausdorf", &useHausdorf);
+                ImGui::SameLine();
+                ImGui::InputFloat("hausError", &hausError);
+
+                ImGui::Checkbox("useNormalDev", &useNormalDev);
+                ImGui::SameLine();
+                ImGui::InputFloat("normalDev", &normalDev);
+
+
+
+                ImGui::Checkbox("useNormalFlip", &useNormalFlip);
+                ImGui::SameLine();
+                ImGui::InputFloat("maxNormalDev", &maxNormalDev);
+
+
+                ImGui::Checkbox("useRoundness", &useRoundness);
+                ImGui::SameLine();
+                ImGui::InputFloat("minRoundness", &minRoundness);
+            }
+
+
+
+            ImGui::Separator();
+
+
+
+            ImGui::Checkbox("showReduced", &showReduced);
+            ImGui::Checkbox("wireframe", &wireframe);
+            ImGui::Checkbox("writeToFile", &writeToFile);
+
+
+
+            if (ImGui::Button("Reduce"))
+            {
+                reduce();
+            }
+
+
+            ImGui::Separator();
+            ImGui::Text("Base Mesh: V %d F %d ", (int)baseMesh.vertices.size(), (int)baseMesh.faces.size());
+            ImGui::Text("Reduced Mesh: V %d F %d ", (int)reducedMesh.vertices.size(), (int)reducedMesh.faces.size());
+
+
+            ImGui::End();
+        }
+    }
+}
+
+
+
+int main(int argc, char* args[])
+{
+    // This should be only called if this is a sample located in saiga/samples
+    initSaigaSample();
+
+    Sample window;
+    window.run();
+
+    return 0;
+}

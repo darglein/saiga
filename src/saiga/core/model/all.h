@@ -7,7 +7,8 @@
 #pragma once
 
 
-#include "Model.h"
-#include "objModelLoader.h"
-#include "plyModelLoader.h"
-#include "offModelLoader.h"
+#include "UnifiedModel.h"
+
+#include "model_loader_obj.h"
+#include "model_loader_off.h"
+#include "model_loader_ply.h"

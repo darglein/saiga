@@ -5,8 +5,8 @@
  */
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
@@ -71,8 +71,8 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
                        params.useGPUTimers);
 
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
+
 
     int numTimers = DeferredTimings::COUNT;
     if (!params.useGPUTimers) numTimers = 1;  // still use one rendering timer :)
@@ -130,6 +130,14 @@ void DeferredRenderer::resize(int windowWidth, int windowHeight)
 void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
 {
     if (!rendering) return;
+
+
+    if (params.useSSAO && !ssao)
+    {
+        ssao                 = std::make_shared<SSAO>(renderWidth, renderHeight);
+        lighting.ssaoTexture = ssao->bluredTexture;
+    }
+
 
 
     Saiga::RenderInfo renderInfo = _renderInfo;

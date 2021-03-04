@@ -19,15 +19,27 @@ void AnimatedAsset::loadDefaultShaders()
     this->wireframeshader = shaderLoader.load<BoneShader>(shaderStr);
 }
 
+AnimatedAsset::AnimatedAsset(const UnifiedModel& model)
+{
+    auto mesh      = model.Mesh<BoneVertexCD, uint32_t>();
+    this->vertices = mesh.vertices;
+    this->faces    = mesh.faces;
+
+    animation_system = model.animation_system;
+
+    std::cout << "Create AnimatedAsset " << vertices.size() << " " << faces.size() << std::endl;
+    create();
+}
+
 void AnimatedAsset::render(Camera* cam, const mat4& model, UniformBuffer& boneMatrices)
 {
     std::shared_ptr<BoneShader> bs = std::static_pointer_cast<BoneShader>(this->deferredShader);
 
-
+    std::terminate();
     bs->bind();
     bs->uploadModel(model);
     //    boneMatrices.bind(0);
-    boneMatrices.bind(BONE_MATRICES_BINDING_POINT);
+    //    boneMatrices.bind(BONE_MATRICES_BINDING_POINT);
     buffer.bindAndDraw();
     bs->unbind();
 }
@@ -38,7 +50,7 @@ void AnimatedAsset::renderDepth(Camera* cam, const mat4& model, UniformBuffer& b
 
     bs->bind();
     bs->uploadModel(model);
-    boneMatrices.bind(BONE_MATRICES_BINDING_POINT);
+    //    boneMatrices.bind(BONE_MATRICES_BINDING_POINT);
     buffer.bindAndDraw();
     bs->unbind();
 }

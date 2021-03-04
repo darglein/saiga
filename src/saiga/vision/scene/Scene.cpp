@@ -370,7 +370,7 @@ double Scene::chi2(double huber)
     //    int stereoEdges = 0;
     //    int monoEdges   = 0;
 
-    for (int i = 0; i < images.size(); ++i)
+    for (int i = 0; i < (int)images.size(); ++i)
     {
         SceneImage& im     = images[i];
         double image_error = 0;
@@ -448,11 +448,11 @@ double Scene::rms()
 
 void Scene::rmsPrint()
 {
-    for (int i = 0; i < images.size(); ++i)
+    for (int i = 0; i < (int)images.size(); ++i)
     {
         SceneImage& im     = images[i];
         double image_error = 0;
-        for (int j = 0; j < im.stereoPoints.size(); ++j)
+        for (int j = 0; j < (int)im.stereoPoints.size(); ++j)
         {
             auto& o = im.stereoPoints[j];
             if (!o) continue;

@@ -154,6 +154,7 @@ void DirectionalLight::setDirection(const vec3& dir)
 
 void DirectionalLight::fitShadowToCamera(Camera* cam)
 {
+    if (!hasShadows()) return;
 #if 0
     vec3 dir = -direction;
     vec3 right = normalize(cross(vec3(1,1,0),dir));

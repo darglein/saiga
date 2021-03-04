@@ -125,7 +125,7 @@ std::vector<KeyPoint<float>> QuadtreeFeatureDistributor::Distribute(ArrayView<Ke
                   [](const auto& n1, const auto& n2) { return n1.NumKeypoints() > n2.NumKeypoints(); });
 
         // split until we have enough
-        for (int i = 0; i < inner_nodes.size(); ++i)
+        for (int i = 0; i < (int)inner_nodes.size(); ++i)
         {
             auto& node = inner_nodes[i];
 
@@ -150,7 +150,7 @@ std::vector<KeyPoint<float>> QuadtreeFeatureDistributor::Distribute(ArrayView<Ke
             }
 
             int remaining_inner_nodes = inner_nodes.size() - i - 1;
-            if (leaf_nodes.size() + new_inner_nodes.size() + remaining_inner_nodes >= target_n)
+            if ((int)leaf_nodes.size() + (int)new_inner_nodes.size() + remaining_inner_nodes >= target_n)
             {
                 last_processed_inner = i;
                 bFinish              = true;

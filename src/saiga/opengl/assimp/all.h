@@ -7,4 +7,4 @@
 #pragma once
 
 #include "saiga/opengl/assimp/assimpAssetLoader.h"
-#include "saiga/opengl/assimp/assimpLoader.h"
+#include "saiga/opengl/assimp/model_loader_assimp.h"

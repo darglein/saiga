@@ -97,15 +97,18 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
         if (!params.useGPUTimers && timer != TOTAL) return 0;
         return timers[timer].MultiFrameOpenGLTimer::getTimeMS();
     }
-    float getTotalRenderTime() override { return getUnsmoothedTimeMS(UberDeferredRenderer::UberDeferredTimingBlock::TOTAL); }
+    float getTotalRenderTime() override
+    {
+        return getUnsmoothedTimeMS(UberDeferredRenderer::UberDeferredTimingBlock::TOTAL);
+    }
 
     inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
     {
         // TODO Paul: Refactor!
-        params.maximumNumberOfDirectionalLights       = maxDirectionalLights;
-        params.maximumNumberOfPointLights             = maxPointLights;
-        params.maximumNumberOfSpotLights              = maxSpotLights;
-        params.maximumNumberOfBoxLights               = maxBoxLights;
+        params.maximumNumberOfDirectionalLights = maxDirectionalLights;
+        params.maximumNumberOfPointLights       = maxPointLights;
+        params.maximumNumberOfSpotLights        = maxSpotLights;
+        params.maximumNumberOfBoxLights         = maxBoxLights;
 
         params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
         params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
@@ -126,7 +129,7 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     GBuffer gbuffer;
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
-    IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
+    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
     std::shared_ptr<Texture> blackDummyTexture;
     bool showLightingImgui = false;

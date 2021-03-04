@@ -8,10 +8,9 @@
 
 #include "saiga/core/geometry/half_edge_mesh.h"
 #include "saiga/core/geometry/openMeshWrapper.h"
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/model/objModelLoader.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
+#include "saiga/core/model/model_loader_obj.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/vision/util/DepthmapPreprocessor.h"
 
@@ -59,8 +58,8 @@ Sample::Sample() : StandaloneWindow("config.ini")
     triangulate_naive();
 
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-    ObjAssetLoader assetLoader;
-    meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+    //    ObjAssetLoader assetLoader;
+    meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
     meshObject.calculateModel();
 
     std::cout << "Program Initialized!" << std::endl;
@@ -138,8 +137,8 @@ void Sample::triangulate_naive()
     copyVertexColor(m, depthmesh);
     depthmesh.computePerVertexNormal();
 
-    AssetLoader assetLoader;
-    meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+
+    meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
 }
 
 void Sample::triangulate_RQT()
@@ -152,8 +151,7 @@ void Sample::triangulate_RQT()
     copyVertexColor(m, depthmesh);
     depthmesh.computePerVertexNormal();
 
-    AssetLoader assetLoader;
-    meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+    meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
 }
 
 void Sample::reduce_quadric()
@@ -170,8 +168,7 @@ void Sample::reduce_quadric()
     copyVertexColor(mesh, depthmesh);
     depthmesh.computePerVertexNormal();
 
-    AssetLoader assetLoader;
-    meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+    meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
 }
 
 void Sample::update(float dt)
@@ -269,15 +266,17 @@ void Sample::render(Camera* camera, RenderPass render_pass)
             if (ImGui::Button("Load Mesh"))
             {
                 depthmesh.clear();
-                ObjModelLoader modelLoader(std::string(mesh_file.data()));
-                modelLoader.toTriangleMesh(depthmesh);
+                //                ObjModelLoader modelLoader(std::string(mesh_file.data()));
+                //                modelLoader.toTriangleMesh(depthmesh);
+                depthmesh = UnifiedModel(std::string(mesh_file.data())).Mesh<VertexNC, uint32_t>();
                 depthmesh.setColor(vec4(1, 0, 0, 1));
                 depthmesh.computePerVertexNormal();
                 depthmesh.normalizeScale();
                 depthmesh.normalizePosition();
                 // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-                ObjAssetLoader assetLoader;
-                meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+                //                ObjAssetLoader assetLoader;
+                //                meshObject.asset = assetLoader.assetFromMesh(depthmesh);
+                meshObject.asset = std::make_shared<ColoredAsset>(depthmesh);
                 meshObject.calculateModel();
             }
 

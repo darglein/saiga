@@ -1,5 +1,16 @@
-find_package(GTest QUIET)
-PackageHelperTarget(GTest::GTest GTest_FOUND)
+#find_package(GTest REQUIRED)
+
+find_package(GTest CONFIG QUIET)
+if (TARGET GTest::gtest)
+  PackageHelperTarget(GTest::gtest GTEST_FOUND)
+else()
+  find_package(GTest QUIET)
+  PackageHelperTarget(GTest::gtest GTEST_FOUND)
+endif()
+
+
+
+
 
 if(NOT GTEST_FOUND)
   message(STATUS "GTest not found. Tests disabled.")
@@ -10,28 +21,28 @@ endif()
 function(saiga_test FILE_NAME)
   string(REGEX REPLACE "\\.[^.]*$" "" NAME ${FILE_NAME})
 
-  set(TEST_TARGET ${NAME})
+  set(TARGET_NAME ${NAME})
 
-  add_executable(${TEST_TARGET} ${FILE_NAME})
+  add_executable(${TARGET_NAME} ${FILE_NAME})
   message(STATUS "Test enabled:      ${NAME}")
 
 
-  target_link_libraries(${TEST_TARGET} PUBLIC saiga_core GTest::GTest GTest::Main)
-  target_link_libraries(${TEST_TARGET} PUBLIC ${ARGN})
+  target_link_libraries(${TARGET_NAME} PUBLIC saiga_core GTest::gtest GTest::gtest_main)
+  target_link_libraries(${TARGET_NAME} PUBLIC ${ARGN})
 
   add_test(
-    NAME ${TEST_TARGET}
-    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TARGET}
+    NAME ${TARGET_NAME}
+    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}
     )
 
 
-  set_property(TARGET ${TEST_TARGET} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
-  target_compile_options(${TEST_TARGET} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
+  set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
+  target_compile_options(${TARGET_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
 
   #set working directory for visual studio so the project can be executed from the ide
-  set_target_properties(${TEST_TARGET} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
-  set_target_properties(${TEST_TARGET} PROPERTIES FOLDER tests/${PREFIX})
-  set_target_properties(${TEST_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+  set_target_properties(${TARGET_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
+  set_target_properties(${TARGET_NAME} PROPERTIES FOLDER tests/${PREFIX})
+  set_target_properties(${TARGET_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 endfunction()
 
 

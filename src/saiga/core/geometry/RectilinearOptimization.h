@@ -16,7 +16,8 @@ using RectangleList = std::vector<Rect>;
 
 SAIGA_CORE_API void MergeNeighborsSave(RectangleList& rectangles);
 
-SAIGA_CORE_API void MergeNeighbors(RectangleList& rectangles, const Cost& cost);
+// returns the number of iterations
+SAIGA_CORE_API int MergeNeighbors(RectangleList& rectangles, const Cost& cost, int max_iterations);
 
 SAIGA_CORE_API void MergeShrink(PointView points, RectangleList& rectangles, int its, int converge_its,
                                 const Cost& cost);

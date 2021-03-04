@@ -7,8 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
-
-#include <SDL2/SDL.h>
+#include "saiga/core/sdl/saiga_sdl.h"
 
 namespace Saiga
 {

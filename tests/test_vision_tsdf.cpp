@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 #include "saiga/core/Core.h"
-#include "saiga/core/model/plyModelLoader.h"
+#include "saiga/core/model/model_loader_ply.h"
 #include "saiga/vision/reconstruction/MarchingCubes.h"
 #include "saiga/vision/reconstruction/SparseTSDF.h"
 #include "saiga/vision/reconstruction/VoxelFusion.h"
@@ -212,8 +212,8 @@ TEST(TSDF, VirtualVoxelIndex)
 TEST(TSDF, GetVoxel)
 {
     SparseTSDF tsdf(1, 1000, 1000);
-    auto b1 = tsdf.InsertBlock({0, 0, 0});
-    auto b2 = tsdf.InsertBlock({-1, 0, 0});
+    tsdf.InsertBlock({0, 0, 0});
+    tsdf.InsertBlock({-1, 0, 0});
     tsdf.GetVoxel({-1, 0, 0});
     tsdf.GetVoxel({-5, 3, 7});
 }

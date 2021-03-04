@@ -912,19 +912,25 @@ void TemplatedVocabulary<Descriptor>::transform(const std::vector<Descriptor>& f
         }
 
 
-
-#pragma omp single
+#ifdef WIN32
+#    pragma omp single
         {
-#pragma omp task
+            v.set(tmp_bow_data);
+            fv.setFeatures(tmp_feature_data);
+        }
+#else
+#    pragma omp single
+        {
+#    pragma omp task
             {
                 v.set(tmp_bow_data);
             }
 
             fv.setFeatures(tmp_feature_data);
         }
+#endif
     }
 }
-
 
 // --------------------------------------------------------------------------
 

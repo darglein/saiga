@@ -38,6 +38,7 @@ class TriangleMesh : public Mesh<vertex_t>
     using Base::size;
     using Base::vertices;
 
+#if 0
     struct SAIGA_ALIGN(4) Face
     {
         index_t v1, v2, v3;
@@ -55,7 +56,8 @@ class TriangleMesh : public Mesh<vertex_t>
             return *((&v1) + idx);
         }
     };
-
+#endif
+    using Face = Vector<index_t, 3>;
 
     void transformNormal(const mat4& trafo);
 
@@ -184,7 +186,7 @@ class TriangleMesh : public Mesh<vertex_t>
     std::vector<index_t> getIndexList() const
     {
         std::vector<index_t> indices(numIndices());
-        std::copy(&faces[0].v1, &faces[0].v1 + numIndices(), indices.data());
+        std::copy(&faces[0](0), &faces[0](0) + numIndices(), indices.data());
         return indices;
     }
 
@@ -266,20 +268,23 @@ void TriangleMesh<vertex_t, index_t>::subdivideFace(int f)
 {
     Face face = faces[f];
 
-#define _TM_POS(xs) (vertices[face.xs].position)
     // create 3 new vertices in the middle of the edges
 
-    int v1 = addVertex(vertex_t(vec4((_TM_POS(v1) + _TM_POS(v2)) / 2.0f)));
-    int v2 = addVertex(vertex_t(vec4((_TM_POS(v1) + _TM_POS(v3)) / 2.0f)));
-    int v3 = addVertex(vertex_t(vec4((_TM_POS(v2) + _TM_POS(v3)) / 2.0f)));
+    auto p1 = vertices[face(0)].position;
+    auto p2 = vertices[face(1)].position;
+    auto p3 = vertices[face(2)].position;
+
+    int v1 = addVertex(vertex_t(vec4((p1 + p2) / 2.0f)));
+    int v2 = addVertex(vertex_t(vec4((p1 + p3) / 2.0f)));
+    int v3 = addVertex(vertex_t(vec4((p2 + p3) / 2.0f)));
 
 
-    faces.push_back(Face(face.v2, v3, v1));
+    faces.push_back(Face(face(1), v3, v1));
 
-    faces.push_back(Face(face.v3, v2, v3));
+    faces.push_back(Face(face(2), v2, v3));
 
     faces.push_back(Face(v1, v3, v2));
-    faces[f] = Face(face.v1, v1, v2);
+    faces[f] = Face(face(0), v1, v2);
 }
 
 
@@ -289,9 +294,9 @@ void TriangleMesh<vertex_t, index_t>::invertFace(int f)
 {
     Face& face = faces[f];
     Face face2;
-    face2.v1 = face.v3;
-    face2.v2 = face.v2;
-    face2.v3 = face.v1;
+    face2(0) = face(2);
+    face2(1) = face(1);
+    face2(2) = face(0);
     face     = face2;
 }
 
@@ -301,9 +306,9 @@ void TriangleMesh<vertex_t, index_t>::invertMesh()
     for (Face& face : faces)
     {
         Face face2;
-        face2.v1 = face.v3;
-        face2.v2 = face.v2;
-        face2.v3 = face.v1;
+        face2(0) = face(2);
+        face2(1) = face(1);
+        face2(2) = face(0);
         face     = face2;
     }
 
@@ -320,9 +325,9 @@ std::vector<Triangle> TriangleMesh<vertex_t, index_t>::toTriangleList() const
     Triangle t;
     for (const Face& f : faces)
     {
-        t.a = make_vec3(vertices[f.v1].position);
-        t.b = make_vec3(vertices[f.v2].position);
-        t.c = make_vec3(vertices[f.v3].position);
+        t.a = make_vec3(vertices[f(0)].position);
+        t.b = make_vec3(vertices[f(1)].position);
+        t.c = make_vec3(vertices[f(2)].position);
         output.push_back(t);
     }
     return output;
@@ -339,9 +344,9 @@ void TriangleMesh<vertex_t, index_t>::addMesh(const TriangleMesh<vertex_t, index
 
     for (Face f : other.faces)
     {
-        f.v1 += oldVertexCount;
-        f.v2 += oldVertexCount;
-        f.v3 += oldVertexCount;
+        f(0) += oldVertexCount;
+        f(1) += oldVertexCount;
+        f(2) += oldVertexCount;
         this->addFace(f);
     }
 }
@@ -358,10 +363,10 @@ void TriangleMesh<vertex_t, index_t>::addMesh(const TriangleMesh<mesh_vertex_t, 
 
     for (auto f : other.faces)
     {
-        f.v1 += oldVertexCount;
-        f.v2 += oldVertexCount;
-        f.v3 += oldVertexCount;
-        this->addFace(f.v1, f.v2, f.v3);
+        f(0) += oldVertexCount;
+        f(1) += oldVertexCount;
+        f(2) += oldVertexCount;
+        this->addFace(f);
     }
 }
 
@@ -398,14 +403,14 @@ void TriangleMesh<vertex_t, index_t>::computePerVertexNormal()
     for (int i = 0; i < (int)faces.size(); ++i)
     {
         Face& f = faces[i];
-        vec3 a  = make_vec3(vertices[f.v1].position);
-        vec3 b  = make_vec3(vertices[f.v2].position);
-        vec3 c  = make_vec3(vertices[f.v3].position);
+        vec3 a  = make_vec3(vertices[f(0)].position);
+        vec3 b  = make_vec3(vertices[f(1)].position);
+        vec3 c  = make_vec3(vertices[f(2)].position);
         vec3 n  = cross(b - a, c - a);
         // Note: do not normalize here because the length is the surface area
-        vertices[f.v1].normal += make_vec4(n, 0);
-        vertices[f.v2].normal += make_vec4(n, 0);
-        vertices[f.v3].normal += make_vec4(n, 0);
+        vertices[f(0)].normal += make_vec4(n, 0);
+        vertices[f(1)].normal += make_vec4(n, 0);
+        vertices[f(2)].normal += make_vec4(n, 0);
     }
 
     //#pragma omp parallel for
@@ -448,9 +453,9 @@ bool TriangleMesh<vertex_t, index_t>::isValid() const
     // check if all referenced vertices exist
     for (Face f : faces)
     {
-        if (f.v1 < 0 || f.v1 >= vertices.size()) return false;
-        if (f.v2 < 0 || f.v2 >= vertices.size()) return false;
-        if (f.v3 < 0 || f.v3 >= vertices.size()) return false;
+        if (f(0) < 0 || f(0) >= (int)vertices.size()) return false;
+        if (f(1) < 0 || f(1) >= (int)vertices.size()) return false;
+        if (f(2) < 0 || f(2) >= (int)vertices.size()) return false;
     }
     return true;
 }
@@ -487,9 +492,9 @@ void TriangleMesh<vertex_t, index_t>::sortVerticesByPosition(double epsilon)
 
     for (auto& f : faces)
     {
-        f.v1 = tmp_indices2[f.v1];
-        f.v2 = tmp_indices2[f.v2];
-        f.v3 = tmp_indices2[f.v3];
+        f(0) = tmp_indices2[f(0)];
+        f(1) = tmp_indices2[f(1)];
+        f(2) = tmp_indices2[f(2)];
     }
     vertices.swap(new_vertices);
 }
@@ -508,7 +513,7 @@ void TriangleMesh<vertex_t, index_t>::removeSubsequentDuplicates(double epsilon)
     int currentIdx = -1;
     vec4 currentPos;
 
-    for (int i = 0; i < vertices.size(); ++i)
+    for (int i = 0; i < (int)vertices.size(); ++i)
     {
         auto& p = vertices[i].position;
         if (i == 0 || (p - currentPos).squaredNorm() > eps_squared)
@@ -528,9 +533,9 @@ void TriangleMesh<vertex_t, index_t>::removeSubsequentDuplicates(double epsilon)
 
     for (auto& f : faces)
     {
-        f.v1 = tmp_indices[f.v1];
-        f.v2 = tmp_indices[f.v2];
-        f.v3 = tmp_indices[f.v3];
+        f(0) = tmp_indices[f(0)];
+        f(1) = tmp_indices[f(1)];
+        f(2) = tmp_indices[f(2)];
     }
     vertices.swap(new_vertices);
 }
@@ -539,7 +544,7 @@ template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::removeDegenerateFaces()
 {
     faces.erase(std::remove_if(faces.begin(), faces.end(),
-                               [](const Face& f) { return f.v1 == f.v2 || f.v1 == f.v3 || f.v2 == f.v3; }),
+                               [](const Face& f) { return f(0) == f(1) || f(0) == f(2) || f(1) == f(2); }),
                 faces.end());
 }
 
@@ -551,9 +556,9 @@ float TriangleMesh<vertex_t, index_t>::distancePointMesh(const vec3& x)
     for (const Face& f : faces)
     {
         Triangle t;
-        t.a = make_vec3(vertices[f.v1].position);
-        t.b = make_vec3(vertices[f.v2].position);
-        t.c = make_vec3(vertices[f.v3].position);
+        t.a = make_vec3(vertices[f(0)].position);
+        t.b = make_vec3(vertices[f(1)].position);
+        t.c = make_vec3(vertices[f(2)].position);
         dis = std::min(dis, t.Distance(x));
     }
     return dis;
