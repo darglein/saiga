@@ -75,7 +75,7 @@ endif()
 #find_package(GLFW 3.2 QUIET)
 #PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
 
-find_package(glfw3 CONFIG REQUIRED)
+find_package(glfw3 CONFIG )
 PackageHelperTarget(glfw GLFW_FOUND)
 if (GLFW_FOUND)
   SET(SAIGA_USE_GLFW 1)
