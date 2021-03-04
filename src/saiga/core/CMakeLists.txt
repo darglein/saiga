@@ -56,6 +56,8 @@ target_include_directories(
     $<INSTALL_INTERFACE:include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
     "$<BUILD_INTERFACE:${CORE_INCLUDES}>"
+    "$<BUILD_INTERFACE:${SAIGA_BUILDCONFIG_DIR}>"
+
     #PRIVATE
     # for the internal files
     #${PROJECT_SOURCE_DIR}/src/

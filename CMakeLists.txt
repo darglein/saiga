@@ -5,7 +5,7 @@ set(LIB_EXPORT saiga-export)
 
 project (${LIB_NAME} CXX)
 
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include(helper_macros)
 
 
@@ -57,7 +57,6 @@ OptionsHelper(SAIGA_DEBIAN_BUILD "Saiga is currently build into a Debian Package
 OptionsHelper(SAIGA_MODULE_CORE   "Build the core module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_OPENGL "Build the opengl module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_VULKAN "Build the vulkan module, if possible." ON)
-OptionsHelper(SAIGA_MODULE_EXTRA  "Build the extra module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_VISION "Build the vision module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_CUDA   "Build the cuda module, if possible." ON)
 
@@ -209,7 +208,7 @@ STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${SAIGA_INSTALL_PREFIX} )
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_buildconfig.h")
 set(SAIGA_MODULES_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_modules.h")
-INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
+#INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
 configure_file (
     "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_buildconfig.h.in"
     "${SAIGA_BUILDCONFIG_FILE}"
@@ -304,11 +303,11 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/uninstall.cmake
     IMMEDIATE @ONLY)
 
-add_custom_target(uninstall
+add_custom_target(uninstall_saiga
     COMMAND ${CMAKE_COMMAND} -P
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/uninstall.cmake)
 	
-set_target_properties(uninstall PROPERTIES FOLDER CMakePredefinedTargets)
+set_target_properties(uninstall_saiga PROPERTIES FOLDER CMakePredefinedTargets)
 
 ############# Doxygen ###############
 
