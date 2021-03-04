@@ -267,17 +267,29 @@ std::pair<vec3, vec3> Frustum::getEdge(int i) const
     switch (i)
     {
         case 0:
-            return std::pair<vec3, vec3>(vertices[0], vertices[4]);
+            return std::pair<vec3, vec3>(vertices[0], vertices[4]); // nTL - fTL
         case 1:
-            return std::pair<vec3, vec3>(vertices[1], vertices[5]);
+            return std::pair<vec3, vec3>(vertices[1], vertices[5]); // nTR - fTR
         case 2:
-            return std::pair<vec3, vec3>(vertices[2], vertices[6]);
+            return std::pair<vec3, vec3>(vertices[2], vertices[6]); // nBL - fBL
         case 3:
-            return std::pair<vec3, vec3>(vertices[3], vertices[7]);
+            return std::pair<vec3, vec3>(vertices[3], vertices[7]); // nBR - fBR
         case 4:
-            return std::pair<vec3, vec3>(vertices[0], vertices[1]);
+            return std::pair<vec3, vec3>(vertices[0], vertices[1]); // nTL - nTR
         case 5:
-            return std::pair<vec3, vec3>(vertices[0], vertices[2]);
+            return std::pair<vec3, vec3>(vertices[0], vertices[2]); // nTL - nBL
+        case 6:
+            return std::pair<vec3, vec3>(vertices[3], vertices[2]); // nBR - nBL
+        case 7:
+            return std::pair<vec3, vec3>(vertices[3], vertices[1]); // nBR - nTR
+        case 8:
+            return std::pair<vec3, vec3>(vertices[4], vertices[5]); // fTL - fTR
+        case 9:
+            return std::pair<vec3, vec3>(vertices[4], vertices[6]); // fTL - fBL
+        case 10:
+            return std::pair<vec3, vec3>(vertices[7], vertices[6]); // fBR - fBL
+        case 11:
+            return std::pair<vec3, vec3>(vertices[7], vertices[5]); // fBR - fTR
         default:
             std::cerr << "Camera::getEdge" << std::endl;
             return std::pair<vec3, vec3>();
