@@ -30,8 +30,8 @@ SampleWindowForward::SampleWindowForward() : StandaloneWindow("config.ini")
     //    groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick,
     //    Colors::gray);
 
-    groundPlane.asset =
-        std::make_shared<ColoredAsset>(CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray));
+    groundPlane.asset = std::make_shared<ColoredAsset>(
+        CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::indianred, Colors::lightgray));
 }
 
 void SampleWindowForward::update(float dt)
