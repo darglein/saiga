@@ -12,11 +12,65 @@ unset(LIBS)
 unset(MODULE_CORE)
 
 
-#Eigen is now required
-find_package(Eigen3 3.3.90 REQUIRED QUIET)
-PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
-SET(SAIGA_USE_EIGEN 1)
+# ========= Libraries that are included as submodules =========
+find_package(Eigen3 3.3.90 QUIET)
+if(NOT TARGET Eigen3::Eigen)
+  message("=================================")
+  message("Adding Submodule eigen")
+  add_subdirectory(submodules/eigen)
+  message("=================================")
+endif()
 
+SET(SAIGA_USE_EIGEN 1)
+PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
+
+
+#zlib
+find_package(ZLIB QUIET)
+if(${ZLIB_FOUND})
+    PackageHelper(ZLIB ${ZLIB_FOUND} "${ZLIB_INCLUDE_DIRS}" "${ZLIB_LIBRARIES}")
+    SET(SAIGA_USE_ZLIB 1)
+elseif(SAIGA_USE_SUBMODULES)
+     message("=================================")
+  message("Building Submodule ZLIB")
+  add_subdirectory(submodules/zlib)
+  PackageHelperTarget(zlib ZLIB_FOUND)
+  SET(SAIGA_USE_ZLIB 1)
+  message("=================================")
+endif()
+
+
+# png
+find_package(PNG QUIET)
+if(${PNG_FOUND})
+    PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
+    SET(SAIGA_USE_PNG 1)
+elseif(SAIGA_USE_SUBMODULES)
+     message("=================================")
+  message("Building Submodule libPNG")
+  set(PNG_BUILD_ZLIB ON CACHE INTERNAL "")
+  set(PNG_STATIC OFF CACHE INTERNAL "")
+  set(PNG_EXECUTABLES OFF CACHE INTERNAL "")
+  set(PNG_TESTS OFF CACHE INTERNAL "")
+  set(ZLIB_LIBRARIES zlib CACHE INTERNAL "")
+  add_subdirectory(submodules/libpng)
+   PackageHelperTarget(png PNG_FOUND)
+  SET(SAIGA_USE_PNG 1)
+  message("=================================")
+endif()
+
+# SDL2
+find_package(SDL2 QUIET)
+if(${SDL2_FOUND})
+    PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
+    SET(SAIGA_USE_SDL 1)
+elseif(SAIGA_USE_SUBMODULES)
+     message("=================================")
+  message("Building Submodule libPNG")
+  add_subdirectory(submodules/SDL)
+  PackageHelperTarget(SDL2 SDL2_FOUND)
+   SET(SAIGA_USE_SDL 1)
+endif()
 
 
 
@@ -29,12 +83,12 @@ if(SAIGA_CXX_WCLANG)
 else()
   find_package(OpenMP REQUIRED)
 
-PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
- # PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
- # if(OPENMP_FOUND)
- #   list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
- #   list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
- # endif()
+  PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
+  # PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OPENMP_LIBRARIES}")
+  # if(OPENMP_FOUND)
+  #   list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
+  #   list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
+  # endif()
 
   #        # This line doesn't work with nvcc + gcc8.3. Just uncomment it.
   #        if(SAIGA_CXX_GNU)
@@ -55,30 +109,6 @@ endif(WIN32)
 
 
 
-#set(CMAKE_FIND_DEBUG_MODE TRUE)
-# SDL2
-<<<<<<< HEAD
-find_package(SDL2 REQUIRED)
-
-PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
-
-#PackageHelperTarget(SDL2::SDL2 SDL2_FOUND)
-#PackageHelperTarget(SDL2::SDL2main SDL2_FOUND)
-=======
-if(TARGET SDL2)
-  PackageHelperTarget(SDL2 SDL2_FOUND)
-else()
-  find_package(SDL2 REQUIRED)
-  PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
-endif()
->>>>>>> master
-
-if (SDL2_FOUND)
-  SET(SAIGA_USE_SDL 1)
-endif()
-
-
-#message(FATAL_ERROR "blas ${SDL2_INCLUDE_DIR} ${SDL2_LIBRARIES}")
 
 #GLFW
 #find_package(GLFW 3.2 QUIET)
@@ -126,10 +156,8 @@ PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIE
 #find_package(assimp CONFIG REQUIRED)
 #PackageHelperTarget(assimp::assimp ASSIMP_FOUND)
 if(ASSIMP_FOUND)
-    SET(SAIGA_USE_ASSIMP 1)
+  SET(SAIGA_USE_ASSIMP 1)
 endif()
-#message(FATAL_ERROR asdf)
-
 
 #libfreeimage
 find_package(FreeImagePlus QUIET)
@@ -140,19 +168,6 @@ if(FREEIMAGE_FOUND AND FREEIMAGEPLUS_FOUND)
   SET(SAIGA_USE_FREEIMAGE 1)
 endif()
 
-#zlib
-find_package(ZLIB QUIET)
-if(ZLIB_FOUND)
-  SET(SAIGA_USE_ZLIB 1)
-endif()
-PackageHelper(ZLIB ${ZLIB_FOUND} "${ZLIB_INCLUDE_DIRS}" "${ZLIB_LIBRARIES}")
-
-#png
-find_package(PNG QUIET)
-if(PNG_FOUND)
-  SET(SAIGA_USE_PNG 1)
-endif()
-PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
 
 
 #c++17 filesystem

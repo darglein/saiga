@@ -30,6 +30,7 @@ message(STATUS "\nBuild Options")
 #option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
 OptionsHelper (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
 
+OptionsHelper (SAIGA_USE_SUBMODULES "alot of error checks and more console output" OFF)
 OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" OFF)
 OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON)
 OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON)
@@ -88,6 +89,9 @@ endif()
 include(Saiga_compiler_flags)
 
 ####### Dependencies #######
+# Build Submodules first
+
+
 
 unset(MODULE_CORE)
 unset(MODULE_CUDA)
