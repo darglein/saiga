@@ -44,10 +44,10 @@ endif()
 target_compile_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_CXX_FLAGS}>")
 target_link_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_LD_FLAGS}>")
 
-#target_compile_options(${MODULE_NAME}  PUBLIC ${SAIGA_CXX_FLAGS})
-set_target_properties(${MODULE_NAME} PROPERTIES CXX_STANDARD 17)
+# as a compile feature this flag propagates to all libraries that use saiga
+target_compile_features(${MODULE_NAME} PUBLIC cxx_std_17)
+
 target_link_libraries(${MODULE_NAME} PUBLIC ${CORE_LIBS} ${CORE_TARGETS} )
-target_link_libraries(${MODULE_NAME} PRIVATE std::filesystem)
 target_link_options(${MODULE_NAME} PUBLIC ${SAIGA_LD_FLAGS})
 
 target_include_directories(
@@ -56,6 +56,8 @@ target_include_directories(
     $<INSTALL_INTERFACE:include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
     "$<BUILD_INTERFACE:${CORE_INCLUDES}>"
+    "$<BUILD_INTERFACE:${SAIGA_BUILDCONFIG_DIR}>"
+
     #PRIVATE
     # for the internal files
     #${PROJECT_SOURCE_DIR}/src/

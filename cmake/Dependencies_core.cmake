@@ -57,12 +57,21 @@ endif(WIN32)
 
 #set(CMAKE_FIND_DEBUG_MODE TRUE)
 # SDL2
+<<<<<<< HEAD
 find_package(SDL2 REQUIRED)
 
 PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
 
 #PackageHelperTarget(SDL2::SDL2 SDL2_FOUND)
 #PackageHelperTarget(SDL2::SDL2main SDL2_FOUND)
+=======
+if(TARGET SDL2)
+  PackageHelperTarget(SDL2 SDL2_FOUND)
+else()
+  find_package(SDL2 REQUIRED)
+  PackageHelper(SDL2 ${SDL2_FOUND} "${SDL2_INCLUDE_DIR}" "${SDL2_LIBRARY}")
+endif()
+>>>>>>> master
 
 if (SDL2_FOUND)
   SET(SAIGA_USE_SDL 1)
@@ -75,7 +84,8 @@ endif()
 #find_package(GLFW 3.2 QUIET)
 #PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
 
-find_package(glfw3 CONFIG REQUIRED)
+
+find_package(glfw3 CONFIG )
 PackageHelperTarget(glfw GLFW_FOUND)
 if (GLFW_FOUND)
   SET(SAIGA_USE_GLFW 1)
@@ -146,9 +156,9 @@ PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
 
 
 #c++17 filesystem
-find_package(Filesystem REQUIRED QUIET)
-SET(SAIGA_USE_FILESYSTEM 1)
-PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
+#find_package(Filesystem REQUIRED QUIET)
+#SET(SAIGA_USE_FILESYSTEM 1)
+#PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
 #if(FILESYSTEM_FOUND)
 #endif()
 
