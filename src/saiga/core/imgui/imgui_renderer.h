@@ -16,7 +16,7 @@ namespace Saiga
 class SAIGA_CORE_API ImGuiRenderer
 {
    public:
-    ImGuiRenderer(ImGuiParameters params, bool linearRGB);
+    ImGuiRenderer(ImGuiParameters params);
     virtual ~ImGuiRenderer();
 
 

@@ -326,10 +326,11 @@ void initImGui(const ImGuiParameters& params)
     {
         case ImGuiTheme::SAIGA:
         {
-            style.Alpha             = 1;
-            style.WindowRounding    = 0;
-            style.FrameRounding     = 0;
-            color_text              = vec3(0.0, 1.0, 0.0);
+            style.Alpha          = 1;
+            style.WindowRounding = 0;
+            style.FrameRounding  = 0;
+            color_text           = vec3(0.0, 1.0, 0.0);
+
             color_background_low    = make_vec3(0.2);
             color_background_medium = make_vec3(0.3);
             color_background_high   = make_vec3(0.4);
@@ -342,17 +343,6 @@ void initImGui(const ImGuiParameters& params)
             // Use default imgui theme
             return;
         }
-    }
-
-
-    if (params.linearRGB)
-    {
-        color_text              = Color::srgb2linearrgb(color_text);
-        color_background_low    = Color::srgb2linearrgb(color_background_low);
-        color_background_medium = Color::srgb2linearrgb(color_background_medium);
-        color_background_high   = Color::srgb2linearrgb(color_background_high);
-        color_highlight_low     = Color::srgb2linearrgb(color_highlight_low);
-        color_highlight_high    = Color::srgb2linearrgb(color_highlight_high);
     }
 
 #define COL_ALPHA(_col, _alpha) ImVec4(_col[0], _col[1], _col[2], _alpha);
