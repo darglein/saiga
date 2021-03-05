@@ -82,7 +82,7 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
     void recalculatePlanesFromMatrices();
 
 
-    vec3 projectToViewSpace(vec3 worldPosition) const;
+    vec3 WorldToView(vec3 worldPosition) const;
 
     vec3 projectToNDC(vec3 worldPosition) const;
 
