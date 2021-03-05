@@ -32,6 +32,7 @@ class Sample : public SampleWindowForward
             PointVertex v;
             v.position = linearRand(make_vec3(-3), make_vec3(3));
             v.color    = linearRand(make_vec3(0), make_vec3(1));
+
             pointCloud.points.push_back(v);
         }
         pointCloud.updateBuffer();

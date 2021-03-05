@@ -44,13 +44,13 @@ class Sample : public SampleWindowForward
             if (!leftTexture)
             {
                 leftImage   = frameData.image_rgb;
-                leftTexture = std::make_shared<Texture>(leftImage, false, false);
+                leftTexture = std::make_shared<Texture>(leftImage);
             }
 
             if (!rightTexture)
             {
                 rightImage.create(frameData.depth_image.height, frameData.depth_image.width);
-                rightTexture = std::make_shared<Texture>(rightImage, false, false);
+                rightTexture = std::make_shared<Texture>(rightImage);
             }
 
 

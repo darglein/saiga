@@ -78,8 +78,6 @@ void VRRenderer::render(const RenderInfo& renderInfo)
 
     timer.startTimer();
 
-    if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
-
     renderEye(&cameraLeft, vr::Hmd_Eye::Eye_Left, framebuffers[0]);
     renderEye(&cameraRight, vr::Hmd_Eye::Eye_Right, framebuffers[1]);
 

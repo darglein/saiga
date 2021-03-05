@@ -45,22 +45,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     }
     lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
 
-
-    if (params.srgbWrites)
-    {
-        // intel graphics drivers on windows do not define this extension but srgb still works..
-        // SAIGA_ASSERT(hasExtension("GL_EXT_framebuffer_sRGB"));
-
-        // Mesa drivers do not respect the spec when blitting with srgb framebuffers.
-        // https://lists.freedesktop.org/archives/mesa-dev/2015-February/077681.html
-
-        // TODO check for mesa
-        // If this is true some recording softwares record the image too dark :(
-        params.blitLastFramebuffer = false;
-    }
-
-
-
     gbuffer.init(renderWidth, renderHeight, params.gbp);
 
     lighting.shadowSamples = params.shadowSamples;
@@ -162,8 +146,6 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     SAIGA_ASSERT(renderingInterface);
 
 
-    if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
-
     startTimer(TOTAL);
 
 
@@ -209,7 +191,6 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     }
     else
     {
-
     }
 #if 0
 
@@ -294,8 +275,6 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     else
         postProcessor.renderLast(outputWidth, outputHeight);
 
-    //    if (params.srgbWrites)
-    //        glDisable(GL_FRAMEBUFFER_SRGB);
 
     if (params.useGlFinish) glFinish();
 

@@ -51,23 +51,23 @@ namespace LightColorPresets
 
 // === Basic Lamps ===
 
-static const vec3 Candle       = Color::srgb2linearrgb(Color(255, 147, 41));
-static const vec3 Tungsten40W  = Color::srgb2linearrgb(Color(255, 197, 143));
-static const vec3 Tungsten100W = Color::srgb2linearrgb(Color(255, 214, 170));
-static const vec3 Halogen      = Color::srgb2linearrgb(Color(255, 241, 224));
-static const vec3 CarbonArc    = Color::srgb2linearrgb(Color(255, 250, 244));
+static const vec3 Candle       = (Color(255, 147, 41));
+static const vec3 Tungsten40W  = (Color(255, 197, 143));
+static const vec3 Tungsten100W = (Color(255, 214, 170));
+static const vec3 Halogen      = (Color(255, 241, 224));
+static const vec3 CarbonArc    = (Color(255, 250, 244));
 
 
 // === Special Effects ==
 
-static const vec3 MuzzleFlash = Color::srgb2linearrgb(Color(226, 184, 34));
+static const vec3 MuzzleFlash = (Color(226, 184, 34));
 
 // === Sun Light ==
 
-static const vec3 HighNoonSun    = Color::srgb2linearrgb(Color(255, 255, 251));
-static const vec3 DirectSunlight = Color::srgb2linearrgb(Color(255, 255, 255));
-static const vec3 OvercastSky    = Color::srgb2linearrgb(Color(201, 226, 255));
-static const vec3 ClearBlueSky   = Color::srgb2linearrgb(Color(64, 156, 255));
+static const vec3 HighNoonSun    = (Color(255, 255, 251));
+static const vec3 DirectSunlight = (Color(255, 255, 255));
+static const vec3 OvercastSky    = (Color(201, 226, 255));
+static const vec3 ClearBlueSky   = (Color(64, 156, 255));
 }  // namespace LightColorPresets
 
 using DepthFunction = std::function<void(Camera*)>;

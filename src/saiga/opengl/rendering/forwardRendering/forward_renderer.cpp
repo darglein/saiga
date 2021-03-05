@@ -62,8 +62,6 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
-
 
     startTimer(TOTAL);
 

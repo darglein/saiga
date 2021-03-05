@@ -84,7 +84,7 @@ void TextAtlas::loadFont(const std::string& _font, int fontSize, int quality, in
 
 
 
-    textureAtlas = std::make_shared<Texture>(atlas, false, false);
+    textureAtlas = std::make_shared<Texture>(atlas);
     textureAtlas->generateMipmaps();
 
     initFont();

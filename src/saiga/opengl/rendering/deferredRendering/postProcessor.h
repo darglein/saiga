@@ -58,7 +58,6 @@ class SAIGA_OPENGL_API LightAccumulationShader : public DeferredShader
 
 struct SAIGA_OPENGL_API PostProcessorParameters
 {
-    bool srgb       = false;  // colors stored in srgb.
     Quality quality = Quality::LOW;
 };
 

@@ -111,7 +111,7 @@ void Light::renderImGui()
     ImGui::InputFloat("intensity", &colorDiffuse[3], 0.1, 1);
     ImGui::InputFloat("specular intensity", &colorSpecular[3], 0.1, 1);
     ImGui::SliderFloat("volumetricDensity", &volumetricDensity, 0.0f, 0.5f);
-    // todo: check srgb
+
     ImGui::ColorEdit3("colorDiffuse", &colorDiffuse[0]);
     ImGui::ColorEdit3("colorSpecular", &colorSpecular[0]);
     auto str = to_string(visible) + "/" + to_string(culled);

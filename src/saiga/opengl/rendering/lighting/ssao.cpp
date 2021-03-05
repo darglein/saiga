@@ -6,10 +6,10 @@
 
 #include "saiga/opengl/rendering/lighting/ssao.h"
 
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/image/imageGenerator.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
@@ -168,7 +168,7 @@ void SSAO::setKernelSize(int _kernelSize)
     ssaoShader->kernelOffsets = kernelOffsets;
 
     auto randomImage = ImageGenerator::randomNormalized(32, 32);
-    randomTexture    = std::make_shared<Texture>(*randomImage, false, false);
+    randomTexture    = std::make_shared<Texture>(*randomImage);
     randomTexture->setWrap(GL_REPEAT);
 }
 

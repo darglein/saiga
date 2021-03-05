@@ -5,8 +5,8 @@
  */
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
@@ -30,21 +30,6 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
         std::vector<int> data(2 * 2, 0);
         blackDummyTexture->create(2, 2, GL_RED, GL_R8, GL_UNSIGNED_BYTE, (GLubyte*)data.data());
     }
-
-    if (params.srgbWrites)
-    {
-        // intel graphics drivers on windows do not define this extension but srgb still works..
-        // SAIGA_ASSERT(hasExtension("GL_EXT_framebuffer_sRGB"));
-
-        // Mesa drivers do not respect the spec when blitting with srgb framebuffers.
-        // https://lists.freedesktop.org/archives/mesa-dev/2015-February/077681.html
-
-        // TODO check for mesa
-        // If this is true some recording softwares record the image too dark :(
-        params.blitLastFramebuffer = false;
-    }
-
-
 
     gbuffer.init(renderWidth, renderHeight, params.gbp);
 
@@ -115,8 +100,6 @@ void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-
-    if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
 
     startTimer(TOTAL);
 

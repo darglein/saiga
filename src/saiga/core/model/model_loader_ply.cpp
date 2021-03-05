@@ -187,15 +187,11 @@ void PLYLoader::parseMeshBinary()
             color    = vec3(c[0], c[1], c[2]);
         }
 
-        //        color = Color::srgb2linearrgb(color);
 
         VertexNC v;
         v.position = make_vec4(pos, 1);
         v.color    = make_vec4(color, 1);
         mesh.addVertex(v);
-        //            float x = reinterpret_cast<float*>(start)[0];
-        //            float x = reinterpret_cast<float*>(start)[0];
-        //            std::cout << "x " << x << std::endl;
     }
 
     int faceStart = dataStart + vertexCount * vertexSize;
@@ -206,9 +202,12 @@ void PLYLoader::parseMeshBinary()
     for (int i = 0; i < faceCount; ++i)
     {
         int c = 0;
-        if (countSize == 1) {
+        if (countSize == 1)
+        {
             c = *reinterpret_cast<unsigned char*>(start);
-        } else if (countSize == 4) {
+        }
+        else if (countSize == 4)
+        {
             c = *reinterpret_cast<int*>(start);
         }
         start += countSize;
