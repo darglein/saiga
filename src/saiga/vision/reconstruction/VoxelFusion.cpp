@@ -824,10 +824,9 @@ void FusionParams::imgui()
 
     ImGui::Checkbox("test", &test);
 
-    static char buffer[256];
-    std::copy(out_file.begin(), out_file.end(), buffer);
-    ImGui::InputText("Out File", buffer, 256);
-    out_file = std::string(buffer);
+    static std::string buffer;
+    ImGui::InputText("Out File", &buffer);
+    out_file = buffer;
 }
 
 

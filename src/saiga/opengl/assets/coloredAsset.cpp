@@ -51,28 +51,14 @@ TexturedAsset::TexturedAsset(const UnifiedModel& model) : groups(model.material_
     create();
 
 
-    //    for (auto& mg : model.material_groups)
-    //    {
-    //        auto& material = model.materials[mg.materialId];
-
-    //        TexturedAsset::TextureGroup tg;
-    //        //        tg.startIndex = mg.startFace * 3;
-    //        //        tg.indices    = mg.numFaces * 3;
-    //        tg.texture = TextureLoader::instance()->load(material.texture_diffuse);
-    //        if (tg.texture)
-    //        {
-    //            tg.texture->setWrap(GL_REPEAT);
-    //            tg.texture->generateMipmaps();
-    //            groups.push_back(tg);
-    //        }
-    //    }
-
-
     for (auto& material : model.materials)
     {
         if (material.texture_diffuse.empty())
         {
-            textures.push_back(nullptr);
+            TemplatedImage<ucvec4> img(10, 10);
+            img.getImageView().set(ucvec4(100, 100, 100, 255));
+            auto tex = std::make_shared<Texture>(img);
+            textures.push_back(tex);
             continue;
         }
 
@@ -127,8 +113,8 @@ void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camer
         if (tex)
         {
             shader->uploadTexture(tex.get());
+            buffer.draw(tg.numFaces * 3, tg.startFace * 3);
         }
-        buffer.draw(tg.numFaces * 3, tg.startFace * 3);
     }
     buffer.unbind();
     shader->unbind();

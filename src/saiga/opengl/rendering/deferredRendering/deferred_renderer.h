@@ -135,6 +135,14 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     void renderLighting(const std::pair<Camera*, ViewPort>& camera);
     void renderSSAO(const std::pair<Camera*, ViewPort>& camera);
 
+
+    TemplatedImage<ucvec4> DownloadRender();
+
+    // Download depth map and convert to float
+    // The result should be in the range [0,1]
+    TemplatedImage<float> DownloadDepth();
+
+
     void writeGbufferDepthToCurrentFramebuffer();
 
     void startTimer(DeferredTimings timer)

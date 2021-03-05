@@ -49,7 +49,7 @@ void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4> dst, uint16_t 
         for (int j = 0; j < src.width; ++j)
         {
             float d = src(i, j);
-            d       = (d - minD) / maxD;
+            d       = (d - minD) / (maxD - minD);
 
             dst(i, j) = ucvec4(d * 255, d * 255, d * 255, 255);
         }
@@ -64,7 +64,7 @@ void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst, float minD, 
         for (int j = 0; j < src.width; ++j)
         {
             float d = src(i, j);
-            d       = (d - minD) / maxD;
+            d       = (d - minD) / (maxD - minD);
             d       = clamp(d, 0.0f, 1.0f);
 
             dst(i, j) = ucvec4(d * 255, d * 255, d * 255, 255);
@@ -80,7 +80,7 @@ void depthToRGBA_HSV(ImageView<const float> src, ImageView<ucvec4> dst, float mi
         for (int j = 0; j < src.width; ++j)
         {
             float d = src(i, j);
-            d       = (d - minD) / maxD;
+            d       = (d - minD) / (maxD - minD);
 
             d = clamp(d, 0.0f, 1.0f);
 
