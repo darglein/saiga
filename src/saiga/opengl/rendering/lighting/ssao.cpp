@@ -168,8 +168,7 @@ void SSAO::setKernelSize(int _kernelSize)
     ssaoShader->kernelOffsets = kernelOffsets;
 
     auto randomImage = ImageGenerator::randomNormalized(32, 32);
-    randomTexture    = std::make_shared<Texture>();
-    randomTexture->fromImage(*randomImage, false, false);
+    randomTexture    = std::make_shared<Texture>(*randomImage, false, false);
     randomTexture->setWrap(GL_REPEAT);
 }
 

@@ -81,23 +81,12 @@ float Camera::nonlinearDepth(float l) const
     return d;
 }
 
-float Camera::toViewDepth(float d) const
+float Camera::toPositiveViewDepth(float d) const
 {
-    vec4 a(0, 0, d * 2 - 1, 1);
-    a = inverse(proj) * a;
-    a /= a[3];
-    return a[2];
+    float z_n = 2.0 * d - 1.0;
+    float z_e = 2.0 * zNear * zFar / (zFar + zNear - z_n * (zFar - zNear));
+    return z_e;
 }
-
-float Camera::toNormalizedDepth(float d) const
-{
-    vec4 a(0, 0, d, 1);
-    a = proj * a;
-    a /= a[3];
-    return a[2] * 0.5 + 0.5;
-}
-
-
 
 //-------------------------------
 
@@ -129,40 +118,50 @@ void Camera::recalculatePlanesFromMatrices()
 }
 
 
-vec3 Camera::projectToViewSpace(vec3 worldPosition) const
+vec3 Camera::WorldToView(vec3 worldPosition) const
 {
     return make_vec3(view * make_vec4(worldPosition, 1));
 }
 
-vec3 Camera::projectToNDC(vec3 worldPosition) const
+
+vec3 Camera::ViewToNormalized(vec3 viewPosition) const
 {
-    vec4 p = (viewProj * make_vec4(worldPosition, 1));
+    vec4 p = proj * make_vec4(viewPosition, 1);
     p /= p[3];
     return make_vec3(p);
 }
 
-vec2 Camera::projectToScreenSpace(vec3 worldPosition, int w, int h) const
+
+vec2 Camera::NormalizedToImage(vec3 normalizedPosition, int w, int h) const
 {
-    vec3 p  = projectToNDC(worldPosition);
-    vec2 ip = make_vec2(p);
+    vec2 ip = make_vec2(normalizedPosition);
     ip      = ip * 0.5f + make_vec2(0.5f);
-    //        ip *= vec2(w, h);
     ip[0] *= w;
     ip[1] *= h;
     return ip;
 }
 
-vec3 Camera::inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h) const
+vec3 Camera::ImageToNormalized(vec2 ip, float depth, int w, int h) const
 {
-    //        ip /= vec2(w, h);
     ip[0] /= w;
     ip[1] /= h;
-    ip      = (ip - make_vec2(0.5f)) * 2.0f;
-    vec3 p  = make_vec3(ip, depth);
-    vec4 wp = inverse(viewProj) * make_vec4(p, 1);
-    wp /= wp[3];
-    return make_vec3(wp);
+    ip     = (ip - make_vec2(0.5f)) * 2.0f;
+    vec3 p = make_vec3(ip, depth);
+    return p;
 }
+
+vec3 Camera::NormalizedToView(vec3 normalizedPosition) const
+{
+    vec4 p = inverse(proj) * make_vec4(normalizedPosition, 1);
+    p /= p[3];
+    return make_vec3(p);
+}
+vec3 Camera::ViewToWorld(vec3 viewPosition) const
+{
+    vec4 p = inverse(view) * make_vec4(viewPosition, 1);
+    return make_vec3(p);
+}
+
 
 void Camera::imgui()
 {
@@ -181,8 +180,6 @@ std::ostream& operator<<(std::ostream& os, const Camera& ca)
     //    os<<"Nearplane= ("<<ca.nw*2<<" x "<<ca.nh*2<<") Farplane= ("<<ca.fw*2<<" x "<<ca.fh*2<<")";
     return os;
 }
-
-
 
 //===================================================================================================
 

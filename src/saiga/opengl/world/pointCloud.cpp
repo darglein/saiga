@@ -6,6 +6,7 @@
 
 #include "saiga/opengl/world/pointCloud.h"
 
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
@@ -35,6 +36,10 @@ void GLPointCloud::updateBuffer()
     {
         buffer.set(points, GL_STATIC_DRAW);
     }
+}
+void GLPointCloud::imgui()
+{
+    ImGui::InputFloat("point_size", &pointSize);
 }
 
 

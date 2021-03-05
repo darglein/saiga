@@ -40,7 +40,7 @@ class SAIGA_OPENGL_API VideoEncoder
 
    private:
     int codecId    = 0;
-    char file[256] = "out.mp4";
+    std::string file = "out.mp4";
 };
 
 }  // namespace Saiga

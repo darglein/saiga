@@ -35,6 +35,8 @@ class SAIGA_OPENGL_API GLPointCloud : public Object3D
 
     std::shared_ptr<MVPShader> shader;
     VertexBuffer<PointVertex> buffer;
+
+    void imgui();
 };
 
 

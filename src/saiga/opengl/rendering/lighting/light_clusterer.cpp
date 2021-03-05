@@ -82,7 +82,7 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
             PointLightClusterData& plc = pointLightsClusterData[i];
             bool intersection          = true;
             float pDotC;
-            vec3 sphereCenter  = cam->projectToViewSpace(plc.world_center);
+            vec3 sphereCenter  = cam->WorldToView(plc.world_center);
             float sphereRadius = plc.radius;
             for (int p = 0; p < 6; ++p)
             {

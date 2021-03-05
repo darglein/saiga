@@ -41,8 +41,7 @@ std::shared_ptr<Texture> TextureLoader::load(const std::string& name, const Text
 
         if (erg)
         {
-            object = std::make_shared<Texture>();
-            erg    = object->fromImage(im, params.srgb, true);
+            object = std::make_shared<Texture>(im, params.srgb, true);
         }
 
         cache.put(fullName, object, params);

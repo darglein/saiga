@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#include "deferred_renderer.h"
+
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/model/model_from_shape.h"
@@ -13,6 +15,7 @@
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
+
 
 namespace Saiga
 {
@@ -206,7 +209,7 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     }
     else
     {
-        glClear(GL_DEPTH_BUFFER_BIT);
+
     }
 #if 0
 
@@ -317,6 +320,7 @@ void DeferredRenderer::clearGBuffer()
     {
         glClearStencil(0x00);
     }
+
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -531,6 +535,39 @@ void DeferredRenderer::renderImGui(bool* p_open)
     {
         lighting.renderImGui(&showLightingImgui);
     }
+}
+TemplatedImage<ucvec4> DeferredRenderer::DownloadRender()
+{
+    auto texture = postProcessor.getCurrentTexture();
+
+    TemplatedImage<ucvec4> result(renderHeight, renderWidth);
+    texture->download(result.data());
+    return result;
+}
+TemplatedImage<float> DeferredRenderer::DownloadDepth()
+{
+    auto texture = gbuffer.getTextureDepth();
+
+    TemplatedImage<uint32_t> raw_depth(renderHeight, renderWidth);
+    texture->download(raw_depth.data());
+
+    TemplatedImage<float> result(raw_depth.dimensions());
+    for (int i : raw_depth.rowRange())
+    {
+        for (int j : raw_depth.colRange())
+        {
+            uint32_t di = raw_depth(i, j);
+            // stencil
+            di = di >> 8;
+
+            float df     = float(di) / (1 << 24);
+            result(i, j) = df;
+        }
+    }
+
+
+
+    return result;
 }
 
 }  // namespace Saiga
