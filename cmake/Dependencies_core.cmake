@@ -28,7 +28,13 @@ PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
 #zlib
 find_package(ZLIB QUIET)
 if(${ZLIB_FOUND})
-    PackageHelper(ZLIB ${ZLIB_FOUND} "${ZLIB_INCLUDE_DIRS}" "${ZLIB_LIBRARIES}")
+
+    add_library(zlib INTERFACE)
+    target_link_libraries(zlib INTERFACE "${ZLIB_LIBRARIES}")
+    target_include_directories(zlib INTERFACE "${ZLIB_INCLUDE_DIRS}")
+
+    PackageHelperTarget(zlib ZLIB_FOUND)
+    #PackageHelper(ZLIB ${ZLIB_FOUND} "${ZLIB_INCLUDE_DIRS}" "${ZLIB_LIBRARIES}")
     SET(SAIGA_USE_ZLIB 1)
 elseif(SAIGA_USE_SUBMODULES)
      message("=================================")
@@ -38,7 +44,6 @@ elseif(SAIGA_USE_SUBMODULES)
   SET(SAIGA_USE_ZLIB 1)
   message("=================================")
 endif()
-
 
 # png
 find_package(PNG QUIET)
@@ -72,6 +77,21 @@ elseif(SAIGA_USE_SUBMODULES)
    SET(SAIGA_USE_SDL 1)
 endif()
 
+
+
+
+#assimp
+find_package(ASSIMP QUIET)
+if(ASSIMP_FOUND)
+    PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
+  SET(SAIGA_USE_ASSIMP 1)
+elseif(SAIGA_USE_SUBMODULES)
+     message("=================================")
+  message("Building Submodule assimp")
+  add_subdirectory(submodules/assimp)
+  PackageHelperTarget(assimp ASSIMP_FOUND)
+   SET(SAIGA_USE_ASSIMP 1)
+endif()
 
 
 #openmp
@@ -147,17 +167,6 @@ endif()
 PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
 
-
-#assimp
-find_package(ASSIMP QUIET)
-PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
-
-#set(CMAKE_FIND_DEBUG_MODE TRUE)
-#find_package(assimp CONFIG REQUIRED)
-#PackageHelperTarget(assimp::assimp ASSIMP_FOUND)
-if(ASSIMP_FOUND)
-  SET(SAIGA_USE_ASSIMP 1)
-endif()
 
 #libfreeimage
 find_package(FreeImagePlus QUIET)
