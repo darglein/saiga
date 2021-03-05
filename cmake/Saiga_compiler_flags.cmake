@@ -61,9 +61,9 @@ endif()
 ######### basic #########
 
 if(SAIGA_LIBSTDCPP AND SAIGA_CXX_CLANG)
-  list(APPEND SAIGA_CXX_FLAGS "-stdlib=libstdc++")
-  set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -stdlib=libstdc++")
-  SET(LIBS ${LIBS} "-lstdc++")
+  #list(APPEND SAIGA_CXX_FLAGS "-stdlib=libstdc++")
+  #set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -stdlib=libstdc++")
+  #SET(LIBS ${LIBS} "-lstdc++")
 else()
   #SET(SAIGA_CXX_FLAGS "${SAIGA_CXX_FLAGS} -stdlib=libc++")
 endif()
