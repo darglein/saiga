@@ -12,6 +12,6 @@
 #    error Saiga was compiled without SDL2.
 #endif
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #undef main
