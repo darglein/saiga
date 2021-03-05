@@ -60,15 +60,13 @@ class Sample : public SampleWindowForward
             if (!leftTexture)
             {
                 leftImage   = frameData.image_rgb;
-                leftTexture = std::make_shared<Texture>();
-                leftTexture->fromImage(leftImage, true, false);
+                leftTexture = std::make_shared<Texture>(leftImage, true, false);
             }
 
             if (!rightTexture)
             {
-                rightTexture = std::make_shared<Texture>();
                 rightImage.create(frameData.depth_image.height, frameData.depth_image.width);
-                rightTexture->fromImage(rightImage, true, false);
+                rightTexture = std::make_shared<Texture>(rightImage, true, false);
             }
 
             if (recording)

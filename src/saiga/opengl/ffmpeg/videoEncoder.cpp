@@ -42,7 +42,7 @@ void VideoEncoder::renderGUI()
     {
         ImGui::PushID(346436);
 
-        ImGui::InputText("Output File", file, 256);
+        ImGui::InputText("Output File", &file);
         encoder->filename = file;
 
 

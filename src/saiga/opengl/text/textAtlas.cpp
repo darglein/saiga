@@ -84,8 +84,7 @@ void TextAtlas::loadFont(const std::string& _font, int fontSize, int quality, in
 
 
 
-    textureAtlas = std::make_shared<Texture>();
-    textureAtlas->fromImage(atlas, false, false);
+    textureAtlas = std::make_shared<Texture>(atlas, false, false);
     textureAtlas->generateMipmaps();
 
     initFont();
@@ -392,8 +391,7 @@ bool TextAtlas::readAtlasFromFiles()
 
     //    TextureLoader::instance()->saveImage("asdf2.png",img);
 
-    textureAtlas = std::make_shared<Texture>();
-    textureAtlas->fromImage(atlas, false, false);
+    textureAtlas = std::make_shared<Texture>(atlas, false, false);
     textureAtlas->generateMipmaps();
 
     std::cout << "readAtlasFromFiles: " << uniqueFontString << " numCharacters: " << numCharacters << std::endl;

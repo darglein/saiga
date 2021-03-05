@@ -64,8 +64,8 @@ TEST(BVH, IntersectionRayTriangle)
             {
                 img(i, j) = ucvec3(255, 0, 0);
 
-                vec3 dir = camera.inverseprojectToWorldSpace(vec2(j, i), 1, w, h);
-                Ray ray(normalize(dir), camera.getPosition());
+
+                Ray ray = camera.PixelRay(vec2(j, i), w, h);
 
                 auto inter = bf.getClosest(ray);
                 if (inter && !inter.backFace)

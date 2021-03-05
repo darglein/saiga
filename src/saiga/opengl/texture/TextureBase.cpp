@@ -26,7 +26,7 @@ void TextureBase::create(GLenum color_type, GLenum internal_format, GLenum data_
 
 
 
-void TextureBase::create()
+void TextureBase:: create()
 {
     destroy();
     /* init_resources */
