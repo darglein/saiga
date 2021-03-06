@@ -18,7 +18,6 @@ namespace Saiga
 class SAIGA_CORE_API WindowBase : public MainLoopInterface
 {
    public:
-    bool showRendererImgui = false;
     MainLoop mainLoop;
 
     WindowBase(WindowParameters windowParameters);
@@ -75,7 +74,7 @@ class SAIGA_CORE_API WindowBase : public MainLoopInterface
     std::vector<std::pair<Camera*, ViewPort>> activeCameras;
 
     //    Camera* currentCamera  = nullptr;
-    bool showImgui         = true;
+    bool showImgui         = false;
     RendererBase* renderer = nullptr;
     Updating* updating     = nullptr;
 };

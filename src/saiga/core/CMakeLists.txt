@@ -13,9 +13,6 @@ add_subdirectory(tests)
 add_subdirectory(imgui)
 add_subdirectory(rendering)
 
-if (SDL2_FOUND)
-  add_subdirectory(sdl)
-endif ()
 
 if (GLFW_FOUND)
   add_subdirectory(glfw)

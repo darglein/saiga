@@ -32,11 +32,11 @@
 
 #include "imgui_impl_glfw_gl3.h"
 #ifdef SAIGA_USE_GLFW
+#    include "saiga/core/imgui/imgui.h"
+#    include "saiga/core/imgui/imgui_main_menu.h"
 #    include "saiga/opengl/opengl.h"
 
 #    include <GLFW/glfw3.h>
-#    include <saiga/core/imgui/imgui.h>
-
 
 #    ifdef _WIN32
 #        undef APIENTRY
@@ -94,9 +94,6 @@ ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParamete
 #    ifdef _WIN32
     io.ImeWindowHandle = glfwGetWin32Window(g_Window);
 #    endif
-
-    glfw_EventHandler::addKeyListener(this, 15);
-    glfw_EventHandler::addMouseListener(this, 15);
 }
 
 ImGui_GLFW_Renderer::~ImGui_GLFW_Renderer() {}
@@ -139,7 +136,7 @@ void ImGui_GLFW_Renderer::beginFrame()
         io.MouseDown[i] =
             g_MousePressed[i] || glfwGetMouseButton(g_Window, i) !=
                                      0;  // If a mouse press event came, always pass it as "mouse held this frame", so
-                                         // we don't miss click-release events that are shorter than 1 frame.
+        // we don't miss click-release events that are shorter than 1 frame.
         g_MousePressed[i] = false;
     }
 
@@ -151,6 +148,8 @@ void ImGui_GLFW_Renderer::beginFrame()
 
     // Start the frame
     ImGui::NewFrame();
+
+    main_menu.render();
 }
 
 
@@ -160,6 +159,11 @@ bool ImGui_GLFW_Renderer::key_event(GLFWwindow* window, int key, int scancode, i
     ImGuiIO& io = ImGui::GetIO();
     if (action == GLFW_PRESS) io.KeysDown[key] = true;
     if (action == GLFW_RELEASE) io.KeysDown[key] = false;
+
+    if (action == GLFW_PRESS)
+    {
+        main_menu.Keypressed(key);
+    }
 
     (void)mods;  // Modifiers are not reliable across systems
     io.KeyCtrl  = io.KeysDown[GLFW_KEY_LEFT_CONTROL] || io.KeysDown[GLFW_KEY_RIGHT_CONTROL];

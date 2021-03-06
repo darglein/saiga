@@ -28,14 +28,14 @@ struct SAIGA_CORE_API WindowParameters
     int selected_display = 0;
     Mode mode            = Mode::windowed;
 
-    bool finishBeforeSwap   = false;  // adds a glFinish before swapBuffers
-    bool hidden             = false;  // for offscreen rendering
-    bool alwaysOnTop        = false;
-    bool resizeAble         = true;
-    bool vsync              = false;
-    bool updateJoystick     = false;
-    int monitorId           = 0;  // Important for fullscreen mode. 0 is always the primary monitor.
-    bool showRendererWindow = false;
+    bool finishBeforeSwap = false;  // adds a glFinish before swapBuffers
+    bool hidden           = false;  // for offscreen rendering
+    bool alwaysOnTop      = false;
+    bool resizeAble       = true;
+    bool vsync            = false;
+    bool updateJoystick   = false;
+    int monitorId         = 0;  // Important for fullscreen mode. 0 is always the primary monitor.
+
 
     // time in seconds between debug screenshots. negativ for no debug screenshots
     float debugScreenshotTime       = -1.0f;

@@ -64,7 +64,7 @@ void VulkanWindow::renderImGui(bool* p_open)
 
     if (showRendererImgui)
     {
-        renderer->renderImGui(&showRendererImgui);
+        renderer->imgui(&showRendererImgui);
     }
 
     static bool showDemoWindow = false;

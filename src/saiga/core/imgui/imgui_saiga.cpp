@@ -417,4 +417,5 @@ void ImGuiParameters::fromConfigFile(const std::string& file)
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 
+
 }  // namespace Saiga

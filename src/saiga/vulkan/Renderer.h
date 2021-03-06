@@ -84,7 +84,7 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
     virtual float getTotalRenderTime() override;
 
-    void renderImGui(bool* p_open) override;
+    void imgui(bool* p_open) override;
     void waitIdle();
     int swapChainSize() { return swapChain.imageCount; }
     inline VulkanBase& base() { return vulkanBase; }

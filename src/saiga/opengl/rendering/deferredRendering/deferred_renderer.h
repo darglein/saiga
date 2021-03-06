@@ -77,7 +77,7 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     virtual ~DeferredRenderer() {}
 
     void render(const RenderInfo& renderInfo) override;
-    void renderImGui(bool* p_open = nullptr) override;
+    void renderImgui() override;
 
 
     enum DeferredTimings

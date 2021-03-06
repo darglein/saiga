@@ -7,6 +7,7 @@
 #include "renderer_lighting.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/imgui/imgui_main_menu.h"
 #include "saiga/core/math/imath.h"
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
@@ -16,13 +17,15 @@
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/CubeTexture.h"
-
 namespace Saiga
 {
 RendererLighting::RendererLighting()
 {
     createLightMeshes();
     shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
+
+    main_menu.AddItem(
+        "Saiga", "Lighting", [this]() { showLightingImgui = !showLightingImgui; }, 297, "F8");
 }
 
 RendererLighting::~RendererLighting() {}
@@ -358,13 +361,14 @@ static void imGuiLightBox(int id, const std::string& name, T& lights)
     ImGui::PopID();
 }
 
-void RendererLighting::renderImGui(bool* p_open)
+void RendererLighting::renderImGui()
 {
+    if (!showLightingImgui) return;
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    ImGui::Begin("RendererLighting", p_open);
+    ImGui::Begin("RendererLighting", &showLightingImgui);
 
     ImGui::Text("resolution: %dx%d", width, height);
     ImGui::Text("visibleLights/totalLights: %d/%d", visibleLights, totalLights);

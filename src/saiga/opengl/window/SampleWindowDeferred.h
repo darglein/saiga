@@ -7,18 +7,16 @@
 #pragma once
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_SDL
-
-#    include "saiga/core/sdl/all.h"
-#    include "saiga/opengl/assets/all.h"
-#    include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
-#    include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
-#    include "saiga/opengl/rendering/renderer.h"
-#    include "saiga/opengl/window/WindowTemplate.h"
-#    include "saiga/opengl/window/sdl_window.h"
-#    include "saiga/opengl/world/LineSoup.h"
-#    include "saiga/opengl/world/pointCloud.h"
-#    include "saiga/opengl/world/proceduralSkybox.h"
+#include "saiga/core/glfw/all.h"
+#include "saiga/opengl/assets/all.h"
+#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
+#include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/window/WindowTemplate.h"
+#include "saiga/opengl/window/glfw_window.h"
+#include "saiga/opengl/world/LineSoup.h"
+#include "saiga/opengl/world/pointCloud.h"
+#include "saiga/opengl/world/proceduralSkybox.h"
 
 
 
@@ -30,8 +28,8 @@ namespace Saiga
  *
  * @brief The SampleWindowDeferred class
  */
-class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow<WindowManagement::SDL, DeferredRenderer>,
-                                              public SDL_KeyListener
+class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow<WindowManagement::GLFW, DeferredRenderer>,
+                                              public glfw_KeyListener
 {
    public:
     SampleWindowDeferred();
@@ -44,14 +42,14 @@ class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow<WindowMana
 
     virtual void render(Camera* camera, RenderPass render_pass) override;
 
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
+    virtual bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) override;
+    virtual bool character_event(GLFWwindow* window, unsigned int codepoint) override { return false; }
 
 
 
    protected:
     std::shared_ptr<DirectionalLight> sun;
-    SDLCamera<PerspectiveCamera> camera;
+    Glfw_Camera<PerspectiveCamera> camera;
 
     SimpleAssetObject groundPlane;
     ProceduralSkybox skybox;
@@ -61,5 +59,3 @@ class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow<WindowMana
 };
 
 }  // namespace Saiga
-
-#endif

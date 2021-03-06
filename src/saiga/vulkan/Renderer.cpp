@@ -136,7 +136,7 @@ void VulkanRenderer::reset()
     state = State::RESET;
 }
 
-void VulkanRenderer::renderImGui(bool* p_open)
+void VulkanRenderer::imgui(bool* p_open)
 {
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Renderer Info", p_open, ImGuiWindowFlags_NoCollapse);

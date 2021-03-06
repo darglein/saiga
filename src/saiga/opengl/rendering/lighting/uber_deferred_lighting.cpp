@@ -6,9 +6,9 @@
 
 #include "uber_deferred_lighting.h"
 
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/imath.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
@@ -266,9 +266,10 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
     lightingShader = shaderLoader.load<UberDeferredLightingShader>(names.lightingUberShader, sci);
 }
 
-void UberDeferredLighting::renderImGui(bool* p_open)
+void UberDeferredLighting::renderImGui()
 {
-    RendererLighting::renderImGui(p_open);
+    if (!showLightingImgui) return;
+    RendererLighting::renderImGui();
     lightClusterer->renderImGui();
 }
 

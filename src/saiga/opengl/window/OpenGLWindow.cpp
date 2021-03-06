@@ -23,7 +23,6 @@
 #include <thread>
 #include <vector>
 
-
 namespace Saiga
 {
 OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters, OpenGLParameters openglParameters)
@@ -74,14 +73,8 @@ void OpenGLWindow::renderImGui(bool* p_open)
         ScreenshotDefaultFramebuffer().save("screenshot.png");
     }
 
-    ImGui::Checkbox("showRendererImgui", &showRendererImgui);
 
     ImGui::End();
-
-    if (showRendererImgui && renderer)
-    {
-        renderer->renderImGui();
-    }
 }
 
 bool OpenGLWindow::create()

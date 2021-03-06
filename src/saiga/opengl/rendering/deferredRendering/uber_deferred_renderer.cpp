@@ -174,6 +174,7 @@ void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         {
             SAIGA_ASSERT(ImGui::GetCurrentContext());
             imgui->beginFrame();
+            lighting.renderImGui();
         }
         renderingInterface->render(nullptr, RenderPass::GUI);
         if (imgui)
@@ -346,13 +347,13 @@ void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
 // }
 
 
-void UberDeferredRenderer::renderImGui(bool* p_open)
+void UberDeferredRenderer::renderImgui()
 {
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Deferred Renderer", p_open);
+    ImGui::Begin("Deferred Renderer", &should_render_imgui);
 
     ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &params.wireframe);
@@ -375,11 +376,6 @@ void UberDeferredRenderer::renderImGui(bool* p_open)
     ImGui::Checkbox("Show Lighting UI", &showLightingImgui);
 
     ImGui::End();
-
-    if (showLightingImgui)
-    {
-        lighting.renderImGui(&showLightingImgui);
-    }
 }
 
 }  // namespace Saiga

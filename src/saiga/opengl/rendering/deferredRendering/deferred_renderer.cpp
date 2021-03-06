@@ -261,6 +261,8 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         {
             SAIGA_ASSERT(ImGui::GetCurrentContext());
             imgui->beginFrame();
+            renderImgui();
+            lighting.renderImGui();
             renderingInterface->render(nullptr, RenderPass::GUI);
             imgui->endFrame();
             imgui->render();
@@ -444,13 +446,14 @@ void DeferredRenderer::printTimings()
 }
 
 
-void DeferredRenderer::renderImGui(bool* p_open)
+void DeferredRenderer::renderImgui()
 {
+    if (!should_render_imgui) return;
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Deferred Renderer", p_open);
+    ImGui::Begin("Deferred Renderer", &should_render_imgui);
 
     ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &params.wireframe);
@@ -509,11 +512,6 @@ void DeferredRenderer::renderImGui(bool* p_open)
     ImGui::Checkbox("showLightingImgui", &showLightingImgui);
 
     ImGui::End();
-
-    if (showLightingImgui)
-    {
-        lighting.renderImGui(&showLightingImgui);
-    }
 }
 TemplatedImage<ucvec4> DeferredRenderer::DownloadRender()
 {

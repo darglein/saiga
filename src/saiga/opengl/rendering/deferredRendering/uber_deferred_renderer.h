@@ -73,7 +73,7 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     virtual ~UberDeferredRenderer();
 
     void render(const RenderInfo& renderInfo) override;
-    void renderImGui(bool* p_open = nullptr) override;
+    void renderImgui() override;
 
 
     enum UberDeferredTimingBlock

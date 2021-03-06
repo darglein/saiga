@@ -64,7 +64,7 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
     void initRender() override;
     void render(Camera* cam, const ViewPort& viewPort) override;
 
-    void renderImGui(bool* p_open = NULL) override;
+    void renderImGui() override;
 
     void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights) override;
 

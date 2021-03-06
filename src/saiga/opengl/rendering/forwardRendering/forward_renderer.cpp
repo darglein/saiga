@@ -130,10 +130,9 @@ void ForwardRenderer::resize(int windowWidth, int windowHeight)
     lighting.resize(windowWidth, windowHeight);
 }
 
-void ForwardRenderer::renderImGui(bool* p_open)
+void ForwardRenderer::renderImgui()
 {
-    OpenGLRenderer::renderImGui(p_open);
-    ImGui::Begin("Forward Renderer", p_open);
+    ImGui::Begin("Forward Renderer", &should_render_imgui);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);
 
@@ -147,11 +146,6 @@ void ForwardRenderer::renderImGui(bool* p_open)
     ImGui::Checkbox("Show Lighting UI", &showLightingImgui);
 
     ImGui::End();
-
-    if (showLightingImgui)
-    {
-        lighting.renderImGui(&showLightingImgui);
-    }
 }
 
 

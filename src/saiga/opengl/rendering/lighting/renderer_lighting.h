@@ -154,7 +154,7 @@ class SAIGA_OPENGL_API RendererLighting
     virtual void cullLights(Camera* cam);
 
     void printTimings();
-    virtual void renderImGui(bool* p_open = NULL);
+    virtual void renderImGui();
 
     virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights);
 
@@ -204,5 +204,6 @@ class SAIGA_OPENGL_API RendererLighting
     int maximumNumberOfPointLights       = 256;
     int maximumNumberOfSpotLights        = 256;
     int maximumNumberOfBoxLights         = 256;
+    bool showLightingImgui               = false;
 };
 }  // namespace Saiga

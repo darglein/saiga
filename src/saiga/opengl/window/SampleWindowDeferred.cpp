@@ -5,7 +5,7 @@
  */
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_SDL
+#ifdef SAIGA_USE_GLFW
 
 #    include "saiga/core/model/model_from_shape.h"
 
@@ -80,20 +80,23 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
     }
 }
 
-
-void SampleWindowDeferred::keyPressed(SDL_Keysym key)
+bool SampleWindowDeferred::key_event(GLFWwindow* gwindow, int key, int scancode, int action, int mods)
 {
-    switch (key.scancode)
+    if (action == GLFW_PRESS)
     {
-        case SDL_SCANCODE_ESCAPE:
-            window->close();
-            break;
-        default:
-            break;
+        switch (key)
+        {
+            case GLFW_KEY_ESCAPE:
+                window->close();
+                break;
+            default:
+                break;
+        }
     }
+    return false;
 }
 
-void SampleWindowDeferred::keyReleased(SDL_Keysym key) {}
+
 
 }  // namespace Saiga
 #endif
