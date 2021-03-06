@@ -6,24 +6,23 @@
 
 
 
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/sdl/sdl_camera.h"
-#include "saiga/core/sdl/sdl_eventhandler.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/assets/all.h"
 #include "saiga/opengl/rendering/VRRendering/VRRenderer.h"
 #include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/SampleWindowForward.h"
-#include "saiga/opengl/window/sdl_window.h"
+#include "saiga/opengl/window/WindowTemplate.h"
+#include "saiga/opengl/window/glfw_window.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 using namespace Saiga;
 
-class VRSample : public StandaloneWindow<WindowManagement::SDL, VRRenderer>, public SDL_KeyListener
+class VRSample : public StandaloneWindow<WindowManagement::GLFW, VRRenderer>, public glfw_KeyListener
 {
    public:
-    SDLCamera<PerspectiveCamera> camera;
+    Glfw_Camera<PerspectiveCamera> camera;
 
     SimpleAssetObject cube1, cube2;
     SimpleAssetObject groundPlane;
@@ -119,18 +118,17 @@ class VRSample : public StandaloneWindow<WindowManagement::SDL, VRRenderer>, pub
     }
 
 
-    void keyPressed(SDL_Keysym key) override
+    void keyPressed(int key, int scancode, int mods) override
     {
-        switch (key.scancode)
+        switch (key)
         {
-            case SDL_SCANCODE_ESCAPE:
+            case GLFW_KEY_ESCAPE:
                 window->close();
                 break;
             default:
                 break;
         }
     }
-    void keyReleased(SDL_Keysym key) override {}
 };
 
 

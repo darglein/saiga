@@ -71,7 +71,7 @@ void glfw_EventHandler::joystick_key_callback(int button, bool pressed)
 {
     for (auto& rl : joystickListener)
     {
-        if (rl->joystick_event(button, pressed)) return;
+        rl->joystick_event(button, pressed);
     }
 }
 
@@ -79,7 +79,7 @@ void glfw_EventHandler::window_size_callback(GLFWwindow* window, int width, int 
 {
     for (auto& rl : resizeListener)
     {
-        if (rl->window_size_callback(window, width, height)) return;
+        rl->window_size_callback(width, height);
     }
 }
 
@@ -89,17 +89,29 @@ void glfw_EventHandler::cursor_position_callback(GLFWwindow* window, double xpos
 
     for (auto& ml : mouseListener)
     {
-        if (ml->cursor_position_event(window, xpos, ypos)) return;
+        ml->mouseMoved(xpos, ypos);
     }
 }
 
 void glfw_EventHandler::mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
-    if (action == GLFW_PRESS || action == GLFW_RELEASE) mouse.setKeyState(button, action == GLFW_PRESS);
-
-    for (auto& ml : mouseListener)
+    int mx = mouse.getX();
+    int my = mouse.getY();
+    if (action == GLFW_PRESS)
     {
-        if (ml->mouse_button_event(window, button, action, mods)) return;
+        mouse.setKeyState(button, true);
+        for (auto& ml : mouseListener)
+        {
+            ml->mousePressed(button, mx, my);
+        }
+    }
+    else if (action == GLFW_RELEASE)
+    {
+        mouse.setKeyState(button, false);
+        for (auto& ml : mouseListener)
+        {
+            ml->mouseReleased(button, mx, my);
+        }
     }
 }
 
@@ -107,17 +119,27 @@ void glfw_EventHandler::scroll_callback(GLFWwindow* window, double xoffset, doub
 {
     for (auto& ml : mouseListener)
     {
-        if (ml->scroll_event(window, xoffset, yoffset)) return;
+        ml->scroll(xoffset, yoffset);
     }
 }
 
 void glfw_EventHandler::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (action == GLFW_PRESS || action == GLFW_RELEASE) keyboard.setKeyState(key, action == GLFW_PRESS);
-
-    for (auto& kl : keyListener)
+    if (action == GLFW_PRESS)
     {
-        if (kl->key_event(window, key, scancode, action, mods)) return;
+        keyboard.setKeyState(key, true);
+        for (auto& kl : keyListener)
+        {
+            kl->keyPressed(key, scancode, mods);
+        }
+    }
+    else if (action == GLFW_RELEASE)
+    {
+        keyboard.setKeyState(key, false);
+        for (auto& kl : keyListener)
+        {
+            kl->keyReleased(key, scancode, mods);
+        }
     }
 }
 
@@ -125,7 +147,7 @@ void glfw_EventHandler::character_callback(GLFWwindow* window, unsigned int code
 {
     for (auto& kl : keyListener)
     {
-        if (kl->character_event(window, codepoint)) return;
+        kl->character(codepoint);
     }
 }
 

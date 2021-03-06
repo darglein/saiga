@@ -23,7 +23,7 @@ class SAIGA_CORE_API glfw_JoystickListener
    public:
     glfw_JoystickListener();
     virtual ~glfw_JoystickListener();
-    virtual bool joystick_event(int button, bool pressed) = 0;
+    virtual void joystick_event(int button, bool pressed) {}
 };
 
 class SAIGA_CORE_API glfw_KeyListener
@@ -31,8 +31,9 @@ class SAIGA_CORE_API glfw_KeyListener
    public:
     glfw_KeyListener();
     virtual ~glfw_KeyListener();
-    virtual bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) = 0;
-    virtual bool character_event(GLFWwindow* window, unsigned int codepoint)                = 0;
+    virtual void keyPressed(int key, int scancode, int mods) {}
+    virtual void keyReleased(int key, int scancode, int mods) {}
+    virtual void character(unsigned int codepoint) {}
 };
 
 class SAIGA_CORE_API glfw_MouseListener
@@ -40,9 +41,16 @@ class SAIGA_CORE_API glfw_MouseListener
    public:
     glfw_MouseListener();
     virtual ~glfw_MouseListener();
-    virtual bool cursor_position_event(GLFWwindow* window, double xpos, double ypos)      = 0;
-    virtual bool mouse_button_event(GLFWwindow* window, int button, int action, int mods) = 0;
-    virtual bool scroll_event(GLFWwindow* window, double xoffset, double yoffset)         = 0;
+
+    virtual void mouseMoved(int x, int y) {}
+    virtual void mousePressed(int key, int x, int y) {}
+    virtual void mouseReleased(int key, int x, int y) {}
+    virtual void scroll(double xoffset, double yoffset) {}
+
+
+    //    virtual bool cursor_position_event(GLFWwindow* window, double xpos, double ypos) { return false; }
+    //    virtual bool mouse_button_event(GLFWwindow* window, int button, int action, int mods) { return false; }
+    //    virtual bool scroll_event(GLFWwindow* window, double xoffset, double yoffset) { return false; }
 };
 
 class SAIGA_CORE_API glfw_ResizeListener
@@ -50,7 +58,7 @@ class SAIGA_CORE_API glfw_ResizeListener
    public:
     glfw_ResizeListener();
     virtual ~glfw_ResizeListener();
-    virtual bool window_size_callback(GLFWwindow* window, int width, int height) = 0;
+    virtual void window_size_callback(int width, int height) {}
 };
 
 class SAIGA_CORE_API glfw_EventHandler

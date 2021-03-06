@@ -20,7 +20,6 @@ endmacro()
 
 
 if (GLFW_FOUND)
-  saiga_opengl_sample(sample_opengl_glfw.cpp)
   saiga_opengl_sample(sample_opengl_cascaded_shadow_maps.cpp)
   saiga_opengl_sample(sample_opengl_cornell.cpp)
   saiga_opengl_sample(sample_opengl_forward_rendering.cpp)

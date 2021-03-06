@@ -54,7 +54,7 @@ class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowMana
     void keyReleased(SDL_Keysym key) override;
 
    protected:
-    SDLCamera<PerspectiveCamera> camera;
+    Glfw_Camera<PerspectiveCamera> camera;
     ProceduralSkybox skybox;
 
     bool showSkybox = true;

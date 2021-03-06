@@ -43,20 +43,20 @@ class Sample : public SampleWindowDeferred
         Base::update(dt);
         int animation = 0;
 
-        if (keyboard.getKeyState(SDL_SCANCODE_UP))
+        if (keyboard.getKeyState(GLFW_KEY_UP))
         {
             animation = 1;
         }
 
-        if (keyboard.getKeyState(SDL_SCANCODE_LEFT))
+        if (keyboard.getKeyState(GLFW_KEY_LEFT))
         {
             animation = 2;
         }
-        if (keyboard.getKeyState(SDL_SCANCODE_RIGHT))
+        if (keyboard.getKeyState(GLFW_KEY_RIGHT))
         {
             animation = 3;
         }
-        if (keyboard.getKeyState(SDL_SCANCODE_DOWN))
+        if (keyboard.getKeyState(GLFW_KEY_DOWN))
         {
             animation = 4;
         }

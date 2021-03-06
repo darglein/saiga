@@ -34,7 +34,7 @@ class SAIGA_VULKAN_API VulkanSDLExampleBase
     void renderGUI() override;
 
    protected:
-    SDLCamera<PerspectiveCamera> camera;
+    Glfw_Camera<PerspectiveCamera> camera;
 
 
     void keyPressed(SDL_Keysym key) override;

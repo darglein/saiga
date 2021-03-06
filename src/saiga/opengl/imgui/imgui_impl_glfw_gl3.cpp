@@ -154,8 +154,9 @@ void ImGui_GLFW_Renderer::beginFrame()
 
 
 
-bool ImGui_GLFW_Renderer::key_event(GLFWwindow* window, int key, int scancode, int action, int mods)
+void ImGui_GLFW_Renderer::keyPressed(int key, int scancode, int mods)
 {
+    auto action = GLFW_PRESS;
     ImGuiIO& io = ImGui::GetIO();
     if (action == GLFW_PRESS) io.KeysDown[key] = true;
     if (action == GLFW_RELEASE) io.KeysDown[key] = false;
@@ -170,35 +171,45 @@ bool ImGui_GLFW_Renderer::key_event(GLFWwindow* window, int key, int scancode, i
     io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
     io.KeyAlt   = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
     io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
-    //    return wantsCaptureMouse;
-    return false;
 }
 
-bool ImGui_GLFW_Renderer::character_event(GLFWwindow* window, unsigned int codepoint)
+
+void ImGui_GLFW_Renderer::keyReleased(int key, int scancode, int mods)
+{
+    auto action = GLFW_RELEASE;
+    ImGuiIO& io = ImGui::GetIO();
+    if (action == GLFW_PRESS) io.KeysDown[key] = true;
+    if (action == GLFW_RELEASE) io.KeysDown[key] = false;
+
+    if (action == GLFW_PRESS)
+    {
+        main_menu.Keypressed(key);
+    }
+
+    (void)mods;  // Modifiers are not reliable across systems
+    io.KeyCtrl  = io.KeysDown[GLFW_KEY_LEFT_CONTROL] || io.KeysDown[GLFW_KEY_RIGHT_CONTROL];
+    io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
+    io.KeyAlt   = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
+    io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
+}
+
+void ImGui_GLFW_Renderer::character(unsigned int codepoint)
 {
     ImGuiIO& io = ImGui::GetIO();
     if (codepoint > 0 && codepoint < 0x10000) io.AddInputCharacter((unsigned short)codepoint);
-    return false;
-    //    return wantsCaptureMouse;
 }
 
-bool ImGui_GLFW_Renderer::cursor_position_event(GLFWwindow* window, double xpos, double ypos)
-{
-    return false;
-}
 
-bool ImGui_GLFW_Renderer::mouse_button_event(GLFWwindow* window, int button, int action, int mods)
-{
-    if (action == GLFW_PRESS && button >= 0 && button < 3) g_MousePressed[button] = true;
-    return false;
-    //    return wantsCaptureMouse;
-}
+// bool ImGui_GLFW_Renderer::mouse_button_event(GLFWwindow* window, int button, int action, int mods)
+//{
+//    if (action == GLFW_PRESS && button >= 0 && button < 3) g_MousePressed[button] = true;
+//    return false;
+//    //    return wantsCaptureMouse;
+//}
 
-bool ImGui_GLFW_Renderer::scroll_event(GLFWwindow* window, double xoffset, double yoffset)
+void ImGui_GLFW_Renderer::scroll(double xoffset, double yoffset)
 {
     g_MouseWheel += (float)yoffset;  // Use fractional mouse wheel, 1.0 unit 5 lines.
-    return false;
-    //    return wantsCaptureMouse;
 }
 
 }  // namespace Saiga

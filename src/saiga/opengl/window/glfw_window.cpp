@@ -261,11 +261,9 @@ void glfw_Window::freeContext()
 
 
 
-bool glfw_Window::window_size_callback(GLFWwindow* window, int width, int height)
+void glfw_Window::window_size_callback(int width, int height)
 {
-    (void)window;
     this->resize(width, height);
-    return false;
 }
 
 void glfw_Window::error_callback(int error, const char* description)

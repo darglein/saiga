@@ -80,20 +80,16 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
     }
 }
 
-bool SampleWindowDeferred::key_event(GLFWwindow* gwindow, int key, int scancode, int action, int mods)
+void SampleWindowDeferred::keyPressed(int key, int scancode, int mods)
 {
-    if (action == GLFW_PRESS)
+    switch (key)
     {
-        switch (key)
-        {
-            case GLFW_KEY_ESCAPE:
-                window->close();
-                break;
-            default:
-                break;
-        }
+        case GLFW_KEY_ESCAPE:
+            window->close();
+            break;
+        default:
+            break;
     }
-    return false;
 }
 
 

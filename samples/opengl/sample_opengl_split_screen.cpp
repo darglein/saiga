@@ -6,24 +6,23 @@
 
 
 
-#include "saiga/core/model/model_from_shape.h"
+#include "saiga/core/glfw/all.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/sdl/all.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/assets/all.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/WindowTemplate.h"
-#include "saiga/opengl/window/sdl_window.h"
 #include "saiga/opengl/world/LineSoup.h"
 #include "saiga/opengl/world/pointCloud.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 using namespace Saiga;
 
-class SampleSplitScreen : public StandaloneWindow<WindowManagement::SDL, DeferredRenderer>,
-                          public SDL_KeyListener,
-                          public SDL_ResizeListener
+class SampleSplitScreen : public StandaloneWindow<WindowManagement::GLFW, DeferredRenderer>,
+                          public glfw_KeyListener,
+                          public glfw_ResizeListener
 {
    public:
     SampleSplitScreen() : StandaloneWindow("config.ini")
@@ -69,7 +68,7 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::SDL, Deferre
 
         float aspect = window->getAspectRatio();
 
-        SDLCamera<PerspectiveCamera> defaultCamera;
+        Glfw_Camera<PerspectiveCamera> defaultCamera;
         defaultCamera.setProj(60.0f, aspect, 0.1f, 50.0f);
         defaultCamera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
         defaultCamera.rotationPoint = make_vec3(0);
@@ -176,26 +175,24 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::SDL, Deferre
 
 
 
-    void keyPressed(SDL_Keysym key) override
+    void keyPressed(int key, int scancode, int mods) override
     {
-        switch (key.scancode)
+        switch (key)
         {
-            case SDL_SCANCODE_ESCAPE:
+            case GLFW_KEY_ESCAPE:
                 window->close();
                 break;
             default:
                 break;
         }
     }
-    void keyReleased(SDL_Keysym key) override {}
 
     // because we set custom viewports, we also have to update them when the window size changes!
-    bool resizeWindow(Uint32 windowId, int width, int height) override
+    void window_size_callback(int width, int height) override
     {
         rw = width;
         rh = height;
         setupCameras();
-        return false;
     }
 
    private:
@@ -204,7 +201,7 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::SDL, Deferre
 
     int cameraCount  = 4;
     int activeCamera = 0;
-    std::vector<SDLCamera<PerspectiveCamera>> cameras;
+    std::vector<Glfw_Camera<PerspectiveCamera>> cameras;
 
     SimpleAssetObject cube1, cube2;
     SimpleAssetObject groundPlane;

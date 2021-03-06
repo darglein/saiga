@@ -8,8 +8,8 @@
 
 #include "saiga/core/geometry/half_edge_mesh.h"
 #include "saiga/core/geometry/openMeshWrapper.h"
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/model/model_loader_obj.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/vision/util/DepthmapPreprocessor.h"
@@ -292,20 +292,6 @@ void Sample::render(Camera* camera, RenderPass render_pass)
 }
 
 
-
-void Sample::keyPressed(SDL_Keysym key)
-{
-    switch (key.scancode)
-    {
-        case SDL_SCANCODE_ESCAPE:
-            window->close();
-            break;
-        default:
-            break;
-    }
-}
-
-void Sample::keyReleased(SDL_Keysym key) {}
 
 int main(int argc, char* args[])
 {

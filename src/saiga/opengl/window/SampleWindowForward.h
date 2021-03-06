@@ -7,8 +7,9 @@
 #pragma once
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_SDL
+#ifdef SAIGA_USE_GLFW
 
+#    include "saiga/core/glfw/all.h"
 #    include "saiga/opengl/assets/all.h"
 #    include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #    include "saiga/opengl/rendering/renderer.h"
@@ -39,11 +40,10 @@ class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManag
 
     virtual void render(Camera* camera, RenderPass render_pass) override;
 
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
+    void keyPressed(int key, int scancode, int mods) override;
 
    protected:
-    SDLCamera<PerspectiveCamera> camera;
+    Glfw_Camera<PerspectiveCamera> camera;
     SimpleAssetObject groundPlane;
     ProceduralSkybox skybox;
 

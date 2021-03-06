@@ -6,15 +6,13 @@
 
 #pragma once
 
-#include "saiga/core/sdl/sdl_camera.h"
-#include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/core/util/statistics.h"
 #include "saiga/opengl/assets/all.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
 #include "saiga/opengl/window/SampleWindowForward.h"
-#include "saiga/opengl/window/sdl_window.h"
+#include "saiga/opengl/window/glfw_window.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 #include "saiga/vision/VisionTypes.h"
 #include "saiga/vision/util/DepthmapPreprocessor.h"
@@ -27,7 +25,7 @@
 
 using namespace Saiga;
 
-class Sample : public StandaloneWindow<WindowManagement::SDL, ForwardRenderer>, public SDL_KeyListener
+class Sample : public StandaloneWindow<WindowManagement::GLFW, ForwardRenderer>, public glfw_KeyListener
 {
    public:
     DepthProcessor2::Settings ip_settings;
@@ -79,9 +77,17 @@ class Sample : public StandaloneWindow<WindowManagement::SDL, ForwardRenderer>, 
 
     void render(Camera* camera, RenderPass render_pass) override;
 
+    void keyPressed(int key, int scancode, int mods) override
+    {
+        switch (key)
+        {
+            case GLFW_KEY_ESCAPE:
+                window->close();
+                break;
+            default:
+                break;
+        }
+    }
 
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
-
-    SDLCamera<PerspectiveCamera> camera;
+    Glfw_Camera<PerspectiveCamera> camera;
 };

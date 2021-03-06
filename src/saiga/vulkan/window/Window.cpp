@@ -59,23 +59,6 @@ void VulkanWindow::renderImGui(bool* p_open)
     }
 
 
-
-    ImGui::Checkbox("showRendererImgui", &showRendererImgui);
-
-    if (showRendererImgui)
-    {
-        renderer->imgui(&showRendererImgui);
-    }
-
-    static bool showDemoWindow = false;
-
-    ImGui::Checkbox("Show Demo Window", &showDemoWindow);
-
-    if (showDemoWindow)
-    {
-        ImGui::ShowDemoWindow(&showDemoWindow);
-    }
-
     ImGui::End();
 }
 

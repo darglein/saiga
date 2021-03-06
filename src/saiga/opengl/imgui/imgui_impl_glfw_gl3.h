@@ -42,7 +42,9 @@ struct GLFWwindow;
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGui_GL_Renderer, public glfw_KeyListener, public glfw_MouseListener
+class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGui_GL_Renderer,
+                                             public glfw_KeyListener,
+                                             public glfw_MouseListener
 {
    public:
     ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParameters& params);
@@ -50,11 +52,11 @@ class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGui_GL_Renderer, public gl
 
     virtual void beginFrame() override;
 
-    bool key_event(GLFWwindow* window, int key, int scancode, int action, int mods) override;
-    bool character_event(GLFWwindow* window, unsigned int codepoint) override;
-    bool cursor_position_event(GLFWwindow* window, double xpos, double ypos) override;
-    bool mouse_button_event(GLFWwindow* window, int button, int action, int mods) override;
-    bool scroll_event(GLFWwindow* window, double xoffset, double yoffset) override;
+    void keyPressed(int key, int scancode, int mods) override;
+    void keyReleased(int key, int scancode, int mods) override;
+    void character(unsigned int codepoint) override;
+
+    void scroll(double xoffset, double yoffset) override;
 
    protected:
     double g_Time          = 0.0f;

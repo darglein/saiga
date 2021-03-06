@@ -42,7 +42,6 @@ namespace Saiga
 {
 enum class WindowManagement
 {
-    SDL,
     GLFW,
     EGL
 };
@@ -52,11 +51,6 @@ struct GetWindowType
 {
 };
 
-template <>
-struct GetWindowType<WindowManagement::SDL>
-{
-    using Type = SDLWindow;
-};
 
 template <>
 struct GetWindowType<WindowManagement::GLFW>
