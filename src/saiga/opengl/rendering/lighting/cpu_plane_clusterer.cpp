@@ -32,7 +32,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     int itemCount     = 0;
     int clusterCountZ = planesZ.size() - 2;
 
-    if (renderDebugEnabled && (debugFrustumToView || shouldDrawFrustum)) gpuDebugFrusta.lines.clear();
+    if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
     if (!SAT)
     {
         for (int i = 0; i < pointLightsClusterData.size(); ++i)
@@ -55,7 +55,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             }
             if (--z0 < 0 && planesZ[0].distance(sphereCenter) < 0)
             {
-                centerOutsideZ--;
+                centerOutsideZ--;  // Center is behind camera far plane.
             }
             z0 = std::max(0, z0);
             while (z1 >= z0 && -planesZ[z1].distance(sphereCenter) >= sphereRadius)
@@ -64,7 +64,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             }
             if (++z1 > (int)planesZ.size() - 1 && planesZ[(int)planesZ.size() - 1].distance(sphereCenter) > 0)
             {
-                centerOutsideZ++;
+                centerOutsideZ++;  // Center is in front of camera near plane.
             }
             z1 = std::min(z1, (int)planesZ.size() - 1);
             if (z0 >= z1)
@@ -79,7 +79,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             }
             if (--y0 < 0 && planesY[0].distance(sphereCenter) < 0)
             {
-                centerOutsideY--;
+                centerOutsideY--;  // Center left outside frustum.
             }
             y0 = std::max(0, y0);
             while (y1 >= y0 && -planesY[y1].distance(sphereCenter) >= sphereRadius)
@@ -88,7 +88,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             }
             if (++y1 > (int)planesY.size() - 1 && planesY[(int)planesY.size() - 1].distance(sphereCenter) > 0)
             {
-                centerOutsideY++;
+                centerOutsideY++;  // Center right outside frustum.
             }
             y1 = std::min(y1, (int)planesY.size() - 1);
             if (y0 >= y1)
@@ -193,9 +193,9 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                             vec4 circle = plane.intersectingCircle(yLight.pos, yLight.r);
                             yLight.pos  = make_vec3(circle);
                             yLight.r    = circle.w();
-                            yLight.r    = circle.w();
                             if (yLight.r < 1e-5) continue;
                         }
+
                         int x = x0;
                         while (x < x1 && planesX[x].distance(yLight.pos) >= yLight.r) x++;
                         x      = std::max(x0, --x);
@@ -254,7 +254,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         } while (itemCount > itemBuffer.itemList.size());
 
         clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
-        clusterInfoBuffer.tileDebug     = tileDebugView ? avgAllowedItemsPerCluster : 0;
+        clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
 
         int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
         int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
@@ -266,9 +266,6 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     }
 
     int globalOffset = 0;
-
-    int debugIndex = debugFrustumX + clusterInfoBuffer.clusterX * debugFrustumY +
-                     (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * debugFrustumZ;
 
     for (int c = 0; c < clusterCache.size(); ++c)
     {
@@ -283,96 +280,76 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
         memcpy(&(itemBuffer.itemList[gpuCluster.offset]), cl.data(), cl.size() * sizeof(clusterItem));
 
-        bool frustumDebug = shouldDrawFrustum && debugIndex == c;
-
-        if (renderDebugEnabled &&
-            (frustumDebug || (debugFrustumToView && !shouldDrawFrustum && gpuCluster.plCount > 0)))
+        if (lightsDebug && updateLightsDebug && gpuCluster.plCount > 0)
         {
             const auto& dbg = debugFrusta[c];
             PointVertex v;
-            v.color = vec3(0.75, 0.5, 0);
-            if (gpuCluster.plCount > 0) v.color = vec3(1, 0, 0);
+            v.color = vec3(1, 1, 1);
 
             v.position = dbg.vertices[2];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[0];
-            gpuDebugFrusta.lines.push_back(v);
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[1];
-            gpuDebugFrusta.lines.push_back(v);
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[3];
-            gpuDebugFrusta.lines.push_back(v);
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[2];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
 
             v.position = dbg.vertices[6];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[4];
-            gpuDebugFrusta.lines.push_back(v);
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[5];
-            gpuDebugFrusta.lines.push_back(v);
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[7];
-            gpuDebugFrusta.lines.push_back(v);
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[6];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
 
             v.position = dbg.vertices[2];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[6];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
 
             v.position = dbg.vertices[0];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[4];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
 
             v.position = dbg.vertices[3];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[7];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
 
             v.position = dbg.vertices[1];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
             v.position = dbg.vertices[5];
-            gpuDebugFrusta.lines.push_back(v);
+            lightClustersDebug.lines.push_back(v);
         }
     }
 
-    if (debugFrustumToView)
+    if (lightsDebug && updateLightsDebug)
     {
-        debugCluster.lineWidth = 1;
+        lightClustersDebug.lineWidth = 2;
 
-        debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
-        debugCluster.translateLocal(vec3(0, 0, -0.0001f));
+        lightClustersDebug.setModelMatrix(cam->getModelMatrix());  // is inverse view.
+        lightClustersDebug.translateLocal(vec3(0, 0, -0.0001f));
 #if 0
-        debugCluster.setPosition(make_vec4(0));
-        debugCluster.translateGlobal(vec3(0, 6, 0));
-        debugCluster.setScale(make_vec3(0.33f));
+        lightClustersDebug.setPosition(make_vec4(0));
+        lightClustersDebug.translateGlobal(vec3(0, 6, 0));
+        lightClustersDebug.setScale(make_vec3(0.33f));
 #endif
-        debugCluster.calculateModel();
-
-        gpuDebugFrusta.lineWidth = 1;
-
-        gpuDebugFrusta.setModelMatrix(cam->getModelMatrix());  // is inverse view.
-        gpuDebugFrusta.translateLocal(vec3(0, 0, -0.0001f));
-#if 0
-        gpuDebugFrusta.setPosition(make_vec4(0));
-        gpuDebugFrusta.translateGlobal(vec3(0, 6, 0));
-        gpuDebugFrusta.setScale(make_vec3(0.33f));
-#endif
-        gpuDebugFrusta.calculateModel();
-
-        debugFrustumToView = false;
-    }
-    if (renderDebugEnabled)
-    {
-        debugCluster.updateBuffer();
-        gpuDebugFrusta.updateBuffer();
+        lightClustersDebug.calculateModel();
+        lightClustersDebug.updateBuffer();
+        updateLightsDebug = false;
     }
 
     lightAssignmentTimer.stop();
@@ -440,7 +417,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     planesX.resize((int)gridCount[0] + 1);
     planesY.resize((int)gridCount[1] + 1);
     planesZ.resize((int)gridCount[2] + 1);
-    if (renderDebugEnabled)
+    if (clusterDebug && updateDebug)
     {
         debugCluster.lines.clear();
     }
@@ -471,30 +448,6 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         p2 = viewFarPlaneTL;
 
         planesX[x] = Plane(p0, p1, p2);
-
-        if (renderDebugEnabled)
-        {
-            v.position = viewFarPlaneTL;
-            debugCluster.lines.push_back(v);
-            v.position = viewFarPlaneTL + planesX[x].normal;
-            v.color    = vec3(1, 0, 0);
-            debugCluster.lines.push_back(v);
-            v.color = vec3(0.5, 0.125, 0);
-
-            v.position = viewNearPlaneBL;
-            debugCluster.lines.push_back(v);
-            v.position = viewNearPlaneTL;
-            debugCluster.lines.push_back(v);
-            debugCluster.lines.push_back(v);
-            v.position = viewFarPlaneTL;
-            debugCluster.lines.push_back(v);
-            debugCluster.lines.push_back(v);
-            v.position = viewFarPlaneBL;
-            debugCluster.lines.push_back(v);
-            debugCluster.lines.push_back(v);
-            v.position = viewNearPlaneBL;
-            debugCluster.lines.push_back(v);
-        }
     }
 
     for (int y = 0; y < planesY.size(); ++y)
@@ -516,30 +469,6 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         p2 = viewFarPlaneBL;
 
         planesY[y] = Plane(p0, p1, p2);
-
-        if (renderDebugEnabled)
-        {
-            v.position = viewFarPlaneBL;
-            debugCluster.lines.push_back(v);
-            v.position = viewFarPlaneBL + planesY[y].normal;
-            v.color    = vec3(1, 0, 0);
-            debugCluster.lines.push_back(v);
-            v.color = vec3(0.5, 0.125, 0);
-
-            v.position = viewNearPlaneBL;
-            debugCluster.lines.push_back(v);
-            v.position = viewNearPlaneBR;
-            debugCluster.lines.push_back(v);
-            debugCluster.lines.push_back(v);
-            v.position = viewFarPlaneBR;
-            debugCluster.lines.push_back(v);
-            debugCluster.lines.push_back(v);
-            v.position = viewFarPlaneBL;
-            debugCluster.lines.push_back(v);
-            debugCluster.lines.push_back(v);
-            v.position = viewNearPlaneBL;
-            debugCluster.lines.push_back(v);
-        }
     }
 
     // planesZ.size is gridCount[2] + 1
@@ -556,48 +485,9 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         vec3 viewFarClusterBL(zeroZIntersection(viewNearPlaneBL, tileFar));
 
         planesZ[z] = Plane(viewFarClusterBL, vec3(0, 0, 1));
-
-        if (renderDebugEnabled)
-        {
-            vec4 screenSpaceBL(0, 0, -1.0, 1.0);           // Bottom left
-            vec4 screenSpaceTL(0, height, -1.0, 1.0);      // Top left
-            vec4 screenSpaceBR(width, 0, -1.0, 1.0);       // Bottom Right
-            vec4 screenSpaceTR(width, height, -1.0, 1.0);  // Top Right
-
-            vec3 viewBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
-            vec3 viewTL(make_vec3(viewPosFromScreenPos(screenSpaceTL, invProjection)));
-            vec3 viewBR(make_vec3(viewPosFromScreenPos(screenSpaceBR, invProjection)));
-            vec3 viewTR(make_vec3(viewPosFromScreenPos(screenSpaceTR, invProjection)));
-
-            vec3 viewNearPlaneBL(zeroZIntersection(viewBL, tileFar));
-            vec3 viewNearPlaneTL(zeroZIntersection(viewTL, tileFar));
-            vec3 viewNearPlaneBR(zeroZIntersection(viewBR, tileFar));
-            vec3 viewNearPlaneTR(zeroZIntersection(viewTR, tileFar));
-
-            v.position = viewNearPlaneBL;
-            debugCluster.lines.push_back(v);
-            v.position = viewNearPlaneBL + planesZ[z].normal;
-            v.color    = vec3(1, 0, 0);
-            debugCluster.lines.push_back(v);
-            v.color = vec3(0.5, 0.125, 0);
-
-            v.position = viewNearPlaneBL;
-            debugCluster.lines.push_back(v);
-            v.position = viewNearPlaneTL;
-            debugCluster.lines.push_back(v);
-            debugCluster.lines.push_back(v);
-            v.position = viewNearPlaneTR;
-            debugCluster.lines.push_back(v);
-            debugCluster.lines.push_back(v);
-            v.position = viewNearPlaneBR;
-            debugCluster.lines.push_back(v);
-            debugCluster.lines.push_back(v);
-            v.position = viewNearPlaneBL;
-            debugCluster.lines.push_back(v);
-        }
     }
 
-    if (SAT || renderDebugEnabled)
+    if (SAT || clusterDebug || lightsDebug)
     {
         debugFrusta.resize(clusterCount);
         for (int x = 0; x < (int)gridCount[0]; ++x)
@@ -685,12 +575,67 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
                     fr.vertices[5] = viewFarClusterTR;
                     fr.vertices[6] = viewFarClusterBL;
                     fr.vertices[7] = viewFarClusterBR;
+
+                    if (clusterDebug && updateDebug)
+                    {
+                        PointVertex v;
+
+                        v.color = vec3(0.5, 0.125, 0);
+
+                        v.position = viewNearClusterBL;
+                        debugCluster.lines.push_back(v);
+                        v.position = viewNearClusterTL;
+                        debugCluster.lines.push_back(v);
+                        debugCluster.lines.push_back(v);
+                        v.position = viewNearClusterTR;
+                        debugCluster.lines.push_back(v);
+                        debugCluster.lines.push_back(v);
+                        v.position = viewNearClusterBR;
+                        debugCluster.lines.push_back(v);
+                        debugCluster.lines.push_back(v);
+                        v.position = viewNearClusterBL;
+                        debugCluster.lines.push_back(v);
+
+                        v.position = viewFarClusterBL;
+                        debugCluster.lines.push_back(v);
+                        v.position = viewFarClusterTL;
+                        debugCluster.lines.push_back(v);
+                        debugCluster.lines.push_back(v);
+                        v.position = viewFarClusterTR;
+                        debugCluster.lines.push_back(v);
+                        debugCluster.lines.push_back(v);
+                        v.position = viewFarClusterBR;
+                        debugCluster.lines.push_back(v);
+                        debugCluster.lines.push_back(v);
+                        v.position = viewFarClusterBL;
+                        debugCluster.lines.push_back(v);
+
+                        v.position = viewNearClusterBL;
+                        debugCluster.lines.push_back(v);
+                        v.position = viewFarClusterBL;
+                        debugCluster.lines.push_back(v);
+
+                        v.position = viewNearClusterTL;
+                        debugCluster.lines.push_back(v);
+                        v.position = viewFarClusterTL;
+                        debugCluster.lines.push_back(v);
+
+                        v.position = viewNearClusterBR;
+                        debugCluster.lines.push_back(v);
+                        v.position = viewFarClusterBR;
+                        debugCluster.lines.push_back(v);
+
+                        v.position = viewNearClusterTR;
+                        debugCluster.lines.push_back(v);
+                        v.position = viewFarClusterTR;
+                        debugCluster.lines.push_back(v);
+                    }
                 }
             }
         }
     }
 
-    if (renderDebugEnabled)
+    if (clusterDebug && updateDebug)
     {
         debugCluster.lineWidth = 1;
 
@@ -703,10 +648,11 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 #endif
         debugCluster.calculateModel();
         debugCluster.updateBuffer();
+        updateDebug = false;
     }
 
     startTimer(0);
-    clusterInfoBuffer.tileDebug = tileDebugView ? avgAllowedItemsPerCluster : 0;
+    clusterInfoBuffer.tileDebug = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
 
     itemBuffer.itemList.clear();
     itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
@@ -736,13 +682,13 @@ bool CPUPlaneClusterer::fillImGui()
 
     ImGui::Text("ItemListByteSize: %d", itemBuffer.itemList.size() * sizeof(clusterItem));
 
-    ImGui::Checkbox("shouldDrawFrustum", &shouldDrawFrustum);
-    if (shouldDrawFrustum)
+    if (ImGui::Checkbox("lightsDebug", &lightsDebug) && lightsDebug)
     {
-        ImGui::SliderInt("debugFrustumX", &debugFrustumX, 0, clusterInfoBuffer.clusterX - 1);
-        ImGui::SliderInt("debugFrustumY", &debugFrustumY, 0, clusterInfoBuffer.clusterY - 1);
-        ImGui::SliderInt("debugFrustumZ", &debugFrustumZ, 0, planesZ.size() - 2);
+        updateLightsDebug = true;
+        changed           = true;
     }
+    if (lightsDebug)
+        if (ImGui::Button("updateLightsDebug")) updateLightsDebug = true;
 
     changed |= ImGui::Checkbox("SAT Debug", &SAT);
 

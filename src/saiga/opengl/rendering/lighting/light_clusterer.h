@@ -138,7 +138,7 @@ class SAIGA_OPENGL_API Clusterer
 
     virtual void renderDebug(Camera* cam)
     {
-        if (!renderDebugEnabled) return;
+        if (!clusterDebug) return;
         debugCluster.render(cam);
     };
 
@@ -170,16 +170,16 @@ class SAIGA_OPENGL_API Clusterer
     int screenSpaceTileSize = 128;
     int depthSplits         = 0;
     mat4 cached_projection;
+    bool clustersDirty = true;
 
     bool clusterThreeDimensional = false;
     bool useTimers;
-    bool renderDebugEnabled = false;
-    bool debugFrustumToView = false;
+
+    bool clusterDebug = false;
+    bool updateDebug = false;
     LineSoup debugCluster;
+    bool screenSpaceDebug = false;
 
-    bool tileDebugView = false;
-
-    bool clustersDirty = true;
 
     vec4 viewPosFromScreenPos(vec4 screen, const mat4& inverseProjection)
     {

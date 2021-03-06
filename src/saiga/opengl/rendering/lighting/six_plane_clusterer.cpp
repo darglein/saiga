@@ -72,22 +72,6 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     lightAssignmentTimer.stop();
 
-    if (debugFrustumToView)
-    {
-        debugCluster.lineWidth = 1;
-
-        debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
-        debugCluster.translateLocal(vec3(0, 0, -0.0001f));
-#if 0
-        debugCluster.setPosition(make_vec4(0));
-        debugCluster.translateGlobal(vec3(0, 6, 0));
-        debugCluster.setScale(make_vec3(0.33f));
-#endif
-        debugCluster.calculateModel();
-        debugCluster.updateBuffer();
-        debugFrustumToView = false;
-    }
-
     startTimer(1);
     int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
     clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
@@ -142,7 +126,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 
     culling_cluster.clear();
     culling_cluster.resize(clusterCount);
-    if (renderDebugEnabled)
+    if (clusterDebug)
     {
         debugCluster.lines.clear();
     }
@@ -217,7 +201,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
                 planes[5]    = bottomPlane;
 
 
-                if (renderDebugEnabled)
+                if (clusterDebug)
                 {
                     PointVertex v;
 
@@ -270,58 +254,12 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
                     debugCluster.lines.push_back(v);
                     v.position = viewFarClusterTR;
                     debugCluster.lines.push_back(v);
-
-                    /*
-                                        vec3 center;
-
-                                        center     = (viewNearClusterBL + viewNearClusterTL + viewFarClusterBL +
-                       viewFarClusterTL) * 0.25; v.color    = vec3(1, 0, 0); v.position = center;
-                                        debugCluster.lines.push_back(v);
-                                        v.color    = vec3(0, 1, 0);
-                                        v.position = center + planes[0].normal * 1.0;
-                                        debugCluster.lines.push_back(v);
-
-                                        center     = (viewNearClusterTL + viewNearClusterTR + viewFarClusterTL +
-                       viewFarClusterTR) * 0.25; v.color    = vec3(1, 0, 0); v.position = center;
-                                        debugCluster.lines.push_back(v);
-                                        v.color    = vec3(0, 1, 0);
-                                        v.position = center + planes[1].normal * 1.0;
-                                        debugCluster.lines.push_back(v);
-
-                                        center     = (viewNearClusterBR + viewNearClusterTR + viewFarClusterBR +
-                       viewFarClusterTR) * 0.25; v.color    = vec3(1, 0, 0); v.position = center;
-                                        debugCluster.lines.push_back(v);
-                                        v.color    = vec3(0, 1, 0);
-                                        v.position = center + planes[2].normal * 1.0;
-                                        debugCluster.lines.push_back(v);
-
-                                        center     = (viewNearClusterBL + viewNearClusterBR + viewFarClusterBL +
-                       viewFarClusterBR) * 0.25; v.color    = vec3(1, 0, 0); v.position = center;
-                                        debugCluster.lines.push_back(v);
-                                        v.color    = vec3(0, 1, 0);
-                                        v.position = center + planes[3].normal * 1.0;
-                                        debugCluster.lines.push_back(v);
-
-                                        center     = (viewFarClusterTL + viewFarClusterTR + viewFarClusterBL +
-                       viewFarClusterBR) * 0.25; v.color    = vec3(1, 0, 0); v.position = center;
-                                        debugCluster.lines.push_back(v);
-                                        v.color    = vec3(0, 1, 0);
-                                        v.position = center + planes[4].normal * 1.0;
-                                        debugCluster.lines.push_back(v);
-
-                                        center     = (viewNearClusterTL + viewNearClusterTR + viewNearClusterBL +
-                       viewNearClusterBR) * 0.25; v.color    = vec3(1, 0, 0); v.position = center;
-                                        debugCluster.lines.push_back(v);
-                                        v.color    = vec3(0, 1, 0);
-                                        v.position = center + planes[5].normal * 1.0;
-                                        debugCluster.lines.push_back(v);
-                    */
                 }
             }
         }
     }
 
-    if (renderDebugEnabled)
+    if (clusterDebug)
     {
         debugCluster.lineWidth = 1;
 
@@ -334,13 +272,14 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 #endif
         debugCluster.calculateModel();
         debugCluster.updateBuffer();
+        updateDebug = false;
     }
 
     startTimer(0);
     itemBuffer.itemList.clear();
     int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
 
-    clusterInfoBuffer.tileDebug = tileDebugView ? 256 : 0;
+    clusterInfoBuffer.tileDebug = screenSpaceDebug ? 256 : 0;
     itemBuffer.itemList.resize(maxClusterItemsPerCluster * clusterCount);
     clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
 

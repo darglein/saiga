@@ -74,13 +74,6 @@ bool Clusterer::fillImGui()
     bool changed = false;
     ImGui::Text("resolution: %dx%d", width, height);
 
-    if (ImGui::Checkbox("renderDebugEnabled", &renderDebugEnabled) && renderDebugEnabled) debugFrustumToView = true;
-    if (renderDebugEnabled)
-        if (ImGui::Button("debugFrustumToView")) debugFrustumToView = true;
-
-    changed |= debugFrustumToView;
-
-    changed |= ImGui::Checkbox("tileDebugView", &tileDebugView);
     if (ImGui::Checkbox("useTimers", &useTimers) && useTimers)
     {
         gpuTimers.resize(2);
@@ -91,7 +84,6 @@ bool Clusterer::fillImGui()
         timerStrings[1] = "Light Assignment Buffer Update";
         lightAssignmentTimer.stop();
     }
-
 
     if (useTimers)
     {
@@ -111,6 +103,14 @@ bool Clusterer::fillImGui()
     }
     else
         depthSplits = 0;
+
+    if (ImGui::Checkbox("clusterDebug", &clusterDebug) && clusterDebug) updateDebug = true;
+    if (clusterDebug)
+        if (ImGui::Button("updateDebug")) updateDebug = true;
+
+    changed |= updateDebug; // When debug is enabled the clusters are rebuild.
+
+    changed |= ImGui::Checkbox("screenSpaceDebug", &screenSpaceDebug);
 
     return changed;
 }
