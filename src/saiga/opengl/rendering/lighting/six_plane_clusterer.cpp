@@ -72,6 +72,22 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     lightAssignmentTimer.stop();
 
+    if (debugFrustumToView)
+    {
+        debugCluster.lineWidth = 1;
+
+        debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
+        debugCluster.translateLocal(vec3(0, 0, -0.0001f));
+#if 0
+        debugCluster.setPosition(make_vec4(0));
+        debugCluster.translateGlobal(vec3(0, 6, 0));
+        debugCluster.setScale(make_vec3(0.33f));
+#endif
+        debugCluster.calculateModel();
+        debugCluster.updateBuffer();
+        debugFrustumToView = false;
+    }
+
     startTimer(1);
     int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
     clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
@@ -126,7 +142,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 
     culling_cluster.clear();
     culling_cluster.resize(clusterCount);
-    if (renderDebugEnabled && debugFrustumToView)
+    if (renderDebugEnabled)
     {
         debugCluster.lines.clear();
     }
@@ -201,7 +217,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
                 planes[5]    = bottomPlane;
 
 
-                if (renderDebugEnabled && debugFrustumToView)
+                if (renderDebugEnabled)
                 {
                     PointVertex v;
 
@@ -305,7 +321,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
         }
     }
 
-    if (renderDebugEnabled && debugFrustumToView)
+    if (renderDebugEnabled)
     {
         debugCluster.lineWidth = 1;
 
@@ -318,7 +334,6 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 #endif
         debugCluster.calculateModel();
         debugCluster.updateBuffer();
-        debugFrustumToView = false;
     }
 
     startTimer(0);

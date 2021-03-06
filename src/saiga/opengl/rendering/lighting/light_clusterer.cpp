@@ -78,7 +78,6 @@ bool Clusterer::fillImGui()
     if (renderDebugEnabled)
         if (ImGui::Button("debugFrustumToView")) debugFrustumToView = true;
 
-
     changed |= debugFrustumToView;
 
     changed |= ImGui::Checkbox("tileDebugView", &tileDebugView);
@@ -108,12 +107,12 @@ bool Clusterer::fillImGui()
     screenSpaceTileSize = std::max(screenSpaceTileSize, 16);
     if (clusterThreeDimensional)
     {
-        changed |= ImGui::SliderInt("depthSplits", &depthSplits, 1, 128);
+        changed |= ImGui::SliderInt("depthSplits", &depthSplits, 0, 127);
     }
     else
-        depthSplits = 1;
+        depthSplits = 0;
 
-        return changed;
+    return changed;
 }
 
 void Clusterer::endImGui()

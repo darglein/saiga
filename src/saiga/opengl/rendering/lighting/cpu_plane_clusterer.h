@@ -22,7 +22,7 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
     {
         if (!renderDebugEnabled) return;
         if (renderClusterDebug) Clusterer::renderDebug(cam);
-        if (renderLightsDebug) debugLights.render(cam);
+        if (renderLightsDebug) gpuDebugFrusta.render(cam);
     };
 
    private:
@@ -46,24 +46,16 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
 
     bool fillImGui() override;
 
-    struct clusterDebugPoints
-    {
-        vec3 nBL;
-        vec3 nBR;
-        vec3 nTL;
-        vec3 nTR;
-
-        vec3 fBL;
-        vec3 fBR;
-        vec3 fTL;
-        vec3 fTR;
-    };
-
-    std::vector<clusterDebugPoints> debugPoints;
-    LineSoup debugLights;
+    std::vector<Frustum> debugFrusta;
+    LineSoup gpuDebugFrusta;
 
     bool renderClusterDebug = false;  // TODO Paul: -> UI!
     bool renderLightsDebug  = true;   // TODO Paul: -> UI!
+
+    bool shouldDrawFrustum  = true;
+    int debugFrustumX, debugFrustumY, debugFrustumZ;
+
+    mat4 debugCameraModelMatrix;
 
     bool SAT     = false;
 };

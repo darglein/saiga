@@ -32,7 +32,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     int itemCount     = 0;
     int clusterCountZ = planesZ.size() - 2;
 
-    if (renderDebugEnabled && debugFrustumToView) debugLights.lines.clear();
+    if (renderDebugEnabled && (debugFrustumToView || shouldDrawFrustum)) gpuDebugFrusta.lines.clear();
     if (!SAT)
     {
         for (int i = 0; i < pointLightsClusterData.size(); ++i)
@@ -122,9 +122,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                     {
                         for (int x = x0; x < x1; ++x)
                         {
-                            int tileIndex =
-                                x + clusterInfoBuffer.clusterX * y +
-                                (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * (clusterCountZ - z);
+                            int tileIndex = getTileIndex(x, y, clusterCountZ - z);
 
                             clusterCache[tileIndex].push_back(i);
                             itemCount++;
@@ -207,9 +205,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
                         for (x; x < xs; ++x)
                         {
-                            int tileIndex =
-                                x + clusterInfoBuffer.clusterX * y +
-                                (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * (clusterCountZ - z);
+                            int tileIndex = getTileIndex(x, y, clusterCountZ - z);
 
                             clusterCache[tileIndex].push_back(i);
                             itemCount++;
@@ -223,39 +219,20 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     {
         for (int i = 0; i < pointLightsClusterData.size(); ++i)
         {
-            auto& cData = pointLightsClusterData[i];
-            vec3 sphereCenter          = cam->projectToViewSpace(cData.world_center);
-            float sphereRadius         = cData.radius;
+            auto& cData        = pointLightsClusterData[i];
+            vec3 sphereCenter  = cam->projectToViewSpace(cData.world_center);
+            float sphereRadius = cData.radius;
             Sphere sphere(sphereCenter, sphereRadius);
 
-            for (int x = 0; x < clusterInfoBuffer.clusterX; ++x)
+            for (int x = 0; x < planesX.size() - 1; ++x)
             {
-                for (int y = 0; y < clusterInfoBuffer.clusterY; ++y)
+                for (int y = 0; y < planesY.size() - 1; ++y)
                 {
                     for (int z = 0; z < planesZ.size() - 1; ++z)
                     {
-                        int tileIndex = x + clusterInfoBuffer.clusterX * y +
-                                        (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
+                        int tileIndex = getTileIndex(x, y, z);
 
-                        clusterDebugPoints& pts = debugPoints[tileIndex];
-
-                        Frustum fr;
-
-                        fr.planes[0] = planesZ[z + 1];
-                        fr.planes[1] = planesZ[z].invert();
-                        fr.planes[2] = planesY[y + 1];
-                        fr.planes[3] = planesY[y].invert();
-                        fr.planes[5] = planesX[x].invert();
-                        fr.planes[4] = planesX[x + 1];
-
-                        fr.vertices[0] = pts.nTL;
-                        fr.vertices[1] = pts.nTR;
-                        fr.vertices[2] = pts.nBL;
-                        fr.vertices[3] = pts.nBR;
-                        fr.vertices[4] = pts.fTL;
-                        fr.vertices[5] = pts.fTR;
-                        fr.vertices[6] = pts.fBL;
-                        fr.vertices[7] = pts.fBR;
+                        const Frustum& fr = debugFrusta[tileIndex];
 
                         if (fr.intersectSAT(sphere))
                         {
@@ -290,6 +267,9 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     int globalOffset = 0;
 
+    int debugIndex = debugFrustumX + clusterInfoBuffer.clusterX * debugFrustumY +
+                     (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * debugFrustumZ;
+
     for (int c = 0; c < clusterCache.size(); ++c)
     {
         auto cl             = clusterCache[c];
@@ -303,77 +283,96 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
         memcpy(&(itemBuffer.itemList[gpuCluster.offset]), cl.data(), cl.size() * sizeof(clusterItem));
 
-        if (renderDebugEnabled && debugFrustumToView && gpuCluster.plCount > 0)
+        bool frustumDebug = shouldDrawFrustum && debugIndex == c;
+
+        if (renderDebugEnabled &&
+            (frustumDebug || (debugFrustumToView && !shouldDrawFrustum && gpuCluster.plCount > 0)))
         {
-            auto& dbg = debugPoints[c];
+            const auto& dbg = debugFrusta[c];
             PointVertex v;
-            v.color = vec3(1, 0, 0);
+            v.color = vec3(0.75, 0.5, 0);
+            if (gpuCluster.plCount > 0) v.color = vec3(1, 0, 0);
 
-            v.position = dbg.nBL;
-            debugLights.lines.push_back(v);
-            v.position = dbg.nTL;
-            debugLights.lines.push_back(v);
-            debugLights.lines.push_back(v);
-            v.position = dbg.nTR;
-            debugLights.lines.push_back(v);
-            debugLights.lines.push_back(v);
-            v.position = dbg.nBR;
-            debugLights.lines.push_back(v);
-            debugLights.lines.push_back(v);
-            v.position = dbg.nBL;
-            debugLights.lines.push_back(v);
+            v.position = dbg.vertices[2];
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[0];
+            gpuDebugFrusta.lines.push_back(v);
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[1];
+            gpuDebugFrusta.lines.push_back(v);
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[3];
+            gpuDebugFrusta.lines.push_back(v);
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[2];
+            gpuDebugFrusta.lines.push_back(v);
 
-            v.position = dbg.fBL;
-            debugLights.lines.push_back(v);
-            v.position = dbg.fTL;
-            debugLights.lines.push_back(v);
-            debugLights.lines.push_back(v);
-            v.position = dbg.fTR;
-            debugLights.lines.push_back(v);
-            debugLights.lines.push_back(v);
-            v.position = dbg.fBR;
-            debugLights.lines.push_back(v);
-            debugLights.lines.push_back(v);
-            v.position = dbg.fBL;
-            debugLights.lines.push_back(v);
+            v.position = dbg.vertices[6];
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[4];
+            gpuDebugFrusta.lines.push_back(v);
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[5];
+            gpuDebugFrusta.lines.push_back(v);
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[7];
+            gpuDebugFrusta.lines.push_back(v);
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[6];
+            gpuDebugFrusta.lines.push_back(v);
 
-            v.position = dbg.nBL;
-            debugLights.lines.push_back(v);
-            v.position = dbg.fBL;
-            debugLights.lines.push_back(v);
+            v.position = dbg.vertices[2];
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[6];
+            gpuDebugFrusta.lines.push_back(v);
 
-            v.position = dbg.nTL;
-            debugLights.lines.push_back(v);
-            v.position = dbg.fTL;
-            debugLights.lines.push_back(v);
+            v.position = dbg.vertices[0];
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[4];
+            gpuDebugFrusta.lines.push_back(v);
 
-            v.position = dbg.nBR;
-            debugLights.lines.push_back(v);
-            v.position = dbg.fBR;
-            debugLights.lines.push_back(v);
+            v.position = dbg.vertices[3];
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[7];
+            gpuDebugFrusta.lines.push_back(v);
 
-            v.position = dbg.nTR;
-            debugLights.lines.push_back(v);
-            v.position = dbg.fTR;
-            debugLights.lines.push_back(v);
+            v.position = dbg.vertices[1];
+            gpuDebugFrusta.lines.push_back(v);
+            v.position = dbg.vertices[5];
+            gpuDebugFrusta.lines.push_back(v);
         }
     }
 
-
-    if (renderDebugEnabled && debugFrustumToView)
+    if (debugFrustumToView)
     {
-        debugLights.lineWidth = 1;
+        debugCluster.lineWidth = 1;
 
-        debugLights.setModelMatrix(cam->getModelMatrix());  // is inverse view.
-        debugLights.translateLocal(vec3(0, 0, -0.0001f));
+        debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
+        debugCluster.translateLocal(vec3(0, 0, -0.0001f));
 #if 0
-        debugLights.setPosition(make_vec4(0));
-        debugLights.translateGlobal(vec3(0, 6, 0));
-        debugLights.setScale(make_vec3(0.33f));
+        debugCluster.setPosition(make_vec4(0));
+        debugCluster.translateGlobal(vec3(0, 6, 0));
+        debugCluster.setScale(make_vec3(0.33f));
 #endif
-        debugLights.calculateModel();
-        debugLights.updateBuffer();
+        debugCluster.calculateModel();
+
+        gpuDebugFrusta.lineWidth = 1;
+
+        gpuDebugFrusta.setModelMatrix(cam->getModelMatrix());  // is inverse view.
+        gpuDebugFrusta.translateLocal(vec3(0, 0, -0.0001f));
+#if 0
+        gpuDebugFrusta.setPosition(make_vec4(0));
+        gpuDebugFrusta.translateGlobal(vec3(0, 6, 0));
+        gpuDebugFrusta.setScale(make_vec3(0.33f));
+#endif
+        gpuDebugFrusta.calculateModel();
+
         debugFrustumToView = false;
+    }
+    if (renderDebugEnabled)
+    {
+        debugCluster.updateBuffer();
+        gpuDebugFrusta.updateBuffer();
     }
 
     lightAssignmentTimer.stop();
@@ -396,7 +395,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 void CPUPlaneClusterer::buildClusters(Camera* cam)
 {
     // FIXME Remove:
-    depthSplits = 4;
+    depthSplits = 3;
 
     clustersDirty = false;
     float camNear = cam->zNear;
@@ -417,7 +416,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     gridCount[0] = std::ceil((float)width / (float)screenSpaceTileSize);
     gridCount[1] = std::ceil((float)height / (float)screenSpaceTileSize);
     if (clusterThreeDimensional)
-        gridCount[2] = depthSplits;
+        gridCount[2] = depthSplits + 1;
     else
         gridCount[2] = 1;
 
@@ -441,7 +440,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     planesX.resize((int)gridCount[0] + 1);
     planesY.resize((int)gridCount[1] + 1);
     planesZ.resize((int)gridCount[2] + 1);
-    if (renderDebugEnabled && debugFrustumToView)
+    if (renderDebugEnabled)
     {
         debugCluster.lines.clear();
     }
@@ -473,7 +472,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
         planesX[x] = Plane(p0, p1, p2);
 
-        if (renderDebugEnabled && debugFrustumToView)
+        if (renderDebugEnabled)
         {
             v.position = viewFarPlaneTL;
             debugCluster.lines.push_back(v);
@@ -518,7 +517,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
         planesY[y] = Plane(p0, p1, p2);
 
-        if (renderDebugEnabled && debugFrustumToView)
+        if (renderDebugEnabled)
         {
             v.position = viewFarPlaneBL;
             debugCluster.lines.push_back(v);
@@ -543,22 +542,22 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         }
     }
 
-    int numZPlanes = gridCount[2];
+    // planesZ.size is gridCount[2] + 1
     for (int z = 0; z < planesZ.size(); ++z)
     {
-        vec4 screenSpaceC(width / 2, height / 2, -1.0, 1.0);  // Center Point
+        vec4 screenSpaceBL(0, 0, -1.0, 1.0);
 
-        vec3 viewNearPlaneC(make_vec3(viewPosFromScreenPos(screenSpaceC, invProjection)));
+        vec3 viewNearPlaneBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
 
         // Doom Depth Split, because it looks good.
         // float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
-        float tileFar = -camNear * pow(camFar / camNear, (float)(numZPlanes - z) / gridCount[2]);
+        float tileFar = -camNear * pow(camFar / camNear, (gridCount[2] - (float)z) / gridCount[2]);
 
-        vec3 viewFarClusterC(zeroZIntersection(viewNearPlaneC, tileFar));
+        vec3 viewFarClusterBL(zeroZIntersection(viewNearPlaneBL, tileFar));
 
-        planesZ[z] = Plane(viewFarClusterC, vec3(0, 0, 1));
+        planesZ[z] = Plane(viewFarClusterBL, vec3(0, 0, 1));
 
-        if (renderDebugEnabled && debugFrustumToView)
+        if (renderDebugEnabled)
         {
             vec4 screenSpaceBL(0, 0, -1.0, 1.0);           // Bottom left
             vec4 screenSpaceTL(0, height, -1.0, 1.0);      // Top left
@@ -598,9 +597,9 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         }
     }
 
-    if (SAT || (renderDebugEnabled && debugFrustumToView))
+    if (SAT || renderDebugEnabled)
     {
-        debugPoints.resize(clusterCount);
+        debugFrusta.resize(clusterCount);
         for (int x = 0; x < (int)gridCount[0]; ++x)
         {
             for (int y = 0; y < (int)gridCount[1]; ++y)
@@ -633,25 +632,65 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
                     vec3 viewFarClusterBR(zeroZIntersection(viewNearPlaneBR, tileFar));
                     vec3 viewFarClusterTR(zeroZIntersection(viewNearPlaneTR, tileFar));
 
-                    clusterDebugPoints dbg;
-                    dbg.nBL = viewNearClusterBL;
-                    dbg.nBR = viewNearClusterBR;
-                    dbg.nTL = viewNearClusterTL;
-                    dbg.nTR = viewNearClusterTR;
-                    dbg.fBL = viewFarClusterBL;
-                    dbg.fBR = viewFarClusterBR;
-                    dbg.fTL = viewFarClusterTL;
-                    dbg.fTR = viewFarClusterTR;
+                    int tileIndex = getTileIndex(x, y, z);
 
-                    int tileIndex = x + (int)gridCount[0] * y + (int)(gridCount[0] * gridCount[1]) * z;
+                    /*
+                    Plane nearPlane(viewNearClusterBL, vec3(0, 0, 1));
+                    Plane farPlane(viewFarClusterTR, vec3(0, 0, -1));
 
-                    debugPoints.at(tileIndex) = dbg;
+                    vec3 p0, p1, p2;
+
+                    p0 = viewNearClusterBL;
+                    p1 = viewFarClusterBL;
+                    p2 = viewFarClusterTL;
+                    Plane leftPlane(p0, p2, p1);
+
+                    p0 = viewNearClusterTL;
+                    p1 = viewFarClusterTL;
+                    p2 = viewFarClusterTR;
+                    Plane topPlane(p0, p2, p1);
+
+                    p0 = viewNearClusterTR;
+                    p1 = viewFarClusterTR;
+                    p2 = viewFarClusterBR;
+                    Plane rightPlane(p0, p2, p1);
+
+                    p0 = viewNearClusterBR;
+                    p1 = viewFarClusterBR;
+                    p2 = viewFarClusterBL;
+                    Plane bottomPlane(p0, p2, p1);
+                    */
+
+                    Frustum& fr = debugFrusta.at(tileIndex);
+
+                    // fr.planes[0] = nearPlane;
+                    // fr.planes[1] = farPlane;
+                    // fr.planes[2] = topPlane;
+                    // fr.planes[3] = bottomPlane;
+                    // fr.planes[5] = leftPlane;
+                    // fr.planes[4] = rightPlane;
+
+                    fr.planes[0] = planesZ[((int)gridCount[2] - z - 1)].invert();
+                    fr.planes[1] = planesZ[((int)gridCount[2] - z)];
+                    fr.planes[2] = planesY[y + 1];
+                    fr.planes[3] = planesY[y].invert();
+                    fr.planes[4] = planesX[x].invert();
+                    fr.planes[5] = planesX[x + 1];
+
+                    fr.vertices[0] = viewNearClusterTL;
+                    fr.vertices[1] = viewNearClusterTR;
+                    fr.vertices[2] = viewNearClusterBL;
+                    fr.vertices[3] = viewNearClusterBR;
+                    fr.vertices[4] = viewFarClusterTL;
+                    fr.vertices[5] = viewFarClusterTR;
+                    fr.vertices[6] = viewFarClusterBL;
+                    fr.vertices[7] = viewFarClusterBR;
                 }
             }
         }
     }
 
-    if (renderDebugEnabled && debugFrustumToView)
+    if (renderDebugEnabled)
     {
         debugCluster.lineWidth = 1;
 
@@ -697,7 +736,17 @@ bool CPUPlaneClusterer::fillImGui()
 
     ImGui::Text("ItemListByteSize: %d", itemBuffer.itemList.size() * sizeof(clusterItem));
 
+    ImGui::Checkbox("shouldDrawFrustum", &shouldDrawFrustum);
+    if (shouldDrawFrustum)
+    {
+        ImGui::SliderInt("debugFrustumX", &debugFrustumX, 0, clusterInfoBuffer.clusterX - 1);
+        ImGui::SliderInt("debugFrustumY", &debugFrustumY, 0, clusterInfoBuffer.clusterY - 1);
+        ImGui::SliderInt("debugFrustumZ", &debugFrustumZ, 0, planesZ.size() - 2);
+    }
+
     changed |= ImGui::Checkbox("SAT Debug", &SAT);
+
+
 
     return changed;
 }

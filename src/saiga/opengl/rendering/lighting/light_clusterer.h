@@ -89,7 +89,6 @@ struct SAIGA_OPENGL_API ClustererParameters
 
 class SAIGA_OPENGL_API Clusterer
 {
-
    public:
     Clusterer(ClustererParameters _params = ClustererParameters());
     Clusterer& operator=(Clusterer& c) = delete;
@@ -169,7 +168,7 @@ class SAIGA_OPENGL_API Clusterer
     int width, height;
 
     int screenSpaceTileSize = 128;
-    int depthSplits         = 1;
+    int depthSplits         = 0;
     mat4 cached_projection;
 
     bool clusterThreeDimensional = false;
@@ -228,6 +227,12 @@ class SAIGA_OPENGL_API Clusterer
         int tileDebug;
     } clusterInfoBuffer;
 
+    int getTileIndex(int x, int y, int z)
+    {
+        return x + clusterInfoBuffer.clusterX * y +
+               (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
+    }
+
     struct clusterBuffer_t
     {
         std::vector<cluster> clusterList;
@@ -260,7 +265,8 @@ class SAIGA_OPENGL_API Clusterer
     std::shared_ptr<LightAssignmentComputeShader> buildLightToClusterMapShader;
 #endif
     virtual bool fillImGui();
-private:
+
+   private:
     void beginImGui(bool* p_open = NULL);
     void endImGui();
 };
