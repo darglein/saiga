@@ -30,7 +30,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     }
 
     int itemCount     = 0;
-    int clusterCountZ = planesZ.size() - 2;
+    int maxDepthCluster = planesZ.size() - 2;
 
     if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
     if (!SAT)
@@ -113,6 +113,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             }
 
 
+
             if (!refinement)
             {
                 // This is without the sphere refinement
@@ -122,7 +123,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                     {
                         for (int x = x0; x < x1; ++x)
                         {
-                            int tileIndex = getTileIndex(x, y, clusterCountZ - z);
+                            int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
 
                             clusterCache[tileIndex].push_back(i);
                             itemCount++;
@@ -144,9 +145,8 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                 int centerZ = cz / 2;
                 if (centerOutsideZ == 0 && cz % 2 == 0)
                 {
-                    float d0 = planesZ[z0].distance(sphereCenter);
-                    float d1 = -planesZ[z1].distance(sphereCenter);
-                    if (d0 <= d1) centerZ -= 1;
+                    float d0 = planesZ[centerZ].distance(sphereCenter);
+                    if (d0 < 1e-5f) centerZ -= 1;
                 }
 
                 if (centerOutsideY < 0)
@@ -161,9 +161,8 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                 int centerY = cy / 2;
                 if (centerOutsideY == 0 && cy % 2 == 0)
                 {
-                    float d0 = planesY[y0].distance(sphereCenter);
-                    float d1 = -planesY[y1].distance(sphereCenter);
-                    if (d0 <= d1) centerY -= 1;
+                    float d0 = planesY[centerY].distance(sphereCenter);
+                    if (d0 < 1e-5f) centerY -= 1;
                 }
 
                 Sphere lightSphere(sphereCenter, sphereRadius);
@@ -196,6 +195,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                             if (yLight.r < 1e-5) continue;
                         }
 
+
                         int x = x0;
                         while (x < x1 && planesX[x].distance(yLight.pos) >= yLight.r) x++;
                         x      = std::max(x0, --x);
@@ -205,7 +205,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
                         for (x; x < xs; ++x)
                         {
-                            int tileIndex = getTileIndex(x, y, clusterCountZ - z);
+                            int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
 
                             clusterCache[tileIndex].push_back(i);
                             itemCount++;
@@ -371,9 +371,6 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
 void CPUPlaneClusterer::buildClusters(Camera* cam)
 {
-    // FIXME Remove:
-    depthSplits = 3;
-
     clustersDirty = false;
     float camNear = cam->zNear;
     float camFar  = cam->zFar;
