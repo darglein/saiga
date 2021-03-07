@@ -32,11 +32,10 @@
 
 #include "imgui_impl_glfw_gl3.h"
 #ifdef SAIGA_USE_GLFW
+#    include "saiga/core/glfw/saiga_glfw.h"
 #    include "saiga/core/imgui/imgui.h"
 #    include "saiga/core/imgui/imgui_main_menu.h"
 #    include "saiga/opengl/opengl.h"
-
-#    include <GLFW/glfw3.h>
 
 #    ifdef _WIN32
 #        undef APIENTRY

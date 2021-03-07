@@ -17,12 +17,27 @@ find_package(Eigen3 3.3.90 QUIET)
 if(NOT TARGET Eigen3::Eigen)
   message("=================================")
   message("Adding Submodule eigen")
+   set(BUILD_TESTING OFF CACHE INTERNAL "")
   add_subdirectory(submodules/eigen)
   message("=================================")
 endif()
-
 SET(SAIGA_USE_EIGEN 1)
 PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
+
+
+
+find_package(glfw3 CONFIG )
+if(NOT TARGET glfw)
+  message("=================================")
+  message("Adding Submodule glfw")
+  set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
+  set(GLFW_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+  set(GLFW_BUILD_TESTS OFF CACHE INTERNAL "")
+  add_subdirectory(submodules/glfw)
+  message("=================================")
+endif ()
+PackageHelperTarget(glfw GLFW_FOUND)
+SET(SAIGA_USE_GLFW 1)
 
 
 #zlib
@@ -117,11 +132,6 @@ endif(WIN32)
 #PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
 
 
-find_package(glfw3 CONFIG )
-PackageHelperTarget(glfw GLFW_FOUND)
-if (GLFW_FOUND)
-  SET(SAIGA_USE_GLFW 1)
-endif ()
 #target_link_libraries(main PRIVATE glfw)
 
 

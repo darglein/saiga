@@ -11,7 +11,6 @@
 #include "saiga/core/util/keyboard.h"
 #include "saiga/core/util/mouse.h"
 
-#include <algorithm>
 #include <vector>
 
 struct GLFWwindow;

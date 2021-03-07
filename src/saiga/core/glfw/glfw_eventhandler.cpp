@@ -6,9 +6,11 @@
 
 #include "glfw_eventhandler.h"
 
+#include "saiga/core/glfw/saiga_glfw.h"
+
 #include "internal/noGraphicsAPI.h"
 
-#include <GLFW/glfw3.h>
+#include <algorithm>
 
 #include "glfw_joystick.h"
 
