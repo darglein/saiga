@@ -9,11 +9,7 @@ macro(saiga_core_sample FILE_NAME)
 
   target_link_libraries(${TARGET_NAME} PUBLIC saiga_core)
   target_link_libraries(${TARGET_NAME} PUBLIC ${ARGN})
-
-  #set working directory for visual studio so the project can be executed from the ide
-  set_target_properties(${TARGET_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
-  set_target_properties(${TARGET_NAME} PROPERTIES FOLDER tests/${PREFIX})
-  set_target_properties(${TARGET_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+  set_target_properties(${TARGET_NAME} PROPERTIES FOLDER samples/${PREFIX})
 endmacro()
 
 

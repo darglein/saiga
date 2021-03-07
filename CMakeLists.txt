@@ -84,6 +84,23 @@ set(SAIGA_FULL_EIGEN 1)
 if(SAIGA_LEGACY_GLM)
     set(SAIGA_FULL_EIGEN 0)
 endif()
+
+############# OUTPUT ###############
+
+set(SAIGA_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
+# Make to cache variable so it can be overwritten by the user of saiga
+set(SAIGA_RUNTIME_OUTPUT_DIRECTORY "${SAIGA_OUTPUT_DIR}/bin" CACHE PATH "Output dir of executables and dynamic libraries")
+set(SAIGA_LIBRARY_OUTPUT_DIRECTORY "${SAIGA_OUTPUT_DIR}/lib" CACHE PATH "Output dir of static libraries")
+set(SAIGA_ARCHIVE_OUTPUT_DIRECTORY "${SAIGA_OUTPUT_DIR}/lib" CACHE PATH "Output dir of static libraries")
+
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY  "${SAIGA_LIBRARY_OUTPUT_DIRECTORY}")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY  "${SAIGA_ARCHIVE_OUTPUT_DIRECTORY}")
+
+
+
 ############# COMPILER FLAGS ###############
 
 include(Saiga_compiler_flags)
@@ -239,13 +256,6 @@ write_basic_package_version_file(
     )
 
 ############# SOURCE ###############
-
-set(OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin")
-
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${OUTPUT_DIR}")
-
 
 
 add_subdirectory(src)

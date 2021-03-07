@@ -14,10 +14,7 @@ macro(cuda_sample FILE_NAME)
   set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
   target_compile_options(${TARGET_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
 
-  #set working directory for visual studio so the project can be executed from the ide
-  set_target_properties(${TARGET_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
-  set_target_properties(${TARGET_NAME} PROPERTIES FOLDER tests/${PREFIX})
-  set_target_properties(${TARGET_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+  set_target_properties(${TARGET_NAME} PROPERTIES FOLDER samples/${PREFIX})
 endmacro()
 
 
