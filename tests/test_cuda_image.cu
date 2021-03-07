@@ -16,7 +16,7 @@
 #include "compare_numbers.h"
 
 namespace Saiga
-{
+{ 
 class CudaImageTest
 {
    public:
