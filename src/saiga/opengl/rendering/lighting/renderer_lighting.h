@@ -23,6 +23,7 @@ class SpotLightShader;
 class DirectionalLightShader;
 class LightAccumulationShader;
 
+class Light;
 class SpotLight;
 class PointLight;
 class DirectionalLight;
@@ -205,5 +206,9 @@ class SAIGA_OPENGL_API RendererLighting
     int maximumNumberOfSpotLights        = 256;
     int maximumNumberOfBoxLights         = 256;
     bool showLightingImgui               = false;
+
+    int selected_light     = -1;
+    int selecte_light_type = 0;
+    std::shared_ptr<Light> selected_light_ptr;
 };
 }  // namespace Saiga

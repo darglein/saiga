@@ -355,7 +355,7 @@ void initImGui(const ImGuiParameters& params)
     colors[ImGuiCol_BorderShadow] = COL_ALPHA(color_background_low, 0.00f);
 
     // Background of checkbox, radio button, plot, slider, text input
-    colors[ImGuiCol_FrameBg]        = COL_ALPHA(color_background_high, 1.00f);
+    colors[ImGuiCol_FrameBg]        = COL_ALPHA(color_background_medium, 1.00f);
     colors[ImGuiCol_FrameBgHovered] = COL_ALPHA(color_highlight_low, 0.78f);
     colors[ImGuiCol_FrameBgActive]  = COL_ALPHA(color_highlight_high, 1.00f);
 

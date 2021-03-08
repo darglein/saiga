@@ -366,9 +366,10 @@ void RendererLighting::renderImGui()
     if (!showLightingImgui) return;
     int w = 340;
     int h = 240;
-    ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
     ImGui::Begin("RendererLighting", &showLightingImgui);
+
 
     ImGui::Text("resolution: %dx%d", width, height);
     ImGui::Text("visibleLights/totalLights: %d/%d", visibleLights, totalLights);
@@ -404,11 +405,63 @@ void RendererLighting::renderImGui()
     ImGui::Checkbox("backFaceShadows", &backFaceShadows);
     ImGui::InputFloat("shadowOffsetFactor", &shadowOffsetFactor, 0.1, 1);
     ImGui::InputFloat("shadowOffsetUnits", &shadowOffsetUnits, 0.1, 1);
-    imGuiLightBox(0, "Directional Lights", directionalLights);
-    imGuiLightBox(1, "Spot Lights", spotLights);
-    imGuiLightBox(2, "Point Lights", pointLights);
+
+
+    if (ImGui::ListBoxHeader("Lights", 4))
+    {
+        int lid = 0;
+        for (auto l : directionalLights)
+        {
+            std::string name = "Directional Light " + std::to_string(lid);
+            if (ImGui::Selectable(name.c_str(), selected_light == lid))
+            {
+                selected_light     = lid;
+                selected_light_ptr = l;
+            }
+            lid++;
+        }
+        for (auto l : spotLights)
+        {
+            std::string name = "Spot Light " + std::to_string(lid);
+            if (ImGui::Selectable(name.c_str(), selected_light == lid))
+            {
+                selected_light     = lid;
+                selected_light_ptr = l;
+            }
+            lid++;
+        }
+        for (auto l : pointLights)
+        {
+            std::string name = "Point Light " + std::to_string(lid);
+            if (ImGui::Selectable(name.c_str(), selected_light == lid))
+            {
+                selected_light     = lid;
+                selected_light_ptr = l;
+            }
+            lid++;
+        }
+        ImGui::ListBoxFooter();
+    }
+
+    auto wp = ImGui::GetWindowPos();
+    auto ws = ImGui::GetWindowSize();
+
+
+    //    imGuiLightBox(0, "Directional Lights", directionalLights);
+    //    imGuiLightBox(1, "Spot Lights", spotLights);
+    //    imGuiLightBox(2, "Point Lights", pointLights);
 
     ImGui::End();
+
+    if (selected_light_ptr)
+    {
+        ImGui::SetNextWindowPos(ImVec2(wp.x + ws.x, wp.y), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ws, ImGuiCond_Once);
+        ImGui::Begin("Light Data", &showLightingImgui);
+
+        selected_light_ptr->renderImGui();
+        ImGui::End();
+    }
 }
 
 }  // namespace Saiga

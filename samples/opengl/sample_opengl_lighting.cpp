@@ -4,8 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/math/random.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
 
@@ -193,8 +193,6 @@ class Sample : public SampleWindowDeferred
 
         if (render_pass == RenderPass::GUI)
         {
-            renderer->lighting.renderImGui();
-
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
             ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_Once);
             ImGui::Begin("Lighting");
