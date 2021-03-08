@@ -68,4 +68,13 @@ class SAIGA_CORE_API MainMenu
 
 SAIGA_CORE_API extern MainMenu main_menu;
 
+
+class SAIGA_CORE_API EditorGui
+{
+   public:
+    void render(int w, int h);
+};
+
+inline EditorGui editor_gui;
+
 }  // namespace Saiga

@@ -149,6 +149,7 @@ void ImGui_GLFW_Renderer::beginFrame()
     ImGui::NewFrame();
 
     main_menu.render();
+    editor_gui.render(display_w, display_h);
 }
 
 
