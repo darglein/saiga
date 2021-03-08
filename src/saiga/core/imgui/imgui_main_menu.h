@@ -42,6 +42,8 @@ class SAIGA_CORE_API MainMenu
     // Set to false to disable hotkeys
     bool hotkeys = true;
 
+    static int Height();
+
    private:
     struct Item
     {

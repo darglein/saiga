@@ -89,4 +89,9 @@ void MainMenu::Keypressed(int key_code)
     }
 }
 
+int MainMenu::Height()
+{
+    return ImGui::GetFrameHeight();
+}
+
 }  // namespace Saiga
