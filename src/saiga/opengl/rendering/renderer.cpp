@@ -13,13 +13,13 @@
 
 namespace Saiga
 {
-OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window) : outputWidth(window.getWidth()), outputHeight(window.getHeight())
+OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window)
+    : outputWidth(window.getWidth()), outputHeight(window.getHeight()), window(&window)
 {
     cameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
 
 
     window.setRenderer(this);
-
     // ImGUI
     imgui = window.createImGui();
 }

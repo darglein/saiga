@@ -23,18 +23,18 @@ class SAIGA_TEMPLATE KDTree
    public:
     // create an empty tree
     KDTree() {}
-    // calls 'createTree'
     KDTree(const std::vector<point_t>& points);
 
-    // create a new tree with the given points.
-    // if this kdtree has already been build the old tree will be deleted.
-    void createTree(const std::vector<point_t>& points);
-
     // returns the nearest point in this tree to the searchpoint
-    point_t nearestNeighbour(const point_t& searchPoint);
+    int NearestNeighborSearch(const point_t& searchPoint);
 
     // returns the k nearest points in this tree to the searchpoint
-    std::vector<point_t> nearestNeighbours(const point_t& searchPoint, int k);
+    std::vector<int> KNearestNeighborSearch(const point_t& searchPoint, int k);
+
+
+    std::vector<int> RadiusSearch(const point_t& searchPoint, float radius);
+
+
 
    private:
     typedef int index_t;
@@ -44,6 +44,7 @@ class SAIGA_TEMPLATE KDTree
     struct kd_node_t
     {
         point_t p;
+        int initial_index;
         index_t left = -1, right = -1;
     };
 
@@ -54,9 +55,14 @@ class SAIGA_TEMPLATE KDTree
     index_t make_tree(index_t startIndex, index_t endIndex, axis_t currentAxis);
 
     // rekursive helper functions for nearest neighbour lookup
-    void nearestNeighbour(index_t currentNode, const point_t& searchPoint, axis_t currentAxis, index_t& bestNode,
-                          float& bestDist);
-    void nearestNeighbours(index_t currentNode, const point_t& searchPoint, int k, axis_t currentAxis, queue_t& queue);
+    void NearestNeighborSearch(index_t currentNode, const point_t& searchPoint, axis_t currentAxis, index_t& bestNode,
+                               float& bestDist);
+
+    void KNearestNeighborSearch(index_t currentNode, const point_t& searchPoint, int k, axis_t currentAxis,
+                                queue_t& queue);
+
+    void RadiusSearch(index_t currentNode, const point_t& searchPoint, float r, axis_t currentAxis,
+                      std::vector<int>& result);
 
     float addToQueue(queue_t& queue, index_t currentNode, float distance);
     float distance(point_t a, point_t b);
@@ -66,16 +72,11 @@ class SAIGA_TEMPLATE KDTree
 template <int D, typename point_t>
 KDTree<D, point_t>::KDTree(const std::vector<point_t>& points)
 {
-    createTree(points);
-}
-
-template <int D, typename point_t>
-void KDTree<D, point_t>::createTree(const std::vector<point_t>& points)
-{
     nodes.resize(points.size());
     for (int i = 0; i < points.size(); ++i)
     {
-        nodes[i].p = points[i];
+        nodes[i].p             = points[i];
+        nodes[i].initial_index = i;
     }
     rootNode = make_tree(0, nodes.size(), 0);
 }
@@ -107,18 +108,18 @@ typename KDTree<D, point_t>::index_t KDTree<D, point_t>::make_tree(index_t start
 }
 
 template <int D, typename point_t>
-point_t KDTree<D, point_t>::nearestNeighbour(const point_t& searchPoint)
+int KDTree<D, point_t>::NearestNeighborSearch(const point_t& searchPoint)
 {
     KDTree::index_t bestNode;
-    float bestDist = 125625206456465;
-    nearestNeighbour(rootNode, searchPoint, 0, bestNode, bestDist);
-    return nodes[bestNode].p;
+    float bestDist = std::numeric_limits<float>::infinity();
+    NearestNeighborSearch(rootNode, searchPoint, 0, bestNode, bestDist);
+    return nodes[bestNode].initial_index;
 }
 
 
 template <int D, typename point_t>
-void KDTree<D, point_t>::nearestNeighbour(index_t currentNode, const point_t& searchPoint, axis_t currentAxis,
-                                          index_t& bestNode, float& bestDist)
+void KDTree<D, point_t>::NearestNeighborSearch(index_t currentNode, const point_t& searchPoint, axis_t currentAxis,
+                                               index_t& bestNode, float& bestDist)
 {
     if (currentNode == -1) return;
 
@@ -141,21 +142,21 @@ void KDTree<D, point_t>::nearestNeighbour(index_t currentNode, const point_t& se
     currentAxis = (currentAxis + 1) % D;
 
     // first traverse the subtree in which the point lays
-    nearestNeighbour(dAxis > 0 ? nodes[currentNode].left : nodes[currentNode].right, searchPoint, currentAxis, bestNode,
-                     bestDist);
+    NearestNeighborSearch(dAxis > 0 ? nodes[currentNode].left : nodes[currentNode].right, searchPoint, currentAxis,
+                          bestNode, bestDist);
 
     // when the distance to the axis is greater than the current distance
     // we don't need to traverse the other sub tree
     if (dAxisSquared >= bestDist) return;
 
     // there may be a better point in this subtree
-    nearestNeighbour(dAxis > 0 ? nodes[currentNode].right : nodes[currentNode].left, searchPoint, currentAxis, bestNode,
-                     bestDist);
+    NearestNeighborSearch(dAxis > 0 ? nodes[currentNode].right : nodes[currentNode].left, searchPoint, currentAxis,
+                          bestNode, bestDist);
 }
 
 
 template <int D, typename point_t>
-std::vector<point_t> KDTree<D, point_t>::nearestNeighbours(const point_t& searchPoint, int k)
+std::vector<int> KDTree<D, point_t>::KNearestNeighborSearch(const point_t& searchPoint, int k)
 {
     queue_t queue(k);
     for (auto& p : queue)
@@ -163,14 +164,14 @@ std::vector<point_t> KDTree<D, point_t>::nearestNeighbours(const point_t& search
         p.second = -1;
         p.first  = 3467369476;
     }
-    nearestNeighbours(rootNode, searchPoint, k, 0, queue);
+    KNearestNeighborSearch(rootNode, searchPoint, k, 0, queue);
 
-    std::vector<point_t> points;
+    std::vector<int> points;
     for (auto& p : queue)
     {
         if (p.second != -1)
         {
-            points.push_back(nodes[p.second].p);
+            points.push_back(nodes[p.second].initial_index);
         }
     }
     return points;
@@ -178,8 +179,8 @@ std::vector<point_t> KDTree<D, point_t>::nearestNeighbours(const point_t& search
 
 
 template <int D, typename point_t>
-void KDTree<D, point_t>::nearestNeighbours(index_t currentNode, const point_t& searchPoint, int k, axis_t currentAxis,
-                                           queue_t& queue)
+void KDTree<D, point_t>::KNearestNeighborSearch(index_t currentNode, const point_t& searchPoint, int k,
+                                                axis_t currentAxis, queue_t& queue)
 {
     if (currentNode == -1) return;
 
@@ -196,16 +197,16 @@ void KDTree<D, point_t>::nearestNeighbours(index_t currentNode, const point_t& s
     currentAxis = (currentAxis + 1) % D;
 
     // first traverse the subtree in which the point lays
-    nearestNeighbours(dAxis > 0 ? nodes[currentNode].left : nodes[currentNode].right, searchPoint, k, currentAxis,
-                      queue);
+    KNearestNeighborSearch(dAxis > 0 ? nodes[currentNode].left : nodes[currentNode].right, searchPoint, k, currentAxis,
+                           queue);
 
     // when the distance to the axis is greater than the current distance
     // we don't need to traverse the other sub tree
     if (dAxisSquared >= lastD) return;
 
     // there may be a better point in this subtree
-    nearestNeighbours(dAxis > 0 ? nodes[currentNode].right : nodes[currentNode].left, searchPoint, k, currentAxis,
-                      queue);
+    KNearestNeighborSearch(dAxis > 0 ? nodes[currentNode].right : nodes[currentNode].left, searchPoint, k, currentAxis,
+                           queue);
 
     //    nearestNeighbour(dAxis > 0 ? nodes[currentNode].right : nodes[currentNode].left, searchPoint, currentAxis
     //    ,bestNode,  bestDist);
@@ -227,6 +228,49 @@ float KDTree<D, point_t>::addToQueue(queue_t& queue, index_t currentNode, float 
 }
 
 
+template <int D, typename point_t>
+void KDTree<D, point_t>::RadiusSearch(index_t currentNode, const point_t& searchPoint, float r, axis_t currentAxis,
+                                      std::vector<int>& result)
+{
+    if (currentNode == -1) return;
+
+    // calculate distance to current point and update the current best
+    float d = distance(nodes[currentNode].p, searchPoint);
+    if (d < r)
+    {
+        result.push_back(nodes[currentNode].initial_index);
+    }
+
+
+    // the (signed) distance of the searchpoint to the current split axis
+    float dAxis = nodes[currentNode].p[currentAxis] - searchPoint[currentAxis];
+    // the actual distance to the point is squared so we also need to square the distance to the axis
+    float dAxisSquared = dAxis * dAxis;
+
+    currentAxis = (currentAxis + 1) % D;
+
+    // first traverse the subtree in which the point lies
+    RadiusSearch(dAxis > 0 ? nodes[currentNode].left : nodes[currentNode].right, searchPoint, r, currentAxis, result);
+
+    // when the distance to the axis is greater than the current distance
+    // we don't need to traverse the other sub tree
+    if (dAxisSquared >= r) return;
+
+    // there may be a better point in this subtree
+    RadiusSearch(dAxis > 0 ? nodes[currentNode].right : nodes[currentNode].left, searchPoint, r, currentAxis, result);
+}
+
+
+template <int D, typename point_t>
+std::vector<int> KDTree<D, point_t>::RadiusSearch(const point_t& searchPoint, float r)
+{
+    std::vector<int> points;
+    RadiusSearch(rootNode, searchPoint, r * r, 0, points);
+    std::sort(points.begin(), points.end());
+    return points;
+}
+
+
 
 template <int D, typename point_t>
 float KDTree<D, point_t>::distance(point_t a, point_t b)
@@ -234,15 +278,6 @@ float KDTree<D, point_t>::distance(point_t a, point_t b)
     // use the squared distance so we don't have to calculate the sqrt
     point_t tmp = a - b;
     return dot(tmp, tmp);
-}
-
-template <int D, typename point_t>
-void KDTree<D, point_t>::printPoints(index_t startIndex, index_t endIndex)
-{
-    for (index_t i = startIndex; i < endIndex; ++i)
-    {
-        std::cout << nodes[i].p << std::endl;
-    }
 }
 
 }  // namespace Saiga

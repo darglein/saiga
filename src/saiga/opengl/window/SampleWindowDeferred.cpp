@@ -66,9 +66,6 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
     }
     else if (render_pass == RenderPass::GUI)
     {
-        window->renderImGui();
-
-
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
         ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
         ImGui::Begin("Saiga Sample Base");

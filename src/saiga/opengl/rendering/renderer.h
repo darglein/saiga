@@ -46,6 +46,7 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
 
     int outputWidth = -1, outputHeight = -1;
     UniformBuffer cameraBuffer;
+    OpenGLWindow* window;
 
     OpenGLRenderer(OpenGLWindow& window);
     virtual ~OpenGLRenderer();

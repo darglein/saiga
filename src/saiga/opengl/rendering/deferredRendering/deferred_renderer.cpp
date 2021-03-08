@@ -154,7 +154,6 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     for (auto c : renderInfo.cameras)
     {
         auto camera = c.first;
-        camera->recalculatePlanes();
         bindCamera(camera);
 
         setViewPort(c.second);
@@ -261,6 +260,7 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         {
             SAIGA_ASSERT(ImGui::GetCurrentContext());
             imgui->beginFrame();
+            window->renderImGui();
             renderImgui();
             lighting.renderImGui();
             renderingInterface->render(nullptr, RenderPass::GUI);
