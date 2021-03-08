@@ -38,7 +38,7 @@ namespace Saiga
 
 
 
-class SAIGA_OPENGL_API AssimpLoader
+class SAIGA_CORE_API AssimpLoader
 {
    public:
     std::string file;

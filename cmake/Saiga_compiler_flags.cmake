@@ -42,7 +42,7 @@ if(SAIGA_CXX_MSVC)
   if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
     string(REGEX REPLACE "/W[0-4]" "/W1" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1")
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1")
   endif()
 endif()
 
@@ -84,6 +84,7 @@ if(SAIGA_CXX_MSVC OR SAIGA_CXX_WCLANG)
   list(APPEND SAIGA_CXX_FLAGS "/bigobj")
   #multiprocessor compilation for visual studio
   list(APPEND SAIGA_CXX_FLAGS "/MP")
+  set(CMAKE_CXX_FLAGS "/MP ${CMAKE_CXX_FLAGS}")
   add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
 endif()
 

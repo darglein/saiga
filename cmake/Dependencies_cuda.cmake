@@ -61,6 +61,7 @@ if(CUDA_FOUND)
     endif()
   else()
     list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=/openmp")
+	list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=/W0")
   endif()
 
   list(APPEND SAIGA_CUDA_FLAGS "-use_fast_math")

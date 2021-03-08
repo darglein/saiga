@@ -13,6 +13,7 @@
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/stream.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/assert.h"
 
 #include <iostream>
 #include <vector>

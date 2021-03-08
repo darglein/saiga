@@ -1,9 +1,6 @@
 [submodule "submodules/eigen"]
 	path = submodules/eigen
 	url = https://gitlab.com/libeigen/eigen.git
-[submodule "submodules/SDL"]
-	path = submodules/SDL
-	url = https://github.com/libsdl-org/SDL.git
 [submodule "submodules/zlib"]
 	path = submodules/zlib
 	url = https://github.com/madler/zlib.git
