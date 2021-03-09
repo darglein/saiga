@@ -5,65 +5,144 @@
  */
 
 
-#include "saiga/opengl/window/SampleWindowDeferred.h"
+
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/random.h"
+#include "saiga/core/model/model_from_shape.h"
+#include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/opengl/window/SampleWindowForward.h"
+#include "saiga/opengl/world/skybox.h"
+
 
 using namespace Saiga;
 
-class Sample : public SampleWindowDeferred
+ImGui::IMConsole console;
+ImGui::IMTable test_table("Fancy Table", {10, 10}, {"First", "Second"});
+
+
+class Sample : public SampleWindowForward
 {
-    using Base = SampleWindowDeferred;
+    using Base = SampleWindowForward;
 
    public:
     Sample()
     {
-        box.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/Cornell.obj"));
-        showGrid  = false;
+        for (int i = 0; i < 10000; ++i)
+        {
+            PointVertex v;
+            v.position = linearRand(make_vec3(-3), make_vec3(3));
+            v.color    = linearRand(make_vec3(0), make_vec3(1));
 
-        sun->active = false;
+            pointCloud.points.push_back(v);
+        }
+        pointCloud.updateBuffer();
 
-        float aspect = window->getAspectRatio();
-        camera.setProj(35.0f, aspect, 0.1f, 100.0f);
-        camera.position = vec4(0, 1, 4.5, 1);
-        camera.rot      = quat::Identity();
+        {
+            // let's just draw the coordiante axis
+            PointVertex v;
+
+            // x
+            v.color    = vec3(1, 0, 0);
+            v.position = vec3(-1, 0, 0);
+            lineSoup.lines.push_back(v);
+            v.position = vec3(1, 0, 0);
+            lineSoup.lines.push_back(v);
+
+            // y
+            v.color    = vec3(0, 1, 0);
+            v.position = vec3(0, -1, 0);
+            lineSoup.lines.push_back(v);
+            v.position = vec3(0, 1, 0);
+            lineSoup.lines.push_back(v);
+
+            // z
+            v.color    = vec3(0, 0, 1);
+            v.position = vec3(0, 0, -1);
+            lineSoup.lines.push_back(v);
+            v.position = vec3(0, 0, 1);
+            lineSoup.lines.push_back(v);
+
+            lineSoup.translateGlobal(vec3(5, 5, 5));
+            lineSoup.calculateModel();
+
+            lineSoup.lineWidth = 3;
+            lineSoup.updateBuffer();
+        }
+
+
+        //    frustum.vertices.resize(2);
+        //    frustum.vertices[0].position = vec4(0, 0, 0, 0);
+        //    frustum.vertices[1].position = vec4(10, 10, 10, 0);
+        //    frustum.fromLineList();
+
+        //    frustum.createGrid({100, 100}, {0.1, 0.1});
+        frustum.createFrustum(camera.proj, 1);
+        frustum.setColor(vec4{0, 1, 0, 1});
+
+        frustum.create();
+
+
         std::cout << "Program Initialized!" << std::endl;
-
-
-        pointLight = std::make_shared<PointLight>();
-        renderer->lighting.AddLight(pointLight);
-        pointLight->setIntensity(1);
-        pointLight->setRadius(3);
-        pointLight->position = (vec3(0, 1.5, 0));
-        pointLight->setColorDiffuse(make_vec3(1));
-
-        //        pointLight->createShadowMap(256,256,sq);
-        pointLight->createShadowMap(1024, 1024, ShadowQuality::HIGH);
     }
 
 
-    void render(Camera* cam, RenderPass render_pass) override
+
+    void render(Camera* camera, RenderPass render_pass) override
     {
-        Base::render(cam, render_pass);
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        Base::render(camera, render_pass);
+
+        if (render_pass == RenderPass::Forward)
         {
-            box.render(cam);
+            pointCloud.render(camera);
+            lineSoup.render(camera);
+            frustum.renderForward(camera, mat4::Identity());
+        }
+        else if (render_pass == RenderPass::GUI)
+        {
+            if (add_values_to_console)
+            {
+                console << Random::sampleDouble(0, 100000) << std::endl;
+                test_table << Random::sampleDouble(0, 100000) << Random::sampleDouble(0, 100000);
+            }
+
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
+            ImGui::Begin("test");
+
+            ImGui::Checkbox("add_values_to_console", &add_values_to_console);
+            if (ImGui::Button("add"))
+            {
+                console << "asdf " << 234 << std::endl;
+            }
+
+            if (ImGui::Button("Screenshot"))
+            {
+                window->ScreenshotDefaultFramebuffer().save("screenshot.png");
+            }
+
+            ImGui::End();
+
+
+
+            console.render();
+            test_table.Render();
         }
     }
 
 
    private:
-    SimpleAssetObject box;
-    std::shared_ptr<PointLight> pointLight;
+    Skybox skybox;
+    bool add_values_to_console = true;
+    GLPointCloud pointCloud;
+    LineSoup lineSoup;
+    LineVertexColoredAsset frustum;
 };
 
 
-
-int main(int argc, char* args[])
+int main(const int argc, const char* argv[])
 {
-    // This should be only called if this is a sample located in saiga/samples
     initSaigaSample();
-
-    Sample window;
-    window.run();
-
+    Sample example;
+    example.run();
     return 0;
 }

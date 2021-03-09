@@ -31,6 +31,8 @@ class SAIGA_OPENGL_API Framebuffer
     Framebuffer(Framebuffer const&) = delete;
     Framebuffer& operator=(Framebuffer const&) = delete;
 
+    void MakeDefaultFramebuffer();
+
     void attachTexture(framebuffer_texture_t texture);
     void attachTextureDepth(framebuffer_texture_t texture);
     void attachTextureStencil(framebuffer_texture_t texture);

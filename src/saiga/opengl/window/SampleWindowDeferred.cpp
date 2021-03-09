@@ -37,7 +37,8 @@ SampleWindowDeferred::~SampleWindowDeferred() {}
 void SampleWindowDeferred::update(float dt)
 {
     // Update the camera position
-    if (!ImGui::captureKeyboard()) camera.update(dt);
+    //    if (!ImGui::captureKeyboard())
+    if (renderer->is_viewport_focused) camera.update(dt);
     sun->fitShadowToCamera(&camera);
 }
 
@@ -45,7 +46,8 @@ void SampleWindowDeferred::interpolate(float dt, float interpolation)
 {
     // Update the camera rotation. This could also be done in 'update' but
     // doing it in the interpolate step will reduce latency
-    if (!ImGui::captureMouse()) camera.interpolate(dt, interpolation);
+    //    if (!ImGui::captureMouse())
+    if (renderer->is_viewport_focused) camera.interpolate(dt, interpolation);
 }
 
 
@@ -67,11 +69,13 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
     {
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
         ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
-        ImGui::Begin("Saiga Sample Base");
-        ImGui::Checkbox("showSkybox", &showSkybox);
-        ImGui::Checkbox("showGrid", &showGrid);
-        camera.imgui();
-        skybox.imgui();
+        if (ImGui::Begin("Saiga Sample Base"))
+        {
+            ImGui::Checkbox("showSkybox", &showSkybox);
+            ImGui::Checkbox("showGrid", &showGrid);
+            camera.imgui();
+            skybox.imgui();
+        }
         ImGui::End();
     }
 }

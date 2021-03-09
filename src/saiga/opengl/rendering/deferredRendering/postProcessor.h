@@ -79,8 +79,8 @@ class SAIGA_OPENGL_API PostProcessor
 
     void printTimings();
     void resize(int width, int height);
-    void blitLast(int windowWidth, int windowHeight);
-    void renderLast(int windowWidth, int windowHeight);
+    void blitLast(Framebuffer* target, int windowWidth, int windowHeight);
+    void renderLast(Framebuffer* target, int windowWidth, int windowHeight);
 
     framebuffer_texture_t getCurrentTexture();
     Framebuffer& getTargetBuffer();

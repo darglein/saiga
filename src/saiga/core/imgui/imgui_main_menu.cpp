@@ -18,11 +18,7 @@ namespace Saiga
 {
 MainMenu main_menu;
 
-MainMenu::MainMenu()
-{
-    AddItem(
-        "Saiga", "Menu Bar", [this]() { visible = !visible; }, 294, "F5");
-}
+MainMenu::MainMenu() {}
 
 void MainMenu::AddItem(const std::string& menu, const std::string& item, MainMenu::MenuFunction function, int shortcut,
                        const std::string& shortcut_name)
@@ -52,8 +48,8 @@ void MainMenu::AddItem(const std::string& menu, const std::string& item, MainMen
 
 void MainMenu::render()
 {
-    if (!visible) return;
-    if (ImGui::BeginMainMenuBar())
+    //    if (ImGui::BeginMainMenuBar())
+    if (ImGui::BeginMenuBar())
     {
         for (auto& men : menus)
         {
@@ -70,7 +66,8 @@ void MainMenu::render()
             }
         }
 
-        ImGui::EndMainMenuBar();
+        //        ImGui::EndMainMenuBar();
+        ImGui::EndMenuBar();
     }
 }
 
@@ -114,49 +111,72 @@ bool Splitter(bool split_vertically, float thickness, float* size1, float* size2
 
 
 
+EditorGui::EditorGui()
+{
+    main_menu.AddItem(
+        "Saiga", "Editor GUI",
+        [this]() {
+            enabled          = !enabled;
+            reset_work_space = true;
+            std::cout << "Set Editor GUI " << enabled << std::endl;
+        },
+        294, "F5");
+    enabled = false;
+}
+
 void EditorGui::render(int w, int h)
 {
+    if (!enabled) return;
     //    return;
     {
         //        ImGui::SetNextWindowPos(ImVec2(400, 0), ImGuiCond_Once);
         //        ImGui::SetNextWindowSize(ImVec2(800, 800), ImGuiCond_Once);
 
-        ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
-        flags |= ImGuiWindowFlags_NoDocking;
         ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->Pos);
-        ImGui::SetNextWindowSize(viewport->Size);
+
+        ImVec2 main_pos  = viewport->Pos;
+        ImVec2 main_size = viewport->Size;
+
+        //        main_pos  = main_pos + ImVec2(0, MainMenu::Height());
+        //        main_size = main_size + ImVec2(0, -MainMenu::Height());
+
+
+
+        //        ImGui::SetNextWindowPos(viewport->Pos + ImVec2(0, MainMenu::Height()));
+        //        ImGui::SetNextWindowSize(viewport->Size + ImVec2(0, -MainMenu::Height()));
+        ImGui::SetNextWindowPos(main_pos);
+        ImGui::SetNextWindowSize(main_size);
+
         ImGui::SetNextWindowViewport(viewport->ID);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+
+        ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
+        flags |= ImGuiWindowFlags_NoDocking;
         flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
                  ImGuiWindowFlags_NoMove;
         flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
 
-        ImGui::Begin("Master Window", nullptr,
-                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-                         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
-                         ImGuiWindowFlags_NoNavFocus);
+
+        ImGui::Begin("Master Window", nullptr, flags);
         ImGui::PopStyleVar();
 
-
-        ImVec2 dockspace_size = ImGui::GetMainViewport()->Size;
 
 
         static ImGuiID dockspace_id = 1;
         // Declare Central dockspace
         ImGui::DockSpace(
-            dockspace_id, dockspace_size,
+            dockspace_id, main_size,
             ImGuiDockNodeFlags_None | ImGuiDockNodeFlags_PassthruCentralNode /*|ImGuiDockNodeFlags_NoResize*/);
 
-        static bool init = true;
 
-        if (init)
+
+        if (reset_work_space)
         {
             ImGui::DockBuilderRemoveNode(dockspace_id);  // Clear out existing layout
             ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode);  // Add empty node
-            ImGui::DockBuilderSetNodeSize(dockspace_id, dockspace_size);
+            ImGui::DockBuilderSetNodeSize(dockspace_id, main_size);
 
 
             ImGuiID dock_main_id = dockspace_id;  // This variable will track the document node, however we are not
@@ -172,9 +192,11 @@ void EditorGui::render(int w, int h)
             ImGui::DockBuilderDockWindow("3DView", dock_main_id);
             // ImGui::DockBuilderDockWindow("Extra", dock_id_prop);
             ImGui::DockBuilderFinish(dockspace_id);
-            init = false;
+            reset_work_space = false;
         }
 
+
+        main_menu.render();
 
         ImGui::End();
         ImGui::PopStyleVar();

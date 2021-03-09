@@ -259,19 +259,20 @@ void PostProcessor::applyShader(std::shared_ptr<PostProcessingShader> postProces
     assert_no_glerror();
 }
 
-void PostProcessor::blitLast(int windowWidth, int windowHeight)
+void PostProcessor::blitLast(Framebuffer* target, int windowWidth, int windowHeight)
 {
     //    framebuffers[lastBuffer].blitColor(0);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffers[currentBuffer].getId());
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target->getId());
     glBlitFramebuffer(0, 0, width, height, 0, 0, windowWidth, windowHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
     assert_no_glerror();
 }
 
-void PostProcessor::renderLast(int windowWidth, int windowHeight)
+void PostProcessor::renderLast(Framebuffer* target, int windowWidth, int windowHeight)
 {
     glViewport(0, 0, windowWidth, windowHeight);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    target->bind();
     glDisable(GL_DEPTH_TEST);
     passThroughShader->bind();
     vec4 screenSize(width, height, 1.0 / width, 1.0 / height);

@@ -35,10 +35,6 @@ class SAIGA_CORE_API MainMenu
     // Will be called automatically when creating a window
     void Keypressed(int key_code);
 
-    // Controlls if the menu bar is rendered.
-    // Hotkeys are still accepted (see flag below to disable them)
-    bool visible = true;
-
     // Set to false to disable hotkeys
     bool hotkeys = true;
 
@@ -69,10 +65,33 @@ class SAIGA_CORE_API MainMenu
 SAIGA_CORE_API extern MainMenu main_menu;
 
 
+
 class SAIGA_CORE_API EditorGui
 {
    public:
+    enum EditorLayout
+    {
+        WINDOW_POSITION_SYSTEM,
+        WINDOW_POSITION_DETAILS,
+        WINDOW_POSITION_LOG,
+        WINDOW_POSITION_3DVIEW,
+    };
+
+    EditorGui();
     void render(int w, int h);
+
+    // If enabled the dockspace + the menu bar is rendered
+    // Otherwise these elements are not rendered.
+    // All imgui-windows that are docked into the dockspace will disappear.
+    // Only "floating" windows are then shown
+    bool enabled = true;
+
+   private:
+    bool reset_work_space = true;
+
+    // Maps the windows (by string) to a layout location.
+    // When the gui is created (or reset)
+    std::vector<std::pair<std::string, EditorLayout>> initial_layout;
 };
 
 inline EditorGui editor_gui;

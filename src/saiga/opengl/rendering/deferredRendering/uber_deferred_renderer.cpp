@@ -5,8 +5,8 @@
  */
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
@@ -66,9 +66,15 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
 
 UberDeferredRenderer::~UberDeferredRenderer() {}
 
-void UberDeferredRenderer::resize(int windowWidth, int windowHeight)
+void UberDeferredRenderer::Resize(int windowWidth, int windowHeight)
 {
-    OpenGLRenderer::resize(windowWidth, windowHeight);
+    if (windowWidth == renderWidth && windowHeight == renderHeight)
+    {
+        // Already at correct size
+        // -> Skip resize
+        return;
+    }
+
     this->renderWidth  = windowWidth * params.renderScale;
     this->renderHeight = windowHeight * params.renderScale;
     std::cout << "Resizing Window to : " << windowWidth << "," << windowHeight << std::endl;
