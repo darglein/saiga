@@ -7,7 +7,6 @@
 #include "renderer_lighting.h"
 
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/imgui/imgui_main_menu.h"
 #include "saiga/core/math/imath.h"
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
@@ -28,7 +27,9 @@ RendererLighting::RendererLighting()
     main_menu.AddItem(
         "Saiga", "Lighting", [this]() { showLightingImgui = !showLightingImgui; }, 297, "F8");
 
+
     editor_gui.RegisterImguiWindow("RendererLighting", EditorGui::WINDOW_POSITION_SYSTEM);
+    editor_gui.RegisterImguiWindow("Light Data", EditorGui::WINDOW_POSITION_DETAILS);
 }
 
 RendererLighting::~RendererLighting() {}
@@ -369,8 +370,11 @@ void RendererLighting::renderImGui()
     if (!showLightingImgui) return;
     int w = 340;
     int h = 240;
-    ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
+    if (!editor_gui.enabled)
+    {
+        ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
+    }
     ImGui::Begin("RendererLighting", &showLightingImgui);
 
 
@@ -458,8 +462,11 @@ void RendererLighting::renderImGui()
 
     if (selected_light_ptr)
     {
-        ImGui::SetNextWindowPos(ImVec2(wp.x + ws.x, wp.y), ImGuiCond_Once);
-        ImGui::SetNextWindowSize(ws, ImGuiCond_Once);
+        if (!editor_gui.enabled)
+        {
+            ImGui::SetNextWindowPos(ImVec2(wp.x + ws.x, wp.y), ImGuiCond_Once);
+            ImGui::SetNextWindowSize(ws, ImGuiCond_Once);
+        }
         ImGui::Begin("Light Data", &showLightingImgui);
 
         selected_light_ptr->renderImGui();

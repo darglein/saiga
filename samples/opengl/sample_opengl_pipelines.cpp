@@ -6,10 +6,10 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/RendererSampleWindow.h"
 #include "saiga/opengl/world/skybox.h"
-#include "saiga/core/model/model_from_shape.h"
 
 using namespace Saiga;
 
@@ -25,6 +25,7 @@ class Sample : public RendererSampleWindow
    public:
     Sample()
     {
+        editor_gui.RegisterImguiWindow("Rendering Lighting Sample", EditorGui::WINDOW_POSITION_SYSTEM);
         Random::setSeed(LIGHT_SEED);  // SEED
 
         show.asset = std::make_shared<ColoredAsset>(
@@ -71,7 +72,8 @@ class Sample : public RendererSampleWindow
 
         auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
-        static_cast<ColoredAsset*>(show.asset.get())->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
+        static_cast<ColoredAsset*>(show.asset.get())
+            ->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
         std::cout << "Program Initialized!" << std::endl;
@@ -96,7 +98,9 @@ class Sample : public RendererSampleWindow
 #endif
         if (render_pass == RenderPass::GUI)
         {
-            if (!ImGui::Begin("Rendering Lighting Sample")) return;
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
+            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
+            ImGui::Begin("Rendering Lighting Sample");
 
             bool supportChanged =
                 ImGui::InputInt("Renderer Supported Point Lights", &maximumNumberOfRendererSupportedPointLights);

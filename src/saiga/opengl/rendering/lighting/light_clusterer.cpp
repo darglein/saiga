@@ -13,6 +13,8 @@ namespace Saiga
 {
 Clusterer::Clusterer(ClustererParameters _params)
 {
+    editor_gui.RegisterImguiWindow("Clusterer", EditorGui::WINDOW_POSITION_DETAILS);
+
     clusterThreeDimensional = _params.clusterThreeDimensional;
     useTimers               = _params.useTimers;
     clustersDirty           = true;
@@ -108,7 +110,7 @@ bool Clusterer::fillImGui()
     if (clusterDebug)
         if (ImGui::Button("updateDebug")) updateDebug = true;
 
-    changed |= updateDebug; // When debug is enabled the clusters are rebuild.
+    changed |= updateDebug;  // When debug is enabled the clusters are rebuild.
 
     changed |= ImGui::Checkbox("screenSpaceDebug", &screenSpaceDebug);
 

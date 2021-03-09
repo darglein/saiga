@@ -99,6 +99,6 @@ class SAIGA_CORE_API EditorGui
     std::vector<std::pair<std::string, EditorLayout>> initial_layout;
 };
 
-inline EditorGui editor_gui;
+SAIGA_CORE_API extern EditorGui editor_gui;
 
 }  // namespace Saiga

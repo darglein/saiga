@@ -21,6 +21,7 @@ namespace Saiga
 {
 DeferredLighting::DeferredLighting(GBuffer& framebuffer) : gbuffer(framebuffer)
 {
+    editor_gui.RegisterImguiWindow("DeferredLighting", EditorGui::WINDOW_POSITION_DETAILS);
     createLightMeshes();
     shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
 }
