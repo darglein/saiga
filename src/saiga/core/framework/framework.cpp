@@ -29,7 +29,7 @@ bool isShaderDirectory(const std::string& dir)
 {
     Directory dirbase(dir);
     Directory dirgeo(dir + "/geometry");
-    return dirbase.existsFile("colored_points.glsl") && dirgeo.existsFile("deferred_mvp_texture.glsl");
+    return dirbase.existsFile("imgui_gl.glsl") && dirgeo.existsFile("deferred_mvp_texture.glsl");
 }
 
 bool findShaders(const SaigaParameters& params)
