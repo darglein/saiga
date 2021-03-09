@@ -57,7 +57,7 @@ class SAIGA_TEMPLATE Plane
      * The intersecting circle of a sphere on this plane.
      * Sphere center is projected on the plane and the radius is calculated.
      */
-    HD vec4 intersectingCircle(const vec3& c, float r) const;
+    HD std::pair<vec3, float> intersectingCircle(const vec3& c, float r) const;
 
     /**
      * Returns the point on the plane which is closest to the given point p.

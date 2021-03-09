@@ -7,6 +7,10 @@
 #include "sphere.h"
 
 #include "internal/noGraphicsAPI.h"
+
+#include "saiga/core/util/assert.h"
+
+
 namespace Saiga
 {
 int Sphere::intersectAabb(const AABB& other) const
@@ -70,10 +74,11 @@ float Sphere::sdf(vec3 p) const
 
 vec2 Sphere::projectedIntervall(const vec3& d) const
 {
+    SAIGA_ASSERT(r >= 0);
     vec2 ret;
     float t = dot(d, pos);
-    ret[0]  = std::min(t - r, t + r);
-    ret[1]  = std::max(t + r, t - r);
+    ret[0]  = t - r;
+    ret[1]  = t + r;
     return ret;
 }
 

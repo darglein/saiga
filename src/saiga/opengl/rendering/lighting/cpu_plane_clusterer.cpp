@@ -178,9 +178,9 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                     if (z != centerZ)
                     {
                         Plane plane = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
-                        vec4 circle = plane.intersectingCircle(zLight.pos, zLight.r);
-                        zLight.pos  = make_vec3(circle);
-                        zLight.r    = circle.w();
+                        auto circle = plane.intersectingCircle(zLight.pos, zLight.r);
+                        zLight.pos  = circle.first;
+                        zLight.r    = circle.second;
                         if (zLight.r < 1e-5) continue;
                     }
                     for (int y = y0; y < y1; ++y)
@@ -189,9 +189,9 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                         if (y != centerY)
                         {
                             Plane plane = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
-                            vec4 circle = plane.intersectingCircle(yLight.pos, yLight.r);
-                            yLight.pos  = make_vec3(circle);
-                            yLight.r    = circle.w();
+                            auto circle = plane.intersectingCircle(yLight.pos, yLight.r);
+                            yLight.pos  = circle.first;
+                            yLight.r    = circle.second;
                             if (yLight.r < 1e-5) continue;
                         }
 
