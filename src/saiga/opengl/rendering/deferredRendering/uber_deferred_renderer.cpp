@@ -5,8 +5,8 @@
  */
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/core/imgui/imgui.h"
 #include "saiga/core/model/model_from_shape.h"
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
@@ -39,13 +39,11 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
     this->params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
     this->params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
     this->params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
-    this->params.maximumNumberOfBoxLights         = std::max(0, params.maximumNumberOfBoxLights);
     lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                            params.maximumNumberOfSpotLights, params.maximumNumberOfBoxLights);
+                            params.maximumNumberOfSpotLights);
     lighting.loadShaders();
 
 
-    //    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
     quadMesh.fromMesh(FullScreenQuad());
 
     int numTimers = UberDeferredTimingBlock::COUNT;

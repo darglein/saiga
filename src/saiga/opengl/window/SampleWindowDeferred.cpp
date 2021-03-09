@@ -30,7 +30,6 @@ SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
     sun = std::make_shared<DirectionalLight>();
     renderer->lighting.AddLight(sun);
     sun->createShadowMap(2048, 2048);
-    sun->enableShadows();
 }
 
 SampleWindowDeferred::~SampleWindowDeferred() {}

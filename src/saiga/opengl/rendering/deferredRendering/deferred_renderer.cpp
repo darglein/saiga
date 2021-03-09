@@ -10,6 +10,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
@@ -250,6 +251,8 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     }
 
     {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
         glEnable(GL_BLEND);
         glBlendEquation(GL_FUNC_ADD);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -263,7 +266,18 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
             window->renderImGui();
             renderImgui();
             lighting.renderImGui();
+
+
+
             renderingInterface->render(nullptr, RenderPass::GUI);
+
+
+            ImGui::Begin("3DView");
+
+            //            ImTextureID tid = (ImTextureID)postProcessor.getCurrentTexture()->getId();
+            ImGui::Texture(postProcessor.getCurrentTexture().get(), ImGui::GetWindowSize(), true);
+            ImGui::End();
+
             imgui->endFrame();
             imgui->render();
         }
@@ -272,10 +286,10 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
 
     glDisable(GL_BLEND);
 
-    if (params.blitLastFramebuffer)
-        postProcessor.blitLast(outputWidth, outputHeight);
-    else
-        postProcessor.renderLast(outputWidth, outputHeight);
+    //    if (params.blitLastFramebuffer)
+    //        postProcessor.blitLast(outputWidth, outputHeight);
+    //    else
+    //    postProcessor.renderLast(outputWidth, outputHeight);
 
 
     if (params.useGlFinish) glFinish();

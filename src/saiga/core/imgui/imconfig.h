@@ -61,13 +61,15 @@
 //---- Define constructor and implicit cast operators to convert back<>forth between your math types and ImVec2/ImVec4.
 // This will be inlined as part of ImVec2 and ImVec4 class declarations.
 
-#define IM_VEC2_CLASS_EXTRA      \
-    ImVec2(const Saiga::vec2& f) \
-    {                            \
-        x = f[0];                \
-        y = f[1];                \
-    }                            \
-    operator Saiga::vec2() const { return Saiga::vec2(x, y); }
+#define IM_VEC2_CLASS_EXTRA                                    \
+    ImVec2(const Saiga::vec2& f)                               \
+    {                                                          \
+        x = f[0];                                              \
+        y = f[1];                                              \
+    }                                                          \
+    operator Saiga::vec2() const { return Saiga::vec2(x, y); } \
+    ImVec2 operator+(ImVec2 b) { return ImVec2(x + b.x, y + b.y); }
+
 
 #define IM_VEC3_CLASS_EXTRA      \
     ImVec3(const Saiga::vec3& f) \

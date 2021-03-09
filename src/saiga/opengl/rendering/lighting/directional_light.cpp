@@ -11,88 +11,6 @@
 
 namespace Saiga
 {
-void DirectionalLightShader::checkUniforms()
-{
-    LightShader::checkUniforms();
-    location_direction               = getUniformLocation("direction");
-    location_ambientIntensity        = getUniformLocation("ambientIntensity");
-    location_ssaoTexture             = getUniformLocation("ssaoTex");
-    location_depthTexures            = getUniformLocation("depthTexures");
-    location_viewToLightTransforms   = getUniformLocation("viewToLightTransforms");
-    location_depthCuts               = getUniformLocation("depthCuts");
-    location_numCascades             = getUniformLocation("numCascades");
-    location_cascadeInterpolateRange = getUniformLocation("cascadeInterpolateRange");
-}
-
-
-
-void DirectionalLightShader::uploadDirection(vec3& direction)
-{
-    Shader::upload(location_direction, direction);
-}
-
-void DirectionalLightShader::uploadAmbientIntensity(float i)
-{
-    Shader::upload(location_ambientIntensity, i);
-}
-
-
-void DirectionalLightShader::uploadNumCascades(int n)
-{
-    Shader::upload(location_numCascades, n);
-}
-
-void DirectionalLightShader::uploadCascadeInterpolateRange(float r)
-{
-    Shader::upload(location_cascadeInterpolateRange, r);
-}
-
-void DirectionalLightShader::uploadSsaoTexture(std::shared_ptr<TextureBase> texture)
-{
-    texture->bind(5);
-    Shader::upload(location_ssaoTexture, 5);
-}
-
-void DirectionalLightShader::uploadDepthTextures(std::vector<std::shared_ptr<TextureBase> >& textures)
-{
-    //    int i = 7;
-    int startTexture = 6;
-    std::vector<int> ids;
-
-    for (int i = 0; i < MAX_CASCADES; ++i)
-    {
-        //    for(auto& t : textures){
-        if (i < (int)textures.size())
-        {
-            textures[i]->bind(i + startTexture);
-            ids.push_back(i + startTexture);
-        }
-        else
-        {
-            ids.push_back(startTexture);
-        }
-        //        i++;
-    }
-    Shader::upload(location_depthTexures, ids.size(), ids.data());
-}
-
-void DirectionalLightShader::uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures)
-{
-    textures->bind(6);
-    Shader::upload(location_depthTexures, 6);
-}
-
-void DirectionalLightShader::uploadViewToLightTransforms(AlignedVector<mat4>& transforms)
-{
-    Shader::upload(location_viewToLightTransforms, transforms.size(), transforms.data());
-}
-
-void DirectionalLightShader::uploadDepthCuts(std::vector<float>& depthCuts)
-{
-    Shader::upload(location_depthCuts, depthCuts.size(), depthCuts.data());
-}
-
-
 //==================================
 
 
@@ -101,7 +19,7 @@ void DirectionalLight::createShadowMap(int w, int h, int _numCascades, ShadowQua
     SAIGA_ASSERT(_numCascades > 0 && _numCascades <= MAX_CASCADES);
     this->numCascades = _numCascades;
     //    Light::createShadowMap(resX,resY);
-    shadowmap = std::make_shared<CascadedShadowmap>(w, h, _numCascades, quality);
+    shadowmap = std::make_unique<CascadedShadowmap>(w, h, _numCascades, quality);
     //    shadowmap->createCascaded(w,h,numCascades);
     orthoBoxes.resize(_numCascades);
 
@@ -114,6 +32,7 @@ void DirectionalLight::createShadowMap(int w, int h, int _numCascades, ShadowQua
         depthCutsRelative[i] = float(i) / _numCascades;
     }
     depthCutsRelative.back() = 1.0f;
+    castShadows              = true;
 }
 
 
@@ -154,7 +73,7 @@ void DirectionalLight::setDirection(const vec3& dir)
 
 void DirectionalLight::fitShadowToCamera(Camera* cam)
 {
-    if (!hasShadows()) return;
+    if (!castShadows) return;
 #if 0
     vec3 dir = -direction;
     vec3 right = normalize(cross(vec3(1,1,0),dir));
@@ -380,45 +299,6 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
     //                );
 }
 
-void DirectionalLight::bindUniforms(DirectionalLightShader& shader, Camera* cam)
-{
-    shader.uploadColorDiffuse(colorDiffuse);
-    shader.uploadColorSpecular(colorSpecular);
-    shader.uploadAmbientIntensity(ambientIntensity);
-
-    vec3 viewd = -normalize(make_vec3(cam->view * make_vec4(direction, 0)));
-    shader.uploadDirection(viewd);
-
-    mat4 ip = inverse(cam->proj);
-    shader.uploadInvProj(ip);
-
-    if (this->hasShadows())
-    {
-        const mat4 biasMatrix =
-            make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
-
-        AlignedVector<mat4> viewToLight(numCascades);
-
-        for (int i = 0; i < numCascades; ++i)
-        {
-            this->shadowCamera.setProj(orthoBoxes[i]);
-            mat4 shadow    = biasMatrix * this->shadowCamera.proj * this->shadowCamera.view * cam->model;
-            viewToLight[i] = shadow;
-        }
-
-        //        shader.uploadDepthBiasMV(shadow);
-        shader.uploadViewToLightTransforms(viewToLight);
-        shader.uploadDepthCuts(depthCuts);
-        //        shader.uploadDepthTexture(shadowmap->getDepthTexture(0));
-        //        shader.uploadDepthTextures(shadowmap->getDepthTextures());
-        shader.uploadDepthTextures(shadowmap->getDepthTexture());
-        shader.uploadShadowMapSize(shadowmap->getSize());
-        shader.uploadNumCascades(numCascades);
-        shader.uploadCascadeInterpolateRange(cascadeInterpolateRange);
-    }
-}
-
-
 
 void DirectionalLight::setDepthCutsRelative(const std::vector<float>& value)
 {
@@ -460,7 +340,7 @@ bool DirectionalLight::renderShadowmap(DepthFunction f, UniformBuffer& shadowCam
 
 void DirectionalLight::renderImGui()
 {
-    Light::renderImGui();
+    LightBase::renderImGui();
     ImGui::InputFloat("ambientIntensity", &ambientIntensity, 0.1, 1);
     ImGui::InputFloat("Cascade Interpolate Range", &cascadeInterpolateRange);
     if (ImGui::Direction("Direction", direction))

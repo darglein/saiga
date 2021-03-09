@@ -21,6 +21,10 @@ Clusterer::Clusterer(ClustererParameters _params)
     clusterListBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
     itemListBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
 
+    clusterInfoBuffer.enabled = true;
+
+    cached_projection = mat4::Identity();
+
     loadComputeShaders();
 }
 
@@ -57,9 +61,8 @@ void Clusterer::loadComputeShaders() {}
 void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
 {
     assert_no_glerror();
-    // TODO Paul: Dirty Clusters on FOV and Aspect change usw...
-    // clustersDirty |= depth != cam->zFar - cam->zNear;
-    // depth = cam->zFar - cam->zNear;
+    clustersDirty |= cam->proj != cached_projection;
+    cached_projection = cam->proj;
 
     if (clustersDirty) build_clusters(cam);
 
@@ -75,20 +78,15 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
     {
         const auto& cluster_planes = culling_cluster[c].planes;
 
-        int visibleLightCount = 0;
-
+        int visiblePLCount = 0;
         for (int i = 0; i < pointLightsClusterData.size(); ++i)
         {
             PointLightClusterData& plc = pointLightsClusterData[i];
             bool intersection          = true;
-            float pDotC;
-            vec3 sphereCenter  = cam->WorldToView(plc.world_center);
-            float sphereRadius = plc.radius;
+            vec3 sphereCenter          = cam->WorldToView(plc.world_center);
             for (int p = 0; p < 6; ++p)
             {
-                pDotC = dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + sphereRadius;
-
-                if (pDotC < 0.0)
+                if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
                 {
                     intersection = false;
                     break;
@@ -96,33 +94,29 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
             }
             if (intersection)
             {
-                if (visibleLightCount >= maxClusterItemsPerCluster)  // TODO Paul...
-                    break;
+                if (visiblePLCount >= maxClusterItemsPerCluster) break;
 
-                visibleLightIndices[visibleLightCount] = i;
-                visibleLightCount++;
+                visibleLightIndices[visiblePLCount] = i;
+                visiblePLCount++;
             }
         }
 
-
         cluster& gpuCluster = clusterBuffer.clusterList.at(c);
         gpuCluster.offset   = globalOffset;
-        globalOffset += visibleLightCount;
+        globalOffset += visiblePLCount;
 
-        for (int v = 0; v < visibleLightCount; ++v)
+        for (int v = 0; v < visiblePLCount; ++v)
         {
-            itemBuffer.itemList.at(gpuCluster.offset + v).plIdx = visibleLightIndices[v];
+            itemBuffer.itemList[gpuCluster.offset + v].plIdx = visibleLightIndices[v];
         }
 
-        gpuCluster.plCount = visibleLightCount;
+        gpuCluster.plCount = visiblePLCount;
         gpuCluster.slCount = 0;
-        gpuCluster.blCount = 0;
     }
 
     lightAssignmentTimer.stop();
 
     startTimer(1);
-
     int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
     clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
@@ -144,6 +138,7 @@ void Clusterer::build_clusters(Camera* cam)
     float camFar  = cam->zFar;
     cam->recomputeProj();
     mat4 invProjection(inverse(cam->proj));
+
 
     clusterInfoBuffer.screenSpaceTileSize = screenSpaceTileSize;
     clusterInfoBuffer.screenWidth         = width;
@@ -167,7 +162,6 @@ void Clusterer::build_clusters(Camera* cam)
     clusterInfoBuffer.scale = gridCount[2] / log2(camFar / camNear);
     clusterInfoBuffer.bias  = -(gridCount[2] * log2(camNear) / log2(camFar / camNear));
 
-
     // Calculate Cluster Planes in View Space.
     int clusterCount = (int)(gridCount[0] * gridCount[1] * gridCount[2]);
     clusterBuffer.clusterList.clear();
@@ -179,7 +173,6 @@ void Clusterer::build_clusters(Camera* cam)
     if (renderDebugEnabled && debugFrustumToView)
     {
         debugCluster.lines.clear();
-        debugPoints.points.clear();
     }
 
     // const vec3 eyeView(0.0); Not required because it is zero.
@@ -362,7 +355,6 @@ void Clusterer::build_clusters(Camera* cam)
 
         debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
         debugCluster.translateLocal(vec3(0, 0, -0.0001f));
-        debugPoints.setModelMatrix(cam->getModelMatrix());  // is inverse view.
 #if 0
         debugCluster.setPosition(make_vec4(0));
         debugCluster.translateGlobal(vec3(0, 6, 0));
@@ -371,13 +363,13 @@ void Clusterer::build_clusters(Camera* cam)
         debugCluster.calculateModel();
         debugCluster.updateBuffer();
         debugFrustumToView = false;
-        debugPoints.calculateModel();
-        debugPoints.updateBuffer();
     }
 
     startTimer(0);
     itemBuffer.itemList.clear();
     int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
+
+    clusterInfoBuffer.tileDebug = tileDebugView ? 256 : 0;
     itemBuffer.itemList.resize(maxClusterItemsPerCluster * culling_cluster.size());
     clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
 
@@ -409,6 +401,7 @@ void Clusterer::renderImGui(bool* p_open)
     if (renderDebugEnabled)
         if (ImGui::Button("debugFrustumToView")) debugFrustumToView = true;
 
+    clustersDirty |= ImGui::Checkbox("tileDebugView", &tileDebugView);
     if (ImGui::Checkbox("useTimers", &useTimers) && useTimers)
     {
         gpuTimers.resize(2);
@@ -432,7 +425,8 @@ void Clusterer::renderImGui(bool* p_open)
     }
     bool changed = false;
     changed |= ImGui::Checkbox("clusterThreeDimensional", &clusterThreeDimensional);
-    changed |= ImGui::SliderInt("screenSpaceTileSize", &screenSpaceTileSize, 1, 1024);
+    changed |= ImGui::SliderInt("screenSpaceTileSize", &screenSpaceTileSize, 16, 1024);
+    screenSpaceTileSize = std::max(screenSpaceTileSize, 16);
     if (clusterThreeDimensional)
     {
         changed |= ImGui::SliderInt("depthSplits", &depthSplits, 1, 32);
