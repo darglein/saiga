@@ -87,6 +87,51 @@ HD constexpr auto slerp(const Eigen::QuaternionBase<Derived>& a, const Eigen::Qu
     return a.slerp(alpha, b);
 }
 
+
+/**
+ * Pixar Revised ONB
+ * https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+ */
+template <typename Derived>
+Matrix<typename Derived::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived>& n)
+{
+    static_assert(Derived::RowsAtCompileTime == 3 && Derived::ColsAtCompileTime == 1, "Input must be 3x1");
+
+    using T    = typename Derived::Scalar;
+    using Mat3 = Matrix<T, 3, 3>;
+    using Vec3 = Matrix<T, 3, 1>;
+
+    T sign = n(2) > 0 ? 1.0f : -1.0f;  // emulate copysign
+    T a    = -1.0f / (sign + n[2]);
+    T b    = n[0] * n[1] * a;
+    Mat3 v;
+    v.col(2) = n;
+    v.col(1) = Vec3(1.0f + sign * n[0] * n[0] * a, sign * b, -sign * n[0]);
+    v.col(0) = Vec3(b, sign + n[1] * n[1] * a, -n[1]);
+    return v;
+}
+
+/**
+ * Simple ONB from a direction and an up vector.
+ */
+template <typename Derived1, typename Derived2>
+Matrix<typename Derived1::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived1>& dir,
+                                            const Eigen::MatrixBase<Derived2>& up)
+{
+    using T    = typename Derived1::Scalar;
+    using Mat3 = Matrix<T, 3, 3>;
+
+    Mat3 R;
+    R.col(2) = dir.normalized();
+    R.col(1) = up.normalized();
+    R.col(0) = R.col(1).cross(R.col(2)).normalized();
+    // make sure it works even if dir and up are not orthogonal
+    R.col(1) = R.col(2).cross(R.col(0));
+    return R;
+}
+
+
+
 SAIGA_CORE_API extern mat4 scale(const vec3& t);
 SAIGA_CORE_API extern mat4 translate(const vec3& t);
 SAIGA_CORE_API extern mat4 rotate(float angle, const vec3& axis);
@@ -137,6 +182,8 @@ SAIGA_CORE_API extern quat make_quat(const mat4& m);
 SAIGA_CORE_API extern mat4 lookAt(const vec3& eye, const vec3& center, const vec3& up);
 SAIGA_CORE_API extern mat4 perspective(float fovy, float aspect, float zNear, float zFar);
 SAIGA_CORE_API extern mat4 ortho(float left, float right, float bottom, float top, float zNear, float zFar);
+
+SAIGA_CORE_API extern mat4 createTRSmatrix(const vec3& t, const quat& r, const vec3& s);
 SAIGA_CORE_API extern mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s);
 
 

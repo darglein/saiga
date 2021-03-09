@@ -263,6 +263,9 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
             imgui->beginFrame();
             renderImgui();
             lighting.renderImGui();
+
+
+
             renderingInterface->render(nullptr, RenderPass::GUI);
             imgui->endFrame();
             imgui->render();

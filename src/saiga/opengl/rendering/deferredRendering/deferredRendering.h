@@ -8,5 +8,6 @@
 
 #include "saiga/opengl/rendering/deferredRendering/deferred_renderer.h"
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
-#include "saiga/opengl/rendering/deferredRendering/postProcessor.h"
 #include "saiga/opengl/rendering/lighting/all.h"
+#include "saiga/opengl/rendering/deferredRendering/postProcessor.h"
+

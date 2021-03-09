@@ -19,7 +19,7 @@ class Sample : public SampleWindowDeferred
         box.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/Cornell.obj"));
         showGrid  = false;
 
-        sun->setActive(false);
+        sun->active = false;
 
         float aspect = window->getAspectRatio();
         camera.setProj(35.0f, aspect, 0.1f, 100.0f);
@@ -30,15 +30,13 @@ class Sample : public SampleWindowDeferred
 
         pointLight = std::make_shared<PointLight>();
         renderer->lighting.AddLight(pointLight);
-        pointLight->setAttenuation(AttenuationPresets::Quadratic);
         pointLight->setIntensity(1);
         pointLight->setRadius(3);
-        pointLight->setPosition(vec3(0, 1.5, 0));
+        pointLight->position = (vec3(0, 1.5, 0));
         pointLight->setColorDiffuse(make_vec3(1));
-        pointLight->calculateModel();
+
         //        pointLight->createShadowMap(256,256,sq);
         pointLight->createShadowMap(1024, 1024, ShadowQuality::HIGH);
-        pointLight->enableShadows();
     }
 
 

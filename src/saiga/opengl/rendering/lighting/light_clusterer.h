@@ -24,32 +24,26 @@ struct clusterItem
 {
     int plIdx = -1;
     int slIdx = -1;
-    int blIdx = -1;
 };
 struct cluster
 {
     int offset  = 0;
     int plCount = 0;
     int slCount = 0;
-    int blCount = 0;
 };
 
 struct PointLightClusterData
 {
     vec3 world_center;
     float radius;
+    PointLightClusterData(vec3 w_center, float r) : world_center(w_center), radius(r) {}
 };
 
 struct SpotLightClusterData
 {
     vec3 world_center;  // should be sufficient -> center position of the spot light cone
     float radius;       // should be sufficient -> bounding sphere instead of transformed cone
-};
-
-struct BoxLightClusterData
-{
-    vec3 world_center;
-    float radius;  // should be sufficient -> bounding sphere instead of transformed box
+    SpotLightClusterData(vec3 w_center, float r) : world_center(w_center), radius(r) {}
 };
 
 #ifdef GPU_LIGHT_ASSIGNMENT
@@ -58,13 +52,12 @@ class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
    public:
     GLint location_clusterDataBlockPointLights;  // pointLightClusterData array
     GLint location_clusterDataBlockSpotLights;   // spotLightClusterData array
-    GLint location_clusterDataBlockBoxLights;    // boxLightClusterData array
     GLint location_clusterInfoBlock;             // number of lights in cluster arrays
 
     // Gets accessed based on pixel world space position (or screen space on 2D clustering)
     GLint location_clusterList;  // clusters
     /*
-     * Looks like this: [offset, plCount, slCount, blCount], [offset, plCount, slCount, blCount] ...
+     * Looks like this: [offset, plCount, slCount], [offset, plCount, slCount] ...
      * So for each cluster we store an offset in the itemList and the number of specific lights that were assigned.
      */
     GLint location_itemList;  // itemList
@@ -115,14 +108,31 @@ class SAIGA_OPENGL_API Clusterer
     {
         pointLightsClusterData.clear();
         spotLightsClusterData.clear();
-        boxLightsClusterData.clear();
     }
 
-    inline void addPointLight(PointLightClusterData& plc) { pointLightsClusterData.push_back(plc); }
+    inline void addPointLight(const vec3& position, const float& radius)
+    {
+        pointLightsClusterData.emplace_back(position, radius);
+    }
 
-    inline void addSpotLight(SpotLightClusterData& slc) { spotLightsClusterData.push_back(slc); }
+    inline void addSpotLight(const vec3& position, const float& radius)
+    {
+        spotLightsClusterData.emplace_back(position, radius);
+    }
 
-    inline void addBoxLight(BoxLightClusterData& blc) { boxLightsClusterData.push_back(blc); }
+    inline void enable()
+    {
+        clusterInfoBuffer.enabled = true;
+        clustersDirty             = true;
+        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+    }
+
+    inline void disable()
+    {
+        clusterInfoBuffer.enabled = false;
+        clustersDirty             = true;
+        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+    }
 
     // Binds Cluster and Item ShaderStoragBuffers at the end.
     void clusterLights(Camera* cam, const ViewPort& viewPort);
@@ -147,15 +157,12 @@ class SAIGA_OPENGL_API Clusterer
     {
         if (!renderDebugEnabled) return;
         debugCluster.render(cam);
-        debugPoints.render(cam);
     };
 
    public:
     std::vector<PointLightClusterData> pointLightsClusterData;
 
     std::vector<SpotLightClusterData> spotLightsClusterData;
-
-    std::vector<BoxLightClusterData> boxLightsClusterData;
 
     std::vector<FilteredMultiFrameOpenGLTimer> gpuTimers;
     Timer lightAssignmentTimer;
@@ -178,14 +185,16 @@ class SAIGA_OPENGL_API Clusterer
     int width, height;
 
     int screenSpaceTileSize = 128;
-    int depthSplits = 1;
+    int depthSplits         = 1;
+    mat4 cached_projection;
 
     bool clusterThreeDimensional = false;
     bool useTimers;
     bool renderDebugEnabled = false;
     bool debugFrustumToView = false;
     LineSoup debugCluster;
-    GLPointCloud debugPoints;
+
+    bool tileDebugView = false;
 
     bool clustersDirty = true;
 
@@ -222,6 +231,7 @@ class SAIGA_OPENGL_API Clusterer
 
     struct infoBuf_t
     {
+        int enabled;
         int clusterX;
         int clusterY;
         int screenSpaceTileSize;
@@ -234,6 +244,7 @@ class SAIGA_OPENGL_API Clusterer
 
         int clusterListCount;
         int itemListCount;
+        int tileDebug;
     } clusterInfoBuffer;
 
     struct clusterBuffer_t
@@ -242,7 +253,7 @@ class SAIGA_OPENGL_API Clusterer
         /*
          * ClusterList
          * Gets accessed based on pixel world space position (or screen space on 2D clustering)
-         * Looks like this: [offset, plCount, slCount, blCount, dlCount], [offset, plCount, slCount, blCount, dlCount]
+         * Looks like this: [offset, plCount, slCount, dlCount], [offset, plCount, slCount, dlCount]
          * ... So for each cluster we store an offset in the itemList and the number of specific lights that were
          * assigned.
          */

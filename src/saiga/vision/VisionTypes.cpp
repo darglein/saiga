@@ -18,28 +18,7 @@ Mat3 skew(const Vec3& a)
     return m;
 }
 
-Mat3 onb(const Vec3& n)
-{
-    double sign = n(2) > 0 ? 1.0f : -1.0f;  // emulate copysign
-    double a    = -1.0f / (sign + n[2]);
-    double b    = n[0] * n[1] * a;
-    Mat3 v;
-    v.col(2) = n;
-    v.col(1) = Vec3(1.0f + sign * n[0] * n[0] * a, sign * b, -sign * n[0]);
-    v.col(0) = Vec3(b, sign + n[1] * n[1] * a, -n[1]);
-    return v;
-}
 
-Mat3 onb(const Vec3& dir, const Vec3& up)
-{
-    Mat3 R;
-    R.col(2) = dir.normalized();
-    R.col(1) = up.normalized();
-    R.col(0) = R.col(1).cross(R.col(2)).normalized();
-    // make sure it works even if dir and up are not orthogonal
-    R.col(1) = R.col(2).cross(R.col(0));
-    return R;
-}
 
 Mat3 enforceRank2(const Mat3& M)
 {
