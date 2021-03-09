@@ -38,7 +38,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         for (int i = 0; i < pointLightsClusterData.size(); ++i)
         {
             PointLightClusterData& plc = pointLightsClusterData[i];
-            vec3 sphereCenter          = cam->projectToViewSpace(plc.world_center);
+            vec3 sphereCenter          = cam->WorldToView(plc.world_center);
             float sphereRadius         = plc.radius;
 
             int x0 = 0, x1 = planesX.size() - 1;
@@ -220,7 +220,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         for (int i = 0; i < pointLightsClusterData.size(); ++i)
         {
             auto& cData        = pointLightsClusterData[i];
-            vec3 sphereCenter  = cam->projectToViewSpace(cData.world_center);
+            vec3 sphereCenter  = cam->WorldToView(cData.world_center);
             float sphereRadius = cData.radius;
             Sphere sphere(sphereCenter, sphereRadius);
 

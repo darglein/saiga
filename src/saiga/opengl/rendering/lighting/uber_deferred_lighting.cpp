@@ -49,7 +49,7 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
 
     ClustererParameters params;
     params.clusterThreeDimensional = true;
-    lightClusterer = std::make_shared<Clusterer>(params);
+    lightClusterer = std::make_shared<CPUPlaneClusterer>(params);
 }
 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)

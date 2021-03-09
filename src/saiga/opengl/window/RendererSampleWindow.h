@@ -7,17 +7,15 @@
 #pragma once
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_SDL
-
-#    include "saiga/core/sdl/all.h"
-#    include "saiga/opengl/assets/all.h"
-#    include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
-#    include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
-#    include "saiga/opengl/rendering/renderer.h"
-#    include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
-#    include "saiga/opengl/window/WindowTemplate.h"
-#    include "saiga/opengl/window/sdl_window.h"
-#    include "saiga/opengl/world/proceduralSkybox.h"
+#include "saiga/core/glfw/all.h"
+#include "saiga/opengl/assets/all.h"
+#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
+#include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
+#include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/window/WindowTemplate.h"
+#include "saiga/opengl/window/glfw_window.h"
+#include "saiga/opengl/world/proceduralSkybox.h"
 
 
 
@@ -35,17 +33,17 @@ namespace Saiga
 #define SINGLE_PASS_FORWARD_PIPELINE
 
 #ifdef SINGLE_PASS_DEFERRED_PIPELINE
-#undef MULTI_PASS_DEFERRED_PIPELINE
-#undef SINGLE_PASS_FORWARD_PIPELINE
-class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, UberDeferredRenderer>,
-                                              public SDL_KeyListener
+#    undef MULTI_PASS_DEFERRED_PIPELINE
+#    undef SINGLE_PASS_FORWARD_PIPELINE
+class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::GLFW, UberDeferredRenderer>,
+                                              public glfw_KeyListener
 #elif defined(MULTI_PASS_DEFERRED_PIPELINE)
-#undef SINGLE_PASS_FORWARD_PIPELINE
-class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, DeferredRenderer>,
-                                              public SDL_KeyListener
+#    undef SINGLE_PASS_FORWARD_PIPELINE
+class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::GLFW, DeferredRenderer>,
+                                              public glfw_KeyListener
 #elif defined(SINGLE_PASS_FORWARD_PIPELINE)
-class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::SDL, ForwardRenderer>,
-                                              public SDL_KeyListener
+class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::GLFW, ForwardRenderer>,
+                                              public glfw_KeyListener
 #endif
 {
    public:
@@ -57,8 +55,8 @@ class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowMana
 
     virtual void render(Camera* camera, RenderPass render_pass) override;
 
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
+    virtual void keyPressed(int key, int scancode, int mods) override;
+    virtual void keyReleased(int key, int scancode, int mods) override;
 
    protected:
     Glfw_Camera<PerspectiveCamera> camera;
@@ -68,5 +66,3 @@ class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowMana
 };
 
 }  // namespace Saiga
-
-#endif

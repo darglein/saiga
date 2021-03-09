@@ -6,11 +6,10 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/RendererSampleWindow.h"
 #include "saiga/opengl/world/skybox.h"
-
+#include "saiga/core/model/model_from_shape.h"
 
 using namespace Saiga;
 
@@ -27,11 +26,10 @@ class Sample : public RendererSampleWindow
     Sample()
     {
         Random::setSeed(LIGHT_SEED);  // SEED
-        ObjAssetLoader assetLoader;
-        auto showAsset = assetLoader.loadDebugPlaneAsset(vec2(20, 20));
-        // auto showAsset = assetLoader.loadColoredAsset("show_model.obj");
 
-        show.asset = showAsset;
+        show.asset = std::make_shared<ColoredAsset>(
+            CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::darkgray, Colors::white));
+
         show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
         // show.multScale(make_vec3(0.01f));
         show.calculateModel();
@@ -73,7 +71,7 @@ class Sample : public RendererSampleWindow
 
         auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
-        showAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
+        static_cast<ColoredAsset*>(show.asset.get())->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
         std::cout << "Program Initialized!" << std::endl;
@@ -85,7 +83,7 @@ class Sample : public RendererSampleWindow
     {
         Base::render(camera, render_pass);
 
-#ifdef SINGLE_PASS_DEFERRED_PIPELINE
+#if defined(SINGLE_PASS_DEFERRED_PIPELINE) || defined(MULTI_PASS_DEFERRED_PIPELINE)
         if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
         {
             show.render(camera);
