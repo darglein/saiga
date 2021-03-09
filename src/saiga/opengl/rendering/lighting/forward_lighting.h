@@ -36,7 +36,6 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
    public:
     ShaderStorageBuffer lightDataBufferPoint;
     ShaderStorageBuffer lightDataBufferSpot;
-    ShaderStorageBuffer lightDataBufferBox;
     ShaderStorageBuffer lightDataBufferDirectional;
 
     UniformBuffer lightInfoBuffer;
@@ -51,7 +50,7 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 
     void renderImGui() override;
 
-    void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights) override;
+    void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights) override;
 
    public:
     std::shared_ptr<Clusterer> lightClusterer;

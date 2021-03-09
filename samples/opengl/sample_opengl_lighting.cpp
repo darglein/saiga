@@ -96,44 +96,44 @@ class Sample : public SampleWindowDeferred
             auto light = std::make_shared<PointLight>();
             renderer->lighting.AddLight(light);
 
-            light->setAttenuation(AttenuationPresets::Quadratic);
             light->setIntensity(2);
 
 
             light->setRadius(linearRand(5, 30));
 
-            light->setPosition(linearRand(vec3(-s, 1, -s), vec3(s, 5, s)));
+            light->position = (linearRand(vec3(-s, 1, -s), vec3(s, 5, s)));
 
             light->setColorDiffuse(make_vec3(1));
-            light->calculateModel();
+
 
             light->createShadowMap(512, 512, sq);
-            light->enableShadows();
+            light->castShadows = true;
 
             point_lights.push_back(light);
         }
 
 
 
-        for (int i = 0; i < 15; ++i)
+        for (int i = 0; i < 2; ++i)
         {
             auto light = std::make_shared<SpotLight>();
             renderer->lighting.AddLight(light);
 
-            light->setAttenuation(AttenuationPresets::Quadratic);
             light->setIntensity(2);
             light->setRadius(linearRand(8, 15));
 
-            light->setPosition(linearRand(vec3(-s, 3, -s), vec3(s, 8, s)));
+            s               = 5;
+            light->position = (linearRand(vec3(-s, 3, -s), vec3(s, 8, s)));
 
-            light->setAngle(linearRand(40, 85));
+            light->setAngle(linearRand(30, 70));
             // light->setDirection(vec3(0, -5, 0) + linearRand(make_vec3(-2), make_vec3(2)));
 
             light->setColorDiffuse(make_vec3(1));
-            light->calculateModel();
+
+            light->direction = vec3(-1, -1, 0);
 
             light->createShadowMap(512, 512, sq);
-            light->enableShadows();
+
 
             spot_lights.push_back(light);
         }
@@ -143,7 +143,7 @@ class Sample : public SampleWindowDeferred
             auto light = std::make_shared<DirectionalLight>();
             renderer->lighting.AddLight(light);
             light->createShadowMap(2048, 2048, 3, ShadowQuality::LOW);
-            light->enableShadows();
+            light->castShadows = true;
 
             light->setAmbientIntensity(0);
 
@@ -165,15 +165,15 @@ class Sample : public SampleWindowDeferred
         Base::update(dt);
         for (auto l : point_lights)
         {
-            l->setActive(current_type == 0);
+            l->active = (current_type == 0);
         }
         for (auto l : spot_lights)
         {
-            l->setActive(current_type == 1);
+            l->active = (current_type == 1);
         }
         for (auto l : directional_lights)
         {
-            l->setActive(current_type == 2);
+            l->active = (current_type == 2);
             l->fitShadowToCamera(&camera);
             l->fitNearPlaneToScene(bounding_box);
         }
@@ -208,7 +208,7 @@ class Sample : public SampleWindowDeferred
     std::vector<SimpleAssetObject> objects;
 
 
-    int current_type = 0;
+    int current_type = 1;
     std::vector<std::shared_ptr<PointLight>> point_lights;
     std::vector<std::shared_ptr<SpotLight>> spot_lights;
     std::vector<std::shared_ptr<DirectionalLight>> directional_lights;

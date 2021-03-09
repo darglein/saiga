@@ -11,15 +11,6 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API AttenuatedLightShader : public LightShader
-{
-   public:
-    GLint location_attenuation;
-
-    virtual void checkUniforms();
-    virtual void uploadA(vec3& attenuation, float cutoffRadius);
-};
-
 namespace AttenuationPresets
 {
 static const vec3 NONE = vec3(1, 0, 0);  // Cutoff = 1
@@ -35,11 +26,9 @@ static const vec3 QuadraticStrong = vec3(1, 2, 4);      // Cutoff = 0.142857
 }  // namespace AttenuationPresets
 
 
-class SAIGA_OPENGL_API AttenuatedLight : public Light
+class SAIGA_OPENGL_API LightDistanceAttenuation
 {
-    friend class DeferredLighting;
-
-   protected:
+   public:
     /**
      * Quadratic attenuation of the form:
      * I = i/(a*x*x+b*x+c)
@@ -62,32 +51,22 @@ class SAIGA_OPENGL_API AttenuatedLight : public Light
      * The shadow volumes should be constructed so that they closely contain
      * all points up to the cutoffradius.
      */
-    float cutoffRadius;
+    float radius;
 
    public:
-    AttenuatedLight() {}
-    virtual ~AttenuatedLight() {}
-
     // evaluates the attenuation formula at a given radius
-    float evaluateAttenuation(float distance);
+    float Evaluate(float distance)
+    {
+        float x = distance / radius;
+        return 1.0f / (attenuation[0] + attenuation[1] * x + attenuation[2] * x * x);
+    }
 
-    void bindUniforms(std::shared_ptr<AttenuatedLightShader> shader, Camera* cam);
+    float getRadius() const { return radius; }
+    void setRadius(float value) { radius = value; }
 
+    //    vec3 getAttenuation() const { return attenuation; }
+    //    void setAttenuation(const vec3& value) { attenuation = value; }
 
-    float getRadius() const;
-    virtual void setRadius(float value);
-
-    vec3 getAttenuation() const;
-    float getAttenuation(float r);
-    void setAttenuation(const vec3& value);
-
-    void createShadowMap(int resX, int resY);
-
-    void bindFace(int face);
-    void calculateCamera(int face);
-
-
-    bool cullLight(Camera* cam);
     void renderImGui();
 };
 

@@ -8,41 +8,18 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/Align.h"
 #include "saiga/opengl/rendering/lighting/light.h"
+#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
+#include "saiga/opengl/rendering/lighting/light.h"
 #include "saiga/opengl/uniformBuffer.h"
-
 namespace Saiga
 {
 #define MAX_CASCADES 5
 
 
-class SAIGA_OPENGL_API DirectionalLightShader : public LightShader
+class SAIGA_OPENGL_API DirectionalLight : public LightBase
 {
    public:
-    GLint location_direction, location_ambientIntensity;
-    GLint location_ssaoTexture;
-    GLint location_depthTexures;
-    GLint location_viewToLightTransforms;
-    GLint location_depthCuts;
-    GLint location_numCascades;
-    GLint location_cascadeInterpolateRange;
-
-    virtual void checkUniforms();
-    void uploadDirection(vec3& direction);
-    void uploadAmbientIntensity(float i);
-    void uploadSsaoTexture(std::shared_ptr<TextureBase> texture);
-
-    void uploadDepthTextures(std::vector<std::shared_ptr<TextureBase>>& textures);
-    void uploadViewToLightTransforms(AlignedVector<mat4>& transforms);
-    void uploadDepthCuts(std::vector<float>& depthCuts);
-    void uploadNumCascades(int n);
-    void uploadCascadeInterpolateRange(float r);
-    void uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures);
-};
-
-class SAIGA_OPENGL_API DirectionalLight : public Light
-{
-   protected:
-    std::shared_ptr<CascadedShadowmap> shadowmap;
+    std::unique_ptr<CascadedShadowmap> shadowmap;
 
     // bounding box of every cascade frustum
     std::vector<AABB> orthoBoxes;
@@ -80,12 +57,28 @@ class SAIGA_OPENGL_API DirectionalLight : public Light
     int numCascades = 1;
 
    public:
-    DirectionalLight() : Light(LightColorPresets::DirectSunlight, 1)
+    DirectionalLight() : LightBase(LightColorPresets::DirectSunlight, 1)
     {
         setDirection(vec3(-1, -3, -2));
         polygon_offset = vec2(2.0, 50.0);
     }
     ~DirectionalLight() {}
+
+    struct ShaderData
+    {
+        vec4 colorDiffuse;   // rgb intensity
+        vec4 colorSpecular;  // rgb specular intensity
+        vec4 direction;      // xyz, w unused
+    };
+
+    inline ShaderData GetShaderData()
+    {
+        ShaderData data;
+        data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
+        data.colorSpecular = make_vec4(colorSpecular, 1.0f);
+        data.direction     = make_vec4(direction, 0.0f);
+        return data;
+    }
 
     /**
      * Creates the shadow map with the given number of cascades, and initializes depthCutsRelative
@@ -122,8 +115,6 @@ class SAIGA_OPENGL_API DirectionalLight : public Light
      */
     void bindCascade(int n);
 
-    // Bind the uniforms for light rendering
-    void bindUniforms(DirectionalLightShader& shader, Camera* shadowCamera);
 
     // see description for depthCutsRelative for more info
     void setDepthCutsRelative(const std::vector<float>& value);

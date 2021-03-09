@@ -10,24 +10,6 @@
 
 namespace Saiga
 {
-void SpotLightShader::checkUniforms()
-{
-    AttenuatedLightShader::checkUniforms();
-    location_angle        = getUniformLocation("angle");
-    location_shadowPlanes = getUniformLocation("shadowPlanes");
-}
-
-
-void SpotLightShader::uploadAngle(float angle)
-{
-    Shader::upload(location_angle, angle);
-}
-
-void SpotLightShader::uploadShadowPlanes(float f, float n)
-{
-    Shader::upload(location_shadowPlanes, vec2(f, n));
-}
-
 SpotLight::SpotLight()
 {
     polygon_offset = vec2(2.0, 100.0);
@@ -36,66 +18,41 @@ SpotLight::SpotLight()
 
 void SpotLight::calculateCamera()
 {
-    vec3 dir = make_vec3(this->getUpVector());
-    vec3 pos = vec3(getPosition());
-    vec3 up  = make_vec3(getRightVector());
-    shadowCamera.setView(pos, pos - dir, up);
-    shadowCamera.setProj(2 * angle, 1, shadowNearPlane, cutoffRadius);
+    mat4 M             = ModelMatrix();
+    shadowCamera.model = M;
+    shadowCamera.updateFromModel();
+    shadowCamera.setProj(2 * angle, 1, shadowNearPlane, radius);
 }
 
-void SpotLight::bindUniforms(std::shared_ptr<SpotLightShader> shader, Camera* cam)
-{
-    AttenuatedLight::bindUniforms(shader, cam);
-    float cosa = cos(radians(angle * 0.95f));  // make border smoother
-    shader->uploadAngle(cosa);
-    shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
-    shader->uploadInvProj(inverse(cam->proj));
-    if (this->hasShadows())
-    {
-        shader->uploadDepthBiasMV(viewToLightTransform(*cam, this->shadowCamera));
-        shader->uploadDepthTexture(shadowmap->getDepthTexture());
-        shader->uploadShadowMapSize(shadowmap->getSize());
-    }
-    assert_no_glerror();
-}
-
-
-void SpotLight::recalculateScale()
-{
-    float l = tan(radians(angle)) * cutoffRadius;
-    vec3 scale(l, cutoffRadius, l);
-    this->setScale(scale);
-}
-
-void SpotLight::setRadius(float value)
-{
-    cutoffRadius = value;
-    recalculateScale();
-}
 
 void SpotLight::createShadowMap(int w, int h, ShadowQuality quality)
 {
-    //    Light::createShadowMap(resX,resY);
-    //    float farplane = 50.0f;
-    shadowmap = std::make_shared<SimpleShadowmap>(w, h, quality);
-    //    shadowmap->createFlat(w,h);
+    shadowmap   = std::make_unique<SimpleShadowmap>(w, h, quality);
+    castShadows = true;
+}
+
+mat4 SpotLight::ModelMatrix()
+{
+    float l = tan(radians(angle)) * radius;
+    vec3 s(l, l, radius);
+    quat rot = rotation(vec3(0, 0, -1), normalize(direction));
+    return createTRSmatrix((position), rot, s);
 }
 
 void SpotLight::setAngle(float value)
 {
     this->angle = value;
-    recalculateScale();
 }
 
 void SpotLight::setDirection(vec3 dir)
 {
-    rot = rotation(normalize(dir), vec3(0, -1, 0));
+    direction = dir;
 }
 
 bool SpotLight::cullLight(Camera* cam)
 {
     // do an exact frustum-frustum intersection if this light casts shadows, else do only a quick check.
-    if (this->hasShadows())
+    if (this->castShadows)
         this->culled = !this->shadowCamera.intersectSAT(*cam);
     else
         this->culled = cam->sphereInFrustum(this->shadowCamera.boundingSphere) == Camera::OUTSIDE;
@@ -123,12 +80,10 @@ bool SpotLight::renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuff
 
 void SpotLight::renderImGui()
 {
-    AttenuatedLight::renderImGui();
-    if (ImGui::SliderFloat("Angle", &angle, 0, 85))
-    {
-        recalculateScale();
-        calculateModel();
-    }
+    LightBase::renderImGui();
+    LightDistanceAttenuation::renderImGui();
+    ImGui::SliderFloat("Angle", &angle, 0, 85);
+
     ImGui::InputFloat("shadowNearPlane", &shadowNearPlane);
 }
 
