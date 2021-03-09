@@ -404,9 +404,9 @@ void initImGui(const ImGuiParameters& params)
     colors[ImGuiCol_PlotHistogram]        = COL_ALPHA(color_text, 0.63f);
     colors[ImGuiCol_PlotHistogramHovered] = COL_ALPHA(color_text, 1.00f);
 
-    colors[ImGuiCol_TextSelectedBg]       = COL_ALPHA(color_background_low, 0.43f);
-    colors[ImGuiCol_PopupBg]              = COL_ALPHA(color_background_low, 0.92f);
-    colors[ImGuiCol_ModalWindowDarkening] = COL_ALPHA(color_background_low, 0.73f);
+    colors[ImGuiCol_TextSelectedBg] = COL_ALPHA(color_background_low, 0.43f);
+    colors[ImGuiCol_PopupBg]        = COL_ALPHA(color_background_low, 0.92f);
+    // colors[ImGuiCol_ModalWindowDarkening] = COL_ALPHA(color_background_low, 0.73f);
 }
 
 void ImGuiParameters::fromConfigFile(const std::string& file)
