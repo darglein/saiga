@@ -61,7 +61,8 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
+
+    startTimer(TOTAL);
 
 
     startTimer(TOTAL);
@@ -131,10 +132,9 @@ void ForwardRenderer::resize(int windowWidth, int windowHeight)
     lighting.resize(windowWidth, windowHeight);
 }
 
-void ForwardRenderer::renderImGui(bool* p_open)
+void ForwardRenderer::renderImgui()
 {
-    OpenGLRenderer::renderImGui(p_open);
-    ImGui::Begin("Forward Renderer", p_open);
+    ImGui::Begin("Forward Renderer", &should_render_imgui);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);
 
@@ -148,11 +148,6 @@ void ForwardRenderer::renderImGui(bool* p_open)
     ImGui::Checkbox("Show Lighting UI", &showLightingImgui);
 
     ImGui::End();
-
-    if (showLightingImgui)
-    {
-        lighting.renderImGui(&showLightingImgui);
-    }
 }
 
 

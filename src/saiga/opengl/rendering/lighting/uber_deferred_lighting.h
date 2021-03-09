@@ -64,14 +64,14 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
     void initRender() override;
     void render(Camera* cam, const ViewPort& viewPort) override;
 
-    void renderImGui(bool* p_open = NULL) override;
+    void renderImGui() override;
 
     void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights) override;
 
    public:
     std::shared_ptr<UberDeferredLightingShader> lightingShader;
     GBuffer& gbuffer;
-    IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
+    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::shared_ptr<Clusterer> lightClusterer;
     // FIXME Reset to 0:
     int clustererType = 2;

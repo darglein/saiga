@@ -1,42 +1,39 @@
-function(cuda_sample _name)
 
-  set(TARGET_NAME "cuda_${_name}")
-  message(STATUS "Sample enabled:      ${TARGET_NAME}")
+macro(cuda_sample FILE_NAME)
+  string(REGEX REPLACE "\\.[^.]*$" "" NAME ${FILE_NAME})
 
-  add_executable(${TARGET_NAME} "${_name}.cu" )
+  set(TARGET_NAME ${NAME})
 
-  # We only need to link the saiga target
-  target_link_libraries(${TARGET_NAME} "saiga_cuda")
-  target_include_directories(${TARGET_NAME} PUBLIC ".")
+  add_executable(${TARGET_NAME} ${FILE_NAME})
+  message(STATUS "Sample enabled:      ${NAME}")
 
-  #set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES 52)
+
+  target_link_libraries(${TARGET_NAME} PUBLIC saiga_core saiga_cuda)
+  target_link_libraries(${TARGET_NAME} PUBLIC ${ARGN})
 
   set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
   target_compile_options(${TARGET_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
 
-
-  #set working directory for visual studio so the project can be executed from the ide
-  set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
-  set_target_properties(${PROG_NAME} PROPERTIES FOLDER samples/${PREFIX})
-  set_target_properties(${PROG_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
-endfunction()
+  set_target_properties(${TARGET_NAME} PROPERTIES FOLDER samples/${PREFIX})
+endmacro()
 
 
 
-cuda_sample(hello_world)
-cuda_sample(simple_particle)
-cuda_sample(global_memory)
-cuda_sample(random_access)
-cuda_sample(constant_memory)
-cuda_sample(async)
-cuda_sample(event_sync)
-cuda_sample(intra_block)
-cuda_sample(bitonic_sort)
-cuda_sample(bandwidth)
-cuda_sample(radix_sort)
-cuda_sample(reduce)
+
+cuda_sample(sample_cuda_hello_world.cu)
+cuda_sample(sample_cuda_simple_particle.cu)
+cuda_sample(sample_cuda_global_memory.cu)
+cuda_sample(sample_cuda_random_access.cu)
+cuda_sample(sample_cuda_constant_memory.cu)
+cuda_sample(sample_cuda_async.cu)
+cuda_sample(sample_cuda_event_sync.cu)
+cuda_sample(sample_cuda_intra_block.cu)
+cuda_sample(sample_cuda_bitonic_sort.cu)
+cuda_sample(sample_cuda_bandwidth.cu)
+cuda_sample(sample_cuda_radix_sort.cu)
+cuda_sample(sample_cuda_reduce.cu)
 
 if(SAIGA_CUDA_RDC)
-  cuda_sample(dynamic_parallelism)
-  cuda_sample(iterative_sync)
+  cuda_sample(sample_cuda_dynamic_parallelism.cu)
+  cuda_sample(sample_cuda_iterative_sync.cu)
 endif()

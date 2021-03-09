@@ -137,7 +137,7 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
     SAIGA_ASSERT(renderingInterface);
 
     //    std::cout << "VulkanForwardRenderer::render" << std::endl;
-    if (imGui && renderImgui)
+    if (imGui && should_render_imgui)
     {
         //        std::thread t([&](){
         imGui->beginFrame();
@@ -184,7 +184,7 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
     timings.leaveSection("TRANSFER", cmd);
 
 
-    if (imGui && renderImgui) imGui->updateBuffers(cmd, currentImage);
+    if (imGui && should_render_imgui) imGui->updateBuffers(cmd, currentImage);
 
     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -201,7 +201,7 @@ void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
         renderingInterface->render(cmd);
         timings.leaveSection("MAIN", cmd);
         timings.enterSection("IMGUI", cmd);
-        if (imGui && renderImgui) imGui->render(cmd, currentImage);
+        if (imGui && should_render_imgui) imGui->render(cmd, currentImage);
         timings.leaveSection("IMGUI", cmd);
     }
 

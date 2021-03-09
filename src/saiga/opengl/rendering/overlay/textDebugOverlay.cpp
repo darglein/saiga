@@ -12,8 +12,8 @@
 #    include "saiga/opengl/shader/basic_shaders.h"
 #    include "saiga/opengl/shader/shaderLoader.h"
 #    include "saiga/opengl/text/text.h"
+#    include "saiga/opengl/text/textAtlas.h"
 #    include "saiga/opengl/text/textShader.h"
-#    include "saiga/opengl/text/textureAtlas.h"
 
 namespace Saiga
 {
@@ -27,7 +27,7 @@ TextDebugOverlay::~TextDebugOverlay()
     }
 }
 
-void TextDebugOverlay::init(TextureAtlas* textureAtlas)
+void TextDebugOverlay::init(TextAtlas* textureAtlas)
 {
     this->textureAtlas = textureAtlas;
 }

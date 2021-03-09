@@ -42,7 +42,7 @@ void VideoEncoder::renderGUI()
     {
         ImGui::PushID(346436);
 
-        ImGui::InputText("Output File", file, 256);
+        ImGui::InputText("Output File", &file);
         encoder->filename = file;
 
 
@@ -78,17 +78,32 @@ void VideoEncoder::renderGUI()
 
         if (!encoder->isRunning() && ImGui::Button("Start Recording"))
         {
-            encoder->inWidth  = window->getWidth();
-            encoder->inHeight = window->getHeight();
-            encoder->startEncoding();
+            startRecording();
         }
         if (encoder->isRunning() && ImGui::Button("Stop Recording"))
         {
-            encoder->finishEncoding();
+            stopRecording();
         }
 
         ImGui::PopID();
     }
+}
+
+void VideoEncoder::startRecording()
+{
+    encoder->inWidth  = window->getWidth();
+    encoder->inHeight = window->getHeight();
+    encoder->startEncoding();
+}
+
+void VideoEncoder::stopRecording()
+{
+    encoder->finishEncoding();
+}
+
+bool VideoEncoder::isEncoding()
+{
+    return encoder->isRunning();
 }
 
 }  // namespace Saiga

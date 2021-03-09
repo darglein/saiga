@@ -81,7 +81,7 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     virtual ~DeferredRenderer() {}
 
     void render(const RenderInfo& renderInfo) override;
-    void renderImGui(bool* p_open = nullptr) override;
+    void renderImgui() override;
 
 
     enum DeferredTimings
@@ -142,7 +142,7 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     GBuffer gbuffer;
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
-    IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
+    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
     std::shared_ptr<Texture> blackDummyTexture;
     bool showLightingImgui = false;
@@ -155,6 +155,14 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     void renderDepthMaps();
     void renderLighting(const std::pair<Camera*, ViewPort>& camera);
     void renderSSAO(const std::pair<Camera*, ViewPort>& camera);
+
+
+    TemplatedImage<ucvec4> DownloadRender();
+
+    // Download depth map and convert to float
+    // The result should be in the range [0,1]
+    TemplatedImage<float> DownloadDepth();
+
 
     void writeGbufferDepthToCurrentFramebuffer();
 

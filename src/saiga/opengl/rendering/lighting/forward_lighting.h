@@ -48,7 +48,7 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 
     void render(Camera* cam, const ViewPort& viewPort) override;
 
-    void renderImGui(bool* p_open = NULL) override;
+    void renderImGui() override;
 
     void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights) override;
 

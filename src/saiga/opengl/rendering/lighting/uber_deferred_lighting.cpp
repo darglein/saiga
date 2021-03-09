@@ -6,7 +6,7 @@
 
 #include "uber_deferred_lighting.h"
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/imath.h"
 #include "saiga/core/util/tostring.h"
@@ -45,13 +45,11 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
 
-    // FIXME Remove:
     ClustererParameters params;
     params.clusterThreeDimensional = true;
-    lightClusterer = std::make_shared<CPUPlaneClusterer>(params);
+    lightClusterer = std::make_shared<Clusterer>(params);
 }
 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
@@ -239,11 +237,10 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
     lightingShader = shaderLoader.load<UberDeferredLightingShader>(names.lightingUberShader, sci);
 }
 
-void UberDeferredLighting::renderImGui(bool* p_open)
+void UberDeferredLighting::renderImGui()
 {
-    RendererLighting::renderImGui(p_open);
-    ImGui::Begin("UberDeferredLighting", p_open);
-
+    RendererLighting::renderImGui();
+    ImGui::Begin("UberDefferedLighting", &showLightingImgui);
 
 
     const char* const clustererTypes[3] = {"None", "SixPlanes", "PlaneArrays"};

@@ -27,7 +27,7 @@ void SimpleAssetObject::render(Camera* camera, RenderPass render_pass)
             renderDepth(camera);
             break;
         default:
-            SAIGA_EXIT_ERROR("unknown render pass");
+            break;
     }
 }
 

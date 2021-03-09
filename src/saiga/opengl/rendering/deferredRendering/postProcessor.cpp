@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/shader/shaderLoader.h"
@@ -84,13 +84,10 @@ void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorP
     this->height    = height;
     this->gbuffer   = gbuffer;
     this->useTimers = _useTimers;
-    //    this->gbufferDepth = gbuffer->getTextureDepth();
-    //    this->gbufferNormals = gbuffer->getTextureNormal();
-    //    this->gbufferColor = gbuffer->getTextureColor();
+
     createFramebuffers();
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
 
 
 
@@ -98,7 +95,6 @@ void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorP
 
     passThroughShader = shaderLoader.load<PostProcessingShader>("post_processing/post_processing.glsl");
 
-    //    computeTest = shaderLoader.load<Shader>("computeTest.glsl");
     assert_no_glerror();
 }
 
@@ -133,25 +129,20 @@ void PostProcessor::createFramebuffers()
 
 
         textures[i] = std::make_shared<Texture>();
-        if (params.srgb)
+
+        switch (params.quality)
         {
-            textures[i]->create(width, height, GL_RGBA, GL_SRGB8_ALPHA8, GL_UNSIGNED_BYTE);
+            case Quality::LOW:
+                textures[i]->create(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+                break;
+            case Quality::MEDIUM:
+                textures[i]->create(width, height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
+                break;
+            case Quality::HIGH:
+                textures[i]->create(width, height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
+                break;
         }
-        else
-        {
-            switch (params.quality)
-            {
-                case Quality::LOW:
-                    textures[i]->create(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
-                    break;
-                case Quality::MEDIUM:
-                    textures[i]->create(width, height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
-                    break;
-                case Quality::HIGH:
-                    textures[i]->create(width, height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
-                    break;
-            }
-        }
+
         framebuffers[i].attachTexture(framebuffer_texture_t(textures[i]));
         framebuffers[i].drawToAll();
         framebuffers[i].check();

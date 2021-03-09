@@ -121,9 +121,9 @@ void HalfEdgeMesh<vertex_t, index_t>::fromIFS(TriangleMesh<vertex_t, index_t>& i
         e2.face = i;
         e3.face = i;
 
-        e1.vertex = f.v2;
-        e2.vertex = f.v3;
-        e3.vertex = f.v1;
+        e1.vertex = f(1);
+        e2.vertex = f(2);
+        e3.vertex = f(0);
 
         // make the circle pointers
         e1.nextHalfEdge = heidx + 1;
@@ -139,9 +139,9 @@ void HalfEdgeMesh<vertex_t, index_t>::fromIFS(TriangleMesh<vertex_t, index_t>& i
         HalfFace& hf = faces[i];
         hf.halfEdge  = heidx;
 
-        HalfVertex& hv1 = vertices[f.v1];
-        HalfVertex& hv2 = vertices[f.v2];
-        HalfVertex& hv3 = vertices[f.v3];
+        HalfVertex& hv1 = vertices[f(0)];
+        HalfVertex& hv2 = vertices[f(1)];
+        HalfVertex& hv3 = vertices[f(2)];
 
         hv1.halfEdge = heidx;
         hv2.halfEdge = heidx + 1;
@@ -150,7 +150,7 @@ void HalfEdgeMesh<vertex_t, index_t>::fromIFS(TriangleMesh<vertex_t, index_t>& i
 #if 1
         uint64_t mapidx;
 
-        mapidx = std::min(f.v1, f.v2) * vertices.size() + std::max(f.v1, f.v2);
+        mapidx = std::min(f(0), f(1)) * vertices.size() + std::max(f(0), f(1));
         auto e = vertexEdges.find(mapidx);
         if (e == vertexEdges.end())
         {
@@ -163,7 +163,7 @@ void HalfEdgeMesh<vertex_t, index_t>::fromIFS(TriangleMesh<vertex_t, index_t>& i
         }
 
 
-        mapidx = std::min(f.v2, f.v3) * vertices.size() + std::max(f.v2, f.v3);
+        mapidx = std::min(f(1), f(2)) * vertices.size() + std::max(f(1), f(2));
         e      = vertexEdges.find(mapidx);
         if (e == vertexEdges.end())
         {
@@ -176,7 +176,7 @@ void HalfEdgeMesh<vertex_t, index_t>::fromIFS(TriangleMesh<vertex_t, index_t>& i
         }
 
 
-        mapidx = std::min(f.v3, f.v1) * vertices.size() + std::max(f.v3, f.v1);
+        mapidx = std::min(f(2), f(0)) * vertices.size() + std::max(f(2), f(0));
         e      = vertexEdges.find(mapidx);
         if (e == vertexEdges.end())
         {
@@ -251,9 +251,9 @@ void HalfEdgeMesh<vertex_t, index_t>::toIFS(TriangleMesh<vertex_t, index_t>& ifs
         SAIGA_ASSERT(e3.nextHalfEdge == faces[i].halfEdge);
 
         typename TriangleMesh<vertex_t, index_t>::Face f;
-        f.v1 = e1.vertex;
-        f.v2 = e2.vertex;
-        f.v3 = e3.vertex;
+        f(0) = e1.vertex;
+        f(1) = e2.vertex;
+        f(2) = e3.vertex;
 
         ifs.faces.push_back(f);
         //        ifs.faces[i] = f;

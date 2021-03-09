@@ -23,7 +23,7 @@ std::vector<unsigned char> compress(const void* data, size_t decompressed_data_s
     size_t* out_header = (size_t*)result.data();
     Byte* out_data     = result.data() + header_size;
 
-    size_t compressed_data_size = c_bounds;
+    uLongf compressed_data_size = c_bounds;
     ::compress(out_data, &compressed_data_size, (const Byte*)data, decompressed_data_size);
 
     // Write header
@@ -48,7 +48,7 @@ std::vector<unsigned char> uncompress(const void* data)
 
 
     std::vector<unsigned char> result(decompressed_data_size);
-    size_t actual_out_size = decompressed_data_size;
+    uLongf actual_out_size = decompressed_data_size;
     ::uncompress(result.data(), &actual_out_size, compressed_data, compressed_data_size);
 
     SAIGA_ASSERT(actual_out_size == decompressed_data_size);

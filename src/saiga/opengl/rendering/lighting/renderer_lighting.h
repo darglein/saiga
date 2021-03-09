@@ -122,7 +122,7 @@ class SAIGA_OPENGL_API RendererLighting
     virtual void cullLights(Camera* cam);
 
     void printTimings();
-    virtual void renderImGui(bool* p_open = NULL);
+    virtual void renderImGui();
 
     virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights);
 
@@ -133,7 +133,7 @@ class SAIGA_OPENGL_API RendererLighting
     UniformBuffer shadowCameraBuffer;
 
     // the vertex position is sufficient. no normals and texture coordinates needed.
-    typedef IndexedVertexBuffer<Vertex, GLushort> lightMesh_t;
+    typedef IndexedVertexBuffer<Vertex, uint32_t> lightMesh_t;
 
     std::shared_ptr<PointLightShader> pointLightShader, pointLightShadowShader;
     lightMesh_t pointLightMesh;
@@ -171,5 +171,10 @@ class SAIGA_OPENGL_API RendererLighting
     int maximumNumberOfDirectionalLights = 256;
     int maximumNumberOfPointLights       = 256;
     int maximumNumberOfSpotLights        = 256;
+
+    bool showLightingImgui = false;
+    int selected_light     = -1;
+    int selecte_light_type = 0;
+    std::shared_ptr<LightBase> selected_light_ptr;
 };
 }  // namespace Saiga

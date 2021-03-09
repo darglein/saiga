@@ -8,6 +8,7 @@
 
 #include "saiga/core/geometry/LineMesh.h"
 #include "saiga/core/geometry/triangle_mesh.h"
+#include "saiga/core/model/UnifiedModel.h"
 #include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/opengl/indexBuffer.h"
 #include "saiga/opengl/opengl.h"
@@ -67,6 +68,10 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
      * 'buffer' is now ready to draw.
      */
     void fromMesh(LineMesh<vertex_t, index_t>& mesh, GLenum usage = GL_STATIC_DRAW);
+
+
+
+    void fromMesh(const UnifiedModel& model, GLenum usage = GL_STATIC_DRAW);
 
     /*
      * Updates OpenGL buffer with the data currently saved in this mesh
@@ -177,6 +182,14 @@ void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(LineMesh<vertex_t, index_t
 {
     set(mesh.vertices, mesh.indices, usage);
     this->setDrawMode(GL_LINES);
+}
+
+
+template <typename vertex_t, typename index_t>
+void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(const UnifiedModel& model, GLenum usage)
+{
+    auto mesh = model.Mesh<vertex_t, index_t>();
+    fromMesh(mesh, usage);
 }
 
 

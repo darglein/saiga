@@ -14,15 +14,21 @@
 #include "fstream"
 namespace Saiga
 {
-std::vector<vec3> MeshToPointCloud(const std::vector<Triangle>& triangles, int N)
+std::vector<vec3> MeshToPointCloud(const std::vector<Triangle>& _triangles, int N)
 {
-    std::vector<float> areas;
+    std::vector<Triangle> triangles = _triangles;
+
+    std::sort(triangles.begin(), triangles.end(), [](auto a, auto b) { return a.Area() < b.Area(); });
+
+
+
+    std::vector<double> areas;
     for (auto& t : triangles)
     {
         areas.push_back(t.Area());
     }
 
-    DiscreteProbabilityDistribution<float> dis(areas);
+    DiscreteProbabilityDistribution<double> dis(areas);
 
     std::vector<vec3> points;
 

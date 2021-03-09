@@ -64,7 +64,7 @@ in vec4 eyePos;
 layout(location = 0) out vec4 out_color;
 
 
-vec3 blueSkyAndSun(vec3 viewDir2, vec3 cameraPos2, vec3 lightDir, bool linearRGB, float sunIntensity, float sunSize,
+vec3 blueSkyAndSun(vec3 viewDir2, vec3 cameraPos2, vec3 lightDir, float sunIntensity, float sunSize,
                    float horizonHeight, float skyboxDistance)
 {
     vec3 highSky = highSkyColor;
@@ -72,22 +72,19 @@ vec3 blueSkyAndSun(vec3 viewDir2, vec3 cameraPos2, vec3 lightDir, bool linearRGB
 
 
 
-    if (linearRGB)
-    {
-        highSky = pow(highSky, vec3(2.2f));
-        lowSky     = pow(lowSky, vec3(2.2f));
-    }
 
     // direction of current viewing ray
     vec3 dir = normalize(viewDir2);
 
-    if (length(vec2(dir.x, dir.z)) < 0.001) return vec3(0);
 
     // intersection point of viewing ray with cylinder around viewer with radius=skyboxDistance
     vec3 skyboxPos = vec3(cameraPos2) + dir * (skyboxDistance / length(vec2(dir.x, dir.z))) - horizonHeight;
 
     // this gives the tangens of the viewing ray towards the ground
     float h = skyboxPos.y / skyboxDistance;
+
+
+    if (length(vec2(dir.x, dir.z)) < 0.001) h =100000;
 
     // exponential gradient
     float a = -exp(-h * 3) + 1;
@@ -145,5 +142,5 @@ void main()
     vec3 vpos = vec3(eyePos);
 
     out_color =
-        vec4(blueSkyAndSun(vdir, vpos, lightDir, true, sunIntensity, sunSize, horizonHeight, skyboxDistance), 1);
+        vec4(blueSkyAndSun(vdir, vpos, lightDir,  sunIntensity, sunSize, horizonHeight, skyboxDistance), 1);
 }

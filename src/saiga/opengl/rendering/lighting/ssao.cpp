@@ -6,10 +6,10 @@
 
 #include "saiga/opengl/rendering/lighting/ssao.h"
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/image/imageGenerator.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
@@ -73,8 +73,7 @@ void SSAO::init(int w, int h)
     ssao_framebuffer2.check();
     ssao_framebuffer2.unbind();
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
 
     ssaoShader = shaderLoader.load<SSAOShader>("post_processing/ssao2.glsl");
     blurShader = shaderLoader.load<MVPTextureShader>("post_processing/ssao_blur.glsl");
@@ -169,8 +168,7 @@ void SSAO::setKernelSize(int _kernelSize)
     ssaoShader->kernelOffsets = kernelOffsets;
 
     auto randomImage = ImageGenerator::randomNormalized(32, 32);
-    randomTexture    = std::make_shared<Texture>();
-    randomTexture->fromImage(*randomImage, false, false);
+    randomTexture    = std::make_shared<Texture>(*randomImage);
     randomTexture->setWrap(GL_REPEAT);
 }
 

@@ -25,7 +25,7 @@ macro(OptionsHelper _variableName _description _defaultValue)
     option (${_variableName} "${_description}" "${_defaultValue}")
     # Create a padding string to align the console output
     string(LENGTH ${_variableName} SIZE)
-    math(EXPR SIZE 20-${SIZE})
+    math(EXPR SIZE 25-${SIZE})
     string(RANDOM LENGTH ${SIZE} ALPHABET " " padding)
     message(STATUS "Option ${_variableName} ${padding} ${${_variableName}}")
 endmacro()

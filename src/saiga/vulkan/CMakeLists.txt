@@ -22,7 +22,6 @@ else ()
 endif()
 
 target_link_libraries(${MODULE_NAME} PUBLIC ${VULKAN_TARGETS}  ${VULKAN_LIBS})
-target_link_libraries(${MODULE_NAME} PRIVATE std::filesystem)
 
 target_include_directories(
     ${MODULE_NAME}

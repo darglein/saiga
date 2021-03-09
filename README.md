@@ -64,6 +64,13 @@ Utility
 
 ## Building + Running the samples
 
+#### Building With Submodules
+
+```
+git clone git@github.com:darglein/saiga.git
+git submodule update --init --recursive
+``` exarbsem20
+
 #### Linux
  - Install dependencies with the package manager (in older Linux systems you might have to compile the latest library versions by yourself)
 

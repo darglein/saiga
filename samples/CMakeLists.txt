@@ -27,7 +27,7 @@ macro(saiga_make_sample _modules)
     #set working directory for visual studio so the project can be executed from the ide
     set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")
     set_target_properties(${PROG_NAME} PROPERTIES FOLDER samples/${PREFIX})
-    set_target_properties(${PROG_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
+    #set_target_properties(${PROG_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 endmacro()
 
 macro(saiga_make_benchmark_sample)
@@ -39,9 +39,9 @@ macro(saiga_make_benchmark_sample)
     endif()
     if(SAIGA_CXX_MSVC)
         #todo check if avx is present
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Oi /Ot /Oy /GL /fp:fast /Gy /arch:AVX2")
-        set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} /LTCG")
-        add_definitions(-D__FMA__)
+        # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Oi /Ot /Oy /GL /fp:fast /Gy /arch:AVX2")
+        # set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} /LTCG")
+        # add_definitions(-D__FMA__)
     endif()
 endmacro()
 

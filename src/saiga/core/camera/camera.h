@@ -5,10 +5,10 @@
  */
 
 #pragma once
-
 #include "saiga/core/geometry/Frustum.h"
 #include "saiga/core/geometry/object3d.h"
 #include "saiga/core/geometry/plane.h"
+#include "saiga/core/geometry/ray.h"
 #include "saiga/core/geometry/sphere.h"
 #include "saiga/core/math/math.h"
 
@@ -44,7 +44,8 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
 
     bool vulkanTransform = false;
 
-    Camera();
+
+    Camera() {}
     virtual ~Camera() {}
 
 
@@ -69,8 +70,8 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
     float linearDepth(float d) const;
     float nonlinearDepth(float l) const;
 
-    float toViewDepth(float d) const;
-    float toNormalizedDepth(float d) const;
+    // Convert a depth buffer value to the z-coordinate in view space
+    float toPositiveViewDepth(float d) const;
 
 
 
@@ -80,14 +81,17 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
 
     void recalculatePlanesFromMatrices();
 
+    // Forward projection methods
+    vec3 WorldToView(vec3 worldPosition) const;
+    vec3 ViewToNormalized(vec3 viewPosition) const;
+    vec2 NormalizedToImage(vec3 normalizedPosition, int w, int h) const;
 
-    vec3 projectToViewSpace(vec3 worldPosition) const;
+    // Inverse projection methods
+    vec3 ImageToNormalized(vec2 ip, float depth, int w, int h) const;
+    vec3 NormalizedToView(vec3 normalizedPosition) const;
+    vec3 ViewToWorld(vec3 viewPosition) const;
 
-    vec3 projectToNDC(vec3 worldPosition) const;
-
-    vec2 projectToScreenSpace(vec3 worldPosition, int w, int h) const;
-
-    vec3 inverseprojectToWorldSpace(vec2 ip, float depth, int w, int h) const;
+    Ray PixelRay(vec2 pixel, int w, int h);
 
 
     virtual void recomputeProj() {}

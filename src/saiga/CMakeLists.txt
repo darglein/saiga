@@ -2,34 +2,28 @@
 
 if(MODULE_CORE)
     add_subdirectory(core)
-    message(STATUS "Module enabled:     core")
-endif()
-
-if(MODULE_CUDA)
-    message(STATUS "Module enabled:     cuda")
-    add_subdirectory(cuda)
-endif()
-
-if(MODULE_EXTRA)
-    message(STATUS "Module enabled:     extra")
-    add_subdirectory(extra)
+    message(STATUS "Module enabled:     Core")
 endif()
 
 if(MODULE_OPENGL)
-    message(STATUS "Module enabled:     opengl")
+    message(STATUS "Module enabled:     Opengl")
     add_subdirectory(opengl)
 endif()
 
 if(MODULE_VULKAN)
-    message(STATUS "Module enabled:     vulkan")
+    message(STATUS "Module enabled:     Vulkan")
     add_subdirectory(vulkan)
 endif()
 
 if(MODULE_VISION)
-    message(STATUS "Module enabled:     vision")
+    message(STATUS "Module enabled:     Vision")
     add_subdirectory(vision)
 endif()
 
+if(MODULE_CUDA)
+    message(STATUS "Module enabled:     Cuda")
+    add_subdirectory(cuda)
+endif()
 
 
 install(

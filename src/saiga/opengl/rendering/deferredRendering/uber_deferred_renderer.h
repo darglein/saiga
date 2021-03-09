@@ -72,7 +72,7 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     virtual ~UberDeferredRenderer();
 
     void render(const RenderInfo& renderInfo) override;
-    void renderImGui(bool* p_open = nullptr) override;
+    void renderImgui() override;
 
 
     enum UberDeferredTimingBlock
@@ -123,7 +123,7 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     GBuffer gbuffer;
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
-    IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
+    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
     std::shared_ptr<Texture> blackDummyTexture;
     bool showLightingImgui = false;

@@ -1,6 +1,9 @@
 # This script is partially copied from the ceres-solver:
 # https://github.com/ceres-solver/ceres-solver/blob/master/.travis.yml
-
+#
+# Test this script on
+# https://config.travis-ci.com/explore
+#
 language: cpp
 
 matrix:
@@ -30,25 +33,35 @@ addons:
     - libeigen3-dev
     - libomp-dev
     - libgtest-dev
-    # adf
     - libegl1-mesa-dev
     - libsdl2-dev
     - libglfw3-dev
     - libpng-dev
+    - libassimp-dev
   snaps:
     - name: cmake
       confinement: classic
     
 env:
-  - OMP_NUM_THREADS=4
+  - OMP_NUM_THREADS=2
   
 before_install:
   - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get update -qq; fi
 
   
 install:
-   - if [ $TRAVIS_OS_NAME = osx ]; then $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; fi
-   - if [ $TRAVIS_OS_NAME = windows ]; then $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh; fi
+   - if [ $TRAVIS_OS_NAME = osx ]; then 
+        $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; 
+     fi;
+   - if [ $TRAVIS_OS_NAME = windows ]; then
+        export VCPKG_DIR="C:/Users/travis/vcpkg";
+        export VCPKG_INSTALL_DIR="$VCPKG_DIR/installed/x64-windows";
+        $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh;
+        cd "C:/Users/travis/vcpkg";
+     fi;
+   - if [ $TRAVIS_OS_NAME = linux ]; then
+        $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; 
+     fi;
 
 before_script:
   - mkdir ~/saiga_build
@@ -57,14 +70,20 @@ before_script:
 script:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" || "$TRAVIS_OS_NAME" == "osx" ]]; then
-      /snap/bin/cmake $TRAVIS_BUILD_DIR 
+      /snap/bin/cmake  -DCMAKE_PREFIX_PATH="/home/travis/install" $TRAVIS_BUILD_DIR 
       make -j2
       sudo make install
-      ctest --output-on-failure -j 4
+      ctest --output-on-failure
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
-      cmake -DCMAKE_PREFIX_PATH="C:/Users/travis/install" -G "Visual Studio 15 2017 Win64" $TRAVIS_BUILD_DIR 
+      echo "ls base"
+      ls -al "C:/Users/travis/vcpkg/installed/x64-windows/"
+      echo "ls bin"
+      ls -al "C:/Users/travis/vcpkg/installed/x64-windows/bin"
+      echo "ls lib"
+      ls -al "C:/Users/travis/vcpkg/installed/x64-windows/lib"
+      cmake -DCMAKE_PREFIX_PATH="C:/Users/travis/install;C:/Users/travis/vcpkg/installed/x64-windows/" -G "Visual Studio 15 2017 Win64" $TRAVIS_BUILD_DIR 
       cmake --build . -j2
     fi
 

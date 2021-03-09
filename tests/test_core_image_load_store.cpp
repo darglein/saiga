@@ -16,10 +16,6 @@
 
 #include "gtest/gtest.h"
 
-#ifdef SAIGA_USE_OPENCV
-#    include "saiga/extra/opencv/opencv.h"
-#endif
-
 using namespace Saiga;
 
 
@@ -279,22 +275,6 @@ TEST(ImageLoadStoreBenchmark, PNG_UC4)
 
         std::cout << "Freeimage Median Store Time: " << store_measure.median << std::endl;
         std::cout << "Freeimage Median Load Time: " << load_measure.median << std::endl;
-    }
-#endif
-
-#ifdef SAIGA_USE_OPENCV
-    {
-        std::string file   = "loadstoretest_opencv.png";
-        auto m             = Saiga::ImageViewToMat(img.getImageView());
-        auto store_measure = measureObject(5, [&]() {
-            std::filesystem::remove(file);
-            cv::imwrite(file, m);
-        });
-
-        auto load_measure = measureObject(5, [&]() { cv::Mat img2 = cv::imread(file); });
-
-        std::cout << "OpenCV Median Store Time: " << store_measure.median << std::endl;
-        std::cout << "OpenCV Median Load Time: " << load_measure.median << std::endl;
     }
 #endif
 }

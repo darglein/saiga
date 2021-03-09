@@ -319,7 +319,7 @@ void FusionScene::Integrate()
             auto& dm = images[i];
 
 #pragma omp parallel for
-            for (int i = 0; i < dm.visible_blocks.size(); ++i)
+            for (int i = 0; i < (int)dm.visible_blocks.size(); ++i)
             {
                 auto& id    = dm.visible_blocks[i];
                 auto* block = tsdf->GetBlock(id);
@@ -524,7 +524,7 @@ void FusionScene::IntegratePointBased()
         {
             auto& dm = images[i];
 
-            for (int i = 0; i < dm.visible_blocks.size(); ++i)
+            for (int i = 0; i < (int)dm.visible_blocks.size(); ++i)
 
             {
                 auto& id    = dm.visible_blocks[i];
@@ -585,8 +585,8 @@ void FusionScene::IntegratePointBased()
 
                             int r = 1;
 
-                            float min_dis  = 1000;
-                            float positive = 0;
+                            float min_dis = 1000;
+                            //                            float positive = 0;
 
                             for (int y = -r; y <= r; ++y)
                             {
@@ -824,10 +824,9 @@ void FusionParams::imgui()
 
     ImGui::Checkbox("test", &test);
 
-    static char buffer[256];
-    std::copy(out_file.begin(), out_file.end(), buffer);
-    ImGui::InputText("Out File", buffer, 256);
-    out_file = std::string(buffer);
+    static std::string buffer;
+    ImGui::InputText("Out File", &buffer);
+    out_file = buffer;
 }
 
 

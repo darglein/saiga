@@ -8,7 +8,7 @@
 
 #include "saiga/core/camera/controllable_camera.h"
 
-#include <GLFW/glfw3.h>
+#include "saiga_glfw.h"
 
 namespace Saiga
 {

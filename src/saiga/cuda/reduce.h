@@ -37,19 +37,6 @@ __device__ inline T warpReduceSum(T val)
     return val;
 }
 
-template <typename T, unsigned int LOCAL_WARP_SIZE = 32, bool RESULT_FOR_ALL_THREADS = false>
-__device__ inline T warpReduceMax(T val)
-{
-#pragma unroll
-    for (int offset = LOCAL_WARP_SIZE / 2; offset > 0; offset /= 2)
-    {
-        auto v = RESULT_FOR_ALL_THREADS ? __shfl_xor(val, offset) : __shfl_down(val, offset);
-        val    = std::max(val, v);
-    }
-    return val;
-}
-
-
 
 template <typename T, unsigned int BLOCK_SIZE>
 __device__ inline T blockReduceSum(T val, T* shared)
@@ -94,6 +81,60 @@ __device__ inline T blockReduceAtomicSum(T val, T* shared)
     // The first thread in this block has the result
     // Optional: remove if so that every thread has the result
     if (threadIdx.x == 0) val = shared[0];
+
+    return val;
+}
+
+// ===============
+// More general reductions with a custom OP
+
+
+template <typename T, typename OP>
+__device__ inline T warpReduce(T val, OP op)
+{
+    static_assert(sizeof(T) <= 8, "Only 8 byte reductions are supportet.");
+    for (int offset = warpSize >> 1; offset > 0; offset >>= 1)
+    {
+        auto v = shfl_down( val, offset);
+        val    = op(val, v);
+    }
+    return val;
+}
+
+template <int BLOCK_SIZE, typename T, typename OP>
+__device__ inline T blockReduce(T val, OP op)
+{
+    __shared__ T shared[BLOCK_SIZE / 32];
+
+    int lane   = threadIdx.x % 32;
+    int warpid = threadIdx.x / 32;
+
+    // Each warp reduces with registers
+    val = warpReduce(val, op);
+
+    // The first thread in each warp writes to smem
+    if (lane == 0)
+    {
+        shared[warpid] = val;
+    }
+
+    __syncthreads();
+
+
+    if (threadIdx.x < BLOCK_SIZE / 32)
+    {
+        val = shared[threadIdx.x];
+    }
+    else
+    {
+        val = T();
+    }
+
+    if (warpid == 0)
+    {
+        val = warpReduce(val, op);
+    }
+
 
     return val;
 }

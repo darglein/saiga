@@ -326,10 +326,11 @@ void initImGui(const ImGuiParameters& params)
     {
         case ImGuiTheme::SAIGA:
         {
-            style.Alpha             = 1;
-            style.WindowRounding    = 0;
-            style.FrameRounding     = 0;
-            color_text              = vec3(0.0, 1.0, 0.0);
+            style.Alpha          = 1;
+            style.WindowRounding = 0;
+            style.FrameRounding  = 0;
+            color_text           = vec3(0.0, 1.0, 0.0);
+
             color_background_low    = make_vec3(0.2);
             color_background_medium = make_vec3(0.3);
             color_background_high   = make_vec3(0.4);
@@ -344,17 +345,6 @@ void initImGui(const ImGuiParameters& params)
         }
     }
 
-
-    if (params.linearRGB)
-    {
-        color_text              = Color::srgb2linearrgb(color_text);
-        color_background_low    = Color::srgb2linearrgb(color_background_low);
-        color_background_medium = Color::srgb2linearrgb(color_background_medium);
-        color_background_high   = Color::srgb2linearrgb(color_background_high);
-        color_highlight_low     = Color::srgb2linearrgb(color_highlight_low);
-        color_highlight_high    = Color::srgb2linearrgb(color_highlight_high);
-    }
-
 #define COL_ALPHA(_col, _alpha) ImVec4(_col[0], _col[1], _col[2], _alpha);
 
     colors[ImGuiCol_Text]         = COL_ALPHA(color_text, 1.00f);
@@ -365,7 +355,7 @@ void initImGui(const ImGuiParameters& params)
     colors[ImGuiCol_BorderShadow] = COL_ALPHA(color_background_low, 0.00f);
 
     // Background of checkbox, radio button, plot, slider, text input
-    colors[ImGuiCol_FrameBg]        = COL_ALPHA(color_background_high, 1.00f);
+    colors[ImGuiCol_FrameBg]        = COL_ALPHA(color_background_medium, 1.00f);
     colors[ImGuiCol_FrameBgHovered] = COL_ALPHA(color_highlight_low, 0.78f);
     colors[ImGuiCol_FrameBgActive]  = COL_ALPHA(color_highlight_high, 1.00f);
 
@@ -404,9 +394,9 @@ void initImGui(const ImGuiParameters& params)
     colors[ImGuiCol_PlotHistogram]        = COL_ALPHA(color_text, 0.63f);
     colors[ImGuiCol_PlotHistogramHovered] = COL_ALPHA(color_text, 1.00f);
 
-    colors[ImGuiCol_TextSelectedBg]       = COL_ALPHA(color_background_low, 0.43f);
-    colors[ImGuiCol_PopupBg]              = COL_ALPHA(color_background_low, 0.92f);
-    colors[ImGuiCol_ModalWindowDarkening] = COL_ALPHA(color_background_low, 0.73f);
+    colors[ImGuiCol_TextSelectedBg] = COL_ALPHA(color_background_low, 0.43f);
+    colors[ImGuiCol_PopupBg]        = COL_ALPHA(color_background_low, 0.92f);
+    // colors[ImGuiCol_ModalWindowDarkening] = COL_ALPHA(color_background_low, 0.73f);
 }
 
 void ImGuiParameters::fromConfigFile(const std::string& file)
@@ -426,5 +416,6 @@ void ImGuiParameters::fromConfigFile(const std::string& file)
 
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
+
 
 }  // namespace Saiga

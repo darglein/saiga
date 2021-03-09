@@ -5,7 +5,9 @@
  */
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_SDL
+#ifdef SAIGA_USE_GLFW
+
+#    include "saiga/core/model/model_from_shape.h"
 
 #    include "SampleWindowForward.h"
 
@@ -24,8 +26,12 @@ SampleWindowForward::SampleWindowForward() : StandaloneWindow("config.ini")
 
 
     // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-    ObjAssetLoader assetLoader;
-    groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
+    //    ObjAssetLoader assetLoader;
+    //    groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick,
+    //    Colors::gray);
+
+    groundPlane.asset = std::make_shared<ColoredAsset>(
+        CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::indianred, Colors::lightgray));
 }
 
 void SampleWindowForward::update(float dt)
@@ -62,19 +68,17 @@ void SampleWindowForward::render(Camera* camera, RenderPass render_pass)
         ImGui::End();
     }
 }
-void SampleWindowForward::keyPressed(SDL_Keysym key)
+void SampleWindowForward::keyPressed(int key, int scancode, int mods)
 {
-    switch (key.scancode)
+    switch (key)
     {
-        case SDL_SCANCODE_ESCAPE:
+        case GLFW_KEY_ESCAPE:
             window->close();
             break;
         default:
             break;
     }
 }
-
-void SampleWindowForward::keyReleased(SDL_Keysym key) {}
 
 }  // namespace Saiga
 

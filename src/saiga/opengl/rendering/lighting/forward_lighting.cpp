@@ -137,7 +137,8 @@ void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLight
     maximumNumberOfSpotLights        = maxSpotLights;
 }
 
-void ForwardLighting::renderImGui(bool* p_open)
+
+void ForwardLighting::renderImGui()
 {
     RendererLighting::renderImGui();
 }

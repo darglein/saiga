@@ -56,7 +56,7 @@ class SAIGA_OPENGL_API SSAO
 
     void renderImGui();
 
-   protected:
+   public:
     std::shared_ptr<MVPTextureShader> blurShader;
     std::shared_ptr<SSAOShader> ssaoShader = nullptr;
 
@@ -64,7 +64,7 @@ class SAIGA_OPENGL_API SSAO
     Framebuffer ssao_framebuffer, ssao_framebuffer2;
     std::shared_ptr<Texture> ssaotex;
 
-    IndexedVertexBuffer<VertexNT, GLushort> quadMesh;
+    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     vec2 screenSize;
     ivec2 ssaoSize;
     std::vector<vec3> kernelOffsets;

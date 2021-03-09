@@ -181,7 +181,7 @@ void OpenGLParameters::fromConfigFile(const std::string& file)
             profileString = "ANY";
             break;
         case Profile::CORE:
-            profileString = "CORE";
+            profileString = "saiga_core";
             break;
         case Profile::COMPATIBILITY:
             profileString = "COMPATIBILITY";
@@ -204,7 +204,7 @@ void OpenGLParameters::fromConfigFile(const std::string& file)
     if (ini.changed()) ini.SaveFile(file.c_str());
 
 
-    profile = profileString == "ANY" ? Profile::ANY : profileString == "CORE" ? Profile::CORE : Profile::COMPATIBILITY;
+    profile = profileString == "ANY" ? Profile::ANY : profileString == "saiga_core" ? Profile::CORE : Profile::COMPATIBILITY;
 }
 
 void initSaigaGL(const OpenGLParameters& params)

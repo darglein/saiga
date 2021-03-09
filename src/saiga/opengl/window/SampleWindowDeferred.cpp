@@ -5,10 +5,11 @@
  */
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_SDL
+#ifdef SAIGA_USE_GLFW
+
+#    include "saiga/core/model/model_from_shape.h"
 
 #    include "SampleWindowDeferred.h"
-
 namespace Saiga
 {
 SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
@@ -22,10 +23,8 @@ SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
     // Set the camera from which view the scene is rendered
     window->setCamera(&camera);
 
-
-    // This simple AssetLoader can create assets from meshes and generate some generic debug assets
-    ObjAssetLoader assetLoader;
-    groundPlane.asset = assetLoader.loadDebugPlaneAsset2(make_ivec2(20, 20), 1.0f, Colors::firebrick, Colors::gray);
+    groundPlane.asset = std::make_shared<ColoredAsset>(
+        CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::indianred, Colors::lightgray));
 
     // create one directional light
     sun = std::make_shared<DirectionalLight>();
@@ -54,7 +53,10 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
 {
     if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
     {
-        groundPlane.render(cam, render_pass);
+        if (showGrid)
+        {
+            groundPlane.render(cam, render_pass);
+        }
     }
     else if (render_pass == RenderPass::Forward)
     {
@@ -66,8 +68,8 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
         window->renderImGui();
 
 
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
         ImGui::Begin("Saiga Sample Base");
         ImGui::Checkbox("showSkybox", &showSkybox);
         ImGui::Checkbox("showGrid", &showGrid);
@@ -77,12 +79,11 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
     }
 }
 
-
-void SampleWindowDeferred::keyPressed(SDL_Keysym key)
+void SampleWindowDeferred::keyPressed(int key, int scancode, int mods)
 {
-    switch (key.scancode)
+    switch (key)
     {
-        case SDL_SCANCODE_ESCAPE:
+        case GLFW_KEY_ESCAPE:
             window->close();
             break;
         default:
@@ -90,7 +91,7 @@ void SampleWindowDeferred::keyPressed(SDL_Keysym key)
     }
 }
 
-void SampleWindowDeferred::keyReleased(SDL_Keysym key) {}
+
 
 }  // namespace Saiga
 #endif

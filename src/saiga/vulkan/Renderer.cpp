@@ -82,7 +82,7 @@ void VulkanRenderer::init()
     state = State::RENDERABLE;
 }
 
-void VulkanRenderer::render(const RenderInfo &renderInfo)
+void VulkanRenderer::render(const RenderInfo& renderInfo)
 {
     if (state == State::RESET)
     {
@@ -136,10 +136,10 @@ void VulkanRenderer::reset()
     state = State::RESET;
 }
 
-void VulkanRenderer::renderImGui(bool* p_open)
+void VulkanRenderer::renderImgui()
 {
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Renderer Info", p_open, ImGuiWindowFlags_NoCollapse);
+    ImGui::Begin("Renderer Info", &should_render_imgui, ImGuiWindowFlags_NoCollapse);
 
     base().renderGUI();
     base().memory.renderGUI();

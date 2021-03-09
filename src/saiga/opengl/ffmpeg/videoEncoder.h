@@ -33,9 +33,14 @@ class SAIGA_OPENGL_API VideoEncoder
     void update();
     void renderGUI();
 
+    // Can be used externally, for example, by mapping it to a key.
+    void startRecording();
+    void stopRecording();
+    bool isEncoding();
+
    private:
     int codecId    = 0;
-    char file[256] = "out.mp4";
+    std::string file = "out.mp4";
 };
 
 }  // namespace Saiga

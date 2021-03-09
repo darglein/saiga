@@ -20,7 +20,7 @@ class SAIGA_OPENGL_API AnimatedAssetObject : public Object3D
     animationtime_t animationTimeAtRender = animationtime_t(0);
     int activeAnimation                   = 0;
 
-    AnimationFrame currentFrame;
+    AnimationKeyframe currentFrame;
 
 
     // it's better to have the buffer here instead of in the asset, because otherwise it has to be uploaded for every

@@ -10,7 +10,7 @@
 
 namespace Saiga
 {
-Text::Text(TextureAtlas* textureAtlas, const std::string& label, bool normalize)
+Text::Text(TextAtlas* textureAtlas, const std::string& label, bool normalize)
     : normalize(normalize), textureAtlas(textureAtlas)
 {
     this->label = Encoding::UTF8toUTF32(label);
@@ -82,7 +82,7 @@ void Text::updateText(const std::string& l, int startIndex)
         int lastCharPos       = startIndex - 1;
         int oldStartCharacter = this->label[lastCharPos];
 
-        const TextureAtlas::character_info& info = textureAtlas->getCharacterInfo(oldStartCharacter);
+        const TextAtlas::character_info& info = textureAtlas->getCharacterInfo(oldStartCharacter);
 
         startOffset[0] = this->mesh.vertices[lastCharPos * 4].position[0];
         startOffset[1] = this->mesh.vertices[lastCharPos * 4].position[1];
@@ -194,7 +194,7 @@ void Text::addTextToMesh(const utf32string& text, vec2 offset)
     for (uint32_t c : text)
     {
         //        std::cout<<"create text mesh "<<std::dec<<(int)c<<" "<<std::hex<<(int)c<<" "<<c<<endl;
-        const TextureAtlas::character_info& info = textureAtlas->getCharacterInfo((int)c);
+        const TextAtlas::character_info& info = textureAtlas->getCharacterInfo((int)c);
 
         if (c == '\n')
         {

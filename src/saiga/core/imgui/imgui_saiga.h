@@ -197,7 +197,7 @@ enum class ImGuiTheme : int
     IMGUI,  // imgui default theme
 };
 
-struct ImGuiParameters
+struct SAIGA_CORE_API ImGuiParameters
 {
     // imgui parameters
     bool enable          = true;
@@ -205,7 +205,6 @@ struct ImGuiParameters
     int fontSize         = 18;
     float fontBrightness = 2;
     ImGuiTheme theme     = ImGuiTheme::SAIGA;
-    bool linearRGB       = false;
 
     /**
      *  Reads all paramters from the given config file.
@@ -214,8 +213,8 @@ struct ImGuiParameters
     void fromConfigFile(const std::string& file);
 };
 
-
-
 SAIGA_CORE_API void initImGui(const ImGuiParameters& params);
+
+
 
 }  // namespace Saiga

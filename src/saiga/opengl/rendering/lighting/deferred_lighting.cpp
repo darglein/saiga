@@ -6,9 +6,9 @@
 
 #include "deferred_lighting.h"
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/imath.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
@@ -501,14 +501,15 @@ void DeferredLighting::setStencilShader(std::shared_ptr<MVPShader> stencilShader
 //    return l;
 //}
 
-void DeferredLighting::renderImGui(bool* p_open)
+
+void DeferredLighting::renderImGui()
 {
-    RendererLighting::renderImGui(p_open);
+    RendererLighting::renderImGui();
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    ImGui::Begin("DeferredLighting", p_open);
+    ImGui::Begin("DeferredLighting");
     ImGui::Checkbox("stencilCulling", &stencilCulling);
 
     ImGui::End();

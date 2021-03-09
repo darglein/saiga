@@ -42,7 +42,7 @@ if(SAIGA_CXX_MSVC)
   if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
     string(REGEX REPLACE "/W[0-4]" "/W1" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1")
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1")
   endif()
 endif()
 
@@ -50,6 +50,8 @@ if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
   list(APPEND SAIGA_CXX_FLAGS "-Wall")
   list(APPEND SAIGA_CXX_FLAGS "-Werror=return-type")
   list(APPEND SAIGA_CXX_FLAGS "-Wno-strict-aliasing")
+  list(APPEND SAIGA_CXX_FLAGS "-Wno-sign-compare")
+
 endif()
 
 if (SAIGA_CXX_CLANG)
@@ -59,9 +61,9 @@ endif()
 ######### basic #########
 
 if(SAIGA_LIBSTDCPP AND SAIGA_CXX_CLANG)
-  list(APPEND SAIGA_CXX_FLAGS "-stdlib=libstdc++")
-  set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -stdlib=libstdc++")
-  SET(LIBS ${LIBS} "-lstdc++")
+  #list(APPEND SAIGA_CXX_FLAGS "-stdlib=libstdc++")
+  #set(CMAKE_LD_FLAGS "${CMAKE_LD_FLAGS} -stdlib=libstdc++")
+  #SET(LIBS ${LIBS} "-lstdc++")
 else()
   #SET(SAIGA_CXX_FLAGS "${SAIGA_CXX_FLAGS} -stdlib=libc++")
 endif()
@@ -82,6 +84,7 @@ if(SAIGA_CXX_MSVC OR SAIGA_CXX_WCLANG)
   list(APPEND SAIGA_CXX_FLAGS "/bigobj")
   #multiprocessor compilation for visual studio
   list(APPEND SAIGA_CXX_FLAGS "/MP")
+  set(CMAKE_CXX_FLAGS "/MP ${CMAKE_CXX_FLAGS}")
   add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
 endif()
 

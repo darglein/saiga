@@ -5,14 +5,14 @@ set(LIB_EXPORT saiga-export)
 
 project (${LIB_NAME} CXX)
 
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include(helper_macros)
 
 
 
 set (SAIGA_VERSION_MAJOR 1)
 set (SAIGA_VERSION_MINOR 3)
-set (SAIGA_VERSION_PATCH 1)
+set (SAIGA_VERSION_PATCH 2)
 set(SAIGA_VERSION ${SAIGA_VERSION_MAJOR}.${SAIGA_VERSION_MINOR}.${SAIGA_VERSION_PATCH})
 
 # Turn on the ability to create folders to organize projects (.vcproj)
@@ -30,6 +30,7 @@ message(STATUS "\nBuild Options")
 #option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
 OptionsHelper (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
 
+OptionsHelper (SAIGA_USE_SUBMODULES "alot of error checks and more console output" OFF)
 OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" OFF)
 OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON)
 OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON)
@@ -57,7 +58,6 @@ OptionsHelper(SAIGA_DEBIAN_BUILD "Saiga is currently build into a Debian Package
 OptionsHelper(SAIGA_MODULE_CORE   "Build the core module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_OPENGL "Build the opengl module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_VULKAN "Build the vulkan module, if possible." ON)
-OptionsHelper(SAIGA_MODULE_EXTRA  "Build the extra module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_VISION "Build the vision module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_CUDA   "Build the cuda module, if possible." ON)
 
@@ -84,11 +84,31 @@ set(SAIGA_FULL_EIGEN 1)
 if(SAIGA_LEGACY_GLM)
     set(SAIGA_FULL_EIGEN 0)
 endif()
+
+############# OUTPUT ###############
+
+set(SAIGA_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
+# Make to cache variable so it can be overwritten by the user of saiga
+set(SAIGA_RUNTIME_OUTPUT_DIRECTORY "${SAIGA_OUTPUT_DIR}/bin" CACHE PATH "Output dir of executables and dynamic libraries")
+set(SAIGA_LIBRARY_OUTPUT_DIRECTORY "${SAIGA_OUTPUT_DIR}/lib" CACHE PATH "Output dir of static libraries")
+set(SAIGA_ARCHIVE_OUTPUT_DIRECTORY "${SAIGA_OUTPUT_DIR}/lib" CACHE PATH "Output dir of static libraries")
+
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY  "${SAIGA_LIBRARY_OUTPUT_DIRECTORY}")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY  "${SAIGA_ARCHIVE_OUTPUT_DIRECTORY}")
+
+
+
 ############# COMPILER FLAGS ###############
 
 include(Saiga_compiler_flags)
 
 ####### Dependencies #######
+# Build Submodules first
+
+
 
 unset(MODULE_CORE)
 unset(MODULE_CUDA)
@@ -102,12 +122,6 @@ if(SAIGA_MODULE_CORE)
 endif()
 
 if(MODULE_CORE)
-  if(SAIGA_MODULE_EXTRA)
-      include (Dependencies_extra)
-  endif()
-    if(SAIGA_MODULE_CUDA)
-        include (Dependencies_cuda)
-    endif()
     if(SAIGA_MODULE_OPENGL)
         include (Dependencies_opengl)
     endif()
@@ -116,6 +130,9 @@ if(MODULE_CORE)
     endif()
     if(SAIGA_MODULE_VULKAN)
         include (Dependencies_vulkan)
+    endif()
+    if(SAIGA_MODULE_CUDA)
+        include (Dependencies_cuda)
     endif()
 endif()
 
@@ -209,7 +226,7 @@ STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${SAIGA_INSTALL_PREFIX} )
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_buildconfig.h")
 set(SAIGA_MODULES_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_modules.h")
-INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
+#INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
 configure_file (
     "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_buildconfig.h.in"
     "${SAIGA_BUILDCONFIG_FILE}"
@@ -240,13 +257,6 @@ write_basic_package_version_file(
 
 ############# SOURCE ###############
 
-set(OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin")
-
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${OUTPUT_DIR}")
-
-
 
 add_subdirectory(src)
 add_subdirectory(shader)
@@ -261,7 +271,29 @@ endif()
 
 if(SAIGA_BUILD_TESTS)
     message(STATUS " ")
-    add_subdirectory(tests)
+    
+    #find_package(GTest REQUIRED)
+
+    find_package(GTest CONFIG QUIET)
+    if (TARGET GTest::gtest)
+    PackageHelperTarget(GTest::gtest GTEST_FOUND)
+    set(GTEST_TARGETS GTest::gtest GTest::gtest_main)
+    elseif(SAIGA_USE_SUBMODULES)
+    message("=================================")
+    message("Adding Submodule googletest")
+    add_subdirectory(submodules/googletest)
+    PackageHelperTarget(gtest GTEST_FOUND)
+    set(GTEST_TARGETS gtest gtest_main)
+    message("=================================")
+    else()
+    find_package(GTest QUIET)
+    PackageHelperTarget(GTest::gtest GTEST_FOUND)
+    set(GTEST_TARGETS GTest::gtest GTest::gtest_main)
+    endif()
+
+    if(GTEST_FOUND)
+        add_subdirectory(tests)
+    endif()
     message(STATUS " ")
 else()
     message(STATUS "\nNo tests.")
@@ -304,9 +336,11 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/uninstall.cmake
     IMMEDIATE @ONLY)
 
-add_custom_target(uninstall
+add_custom_target(uninstall_saiga
     COMMAND ${CMAKE_COMMAND} -P
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/uninstall.cmake)
+	
+set_target_properties(uninstall_saiga PROPERTIES FOLDER CMakePredefinedTargets)
 
 ############# Doxygen ###############
 
@@ -342,17 +376,6 @@ if (DOXYGEN_FOUND AND SAIGA_BUILD_DOC)
 endif()
 
 
-
-
-# Request that saiga be built with --std=c++14
-# As this is a public compile feature anything that links to saiga
-# will also build with -std=c++14
-
-# This currently does not work with cuda
-#target_compile_features(${LIB_NAME} PUBLIC cxx_std_17)
-
-#set_property(TARGET ${LIB_NAME} PROPERTY CXX_STANDARD 17)
-#set_property(TARGET ${LIB_NAME} PROPERTY CUDA_STANDARD 14)
 
 
 

@@ -7,7 +7,7 @@
 #include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 
 #include "saiga/core/geometry/triangle_mesh.h"
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
@@ -18,14 +18,14 @@ namespace Saiga
 {
 DeferredDebugOverlay::DeferredDebugOverlay(int width, int height) : layout(width, height)
 {
-    auto tm = TriangleMeshGenerator::createFullScreenQuadMesh();
+    auto tm = FullScreenQuad();
 
     float aspect = float(width) / height;
-    tm->transform(scale(vec3(aspect, 1, 1)));
+    tm.transform(scale(vec3(aspect, 1, 1)));
 
-    meshBB = tm->aabb();
+    meshBB = tm.BoundingBox();
 
-    buffer.fromMesh(*tm);
+    buffer.fromMesh(tm);
 
 
     setScreenPosition(&color, 0);

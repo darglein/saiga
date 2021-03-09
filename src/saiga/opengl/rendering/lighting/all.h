@@ -6,6 +6,6 @@
 
 #pragma once
 
-#include "saiga/opengl/rendering/lighting/directional_light.h"
-#include "saiga/opengl/rendering/lighting/point_light.h"
-#include "saiga/opengl/rendering/lighting/spot_light.h"
+#include "directional_light.h"
+#include "point_light.h"
+#include "spot_light.h"

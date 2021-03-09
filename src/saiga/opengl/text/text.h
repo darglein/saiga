@@ -18,7 +18,7 @@
 namespace Saiga
 {
 class TextShader;
-class TextureAtlas;
+class TextAtlas;
 
 class SAIGA_OPENGL_API Text : public Object3D
 {
@@ -29,7 +29,7 @@ class SAIGA_OPENGL_API Text : public Object3D
 
 
 
-    Text(TextureAtlas* textureAtlas, const std::string& label = "", bool normalize = false);
+    Text(TextAtlas* textureAtlas, const std::string& label = "", bool normalize = false);
     virtual ~Text() {}
 
     /**
@@ -67,7 +67,7 @@ class SAIGA_OPENGL_API Text : public Object3D
     utf32string label;
     TriangleMesh<VertexNT, GLuint> mesh;
     IndexedVertexBuffer<VertexNT, GLuint> buffer;
-    TextureAtlas* textureAtlas;
+    TextAtlas* textureAtlas;
     AABB boundingBox;
 
     void calculateNormalizationMatrix();

@@ -52,8 +52,7 @@ void RenderingParameters::fromConfigFile(const std::string& file)
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
 
-    auto section = "Rendering";
-    INI_GETADD_BOOL(ini, section, srgbWrites);
+    //    auto section = "Rendering";
 
     if (ini.changed()) ini.SaveFile(file.c_str());
 }

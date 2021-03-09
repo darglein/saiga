@@ -8,7 +8,6 @@
 
 #include "saiga/core/image/image.h"
 #include "saiga/core/math/floatingPoint.h"
-#include "saiga/core/model/ModelLoader.h"
 #include "saiga/core/util/ConsoleColor.h"
 #include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/assert.h"

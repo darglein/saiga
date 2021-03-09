@@ -84,13 +84,11 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
     virtual float getTotalRenderTime() override;
 
-    void renderImGui(bool* p_open) override;
+    void renderImgui() override;
     void waitIdle();
     int swapChainSize() { return swapChain.imageCount; }
     inline VulkanBase& base() { return vulkanBase; }
 
-    void setRenderImgui(bool b) { renderImgui = b; }
-    auto getRenderImgui() { return renderImgui; }
 
    protected:
     /**
@@ -128,7 +126,6 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     VulkanSwapChain swapChain;
     VulkanParameters vulkanParameters;
 
-    bool renderImgui = true;
     std::unique_ptr<ImGuiVulkanRenderer> imGui;
 
    private:

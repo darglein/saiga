@@ -7,15 +7,13 @@
 #pragma once
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_SDL
+#ifdef SAIGA_USE_GLFW
 
-#    include "saiga/core/sdl/all.h"
+#    include "saiga/core/glfw/all.h"
 #    include "saiga/opengl/assets/all.h"
-#    include "saiga/opengl/assets/objAssetLoader.h"
 #    include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #    include "saiga/opengl/rendering/renderer.h"
 #    include "saiga/opengl/window/WindowTemplate.h"
-#    include "saiga/opengl/window/sdl_window.h"
 #    include "saiga/opengl/world/LineSoup.h"
 #    include "saiga/opengl/world/pointCloud.h"
 #    include "saiga/opengl/world/proceduralSkybox.h"
@@ -30,8 +28,8 @@ namespace Saiga
  *
  * @brief The SampleWindowForward class
  */
-class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManagement::SDL, ForwardRenderer>,
-                                             public SDL_KeyListener
+class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManagement::GLFW, ForwardRenderer>,
+                                             public glfw_KeyListener
 {
    public:
     SampleWindowForward();
@@ -42,11 +40,10 @@ class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManag
 
     virtual void render(Camera* camera, RenderPass render_pass) override;
 
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
+    void keyPressed(int key, int scancode, int mods) override;
 
    protected:
-    SDLCamera<PerspectiveCamera> camera;
+    Glfw_Camera<PerspectiveCamera> camera;
     SimpleAssetObject groundPlane;
     ProceduralSkybox skybox;
 

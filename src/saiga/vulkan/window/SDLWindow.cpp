@@ -6,13 +6,13 @@
 
 #include "saiga/config.h"
 #ifdef SAIGA_USE_SDL
+#    include "saiga/core/sdl/saiga_sdl.h"
 #    include "saiga/core/sdl/sdl_eventhandler.h"
 #    include "saiga/vulkan/imgui/ImGuiSDLRenderer.h"
 
-#    include "SDL2/SDL.h"
 #    include "SDLWindow.h"
 
-#    include "SDL2/SDL_vulkan.h"
+#    include "SDL_vulkan.h"
 #    if defined(SAIGA_OPENGL_INCLUDED)
 #        error OpenGL was included somewhere.
 #    endif

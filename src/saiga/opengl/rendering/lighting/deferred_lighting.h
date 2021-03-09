@@ -56,7 +56,7 @@ class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
     // add the volumetric light texture that was previously rendered to the scene
     void applyVolumetricLightBuffer();
 
-    void renderImGui(bool* p_open = NULL) override;
+    void renderImGui() override;
 
 
    public:

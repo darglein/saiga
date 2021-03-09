@@ -21,32 +21,21 @@ void GBuffer::init(int w, int h, GBufferParameters params)
     this->params = params;
     this->create();
 
-    //    multisampled_Texture_2D* msTexture = new multisampled_Texture_2D(4);
-    //    msTexture->create(w,h,GL_RGB,GL_SRGB8,GL_UNSIGNED_BYTE);
-
-    //    glEnable(GL_MULTISAMPLE); //enabled by default anyways
-    //    int samples = 16;
     std::shared_ptr<Texture> color = std::make_shared<Texture>();
-    //    multisampled_Texture_2D* color = new multisampled_Texture_2D(samples);
-    if (params.srgb)
+
+    switch (params.colorQuality)
     {
-        color->create(w, h, GL_RGBA, GL_SRGB8_ALPHA8, GL_UNSIGNED_BYTE);
+        case Quality::LOW:
+            color->create(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+            break;
+        case Quality::MEDIUM:
+            color->create(w, h, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
+            break;
+        case Quality::HIGH:
+            color->create(w, h, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
+            break;
     }
-    else
-    {
-        switch (params.colorQuality)
-        {
-            case Quality::LOW:
-                color->create(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
-                break;
-            case Quality::MEDIUM:
-                color->create(w, h, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
-                break;
-            case Quality::HIGH:
-                color->create(w, h, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
-                break;
-        }
-    }
+
     //    attachTexture(color);
     attachTexture(framebuffer_texture_t(color));
 

@@ -16,20 +16,6 @@ namespace Saiga
 {
 struct SAIGA_OPENGL_API RenderingParameters
 {
-    /**
-     * If srgbWrites is enabled all writes to srgb textures will cause a linear->srgb converesion.
-     * Important to note is that writes to the default framebuffer also be converted to srgb.
-     * This means if srgbWrites is enabled all shader inputs must be converted to linear rgb.
-     * For textures use the srgb flag.
-     * For vertex colors and uniforms this conversion must be done manually with Color::srgb2linearrgb()
-     *
-     * If srgbWrites is disabled the gbuffer and postprocessor are not allowed to have srgb textures.
-     *
-     * Note: If srgbWrites is enabled, you can still use a non-srgb gbuffer and post processor.
-     */
-    bool srgbWrites = true;
-
-
     // adds a 'glfinish' at the end of the rendering. usefull for debugging.
     bool useGlFinish = true;
 

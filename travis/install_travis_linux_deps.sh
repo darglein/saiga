@@ -3,14 +3,16 @@
 # Stop processing on any error.
 set -e
 
-sudo apt-get install -y cmake;
-sudo apt-get install -y g++-8;
-sudo apt-get install -y clang-8;
-sudo apt-get install -y libfreetype6-dev libglm-dev;
-sudo apt-get install -y libegl1-mesa-dev;
-sudo apt-get install -y libsdl2-dev libglfw3-dev;
-sudo apt-get install -y libpng-dev libfreeimage-dev libfreeimageplus-dev;
-sudo apt-get install -y libopenal-dev libopus-dev libopusfile-dev;
-sudo apt-get install -y libavutil-dev libavcodec-dev libavresample-dev libswscale-dev libavformat-dev;
-sudo apt-get install -y libassimp-dev libeigen3-dev libsuitesparse-dev;
-sudo apt-get install -y libgtest-dev libgoogle-glog-dev libgflags-dev
+SRC_DIR="/home/travis/eigen"
+INSTALL_DIR="/home/travis/install"
+
+mkdir $INSTALL_DIR
+
+git clone https://gitlab.com/libeigen/eigen.git $SRC_DIR
+cd $SRC_DIR
+git checkout 28aef8e816faadc0e51afbfe3fa91f10f477535d
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR ..
+cmake --build . -j4
+cmake --install .

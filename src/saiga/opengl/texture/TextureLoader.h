@@ -15,7 +15,7 @@ namespace Saiga
 {
 struct SAIGA_OPENGL_API TextureParameters
 {
-    bool srgb = true;
+    bool srgb = false;
 };
 
 SAIGA_OPENGL_API bool operator==(const TextureParameters& lhs, const TextureParameters& rhs);

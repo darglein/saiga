@@ -65,7 +65,7 @@
 
 #    include "saiga/core/time/all.h"
 #    include "saiga/core/util/Thread/omp.h"
-#    include "saiga/extra/opencv/opencv.h"
+#    include "saiga/vision/opencv/opencv.h"
 
 #    include <opencv2/core/core.hpp>
 #    include <opencv2/features2d/features2d.hpp>

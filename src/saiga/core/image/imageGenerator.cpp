@@ -18,17 +18,9 @@ std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, in
                                                     int numQuadsY)
 {
     std::shared_ptr<Image> image = std::make_shared<Image>();
-    //    Image* image = new Image();
-
-    image->width  = quadSize * numQuadsX;
-    image->height = quadSize * numQuadsY;
-
-    image->type = UC3;
-    //    image->Format() = ImageFormat(3,8,ImageElementFormat::UnsignedNormalized,true);
-    //    image->srgb =true;
-    //    image->bitDepth = 8;
-    //    image->channels = 3;
-
+    image->width                 = quadSize * numQuadsX;
+    image->height                = quadSize * numQuadsY;
+    image->type                  = UC3;
     image->create();
 
     uint8_t r1 = color1[0] * 255.0f, g1 = color1[1] * 255.0f, b1 = color1[2] * 255.0f;

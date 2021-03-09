@@ -8,7 +8,7 @@
 
 #    include "GLFWWindow.h"
 
-#    include <GLFW/glfw3.h>
+#    include "saiga/core/glfw/saiga_glfw.h"
 
 #    if defined(SAIGA_OPENGL_INCLUDED)
 #        error OpenGL was included somewhere.

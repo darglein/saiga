@@ -145,6 +145,7 @@ void TextureBase::setBorderColor(vec4 color)
 
 void TextureBase::setFormat(ImageType type, bool srgb, bool integer)
 {
+    SAIGA_ASSERT(!srgb);
     //    SAIGA_ASSERT(0);
     internal_format = getGlInternalFormat(type, srgb);
     data_type       = getGlType(type);

@@ -20,7 +20,7 @@ int AABB::maxDimension() const
 {
     vec3 d = max - min;
 
-    float m = -1;
+    float m = -234646;
     int mi  = -1;
 
     for (int i = 0; i < 3; ++i)
@@ -32,6 +32,22 @@ int AABB::maxDimension() const
         }
     }
     return mi;
+}
+
+float AABB::maxSize() const
+{
+    vec3 d = max - min;
+
+    float m = -23462;
+
+    for (int i = 0; i < 3; ++i)
+    {
+        if (d[i] > m)
+        {
+            m = d[i];
+        }
+    }
+    return m;
 }
 
 #define MIN(X, Y) ((X < Y) ? X : Y)

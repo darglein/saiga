@@ -32,11 +32,10 @@
 
 #include "imgui_impl_glfw_gl3.h"
 #ifdef SAIGA_USE_GLFW
+#    include "saiga/core/glfw/saiga_glfw.h"
+#    include "saiga/core/imgui/imgui.h"
+#    include "saiga/core/imgui/imgui_main_menu.h"
 #    include "saiga/opengl/opengl.h"
-
-#    include <GLFW/glfw3.h>
-#    include <saiga/core/imgui/imgui.h>
-
 
 #    ifdef _WIN32
 #        undef APIENTRY
@@ -94,9 +93,6 @@ ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParamete
 #    ifdef _WIN32
     io.ImeWindowHandle = glfwGetWin32Window(g_Window);
 #    endif
-
-    glfw_EventHandler::addKeyListener(this, 15);
-    glfw_EventHandler::addMouseListener(this, 15);
 }
 
 ImGui_GLFW_Renderer::~ImGui_GLFW_Renderer() {}
@@ -139,7 +135,7 @@ void ImGui_GLFW_Renderer::beginFrame()
         io.MouseDown[i] =
             g_MousePressed[i] || glfwGetMouseButton(g_Window, i) !=
                                      0;  // If a mouse press event came, always pass it as "mouse held this frame", so
-                                         // we don't miss click-release events that are shorter than 1 frame.
+        // we don't miss click-release events that are shorter than 1 frame.
         g_MousePressed[i] = false;
     }
 
@@ -151,50 +147,68 @@ void ImGui_GLFW_Renderer::beginFrame()
 
     // Start the frame
     ImGui::NewFrame();
+
+    main_menu.render();
 }
 
 
 
-bool ImGui_GLFW_Renderer::key_event(GLFWwindow* window, int key, int scancode, int action, int mods)
+void ImGui_GLFW_Renderer::keyPressed(int key, int scancode, int mods)
 {
+    auto action = GLFW_PRESS;
     ImGuiIO& io = ImGui::GetIO();
     if (action == GLFW_PRESS) io.KeysDown[key] = true;
     if (action == GLFW_RELEASE) io.KeysDown[key] = false;
+
+    if (action == GLFW_PRESS)
+    {
+        main_menu.Keypressed(key);
+    }
 
     (void)mods;  // Modifiers are not reliable across systems
     io.KeyCtrl  = io.KeysDown[GLFW_KEY_LEFT_CONTROL] || io.KeysDown[GLFW_KEY_RIGHT_CONTROL];
     io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
     io.KeyAlt   = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
     io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
-    //    return wantsCaptureMouse;
-    return false;
 }
 
-bool ImGui_GLFW_Renderer::character_event(GLFWwindow* window, unsigned int codepoint)
+
+void ImGui_GLFW_Renderer::keyReleased(int key, int scancode, int mods)
+{
+    auto action = GLFW_RELEASE;
+    ImGuiIO& io = ImGui::GetIO();
+    if (action == GLFW_PRESS) io.KeysDown[key] = true;
+    if (action == GLFW_RELEASE) io.KeysDown[key] = false;
+
+    if (action == GLFW_PRESS)
+    {
+        main_menu.Keypressed(key);
+    }
+
+    (void)mods;  // Modifiers are not reliable across systems
+    io.KeyCtrl  = io.KeysDown[GLFW_KEY_LEFT_CONTROL] || io.KeysDown[GLFW_KEY_RIGHT_CONTROL];
+    io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
+    io.KeyAlt   = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
+    io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
+}
+
+void ImGui_GLFW_Renderer::character(unsigned int codepoint)
 {
     ImGuiIO& io = ImGui::GetIO();
     if (codepoint > 0 && codepoint < 0x10000) io.AddInputCharacter((unsigned short)codepoint);
-    return false;
-    //    return wantsCaptureMouse;
 }
 
-bool ImGui_GLFW_Renderer::cursor_position_event(GLFWwindow* window, double xpos, double ypos)
-{
-    return false;
-}
 
-bool ImGui_GLFW_Renderer::mouse_button_event(GLFWwindow* window, int button, int action, int mods)
-{
-    if (action == GLFW_PRESS && button >= 0 && button < 3) g_MousePressed[button] = true;
-    return false;
-    //    return wantsCaptureMouse;
-}
+// bool ImGui_GLFW_Renderer::mouse_button_event(GLFWwindow* window, int button, int action, int mods)
+//{
+//    if (action == GLFW_PRESS && button >= 0 && button < 3) g_MousePressed[button] = true;
+//    return false;
+//    //    return wantsCaptureMouse;
+//}
 
-bool ImGui_GLFW_Renderer::scroll_event(GLFWwindow* window, double xoffset, double yoffset)
+void ImGui_GLFW_Renderer::scroll(double xoffset, double yoffset)
 {
     g_MouseWheel += (float)yoffset;  // Use fractional mouse wheel, 1.0 unit 5 lines.
-    return false;
-    //    return wantsCaptureMouse;
 }
 
 }  // namespace Saiga

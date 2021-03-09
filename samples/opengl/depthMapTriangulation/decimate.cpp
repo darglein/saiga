@@ -464,11 +464,11 @@ bool QuadricDecimater::check_for_folding_triangles(const MyMesh::EdgeHandle edge
     }
 
     // check them against each other
-    for (int i = 0; i < normals.size(); ++i)
+    for (int i = 0; i < (int)normals.size(); ++i)
     {
         OpenMesh::Vec3f normal_1 = normals[i];
 
-        for (int j = i + 1; j < normals.size(); ++j)
+        for (int j = i + 1; j < (int)normals.size(); ++j)
         {
             // dot(A,B) = |A| * |B| * cos(angle)
             // which can be rearranged to

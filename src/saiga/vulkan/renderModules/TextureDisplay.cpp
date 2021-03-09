@@ -6,7 +6,7 @@
 
 #include "TextureDisplay.h"
 
-#include "saiga/core/model/objModelLoader.h"
+#include "saiga/core/model/model_loader_obj.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
 
@@ -47,7 +47,8 @@ void TextureDisplay::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
     info.blendAttachmentState.blendEnable = VK_TRUE;
     create(renderPass, info);
 
-    blitMesh.createFullscreenQuad();
+    SAIGA_EXIT_ERROR("todo");
+    //    blitMesh.createFullscreenQuad();
     blitMesh.init(vulkanDevice);
 }
 

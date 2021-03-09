@@ -42,7 +42,7 @@ class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeList
     GLFWcursor* createGLFWcursor(Image* image, int midX, int midY);
     void setWindowIcon(Image* image);
 
-    virtual bool window_size_callback(GLFWwindow* window, int width, int height) override;
+    virtual void window_size_callback(int width, int height) override;
 
    protected:
     virtual bool initWindow() override;

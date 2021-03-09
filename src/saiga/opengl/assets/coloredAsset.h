@@ -9,13 +9,22 @@
 #include "saiga/opengl/assets/asset.h"
 #include "saiga/opengl/texture/Texture.h"
 
+
 namespace Saiga
 {
-class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<VertexColoredModel, MVPColorShader>
+class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<TriangleMesh<VertexNC, uint32_t>, MVPColorShader>
 {
    public:
     static constexpr const char* shaderStr = "asset/ColoredAsset.glsl";
     void loadDefaultShaders();
+
+    ColoredAsset() {}
+
+
+    ColoredAsset(const TriangleMesh<VertexNC, uint32_t>& mesh);
+    ColoredAsset(const UnifiedModel& model);
+    ColoredAsset(const std::string& file) : ColoredAsset(UnifiedModel(file)) {}
+
 
     virtual ~ColoredAsset() {}
 };
@@ -34,7 +43,7 @@ class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<LineMesh<Verte
 };
 
 
-class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TexturedModel, MVPTextureShader>
+class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TriangleMesh<VertexNTD, uint32_t>, MVPTextureShader>
 {
    public:
     // Default shaders
@@ -43,14 +52,25 @@ class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TexturedModel, MVPTextu
     void loadDefaultShaders() override;
 
 
-    class SAIGA_OPENGL_API TextureGroup
-    {
-       public:
-        int startIndex;
-        int indices;
-        std::shared_ptr<Texture> texture;
-    };
-    std::vector<TextureGroup> groups;
+    //    class SAIGA_OPENGL_API TextureGroup
+    //    {
+    //       public:
+    //        int startIndex;
+    //        int indices;
+    //        std::shared_ptr<Texture> texture;
+    //    };
+    //    std::vector<TextureGroup> groups;
+
+
+    std::vector<UnifiedMaterialGroup> groups;
+    std::vector<UnifiedMaterial> materials;
+
+    std::vector<std::shared_ptr<Texture> > textures;
+
+
+    TexturedAsset() {}
+    TexturedAsset(const UnifiedModel& model);
+    TexturedAsset(const std::string& file) : TexturedAsset(UnifiedModel(file)) {}
 
     virtual ~TexturedAsset() {}
 

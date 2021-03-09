@@ -65,9 +65,8 @@
 # (To distribute this file outside of CMake, substitute the full
 #  License text for the above reference.)
 
+set(SDL2_BUILDING_LIBRARY 1)
 SET(SDL2_SEARCH_PATHS
-  ~/Library/Frameworks
-  /Library/Frameworks
   /usr/local
   /usr
   /sw # Fink

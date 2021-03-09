@@ -5,7 +5,7 @@
  */
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
@@ -31,21 +31,6 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
         blackDummyTexture->create(2, 2, GL_RED, GL_R8, GL_UNSIGNED_BYTE, (GLubyte*)data.data());
     }
 
-    if (params.srgbWrites)
-    {
-        // intel graphics drivers on windows do not define this extension but srgb still works..
-        // SAIGA_ASSERT(hasExtension("GL_EXT_framebuffer_sRGB"));
-
-        // Mesa drivers do not respect the spec when blitting with srgb framebuffers.
-        // https://lists.freedesktop.org/archives/mesa-dev/2015-February/077681.html
-
-        // TODO check for mesa
-        // If this is true some recording softwares record the image too dark :(
-        params.blitLastFramebuffer = false;
-    }
-
-
-
     gbuffer.init(renderWidth, renderHeight, params.gbp);
 
     lighting.shadowSamples = params.shadowSamples;
@@ -59,8 +44,7 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
     lighting.loadShaders();
 
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
 
     int numTimers = UberDeferredTimingBlock::COUNT;
     if (!params.useGPUTimers) numTimers = 1;  // still use one rendering timer :)
@@ -114,8 +98,6 @@ void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-
-    if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
 
     startTimer(TOTAL);
 
@@ -190,6 +172,7 @@ void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         {
             SAIGA_ASSERT(ImGui::GetCurrentContext());
             imgui->beginFrame();
+            lighting.renderImGui();
         }
         renderingInterface->render(nullptr, RenderPass::GUI);
         if (imgui)
@@ -363,13 +346,13 @@ void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
 // }
 
 
-void UberDeferredRenderer::renderImGui(bool* p_open)
+void UberDeferredRenderer::renderImgui()
 {
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Deferred Renderer", p_open);
+    ImGui::Begin("Deferred Renderer", &should_render_imgui);
 
     ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &params.wireframe);
@@ -392,11 +375,6 @@ void UberDeferredRenderer::renderImGui(bool* p_open)
     ImGui::Checkbox("Show Lighting UI", &showLightingImgui);
 
     ImGui::End();
-
-    if (showLightingImgui)
-    {
-        lighting.renderImGui(&showLightingImgui);
-    }
 }
 
 }  // namespace Saiga

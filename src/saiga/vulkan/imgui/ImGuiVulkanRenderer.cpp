@@ -9,8 +9,8 @@
 #include "ImGuiVulkanRenderer.h"
 
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/util/fileChecker.h"
 #include "saiga/core/math/imath.h"
+#include "saiga/core/util/fileChecker.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
@@ -49,7 +49,7 @@ void VKVertexAttribBinder<ImDrawVert>::getVKAttribs(
 
 
 ImGuiVulkanRenderer::ImGuiVulkanRenderer(size_t _frameCount, const ImGuiParameters& params)
-    : ImGuiRenderer(params, false), frameCount(_frameCount), frameData()
+    : ImGuiRenderer(params), frameCount(_frameCount), frameData()
 {
 }
 

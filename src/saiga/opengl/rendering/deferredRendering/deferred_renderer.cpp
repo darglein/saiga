@@ -4,15 +4,18 @@
  * See LICENSE file for more information.
  */
 
+#include "deferred_renderer.h"
+
 #include "saiga/core/camera/camera.h"
-#include "saiga/core/geometry/triangle_mesh_generator.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
+
 
 namespace Saiga
 {
@@ -42,22 +45,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     }
     lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
 
-
-    if (params.srgbWrites)
-    {
-        // intel graphics drivers on windows do not define this extension but srgb still works..
-        // SAIGA_ASSERT(hasExtension("GL_EXT_framebuffer_sRGB"));
-
-        // Mesa drivers do not respect the spec when blitting with srgb framebuffers.
-        // https://lists.freedesktop.org/archives/mesa-dev/2015-February/077681.html
-
-        // TODO check for mesa
-        // If this is true some recording softwares record the image too dark :(
-        params.blitLastFramebuffer = false;
-    }
-
-
-
     gbuffer.init(renderWidth, renderHeight, params.gbp);
 
     lighting.shadowSamples = params.shadowSamples;
@@ -71,8 +58,8 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
                        params.useGPUTimers);
 
 
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    quadMesh.fromMesh(*qb);
+    quadMesh.fromMesh(FullScreenQuad());
+
 
     int numTimers = DeferredTimings::COUNT;
     if (!params.useGPUTimers) numTimers = 1;  // still use one rendering timer :)
@@ -132,6 +119,14 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     if (!rendering) return;
 
 
+    if (params.useSSAO && !ssao)
+    {
+        ssao                 = std::make_shared<SSAO>(renderWidth, renderHeight);
+        lighting.ssaoTexture = ssao->bluredTexture;
+    }
+
+
+
     Saiga::RenderInfo renderInfo = _renderInfo;
 
     SAIGA_ASSERT(rendering);
@@ -150,8 +145,6 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-
-    if (params.srgbWrites) glEnable(GL_FRAMEBUFFER_SRGB);
 
     startTimer(TOTAL);
 
@@ -198,7 +191,6 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     }
     else
     {
-        glClear(GL_DEPTH_BUFFER_BIT);
     }
 #if 0
 
@@ -269,6 +261,11 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         {
             SAIGA_ASSERT(ImGui::GetCurrentContext());
             imgui->beginFrame();
+            renderImgui();
+            lighting.renderImGui();
+
+
+
             renderingInterface->render(nullptr, RenderPass::GUI);
             imgui->endFrame();
             imgui->render();
@@ -283,8 +280,6 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     else
         postProcessor.renderLast(outputWidth, outputHeight);
 
-    //    if (params.srgbWrites)
-    //        glDisable(GL_FRAMEBUFFER_SRGB);
 
     if (params.useGlFinish) glFinish();
 
@@ -309,6 +304,7 @@ void DeferredRenderer::clearGBuffer()
     {
         glClearStencil(0x00);
     }
+
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -453,13 +449,14 @@ void DeferredRenderer::printTimings()
 }
 
 
-void DeferredRenderer::renderImGui(bool* p_open)
+void DeferredRenderer::renderImgui()
 {
+    if (!should_render_imgui) return;
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Deferred Renderer", p_open);
+    ImGui::Begin("Deferred Renderer", &should_render_imgui);
 
     ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &params.wireframe);
@@ -518,11 +515,39 @@ void DeferredRenderer::renderImGui(bool* p_open)
     ImGui::Checkbox("showLightingImgui", &showLightingImgui);
 
     ImGui::End();
+}
+TemplatedImage<ucvec4> DeferredRenderer::DownloadRender()
+{
+    auto texture = postProcessor.getCurrentTexture();
 
-    if (showLightingImgui)
+    TemplatedImage<ucvec4> result(renderHeight, renderWidth);
+    texture->download(result.data());
+    return result;
+}
+TemplatedImage<float> DeferredRenderer::DownloadDepth()
+{
+    auto texture = gbuffer.getTextureDepth();
+
+    TemplatedImage<uint32_t> raw_depth(renderHeight, renderWidth);
+    texture->download(raw_depth.data());
+
+    TemplatedImage<float> result(raw_depth.dimensions());
+    for (int i : raw_depth.rowRange())
     {
-        lighting.renderImGui(&showLightingImgui);
+        for (int j : raw_depth.colRange())
+        {
+            uint32_t di = raw_depth(i, j);
+            // stencil
+            di = di >> 8;
+
+            float df     = float(di) / (1 << 24);
+            result(i, j) = df;
+        }
     }
+
+
+
+    return result;
 }
 
 }  // namespace Saiga

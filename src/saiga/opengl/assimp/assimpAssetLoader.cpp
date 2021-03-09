@@ -6,8 +6,8 @@
 
 #include "saiga/config.h"
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
+#    include "saiga/core/model/model_loader_assimp.h"
 #    include "saiga/opengl/assimp/assimpAssetLoader.h"
-#    include "saiga/opengl/assimp/assimpLoader.h"
 #    include "saiga/opengl/shader/shaderLoader.h"
 #    include "saiga/opengl/texture/TextureLoader.h"
 
@@ -50,6 +50,9 @@ std::shared_ptr<ColoredAsset> AssimpAssetLoader::loadBasicAsset(const std::strin
 
 std::shared_ptr<TexturedAsset> AssimpAssetLoader::loadTexturedAsset(const std::string& file, bool normalize)
 {
+    SAIGA_ASSERT(0);
+    return nullptr;
+#    if 0
     AssimpLoader al(file);
 
     al.printInfo();
@@ -102,8 +105,10 @@ std::shared_ptr<TexturedAsset> AssimpAssetLoader::loadTexturedAsset(const std::s
     asset->create();
 
     return std::shared_ptr<TexturedAsset>(asset);
+#    endif
 }
 
+#    if 0
 std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::string& file, bool normalize)
 {
     AssimpLoader al(file);
@@ -139,10 +144,9 @@ std::shared_ptr<AnimatedAsset> AssimpAssetLoader::loadAnimatedAsset(const std::s
 
     for (BoneVertexCD& bv : asset->vertices)
     {
-        bv.normalizeWeights();
+        bv.bone_info.normalizeWeights();
     }
 
-    asset->boneCount    = al.boneOffsets.size();
     asset->boneMap      = al.boneMap;
     asset->nodeindexMap = al.nodeindexMap;
     asset->boneOffsets  = al.boneOffsets;
@@ -170,6 +174,6 @@ std::shared_ptr<Asset> AssimpAssetLoader::loadAsset(const std::string& file)
 {
     return loadBasicAsset(file);
 }
-
+#    endif
 }  // namespace Saiga
 #endif

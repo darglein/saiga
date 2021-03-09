@@ -7,9 +7,9 @@
 #include "saiga/config.h"
 #ifdef SAIGA_USE_GLFW
 
+#    include "saiga/core/glfw/saiga_glfw.h"
+#    include "saiga/core/imgui/imgui_main_menu.h"
 #    include "saiga/opengl/imgui/imgui_impl_glfw_gl3.h"
-
-#    include <GLFW/glfw3.h>
 
 #    include "glfw_window.h"
 
@@ -19,6 +19,8 @@ glfw_Window::glfw_Window(WindowParameters windowParameters, OpenGLParameters ope
     : OpenGLWindow(windowParameters, openglParameters)
 {
     create();
+    main_menu.AddItem(
+        "Saiga", "Window", [this]() { showImgui = !showImgui; }, 295, "F6");
 }
 
 glfw_Window::~glfw_Window()
@@ -44,7 +46,8 @@ void glfw_Window::getCurrentPrimaryMonitorResolution(int* width, int* height)
 {
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
-    std::cout << "Video Mode: " << mode->width << " x " << mode->height << " @" << mode->refreshRate << "Hz" << std::endl;
+    std::cout << "Video Mode: " << mode->width << " x " << mode->height << " @" << mode->refreshRate << "Hz"
+              << std::endl;
 
     *width  = mode->width;
     *height = mode->height;
@@ -58,12 +61,12 @@ void glfw_Window::getMaxResolution(int* width, int* height)
     const GLFWvidmode* mode = glfwGetVideoModes(primary, &count);
     //    std::cout << "Video modes:" << std::endl;
     //    for (int i = 0; i < count; i++){
-    //        std::cout << "Mode "<< i << ": " << mode[i].width << " x "<< mode[i].height << " @" << mode[i].refreshRate <<
-    //        "Hz" << std::endl;
+    //        std::cout << "Mode "<< i << ": " << mode[i].width << " x "<< mode[i].height << " @" << mode[i].refreshRate
+    //        << "Hz" << std::endl;
     //    }
 
     std::cout << "Native Video Mode: " << mode[count - 1].width << " x " << mode[count - 1].height << " @"
-         << mode[count - 1].refreshRate << "Hz" << std::endl;
+              << mode[count - 1].refreshRate << "Hz" << std::endl;
     *width  = mode[count - 1].width;
     *height = mode[count - 1].height;
 }
@@ -243,8 +246,6 @@ bool glfw_Window::initInput()
     // keyboard
     glfwSetCharCallback(window, glfw_EventHandler::character_callback);
     glfwSetKeyCallback(window, glfw_EventHandler::key_callback);
-
-    glfw_EventHandler::addResizeListener(this, 0);
     return true;
 }
 
@@ -260,11 +261,9 @@ void glfw_Window::freeContext()
 
 
 
-bool glfw_Window::window_size_callback(GLFWwindow* window, int width, int height)
+void glfw_Window::window_size_callback(int width, int height)
 {
-    (void)window;
     this->resize(width, height);
-    return false;
 }
 
 void glfw_Window::error_callback(int error, const char* description)
