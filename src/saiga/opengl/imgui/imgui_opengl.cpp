@@ -163,3 +163,19 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData* draw_data)
 
 
 }  // namespace Saiga
+
+void ImGui::Texture(Saiga::TextureBase* texture, const ImVec2& size, bool flip_y, const ImVec4& tint_col,
+                    const ImVec4& border_col)
+{
+    size_t tid     = texture->getId();
+    ImTextureID id = (ImTextureID)tid;
+
+    if (flip_y)
+    {
+        Image(id, size, ImVec2(0, 1), ImVec2(1, 0), tint_col, border_col);
+    }
+    else
+    {
+        Image(id, size, ImVec2(0, 0), ImVec2(1, 1), tint_col, border_col);
+    }
+}

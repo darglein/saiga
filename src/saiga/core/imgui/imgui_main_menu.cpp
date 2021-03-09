@@ -116,6 +116,116 @@ bool Splitter(bool split_vertically, float thickness, float* size1, float* size2
 
 void EditorGui::render(int w, int h)
 {
+    //    return;
+    {
+        //        ImGui::SetNextWindowPos(ImVec2(400, 0), ImGuiCond_Once);
+        //        ImGui::SetNextWindowSize(ImVec2(800, 800), ImGuiCond_Once);
+
+        ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
+        flags |= ImGuiWindowFlags_NoDocking;
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                 ImGuiWindowFlags_NoMove;
+        flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+
+        ImGui::Begin("Master Window", nullptr,
+                     ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                         ImGuiWindowFlags_NoNavFocus);
+        ImGui::PopStyleVar();
+
+
+        ImVec2 dockspace_size = ImGui::GetMainViewport()->Size;
+
+
+        static ImGuiID dockspace_id = 1;
+        // Declare Central dockspace
+        ImGui::DockSpace(
+            dockspace_id, dockspace_size,
+            ImGuiDockNodeFlags_None | ImGuiDockNodeFlags_PassthruCentralNode /*|ImGuiDockNodeFlags_NoResize*/);
+
+        static bool init = true;
+
+        if (init)
+        {
+            ImGui::DockBuilderRemoveNode(dockspace_id);  // Clear out existing layout
+            ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode);  // Add empty node
+            ImGui::DockBuilderSetNodeSize(dockspace_id, dockspace_size);
+
+
+            ImGuiID dock_main_id = dockspace_id;  // This variable will track the document node, however we are not
+                                                  // using it here as we aren't docking anything into it.
+            ImGuiID dock_id_prop = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.20f, NULL, &dock_main_id);
+            ImGuiID dock_id_bottom =
+                ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.20f, NULL, &dock_main_id);
+
+
+            ImGui::DockBuilderDockWindow("Log", dock_id_bottom);
+            ImGui::DockBuilderDockWindow("Properties", dock_id_prop);
+            // ImGui::DockBuilderDockWindow("Mesh", dock_main_id);
+            ImGui::DockBuilderDockWindow("3DView", dock_main_id);
+            // ImGui::DockBuilderDockWindow("Extra", dock_id_prop);
+            ImGui::DockBuilderFinish(dockspace_id);
+            init = false;
+        }
+
+
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
+
+    //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
+    ImGui::Begin("Log");
+    ImGui::End();
+
+    //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
+    ImGui::Begin("Properties");
+    ImGui::End();
+
+    //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
+    //    ImGui::Begin("Mesh");
+    //    ImGui::End();
+
+
+#if 0
+    int bar_height = MainMenu::Height();
+
+
+    static ImGuiID dockspaceID1 = 1;
+    static ImGuiID dockspaceID2 = 2;
+
+    ImGui::SetNextWindowPos(ImVec2(0, bar_height), ImGuiCond_Always);
+    ImGui::Begin("Master Window");
+
+    ImGui::TextUnformatted("DockSpace below");
+
+    // Declare Central dockspace
+    ImGui::DockSpace(dockspaceID1, ImVec2(0.0f, 800.0f),
+                     ImGuiDockNodeFlags_None | ImGuiDockNodeFlags_PassthruCentralNode /*|ImGuiDockNodeFlags_NoResize*/);
+
+    ImGui::TextUnformatted("DockSpace below");
+//    ImGui::DockSpace(
+//        dockspaceID2, ImVec2(0.0f, 200.0f), ImGuiDockNodeFlags_None | ImGuiDockNodeFlags_PassthruCentralNode
+//        /*|ImGuiDockNodeFlags_NoResize*/);
+
+    ImGui::End();
+
+
+
+    // ImGui::SetNextWindowDockID(dockspaceID, ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Dockable Window"))
+    {
+        ImGui::TextUnformatted("Test");
+    }
+    ImGui::End();
+
+    return;
     int bar_height = MainMenu::Height();
     ImGui::SetNextWindowPos(ImVec2(0, bar_height), ImGuiCond_Always);
     int height = h - bar_height;
@@ -156,6 +266,7 @@ void EditorGui::render(int w, int h)
 
 
     ImGui::End();
+#endif
 }
 
 }  // namespace Saiga
