@@ -24,7 +24,7 @@ class Sample : public SampleWindowDeferred
         camera.movementSpeed     = 0.3;
         camera.movementSpeedFast = 3;
 
-        sun->disableShadows();
+        sun->castShadows = false;
 
 
         normalShader  = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset_normal.glsl");
