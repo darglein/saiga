@@ -6,13 +6,14 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
-#include "saiga/opengl/assets/objAssetLoader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/RendererSampleWindow.h"
 #include "saiga/opengl/world/skybox.h"
-
+#include "saiga/core/model/model_from_shape.h"
 
 using namespace Saiga;
+
+#define LIGHT_SEED 9
 
 class Sample : public RendererSampleWindow
 {
@@ -24,11 +25,11 @@ class Sample : public RendererSampleWindow
    public:
     Sample()
     {
-        ObjAssetLoader assetLoader;
-        auto showAsset = assetLoader.loadDebugPlaneAsset(vec2(20, 20));
-        // auto showAsset = assetLoader.loadColoredAsset("show_model.obj");
+        Random::setSeed(LIGHT_SEED);  // SEED
 
-        show.asset = showAsset;
+        show.asset = std::make_shared<ColoredAsset>(
+            CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::darkgray, Colors::white));
+
         show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
         // show.multScale(make_vec3(0.01f));
         show.calculateModel();
@@ -70,7 +71,7 @@ class Sample : public RendererSampleWindow
 
         auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
-        showAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
+        static_cast<ColoredAsset*>(show.asset.get())->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
         std::cout << "Program Initialized!" << std::endl;
@@ -82,7 +83,7 @@ class Sample : public RendererSampleWindow
     {
         Base::render(camera, render_pass);
 
-#ifdef SINGLE_PASS_DEFERRED_PIPELINE
+#if defined(SINGLE_PASS_DEFERRED_PIPELINE) || defined(MULTI_PASS_DEFERRED_PIPELINE)
         if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
         {
             show.render(camera);
@@ -167,41 +168,20 @@ class Sample : public RendererSampleWindow
             {
                 if (count > maximumNumberOfRendererSupportedPointLights)
                     count = maximumNumberOfRendererSupportedPointLights;
-                if (count > renderer->lighting.pointLights.size())
+                renderer->lighting.pointLights.clear();
+                pointLights.clear();
+                Random::setSeed(LIGHT_SEED);
+                for (int32_t i = 0; i < count; ++i)
                 {
-                    count -= renderer->lighting.pointLights.size();
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        std::shared_ptr<PointLight> light = std::make_shared<PointLight>();
-
-                        light->setIntensity(1);
-
-                        light->setRadius(linearRand(0.1f, 4.0f));
-
-                        light->setPosition(linearRand(vec3(-16, 0.09f, -16), vec3(16, light->getRadius(), 16)));
-
-                        light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-
-
-                        light->castShadows = false;
-                        renderer->lighting.AddLight(light);
-                    }
-                }
-                else if (count < renderer->lighting.pointLights.size())
-                {
-                    count = renderer->lighting.pointLights.size() - count;
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        renderer->lighting.pointLights.erase(--renderer->lighting.pointLights.end());
-                    }
-                }
-            }
-            if (ImGui::Button("Normalize Point Lights"))
-            {
-                for (auto pl : renderer->lighting.pointLights)
-                {
-                    float intensity = 1.0f / pl->getRadius();
-                    pl->setIntensity(intensity);
+                    std::shared_ptr<PointLight> light = std::make_shared<PointLight>();
+                    light->setRadius(linearRand(0.5, 4.0));
+                    light->setIntensity(1.0f / light->getRadius());
+                    light->setPosition(
+                        linearRand(vec3(-16, light->getRadius() * 0.5, -16), vec3(16, light->getRadius(), 16)));
+                    light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+                    light->castShadows = false;
+                    renderer->lighting.AddLight(light);
+                    pointLights.push_back(light);
                 }
             }
 
@@ -210,94 +190,57 @@ class Sample : public RendererSampleWindow
             {
                 if (count > maximumNumberOfRendererSupportedSpotLights)
                     count = maximumNumberOfRendererSupportedSpotLights;
-                if (count > renderer->lighting.spotLights.size())
+                renderer->lighting.spotLights.clear();
+                spotLights.clear();
+                Random::setSeed(LIGHT_SEED);
+                for (int32_t i = 0; i < count; ++i)
                 {
-                    count -= renderer->lighting.spotLights.size();
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        std::shared_ptr<SpotLight> light = std::make_shared<SpotLight>();
-                        light->setIntensity(1);
-
-
-                        light->setRadius(linearRand(1, 4));
-
-                        light->setPosition(linearRand(vec3(-16, 1, -16), vec3(16, light->getRadius(), 16)));
-                        light->setAngle(linearRand(25, 55));
-
-                        light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-
-
-                        light->castShadows = false;
-                        renderer->lighting.AddLight(light);
-                    }
-                }
-                else if (count < renderer->lighting.spotLights.size())
-                {
-                    count = renderer->lighting.spotLights.size() - count;
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        renderer->lighting.spotLights.erase(--renderer->lighting.spotLights.end());
-                    }
+                    std::shared_ptr<SpotLight> light = std::make_shared<SpotLight>();
+                    light->setRadius(linearRand(1.0, 4.0));
+                    light->setIntensity(1.0);
+                    light->setPosition(linearRand(vec3(-16, 1, -16), vec3(16, light->getRadius(), 16)));
+                    light->setAngle(linearRand(25, 55));
+                    light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+                    light->direction   = linearRand(vec3(-0.5, -0.5, -0.5), vec3(0.5, 0.5, 0.5));
+                    light->castShadows = false;
+                    renderer->lighting.AddLight(light);
+                    spotLights.push_back(light);
                 }
             }
-            if (ImGui::Button("Normalize Spot Lights"))
-            {
-                for (auto sl : renderer->lighting.spotLights)
-                {
-                    float intensity = 1.0f / sl->getRadius();
-                    sl->setIntensity(intensity);
-                }
-            }
-
 
             count = renderer->lighting.directionalLights.size();
             if (ImGui::InputInt("Directional Light Count (wanted)", &count))
             {
                 if (count > maximumNumberOfRendererSupportedDirectionalLights)
                     count = maximumNumberOfRendererSupportedDirectionalLights;
-                if (count > renderer->lighting.directionalLights.size())
+                renderer->lighting.directionalLights.clear();
+                directionalLights.clear();
+                Random::setSeed(LIGHT_SEED);
+                for (int32_t i = 0; i < count; ++i)
                 {
-                    count -= renderer->lighting.directionalLights.size();
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        std::shared_ptr<DirectionalLight> light = std::make_shared<DirectionalLight>();
-
-                        light->castShadows = false;
-
-                        light->setAmbientIntensity(0.01);
-
-                        vec3 dir = Random::sphericalRand(1).cast<float>();
-                        if (dir.y() > 0) dir.y() *= -1;
-
-                        light->setIntensity(0.7);
-                        light->setDirection(dir);
-                        renderer->lighting.AddLight(light);
-                    }
-                }
-                else if (count < renderer->lighting.directionalLights.size())
-                {
-                    count = renderer->lighting.directionalLights.size() - count;
-                    for (int32_t i = 0; i < count; ++i)
-                    {
-                        renderer->lighting.directionalLights.erase(--renderer->lighting.directionalLights.end());
-                    }
+                    std::shared_ptr<DirectionalLight> light = std::make_shared<DirectionalLight>();
+                    light->createShadowMap(1, 1, 1, ShadowQuality::LOW);  // FIXME Has to be called?
+                    light->castShadows = false;
+                    light->setAmbientIntensity(0.01);
+                    vec3 dir = Random::sphericalRand(1).cast<float>();
+                    if (dir.y() > 0) dir.y() *= -1;
+                    light->setIntensity(0.75);
+                    light->setDirection(dir);
+                    renderer->lighting.AddLight(light);
+                    directionalLights.push_back(light);
                 }
             }
-            if (ImGui::Button("Normalize Directional Lights"))
-            {
-                for (auto dl : renderer->lighting.directionalLights)
-                {
-                    float intensity = dl->getIntensity();
-                    intensity       = 1.0f / renderer->lighting.directionalLights.size();
-                    dl->setIntensity(intensity);
-                }
-            }
+
             ImGui::End();
         }
     }
 
    private:
     SimpleAssetObject show;
+
+    std::vector<std::shared_ptr<PointLight>> pointLights;
+    std::vector<std::shared_ptr<SpotLight>> spotLights;
+    std::vector<std::shared_ptr<DirectionalLight>> directionalLights;
 };
 
 int main(const int argc, const char* argv[])

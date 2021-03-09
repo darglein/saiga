@@ -39,6 +39,9 @@ class SAIGA_CORE_API Sphere
     // =0 on the surface
     float sdf(vec3 p) const;
 
+
+    vec2 projectedIntervall(const vec3& d) const;
+
     //    TriangleMesh* createMesh(int rings, int sectors);
     //    void addToBuffer(std::vector<VertexNT> &vertices, std::vector<GLuint> &indices, int rings, int sectors);
 

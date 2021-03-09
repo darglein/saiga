@@ -113,6 +113,10 @@ class SAIGA_CORE_API Frustum
      */
 
     bool intersectSAT(const Frustum& other) const;
+
+
+
+    bool intersectSAT(const Sphere& s) const;
 };
 
 SAIGA_CORE_API std::ostream& operator<<(std::ostream& os, const Frustum& frustum);

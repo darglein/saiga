@@ -7,7 +7,6 @@
 #pragma once
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/Align.h"
-#include "saiga/opengl/rendering/lighting/light.h"
 #include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/lighting/light.h"
 #include "saiga/opengl/uniformBuffer.h"
@@ -75,7 +74,7 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     {
         ShaderData data;
         data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
-        data.colorSpecular = make_vec4(colorSpecular, 1.0f);
+        data.colorSpecular = make_vec4(colorSpecular, intensity_specular);
         data.direction     = make_vec4(direction, 0.0f);
         return data;
     }

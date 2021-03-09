@@ -29,7 +29,7 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
         float cosa         = cos(radians(angle * 0.95f));  // make border smoother
         data.position      = make_vec4(position, cosa);
         data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
-        data.colorSpecular = make_vec4(colorSpecular, 1.0f);
+        data.colorSpecular = make_vec4(colorSpecular, intensity_specular);
         data.attenuation   = make_vec4(attenuation, radius);
         data.direction     = make_vec4(direction, 0);
         return data;
