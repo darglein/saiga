@@ -71,7 +71,7 @@ class SAIGA_CORE_API EditorGui
    public:
     enum EditorLayout
     {
-        WINDOW_POSITION_SYSTEM,
+        WINDOW_POSITION_SYSTEM = 0,
         WINDOW_POSITION_DETAILS,
         WINDOW_POSITION_LOG,
         WINDOW_POSITION_3DVIEW,
@@ -80,11 +80,16 @@ class SAIGA_CORE_API EditorGui
     EditorGui();
     void render(int w, int h);
 
+
+    void RegisterImguiWindow(const std::string& name, EditorLayout position);
+
     // If enabled the dockspace + the menu bar is rendered
     // Otherwise these elements are not rendered.
     // All imgui-windows that are docked into the dockspace will disappear.
     // Only "floating" windows are then shown
     bool enabled = true;
+
+
 
    private:
     bool reset_work_space = true;

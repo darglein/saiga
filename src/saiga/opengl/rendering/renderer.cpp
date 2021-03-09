@@ -51,11 +51,15 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
 
         if (editor_gui.enabled)
         {
-            ImGui::Begin("3DView");
-            is_viewport_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow);
-            auto w_size         = ImGui::GetWindowSize();
-            target_w            = w_size.x;
-            target_h            = w_size.y;
+            ImGuiWindowFlags flags =
+                ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+            ImGui::Begin("3DView", nullptr, flags);
+            use_mouse_input_in_3dview    = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow);
+            use_keyboard_input_in_3dview = use_mouse_input_in_3dview;
+            //            auto w_size         = ImGui::GetWindowSize();
+            auto w_size = ImGui::GetWindowContentRegionMax();
+            target_w    = w_size.x;
+            target_h    = w_size.y;
             ImGui::End();
         }
     }
@@ -63,7 +67,8 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
     if (!editor_gui.enabled)
     {
         // In fullscreen mode we check, if a gui element is used
-        is_viewport_focused = !ImGui::captureKeyboard() && !ImGui::captureMouse();
+        use_mouse_input_in_3dview    = !ImGui::captureMouse();
+        use_keyboard_input_in_3dview = !ImGui::captureKeyboard();
     }
 
     ResizeTarget(target_w, target_h);
@@ -123,7 +128,11 @@ void OpenGLRenderer::ResizeTarget(int windowWidth, int windowHeight)
         std::shared_ptr<Texture> color = std::make_shared<Texture>();
         color->create(outputWidth, outputHeight, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
 
+        std::shared_ptr<Texture> depth_stencil = std::make_shared<Texture>();
+        depth_stencil->create(outputWidth, outputHeight, GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8, GL_UNSIGNED_INT_24_8);
+
         target_framebuffer->attachTexture(color);
+        target_framebuffer->attachTextureDepthStencil(depth_stencil);
         target_framebuffer->check();
     }
     else

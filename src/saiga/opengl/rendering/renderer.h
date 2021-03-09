@@ -69,7 +69,8 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
 
     // A bool that is true if the 3D viewport is in focus or an imgui element
     // This should be used by the application to filter keyborad/mouse input
-    bool is_viewport_focused = true;
+    bool use_mouse_input_in_3dview    = true;
+    bool use_keyboard_input_in_3dview = true;
 };
 
 inline void setViewPort(const ViewPort& vp)

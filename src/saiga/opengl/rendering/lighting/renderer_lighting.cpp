@@ -6,9 +6,10 @@
 
 #include "renderer_lighting.h"
 
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/imgui/imgui_main_menu.h"
 #include "saiga/core/math/imath.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
@@ -16,7 +17,6 @@
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/CubeTexture.h"
-#include "saiga/core/imgui/imgui_main_menu.h"
 
 namespace Saiga
 {
@@ -27,6 +27,8 @@ RendererLighting::RendererLighting()
 
     main_menu.AddItem(
         "Saiga", "Lighting", [this]() { showLightingImgui = !showLightingImgui; }, 297, "F8");
+
+    editor_gui.RegisterImguiWindow("RendererLighting", EditorGui::WINDOW_POSITION_SYSTEM);
 }
 
 RendererLighting::~RendererLighting() {}

@@ -37,8 +37,8 @@ SampleWindowDeferred::~SampleWindowDeferred() {}
 void SampleWindowDeferred::update(float dt)
 {
     // Update the camera position
-    //    if (!ImGui::captureKeyboard())
-    if (renderer->is_viewport_focused) camera.update(dt);
+    //    if (renderer->use_keyboard_input_in_3dview)
+    if (renderer->use_keyboard_input_in_3dview) camera.update(dt);
     sun->fitShadowToCamera(&camera);
 }
 
@@ -46,8 +46,8 @@ void SampleWindowDeferred::interpolate(float dt, float interpolation)
 {
     // Update the camera rotation. This could also be done in 'update' but
     // doing it in the interpolate step will reduce latency
-    //    if (!ImGui::captureMouse())
-    if (renderer->is_viewport_focused) camera.interpolate(dt, interpolation);
+    //    if (renderer->use_mouse_input_in_3dview)
+    if (renderer->use_mouse_input_in_3dview) camera.interpolate(dt, interpolation);
 }
 
 

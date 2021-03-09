@@ -6,9 +6,9 @@
 
 #include "uber_deferred_lighting.h"
 
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/imath.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
@@ -49,7 +49,7 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
 
     ClustererParameters params;
     params.clusterThreeDimensional = true;
-    lightClusterer = std::make_shared<CPUPlaneClusterer>(params);
+    lightClusterer                 = std::make_shared<CPUPlaneClusterer>(params);
 }
 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
@@ -240,6 +240,8 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
 void UberDeferredLighting::renderImGui()
 {
     RendererLighting::renderImGui();
+
+    if (!showLightingImgui) return;
     ImGui::Begin("UberDefferedLighting", &showLightingImgui);
 
 

@@ -71,7 +71,7 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     UberDeferredRenderer& operator=(UberDeferredRenderer& l) = delete;
     virtual ~UberDeferredRenderer();
 
-    void render(const RenderInfo& renderInfo) override;
+    void renderGL(Framebuffer* target_framebuffer, ViewPort viewport, Camera* camera) override;
     void renderImgui() override;
 
 
