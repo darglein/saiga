@@ -6,13 +6,15 @@
 #include "MeshToTSDF.h"
 
 #include "saiga/core/geometry/all.h"
+#include "saiga/core/geometry/kdtree.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/discreteProbabilityDistribution.h"
 #include "saiga/vision/util/Random.h"
 
-#include "saiga/core/geometry/kdtree.h"
 #include "MarchingCubes.h"
 #include "fstream"
+
+#include <algorithm>
 namespace Saiga
 {
 std::vector<vec3> MeshToPointCloud(const std::vector<Triangle>& _triangles, int N)
@@ -36,7 +38,7 @@ std::vector<vec3> MeshToPointCloud(const std::vector<Triangle>& _triangles, int 
 #pragma omp parallel for
     for (int i = 0; i < N; ++i)
     {
-        auto t = dis.sample();
+        auto t    = dis.sample();
         points[i] = triangles[t].RandomPointOnSurface();
     }
     return points;
@@ -53,8 +55,9 @@ std::vector<vec3> ReducePointsPoissonDisc(const std::vector<vec3>& mesh_points, 
         auto ps = tree.RadiusSearch(p, radius);
 
         bool found = false;
-        for(auto pi : ps){
-            if(used[pi])
+        for (auto pi : ps)
+        {
+            if (used[pi])
             {
                 found = true;
                 break;
@@ -80,7 +83,7 @@ std::vector<vec3> ReducePointsPoissonDisc(const std::vector<vec3>& mesh_points, 
 }
 std::vector<vec3> MeshToPointCloudPoissonDisc(const std::vector<Triangle>& triangles, int max_samples, float radius)
 {
-    auto mesh_points = MeshToPointCloud(triangles,max_samples);
+    auto mesh_points = MeshToPointCloud(triangles, max_samples);
     return ReducePointsPoissonDisc(mesh_points, radius);
 }
 
@@ -88,7 +91,8 @@ std::vector<vec3> MeshToPointCloudPoissonDisc(const std::vector<Triangle>& trian
 std::vector<vec3> MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& triangles, int max_samples, float radius)
 {
     std::vector<int> num_samples_per_triangle(triangles.size(), 0);
-    if(0){
+    if (0)
+    {
         std::vector<double> areas;
         for (auto& t : triangles)
         {
@@ -103,14 +107,17 @@ std::vector<vec3> MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& tria
             auto t = dis.sample();
             num_samples_per_triangle[t]++;
         }
-    }else{
+    }
+    else
+    {
         double total_area = 0;
-        for(auto& t : triangles){
+        for (auto& t : triangles)
+        {
             total_area += t.Area();
         }
         for (int i = 0; i < triangles.size(); ++i)
         {
-            double ratio = triangles[i].Area() / total_area;
+            double ratio                = triangles[i].Area() / total_area;
             num_samples_per_triangle[i] = std::round(ratio * max_samples);
         }
     }
@@ -118,30 +125,31 @@ std::vector<vec3> MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& tria
     std::vector<std::vector<vec3>> samples_per_triangle(triangles.size());
 
 #pragma omp parallel for
-    for(int i =0; i < triangles.size(); ++i)
+    for (int i = 0; i < triangles.size(); ++i)
     {
         int n = num_samples_per_triangle[i];
 
         std::vector<vec3> points(n);
-        for(int j =0; j < n; ++j){
+        for (int j = 0; j < n; ++j)
+        {
             points[j] = triangles[i].RandomPointOnSurface();
         }
 
-        samples_per_triangle[i] = ReducePointsPoissonDisc(points,radius);
+        samples_per_triangle[i] = ReducePointsPoissonDisc(points, radius);
     }
 
     std::vector<vec3> result;
     result.reserve(max_samples);
 
 
-    for(auto& points : samples_per_triangle)
+    for (auto& points : samples_per_triangle)
     {
-        result.insert(result.end(),points.begin(),points.end());
+        result.insert(result.end(), points.begin(), points.end());
     }
 
-    std::random_shuffle(result.begin(),result.end());
+    std::random_shuffle(result.begin(), result.end());
 
-    return ReducePointsPoissonDisc(result,radius);
+    return ReducePointsPoissonDisc(result, radius);
 }
 
 float Distance(const std::vector<Triangle>& triangles, const vec3& p)
