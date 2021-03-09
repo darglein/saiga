@@ -13,15 +13,25 @@ namespace Saiga
 {
 GLPointCloud::GLPointCloud()
 {
-    shader = shaderLoader.load<MVPShader>("colored_points.glsl");
+    shader_simple = shaderLoader.load<MVPShader>("geometry/colored_points.glsl");
+    shader_geometry = shaderLoader.load<MVPShader>("geometry/colored_points_geometry.glsl");
+
     buffer.setDrawMode(GL_POINTS);
 }
 
 void GLPointCloud::render(Camera* cam)
 {
     if (buffer.getVAO() == 0) return;
-    glPointSize(pointSize);
+    glPointSize(screen_point_size);
+
+    auto shader = splat_geometry ? shader_geometry : shader_simple;
+
     shader->bind();
+
+    if(splat_geometry)
+    {
+        shader->upload(0, world_point_size);
+    }
 
     shader->uploadModel(model);
 
@@ -39,7 +49,12 @@ void GLPointCloud::updateBuffer()
 }
 void GLPointCloud::imgui()
 {
-    ImGui::InputFloat("point_size", &pointSize);
+    ImGui::InputFloat("screen_point_size", &screen_point_size);
+    ImGui::InputFloat("world_point_size", &world_point_size);
+
+
+
+    ImGui::Checkbox("splat_geometry", &splat_geometry);
 }
 
 
