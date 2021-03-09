@@ -11,69 +11,25 @@
 
 namespace Saiga
 {
-void PointLightShader::checkUniforms()
-{
-    AttenuatedLightShader::checkUniforms();
-    location_shadowPlanes = getUniformLocation("shadowPlanes");
-}
-
-
-
-void PointLightShader::uploadShadowPlanes(float f, float n)
-{
-    Shader::upload(location_shadowPlanes, vec2(f, n));
-}
-
-
 PointLight::PointLight()
 {
     polygon_offset = vec2(2.0, 100.0);
 }
 
 
-PointLight& PointLight::operator=(const PointLight& light)
+mat4 PointLight::ModelMatrix()
 {
-    model         = light.model;
-    colorDiffuse  = light.colorDiffuse;
-    colorSpecular = light.colorSpecular;
-    attenuation   = light.attenuation;
-    cutoffRadius  = light.cutoffRadius;
-    return *this;
+    vec3 scale    = make_vec3(radius);
+    vec3 position = (this->position);
+
+    return createTRSmatrix(position, quat::Identity(), scale);
 }
-
-
-float PointLight::getRadius() const
-{
-    return cutoffRadius;
-}
-
-
-void PointLight::setRadius(float value)
-{
-    cutoffRadius = value;
-    this->setScale(make_vec3(cutoffRadius));
-}
-
-void PointLight::bindUniforms(std::shared_ptr<PointLightShader> shader, Camera* cam)
-{
-    AttenuatedLight::bindUniforms(shader, cam);
-    shader->uploadShadowPlanes(this->shadowCamera.zFar, this->shadowCamera.zNear);
-    shader->uploadInvProj(inverse(cam->proj));
-    if (this->hasShadows())
-    {
-        shader->uploadDepthBiasMV(viewToLightTransform(*cam, this->shadowCamera));
-        shader->uploadDepthTexture(shadowmap->getDepthTexture());
-        shader->uploadShadowMapSize(shadowmap->getSize());
-    }
-    assert_no_glerror();
-}
-
 
 
 void PointLight::createShadowMap(int w, int h, ShadowQuality quality)
 {
-    shadowmap = std::make_shared<CubeShadowmap>(w, h, quality);
-    //    shadowmap->createCube(w,h);
+    shadowmap   = std::make_unique<CubeShadowmap>(w, h, quality);
+    castShadows = true;
 }
 
 
@@ -101,16 +57,16 @@ void PointLight::bindFace(int face)
 
 void PointLight::calculateCamera(int face)
 {
-    vec3 pos(this->getPosition());
+    vec3 pos(position);
     vec3 dir(gCameraDirections[face].Target);
     vec3 up(gCameraDirections[face].Up);
     shadowCamera.setView(pos, pos + dir, up);
-    shadowCamera.setProj(90.0f, 1, shadowNearPlane, cutoffRadius);
+    shadowCamera.setProj(90.0f, 1, shadowNearPlane, radius);
 }
 
 bool PointLight::cullLight(Camera* cam)
 {
-    Sphere s(getPosition(), cutoffRadius);
+    Sphere s(position, radius);
     this->culled = cam->sphereInFrustum(s) == Camera::OUTSIDE;
     //    this->culled = false;
     //    std::cout<<culled<<endl;
@@ -141,7 +97,8 @@ bool PointLight::renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuf
 
 void PointLight::renderImGui()
 {
-    AttenuatedLight::renderImGui();
+    LightBase::renderImGui();
+    LightDistanceAttenuation::renderImGui();
     ImGui::InputFloat("shadowNearPlane", &shadowNearPlane);
 }
 

@@ -32,9 +32,8 @@ ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& para
     this->params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
     this->params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
     this->params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
-    this->params.maximumNumberOfBoxLights         = std::max(0, params.maximumNumberOfBoxLights);
     lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                            params.maximumNumberOfSpotLights, params.maximumNumberOfBoxLights);
+                            params.maximumNumberOfSpotLights);
 
     std::cout << " Forward Renderer initialized. Render resolution: " << window.getWidth() << "x" << window.getHeight()
               << std::endl;
@@ -61,6 +60,9 @@ void ForwardRenderer::render(const Saiga::RenderInfo& _renderInfo)
 
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
+
+
+    startTimer(TOTAL);
 
 
     startTimer(TOTAL);

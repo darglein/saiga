@@ -102,17 +102,19 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t& mesh, T obj, Camera
         stencilShader->bind();
 
         obj->bindUniformsStencil(*stencilShader);
+        stencilShader->uploadModel(obj->ModelMatrix());
         mesh.bindAndDraw();
         stencilShader->unbind();
     }
 
-    setupLightPass(obj->isVolumetric());
-    shader_t shader = (obj->hasShadows() ? (obj->isVolumetric() ? shaderVolumetric : shaderShadow) : shaderNormal);
+    setupLightPass(obj->volumetric);
+    shader_t shader = (obj->castShadows ? (obj->volumetric ? shaderVolumetric : shaderShadow) : shaderNormal);
     shader->bind();
     shader->DeferredShader::uploadFramebuffer(&gbuffer);
     shader->uploadScreenSize(vp.getVec4());
 
-    obj->bindUniforms(shader, cam);
+    //    obj->bindUniforms(shader, cam);
+    shader->SetUniforms(obj.get(), cam);
     mesh.bindAndDraw();
     shader->unbind();
 }

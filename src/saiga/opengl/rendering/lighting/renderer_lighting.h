@@ -10,6 +10,9 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
+#include "saiga/opengl/rendering/lighting/directional_light.h"
+#include "saiga/opengl/rendering/lighting/point_light.h"
+#include "saiga/opengl/rendering/lighting/spot_light.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/uniformBuffer.h"
 #include "saiga/opengl/vertex.h"
@@ -23,10 +26,6 @@ class SpotLightShader;
 class DirectionalLightShader;
 class LightAccumulationShader;
 
-class Light;
-class SpotLight;
-class PointLight;
-class DirectionalLight;
 
 struct RendererLightingShaderNames
 {
@@ -40,52 +39,18 @@ struct RendererLightingShaderNames
 
 namespace uber
 {
-struct PointLightData
-{
-    vec4 position;       // xyz, w unused
-    vec4 colorDiffuse;   // rgb intensity
-    vec4 colorSpecular;  // rgb specular intensity
-    vec4 attenuation;    // xyz radius
-};
-
-struct SpotLightData
-{
-    vec4 position;       // xyz, w angle
-    vec4 colorDiffuse;   // rgb intensity
-    vec4 colorSpecular;  // rgb specular intensity
-    vec4 attenuation;    // xyz radius
-    vec4 direction;      // xyzw
-};
-
-struct BoxLightData
-{
-    vec4 colorDiffuse;   // rgb intensity
-    vec4 colorSpecular;  // rgb specular intensity
-    vec4 direction;      // xyz, w ambient intensity
-    mat4 lightMatrix;
-};
-
-struct DirectionalLightData
-{
-    vec4 position;       // xyz, w unused
-    vec4 colorDiffuse;   // rgb intensity
-    vec4 colorSpecular;  // rgb specular intensity
-    vec4 direction;      // xyz, w unused
-};
 
 struct LightData
 {
-    std::vector<PointLightData> pointLights;
-    std::vector<SpotLightData> spotLights;
-    std::vector<BoxLightData> boxLights;
-    std::vector<DirectionalLightData> directionalLights;
+    std::vector<PointLight::ShaderData> pointLights;
+    std::vector<SpotLight::ShaderData> spotLights;
+    std::vector<DirectionalLight::ShaderData> directionalLights;
 };
 
 struct LightInfo
 {
     int pointLightCount;
     int spotLightCount;
-    int boxLightCount;
     int directionalLightCount;
 };
 }  // namespace uber
@@ -157,7 +122,7 @@ class SAIGA_OPENGL_API RendererLighting
     void printTimings();
     virtual void renderImGui();
 
-    virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights);
+    virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights);
 
 
    public:
@@ -204,11 +169,5 @@ class SAIGA_OPENGL_API RendererLighting
     int maximumNumberOfDirectionalLights = 256;
     int maximumNumberOfPointLights       = 256;
     int maximumNumberOfSpotLights        = 256;
-    int maximumNumberOfBoxLights         = 256;
-    bool showLightingImgui               = false;
-
-    int selected_light     = -1;
-    int selecte_light_type = 0;
-    std::shared_ptr<Light> selected_light_ptr;
 };
 }  // namespace Saiga

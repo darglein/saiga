@@ -19,7 +19,6 @@ struct SAIGA_OPENGL_API ForwardRenderingParameters : public RenderingParameters
     int maximumNumberOfDirectionalLights = 256;
     int maximumNumberOfPointLights       = 256;
     int maximumNumberOfSpotLights        = 256;
-    int maximumNumberOfBoxLights         = 256;
 
 
     void fromConfigFile(const std::string& file) { RenderingParameters::fromConfigFile(file); }
@@ -40,7 +39,7 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     virtual ~ForwardRenderer() {}
 
     virtual void render(const RenderInfo& renderInfo) override;
-    virtual void renderImgui() override;
+    virtual void renderImGui() override;
 
     void resize(int windowWidth, int windowHeight) override;
 
@@ -58,20 +57,18 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     float getBlockTime(ForwardTimingBlock timingBlock) { return timers[timingBlock].getTimeMS(); }
     virtual float getTotalRenderTime() override { return timers[ForwardTimingBlock::TOTAL].getTimeMS(); }
 
-    inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
+    inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
     {
         params.maximumNumberOfDirectionalLights = maxDirectionalLights;
         params.maximumNumberOfPointLights       = maxPointLights;
         params.maximumNumberOfSpotLights        = maxSpotLights;
-        params.maximumNumberOfBoxLights         = maxBoxLights;
 
         params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
         params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
         params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
-        params.maximumNumberOfBoxLights         = std::max(0, params.maximumNumberOfBoxLights);
 
         lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                                params.maximumNumberOfSpotLights, params.maximumNumberOfBoxLights);
+                                params.maximumNumberOfSpotLights);
     }
 
    private:

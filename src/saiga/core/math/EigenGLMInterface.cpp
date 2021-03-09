@@ -8,9 +8,16 @@
 
 namespace Saiga
 {
+mat4 createTRSmatrix(const vec3& t, const quat& r, const vec3& s)
+{
+    mat4 T = translate(t);
+    mat4 R = make_mat4(r);
+    mat4 S = scale(s);
+    return T * R * S;
+}
+
 mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s)
 {
-    // Equivalent to:
     mat4 T = translate(make_vec3(t));
     mat4 R = make_mat4(r);
     mat4 S = scale(make_vec3(s));
@@ -260,6 +267,5 @@ mat4 translate(const vec3& t)
     m.block<3, 1>(0, 3) = t;
     return m;
 }
-
 
 }  // namespace Saiga
