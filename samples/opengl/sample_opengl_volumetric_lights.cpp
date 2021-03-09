@@ -42,28 +42,26 @@ class Sample : public SampleWindowDeferred
         pointLight = std::make_shared<PointLight>();
         renderer->lighting.AddLight(pointLight);
         //        pointLight->setAttenuation(AttenuationPresets::Quadratic);
-        pointLight->setAttenuation(vec3(0, 0, 5));
+        pointLight->attenuation = (vec3(0, 0, 5));
         pointLight->setIntensity(2);
         pointLight->setRadius(10);
         pointLight->setPosition(vec3(9, 3, 0));
         pointLight->setColorDiffuse(make_vec3(1));
-        pointLight->calculateModel();
+
         //        pointLight->createShadowMap(256,256,sq);
         pointLight->createShadowMap(512, 512, sq);
-        pointLight->enableShadows();
-        pointLight->setVolumetric(true);
+
+        pointLight->volumetric = true;
 
         spotLight = std::make_shared<SpotLight>();
         renderer->lighting.AddLight(spotLight);
-        spotLight->setAttenuation(vec3(0, 0, 5));
+        spotLight->attenuation = (vec3(0, 0, 5));
         spotLight->setIntensity(2);
         spotLight->setRadius(8);
         spotLight->setPosition(vec3(-10, 5, 0));
         spotLight->setColorDiffuse(make_vec3(1));
-        spotLight->calculateModel();
         spotLight->createShadowMap(512, 512, sq);
-        spotLight->enableShadows();
-        spotLight->setVolumetric(true);
+        spotLight->volumetric = true;
 
 
         renderer->lighting.renderVolumetric = true;

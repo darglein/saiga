@@ -6,10 +6,9 @@
 
 #include "renderer_lighting.h"
 
-#include "saiga/core/imgui/imgui.h"
-#include "saiga/core/imgui/imgui_main_menu.h"
-#include "saiga/core/math/imath.h"
 #include "saiga/core/model/model_from_shape.h"
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/core/math/imath.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
@@ -17,6 +16,8 @@
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/CubeTexture.h"
+#include "saiga/core/imgui/imgui_main_menu.h"
+
 namespace Saiga
 {
 RendererLighting::RendererLighting()
@@ -93,7 +94,7 @@ void RendererLighting::cullLights(Camera* cam)
     // cull lights that are not visible
     for (auto& light : spotLights)
     {
-        if (light->isActive())
+        if (light->active)
         {
             light->calculateCamera();
             light->shadowCamera.recalculatePlanes();
@@ -105,7 +106,7 @@ void RendererLighting::cullLights(Camera* cam)
 
     for (auto& light : pointLights)
     {
-        if (light->isActive())
+        if (light->active)
         {
             bool visible = !light->cullLight(cam);
             visibleLights += visible;
@@ -200,9 +201,9 @@ void RendererLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : pointLights)
     {
-        mat4 sm    = obj->model * scale(make_vec3(0.01));
-        vec4 color = obj->colorDiffuse;
-        if (!obj->isActive() || !obj->isVisible())
+        mat4 sm    = obj->ModelMatrix() * scale(make_vec3(0.01));
+        vec4 color = make_vec4(obj->colorDiffuse, 1);
+        if (!obj->active || !obj->visible)
         {
             continue;
         }
@@ -215,12 +216,13 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : pointLights)
     {
-        if (!obj->isActive() || !obj->isVisible())
+        vec4 color = make_vec4(obj->colorDiffuse, 1);
+        if (!obj->active || !obj->visible)
         {
             continue;
         }
-        debugShader->uploadModel(obj->getModelMatrix());
-        debugShader->uploadColor(obj->colorDiffuse);
+        debugShader->uploadModel(obj->ModelMatrix());
+        debugShader->uploadColor(color);
         pointLightMesh.draw();
         //        }
     }
@@ -234,9 +236,9 @@ void RendererLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : spotLights)
     {
-        mat4 sm    = obj->model * scale(make_vec3(0.01));
-        vec4 color = obj->colorDiffuse;
-        if (!obj->isActive() || !obj->isVisible())
+        vec4 color = make_vec4(obj->colorDiffuse, 1);
+        mat4 sm    = obj->ModelMatrix() * scale(make_vec3(0.01));
+        if (!obj->active || !obj->visible)
         {
             continue;
         }
@@ -249,12 +251,13 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : spotLights)
     {
-        if (!obj->isActive() || !obj->isVisible())
+        vec4 color = make_vec4(obj->colorDiffuse, 1);
+        if (!obj->active || !obj->visible)
         {
             continue;
         }
-        debugShader->uploadModel(obj->model);
-        debugShader->uploadColor(obj->colorDiffuse);
+        debugShader->uploadModel(obj->ModelMatrix());
+        debugShader->uploadColor(color);
         spotLightMesh.draw();
     }
     spotLightMesh.unbind();
@@ -292,17 +295,15 @@ void RendererLighting::setDebugShader(std::shared_ptr<MVPColorShader> shader)
     this->debugShader = shader;
 }
 
-void RendererLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights, int maxBoxLights)
+void RendererLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
 {
     maxDirectionalLights = std::max(0, maxDirectionalLights);
     maxPointLights       = std::max(0, maxPointLights);
     maxSpotLights        = std::max(0, maxSpotLights);
-    maxBoxLights         = std::max(0, maxBoxLights);
 
     maximumNumberOfDirectionalLights = maxDirectionalLights;
     maximumNumberOfPointLights       = maxPointLights;
     maximumNumberOfSpotLights        = maxSpotLights;
-    maximumNumberOfBoxLights         = maxBoxLights;
 }
 
 

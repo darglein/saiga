@@ -10,6 +10,9 @@
 #elif defined(DEPTH)
 #else
 layout(location=0) out vec4 out_color;
+#if defined(FORWARD_LIT)
+#include "lighting/uber_lighting_helpers.glsl"
+#endif
 #endif
 
 
@@ -19,13 +22,23 @@ struct AssetMaterial
     vec4 data;
 };
 
-void render(AssetMaterial material, vec3 normal)
+void render(AssetMaterial material, vec3 position, vec3 normal)
 {
 #if defined(DEFERRED)
     setGbufferData(vec3(material.color),normal,material.data);
 #elif defined(DEPTH)
 #else
+#if defined(FORWARD_LIT)
+    vec3 lighting = vec3(0);
+
+    lighting += calculatePointLights(material, position, normal);
+    lighting += calculateSpotLights(material, position, normal);
+    lighting += calculateDirectionalLights(material, position, normal);
+
+    out_color = vec4(lighting, 1);
+#else
     out_color = material.color;
+#endif
 #endif
 }
 

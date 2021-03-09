@@ -21,7 +21,8 @@ out vec3 lightDir;
 
 void main() {
     lightPos = vec3(view  * vec4(model[3]));
-    lightDir = normalize(vec3(view  * vec4(model[1])));
+    // lightDir = normalize(vec3(view  * vec4(model[1])));
+    lightDir = normalize(vec3(view  * vec4(model[2])));
     vertexMV = vec3(view * model * vec4( in_position, 1 ));
     vertex = vec3(model * vec4( in_position, 1 ));
     gl_Position = viewProj *model* vec4(in_position,1);

@@ -52,7 +52,7 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::GLFW, Deferr
         sun->setIntensity(1.0);
         sun->setAmbientIntensity(0.3f);
         sun->createShadowMap(2048, 2048);
-        sun->enableShadows();
+        sun->castShadows = true;
 
         std::cout << "Program Initialized!" << std::endl;
     }
