@@ -5,8 +5,8 @@
  */
 
 #include "saiga/core/camera/camera.h"
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
@@ -66,9 +66,15 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
 
 UberDeferredRenderer::~UberDeferredRenderer() {}
 
-void UberDeferredRenderer::resize(int windowWidth, int windowHeight)
+void UberDeferredRenderer::Resize(int windowWidth, int windowHeight)
 {
-    OpenGLRenderer::resize(windowWidth, windowHeight);
+    if (windowWidth == renderWidth && windowHeight == renderHeight)
+    {
+        // Already at correct size
+        // -> Skip resize
+        return;
+    }
+
     this->renderWidth  = windowWidth * params.renderScale;
     this->renderHeight = windowHeight * params.renderScale;
     std::cout << "Resizing Window to : " << windowWidth << "," << windowHeight << std::endl;
@@ -77,22 +83,14 @@ void UberDeferredRenderer::resize(int windowWidth, int windowHeight)
     lighting.resize(renderWidth, renderHeight);
 }
 
-void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
+void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewport, Camera* camera)
 {
     if (!rendering) return;
 
-    Saiga::RenderInfo renderInfo = _renderInfo;
+    Resize(viewport.size.x(), viewport.size.y());
 
     SAIGA_ASSERT(rendering);
-    SAIGA_ASSERT(renderInfo);
 
-    SAIGA_ASSERT(params.userViewPort || renderInfo.cameras.size() == 1);
-
-
-    if (renderInfo.cameras.size() == 1)
-    {
-        renderInfo.cameras.front().second = ViewPort({0, 0}, {renderWidth, renderHeight});
-    }
 
 
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
@@ -106,86 +104,27 @@ void UberDeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
     assert_no_glerror();
     lighting.initRender();
     assert_no_glerror();
-    for (auto c : renderInfo.cameras)
-    {
-        auto camera = c.first;
-        camera->recalculatePlanes();
-        bindCamera(camera);
 
-        setViewPort(c.second);
-        renderGBuffer(c);
+    camera->recalculatePlanes();
+    bindCamera(camera);
 
-        if (cullLights) lighting.cullLights(camera);
-        // renderDepthMaps();
+    setViewPort(viewport);
+    renderGBuffer({camera, viewport});
 
-        renderLighting(c);
-    }
+    if (cullLights) lighting.cullLights(camera);
+    // renderDepthMaps();
+
+    target_framebuffer->bind();
+    renderLighting({camera, viewport});
+
     assert_no_glerror();
 
-    Framebuffer::bindDefaultFramebuffer();
-
-    if (params.writeDepthToOverlayBuffer)
-    {
-        // writeGbufferDepthToCurrentFramebuffer();
-    }
-    else
-    {
-        glClear(GL_DEPTH_BUFFER_BIT);
-    }
-
     startTimer(OVERLAY);
-
-    for (auto c : renderInfo.cameras)
-    {
-        auto camera = c.first;
-        bindCamera(camera);
-        setViewPort(c.second);
-        renderingInterface->render(camera, RenderPass::Forward);
-    }
+    bindCamera(camera);
+    setViewPort(viewport);
+    renderingInterface->render(camera, RenderPass::Forward);
     stopTimer(OVERLAY);
 
-    glViewport(0, 0, renderWidth, renderHeight);
-
-    // write depth to default framebuffer
-    if (params.writeDepthToDefaultFramebuffer)
-    {
-        writeGbufferDepthToCurrentFramebuffer();
-    }
-
-    startTimer(FINAL);
-    glViewport(0, 0, renderWidth, renderHeight);
-    if (renderDDO)
-    {
-        bindCamera(&ddo.layout.cam);
-        ddo.render();
-    }
-
-    {
-        Framebuffer::bindDefaultFramebuffer();
-        glEnable(GL_BLEND);
-        glBlendEquation(GL_FUNC_ADD);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
-        // final render pass
-        if (imgui)
-        {
-            SAIGA_ASSERT(ImGui::GetCurrentContext());
-            imgui->beginFrame();
-            lighting.renderImGui();
-        }
-        renderingInterface->render(nullptr, RenderPass::GUI);
-        if (imgui)
-        {
-            imgui->endFrame();
-            imgui->render();
-        }
-    }
-    stopTimer(FINAL);
-
-    glDisable(GL_BLEND);
-
-    if (params.useGlFinish) glFinish();
 
     stopTimer(TOTAL);
 
@@ -296,7 +235,6 @@ void UberDeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga:
     startTimer(LIGHTING);
 
 
-    Framebuffer::bindDefaultFramebuffer();
     writeGbufferDepthToCurrentFramebuffer();
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -348,6 +286,10 @@ void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
 
 void UberDeferredRenderer::renderImgui()
 {
+    lighting.renderImGui();
+
+    if (!should_render_imgui) return;
+
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);

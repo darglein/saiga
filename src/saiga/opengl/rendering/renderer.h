@@ -8,6 +8,7 @@
 
 #include "saiga/config.h"
 #include "saiga/core/window/Interfaces.h"
+#include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/uniformBuffer.h"
@@ -42,21 +43,34 @@ struct SAIGA_OPENGL_API RenderingParameters
 class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
 {
    public:
-    std::shared_ptr<ImGui_GL_Renderer> imgui;
-
-    int outputWidth = -1, outputHeight = -1;
-    UniformBuffer cameraBuffer;
-
     OpenGLRenderer(OpenGLWindow& window);
     virtual ~OpenGLRenderer();
 
 
-    virtual void resize(int windowWidth, int windowHeight);
+    void render(const RenderInfo& renderInfo) override;
+
+    virtual void renderGL(Framebuffer* target_framebuffer, ViewPort viewport, Camera* camera) {}
 
 
-    virtual void printTimings() {}
-
+    void ResizeTarget(int windowWidth, int windowHeight);
+    virtual void printTimings() override {}
     void bindCamera(Camera* cam);
+
+    std::shared_ptr<ImGui_GL_Renderer> imgui;
+
+    int outputWidth = -1, outputHeight = -1;
+    UniformBuffer cameraBuffer;
+    OpenGLWindow* window;
+
+    // The target framebuffer, where all derived renders will render into
+    // This buffer is passed to the renderGL() function
+    std::unique_ptr<Framebuffer> target_framebuffer;
+    Framebuffer default_framebuffer;
+
+    // A bool that is true if the 3D viewport is in focus or an imgui element
+    // This should be used by the application to filter keyborad/mouse input
+    bool use_mouse_input_in_3dview    = true;
+    bool use_keyboard_input_in_3dview = true;
 };
 
 inline void setViewPort(const ViewPort& vp)

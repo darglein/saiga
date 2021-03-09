@@ -169,11 +169,11 @@ class SAIGA_CORE_API ColoredBar
  *
  * A typical use-case is to update the camera only if no ImGui widgets are active:
  *
- *   if (!ImGui::captureKeyboard())
+ *   if (renderer->use_keyboard_input_in_3dview)
  *   {
  *       camera.update(dt);
  *   }
- *   if (!ImGui::captureMouse())
+ *   if (renderer->use_mouse_input_in_3dview)
  *   {
  *       camera.interpolate(dt, 0);
  *   }

@@ -310,6 +310,8 @@ void initImGui(const ImGuiParameters& params)
         io.Fonts->AddFontDefault();
     }
 
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigDockingWithShift = false;
 
     vec3 color_text;
     vec3 color_background_low;

@@ -24,7 +24,7 @@ class Sample : public SampleWindowDeferred
         camera.movementSpeed     = 0.3;
         camera.movementSpeedFast = 3;
 
-        sun->disableShadows();
+        sun->castShadows = false;
 
 
         normalShader  = shaderLoader.load<MVPTextureShader>("geometry/texturedAsset_normal.glsl");
@@ -122,9 +122,6 @@ class Sample : public SampleWindowDeferred
         }
         else if (render_pass == RenderPass::GUI)
         {
-            window->renderImGui();
-
-
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
             ImGui::Begin("Model Viewer");

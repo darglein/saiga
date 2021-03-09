@@ -28,7 +28,7 @@ void WindowBase::resize(int width, int height)
 {
     this->windowParameters.width  = width;
     this->windowParameters.height = height;
-    renderer->resize(width, height);
+    // renderer->resize(width, height);
 }
 
 

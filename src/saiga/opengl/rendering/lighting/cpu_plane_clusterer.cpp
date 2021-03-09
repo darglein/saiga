@@ -29,7 +29,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         clusterCache[c].clear();
     }
 
-    int itemCount     = 0;
+    int itemCount       = 0;
     int maxDepthCluster = planesZ.size() - 2;
 
     if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
@@ -203,7 +203,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                         while (xs >= x && -planesX[xs].distance(yLight.pos) >= yLight.r) --xs;
                         xs = std::min(++xs, x1);
 
-                        for (x; x < xs; ++x)
+                        for (; x < xs; ++x)
                         {
                             int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
 
@@ -677,7 +677,7 @@ bool CPUPlaneClusterer::fillImGui()
 
     ImGui::Text("avgAllowedItemsPerCluster: %d", avgAllowedItemsPerCluster);
 
-    ImGui::Text("ItemListByteSize: %d", itemBuffer.itemList.size() * sizeof(clusterItem));
+    ImGui::Text("ItemListByteSize: %d", int(itemBuffer.itemList.size() * sizeof(clusterItem)));
 
     if (ImGui::Checkbox("lightsDebug", &lightsDebug) && lightsDebug)
     {

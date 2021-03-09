@@ -26,14 +26,16 @@ struct SAIGA_OPENGL_API PointVertex
 class SAIGA_OPENGL_API GLPointCloud : public Object3D
 {
    public:
-    float pointSize = 3;
+    bool splat_geometry = false;
+    float screen_point_size = 3;
+    float world_point_size = 0.1;
     std::vector<PointVertex> points;
 
     GLPointCloud();
     void render(Camera* cam);
     void updateBuffer();
 
-    std::shared_ptr<MVPShader> shader;
+    std::shared_ptr<MVPShader> shader_simple, shader_geometry;
     VertexBuffer<PointVertex> buffer;
 
     void imgui();

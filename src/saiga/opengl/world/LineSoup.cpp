@@ -12,7 +12,7 @@ namespace Saiga
 {
 LineSoup::LineSoup()
 {
-    shader = shaderLoader.load<MVPShader>("colored_points.glsl");
+    shader = shaderLoader.load<MVPShader>("geometry/colored_points.glsl");
     buffer.setDrawMode(GL_LINES);
 }
 

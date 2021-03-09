@@ -29,8 +29,8 @@ VulkanSDLExampleBase::~VulkanSDLExampleBase() {}
 
 void VulkanSDLExampleBase::update(float dt)
 {
-    if (!ImGui::captureMouse()) camera.interpolate(dt, 0);
-    if (!ImGui::captureKeyboard()) camera.update(dt);
+    if (renderer->use_mouse_input_in_3dview) camera.interpolate(dt, 0);
+    if (renderer->use_keyboard_input_in_3dview) camera.update(dt);
 }
 
 

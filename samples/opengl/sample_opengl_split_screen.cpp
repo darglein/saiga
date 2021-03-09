@@ -129,12 +129,12 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::GLFW, Deferr
     void update(float dt) override
     {
         // Update the camera position
-        if (!ImGui::captureKeyboard()) cameras[activeCamera].update(dt);
+        if (renderer->use_keyboard_input_in_3dview) cameras[activeCamera].update(dt);
         sun->fitShadowToCamera(&cameras[activeCamera]);
     }
     void interpolate(float dt, float interpolation) override
     {
-        if (!ImGui::captureMouse()) cameras[activeCamera].interpolate(dt, interpolation);
+        if (renderer->use_mouse_input_in_3dview) cameras[activeCamera].interpolate(dt, interpolation);
     }
 
     void render(Camera* cam, RenderPass render_pass) override
@@ -151,9 +151,6 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::GLFW, Deferr
         }
         else if (render_pass == RenderPass::GUI)
         {
-            window->renderImGui();
-
-
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
             ImGui::Begin("Split Screen");

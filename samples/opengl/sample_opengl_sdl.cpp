@@ -16,8 +16,7 @@ class Sample : public SampleWindowDeferred
    public:
     Sample()
     {
-        //        teapot.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/teapot.obj"));
-        teapot.asset = std::make_shared<ColoredAsset>(UnifiedModel("user/house.glb"));
+        teapot.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/teapot.obj"));
         teapot.translateGlobal(vec3(0, 1, 0));
         teapot.calculateModel();
 
@@ -30,6 +29,11 @@ class Sample : public SampleWindowDeferred
         if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
         {
             teapot.render(cam, render_pass);
+        }
+
+        if (render_pass == RenderPass::GUI)
+        {
+            //            ImGui::ShowDemoWindow();
         }
     }
 

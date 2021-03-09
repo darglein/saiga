@@ -48,7 +48,6 @@ class SAIGA_CORE_API RendererBase
     virtual void renderImgui() {}
     virtual float getTotalRenderTime() { return 0; }
 
-    virtual void resize(int windowWidth, int windowHeight) {}
     virtual void render(const RenderInfo& renderInfo) = 0;
 
     bool should_render_imgui = false;

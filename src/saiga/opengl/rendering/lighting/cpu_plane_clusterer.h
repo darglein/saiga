@@ -18,7 +18,7 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
 
     void clusterLights(Camera* cam, const ViewPort& viewPort) override { clusterLightsInternal(cam, viewPort); }
 
-    void renderDebug(Camera* cam)
+    void renderDebug(Camera* cam) override
     {
         if (clusterDebug) Clusterer::renderDebug(cam);
         if (lightsDebug) lightClustersDebug.render(cam);

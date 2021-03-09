@@ -17,6 +17,11 @@ namespace Saiga
 {
 SAIGA_VISION_API std::vector<vec3> MeshToPointCloud(const std::vector<Triangle>& triangles, int N);
 
+SAIGA_VISION_API std::vector<vec3> ReducePointsPoissonDisc(const std::vector<vec3>& points, float radius);
+
+SAIGA_VISION_API std::vector<vec3> MeshToPointCloudPoissonDisc(const std::vector<Triangle>& triangles, int max_samples, float radius);
+SAIGA_VISION_API std::vector<vec3> MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& triangles, int max_samples, float radius);
+
 
 SAIGA_VISION_API float Distance(const std::vector<Triangle>& triangles, const vec3& p);
 

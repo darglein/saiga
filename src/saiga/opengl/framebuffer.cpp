@@ -28,6 +28,12 @@ Framebuffer::~Framebuffer()
     //    }
 }
 
+void Framebuffer::MakeDefaultFramebuffer()
+{
+    destroy();
+    id = 0;
+}
+
 void Framebuffer::create()
 {
     if (id)
@@ -46,7 +52,8 @@ void Framebuffer::destroy()
     glDeleteFramebuffers(1, &id);
     id = 0;
 
-    colorBuffers.clear();depthBuffer = nullptr;
+    colorBuffers.clear();
+    depthBuffer   = nullptr;
     stencilBuffer = nullptr;
 }
 

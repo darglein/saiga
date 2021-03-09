@@ -92,7 +92,7 @@ class SAIGA_OPENGL_API Clusterer
    public:
     Clusterer(ClustererParameters _params = ClustererParameters());
     Clusterer& operator=(Clusterer& c) = delete;
-    ~Clusterer();
+    virtual ~Clusterer();
 
     void init(int width, int height, bool _useTimers);
     void resize(int width, int height);
@@ -176,7 +176,7 @@ class SAIGA_OPENGL_API Clusterer
     bool useTimers;
 
     bool clusterDebug = false;
-    bool updateDebug = false;
+    bool updateDebug  = false;
     LineSoup debugCluster;
     bool screenSpaceDebug = false;
 
@@ -229,8 +229,7 @@ class SAIGA_OPENGL_API Clusterer
 
     int getTileIndex(int x, int y, int z)
     {
-        return x + clusterInfoBuffer.clusterX * y +
-               (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
+        return x + clusterInfoBuffer.clusterX * y + (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
     }
 
     struct clusterBuffer_t

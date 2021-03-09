@@ -174,14 +174,14 @@ void Sample::reduce_quadric()
 void Sample::update(float dt)
 {
     // Update the camera position
-    if (!ImGui::captureKeyboard()) camera.update(dt);
+    if (renderer->use_keyboard_input_in_3dview) camera.update(dt);
 }
 
 void Sample::interpolate(float dt, float interpolation)
 {
     // Update the camera rotation. This could also be done in 'update' but
     // doing it in the interpolate step will reduce latency
-    if (!ImGui::captureMouse()) camera.interpolate(dt, interpolation);
+    if (renderer->use_mouse_input_in_3dview) camera.interpolate(dt, interpolation);
 }
 
 

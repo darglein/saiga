@@ -107,14 +107,7 @@ DiscreteProbabilityDistribution<real_t>::DiscreteProbabilityDistribution(std::ve
 template <typename real_t>
 int DiscreteProbabilityDistribution<real_t>::sample()
 {
-    //    std::uniform_int_distribution<int> uniform_dist(0, n - 1);
-    //    int i = uniform_dist(re);
     int i = Random::uniformInt(0, n - 1);
-
-    //    std::uniform_real_distribution<real_t> uniform_distf(0, 1);
-    //    float f = uniform_distf(re);
-
-
     return (Random::sampleBool(prob[i])) ? i : alias[i];
 }
 

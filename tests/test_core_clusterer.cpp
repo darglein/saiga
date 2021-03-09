@@ -204,10 +204,10 @@ class ClustererTest : public ::testing::Test
                     Sphere zLight = lightSphere;
                     if (z != centerZ)
                     {
-                        Plane plane = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
-                        vec4 circle = plane.intersectingCircle(zLight.pos, zLight.r);
-                        zLight.pos  = make_vec3(circle);
-                        zLight.r    = circle.w();
+                        Plane plane          = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
+                        auto [point, radius] = plane.intersectingCircle(zLight.pos, zLight.r);
+                        zLight.pos           = point;
+                        zLight.r             = radius;
                         if (zLight.r < 1e-5) continue;
                     }
                     for (int y = y0; y < y1; ++y)
@@ -215,11 +215,10 @@ class ClustererTest : public ::testing::Test
                         Sphere yLight = zLight;
                         if (y != centerY)
                         {
-                            Plane plane = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
-                            vec4 circle = plane.intersectingCircle(yLight.pos, yLight.r);
-                            yLight.pos  = make_vec3(circle);
-                            yLight.r    = circle.w();
-                            yLight.r    = circle.w();
+                            Plane plane          = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
+                            auto [point, radius] = plane.intersectingCircle(yLight.pos, yLight.r);
+                            yLight.pos           = point;
+                            yLight.r             = radius;
                             if (yLight.r < 1e-5) continue;
                         }
                         int x = x0;

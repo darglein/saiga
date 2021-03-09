@@ -42,8 +42,6 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
     bool maskUsedPixels = true;
 
 
-    float renderScale = 1.0f;  // a render scale of 2 is equivalent to 4xSSAA
-
     bool useGPUTimers = true;  // meassure gpu times of individual passes. This can decrease the overall performance
 
 
@@ -80,7 +78,7 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     DeferredRenderer& operator=(DeferredRenderer& l) = delete;
     virtual ~DeferredRenderer() {}
 
-    void render(const RenderInfo& renderInfo) override;
+    void renderGL(Framebuffer* target_framebuffer, ViewPort viewport, Camera* camera) override;
     void renderImgui() override;
 
 
@@ -112,7 +110,7 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     float getTotalRenderTime() override { return getUnsmoothedTimeMS(DeferredRenderer::DeferredTimings::TOTAL); }
 
     void printTimings() override;
-    void resize(int outputWidth, int outputHeight) override;
+    void Resize(int outputWidth, int outputHeight);
 
     int getRenderWidth() { return renderWidth; }
     int getRenderHeight() { return renderHeight; }

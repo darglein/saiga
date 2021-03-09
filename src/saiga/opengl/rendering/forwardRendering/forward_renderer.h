@@ -38,10 +38,10 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     ForwardRenderer(OpenGLWindow& window, const ParameterType& params = ParameterType());
     virtual ~ForwardRenderer() {}
 
-    virtual void render(const RenderInfo& renderInfo) override;
+    virtual void renderGL(Framebuffer* target_framebuffer, ViewPort viewport, Camera* camera) override;
     virtual void renderImgui() override;
 
-    void resize(int windowWidth, int windowHeight) override;
+    void Resize(int windowWidth, int windowHeight);
 
     inline const char* getColoredShaderSource() { return coloredShaderSource; }
     inline const char* getTexturedShaderSource() { return texturedShaderSource; }

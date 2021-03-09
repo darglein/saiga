@@ -37,14 +37,14 @@ SampleWindowForward::SampleWindowForward() : StandaloneWindow("config.ini")
 void SampleWindowForward::update(float dt)
 {
     // Update the camera position
-    if (!ImGui::captureKeyboard()) camera.update(dt);
+    if (renderer->use_keyboard_input_in_3dview) camera.update(dt);
 }
 
 void SampleWindowForward::interpolate(float dt, float interpolation)
 {
     // Update the camera rotation. This could also be done in 'update' but
     // doing it in the interpolate step will reduce latency
-    if (!ImGui::captureMouse()) camera.interpolate(dt, interpolation);
+    if (renderer->use_mouse_input_in_3dview) camera.interpolate(dt, interpolation);
 }
 
 
@@ -58,9 +58,6 @@ void SampleWindowForward::render(Camera* camera, RenderPass render_pass)
     }
     else if (render_pass == RenderPass::GUI)
     {
-        window->renderImGui();
-
-
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
         ImGui::Begin("An Imgui Window :D");

@@ -8,8 +8,10 @@
 
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/imgui/imgui_main_menu.h"
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
@@ -23,8 +25,8 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     : OpenGLRenderer(window),
       lighting(gbuffer),
       params(_params),
-      renderWidth(window.getWidth() * _params.renderScale),
-      renderHeight(window.getHeight() * _params.renderScale),
+      renderWidth(window.getWidth()),
+      renderHeight(window.getHeight()),
       ddo(window.getWidth(), window.getHeight())
 {
     if (params.useSMAA)
@@ -86,20 +88,18 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
               << std::endl;
 }
 
-void DeferredRenderer::resize(int windowWidth, int windowHeight)
+void DeferredRenderer::Resize(int windowWidth, int windowHeight)
 {
-    if (windowWidth <= 0 || windowHeight <= 0)
+    if (windowWidth == renderWidth && windowHeight == renderHeight)
     {
-        std::cerr << "Warning: The window size must be greater than zero." << std::endl;
-        windowWidth  = std::max(windowWidth, 1);
-        windowHeight = std::max(windowHeight, 1);
+        // Already at correct size
+        // -> Skip resize
+        return;
     }
-    this->outputWidth  = windowWidth;
-    this->outputHeight = windowHeight;
-    this->renderWidth  = windowWidth * params.renderScale;
-    this->renderHeight = windowHeight * params.renderScale;
-    std::cout << "Resizing Window to : " << windowWidth << "," << windowHeight << std::endl;
-    std::cout << "Framebuffer size: " << renderWidth << " " << renderHeight << std::endl;
+
+    this->renderWidth  = windowWidth;
+    this->renderHeight = windowHeight;
+    std::cout << "DeferredRenderer::resize -> " << renderWidth << " " << renderHeight << std::endl;
     postProcessor.resize(renderWidth, renderHeight);
     gbuffer.resize(renderWidth, renderHeight);
     lighting.resize(renderWidth, renderHeight);
@@ -114,9 +114,12 @@ void DeferredRenderer::resize(int windowWidth, int windowHeight)
 
 
 
-void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
+void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewport, Camera* camera)
 {
     if (!rendering) return;
+
+
+    Resize(viewport.size.x(), viewport.size.y());
 
 
     if (params.useSSAO && !ssao)
@@ -124,23 +127,6 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         ssao                 = std::make_shared<SSAO>(renderWidth, renderHeight);
         lighting.ssaoTexture = ssao->bluredTexture;
     }
-
-
-
-    Saiga::RenderInfo renderInfo = _renderInfo;
-
-    SAIGA_ASSERT(rendering);
-    SAIGA_ASSERT(renderInfo);
-
-    // if we have multiple cameras defined the user has to specify the viewports of each individual camera
-    SAIGA_ASSERT(params.userViewPort || renderInfo.cameras.size() == 1);
-
-
-    if (renderInfo.cameras.size() == 1)
-    {
-        renderInfo.cameras.front().second = ViewPort({0, 0}, {renderWidth, renderHeight});
-    }
-
 
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
@@ -151,23 +137,22 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
 
     params.maskUsedPixels = true;
 
-    for (auto c : renderInfo.cameras)
+    //    for (auto c : renderInfo.cameras)
     {
-        auto camera = c.first;
-        camera->recalculatePlanes();
+        //        auto camera = c.first;
         bindCamera(camera);
 
-        setViewPort(c.second);
+        setViewPort(viewport);
 
         glEnable(GL_SCISSOR_TEST);
-        setScissor(c.second);
+        setScissor(viewport);
         clearGBuffer();
         lighting.initRender();
         glDisable(GL_SCISSOR_TEST);
 
 
-        renderGBuffer(c);
-        renderSSAO(c);
+        renderGBuffer({camera, viewport});
+        renderSSAO({camera, viewport});
 
         lighting.cullLights(camera);
 
@@ -175,8 +160,8 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
 
 
         bindCamera(camera);
-        setViewPort(c.second);
-        renderLighting(c);
+        setViewPort(viewport);
+        renderLighting({camera, viewport});
         renderingInterface->render(camera, RenderPass::Forward);
     }
     assert_no_glerror();
@@ -250,36 +235,9 @@ void DeferredRenderer::render(const Saiga::RenderInfo& _renderInfo)
         ddo.render();
     }
 
-    {
-        glEnable(GL_BLEND);
-        glBlendEquation(GL_FUNC_ADD);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
-        // final render pass
-        if (imgui)
-        {
-            SAIGA_ASSERT(ImGui::GetCurrentContext());
-            imgui->beginFrame();
-            renderImgui();
-            lighting.renderImGui();
+    postProcessor.renderLast(target_framebuffer, outputWidth, outputHeight);
 
-
-
-            renderingInterface->render(nullptr, RenderPass::GUI);
-            imgui->endFrame();
-            imgui->render();
-        }
-    }
     stopTimer(FINAL);
-
-    glDisable(GL_BLEND);
-
-    if (params.blitLastFramebuffer)
-        postProcessor.blitLast(outputWidth, outputHeight);
-    else
-        postProcessor.renderLast(outputWidth, outputHeight);
-
 
     if (params.useGlFinish) glFinish();
 
@@ -451,6 +409,8 @@ void DeferredRenderer::printTimings()
 
 void DeferredRenderer::renderImgui()
 {
+    lighting.renderImGui();
+
     if (!should_render_imgui) return;
     int w = 340;
     int h = 240;
