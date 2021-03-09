@@ -37,6 +37,10 @@ class SAIGA_TEMPLATE Plane
      */
     HD Plane(const vec3& p1, const vec3& p2, const vec3& p3);
 
+    /**
+     * Returns the plane with inverted normal and offset.
+     */
+    HD Plane invert() const;
 
     /**
      * (Signed) Distance from the point 'p' to the plane.
@@ -48,6 +52,12 @@ class SAIGA_TEMPLATE Plane
      * Negative if the sphere does NOT intersect the plane.
      */
     HD float sphereOverlap(const vec3& c, float r) const;
+
+    /**
+     * The intersecting circle of a sphere on this plane.
+     * Sphere center is projected on the plane and the radius is calculated.
+     */
+    HD std::pair<vec3, float> intersectingCircle(const vec3& c, float r) const;
 
     /**
      * Returns the point on the plane which is closest to the given point p.

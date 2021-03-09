@@ -5,7 +5,6 @@
  */
 
 #include "saiga/config.h"
-#ifdef SAIGA_USE_SDL
 
 #    include "RendererSampleWindow.h"
 
@@ -53,11 +52,11 @@ void RendererSampleWindow::render(Camera* cam, RenderPass render_pass)
     }
 }
 
-void RendererSampleWindow::keyPressed(SDL_Keysym key)
+void RendererSampleWindow::keyPressed(int key, int scancode, int mods)
 {
-    switch (key.scancode)
+    switch (key)
     {
-        case SDL_SCANCODE_ESCAPE:
+        case GLFW_KEY_ESCAPE:
             window->close();
             break;
         default:
@@ -65,8 +64,6 @@ void RendererSampleWindow::keyPressed(SDL_Keysym key)
     }
 }
 
-void RendererSampleWindow::keyReleased(SDL_Keysym key) {}
+void RendererSampleWindow::keyReleased(int key, int scancode, int mods) {}
 
 }  // namespace Saiga
-
-#endif

@@ -28,6 +28,14 @@ inline HD Plane::Plane(const vec3& p1, const vec3& p2, const vec3& p3)
     d      = dot(p1, this->normal);
 }
 
+inline HD Plane Plane::invert() const
+{
+    Plane invPlane;
+    invPlane.normal = -this->normal;
+    invPlane.d      = -this->d;
+    return invPlane;
+}
+
 inline HD vec3 Plane::closestPointOnPlane(const vec3& p) const
 {
     float dis = distance(p);
@@ -48,6 +56,14 @@ inline HD float Plane::distance(const vec3& p) const
 inline HD float Plane::sphereOverlap(const vec3& c, float r) const
 {
     return r - distance(c);
+}
+
+inline HD std::pair<vec3, float> Plane::intersectingCircle(const vec3& c, float r) const
+{
+    float dis    = distance(c);
+    float radius = sqrt(std::max(r * r - dis * dis, 0.0f));
+    vec3 center  = c - dis * normal;
+    return { center, radius };
 }
 
 }  // namespace Saiga

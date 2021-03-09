@@ -48,6 +48,7 @@ void ForwardLighting::initRender()
     li.pointLightCount       = 0;
     li.spotLightCount        = 0;
     li.directionalLightCount = 0;
+    li.clusterEnabled        = false;
 
     // Point Lights
     for (auto pl : pointLights)

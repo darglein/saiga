@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include <iostream>
-
 #include "Frustum.h"
+
+#include <iostream>
 
 namespace Saiga
 {
@@ -187,7 +187,7 @@ bool Frustum::intersectSAT(const Frustum& other) const
     for (int i = 0; i < 6; ++i)
     {
         if (other.sideOfPlane(planes[i]) > 0)
-        {   // other is entirely on positive side
+        {  // other is entirely on positive side
             //            std::cout << "plane fail1 " << i << std::endl;
             return false;
         }
@@ -197,7 +197,7 @@ bool Frustum::intersectSAT(const Frustum& other) const
     for (int i = 0; i < 6; ++i)
     {
         if (this->sideOfPlane(other.planes[i]) > 0)
-        {   // this is entirely on positive side
+        {  // this is entirely on positive side
             //            std::cout << "plane fail2 " << i << std::endl;
             return false;
         }
@@ -225,23 +225,71 @@ bool Frustum::intersectSAT(const Frustum& other) const
     return true;
 }
 
+bool Frustum::intersectSAT(const Sphere& s) const
+{
+    for (int i = 0; i < 6; ++i)
+    {
+        if (planes[i].distance(s.pos) >= s.r)
+        {
+            return false;
+        }
+    }
+
+    for (int i = 0; i < 8; ++i)
+    {
+        const vec3& v = vertices[i];
+        vec3 d        = (v - s.pos).normalized();
+        vec2 i1       = this->projectedIntervall(d);
+        vec2 i2       = s.projectedIntervall(d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+    }
+
+    for (int i = 0; i < 12; ++i)
+    {
+        auto edge          = this->getEdge(i);
+        vec3 A             = edge.first;
+        vec3 B             = edge.second;
+        vec3 AP            = (s.pos - A);
+        vec3 AB            = (B - A);
+        vec3 closestOnEdge = A + dot(AP, AB) / dot(AB, AB) * AB;
+
+        vec3 d  = (closestOnEdge - s.pos).normalized();
+        vec2 i1 = this->projectedIntervall(d);
+        vec2 i2 = s.projectedIntervall(d);
+        if (i1[0] > i2[1] || i1[1] < i2[0]) return false;
+    }
+
+    return true;
+}
 
 std::pair<vec3, vec3> Frustum::getEdge(int i) const
 {
     switch (i)
     {
         case 0:
-            return std::pair<vec3, vec3>(vertices[0], vertices[4]);
+            return std::pair<vec3, vec3>(vertices[0], vertices[4]); // nTL - fTL
         case 1:
-            return std::pair<vec3, vec3>(vertices[1], vertices[5]);
+            return std::pair<vec3, vec3>(vertices[1], vertices[5]); // nTR - fTR
         case 2:
-            return std::pair<vec3, vec3>(vertices[2], vertices[6]);
+            return std::pair<vec3, vec3>(vertices[2], vertices[6]); // nBL - fBL
         case 3:
-            return std::pair<vec3, vec3>(vertices[3], vertices[7]);
+            return std::pair<vec3, vec3>(vertices[3], vertices[7]); // nBR - fBR
         case 4:
-            return std::pair<vec3, vec3>(vertices[0], vertices[1]);
+            return std::pair<vec3, vec3>(vertices[0], vertices[1]); // nTL - nTR
         case 5:
-            return std::pair<vec3, vec3>(vertices[0], vertices[2]);
+            return std::pair<vec3, vec3>(vertices[0], vertices[2]); // nTL - nBL
+        case 6:
+            return std::pair<vec3, vec3>(vertices[3], vertices[2]); // nBR - nBL
+        case 7:
+            return std::pair<vec3, vec3>(vertices[3], vertices[1]); // nBR - nTR
+        case 8:
+            return std::pair<vec3, vec3>(vertices[4], vertices[5]); // fTL - fTR
+        case 9:
+            return std::pair<vec3, vec3>(vertices[4], vertices[6]); // fTL - fBL
+        case 10:
+            return std::pair<vec3, vec3>(vertices[7], vertices[6]); // fBR - fBL
+        case 11:
+            return std::pair<vec3, vec3>(vertices[7], vertices[5]); // fBR - fTR
         default:
             std::cerr << "Camera::getEdge" << std::endl;
             return std::pair<vec3, vec3>();

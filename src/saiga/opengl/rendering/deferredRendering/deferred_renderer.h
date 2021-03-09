@@ -20,6 +20,10 @@ namespace Saiga
 {
 struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
 {
+    int maximumNumberOfDirectionalLights = 256;
+    int maximumNumberOfPointLights       = 256;
+    int maximumNumberOfSpotLights        = 256;
+
     /**
      * When true the depth of the gbuffer is blitted to the default framebuffer.
      */
@@ -112,7 +116,24 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     int getRenderHeight() { return renderHeight; }
 
 
-   public:
+    inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
+    {
+        // TODO Paul: Refactor!
+        params.maximumNumberOfDirectionalLights = maxDirectionalLights;
+        params.maximumNumberOfPointLights       = maxPointLights;
+        params.maximumNumberOfSpotLights        = maxSpotLights;
+
+        params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
+        params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
+        params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
+
+        lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
+                                params.maximumNumberOfSpotLights);
+    }
+
+    // Everything is protected, so if you need access to these variables write your own renderer and derive from this
+    // class.
+   protected:
     int renderWidth, renderHeight;
     std::shared_ptr<SSAO> ssao;
     std::shared_ptr<SMAA> smaa;

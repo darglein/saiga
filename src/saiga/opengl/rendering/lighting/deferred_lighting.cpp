@@ -501,12 +501,6 @@ void DeferredLighting::setStencilShader(std::shared_ptr<MVPShader> stencilShader
 //    return l;
 //}
 
-// std::shared_ptr<BoxLight> DeferredLighting::createBoxLight()
-//{
-//    std::shared_ptr<BoxLight> l = std::make_shared<BoxLight>();
-//    boxLights.insert(l);
-//    return l;
-//}
 
 void DeferredLighting::renderImGui()
 {

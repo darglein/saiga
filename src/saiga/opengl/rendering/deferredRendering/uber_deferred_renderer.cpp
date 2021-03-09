@@ -317,6 +317,7 @@ void UberDeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga:
     assert_no_glerror();
 
     stopTimer(LIGHTING);
+
 }
 
 void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()

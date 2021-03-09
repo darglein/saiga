@@ -12,6 +12,8 @@
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
+#include "saiga/opengl/rendering/lighting/six_plane_clusterer.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
@@ -46,7 +48,8 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
     quadMesh.fromMesh(FullScreenQuad());
 
     ClustererParameters params;
-    lightClusterer = std::make_shared<Clusterer>(params);
+    params.clusterThreeDimensional = true;
+    lightClusterer = std::make_shared<CPUPlaneClusterer>(params);
 }
 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
@@ -88,7 +91,8 @@ void UberDeferredLighting::initRender()
     li.spotLightCount        = 0;
     li.directionalLightCount = 0;
 
-    if (lightClustererEnabled) lightClusterer->clearLightData();
+    if (clustererType) lightClusterer->clearLightData();
+    li.clusterEnabled = clustererType > 0;
 
     // Point Lights
     for (auto pl : pointLights)
@@ -97,7 +101,7 @@ void UberDeferredLighting::initRender()
         if (!pl->shouldRender()) continue;
         ld.pointLights.push_back(pl->GetShaderData());
 
-        if (lightClustererEnabled) lightClusterer->addPointLight(pl->position, pl->radius);
+        if (clustererType) lightClusterer->addPointLight(pl->position, pl->radius);
 
         li.pointLightCount++;
     }
@@ -111,7 +115,7 @@ void UberDeferredLighting::initRender()
         glSpotLight = sl->GetShaderData();
         ld.spotLights.push_back(glSpotLight);
 
-        if (lightClustererEnabled)
+        if (clustererType)
         {
             float rad = radians(sl->getAngle());
             float l   = tan(rad) * sl->radius;
@@ -159,7 +163,7 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 {
     // Does nothing
     RendererLighting::render(cam, viewPort);
-    if (lightClustererEnabled)
+    if (clustererType)
     {
         lightClusterer->clusterLights(cam, viewPort);
         // At this point we can use clustering information in the lighting uber shader with the right binding points.
@@ -188,8 +192,7 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
         renderDebug(cam);
         // glDepthMask(GL_FALSE);
     }
-    if(lightClustererEnabled)
-        lightClusterer->renderDebug(cam);
+    if (clustererType) lightClusterer->renderDebug(cam);
     assert_no_glerror();
 }
 
@@ -238,17 +241,26 @@ void UberDeferredLighting::renderImGui()
 {
     RendererLighting::renderImGui();
     ImGui::Begin("UberDefferedLighting", &showLightingImgui);
-    bool changed          = ImGui::Checkbox("lightClustererEnabled", &lightClustererEnabled);
+
+
+    const char* const clustererTypes[3] = {"None", "SixPlanes", "PlaneArrays"};
+
+    bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 3);
+
     if (changed)
     {
-        if (lightClustererEnabled)
-            lightClusterer->enable();
-        else
-            lightClusterer->disable();
+        if (clustererType > 0)
+        {
+            ClustererParameters params;
+            lightClusterer = clustererType == 1
+                                 ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(params))
+                                 : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(params));
+            lightClusterer->init(width, height, useTimers);
+        }
     }
     ImGui::End();
 
-    if (lightClustererEnabled) lightClusterer->renderImGui();
+    if (clustererType) lightClusterer->renderImGui();
 }
 
 }  // namespace Saiga

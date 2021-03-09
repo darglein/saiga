@@ -52,6 +52,8 @@ struct LightInfo
     int pointLightCount;
     int spotLightCount;
     int directionalLightCount;
+
+    int clusterEnabled;
 };
 }  // namespace uber
 
