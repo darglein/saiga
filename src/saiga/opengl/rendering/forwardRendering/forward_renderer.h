@@ -39,7 +39,7 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     virtual ~ForwardRenderer() {}
 
     virtual void render(const RenderInfo& renderInfo) override;
-    virtual void renderImGui() override;
+    virtual void renderImgui() override;
 
     void resize(int windowWidth, int windowHeight) override;
 

@@ -101,7 +101,8 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t& mesh, T obj, Camera
         setupStencilPass();
         stencilShader->bind();
 
-        obj->bindUniformsStencil(*stencilShader);
+        // obj->bindUniformsStencil(*stencilShader);
+
         stencilShader->uploadModel(obj->ModelMatrix());
         mesh.bindAndDraw();
         stencilShader->unbind();

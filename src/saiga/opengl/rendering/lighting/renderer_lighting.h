@@ -169,5 +169,10 @@ class SAIGA_OPENGL_API RendererLighting
     int maximumNumberOfDirectionalLights = 256;
     int maximumNumberOfPointLights       = 256;
     int maximumNumberOfSpotLights        = 256;
+
+    bool showLightingImgui = false;
+    int selected_light     = -1;
+    int selecte_light_type = 0;
+    std::shared_ptr<LightBase> selected_light_ptr;
 };
 }  // namespace Saiga

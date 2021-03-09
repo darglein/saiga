@@ -6,7 +6,7 @@
 
 #include "uber_deferred_lighting.h"
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/imath.h"
 #include "saiga/core/util/tostring.h"
@@ -236,8 +236,8 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
 
 void UberDeferredLighting::renderImGui()
 {
-    RendererLighting::renderImGui(p_open);
-    ImGui::Begin("UberDefferedLighting", p_open);
+    RendererLighting::renderImGui();
+    ImGui::Begin("UberDefferedLighting", &showLightingImgui);
     bool changed          = ImGui::Checkbox("lightClustererEnabled", &lightClustererEnabled);
     if (changed)
     {

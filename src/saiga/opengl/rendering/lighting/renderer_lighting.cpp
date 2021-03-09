@@ -6,7 +6,7 @@
 
 #include "renderer_lighting.h"
 
-#include "saiga/core/geometry/triangle_mesh_generator.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/imath.h"
 #include "saiga/core/util/tostring.h"
@@ -16,6 +16,7 @@
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/CubeTexture.h"
+#include "saiga/core/imgui/imgui_main_menu.h"
 
 namespace Saiga
 {
@@ -309,8 +310,10 @@ void RendererLighting::setLightMaxima(int maxDirectionalLights, int maxPointLigh
 
 void RendererLighting::createLightMeshes()
 {
-    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    directionalLightMesh.fromMesh(*qb);
+    //    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
+    //    directionalLightMesh.fromMesh(*qb);
+
+    directionalLightMesh.fromMesh(FullScreenQuad());
 
 
     // the create mesh returns a sphere with outer radius of 1
@@ -320,16 +323,18 @@ void RendererLighting::createLightMeshes()
     float r = 1.0f / cos(pi<float>() / n);
     //    std::cout << "point light radius " << r << std::endl;
     Sphere s(make_vec3(0), r);
-    auto sb = TriangleMeshGenerator::createMesh(s, 1);
+    //    auto sb = TriangleMeshGenerator::IcoSphereMesh(s, 1);
     //    sb->createBuffers(pointLightMesh);
-    pointLightMesh.fromMesh(*sb);
+    //    pointLightMesh.fromMesh(*sb);
+    pointLightMesh.fromMesh(IcoSphereMesh(s, 1));
 
 
-    Cone c(make_vec3(0), vec3(0, 0, -1), 1.0f, 1.0f);
-    auto cb = TriangleMeshGenerator::createMesh(c, 10);
+    Cone c(make_vec3(0), vec3(0, 1, 0), 1.0f, 1.0f);
+    //    auto cb = TriangleMeshGenerator::ConeMesh(c, 10);
+    auto model = ConeMesh(c, 10);
+
     //    cb->createBuffers(spotLightMesh);
-    spotLightMesh.fromMesh(*cb);
-    //    spotLightMesh.fromMesh(*sb);
+    spotLightMesh.fromMesh(model);
 }
 
 

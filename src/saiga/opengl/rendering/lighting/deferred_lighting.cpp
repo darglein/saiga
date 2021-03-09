@@ -510,13 +510,12 @@ void DeferredLighting::setStencilShader(std::shared_ptr<MVPShader> stencilShader
 
 void DeferredLighting::renderImGui()
 {
-    if (!showLightingImgui) return;
     RendererLighting::renderImGui();
     int w = 340;
     int h = 240;
     ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    ImGui::Begin("DeferredLighting", &showLightingImgui);
+    ImGui::Begin("DeferredLighting");
     ImGui::Checkbox("stencilCulling", &stencilCulling);
 
     ImGui::End();
