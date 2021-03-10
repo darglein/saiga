@@ -1,9 +1,6 @@
 [submodule "submodules/eigen"]
 	path = submodules/eigen
 	url = https://gitlab.com/libeigen/eigen.git
-[submodule "submodules/zlib"]
-	path = submodules/zlib
-	url = https://github.com/darglein/zlib.git
 [submodule "submodules/libpng"]
 	path = submodules/libpng
 	url = https://github.com/glennrp/libpng.git
