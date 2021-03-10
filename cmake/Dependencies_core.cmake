@@ -55,17 +55,21 @@ if(SAIGA_USE_SUBMODULES)
 
   set(ZLIB_TARGET zlibstatic)
   add_subdirectory(submodules/zlib)
-  set(ZLIB_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib" CACHE PATH "zlib dir" FORCE)
+  
+  # libPNG uses include_directory(ZLIB_INCLUDE_DIR) therefore we have to set these variables
+  set(ZLIB_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib ${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib CACHE PATH "zlib dir" FORCE)
+  set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR} CACHE PATH "zlib dir" FORCE)
+  
+  # include dir that use the zlib target
   target_include_directories(${ZLIB_TARGET} PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib>  )
-
-   #set_target_properties(zlibstatic PROPERTIES EXCLUDE_FROM_ALL 1)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib>  )
+  
   PackageHelperTarget(${ZLIB_TARGET} ZLIB_FOUND)
-  set_target_properties(${ZLIB_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
-  #message(FATAL_ERROR ${ZLIB_INCLUDE_DIR})
+  #set_target_properties(${ZLIB_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
   SET(SAIGA_USE_ZLIB 1)
 
+  # Create a fake zlib target which also points to the zlib static library
   add_library(zlib INTERFACE)
   target_link_libraries(zlib INTERFACE zlibstatic)
 
