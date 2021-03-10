@@ -56,9 +56,10 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
             ImGuiWindowFlags flags =
                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
             ImGui::Begin("3DView", nullptr, flags);
-            use_mouse_input_in_3dview    = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow);
+
+            use_mouse_input_in_3dview    = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow);
             use_keyboard_input_in_3dview = use_mouse_input_in_3dview;
-            //            auto w_size         = ImGui::GetWindowSize();
+
             auto w_size = ImGui::GetWindowContentRegionMax();
             target_w    = w_size.x;
             target_h    = w_size.y;
