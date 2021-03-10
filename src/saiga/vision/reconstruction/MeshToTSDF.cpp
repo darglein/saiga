@@ -147,7 +147,13 @@ std::vector<vec3> MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& tria
         result.insert(result.end(), points.begin(), points.end());
     }
 
-    std::random_shuffle(result.begin(), result.end());
+    {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(result.begin(), result.end(), g);
+    }
+
+    //    std::random_shuffle(result.begin(), result.end());
 
     return ReducePointsPoissonDisc(result, radius);
 }
