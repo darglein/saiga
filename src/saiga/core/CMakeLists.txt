@@ -61,10 +61,6 @@ target_include_directories(
   )
 
 set(OTHER_EXPORT_TARGETS "")
-if(ZLIB_FOUND)
-  set(OTHER_EXPORT_TARGETS zlib)
-endif()
-
 
 install(
   TARGETS ${MODULE_NAME} ${OTHER_EXPORT_TARGETS}
