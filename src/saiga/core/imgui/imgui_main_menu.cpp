@@ -17,6 +17,7 @@
 namespace Saiga
 {
 MainMenu main_menu;
+EditorGui editor_gui;
 
 MainMenu::MainMenu() {}
 
@@ -168,40 +169,61 @@ void EditorGui::render(int w, int h)
 
         static ImGuiID dockspace_id = 1;
         // Declare Central dockspace
-        ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_None | ImGuiDockNodeFlags_PassthruCentralNode);
+
+        // ImGuiDockNodeFlags_NoSplit
 
 
         if (reset_work_space)
         {
             ImGui::DockBuilderRemoveNode(dockspace_id);  // Clear out existing layout
-            ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode);  // Add empty node
+            ImGui::DockBuilderAddNode(dockspace_id);     // Add empty node
+
+            ImGui::DockBuilderAddNode(10);
             //            ImGui::DockBuilderSetNodeSize(dockspace_id, main_size + ImVec2(0, -menu_height));
             //            ImGui::DockBuilderSetNodePos(dockspace_id, main_pos + ImVec2(0, menu_height));
+
+            auto main_node = (ImGuiDockNode*)GImGui->DockContext.Nodes.GetVoidPtr(dockspace_id);
 
 
             ImGuiID dock_main_id = dockspace_id;  // This variable will track the document node, however we are not
                                                   // using it here as we aren't docking anything into it.
             ImGuiID dock_id_prop = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.20f, NULL, &dock_main_id);
+
+
+            ImGuiID dock_id_details =
+                ImGui::DockBuilderSplitNode(dock_id_prop, ImGuiDir_Down, 0.20f, NULL, &dock_id_prop);
+
             ImGuiID dock_id_bottom =
                 ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.20f, NULL, &dock_main_id);
 
 
-            ImGuiID id_from_layout[4] = {dock_id_prop, dock_id_prop, dock_id_bottom, dock_main_id};
 
-            ImGui::DockBuilderDockWindow("Log", id_from_layout[WINDOW_POSITION_LOG]);
-            ImGui::DockBuilderDockWindow("Properties", id_from_layout[WINDOW_POSITION_SYSTEM]);
+            ImGuiID id_from_layout[4] = {dock_id_prop, dock_id_details, dock_id_bottom, dock_main_id};
+
+            //            ImGui::DockBuilderDockWindow("Log", id_from_layout[WINDOW_POSITION_LOG]);
+            //            ImGui::DockBuilderDockWindow("Properties", id_from_layout[WINDOW_POSITION_SYSTEM]);
             // ImGui::DockBuilderDockWindow("Mesh", dock_main_id);
             ImGui::DockBuilderDockWindow("3DView", id_from_layout[WINDOW_POSITION_3DVIEW]);
             // ImGui::DockBuilderDockWindow("Extra", dock_id_prop);
 
+
+            std::cout << "=== Num docks " << initial_layout.size() << std::endl;
             for (auto& windows : initial_layout)
             {
+                std::cout << "dock " << windows.first.c_str() << " " << id_from_layout[windows.second] << std::endl;
                 ImGui::DockBuilderDockWindow(windows.first.c_str(), id_from_layout[windows.second]);
             }
 
             ImGui::DockBuilderFinish(dockspace_id);
+
+
+
+            //            auto node = (ImGuiDockNode*)GImGui->DockContext.Nodes.GetVoidPtr(dock_id_prop);
+            //            node->LocalFlags |= ImGuiDockNodeFlags_KeepAliveOnly;
+            //            node->HostWindow = main_node->HostWindow;
             reset_work_space = false;
         }
+        ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
 
 
 
@@ -210,12 +232,12 @@ void EditorGui::render(int w, int h)
     }
 
     //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
-    ImGui::Begin("Log");
-    ImGui::End();
+    //    ImGui::Begin("Log", nullptr);
+    //    ImGui::End();
 
     //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
-    ImGui::Begin("Properties");
-    ImGui::End();
+    //    ImGui::Begin("Properties");
+    //    ImGui::End();
 
     //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
     //    ImGui::Begin("Mesh");
@@ -225,6 +247,7 @@ void EditorGui::render(int w, int h)
 void EditorGui::RegisterImguiWindow(const std::string& name, EditorGui::EditorLayout position)
 {
     initial_layout.push_back({name, position});
+    std::cout << "register layout " << initial_layout.size() << ": " << name << " " << position << std::endl;
 }
 
 }  // namespace Saiga

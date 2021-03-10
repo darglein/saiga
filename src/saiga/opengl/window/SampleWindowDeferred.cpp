@@ -14,6 +14,7 @@ namespace Saiga
 {
 SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
 {
+    editor_gui.RegisterImguiWindow("Saiga Sample Base", EditorGui::WINDOW_POSITION_SYSTEM);
     // create a perspective camera
     float aspect = window->getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 100.0f);

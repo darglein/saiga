@@ -44,6 +44,8 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
     if (imgui)
     {
         SAIGA_ASSERT(ImGui::GetCurrentContext());
+
+
         imgui->beginFrame();
         window->renderImGui();
         dynamic_cast<RenderingInterface*>(rendering)->render(nullptr, RenderPass::GUI);

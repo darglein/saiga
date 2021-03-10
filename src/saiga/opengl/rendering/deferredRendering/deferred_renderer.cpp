@@ -29,6 +29,8 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
       renderHeight(window.getHeight()),
       ddo(window.getWidth(), window.getHeight())
 {
+    editor_gui.RegisterImguiWindow("Deferred Renderer", EditorGui::WINDOW_POSITION_SYSTEM);
+
     if (params.useSMAA)
     {
         smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
@@ -414,8 +416,12 @@ void DeferredRenderer::renderImgui()
     if (!should_render_imgui) return;
     int w = 340;
     int h = 240;
-    ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
+    if (!editor_gui.enabled)
+    {
+        ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Deferred Renderer", &should_render_imgui);
 
     ImGui::Checkbox("renderDDO", &renderDDO);

@@ -28,6 +28,7 @@ namespace Saiga
 OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters, OpenGLParameters openglParameters)
     : WindowBase(_windowParameters), openglParameters(openglParameters)
 {
+    editor_gui.RegisterImguiWindow("OpenGLWindow", EditorGui::WINDOW_POSITION_SYSTEM);
     initSaigaGL(openglParameters);
 }
 

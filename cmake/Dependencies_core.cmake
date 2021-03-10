@@ -48,20 +48,31 @@ SET(SAIGA_USE_GLFW 1)
 if(SAIGA_USE_SUBMODULES)
   message("=================================")
   message("Adding Submodule ZLIB")
+
+
+  set(ZLIB_BUILD_SHARED OFF CACHE INTERNAL "")
+  set(ZLIB_BUILD_STATIC ON CACHE INTERNAL "")
+
+  set(ZLIB_TARGET zlibstatic)
   add_subdirectory(submodules/zlib)
   set(ZLIB_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib" CACHE PATH "zlib dir" FORCE)
-  target_include_directories(zlib PUBLIC
+  target_include_directories(${ZLIB_TARGET} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib>  )
 
-   set_target_properties(zlibstatic PROPERTIES EXCLUDE_FROM_ALL 1)
-  PackageHelperTarget(zlib ZLIB_FOUND)
-  set_target_properties(zlib PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+   #set_target_properties(zlibstatic PROPERTIES EXCLUDE_FROM_ALL 1)
+  PackageHelperTarget(${ZLIB_TARGET} ZLIB_FOUND)
+  set_target_properties(${ZLIB_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
   #message(FATAL_ERROR ${ZLIB_INCLUDE_DIR})
   SET(SAIGA_USE_ZLIB 1)
+
+  add_library(zlib INTERFACE)
+  target_link_libraries(zlib INTERFACE zlibstatic)
+
   message("=================================")
 else()
   find_package(ZLIB QUIET)
+  set(ZLIB_TARGET zlib)
     add_library(zlib INTERFACE)
     target_link_libraries(zlib INTERFACE "${ZLIB_LIBRARIES}")
     target_include_directories(zlib INTERFACE "${ZLIB_INCLUDE_DIRS}")
@@ -78,8 +89,8 @@ endif()
   set(PNG_STATIC OFF CACHE INTERNAL "")
   set(PNG_EXECUTABLES OFF CACHE INTERNAL "")
   set(PNG_TESTS OFF CACHE INTERNAL "")
-  set(ZLIB_LIBRARIES zlib CACHE INTERNAL "")
-  set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
+  set(ZLIB_LIBRARIES ${ZLIB_TARGET} CACHE INTERNAL "")
+  #set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
 
   include_directories(${ZLIB_INCLUDE_DIRS})
   add_subdirectory(submodules/libpng)
@@ -93,16 +104,16 @@ endif()
   set_target_properties(png PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
   SET(SAIGA_USE_PNG 1)
 
-  set(CMAKE_INSTALL_LIBDIR lib)
-    install(TARGETS png zlib
-          EXPORT libpng
-          RUNTIME DESTINATION bin
-          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-          FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
-
-  install(EXPORT libpng
-          DESTINATION lib/libpng)
+#  set(CMAKE_INSTALL_LIBDIR lib)
+#    install(TARGETS png zlib
+#          EXPORT libpng
+#          RUNTIME DESTINATION bin
+#          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#          FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
+#
+#  install(EXPORT libpng
+#          DESTINATION lib/libpng)
 
   message("=================================")
     else()

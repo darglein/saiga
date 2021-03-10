@@ -24,6 +24,7 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
       renderHeight(window.getHeight() * _params.renderScale),
       ddo(window.getWidth(), window.getHeight())
 {
+    editor_gui.RegisterImguiWindow("Deferred Renderer", EditorGui::WINDOW_POSITION_SYSTEM);
     {
         // create a 2x2 grayscale black dummy texture
         blackDummyTexture = std::make_shared<Texture>();
@@ -292,8 +293,12 @@ void UberDeferredRenderer::renderImgui()
 
     int w = 340;
     int h = 240;
-    ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
+    if (!editor_gui.enabled)
+    {
+        ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Deferred Renderer", &should_render_imgui);
 
     ImGui::Checkbox("renderDDO", &renderDDO);
