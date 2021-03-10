@@ -185,9 +185,12 @@ void IMConsole::render()
 
 void IMConsole::BeginWindow()
 {
-    ImGui::SetNextWindowPos(ImVec2(position(0), position(1)), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(size(0), size(1)), ImGuiCond_Once);
-    ImGui::Begin(name.c_str());
+    if (!Saiga::editor_gui.enabled)
+    {
+        ImGui::SetNextWindowPos(ImVec2(position(0), position(1)), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(size(0), size(1)), ImGuiCond_Once);
+    }
+    ImGui::Begin(name.c_str(), nullptr, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
 }
 
 void IMConsole::EndWindow()
@@ -204,7 +207,8 @@ void IMConsole::RenderTextArea()
     // use full frame
     footer_height_to_reserve = 0;
     ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false,
-                      ImGuiWindowFlags_HorizontalScrollbar);  // Leave room for 1 separator + 1 InputText
+                      ImGuiWindowFlags_HorizontalScrollbar |
+                          ImGuiWindowFlags_AlwaysVerticalScrollbar);  // Leave room for 1 separator + 1 InputText
 
     // right click action
     if (ImGui::BeginPopupContextWindow())
@@ -217,13 +221,14 @@ void IMConsole::RenderTextArea()
 
     ImGui::TextUnformatted(&data.front(), &data.back());
 
-
-    if (scrollToBottom)
+    if (scrollToBottom && scrollDownAtNextRender)
     {
-        ImGui::SetScrollY(GetScrollMaxY());
+        // For some reason GetScrollMaxY doesn't completely scroll down
+        ImGui::SetScrollY(GetScrollMaxY() + 100);
         scrollDownAtNextRender = false;
     }
     ImGui::EndChild();
+
 }
 
 void IMConsole::setOutputFile(const std::string& file)

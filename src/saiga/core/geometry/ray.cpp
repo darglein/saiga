@@ -13,7 +13,7 @@ namespace Saiga
 {
 std::ostream& operator<<(std::ostream& os, const Ray& r)
 {
-    std::cout << "[Ray] " << r.origin.transpose() << " | " << r.direction.transpose();
+    os << "[Ray] " << r.origin.transpose() << " | " << r.direction.transpose();
     return os;
 }
 

@@ -28,8 +28,6 @@ RendererLighting::RendererLighting()
         "Saiga", "Lighting", [this]() { showLightingImgui = !showLightingImgui; }, 297, "F8");
 
 
-    editor_gui.RegisterImguiWindow("RendererLighting", EditorGui::WINDOW_POSITION_SYSTEM);
-    editor_gui.RegisterImguiWindow("Light Data", EditorGui::WINDOW_POSITION_DETAILS);
 }
 
 RendererLighting::~RendererLighting() {}

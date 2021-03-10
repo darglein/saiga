@@ -61,7 +61,7 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
             ImGui::Begin("3DView", nullptr, flags);
 
             use_mouse_input_in_3dview    = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow);
-            use_keyboard_input_in_3dview = use_mouse_input_in_3dview && !ImGui::captureKeyboard();
+            use_keyboard_input_in_3dview =  ImGui::IsWindowFocused() && !ImGui::captureKeyboard();
 
             viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
             viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
@@ -74,7 +74,7 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
 
     if (!editor_gui.enabled)
     {
-        // In fullscreen mode we check, if a gui element is used
+        // In Fullscreen mode we check, if a gui element is used
         use_mouse_input_in_3dview    = !ImGui::captureMouse();
         use_keyboard_input_in_3dview = !ImGui::captureKeyboard();
     }

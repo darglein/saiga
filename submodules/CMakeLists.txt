@@ -12,7 +12,7 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 set(GLFW_BUILD_TESTS OFF CACHE INTERNAL "")
 add_subdirectory(glfw)
 set_target_properties(glfw PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
-SET(SAIGA_USE_GLFW 1)
+SET(SAIGA_USE_GLFW 1 PARENT_SCOPE)
 message("=================================")
 
 
@@ -36,7 +36,7 @@ target_include_directories(${ZLIB_TARGET} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib>  )
 
 #set_target_properties(${ZLIB_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
-SET(SAIGA_USE_ZLIB 1)
+SET(SAIGA_USE_ZLIB 1 PARENT_SCOPE)
 
 # Create a fake zlib target which also points to the zlib static library
 add_library(zlib INTERFACE)
@@ -63,7 +63,7 @@ $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../submodules/libpng>
 $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/libpng>  )
 
 set_target_properties(png PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
-SET(SAIGA_USE_PNG 1)
+SET(SAIGA_USE_PNG 1 PARENT_SCOPE)
 
 #  set(CMAKE_INSTALL_LIBDIR lib)
 #    install(TARGETS png zlib
@@ -87,5 +87,12 @@ set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE INTERNAL "")
 
 add_subdirectory(assimp)
 set_target_properties(assimp PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
-SET(SAIGA_USE_ASSIMP 1)
+SET(SAIGA_USE_ASSIMP 1 PARENT_SCOPE)
+message("=================================")
+
+message("=================================")
+message("Adding Submodule googletest")
+add_subdirectory(googletest)
+PackageHelperTarget(gtest GTEST_FOUND)
+set(GTEST_TARGETS gtest gtest_main)
 message("=================================")

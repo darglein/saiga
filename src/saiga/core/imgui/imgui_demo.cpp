@@ -6186,7 +6186,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref)
 // - ShowExampleMenuFile()
 //-----------------------------------------------------------------------------
 
-// Demonstrate creating a "main" fullscreen menu bar and populating it.
+// Demonstrate creating a "main" Fullscreen menu bar and populating it.
 // Note the difference between BeginMainMenuBar() and BeginMenuBar():
 // - BeginMenuBar() = menu-bar inside current window (which needs the ImGuiWindowFlags_MenuBar flag!)
 // - BeginMainMenuBar() = helper to create menu-bar-sized window at the top of the main viewport + call BeginMenuBar() into it.
@@ -7539,7 +7539,7 @@ void ShowExampleAppDockSpace(bool* p_open)
     {
         if (ImGui::BeginMenu("Options"))
         {
-            // Disabling fullscreen would allow the window to be moved to the front of other windows,
+            // Disabling Fullscreen would allow the window to be moved to the front of other windows,
             // which we can't undo at the moment without finer window depth/z control.
             ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen);
             ImGui::MenuItem("Padding", NULL, &opt_padding);

@@ -65,23 +65,70 @@ class SAIGA_CORE_API MainMenu
 SAIGA_CORE_API extern MainMenu main_menu;
 
 
+class SAIGA_CORE_API EditorLayout
+{
+   public:
+    EditorLayout() {}
+    virtual ~EditorLayout() {}
+
+    virtual void BuildNodes(int dockspace_id) = 0;
+
+    void PlaceWindows();
+
+    // Maps the windows (by string) to a layout location.
+    // When the gui is created (or reset)
+    std::vector<std::pair<std::string, int>> initial_layout;
+
+
+    void RegisterImguiWindow(const std::string& name, int position) { initial_layout.push_back({name, position}); }
+
+   protected:
+    std::vector<unsigned int> node_map;
+};
+
+
+// The "L" layout has the gui at the left and at the bottom.
+// The 3DViewport ist at the top right
+class SAIGA_CORE_API EditorLayoutL : public EditorLayout
+{
+   public:
+    enum
+    {
+        WINDOW_POSITION_LEFT = 0,
+        WINDOW_POSITION_BOTTOM,
+        WINDOW_POSITION_3DVIEW,
+    };
+
+    EditorLayoutL();
+    void BuildNodes(int dockspace_id) override;
+};
+
+
+class SAIGA_CORE_API EditorLayoutU : public EditorLayout
+{
+   public:
+    enum
+    {
+        WINDOW_POSITION_LEFT = 0,
+        WINDOW_POSITION_RIGHT,
+        WINDOW_POSITION_BOTTOM,
+        WINDOW_POSITION_3DVIEW,
+    };
+
+    EditorLayoutU(float left_size = 0.2, float right_size = 0.2, float bottom_size = 0.2);
+    void BuildNodes(int dockspace_id) override;
+
+   private:
+    float left_size, right_size, bottom_size;
+};
+
+
 
 class SAIGA_CORE_API EditorGui
 {
    public:
-    enum EditorLayout
-    {
-        WINDOW_POSITION_SYSTEM = 0,
-        WINDOW_POSITION_DETAILS,
-        WINDOW_POSITION_LOG,
-        WINDOW_POSITION_3DVIEW,
-    };
-
     EditorGui();
     void render(int w, int h);
-
-
-    void RegisterImguiWindow(const std::string& name, EditorLayout position);
 
     // If enabled the dockspace + the menu bar is rendered
     // Otherwise these elements are not rendered.
@@ -90,13 +137,18 @@ class SAIGA_CORE_API EditorGui
     bool enabled = true;
 
 
+    void SetLayout(std::unique_ptr<EditorLayout> _layout)
+    {
+        layout           = std::move(_layout);
+        reset_work_space = true;
+    }
+
+    // The layout defines how the windows are distributed over that screen
+    // The saiga default is 'EditorLayoutL'
+    std::unique_ptr<EditorLayout> layout;
 
    private:
     bool reset_work_space = true;
-
-    // Maps the windows (by string) to a layout location.
-    // When the gui is created (or reset)
-    std::vector<std::pair<std::string, EditorLayout>> initial_layout;
 };
 
 SAIGA_CORE_API extern EditorGui editor_gui;

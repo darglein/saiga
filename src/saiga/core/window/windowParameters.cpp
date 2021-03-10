@@ -12,41 +12,36 @@
 
 namespace Saiga
 {
-void WindowParameters::setMode(bool fullscreen, bool borderLess)
-{
-    if (fullscreen)
-    {
-        mode = (borderLess) ? Mode::borderLessFullscreen : Mode::fullscreen;
-    }
-    else
-    {
-        mode = (borderLess) ? Mode::borderLessWindowed : Mode::windowed;
-    }
-}
 
 void WindowParameters::fromConfigFile(const std::string& file)
 {
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
 
-    bool fullscreen = mode == Mode::borderLessFullscreen || mode == Mode::fullscreen;
-    bool borderless = mode == Mode::borderLessWindowed || mode == Mode::borderLessFullscreen;
 
-    name             = ini.GetAddString("window", "name", name.c_str());
-    selected_display = static_cast<int>(ini.GetLongValue("window", "display", 0));
-    width            = static_cast<int>(ini.GetAddLong("window", "width", width));
-    height           = static_cast<int>(ini.GetAddLong("window", "height", height));
-    fullscreen       = ini.GetAddBool("window", "fullscreen", fullscreen);
-    borderless       = ini.GetAddBool("window", "borderless", borderless);
-    alwaysOnTop      = ini.GetAddBool("window", "alwaysOnTop", alwaysOnTop);
-    resizeAble       = ini.GetAddBool("window", "resizeAble", resizeAble);
-    vsync            = ini.GetAddBool("window", "vsync", vsync);
-    //    monitorId    = ini.GetAddLong ("window","monitorId",monitorId);
+    int window_mode = (int)mode;
+    auto section    = "window";
 
+    INI_GETADD_STRING(ini, section, name);
+    INI_GETADD_LONG(ini, section, selected_display);
+    INI_GETADD_LONG(ini, section, width);
+    INI_GETADD_LONG(ini, section, height);
+
+    INI_GETADD_LONG_COMMENT(ini, section, window_mode,
+                            "# 0 Windowed\n"
+                            "# 1 WindowedBorderless\n"
+                            "# 2 Fullscreen\n"
+                            "# 3 Fullscreen\n"
+                            "# 4 FullscreenBorderless");
+
+    INI_GETADD_BOOL(ini, section, alwaysOnTop);
+    INI_GETADD_BOOL(ini, section, resizeAble);
+    INI_GETADD_BOOL(ini, section, vsync);
+
+    SAIGA_ASSERT(window_mode >= 0 && window_mode < 4);
+    mode = (Mode)window_mode;
 
     if (ini.changed()) ini.SaveFile(file.c_str());
-
-    setMode(fullscreen, borderless);
 
     saigaParameters.fromConfigFile(file);
     imguiParameters.fromConfigFile(file);
