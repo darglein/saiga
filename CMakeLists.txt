@@ -270,28 +270,26 @@ else()
 endif()
 
 if(SAIGA_BUILD_TESTS)
-    message(STATUS " ")
-    
-    #find_package(GTest REQUIRED)
+  message(STATUS " ")
 
+
+  if(NOT SAIGA_USE_SUBMODULES)
     find_package(GTest CONFIG QUIET)
     if (TARGET GTest::gtest)
-    PackageHelperTarget(GTest::gtest GTEST_FOUND)
-    set(GTEST_TARGETS GTest::gtest GTest::gtest_main)
-    elseif(SAIGA_USE_SUBMODULES)
-
+      PackageHelperTarget(GTest::gtest GTEST_FOUND)
+      set(GTEST_TARGETS GTest::gtest GTest::gtest_main)
     else()
-    find_package(GTest QUIET)
-    PackageHelperTarget(GTest::gtest GTEST_FOUND)
-    set(GTEST_TARGETS GTest::gtest GTest::gtest_main)
+      find_package(GTest QUIET)
+      PackageHelperTarget(GTest::gtest GTEST_FOUND)
+      set(GTEST_TARGETS GTest::gtest GTest::gtest_main)
     endif()
+  endif()
 
-    if(GTEST_FOUND)
-        add_subdirectory(tests)
-    endif()
-    message(STATUS " ")
+  add_subdirectory(tests)
+
+  message(STATUS " ")
 else()
-    message(STATUS "\nNo tests.")
+  message(STATUS "\nNo tests.")
 endif()
 
 #set_target_properties (saiga PROPERTIES FOLDER lib)

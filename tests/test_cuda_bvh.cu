@@ -65,7 +65,7 @@ TEST(BVH, IntersectionRayTriangle)
                 img(i, j) = ucvec3(255, 0, 0);
 
 
-                Ray ray = camera.PixelRay(vec2(j, i), w, h);
+                Ray ray = camera.PixelRay(vec2(j, i), w, h, false);
 
                 auto inter = bf.getClosest(ray);
                 if (inter && !inter.backFace)

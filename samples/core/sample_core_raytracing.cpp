@@ -48,7 +48,7 @@ int main(int argc, char* args[])
 
                 //                vec3 dir = camera.inverseprojectToWorldSpace(vec2(j, i), 1, w, h);
                 //                Ray ray(normalize(dir), camera.getPosition());
-                Ray ray = camera.PixelRay(vec2(j, i), w, h);
+                Ray ray = camera.PixelRay(vec2(j, i), w, h, false);
 
                 auto inter = bf.getClosest(ray);
                 if (inter && !inter.backFace)

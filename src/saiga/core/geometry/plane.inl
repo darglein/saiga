@@ -58,12 +58,12 @@ inline HD float Plane::sphereOverlap(const vec3& c, float r) const
     return r - distance(c);
 }
 
-inline HD std::pair<vec3, float> Plane::intersectingCircle(const vec3& c, float r) const
+inline std::pair<vec3, float> Plane::intersectingCircle(const vec3& c, float r) const
 {
     float dis    = distance(c);
     float radius = sqrt(std::max(r * r - dis * dis, 0.0f));
     vec3 center  = c - dis * normal;
-    return { center, radius };
+    return {center, radius};
 }
 
 }  // namespace Saiga
