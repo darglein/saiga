@@ -65,6 +65,10 @@ if(SAIGA_USE_SUBMODULES)
   set_target_properties(${ZLIB_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
   #message(FATAL_ERROR ${ZLIB_INCLUDE_DIR})
   SET(SAIGA_USE_ZLIB 1)
+
+  add_library(zlib INTERFACE)
+  target_link_libraries(zlib INTERFACE zlibstatic)
+
   message("=================================")
 else()
   find_package(ZLIB QUIET)
