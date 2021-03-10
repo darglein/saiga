@@ -23,8 +23,8 @@ struct SAIGA_CORE_API WindowParameters
     };
 
     std::string name     = "Saiga";
-    int width            = 1280;
-    int height           = 720;
+    int width            = 1600;
+    int height           = 900;
     int selected_display = 0;
     Mode mode            = Mode::windowed;
 
