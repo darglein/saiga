@@ -56,6 +56,13 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
     virtual void printTimings() override {}
     void bindCamera(Camera* cam);
 
+    // Converts pixel coordinates of the window (which you get from glfw)
+    // to local coordinates inside the 3DViewport.
+    // Uses 'viewport_offset'.
+    //
+    // This can be for example be used to generate eye-rays
+    ivec2 WindowCoordinatesToViewport(ivec2 window_coords) { return window_coords - viewport_offset; }
+
     std::shared_ptr<ImGui_GL_Renderer> imgui;
 
     int outputWidth = -1, outputHeight = -1;
@@ -71,6 +78,10 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
     // This should be used by the application to filter keyborad/mouse input
     bool use_mouse_input_in_3dview    = true;
     bool use_keyboard_input_in_3dview = true;
+
+    ivec2 viewport_offset = ivec2(0, 0);
+    ivec2 viewport_size = ivec2(0, 0);
+
 };
 
 inline void setViewPort(const ViewPort& vp)

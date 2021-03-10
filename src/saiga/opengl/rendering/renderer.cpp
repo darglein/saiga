@@ -35,8 +35,11 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
     SAIGA_ASSERT(target_framebuffer);
 
 
-    int target_w = window->getWidth();
-    int target_h = window->getHeight();
+    // Size and position of the 3D viewport
+    // In editor mode this will be set by the imgui-window
+    viewport_size   = ivec2(window->getWidth(), window->getHeight());
+    viewport_offset = ivec2(0, 0);
+
 
 
     // 1. Render the imgui
@@ -58,11 +61,13 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
             ImGui::Begin("3DView", nullptr, flags);
 
             use_mouse_input_in_3dview    = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow);
-            use_keyboard_input_in_3dview = use_mouse_input_in_3dview;
+            use_keyboard_input_in_3dview = use_mouse_input_in_3dview && !ImGui::captureKeyboard();
 
-            auto w_size = ImGui::GetWindowContentRegionMax();
-            target_w    = w_size.x;
-            target_h    = w_size.y;
+            viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
+            viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
+
+            auto w_size   = ImGui::GetWindowContentRegionMax();
+            viewport_size = ivec2(w_size.x, w_size.y);
             ImGui::End();
         }
     }
@@ -74,12 +79,11 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         use_keyboard_input_in_3dview = !ImGui::captureKeyboard();
     }
 
-    ResizeTarget(target_w, target_h);
-
-    SAIGA_ASSERT(target_w == outputWidth && target_h == outputHeight);
+    ResizeTarget(viewport_size.x(), viewport_size.y());
 
     // 2. Render 3DView to framebuffer
-    Camera* camera    = renderInfo.cameras.front().first;
+    Camera* camera = renderInfo.cameras.front().first;
+    camera->recomputeProj(outputWidth, outputHeight);
     ViewPort viewport = ViewPort({0, 0}, {outputWidth, outputHeight});
     auto target_fb    = editor_gui.enabled ? target_framebuffer.get() : &default_framebuffer;
     target_fb->bind();

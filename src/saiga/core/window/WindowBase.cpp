@@ -50,26 +50,7 @@ std::string WindowBase::getTimeString()
 
 Ray WindowBase::createPixelRay(const vec2& pixel) const
 {
-    vec4 p = vec4(2 * pixel[0] / getWidth() - 1.f, 1.f - (2 * pixel[1] / getHeight()), 0, 1.f);
-    p      = inverse(WindowBase::getCamera()->proj) * p;
-    p /= p[3];
-
-    mat4 inverseView = inverse(WindowBase::getCamera()->view);
-    vec3 ray_world   = make_vec3(inverseView * p);
-    vec3 origin      = make_vec3(inverseView.col(3));
-    return Ray(normalize(vec3(ray_world - origin)), origin);
-}
-
-Ray WindowBase::createPixelRay(const vec2& pixel, const vec2& resolution, const mat4& inverseProj) const
-{
-    vec4 p = vec4(2 * pixel[0] / resolution[0] - 1.f, 1.f - (2 * pixel[1] / resolution[1]), 0, 1.f);
-    p      = inverseProj * p;
-    p /= p[3];
-
-    mat4 inverseView = inverse(WindowBase::getCamera()->view);
-    vec3 ray_world   = make_vec3(inverseView * p);
-    vec3 origin      = make_vec3(inverseView.col(3));
-    return Ray(normalize(vec3(ray_world - origin)), origin);
+    return WindowBase::getCamera()->PixelRay(pixel, getWidth(), getHeight(), true);
 }
 
 vec3 WindowBase::screenToWorld(const vec2& pixel) const

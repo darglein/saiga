@@ -40,9 +40,22 @@ mat4 perspective(float fovy, float aspect, float zNear, float zFar)
 {
     float const tanHalfFovy = tan(fovy / static_cast<float>(2));
 
-    mat4 Result  = mat4::Zero();
-    Result(0, 0) = static_cast<float>(1) / (aspect * tanHalfFovy);
-    Result(1, 1) = static_cast<float>(1) / (tanHalfFovy);
+    mat4 Result = mat4::Zero();
+
+    // Make sure the FOV is defined for the longer side.
+    // Otherwise we can get distorted images if the output is rectangular
+    if (aspect > 1)
+    {
+        Result(0, 0) = static_cast<float>(1) / (tanHalfFovy);
+        Result(1, 1) = static_cast<float>(1) / (tanHalfFovy / aspect);
+    }
+    else
+    {
+        Result(0, 0) = static_cast<float>(1) / (aspect * tanHalfFovy);
+        Result(1, 1) = static_cast<float>(1) / (tanHalfFovy);
+    }
+
+
     Result(2, 2) = -(zFar + zNear) / (zFar - zNear);
     Result(3, 2) = -static_cast<float>(1);
     Result(2, 3) = -(static_cast<float>(2) * zFar * zNear) / (zFar - zNear);

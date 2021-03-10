@@ -17,7 +17,7 @@
 
 namespace Saiga
 {
-#define ANG2RAD 3.14159265358979323846 / 180.0
+// #define ANG2RAD 3.14159265358979323846 / 180.0
 
 
 
@@ -162,10 +162,15 @@ vec3 Camera::ViewToWorld(vec3 viewPosition) const
     return make_vec3(p);
 }
 
-Ray Camera::PixelRay(vec2 pixel, int w, int h)
+Ray Camera::PixelRay(vec2 pixel, int w, int h, bool flip_y)
 {
+    if(flip_y)
+    {
+        pixel.y() = h - pixel.y();
+    }
+
     vec3 p = ViewToWorld(NormalizedToView(ImageToNormalized(pixel, 1, w, h)));
-    Ray r(p - getPosition(), getPosition());
+    Ray r( (p - getPosition()).normalized(), getPosition());
     return r;
 }
 
@@ -176,7 +181,6 @@ void Camera::imgui()
     changed |= ImGui::InputFloat("zNear", &zNear);
     changed |= ImGui::InputFloat("zFar", &zFar);
     changed |= ImGui::Checkbox("vulkanTransform", &vulkanTransform);
-    if (changed) recomputeProj();
 }
 
 
@@ -203,7 +207,7 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
     tang = (float)tan(fovy * 0.5);
 
 
-    recomputeProj();
+    recomputeProj(aspect, 1);
 }
 
 void PerspectiveCamera::imgui()
@@ -212,12 +216,12 @@ void PerspectiveCamera::imgui()
     bool changed = false;
     changed |= ImGui::InputFloat("fovy", &fovy);
     changed |= ImGui::InputFloat("aspect", &aspect);
-    if (changed) recomputeProj();
 }
 
-void PerspectiveCamera::recomputeProj()
+void PerspectiveCamera::recomputeProj(int output_w, int output_h)
 {
-    proj = perspective(fovy, aspect, zNear, zFar);
+    aspect = float(output_w) / output_h;
+    proj   = perspective(fovy, aspect, zNear, zFar);
 
     if (vulkanTransform)
     {
@@ -302,7 +306,7 @@ void OrthographicCamera::setProj(float _left, float _right, float _bottom, float
     this->zNear  = _near;
     this->zFar   = _far;
 
-    recomputeProj();
+    recomputeProj(0,0);
 }
 
 void OrthographicCamera::setProj(AABB bb)
@@ -315,7 +319,7 @@ void OrthographicCamera::imgui()
     Camera::imgui();
 }
 
-void OrthographicCamera::recomputeProj()
+void OrthographicCamera::recomputeProj(int output_w, int output_h)
 {
     proj = ortho(left, right, bottom, top, zNear, zFar);
 }
