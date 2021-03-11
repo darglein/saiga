@@ -197,9 +197,12 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
     return result;
 }
 
-/*
-vec3 calculateSpotLightsClustered(AssetMaterial material, vec3 position, vec3 normal, float depth)
+vec3 calculateSpotLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal);
+
+vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal, float depth)
 {
+    if(clusterEnabled == 0)
+        return calculateSpotLightsNoClusters(material, position, normal);
     if(tileDebug > 0)
         return debugCluster(depth);
     vec3 result = vec3(0);
@@ -216,20 +219,16 @@ vec3 calculateSpotLightsClustered(AssetMaterial material, vec3 position, vec3 no
     }
 
     int lightCount           = clusterList[clusterIndex].slCount;
-    int baseLightIndexOffset = clusterList[clusterIndex].offset;
+    int baseLightIndexOffset = clusterList[clusterIndex].offset + clusterList[clusterIndex].plCount;
 
     if(baseLightIndexOffset + lightCount -1 > itemListCount - 1)
     {
         return vec3(1, 1, 0);
     }
-    if(baseLightIndexOffset < 0 || lightCount < 0)
-    {
-        return vec3(1, 0, 0);
-    }
 
     for(int i = 0; i < lightCount; i++)
     {
-        int lightVectorIndex = itemList[baseLightIndexOffset + i].slIdx;
+        int lightVectorIndex = itemList[baseLightIndexOffset + i].lightIdx;
         if(lightVectorIndex >= spotLightCount)
             return vec3(0, 0, 0);
         SpotLightData sl = spotLights[lightVectorIndex];
@@ -264,7 +263,6 @@ vec3 calculateSpotLightsClustered(AssetMaterial material, vec3 position, vec3 no
     }
     return result;
 }
-*/
 
 vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal)
 {
@@ -301,7 +299,7 @@ vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 
     return result;
 }
 
-vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
+vec3 calculateSpotLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal)
 {
     vec3 result = vec3(0);
     for(int c = 0; c < spotLightCount; ++c)

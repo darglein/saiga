@@ -114,15 +114,13 @@ void UberDeferredLighting::initRender()
         if (clustererType)
         {
             float rad = radians(sl->getAngle());
-            float l   = tan(rad) * sl->radius;
+            float l   = sl->radius;
             float radius;
             if (rad > pi<float>() * 0.25f)
                 radius = l * tan(rad);
             else
-                radius = l * 0.5f / pow(cos(sl->getAngle()), 2.0f);
-            vec3 world_center =
-                sl->getPosition() +
-                vec3(glSpotLight.direction.x(), glSpotLight.direction.y(), glSpotLight.direction.z()) * radius;
+                radius = l * 0.5f / pow(cos(rad), 2.0f);
+            vec3 world_center = make_vec3(glSpotLight.position) + make_vec3(glSpotLight.direction).normalized() * radius;
             lightClusterer->addSpotLight(world_center, radius);
         }
 

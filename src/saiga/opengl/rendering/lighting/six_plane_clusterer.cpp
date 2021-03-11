@@ -57,17 +57,45 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             }
         }
 
+        int visibleSLCount = 0;
+        for (int i = 0; i < spotLightsClusterData.size(); ++i)
+        {
+            SpotLightClusterData& plc = spotLightsClusterData[i];
+            bool intersection          = true;
+            vec3 sphereCenter          = cam->WorldToView(plc.world_center);
+            for (int p = 0; p < 6; ++p)
+            {
+                if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
+                {
+                    intersection = false;
+                    break;
+                }
+            }
+            if (intersection)
+            {
+                if (visiblePLCount + visibleSLCount >= maxClusterItemsPerCluster) break;
+
+                visibleLightIndices[visiblePLCount + visibleSLCount] = i;
+                visibleSLCount++;
+            }
+        }
+
         cluster& gpuCluster = clusterBuffer.clusterList.at(c);
         gpuCluster.offset   = globalOffset;
         globalOffset += visiblePLCount;
+        globalOffset += visibleSLCount;
 
         for (int v = 0; v < visiblePLCount; ++v)
         {
             itemBuffer.itemList[gpuCluster.offset + v].lightIdx = visibleLightIndices[v];
         }
+        for (int v = visiblePLCount; v < visiblePLCount + visibleSLCount; ++v)
+        {
+            itemBuffer.itemList[gpuCluster.offset + v].lightIdx = visibleLightIndices[v];
+        }
 
         gpuCluster.plCount = visiblePLCount;
-        gpuCluster.slCount = 0;
+        gpuCluster.slCount = visibleSLCount;
     }
 
     lightAssignmentTimer.stop();

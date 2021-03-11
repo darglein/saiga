@@ -32,7 +32,7 @@ void render(AssetMaterial material, vec3 position, vec3 normal)
     vec3 lighting = vec3(0);
 
     lighting += calculatePointLights(material, position, normal, gl_FragCoord.z);
-    lighting += calculateSpotLights(material, position, normal);
+    lighting += calculateSpotLights(material, position, normal, gl_FragCoord.z);
     lighting += calculateDirectionalLights(material, position, normal);
 
     out_color = vec4(lighting, 1);

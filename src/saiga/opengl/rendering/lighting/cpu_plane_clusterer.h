@@ -27,6 +27,8 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
    private:
     void clusterLightsInternal(Camera* cam, const ViewPort& viewPort);
 
+    void clusterLoop(vec3 sphereCenter, float sphereRadius, int index, bool pl, int& itemCount);
+
     void buildClusters(Camera* cam);
 
 
@@ -39,7 +41,7 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
     std::vector<Plane> planesZ;
 
     int avgAllowedItemsPerCluster = 128;
-    std::vector<std::vector<int>> clusterCache;
+    std::vector<std::pair<std::vector<int>, std::vector<int>>> clusterCache;
 
     bool refinement = true;
 

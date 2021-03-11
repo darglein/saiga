@@ -201,10 +201,11 @@ class Sample : public RendererSampleWindow
                 {
                     std::shared_ptr<SpotLight> light = std::make_shared<SpotLight>();
                     light->setRadius(linearRand(1.0, 4.0));
-                    light->setIntensity(1.0);
-                    light->setPosition(linearRand(vec3(-16, 1, -16), vec3(16, light->getRadius(), 16)));
-                    light->setAngle(linearRand(25, 55));
+                    light->setIntensity(1.0f / light->getRadius());
+                    light->setPosition(
+                        linearRand(vec3(-16, light->getRadius() * 0.5, -16), vec3(16, light->getRadius(), 16)));
                     light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+                    light->setAngle(linearRand(20, 60));
                     light->direction   = linearRand(vec3(-0.5, -0.5, -0.5), vec3(0.5, 0.5, 0.5));
                     light->castShadows = false;
                     renderer->lighting.AddLight(light);

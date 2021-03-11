@@ -299,7 +299,7 @@ void UberDeferredRenderer::renderImgui()
         ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
     }
 
-    ImGui::Begin("Deferred Renderer", &should_render_imgui);
+    ImGui::Begin("Uber Deferred Renderer", &should_render_imgui);
 
     ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &params.wireframe);

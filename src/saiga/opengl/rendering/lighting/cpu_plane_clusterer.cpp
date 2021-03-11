@@ -26,13 +26,14 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     for (int c = 0; c < clusterBuffer.clusterList.size(); ++c)
     {
-        clusterCache[c].clear();
+        clusterCache[c].first.clear();
+        clusterCache[c].second.clear();
     }
 
     int itemCount       = 0;
+    int plCount         = 0;
     int maxDepthCluster = planesZ.size() - 2;
 
-    if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
     if (!SAT)
     {
         for (int i = 0; i < pointLightsClusterData.size(); ++i)
@@ -40,179 +41,14 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             PointLightClusterData& plc = pointLightsClusterData[i];
             vec3 sphereCenter          = cam->WorldToView(plc.world_center);
             float sphereRadius         = plc.radius;
-
-            int x0 = 0, x1 = planesX.size() - 1;
-            int y0 = 0, y1 = planesY.size() - 1;
-            int z0 = 0, z1 = planesZ.size() - 1;
-
-            int centerOutsideZ = 0;
-            int centerOutsideY = 0;
-
-
-            while (z0 < z1 && planesZ[z0].distance(sphereCenter) >= sphereRadius)
-            {
-                z0++;
-            }
-            if (--z0 < 0 && planesZ[0].distance(sphereCenter) < 0)
-            {
-                centerOutsideZ--;  // Center is behind camera far plane.
-            }
-            z0 = std::max(0, z0);
-            while (z1 >= z0 && -planesZ[z1].distance(sphereCenter) >= sphereRadius)
-            {
-                --z1;
-            }
-            if (++z1 > (int)planesZ.size() - 1 && planesZ[(int)planesZ.size() - 1].distance(sphereCenter) > 0)
-            {
-                centerOutsideZ++;  // Center is in front of camera near plane.
-            }
-            z1 = std::min(z1, (int)planesZ.size() - 1);
-            if (z0 >= z1)
-            {
-                continue;
-            }
-
-
-            while (y0 < y1 && planesY[y0].distance(sphereCenter) >= sphereRadius)
-            {
-                y0++;
-            }
-            if (--y0 < 0 && planesY[0].distance(sphereCenter) < 0)
-            {
-                centerOutsideY--;  // Center left outside frustum.
-            }
-            y0 = std::max(0, y0);
-            while (y1 >= y0 && -planesY[y1].distance(sphereCenter) >= sphereRadius)
-            {
-                --y1;
-            }
-            if (++y1 > (int)planesY.size() - 1 && planesY[(int)planesY.size() - 1].distance(sphereCenter) > 0)
-            {
-                centerOutsideY++;  // Center right outside frustum.
-            }
-            y1 = std::min(y1, (int)planesY.size() - 1);
-            if (y0 >= y1)
-            {
-                continue;
-            }
-
-
-            while (x0 < x1 && planesX[x0].distance(sphereCenter) >= sphereRadius)
-            {
-                x0++;
-            }
-            x0 = std::max(0, --x0);
-            while (x1 >= x0 && -planesX[x1].distance(sphereCenter) >= sphereRadius)
-            {
-                --x1;
-            }
-            x1 = std::min(++x1, (int)planesX.size() - 1);
-            if (x0 >= x1)
-            {
-                continue;
-            }
-
-
-
-            if (!refinement)
-            {
-                // This is without the sphere refinement
-                for (int z = z0; z < z1; ++z)
-                {
-                    for (int y = y0; y < y1; ++y)
-                    {
-                        for (int x = x0; x < x1; ++x)
-                        {
-                            int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
-
-                            clusterCache[tileIndex].push_back(i);
-                            itemCount++;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                if (centerOutsideZ < 0)
-                {
-                    z0 = -(int)planesZ.size() * 2;
-                }
-                if (centerOutsideZ > 0)
-                {
-                    z1 = (int)planesZ.size() * 2;
-                }
-                int cz      = (z0 + z1);
-                int centerZ = cz / 2;
-                if (centerOutsideZ == 0 && cz % 2 == 0)
-                {
-                    float d0 = planesZ[centerZ].distance(sphereCenter);
-                    if (d0 < 1e-5f) centerZ -= 1;
-                }
-
-                if (centerOutsideY < 0)
-                {
-                    y0 = -(int)planesY.size() * 2;
-                }
-                if (centerOutsideY > 0)
-                {
-                    y1 = (int)planesY.size() * 2;
-                }
-                int cy      = (y0 + y1);
-                int centerY = cy / 2;
-                if (centerOutsideY == 0 && cy % 2 == 0)
-                {
-                    float d0 = planesY[centerY].distance(sphereCenter);
-                    if (d0 < 1e-5f) centerY -= 1;
-                }
-
-                Sphere lightSphere(sphereCenter, sphereRadius);
-
-                z0 = std::max(0, z0);
-                z1 = std::min(z1, (int)planesZ.size() - 1);
-                y0 = std::max(0, y0);
-                y1 = std::min(y1, (int)planesY.size() - 1);
-
-                for (int z = z0; z < z1; ++z)
-                {
-                    Sphere zLight = lightSphere;
-                    if (z != centerZ)
-                    {
-                        Plane plane = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
-                        auto circle = plane.intersectingCircle(zLight.pos, zLight.r);
-                        zLight.pos  = circle.first;
-                        zLight.r    = circle.second;
-                        if (zLight.r < 1e-5) continue;
-                    }
-                    for (int y = y0; y < y1; ++y)
-                    {
-                        Sphere yLight = zLight;
-                        if (y != centerY)
-                        {
-                            Plane plane = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
-                            auto circle = plane.intersectingCircle(yLight.pos, yLight.r);
-                            yLight.pos  = circle.first;
-                            yLight.r    = circle.second;
-                            if (yLight.r < 1e-5) continue;
-                        }
-
-
-                        int x = x0;
-                        while (x < x1 && planesX[x].distance(yLight.pos) >= yLight.r) x++;
-                        x      = std::max(x0, --x);
-                        int xs = x1;
-                        while (xs >= x && -planesX[xs].distance(yLight.pos) >= yLight.r) --xs;
-                        xs = std::min(++xs, x1);
-
-                        for (; x < xs; ++x)
-                        {
-                            int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
-
-                            clusterCache[tileIndex].push_back(i);
-                            itemCount++;
-                        }
-                    }
-                }
-            }
+            clusterLoop(sphereCenter, sphereRadius, i, true, itemCount);
+        }
+        for (int i = 0; i < spotLightsClusterData.size(); ++i)
+        {
+            SpotLightClusterData& slc = spotLightsClusterData[i];
+            vec3 sphereCenter         = cam->WorldToView(slc.world_center);
+            float sphereRadius        = slc.radius;
+            clusterLoop(sphereCenter, sphereRadius, i, false, itemCount);
         }
     }
     else
@@ -236,7 +72,33 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
                         if (fr.intersectSAT(sphere))
                         {
-                            clusterCache[tileIndex].push_back(i);
+                            clusterCache[tileIndex].first.push_back(i);
+                            itemCount++;
+                        }
+                    }
+                }
+            }
+        }
+        for (int i = 0; i < spotLightsClusterData.size(); ++i)
+        {
+            auto& cData        = spotLightsClusterData[i];
+            vec3 sphereCenter  = cam->WorldToView(cData.world_center);
+            float sphereRadius = cData.radius;
+            Sphere sphere(sphereCenter, sphereRadius);
+
+            for (int x = 0; x < planesX.size() - 1; ++x)
+            {
+                for (int y = 0; y < planesY.size() - 1; ++y)
+                {
+                    for (int z = 0; z < planesZ.size() - 1; ++z)
+                    {
+                        int tileIndex = getTileIndex(x, y, z);
+
+                        const Frustum& fr = debugFrusta[tileIndex];
+
+                        if (fr.intersectSAT(sphere))
+                        {
+                            clusterCache[tileIndex].second.push_back(i);
                             itemCount++;
                         }
                     }
@@ -244,6 +106,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             }
         }
     }
+
 
     if (itemCount > itemBuffer.itemList.size())
     {
@@ -273,14 +136,17 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         cluster& gpuCluster = clusterBuffer.clusterList.at(c);
 
         gpuCluster.offset  = globalOffset;
-        gpuCluster.plCount = cl.size();
-        gpuCluster.slCount = 0;
-        SAIGA_ASSERT(gpuCluster.offset + gpuCluster.plCount < itemBuffer.itemList.size(), "Too many items!");
+        gpuCluster.plCount = cl.first.size();
+        gpuCluster.slCount = cl.second.size();
         globalOffset += gpuCluster.plCount;
+        globalOffset += gpuCluster.slCount;
+        SAIGA_ASSERT(globalOffset < itemBuffer.itemList.size(), "Too many items!");
 
-        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), cl.data(), cl.size() * sizeof(clusterItem));
+        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), cl.first.data(), cl.first.size() * sizeof(clusterItem));
+        memcpy(&(itemBuffer.itemList[gpuCluster.offset + gpuCluster.plCount]), cl.second.data(),
+               cl.second.size() * sizeof(clusterItem));
 
-        if (lightsDebug && updateLightsDebug && gpuCluster.plCount > 0)
+        if (lightsDebug && updateLightsDebug && (gpuCluster.plCount > 0 || gpuCluster.slCount > 0))
         {
             const auto& dbg = debugFrusta[c];
             PointVertex v;
@@ -367,6 +233,190 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
     stopTimer(1);
     assert_no_glerror();
+}
+
+void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int index, bool pl, int& itemCount)
+{
+    int maxDepthCluster = planesZ.size() - 2;
+
+    int x0 = 0, x1 = planesX.size() - 1;
+    int y0 = 0, y1 = planesY.size() - 1;
+    int z0 = 0, z1 = planesZ.size() - 1;
+
+    int centerOutsideZ = 0;
+    int centerOutsideY = 0;
+
+
+    while (z0 < z1 && planesZ[z0].distance(sphereCenter) >= sphereRadius)
+    {
+        z0++;
+    }
+    if (--z0 < 0 && planesZ[0].distance(sphereCenter) < 0)
+    {
+        centerOutsideZ--;  // Center is behind camera far plane.
+    }
+    z0 = std::max(0, z0);
+    while (z1 >= z0 && -planesZ[z1].distance(sphereCenter) >= sphereRadius)
+    {
+        --z1;
+    }
+    if (++z1 > (int)planesZ.size() - 1 && planesZ[(int)planesZ.size() - 1].distance(sphereCenter) > 0)
+    {
+        centerOutsideZ++;  // Center is in front of camera near plane.
+    }
+    z1 = std::min(z1, (int)planesZ.size() - 1);
+    if (z0 >= z1)
+    {
+        return;
+    }
+
+
+    while (y0 < y1 && planesY[y0].distance(sphereCenter) >= sphereRadius)
+    {
+        y0++;
+    }
+    if (--y0 < 0 && planesY[0].distance(sphereCenter) < 0)
+    {
+        centerOutsideY--;  // Center left outside frustum.
+    }
+    y0 = std::max(0, y0);
+    while (y1 >= y0 && -planesY[y1].distance(sphereCenter) >= sphereRadius)
+    {
+        --y1;
+    }
+    if (++y1 > (int)planesY.size() - 1 && planesY[(int)planesY.size() - 1].distance(sphereCenter) > 0)
+    {
+        centerOutsideY++;  // Center right outside frustum.
+    }
+    y1 = std::min(y1, (int)planesY.size() - 1);
+    if (y0 >= y1)
+    {
+        return;
+    }
+
+
+    while (x0 < x1 && planesX[x0].distance(sphereCenter) >= sphereRadius)
+    {
+        x0++;
+    }
+    x0 = std::max(0, --x0);
+    while (x1 >= x0 && -planesX[x1].distance(sphereCenter) >= sphereRadius)
+    {
+        --x1;
+    }
+    x1 = std::min(++x1, (int)planesX.size() - 1);
+    if (x0 >= x1)
+    {
+        return;
+    }
+
+
+
+    if (!refinement)
+    {
+        // This is without the sphere refinement
+        for (int z = z0; z < z1; ++z)
+        {
+            for (int y = y0; y < y1; ++y)
+            {
+                for (int x = x0; x < x1; ++x)
+                {
+                    int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
+
+                    if (pl)
+                        clusterCache[tileIndex].first.push_back(index);
+                    else
+                        clusterCache[tileIndex].second.push_back(index);
+                    itemCount++;
+                }
+            }
+        }
+    }
+    else
+    {
+        if (centerOutsideZ < 0)
+        {
+            z0 = -(int)planesZ.size() * 2;
+        }
+        if (centerOutsideZ > 0)
+        {
+            z1 = (int)planesZ.size() * 2;
+        }
+        int cz      = (z0 + z1);
+        int centerZ = cz / 2;
+        if (centerOutsideZ == 0 && cz % 2 == 0)
+        {
+            float d0 = planesZ[centerZ].distance(sphereCenter);
+            if (d0 < 1e-5f) centerZ -= 1;
+        }
+
+        if (centerOutsideY < 0)
+        {
+            y0 = -(int)planesY.size() * 2;
+        }
+        if (centerOutsideY > 0)
+        {
+            y1 = (int)planesY.size() * 2;
+        }
+        int cy      = (y0 + y1);
+        int centerY = cy / 2;
+        if (centerOutsideY == 0 && cy % 2 == 0)
+        {
+            float d0 = planesY[centerY].distance(sphereCenter);
+            if (d0 < 1e-5f) centerY -= 1;
+        }
+
+        Sphere lightSphere(sphereCenter, sphereRadius);
+
+        z0 = std::max(0, z0);
+        z1 = std::min(z1, (int)planesZ.size() - 1);
+        y0 = std::max(0, y0);
+        y1 = std::min(y1, (int)planesY.size() - 1);
+
+        for (int z = z0; z < z1; ++z)
+        {
+            Sphere zLight = lightSphere;
+            if (z != centerZ)
+            {
+                Plane plane = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
+                auto circle = plane.intersectingCircle(zLight.pos, zLight.r);
+                zLight.pos  = circle.first;
+                zLight.r    = circle.second;
+                if (zLight.r < 1e-5) continue;
+            }
+            for (int y = y0; y < y1; ++y)
+            {
+                Sphere yLight = zLight;
+                if (y != centerY)
+                {
+                    Plane plane = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
+                    auto circle = plane.intersectingCircle(yLight.pos, yLight.r);
+                    yLight.pos  = circle.first;
+                    yLight.r    = circle.second;
+                    if (yLight.r < 1e-5) continue;
+                }
+
+
+                int x = x0;
+                while (x < x1 && planesX[x].distance(yLight.pos) >= yLight.r) x++;
+                x      = std::max(x0, --x);
+                int xs = x1;
+                while (xs >= x && -planesX[xs].distance(yLight.pos) >= yLight.r) --xs;
+                xs = std::min(++xs, x1);
+
+                for (; x < xs; ++x)
+                {
+                    int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
+
+                    if (pl)
+                        clusterCache[tileIndex].first.push_back(index);
+                    else
+                        clusterCache[tileIndex].second.push_back(index);
+                    itemCount++;
+                }
+            }
+        }
+    }
 }
 
 void CPUPlaneClusterer::buildClusters(Camera* cam)
