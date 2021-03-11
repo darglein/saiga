@@ -26,12 +26,11 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     for (int c = 0; c < clusterBuffer.clusterList.size(); ++c)
     {
-        clusterCache[c].first.clear();
-        clusterCache[c].second.clear();
+        clusterCache[c].clear();
+        clusterCache[c].push_back(0); // PL Count
     }
 
-    int itemCount       = 0;
-    int plCount         = 0;
+    int itemCount = 0;
     int maxDepthCluster = planesZ.size() - 2;
 
     if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
@@ -73,7 +72,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
                         if (fr.intersectSAT(sphere))
                         {
-                            clusterCache[tileIndex].first.push_back(i);
+                            clusterCache[tileIndex].push_back(i);
                             itemCount++;
                         }
                     }
@@ -99,7 +98,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
                         if (fr.intersectSAT(sphere))
                         {
-                            clusterCache[tileIndex].second.push_back(i);
+                            clusterCache[tileIndex].push_back(i);
                             itemCount++;
                         }
                     }
@@ -137,15 +136,17 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         cluster& gpuCluster = clusterBuffer.clusterList.at(c);
 
         gpuCluster.offset  = globalOffset;
-        gpuCluster.plCount = cl.first.size();
-        gpuCluster.slCount = cl.second.size();
+        SAIGA_ASSERT(gpuCluster.offset < itemBuffer.itemList.size(), "Too many items!");
+        gpuCluster.plCount = cl[0];
+        gpuCluster.slCount = cl.size() - 1 - cl[0];
         globalOffset += gpuCluster.plCount;
         globalOffset += gpuCluster.slCount;
-        SAIGA_ASSERT(globalOffset < itemBuffer.itemList.size(), "Too many items!");
+        if(cl.size() < 2)
+        {
+            continue;
+        }
 
-        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), cl.first.data(), cl.first.size() * sizeof(clusterItem));
-        memcpy(&(itemBuffer.itemList[gpuCluster.offset + gpuCluster.plCount]), cl.second.data(),
-               cl.second.size() * sizeof(clusterItem));
+        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), &cl[1] , (cl.size() - 1) * sizeof(clusterItem));
 
         if (lightsDebug && updateLightsDebug && (gpuCluster.plCount > 0 || gpuCluster.slCount > 0))
         {
@@ -324,11 +325,10 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
                 {
                     int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
 
-                    if (pl)
-                        clusterCache[tileIndex].first.push_back(index);
-                    else
-                        clusterCache[tileIndex].second.push_back(index);
+                    clusterCache[tileIndex].push_back(index);
                     itemCount++;
+                    if(pl)
+                        clusterCache[tileIndex][0]++;
                 }
             }
         }
@@ -409,11 +409,10 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
                 {
                     int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
 
-                    if (pl)
-                        clusterCache[tileIndex].first.push_back(index);
-                    else
-                        clusterCache[tileIndex].second.push_back(index);
+                    clusterCache[tileIndex].push_back(index);
                     itemCount++;
+                    if(pl)
+                        clusterCache[tileIndex][0]++;
                 }
             }
         }
@@ -727,7 +726,7 @@ bool CPUPlaneClusterer::fillImGui()
 
     ImGui::Text("avgAllowedItemsPerCluster: %d", avgAllowedItemsPerCluster);
 
-    ImGui::Text("ItemListByteSize: %d", int(itemBuffer.itemList.size() * sizeof(clusterItem)));
+    ImGui::Text("ItemListSize: %d KB", int(itemBuffer.itemList.size() * sizeof(clusterItem) * 0.001f));
 
     if (ImGui::Checkbox("lightsDebug", &lightsDebug) && lightsDebug)
     {

@@ -210,7 +210,7 @@ class Sample : public RendererSampleWindow
                         linearRand(vec3(-36, light->getRadius() * 0.5, -36), vec3(36, light->getRadius(), 36)));
                     light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
                     light->setAngle(linearRand(20, 60));
-                    light->direction   = linearRand(vec3(-0.5, -0.5, -0.5), vec3(0.5, 0.5, 0.5));
+                    light->direction   = vec3(0, -1, 0);
                     light->castShadows = false;
                     renderer->lighting.AddLight(light);
                     spotLights.push_back(light);

@@ -236,7 +236,7 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal, flo
         vec4 lightColorDiffuse = sl.colorDiffuse;
         vec4 lightColorSpecular = sl.colorSpecular;
         vec4 lightAttenuation = sl.attenuation;
-        vec3 lightDirection = normalize((view * sl.direction).rgb);
+        vec3 lightDirection = normalize((view * -sl.direction).rgb);
         float lightAngle = sl.position.w;
 
 
@@ -309,7 +309,7 @@ vec3 calculateSpotLightsNoClusters(AssetMaterial material, vec3 position, vec3 n
         vec4 lightColorDiffuse = sl.colorDiffuse;
         vec4 lightColorSpecular = sl.colorSpecular;
         vec4 lightAttenuation = sl.attenuation;
-        vec3 lightDirection = normalize((view * sl.direction).rgb);
+        vec3 lightDirection = normalize((view * -sl.direction).rgb);
         float lightAngle = sl.position.w;
 
 
