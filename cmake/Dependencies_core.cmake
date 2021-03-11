@@ -12,42 +12,139 @@ unset(LIBS)
 unset(MODULE_CORE)
 
 
+# ========= Libraries that are included as submodules =========
+
 if(SAIGA_USE_SUBMODULES)
-  # The submodule setup is defined in submodules/CMakeLists.txt
-  # After that we can just use the generated targets in our build
-  add_subdirectory(submodules/)
-  PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
-  PackageHelperTarget(glfw GLFW_FOUND)
-  PackageHelperTarget(zlibstatic ZLIB_FOUND)
-  PackageHelperTarget(png PNG_FOUND)
-  PackageHelperTarget(assimp ASSIMP_FOUND)
+  message("=================================")
+  message("Adding Submodule eigen")
+   set(BUILD_TESTING OFF CACHE INTERNAL "")
+  add_subdirectory(submodules/eigen)
+  message("=================================")
 else()
-  # Without submodules we use find_package to find the required dependencies
-  find_package(Eigen3 3.3.90 QUIET REQUIRED)
-  PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
+find_package(Eigen3 3.3.90 QUIET REQUIRED)
+endif()
+SET(SAIGA_USE_EIGEN 1)
+PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
 
-  find_package(glfw3 CONFIG QUIET REQUIRED)
-  PackageHelperTarget(glfw GLFW_FOUND)
-  SET(SAIGA_USE_GLFW 1)
 
+if(SAIGA_USE_SUBMODULES)
+  message("=================================")
+  message("Adding Submodule glfw")
+  set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
+  set(GLFW_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+  set(GLFW_BUILD_TESTS OFF CACHE INTERNAL "")
+  add_subdirectory(submodules/glfw)
+  set_target_properties(glfw PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+  message("=================================")
+else()
+  find_package(glfw3 CONFIG QUIET )
+endif ()
+PackageHelperTarget(glfw GLFW_FOUND)
+SET(SAIGA_USE_GLFW 1)
+
+
+
+
+if(SAIGA_USE_SUBMODULES)
+  message("=================================")
+  message("Adding Submodule ZLIB")
+
+
+  set(ZLIB_BUILD_SHARED OFF CACHE INTERNAL "")
+  set(ZLIB_BUILD_STATIC ON CACHE INTERNAL "")
+
+  set(ZLIB_TARGET zlibstatic)
+  add_subdirectory(submodules/zlib)
+  
+  # libPNG uses include_directory(ZLIB_INCLUDE_DIR) therefore we have to set these variables
+  set(ZLIB_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib ${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib CACHE PATH "zlib dir" FORCE)
+  set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR} CACHE PATH "zlib dir" FORCE)
+  
+  # include dir that use the zlib target
+  target_include_directories(${ZLIB_TARGET} PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib>  )
+  
+  PackageHelperTarget(${ZLIB_TARGET} ZLIB_FOUND)
+  #set_target_properties(${ZLIB_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+  SET(SAIGA_USE_ZLIB 1)
+
+  # Create a fake zlib target which also points to the zlib static library
+  add_library(zlib INTERFACE)
+  target_link_libraries(zlib INTERFACE zlibstatic)
+
+  message("=================================")
+else()
   find_package(ZLIB QUIET)
-  PackageHelper(ZLIB ${ZLIB_FOUND} "${ZLIB_INCLUDE_DIRS}" "${ZLIB_LIBRARIES}")
-  if(ZLIB_FOUND)
+  set(ZLIB_TARGET zlib)
+    add_library(zlib INTERFACE)
+    target_link_libraries(zlib INTERFACE "${ZLIB_LIBRARIES}")
+    target_include_directories(zlib INTERFACE "${ZLIB_INCLUDE_DIRS}")
+    PackageHelperTarget(zlib ZLIB_FOUND)
     SET(SAIGA_USE_ZLIB 1)
-  endif()
+endif()
+
+# png
+  if(SAIGA_USE_SUBMODULES)
+  message("=================================")
+  message("Adding Submodule libPNG")
+
+  set(PNG_BUILD_ZLIB ON CACHE INTERNAL "")
+  set(PNG_STATIC OFF CACHE INTERNAL "")
+  set(PNG_EXECUTABLES OFF CACHE INTERNAL "")
+  set(PNG_TESTS OFF CACHE INTERNAL "")
+  set(ZLIB_LIBRARIES ${ZLIB_TARGET} CACHE INTERNAL "")
+  #set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
+
+  include_directories(${ZLIB_INCLUDE_DIRS})
+  add_subdirectory(submodules/libpng)
+
+    target_include_directories(png PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../submodules/libpng>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/libpng>  )
 
 
-  find_package(PNG QUIET)
-  PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
-  if(PNG_FOUND)
+  PackageHelperTarget(png PNG_FOUND)
+  set_target_properties(png PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+  SET(SAIGA_USE_PNG 1)
+
+#  set(CMAKE_INSTALL_LIBDIR lib)
+#    install(TARGETS png zlib
+#          EXPORT libpng
+#          RUNTIME DESTINATION bin
+#          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#          FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
+#
+#  install(EXPORT libpng
+#          DESTINATION lib/libpng)
+
+  message("=================================")
+    else()
+
+    find_package(PNG QUIET)
+    PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
     SET(SAIGA_USE_PNG 1)
-  endif()
+endif()
 
-  find_package(ASSIMP QUIET)
+
+#assimp
+find_package(ASSIMP QUIET)
+if(ASSIMP_FOUND)
   PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
-  if(ASSIMP_FOUND)
-    SET(SAIGA_USE_ASSIMP 1)
-  endif()
+  SET(SAIGA_USE_ASSIMP 1)
+elseif(SAIGA_USE_SUBMODULES)
+  message("=================================")
+  message("Adding Submodule assimp")
+
+  set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "")
+  set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE INTERNAL "")
+
+  add_subdirectory(submodules/assimp)
+  PackageHelperTarget(assimp ASSIMP_FOUND)
+  set_target_properties(assimp PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+  SET(SAIGA_USE_ASSIMP 1)
+  message("=================================")
 endif()
 
 
