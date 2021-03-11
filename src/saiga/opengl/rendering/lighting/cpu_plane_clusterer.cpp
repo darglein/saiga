@@ -424,7 +424,6 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     clustersDirty = false;
     float camNear = cam->zNear;
     float camFar  = cam->zFar;
-    cam->recomputeProj();
     mat4 invProjection(inverse(cam->proj));
 
 

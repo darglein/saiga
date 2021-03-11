@@ -14,7 +14,11 @@ namespace Saiga
 {
 SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
 {
-    editor_gui.RegisterImguiWindow("Saiga Sample Base", EditorGui::WINDOW_POSITION_SYSTEM);
+    // Define GUI layout
+    auto editor_layout = std::make_unique<EditorLayoutL>();
+    editor_layout->RegisterImguiWindow("Saiga Sample Base", EditorLayoutL::WINDOW_POSITION_LEFT);
+    editor_gui.SetLayout(std::move(editor_layout));
+
     // create a perspective camera
     float aspect = window->getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 100.0f);

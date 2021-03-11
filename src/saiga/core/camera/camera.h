@@ -91,10 +91,12 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
     vec3 NormalizedToView(vec3 normalizedPosition) const;
     vec3 ViewToWorld(vec3 viewPosition) const;
 
-    Ray PixelRay(vec2 pixel, int w, int h);
+    // Pixel ray starting at the camera and going through the given pixel
+    // Opengl coordinates are y-bottom therefore the flip_y flag
+    Ray PixelRay(vec2 pixel, int w, int h, bool flip_y);
 
 
-    virtual void recomputeProj() {}
+    virtual void recomputeProj(int output_w, int output_h) {}
 
     void imgui();
 
@@ -114,7 +116,7 @@ class SAIGA_CORE_API PerspectiveCamera : public Camera
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
 
     void imgui();
-    virtual void recomputeProj() override;
+    virtual void recomputeProj(int output_w, int output_h) override;
     virtual void recalculatePlanes() override;
 };
 
@@ -131,7 +133,7 @@ class SAIGA_CORE_API OrthographicCamera : public Camera
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca);
 
     void imgui();
-    virtual void recomputeProj() override;
+    virtual void recomputeProj(int output_w, int output_h) override;
     virtual void recalculatePlanes() override;
 };
 

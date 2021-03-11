@@ -25,7 +25,11 @@ class Sample : public RendererSampleWindow
    public:
     Sample()
     {
-        editor_gui.RegisterImguiWindow("Rendering Lighting Sample", EditorGui::WINDOW_POSITION_SYSTEM);
+        // Define GUI layout
+        auto editor_layout = std::make_unique<EditorLayoutL>();
+        editor_layout->RegisterImguiWindow("Rendering Lighting Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
+        editor_gui.SetLayout(std::move(editor_layout));
+
         Random::setSeed(LIGHT_SEED);  // SEED
 
         show.asset = std::make_shared<ColoredAsset>(

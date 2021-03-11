@@ -123,6 +123,80 @@ EditorGui::EditorGui()
         },
         294, "F5");
     enabled = false;
+
+    layout = std::make_unique<EditorLayoutL>();
+}
+
+
+void EditorLayout::PlaceWindows()
+{
+    //            ImGui::DockBuilderDockWindow("Log", id_from_layout[WINDOW_POSITION_BOTTOM]);
+    //            ImGui::DockBuilderDockWindow("Properties", id_from_layout[WINDOW_POSITION_LEFT]);
+    // ImGui::DockBuilderDockWindow("Mesh", dock_main_id);
+    // ImGui::DockBuilderDockWindow("3DView", id_from_layout[WINDOW_POSITION_3DVIEW]);
+    // ImGui::DockBuilderDockWindow("Extra", dock_id_prop);
+
+
+    std::cout << "=== Num docks " << initial_layout.size() << std::endl;
+    for (auto& windows : initial_layout)
+    {
+        // std::cout << "dock " << windows.first.c_str() << " " << id_from_layout[windows.second] << std::endl;
+        ImGui::DockBuilderDockWindow(windows.first.c_str(), node_map[windows.second]);
+    }
+}
+
+
+EditorLayoutL::EditorLayoutL()
+{
+    RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("OpenGLWindow", WINDOW_POSITION_LEFT);
+
+    RegisterImguiWindow("RendererLighting", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);
+
+    RegisterImguiWindow("3DView", WINDOW_POSITION_3DVIEW);
+}
+
+
+void EditorLayoutL::BuildNodes(int dockspace_id)
+{
+    ImGui::DockBuilderAddNode(dockspace_id);
+
+    ImGuiID dock_viewport = dockspace_id;
+    ImGuiID dock_left     = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Left, 0.20f, NULL, &dock_viewport);
+    ImGuiID dock_bottom   = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, 0.20f, NULL, &dock_viewport);
+
+    node_map = {dock_left, dock_bottom, dock_viewport};
+}
+
+
+EditorLayoutU::EditorLayoutU(float left_size, float right_size, float bottom_size)
+    : left_size(left_size), right_size(right_size), bottom_size(bottom_size)
+{
+    RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("OpenGLWindow", WINDOW_POSITION_LEFT);
+
+    RegisterImguiWindow("RendererLighting", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);
+
+    RegisterImguiWindow("3DView", WINDOW_POSITION_3DVIEW);
+}
+void EditorLayoutU::BuildNodes(int dockspace_id)
+{
+    ImGui::DockBuilderAddNode(dockspace_id);
+
+    ImGuiID dock_viewport = dockspace_id;
+    ImGuiID dock_left     = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Left, left_size, NULL, &dock_viewport);
+
+    ImGuiID dock_right = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Right, right_size, NULL, &dock_viewport);
+
+    ImGuiID dock_bottom = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, bottom_size, NULL, &dock_viewport);
+
+    node_map = {dock_left, dock_right, dock_bottom, dock_viewport};
 }
 
 void EditorGui::render(int w, int h)
@@ -176,43 +250,10 @@ void EditorGui::render(int w, int h)
         if (reset_work_space)
         {
             ImGui::DockBuilderRemoveNode(dockspace_id);  // Clear out existing layout
-            ImGui::DockBuilderAddNode(dockspace_id);     // Add empty node
 
-            ImGui::DockBuilderAddNode(10);
-            //            ImGui::DockBuilderSetNodeSize(dockspace_id, main_size + ImVec2(0, -menu_height));
-            //            ImGui::DockBuilderSetNodePos(dockspace_id, main_pos + ImVec2(0, menu_height));
-
-            auto main_node = (ImGuiDockNode*)GImGui->DockContext.Nodes.GetVoidPtr(dockspace_id);
-
-
-            ImGuiID dock_main_id = dockspace_id;  // This variable will track the document node, however we are not
-                                                  // using it here as we aren't docking anything into it.
-            ImGuiID dock_id_prop = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.20f, NULL, &dock_main_id);
-
-
-            ImGuiID dock_id_details =
-                ImGui::DockBuilderSplitNode(dock_id_prop, ImGuiDir_Down, 0.20f, NULL, &dock_id_prop);
-
-            ImGuiID dock_id_bottom =
-                ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.20f, NULL, &dock_main_id);
-
-
-
-            ImGuiID id_from_layout[4] = {dock_id_prop, dock_id_details, dock_id_bottom, dock_main_id};
-
-            //            ImGui::DockBuilderDockWindow("Log", id_from_layout[WINDOW_POSITION_LOG]);
-            //            ImGui::DockBuilderDockWindow("Properties", id_from_layout[WINDOW_POSITION_SYSTEM]);
-            // ImGui::DockBuilderDockWindow("Mesh", dock_main_id);
-            ImGui::DockBuilderDockWindow("3DView", id_from_layout[WINDOW_POSITION_3DVIEW]);
-            // ImGui::DockBuilderDockWindow("Extra", dock_id_prop);
-
-
-            std::cout << "=== Num docks " << initial_layout.size() << std::endl;
-            for (auto& windows : initial_layout)
-            {
-                std::cout << "dock " << windows.first.c_str() << " " << id_from_layout[windows.second] << std::endl;
-                ImGui::DockBuilderDockWindow(windows.first.c_str(), id_from_layout[windows.second]);
-            }
+            SAIGA_ASSERT(layout);
+            layout->BuildNodes(dockspace_id);
+            layout->PlaceWindows();
 
             ImGui::DockBuilderFinish(dockspace_id);
 
@@ -242,12 +283,6 @@ void EditorGui::render(int w, int h)
     //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
     //    ImGui::Begin("Mesh");
     //    ImGui::End();
-}
-
-void EditorGui::RegisterImguiWindow(const std::string& name, EditorGui::EditorLayout position)
-{
-    initial_layout.push_back({name, position});
-    std::cout << "register layout " << initial_layout.size() << ": " << name << " " << position << std::endl;
 }
 
 }  // namespace Saiga

@@ -26,7 +26,7 @@
  *   name = ini.GetAddString ("window","name","Test Window");
  *   w    = ini.GetAddLong   ("window","width",1280);
  *   h    = ini.GetAddDouble ("window","height",720);
- *   b    = ini.GetAddBool   ("window","fullscreen",false);
+ *   b    = ini.GetAddBool   ("window","Fullscreen",false);
  *
  *   if(ini.changed()) ini.SaveFile("config.ini");
  *

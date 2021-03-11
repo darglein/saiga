@@ -11647,7 +11647,7 @@ ImGuiViewportP* ImGui::AddUpdateViewport(ImGuiWindow* window, ImGuiID id, const 
         IMGUI_DEBUG_LOG_VIEWPORT("Add Viewport %08X (%s)\n", id, window->Name);
 
         // We normally setup for all viewports in NewFrame() but here need to handle the mid-frame creation of a new viewport.
-        // We need to extend the fullscreen clip rect so the OverlayDrawList clip is correct for that the first frame
+        // We need to extend the Fullscreen clip rect so the OverlayDrawList clip is correct for that the first frame
         g.DrawListSharedData.ClipRectFullscreen.x = ImMin(g.DrawListSharedData.ClipRectFullscreen.x, viewport->Pos.x);
         g.DrawListSharedData.ClipRectFullscreen.y = ImMin(g.DrawListSharedData.ClipRectFullscreen.y, viewport->Pos.y);
         g.DrawListSharedData.ClipRectFullscreen.z = ImMax(g.DrawListSharedData.ClipRectFullscreen.z, viewport->Pos.x + viewport->Size.x);
@@ -13474,7 +13474,7 @@ static void ImGui::DockNodeUpdate(ImGuiDockNode* node)
     if (central_node_hole_register_hit_test_hole)
     {
         // We add a little padding to match the "resize from edges" behavior and allow grabbing the splitter easily.
-        // (But we only add it if there's something else on the other side of the hole, otherwise for e.g. fullscreen
+        // (But we only add it if there's something else on the other side of the hole, otherwise for e.g. Fullscreen
         // covering passthru node we'd have a gap on the edge not covered by the hole)
         IM_ASSERT(node->IsDockSpace()); // We cannot pass this flag without the DockSpace() api. Testing this because we also setup the hole in host_window->ParentNode
         ImGuiDockNode* root_node = DockNodeGetRootNode(central_node);

@@ -129,7 +129,7 @@ bool glfw_Window::initWindow()
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
 
-    //    //don't allow other resolutions than the native monitor ones in fullscreen mode
+    //    //don't allow other resolutions than the native monitor ones in Fullscreen mode
     if (windowParameters.fullscreen())
     {
         windowParameters.width  = mode->width;
@@ -159,6 +159,12 @@ bool glfw_Window::initWindow()
 
 
 
+    if (windowParameters.mode == WindowParameters::Mode::FullscreenWindowed)
+    {
+        glfwWindowHint(GLFW_MAXIMIZED, windowParameters.resizeAble);
+    }
+
+
     glfwWindowHint(GLFW_DECORATED, !windowParameters.borderLess());
     glfwWindowHint(GLFW_FLOATING, windowParameters.alwaysOnTop);
     glfwWindowHint(GLFW_RESIZABLE, windowParameters.resizeAble);
@@ -167,27 +173,29 @@ bool glfw_Window::initWindow()
     // GLFW_REFRESH_RATE, GLFW_DONT_CARE = highest
     glfwWindowHint(GLFW_REFRESH_RATE, GLFW_DONT_CARE);
 
-    std::cout << "Creating GLFW Window. " << getWidth() << "x" << getHeight()
+    std::cout << "Creating GLFW Window. " << getWidth() << "x" << getHeight() << " Mode=" << (int)windowParameters.mode
               << " Fullscreen=" << windowParameters.fullscreen() << " Borderless=" << windowParameters.borderLess()
               << std::endl;
 
 
     switch (windowParameters.mode)
     {
-        case WindowParameters::Mode::windowed:
+        case WindowParameters::Mode::Windowed:
             window = glfwCreateWindow(getWidth(), getHeight(), getName().c_str(), NULL, NULL);
             break;
-        case WindowParameters::Mode::fullscreen:
+        case WindowParameters::Mode::FullscreenWindowed:
+            window = glfwCreateWindow(getWidth(), getHeight(), getName().c_str(), NULL, NULL);
+            break;
+        case WindowParameters::Mode::Fullscreen:
             window = glfwCreateWindow(getWidth(), getHeight(), getName().c_str(), monitor, NULL);
             break;
-        case WindowParameters::Mode::borderLessWindowed:
+        case WindowParameters::Mode::WindowedBorderless:
             window = glfwCreateWindow(getWidth(), getHeight(), getName().c_str(), NULL, NULL);
             break;
-        case WindowParameters::Mode::borderLessFullscreen:
+        case WindowParameters::Mode::FullscreenBorderless:
 #    ifndef WIN32
             std::cerr << "Windowed Fullscreen may not work on your system." << std::endl;
 #    endif
-
             // works in windows 7. Does not work in ubuntu with gnome
             glfwWindowHint(GLFW_RED_BITS, mode->redBits);
             glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
@@ -201,6 +209,8 @@ bool glfw_Window::initWindow()
             glfwGetMonitorPos(monitor, &xpos, &ypos);
             glfwSetWindowPos(window, xpos, ypos);
             break;
+        default:
+            SAIGA_EXIT_ERROR("Invalid Window mode");
     }
 
     if (!window)

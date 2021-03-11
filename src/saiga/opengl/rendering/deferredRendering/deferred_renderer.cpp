@@ -29,7 +29,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
       renderHeight(window.getHeight()),
       ddo(window.getWidth(), window.getHeight())
 {
-    editor_gui.RegisterImguiWindow("Deferred Renderer", EditorGui::WINDOW_POSITION_SYSTEM);
 
     if (params.useSMAA)
     {

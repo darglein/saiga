@@ -28,12 +28,6 @@ class SAIGA_CORE_API WindowBase : public MainLoopInterface
 
     virtual void renderImGui(bool* p_open = nullptr) = 0;
 
-    // uses the current camera to project between world and screen
-    Ray createPixelRay(const vec2& pixel) const;
-    Ray createPixelRay(const vec2& pixel, const vec2& resolution, const mat4& inverseProj) const;
-    vec2 projectToScreen(const vec3& pos) const;
-    vec3 screenToWorld(const vec2& pixel) const;
-    vec3 screenToWorld(const vec2& pixel, const vec2& resolution, const mat4& inverseProj) const;
 
     std::string getTimeString();
     int getWidth() const { return windowParameters.width; }
