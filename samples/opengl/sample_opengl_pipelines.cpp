@@ -48,13 +48,13 @@ class Sample : public RendererSampleWindow
         maximumNumberOfRendererSupportedSpotLights =
             std::clamp(maximumNumberOfRendererSupportedSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
 
-// Next is needed for forward.
-#ifdef SINGLE_PASS_FORWARD_PIPELINE
-        const char* shaderStr = renderer->getColoredShaderSource();
-
         renderer->setLightMaxima(maximumNumberOfRendererSupportedDirectionalLights,
                                  maximumNumberOfRendererSupportedPointLights,
                                  maximumNumberOfRendererSupportedSpotLights);
+
+// Next is needed for forward.
+#ifdef SINGLE_PASS_FORWARD_PIPELINE
+        const char* shaderStr = renderer->getColoredShaderSource();
 
         auto deferredShader = shaderLoader.load<MVPColorShader>(shaderStr,
                                                                 {{ GL_FRAGMENT_SHADER,
@@ -89,12 +89,20 @@ class Sample : public RendererSampleWindow
     {
         Base::render(camera, render_pass);
 
+        if (render_pass == RenderPass::Shadow)
+        {
+            show.renderDepth(camera);
+        }
 #if defined(SINGLE_PASS_DEFERRED_PIPELINE) || defined(MULTI_PASS_DEFERRED_PIPELINE)
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        if (render_pass == RenderPass::Deferred)
         {
             show.render(camera);
         }
 #elif defined(SINGLE_PASS_FORWARD_PIPELINE)
+        if (render_pass == RenderPass::DepthPrepass)
+        {
+            show.renderDepth(camera);
+        }
         if (render_pass == RenderPass::Forward)
         {
             show.renderForward(camera);
@@ -210,7 +218,7 @@ class Sample : public RendererSampleWindow
                         linearRand(vec3(-36, light->getRadius() * 0.5, -36), vec3(36, light->getRadius(), 36)));
                     light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
                     light->setAngle(linearRand(20, 60));
-                    light->direction   = vec3(0, -1, 0);
+                    light->direction   = linearRand(vec3(-0.5, -1, -0.5), vec3(0.5, -1, 0.5));
                     light->castShadows = false;
                     renderer->lighting.AddLight(light);
                     spotLights.push_back(light);

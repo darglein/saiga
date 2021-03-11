@@ -75,15 +75,15 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     glDepthMask(GL_TRUE);
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    // renderingInterface->render(camera, RenderPass::DepthPrepass);
 
     // forward pass with lighting
     lighting.initRender();
     if (cullLights) lighting.cullLights(camera);
+    renderingInterface->render(camera, RenderPass::DepthPrepass);
     lighting.cluster(camera, viewport);
-    // glDepthFunc(GL_EQUAL);
+    glDepthFunc(GL_EQUAL);
     renderingInterface->render(camera, RenderPass::Forward);
-    // glDepthFunc(GL_LESS);
+    glDepthFunc(GL_LESS);
     lighting.render(camera, viewport);
     stopTimer(FORWARD);
 
