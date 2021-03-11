@@ -223,6 +223,10 @@ UnifiedModel ConeMesh(const Cone& cone, int sectors)
         model.triangles.push_back(face);
     }
 
+    quat q = quat::FromTwoVectors(vec3(0, -1, 0), cone.direction);
+
+    model.transform(make_mat4(q));
+
     return model;
 }
 

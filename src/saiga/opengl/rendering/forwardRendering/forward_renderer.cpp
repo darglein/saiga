@@ -98,6 +98,12 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
 
 void ForwardRenderer::Resize(int windowWidth, int windowHeight)
 {
+    if (windowWidth == renderWidth && windowHeight == renderHeight)
+    {
+        // Already at correct size
+        // -> Skip resize
+        return;
+    }
     lighting.resize(windowWidth, windowHeight);
 }
 

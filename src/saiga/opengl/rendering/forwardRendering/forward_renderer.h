@@ -72,6 +72,8 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     }
 
    private:
+    int renderWidth  = 0;
+    int renderHeight = 0;
     std::vector<FilteredMultiFrameOpenGLTimer> timers;
     bool showLightingImgui = false;
     ShaderLoader shaderLoader;
