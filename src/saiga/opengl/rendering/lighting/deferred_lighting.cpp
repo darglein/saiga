@@ -101,6 +101,7 @@ void DeferredLighting::resize(int _width, int _height)
 
 void DeferredLighting::cullLights(Camera* cam)
 {
+    cam->recalculatePlanes();
     visibleLights           = directionalLights.size();
     visibleVolumetricLights = 0;
 

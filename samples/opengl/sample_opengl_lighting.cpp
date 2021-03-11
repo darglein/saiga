@@ -130,7 +130,7 @@ class Sample : public SampleWindowDeferred
 
             light->setColorDiffuse(make_vec3(1));
 
-            light->direction = vec3(-1, -1, 0);
+            light->direction = vec3(0, -1, 0);
 
             light->createShadowMap(512, 512, sq);
 

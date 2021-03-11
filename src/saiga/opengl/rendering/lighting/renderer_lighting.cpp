@@ -26,8 +26,6 @@ RendererLighting::RendererLighting()
 
     main_menu.AddItem(
         "Saiga", "Lighting", [this]() { showLightingImgui = !showLightingImgui; }, 297, "F8");
-
-
 }
 
 RendererLighting::~RendererLighting() {}
@@ -90,6 +88,7 @@ void RendererLighting::resize(int _width, int _height)
 
 void RendererLighting::cullLights(Camera* cam)
 {
+    cam->recalculatePlanes();
     visibleLights = directionalLights.size();
 
     // cull lights that are not visible
@@ -330,7 +329,7 @@ void RendererLighting::createLightMeshes()
     pointLightMesh.fromMesh(IcoSphereMesh(s, 1));
 
 
-    Cone c(make_vec3(0), vec3(0, 1, 0), 1.0f, 1.0f);
+    Cone c(make_vec3(0), vec3(0, 0, -1), 1.0f, 1.0f);
     //    auto cb = TriangleMeshGenerator::ConeMesh(c, 10);
     auto model = ConeMesh(c, 10);
 

@@ -58,9 +58,16 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         {
             ImGuiWindowFlags flags =
                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-            ImGui::Begin("3DView", nullptr, flags);
 
-            use_mouse_input_in_3dview = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow);
+
+
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 1));
+            ImGui::Begin("3DView", nullptr, flags);
+            ImGui::BeginChild("viewer_child", ImVec2(0, 0), false,
+                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
+            ImGui::PopStyleColor();
+
+            use_mouse_input_in_3dview = ImGui::IsWindowHovered();
             use_keyboard_input_in_3dview =
                 use_mouse_input_in_3dview || (ImGui::IsWindowFocused() && !ImGui::captureKeyboard());
 
@@ -69,6 +76,8 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
 
             auto w_size   = ImGui::GetWindowContentRegionMax();
             viewport_size = ivec2(w_size.x, w_size.y);
+
+            ImGui::EndChild();
             ImGui::End();
         }
     }
@@ -98,7 +107,9 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         if (editor_gui.enabled)
         {
             ImGui::Begin("3DView");
+            ImGui::BeginChild("viewer_child");
             ImGui::Texture(target_framebuffer->getTextureColor(0).get(), ImGui::GetWindowSize(), true);
+            ImGui::EndChild();
             ImGui::End();
         }
         // The imgui frame is now done
