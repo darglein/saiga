@@ -33,7 +33,7 @@ class Sample : public RendererSampleWindow
         Random::setSeed(LIGHT_SEED);  // SEED
 
         show.asset = std::make_shared<ColoredAsset>(
-            CheckerBoardPlane(make_ivec2(20, 20), 1.0f, Colors::darkgray, Colors::white));
+            CheckerBoardPlane(make_ivec2(40, 40), 1.0f, Colors::darkgray, Colors::white));
 
         show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
         // show.multScale(make_vec3(0.01f));
@@ -185,7 +185,7 @@ class Sample : public RendererSampleWindow
                     light->setRadius(linearRand(0.5, 4.0));
                     light->setIntensity(1.0f / light->getRadius());
                     light->setPosition(
-                        linearRand(vec3(-16, light->getRadius() * 0.5, -16), vec3(16, light->getRadius(), 16)));
+                        linearRand(vec3(-36, light->getRadius() * 0.5, -36), vec3(36, light->getRadius(), 36)));
                     light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
                     light->castShadows = false;
                     renderer->lighting.AddLight(light);
@@ -207,7 +207,7 @@ class Sample : public RendererSampleWindow
                     light->setRadius(linearRand(1.0, 4.0));
                     light->setIntensity(1.0f / light->getRadius());
                     light->setPosition(
-                        linearRand(vec3(-16, light->getRadius() * 0.5, -16), vec3(16, light->getRadius(), 16)));
+                        linearRand(vec3(-36, light->getRadius() * 0.5, -36), vec3(36, light->getRadius(), 36)));
                     light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
                     light->setAngle(linearRand(20, 60));
                     light->direction   = linearRand(vec3(-0.5, -0.5, -0.5), vec3(0.5, 0.5, 0.5));

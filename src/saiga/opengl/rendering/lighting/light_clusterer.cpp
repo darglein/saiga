@@ -50,6 +50,10 @@ void Clusterer::init(int _width, int _height, bool _useTimers)
 
 void Clusterer::resize(int _width, int _height)
 {
+    if(width == _width && height == _height)
+    {
+        return;
+    }
     width         = _width;
     height        = _height;
     clustersDirty = true;

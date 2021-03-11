@@ -14,7 +14,7 @@ RendererSampleWindow::RendererSampleWindow() : StandaloneWindow("config.ini")
 {
     // create a perspective camera
     float aspect = window->getAspectRatio();
-    camera.setProj(60.0f, aspect, 0.1f, 80.0f);
+    camera.setProj(60.0f, aspect, 0.1f, 140.0f);
     camera.setView(vec3(0, 5, 10), vec3(0, 0, 0), vec3(0, 1, 0));
     camera.rotationPoint = make_vec3(0);
 

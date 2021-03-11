@@ -21,7 +21,6 @@ ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& para
     : OpenGLRenderer(window), params(params), lighting()
 
 {
-    editor_gui.RegisterImguiWindow("Forward Renderer", EditorGui::WINDOW_POSITION_SYSTEM);
 
     int timerCount = ForwardTimingBlock::COUNT;
     timers.resize(timerCount);
@@ -56,9 +55,6 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
 
     startTimer(TOTAL);
 
-
-    startTimer(TOTAL);
-
     if (params.wireframe)
     {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -79,12 +75,15 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     glDepthMask(GL_TRUE);
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    // renderingInterface->render(camera, RenderPass::DepthPrepass);
 
     // forward pass with lighting
     lighting.initRender();
     if (cullLights) lighting.cullLights(camera);
     lighting.cluster(camera, viewport);
+    // glDepthFunc(GL_EQUAL);
     renderingInterface->render(camera, RenderPass::Forward);
+    // glDepthFunc(GL_LESS);
     lighting.render(camera, viewport);
     stopTimer(FORWARD);
 

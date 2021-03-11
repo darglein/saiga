@@ -34,6 +34,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     int plCount         = 0;
     int maxDepthCluster = planesZ.size() - 2;
 
+    if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
     if (!SAT)
     {
         for (int i = 0; i < pointLightsClusterData.size(); ++i)
