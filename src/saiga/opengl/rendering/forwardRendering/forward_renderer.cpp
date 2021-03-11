@@ -21,6 +21,8 @@ ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& para
     : OpenGLRenderer(window), params(params), lighting()
 
 {
+    editor_gui.RegisterImguiWindow("Forward Renderer", EditorGui::WINDOW_POSITION_SYSTEM);
+
     int timerCount = ForwardTimingBlock::COUNT;
     timers.resize(timerCount);
     for (auto& t : timers)
@@ -44,6 +46,7 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
 {
     if (!rendering) return;
 
+    Resize(viewport.size.x(), viewport.size.y());
 
     SAIGA_ASSERT(rendering);
 
@@ -80,9 +83,15 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     // forward pass with lighting
     lighting.initRender();
     if (cullLights) lighting.cullLights(camera);
+    lighting.cluster(camera, viewport);
     renderingInterface->render(camera, RenderPass::Forward);
     lighting.render(camera, viewport);
     stopTimer(FORWARD);
+
+    if (params.wireframe)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
 
 
     assert_no_glerror();
@@ -95,6 +104,18 @@ void ForwardRenderer::Resize(int windowWidth, int windowHeight)
 
 void ForwardRenderer::renderImgui()
 {
+    lighting.renderImGui();
+
+    if (!should_render_imgui) return;
+
+    int w = 340;
+    int h = 240;
+    if (!editor_gui.enabled)
+    {
+        ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Forward Renderer", &should_render_imgui);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);

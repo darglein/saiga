@@ -46,22 +46,18 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
 
 
     quadMesh.fromMesh(FullScreenQuad());
-
-    ClustererParameters params;
-    params.clusterThreeDimensional = true;
-    lightClusterer                 = std::make_shared<CPUPlaneClusterer>(params);
 }
 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
 {
     RendererLighting::init(_width, _height, _useTimers);
-    if (lightClusterer) lightClusterer->init(_width, _height, _useTimers);
+    if (clustererType) lightClusterer->init(_width, _height, _useTimers);
 }
 
 void UberDeferredLighting::resize(int _width, int _height)
 {
     RendererLighting::resize(_width, _height);
-    if (lightClusterer) lightClusterer->resize(_width, _height);
+    if (clustererType) lightClusterer->resize(_width, _height);
 }
 
 UberDeferredLighting::~UberDeferredLighting() {}
@@ -153,7 +149,6 @@ void UberDeferredLighting::initRender()
 
     lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
     lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferBox.bind(BOX_LIGHT_DATA_BINDING_POINT);
     lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
     lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
     stopTimer(0);
@@ -161,7 +156,6 @@ void UberDeferredLighting::initRender()
 
 void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 {
-    // Does nothing
     RendererLighting::render(cam, viewPort);
     if (clustererType)
     {

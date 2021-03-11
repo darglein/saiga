@@ -6,8 +6,11 @@
 
 #include "forward_lighting.h"
 
+#include "saiga/core/imgui/imgui.h"
+#include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
 #include "saiga/opengl/rendering/lighting/directional_light.h"
 #include "saiga/opengl/rendering/lighting/point_light.h"
+#include "saiga/opengl/rendering/lighting/six_plane_clusterer.h"
 #include "saiga/opengl/rendering/lighting/spot_light.h"
 
 namespace Saiga
@@ -35,20 +38,30 @@ ForwardLighting::ForwardLighting() : RendererLighting()
 
 ForwardLighting::~ForwardLighting() {}
 
+void ForwardLighting::init(int _width, int _height, bool _useTimers)
+{
+    RendererLighting::init(_width, _height, _useTimers);
+    if (clustererType) lightClusterer->init(_width, _height, _useTimers);
+}
+
+void ForwardLighting::resize(int _width, int _height)
+{
+    RendererLighting::resize(_width, _height);
+    if (clustererType) lightClusterer->resize(_width, _height);
+}
+
 void ForwardLighting::initRender()
 {
     startTimer(0);
     RendererLighting::initRender();
-    lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
-    lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
     LightInfo li;
     LightData ld;
     li.pointLightCount       = 0;
     li.spotLightCount        = 0;
     li.directionalLightCount = 0;
-    li.clusterEnabled        = false;
+
+    if (clustererType) lightClusterer->clearLightData();
+    li.clusterEnabled = clustererType > 0;
 
     // Point Lights
     for (auto pl : pointLights)
@@ -57,15 +70,34 @@ void ForwardLighting::initRender()
         if (!pl->shouldRender()) continue;
         ld.pointLights.push_back(pl->GetShaderData());
 
+        if (clustererType) lightClusterer->addPointLight(pl->position, pl->radius);
+
         li.pointLightCount++;
     }
 
     // Spot Lights
+    SpotLight::ShaderData glSpotLight;
     for (auto sl : spotLights)
     {
         if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
         if (!sl->shouldRender()) continue;
-        ld.spotLights.push_back(sl->GetShaderData());
+        glSpotLight = sl->GetShaderData();
+        ld.spotLights.push_back(glSpotLight);
+
+        if (clustererType)
+        {
+            float rad = radians(sl->getAngle());
+            float l   = tan(rad) * sl->radius;
+            float radius;
+            if (rad > pi<float>() * 0.25f)
+                radius = l * tan(rad);
+            else
+                radius = l * 0.5f / pow(cos(sl->getAngle()), 2.0f);
+            vec3 world_center =
+                sl->getPosition() +
+                vec3(glSpotLight.direction.x(), glSpotLight.direction.y(), glSpotLight.direction.z()) * radius;
+            lightClusterer->addSpotLight(world_center, radius);
+        }
 
         li.spotLightCount++;
     }
@@ -87,12 +119,25 @@ void ForwardLighting::initRender()
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.directionalLightCount;
+
+    lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
+    lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
+    lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
+    lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
     stopTimer(0);
+}
+
+void ForwardLighting::cluster(Camera* cam, const ViewPort& viewPort)
+{
+    if (clustererType)
+    {
+        lightClusterer->clusterLights(cam, viewPort);
+        // At this point we can use clustering information in the lighting uber shader with the right binding points.
+    }
 }
 
 void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
 {
-    // Does nothing
     RendererLighting::render(cam, viewPort);
 
     if (drawDebug)
@@ -101,6 +146,7 @@ void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
         renderDebug(cam);
         //        glDepthMask(GL_FALSE);
     }
+    if (clustererType) lightClusterer->renderDebug(cam);
     assert_no_glerror();
 }
 
@@ -142,6 +188,29 @@ void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLight
 void ForwardLighting::renderImGui()
 {
     RendererLighting::renderImGui();
+
+    if (!showLightingImgui) return;
+    ImGui::Begin("UberDefferedLighting", &showLightingImgui);
+
+
+    const char* const clustererTypes[3] = {"None", "SixPlanes", "PlaneArrays"};
+
+    bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 3);
+
+    if (changed)
+    {
+        if (clustererType > 0)
+        {
+            ClustererParameters params;
+            lightClusterer = clustererType == 1
+                                 ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(params))
+                                 : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(params));
+            lightClusterer->init(width, height, useTimers);
+        }
+    }
+    ImGui::End();
+
+    if (clustererType) lightClusterer->renderImGui();
 }
 
 }  // namespace Saiga

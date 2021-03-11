@@ -44,7 +44,13 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
     ForwardLighting& operator=(ForwardLighting& l) = delete;
     ~ForwardLighting();
 
+    void init(int _width, int _height, bool _useTimers) override;
+
+    void resize(int _width, int _height) override;
+
     void initRender() override;
+
+    void cluster(Camera* cam, const ViewPort& viewPort);
 
     void render(Camera* cam, const ViewPort& viewPort) override;
 
@@ -54,6 +60,7 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 
    public:
     std::shared_ptr<Clusterer> lightClusterer;
+    int clustererType = 0;
 };
 
 }  // namespace Saiga

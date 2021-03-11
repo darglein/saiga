@@ -31,7 +31,7 @@ void render(AssetMaterial material, vec3 position, vec3 normal)
 #if defined(FORWARD_LIT)
     vec3 lighting = vec3(0);
 
-    lighting += calculatePointLights(material, position, normal, gl_FragDepth);
+    lighting += calculatePointLights(material, position, normal, gl_FragCoord.z);
     lighting += calculateSpotLights(material, position, normal);
     lighting += calculateDirectionalLights(material, position, normal);
 

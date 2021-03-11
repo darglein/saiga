@@ -48,7 +48,6 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
    public:
     ShaderStorageBuffer lightDataBufferPoint;
     ShaderStorageBuffer lightDataBufferSpot;
-    ShaderStorageBuffer lightDataBufferBox;
     ShaderStorageBuffer lightDataBufferDirectional;
 
     UniformBuffer lightInfoBuffer;
@@ -73,8 +72,7 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
     GBuffer& gbuffer;
     IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::shared_ptr<Clusterer> lightClusterer;
-    // FIXME Reset to 0:
-    int clustererType = 2;
+    int clustererType = 0;
 };
 
 }  // namespace Saiga

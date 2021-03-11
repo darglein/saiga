@@ -24,7 +24,7 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
       renderHeight(window.getHeight() * _params.renderScale),
       ddo(window.getWidth(), window.getHeight())
 {
-    editor_gui.RegisterImguiWindow("Deferred Renderer", EditorGui::WINDOW_POSITION_SYSTEM);
+    editor_gui.RegisterImguiWindow("Uber Deferred Renderer", EditorGui::WINDOW_POSITION_SYSTEM);
     {
         // create a 2x2 grayscale black dummy texture
         blackDummyTexture = std::make_shared<Texture>();
