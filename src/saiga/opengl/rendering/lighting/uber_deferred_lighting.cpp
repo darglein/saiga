@@ -258,4 +258,17 @@ void UberDeferredLighting::renderImGui()
     if (clustererType) lightClusterer->renderImGui();
 }
 
+void UberDeferredLighting::setClusterType(int tp)
+{
+    clustererType= tp;
+    if (clustererType > 0)
+    {
+        ClustererParameters params;
+        lightClusterer = clustererType == 1
+                             ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(params))
+                             : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(params));
+        lightClusterer->init(width, height, useTimers);
+    }
+}
+
 }  // namespace Saiga

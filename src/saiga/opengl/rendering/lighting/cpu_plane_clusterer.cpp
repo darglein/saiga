@@ -73,6 +73,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                         if (fr.intersectSAT(sphere))
                         {
                             clusterCache[tileIndex].push_back(i);
+                            clusterCache[tileIndex][0]++;
                             itemCount++;
                         }
                     }

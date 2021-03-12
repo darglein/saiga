@@ -58,6 +58,8 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 
     void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights) override;
 
+    void setClusterType(int tp);
+
    public:
     std::shared_ptr<Clusterer> lightClusterer;
     int clustererType = 0;
