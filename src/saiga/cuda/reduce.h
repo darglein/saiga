@@ -102,7 +102,7 @@ __device__ inline T warpReduce(T val, OP op)
 }
 
 template <int BLOCK_SIZE, typename T, typename OP>
-__device__ inline T blockReduce(T val, OP op)
+__device__ inline T blockReduce(T val, OP op, T default_val)
 {
     __shared__ T shared[BLOCK_SIZE / 32];
 
@@ -127,7 +127,7 @@ __device__ inline T blockReduce(T val, OP op)
     }
     else
     {
-        val = T();
+        val = default_val;
     }
 
     if (warpid == 0)
