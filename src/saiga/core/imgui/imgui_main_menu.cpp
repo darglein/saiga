@@ -172,8 +172,14 @@ void EditorLayoutL::BuildNodes(int dockspace_id)
 }
 
 
-EditorLayoutU::EditorLayoutU(float left_size, float right_size, float bottom_size)
-    : left_size(left_size), right_size(right_size), bottom_size(bottom_size)
+EditorLayoutU::EditorLayoutU(bool split_left_right, float left_size, float right_size, float bottom_size,
+                             float left_split_size, float right_split_size)
+    : split_left_right(split_left_right),
+      left_size(left_size),
+      right_size(right_size),
+      bottom_size(bottom_size),
+      left_split_size(left_split_size),
+      right_split_size(right_split_size)
 {
     RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
@@ -190,99 +196,76 @@ void EditorLayoutU::BuildNodes(int dockspace_id)
     ImGui::DockBuilderAddNode(dockspace_id);
 
     ImGuiID dock_viewport = dockspace_id;
-    ImGuiID dock_left     = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Left, left_size, NULL, &dock_viewport);
 
-    ImGuiID dock_right = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Right, right_size, NULL, &dock_viewport);
-
+    ImGuiID dock_left   = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Left, left_size, NULL, &dock_viewport);
+    ImGuiID dock_right  = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Right, right_size, NULL, &dock_viewport);
     ImGuiID dock_bottom = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, bottom_size, NULL, &dock_viewport);
 
-    node_map = {dock_left, dock_right, dock_bottom, dock_viewport};
+    if (split_left_right)
+    {
+        ImGuiID dock_left_bottom =
+            ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Down, left_split_size, NULL, &dock_left);
+        ImGuiID dock_right_bottom =
+            ImGui::DockBuilderSplitNode(dock_right, ImGuiDir_Down, right_split_size, NULL, &dock_right);
+        node_map = {dock_left, dock_right, dock_bottom, dock_viewport, dock_left_bottom, dock_right_bottom};
+    }
+    else
+    {
+        node_map = {dock_left, dock_right, dock_bottom, dock_viewport};
+    }
 }
 
 void EditorGui::render(int w, int h)
 {
     if (!enabled) return;
-    //    return;
+
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+    ImVec2 main_pos  = viewport->Pos;
+    ImVec2 main_size = viewport->Size;
+
+    ImGui::SetNextWindowPos(main_pos);
+    ImGui::SetNextWindowSize(main_size);
+
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
+    flags |= ImGuiWindowFlags_NoDocking;
+    flags |=
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    //        flags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+
+
+    ImGui::Begin("Master Window", nullptr, flags);
+    ImGui::PopStyleVar();
+
+    main_menu.render();
+
+
+    static ImGuiID dockspace_id = 1;
+
+    if (reset_work_space)
     {
-        //        ImGui::SetNextWindowPos(ImVec2(400, 0), ImGuiCond_Once);
-        //        ImGui::SetNextWindowSize(ImVec2(800, 800), ImGuiCond_Once);
+        ImGui::DockBuilderRemoveNode(dockspace_id);  // Clear out existing layout
 
-        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        SAIGA_ASSERT(layout);
+        layout->BuildNodes(dockspace_id);
+        layout->PlaceWindows();
 
-        ImVec2 main_pos  = viewport->Pos;
-        ImVec2 main_size = viewport->Size;
+        ImGui::DockBuilderFinish(dockspace_id);
 
-        //        main_pos  = main_pos + ImVec2(0, MainMenu::Height());
-        //        main_size = main_size + ImVec2(0, -MainMenu::Height());
-
-
-
-        //        ImGui::SetNextWindowPos(viewport->Pos + ImVec2(0, MainMenu::Height()));
-        //        ImGui::SetNextWindowSize(viewport->Size + ImVec2(0, -MainMenu::Height()));
-        ImGui::SetNextWindowPos(main_pos);
-        ImGui::SetNextWindowSize(main_size);
-
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-
-        ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
-        flags |= ImGuiWindowFlags_NoDocking;
-        flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-                 ImGuiWindowFlags_NoMove;
-        flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-        //        flags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-
-
-
-        ImGui::Begin("Master Window", nullptr, flags);
-        ImGui::PopStyleVar();
-
-        main_menu.render();
-
-
-        static ImGuiID dockspace_id = 1;
-        // Declare Central dockspace
-
-        // ImGuiDockNodeFlags_NoSplit
-
-
-        if (reset_work_space)
-        {
-            ImGui::DockBuilderRemoveNode(dockspace_id);  // Clear out existing layout
-
-            SAIGA_ASSERT(layout);
-            layout->BuildNodes(dockspace_id);
-            layout->PlaceWindows();
-
-            ImGui::DockBuilderFinish(dockspace_id);
-
-
-
-            //            auto node = (ImGuiDockNode*)GImGui->DockContext.Nodes.GetVoidPtr(dock_id_prop);
-            //            node->LocalFlags |= ImGuiDockNodeFlags_KeepAliveOnly;
-            //            node->HostWindow = main_node->HostWindow;
-            reset_work_space = false;
-        }
-        ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
-
-
-
-        ImGui::End();
-        ImGui::PopStyleVar();
+        reset_work_space = false;
     }
+    ImGui::DockSpace(dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
 
-    //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
-    //    ImGui::Begin("Log", nullptr);
-    //    ImGui::End();
 
-    //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
-    //    ImGui::Begin("Properties");
-    //    ImGui::End();
 
-    //    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Once);
-    //    ImGui::Begin("Mesh");
-    //    ImGui::End();
+    ImGui::End();
+    ImGui::PopStyleVar();
 }
 
 }  // namespace Saiga

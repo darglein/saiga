@@ -2648,7 +2648,7 @@ static void ShowDemoWindowLayout()
             ImGui::Button("BBB");
             ImGui::SameLine();
             ImGui::BeginGroup();
-            ImGui::Button("CCC");
+            ImGui::Button("ConstraintSolverContact");
             ImGui::Button("DDD");
             ImGui::EndGroup();
             ImGui::SameLine();
@@ -3787,7 +3787,7 @@ static void ShowDemoWindowTables()
         {
             ImGui::TableSetupColumn("AAA", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("BBB", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("CCC", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("ConstraintSolverContact", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableHeadersRow();
             for (int row = 0; row < 5; row++)
             {
@@ -3804,7 +3804,7 @@ static void ShowDemoWindowTables()
         {
             ImGui::TableSetupColumn("AAA", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("BBB", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("CCC", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultHide);
+            ImGui::TableSetupColumn("ConstraintSolverContact", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultHide);
             ImGui::TableSetupColumn("DDD", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("EEE", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("FFF", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_DefaultHide);
