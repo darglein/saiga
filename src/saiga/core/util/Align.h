@@ -65,7 +65,10 @@ inline void* aligned_malloc(size_t size)
     }
     else
     {
-        posix_memalign(&ptr, Alignment, size_with_padding);
+        if (posix_memalign(&ptr, Alignment, size_with_padding) != 0)
+        {
+            throw std::runtime_error("posix_memalign failed");
+        }
     }
 #else
     ptr = std::aligned_alloc(Alignment, size_with_padding);
