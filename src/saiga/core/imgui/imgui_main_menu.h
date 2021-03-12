@@ -113,13 +113,21 @@ class SAIGA_CORE_API EditorLayoutU : public EditorLayout
         WINDOW_POSITION_RIGHT,
         WINDOW_POSITION_BOTTOM,
         WINDOW_POSITION_3DVIEW,
+        // These 2 are only available if we set the split_left_right flag at construction time
+        WINDOW_POSITION_LEFT_BOTTOM,
+        WINDOW_POSITION_RIGHT_BOTTOM,
+
     };
 
-    EditorLayoutU(float left_size = 0.2, float right_size = 0.2, float bottom_size = 0.2);
+    // Splits the left and right column horizontally
+    EditorLayoutU(bool split_left_right, float left_size = 0.2, float right_size = 0.2, float bottom_size = 0.2,
+                  float left_split_size = 0.5, float right_split_size = 0.5);
     void BuildNodes(int dockspace_id) override;
 
    private:
+    bool split_left_right;
     float left_size, right_size, bottom_size;
+    float left_split_size, right_split_size;
 };
 
 
