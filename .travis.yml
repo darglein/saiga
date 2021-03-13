@@ -64,13 +64,14 @@ install:
      fi;
 
 before_script:
+  - git submodule update --init --recursive
   - mkdir ~/saiga_build
   - cd ~/saiga_build
   
 script:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" || "$TRAVIS_OS_NAME" == "osx" ]]; then
-      /snap/bin/cmake  -DCMAKE_PREFIX_PATH="/home/travis/install" $TRAVIS_BUILD_DIR 
+      /snap/bin/cmake  -DCMAKE_PREFIX_PATH="/home/travis/install" -DSAIGA_USE_SUBMODULES=ON $TRAVIS_BUILD_DIR 
       make -j2
       sudo make install
       ctest --output-on-failure
@@ -83,7 +84,7 @@ script:
       ls -al "C:/Users/travis/vcpkg/installed/x64-windows/bin"
       echo "ls lib"
       ls -al "C:/Users/travis/vcpkg/installed/x64-windows/lib"
-      cmake -DCMAKE_PREFIX_PATH="C:/Users/travis/install;C:/Users/travis/vcpkg/installed/x64-windows/" -G "Visual Studio 15 2017 Win64" $TRAVIS_BUILD_DIR 
+      cmake -DCMAKE_PREFIX_PATH="C:/Users/travis/install;C:/Users/travis/vcpkg/installed/x64-windows/" -G "Visual Studio 15 2017 Win64" -DSAIGA_USE_SUBMODULES=ON $TRAVIS_BUILD_DIR 
       cmake --build . -j2
     fi
 

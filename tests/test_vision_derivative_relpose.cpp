@@ -55,8 +55,11 @@ inline Sophus::Vector6d relPoseErrorDecoupled(const Sophus::SE3d& T_i_j, const S
 }
 
 
-TEST(NumericDerivative, RelativePoseDecoupled)
+TEST(DerivativeRelpose, RelativePoseDecoupled)
 {
+    Random::setSeed(903476346);
+    srand(976157);
+
     SE3 pose_w_i = Random::randomSE3();
     SE3 pose_w_j = Random::randomSE3();
     SE3 pose_i_j = Sophus::se3_expd(Sophus::Vector6d::Random() / 100) * pose_w_i.inverse() * pose_w_j;
@@ -103,7 +106,7 @@ TEST(NumericDerivative, RelativePoseDecoupled)
 }
 
 
-TEST(NumericDerivative, RelativePose)
+TEST(DerivativeRelpose, RelativePose)
 {
     SE3 pose_w_i = Random::randomSE3();
     SE3 pose_w_j = Random::randomSE3();
@@ -155,7 +158,7 @@ TEST(NumericDerivative, RelativePose)
 
 
 
-TEST(NumericDerivative, RelativePoseView)
+TEST(DerivativeRelpose, RelativePoseView)
 {
     SE3 pose_w_i = Random::randomSE3();
     SE3 pose_w_j = Random::randomSE3();
@@ -247,7 +250,7 @@ inline Sophus::Vector7d relPoseErrorDecoupled(const Sophus::DSim3<double>& T_i_j
 }
 
 
-TEST(NumericDerivative, RelativePoseSim3Decoupled)
+TEST(DerivativeRelpose, RelativePoseSim3Decoupled)
 {
     Sophus::DSim3d pose_w_j = Random::randomDSim3();
     Sophus::DSim3d pose_w_i = Random::randomDSim3();
@@ -299,7 +302,7 @@ TEST(NumericDerivative, RelativePoseSim3Decoupled)
 
 
 
-TEST(NumericDerivative, RelativePoseSim3)
+TEST(DerivativeRelpose, RelativePoseSim3)
 {
     Sophus::DSim3d pose_w_j = Random::randomDSim3();
     Sophus::DSim3d pose_w_i = Random::randomDSim3();
@@ -383,7 +386,7 @@ inline Sophus::Vector6d SmoothPose(const Sophus::SE3d& T_w_i, const Sophus::SE3d
 }
 
 
-TEST(NumericDerivative, SmoothPose)
+TEST(DerivativeRelpose, SmoothPose)
 {
     SE3 pose_w_i = Random::randomSE3();
     SE3 pose_w_j = Sophus::se3_expd(Sophus::Vector6d::Random() / 10) * pose_w_i;
