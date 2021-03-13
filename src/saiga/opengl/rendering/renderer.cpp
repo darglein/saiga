@@ -53,6 +53,7 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         window->renderImGui();
         dynamic_cast<RenderingInterface*>(rendering)->render(nullptr, RenderPass::GUI);
         renderImgui();
+        console.render();
 #ifdef SAIGA_USE_FFMPEG
         encoder->renderGUI();
 #endif
