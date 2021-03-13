@@ -178,7 +178,7 @@ EditorLayoutL::EditorLayoutL()
     RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("VideoEncoder", WINDOW_POSITION_LEFT);
 
-    RegisterImguiWindow("Log", EditorLayoutU::WINDOW_POSITION_BOTTOM);
+    RegisterImguiWindow("Log", EditorLayoutL::WINDOW_POSITION_BOTTOM);
 
     RegisterImguiWindow("3DView", WINDOW_POSITION_3DVIEW);
 }

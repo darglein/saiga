@@ -17,6 +17,7 @@ SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
     // Define GUI layout
     auto editor_layout = std::make_unique<EditorLayoutL>();
     editor_layout->RegisterImguiWindow("Saiga Sample Base", EditorLayoutL::WINDOW_POSITION_LEFT);
+    editor_layout->RegisterImguiWindow("Saiga Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
     editor_gui.SetLayout(std::move(editor_layout));
 
     // create a perspective camera
@@ -72,8 +73,11 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
     }
     else if (render_pass == RenderPass::GUI)
     {
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
+        if (!editor_gui.enabled)
+        {
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
+            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
+        }
         if (ImGui::Begin("Saiga Sample Base"))
         {
             ImGui::Checkbox("showSkybox", &showSkybox);

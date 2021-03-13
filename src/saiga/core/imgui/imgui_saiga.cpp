@@ -179,9 +179,12 @@ IMConsole::IMConsole(const std::string& name, const Saiga::ivec2& position, cons
 
 void IMConsole::render()
 {
-    BeginWindow();
-    RenderTextArea();
-    EndWindow();
+    if (should_render)
+    {
+        BeginWindow();
+        RenderTextArea();
+        EndWindow();
+    }
 }
 
 void IMConsole::BeginWindow()
@@ -191,7 +194,7 @@ void IMConsole::BeginWindow()
         ImGui::SetNextWindowPos(ImVec2(position(0), position(1)), ImGuiCond_Once);
         ImGui::SetNextWindowSize(ImVec2(size(0), size(1)), ImGuiCond_Once);
     }
-    ImGui::Begin(name.c_str(), nullptr, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
+    ImGui::Begin(name.c_str(), &should_render, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
 }
 
 void IMConsole::EndWindow()

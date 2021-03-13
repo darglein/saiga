@@ -16,6 +16,10 @@ namespace Saiga
 {
 OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window) : window(&window)
 {
+    editor_gui.enabled = true;
+    main_menu.AddItem(
+        "Saiga", "Log", []() { console.should_render = !console.should_render; }, 299, "F10");
+
     cameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
 
 
@@ -167,7 +171,7 @@ void OpenGLRenderer::ResizeTarget(int windowWidth, int windowHeight)
 
     if (windowWidth <= 0 || windowHeight <= 0)
     {
-        std::cerr << "Warning: The window size must be greater than zero." << std::endl;
+        console << "Warning: The window size must be greater than zero." << std::endl;
         windowWidth  = std::max(windowWidth, 1);
         windowHeight = std::max(windowHeight, 1);
     }
@@ -210,7 +214,7 @@ void OpenGLRenderer::ResizeTarget(int windowWidth, int windowHeight)
         target_framebuffer->resize(outputWidth, outputHeight);
     }
 
-    std::cout << "OpenGLRenderer::resize -> " << windowWidth << "x" << windowHeight << std::endl;
+    console << "[Renderer] Target resized to " << windowWidth << "x" << windowHeight << std::endl;
 }
 
 

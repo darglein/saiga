@@ -41,6 +41,7 @@ class SAIGA_CORE_API IMConsole : public std::ostream, protected std::streambuf
 
     std::string name;
     Saiga::ivec2 position, size;
+    bool should_render = true;
 
    private:
     bool scrollDownAtNextRender = true;

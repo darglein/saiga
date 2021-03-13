@@ -29,7 +29,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
       renderHeight(window.getHeight()),
       ddo(window.getWidth(), window.getHeight())
 {
-
     if (params.useSMAA)
     {
         smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
@@ -85,8 +84,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     defaultEffects.push_back(pps);
     postProcessor.setPostProcessingEffects(defaultEffects);
 
-    std::cout << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight
-              << std::endl;
+    console << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight << std::endl;
 }
 
 void DeferredRenderer::Resize(int windowWidth, int windowHeight)
@@ -100,7 +98,6 @@ void DeferredRenderer::Resize(int windowWidth, int windowHeight)
 
     this->renderWidth  = windowWidth;
     this->renderHeight = windowHeight;
-    std::cout << "DeferredRenderer::resize -> " << renderWidth << " " << renderHeight << std::endl;
     postProcessor.resize(renderWidth, renderHeight);
     gbuffer.resize(renderWidth, renderHeight);
     lighting.resize(renderWidth, renderHeight);
