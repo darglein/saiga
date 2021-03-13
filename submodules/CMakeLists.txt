@@ -27,16 +27,19 @@ set(ZLIB_TARGET zlibstatic)
 add_subdirectory(zlib)
 
 # libPNG uses include_directory(ZLIB_INCLUDE_DIR) therefore we have to set these variables
-set(ZLIB_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib ${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib CACHE PATH "zlib dir" FORCE)
+set(ZLIB_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib CACHE PATH "zlib dir" FORCE)
 set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR} CACHE PATH "zlib dir" FORCE)
 
 # include dir that use the zlib target
 target_include_directories(${ZLIB_TARGET} PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../submodules/zlib>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib>  )
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/zlib>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/zlib>  )
 
 #set_target_properties(${ZLIB_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
 SET(SAIGA_USE_ZLIB 1 PARENT_SCOPE)
+SET(ZLIB_FOUND 1)
+set(ZLIB_LIBRARIES ${ZLIB_TARGET} CACHE INTERNAL "")
+
 
 # Create a fake zlib target which also points to the zlib static library
 add_library(zlib INTERFACE)
@@ -52,15 +55,14 @@ set(PNG_BUILD_ZLIB ON CACHE INTERNAL "")
 set(PNG_STATIC OFF CACHE INTERNAL "")
 set(PNG_EXECUTABLES OFF CACHE INTERNAL "")
 set(PNG_TESTS OFF CACHE INTERNAL "")
-set(ZLIB_LIBRARIES ${ZLIB_TARGET} CACHE INTERNAL "")
 #set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
 
 include_directories(${ZLIB_INCLUDE_DIRS})
 add_subdirectory(libpng)
 
   target_include_directories(png PUBLIC
-$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../submodules/libpng>
-$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/libpng>  )
+$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/libpng>
+$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/libpng>  )
 
 set_target_properties(png PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
 SET(SAIGA_USE_PNG 1 PARENT_SCOPE)
