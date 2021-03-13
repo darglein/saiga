@@ -169,6 +169,7 @@ void EditorLayout::PlaceWindows()
 
 EditorLayoutL::EditorLayoutL()
 {
+    RegisterImguiWindow("Forward Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
@@ -205,6 +206,7 @@ EditorLayoutU::EditorLayoutU(bool split_left_right, float left_size, float right
       left_split_size(left_split_size),
       right_split_size(right_split_size)
 {
+    RegisterImguiWindow("Forward Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
