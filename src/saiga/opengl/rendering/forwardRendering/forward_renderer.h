@@ -86,6 +86,8 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     const char* texturedShaderSource = "asset/TexturedAsset.glsl";
 
     bool cullLights = false;
+
+    bool depthPrepass = true;
 };
 
 }  // namespace Saiga

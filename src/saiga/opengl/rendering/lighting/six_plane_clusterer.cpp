@@ -135,7 +135,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     gridCount[0] = std::ceil((float)width / (float)screenSpaceTileSize);
     gridCount[1] = std::ceil((float)height / (float)screenSpaceTileSize);
     if (clusterThreeDimensional)
-        gridCount[2] = depthSplits;
+        gridCount[2] = depthSplits + 1;
     else
         gridCount[2] = 1;
 

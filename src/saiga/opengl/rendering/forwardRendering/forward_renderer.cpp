@@ -21,7 +21,6 @@ ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& para
     : OpenGLRenderer(window), params(params), lighting()
 
 {
-
     int timerCount = ForwardTimingBlock::COUNT;
     timers.resize(timerCount);
     for (auto& t : timers)
@@ -76,12 +75,16 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+    // depth prepass
+    if (depthPrepass)
+    {
+        renderingInterface->render(camera, RenderPass::DepthPrepass);
+        glDepthFunc(GL_EQUAL);
+    }
     // forward pass with lighting
     lighting.initRender();
     if (cullLights) lighting.cullLights(camera);
-    renderingInterface->render(camera, RenderPass::DepthPrepass);
     lighting.cluster(camera, viewport);
-    glDepthFunc(GL_EQUAL);
     renderingInterface->render(camera, RenderPass::Forward);
     glDepthFunc(GL_LESS);
     lighting.render(camera, viewport);
@@ -92,6 +95,7 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
+    stopTimer(TOTAL);
 
     assert_no_glerror();
 }
@@ -124,6 +128,7 @@ void ForwardRenderer::renderImgui()
     ImGui::Begin("Forward Renderer", &should_render_imgui);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);
+    ImGui::Checkbox("Depth Prepass", &depthPrepass);
 
     ImGui::Text("Render Time");
     ImGui::Text("%fms - Forward pass", getBlockTime(FORWARD));
