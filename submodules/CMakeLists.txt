@@ -52,19 +52,23 @@ message("=================================")
 message("Adding Submodule libPNG")
 
 set(PNG_BUILD_ZLIB ON CACHE INTERNAL "")
-set(PNG_STATIC OFF CACHE INTERNAL "")
+set(PNG_STATIC ON CACHE INTERNAL "")
+set(PNG_SHARED OFF CACHE INTERNAL "")
 set(PNG_EXECUTABLES OFF CACHE INTERNAL "")
 set(PNG_TESTS OFF CACHE INTERNAL "")
 #set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
 
 include_directories(${ZLIB_INCLUDE_DIRS})
+
 add_subdirectory(libpng)
 
-  target_include_directories(png PUBLIC
+set_property(TARGET png_static PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+  target_include_directories(png_static PUBLIC
 $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/libpng>
 $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/libpng>  )
 
-set_target_properties(png PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+set_target_properties(png_static PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
 SET(SAIGA_USE_PNG 1 PARENT_SCOPE)
 
 #  set(CMAKE_INSTALL_LIBDIR lib)

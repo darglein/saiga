@@ -19,7 +19,7 @@ if(SAIGA_USE_SUBMODULES)
   PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
   PackageHelperTarget(glfw GLFW_FOUND)
   PackageHelperTarget(zlibstatic ZLIB_FOUND)
-  PackageHelperTarget(png PNG_FOUND)
+  PackageHelperTarget(png_static PNG_FOUND)
   PackageHelperTarget(assimp ASSIMP_FOUND)
 else()
   # Without submodules we use find_package to find the required dependencies
