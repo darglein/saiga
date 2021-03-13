@@ -174,7 +174,6 @@ class Sample : public SampleWindowDeferred
         for (auto l : directional_lights)
         {
             l->active = (current_type == 2);
-            l->fitShadowToCamera(&camera);
             l->fitNearPlaneToScene(bounding_box);
         }
     }

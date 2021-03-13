@@ -32,6 +32,7 @@ addons:
     - clang-10
     - libomp-dev
     - libegl1-mesa-dev
+    - libxrandr-dev
   snaps:
     - name: cmake
       confinement: classic
