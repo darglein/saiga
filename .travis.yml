@@ -30,14 +30,8 @@ addons:
     - g++-10
     - clang-9
     - clang-10
-    - libeigen3-dev
     - libomp-dev
-    - libgtest-dev
     - libegl1-mesa-dev
-    - libsdl2-dev
-    - libglfw3-dev
-    - libpng-dev
-    - libassimp-dev
   snaps:
     - name: cmake
       confinement: classic
@@ -50,21 +44,9 @@ before_install:
 
   
 install:
-   - if [ $TRAVIS_OS_NAME = osx ]; then 
-        $TRAVIS_BUILD_DIR/travis/install_travis_osx_deps.sh; 
-     fi;
-   - if [ $TRAVIS_OS_NAME = windows ]; then
-        export VCPKG_DIR="C:/Users/travis/vcpkg";
-        export VCPKG_INSTALL_DIR="$VCPKG_DIR/installed/x64-windows";
-        $TRAVIS_BUILD_DIR/travis/install_travis_windows_deps.sh;
-        cd "C:/Users/travis/vcpkg";
-     fi;
-   - if [ $TRAVIS_OS_NAME = linux ]; then
-        $TRAVIS_BUILD_DIR/travis/install_travis_linux_deps.sh; 
-     fi;
+  - git submodule update --init --recursive
 
 before_script:
-  - git submodule update --init --recursive
   - mkdir ~/saiga_build
   - cd ~/saiga_build
   
@@ -78,13 +60,7 @@ script:
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
-      echo "ls base"
-      ls -al "C:/Users/travis/vcpkg/installed/x64-windows/"
-      echo "ls bin"
-      ls -al "C:/Users/travis/vcpkg/installed/x64-windows/bin"
-      echo "ls lib"
-      ls -al "C:/Users/travis/vcpkg/installed/x64-windows/lib"
-      cmake -DCMAKE_PREFIX_PATH="C:/Users/travis/install;C:/Users/travis/vcpkg/installed/x64-windows/" -G "Visual Studio 15 2017 Win64" -DSAIGA_USE_SUBMODULES=ON $TRAVIS_BUILD_DIR 
+      cmake -G "Visual Studio 15 2017 Win64" -DSAIGA_USE_SUBMODULES=ON $TRAVIS_BUILD_DIR 
       cmake --build . -j2
     fi
 
