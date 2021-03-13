@@ -250,7 +250,7 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
     int centerOutsideY = 0;
 
 
-    while (z0 < z1 && planesZ[z0].distance(sphereCenter) >= sphereRadius)
+    while (z0 <= z1 && planesZ[z0].distance(sphereCenter) >= sphereRadius)
     {
         z0++;
     }
@@ -274,7 +274,7 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
     }
 
 
-    while (y0 < y1 && planesY[y0].distance(sphereCenter) >= sphereRadius)
+    while (y0 <= y1 && planesY[y0].distance(sphereCenter) >= sphereRadius)
     {
         y0++;
     }
@@ -298,7 +298,7 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
     }
 
 
-    while (x0 < x1 && planesX[x0].distance(sphereCenter) >= sphereRadius)
+    while (x0 <= x1 && planesX[x0].distance(sphereCenter) >= sphereRadius)
     {
         x0++;
     }
@@ -338,11 +338,11 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
     {
         if (centerOutsideZ < 0)
         {
-            z0 = -(int)planesZ.size() * 2;
+            z0 = -(int)planesZ.size() * 4;
         }
         if (centerOutsideZ > 0)
         {
-            z1 = (int)planesZ.size() * 2;
+            z1 = (int)planesZ.size() * 4;
         }
         int cz      = (z0 + z1);
         int centerZ = cz / 2;
@@ -354,11 +354,11 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
 
         if (centerOutsideY < 0)
         {
-            y0 = -(int)planesY.size() * 2;
+            y0 = -(int)planesY.size() * 4;
         }
         if (centerOutsideY > 0)
         {
-            y1 = (int)planesY.size() * 2;
+            y1 = (int)planesY.size() * 4;
         }
         int cy      = (y0 + y1);
         int centerY = cy / 2;

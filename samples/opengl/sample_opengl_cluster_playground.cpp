@@ -105,7 +105,7 @@ class Sample : public RendererSampleWindow
         boxAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
-        currentPlayground = 3;
+        currentPlayground = 5;
 
         setupPlayground(currentPlayground);
 
@@ -272,8 +272,69 @@ class Sample : public RendererSampleWindow
                 renderer->lighting.AddLight(dl);
 
                 camera.position = vec4(0.123655, 9.77907, 21.8321, 1);
-                camera.rot      = quat( 0.966454, -0.256838, -1.63342e-09, -2.06352e-09);
+                camera.rot      = quat(0.966454, -0.256838, -1.63342e-09, -2.06352e-09);
 
+
+#ifndef MULTI_PASS_DEFERRED_PIPELINE
+                renderer->lighting.setClusterType(2);
+#endif
+            }
+            break;
+            case 4:
+            {
+                Random::setSeed(SEED);
+                for (int i = 0; i < 4096; ++i)
+                {
+                    auto light = std::make_shared<PointLight>();
+                    light->setIntensity(1);
+
+                    light->setRadius(1);
+                    light->setPosition(vec3(0, 0.5f, 0));
+
+                    light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+
+                    renderer->lighting.AddLight(light);
+                    pointLights.push_back(light);
+                }
+                auto dl = std::make_shared<DirectionalLight>();
+                dl->setIntensity(0.0f);
+                dl->setAmbientIntensity(0.1f);
+                renderer->lighting.AddLight(dl);
+
+                camera.position = vec4(-0.459712, 8.13201, 12.0926, 1);
+                camera.rot      = quat(0.957761, -0.287024, -0.0167178, -0.00501071);
+
+#ifndef MULTI_PASS_DEFERRED_PIPELINE
+                renderer->lighting.setClusterType(2);
+#endif
+            }
+            break;
+            case 5:
+            {
+                Random::setSeed(SEED);
+                for (float i = -15; i < 16; i+=0.5f)
+                {
+                    for (float j = -15; j < 16; j+=0.5f)
+                    {
+                        auto light = std::make_shared<PointLight>();
+                        light->setIntensity(1);
+
+                        light->setRadius(1);
+                        light->setPosition(vec3(i, 0.5f, j));
+
+                        light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+
+                        renderer->lighting.AddLight(light);
+                        pointLights.push_back(light);
+                    }
+                }
+                auto dl = std::make_shared<DirectionalLight>();
+                dl->setIntensity(0.0f);
+                dl->setAmbientIntensity(0.1f);
+                renderer->lighting.AddLight(dl);
+
+                camera.position = vec4(-0.459712, 8.13201, 12.0926, 1);
+                camera.rot      = quat(0.957761, -0.287024, -0.0167178, -0.00501071);
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
                 renderer->lighting.setClusterType(2);
@@ -290,29 +351,6 @@ class Sample : public RendererSampleWindow
     {
         switch (index)
         {
-            case 0:
-            {
-                if (render_pass == RenderPass::Shadow)
-                {
-                    plane.renderDepth(camera);
-                }
-#if defined(SINGLE_PASS_DEFERRED_PIPELINE) || defined(MULTI_PASS_DEFERRED_PIPELINE)
-                if (render_pass == RenderPass::Deferred)
-                {
-                    plane.render(camera);
-                }
-#elif defined(SINGLE_PASS_FORWARD_PIPELINE)
-                if (render_pass == RenderPass::DepthPrepass)
-                {
-                    plane.renderDepth(camera);
-                }
-                if (render_pass == RenderPass::Forward)
-                {
-                    plane.renderForward(camera);
-                }
-#endif
-            }
-            break;
             case 1:
             {
                 if (render_pass == RenderPass::Shadow)
@@ -406,7 +444,31 @@ class Sample : public RendererSampleWindow
 #endif
             }
             break;
-
+            case 0:
+            case 4:
+            case 5:
+            {
+                if (render_pass == RenderPass::Shadow)
+                {
+                    plane.renderDepth(camera);
+                }
+#if defined(SINGLE_PASS_DEFERRED_PIPELINE) || defined(MULTI_PASS_DEFERRED_PIPELINE)
+                if (render_pass == RenderPass::Deferred)
+                {
+                    plane.render(camera);
+                }
+#elif defined(SINGLE_PASS_FORWARD_PIPELINE)
+                if (render_pass == RenderPass::DepthPrepass)
+                {
+                    plane.renderDepth(camera);
+                }
+                if (render_pass == RenderPass::Forward)
+                {
+                    plane.renderForward(camera);
+                }
+#endif
+            }
+            break;
             default:
                 break;
         }
@@ -451,8 +513,8 @@ class Sample : public RendererSampleWindow
 
     static const int sceneCount = 6;
 
-    const char* descriptions[sceneCount] = {
-        "SIMPLE_PLANE", "SPONZA", "USEFUL_DEPTH_SPLITS", "BLOCKED_VIEW", "PERFECT_DISTRIBUTION", "ALL_IN_ONE_SPOT"};
+    const char* descriptions[sceneCount] = {"SIMPLE_PLANE", "SPONZA",          "USEFUL_DEPTH_SPLITS",
+                                            "BLOCKED_VIEW", "ALL_IN_ONE_SPOT", "PERFECT_DISTRIBUTION"};
 };
 
 int main(const int argc, const char* argv[])

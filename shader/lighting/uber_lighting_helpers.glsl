@@ -145,28 +145,28 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
 
-    if(clusterIndex > clusterListCount - 1)
-    {
-        return vec3(1, 0, 0);
-    }
-    if(clusterIndex < 0)
-    {
-        return vec3(1, 0, 0);
-    }
+    // if(clusterIndex > clusterListCount - 1)
+    // {
+    //     return vec3(1, 0, 0);
+    // }
+    // if(clusterIndex < 0)
+    // {
+    //     return vec3(1, 0, 0);
+    // }
 
     int lightCount           = clusterList[clusterIndex].plCount;
     int baseLightIndexOffset = clusterList[clusterIndex].offset;
 
-    if(baseLightIndexOffset + lightCount - 1 > itemListCount - 1)
-    {
-        return vec3(1, 1, 0);
-    }
+    // if(baseLightIndexOffset + lightCount - 1 > itemListCount - 1)
+    // {
+    //     return vec3(1, 1, 0);
+    // }
 
     for(int i = 0; i < lightCount; i++)
     {
         int lightVectorIndex = itemList[baseLightIndexOffset + i].lightIdx;
-        if(lightVectorIndex >= pointLightCount)
-            return vec3(0, 0, 0);
+        // if(lightVectorIndex >= pointLightCount)
+        //     return vec3(0, 0, 0);
         PointLightData pl = pointLights[lightVectorIndex];
         vec3 lightPosition = (view * vec4(pl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = pl.colorDiffuse;
@@ -209,28 +209,28 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal, flo
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
 
-    if(clusterIndex > clusterListCount - 1)
-    {
-        return vec3(1, 0, 0);
-    }
-    if(clusterIndex < 0)
-    {
-        return vec3(1, 0, 0);
-    }
+    // if(clusterIndex > clusterListCount - 1)
+    // {
+    //     return vec3(1, 0, 0);
+    // }
+    // if(clusterIndex < 0)
+    // {
+    //     return vec3(1, 0, 0);
+    // }
 
     int lightCount           = clusterList[clusterIndex].slCount;
     int baseLightIndexOffset = clusterList[clusterIndex].offset + clusterList[clusterIndex].plCount;
 
-    if(baseLightIndexOffset + lightCount -1 > itemListCount - 1)
-    {
-        return vec3(1, 1, 0);
-    }
+    // if(baseLightIndexOffset + lightCount -1 > itemListCount - 1)
+    // {
+    //     return vec3(1, 1, 0);
+    // }
 
     for(int i = 0; i < lightCount; i++)
     {
         int lightVectorIndex = itemList[baseLightIndexOffset + i].lightIdx;
-        if(lightVectorIndex >= spotLightCount)
-            return vec3(0, 0, 0);
+        // if(lightVectorIndex >= spotLightCount)
+        //     return vec3(0, 0, 0);
         SpotLightData sl = spotLights[lightVectorIndex];
         vec3 lightPosition = (view * vec4(sl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = sl.colorDiffuse;
