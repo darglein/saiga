@@ -171,8 +171,9 @@ bool captureKeyboard()
     return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureKeyboard;
 }
 
-IMConsole::IMConsole(const std::string& name, const Saiga::ivec2& position, const Saiga::ivec2& size)
-    : std::ostream(this), name(name), position(position), size(size)
+IMConsole::IMConsole(const std::string& name, const Saiga::ivec2& position, const Saiga::ivec2& size,
+                     bool write_to_cout)
+    : std::ostream(this), name(name), position(position), size(size), writeToCout(write_to_cout)
 {
 }
 
@@ -228,7 +229,6 @@ void IMConsole::RenderTextArea()
         scrollDownAtNextRender = false;
     }
     ImGui::EndChild();
-
 }
 
 void IMConsole::setOutputFile(const std::string& file)
@@ -424,5 +424,6 @@ void ImGuiParameters::fromConfigFile(const std::string& file)
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 
+ImGui::IMConsole console = ImGui::IMConsole("Log", {0, 0}, {500, 250}, true);
 
 }  // namespace Saiga

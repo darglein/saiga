@@ -22,7 +22,7 @@ class SAIGA_CORE_API IMConsole : public std::ostream, protected std::streambuf
 {
    public:
     IMConsole(const std::string& name = "Console", const Saiga::ivec2& position = {0, 0},
-              const Saiga::ivec2& size = {500, 250});
+              const Saiga::ivec2& size = {500, 250}, bool write_to_cout = false);
 
     void render();
     void BeginWindow();
@@ -216,6 +216,7 @@ struct SAIGA_CORE_API ImGuiParameters
 
 SAIGA_CORE_API void initImGui(const ImGuiParameters& params);
 
-
+// The main console from saiga
+SAIGA_CORE_API extern ImGui::IMConsole console;
 
 }  // namespace Saiga

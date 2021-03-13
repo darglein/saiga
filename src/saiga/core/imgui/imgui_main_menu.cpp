@@ -47,6 +47,22 @@ void MainMenu::AddItem(const std::string& menu, const std::string& item, MainMen
     menus.push_back(men);
 }
 
+void MainMenu::EraseItem(const std::string& menu, const std::string& item)
+{
+    for (auto& men : menus)
+    {
+        if (men.name == menu)
+        {
+            men.items.erase(
+                std::remove_if(men.items.begin(), men.items.end(), [item](Item& i) { return i.name == item; }),
+                men.items.end());
+        }
+    }
+
+    // erase empty menus
+    menus.erase(std::remove_if(menus.begin(), menus.end(), [](Menu& m) { return m.items.empty(); }), menus.end());
+}
+
 void MainMenu::render()
 {
     //    if (ImGui::BeginMainMenuBar())
@@ -93,6 +109,20 @@ int MainMenu::Height()
     return ImGui::GetFrameHeight();
 }
 
+std::ostream& operator<<(std::ostream& strm, const MainMenu& menu)
+{
+    for (auto& m : menu.menus)
+    {
+        strm << "> " << m.name << std::endl;
+        for (auto& i : m.items)
+        {
+            strm << ">>> " << i.name << std::endl;
+        }
+    }
+
+    return strm;
+}
+
 bool Splitter(bool split_vertically, float thickness, float* size1, float* size2, float min_size1, float min_size2,
               float splitter_long_axis_size = -1.0f)
 {
@@ -130,17 +160,8 @@ EditorGui::EditorGui()
 
 void EditorLayout::PlaceWindows()
 {
-    //            ImGui::DockBuilderDockWindow("Log", id_from_layout[WINDOW_POSITION_BOTTOM]);
-    //            ImGui::DockBuilderDockWindow("Properties", id_from_layout[WINDOW_POSITION_LEFT]);
-    // ImGui::DockBuilderDockWindow("Mesh", dock_main_id);
-    // ImGui::DockBuilderDockWindow("3DView", id_from_layout[WINDOW_POSITION_3DVIEW]);
-    // ImGui::DockBuilderDockWindow("Extra", dock_id_prop);
-
-
-    std::cout << "=== Num docks " << initial_layout.size() << std::endl;
     for (auto& windows : initial_layout)
     {
-        // std::cout << "dock " << windows.first.c_str() << " " << id_from_layout[windows.second] << std::endl;
         ImGui::DockBuilderDockWindow(windows.first.c_str(), node_map[windows.second]);
     }
 }
@@ -155,6 +176,7 @@ EditorLayoutL::EditorLayoutL()
 
     RegisterImguiWindow("RendererLighting", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("VideoEncoder", WINDOW_POSITION_LEFT);
 
     RegisterImguiWindow("3DView", WINDOW_POSITION_3DVIEW);
 }
@@ -185,6 +207,7 @@ EditorLayoutU::EditorLayoutU(bool split_left_right, float left_size, float right
     RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("OpenGLWindow", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("VideoEncoder", WINDOW_POSITION_LEFT);
 
     RegisterImguiWindow("RendererLighting", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);

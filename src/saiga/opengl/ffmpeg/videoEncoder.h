@@ -11,12 +11,12 @@
 #    error Saiga was compiled without FFMPEG
 #endif
 #include "saiga/config.h"
+#include "saiga/core/image/all.h"
 
 #include <memory>
 
 namespace Saiga
 {
-class OpenGLWindow;
 class FFMPEGEncoder;
 
 /**
@@ -27,10 +27,12 @@ class SAIGA_OPENGL_API VideoEncoder
 {
    public:
     std::shared_ptr<FFMPEGEncoder> encoder;
-    OpenGLWindow* window;
-    VideoEncoder(OpenGLWindow* window);
+    VideoEncoder(int w, int h);
+    ~VideoEncoder();
 
-    void update();
+
+    void resize(int w, int h);
+    void frame(ImageView<ucvec4> image);
     void renderGUI();
 
     // Can be used externally, for example, by mapping it to a key.
@@ -38,9 +40,13 @@ class SAIGA_OPENGL_API VideoEncoder
     void stopRecording();
     bool isEncoding();
 
+
+    ivec2 Size();
+
    private:
-    int codecId    = 0;
-    std::string file = "out.mp4";
+    int codecId              = 0;
+    std::string file         = "out.mp4";
+    bool should_render_imgui = false;
 };
 
 }  // namespace Saiga
