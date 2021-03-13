@@ -272,8 +272,9 @@ endif()
 if(SAIGA_BUILD_TESTS)
   message(STATUS " ")
 
-
-  if(NOT SAIGA_USE_SUBMODULES)
+  if(SAIGA_USE_SUBMODULES)
+      set(GTEST_TARGETS gtest gtest_main)
+  else(NOT SAIGA_USE_SUBMODULES)
     find_package(GTest CONFIG QUIET)
     if (TARGET GTest::gtest)
       PackageHelperTarget(GTest::gtest GTEST_FOUND)
