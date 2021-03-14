@@ -15,7 +15,7 @@ template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::createGrid(const ivec2& dimension, const vec2& spacing)
 {
     this->vertices.clear();
-    this->indices.clear();
+    this->lines.clear();
 
     vec2 size = dimension.cast<float>().array() * spacing.array();
 
@@ -54,7 +54,7 @@ template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::createAABB(const AABB& box)
 {
     this->vertices.clear();
-    this->indices.clear();
+    this->lines.clear();
 
     for (int i = 0; i < 8; i++)
     {
@@ -75,7 +75,7 @@ template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::createFrustum(const mat4& proj, float farPlaneDistance, bool vulkanTransform)
 {
     this->vertices.clear();
-    this->indices.clear();
+    this->lines.clear();
 
     float d = 1.0f;
     vec4 bl(-1, -1, d, 1);
@@ -154,7 +154,7 @@ template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::createFrustumCV(const mat3& K, float farPlaneDistance, int w, int h)
 {
     this->vertices.clear();
-    this->indices.clear();
+    this->lines.clear();
 
     vec3 bl(0, h, 1);
     vec3 br(w, h, 1);
@@ -205,7 +205,7 @@ template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::createFrustum(const Frustum& frustum)
 {
     this->vertices.clear();
-    this->indices.clear();
+    this->lines.clear();
 
     for (int i = 0; i < 8; ++i)
     {

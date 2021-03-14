@@ -33,9 +33,10 @@ addons:
     - libomp-dev
     - libegl1-mesa-dev
     - libxrandr-dev
+    - libxinerama-dev
     - libglfw3
   snaps:
-    - name: cmake
+    - name: cmake   
       confinement: classic
     
 env:
