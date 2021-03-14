@@ -28,6 +28,9 @@ SAIGA_CORE_API UnifiedModel PlaneMesh(const Plane& plane);
 
 SAIGA_CORE_API UnifiedModel BoxMesh(const AABB& box);
 
+// LineMesh!!!
+SAIGA_CORE_API UnifiedModel GridBoxMesh(const AABB& box, ivec3 steps);
+
 SAIGA_CORE_API UnifiedModel SkyboxMesh(const AABB& box);
 
 

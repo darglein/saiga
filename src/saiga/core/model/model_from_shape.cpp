@@ -312,6 +312,64 @@ UnifiedModel BoxMesh(const AABB& box)
     return model;
 }
 
+UnifiedModel GridBoxMesh(const AABB& box, ivec3 vsteps)
+{
+    UnifiedModel model;
+
+    for (int dim = 0; dim < 3; ++dim)
+    {
+        int steps = vsteps(dim);
+        for (int j = 1; j <= 2; ++j)
+        {
+            int next_dim = (dim + j) % 3;
+            for (int i = 0; i <= steps; ++i)
+            {
+                float alpha = i / float(steps);
+                float x     = box.min(dim) + (box.max(dim) - box.min(dim)) * alpha;
+
+                {
+                    vec3 p1      = box.min;
+                    vec3 p2      = box.max;
+                    p1(dim)      = x;
+                    p2(dim)      = x;
+                    p1(next_dim) = p2(next_dim);
+
+                    int id = model.NumVertices();
+                    model.position.push_back(p1);
+                    model.position.push_back(p2);
+
+                    vec3 n(0, 0, 0);
+                    n(next_dim) = -1;
+                    model.normal.push_back(n);
+                    model.normal.push_back(n);
+
+                    model.lines.push_back({id, id + 1});
+                }
+                if (1)
+                {
+                    vec3 p1      = box.min;
+                    vec3 p2      = box.max;
+                    p1(dim)      = x;
+                    p2(dim)      = x;
+                    p2(next_dim) = p1(next_dim);
+
+                    int id = model.NumVertices();
+                    model.position.push_back(p1);
+                    model.position.push_back(p2);
+
+                    vec3 n(0, 0, 0);
+                    n(next_dim) = 1;
+                    model.normal.push_back(n);
+                    model.normal.push_back(n);
+
+                    model.lines.push_back({id, id + 1});
+                }
+            }
+        }
+    }
+    return model;
+}
+
 UnifiedModel SkyboxMesh(const AABB& box)
 {
     UnifiedModel model = BoxMesh(box);

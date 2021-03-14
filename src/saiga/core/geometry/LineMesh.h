@@ -28,12 +28,14 @@ class LineMesh : public Mesh<_VertexType>
     using Base::size;
     using Base::vertices;
 
+    using Line = Vector<IndexType, 2>;
+
     std::vector<VertexType> toLineList();
 
     void fromLineList();
-    int numLines() { return indices.size() / 2; }
+    int numLines() { return lines.size(); }
 
-    std::vector<IndexType> indices;
+    std::vector<Line> lines;
 
 
     // ========================== Create Functions ============================
@@ -86,11 +88,12 @@ class LineMesh : public Mesh<_VertexType>
 template <typename VertexType, typename IndexType>
 std::vector<VertexType> LineMesh<VertexType, IndexType>::toLineList()
 {
-    SAIGA_ASSERT(indices.size() % 2 == 0);
-    std::vector<VertexType> res(indices.size());
-    for (unsigned int i = 0; i < indices.size(); i++)
+    SAIGA_ASSERT(lines.size() == 0);
+    std::vector<VertexType> res(lines.size() * 2);
+    for (unsigned int i = 0; i < lines.size(); i++)
     {
-        res[i] = vertices[indices[i]];
+        res[i * 2]     = vertices[lines[i](0)];
+        res[i * 2 + 1] = vertices[lines[i](1)];
     }
     return res;
 }
@@ -98,8 +101,11 @@ std::vector<VertexType> LineMesh<VertexType, IndexType>::toLineList()
 template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::fromLineList()
 {
-    indices.resize(vertices.size());
-    for (IndexType i = 0; i < indices.size(); ++i) indices[i] = i;
+    lines.resize(vertices.size() / 2);
+    for (IndexType i = 0; i < lines.size(); ++i)
+    {
+        lines[i] = ivec2(i * 2, i * 2 + 1);
+    }
 }
 
 

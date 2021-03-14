@@ -38,26 +38,7 @@ class TriangleMesh : public Mesh<vertex_t>
     using Base::size;
     using Base::vertices;
 
-#if 0
-    struct SAIGA_ALIGN(4) Face
-    {
-        index_t v1, v2, v3;
-        Face() {}
-        Face(const index_t& v1, const index_t& v2, const index_t& v3) : v1(v1), v2(v2), v3(v3) {}
-        index_t& operator[](int idx)
-        {
-            // assume index_t alignment
-            return *((&v1) + idx);
-        }
-
-        const index_t& operator[](int idx) const
-        {
-            // assume index_t alignment
-            return *((&v1) + idx);
-        }
-    };
-#endif
-    using Face = Vector<index_t, 3>;
+    using Face = Vector<IndexType, 3>;
 
     void transformNormal(const mat4& trafo);
 

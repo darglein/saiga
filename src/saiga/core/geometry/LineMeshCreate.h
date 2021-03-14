@@ -26,9 +26,8 @@ void LineMesh<VertexType, IndexType>::createGrid(const ivec2& dimension, const v
     {
         vec3 p1 = vec3(spacing.x() * i, 0, -size[1]);
         vec3 p2 = vec3(spacing.x() * i, 0, size[1]);
-        indices.push_back(vertices.size());
+        lines.push_back({vertices.size(), vertices.size() + 1});
         vertices.push_back(p1);
-        indices.push_back(vertices.size());
         vertices.push_back(p2);
     }
 
@@ -36,9 +35,8 @@ void LineMesh<VertexType, IndexType>::createGrid(const ivec2& dimension, const v
     {
         vec3 p1 = vec3(-size[0], 0, spacing.y() * i);
         vec3 p2 = vec3(+size[0], 0, spacing.y() * i);
-        indices.push_back(vertices.size());
+        lines.push_back({vertices.size(), vertices.size() + 1});
         vertices.push_back(p1);
-        indices.push_back(vertices.size());
         vertices.push_back(p2);
     }
 
@@ -66,11 +64,11 @@ void LineMesh<VertexType, IndexType>::createAABB(const AABB& box)
     }
 
 
-    indices = {0, 1, 1, 2, 2, 3, 3, 0,
+    lines = {{0, 1}, {1, 2}, {2, 3}, {3, 0},
 
-               4, 5, 5, 6, 6, 7, 7, 4,
+             {4, 5}, {5, 6}, {6, 7}, {7, 4},
 
-               0, 4, 1, 5, 2, 6, 3, 7};
+             {0, 4}, {1, 5}, {2, 6}, {3, 7}};
 }
 
 template <typename VertexType, typename IndexType>
@@ -134,11 +132,11 @@ void LineMesh<VertexType, IndexType>::createFrustum(const mat4& proj, float farP
     }
 
 
-    indices = {0, 1, 0, 2, 0, 3, 0, 4,
+    lines = {{0, 1}, {0, 2}, {0, 3}, {0, 4},
 
-               1, 2, 3, 4, 1, 4, 2, 3,
+             {1, 2}, {3, 4}, {1, 4}, {2, 3},
 
-               5, 7, 6, 7};
+             {5, 7}, {6, 7}};
 }
 
 template <typename VertexType, typename IndexType>
@@ -195,11 +193,11 @@ void LineMesh<VertexType, IndexType>::createFrustumCV(const mat3& K, float farPl
         vertices.push_back(v);
     }
 
-    indices = {0, 1, 0, 2, 0, 3, 0, 4,
+    lines = {{0, 1}, {0, 2}, {0, 3}, {0, 4},
 
-               1, 2, 3, 4, 1, 4, 2, 3,
+             {1, 2}, {3, 4}, {1, 4}, {2, 3},
 
-               5, 7, 6, 7};
+             {5, 7}, {6, 7}};
 }
 
 
@@ -216,39 +214,9 @@ void LineMesh<VertexType, IndexType>::createFrustum(const Frustum& frustum)
         vertices.push_back(v);
     }
 
-    indices = {
-        // near plane
-        0,
-        1,
-        1,
-        3,
-        3,
-        2,
-        2,
-        0,
-        // far plane
-        4,
-        5,
-        5,
-        7,
-        7,
-        6,
-        6,
-        4,
-        // sides
-        0,
-        4,
-        1,
-        5,
-        2,
-        6,
-        3,
-        7,
-    };
-
 #if 1
     vertices.clear();
-    indices.clear();
+    lines.clear();
     auto tris = frustum.ToTriangleList();
 
     for (auto tri : tris)
@@ -266,17 +234,10 @@ void LineMesh<VertexType, IndexType>::createFrustum(const Frustum& frustum)
         v.position = make_vec4(tri.center() + tri.normal(), 1);
         vertices.push_back(v);
 
-        indices.push_back(id + 0);
-        indices.push_back(id + 1);
-
-        indices.push_back(id + 1);
-        indices.push_back(id + 2);
-
-        indices.push_back(id + 2);
-        indices.push_back(id + 0);
-
-        indices.push_back(id + 3);
-        indices.push_back(id + 4);
+        lines.template emplace_back(id + 0, id + 1);
+        lines.template emplace_back(id + 1, id + 2);
+        lines.template emplace_back(id + 2, id + 0);
+        lines.template emplace_back(id + 3, id + 4);
     }
 #endif
 }
