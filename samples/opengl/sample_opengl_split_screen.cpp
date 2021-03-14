@@ -130,7 +130,6 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::GLFW, Deferr
     {
         // Update the camera position
         if (renderer->use_keyboard_input_in_3dview) cameras[activeCamera].update(dt);
-        sun->fitShadowToCamera(&cameras[activeCamera]);
     }
     void interpolate(float dt, float interpolation) override
     {
