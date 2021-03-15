@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/geometry/LineMesh.h"
+#include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/geometry/vertex.h"
 // #include "saiga/core/model/
 #include "saiga/core/image/managedImage.h"
@@ -54,6 +54,9 @@ class SAIGA_CORE_API UnifiedModel
     UnifiedModel() {}
     UnifiedModel(const std::string& file_name);
     ~UnifiedModel();
+
+
+    void Save(const std::string& file_name);
 
     int NumVertices() const { return position.size(); }
     int NumFaces() const { return triangles.size(); }

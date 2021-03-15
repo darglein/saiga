@@ -70,6 +70,16 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
 
 UnifiedModel::~UnifiedModel() {}
 
+void UnifiedModel::Save(const std::string& file_name)
+{
+#ifndef SAIGA_USE_ASSIMP
+    throw std::runtime_error("UnifiedModel::Save requires ASSIMP");
+#else
+    AssimpLoader al;
+    al.SaveModel(*this, file_name);
+#endif
+}
+
 
 UnifiedModel& UnifiedModel::transform(const mat4& T)
 {
@@ -102,7 +112,7 @@ UnifiedModel& UnifiedModel::SetVertexColor(const vec4& c)
 
 UnifiedModel& UnifiedModel::FlipNormals()
 {
-    for(auto& n : normal)
+    for (auto& n : normal)
     {
         n = -n;
     }
