@@ -19,38 +19,72 @@ class Sample : public SampleWindowDeferred
     {
         sun->setIntensity(0.7);
         sun->setAmbientIntensity(0.1);
-        //        AddObject(UnifiedModel("models/teapot.obj"));
-        AddObject(UVSphereMesh(Sphere(vec3(0, 0, 0), 1), 5, 5));
+
+
+        // Triangle meshes
+        AddObject(UVSphereMesh(Sphere(vec3(0, 0, 0), 1), 20, 20));
         AddObject(IcoSphereMesh(Sphere(vec3(0, 0, 0), 1), 3));
         AddObject(CylinderMesh(1, 3, 10));
         AddObject(ConeMesh(Cone(vec3(0, 0, 0), vec3(0, -1, 0), 1, 1), 15));
         AddObject(PlaneMesh(Plane(vec3(0, 0, 0), vec3(1, 1, 1))));
-        //        AddObject(UnifiedModel("models/teapot.obj"));
-        //        AddObject(UnifiedModel("models/teapot.obj"));
+        AddObject(BoxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))));
+        AddObject(SkyboxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))));
+        AddObject(CheckerBoardPlane(ivec2(4, 4), 0.1, Colors::blue, Colors::teal));
+
+        // Line meshes
+        AddObject(GridBoxLineMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1)), ivec3(10, 10, 10)), true);
+        AddObject(GridBoxLineMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1)), ivec3(1, 1, 1)), true);
+        AddObject(GridPlaneLineMesh(ivec2(1, 1), vec2(2, 2)), true);
+        AddObject(FrustumLineMesh(camera.proj, 1, false), true);
+
+        mat3 K  = mat3::Identity();
+        K(0, 0) = 500;
+        K(1, 1) = 500;
+        K(0, 2) = 250;
+        K(1, 2) = 250;
+        AddObject(FrustumCVLineMesh(K, 1, 500, 500), true);
+
+        camera.recalculatePlanes();
+        AddObject(FrustumLineMesh(camera), true);
 
 
         std::cout << "Program Initialized!" << std::endl;
     }
 
-    void AddObject(UnifiedModel model)
+    void AddObject(UnifiedModel model, bool lines = false)
     {
         float d = 2;
 
 
         model.Normalize(1);
 
-        int i = objects.size() % 3;
-        int j = objects.size() / 3;
+        int n = objects.size() + line_objects.size();
+        // Place  them in a 3x3 grid
+        int i = n % 3;
+        int j = n / 3;
 
         SimpleAssetObject sao;
-        auto co = std::make_shared<ColoredAsset>(model);
-        co->setColor(vec4(1, 1, 0, 1));
-        sao.asset = co;
 
-        sao.translateGlobal(vec3(i * d, 1, j * d));
-        sao.calculateModel();
+        if (lines)
+        {
+            auto co = std::make_shared<LineVertexColoredAsset>(model);
+            co->setColor(vec4(1, 1, 0, 1));
+            sao.asset = co;
 
-        objects.push_back(sao);
+            sao.translateGlobal(vec3(i * d, 1, j * d));
+            sao.calculateModel();
+            line_objects.push_back(sao);
+        }
+        else
+        {
+            auto co = std::make_shared<ColoredAsset>(model);
+            co->setColor(vec4(1, 1, 0, 1));
+            sao.asset = co;
+
+            sao.translateGlobal(vec3(i * d, 1, j * d));
+            sao.calculateModel();
+            objects.push_back(sao);
+        }
     }
 
     void render(Camera* cam, RenderPass render_pass) override
@@ -73,6 +107,11 @@ class Sample : public SampleWindowDeferred
                 o.renderWireframe(cam);
             }
             glDisable(GL_POLYGON_OFFSET_LINE);
+
+            for (auto& o : line_objects)
+            {
+                o.renderForward(cam);
+            }
         }
 
         if (render_pass == RenderPass::GUI)
@@ -85,6 +124,7 @@ class Sample : public SampleWindowDeferred
 
    private:
     std::vector<SimpleAssetObject> objects;
+    std::vector<SimpleAssetObject> line_objects;
 };
 
 

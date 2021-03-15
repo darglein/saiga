@@ -4,8 +4,9 @@
  * See LICENSE file for more information.
  */
 
-
 #include "model_from_shape.h"
+
+#include "saiga/core/math/CoordinateSystems.h"
 
 namespace Saiga
 {
@@ -36,7 +37,7 @@ UnifiedModel UVSphereMesh(const Sphere& sphere, int rings, int sectors)
             float x = sphere.r * cos(2 * pi<float>() * s * S) * sin(pi<float>() * r * R);
             float z = sphere.r * sin(2 * pi<float>() * s * S) * sin(pi<float>() * r * R);
 
-            model.position.push_back(vec3(x, y, z));
+            model.position.push_back(vec3(x, y, z).normalized());
             model.normal.push_back(vec3(x, y, z).normalized());
             model.texture_coordinates.push_back(vec2(s * S, r * R));
         }
@@ -312,7 +313,58 @@ UnifiedModel BoxMesh(const AABB& box)
     return model;
 }
 
-UnifiedModel GridBoxMesh(const AABB& box, ivec3 vsteps)
+UnifiedModel SkyboxMesh(const AABB& box)
+{
+    UnifiedModel model = BoxMesh(box);
+    for (auto& t : model.triangles)
+    {
+        ivec3 f2;
+        f2(0) = t(2);
+        f2(1) = t(1);
+        f2(2) = t(0);
+        t     = f2;
+    }
+    return model;
+}
+
+UnifiedModel CheckerBoardPlane(const ivec2& size, float quadSize, const vec4& color1, const vec4& color2)
+{
+    UnifiedModel model;
+    vec4 n(0, 1, 0, 0);
+    for (int i = -size[0]; i < size[0]; ++i)
+    {
+        for (int j = -size[1]; j < size[1]; ++j)
+        {
+            vec4 c            = (j + i % 2) % 2 == 0 ? color1 : color2;
+            VertexNC verts[4] = {
+                {{(float)i, 0.f, (float)j, 1.f}, n, c},
+                {{(float)i, 0.f, j + 1.f, 1.f}, n, c},
+                {{(float)i + 1.f, 0.f, j + 1.f, 1.f}, n, c},
+                {{(float)i + 1.f, 0.f, (float)j, 1.f}, n, c},
+            };
+
+            int v_size = model.position.size();
+            for (int i = 0; i < 4; ++i)
+            {
+                verts[i].position[0] *= quadSize;
+                verts[i].position[2] *= quadSize;
+
+                model.position.push_back(verts[i].position.head<3>());
+                model.normal.push_back(verts[i].normal.head<3>());
+                model.color.push_back(verts[i].color);
+            }
+
+
+            model.triangles.push_back(ivec3(v_size, v_size + 1, v_size + 2));
+            model.triangles.push_back(ivec3(v_size, v_size + 2, v_size + 3));
+        }
+    }
+    return model;
+}
+
+// ============= Line Meshes =============
+
+UnifiedModel GridBoxLineMesh(const AABB& box, ivec3 vsteps)
 {
     UnifiedModel model;
 
@@ -370,53 +422,172 @@ UnifiedModel GridBoxMesh(const AABB& box, ivec3 vsteps)
     return model;
 }
 
-UnifiedModel SkyboxMesh(const AABB& box)
-{
-    UnifiedModel model = BoxMesh(box);
-    for (auto& t : model.triangles)
-    {
-        ivec3 f2;
-        f2(0) = t(2);
-        f2(1) = t(1);
-        f2(2) = t(0);
-        t     = f2;
-    }
-    return model;
-}
-
-UnifiedModel CheckerBoardPlane(const ivec2& size, float quadSize, const vec4& color1, const vec4& color2)
+UnifiedModel GridPlaneLineMesh(const ivec2& dimension, const vec2& spacing)
 {
     UnifiedModel model;
-    vec4 n(0, 1, 0, 0);
-    for (int i = -size[0]; i < size[0]; ++i)
+    vec2 size = dimension.cast<float>().array() * spacing.array();
+
+
+    std::vector<vec3> vertices;
+
+    for (float i = -dimension.x(); i <= dimension.x(); i++)
     {
-        for (int j = -size[1]; j < size[1]; ++j)
-        {
-            vec4 c            = (j + i % 2) % 2 == 0 ? color1 : color2;
-            VertexNC verts[4] = {
-                {{(float)i, 0.f, (float)j, 1.f}, n, c},
-                {{(float)i, 0.f, j + 1.f, 1.f}, n, c},
-                {{(float)i + 1.f, 0.f, j + 1.f, 1.f}, n, c},
-                {{(float)i + 1.f, 0.f, (float)j, 1.f}, n, c},
-            };
+        vec3 p1 = vec3(spacing.x() * i, 0, -size[1]);
+        vec3 p2 = vec3(spacing.x() * i, 0, size[1]);
+        model.lines.push_back({vertices.size(), vertices.size() + 1});
+        vertices.push_back(p1);
+        vertices.push_back(p2);
+    }
 
-            int v_size = model.position.size();
-            for (int i = 0; i < 4; ++i)
-            {
-                verts[i].position[0] *= quadSize;
-                verts[i].position[2] *= quadSize;
-
-                model.position.push_back(verts[i].position.head<3>());
-                model.normal.push_back(verts[i].normal.head<3>());
-                model.color.push_back(verts[i].color);
-            }
+    for (float i = -dimension.y(); i <= dimension.y(); i++)
+    {
+        vec3 p1 = vec3(-size[0], 0, spacing.y() * i);
+        vec3 p2 = vec3(+size[0], 0, spacing.y() * i);
+        model.lines.push_back({vertices.size(), vertices.size() + 1});
+        vertices.push_back(p1);
+        vertices.push_back(p2);
+    }
 
 
-            model.triangles.push_back(ivec3(v_size, v_size + 1, v_size + 2));
-            model.triangles.push_back(ivec3(v_size, v_size + 2, v_size + 3));
-        }
+
+    for (auto v : vertices)
+    {
+        model.position.push_back(v);
     }
     return model;
 }
+
+UnifiedModel FrustumLineMesh(const mat4& proj, float farPlaneDistance, bool vulkanTransform)
+{
+    UnifiedModel model;
+
+    float d = 1.0f;
+    vec4 bl(-1, -1, d, 1);
+    vec4 br(1, -1, d, 1);
+    vec4 tl(-1, 1, d, 1);
+    vec4 tr(1, 1, d, 1);
+
+    mat4 tmp     = (inverse(GL2VulkanNormalizedImage()) * proj);
+    mat4 projInv = vulkanTransform ? inverse(tmp) : inverse(proj);
+
+
+
+    tl = projInv * tl;
+    tr = projInv * tr;
+    bl = projInv * bl;
+    br = projInv * br;
+
+    tl /= tl[3];
+    tr /= tr[3];
+    bl /= bl[3];
+    br /= br[3];
+
+    if (farPlaneDistance > 0)
+    {
+        tl[3] = -tl[2] / farPlaneDistance;
+        tr[3] = -tr[2] / farPlaneDistance;
+        bl[3] = -bl[2] / farPlaneDistance;
+        br[3] = -br[2] / farPlaneDistance;
+
+        tl /= tl[3];
+        tr /= tr[3];
+        bl /= bl[3];
+        br /= br[3];
+    }
+
+
+    //    std::vector<VertexNC> vertices;
+
+    vec4 positions[] = {vec4(0, 0, 0, 1),
+                        tl,
+                        tr,
+                        br,
+                        bl,
+                        0.4f * tl + 0.6f * tr,
+                        0.6f * tl + 0.4f * tr,
+                        0.5f * tl + 0.5f * tr + vec4(0, (tl[1] - bl[1]) * 0.1f, 0, 0)};
+
+    for (int i = 0; i < 8; ++i)
+    {
+        vec4 v = positions[i];
+
+        model.position.push_back(v.head<3>());
+    }
+
+
+    model.lines = {{0, 1}, {0, 2}, {0, 3}, {0, 4},
+
+                   {1, 2}, {3, 4}, {1, 4}, {2, 3},
+
+                   {5, 7}, {6, 7}};
+    return model;
+}
+
+UnifiedModel FrustumCVLineMesh(const mat3& K, float farPlaneDistance, int w, int h)
+{
+    UnifiedModel model;
+    vec3 bl(0, h, 1);
+    vec3 br(w, h, 1);
+    vec3 tl(0, 0, 1);
+    vec3 tr(w, 0, 1);
+
+    mat3 projInv = inverse(K);
+
+    tl = projInv * tl;
+    tr = projInv * tr;
+    bl = projInv * bl;
+    br = projInv * br;
+
+
+    if (farPlaneDistance > 0)
+    {
+        tl *= farPlaneDistance;
+        tr *= farPlaneDistance;
+        bl *= farPlaneDistance;
+        br *= farPlaneDistance;
+    }
+
+    vec3 positions[] = {vec3(0, 0, 0),
+                        tl,
+                        tr,
+                        br,
+                        bl,
+                        0.4f * tl + 0.6f * tr,
+                        0.6f * tl + 0.4f * tr,
+                        0.5f * tl + 0.5f * tr + vec3(0, (tl[1] - bl[1]) * 0.1f, 0)};
+
+    for (int i = 0; i < 8; ++i)
+    {
+        vec3 v = positions[i];
+        model.position.push_back(v);
+    }
+
+    model.lines = {{0, 1}, {0, 2}, {0, 3}, {0, 4},
+
+                   {1, 2}, {3, 4}, {1, 4}, {2, 3},
+
+                   {5, 7}, {6, 7}};
+    return model;
+}
+
+UnifiedModel FrustumLineMesh(const Frustum& frustum)
+{
+    UnifiedModel model;
+
+    auto tris = frustum.ToTriangleList();
+    for (auto tri : tris)
+    {
+        int id = model.NumVertices();
+
+        model.position.push_back(tri.a);
+        model.position.push_back(tri.b);
+        model.position.push_back(tri.c);
+
+        model.lines.push_back({id + 0, id + 1});
+        model.lines.push_back({id + 1, id + 2});
+    }
+    return model;
+}
+
 
 }  // namespace Saiga

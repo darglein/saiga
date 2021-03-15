@@ -75,10 +75,11 @@ class Sample : public SampleWindowForward
         //    frustum.fromLineList();
 
         //    frustum.createGrid({100, 100}, {0.1, 0.1});
-        frustum.createFrustum(camera.proj, 1);
+        frustum = LineVertexColoredAsset(FrustumLineMesh(camera.proj, 1, false));
         frustum.setColor(vec4{0, 1, 0, 1});
 
         frustum.create();
+
 
 
         std::cout << "Program Initialized!" << std::endl;

@@ -35,6 +35,7 @@ addons:
     - libxrandr-dev
     - libxinerama-dev
     - libglfw3
+    - libxcursor-dev
   snaps:
     - name: cmake   
       confinement: classic
