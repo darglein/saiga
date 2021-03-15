@@ -56,9 +56,9 @@ template <typename VertexType, typename IndexType>
 void LineMesh<VertexType, IndexType>::fromLineList()
 {
     lines.resize(vertices.size() / 2);
-    for (IndexType i = 0; i < lines.size(); ++i)
+    for (size_t i = 0; i < lines.size(); ++i)
     {
-        lines[i] = ivec2(i * 2, i * 2 + 1);
+        lines[i] = Line(i * 2, i * 2 + 1);
     }
 }
 
