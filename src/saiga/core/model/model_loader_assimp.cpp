@@ -50,7 +50,6 @@ void AssimpLoader::loadFile(const std::string& _file)
         return;
     }
 
-    Assimp::Importer importer;
     importer.SetPropertyInteger(AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
 
     int flags = aiProcess_Triangulate;

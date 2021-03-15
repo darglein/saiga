@@ -32,6 +32,7 @@ class SAIGA_CORE_API AssimpLoader
     bool verbose = false;
 
     const aiScene* scene = nullptr;
+    Assimp::Importer importer;
 
     int boneCount = 0;
     std::map<std::string, int> boneMap;
