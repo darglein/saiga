@@ -117,6 +117,13 @@ __device__ inline StridedRange<int> GridStrideLoop(int n)
 {
     return ParallelFor(cooperative_groups::this_grid(), n);
 }
+
+#else
+__device__ inline StridedRange<int> GridStrideLoop(int n)
+{
+    ThreadInfo<> ti;
+    return StridedRange<int>(ti.thread_id, n, ti.grid_size);
+}
 #endif
 
 }  // namespace CUDA
