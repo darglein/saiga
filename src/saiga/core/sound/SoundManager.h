@@ -19,7 +19,8 @@
 #include <thread>
 #include <vector>
 
-typedef struct ALCdevice_struct ALCdevice;
+#include <alc.h>
+
 
 namespace Saiga
 {
