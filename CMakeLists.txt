@@ -340,10 +340,10 @@ if (DOXYGEN_FOUND AND SAIGA_BUILD_DOC)
     set(DOXYGEN_MAIN ${CMAKE_CURRENT_LIST_DIR}/docs/main.md)
     # request to configure the file
     configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
-    message(STATUS "Doxygen found. Generate with 'make doc'.")
+    message(STATUS "Doxygen found. Generate with 'make saiga_doc'.")
 
     # note the option ALL which allows to build the docs together with the application
-    add_custom_target( doc
+    add_custom_target( saiga_doc
         COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Generating API documentation with Doxygen"
