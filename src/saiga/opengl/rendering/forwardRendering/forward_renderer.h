@@ -46,16 +46,6 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     inline const char* getColoredShaderSource() { return coloredShaderSource; }
     inline const char* getTexturedShaderSource() { return texturedShaderSource; }
 
-    enum ForwardTimingBlock
-    {
-        TOTAL = 0,
-        FORWARD,
-        FINAL,
-        COUNT,
-    };
-
-    float getBlockTime(ForwardTimingBlock timingBlock) { return timers[timingBlock].getTimeMS(); }
-    virtual float getTotalRenderTime() override { return timers[ForwardTimingBlock::TOTAL].getTimeMS(); }
 
     inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
     {
@@ -72,16 +62,12 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     }
 
    private:
-    int renderWidth  = 0;
-    int renderHeight = 0;
-    std::vector<FilteredMultiFrameOpenGLTimer> timers;
+    int renderWidth        = 0;
+    int renderHeight       = 0;
     bool showLightingImgui = false;
     ShaderLoader shaderLoader;
 
    protected:
-    void startTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].startTimer(); }
-    void stopTimer(ForwardTimingBlock timingBlock) { timers[timingBlock].stopTimer(); }
-
     const char* coloredShaderSource  = "asset/ColoredAsset.glsl";
     const char* texturedShaderSource = "asset/TexturedAsset.glsl";
 

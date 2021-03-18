@@ -19,7 +19,7 @@
 
 namespace Saiga
 {
-RendererLighting::RendererLighting()
+RendererLighting::RendererLighting(GLTimerSystem* timer) : timer(timer)
 {
     createLightMeshes();
     shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
@@ -58,22 +58,7 @@ void RendererLighting::init(int _width, int _height, bool _useTimers)
 {
     this->width  = _width;
     this->height = _height;
-    useTimers    = _useTimers;
 
-    if (useTimers)
-    {
-        timers2.resize(5);
-        for (int i = 0; i < 5; ++i)
-        {
-            timers2[i].create();
-        }
-        timerStrings.resize(5);
-        timerStrings[0] = "Init";
-        timerStrings[1] = "Point Lights";
-        timerStrings[2] = "Spot Lights";
-        timerStrings[3] = "Box Lights";
-        timerStrings[4] = "Directional Lights";
-    }
 
     int shadowSamplesX = round(sqrt((float)shadowSamples));
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER, "#define SHADOWS", 1);
@@ -113,16 +98,6 @@ void RendererLighting::cullLights(Camera* cam)
         }
     }
 }
-
-void RendererLighting::printTimings()
-{
-    if (!useTimers) return;
-    for (int i = 0; i < 5; ++i)
-    {
-        std::cout << "\t " << getTime(i) << "ms " << timerStrings[i] << std::endl;
-    }
-}
-
 
 void RendererLighting::initRender()
 {
@@ -381,31 +356,10 @@ void RendererLighting::renderImGui()
     ImGui::Text("shadowSamples: %d", shadowSamples);
     ImGui::ColorEdit4("clearColor ", &clearColor[0]);
     ImGui::Checkbox("drawDebug", &drawDebug);
-    if (ImGui::Checkbox("useTimers", &useTimers) && useTimers)
-    {
-        timers2.resize(5);
-        for (int i = 0; i < 5; ++i)
-        {
-            timers2[i].create();
-        }
-        timerStrings.resize(5);
-        timerStrings[0] = "Init";
-        timerStrings[1] = "Point Lights";
-        timerStrings[2] = "Spot Lights";
-        timerStrings[3] = "Box Lights";
-        timerStrings[4] = "Directional Lights";
-    }
+
     ImGui::Checkbox("lightDepthTest", &lightDepthTest);
 
 
-    if (useTimers)
-    {
-        ImGui::Text("Render Time (without shadow map computation)");
-        for (int i = 0; i < 5; ++i)
-        {
-            ImGui::Text("  %f ms %s", getTime(i), timerStrings[i].c_str());
-        }
-    }
     ImGui::Checkbox("backFaceShadows", &backFaceShadows);
     ImGui::InputFloat("shadowOffsetFactor", &shadowOffsetFactor, 0.1, 1);
     ImGui::InputFloat("shadowOffsetUnits", &shadowOffsetUnits, 0.1, 1);

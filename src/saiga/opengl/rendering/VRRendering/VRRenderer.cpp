@@ -20,9 +20,6 @@ namespace Saiga
 VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params)
     : OpenGLRenderer(window), params(params)
 {
-    timer.create();
-
-
     if (!vr.init())
     {
         throw std::runtime_error("Could not initialize OpenVR!");
@@ -76,7 +73,6 @@ void VRRenderer::render(const RenderInfo& renderInfo)
 
     glViewport(0, 0, vr.renderWidth(), vr.renderHeight());
 
-    timer.startTimer();
 
     renderEye(&cameraLeft, vr::Hmd_Eye::Eye_Left, framebuffers[0]);
     renderEye(&cameraRight, vr::Hmd_Eye::Eye_Right, framebuffers[1]);
@@ -120,8 +116,6 @@ void VRRenderer::render(const RenderInfo& renderInfo)
     }
 
     if (params.useGlFinish) glFinish();
-
-    timer.stopTimer();
 }
 
 void VRRenderer::renderEye(Camera* camera, vr::Hmd_Eye eye, Framebuffer& target)

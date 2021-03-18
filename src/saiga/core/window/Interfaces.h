@@ -42,11 +42,9 @@ class SAIGA_CORE_API RendererBase
     RenderingInterfaceBase* rendering = nullptr;
 
 
-    virtual void printTimings() {}
     void setRenderObject(RenderingInterfaceBase& r) { rendering = &r; }
 
     virtual void renderImgui() {}
-    virtual float getTotalRenderTime() { return 0; }
 
     virtual void render(const RenderInfo& renderInfo) = 0;
 

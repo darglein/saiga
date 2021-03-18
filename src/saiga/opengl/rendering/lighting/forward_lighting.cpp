@@ -14,7 +14,7 @@ namespace Saiga
 {
 using namespace uber;
 
-ForwardLighting::ForwardLighting() : RendererLighting()
+ForwardLighting::ForwardLighting(GLTimerSystem* timer) : RendererLighting(timer)
 {
     int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
@@ -37,7 +37,6 @@ ForwardLighting::~ForwardLighting() {}
 
 void ForwardLighting::initRender()
 {
-    startTimer(0);
     RendererLighting::initRender();
     lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
     lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
@@ -87,7 +86,6 @@ void ForwardLighting::initRender()
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.directionalLightCount;
-    stopTimer(0);
 }
 
 void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)

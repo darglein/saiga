@@ -29,7 +29,7 @@ namespace Saiga
 class SAIGA_OPENGL_API MultiFrameOpenGLTimer
 {
    public:
-    MultiFrameOpenGLTimer();
+    MultiFrameOpenGLTimer(bool use_time_stamps = true);
     ~MultiFrameOpenGLTimer();
 
     /**
@@ -42,13 +42,18 @@ class SAIGA_OPENGL_API MultiFrameOpenGLTimer
 
     float getTimeMS();
     double getTimeMSd();
-    GLuint64 getTimeNS();
+    uint64_t getTimeNS();
+
+    std::pair<uint64_t, uint64_t> LastMeasurement() { return {begin_time, end_time}; }
 
    private:
     QueryObject queries[2][2];
 
     int queryBackBuffer = 0, queryFrontBuffer = 1;
-    GLuint64 time = 0;
+    uint64_t elapsed_time = 0;
+    uint64_t end_time     = 0;
+    uint64_t begin_time   = 0;
+    bool use_time_stamps;
 
     void swapQueries();
 };

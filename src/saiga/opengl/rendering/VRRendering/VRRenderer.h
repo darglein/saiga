@@ -30,13 +30,10 @@ class SAIGA_OPENGL_API VRRenderer : public OpenGLRenderer
     VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params = VRRenderingParameters());
     virtual ~VRRenderer() {}
 
-    virtual float getTotalRenderTime() override { return timer.getTimeMS(); }
     virtual void render(const RenderInfo& renderInfo) override;
 
    private:
     void renderEye(Camera* camera, vr::Hmd_Eye eye, Framebuffer& target);
-
-    FilteredMultiFrameOpenGLTimer timer;
 
     // for left and right eye
     Framebuffer framebuffers[2];

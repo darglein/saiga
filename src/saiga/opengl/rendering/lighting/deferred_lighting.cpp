@@ -19,7 +19,8 @@
 
 namespace Saiga
 {
-DeferredLighting::DeferredLighting(GBuffer& framebuffer) : gbuffer(framebuffer)
+DeferredLighting::DeferredLighting(GBuffer& framebuffer, GLTimerSystem* timer)
+    : RendererLighting(timer), gbuffer(framebuffer)
 {
     createLightMeshes();
     shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
@@ -138,7 +139,6 @@ void DeferredLighting::cullLights(Camera* cam)
 
 void DeferredLighting::initRender()
 {
-    startTimer(0);
     RendererLighting::initRender();
 
     lightAccumulationBuffer.bind();
@@ -157,22 +157,6 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 {
     // Does nothing
     RendererLighting::render(cam, viewPort);
-    //    gbuffer.blitDepth(lightAccumulationBuffer.getId());
-
-
-
-    // viewport is maybe different after shadow map rendering
-    //    glViewport(0, 0, width, height);
-
-
-
-    //    glClear( GL_STENCIL_BUFFER_BIT );
-    //    glClear( GL_COLOR_BUFFER_BIT );
-
-    //    glDepthMask(GL_FALSE);
-    //    glDisable(GL_DEPTH_TEST);
-
-
 
     lightAccumulationBuffer.bind();
 
@@ -186,7 +170,6 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT);
 #endif
-    //    blitGbufferDepthToAccumulationBuffer();
 
 
 
@@ -215,24 +198,26 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     //    glClearStencil(0x0);
     //    glClear(GL_STENCIL_BUFFER_BIT);
     currentStencilId = 1;
-    stopTimer(0);
 
     assert_no_glerror();
-    startTimer(1);
-    for (auto& l : pointLights)
-    {
-        renderLightVolume<std::shared_ptr<PointLight>, std::shared_ptr<PointLightShader>>(
-            pointLightMesh, l, cam, viewPort, pointLightShader, pointLightShadowShader, pointLightVolumetricShader);
-    }
-    stopTimer(1);
 
-    startTimer(2);
-    for (auto& l : spotLights)
     {
-        renderLightVolume<std::shared_ptr<SpotLight>, std::shared_ptr<SpotLightShader>>(
-            spotLightMesh, l, cam, viewPort, spotLightShader, spotLightShadowShader, spotLightVolumetricShader);
+        auto tim = timer->CreateScope("PointLights");
+        for (auto& l : pointLights)
+        {
+            renderLightVolume<std::shared_ptr<PointLight>, std::shared_ptr<PointLightShader>>(
+                pointLightMesh, l, cam, viewPort, pointLightShader, pointLightShadowShader, pointLightVolumetricShader);
+        }
     }
-    stopTimer(2);
+
+    {
+        auto tim = timer->CreateScope("Spotlights");
+        for (auto& l : spotLights)
+        {
+            renderLightVolume<std::shared_ptr<SpotLight>, std::shared_ptr<SpotLightShader>>(
+                spotLightMesh, l, cam, viewPort, spotLightShader, spotLightShadowShader, spotLightVolumetricShader);
+        }
+    }
 
     assert_no_glerror();
 
@@ -247,23 +232,23 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
     glDisable(GL_DEPTH_TEST);
 
-    startTimer(4);
-
-    if (stencilCulling)
     {
-        glStencilFunc(GL_NOTEQUAL, 0xFF, 0xFF);
-        //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
-        //    glStencilFunc(GL_ALWAYS, 0xFF, 0xFF);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        auto tim = timer->CreateScope("Directional");
+        if (stencilCulling)
+        {
+            glStencilFunc(GL_NOTEQUAL, 0xFF, 0xFF);
+            //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
+            //    glStencilFunc(GL_ALWAYS, 0xFF, 0xFF);
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        }
+
+
+        // volumetric directional lights are not supported
+        if (renderVolumetric) lightAccumulationBuffer.drawTo({0});
+
+        renderDirectionalLights(cam, viewPort, false);
+        renderDirectionalLights(cam, viewPort, true);
     }
-
-
-    // volumetric directional lights are not supported
-    if (renderVolumetric) lightAccumulationBuffer.drawTo({0});
-
-    renderDirectionalLights(cam, viewPort, false);
-    renderDirectionalLights(cam, viewPort, true);
-    stopTimer(4);
 
     if (stencilCulling)
     {

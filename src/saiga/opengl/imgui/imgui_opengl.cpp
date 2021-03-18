@@ -160,6 +160,116 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData* draw_data)
     assert_no_glerror();
 }
 
+GLTimerSystem::GLTimerSystem() {}
+
+GLTimerSystem::ScopedTimingSection GLTimerSystem::CreateScope(const std::string& name)
+{
+    return GLTimerSystem::ScopedTimingSection(GetTimer(name));
+}
+
+GLTimerSystem::TimeData& GLTimerSystem::GetTimer(const std::string& name)
+{
+    std::unique_ptr<TimeData>& td = data[name];
+    if (!td)
+    {
+        td = std::make_unique<TimeData>(current_depth);
+    }
+    return *td;
+}
+
+void GLTimerSystem::BeginFrame()
+{
+    GetTimer("Frame").Start();
+}
+
+void GLTimerSystem::EndFrame()
+{
+    GetTimer("Frame").Stop();
+    SAIGA_ASSERT(current_depth == 0);
+
+    if (capture_next)
+    {
+        for (auto& st : data)
+        {
+            st.second->capture = st.second->last_measurement;
+        }
+        capture_next = false;
+        has_capture  = true;
+    }
+}
+
+void GLTimerSystem::Imgui()
+{
+    if (ImGui::Begin("Frame Time"))
+    {
+        //        ImGui::Text("Render Time");
+
+        if (ImGui::Button("Capture"))
+        {
+            console << "Capturing Timings in next frame..." << std::endl;
+            capture_next = true;
+        }
+
+        if (has_capture)
+        {
+            TimeData& total_time = GetTimer("Frame");
+            auto total_diff      = total_time.capture.second - total_time.capture.first;
+
+
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            // Here we are using InvisibleButton() as a convenience to 1) advance the cursor and 2) allows us to use
+            // IsItemHovered() But you can also draw directly and poll mouse/keyboard by yourself. You can manipulate
+            // the cursor using GetCursorPos() and SetCursorPos(). If you only use the ImDrawList API, you can notify
+            // the owner window of its extends by using SetCursorPos(max).
+            ImVec2 canvas_pos  = ImGui::GetCursorScreenPos();     // ImDrawList API uses screen coordinates!
+            ImVec2 canvas_size = ImGui::GetContentRegionAvail();  // Resize canvas to what's available
+            if (canvas_size.x < 50.0f) canvas_size.x = 50.0f;
+            if (canvas_size.y < 50.0f) canvas_size.y = 50.0f;
+            draw_list->AddRectFilled(canvas_pos, ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y),
+                                     IM_COL32(150, 150, 150, 255));
+            draw_list->AddRect(canvas_pos, ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y),
+                               IM_COL32(255, 255, 255, 255));
+
+
+            float box_h = 30;
+
+            for (auto& st : data)
+            {
+                TimeData& td = *st.second;
+
+                float x1_rel = float(td.capture.first - total_time.capture.first) / float(total_diff);
+                float x2_rel = float(td.capture.second - total_time.capture.first) / float(total_diff);
+
+
+
+                ImVec2 box_pos  = canvas_pos + ImVec2(canvas_size.x * x1_rel, td.depth * box_h);
+                ImVec2 box_size = ImVec2(canvas_size.x * (x2_rel - x1_rel), box_h);
+                draw_list->AddRect(box_pos, box_pos + box_size, IM_COL32(255, 255, 255, 255));
+
+                draw_list->AddText(box_pos, IM_COL32(255, 255, 255, 255), st.first.c_str());
+
+                if (!st.second->measurements_ms.empty())
+                {
+                    // ImGui::Text("%s: %f", st.first.c_str(), st.second->measurements_ms.back());
+                }
+            }
+        }
+    }
+    ImGui::End();
+}
+
+GLTimerSystem::TimeData::TimeData(int& current_depth) : measurements_ms(1000, {0, 0}), current_depth(current_depth)
+{
+    timer.create();
+}
+
+void GLTimerSystem::TimeData::AddTime(Measurement t)
+{
+    last_measurement                                = t;
+    measurements_ms[count % measurements_ms.size()] = t;
+    count++;
+}
+
 
 
 }  // namespace Saiga

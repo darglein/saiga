@@ -180,6 +180,7 @@ EditorLayoutL::EditorLayoutL()
     RegisterImguiWindow("VideoEncoder", WINDOW_POSITION_LEFT);
 
     RegisterImguiWindow("Log", EditorLayoutL::WINDOW_POSITION_BOTTOM);
+    RegisterImguiWindow("Frame Time", EditorLayoutL::WINDOW_POSITION_BOTTOM);
 
     RegisterImguiWindow("3DView", WINDOW_POSITION_3DVIEW);
 }
@@ -216,7 +217,7 @@ EditorLayoutU::EditorLayoutU(bool split_left_right, float left_size, float right
     RegisterImguiWindow("RendererLighting", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);
 
-
+    RegisterImguiWindow("Frame Time", EditorLayoutU::WINDOW_POSITION_BOTTOM);
     RegisterImguiWindow("Log", EditorLayoutU::WINDOW_POSITION_BOTTOM);
     RegisterImguiWindow("3DView", WINDOW_POSITION_3DVIEW);
 }

@@ -7,10 +7,11 @@
 #include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
 
 namespace Saiga
 {
-CPUPlaneClusterer::CPUPlaneClusterer(ClustererParameters _params) : Clusterer(_params) {}
+CPUPlaneClusterer::CPUPlaneClusterer(GLTimerSystem* timer, ClustererParameters _params) : Clusterer(timer, _params) {}
 
 CPUPlaneClusterer::~CPUPlaneClusterer() {}
 
@@ -354,18 +355,19 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     lightAssignmentTimer.stop();
 
-    startTimer(1);
-    int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-    clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
+    {
+        auto tim            = timer->CreateScope("clusterupdate");
+        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
+        clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
-    int itemListSize = sizeof(clusterItem) * itemCount;
-    // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
-    itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
+        int itemListSize = sizeof(clusterItem) * itemCount;
+        // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
+        itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
 
-    infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
-    clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
-    itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
-    stopTimer(1);
+        infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
+        clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
+        itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+    }
     assert_no_glerror();
 }
 
@@ -646,26 +648,25 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         debugCluster.updateBuffer();
         updateDebug = false;
     }
+    {
+        auto tim                    = timer->CreateScope("info");
+        clusterInfoBuffer.tileDebug = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
 
-    startTimer(0);
-    clusterInfoBuffer.tileDebug = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+        itemBuffer.itemList.clear();
+        itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+        clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
 
-    itemBuffer.itemList.clear();
-    itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-    clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
+        int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
+        int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+        SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
 
-    int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
-    int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-    SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
+        itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
 
-    itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
+        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
+        clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
 
-    int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-    clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
-
-    infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
-
-    stopTimer(0);
+        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+    }
 }
 
 bool CPUPlaneClusterer::fillImGui()

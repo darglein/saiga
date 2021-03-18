@@ -23,7 +23,7 @@ class SAIGA_OPENGL_API QueryObject
     QueryObject(const QueryObject& other);
 
     // Create/destroy the underlying OpenGL objects.
-    void create();
+    void create(bool initial_record);
     void destroy();
 
     /**
@@ -32,6 +32,10 @@ class SAIGA_OPENGL_API QueryObject
      * This call return immediately.
      */
     void record();
+
+
+    void begin();
+    void end();
 
     bool isAvailable();
 

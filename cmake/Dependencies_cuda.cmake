@@ -11,20 +11,18 @@ unset(CMAKE_CUDA_COMPILER)
 
 find_package(CUDAToolkit 10.2)
 
+
 #Check Language is an extra module so we need to include it.
 include(CheckLanguage)
 check_language(CUDA)
 
-set(SAIGA_USE_CUDA_TOOLKIT 0)
-if(CMAKE_CUDA_COMPILER)
+if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
   enable_language(CUDA)
   message(STATUS "Enabled CUDA. Version: ${CUDAToolkit_VERSION}" )
   set(CUDA_FOUND TRUE)
   set(SAIGA_USE_CUDA 1)
   set(MODULE_CUDA 1)
-  if(CUDAToolkit_FOUND)
-    set(SAIGA_USE_CUDA_TOOLKIT 1)
-    endif()
+  set(SAIGA_USE_CUDA_TOOLKIT 1)
 else()
   message(STATUS "CUDA not found.")
   set(CUDA_FOUND FALSE)
@@ -45,23 +43,37 @@ if(CUDA_FOUND)
   PackageHelperTarget(CUDA::nvToolsExt CUDA_FOUND)
 
 
+
   if(SAIGA_CUDA_RDC)
     # for dynamic parallelism
     list(APPEND SAIGA_CUDA_FLAGS "--relocatable-device-code=true")
   endif()
 
 
-  set(SAIGA_CUDA_ARCH "52-virtual")
+  # 30 GTX 7xx
+  # 52 GTX 9xx
+  # 61 GTX 10xx
+  # 75 RTX 20xx
+  # 86 RTX 30xx
+  if(${CUDA_VERSION} VERSION_LESS "11")
+    set(SAIGA_CUDA_ARCH "30-virtual" "52-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
+  else()
+    # CUDA 11 and later doesn't support 30 anymore
+    set(SAIGA_CUDA_ARCH "52-virtual" "75-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
+  endif()
+
+  message(STATUS "SAIGA_CUDA_ARCH ${SAIGA_CUDA_ARCH}")
+
 
   if(NOT MSVC)
     list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=-fopenmp")
 
     if(SAIGA_FULL_OPTIMIZE OR SAIGA_ARCHNATIVE)
-       list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=-march=native")
+      list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=-march=native")
     endif()
   else()
     list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=/openmp")
-	list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=/W0")
+    list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=/W0")
   endif()
 
   list(APPEND SAIGA_CUDA_FLAGS "-use_fast_math")
