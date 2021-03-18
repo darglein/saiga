@@ -164,13 +164,13 @@ vec3 Camera::ViewToWorld(vec3 viewPosition) const
 
 Ray Camera::PixelRay(vec2 pixel, int w, int h, bool flip_y)
 {
-    if(flip_y)
+    if (flip_y)
     {
         pixel.y() = h - pixel.y();
     }
 
     vec3 p = ViewToWorld(NormalizedToView(ImageToNormalized(pixel, 1, w, h)));
-    Ray r( (p - getPosition()).normalized(), getPosition());
+    Ray r((p - getPosition()).normalized(), getPosition());
     return r;
 }
 
@@ -203,10 +203,6 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
     this->zNear           = _zNear;
     this->zFar            = _zFar;
     this->vulkanTransform = vulkanTransform;
-
-    tang = (float)tan(fovy * 0.5);
-
-
     recomputeProj(aspect, 1);
 }
 
@@ -229,12 +225,15 @@ void PerspectiveCamera::recomputeProj(int output_w, int output_h)
     }
 }
 
+
+mat3 PerspectiveCamera::CVK(int w, int h)
+{
+    mat3 K = GLProjectionMatrix2CVCamera(proj, w, h);
+    return K;
+}
+
 void PerspectiveCamera::recalculatePlanes()
 {
-    //    vec3 right = vec3(model[0]);
-    //    vec3 up    = vec3(model[1]);
-    //    vec3 dir   = -vec3(model[2]);
-
     vec3 right = make_vec3(model.col(0));
     vec3 up    = make_vec3(model.col(1));
     vec3 dir   = make_vec3(-model.col(2));
@@ -247,11 +246,11 @@ void PerspectiveCamera::recalculatePlanes()
     // far plane
     planes[1] = Plane(farplanepos, dir);
 
-
-    float nh = zNear * tang;
-    float nw = nh * aspect;
-    float fh = zFar * tang;
-    float fw = fh * aspect;
+    float tang = tan(fovy * 0.5);
+    float nh   = zNear * tang;
+    float nw   = nh * aspect;
+    float fh   = zFar * tang;
+    float fw   = fh * aspect;
 
     // calcuate 4 corners of nearplane
     vertices[0] = nearplanepos + nh * up - nw * right;
@@ -279,11 +278,6 @@ void PerspectiveCamera::recalculatePlanes()
 
     boundingSphere.r   = r;
     boundingSphere.pos = sphereMid;
-
-    //    std::cout<<"recalculatePlanes"<<endl;
-    //    std::cout<<zNear<<" "<<zFar<<endl;
-    //    std::cout<<sphereMid<<" "<<fbr<<endl;
-    //    std::cout<<r<<endl;
 }
 
 std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca)
@@ -306,7 +300,7 @@ void OrthographicCamera::setProj(float _left, float _right, float _bottom, float
     this->zNear  = _near;
     this->zFar   = _far;
 
-    recomputeProj(0,0);
+    recomputeProj(0, 0);
 }
 
 void OrthographicCamera::setProj(AABB bb)

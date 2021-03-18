@@ -35,7 +35,8 @@ class SAIGA_OPENGL_API ImGui_GL_Renderer : public ImGuiRenderer
 
 namespace ImGui
 {
-void Texture(Saiga::TextureBase* texture, const ImVec2& size, bool flip_y, const ImVec4& tint_col = ImVec4(1, 1, 1, 1),
-             const ImVec4& border_col = ImVec4(0, 0, 0, 0));
+SAIGA_OPENGL_API void Texture(Saiga::TextureBase* texture, const ImVec2& size, bool flip_y,
+                              const ImVec4& tint_col   = ImVec4(1, 1, 1, 1),
+                              const ImVec4& border_col = ImVec4(0, 0, 0, 0));
 
 }
