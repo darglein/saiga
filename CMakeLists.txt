@@ -155,16 +155,6 @@ set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
 set(INSTALL_DOC       "share/${LIB_NAME}/doc")
 set(INSTALL_SAMPLES   "share/${LIB_NAME}/bin")
 
-if(ajshgsdgasdgdsg)
-    set(INSTALL_SHARE     "share/${LIB_NAME}")
-    set(INSTALL_SHADER    "share/${LIB_NAME}/shader")
-    set(INSTALL_BIN       "bin")
-    set(INSTALL_SHARED    ".")
-    set(INSTALL_LIB       "lib")
-    set(INSTALL_INCLUDE   "include/${LIB_NAME}")
-    set(INSTALL_DOC       "share/doc/${LIB_NAME}")
-
-endif()
 
 
 message(STATUS "\nCompiler Flags:")
@@ -345,9 +335,9 @@ set_target_properties(uninstall_saiga PROPERTIES FOLDER CMakePredefinedTargets)
 find_package(Doxygen)
 if (DOXYGEN_FOUND AND SAIGA_BUILD_DOC)
     # set input and output files
-    set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/docs/Doxyfile.in)
+    set(DOXYGEN_IN ${CMAKE_CURRENT_LIST_DIR}/docs/Doxyfile.in)
     set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-    set(DOXYGEN_MAIN ${CMAKE_SOURCE_DIR}/docs/main.md)
+    set(DOXYGEN_MAIN ${CMAKE_CURRENT_LIST_DIR}/docs/main.md)
     # request to configure the file
     configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
     message(STATUS "Doxygen found. Generate with 'make doc'.")
