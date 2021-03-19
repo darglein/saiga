@@ -169,10 +169,10 @@ GLTimerSystem::ScopedTimingSection GLTimerSystem::CreateScope(const std::string&
 
 GLTimerSystem::TimeData& GLTimerSystem::GetTimer(const std::string& name)
 {
-    std::unique_ptr<TimeData>& td = data[name];
+    std::shared_ptr<TimeData>& td = data[name];
     if (!td)
     {
-        td = std::make_unique<TimeData>(current_depth);
+        td = std::make_shared<TimeData>(current_depth);
     }
     return *td;
 }

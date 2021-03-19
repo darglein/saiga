@@ -101,7 +101,7 @@ class SAIGA_OPENGL_API GLTimerSystem
 
    private:
     int current_depth = 0;
-    std::map<std::string, std::unique_ptr<TimeData>> data;
+    std::map<std::string, std::shared_ptr<TimeData>> data;
 
     bool has_capture  = false;
     bool capture_next = false;
