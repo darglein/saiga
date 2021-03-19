@@ -144,7 +144,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     lighting.cullLights(camera);
 
     {
-        auto tim = timer->CreateScope("Depth");
+        auto tim = timer->CreateScope("Shadow");
         renderDepthMaps();
     }
 
@@ -170,9 +170,6 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     {
         auto tim = timer->CreateScope("Write depth");
         writeGbufferDepthToCurrentFramebuffer();
-    }
-    else
-    {
     }
 #if 0
 
@@ -237,7 +234,10 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         postProcessor.renderLast(target_framebuffer, outputWidth, outputHeight);
 
 
-        if (params.useGlFinish) glFinish();
+        if (params.useGlFinish)
+        {
+            glFinish();
+        }
     }
 
     assert_no_glerror();

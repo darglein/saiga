@@ -570,14 +570,16 @@ void GLTimerSystem::Imgui()
                     float h = el.box_max(1) - el.box_min(1);
 
 
+                    if (ts.x() + 4 < w)
+                    {
+                        vec2 text_pos = el.box_min + vec2((w - ts(0)) * 0.5, (h - ts(1) - 2) * 0.5);
+                        //                    draw_list->AddText(text_pos, IM_COL32(255, 255, 255, 255),
+                        //                    el.data->stats.Name.c_str());
 
-                    vec2 text_pos = el.box_min + vec2((w - ts(0)) * 0.5, (h - ts(1) - 2) * 0.5);
-                    //                    draw_list->AddText(text_pos, IM_COL32(255, 255, 255, 255),
-                    //                    el.data->stats.Name.c_str());
 
-
-                    draw_list->AddText(ImGui::GetFont(), 20, text_pos, ImGui::GetColorU32(ImGuiCol_Text),
-                                       el.data->stats.Name.c_str());
+                        draw_list->AddText(ImGui::GetFont(), 20, text_pos, ImGui::GetColorU32(ImGuiCol_Text),
+                                           el.data->stats.Name.c_str());
+                    }
                 }
             }
 
