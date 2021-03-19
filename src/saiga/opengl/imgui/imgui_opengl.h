@@ -42,33 +42,56 @@ class SAIGA_OPENGL_API GLTimerSystem
     // One measurement is given by the start and end tick (in ns)
     using Measurement = std::pair<uint64_t, uint64_t>;
 
+
+    struct TimeStats
+    {
+        int depth;
+        std::string Name;
+        // statistics (all in ms)
+        float stat_last   = 0;
+        float stat_min    = 0;
+        float stat_max    = 0;
+        float stat_median = 0;
+        float stat_mean   = 0;
+        float stat_sdev   = 0;
+    };
+
     struct TimeData
     {
         MultiFrameOpenGLTimer timer;
 
-        // Past times stored in ms
+        TimeStats stats;
+
         std::vector<Measurement> measurements_ms;
         Measurement last_measurement = {0, 0};
         Measurement capture          = {0, 0};
-        int depth                    = 0;
 
-        int count = 0;
+        int count   = 0;
+        bool active = false;
 
-        TimeData(int& current_depth);
+        TimeData(int& current_depth, int samples);
         void AddTime(Measurement t);
 
         void Start()
         {
-            depth = current_depth++;
-            timer.startTimer();
+            if (current_depth >= 0)
+            {
+                stats.depth = current_depth++;
+                timer.startTimer();
+            }
         }
         void Stop()
         {
-            timer.stopTimer();
-            current_depth--;
-            SAIGA_ASSERT(depth == current_depth);
-            AddTime(timer.LastMeasurement());
+            if (current_depth >= 0)
+            {
+                timer.stopTimer();
+                current_depth--;
+                SAIGA_ASSERT(stats.depth == current_depth);
+                AddTime(timer.LastMeasurement());
+            }
         }
+
+        std::vector<float> ComputeTimes();
 
        private:
         int& current_depth;
@@ -100,11 +123,23 @@ class SAIGA_OPENGL_API GLTimerSystem
 
 
    private:
+    int num_samples = 100;
+
+    // we count the number of frames so that the expensive statistic recomputation is only done
+    // once every #num_samples frames.
+    int current_frame = 0;
+
+
     int current_depth = 0;
     std::map<std::string, std::shared_ptr<TimeData>> data;
 
-    bool has_capture  = false;
-    bool capture_next = false;
+    bool has_capture = false;
+    bool capturing   = true;
+    int current_view = 1;
+
+    bool render_window       = true;
+    bool normalize_time      = true;
+    float absolute_scale_fps = 60;
 };
 
 

@@ -375,6 +375,12 @@ void initImGui(const ImGuiParameters& params)
     colors[ImGuiCol_TitleBgActive]    = COL_ALPHA(color_highlight_low, 1.00f);
     colors[ImGuiCol_MenuBarBg]        = COL_ALPHA(color_background_low, 0.47f);
 
+    colors[ImGuiCol_Tab]                = COL_ALPHA(color_background_medium, 1.f);
+    colors[ImGuiCol_TabHovered]         = COL_ALPHA(color_highlight_high, 1.f);
+    colors[ImGuiCol_TabActive]          = COL_ALPHA(color_highlight_low, 1.f);
+    colors[ImGuiCol_TabUnfocused]       = COL_ALPHA(color_background_low, 1.f);
+    colors[ImGuiCol_TabUnfocusedActive] = COL_ALPHA(color_background_low, 1.f);
+
     colors[ImGuiCol_ScrollbarBg]          = COL_ALPHA(color_background_medium, 1.00f);
     colors[ImGuiCol_ScrollbarGrab]        = COL_ALPHA(color_background_high, 0.8);
     colors[ImGuiCol_ScrollbarGrabHovered] = COL_ALPHA(color_highlight_low, 0.8);
