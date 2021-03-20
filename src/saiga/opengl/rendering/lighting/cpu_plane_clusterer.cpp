@@ -43,15 +43,13 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             {
                 PointLightClusterData& plc = pointLightsClusterData[i];
                 vec3 sphereCenter          = cam->WorldToView(plc.world_center);
-                float sphereRadius         = plc.radius;
-                clusterLoop(sphereCenter, sphereRadius, i, true, itemCount);
+                clusterLoop(sphereCenter, plc.radius, i, true, itemCount);
             }
             for (int i = 0; i < spotLightsClusterData.size(); ++i)
             {
                 SpotLightClusterData& slc = spotLightsClusterData[i];
                 vec3 sphereCenter         = cam->WorldToView(slc.world_center);
-                float sphereRadius        = slc.radius;
-                clusterLoop(sphereCenter, sphereRadius, i, false, itemCount);
+                clusterLoop(sphereCenter, slc.radius, i, false, itemCount);
             }
         }
         else
@@ -111,14 +109,28 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             }
         }
 
-        if (itemCount > itemBuffer.itemList.size())
+        bool adaptSize = false;
+        if (itemCount > itemBuffer.itemList.size() * 0.5)
         {
+            adaptSize = true;
             do
             {
                 avgAllowedItemsPerCluster *= 2;
                 itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-            } while (itemCount > itemBuffer.itemList.size());
+            } while (itemCount > itemBuffer.itemList.size() * 0.5);
+        }
+        if (itemCount < itemBuffer.itemList.size() * 0.25)
+        {
+            adaptSize = true;
+            do
+            {
+                avgAllowedItemsPerCluster /= 2;
+                itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+            } while (itemCount < itemBuffer.itemList.size() * 0.25);
+        }
 
+        if (adaptSize)
+        {
             auto tim = timer->CreateScope("Info Update");
 
             clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
@@ -256,7 +268,6 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
 
     int centerOutsideZ = 0;
     int centerOutsideY = 0;
-
 
     while (z0 <= z1 && planesZ[z0].distance(sphereCenter) >= sphereRadius)
     {

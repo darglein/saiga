@@ -32,6 +32,8 @@ class SAIGA_OPENGL_API SixPlaneClusterer : public Clusterer
         std::array<Plane, 6> planes;
     };
 
+    int avgAllowedItemsPerCluster = 128;
+    std::vector<std::vector<int16_t>> clusterCache;
     std::vector<cluster_bounds> culling_cluster;
 };
 }  // namespace Saiga

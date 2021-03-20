@@ -25,84 +25,132 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     lightAssignmentTimer.start();
 
-    // memset(itemBuffer.itemList.data(), 0, sizeof(clusterItem) * itemBuffer.itemList.size());
     const int maxClusterItemsPerCluster = 512;  // TODO Paul: Hardcoded?
-    int16_t visibleLightIndices[maxClusterItemsPerCluster];
+
+    for (int c = 0; c < clusterBuffer.clusterList.size(); ++c)
+    {
+        clusterCache[c].clear();
+        clusterCache[c].push_back(0);  // PL Count
+    }
+
+    int itemCount = 0;
+
+    for (int i = 0; i < pointLightsClusterData.size(); ++i)
+    {
+        PointLightClusterData& plc = pointLightsClusterData[i];
+        vec3 sphereCenter          = cam->WorldToView(plc.world_center);
+        for (int c = 0; c < culling_cluster.size(); ++c)
+        {
+            bool intersection          = true;
+            const auto& cluster_planes = culling_cluster[c].planes;
+            for (int p = 0; p < 6; ++p)
+            {
+                if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
+                {
+                    intersection = false;
+                    break;
+                }
+            }
+            if (intersection)
+            {
+                clusterCache[c].push_back(i);
+                clusterCache[c][0]++;
+                itemCount++;
+            }
+        }
+    }
+
+    for (int i = 0; i < spotLightsClusterData.size(); ++i)
+    {
+        SpotLightClusterData& plc = spotLightsClusterData[i];
+        vec3 sphereCenter         = cam->WorldToView(plc.world_center);
+        for (int c = 0; c < culling_cluster.size(); ++c)
+        {
+            bool intersection          = true;
+            const auto& cluster_planes = culling_cluster[c].planes;
+            for (int p = 0; p < 6; ++p)
+            {
+                if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
+                {
+                    intersection = false;
+                    break;
+                }
+            }
+            if (intersection)
+            {
+                clusterCache[c].push_back(i);
+                itemCount++;
+            }
+        }
+    }
+
+    bool adaptSize = false;
+    if (itemCount > itemBuffer.itemList.size() * 0.5)
+    {
+        adaptSize = true;
+        do
+        {
+            avgAllowedItemsPerCluster *= 2;
+            itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+        } while (itemCount > itemBuffer.itemList.size() * 0.5);
+    }
+    if (itemCount < itemBuffer.itemList.size() * 0.25)
+    {
+        adaptSize = true;
+        do
+        {
+            avgAllowedItemsPerCluster /= 2;
+            itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+        } while (itemCount < itemBuffer.itemList.size() * 0.25);
+    }
+
+    if (adaptSize)
+    {
+        auto tim = timer->CreateScope("Info Update");
+
+        clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
+        clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+
+        int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
+        int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+        SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
+
+        itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize);
+
+        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+    }
 
     int globalOffset = 0;
 
-    for (int c = 0; c < culling_cluster.size(); ++c)
+    for (int c = 0; c < clusterCache.size(); ++c)
     {
-        const auto& cluster_planes = culling_cluster[c].planes;
-
-        int visiblePLCount = 0;
-        for (int i = 0; i < pointLightsClusterData.size(); ++i)
-        {
-            PointLightClusterData& plc = pointLightsClusterData[i];
-            bool intersection          = true;
-            vec3 sphereCenter          = cam->WorldToView(plc.world_center);
-            for (int p = 0; p < 6; ++p)
-            {
-                if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
-                {
-                    intersection = false;
-                    break;
-                }
-            }
-            if (intersection)
-            {
-                if (visiblePLCount >= maxClusterItemsPerCluster) break;
-
-                visibleLightIndices[visiblePLCount] = i;
-                visiblePLCount++;
-            }
-        }
-
-        int visibleSLCount = 0;
-        for (int i = 0; i < spotLightsClusterData.size(); ++i)
-        {
-            SpotLightClusterData& plc = spotLightsClusterData[i];
-            bool intersection         = true;
-            vec3 sphereCenter         = cam->WorldToView(plc.world_center);
-            for (int p = 0; p < 6; ++p)
-            {
-                if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
-                {
-                    intersection = false;
-                    break;
-                }
-            }
-            if (intersection)
-            {
-                if (visiblePLCount + visibleSLCount >= maxClusterItemsPerCluster) break;
-
-                visibleLightIndices[visiblePLCount + visibleSLCount] = i;
-                visibleSLCount++;
-            }
-        }
-
+        auto cl             = clusterCache[c];
         cluster& gpuCluster = clusterBuffer.clusterList.at(c);
-        gpuCluster.offset   = globalOffset;
-        globalOffset += std::ceil(visiblePLCount * 0.5f);
-        globalOffset += std::ceil(visibleSLCount * 0.5f);
 
-        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), &visibleLightIndices[0], maxClusterItemsPerCluster * sizeof(int16_t));
+        gpuCluster.offset = globalOffset;
+        SAIGA_ASSERT(gpuCluster.offset < itemBuffer.itemList.size(), "Too many items!");
+        gpuCluster.plCount = cl[0];
+        gpuCluster.slCount = cl.size() - 1 - cl[0];
+        globalOffset += std::ceil(gpuCluster.plCount * 0.5f);
+        globalOffset += std::ceil(gpuCluster.slCount * 0.5f);
+        if (cl.size() < 2)
+        {
+            continue;
+        }
 
-        gpuCluster.plCount = visiblePLCount;
-        gpuCluster.slCount = visibleSLCount;
+        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), &cl[1], (cl.size() - 1) * sizeof(int16_t));
     }
 
     lightAssignmentTimer.stop();
     cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
-    timerIndex = (timerIndex + 1) % 100;
-
+    timerIndex                     = (timerIndex + 1) % 100;
 
     {
         auto tim            = timer->CreateScope("ClusterUpdate");
         int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
         clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
-        int itemListSize = sizeof(clusterItem) * itemBuffer.itemList.size();
+        int itemListSize = sizeof(int32_t) * itemCount;
         // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
         itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
 
@@ -110,6 +158,7 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
         itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
     }
+
     assert_no_glerror();
 }
 
@@ -148,6 +197,8 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     clusterBuffer.clusterList.clear();
     clusterBuffer.clusterList.resize(clusterCount);
     clusterInfoBuffer.clusterListCount = clusterCount;
+    clusterCache.clear();
+    clusterCache.resize(clusterCount);
 
     culling_cluster.clear();
     culling_cluster.resize(clusterCount);
@@ -301,12 +352,11 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     }
 
     {
-        auto tim = timer->CreateScope("Info Update");
-        itemBuffer.itemList.clear();
-        int maxClusterItemsPerCluster = 512;  // TODO Paul: Hardcoded?
+        auto tim                    = timer->CreateScope("Info Update");
+        clusterInfoBuffer.tileDebug = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
 
-        clusterInfoBuffer.tileDebug = screenSpaceDebug ? maxClusterItemsPerCluster : 0;
-        itemBuffer.itemList.resize(maxClusterItemsPerCluster / 2 * clusterCount);
+        itemBuffer.itemList.clear();
+        itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
         clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
 
         int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
