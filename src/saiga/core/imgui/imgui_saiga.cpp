@@ -5,6 +5,7 @@
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/ini/ini.h"
+#include "saiga/core/util/statistics.h"
 #include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"

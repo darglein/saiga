@@ -77,13 +77,12 @@ void LightAccumulationShader::uploadLightAccumulationtexture(std::shared_ptr<Tex
 
 
 void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params,
-                         std::shared_ptr<Texture> LightAccumulationTexture, bool _useTimers)
+                         std::shared_ptr<Texture> LightAccumulationTexture)
 {
     this->params    = params;
     this->width     = width;
     this->height    = height;
     this->gbuffer   = gbuffer;
-    this->useTimers = _useTimers;
 
     createFramebuffers();
 
@@ -182,9 +181,7 @@ void PostProcessor::render()
     for (int i = 0; i < effects; ++i)
     {
         switchBuffer();
-        if (useTimers) shaderTimer[i].startTimer();
         applyShader(postProcessingEffects[i]);
-        if (useTimers) shaderTimer[i].stopTimer();
     }
 
     //    shaderTimer[effects-1].startTimer();
@@ -204,30 +201,7 @@ void PostProcessor::setPostProcessingEffects(
 {
     assert_no_glerror();
     this->postProcessingEffects = postProcessingEffects;
-    createTimers();
     assert_no_glerror();
-}
-
-void PostProcessor::createTimers()
-{
-    shaderTimer.clear();
-
-    if (!useTimers) return;
-
-    shaderTimer.resize(postProcessingEffects.size());
-    for (auto& t : shaderTimer)
-    {
-        t.create();
-    }
-}
-
-void PostProcessor::printTimings()
-{
-    if (!useTimers) return;
-    for (unsigned int i = 0; i < postProcessingEffects.size(); ++i)
-    {
-        std::cout << "\t" << shaderTimer[i].getTimeMS() << "ms " << postProcessingEffects[i]->name << std::endl;
-    }
 }
 
 void PostProcessor::resize(int width, int height)

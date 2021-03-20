@@ -67,7 +67,7 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     if (cullLights) lighting.cullLights(camera);
 
     {
-        auto tim = timer->CreateScope("Forward + Shade");
+        auto tim = timer->Measure("Forward + Shade");
         renderingInterface->render(camera, RenderPass::Forward);
     }
     lighting.render(camera, viewport);

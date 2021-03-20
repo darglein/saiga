@@ -38,7 +38,7 @@ ForwardLighting::~ForwardLighting() {}
 
 void ForwardLighting::initRender()
 {
-    auto tim = timer->CreateScope("Light Init");
+    auto tim = timer->Measure("Light Init");
     RendererLighting::initRender();
     lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
     lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
@@ -92,7 +92,7 @@ void ForwardLighting::initRender()
 
 void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
 {
-    auto tim = timer->CreateScope("Light Render");
+    auto tim = timer->Measure("Light Render");
     // Does nothing
     RendererLighting::render(cam, viewPort);
 

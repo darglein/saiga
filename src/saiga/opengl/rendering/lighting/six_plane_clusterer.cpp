@@ -75,7 +75,7 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
 
     {
-        auto tim            = timer->CreateScope("ClusterUpdate");
+        auto tim            = timer->Measure("ClusterUpdate");
         int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
         clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
@@ -278,7 +278,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     }
 
     {
-        auto tim = timer->CreateScope("InfoUpdate");
+        auto tim = timer->Measure("InfoUpdate");
         itemBuffer.itemList.clear();
         int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
 

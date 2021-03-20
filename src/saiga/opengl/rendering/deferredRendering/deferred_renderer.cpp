@@ -56,8 +56,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
 
 
 
-    postProcessor.init(renderWidth, renderHeight, &gbuffer, params.ppp, lighting.lightAccumulationTexture,
-                       params.useGPUTimers);
+    postProcessor.init(renderWidth, renderHeight, &gbuffer, params.ppp, lighting.lightAccumulationTexture);
 
 
     quadMesh.fromMesh(FullScreenQuad());
@@ -125,7 +124,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     //    for (auto c : renderInfo.cameras)
     {
         //        auto camera = c.first;
-        auto tim = timer->CreateScope("Geometry");
+        auto tim = timer->Measure("Geometry");
         bindCamera(camera);
 
         setViewPort(viewport);
@@ -144,19 +143,19 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     lighting.cullLights(camera);
 
     {
-        auto tim = timer->CreateScope("Shadow");
+        auto tim = timer->Measure("Shadow");
         renderDepthMaps();
     }
 
     {
-        auto tim = timer->CreateScope("Lighting");
+        auto tim = timer->Measure("Lighting");
         bindCamera(camera);
         setViewPort(viewport);
         renderLighting({camera, viewport});
     }
 
     {
-        auto tim = timer->CreateScope("Forward");
+        auto tim = timer->Measure("Forward");
         renderingInterface->render(camera, RenderPass::Forward);
     }
 
@@ -168,7 +167,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     if (params.writeDepthToOverlayBuffer)
     {
-        auto tim = timer->CreateScope("Write depth");
+        auto tim = timer->Measure("Write depth");
         writeGbufferDepthToCurrentFramebuffer();
     }
 #if 0
@@ -197,14 +196,14 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     // postprocessor's 'currentbuffer' will still be bound after render
     {
-        auto tim = timer->CreateScope("Post Processing");
+        auto tim = timer->Measure("Post Processing");
         postProcessor.render();
     }
 
 
     if (params.useSMAA)
     {
-        auto tim = timer->CreateScope("SMAA");
+        auto tim = timer->Measure("SMAA");
         smaa->render(postProcessor.getCurrentTexture(), postProcessor.getTargetBuffer());
         postProcessor.switchBuffer();
         postProcessor.bindCurrentBuffer();
@@ -213,7 +212,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     // write depth to default framebuffer
     if (params.writeDepthToDefaultFramebuffer)
     {
-        auto tim = timer->CreateScope("copy depth");
+        auto tim = timer->Measure("copy depth");
         //        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         postProcessor.bindCurrentBuffer();
         writeGbufferDepthToCurrentFramebuffer();
@@ -222,7 +221,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
 
     {
-        auto tim = timer->CreateScope("Final");
+        auto tim = timer->Measure("Final");
         glViewport(0, 0, renderWidth, renderHeight);
         if (renderDDO)
         {

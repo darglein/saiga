@@ -90,7 +90,7 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
 
 
     {
-        auto tim = timer->CreateScope("Clear");
+        auto tim = timer->Measure("Clear");
         clearGBuffer();
     }
     assert_no_glerror();
@@ -98,7 +98,7 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
     assert_no_glerror();
 
     {
-        auto tim = timer->CreateScope("Geometry");
+        auto tim = timer->Measure("Geometry");
         camera->recalculatePlanes();
         bindCamera(camera);
         setViewPort(viewport);
@@ -109,7 +109,7 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
     // renderDepthMaps();
 
     {
-        auto tim = timer->CreateScope("Lighting");
+        auto tim = timer->Measure("Lighting");
         target_framebuffer->bind();
         renderLighting({camera, viewport});
     }
@@ -118,7 +118,7 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
 
 
     {
-        auto tim = timer->CreateScope("Forward");
+        auto tim = timer->Measure("Forward");
         bindCamera(camera);
         setViewPort(viewport);
         renderingInterface->render(camera, RenderPass::Forward);
