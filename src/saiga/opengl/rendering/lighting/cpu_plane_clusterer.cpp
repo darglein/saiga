@@ -207,7 +207,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     if (lightsDebug && updateLightsDebug)
     {
-        lightClustersDebug.lineWidth = 2;
+        lightClustersDebug.lineWidth = 3;
 
         lightClustersDebug.setModelMatrix(cam->getModelMatrix());  // is inverse view.
         lightClustersDebug.translateLocal(vec3(0, 0, -0.0001f));
@@ -472,7 +472,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     // const vec3 eyeView(0.0); Not required because it is zero.
     PointVertex v;
 
-    v.color = vec3(0.5, 0.125, 0);
+    v.color = vec3(1.0, 0.75, 0);
 
     vec3 p0, p1, p2;
 
@@ -684,7 +684,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
     if (clusterDebug && updateDebug)
     {
-        debugCluster.lineWidth = 1;
+        debugCluster.lineWidth = 2;
 
         debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
         debugCluster.translateLocal(vec3(0, 0, -0.0001f));

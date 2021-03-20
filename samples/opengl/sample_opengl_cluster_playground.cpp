@@ -105,8 +105,6 @@ class Sample : public RendererSampleWindow
         boxAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
-        currentPlayground = 5;
-
         setupPlayground(currentPlayground);
 
         std::cout << "Program Initialized!" << std::endl;

@@ -61,8 +61,8 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         for (int i = 0; i < spotLightsClusterData.size(); ++i)
         {
             SpotLightClusterData& plc = spotLightsClusterData[i];
-            bool intersection          = true;
-            vec3 sphereCenter          = cam->WorldToView(plc.world_center);
+            bool intersection         = true;
+            vec3 sphereCenter         = cam->WorldToView(plc.world_center);
             for (int p = 0; p < 6; ++p)
             {
                 if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
@@ -232,7 +232,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
                 {
                     PointVertex v;
 
-                    v.color = vec3(0.5, 0.125, 0);
+                    v.color = vec3(1.0, 0.75, 0);
 
                     v.position = viewNearClusterBL;
                     debugCluster.lines.push_back(v);
@@ -288,7 +288,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 
     if (clusterDebug)
     {
-        debugCluster.lineWidth = 1;
+        debugCluster.lineWidth = 2;
 
         debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
         debugCluster.translateLocal(vec3(0, 0, -0.0001f));
