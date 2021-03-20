@@ -7,6 +7,7 @@
 #include "model_loader_assimp.h"
 
 #include "saiga/core/util/fileChecker.h"
+#include "saiga/core/util/tostring.h"
 
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
 #    include "saiga/core/util/assert.h"
@@ -14,6 +15,26 @@
 #    include <iostream>
 namespace Saiga
 {
+static vec3 convert_color(aiColor3D aiv)
+{
+    return vec3(aiv.r, aiv.g, aiv.b);
+}
+
+static vec4 convert_color(aiColor4D aiv)
+{
+    return vec4(aiv.r, aiv.g, aiv.b, aiv.a);
+}
+
+static vec3 convert_vector(aiVector3D aiv)
+{
+    return vec3(aiv.x, aiv.y, aiv.z);
+}
+static aiVector3D convert_vector(vec3 aiv)
+{
+    return aiVector3D(aiv.x(), aiv.y(), aiv.z());
+}
+
+
 AssimpLoader::AssimpLoader(const std::string& _file) : file(_file)
 {
     loadFile(file);
@@ -50,13 +71,13 @@ void AssimpLoader::loadFile(const std::string& _file)
 
     if (verbose)
     {
-        printInfo();
+        printInfo(scene);
     }
 
     loadBones();
 }
 
-void AssimpLoader::printInfo()
+void AssimpLoader::printInfo(const aiScene* scene)
 {
     std::cout << ">> AssimpLoader: " << file << " ";
     std::cout << "Cameras " << scene->mNumCameras << ", Lights " << scene->mNumLights << ", Materials "
@@ -88,21 +109,6 @@ void AssimpLoader::printInfo()
     }
 }
 
-static vec3 convert_color(aiColor3D aiv)
-{
-    return vec3(aiv.r, aiv.g, aiv.b);
-}
-
-static vec4 convert_color(aiColor4D aiv)
-{
-    return vec4(aiv.r, aiv.g, aiv.b, aiv.a);
-}
-
-static vec3 convert_vector(aiVector3D aiv)
-{
-    return vec3(aiv.x, aiv.y, aiv.z);
-}
-
 
 
 static UnifiedMaterial ConvertMaterial(const aiMaterial* material)
@@ -124,26 +130,28 @@ static UnifiedMaterial ConvertMaterial(const aiMaterial* material)
     material->GetTexture(aiTextureType_DIFFUSE, 0, &texture_diffuse);
     material->GetTexture(aiTextureType_EMISSIVE, 0, &texture_emissive);
 
-    std::cout << "Texture Counts: " << material->GetTextureCount(aiTextureType_NONE) << " "
-              << material->GetTextureCount(aiTextureType_DIFFUSE) << " "
-              << material->GetTextureCount(aiTextureType_SPECULAR) << " "
-              << material->GetTextureCount(aiTextureType_AMBIENT) << " "
-              << material->GetTextureCount(aiTextureType_EMISSIVE) << " "
-              << material->GetTextureCount(aiTextureType_HEIGHT) << " "
-              << material->GetTextureCount(aiTextureType_NORMALS) << " "
-              << material->GetTextureCount(aiTextureType_SHININESS) << " "
-              << material->GetTextureCount(aiTextureType_OPACITY) << " "
-              << material->GetTextureCount(aiTextureType_DISPLACEMENT) << " "
-              << material->GetTextureCount(aiTextureType_LIGHTMAP) << " "
-              << material->GetTextureCount(aiTextureType_REFLECTION) << " "
-              << material->GetTextureCount(aiTextureType_BASE_COLOR) << " "
-              << material->GetTextureCount(aiTextureType_NORMAL_CAMERA) << " "
-              << material->GetTextureCount(aiTextureType_EMISSION_COLOR) << " "
-              << material->GetTextureCount(aiTextureType_METALNESS) << " "
-              << material->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) << " "
-              << material->GetTextureCount(aiTextureType_AMBIENT_OCCLUSION) << " "
-              << material->GetTextureCount(aiTextureType_UNKNOWN) << std::endl;
-
+    if (0)
+    {
+        std::cout << "Texture Counts: " << material->GetTextureCount(aiTextureType_NONE) << " "
+                  << material->GetTextureCount(aiTextureType_DIFFUSE) << " "
+                  << material->GetTextureCount(aiTextureType_SPECULAR) << " "
+                  << material->GetTextureCount(aiTextureType_AMBIENT) << " "
+                  << material->GetTextureCount(aiTextureType_EMISSIVE) << " "
+                  << material->GetTextureCount(aiTextureType_HEIGHT) << " "
+                  << material->GetTextureCount(aiTextureType_NORMALS) << " "
+                  << material->GetTextureCount(aiTextureType_SHININESS) << " "
+                  << material->GetTextureCount(aiTextureType_OPACITY) << " "
+                  << material->GetTextureCount(aiTextureType_DISPLACEMENT) << " "
+                  << material->GetTextureCount(aiTextureType_LIGHTMAP) << " "
+                  << material->GetTextureCount(aiTextureType_REFLECTION) << " "
+                  << material->GetTextureCount(aiTextureType_BASE_COLOR) << " "
+                  << material->GetTextureCount(aiTextureType_NORMAL_CAMERA) << " "
+                  << material->GetTextureCount(aiTextureType_EMISSION_COLOR) << " "
+                  << material->GetTextureCount(aiTextureType_METALNESS) << " "
+                  << material->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) << " "
+                  << material->GetTextureCount(aiTextureType_AMBIENT_OCCLUSION) << " "
+                  << material->GetTextureCount(aiTextureType_UNKNOWN) << std::endl;
+    }
 
 
     material->Get(AI_MATKEY_COLOR_DIFFUSE, color_diffuse);
@@ -294,6 +302,97 @@ UnifiedModel AssimpLoader::Model()
     }
 
     return model;
+}
+
+void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
+{
+    aiScene scene;
+
+
+    scene.mRootNode = new aiNode("root");
+
+
+    scene.mMaterials    = new aiMaterial*[1];
+    scene.mNumMaterials = 1;
+    scene.mMaterials[0] = new aiMaterial();
+
+
+    scene.mMeshes                    = new aiMesh*[1];
+    scene.mNumMeshes                 = 1;
+    scene.mMeshes[0]                 = new aiMesh();
+    scene.mMeshes[0]->mMaterialIndex = 0;
+
+    scene.mRootNode->mMeshes    = new unsigned int[1];
+    scene.mRootNode->mMeshes[0] = 0;
+    scene.mRootNode->mNumMeshes = 1;
+
+    auto pMesh = scene.mMeshes[0];
+
+
+    if (model.HasPosition())
+    {
+        pMesh->mNumVertices = model.position.size();
+        pMesh->mVertices    = new aiVector3D[pMesh->mNumVertices];
+        for (int i = 0; i < pMesh->mNumVertices; ++i)
+        {
+            pMesh->mVertices[i] = convert_vector(model.position[i]);
+        }
+    }
+
+    if (model.HasNormal())
+    {
+        pMesh->mNormals = new aiVector3D[pMesh->mNumVertices];
+        for (int i = 0; i < pMesh->mNumVertices; ++i)
+        {
+            pMesh->mNormals[i] = convert_vector(model.normal[i]);
+        }
+    }
+
+
+    if (model.HasColor())
+    {
+        pMesh->mColors[0] = new aiColor4D[pMesh->mNumVertices];
+        for (int i = 0; i < pMesh->mNumVertices; ++i)
+        {
+            auto c               = model.color[i];
+            pMesh->mColors[0][i] = aiColor4D(c(0), c(1), c(2), c(3));
+        }
+    }
+
+    if (model.triangles.size() > 0)
+    {
+        pMesh->mNumFaces = model.triangles.size();
+        pMesh->mFaces    = new aiFace[pMesh->mNumFaces];
+
+        for (int i = 0; i < pMesh->mNumFaces; ++i)
+        {
+            pMesh->mFaces[i].mNumIndices = 3;
+            pMesh->mFaces[i].mIndices    = new unsigned int[3];
+            for (int j = 0; j < 3; ++j)
+            {
+                pMesh->mFaces[i].mIndices[j] = model.triangles[i](j);
+            }
+        }
+    }
+
+    std::string ending = fileEnding(file);
+
+
+    Assimp::ExportProperties properties;
+
+    if (model.triangles.empty() && model.lines.empty())
+    {
+        // This is probably a point cloud
+        properties.SetPropertyBool(AI_CONFIG_EXPORT_POINT_CLOUDS, true);
+    }
+
+
+    Assimp::Exporter exporter;
+    if (exporter.Export(&scene, ending.c_str(), file.c_str(), 0, &properties) != aiReturn_SUCCESS)
+    {
+        std::cout << exporter.GetErrorString() << std::endl;
+        throw std::runtime_error("assimp export failed");
+    }
 }
 
 

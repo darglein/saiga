@@ -90,7 +90,7 @@ struct SAIGA_OPENGL_API ClustererParameters
 class SAIGA_OPENGL_API Clusterer
 {
    public:
-    Clusterer(ClustererParameters _params = ClustererParameters());
+    Clusterer(GLTimerSystem* timer, ClustererParameters _params = ClustererParameters());
     Clusterer& operator=(Clusterer& c) = delete;
     virtual ~Clusterer();
 
@@ -122,17 +122,7 @@ class SAIGA_OPENGL_API Clusterer
     // Binds Cluster and Item ShaderStorageBuffers at the end.
     virtual void clusterLights(Camera* cam, const ViewPort& viewPort) = 0;
 
-    void printTimings()
-    {
-        if (!useTimers) return;
-        // For now:
-        for (int i = 0; i < 2; ++i)
-        {
-            std::cout << "\t " << getTime(i) << "ms " << timerStrings[i] << std::endl;
-        }
-        std::cout << "\t " << lightAssignmentTimer.getTimeMS() << "ms "
-                  << "CPU Light Assignment" << std::endl;
-    };
+
 
     void renderImGui(bool* p_open = NULL);
 
@@ -147,33 +137,19 @@ class SAIGA_OPENGL_API Clusterer
 
     std::vector<SpotLightClusterData> spotLightsClusterData;
 
-    std::vector<FilteredMultiFrameOpenGLTimer> gpuTimers;
     Timer lightAssignmentTimer;
-    std::vector<std::string> timerStrings;
-    void startTimer(int timer)
-    {
-        if (useTimers) gpuTimers[timer].startTimer();
-    }
-    void stopTimer(int timer)
-    {
-        if (useTimers) gpuTimers[timer].stopTimer();
-    }
-    float getTime(int timer)
-    {
-        if (!useTimers) return 0;
-        return gpuTimers[timer].getTimeMS();
-    }
+
 
    protected:
     int width, height;
 
+    GLTimerSystem* timer;
     int screenSpaceTileSize = 128;
     int depthSplits         = 0;
     mat4 cached_projection;
     bool clustersDirty = true;
 
     bool clusterThreeDimensional = false;
-    bool useTimers;
 
     bool clusterDebug = false;
     bool updateDebug  = false;

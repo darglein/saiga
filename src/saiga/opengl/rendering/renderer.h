@@ -13,12 +13,16 @@
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/uniformBuffer.h"
 
+#ifdef SAIGA_USE_FFMPEG
+#    include "saiga/opengl/ffmpeg/videoEncoder.h"
+#endif
+
 namespace Saiga
 {
 struct SAIGA_OPENGL_API RenderingParameters
 {
     // adds a 'glfinish' at the end of the rendering. usefull for debugging.
-    bool useGlFinish = true;
+    bool useGlFinish = false;
 
 
     vec4 clearColor = vec4(0, 0, 0, 0);
@@ -53,7 +57,6 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
 
 
     void ResizeTarget(int windowWidth, int windowHeight);
-    virtual void printTimings() override {}
     void bindCamera(Camera* cam);
 
     // Converts pixel coordinates of the window (which you get from glfw)
@@ -64,6 +67,7 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
     ivec2 WindowCoordinatesToViewport(ivec2 window_coords) { return window_coords - viewport_offset; }
 
     std::shared_ptr<ImGui_GL_Renderer> imgui;
+    std::shared_ptr<GLTimerSystem> timer;
 
     int outputWidth = -1, outputHeight = -1;
     UniformBuffer cameraBuffer;
@@ -80,8 +84,12 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
     bool use_keyboard_input_in_3dview = true;
 
     ivec2 viewport_offset = ivec2(0, 0);
-    ivec2 viewport_size = ivec2(0, 0);
+    ivec2 viewport_size   = ivec2(0, 0);
 
+#ifdef SAIGA_USE_FFMPEG
+    bool record_view_port_only = true;
+    std::shared_ptr<VideoEncoder> encoder;
+#endif
 };
 
 inline void setViewPort(const ViewPort& vp)

@@ -15,6 +15,11 @@ namespace Saiga
 {
 SampleWindowForward::SampleWindowForward() : StandaloneWindow("config.ini")
 {
+    // Define GUI layout
+    auto editor_layout = std::make_unique<EditorLayoutL>();
+    editor_layout->RegisterImguiWindow("Saiga Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
+    editor_gui.SetLayout(std::move(editor_layout));
+
     // create a perspective camera
     float aspect = window->getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 50.0f);
@@ -58,11 +63,6 @@ void SampleWindowForward::render(Camera* camera, RenderPass render_pass)
     }
     else if (render_pass == RenderPass::GUI)
     {
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);
-        ImGui::Begin("An Imgui Window :D");
-
-        ImGui::End();
     }
 }
 void SampleWindowForward::keyPressed(int key, int scancode, int mods)

@@ -22,6 +22,9 @@ template <>
 SAIGA_CORE_API std::vector<Vertex> UnifiedModel::VertexList() const;
 
 template <>
+SAIGA_CORE_API std::vector<VertexC> UnifiedModel::VertexList() const;
+
+template <>
 SAIGA_CORE_API std::vector<VertexNC> UnifiedModel::VertexList() const;
 
 
@@ -36,7 +39,7 @@ template <>
 SAIGA_CORE_API std::vector<BoneVertexCD> UnifiedModel::VertexList() const;
 
 template <typename IndexType>
-std::vector<Vector<IndexType, 3>> UnifiedModel::IndexList() const
+std::vector<Vector<IndexType, 3>> UnifiedModel::TriangleIndexList() const
 {
     std::vector<Vector<IndexType, 3>> result;
     result.reserve(triangles.size());
@@ -46,5 +49,18 @@ std::vector<Vector<IndexType, 3>> UnifiedModel::IndexList() const
     }
     return result;
 }
+
+template <typename IndexType>
+std::vector<Vector<IndexType, 2>> UnifiedModel::LineIndexList() const
+{
+    std::vector<Vector<IndexType, 2>> result;
+    result.reserve(lines.size());
+    for (auto& t : lines)
+    {
+        result.emplace_back(t.cast<IndexType>());
+    }
+    return result;
+}
+
 
 }  // namespace Saiga

@@ -174,7 +174,6 @@ class Sample : public SampleWindowDeferred
         for (auto l : directional_lights)
         {
             l->active = (current_type == 2);
-            l->fitShadowToCamera(&camera);
             l->fitNearPlaneToScene(bounding_box);
         }
     }
@@ -193,12 +192,11 @@ class Sample : public SampleWindowDeferred
 
         if (render_pass == RenderPass::GUI)
         {
-            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
-            ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_Once);
-            ImGui::Begin("Lighting");
-
-            static const char* types[3] = {"Point Light", "Spot Light", "Directional Light"};
-            ImGui::Combo("Codec", &current_type, types, 3);
+            if (ImGui::Begin("Saiga Sample"))
+            {
+                static const char* types[3] = {"Point Light", "Spot Light", "Directional Light"};
+                ImGui::Combo("Codec", &current_type, types, 3);
+            }
 
             ImGui::End();
         }

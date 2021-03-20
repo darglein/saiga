@@ -27,7 +27,7 @@ struct SAIGA_CORE_API Vertex
     Vertex(const vec4& position) : position(position) {}
 
     bool operator==(const Vertex& other) const;
-    friend std::ostream& operator<<(std::ostream& os, const Vertex& vert);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Vertex& vert);
 };
 
 struct SAIGA_CORE_API VertexN : public Vertex
@@ -41,7 +41,7 @@ struct SAIGA_CORE_API VertexN : public Vertex
     VertexN(const vec4& position, const vec4& normal) : Vertex(position), normal(normal) {}
 
     bool operator==(const VertexN& other) const;
-    friend std::ostream& operator<<(std::ostream& os, const VertexN& vert);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const VertexN& vert);
 };
 
 struct SAIGA_CORE_API VertexC : public Vertex
@@ -74,7 +74,7 @@ struct SAIGA_CORE_API VertexNT : public VertexN
     }
 
     bool operator==(const VertexNT& other) const;
-    friend std::ostream& operator<<(std::ostream& os, const VertexNT& vert);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const VertexNT& vert);
 };
 
 struct SAIGA_CORE_API VertexNTD : public VertexNT
@@ -90,7 +90,7 @@ struct SAIGA_CORE_API VertexNTD : public VertexNT
     VertexNTD(const vec4& position, const vec4& normal, const vec2& texture) : VertexNT(position, normal, texture) {}
 
     bool operator==(const VertexNTD& other) const;
-    friend std::ostream& operator<<(std::ostream& os, const VertexNTD& vert);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const VertexNTD& vert);
 };
 
 
@@ -112,7 +112,7 @@ struct SAIGA_CORE_API VertexNC : public VertexN
     VertexNC(const VertexNT& v) : VertexNC(v.position, v.normal) {}
 
     bool operator==(const VertexNC& other) const;
-    friend std::ostream& operator<<(std::ostream& os, const VertexNC& vert);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const VertexNC& vert);
 };
 
 

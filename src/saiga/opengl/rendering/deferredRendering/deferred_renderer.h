@@ -82,34 +82,6 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     void renderImgui() override;
 
 
-    enum DeferredTimings
-    {
-        TOTAL = 0,
-        GEOMETRYPASS,
-        SSAOT,
-        DEPTHMAPS,
-        LIGHTING,
-        POSTPROCESSING,
-        LIGHTACCUMULATION,
-        OVERLAY,
-        FINAL,
-        SMAATIME,
-        COUNT,
-    };
-
-    float getTime(DeferredTimings timer)
-    {
-        if (!params.useGPUTimers && timer != TOTAL) return 0;
-        return timers[timer].getTimeMS();
-    }
-    float getUnsmoothedTimeMS(DeferredTimings timer)
-    {
-        if (!params.useGPUTimers && timer != TOTAL) return 0;
-        return timers[timer].MultiFrameOpenGLTimer::getTimeMS();
-    }
-    float getTotalRenderTime() override { return getUnsmoothedTimeMS(DeferredRenderer::DeferredTimings::TOTAL); }
-
-    void printTimings() override;
     void Resize(int outputWidth, int outputHeight);
 
     int getRenderWidth() { return renderWidth; }
@@ -141,7 +113,6 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
     IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
-    std::vector<FilteredMultiFrameOpenGLTimer> timers;
     std::shared_ptr<Texture> blackDummyTexture;
     bool showLightingImgui = false;
     bool renderDDO         = false;
@@ -163,15 +134,6 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 
 
     void writeGbufferDepthToCurrentFramebuffer();
-
-    void startTimer(DeferredTimings timer)
-    {
-        if (params.useGPUTimers || timer == TOTAL) timers[timer].startTimer();
-    }
-    void stopTimer(DeferredTimings timer)
-    {
-        if (params.useGPUTimers || timer == TOTAL) timers[timer].stopTimer();
-    }
 };
 
 }  // namespace Saiga

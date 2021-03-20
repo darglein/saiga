@@ -29,15 +29,26 @@ class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<TriangleMesh<VertexNC, u
     virtual ~ColoredAsset() {}
 };
 
-class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<LineMesh<VertexC, uint32_t>, MVPColorShader>
+class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<LineMesh<VertexNC, uint32_t>, MVPColorShader>
 {
    public:
+    enum RenderFlags
+    {
+        NONE             = 0,
+        CULL_WITH_NORMAL = 1 << 1
+    };
+
     // Default shaders
     // If you want to use your own load them and override the shader memebers in BasicAsset.
     static constexpr const char* shaderStr = "asset/LineVertexColoredAsset.glsl";
     void loadDefaultShaders();
 
     void SetShaderColor(const vec4& color);
+    void SetRenderFlags(RenderFlags flags = NONE);
+
+    LineVertexColoredAsset() {}
+    LineVertexColoredAsset(const LineMesh<VertexNC, uint32_t>& line_mesh);
+    LineVertexColoredAsset(const UnifiedModel& model);
 
     virtual ~LineVertexColoredAsset() {}
 };
@@ -52,21 +63,10 @@ class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TriangleMesh<VertexNTD,
     void loadDefaultShaders() override;
 
 
-    //    class SAIGA_OPENGL_API TextureGroup
-    //    {
-    //       public:
-    //        int startIndex;
-    //        int indices;
-    //        std::shared_ptr<Texture> texture;
-    //    };
-    //    std::vector<TextureGroup> groups;
-
-
     std::vector<UnifiedMaterialGroup> groups;
     std::vector<UnifiedMaterial> materials;
 
     std::vector<std::shared_ptr<Texture> > textures;
-
 
     TexturedAsset() {}
     TexturedAsset(const UnifiedModel& model);

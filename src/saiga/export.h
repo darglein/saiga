@@ -53,12 +53,6 @@
 #        define SAIGA_VULKAN_API SAIGA_HELPER_DLL_IMPORT
 #    endif
 
-#    ifdef saiga_extra_EXPORTS
-#        define SAIGA_EXTRA_API SAIGA_HELPER_DLL_EXPORT
-#    else
-#        define SAIGA_EXTRA_API SAIGA_HELPER_DLL_IMPORT
-#    endif
-
 #    ifdef saiga_vision_EXPORTS
 #        define SAIGA_VISION_API SAIGA_HELPER_DLL_EXPORT
 #    else
@@ -73,7 +67,12 @@
 
 #    define SAIGA_LOCAL SAIGA_HELPER_DLL_LOCAL
 #else  // SAIGA_DLL is not defined: this means SAIGA is a static lib.
-#    define SAIGA_GLOBAL
+#    define SAIGA_CORE_API
+#    define SAIGA_OPENGL_API
+#    define SAIGA_VULKAN_API
+#    define SAIGA_VISION_API
+#    define SAIGA_CUDA_API
+
 #    define SAIGA_LOCAL
 #endif  // SAIGA_BUILD_SHARED
 

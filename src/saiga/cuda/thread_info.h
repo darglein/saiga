@@ -9,8 +9,13 @@
 #include "saiga/config.h"
 #include "saiga/core/util/Range.h"
 
-#include <cooperative_groups.h>
 #include <cuda_occupancy.h>
+
+#if CUDART_VERSION >= 11000
+#    define SAIGA_USE_COOPERATIVE_GROUPS
+#    include <cooperative_groups.h>
+#endif
+
 namespace Saiga
 {
 namespace CUDA
@@ -101,6 +106,7 @@ KernelInfo GetKernelInfo(K kernel, int block_size, int dynamic_smem = 0)
 }
 
 
+#ifdef SAIGA_USE_COOPERATIVE_GROUPS
 template <typename Group>
 HD StridedRange<int> ParallelFor(Group b, int n)
 {
@@ -111,6 +117,14 @@ __device__ inline StridedRange<int> GridStrideLoop(int n)
 {
     return ParallelFor(cooperative_groups::this_grid(), n);
 }
+
+#else
+__device__ inline StridedRange<int> GridStrideLoop(int n)
+{
+    ThreadInfo<> ti;
+    return StridedRange<int>(ti.thread_id, n, ti.grid_size);
+}
+#endif
 
 }  // namespace CUDA
 }  // namespace Saiga

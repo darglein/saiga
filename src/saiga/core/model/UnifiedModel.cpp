@@ -70,6 +70,16 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
 
 UnifiedModel::~UnifiedModel() {}
 
+void UnifiedModel::Save(const std::string& file_name)
+{
+#ifndef SAIGA_USE_ASSIMP
+    throw std::runtime_error("UnifiedModel::Save requires ASSIMP");
+#else
+    AssimpLoader al;
+    al.SaveModel(*this, file_name);
+#endif
+}
+
 
 UnifiedModel& UnifiedModel::transform(const mat4& T)
 {
@@ -96,6 +106,15 @@ UnifiedModel& UnifiedModel::SetVertexColor(const vec4& c)
     for (auto& co : color)
     {
         co = c;
+    }
+    return *this;
+}
+
+UnifiedModel& UnifiedModel::FlipNormals()
+{
+    for (auto& n : normal)
+    {
+        n = -n;
     }
     return *this;
 }
@@ -214,6 +233,48 @@ std::vector<Vertex> UnifiedModel::VertexList() const
 
     return mesh;
 }
+
+
+template <>
+std::vector<VertexC> UnifiedModel::VertexList() const
+{
+    SAIGA_ASSERT(HasPosition());
+
+
+    std::vector<VertexC> mesh;
+
+
+    mesh.resize(NumVertices());
+    for (int i = 0; i < NumVertices(); ++i)
+    {
+        mesh[i].position = make_vec4(position[i], 1);
+    }
+
+    if (HasColor())
+    {
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            mesh[i].color = color[i];
+        }
+    }
+    else if (HasMaterials())
+    {
+        auto color = ComputeVertexColorFromMaterial();
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            mesh[i].color = color[i];
+        }
+    }
+    else
+    {
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            mesh[i].color = vec4(1, 1, 1, 1);
+        }
+    }
+    return mesh;
+}
+
 
 
 template <>

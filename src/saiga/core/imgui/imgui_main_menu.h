@@ -28,6 +28,9 @@ class SAIGA_CORE_API MainMenu
     void AddItem(const std::string& menu, const std::string& item, MenuFunction function, int shortcut = -1,
                  const std::string& shortcut_name = "");
 
+    void EraseItem(const std::string& menu, const std::string& item);
+
+
 
     void render();
 
@@ -39,6 +42,8 @@ class SAIGA_CORE_API MainMenu
     bool hotkeys = true;
 
     static int Height();
+
+    friend SAIGA_CORE_API std::ostream& operator<<(std::ostream& strm, const MainMenu& menu);
 
    private:
     struct Item

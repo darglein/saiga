@@ -85,7 +85,7 @@ inline cv::cuda::GpuMat ImageViewToGpuMat(ImageView<T> img)
  * Computes the scaled intrinsics matrix of K.
  * Useful for example when a downsampled version of the image is used.
  */
-SAIGA_EXTRA_API inline mat3 scaleK(mat3 K, float scale)
+inline mat3 scaleK(mat3 K, float scale)
 {
     K *= scale;
     K(2, 2) = 1;

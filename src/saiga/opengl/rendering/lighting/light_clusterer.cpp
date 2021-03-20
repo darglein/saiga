@@ -11,11 +11,9 @@
 
 namespace Saiga
 {
-Clusterer::Clusterer(ClustererParameters _params)
+Clusterer::Clusterer(GLTimerSystem* timer, ClustererParameters _params) : timer(timer)
 {
-
     clusterThreeDimensional = _params.clusterThreeDimensional;
-    useTimers               = _params.useTimers;
     clustersDirty           = true;
 
     infoBuffer.createGLBuffer(nullptr, sizeof(infoBuf_t), GL_DYNAMIC_DRAW);
@@ -33,19 +31,7 @@ void Clusterer::init(int _width, int _height, bool _useTimers)
 {
     width         = _width;
     height        = _height;
-    useTimers     = _useTimers;
     clustersDirty = true;
-
-    if (useTimers)
-    {
-        gpuTimers.resize(2);
-        gpuTimers[0].create();
-        gpuTimers[1].create();
-        timerStrings.resize(2);
-        timerStrings[0] = "Rebuilding Clusters";
-        timerStrings[1] = "Light Assignment Buffer Update";
-        lightAssignmentTimer.stop();
-    }
 }
 
 void Clusterer::resize(int _width, int _height)
@@ -79,26 +65,6 @@ bool Clusterer::fillImGui()
     bool changed = false;
     ImGui::Text("resolution: %dx%d", width, height);
 
-    if (ImGui::Checkbox("useTimers", &useTimers) && useTimers)
-    {
-        gpuTimers.resize(2);
-        gpuTimers[0].create();
-        gpuTimers[1].create();
-        timerStrings.resize(2);
-        timerStrings[0] = "Rebuilding Clusters";
-        timerStrings[1] = "Light Assignment Buffer Update";
-        lightAssignmentTimer.stop();
-    }
-
-    if (useTimers)
-    {
-        ImGui::Text("Render Time (without shadow map computation)");
-        for (int i = 0; i < 2; ++i)
-        {
-            ImGui::Text("  %f ms %s", getTime(i), timerStrings[i].c_str());
-        }
-        ImGui::Text("  %f ms %s", lightAssignmentTimer.getTimeMS(), "CPU Light Assignment");
-    }
     changed |= ImGui::Checkbox("clusterThreeDimensional", &clusterThreeDimensional);
     changed |= ImGui::SliderInt("screenSpaceTileSize", &screenSpaceTileSize, 16, 1024);
     screenSpaceTileSize = std::max(screenSpaceTileSize, 16);

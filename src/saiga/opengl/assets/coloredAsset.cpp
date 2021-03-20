@@ -34,6 +34,20 @@ void LineVertexColoredAsset::loadDefaultShaders()
     this->wireframeshader = shaderLoader.load<MVPColorShader>(shaderStr);
 }
 
+LineVertexColoredAsset::LineVertexColoredAsset(const LineMesh<VertexNC, uint32_t>& line_mesh)
+{
+    this->vertices = line_mesh.vertices;
+    this->lines    = line_mesh.lines;
+
+    std::cout << vertices[0] << std::endl;
+    create();
+}
+
+LineVertexColoredAsset::LineVertexColoredAsset(const UnifiedModel& model)
+    : LineVertexColoredAsset(model.LineMesh<VertexNC, uint32_t>())
+{
+}
+
 void LineVertexColoredAsset::SetShaderColor(const vec4& color)
 {
     deferredShader->bind();
@@ -42,6 +56,17 @@ void LineVertexColoredAsset::SetShaderColor(const vec4& color)
 
     forwardShader->bind();
     forwardShader->uploadColor(color);
+    forwardShader->unbind();
+}
+
+void LineVertexColoredAsset::SetRenderFlags(RenderFlags flags)
+{
+    deferredShader->bind();
+    deferredShader->upload(3, int(flags));
+    deferredShader->unbind();
+
+    forwardShader->bind();
+    forwardShader->upload(3, int(flags));
     forwardShader->unbind();
 }
 

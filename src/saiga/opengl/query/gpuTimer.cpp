@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-MultiFrameOpenGLTimer::MultiFrameOpenGLTimer() {}
+MultiFrameOpenGLTimer::MultiFrameOpenGLTimer(bool use_time_stamps) : use_time_stamps(use_time_stamps) {}
 
 MultiFrameOpenGLTimer::~MultiFrameOpenGLTimer() {}
 
@@ -22,7 +22,7 @@ void MultiFrameOpenGLTimer::create()
     {
         for (int j = 0; j < 2; ++j)
         {
-            queries[i][j].create();
+            queries[i][j].create(use_time_stamps);
         }
     }
 }
@@ -35,13 +35,30 @@ void MultiFrameOpenGLTimer::swapQueries()
 
 void MultiFrameOpenGLTimer::startTimer()
 {
-    queries[queryBackBuffer][0].record();
+    if (use_time_stamps)
+        queries[queryBackBuffer][0].record();
+    else
+        queries[queryBackBuffer][0].begin();
 }
 
 void MultiFrameOpenGLTimer::stopTimer()
 {
-    queries[queryBackBuffer][1].record();
-    time = queries[queryFrontBuffer][1].getTimestamp() - queries[queryFrontBuffer][0].getTimestamp();
+    if (use_time_stamps)
+    {
+        queries[queryBackBuffer][1].record();
+        end_time     = queries[queryFrontBuffer][1].getTimestamp();
+        begin_time   = queries[queryFrontBuffer][0].getTimestamp();
+        elapsed_time = end_time - begin_time;
+    }
+    else
+    {
+        queries[queryBackBuffer][0].end();
+        elapsed_time = queries[queryFrontBuffer][0].getTimestamp();
+    }
+
+
+
+    //    SAIGA_ASSERT(queries[queryFrontBuffer][1].isAvailable());
 
     //    time = queries[queryFrontBuffer][1].waitTimestamp() - queries[queryFrontBuffer][0].waitTimestamp();
     swapQueries();
@@ -59,7 +76,7 @@ double MultiFrameOpenGLTimer::getTimeMSd()
 
 GLuint64 MultiFrameOpenGLTimer::getTimeNS()
 {
-    return time;
+    return elapsed_time;
 }
 
 
@@ -85,8 +102,8 @@ double FilteredMultiFrameOpenGLTimer::getTimeMSd()
 
 OpenGLTimer::OpenGLTimer()
 {
-    queries[0].create();
-    queries[1].create();
+    queries[0].create(true);
+    queries[1].create(true);
 }
 
 void OpenGLTimer::start()

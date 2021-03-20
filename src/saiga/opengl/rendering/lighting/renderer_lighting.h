@@ -25,7 +25,7 @@ class PointLightShader;
 class SpotLightShader;
 class DirectionalLightShader;
 class LightAccumulationShader;
-
+class GLTimerSystem;
 
 struct RendererLightingShaderNames
 {
@@ -39,7 +39,6 @@ struct RendererLightingShaderNames
 
 namespace uber
 {
-
 struct LightData
 {
     std::vector<PointLight::ShaderData> pointLights;
@@ -79,13 +78,12 @@ class SAIGA_OPENGL_API RendererLighting
 
     bool drawDebug = false;
 
-    bool useTimers = true;
 
     bool backFaceShadows     = false;
     float shadowOffsetFactor = 2;
     float shadowOffsetUnits  = 10;
 
-    RendererLighting();
+    RendererLighting(GLTimerSystem* timer);
     RendererLighting& operator=(RendererLighting& l) = delete;
     ~RendererLighting();
 
@@ -121,7 +119,6 @@ class SAIGA_OPENGL_API RendererLighting
 
     virtual void cullLights(Camera* cam);
 
-    void printTimings();
     virtual void renderImGui();
 
     virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights);
@@ -151,23 +148,11 @@ class SAIGA_OPENGL_API RendererLighting
 
     bool lightDepthTest = true;
 
-    std::vector<FilteredMultiFrameOpenGLTimer> timers2;
-    std::vector<std::string> timerStrings;
-    void startTimer(int timer)
-    {
-        if (useTimers) timers2[timer].startTimer();
-    }
-    void stopTimer(int timer)
-    {
-        if (useTimers) timers2[timer].stopTimer();
-    }
-    float getTime(int timer)
-    {
-        if (!useTimers) return 0;
-        return timers2[timer].getTimeMS();
-    }
 
    protected:
+    GLTimerSystem* timer;
+
+
     int maximumNumberOfDirectionalLights = 256;
     int maximumNumberOfPointLights       = 256;
     int maximumNumberOfSpotLights        = 256;

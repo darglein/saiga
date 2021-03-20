@@ -4,8 +4,9 @@
  * See LICENSE file for more information.
  */
 
-
 #include "model_from_shape.h"
+
+#include "saiga/core/math/CoordinateSystems.h"
 
 namespace Saiga
 {
@@ -36,7 +37,7 @@ UnifiedModel UVSphereMesh(const Sphere& sphere, int rings, int sectors)
             float x = sphere.r * cos(2 * pi<float>() * s * S) * sin(pi<float>() * r * R);
             float z = sphere.r * sin(2 * pi<float>() * s * S) * sin(pi<float>() * r * R);
 
-            model.position.push_back(vec3(x, y, z));
+            model.position.push_back(vec3(x, y, z).normalized());
             model.normal.push_back(vec3(x, y, z).normalized());
             model.texture_coordinates.push_back(vec2(s * S, r * R));
         }
@@ -360,5 +361,233 @@ UnifiedModel CheckerBoardPlane(const ivec2& size, float quadSize, const vec4& co
     }
     return model;
 }
+
+// ============= Line Meshes =============
+
+UnifiedModel GridBoxLineMesh(const AABB& box, ivec3 vsteps)
+{
+    UnifiedModel model;
+
+    for (int dim = 0; dim < 3; ++dim)
+    {
+        int steps = vsteps(dim);
+        for (int j = 1; j <= 2; ++j)
+        {
+            int next_dim = (dim + j) % 3;
+            for (int i = 0; i <= steps; ++i)
+            {
+                float alpha = i / float(steps);
+                float x     = box.min(dim) + (box.max(dim) - box.min(dim)) * alpha;
+
+                {
+                    vec3 p1      = box.min;
+                    vec3 p2      = box.max;
+                    p1(dim)      = x;
+                    p2(dim)      = x;
+                    p1(next_dim) = p2(next_dim);
+
+                    int id = model.NumVertices();
+                    model.position.push_back(p1);
+                    model.position.push_back(p2);
+
+                    vec3 n(0, 0, 0);
+                    n(next_dim) = -1;
+                    model.normal.push_back(n);
+                    model.normal.push_back(n);
+
+                    model.lines.push_back({id, id + 1});
+                }
+                if (1)
+                {
+                    vec3 p1      = box.min;
+                    vec3 p2      = box.max;
+                    p1(dim)      = x;
+                    p2(dim)      = x;
+                    p2(next_dim) = p1(next_dim);
+
+                    int id = model.NumVertices();
+                    model.position.push_back(p1);
+                    model.position.push_back(p2);
+
+                    vec3 n(0, 0, 0);
+                    n(next_dim) = 1;
+                    model.normal.push_back(n);
+                    model.normal.push_back(n);
+
+                    model.lines.push_back({id, id + 1});
+                }
+            }
+        }
+    }
+    return model;
+}
+
+UnifiedModel GridPlaneLineMesh(const ivec2& dimension, const vec2& spacing)
+{
+    UnifiedModel model;
+    vec2 size = dimension.cast<float>().array() * spacing.array();
+
+
+    std::vector<vec3> vertices;
+
+    for (float i = -dimension.x(); i <= dimension.x(); i++)
+    {
+        vec3 p1 = vec3(spacing.x() * i, 0, -size[1]);
+        vec3 p2 = vec3(spacing.x() * i, 0, size[1]);
+        model.lines.push_back({vertices.size(), vertices.size() + 1});
+        vertices.push_back(p1);
+        vertices.push_back(p2);
+    }
+
+    for (float i = -dimension.y(); i <= dimension.y(); i++)
+    {
+        vec3 p1 = vec3(-size[0], 0, spacing.y() * i);
+        vec3 p2 = vec3(+size[0], 0, spacing.y() * i);
+        model.lines.push_back({vertices.size(), vertices.size() + 1});
+        vertices.push_back(p1);
+        vertices.push_back(p2);
+    }
+
+
+
+    for (auto v : vertices)
+    {
+        model.position.push_back(v);
+    }
+    return model;
+}
+
+UnifiedModel FrustumLineMesh(const mat4& proj, float farPlaneDistance, bool vulkanTransform)
+{
+    UnifiedModel model;
+
+    float d = 1.0f;
+    vec4 bl(-1, -1, d, 1);
+    vec4 br(1, -1, d, 1);
+    vec4 tl(-1, 1, d, 1);
+    vec4 tr(1, 1, d, 1);
+
+    mat4 tmp     = (inverse(GL2VulkanNormalizedImage()) * proj);
+    mat4 projInv = vulkanTransform ? inverse(tmp) : inverse(proj);
+
+
+
+    tl = projInv * tl;
+    tr = projInv * tr;
+    bl = projInv * bl;
+    br = projInv * br;
+
+    tl /= tl[3];
+    tr /= tr[3];
+    bl /= bl[3];
+    br /= br[3];
+
+    if (farPlaneDistance > 0)
+    {
+        tl[3] = -tl[2] / farPlaneDistance;
+        tr[3] = -tr[2] / farPlaneDistance;
+        bl[3] = -bl[2] / farPlaneDistance;
+        br[3] = -br[2] / farPlaneDistance;
+
+        tl /= tl[3];
+        tr /= tr[3];
+        bl /= bl[3];
+        br /= br[3];
+    }
+
+
+    //    std::vector<VertexNC> vertices;
+
+    vec4 positions[] = {vec4(0, 0, 0, 1),
+                        tl,
+                        tr,
+                        br,
+                        bl,
+                        0.4f * tl + 0.6f * tr,
+                        0.6f * tl + 0.4f * tr,
+                        0.5f * tl + 0.5f * tr + vec4(0, (tl[1] - bl[1]) * 0.1f, 0, 0)};
+
+    for (int i = 0; i < 8; ++i)
+    {
+        vec4 v = positions[i];
+
+        model.position.push_back(v.head<3>());
+    }
+
+
+    model.lines = {{0, 1}, {0, 2}, {0, 3}, {0, 4},
+
+                   {1, 2}, {3, 4}, {1, 4}, {2, 3},
+
+                   {5, 7}, {6, 7}};
+    return model;
+}
+
+UnifiedModel FrustumCVLineMesh(const mat3& K, float farPlaneDistance, int w, int h)
+{
+    UnifiedModel model;
+    vec3 bl(0, h, 1);
+    vec3 br(w, h, 1);
+    vec3 tl(0, 0, 1);
+    vec3 tr(w, 0, 1);
+
+    mat3 projInv = inverse(K);
+
+    tl = projInv * tl;
+    tr = projInv * tr;
+    bl = projInv * bl;
+    br = projInv * br;
+
+
+    if (farPlaneDistance > 0)
+    {
+        tl *= farPlaneDistance;
+        tr *= farPlaneDistance;
+        bl *= farPlaneDistance;
+        br *= farPlaneDistance;
+    }
+
+    vec3 positions[] = {vec3(0, 0, 0),
+                        tl,
+                        tr,
+                        br,
+                        bl,
+                        0.4f * tl + 0.6f * tr,
+                        0.6f * tl + 0.4f * tr,
+                        0.5f * tl + 0.5f * tr + vec3(0, (tl[1] - bl[1]) * 0.1f, 0)};
+
+    for (int i = 0; i < 8; ++i)
+    {
+        vec3 v = positions[i];
+        model.position.push_back(v);
+    }
+
+    model.lines = {{0, 1}, {0, 2}, {0, 3}, {0, 4},
+
+                   {1, 2}, {3, 4}, {1, 4}, {2, 3},
+
+                   {5, 7}, {6, 7}};
+    return model;
+}
+
+UnifiedModel FrustumLineMesh(const Frustum& frustum)
+{
+    UnifiedModel model;
+
+    auto tris = frustum.ToTriangleList();
+    for (auto tri : tris)
+    {
+        int id = model.NumVertices();
+
+        model.position.push_back(tri.a);
+        model.position.push_back(tri.b);
+        model.position.push_back(tri.c);
+
+        model.lines.push_back({id + 0, id + 1});
+        model.lines.push_back({id + 1, id + 2});
+    }
+    return model;
+}
+
 
 }  // namespace Saiga

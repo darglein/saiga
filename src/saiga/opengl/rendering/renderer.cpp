@@ -3,12 +3,12 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
 #include "saiga/opengl/rendering/renderer.h"
 
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/imgui/imgui_main_menu.h"
 #include "saiga/core/util/ini/ini.h"
+#include "saiga/opengl/glImageFormat.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 
@@ -16,6 +16,10 @@ namespace Saiga
 {
 OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window) : window(&window)
 {
+    editor_gui.enabled = true;
+    main_menu.AddItem(
+        "Saiga", "Log", []() { console.should_render = !console.should_render; }, 299, "F10");
+
     cameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
 
 
@@ -25,6 +29,10 @@ OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window) : window(&window)
     default_framebuffer.MakeDefaultFramebuffer();
     // ImGUI
     imgui = window.createImGui();
+    if (imgui)
+    {
+        timer = std::make_shared<GLTimerSystem>();
+    }
 }
 
 OpenGLRenderer::~OpenGLRenderer() {}
@@ -53,6 +61,11 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         window->renderImGui();
         dynamic_cast<RenderingInterface*>(rendering)->render(nullptr, RenderPass::GUI);
         renderImgui();
+        console.render();
+        timer->Imgui();
+#ifdef SAIGA_USE_FFMPEG
+        encoder->renderGUI();
+#endif
 
         if (editor_gui.enabled)
         {
@@ -98,8 +111,10 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
     auto target_fb    = editor_gui.enabled ? target_framebuffer.get() : &default_framebuffer;
     target_fb->bind();
     glClear(GL_COLOR_BUFFER_BIT);
-    renderGL(target_fb, viewport, camera);
 
+    timer->BeginFrame();
+    renderGL(target_fb, viewport, camera);
+    timer->EndFrame();
 
     // 3. Add rendered 3DView to imgui (in editor mode only)
     if (imgui)
@@ -108,7 +123,8 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         {
             ImGui::Begin("3DView");
             ImGui::BeginChild("viewer_child");
-            ImGui::Texture(target_framebuffer->getTextureColor(0).get(), ImGui::GetWindowSize(), true);
+            ImGui::Texture(target_framebuffer->getTextureColor(0).get(), ImVec2(viewport_size.x(), viewport_size.y()),
+                           true);
             ImGui::EndChild();
             ImGui::End();
         }
@@ -118,6 +134,37 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         default_framebuffer.bind();
         imgui->render();
     }
+
+#ifdef SAIGA_USE_FFMPEG
+    if (encoder && encoder->isEncoding())
+    {
+        // feed encoder with 3d viewport
+        auto encoder_size = encoder->Size();
+
+        TemplatedImage<ucvec4> result(encoder_size.y(), encoder_size.x());
+
+        if (editor_gui.enabled && record_view_port_only)
+        {
+            TemplatedImage<ucvec4> tmp(outputHeight, outputWidth);
+            auto texture = target_framebuffer->getTextureColor(0);
+            texture->download(tmp.data());
+            tmp.getImageView().subImageView(0, 0, encoder_size.y(), encoder_size.x()).copyTo(result.getImageView());
+        }
+        else
+        {
+            // read data from default framebuffer and restore currently bound fb.
+            GLint fb;
+            glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fb);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glReadPixels(0, 0, result.width, result.height, getGlFormat(result.type), getGlType(result.type),
+                         result.data());
+            glBindFramebuffer(GL_FRAMEBUFFER, fb);
+        }
+
+
+        encoder->frame(result.getImageView().yFlippedImageView());
+    }
+#endif
 }
 
 void OpenGLRenderer::ResizeTarget(int windowWidth, int windowHeight)
@@ -131,13 +178,28 @@ void OpenGLRenderer::ResizeTarget(int windowWidth, int windowHeight)
 
     if (windowWidth <= 0 || windowHeight <= 0)
     {
-        std::cerr << "Warning: The window size must be greater than zero." << std::endl;
+        console << "Warning: The window size must be greater than zero." << std::endl;
         windowWidth  = std::max(windowWidth, 1);
         windowHeight = std::max(windowHeight, 1);
     }
 
     outputWidth  = windowWidth;
     outputHeight = windowHeight;
+
+#ifdef SAIGA_USE_FFMPEG
+    // The encoder size must be divisible by 2 for most of the codecs to work
+    int encoder_w = iAlignDown(outputWidth, 2);
+    int encoder_h = iAlignDown(outputHeight, 2);
+
+    if (!encoder)
+    {
+        encoder = std::make_shared<VideoEncoder>(encoder_w, encoder_h);
+    }
+    else
+    {
+        encoder->resize(encoder_w, encoder_h);
+    }
+#endif
 
     if (!target_framebuffer)
     {
@@ -159,7 +221,7 @@ void OpenGLRenderer::ResizeTarget(int windowWidth, int windowHeight)
         target_framebuffer->resize(outputWidth, outputHeight);
     }
 
-    std::cout << "OpenGLRenderer::resize -> " << windowWidth << "x" << windowHeight << std::endl;
+    console << "[Renderer] Target resized to " << windowWidth << "x" << windowHeight << std::endl;
 }
 
 

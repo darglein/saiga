@@ -16,7 +16,6 @@
 
 using namespace Saiga;
 
-ImGui::IMConsole console;
 ImGui::IMTable test_table("Fancy Table", {10, 10}, {"First", "Second"});
 
 
@@ -76,10 +75,11 @@ class Sample : public SampleWindowForward
         //    frustum.fromLineList();
 
         //    frustum.createGrid({100, 100}, {0.1, 0.1});
-        frustum.createFrustum(camera.proj, 1);
+        frustum = LineVertexColoredAsset(FrustumLineMesh(camera.proj, 1, false));
         frustum.setColor(vec4{0, 1, 0, 1});
 
         frustum.create();
+
 
 
         std::cout << "Program Initialized!" << std::endl;
@@ -105,9 +105,7 @@ class Sample : public SampleWindowForward
                 test_table << Random::sampleDouble(0, 100000) << Random::sampleDouble(0, 100000);
             }
 
-            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
-            ImGui::Begin("test");
+            ImGui::Begin("Saiga Sample");
 
             ImGui::Checkbox("add_values_to_console", &add_values_to_console);
             if (ImGui::Button("add"))
@@ -124,7 +122,7 @@ class Sample : public SampleWindowForward
 
 
 
-            console.render();
+            //            console.render();
             test_table.Render();
         }
     }
@@ -132,7 +130,7 @@ class Sample : public SampleWindowForward
 
    private:
     Skybox skybox;
-    bool add_values_to_console = true;
+    bool add_values_to_console = false;
     GLPointCloud pointCloud;
     LineSoup lineSoup;
     LineVertexColoredAsset frustum;

@@ -180,7 +180,8 @@ void IndexedVertexBuffer<buffer_vertex_t, buffer_index_t>::fromMesh(TriangleMesh
 template <typename vertex_t, typename index_t>
 void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(LineMesh<vertex_t, index_t>& mesh, GLenum usage)
 {
-    set(mesh.vertices, mesh.indices, usage);
+    ArrayView<index_t> indices((index_t*)mesh.lines.data(), mesh.lines.size() * 2);
+    set(mesh.vertices, indices, usage);
     this->setDrawMode(GL_LINES);
 }
 

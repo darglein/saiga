@@ -18,30 +18,44 @@
 
 namespace Saiga
 {
-VideoEncoder::VideoEncoder(OpenGLWindow* window) : window(window)
+VideoEncoder::VideoEncoder(int w, int h)
 {
-    encoder = std::make_shared<FFMPEGEncoder>(file, window->getWidth(), window->getHeight(), window->getWidth(),
-                                              window->getHeight(), 60);
+    resize(w, h);
+    main_menu.AddItem(
+        "Saiga", "VideoEncoder", [this]() { should_render_imgui = !should_render_imgui; }, 298, "F9");
 }
 
-void VideoEncoder::update()
+VideoEncoder::~VideoEncoder()
+{
+    main_menu.EraseItem("Saiga", "VideoEncoder");
+}
+
+void VideoEncoder::resize(int w, int h)
+{
+    SAIGA_ASSERT(!encoder || !encoder->isRunning());
+    encoder = std::make_shared<FFMPEGEncoder>(file, w, h, w, h, 60);
+}
+
+void VideoEncoder::frame(ImageView<ucvec4> image)
 {
     if (encoder->isRunning())
     {
+        SAIGA_ASSERT(image.w == encoder->inWidth);
+        SAIGA_ASSERT(image.h == encoder->inHeight);
         auto img = encoder->getFrameBuffer();
-        // read the current framebuffer to the buffer
-        //        window->readToExistingImage(*img);
-        *img = window->ScreenshotDefaultFramebuffer();
-        // add an image to the video stream
+
+        image.copyTo(img->getImageView());
         encoder->addFrame(img);
     }
 }
 
+
 void VideoEncoder::renderGUI()
 {
-    {
-        ImGui::PushID(346436);
+    if (!should_render_imgui) return;
 
+    if (ImGui::Begin("VideoEncoder", &should_render_imgui))
+    {
         ImGui::InputText("Output File", &file);
         encoder->filename = file;
 
@@ -84,15 +98,12 @@ void VideoEncoder::renderGUI()
         {
             stopRecording();
         }
-
-        ImGui::PopID();
     }
+    ImGui::End();
 }
 
 void VideoEncoder::startRecording()
 {
-    encoder->inWidth  = window->getWidth();
-    encoder->inHeight = window->getHeight();
     encoder->startEncoding();
 }
 
@@ -104,6 +115,11 @@ void VideoEncoder::stopRecording()
 bool VideoEncoder::isEncoding()
 {
     return encoder->isRunning();
+}
+
+ivec2 VideoEncoder::Size()
+{
+    return ivec2(encoder->inWidth, encoder->inHeight);
 }
 
 }  // namespace Saiga

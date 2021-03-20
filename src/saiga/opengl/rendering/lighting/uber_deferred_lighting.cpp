@@ -23,7 +23,8 @@ namespace Saiga
 {
 using namespace uber;
 
-UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(framebuffer)
+UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* timer)
+    : RendererLighting(timer), gbuffer(framebuffer)
 {
     createLightMeshes();
     shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
@@ -78,8 +79,8 @@ void UberDeferredLighting::loadShaders()
 
 void UberDeferredLighting::initRender()
 {
+    auto tim = timer->CreateScope("Lightinit");
     // TODO Paul: We should refactor this for all single light pass renderers.
-    startTimer(0);
     RendererLighting::initRender();
     LightInfo li;
     LightData ld;
@@ -150,11 +151,11 @@ void UberDeferredLighting::initRender()
     lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
     lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
     lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
-    stopTimer(0);
 }
 
 void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 {
+    // Does nothing
     RendererLighting::render(cam, viewPort);
     if (clustererType)
     {
@@ -163,21 +164,24 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     }
 
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    {
+        auto tim = timer->CreateScope("Shade");
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    // Lighting Uber Shader
-    lightingShader->bind();
-    lightingShader->uploadFramebuffer(&gbuffer);
-    lightingShader->uploadScreenSize(viewPort.getVec4());
-    lightingShader->uploadInvProj(inverse(cam->proj));
-    quadMesh.bindAndDraw();
-    lightingShader->unbind();
-    assert_no_glerror();
+        // Lighting Uber Shader
+        lightingShader->bind();
+        lightingShader->uploadFramebuffer(&gbuffer);
+        lightingShader->uploadScreenSize(viewPort.getVec4());
+        lightingShader->uploadInvProj(inverse(cam->proj));
+        quadMesh.bindAndDraw();
+        lightingShader->unbind();
+        assert_no_glerror();
 
-    // reset state
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
+        // reset state
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+    }
 
     if (drawDebug)
     {

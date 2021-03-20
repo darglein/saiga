@@ -20,6 +20,8 @@ namespace Saiga
 {
 TEST(RecursiveLinearSolver, SparseBlock)
 {
+    Random::setSeed(903476346);
+    srand(976157);
     // Symmetric positive sparse block matrix.
     // Used for example in PGO (6x6 Blocks) or ARAP (3x3 Blocks)
 

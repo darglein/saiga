@@ -6,7 +6,7 @@
 
 #include "forward_lighting.h"
 
-#include "saiga/core/imgui/imgui.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
 #include "saiga/opengl/rendering/lighting/directional_light.h"
 #include "saiga/opengl/rendering/lighting/point_light.h"
@@ -17,7 +17,7 @@ namespace Saiga
 {
 using namespace uber;
 
-ForwardLighting::ForwardLighting() : RendererLighting()
+ForwardLighting::ForwardLighting(GLTimerSystem* timer) : RendererLighting(timer)
 {
     int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
@@ -52,7 +52,7 @@ void ForwardLighting::resize(int _width, int _height)
 
 void ForwardLighting::initRender()
 {
-    startTimer(0);
+    auto tim = timer->CreateScope("Light Init");
     RendererLighting::initRender();
     LightInfo li;
     LightData ld;
@@ -123,7 +123,6 @@ void ForwardLighting::initRender()
     lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
     lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
     lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
-    stopTimer(0);
 }
 
 void ForwardLighting::cluster(Camera* cam, const ViewPort& viewPort)
@@ -137,6 +136,8 @@ void ForwardLighting::cluster(Camera* cam, const ViewPort& viewPort)
 
 void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
 {
+    auto tim = timer->CreateScope("Light Render");
+    // Does nothing
     RendererLighting::render(cam, viewPort);
 
     if (drawDebug)

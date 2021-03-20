@@ -171,16 +171,20 @@ bool captureKeyboard()
     return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureKeyboard;
 }
 
-IMConsole::IMConsole(const std::string& name, const Saiga::ivec2& position, const Saiga::ivec2& size)
-    : std::ostream(this), name(name), position(position), size(size)
+IMConsole::IMConsole(const std::string& name, const Saiga::ivec2& position, const Saiga::ivec2& size,
+                     bool write_to_cout)
+    : std::ostream(this), name(name), position(position), size(size), writeToCout(write_to_cout)
 {
 }
 
 void IMConsole::render()
 {
-    BeginWindow();
-    RenderTextArea();
-    EndWindow();
+    if (should_render)
+    {
+        BeginWindow();
+        RenderTextArea();
+        EndWindow();
+    }
 }
 
 void IMConsole::BeginWindow()
@@ -190,7 +194,7 @@ void IMConsole::BeginWindow()
         ImGui::SetNextWindowPos(ImVec2(position(0), position(1)), ImGuiCond_Once);
         ImGui::SetNextWindowSize(ImVec2(size(0), size(1)), ImGuiCond_Once);
     }
-    ImGui::Begin(name.c_str(), nullptr, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
+    ImGui::Begin(name.c_str(), &should_render, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
 }
 
 void IMConsole::EndWindow()
@@ -228,7 +232,6 @@ void IMConsole::RenderTextArea()
         scrollDownAtNextRender = false;
     }
     ImGui::EndChild();
-
 }
 
 void IMConsole::setOutputFile(const std::string& file)
@@ -372,6 +375,12 @@ void initImGui(const ImGuiParameters& params)
     colors[ImGuiCol_TitleBgActive]    = COL_ALPHA(color_highlight_low, 1.00f);
     colors[ImGuiCol_MenuBarBg]        = COL_ALPHA(color_background_low, 0.47f);
 
+    colors[ImGuiCol_Tab]                = COL_ALPHA(color_background_medium, 1.f);
+    colors[ImGuiCol_TabHovered]         = COL_ALPHA(color_highlight_high, 1.f);
+    colors[ImGuiCol_TabActive]          = COL_ALPHA(color_highlight_low, 1.f);
+    colors[ImGuiCol_TabUnfocused]       = COL_ALPHA(color_background_low, 1.f);
+    colors[ImGuiCol_TabUnfocusedActive] = COL_ALPHA(color_background_low, 1.f);
+
     colors[ImGuiCol_ScrollbarBg]          = COL_ALPHA(color_background_medium, 1.00f);
     colors[ImGuiCol_ScrollbarGrab]        = COL_ALPHA(color_background_high, 0.8);
     colors[ImGuiCol_ScrollbarGrabHovered] = COL_ALPHA(color_highlight_low, 0.8);
@@ -424,5 +433,6 @@ void ImGuiParameters::fromConfigFile(const std::string& file)
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 
+ImGui::IMConsole console = ImGui::IMConsole("Log", {0, 0}, {500, 250}, true);
 
 }  // namespace Saiga

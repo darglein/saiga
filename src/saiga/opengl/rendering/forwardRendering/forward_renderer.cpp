@@ -17,17 +17,8 @@
 namespace Saiga
 {
 ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& params)
-
-    : OpenGLRenderer(window), params(params), lighting()
-
+    : OpenGLRenderer(window), params(params), lighting(timer.get())
 {
-    int timerCount = ForwardTimingBlock::COUNT;
-    timers.resize(timerCount);
-    for (auto& t : timers)
-    {
-        t.create();
-    }
-
     lighting.init(window.getWidth(), window.getHeight(), false);
     this->params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
     this->params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
@@ -52,15 +43,12 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     SAIGA_ASSERT(renderingInterface);
 
 
-    startTimer(TOTAL);
-
     if (params.wireframe)
     {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(params.wireframeLineSize);
     }
 
-    startTimer(FORWARD);
     camera->recalculatePlanes();
     bindCamera(camera);
 
@@ -75,27 +63,18 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-    // depth prepass
-    if (depthPrepass)
-    {
-        renderingInterface->render(camera, RenderPass::DepthPrepass);
-        glDepthFunc(GL_EQUAL);
-    }
     // forward pass with lighting
     lighting.initRender();
     if (cullLights) lighting.cullLights(camera);
     lighting.cluster(camera, viewport);
-    renderingInterface->render(camera, RenderPass::Forward);
-    glDepthFunc(GL_LESS);
-    lighting.render(camera, viewport);
-    stopTimer(FORWARD);
-
-    if (params.wireframe)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        auto tim = timer->CreateScope("Forward + Shade");
+        renderingInterface->render(camera, RenderPass::Forward);
+        glDepthFunc(GL_LESS);
     }
+    lighting.render(camera, viewport);
 
-    stopTimer(TOTAL);
+
 
     assert_no_glerror();
 }
@@ -108,6 +87,12 @@ void ForwardRenderer::Resize(int windowWidth, int windowHeight)
         // -> Skip resize
         return;
     }
+
+    this->renderWidth  = windowWidth;
+    this->renderHeight = windowHeight;
+    std::cout << "Resizing Window to : " << windowWidth << "," << windowHeight << std::endl;
+    std::cout << "Framebuffer size: " << renderWidth << " " << renderHeight << std::endl;
+
     lighting.resize(windowWidth, windowHeight);
 }
 
@@ -129,11 +114,6 @@ void ForwardRenderer::renderImgui()
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);
     ImGui::Checkbox("Depth Prepass", &depthPrepass);
-
-    ImGui::Text("Render Time");
-    ImGui::Text("%fms - Forward pass", getBlockTime(FORWARD));
-    ImGui::Text("%fms - Final pass", getBlockTime(FINAL));
-    ImGui::Text("%fms - Total", getBlockTime(TOTAL));
 
     ImGui::Separator();
 

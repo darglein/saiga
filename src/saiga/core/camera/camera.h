@@ -110,10 +110,14 @@ class SAIGA_CORE_API PerspectiveCamera : public Camera
 {
    public:
     float fovy, aspect;
-    float tang;
     PerspectiveCamera() {}
     void setProj(float fovy, float aspect, float zNear, float zFar, bool vulkanTransform = false);
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca);
+
+    // Returns the 3x3 intrinsics matrix in the OpenCV coordinate system
+    mat3 CVK(int w, int h);
+
+
 
     void imgui();
     virtual void recomputeProj(int output_w, int output_h) override;

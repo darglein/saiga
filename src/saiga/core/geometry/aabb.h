@@ -40,7 +40,8 @@ class SAIGA_CORE_API AABB
     void scale(const vec3& s);
 
 
-    vec3 getHalfExtends() const;
+    vec3 getHalfExtends() const { return 0.5f * (max - min); }
+    vec3 Size() const { return (max - min); }
 
 
     // Point to AABB distance

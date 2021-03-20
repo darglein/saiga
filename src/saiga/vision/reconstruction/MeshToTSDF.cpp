@@ -17,7 +17,7 @@
 #include <algorithm>
 namespace Saiga
 {
-std::vector<vec3> MeshToPointCloud(const std::vector<Triangle>& _triangles, int N)
+SimplePointCloud MeshToPointCloud(const std::vector<Triangle>& _triangles, int N)
 {
     std::vector<Triangle> triangles = _triangles;
 
@@ -33,25 +33,34 @@ std::vector<vec3> MeshToPointCloud(const std::vector<Triangle>& _triangles, int 
 
     DiscreteProbabilityDistribution<double> dis(areas);
 
-    std::vector<vec3> points(N);
+    SimplePointCloud points(N);
 
 #pragma omp parallel for
     for (int i = 0; i < N; ++i)
     {
-        auto t    = dis.sample();
-        points[i] = triangles[t].RandomPointOnSurface();
+        auto t             = dis.sample();
+        auto& tri          = triangles[t];
+        points[i].position = tri.RandomPointOnSurface();
+        points[i].normal   = tri.normal();
     }
     return points;
 }
 
-std::vector<vec3> ReducePointsPoissonDisc(const std::vector<vec3>& mesh_points, float radius)
+SimplePointCloud ReducePointsPoissonDisc(const SimplePointCloud& mesh_points, float radius)
 {
     std::vector<int> used(mesh_points.size(), 0);
-    KDTree<3, vec3> tree(mesh_points);
+
+
+    std::vector<vec3> positions;
+    for(auto m : mesh_points){
+        positions.push_back(m.position);
+    }
+
+    KDTree<3, vec3> tree(positions);
 #pragma omp parallel for
     for (int i = 0; i < mesh_points.size(); ++i)
     {
-        auto& p = mesh_points[i];
+        auto& p = mesh_points[i].position;
         auto ps = tree.RadiusSearch(p, radius);
 
         bool found = false;
@@ -69,7 +78,7 @@ std::vector<vec3> ReducePointsPoissonDisc(const std::vector<vec3>& mesh_points, 
         }
     }
 
-    std::vector<vec3> result;
+    SimplePointCloud result;
     result.reserve(mesh_points.size());
 
     for (int i = 0; i < mesh_points.size(); ++i)
@@ -81,14 +90,8 @@ std::vector<vec3> ReducePointsPoissonDisc(const std::vector<vec3>& mesh_points, 
     }
     return result;
 }
-std::vector<vec3> MeshToPointCloudPoissonDisc(const std::vector<Triangle>& triangles, int max_samples, float radius)
-{
-    auto mesh_points = MeshToPointCloud(triangles, max_samples);
-    return ReducePointsPoissonDisc(mesh_points, radius);
-}
 
-
-std::vector<vec3> MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& triangles, int max_samples, float radius)
+SimplePointCloud MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& triangles, int max_samples, float radius)
 {
     std::vector<int> num_samples_per_triangle(triangles.size(), 0);
     if (0)
@@ -122,23 +125,24 @@ std::vector<vec3> MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& tria
         }
     }
 
-    std::vector<std::vector<vec3>> samples_per_triangle(triangles.size());
+    std::vector<SimplePointCloud> samples_per_triangle(triangles.size());
 
 #pragma omp parallel for
     for (int i = 0; i < triangles.size(); ++i)
     {
         int n = num_samples_per_triangle[i];
 
-        std::vector<vec3> points(n);
+        SimplePointCloud points(n);
         for (int j = 0; j < n; ++j)
         {
-            points[j] = triangles[i].RandomPointOnSurface();
+            points[j].position = triangles[i].RandomPointOnSurface();
+            points[j].normal = triangles[i].normal();
         }
 
         samples_per_triangle[i] = ReducePointsPoissonDisc(points, radius);
     }
 
-    std::vector<vec3> result;
+    SimplePointCloud result;
     result.reserve(max_samples);
 
 
@@ -152,9 +156,6 @@ std::vector<vec3> MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& tria
         std::mt19937 g(rd());
         std::shuffle(result.begin(), result.end(), g);
     }
-
-    //    std::random_shuffle(result.begin(), result.end());
-
     return ReducePointsPoissonDisc(result, radius);
 }
 
@@ -186,7 +187,7 @@ std::shared_ptr<SparseTSDF> MeshToTSDF(const std::vector<Triangle>& triangles, f
         ProgressBar bar2(std::cout, "M2TSDF Allocate P1", points.size());
         for (auto& p : points)
         {
-            tsdf->AllocateAroundPoint(p, 1);
+            tsdf->AllocateAroundPoint(p.position, 1);
             bar2.addProgress(1);
         }
     }

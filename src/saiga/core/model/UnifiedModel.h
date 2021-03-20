@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/geometry/LineMesh.h"
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/geometry/vertex.h"
 // #include "saiga/core/model/
@@ -54,6 +55,9 @@ class SAIGA_CORE_API UnifiedModel
     UnifiedModel(const std::string& file_name);
     ~UnifiedModel();
 
+
+    void Save(const std::string& file_name);
+
     int NumVertices() const { return position.size(); }
     int NumFaces() const { return triangles.size(); }
 
@@ -70,6 +74,10 @@ class SAIGA_CORE_API UnifiedModel
 
     // Face data for surface meshes stored as index-face set
     std::vector<ivec3> triangles;
+
+    // Line indices for line meshes
+    std::vector<ivec2> lines;
+
 
     // The material is given on a per face basis.
     // The material group defines which faces have which material.
@@ -88,6 +96,9 @@ class SAIGA_CORE_API UnifiedModel
     // Overwrite the color of every vertex
     // returns a reference to this
     UnifiedModel& SetVertexColor(const vec4& color);
+
+
+    UnifiedModel& FlipNormals();
 
 
 
@@ -119,7 +130,20 @@ class SAIGA_CORE_API UnifiedModel
     {
         TriangleMesh<VertexType, IndexType> mesh;
         mesh.vertices = VertexList<VertexType>();
-        mesh.faces    = IndexList<IndexType>();
+        mesh.faces    = TriangleIndexList<IndexType>();
+        return mesh;
+    }
+
+
+    // Conversion Functions from unified model -> Line mesh
+    // The basic conversion functions for the saiga vertices are defined below,
+    // however you can also define conversions for custom vertex types.
+    template <typename VertexType, typename IndexType>
+    Saiga::LineMesh<VertexType, IndexType> LineMesh() const
+    {
+        Saiga::LineMesh<VertexType, IndexType> mesh;
+        mesh.vertices = VertexList<VertexType>();
+        mesh.lines    = LineIndexList<IndexType>();
         return mesh;
     }
 
@@ -127,7 +151,11 @@ class SAIGA_CORE_API UnifiedModel
     std::vector<VertexType> VertexList() const;
 
     template <typename IndexType>
-    std::vector<Vector<IndexType, 3>> IndexList() const;
+    std::vector<Vector<IndexType, 3>> TriangleIndexList() const;
+
+
+    template <typename IndexType>
+    std::vector<Vector<IndexType, 2>> LineIndexList() const;
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model);
 

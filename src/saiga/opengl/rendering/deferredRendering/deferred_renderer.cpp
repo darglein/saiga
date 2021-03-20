@@ -23,13 +23,12 @@ namespace Saiga
 {
 DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParameters _params)
     : OpenGLRenderer(window),
-      lighting(gbuffer),
+      lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth()),
       renderHeight(window.getHeight()),
       ddo(window.getWidth(), window.getHeight())
 {
-
     if (params.useSMAA)
     {
         smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
@@ -64,16 +63,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     quadMesh.fromMesh(FullScreenQuad());
 
 
-    int numTimers = DeferredTimings::COUNT;
-    if (!params.useGPUTimers) numTimers = 1;  // still use one rendering timer :)
-    timers.resize(numTimers);
-    for (auto& t : timers)
-    {
-        t.create();
-    }
-
-
-
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
 
     ddo.setDeferredFramebuffer(&gbuffer, lighting.volumetricLightTexture2);
@@ -85,8 +74,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     defaultEffects.push_back(pps);
     postProcessor.setPostProcessingEffects(defaultEffects);
 
-    std::cout << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight
-              << std::endl;
+    console << "Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight << std::endl;
 }
 
 void DeferredRenderer::Resize(int windowWidth, int windowHeight)
@@ -100,7 +88,6 @@ void DeferredRenderer::Resize(int windowWidth, int windowHeight)
 
     this->renderWidth  = windowWidth;
     this->renderHeight = windowHeight;
-    std::cout << "DeferredRenderer::resize -> " << renderWidth << " " << renderHeight << std::endl;
     postProcessor.resize(renderWidth, renderHeight);
     gbuffer.resize(renderWidth, renderHeight);
     lighting.resize(renderWidth, renderHeight);
@@ -133,14 +120,12 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     SAIGA_ASSERT(renderingInterface);
 
 
-    startTimer(TOTAL);
-
-
     params.maskUsedPixels = true;
 
     //    for (auto c : renderInfo.cameras)
     {
         //        auto camera = c.first;
+        auto tim = timer->CreateScope("Geometry");
         bindCamera(camera);
 
         setViewPort(viewport);
@@ -153,18 +138,28 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
 
         renderGBuffer({camera, viewport});
-        renderSSAO({camera, viewport});
+    }
+    renderSSAO({camera, viewport});
 
-        lighting.cullLights(camera);
+    lighting.cullLights(camera);
 
+    {
+        auto tim = timer->CreateScope("Shadow");
         renderDepthMaps();
+    }
 
-
+    {
+        auto tim = timer->CreateScope("Lighting");
         bindCamera(camera);
         setViewPort(viewport);
         renderLighting({camera, viewport});
+    }
+
+    {
+        auto tim = timer->CreateScope("Forward");
         renderingInterface->render(camera, RenderPass::Forward);
     }
+
     assert_no_glerror();
 
 
@@ -173,10 +168,8 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     if (params.writeDepthToOverlayBuffer)
     {
+        auto tim = timer->CreateScope("Write depth");
         writeGbufferDepthToCurrentFramebuffer();
-    }
-    else
-    {
     }
 #if 0
 
@@ -202,47 +195,50 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     //    postProcessor.switchBuffer();
 
 
-    startTimer(POSTPROCESSING);
     // postprocessor's 'currentbuffer' will still be bound after render
-    postProcessor.render();
-    stopTimer(POSTPROCESSING);
+    {
+        auto tim = timer->CreateScope("Post Processing");
+        postProcessor.render();
+    }
 
 
     if (params.useSMAA)
     {
-        startTimer(SMAATIME);
+        auto tim = timer->CreateScope("SMAA");
         smaa->render(postProcessor.getCurrentTexture(), postProcessor.getTargetBuffer());
         postProcessor.switchBuffer();
         postProcessor.bindCurrentBuffer();
-        stopTimer(SMAATIME);
     }
 
     // write depth to default framebuffer
     if (params.writeDepthToDefaultFramebuffer)
     {
+        auto tim = timer->CreateScope("copy depth");
         //        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         postProcessor.bindCurrentBuffer();
         writeGbufferDepthToCurrentFramebuffer();
     }
 
 
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    //    glClear(GL_COLOR_BUFFER_BIT);
-    startTimer(FINAL);
-    glViewport(0, 0, renderWidth, renderHeight);
-    if (renderDDO)
+
     {
-        bindCamera(&ddo.layout.cam);
-        ddo.render();
+        auto tim = timer->CreateScope("Final");
+        glViewport(0, 0, renderWidth, renderHeight);
+        if (renderDDO)
+        {
+            bindCamera(&ddo.layout.cam);
+            ddo.render();
+        }
+
+
+        postProcessor.renderLast(target_framebuffer, outputWidth, outputHeight);
+
+
+        if (params.useGlFinish)
+        {
+            glFinish();
+        }
     }
-
-    postProcessor.renderLast(target_framebuffer, outputWidth, outputHeight);
-
-    stopTimer(FINAL);
-
-    if (params.useGlFinish) glFinish();
-
-    stopTimer(TOTAL);
 
     assert_no_glerror();
 }
@@ -274,8 +270,6 @@ void DeferredRenderer::clearGBuffer()
 
 void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
-    startTimer(GEOMETRYPASS);
-
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
@@ -328,44 +322,30 @@ void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::View
 
     gbuffer.unbind();
 
-
-    stopTimer(GEOMETRYPASS);
-
     assert_no_glerror();
 }
 
 void DeferredRenderer::renderDepthMaps()
 {
-    startTimer(DEPTHMAPS);
-
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     lighting.renderDepthMaps(renderingInterface);
 
 
-    stopTimer(DEPTHMAPS);
 
     assert_no_glerror();
 }
 
 void DeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
-    startTimer(LIGHTING);
-
     lighting.render(camera.first, camera.second);
-
-    stopTimer(LIGHTING);
 
     assert_no_glerror();
 }
 
 void DeferredRenderer::renderSSAO(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
-    startTimer(SSAOT);
-
     if (params.useSSAO) ssao->render(camera.first, camera.second, &gbuffer);
 
-
-    stopTimer(SSAOT);
 
     assert_no_glerror();
 }
@@ -386,28 +366,6 @@ void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
     assert_no_glerror();
 }
 
-
-
-void DeferredRenderer::printTimings()
-{
-    std::cout << "====================================" << std::endl;
-    std::cout << "Geometry pass: " << getTime(GEOMETRYPASS) << "ms" << std::endl;
-    std::cout << "SSAO: " << getTime(SSAOT) << "ms" << std::endl;
-    std::cout << "Depthmaps: " << getTime(DEPTHMAPS) << "ms" << std::endl;
-    std::cout << "Lighting: " << getTime(LIGHTING) << "ms" << std::endl;
-    lighting.printTimings();
-    //    std::cout<<"Light accumulation: "<<getTime(LIGHTACCUMULATION)<<"ms"<<endl;
-    std::cout << "Overlay pass: " << getTime(OVERLAY) << "ms" << std::endl;
-    std::cout << "Postprocessing: " << getTime(POSTPROCESSING) << "ms" << std::endl;
-    postProcessor.printTimings();
-    std::cout << "SMAA: " << getTime(SMAATIME) << "ms" << std::endl;
-    std::cout << "Final pass: " << getTime(FINAL) << "ms" << std::endl;
-    float total = getTime(TOTAL);
-    std::cout << "Total: " << total << "ms (" << 1000 / total << " fps)" << std::endl;
-    std::cout << "====================================" << std::endl;
-}
-
-
 void DeferredRenderer::renderImgui()
 {
     lighting.renderImGui();
@@ -426,17 +384,6 @@ void DeferredRenderer::renderImgui()
     ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
-
-    ImGui::Text("Render Time");
-    ImGui::Text("%fms - Geometry pass", getTime(GEOMETRYPASS));
-    ImGui::Text("%fms - SSAO", getTime(SSAOT));
-    ImGui::Text("%fms - Depthmaps", getTime(DEPTHMAPS));
-    ImGui::Text("%fms - Lighting", getTime(LIGHTING));
-    ImGui::Text("%fms - Overlay pass", getTime(OVERLAY));
-    ImGui::Text("%fms - Postprocessing", getTime(POSTPROCESSING));
-    ImGui::Text("%fms - SMAA", getTime(SMAATIME));
-    ImGui::Text("%fms - Final pass", getTime(FINAL));
-    ImGui::Text("%fms - Total", getTime(TOTAL));
 
     ImGui::Separator();
 
