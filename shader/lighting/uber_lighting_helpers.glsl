@@ -97,8 +97,14 @@ layout (std430, binding = 8) buffer clusterBuffer
 
 struct clusterItem
 {
-    int lightIdx;
+    int item; // Two 16 bit indices
 };
+
+int lightIdxFromItem(in int item, in int part)
+{
+    int shift = part * 16;
+    return (item >> shift) & 0xffff;
+}
 
 layout (std430, binding = 9) buffer itemBuffer
 {
@@ -162,11 +168,13 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
     //     return vec3(1, 1, 0);
     // }
 
+    int counter = 0;
     for(int i = 0; i < lightCount; i++)
     {
-        int lightVectorIndex = itemList[baseLightIndexOffset + i].lightIdx;
-        // if(lightVectorIndex >= pointLightCount)
-        //     return vec3(0, 0, 0);
+        int lightItem = itemList[baseLightIndexOffset + counter].item;
+        int modulo = int(mod(i, 2));
+        int lightVectorIndex = lightIdxFromItem(lightItem, modulo);
+        counter += modulo;
         PointLightData pl = pointLights[lightVectorIndex];
         vec3 lightPosition = (view * vec4(pl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = pl.colorDiffuse;
@@ -226,11 +234,13 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal, flo
     //     return vec3(1, 1, 0);
     // }
 
+    int counter = 0;
     for(int i = 0; i < lightCount; i++)
     {
-        int lightVectorIndex = itemList[baseLightIndexOffset + i].lightIdx;
-        // if(lightVectorIndex >= spotLightCount)
-        //     return vec3(0, 0, 0);
+        int lightItem = itemList[baseLightIndexOffset + counter].item;
+        int modulo = int(mod(i, 2));
+        int lightVectorIndex = lightIdxFromItem(lightItem, modulo);
+        counter += modulo;
         SpotLightData sl = spotLights[lightVectorIndex];
         vec3 lightPosition = (view * vec4(sl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = sl.colorDiffuse;

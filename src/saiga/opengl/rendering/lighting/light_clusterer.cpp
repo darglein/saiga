@@ -27,7 +27,7 @@ Clusterer::Clusterer(GLTimerSystem* timer, ClustererParameters _params) : timer(
 
 Clusterer::~Clusterer() {}
 
-void Clusterer::init(int _width, int _height, bool _useTimers)
+void Clusterer::init(int _width, int _height)
 {
     width         = _width;
     height        = _height;
@@ -36,7 +36,7 @@ void Clusterer::init(int _width, int _height, bool _useTimers)
 
 void Clusterer::resize(int _width, int _height)
 {
-    if(width == _width && height == _height)
+    if (width == _width && height == _height)
     {
         return;
     }
@@ -82,6 +82,19 @@ bool Clusterer::fillImGui()
     changed |= updateDebug;  // When debug is enabled the clusters are rebuild.
 
     changed |= ImGui::Checkbox("screenSpaceDebug", &screenSpaceDebug);
+
+    static double sum = 0.0;
+    if (timerIndex == 99)
+    {
+        sum = 0.0;
+        for (int i = 0; i < 100; ++i)
+        {
+            sum += cpuAssignmentTimes[i] * 0.01;
+        }
+    }
+
+    ImGui::Text("  %f ms %s", lightAssignmentTimer.getTimeMS(), "CPU Light Assignment");
+    ImGui::Text("  %f ms %s", sum, "CPU Light Assignment (100 Avg.)");
 
     return changed;
 }

@@ -26,8 +26,8 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     lightAssignmentTimer.start();
 
     // memset(itemBuffer.itemList.data(), 0, sizeof(clusterItem) * itemBuffer.itemList.size());
-    const int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
-    int visibleLightIndices[maxClusterItemsPerCluster];
+    const int maxClusterItemsPerCluster = 512;  // TODO Paul: Hardcoded?
+    int16_t visibleLightIndices[maxClusterItemsPerCluster];
 
     int globalOffset = 0;
 
@@ -83,23 +83,18 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
         cluster& gpuCluster = clusterBuffer.clusterList.at(c);
         gpuCluster.offset   = globalOffset;
-        globalOffset += visiblePLCount;
-        globalOffset += visibleSLCount;
+        globalOffset += std::ceil(visiblePLCount * 0.5f);
+        globalOffset += std::ceil(visibleSLCount * 0.5f);
 
-        for (int v = 0; v < visiblePLCount; ++v)
-        {
-            itemBuffer.itemList[gpuCluster.offset + v].lightIdx = visibleLightIndices[v];
-        }
-        for (int v = visiblePLCount; v < visiblePLCount + visibleSLCount; ++v)
-        {
-            itemBuffer.itemList[gpuCluster.offset + v].lightIdx = visibleLightIndices[v];
-        }
+        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), &visibleLightIndices[0], maxClusterItemsPerCluster * sizeof(int16_t));
 
         gpuCluster.plCount = visiblePLCount;
         gpuCluster.slCount = visibleSLCount;
     }
 
     lightAssignmentTimer.stop();
+    cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
+    timerIndex = (timerIndex + 1) % 100;
 
 
     {
@@ -306,12 +301,12 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     }
 
     {
-        auto tim = timer->CreateScope("InfoUpdate");
+        auto tim = timer->CreateScope("Info Update");
         itemBuffer.itemList.clear();
-        int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
+        int maxClusterItemsPerCluster = 512;  // TODO Paul: Hardcoded?
 
-        clusterInfoBuffer.tileDebug = screenSpaceDebug ? 256 : 0;
-        itemBuffer.itemList.resize(maxClusterItemsPerCluster * clusterCount);
+        clusterInfoBuffer.tileDebug = screenSpaceDebug ? maxClusterItemsPerCluster : 0;
+        itemBuffer.itemList.resize(maxClusterItemsPerCluster / 2 * clusterCount);
         clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
 
         int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();

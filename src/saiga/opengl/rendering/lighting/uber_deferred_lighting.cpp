@@ -52,7 +52,7 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
 {
     RendererLighting::init(_width, _height, _useTimers);
-    if (clustererType) lightClusterer->init(_width, _height, _useTimers);
+    if (clustererType) lightClusterer->init(_width, _height);
 }
 
 void UberDeferredLighting::resize(int _width, int _height)
@@ -248,14 +248,7 @@ void UberDeferredLighting::renderImGui()
 
     if (changed)
     {
-        if (clustererType > 0)
-        {
-            ClustererParameters params;
-            lightClusterer = clustererType == 1
-                                 ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(params))
-                                 : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(params));
-            lightClusterer->init(width, height, useTimers);
-        }
+        setClusterType(clustererType);
     }
     ImGui::End();
 
@@ -264,14 +257,14 @@ void UberDeferredLighting::renderImGui()
 
 void UberDeferredLighting::setClusterType(int tp)
 {
-    clustererType= tp;
+    clustererType = tp;
     if (clustererType > 0)
     {
         ClustererParameters params;
         lightClusterer = clustererType == 1
-                             ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(params))
-                             : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(params));
-        lightClusterer->init(width, height, useTimers);
+                             ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer, params))
+                             : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer, params));
+        lightClusterer->init(width, height);
     }
 }
 

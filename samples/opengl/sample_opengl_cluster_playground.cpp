@@ -32,7 +32,7 @@ class Sample : public RendererSampleWindow
 #endif
 
         planeAsset  = std::make_shared<ColoredAsset>(PlaneMesh(Plane(vec3(0, -0.1, 0), vec3(0, 1, 0))));
-        sponzaAsset = std::make_shared<ColoredAsset>(UnifiedModel("models/sponza.obj"));
+        sponzaAsset = std::make_shared<ColoredAsset>(UnifiedModel("models/Sponza.obj"));
         boxAsset    = std::make_shared<ColoredAsset>(BoxMesh(AABB(make_vec3(-0.5), make_vec3(0.5))));
 
         plane.asset = planeAsset;
@@ -177,6 +177,8 @@ class Sample : public RendererSampleWindow
 
                 camera.position = vec4(-0.125262, 30.514, 51.6262, 1);
                 camera.rot      = quat(0.961825, -0.273666, 6.98492e-10, 1.60071e-09);
+                camera.calculateModel();
+
             }
             break;
             case 1:
@@ -211,6 +213,7 @@ class Sample : public RendererSampleWindow
 
                 camera.position = vec4(-35.3095, 16.6492, 2.20442, 1);
                 camera.rot      = quat(0.732921, -0.0343305, -0.678689, -0.0318128);
+                camera.calculateModel();
             }
             break;
             case 2:
@@ -245,6 +248,7 @@ class Sample : public RendererSampleWindow
 
                 camera.position = vec4(0.381537, 1.63556, 19.5328, 1);
                 camera.rot      = quat(0.999195, -0.0398272, 0.00174378, 7.06406e-05);
+                camera.calculateModel();
             }
             break;
             case 3:
@@ -271,7 +275,7 @@ class Sample : public RendererSampleWindow
 
                 camera.position = vec4(0.123655, 9.77907, 21.8321, 1);
                 camera.rot      = quat(0.966454, -0.256838, -1.63342e-09, -2.06352e-09);
-
+                camera.calculateModel();
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
                 renderer->lighting.setClusterType(2);
@@ -301,6 +305,7 @@ class Sample : public RendererSampleWindow
 
                 camera.position = vec4(-0.459712, 8.13201, 12.0926, 1);
                 camera.rot      = quat(0.957761, -0.287024, -0.0167178, -0.00501071);
+                camera.calculateModel();
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
                 renderer->lighting.setClusterType(2);
@@ -333,6 +338,7 @@ class Sample : public RendererSampleWindow
 
                 camera.position = vec4(-0.459712, 8.13201, 12.0926, 1);
                 camera.rot      = quat(0.957761, -0.287024, -0.0167178, -0.00501071);
+                camera.calculateModel();
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
                 renderer->lighting.setClusterType(2);

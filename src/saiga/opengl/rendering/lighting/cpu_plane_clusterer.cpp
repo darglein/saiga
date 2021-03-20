@@ -23,213 +23,219 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     if (clustersDirty) buildClusters(cam);
 
-    lightAssignmentTimer.start();
-
-    for (int c = 0; c < clusterBuffer.clusterList.size(); ++c)
-    {
-        clusterCache[c].clear();
-        clusterCache[c].push_back(0); // PL Count
-    }
-
     int itemCount = 0;
-    int maxDepthCluster = planesZ.size() - 2;
 
-    if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
-    if (!SAT)
     {
-        for (int i = 0; i < pointLightsClusterData.size(); ++i)
-        {
-            PointLightClusterData& plc = pointLightsClusterData[i];
-            vec3 sphereCenter          = cam->WorldToView(plc.world_center);
-            float sphereRadius         = plc.radius;
-            clusterLoop(sphereCenter, sphereRadius, i, true, itemCount);
-        }
-        for (int i = 0; i < spotLightsClusterData.size(); ++i)
-        {
-            SpotLightClusterData& slc = spotLightsClusterData[i];
-            vec3 sphereCenter         = cam->WorldToView(slc.world_center);
-            float sphereRadius        = slc.radius;
-            clusterLoop(sphereCenter, sphereRadius, i, false, itemCount);
-        }
-    }
-    else
-    {
-        for (int i = 0; i < pointLightsClusterData.size(); ++i)
-        {
-            auto& cData        = pointLightsClusterData[i];
-            vec3 sphereCenter  = cam->WorldToView(cData.world_center);
-            float sphereRadius = cData.radius;
-            Sphere sphere(sphereCenter, sphereRadius);
+        lightAssignmentTimer.start();
 
-            for (int x = 0; x < planesX.size() - 1; ++x)
+        for (int c = 0; c < clusterBuffer.clusterList.size(); ++c)
+        {
+            clusterCache[c].clear();
+            clusterCache[c].push_back(0);  // PL Count
+        }
+
+        int maxDepthCluster = planesZ.size() - 2;
+
+        if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
+        if (!SAT)
+        {
+            for (int i = 0; i < pointLightsClusterData.size(); ++i)
             {
-                for (int y = 0; y < planesY.size() - 1; ++y)
+                PointLightClusterData& plc = pointLightsClusterData[i];
+                vec3 sphereCenter          = cam->WorldToView(plc.world_center);
+                float sphereRadius         = plc.radius;
+                clusterLoop(sphereCenter, sphereRadius, i, true, itemCount);
+            }
+            for (int i = 0; i < spotLightsClusterData.size(); ++i)
+            {
+                SpotLightClusterData& slc = spotLightsClusterData[i];
+                vec3 sphereCenter         = cam->WorldToView(slc.world_center);
+                float sphereRadius        = slc.radius;
+                clusterLoop(sphereCenter, sphereRadius, i, false, itemCount);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < pointLightsClusterData.size(); ++i)
+            {
+                auto& cData        = pointLightsClusterData[i];
+                vec3 sphereCenter  = cam->WorldToView(cData.world_center);
+                float sphereRadius = cData.radius;
+                Sphere sphere(sphereCenter, sphereRadius);
+
+                for (int x = 0; x < planesX.size() - 1; ++x)
                 {
-                    for (int z = 0; z < planesZ.size() - 1; ++z)
+                    for (int y = 0; y < planesY.size() - 1; ++y)
                     {
-                        int tileIndex = getTileIndex(x, y, z);
-
-                        const Frustum& fr = debugFrusta[tileIndex];
-
-                        if (fr.intersectSAT(sphere))
+                        for (int z = 0; z < planesZ.size() - 1; ++z)
                         {
-                            clusterCache[tileIndex].push_back(i);
-                            clusterCache[tileIndex][0]++;
-                            itemCount++;
+                            int tileIndex = getTileIndex(x, y, z);
+
+                            const Frustum& fr = debugFrusta[tileIndex];
+
+                            if (fr.intersectSAT(sphere))
+                            {
+                                clusterCache[tileIndex].push_back(i);
+                                clusterCache[tileIndex][0]++;
+                                itemCount++;
+                            }
+                        }
+                    }
+                }
+            }
+            for (int i = 0; i < spotLightsClusterData.size(); ++i)
+            {
+                auto& cData        = spotLightsClusterData[i];
+                vec3 sphereCenter  = cam->WorldToView(cData.world_center);
+                float sphereRadius = cData.radius;
+                Sphere sphere(sphereCenter, sphereRadius);
+
+                for (int x = 0; x < planesX.size() - 1; ++x)
+                {
+                    for (int y = 0; y < planesY.size() - 1; ++y)
+                    {
+                        for (int z = 0; z < planesZ.size() - 1; ++z)
+                        {
+                            int tileIndex = getTileIndex(x, y, z);
+
+                            const Frustum& fr = debugFrusta[tileIndex];
+
+                            if (fr.intersectSAT(sphere))
+                            {
+                                clusterCache[tileIndex].push_back(i);
+                                itemCount++;
+                            }
                         }
                     }
                 }
             }
         }
-        for (int i = 0; i < spotLightsClusterData.size(); ++i)
+
+        if (itemCount > itemBuffer.itemList.size())
         {
-            auto& cData        = spotLightsClusterData[i];
-            vec3 sphereCenter  = cam->WorldToView(cData.world_center);
-            float sphereRadius = cData.radius;
-            Sphere sphere(sphereCenter, sphereRadius);
-
-            for (int x = 0; x < planesX.size() - 1; ++x)
+            do
             {
-                for (int y = 0; y < planesY.size() - 1; ++y)
-                {
-                    for (int z = 0; z < planesZ.size() - 1; ++z)
-                    {
-                        int tileIndex = getTileIndex(x, y, z);
+                avgAllowedItemsPerCluster *= 2;
+                itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+            } while (itemCount > itemBuffer.itemList.size());
 
-                        const Frustum& fr = debugFrusta[tileIndex];
+            auto tim = timer->CreateScope("Info Update");
 
-                        if (fr.intersectSAT(sphere))
-                        {
-                            clusterCache[tileIndex].push_back(i);
-                            itemCount++;
-                        }
-                    }
-                }
+            clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
+            clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+
+            int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
+            int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+            SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
+
+            itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize);
+
+            infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+        }
+
+        int globalOffset = 0;
+
+        for (int c = 0; c < clusterCache.size(); ++c)
+        {
+            auto cl             = clusterCache[c];
+            cluster& gpuCluster = clusterBuffer.clusterList.at(c);
+
+            gpuCluster.offset = globalOffset;
+            SAIGA_ASSERT(gpuCluster.offset < itemBuffer.itemList.size(), "Too many items!");
+            gpuCluster.plCount = cl[0];
+            gpuCluster.slCount = cl.size() - 1 - cl[0];
+            globalOffset += std::ceil(gpuCluster.plCount * 0.5f);
+            globalOffset += std::ceil(gpuCluster.slCount * 0.5f);
+            if (cl.size() < 2)
+            {
+                continue;
+            }
+
+            memcpy(&(itemBuffer.itemList[gpuCluster.offset]), &cl[1], (cl.size() - 1) * sizeof(int16_t));
+
+            if (lightsDebug && updateLightsDebug && (gpuCluster.plCount > 0 || gpuCluster.slCount > 0))
+            {
+                const auto& dbg = debugFrusta[c];
+                PointVertex v;
+                v.color = vec3(1, 1, 1);
+
+                v.position = dbg.vertices[2];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[0];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[1];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[3];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[2];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[6];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[4];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[5];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[7];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[6];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[2];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[6];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[0];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[4];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[3];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[7];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[1];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[5];
+                lightClustersDebug.lines.push_back(v);
             }
         }
-    }
 
-
-    if (itemCount > itemBuffer.itemList.size())
-    {
-        do
+        if (lightsDebug && updateLightsDebug)
         {
-            avgAllowedItemsPerCluster *= 2;
-            itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        } while (itemCount > itemBuffer.itemList.size());
+            lightClustersDebug.lineWidth = 3;
 
-        clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
-        clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
-
-        int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
-        int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-        SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
-
-        itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize);
-
-        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
-    }
-
-    int globalOffset = 0;
-
-    for (int c = 0; c < clusterCache.size(); ++c)
-    {
-        auto cl             = clusterCache[c];
-        cluster& gpuCluster = clusterBuffer.clusterList.at(c);
-
-        gpuCluster.offset  = globalOffset;
-        SAIGA_ASSERT(gpuCluster.offset < itemBuffer.itemList.size(), "Too many items!");
-        gpuCluster.plCount = cl[0];
-        gpuCluster.slCount = cl.size() - 1 - cl[0];
-        globalOffset += gpuCluster.plCount;
-        globalOffset += gpuCluster.slCount;
-        if(cl.size() < 2)
-        {
-            continue;
-        }
-
-        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), &cl[1] , (cl.size() - 1) * sizeof(clusterItem));
-
-        if (lightsDebug && updateLightsDebug && (gpuCluster.plCount > 0 || gpuCluster.slCount > 0))
-        {
-            const auto& dbg = debugFrusta[c];
-            PointVertex v;
-            v.color = vec3(1, 1, 1);
-
-            v.position = dbg.vertices[2];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[0];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[1];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[3];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[2];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[6];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[4];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[5];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[7];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[6];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[2];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[6];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[0];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[4];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[3];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[7];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[1];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[5];
-            lightClustersDebug.lines.push_back(v);
-        }
-    }
-
-    if (lightsDebug && updateLightsDebug)
-    {
-        lightClustersDebug.lineWidth = 3;
-
-        lightClustersDebug.setModelMatrix(cam->getModelMatrix());  // is inverse view.
-        lightClustersDebug.translateLocal(vec3(0, 0, -0.0001f));
+            lightClustersDebug.setModelMatrix(cam->getModelMatrix());  // is inverse view.
+            lightClustersDebug.translateLocal(vec3(0, 0, -0.0001f));
 #if 0
         lightClustersDebug.setPosition(make_vec4(0));
         lightClustersDebug.translateGlobal(vec3(0, 6, 0));
         lightClustersDebug.setScale(make_vec3(0.33f));
 #endif
-        lightClustersDebug.calculateModel();
-        lightClustersDebug.updateBuffer();
-        updateLightsDebug = false;
+            lightClustersDebug.calculateModel();
+            lightClustersDebug.updateBuffer();
+            updateLightsDebug = false;
+        }
+
+        lightAssignmentTimer.stop();
+        cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
+        timerIndex                     = (timerIndex + 1) % 100;
     }
 
-    lightAssignmentTimer.stop();
-
     {
-        auto tim            = timer->CreateScope("clusterupdate");
+        auto tim            = timer->CreateScope("Cluster Update");
         int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
         clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
-        int itemListSize = sizeof(clusterItem) * itemCount;
+        int itemListSize = sizeof(int32_t) * itemCount;
         // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
         itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
 
@@ -330,8 +336,7 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
 
                     clusterCache[tileIndex].push_back(index);
                     itemCount++;
-                    if(pl)
-                        clusterCache[tileIndex][0]++;
+                    if (pl) clusterCache[tileIndex][0]++;
                 }
             }
         }
@@ -414,8 +419,7 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
 
                     clusterCache[tileIndex].push_back(index);
                     itemCount++;
-                    if(pl)
-                        clusterCache[tileIndex][0]++;
+                    if (pl) clusterCache[tileIndex][0]++;
                 }
             }
         }
@@ -700,7 +704,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         updateDebug = false;
     }
     {
-        auto tim                    = timer->CreateScope("info");
+        auto tim                    = timer->CreateScope("Info Update");
         clusterInfoBuffer.tileDebug = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
 
         itemBuffer.itemList.clear();

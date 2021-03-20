@@ -22,7 +22,7 @@ namespace Saiga
 {
 struct clusterItem
 {
-    int lightIdx = -1;
+    int item = 0; // Two 16 Bit indices.
 };
 struct cluster
 {
@@ -82,7 +82,6 @@ class SAIGA_OPENGL_API BuildClusterComputeShader : public Shader
 struct SAIGA_OPENGL_API ClustererParameters
 {
     bool clusterThreeDimensional = false;
-    bool useTimers               = true;
 
     void fromConfigFile(const std::string& file) {}
 };
@@ -94,7 +93,7 @@ class SAIGA_OPENGL_API Clusterer
     Clusterer& operator=(Clusterer& c) = delete;
     virtual ~Clusterer();
 
-    void init(int width, int height, bool _useTimers);
+    void init(int width, int height);
     void resize(int width, int height);
 
     inline void enable3DClusters(bool enabled) { clusterThreeDimensional = enabled; }
@@ -142,6 +141,9 @@ class SAIGA_OPENGL_API Clusterer
 
    protected:
     int width, height;
+
+    int timerIndex = 0;
+    double cpuAssignmentTimes[100];
 
     GLTimerSystem* timer;
     int screenSpaceTileSize = 128;

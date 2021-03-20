@@ -41,7 +41,7 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
     std::vector<Plane> planesZ;
 
     int avgAllowedItemsPerCluster = 128;
-    std::vector<std::vector<int>> clusterCache;
+    std::vector<std::vector<int16_t>> clusterCache;
 
     bool refinement = true;
 
