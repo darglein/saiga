@@ -82,7 +82,6 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
     virtual void render(const RenderInfo& renderInfo) override;
 
-    virtual float getTotalRenderTime() override;
 
     void renderImgui() override;
     void waitIdle();

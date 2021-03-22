@@ -79,7 +79,7 @@ class Sample : public SampleWindowDeferred
         float t;
         {
             ScopedTimer tim(t);
-            gpu_timers[0].second.startTimer();
+            gpu_timers[0].second.Start();
 
             current_draw_buffer = (current_draw_buffer + 1) % num_multi_buffers;
             auto buffer         = buffers[current_draw_buffer];
@@ -107,7 +107,7 @@ class Sample : public SampleWindowDeferred
             }
 
 
-            gpu_timers[0].second.stopTimer();
+            gpu_timers[0].second.Stop();
             // std::cout << gpu_timers[0].second.getTimeNS() << std::endl;
             gpu_timers[0].first.addTime(gpu_timers[0].second.getTimeMS());
         }
