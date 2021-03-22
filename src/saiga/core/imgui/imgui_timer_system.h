@@ -49,7 +49,7 @@ class SAIGA_CORE_API TimerSystem
     using Measurement = std::pair<uint64_t, uint64_t>;
 
 
-    struct TimeData
+    struct SAIGA_CORE_API TimeData
     {
         explicit TimeData(std::unique_ptr<TimestampTimer> timer, int& current_depth)
             : timer(std::move(timer)), current_depth(current_depth)
