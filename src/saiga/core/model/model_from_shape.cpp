@@ -588,6 +588,68 @@ UnifiedModel FrustumLineMesh(const Frustum& frustum)
     }
     return model;
 }
+UnifiedModel SimpleHeightmap(const ImageView<uint16_t> image, float height_scale, float horizontal_scale,
+                             bool translate_to_origin)
+{
+    UnifiedModel model;
+
+    int h = image.h;
+    int w = image.w;
+
+    float inv_h = 1.0f / (h);
+    float inv_w = 1.0f / (w);
+
+    std::cout << "hm " << inv_h << " " << inv_w << std::endl;
+
+    SAIGA_ASSERT(h == w);
+
+
+    vec2 horizontal_translation = vec2::Zero();
+
+    if (translate_to_origin)
+    {
+        horizontal_translation = vec2(1, 1) * horizontal_scale * -0.5;
+    }
+
+    // Create vertices
+    for (int i = 0; i < h; ++i)
+    {
+        for (int j = 0; j < w; ++j)
+        {
+            float h = image(i, j) * height_scale * (1.0f / std::numeric_limits<uint16_t>::max());
+
+            vec2 xz = vec2(j, i).array() * vec2(inv_w, inv_h).array();
+
+            xz = xz * horizontal_scale + horizontal_translation;
+
+
+            vec3 p(xz(0), h, xz(1));
+            model.position.push_back(p);
+            model.normal.push_back(vec3(0, 1, 0));
+            model.color.push_back(vec4(1, 1, 1, 1));
+        }
+    }
+
+    // Triangles
+    for (int i = 0; i < h - 1; ++i)
+    {
+        for (int j = 0; j < w - 1; ++j)
+        {
+            int p1 = i * w + j;
+            int p2 = i * w + j + 1;
+            int p3 = (i + 1) * w + j;
+            int p4 = (i + 1) * w + j + 1;
+            model.triangles.push_back(ivec3(p1, p3, p2));
+            model.triangles.push_back(ivec3(p2, p3, p4));
+        }
+    }
+
+
+    model.CalculateVertexNormals();
+
+
+    return model;
+}
 
 
 }  // namespace Saiga

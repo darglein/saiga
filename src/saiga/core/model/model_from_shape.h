@@ -74,5 +74,11 @@ SAIGA_CORE_API UnifiedModel FrustumCVLineMesh(const mat3& K, float farPlaneDista
 SAIGA_CORE_API UnifiedModel FrustumLineMesh(const Frustum& frustum);
 
 
+// Create a simple 2.5D heighmap from an image.
+// One vertex is created for every pixel and connected by triangles.
+SAIGA_CORE_API UnifiedModel SimpleHeightmap(const ImageView<uint16_t> image, float height_scale, float horizontal_scale,
+                                            bool translate_to_origin);
+
+
 
 }  // namespace Saiga
