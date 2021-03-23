@@ -7,16 +7,6 @@
 #include "light_models.glsl"
 #include "camera.glsl"
 
-#ifndef MAX_PL_COUNT
-#define MAX_PL_COUNT 256
-#endif
-#ifndef MAX_SL_COUNT
-#define MAX_SL_COUNT 256
-#endif
-#ifndef MAX_DL_COUNT
-#define MAX_DL_COUNT 256
-#endif
-
 struct PointLightData
 {
     vec4 position; // xyz, w unused
@@ -44,17 +34,17 @@ struct DirectionalLightData
 // Shader storage buffers are enabled
 layout (std430, binding = 2) buffer lightDataBlockPoint
 {
-    PointLightData pointLights[MAX_PL_COUNT];
+    PointLightData pointLights[];
 };
 
 layout (std430, binding = 3) buffer lightDataBlockSpot
 {
-    SpotLightData spotLights[MAX_SL_COUNT];
+    SpotLightData spotLights[];
 };
 
 layout (std430, binding = 5) buffer lightDataBlockDirectional
 {
-    DirectionalLightData directionalLights[MAX_DL_COUNT];
+    DirectionalLightData directionalLights[];
 };
 
 layout (std140, binding = 6) uniform lightInfoBlock
@@ -97,7 +87,7 @@ layout (std430, binding = 8) buffer clusterBuffer
 
 struct clusterItem
 {
-    int item; // Two 16 bit indices
+    int lightIndex;
 };
 
 int lightIdxFromItem(in int item, in int part)
@@ -168,14 +158,10 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
     //     return vec3(1, 1, 0);
     // }
 
-    int counter = 0;
     for(int i = 0; i < lightCount; i++)
     {
-        int lightItem = itemList[baseLightIndexOffset + counter].item;
-        int modulo = int(mod(i, 2));
-        int lightVectorIndex = lightIdxFromItem(lightItem, modulo);
-        counter += modulo;
-        PointLightData pl = pointLights[lightVectorIndex];
+        int lightItem = itemList[baseLightIndexOffset + i].lightIndex;
+        PointLightData pl = pointLights[lightItem];
         vec3 lightPosition = (view * vec4(pl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = pl.colorDiffuse;
         vec4 lightColorSpecular = pl.colorSpecular;
@@ -234,14 +220,10 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal, flo
     //     return vec3(1, 1, 0);
     // }
 
-    int counter = 0;
     for(int i = 0; i < lightCount; i++)
     {
-        int lightItem = itemList[baseLightIndexOffset + counter].item;
-        int modulo = int(mod(i, 2));
-        int lightVectorIndex = lightIdxFromItem(lightItem, modulo);
-        counter += modulo;
-        SpotLightData sl = spotLights[lightVectorIndex];
+        int lightItem = itemList[baseLightIndexOffset + i].lightIndex;
+        SpotLightData sl = spotLights[lightItem];
         vec3 lightPosition = (view * vec4(sl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = sl.colorDiffuse;
         vec4 lightColorSpecular = sl.colorSpecular;

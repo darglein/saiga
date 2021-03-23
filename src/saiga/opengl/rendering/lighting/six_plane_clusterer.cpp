@@ -25,8 +25,6 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     lightAssignmentTimer.start();
 
-    const int maxClusterItemsPerCluster = 512;  // TODO Paul: Hardcoded?
-
     for (int c = 0; c < clusterBuffer.clusterList.size(); ++c)
     {
         clusterCache[c].clear();
@@ -85,23 +83,23 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     }
 
     bool adaptSize = false;
-    if (itemCount > itemBuffer.itemList.size() * 0.5)
+    if (itemCount > itemBuffer.itemList.size())
     {
         adaptSize = true;
         do
         {
             avgAllowedItemsPerCluster *= 2;
             itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        } while (itemCount > itemBuffer.itemList.size() * 0.5);
+        } while (itemCount > itemBuffer.itemList.size());
     }
-    if (itemCount < itemBuffer.itemList.size() * 0.25)
+    if (itemCount < itemBuffer.itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2)
     {
         adaptSize = true;
         do
         {
             avgAllowedItemsPerCluster /= 2;
             itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        } while (itemCount < itemBuffer.itemList.size() * 0.25);
+        } while (itemCount < itemBuffer.itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2);
     }
 
     if (adaptSize)
@@ -131,14 +129,14 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         SAIGA_ASSERT(gpuCluster.offset < itemBuffer.itemList.size(), "Too many items!");
         gpuCluster.plCount = cl[0];
         gpuCluster.slCount = cl.size() - 1 - cl[0];
-        globalOffset += std::ceil(gpuCluster.plCount * 0.5f);
-        globalOffset += std::ceil(gpuCluster.slCount * 0.5f);
+        globalOffset += gpuCluster.plCount;
+        globalOffset += gpuCluster.slCount;
         if (cl.size() < 2)
         {
             continue;
         }
 
-        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), &cl[1], (cl.size() - 1) * sizeof(int16_t));
+        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), &cl[1], (cl.size() - 1) * sizeof(clusterItem));
     }
 
     lightAssignmentTimer.stop();
@@ -146,11 +144,11 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     timerIndex                     = (timerIndex + 1) % 100;
 
     {
-        auto tim            = timer->CreateScope("ClusterUpdate");
+        auto tim            = timer->CreateScope("Cluster Update");
         int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
         clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
-        int itemListSize = sizeof(int32_t) * itemCount;
+        int itemListSize = sizeof(clusterItem) * itemCount;
         // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
         itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
 

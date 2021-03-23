@@ -13,6 +13,7 @@
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
+#include "saiga/opengl/rendering/lighting/gpu_assignment_clusterer.h"
 #include "saiga/opengl/rendering/lighting/six_plane_clusterer.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
@@ -242,9 +243,9 @@ void UberDeferredLighting::renderImGui()
     ImGui::Begin("UberDefferedLighting", &showLightingImgui);
 
 
-    const char* const clustererTypes[3] = {"None", "SixPlanes", "PlaneArrays"};
+    const char* const clustererTypes[4] = {"None", "CPU SixPlanes", "CPU PlaneArrays", "GPU AABB Light Assignment"};
 
-    bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 3);
+    bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 4);
 
     if (changed)
     {
@@ -261,9 +262,24 @@ void UberDeferredLighting::setClusterType(int tp)
     if (clustererType > 0)
     {
         ClustererParameters params;
-        lightClusterer = clustererType == 1
-                             ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer, params))
-                             : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer, params));
+        switch (clustererType)
+        {
+            case 1:
+                lightClusterer =
+                    std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer, params));
+                break;
+            case 2:
+                lightClusterer =
+                    std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer, params));
+                break;
+            case 3:
+                lightClusterer =
+                    std::static_pointer_cast<Clusterer>(std::make_shared<GPUAssignmentClusterer>(timer, params));
+                break;
+            default:
+                return;
+        }
+
         lightClusterer->init(width, height);
     }
 }

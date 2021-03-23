@@ -22,7 +22,7 @@ namespace Saiga
 {
 struct clusterItem
 {
-    int item = 0; // Two 16 Bit indices.
+    int32_t lightIndex = 0;
 };
 struct cluster
 {
@@ -45,29 +45,21 @@ struct SpotLightClusterData
     SpotLightClusterData(vec3 w_center, float r) : world_center(w_center), radius(r) {}
 };
 
-#ifdef GPU_LIGHT_ASSIGNMENT
 class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
 {
    public:
-    GLint location_clusterDataBlockPointLights;  // pointLightClusterData array
-    GLint location_clusterDataBlockSpotLights;   // spotLightClusterData array
-    GLint location_clusterInfoBlock;             // number of lights in cluster arrays
+    GLint location_lightInfoBlock;
 
-    // Gets accessed based on pixel world space position (or screen space on 2D clustering)
-    GLint location_clusterList;  // clusters
-    /*
-     * Looks like this: [offset, plCount, slCount], [offset, plCount, slCount] ...
-     * So for each cluster we store an offset in the itemList and the number of specific lights that were assigned.
-     */
-    GLint location_itemList;  // itemList
-    /*
-     * Looks like this: [plIdx, slIdx, blIdx], [plIdx, slIdx, blIdx], ...
-     * So each item consists of indices for all light types (can be -1, when not set).
-     */
+    virtual void checkUniforms() override
+    {
+        Shader::checkUniforms();
 
-    virtual void checkUniforms() override{};
+        location_lightInfoBlock = getUniformBlockLocation("lightInfoBlock");
+        setUniformBlockBinding(location_lightInfoBlock, LIGHT_INFO_BINDING_POINT);
+    }
 };
 
+/*
 class SAIGA_OPENGL_API BuildClusterComputeShader : public Shader
 {
    public:
@@ -77,7 +69,7 @@ class SAIGA_OPENGL_API BuildClusterComputeShader : public Shader
 
     virtual void checkUniforms() override{};
 };
-#endif
+*/
 
 struct SAIGA_OPENGL_API ClustererParameters
 {
@@ -236,11 +228,6 @@ class SAIGA_OPENGL_API Clusterer
     ShaderStorageBuffer clusterListBuffer;
     ShaderStorageBuffer itemListBuffer;
 
-#ifdef GPU_LIGHT_ASSIGNMENT
-    std::shared_ptr<BuildClusterComputeShader> buildClusterShader2D;
-    std::shared_ptr<BuildClusterComputeShader> buildClusterShader3D;
-    std::shared_ptr<LightAssignmentComputeShader> buildLightToClusterMapShader;
-#endif
     virtual bool fillImGui();
 
    private:
