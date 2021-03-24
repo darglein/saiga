@@ -141,7 +141,7 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     lightAssignmentTimer.stop();
     cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
-    timerIndex                     = (timerIndex + 1) % 100;
+    timerIndex = (timerIndex + 1) % 100;
 
     {
         auto tim            = timer->CreateScope("Cluster Update");

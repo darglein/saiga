@@ -475,7 +475,6 @@ void GLTimerSystem::Imgui()
                             ImGui::TableNextColumn();
                             ImGui::Text("%f", item->stat_mean);
 
-
                             ImGui::PopID();
                         }
                     }

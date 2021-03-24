@@ -239,7 +239,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
         lightAssignmentTimer.stop();
         cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
-        timerIndex                     = (timerIndex + 1) % 100;
+        timerIndex = (timerIndex + 1) % 100;
     }
 
     {

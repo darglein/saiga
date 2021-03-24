@@ -84,7 +84,7 @@ bool Clusterer::fillImGui()
     changed |= ImGui::Checkbox("screenSpaceDebug", &screenSpaceDebug);
 
     static double sum = 0.0;
-    if (timerIndex == 99)
+    if (timerIndex == 0)
     {
         sum = 0.0;
         for (int i = 0; i < 100; ++i)

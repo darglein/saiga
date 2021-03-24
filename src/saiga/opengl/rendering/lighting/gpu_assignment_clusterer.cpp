@@ -36,7 +36,7 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
     if (clustersDirty) buildClusters(cam);
 
     {
-        auto tim = timer->CreateScope("Light Cluster Data Upload");
+        auto tim = timer->CreateScope("Cluster Update");
 
         int plSize = sizeof(PointLightClusterData) * pointLightsClusterData.size();
         lightClusterDataBuffer.updateBuffer(pointLightsClusterData.data(), plSize, 0);
@@ -61,14 +61,13 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
         lightAssignmentTimer.start();
 
         lightAssignmentShader->bind();
-        lightAssignmentShader->memoryBarrier(MemoryBarrierMask::GL_ALL_BARRIER_BITS);
         lightAssignmentShader->dispatchCompute(gridCount[0], gridCount[1], gridCount[2]);
-        lightAssignmentShader->memoryBarrier(MemoryBarrierMask::GL_ALL_BARRIER_BITS);
+        lightAssignmentShader->memoryBarrier(MemoryBarrierMask::GL_BUFFER_UPDATE_BARRIER_BIT);
         lightAssignmentShader->unbind();
 
         lightAssignmentTimer.stop();
         cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
-        timerIndex                     = (timerIndex + 1) % 100;
+        timerIndex = (timerIndex + 1) % 100;
     }
 
     assert_no_glerror();

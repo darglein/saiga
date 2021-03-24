@@ -28,6 +28,7 @@ if (GLFW_FOUND)
   saiga_opengl_sample(sample_opengl_shapes.cpp)
   saiga_opengl_sample(sample_opengl_pipelines.cpp)
   saiga_opengl_sample(sample_opengl_cluster_playground.cpp)
+  saiga_opengl_sample(sample_opengl_cluster_benchmark.cpp)
   saiga_opengl_sample(sample_opengl_particles.cpp)
 
   if (ASSIMP_FOUND)
