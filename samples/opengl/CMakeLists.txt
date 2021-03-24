@@ -27,6 +27,7 @@ if (GLFW_FOUND)
   saiga_opengl_sample(sample_opengl_volumetric_lights.cpp)
   saiga_opengl_sample(sample_opengl_shapes.cpp)
   saiga_opengl_sample(sample_opengl_pipelines.cpp)
+  saiga_opengl_sample(sample_opengl_particles.cpp)
 
   if (ASSIMP_FOUND)
     saiga_opengl_sample(sample_opengl_bone_animation.cpp)

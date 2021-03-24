@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-MultiFrameOpenGLTimer::MultiFrameOpenGLTimer() {}
+MultiFrameOpenGLTimer::MultiFrameOpenGLTimer(bool use_time_stamps) : use_time_stamps(use_time_stamps) {}
 
 MultiFrameOpenGLTimer::~MultiFrameOpenGLTimer() {}
 
@@ -22,7 +22,7 @@ void MultiFrameOpenGLTimer::create()
     {
         for (int j = 0; j < 2; ++j)
         {
-            queries[i][j].create();
+            queries[i][j].create(use_time_stamps);
         }
     }
 }
@@ -33,17 +33,29 @@ void MultiFrameOpenGLTimer::swapQueries()
 }
 
 
-void MultiFrameOpenGLTimer::startTimer()
+void MultiFrameOpenGLTimer::Start()
 {
-    queries[queryBackBuffer][0].record();
+    if (use_time_stamps)
+        queries[queryBackBuffer][0].record();
+    else
+        queries[queryBackBuffer][0].begin();
 }
 
-void MultiFrameOpenGLTimer::stopTimer()
+void MultiFrameOpenGLTimer::Stop()
 {
-    queries[queryBackBuffer][1].record();
-    time = queries[queryFrontBuffer][1].getTimestamp() - queries[queryFrontBuffer][0].getTimestamp();
+    if (use_time_stamps)
+    {
+        queries[queryBackBuffer][1].record();
+        end_time     = queries[queryFrontBuffer][1].getTimestamp();
+        begin_time   = queries[queryFrontBuffer][0].getTimestamp();
+        elapsed_time = end_time - begin_time;
+    }
+    else
+    {
+        queries[queryBackBuffer][0].end();
+        elapsed_time = queries[queryFrontBuffer][0].getTimestamp();
+    }
 
-    //    time = queries[queryFrontBuffer][1].waitTimestamp() - queries[queryFrontBuffer][0].waitTimestamp();
     swapQueries();
 }
 
@@ -59,7 +71,7 @@ double MultiFrameOpenGLTimer::getTimeMSd()
 
 GLuint64 MultiFrameOpenGLTimer::getTimeNS()
 {
-    return time;
+    return elapsed_time;
 }
 
 
@@ -68,7 +80,7 @@ GLuint64 MultiFrameOpenGLTimer::getTimeNS()
 
 void FilteredMultiFrameOpenGLTimer::stopTimer()
 {
-    MultiFrameOpenGLTimer::stopTimer();
+    MultiFrameOpenGLTimer::Stop();
     double newTime = MultiFrameOpenGLTimer::getTimeMSd();
     currentTimeMS  = newTime * alpha + (1.0f - alpha) * currentTimeMS;
 }
@@ -85,8 +97,8 @@ double FilteredMultiFrameOpenGLTimer::getTimeMSd()
 
 OpenGLTimer::OpenGLTimer()
 {
-    queries[0].create();
-    queries[1].create();
+    queries[0].create(true);
+    queries[1].create(true);
 }
 
 void OpenGLTimer::start()

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/query/timeStampQuery.h"
-
+#include "saiga/core/time/timer.h"
 namespace Saiga
 {
 /**
@@ -26,10 +26,10 @@ namespace Saiga
  * Core since version 	3.3
  *
  */
-class SAIGA_OPENGL_API MultiFrameOpenGLTimer
+class SAIGA_OPENGL_API MultiFrameOpenGLTimer : public TimestampTimer
 {
    public:
-    MultiFrameOpenGLTimer();
+    MultiFrameOpenGLTimer(bool use_time_stamps = true);
     ~MultiFrameOpenGLTimer();
 
     /**
@@ -37,18 +37,23 @@ class SAIGA_OPENGL_API MultiFrameOpenGLTimer
      */
     void create();
 
-    void startTimer();
-    void stopTimer();
+    void Start();
+    void Stop();
 
     float getTimeMS();
     double getTimeMSd();
-    GLuint64 getTimeNS();
+    uint64_t getTimeNS();
+
+    std::pair<uint64_t, uint64_t> LastMeasurement() { return {begin_time, end_time}; }
 
    private:
     QueryObject queries[2][2];
 
     int queryBackBuffer = 0, queryFrontBuffer = 1;
-    GLuint64 time = 0;
+    uint64_t elapsed_time = 0;
+    uint64_t end_time     = 0;
+    uint64_t begin_time   = 0;
+    bool use_time_stamps;
 
     void swapQueries();
 };

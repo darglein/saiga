@@ -23,7 +23,8 @@ namespace Saiga
 {
 using namespace uber;
 
-UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(framebuffer)
+UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* timer)
+    : RendererLighting(timer), gbuffer(framebuffer)
 {
     createLightMeshes();
     shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
@@ -49,7 +50,7 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer) : gbuffer(frame
 
     ClustererParameters params;
     params.clusterThreeDimensional = true;
-    lightClusterer                 = std::make_shared<CPUPlaneClusterer>(params);
+    lightClusterer                 = std::make_shared<CPUPlaneClusterer>(timer, params);
 }
 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
@@ -82,8 +83,8 @@ void UberDeferredLighting::loadShaders()
 
 void UberDeferredLighting::initRender()
 {
+    auto tim = timer->Measure("Lightinit");
     // TODO Paul: We should refactor this for all single light pass renderers.
-    startTimer(0);
     RendererLighting::initRender();
     LightInfo li;
     LightData ld;
@@ -156,7 +157,6 @@ void UberDeferredLighting::initRender()
     lightDataBufferBox.bind(BOX_LIGHT_DATA_BINDING_POINT);
     lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
     lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
-    stopTimer(0);
 }
 
 void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
@@ -170,21 +170,24 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     }
 
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    {
+        auto tim = timer->Measure("Shade");
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    // Lighting Uber Shader
-    lightingShader->bind();
-    lightingShader->uploadFramebuffer(&gbuffer);
-    lightingShader->uploadScreenSize(viewPort.getVec4());
-    lightingShader->uploadInvProj(inverse(cam->proj));
-    quadMesh.bindAndDraw();
-    lightingShader->unbind();
-    assert_no_glerror();
+        // Lighting Uber Shader
+        lightingShader->bind();
+        lightingShader->uploadFramebuffer(&gbuffer);
+        lightingShader->uploadScreenSize(viewPort.getVec4());
+        lightingShader->uploadInvProj(inverse(cam->proj));
+        quadMesh.bindAndDraw();
+        lightingShader->unbind();
+        assert_no_glerror();
 
-    // reset state
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
+        // reset state
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+    }
 
     if (drawDebug)
     {
@@ -254,10 +257,11 @@ void UberDeferredLighting::renderImGui()
         if (clustererType > 0)
         {
             ClustererParameters params;
-            lightClusterer = clustererType == 1
-                                 ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(params))
-                                 : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(params));
-            lightClusterer->init(width, height, useTimers);
+            lightClusterer =
+                clustererType == 1
+                    ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer, params))
+                    : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer, params));
+            lightClusterer->init(width, height, false);
         }
     }
     ImGui::End();

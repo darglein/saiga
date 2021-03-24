@@ -119,6 +119,37 @@ UnifiedModel& UnifiedModel::FlipNormals()
     return *this;
 }
 
+UnifiedModel& UnifiedModel::FlatShading()
+{
+    auto flatten = [this](auto old) {
+        decltype(old) flat;
+        for (auto& tri : triangles)
+        {
+            flat.push_back(old[tri(0)]);
+            flat.push_back(old[tri(1)]);
+            flat.push_back(old[tri(2)]);
+        }
+        return flat;
+    };
+
+    if (!position.empty()) position = flatten(position);
+    if (!normal.empty()) normal = flatten(normal);
+    if (!color.empty()) color = flatten(color);
+    if (!texture_coordinates.empty()) texture_coordinates = flatten(texture_coordinates);
+    if (!data.empty()) data = flatten(data);
+    if (!bone_info.empty()) bone_info = flatten(bone_info);
+
+    std::vector<ivec3> flat_triangles;
+    for (int i = 0; i < triangles.size(); ++i)
+    {
+        flat_triangles.push_back(ivec3(i * 3, i * 3 + 1, i * 3 + 2));
+    }
+    triangles = flat_triangles;
+
+    CalculateVertexNormals();
+
+    return *this;
+}
 UnifiedModel& UnifiedModel::Normalize(float dimensions)
 {
     auto box = BoundingBox();
@@ -212,6 +243,28 @@ void UnifiedModel::LocateTextures(const std::string& base)
         mat.texture_alpha    = search(mat.texture_alpha);
         mat.texture_emissive = search(mat.texture_emissive);
     }
+}
+
+
+UnifiedModel& UnifiedModel::CalculateVertexNormals()
+{
+    normal.resize(position.size());
+    std::fill(normal.begin(), normal.end(), vec3(0, 0, 0));
+
+    for (auto& tri : triangles)
+    {
+        vec3 n = cross(position[tri(1)] - position[tri(0)], position[tri(2)] - position[tri(0)]);
+        normal[tri(0)] += n;
+        normal[tri(1)] += n;
+        normal[tri(2)] += n;
+    }
+
+    for (auto& n : normal)
+    {
+        n.normalize();
+    }
+
+    return *this;
 }
 
 

@@ -6,6 +6,7 @@
 
 #include "forward_lighting.h"
 
+#include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/rendering/lighting/directional_light.h"
 #include "saiga/opengl/rendering/lighting/point_light.h"
 #include "saiga/opengl/rendering/lighting/spot_light.h"
@@ -14,7 +15,7 @@ namespace Saiga
 {
 using namespace uber;
 
-ForwardLighting::ForwardLighting() : RendererLighting()
+ForwardLighting::ForwardLighting(GLTimerSystem* timer) : RendererLighting(timer)
 {
     int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
@@ -37,7 +38,7 @@ ForwardLighting::~ForwardLighting() {}
 
 void ForwardLighting::initRender()
 {
-    startTimer(0);
+    auto tim = timer->Measure("Light Init");
     RendererLighting::initRender();
     lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
     lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
@@ -87,11 +88,11 @@ void ForwardLighting::initRender()
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.directionalLightCount;
-    stopTimer(0);
 }
 
 void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
 {
+    auto tim = timer->Measure("Light Render");
     // Does nothing
     RendererLighting::render(cam, viewPort);
 

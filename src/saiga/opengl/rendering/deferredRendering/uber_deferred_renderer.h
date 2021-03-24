@@ -75,31 +75,6 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     void renderImgui() override;
 
 
-    enum UberDeferredTimingBlock
-    {
-        TOTAL = 0,
-        GEOMETRYPASS,
-        DEPTHMAPS,
-        LIGHTING,
-        OVERLAY,
-        FINAL,
-        COUNT,
-    };
-
-    float getTime(UberDeferredTimingBlock timer)
-    {
-        if (!params.useGPUTimers && timer != TOTAL) return 0;
-        return timers[timer].getTimeMS();
-    }
-    float getUnsmoothedTimeMS(UberDeferredTimingBlock timer)
-    {
-        if (!params.useGPUTimers && timer != TOTAL) return 0;
-        return timers[timer].MultiFrameOpenGLTimer::getTimeMS();
-    }
-    float getTotalRenderTime() override
-    {
-        return getUnsmoothedTimeMS(UberDeferredRenderer::UberDeferredTimingBlock::TOTAL);
-    }
 
     inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
     {
@@ -127,7 +102,6 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
     IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
-    std::vector<FilteredMultiFrameOpenGLTimer> timers;
     std::shared_ptr<Texture> blackDummyTexture;
     bool showLightingImgui = false;
     bool renderDDO         = false;
@@ -141,15 +115,6 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     void renderLighting(const std::pair<Camera*, ViewPort>& camera);
 
     void writeGbufferDepthToCurrentFramebuffer();
-
-    void startTimer(UberDeferredTimingBlock timer)
-    {
-        if (params.useGPUTimers || timer == TOTAL) timers[timer].startTimer();
-    }
-    void stopTimer(UberDeferredTimingBlock timer)
-    {
-        if (params.useGPUTimers || timer == TOTAL) timers[timer].stopTimer();
-    }
 };
 
 }  // namespace Saiga

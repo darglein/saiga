@@ -82,6 +82,7 @@ class SAIGA_CUDA_API CudaEvent
     {
         float time;
         auto result = cudaEventElapsedTime(&time, first, second);
+        SAIGA_ASSERT(result != cudaErrorInvalidResourceHandle);
         SAIGA_ASSERT(result == cudaSuccess || result == cudaErrorNotReady);
         return result == cudaSuccess ? time : -1;
     }

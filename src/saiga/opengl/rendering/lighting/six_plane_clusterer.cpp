@@ -7,10 +7,11 @@
 #include "saiga/opengl/rendering/lighting/six_plane_clusterer.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
 
 namespace Saiga
 {
-SixPlaneClusterer::SixPlaneClusterer(ClustererParameters _params) : Clusterer(_params) {}
+SixPlaneClusterer::SixPlaneClusterer(GLTimerSystem* timer, ClustererParameters _params) : Clusterer(timer, _params) {}
 
 SixPlaneClusterer::~SixPlaneClusterer() {}
 
@@ -72,18 +73,20 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     lightAssignmentTimer.stop();
 
-    startTimer(1);
-    int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-    clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
-    int itemListSize = sizeof(clusterItem) * itemBuffer.itemList.size();
-    // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
-    itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
+    {
+        auto tim            = timer->Measure("ClusterUpdate");
+        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
+        clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
-    infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
-    clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
-    itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
-    stopTimer(1);
+        int itemListSize = sizeof(clusterItem) * itemBuffer.itemList.size();
+        // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
+        itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
+
+        infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
+        clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
+        itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+    }
     assert_no_glerror();
 }
 
@@ -274,26 +277,26 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
         updateDebug = false;
     }
 
-    startTimer(0);
-    itemBuffer.itemList.clear();
-    int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
+    {
+        auto tim = timer->Measure("InfoUpdate");
+        itemBuffer.itemList.clear();
+        int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
 
-    clusterInfoBuffer.tileDebug = screenSpaceDebug ? 256 : 0;
-    itemBuffer.itemList.resize(maxClusterItemsPerCluster * clusterCount);
-    clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
+        clusterInfoBuffer.tileDebug = screenSpaceDebug ? 256 : 0;
+        itemBuffer.itemList.resize(maxClusterItemsPerCluster * clusterCount);
+        clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
 
-    int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
-    int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-    SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
+        int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
+        int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+        SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
 
-    itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
+        itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
 
-    int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-    clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
+        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
+        clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
 
-    infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
-
-    stopTimer(0);
+        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+    }
 }
 
 }  // namespace Saiga

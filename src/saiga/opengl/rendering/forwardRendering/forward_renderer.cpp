@@ -17,17 +17,8 @@
 namespace Saiga
 {
 ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& params)
-
-    : OpenGLRenderer(window), params(params), lighting()
-
+    : OpenGLRenderer(window), params(params), lighting(timer.get())
 {
-    int timerCount = ForwardTimingBlock::COUNT;
-    timers.resize(timerCount);
-    for (auto& t : timers)
-    {
-        t.create();
-    }
-
     lighting.init(window.getWidth(), window.getHeight(), false);
     this->params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
     this->params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
@@ -51,18 +42,12 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     SAIGA_ASSERT(renderingInterface);
 
 
-    startTimer(TOTAL);
-
-
-    startTimer(TOTAL);
-
     if (params.wireframe)
     {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(params.wireframeLineSize);
     }
 
-    startTimer(FORWARD);
     camera->recalculatePlanes();
     bindCamera(camera);
 
@@ -80,9 +65,13 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     // forward pass with lighting
     lighting.initRender();
     if (cullLights) lighting.cullLights(camera);
-    renderingInterface->render(camera, RenderPass::Forward);
+
+    {
+        auto tim = timer->Measure("Forward + Shade");
+        renderingInterface->render(camera, RenderPass::Forward);
+    }
     lighting.render(camera, viewport);
-    stopTimer(FORWARD);
+
 
 
     assert_no_glerror();
@@ -104,11 +93,6 @@ void ForwardRenderer::renderImgui()
     ImGui::Begin("Forward Renderer", &should_render_imgui);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);
-
-    ImGui::Text("Render Time");
-    ImGui::Text("%fms - Forward pass", getBlockTime(FORWARD));
-    ImGui::Text("%fms - Final pass", getBlockTime(FINAL));
-    ImGui::Text("%fms - Total", getBlockTime(TOTAL));
 
     ImGui::Separator();
 

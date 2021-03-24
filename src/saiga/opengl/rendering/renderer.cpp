@@ -29,6 +29,10 @@ OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window) : window(&window)
     default_framebuffer.MakeDefaultFramebuffer();
     // ImGUI
     imgui = window.createImGui();
+    if (imgui)
+    {
+        timer = std::make_shared<GLTimerSystem>();
+    }
 }
 
 OpenGLRenderer::~OpenGLRenderer() {}
@@ -58,6 +62,7 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         dynamic_cast<RenderingInterface*>(rendering)->render(nullptr, RenderPass::GUI);
         renderImgui();
         console.render();
+        timer->Imgui();
 #ifdef SAIGA_USE_FFMPEG
         encoder->renderGUI();
 #endif
@@ -106,8 +111,10 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
     auto target_fb    = editor_gui.enabled ? target_framebuffer.get() : &default_framebuffer;
     target_fb->bind();
     glClear(GL_COLOR_BUFFER_BIT);
-    renderGL(target_fb, viewport, camera);
 
+    timer->BeginFrame();
+    renderGL(target_fb, viewport, camera);
+    timer->EndFrame();
 
     // 3. Add rendered 3DView to imgui (in editor mode only)
     if (imgui)

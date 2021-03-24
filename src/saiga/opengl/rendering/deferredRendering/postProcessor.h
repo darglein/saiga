@@ -64,10 +64,8 @@ struct SAIGA_OPENGL_API PostProcessorParameters
 class SAIGA_OPENGL_API PostProcessor
 {
    public:
-    void createTimers();
-
     void init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params,
-              std::shared_ptr<Texture> LightAccumulationTexture, bool _useTimers);
+              std::shared_ptr<Texture> LightAccumulationTexture);
 
     void nextFrame();
     void bindCurrentBuffer();
@@ -77,7 +75,6 @@ class SAIGA_OPENGL_API PostProcessor
 
     void setPostProcessingEffects(const std::vector<std::shared_ptr<PostProcessingShader> >& postProcessingEffects);
 
-    void printTimings();
     void resize(int width, int height);
     void blitLast(Framebuffer* target, int windowWidth, int windowHeight);
     void renderLast(Framebuffer* target, int windowWidth, int windowHeight);
@@ -96,9 +93,6 @@ class SAIGA_OPENGL_API PostProcessor
     IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::vector<std::shared_ptr<PostProcessingShader> > postProcessingEffects;
     std::shared_ptr<PostProcessingShader> passThroughShader;
-
-    bool useTimers = false;
-    std::vector<FilteredMultiFrameOpenGLTimer> shaderTimer;
 
     std::shared_ptr<Shader> computeTest;
 

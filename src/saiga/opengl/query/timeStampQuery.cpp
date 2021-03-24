@@ -20,16 +20,19 @@ QueryObject::QueryObject(const QueryObject& other) : QueryObject()
 {
     if (other.id)
     {
-        create();
+        create(true);
     }
 }
 
-void QueryObject::create()
+void QueryObject::create(bool initial_record)
 {
     if (!id) glGenQueries(1, &id);
     // prevent potential gl erros.
-    record();
-    waitTimestamp();
+    if (initial_record)
+    {
+        record();
+        waitTimestamp();
+    }
 }
 
 void QueryObject::destroy()
@@ -45,6 +48,16 @@ void QueryObject::record()
 {
     SAIGA_ASSERT(id);
     glQueryCounter(id, GL_TIMESTAMP);
+}
+
+void QueryObject::begin()
+{
+    glBeginQuery(GL_TIME_ELAPSED, id);
+}
+
+void QueryObject::end()
+{
+    glEndQuery(GL_TIME_ELAPSED);
 }
 
 bool QueryObject::isAvailable()

@@ -97,8 +97,18 @@ class SAIGA_CORE_API UnifiedModel
     // returns a reference to this
     UnifiedModel& SetVertexColor(const vec4& color);
 
-
+    // Set n = -n
     UnifiedModel& FlipNormals();
+
+
+    // Computes the per vertex normal by weighting each face normal by its surface area.
+    UnifiedModel& CalculateVertexNormals();
+
+
+    // Duplicates vertices so that each vertex is used exactly in one face.
+    UnifiedModel& FlatShading();
+
+
 
 
 

@@ -18,7 +18,7 @@ namespace Saiga
 {
 UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRenderingParameters _params)
     : OpenGLRenderer(window),
-      lighting(gbuffer),
+      lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth() * _params.renderScale),
       renderHeight(window.getHeight() * _params.renderScale),
@@ -45,15 +45,6 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
 
 
     quadMesh.fromMesh(FullScreenQuad());
-
-    int numTimers = UberDeferredTimingBlock::COUNT;
-    if (!params.useGPUTimers) numTimers = 1;  // still use one rendering timer :)
-    timers.resize(numTimers);
-    for (auto& t : timers)
-    {
-        t.create();
-    }
-
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
 
@@ -97,36 +88,43 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
     SAIGA_ASSERT(renderingInterface);
 
 
-    startTimer(TOTAL);
 
-    clearGBuffer();
-
+    {
+        auto tim = timer->Measure("Clear");
+        clearGBuffer();
+    }
     assert_no_glerror();
     lighting.initRender();
     assert_no_glerror();
 
-    camera->recalculatePlanes();
-    bindCamera(camera);
-
-    setViewPort(viewport);
-    renderGBuffer({camera, viewport});
+    {
+        auto tim = timer->Measure("Geometry");
+        camera->recalculatePlanes();
+        bindCamera(camera);
+        setViewPort(viewport);
+        renderGBuffer({camera, viewport});
+    }
 
     if (cullLights) lighting.cullLights(camera);
     // renderDepthMaps();
 
-    target_framebuffer->bind();
-    renderLighting({camera, viewport});
+    {
+        auto tim = timer->Measure("Lighting");
+        target_framebuffer->bind();
+        renderLighting({camera, viewport});
+    }
 
     assert_no_glerror();
 
-    startTimer(OVERLAY);
-    bindCamera(camera);
-    setViewPort(viewport);
-    renderingInterface->render(camera, RenderPass::Forward);
-    stopTimer(OVERLAY);
+
+    {
+        auto tim = timer->Measure("Forward");
+        bindCamera(camera);
+        setViewPort(viewport);
+        renderingInterface->render(camera, RenderPass::Forward);
+    }
 
 
-    stopTimer(TOTAL);
 
     assert_no_glerror();
 }
@@ -157,8 +155,6 @@ void UberDeferredRenderer::clearGBuffer()
 
 void UberDeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
-    startTimer(GEOMETRYPASS);
-
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
@@ -212,29 +208,21 @@ void UberDeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::
     gbuffer.unbind();
 
 
-    stopTimer(GEOMETRYPASS);
-
     assert_no_glerror();
 }
 
 void UberDeferredRenderer::renderDepthMaps()
 {
-    startTimer(DEPTHMAPS);
-
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     lighting.renderDepthMaps(renderingInterface);
 
 
-    stopTimer(DEPTHMAPS);
 
     assert_no_glerror();
 }
 
 void UberDeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
-    startTimer(LIGHTING);
-
-
     writeGbufferDepthToCurrentFramebuffer();
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -247,8 +235,6 @@ void UberDeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga:
     assert_no_glerror();
     lighting.render(camera.first, camera.second);
     assert_no_glerror();
-
-    stopTimer(LIGHTING);
 }
 
 void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
@@ -304,14 +290,6 @@ void UberDeferredRenderer::renderImgui()
     ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
     ImGui::Checkbox("Stencil Optimization", &params.maskUsedPixels);
     ImGui::Checkbox("Cull Lights", &cullLights);
-
-    ImGui::Text("Render Time");
-    ImGui::Text("%fms - Geometry pass", getTime(GEOMETRYPASS));
-    ImGui::Text("%fms - Depthmaps", getTime(DEPTHMAPS));
-    ImGui::Text("%fms - Lighting", getTime(LIGHTING));
-    ImGui::Text("%fms - Overlay pass", getTime(OVERLAY));
-    ImGui::Text("%fms - Final pass", getTime(FINAL));
-    ImGui::Text("%fms - Total", getTime(TOTAL));
 
     ImGui::Separator();
 
