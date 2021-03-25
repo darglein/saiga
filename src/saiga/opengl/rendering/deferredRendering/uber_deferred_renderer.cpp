@@ -93,9 +93,6 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
         auto tim = timer->CreateScope("Clear");
         clearGBuffer();
     }
-    assert_no_glerror();
-    lighting.initRender();
-    assert_no_glerror();
 
     {
         auto tim = timer->CreateScope("Geometry");
@@ -107,6 +104,9 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
 
     if (cullLights) lighting.cullLights(camera);
     // renderDepthMaps();
+    assert_no_glerror();
+    lighting.initRender();
+    assert_no_glerror();
 
     {
         auto tim = timer->CreateScope("Lighting");

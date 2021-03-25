@@ -64,8 +64,8 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // forward pass with lighting
-    lighting.initRender();
     if (cullLights) lighting.cullLights(camera);
+    lighting.initRender();
     lighting.cluster(camera, viewport);
     {
         auto tim = timer->CreateScope("Forward + Shade");

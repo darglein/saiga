@@ -67,7 +67,7 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
 
         lightAssignmentTimer.stop();
         cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
-        timerIndex = (timerIndex + 1) % 100;
+        timerIndex                     = (timerIndex + 1) % 100;
     }
 
     assert_no_glerror();
@@ -106,8 +106,8 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
     clusterBuffer.clusterList.resize(clusterCount);
     clusterInfoBuffer.clusterListCount = clusterCount;
 
-    culling_cluster.clear();
-    culling_cluster.resize(clusterCount);
+    cullingCluster.clear();
+    cullingCluster.resize(clusterCount);
     if (clusterDebug)
     {
         debugCluster.lines.clear();
@@ -148,8 +148,8 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
 
                 int tileIndex = x + (int)gridCount[0] * y + (int)(gridCount[0] * gridCount[1]) * z;
 
-                culling_cluster.at(tileIndex).minB = AABBmin;
-                culling_cluster.at(tileIndex).maxB = AABBmax;
+                cullingCluster.at(tileIndex).minB = AABBmin;
+                cullingCluster.at(tileIndex).maxB = AABBmax;
 
                 const AABB box(AABBmin, AABBmax);
 
@@ -228,8 +228,9 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
     }
 
     {
-        auto tim                    = timer->CreateScope("Info Update");
-        clusterInfoBuffer.tileDebug = screenSpaceDebug ? allowedItemsPerCluster : 0;
+        auto tim                     = timer->CreateScope("Info Update");
+        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? allowedItemsPerCluster : 0;
+        clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
         itemBuffer.itemList.clear();
         itemBuffer.itemList.resize(allowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
@@ -244,8 +245,8 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
         int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
         clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
 
-        int clusterStructuresSize = sizeof(cluster_bounds) * culling_cluster.size();
-        clusterStructuresBuffer.createGLBuffer(culling_cluster.data(), clusterStructuresSize, GL_DYNAMIC_DRAW);
+        int clusterStructuresSize = sizeof(clusterBounds) * cullingCluster.size();
+        clusterStructuresBuffer.createGLBuffer(cullingCluster.data(), clusterStructuresSize, GL_DYNAMIC_DRAW);
 
 
         infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);

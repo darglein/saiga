@@ -149,6 +149,7 @@ class SAIGA_OPENGL_API Clusterer
     bool updateDebug  = false;
     LineSoup debugCluster;
     bool screenSpaceDebug = false;
+    bool splitDebug = false;
 
 
     vec4 viewPosFromScreenPos(vec4 screen, const mat4& inverseProjection)
@@ -195,6 +196,11 @@ class SAIGA_OPENGL_API Clusterer
         int clusterListCount;
         int itemListCount;
         int tileDebug;
+        int splitDebug;
+
+        int pad0 = 0;
+        int pad1 = 0;
+        int pad2 = 0;
     } clusterInfoBuffer;
 
     int getTileIndex(int x, int y, int z)

@@ -135,6 +135,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
             clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
             clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+            clusterInfoBuffer.splitDebug    = splitDebug ? 1 : 0;
 
             int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
             int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
@@ -239,7 +240,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
         lightAssignmentTimer.stop();
         cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
-        timerIndex = (timerIndex + 1) % 100;
+        timerIndex                     = (timerIndex + 1) % 100;
     }
 
     {
@@ -715,8 +716,9 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         updateDebug = false;
     }
     {
-        auto tim                    = timer->CreateScope("Info Update");
-        clusterInfoBuffer.tileDebug = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+        auto tim                     = timer->CreateScope("Info Update");
+        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+        clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
         itemBuffer.itemList.clear();
         itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);

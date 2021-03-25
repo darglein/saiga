@@ -27,13 +27,13 @@ class SAIGA_OPENGL_API SixPlaneClusterer : public Clusterer
     // Structures for 6 plane cluster boundaries.
     //
 
-    struct cluster_bounds
+    struct clusterBounds
     {
         std::array<Plane, 6> planes;
     };
 
     int avgAllowedItemsPerCluster = 128;
     std::vector<std::vector<int32_t>> clusterCache;
-    std::vector<cluster_bounds> culling_cluster;
+    std::vector<clusterBounds> cullingCluster;
 };
 }  // namespace Saiga

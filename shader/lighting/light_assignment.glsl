@@ -45,6 +45,7 @@ layout (std430, binding = 7) coherent buffer clusterInfoBuffer
     int clusterListCount;
     int itemListCount;
     int tileDebug;
+    int splitDebug;
 };
 
 layout (std430, binding = 8) buffer clusterBuffer
@@ -68,7 +69,7 @@ layout (std430, binding = 10) buffer lightClusterData
     LightClusterData clusterData[];
 };
 
-struct cluster_bounds
+struct clusterBounds
 {
     vec3 minB;
     vec3 maxB;
@@ -76,7 +77,7 @@ struct cluster_bounds
 
 layout (std430, binding = 11) buffer clusterStructures
 {
-    cluster_bounds culling_cluster[];
+    clusterBounds cullingCluster[];
 };
 
 
@@ -85,7 +86,7 @@ shared int visiblePls[1024];
 shared int visibleSlCount;
 shared int visibleSls[1024];
 shared int globalOffset;
-shared cluster_bounds clusterBounds;
+shared clusterBounds bounds;
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
@@ -116,8 +117,8 @@ void main()
     {
         visiblePlCount = 0;
         visibleSlCount = 0;
-        clusterBounds.minB = culling_cluster[clusterIndex].minB;
-        clusterBounds.maxB = culling_cluster[clusterIndex].maxB;
+        bounds.minB = cullingCluster[clusterIndex].minB;
+        bounds.maxB = cullingCluster[clusterIndex].maxB;
     }
 
     memoryBarrier();
@@ -125,7 +126,7 @@ void main()
 
     for(int i = location; i < pointLightCount; i += 256)
     {
-        if(testAABBIntersection(i, clusterBounds.minB, clusterBounds.maxB))
+        if(testAABBIntersection(i, bounds.minB, bounds.maxB))
         {
             int index = atomicAdd(visiblePlCount, 1);
             if(index < 1024)
@@ -137,7 +138,7 @@ void main()
 
     for(int i = location; i < spotLightCount; i += 256)
     {
-        if(testAABBIntersection(pointLightCount + i, clusterBounds.minB, clusterBounds.maxB))
+        if(testAABBIntersection(pointLightCount + i, bounds.minB, bounds.maxB))
         {
             int index = atomicAdd(visibleSlCount, 1);
             if(index < 1024)

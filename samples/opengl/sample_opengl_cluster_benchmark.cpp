@@ -110,7 +110,7 @@ class Sample : public RendererSampleWindow
 
             auto light = std::make_shared<PointLight>();
             light->setIntensity(1);
-            light->setRadius(linearRand(0.5f, 2.0f));
+            light->setRadius(lightSize);
             float h = linearRand(0.25f, 25.0f);
             light->setPosition(vec3(point.x(), h, point.y()));
 
@@ -173,6 +173,12 @@ class Sample : public RendererSampleWindow
             }
 
             ImGui::Text("Lights: %d", lightCount);
+
+            if (ImGui::SliderFloat("Light Size", &lightSize, 0.1f, 4.0f))
+            {
+                setupBenchmark();
+            }
+
             ImGui::End();
         }
     }
@@ -180,7 +186,8 @@ class Sample : public RendererSampleWindow
    private:
     std::shared_ptr<ColoredAsset> sponzaAsset;
     std::vector<vec2> extras;
-    int lightCount = 128;
+    int lightCount  = 128;
+    float lightSize = 1;
 
     SimpleAssetObject sponza;
 

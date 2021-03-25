@@ -37,10 +37,10 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     {
         PointLightClusterData& plc = pointLightsClusterData[i];
         vec3 sphereCenter          = cam->WorldToView(plc.world_center);
-        for (int c = 0; c < culling_cluster.size(); ++c)
+        for (int c = 0; c < cullingCluster.size(); ++c)
         {
             bool intersection          = true;
-            const auto& cluster_planes = culling_cluster[c].planes;
+            const auto& cluster_planes = cullingCluster[c].planes;
             for (int p = 0; p < 6; ++p)
             {
                 if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
@@ -62,10 +62,10 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     {
         SpotLightClusterData& plc = spotLightsClusterData[i];
         vec3 sphereCenter         = cam->WorldToView(plc.world_center);
-        for (int c = 0; c < culling_cluster.size(); ++c)
+        for (int c = 0; c < cullingCluster.size(); ++c)
         {
             bool intersection          = true;
-            const auto& cluster_planes = culling_cluster[c].planes;
+            const auto& cluster_planes = cullingCluster[c].planes;
             for (int p = 0; p < 6; ++p)
             {
                 if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
@@ -108,6 +108,7 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
         clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
         clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+        clusterInfoBuffer.splitDebug    = splitDebug ? 1 : 0;
 
         int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
         int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
@@ -141,7 +142,7 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     lightAssignmentTimer.stop();
     cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
-    timerIndex = (timerIndex + 1) % 100;
+    timerIndex                     = (timerIndex + 1) % 100;
 
     {
         auto tim            = timer->CreateScope("Cluster Update");
@@ -198,8 +199,8 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     clusterCache.clear();
     clusterCache.resize(clusterCount);
 
-    culling_cluster.clear();
-    culling_cluster.resize(clusterCount);
+    cullingCluster.clear();
+    cullingCluster.resize(clusterCount);
     if (clusterDebug)
     {
         debugCluster.lines.clear();
@@ -266,7 +267,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 
                 int tileIndex = x + (int)gridCount[0] * y + (int)(gridCount[0] * gridCount[1]) * z;
 
-                auto& planes = culling_cluster.at(tileIndex).planes;
+                auto& planes = cullingCluster.at(tileIndex).planes;
                 planes[0]    = nearPlane;
                 planes[1]    = farPlane;
                 planes[2]    = leftPlane;
@@ -350,8 +351,9 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     }
 
     {
-        auto tim                    = timer->CreateScope("Info Update");
-        clusterInfoBuffer.tileDebug = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+        auto tim                     = timer->CreateScope("Info Update");
+        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+        clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
         itemBuffer.itemList.clear();
         itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);

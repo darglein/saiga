@@ -82,6 +82,7 @@ bool Clusterer::fillImGui()
     changed |= updateDebug;  // When debug is enabled the clusters are rebuild.
 
     changed |= ImGui::Checkbox("screenSpaceDebug", &screenSpaceDebug);
+    changed |= ImGui::Checkbox("splitDebug", &splitDebug);
 
     static double sum = 0.0;
     if (timerIndex == 0)

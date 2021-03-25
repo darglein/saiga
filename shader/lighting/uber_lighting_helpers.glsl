@@ -78,6 +78,7 @@ layout (std430, binding = 7) buffer clusterInfoBuffer
     int clusterListCount;
     int itemListCount;
     int tileDebug;
+    int splitDebug;
 };
 
 layout (std430, binding = 8) buffer clusterBuffer
@@ -129,6 +130,24 @@ vec3 debugCluster(float depth)
     return vec3(normLightCount, 0.0, 1.0 - normLightCount);
 }
 
+vec3 palette[] =
+{
+    vec3(0,0,1),
+    vec3(0,1,0),
+    vec3(0,1,1),
+    vec3(1,0,0),
+    vec3(1,0,1),
+    vec3(1,1,0),
+    vec3(1,1,1),
+    vec3(0,0,0)
+};
+
+vec3 debugSplits(float depth)
+{
+    int zSplit       = int(max(log2(linearDepth(depth)) * scale + bias, 0.0));
+    return palette[int(mod(zSplit, 8))];
+}
+
 vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal);
 
 vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, float depth)
@@ -137,6 +156,8 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
         return calculatePointLightsNoClusters(material, position, normal);
     if(tileDebug > 0)
         return debugCluster(depth);
+    if(splitDebug > 0)
+        return debugSplits(depth);
     vec3 result = vec3(0);
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
@@ -199,6 +220,8 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal, flo
         return calculateSpotLightsNoClusters(material, position, normal);
     if(tileDebug > 0)
         return debugCluster(depth);
+    if(splitDebug > 0)
+        return debugSplits(depth);
     vec3 result = vec3(0);
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
