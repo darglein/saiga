@@ -80,6 +80,12 @@ if(CUDA_FOUND)
   list(APPEND SAIGA_CUDA_FLAGS "--expt-relaxed-constexpr")
   list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=esa_on_defaulted_function_ignored")
 
+  # suppress some warnings in windows
+  list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=field_without_dll_interface")
+  list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=base_class_has_different_dll_interface")
+  list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=dll_interface_conflict_none_assumed")
+  list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=dll_interface_conflict_dllexport_assumed")
+
   if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND ${SAIGA_LIBSTDCPP})
     list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=-stdlib=libstdc++")
   endif()
