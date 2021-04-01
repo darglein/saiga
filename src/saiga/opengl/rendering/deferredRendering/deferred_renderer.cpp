@@ -26,8 +26,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth()),
-      renderHeight(window.getHeight()),
-      ddo(window.getWidth(), window.getHeight())
+      renderHeight(window.getHeight())
 {
     if (params.useSMAA)
     {
@@ -64,9 +63,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
 
-    ddo.setDeferredFramebuffer(&gbuffer, lighting.volumetricLightTexture2);
-
-
     std::shared_ptr<PostProcessingShader> pps =
         shaderLoader.load<PostProcessingShader>("post_processing/post_processing.glsl");  // this shader does nothing
     std::vector<std::shared_ptr<PostProcessingShader> > defaultEffects;
@@ -97,6 +93,7 @@ void DeferredRenderer::Resize(int windowWidth, int windowHeight)
     {
         smaa->resize(renderWidth, renderHeight);
     }
+    std::cout << "[DeferredRenderer] Resize " << windowWidth << "x" << windowHeight << std::endl;
 }
 
 
@@ -183,7 +180,8 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     stopTimer(OVERLAY);
 #endif
 
-    glViewport(0, 0, renderWidth, renderHeight);
+    // glViewport(0, 0, renderWidth, renderHeight);
+    setViewPort(viewport);
 
 
 
@@ -222,16 +220,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     {
         auto tim = timer->Measure("Final");
-        glViewport(0, 0, renderWidth, renderHeight);
-        if (renderDDO)
-        {
-            bindCamera(&ddo.layout.cam);
-            ddo.render();
-        }
-
-
-        postProcessor.renderLast(target_framebuffer, outputWidth, outputHeight);
-
+        postProcessor.renderLast(target_framebuffer, viewport);
 
         if (params.useGlFinish)
         {
@@ -380,7 +369,6 @@ void DeferredRenderer::renderImgui()
 
     ImGui::Begin("Deferred Renderer", &should_render_imgui);
 
-    ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
 
@@ -415,7 +403,6 @@ void DeferredRenderer::renderImgui()
             ssao.reset();
         }
         lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
-        ddo.setDeferredFramebuffer(&gbuffer, ssao ? ssao->bluredTexture : blackDummyTexture);
     }
     if (ssao)
     {

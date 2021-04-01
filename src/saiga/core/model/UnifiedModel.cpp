@@ -150,6 +150,41 @@ UnifiedModel& UnifiedModel::FlatShading()
 
     return *this;
 }
+
+UnifiedModel& UnifiedModel::EraseVertices(ArrayView<int> vertices)
+{
+    SAIGA_ASSERT(triangles.empty());
+    SAIGA_ASSERT(lines.empty());
+
+    std::vector<int> valid_vertex(NumVertices(), 1);
+    for (auto v : vertices)
+    {
+        valid_vertex[v] = 0;
+    }
+
+
+
+    auto erase = [&](auto old) {
+        decltype(old) flat;
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            if (valid_vertex[i])
+            {
+                flat.push_back(old[i]);
+            }
+        }
+        return flat;
+    };
+
+    if (!position.empty()) position = erase(position);
+    if (!normal.empty()) normal = erase(normal);
+    if (!color.empty()) color = erase(color);
+    if (!texture_coordinates.empty()) texture_coordinates = erase(texture_coordinates);
+    if (!data.empty()) data = erase(data);
+    if (!bone_info.empty()) bone_info = erase(bone_info);
+    return *this;
+}
+
 UnifiedModel& UnifiedModel::Normalize(float dimensions)
 {
     auto box = BoundingBox();

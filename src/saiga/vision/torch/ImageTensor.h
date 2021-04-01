@@ -58,6 +58,7 @@ at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
 template <typename T>
 TemplatedImage<T> TensorToImage(at::Tensor tensor)
 {
+    tensor = tensor.clone();
     using ScalarType = typename ImageTypeTemplate<T>::ChannelType;
     if (tensor.dim() == 4)
     {
@@ -67,6 +68,9 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
     // In pytorch image tensors are usually represented as channel first.
     tensor = tensor.permute({1, 2, 0});
     tensor = tensor.cpu();
+
+    // This is a trick to reorder the internal memory
+    tensor = torch::cat(tensor, 0 );
 
     SAIGA_ASSERT(tensor.dtype() == at::kFloat);
 
@@ -80,10 +84,11 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
         tensor = tensor.toType(at::kByte);
     }
 
+
     int h = tensor.size(0);
     int w = tensor.size(1);
 
-    ImageView<T> out_view(h, w, tensor.data_ptr<unsigned char>());
+    ImageView<T> out_view(h, w, tensor.stride(0), tensor.data_ptr<unsigned char>());
 
     TemplatedImage<T> img(h, w);
     out_view.copyTo(img.getImageView());

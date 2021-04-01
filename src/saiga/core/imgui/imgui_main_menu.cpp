@@ -123,25 +123,6 @@ std::ostream& operator<<(std::ostream& strm, const MainMenu& menu)
     return strm;
 }
 
-bool Splitter(bool split_vertically, float thickness, float* size1, float* size2, float min_size1, float min_size2,
-              float splitter_long_axis_size = -1.0f)
-{
-    using namespace ImGui;
-    ImGuiContext& g     = *GImGui;
-    ImGuiWindow* window = g.CurrentWindow;
-    ImGuiID id          = window->GetID("##Splitter");
-    ImRect bb;
-    bb.Min = window->DC.CursorPos + (split_vertically ? ImVec2(*size1, 0.0f) : ImVec2(0.0f, *size1));
-    bb.Max = bb.Min + CalcItemSize(split_vertically ? ImVec2(thickness, splitter_long_axis_size)
-                                                    : ImVec2(splitter_long_axis_size, thickness),
-                                   0.0f, 0.0f);
-
-    return ImGui::SplitterBehavior(bb, id, split_vertically ? ImGuiAxis_X : ImGuiAxis_Y, size1, size2, min_size1,
-                                   min_size2, 0.0f);
-}
-
-
-
 EditorGui::EditorGui()
 {
     main_menu.AddItem(
@@ -200,6 +181,52 @@ void EditorLayoutL::BuildNodes(int dockspace_id)
     node_map = {dock_left, dock_bottom, dock_viewport};
 }
 
+EditorLayoutLSplit2x2::EditorLayoutLSplit2x2()
+{
+    RegisterImguiWindow("Forward Renderer", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("OpenGLWindow", WINDOW_POSITION_LEFT);
+
+    RegisterImguiWindow("RendererLighting", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("VideoEncoder", WINDOW_POSITION_LEFT);
+
+    RegisterImguiWindow("Log", EditorLayoutL::WINDOW_POSITION_BOTTOM);
+
+    RegisterImguiWindow("3DView", WINDOW_POSITION_MAIN_11);
+
+    // Timers
+    RegisterImguiWindow("OpenGL Timer", EditorLayoutL::WINDOW_POSITION_BOTTOM);
+    RegisterImguiWindow("CUDA Timer", EditorLayoutL::WINDOW_POSITION_BOTTOM);
+}
+
+
+void EditorLayoutLSplit2x2::BuildNodes(int dockspace_id)
+{
+    ImGui::DockBuilderAddNode(dockspace_id);
+
+
+    ImGuiID dock_left, dock_bottom, dock_11, dock_12, dock_21, dock_22;
+
+    ImGuiID dock_viewport = dockspace_id;
+    dock_left     = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Left, 0.20f, NULL, &dock_viewport);
+    dock_bottom   = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, 0.20f, NULL, &dock_viewport);
+
+    ImGuiID dock1, dock2;
+    ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Up, 0.50f, &dock1, &dock2);
+
+    ImGui::DockBuilderSplitNode(dock1, ImGuiDir_Left, 0.50f, &dock_11, &dock_12);
+    ImGui::DockBuilderSplitNode(dock2, ImGuiDir_Left, 0.50f, &dock_21, &dock_22);
+
+
+//    ImGuiID dock_1   = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, 0.50f, NULL, &dock_viewport);
+
+
+
+    node_map = {dock_left, dock_bottom, dock_11, dock_12, dock_21, dock_22};
+}
 
 EditorLayoutU::EditorLayoutU(bool split_left_right, float left_size, float right_size, float bottom_size,
                              float left_split_size, float right_split_size)

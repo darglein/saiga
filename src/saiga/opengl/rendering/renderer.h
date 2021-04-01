@@ -86,6 +86,8 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
     ivec2 viewport_offset = ivec2(0, 0);
     ivec2 viewport_size   = ivec2(0, 0);
 
+    bool render_viewport = true;
+
 #ifdef SAIGA_USE_FFMPEG
     bool record_view_port_only = true;
     std::shared_ptr<VideoEncoder> encoder;

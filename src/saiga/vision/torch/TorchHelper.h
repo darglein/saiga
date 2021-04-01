@@ -13,6 +13,16 @@
 
 namespace Saiga
 {
+template <typename T>
+std::pair<std::vector<T>, std::vector<T>> SplitDataset(std::vector<T> data, float ratio)
+{
+    int total_n = data.size();
+    int first_n = std::round(total_n * ratio);
+    std::vector<T> a(data.begin(), data.begin() + first_n);
+    std::vector<T> b(data.begin() + first_n, data.end());
+    return {a, b};
+}
+
 /**
  * Writes some information of the given tensor to std::cout.
  */

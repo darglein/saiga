@@ -266,6 +266,18 @@ class PartialConvUnet2dImpl : public torch::nn::Module
 
     at::Tensor forward(ArrayView<torch::Tensor> inputs)
     {
+        // debug check if input has correct format
+        for(int  i =0; i < num_input_channels.size(); ++i)
+        {
+            if(num_input_channels[i] > 0)
+            {
+                SAIGA_ASSERT(inputs.size() > i);
+                SAIGA_ASSERT(inputs[i].defined());
+                SAIGA_ASSERT(num_input_channels[i] == inputs[i].size(1));
+            }
+        }
+
+
         auto d0 = start->forward(inputs[0]);
 
         auto d1 = down1->forward(d0);

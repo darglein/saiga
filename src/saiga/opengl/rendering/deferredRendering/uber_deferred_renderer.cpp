@@ -21,8 +21,7 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth() * _params.renderScale),
-      renderHeight(window.getHeight() * _params.renderScale),
-      ddo(window.getWidth(), window.getHeight())
+      renderHeight(window.getHeight() * _params.renderScale)
 {
     {
         // create a 2x2 grayscale black dummy texture
@@ -47,8 +46,6 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
     quadMesh.fromMesh(FullScreenQuad());
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
-
-    ddo.setDeferredFramebuffer(&gbuffer, blackDummyTexture);
 
 
     std::cout << "Uber Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight
@@ -285,7 +282,6 @@ void UberDeferredRenderer::renderImgui()
 
     ImGui::Begin("Deferred Renderer", &should_render_imgui);
 
-    ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
     ImGui::Checkbox("Stencil Optimization", &params.maskUsedPixels);

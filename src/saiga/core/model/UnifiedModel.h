@@ -109,6 +109,9 @@ class SAIGA_CORE_API UnifiedModel
     UnifiedModel& FlatShading();
 
 
+    // Removes all vertices with the given indices
+    // Faces are currently not updated (maybe todo in the future)
+    UnifiedModel& EraseVertices(ArrayView<int> vertices);
 
 
 

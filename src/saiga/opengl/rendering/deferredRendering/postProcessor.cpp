@@ -233,18 +233,19 @@ void PostProcessor::applyShader(std::shared_ptr<PostProcessingShader> postProces
     assert_no_glerror();
 }
 
-void PostProcessor::blitLast(Framebuffer* target, int windowWidth, int windowHeight)
+void PostProcessor::blitLast(Framebuffer* target, ViewPort vp)
 {
     //    framebuffers[lastBuffer].blitColor(0);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffers[currentBuffer].getId());
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target->getId());
-    glBlitFramebuffer(0, 0, width, height, 0, 0, windowWidth, windowHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, width, height, vp.position(0), vp.position(1), vp.size(0), vp.size(1), GL_COLOR_BUFFER_BIT, GL_LINEAR);
     assert_no_glerror();
 }
 
-void PostProcessor::renderLast(Framebuffer* target, int windowWidth, int windowHeight)
+void PostProcessor::renderLast(Framebuffer* target, ViewPort vp)
 {
-    glViewport(0, 0, windowWidth, windowHeight);
+    setViewPort(vp);
+//    glViewport(0, 0, windowWidth, windowHeight);
     //    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     target->bind();
     glDisable(GL_DEPTH_TEST);
@@ -256,6 +257,7 @@ void PostProcessor::renderLast(Framebuffer* target, int windowWidth, int windowH
     passThroughShader->uploadAdditionalUniforms();
     quadMesh.bindAndDraw();
     passThroughShader->unbind();
+    target->unbind();
 }
 
 framebuffer_texture_t PostProcessor::getCurrentTexture()

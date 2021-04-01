@@ -45,9 +45,9 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
 
     // Size and position of the 3D viewport
     // In editor mode this will be set by the imgui-window
-    viewport_size   = ivec2(window->getWidth(), window->getHeight());
-    viewport_offset = ivec2(0, 0);
-
+    viewport_size        = ivec2(window->getWidth(), window->getHeight());
+    viewport_offset      = ivec2(0, 0);
+    bool render_viewport = true;
 
 
     // 1. Render the imgui
@@ -69,28 +69,34 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
 
         if (editor_gui.enabled)
         {
-            ImGuiWindowFlags flags =
-                ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+            ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
+            use_mouse_input_in_3dview    = false;
+            use_keyboard_input_in_3dview = false;
 
+            if (ImGui::Begin("3DView", nullptr, flags))
+            {
+                ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 1));
+                ImGui::BeginChild("viewer_child", ImVec2(0, 0), false,
+                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
+                ImGui::PopStyleColor();
 
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 1));
-            ImGui::Begin("3DView", nullptr, flags);
-            ImGui::BeginChild("viewer_child", ImVec2(0, 0), false,
-                              ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
-            ImGui::PopStyleColor();
+                use_mouse_input_in_3dview = ImGui::IsWindowHovered();
+                use_keyboard_input_in_3dview =
+                    use_mouse_input_in_3dview || (ImGui::IsWindowFocused() && !ImGui::captureKeyboard());
 
-            use_mouse_input_in_3dview = ImGui::IsWindowHovered();
-            use_keyboard_input_in_3dview =
-                use_mouse_input_in_3dview || (ImGui::IsWindowFocused() && !ImGui::captureKeyboard());
+                viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
+                viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
 
-            viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
-            viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
+                auto w_size   = ImGui::GetWindowContentRegionMax();
+                viewport_size = ivec2(w_size.x, w_size.y);
 
-            auto w_size   = ImGui::GetWindowContentRegionMax();
-            viewport_size = ivec2(w_size.x, w_size.y);
-
-            ImGui::EndChild();
+                ImGui::EndChild();
+            }
+            else
+            {
+                render_viewport = false;
+            }
             ImGui::End();
         }
     }
@@ -102,24 +108,27 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         use_keyboard_input_in_3dview = !ImGui::captureKeyboard();
     }
 
-    ResizeTarget(viewport_size.x(), viewport_size.y());
 
-    // 2. Render 3DView to framebuffer
-    Camera* camera = renderInfo.cameras.front().first;
-    camera->recomputeProj(outputWidth, outputHeight);
-    ViewPort viewport = ViewPort({0, 0}, {outputWidth, outputHeight});
-    auto target_fb    = editor_gui.enabled ? target_framebuffer.get() : &default_framebuffer;
-    target_fb->bind();
-    glClear(GL_COLOR_BUFFER_BIT);
+    if (render_viewport)
+    {
+        // 2. Render 3DView to framebuffer
+        ResizeTarget(viewport_size.x(), viewport_size.y());
+        Camera* camera = renderInfo.cameras.front().first;
+        camera->recomputeProj(outputWidth, outputHeight);
+        ViewPort viewport = ViewPort({0, 0}, {outputWidth, outputHeight});
+        auto target_fb    = editor_gui.enabled ? target_framebuffer.get() : &default_framebuffer;
+        target_fb->bind();
+        glClear(GL_COLOR_BUFFER_BIT);
 
-    timer->BeginFrame();
-    renderGL(target_fb, viewport, camera);
-    timer->EndFrame();
+        timer->BeginFrame();
+        renderGL(target_fb, viewport, camera);
+        timer->EndFrame();
+    }
 
     // 3. Add rendered 3DView to imgui (in editor mode only)
     if (imgui)
     {
-        if (editor_gui.enabled)
+        if (editor_gui.enabled && render_viewport)
         {
             ImGui::Begin("3DView");
             ImGui::BeginChild("viewer_child");

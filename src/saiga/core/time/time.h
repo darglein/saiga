@@ -12,6 +12,10 @@
 #include <chrono>
 #include <sstream>
 #include <string>
+
+
+namespace Saiga
+{
 using game_ratio_t = std::nano;
 using tick_t       = std::chrono::duration<int64_t, game_ratio_t>;
 using tickd_t      = std::chrono::duration<double, game_ratio_t>;
@@ -19,6 +23,8 @@ using tickd_t      = std::chrono::duration<double, game_ratio_t>;
 // using a floating point type here because we need to do alot of interpolation stuff
 using animationtime_t = std::chrono::duration<double>;
 
+
+// Time format: https://man7.org/linux/man-pages/man3/strftime.3.html
 inline std::string CurrentTimeString(const std::string& format)
 {
     const int b_size = 200;
@@ -56,3 +62,4 @@ inline std::string DurationToString(const DurationType& duration)
     strm << ":" << Saiga::leadingZeroString(ms, 4);
     return strm.str();
 }
+}  // namespace Saiga
