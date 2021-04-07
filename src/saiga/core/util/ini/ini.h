@@ -85,20 +85,28 @@ struct ParamsBase
 {
     ParamsBase(const std::string name) : name_(name) {}
     std::string name_;
-    std::string file_;
-    Saiga::SimpleIni ini_;
+
+    virtual void Params(Saiga::SimpleIni& ini_) = 0;
+
+    virtual void Load(std::string file)
+    {
+        Saiga::SimpleIni ini_;
+        ini_.LoadFile(file.c_str());
+        Params(ini_);
+        if (ini_.changed()) ini_.SaveFile(file.c_str());
+    }
+
+    virtual void Save(std::string file)
+    {
+        Saiga::SimpleIni ini_;
+        Params(ini_);
+        ini_.SaveFile(file.c_str());
+    }
 };
 
-#define SAIGA_PARAM_STRUCT(_Name) struct _Name : public ParamsBase
-
-#define SAIGA_PARAM_STRUCT_FUNCTIONS(_Name)              \
-    _Name() : ParamsBase(#_Name) {}                      \
-    _Name(const std::string file) : ParamsBase(#_Name)   \
-    {                                                    \
-        ini_.LoadFile(file.c_str());                     \
-        Params();                                        \
-        if (ini_.changed()) ini_.SaveFile(file.c_str()); \
-    }
+#define SAIGA_PARAM_STRUCT_FUNCTIONS(_Name) \
+    _Name() : ParamsBase(#_Name) {}         \
+    _Name(const std::string file) : ParamsBase(#_Name) { Load(file); }
 
 
 #define SAIGA_PARAM_BOOL(_variable) INI_GETADD_BOOL(ini_, name_.c_str(), _variable)

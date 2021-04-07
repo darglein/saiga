@@ -55,7 +55,7 @@ if(CUDA_FOUND)
   # 61 GTX 10xx
   # 75 RTX 20xx
   # 86 RTX 30xx
-  if(${CUDA_VERSION} VERSION_LESS "11")
+  if(${CUDAToolkit_VERSION} VERSION_LESS "11")
     set(SAIGA_CUDA_ARCH "30-virtual" "52-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
   else()
     # CUDA 11 and later doesn't support 30 anymore

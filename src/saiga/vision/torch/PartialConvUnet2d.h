@@ -5,6 +5,8 @@
  */
 
 #pragma once
+#include "saiga/core/util/ini/ini.h"
+
 #include "PartialConv.h"
 #include "TorchHelper.h"
 
@@ -190,6 +192,37 @@ class UpsampleBlockImpl : public torch::nn::Module
 
 TORCH_MODULE(UpsampleBlock);
 
+
+struct MultiScaleUnet2dParams : public ParamsBase
+{
+    SAIGA_PARAM_STRUCT_FUNCTIONS(MultiScaleUnet2dParams);
+
+    virtual void Params(Saiga::SimpleIni& ini_) override
+    {
+        SAIGA_PARAM_LONG(num_input_layers);
+        SAIGA_PARAM_LONG(num_input_channels);
+        SAIGA_PARAM_LONG(num_output_channels);
+        SAIGA_PARAM_LONG(feature_factor);
+        SAIGA_PARAM_LONG(num_layers);
+
+        SAIGA_PARAM_STRING(upsample_mode);
+        SAIGA_PARAM_STRING(norm_layer);
+        SAIGA_PARAM_STRING(last_act);
+        SAIGA_PARAM_STRING(conv_block);
+    }
+
+
+    int num_input_layers      = 5;
+    int num_input_channels    = 8;
+    int num_output_channels   = 3;
+    int feature_factor        = 4;
+    int num_layers            = 5;
+    std::string upsample_mode = "bilinear";
+    std::string norm_layer    = "bn";
+    std::string last_act      = "sigmoid";
+    std::string conv_block    = "partial";
+};
+
 // Rendering network with UNet architecture and multi-scale input.
 //
 // Implementation based on the python code from:
@@ -205,29 +238,25 @@ TORCH_MODULE(UpsampleBlock);
 //  conv_block: Type of convolutional block, like Convolution-Normalization-Activation. One of 'basic', 'partial' or
 //  'gated'.
 //
-class PartialConvUnet2dImpl : public torch::nn::Module
+class MultiScaleUnet2dImpl : public torch::nn::Module
 {
    public:
-    PartialConvUnet2dImpl(std::vector<int> _num_input_channels, int num_output_channels = 3, int feature_scale = 4,
-                          int more_layers = 0, std::string upsample_mode = "bilinear", std::string norm_layer = "bn",
-                          std::string last_act = "sigmoid", std::string conv_block = "partial")
-        : num_input_channels(_num_input_channels)
+    MultiScaleUnet2dImpl(MultiScaleUnet2dParams params) : params(params)
     {
         std::vector<int> num_input_channels_per_layer;
-        std::vector<int> filters = {64, 128, 256, 512, 1024};
+        std::vector<int> filters = {4, 8, 16, 32, 64};
 
         for (auto& f : filters)
         {
-            f = f / feature_scale;
+            f = f * params.feature_factor;
         }
 
-        if (num_input_channels.size() < 5)
+        std::vector<int> num_input_channels(params.num_input_layers, params.num_input_channels);
+        for (int i = params.num_input_layers; i < 5; ++i)
         {
-            for (int i = num_input_channels.size(); i < 5; ++i)
-            {
-                num_input_channels.push_back(0);
-            }
+            num_input_channels.push_back(0);
         }
+
 
 
         SAIGA_ASSERT(num_input_channels.size() == filters.size());
@@ -236,26 +265,33 @@ class PartialConvUnet2dImpl : public torch::nn::Module
 
         down1 = DownsampleBlock(filters[0], filters[1] - num_input_channels[1]);
         down2 = DownsampleBlock(filters[1], filters[2] - num_input_channels[2]);
+
         down3 = DownsampleBlock(filters[2], filters[3] - num_input_channels[3]);
-        down4 = DownsampleBlock(filters[3], filters[4] - num_input_channels[4]);
 
-        up4 = UpsampleBlock(filters[3], upsample_mode);
-        up3 = UpsampleBlock(filters[2], upsample_mode);
-        up2 = UpsampleBlock(filters[1], upsample_mode);
-        up1 = UpsampleBlock(filters[0], upsample_mode);
+        if (params.num_layers >= 5)
+        {
+            down4 = DownsampleBlock(filters[3], filters[4] - num_input_channels[4]);
+            up4   = UpsampleBlock(filters[3], params.upsample_mode);
+        }
+        up3 = UpsampleBlock(filters[2], params.upsample_mode);
+        up2 = UpsampleBlock(filters[1], params.upsample_mode);
+        up1 = UpsampleBlock(filters[0], params.upsample_mode);
 
-        final->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(filters[0], num_output_channels, 1)));
-        final->push_back(ActivationFromString(last_act));
+        final->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(filters[0], params.num_output_channels, 1)));
+        final->push_back(ActivationFromString(params.last_act));
 
         register_module("start", start);
 
         register_module("down1", down1);
         register_module("down2", down2);
         register_module("down3", down3);
-        register_module("down4", down4);
 
+        if (params.num_layers >= 5)
+        {
+            register_module("down4", down4);
+            register_module("up4", up4);
+        }
 
-        register_module("up4", up4);
         register_module("up3", up3);
         register_module("up2", up2);
         register_module("up1", up1);
@@ -265,14 +301,15 @@ class PartialConvUnet2dImpl : public torch::nn::Module
 
     at::Tensor forward(ArrayView<torch::Tensor> inputs)
     {
+        SAIGA_ASSERT(inputs.size() == params.num_input_layers);
         // debug check if input has correct format
-        for (int i = 0; i < num_input_channels.size(); ++i)
+        for (int i = 0; i < inputs.size(); ++i)
         {
-            if (num_input_channels[i] > 0)
+            if (params.num_input_layers > i)
             {
                 SAIGA_ASSERT(inputs.size() > i);
                 SAIGA_ASSERT(inputs[i].defined());
-                SAIGA_ASSERT(num_input_channels[i] == inputs[i].size(1));
+                SAIGA_ASSERT(params.num_input_channels == inputs[i].size(1));
             }
         }
 
@@ -280,26 +317,31 @@ class PartialConvUnet2dImpl : public torch::nn::Module
         auto d0 = start->forward(inputs[0]);
 
         auto d1 = down1->forward(d0);
-        if (num_input_channels[1]) d1 = torch::cat({d1, inputs[1]}, 1);
+        if (params.num_input_layers >= 2) d1 = torch::cat({d1, inputs[1]}, 1);
 
         auto d2 = down2->forward(d1);
-        if (num_input_channels[2]) d2 = torch::cat({d2, inputs[2]}, 1);
+        if (params.num_input_layers >= 3) d2 = torch::cat({d2, inputs[2]}, 1);
 
         auto d3 = down3->forward(d2);
-        if (num_input_channels[3]) d3 = torch::cat({d3, inputs[3]}, 1);
+        if (params.num_input_layers >= 4) d3 = torch::cat({d3, inputs[3]}, 1);
 
-        auto d4 = down4->forward(d3);
-        if (num_input_channels[4]) d4 = torch::cat({d4, inputs[4]}, 1);
 
-        auto u4 = up4->forward(d4, d3);
-        auto u3 = up3->forward(u4, d2);
-        auto u2 = up2->forward(u3, d1);
-        auto u1 = up1->forward(u2, d0);
+        if(params.num_layers >= 5)
+        {
+            auto d4 = down4->forward(d3);
+            if (params.num_input_layers >= 5) d4 = torch::cat({d4, inputs[4]}, 1);
 
-        return final->forward(u1);
+            d3 = up4->forward(d4, d3);
+        }
+
+        d2 = up3->forward(d3, d2);
+        d1 = up2->forward(d2, d1);
+        d0 = up1->forward(d1, d0);
+
+        return final->forward(d0);
     }
 
-    std::vector<int> num_input_channels;
+    MultiScaleUnet2dParams params;
 
     GatedBlock start = nullptr;
 
@@ -316,6 +358,6 @@ class PartialConvUnet2dImpl : public torch::nn::Module
     torch::nn::Sequential final;
 };
 
-TORCH_MODULE(PartialConvUnet2d);
+TORCH_MODULE(MultiScaleUnet2d);
 
 }  // namespace Saiga

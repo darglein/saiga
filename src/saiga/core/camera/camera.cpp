@@ -203,7 +203,11 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
     this->zNear           = _zNear;
     this->zFar            = _zFar;
     this->vulkanTransform = vulkanTransform;
-    recomputeProj(aspect, 1);
+    proj                  = perspective(fovy, aspect, zNear, zFar);
+    if (vulkanTransform)
+    {
+        proj = GL2VulkanNormalizedImage() * proj;
+    }
 }
 
 void PerspectiveCamera::imgui()
