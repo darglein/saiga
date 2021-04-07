@@ -61,3 +61,47 @@
 #define INI_GETADD_LONG(_ini, _section, _variable) INI_GETADD_LONG_COMMENT(_ini, _section, _variable, 0)
 #define INI_GETADD_STRING(_ini, _section, _variable) INI_GETADD_STRING_COMMENT(_ini, _section, _variable, 0)
 #define INI_GETADD_DOUBLE(_ini, _section, _variable) INI_GETADD_DOUBLE_COMMENT(_ini, _section, _variable, 0)
+
+
+// The saiga param macros (below) can be used to define simple param structs in ini files.
+// An example struct should look like this:
+//
+//  SAIGA_PARAM_STRUCT(NetworkParams)
+//  {
+//      SAIGA_PARAM_STRUCT_FUNCTIONS(NetworkParams);
+//
+//      double d        = 2;
+//      long n          = 10;
+//      std::string str = "blabla";
+//
+//      void Params()
+//      {
+//          SAIGA_PARAM_DOUBLE(d);
+//          SAIGA_PARAM_LONG(n);
+//          SAIGA_PARAM_STRING(str);
+//      }
+//  };
+struct ParamsBase
+{
+    ParamsBase(const std::string name) : name_(name) {}
+    std::string name_;
+    std::string file_;
+    Saiga::SimpleIni ini_;
+};
+
+#define SAIGA_PARAM_STRUCT(_Name) struct _Name : public ParamsBase
+
+#define SAIGA_PARAM_STRUCT_FUNCTIONS(_Name)              \
+    _Name() : ParamsBase(#_Name) {}                      \
+    _Name(const std::string file) : ParamsBase(#_Name)   \
+    {                                                    \
+        ini_.LoadFile(file.c_str());                     \
+        Params();                                        \
+        if (ini_.changed()) ini_.SaveFile(file.c_str()); \
+    }
+
+
+#define SAIGA_PARAM_BOOL(_variable) INI_GETADD_BOOL(ini_, name_.c_str(), _variable)
+#define SAIGA_PARAM_LONG(_variable) INI_GETADD_LONG(ini_, name_.c_str(), _variable)
+#define SAIGA_PARAM_STRING(_variable) INI_GETADD_STRING(ini_, name_.c_str(), _variable)
+#define SAIGA_PARAM_DOUBLE(_variable) INI_GETADD_DOUBLE(ini_, name_.c_str(), _variable)

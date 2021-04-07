@@ -67,10 +67,7 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
 
     // In pytorch image tensors are usually represented as channel first.
     tensor = tensor.permute({1, 2, 0});
-    tensor = tensor.cpu();
-
-    // This is a trick to reorder the internal memory
-    tensor = torch::cat(tensor, 0 );
+    tensor = tensor.cpu().contiguous();
 
     SAIGA_ASSERT(tensor.dtype() == at::kFloat);
 

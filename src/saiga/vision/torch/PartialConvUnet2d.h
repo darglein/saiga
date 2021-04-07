@@ -10,7 +10,6 @@
 
 namespace Saiga
 {
-
 // Check upsample align corner
 
 class BasicBlockImpl : public torch::nn::Module
@@ -164,7 +163,7 @@ class UpsampleBlockImpl : public torch::nn::Module
                 torch::nn::UpsampleOptions().scale_factor(scale).mode(torch::kBilinear).align_corners(false)));
             up->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(num_filt, out_channels, 3).padding(1)));
         }
-        conv->push_back(GatedBlock(out_channels * 2, out_channels, 3, 1, 1, "id"));
+        conv = GatedBlock(out_channels * 2, out_channels, 3, 1, 1, "id");
 
 
 
@@ -184,7 +183,7 @@ class UpsampleBlockImpl : public torch::nn::Module
     }
 
     torch::nn::Sequential up;
-    torch::nn::Sequential conv;
+    GatedBlock conv = nullptr;
     //    GatedBlock conv;
     //    torch::nn::AvgPool2d down;
 };
@@ -233,7 +232,7 @@ class PartialConvUnet2dImpl : public torch::nn::Module
 
         SAIGA_ASSERT(num_input_channels.size() == filters.size());
 
-        start->push_back(GatedBlock(num_input_channels[0], filters[0]));
+        start = GatedBlock(num_input_channels[0], filters[0]);
 
         down1 = DownsampleBlock(filters[0], filters[1] - num_input_channels[1]);
         down2 = DownsampleBlock(filters[1], filters[2] - num_input_channels[2]);
@@ -267,9 +266,9 @@ class PartialConvUnet2dImpl : public torch::nn::Module
     at::Tensor forward(ArrayView<torch::Tensor> inputs)
     {
         // debug check if input has correct format
-        for(int  i =0; i < num_input_channels.size(); ++i)
+        for (int i = 0; i < num_input_channels.size(); ++i)
         {
-            if(num_input_channels[i] > 0)
+            if (num_input_channels[i] > 0)
             {
                 SAIGA_ASSERT(inputs.size() > i);
                 SAIGA_ASSERT(inputs[i].defined());
@@ -302,7 +301,7 @@ class PartialConvUnet2dImpl : public torch::nn::Module
 
     std::vector<int> num_input_channels;
 
-    torch::nn::Sequential start;
+    GatedBlock start = nullptr;
 
     DownsampleBlock down1 = nullptr;
     DownsampleBlock down2 = nullptr;

@@ -174,11 +174,13 @@ void EditorLayoutL::BuildNodes(int dockspace_id)
 {
     ImGui::DockBuilderAddNode(dockspace_id);
 
-    ImGuiID dock_viewport = dockspace_id;
-    ImGuiID dock_left     = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Left, 0.20f, NULL, &dock_viewport);
-    ImGuiID dock_bottom   = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, 0.20f, NULL, &dock_viewport);
+    ImGuiID dock_viewport    = dockspace_id;
+    ImGuiID dock_left        = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Left, 0.20f, NULL, &dock_viewport);
+    ImGuiID dock_left_bottom = ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Down, 0.20f, NULL, &dock_left);
 
-    node_map = {dock_left, dock_bottom, dock_viewport};
+    ImGuiID dock_bottom = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, 0.20f, NULL, &dock_viewport);
+
+    node_map = {dock_left, dock_bottom, dock_viewport, dock_left_bottom};
 }
 
 EditorLayoutLSplit2x2::EditorLayoutLSplit2x2()
@@ -210,9 +212,10 @@ void EditorLayoutLSplit2x2::BuildNodes(int dockspace_id)
 
     ImGuiID dock_left, dock_bottom, dock_11, dock_12, dock_21, dock_22;
 
-    ImGuiID dock_viewport = dockspace_id;
-    dock_left     = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Left, 0.20f, NULL, &dock_viewport);
-    dock_bottom   = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, 0.20f, NULL, &dock_viewport);
+    ImGuiID dock_viewport    = dockspace_id;
+    dock_left                = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Left, 0.20f, NULL, &dock_viewport);
+    ImGuiID dock_left_bottom = ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Down, 0.20f, NULL, &dock_left);
+    dock_bottom              = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, 0.20f, NULL, &dock_viewport);
 
     ImGuiID dock1, dock2;
     ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Up, 0.50f, &dock1, &dock2);
@@ -221,11 +224,11 @@ void EditorLayoutLSplit2x2::BuildNodes(int dockspace_id)
     ImGui::DockBuilderSplitNode(dock2, ImGuiDir_Left, 0.50f, &dock_21, &dock_22);
 
 
-//    ImGuiID dock_1   = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, 0.50f, NULL, &dock_viewport);
+    //    ImGuiID dock_1   = ImGui::DockBuilderSplitNode(dock_viewport, ImGuiDir_Down, 0.50f, NULL, &dock_viewport);
 
 
 
-    node_map = {dock_left, dock_bottom, dock_11, dock_12, dock_21, dock_22};
+    node_map = {dock_left, dock_bottom, dock_11, dock_12, dock_21, dock_22, dock_left_bottom};
 }
 
 EditorLayoutU::EditorLayoutU(bool split_left_right, float left_size, float right_size, float bottom_size,

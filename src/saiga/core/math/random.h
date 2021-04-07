@@ -107,8 +107,8 @@ template <typename Scalar>
 Eigen::Quaternion<Scalar> randomQuat()
 {
     using Vec = Vector<Scalar, 4>;
-    Vec r     = Random::MatrixUniform<Vec>(0, 1);
-    Quat q;
+    Vec r     = Random::MatrixUniform<Vec>(-1, 1);
+    Eigen::Quaternion<Scalar> q;
     q.coeffs() = r;
     q.normalize();
     if (q.w() < 0) q.coeffs() *= -1;

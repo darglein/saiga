@@ -23,7 +23,7 @@ namespace Saiga
 class PretrainedVGG19LossImpl : public torch::nn::Module
 {
    public:
-    PretrainedVGG19LossImpl(const std::string& file, bool use_average_pool = true)
+    PretrainedVGG19LossImpl(const std::string& file, bool use_average_pool = true, bool from_pytorch = true)
     {
         torch::nn::Sequential features = vision::models::VGG19()->features;
 
@@ -57,16 +57,33 @@ class PretrainedVGG19LossImpl : public torch::nn::Module
             seq = features;
         }
 
+        if (from_pytorch)
         {
-            float array[] = {0.485, 0.456, 0.406};
-            auto options  = torch::TensorOptions().dtype(torch::kFloat32);
-            mean_         = torch::from_blob(array, {1, 3, 1, 1}, options).clone();
-        }
+            {
+                float array[] = {0.485, 0.456, 0.406};
+                auto options  = torch::TensorOptions().dtype(torch::kFloat32);
+                mean_         = torch::from_blob(array, {1, 3, 1, 1}, options).clone();
+            }
 
+            {
+                float array[] = {0.229, 0.224, 0.225};
+                auto options  = torch::TensorOptions().dtype(torch::kFloat32);
+                std_          = torch::from_blob(array, {1, 3, 1, 1}, options).clone();
+            }
+        }
+        else
         {
-            float array[] = {0.229, 0.224, 0.225};
-            auto options  = torch::TensorOptions().dtype(torch::kFloat32);
-            std_          = torch::from_blob(array, {1, 3, 1, 1}, options).clone();
+            {
+                float array[] = {103.939 / 255.f, 116.779 / 255.f, 123.680 / 255.f};
+                auto options  = torch::TensorOptions().dtype(torch::kFloat32);
+                mean_         = torch::from_blob(array, {1, 3, 1, 1}, options).clone();
+            }
+
+            {
+                float array[] = {1. / 255, 1. / 255, 1. / 255};
+                auto options  = torch::TensorOptions().dtype(torch::kFloat32);
+                std_          = torch::from_blob(array, {1, 3, 1, 1}, options).clone();
+            }
         }
 
         if (false)

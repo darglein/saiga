@@ -102,6 +102,7 @@ class SAIGA_CORE_API EditorLayoutL : public EditorLayout
         WINDOW_POSITION_LEFT = 0,
         WINDOW_POSITION_BOTTOM,
         WINDOW_POSITION_3DVIEW,
+        WINDOW_POSITION_LEFT_BOTTOM,
     };
 
     EditorLayoutL();
@@ -120,6 +121,7 @@ class SAIGA_CORE_API EditorLayoutLSplit2x2 : public EditorLayout
         WINDOW_POSITION_MAIN_12,
         WINDOW_POSITION_MAIN_21,
         WINDOW_POSITION_MAIN_22,
+        WINDOW_POSITION_LEFT_BOTTOM,
     };
 
     EditorLayoutLSplit2x2();
