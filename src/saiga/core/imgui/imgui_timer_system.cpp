@@ -99,7 +99,10 @@ void TimerSystem::Imgui()
     std::vector<TimeData*> timers;
     for (auto& st : data)
     {
-        timers.push_back(st.second.get());
+        if(st.second->active)
+        {
+            timers.push_back(st.second.get());
+        }
     }
     TimerSystem::Imgui(system_name, timers, &total_time);
 }
