@@ -374,6 +374,14 @@ void DeferredLighting::setupLightPass(bool isVolumetric)
         // increase stencil id, so the next light will write a different value to the stencil buffer.
         // with this trick the expensive clear can be saved after each light
         currentStencilId++;
+
+        if (currentStencilId == 256)
+        {
+            currentStencilId = 1;
+            glClearStencil(0x0);
+            glClear(GL_STENCIL_BUFFER_BIT);
+            // we need to clear here in case we have too many lights.
+        }
         SAIGA_ASSERT(currentStencilId < 256);
     }
 
