@@ -32,12 +32,23 @@ class Sample : public RendererSampleWindow
 
         Random::setSeed(LIGHT_SEED);  // SEED
 
-        show.asset = std::make_shared<ColoredAsset>(
-            CheckerBoardPlane(make_ivec2(40, 40), 1.0f, Colors::darkgray, Colors::white));
+        // show.asset = std::make_shared<ColoredAsset>(
+        //    CheckerBoardPlane(make_ivec2(40, 40), 1.0f, Colors::darkgray, Colors::white));
 
-        show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
-        // show.multScale(make_vec3(0.01f));
-        show.calculateModel();
+        show.asset = std::make_shared<TexturedAsset>(UnifiedModel("models/sponza/Sponza.obj").Normalize());
+
+        // show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
+
+        // test
+        float aspect = window->getAspectRatio();
+        camera.setProj(60.0f, aspect, 0.1f, 5.0f);
+        camera.setView(vec3(0, 1, 2), vec3(0, 0, 0), vec3(0, 1, 0));
+        camera.movementSpeed     = 0.3;
+        camera.movementSpeedFast = 3;
+        camera.position = vec4(0.558927, 0.0488419, 0.00189565, 1);
+        camera.rot      = quat(0.72404, -0.060576, 0.684689, 0.0572873);
+
+
 
         int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
@@ -54,7 +65,7 @@ class Sample : public RendererSampleWindow
 
 // Next is needed for forward.
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
-        const char* shaderStr = renderer->getColoredShaderSource();
+        const char* shaderStr = renderer->getTexturedShaderSource();
 
         auto deferredShader = shaderLoader.load<MVPColorShader>(shaderStr,
                                                                 {{ GL_FRAGMENT_SHADER,
@@ -76,7 +87,7 @@ class Sample : public RendererSampleWindow
 
         auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
-        static_cast<ColoredAsset*>(show.asset.get())
+        static_cast<TexturedAsset*>(show.asset.get())
             ->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
@@ -141,7 +152,7 @@ class Sample : public RendererSampleWindow
 
                 // Next is needed for forward.
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
-                const char* shaderStr = renderer->getColoredShaderSource();
+                const char* shaderStr = renderer->getTexturedShaderSource();
 
                 auto deferredShader = shaderLoader.load<MVPColorShader>(shaderStr,
                                                                         {{ GL_FRAGMENT_SHADER,
@@ -169,7 +180,7 @@ class Sample : public RendererSampleWindow
 
                 auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
-                std::static_pointer_cast<ColoredAsset>(show.asset)
+                std::static_pointer_cast<TexturedAsset>(show.asset)
                     ->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
             }

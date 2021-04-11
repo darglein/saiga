@@ -29,16 +29,16 @@ class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
 
     struct clusterBounds
     {
-        vec3 minB;
+        vec3 center;
         float pad0;
-        vec3 maxB;
+        vec3 extends;
         float pad1;
     };
 
     int allowedItemsPerCluster = 1024;
     std::vector<clusterBounds> cullingCluster;
 
-    int allowedLights = 66000;
+    int allowedLights = 140000;
     ShaderStorageBuffer lightClusterDataBuffer;
     ShaderStorageBuffer clusterStructuresBuffer;
 

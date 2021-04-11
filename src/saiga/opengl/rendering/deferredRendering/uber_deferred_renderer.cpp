@@ -48,9 +48,6 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
 
-    ddo.setDeferredFramebuffer(&gbuffer, blackDummyTexture);
-
-
     std::cout << "Uber Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight
               << std::endl;
 }
@@ -122,6 +119,16 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
         bindCamera(camera);
         setViewPort(viewport);
         renderingInterface->render(camera, RenderPass::Forward);
+    }
+
+    {
+        auto tim = timer->CreateScope("DDO");
+        glViewport(0, 0, renderWidth, renderHeight);
+        if (renderDDO)
+        {
+            bindCamera(&ddo.layout.cam);
+            ddo.render();
+        }
     }
 
 

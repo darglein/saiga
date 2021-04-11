@@ -71,8 +71,8 @@ layout (std430, binding = 10) buffer lightClusterData
 
 struct clusterBounds
 {
-    vec3 minB;
-    vec3 maxB;
+    vec3 center;
+    vec3 extends;
 };
 
 layout (std430, binding = 11) buffer clusterStructures
@@ -80,28 +80,24 @@ layout (std430, binding = 11) buffer clusterStructures
     clusterBounds cullingCluster[];
 };
 
+#define MAX_SHARED_LIGHT_SOURCES 1024
 
 shared int visiblePlCount;
-shared int visiblePls[1024];
+shared int visiblePls[MAX_SHARED_LIGHT_SOURCES];
 shared int visibleSlCount;
-shared int visibleSls[1024];
+shared int visibleSls[MAX_SHARED_LIGHT_SOURCES];
 shared int globalOffset;
-shared clusterBounds bounds;
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-bool testAABBIntersection(in int lightIndex, in vec3 minB, in vec3 maxB)
+bool testAABBIntersection(in int lightIndex, in vec3 centerAABB, in vec3 extendsAABB)
 {
     vec3 c = vec3(view * vec4(clusterData[lightIndex].light.xyz, 1));
     float r = clusterData[lightIndex].light.w;
 
-    float sqDist = 0.0;
-    for (int i = 0; i < 3; i++)
-    {
-        if (c[i] < minB[i]) sqDist += (minB[i] - c[i]) * (minB[i] - c[i]);
-        if (c[i] > maxB[i]) sqDist += (c[i] - maxB[i]) * (c[i] - maxB[i]);
-    }
+    vec3 diff = max(abs(c - centerAABB) - extendsAABB, 0);
 
+    float sqDist = dot(diff, diff);
     float rSqared = r * r;
     return (sqDist <= rSqared);
 }
@@ -117,19 +113,21 @@ void main()
     {
         visiblePlCount = 0;
         visibleSlCount = 0;
-        bounds.minB = cullingCluster[clusterIndex].minB;
-        bounds.maxB = cullingCluster[clusterIndex].maxB;
     }
 
     memoryBarrier();
     barrier();
 
+    clusterBounds bounds;
+    bounds.center = cullingCluster[clusterIndex].center;
+    bounds.extends = cullingCluster[clusterIndex].extends;
+
     for(int i = location; i < pointLightCount; i += 256)
     {
-        if(testAABBIntersection(i, bounds.minB, bounds.maxB))
+        if(testAABBIntersection(i, bounds.center, bounds.extends))
         {
             int index = atomicAdd(visiblePlCount, 1);
-            if(index < 1024)
+            if(index < MAX_SHARED_LIGHT_SOURCES)
             {
                 visiblePls[index] = i;
             }
@@ -138,10 +136,10 @@ void main()
 
     for(int i = location; i < spotLightCount; i += 256)
     {
-        if(testAABBIntersection(pointLightCount + i, bounds.minB, bounds.maxB))
+        if(testAABBIntersection(pointLightCount + i, bounds.center, bounds.extends))
         {
             int index = atomicAdd(visibleSlCount, 1);
-            if(index < 1024)
+            if(index < MAX_SHARED_LIGHT_SOURCES)
             {
                 visibleSls[index] = i;
             }
@@ -153,8 +151,8 @@ void main()
 
     if(location == 0)
     {
-        visiblePlCount = min(visiblePlCount, 1024);
-        visibleSlCount = min(visibleSlCount, 1024);
+        visiblePlCount = min(visiblePlCount, MAX_SHARED_LIGHT_SOURCES);
+        visibleSlCount = min(visibleSlCount, MAX_SHARED_LIGHT_SOURCES);
         globalOffset = atomicAdd(itemListCount, visiblePlCount + visibleSlCount);
         clusterList[clusterIndex].offset = globalOffset;
         clusterList[clusterIndex].plCount = visiblePlCount;

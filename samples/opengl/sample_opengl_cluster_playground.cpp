@@ -32,7 +32,7 @@ class Sample : public RendererSampleWindow
 #endif
 
         planeAsset  = std::make_shared<ColoredAsset>(PlaneMesh(Plane(vec3(0, -0.1, 0), vec3(0, 1, 0))));
-        sponzaAsset = std::make_shared<ColoredAsset>(UnifiedModel("models/Sponza.obj"));
+        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("models/sponza/Sponza.obj"));
         boxAsset    = std::make_shared<ColoredAsset>(BoxMesh(AABB(make_vec3(-0.5), make_vec3(0.5))));
 
         plane.asset = planeAsset;
@@ -78,7 +78,8 @@ class Sample : public RendererSampleWindow
                                  maximumNumberOfRendererSupportedSpotLights);
 
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
-        const char* shaderStr = renderer->getColoredShaderSource();
+        const char* shaderStr    = renderer->getColoredShaderSource();
+        const char* shaderStrTex = renderer->getTexturedShaderSource();
 
         auto deferredShader = shaderLoader.load<MVPColorShader>(shaderStr,
                                                                 {{ GL_FRAGMENT_SHADER,
@@ -96,13 +97,36 @@ class Sample : public RendererSampleWindow
                          "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights), 3);
         sci.emplace_back(GL_FRAGMENT_SHADER,
                          "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
+
         auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
 
         auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
 
         planeAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
-        sponzaAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
         boxAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
+
+        deferredShader = shaderLoader.load<MVPColorShader>(shaderStrTex,
+                                                                {{ GL_FRAGMENT_SHADER,
+                                                                   "#define DEFERRED",
+                                                                   1 }});
+        depthShader = shaderLoader.load<MVPColorShader>(shaderStrTex, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
+
+        ShaderPart::ShaderCodeInjections sci;
+        sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
+        sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
+
+        sci.emplace_back(GL_FRAGMENT_SHADER,
+                         "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights), 2);
+        sci.emplace_back(GL_FRAGMENT_SHADER,
+                         "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights), 3);
+        sci.emplace_back(GL_FRAGMENT_SHADER,
+                         "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
+
+        forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStrTex, sci);
+
+        wireframeShader = shaderLoader.load<MVPColorShader>(shaderStrTex);
+
+        sponzaAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
         setupPlayground(currentPlayground);
@@ -179,7 +203,6 @@ class Sample : public RendererSampleWindow
                 camera.rot      = quat(0.961825, -0.273666, 6.98492e-10, 1.60071e-09);
                 camera.calculateModel();
                 camera.updateFromModel();
-
             }
             break;
             case 1:
@@ -320,9 +343,9 @@ class Sample : public RendererSampleWindow
             case 5:
             {
                 Random::setSeed(SEED);
-                for (float i = -15; i < 16; i+=0.5f)
+                for (float i = -15; i < 16; i += 0.5f)
                 {
-                    for (float j = -15; j < 16; j+=0.5f)
+                    for (float j = -15; j < 16; j += 0.5f)
                     {
                         auto light = std::make_shared<PointLight>();
                         light->setIntensity(1);
@@ -506,7 +529,8 @@ class Sample : public RendererSampleWindow
     }
 
    private:
-    std::shared_ptr<ColoredAsset> planeAsset, boxAsset, sponzaAsset;
+    std::shared_ptr<ColoredAsset> planeAsset, boxAsset;
+    std::shared_ptr<TexturedAsset> sponzaAsset;
 
     SimpleAssetObject plane;
     SimpleAssetObject sponza;

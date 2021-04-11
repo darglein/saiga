@@ -58,16 +58,10 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
     {
         auto tim = timer->CreateScope("GPU Light Assignment");
 
-        lightAssignmentTimer.start();
-
         lightAssignmentShader->bind();
         lightAssignmentShader->dispatchCompute(gridCount[0], gridCount[1], gridCount[2]);
         lightAssignmentShader->memoryBarrier(MemoryBarrierMask::GL_BUFFER_UPDATE_BARRIER_BIT);
         lightAssignmentShader->unbind();
-
-        lightAssignmentTimer.stop();
-        cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
-        timerIndex                     = (timerIndex + 1) % 100;
     }
 
     assert_no_glerror();
@@ -148,8 +142,8 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
 
                 int tileIndex = x + (int)gridCount[0] * y + (int)(gridCount[0] * gridCount[1]) * z;
 
-                cullingCluster.at(tileIndex).minB = AABBmin;
-                cullingCluster.at(tileIndex).maxB = AABBmax;
+                cullingCluster.at(tileIndex).center  = (AABBmin + AABBmax) * 0.5f;
+                cullingCluster.at(tileIndex).extends = AABBmax - cullingCluster.at(tileIndex).center;
 
                 const AABB box(AABBmin, AABBmax);
 
