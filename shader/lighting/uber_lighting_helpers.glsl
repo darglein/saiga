@@ -79,6 +79,9 @@ layout (std430, binding = 7) buffer clusterInfoBuffer
     int itemListCount;
     int tileDebug;
     int splitDebug;
+
+    int specialNearCluster;
+    float specialNearDepth;
 };
 
 layout (std430, binding = 8) buffer clusterBuffer
@@ -117,9 +120,15 @@ float linearDepth(float d){
 
 int getClusterIndex(vec2 pixelCoord, float depth)
 {
-    int zSplit       = int(max(log2(linearDepth(depth)) * scale + bias, 0.0));
+    int zSplit = specialNearCluster;
+    float lin = linearDepth(depth);
+    if(specialNearCluster > 0 && lin < specialNearDepth)
+        zSplit = 0;
+    else
+        zSplit += int(max(log2(lin) * scale + bias, 0.0));
     ivec3 clusters   = ivec3(pixelCoord.x / screenSpaceTileSize, pixelCoord.y / screenSpaceTileSize, zSplit);
     int clusterIndex = clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
+    return clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
     return clusterIndex;
 }
 
@@ -144,7 +153,12 @@ vec3 palette[] =
 
 vec3 debugSplits(float depth)
 {
-    int zSplit       = int(max(log2(linearDepth(depth)) * scale + bias, 0.0));
+    int zSplit = specialNearCluster;
+    float lin = linearDepth(depth);
+    if(specialNearCluster > 0 && lin < specialNearDepth)
+        zSplit = 0;
+    else
+        zSplit += int(max(log2(lin) * scale + bias, 0.0));
     return palette[int(mod(zSplit, 8))];
 }
 
@@ -164,7 +178,7 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
 
     // if(clusterIndex > clusterListCount - 1)
     // {
-    //     return vec3(1, 0, 0);
+    //     return vec3(0, 1, 0);
     // }
     // if(clusterIndex < 0)
     // {

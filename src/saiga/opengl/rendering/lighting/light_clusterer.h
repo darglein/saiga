@@ -149,7 +149,10 @@ class SAIGA_OPENGL_API Clusterer
     bool updateDebug  = false;
     LineSoup debugCluster;
     bool screenSpaceDebug = false;
-    bool splitDebug = false;
+    bool splitDebug       = false;
+
+    float specialNearDepthPercent = 0.075f;
+    bool useSpecialNearCluster = true;
 
 
     vec4 viewPosFromScreenPos(vec4 screen, const mat4& inverseProjection)
@@ -198,8 +201,8 @@ class SAIGA_OPENGL_API Clusterer
         int tileDebug;
         int splitDebug;
 
-        int pad0 = 0;
-        int pad1 = 0;
+        int specialNearCluster;
+        float specialNearDepth;
         int pad2 = 0;
     } clusterInfoBuffer;
 

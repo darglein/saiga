@@ -75,6 +75,15 @@ bool Clusterer::fillImGui()
     else
         depthSplits = 0;
 
+
+    changed |= ImGui::Checkbox("useSpecialNearCluster", &useSpecialNearCluster);
+    if (useSpecialNearCluster)
+    {
+        static float percent = 0.075f;
+        changed |= ImGui::SliderFloat("specialNearDepthPercent", &specialNearDepthPercent, 0.0f, 0.5f, "%.4f");
+    }
+
+
     if (ImGui::Checkbox("clusterDebug", &clusterDebug) && clusterDebug) updateDebug = true;
     if (clusterDebug)
         if (ImGui::Button("updateDebug")) updateDebug = true;
@@ -93,6 +102,8 @@ bool Clusterer::fillImGui()
             sum += cpuAssignmentTimes[i] * 0.01;
         }
     }
+
+
 
     ImGui::Text("  %f ms %s", lightAssignmentTimer.getTimeMS(), "CPU Light Assignment");
     ImGui::Text("  %f ms %s", sum, "CPU Light Assignment (100 Avg.)");

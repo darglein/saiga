@@ -465,8 +465,17 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     clusterInfoBuffer.clusterX = (int)gridCount[0];
     clusterInfoBuffer.clusterY = (int)gridCount[1];
 
-    clusterInfoBuffer.scale = gridCount[2] / log2(camFar / camNear);
-    clusterInfoBuffer.bias  = -(gridCount[2] * log2(camNear) / log2(camFar / camNear));
+    // special near
+    float specialNearDepth               = (camFar - camNear) * specialNearDepthPercent;
+    bool useSpecialNear                  = useSpecialNearCluster && specialNearDepth > 0.0f && gridCount[2] > 1;
+    clusterInfoBuffer.specialNearCluster = useSpecialNear ? 1 : 0;
+    specialNearDepth                     = useSpecialNear ? specialNearDepth : 0.0f;
+    clusterInfoBuffer.specialNearDepth   = specialNearDepth;
+    float specialGridCount               = gridCount[2] - (useSpecialNear ? 1 : 0);
+
+    clusterInfoBuffer.scale = specialGridCount / log2(camFar / (camNear + specialNearDepth));
+    clusterInfoBuffer.bias =
+        -(specialGridCount * log2(camNear + specialNearDepth) / log2(camFar / (camNear + specialNearDepth)));
 
     // Calculate Cluster Planes in View Space.
     int clusterCount = (int)(gridCount[0] * gridCount[1] * gridCount[2]);
@@ -545,7 +554,19 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
         // Doom Depth Split, because it looks good.
         // float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
-        float tileFar = -camNear * pow(camFar / camNear, (gridCount[2] - (float)z) / gridCount[2]);
+        float tileFar;
+        if (useSpecialNear && z == planesZ.size() - 1)
+        {
+            tileFar = -camNear;
+        }
+        else
+        {
+            int calcZ = useSpecialNear ? (gridCount[2] - (float)z) - 1 : (gridCount[2] - (float)z);
+
+            // Doom Depth Split, because it looks good.
+            tileFar = -(camNear + specialNearDepth) *
+                      pow(camFar / (camNear + specialNearDepth), (float)calcZ / specialGridCount);
+        }
 
         vec3 viewFarClusterBL(zeroZIntersection(viewNearPlaneBL, tileFar));
 
@@ -568,9 +589,22 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
                     vec4 screenSpaceTR((x + 1) * screenSpaceTileSize, (y + 1) * screenSpaceTileSize, -1.0,
                                        1.0);  // Top Right
 
-                    // Doom Depth Split, because it looks good.
-                    float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
-                    float tileFar  = -camNear * pow(camFar / camNear, (float)(z + 1) / gridCount[2]);
+                    float tileNear;
+                    float tileFar;
+                    if (useSpecialNear && z == 0)
+                    {
+                        tileNear = -camNear;
+                        tileFar  = -(camNear + specialNearDepth);
+                    }
+                    else
+                    {
+                        int calcZ = useSpecialNear ? z - 1 : z;
+                        // Doom Depth Split, because it looks good.
+                        tileNear = -(camNear + specialNearDepth) *
+                                   pow(camFar / (camNear + specialNearDepth), (float)calcZ / specialGridCount);
+                        tileFar = -(camNear + specialNearDepth) *
+                                  pow(camFar / (camNear + specialNearDepth), (float)(calcZ + 1) / specialGridCount);
+                    }
 
                     vec3 viewNearPlaneBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
                     vec3 viewNearPlaneTL(make_vec3(viewPosFromScreenPos(screenSpaceTL, invProjection)));
