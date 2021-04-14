@@ -113,6 +113,41 @@ inline mat4 CV2GLView()
 }
 
 
+
+inline mat4 CVCamera2GLProjectionMatrix2(mat3 K, ivec2 image_size, float znear = .01, float zfar = 1000.)
+{
+    float fx     = K(0, 0);
+    float fy     = K(1, 1);
+    float cx     = K(0, 2);
+    float cy     = K(1, 2);
+    float width  = image_size.x();
+    float height = image_size.y();
+
+
+    mat4 m  = mat4::Zero();
+    m(0, 0) = 2.0 * fx / width;
+    m(0, 1) = 0.0;
+    m(0, 2) = 1.0 - 2.0 * cx / width;
+    m(0, 3) = 0.0;
+
+    m(1, 0) = 0.0;
+    m(1, 1) = 2.0 * fy / height;
+    m(1, 2) = 2.0 * cy / height - 1.0;
+    m(1, 3) = 0.0;
+
+    m(2, 0) = 0;
+    m(2, 1) = 0;
+    m(2, 2) = (zfar + znear) / (znear - zfar);
+    m(2, 3) = 2.0 * zfar * znear / (znear - zfar);
+
+    m(3, 0) = 0.0;
+    m(3, 1) = 0.0;
+    m(3, 2) = -1.0;
+    m(3, 3) = 0.0;
+    return m;
+}
+
+
 inline mat4 CVCamera2GLProjectionMatrix(const mat3& K, int viewportW, int viewportH, float znear, float zfar)
 {
     /**
@@ -131,15 +166,18 @@ inline mat4 CVCamera2GLProjectionMatrix(const mat3& K, int viewportW, int viewpo
     auto removeViewPortTransform = inverse(transpose(viewPortTransform));
     std::cout << viewPortTransform << std::endl << removeViewPortTransform << std::endl;
 #else
-    mat3 removeViewPortTransform = make_mat3(2.0 / viewportW, 0, 0, 0, 2.0 / viewportH, 0, -1, -1, 1);
+    mat3 removeViewPortTransform = make_mat3(
+        // clang-format off
+        2.0 / viewportW,    0,                  0,
+        0,                  2.0   / viewportH,  0,
+        -1,                 -1,                 1
+        );
+    // clang-format o
 #endif
     auto test = removeViewPortTransform * K;
 
     mat4 proj = make_mat4(test);
-    //    col(proj, 2)[3] = -1;
-    //    col(proj, 3)[3] = 0;
-    //    col(proj, 2)[2] = -(zfar + znear) / (zfar - znear);
-    //    col(proj, 3)[2] = -2.0f * zfar * znear / (zfar - znear);
+    proj(0, 2) *= -1;
     proj(3, 2) = -1;
     proj(3, 3) = 0;
     proj(2, 2) = -(zfar + znear) / (zfar - znear);
@@ -159,14 +197,16 @@ inline mat3 GLProjectionMatrix2CVCamera(const mat4& proj, int viewportW, int vie
      */
 
     mat3 viewPortTransform = make_mat3(
-        0.5f * viewportW,   0,                  0.5f * viewportW,
-        0,                  0.5f * viewportH,   0.5f * viewportH,
-        0,                  0,                  1
-    ).transpose();
+        // clang-format off
+        0.5f * viewportW,   0,                  0,
+        0,                  0.5f * viewportH,   0,
+        0.5f * viewportW,   0.5f * viewportH,   1
+        // clang-format on
+    );
 
 
-    mat3 K = proj.block<3,3>(0,0);
-    K(2,2) = 1;
+    mat3 K  = proj.block<3, 3>(0, 0);
+    K(2, 2) = 1;
 
     K = viewPortTransform * K;
 

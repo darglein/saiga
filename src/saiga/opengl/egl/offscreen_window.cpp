@@ -108,6 +108,7 @@ void CreateEGLContext()
 }
 void TerminateEGLContext()
 {
+    cleanupSaigaGL();
     eglTerminate(eglDpy);
 }
 
