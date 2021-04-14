@@ -192,7 +192,11 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         auto b10 = ttf.toFloat((*this)(y1, x0));
         auto b11 = ttf.toFloat((*this)(y1, x1));
 
-        auto res = (b00 * (1.0f - ax) + b01 * (ax)) * (1.0f - ay) + (b10 * (1.0f - ax) + b11 * (ax)) * (ay);
+        // auto res = (b00 * (1.0f - ax) + b01 * (ax)) * (1.0f - ay) + (b10 * (1.0f - ax) + b11 * (ax)) * (ay);
+
+        typename TexelFloatConverter<T, false>::FloatType res =
+            b00 * ((x1 - sx) * (y1 - sy)) + b01 * ((sx - x0) * (y1 - sy)) + b10 * ((x1 - sx) * (sy - y0)) +
+            b11 * ((sx - x0) * (sy - y0));
 
         return ttf.fromFloat(res);
     }
@@ -473,7 +477,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 
     HD inline T borderRead(int y, int x, const T& borderValue) { return inImage(y, x) ? (*this)(y, x) : borderValue; }
 
-    template<typename U>
+    template <typename U>
     inline void findMinMax(U& minV, U& maxV) const
     {
         minV = std::numeric_limits<U>::max();
