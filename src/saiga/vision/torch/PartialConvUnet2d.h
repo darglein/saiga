@@ -18,16 +18,16 @@ class BasicBlockImpl : public torch::nn::Module
 {
    public:
     BasicBlockImpl(int in_channels, int out_channels, int kernel_size = 3,
-                   torch::nn::AnyModule normalization = torch::nn::AnyModule(torch::nn::BatchNorm2d()))
+                   std::string norm_str = "bn")
     {
         block->push_back(
             torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size).padding(1)));
-        block->push_back(normalization);
+        block->push_back(NormFromString(norm_str, out_channels));
         block->push_back(torch::nn::ReLU());
 
         block->push_back(
             torch::nn::Conv2d(torch::nn::Conv2dOptions(out_channels, out_channels, kernel_size).padding(1)));
-        block->push_back(normalization);
+        block->push_back(NormFromString(norm_str, out_channels));
         block->push_back(torch::nn::ReLU());
 
         register_module("block", block);
@@ -44,17 +44,16 @@ TORCH_MODULE(BasicBlock);
 class PartialBlockImpl : public torch::nn::Module
 {
    public:
-    PartialBlockImpl(int in_channels, int out_channels, int kernel_size = 3,
-                     torch::nn::AnyModule normalization = torch::nn::AnyModule(torch::nn::BatchNorm2d()))
+    PartialBlockImpl(int in_channels, int out_channels, int kernel_size = 3, std::string norm_str = "bn")
     {
         pconv = PartialConv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size).padding(1));
 
-        block->push_back(normalization);
+        block->push_back(NormFromString(norm_str, out_channels));
         block->push_back(torch::nn::ReLU());
 
         block->push_back(
             torch::nn::Conv2d(torch::nn::Conv2dOptions(out_channels, out_channels, kernel_size).padding(1)));
-        block->push_back(normalization);
+        block->push_back(NormFromString(norm_str, out_channels));
         block->push_back(torch::nn::ReLU());
 
         register_module("pconv", pconv);
