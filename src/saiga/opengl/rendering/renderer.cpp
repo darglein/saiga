@@ -29,10 +29,7 @@ OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window) : window(&window)
     default_framebuffer.MakeDefaultFramebuffer();
     // ImGUI
     imgui = window.createImGui();
-    if (imgui)
-    {
-        timer = std::make_shared<GLTimerSystem>();
-    }
+    timer = std::make_shared<GLTimerSystem>();
 }
 
 OpenGLRenderer::~OpenGLRenderer() {}
@@ -120,6 +117,7 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         target_fb->bind();
         glClear(GL_COLOR_BUFFER_BIT);
 
+        SAIGA_ASSERT(timer);
         timer->BeginFrame();
         renderGL(target_fb, viewport, camera);
         timer->EndFrame();
