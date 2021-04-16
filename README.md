@@ -16,6 +16,7 @@ Saiga was successfully used as a game engine for [Redie](http://store.steampower
  * September 2018: Experimental Vulkan support.
  * December 2018: Added Vision module with focus on SLAM, Reconstruction, Registration, and Optimization
 
+ 
 ## Supported Compilers
 
  * g++ 8.2
