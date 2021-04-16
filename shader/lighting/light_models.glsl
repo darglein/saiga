@@ -29,19 +29,25 @@ float intensitySpecular(vec3 position, vec3 normal, vec3 lightDir, float exponen
 }
 
 
-//Intensity Attenuation based on the distance to the light source.
-//Used by point and spot light.
-float getAttenuation(vec4 attenuation, float distance){
-    float radius = attenuation.w;
-    //normalize the distance, so the attenuation is independent of the radius
-    float x = distance / radius;
-    //make sure that we return 0 if distance > radius, otherwise we would get an hard edge
-    float smoothBorder = smoothstep(1.0f,0.9f,x);
-    return smoothBorder / (attenuation.x +
-                    attenuation.y * x +
-                    attenuation.z * x * x);
+// Intensity Attenuation based on the distance to the light source.
+//   - Normalized by the light radius so that we can use the same parameters for different light sizes
+//   - Shifted downwards so that DistanceAttenuation(a, radius, radius) == 0
+//   -> Therefore lights have a finite range and can be efficiently rendered
+//
+//   Used by PointLight and SpotLight
+//     - Implemented in the shader light_models.glsl
+float DistanceAttenuation(vec3 attenuation, float radius, float distance)
+{
+    float x         = distance / radius;
+    float cutoff    = 1.f / (attenuation[0] + attenuation[1] + attenuation[2]);
+    float intensity = 1.f / (attenuation[0] + attenuation[1] * x + attenuation[2] * x * x) - cutoff;
+    return max(0.f, intensity);
 }
 
+float DistanceAttenuation(vec4 attenuation_radius, float distance)
+{
+    return DistanceAttenuation(attenuation_radius.xyz, attenuation_radius.w, distance);
+}
 
 float spotAttenuation(vec3 fragmentLightDir, float angle, vec3 lightDir){
     float fConeCosine = angle;

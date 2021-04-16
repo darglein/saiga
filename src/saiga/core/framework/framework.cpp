@@ -182,6 +182,10 @@ void printSaigaInfo()
     std::cout << "=====================================" << std::endl;
     std::cout.unsetf(std::ios_base::floatfield);
     std::cout << ConsoleColor::RESET;
+
+    std::cout << "Pathes" << std::endl;
+    std::cout << "SAIGA_PROJECT_SOURCE_DIR " << SAIGA_PROJECT_SOURCE_DIR << std::endl;
+    std::cout << SearchPathes::shader << std::endl;
 }
 
 

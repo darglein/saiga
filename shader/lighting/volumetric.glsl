@@ -71,7 +71,7 @@ float volumetricFactorPoint(samplerCubeShadow shadowMap, vec3 cameraPos, vec3 fr
        float shadowMapValue = texture(shadowMap, vec4(direction,d));
 
 
-        float atten = getAttenuation(attenuation,distance(currentPosition,lightPosW));
+        float atten = DistanceAttenuation(attenuation,distance(currentPosition,lightPosW));
 
         if (shadowMapValue > 0.5f)
         {
@@ -128,7 +128,7 @@ float volumetricFactorPoint2(samplerCubeShadow shadowMap, vec3 cameraPos, vec3 f
        float shadowMapValue = texture(shadowMap, vec4(direction,d));
 
 
-        float atten = getAttenuation(attenuation,distance(currentPosition,lightPosW));
+        float atten = DistanceAttenuation(attenuation,distance(currentPosition,lightPosW));
 
         if (shadowMapValue > 0.5f)
         {
@@ -184,7 +184,7 @@ float volumetricFactorSpot(sampler2DShadow shadowMap, mat4 viewToLight, vec3 fra
 
         vec3 fragmentLightDir = normalize(lightPos-currentPosition);
         float distanceToLight = length( dot(currentPosition - lightPos,lightDir) );
-        float atten = spotAttenuation(fragmentLightDir,angle,lightDir)*getAttenuation(attenuation,distanceToLight);
+        float atten = spotAttenuation(fragmentLightDir,angle,lightDir) * DistanceAttenuation(attenuation,distanceToLight);
 
         if (shadowMapValue > 0.5f)
         {

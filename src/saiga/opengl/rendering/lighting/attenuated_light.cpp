@@ -8,9 +8,6 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/opengl/error.h"
-
-#include "attenuated_light.h"
 
 namespace Saiga
 {
