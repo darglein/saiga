@@ -168,6 +168,8 @@ void RendererLighting::renderDebug(Camera* cam)
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+
 
     debugShader->bind();
 
@@ -177,14 +179,13 @@ void RendererLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : pointLights)
     {
-        mat4 sm    = obj->ModelMatrix() * scale(make_vec3(0.01));
-        vec4 color = make_vec4(obj->colorDiffuse, 1);
         if (!obj->active || !obj->visible)
         {
             continue;
         }
-        debugShader->uploadModel(sm);
-        debugShader->uploadColor(color);
+        float s = 1.f / obj->getRadius() * 0.1;
+        debugShader->uploadModel(obj->ModelMatrix() * scale(make_vec3(s)));
+        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
         pointLightMesh.draw();
     }
 
@@ -192,15 +193,13 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : pointLights)
     {
-        vec4 color = make_vec4(obj->colorDiffuse, 1);
         if (!obj->active || !obj->visible)
         {
             continue;
         }
         debugShader->uploadModel(obj->ModelMatrix());
-        debugShader->uploadColor(color);
+        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
         pointLightMesh.draw();
-        //        }
     }
     pointLightMesh.unbind();
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -212,14 +211,13 @@ void RendererLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : spotLights)
     {
-        vec4 color = make_vec4(obj->colorDiffuse, 1);
-        mat4 sm    = obj->ModelMatrix() * scale(make_vec3(0.01));
         if (!obj->active || !obj->visible)
         {
             continue;
         }
-        debugShader->uploadModel(sm);
-        debugShader->uploadColor(color);
+        float s = 1.f / obj->getRadius() * 0.1;
+        debugShader->uploadModel(obj->ModelMatrix() * scale(make_vec3(s)));
+        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
         spotLightMesh.draw();
     }
 
@@ -227,13 +225,12 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : spotLights)
     {
-        vec4 color = make_vec4(obj->colorDiffuse, 1);
         if (!obj->active || !obj->visible)
         {
             continue;
         }
         debugShader->uploadModel(obj->ModelMatrix());
-        debugShader->uploadColor(color);
+        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
         spotLightMesh.draw();
     }
     spotLightMesh.unbind();
@@ -242,6 +239,7 @@ void RendererLighting::renderDebug(Camera* cam)
 
 
     debugShader->unbind();
+    glEnable(GL_CULL_FACE);
 }
 
 void RendererLighting::setShader(std::shared_ptr<SpotLightShader> spotLightShader,
@@ -407,7 +405,7 @@ void RendererLighting::renderImGui()
 
     if (selected_light_ptr)
     {
-        if(ImGui::Begin("Light Data", &showLightingImgui))
+        if (ImGui::Begin("Light Data", &showLightingImgui))
         {
             selected_light_ptr->renderImGui();
         }
