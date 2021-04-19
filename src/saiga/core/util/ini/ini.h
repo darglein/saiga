@@ -119,3 +119,5 @@ struct ParamsBase
 #define SAIGA_PARAM_STRING(_variable) INI_GETADD_STRING(ini_, name_.c_str(), _variable)
 #define SAIGA_PARAM_STRING_LIST(_variable, _sep) INI_GETADD_STRING_LIST_COMMENT(ini_, name_.c_str(), _variable, _sep, 0)
 #define SAIGA_PARAM_DOUBLE(_variable) INI_GETADD_DOUBLE(ini_, name_.c_str(), _variable)
+
+#define SAIGA_PARAM_STRING_COMMENT(_variable, _comment) INI_GETADD_STRING_COMMENT(ini_, name_.c_str(), _variable, _comment)

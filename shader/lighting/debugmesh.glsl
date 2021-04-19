@@ -52,7 +52,7 @@ in vec3 vertexMV;
 in vec3 vertex;
 in vec3 lightPos;
 
-layout(location=0) out vec3 out_color;
+layout(location=0) out vec4 out_color;
 
 
 void main() {
@@ -60,7 +60,8 @@ void main() {
 
 
 //    out_color =   CalcPointLight(vec3(diffColor),position, normal);
-    out_color = vec3(color);
+//    out_color = vec3(color);
+    out_color = color;
 }
 
 

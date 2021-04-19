@@ -359,61 +359,60 @@ void DeferredRenderer::renderImgui()
     lighting.renderImGui();
 
     if (!should_render_imgui) return;
-    int w = 340;
-    int h = 240;
+
     if (!editor_gui.enabled)
     {
+        int w = 340;
+        int h = 240;
         ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
     }
 
-    ImGui::Begin("Deferred Renderer", &should_render_imgui);
-
-    ImGui::Checkbox("wireframe", &params.wireframe);
-    ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
-
-    ImGui::Separator();
-
-    if (ImGui::Checkbox("SMAA", &params.useSMAA))
+    if (ImGui::Begin("Deferred Renderer", &should_render_imgui))
     {
-        if (params.useSMAA)
+        ImGui::Checkbox("wireframe", &params.wireframe);
+        ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
+
+        ImGui::Separator();
+
+        if (ImGui::Checkbox("SMAA", &params.useSMAA))
         {
-            smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
-            smaa->loadShader(params.smaaQuality);
+            if (params.useSMAA)
+            {
+                smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
+                smaa->loadShader(params.smaaQuality);
+            }
+            else
+            {
+                smaa.reset();
+            }
         }
-        else
+        if (smaa)
         {
-            smaa.reset();
+            smaa->renderImGui();
+        }
+
+
+        if (ImGui::Checkbox("SSAO", &params.useSSAO))
+        {
+            if (params.useSSAO)
+            {
+                ssao = std::make_shared<SSAO>(renderWidth, renderHeight);
+            }
+            else
+            {
+                ssao.reset();
+            }
+            lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
+        }
+        if (ssao)
+        {
+            ssao->renderImGui();
         }
     }
-    if (smaa)
-    {
-        smaa->renderImGui();
-    }
-
-
-    if (ImGui::Checkbox("SSAO", &params.useSSAO))
-    {
-        if (params.useSSAO)
-        {
-            ssao = std::make_shared<SSAO>(renderWidth, renderHeight);
-        }
-        else
-        {
-            ssao.reset();
-        }
-        lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
-    }
-    if (ssao)
-    {
-        ssao->renderImGui();
-    }
-
-
-    ImGui::Checkbox("showLightingImgui", &showLightingImgui);
-
     ImGui::End();
 }
+
 TemplatedImage<ucvec4> DeferredRenderer::DownloadRender()
 {
     auto texture = postProcessor.getCurrentTexture();
