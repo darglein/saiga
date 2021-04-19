@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/time/timer.h"
 #include "saiga/cuda/cuda.h"
 #include "saiga/cuda/event.h"
 
@@ -83,19 +84,20 @@ class SAIGA_CUDA_API MultiFrameTimer
     MultiFrameTimer(cudaStream_t stream = 0) : stream(stream) {}
     ~MultiFrameTimer() {}
 
-    void startTimer() { events[queryBackBuffer][0].record(stream); }
+
+    void startTimer() { events[queryFrontBuffer][0].record(stream); }
     float stopTimer()
     {
-        events[queryBackBuffer][1].record(stream);
+        events[queryFrontBuffer][1].record(stream);
 
 
         time = -1;
 
         // Skip first iteration, because calling elapsed time on an events without a previous record
         // results in an error.
-        if (n > 0)
+        if (Valid())
         {
-            time = CudaEvent::elapsedTime(events[queryFrontBuffer][0], events[queryFrontBuffer][1]);
+            time = CudaEvent::elapsedTime(events[queryBackBuffer][0], events[queryBackBuffer][1]);
         }
         swap();
         n++;
@@ -104,16 +106,46 @@ class SAIGA_CUDA_API MultiFrameTimer
 
     float getTimeMS() { return time; }
 
+    bool Valid() { return n > 1; }
+
+    std::array<CudaEvent*, 2> BackBuffer() { return {&events[queryBackBuffer][0], &events[queryBackBuffer][1]}; }
+    std::array<CudaEvent*, 2> FrontBuffer() { return {&events[queryFrontBuffer][0], &events[queryFrontBuffer][1]}; }
+
    private:
     CudaEvent events[2][2];
     cudaStream_t stream;
-    int queryBackBuffer = 0, queryFrontBuffer = 1;
+    int queryFrontBuffer = 0, queryBackBuffer = 1;
     float time = -1;
     int n      = 0;
 
     void swap() { std::swap(queryBackBuffer, queryFrontBuffer); }
 };
 
+// Measures the time relative to a base timer
+// This is used to create frame timings plots.
+// All timings are measured relative to the total frame timer.
+class RelativeCudaTimer : public TimestampTimer
+{
+   public:
+    void Start() { timer.startTimer(); }
+    void Stop() { timer.stopTimer(); }
+    std::pair<uint64_t, uint64_t> LastMeasurement()
+    {
+        SAIGA_ASSERT(base_timer);
+        if (timer.Valid())
+        {
+            float begin_ms = CUDA::CudaEvent::elapsedTime(*base_timer->BackBuffer()[0], *timer.FrontBuffer()[0]);
+            float end_ms   = CUDA::CudaEvent::elapsedTime(*base_timer->BackBuffer()[0], *timer.FrontBuffer()[1]);
+
+            std::pair<uint64_t, uint64_t> m(begin_ms * (1000 * 1000), end_ms * (1000 * 1000));
+            return m;
+        }
+        return {0, 0};
+    }
+
+    MultiFrameTimer timer;
+    MultiFrameTimer* base_timer = nullptr;
+};
 
 
 }  // namespace CUDA

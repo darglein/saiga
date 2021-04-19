@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "UnifiedModel.h"
+//#include "UnifiedModel.h"
 
 namespace Saiga
 {
@@ -61,6 +61,5 @@ std::vector<Vector<IndexType, 2>> UnifiedModel::LineIndexList() const
     }
     return result;
 }
-
 
 }  // namespace Saiga

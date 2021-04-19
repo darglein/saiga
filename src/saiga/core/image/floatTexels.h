@@ -16,7 +16,7 @@ namespace Saiga
 template <typename T>
 struct SAIGA_TEMPLATE MatchingFloatType
 {
-    using FloatType = T;
+    using FloatType = typename std::remove_const<T>::type;
     static inline FloatType convert(const T& t) { return FloatType(t); }
     static inline T convertBack(const FloatType& t) { return T(t); }
 };
@@ -36,7 +36,7 @@ struct MatchingFloatType<ucvec3>
     static inline ucvec3 convertBack(const FloatType& t)
     {
 #ifdef SAIGA_FULL_EIGEN
-        return t.cast<unsigned char>();
+        return t.array().round().cast<unsigned char>();
 #else
         return FloatType(t);
 #endif
@@ -57,7 +57,7 @@ struct MatchingFloatType<ucvec4>
     static inline ucvec4 convertBack(const FloatType& t)
     {
 #ifdef SAIGA_FULL_EIGEN
-        return t.cast<unsigned char>();
+        return t.array().round().cast<unsigned char>();
 #else
         return FloatType(t);
 #endif
@@ -80,7 +80,7 @@ struct MatchingFloatType<usvec3>
     static inline usvec3 convertBack(const FloatType& t)
     {
 #ifdef SAIGA_FULL_EIGEN
-        return t.cast<unsigned short>();
+        return t.array().round().cast<unsigned short>();
 #else
         return FloatType(t);
 #endif
@@ -129,8 +129,8 @@ struct SAIGA_TEMPLATE TexelFloatConverter
 
     TexelType fromFloat(FloatType f)
     {
+        if (normalize) f *= NS::scale;
         auto t = Converter::convertBack(f);
-        if (normalize) t *= NS::scale;
         return t;
     }
 };

@@ -72,7 +72,7 @@ void main() {
    // visibility = calculateShadowCubePCF(depthTex,lightW,fragW,farplane,nearplane);
 #endif
 
-    float atten = getAttenuation(attenuation,distance(vposition,lightPos));
+    float atten = DistanceAttenuation(attenuation,distance(vposition,lightPos));
     float localIntensity = intensity*atten*visibility; //amount of light reaching the given point
 
 

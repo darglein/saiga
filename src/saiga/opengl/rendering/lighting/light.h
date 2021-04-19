@@ -70,7 +70,7 @@ class SAIGA_OPENGL_API LightBase
         setColorDiffuse(color);
         setIntensity(intensity);
     }
-    ~LightBase() {}
+    virtual ~LightBase() {}
 
     void setColorDiffuse(const vec3& color) { this->colorDiffuse = color; }
     void setColorSpecular(const vec3& color) { this->colorSpecular = color; }
@@ -92,7 +92,7 @@ class SAIGA_OPENGL_API LightBase
      */
     static mat4 viewToLightTransform(const Camera& camera, const Camera& shadowCamera);
 
-    void renderImGui();
+    virtual void renderImGui();
 
     //   protected:
     bool visible = true, active = true, selected = false, culled = false;

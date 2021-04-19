@@ -51,7 +51,16 @@ struct ProgressBar
         timer.start();
     }
 
-    ~ProgressBar()
+    ~ProgressBar() { Quit(); }
+    void addProgress(int i) { current += i; }
+
+    void SetPostfix(const std::string& str)
+    {
+        std::unique_lock l(lock);
+        postfix = str;
+    }
+
+    void Quit()
     {
         running = false;
         cv.notify_one();
@@ -59,13 +68,6 @@ struct ProgressBar
         {
             st.join();
         }
-    }
-    void addProgress(int i) { current += i; }
-
-    void SetPostfix(const std::string& str)
-    {
-        std::unique_lock l(lock);
-        postfix = str;
     }
 
    private:

@@ -68,7 +68,7 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     lighting.initRender();
     lighting.cluster(camera, viewport);
     {
-        auto tim = timer->CreateScope("Forward + Shade");
+        auto tim = timer->Measure("Forward + Shade");
         renderingInterface->render(camera, RenderPass::Forward);
         glDepthFunc(GL_LESS);
     }

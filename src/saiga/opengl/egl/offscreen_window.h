@@ -40,4 +40,13 @@ class SAIGA_OPENGL_API OffscreenWindow : public OpenGLWindow
     OffscreenWindow(WindowParameters windowParameters, OpenGLParameters openglParameter = OpenGLParameters());
 };
 
+// Create a raw EGL context without an OpenGL window and renderer.
+// Do not render or use the default framebuffer with this method.
+//
+// There is also no swapping mechanism.
+//  -> Create and render to your own framebuffers
+SAIGA_OPENGL_API void CreateEGLContext();
+SAIGA_OPENGL_API void TerminateEGLContext();
+
+
 }  // namespace Saiga

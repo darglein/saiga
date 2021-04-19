@@ -11,7 +11,6 @@
 #include "saiga/opengl/rendering/deferredRendering/postProcessor.h"
 #include "saiga/opengl/rendering/lighting/deferred_lighting.h"
 #include "saiga/opengl/rendering/lighting/ssao.h"
-#include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/smaa/SMAA.h"
 
@@ -115,8 +114,6 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::shared_ptr<Texture> blackDummyTexture;
     bool showLightingImgui = false;
-    bool renderDDO         = false;
-    DeferredDebugOverlay ddo;
 
 
     void clearGBuffer();

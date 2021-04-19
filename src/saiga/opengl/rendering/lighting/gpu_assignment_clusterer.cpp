@@ -36,7 +36,7 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
     if (clustersDirty) buildClusters(cam);
 
     {
-        auto tim = timer->CreateScope("Cluster Update");
+        auto tim = timer->Measure("Cluster Update");
 
         int plSize = sizeof(PointLightClusterData) * pointLightsClusterData.size();
         lightClusterDataBuffer.updateBuffer(pointLightsClusterData.data(), plSize, 0);
@@ -56,7 +56,7 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
     itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
 
     {
-        auto tim = timer->CreateScope("GPU Light Assignment");
+        auto tim = timer->Measure("GPU Light Assignment");
 
         lightAssignmentShader->bind();
         lightAssignmentShader->dispatchCompute(gridCount[0], gridCount[1], gridCount[2]);
@@ -244,7 +244,7 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
     }
 
     {
-        auto tim                     = timer->CreateScope("Info Update");
+        auto tim                     = timer->Measure("Info Update");
         clusterInfoBuffer.tileDebug  = screenSpaceDebug ? allowedItemsPerCluster : 0;
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 

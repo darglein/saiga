@@ -38,8 +38,6 @@ LineVertexColoredAsset::LineVertexColoredAsset(const LineMesh<VertexNC, uint32_t
 {
     this->vertices = line_mesh.vertices;
     this->lines    = line_mesh.lines;
-
-    std::cout << vertices[0] << std::endl;
     create();
 }
 

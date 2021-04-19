@@ -102,12 +102,31 @@ class SAIGA_CORE_API EditorLayoutL : public EditorLayout
         WINDOW_POSITION_LEFT = 0,
         WINDOW_POSITION_BOTTOM,
         WINDOW_POSITION_3DVIEW,
+        WINDOW_POSITION_LEFT_BOTTOM,
     };
 
     EditorLayoutL();
     void BuildNodes(int dockspace_id) override;
 };
 
+// Similar to the L-Layout but the main viewport is divided into 2x2 windows.
+class SAIGA_CORE_API EditorLayoutLSplit2x2 : public EditorLayout
+{
+   public:
+    enum
+    {
+        WINDOW_POSITION_LEFT = 0,
+        WINDOW_POSITION_BOTTOM,
+        WINDOW_POSITION_MAIN_11,
+        WINDOW_POSITION_MAIN_12,
+        WINDOW_POSITION_MAIN_21,
+        WINDOW_POSITION_MAIN_22,
+        WINDOW_POSITION_LEFT_BOTTOM,
+    };
+
+    EditorLayoutLSplit2x2();
+    void BuildNodes(int dockspace_id) override;
+};
 
 class SAIGA_CORE_API EditorLayoutU : public EditorLayout
 {

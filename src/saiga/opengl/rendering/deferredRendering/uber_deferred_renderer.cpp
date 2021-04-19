@@ -21,8 +21,7 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth() * _params.renderScale),
-      renderHeight(window.getHeight() * _params.renderScale),
-      ddo(window.getWidth(), window.getHeight())
+      renderHeight(window.getHeight() * _params.renderScale)
 {
     {
         // create a 2x2 grayscale black dummy texture
@@ -87,12 +86,12 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
 
 
     {
-        auto tim = timer->CreateScope("Clear");
+        auto tim = timer->Measure("Clear");
         clearGBuffer();
     }
 
     {
-        auto tim = timer->CreateScope("Geometry");
+        auto tim = timer->Measure("Geometry");
         camera->recalculatePlanes();
         bindCamera(camera);
         setViewPort(viewport);
@@ -106,7 +105,7 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
     assert_no_glerror();
 
     {
-        auto tim = timer->CreateScope("Lighting");
+        auto tim = timer->Measure("Lighting");
         target_framebuffer->bind();
         renderLighting({camera, viewport});
     }
@@ -115,23 +114,11 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
 
 
     {
-        auto tim = timer->CreateScope("Forward");
+        auto tim = timer->Measure("Forward");
         bindCamera(camera);
         setViewPort(viewport);
         renderingInterface->render(camera, RenderPass::Forward);
     }
-
-    {
-        auto tim = timer->CreateScope("DDO");
-        glViewport(0, 0, renderWidth, renderHeight);
-        if (renderDDO)
-        {
-            bindCamera(&ddo.layout.cam);
-            ddo.render();
-        }
-    }
-
-
 
     assert_no_glerror();
 }
@@ -292,7 +279,6 @@ void UberDeferredRenderer::renderImgui()
 
     ImGui::Begin("Uber Deferred Renderer", &should_render_imgui);
 
-    ImGui::Checkbox("renderDDO", &renderDDO);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
     ImGui::Checkbox("Stencil Optimization", &params.maskUsedPixels);

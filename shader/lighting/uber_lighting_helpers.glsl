@@ -208,7 +208,7 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
 
         float visibility = 1.0;
 
-        float att = getAttenuation(lightAttenuation, distance(position, lightPosition));
+        float att = DistanceAttenuation(lightAttenuation, distance(position, lightPosition));
         float localIntensity = intensity * att * visibility;
 
         float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
@@ -275,7 +275,7 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal, flo
         float visibility = 1.0;
 
         float distanceToLight = length(dot(position - lightPosition, lightDirection));
-        float att = spotAttenuation(fragmentLightDir, lightAngle, lightDirection) * getAttenuation(lightAttenuation, distanceToLight);
+        float att = spotAttenuation(fragmentLightDir, lightAngle, lightDirection) * DistanceAttenuation(lightAttenuation, distanceToLight);
         float localIntensity = intensity * att * visibility;
 
         float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
@@ -310,7 +310,7 @@ vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 
 
         float visibility = 1.0;
 
-        float att = getAttenuation(lightAttenuation, distance(position, lightPosition));
+        float att = DistanceAttenuation(lightAttenuation, distance(position, lightPosition));
         float localIntensity = intensity * att * visibility;
 
         float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
@@ -348,7 +348,7 @@ vec3 calculateSpotLightsNoClusters(AssetMaterial material, vec3 position, vec3 n
         float visibility = 1.0;
 
         float distanceToLight = length(dot(position - lightPosition, lightDirection));
-        float att = spotAttenuation(fragmentLightDir, lightAngle, lightDirection) * getAttenuation(lightAttenuation, distanceToLight);
+        float att = spotAttenuation(fragmentLightDir, lightAngle, lightDirection) * DistanceAttenuation(lightAttenuation, distanceToLight);
         float localIntensity = intensity * att * visibility;
 
         float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);

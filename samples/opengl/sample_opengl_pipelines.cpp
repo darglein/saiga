@@ -27,7 +27,7 @@ class Sample : public RendererSampleWindow
     {
         // Define GUI layout
         auto editor_layout = std::make_unique<EditorLayoutL>();
-        editor_layout->RegisterImguiWindow("Rendering Lighting Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
+        editor_layout->RegisterImguiWindow("Rendering Lighting Sample", EditorLayoutL::WINDOW_POSITION_LEFT_BOTTOM);
         editor_gui.SetLayout(std::move(editor_layout));
 
         Random::setSeed(LIGHT_SEED);  // SEED
@@ -35,7 +35,7 @@ class Sample : public RendererSampleWindow
         // show.asset = std::make_shared<ColoredAsset>(
         //    CheckerBoardPlane(make_ivec2(40, 40), 1.0f, Colors::darkgray, Colors::white));
 
-        show.asset = std::make_shared<TexturedAsset>(UnifiedModel("models/sponza/Sponza.obj").Normalize());
+        show.asset = std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza/sponza.obj").Normalize());
 
         // show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
 
@@ -121,8 +121,6 @@ class Sample : public RendererSampleWindow
 #endif
         if (render_pass == RenderPass::GUI)
         {
-            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
-            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
             ImGui::Begin("Rendering Lighting Sample");
 
             bool supportChanged =

@@ -47,13 +47,14 @@ in vec3 v_normal;
 void main()
 {
     vec3 n = normalize(v_normal);
-    float v = dot(n, vec3(view_vertex));
-    if(v < 0) discard;
+
+    if(flags == 1)
+    {
+        float v = dot(n, vec3(view_vertex));
+        if (v < 0) discard;
+    }
 
     AssetMaterial material;
-//    material.color = vec4(v_normal,1);
-
-//    AssetMaterial material;
     material.color = v_color * color;
     material.data = vec4(0);
     render(material,vec3(0), vec3(0,1,0));

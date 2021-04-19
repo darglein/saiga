@@ -131,7 +131,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
         if (adaptSize)
         {
-            auto tim = timer->CreateScope("Info Update");
+            auto tim = timer->Measure("Info Update");
 
             clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
             clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
@@ -244,7 +244,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     }
 
     {
-        auto tim            = timer->CreateScope("Cluster Update");
+        auto tim            = timer->Measure("clusterupdate");
         int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
         clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
@@ -750,7 +750,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         updateDebug = false;
     }
     {
-        auto tim                     = timer->CreateScope("Info Update");
+        auto tim                     = timer->Measure("Info Update");
         clusterInfoBuffer.tileDebug  = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 

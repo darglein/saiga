@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/opengl/query/timeStampQuery.h"
-
+#include "saiga/core/time/timer.h"
 namespace Saiga
 {
 /**
@@ -26,7 +26,7 @@ namespace Saiga
  * Core since version 	3.3
  *
  */
-class SAIGA_OPENGL_API MultiFrameOpenGLTimer
+class SAIGA_OPENGL_API MultiFrameOpenGLTimer : public TimestampTimer
 {
    public:
     MultiFrameOpenGLTimer(bool use_time_stamps = true);
@@ -37,8 +37,8 @@ class SAIGA_OPENGL_API MultiFrameOpenGLTimer
      */
     void create();
 
-    void startTimer();
-    void stopTimer();
+    void Start();
+    void Stop();
 
     float getTimeMS();
     double getTimeMSd();

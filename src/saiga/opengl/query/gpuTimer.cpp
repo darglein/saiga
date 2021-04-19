@@ -33,7 +33,7 @@ void MultiFrameOpenGLTimer::swapQueries()
 }
 
 
-void MultiFrameOpenGLTimer::startTimer()
+void MultiFrameOpenGLTimer::Start()
 {
     if (use_time_stamps)
         queries[queryBackBuffer][0].record();
@@ -41,7 +41,7 @@ void MultiFrameOpenGLTimer::startTimer()
         queries[queryBackBuffer][0].begin();
 }
 
-void MultiFrameOpenGLTimer::stopTimer()
+void MultiFrameOpenGLTimer::Stop()
 {
     if (use_time_stamps)
     {
@@ -56,11 +56,6 @@ void MultiFrameOpenGLTimer::stopTimer()
         elapsed_time = queries[queryFrontBuffer][0].getTimestamp();
     }
 
-
-
-    //    SAIGA_ASSERT(queries[queryFrontBuffer][1].isAvailable());
-
-    //    time = queries[queryFrontBuffer][1].waitTimestamp() - queries[queryFrontBuffer][0].waitTimestamp();
     swapQueries();
 }
 
@@ -85,7 +80,7 @@ GLuint64 MultiFrameOpenGLTimer::getTimeNS()
 
 void FilteredMultiFrameOpenGLTimer::stopTimer()
 {
-    MultiFrameOpenGLTimer::stopTimer();
+    MultiFrameOpenGLTimer::Stop();
     double newTime = MultiFrameOpenGLTimer::getTimeMSd();
     currentTimeMS  = newTime * alpha + (1.0f - alpha) * currentTimeMS;
 }

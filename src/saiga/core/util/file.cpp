@@ -18,9 +18,9 @@ namespace Saiga
 {
 namespace File
 {
-std::vector<unsigned char> loadFileBinary(const std::string& file)
+std::vector<char> loadFileBinary(const std::string& file)
 {
-    std::vector<unsigned char> result;
+    std::vector<char> result;
 
     std::ifstream is(file, std::ios::binary | std::ios::in | std::ios::ate);
     if (!is.is_open())
@@ -32,7 +32,7 @@ std::vector<unsigned char> loadFileBinary(const std::string& file)
     size_t size = is.tellg();
     result.resize(size);
     is.seekg(0, std::ios::beg);
-    is.read((char*)result.data(), size);
+    is.read(result.data(), size);
     is.close();
     return result;
 }

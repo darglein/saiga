@@ -13,18 +13,33 @@ namespace Saiga
 {
 namespace AttenuationPresets
 {
-static const vec3 NONE = vec3(1, 0, 0);  // Cutoff = 1
+static const vec3 NONE = vec3(1, 0, 0);
 
-static const vec3 LinearWeak   = vec3(1, 0.5, 0);  // Cutoff = 0.666667
-static const vec3 Linear       = vec3(1, 1, 0);    // Cutoff = 0.5
-static const vec3 LinearStrong = vec3(1, 4, 0);    // Cutoff = 0.2
+static const vec3 LinearWeak   = vec3(1, 0.5, 0);
+static const vec3 Linear       = vec3(1, 1, 0);
+static const vec3 LinearStrong = vec3(1, 4, 0);
 
 
-static const vec3 QuadraticWeak   = vec3(1, 0.5, 0.5);  // Cutoff = 0.5
-static const vec3 Quadratic       = vec3(1, 1, 1);      // Cutoff = 0.333333
-static const vec3 QuadraticStrong = vec3(1, 2, 4);      // Cutoff = 0.142857
+static const vec3 QuadraticWeak   = vec3(1, 0.5, 0.5);
+static const vec3 Quadratic       = vec3(1, 1, 1);
+static const vec3 QuadraticStrong = vec3(1, 2, 4);
 }  // namespace AttenuationPresets
 
+
+// Intensity Attenuation based on the distance to the light source.
+//   - Normalized by the light radius so that we can use the same parameters for different light sizes
+//   - Shifted downwards so that DistanceAttenuation(a, radius, radius) == 0
+//   -> Therefore lights have a finite range and can be efficiently rendered
+//
+//   Used by PointLight and SpotLight
+//     - Implemented in the shader light_models.glsl
+inline float DistanceAttenuation(vec3 attenuation, float radius, float distance)
+{
+    float x         = distance / radius;
+    float cutoff    = 1.f / (attenuation[0] + attenuation[1] + attenuation[2]);
+    float intensity = 1.f / (attenuation[0] + attenuation[1] * x + attenuation[2] * x * x) - cutoff;
+    return std::max(0.f, intensity);
+}
 
 class SAIGA_OPENGL_API LightDistanceAttenuation
 {
@@ -58,7 +73,7 @@ class SAIGA_OPENGL_API LightDistanceAttenuation
     float Evaluate(float distance)
     {
         float x = distance / radius;
-        return 1.0f / (attenuation[0] + attenuation[1] * x + attenuation[2] * x * x);
+        return 1.0f / (attenuation(0) + attenuation[1] * x + attenuation[2] * x * x);
     }
 
     float getRadius() const { return radius; }
