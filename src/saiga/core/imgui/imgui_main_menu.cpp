@@ -152,12 +152,11 @@ EditorLayoutL::EditorLayoutL()
 {
     RegisterImguiWindow("Forward Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
-    RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("OpenGLWindow", WINDOW_POSITION_LEFT);
 
-    RegisterImguiWindow("RendererLighting", WINDOW_POSITION_LEFT);
-    RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Lighting", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT_BOTTOM);
     RegisterImguiWindow("VideoEncoder", WINDOW_POSITION_LEFT);
 
     RegisterImguiWindow("Log", EditorLayoutL::WINDOW_POSITION_BOTTOM);
@@ -187,12 +186,11 @@ EditorLayoutLSplit2x2::EditorLayoutLSplit2x2()
 {
     RegisterImguiWindow("Forward Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
-    RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("OpenGLWindow", WINDOW_POSITION_LEFT);
 
-    RegisterImguiWindow("RendererLighting", WINDOW_POSITION_LEFT);
-    RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Lighting", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT_BOTTOM);
     RegisterImguiWindow("VideoEncoder", WINDOW_POSITION_LEFT);
 
     RegisterImguiWindow("Log", EditorLayoutL::WINDOW_POSITION_BOTTOM);
@@ -242,13 +240,12 @@ EditorLayoutU::EditorLayoutU(bool split_left_right, float left_size, float right
 {
     RegisterImguiWindow("Forward Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
-    RegisterImguiWindow("DeferredLighting", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("OpenGLWindow", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("VideoEncoder", WINDOW_POSITION_LEFT);
 
-    RegisterImguiWindow("RendererLighting", WINDOW_POSITION_LEFT);
-    RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Lighting", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Light Data", WINDOW_POSITION_LEFT_BOTTOM);
 
     RegisterImguiWindow("Log", EditorLayoutU::WINDOW_POSITION_BOTTOM);
     RegisterImguiWindow("3DView", WINDOW_POSITION_3DVIEW);

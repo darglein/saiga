@@ -501,16 +501,26 @@ void DeferredLighting::setStencilShader(std::shared_ptr<MVPShader> stencilShader
 
 void DeferredLighting::renderImGui()
 {
-    RendererLighting::renderImGui();
-    int w = 340;
-    int h = 240;
     if (!showLightingImgui) return;
-    ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    ImGui::Begin("DeferredLighting", &showLightingImgui);
-    ImGui::Checkbox("stencilCulling", &stencilCulling);
 
+    if (!editor_gui.enabled)
+    {
+        int w = 340;
+        int h = 240;
+        ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
+    }
+
+    if (ImGui::Begin("Lighting", &showLightingImgui))
+    {
+        ImGui::Text("Deferred Light Volumes");
+        ImGui::Checkbox("stencilCulling", &stencilCulling);
+        ImGui::Separator();
+    }
     ImGui::End();
+
+
+    RendererLighting::renderImGui();
 }
 
 }  // namespace Saiga
