@@ -237,21 +237,24 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
 
 void UberDeferredLighting::renderImGui()
 {
-    RendererLighting::renderImGui();
-
     if (!showLightingImgui) return;
-    ImGui::Begin("UberDefferedLighting", &showLightingImgui);
 
 
-    const char* const clustererTypes[4] = {"None", "CPU SixPlanes", "CPU PlaneArrays", "GPU AABB Light Assignment"};
-
-    bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 4);
-
-    if (changed)
+    if (ImGui::Begin("Lighting", &showLightingImgui))
     {
-        setClusterType(clustererType);
+        const char* const clustererTypes[4] = {"None", "CPU SixPlanes", "CPU PlaneArrays", "GPU AABB Light Assignment"};
+
+        bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 4);
+
+        if (changed)
+        {
+            setClusterType(clustererType);
+        }
+        ImGui::Separator();
     }
     ImGui::End();
+
+    RendererLighting::renderImGui();
 
     if (clustererType) lightClusterer->renderImGui();
 }

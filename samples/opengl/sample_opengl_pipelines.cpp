@@ -35,7 +35,7 @@ class Sample : public RendererSampleWindow
         // show.asset = std::make_shared<ColoredAsset>(
         //    CheckerBoardPlane(make_ivec2(40, 40), 1.0f, Colors::darkgray, Colors::white));
 
-        show.asset = std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza/sponza.obj").Normalize());
+        show.asset = std::make_shared<TexturedAsset>(UnifiedModel("models/sponza/Sponza.obj").Normalize());
 
         // show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
 
