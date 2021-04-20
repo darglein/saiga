@@ -69,6 +69,8 @@ const int PATCH_SIZE = 31;
 
 namespace Saiga
 {
+ORBExtractorGPU::Level::Level() {}
+ORBExtractorGPU::Level::~Level() {}
 void ORBExtractorGPU::Level::Reserve(int initial_N, int final_N)
 {
     descriptors.resize(final_N);
@@ -112,7 +114,7 @@ int ORBExtractorGPU::Detect(Saiga::ImageView<unsigned char> image, std::vector<S
     int total_kps = 0;
     for (auto& level : levels)
     {
-        total_kps += level.N;
+        total_kps += level->N;
     }
 
     keypoints.resize(total_kps);
@@ -128,54 +130,54 @@ void ORBExtractorGPU::DownloadAndDistribute(int level)
     auto& level_data = levels[level];
 
     {
-        SAIGA_ASSERT(level_data.N <= level_data.h_keypoints.size());
-        auto h_keypoints = Saiga::ArrayView<Saiga::KeyPoint<float>>(level_data.h_keypoints).head(level_data.N);
+        SAIGA_ASSERT(level_data->N <= level_data->h_keypoints.size());
+        auto h_keypoints = Saiga::ArrayView<Saiga::KeyPoint<float>>(level_data->h_keypoints).head(level_data->N);
 
-        auto level_keypoints = level_data.dis.Distribute(
-            h_keypoints, Saiga::vec2(level_data.fast_min_x, level_data.fast_min_y),
-            Saiga::vec2(level_data.fast_max_x, level_data.fast_max_y), pyramid.Features(level));
+        auto level_keypoints = level_data->dis.Distribute(
+            h_keypoints, Saiga::vec2(level_data->fast_min_x, level_data->fast_min_y),
+            Saiga::vec2(level_data->fast_max_x, level_data->fast_max_y), pyramid.Features(level));
 
         SAIGA_ASSERT(level_keypoints.size() <= h_keypoints.size());
 
-        level_data.N = level_keypoints.size();
-        h_keypoints  = h_keypoints.head(level_data.N);
+        level_data->N = level_keypoints.size();
+        h_keypoints  = h_keypoints.head(level_data->N);
 
-        for (int i = 0; i < level_data.N; ++i)
+        for (int i = 0; i < level_data->N; ++i)
         {
             h_keypoints[i] = level_keypoints[i];
         }
     }
 
     {
-        const int N = level_data.N;
+        const int N = level_data->N;
 
-        SAIGA_ASSERT(level_data.h_keypoints.size() >= N);
-        SAIGA_ASSERT(level_data.keypoints.size() >= N);
-        SAIGA_ASSERT(level_data.h_descriptors.size() >= N);
-        SAIGA_ASSERT(level_data.descriptors.size() >= N);
+        SAIGA_ASSERT(level_data->h_keypoints.size() >= N);
+        SAIGA_ASSERT(level_data->keypoints.size() >= N);
+        SAIGA_ASSERT(level_data->h_descriptors.size() >= N);
+        SAIGA_ASSERT(level_data->descriptors.size() >= N);
 
-        auto h_keypoints   = Saiga::ArrayView<Saiga::KeyPoint<float>>(level_data.h_keypoints).head(N);
-        auto d_keypoints   = Saiga::ArrayView<Saiga::KeyPoint<float>>(level_data.keypoints).head(N);
-        auto h_descriptors = Saiga::ArrayView<Saiga::DescriptorORB>(level_data.h_descriptors).head(N);
-        auto d_descriptors = Saiga::ArrayView<Saiga::DescriptorORB>(level_data.descriptors).head(N);
+        auto h_keypoints   = Saiga::ArrayView<Saiga::KeyPoint<float>>(level_data->h_keypoints).head(N);
+        auto d_keypoints   = Saiga::ArrayView<Saiga::KeyPoint<float>>(level_data->keypoints).head(N);
+        auto h_descriptors = Saiga::ArrayView<Saiga::DescriptorORB>(level_data->h_descriptors).head(N);
+        auto d_descriptors = Saiga::ArrayView<Saiga::DescriptorORB>(level_data->descriptors).head(N);
 
-        auto& stream = level_data.stream;
+        auto& stream = level_data->stream;
 
         CHECK_CUDA_ERROR(cudaMemcpyAsync(d_keypoints.data(), h_keypoints.data(), sizeof(Saiga::KeyPoint<float>) * N,
                                          cudaMemcpyHostToDevice, stream));
 
         {
-            orb.ComputeAngles(level_data.image_obj, level_data.image.getImageView(), d_keypoints, level_data.fast_min_x,
-                              level_data.fast_min_y, level, pyramid.Scale(level) * PATCH_SIZE, stream);
+            orb.ComputeAngles(level_data->image_obj, level_data->image.getImageView(), d_keypoints, level_data->fast_min_x,
+                              level_data->fast_min_y, level, pyramid.Scale(level) * PATCH_SIZE, stream);
         }
 
         {
 #    ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
 #    else
-            level_data.gauss_ready.wait(stream);
+            level_data->gauss_ready.wait(stream);
 #    endif
 
-            orb.ComputeDescriptors(level_data.image_gauss_obj, level_data.image_gauss.getImageView(), d_keypoints,
+            orb.ComputeDescriptors(level_data->image_gauss_obj, level_data->image_gauss.getImageView(), d_keypoints,
                                    d_descriptors, stream);
         }
 
@@ -193,11 +195,11 @@ void ORBExtractorGPU::ComputeKeypoints(std::vector<Saiga::KeyPoint<float>>& keyp
     for (int level = 0; level < nlevels; ++level)
     {
         auto& level_data   = levels[level];
-        int N              = level_data.N;
-        auto h_keypoints   = Saiga::ArrayView<Saiga::KeyPoint<float>>(level_data.h_keypoints).head(N);
-        auto h_descriptors = Saiga::ArrayView<Saiga::DescriptorORB>(level_data.h_descriptors).head(N);
+        int N              = level_data->N;
+        auto h_keypoints   = Saiga::ArrayView<Saiga::KeyPoint<float>>(level_data->h_keypoints).head(N);
+        auto h_descriptors = Saiga::ArrayView<Saiga::DescriptorORB>(level_data->h_descriptors).head(N);
 
-        level_data.stream.synchronize();
+        level_data->stream.synchronize();
 
         float scale = pyramid.Scale(level);
         for (int i = 0; i < N; ++i)
@@ -225,34 +227,35 @@ void ORBExtractorGPU::AllocatePyramid(int rows, int cols)
     // first frame, allocate the Pyramids
     for (int level = 0; level < nlevels; ++level)
     {
+        levels[level]    = std::make_shared<Level>();
         auto& level_data = levels[level];
 
         float scale    = pyramid.InverseScale(level);
         int level_rows = Saiga::iRound(rows * scale);
         int level_cols = Saiga::iRound(cols * scale);
 
-        level_data.image.create(level_rows, level_cols);
-        level_data.image_gauss.create(level_rows, level_cols);
+        level_data->image.create(level_rows, level_cols);
+        level_data->image_gauss.create(level_rows, level_cols);
 
-        level_data.fast = std::make_unique<Saiga::CUDA::Fast>(iniThFAST, minThFAST);
-        level_data.Reserve(level_data.fast->MaxKeypoints(), pyramid.Features(level) * 1.1);
+        level_data->fast = std::make_unique<Saiga::CUDA::Fast>(iniThFAST, minThFAST);
+        level_data->Reserve(level_data->fast->MaxKeypoints(), pyramid.Features(level) * 1.1);
 
         auto fast_edge_threshold = 16;
-        level_data.fast_min_x    = fast_edge_threshold;
-        level_data.fast_min_y    = fast_edge_threshold;
-        level_data.fast_max_x    = level_data.image.cols - fast_edge_threshold;
-        level_data.fast_max_y    = level_data.image.rows - fast_edge_threshold;
+        level_data->fast_min_x    = fast_edge_threshold;
+        level_data->fast_min_y    = fast_edge_threshold;
+        level_data->fast_max_x    = level_data->image.cols - fast_edge_threshold;
+        level_data->fast_max_y    = level_data->image.rows - fast_edge_threshold;
 
-        level_data.fast_image_view = level_data.image.getImageView().subImageView(
-            level_data.fast_min_y, level_data.fast_min_x, level_data.fast_max_y - level_data.fast_min_y,
-            level_data.fast_max_x - level_data.fast_min_x);
+        level_data->fast_image_view = level_data->image.getImageView().subImageView(
+            level_data->fast_min_y, level_data->fast_min_x, level_data->fast_max_y - level_data->fast_min_y,
+            level_data->fast_max_x - level_data->fast_min_x);
 
-        level_data.stream.setName("Level " + std::to_string(level));
+        level_data->stream.setName("Level " + std::to_string(level));
 
-        level_data.context = Saiga::NPPI::CreateStreamContextWithStream(level_data.stream);
+        level_data->context = Saiga::NPPI::CreateStreamContextWithStream(level_data->stream);
 
-        level_data.image_obj       = level_data.image.GetTextureObject();
-        level_data.image_gauss_obj = level_data.image_gauss.GetTextureObject();
+        level_data->image_obj       = level_data->image.GetTextureObject();
+        level_data->image_gauss_obj = level_data->image_gauss.GetTextureObject();
     }
     nppSetStream(orb_stream);
 }
@@ -266,13 +269,13 @@ void ORBExtractorGPU::ComputePyramid(Saiga::ImageView<unsigned char> image)
 
     auto& first_level = levels.front();
 
-    SAIGA_ASSERT(first_level.image.cols == image.cols);
-    SAIGA_ASSERT(first_level.image.rows == image.rows);
+    SAIGA_ASSERT(first_level->image.cols == image.cols);
+    SAIGA_ASSERT(first_level->image.rows == image.rows);
 
     for (int level = 0; level < nlevels; ++level)
     {
         auto& curr_data = levels[level];
-        curr_data.image_ready.reset();
+        curr_data->image_ready.reset();
     }
 
     for (int level = 0; level < nlevels; ++level)
@@ -280,26 +283,26 @@ void ORBExtractorGPU::ComputePyramid(Saiga::ImageView<unsigned char> image)
         auto& curr_data = levels[level];
 
 #    ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
-        auto& stream = curr_data.stream;
+        auto& stream = curr_data->stream;
 #    else
         auto& stream = orb_stream;
 #    endif
 
         if (level == 0)
         {
-            first_level.image.upload(image, stream);
+            first_level->image.upload(image, stream);
         }
         else
         {
             auto& prev_data = levels[level - 1];
 
-            stream.waitForEvent(prev_data.image_ready);
+            stream.waitForEvent(prev_data->image_ready);
 
-            Saiga::NPPI::ResizeLinear(prev_data.image.getConstImageView(), curr_data.image.getImageView(),
-                                      curr_data.context);
+            Saiga::NPPI::ResizeLinear(prev_data->image.getConstImageView(), curr_data->image.getImageView(),
+                                      curr_data->context);
         }
-        curr_data.image_ready.record(stream);
-        curr_data.fast->Detect(curr_data.fast_image_view, stream);
+        curr_data->image_ready.record(stream);
+        curr_data->fast->Detect(curr_data->fast_image_view, stream);
     }
 
 #    ifndef _OPENMP
@@ -311,9 +314,9 @@ void ORBExtractorGPU::ComputePyramid(Saiga::ImageView<unsigned char> image)
     {
         auto& curr_data = levels[level];
 
-        curr_data.download();
+        curr_data->download();
 #    ifdef SAIGA_NPPI_HAS_STREAM_CONTEXT
-        curr_data.filter();
+        curr_data->filter();
         DownloadAndDistribute(level);
 #    else
         if (level == 0)

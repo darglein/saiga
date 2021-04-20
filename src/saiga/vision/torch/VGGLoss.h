@@ -86,16 +86,31 @@ class PretrainedVGG19LossImpl : public torch::nn::Module
             }
         }
 
-        if (false)
+        std::cout << "num layers in vgg " << seq->size() << std::endl;
+
+        if (0)
         {
-            layers = {3, 8, 17, 26, 35};
+            layers     = {1, 3, 6, 8, 11, 13, 15};
+            last_layer = 15;
         }
         else
         {
-            layers = {1, 3, 6, 8, 11, 13, 15, 17, 20, 22, 24, 26, 29};
+            layers     = {1, 3, 6, 8, 11, 13, 15, 17, 20, 22, 24, 26, 29};
+            last_layer = 29;
         }
 
+        torch::nn::Sequential cpy;
+
+        int i = 0;
+        for (auto l : *seq)
+        {
+            cpy->push_back(l);
+            if (i >= last_layer) break;
+            i++;
+        }
+        seq = cpy;
         seq->eval();
+        SAIGA_ASSERT(seq->size() == last_layer + 1);
 
 
         LoadFromPythonExport(file);
@@ -174,12 +189,18 @@ class PretrainedVGG19LossImpl : public torch::nn::Module
             {
                 loss = loss + torch::nn::functional::l1_loss(features_input, features_target);
             }
+
+            if (i >= last_layer)
+            {
+                break;
+            }
             i++;
         }
 
         return loss;
     }
 
+    int last_layer;
     torch::nn::Sequential seq;
 
     std::set<int> layers;
