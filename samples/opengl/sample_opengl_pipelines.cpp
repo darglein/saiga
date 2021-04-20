@@ -27,7 +27,7 @@ class Sample : public RendererSampleWindow
     {
         // Define GUI layout
         auto editor_layout = std::make_unique<EditorLayoutL>();
-        editor_layout->RegisterImguiWindow("Rendering Lighting Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
+        editor_layout->RegisterImguiWindow("Rendering Lighting Sample", EditorLayoutL::WINDOW_POSITION_LEFT_BOTTOM);
         editor_gui.SetLayout(std::move(editor_layout));
 
         Random::setSeed(LIGHT_SEED);  // SEED
@@ -121,8 +121,6 @@ class Sample : public RendererSampleWindow
 #endif
         if (render_pass == RenderPass::GUI)
         {
-            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
-            ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
             ImGui::Begin("Rendering Lighting Sample");
 
             bool supportChanged =

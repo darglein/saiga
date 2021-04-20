@@ -129,7 +129,8 @@ void RendererLighting::renderDepthMaps(RenderingInterface* renderer)
     //        glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
 
     shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-    DepthFunction depthFunc = [&](Camera* cam) -> void {
+    DepthFunction depthFunc = [&](Camera* cam) -> void
+    {
         renderedDepthmaps++;
         renderer->render(cam, RenderPass::Shadow);
     };
@@ -167,6 +168,8 @@ void RendererLighting::renderDebug(Camera* cam)
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+
 
     debugShader->bind();
 
@@ -176,14 +179,13 @@ void RendererLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : pointLights)
     {
-        mat4 sm    = obj->ModelMatrix() * scale(make_vec3(0.01));
-        vec4 color = make_vec4(obj->colorDiffuse, 1);
         if (!obj->active || !obj->visible)
         {
             continue;
         }
-        debugShader->uploadModel(sm);
-        debugShader->uploadColor(color);
+        float s = 1.f / obj->getRadius() * 0.1;
+        debugShader->uploadModel(obj->ModelMatrix() * scale(make_vec3(s)));
+        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
         pointLightMesh.draw();
     }
 
@@ -191,15 +193,13 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : pointLights)
     {
-        vec4 color = make_vec4(obj->colorDiffuse, 1);
         if (!obj->active || !obj->visible)
         {
             continue;
         }
         debugShader->uploadModel(obj->ModelMatrix());
-        debugShader->uploadColor(color);
+        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
         pointLightMesh.draw();
-        //        }
     }
     pointLightMesh.unbind();
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -211,14 +211,13 @@ void RendererLighting::renderDebug(Camera* cam)
     // center
     for (auto& obj : spotLights)
     {
-        vec4 color = make_vec4(obj->colorDiffuse, 1);
-        mat4 sm    = obj->ModelMatrix() * scale(make_vec3(0.01));
         if (!obj->active || !obj->visible)
         {
             continue;
         }
-        debugShader->uploadModel(sm);
-        debugShader->uploadColor(color);
+        float s = 1.f / obj->getRadius() * 0.1;
+        debugShader->uploadModel(obj->ModelMatrix() * scale(make_vec3(s)));
+        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
         spotLightMesh.draw();
     }
 
@@ -226,13 +225,12 @@ void RendererLighting::renderDebug(Camera* cam)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (auto& obj : spotLights)
     {
-        vec4 color = make_vec4(obj->colorDiffuse, 1);
         if (!obj->active || !obj->visible)
         {
             continue;
         }
         debugShader->uploadModel(obj->ModelMatrix());
-        debugShader->uploadColor(color);
+        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
         spotLightMesh.draw();
     }
     spotLightMesh.unbind();
@@ -241,6 +239,7 @@ void RendererLighting::renderDebug(Camera* cam)
 
 
     debugShader->unbind();
+    glEnable(GL_CULL_FACE);
 }
 
 void RendererLighting::setShader(std::shared_ptr<SpotLightShader> spotLightShader,
@@ -340,87 +339,76 @@ static void imGuiLightBox(int id, const std::string& name, T& lights)
 void RendererLighting::renderImGui()
 {
     if (!showLightingImgui) return;
-    int w = 340;
-    int h = 240;
+
     if (!editor_gui.enabled)
     {
+        int w = 340;
+        int h = 240;
         ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_Once);
         ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
     }
-    ImGui::Begin("RendererLighting", &showLightingImgui);
-
-
-    ImGui::Text("resolution: %dx%d", width, height);
-    ImGui::Text("visibleLights/totalLights: %d/%d", visibleLights, totalLights);
-    ImGui::Text("renderedDepthmaps: %d", renderedDepthmaps);
-    ImGui::Text("shadowSamples: %d", shadowSamples);
-    ImGui::ColorEdit4("clearColor ", &clearColor[0]);
-    ImGui::Checkbox("drawDebug", &drawDebug);
-
-    ImGui::Checkbox("lightDepthTest", &lightDepthTest);
-
-
-    ImGui::Checkbox("backFaceShadows", &backFaceShadows);
-    ImGui::InputFloat("shadowOffsetFactor", &shadowOffsetFactor, 0.1, 1);
-    ImGui::InputFloat("shadowOffsetUnits", &shadowOffsetUnits, 0.1, 1);
-
-
-    if (ImGui::ListBoxHeader("Lights", 4))
+    if (ImGui::Begin("Lighting", &showLightingImgui))
     {
-        int lid = 0;
-        for (auto l : directionalLights)
+        ImGui::Text("Lighting Base");
+        ImGui::Text("resolution: %dx%d", width, height);
+        ImGui::Text("visibleLights/totalLights: %d/%d", visibleLights, totalLights);
+        ImGui::Text("renderedDepthmaps: %d", renderedDepthmaps);
+        ImGui::Text("shadowSamples: %d", shadowSamples);
+        ImGui::ColorEdit4("clearColor ", &clearColor[0]);
+        ImGui::Checkbox("drawDebug", &drawDebug);
+
+        ImGui::Checkbox("lightDepthTest", &lightDepthTest);
+
+
+        ImGui::Checkbox("backFaceShadows", &backFaceShadows);
+        ImGui::InputFloat("shadowOffsetFactor", &shadowOffsetFactor, 0.1, 1);
+        ImGui::InputFloat("shadowOffsetUnits", &shadowOffsetUnits, 0.1, 1);
+
+
+        if (ImGui::ListBoxHeader("Lights", 4))
         {
-            std::string name = "Directional Light " + std::to_string(lid);
-            if (ImGui::Selectable(name.c_str(), selected_light == lid))
+            int lid = 0;
+            for (auto l : directionalLights)
             {
-                selected_light     = lid;
-                selected_light_ptr = l;
+                std::string name = "Directional Light " + std::to_string(lid);
+                if (ImGui::Selectable(name.c_str(), selected_light == lid))
+                {
+                    selected_light     = lid;
+                    selected_light_ptr = l;
+                }
+                lid++;
             }
-            lid++;
-        }
-        for (auto l : spotLights)
-        {
-            std::string name = "Spot Light " + std::to_string(lid);
-            if (ImGui::Selectable(name.c_str(), selected_light == lid))
+            for (auto l : spotLights)
             {
-                selected_light     = lid;
-                selected_light_ptr = l;
+                std::string name = "Spot Light " + std::to_string(lid);
+                if (ImGui::Selectable(name.c_str(), selected_light == lid))
+                {
+                    selected_light     = lid;
+                    selected_light_ptr = l;
+                }
+                lid++;
             }
-            lid++;
-        }
-        for (auto l : pointLights)
-        {
-            std::string name = "Point Light " + std::to_string(lid);
-            if (ImGui::Selectable(name.c_str(), selected_light == lid))
+            for (auto l : pointLights)
             {
-                selected_light     = lid;
-                selected_light_ptr = l;
+                std::string name = "Point Light " + std::to_string(lid);
+                if (ImGui::Selectable(name.c_str(), selected_light == lid))
+                {
+                    selected_light     = lid;
+                    selected_light_ptr = l;
+                }
+                lid++;
             }
-            lid++;
+            ImGui::ListBoxFooter();
         }
-        ImGui::ListBoxFooter();
     }
-
-    auto wp = ImGui::GetWindowPos();
-    auto ws = ImGui::GetWindowSize();
-
-
-    //    imGuiLightBox(0, "Directional Lights", directionalLights);
-    //    imGuiLightBox(1, "Spot Lights", spotLights);
-    //    imGuiLightBox(2, "Point Lights", pointLights);
-
     ImGui::End();
 
     if (selected_light_ptr)
     {
-        if (!editor_gui.enabled)
+        if (ImGui::Begin("Light Data", &showLightingImgui))
         {
-            ImGui::SetNextWindowPos(ImVec2(wp.x + ws.x, wp.y), ImGuiCond_Once);
-            ImGui::SetNextWindowSize(ws, ImGuiCond_Once);
+            selected_light_ptr->renderImGui();
         }
-        ImGui::Begin("Light Data", &showLightingImgui);
-
-        selected_light_ptr->renderImGui();
         ImGui::End();
     }
 }

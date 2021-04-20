@@ -123,10 +123,6 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     nextSyncObject = (nextSyncObject + 1) % syncObjects.size();
 }
 
-float VulkanRenderer::getTotalRenderTime()
-{
-    return window.mainLoop.renderCPUTimer.getTimeMS();
-}
 
 
 void VulkanRenderer::reset()

@@ -49,13 +49,21 @@ if(CUDA_FOUND)
     list(APPEND SAIGA_CUDA_FLAGS "--relocatable-device-code=true")
   endif()
 
+  if(CUDAToolkit_VERSION)
+    set(SAIGA_CUDA_VERSION ${CUDAToolkit_VERSION})
+  elseif(CUDA_VERSION)
+    set(SAIGA_CUDA_VERSION ${CUDA_VERSION})
+  else()
+    message(FATAL_ERROR "Unknown cuda version")
+  endif()
+
 
   # 30 GTX 7xx
   # 52 GTX 9xx
   # 61 GTX 10xx
   # 75 RTX 20xx
   # 86 RTX 30xx
-  if(${CUDA_VERSION} VERSION_LESS "11")
+  if(${SAIGA_CUDA_VERSION} VERSION_LESS "11")
     set(SAIGA_CUDA_ARCH "30-virtual" "52-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
   else()
     # CUDA 11 and later doesn't support 30 anymore
@@ -79,6 +87,12 @@ if(CUDA_FOUND)
   list(APPEND SAIGA_CUDA_FLAGS "-use_fast_math")
   list(APPEND SAIGA_CUDA_FLAGS "--expt-relaxed-constexpr")
   list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=esa_on_defaulted_function_ignored")
+
+  # suppress some warnings in windows
+  list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=field_without_dll_interface")
+  list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=base_class_has_different_dll_interface")
+  list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=dll_interface_conflict_none_assumed")
+  list(APPEND SAIGA_CUDA_FLAGS "-Xcudafe=--diag_suppress=dll_interface_conflict_dllexport_assumed")
 
   if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND ${SAIGA_LIBSTDCPP})
     list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=-stdlib=libstdc++")

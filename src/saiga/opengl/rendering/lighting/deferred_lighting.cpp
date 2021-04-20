@@ -202,7 +202,7 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     assert_no_glerror();
 
     {
-        auto tim = timer->CreateScope("Point Lights");
+        auto tim = timer->Measure("Point Lights");
         for (auto& l : pointLights)
         {
             renderLightVolume<std::shared_ptr<PointLight>, std::shared_ptr<PointLightShader>>(
@@ -211,7 +211,7 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     }
 
     {
-        auto tim = timer->CreateScope("Spot Lights");
+        auto tim = timer->Measure("Spot Lights");
         for (auto& l : spotLights)
         {
             renderLightVolume<std::shared_ptr<SpotLight>, std::shared_ptr<SpotLightShader>>(
@@ -233,7 +233,7 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     glDisable(GL_DEPTH_TEST);
 
     {
-        auto tim = timer->CreateScope("Directional Lights");
+        auto tim = timer->Measure("Directional Lights");
         if (stencilCulling)
         {
             glStencilFunc(GL_NOTEQUAL, 0xFF, 0xFF);
@@ -258,7 +258,7 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
     if (renderVolumetric)
     {
-        auto tim = timer->CreateScope("Filter Volumetric");
+        auto tim = timer->Measure("Filter Volumetric");
         postprocessVolumetric();
         lightAccumulationBuffer.bind();
     }
@@ -270,7 +270,7 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
     if (drawDebug)
     {
-        auto tim = timer->CreateScope("Debug");
+        auto tim = timer->Measure("Debug");
         //        glDepthMask(GL_TRUE);
         renderDebug(cam);
         //        glDepthMask(GL_FALSE);
@@ -449,7 +449,7 @@ void DeferredLighting::applyVolumetricLightBuffer()
 
     if (!textureShader) textureShader = shaderLoader.load<MVPTextureShader>("lighting/light_test.glsl");
 
-    auto tim = timer->CreateScope("Blend Volumetric");
+    auto tim = timer->Measure("Blend Volumetric");
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
@@ -501,16 +501,26 @@ void DeferredLighting::setStencilShader(std::shared_ptr<MVPShader> stencilShader
 
 void DeferredLighting::renderImGui()
 {
-    RendererLighting::renderImGui();
-    int w = 340;
-    int h = 240;
     if (!showLightingImgui) return;
-    ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    ImGui::Begin("DeferredLighting", &showLightingImgui);
-    ImGui::Checkbox("stencilCulling", &stencilCulling);
 
+    if (!editor_gui.enabled)
+    {
+        int w = 340;
+        int h = 240;
+        ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
+    }
+
+    if (ImGui::Begin("Lighting", &showLightingImgui))
+    {
+        ImGui::Text("Deferred Light Volumes");
+        ImGui::Checkbox("stencilCulling", &stencilCulling);
+        ImGui::Separator();
+    }
     ImGui::End();
+
+
+    RendererLighting::renderImGui();
 }
 
 }  // namespace Saiga

@@ -9,56 +9,12 @@
 #include "saiga/core/util/table.h"
 
 #include "torch/torch.h"
+#include "TorchHelper.h"
 
 #include <torch/script.h>
 
 namespace Saiga
 {
-/**
- * Writes some information of the given tensor to std::cout.
- */
-inline void PrintTensorInfo(at::Tensor t)
-{
-    if(!t.has_storage())
-    {
-        std::cout << "[undefined tensor]" << std::endl;
-        return;
-    }
-    auto mi = t.min().item().toFloat();
-    auto ma = t.max().item().toFloat();
-
-    float mean = 0;
-    if (t.dtype() == at::kFloat)
-    {
-        mean = t.mean().item().toFloat();
-    }
-    std::cout << "Tensor " << t.sizes() << " " << t.dtype() << " " << t.device() << " Min/Max " << mi << " " << ma
-              << " Mean " << mean << std::endl;
-}
-
-
-inline void PrintModelParams(torch::nn::Module module)
-{
-    Table tab({40,25,10, 15});
-    size_t sum= 0;
-
-    tab << "Name" << "Params" << "Params" << "Sum";
-    for (auto& t : module.named_parameters())
-    {
-        size_t local_sum =1;
-        for(auto i : t.value().sizes())
-        {
-            local_sum*=i;
-        }
-        sum+=local_sum;
-        std::stringstream strm;
-        strm << t.value().sizes();
-        tab << t.key() << strm.str()<< local_sum  << sum;
-
-    }
-    std::cout << std::endl;
-}
-
 /**
  * Convert an image view to a floating point tensor in the range [0,1].
  * Only uchar images are supported so far.
@@ -102,10 +58,8 @@ at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
 template <typename T>
 TemplatedImage<T> TensorToImage(at::Tensor tensor)
 {
+    tensor = tensor.clone();
     using ScalarType = typename ImageTypeTemplate<T>::ChannelType;
-    constexpr int c  = channels(ImageTypeTemplate<T>::type);
-    auto type        = at::typeMetaToScalarType(caffe2::TypeMeta::Make<ScalarType>());
-
     if (tensor.dim() == 4)
     {
         tensor = tensor.squeeze();
@@ -113,7 +67,7 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
 
     // In pytorch image tensors are usually represented as channel first.
     tensor = tensor.permute({1, 2, 0});
-    tensor = tensor.cpu();
+    tensor = tensor.cpu().contiguous();
 
     SAIGA_ASSERT(tensor.dtype() == at::kFloat);
 
@@ -127,10 +81,11 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
         tensor = tensor.toType(at::kByte);
     }
 
+
     int h = tensor.size(0);
     int w = tensor.size(1);
 
-    ImageView<T> out_view(h, w, tensor.data_ptr<unsigned char>());
+    ImageView<T> out_view(h, w, tensor.stride(0), tensor.data_ptr<unsigned char>());
 
     TemplatedImage<T> img(h, w);
     out_view.copyTo(img.getImageView());

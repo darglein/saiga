@@ -15,7 +15,7 @@ namespace Saiga
 {
 namespace File
 {
-SAIGA_CORE_API std::vector<unsigned char> loadFileBinary(const std::string& file);
+SAIGA_CORE_API std::vector<char> loadFileBinary(const std::string& file);
 
 SAIGA_CORE_API std::string loadFileString(const std::string& file);
 

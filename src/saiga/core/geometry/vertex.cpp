@@ -30,7 +30,7 @@ bool VertexN::operator==(const VertexN& other) const
 
 std::ostream& operator<<(std::ostream& os, const VertexN& vert)
 {
-    os << vert.position.transpose() << ",";
+    os << "VertexN" << vert.position.transpose() << ",";
     os << vert.normal.transpose();
     return os;
 }
@@ -42,7 +42,7 @@ bool VertexNT::operator==(const VertexNT& other) const
 
 std::ostream& operator<<(std::ostream& os, const VertexNT& vert)
 {
-    os << vert.position.transpose() << ",";
+    os << "VertexNT" << vert.position.transpose() << ",";
     os << vert.normal.transpose() << ",";
     os << vert.texture.transpose();
     return os;
@@ -55,7 +55,7 @@ bool VertexNTD::operator==(const VertexNTD& other) const
 
 std::ostream& operator<<(std::ostream& os, const VertexNTD& vert)
 {
-    os << vert.position.transpose() << ",";
+    os << "VertexNTD" << vert.position.transpose() << ",";
     os << vert.normal.transpose() << ",";
     os << vert.texture.transpose() << ",";
     os << vert.data.transpose();
@@ -69,7 +69,7 @@ bool VertexNC::operator==(const VertexNC& other) const
 
 std::ostream& operator<<(std::ostream& os, const VertexNC& vert)
 {
-    os << vert.position.transpose() << ",";
+    os << "VertexNC" << vert.position.transpose() << ",";
     os << vert.normal.transpose() << ",";
     os << vert.color.transpose() << ",";
     os << vert.data.transpose();

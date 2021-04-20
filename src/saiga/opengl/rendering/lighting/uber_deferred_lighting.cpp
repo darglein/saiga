@@ -80,7 +80,7 @@ void UberDeferredLighting::loadShaders()
 
 void UberDeferredLighting::initRender()
 {
-    auto tim = timer->CreateScope("Lightinit");
+    auto tim = timer->Measure("Lightinit");
     // TODO Paul: We should refactor this for all single light pass renderers.
     RendererLighting::initRender();
     LightInfo li;
@@ -166,7 +166,7 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
 
     {
-        auto tim = timer->CreateScope("Shade");
+        auto tim = timer->Measure("Shade");
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         // Lighting Uber Shader
@@ -237,21 +237,24 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
 
 void UberDeferredLighting::renderImGui()
 {
-    RendererLighting::renderImGui();
-
     if (!showLightingImgui) return;
-    ImGui::Begin("UberDefferedLighting", &showLightingImgui);
 
 
-    const char* const clustererTypes[4] = {"None", "CPU SixPlanes", "CPU PlaneArrays", "GPU AABB Light Assignment"};
-
-    bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 4);
-
-    if (changed)
+    if (ImGui::Begin("Lighting", &showLightingImgui))
     {
-        setClusterType(clustererType);
+        const char* const clustererTypes[4] = {"None", "CPU SixPlanes", "CPU PlaneArrays", "GPU AABB Light Assignment"};
+
+        bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 4);
+
+        if (changed)
+        {
+            setClusterType(clustererType);
+        }
+        ImGui::Separator();
     }
     ImGui::End();
+
+    RendererLighting::renderImGui();
 
     if (clustererType) lightClusterer->renderImGui();
 }

@@ -42,6 +42,7 @@ class Interop
     {
         // map OpenGL buffer object for writing from CUDA
         CHECK_CUDA_ERROR(cudaGraphicsMapResources(1, &graphic_resource, 0));
+        CHECK_CUDA_ERROR(cudaGraphicsResourceGetMappedPointer(&device_ptr, &size, graphic_resource));
 
         mapped = true;
     }
@@ -58,11 +59,12 @@ class Interop
     // cudaGraphicsResourceGetMappedPointer
     void* getDevicePtr()
     {
-        CHECK_CUDA_ERROR(cudaGraphicsResourceGetMappedPointer(&device_ptr, &size, graphic_resource));
         return device_ptr;
     }
 
     size_t get_size() { return size; }
+
+    //     Register an OpenGL texture or renderbuffer object.
     void initImage(unsigned int gl_buffer, GLenum gl_target)
     {
         this->gl_buffer = gl_buffer;
@@ -73,7 +75,6 @@ class Interop
     void mapImage()
     {
         // map OpenGL buffer object for writing from CUDA
-        cudaArray* array;  // = (cudaArray *)device_ptr;
         CHECK_CUDA_ERROR(cudaGraphicsMapResources(1, &graphic_resource, 0));
         CHECK_CUDA_ERROR(cudaGraphicsSubResourceGetMappedArray(&array, graphic_resource, 0, 0));
 
@@ -82,6 +83,7 @@ class Interop
         mapped     = true;
     }
 
+    cudaArray_t array;
    private:
     unsigned int gl_buffer;
     cudaGraphicsResource* graphic_resource = nullptr;

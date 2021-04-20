@@ -109,7 +109,7 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     if (adaptSize)
     {
-        auto tim = timer->CreateScope("Info Update");
+        auto tim = timer->Measure("Info Update");
 
         clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
         clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
@@ -150,7 +150,7 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     timerIndex                     = (timerIndex + 1) % 100;
 
     {
-        auto tim            = timer->CreateScope("Cluster Update");
+        auto tim            = timer->Measure("ClusterUpdate");
         int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
         clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
 
@@ -378,7 +378,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     }
 
     {
-        auto tim                     = timer->CreateScope("Info Update");
+        auto tim                     = timer->Measure("Info Update");
         clusterInfoBuffer.tileDebug  = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 

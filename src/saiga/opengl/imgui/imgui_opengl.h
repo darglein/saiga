@@ -8,6 +8,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/imgui/imgui_renderer.h"
+#include "saiga/core/imgui/imgui_timer_system.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/query/gpuTimer.h"
@@ -35,113 +36,20 @@ class SAIGA_OPENGL_API ImGui_GL_Renderer : public ImGuiRenderer
 
 
 // A system which tracks OpenGL time on a per frame basis.
-// The GLrender has one object which should be used by every subprocess.
-class SAIGA_OPENGL_API GLTimerSystem
+// The GLRenderer has one object which should be used by every subprocess.
+class GLTimerSystem : public TimerSystem
 {
    public:
-    // One measurement is given by the start and end tick (in ns)
-    using Measurement = std::pair<uint64_t, uint64_t>;
+    GLTimerSystem() : TimerSystem("OpenGL Timer") {}
 
-
-    struct TimeStats
+   protected:
+    virtual std::unique_ptr<TimestampTimer> CreateTimer() override
     {
-        int depth;
-        std::string Name;
-        // statistics (all in ms)
-        float stat_last   = 0;
-        float stat_min    = 0;
-        float stat_max    = 0;
-        float stat_median = 0;
-        float stat_mean   = 0;
-        float stat_sdev   = 0;
-    };
-
-    struct TimeData
-    {
-        MultiFrameOpenGLTimer timer;
-
-        TimeStats stats;
-
-        std::vector<Measurement> measurements_ms;
-        Measurement last_measurement = {0, 0};
-        Measurement capture          = {0, 0};
-
-        int count   = 0;
-        bool active = false;
-
-        TimeData(int& current_depth, int samples);
-        void AddTime(Measurement t);
-
-        void Start()
-        {
-            if (current_depth >= 0)
-            {
-                stats.depth = current_depth++;
-                timer.startTimer();
-            }
-        }
-        void Stop()
-        {
-            if (current_depth >= 0)
-            {
-                timer.stopTimer();
-                current_depth--;
-                SAIGA_ASSERT(stats.depth == current_depth);
-                AddTime(timer.LastMeasurement());
-            }
-        }
-
-        std::vector<float> ComputeTimes();
-
-       private:
-        int& current_depth;
-    };
-
-
-
-    struct ScopedTimingSection
-    {
-        ScopedTimingSection(TimeData& sec) : sec(sec) { sec.Start(); }
-        ~ScopedTimingSection() { sec.Stop(); }
-        TimeData& sec;
-    };
-
-
-
-    GLTimerSystem();
-
-
-    ScopedTimingSection CreateScope(const std::string& name);
-    TimeData& GetTimer(const std::string& name);
-
-
-    void BeginFrame();
-    void EndFrame();
-
-    void Imgui();
-
-
-
-   private:
-    int num_samples = 100;
-
-    // we count the number of frames so that the expensive statistic recomputation is only done
-    // once every #num_samples frames.
-    int current_frame = 0;
-
-
-    int current_depth = 0;
-    std::map<std::string, std::shared_ptr<TimeData>> data;
-
-    bool has_capture = false;
-    bool capturing   = true;
-    int current_view = 1;
-
-    bool render_window       = true;
-    bool normalize_time      = true;
-    float absolute_scale_fps = 60;
+        auto timer = std::make_unique<MultiFrameOpenGLTimer>();
+        timer->create();
+        return timer;
+    }
 };
-
 
 
 }  // namespace Saiga

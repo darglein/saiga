@@ -78,7 +78,7 @@ void main() {
 
 //    float distanceToLight = length(vposition - lightPos);
     float distanceToLight = length( dot(vposition - lightPos,lightDir) );
-    float atten = spotAttenuation(fragmentLightDir,angle,lightDir)*getAttenuation(attenuation,distanceToLight);
+    float atten = spotAttenuation(fragmentLightDir,angle,lightDir)*DistanceAttenuation(attenuation,distanceToLight);
     float localIntensity = intensity*atten*visibility; //amount of light reaching the given point
 
     float Idiff = localIntensity * intensityDiffuse(normal,fragmentLightDir);

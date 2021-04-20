@@ -7,8 +7,9 @@
 #pragma once
 
 
-#include "SimpleIni.h"
+#include "saiga/core/util/tostring.h"
 
+#include "SimpleIni.h"
 
 /**
  *  ============== Usage Example ===============
@@ -56,8 +57,67 @@
     (_variable) = (_ini).GetAddString(_section, #_variable, _variable.c_str(), _comment)
 #define INI_GETADD_DOUBLE_COMMENT(_ini, _section, _variable, _comment) \
     (_variable) = (_ini).GetAddDouble(_section, #_variable, _variable, _comment)
+#define INI_GETADD_STRING_LIST_COMMENT(_ini, _section, _variable, _sep, _comment) \
+    (_variable) = Saiga::split(                                                   \
+        (_ini).GetAddString(_section, #_variable, Saiga::concat(_variable, _sep).c_str(), _comment), _sep)
 
 #define INI_GETADD_BOOL(_ini, _section, _variable) INI_GETADD_BOOL_COMMENT(_ini, _section, _variable, 0)
 #define INI_GETADD_LONG(_ini, _section, _variable) INI_GETADD_LONG_COMMENT(_ini, _section, _variable, 0)
 #define INI_GETADD_STRING(_ini, _section, _variable) INI_GETADD_STRING_COMMENT(_ini, _section, _variable, 0)
 #define INI_GETADD_DOUBLE(_ini, _section, _variable) INI_GETADD_DOUBLE_COMMENT(_ini, _section, _variable, 0)
+
+
+
+// The saiga param macros (below) can be used to define simple param structs in ini files.
+// An example struct should look like this:
+//
+//  SAIGA_PARAM_STRUCT(NetworkParams)
+//  {
+//      SAIGA_PARAM_STRUCT_FUNCTIONS(NetworkParams);
+//
+//      double d        = 2;
+//      long n          = 10;
+//      std::string str = "blabla";
+//
+//      void Params()
+//      {
+//          SAIGA_PARAM_DOUBLE(d);
+//          SAIGA_PARAM_LONG(n);
+//          SAIGA_PARAM_STRING(str);
+//      }
+//  };
+struct ParamsBase
+{
+    ParamsBase(const std::string name) : name_(name) {}
+    std::string name_;
+
+    virtual void Params(Saiga::SimpleIni& ini_) = 0;
+
+    virtual void Load(std::string file)
+    {
+        Saiga::SimpleIni ini_;
+        ini_.LoadFile(file.c_str());
+        Params(ini_);
+        if (ini_.changed()) ini_.SaveFile(file.c_str());
+    }
+
+    virtual void Save(std::string file)
+    {
+        Saiga::SimpleIni ini_;
+        Params(ini_);
+        ini_.SaveFile(file.c_str());
+    }
+};
+
+#define SAIGA_PARAM_STRUCT_FUNCTIONS(_Name) \
+    _Name() : ParamsBase(#_Name) {}         \
+    _Name(const std::string file) : ParamsBase(#_Name) { Load(file); }
+
+
+#define SAIGA_PARAM_BOOL(_variable) INI_GETADD_BOOL(ini_, name_.c_str(), _variable)
+#define SAIGA_PARAM_LONG(_variable) INI_GETADD_LONG(ini_, name_.c_str(), _variable)
+#define SAIGA_PARAM_STRING(_variable) INI_GETADD_STRING(ini_, name_.c_str(), _variable)
+#define SAIGA_PARAM_STRING_LIST(_variable, _sep) INI_GETADD_STRING_LIST_COMMENT(ini_, name_.c_str(), _variable, _sep, 0)
+#define SAIGA_PARAM_DOUBLE(_variable) INI_GETADD_DOUBLE(ini_, name_.c_str(), _variable)
+
+#define SAIGA_PARAM_STRING_COMMENT(_variable, _comment) INI_GETADD_STRING_COMMENT(ini_, name_.c_str(), _variable, _comment)

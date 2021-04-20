@@ -9,7 +9,6 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/rendering/lighting/uber_deferred_lighting.h"
-#include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/opengl/rendering/renderer.h"
 
 
@@ -104,9 +103,7 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::shared_ptr<Texture> blackDummyTexture;
     bool showLightingImgui = false;
-    bool renderDDO         = false;
     bool cullLights        = false;
-    DeferredDebugOverlay ddo;
 
 
     void clearGBuffer();

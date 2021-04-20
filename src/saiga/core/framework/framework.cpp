@@ -82,15 +82,16 @@ void SaigaParameters::fromConfigFile(const std::string& file)
         "# shaderDirectory = shader!/usr/local/share/saiga/shader!somepath/asdf/shader";
 
     char sep = '!';
-    shaderDirectory =
-        split(ini.GetAddString("saiga", "shaderDirectory", concat(shaderDirectory, sep).c_str(), comment.c_str()), sep);
-    textureDirectory = split(ini.GetAddString("saiga", "textureDirectory", concat(textureDirectory, sep).c_str()), sep);
-    modelDirectory   = split(ini.GetAddString("saiga", "modelDirectory", concat(modelDirectory, sep).c_str()), sep);
-    fontDirectory    = split(ini.GetAddString("saiga", "fontDirectory", concat(fontDirectory, sep).c_str()), sep);
-    dataDirectory    = split(ini.GetAddString("saiga", "dataDirectory", concat(dataDirectory, sep).c_str()), sep);
-    mainThreadName   = ini.GetAddString("saiga", "mainThreadName", mainThreadName.c_str());
-    logging_enabled  = ini.GetAddBool("saiga", "logging", logging_enabled);
-    verbose_logging  = ini.GetAddLong("saiga", "verbose_logging", verbose_logging);
+    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", shaderDirectory, sep, comment.c_str());
+    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", modelDirectory, sep, comment.c_str());
+    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", fontDirectory, sep, comment.c_str());
+    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", textureDirectory, sep, comment.c_str());
+    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", dataDirectory, sep, comment.c_str());
+
+    INI_GETADD_STRING(ini, "saiga", mainThreadName);
+    INI_GETADD_BOOL(ini, "saiga", logging_enabled);
+    INI_GETADD_LONG(ini, "saiga", verbose_logging);
+
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 
@@ -181,6 +182,10 @@ void printSaigaInfo()
     std::cout << "=====================================" << std::endl;
     std::cout.unsetf(std::ios_base::floatfield);
     std::cout << ConsoleColor::RESET;
+
+    std::cout << "Pathes" << std::endl;
+    std::cout << "SAIGA_PROJECT_SOURCE_DIR " << SAIGA_PROJECT_SOURCE_DIR << std::endl;
+    std::cout << SearchPathes::shader << std::endl;
 }
 
 

@@ -53,7 +53,7 @@ void ForwardLighting::resize(int _width, int _height)
 
 void ForwardLighting::initRender()
 {
-    auto tim = timer->CreateScope("Light Init");
+    auto tim = timer->Measure("Light Init");
     RendererLighting::initRender();
     LightInfo li;
     LightData ld;
@@ -137,7 +137,7 @@ void ForwardLighting::cluster(Camera* cam, const ViewPort& viewPort)
 
 void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
 {
-    auto tim = timer->CreateScope("Light Render");
+    auto tim = timer->Measure("Light Render");
     // Does nothing
     RendererLighting::render(cam, viewPort);
 

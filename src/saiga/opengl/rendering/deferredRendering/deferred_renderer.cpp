@@ -26,8 +26,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth()),
-      renderHeight(window.getHeight()),
-      ddo(window.getWidth(), window.getHeight())
+      renderHeight(window.getHeight())
 {
     if (params.useSMAA)
     {
@@ -56,17 +55,13 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
 
 
 
-    postProcessor.init(renderWidth, renderHeight, &gbuffer, params.ppp, lighting.lightAccumulationTexture,
-                       params.useGPUTimers);
+    postProcessor.init(renderWidth, renderHeight, &gbuffer, params.ppp, lighting.lightAccumulationTexture);
 
 
     quadMesh.fromMesh(FullScreenQuad());
 
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
-
-    ddo.setDeferredFramebuffer(&gbuffer, lighting.volumetricLightTexture2);
-
 
     std::shared_ptr<PostProcessingShader> pps =
         shaderLoader.load<PostProcessingShader>("post_processing/post_processing.glsl");  // this shader does nothing
@@ -98,6 +93,7 @@ void DeferredRenderer::Resize(int windowWidth, int windowHeight)
     {
         smaa->resize(renderWidth, renderHeight);
     }
+    std::cout << "[DeferredRenderer] Resize " << windowWidth << "x" << windowHeight << std::endl;
 }
 
 
@@ -125,7 +121,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     //    for (auto c : renderInfo.cameras)
     {
         //        auto camera = c.first;
-        auto tim = timer->CreateScope("Geometry");
+        auto tim = timer->Measure("Geometry");
         bindCamera(camera);
 
         setViewPort(viewport);
@@ -144,19 +140,19 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     lighting.cullLights(camera);
 
     {
-        auto tim = timer->CreateScope("Shadow");
+        auto tim = timer->Measure("Shadow");
         renderDepthMaps();
     }
 
     {
-        auto tim = timer->CreateScope("Lighting");
+        auto tim = timer->Measure("Lighting");
         bindCamera(camera);
         setViewPort(viewport);
         renderLighting({camera, viewport});
     }
 
     {
-        auto tim = timer->CreateScope("Forward");
+        auto tim = timer->Measure("Forward");
         renderingInterface->render(camera, RenderPass::Forward);
     }
 
@@ -168,7 +164,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     if (params.writeDepthToOverlayBuffer)
     {
-        auto tim = timer->CreateScope("Write depth");
+        auto tim = timer->Measure("Write depth");
         writeGbufferDepthToCurrentFramebuffer();
     }
 #if 0
@@ -184,7 +180,8 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     stopTimer(OVERLAY);
 #endif
 
-    glViewport(0, 0, renderWidth, renderHeight);
+    // glViewport(0, 0, renderWidth, renderHeight);
+    setViewPort(viewport);
 
 
 
@@ -197,14 +194,14 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     // postprocessor's 'currentbuffer' will still be bound after render
     {
-        auto tim = timer->CreateScope("Post Processing");
+        auto tim = timer->Measure("Post Processing");
         postProcessor.render();
     }
 
 
     if (params.useSMAA)
     {
-        auto tim = timer->CreateScope("SMAA");
+        auto tim = timer->Measure("SMAA");
         smaa->render(postProcessor.getCurrentTexture(), postProcessor.getTargetBuffer());
         postProcessor.switchBuffer();
         postProcessor.bindCurrentBuffer();
@@ -213,7 +210,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     // write depth to default framebuffer
     if (params.writeDepthToDefaultFramebuffer)
     {
-        auto tim = timer->CreateScope("copy depth");
+        auto tim = timer->Measure("copy depth");
         //        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         postProcessor.bindCurrentBuffer();
         writeGbufferDepthToCurrentFramebuffer();
@@ -222,17 +219,8 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
 
     {
-        auto tim = timer->CreateScope("Final");
-        glViewport(0, 0, renderWidth, renderHeight);
-        if (renderDDO)
-        {
-            bindCamera(&ddo.layout.cam);
-            ddo.render();
-        }
-
-
-        postProcessor.renderLast(target_framebuffer, outputWidth, outputHeight);
-
+        auto tim = timer->Measure("Final");
+        postProcessor.renderLast(target_framebuffer, viewport);
 
         if (params.useGlFinish)
         {
@@ -371,63 +359,60 @@ void DeferredRenderer::renderImgui()
     lighting.renderImGui();
 
     if (!should_render_imgui) return;
-    int w = 340;
-    int h = 240;
+
     if (!editor_gui.enabled)
     {
+        int w = 340;
+        int h = 240;
         ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
     }
 
-    ImGui::Begin("Deferred Renderer", &should_render_imgui);
-
-    ImGui::Checkbox("renderDDO", &renderDDO);
-    ImGui::Checkbox("wireframe", &params.wireframe);
-    ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
-
-    ImGui::Separator();
-
-    if (ImGui::Checkbox("SMAA", &params.useSMAA))
+    if (ImGui::Begin("Deferred Renderer", &should_render_imgui))
     {
-        if (params.useSMAA)
+        ImGui::Checkbox("wireframe", &params.wireframe);
+        ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
+
+        ImGui::Separator();
+
+        if (ImGui::Checkbox("SMAA", &params.useSMAA))
         {
-            smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
-            smaa->loadShader(params.smaaQuality);
+            if (params.useSMAA)
+            {
+                smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
+                smaa->loadShader(params.smaaQuality);
+            }
+            else
+            {
+                smaa.reset();
+            }
         }
-        else
+        if (smaa)
         {
-            smaa.reset();
+            smaa->renderImGui();
+        }
+
+
+        if (ImGui::Checkbox("SSAO", &params.useSSAO))
+        {
+            if (params.useSSAO)
+            {
+                ssao = std::make_shared<SSAO>(renderWidth, renderHeight);
+            }
+            else
+            {
+                ssao.reset();
+            }
+            lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
+        }
+        if (ssao)
+        {
+            ssao->renderImGui();
         }
     }
-    if (smaa)
-    {
-        smaa->renderImGui();
-    }
-
-
-    if (ImGui::Checkbox("SSAO", &params.useSSAO))
-    {
-        if (params.useSSAO)
-        {
-            ssao = std::make_shared<SSAO>(renderWidth, renderHeight);
-        }
-        else
-        {
-            ssao.reset();
-        }
-        lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
-        ddo.setDeferredFramebuffer(&gbuffer, ssao ? ssao->bluredTexture : blackDummyTexture);
-    }
-    if (ssao)
-    {
-        ssao->renderImGui();
-    }
-
-
-    ImGui::Checkbox("showLightingImgui", &showLightingImgui);
-
     ImGui::End();
 }
+
 TemplatedImage<ucvec4> DeferredRenderer::DownloadRender()
 {
     auto texture = postProcessor.getCurrentTexture();

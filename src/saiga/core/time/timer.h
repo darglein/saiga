@@ -16,10 +16,22 @@
 
 namespace Saiga
 {
+
+// Interface for a simple TimestampTimer, which returns the start and end timestamps
+// of the Start() and Stop() call. Note, that the timestamps should be in an absolute
+// timeframe for example the program start.
+class SAIGA_CORE_API TimestampTimer
+{
+   public:
+    virtual ~TimestampTimer() {}
+    virtual void Start() = 0;
+    virtual void Stop() = 0;
+    virtual std::pair<uint64_t, uint64_t> LastMeasurement()  = 0;
+};
+
 /**
  * In this file, more advanced timers are defined.
  */
-
 class SAIGA_CORE_API Timer : public TimerBase
 {
    public:
