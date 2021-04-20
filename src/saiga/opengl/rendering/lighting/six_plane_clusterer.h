@@ -12,7 +12,7 @@ namespace Saiga
 class SAIGA_OPENGL_API SixPlaneClusterer : public Clusterer
 {
    public:
-    SixPlaneClusterer(GLTimerSystem* timer, ClustererParameters _params = ClustererParameters());
+    SixPlaneClusterer(GLTimerSystem* timer);
     SixPlaneClusterer& operator=(SixPlaneClusterer& c) = delete;
     ~SixPlaneClusterer();
 

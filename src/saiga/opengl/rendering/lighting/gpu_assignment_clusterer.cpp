@@ -17,12 +17,15 @@ namespace Saiga
 #define MINV(V1, V2) vec3(MIN(V1[0], V2[0]), MIN(V1[1], V2[1]), MIN(V1[2], V2[2]))
 #define MAXV(V1, V2) vec3(MAX(V1[0], V2[0]), MAX(V1[1], V2[1]), MAX(V1[2], V2[2]))
 
-GPUAssignmentClusterer::GPUAssignmentClusterer(GLTimerSystem* timer, ClustererParameters _params)
-    : Clusterer(timer, _params)
+GPUAssignmentClusterer::GPUAssignmentClusterer(GLTimerSystem* timer) : Clusterer(timer)
 {
     lightAssignmentShader = shaderLoader.load<LightAssignmentComputeShader>(assignmentShaderString);
     lightClusterDataBuffer.createGLBuffer(nullptr, allowedLights * sizeof(PointLightClusterData), GL_DYNAMIC_DRAW);
     clusterStructuresBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
+
+    screenSpaceTileSize     = 64;
+    depthSplits             = 24;
+    clusterThreeDimensional = true;
 }
 
 GPUAssignmentClusterer::~GPUAssignmentClusterer() {}

@@ -11,7 +11,12 @@
 
 namespace Saiga
 {
-CPUPlaneClusterer::CPUPlaneClusterer(GLTimerSystem* timer, ClustererParameters _params) : Clusterer(timer, _params) {}
+CPUPlaneClusterer::CPUPlaneClusterer(GLTimerSystem* timer) : Clusterer(timer)
+{
+    screenSpaceTileSize     = 64;
+    depthSplits             = 12;
+    clusterThreeDimensional = true;
+}
 
 CPUPlaneClusterer::~CPUPlaneClusterer() {}
 

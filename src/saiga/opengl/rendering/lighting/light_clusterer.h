@@ -59,29 +59,10 @@ class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
     }
 };
 
-/*
-class SAIGA_OPENGL_API BuildClusterComputeShader : public Shader
-{
-   public:
-    GLint location_viewFrustumData;  // width, height, depth, splitX, splitY, splitZ
-
-    GLint location_clusterList;  // clusters
-
-    virtual void checkUniforms() override{};
-};
-*/
-
-struct SAIGA_OPENGL_API ClustererParameters
-{
-    bool clusterThreeDimensional = false;
-
-    void fromConfigFile(const std::string& file) {}
-};
-
 class SAIGA_OPENGL_API Clusterer
 {
    public:
-    Clusterer(GLTimerSystem* timer, ClustererParameters _params = ClustererParameters());
+    Clusterer(GLTimerSystem* timer);
     Clusterer& operator=(Clusterer& c) = delete;
     virtual ~Clusterer();
 

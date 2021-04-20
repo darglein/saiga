@@ -11,7 +11,12 @@
 
 namespace Saiga
 {
-SixPlaneClusterer::SixPlaneClusterer(GLTimerSystem* timer, ClustererParameters _params) : Clusterer(timer, _params) {}
+SixPlaneClusterer::SixPlaneClusterer(GLTimerSystem* timer) : Clusterer(timer)
+{
+    screenSpaceTileSize     = 128;
+    depthSplits             = 0;
+    clusterThreeDimensional = false;
+}
 
 SixPlaneClusterer::~SixPlaneClusterer() {}
 

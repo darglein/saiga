@@ -209,24 +209,22 @@ void ForwardLighting::renderImGui()
 
 void ForwardLighting::setClusterType(int tp)
 {
-    ClustererParameters params;
     clustererType = tp;
     if (clustererType > 0)
     {
-        ClustererParameters params;
         switch (clustererType)
         {
             case 1:
                 lightClusterer =
-                    std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer, params));
+                    std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer));
                 break;
             case 2:
                 lightClusterer =
-                    std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer, params));
+                    std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer));
                 break;
             case 3:
                 lightClusterer =
-                    std::static_pointer_cast<Clusterer>(std::make_shared<GPUAssignmentClusterer>(timer, params));
+                    std::static_pointer_cast<Clusterer>(std::make_shared<GPUAssignmentClusterer>(timer));
                 break;
             default:
                 return;

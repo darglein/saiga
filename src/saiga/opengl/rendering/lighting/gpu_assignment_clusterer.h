@@ -12,7 +12,7 @@ namespace Saiga
 class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
 {
    public:
-    GPUAssignmentClusterer(GLTimerSystem* timer, ClustererParameters _params = ClustererParameters());
+    GPUAssignmentClusterer(GLTimerSystem* timer);
     GPUAssignmentClusterer& operator=(GPUAssignmentClusterer& c) = delete;
     ~GPUAssignmentClusterer();
 

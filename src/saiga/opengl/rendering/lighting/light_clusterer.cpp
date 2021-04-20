@@ -11,9 +11,8 @@
 
 namespace Saiga
 {
-Clusterer::Clusterer(GLTimerSystem* timer, ClustererParameters _params) : timer(timer)
+Clusterer::Clusterer(GLTimerSystem* timer) : timer(timer)
 {
-    clusterThreeDimensional = _params.clusterThreeDimensional;
     clustersDirty           = true;
 
     infoBuffer.createGLBuffer(nullptr, sizeof(infoBuf_t), GL_DYNAMIC_DRAW);

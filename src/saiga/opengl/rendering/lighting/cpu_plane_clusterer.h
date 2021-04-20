@@ -12,7 +12,7 @@ namespace Saiga
 class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
 {
    public:
-    CPUPlaneClusterer(GLTimerSystem* timer, ClustererParameters _params = ClustererParameters());
+    CPUPlaneClusterer(GLTimerSystem* timer);
     CPUPlaneClusterer& operator=(CPUPlaneClusterer& c) = delete;
     ~CPUPlaneClusterer();
 
