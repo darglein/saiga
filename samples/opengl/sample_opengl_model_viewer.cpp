@@ -40,8 +40,8 @@ class Sample : public SampleWindowDeferred
         //        Load("user/sponza/sponza.obj");
 
         //        Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/bedroom.glb");
-        Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/iscv2.obj");
-
+        // Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/iscv2.obj");
+        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro3.gltf");
 
         //        Load("user/lost-empire/lost_empire.obj");
         //        Load("user/living_room/living_room.obj");
