@@ -66,7 +66,7 @@ class SAIGA_CORE_API AssimpLoader
     void transformmesh(const aiMesh* amesh, AlignedVector<mat4>& boneMatrices);
     void createFrames(const aiMesh* mesh, aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames);
 
-    void createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames);
+    bool createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames);
     int createNodeTree(aiNode* node);
     mat4 composematrix(vec3 t, quat q, vec3 s);
 
