@@ -37,11 +37,13 @@ class Sample : public SampleWindowDeferred
         //        object.asset = asset;
 
 
-        //        Load("user/sponza/sponza.obj");
+//                Load("user/sponza/sponza.obj");
 
         //        Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/bedroom.glb");
         // Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/iscv2.obj");
-        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro3.gltf");
+        // Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro_interior.glb");
+        // Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro.glb");
+        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroExterior.fbx");
 
         //        Load("user/lost-empire/lost_empire.obj");
         //        Load("user/living_room/living_room.obj");
@@ -65,7 +67,8 @@ class Sample : public SampleWindowDeferred
         std::cout << model << std::endl;
 
 
-        auto ta      = std::make_shared<TexturedAsset>(model);
+         auto ta      = std::make_shared<TexturedAsset>(model);
+//        auto ta      = std::make_shared<ColoredAsset>(model);
         object.asset = ta;
 
 

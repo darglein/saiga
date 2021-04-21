@@ -85,7 +85,11 @@ TexturedAsset::TexturedAsset(const UnifiedModel& model) : groups(model.material_
             continue;
         }
 
-        auto texture = TextureLoader::instance()->load(material.texture_diffuse);
+        SAIGA_ASSERT(model.texture_name_to_id.count(material.texture_diffuse) > 0);
+        int id = model.texture_name_to_id.find(material.texture_diffuse)->second;
+
+        //         auto texture = TextureLoader::instance()->load(material.texture_diffuse);
+        auto texture = std::make_shared<Texture>(model.textures[id], false, true);
         if (texture)
         {
             texture->setWrap(GL_REPEAT);

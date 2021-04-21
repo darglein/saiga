@@ -168,11 +168,44 @@ static UnifiedMaterial ConvertMaterial(const aiMaterial* material)
     return mat;
 }
 
+static Image LoadEmbeddedTexture(aiTexture* tex)
+{
+    std::cout << "Load embedded " << tex->mFilename.C_Str() << " " << tex->achFormatHint << " " << tex->mWidth << "x"
+              << tex->mHeight << std::endl;
+
+    SAIGA_ASSERT(tex->mHeight == 0);
+
+    size_t size_bytes  = tex->mWidth;
+    std::string format = tex->achFormatHint;
+
+    ArrayView<const char> image_data((const char*)tex->pcData, size_bytes);
+
+    Image result;
+    if (!result.loadFromMemory(image_data, format))
+    {
+        std::cout << "unable to load image" << std::endl;
+    }
+    else
+    {
+        std::cout << result << std::endl;
+    }
+    return result;
+}
 
 UnifiedModel AssimpLoader::Model()
 {
     UnifiedModel model;
 
+    TraversePrintTree(scene->mRootNode);
+//    exit(0);
+
+
+    // load embedded texture
+    for (unsigned int m = 0; m < scene->mNumTextures; ++m)
+    {
+        aiTexture* tex = scene->mTextures[m];
+        model.textures.push_back(LoadEmbeddedTexture(tex));
+    }
 
     for (unsigned int m = 0; m < scene->mNumMaterials; ++m)
     {
@@ -704,6 +737,20 @@ mat4 AssimpLoader::convert(aiMatrix4x4 mat)
         }
     }
     return ret;
+}
+void AssimpLoader::TraversePrintTree(aiNode* current_node, int depth)
+{
+    for (int i = 0; i < depth; ++i)
+    {
+        std::cout << " ";
+    }
+    mat4 t = convert(current_node->mTransformation);
+
+    std::cout << "Node " << current_node->mName.C_Str() << " Trans: " << t.col(3).transpose() << std::endl;
+    for (int i = 0; i < current_node->mNumChildren; ++i)
+    {
+        TraversePrintTree(current_node->mChildren[i], depth + 1);
+    }
 }
 
 }  // namespace Saiga

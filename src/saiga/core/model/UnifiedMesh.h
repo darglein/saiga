@@ -9,63 +9,25 @@
 #include "saiga/core/geometry/LineMesh.h"
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/geometry/vertex.h"
-// #include "saiga/core/model/
 #include "saiga/core/image/managedImage.h"
 #include "saiga/core/model/animation.h"
 #include "saiga/core/util/Range.h"
-#include "saiga/core/model/UnifiedMesh.h"
 
 #include <vector>
 
 
 namespace Saiga
 {
-struct UnifiedMaterial
-{
-    std::string name;
-    vec4 color_diffuse  = vec4(0, 1, 0, 0);
-    vec4 color_ambient  = vec4(0, 1, 0, 0);
-    vec4 color_specular = vec4(0, 1, 0, 0);
-    vec4 color_emissive = vec4(0, 1, 0, 0);
-    std::string texture_diffuse;
-    std::string texture_normal;
-    std::string texture_bump;
-    std::string texture_alpha;
-    std::string texture_emissive;
 
-    UnifiedMaterial() {}
-    UnifiedMaterial(const std::string& name) : name(name) {}
-
-    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& strm, const UnifiedMaterial& material);
-};
-
-
-struct UnifiedMaterialGroup
-{
-    int startFace  = 0;
-    int numFaces   = 0;
-    int materialId = -1;
-
-    Range<int> range() const { return Range<int>(startFace, startFace + numFaces); }
-};
-
-class SAIGA_CORE_API UnifiedModel
+class SAIGA_CORE_API UnifiedMesh
 {
    public:
-    UnifiedModel() {}
-    UnifiedModel(const std::string& file_name);
-    ~UnifiedModel();
-
-
-    void Save(const std::string& file_name);
-
     int NumVertices() const { return position.size(); }
     int NumFaces() const { return triangles.size(); }
 
 
     std::string name;
 
-    UnifiedMesh mesh;
     // Vertex Data
     std::vector<vec3> position;
     std::vector<vec3> normal;
@@ -81,49 +43,37 @@ class SAIGA_CORE_API UnifiedModel
     std::vector<ivec2> lines;
 
 
-    // The material is given on a per face basis.
-    // The material group defines which faces have which material.
-    std::vector<UnifiedMaterial> materials;
-    std::vector<UnifiedMaterialGroup> material_groups;
-    std::vector<Image> textures;
-    std::map<std::string, int> texture_name_to_id;
-
-    // Bone Data (only used for animated models)
-    AnimationSystem animation_system;
-
-
     // Transforms this model inplace
     // returns a reference to this
-    UnifiedModel& transform(const mat4& T);
+    UnifiedMesh& transform(const mat4& T);
 
     // Overwrite the color of every vertex
     // returns a reference to this
-    UnifiedModel& SetVertexColor(const vec4& color);
+    UnifiedMesh& SetVertexColor(const vec4& color);
 
     // Set n = -n
-    UnifiedModel& FlipNormals();
+    UnifiedMesh& FlipNormals();
 
 
     // Computes the per vertex normal by weighting each face normal by its surface area.
-    UnifiedModel& CalculateVertexNormals();
+    UnifiedMesh& CalculateVertexNormals();
 
 
     // Duplicates vertices so that each vertex is used exactly in one face.
-    UnifiedModel& FlatShading();
+    UnifiedMesh& FlatShading();
 
 
     // Removes all vertices with the given indices
     // Faces are currently not updated (maybe todo in the future)
-    UnifiedModel& EraseVertices(ArrayView<int> vertices);
+    UnifiedMesh& EraseVertices(ArrayView<int> vertices);
 
 
 
-    UnifiedModel& Normalize(float dimensions = 2.0f);
+    UnifiedMesh& Normalize(float dimensions = 2.0f);
 
     AABB BoundingBox() const;
 
 
-    std::vector<vec4> ComputeVertexColorFromMaterial() const;
 
     std::vector<Triangle> TriangleSoup() const;
 
@@ -134,7 +84,6 @@ class SAIGA_CORE_API UnifiedModel
     bool HasColor() const { return !color.empty(); }
     bool HasTC() const { return !texture_coordinates.empty(); }
     bool HasData() const { return !data.empty(); }
-    bool HasMaterials() const { return !materials.empty(); }
     bool HasBones() const { return !bone_info.empty(); }
 
 
@@ -173,7 +122,6 @@ class SAIGA_CORE_API UnifiedModel
     template <typename IndexType>
     std::vector<Vector<IndexType, 2>> LineIndexList() const;
 
-    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model);
 
 
    private:
@@ -184,4 +132,3 @@ class SAIGA_CORE_API UnifiedModel
 }  // namespace Saiga
 
 
-#include "UnifiedModel.hpp"

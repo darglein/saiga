@@ -76,6 +76,8 @@ class SAIGA_CORE_API AssimpLoader
     void transformnode(aiMatrix4x4* result, aiNode* node);
     mat4 convert(aiMatrix4x4 mat);
     void composematrix(aiMatrix4x4* m, aiVector3D* t, aiQuaternion* q, aiVector3D* s);
+
+    void TraversePrintTree(aiNode* current_node, int depth = 0);
 };
 
 }  // namespace Saiga

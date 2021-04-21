@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "UnifiedModel.h"
+#include "UnifiedMesh.h"
 
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
@@ -14,74 +14,10 @@
 #include "model_loader_obj.h"
 #include "model_loader_ply.h"
 
-#ifdef SAIGA_USE_ASSIMP
-#    include "saiga/core/model/model_loader_assimp.h"
-#endif
-
 namespace Saiga
 {
-std::ostream& operator<<(std::ostream& strm, const UnifiedMaterial& material)
-{
-    std::cout << "[Mat] " << std::setw(20) << material.name << material.color_diffuse.transpose()
-              << ", tex: " << material.texture_diffuse << ", " << material.texture_normal << ", "
-              << material.texture_bump << ", " << material.texture_alpha << ", " << material.texture_emissive;
-    return strm;
-}
 
-UnifiedModel::UnifiedModel(const std::string& file_name)
-{
-    auto full_file = SearchPathes::model(file_name);
-    if (full_file.empty())
-    {
-        throw std::runtime_error("Could not open file " + file_name);
-    }
-
-    std::string type = fileEnding(file_name);
-
-    if (type == "obj")
-    {
-        ObjModelLoader loader(full_file);
-        *this = loader.out_model;
-        for (auto& v : loader.outVertices)
-        {
-            position.push_back(v.position.head<3>());
-            normal.push_back(v.normal.head<3>());
-            texture_coordinates.push_back(v.texture);
-        }
-        LocateTextures(full_file);
-    }
-#ifdef SAIGA_USE_ASSIMP
-    else
-    {
-        AssimpLoader al(full_file);
-        *this = al.Model();
-        LocateTextures(full_file);
-    }
-#else
-    else
-    {
-        throw std::runtime_error(
-            "Unknown model file format " + to_string(type) +
-            "\n You can compile saiga with Assimp to increase the number of supported file formats.");
-    }
-#endif
-}
-
-
-UnifiedModel::~UnifiedModel() {}
-
-void UnifiedModel::Save(const std::string& file_name)
-{
-#ifndef SAIGA_USE_ASSIMP
-    throw std::runtime_error("UnifiedModel::Save requires ASSIMP");
-#else
-    AssimpLoader al;
-    al.SaveModel(*this, file_name);
-#endif
-}
-
-
-UnifiedModel& UnifiedModel::transform(const mat4& T)
+UnifiedMesh& UnifiedMesh::transform(const mat4& T)
 {
     if (HasPosition())
     {
@@ -100,7 +36,7 @@ UnifiedModel& UnifiedModel::transform(const mat4& T)
     return *this;
 }
 
-UnifiedModel& UnifiedModel::SetVertexColor(const vec4& c)
+UnifiedMesh& UnifiedMesh::SetVertexColor(const vec4& c)
 {
     color.resize(position.size());
     for (auto& co : color)
@@ -110,7 +46,7 @@ UnifiedModel& UnifiedModel::SetVertexColor(const vec4& c)
     return *this;
 }
 
-UnifiedModel& UnifiedModel::FlipNormals()
+UnifiedMesh& UnifiedMesh::FlipNormals()
 {
     for (auto& n : normal)
     {
@@ -119,7 +55,7 @@ UnifiedModel& UnifiedModel::FlipNormals()
     return *this;
 }
 
-UnifiedModel& UnifiedModel::FlatShading()
+UnifiedMesh& UnifiedMesh::FlatShading()
 {
     auto flatten = [this](auto old) {
         decltype(old) flat;
@@ -151,7 +87,7 @@ UnifiedModel& UnifiedModel::FlatShading()
     return *this;
 }
 
-UnifiedModel& UnifiedModel::EraseVertices(ArrayView<int> vertices)
+UnifiedMesh& UnifiedMesh::EraseVertices(ArrayView<int> vertices)
 {
     SAIGA_ASSERT(triangles.empty());
     SAIGA_ASSERT(lines.empty());
@@ -185,7 +121,7 @@ UnifiedModel& UnifiedModel::EraseVertices(ArrayView<int> vertices)
     return *this;
 }
 
-UnifiedModel& UnifiedModel::Normalize(float dimensions)
+UnifiedMesh& UnifiedMesh::Normalize(float dimensions)
 {
     auto box = BoundingBox();
     float s  = dimensions / box.maxSize();
@@ -199,7 +135,7 @@ UnifiedModel& UnifiedModel::Normalize(float dimensions)
     return transform(S * T);
 }
 
-AABB UnifiedModel::BoundingBox() const
+AABB UnifiedMesh::BoundingBox() const
 {
     AABB box;
     box.makeNegative();
@@ -210,25 +146,8 @@ AABB UnifiedModel::BoundingBox() const
     return box;
 }
 
-std::vector<vec4> UnifiedModel::ComputeVertexColorFromMaterial() const
-{
-    std::vector<vec4> color;
-    color.resize(position.size());
 
-    for (auto& mg : material_groups)
-    {
-        for (auto i : mg.range())
-        {
-            for (auto k : triangles[i])
-            {
-                color[k] = materials[mg.materialId].color_diffuse;
-            }
-        }
-    }
-    return color;
-}
-
-std::vector<Triangle> UnifiedModel::TriangleSoup() const
+std::vector<Triangle> UnifiedMesh::TriangleSoup() const
 {
     std::vector<Triangle> result;
     for (auto t : triangles)
@@ -242,66 +161,8 @@ std::vector<Triangle> UnifiedModel::TriangleSoup() const
     return result;
 }
 
-void UnifiedModel::LocateTextures(const std::string& base)
-{
-    auto get_embedded_id = [base](std::string str) -> int {
-        if (str.size() < 2) return -1;
-        if (str.front() == '*')
-        {
-            auto remaining = str.substr(1);
-            return to_int(remaining);
-        }
-        return -1;
-    };
 
-    auto search = [this, base](std::string str) -> std::string {
-        if (str.empty()) return "";
-        if (texture_name_to_id.count(str) > 0) return str;
-
-        std::replace(str.begin(), str.end(), '\\', '/');
-
-        // first search relative to the parent
-        std::string result;
-        result = SearchPathes::model.getRelative(base, str);
-
-        // no search in the image dir
-        if (result.empty()) result = SearchPathes::image.getRelative(base, str);
-
-        if (result.empty())
-        {
-            std::cout << "Could not find image " << str << std::endl;
-            // throw std::runtime_error("File not found!");
-        }
-        else
-        {
-            std::cout << "load " << result << std::endl;
-            Image img(result);
-            texture_name_to_id[result] = textures.size();
-            textures.push_back(img);
-        }
-
-        return result;
-    };
-
-    for (int i = 0; i < textures.size(); ++i)
-    {
-        texture_name_to_id["*" + std::to_string(i)] = i;
-    }
-
-    std::cout << "Embedded Textures " << textures.size() << std::endl;
-    for (auto& mat : materials)
-    {
-        mat.texture_diffuse  = search(mat.texture_diffuse);
-        mat.texture_normal   = search(mat.texture_normal);
-        mat.texture_bump     = search(mat.texture_bump);
-        mat.texture_alpha    = search(mat.texture_alpha);
-        mat.texture_emissive = search(mat.texture_emissive);
-    }
-    std::cout << "Total Textures " << textures.size() << std::endl;
-}
-
-
-UnifiedModel& UnifiedModel::CalculateVertexNormals()
+UnifiedMesh& UnifiedMesh::CalculateVertexNormals()
 {
     normal.resize(position.size());
     std::fill(normal.begin(), normal.end(), vec3(0, 0, 0));
@@ -324,7 +185,7 @@ UnifiedModel& UnifiedModel::CalculateVertexNormals()
 
 
 template <>
-std::vector<Vertex> UnifiedModel::VertexList() const
+std::vector<Vertex> UnifiedMesh::VertexList() const
 {
     SAIGA_ASSERT(HasPosition());
 
@@ -344,7 +205,7 @@ std::vector<Vertex> UnifiedModel::VertexList() const
 
 
 template <>
-std::vector<VertexC> UnifiedModel::VertexList() const
+std::vector<VertexC> UnifiedMesh::VertexList() const
 {
     SAIGA_ASSERT(HasPosition());
 
@@ -365,14 +226,6 @@ std::vector<VertexC> UnifiedModel::VertexList() const
             mesh[i].color = color[i];
         }
     }
-    else if (HasMaterials())
-    {
-        auto color = ComputeVertexColorFromMaterial();
-        for (int i = 0; i < NumVertices(); ++i)
-        {
-            mesh[i].color = color[i];
-        }
-    }
     else
     {
         for (int i = 0; i < NumVertices(); ++i)
@@ -386,7 +239,7 @@ std::vector<VertexC> UnifiedModel::VertexList() const
 
 
 template <>
-std::vector<VertexNC> UnifiedModel::VertexList() const
+std::vector<VertexNC> UnifiedMesh::VertexList() const
 {
     SAIGA_ASSERT(HasPosition());
 
@@ -402,14 +255,6 @@ std::vector<VertexNC> UnifiedModel::VertexList() const
 
     if (HasColor())
     {
-        for (int i = 0; i < NumVertices(); ++i)
-        {
-            mesh[i].color = color[i];
-        }
-    }
-    else if (HasMaterials())
-    {
-        auto color = ComputeVertexColorFromMaterial();
         for (int i = 0; i < NumVertices(); ++i)
         {
             mesh[i].color = color[i];
@@ -435,7 +280,7 @@ std::vector<VertexNC> UnifiedModel::VertexList() const
 
 
 template <>
-std::vector<VertexNT> UnifiedModel::VertexList() const
+std::vector<VertexNT> UnifiedMesh::VertexList() const
 {
     SAIGA_ASSERT(HasPosition());
     SAIGA_ASSERT(HasTC());
@@ -462,7 +307,7 @@ std::vector<VertexNT> UnifiedModel::VertexList() const
 }
 
 template <>
-std::vector<VertexNTD> UnifiedModel::VertexList() const
+std::vector<VertexNTD> UnifiedMesh::VertexList() const
 {
     SAIGA_ASSERT(HasPosition());
     SAIGA_ASSERT(HasTC());
@@ -498,7 +343,7 @@ std::vector<VertexNTD> UnifiedModel::VertexList() const
 
 
 template <>
-std::vector<BoneVertexCD> UnifiedModel::VertexList() const
+std::vector<BoneVertexCD> UnifiedMesh::VertexList() const
 {
     std::vector<BoneVertexCD> mesh;
 
@@ -525,14 +370,6 @@ std::vector<BoneVertexCD> UnifiedModel::VertexList() const
             mesh[i].color = color[i];
         }
     }
-    else if (HasMaterials())
-    {
-        auto color = ComputeVertexColorFromMaterial();
-        for (int i = 0; i < NumVertices(); ++i)
-        {
-            mesh[i].color = color[i];
-        }
-    }
     else
     {
         for (int i = 0; i < NumVertices(); ++i)
@@ -551,21 +388,6 @@ std::vector<BoneVertexCD> UnifiedModel::VertexList() const
 
 
     return mesh;
-}
-
-
-std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model)
-{
-    std::cout << "[UnifiedModel] " << model.name << "\n";
-    std::cout << "  Vertices " << model.position.size() << " Triangles " << model.triangles.size() << "\n";
-    std::cout << "  Bounding Box " << model.BoundingBox() << "\n";
-    std::cout << "Materials\n";
-    for (auto& m : model.materials)
-    {
-        strm << " " << m << std::endl;
-    }
-
-    return strm;
 }
 
 

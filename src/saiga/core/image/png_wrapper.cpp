@@ -55,7 +55,7 @@ ImageType saigaType(int color_type, int bit_depth)
             elementType = ImageElementType::IET_UINT;
             break;
     }
-    SAIGA_ASSERT(elementType != ImageElementType::IET_ELEMENT_UNKNOWN);
+    SAIGA_ASSERT(elementType != ImageElementType::IET_ELEMENT_UNKNOWN, std::to_string(bit_depth));
 
     return getType(channels, elementType);
 }

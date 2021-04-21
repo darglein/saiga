@@ -130,7 +130,11 @@ class SAIGA_CORE_API Image : public ImageBase
 
 
     bool load(const std::string& path);
-    bool loadFromMemory(ArrayView<const char> data);
+
+    // in hint you give a format hint to the decoder
+    // Accepted hint values are the types in all lower case.
+    // For example: png, jpg, dds,...
+    bool loadFromMemory(ArrayView<const char> data, const std::string& hint = "");
 
     bool save(const std::string& path) const;
 
