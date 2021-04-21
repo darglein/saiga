@@ -10,7 +10,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/RendererSampleWindow.h"
 #include "saiga/opengl/world/skybox.h"
-
+#include "saiga/core/util/statistics.h"
 using namespace Saiga;
 
 #define SEED 9
@@ -32,7 +32,7 @@ class Sample : public RendererSampleWindow
         renderer->lighting.stencilCulling = false;  // Required since stencil does limit to 256 lights.
 #endif
 
-        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("models/sponza/Sponza.obj"));
+        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza//sponza.obj"));
 
         sponza.asset = sponzaAsset;
         sponza.setScale(make_vec3(0.025f));
@@ -77,10 +77,10 @@ class Sample : public RendererSampleWindow
         boxAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 
         deferredShader = shaderLoader.load<MVPColorShader>(shaderStrTex,
-                                                                {{ GL_FRAGMENT_SHADER,
-                                                                   "#define DEFERRED",
-                                                                   1 }});
-        depthShader = shaderLoader.load<MVPColorShader>(shaderStrTex, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
+                                                           {{ GL_FRAGMENT_SHADER,
+                                                              "#define DEFERRED",
+                                                              1 }});
+        depthShader    = shaderLoader.load<MVPColorShader>(shaderStrTex, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
 
         ShaderPart::ShaderCodeInjections sci;
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
@@ -103,6 +103,47 @@ class Sample : public RendererSampleWindow
         setupBenchmark();
 
         std::cout << "Program Initialized!" << std::endl;
+
+        int w = 1920;
+        int h = 1080;
+
+        std::unique_ptr<Framebuffer> target_framebuffer;
+        target_framebuffer = std::make_unique<Framebuffer>();
+        target_framebuffer->create();
+
+        std::shared_ptr<Texture> color = std::make_shared<Texture>();
+        color->create(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+
+        std::shared_ptr<Texture> depth_stencil = std::make_shared<Texture>();
+        depth_stencil->create(w, h, GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8, GL_UNSIGNED_INT_24_8);
+
+        target_framebuffer->attachTexture(color);
+        target_framebuffer->attachTextureDepthStencil(depth_stencil);
+        target_framebuffer->check();
+
+        ViewPort vp;
+        vp.position = ivec2(0, 0);
+        vp.size     = ivec2(w, h);
+
+        std::vector<double> times;
+        for (int i = 0; i < 100; ++i)
+        {
+            OpenGLTimer tim;
+            tim.start();
+            renderer->renderGL(target_framebuffer.get(), vp, &camera);
+            tim.stop();
+            times.push_back(tim.getTimeMS());
+        }
+
+        std::cout << Statistics(times) << std::endl;
+
+        TemplatedImage<ucvec4> result(h, w);
+        target_framebuffer->getTextureColor(0)->download(result.data());
+
+        result.save("output.png");
+
+
+        exit(0);
     }
 
 
