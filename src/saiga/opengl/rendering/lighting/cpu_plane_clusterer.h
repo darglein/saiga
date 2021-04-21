@@ -24,6 +24,8 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
         if (lightsDebug) lightClustersDebug.render(cam);
     };
 
+    bool refinement = true;
+
    private:
     void clusterLightsInternal(Camera* cam, const ViewPort& viewPort);
 
@@ -42,8 +44,6 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
 
     int avgAllowedItemsPerCluster = 128;
     std::vector<std::vector<int32_t>> clusterCache;
-
-    bool refinement = true;
 
     bool fillImGui() override;
 

@@ -66,6 +66,8 @@ struct LightInfo
 #define LIGHT_CLUSTER_LIST_BINDING_POINT 8
 #define LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT 9
 
+class Clusterer;
+
 class SAIGA_OPENGL_API RendererLighting
 {
    public:
@@ -122,6 +124,10 @@ class SAIGA_OPENGL_API RendererLighting
     virtual void renderImGui();
 
     virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights);
+
+    virtual void setClusterType(int tp){};
+
+    virtual std::shared_ptr<Clusterer> getClusterer() { return nullptr; };
 
 
    public:

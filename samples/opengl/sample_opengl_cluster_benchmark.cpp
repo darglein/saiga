@@ -7,10 +7,14 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/model/model_from_shape.h"
+#include "saiga/core/util/statistics.h"
+#include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
+#include "saiga/opengl/rendering/lighting/gpu_assignment_clusterer.h"
+#include "saiga/opengl/rendering/lighting/renderer_lighting.h"
+#include "saiga/opengl/rendering/lighting/six_plane_clusterer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/RendererSampleWindow.h"
 #include "saiga/opengl/world/skybox.h"
-#include "saiga/core/util/statistics.h"
 using namespace Saiga;
 
 #define SEED 9
@@ -28,12 +32,10 @@ class Sample : public RendererSampleWindow
         editor_layout->RegisterImguiWindow("Cluster Benchmark Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
         editor_gui.SetLayout(std::move(editor_layout));
 
-#ifdef MULTI_PASS_DEFERRED_PIPELINE
-        renderer->lighting.stencilCulling = false;  // Required since stencil does limit to 256 lights.
-#endif
-
-        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
-        // sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf"));
+        sponzaAsset = std::make_shared<ColoredAsset>(
+            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
+        // sponzaAsset =
+        // std::make_shared<ColoredAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf"));
 
         sponza.asset = sponzaAsset;
         sponza.setScale(make_vec3(0.025f));
@@ -50,12 +52,15 @@ class Sample : public RendererSampleWindow
                                  maximumNumberOfRendererSupportedSpotLights);
 
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
-        const char* shaderStrTex = renderer->getTexturedShaderSource();
-        auto deferredShader = shaderLoader.load<MVPTextureShader>(shaderStrTex,
+        const char* shaderStrTex = renderer->getColoredShaderSource();
+        auto deferredShader      = shaderLoader.load<MVPColorShader>(shaderStrTex,
                                                                 {{ GL_FRAGMENT_SHADER,
                                                                    "#define DEFERRED",
                                                                    1 }});
-        auto depthShader = shaderLoader.load<MVPTextureShader>(shaderStrTex, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
+        auto depthShader         = shaderLoader.load<MVPColorShader>(shaderStrTex,
+                                                             {{ GL_FRAGMENT_SHADER,
+                                                                "#define DEPTH",
+                                                                1 }});
 
         ShaderPart::ShaderCodeInjections sci;
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
@@ -68,13 +73,15 @@ class Sample : public RendererSampleWindow
         sci.emplace_back(GL_FRAGMENT_SHADER,
                          "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
 
-        auto forwardShader = shaderLoader.load<MVPTextureShaderFL>(shaderStrTex, sci);
+        auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStrTex, sci);
 
-        auto wireframeShader = shaderLoader.load<MVPTextureShader>(shaderStrTex);
+        auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStrTex);
 
         sponzaAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
+        lightCount = 128;
+        lightSize  = 1.0f;
         setupBenchmark();
 
         std::cout << "Program Initialized!" << std::endl;
@@ -100,23 +107,91 @@ class Sample : public RendererSampleWindow
         vp.position = ivec2(0, 0);
         vp.size     = ivec2(w, h);
 
-        std::vector<double> times;
-        for (int i = 0; i < 100; ++i)
+        int rendererTypesToCheck = 9;
+        int settingsToCheck      = 4;
+#ifdef MULTI_PASS_DEFERRED_PIPELINE
+        rendererTypesToCheck = 1;
+        settingsToCheck      = 1;
+#endif
+
+        std::string rendererTypes[9] = {"BASIC",  "TLD SP", "TLD CP",     "TLD CP REF", "TLD GA",
+                                        "CLD SP", "CLD CP", "CLD CP REF", "CLD GA"};
+
+        int lightCounts[8] = {256, 512, 1024, 2048, 4096, 8192, 16384, 32768};
+
+        std::vector<std::pair<std::string, std::vector<double>>> timeColumns;
+
+        for (int r = 0; r < rendererTypesToCheck; ++r)
         {
-            OpenGLTimer tim;
-            tim.start();
-            renderer->renderGL(target_framebuffer.get(), vp, &camera);
-            tim.stop();
-            times.push_back(tim.getTimeMS());
+            setupRenderer(r);
+            int _settingsToCheck = r > 0 ? settingsToCheck : 1;
+            for (int s = 0; s < _settingsToCheck; ++s)
+            {
+                setupRendererSettings(r, s);
+                std::string name = rendererTypes[r] + std::to_string(s);
+                timeColumns.push_back({name, {}});
+                auto& medians = timeColumns.at(timeColumns.size() - 1).second;
+                Statistics stats;
+                for (int l = 0; l < 7; ++l)
+                {
+                    lightCount = lightCounts[l];
+                    if (stats.median > 50.0f) break;
+                    setupBenchmark();
+                    // Discard first frames.
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        renderer->renderGL(target_framebuffer.get(), vp, &camera);
+                    }
+
+                    std::vector<double> times;
+                    for (int i = 0; i < 60; ++i)
+                    {
+                        OpenGLTimer tim;
+                        tim.start();
+                        renderer->renderGL(target_framebuffer.get(), vp, &camera);
+                        tim.stop();
+                        times.push_back(tim.getTimeMS());
+                    }
+                    stats = Statistics(times);
+                    medians.push_back(stats.median);
+                }
+            }
         }
 
-        std::cout << Statistics(times) << std::endl;
 
         TemplatedImage<ucvec4> result(h, w);
         target_framebuffer->getTextureColor(0)->download(result.data());
 
         result.save("output.png");
 
+#ifdef SINGLE_PASS_DEFERRED_PIPELINE
+        std::ofstream timesOut("deferred_times.csv");
+#elif defined(MULTI_PASS_DEFERRED_PIPELINE)
+        std::ofstream timesOut("light_volume_times.csv");
+#elif defined(SINGLE_PASS_FORWARD_PIPELINE)
+        std::ofstream timesOut("forward_times.csv");
+#endif
+        timesOut << "LightCount";
+        timesOut << ";";
+        for (int i = 0; i < timeColumns.size(); ++i)
+        {
+            timesOut << timeColumns.at(i).first;
+            if (i != timeColumns.size() - 1) timesOut << ";";
+        }
+        timesOut << "\n";
+        for (int i = 0; i < 7; ++i)
+        {
+            timesOut << lightCounts[i];
+            timesOut << ";";
+            for (int j = 0; j < timeColumns.size(); ++j)
+            {
+                if (i < timeColumns.at(j).second.size()) timesOut << timeColumns.at(j).second.at(i);
+                if (j != timeColumns.size() - 1) timesOut << ";";
+            }
+            timesOut << "\n";
+        }
+
+        timesOut.close();
 
         exit(0);
     }
@@ -168,6 +243,92 @@ class Sample : public RendererSampleWindow
         camera.calculateModel();
         camera.updateFromModel();
     }
+
+    void setupRenderer(int rendererIndex)
+    {
+        switch (rendererIndex)
+        {
+            case 0:
+                // BASIC
+                renderer->lighting.setClusterType(0);
+                break;
+            case 1:
+                // TLD SP
+                renderer->lighting.setClusterType(1);
+                break;
+            case 2:
+                // TLD CP
+                renderer->lighting.setClusterType(2);
+                break;
+            case 3:
+                // TLD CP REF
+                renderer->lighting.setClusterType(2);
+                break;
+            case 4:
+                // TLD GA
+                renderer->lighting.setClusterType(3);
+                break;
+            case 5:
+                // CLD SP
+                renderer->lighting.setClusterType(1);
+                break;
+            case 6:
+                // CLD CP
+                renderer->lighting.setClusterType(2);
+                break;
+            case 7:
+                // CLD CP REF
+                renderer->lighting.setClusterType(2);
+                break;
+            case 8:
+                // CLD GA
+                renderer->lighting.setClusterType(3);
+                break;
+            default:
+                break;
+        }
+    }
+
+    void setupRendererSettings(int rendererIndex, int settingsIndex)
+    {
+        static int tiledTileSettings[4]     = {32, 64, 128, 256};
+        static int clusteredTileSettings[4] = {32, 64, 64, 256};
+        static int depthSplitSettings[4]    = {6, 16, 24, 64};
+        switch (rendererIndex)
+        {
+            case 0:
+                // BASIC
+                break;
+            case 2:
+                // TLD CP
+                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = false;
+            case 3:
+                // TLD CP REF
+                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = true;
+            case 1:
+                // TLD SP
+            case 4:
+                // TLD GA
+                renderer->lighting.getClusterer()->set(tiledTileSettings[settingsIndex], 0);
+                break;
+            case 6:
+                // CLD CP
+                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = false;
+            case 7:
+                // CLD CP REF
+                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = true;
+            case 5:
+                // CLD SP
+            case 8:
+                // CLD GA
+                renderer->lighting.getClusterer()->set(clusteredTileSettings[settingsIndex],
+                                                       depthSplitSettings[settingsIndex]);
+                break;
+            default:
+                break;
+        }
+    }
+
 
     void renderBenchmark(Camera* camera, RenderPass render_pass)
     {
@@ -221,12 +382,11 @@ class Sample : public RendererSampleWindow
             }
 
             ImGui::End();
-
         }
     }
 
    private:
-    std::shared_ptr<TexturedAsset> sponzaAsset;
+    std::shared_ptr<ColoredAsset> sponzaAsset;
     std::vector<vec2> extras;
     int lightCount  = 128;
     float lightSize = 1;

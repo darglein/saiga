@@ -69,7 +69,18 @@ class SAIGA_OPENGL_API Clusterer
     void init(int width, int height);
     void resize(int width, int height);
 
-    inline void enable3DClusters(bool enabled) { clusterThreeDimensional = enabled; }
+    inline void enable3DClusters(bool enabled)
+    {
+        clusterThreeDimensional = enabled;
+        clustersDirty           = true;
+    }
+
+    inline void set(int tileSize, int depthSplits)
+    {
+        depthSplits         = depthSplits;
+        screenSpaceTileSize = tileSize;
+        clustersDirty       = true;
+    }
 
     inline bool clusters3D() { return clusterThreeDimensional; }
 
@@ -111,16 +122,15 @@ class SAIGA_OPENGL_API Clusterer
 
     Timer lightAssignmentTimer;
 
-
    protected:
     int width, height;
 
-    int timerIndex = 0;
+    int timerIndex          = 0;
+    int screenSpaceTileSize = 128;
+    int depthSplits         = 0;
     double cpuAssignmentTimes[100];
 
     GLTimerSystem* timer;
-    int screenSpaceTileSize = 128;
-    int depthSplits         = 0;
     mat4 cached_projection;
     bool clustersDirty = true;
 
@@ -133,7 +143,7 @@ class SAIGA_OPENGL_API Clusterer
     bool splitDebug       = false;
 
     float specialNearDepthPercent = 0.075f;
-    bool useSpecialNearCluster = true;
+    bool useSpecialNearCluster    = true;
 
 
     vec4 viewPosFromScreenPos(vec4 screen, const mat4& inverseProjection)

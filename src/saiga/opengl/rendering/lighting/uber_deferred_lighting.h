@@ -67,7 +67,9 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
 
     void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights) override;
 
-    void setClusterType(int tp);
+    void setClusterType(int tp) override;
+
+    std::shared_ptr<Clusterer> getClusterer() override { return lightClusterer; };
 
    public:
     std::shared_ptr<UberDeferredLightingShader> lightingShader;
