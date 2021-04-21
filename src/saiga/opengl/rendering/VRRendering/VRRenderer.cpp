@@ -18,7 +18,7 @@
 namespace Saiga
 {
 VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params)
-    : OpenGLRenderer(window), params(params)
+    : OpenGLRenderer(window), params(params),  quadMesh(FullScreenQuad())
 {
     if (!vr.init())
     {
@@ -47,8 +47,6 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
         framebuffers[i].unbind();
     }
 
-
-    quadMesh.fromMesh(FullScreenQuad());
 
 
     framebufferToDebugWindowShader = shaderLoader.load<PostProcessingShader>("post_processing/VRToDebugWindow.glsl");
@@ -97,7 +95,7 @@ void VRRenderer::render(const RenderInfo& renderInfo)
     framebufferToDebugWindowShader->upload(1, textures[1], 1);
     framebufferToDebugWindowShader->upload(2, vec2(outputWidth, outputHeight));
 
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     framebufferToDebugWindowShader->unbind();
 
 

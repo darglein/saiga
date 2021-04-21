@@ -12,24 +12,21 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API ColoredAsset : public BasicAsset<TriangleMesh<VertexNC, uint32_t>, MVPColorShader>
+class SAIGA_OPENGL_API ColoredAsset : public BasicAsset< MVPColorShader>
 {
    public:
     static constexpr const char* shaderStr = "asset/ColoredAsset.glsl";
     void loadDefaultShaders();
 
-    ColoredAsset() {}
-
-
-    ColoredAsset(const TriangleMesh<VertexNC, uint32_t>& mesh);
+    ColoredAsset() { loadDefaultShaders(); }
     ColoredAsset(const UnifiedModel& model);
-    ColoredAsset(const std::string& file) : ColoredAsset(UnifiedModel(file)) {}
+    ColoredAsset(const UnifiedMesh& model);
 
 
     virtual ~ColoredAsset() {}
 };
 
-class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<LineMesh<VertexNC, uint32_t>, MVPColorShader>
+class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<MVPColorShader>
 {
    public:
     enum RenderFlags
@@ -46,15 +43,14 @@ class SAIGA_OPENGL_API LineVertexColoredAsset : public BasicAsset<LineMesh<Verte
     void SetShaderColor(const vec4& color);
     void SetRenderFlags(RenderFlags flags = NONE);
 
-    LineVertexColoredAsset() {}
-    LineVertexColoredAsset(const LineMesh<VertexNC, uint32_t>& line_mesh);
-    LineVertexColoredAsset(const UnifiedModel& model);
+    LineVertexColoredAsset() { loadDefaultShaders(); }
+    LineVertexColoredAsset(const UnifiedMesh& model);
 
     virtual ~LineVertexColoredAsset() {}
 };
 
 
-class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TriangleMesh<VertexNTD, uint32_t>, MVPTextureShader>
+class SAIGA_OPENGL_API TexturedAsset : public BasicAsset< MVPTextureShader>
 {
    public:
     // Default shaders
@@ -62,15 +58,13 @@ class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TriangleMesh<VertexNTD,
     static constexpr const char* shaderStr = "asset/texturedAsset.glsl";
     void loadDefaultShaders() override;
 
-
-    std::vector<UnifiedMaterialGroup> groups;
     std::vector<UnifiedMaterial> materials;
 
-    std::vector<std::shared_ptr<Texture> > textures;
+    std::vector<std::shared_ptr<Texture>> textures;
+    std::map<std::string, int> texture_name_to_id;
 
-    TexturedAsset() {}
+    TexturedAsset() { loadDefaultShaders(); }
     TexturedAsset(const UnifiedModel& model);
-    TexturedAsset(const std::string& file) : TexturedAsset(UnifiedModel(file)) {}
 
     virtual ~TexturedAsset() {}
 
@@ -81,6 +75,7 @@ class SAIGA_OPENGL_API TexturedAsset : public BasicAsset<TriangleMesh<VertexNTD,
 
    protected:
     void renderGroups(std::shared_ptr<MVPTextureShader> shader, Camera* cam, const mat4& model);
+
 };
 
 }  // namespace Saiga

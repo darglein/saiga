@@ -18,6 +18,15 @@
 
 namespace Saiga
 {
+enum VertexDataFlags : int
+{
+    VERTEX_POSITION            = 1 << 0,
+    VERTEX_NORMAL              = 1 << 1,
+    VERTEX_COLOR               = 1 << 2,
+    VERTEX_TEXTURE_COORDINATES = 1 << 3,
+    VERTEX_EXTRA_DATA          = 1 << 4,
+    VERTEX_BONE_INFO           = 1 << 5,
+};
 
 class SAIGA_CORE_API UnifiedMesh
 {
@@ -27,6 +36,9 @@ class SAIGA_CORE_API UnifiedMesh
 
 
     std::string name;
+
+    UnifiedMesh() {}
+    UnifiedMesh(const UnifiedMesh& a, const UnifiedMesh& b);
 
     // Vertex Data
     std::vector<vec3> position;
@@ -41,6 +53,8 @@ class SAIGA_CORE_API UnifiedMesh
 
     // Line indices for line meshes
     std::vector<ivec2> lines;
+
+    int material_id = 0;
 
 
     // Transforms this model inplace
@@ -86,6 +100,8 @@ class SAIGA_CORE_API UnifiedMesh
     bool HasData() const { return !data.empty(); }
     bool HasBones() const { return !bone_info.empty(); }
 
+    VertexDataFlags Flags() const;
+
 
     // Conversion Functions from unified model -> Triangle mesh
     // The basic conversion functions for the saiga vertices are defined below,
@@ -128,7 +144,7 @@ class SAIGA_CORE_API UnifiedMesh
     void LocateTextures(const std::string& base);
 };
 
-
 }  // namespace Saiga
 
 
+#include "UnifiedModel.hpp"

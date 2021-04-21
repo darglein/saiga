@@ -11,6 +11,7 @@
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/model/all.h"
 #include "saiga/core/model/animation.h"
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/opengl/animation/boneVertex.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shader/basic_shaders.h"
@@ -31,19 +32,18 @@ class SAIGA_OPENGL_API Asset
 };
 
 
-template <typename ModelType, typename ShaderType>
-class SAIGA_TEMPLATE BasicAsset : public Asset, public ModelType
+template <typename ShaderType>
+class SAIGA_TEMPLATE BasicAsset : public Asset
 {
    public:
-    using VertexType = typename ModelType::VertexType;
-    using IndexType  = typename ModelType::IndexType;
 
     std::shared_ptr<ShaderType> deferredShader;
     std::shared_ptr<ShaderType> forwardShader;
     std::shared_ptr<ShaderType> depthshader;
     std::shared_ptr<ShaderType> wireframeshader;
 
-    IndexedVertexBuffer<VertexType, IndexType> buffer;
+    std::shared_ptr<UnifiedMeshBuffer> unified_buffer;
+    std::vector<UnifiedMaterialGroup> groups;
 
     /**
      * Use these for simple inefficient rendering.
@@ -68,13 +68,14 @@ class SAIGA_TEMPLATE BasicAsset : public Asset, public ModelType
 
     void setShader(std::shared_ptr<ShaderType> deferredShader, std::shared_ptr<ShaderType> forwardShader,
                    std::shared_ptr<ShaderType> depthshader, std::shared_ptr<ShaderType> wireframeshader);
-    void create();
+
 };
 
-template <typename ModelType, typename ShaderType>
-void BasicAsset<ModelType, ShaderType>::render(Camera* cam, const mat4& model)
+template <typename ShaderType>
+void BasicAsset< ShaderType>::render(Camera* cam, const mat4& model)
 {
     (void)cam;
+    SAIGA_ASSERT(deferredShader);
     deferredShader->bind();
     //    shader->uploadAll(cam,model);
     deferredShader->uploadModel(model);
@@ -82,15 +83,20 @@ void BasicAsset<ModelType, ShaderType>::render(Camera* cam, const mat4& model)
     //    glEnable(GL_POLYGON_OFFSET_FILL);
     //    glPolygonOffset(1.0f,1.0f);
 
-    buffer.bindAndDraw();
+    if (unified_buffer)
+    {
+        unified_buffer->Bind();
+        unified_buffer->Draw();
+        unified_buffer->Unbind();
+    }
 
     //    glDisable(GL_POLYGON_OFFSET_FILL);
 
     deferredShader->unbind();
 }
 
-template <typename ModelType, typename ShaderType>
-void BasicAsset<ModelType, ShaderType>::renderForward(Camera* cam, const mat4& model)
+template < typename ShaderType>
+void BasicAsset< ShaderType>::renderForward(Camera* cam, const mat4& model)
 {
     (void)cam;
     forwardShader->bind();
@@ -100,25 +106,35 @@ void BasicAsset<ModelType, ShaderType>::renderForward(Camera* cam, const mat4& m
     //    glEnable(GL_POLYGON_OFFSET_FILL);
     //    glPolygonOffset(1.0f,1.0f);
 
-    buffer.bindAndDraw();
+    if (unified_buffer)
+    {
+        unified_buffer->Bind();
+        unified_buffer->Draw();
+        unified_buffer->Unbind();
+    }
 
     //    glDisable(GL_POLYGON_OFFSET_FILL);
 
     forwardShader->unbind();
 }
 
-template <typename ModelType, typename ShaderType>
-void BasicAsset<ModelType, ShaderType>::renderDepth(Camera* cam, const mat4& model)
+template <typename ShaderType>
+void BasicAsset<ShaderType>::renderDepth(Camera* cam, const mat4& model)
 {
     (void)cam;
     depthshader->bind();
     depthshader->uploadModel(model);
-    buffer.bindAndDraw();
+    if (unified_buffer)
+    {
+        unified_buffer->Bind();
+        unified_buffer->Draw();
+        unified_buffer->Unbind();
+    }
     depthshader->unbind();
 }
 
-template <typename ModelType, typename ShaderType>
-void BasicAsset<ModelType, ShaderType>::renderWireframe(Camera* cam, const mat4& model)
+template <typename ShaderType>
+void BasicAsset<ShaderType>::renderWireframe(Camera* cam, const mat4& model)
 {
     (void)cam;
     wireframeshader->bind();
@@ -134,21 +150,31 @@ void BasicAsset<ModelType, ShaderType>::renderWireframe(Camera* cam, const mat4&
     //    glPolygonOffset(0.0f,-500.0f);
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    buffer.bindAndDraw();
+    if (unified_buffer)
+    {
+        unified_buffer->Bind();
+        unified_buffer->Draw();
+        unified_buffer->Unbind();
+    }
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     //    glDisable(GL_POLYGON_OFFSET_LINE);
 
     wireframeshader->unbind();
 }
 
-template <typename ModelType, typename ShaderType>
-void BasicAsset<ModelType, ShaderType>::renderRaw()
+template < typename ShaderType>
+void BasicAsset<ShaderType>::renderRaw()
 {
-    buffer.bindAndDraw();
+    if (unified_buffer)
+    {
+        unified_buffer->Bind();
+        unified_buffer->Draw();
+        unified_buffer->Unbind();
+    }
 }
 
-template <typename ModelType, typename ShaderType>
-void BasicAsset<ModelType, ShaderType>::setShader(std::shared_ptr<ShaderType> _shader,
+template < typename ShaderType>
+void BasicAsset<ShaderType>::setShader(std::shared_ptr<ShaderType> _shader,
                                                   std::shared_ptr<ShaderType> _forwardShader,
                                                   std::shared_ptr<ShaderType> _depthshader,
                                                   std::shared_ptr<ShaderType> _wireframeshader)
@@ -157,16 +183,6 @@ void BasicAsset<ModelType, ShaderType>::setShader(std::shared_ptr<ShaderType> _s
     this->forwardShader   = _forwardShader;
     this->depthshader     = _depthshader;
     this->wireframeshader = _wireframeshader;
-}
-
-template <typename ModelType, typename ShaderType>
-void BasicAsset<ModelType, ShaderType>::create()
-{
-    if (!deferredShader)
-    {
-        loadDefaultShaders();
-    }
-    buffer.fromMesh(*this);
 }
 
 }  // namespace Saiga

@@ -16,6 +16,53 @@
 
 namespace Saiga
 {
+UnifiedMesh::UnifiedMesh(const UnifiedMesh& a, const UnifiedMesh& b)
+{
+    auto combine = [&](auto v1, auto v2) {
+        decltype(v1) flat;
+
+        if (!v1.empty() && v2.empty())
+        {
+            v2.resize(b.NumVertices());
+        }
+
+        if (v1.empty() && !v2.empty())
+        {
+            v1.resize(a.NumVertices());
+        }
+
+        flat = v1;
+        flat.insert(flat.end(), v2.begin(), v2.end());
+
+        return flat;
+    };
+
+    position            = combine(a.position, b.position);
+    normal              = combine(a.normal, b.normal);
+    color               = combine(a.color, b.color);
+    texture_coordinates = combine(a.texture_coordinates, b.texture_coordinates);
+    data                = combine(a.data, b.data);
+    bone_info           = combine(a.bone_info, b.bone_info);
+
+    triangles = a.triangles;
+    lines     = a.lines;
+
+    for (auto t : b.triangles)
+    {
+        t(0) += a.NumVertices();
+        t(1) += a.NumVertices();
+        t(2) += a.NumVertices();
+        triangles.push_back(t);
+    }
+
+    for (auto t : b.lines)
+    {
+        t(0) += a.NumVertices();
+        t(1) += a.NumVertices();
+        lines.push_back(t);
+    }
+}
+
 
 UnifiedMesh& UnifiedMesh::transform(const mat4& T)
 {
@@ -182,6 +229,12 @@ UnifiedMesh& UnifiedMesh::CalculateVertexNormals()
 
     return *this;
 }
+VertexDataFlags UnifiedMesh::Flags() const
+{
+    return VertexDataFlags(HasPosition() * VERTEX_POSITION | HasNormal() * VERTEX_NORMAL | HasColor() * VERTEX_COLOR |
+                           HasTC() * VERTEX_TEXTURE_COORDINATES | HasBones() * VERTEX_BONE_INFO |
+                           HasData() * VERTEX_EXTRA_DATA);
+}
 
 
 template <>
@@ -305,90 +358,5 @@ std::vector<VertexNT> UnifiedMesh::VertexList() const
 
     return mesh;
 }
-
-template <>
-std::vector<VertexNTD> UnifiedMesh::VertexList() const
-{
-    SAIGA_ASSERT(HasPosition());
-    SAIGA_ASSERT(HasTC());
-
-
-    std::vector<VertexNTD> mesh;
-
-    mesh.resize(NumVertices());
-    for (int i = 0; i < NumVertices(); ++i)
-    {
-        mesh[i].position = make_vec4(position[i], 1);
-        mesh[i].texture  = texture_coordinates[i];
-    }
-
-    if (HasNormal())
-    {
-        for (int i = 0; i < NumVertices(); ++i)
-        {
-            mesh[i].normal = make_vec4(normal[i], 0);
-        }
-    }
-
-    if (HasData())
-    {
-        for (int i = 0; i < NumVertices(); ++i)
-        {
-            mesh[i].data = data[i];
-        }
-    }
-
-    return mesh;
-}
-
-
-template <>
-std::vector<BoneVertexCD> UnifiedMesh::VertexList() const
-{
-    std::vector<BoneVertexCD> mesh;
-
-    SAIGA_ASSERT(HasPosition());
-    SAIGA_ASSERT(HasBones());
-
-
-    mesh.resize(NumVertices());
-    for (int i = 0; i < NumVertices(); ++i)
-    {
-        mesh[i].position = make_vec4(position[i], 1);
-    }
-
-    for (int i = 0; i < NumVertices(); ++i)
-    {
-        mesh[i].bone_info = bone_info[i];
-        mesh[i].bone_info.normalizeWeights();
-    }
-
-    if (HasColor())
-    {
-        for (int i = 0; i < NumVertices(); ++i)
-        {
-            mesh[i].color = color[i];
-        }
-    }
-    else
-    {
-        for (int i = 0; i < NumVertices(); ++i)
-        {
-            mesh[i].color = vec4(1, 1, 1, 1);
-        }
-    }
-
-    if (HasNormal())
-    {
-        for (int i = 0; i < NumVertices(); ++i)
-        {
-            mesh[i].normal = make_vec4(normal[i], 0);
-        }
-    }
-
-
-    return mesh;
-}
-
 
 }  // namespace Saiga

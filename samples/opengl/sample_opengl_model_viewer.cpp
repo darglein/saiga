@@ -43,12 +43,14 @@ class Sample : public SampleWindowDeferred
         // Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/iscv2.obj");
         // Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro_interior.glb");
         // Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro.glb");
-        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroExterior.fbx");
+         Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroExterior.fbx");
+//        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroInterior.fbx");
 
+//        Load("box.obj");
         //        Load("user/lost-empire/lost_empire.obj");
         //        Load("user/living_room/living_room.obj");
         //        Load("user/fireplace_room/fireplace_room.obj");
-        //        Load("box.obj");
+//                Load("box.obj");
 
 
 
@@ -58,11 +60,10 @@ class Sample : public SampleWindowDeferred
     void Load(const std::string& file)
     {
         UnifiedModel model(file);
-
-
-        std::cout << model.BoundingBox() << std::endl;
         model.Normalize();
-        std::cout << model.BoundingBox() << std::endl;
+
+
+        // model.mesh[0].Normalize();
 
         std::cout << model << std::endl;
 

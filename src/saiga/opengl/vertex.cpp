@@ -51,21 +51,6 @@ void VertexBuffer<VertexNT>::setVertexAttributes()
 }
 
 template <>
-void VertexBuffer<VertexNTD>::setVertexAttributes()
-{
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
-    glEnableVertexAttribArray(3);
-
-
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(VertexNTD), NULL);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(VertexNTD), (void*)(4 * sizeof(GLfloat)));
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexNTD), (void*)(8 * sizeof(GLfloat)));
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(VertexNTD), (void*)(12 * sizeof(GLfloat)));
-}
-
-template <>
 void VertexBuffer<VertexNC>::setVertexAttributes()
 {
     glEnableVertexAttribArray(0);
@@ -78,31 +63,5 @@ void VertexBuffer<VertexNC>::setVertexAttributes()
     glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(VertexNC), (void*)(8 * sizeof(GLfloat)));
     glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(VertexNC), (void*)(12 * sizeof(GLfloat)));
 }
-
-template <>
-void VertexBuffer<BoneVertexCD>::setVertexAttributes()
-{
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
-    glEnableVertexAttribArray(3);
-    glEnableVertexAttribArray(4);
-    glEnableVertexAttribArray(5);
-
-
-    // bone indices + weights
-    glVertexAttribIPointer(4, 4, GL_INT, sizeof(BoneVertexCD), (void*)(0 * sizeof(GLfloat)));
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*)(4 * sizeof(GLfloat)));
-
-    // position normal
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*)(8 * sizeof(GLfloat)));
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*)(12 * sizeof(GLfloat)));
-
-    // color data
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*)(16 * sizeof(GLfloat)));
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(BoneVertexCD), (void*)(20 * sizeof(GLfloat)));
-}
-
-
 
 }  // namespace Saiga

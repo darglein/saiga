@@ -71,7 +71,7 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
    public:
     std::shared_ptr<UberDeferredLightingShader> lightingShader;
     GBuffer& gbuffer;
-    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
+    UnifiedMeshBuffer quadMesh;
     std::shared_ptr<Clusterer> lightClusterer;
     // FIXME Reset to 0:
     int clustererType = 2;

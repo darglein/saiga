@@ -215,28 +215,25 @@ UnifiedModel AssimpLoader::Model()
     }
 
 
-    int current_vertex = 0;
-    int current_face   = 0;
+
 
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
     {
+        int current_vertex = 0;
+        int current_face   = 0;
+
         const aiMesh* mesh = scene->mMeshes[m];
 
 
-        UnifiedMaterialGroup umg;
-        umg.startFace  = current_face;
-        umg.numFaces   = mesh->mNumFaces;
-        umg.materialId = mesh->mMaterialIndex;
 
-        model.material_groups.push_back(umg);
-
-
+        UnifiedMesh unified_mesh;
+        unified_mesh.material_id = mesh->mMaterialIndex;
 
         if (mesh->HasPositions())
         {
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.position.push_back(convert_vector(mesh->mVertices[i]));
+                unified_mesh.position.push_back(convert_vector(mesh->mVertices[i]));
             }
         }
         else
@@ -248,37 +245,33 @@ UnifiedModel AssimpLoader::Model()
         {
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.normal.push_back(convert_vector(mesh->mNormals[i]));
+                unified_mesh.normal.push_back(convert_vector(mesh->mNormals[i]));
             }
-            SAIGA_ASSERT(model.position.size() == model.normal.size());
         }
 
         if (mesh->HasVertexColors(0))
         {
             SAIGA_ASSERT(!mesh->HasVertexColors(1));
-            model.color.resize(current_vertex);
 
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.color.push_back(convert_color(mesh->mColors[0][i]));
+                unified_mesh.color.push_back(convert_color(mesh->mColors[0][i]));
             }
-            SAIGA_ASSERT(model.position.size() == model.color.size());
         }
 
         if (mesh->HasTextureCoords(0))
         {
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.texture_coordinates.push_back(convert_vector(mesh->mTextureCoords[0][i]).head<2>());
+                unified_mesh.texture_coordinates.push_back(convert_vector(mesh->mTextureCoords[0][i]).head<2>());
             }
-            // SAIGA_ASSERT(model.position.size() == model.texture_coordinates.size());
         }
 
 
 
         if (mesh->HasBones())
         {
-            model.bone_info.resize(model.position.size());
+            unified_mesh.bone_info.resize(unified_mesh.position.size());
             for (unsigned int i = 0; i < mesh->mNumBones; ++i)
             {
                 aiBone* b = mesh->mBones[i];
@@ -287,12 +280,9 @@ UnifiedModel AssimpLoader::Model()
                     aiVertexWeight vw = b->mWeights[j];
                     int vid           = vw.mVertexId + current_vertex;
 
-                    auto& bi = model.bone_info[vid];
+                    auto& bi = unified_mesh.bone_info[vid];
 
                     bi.addBone(i, vw.mWeight);
-
-                    //                    vertex_t& bv      = out.vertices[vw->mVertexId];
-                    //                    loadBoneWeight(bv, i, vw->mWeight);
                 }
             }
         }
@@ -307,7 +297,7 @@ UnifiedModel AssimpLoader::Model()
                     ivec3 f1(f->mIndices[0], f->mIndices[1], f->mIndices[2]);
 
                     f1 += ivec3(current_vertex, current_vertex, current_vertex);
-                    model.triangles.push_back(f1);
+                    unified_mesh.triangles.push_back(f1);
                     current_face++;
                 }
             }
@@ -315,6 +305,8 @@ UnifiedModel AssimpLoader::Model()
 
 
         current_vertex += mesh->mNumVertices;
+
+        model.mesh.push_back(unified_mesh);
     }
 
 
@@ -359,8 +351,10 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
     scene.mRootNode->mMeshes[0] = 0;
     scene.mRootNode->mNumMeshes = 1;
 
+    SAIGA_EXIT_ERROR("todo");
     auto pMesh = scene.mMeshes[0];
 
+#if 0
 
     if (model.HasPosition())
     {
@@ -426,6 +420,7 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
         std::cout << exporter.GetErrorString() << std::endl;
         throw std::runtime_error("assimp export failed");
     }
+#endif
 }
 
 

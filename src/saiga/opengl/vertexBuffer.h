@@ -299,11 +299,7 @@ SAIGA_OPENGL_API void VertexBuffer<VertexC>::setVertexAttributes();
 template <>
 SAIGA_OPENGL_API void VertexBuffer<VertexNT>::setVertexAttributes();
 template <>
-SAIGA_OPENGL_API void VertexBuffer<VertexNTD>::setVertexAttributes();
-template <>
 SAIGA_OPENGL_API void VertexBuffer<VertexNC>::setVertexAttributes();
-template <>
-SAIGA_OPENGL_API void VertexBuffer<BoneVertexCD>::setVertexAttributes();
 
 
 }  // namespace Saiga

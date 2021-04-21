@@ -10,8 +10,9 @@
 
 namespace Saiga
 {
+
 template <typename VertexType>
-std::vector<VertexType> UnifiedModel::VertexList() const
+std::vector<VertexType> UnifiedMesh::VertexList() const
 {
     throw std::runtime_error(
         "UnifiedModel::Mesh() not implemented for the specified vertex type. See saiga/core/model/UnifiedModel.h for "
@@ -19,27 +20,21 @@ std::vector<VertexType> UnifiedModel::VertexList() const
 }
 
 template <>
-SAIGA_CORE_API std::vector<Vertex> UnifiedModel::VertexList() const;
+SAIGA_CORE_API std::vector<Vertex> UnifiedMesh::VertexList() const;
 
 template <>
-SAIGA_CORE_API std::vector<VertexC> UnifiedModel::VertexList() const;
+SAIGA_CORE_API std::vector<VertexC> UnifiedMesh::VertexList() const;
 
 template <>
-SAIGA_CORE_API std::vector<VertexNC> UnifiedModel::VertexList() const;
-
-
-template <>
-SAIGA_CORE_API std::vector<VertexNT> UnifiedModel::VertexList() const;
+SAIGA_CORE_API std::vector<VertexNC> UnifiedMesh::VertexList() const;
 
 
 template <>
-SAIGA_CORE_API std::vector<VertexNTD> UnifiedModel::VertexList() const;
+SAIGA_CORE_API std::vector<VertexNT> UnifiedMesh::VertexList() const;
 
-template <>
-SAIGA_CORE_API std::vector<BoneVertexCD> UnifiedModel::VertexList() const;
 
 template <typename IndexType>
-std::vector<Vector<IndexType, 3>> UnifiedModel::TriangleIndexList() const
+std::vector<Vector<IndexType, 3>> UnifiedMesh::TriangleIndexList() const
 {
     std::vector<Vector<IndexType, 3>> result;
     result.reserve(triangles.size());
@@ -51,7 +46,7 @@ std::vector<Vector<IndexType, 3>> UnifiedModel::TriangleIndexList() const
 }
 
 template <typename IndexType>
-std::vector<Vector<IndexType, 2>> UnifiedModel::LineIndexList() const
+std::vector<Vector<IndexType, 2>> UnifiedMesh::LineIndexList() const
 {
     std::vector<Vector<IndexType, 2>> result;
     result.reserve(lines.size());

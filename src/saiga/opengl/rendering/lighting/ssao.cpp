@@ -47,7 +47,7 @@ void SSAOShader::uploadRandomImage(std::shared_ptr<Texture> img)
 }
 
 
-SSAO::SSAO(int w, int h)
+SSAO::SSAO(int w, int h) : quadMesh(FullScreenQuad())
 {
     init(w, h);
 }
@@ -73,7 +73,6 @@ void SSAO::init(int w, int h)
     ssao_framebuffer2.check();
     ssao_framebuffer2.unbind();
 
-    quadMesh.fromMesh(FullScreenQuad());
 
     ssaoShader = shaderLoader.load<SSAOShader>("post_processing/ssao2.glsl");
     blurShader = shaderLoader.load<MVPTextureShader>("post_processing/ssao_blur.glsl");
@@ -127,7 +126,7 @@ void SSAO::render(Camera* cam, const ViewPort& vp, GBuffer* gbuffer)
     ssaoShader->uploadData();
     mat4 iproj = inverse(cam->proj);
     ssaoShader->uploadInvProj(iproj);
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     ssaoShader->unbind();
 
     ssao_framebuffer.unbind();
@@ -139,7 +138,7 @@ void SSAO::render(Camera* cam, const ViewPort& vp, GBuffer* gbuffer)
     blurShader->bind();
 
     blurShader->uploadTexture(ssaotex.get());
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     blurShader->unbind();
 
     ssao_framebuffer2.unbind();

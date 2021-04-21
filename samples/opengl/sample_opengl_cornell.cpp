@@ -16,8 +16,9 @@ class Sample : public SampleWindowDeferred
    public:
     Sample()
     {
-        box.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/Cornell.obj"));
-        showGrid  = false;
+        box.asset =
+            std::make_shared<ColoredAsset>(UnifiedModel("models/Cornell.obj").ComputeColor());
+        showGrid = false;
 
         sun->active = false;
 
