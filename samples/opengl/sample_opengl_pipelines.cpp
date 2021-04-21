@@ -35,7 +35,8 @@ class Sample : public RendererSampleWindow
         // show.asset = std::make_shared<ColoredAsset>(
         //    CheckerBoardPlane(make_ivec2(40, 40), 1.0f, Colors::darkgray, Colors::white));
 
-        show.asset = std::make_shared<TexturedAsset>(UnifiedModel("models/sponza/Sponza.obj").Normalize());
+        show.asset = std::make_shared<TexturedAsset>(
+            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf").Normalize());
 
         // show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
 
@@ -45,8 +46,8 @@ class Sample : public RendererSampleWindow
         camera.setView(vec3(0, 1, 2), vec3(0, 0, 0), vec3(0, 1, 0));
         camera.movementSpeed     = 0.3;
         camera.movementSpeedFast = 3;
-        camera.position = vec4(0.558927, 0.0488419, 0.00189565, 1);
-        camera.rot      = quat(0.72404, -0.060576, 0.684689, 0.0572873);
+        camera.position          = vec4(0.558927, 0.0488419, 0.00189565, 1);
+        camera.rot               = quat(0.72404, -0.060576, 0.684689, 0.0572873);
 
 
 
@@ -67,11 +68,11 @@ class Sample : public RendererSampleWindow
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
         const char* shaderStr = renderer->getTexturedShaderSource();
 
-        auto deferredShader = shaderLoader.load<MVPColorShader>(shaderStr,
-                                                                {{ GL_FRAGMENT_SHADER,
-                                                                   "#define DEFERRED",
-                                                                   1 }});
-        auto depthShader = shaderLoader.load<MVPColorShader>(shaderStr, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
+        auto deferredShader = shaderLoader.load<MVPTextureShader>(shaderStr,
+                                                                  {{ GL_FRAGMENT_SHADER,
+                                                                     "#define DEFERRED",
+                                                                     1 }});
+        auto depthShader = shaderLoader.load<MVPTextureShader>(shaderStr, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
 
         ShaderPart::ShaderCodeInjections sci;
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
@@ -83,11 +84,11 @@ class Sample : public RendererSampleWindow
                          "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights), 3);
         sci.emplace_back(GL_FRAGMENT_SHADER,
                          "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
-        auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
+        auto forwardShader = shaderLoader.load<MVPTextureShaderFL>(shaderStr, sci);
 
-        auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
+        auto wireframeShader = shaderLoader.load<MVPTextureShader>(shaderStr);
 
-        static_cast<TexturedAsset*>(show.asset.get())
+        std::static_pointer_cast<TexturedAsset>(show.asset)
             ->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
@@ -152,14 +153,14 @@ class Sample : public RendererSampleWindow
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
                 const char* shaderStr = renderer->getTexturedShaderSource();
 
-                auto deferredShader = shaderLoader.load<MVPColorShader>(shaderStr,
-                                                                        {{ GL_FRAGMENT_SHADER,
-                                                                           "#define DEFERRED",
-                                                                           1 }});
-                auto depthShader    = shaderLoader.load<MVPColorShader>(shaderStr,
-                                                                     {{ GL_FRAGMENT_SHADER,
-                                                                        "#define DEPTH",
-                                                                        1 }});
+                auto deferredShader = shaderLoader.load<MVPTextureShader>(shaderStr,
+                                                                          {{ GL_FRAGMENT_SHADER,
+                                                                             "#define DEFERRED",
+                                                                             1 }});
+                auto depthShader    = shaderLoader.load<MVPTextureShader>(shaderStr,
+                                                                       {{ GL_FRAGMENT_SHADER,
+                                                                          "#define DEPTH",
+                                                                          1 }});
 
                 ShaderPart::ShaderCodeInjections sci;
                 sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
@@ -174,9 +175,9 @@ class Sample : public RendererSampleWindow
                 sci.emplace_back(GL_FRAGMENT_SHADER,
                                  "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights),
                                  4);
-                auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
+                auto forwardShader = shaderLoader.load<MVPTextureShaderFL>(shaderStr, sci);
 
-                auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
+                auto wireframeShader = shaderLoader.load<MVPTextureShader>(shaderStr);
 
                 std::static_pointer_cast<TexturedAsset>(show.asset)
                     ->setShader(deferredShader, forwardShader, depthShader, wireframeShader);

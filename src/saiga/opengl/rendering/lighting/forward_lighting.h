@@ -31,6 +31,20 @@ class SAIGA_OPENGL_API MVPColorShaderFL : public MVPColorShader
     }
 };
 
+class SAIGA_OPENGL_API MVPTextureShaderFL : public MVPTextureShader
+{
+   public:
+    GLint location_lightInfoBlock;
+
+    virtual void checkUniforms() override
+    {
+        MVPTextureShader::checkUniforms();
+
+        location_lightInfoBlock = getUniformBlockLocation("lightInfoBlock");
+        setUniformBlockBinding(location_lightInfoBlock, LIGHT_INFO_BINDING_POINT);
+    }
+};
+
 class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 {
    public:

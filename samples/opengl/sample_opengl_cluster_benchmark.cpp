@@ -32,7 +32,8 @@ class Sample : public RendererSampleWindow
         renderer->lighting.stencilCulling = false;  // Required since stencil does limit to 256 lights.
 #endif
 
-        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("models/sponza/Sponza.obj"));
+        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
+        // sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf"));
 
         sponza.asset = sponzaAsset;
         sponza.setScale(make_vec3(0.025f));
@@ -49,14 +50,12 @@ class Sample : public RendererSampleWindow
                                  maximumNumberOfRendererSupportedSpotLights);
 
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
-        const char* shaderStr    = renderer->getColoredShaderSource();
         const char* shaderStrTex = renderer->getTexturedShaderSource();
-
-        auto deferredShader = shaderLoader.load<MVPColorShader>(shaderStr,
+        auto deferredShader = shaderLoader.load<MVPTextureShader>(shaderStrTex,
                                                                 {{ GL_FRAGMENT_SHADER,
                                                                    "#define DEFERRED",
                                                                    1 }});
-        auto depthShader = shaderLoader.load<MVPColorShader>(shaderStr, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
+        auto depthShader = shaderLoader.load<MVPTextureShader>(shaderStrTex, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
 
         ShaderPart::ShaderCodeInjections sci;
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
@@ -69,33 +68,9 @@ class Sample : public RendererSampleWindow
         sci.emplace_back(GL_FRAGMENT_SHADER,
                          "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
 
-        auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
+        auto forwardShader = shaderLoader.load<MVPTextureShaderFL>(shaderStrTex, sci);
 
-        auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStr);
-
-        planeAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
-        boxAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
-
-        deferredShader = shaderLoader.load<MVPColorShader>(shaderStrTex,
-                                                                {{ GL_FRAGMENT_SHADER,
-                                                                   "#define DEFERRED",
-                                                                   1 }});
-        depthShader = shaderLoader.load<MVPColorShader>(shaderStrTex, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
-
-        ShaderPart::ShaderCodeInjections sci;
-        sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
-        sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
-
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights), 2);
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights), 3);
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
-
-        forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStrTex, sci);
-
-        wireframeShader = shaderLoader.load<MVPColorShader>(shaderStrTex);
+        auto wireframeShader = shaderLoader.load<MVPTextureShader>(shaderStrTex);
 
         sponzaAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
@@ -109,15 +84,15 @@ class Sample : public RendererSampleWindow
     void update(float dt) override
     {
         Base::update(dt);
-        for (int i = 0; i < pointLights.size(); ++i)
-        {
-            vec2& ex = extras[i];
-            auto pl  = pointLights[i];
-            float h  = pl->getPosition().y();
-            ex[1] += 0.5f * dt;
-            vec2 point((ex[0] + 16.f) * cos(ex[1]), ex[0] * sin(ex[1]));
-            pl->setPosition(vec3(point.x(), h, point.y()));
-        }
+        // for (int i = 0; i < pointLights.size(); ++i)
+        // {
+        //     vec2& ex = extras[i];
+        //     auto pl  = pointLights[i];
+        //     float h  = pl->getPosition().y();
+        //     ex[1] += 0.5f * dt;
+        //     vec2 point((ex[0] + 16.f) * cos(ex[1]), ex[0] * sin(ex[1]));
+        //     pl->setPosition(vec3(point.x(), h, point.y()));
+        // }
     }
 
     void setupBenchmark()
@@ -136,7 +111,7 @@ class Sample : public RendererSampleWindow
             vec2 point((r + 14.f) * cos(theta), r * sin(theta));
 
             auto light = std::make_shared<PointLight>();
-            light->setIntensity(1);
+            light->setIntensity(2);
             light->setRadius(lightSize);
             float h = linearRand(0.25f, 25.0f);
             light->setPosition(vec3(point.x(), h, point.y()));
@@ -205,6 +180,7 @@ class Sample : public RendererSampleWindow
             }
 
             ImGui::End();
+
         }
     }
 
@@ -217,26 +193,6 @@ class Sample : public RendererSampleWindow
     SimpleAssetObject sponza;
 
     std::vector<std::shared_ptr<PointLight>> pointLights;
-
-
-    // Order
-    // each 128, 256, 512, 1024, 4096, 8192, 16384
-    // six plane == SP
-    // cpu plane == CP
-    // gpu assignment == GA
-
-    // Deferred Light Volumes
-
-    // Forward
-    // Forward Depth Prepass
-    // Forward Tiled 64x64 - SP, CP
-    // Forward Depth Prepass Tiled 64x64 - SP, CP
-    // Forward Clustered 64x64, 24 depth splits - SP, CP, GA
-    // Forward Depth Prepass Clustered 64x64, 24 depth splits - SP, CP, GA
-
-    // Deferred
-    // Deferred Tiled 64x64 - SP, CP
-    // Deferred Clustered 64x64, 24 depth splits - SP, CP, GA
 };
 
 int main(const int argc, const char* argv[])

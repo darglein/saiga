@@ -29,9 +29,9 @@ void main() {
     v_data = in_data;
     v_normal = normalize(vec3(view*model * vec4( in_normal, 0 )));
 #if defined(FORWARD_LIT)
-    v_position = (view * model * vec4(in_position.xyz,0)).rgb;
+    v_position = (view * model * vec4(in_position.xyz, 1)).rgb;
 #endif
-    gl_Position = viewProj *model* vec4(in_position,1);
+    gl_Position = viewProj *model* vec4(in_position, 1);
 }
 
 

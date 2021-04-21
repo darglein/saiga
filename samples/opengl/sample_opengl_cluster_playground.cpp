@@ -32,7 +32,7 @@ class Sample : public RendererSampleWindow
 #endif
 
         planeAsset  = std::make_shared<ColoredAsset>(PlaneMesh(Plane(vec3(0, -0.1, 0), vec3(0, 1, 0))));
-        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("models/sponza/Sponza.obj"));
+        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
         boxAsset    = std::make_shared<ColoredAsset>(BoxMesh(AABB(make_vec3(-0.5), make_vec3(0.5))));
 
         plane.asset = planeAsset;
@@ -105,13 +105,13 @@ class Sample : public RendererSampleWindow
         planeAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
         boxAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 
-        deferredShader = shaderLoader.load<MVPColorShader>(shaderStrTex,
+        auto tex_deferredShader = shaderLoader.load<MVPTextureShader>(shaderStrTex,
                                                                 {{ GL_FRAGMENT_SHADER,
                                                                    "#define DEFERRED",
                                                                    1 }});
-        depthShader = shaderLoader.load<MVPColorShader>(shaderStrTex, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
+        auto tex_depthShader = shaderLoader.load<MVPTextureShader>(shaderStrTex, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
 
-        ShaderPart::ShaderCodeInjections sci;
+        sci;
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
         sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
 
@@ -122,11 +122,11 @@ class Sample : public RendererSampleWindow
         sci.emplace_back(GL_FRAGMENT_SHADER,
                          "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
 
-        forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStrTex, sci);
+        auto tex_forwardShader = shaderLoader.load<MVPTextureShaderFL>(shaderStrTex, sci);
 
-        wireframeShader = shaderLoader.load<MVPColorShader>(shaderStrTex);
+        auto tex_wireframeShader = shaderLoader.load<MVPTextureShader>(shaderStrTex);
 
-        sponzaAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
+        sponzaAsset->setShader(tex_deferredShader, tex_forwardShader, tex_depthShader, tex_wireframeShader);
 #endif
 
         setupPlayground(currentPlayground);
