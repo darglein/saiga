@@ -10,7 +10,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/RendererSampleWindow.h"
 #include "saiga/opengl/world/skybox.h"
-
+#include "saiga/core/util/statistics.h"
 using namespace Saiga;
 
 #define SEED 9
@@ -78,21 +78,62 @@ class Sample : public RendererSampleWindow
         setupBenchmark();
 
         std::cout << "Program Initialized!" << std::endl;
+
+        int w = 1920;
+        int h = 1080;
+
+        std::unique_ptr<Framebuffer> target_framebuffer;
+        target_framebuffer = std::make_unique<Framebuffer>();
+        target_framebuffer->create();
+
+        std::shared_ptr<Texture> color = std::make_shared<Texture>();
+        color->create(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+
+        std::shared_ptr<Texture> depth_stencil = std::make_shared<Texture>();
+        depth_stencil->create(w, h, GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8, GL_UNSIGNED_INT_24_8);
+
+        target_framebuffer->attachTexture(color);
+        target_framebuffer->attachTextureDepthStencil(depth_stencil);
+        target_framebuffer->check();
+
+        ViewPort vp;
+        vp.position = ivec2(0, 0);
+        vp.size     = ivec2(w, h);
+
+        std::vector<double> times;
+        for (int i = 0; i < 100; ++i)
+        {
+            OpenGLTimer tim;
+            tim.start();
+            renderer->renderGL(target_framebuffer.get(), vp, &camera);
+            tim.stop();
+            times.push_back(tim.getTimeMS());
+        }
+
+        std::cout << Statistics(times) << std::endl;
+
+        TemplatedImage<ucvec4> result(h, w);
+        target_framebuffer->getTextureColor(0)->download(result.data());
+
+        result.save("output.png");
+
+
+        exit(0);
     }
 
 
     void update(float dt) override
     {
         Base::update(dt);
-        // for (int i = 0; i < pointLights.size(); ++i)
-        // {
-        //     vec2& ex = extras[i];
-        //     auto pl  = pointLights[i];
-        //     float h  = pl->getPosition().y();
-        //     ex[1] += 0.5f * dt;
-        //     vec2 point((ex[0] + 16.f) * cos(ex[1]), ex[0] * sin(ex[1]));
-        //     pl->setPosition(vec3(point.x(), h, point.y()));
-        // }
+        for (int i = 0; i < pointLights.size(); ++i)
+        {
+            vec2& ex = extras[i];
+            auto pl  = pointLights[i];
+            float h  = pl->getPosition().y();
+            ex[1] += 0.5f * dt;
+            vec2 point((ex[0] + 16.f) * cos(ex[1]), ex[0] * sin(ex[1]));
+            pl->setPosition(vec3(point.x(), h, point.y()));
+        }
     }
 
     void setupBenchmark()
