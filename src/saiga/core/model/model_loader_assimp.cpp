@@ -435,7 +435,10 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation& out)
     aiAnimation* curanim = scene->mAnimations[animationId];
 
     //    createFrames(mesh,curanim,out.animationFrames);
-    createKeyFrames(curanim, out.keyFrames);
+    if (!createKeyFrames(curanim, out.keyFrames))
+    {
+        return;
+    }
 
     out.frameCount = out.keyFrames.size();
     out.name       = curanim->mName.data;
@@ -458,7 +461,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation& out)
 }
 
 
-void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames)
+bool AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames)
 {
     aiVectorKey *p0, *s0;
     aiQuatKey* r0;
@@ -476,9 +479,13 @@ void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyfr
     // assimp supports animation that have different numbers of position rotation and scaling keys.
     // this is not supported here. Every keyframe has to have exactly one of those keys.
     SAIGA_ASSERT(anim->mNumChannels > 0);
-    SAIGA_ASSERT((int)anim->mChannels[0]->mNumPositionKeys == frames);
-    SAIGA_ASSERT((int)anim->mChannels[0]->mNumRotationKeys == frames);
-    SAIGA_ASSERT((int)anim->mChannels[0]->mNumScalingKeys == frames);
+
+    if (anim->mChannels[0]->mNumPositionKeys != frames || (int)anim->mChannels[0]->mNumRotationKeys != frames ||
+        (int)anim->mChannels[0]->mNumScalingKeys != frames)
+    {
+        std::cout << "skipping animation, different number of keys currently not supported :(" << std::endl;
+        return false;
+    }
 
     // we shift the animation so that it starts at time 0
     double firstKeyFrameTime = anim->mChannels[0]->mPositionKeys[0].mTime;
@@ -507,7 +514,6 @@ void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyfr
 
 
             p = p0->mValue;
-            ;
             r = r0->mValue;
             s = s0->mValue;
 
@@ -533,6 +539,7 @@ void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyfr
 
         // std::cout << k.nodes.size() << std::endl;
     }
+    return true;
 }
 
 
