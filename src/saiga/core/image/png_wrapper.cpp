@@ -54,8 +54,11 @@ ImageType saigaType(int color_type, int bit_depth)
         case 32:
             elementType = ImageElementType::IET_UINT;
             break;
+        default:
+            std::cout << "unknown bit depth: " << bit_depth << std::endl;
+            SAIGA_EXIT_ERROR("Unknown bit depth");
     }
-    SAIGA_ASSERT(elementType != ImageElementType::IET_ELEMENT_UNKNOWN, std::to_string(bit_depth));
+
 
     return getType(channels, elementType);
 }

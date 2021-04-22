@@ -53,6 +53,7 @@ class SAIGA_CORE_API UnifiedModel
 {
    public:
     UnifiedModel() {}
+    UnifiedModel(const UnifiedMesh& mesh) { this->mesh.push_back(mesh); }
     UnifiedModel(const std::string& file_name);
     ~UnifiedModel();
 
@@ -86,7 +87,7 @@ class SAIGA_CORE_API UnifiedModel
         return n;
     }
 
-    int TotalVertices()const
+    int TotalVertices() const
     {
         int n = 0;
         for (auto& m : mesh) n += m.NumVertices();
