@@ -138,8 +138,11 @@ void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camer
     for (int i = 0; i < groups.size(); ++i)
     {
         auto& tg  = groups[i];
+        SAIGA_ASSERT(tg.materialId >= 0 && tg.materialId < materials.size());
+
         auto& mat = materials[tg.materialId];
 
+        SAIGA_ASSERT(!mat.texture_diffuse.empty());
         if (mat.texture_diffuse.empty()) continue;
 
         SAIGA_ASSERT(!mat.texture_diffuse.empty());

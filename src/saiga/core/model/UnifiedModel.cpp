@@ -6,6 +6,7 @@
 
 #include "UnifiedModel.h"
 
+#include "saiga/core/image/templatedImage.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
 
@@ -176,7 +177,7 @@ std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model)
 
     return strm;
 }
-void UnifiedModel::Normalize(float dimensions)
+UnifiedModel& UnifiedModel::Normalize(float dimensions)
 {
     AABB total_aabb;
     total_aabb.makeNegative();
@@ -198,7 +199,35 @@ void UnifiedModel::Normalize(float dimensions)
     {
         m.transform(trans);
     }
+    return *this;
 }
+
+
+UnifiedModel& UnifiedModel::AddMissingDummyTextures()
+{
+    std::cout << "AddMissingDummyTextures" << std::endl;
+    //    textures
+    bool need_dummy = false;
+    for (auto& m : materials)
+    {
+        if (m.texture_diffuse.empty())
+        {
+            std::cout << "Add dummy for " << m.name << std::endl;
+            m.texture_diffuse                     = "dummy";
+            texture_name_to_id[m.texture_diffuse] = textures.size();
+            need_dummy                            = true;
+        }
+    }
+
+    if (need_dummy)
+    {
+        TemplatedImage<ucvec4> dummy(10, 10);
+        dummy.getImageView().set(ucvec4(100, 100, 100, 255));
+        textures.push_back(dummy);
+    }
+    return *this;
+}
+
 std::pair<UnifiedMesh, std::vector<UnifiedMaterialGroup>> UnifiedModel::CombinedMesh(int vertex_flags) const
 {
     SAIGA_ASSERT(vertex_flags & VERTEX_POSITION);

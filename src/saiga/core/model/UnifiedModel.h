@@ -63,6 +63,9 @@ class SAIGA_CORE_API UnifiedModel
 
     UnifiedModel& ComputeColor();
 
+    UnifiedModel& Normalize(float dimensions = 2.0f);
+    UnifiedModel& AddMissingDummyTextures();
+
     std::string name;
 
     std::vector<UnifiedMesh> mesh;
@@ -78,7 +81,6 @@ class SAIGA_CORE_API UnifiedModel
     // Bone Data (only used for animated models)
     AnimationSystem animation_system;
 
-    void Normalize(float dimensions = 2.0f);
 
     int TotalTriangles() const
     {
@@ -106,5 +108,3 @@ class SAIGA_CORE_API UnifiedModel
 
 }  // namespace Saiga
 
-
-//#include "UnifiedModel.hpp"
