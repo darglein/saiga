@@ -57,6 +57,7 @@ void SMAANeighborhoodBlendingShader::uploadTextures(std::shared_ptr<TextureBase>
 
 
 SMAA::SMAA(int w, int h)
+    : quadMesh(FullScreenQuad())
 {
     screenSize = ivec2(w, h);
     stencilTex = framebuffer_texture_t(new Texture());
@@ -103,7 +104,6 @@ SMAA::SMAA(int w, int h)
     searchTex->create(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, GL_RED, GL_R8, GL_UNSIGNED_BYTE, searchTexBytes);
 
 
-    quadMesh.fromMesh(FullScreenQuad());
 }
 
 void SMAA::loadShader(SMAA::Quality _quality)
@@ -174,7 +174,7 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer& output)
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     smaaEdgeDetectionShader->bind();
     smaaEdgeDetectionShader->uploadTexture(input);
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     smaaEdgeDetectionShader->unbind();
     assert_no_glerror();
 
@@ -188,7 +188,7 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer& output)
     glClear(GL_COLOR_BUFFER_BIT);
     smaaBlendingWeightCalculationShader->bind();
     smaaBlendingWeightCalculationShader->uploadTextures(edgesTex, areaTex, searchTex);
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     smaaBlendingWeightCalculationShader->unbind();
     assert_no_glerror();
 
@@ -199,7 +199,7 @@ void SMAA::render(framebuffer_texture_t input, Framebuffer& output)
     glClear(GL_COLOR_BUFFER_BIT);
     smaaNeighborhoodBlendingShader->bind();
     smaaNeighborhoodBlendingShader->uploadTextures(input, blendTex);
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     smaaNeighborhoodBlendingShader->unbind();
     assert_no_glerror();
 

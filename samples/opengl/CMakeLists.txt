@@ -38,7 +38,6 @@ if (GLFW_FOUND)
   endif ()
   if (OPENMESH_FOUND)
     add_subdirectory(depthMapTriangulation)
-    saiga_opengl_sample(sample_opengl_openmesh.cpp)
   endif ()
 
   if(FREETYPE_FOUND)

@@ -26,7 +26,8 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth()),
-      renderHeight(window.getHeight())
+      renderHeight(window.getHeight()),
+      quadMesh(FullScreenQuad())
 {
     if (params.useSMAA)
     {
@@ -56,9 +57,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
 
 
     postProcessor.init(renderWidth, renderHeight, &gbuffer, params.ppp, lighting.lightAccumulationTexture);
-
-
-    quadMesh.fromMesh(FullScreenQuad());
 
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
@@ -346,7 +344,7 @@ void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
     blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);

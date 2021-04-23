@@ -168,11 +168,44 @@ static UnifiedMaterial ConvertMaterial(const aiMaterial* material)
     return mat;
 }
 
+static Image LoadEmbeddedTexture(aiTexture* tex)
+{
+    std::cout << "Load embedded " << tex->mFilename.C_Str() << " " << tex->achFormatHint << " " << tex->mWidth << "x"
+              << tex->mHeight << std::endl;
+
+    SAIGA_ASSERT(tex->mHeight == 0);
+
+    size_t size_bytes  = tex->mWidth;
+    std::string format = tex->achFormatHint;
+
+    ArrayView<const char> image_data((const char*)tex->pcData, size_bytes);
+
+    Image result;
+    if (!result.loadFromMemory(image_data, format))
+    {
+        std::cout << "unable to load image" << std::endl;
+    }
+    else
+    {
+        std::cout << result << std::endl;
+    }
+    return result;
+}
 
 UnifiedModel AssimpLoader::Model()
 {
     UnifiedModel model;
 
+    TraversePrintTree(scene->mRootNode);
+//    exit(0);
+
+
+    // load embedded texture
+    for (unsigned int m = 0; m < scene->mNumTextures; ++m)
+    {
+        aiTexture* tex = scene->mTextures[m];
+        model.textures.push_back(LoadEmbeddedTexture(tex));
+    }
 
     for (unsigned int m = 0; m < scene->mNumMaterials; ++m)
     {
@@ -182,28 +215,25 @@ UnifiedModel AssimpLoader::Model()
     }
 
 
-    int current_vertex = 0;
-    int current_face   = 0;
+
 
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
     {
+        int current_vertex = 0;
+        int current_face   = 0;
+
         const aiMesh* mesh = scene->mMeshes[m];
 
 
-        UnifiedMaterialGroup umg;
-        umg.startFace  = current_face;
-        umg.numFaces   = mesh->mNumFaces;
-        umg.materialId = mesh->mMaterialIndex;
 
-        model.material_groups.push_back(umg);
-
-
+        UnifiedMesh unified_mesh;
+        unified_mesh.material_id = mesh->mMaterialIndex;
 
         if (mesh->HasPositions())
         {
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.position.push_back(convert_vector(mesh->mVertices[i]));
+                unified_mesh.position.push_back(convert_vector(mesh->mVertices[i]));
             }
         }
         else
@@ -215,37 +245,33 @@ UnifiedModel AssimpLoader::Model()
         {
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.normal.push_back(convert_vector(mesh->mNormals[i]));
+                unified_mesh.normal.push_back(convert_vector(mesh->mNormals[i]));
             }
-            SAIGA_ASSERT(model.position.size() == model.normal.size());
         }
 
         if (mesh->HasVertexColors(0))
         {
             SAIGA_ASSERT(!mesh->HasVertexColors(1));
-            model.color.resize(current_vertex);
 
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.color.push_back(convert_color(mesh->mColors[0][i]));
+                unified_mesh.color.push_back(convert_color(mesh->mColors[0][i]));
             }
-            SAIGA_ASSERT(model.position.size() == model.color.size());
         }
 
         if (mesh->HasTextureCoords(0))
         {
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.texture_coordinates.push_back(convert_vector(mesh->mTextureCoords[0][i]).head<2>());
+                unified_mesh.texture_coordinates.push_back(convert_vector(mesh->mTextureCoords[0][i]).head<2>());
             }
-            // SAIGA_ASSERT(model.position.size() == model.texture_coordinates.size());
         }
 
 
 
         if (mesh->HasBones())
         {
-            model.bone_info.resize(model.position.size());
+            unified_mesh.bone_info.resize(unified_mesh.position.size());
             for (unsigned int i = 0; i < mesh->mNumBones; ++i)
             {
                 aiBone* b = mesh->mBones[i];
@@ -254,12 +280,9 @@ UnifiedModel AssimpLoader::Model()
                     aiVertexWeight vw = b->mWeights[j];
                     int vid           = vw.mVertexId + current_vertex;
 
-                    auto& bi = model.bone_info[vid];
+                    auto& bi = unified_mesh.bone_info[vid];
 
                     bi.addBone(i, vw.mWeight);
-
-                    //                    vertex_t& bv      = out.vertices[vw->mVertexId];
-                    //                    loadBoneWeight(bv, i, vw->mWeight);
                 }
             }
         }
@@ -274,7 +297,7 @@ UnifiedModel AssimpLoader::Model()
                     ivec3 f1(f->mIndices[0], f->mIndices[1], f->mIndices[2]);
 
                     f1 += ivec3(current_vertex, current_vertex, current_vertex);
-                    model.triangles.push_back(f1);
+                    unified_mesh.triangles.push_back(f1);
                     current_face++;
                 }
             }
@@ -282,6 +305,8 @@ UnifiedModel AssimpLoader::Model()
 
 
         current_vertex += mesh->mNumVertices;
+
+        model.mesh.push_back(unified_mesh);
     }
 
 
@@ -326,8 +351,10 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
     scene.mRootNode->mMeshes[0] = 0;
     scene.mRootNode->mNumMeshes = 1;
 
+    SAIGA_EXIT_ERROR("todo");
     auto pMesh = scene.mMeshes[0];
 
+#if 0
 
     if (model.HasPosition())
     {
@@ -393,6 +420,7 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
         std::cout << exporter.GetErrorString() << std::endl;
         throw std::runtime_error("assimp export failed");
     }
+#endif
 }
 
 
@@ -435,7 +463,10 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation& out)
     aiAnimation* curanim = scene->mAnimations[animationId];
 
     //    createFrames(mesh,curanim,out.animationFrames);
-    createKeyFrames(curanim, out.keyFrames);
+    if (!createKeyFrames(curanim, out.keyFrames))
+    {
+        return;
+    }
 
     out.frameCount = out.keyFrames.size();
     out.name       = curanim->mName.data;
@@ -458,7 +489,7 @@ void AssimpLoader::getAnimation(int animationId, int meshId, Animation& out)
 }
 
 
-void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames)
+bool AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames)
 {
     aiVectorKey *p0, *s0;
     aiQuatKey* r0;
@@ -476,9 +507,13 @@ void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyfr
     // assimp supports animation that have different numbers of position rotation and scaling keys.
     // this is not supported here. Every keyframe has to have exactly one of those keys.
     SAIGA_ASSERT(anim->mNumChannels > 0);
-    SAIGA_ASSERT((int)anim->mChannels[0]->mNumPositionKeys == frames);
-    SAIGA_ASSERT((int)anim->mChannels[0]->mNumRotationKeys == frames);
-    SAIGA_ASSERT((int)anim->mChannels[0]->mNumScalingKeys == frames);
+
+    if (anim->mChannels[0]->mNumPositionKeys != frames || (int)anim->mChannels[0]->mNumRotationKeys != frames ||
+        (int)anim->mChannels[0]->mNumScalingKeys != frames)
+    {
+        std::cout << "skipping animation, different number of keys currently not supported :(" << std::endl;
+        return false;
+    }
 
     // we shift the animation so that it starts at time 0
     double firstKeyFrameTime = anim->mChannels[0]->mPositionKeys[0].mTime;
@@ -507,7 +542,6 @@ void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyfr
 
 
             p = p0->mValue;
-            ;
             r = r0->mValue;
             s = s0->mValue;
 
@@ -533,6 +567,7 @@ void AssimpLoader::createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyfr
 
         // std::cout << k.nodes.size() << std::endl;
     }
+    return true;
 }
 
 
@@ -697,6 +732,20 @@ mat4 AssimpLoader::convert(aiMatrix4x4 mat)
         }
     }
     return ret;
+}
+void AssimpLoader::TraversePrintTree(aiNode* current_node, int depth)
+{
+    for (int i = 0; i < depth; ++i)
+    {
+        std::cout << " ";
+    }
+    mat4 t = convert(current_node->mTransformation);
+
+    std::cout << "Node " << current_node->mName.C_Str() << " Trans: " << t.col(3).transpose() << std::endl;
+    for (int i = 0; i < current_node->mNumChildren; ++i)
+    {
+        TraversePrintTree(current_node->mChildren[i], depth + 1);
+    }
 }
 
 }  // namespace Saiga

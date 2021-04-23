@@ -76,9 +76,9 @@ class Sample : public SampleWindowForward
 
         //    frustum.createGrid({100, 100}, {0.1, 0.1});
         frustum = LineVertexColoredAsset(FrustumLineMesh(camera.proj, 1, false));
-        frustum.setColor(vec4{0, 1, 0, 1});
+        //        frustum.setColor(vec4{0, 1, 0, 1});
 
-        frustum.create();
+        //        frustum.create();
 
 
 

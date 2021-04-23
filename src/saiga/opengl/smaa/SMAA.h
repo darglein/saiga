@@ -5,7 +5,7 @@
  */
 
 #pragma once
-
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
@@ -93,7 +93,7 @@ class SMAA
     std::shared_ptr<SMAANeighborhoodBlendingShader> smaaNeighborhoodBlendingShader;
 
 
-    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
+    UnifiedMeshBuffer quadMesh;
     ivec2 screenSize;
 
     Quality quality = Quality::SMAA_PRESET_HIGH;

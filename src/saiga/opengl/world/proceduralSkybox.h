@@ -13,6 +13,7 @@
 #include "saiga/opengl/texture/CubeTexture.h"
 #include "saiga/opengl/texture/Texture.h"
 #include "saiga/opengl/vertex.h"
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 
 namespace Saiga
 {
@@ -23,7 +24,7 @@ class SAIGA_OPENGL_API ProceduralSkybox : public ProceduralSkyboxBase
     void render(Camera* cam, const mat4& model = mat4::Identity());
 
    protected:
-    IndexedVertexBuffer<VertexNT, GLuint> mesh;
+    UnifiedMeshBuffer mesh;
     std::shared_ptr<MVPShader> shader;
 };
 

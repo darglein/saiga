@@ -221,6 +221,39 @@ SAIGA_TEMPLATE std::string to_string(Iterator begin, Iterator end)
     return result;
 }
 
+template <typename MatrixType>
+std::string MatrixToString(const MatrixType& M)
+{
+    std::string result;
+    char sep = ',';
+    for (int i = 0; i < M.rows(); ++i)
+    {
+        for (int j = 0; j < M.cols(); ++j)
+        {
+            result += std::to_string(M(i, j)) + sep;
+        }
+    }
+    // remove last sep
+    if (M.rows() * M.cols() > 0) result.pop_back();
+    return result;
+}
+
+
+template <typename MatrixType>
+void StringToMatrix(std::string input, MatrixType& M)
+{
+    char sep   = ',';
+    auto array = split(input, sep);
+    SAIGA_ASSERT(array.size() == M.rows() * M.cols());
+    for (int i = 0; i < M.rows(); ++i)
+    {
+        for (int j = 0; j < M.cols(); ++j)
+        {
+            M(i, j) = to_double(array[i * M.cols() + j]);
+        }
+    }
+}
+
 /**
  * Convert a byte size to a string with SI-prefix. e.g.: 512 -> "512 B" and 1536 -> "1.5 kB"
  * @param size Size to convert

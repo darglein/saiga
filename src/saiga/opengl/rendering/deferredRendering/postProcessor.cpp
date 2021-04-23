@@ -8,6 +8,8 @@
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/shader/shaderLoader.h"
+#include "postProcessor.h"
+
 
 namespace Saiga
 {
@@ -74,19 +76,18 @@ void LightAccumulationShader::uploadLightAccumulationtexture(std::shared_ptr<Tex
     Shader::upload(location_lightAccumulationtexture, 4);
 }
 
-
+PostProcessor::PostProcessor() :quadMesh(FullScreenQuad()) {}
 
 void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params,
                          std::shared_ptr<Texture> LightAccumulationTexture)
+
 {
-    this->params    = params;
-    this->width     = width;
-    this->height    = height;
-    this->gbuffer   = gbuffer;
+    this->params  = params;
+    this->width   = width;
+    this->height  = height;
+    this->gbuffer = gbuffer;
 
     createFramebuffers();
-
-    quadMesh.fromMesh(FullScreenQuad());
 
 
 
@@ -224,7 +225,7 @@ void PostProcessor::applyShader(std::shared_ptr<PostProcessingShader> postProces
     postProcessingShader->uploadTexture((first) ? LightAccumulationTexture : textures[lastBuffer]);
     postProcessingShader->uploadGbufferTextures(gbuffer);
     postProcessingShader->uploadAdditionalUniforms();
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     postProcessingShader->unbind();
 
     //    framebuffers[currentBuffer].unbind();
@@ -238,14 +239,15 @@ void PostProcessor::blitLast(Framebuffer* target, ViewPort vp)
     //    framebuffers[lastBuffer].blitColor(0);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffers[currentBuffer].getId());
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target->getId());
-    glBlitFramebuffer(0, 0, width, height, vp.position(0), vp.position(1), vp.size(0), vp.size(1), GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, width, height, vp.position(0), vp.position(1), vp.size(0), vp.size(1), GL_COLOR_BUFFER_BIT,
+                      GL_LINEAR);
     assert_no_glerror();
 }
 
 void PostProcessor::renderLast(Framebuffer* target, ViewPort vp)
 {
     setViewPort(vp);
-//    glViewport(0, 0, windowWidth, windowHeight);
+    //    glViewport(0, 0, windowWidth, windowHeight);
     //    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     target->bind();
     glDisable(GL_DEPTH_TEST);
@@ -255,7 +257,7 @@ void PostProcessor::renderLast(Framebuffer* target, ViewPort vp)
     passThroughShader->uploadTexture(textures[currentBuffer]);
     passThroughShader->uploadGbufferTextures(gbuffer);
     passThroughShader->uploadAdditionalUniforms();
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     passThroughShader->unbind();
     target->unbind();
 }

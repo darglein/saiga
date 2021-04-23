@@ -8,8 +8,8 @@
 #include "saiga/core/image/image.h"
 #include "saiga/core/util/table.h"
 
-#include "torch/torch.h"
 #include "TorchHelper.h"
+#include "torch/torch.h"
 
 #include <torch/script.h>
 
@@ -31,7 +31,7 @@ at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
     at::Tensor tensor = torch::from_blob(img.data, {img.h, img.w, c}, type);
 
     // In pytorch image tensors are usually represented as channel first.
-    tensor = tensor.permute({2, 0, 1});
+    tensor = tensor.permute({2, 0, 1}).clone();
 
     if (normalize)
     {
@@ -58,7 +58,7 @@ at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
 template <typename T>
 TemplatedImage<T> TensorToImage(at::Tensor tensor)
 {
-    tensor = tensor.clone();
+    tensor           = tensor.clone();
     using ScalarType = typename ImageTypeTemplate<T>::ChannelType;
     if (tensor.dim() == 4)
     {

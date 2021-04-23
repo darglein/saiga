@@ -11,7 +11,7 @@
 #include "saiga/opengl/texture/CubeTexture.h"
 #include "saiga/opengl/texture/Texture.h"
 #include "saiga/opengl/vertex.h"
-
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 namespace Saiga
 {
 /**
@@ -26,7 +26,7 @@ class SAIGA_OPENGL_API TextureDisplay
 
    private:
     std::shared_ptr<MVPTextureShader> shader;
-    IndexedVertexBuffer<VertexNT, GLuint> buffer;
+    UnifiedMeshBuffer buffer;
 };
 
 }  // namespace Saiga

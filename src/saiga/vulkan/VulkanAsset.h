@@ -74,27 +74,5 @@ class SAIGA_VULKAN_API VulkanPointCloudAsset
 
 
 
-class SAIGA_VULKAN_API VulkanTexturedAsset : public TriangleMesh<VertexNTD, uint32_t>
-{
-   public:
-    VertexBuffer<VertexType> vertexBuffer;
-    IndexBuffer<uint32_t> indexBuffer;
-    std::vector<std::shared_ptr<Texture2D>> textures;
-    StaticDescriptorSet descriptor;
-
-    void init(VulkanBase& base);
-    void render(vk::CommandBuffer cmd);
-    // uploads the given part
-
-    void destroy(VulkanBase& base)
-    {
-        for (auto& tex : textures)
-        {
-            tex->destroy();
-        }
-        textures.clear();
-    }
-};
-
 }  // namespace Vulkan
 }  // namespace Saiga

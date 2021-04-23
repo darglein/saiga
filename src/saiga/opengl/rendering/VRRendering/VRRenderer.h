@@ -45,7 +45,7 @@ class SAIGA_OPENGL_API VRRenderer : public OpenGLRenderer
     mat4 viewLeft, viewRight;
 
     std::shared_ptr<PostProcessingShader> framebufferToDebugWindowShader;
-    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
+    UnifiedMeshBuffer quadMesh;
 };
 
 }  // namespace Saiga

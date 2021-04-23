@@ -12,8 +12,8 @@
 namespace Saiga
 {
 ProceduralSkybox::ProceduralSkybox(const std::string& shader_str)
+ : mesh(FullScreenQuad().transform(translate(vec3(0, 0, 1 - epsilon<float>()))))
 {
-    mesh.fromMesh(FullScreenQuad().transform(translate(vec3(0, 0, 1 - epsilon<float>()))));
     shader = shaderLoader.load<MVPShader>(shader_str);
 }
 
@@ -29,7 +29,7 @@ void ProceduralSkybox::render(Camera* cam, const mat4& model)
     shader->upload(2, sunColor);
     shader->upload(3, highSkyColor);
     shader->upload(4, lowSkyColor);
-    mesh.bindAndDraw();
+    mesh.BindAndDraw();
 
     shader->unbind();
 }

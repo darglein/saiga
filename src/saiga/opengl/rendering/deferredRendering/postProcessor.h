@@ -5,7 +5,7 @@
  */
 
 #pragma once
-
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/quality.h"
 #include "saiga/opengl/framebuffer.h"
@@ -64,6 +64,7 @@ struct SAIGA_OPENGL_API PostProcessorParameters
 class SAIGA_OPENGL_API PostProcessor
 {
    public:
+    PostProcessor();
     void init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params,
               std::shared_ptr<Texture> LightAccumulationTexture);
 
@@ -90,7 +91,7 @@ class SAIGA_OPENGL_API PostProcessor
     GBuffer* gbuffer;
     int currentBuffer = 0;
     int lastBuffer    = 1;
-    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
+    UnifiedMeshBuffer quadMesh;
     std::vector<std::shared_ptr<PostProcessingShader> > postProcessingEffects;
     std::shared_ptr<PostProcessingShader> passThroughShader;
 

@@ -10,10 +10,10 @@
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/model/UnifiedModel.h"
 #include "saiga/core/util/DataStructures/ArrayView.h"
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/opengl/indexBuffer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/vertexBuffer.h"
-
 namespace Saiga
 {
 template <class vertex_t, class index_t>
@@ -71,7 +71,7 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
 
 
 
-    void fromMesh(const UnifiedModel& model, GLenum usage = GL_STATIC_DRAW);
+    void fromMesh(const UnifiedMesh& model, GLenum usage = GL_STATIC_DRAW);
 
     /*
      * Updates OpenGL buffer with the data currently saved in this mesh
@@ -187,7 +187,7 @@ void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(LineMesh<vertex_t, index_t
 
 
 template <typename vertex_t, typename index_t>
-void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(const UnifiedModel& model, GLenum usage)
+void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(const UnifiedMesh& model, GLenum usage)
 {
     auto mesh = model.Mesh<vertex_t, index_t>();
     fromMesh(mesh, usage);

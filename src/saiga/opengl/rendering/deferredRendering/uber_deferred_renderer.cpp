@@ -21,7 +21,7 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth() * _params.renderScale),
-      renderHeight(window.getHeight() * _params.renderScale)
+      renderHeight(window.getHeight() * _params.renderScale), quadMesh(FullScreenQuad())
 {
     {
         // create a 2x2 grayscale black dummy texture
@@ -42,8 +42,6 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
                             params.maximumNumberOfSpotLights);
     lighting.loadShaders();
 
-
-    quadMesh.fromMesh(FullScreenQuad());
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
 
@@ -242,7 +240,7 @@ void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
     blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);

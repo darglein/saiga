@@ -16,7 +16,7 @@ class Sample : public SampleWindowDeferred
    public:
     Sample()
     {
-        teapot.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/teapot.obj"));
+        teapot.asset = std::make_shared<ColoredAsset>(UnifiedModel("models/teapot.obj").ComputeColor());
         teapot.translateGlobal(vec3(0, 1, 0));
         teapot.calculateModel();
 

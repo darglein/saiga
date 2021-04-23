@@ -48,19 +48,6 @@ std::ostream& operator<<(std::ostream& os, const VertexNT& vert)
     return os;
 }
 
-bool VertexNTD::operator==(const VertexNTD& other) const
-{
-    return VertexNT::operator==(other) && data == other.data;
-}
-
-std::ostream& operator<<(std::ostream& os, const VertexNTD& vert)
-{
-    os << "VertexNTD" << vert.position.transpose() << ",";
-    os << vert.normal.transpose() << ",";
-    os << vert.texture.transpose() << ",";
-    os << vert.data.transpose();
-    return os;
-}
 
 bool VertexNC::operator==(const VertexNC& other) const
 {
@@ -93,20 +80,6 @@ void BoneInfo::addBone(int32_t index, float weight)
     SAIGA_ASSERT(0);
 }
 
-void BoneVertex::apply(const AlignedVector<mat4>& boneMatrices)
-{
-    mat4 boneMatrix = mat4::Zero();
-    for (int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
-    {
-        int index = (int)bone_info.bone_indices[i];
-        SAIGA_ASSERT(index >= 0 && index < (int)boneMatrices.size());
-        boneMatrix += boneMatrices[index] * bone_info.bone_weights[i];
-    }
-
-    position = boneMatrix * position;
-    normal   = boneMatrix * normal;
-    normal   = normalize(normal);
-}
 
 void BoneInfo::normalizeWeights()
 {

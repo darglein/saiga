@@ -23,11 +23,11 @@ int main(int argc, char* args[])
 
 
 
-    auto mesh = UnifiedModel("teapot.obj").Mesh<VertexNC, uint32_t>();
+    auto mesh = UnifiedModel("teapot.obj").mesh[0];
     //    loader.toTriangleMesh(mesh);
 
 
-    auto triangles = mesh.toTriangleList();
+    auto triangles = mesh.TriangleSoup();
 
 
     AccelerationStructure::ObjectMedianBVH bf(triangles);

@@ -23,7 +23,7 @@ namespace Vulkan
 class SAIGA_VULKAN_API TexturedAssetRenderer : public Pipeline
 {
    public:
-    using VertexType = VertexNTD;
+    using VertexType = VertexNT;
 
     ~TexturedAssetRenderer() { destroy(); }
     void destroy();
