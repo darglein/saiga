@@ -16,6 +16,7 @@
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/CubeTexture.h"
+#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 
 namespace Saiga
 {
@@ -100,43 +101,6 @@ void DeferredLighting::resize(int _width, int _height)
     lightAccumulationBuffer.resize(_width, _height);
 }
 
-void DeferredLighting::cullLights(Camera* cam)
-{
-    cam->recalculatePlanes();
-    visibleLights           = directionalLights.size();
-    visibleVolumetricLights = 0;
-
-    for (auto& light : directionalLights)
-    {
-        light->fitShadowToCamera(cam);
-    }
-
-    // cull lights that are not visible
-    for (auto& light : spotLights)
-    {
-        if (light->active)
-        {
-            light->calculateCamera();
-            light->shadowCamera.recalculatePlanes();
-            bool visible = !light->cullLight(cam);
-            visibleLights += visible;
-            visibleVolumetricLights += (visible && light->volumetric);
-        }
-    }
-
-    for (auto& light : pointLights)
-    {
-        if (light->active)
-        {
-            bool visible = !light->cullLight(cam);
-            visibleLights += visible;
-            visibleVolumetricLights += (visible && light->volumetric);
-        }
-    }
-
-    renderVolumetric = visibleVolumetricLights > 0;
-}
-
 void DeferredLighting::initRender()
 {
     RendererLighting::initRender();
@@ -203,6 +167,18 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
     {
         auto tim = timer->Measure("Point Lights");
+
+        if(point_light_shadows)
+        {
+            pointLightShadowShader->bind();
+            pointLightShadowShader->upload(7, point_light_shadows.get(), 5);
+            pointLightShadowShader->unbind();
+
+            pointLightVolumetricShader->bind();
+            pointLightVolumetricShader->upload(7, point_light_shadows.get(), 5);
+            pointLightVolumetricShader->unbind();
+        }
+
         for (auto& l : pointLights)
         {
             renderLightVolume<std::shared_ptr<PointLight>, std::shared_ptr<PointLightShader>>(
@@ -212,6 +188,19 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
     {
         auto tim = timer->Measure("Spot Lights");
+
+
+        if(spot_light_shadows)
+        {
+            spotLightShadowShader->bind();
+            spotLightShadowShader->upload(7, spot_light_shadows.get(), 5);
+            spotLightShadowShader->unbind();
+
+            spotLightVolumetricShader->bind();
+            spotLightVolumetricShader->upload(7, spot_light_shadows.get(), 5);
+            spotLightVolumetricShader->unbind();
+        }
+
         for (auto& l : spotLights)
         {
             renderLightVolume<std::shared_ptr<SpotLight>, std::shared_ptr<SpotLightShader>>(
@@ -245,6 +234,13 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
         // volumetric directional lights are not supported
         if (renderVolumetric) lightAccumulationBuffer.drawTo({0});
+
+        if(cascaded_shadows)
+        {
+            directionalLightShadowShader->bind();
+            directionalLightShadowShader->upload(9, cascaded_shadows.get(), 6);
+            directionalLightShadowShader->unbind();
+        }
 
         renderDirectionalLights(cam, viewPort, false);
         renderDirectionalLights(cam, viewPort, true);
@@ -404,6 +400,8 @@ void DeferredLighting::renderDirectionalLights(Camera* cam, const ViewPort& vp, 
     shader->uploadScreenSize(vp.getVec4());
     shader->uploadSsaoTexture(ssaoTexture);
 
+
+
     directionalLightMesh.bind();
     for (auto& obj : directionalLights)
     {
@@ -412,7 +410,6 @@ void DeferredLighting::renderDirectionalLights(Camera* cam, const ViewPort& vp, 
         if (render)
         {
             shader->SetUniforms(obj.get(), cam);
-            //            obj->bindUniforms(*shader, cam);
             directionalLightMesh.draw();
         }
     }

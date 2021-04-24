@@ -22,9 +22,7 @@ namespace Saiga
 class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
 {
    public:
-    int visibleVolumetricLights;
     int currentStencilId  = 0;
-    bool renderVolumetric = false;
 
     std::shared_ptr<Texture> ssaoTexture;
 
@@ -40,8 +38,6 @@ class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
     void resize(int width, int height) override;
 
     void loadShaders() override;
-
-    void cullLights(Camera* cam) override;
 
     //    std::shared_ptr<DirectionalLight> createDirectionalLight();
     //    std::shared_ptr<PointLight> createPointLight();

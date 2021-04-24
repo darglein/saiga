@@ -28,7 +28,7 @@ if(SAIGA_USE_CHOLMOD)
 endif()
 
 
-if(G2O_FOUND)
+if(G2O_FOUND AND CERES_FOUND)
   saiga_vision_sample(sample_vision_posegraph.cpp)
   saiga_vision_sample(sample_vision_ba_benchmark.cpp)
 endif()

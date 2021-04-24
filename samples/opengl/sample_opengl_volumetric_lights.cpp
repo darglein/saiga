@@ -30,14 +30,13 @@ class Sample : public SampleWindowDeferred
         cube2.translateGlobal(vec3(-11, 1, 2));
         cube2.calculateModel();
 
-        auto sphereAsset = std::make_shared<ColoredAsset>(UnifiedModel("teapot.obj"));
+        auto sphereAsset = std::make_shared<ColoredAsset>(UnifiedModel("teapot.obj").ComputeColor());
         sphere.asset     = sphereAsset;
         sphere.translateGlobal(vec3(0, 1, 8));
         sphere.rotateLocal(vec3(0, 1, 0), 180);
         sphere.calculateModel();
 
 
-        ShadowQuality sq = ShadowQuality::HIGH;
 
         pointLight = std::make_shared<PointLight>();
         renderer->lighting.AddLight(pointLight);
@@ -48,9 +47,7 @@ class Sample : public SampleWindowDeferred
         pointLight->setPosition(vec3(9, 3, 0));
         pointLight->setColorDiffuse(make_vec3(1));
 
-        //        pointLight->createShadowMap(256,256,sq);
-        pointLight->createShadowMap(512, 512, sq);
-
+        pointLight->castShadows =true;
         pointLight->volumetric = true;
 
         spotLight = std::make_shared<SpotLight>();
@@ -60,7 +57,7 @@ class Sample : public SampleWindowDeferred
         spotLight->setRadius(8);
         spotLight->setPosition(vec3(-10, 5, 0));
         spotLight->setColorDiffuse(make_vec3(1));
-        spotLight->createShadowMap(512, 512, sq);
+        spotLight->castShadows = true;
         spotLight->volumetric = true;
 
 

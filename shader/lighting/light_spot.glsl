@@ -33,10 +33,12 @@ void main() {
 
 
 ##GL_FRAGMENT_SHADER
-#version 330
-
+#version 420
+#extension GL_ARB_explicit_uniform_location : enable
 #ifdef SHADOWS
-uniform sampler2DShadow depthTex;
+// uniform sampler2DShadow depthTex;
+layout(location = 7) uniform sampler2DArrayShadow depthTexures;
+layout(location = 8) uniform int shadow_id = 0;
 #endif
 
 #define ACCUMULATE
@@ -71,8 +73,9 @@ void main() {
     float visibility = 1.0f;
 #ifdef SHADOWS
 //    visibility = calculateShadow(depthTex,vposition);
-    visibility = calculateShadowPCF2(depthBiasMV,depthTex,vposition);
+    // visibility = calculateShadowPCF2(depthBiasMV,depthTex,vposition);
 //    visibility = calculateShadowPCFdither4(depthTex,vposition);
+    visibility = calculateShadowPCFArray(depthBiasMV, depthTexures, shadow_id , vposition);
 #endif
 
 
@@ -91,7 +94,7 @@ void main() {
                 Idiff * diffColor +
                 Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
 #ifdef VOLUMETRIC
-    vec3 vf = volumetricFactorSpot(depthTex,depthBiasMV,vposition,vertexMV,lightPos,lightDir,angle,attenuation) * lightColorDiffuse.rgb * intensity;
+    vec3 vf = volumetricFactorSpot(depthTexures,shadow_id, depthBiasMV,vposition,vertexMV,lightPos,lightDir,angle,attenuation) * lightColorDiffuse.rgb * intensity;
     out_volumetric = vec4(vf,1);
 #endif
     out_color = vec4(color,1);

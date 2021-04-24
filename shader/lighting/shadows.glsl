@@ -123,6 +123,19 @@ float calculateShadowCube(samplerCubeShadow tex, vec3 lightW, vec3 fragW, float 
     return visibility;
 }
 
+float calculateShadowCube(samplerCubeArrayShadow tex, vec3 lightW, vec3 fragW, float farplane, float nearplane, int layer){
+    vec3 direction =  fragW-lightW;
+    float visibility = 1.0f;
+
+
+    float d = VectorToDepth(direction,farplane,nearplane);
+    direction = normalize(direction);
+
+    // visibility = texture(tex, vec4(direction,layer), d);
+    visibility = texture(tex, vec4(direction,layer), d);
+    return visibility;
+}
+
 //doesn't really work (has artifacts)
 float calculateShadowCubePCF(samplerCubeShadow tex, vec3 lightW, vec3 fragW, float farplane, float nearplane){
     vec3 direction =  fragW-lightW;

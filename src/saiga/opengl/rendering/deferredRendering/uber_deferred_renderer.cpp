@@ -98,7 +98,7 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
         renderGBuffer({camera, viewport});
     }
 
-    if (cullLights) lighting.cullLights(camera);
+    lighting.ComputeCullingAndStatistics(camera);
     // renderDepthMaps();
     assert_no_glerror();
     lighting.initRender();

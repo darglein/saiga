@@ -22,4 +22,12 @@ class SAIGA_OPENGL_API ArrayTexture2D : public Texture3D
     virtual ~ArrayTexture2D() {}
 };
 
+class SAIGA_OPENGL_API ArrayCubeTexture : public Texture3D
+{
+   public:
+    ArrayCubeTexture() : Texture3D(GL_TEXTURE_CUBE_MAP_ARRAY) {}
+    virtual ~ArrayCubeTexture() {}
+};
+
+
 }  // namespace Saiga

@@ -246,7 +246,6 @@ class Sample : public RendererSampleWindow
                 for (int32_t i = 0; i < count; ++i)
                 {
                     std::shared_ptr<DirectionalLight> light = std::make_shared<DirectionalLight>();
-                    light->createShadowMap(1, 1, 1, ShadowQuality::LOW);  // FIXME Has to be called?
                     light->castShadows = false;
                     light->setAmbientIntensity(0.01);
                     vec3 dir = Random::sphericalRand(1).cast<float>();

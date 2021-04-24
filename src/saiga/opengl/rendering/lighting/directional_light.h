@@ -7,18 +7,14 @@
 #pragma once
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/Align.h"
-#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/lighting/light.h"
-#include "saiga/opengl/uniformBuffer.h"
 namespace Saiga
 {
-#define MAX_CASCADES 5
-
 
 class SAIGA_OPENGL_API DirectionalLight : public LightBase
 {
    public:
-    std::unique_ptr<CascadedShadowmap> shadowmap;
+    static constexpr int shadow_map_size = 2048;
 
     // bounding box of every cascade frustum
     std::vector<AABB> orthoBoxes;
@@ -54,11 +50,13 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     // number of cascades for cascaded shadow mapping
     // 1 means normal shadow mapping
     int numCascades = 1;
+    int cascade_offset = -1;
 
    public:
     DirectionalLight() : LightBase(LightColorPresets::DirectSunlight, 1)
     {
         setDirection(vec3(-1, -3, -2));
+        BuildCascades(1);
         polygon_offset = vec2(2.0, 50.0);
     }
     ~DirectionalLight() {}
@@ -85,7 +83,7 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
      * If this function is called when a shadow map was already created before,
      * the old shadow map is deleted and overwritten by the new one.
      */
-    void createShadowMap(int w, int h, int numCascades = 1, ShadowQuality quality = ShadowQuality::LOW);
+    void BuildCascades(int numCascades = 1);
 
     /**
      * Sets the light direction in world coordinates.
@@ -125,7 +123,7 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     void setCascadeInterpolateRange(float value) { cascadeInterpolateRange = value; }
 
     void setAmbientIntensity(float ai) { ambientIntensity = ai; }
-    float getAmbientIntensity() { return ambientIntensity; }
+    float getAmbientIntensity() const { return ambientIntensity; }
 
     // the directional light is always visible
     bool cullLight(Camera*)
@@ -133,7 +131,6 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
         culled = false;
         return culled;
     }
-    bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };
 

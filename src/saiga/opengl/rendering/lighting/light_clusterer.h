@@ -75,9 +75,9 @@ class SAIGA_OPENGL_API Clusterer
         clustersDirty           = true;
     }
 
-    inline void set(int tileSize, int depthSplits)
+    inline void set(int tileSize, int _depthSplits)
     {
-        depthSplits         = depthSplits;
+        depthSplits         = _depthSplits;
         screenSpaceTileSize = tileSize;
         clustersDirty       = true;
     }

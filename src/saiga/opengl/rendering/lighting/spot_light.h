@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/lighting/point_light.h"
 
 namespace Saiga
@@ -43,7 +42,7 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
     void setPosition(const vec3& p) { position = p; }
 
     float angle = 60.0f;
-    std::unique_ptr<SimpleShadowmap> shadowmap;
+
     /**
      * The default direction of the mesh is negative y
      */
@@ -53,7 +52,6 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
 
 
 
-    void createShadowMap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
 
 
     mat4 ModelMatrix();
@@ -66,7 +64,6 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
     void calculateCamera();
 
     bool cullLight(Camera* cam);
-    bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };
 
