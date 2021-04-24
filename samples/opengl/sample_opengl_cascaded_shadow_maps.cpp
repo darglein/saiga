@@ -53,7 +53,7 @@ class Sample : public SampleWindowDeferred
         sun->setColorDiffuse(LightColorPresets::DirectSunlight);
         sun->setIntensity(1.0);
         sun->setAmbientIntensity(0.02f);
-        sun->createShadowMap(512, 512);
+        sun->BuildCascades(3);
         sun->castShadows = true;
 
         camera.recalculateMatrices();
@@ -148,15 +148,9 @@ class Sample : public SampleWindowDeferred
 
             if (ImGui::InputInt("Num Cascades", &numCascades))
             {
-                sun->createShadowMap(itemsi[currentItem], itemsi[currentItem], numCascades);
+                sun->BuildCascades(numCascades);
             }
 
-            if (ImGui::Combo("Shadow Map Resolution", &currentItem, items, 5))
-            {
-                //            state = static_cast<State>(currentItem);
-                //            switchToState(static_cast<State>(currentItem));
-                sun->createShadowMap(itemsi[currentItem], itemsi[currentItem], numCascades);
-            }
             ImGui::End();
         }
     }

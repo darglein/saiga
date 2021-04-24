@@ -135,7 +135,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     }
     renderSSAO({camera, viewport});
 
-    lighting.cullLights(camera);
+    lighting.ComputeCullingAndStatistics(camera);
 
     {
         auto tim = timer->Measure("Shadow");

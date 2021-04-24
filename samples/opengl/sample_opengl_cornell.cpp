@@ -37,7 +37,7 @@ class Sample : public SampleWindowDeferred
         pointLight->setColorDiffuse(make_vec3(1));
 
         //        pointLight->createShadowMap(256,256,sq);
-        pointLight->createShadowMap(1024, 1024, ShadowQuality::HIGH);
+        pointLight->castShadows = true;
     }
 
 

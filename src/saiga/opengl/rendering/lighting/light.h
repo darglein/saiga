@@ -8,9 +8,6 @@
 
 #include "saiga/core/geometry/object3d.h"
 #include "saiga/core/util/color.h"
-#include "saiga/opengl/rendering/lighting/shadowmap.h"
-#include "saiga/opengl/shader/basic_shaders.h"
-#include "saiga/opengl/uniformBuffer.h"
 
 #include <functional>
 
@@ -63,6 +60,8 @@ class SAIGA_OPENGL_API LightBase
     // glPolygonOffset(slope, units)
     vec2 polygon_offset = vec2(2.0f, 10.0f);
 
+
+    int shadow_id = -1;
 
     LightBase() {}
     LightBase(const vec3& color, float intensity)

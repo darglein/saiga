@@ -70,9 +70,7 @@ class SAIGA_OPENGL_API RendererLighting
 {
    public:
     vec4 clearColor = make_vec4(0);
-    int totalLights;
-    int visibleLights;
-    int renderedDepthmaps;
+
 
     int shadowSamples = 16;  // Quadratic number (1,4,9,16,...)
 
@@ -117,7 +115,8 @@ class SAIGA_OPENGL_API RendererLighting
 
     void setDebugShader(std::shared_ptr<MVPColorShader> shader);
 
-    virtual void cullLights(Camera* cam);
+    // Compute culling and the light statistics (see variables below)
+    void ComputeCullingAndStatistics(Camera* cam);
 
     virtual void renderImGui();
 
@@ -134,20 +133,32 @@ class SAIGA_OPENGL_API RendererLighting
 
     std::shared_ptr<PointLightShader> pointLightShader, pointLightShadowShader;
     lightMesh_t pointLightMesh;
-    std::set<std::shared_ptr<PointLight> > pointLights;
+    std::set<std::shared_ptr<PointLight>> pointLights;
 
     std::shared_ptr<SpotLightShader> spotLightShader, spotLightShadowShader;
     lightMesh_t spotLightMesh;
-    std::set<std::shared_ptr<SpotLight> > spotLights;
-
     std::shared_ptr<DirectionalLightShader> directionalLightShader, directionalLightShadowShader;
+
+    std::set<std::shared_ptr<SpotLight>> spotLights;
     lightMesh_t directionalLightMesh;
-    std::set<std::shared_ptr<DirectionalLight> > directionalLights;
+    std::set<std::shared_ptr<DirectionalLight>> directionalLights;
 
     ShaderPart::ShaderCodeInjections shadowInjection;
 
     bool lightDepthTest = true;
 
+    // Lighting Statistics
+    int totalLights;
+    int visibleLights;
+    int renderedDepthmaps;
+    int visibleVolumetricLights;
+
+    int num_directionallight_cascades;
+    int num_directionallight_shadow_maps;
+    int num_pointlight_shadow_maps;
+    int num_spotlight_shadow_maps;
+
+    bool renderVolumetric = false;
 
    protected:
     GLTimerSystem* timer;
@@ -161,5 +172,15 @@ class SAIGA_OPENGL_API RendererLighting
     int selected_light     = -1;
     int selecte_light_type = 0;
     std::shared_ptr<LightBase> selected_light_ptr;
+
+    Framebuffer shadow_framebuffer;
+
+    int current_directional_light_array_size = 0;
+    int current_spot_light_array_size        = 0;
+    int current_point_light_array_size       = 0;
+
+    std::unique_ptr<ArrayTexture2D> cascaded_shadows;
+    std::unique_ptr<ArrayTexture2D> spot_light_shadows;
+    std::unique_ptr<ArrayCubeTexture> point_light_shadows;
 };
 }  // namespace Saiga

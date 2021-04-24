@@ -208,9 +208,9 @@ void CascadedShadowmap::bindAttachCascade(int n)
     glClear(GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
-
-#if defined(SAIGA_DEBUG)
     depthBuffer.check();
+#if defined(SAIGA_DEBUG)
+     depthBuffer.check();
 #endif
 }
 

@@ -23,14 +23,17 @@ void main()
 
 
 ##GL_FRAGMENT_SHADER
-#version 330
+#version 430
 
 #define MAX_CASCADES 5
 
 #ifdef SHADOWS
     // uniform sampler2DShadow depthTex;
     // uniform sampler2DShadow depthTexures[MAX_CASCADES];
-    uniform sampler2DArrayShadow depthTexures;
+// uniform sampler2DArrayShadow depthTexures;
+layout(location = 9) uniform sampler2DArrayShadow depthTexures;
+layout(location = 8) uniform int cascade_offset = 0;
+
 uniform mat4 viewToLightTransforms[MAX_CASCADES];
 uniform float depthCuts[MAX_CASCADES + 1];
 uniform int numCascades;
@@ -117,20 +120,20 @@ vec4 getDirectionalLightIntensity(int sampleId)
 
     if (interpolateCascade == 0)
     {
-        visibility = calculateShadowPCFArray(viewToLightTransforms[cascadeId], depthTexures, cascadeId, vposition);
+        visibility = calculateShadowPCFArray(viewToLightTransforms[cascadeId], depthTexures, cascadeId + cascade_offset, vposition);
     }
     else if (interpolateCascade == 1)
     {
-        float v1 = calculateShadowPCFArray(viewToLightTransforms[cascadeId], depthTexures, cascadeId, vposition);
+        float v1 = calculateShadowPCFArray(viewToLightTransforms[cascadeId], depthTexures, cascadeId+ cascade_offset, vposition);
         float v2 =
-            calculateShadowPCFArray(viewToLightTransforms[cascadeId + 1], depthTexures, cascadeId + 1, vposition);
+            calculateShadowPCFArray(viewToLightTransforms[cascadeId + 1], depthTexures, cascadeId + 1+ cascade_offset, vposition);
         visibility = mix(v1, v2, interpolateAlpha * 0.5);
     }
     else
     {
-        float v1 = calculateShadowPCFArray(viewToLightTransforms[cascadeId], depthTexures, cascadeId, vposition);
+        float v1 = calculateShadowPCFArray(viewToLightTransforms[cascadeId], depthTexures, cascadeId+ cascade_offset, vposition);
         float v2 =
-            calculateShadowPCFArray(viewToLightTransforms[cascadeId - 1], depthTexures, cascadeId - 1, vposition);
+            calculateShadowPCFArray(viewToLightTransforms[cascadeId - 1], depthTexures, cascadeId - 1+ cascade_offset, vposition);
         visibility = mix(v1, v2, interpolateAlpha * 0.5);
     }
 #endif
@@ -143,6 +146,7 @@ vec4 getDirectionalLightIntensity(int sampleId)
     if (Idiff > 0) Ispec = localIntensity * data.x * intensitySpecular(vposition, normal, fragmentLightDir, 40);
 
     float Iemissive = data.y;
+    Iemissive = 0;
 
     vec3 color = lightColorDiffuse.rgb *
                      (Idiff * diffColor + Ispec * lightColorSpecular.w * lightColorSpecular.rgb + Iamb * diffColor) +

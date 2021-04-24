@@ -31,10 +31,11 @@ void main() {
 
 
 ##GL_FRAGMENT_SHADER
-#version 330
-
+#version 420
+ #extension GL_ARB_explicit_uniform_location : enable
 #ifdef SHADOWS
-uniform samplerCubeShadow depthTex;
+layout(location = 7) uniform samplerCubeArrayShadow cube_test;
+layout(location = 8) uniform int shadow_id = 0;
 #endif
 
 uniform vec4 attenuation;
@@ -55,6 +56,7 @@ layout(location=1) out vec4 out_volumetric;
 
 
 void main() {
+
     vec3 diffColor,vposition,normal,data;
     float depth;
     getGbufferData(diffColor,vposition,depth,normal,data,0);
@@ -68,7 +70,8 @@ void main() {
     float nearplane = shadowPlanes.y;
     vec3 lightW = vec3(model[3]);
     vec3 fragW = vec3(inverse(view)*vec4(vposition,1));
-    visibility = calculateShadowCube(depthTex,lightW,fragW,farplane,nearplane);
+    // visibility = calculateShadowCube(depthTex,lightW,fragW,farplane,nearplane);
+    visibility = calculateShadowCube(cube_test,lightW,fragW,farplane,nearplane, shadow_id);
    // visibility = calculateShadowCubePCF(depthTex,lightW,fragW,farplane,nearplane);
 #endif
 
@@ -89,7 +92,7 @@ void main() {
     mat4 invV = inverse(view);
     vec3 camera = vec3(invV[3]);
 //    vec3 fragW2 =vec3(invV * vec4(vertexMV,1));
-    vec3 vf = volumetricFactorPoint(depthTex,camera,fragW,vertex,lightW,farplane,nearplane,attenuation,intensity) * lightColorDiffuse.rgb;
+    vec3 vf = volumetricFactorPoint(cube_test, shadow_id,camera,fragW,vertex,lightW,farplane,nearplane,attenuation,intensity) * lightColorDiffuse.rgb;
     out_volumetric = vec4(vf,1);
 #endif
     out_color = vec4(color,1);

@@ -4,15 +4,15 @@
  * See LICENSE file for more information.
  */
 
+#include "deferred_light_shader.h"
+
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/lighting/all.h"
 #include "saiga/opengl/rendering/lighting/deferred_lighting.h"
-
 namespace Saiga
 {
-#define MAX_CASCADES 5
 
 void LightShader::checkUniforms()
 {
@@ -115,9 +115,8 @@ void PointLightShader::SetUniforms(PointLight* light, Camera* shadow_camera)
     this->uploadInvProj(inverse(shadow_camera->proj));
     if (light->castShadows)
     {
+        this->upload(8, light->shadow_id);
         this->uploadDepthBiasMV(light->viewToLightTransform(*shadow_camera, light->shadowCamera));
-        this->uploadDepthTexture(light->shadowmap->getDepthTexture());
-        this->uploadShadowMapSize(light->shadowmap->getSize());
     }
 }
 
@@ -154,9 +153,8 @@ void SpotLightShader::SetUniforms(SpotLight* light, Camera* shadow_camera)
     this->uploadInvProj(inverse(shadow_camera->proj));
     if (light->castShadows)
     {
+        this->upload(8, light->shadow_id);
         this->uploadDepthBiasMV(light->viewToLightTransform(*shadow_camera, light->shadowCamera));
-        this->uploadDepthTexture(light->shadowmap->getDepthTexture());
-        this->uploadShadowMapSize(light->shadowmap->getSize());
     }
 }
 
@@ -202,34 +200,6 @@ void DirectionalLightShader::uploadSsaoTexture(std::shared_ptr<TextureBase> text
     Shader::upload(location_ssaoTexture, 5);
 }
 
-void DirectionalLightShader::uploadDepthTextures(std::vector<std::shared_ptr<TextureBase> >& textures)
-{
-    //    int i = 7;
-    int startTexture = 6;
-    std::vector<int> ids;
-
-    for (int i = 0; i < MAX_CASCADES; ++i)
-    {
-        //    for(auto& t : textures){
-        if (i < (int)textures.size())
-        {
-            textures[i]->bind(i + startTexture);
-            ids.push_back(i + startTexture);
-        }
-        else
-        {
-            ids.push_back(startTexture);
-        }
-        //        i++;
-    }
-    Shader::upload(location_depthTexures, ids.size(), ids.data());
-}
-
-void DirectionalLightShader::uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures)
-{
-    textures->bind(6);
-    Shader::upload(location_depthTexures, 6);
-}
 
 void DirectionalLightShader::SetUniforms(DirectionalLight* light, Camera* shadow_camera)
 {
@@ -257,13 +227,10 @@ void DirectionalLightShader::SetUniforms(DirectionalLight* light, Camera* shadow
             viewToLight[i] = shadow;
         }
 
+        this->upload(8, light->cascade_offset);
         //        this->uploadDepthBiasMV(shadow);
         this->uploadViewToLightTransforms(viewToLight);
         this->uploadDepthCuts(light->depthCuts);
-        //        this->uploadDepthTexture(shadowmap->getDepthTexture(0));
-        //        this->uploadDepthTextures(shadowmap->getDepthTextures());
-        this->uploadDepthTextures(light->shadowmap->getDepthTexture());
-        this->uploadShadowMapSize(light->shadowmap->getSize());
         this->uploadNumCascades(light->numCascades);
         this->uploadCascadeInterpolateRange(light->cascadeInterpolateRange);
     }

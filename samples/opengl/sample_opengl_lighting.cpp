@@ -23,27 +23,8 @@ class Sample : public SampleWindowDeferred
         float aspect = window->getAspectRatio();
         camera.setProj(60.0f, aspect, 0.1f, 100.0f);
 
-
-        //        auto sphereMesh = TriangleMeshGenerator::IcoSphereMesh(Sphere(make_vec3(0), 1), 4);
-        //        auto sphere = assetLoader.assetFromMesh(*sphereMesh, Colors::gray);
-
-        //        auto sphere = std::make_shared<ColoredAsset>(
-        //            UVSphereMesh(Sphere(make_vec3(0), 1), 20, 20).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
-
-        //        auto sphere = std::make_shared<ColoredAsset>(
-        //            IcoSphereMesh(Sphere(make_vec3(0), 1), 4).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
-
-
-        //        auto sphere = std::make_shared<ColoredAsset>(CylinderMesh(1, 2, 10).SetVertexColor(vec4(0.7, 0.7, 0.7,
-        //        1)));
-        //        auto sphere = std::make_shared<ColoredAsset>(ConeMesh(Cone(), 10).SetVertexColor(vec4(0.7, 0.7, 0.7,
-        //        1)));
-
-        //        auto sphere = std::make_shared<ColoredAsset>(PlaneMesh(Plane()).SetVertexColor(vec4(0.7, 0.7, 0.7,
-        //        1)));
-
         auto sphere = std::make_shared<ColoredAsset>(
-            BoxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
+            BoxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))).FlatShading().SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
 
         //        sphereMesh->setColor()
 
@@ -65,7 +46,7 @@ class Sample : public SampleWindowDeferred
         //        auto stickMesh = TriangleMeshGenerator::BoxMesh(AABB(vec3(-0.2, 0, -0.2), vec3(0.2, 2, 0.2)));
 
         auto stick = std::make_shared<ColoredAsset>(
-            BoxMesh(AABB(vec3(-0.2, 0, -0.2), vec3(0.2, 2, 0.2))).SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
+            BoxMesh(AABB(vec3(-0.2, 0, -0.2), vec3(0.2, 2, 0.2))).FlatShading().SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
 
         //        auto stick = assetLoader.assetFromMesh(*stickMesh, Colors::gray);
 
@@ -83,14 +64,6 @@ class Sample : public SampleWindowDeferred
 
         renderer->lighting.removeLight(sun);
 
-
-
-        ShadowQuality sq = ShadowQuality::HIGH;
-
-        //        sun->disableShadows();
-        //        sun->setIntensity(0);
-        //        sun->setAmbientIntensity(0.1);
-
         for (int i = 0; i < 10; ++i)
         {
             auto light = std::make_shared<PointLight>();
@@ -105,8 +78,6 @@ class Sample : public SampleWindowDeferred
 
             light->setColorDiffuse(make_vec3(1));
 
-
-            light->createShadowMap(512, 512, sq);
             light->castShadows = true;
 
             point_lights.push_back(light);
@@ -114,15 +85,16 @@ class Sample : public SampleWindowDeferred
 
 
 
-        for (int i = 0; i < 2; ++i)
+        for (int i = 0; i < 15; ++i)
         {
             auto light = std::make_shared<SpotLight>();
             renderer->lighting.AddLight(light);
 
             light->setIntensity(2);
             light->setRadius(linearRand(8, 15));
+            light->castShadows = true;
 
-            s               = 5;
+            s               = 20;
             light->position = (linearRand(vec3(-s, 3, -s), vec3(s, 8, s)));
 
             light->setAngle(linearRand(30, 70));
@@ -132,17 +104,14 @@ class Sample : public SampleWindowDeferred
 
             light->direction = vec3(0, -1, 0);
 
-            light->createShadowMap(512, 512, sq);
-
-
             spot_lights.push_back(light);
         }
 
-        for (int i = 0; i < 2; ++i)
+        for (int i = 0; i < 1; ++i)
         {
             auto light = std::make_shared<DirectionalLight>();
             renderer->lighting.AddLight(light);
-            light->createShadowMap(2048, 2048, 3, ShadowQuality::LOW);
+            light->BuildCascades(3);
             light->castShadows = true;
 
             light->setAmbientIntensity(0);
@@ -156,13 +125,6 @@ class Sample : public SampleWindowDeferred
             directional_lights.push_back(light);
         }
 
-        std::cout << "Program Initialized!" << std::endl;
-    }
-
-
-    void update(float dt) override
-    {
-        Base::update(dt);
         for (auto l : point_lights)
         {
             l->active = (current_type == 0);
@@ -176,6 +138,15 @@ class Sample : public SampleWindowDeferred
             l->active = (current_type == 2);
             l->fitNearPlaneToScene(bounding_box);
         }
+
+        std::cout << "Program Initialized!" << std::endl;
+    }
+
+
+    void update(float dt) override
+    {
+        Base::update(dt);
+
     }
 
 
@@ -195,7 +166,21 @@ class Sample : public SampleWindowDeferred
             if (ImGui::Begin("Saiga Sample"))
             {
                 static const char* types[3] = {"Point Light", "Spot Light", "Directional Light"};
-                ImGui::Combo("Codec", &current_type, types, 3);
+                if(ImGui::Combo("Codec", &current_type, types, 3)){
+                    for (auto l : point_lights)
+                    {
+                        l->active = (current_type == 0);
+                    }
+                    for (auto l : spot_lights)
+                    {
+                        l->active = (current_type == 1);
+                    }
+                    for (auto l : directional_lights)
+                    {
+                        l->active = (current_type == 2);
+                        l->fitNearPlaneToScene(bounding_box);
+                    }
+                }
             }
 
             ImGui::End();
@@ -206,7 +191,7 @@ class Sample : public SampleWindowDeferred
     std::vector<SimpleAssetObject> objects;
 
 
-    int current_type = 1;
+    int current_type = 0;
     std::vector<std::shared_ptr<PointLight>> point_lights;
     std::vector<std::shared_ptr<SpotLight>> spot_lights;
     std::vector<std::shared_ptr<DirectionalLight>> directional_lights;
