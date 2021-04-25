@@ -108,7 +108,7 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t& mesh, T obj, Camera
     shader->uploadScreenSize(vp.getVec4());
 
     //    obj->bindUniforms(shader, cam);
-    shader->SetUniforms(obj.get(), cam);
+    shader->SetUniforms(obj, cam);
     mesh.bindAndDraw();
     shader->unbind();
 }

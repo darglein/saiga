@@ -32,7 +32,8 @@ class Sample : public RendererSampleWindow
 #endif
 
         planeAsset  = std::make_shared<ColoredAsset>(PlaneMesh(Plane(vec3(0, -0.1, 0), vec3(0, 1, 0))));
-        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
+//        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
+        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza/sponza.obj"));
         boxAsset    = std::make_shared<ColoredAsset>(BoxMesh(AABB(make_vec3(-0.5), make_vec3(0.5))));
 
         plane.asset = planeAsset;

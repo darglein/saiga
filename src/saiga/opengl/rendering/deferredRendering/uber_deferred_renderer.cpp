@@ -205,16 +205,6 @@ void UberDeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::
     assert_no_glerror();
 }
 
-void UberDeferredRenderer::renderDepthMaps()
-{
-    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    lighting.renderDepthMaps(renderingInterface);
-
-
-
-    assert_no_glerror();
-}
-
 void UberDeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
     writeGbufferDepthToCurrentFramebuffer();

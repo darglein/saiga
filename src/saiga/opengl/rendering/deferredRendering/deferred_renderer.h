@@ -118,7 +118,7 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
 
     void clearGBuffer();
     void renderGBuffer(const std::pair<Camera*, ViewPort>& camera);
-    void renderDepthMaps();
+
     void renderLighting(const std::pair<Camera*, ViewPort>& camera);
     void renderSSAO(const std::pair<Camera*, ViewPort>& camera);
 

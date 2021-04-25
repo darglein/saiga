@@ -31,6 +31,14 @@ class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenu
         return data;
     }
 
+    inline ShadowData GetShadowData(Camera* view_point)
+    {
+        ShadowData sd;
+        sd.view_to_light = view_point->model;
+        sd.shadow_planes = {shadowCamera.zFar,shadowCamera.zNear};
+        sd.inv_shadow_map_size = vec2(1.f / 512, 1.f / 512);
+        return sd;
+    }
 
     vec3 position;
 

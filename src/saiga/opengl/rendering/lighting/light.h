@@ -43,6 +43,16 @@ static const vec3 ClearBlueSky   = (Color(64, 156, 255));
 using DepthFunction = std::function<void(Camera*)>;
 
 
+struct ShadowData
+{
+    Eigen::Matrix<float,4,4,Eigen::DontAlign> view_to_light;
+    vec2 shadow_planes;
+    vec2 inv_shadow_map_size;
+
+    ShadowData() { static_assert(sizeof(ShadowData) ==  20 * sizeof(float)); }
+};
+
+
 
 class SAIGA_OPENGL_API LightBase
 {
@@ -62,6 +72,7 @@ class SAIGA_OPENGL_API LightBase
 
 
     int shadow_id = -1;
+    int active_light_id = -1;
 
     LightBase() {}
     LightBase(const vec3& color, float intensity)

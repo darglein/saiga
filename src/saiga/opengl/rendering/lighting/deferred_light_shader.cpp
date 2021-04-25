@@ -13,7 +13,6 @@
 #include "saiga/opengl/rendering/lighting/deferred_lighting.h"
 namespace Saiga
 {
-
 void LightShader::checkUniforms()
 {
     DeferredShader::checkUniforms();
@@ -104,19 +103,14 @@ void PointLightShader::uploadShadowPlanes(float f, float n)
 
 void PointLightShader::SetUniforms(PointLight* light, Camera* shadow_camera)
 {
-    this->uploadA(light->attenuation, light->radius);
-
     if (light->volumetric) this->uploadVolumetricDensity(light->volumetricDensity);
-    this->uploadColorDiffuse(light->colorDiffuse, light->intensity);
-    this->uploadColorSpecular(light->colorSpecular, light->intensity_specular);
-
+    this->upload(10, light->active_light_id);
     this->uploadModel(light->ModelMatrix());
-    this->uploadShadowPlanes(light->shadowCamera.zFar, light->shadowCamera.zNear);
     this->uploadInvProj(inverse(shadow_camera->proj));
     if (light->castShadows)
     {
+        this->uploadShadowPlanes(light->shadowCamera.zFar, light->shadowCamera.zNear);
         this->upload(8, light->shadow_id);
-        this->uploadDepthBiasMV(light->viewToLightTransform(*shadow_camera, light->shadowCamera));
     }
 }
 
@@ -140,21 +134,15 @@ void SpotLightShader::uploadShadowPlanes(float f, float n)
 
 void SpotLightShader::SetUniforms(SpotLight* light, Camera* shadow_camera)
 {
-    this->uploadA(light->attenuation, light->radius);
-
     if (light->volumetric) this->uploadVolumetricDensity(light->volumetricDensity);
-    this->uploadColorDiffuse(light->colorDiffuse, light->intensity);
-    this->uploadColorSpecular(light->colorSpecular, light->intensity_specular);
-
-    float cosa = cos(radians(light->angle * 0.95f));  // make border smoother
-    this->uploadAngle(cosa);
+    this->upload(10, light->active_light_id);
     this->uploadModel(light->ModelMatrix());
     this->uploadShadowPlanes(light->shadowCamera.zFar, light->shadowCamera.zNear);
     this->uploadInvProj(inverse(shadow_camera->proj));
     if (light->castShadows)
     {
+        uploadShadowMapSize(ivec2(512, 512));
         this->upload(8, light->shadow_id);
-        this->uploadDepthBiasMV(light->viewToLightTransform(*shadow_camera, light->shadowCamera));
     }
 }
 
@@ -203,8 +191,6 @@ void DirectionalLightShader::uploadSsaoTexture(std::shared_ptr<TextureBase> text
 
 void DirectionalLightShader::SetUniforms(DirectionalLight* light, Camera* shadow_camera)
 {
-    this->uploadColorDiffuse(light->colorDiffuse, light->intensity);
-    this->uploadColorSpecular(light->colorSpecular, light->intensity_specular);
     this->uploadAmbientIntensity(light->ambientIntensity);
 
     vec3 viewd = -normalize(make_vec3(shadow_camera->view * make_vec4(light->direction, 0)));
@@ -212,24 +198,13 @@ void DirectionalLightShader::SetUniforms(DirectionalLight* light, Camera* shadow
 
     mat4 ip = inverse(shadow_camera->proj);
     this->uploadInvProj(ip);
+    this->upload(10, light->active_light_id);
 
     if (light->castShadows)
     {
-        const mat4 biasMatrix =
-            make_mat4(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.5, 0.5, 1.0);
+        uploadShadowMapSize(ivec2(2048, 2048));
 
-        AlignedVector<mat4> viewToLight(light->numCascades);
-
-        for (int i = 0; i < light->numCascades; ++i)
-        {
-            light->shadowCamera.setProj(light->orthoBoxes[i]);
-            mat4 shadow    = biasMatrix * light->shadowCamera.proj * light->shadowCamera.view * shadow_camera->model;
-            viewToLight[i] = shadow;
-        }
-
-        this->upload(8, light->cascade_offset);
-        //        this->uploadDepthBiasMV(shadow);
-        this->uploadViewToLightTransforms(viewToLight);
+        this->upload(8, light->shadow_id);
         this->uploadDepthCuts(light->depthCuts);
         this->uploadNumCascades(light->numCascades);
         this->uploadCascadeInterpolateRange(light->cascadeInterpolateRange);

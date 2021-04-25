@@ -107,7 +107,7 @@ class Sample : public SampleWindowDeferred
             spot_lights.push_back(light);
         }
 
-        for (int i = 0; i < 1; ++i)
+        for (int i = 0; i < 2; ++i)
         {
             auto light = std::make_shared<DirectionalLight>();
             renderer->lighting.AddLight(light);
