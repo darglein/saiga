@@ -27,7 +27,6 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* 
     : RendererLighting(timer), gbuffer(framebuffer),  quadMesh(FullScreenQuad())
 {
     createLightMeshes();
-    shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
 
     int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 

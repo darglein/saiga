@@ -110,9 +110,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         lighting.ssaoTexture = ssao->bluredTexture;
     }
 
-    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    SAIGA_ASSERT(renderingInterface);
-
+    RenderingInterface* renderingInterface = (RenderingInterface*)rendering;
 
     params.maskUsedPixels = true;
 
@@ -139,7 +137,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     {
         auto tim = timer->Measure("Shadow");
-        renderDepthMaps();
+        lighting.renderDepthMaps(camera, renderingInterface);
     }
 
     {
@@ -311,15 +309,6 @@ void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::View
     assert_no_glerror();
 }
 
-void DeferredRenderer::renderDepthMaps()
-{
-    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    lighting.renderDepthMaps(renderingInterface);
-
-
-
-    assert_no_glerror();
-}
 
 void DeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {

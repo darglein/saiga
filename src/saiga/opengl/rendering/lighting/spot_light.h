@@ -34,6 +34,15 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
         return data;
     }
 
+    inline ShadowData GetShadowData(Camera* view_point)
+    {
+        ShadowData sd;
+        sd.view_to_light = viewToLightTransform(*view_point, shadowCamera);
+        sd.shadow_planes = {shadowCamera.zFar,shadowCamera.zNear};
+        sd.inv_shadow_map_size = vec2(1.f / 512, 1.f / 512);
+        return sd;
+    }
+
     float shadowNearPlane = 0.01f;
     PerspectiveCamera shadowCamera;
     vec3 direction = vec3(0, -1, 0);

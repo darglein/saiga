@@ -11,14 +11,6 @@
 
 namespace Saiga
 {
-// void Light::createShadowMap(int resX, int resY){
-
-////    std::cout<<"Light::createShadowMap"<<endl;
-
-//    shadowmap.createFlat(resX,resY);
-
-//}
-
 
 mat4 LightBase::viewToLightTransform(const Camera& camera, const Camera& shadowCamera)
 {
@@ -37,7 +29,6 @@ void LightBase::renderImGui()
     ImGui::InputFloat("intensity", &intensity, 0.1, 1);
     ImGui::InputFloat("specular intensity", &intensity_specular, 0.1, 1);
     ImGui::SliderFloat("volumetricDensity", &volumetricDensity, 0.0f, 0.5f);
-    // todo: check srgb
     ImGui::ColorEdit3("colorDiffuse", &colorDiffuse[0]);
     ImGui::ColorEdit3("colorSpecular", &colorSpecular[0]);
     auto str = to_string(visible) + "/" + to_string(selected) + "/" + to_string(culled);

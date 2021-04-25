@@ -50,7 +50,6 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     // number of cascades for cascaded shadow mapping
     // 1 means normal shadow mapping
     int numCascades = 1;
-    int cascade_offset = -1;
 
    public:
     DirectionalLight() : LightBase(LightColorPresets::DirectSunlight, 1)
@@ -75,6 +74,13 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
         data.colorSpecular = make_vec4(colorSpecular, intensity_specular);
         data.direction     = make_vec4(direction, 0.0f);
         return data;
+    }
+
+    inline ShadowData GetShadowData(Camera* view_point)
+    {
+        ShadowData sd;
+        sd.view_to_light = viewToLightTransform(*view_point, shadowCamera);
+        return sd;
     }
 
     /**

@@ -142,6 +142,7 @@ inline void Buffer::fill(const void* data, unsigned int _size, GLenum _usage)
 
 inline void Buffer::updateBuffer(const void* data, unsigned int _size, unsigned int offset)
 {
+    if(_size == 0) return;
     SAIGA_ASSERT(offset + _size <= size);
     bind();
     glBufferSubData(target, offset, _size, data);
