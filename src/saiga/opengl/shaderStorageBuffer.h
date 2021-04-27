@@ -10,6 +10,7 @@
 #include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/opengl/buffer.h"
 #include "saiga/opengl/opengl.h"
+#include "saiga/opengl/templatedBuffer.h"
 
 #include <memory>
 namespace Saiga
@@ -71,18 +72,10 @@ class SAIGA_OPENGL_API ShaderStorageBuffer : public Buffer
 
 
 template <class T>
-class TemplatedShaderStorageBuffer : public ShaderStorageBuffer
+class TemplatedShaderStorageBuffer : public TemplatedBuffer<T>
 {
    public:
-    void create(ArrayView<T> data, GLenum usage = GL_STATIC_DRAW)
-    {
-        createGLBuffer(data.data(), data.size() * sizeof(T), usage);
-    }
-
-    void update(ArrayView<T> data, int offset = 0) { updateBuffer(data.data(), data.size() * sizeof(T), offset); }
-
-
-    int Size() { return size / sizeof(T); }
+    TemplatedShaderStorageBuffer() : TemplatedBuffer<T>(GL_SHADER_STORAGE_BUFFER) {}
 };
 
 }  // namespace Saiga

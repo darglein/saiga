@@ -80,7 +80,7 @@ void DeferredShader::uploadFramebuffer(GBuffer* gbuffer)
     //    upload(location_texture_depth,fb->depthBuffer,3);
     upload(location_texture_diffuse, gbuffer->getTextureColor(), 0);
     upload(location_texture_normal, gbuffer->getTextureNormal(), 1);
-    upload(location_texture_data, gbuffer->getTextureData(), 2);
+    upload(location_texture_data, gbuffer->getTextureMaterial(), 2);
     upload(location_texture_depth, gbuffer->getTextureDepth(), 3);
 }
 

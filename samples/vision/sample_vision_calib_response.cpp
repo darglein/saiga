@@ -1,0 +1,314 @@
+/**
+ * Copyright (c) 2017 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+
+#include "saiga/core/camera/HDR.h"
+#include "saiga/core/image/ImageDraw.h"
+#include "saiga/core/image/image.h"
+#include "saiga/core/math/Eigen_Compile_Checker.h"
+#include "saiga/core/math/random.h"
+#include "saiga/core/time/all.h"
+#include "saiga/core/util/Thread/omp.h"
+#include "saiga/core/util/directory.h"
+#include "saiga/core/util/file.h"
+#include "saiga/core/util/table.h"
+#include "saiga/vision/util/Random.h"
+
+#include <fstream>
+#include <set>
+
+using namespace Saiga;
+
+
+TemplatedImage<ucvec3> ExposureImage(ArrayView<double> samples)
+{
+    TemplatedImage<ucvec3> img(256, 256);
+    img.getImageView().set(ucvec3(255, 255, 255));
+    SAIGA_ASSERT(samples.size() == 256);
+
+    for (int i = 0; i < 255; ++i)
+    {
+        vec2 start(i, 255 - samples[i]);
+        vec2 end(i + 1, 255 - samples[i + 1]);
+        ImageDraw::drawLineBresenham(img.getImageView(), start, end, ucvec3(0, 0, 0));
+    }
+    return img;
+}
+
+float PixelWeight(unsigned char value)
+{
+    float weight = 0;
+    if (value <= 127)
+        weight = value;
+    else
+        weight = 255 - value;
+    weight *= (1.f / 256);
+    return weight * weight;
+}
+
+TemplatedImage<double> EstimateIrradiance(ArrayView<TemplatedImage<unsigned char>> input, ArrayView<double> exposure,
+                                          DiscreteResponseFunction f)
+{
+    TemplatedImage<double> result(input.front().dimensions());
+    TemplatedImage<double> counts(input.front().dimensions());
+    result.makeZero();
+
+    for (int k = 0; k < input.size(); ++k)
+    {
+        for (int i : result.rowRange())
+        {
+            for (int j : result.colRange())
+            {
+                auto c = input[k](i, j);
+                if (c == 255) continue;
+
+
+                float w = PixelWeight(c);
+                //                result(i, j) += w * f(c) / exposure[k];
+                //                counts(i, j) += w * 1;
+                result(i, j) += f(c);
+                counts(i, j) += exposure[k];
+            }
+        }
+    }
+
+    for (int i : result.rowRange())
+    {
+        for (int j : result.colRange())
+        {
+            result(i, j) = result(i, j) / counts(i, j);
+            // SAIGA_ASSERT(std::isfinite(result(i, j)));
+            if (result(i, j) < 0) result(i, j) = 0;
+        }
+    }
+    // SAIGA_ASSERT(result.getImageView().isFinite());
+    return result;
+}
+
+
+DiscreteResponseFunction EstimateInverseResponse(ArrayView<TemplatedImage<unsigned char>> input,
+                                                 ArrayView<double> exposure, TemplatedImage<double> irradiance)
+{
+    DiscreteResponseFunction result;
+    for (auto& d : result.irradiance) d = 0;
+    std::vector<int> counts(result.irradiance.size(), 0);
+
+    for (int k = 0; k < input.size(); ++k)
+    {
+        auto& img = input[k];
+        for (int i : img.rowRange())
+        {
+            for (int j : img.colRange())
+            {
+                auto c = img(i, j);
+                if (c == 255) continue;
+
+                result.irradiance[c] += irradiance(i, j) * exposure[k];
+                counts[c] += 1;
+            }
+        }
+    }
+
+    for (int i = 0; i < 256; ++i)
+    {
+        result.irradiance[i] = result.irradiance[i] / counts[i];
+
+        if (!std::isfinite(result.irradiance[i]) && i > 1)
+        {
+            result.irradiance[i] = result.irradiance[i - 1] + (result.irradiance[i - 1] - result.irradiance[i - 2]);
+            std::cout << "filling missing " << i << " " << result.irradiance[i] << std::endl;
+        }
+
+        //        SAIGA_ASSERT(std::isfinite(result.irradiance[i]));
+    }
+
+    // extrapolate white point
+    // SAIGA_ASSERT(result.irradiance[255] == 0);
+
+    // result.irradiance[255] = result.irradiance[254] + (result.irradiance[254] - result.irradiance[253]);
+
+    //    result.irradiance[255] = result.irradiance[254];
+    //    std::cout << "extrapolate " << result.irradiance[253] << " " << result.irradiance[254] << " "
+    //              << result.irradiance[255] << std::endl;
+    return result;
+}
+void DillateOverExposure(ImageView<unsigned char> input)
+{
+    for (int k = 0; k < 2; ++k)
+    {
+        TemplatedImage<unsigned char> img2(input.dimensions());
+        input.copyTo(img2.getImageView());
+
+        for (int i : input.rowRange(1))
+        {
+            for (int j : input.colRange(1))
+            {
+                if (input(i, j) == 255)
+                {
+                    img2(i - 1, j - 1) = 255;
+                    img2(i, j - 1)     = 255;
+                    img2(i + 1, j - 1) = 255;
+
+                    img2(i - 1, j) = 255;
+                    img2(i, j)     = 255;
+                    img2(i + 1, j) = 255;
+
+                    img2(i - 1, j + 1) = 255;
+                    img2(i, j + 1)     = 255;
+                    img2(i + 1, j + 1) = 255;
+                }
+            }
+        }
+
+        img2.getImageView().copyTo(input);
+    }
+}
+
+int main(int argc, char** argv)
+{
+    Saiga::EigenHelper::checkEigenCompabitilty<2765>();
+    Saiga::Random::setSeed(15235);
+
+    if (argc <= 1)
+    {
+        std::cout << "Usage and Example: \nsample_vision_calib_response <calib_dir>"
+                     "\nsample_vision_calib_response data/calib_narrowGamma_sweep3/"
+                  << std::endl;
+        return 0;
+    }
+    std::string dataset_dir = argv[1];
+
+    std::vector<double> ground_truth;
+    {
+        std::ifstream strm(dataset_dir + "/pcalib.txt");
+
+        while (!strm.eof())
+        {
+            std::string str;
+            strm >> str;
+            double d = Saiga::to_double(str);
+            ground_truth.push_back(d);
+        }
+        std::cout << "Found ground truth: " << ground_truth.size() << std::endl;
+        ground_truth.resize(256);
+        ExposureImage(ground_truth).save("exposure_gt.png");
+    }
+
+
+
+    std::vector<double> exposures;
+    {
+        auto strs = File::loadFileStringArray(dataset_dir + "/times.txt");
+        for (auto s : strs)
+        {
+            auto l = split(s, ' ');
+            if (l.empty()) continue;
+            SAIGA_ASSERT(l.size() == 3);
+            exposures.push_back(to_double(l[2]));
+        }
+    }
+
+    using ImageType = TemplatedImage<unsigned char>;
+    std::vector<ImageType> images;
+    {
+        auto full_dir = dataset_dir + "/images/";
+        Directory dir(full_dir);
+        auto image_str = dir.getFilesEnding(".jpg");
+        std::sort(image_str.begin(), image_str.end());
+
+        images.resize(image_str.size());
+
+#pragma omp parallel for num_threads(4)
+        for (int i = 0; i < image_str.size(); ++i)
+        {
+            ImageType img(full_dir + image_str[i]);
+
+            DillateOverExposure(img.getImageView());
+#if 0
+            ivec2 block_size(4, 4);
+            ImageType small(img.h / block_size.y(), img.w / block_size.x());
+            // img.getImageView().copyScaleDownPow2(small.getImageView(), 1);
+
+            for (int i : small.rowRange())
+            {
+                for (int j : small.colRange())
+                {
+                    unsigned char v = 0;
+                    for (int y = 0; y < block_size(1); ++y)
+                    {
+                        for (int x = 0; x < block_size(0); ++x)
+                        {
+                            v = std::max(v, img(i * block_size(1) + y, j * block_size(0) + x));
+                        }
+                    }
+                    small(i, j) = v;
+                }
+            }
+#endif
+
+            images[i] = img;
+        }
+        std::cout << "loaded " << images.size() << " images" << std::endl;
+    }
+    SAIGA_ASSERT(exposures.size() == images.size());
+    images[500].save("exposure_test.png");
+
+
+
+    DiscreteResponseFunction inv_response;
+    TemplatedImage<double> irradiance(images.front().dimensions());
+    TemplatedImage<int> count(irradiance.dimensions());
+
+    {
+        irradiance.makeZero();
+        count.makeZero();
+
+        // Initialized irradiance with mean
+        for (int k = 0; k < images.size(); ++k)
+        {
+            auto& img = images[k];
+            for (int i : img.rowRange())
+            {
+                for (int j : img.colRange())
+                {
+                    irradiance(i, j) += img(i, j);
+                    count(i, j)++;
+                }
+            }
+        }
+        for (int i : irradiance.rowRange())
+        {
+            for (int j : irradiance.colRange())
+            {
+                irradiance(i, j) = irradiance(i, j) / count(i, j);
+            }
+        }
+    }
+
+
+    for (int i = 0; i < 5; ++i)
+    {
+        inv_response = EstimateInverseResponse(images, exposures, irradiance);
+        irradiance   = EstimateIrradiance(images, exposures, inv_response);
+
+        double rescale = 255.0 / inv_response.irradiance[255];
+        for (auto& d : inv_response.irradiance) d *= rescale;
+        for (auto i : irradiance.rowRange())
+            for (auto j : irradiance.colRange()) irradiance(i, j) *= rescale;
+
+
+        ExposureImage(inv_response.irradiance).save("exposure_optimized_" + std::to_string(i) + ".png");
+    }
+
+    for (int i = 0; i < 256; ++i)
+    {
+        std::cout << std::setw(4) << i << ": " << inv_response.irradiance[i] << std::endl;
+    }
+
+    std::cout << "Done." << std::endl;
+
+    return 0;
+}

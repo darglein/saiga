@@ -11,32 +11,16 @@
 
 namespace Saiga
 {
-struct SAIGA_OPENGL_API GBufferParameters
-{
-    Quality colorQuality  = Quality::MEDIUM;
-    Quality normalQuality = Quality::MEDIUM;
-    Quality dataQuality   = Quality::LOW;
-    Quality depthQuality  = Quality::HIGH;
-};
-
 class SAIGA_OPENGL_API GBuffer : public Framebuffer
 {
    public:
-    GBuffer();
-    GBuffer(int w, int h, GBufferParameters params);
-    void init(int w, int h, GBufferParameters params);
+    GBuffer() {}
+    GBuffer(int w, int h) { init(w, h); }
+    void init(int w, int h);
 
-    framebuffer_texture_t getTextureColor() { return this->colorBuffers[0]; }
-    framebuffer_texture_t getTextureNormal() { return this->colorBuffers[1]; }
-    framebuffer_texture_t getTextureData() { return this->colorBuffers[2]; }
-
-    void sampleNearest();
-    void sampleLinear();
-
-    void clampToEdge();
-
-   protected:
-    GBufferParameters params;
+    std::shared_ptr<Texture> getTextureColor() { return this->colorBuffers[0]; }
+    std::shared_ptr<Texture> getTextureNormal() { return this->colorBuffers[1]; }
+    std::shared_ptr<Texture> getTextureMaterial() { return this->colorBuffers[2]; }
 };
 
 }  // namespace Saiga

@@ -244,6 +244,14 @@ struct ImageTypeTemplate<vec4>
     static constexpr ImageType type = F4;
 };
 
+template <>
+struct ImageTypeTemplate<double>
+{
+    using ChannelType               = double;
+    static constexpr ImageType type = D1;
+};
+
+
 
 
 constexpr ImageType getType(ImageChannel channels, ImageElementType elementType)

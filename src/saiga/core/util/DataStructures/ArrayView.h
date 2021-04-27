@@ -46,6 +46,9 @@ struct SAIGA_TEMPLATE ArrayView
     HD ArrayView() : data_(nullptr), n(0) {}
     HD ArrayView(T* data_, size_t n) : data_(data_), n(n) {}
 
+    // Initialize from a single value
+    HD ArrayView(T& element) : data_(&element), n(1) {}
+
     ArrayView(ArrayView<T> const&) = default;
     ArrayView& operator=(ArrayView<T> const&) = default;
 

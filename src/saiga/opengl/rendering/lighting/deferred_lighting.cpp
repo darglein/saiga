@@ -53,23 +53,17 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers)
 
     lightAccumulationBuffer.create();
 
-    //    std::shared_ptr<Texture> depth_stencil = new Texture();
-    //    depth_stencil->create(width,height,GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8,GL_UNSIGNED_INT_24_8);
-    //    lightAccumulationBuffer.attachTextureDepthStencil( framebuffer_texture_t(depth_stencil) );
-
     // NOTE: Use the same depth-stencil buffer as the gbuffer. I hope this works on every hardware :).
     lightAccumulationBuffer.attachTextureDepthStencil(gbuffer.getTextureDepth());
 
-    {
-        lightAccumulationTexture = std::make_shared<Texture>();
-        lightAccumulationTexture->create(_width, _height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
-        lightAccumulationBuffer.attachTexture(framebuffer_texture_t(lightAccumulationTexture));
-    }
+    lightAccumulationTexture = std::make_shared<Texture>();
+    lightAccumulationTexture->create(_width, _height, GL_RGBA, GL_RGBA16F, GL_HALF_FLOAT);
+    lightAccumulationBuffer.attachTexture(lightAccumulationTexture);
 
     {
         volumetricLightTexture = std::make_shared<Texture>();
         volumetricLightTexture->create(_width, _height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
-        lightAccumulationBuffer.attachTexture(framebuffer_texture_t(volumetricLightTexture));
+        lightAccumulationBuffer.attachTexture(volumetricLightTexture);
     }
 
     //    lightAccumulationBuffer.drawToAll();
@@ -82,7 +76,7 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers)
     {
         volumetricLightTexture2 = std::make_shared<Texture>();
         volumetricLightTexture2->create(_width, _height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
-        volumetricBuffer.attachTexture(framebuffer_texture_t(volumetricLightTexture2));
+        volumetricBuffer.attachTexture(volumetricLightTexture2);
     }
     volumetricBuffer.drawTo({0});
     volumetricBuffer.check();
@@ -205,8 +199,8 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
         for (auto& l : active_spot_lights)
         {
-            renderLightVolume(
-                spotLightMesh, l, cam, viewPort, spotLightShader, spotLightShadowShader, spotLightVolumetricShader);
+            renderLightVolume(spotLightMesh, l, cam, viewPort, spotLightShader, spotLightShadowShader,
+                              spotLightVolumetricShader);
         }
     }
 

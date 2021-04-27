@@ -5,9 +5,9 @@
  */
 
 #pragma once
-#include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/quality.h"
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
@@ -20,10 +20,7 @@ class SAIGA_OPENGL_API PostProcessingShader : public Shader
 {
    public:
     GLint location_texture, location_screenSize;
-    GLint location_gbufferDepth, location_gbufferNormals, location_gbufferColor,
-        location_gbufferData;  // depth and normal texture of gbuffer
-
-
+    GLint location_gbufferDepth, location_gbufferNormals, location_gbufferColor, location_gbufferMaterial;
 
     virtual void checkUniforms();
     virtual void uploadTexture(std::shared_ptr<TextureBase> texture);
@@ -72,7 +69,7 @@ class SAIGA_OPENGL_API PostProcessor
     void bindCurrentBuffer();
     void switchBuffer();
 
-    void render();
+    void render(bool use_gbuffer_as_first);
 
     void setPostProcessingEffects(const std::vector<std::shared_ptr<PostProcessingShader> >& postProcessingEffects);
 
@@ -80,7 +77,7 @@ class SAIGA_OPENGL_API PostProcessor
     void blitLast(Framebuffer* target, ViewPort vp);
     void renderLast(Framebuffer* target, ViewPort vp);
 
-    framebuffer_texture_t getCurrentTexture();
+    std::shared_ptr<Texture> getCurrentTexture();
     Framebuffer& getTargetBuffer();
 
    public:

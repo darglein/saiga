@@ -60,7 +60,7 @@ SMAA::SMAA(int w, int h)
     : quadMesh(FullScreenQuad())
 {
     screenSize = ivec2(w, h);
-    stencilTex = framebuffer_texture_t(new Texture());
+    stencilTex = std::make_shared<Texture>();
 
 
     // GL_STENCIL_INDEX may be used for format only if the GL version is 4.4 or higher.
@@ -76,7 +76,7 @@ SMAA::SMAA(int w, int h)
                   << std::endl;
     }
 
-    edgesTex = framebuffer_texture_t(new Texture());
+    edgesTex = std::make_shared<Texture>();
     edgesTex->create(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
     edgesFb.create();
     edgesFb.attachTexture(edgesTex);
@@ -88,7 +88,7 @@ SMAA::SMAA(int w, int h)
     edgesFb.check();
     edgesFb.unbind();
 
-    blendTex = framebuffer_texture_t(new Texture());
+    blendTex = std::make_shared<Texture>();
     blendTex->create(w, h, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
     blendFb.create();
     blendFb.attachTexture(blendTex);
@@ -97,10 +97,10 @@ SMAA::SMAA(int w, int h)
     blendFb.check();
     blendFb.unbind();
 
-    areaTex = framebuffer_texture_t(new Texture());
+    areaTex = std::make_shared<Texture>();
     areaTex->create(AREATEX_WIDTH, AREATEX_HEIGHT, GL_RG, GL_RG8, GL_UNSIGNED_BYTE, areaTexBytes);
 
-    searchTex = framebuffer_texture_t(new Texture());
+    searchTex = std::make_shared<Texture>();
     searchTex->create(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, GL_RED, GL_R8, GL_UNSIGNED_BYTE, searchTexBytes);
 
 
@@ -158,7 +158,7 @@ void SMAA::resize(int w, int h)
     shaderLoaded = false;
 }
 
-void SMAA::render(framebuffer_texture_t input, Framebuffer& output)
+void SMAA::render(std::shared_ptr<Texture> input, Framebuffer& output)
 {
     if (!shaderLoaded) loadShader(quality);
 

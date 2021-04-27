@@ -33,7 +33,7 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
     std::shared_ptr<Texture> depth = std::make_shared<Texture>();
     depth->create(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_SHORT);
 
-    auto tex = framebuffer_texture_t(depth);
+    auto tex = depth;
 
     for (int i = 0; i < 2; ++i)
     {
@@ -41,7 +41,7 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
         framebuffers[i].attachTextureDepth(tex);
         textures[i] = std::make_shared<Texture>();
         textures[i]->create(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
-        framebuffers[i].attachTexture(framebuffer_texture_t(textures[i]));
+        framebuffers[i].attachTexture(textures[i]);
         framebuffers[i].drawToAll();
         framebuffers[i].check();
         framebuffers[i].unbind();

@@ -10,8 +10,8 @@
 #include "saiga/opengl/buffer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shader.h"
+#include "saiga/opengl/templatedBuffer.h"
 
-#include <memory>
 namespace Saiga
 {
 /**
@@ -62,26 +62,33 @@ namespace Saiga
 class SAIGA_OPENGL_API UniformBuffer : public Buffer
 {
    public:
-    UniformBuffer();
-    ~UniformBuffer();
+    UniformBuffer() : Buffer(GL_UNIFORM_BUFFER) {}
+    ~UniformBuffer() {}
 
-    /**
-     * This function is obsolete and may be removed in later versions.
-     *
-     * Initializes this uniform buffer for the given shader.
-     * If the buffer is specified with "layout (std140)" this buffer can be used
-     * in multiple shaders with one init() call.
-     * @param shader
-     */
-    void init(std::shared_ptr<Shader> shader, GLuint location);
-
-
-    friend std::ostream& operator<<(std::ostream& os, const UniformBuffer& ub);
 
     // returns one value, the maximum size in basic machine units of a uniform block, which must be at least 16384.
-    static GLint getMaxUniformBlockSize();
+    static GLint getMaxUniformBlockSize()
+    {
+        GLint ret;
+        glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &ret);
+        return ret;
+    }
     // returns one value, the maximum number of uniform buffer binding points on the context, which must be at least 36.
-    static GLint getMaxUniformBufferBindings();
+    static GLint getMaxUniformBufferBindings()
+    {
+        GLint ret;
+        glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &ret);
+        return ret;
+    }
 };
+
+
+template <class T>
+class TemplatedUniformBuffer : public TemplatedBuffer<T>
+{
+   public:
+    TemplatedUniformBuffer() : TemplatedBuffer<T>(GL_UNIFORM_BUFFER) {}
+};
+
 
 }  // namespace Saiga

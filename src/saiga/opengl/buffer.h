@@ -51,7 +51,7 @@ class SAIGA_OPENGL_API Buffer
     void createGLBuffer(const void* data = nullptr, unsigned int size = 0, GLenum usage = GL_STATIC_DRAW);
     void deleteGLBuffer();
 
-    void fill(const void* data, unsigned int size, GLenum usage = GL_STATIC_DRAW);
+    void fill2(const void* data, unsigned int size, GLenum usage = GL_STATIC_DRAW);
 
     void updateBuffer(const void* data, unsigned int size, unsigned int offset);
     void getBuffer(void* out_data, unsigned int _size, unsigned int offset) const;
@@ -123,7 +123,7 @@ inline void Buffer::deleteGLBuffer()
     }
 }
 
-inline void Buffer::fill(const void* data, unsigned int _size, GLenum _usage)
+inline void Buffer::fill2(const void* data, unsigned int _size, GLenum _usage)
 {
     size  = _size;
     usage = _usage;

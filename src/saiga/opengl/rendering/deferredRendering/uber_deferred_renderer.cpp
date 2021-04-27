@@ -30,7 +30,7 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
         blackDummyTexture->create(2, 2, GL_RED, GL_R8, GL_UNSIGNED_BYTE, (GLubyte*)data.data());
     }
 
-    gbuffer.init(renderWidth, renderHeight, params.gbp);
+    gbuffer.init(renderWidth, renderHeight);
 
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor    = params.lightingClearColor;

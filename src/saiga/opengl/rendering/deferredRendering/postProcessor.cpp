@@ -21,7 +21,7 @@ void PostProcessingShader::checkUniforms()
     location_gbufferDepth   = Shader::getUniformLocation("gbufferDepth");
     location_gbufferNormals = Shader::getUniformLocation("gbufferNormals");
     location_gbufferColor   = Shader::getUniformLocation("gbufferColor");
-    location_gbufferData    = Shader::getUniformLocation("gbufferData");
+    location_gbufferMaterial = Shader::getUniformLocation("gbufferData");
 }
 
 
@@ -39,8 +39,8 @@ void PostProcessingShader::uploadGbufferTextures(GBuffer* gbuffer)
     Shader::upload(location_gbufferNormals, 2);
     gbuffer->getTextureColor()->bind(3);
     Shader::upload(location_gbufferColor, 3);
-    gbuffer->getTextureData()->bind(4);
-    Shader::upload(location_gbufferData, 4);
+    gbuffer->getTextureMaterial()->bind(4);
+    Shader::upload(location_gbufferMaterial, 4);
 }
 
 void PostProcessingShader::uploadScreenSize(vec4 size)
@@ -110,7 +110,7 @@ void PostProcessor::createFramebuffers()
     std::shared_ptr<Texture> depth = std::make_shared<Texture>();
     depth->create(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_SHORT);
 
-    auto tex = framebuffer_texture_t(depth);
+    auto tex = depth;
 
     for (int i = 0; i < 2; ++i)
     {
@@ -143,7 +143,7 @@ void PostProcessor::createFramebuffers()
                 break;
         }
 
-        framebuffers[i].attachTexture(framebuffer_texture_t(textures[i]));
+        framebuffers[i].attachTexture(textures[i]);
         framebuffers[i].drawToAll();
         framebuffers[i].check();
         framebuffers[i].unbind();
@@ -162,7 +162,7 @@ void PostProcessor::switchBuffer()
     currentBuffer = (currentBuffer + 1) % 2;
 }
 
-void PostProcessor::render()
+void PostProcessor::render(bool use_gbuffer_as_first )
 {
     int effects = postProcessingEffects.size();
 
@@ -173,7 +173,7 @@ void PostProcessor::render()
     }
 
 
-    first = true;
+    first = use_gbuffer_as_first;
 
 
     glDisable(GL_DEPTH_TEST);
@@ -262,7 +262,7 @@ void PostProcessor::renderLast(Framebuffer* target, ViewPort vp)
     target->unbind();
 }
 
-framebuffer_texture_t PostProcessor::getCurrentTexture()
+std::shared_ptr<Texture> PostProcessor::getCurrentTexture()
 {
     return framebuffers[currentBuffer].getTextureColor(0);
 }

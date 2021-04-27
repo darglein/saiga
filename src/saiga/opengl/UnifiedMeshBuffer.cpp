@@ -19,7 +19,7 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
         num_elements        = mesh.NumFaces();
         std::vector<uint32_t> indices_data(num_elements * indices_per_element);
         std::memcpy(&indices_data[0], &mesh.triangles[0], num_elements * sizeof(uint32_t) * indices_per_element);
-        indices.set(indices_data, GL_STATIC_DRAW);
+        indices.create(indices_data, GL_STATIC_DRAW);
         indices.bind();
     }
     else if (draw_mode == GL_LINES)
@@ -28,7 +28,7 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
         num_elements        = mesh.lines.size();
         std::vector<uint32_t> indices_data(num_elements * indices_per_element);
         std::memcpy(&indices_data[0], &mesh.lines[0], num_elements * sizeof(uint32_t) * indices_per_element);
-        indices.set(indices_data, GL_STATIC_DRAW);
+        indices.create(indices_data, GL_STATIC_DRAW);
         indices.bind();
     }
     else
@@ -39,7 +39,7 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
     if (mesh.HasPosition())
     {
         glEnableVertexAttribArray(0);
-        position.set(mesh.position, GL_STATIC_DRAW);
+        position.create(mesh.position, GL_STATIC_DRAW);
         position.bind();
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vec3), NULL);
     }
@@ -47,7 +47,7 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
     if (mesh.HasNormal())
     {
         glEnableVertexAttribArray(1);
-        normal.set(mesh.normal, GL_STATIC_DRAW);
+        normal.create(mesh.normal, GL_STATIC_DRAW);
         normal.bind();
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vec3), NULL);
     }
@@ -55,7 +55,7 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
     if (mesh.HasColor())
     {
         glEnableVertexAttribArray(2);
-        color.set(mesh.color, GL_STATIC_DRAW);
+        color.create(mesh.color, GL_STATIC_DRAW);
         color.bind();
         glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(vec4), NULL);
     }
@@ -63,7 +63,7 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
     if (mesh.HasTC())
     {
         glEnableVertexAttribArray(3);
-        tc.set(mesh.texture_coordinates, GL_STATIC_DRAW);
+        tc.create(mesh.texture_coordinates, GL_STATIC_DRAW);
         tc.bind();
         glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(vec2), NULL);
     }
@@ -72,7 +72,7 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
     {
         glEnableVertexAttribArray(4);
         glEnableVertexAttribArray(5);
-        bone_info.set(mesh.bone_info, GL_STATIC_DRAW);
+        bone_info.create(mesh.bone_info, GL_STATIC_DRAW);
         bone_info.bind();
         glVertexAttribIPointer(4, 4, GL_INT, sizeof(BoneInfo), (void*)(0 * sizeof(GLfloat)));
         glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(BoneInfo), (void*)(4 * sizeof(GLfloat)));
@@ -82,8 +82,8 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 
-    std::cout << "UnifiedMeshBuffer " << indices.getElementCount() << " " << position.getElementCount() << " "
-              << normal.getElementCount() << " " << color.getElementCount() << std::endl;
+    std::cout << "UnifiedMeshBuffer " << indices.Size() << " " << position.Size() << " "
+              << normal.Size() << " " << color.Size() << std::endl;
 }
 void UnifiedMeshBuffer::Draw(int offset, int count)
 {

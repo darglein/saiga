@@ -10,6 +10,18 @@
 
 namespace Saiga
 {
+
+class SAIGA_OPENGL_API Texture1D  : public TextureBase
+{
+   public:
+    Texture1D() : TextureBase(GL_TEXTURE_1D) {}
+
+    void create(int size, GLenum color_type, GLenum internal_format, GLenum data_type,
+                const void* data = nullptr);
+   private:
+    int size;
+};
+
 class SAIGA_OPENGL_API Texture2D : public TextureBase
 {
    public:

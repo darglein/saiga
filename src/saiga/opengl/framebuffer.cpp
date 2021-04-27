@@ -137,7 +137,7 @@ void Framebuffer::drawTo(std::vector<int> colorBufferIds)
 
 
 
-void Framebuffer::attachTexture(framebuffer_texture_t texture)
+void Framebuffer::attachTexture(std::shared_ptr<Texture> texture)
 {
     bind();
     int index = colorBuffers.size();
@@ -146,14 +146,14 @@ void Framebuffer::attachTexture(framebuffer_texture_t texture)
     glFramebufferTexture2D(GL_FRAMEBUFFER, cid, texture->getTarget(), texture->getId(), 0);
 }
 
-void Framebuffer::attachTextureDepth(framebuffer_texture_t texture)
+void Framebuffer::attachTextureDepth(std::shared_ptr<Texture> texture)
 {
     bind();
     depthBuffer = texture;
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->getTarget(), texture->getId(), 0);
 }
 
-void Framebuffer::attachTextureStencil(framebuffer_texture_t texture)
+void Framebuffer::attachTextureStencil(std::shared_ptr<Texture> texture)
 {
     bind();
     stencilBuffer = texture;
@@ -161,7 +161,7 @@ void Framebuffer::attachTextureStencil(framebuffer_texture_t texture)
 }
 
 
-void Framebuffer::attachTextureDepthStencil(framebuffer_texture_t texture)
+void Framebuffer::attachTextureDepthStencil(std::shared_ptr<Texture> texture)
 {
     bind();
     depthBuffer   = texture;
@@ -189,7 +189,7 @@ void Framebuffer::resize(int width, int height)
 {
     if (depthBuffer) depthBuffer->resize(width, height);
     if (stencilBuffer) stencilBuffer->resize(width, height);
-    for (framebuffer_texture_t t : colorBuffers) t->resize(width, height);
+    for (auto t : colorBuffers) t->resize(width, height);
 }
 
 }  // namespace Saiga

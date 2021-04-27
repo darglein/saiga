@@ -120,7 +120,6 @@ class SAIGA_OPENGL_API Shader
      * Initates the compute operation.
      * The shader must be bound beforehand.
      */
-
     void dispatchCompute(const uvec3& num_groups);
     void dispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z);
 

@@ -13,6 +13,7 @@ macro(saiga_vision_sample FILE_NAME)
   set_target_properties(${TARGET_NAME} PROPERTIES FOLDER samples/${PREFIX})
 endmacro()
 
+saiga_vision_sample(sample_vision_calib_response.cpp)
 saiga_vision_sample(sample_vision_bow.cpp)
 saiga_vision_sample(sample_vision_derive.cpp)
 saiga_vision_sample(sample_vision_featureMatching.cpp)

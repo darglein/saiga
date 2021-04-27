@@ -47,7 +47,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     }
     lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
 
-    gbuffer.init(renderWidth, renderHeight, params.gbp);
+    gbuffer.init(renderWidth, renderHeight);
 
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor    = params.lightingClearColor;
@@ -131,7 +131,10 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
         renderGBuffer({camera, viewport});
     }
-    renderSSAO({camera, viewport});
+
+    if (params.useSSAO) ssao->render(camera, viewport, &gbuffer);
+
+
 
     lighting.ComputeCullingAndStatistics(camera);
 
@@ -144,54 +147,36 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         auto tim = timer->Measure("Lighting");
         bindCamera(camera);
         setViewPort(viewport);
-        renderLighting({camera, viewport});
+        lighting.render(camera, viewport);
     }
 
     {
         auto tim = timer->Measure("Forward");
         renderingInterface->render(camera, RenderPass::Forward);
     }
-
-    assert_no_glerror();
-
-
-    //    return;
+    lighting.applyVolumetricLightBuffer();
 
 
-    if (params.writeDepthToOverlayBuffer)
-    {
-        auto tim = timer->Measure("Write depth");
-        writeGbufferDepthToCurrentFramebuffer();
-    }
-#if 0
-
-    startTimer(OVERLAY);
-
-    for (auto c : renderInfo.cameras)
-    {
-        auto camera = c.first;
-        bindCamera(camera);
-        setViewPort(c.second);
-    }
-    stopTimer(OVERLAY);
-#endif
-
-    // glViewport(0, 0, renderWidth, renderHeight);
     setViewPort(viewport);
 
 
 
-    lighting.applyVolumetricLightBuffer();
-
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
-    //    postProcessor.switchBuffer();
+
+    if (params.hdr)
+    {
+        auto tim = timer->Measure("Tone Mapping");
+        tone_mapper.Map(lighting.lightAccumulationTexture.get(),
+                        postProcessor.getTargetBuffer().getTextureColor(0).get());
+        postProcessor.switchBuffer();
+        postProcessor.bindCurrentBuffer();
+    }
 
 
-    // postprocessor's 'currentbuffer' will still be bound after render
     {
         auto tim = timer->Measure("Post Processing");
-        postProcessor.render();
+        postProcessor.render(!params.hdr);
     }
 
 
@@ -310,21 +295,6 @@ void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::View
 }
 
 
-void DeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
-{
-    lighting.render(camera.first, camera.second);
-
-    assert_no_glerror();
-}
-
-void DeferredRenderer::renderSSAO(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
-{
-    if (params.useSSAO) ssao->render(camera.first, camera.second, &gbuffer);
-
-
-    assert_no_glerror();
-}
-
 void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
 {
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -380,6 +350,7 @@ void DeferredRenderer::renderImgui()
         }
 
 
+        ImGui::Separator();
         if (ImGui::Checkbox("SSAO", &params.useSSAO))
         {
             if (params.useSSAO)
@@ -395,6 +366,17 @@ void DeferredRenderer::renderImgui()
         if (ssao)
         {
             ssao->renderImGui();
+        }
+
+        if(ImGui::Checkbox("hdr", &params.hdr))
+        {
+
+        }
+
+        if(params.hdr)
+        {
+            ImGui::Separator();
+            tone_mapper.imgui();
         }
     }
     ImGui::End();
