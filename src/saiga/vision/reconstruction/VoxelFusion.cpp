@@ -19,7 +19,7 @@ void FusionScene::Preprocess()
 {
     triangle_soup_inclusive_prefix_sum.clear();
     triangle_soup.clear();
-    mesh.clear();
+    mesh = UnifiedMesh();
     tsdf = std::make_unique<SparseTSDF>(params.voxelSize, params.block_count, params.hash_size);
 
     if (images.empty()) return;
@@ -716,7 +716,7 @@ void FusionScene::IntegratePointBased()
 
 void FusionScene::ExtractMesh()
 {
-    mesh.clear();
+    mesh = UnifiedMesh();
 
     auto triangle_soup_per_block =
         tsdf->ExtractSurface(params.extract_iso, params.extract_outlier_factor, 0, 4, params.verbose);
@@ -755,11 +755,7 @@ void FusionScene::ExtractMesh()
     if (!params.out_file.empty())
     {
         std::ofstream strm(params.out_file);
-        saveMeshOff(mesh, strm);
-        if (params.verbose)
-        {
-            std::cout << mesh << " saved as " << params.out_file << std::endl;
-        }
+        saveMeshOff(mesh.Mesh<VertexNC,uint32_t>(), strm);
     }
 }
 
