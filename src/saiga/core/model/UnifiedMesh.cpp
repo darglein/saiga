@@ -145,11 +145,12 @@ UnifiedMesh& UnifiedMesh::EraseVertices(ArrayView<int> vertices)
         valid_vertex[v] = 0;
     }
 
-
+    int old_size = NumVertices();
 
     auto erase = [&](auto old) {
+        SAIGA_ASSERT(old.size() == old_size);
         decltype(old) flat;
-        for (int i = 0; i < NumVertices(); ++i)
+        for (int i = 0; i < old_size; ++i)
         {
             if (valid_vertex[i])
             {

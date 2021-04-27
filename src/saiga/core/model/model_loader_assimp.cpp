@@ -197,7 +197,7 @@ UnifiedModel AssimpLoader::Model()
     UnifiedModel model;
 
     TraversePrintTree(scene->mRootNode);
-//    exit(0);
+    //    exit(0);
 
 
     // load embedded texture
@@ -213,7 +213,6 @@ UnifiedModel AssimpLoader::Model()
 
         model.materials.push_back(ConvertMaterial(material));
     }
-
 
 
 
@@ -351,44 +350,47 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
     scene.mRootNode->mMeshes[0] = 0;
     scene.mRootNode->mNumMeshes = 1;
 
-    SAIGA_EXIT_ERROR("todo");
+    SAIGA_ASSERT(model.mesh.size() == 1);
+
+    // SAIGA_EXIT_ERROR("todo");
     auto pMesh = scene.mMeshes[0];
 
-#if 0
-
-    if (model.HasPosition())
+    auto uni_mesh = model.mesh.front();
+    if (uni_mesh.HasPosition())
     {
-        pMesh->mNumVertices = model.position.size();
+        pMesh->mNumVertices = uni_mesh.position.size();
         pMesh->mVertices    = new aiVector3D[pMesh->mNumVertices];
         for (int i = 0; i < pMesh->mNumVertices; ++i)
         {
-            pMesh->mVertices[i] = convert_vector(model.position[i]);
+            pMesh->mVertices[i] = convert_vector(uni_mesh.position[i]);
         }
     }
 
-    if (model.HasNormal())
+    if (uni_mesh.HasNormal())
     {
+        SAIGA_ASSERT(uni_mesh.normal.size() == uni_mesh.NumVertices());
         pMesh->mNormals = new aiVector3D[pMesh->mNumVertices];
         for (int i = 0; i < pMesh->mNumVertices; ++i)
         {
-            pMesh->mNormals[i] = convert_vector(model.normal[i]);
+            pMesh->mNormals[i] = convert_vector(uni_mesh.normal[i]);
         }
     }
 
 
-    if (model.HasColor())
+    if (uni_mesh.HasColor())
     {
+        SAIGA_ASSERT(uni_mesh.color.size() == uni_mesh.NumVertices());
         pMesh->mColors[0] = new aiColor4D[pMesh->mNumVertices];
         for (int i = 0; i < pMesh->mNumVertices; ++i)
         {
-            auto c               = model.color[i];
+            auto c               = uni_mesh.color[i];
             pMesh->mColors[0][i] = aiColor4D(c(0), c(1), c(2), c(3));
         }
     }
 
-    if (model.triangles.size() > 0)
+    if (uni_mesh.triangles.size() > 0)
     {
-        pMesh->mNumFaces = model.triangles.size();
+        pMesh->mNumFaces = uni_mesh.triangles.size();
         pMesh->mFaces    = new aiFace[pMesh->mNumFaces];
 
         for (int i = 0; i < pMesh->mNumFaces; ++i)
@@ -397,7 +399,7 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
             pMesh->mFaces[i].mIndices    = new unsigned int[3];
             for (int j = 0; j < 3; ++j)
             {
-                pMesh->mFaces[i].mIndices[j] = model.triangles[i](j);
+                pMesh->mFaces[i].mIndices[j] = uni_mesh.triangles[i](j);
             }
         }
     }
@@ -407,7 +409,7 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
 
     Assimp::ExportProperties properties;
 
-    if (model.triangles.empty() && model.lines.empty())
+    if (uni_mesh.triangles.empty() && uni_mesh.lines.empty())
     {
         // This is probably a point cloud
         properties.SetPropertyBool(AI_CONFIG_EXPORT_POINT_CLOUDS, true);
@@ -420,7 +422,6 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
         std::cout << exporter.GetErrorString() << std::endl;
         throw std::runtime_error("assimp export failed");
     }
-#endif
 }
 
 

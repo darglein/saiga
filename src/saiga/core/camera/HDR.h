@@ -5,6 +5,7 @@
  */
 
 #pragma once
+#include "saiga/core/math/imath.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/assert.h"
 
@@ -27,7 +28,7 @@ inline float VignetteModel(float r_squared, VignetteCoefficients coefficients)
 
 
 
-template<typename T = double>
+template <typename T = double>
 struct DiscreteResponseFunction
 {
     DiscreteResponseFunction(int resolution = 256)
@@ -39,17 +40,54 @@ struct DiscreteResponseFunction
             irradiance[i] = i;
         }
     }
-    T operator()(int image_intensity) { return irradiance[image_intensity]; }
-    std::vector<T> irradiance;
 
-    void normalize(T target = 255)
+    T operator()(int image_intensity) { return irradiance[image_intensity]; }
+
+    // Interpolated Read.
+    // Input u must be in range [0,1]
+    T NormalizedRead(float u)
+    {
+        u = clamp(u, 0.f, 1.f);
+        SAIGA_ASSERT(u >= 0 && u <= 1);
+        u = u * (irradiance.size() - 1);
+
+        int idown = (int)u;
+        int iup   = Saiga::iCeil(u);
+
+        float alpha = u - idown;
+
+        T a = irradiance[idown];
+        T b = irradiance[iup];
+
+        return alpha * b + (T(1) - alpha) * a;
+    }
+
+    DiscreteResponseFunction<T>& normalize(T target = 255)
     {
         SAIGA_ASSERT(irradiance.back() > 0);
         for (auto& d : irradiance)
         {
             d = d / irradiance.back() * target;
         }
+        return *this;
     }
+
+    DiscreteResponseFunction<T>& MakeGamma(T gamma)
+    {
+        SAIGA_ASSERT(irradiance.size() > 0);
+        // make sure this is exact
+        irradiance.front() = 0;
+        irradiance.back()  = 1;
+        for (int i = 1; i < irradiance.size() - 1; ++i)
+        {
+            float alpha   = float(i) / (irradiance.size() - 1);
+            irradiance[i] = pow(alpha, gamma);
+        }
+        return *this;
+    }
+
+
+    std::vector<T> irradiance;
 };
 
 

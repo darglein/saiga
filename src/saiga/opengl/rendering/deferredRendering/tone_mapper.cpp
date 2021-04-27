@@ -49,21 +49,11 @@ void ToneMapper::imgui()
     params_dirty |= ImGui::SliderFloat3("vignette_coeffs", params.vignette_coeffs.data(), -3, 1);
     params_dirty |= ImGui::SliderFloat2("vignette_offset", params.vignette_offset.data(), -1, 1);
 
+    static float gamma = 1.0 / 1.5;
+    ImGui::SliderFloat("gamma", &gamma, 0, 4);
     if (ImGui::Button("gamma response"))
     {
-        float gamma = 1.0 / 1.56;
-        for (int i = 0; i < camera_response.irradiance.size(); ++i)
-        {
-            float alpha = float(i) / (camera_response.irradiance.size() - 1);
-            if (alpha == 0)
-            {
-                camera_response.irradiance[i] = 0;
-            }
-            else
-            {
-                camera_response.irradiance[i] = pow(alpha, gamma);
-            }
-        }
+        camera_response.MakeGamma(gamma);
         params_dirty = true;
     }
 
