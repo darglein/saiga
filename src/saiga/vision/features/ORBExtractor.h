@@ -18,7 +18,7 @@
  * along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  *

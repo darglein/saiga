@@ -8273,7 +8273,7 @@ STBIDEF int stbi_is_16_bit_from_callbacks(stbi_io_callbacks const* c, void* user
 This software is available under 2 licenses -- choose whichever you prefer.
 ------------------------------------------------------------------------------
 ALTERNATIVE A - MIT License
-Copyright (c) 2017 Sean Barrett
+Copyright (c) 2021 Sean Barrett
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
 the Software without restriction, including without limitation the rights to
