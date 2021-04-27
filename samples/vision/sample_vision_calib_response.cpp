@@ -50,7 +50,7 @@ float PixelWeight(unsigned char value)
 }
 
 TemplatedImage<double> EstimateIrradiance(ArrayView<TemplatedImage<unsigned char>> input, ArrayView<double> exposure,
-                                          DiscreteResponseFunction f)
+                                          DiscreteResponseFunction<double> f)
 {
     TemplatedImage<double> result(input.front().dimensions());
     TemplatedImage<double> counts(input.front().dimensions());
@@ -89,7 +89,7 @@ TemplatedImage<double> EstimateIrradiance(ArrayView<TemplatedImage<unsigned char
 }
 
 
-DiscreteResponseFunction EstimateInverseResponse(ArrayView<TemplatedImage<unsigned char>> input,
+DiscreteResponseFunction<double> EstimateInverseResponse(ArrayView<TemplatedImage<unsigned char>> input,
                                                  ArrayView<double> exposure, TemplatedImage<double> irradiance)
 {
     DiscreteResponseFunction result;
