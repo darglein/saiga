@@ -40,6 +40,12 @@ constexpr float clamp(float v, float mi, float ma)
     return std::min(ma, std::max(mi, v));
 }
 
+
+constexpr float saturate(float v)
+{
+    return clamp(v, 0, 1);
+}
+
 constexpr float smoothstep(float edge0, float edge1, float x)
 {
     float t = clamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);

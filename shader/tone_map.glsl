@@ -10,9 +10,10 @@
 
 struct TonemapParameters
 {
+    vec4 white_point_exposure;
     vec4 vignette_coeffs;
     vec2 vignette_offset;
-    float exposure;
+    vec2 padding;
 };
 
 layout (std140, binding = 3) uniform lightDataBlockPoint
@@ -60,7 +61,12 @@ vec3 Tonemap(vec3 hdr_color, ivec2 texel, vec2 normalized_uv){
     float r2 = dot(normalized_uv + params.vignette_offset,normalized_uv+ params.vignette_offset);
     float vignette = VignetteModel(r2, params.vignette_coeffs.xyz);
 
-    vec3 color = vignette * params.exposure * hdr_color;
+    vec3 color = vignette * params.white_point_exposure.w * hdr_color;
+
+    // White balance
+    color = color * params.white_point_exposure.xyz;
+
+    // Camera response / Gamma
     color.x = texture(camera_response_tex, color.x).r;
     color.y = texture(camera_response_tex, color.y).r;
     color.z = texture(camera_response_tex, color.z).r;

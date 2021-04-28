@@ -43,12 +43,44 @@ void ToneMapper::Map(Texture* input_hdr_color_image, Texture* output_ldr_color_i
     shader->dispatchCompute(uvec3(gw, gh, 1));
     shader->unbind();
 }
+
+vec3 ColorTemperatureToRGB(float temperatureInKelvins)
+{
+    vec3 retColor;
+
+    temperatureInKelvins = clamp(temperatureInKelvins, 1000.0, 40000.0) / 100.0;
+
+    if (temperatureInKelvins <= 66.0)
+    {
+        retColor(0) = 1.0;
+        retColor(1) = saturate(0.39008157876901960784 * log(temperatureInKelvins) - 0.63184144378862745098);
+    }
+    else
+    {
+        float t     = temperatureInKelvins - 60.0;
+        retColor(0) = saturate(1.29293618606274509804 * pow(t, -0.1332047592));
+        retColor(1) = saturate(1.12989086089529411765 * pow(t, -0.0755148492));
+    }
+
+    if (temperatureInKelvins >= 66.0)
+        retColor(2) = 1.0;
+    else if (temperatureInKelvins <= 19.0)
+        retColor(2) = 0.0;
+    else
+        retColor(2) = saturate(0.54320678911019607843 * log(temperatureInKelvins - 10.0) - 1.19625408914);
+
+    return retColor;
+}
+
+
 void ToneMapper::imgui()
 {
     params_dirty |= ImGui::SliderFloat("exposure", &params.exposure, 0.1, 5);
     params_dirty |= ImGui::SliderFloat3("vignette_coeffs", params.vignette_coeffs.data(), -3, 1);
     params_dirty |= ImGui::SliderFloat2("vignette_offset", params.vignette_offset.data(), -1, 1);
 
+    ImGui::Separator();
+    ImGui::Text("Camera Response");
     static float gamma = 1.0 / 1.5;
     ImGui::SliderFloat("gamma", &gamma, 0, 4);
     if (ImGui::Button("gamma response"))
@@ -57,9 +89,22 @@ void ToneMapper::imgui()
         params_dirty = true;
     }
 
-
-    ImGui::Text("Camera Response");
     ImGui::PlotLines("###response", camera_response.irradiance.data(), camera_response.irradiance.size(), 0, "", 0, 1,
                      ImVec2(100, 80));
+
+    ImGui::Separator();
+    ImGui::Text("White Balance");
+    if (ImGui::ColorEdit3("white_point", params.white_point.data()))
+    {
+        params_dirty = true;
+    }
+    if (ImGui::SliderFloat("color_temperature", &color_temperature, 1000, 15000))
+    {
+        params.white_point = ColorTemperatureToRGB(color_temperature);
+//        params.white_point = vec3(1, 1, 1).array() / params.white_point.array();
+//        float max_l        = params.white_point.maxCoeff();
+//        params.white_point /= max_l;
+        params_dirty = true;
+    }
 }
 }  // namespace Saiga

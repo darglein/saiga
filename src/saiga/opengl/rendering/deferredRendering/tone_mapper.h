@@ -20,11 +20,13 @@ namespace Saiga
 {
 struct TonemapParameters
 {
+    vec3 white_point = vec3::Ones();
+    float exposure = 1;
     vec4 vignette_coeffs = vec4::Zero();
     vec2 vignette_offset = vec2::Zero();
-    float exposure = 1;
+    vec2 padding;
 
-    TonemapParameters() { static_assert(sizeof(TonemapParameters) == sizeof(float) * 8); }
+    TonemapParameters() { static_assert(sizeof(TonemapParameters) == sizeof(float) * 12); }
 };
 
 class SAIGA_OPENGL_API ToneMapper
@@ -36,12 +38,16 @@ class SAIGA_OPENGL_API ToneMapper
     void imgui();
     std::shared_ptr<Shader> shader;
 
+
     TonemapParameters params;
     TemplatedUniformBuffer<TonemapParameters> uniforms;
     bool params_dirty = true;
 
     std::shared_ptr<Texture1D> response_texture;
     DiscreteResponseFunction<float> camera_response;
+
+   private:
+    float color_temperature = 5500;
 };
 
 }  // namespace Saiga
