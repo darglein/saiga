@@ -18,7 +18,7 @@ float ComputeScattering(float lightDotView)
     return result;
 }
 
-float volumetricFactorPoint(ShadowData sd, samplerCubeArrayShadow shadowMap, int layer, vec3 cameraPos, vec3 fragWPos, vec3 vertexW, vec3 lightPosW, vec4 attenuation, float intensity){
+float volumetricFactorPoint(ShadowData sd, samplerCubeArrayShadow shadowMap, int layer, vec3 cameraPos, vec3 fragWPos, vec3 vertexW, vec3 lightPosW, vec4 attenuation){
     const int NB_STEPS = 10;
 
     float farplane = sd.shadow_planes.x;
@@ -79,7 +79,7 @@ float volumetricFactorPoint(ShadowData sd, samplerCubeArrayShadow shadowMap, int
         {
             //                        accumFog += ComputeScattering(dot(rayDirection, sunDirection));
             //            accumFog += dot(rayDirection, sunDirection) * dot(rayDirection, sunDirection);
-            accumFog += intensity * atten;
+            accumFog += 1.0 * atten;
 
         }
         currentPosition += step;

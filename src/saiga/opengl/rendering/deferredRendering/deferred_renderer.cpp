@@ -47,7 +47,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     }
     lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
 
-    gbuffer.init(renderWidth, renderHeight);
+    gbuffer.init(renderWidth, renderHeight, params.srgb);
 
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor    = params.lightingClearColor;
@@ -154,9 +154,15 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         auto tim = timer->Measure("Forward");
         renderingInterface->render(camera, RenderPass::Forward);
     }
+
+    {
+        auto tim = timer->Measure("Write depth");
+        // writeGbufferDepthToCurrentFramebuffer();
+    }
+
+
+
     lighting.applyVolumetricLightBuffer();
-
-
     setViewPort(viewport);
 
 
@@ -332,6 +338,13 @@ void DeferredRenderer::renderImgui()
 
         ImGui::Separator();
 
+
+        if (ImGui::Checkbox("srgb", &params.srgb))
+        {
+            gbuffer.init(renderWidth, renderHeight, params.srgb);
+            lighting.lightAccumulationBuffer.attachTextureDepthStencil(gbuffer.getTextureDepth());
+        }
+
         if (ImGui::Checkbox("SMAA", &params.useSMAA))
         {
             if (params.useSMAA)
@@ -368,12 +381,11 @@ void DeferredRenderer::renderImgui()
             ssao->renderImGui();
         }
 
-        if(ImGui::Checkbox("hdr", &params.hdr))
+        if (ImGui::Checkbox("hdr", &params.hdr))
         {
-
         }
 
-        if(params.hdr)
+        if (params.hdr)
         {
             ImGui::Separator();
             tone_mapper.imgui();

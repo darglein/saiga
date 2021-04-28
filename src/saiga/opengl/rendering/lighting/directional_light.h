@@ -45,7 +45,7 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     vec3 direction = vec3(0, -1, 0);
 
     // relative intensity to the diffuse light in ambiend regions
-    float ambientIntensity = 0.3f;
+    float ambientIntensity = 0.1f;
 
     // number of cascades for cascaded shadow mapping
     // 1 means normal shadow mapping

@@ -15,7 +15,7 @@ void LightDistanceAttenuation::renderImGui()
 {
     ImGui::SliderFloat("atten. a", &attenuation[0], 0, 2);
     ImGui::SliderFloat("atten. b", &attenuation[1], 0, 2);
-    ImGui::SliderFloat("atten. c", &attenuation[2], 0, 2);
+    ImGui::SliderFloat("atten. c", &attenuation[2], 0, 16);
     ImGui::InputFloat3("attenuation", &attenuation[0]);
     float c = Evaluate(radius);
     ImGui::Text("Cutoff Intensity: %f", c);

@@ -106,7 +106,7 @@ void main() {
     vec3 fragW = vec3(sd.view_to_light*vec4(vposition,1));
     vec3 lightW = light_data.position.xyz;
 
-    vec3 vf = volumetricFactorPoint(sd, cube_test, shadow_id,camera,fragW,vertex,lightW,light_data.attenuation,intensity) * light_data.colorDiffuse.rgb;
+    vec3 vf = volumetricFactorPoint(sd, cube_test, shadow_id,camera,fragW,vertex,lightW,light_data.attenuation) * light_data.colorDiffuse.rgb * intensity;
     out_volumetric = vec4(vf,1);
 #endif
     out_color = vec4(color,1);

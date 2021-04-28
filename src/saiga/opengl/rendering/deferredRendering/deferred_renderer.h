@@ -58,7 +58,8 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
     float offsetFactor = 1.0f, offsetUnits = 1.0f;
     bool blitLastFramebuffer = true;
 
-    bool hdr = false;
+    bool hdr = true;
+    bool srgb = true;
 
     PostProcessorParameters ppp;
 

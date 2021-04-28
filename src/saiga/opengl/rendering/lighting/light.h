@@ -65,7 +65,7 @@ class SAIGA_OPENGL_API LightBase
     vec3 colorSpecular       = make_vec3(1);
     float intensity_specular = 1;
     // density of the participating media
-    float volumetricDensity = 0.04f;
+    float volumetricDensity = 0.025f;
 
     // glPolygonOffset(slope, units)
     vec2 polygon_offset = vec2(2.0f, 10.0f);

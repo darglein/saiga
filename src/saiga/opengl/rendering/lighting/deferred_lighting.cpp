@@ -62,7 +62,7 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers)
 
     {
         volumetricLightTexture = std::make_shared<Texture>();
-        volumetricLightTexture->create(_width, _height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
+        volumetricLightTexture->create(_width, _height, GL_RGBA, GL_RGBA16F, GL_HALF_FLOAT);
         lightAccumulationBuffer.attachTexture(volumetricLightTexture);
     }
 
@@ -75,7 +75,7 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers)
     volumetricBuffer.create();
     {
         volumetricLightTexture2 = std::make_shared<Texture>();
-        volumetricLightTexture2->create(_width, _height, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT);
+        volumetricLightTexture2->create(_width, _height, GL_RGBA, GL_RGBA16F, GL_HALF_FLOAT);
         volumetricBuffer.attachTexture(volumetricLightTexture2);
     }
     volumetricBuffer.drawTo({0});

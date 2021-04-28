@@ -25,7 +25,7 @@ class Sample : public SampleWindowDeferred
         Random::setSeed(23461);
 
         float aspect = window->getAspectRatio();
-        camera.setProj(60.0f, aspect, 0.1f, 200.0f);
+        camera.setProj(60.0f, aspect, 0.1f, 500.0f);
 
         auto sphere = std::make_shared<ColoredAsset>(
             BoxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))).FlatShading().SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
@@ -49,16 +49,17 @@ class Sample : public SampleWindowDeferred
 
         renderer->lighting.removeLight(sun);
 
-        for (int i = 0; i < 10; ++i)
+        for (int i = 0; i < 5; ++i)
         {
             auto light = std::make_shared<PointLight>();
             renderer->lighting.AddLight(light);
 
             light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-            light->setIntensity(linearRand(1, 20));
+            light->setIntensity(linearRand(5, 100));
 
 
             light->setRadius(linearRand(10, 30));
+            light->attenuation = vec3(0, 0, 1);
 
             light->position = linearRand(vec3(-s, 1, -s), vec3(s, 5, s));
         }

@@ -15,8 +15,7 @@ class SAIGA_OPENGL_API GBuffer : public Framebuffer
 {
    public:
     GBuffer() {}
-    GBuffer(int w, int h) { init(w, h); }
-    void init(int w, int h);
+    void init(int w, int h, bool srgb_color);
 
     std::shared_ptr<Texture> getTextureColor() { return this->colorBuffers[0]; }
     std::shared_ptr<Texture> getTextureNormal() { return this->colorBuffers[1]; }

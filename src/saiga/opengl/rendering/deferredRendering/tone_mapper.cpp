@@ -19,7 +19,9 @@ ToneMapper::ToneMapper()
     shader = shaderLoader.load<Shader>("tone_map.glsl");
     uniforms.create(ArrayView<TonemapParameters>(params), GL_STATIC_DRAW);
 
+    camera_response.MakeGamma(1.0 / 2.2);
     camera_response.normalize(1);
+    params_dirty = true;
 }
 void ToneMapper::Map(Texture* input_hdr_color_image, Texture* output_ldr_color_image)
 {
@@ -81,6 +83,24 @@ void ToneMapper::imgui()
 
     ImGui::Separator();
     ImGui::Text("Camera Response");
+
+    if (ImGui::Button("gamma = 2.2"))
+    {
+        camera_response.MakeGamma(2.2);
+        params_dirty = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("gamma = 1"))
+    {
+        camera_response.MakeGamma(1);
+        params_dirty = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("gamma = 1.0/2.2"))
+    {
+        camera_response.MakeGamma(1.0 / 2.2);
+        params_dirty = true;
+    }
     static float gamma = 1.0 / 1.5;
     ImGui::SliderFloat("gamma", &gamma, 0, 4);
     if (ImGui::Button("gamma response"))
@@ -101,9 +121,9 @@ void ToneMapper::imgui()
     if (ImGui::SliderFloat("color_temperature", &color_temperature, 1000, 15000))
     {
         params.white_point = ColorTemperatureToRGB(color_temperature);
-//        params.white_point = vec3(1, 1, 1).array() / params.white_point.array();
-//        float max_l        = params.white_point.maxCoeff();
-//        params.white_point /= max_l;
+        //        params.white_point = vec3(1, 1, 1).array() / params.white_point.array();
+        //        float max_l        = params.white_point.maxCoeff();
+        //        params.white_point /= max_l;
         params_dirty = true;
     }
 }
