@@ -8,7 +8,7 @@
 
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-
+#include "saiga/core/util/color.h"
 namespace Saiga
 {
 ProceduralSkybox::ProceduralSkybox(const std::string& shader_str)
@@ -25,10 +25,11 @@ void ProceduralSkybox::render(Camera* cam, const mat4& model)
 
     vec4 params = vec4(horizonHeight, distance, sunIntensity, sunSize);
     shader->upload(0, params);
-    shader->upload(1, sunDir);
-    shader->upload(2, sunColor);
-    shader->upload(3, highSkyColor);
-    shader->upload(4, lowSkyColor);
+
+    shader->upload(1, Color::srgb2linearrgb(sunDir));
+    shader->upload(2, Color::srgb2linearrgb(sunColor));
+    shader->upload(3, Color::srgb2linearrgb(highSkyColor));
+    shader->upload(4, Color::srgb2linearrgb(lowSkyColor));
     mesh.BindAndDraw();
 
     shader->unbind();

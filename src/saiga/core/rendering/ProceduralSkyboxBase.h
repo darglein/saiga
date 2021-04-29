@@ -23,7 +23,7 @@ class SAIGA_CORE_API ProceduralSkyboxBase
     float horizonHeight = 0;
     float distance      = 1024;
     float sunIntensity  = 1;
-    float sunSize       = 1;
+    float sunSize       = 0.1;
     vec3 sunDir         = vec3(0, -1, 0);
     vec3 sunColor       = vec3(220, 155, 45) / 255.0f;
     vec3 highSkyColor   = vec3(43, 99, 192) / 255.0f;
