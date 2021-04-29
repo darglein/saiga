@@ -37,14 +37,7 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* 
         std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
     maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
 
-    lightDataBufferDirectional.createGLBuffer(
-        nullptr, sizeof(DirectionalLight::ShaderData) * maximumNumberOfDirectionalLights, GL_DYNAMIC_DRAW);
-    lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLight::ShaderData) * maximumNumberOfPointLights,
-                                        GL_DYNAMIC_DRAW);
-    lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLight::ShaderData) * maximumNumberOfSpotLights,
-                                       GL_DYNAMIC_DRAW);
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
-
 
     quadMesh.fromMesh(FullScreenQuad());
 }
@@ -80,10 +73,8 @@ void UberDeferredLighting::loadShaders()
 void UberDeferredLighting::initRender()
 {
     auto tim = timer->Measure("Lightinit");
-    // TODO Paul: We should refactor this for all single light pass renderers.
     RendererLighting::initRender();
     LightInfo li;
-    LightData ld;
     li.pointLightCount       = 0;
     li.spotLightCount        = 0;
     li.directionalLightCount = 0;
@@ -92,11 +83,10 @@ void UberDeferredLighting::initRender()
     li.clusterEnabled = clustererType > 0;
 
     // Point Lights
-    for (auto pl : pointLights)
+    for (auto& pl : active_point_lights)
     {
         if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
         if (!pl->shouldRender()) continue;
-        ld.pointLights.push_back(pl->GetShaderData());
 
         if (clustererType) lightClusterer->addPointLight(pl->position, pl->radius);
 
@@ -104,13 +94,10 @@ void UberDeferredLighting::initRender()
     }
 
     // Spot Lights
-    SpotLight::ShaderData glSpotLight;
-    for (auto sl : spotLights)
+    for (auto& sl : active_spot_lights)
     {
         if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
         if (!sl->shouldRender()) continue;
-        glSpotLight = sl->GetShaderData();
-        ld.spotLights.push_back(glSpotLight);
 
         if (clustererType)
         {
@@ -121,8 +108,7 @@ void UberDeferredLighting::initRender()
                 radius = l * tan(rad);
             else
                 radius = l * 0.5f / (cos(rad) * cos(rad));
-            vec3 world_center =
-                make_vec3(glSpotLight.position) + make_vec3(glSpotLight.direction).normalized() * radius;
+            vec3 world_center = sl->position + sl->direction.normalized() * radius;
             lightClusterer->addSpotLight(world_center, radius);
         }
 
@@ -130,26 +116,16 @@ void UberDeferredLighting::initRender()
     }
 
     // Directional Lights
-    for (auto dl : directionalLights)
+    for (auto& dl : active_directional_lights)
     {
         if (li.directionalLightCount >= maximumNumberOfDirectionalLights) break;  // just ignore too many lights...
         if (!dl->shouldRender()) continue;
-        ld.directionalLights.push_back(dl->GetShaderData());
-
         li.directionalLightCount++;
     }
-
-    lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLight::ShaderData) * li.pointLightCount, 0);
-    lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLight::ShaderData) * li.spotLightCount, 0);
-    lightDataBufferDirectional.updateBuffer(ld.directionalLights.data(),
-                                            sizeof(DirectionalLight::ShaderData) * li.directionalLightCount, 0);
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.directionalLightCount;
 
-    lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
     lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
 }
 
@@ -207,20 +183,6 @@ void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPoint
         std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
     maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
 
-
-    if (maximumNumberOfDirectionalLights != maxDirectionalLights)
-    {
-        lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLight::ShaderData) * maxDirectionalLights,
-                                                  GL_DYNAMIC_DRAW);
-    }
-    if (maximumNumberOfPointLights != maxPointLights)
-    {
-        lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLight::ShaderData) * maxPointLights, GL_DYNAMIC_DRAW);
-    }
-    if (maximumNumberOfSpotLights != maxSpotLights)
-    {
-        lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLight::ShaderData) * maxSpotLights, GL_DYNAMIC_DRAW);
-    }
     maximumNumberOfDirectionalLights = maxDirectionalLights;
     maximumNumberOfPointLights       = maxPointLights;
     maximumNumberOfSpotLights        = maxSpotLights;
@@ -238,6 +200,13 @@ void UberDeferredLighting::renderImGui()
 {
     if (!showLightingImgui) return;
 
+    if (!editor_gui.enabled)
+    {
+        int w = 340;
+        int h = 240;
+        ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
+    }
 
     if (ImGui::Begin("Lighting", &showLightingImgui))
     {
@@ -266,16 +235,13 @@ void UberDeferredLighting::setClusterType(int tp)
         switch (clustererType)
         {
             case 1:
-                lightClusterer =
-                    std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer));
+                lightClusterer = std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer));
                 break;
             case 2:
-                lightClusterer =
-                    std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer));
+                lightClusterer = std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer));
                 break;
             case 3:
-                lightClusterer =
-                    std::static_pointer_cast<Clusterer>(std::make_shared<GPUAssignmentClusterer>(timer));
+                lightClusterer = std::static_pointer_cast<Clusterer>(std::make_shared<GPUAssignmentClusterer>(timer));
                 break;
             default:
                 lightClusterer = nullptr;

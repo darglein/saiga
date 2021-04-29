@@ -42,13 +42,6 @@ struct RendererLightingShaderNames
 
 namespace uber
 {
-struct LightData
-{
-    std::vector<PointLight::ShaderData> pointLights;
-    std::vector<SpotLight::ShaderData> spotLights;
-    std::vector<DirectionalLight::ShaderData> directionalLights;
-};
-
 struct LightInfo
 {
     int pointLightCount;

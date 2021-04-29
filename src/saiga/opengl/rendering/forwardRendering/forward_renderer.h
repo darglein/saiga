@@ -64,7 +64,6 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
    private:
     int renderWidth        = 0;
     int renderHeight       = 0;
-    bool showLightingImgui = false;
     ShaderLoader shaderLoader;
 
    protected:

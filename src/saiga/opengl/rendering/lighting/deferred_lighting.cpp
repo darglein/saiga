@@ -519,7 +519,6 @@ void DeferredLighting::renderImGui()
     }
     ImGui::End();
 
-
     RendererLighting::renderImGui();
 }
 

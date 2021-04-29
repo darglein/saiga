@@ -48,9 +48,6 @@ class SAIGA_OPENGL_API MVPTextureShaderFL : public MVPTextureShader
 class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 {
    public:
-    ShaderStorageBuffer lightDataBufferPoint;
-    ShaderStorageBuffer lightDataBufferSpot;
-    ShaderStorageBuffer lightDataBufferDirectional;
 
     UniformBuffer lightInfoBuffer;
 

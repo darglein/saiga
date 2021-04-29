@@ -46,9 +46,6 @@ class SAIGA_OPENGL_API UberDeferredLightingShader : public DeferredShader
 class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
 {
    public:
-    ShaderStorageBuffer lightDataBufferPoint;
-    ShaderStorageBuffer lightDataBufferSpot;
-    ShaderStorageBuffer lightDataBufferDirectional;
 
     UniformBuffer lightInfoBuffer;
 

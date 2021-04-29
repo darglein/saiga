@@ -102,7 +102,6 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     std::shared_ptr<MVPTextureShader> blitDepthShader;
     IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
     std::shared_ptr<Texture> blackDummyTexture;
-    bool showLightingImgui = false;
     bool cullLights        = false;
 
 

@@ -64,8 +64,9 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // forward pass with lighting
-    lighting.initRender();
     lighting.ComputeCullingAndStatistics(camera);
+    lighting.initRender();
+    assert_no_glerror();
 
     lighting.cluster(camera, viewport);
     {
@@ -74,8 +75,6 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
         glDepthFunc(GL_LESS);
     }
     lighting.render(camera, viewport);
-
-
 
     assert_no_glerror();
 }
@@ -99,14 +98,25 @@ void ForwardRenderer::Resize(int windowWidth, int windowHeight)
 
 void ForwardRenderer::renderImgui()
 {
+    lighting.renderImGui();
+
+    if (!should_render_imgui) return;
+
+    if (!editor_gui.enabled)
+    {
+        int w = 340;
+        int h = 240;
+        ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Forward Renderer", &should_render_imgui);
+
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);
     ImGui::Checkbox("Depth Prepass", &depthPrepass);
 
     ImGui::Separator();
-
-    ImGui::Checkbox("Show Lighting UI", &showLightingImgui);
 
     ImGui::End();
 }

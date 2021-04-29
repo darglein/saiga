@@ -99,8 +99,6 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
     }
 
     lighting.ComputeCullingAndStatistics(camera);
-    // renderDepthMaps();
-    assert_no_glerror();
     lighting.initRender();
     assert_no_glerror();
 
@@ -275,10 +273,6 @@ void UberDeferredRenderer::renderImgui()
     ImGui::Checkbox("Cull Lights", &cullLights);
 
     ImGui::Separator();
-
-
-
-    ImGui::Checkbox("Show Lighting UI", &showLightingImgui);
 
     ImGui::End();
 }
