@@ -136,6 +136,7 @@ vec3 debugCluster(float depth)
 {
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
     float normLightCount = float(clusterList[clusterIndex].plCount + clusterList[clusterIndex].slCount) / float(tileDebug);
+    if(normLightCount >= 1.0) return vec3(1);
     return vec3(normLightCount, 0.0, 1.0 - normLightCount);
 }
 

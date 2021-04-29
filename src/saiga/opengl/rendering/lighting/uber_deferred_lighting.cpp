@@ -279,6 +279,7 @@ void UberDeferredLighting::setClusterType(int tp)
                     std::static_pointer_cast<Clusterer>(std::make_shared<GPUAssignmentClusterer>(timer));
                 break;
             default:
+                lightClusterer = nullptr;
                 return;
         }
 

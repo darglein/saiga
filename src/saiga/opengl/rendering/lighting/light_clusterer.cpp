@@ -78,7 +78,6 @@ bool Clusterer::fillImGui()
     changed |= ImGui::Checkbox("useSpecialNearCluster", &useSpecialNearCluster);
     if (useSpecialNearCluster)
     {
-        static float percent = 0.075f;
         changed |= ImGui::SliderFloat("specialNearDepthPercent", &specialNearDepthPercent, 0.0f, 0.5f, "%.4f");
     }
 

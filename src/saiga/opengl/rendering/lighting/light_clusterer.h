@@ -75,10 +75,10 @@ class SAIGA_OPENGL_API Clusterer
         clustersDirty           = true;
     }
 
-    inline void set(int tileSize, int depthSplits)
+    inline void set(int _tileSize, int _depthSplits)
     {
-        depthSplits         = depthSplits;
-        screenSpaceTileSize = tileSize;
+        depthSplits         = _depthSplits;
+        screenSpaceTileSize = _tileSize;
         clustersDirty       = true;
     }
 
@@ -142,7 +142,7 @@ class SAIGA_OPENGL_API Clusterer
     bool screenSpaceDebug = false;
     bool splitDebug       = false;
 
-    float specialNearDepthPercent = 0.075f;
+    float specialNearDepthPercent = 0.06f;
     bool useSpecialNearCluster    = true;
 
 
