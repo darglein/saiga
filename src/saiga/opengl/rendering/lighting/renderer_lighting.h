@@ -19,6 +19,9 @@
 
 #include <set>
 
+#include "light_manager.h"
+#include "shadow_manager.h"
+
 namespace Saiga
 {
 class PointLightShader;
@@ -67,23 +70,17 @@ struct LightInfo
 #define LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT 9
 
 class Clusterer;
-
-class SAIGA_OPENGL_API RendererLighting
+class SAIGA_OPENGL_API RendererLighting : public LightManager
 {
    public:
     vec4 clearColor = make_vec4(0);
-    int totalLights;
-    int visibleLights;
-    int renderedDepthmaps;
+
 
     int shadowSamples = 16;  // Quadratic number (1,4,9,16,...)
 
     bool drawDebug = false;
 
 
-    bool backFaceShadows     = false;
-    float shadowOffsetFactor = 2;
-    float shadowOffsetUnits  = 10;
 
     RendererLighting(GLTimerSystem* timer);
     RendererLighting& operator=(RendererLighting& l) = delete;
@@ -95,31 +92,15 @@ class SAIGA_OPENGL_API RendererLighting
     virtual void loadShaders();
     void createLightMeshes();
 
-    void setRenderDebug(bool b) { drawDebug = b; }
-
-    void AddLight(std::shared_ptr<DirectionalLight> l) { directionalLights.insert(l); }
-    void AddLight(std::shared_ptr<PointLight> l) { pointLights.insert(l); }
-    void AddLight(std::shared_ptr<SpotLight> l) { spotLights.insert(l); }
-
-    void removeLight(std::shared_ptr<DirectionalLight> l) { directionalLights.erase(l); }
-    void removeLight(std::shared_ptr<PointLight> l) { pointLights.erase(l); }
-    void removeLight(std::shared_ptr<SpotLight> l) { spotLights.erase(l); }
-
-    void setShader(std::shared_ptr<SpotLightShader> spotLightShader,
-                   std::shared_ptr<SpotLightShader> spotLightShadowShader);
-    void setShader(std::shared_ptr<PointLightShader> pointLightShader,
-                   std::shared_ptr<PointLightShader> pointLightShadowShader);
-    void setShader(std::shared_ptr<DirectionalLightShader> directionalLightShader,
-                   std::shared_ptr<DirectionalLightShader> directionalLightShadowShader);
-
     virtual void initRender();
     virtual void render(Camera* cam, const ViewPort& viewPort);
-    virtual void renderDepthMaps(RenderingInterface* renderer);
+    virtual void renderDepthMaps(Camera* camera, RenderingInterface* renderer);
     virtual void renderDebug(Camera* cam);
 
     void setDebugShader(std::shared_ptr<MVPColorShader> shader);
 
-    virtual void cullLights(Camera* cam);
+    // Compute culling and the light statistics (see variables below)
+    void ComputeCullingAndStatistics(Camera* cam);
 
     virtual void renderImGui();
 
@@ -133,22 +114,18 @@ class SAIGA_OPENGL_API RendererLighting
    public:
     int width, height;
     std::shared_ptr<MVPColorShader> debugShader;
-    UniformBuffer shadowCameraBuffer;
 
     // the vertex position is sufficient. no normals and texture coordinates needed.
     typedef IndexedVertexBuffer<Vertex, uint32_t> lightMesh_t;
 
     std::shared_ptr<PointLightShader> pointLightShader, pointLightShadowShader;
     lightMesh_t pointLightMesh;
-    std::set<std::shared_ptr<PointLight> > pointLights;
 
     std::shared_ptr<SpotLightShader> spotLightShader, spotLightShadowShader;
     lightMesh_t spotLightMesh;
-    std::set<std::shared_ptr<SpotLight> > spotLights;
-
     std::shared_ptr<DirectionalLightShader> directionalLightShader, directionalLightShadowShader;
+
     lightMesh_t directionalLightMesh;
-    std::set<std::shared_ptr<DirectionalLight> > directionalLights;
 
     ShaderPart::ShaderCodeInjections shadowInjection;
 
@@ -158,14 +135,15 @@ class SAIGA_OPENGL_API RendererLighting
    protected:
     GLTimerSystem* timer;
 
+    ShadowManager shadowManager;
+
 
     int maximumNumberOfDirectionalLights = 256;
     int maximumNumberOfPointLights       = 256;
     int maximumNumberOfSpotLights        = 256;
 
-    bool showLightingImgui = false;
-    int selected_light     = -1;
-    int selecte_light_type = 0;
-    std::shared_ptr<LightBase> selected_light_ptr;
+    TemplatedShaderStorageBuffer<PointLight::ShaderData> point_light_data;
+    TemplatedShaderStorageBuffer<SpotLight::ShaderData> spot_light_data;
+    TemplatedShaderStorageBuffer<DirectionalLight::ShaderData> directional_light_data;
 };
 }  // namespace Saiga

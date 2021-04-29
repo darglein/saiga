@@ -37,7 +37,8 @@ void Scene::InitialAlignment()
     for (auto& v : vertices)
     {
         ICP::Correspondence c;
-        c.srcPoint = v.estimate.translation();
+        // c.srcPoint = v.estimate.translation();
+        c.srcPoint = (v.estimate * extrinsics).translation();
         c.refPoint = v.ground_truth.translation();
         corrs.push_back(c);
     }

@@ -35,7 +35,8 @@ SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
     // create one directional light
     sun = std::make_shared<DirectionalLight>();
     renderer->lighting.AddLight(sun);
-    sun->createShadowMap(2048, 2048);
+    sun->BuildCascades(3);
+    sun->castShadows = true;
 }
 
 SampleWindowDeferred::~SampleWindowDeferred() {}

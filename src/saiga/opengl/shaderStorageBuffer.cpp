@@ -9,29 +9,5 @@
 
 namespace Saiga
 {
-ShaderStorageBuffer::ShaderStorageBuffer() : Buffer(GL_SHADER_STORAGE_BUFFER) {}
-
-ShaderStorageBuffer::~ShaderStorageBuffer() {}
-
-std::ostream& operator<<(std::ostream& os, const ShaderStorageBuffer& ssb)
-{
-    os << "ShaderStorageBuffer "
-       << "size=dynamic";
-    return os;
-}
-
-GLint ShaderStorageBuffer::getMaxShaderStorageBlockSize()
-{
-    GLint ret;
-    glGetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &ret);
-    return ret;
-}
-
-GLint ShaderStorageBuffer::getMaxShaderStorageBufferBindings()
-{
-    GLint ret;
-    glGetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, &ret);
-    return ret;
-}
 
 }  // namespace Saiga

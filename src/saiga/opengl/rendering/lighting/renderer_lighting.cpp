@@ -11,7 +11,7 @@
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
-#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
@@ -22,7 +22,7 @@ namespace Saiga
 RendererLighting::RendererLighting(GLTimerSystem* timer) : timer(timer)
 {
     createLightMeshes();
-    shadowCameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
+
 
     main_menu.AddItem(
         "Saiga", "Lighting", [this]() { showLightingImgui = !showLightingImgui; }, 297, "F8");
@@ -71,90 +71,52 @@ void RendererLighting::resize(int _width, int _height)
     this->height = _height;
 }
 
-void RendererLighting::cullLights(Camera* cam)
+void RendererLighting::ComputeCullingAndStatistics(Camera* cam)
 {
-    cam->recalculatePlanes();
-    visibleLights = directionalLights.size();
+    Prepare(cam);
 
-    // cull lights that are not visible
-    for (auto& light : spotLights)
+    if (active_point_lights_data.size() > point_light_data.Size())
     {
-        if (light->active)
-        {
-            light->calculateCamera();
-            light->shadowCamera.recalculatePlanes();
-            bool visible = !light->cullLight(cam);
-            visibleLights += visible;
-        }
+        point_light_data.create(active_point_lights_data);
+        point_light_data.bind(POINT_LIGHT_DATA_BINDING_POINT);
     }
-
-
-    for (auto& light : pointLights)
-    {
-        if (light->active)
-        {
-            bool visible = !light->cullLight(cam);
-            visibleLights += visible;
-        }
-    }
-}
-
-void RendererLighting::initRender()
-{
-    totalLights       = 0;
-    visibleLights     = 0;
-    renderedDepthmaps = 0;
-    totalLights       = directionalLights.size() + spotLights.size() + pointLights.size();
-    visibleLights     = totalLights;
-}
-
-void RendererLighting::renderDepthMaps(RenderingInterface* renderer)
-{
-    // When GL_POLYGON_OFFSET_FILL, GL_POLYGON_OFFSET_LINE, or GL_POLYGON_OFFSET_POINT is enabled,
-    // each fragment's depth value will be offset after it is interpolated from the depth values of the appropriate
-    // vertices. The value of the offset is factor×DZ+r×units, where DZ is a measurement of the change in depth
-    // relative to the screen area of the polygon, and r is the smallest value that is guaranteed to produce a
-    // resolvable offset for a given implementation. The offset is added before the depth test is performed and
-    // before the value is written into the depth buffer.
-    glEnable(GL_POLYGON_OFFSET_FILL);
-
-    float shadowMult = backFaceShadows ? -1 : 1;
-
-    if (backFaceShadows)
-        glCullFace(GL_FRONT);
     else
-        glCullFace(GL_BACK);
-
-
-    //        glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
-
-    shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
-    DepthFunction depthFunc = [&](Camera* cam) -> void
     {
-        renderedDepthmaps++;
-        renderer->render(cam, RenderPass::Shadow);
-    };
-    for (auto& light : directionalLights)
-    {
-        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-        //        glPolygonOffset(shadowMult * shadowOffsetFactor, shadowMult * shadowOffsetUnits);
-        light->renderShadowmap(depthFunc, shadowCameraBuffer);
+        point_light_data.update(active_point_lights_data);
     }
 
-    for (auto& light : spotLights)
+    if (active_spot_lights_data.size() > spot_light_data.Size())
     {
-        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-        light->renderShadowmap(depthFunc, shadowCameraBuffer);
+        spot_light_data.create(active_spot_lights_data);
+        spot_light_data.bind(SPOT_LIGHT_DATA_BINDING_POINT);
     }
-    for (auto& light : pointLights)
+    else
     {
-        glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-        light->renderShadowmap(depthFunc, shadowCameraBuffer);
+        spot_light_data.update(active_spot_lights_data);
     }
-    glCullFace(GL_BACK);
-    glDisable(GL_POLYGON_OFFSET_FILL);
 
-    glPolygonOffset(0, 0);
+    if (active_directional_lights_data.size() > directional_light_data.Size())
+    {
+        directional_light_data.create(active_directional_lights_data);
+        directional_light_data.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
+    }
+    else
+    {
+        directional_light_data.update(active_directional_lights_data);
+    }
+}
+
+void RendererLighting::initRender() {}
+
+void RendererLighting::renderDepthMaps(Camera* camera, RenderingInterface* renderer)
+{
+    std::vector<PointLight*> pls;
+    for (auto p : pointLights) pls.push_back(p.get());
+    std::vector<SpotLight*> sls;
+    for (auto p : spotLights) sls.push_back(p.get());
+    std::vector<DirectionalLight*> dls;
+    for (auto p : directionalLights) dls.push_back(p.get());
+    shadowManager.RenderShadowMaps(camera, renderer, dls, pls, sls);
 }
 
 void RendererLighting::render(Camera* cam, const ViewPort& viewPort) {}
@@ -242,33 +204,6 @@ void RendererLighting::renderDebug(Camera* cam)
     glEnable(GL_CULL_FACE);
 }
 
-void RendererLighting::setShader(std::shared_ptr<SpotLightShader> spotLightShader,
-                                 std::shared_ptr<SpotLightShader> spotLightShadowShader)
-{
-    this->spotLightShader       = spotLightShader;
-    this->spotLightShadowShader = spotLightShadowShader;
-}
-
-void RendererLighting::setShader(std::shared_ptr<PointLightShader> pointLightShader,
-                                 std::shared_ptr<PointLightShader> pointLightShadowShader)
-{
-    this->pointLightShader       = pointLightShader;
-    this->pointLightShadowShader = pointLightShadowShader;
-}
-
-void RendererLighting::setShader(std::shared_ptr<DirectionalLightShader> directionalLightShader,
-                                 std::shared_ptr<DirectionalLightShader> directionalLightShadowShader)
-{
-    this->directionalLightShader       = directionalLightShader;
-    this->directionalLightShadowShader = directionalLightShadowShader;
-}
-
-
-void RendererLighting::setDebugShader(std::shared_ptr<MVPColorShader> shader)
-{
-    this->debugShader = shader;
-}
-
 void RendererLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
 {
     maxDirectionalLights = std::max(0, maxDirectionalLights);
@@ -284,133 +219,39 @@ void RendererLighting::setLightMaxima(int maxDirectionalLights, int maxPointLigh
 
 void RendererLighting::createLightMeshes()
 {
-    //    auto qb = TriangleMeshGenerator::createFullScreenQuadMesh();
-    //    directionalLightMesh.fromMesh(*qb);
-
     directionalLightMesh.fromMesh(FullScreenQuad());
-
 
     // the create mesh returns a sphere with outer radius of 1
     // but here we want the inner radius to be 1
     // we estimate the required outer radius with apothem of regular polygons
     float n = 4.9;
     float r = 1.0f / cos(pi<float>() / n);
-    //    std::cout << "point light radius " << r << std::endl;
     Sphere s(make_vec3(0), r);
-    //    auto sb = TriangleMeshGenerator::IcoSphereMesh(s, 1);
-    //    sb->createBuffers(pointLightMesh);
-    //    pointLightMesh.fromMesh(*sb);
     pointLightMesh.fromMesh(IcoSphereMesh(s, 1));
 
-
     Cone c(make_vec3(0), vec3(0, 0, -1), 1.0f, 1.0f);
-    //    auto cb = TriangleMeshGenerator::ConeMesh(c, 10);
-    auto model = ConeMesh(c, 10);
-
-    //    cb->createBuffers(spotLightMesh);
-    spotLightMesh.fromMesh(model);
+    spotLightMesh.fromMesh(ConeMesh(c, 10));
 }
 
-
-template <typename T>
-static void imGuiLightBox(int id, const std::string& name, T& lights)
-{
-    ImGui::NewLine();
-    ImGui::Separator();
-    ImGui::NewLine();
-    ImGui::PushID(id);
-    if (ImGui::CollapsingHeader(name.c_str()))
-    {
-        int i = 0;
-        for (auto& light : lights)
-        {
-            ImGui::PushID(i);
-            if (ImGui::CollapsingHeader(to_string(i).c_str()))
-            {
-                light->renderImGui();
-            }
-            i++;
-            ImGui::PopID();
-        }
-    }
-    ImGui::PopID();
-}
 
 void RendererLighting::renderImGui()
 {
     if (!showLightingImgui) return;
 
-    if (!editor_gui.enabled)
-    {
-        int w = 340;
-        int h = 240;
-        ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_Once);
-        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
-    }
     if (ImGui::Begin("Lighting", &showLightingImgui))
     {
         ImGui::Text("Lighting Base");
         ImGui::Text("resolution: %dx%d", width, height);
-        ImGui::Text("visibleLights/totalLights: %d/%d", visibleLights, totalLights);
-        ImGui::Text("renderedDepthmaps: %d", renderedDepthmaps);
         ImGui::Text("shadowSamples: %d", shadowSamples);
         ImGui::ColorEdit4("clearColor ", &clearColor[0]);
         ImGui::Checkbox("drawDebug", &drawDebug);
 
         ImGui::Checkbox("lightDepthTest", &lightDepthTest);
-
-
-        ImGui::Checkbox("backFaceShadows", &backFaceShadows);
-        ImGui::InputFloat("shadowOffsetFactor", &shadowOffsetFactor, 0.1, 1);
-        ImGui::InputFloat("shadowOffsetUnits", &shadowOffsetUnits, 0.1, 1);
-
-
-        if (ImGui::ListBoxHeader("Lights", 4))
-        {
-            int lid = 0;
-            for (auto l : directionalLights)
-            {
-                std::string name = "Directional Light " + std::to_string(lid);
-                if (ImGui::Selectable(name.c_str(), selected_light == lid))
-                {
-                    selected_light     = lid;
-                    selected_light_ptr = l;
-                }
-                lid++;
-            }
-            for (auto l : spotLights)
-            {
-                std::string name = "Spot Light " + std::to_string(lid);
-                if (ImGui::Selectable(name.c_str(), selected_light == lid))
-                {
-                    selected_light     = lid;
-                    selected_light_ptr = l;
-                }
-                lid++;
-            }
-            for (auto l : pointLights)
-            {
-                std::string name = "Point Light " + std::to_string(lid);
-                if (ImGui::Selectable(name.c_str(), selected_light == lid))
-                {
-                    selected_light     = lid;
-                    selected_light_ptr = l;
-                }
-                lid++;
-            }
-            ImGui::ListBoxFooter();
-        }
     }
     ImGui::End();
 
-    if (selected_light_ptr)
-    {
-        if (ImGui::Begin("Light Data", &showLightingImgui))
-        {
-            selected_light_ptr->renderImGui();
-        }
-        ImGui::End();
-    }
+
+    LightManager::imgui();
 }
 
 }  // namespace Saiga

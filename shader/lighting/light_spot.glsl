@@ -33,23 +33,34 @@ void main() {
 
 
 ##GL_FRAGMENT_SHADER
-#version 330
-
+#version 430 core
+#extension GL_ARB_explicit_uniform_location : enable
 #ifdef SHADOWS
-uniform sampler2DShadow depthTex;
+layout(location = 7) uniform sampler2DArrayShadow depthTexures;
+layout(location = 8) uniform int shadow_id = 0;
 #endif
-
+layout(location = 10) uniform int active_light_id = 0;
 #define ACCUMULATE
 
-uniform vec2 shadowPlanes; //near and far plane for shadow mapping camera
-uniform vec4 attenuation;
-
-uniform float angle;
 
 in vec3 vertexMV;
 in vec3 vertex;
 in vec3 lightPos;
 in vec3 lightDir;
+
+struct SpotLightData
+{
+    vec4 position;       // xyz, w angle
+    vec4 colorDiffuse;   // rgb intensity
+    vec4 colorSpecular;  // rgb specular intensity
+    vec4 attenuation;    // xyz radius
+    vec4 direction;      // xyzw
+};
+
+layout (std430, binding = 3) buffer lightDataBlockSpot
+{
+    SpotLightData spotLights[];
+};
 
 
 #include "lighting_helper_fs.glsl"
@@ -61,24 +72,26 @@ layout(location=1) out vec4 out_volumetric;
 #include "volumetric.glsl"
 
 void main() {
+    SpotLightData light_data = spotLights[active_light_id];
+
+    // vec3 lightDir = light_data.direction.xyz;
     vec3 diffColor,vposition,normal,data;
     float depth;
     getGbufferData(diffColor,vposition,depth,normal,data,0);
 
     vec3 fragmentLightDir = normalize(lightPos-vposition);
-    float intensity = lightColorDiffuse.w;
+    float intensity = light_data.colorDiffuse.w;
 
     float visibility = 1.0f;
 #ifdef SHADOWS
-//    visibility = calculateShadow(depthTex,vposition);
-    visibility = calculateShadowPCF2(depthBiasMV,depthTex,vposition);
-//    visibility = calculateShadowPCFdither4(depthTex,vposition);
+     ShadowData sd = shadow_data[shadow_id];
+    visibility = calculateShadowPCFArray(sd, depthTexures, shadow_id , vposition);
 #endif
 
 
 //    float distanceToLight = length(vposition - lightPos);
     float distanceToLight = length( dot(vposition - lightPos,lightDir) );
-    float atten = spotAttenuation(fragmentLightDir,angle,lightDir)*DistanceAttenuation(attenuation,distanceToLight);
+    float atten = spotAttenuation(fragmentLightDir,light_data.position.w,lightDir)*DistanceAttenuation(light_data.attenuation,distanceToLight);
     float localIntensity = intensity*atten*visibility; //amount of light reaching the given point
 
     float Idiff = localIntensity * intensityDiffuse(normal,fragmentLightDir);
@@ -87,11 +100,11 @@ void main() {
         Ispec = localIntensity * data.x  * intensitySpecular(vposition,normal,fragmentLightDir,40);
 
 
-    vec3 color = lightColorDiffuse.rgb * (
+    vec3 color = light_data.colorDiffuse.rgb * (
                 Idiff * diffColor +
-                Ispec * lightColorSpecular.w * lightColorSpecular.rgb);
+                Ispec * light_data.colorSpecular.w * light_data.colorSpecular.rgb);
 #ifdef VOLUMETRIC
-    vec3 vf = volumetricFactorSpot(depthTex,depthBiasMV,vposition,vertexMV,lightPos,lightDir,angle,attenuation) * lightColorDiffuse.rgb * intensity;
+    vec3 vf = volumetricFactorSpot(depthTexures,shadow_id, sd,vposition,vertexMV,lightPos,lightDir,light_data.position.w,light_data.attenuation) * light_data.colorDiffuse.rgb * intensity;
     out_volumetric = vec4(vf,1);
 #endif
     out_color = vec4(color,1);

@@ -98,7 +98,7 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
         renderGBuffer({camera, viewport});
     }
 
-    if (cullLights) lighting.cullLights(camera);
+    lighting.ComputeCullingAndStatistics(camera);
     // renderDepthMaps();
     assert_no_glerror();
     lighting.initRender();
@@ -200,16 +200,6 @@ void UberDeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::
     glDisable(GL_STENCIL_TEST);
 
     gbuffer.unbind();
-
-
-    assert_no_glerror();
-}
-
-void UberDeferredRenderer::renderDepthMaps()
-{
-    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    lighting.renderDepthMaps(renderingInterface);
-
 
 
     assert_no_glerror();

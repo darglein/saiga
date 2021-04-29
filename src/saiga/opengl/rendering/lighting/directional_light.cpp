@@ -4,23 +4,19 @@
  * See LICENSE file for more information.
  */
 
+#include "directional_light.h"
+
 #include "saiga/core/geometry/clipping.h"
 #include "saiga/core/geometry/obb.h"
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 
+#include "internal/noGraphicsAPI.h"
 namespace Saiga
 {
-//==================================
-
-
-void DirectionalLight::createShadowMap(int w, int h, int _numCascades, ShadowQuality quality)
+void DirectionalLight::BuildCascades(int _numCascades)
 {
-    SAIGA_ASSERT(_numCascades > 0 && _numCascades <= MAX_CASCADES);
+    SAIGA_ASSERT(_numCascades > 0);
     this->numCascades = _numCascades;
-    //    Light::createShadowMap(resX,resY);
-    shadowmap = std::make_unique<CascadedShadowmap>(w, h, _numCascades, quality);
-    //    shadowmap->createCascaded(w,h,numCascades);
     orthoBoxes.resize(_numCascades);
 
 
@@ -32,7 +28,6 @@ void DirectionalLight::createShadowMap(int w, int h, int _numCascades, ShadowQua
         depthCutsRelative[i] = float(i) / _numCascades;
     }
     depthCutsRelative.back() = 1.0f;
-    castShadows              = true;
 }
 
 
@@ -49,9 +44,6 @@ void DirectionalLight::setDirection(const vec3& dir)
     m.col(0) = right;
     m.col(1) = up;
     m.col(2) = d;
-    //    col(m, 0) = right;
-    //    col(m, 1) = up;
-    //    col(m, 2) = d;
 
     vec3 cp = make_vec3(0);
 
@@ -62,12 +54,6 @@ void DirectionalLight::setDirection(const vec3& dir)
 
     this->shadowCamera.calculateModel();
     this->shadowCamera.updateFromModel();
-
-    //    std::cout << shadowCamera << std::endl;
-    //    std::cout << "dir: " << direction.transpose() << std::endl;
-    //    std::cout << m << std::endl;
-    //    std::cout << shadowCamera.model << std::endl;
-    //    std::cout << shadowCamera.proj << std::endl;
 }
 
 
@@ -82,16 +68,16 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
     OBB obb;
     obb.setOrientationScale( normalize(right), normalize(up), normalize(dir) );
 
-    obb.fitToPoints(0,cam->vertices,8);
-    obb.fitToPoints(1,cam->vertices,8);
-    obb.fitToPoints(2,cam->vertices,8);
+    obb.fitToPoints(0,cam->vertices.data(),8);
+    obb.fitToPoints(1,cam->vertices.data(),8);
+    obb.fitToPoints(2,cam->vertices.data(),8);
 
 
     vec3 increase(0,0,5.0);
 
-    float xDiff = 2.0f * length(obb.orientationScale[0]) + increase[0];
-    float yDiff = 2.0f * length(obb.orientationScale[1]) + increase[1];
-    float zDiff = 2.0f * length(obb.orientationScale[2]) + increase[2];
+    float xDiff = 2.0f * obb.orientationScale.col(0).norm() + increase[0];
+    float yDiff = 2.0f * obb.orientationScale.col(1).norm()  + increase[1];
+    float zDiff = 2.0f * obb.orientationScale.col(2).norm()  + increase[2];
 
     shadowNearPlane = 0;
     this->cam.setProj(
@@ -178,12 +164,9 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
         float r = boundingSphere.r;
         r       = ceil(r);
 
-        vec3 smsize = make_vec3(make_vec2(shadowmap->getSize()), 128468);
+        vec3 smsize = make_vec3(make_vec2(shadow_map_size), 128468);
 
         vec3 texelSize;
-        //    texelSize[0] = 2.0f * r / shadowmap.w;
-        //    texelSize[1] = 2.0f * r / shadowmap.h;
-        //    texelSize[2] = 0.0001f;
         texelSize = 2.0f * r / smsize.array();
 
         // project the position of the actual camera to light space
@@ -197,7 +180,6 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
         orthoBox.min = t - make_vec3(r);
         orthoBox.max = t + make_vec3(r);
 
-#    if 1
         {
             // move camera in texel size increments
             orthoBox.min = (orthoBox.min.array() / texelSize.array());
@@ -209,26 +191,8 @@ void DirectionalLight::fitShadowToCamera(Camera* cam)
             orthoBox.max = (orthoBox.max).array().floor();
             orthoBox.max = orthoBox.max.array() * texelSize.array();
         }
-#    endif
     }
 
-    //    this->cam.setProj(orthoBox);
-    //    this->cam.setProj(
-    //                orthoMin[0] ,orthoMax[0],
-    //                orthoMin[1] ,orthoMax[1],
-    //                orthoMin[2] ,orthoMax[2]
-    //                );
-
-#    if 0
-    // test if all cam vertices are in the shadow volume
-    for (int i = 0; i < 8; ++i)
-    {
-        vec3 v = cam->vertices[i];
-        vec4 p = shadowCamera.proj * shadowCamera.view * make_vec4(v, 1);
-        std::cout << p.transpose() << std::endl;
-        //        for (int j = 0; j < 3; ++j) SAIGA_ASSERT(p(j) >= -1 && p(j) <= 1);
-    }
-#    endif
 
 #endif
 }
@@ -312,31 +276,7 @@ std::vector<float> DirectionalLight::getDepthCutsRelative() const
     return depthCutsRelative;
 }
 
-void DirectionalLight::bindCascade(int n)
-{
-    this->shadowCamera.setProj(orthoBoxes[n]);
-    shadowmap->bindAttachCascade(n);
-}
 
-bool DirectionalLight::renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer)
-{
-    if (shouldCalculateShadowMap())
-    {
-        for (int i = 0; i < getNumCascades(); ++i)
-        {
-            bindCascade(i);
-            shadowCamera.recalculatePlanes();
-            CameraDataGLSL cd(&shadowCamera);
-            shadowCameraBuffer.updateBuffer(&cd, sizeof(CameraDataGLSL), 0);
-            f(&shadowCamera);
-        }
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
 
 void DirectionalLight::renderImGui()
 {

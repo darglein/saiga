@@ -8,9 +8,6 @@
 
 #include "saiga/core/geometry/object3d.h"
 #include "saiga/core/util/color.h"
-#include "saiga/opengl/rendering/lighting/shadowmap.h"
-#include "saiga/opengl/shader/basic_shaders.h"
-#include "saiga/opengl/uniformBuffer.h"
 
 #include <functional>
 
@@ -46,6 +43,16 @@ static const vec3 ClearBlueSky   = (Color(64, 156, 255));
 using DepthFunction = std::function<void(Camera*)>;
 
 
+struct ShadowData
+{
+    Eigen::Matrix<float,4,4,Eigen::DontAlign> view_to_light;
+    vec2 shadow_planes;
+    vec2 inv_shadow_map_size;
+
+    ShadowData() { static_assert(sizeof(ShadowData) ==  20 * sizeof(float)); }
+};
+
+
 
 class SAIGA_OPENGL_API LightBase
 {
@@ -63,6 +70,9 @@ class SAIGA_OPENGL_API LightBase
     // glPolygonOffset(slope, units)
     vec2 polygon_offset = vec2(2.0f, 10.0f);
 
+
+    int shadow_id = -1;
+    int active_light_id = -1;
 
     LightBase() {}
     LightBase(const vec3& color, float intensity)

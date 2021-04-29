@@ -64,8 +64,9 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // forward pass with lighting
-    if (cullLights) lighting.cullLights(camera);
     lighting.initRender();
+    lighting.ComputeCullingAndStatistics(camera);
+
     lighting.cluster(camera, viewport);
     {
         auto tim = timer->Measure("Forward + Shade");
@@ -98,18 +99,6 @@ void ForwardRenderer::Resize(int windowWidth, int windowHeight)
 
 void ForwardRenderer::renderImgui()
 {
-    lighting.renderImGui();
-
-    if (!should_render_imgui) return;
-
-    int w = 340;
-    int h = 240;
-    if (!editor_gui.enabled)
-    {
-        ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
-    }
-
     ImGui::Begin("Forward Renderer", &should_render_imgui);
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);

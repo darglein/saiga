@@ -23,19 +23,17 @@ void main()
 
 
 ##GL_FRAGMENT_SHADER
-#version 330
+#version 430 core
 
 #define MAX_CASCADES 5
-
+layout(location = 10) uniform int active_light_id = 0;
 #ifdef SHADOWS
-    // uniform sampler2DShadow depthTex;
-    // uniform sampler2DShadow depthTexures[MAX_CASCADES];
-    uniform sampler2DArrayShadow depthTexures;
-uniform mat4 viewToLightTransforms[MAX_CASCADES];
+layout(location = 9) uniform sampler2DArrayShadow depthTexures;
+layout(location = 8) uniform int cascade_offset = 0;
+
 uniform float depthCuts[MAX_CASCADES + 1];
 uniform int numCascades;
 uniform float cascadeInterpolateRange = 3.0f;
-
 
 void computeCascadeId(float viewDepth, int numCascades, out int cascadeId, out int interpolateCascade,
                       out float interpolateAlpha)
@@ -73,6 +71,20 @@ void computeCascadeId(float viewDepth, int numCascades, out int cascadeId, out i
 
 #endif
 
+
+struct DirectionalLightData
+{
+    vec4 colorDiffuse; // rgb intensity
+    vec4 colorSpecular; // rgb specular intensity
+    vec4 direction; // xyz, w ambient intensity
+};
+
+layout (std430, binding = 5) buffer lightDataBlockDirectional
+{
+    DirectionalLightData directionalLights[];
+};
+
+
 uniform sampler2D ssaoTex;
 
 uniform vec3 direction;
@@ -96,13 +108,15 @@ float getSSAOIntensity()
 
 vec4 getDirectionalLightIntensity(int sampleId)
 {
+    DirectionalLightData light_data = directionalLights[active_light_id];
+
     vec3 diffColor, vposition, normal, data;
     float depth;
     getGbufferData(diffColor, vposition, depth, normal, data, sampleId);
 
     vec3 fragmentLightDir = direction;
     float ssao            = getSSAOIntensity();
-    float intensity       = lightColorDiffuse.w;
+    float intensity       = light_data.colorDiffuse.w;
 
 
     float viewDepth = -vposition.z;
@@ -115,22 +129,27 @@ vec4 getDirectionalLightIntensity(int sampleId)
 #ifdef SHADOWS
     computeCascadeId(viewDepth, numCascades, cascadeId, interpolateCascade, interpolateAlpha);
 
+    ShadowData sd = shadow_data[cascadeId + cascade_offset];
     if (interpolateCascade == 0)
     {
-        visibility = calculateShadowPCFArray(viewToLightTransforms[cascadeId], depthTexures, cascadeId, vposition);
+//        mat4 v2l = viewToLightTransforms[cascadeId];
+        visibility = calculateShadowPCFArray(sd, depthTexures, cascadeId + cascade_offset, vposition);
     }
     else if (interpolateCascade == 1)
     {
-        float v1 = calculateShadowPCFArray(viewToLightTransforms[cascadeId], depthTexures, cascadeId, vposition);
+        float v1 = calculateShadowPCFArray(sd, depthTexures, cascadeId+ cascade_offset, vposition);
+
+        ShadowData sd2 = shadow_data[cascadeId + cascade_offset + 1];
         float v2 =
-            calculateShadowPCFArray(viewToLightTransforms[cascadeId + 1], depthTexures, cascadeId + 1, vposition);
+            calculateShadowPCFArray(sd2, depthTexures, cascadeId + 1+ cascade_offset, vposition);
         visibility = mix(v1, v2, interpolateAlpha * 0.5);
     }
     else
     {
-        float v1 = calculateShadowPCFArray(viewToLightTransforms[cascadeId], depthTexures, cascadeId, vposition);
+        float v1 = calculateShadowPCFArray(sd, depthTexures, cascadeId+ cascade_offset, vposition);
+        ShadowData sd2 = shadow_data[cascadeId + cascade_offset - 1];
         float v2 =
-            calculateShadowPCFArray(viewToLightTransforms[cascadeId - 1], depthTexures, cascadeId - 1, vposition);
+            calculateShadowPCFArray(sd2, depthTexures, cascadeId - 1+ cascade_offset, vposition);
         visibility = mix(v1, v2, interpolateAlpha * 0.5);
     }
 #endif
@@ -143,9 +162,10 @@ vec4 getDirectionalLightIntensity(int sampleId)
     if (Idiff > 0) Ispec = localIntensity * data.x * intensitySpecular(vposition, normal, fragmentLightDir, 40);
 
     float Iemissive = data.y;
+    Iemissive = 0;
 
-    vec3 color = lightColorDiffuse.rgb *
-                     (Idiff * diffColor + Ispec * lightColorSpecular.w * lightColorSpecular.rgb + Iamb * diffColor) +
+    vec3 color = light_data.colorDiffuse.rgb *
+                     (Idiff * diffColor + Ispec * light_data.colorSpecular.w * light_data.colorSpecular.rgb + Iamb * diffColor) +
                  Iemissive * diffColor;
 
     return vec4(color, 1);
