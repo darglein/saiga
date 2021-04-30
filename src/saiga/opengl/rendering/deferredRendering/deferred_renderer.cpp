@@ -165,10 +165,16 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     lighting.applyVolumetricLightBuffer();
     setViewPort(viewport);
 
-
+    if (params.bloom && params.hdr)
+    {
+        auto tim = timer->Measure("Bloom");
+        bloom.Render(lighting.lightAccumulationTexture.get(), tone_mapper.params.exposure);
+    }
 
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
+
+
 
     if (params.hdr)
     {
@@ -381,14 +387,19 @@ void DeferredRenderer::renderImgui()
             ssao->renderImGui();
         }
 
-        if (ImGui::Checkbox("hdr", &params.hdr))
-        {
-        }
 
+        ImGui::Checkbox("hdr", &params.hdr);
         if (params.hdr)
         {
             ImGui::Separator();
             tone_mapper.imgui();
+        }
+
+        ImGui::Checkbox("bloom", &params.bloom);
+        if (params.bloom)
+        {
+            ImGui::Separator();
+            bloom.imgui();
         }
     }
     ImGui::End();

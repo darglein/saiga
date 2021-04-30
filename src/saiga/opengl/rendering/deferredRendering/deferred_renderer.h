@@ -10,6 +10,7 @@
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/rendering/deferredRendering/postProcessor.h"
 #include "saiga/opengl/rendering/deferredRendering/tone_mapper.h"
+#include "saiga/opengl/rendering/lighting/bloom.h"
 #include "saiga/opengl/rendering/lighting/deferred_lighting.h"
 #include "saiga/opengl/rendering/lighting/ssao.h"
 #include "saiga/opengl/rendering/renderer.h"
@@ -58,8 +59,9 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
     float offsetFactor = 1.0f, offsetUnits = 1.0f;
     bool blitLastFramebuffer = true;
 
-    bool hdr = true;
-    bool srgb = true;
+    bool hdr   = true;
+    bool srgb  = true;
+    bool bloom = false;
 
     PostProcessorParameters ppp;
 
@@ -113,6 +115,8 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     std::shared_ptr<SMAA> smaa;
     GBuffer gbuffer;
     ToneMapper tone_mapper;
+    Bloom bloom;
+
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
     UnifiedMeshBuffer quadMesh;

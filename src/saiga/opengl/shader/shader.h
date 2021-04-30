@@ -9,6 +9,7 @@
 #include "saiga/core/math/math.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shaderpart.h"
+#include "saiga/opengl/texture/Texture2D.h"
 
 #include <memory>
 #include <vector>
@@ -122,6 +123,9 @@ class SAIGA_OPENGL_API Shader
      */
     void dispatchCompute(const uvec3& num_groups);
     void dispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z);
+
+    // Dispatches as many blocks as needed to cover the texture with 1 thread per pixel
+    void dispatchComputeImage(Texture2D* texture, int local_size);
 
     /**
      * Directly maps to glMemoryBarrier.

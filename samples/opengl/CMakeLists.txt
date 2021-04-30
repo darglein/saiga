@@ -29,6 +29,7 @@ if (GLFW_FOUND)
   saiga_opengl_sample(sample_opengl_pipelines.cpp)
   saiga_opengl_sample(sample_opengl_particles.cpp)
   saiga_opengl_sample(sample_opengl_hdr.cpp)
+  saiga_opengl_sample(sample_opengl_bloom.cpp)
 
   if (ASSIMP_FOUND)
     saiga_opengl_sample(sample_opengl_bone_animation.cpp)

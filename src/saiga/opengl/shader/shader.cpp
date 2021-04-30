@@ -223,6 +223,12 @@ void Shader::dispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint nu
     assert_no_glerror();
 }
 
+void Shader::dispatchComputeImage(Texture2D* texture, int local_size)
+{
+    int gw = iDivUp(texture->getWidth(), local_size);
+    int gh = iDivUp(texture->getHeight(), local_size);
+    dispatchCompute(uvec3(gw, gh, 1));
+}
 
 
 void Shader::memoryBarrier(MemoryBarrierMask barriers)
