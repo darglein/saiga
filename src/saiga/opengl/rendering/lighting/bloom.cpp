@@ -122,7 +122,7 @@ void Bloom::Render(Texture* hdr_texture, float current_exposure)
             upsample_shader->unbind();
 
 
-            if(i >= 2)
+            if (i >= 2)
             {
                 blurx_shader->bind();
                 blurx_shader->upload(5, bright_textures[i - 1], 0);

@@ -7,8 +7,9 @@
 #include "saiga/opengl/shader/shaderpart.h"
 
 #include "saiga/opengl/error.h"
-#include <iostream>
+
 #include <fstream>
+#include <iostream>
 
 namespace Saiga
 {
@@ -19,7 +20,14 @@ const std::string ShaderPart::shaderTypeStrings[] = {"GL_COMPUTE_SHADER",      "
                                                      "GL_GEOMETRY_SHADER",     "GL_FRAGMENT_SHADER"};
 
 
-ShaderPart::ShaderPart() {}
+ShaderPart::ShaderPart(const std::vector<std::string>& content, GLenum type, const ShaderCodeInjections& injections)
+{
+    code = content;
+    this->type = type;
+    addInjections(injections);
+    createGLShader();
+    compile();
+}
 
 ShaderPart::~ShaderPart()
 {
@@ -111,11 +119,8 @@ bool ShaderPart::compile()
     GLint result = 0;
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);
     assert_no_glerror();
-    if (result == static_cast<GLint>(GL_FALSE))
-    {
-        return false;
-    }
-    return true;
+    valid = !(result == static_cast<GLint>(GL_FALSE));
+    return valid;
 }
 
 void ShaderPart::printShaderLog()

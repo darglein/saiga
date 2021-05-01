@@ -35,9 +35,7 @@ class SAIGA_OPENGL_API ShaderPartLoader
     std::vector<std::shared_ptr<ShaderPart>> shaders;
 
 
-    ShaderPartLoader();
     ShaderPartLoader(const std::string& file, const ShaderCodeInjections& injections);
-    ~ShaderPartLoader();
 
     bool load();
     bool loadAndPreproccess(const std::string& file, std::vector<std::string>& ret);

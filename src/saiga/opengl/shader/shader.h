@@ -49,6 +49,8 @@ class SAIGA_OPENGL_API Shader
     Shader(Shader const&) = delete;
     Shader& operator=(Shader const&) = delete;
 
+    bool init
+
 
     // ===================================== program stuff =====================================
 

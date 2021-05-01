@@ -54,7 +54,7 @@ if(CUDA_FOUND)
   elseif(CUDA_VERSION)
     set(SAIGA_CUDA_VERSION ${CUDA_VERSION})
   else()
-    message(FATAL_ERROR "Unknown cuda version")
+    message(FATAL_ERROR "Unknown cuda version ${CUDAToolkit_VERSION} ${CUDA_VERSION}")
   endif()
 
 

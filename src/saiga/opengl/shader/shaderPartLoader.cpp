@@ -22,15 +22,10 @@ namespace Saiga
 
 bool ShaderPartLoader::addLineDirectives = false;
 
-ShaderPartLoader::ShaderPartLoader() : ShaderPartLoader("", ShaderCodeInjections()) {}
-
 ShaderPartLoader::ShaderPartLoader(const std::string& file, const ShaderCodeInjections& injections)
     : file(file), injections(injections)
 {
 }
-
-ShaderPartLoader::~ShaderPartLoader() {}
-
 
 
 bool ShaderPartLoader::load()
@@ -206,23 +201,11 @@ bool ShaderPartLoader::loadAndPreproccess(const std::string& file, std::vector<s
 
 void ShaderPartLoader::addShader(std::vector<std::string>& content, GLenum type)
 {
-    auto shader  = std::make_shared<ShaderPart>();
-    shader->code = content;
-    shader->type = type;
-    shader->addInjections(injections);
-
-    shader->createGLShader();
-    if (shader->compile())
+    auto shader  = std::make_shared<ShaderPart>(content, type, injections);
+    if (shader->valid)
     {
         shaders.push_back(shader);
     }
-    else
-    {
-        FileChecker fc;
-        std::string name = fc.getFileName(this->file);
-        shader->writeToFile("debug/" + name);
-    }
-
     assert_no_glerror();
 }
 

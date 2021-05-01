@@ -57,12 +57,13 @@ class SAIGA_OPENGL_API ShaderPart
     std::string error = "";
     GLint id          = 0;
 
-    ShaderPart();
+    ShaderPart(const std::vector<std::string>& content, GLenum type, const ShaderCodeInjections& injections);
     ~ShaderPart();
 
     void createGLShader();
     void deleteGLShader();
 
+    bool valid = false;
     /**
      * writes the complete code (with shader injections) to a file
      * if there was a error compiling it also writes the error to file+"error.txt"
