@@ -13,8 +13,7 @@ namespace Saiga
 {
 struct ShaderCode
 {
-    std::string main_file;
-    std::vector<std::string> included_files;
+    std::vector<std::string> dependent_files;
 
     std::vector<std::string> code;
     bool valid = false;

@@ -5,9 +5,10 @@
  */
 
 #include "saiga/opengl/shader/shader.h"
-#include "saiga/opengl/shader/shaderPartLoader.h"
+
 #include "saiga/core/util/assert.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/shader/shaderPartLoader.h"
 #include "saiga/opengl/texture/TextureBase.h"
 
 #include <algorithm>
@@ -15,7 +16,8 @@
 
 namespace Saiga
 {
-GLuint Shader::boundShader = 0;
+GLuint Shader::boundShader            = 0;
+bool Shader::add_glsl_line_directives = false;
 
 Shader::Shader() {}
 
@@ -25,13 +27,48 @@ Shader::~Shader()
     destroyProgram();
 }
 
+bool Shader::reload()
+{
+    bool need_reload = false;
+    for (auto& f_t : dependent_files_and_date)
+    {
+        SAIGA_ASSERT(std::filesystem::exists(f_t.first));
+        auto date = std::filesystem::last_write_time(f_t.first);
+
+        if (date > f_t.second)
+        {
+            need_reload = true;
+        }
+    }
+
+    if (need_reload)
+    {
+        return init(file, injections);
+    }
+    else
+    {
+        return true;
+    }
+}
 
 bool Shader::init(const std::string& file, const ShaderCodeInjections& injections)
 {
-    auto c = LoadFileAndResolveIncludes(file,ShaderPartLoader::addLineDirectives);
+    std::cout << "loading shader " << file << std::endl;
+    this->file       = file;
+    this->injections = injections;
+    shaders.clear();
+    dependent_files_and_date.clear();
+
+    auto c = LoadFileAndResolveIncludes(file, add_glsl_line_directives);
     if (!c.valid) return false;
 
-    std::cout << "file " << file << std::endl;
+    for (auto f : c.dependent_files)
+    {
+        SAIGA_ASSERT(std::filesystem::exists(f));
+        auto date = std::filesystem::last_write_time(f);
+        dependent_files_and_date.emplace_back(f, date);
+    }
+
     for (auto p : c.parts)
     {
         if (p.type.empty() || p.end - p.start == 0) continue;
@@ -45,8 +82,15 @@ bool Shader::init(const std::string& file, const ShaderCodeInjections& injection
         }
         SAIGA_ASSERT(gl_type != GL_NONE, "Unknown shader type: " + p.type);
         std::vector<std::string> content(c.code.begin() + p.start, c.code.begin() + p.end);
-        addShader(content, gl_type);
+
+        auto shader = std::make_shared<ShaderPart>(content, gl_type, injections);
+        if (shader->valid)
+        {
+            shaders.push_back(shader);
+        }
     }
+
+    createProgram();
     return true;
 }
 

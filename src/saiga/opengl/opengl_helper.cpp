@@ -45,7 +45,7 @@ void initOpenGL(glbinding::GetProcAddress func)
     switch (getOpenGLVendor())
     {
         case OpenGLVendor::Nvidia:
-            ShaderPartLoader::addLineDirectives = true;
+            Shader::add_glsl_line_directives = true;
             VLOG(1) << "Enabling #line directives for NVIDIA driver.";
             break;
         default:
@@ -204,7 +204,9 @@ void OpenGLParameters::fromConfigFile(const std::string& file)
     if (ini.changed()) ini.SaveFile(file.c_str());
 
 
-    profile = profileString == "ANY" ? Profile::ANY : profileString == "saiga_core" ? Profile::CORE : Profile::COMPATIBILITY;
+    profile = profileString == "ANY"          ? Profile::ANY
+              : profileString == "saiga_core" ? Profile::CORE
+                                              : Profile::COMPATIBILITY;
 }
 
 void initSaigaGL(const OpenGLParameters& params)

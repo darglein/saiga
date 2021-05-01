@@ -81,8 +81,6 @@ class SAIGA_OPENGL_API ShaderPart
     std::string typeToName(GLenum type);
     std::string getTypeString();
 
-    void addInjection(const ShaderCodeInjection& sci);
-    void addInjections(const ShaderCodeInjections& scis);
 };
 
 }  // namespace Saiga

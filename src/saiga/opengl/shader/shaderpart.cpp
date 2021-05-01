@@ -24,7 +24,13 @@ ShaderPart::ShaderPart(const std::vector<std::string>& content, GLenum type, con
 {
     code = content;
     this->type = type;
-    addInjections(injections);
+    for (auto& sci : injections)
+    {
+        if (sci.type == type)
+        {
+            code.insert(code.begin() + sci.line, sci.code + "\n");
+        }
+    }
 
     deleteGLShader();  // delete shader if exists
     id = glCreateShader(type);
@@ -150,24 +156,6 @@ void ShaderPart::printError()
     std::cout << error << std::endl;
 }
 
-
-void ShaderPart::addInjection(const ShaderCodeInjection& sci)
-{
-    std::string injection;
-    if (sci.type == type)
-    {
-        injection = sci.code + "\n";
-        code.insert(code.begin() + sci.line, injection);
-    }
-}
-
-void ShaderPart::addInjections(const ShaderPart::ShaderCodeInjections& scis)
-{
-    for (const ShaderCodeInjection& sci : scis)
-    {
-        addInjection(sci);
-    }
-}
 
 
 

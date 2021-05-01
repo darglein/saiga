@@ -68,6 +68,10 @@ void OpenGLWindow::renderImGui(bool* p_open)
         shaderLoader.reload();
     }
 
+    ImGui::SameLine();
+
+    ImGui::Checkbox("auto reload", &auto_reload_shaders);
+
     if (ImGui::Button("Screenshot"))
     {
         ScreenshotDefaultFramebuffer().save("screenshot.png");
@@ -143,6 +147,11 @@ void OpenGLWindow::update(float dt)
 {
     checkEvents();
     if (updating) updating->update(dt);
+
+    if (auto_reload_shaders)
+    {
+        shaderLoader.reload();
+    }
 }
 
 

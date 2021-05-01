@@ -11,6 +11,7 @@
 #include "saiga/opengl/shader/shaderpart.h"
 #include "saiga/opengl/texture/Texture2D.h"
 
+#include <filesystem>
 #include <memory>
 #include <vector>
 
@@ -37,11 +38,17 @@ class SAIGA_OPENGL_API Shader
 
    public:
     static GLuint getBoundShader() { return boundShader; }
+    static bool add_glsl_line_directives;
 
    public:
     GLuint program = 0;
     std::vector<std::shared_ptr<ShaderPart>> shaders;
-    std::string name;
+    std::string file;
+    ShaderCodeInjections injections;
+
+    // all files that are referenced by includes
+    // important for automatic shader reloading
+    std::vector<std::pair<std::string, std::filesystem::file_time_type>> dependent_files_and_date;
 
 
     Shader();
@@ -49,8 +56,8 @@ class SAIGA_OPENGL_API Shader
     Shader(Shader const&) = delete;
     Shader& operator=(Shader const&) = delete;
 
-    bool init(const std::string& file, const ShaderCodeInjections& injections);
-
+    bool init(const std::string& file, const ShaderCodeInjections& injections = {});
+    bool reload();
 
     // ===================================== program stuff =====================================
 

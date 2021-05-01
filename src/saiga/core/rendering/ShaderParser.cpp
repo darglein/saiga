@@ -37,9 +37,8 @@ static std::string getFileFromInclude(const std::string& file, std::string line)
 
 ShaderCode LoadFileAndResolveIncludes(const std::string file, bool add_line_directives)
 {
-    std::cout << "loading shader " << file << std::endl;
-
     ShaderCode result;
+    result.dependent_files.push_back(file);
 
     std::ifstream fileStream(file, std::ios::in);
     if (!fileStream.is_open())
@@ -120,6 +119,8 @@ ShaderCode LoadFileAndResolveIncludes(const std::string file, bool add_line_dire
                 std::cerr << "Make sure it exists and the search pathes are set." << std::endl;
                 SAIGA_ASSERT(0);
             }
+            result.dependent_files.insert(result.dependent_files.end(), included_code.dependent_files.begin(),
+                                          included_code.dependent_files.end());
             ret.erase(ret.begin() + i);
             ret.insert(ret.begin() + i, included_code.code.begin(), included_code.code.end());
         }
@@ -140,8 +141,6 @@ void ShaderCode::DetectParts()
     for (int i = 0; i < code.size(); ++i)
     {
         auto& line = code[i];
-        std::cout << std::setw(5) << i << ":" << line << std::endl;
-
         if (line.compare(0, prefix.size(), prefix) == 0)
         {
             parts.push_back(current_part);

@@ -41,6 +41,5 @@ void main() {
     vec3 combined = hdr_value + bloom;
 
      combined = texture(blur1, uv).rgb;
-
     imageStore(inputTex, texel_position, vec4(combined, 1));
 }
