@@ -5,7 +5,7 @@
  */
 
 #include "saiga/opengl/shader/shader.h"
-
+#include "saiga/opengl/shader/shaderPartLoader.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/texture/TextureBase.h"
@@ -23,6 +23,31 @@ Shader::~Shader()
 {
     // std::cout << "~Shader " << name << std::endl;
     destroyProgram();
+}
+
+
+bool Shader::init(const std::string& file, const ShaderCodeInjections& injections)
+{
+    auto c = LoadFileAndResolveIncludes(file,ShaderPartLoader::addLineDirectives);
+    if (!c.valid) return false;
+
+    std::cout << "file " << file << std::endl;
+    for (auto p : c.parts)
+    {
+        if (p.type.empty() || p.end - p.start == 0) continue;
+        GLenum gl_type = GL_NONE;
+        for (int i = 0; i < ShaderPart::shaderTypeCount; ++i)
+        {
+            if (p.type == ShaderPart::shaderTypeStrings[i])
+            {
+                gl_type = ShaderPart::shaderTypes[i];
+            }
+        }
+        SAIGA_ASSERT(gl_type != GL_NONE, "Unknown shader type: " + p.type);
+        std::vector<std::string> content(c.code.begin() + p.start, c.code.begin() + p.end);
+        addShader(content, gl_type);
+    }
+    return true;
 }
 
 // ===================================== program stuff =====================================

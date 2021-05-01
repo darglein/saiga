@@ -6,6 +6,7 @@
 
 #pragma once
 #include "saiga/core/math/math.h"
+#include "saiga/core/rendering/ShaderParser.h"
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/opengl_helper.h"
@@ -23,8 +24,6 @@ class Shader;
 class SAIGA_OPENGL_API ShaderPartLoader
 {
    public:
-    typedef std::vector<ShaderCodeInjection> ShaderCodeInjections;
-
     // true if "#line <linenumber> <filename>" should be added
     // at the beginning and around "#includes"
     // Default: false, because ati and intel drivers do not support this

@@ -148,6 +148,12 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         return reinterpret_cast<ScalarType*>(ptr);
     }
 
+    HD inline const ScalarType* rowPtrElement(int y) const
+    {
+        auto ptr = data8 + y * pitchBytes;
+        return reinterpret_cast<ScalarType*>(ptr);
+    }
+
     HD inline int ElementsPerRow() { return w * num_channels; }
 
     // bilinear interpolated pixel with UV values [0,1]
@@ -254,13 +260,15 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         SAIGA_ASSERT(height == dst.height && width == dst.width);
         if (pitchBytes == dst.pitchBytes)
         {
+            // copy all at once
             memcpy(dst.data, data, size());
         }
         else
         {
+            // copy row by row
             for (int y = 0; y < height; ++y)
             {
-                memcpy(dst.rowPtr(y), rowPtr(y), width * sizeof(T));
+                memcpy(dst.rowPtrElement(y), rowPtrElement(y), width * sizeof(T));
             }
         }
     }

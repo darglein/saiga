@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "saiga/opengl/opengl.h"
 #include "saiga/core/math/math.h"
+#include "saiga/opengl/opengl.h"
 
 #include <vector>
 
@@ -35,6 +35,9 @@ SAIGA_OPENGL_API inline bool operator==(const ShaderCodeInjection& lhs, const Sh
     return lhs.type == rhs.type && lhs.code == rhs.code && lhs.line == rhs.line;
 }
 
+
+using ShaderCodeInjections = std::vector<ShaderCodeInjection>;
+
 /**
  * The ShaderPart class represents an actual Shader Object in OpenGL while the
  * Shader class represents a program.
@@ -60,7 +63,6 @@ class SAIGA_OPENGL_API ShaderPart
     ShaderPart(const std::vector<std::string>& content, GLenum type, const ShaderCodeInjections& injections);
     ~ShaderPart();
 
-    void createGLShader();
     void deleteGLShader();
 
     bool valid = false;

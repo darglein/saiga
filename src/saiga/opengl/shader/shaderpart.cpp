@@ -25,7 +25,15 @@ ShaderPart::ShaderPart(const std::vector<std::string>& content, GLenum type, con
     code = content;
     this->type = type;
     addInjections(injections);
-    createGLShader();
+
+    deleteGLShader();  // delete shader if exists
+    id = glCreateShader(type);
+    if (id == 0)
+    {
+        std::cout << "Could not create shader of type: " << typeToName(type) << std::endl;
+    }
+    assert_no_glerror();
+
     compile();
 }
 
@@ -34,16 +42,6 @@ ShaderPart::~ShaderPart()
     deleteGLShader();
 }
 
-void ShaderPart::createGLShader()
-{
-    deleteGLShader();  // delete shader if exists
-    id = glCreateShader(type);
-    if (id == 0)
-    {
-        std::cout << "Could not create shader of type: " << typeToName(type) << std::endl;
-    }
-    assert_no_glerror();
-}
 
 void ShaderPart::deleteGLShader()
 {
@@ -103,9 +101,11 @@ bool ShaderPart::writeToFile(const std::string& file)
 bool ShaderPart::compile()
 {
     std::string data;
+    data.reserve(code.size() * 20);
     for (std::string line : code)
     {
         data.append(line);
+        data.push_back('\n');
     }
     const GLchar* str = data.c_str();
     glShaderSource(id, 1, &str, 0);

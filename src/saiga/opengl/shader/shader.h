@@ -49,7 +49,7 @@ class SAIGA_OPENGL_API Shader
     Shader(Shader const&) = delete;
     Shader& operator=(Shader const&) = delete;
 
-    bool init
+    bool init(const std::string& file, const ShaderCodeInjections& injections);
 
 
     // ===================================== program stuff =====================================
