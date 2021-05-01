@@ -6,9 +6,9 @@
 
 #include "saiga/opengl/shader/shader.h"
 
+#include "saiga/core/rendering/ShaderParser.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/opengl/error.h"
-#include "saiga/opengl/shader/shaderPartLoader.h"
 #include "saiga/opengl/texture/TextureBase.h"
 
 #include <algorithm>
@@ -23,7 +23,6 @@ Shader::Shader() {}
 
 Shader::~Shader()
 {
-    // std::cout << "~Shader " << name << std::endl;
     destroyProgram();
 }
 

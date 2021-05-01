@@ -13,6 +13,7 @@
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/smaa/AreaTex.h"
 #include "saiga/opengl/smaa/SearchTex.h"
+#include "saiga/opengl/opengl_helper.h"
 
 namespace Saiga
 {

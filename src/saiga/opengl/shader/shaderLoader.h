@@ -11,9 +11,9 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/singleton.h"
 #include "saiga/opengl/shader/shader.h"
-#include "saiga/opengl/shader/shaderPartLoader.h"
 
 #include <iostream>
+
 namespace Saiga
 {
 class SAIGA_OPENGL_API ShaderLoader

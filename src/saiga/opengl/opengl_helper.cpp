@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#include "opengl_helper.h"
+
 #include "saiga/core/util/ConsoleColor.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/ini/ini.h"
@@ -11,9 +13,7 @@
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/shader/shaderPartLoader.h"
-#include "saiga/opengl/texture/TextureLoader.h"
-
+#include "saiga/core/util/easylogging++.h"
 #include <algorithm>
 #include <glbinding/glbinding.h>
 
