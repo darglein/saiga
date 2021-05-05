@@ -107,7 +107,7 @@ class SAIGA_OPENGL_API Clusterer
 
 
 
-    void renderImGui(bool* p_open = NULL);
+    virtual void imgui();
 
     virtual void renderDebug(Camera* cam)
     {
@@ -227,11 +227,5 @@ class SAIGA_OPENGL_API Clusterer
     ShaderStorageBuffer infoBuffer;
     ShaderStorageBuffer clusterListBuffer;
     ShaderStorageBuffer itemListBuffer;
-
-    virtual bool fillImGui();
-
-   private:
-    void beginImGui(bool* p_open = NULL);
-    void endImGui();
 };
 }  // namespace Saiga
