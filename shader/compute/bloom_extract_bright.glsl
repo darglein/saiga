@@ -27,9 +27,8 @@ void main() {
 
     vec3 hdr_value = imageLoad(inputTex, texel_position).rgb;
 
-    float ex = 1.f/exposure;
-    ex = 1;
-    hdr_value = max(hdr_value - vec3(ex, ex, ex), vec3(0));
+
+    hdr_value = max(hdr_value - vec3(1), vec3(0));
 
 
     imageStore(destTex, texel_position, vec4(hdr_value, 1));
