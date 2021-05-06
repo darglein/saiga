@@ -27,9 +27,7 @@ addons:
   apt:
     packages:
     - g++-9
-    - g++-10
     - clang-9
-    - clang-10
     - libomp-dev
     - libegl1-mesa-dev
     - libxrandr-dev
