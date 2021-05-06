@@ -96,18 +96,14 @@ void ToneMapper::imgui()
         if (auto_exposure && download_tmp_values)
         {
             ImGui::SameLine();
-            float exposure = exposure = 0.33 / tmp_params.average_color_luminace.w();
-            ImGui::Text("exp: %f", exposure);
+            ImGui::Text("exp: %f", computed_exposure);
         }
         params_dirty |= ImGui::Checkbox("auto_white_balance", &auto_white_balance);
         if (auto_white_balance && download_tmp_values)
         {
             ImGui::SameLine();
-            vec3 avg         = tmp_params.average_color_luminace.head<3>();
-            float alpha      = avg[1] / avg[0];
-            float beta       = avg[1] / avg[2];
-            vec3 white_point = vec3(alpha, 1, beta);
-            ImGui::Text("white: %f %f %f", white_point(0), white_point(1), white_point(2));
+
+            ImGui::Text("white: %f %f %f", computed_white_point(0), computed_white_point(1), computed_white_point(2));
         }
 
         params_dirty |= ImGui::Checkbox("download_tmp_values (performance warning)", &download_tmp_values);
@@ -179,6 +175,13 @@ void ToneMapper::ComputeOptimalExposureValue(Texture* input_hdr_color_image)
     {
         // this is every inefficient because we stall the GL pipeline!
         tmp_buffer.get(tmp_params);
+
+        computed_exposure = 0.33 / tmp_params.average_color_luminace.w();
+
+        vec3 avg             = tmp_params.average_color_luminace.head<3>();
+        float alpha          = avg[1] / avg[0];
+        float beta           = avg[1] / avg[2];
+        computed_white_point = vec3(alpha, 1, beta);
     }
 }
 
