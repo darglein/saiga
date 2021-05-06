@@ -17,6 +17,7 @@ namespace Saiga
 ToneMapper::ToneMapper()
 {
     shader = shaderLoader.load<Shader>("tone_map.glsl");
+    shader_linear = shaderLoader.load<Shader>("tone_map_linear.glsl");
 
     average_brightness_shader = shaderLoader.load<Shader>("tone_map_average_brightness.glsl");
 
@@ -27,7 +28,9 @@ ToneMapper::ToneMapper()
     camera_response.normalize(1);
     params_dirty = true;
 }
-void ToneMapper::Map(Texture* input_hdr_color_image, Texture* output_ldr_color_image)
+
+
+void ToneMapper::MapLinear(Texture* input_hdr_color_image)
 {
     if (params_dirty)
     {
@@ -46,13 +49,23 @@ void ToneMapper::Map(Texture* input_hdr_color_image, Texture* output_ldr_color_i
         ComputeOptimalExposureValue(input_hdr_color_image);
     }
 
+    shader_linear->bind();
+    input_hdr_color_image->bindImageTexture(0, GL_READ_WRITE);
+    uniforms.bind(3);
+    tmp_buffer.bind(4);
+    int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
+    int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
+    shader_linear->dispatchCompute(uvec3(gw, gh, 1));
+    shader_linear->unbind();
+}
+
+
+void ToneMapper::Map(Texture* input_hdr_color_image, Texture* output_ldr_color_image)
+{
     shader->bind();
     input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
     output_ldr_color_image->bindImageTexture(1, GL_WRITE_ONLY);
-    // response_texture->bindImageTexture(2, GL_READ_ONLY);
     shader->upload(2, response_texture.get(), 0);
-    uniforms.bind(3);
-    tmp_buffer.bind(4);
     int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
     int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
     shader->dispatchCompute(uvec3(gw, gh, 1));
@@ -170,6 +183,7 @@ void ToneMapper::ComputeOptimalExposureValue(Texture* input_hdr_color_image)
     int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
     average_brightness_shader->dispatchCompute(uvec3(gw, gh, 1));
     average_brightness_shader->unbind();
+    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 
     if (download_tmp_values)
     {

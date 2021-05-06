@@ -165,6 +165,12 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     lighting.applyVolumetricLightBuffer();
     setViewPort(viewport);
 
+    if (params.hdr)
+    {
+        auto tim = timer->Measure("Tone Mapping Linear");
+        tone_mapper.MapLinear(lighting.lightAccumulationTexture.get());
+    }
+
     if (params.bloom && params.hdr)
     {
         auto tim = timer->Measure("Bloom");

@@ -27,6 +27,7 @@ addons:
   apt:
     packages:
     - g++-10
+    - libclang-common-10-dev
     - clang-10
     - libomp-dev
     - libegl1-mesa-dev

@@ -42,10 +42,12 @@ class SAIGA_OPENGL_API ToneMapper
 {
    public:
     ToneMapper();
+
+    void MapLinear(Texture* input_hdr_color_image);
     void Map(Texture* input_hdr_color_image, Texture* output_ldr_color_image);
 
     void imgui();
-    std::shared_ptr<Shader> shader, average_brightness_shader;
+    std::shared_ptr<Shader> shader, shader_linear, average_brightness_shader;
 
 
     TonemapParameters params;
@@ -64,7 +66,7 @@ class SAIGA_OPENGL_API ToneMapper
 
     // This two values are only valid if the flags (above) are set, Map(..) has been called and
     // the download auto update is true
-    bool download_tmp_values = false;
+    bool download_tmp_values  = false;
     float computed_exposure   = 0;
     vec3 computed_white_point = vec3::Zero();
 
