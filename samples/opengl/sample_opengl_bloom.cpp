@@ -20,8 +20,8 @@ class Sample : public SampleWindowDeferred
     {
         groundPlane.setScale(vec3(5, 5, 5));
         groundPlane.calculateModel();
-        showGrid   = false;
-        showSkybox = false;
+//        showGrid   = false;
+//        showSkybox = false;
 
         renderer->params.hdr   = true;
         renderer->params.bloom = true;
@@ -29,7 +29,7 @@ class Sample : public SampleWindowDeferred
 
         float aspect = window->getAspectRatio();
         camera.setProj(60.0f, aspect, 0.1f, 500.0f);
-        camera.setView(vec3(0, 0, -20), vec3(0, 0, 0), vec3(0, 1, 0));
+        camera.setView(vec3(0, 2, -20), vec3(0, 0, 0), vec3(0, 1, 0));
 
         auto sphere = std::make_shared<ColoredAsset>(
             BoxMesh(AABB(vec3(-1, -1, -1), vec3(1, 1, 1))).FlatShading().SetVertexColor(vec4(0.7, 0.7, 0.7, 1)));
@@ -40,21 +40,21 @@ class Sample : public SampleWindowDeferred
         bounding_box.min = vec3(-s, 0, -s);
         bounding_box.max = vec3(s, 10, s);
 
-        std::vector<vec3> positions = {vec3(5, 0, 0), vec3(0, 0, 0), vec3(-5, 0, 0)};
+        std::vector<vec3> positions = {vec3(10, 3, 0), vec3(0, 3, 0), vec3(-10, 3, 0)};
 
         for (auto p : positions)
         {
             SimpleAssetObject obj;
             obj.asset = sphere;
             obj.translateGlobal(p);
-            obj.setScale(vec3(0.2, 0.2, 0.2));
             obj.calculateModel();
             objects.push_back(obj);
         }
 
+        sun->castShadows = false;
 
-        renderer->lighting.removeLight(sun);
-        std::vector<float> intensities = {1, 10, 100};
+        // renderer->lighting.removeLight(sun);
+        std::vector<float> intensities = {5, 10, 100};
 
         for (int i = 0; i < positions.size(); ++i)
         {
@@ -65,10 +65,10 @@ class Sample : public SampleWindowDeferred
             light->setIntensity(intensities[i]);
 
 
-            light->setRadius(1);
+            light->setRadius(4);
             light->attenuation = vec3(0, 0, 1);
 
-            light->position = positions[i] + vec3(0, 0, -0.4);
+            light->position = positions[i] + vec3(0, 0, -2);
         }
 
         std::cout << "Program Initialized!" << std::endl;

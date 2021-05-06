@@ -32,19 +32,15 @@ Bloom::Bloom()
 }
 void Bloom::imgui()
 {
-    ImGui::Text("Bloom");
-    ImGui::Checkbox("use_blur", &use_blur);
-
-    //    int start_w = ImGui::GetWindowWidth();
-    //    for (auto t : bright_textures)
-    //    {
-    //        int h = t->getHeight() * float(start_w) / t->getWidth();
-    //        ImGui::Texture(t.get(), ImVec2(start_w, h), true);
-    //    }
-
-    if (ImGui::SliderInt("levels", &levels, 1, 16))
+    if(ImGui::CollapsingHeader("Bloom"))
     {
-        resize(w, h);
+        ImGui::Text("Bloom");
+        ImGui::Checkbox("use_blur", &use_blur);
+        ImGui::SliderFloat("bloom_strength", &bloom_strength, 0, 1);
+        if (ImGui::SliderInt("levels", &levels, 1, 16))
+        {
+            resize(w, h);
+        }
     }
 }
 void Bloom::Render(Texture* hdr_texture, float current_exposure)
@@ -161,6 +157,7 @@ void Bloom::Render(Texture* hdr_texture, float current_exposure)
     {
         combine_shader->upload(i, bright_textures[i], i);
     }
+    combine_shader->upload(7, bloom_strength);
     combine_shader->dispatchComputeImage(hdr_texture, 16);
     combine_shader->unbind();
 }

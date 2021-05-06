@@ -22,10 +22,11 @@ class SAIGA_OPENGL_API Bloom
     void imgui();
 
    private:
-    bool use_blur = false;
+    bool use_blur = true;
     void resize(int w, int h);
     int w = 0, h = 0;
-    int levels = 5;
+    int levels = 7;
+    float bloom_strength = 0.2;
     std::vector<std::shared_ptr<Texture>> bright_textures;
     std::vector<std::shared_ptr<Texture>> blur_textures;
 
