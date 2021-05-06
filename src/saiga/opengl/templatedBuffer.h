@@ -32,6 +32,11 @@ class TemplatedBuffer : public Buffer
         Buffer::updateBuffer(data.data(), data.size() * sizeof(T), offset * sizeof(T));
     }
 
+    void get(ArrayView<T> data, int offset = 0)
+    {
+        Buffer::getBuffer(data.data(), data.size() * sizeof(T), offset * sizeof(T));
+    }
+
     int Size() const { return Buffer::size / sizeof(T); }
 };
 

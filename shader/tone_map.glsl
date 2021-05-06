@@ -13,13 +13,26 @@ struct TonemapParameters
     vec4 white_point_exposure;
     vec4 vignette_coeffs;
     vec2 vignette_offset;
-    vec2 padding;
+    uint flags;
+    float padding;
+};
+
+struct TonemapTempParameters
+{
+    // (r,g,b,l)
+    vec4 average_color_luminace;
 };
 
 layout (std140, binding = 3) uniform lightDataBlockPoint
 {
     TonemapParameters params;
 };
+
+layout (std140, binding = 4) buffer lightDataTmpBlockPoint
+{
+    TonemapTempParameters tmp_params;
+};
+
 
 
 layout(binding=0, rgba16f) uniform image2D inputTex;
@@ -57,14 +70,30 @@ vec2 NormalizedUV(ivec2 texel, ivec2 size)
 
 vec3 Tonemap(vec3 hdr_color, ivec2 texel, vec2 normalized_uv){
 
+    float exposure =  params.white_point_exposure.w;
+    if((params.flags & 1) != 0)
+    {
+        // Auto Exposure
+        exposure = 0.33 / tmp_params.average_color_luminace.w;
+    }
 
-    float r2 = dot(normalized_uv + params.vignette_offset,normalized_uv+ params.vignette_offset);
+    vec3 white_point = params.white_point_exposure.xyz;
+    if((params.flags & 2) != 0)
+    {
+        // Auto White Balance
+        vec3 avg = tmp_params.average_color_luminace.rgb;
+        float alpha = avg[1] / avg[0];
+        float beta = avg[1] / avg[2];
+        white_point = vec3(alpha,1,beta);
+    }
+
+    float r2 = dot(normalized_uv + params.vignette_offset, normalized_uv+ params.vignette_offset);
     float vignette = VignetteModel(r2, params.vignette_coeffs.xyz);
 
-    vec3 color = vignette * params.white_point_exposure.w * hdr_color;
+    vec3 color = vignette * exposure * hdr_color;
 
     // White balance
-    color = color * params.white_point_exposure.xyz;
+    color = color * white_point;
 
     // Camera response / Gamma
     color.x = texture(camera_response_tex, color.x).r;
