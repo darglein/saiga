@@ -79,7 +79,12 @@ bool Shader::init(const std::string& file, const ShaderCodeInjections& injection
                 gl_type = ShaderPart::shaderTypes[i];
             }
         }
-        SAIGA_ASSERT(gl_type != GL_NONE, "Unknown shader type: " + p.type);
+
+        if (gl_type == GL_NONE)
+        {
+            SAIGA_EXIT_ERROR("Unknown shader type: " + p.type);
+        }
+
         std::vector<std::string> content(c.code.begin() + p.start, c.code.begin() + p.end);
 
         auto shader = std::make_shared<ShaderPart>(content, gl_type, injections);
