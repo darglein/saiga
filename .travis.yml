@@ -13,12 +13,12 @@ matrix:
     dist: focal
     sudo: required
     compiler: gcc
-    env: CXX=g++-10
+    env: CXX=g++
   - os: linux
     dist: focal
     sudo: required
     compiler: clang
-    env: CXX=clang++-10
+    env: CXX=clang++
   - os: windows
   #- os: osx
     #osx_image: xcode11.2
@@ -26,9 +26,6 @@ matrix:
 addons:
   apt:
     packages:
-    - g++-10
-    - libclang-common-10-dev
-    - clang-10
     - libomp-dev
     - libegl1-mesa-dev
     - libxrandr-dev
