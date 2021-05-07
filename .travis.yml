@@ -6,27 +6,39 @@
 #
 language: cpp
 
-matrix:
+os: linux
+dist: focal
+
+jobs:
   fast_finish: true
   include:
-  - os: linux
+  - name: G++
+    os: linux
     dist: focal
-    sudo: required
     compiler: gcc
     env: CXX=g++
-  - os: linux
+  - name: Clang 9
+    os: linux
     dist: focal
-    sudo: required
     compiler: clang
-    env: CXX=clang++
+    env: CXX=clang++-9
+    addons:
+        apt:
+            sources:
+            - sourceline: 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-9 main'
+              key_url: https://apt.llvm.org/llvm-snapshot.gpg.key
+            packages:
+            - clang-9
   - os: windows
-  #- os: osx
-    #osx_image: xcode11.2
+  - name: OSX clang
+    os: osx
+    osx_image: xcode11.4
 
+          
 addons:
   apt:
     packages:
-    - libomp-dev
+    - libomp-dev 
     - libegl1-mesa-dev
     - libxrandr-dev
     - libxinerama-dev
