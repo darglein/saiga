@@ -6,30 +6,46 @@
 #
 language: cpp
 
-matrix:
+os: linux
+dist: focal
+
+jobs:
   fast_finish: true
   include:
-  - os: linux
-    dist: focal
-    sudo: required
+  - name: Linux G++ 9
+    os: linux
     compiler: gcc
-    env: CXX=g++-10
-  - os: linux
-    dist: focal
-    sudo: required
-    compiler: clang
-    env: CXX=clang++-10
-  - os: windows
-  #- os: osx
-    #osx_image: xcode11.2
+    env: CXX=g++-9
+  #- name: Linux Clang 9
+    #os: linux
+    #compiler: clang
+    #env: CXX=clang++-9
+    #addons:
+        #apt:
+            #sources:
+            #- sourceline: 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-9 main'
+              #key_url: https://apt.llvm.org/llvm-snapshot.gpg.key
+            #packages:
+            #- lib32gcc-s1
+            #- lib32stdc++6
+            #- libc6-i386
+            #- libclang-common-9-dev
+            #- clang-9
+  - name: windows msvc 
+    os: windows
+  - name: OSX clang
+    os: osx
+    osx_image: xcode11.4
+    addons:
+        homebrew:
+            packages:
+            - libomp
 
+          
 addons:
   apt:
     packages:
-    - g++-10
-    - libclang-common-10-dev
-    - clang-10
-    - libomp-dev
+    - libomp-dev 
     - libegl1-mesa-dev
     - libxrandr-dev
     - libxinerama-dev
@@ -42,11 +58,7 @@ addons:
     
 env:
   - OMP_NUM_THREADS=2
-  
-before_install:
-  - if [ $TRAVIS_OS_NAME = linux ]; then sudo apt-get update -qq; fi
-
-  
+    
 install:
   - git submodule update --init --recursive
 
@@ -56,15 +68,20 @@ before_script:
   
 script:
   - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" || "$TRAVIS_OS_NAME" == "osx" ]]; then
-      /snap/bin/cmake  -DCMAKE_PREFIX_PATH="/home/travis/install" -DSAIGA_USE_SUBMODULES=ON $TRAVIS_BUILD_DIR 
-      make -j2
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      /snap/bin/cmake -DSAIGA_USE_SUBMODULES=ON $TRAVIS_BUILD_DIR 
+      cmake --build . -j2
       sudo make install
       ctest --output-on-failure
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
       cmake -G "Visual Studio 15 2017 Win64" -DSAIGA_USE_SUBMODULES=ON $TRAVIS_BUILD_DIR 
+      cmake --build . -j2
+    fi
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      cmake -DSAIGA_USE_SUBMODULES=ON $TRAVIS_BUILD_DIR 
       cmake --build . -j2
     fi
 
