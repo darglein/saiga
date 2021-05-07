@@ -26,6 +26,9 @@ jobs:
             - sourceline: 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-9 main'
               key_url: https://apt.llvm.org/llvm-snapshot.gpg.key
             packages:
+            - lib32gcc-s1
+            - lib32stdc++6
+            - libc6-i386
             - libclang-common-9-dev
             - clang-9
   - name: windows msvc 
