@@ -5,6 +5,8 @@
  */
 
 #pragma once
+#include "saiga/core/image/ImageDraw.h"
+#include "saiga/core/image/image.h"
 #include "saiga/core/math/imath.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/assert.h"
@@ -84,6 +86,26 @@ struct DiscreteResponseFunction
             irradiance[i] = pow(alpha, gamma);
         }
         return *this;
+    }
+
+    TemplatedImage<ucvec3> Image(int n = 256) const
+    {
+        TemplatedImage<ucvec3> img(n, n);
+        img.getImageView().set(ucvec3(255, 255, 255));
+
+        // SAIGA_ASSERT(samples.size() == 256);
+
+        float factor_x = float(n) / (irradiance.size() - 1);
+        float factor_y = float(n) / (irradiance.back());
+
+        for (int i = 0; i < irradiance.size() - 1; ++i)
+        {
+            vec2 start(i * factor_x, irradiance[i] * factor_y);
+            vec2 end((i + 1) * factor_x, irradiance[i + 1] * factor_y);
+            ImageDraw::drawLineBresenham(img.getImageView(), start, end, ucvec3(0, 0, 0));
+        }
+        img.getImageView().flipY();
+        return img;
     }
 
 

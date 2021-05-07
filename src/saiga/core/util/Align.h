@@ -71,7 +71,7 @@ inline void* aligned_malloc(size_t size)
         }
     }
 #else
-    ptr = std::aligned_alloc(Alignment, size_with_padding);
+    ptr = aligned_alloc(Alignment, size_with_padding);
 #endif
 
 #ifdef SAIGA_ASSERTS
