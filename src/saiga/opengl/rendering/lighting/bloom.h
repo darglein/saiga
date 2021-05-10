@@ -12,25 +12,45 @@
 
 namespace Saiga
 {
+struct BloomParameters
+{
+    float bloom_threshold = 1;
+    float bloom_strength  = 0.2;
+    int levels            = 7;
+    int flags             = 0;
+
+    BloomParameters() { static_assert(sizeof(BloomParameters) == sizeof(float) * 4); }
+};
+
+
 class SAIGA_OPENGL_API Bloom
 {
    public:
+    enum class DebugMode : int
+    {
+        NO_DEBUG = 0,
+        DEBUG_EXTRACT,
+        DEBUG_ADD,
+        DEBUG_LAST,
+    };
+
     Bloom();
-
     void Render(Texture* hdr_texture, float current_exposure);
-
     void imgui();
+
+    bool params_dirty = true;
+    BloomParameters params;
+    DebugMode mode = DebugMode::NO_DEBUG;
 
    private:
     bool use_blur = true;
     void resize(int w, int h);
     int w = 0, h = 0;
-    int levels = 7;
-    float bloom_strength = 0.2;
+    TemplatedUniformBuffer<BloomParameters> uniforms;
     std::vector<std::shared_ptr<Texture>> bright_textures;
     std::vector<std::shared_ptr<Texture>> blur_textures;
-
-    std::shared_ptr<Shader> extract_shader, downsample_shader,upsample_shader, blurx_shader, blury_shader, combine_shader;
+    std::shared_ptr<Shader> extract_shader, downsample_shader, upsample_shader, blurx_shader, blury_shader,
+        combine_shader, copy_image_shader;
 };
 
 }  // namespace Saiga

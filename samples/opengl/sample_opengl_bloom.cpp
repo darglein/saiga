@@ -20,8 +20,8 @@ class Sample : public SampleWindowDeferred
     {
         groundPlane.setScale(vec3(5, 5, 5));
         groundPlane.calculateModel();
-//        showGrid   = false;
-//        showSkybox = false;
+        //        showGrid   = false;
+        //        showSkybox = false;
 
         renderer->params.hdr   = true;
         renderer->params.bloom = true;
@@ -51,7 +51,10 @@ class Sample : public SampleWindowDeferred
             objects.push_back(obj);
         }
 
-        sun->castShadows = false;
+        sun->ambientIntensity = 0;
+        sun->intensity        = 1.54;
+        sun->direction        = vec3(0, -1, 0);
+        sun->castShadows      = false;
 
         // renderer->lighting.removeLight(sun);
         std::vector<float> intensities = {5, 10, 100};

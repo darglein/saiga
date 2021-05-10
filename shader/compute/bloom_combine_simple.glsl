@@ -17,10 +17,20 @@ layout(location = 2) uniform sampler2D blur3;
 layout(location = 3) uniform sampler2D blur4;
 layout(location = 4) uniform sampler2D blur5;
 
-layout(location = 7) uniform float bloom_strength = 1;
-
-
 layout(local_size_x = 16, local_size_y = 16) in;
+
+struct BloomParameters
+{
+    float bloom_threshold;
+    float bloom_strength;
+    int levels;
+    int flags;
+};
+
+layout (std140, binding = 3) uniform lightDataBlockPoint
+{
+    BloomParameters params;
+};
 
 // ====================================================================================
 
@@ -41,7 +51,7 @@ void main() {
 
     vec3 bloom = texture(blur1, uv).rgb ;
 //    vec3 bloom = texture(blur1, uv).rgb + texture(blur2, uv).rgb + texture(blur3, uv).rgb;
-    vec3 combined = hdr_value + bloom * bloom_strength;
+    vec3 combined = hdr_value + bloom * params.bloom_strength;
 
      // combined = texture(blur3, uv).rgb;
 //    combined =  texture(blur1, uv).rgb + texture(blur2, uv).rgb + texture(blur3, uv).rgb;

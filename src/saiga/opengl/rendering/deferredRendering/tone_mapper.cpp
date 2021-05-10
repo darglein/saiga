@@ -16,13 +16,13 @@ namespace Saiga
 {
 ToneMapper::ToneMapper()
 {
-    shader = shaderLoader.load<Shader>("tone_map.glsl");
+    shader        = shaderLoader.load<Shader>("tone_map.glsl");
     shader_linear = shaderLoader.load<Shader>("tone_map_linear.glsl");
 
     average_brightness_shader = shaderLoader.load<Shader>("tone_map_average_brightness.glsl");
 
-    uniforms.create(ArrayView<TonemapParameters>(params), GL_DYNAMIC_DRAW);
-    tmp_buffer.create(ArrayView<TonemapTempParameters>(tmp_params), GL_DYNAMIC_DRAW);
+    uniforms.create(params, GL_DYNAMIC_DRAW);
+    tmp_buffer.create(tmp_params, GL_DYNAMIC_DRAW);
 
     camera_response.MakeGamma(1.0 / 2.2);
     camera_response.normalize(1);

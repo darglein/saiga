@@ -18,6 +18,7 @@ Bloom::Bloom()
     downsample_shader = shaderLoader.load<Shader>("compute/bloom_downsample.glsl");
     upsample_shader   = shaderLoader.load<Shader>("compute/bloom_upsample.glsl");
     combine_shader    = shaderLoader.load<Shader>("compute/bloom_combine_simple.glsl");
+    copy_image_shader = shaderLoader.load<Shader>("compute/copy_image.glsl");
 
     {
         ShaderPart::ShaderCodeInjections sci;
@@ -29,18 +30,21 @@ Bloom::Bloom()
         sci.emplace_back(GL_COMPUTE_SHADER, "#define BLUR_Y 1", 3);
         blury_shader = shaderLoader.load<Shader>("compute/compute_blur.glsl", sci);
     }
+
+    uniforms.create(params, GL_DYNAMIC_DRAW);
 }
 void Bloom::imgui()
 {
-    if(ImGui::CollapsingHeader("Bloom"))
+    if (ImGui::CollapsingHeader("Bloom"))
     {
         ImGui::Text("Bloom");
-        ImGui::Checkbox("use_blur", &use_blur);
-        ImGui::SliderFloat("bloom_strength", &bloom_strength, 0, 1);
-        if (ImGui::SliderInt("levels", &levels, 1, 16))
-        {
-            resize(w, h);
-        }
+        params_dirty |= ImGui::Checkbox("use_blur", &use_blur);
+        params_dirty |= ImGui::SliderFloat("bloom_strength", &params.bloom_strength, 0, 10);
+        params_dirty |= ImGui::SliderFloat("bloom_threshold", &params.bloom_threshold, 0, 4);
+        params_dirty |= ImGui::SliderInt("levels", &params.levels, 1, 16);
+
+        static std::vector<std::string> debug_strs = {"NO_DEBUG", "DEBUG_EXTRACT", "DEBUG_ADD", "DEBUG_LAST"};
+        ImGui::Combo("Mode", (int*)&mode, debug_strs);
     }
 }
 void Bloom::Render(Texture* hdr_texture, float current_exposure)
@@ -50,17 +54,33 @@ void Bloom::Render(Texture* hdr_texture, float current_exposure)
         resize(hdr_texture->getWidth(), hdr_texture->getHeight());
     }
 
+    if (params_dirty)
+    {
+        resize(w, h);
+        uniforms.update(params);
+        params_dirty = false;
+    }
+
+    uniforms.bind(3);
 
     extract_shader->bind();
     hdr_texture->bindImageTexture(0, GL_READ_ONLY);
     bright_textures.front()->bindImageTexture(1, GL_WRITE_ONLY);
-    extract_shader->upload(0, current_exposure);
     extract_shader->dispatchComputeImage(hdr_texture, 16);
     extract_shader->unbind();
 
+    if (mode == DebugMode::DEBUG_EXTRACT)
+    {
+        copy_image_shader->bind();
+        bright_textures.front()->bindImageTexture(0, GL_READ_ONLY);
+        hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
+        copy_image_shader->dispatchComputeImage(hdr_texture, 16);
+        copy_image_shader->unbind();
+        return;
+    }
 
     downsample_shader->bind();
-    for (int i = 1; i < levels; ++i)
+    for (int i = 1; i < params.levels; ++i)
     {
         // bright_textures[i - 1]->bindImageTexture(0, GL_READ_ONLY);
         downsample_shader->upload(5, bright_textures[i - 1], 0);
@@ -91,7 +111,7 @@ void Bloom::Render(Texture* hdr_texture, float current_exposure)
         //        }
 
         {
-            int i = levels - 1;
+            int i = params.levels - 1;
             blurx_shader->bind();
             blurx_shader->upload(5, bright_textures[i], 0);
             blur_textures[i]->bindImageTexture(1, GL_WRITE_ONLY);
@@ -107,11 +127,11 @@ void Bloom::Render(Texture* hdr_texture, float current_exposure)
             blury_shader->unbind();
         }
 
-        for (int i = levels - 1; i > 0; i--)
+        for (int i = params.levels - 1; i > 0; i--)
         {
             upsample_shader->bind();
             upsample_shader->upload(5, bright_textures[i], 0);
-            upsample_shader->upload(7, float(i) / (levels - 1));
+            upsample_shader->upload(7, i);
             bright_textures[i - 1]->bindImageTexture(1, GL_READ_WRITE);
             upsample_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
             glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
@@ -139,15 +159,37 @@ void Bloom::Render(Texture* hdr_texture, float current_exposure)
     else
     {
         upsample_shader->bind();
-        for (int i = levels - 1; i > 0; i--)
+        for (int i = params.levels - 1; i > 0; i--)
         {
             // bright_textures[i - 1]->bindImageTexture(0, GL_READ_ONLY);
             upsample_shader->upload(5, bright_textures[i], 0);
+            upsample_shader->upload(7, i);
             bright_textures[i - 1]->bindImageTexture(1, GL_READ_WRITE);
             upsample_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
             glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
         }
         upsample_shader->unbind();
+    }
+
+
+    if (mode == DebugMode::DEBUG_ADD)
+    {
+        copy_image_shader->bind();
+        bright_textures.front()->bindImageTexture(0, GL_READ_ONLY);
+        hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
+        copy_image_shader->dispatchComputeImage(hdr_texture, 16);
+        copy_image_shader->unbind();
+        return;
+    }
+
+    if (mode == DebugMode::DEBUG_LAST)
+    {
+        copy_image_shader->bind();
+        bright_textures.back()->bindImageTexture(0, GL_READ_ONLY);
+        hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
+        copy_image_shader->dispatchComputeImage(hdr_texture, 16);
+        copy_image_shader->unbind();
+        return;
     }
 
 
@@ -157,24 +199,28 @@ void Bloom::Render(Texture* hdr_texture, float current_exposure)
     {
         combine_shader->upload(i, bright_textures[i], i);
     }
-    combine_shader->upload(7, bloom_strength);
     combine_shader->dispatchComputeImage(hdr_texture, 16);
     combine_shader->unbind();
 }
 void Bloom::resize(int w, int h)
 {
+    if (w == this->w && h == this->h && blur_textures.size() == params.levels)
+    {
+        return;
+    }
+
     console << "Resize bloom to " << w << "x" << h << std::endl;
     this->w = w;
     this->h = h;
 
     bright_textures.clear();
-    bright_textures.resize(levels);
+    bright_textures.resize(params.levels);
 
 
     blur_textures.clear();
-    blur_textures.resize(levels);
+    blur_textures.resize(params.levels);
 
-    for (int l = 0; l < levels; ++l)
+    for (int l = 0; l < params.levels; ++l)
     {
         bright_textures[l] = std::make_shared<Texture>();
         bright_textures[l]->create(w, h, GL_RGBA, GL_RGBA16F, GL_HALF_FLOAT);
@@ -188,10 +234,10 @@ void Bloom::resize(int w, int h)
         // stop here
         if (w <= 1 || h <= 1)
         {
-            levels = l + 1;
-            bright_textures.resize(levels);
-            blur_textures.resize(levels);
-            console << "Bloom clamped levels to " << levels << std::endl;
+            params.levels = l + 1;
+            bright_textures.resize(params.levels);
+            blur_textures.resize(params.levels);
+            console << "Bloom clamped levels to " << params.levels << std::endl;
             break;
         }
     }

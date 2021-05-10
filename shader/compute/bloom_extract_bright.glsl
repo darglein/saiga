@@ -15,6 +15,20 @@ layout(location = 0) uniform float exposure = 1;
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
+struct BloomParameters
+{
+    float bloom_threshold;
+    float bloom_strength;
+    int levels;
+    int flags;
+};
+
+layout (std140, binding = 3) uniform lightDataBlockPoint
+{
+    BloomParameters params;
+};
+
+
 // ====================================================================================
 
 void main() {
@@ -28,7 +42,7 @@ void main() {
     vec3 hdr_value = imageLoad(inputTex, texel_position).rgb;
 
 
-    hdr_value = max(hdr_value - vec3(1), vec3(0));
+    hdr_value = max(hdr_value - vec3(params.bloom_threshold), vec3(0));
 
 
     imageStore(destTex, texel_position, vec4(hdr_value, 1));
