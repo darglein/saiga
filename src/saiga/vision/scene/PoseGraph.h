@@ -63,7 +63,7 @@ struct SAIGA_VISION_API PoseEdge
         T_i_j = T_i_j.inverse();
     }
 
-    bool operator<(const PoseEdge& other) { return std::tie(from, to) < std::tie(other.from, other.to); }
+    bool operator<(const PoseEdge& other) const { return std::tie(from, to) < std::tie(other.from, other.to); }
     explicit operator bool() const { return from >= 0 && to >= 0; }
 };
 

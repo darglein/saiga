@@ -10,6 +10,7 @@
 #include "saiga/vision/util/Random.h"
 
 #include <fstream>
+#include <algorithm>
 namespace Saiga
 {
 PoseGraph::PoseGraph(const Scene& scene, int minEdges)
