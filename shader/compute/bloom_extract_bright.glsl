@@ -9,7 +9,7 @@
 #version 430
 
 layout(binding=0, rgba16f) uniform image2D inputTex;
-layout(binding=1, rgba16) uniform image2D destTex;
+layout(binding=1, rgba16f) uniform image2D destTex;
 
 layout(location = 0) uniform float exposure = 1;
 

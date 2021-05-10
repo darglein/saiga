@@ -10,11 +10,12 @@
 
 
 // layout(binding=0, rgba16f) uniform image2D inputTex;
-layout(binding=1, rgba16) uniform image2D destTex;
+layout(binding=1, rgba16f) uniform image2D destTex;
 
 layout(location = 5) uniform sampler2D inputTex;
 
 layout(location = 7) uniform int layer;
+layout(location = 8) uniform int num_layers;
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
@@ -51,10 +52,12 @@ void main() {
     uv = Texel2UV(texel_position_small, image_size_small);
     hdr_value = DownsampleBox(uv).rgb;
 
-    if(layer == 6) hdr_value *= (1.f / 7.f);
+    if(layer == num_layers-1) hdr_value *= (1.f / num_layers);
 
-    hdr_value += imageLoad(destTex, texel_position_small).rgb * (1.f / 7) ;//* exp(-layer );// * (10 - layer);
+    hdr_value += imageLoad(destTex, texel_position_small).rgb * (1.f / num_layers) ;//* exp(-layer );// * (10 - layer);
     //hdr_value *= 0.5;
+
+    //hdr_value = imageLoad(destTex, texel_position_small).rgb ;
 
     imageStore(destTex, texel_position_small, vec4(hdr_value, 1));
 }

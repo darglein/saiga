@@ -10,7 +10,7 @@
 
 
 // layout(binding=0, rgba16f) uniform image2D inputTex;
-layout(binding=1, rgba16) uniform image2D destTex;
+layout(binding=1, rgba16f) uniform image2D destTex;
 
 layout(location = 5) uniform sampler2D inputTex;
 

@@ -8,6 +8,8 @@
 
 #include "saiga/core/math/math.h"
 
+#include <string>
+#include <vector>
 
 namespace Saiga
 {

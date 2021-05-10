@@ -15,8 +15,8 @@ namespace Saiga
 struct BloomParameters
 {
     float bloom_threshold = 1;
-    float bloom_strength  = 0.2;
-    int levels            = 7;
+    float bloom_strength  = 2;
+    int levels            = 6;
     int flags             = 0;
 
     BloomParameters() { static_assert(sizeof(BloomParameters) == sizeof(float) * 4); }
