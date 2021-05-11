@@ -193,6 +193,7 @@ class SAIGA_OPENGL_API Shader
      */
 
     // basic uploads
+    void upload(int location, const mat3& m);
     void upload(int location, const mat4& m);
     void upload(int location, const vec4& v);
     void upload(int location, const vec3& v);

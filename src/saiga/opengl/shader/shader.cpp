@@ -410,6 +410,12 @@ std::vector<GLint> Shader::getUniformBlockOffset(std::vector<GLint> indices)
 
 // ===================================== uniform uploads =====================================
 
+void Shader::upload(int location, const mat3& m)
+{
+    SAIGA_ASSERT(isBound());
+    glUniformMatrix3fv(location, 1, GL_FALSE, m.data());
+    assert_no_glerror();
+}
 
 void Shader::upload(int location, const mat4& m)
 {

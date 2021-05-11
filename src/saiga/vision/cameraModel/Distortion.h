@@ -68,9 +68,8 @@ using Distortionf = DistortionBase<float>;
 
 /**
  * The OpenCV distortion model applied to a point in normalized image coordinates.
+ * You can find a glsl implementatin in shader/vision/distortion.h
  */
-
-
 template <typename T>
 Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& point, const DistortionBase<T>& distortion,
                                               Matrix<double, 2, 2>* J_point = nullptr)

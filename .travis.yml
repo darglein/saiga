@@ -83,6 +83,7 @@ script:
     if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
       cmake -DSAIGA_USE_SUBMODULES=ON $TRAVIS_BUILD_DIR 
       cmake --build . -j2
+      ctest --output-on-failure
     fi
 
 notifications:
