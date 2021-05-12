@@ -81,9 +81,8 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-
-    std::cout << "UnifiedMeshBuffer " << indices.Size() << " " << position.Size() << " "
-              << normal.Size() << " " << color.Size() << std::endl;
+    //    std::cout << "UnifiedMeshBuffer " << indices.Size() << " " << position.Size() << " "
+    //              << normal.Size() << " " << color.Size() << std::endl;
 }
 void UnifiedMeshBuffer::Draw(int offset, int count)
 {
