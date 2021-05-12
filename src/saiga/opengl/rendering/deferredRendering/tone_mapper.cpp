@@ -120,7 +120,15 @@ void ToneMapper::imgui()
         }
 
         params_dirty |= ImGui::Checkbox("download_tmp_values (performance warning)", &download_tmp_values);
-        params_dirty |= ImGui::SliderFloat("exposure", &params.exposure, 0.1, 5);
+        ImGui::Text("Exposure Value (log2 scale)");
+        params_dirty |= ImGui::SliderFloat("###exposure_value", &params.exposure_value, -15, 15);
+        ImGui::SameLine();
+        if (ImGui::Button("reset EV"))
+        {
+            params.exposure_value = 0;
+            params_dirty          = true;
+        }
+
         params_dirty |= ImGui::SliderFloat3("vignette_coeffs", params.vignette_coeffs.data(), -3, 1);
         params_dirty |= ImGui::SliderFloat2("vignette_offset", params.vignette_offset.data(), -1, 1);
 
@@ -190,7 +198,8 @@ void ToneMapper::ComputeOptimalExposureValue(Texture* input_hdr_color_image)
         // this is every inefficient because we stall the GL pipeline!
         tmp_buffer.get(tmp_params);
 
-        computed_exposure = 0.33 / tmp_params.average_color_luminace.w();
+        float average_luminace = tmp_params.average_color_luminace.w();
+        computed_exposure      = log2(std::max(average_luminace / 0.33, 1e-4));
 
         vec3 avg             = tmp_params.average_color_luminace.head<3>();
         float alpha          = avg[1] / avg[0];

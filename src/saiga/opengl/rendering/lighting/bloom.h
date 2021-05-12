@@ -35,7 +35,7 @@ class SAIGA_OPENGL_API Bloom
     };
 
     Bloom();
-    void Render(Texture* hdr_texture, float current_exposure);
+    void Render(Texture* hdr_texture);
     void imgui();
 
     bool params_dirty = true;

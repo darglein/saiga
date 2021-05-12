@@ -66,12 +66,14 @@ vec2 NormalizedUV(ivec2 texel, ivec2 size)
 
 vec3 Tonemap(vec3 hdr_color, ivec2 texel, vec2 normalized_uv){
 
-    float exposure =  params.white_point_exposure.w;
+    float exposure_value =  params.white_point_exposure.w;
     if((params.flags & 1) != 0)
     {
         // Auto Exposure
-        exposure = 0.33 / tmp_params.average_color_luminace.w;
+        float average_luminace = tmp_params.average_color_luminace.w;
+        exposure_value = log2( max(average_luminace /  0.33, 1e-4) );
     }
+    float exposure_factor = 1.f / exp2(exposure_value);
 
     vec3 white_point = params.white_point_exposure.xyz;
     if((params.flags & 2) != 0)
@@ -86,7 +88,7 @@ vec3 Tonemap(vec3 hdr_color, ivec2 texel, vec2 normalized_uv){
     float r2 = dot(normalized_uv + params.vignette_offset, normalized_uv+ params.vignette_offset);
     float vignette = VignetteModel(r2, params.vignette_coeffs.xyz);
 
-    vec3 color = vignette * exposure * hdr_color;
+    vec3 color = vignette * exposure_factor * hdr_color;
 
     // White balance
     color = color * white_point;

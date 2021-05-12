@@ -22,7 +22,7 @@ namespace Saiga
 struct TonemapParameters
 {
     vec3 white_point     = vec3::Ones();
-    float exposure       = 1;
+    float exposure_value = 0;
     vec4 vignette_coeffs = vec4::Zero();
     vec2 vignette_offset = vec2::Zero();
     uint32_t flags       = 0;

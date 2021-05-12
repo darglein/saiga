@@ -174,7 +174,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
     if (params.bloom && params.hdr)
     {
         auto tim = timer->Measure("Bloom");
-        bloom.Render(lighting.lightAccumulationTexture.get(), tone_mapper.params.exposure);
+        bloom.Render(lighting.lightAccumulationTexture.get());
     }
 
     postProcessor.nextFrame();

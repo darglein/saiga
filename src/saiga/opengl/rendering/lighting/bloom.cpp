@@ -47,7 +47,7 @@ void Bloom::imgui()
         ImGui::Combo("Mode", (int*)&mode, debug_strs);
     }
 }
-void Bloom::Render(Texture* hdr_texture, float current_exposure)
+void Bloom::Render(Texture* hdr_texture)
 {
     if (hdr_texture->getWidth() != w || hdr_texture->getHeight() != h)
     {
