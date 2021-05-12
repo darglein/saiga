@@ -49,26 +49,26 @@ inline void* aligned_malloc(size_t size)
 {
     void* ptr              = nullptr;
     auto size_with_padding = iAlignUp(size, Alignment);
+
 #ifdef _WIN32
     // Windows doesn't implement std::aligned_alloc :(
     ptr = _aligned_malloc(size_with_padding, Alignment);
-#elif defined(IS_CUDA)
+#elif defined(IS_CUDA) || defined(__APPLE__)
     // Linux + CUDA
     // Nvcc currently doesn't support std::aligned_alloc :(
     // Posix memalign is defined in stdlib.h and does the same as the modern std::aligned_alloc.
     // From posix_memalign manual
     // The value of alignment shall be a multiple of sizeof( void *), that is also a power of two.
-    if (Alignment < sizeof(void*))
+
+    if (Alignment <= sizeof(void*))
     {
-        // let's assume malloc is at least (void*) aligned.
-        ptr = malloc(size_with_padding);
+        // Malloc is guaranteed to work for this size
+        return malloc(size_with_padding);
     }
-    else
+
+    if (posix_memalign(&ptr, Alignment, size_with_padding) != 0)
     {
-        if (posix_memalign(&ptr, Alignment, size_with_padding) != 0)
-        {
-            throw std::runtime_error("posix_memalign failed");
-        }
+        throw std::runtime_error("posix_memalign failed");
     }
 #else
     ptr = aligned_alloc(Alignment, size_with_padding);
@@ -87,7 +87,7 @@ inline void aligned_free(void* ptr)
 #ifdef _WIN32
     _aligned_free(ptr);
 #else
-    // Posix memalign can also be freeded with std::free!
+    // posix_memalign and aligned_alloc can be freed with std::free!
     std::free(ptr);
 #endif
 }
@@ -136,8 +136,6 @@ class aligned_allocator : public std::allocator<T>
     {
         num = num * sizeof(T);
         return static_cast<pointer>(aligned_malloc<Alignment>(num));
-        //        num = iAlignUp(num, Alignment);
-        //        return static_cast<pointer>(std::aligned_alloc(Alignment, num));
     }
 
     void deallocate(pointer p, size_type /*num*/) { aligned_free(p); }
