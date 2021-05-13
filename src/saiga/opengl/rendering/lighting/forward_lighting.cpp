@@ -178,7 +178,7 @@ void ForwardLighting::renderImGui()
 
     RendererLighting::renderImGui();
 
-    if (clustererType) lightClusterer->renderImGui();
+    if (clustererType) lightClusterer->imgui();
 }
 
 void ForwardLighting::setClusterType(int tp)

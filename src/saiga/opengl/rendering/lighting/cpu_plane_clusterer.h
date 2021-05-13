@@ -45,7 +45,7 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
     int avgAllowedItemsPerCluster = 128;
     std::vector<std::vector<int32_t>> clusterCache;
 
-    bool fillImGui() override;
+    void imgui() override;
 
     std::vector<Frustum> debugFrusta;
     LineSoup lightClustersDebug;
