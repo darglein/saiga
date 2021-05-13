@@ -19,6 +19,14 @@ using namespace Saiga;
 
 #define SEED 9
 
+#define SPONZA
+//#define SPONZA_LARGE
+//#define BISTRO
+//#define BISTRO_LINE
+//#define BISTRO_POINT
+
+#define MEDIAN
+
 class Sample : public RendererSampleWindow
 {
     using Base = RendererSampleWindow;
@@ -32,14 +40,24 @@ class Sample : public RendererSampleWindow
         editor_layout->RegisterImguiWindow("Cluster Benchmark Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
         editor_gui.SetLayout(std::move(editor_layout));
 
-        sponzaAsset = std::make_shared<ColoredAsset>(
+#ifdef SPONZA
+        TheAsset = std::make_shared<ColoredAsset>(
             UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
-        // sponzaAsset =
-        // std::make_shared<ColoredAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf"));
 
-        sponza.asset = sponzaAsset;
-        sponza.setScale(make_vec3(0.025f));
-        sponza.calculateModel();
+        assetObject.asset = TheAsset;
+        assetObject.setScale(make_vec3(0.025f));
+        assetObject.calculateModel();
+#else
+        auto model =
+            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf");
+        model    = model.Normalize();
+        TheAsset = std::make_shared<ColoredAsset>(model);
+        bb       = model.BoundingBox();
+        bb.scale(make_vec3(50.0));
+        assetObject.asset = TheAsset;
+        assetObject.setScale(make_vec3(50.0));
+        assetObject.calculateModel();
+#endif
 
         int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
@@ -77,15 +95,94 @@ class Sample : public RendererSampleWindow
 
         auto wireframeShader = shaderLoader.load<MVPColorShader>(shaderStrTex);
 
-        sponzaAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
+        TheAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
-        lightCount = 128;
-        lightSize  = 1.0f;
+        lightCount = 0;
+#ifdef SPONZA_LARGE
+        lightSize = 6.0f;
+#else
+        lightSize      = 2.0f;
+#endif
+
+        Random::setSeed(SEED);
+        int maxLights = 16384;
+#ifdef SPONZA
+        start_position  = vec4(28.2392, 17.1928, 11.2081, 1);
+        start_rot       = quat(0.88629, -0.0913254, 0.451591, 0.0465218);
+        middle_position = vec4(-29.1124, 17.4062, 11.2679, 1);
+        middle_rot      = quat(0.885287, -0.100587, -0.45107, -0.0512778);
+        goal_position   = vec4(-28.6951, 14.2356, -3.93452, 1);
+        goal_rot        = quat(0.642224, -0.0491997, -0.762658, -0.0584746);
+
+        for (int i = 0; i < maxLights; ++i)
+        {
+            float r     = linearRand(0.5f, 20.0f);
+            float theta = linearRand(0, maxLights) / two_pi<float>();
+            extras.push_back(vec2(r, theta));
+            vec2 point((r + 14.f) * cos(theta), r * sin(theta));
+
+            auto light = std::make_shared<PointLight>();
+            light->setIntensity(2);
+            light->setRadius(lightSize);
+            float h = linearRand(0.25f, 25.0f);
+            light->setPosition(vec3(point.x(), h, point.y()));
+
+            light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+
+            pointLights.push_back(light);
+        }
+#elif defined(BISTRO)
+        start_position = vec4(-13.9085, -7.96026, 2.92398, 1);
+        start_rot      = quat(0.981276, -0.0356852, 0.188964, 0.00688365);
+        goal_position  = vec4(-14.353, -8.72036, -0.694178, 1);
+        goal_rot       = quat(0.880712, 0.0495057, 0.470257, -0.0264335);
+
+        camera.position = goal_position;
+        camera.rot      = goal_rot;
+        camera.calculateModel();
+        camera.updateFromModel();
+
+        for (int i = 0; i < maxLights; ++i)
+        {
+            float z   = -linearRand(camera.zNear + 1, camera.zFar * 0.75);
+            float d   = -((z - camera.zNear) / (camera.zFar - camera.zNear));
+            auto fovx = degrees(camera.fovy) * camera.aspect;
+            float r   = linearRand(-d * fovx, d * fovx);
+            float h   = linearRand(-0.035 * degrees(camera.fovy), 0.35 * degrees(camera.fovy));
+            vec3 p    = make_vec3(camera.position);
+#    if not defined(BISTRO_LINE) or defined(BISTRO_POINT)
+            p += make_vec3(camera.getDirection().array() * z);
+            p += make_vec3(camera.getRightVector().array() * r);
+            p += make_vec3(camera.getUpVector().array() * h);
+#    endif
+
+#    ifdef BISTRO_LINE
+            p += make_vec3(camera.getDirection().array() * z);
+#    endif
+
+#    ifdef BISTRO_POINT
+            p += make_vec3(camera.getDirection().array() * -28);
+            p += make_vec3(camera.getUpVector().array() * -1.0);
+#    endif
+
+            auto light = std::make_shared<PointLight>();
+            light->setIntensity(1);
+            light->setRadius(lightSize);
+            light->setPosition(vec3(p.x(), p.y(), p.z()));
+
+            light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
+
+            pointLights.push_back(light);
+        }
+#endif
+
         setupBenchmark();
 
         std::cout << "Program Initialized!" << std::endl;
 
+#define OFFLINE_BENCHMARK
+#ifdef OFFLINE_BENCHMARK
         int w = 1920;
         int h = 1080;
 
@@ -107,54 +204,78 @@ class Sample : public RendererSampleWindow
         vp.position = ivec2(0, 0);
         vp.size     = ivec2(w, h);
 
-        int rendererTypesToCheck = 9;
-        int settingsToCheck      = 4;
-#ifdef MULTI_PASS_DEFERRED_PIPELINE
+        int rendererTypesToCheck = 6;
+#    ifdef MULTI_PASS_DEFERRED_PIPELINE
         rendererTypesToCheck = 1;
-        settingsToCheck      = 1;
-#endif
+#    endif
 
-        std::string rendererTypes[9] = {"BASIC",  "TLD SP", "TLD CP",     "TLD CP REF", "TLD GA",
-                                        "CLD SP", "CLD CP", "CLD CP REF", "CLD GA"};
+        std::string rendererTypes[6] = {"BASIC", "TLD SP", "TLD ISR", "CLD SP", "CLD ISR", "CLD GA"};
 
-        int lightCounts[8] = {256, 512, 1024, 2048, 4096, 8192, 16384, 32768};
+#    ifdef MEDIAN
+        int iterateCount = 126;  // 125 + 1, da wir bei 0 anfangen
+#    else
+        int iterateCount = 1;
+#    endif
 
         std::vector<std::pair<std::string, std::vector<double>>> timeColumns;
 
         for (int r = 0; r < rendererTypesToCheck; ++r)
         {
+#    ifndef MEDIAN
+            r = r == 0 ? 1 : r;
+#    endif
             setupRenderer(r);
-            int _settingsToCheck = r > 0 ? settingsToCheck : 1;
-            for (int s = 0; s < _settingsToCheck; ++s)
+            std::string name = rendererTypes[r];
+            timeColumns.push_back({name, {}});
+#    ifdef MEDIAN
+            auto& medians = timeColumns.at(timeColumns.size() - 1).second;
+#    else
+            auto& frametimes = timeColumns.at(timeColumns.size() - 1).second;
+#    endif
+            Statistics stats;
+            lightCount = 0;
+            for (int l = 0; l < iterateCount; ++l)
             {
-                setupRendererSettings(r, s);
-                std::string name = rendererTypes[r] + std::to_string(s);
-                timeColumns.push_back({name, {}});
-                auto& medians = timeColumns.at(timeColumns.size() - 1).second;
-                Statistics stats;
-                for (int l = 0; l < 7; ++l)
+                if (stats.median > 42.0f) break;  // 42 ms -> ~ 24 fps
+#    ifndef MEDIAN
+                lightCount = 16000;
+#    endif
+                setupBenchmark();
+#    ifdef MEDIAN
+                lightCount += 128;
+#    endif
+                // Discard first frames.
+                for (int i = 0; i < 4; ++i)
                 {
-                    lightCount = lightCounts[l];
-                    if (stats.median > 50.0f) break;
-                    setupBenchmark();
-                    // Discard first frames.
-                    for (int i = 0; i < 4; ++i)
-                    {
-                        renderer->renderGL(target_framebuffer.get(), vp, &camera);
-                    }
-
-                    std::vector<double> times;
-                    for (int i = 0; i < 60; ++i)
-                    {
-                        OpenGLTimer tim;
-                        tim.start();
-                        renderer->renderGL(target_framebuffer.get(), vp, &camera);
-                        tim.stop();
-                        times.push_back(tim.getTimeMS());
-                    }
-                    stats = Statistics(times);
-                    medians.push_back(stats.median);
+                    renderer->renderGL(target_framebuffer.get(), vp, &camera);
                 }
+
+                std::vector<double> times;
+                currentFrameUpdate = 0;
+                for (int i = 0; i < measureFrameCount; ++i)
+                {
+                    update(0.0166667f);
+                    OpenGLTimer tim;
+                    tim.start();
+                    renderer->renderGL(target_framebuffer.get(), vp, &camera);
+                    tim.stop();
+                    times.push_back(tim.getTimeMS());
+#    ifndef MEDIAN
+                    frametimes.push_back(tim.getTimeMS());
+                    continue;
+#    endif
+                    // if (i == 0)
+                    //{
+                    //    TemplatedImage<ucvec4> result(h, w);
+                    //    target_framebuffer->getTextureColor(0)->download(result.data());
+
+                    //    result.save("frame0.png");
+                    //}
+                }
+#    ifdef MEDIAN
+                stats = Statistics(times);
+                medians.push_back(stats.median);
+#    endif
             }
         }
 
@@ -164,13 +285,13 @@ class Sample : public RendererSampleWindow
 
         result.save("output.png");
 
-#ifdef SINGLE_PASS_DEFERRED_PIPELINE
-        std::ofstream timesOut("deferred_times.csv");
-#elif defined(MULTI_PASS_DEFERRED_PIPELINE)
-        std::ofstream timesOut("light_volume_times.csv");
-#elif defined(SINGLE_PASS_FORWARD_PIPELINE)
-        std::ofstream timesOut("forward_times.csv");
-#endif
+#    ifdef SINGLE_PASS_DEFERRED_PIPELINE
+        std::ofstream timesOut("deferred_times_one_point_bistro.csv");
+#    elif defined(MULTI_PASS_DEFERRED_PIPELINE)
+        std::ofstream timesOut("light_volume_times_one_point_bistro.csv");
+#    elif defined(SINGLE_PASS_FORWARD_PIPELINE)
+        std::ofstream timesOut("forward_times_bistro.csv");
+#    endif
         timesOut << "LightCount";
         timesOut << ";";
         for (int i = 0; i < timeColumns.size(); ++i)
@@ -179,9 +300,24 @@ class Sample : public RendererSampleWindow
             if (i != timeColumns.size() - 1) timesOut << ";";
         }
         timesOut << "\n";
-        for (int i = 0; i < 7; ++i)
+#    ifdef MEDIAN
+        lightCount = 0;
+        for (int i = 0; i < iterateCount; ++i)
         {
-            timesOut << lightCounts[i];
+            timesOut << lightCount;
+            timesOut << ";";
+            lightCount += 128;
+            for (int j = 0; j < timeColumns.size(); ++j)
+            {
+                if (i < timeColumns.at(j).second.size()) timesOut << timeColumns.at(j).second.at(i);
+                if (j != timeColumns.size() - 1) timesOut << ";";
+            }
+            timesOut << "\n";
+        }
+#    else
+        for (int i = 0; i < measureFrameCount; ++i)
+        {
+            timesOut << i;
             timesOut << ";";
             for (int j = 0; j < timeColumns.size(); ++j)
             {
@@ -190,17 +326,20 @@ class Sample : public RendererSampleWindow
             }
             timesOut << "\n";
         }
+#    endif
 
         timesOut.close();
 
         exit(0);
+#endif  // OFFLINE_BENCHMARK
     }
 
 
     void update(float dt) override
     {
         Base::update(dt);
-        for (int i = 0; i < pointLights.size(); ++i)
+#ifdef SPONZA
+        for (int i = 0; i < lightCount; ++i)
         {
             vec2& ex = extras[i];
             auto pl  = pointLights[i];
@@ -209,6 +348,54 @@ class Sample : public RendererSampleWindow
             vec2 point((ex[0] + 16.f) * cos(ex[1]), ex[0] * sin(ex[1]));
             pl->setPosition(vec3(point.x(), h, point.y()));
         }
+#endif
+        // interpolate camera
+        float t = (float)currentFrameUpdate / (float)(measureFrameCount - 1);
+#ifdef SPONZA
+        auto start_p = start_position;
+        auto start_r = start_rot;
+        auto end_p   = middle_position;
+        auto end_r   = middle_rot;
+
+        if (t > 0.5)
+        {
+            start_p = middle_position;
+            start_r = middle_rot;
+            end_p   = goal_position;
+            end_r   = goal_rot;
+            t -= 0.5;
+        }
+        t *= 2;
+#else
+        auto start_p = start_position;
+        auto start_r = start_rot;
+        auto end_p   = goal_position;
+        auto end_r   = goal_rot;
+#endif
+
+
+        float t_ = 1 - t;
+
+
+        camera.position = start_p * t_ + end_p * t;
+
+        camera.rot.x() = t_ * start_r.x() + t * end_r.x();
+        camera.rot.y() = t_ * start_r.y() + t * end_r.y();
+        camera.rot.z() = t_ * start_r.z() + t * end_r.z();
+        camera.rot.w() = t_ * start_r.w() + t * end_r.w();
+
+        if (t >= 1.0)
+        {
+            camera.position    = goal_position;
+            camera.rot         = goal_rot;
+            currentFrameUpdate = 0;
+        }
+
+        camera.rot.normalize();
+        camera.calculateModel();
+        camera.updateFromModel();
+
+        currentFrameUpdate++;
     }
 
     void setupBenchmark()
@@ -216,36 +403,42 @@ class Sample : public RendererSampleWindow
         renderer->lighting.pointLights.clear();
         renderer->lighting.spotLights.clear();
         renderer->lighting.directionalLights.clear();
-        pointLights.clear();
 
-        Random::setSeed(SEED);
+#ifdef SPONZA
         for (int i = 0; i < lightCount; ++i)
         {
-            float r     = linearRand(0.5f, 20.0f);
-            float theta = (float)i / lightCount * two_pi<float>();
-            extras.push_back(vec2(r, theta));
-            vec2 point((r + 14.f) * cos(theta), r * sin(theta));
-
-            auto light = std::make_shared<PointLight>();
-            light->setIntensity(2);
-            light->setRadius(lightSize);
-            float h = linearRand(0.25f, 25.0f);
-            light->setPosition(vec3(point.x(), h, point.y()));
-
-            light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
-
-            renderer->lighting.AddLight(light);
-            pointLights.push_back(light);
+            auto pl = pointLights[i];
+            renderer->lighting.AddLight(pl);
         }
 
-        camera.position = vec4(-35.3095, 16.6492, 2.20442, 1);
-        camera.rot      = quat(0.732921, -0.0343305, -0.678689, -0.0318128);
+        camera.position = start_position;
+        camera.rot      = start_rot;
         camera.calculateModel();
         camera.updateFromModel();
+#else
+        for (int i = 0; i < lightCount; ++i)
+        {
+            auto pl = pointLights[i];
+            renderer->lighting.AddLight(pl);
+        }
+
+        camera.position = start_position;
+        camera.rot      = start_rot;
+        camera.calculateModel();
+        camera.updateFromModel();
+#endif
     }
 
     void setupRenderer(int rendererIndex)
     {
+#ifdef SINGLE_PASS_FORWARD_PIPELINE
+        static int tileSizeSettings[6] = {0, 64, 32, 256, 64, 128};
+#elif defined(SINGLE_PASS_DEFERRED_PIPELINE)
+        static int tileSizeSettings[6] = {0, 128, 64, 256, 256, 128};
+#else
+        static int tileSizeSettings[] = {0};
+#endif
+        static int depthSplitSettings[3] = {4, 8, 24};
         switch (rendererIndex)
         {
             case 0:
@@ -255,100 +448,59 @@ class Sample : public RendererSampleWindow
             case 1:
                 // TLD SP
                 renderer->lighting.setClusterType(1);
+                renderer->lighting.getClusterer()->set(tileSizeSettings[1], 0);
+                renderer->lighting.getClusterer()->enable3DClusters(false);
                 break;
             case 2:
-                // TLD CP
+                // TLD ISR
                 renderer->lighting.setClusterType(2);
+                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = true;
+                renderer->lighting.getClusterer()->set(tileSizeSettings[2], 0);
+                renderer->lighting.getClusterer()->enable3DClusters(false);
                 break;
             case 3:
-                // TLD CP REF
-                renderer->lighting.setClusterType(2);
-                break;
-            case 4:
-                // TLD GA
-                renderer->lighting.setClusterType(3);
-                break;
-            case 5:
                 // CLD SP
                 renderer->lighting.setClusterType(1);
+                renderer->lighting.getClusterer()->set(tileSizeSettings[3], depthSplitSettings[0]);
+                renderer->lighting.getClusterer()->enable3DClusters(true);
                 break;
-            case 6:
-                // CLD CP
+            case 4:
+                // CLD ISR
                 renderer->lighting.setClusterType(2);
+                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = true;
+                renderer->lighting.getClusterer()->set(tileSizeSettings[4], depthSplitSettings[1]);
+                renderer->lighting.getClusterer()->enable3DClusters(true);
                 break;
-            case 7:
-                // CLD CP REF
-                renderer->lighting.setClusterType(2);
-                break;
-            case 8:
+            case 5:
                 // CLD GA
                 renderer->lighting.setClusterType(3);
+                renderer->lighting.getClusterer()->set(tileSizeSettings[5], depthSplitSettings[2]);
+                renderer->lighting.getClusterer()->enable3DClusters(true);
                 break;
             default:
                 break;
         }
     }
-
-    void setupRendererSettings(int rendererIndex, int settingsIndex)
-    {
-        static int tiledTileSettings[4]     = {32, 64, 128, 256};
-        static int clusteredTileSettings[4] = {32, 64, 64, 256};
-        static int depthSplitSettings[4]    = {6, 16, 24, 64};
-        switch (rendererIndex)
-        {
-            case 0:
-                // BASIC
-                break;
-            case 2:
-                // TLD CP
-                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = false;
-            case 3:
-                // TLD CP REF
-                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = true;
-            case 1:
-                // TLD SP
-            case 4:
-                // TLD GA
-                renderer->lighting.getClusterer()->set(tiledTileSettings[settingsIndex], 0);
-                break;
-            case 6:
-                // CLD CP
-                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = false;
-            case 7:
-                // CLD CP REF
-                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = true;
-            case 5:
-                // CLD SP
-            case 8:
-                // CLD GA
-                renderer->lighting.getClusterer()->set(clusteredTileSettings[settingsIndex],
-                                                       depthSplitSettings[settingsIndex]);
-                break;
-            default:
-                break;
-        }
-    }
-
 
     void renderBenchmark(Camera* camera, RenderPass render_pass)
     {
         if (render_pass == RenderPass::Shadow)
         {
-            sponza.renderDepth(camera);
+            assetObject.renderDepth(camera);
         }
 #if defined(SINGLE_PASS_DEFERRED_PIPELINE) || defined(MULTI_PASS_DEFERRED_PIPELINE)
         if (render_pass == RenderPass::Deferred)
         {
-            sponza.render(camera);
+            assetObject.render(camera);
         }
 #elif defined(SINGLE_PASS_FORWARD_PIPELINE)
         if (render_pass == RenderPass::DepthPrepass)
         {
-            sponza.renderDepth(camera);
+            assetObject.renderDepth(camera);
         }
         if (render_pass == RenderPass::Forward)
         {
-            sponza.renderForward(camera);
+            assetObject.renderForward(camera);
         }
 #endif
     }
@@ -376,24 +528,41 @@ class Sample : public RendererSampleWindow
 
             ImGui::Text("Lights: %d", lightCount);
 
-            if (ImGui::SliderFloat("Light Size", &lightSize, 0.1f, 4.0f))
-            {
-                setupBenchmark();
-            }
+            // if (ImGui::SliderFloat("Light Size", &lightSize, 0.1f, 4.0f))
+            //{
+            //    setupBenchmark();
+            //}
 
             ImGui::End();
         }
     }
 
    private:
-    std::shared_ptr<ColoredAsset> sponzaAsset;
+    std::shared_ptr<ColoredAsset> TheAsset;
     std::vector<vec2> extras;
     int lightCount  = 128;
     float lightSize = 1;
 
-    SimpleAssetObject sponza;
+    SimpleAssetObject assetObject;
+    Saiga::AABB bb;
 
     std::vector<std::shared_ptr<PointLight>> pointLights;
+
+    vec4 start_position;
+    quat start_rot;
+
+    vec4 middle_position;
+    quat middle_rot;
+
+    vec4 goal_position;
+    quat goal_rot;
+
+#ifdef MEDIAN
+    int measureFrameCount = 60;
+#else
+    int measureFrameCount = 300;
+#endif
+    int currentFrameUpdate = 0;
 };
 
 int main(const int argc, const char* argv[])
