@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -75,24 +75,31 @@ class SAIGA_TEMPLATE StandaloneWindow : public RenderingInterface, public Updati
 
     StandaloneWindow(const std::string& config)
     {
+        config_file = config;
+
         WindowParameters windowParameters;
         OpenGLParameters openglParameters;
         RenderingParameters rendererParameters;
-        MainLoopParameters mainLoopParameters;
-
 
         windowParameters.fromConfigFile(config);
         openglParameters.fromConfigFile(config);
         rendererParameters.fromConfigFile(config);
-        mainLoopParameters.fromConfigFile(config);
 
-        create(windowParameters, openglParameters, rendererParameters, mainLoopParameters);
+        create(windowParameters, openglParameters, rendererParameters);
     }
 
-    StandaloneWindow(const WindowParameters& windowParameters, const OpenGLParameters& openglParameters,
-                     const RenderingParameters& rendererParameters, const MainLoopParameters& mainLoopParameters)
+    StandaloneWindow(std::unique_ptr<Renderer> renderer_, std::unique_ptr<WindowManagment> window_)
+        : renderer(std::move(renderer_)), window(std::move(window_))
     {
-        create(windowParameters, openglParameters, rendererParameters, mainLoopParameters);
+        window->setUpdateObject(*this);
+        renderer->setRenderObject(*this);
+    }
+
+
+    StandaloneWindow(const WindowParameters& windowParameters, const OpenGLParameters& openglParameters,
+                     const RenderingParameters& rendererParameters)
+    {
+        create(windowParameters, openglParameters, rendererParameters);
     }
 
     ~StandaloneWindow()
@@ -101,24 +108,29 @@ class SAIGA_TEMPLATE StandaloneWindow : public RenderingInterface, public Updati
         window.reset();
     }
 
-    void run() { window->startMainLoop(mainLoopParameters); }
+    void run()
+    {
+        MainLoopParameters mainLoopParameters;
+        mainLoopParameters.fromConfigFile(config_file);
+        run(mainLoopParameters);
+    }
+
+    void run(MainLoopParameters mainLoopParameters) { window->startMainLoop(mainLoopParameters); }
 
    private:
     void create(const WindowParameters& windowParameters, const OpenGLParameters& openglParameters,
-                const RenderingParameters& rendererParameters, const MainLoopParameters& mainLoopParameters)
+                const RenderingParameters& rendererParameters)
     {
-        this->mainLoopParameters = mainLoopParameters;
-        window                   = std::make_unique<WindowManagment>(windowParameters, openglParameters);
-        renderer                 = std::make_unique<Renderer>(*window, rendererParameters);
-
+        window   = std::make_unique<WindowManagment>(windowParameters, openglParameters);
+        renderer = std::make_unique<Renderer>(*window, rendererParameters);
 
         window->setUpdateObject(*this);
         renderer->setRenderObject(*this);
     }
 
-    MainLoopParameters mainLoopParameters;
 
    protected:
+    std::string config_file;
     std::unique_ptr<Renderer> renderer;
     std::unique_ptr<WindowManagment> window;
 };

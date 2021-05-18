@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -23,7 +23,7 @@ namespace Vulkan
 class SAIGA_VULKAN_API TexturedAssetRenderer : public Pipeline
 {
    public:
-    using VertexType = VertexNTD;
+    using VertexType = VertexNT;
 
     ~TexturedAssetRenderer() { destroy(); }
     void destroy();

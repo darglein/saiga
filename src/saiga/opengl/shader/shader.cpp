@@ -1,11 +1,12 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #include "saiga/opengl/shader/shader.h"
 
+#include "saiga/core/rendering/ShaderParser.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/texture/TextureBase.h"
@@ -15,14 +16,86 @@
 
 namespace Saiga
 {
-GLuint Shader::boundShader = 0;
+GLuint Shader::boundShader            = 0;
+bool Shader::add_glsl_line_directives = false;
 
 Shader::Shader() {}
 
 Shader::~Shader()
 {
-    // std::cout << "~Shader " << name << std::endl;
     destroyProgram();
+}
+
+bool Shader::reload()
+{
+    bool need_reload = false;
+    for (auto& f_t : dependent_files_and_date)
+    {
+        SAIGA_ASSERT(std::filesystem::exists(f_t.first));
+        auto date = std::filesystem::last_write_time(f_t.first);
+
+        if (date > f_t.second)
+        {
+            need_reload = true;
+        }
+    }
+
+    if (need_reload)
+    {
+        return init(file, injections);
+    }
+    else
+    {
+        return true;
+    }
+}
+
+bool Shader::init(const std::string& file, const ShaderCodeInjections& injections)
+{
+    std::cout << "loading shader " << file << std::endl;
+    this->file       = file;
+    this->injections = injections;
+    shaders.clear();
+    dependent_files_and_date.clear();
+
+    auto c = LoadFileAndResolveIncludes(file, add_glsl_line_directives);
+    if (!c.valid) return false;
+
+    for (auto f : c.dependent_files)
+    {
+        SAIGA_ASSERT(std::filesystem::exists(f));
+        auto date = std::filesystem::last_write_time(f);
+        dependent_files_and_date.emplace_back(f, date);
+    }
+
+    for (auto p : c.parts)
+    {
+        if (p.type.empty() || p.end - p.start == 0) continue;
+        GLenum gl_type = GL_NONE;
+        for (int i = 0; i < ShaderPart::shaderTypeCount; ++i)
+        {
+            if (p.type == ShaderPart::shaderTypeStrings[i])
+            {
+                gl_type = ShaderPart::shaderTypes[i];
+            }
+        }
+
+        if (gl_type == GL_NONE)
+        {
+            SAIGA_EXIT_ERROR("Unknown shader type: " + p.type);
+        }
+
+        std::vector<std::string> content(c.code.begin() + p.start, c.code.begin() + p.end);
+
+        auto shader = std::make_shared<ShaderPart>(content, gl_type, injections);
+        if (shader->valid)
+        {
+            shaders.push_back(shader);
+        }
+    }
+
+    createProgram();
+    return true;
 }
 
 // ===================================== program stuff =====================================
@@ -223,6 +296,12 @@ void Shader::dispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint nu
     assert_no_glerror();
 }
 
+void Shader::dispatchComputeImage(Texture2D* texture, int local_size)
+{
+    int gw = iDivUp(texture->getWidth(), local_size);
+    int gh = iDivUp(texture->getHeight(), local_size);
+    dispatchCompute(uvec3(gw, gh, 1));
+}
 
 
 void Shader::memoryBarrier(MemoryBarrierMask barriers)
@@ -331,6 +410,12 @@ std::vector<GLint> Shader::getUniformBlockOffset(std::vector<GLint> indices)
 
 // ===================================== uniform uploads =====================================
 
+void Shader::upload(int location, const mat3& m)
+{
+    SAIGA_ASSERT(isBound());
+    glUniformMatrix3fv(location, 1, GL_FALSE, m.data());
+    assert_no_glerror();
+}
 
 void Shader::upload(int location, const mat4& m)
 {

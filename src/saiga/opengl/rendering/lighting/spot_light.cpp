@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,6 +7,8 @@
 #include "saiga/opengl/rendering/lighting/spot_light.h"
 
 #include "saiga/core/imgui/imgui.h"
+
+#include "internal/noGraphicsAPI.h"
 
 namespace Saiga
 {
@@ -22,13 +24,6 @@ void SpotLight::calculateCamera()
     shadowCamera.model = M;
     shadowCamera.updateFromModel();
     shadowCamera.setProj(2 * angle, 1, shadowNearPlane, radius);
-}
-
-
-void SpotLight::createShadowMap(int w, int h, ShadowQuality quality)
-{
-    shadowmap   = std::make_unique<SimpleShadowmap>(w, h, quality);
-    castShadows = true;
 }
 
 mat4 SpotLight::ModelMatrix()
@@ -60,23 +55,6 @@ bool SpotLight::cullLight(Camera* cam)
     return culled;
 }
 
-bool SpotLight::renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer)
-{
-    if (shouldCalculateShadowMap())
-    {
-        shadowmap->bindFramebuffer();
-        shadowCamera.recalculatePlanes();
-        CameraDataGLSL cd(&shadowCamera);
-        shadowCameraBuffer.updateBuffer(&cd, sizeof(CameraDataGLSL), 0);
-        f(&shadowCamera);
-        shadowmap->unbindFramebuffer();
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
 
 void SpotLight::renderImGui()
 {

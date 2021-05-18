@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -37,7 +37,8 @@ void Scene::InitialAlignment()
     for (auto& v : vertices)
     {
         ICP::Correspondence c;
-        c.srcPoint = v.estimate.translation();
+        // c.srcPoint = v.estimate.translation();
+        c.srcPoint = (v.estimate * extrinsics).translation();
         c.refPoint = v.ground_truth.translation();
         corrs.push_back(c);
     }

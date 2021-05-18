@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -66,7 +66,7 @@ class SAIGA_CORE_API AssimpLoader
     void transformmesh(const aiMesh* amesh, AlignedVector<mat4>& boneMatrices);
     void createFrames(const aiMesh* mesh, aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames);
 
-    void createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames);
+    bool createKeyFrames(aiAnimation* anim, std::vector<AnimationKeyframe>& animationFrames);
     int createNodeTree(aiNode* node);
     mat4 composematrix(vec3 t, quat q, vec3 s);
 
@@ -76,6 +76,8 @@ class SAIGA_CORE_API AssimpLoader
     void transformnode(aiMatrix4x4* result, aiNode* node);
     mat4 convert(aiMatrix4x4 mat);
     void composematrix(aiMatrix4x4* m, aiVector3D* t, aiQuaternion* q, aiVector3D* s);
+
+    void TraversePrintTree(aiNode* current_node, int depth = 0);
 };
 
 }  // namespace Saiga

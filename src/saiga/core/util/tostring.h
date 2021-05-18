@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -219,6 +219,39 @@ SAIGA_TEMPLATE std::string to_string(Iterator begin, Iterator end)
     }
     result += "}";
     return result;
+}
+
+template <typename MatrixType>
+std::string MatrixToString(const MatrixType& M)
+{
+    std::string result;
+    char sep = ',';
+    for (int i = 0; i < M.rows(); ++i)
+    {
+        for (int j = 0; j < M.cols(); ++j)
+        {
+            result += std::to_string(M(i, j)) + sep;
+        }
+    }
+    // remove last sep
+    if (M.rows() * M.cols() > 0) result.pop_back();
+    return result;
+}
+
+
+template <typename MatrixType>
+void StringToMatrix(std::string input, MatrixType& M)
+{
+    char sep   = ',';
+    auto array = split(input, sep);
+    SAIGA_ASSERT(array.size() == M.rows() * M.cols());
+    for (int i = 0; i < M.rows(); ++i)
+    {
+        for (int j = 0; j < M.cols(); ++j)
+        {
+            M(i, j) = to_double(array[i * M.cols() + j]);
+        }
+    }
 }
 
 /**

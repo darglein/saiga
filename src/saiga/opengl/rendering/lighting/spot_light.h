@@ -1,12 +1,11 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 
-#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/lighting/point_light.h"
 
 namespace Saiga
@@ -35,6 +34,15 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
         return data;
     }
 
+    inline ShadowData GetShadowData(Camera* view_point)
+    {
+        ShadowData sd;
+        sd.view_to_light = viewToLightTransform(*view_point, shadowCamera);
+        sd.shadow_planes = {shadowCamera.zFar,shadowCamera.zNear};
+        sd.inv_shadow_map_size = vec2(1.f / 512, 1.f / 512);
+        return sd;
+    }
+
     float shadowNearPlane = 0.01f;
     PerspectiveCamera shadowCamera;
     vec3 direction = vec3(0, -1, 0);
@@ -43,7 +51,7 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
     void setPosition(const vec3& p) { position = p; }
 
     float angle = 60.0f;
-    std::unique_ptr<SimpleShadowmap> shadowmap;
+
     /**
      * The default direction of the mesh is negative y
      */
@@ -53,7 +61,6 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
 
 
 
-    void createShadowMap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
 
 
     mat4 ModelMatrix();
@@ -66,7 +73,6 @@ class SAIGA_OPENGL_API SpotLight : public LightBase, public LightDistanceAttenua
     void calculateCamera();
 
     bool cullLight(Camera* cam);
-    bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };
 

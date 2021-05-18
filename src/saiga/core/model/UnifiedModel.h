@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -11,6 +11,7 @@
 #include "saiga/core/geometry/vertex.h"
 // #include "saiga/core/model/
 #include "saiga/core/image/managedImage.h"
+#include "saiga/core/model/UnifiedMesh.h"
 #include "saiga/core/model/animation.h"
 #include "saiga/core/util/Range.h"
 
@@ -52,31 +53,22 @@ class SAIGA_CORE_API UnifiedModel
 {
    public:
     UnifiedModel() {}
+    UnifiedModel(const UnifiedMesh& mesh) { this->mesh.push_back(mesh); }
     UnifiedModel(const std::string& file_name);
     ~UnifiedModel();
 
 
     void Save(const std::string& file_name);
 
-    int NumVertices() const { return position.size(); }
-    int NumFaces() const { return triangles.size(); }
 
+    UnifiedModel& ComputeColor();
+
+    UnifiedModel& Normalize(float dimensions = 2.0f);
+    UnifiedModel& AddMissingDummyTextures();
 
     std::string name;
 
-    // Vertex Data
-    std::vector<vec3> position;
-    std::vector<vec3> normal;
-    std::vector<vec4> color;
-    std::vector<vec2> texture_coordinates;
-    std::vector<vec4> data;
-    std::vector<BoneInfo> bone_info;
-
-    // Face data for surface meshes stored as index-face set
-    std::vector<ivec3> triangles;
-
-    // Line indices for line meshes
-    std::vector<ivec2> lines;
+    std::vector<UnifiedMesh> mesh;
 
 
     // The material is given on a per face basis.
@@ -84,91 +76,27 @@ class SAIGA_CORE_API UnifiedModel
     std::vector<UnifiedMaterial> materials;
     std::vector<UnifiedMaterialGroup> material_groups;
     std::vector<Image> textures;
+    std::map<std::string, int> texture_name_to_id;
 
     // Bone Data (only used for animated models)
     AnimationSystem animation_system;
 
 
-    // Transforms this model inplace
-    // returns a reference to this
-    UnifiedModel& transform(const mat4& T);
-
-    // Overwrite the color of every vertex
-    // returns a reference to this
-    UnifiedModel& SetVertexColor(const vec4& color);
-
-    // Set n = -n
-    UnifiedModel& FlipNormals();
-
-
-    // Computes the per vertex normal by weighting each face normal by its surface area.
-    UnifiedModel& CalculateVertexNormals();
-
-
-    // Duplicates vertices so that each vertex is used exactly in one face.
-    UnifiedModel& FlatShading();
-
-
-    // Removes all vertices with the given indices
-    // Faces are currently not updated (maybe todo in the future)
-    UnifiedModel& EraseVertices(ArrayView<int> vertices);
-
-
-
-    UnifiedModel& Normalize(float dimensions = 2.0f);
-
-    AABB BoundingBox() const;
-
-
-    std::vector<vec4> ComputeVertexColorFromMaterial() const;
-
-    std::vector<Triangle> TriangleSoup() const;
-
-
-    // Check status
-    bool HasPosition() const { return !position.empty(); }
-    bool HasNormal() const { return !normal.empty(); }
-    bool HasColor() const { return !color.empty(); }
-    bool HasTC() const { return !texture_coordinates.empty(); }
-    bool HasData() const { return !data.empty(); }
-    bool HasMaterials() const { return !materials.empty(); }
-    bool HasBones() const { return !bone_info.empty(); }
-
-
-    // Conversion Functions from unified model -> Triangle mesh
-    // The basic conversion functions for the saiga vertices are defined below,
-    // however you can also define conversions for custom vertex types.
-    template <typename VertexType, typename IndexType>
-    TriangleMesh<VertexType, IndexType> Mesh() const
+    int TotalTriangles() const
     {
-        TriangleMesh<VertexType, IndexType> mesh;
-        mesh.vertices = VertexList<VertexType>();
-        mesh.faces    = TriangleIndexList<IndexType>();
-        return mesh;
+        int n = 0;
+        for (auto& m : mesh) n += m.NumFaces();
+        return n;
     }
 
-
-    // Conversion Functions from unified model -> Line mesh
-    // The basic conversion functions for the saiga vertices are defined below,
-    // however you can also define conversions for custom vertex types.
-    template <typename VertexType, typename IndexType>
-    Saiga::LineMesh<VertexType, IndexType> LineMesh() const
+    int TotalVertices() const
     {
-        Saiga::LineMesh<VertexType, IndexType> mesh;
-        mesh.vertices = VertexList<VertexType>();
-        mesh.lines    = LineIndexList<IndexType>();
-        return mesh;
+        int n = 0;
+        for (auto& m : mesh) n += m.NumVertices();
+        return n;
     }
 
-    template <typename VertexType>
-    std::vector<VertexType> VertexList() const;
-
-    template <typename IndexType>
-    std::vector<Vector<IndexType, 3>> TriangleIndexList() const;
-
-
-    template <typename IndexType>
-    std::vector<Vector<IndexType, 2>> LineIndexList() const;
+    std::pair<UnifiedMesh, std::vector<UnifiedMaterialGroup>> CombinedMesh(int vertex_flags = VERTEX_POSITION) const;
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model);
 
@@ -180,5 +108,3 @@ class SAIGA_CORE_API UnifiedModel
 
 }  // namespace Saiga
 
-
-#include "UnifiedModel.hpp"

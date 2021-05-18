@@ -13,6 +13,7 @@ macro(saiga_vision_sample FILE_NAME)
   set_target_properties(${TARGET_NAME} PROPERTIES FOLDER samples/${PREFIX})
 endmacro()
 
+saiga_vision_sample(sample_vision_calib_response.cpp)
 saiga_vision_sample(sample_vision_bow.cpp)
 saiga_vision_sample(sample_vision_derive.cpp)
 saiga_vision_sample(sample_vision_featureMatching.cpp)
@@ -28,7 +29,7 @@ if(SAIGA_USE_CHOLMOD)
 endif()
 
 
-if(G2O_FOUND)
+if(G2O_FOUND AND CERES_FOUND)
   saiga_vision_sample(sample_vision_posegraph.cpp)
   saiga_vision_sample(sample_vision_ba_benchmark.cpp)
 endif()

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -12,7 +12,7 @@ namespace Saiga
 {
 Texture3D::Texture3D(GLenum target) : TextureBase(target)
 {
-    SAIGA_ASSERT(target == GL_TEXTURE_3D || target == GL_TEXTURE_2D_ARRAY);
+    SAIGA_ASSERT(target == GL_TEXTURE_3D || target == GL_TEXTURE_2D_ARRAY || target == GL_TEXTURE_CUBE_MAP_ARRAY);
 }
 
 void Texture3D::create(int width, int height, int depth, GLenum color_type, GLenum internal_format, GLenum data_type)

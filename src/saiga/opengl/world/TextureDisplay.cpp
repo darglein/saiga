@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -14,8 +14,8 @@
 namespace Saiga
 {
 TextureDisplay::TextureDisplay()
+ : buffer(FullScreenQuad())
 {
-    buffer.fromMesh(FullScreenQuad());
     shader = shaderLoader.load<MVPTextureShader>("post_processing/imagedisplay.glsl");
 }
 
@@ -32,7 +32,7 @@ void TextureDisplay::render(TextureBase* texture, const ivec2& position, const i
 
     shader->upload(0, (int)flip_y);
     shader->uploadTexture(texture);
-    buffer.bindAndDraw();
+    buffer.BindAndDraw();
 
     shader->unbind();
 }

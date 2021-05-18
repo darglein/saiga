@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,6 +9,7 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/Align.h"
 #include "saiga/opengl/rendering/lighting/attenuated_light.h"
+#include "saiga/opengl/shader/basic_shaders.h"
 
 namespace Saiga
 {
@@ -97,7 +98,6 @@ class SAIGA_OPENGL_API DirectionalLightShader : public LightShader
     void uploadDepthCuts(std::vector<float>& depthCuts);
     void uploadNumCascades(int n);
     void uploadCascadeInterpolateRange(float r);
-    void uploadDepthTextures(std::shared_ptr<ArrayTexture2D> textures);
 
     void SetUniforms(DirectionalLight* light, Camera* shadow_camera);
 };

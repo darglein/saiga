@@ -10,7 +10,6 @@
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/assets/all.h"
 #include "saiga/opengl/rendering/VRRendering/VRRenderer.h"
-#include "saiga/opengl/rendering/overlay/deferredDebugOverlay.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/SampleWindowForward.h"
@@ -50,7 +49,7 @@ class VRSample : public StandaloneWindow<WindowManagement::GLFW, VRRenderer>, pu
 
 
 
-        auto cubeAsset = std::make_shared<TexturedAsset>("box.obj");
+        auto cubeAsset = std::make_shared<TexturedAsset>(UnifiedModel("box.obj"));
 
         cube1.asset = cubeAsset;
         cube2.asset = cubeAsset;
@@ -60,7 +59,7 @@ class VRSample : public StandaloneWindow<WindowManagement::GLFW, VRRenderer>, pu
         cube2.translateGlobal(vec3(-11, 1, 2));
         cube2.calculateModel();
 
-        auto sphereAsset = std::make_shared<ColoredAsset>("teapot.obj");
+        auto sphereAsset = std::make_shared<ColoredAsset>(UnifiedModel("teapot.obj"));
         sphere.asset     = sphereAsset;
         sphere.translateGlobal(vec3(0, 1, 8));
         sphere.rotateLocal(vec3(0, 1, 0), 180);

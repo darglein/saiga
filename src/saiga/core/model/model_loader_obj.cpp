@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -231,6 +231,7 @@ void ObjModelLoader::separateVerticesByGroup()
 {
     // make sure faces from different triangle groups do not reference the same vertex
     // needs to be called after createVertexIndexList()
+#if 0
 
     std::vector<int> vertexReference(outVertices.size(), INVALID_VERTEX_ID);
 
@@ -258,10 +259,12 @@ void ObjModelLoader::separateVerticesByGroup()
             }
         }
     }
+#endif
 }
 
 void ObjModelLoader::calculateMissingNormals()
 {
+#if 0
     for (auto tri : out_model.triangles)
     {
         auto& v1 = outVertices[tri[0]];
@@ -274,6 +277,7 @@ void ObjModelLoader::calculateMissingNormals()
         if (v2.normal == vec4(0, 0, 0, 0)) v2.normal = make_vec4(normal, 0);
         if (v3.normal == vec4(0, 0, 0, 0)) v3.normal = make_vec4(normal, 0);
     }
+#endif
 }
 
 #if 0
@@ -355,6 +359,7 @@ void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh)
 
 void ObjModelLoader::createVertexIndexList()
 {
+#if 0
     std::vector<bool> vertices_used(vertices.size(), false);
 
     outVertices.resize(vertices.size());
@@ -412,6 +417,7 @@ void ObjModelLoader::createVertexIndexList()
 
         out_model.triangles.push_back(fa);
     }
+#endif
 }
 
 std::vector<std::vector<ObjModelLoader::IndexedVertex2>> ObjModelLoader::triangulateFace(

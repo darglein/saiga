@@ -1,15 +1,37 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
+#include "Texture2D.h"
+
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/texture/Texture.h"
+
 namespace Saiga
 {
 // ===========================
 
+
+void Texture1D::create(int size, GLenum color_type, GLenum internal_format, GLenum data_type, const void* data)
+{
+    TextureBase::create(color_type, internal_format, data_type);
+    this->size = size;
+    bind();
+    glTexImage1D(target,                               // target
+                 0,                                    // level, 0 = base, no minimap,
+                 static_cast<GLint>(internal_format),  // internalformat
+                 size,                                 // width
+                 0,                                    // border
+                 color_type,                           // format
+                 data_type,                            // type
+                 data);
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(GL_CLAMP_TO_EDGE));
+    assert_no_glerror();
+    unbind();
+}
 
 Texture2D::Texture2D(const Image& img, bool srgb, bool flipY, bool integer) : TextureBase(GL_TEXTURE_2D)
 {

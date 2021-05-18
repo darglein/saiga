@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -17,14 +17,20 @@ void ColoredAsset::loadDefaultShaders()
     this->wireframeshader = shaderLoader.load<MVPColorShader>(shaderStr);
 }
 
-ColoredAsset::ColoredAsset(const TriangleMesh<VertexNC, uint32_t>& mesh)
+ColoredAsset::ColoredAsset(const UnifiedMesh& model) : ColoredAsset()
 {
-    this->vertices = mesh.vertices;
-    this->faces    = mesh.faces;
-    create();
+    unified_buffer = std::make_shared<UnifiedMeshBuffer>(model);
 }
 
-ColoredAsset::ColoredAsset(const UnifiedModel& model) : ColoredAsset(model.Mesh<VertexNC, uint32_t>()) {}
+
+ColoredAsset::ColoredAsset(const UnifiedModel& model) : ColoredAsset()
+{
+    auto [mesh, groups] = model.CombinedMesh(VERTEX_POSITION | VERTEX_NORMAL | VERTEX_COLOR);
+    this->groups        = groups;
+
+    unified_buffer = std::make_shared<UnifiedMeshBuffer>(mesh);
+}
+
 
 void LineVertexColoredAsset::loadDefaultShaders()
 {
@@ -34,18 +40,10 @@ void LineVertexColoredAsset::loadDefaultShaders()
     this->wireframeshader = shaderLoader.load<MVPColorShader>(shaderStr);
 }
 
-LineVertexColoredAsset::LineVertexColoredAsset(const LineMesh<VertexNC, uint32_t>& line_mesh)
-{
-    this->vertices = line_mesh.vertices;
-    this->lines    = line_mesh.lines;
 
-    std::cout << vertices[0] << std::endl;
-    create();
-}
-
-LineVertexColoredAsset::LineVertexColoredAsset(const UnifiedModel& model)
-    : LineVertexColoredAsset(model.LineMesh<VertexNC, uint32_t>())
+LineVertexColoredAsset::LineVertexColoredAsset(const UnifiedMesh& model) : LineVertexColoredAsset()
 {
+    unified_buffer = std::make_shared<UnifiedMeshBuffer>(model, GL_LINES);
 }
 
 void LineVertexColoredAsset::SetShaderColor(const vec4& color)
@@ -70,34 +68,23 @@ void LineVertexColoredAsset::SetRenderFlags(RenderFlags flags)
     forwardShader->unbind();
 }
 
-TexturedAsset::TexturedAsset(const UnifiedModel& model) : groups(model.material_groups), materials(model.materials)
+TexturedAsset::TexturedAsset(const UnifiedModel& model) : TexturedAsset()
 {
-    this->TriangleMesh<VertexNTD, uint32_t>::operator=(model.Mesh<VertexNTD, uint32_t>());
-    create();
 
+    auto [mesh, groups] = model.CombinedMesh(VERTEX_POSITION | VERTEX_NORMAL | VERTEX_TEXTURE_COORDINATES);
+    this->groups        = groups;
 
-    for (auto& material : model.materials)
+    unified_buffer = std::make_shared<UnifiedMeshBuffer>(mesh);
+
+    texture_name_to_id = model.texture_name_to_id;
+
+    materials = model.materials;
+    for (auto& tex : model.textures)
     {
-        if (material.texture_diffuse.empty())
-        {
-            TemplatedImage<ucvec4> img(10, 10);
-            img.getImageView().set(ucvec4(100, 100, 100, 255));
-            auto tex = std::make_shared<Texture>(img);
-            textures.push_back(tex);
-            continue;
-        }
-
-        auto texture = TextureLoader::instance()->load(material.texture_diffuse);
-        if (texture)
-        {
-            texture->setWrap(GL_REPEAT);
-            texture->generateMipmaps();
-            textures.push_back(texture);
-        }
-        else
-        {
-            throw std::runtime_error("Could not load texture " + material.texture_diffuse);
-        }
+        auto texture = std::make_shared<Texture>(tex, false, true);
+        texture->setWrap(GL_REPEAT);
+        texture->generateMipmaps();
+        textures.push_back(texture);
     }
 }
 
@@ -131,17 +118,46 @@ void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camer
 {
     shader->bind();
     shader->uploadModel(model);
+#if 0
     buffer.bind();
-    for (auto& tg : groups)
+    for (int i = 0; i < groups.size(); ++i)
     {
-        auto& tex = textures[tg.materialId];
+        auto& tg  = groups[i];
+        auto& mat = materials[tg.materialId];
+
+        if (mat.texture_diffuse.empty()) continue;
+
+        SAIGA_ASSERT(!mat.texture_diffuse.empty());
+        auto& tex = textures[texture_name_to_id[mat.texture_diffuse]];
+        shader->uploadTexture(tex.get());
+        buffer.draw(tg.numFaces * 3, tg.startFace * 3);
+    }
+    buffer.unbind();
+#else
+    unified_buffer->Bind();
+    for (int i = 0; i < groups.size(); ++i)
+    {
+        auto& tg  = groups[i];
+        SAIGA_ASSERT(tg.materialId >= 0 && tg.materialId < materials.size());
+
+        auto& mat = materials[tg.materialId];
+
+        SAIGA_ASSERT(!mat.texture_diffuse.empty());
+        if (mat.texture_diffuse.empty()) continue;
+
+        SAIGA_ASSERT(!mat.texture_diffuse.empty());
+        auto& tex = textures[texture_name_to_id[mat.texture_diffuse]];
+
+        SAIGA_ASSERT(tex);
         if (tex)
         {
             shader->uploadTexture(tex.get());
-            buffer.draw(tg.numFaces * 3, tg.startFace * 3);
+            // multi_buffer[i]->bindAndDraw();
+            unified_buffer->Draw(tg.startFace, tg.numFaces);
         }
     }
-    buffer.unbind();
+    unified_buffer->Unbind();
+#endif
     shader->unbind();
 }
 

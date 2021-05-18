@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -18,7 +18,7 @@
 namespace Saiga
 {
 VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params)
-    : OpenGLRenderer(window), params(params)
+    : OpenGLRenderer(window), params(params),  quadMesh(FullScreenQuad())
 {
     if (!vr.init())
     {
@@ -33,7 +33,7 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
     std::shared_ptr<Texture> depth = std::make_shared<Texture>();
     depth->create(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_SHORT);
 
-    auto tex = framebuffer_texture_t(depth);
+    auto tex = depth;
 
     for (int i = 0; i < 2; ++i)
     {
@@ -41,14 +41,12 @@ VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params
         framebuffers[i].attachTextureDepth(tex);
         textures[i] = std::make_shared<Texture>();
         textures[i]->create(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
-        framebuffers[i].attachTexture(framebuffer_texture_t(textures[i]));
+        framebuffers[i].attachTexture(textures[i]);
         framebuffers[i].drawToAll();
         framebuffers[i].check();
         framebuffers[i].unbind();
     }
 
-
-    quadMesh.fromMesh(FullScreenQuad());
 
 
     framebufferToDebugWindowShader = shaderLoader.load<PostProcessingShader>("post_processing/VRToDebugWindow.glsl");
@@ -97,7 +95,7 @@ void VRRenderer::render(const RenderInfo& renderInfo)
     framebufferToDebugWindowShader->upload(1, textures[1], 1);
     framebufferToDebugWindowShader->upload(2, vec2(outputWidth, outputHeight));
 
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     framebufferToDebugWindowShader->unbind();
 
 

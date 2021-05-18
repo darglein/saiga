@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -49,6 +49,8 @@ class SAIGA_OPENGL_API OpenGLWindow : public WindowBase
     virtual void loadGLFunctions() = 0;
 
     void sleep(tick_t ticks);
+
+    bool auto_reload_shaders = false;
 };
 
 }  // namespace Saiga

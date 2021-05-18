@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -22,24 +22,31 @@ struct SAIGA_TEMPLATE MatchingFloatType
 };
 
 template <>
+struct MatchingFloatType<unsigned char>
+{
+    using FloatType = float;
+    static inline FloatType convert(const unsigned char& t)
+    {
+        return float(t);
+    }
+    static inline unsigned char convertBack(const FloatType& t)
+    {
+        return (unsigned char)(round(t));
+    }
+};
+
+
+template <>
 struct MatchingFloatType<ucvec3>
 {
     using FloatType = vec3;
     static inline FloatType convert(const ucvec3& t)
     {
-#ifdef SAIGA_FULL_EIGEN
         return t.cast<float>();
-#else
-        return FloatType(t);
-#endif
     }
     static inline ucvec3 convertBack(const FloatType& t)
     {
-#ifdef SAIGA_FULL_EIGEN
         return t.array().round().cast<unsigned char>();
-#else
-        return FloatType(t);
-#endif
     }
 };
 template <>

@@ -51,8 +51,6 @@ struct SAIGA_OPENGL_API UberDeferredRenderingParameters : public RenderingParame
     float offsetFactor = 1.0f, offsetUnits = 1.0f;
     bool blitLastFramebuffer = true;
 
-    GBufferParameters gbp;
-
     void fromConfigFile(const std::string& file) {}
 };
 
@@ -100,7 +98,7 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     GBuffer gbuffer;
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
-    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
+    UnifiedMeshBuffer quadMesh;
     std::shared_ptr<Texture> blackDummyTexture;
     bool showLightingImgui = false;
     bool cullLights        = false;
@@ -108,7 +106,6 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
 
     void clearGBuffer();
     void renderGBuffer(const std::pair<Camera*, ViewPort>& camera);
-    void renderDepthMaps();  // render the scene from the lights perspective (don't need user camera here)
     void renderLighting(const std::pair<Camera*, ViewPort>& camera);
 
     void writeGbufferDepthToCurrentFramebuffer();

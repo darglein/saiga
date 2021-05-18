@@ -1,8 +1,10 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
+
+#include "opengl_helper.h"
 
 #include "saiga/core/util/ConsoleColor.h"
 #include "saiga/core/util/assert.h"
@@ -11,9 +13,7 @@
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/shader/shaderPartLoader.h"
-#include "saiga/opengl/texture/TextureLoader.h"
-
+#include "saiga/core/util/easylogging++.h"
 #include <algorithm>
 #include <glbinding/glbinding.h>
 
@@ -45,7 +45,7 @@ void initOpenGL(glbinding::GetProcAddress func)
     switch (getOpenGLVendor())
     {
         case OpenGLVendor::Nvidia:
-            ShaderPartLoader::addLineDirectives = true;
+            Shader::add_glsl_line_directives = true;
             VLOG(1) << "Enabling #line directives for NVIDIA driver.";
             break;
         default:
@@ -204,7 +204,9 @@ void OpenGLParameters::fromConfigFile(const std::string& file)
     if (ini.changed()) ini.SaveFile(file.c_str());
 
 
-    profile = profileString == "ANY" ? Profile::ANY : profileString == "saiga_core" ? Profile::CORE : Profile::COMPATIBILITY;
+    profile = profileString == "ANY"          ? Profile::ANY
+              : profileString == "saiga_core" ? Profile::CORE
+                                              : Profile::COMPATIBILITY;
 }
 
 void initSaigaGL(const OpenGLParameters& params)

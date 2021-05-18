@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -145,10 +145,16 @@ bool Image::load(const std::string& _path)
     return erg;
 }
 
-bool Image::loadFromMemory(ArrayView<const char> data)
+bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
 {
     bool erg = false;
 
+    if(hint == "png")
+    {
+#ifdef SAIGA_USE_PNG
+
+#endif
+    }
 #ifdef SAIGA_USE_FREEIMAGE
     erg = FIP::loadFromMemory(data, *this);
     return erg;

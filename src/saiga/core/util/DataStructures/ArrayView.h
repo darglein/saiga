@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -45,6 +45,9 @@ struct SAIGA_TEMPLATE ArrayView
 
     HD ArrayView() : data_(nullptr), n(0) {}
     HD ArrayView(T* data_, size_t n) : data_(data_), n(n) {}
+
+    // Initialize from a single value
+    HD ArrayView(T& element) : data_(&element), n(1) {}
 
     ArrayView(ArrayView<T> const&) = default;
     ArrayView& operator=(ArrayView<T> const&) = default;

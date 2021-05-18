@@ -1,11 +1,11 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
-
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
@@ -68,24 +68,24 @@ class SMAA
     SMAA(int w, int h);
     void loadShader(SMAA::Quality _quality);
     void resize(int w, int h);
-    void render(framebuffer_texture_t input, Framebuffer& output);
+    void render(std::shared_ptr<Texture> input, Framebuffer& output);
 
     void renderImGui();
 
    protected:
     // mark pixel in first pass and use it in second pass. The last pass is executed on all pixels.
-    framebuffer_texture_t stencilTex;
+    std::shared_ptr<Texture> stencilTex;
 
     // RGBA temporal render targets
-    framebuffer_texture_t edgesTex;
+    std::shared_ptr<Texture> edgesTex;
     Framebuffer edgesFb;
 
-    framebuffer_texture_t blendTex;
+    std::shared_ptr<Texture> blendTex;
     Framebuffer blendFb;
 
     // supporting precalculated textures
-    framebuffer_texture_t areaTex;
-    framebuffer_texture_t searchTex;
+    std::shared_ptr<Texture> areaTex;
+    std::shared_ptr<Texture> searchTex;
 
     bool shaderLoaded = false;
     std::shared_ptr<PostProcessingShader> smaaEdgeDetectionShader;
@@ -93,7 +93,7 @@ class SMAA
     std::shared_ptr<SMAANeighborhoodBlendingShader> smaaNeighborhoodBlendingShader;
 
 
-    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
+    UnifiedMeshBuffer quadMesh;
     ivec2 screenSize;
 
     Quality quality = Quality::SMAA_PRESET_HIGH;

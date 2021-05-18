@@ -127,7 +127,7 @@ vec3 blueSkyAndSun(vec3 viewDir2, vec3 cameraPos2, vec3 lightDir, float sunInten
     }
     sunperc = max(sunperc, 0);
 
-     vec3 color = ( (sunColor) * 1.4) * sunperc ;
+     vec3 color = ( (sunColor) * 10) * sunperc ;
     return sunIntensity * (col *1.0 + 0.8 * color) ;
 }
 

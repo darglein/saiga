@@ -1,5 +1,7 @@
 #pragma once
 
+#include "saiga/core/model/UnifiedModel.h"
+
 #include <iostream>
 
 #include "triangle_mesh.h"
@@ -62,19 +64,15 @@ void triangleMeshToOpenMesh(const TriangleMesh<vertex_t, index_t>& src, MeshT& d
     }
 }
 
-template <typename vertex_t, typename index_t, typename MeshT>
-void copyVertexColor(const TriangleMesh<vertex_t, index_t>& src, MeshT& dst)
+template <typename MeshT>
+void copyVertexColor(const UnifiedMesh& src, MeshT& dst)
 {
     dst.request_vertex_colors();
     //    int i = 0;
-    for (int i = 0; i < (int)src.vertices.size(); ++i)
+    for (int i = 0; i < (int)src.NumVertices(); ++i)
     {
-        auto c = src.vertices[i].color;
+        auto c = src.color[i];
         dst.set_color(typename MeshT::VertexHandle(i), typename MeshT::Color(c[0], c[1], c[2]));
-
-        //        vertex_t& ve = dst.vertices[i];
-        //        typename MeshT::Color c = src.color( *v_it );
-        //        ve.color = vec4(c[0],c[1],c[2],1);
     }
 }
 
@@ -82,25 +80,25 @@ void copyVertexColor(const TriangleMesh<vertex_t, index_t>& src, MeshT& dst)
  * Converts an OpenMesh triangle mesh to a Saiga::TriangleMesh
  * Additional addributes on the vertices are lost.
  */
-template <typename vertex_t, typename index_t, typename MeshT>
-void openMeshToTriangleMesh(const MeshT& src, TriangleMesh<vertex_t, index_t>& dst)
+template <typename MeshT>
+void openMeshToTriangleMesh(const MeshT& src, UnifiedMesh& dst)
 {
-    dst.vertices.clear();
-    dst.faces.clear();
+    dst = UnifiedMesh();
     for (auto v_it = src.vertices_begin(); v_it != src.vertices_end(); ++v_it)
     {
         typename MeshT::Point v = src.point(*v_it);
-        vertex_t ve;
-        ve.position = vec4(v[0], v[1], v[2], 1);
+
+        vec3 position = vec3(v[0], v[1], v[2]);
 
         //        if(src.has_vertex_colors())
         //        {
         //            typename MeshT::Color c = src.color( *v_it );
         //            ve.color = vec4(c[0],c[1],c[2],1);
         //        }
-        dst.vertices.push_back(ve);
+        dst.position.push_back(position);
     }
-    std::vector<index_t> a;
+
+    std::vector<int> a;
     for (auto f_it = src.faces_begin(); f_it != src.faces_end(); ++f_it)
     {
         a.clear();
@@ -110,20 +108,19 @@ void openMeshToTriangleMesh(const MeshT& src, TriangleMesh<vertex_t, index_t>& d
             a.push_back(vh.idx());
         }
         SAIGA_ASSERT(a.size() == 3);
-        dst.addFace(a.data());
+        dst.triangles.push_back(ivec3{a[0], a[1], a[2]});
     }
 }
 
-template <typename vertex_t, typename index_t, typename MeshT>
-void copyVertexColor(const MeshT& src, TriangleMesh<vertex_t, index_t>& dst)
+template <typename MeshT>
+void copyVertexColor(const MeshT& src, UnifiedMesh& dst)
 {
     SAIGA_ASSERT(src.has_vertex_colors());
     int i = 0;
     for (auto v_it = src.vertices_begin(); v_it != src.vertices_end(); ++v_it, ++i)
     {
-        vertex_t& ve            = dst.vertices[i];
         typename MeshT::Color c = src.color(*v_it);
-        ve.color                = vec4(c[0], c[1], c[2], 1);
+        dst.color[i]            = vec4(c[0], c[1], c[2], 1);
     }
 }
 

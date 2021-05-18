@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -26,7 +26,8 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth()),
-      renderHeight(window.getHeight())
+      renderHeight(window.getHeight()),
+      quadMesh(FullScreenQuad())
 {
     if (params.useSMAA)
     {
@@ -46,7 +47,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     }
     lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
 
-    gbuffer.init(renderWidth, renderHeight, params.gbp);
+    gbuffer.init(renderWidth, renderHeight, params.srgb);
 
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor    = params.lightingClearColor;
@@ -56,9 +57,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
 
 
     postProcessor.init(renderWidth, renderHeight, &gbuffer, params.ppp, lighting.lightAccumulationTexture);
-
-
-    quadMesh.fromMesh(FullScreenQuad());
 
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
@@ -112,9 +110,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         lighting.ssaoTexture = ssao->bluredTexture;
     }
 
-    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    SAIGA_ASSERT(renderingInterface);
-
+    RenderingInterface* renderingInterface = (RenderingInterface*)rendering;
 
     params.maskUsedPixels = true;
 
@@ -135,20 +131,23 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
         renderGBuffer({camera, viewport});
     }
-    renderSSAO({camera, viewport});
 
-    lighting.cullLights(camera);
+    if (params.useSSAO) ssao->render(camera, viewport, &gbuffer);
+
+
+
+    lighting.ComputeCullingAndStatistics(camera);
 
     {
         auto tim = timer->Measure("Shadow");
-        renderDepthMaps();
+        lighting.renderDepthMaps(camera, renderingInterface);
     }
 
     {
         auto tim = timer->Measure("Lighting");
         bindCamera(camera);
         setViewPort(viewport);
-        renderLighting({camera, viewport});
+        lighting.render(camera, viewport);
     }
 
     {
@@ -156,46 +155,46 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         renderingInterface->render(camera, RenderPass::Forward);
     }
 
-    assert_no_glerror();
-
-
-    //    return;
-
-
-    if (params.writeDepthToOverlayBuffer)
     {
         auto tim = timer->Measure("Write depth");
-        writeGbufferDepthToCurrentFramebuffer();
+        // writeGbufferDepthToCurrentFramebuffer();
     }
-#if 0
-
-    startTimer(OVERLAY);
-
-    for (auto c : renderInfo.cameras)
-    {
-        auto camera = c.first;
-        bindCamera(camera);
-        setViewPort(c.second);
-    }
-    stopTimer(OVERLAY);
-#endif
-
-    // glViewport(0, 0, renderWidth, renderHeight);
-    setViewPort(viewport);
 
 
 
     lighting.applyVolumetricLightBuffer();
+    setViewPort(viewport);
+
+    if (params.hdr)
+    {
+        auto tim = timer->Measure("Tone Mapping Linear");
+        tone_mapper.MapLinear(lighting.lightAccumulationTexture.get());
+    }
+
+    if (params.bloom && params.hdr)
+    {
+        auto tim = timer->Measure("Bloom");
+        bloom.Render(lighting.lightAccumulationTexture.get());
+    }
 
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
-    //    postProcessor.switchBuffer();
 
 
-    // postprocessor's 'currentbuffer' will still be bound after render
+
+    if (params.hdr)
+    {
+        auto tim = timer->Measure("Tone Mapping");
+        tone_mapper.Map(lighting.lightAccumulationTexture.get(),
+                        postProcessor.getTargetBuffer().getTextureColor(0).get());
+        postProcessor.switchBuffer();
+        postProcessor.bindCurrentBuffer();
+    }
+
+
     {
         auto tim = timer->Measure("Post Processing");
-        postProcessor.render();
+        postProcessor.render(!params.hdr);
     }
 
 
@@ -313,30 +312,6 @@ void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::View
     assert_no_glerror();
 }
 
-void DeferredRenderer::renderDepthMaps()
-{
-    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    lighting.renderDepthMaps(renderingInterface);
-
-
-
-    assert_no_glerror();
-}
-
-void DeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
-{
-    lighting.render(camera.first, camera.second);
-
-    assert_no_glerror();
-}
-
-void DeferredRenderer::renderSSAO(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
-{
-    if (params.useSSAO) ssao->render(camera.first, camera.second, &gbuffer);
-
-
-    assert_no_glerror();
-}
 
 void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
 {
@@ -346,7 +321,7 @@ void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
     blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -359,61 +334,83 @@ void DeferredRenderer::renderImgui()
     lighting.renderImGui();
 
     if (!should_render_imgui) return;
-    int w = 340;
-    int h = 240;
+
     if (!editor_gui.enabled)
     {
+        int w = 340;
+        int h = 240;
         ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
     }
 
-    ImGui::Begin("Deferred Renderer", &should_render_imgui);
-
-    ImGui::Checkbox("wireframe", &params.wireframe);
-    ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
-
-    ImGui::Separator();
-
-    if (ImGui::Checkbox("SMAA", &params.useSMAA))
+    if (ImGui::Begin("Deferred Renderer", &should_render_imgui))
     {
-        if (params.useSMAA)
+        ImGui::Checkbox("wireframe", &params.wireframe);
+        ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
+
+        ImGui::Separator();
+
+
+        if (ImGui::Checkbox("srgb", &params.srgb))
         {
-            smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
-            smaa->loadShader(params.smaaQuality);
+            gbuffer.init(renderWidth, renderHeight, params.srgb);
+            lighting.lightAccumulationBuffer.attachTextureDepthStencil(gbuffer.getTextureDepth());
         }
-        else
+
+        if (ImGui::Checkbox("SMAA", &params.useSMAA))
         {
-            smaa.reset();
+            if (params.useSMAA)
+            {
+                smaa = std::make_shared<SMAA>(renderWidth, renderHeight);
+                smaa->loadShader(params.smaaQuality);
+            }
+            else
+            {
+                smaa.reset();
+            }
+        }
+        if (smaa)
+        {
+            smaa->renderImGui();
+        }
+
+
+        ImGui::Separator();
+        if (ImGui::Checkbox("SSAO", &params.useSSAO))
+        {
+            if (params.useSSAO)
+            {
+                ssao = std::make_shared<SSAO>(renderWidth, renderHeight);
+            }
+            else
+            {
+                ssao.reset();
+            }
+            lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
+        }
+        if (ssao)
+        {
+            ssao->renderImGui();
+        }
+
+
+        ImGui::Checkbox("hdr", &params.hdr);
+        if (params.hdr)
+        {
+            ImGui::Separator();
+            tone_mapper.imgui();
+        }
+
+        ImGui::Checkbox("bloom", &params.bloom);
+        if (params.bloom)
+        {
+            ImGui::Separator();
+            bloom.imgui();
         }
     }
-    if (smaa)
-    {
-        smaa->renderImGui();
-    }
-
-
-    if (ImGui::Checkbox("SSAO", &params.useSSAO))
-    {
-        if (params.useSSAO)
-        {
-            ssao = std::make_shared<SSAO>(renderWidth, renderHeight);
-        }
-        else
-        {
-            ssao.reset();
-        }
-        lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
-    }
-    if (ssao)
-    {
-        ssao->renderImGui();
-    }
-
-
-    ImGui::Checkbox("showLightingImgui", &showLightingImgui);
-
     ImGui::End();
 }
+
 TemplatedImage<ucvec4> DeferredRenderer::DownloadRender()
 {
     auto texture = postProcessor.getCurrentTexture();

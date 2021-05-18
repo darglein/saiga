@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -51,11 +51,6 @@ SAIGA_VULKAN_API void VKVertexAttribBinder<VertexNC>::getVKAttribs(
 
 template <>
 SAIGA_VULKAN_API void VKVertexAttribBinder<VertexNT>::getVKAttribs(
-    vk::VertexInputBindingDescription& vi_binding,
-    std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
-
-template <>
-SAIGA_VULKAN_API void VKVertexAttribBinder<VertexNTD>::getVKAttribs(
     vk::VertexInputBindingDescription& vi_binding,
     std::vector<vk::VertexInputAttributeDescription>& attributeDescriptors);
 

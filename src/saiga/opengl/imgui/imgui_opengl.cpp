@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -111,8 +111,10 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData* draw_data)
         const ImDrawList* cmd_list         = draw_data->CmdLists[n];
         const ImDrawIdx* idx_buffer_offset = 0;
 
-        buffer.VertexBuffer<ImDrawVert>::fill(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.size(), GL_DYNAMIC_DRAW);
-        buffer.IndexBuffer<ImDrawIdx>::fill(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.size(), GL_DYNAMIC_DRAW);
+        buffer.VertexBuffer<ImDrawVert>::create(
+            ArrayView<ImDrawVert>(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.size()), GL_DYNAMIC_DRAW);
+        buffer.IndexBuffer<ImDrawIdx>::create(
+            ArrayView<ImDrawIdx>(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.size()), GL_DYNAMIC_DRAW);
 
         buffer.bind();
 
@@ -160,8 +162,6 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData* draw_data)
 
     assert_no_glerror();
 }
-
-
 
 
 

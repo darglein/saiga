@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -12,11 +12,6 @@
 
 namespace Saiga
 {
-class AnimatedModel : public TriangleMesh<BoneVertexCD, uint32_t>
-{
-   public:
-};
-
 /**
  *
  * Select Armature and click Rest Position.
@@ -39,7 +34,7 @@ class AnimatedModel : public TriangleMesh<BoneVertexCD, uint32_t>
  *
  */
 
-class SAIGA_OPENGL_API AnimatedAsset : public BasicAsset<AnimatedModel, MVPShader>
+class SAIGA_OPENGL_API AnimatedAsset : public BasicAsset<MVPShader>
 {
    public:
     // Default shaders
@@ -49,18 +44,14 @@ class SAIGA_OPENGL_API AnimatedAsset : public BasicAsset<AnimatedModel, MVPShade
 
     void loadDefaultShaders() override;
 
-    using BasicAsset<AnimatedModel, MVPShader>::render;
-    using BasicAsset<AnimatedModel, MVPShader>::renderDepth;
-
-
     AnimationSystem animation_system;
 
     AnimatedAsset() {}
     AnimatedAsset(const UnifiedModel& model);
 
 
-    void render(Camera* cam, const mat4& model, UniformBuffer& boneMatrices);
-    void renderDepth(Camera* cam, const mat4& model, UniformBuffer& boneMatrices);
+//    void render(Camera* cam, const mat4& model, UniformBuffer& boneMatrices);
+//    void renderDepth(Camera* cam, const mat4& model, UniformBuffer& boneMatrices);
 };
 
 }  // namespace Saiga

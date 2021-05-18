@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -10,10 +10,10 @@
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/model/UnifiedModel.h"
 #include "saiga/core/util/DataStructures/ArrayView.h"
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/opengl/indexBuffer.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/vertexBuffer.h"
-
 namespace Saiga
 {
 template <class vertex_t, class index_t>
@@ -71,7 +71,7 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
 
 
 
-    void fromMesh(const UnifiedModel& model, GLenum usage = GL_STATIC_DRAW);
+    void fromMesh(const UnifiedMesh& model, GLenum usage = GL_STATIC_DRAW);
 
     /*
      * Updates OpenGL buffer with the data currently saved in this mesh
@@ -79,9 +79,9 @@ class IndexedVertexBuffer : public VertexBuffer<vertex_t>, public IndexBuffer<in
      */
     void updateFromMesh(TriangleMesh<vertex_t, index_t>& buffer, int vertex_count, int vertex_offset);
 
-    int IndexCount() { return ibuffer_t::getElementCount(); }
+    int IndexCount() { return ibuffer_t::Size(); }
 
-    int VertexCount() { return vbuffer_t::getElementCount(); }
+    int VertexCount() { return vbuffer_t::Size(); }
 };
 
 template <class vertex_t, class index_t>
@@ -95,7 +95,7 @@ void IndexedVertexBuffer<vertex_t, index_t>::bindAndDraw() const
 template <class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t, index_t>::draw(int length, int offset) const
 {
-    glDrawElements(vbuffer_t::draw_mode, length < 0 ? ibuffer_t::getElementCount() : length, ibuffer_t::GLType::value,
+    glDrawElements(vbuffer_t::draw_mode, length < 0 ? ibuffer_t::Size() : length, ibuffer_t::GLType::value,
                    (void*)(intptr_t)(offset * sizeof(index_t)));
     assert_no_glerror();
 }
@@ -107,7 +107,7 @@ void IndexedVertexBuffer<vertex_t, index_t>::drawInstanced(int instanceCount, in
                                                            int indexCount) const
 {
     glDrawElementsInstancedBaseInstance(
-        vbuffer_t::draw_mode, indexCount < 0 ? ibuffer_t::getElementCount() : indexCount, ibuffer_t::GLType::value,
+        vbuffer_t::draw_mode, indexCount < 0 ? ibuffer_t::Size() : indexCount, ibuffer_t::GLType::value,
         (void*)(intptr_t)(indexOffset * sizeof(index_t)), instanceCount, baseInstance);
     assert_no_glerror();
 }
@@ -138,7 +138,7 @@ template <class vertex_t, class index_t>
 void IndexedVertexBuffer<vertex_t, index_t>::set(ArrayView<vertex_t> vertices, ArrayView<index_t> indices, GLenum usage)
 {
     vbuffer_t::set(vertices, usage);
-    ibuffer_t::set(indices, usage);
+    ibuffer_t::create(indices, usage);
 
     // The ELEMENT_ARRAY_BUFFER_BINDING is part of VAO state.
     // adds index buffer to vao state
@@ -187,7 +187,7 @@ void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(LineMesh<vertex_t, index_t
 
 
 template <typename vertex_t, typename index_t>
-void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(const UnifiedModel& model, GLenum usage)
+void IndexedVertexBuffer<vertex_t, index_t>::fromMesh(const UnifiedMesh& model, GLenum usage)
 {
     auto mesh = model.Mesh<vertex_t, index_t>();
     fromMesh(mesh, usage);

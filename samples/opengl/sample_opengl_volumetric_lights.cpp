@@ -30,37 +30,36 @@ class Sample : public SampleWindowDeferred
         cube2.translateGlobal(vec3(-11, 1, 2));
         cube2.calculateModel();
 
-        auto sphereAsset = std::make_shared<ColoredAsset>(UnifiedModel("teapot.obj"));
+        auto sphereAsset = std::make_shared<ColoredAsset>(UnifiedModel("teapot.obj").ComputeColor());
         sphere.asset     = sphereAsset;
         sphere.translateGlobal(vec3(0, 1, 8));
         sphere.rotateLocal(vec3(0, 1, 0), 180);
         sphere.calculateModel();
 
+        sun->setAmbientIntensity(0);
+        sun->setIntensity(0.2);
 
-        ShadowQuality sq = ShadowQuality::HIGH;
 
         pointLight = std::make_shared<PointLight>();
         renderer->lighting.AddLight(pointLight);
         //        pointLight->setAttenuation(AttenuationPresets::Quadratic);
-        pointLight->attenuation = (vec3(0, 0, 5));
-        pointLight->setIntensity(2);
+        pointLight->attenuation = (vec3(0, 0, 1));
+        pointLight->setIntensity(30);
         pointLight->setRadius(10);
         pointLight->setPosition(vec3(9, 3, 0));
         pointLight->setColorDiffuse(make_vec3(1));
 
-        //        pointLight->createShadowMap(256,256,sq);
-        pointLight->createShadowMap(512, 512, sq);
-
+        pointLight->castShadows =true;
         pointLight->volumetric = true;
 
         spotLight = std::make_shared<SpotLight>();
         renderer->lighting.AddLight(spotLight);
-        spotLight->attenuation = (vec3(0, 0, 5));
-        spotLight->setIntensity(2);
+        spotLight->attenuation = (vec3(0, 0, 1));
+        spotLight->setIntensity(30);
         spotLight->setRadius(8);
         spotLight->setPosition(vec3(-10, 5, 0));
         spotLight->setColorDiffuse(make_vec3(1));
-        spotLight->createShadowMap(512, 512, sq);
+        spotLight->castShadows = true;
         spotLight->volumetric = true;
 
 

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,18 +7,14 @@
 #pragma once
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/Align.h"
-#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/lighting/light.h"
-#include "saiga/opengl/uniformBuffer.h"
 namespace Saiga
 {
-#define MAX_CASCADES 5
-
 
 class SAIGA_OPENGL_API DirectionalLight : public LightBase
 {
    public:
-    std::unique_ptr<CascadedShadowmap> shadowmap;
+    static constexpr int shadow_map_size = 2048;
 
     // bounding box of every cascade frustum
     std::vector<AABB> orthoBoxes;
@@ -49,7 +45,7 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     vec3 direction = vec3(0, -1, 0);
 
     // relative intensity to the diffuse light in ambiend regions
-    float ambientIntensity = 0.3f;
+    float ambientIntensity = 0.1f;
 
     // number of cascades for cascaded shadow mapping
     // 1 means normal shadow mapping
@@ -59,6 +55,7 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     DirectionalLight() : LightBase(LightColorPresets::DirectSunlight, 1)
     {
         setDirection(vec3(-1, -3, -2));
+        BuildCascades(1);
         polygon_offset = vec2(2.0, 50.0);
     }
     ~DirectionalLight() {}
@@ -79,13 +76,20 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
         return data;
     }
 
+    inline ShadowData GetShadowData(Camera* view_point)
+    {
+        ShadowData sd;
+        sd.view_to_light = viewToLightTransform(*view_point, shadowCamera);
+        return sd;
+    }
+
     /**
      * Creates the shadow map with the given number of cascades, and initializes depthCutsRelative
      * to a uniform range.
      * If this function is called when a shadow map was already created before,
      * the old shadow map is deleted and overwritten by the new one.
      */
-    void createShadowMap(int w, int h, int numCascades = 1, ShadowQuality quality = ShadowQuality::LOW);
+    void BuildCascades(int numCascades = 1);
 
     /**
      * Sets the light direction in world coordinates.
@@ -125,7 +129,7 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     void setCascadeInterpolateRange(float value) { cascadeInterpolateRange = value; }
 
     void setAmbientIntensity(float ai) { ambientIntensity = ai; }
-    float getAmbientIntensity() { return ambientIntensity; }
+    float getAmbientIntensity() const { return ambientIntensity; }
 
     // the directional light is always visible
     bool cullLight(Camera*)
@@ -133,7 +137,6 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
         culled = false;
         return culled;
     }
-    bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };
 

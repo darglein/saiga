@@ -42,11 +42,11 @@ TEST(BVH, IntersectionRayTriangle)
     camera.setProj(60.0f, 1, 0.1f, 50.0f, true);
     camera.setView(vec3(0, 3, 6), vec3(0, 0, 0), vec3(0, 1, 0));
 
-    auto mesh = UnifiedModel("teapot.obj").Mesh<VertexNC, uint32_t>();
+    auto mesh = UnifiedModel("teapot.obj").mesh[0];
 
 
 
-    auto triangles = mesh.toTriangleList();
+    auto triangles = mesh.TriangleSoup();
 
 
     AccelerationStructure::ObjectMedianBVH bf(triangles);

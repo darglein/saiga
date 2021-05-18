@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,7 +7,6 @@
 #pragma once
 #include "saiga/core/camera/camera.h"
 #include "saiga/opengl/rendering/lighting/attenuated_light.h"
-#include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 
 namespace Saiga
 {
@@ -32,6 +31,14 @@ class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenu
         return data;
     }
 
+    inline ShadowData GetShadowData(Camera* view_point)
+    {
+        ShadowData sd;
+        sd.view_to_light = view_point->model;
+        sd.shadow_planes = {shadowCamera.zFar,shadowCamera.zNear};
+        sd.inv_shadow_map_size = vec2(1.f / 512, 1.f / 512);
+        return sd;
+    }
 
     vec3 position;
 
@@ -39,8 +46,6 @@ class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenu
     vec3 getPosition() { return position; }
     float shadowNearPlane = 0.1f;
     PerspectiveCamera shadowCamera;
-
-    std::unique_ptr<CubeShadowmap> shadowmap;
 
     PointLight();
     virtual ~PointLight() {}
@@ -51,14 +56,12 @@ class SAIGA_OPENGL_API PointLight : public LightBase, public LightDistanceAttenu
     mat4 ModelMatrix();
 
 
-    void createShadowMap(int w, int h, ShadowQuality quality = ShadowQuality::LOW);
 
     void bindFace(int face);
     void calculateCamera(int face);
 
 
     bool cullLight(Camera* camera);
-    bool renderShadowmap(DepthFunction f, UniformBuffer& shadowCameraBuffer);
     void renderImGui();
 };
 

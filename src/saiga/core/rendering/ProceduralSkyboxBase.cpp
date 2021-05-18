@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -15,7 +15,7 @@ void ProceduralSkyboxBase::imgui()
 {
     ImGui::InputFloat("horizonHeight", &horizonHeight);
     ImGui::InputFloat("distance", &distance);
-    ImGui::SliderFloat("sunIntensity", &sunIntensity, 0, 2);
+    ImGui::SliderFloat("sunIntensity", &sunIntensity, 0, 200);
     ImGui::SliderFloat("sunSize", &sunSize, 0, 2);
     ImGui::Direction("sunDir", sunDir);
     ImGui::ColorPicker3("sunColor", &sunColor(0));

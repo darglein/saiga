@@ -7,7 +7,7 @@
 
 ##GL_VERTEX_SHADER
 
-#version 330
+#version 430
 layout(location=0) in vec3 in_position;
 
 
@@ -24,8 +24,7 @@ void main() {
 
 
 ##GL_FRAGMENT_SHADER
-
-#version 330
+#version 430
 
 
 uniform sampler2D randomImage;

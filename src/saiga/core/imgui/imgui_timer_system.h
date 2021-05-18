@@ -107,6 +107,8 @@ class SAIGA_CORE_API TimerSystem
     void EndFrame();
     void Imgui();
 
+    void Enable(bool v = true) { render_window = v; }
+
    protected:
     // Called by the sub classes. This abstracts the various timer implementations from the measurements
     void Imgui(const std::string& name, ArrayView<TimeData*> timers, TimeData* total_time);
@@ -117,7 +119,8 @@ class SAIGA_CORE_API TimerSystem
     void ImguiTooltip(TimeData* td, TimeData* total_time);
 
 
-    int num_samples = 100;
+    bool render_window = true;
+    int num_samples    = 100;
 
     // we count the number of frames so that the expensive statistic recomputation is only done
     // once every #num_samples frames.
@@ -129,7 +132,6 @@ class SAIGA_CORE_API TimerSystem
     bool capturing   = true;
     int current_view = 1;
 
-    bool render_window       = true;
     bool normalize_time      = true;
     float absolute_scale_fps = 60;
 

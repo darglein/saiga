@@ -21,7 +21,7 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth() * _params.renderScale),
-      renderHeight(window.getHeight() * _params.renderScale)
+      renderHeight(window.getHeight() * _params.renderScale), quadMesh(FullScreenQuad())
 {
     {
         // create a 2x2 grayscale black dummy texture
@@ -30,7 +30,7 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
         blackDummyTexture->create(2, 2, GL_RED, GL_R8, GL_UNSIGNED_BYTE, (GLubyte*)data.data());
     }
 
-    gbuffer.init(renderWidth, renderHeight, params.gbp);
+    gbuffer.init(renderWidth, renderHeight, false);
 
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor    = params.lightingClearColor;
@@ -42,8 +42,6 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
                             params.maximumNumberOfSpotLights);
     lighting.loadShaders();
 
-
-    quadMesh.fromMesh(FullScreenQuad());
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
 
@@ -102,7 +100,7 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
         renderGBuffer({camera, viewport});
     }
 
-    if (cullLights) lighting.cullLights(camera);
+    lighting.ComputeCullingAndStatistics(camera);
     // renderDepthMaps();
 
     {
@@ -208,16 +206,6 @@ void UberDeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::
     assert_no_glerror();
 }
 
-void UberDeferredRenderer::renderDepthMaps()
-{
-    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    lighting.renderDepthMaps(renderingInterface);
-
-
-
-    assert_no_glerror();
-}
-
 void UberDeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
     writeGbufferDepthToCurrentFramebuffer();
@@ -242,7 +230,7 @@ void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
     blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -21,5 +21,13 @@ class SAIGA_OPENGL_API ArrayTexture2D : public Texture3D
     ArrayTexture2D() : Texture3D(GL_TEXTURE_2D_ARRAY) {}
     virtual ~ArrayTexture2D() {}
 };
+
+class SAIGA_OPENGL_API ArrayCubeTexture : public Texture3D
+{
+   public:
+    ArrayCubeTexture() : Texture3D(GL_TEXTURE_CUBE_MAP_ARRAY) {}
+    virtual ~ArrayCubeTexture() {}
+};
+
 
 }  // namespace Saiga

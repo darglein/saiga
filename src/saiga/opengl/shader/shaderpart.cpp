@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,8 +7,9 @@
 #include "saiga/opengl/shader/shaderpart.h"
 
 #include "saiga/opengl/error.h"
-#include <iostream>
+
 #include <fstream>
+#include <iostream>
 
 namespace Saiga
 {
@@ -19,15 +20,18 @@ const std::string ShaderPart::shaderTypeStrings[] = {"GL_COMPUTE_SHADER",      "
                                                      "GL_GEOMETRY_SHADER",     "GL_FRAGMENT_SHADER"};
 
 
-ShaderPart::ShaderPart() {}
-
-ShaderPart::~ShaderPart()
+ShaderPart::ShaderPart(const std::vector<std::string>& content, GLenum type, const ShaderCodeInjections& injections)
 {
-    deleteGLShader();
-}
+    code = content;
+    this->type = type;
+    for (auto& sci : injections)
+    {
+        if (sci.type == type)
+        {
+            code.insert(code.begin() + sci.line, sci.code + "\n");
+        }
+    }
 
-void ShaderPart::createGLShader()
-{
     deleteGLShader();  // delete shader if exists
     id = glCreateShader(type);
     if (id == 0)
@@ -35,7 +39,15 @@ void ShaderPart::createGLShader()
         std::cout << "Could not create shader of type: " << typeToName(type) << std::endl;
     }
     assert_no_glerror();
+
+    compile();
 }
+
+ShaderPart::~ShaderPart()
+{
+    deleteGLShader();
+}
+
 
 void ShaderPart::deleteGLShader()
 {
@@ -95,9 +107,11 @@ bool ShaderPart::writeToFile(const std::string& file)
 bool ShaderPart::compile()
 {
     std::string data;
+    data.reserve(code.size() * 20);
     for (std::string line : code)
     {
         data.append(line);
+        data.push_back('\n');
     }
     const GLchar* str = data.c_str();
     glShaderSource(id, 1, &str, 0);
@@ -111,11 +125,8 @@ bool ShaderPart::compile()
     GLint result = 0;
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);
     assert_no_glerror();
-    if (result == static_cast<GLint>(GL_FALSE))
-    {
-        return false;
-    }
-    return true;
+    valid = !(result == static_cast<GLint>(GL_FALSE));
+    return valid;
 }
 
 void ShaderPart::printShaderLog()
@@ -145,24 +156,6 @@ void ShaderPart::printError()
     std::cout << error << std::endl;
 }
 
-
-void ShaderPart::addInjection(const ShaderCodeInjection& sci)
-{
-    std::string injection;
-    if (sci.type == type)
-    {
-        injection = sci.code + "\n";
-        code.insert(code.begin() + sci.line, injection);
-    }
-}
-
-void ShaderPart::addInjections(const ShaderPart::ShaderCodeInjections& scis)
-{
-    for (const ShaderCodeInjection& sci : scis)
-    {
-        addInjection(sci);
-    }
-}
 
 
 

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -73,61 +73,6 @@ void VulkanPointCloudAsset::updateBuffer(vk::CommandBuffer cmd, int start, int c
                          (count < 0 ? size : count) * sizeof(VertexType));
 }
 
-
-
-void VulkanTexturedAsset::init(VulkanBase& base)
-{
-    //    vertexBuffer.destroy();
-    //    vertexBuffer.init(base,mesh.vertices);
-
-    //    indexBuffer.destroy();
-    //    indexBuffer.init(base,mesh.getIndexList());
-
-    auto indices = getIndexList();
-
-    //    std::cout << mesh.vertices.size() << std::endl;
-    vertexBuffer.init(base, vertices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
-    indexBuffer.init(base, indices.size(), vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-
-    vertexBuffer.stagedUpload(base, vertices.size() * sizeof(VertexType), vertices.data());
-    indexBuffer.stagedUpload(base, indices.size() * sizeof(IndexType), indices.data());
-
-    textures.clear();
-
-#if 0
-    // load textures
-    for (auto& tg : groups)
-    {
-        auto tex = std::make_shared<Texture2D>();
-
-        Saiga::Image img(tg.material.diffuse);
-
-        if (img.type == UC3)
-        {
-            Saiga::TemplatedImage<ucvec4> img2(img.height, img.width);
-            Saiga::ImageTransformation::addAlphaChannel(img.getConstImageView<ucvec3>(), img2.getImageView());
-            //            std::cout << img2 << std::endl;
-            tex->fromImage(base, img2);
-        }
-        else
-        {
-            tex->fromImage(base, img);
-        }
-
-
-
-        textures.push_back(tex);
-    }
-#endif
-}
-void VulkanTexturedAsset::render(vk::CommandBuffer cmd)
-{
-    //    if(!vertexBuffer.buffer) return;
-    vertexBuffer.bind(cmd);
-    indexBuffer.bind(cmd);
-    indexBuffer.draw(cmd);
-}
 
 
 }  // namespace Vulkan

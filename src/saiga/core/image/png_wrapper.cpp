@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -54,8 +54,11 @@ ImageType saigaType(int color_type, int bit_depth)
         case 32:
             elementType = ImageElementType::IET_UINT;
             break;
+        default:
+            std::cout << "unknown bit depth: " << bit_depth << std::endl;
+            SAIGA_EXIT_ERROR("Unknown bit depth");
     }
-    SAIGA_ASSERT(elementType != ImageElementType::IET_ELEMENT_UNKNOWN);
+
 
     return getType(channels, elementType);
 }

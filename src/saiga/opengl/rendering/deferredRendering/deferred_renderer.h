@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,6 +9,8 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/rendering/deferredRendering/postProcessor.h"
+#include "saiga/opengl/rendering/deferredRendering/tone_mapper.h"
+#include "saiga/opengl/rendering/lighting/bloom.h"
 #include "saiga/opengl/rendering/lighting/deferred_lighting.h"
 #include "saiga/opengl/rendering/lighting/ssao.h"
 #include "saiga/opengl/rendering/renderer.h"
@@ -57,7 +59,10 @@ struct SAIGA_OPENGL_API DeferredRenderingParameters : public RenderingParameters
     float offsetFactor = 1.0f, offsetUnits = 1.0f;
     bool blitLastFramebuffer = true;
 
-    GBufferParameters gbp;
+    bool hdr   = true;
+    bool srgb  = true;
+    bool bloom = false;
+
     PostProcessorParameters ppp;
 
     void fromConfigFile(const std::string& file) {}
@@ -109,18 +114,17 @@ class SAIGA_OPENGL_API DeferredRenderer : public OpenGLRenderer
     std::shared_ptr<SSAO> ssao;
     std::shared_ptr<SMAA> smaa;
     GBuffer gbuffer;
+    ToneMapper tone_mapper;
+    Bloom bloom;
+
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
-    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
+    UnifiedMeshBuffer quadMesh;
     std::shared_ptr<Texture> blackDummyTexture;
-    bool showLightingImgui = false;
-
 
     void clearGBuffer();
     void renderGBuffer(const std::pair<Camera*, ViewPort>& camera);
-    void renderDepthMaps();
-    void renderLighting(const std::pair<Camera*, ViewPort>& camera);
-    void renderSSAO(const std::pair<Camera*, ViewPort>& camera);
+
 
 
     TemplatedImage<ucvec4> DownloadRender();

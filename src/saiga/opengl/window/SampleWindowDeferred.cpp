@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -35,7 +35,8 @@ SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
     // create one directional light
     sun = std::make_shared<DirectionalLight>();
     renderer->lighting.AddLight(sun);
-    sun->createShadowMap(2048, 2048);
+    sun->BuildCascades(3);
+    sun->castShadows = true;
 }
 
 SampleWindowDeferred::~SampleWindowDeferred() {}
@@ -43,7 +44,6 @@ SampleWindowDeferred::~SampleWindowDeferred() {}
 void SampleWindowDeferred::update(float dt)
 {
     // Update the camera position
-    //    if (renderer->use_keyboard_input_in_3dview)
     if (renderer->use_keyboard_input_in_3dview) camera.update(dt);
     sun->fitShadowToCamera(&camera);
 }
@@ -52,7 +52,6 @@ void SampleWindowDeferred::interpolate(float dt, float interpolation)
 {
     // Update the camera rotation. This could also be done in 'update' but
     // doing it in the interpolate step will reduce latency
-    //    if (renderer->use_mouse_input_in_3dview)
     if (renderer->use_mouse_input_in_3dview) camera.interpolate(dt, interpolation);
 }
 

@@ -51,7 +51,7 @@ class Sample : public SampleWindowDeferred
         std::cout << "Program Initialized!" << std::endl;
     }
 
-    void AddObject(UnifiedModel model, bool lines = false)
+    void AddObject(UnifiedMesh model, bool lines = false)
     {
         float d = 2;
 
@@ -67,8 +67,8 @@ class Sample : public SampleWindowDeferred
 
         if (lines)
         {
+            model.SetVertexColor(vec4(1, 1, 0, 1));
             auto co = std::make_shared<LineVertexColoredAsset>(model);
-            co->setColor(vec4(1, 1, 0, 1));
             sao.asset = co;
 
             sao.translateGlobal(vec3(i * d, 1, j * d));
@@ -77,8 +77,8 @@ class Sample : public SampleWindowDeferred
         }
         else
         {
+            model.SetVertexColor(vec4(1, 1, 0, 1));
             auto co = std::make_shared<ColoredAsset>(model);
-            co->setColor(vec4(1, 1, 0, 1));
             sao.asset = co;
 
             sao.translateGlobal(vec3(i * d, 1, j * d));

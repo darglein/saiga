@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -11,14 +11,6 @@
 
 namespace Saiga
 {
-// void Light::createShadowMap(int resX, int resY){
-
-////    std::cout<<"Light::createShadowMap"<<endl;
-
-//    shadowmap.createFlat(resX,resY);
-
-//}
-
 
 mat4 LightBase::viewToLightTransform(const Camera& camera, const Camera& shadowCamera)
 {
@@ -36,8 +28,7 @@ void LightBase::renderImGui()
     ImGui::Checkbox("volumetric", &volumetric);
     ImGui::InputFloat("intensity", &intensity, 0.1, 1);
     ImGui::InputFloat("specular intensity", &intensity_specular, 0.1, 1);
-    ImGui::SliderFloat("volumetricDensity", &volumetricDensity, 0.0f, 0.5f);
-    // todo: check srgb
+    ImGui::SliderFloat("volumetricDensity", &volumetricDensity, 0.0f, 0.1f);
     ImGui::ColorEdit3("colorDiffuse", &colorDiffuse[0]);
     ImGui::ColorEdit3("colorSpecular", &colorSpecular[0]);
     auto str = to_string(visible) + "/" + to_string(selected) + "/" + to_string(culled);

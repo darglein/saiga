@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -8,6 +8,8 @@
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/shader/shaderLoader.h"
+#include "postProcessor.h"
+
 
 namespace Saiga
 {
@@ -19,7 +21,7 @@ void PostProcessingShader::checkUniforms()
     location_gbufferDepth   = Shader::getUniformLocation("gbufferDepth");
     location_gbufferNormals = Shader::getUniformLocation("gbufferNormals");
     location_gbufferColor   = Shader::getUniformLocation("gbufferColor");
-    location_gbufferData    = Shader::getUniformLocation("gbufferData");
+    location_gbufferMaterial = Shader::getUniformLocation("gbufferData");
 }
 
 
@@ -37,8 +39,8 @@ void PostProcessingShader::uploadGbufferTextures(GBuffer* gbuffer)
     Shader::upload(location_gbufferNormals, 2);
     gbuffer->getTextureColor()->bind(3);
     Shader::upload(location_gbufferColor, 3);
-    gbuffer->getTextureData()->bind(4);
-    Shader::upload(location_gbufferData, 4);
+    gbuffer->getTextureMaterial()->bind(4);
+    Shader::upload(location_gbufferMaterial, 4);
 }
 
 void PostProcessingShader::uploadScreenSize(vec4 size)
@@ -74,19 +76,18 @@ void LightAccumulationShader::uploadLightAccumulationtexture(std::shared_ptr<Tex
     Shader::upload(location_lightAccumulationtexture, 4);
 }
 
-
+PostProcessor::PostProcessor() :quadMesh(FullScreenQuad()) {}
 
 void PostProcessor::init(int width, int height, GBuffer* gbuffer, PostProcessorParameters params,
                          std::shared_ptr<Texture> LightAccumulationTexture)
+
 {
-    this->params    = params;
-    this->width     = width;
-    this->height    = height;
-    this->gbuffer   = gbuffer;
+    this->params  = params;
+    this->width   = width;
+    this->height  = height;
+    this->gbuffer = gbuffer;
 
     createFramebuffers();
-
-    quadMesh.fromMesh(FullScreenQuad());
 
 
 
@@ -109,7 +110,7 @@ void PostProcessor::createFramebuffers()
     std::shared_ptr<Texture> depth = std::make_shared<Texture>();
     depth->create(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_SHORT);
 
-    auto tex = framebuffer_texture_t(depth);
+    auto tex = depth;
 
     for (int i = 0; i < 2; ++i)
     {
@@ -142,7 +143,7 @@ void PostProcessor::createFramebuffers()
                 break;
         }
 
-        framebuffers[i].attachTexture(framebuffer_texture_t(textures[i]));
+        framebuffers[i].attachTexture(textures[i]);
         framebuffers[i].drawToAll();
         framebuffers[i].check();
         framebuffers[i].unbind();
@@ -161,7 +162,7 @@ void PostProcessor::switchBuffer()
     currentBuffer = (currentBuffer + 1) % 2;
 }
 
-void PostProcessor::render()
+void PostProcessor::render(bool use_gbuffer_as_first )
 {
     int effects = postProcessingEffects.size();
 
@@ -172,7 +173,7 @@ void PostProcessor::render()
     }
 
 
-    first = true;
+    first = use_gbuffer_as_first;
 
 
     glDisable(GL_DEPTH_TEST);
@@ -224,7 +225,7 @@ void PostProcessor::applyShader(std::shared_ptr<PostProcessingShader> postProces
     postProcessingShader->uploadTexture((first) ? LightAccumulationTexture : textures[lastBuffer]);
     postProcessingShader->uploadGbufferTextures(gbuffer);
     postProcessingShader->uploadAdditionalUniforms();
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     postProcessingShader->unbind();
 
     //    framebuffers[currentBuffer].unbind();
@@ -238,14 +239,15 @@ void PostProcessor::blitLast(Framebuffer* target, ViewPort vp)
     //    framebuffers[lastBuffer].blitColor(0);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffers[currentBuffer].getId());
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target->getId());
-    glBlitFramebuffer(0, 0, width, height, vp.position(0), vp.position(1), vp.size(0), vp.size(1), GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, width, height, vp.position(0), vp.position(1), vp.size(0), vp.size(1), GL_COLOR_BUFFER_BIT,
+                      GL_LINEAR);
     assert_no_glerror();
 }
 
 void PostProcessor::renderLast(Framebuffer* target, ViewPort vp)
 {
     setViewPort(vp);
-//    glViewport(0, 0, windowWidth, windowHeight);
+    //    glViewport(0, 0, windowWidth, windowHeight);
     //    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     target->bind();
     glDisable(GL_DEPTH_TEST);
@@ -255,12 +257,12 @@ void PostProcessor::renderLast(Framebuffer* target, ViewPort vp)
     passThroughShader->uploadTexture(textures[currentBuffer]);
     passThroughShader->uploadGbufferTextures(gbuffer);
     passThroughShader->uploadAdditionalUniforms();
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     passThroughShader->unbind();
     target->unbind();
 }
 
-framebuffer_texture_t PostProcessor::getCurrentTexture()
+std::shared_ptr<Texture> PostProcessor::getCurrentTexture()
 {
     return framebuffers[currentBuffer].getTextureColor(0);
 }

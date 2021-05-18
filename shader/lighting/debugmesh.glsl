@@ -24,7 +24,7 @@ out vec3 vertex;
 out vec3 lightPos;
 
 void main() {
-    gl_Position = viewProj *model* vec4(in_position,1);
+    gl_Position = viewProj *model* vec4(in_position, 1);
 }
 
 
@@ -52,15 +52,11 @@ in vec3 vertexMV;
 in vec3 vertex;
 in vec3 lightPos;
 
-layout(location=0) out vec3 out_color;
+layout(location=0) out vec4 out_color;
 
 
 void main() {
-
-
-
-//    out_color =   CalcPointLight(vec3(diffColor),position, normal);
-    out_color = vec3(color);
+    out_color = color;
 }
 
 

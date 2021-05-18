@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -10,9 +10,9 @@
 
 namespace Saiga
 {
-UnifiedModel FullScreenQuad()
+UnifiedMesh FullScreenQuad()
 {
-    UnifiedModel model;
+    UnifiedMesh model;
 
     model.position            = {vec3(-1, -1, 0), vec3(1, -1, 0), vec3(1, 1, 0), vec3(-1, 1, 0)};
     model.normal              = {vec3(0, 0, 1), vec3(0, 0, 1), vec3(0, 0, 1), vec3(0, 0, 1)};
@@ -23,9 +23,9 @@ UnifiedModel FullScreenQuad()
     return model;
 }
 
-UnifiedModel UVSphereMesh(const Sphere& sphere, int rings, int sectors)
+UnifiedMesh UVSphereMesh(const Sphere& sphere, int rings, int sectors)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
     float const R = 1.f / (float)(rings);
     float const S = 1.f / (float)(sectors);
 
@@ -72,9 +72,9 @@ UnifiedModel UVSphereMesh(const Sphere& sphere, int rings, int sectors)
     return model;
 }
 
-UnifiedModel IcoSphereMesh(const Sphere& sphere, int resolution)
+UnifiedMesh IcoSphereMesh(const Sphere& sphere, int resolution)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
 
     float t = (1.0 + sqrt(5.0)) / 2.0;
 
@@ -131,9 +131,9 @@ UnifiedModel IcoSphereMesh(const Sphere& sphere, int resolution)
     return model;
 }
 
-UnifiedModel CylinderMesh(float radius, float height, int sectors)
+UnifiedMesh CylinderMesh(float radius, float height, int sectors)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
 
     float const S = 1.f / (float)(sectors);
 
@@ -192,12 +192,12 @@ UnifiedModel CylinderMesh(float radius, float height, int sectors)
     return model;
 }
 
-UnifiedModel ConeMesh(const Cone& cone, int sectors)
+UnifiedMesh ConeMesh(const Cone& cone, int sectors)
 {
     float const R = 1. / (float)(sectors);
     float const r = cone.radius;  // radius
 
-    UnifiedModel model;
+    UnifiedMesh model;
 
 
     model.position.push_back(vec3(0, 0, 0));             // top
@@ -231,9 +231,9 @@ UnifiedModel ConeMesh(const Cone& cone, int sectors)
     return model;
 }
 
-UnifiedModel PlaneMesh(const Plane& plane)
+UnifiedMesh PlaneMesh(const Plane& plane)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
     model.position            = {vec3(-1, 0, -1), vec3(1, 0, -1), vec3(1, 0, 1), vec3(-1, 0, 1)};
     model.normal              = {vec3(0, 1, 0), vec3(0, 1, 0), vec3(0, 1, 0), vec3(0, 1, 0)};
     model.texture_coordinates = {vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1)};
@@ -241,9 +241,9 @@ UnifiedModel PlaneMesh(const Plane& plane)
     return model;
 }
 
-UnifiedModel BoxMesh(const AABB& box)
+UnifiedMesh BoxMesh(const AABB& box)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
 
 
     unsigned int indices[]{
@@ -313,9 +313,9 @@ UnifiedModel BoxMesh(const AABB& box)
     return model;
 }
 
-UnifiedModel SkyboxMesh(const AABB& box)
+UnifiedMesh SkyboxMesh(const AABB& box)
 {
-    UnifiedModel model = BoxMesh(box);
+    UnifiedMesh model = BoxMesh(box);
     for (auto& t : model.triangles)
     {
         ivec3 f2;
@@ -327,9 +327,9 @@ UnifiedModel SkyboxMesh(const AABB& box)
     return model;
 }
 
-UnifiedModel CheckerBoardPlane(const ivec2& size, float quadSize, const vec4& color1, const vec4& color2)
+UnifiedMesh CheckerBoardPlane(const ivec2& size, float quadSize, const vec4& color1, const vec4& color2)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
     vec4 n(0, 1, 0, 0);
     for (int i = -size[0]; i < size[0]; ++i)
     {
@@ -364,9 +364,9 @@ UnifiedModel CheckerBoardPlane(const ivec2& size, float quadSize, const vec4& co
 
 // ============= Line Meshes =============
 
-UnifiedModel GridBoxLineMesh(const AABB& box, ivec3 vsteps)
+UnifiedMesh GridBoxLineMesh(const AABB& box, ivec3 vsteps)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
 
     for (int dim = 0; dim < 3; ++dim)
     {
@@ -422,9 +422,9 @@ UnifiedModel GridBoxLineMesh(const AABB& box, ivec3 vsteps)
     return model;
 }
 
-UnifiedModel GridPlaneLineMesh(const ivec2& dimension, const vec2& spacing)
+UnifiedMesh GridPlaneLineMesh(const ivec2& dimension, const vec2& spacing)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
     vec2 size = dimension.cast<float>().array() * spacing.array();
 
 
@@ -457,9 +457,9 @@ UnifiedModel GridPlaneLineMesh(const ivec2& dimension, const vec2& spacing)
     return model;
 }
 
-UnifiedModel FrustumLineMesh(const mat4& proj, float farPlaneDistance, bool vulkanTransform)
+UnifiedMesh FrustumLineMesh(const mat4& proj, float farPlaneDistance, bool vulkanTransform)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
 
     float d = 1.0f;
     vec4 bl(-1, -1, d, 1);
@@ -523,9 +523,9 @@ UnifiedModel FrustumLineMesh(const mat4& proj, float farPlaneDistance, bool vulk
     return model;
 }
 
-UnifiedModel FrustumCVLineMesh(const mat3& K, float farPlaneDistance, int w, int h)
+UnifiedMesh FrustumCVLineMesh(const mat3& K, float farPlaneDistance, int w, int h)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
     vec3 bl(0, h, 1);
     vec3 br(w, h, 1);
     vec3 tl(0, 0, 1);
@@ -570,9 +570,9 @@ UnifiedModel FrustumCVLineMesh(const mat3& K, float farPlaneDistance, int w, int
     return model;
 }
 
-UnifiedModel FrustumLineMesh(const Frustum& frustum)
+UnifiedMesh FrustumLineMesh(const Frustum& frustum)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
 
     auto tris = frustum.ToTriangleList();
     for (auto tri : tris)
@@ -588,10 +588,10 @@ UnifiedModel FrustumLineMesh(const Frustum& frustum)
     }
     return model;
 }
-UnifiedModel SimpleHeightmap(const ImageView<uint16_t> image, float height_scale, float horizontal_scale,
+UnifiedMesh SimpleHeightmap(const ImageView<uint16_t> image, float height_scale, float horizontal_scale,
                              bool translate_to_origin)
 {
-    UnifiedModel model;
+    UnifiedMesh model;
 
     int h = image.h;
     int w = image.w;

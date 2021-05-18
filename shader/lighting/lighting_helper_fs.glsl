@@ -16,11 +16,6 @@ uniform mat4 model;
 
 uniform mat4 invProj;
 
-//converts camera view space -> shadow clip space
-uniform mat4 depthBiasMV;
-//uniform sampler2DShadow depthTex;
-
-
 uniform sampler2D deferred_diffuse;
 uniform sampler2D deferred_normal;
 uniform sampler2D deferred_depth;
@@ -29,10 +24,10 @@ uniform sampler2D deferred_data;
 
 uniform vec4 viewPort; // x,y,width,height
 
-uniform vec4 lightColorDiffuse; //rgba, rgb=color, a=intensity [0,1]
-uniform vec4 lightColorSpecular; //rgba, rgb=color, a=intensity [0,1]
+//uniform vec4 lightColorDiffuse; //rgba, rgb=color, a=intensity [0,1]
+//uniform vec4 lightColorSpecular; //rgba, rgb=color, a=intensity [0,1]
 
-uniform vec4 shadowMapSize;  //vec4(w,h,1/w,1/h)
+uniform vec4 shadowMapSize = vec4(2048,2048,1./2048,1./2048);  //vec4(w,h,1/w,1/h)
 
 
 float random(vec4 seed4){

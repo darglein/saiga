@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -11,9 +11,9 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/singleton.h"
 #include "saiga/opengl/shader/shader.h"
-#include "saiga/opengl/shader/shaderPartLoader.h"
 
 #include <iostream>
+
 namespace Saiga
 {
 class SAIGA_OPENGL_API ShaderLoader
@@ -26,8 +26,10 @@ class SAIGA_OPENGL_API ShaderLoader
     std::shared_ptr<shader_t> load(const std::string& name,
                                    const ShaderPart::ShaderCodeInjections& sci = ShaderPart::ShaderCodeInjections());
 
-    void reload();
-    bool reload(std::shared_ptr<Shader> shader, const std::string& name, const ShaderPart::ShaderCodeInjections& sci);
+    void reload()
+    {
+        for (auto& object : cache.objects) std::get<2>(object)->reload();
+    }
 
     void clear() { cache.clear(); }
 };
@@ -57,16 +59,11 @@ std::shared_ptr<shader_t> ShaderLoader::load(const std::string& name, const Shad
     }
     else
     {
-        ShaderPartLoader spl(fullName, sci);
-        if (spl.load())
-        {
-            object = spl.createShader<shader_t>();
-        }
-
+        object = std::make_shared<shader_t>();
+        object->init(fullName, sci);
         cache.put(fullName, object, sci);
     }
     SAIGA_ASSERT(object);
-
     return object;
 }
 

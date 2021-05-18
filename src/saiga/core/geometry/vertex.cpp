@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -30,7 +30,7 @@ bool VertexN::operator==(const VertexN& other) const
 
 std::ostream& operator<<(std::ostream& os, const VertexN& vert)
 {
-    os << vert.position.transpose() << ",";
+    os << "VertexN" << vert.position.transpose() << ",";
     os << vert.normal.transpose();
     return os;
 }
@@ -42,25 +42,12 @@ bool VertexNT::operator==(const VertexNT& other) const
 
 std::ostream& operator<<(std::ostream& os, const VertexNT& vert)
 {
-    os << vert.position.transpose() << ",";
+    os << "VertexNT" << vert.position.transpose() << ",";
     os << vert.normal.transpose() << ",";
     os << vert.texture.transpose();
     return os;
 }
 
-bool VertexNTD::operator==(const VertexNTD& other) const
-{
-    return VertexNT::operator==(other) && data == other.data;
-}
-
-std::ostream& operator<<(std::ostream& os, const VertexNTD& vert)
-{
-    os << vert.position.transpose() << ",";
-    os << vert.normal.transpose() << ",";
-    os << vert.texture.transpose() << ",";
-    os << vert.data.transpose();
-    return os;
-}
 
 bool VertexNC::operator==(const VertexNC& other) const
 {
@@ -69,7 +56,7 @@ bool VertexNC::operator==(const VertexNC& other) const
 
 std::ostream& operator<<(std::ostream& os, const VertexNC& vert)
 {
-    os << vert.position.transpose() << ",";
+    os << "VertexNC" << vert.position.transpose() << ",";
     os << vert.normal.transpose() << ",";
     os << vert.color.transpose() << ",";
     os << vert.data.transpose();
@@ -93,20 +80,6 @@ void BoneInfo::addBone(int32_t index, float weight)
     SAIGA_ASSERT(0);
 }
 
-void BoneVertex::apply(const AlignedVector<mat4>& boneMatrices)
-{
-    mat4 boneMatrix = mat4::Zero();
-    for (int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
-    {
-        int index = (int)bone_info.bone_indices[i];
-        SAIGA_ASSERT(index >= 0 && index < (int)boneMatrices.size());
-        boneMatrix += boneMatrices[index] * bone_info.bone_weights[i];
-    }
-
-    position = boneMatrix * position;
-    normal   = boneMatrix * normal;
-    normal   = normalize(normal);
-}
 
 void BoneInfo::normalizeWeights()
 {

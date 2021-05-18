@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -22,9 +22,7 @@ namespace Saiga
 class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
 {
    public:
-    int visibleVolumetricLights;
     int currentStencilId  = 0;
-    bool renderVolumetric = false;
 
     std::shared_ptr<Texture> ssaoTexture;
 
@@ -40,8 +38,6 @@ class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
     void resize(int width, int height) override;
 
     void loadShaders() override;
-
-    void cullLights(Camera* cam) override;
 
     //    std::shared_ptr<DirectionalLight> createDirectionalLight();
     //    std::shared_ptr<PointLight> createPointLight();
@@ -112,7 +108,7 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t& mesh, T obj, Camera
     shader->uploadScreenSize(vp.getVec4());
 
     //    obj->bindUniforms(shader, cam);
-    shader->SetUniforms(obj.get(), cam);
+    shader->SetUniforms(obj, cam);
     mesh.bindAndDraw();
     shader->unbind();
 }

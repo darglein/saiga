@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -38,6 +38,12 @@ constexpr T two_pi()
 constexpr float clamp(float v, float mi, float ma)
 {
     return std::min(ma, std::max(mi, v));
+}
+
+
+constexpr float saturate(float v)
+{
+    return clamp(v, 0, 1);
 }
 
 constexpr float smoothstep(float edge0, float edge1, float x)
