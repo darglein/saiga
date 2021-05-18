@@ -64,6 +64,8 @@ class SAIGA_CORE_API AABB
     // A list the 12 triangles (2 for each face)
     std::vector<Triangle> toTriangles() const;
 
+    std::pair<vec3, float> BoundingSphere() const;
+
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const AABB& dt);
 };
