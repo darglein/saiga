@@ -15,7 +15,6 @@ namespace Saiga
 {
 namespace Random
 {
-
 std::mt19937& generator()
 {
     static thread_local std::mt19937 gen(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
@@ -90,6 +89,16 @@ std::vector<int> uniqueIndices(int sampleCount, int indexSize)
     return data;
 }
 
+
+std::vector<int> shuffleSequence(int size)
+{
+    std::vector<int> indices(size);
+    std::iota(indices.begin(), indices.end(), 0);
+    std::shuffle(indices.begin(), indices.end(), Random::generator());
+    return indices;
+}
+
+
 uint64_t generateTimeBasedSeed()
 {
     uint64_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -133,7 +142,6 @@ Vec3 sphericalRand(double radius)
 
     return Vec3(x, y, z) * radius;
 }
-
 
 }  // namespace Random
 

@@ -6,6 +6,8 @@
 
 #include "UnifiedMesh.h"
 
+#include "saiga/core/math/Morton.h"
+#include "saiga/core/math/random.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
 
@@ -169,6 +171,114 @@ UnifiedMesh& UnifiedMesh::EraseVertices(ArrayView<int> vertices)
     return *this;
 }
 
+
+UnifiedMesh& UnifiedMesh::ReorderVertices(ArrayView<int> idx, bool gather)
+{
+    SAIGA_ASSERT(idx.size() == NumVertices());
+    for (auto i : idx)
+    {
+        SAIGA_ASSERT(i >= 0 && i < NumVertices());
+    }
+
+    auto reorder = [&](auto old) {
+        decltype(old) new_vert(old.size());
+        for (int i = 0; i < old.size(); ++i)
+        {
+            if (gather)
+            {
+                new_vert[i] = old[idx[i]];
+            }
+            else
+            {
+                new_vert[idx[i]] = old[i];
+            }
+        }
+        return new_vert;
+    };
+    position            = reorder(position);
+    normal              = reorder(normal);
+    color               = reorder(color);
+    texture_coordinates = reorder(texture_coordinates);
+    data                = reorder(data);
+    bone_info           = reorder(bone_info);
+
+    // TODO
+    SAIGA_ASSERT(triangles.empty());
+    SAIGA_ASSERT(lines.empty());
+
+    return *this;
+}
+
+UnifiedMesh& UnifiedMesh::RandomShuffle()
+{
+    auto sequence = Random::shuffleSequence(NumVertices());
+    return ReorderVertices(sequence);
+}
+UnifiedMesh& UnifiedMesh::RandomBlockShuffle(int block_size)
+{
+    int n_blocks  = NumVertices() / block_size;
+    auto sequence = Random::shuffleSequence(n_blocks);
+
+    std::vector<int> indices(NumVertices());
+    std::iota(indices.begin(), indices.end(), 0);
+
+    for (int i = 0; i < n_blocks; ++i)
+    {
+        int offset = sequence[i] * block_size;
+
+
+        for (int j = 0; j < block_size; ++j)
+        {
+            int linear_offset  = i * block_size + j;
+            int shuffle_offset = offset + j;
+
+            indices[linear_offset] = shuffle_offset;
+        }
+    }
+
+    return ReorderVertices(indices);
+}
+UnifiedMesh& UnifiedMesh::ReorderMorton64()
+{
+    auto bb = BoundingBox();
+
+    vec3 offset = bb.min;
+    vec3 scale  = float(1 << 20) / (bb.max - bb.min).array();
+
+    std::vector<std::pair<uint64_t, int>> morton_list;
+    for (int i = 0; i < NumVertices(); ++i)
+    {
+        vec3 p  = (position[i] + offset).array() * scale.array();
+        auto mc = Morton3D(p.cast<int>());
+        morton_list.emplace_back(mc, i);
+    }
+
+
+    std::sort(morton_list.begin(), morton_list.end(), [](auto a, auto b) { return a.first < b.first; });
+
+    std::vector<int> sequence;
+    for (auto i : morton_list)
+    {
+        sequence.push_back(i.second);
+    }
+
+
+    ReorderVertices(sequence, true);
+
+    {
+        std::vector<std::pair<uint64_t, int>> morton_list;
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            vec3 p  = (position[i] + offset).array() * scale.array();
+            auto mc = Morton3D(p.cast<int>());
+            morton_list.emplace_back(mc, i);
+        }
+        SAIGA_ASSERT(std::is_sorted(morton_list.begin(), morton_list.end()));
+    }
+
+    return *this;
+}
+
 UnifiedMesh& UnifiedMesh::Normalize(float dimensions)
 {
     auto box = BoundingBox();
@@ -236,7 +346,6 @@ VertexDataFlags UnifiedMesh::Flags() const
                            HasTC() * VERTEX_TEXTURE_COORDINATES | HasBones() * VERTEX_BONE_INFO |
                            HasData() * VERTEX_EXTRA_DATA);
 }
-
 
 template <>
 std::vector<Vertex> UnifiedMesh::VertexList() const

@@ -82,6 +82,17 @@ class SAIGA_CORE_API UnifiedMesh
     UnifiedMesh& EraseVertices(ArrayView<int> vertices);
 
 
+    //
+    // gather == true:
+    //    vertex_new[i] = vertex_old[idx[i]]
+    //
+    // gather == false:
+    //    vertex_new[idx[i]] = vertex_old[i]
+    UnifiedMesh& ReorderVertices(ArrayView<int> idx, bool gather = true);
+    UnifiedMesh& RandomShuffle();
+    UnifiedMesh& RandomBlockShuffle(int block_size);
+    UnifiedMesh& ReorderMorton64();
+
 
     UnifiedMesh& Normalize(float dimensions = 2.0f);
 

@@ -84,6 +84,10 @@ SAIGA_CORE_API uint64_t urand64();
 SAIGA_CORE_API std::vector<int> uniqueIndices(int sampleCount, int indexSize);
 
 
+// Returns an array of size 'size' with values from [0, size-1] in random order
+SAIGA_CORE_API std::vector<int> shuffleSequence(int size);
+
+
 SAIGA_CORE_API Vec3 ballRand(double radius);
 
 SAIGA_CORE_API Vec3 sphericalRand(double radius);

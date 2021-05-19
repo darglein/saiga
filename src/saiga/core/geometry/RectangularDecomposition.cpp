@@ -5,6 +5,7 @@
  */
 #include "RectangularDecomposition.h"
 
+#include "saiga/core/math/Morton.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/time/all.h"
 
@@ -85,24 +86,6 @@ RectangleList DecomposeRowMerge(ArrayView<const ivec3> points)
     return result;
 }
 
-uint64_t BitInterleave64(uint64_t x)
-{
-    x &= 0x1fffff;
-    x = (x | x << 32) & 0x1f00000000ffff;
-    x = (x | x << 16) & 0x1f0000ff0000ff;
-    x = (x | x << 8) & 0x100f00f00f00f00f;
-    x = (x | x << 4) & 0x10c30c30c30c30c3;
-    x = (x | x << 2) & 0x1249249249249249;
-    return x;
-}
-
-uint64_t Morton2D(const ivec3& v)
-{
-    uint64_t x = BitInterleave64(v.x());
-    uint64_t y = BitInterleave64(v.y());
-    uint64_t z = BitInterleave64(v.z());
-    return x | (y << 1) | (z << 2);
-}
 
 RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor, bool merge_layer)
 {
@@ -122,7 +105,7 @@ RectangleList DecomposeOctTree(ArrayView<const ivec3> points, float merge_factor
     for (auto p : points)
     {
         ivec3 shifted_p = p - corner;
-        copy.emplace_back(Morton2D(shifted_p), shifted_p);
+        copy.emplace_back(Morton3D(shifted_p), shifted_p);
     }
 
     std::sort(copy.begin(), copy.end(), [](auto a, auto b) { return a.first < b.first; });
