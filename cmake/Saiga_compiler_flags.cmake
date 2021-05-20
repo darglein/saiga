@@ -69,7 +69,7 @@ else()
 endif()
 
 if(SAIGA_CXX_CLANG OR SAIGA_CXX_GNU)
-  list(APPEND SAIGA_CXX_FLAGS "-fvisibility=hidden")
+  list(APPEND SAIGA_PRIVATE_CXX_FLAGS "-fvisibility=hidden")
 endif()
 
 if(SAIGA_CXX_WCLANG)

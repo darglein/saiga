@@ -165,29 +165,21 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         int x0 = iFloor(sx);
         int y0 = iFloor(sy);
 
-        // interpolation weights
-        float ax = sx - x0;
-        float ay = sy - y0;
-
         if (x0 < 0)
         {
             x0 = 0;
-            ax = 0;
         }
         if (x0 >= width)
         {
             x0 = width - 1;
-            ax = 0;
         }
         if (y0 < 0)
         {
             y0 = 0;
-            ay = 0;
         }
         if (y0 >= height)
         {
             y0 = height - 1;
-            ay = 0;
         }
 
 
@@ -207,8 +199,6 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         auto b01 = ttf.toFloat((*this)(y0, x1));
         auto b10 = ttf.toFloat((*this)(y1, x0));
         auto b11 = ttf.toFloat((*this)(y1, x1));
-
-        // auto res = (b00 * (1.0f - ax) + b01 * (ax)) * (1.0f - ay) + (b10 * (1.0f - ax) + b11 * (ax)) * (ay);
 
         typename TexelFloatConverter<T, false>::FloatType res =
             b00 * ((x1 - sx) * (y1 - sy)) + b01 * ((sx - x0) * (y1 - sy)) + b10 * ((x1 - sx) * (sy - y0)) +
