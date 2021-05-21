@@ -126,9 +126,10 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     }
 
     HD inline T& operator()(int y, int x) { return rowPtr(y)[x]; }
-
     HD inline const T& operator()(int y, int x) const { return rowPtr(y)[x]; }
 
+    HD inline T& operator()(ivec2 p) { return this->operator()(p.y(), p.x()); }
+    HD inline const T& operator()(ivec2 p) const { return this->operator()(p.y(), p.x()); }
 
     HD inline T* rowPtr(int y)
     {
