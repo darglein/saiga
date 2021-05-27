@@ -16,25 +16,6 @@
 using namespace Saiga;
 
 
-TEST(Distortion, Derivative)
-{
-    Vector<double, 8> c;
-    c << -0.283408, 0.5, -1, 0.2, 0.4, 0.7, 1, 2;
-    //    c.setZero();
-    Distortion d(c);
-
-
-
-    Vec2 p = Vec2::Random();
-    Matrix<double, 2, 2> J1, J2;
-
-    Vec2 res1 = distortNormalizedPoint(p, d, &J1);
-    Vec2 res2 = EvaluateNumeric([&](auto p) { return distortNormalizedPoint(p, d); }, p, &J2, 1e-8);
-
-    ExpectCloseRelative(res1, res2, 1e-5);
-    ExpectCloseRelative(J1, J2, 1e-5);
-}
-
 TEST(Distortion, Solve)
 {
     IntrinsicsPinholed K(608.894, 608.742, 638.974, 364.492, 0);
