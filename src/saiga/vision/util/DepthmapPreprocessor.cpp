@@ -30,7 +30,7 @@ inline bool dm_is_depthdisc(float* widths, float* depths, float dd_factor, int i
 }
 
 
-inline float pixel_footprint(std::size_t x, std::size_t y, float depth, const Intrinsics4& camera)
+inline float pixel_footprint(std::size_t x, std::size_t y, float depth, const IntrinsicsPinholed& camera)
 {
 #ifdef SPHERICAL_DEPTH
     vec3 ray = invproj * vec3((float)x + 0.5f, (float)y + 0.5f, 1.0f);
@@ -94,7 +94,7 @@ void DMPPParameters::renderGui()
     ImGui::InputFloat("dd_factor", &dd_factor);
 }
 
-DMPP::DMPP(const Intrinsics4& camera, const DMPPParameters& params) : params(params), camera(camera) {}
+DMPP::DMPP(const IntrinsicsPinholed& camera, const DMPPParameters& params) : params(params), camera(camera) {}
 
 void DMPP::operator()(DepthMap _src, DepthMap dst)
 {

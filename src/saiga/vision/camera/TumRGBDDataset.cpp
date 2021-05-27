@@ -165,7 +165,7 @@ int TumRGBDDataset::LoadMetaData()
 
     if (freiburg == 1)
     {
-        _intrinsics.model.K = Intrinsics4(517.306408, 516.469215, 318.643040, 255.313989);
+        _intrinsics.model.K = IntrinsicsPinholed(517.306408, 516.469215, 318.643040, 255.313989, 0);
         // 0.262383 , -0.953104, -0.005358, 0.002628, 1.163314;
         _intrinsics.model.dis.k1 = 0.262383;
         _intrinsics.model.dis.k2 = -0.953104;
@@ -175,7 +175,7 @@ int TumRGBDDataset::LoadMetaData()
     }
     else if (freiburg == 2)
     {
-        _intrinsics.model.K = Intrinsics4(520.908620, 521.007327, 325.141442, 249.701764);
+        _intrinsics.model.K = IntrinsicsPinholed(520.908620, 521.007327, 325.141442, 249.701764, 0);
         //        _intrinsics.model.dis << 0.231222, -0.784899, -0.003257, -0.000105, 0.917205;
         _intrinsics.model.dis.k1 = 0.231222;
         _intrinsics.model.dis.k2 = -0.784899;
@@ -185,7 +185,7 @@ int TumRGBDDataset::LoadMetaData()
     }
     else if (freiburg == 3)
     {
-        _intrinsics.model.K = Intrinsics4(535.4, 539.2, 320.1, 247.6);
+        _intrinsics.model.K = IntrinsicsPinholed(535.4, 539.2, 320.1, 247.6, 0);
         //        _intrinsics.model.dis << 0, 0, 0, 0, 0;
     }
     else

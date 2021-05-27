@@ -122,7 +122,7 @@ class EdgeSE3PointProject : public g2o::BaseBinaryEdge<2, Vec2, VertexPoint, Ver
     virtual void linearizeOplus();
 
 
-    Saiga::Intrinsics4 intr;
+    Saiga::IntrinsicsPinholed intr;
     double weight;
 };
 
@@ -161,7 +161,7 @@ class EdgeSE3PointProjectDepth : public g2o::BaseBinaryEdge<3, Vec3, VertexPoint
     virtual void linearizeOplus();
 
 
-    Saiga::Intrinsics4 intr;
+    Saiga::IntrinsicsPinholed intr;
     double bf;
     Vec2 weights;
 };

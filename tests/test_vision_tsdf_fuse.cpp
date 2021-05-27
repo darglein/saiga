@@ -29,8 +29,7 @@ class TSDFTest
 
 
         // depth_image.getImageView().set(1.0f);
-        scene.K =
-            Intrinsics4(5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02, 2.3691517848391885e+02);
+        scene.K = IntrinsicsPinholed(5.3887405952849110e+02, 5.3937051275591125e+02, 3.2233507920081263e+02, 2.3691517848391885e+02, 0);
         scene.K.scale(0.5);
         scene.dis = Distortion();
 

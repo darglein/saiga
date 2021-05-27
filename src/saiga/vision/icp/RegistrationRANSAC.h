@@ -30,7 +30,7 @@ class RegistrationProjectRANSAC
     SE3 pose1, pose2;
     std::vector<Vec3> points1, points2;
     std::vector<Vec2> ips1, ips2;
-    Intrinsics4 camera1, camera2;
+    IntrinsicsPinholed camera1, camera2;
     double threshold;
 
 

@@ -37,7 +37,7 @@ TEST(Distortion, Derivative)
 
 TEST(Distortion, Solve)
 {
-    Intrinsics4 K(608.894, 608.742, 638.974, 364.492);
+    IntrinsicsPinholed K(608.894, 608.742, 638.974, 364.492, 0);
 
     Vector<double, 8> c;
     c << -0.0284351, -2.47131, 1.7389, -0.145427, -2.26192, 1.63544, 0.00128128, -0.000454588;

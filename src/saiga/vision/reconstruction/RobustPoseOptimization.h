@@ -145,7 +145,7 @@ struct SAIGA_ALIGN_CACHE RobustPoseOptimization
                             if (o.stereo())
                             {
                                 auto stereo_point = o.ip(0) - camera.bf / o.depth;
-                                auto [res, depth] = BundleAdjustmentStereo(camera, o.ip, stereo_point, guess, wp,
+                                auto [res, depth] = BundleAdjustmentStereo<T>(camera, o.ip, stereo_point, guess, wp,
                                                                            o.weight, o.weight, &JrowS, nullptr);
                                 auto res_2        = res.squaredNorm();
 
@@ -174,7 +174,7 @@ struct SAIGA_ALIGN_CACHE RobustPoseOptimization
                             else
                             {
                                 auto [res, depth] =
-                                    BundleAdjustment(camera, o.ip, guess, wp, o.weight, &JrowM, nullptr);
+                                    BundleAdjustment<T>(camera, o.ip, guess, wp, o.weight, &JrowM, nullptr);
                                 auto res_2 = res.squaredNorm();
                                 // Remove outliers
                                 if (outerIt > 0 && innerIt == 0)

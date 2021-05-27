@@ -7,7 +7,7 @@
 
 namespace Saiga
 {
-void Rectification::Identity(const Intrinsics4& K, double bf)
+void Rectification::Identity(const IntrinsicsPinholed& K, double bf)
 {
     K_src    = K;
     K_dst    = K;

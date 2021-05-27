@@ -161,7 +161,7 @@ void Scene::load(const std::string& file)
     worldPoints.resize(num_worldPoints);
     for (auto& i : intrinsics)
     {
-        Vec4 test;
+        Vec5 test;
         strm >> test;
         i = test;
     }

@@ -29,7 +29,7 @@ namespace Saiga
 template <typename TransformationType>
 struct SymmetricProjectivePointCloudRegistration
 {
-    Intrinsics4 K;
+    IntrinsicsPinholed K;
     TransformationType T;
     std::vector<Vec3> points1, points2;
     double chi2Threshold;

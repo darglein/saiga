@@ -54,7 +54,7 @@ void main() {
 
     if(layer == num_layers-1) hdr_value *= (1.f / num_layers);
 
-    hdr_value += imageLoad(destTex, texel_position_small).rgb * (1.f / num_layers) ;//* exp(-layer );// * (10 - layer);
+    hdr_value += imageLoad(destTex, texel_position_small).rgb * (1.f / num_layers) ;//* exp(layer/ float(num_layers) );
     //hdr_value *= 0.5;
 
     //hdr_value = imageLoad(destTex, texel_position_small).rgb ;

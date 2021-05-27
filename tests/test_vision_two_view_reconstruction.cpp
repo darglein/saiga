@@ -55,7 +55,7 @@ class ReconstructionTest
 
     std::vector<KeyPoint<double>> keys1, keys2;
     std::vector<FeatureDescriptor> des1, des2;
-    Intrinsics4 intr = Intrinsics4(535.4, 539.2, 320.1, 247.6);
+    IntrinsicsPinholed intr = IntrinsicsPinholed(535.4, 539.2, 320.1, 247.6, 0);
 
     std::vector<Vec2> points1, points2;
     std::vector<Vec2> npoints1, npoints2;

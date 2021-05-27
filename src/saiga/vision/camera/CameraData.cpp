@@ -53,7 +53,7 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
         // Color Intrinsics
         // K
         auto Kstr = toIniString(model.K);
-        Kstr      = ini.GetAddString(group, "color_K", Kstr.c_str(), "#fx,fy,cx,cy");
+        Kstr      = ini.GetAddString(group, "color_K", Kstr.c_str(), "#fx,fy,cx,cy,s");
         fromIniString(Kstr, model.K);
 
         // Dis

@@ -20,7 +20,7 @@ struct FeatureGridTest
     FeatureGridTest()
     {
         // This are the camera parameters from the EuRoC dataset.
-        intr = Intrinsics4(458.654, 457.296, 367.215, 248.375);
+        intr = IntrinsicsPinholed(458.654, 457.296, 367.215, 248.375, 0);
 
         Vector<double, 8> c;
         //        c << -0.0284351, -2.47131, 1.7389, -0.145427, -2.26192, 1.63544, 0.00128128, -0.000454588;
@@ -33,7 +33,7 @@ struct FeatureGridTest
 
 
     int w, h;
-    Intrinsics4 intr;
+    IntrinsicsPinholed intr;
     Distortion dis;
 
     FeatureGridBounds<double, 24, 32> grid_bounds;

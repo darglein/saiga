@@ -162,7 +162,7 @@ double BAPointOnly::computeQuadraticForm()
             else
             {
                 Matrix<double, 2, 3> JrowPoint;
-                auto [res, depth] = BundleAdjustment(camera, ip.point, extr, wp, w, nullptr, &JrowPoint);
+                auto [res, depth] = BundleAdjustment<double>(camera, ip.point, extr, wp, w, nullptr, &JrowPoint);
 
 
                 auto c = res.squaredNorm();

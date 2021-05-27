@@ -87,7 +87,7 @@ class SAIGA_VISION_API BALDataset
             return p;
         }
 
-        Intrinsics4 intr() { return {f, f, 0, 0}; }
+        IntrinsicsPinholed intr() { return {f, f, 0, 0, 0}; }
 
         std::pair<SE3, bool> extr()
         {

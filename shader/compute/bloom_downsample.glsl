@@ -20,6 +20,7 @@ layout(local_size_x = 16, local_size_y = 16) in;
 
 
 vec4 DownsampleBox (vec2 uv) {
+    //return texture(inputTex,uv);
     vec2 texel_size = 1.f / textureSize(inputTex, 0);
 
     float d = 1;

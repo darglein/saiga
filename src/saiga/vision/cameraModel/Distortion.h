@@ -237,7 +237,7 @@ Eigen::Matrix<T, 2, 1> undistortNormalizedPoint1235(const Eigen::Matrix<T, 2, 1>
  */
 template <typename _InputIterator1, typename _InputIterator2, typename _T>
 inline void undistortAll(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __output,
-                         const Intrinsics4Base<_T>& intr, const DistortionBase<_T>& dis)
+                         const IntrinsicsPinhole<_T>& intr, const DistortionBase<_T>& dis)
 {
     for (; __first1 != __last1; ++__first1, (void)++__output)
     {

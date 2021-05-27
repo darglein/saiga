@@ -18,13 +18,13 @@ Mat3 EssentialMatrix(const SE3& a, const SE3& b)
     return NormalizeEpipolarMatrix(E);
 }
 
-Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, const Intrinsics4& K2)
+Mat3 EssentialMatrix(const Mat3& F, const IntrinsicsPinholed& K1, const IntrinsicsPinholed& K2)
 {
     Mat3 E = K2.matrix().transpose() * F * K1.matrix();
     return NormalizeEpipolarMatrix(E);
 }
 
-Mat3 FundamentalMatrix(const Mat3& E, const Intrinsics4& K1, const Intrinsics4& K2)
+Mat3 FundamentalMatrix(const Mat3& E, const IntrinsicsPinholed& K1, const IntrinsicsPinholed& K2)
 {
     Mat3 F = K2.inverse().matrix().transpose() * E * K1.inverse().matrix();
     return NormalizeEpipolarMatrix(F);

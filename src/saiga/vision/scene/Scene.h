@@ -166,7 +166,7 @@ class SAIGA_VISION_API Scene
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    AlignedVector<Intrinsics4> intrinsics;
+    AlignedVector<IntrinsicsPinholed> intrinsics;
     AlignedVector<WorldPoint> worldPoints;
     AlignedVector<SceneImage> images;
 

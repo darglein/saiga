@@ -14,16 +14,16 @@ namespace Saiga
 {
 struct Rectification
 {
-    Intrinsics4 K_src;
+    IntrinsicsPinholed K_src;
     Saiga::Distortion D_src;
 
     Quat R;
-    Intrinsics4 K_dst;
+    IntrinsicsPinholed K_dst;
 
     double bf = 0;
 
 
-    void Identity(const Intrinsics4& K, double bf);
+    void Identity(const IntrinsicsPinholed& K, double bf);
     // unrectified -> rectified
     Vec2 Forward(const Vec2& x);
 

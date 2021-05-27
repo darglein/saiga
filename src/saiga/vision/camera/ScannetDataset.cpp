@@ -122,7 +122,7 @@ int ScannetDataset::LoadMetaData()
             pstream >> pi;
         }
         Mat4 intrinsics     = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(posearray.data());
-        _intrinsics.model.K = Intrinsics4(Mat3(intrinsics.block<3, 3>(0, 0)));
+        _intrinsics.model.K = IntrinsicsPinholed(Mat3(intrinsics.block<3, 3>(0, 0)));
     }
 
     {
@@ -134,7 +134,7 @@ int ScannetDataset::LoadMetaData()
             pstream >> pi;
         }
         Mat4 intrinsics          = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(posearray.data());
-        _intrinsics.depthModel.K = Intrinsics4(Mat3(intrinsics.block<3, 3>(0, 0)));
+        _intrinsics.depthModel.K = IntrinsicsPinholed(Mat3(intrinsics.block<3, 3>(0, 0)));
     }
 
 

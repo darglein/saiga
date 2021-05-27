@@ -11,16 +11,17 @@
 namespace Saiga
 {
 // Returns: <Residual, Depth>
-inline std::pair<Vec2, double> BundleAdjustment(const Intrinsics4& camera, const Vec2& observation, const SE3& pose,
-                                                const Vec3& point, double weight,
-                                                Matrix<double, 2, 6>* jacobian_pose  = nullptr,
-                                                Matrix<double, 2, 3>* jacobian_point = nullptr)
+template <typename T = double>
+inline std::pair<Vector<T, 2>, T> BundleAdjustment(const IntrinsicsPinhole<T>& camera, const Vector<T, 2>& observation,
+                                                   const Sophus::SE3<T>& pose, const Vector<T, 3>& point, T weight,
+                                                   Matrix<T, 2, 6>* jacobian_pose  = nullptr,
+                                                   Matrix<T, 2, 3>* jacobian_point = nullptr)
 {
-    Vec3 p      = pose * point;
-    Vec2 p_by_z = Vec2(p(0) / p(2), p(1) / p(2));
+    Vector<T, 3> p      = pose * point;
+    Vector<T, 2> p_by_z = Vec2(p(0) / p(2), p(1) / p(2));
 
-    Vec2 residual;
-    residual(0) = camera.fx * p_by_z(0) + camera.cx - observation(0);
+    Vector<T, 2> residual;
+    residual(0) = camera.fx * p_by_z(0) + camera.s * p_by_z(1) + camera.cx - observation(0);
     residual(1) = camera.fy * p_by_z(1) + camera.cy - observation(1);
     residual *= weight;
 
@@ -32,7 +33,9 @@ inline std::pair<Vec2, double> BundleAdjustment(const Intrinsics4& camera, const
     auto zzinv = 1 / zz;
     if (jacobian_pose)
     {
-        // divion by z (this is a little verbose and can be simplified by a lot).
+        // 1. Translation
+
+        // division by z
         (*jacobian_pose)(0, 0) = zinv;
         (*jacobian_pose)(0, 1) = 0;
         (*jacobian_pose)(0, 2) = -x * zzinv;
@@ -40,7 +43,18 @@ inline std::pair<Vec2, double> BundleAdjustment(const Intrinsics4& camera, const
         (*jacobian_pose)(1, 1) = zinv;
         (*jacobian_pose)(1, 2) = -y * zzinv;
 
-        // rotation
+        // multiplication by K
+        (*jacobian_pose)(0, 0) = (*jacobian_pose)(0, 0) * camera.fx + (*jacobian_pose)(1, 0) * camera.s;
+        (*jacobian_pose)(0, 1) = (*jacobian_pose)(0, 1) * camera.fx + (*jacobian_pose)(1, 1) * camera.s;
+        (*jacobian_pose)(0, 2) = (*jacobian_pose)(0, 2) * camera.fx + (*jacobian_pose)(1, 2) * camera.s;
+        (*jacobian_pose)(1, 0) *= camera.fy;
+        (*jacobian_pose)(1, 1) *= camera.fy;
+        (*jacobian_pose)(1, 2) *= camera.fy;
+
+
+        // 2. Rotation
+
+        // division by z
         (*jacobian_pose)(0, 3) = -y * x * zzinv;
         (*jacobian_pose)(0, 4) = (1 + (x * x) * zzinv);
         (*jacobian_pose)(0, 5) = -y * zinv;
@@ -48,8 +62,15 @@ inline std::pair<Vec2, double> BundleAdjustment(const Intrinsics4& camera, const
         (*jacobian_pose)(1, 4) = x * y * zzinv;
         (*jacobian_pose)(1, 5) = x * zinv;
 
-        (*jacobian_pose).row(0) *= camera.fx;
-        (*jacobian_pose).row(1) *= camera.fy;
+        // multiplication by K
+        (*jacobian_pose)(0, 3) = (*jacobian_pose)(0, 3) * camera.fx + (*jacobian_pose)(1, 3) * camera.s;
+        (*jacobian_pose)(0, 4) = (*jacobian_pose)(0, 4) * camera.fx + (*jacobian_pose)(1, 4) * camera.s;
+        (*jacobian_pose)(0, 5) = (*jacobian_pose)(0, 5) * camera.fx + (*jacobian_pose)(1, 5) * camera.s;
+        (*jacobian_pose)(1, 3) *= camera.fy;
+        (*jacobian_pose)(1, 4) *= camera.fy;
+        (*jacobian_pose)(1, 5) *= camera.fy;
+
+        // 3. Weight
         (*jacobian_pose) *= weight;
     }
 
@@ -57,6 +78,7 @@ inline std::pair<Vec2, double> BundleAdjustment(const Intrinsics4& camera, const
     {
         auto R = pose.so3().matrix();
 
+        // division by z
         (*jacobian_point)(0, 0) = (R(0, 0) - p_by_z(0) * R(2, 0)) * zinv;
         (*jacobian_point)(0, 1) = (R(0, 1) - p_by_z(0) * R(2, 1)) * zinv;
         (*jacobian_point)(0, 2) = (R(0, 2) - p_by_z(0) * R(2, 2)) * zinv;
@@ -64,8 +86,13 @@ inline std::pair<Vec2, double> BundleAdjustment(const Intrinsics4& camera, const
         (*jacobian_point)(1, 1) = (R(1, 1) - p_by_z(1) * R(2, 1)) * zinv;
         (*jacobian_point)(1, 2) = (R(1, 2) - p_by_z(1) * R(2, 2)) * zinv;
 
-        (*jacobian_point).row(0) *= camera.fx;
-        (*jacobian_point).row(1) *= camera.fy;
+        // multiplication by K
+        (*jacobian_point)(0, 0) = (*jacobian_point)(0, 0) * camera.fx + (*jacobian_point)(1, 0) * camera.s;
+        (*jacobian_point)(0, 1) = (*jacobian_point)(0, 1) * camera.fx + (*jacobian_point)(1, 1) * camera.s;
+        (*jacobian_point)(0, 2) = (*jacobian_point)(0, 2) * camera.fx + (*jacobian_point)(1, 2) * camera.s;
+        (*jacobian_point)(1, 0) *= camera.fy;
+        (*jacobian_point)(1, 1) *= camera.fy;
+        (*jacobian_point)(1, 2) *= camera.fy;
 
         (*jacobian_point) *= weight;
     }
@@ -73,6 +100,7 @@ inline std::pair<Vec2, double> BundleAdjustment(const Intrinsics4& camera, const
 }
 
 // Returns: <Residual, Depth>
+template <typename T = double>
 inline std::pair<Vec3, double> BundleAdjustmentStereo(const StereoCamera4& camera, const Vec2& observation,
                                                       double observed_stereo_point, const SE3& pose, const Vec3& point,
                                                       double weight, double weight_depth,
@@ -82,12 +110,10 @@ inline std::pair<Vec3, double> BundleAdjustmentStereo(const StereoCamera4& camer
     Vec3 p      = pose * point;
     Vec2 p_by_z = Vec2(p(0) / p(2), p(1) / p(2));
 
-    Vec2 projected_point(camera.fx * p_by_z(0) + camera.cx, camera.fy * p_by_z(1) + camera.cy);
+    Vec2 projected_point(camera.fx * p_by_z(0) + camera.s * p_by_z(1) + camera.cx, camera.fy * p_by_z(1) + camera.cy);
 
     Vec3 residual;
     residual.head<2>() = projected_point - observation;
-    //    residual(0) = camera.fx * p_by_z(0) + camera.cx - observation(0);
-    //    residual(1) = camera.fy * p_by_z(1) + camera.cy - observation(1);
 
 
     double stereo_point = projected_point(0) - camera.bf / p(2);
@@ -108,7 +134,8 @@ inline std::pair<Vec3, double> BundleAdjustmentStereo(const StereoCamera4& camer
     {
         auto& J = *jacobian_pose;
 
-        // divion by z (this is a little verbose and can be simplified by a lot).
+        // 1. Translation
+        // division by z
         J(0, 0) = zinv;
         J(0, 1) = 0;
         J(0, 2) = -x * zzinv;
@@ -116,7 +143,16 @@ inline std::pair<Vec3, double> BundleAdjustmentStereo(const StereoCamera4& camer
         J(1, 1) = zinv;
         J(1, 2) = -y * zzinv;
 
-        // rotation
+        // multiplication by K
+        (*jacobian_pose)(0, 0) = (*jacobian_pose)(0, 0) * camera.fx + (*jacobian_pose)(1, 0) * camera.s;
+        (*jacobian_pose)(0, 1) = (*jacobian_pose)(0, 1) * camera.fx + (*jacobian_pose)(1, 1) * camera.s;
+        (*jacobian_pose)(0, 2) = (*jacobian_pose)(0, 2) * camera.fx + (*jacobian_pose)(1, 2) * camera.s;
+        (*jacobian_pose)(1, 0) *= camera.fy;
+        (*jacobian_pose)(1, 1) *= camera.fy;
+        (*jacobian_pose)(1, 2) *= camera.fy;
+
+        // 2. Rotation
+        // division by z
         J(0, 3) = -y * x * zzinv;
         J(0, 4) = (1 + (x * x) * zzinv);
         J(0, 5) = -y * zinv;
@@ -124,12 +160,17 @@ inline std::pair<Vec3, double> BundleAdjustmentStereo(const StereoCamera4& camer
         J(1, 4) = x * y * zzinv;
         J(1, 5) = x * zinv;
 
-        J.row(0) *= camera.fx;
-        J.row(1) *= camera.fy;
+        // multiplication by K
+        (*jacobian_pose)(0, 3) = (*jacobian_pose)(0, 3) * camera.fx + (*jacobian_pose)(1, 3) * camera.s;
+        (*jacobian_pose)(0, 4) = (*jacobian_pose)(0, 4) * camera.fx + (*jacobian_pose)(1, 4) * camera.s;
+        (*jacobian_pose)(0, 5) = (*jacobian_pose)(0, 5) * camera.fx + (*jacobian_pose)(1, 5) * camera.s;
+        (*jacobian_pose)(1, 3) *= camera.fy;
+        (*jacobian_pose)(1, 4) *= camera.fy;
+        (*jacobian_pose)(1, 5) *= camera.fy;
 
         // depth
         J(2, 0) = -J(0, 0);
-        J(2, 1) = 0;
+        J(2, 1) = -J(0, 1);
         J(2, 2) = -J(0, 2) - camera.bf * zzinv;
         J(2, 3) = -J(0, 3) - camera.bf * y * zzinv;
         J(2, 4) = -J(0, 4) + camera.bf * x * zzinv;
@@ -137,8 +178,6 @@ inline std::pair<Vec3, double> BundleAdjustmentStereo(const StereoCamera4& camer
 
         J.row(0) *= weight;
         J.row(1) *= weight;
-
-
         J.row(2) *= weight_depth;
     }
 
@@ -147,6 +186,7 @@ inline std::pair<Vec3, double> BundleAdjustmentStereo(const StereoCamera4& camer
         auto R  = pose.so3().matrix();
         auto& J = *jacobian_point;
 
+        // division by z
         J(0, 0) = (R(0, 0) - p_by_z(0) * R(2, 0)) * zinv;
         J(0, 1) = (R(0, 1) - p_by_z(0) * R(2, 1)) * zinv;
         J(0, 2) = (R(0, 2) - p_by_z(0) * R(2, 2)) * zinv;
@@ -154,20 +194,26 @@ inline std::pair<Vec3, double> BundleAdjustmentStereo(const StereoCamera4& camer
         J(1, 1) = (R(1, 1) - p_by_z(1) * R(2, 1)) * zinv;
         J(1, 2) = (R(1, 2) - p_by_z(1) * R(2, 2)) * zinv;
 
-        J.row(0) *= camera.fx;
-        J.row(1) *= camera.fy;
+        // multiplication by K
+        (*jacobian_point)(0, 0) = (*jacobian_point)(0, 0) * camera.fx + (*jacobian_point)(1, 0) * camera.s;
+        (*jacobian_point)(0, 1) = (*jacobian_point)(0, 1) * camera.fx + (*jacobian_point)(1, 1) * camera.s;
+        (*jacobian_point)(0, 2) = (*jacobian_point)(0, 2) * camera.fx + (*jacobian_point)(1, 2) * camera.s;
+        (*jacobian_point)(1, 0) *= camera.fy;
+        (*jacobian_point)(1, 1) *= camera.fy;
+        (*jacobian_point)(1, 2) *= camera.fy;
 
+        // stereo projection
         J(2, 0) = -J(0, 0) - camera.bf * R(2, 0) * zzinv;
         J(2, 1) = -J(0, 1) - camera.bf * R(2, 1) * zzinv;
         J(2, 2) = -J(0, 2) - camera.bf * R(2, 2) * zzinv;
 
-
+        // weight
         J.row(0) *= weight;
         J.row(1) *= weight;
-
-
         J.row(2) *= weight_depth;
     }
     return {residual, p(2)};
 }
+
+
 }  // namespace Saiga
