@@ -98,7 +98,7 @@ struct IntrinsicsPinhole
 
         return image_point;
     }
-    
+
 
     HD inline Mat3 matrix() const
     {

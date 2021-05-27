@@ -71,8 +71,9 @@ using Distortionf = DistortionBase<float>;
  * You can find a glsl implementatin in shader/vision/distortion.h
  */
 template <typename T>
-Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& point, const DistortionBase<T>& distortion,
-                                              Matrix<double, 2, 2>* J_point = nullptr)
+HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& point,
+                                                        const DistortionBase<T>& distortion,
+                                                        Matrix<double, 2, 2>* J_point = nullptr, T max_r = T(100000))
 {
     T x  = point.x();
     T y  = point.y();
@@ -89,6 +90,12 @@ Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& poin
 
     T x2 = x * x, y2 = y * y;
     T r2 = x2 + y2, _2xy = T(2) * x * y;
+
+    if (r2 > max_r)
+    {
+        // The forward distortion fails if the points are too far away on the image plain
+        return point;
+    }
 
     T radial_u = T(1) + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2;
     T radial_v = T(1) + k4 * r2 + k5 * r2 * r2 + k6 * r2 * r2 * r2;

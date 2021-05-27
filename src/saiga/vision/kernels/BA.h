@@ -15,7 +15,7 @@ HD inline Vector<T, 3> TransformPoint(const Sophus::SE3<T>& pose, const Vector<T
                                       Matrix<T, 3, 6>* jacobian_pose  = nullptr,
                                       Matrix<T, 3, 3>* jacobian_point = nullptr)
 {
-    const Vec3 rotated_point = pose * point;
+    const Vector<T, 3> rotated_point = pose * point;
 
     if (jacobian_pose)
     {
@@ -37,11 +37,11 @@ HD inline Vector<T, 3> TransformPoint(const Sophus::SE3<T>& pose, const Vector<T
 template <typename T = double>
 HD inline Vector<T, 2> DivideByZ(const Vector<T, 3>& point, Matrix<T, 2, 3>* jacobian_point = nullptr)
 {
-    auto x            = point(0);
-    auto y            = point(1);
-    auto z            = point(2);
-    auto iz           = 1 / z;
-    const Vec2 p_by_z = point.template head<2>() * iz;
+    auto x                    = point(0);
+    auto y                    = point(1);
+    auto z                    = point(2);
+    auto iz                   = 1 / z;
+    const Vector<T, 2> p_by_z = point.template head<2>() * iz;
 
 
     if (jacobian_point)
