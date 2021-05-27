@@ -28,6 +28,7 @@ struct IntrinsicsPinhole
     using Vec3 = Eigen::Matrix<T, 3, 1>;
     using Vec2 = Eigen::Matrix<T, 2, 1>;
     using Mat3 = Eigen::Matrix<T, 3, 3>;
+    using Mat2 = Eigen::Matrix<T, 2, 2>;
 
     // Initialized to the identity "matrix"
     T fx = 1, fy = 1;
@@ -78,6 +79,24 @@ struct IntrinsicsPinhole
     Vec2 unproject2(const Vec2& ip) const { return {(ip(0) - cx) / fx, (ip(1) - cy) / fy}; }
 
     Vec2 normalizedToImage(const Vec2& p) const { return {fx * p(0) + s * p(1) + cx, fy * p(1) + cy}; }
+
+
+    Vec2 normalizedToImage(const Vec2& p, Mat2* J_point) const
+    {
+        const Vec2 image_point = normalizedToImage(p);
+
+        if (J_point)
+        {
+            (*J_point)(0, 0) = fx;
+            (*J_point)(0, 1) = s;
+            (*J_point)(1, 0) = 0;
+            (*J_point)(1, 1) = fy;
+        }
+
+        return image_point;
+    }
+
+
 
     void scale(T s)
     {
@@ -204,5 +223,8 @@ std::ostream& operator<<(std::ostream& strm, const StereoCamera4Base<T> intr)
     strm << intr.coeffs().transpose();
     return strm;
 }
+
+
+
 
 }  // namespace Saiga

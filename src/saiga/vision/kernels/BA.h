@@ -10,6 +10,55 @@
 
 namespace Saiga
 {
+template <typename T = double>
+HD inline Vector<T, 3> TransformPoint(const Sophus::SE3<T>& pose, const Vector<T, 3>& point,
+                                      Matrix<T, 3, 6>* jacobian_pose  = nullptr,
+                                      Matrix<T, 3, 3>* jacobian_point = nullptr)
+{
+    const Vec3 rotated_point = pose * point;
+
+    if (jacobian_pose)
+    {
+        // 1. Translation
+        jacobian_pose->template block<3, 3>(0, 0) = Eigen::Matrix<T, 3, 3>::Identity();
+        // 2. Rotation
+        jacobian_pose->template block<3, 3>(0, 3) = -skew(rotated_point);
+    }
+
+    if (jacobian_point)
+    {
+        *jacobian_point = pose.so3().matrix();
+    }
+
+    return rotated_point;
+}
+
+
+template <typename T = double>
+HD inline Vector<T, 2> DivideByZ(const Vector<T, 3>& point, Matrix<T, 2, 3>* jacobian_point = nullptr)
+{
+    auto x            = point(0);
+    auto y            = point(1);
+    auto z            = point(2);
+    auto iz           = 1 / z;
+    const Vec2 p_by_z = point.template head<2>() * iz;
+
+
+    if (jacobian_point)
+    {
+        (*jacobian_point)(0, 0) = iz;
+        (*jacobian_point)(0, 1) = 0;
+        (*jacobian_point)(0, 2) = -x * iz * iz;
+
+        (*jacobian_point)(1, 0) = 0;
+        (*jacobian_point)(1, 1) = iz;
+        (*jacobian_point)(1, 2) = -y * iz * iz;
+    }
+
+    return p_by_z;
+}
+
+
 // Returns: <Residual, Depth>
 template <typename T = double>
 inline std::pair<Vector<T, 2>, T> BundleAdjustment(const IntrinsicsPinhole<T>& camera, const Vector<T, 2>& observation,
