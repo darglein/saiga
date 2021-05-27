@@ -9,6 +9,7 @@
 #include "saiga/core/util/assert.h"
 
 #include <chrono>
+#include <numeric>
 #include <random>
 
 namespace Saiga

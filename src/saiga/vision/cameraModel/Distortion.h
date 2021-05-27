@@ -73,7 +73,7 @@ using Distortionf = DistortionBase<float>;
 template <typename T>
 HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& point,
                                                         const DistortionBase<T>& distortion,
-                                                        Matrix<double, 2, 2>* J_point = nullptr, T max_r = T(100000))
+                                                        Matrix<T, 2, 2>* J_point = nullptr, T max_r = T(100000))
 {
     T x  = point.x();
     T y  = point.y();
@@ -91,11 +91,7 @@ HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2
     T x2 = x * x, y2 = y * y;
     T r2 = x2 + y2, _2xy = T(2) * x * y;
 
-    if (r2 > max_r)
-    {
-        // The forward distortion fails if the points are too far away on the image plain
-        return point;
-    }
+
 
     T radial_u = T(1) + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2;
     T radial_v = T(1) + k4 * r2 + k5 * r2 * r2 + k6 * r2 * r2 * r2;
@@ -107,13 +103,19 @@ HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2
     T xd = x * radial + tangentialX;
     T yd = y * radial + tangentialY;
 
+    if (r2 > max_r)
+    {
+        xd = x;
+        yd = y;
+    }
+
     if (J_point)
     {
         auto& Jp = *J_point;
         Jp.setZero();
 
 
-        Mat2 J_rad_u;
+        Matrix<T, 2, 2> J_rad_u;
         J_rad_u(0, 0) = k1 * (2 * x);
         J_rad_u(0, 1) = k1 * (2 * y);
         J_rad_u(0, 0) += k2 * (4 * x * x * x + 4 * x * y * y);
@@ -124,7 +126,7 @@ HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2
         J_rad_u(1, 1) = J_rad_u(0, 1);
 
 
-        Mat2 J_rad_v;
+        Matrix<T, 2, 2> J_rad_v;
         J_rad_v(0, 0) = k4 * (2 * x);
         J_rad_v(0, 1) = k4 * (2 * y);
         J_rad_v(0, 0) += k5 * (4 * x * x * x + 4 * x * y * y);
@@ -134,16 +136,16 @@ HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2
         J_rad_v(1, 0) = J_rad_v(0, 0);
         J_rad_v(1, 1) = J_rad_v(0, 1);
 
-        Mat2 J_rad;
+        Matrix<T, 2, 2> J_rad;
         J_rad = (J_rad_u * radial_v - J_rad_v * radial_u) / (radial_v * radial_v);
 
-        Mat2 J_rad_mul_xy;
+        Matrix<T, 2, 2> J_rad_mul_xy;
         J_rad_mul_xy(0, 0) = x * J_rad(0, 0) + radial;
         J_rad_mul_xy(0, 1) = x * J_rad(0, 1);
         J_rad_mul_xy(1, 0) = y * J_rad(1, 0);
         J_rad_mul_xy(1, 1) = y * J_rad(1, 1) + radial;
 
-        Mat2 J_tan;
+        Matrix<T, 2, 2> J_tan;
         J_tan(0, 0) = 2 * p1 * y + 6 * p2 * x;
         J_tan(0, 1) = 2 * p1 * x + 2 * p2 * y;
 

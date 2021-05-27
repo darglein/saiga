@@ -84,7 +84,7 @@ struct IntrinsicsPinhole
     [[nodiscard]] HD inline IntrinsicsPinhole<T> scale(T s) const { return IntrinsicsPinhole<T>(Vec5(coeffs() * s)); }
 
 
-    Vec2 normalizedToImage(const Vec2& p, Mat2* J_point) const
+    HD inline Vec2 normalizedToImage(const Vec2& p, Mat2* J_point) const
     {
         const Vec2 image_point = normalizedToImage(p);
 
@@ -216,7 +216,6 @@ std::ostream& operator<<(std::ostream& strm, const StereoCamera4Base<T> intr)
     strm << intr.coeffs().transpose();
     return strm;
 }
-
 
 
 
