@@ -141,14 +141,14 @@ int ScannetDataset::LoadMetaData()
 
     if (scale_down_color)
     {
-        _intrinsics.model.K.scale(0.5);
+        _intrinsics.model.K = _intrinsics.model.K.scale(0.5);
         _intrinsics.imageSize.width /= 2;
         _intrinsics.imageSize.height /= 2;
     }
 
     if (scale_down_depth)
     {
-        _intrinsics.depthModel.K.scale(0.5);
+        _intrinsics.depthModel.K = _intrinsics.depthModel.K.scale(0.5);
         _intrinsics.depthImageSize.width /= 2;
         _intrinsics.depthImageSize.height /= 2;
     }

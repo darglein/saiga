@@ -34,13 +34,13 @@ struct IntrinsicsPinhole
     T cx = 0, cy = 0;
     T s = 0;
 
-    IntrinsicsPinhole() {}
-    IntrinsicsPinhole(T fx, T fy, T cx, T cy, T s) : fx(fx), fy(fy), cx(cx), cy(cy), s(s) {}
-    IntrinsicsPinhole(const Vec5& v) : fx(v(0)), fy(v(1)), cx(v(2)), cy(v(3)), s(v(4)) {}
-    IntrinsicsPinhole(const Mat3& K) : fx(K(0, 0)), fy(K(1, 1)), cx(K(0, 2)), cy(K(1, 2)), s(K(0, 1)) {}
+    HD inline IntrinsicsPinhole() {}
+    HD inline IntrinsicsPinhole(T fx, T fy, T cx, T cy, T s) : fx(fx), fy(fy), cx(cx), cy(cy), s(s) {}
+    HD inline IntrinsicsPinhole(const Vec5& v) : fx(v(0)), fy(v(1)), cx(v(2)), cy(v(3)), s(v(4)) {}
+    HD inline IntrinsicsPinhole(const Mat3& K) : fx(K(0, 0)), fy(K(1, 1)), cx(K(0, 2)), cy(K(1, 2)), s(K(0, 1)) {}
 
     // IntrinsicsPinhole<T> inverse() const { return {T(1) / fx, T(1) / fy, -cx / fx, -cy / fy, s}; }
-    IntrinsicsPinhole<T> inverse() const
+    HD inline IntrinsicsPinhole<T> inverse() const
     {
         T fx2 = 1 / fx;
         T fy2 = 1 / fy;
@@ -50,7 +50,7 @@ struct IntrinsicsPinhole
         return {fx2, fy2, cx2, cy2, s2};
     }
 
-    Vec2 project(const Vec3& X) const
+    HD inline Vec2 project(const Vec3& X) const
     {
         auto invz = T(1) / X(2);
         auto x    = X(0) * invz;
@@ -58,16 +58,16 @@ struct IntrinsicsPinhole
         return {fx * x + s * y + cx, fy * y + cy};
     }
 
-    Vec2 operator*(const Vec3& X) const { return project(X); }
+    HD inline Vec2 operator*(const Vec3& X) const { return project(X); }
 
     // same as above, but keep the z value in the output
-    Vec3 project3(const Vec3& X) const
+    HD inline Vec3 project3(const Vec3& X) const
     {
         Vec2 p = project(X);
         return {p(0), p(1), X(2)};
     }
 
-    Vec3 unproject(const Vec2& ip, T depth) const
+    HD inline Vec3 unproject(const Vec2& ip, T depth) const
     {
         Vec3 p((ip(0) - cx) / fx, (ip(1) - cy) / fy, 1);
         return p * depth;
@@ -75,20 +75,13 @@ struct IntrinsicsPinhole
 
     // from image to normalized image space
     // same as above but without depth
-    Vec2 unproject2(const Vec2& ip) const { return {(ip(0) - cx) / fx, (ip(1) - cy) / fy}; }
+    HD inline Vec2 unproject2(const Vec2& ip) const { return {(ip(0) - cx) / fx, (ip(1) - cy) / fy}; }
 
-    Vec2 normalizedToImage(const Vec2& p) const { return {fx * p(0) + s * p(1) + cx, fy * p(1) + cy}; }
+    HD inline Vec2 normalizedToImage(const Vec2& p) const { return {fx * p(0) + s * p(1) + cx, fy * p(1) + cy}; }
 
-    void scale(T s)
-    {
-        fx *= s;
-        fy *= s;
-        cx *= s;
-        cy *= s;
-        s *= s;
-    }
+    [[nodiscard]] HD inline IntrinsicsPinhole<T> scale(T s) const { return IntrinsicsPinhole<T>(Vec5(coeffs() * s)); }
 
-    Mat3 matrix() const
+    HD inline Mat3 matrix() const
     {
         Mat3 k;
         // clang-format off
@@ -101,14 +94,14 @@ struct IntrinsicsPinhole
     }
 
     template <typename G>
-    IntrinsicsPinhole<G> cast() const
+    HD inline IntrinsicsPinhole<G> cast() const
     {
         return {(G)fx, (G)fy, (G)cx, (G)cy, (G)s};
     }
 
     // convert to eigen vector
-    Vec5 coeffs() const { return {fx, fy, cx, cy, s}; }
-    void coeffs(const Vec5& v) { (*this) = v; }
+    HD inline Vec5 coeffs() const { return {fx, fy, cx, cy, s}; }
+    HD inline void coeffs(const Vec5& v) { (*this) = v; }
 };
 
 using IntrinsicsPinholed = IntrinsicsPinhole<double>;
