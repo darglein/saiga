@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/util/statistics.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
-#include "saiga/core/util/statistics.h"
 
 namespace Saiga
 {
@@ -28,8 +28,11 @@ thrust::device_vector<float> createGaussianBlurKernel(int radius, float sigma)
         kernel[j+radius] /= kernelSum;
     return thrust::device_vector<float>(kernel);
 #else
-    std::vector<float> kernel = gaussianBlurKernel<float>(radius, sigma);
-    return thrust::device_vector<float>(kernel);
+    auto kernel = gaussianBlurKernel1d<float>(radius, sigma);
+
+    std::vector<float> f;
+    for (int i = 0; i < kernel.rows(); ++i) f.push_back(kernel(i));
+    return thrust::device_vector<float>(f);
 #endif
 }
 

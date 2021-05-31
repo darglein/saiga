@@ -37,16 +37,18 @@ using Mat4 = Matrix<double, 4, 4>;
 
 // ===== Single Precision  ======
 
-using Vec4f = Vector<float, 4>;
-using Vec3f = Vector<float, 3>;
-using Vec2f = Vector<float, 2>;
+using vec2 = Vector<float, 2>;
+using vec3 = Vector<float, 3>;
+using vec4 = Vector<float, 4>;
+using vec5 = Vector<float, 5>;
+using vec6 = Vector<float, 6>;
+using vec7 = Vector<float, 7>;
+using vec8 = Vector<float, 8>;
+using vec9 = Vector<float, 9>;
 
-using vec4 = Vec4f;
-using vec3 = Vec3f;
-using vec2 = Vec2f;
-
-using mat4 = Matrix<float, 4, 4>;
+using mat2 = Matrix<float, 2, 2>;
 using mat3 = Matrix<float, 3, 3>;
+using mat4 = Matrix<float, 4, 4>;
 
 // ===== Non-floating point types. Used for example in image processing  ======
 

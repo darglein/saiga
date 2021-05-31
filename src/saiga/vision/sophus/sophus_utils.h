@@ -96,7 +96,7 @@ inline Eigen::Matrix<Scalar, 7, 1> dsim3_logd(const DSim3<Scalar>& sim3)
 /// @param[in] tangent vector (6x1 vector)
 /// @return  SE(3) member
 template <typename Derived>
-inline SE3<typename Derived::Scalar> se3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
+HD inline SE3<typename Derived::Scalar> se3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
 {
     EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
     EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 6);
@@ -107,7 +107,7 @@ inline SE3<typename Derived::Scalar> se3_expd(const Eigen::MatrixBase<Derived>& 
 }
 
 template <typename Derived>
-inline DSim3<typename Derived::Scalar> dsim3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
+HD inline DSim3<typename Derived::Scalar> dsim3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
 {
     EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
     EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 7);
