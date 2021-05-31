@@ -84,7 +84,7 @@ struct IntrinsicsPinhole
     [[nodiscard]] HD inline IntrinsicsPinhole<T> scale(T s) const { return IntrinsicsPinhole<T>(Vec5(coeffs() * s)); }
 
 
-    HD inline Vec2 normalizedToImage(const Vec2& p, Mat2* J_point) const
+    HD inline Vec2 normalizedToImage(const Vec2& p, Mat2* J_point, Matrix<T, 2, 5>* J_K) const
     {
         const Vec2 image_point = normalizedToImage(p);
 
@@ -94,6 +94,21 @@ struct IntrinsicsPinhole
             (*J_point)(0, 1) = s;
             (*J_point)(1, 0) = 0;
             (*J_point)(1, 1) = fy;
+        }
+
+        if (J_K)
+        {
+            (*J_K)(0, 0) = p(0);
+            (*J_K)(0, 1) = 0;
+            (*J_K)(0, 2) = 1;
+            (*J_K)(0, 3) = 0;
+            (*J_K)(0, 4) = p(1);
+
+            (*J_K)(1, 0) = 0;
+            (*J_K)(1, 1) = p(1);
+            (*J_K)(1, 2) = 0;
+            (*J_K)(1, 3) = 1;
+            (*J_K)(1, 4) = 0;
         }
 
         return image_point;

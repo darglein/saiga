@@ -37,3 +37,35 @@ TEST(Distortion, Solve)
         }
     }
 }
+
+TEST(NumericDerivative, DistortionPoint)
+{
+    Vector<double, 8> c;
+    c.setRandom();
+    Distortion d(c);
+
+    Vec2 p = Vec2::Random();
+    Matrix<double, 2, 2> J1, J2;
+
+    Vec2 res1 = distortNormalizedPoint(p, d, &J1);
+    Vec2 res2 = EvaluateNumeric([&](auto p) { return distortNormalizedPoint(p, d); }, p, &J2, 1e-8);
+
+    ExpectCloseRelative(res1, res2, 1e-5);
+    ExpectCloseRelative(J1, J2, 1e-5);
+}
+
+TEST(NumericDerivative, DistortionDist)
+{
+    Vector<double, 8> dist_8;
+    dist_8.setRandom();
+    dist_8 *= 0.1;
+
+    Vec2 p = Vec2::Random();
+    Matrix<double, 2, 8> J1, J2;
+
+    Vec2 res1 = distortNormalizedPoint<double>(p, Distortion(dist_8), nullptr, &J1);
+    Vec2 res2 = EvaluateNumeric([&](auto d) { return distortNormalizedPoint(p, Distortion(d)); }, dist_8, &J2, 1e-8);
+
+    ExpectCloseRelative(res1, res2, 1e-5);
+    ExpectCloseRelative(J1, J2, 1e-5);
+}

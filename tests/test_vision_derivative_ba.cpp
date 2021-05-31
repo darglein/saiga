@@ -15,8 +15,6 @@
 
 namespace Saiga
 {
-#ifndef WIN32
-
 Vec2 BundleAdjustmentVerbose(const IntrinsicsPinholed& camera, const Vec2& observation, const SE3& pose,
                              const Vec3& point, double weight, Matrix<double, 2, 6>* jacobian_pose = nullptr,
                              Matrix<double, 2, 3>* jacobian_point = nullptr)
@@ -202,60 +200,55 @@ TEST(NumericDerivative, BundleAdjustmentStereo)
 }
 
 
-TEST(NumericDerivative, Distortion)
-{
-    Vector<double, 8> c;
-    c.setRandom();
-    Distortion d(c);
 
-    Vec2 p = Vec2::Random();
-    Matrix<double, 2, 2> J1, J2;
-
-    Vec2 res1 = distortNormalizedPoint(p, d, &J1);
-    Vec2 res2 = EvaluateNumeric([&](auto p) { return distortNormalizedPoint(p, d); }, p, &J2, 1e-8);
-
-    ExpectCloseRelative(res1, res2, 1e-5);
-    ExpectCloseRelative(J1, J2, 1e-5);
-}
-
-
-Vec2 BundleAdjustmentDistortionVerbose(const IntrinsicsPinholed& camera, const Distortion& distortion,
-                                       const Vec2& observation, const SE3& pose, const Vec3& point, double weight,
+Vec2 BundleAdjustmentDistortionVerbose(const SE3& pose, const Vec3& point, const IntrinsicsPinholed& camera,
+                                       const Distortion& distortion, const Vec2& observation, double weight,
                                        Matrix<double, 2, 6>* jacobian_pose  = nullptr,
-                                       Matrix<double, 2, 3>* jacobian_point = nullptr)
+                                       Matrix<double, 2, 3>* jacobian_point = nullptr,
+                                       Matrix<double, 2, 5>* jacobian_K     = nullptr,
+                                       Matrix<double, 2, 8>* jacobian_dist  = nullptr)
 {
     // 1. Pose
 
     Matrix<double, 3, 6> J_pose;
     Matrix<double, 3, 3> J_point;
-    const Vec3 p = TransformPoint(pose, point, &J_pose, &J_point);
+    const Vec3 view_p = TransformPoint(pose, point, &J_pose, &J_point);
 
     // 2. Divide by z
-    Matrix<double, 2, 3> J_point_div;
-    const Vec2 p_by_z = DivideByZ(p, &J_point_div);
+    Matrix<double, 2, 3> J_p_div;
+    const Vec2 norm_p = DivideByZ(view_p, &J_p_div);
 
     // 3. Distortion
-    Mat2 J_dis;
-    const Vec2 distorted_point =
-        distortNormalizedPoint(p_by_z, distortion, (jacobian_pose || jacobian_point) ? &J_dis : nullptr);
+    Mat2 J_p_dis;
+    Matrix<double, 2, 8> J_dist_dist;
+    const Vec2 dist_p = distortNormalizedPoint(norm_p, distortion, &J_p_dis, &J_dist_dist);
 
     // 4. K
-    Mat2 J_K;
-    const Vec2 image_point =
-        camera.normalizedToImage(distorted_point, (jacobian_pose || jacobian_point) ? &J_K : nullptr);
+    Mat2 J_p_K;
+    Matrix<double, 2, 5> J_K_K;
+    const Vec2 image_p = camera.normalizedToImage(dist_p, &J_p_K, &J_K_K);
 
     // 5. residual
-    Vec2 residual = image_point - observation;
+    Vec2 residual = image_p - observation;
     residual *= weight;
 
     if (jacobian_pose)
     {
-        *jacobian_pose = weight * J_K * J_dis * J_point_div * J_pose;
+        *jacobian_pose = weight * J_p_K * J_p_dis * J_p_div * J_pose;
     }
 
     if (jacobian_point)
     {
-        *jacobian_point = weight * J_K * J_dis * J_point_div * J_point;
+        *jacobian_point = weight * J_p_K * J_p_dis * J_p_div * J_point;
+    }
+
+    if (jacobian_K)
+    {
+        *jacobian_K = weight * J_K_K;
+    }
+    if (jacobian_dist)
+    {
+        *jacobian_dist = weight * J_p_K * J_dist_dist;
     }
     return residual;
 }
@@ -266,44 +259,64 @@ TEST(NumericDerivative, BundleAdjustmentDistortion)
     Random::setSeed(49367346);
     SE3 pose_c_w = Random::randomSE3();
     Vec3 wp      = Vec3::Random();
-    IntrinsicsPinholed intr;
-    intr.coeffs(Vec5::Random());
 
-    Vector<double, 8> c;
-    c.setRandom();
-    c *= 0.01;
-    Distortion d(c);
-    //    d = Distortion();
 
-    Vec2 projection  = intr.project(pose_c_w * wp);
+    Vec5 intr = Vec5::Random();
+
+
+    Vector<double, 8> d;
+    d.setRandom();
+    d *= 0.1;
+
+    Vec2 projection  = IntrinsicsPinholed(intr).project(pose_c_w * wp);
     Vec2 observation = projection + Vec2::Random() * 0.1;
 
     double weight = 6;
     Matrix<double, 2, 6> J_pose_ref, J_pose_3;
     Matrix<double, 2, 3> J_point_ref, J_point_3;
+    Matrix<double, 2, 8> J_dist_ref, J_dist_3;
+    Matrix<double, 2, 5> J_K_ref, J_K_3;
     Vec2 res_ref, res3;
 
-    res3 = BundleAdjustmentDistortionVerbose(intr, d, observation, pose_c_w, wp, weight, &J_pose_3, &J_point_3);
+    res3 = BundleAdjustmentDistortionVerbose(pose_c_w, wp, intr, d, observation, weight, &J_pose_3, &J_point_3, &J_K_3,
+                                             &J_dist_3);
 
     {
+        // Pose
         Vec6 eps = Vec6::Zero();
-        res_ref  = EvaluateNumeric(
+        EvaluateNumeric(
             [=](auto p) {
                 auto pose_c_w_new = Sophus::se3_expd(p) * pose_c_w;
-                return BundleAdjustmentDistortionVerbose(intr, d, observation, pose_c_w_new, wp, weight);
+                return BundleAdjustmentDistortionVerbose(pose_c_w_new, wp, intr, d, observation, weight);
             },
             eps, &J_pose_ref);
     }
     {
-        res_ref = EvaluateNumeric(
-            [=](auto p) { return BundleAdjustmentDistortionVerbose(intr, d, observation, pose_c_w, p, weight); }, wp,
+        // Point
+        EvaluateNumeric(
+            [=](auto p) { return BundleAdjustmentDistortionVerbose(pose_c_w, p, intr, d, observation, weight); }, wp,
             &J_point_ref);
+    }
+
+    {
+        // Distortion
+        EvaluateNumeric(
+            [=](auto d) { return BundleAdjustmentDistortionVerbose(pose_c_w, wp, intr, d, observation, weight); }, d,
+            &J_dist_ref);
+    }
+
+    {
+        // K
+        res_ref = EvaluateNumeric(
+            [=](auto intr) { return BundleAdjustmentDistortionVerbose(pose_c_w, wp, intr, d, observation, weight); },
+            intr, &J_K_ref);
     }
 
     ExpectCloseRelative(res_ref, res3, 1e-5);
     ExpectCloseRelative(J_point_ref, J_point_3, 1e-5);
     ExpectCloseRelative(J_pose_ref, J_pose_3, 1e-5);
+    ExpectCloseRelative(J_dist_ref, J_dist_3, 1e-5);
+    ExpectCloseRelative(J_K_ref, J_K_3, 1e-5);
 }
 
-#endif
 }  // namespace Saiga
