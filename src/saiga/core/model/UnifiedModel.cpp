@@ -311,10 +311,30 @@ UnifiedModel& UnifiedModel::ComputeColor()
 
         auto& mat = materials[m.material_id];
 
-        m.color.resize(m.NumVertices());
-        for (auto& c : m.color)
+
+        if (!m.HasTC() || texture_name_to_id.count(mat.texture_diffuse) == 0)
         {
-            c = mat.color_diffuse;
+            // don't use texture color
+            m.color.resize(m.NumVertices());
+            for (auto& c : m.color)
+            {
+                c = mat.color_diffuse;
+            }
+        }
+        else
+        {
+            // sample color from texture
+            Image& img = textures[texture_name_to_id[mat.texture_diffuse]];
+            m.color.resize(m.NumVertices());
+
+            for (int i = 0; i < m.NumVertices(); ++i)
+            {
+                vec2 tc = m.texture_coordinates[i];
+
+                vec4 c = img.texture(tc);
+
+                m.color[i] = c;
+            }
         }
     }
     return *this;

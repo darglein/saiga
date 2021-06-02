@@ -65,6 +65,13 @@ class SAIGA_CORE_API UnifiedMesh
     // returns a reference to this
     UnifiedMesh& SetVertexColor(const vec4& color);
 
+    // Use barycentric interpolation to compute the color at a given triangle.
+    // Vertex colors must be available!
+    vec4 InterpolatedColorOnTriangle(int triangle_id, vec3 bary) const ;
+
+
+    UnifiedMesh& SmoothVertexColors(int iterations, float self_weight);
+
     // Set n = -n
     UnifiedMesh& FlipNormals();
 
@@ -81,6 +88,8 @@ class SAIGA_CORE_API UnifiedMesh
     // Faces are currently not updated (maybe todo in the future)
     UnifiedMesh& EraseVertices(ArrayView<int> vertices);
 
+
+    UnifiedMesh& RemoveDoubles(float distance);
 
     //
     // gather == true:

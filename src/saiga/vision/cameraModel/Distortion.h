@@ -30,9 +30,9 @@ struct DistortionBase
     T p1 = 0;
     T p2 = 0;
 
-    DistortionBase() {}
+    HD inline DistortionBase() {}
 
-    DistortionBase(const Eigen::Matrix<T, 8, 1>& c)
+    HD inline DistortionBase(const Eigen::Matrix<T, 8, 1>& c)
     {
         k1 = c(0);
         k2 = c(1);
@@ -44,7 +44,7 @@ struct DistortionBase
         p2 = c(7);
     }
 
-    Eigen::Matrix<T, 8, 1> Coeffs() const
+    HD inline Eigen::Matrix<T, 8, 1> Coeffs() const
     {
         Eigen::Matrix<T, 8, 1> result;
         result << k1, k2, k3, k4, k5, k6, p1, p2;
@@ -52,11 +52,53 @@ struct DistortionBase
     }
 
 
-    Eigen::Matrix<T, 8, 1> OpenCVOrder()
+    HD inline Eigen::Matrix<T, 8, 1> OpenCVOrder() const
     {
         Eigen::Matrix<T, 8, 1> result;
         result << k1, k2, p1, p2, k3, k4, k5, k6;
         return result;
+    }
+
+    template <typename G>
+    HD inline DistortionBase<G> cast() const
+    {
+        return Coeffs().template cast<G>().eval();
+    }
+
+    HD inline T RadialFactor(const Eigen::Matrix<T, 2, 1>& p)
+    {
+        T r2       = p.dot(p);
+        T r4       = r2 * r2;
+        T r6       = r2 * r4;
+        T radial_u = T(1) + k1 * r2 + k2 * r4 + k3 * r6;
+        T radial_v = T(1) + k4 * r2 + k5 * r4 + k6 * r6;
+
+        T radial_iv = T(1) / radial_v;
+        T radial    = radial_u * radial_iv;
+        return radial;
+    }
+
+    // Due to the higher oder polynomial the radial distortion is not monotonic.
+    // This results in a non-bijective mapping, where multiple world points are mapped to the same image points.
+    // To prevent this case, this function computes a threshold which should be passed as 'max_r' to
+    // distortNormalizedPoint.
+    HD inline T MonotonicThreshold(int steps = 100, T max_r = 2)
+    {
+        float last = 0;
+        float th   = max_r;
+        for (int i = 0; i < steps; ++i)
+        {
+            float a     = (float(i) / steps) * max_r;
+            float c     = RadialFactor(vec2(a, 0));
+            float shift = c * a;
+            if (shift - last < 0)
+            {
+                th = a;
+                break;
+            }
+            last = shift;
+        }
+        return th;
     }
 };
 
@@ -107,10 +149,12 @@ HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2
     T xd = x * radial + tangentialX;
     T yd = y * radial + tangentialY;
 
-    if (r2 > max_r)
+    if (r2 > max_r * max_r)
     {
         xd = x;
         yd = y;
+        xd = 100000;
+        yd = 100000;
     }
 
     if (J_point)

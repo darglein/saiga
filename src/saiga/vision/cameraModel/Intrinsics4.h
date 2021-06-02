@@ -30,7 +30,7 @@ struct IntrinsicsPinhole
     using Mat3 = Eigen::Matrix<T, 3, 3>;
     using Mat2 = Eigen::Matrix<T, 2, 2>;
 
-    // Initialized to the identity "matrix"
+    // Initialized to identity
     T fx = 1, fy = 1;
     T cx = 0, cy = 0;
     T s = 0;
@@ -40,7 +40,6 @@ struct IntrinsicsPinhole
     HD inline IntrinsicsPinhole(const Vec5& v) : fx(v(0)), fy(v(1)), cx(v(2)), cy(v(3)), s(v(4)) {}
     HD inline IntrinsicsPinhole(const Mat3& K) : fx(K(0, 0)), fy(K(1, 1)), cx(K(0, 2)), cy(K(1, 2)), s(K(0, 1)) {}
 
-    // IntrinsicsPinhole<T> inverse() const { return {T(1) / fx, T(1) / fy, -cx / fx, -cy / fy, s}; }
     HD inline IntrinsicsPinhole<T> inverse() const
     {
         T fx2 = 1 / fx;
@@ -137,6 +136,17 @@ struct IntrinsicsPinhole
     HD inline Vec5 coeffs() const { return {fx, fy, cx, cy, s}; }
     HD inline void coeffs(const Vec5& v) { (*this) = v; }
 };
+
+template <typename T>
+HD inline IntrinsicsPinhole<T> operator*(const IntrinsicsPinhole<T>& l, const IntrinsicsPinhole<T>& r)
+{
+    T fx2 = l.fx * r.fx;
+    T fy2 = l.fy * r.fy;
+    T s2  = l.fx * r.s + l.s * r.fy;
+    T cx2 = l.fx * r.cx + l.s * r.fy + l.cx;
+    T cy2 = l.fy * r.cy + l.cy;
+    return {fx2, fy2, cx2, cy2, s2};
+}
 
 using IntrinsicsPinholed = IntrinsicsPinhole<double>;
 using IntrinsicsPinholef = IntrinsicsPinhole<float>;

@@ -167,6 +167,8 @@ class SAIGA_VISION_API Scene
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     AlignedVector<IntrinsicsPinholed> intrinsics;
+    AlignedVector<Distortion> distortion;
+
     AlignedVector<WorldPoint> worldPoints;
     AlignedVector<SceneImage> images;
 
@@ -220,6 +222,7 @@ class SAIGA_VISION_API Scene
     void addWorldPointNoise(double stddev);
     void addImagePointNoise(double stddev);
     void addExtrinsicNoise(double stddev);
+    void addIntrinsicNoise(double stddev);
 
     // projects the world points to the images and
     // sets the image point = projection

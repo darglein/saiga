@@ -6,6 +6,7 @@
 
 #include "UnifiedMesh.h"
 
+#include "saiga/core/geometry/kdtree.h"
 #include "saiga/core/math/Morton.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/util/fileChecker.h"
@@ -138,13 +139,26 @@ UnifiedMesh& UnifiedMesh::FlatShading()
 
 UnifiedMesh& UnifiedMesh::EraseVertices(ArrayView<int> vertices)
 {
-    SAIGA_ASSERT(triangles.empty());
-    SAIGA_ASSERT(lines.empty());
+    for (auto i : vertices)
+    {
+        SAIGA_ASSERT(i >= 0 && i < NumVertices());
+    }
+
+
 
     std::vector<int> valid_vertex(NumVertices(), 1);
     for (auto v : vertices)
     {
+        SAIGA_ASSERT(valid_vertex[v] == 1);
         valid_vertex[v] = 0;
+    }
+
+    int valid_count = 0;
+    std::vector<int> new_indices(NumVertices());
+    for (int i = 0; i < NumVertices(); ++i)
+    {
+        new_indices[i] = valid_count;
+        if (valid_vertex[i]) valid_count++;
     }
 
     int old_size = NumVertices();
@@ -168,6 +182,31 @@ UnifiedMesh& UnifiedMesh::EraseVertices(ArrayView<int> vertices)
     if (!texture_coordinates.empty()) texture_coordinates = erase(texture_coordinates);
     if (!data.empty()) data = erase(data);
     if (!bone_info.empty()) bone_info = erase(bone_info);
+
+    SAIGA_ASSERT(valid_count == position.size());
+    SAIGA_ASSERT(old_size - vertices.size() == position.size());
+
+    // update triangle id + remove triangles with an invalid vertex
+    for (auto& t : triangles)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            int vid = t(i);
+            if (valid_vertex[vid])
+            {
+                t(i) = new_indices[t(i)];
+            }
+            else
+            {
+                t(0) = -1;
+            }
+        }
+    }
+
+    triangles.erase(std::remove_if(triangles.begin(), triangles.end(), [](ivec3 t) { return t(0) == -1; }),
+                    triangles.end());
+
+
     return *this;
 }
 
@@ -246,6 +285,7 @@ UnifiedMesh& UnifiedMesh::ReorderMorton64()
     vec3 scale  = float(1 << 20) / (bb.max - bb.min).array();
 
     std::vector<std::pair<uint64_t, int>> morton_list;
+    morton_list.reserve(NumVertices());
     for (int i = 0; i < NumVertices(); ++i)
     {
         vec3 p  = (position[i] + offset).array() * scale.array();
@@ -257,6 +297,7 @@ UnifiedMesh& UnifiedMesh::ReorderMorton64()
     std::sort(morton_list.begin(), morton_list.end(), [](auto a, auto b) { return a.first < b.first; });
 
     std::vector<int> sequence;
+    sequence.reserve(morton_list.size());
     for (auto i : morton_list)
     {
         sequence.push_back(i.second);
@@ -265,6 +306,7 @@ UnifiedMesh& UnifiedMesh::ReorderMorton64()
 
     ReorderVertices(sequence, true);
 
+#if 0
     {
         std::vector<std::pair<uint64_t, int>> morton_list;
         for (int i = 0; i < NumVertices(); ++i)
@@ -275,6 +317,7 @@ UnifiedMesh& UnifiedMesh::ReorderMorton64()
         }
         SAIGA_ASSERT(std::is_sorted(morton_list.begin(), morton_list.end()));
     }
+#endif
 
     return *this;
 }
@@ -345,6 +388,96 @@ VertexDataFlags UnifiedMesh::Flags() const
     return VertexDataFlags(HasPosition() * VERTEX_POSITION | HasNormal() * VERTEX_NORMAL | HasColor() * VERTEX_COLOR |
                            HasTC() * VERTEX_TEXTURE_COORDINATES | HasBones() * VERTEX_BONE_INFO |
                            HasData() * VERTEX_EXTRA_DATA);
+}
+vec4 UnifiedMesh::InterpolatedColorOnTriangle(int triangle_id, vec3 bary) const
+{
+    SAIGA_ASSERT(triangle_id >= 0 && triangle_id < triangles.size());
+    SAIGA_ASSERT(HasColor());
+    auto tri = triangles[triangle_id];
+
+    vec4 c1 = color[tri(0)];
+    vec4 c2 = color[tri(1)];
+    vec4 c3 = color[tri(2)];
+
+    return bary(0) * c1 + bary(1) * c2 + bary(2) * c3;
+}
+UnifiedMesh& UnifiedMesh::SmoothVertexColors(int iterations, float self_weight)
+{
+    SAIGA_ASSERT(HasColor());
+    for (int it = 0; it < iterations; ++it)
+    {
+        std::vector<float> count(NumVertices(), 0);
+        std::vector<vec4> colors_new(NumVertices(), vec4::Zero());
+
+        for (auto t : triangles)
+        {
+            for (int i = 0; i < 3; ++i)
+            {
+                int v1 = t(i);
+                for (int j = 0; j < 3; ++j)
+                {
+                    float w = i == j ? self_weight : 1;
+                    int v2  = t(j);
+                    colors_new[v2] += color[v1] * w;
+                    count[v2] += w;
+                }
+            }
+        }
+
+        for (int i = 0; i < NumVertices(); ++i)
+        {
+            colors_new[i] = colors_new[i] / count[i];
+        }
+
+        color = colors_new;
+    }
+    return *this;
+}
+UnifiedMesh& UnifiedMesh::RemoveDoubles(float distance)
+{
+    std::vector<int> to_merge(NumVertices());
+
+    std::vector<int> to_erase;
+    std::vector<int> valid(NumVertices(), 0);
+    KDTree<3, vec3> tree(position);
+    for (int i = 0; i < position.size(); ++i)
+    {
+        auto ps     = tree.RadiusSearch(position[i], distance);
+        bool found  = false;
+        to_merge[i] = i;
+        for (auto pi : ps)
+        {
+            if (valid[pi])
+            {
+                to_erase.push_back(i);
+                to_merge[i] = pi;
+                found       = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            valid[i] = true;
+        }
+    }
+
+    for (auto& t : triangles)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            t(i) = to_merge[t(i)];
+        }
+    }
+
+    for (auto& t : lines)
+    {
+        for (int i = 0; i < 2; ++i)
+        {
+            t(i) = to_merge[t(i)];
+        }
+    }
+
+    return EraseVertices(to_erase);
 }
 
 template <>

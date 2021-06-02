@@ -23,6 +23,16 @@ HD constexpr typename Derived::PlainObject clamp(const Eigen::EigenBase<Derived>
     return tmp.array().min(maxVal.derived().array());
 }
 
+template <typename Derived>
+HD constexpr typename Derived::PlainObject saturate(const Eigen::EigenBase<Derived>& x)
+{
+    typename Derived::PlainObject z, o;
+    z.setZero();
+    o.setOnes();
+    return clamp<Derived>(x, z, o);
+}
+
+
 template <typename Derived1, typename Derived2>
 HD constexpr auto mix(const Eigen::MatrixBase<Derived1>& a, const Eigen::MatrixBase<Derived2>& b,
                       typename Derived1::Scalar alpha)

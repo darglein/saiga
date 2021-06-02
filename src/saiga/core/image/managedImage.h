@@ -156,6 +156,9 @@ class SAIGA_CORE_API Image : public ImageBase
     std::vector<uint8_t> compress();
     void decompress(std::vector<uint8_t> data);
 
+    // A glsl-like sample call
+    vec4 texture(vec2 uv);
+
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Image& f);
 };
 

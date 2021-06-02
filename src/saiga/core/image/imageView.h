@@ -159,6 +159,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 
     // bilinear interpolated pixel with UV values [0,1]
     HD inline T interUV(float u, float v) const { return inter(v * (height - 1), u * (width - 1)); }
+    // using GL coordinates (y pointing upwards)
+    HD inline T interUVGL(float u, float v) const { return inter((1 - v) * (height - 1), u * (width - 1)); }
 
     // bilinear interpolated pixel with clamp to edge boundary
     HD inline T inter(float sy, float sx) const

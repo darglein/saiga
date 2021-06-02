@@ -81,21 +81,25 @@ bool Triangle::isDegenerate() const
 
 vec3 Triangle::RandomPointOnSurface() const
 {
-#if 0
-    auto bary = Random::MatrixUniform<vec3>(0, 1);
-    // make sure they sum up to 1
-    bary = bary / bary.array().sum();
-    return a * bary(0) + b * bary(1) + c * bary(2);
-#else
-    auto r = Random::MatrixUniform<vec2>(0, 1);
-
+    auto r  = Random::MatrixUniform<vec2>(0, 1);
     auto r1 = sqrt(r(0));
     auto r2 = r(1);
+
+    vec3 bary((1 - r1), (r1 * (1 - r2)), r2 * r1);
+    return InterpolateBarycentric(bary);
+
     return (1 - r1) * a + (r1 * (1 - r2)) * b + r2 * r1 * c;
-#endif
 }
 
+vec3 Triangle::RandomBarycentric() const
+{
+    auto r  = Random::MatrixUniform<vec2>(0, 1);
+    auto r1 = sqrt(r(0));
+    auto r2 = r(1);
 
+    vec3 bary((1 - r1), (r1 * (1 - r2)), r2 * r1);
+    return bary;
+}
 
 float mag2(const vec3& x)
 {
@@ -137,6 +141,11 @@ vec3 Triangle::BarycentricCoordinates(const vec3& x0) const
     float w12 = 1 - w23 - w31;
 
     return {w12, w23, w31};
+}
+
+vec3 Triangle::InterpolateBarycentric(const vec3& bary) const
+{
+    return bary(0) * a + bary(1) * b + bary(2) * c;
 }
 
 float Triangle::Distance(const vec3& x0) const

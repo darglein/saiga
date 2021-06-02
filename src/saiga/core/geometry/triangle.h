@@ -48,6 +48,8 @@ class SAIGA_CORE_API Triangle
     // =============================================================
 
     vec3 RandomPointOnSurface() const;
+    vec3 RandomBarycentric() const;
+
 
     // Scale this triangle uniformly by the given factor.
     //  - Translate by -center
@@ -85,6 +87,8 @@ class SAIGA_CORE_API Triangle
 
     // Returns the barycentric coordinates of point x projected to the triangle plane
     vec3 BarycentricCoordinates(const vec3& x) const;
+
+    vec3 InterpolateBarycentric(const vec3& bary) const;
 
     // Distance of a point to the triangle
     float Distance(const vec3& x) const;

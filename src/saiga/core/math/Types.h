@@ -28,6 +28,7 @@ using Vec4 = Vector<double, 4>;
 using Vec5 = Vector<double, 5>;
 using Vec6 = Vector<double, 6>;
 using Vec7 = Vector<double, 7>;
+using Vec8 = Vector<double, 8>;
 using Vec9 = Vector<double, 9>;
 
 using Mat2 = Matrix<double, 2, 2>;
