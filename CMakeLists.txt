@@ -43,7 +43,7 @@ OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" 
 OptionsHelper (SAIGA_CUDA_BLSP "enables cublas and cusparse" OFF)
 OptionsHelper (SAIGA_CUDA_RDC "cuda relocateable device code" OFF)
 OptionsHelper (SAIGA_CUDA_COMP "Add CUDA compile flags that make the code compatible with older GPUs but takes longer to compile" OFF)
-OptionsHelper(SAIGA_BUILD_DOC "Build documentation" ON)
+OptionsHelper(SAIGA_BUILD_DOC "Build documentation" OFF)
 OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
 OptionsHelper(SAIGA_LEGACY_GLM "Use GLM instead of eigen. This feature will be removed in the near future" OFF)
 OptionsHelper(SAIGA_PCH "Generate a precompiled header" OFF)
@@ -160,6 +160,7 @@ set(INSTALL_SAMPLES   "share/${LIB_NAME}/bin")
 message(STATUS "\nCompiler Flags:")
 
 message(STATUS "SAIGA_CXX_FLAGS: ${SAIGA_CXX_FLAGS}")
+message(STATUS "SAIGA_PRIVATE_CXX_FLAGS: ${SAIGA_PRIVATE_CXX_FLAGS}")
 message(STATUS "SAIGA_LD_FLAGS: ${SAIGA_LD_FLAGS}")
 
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")

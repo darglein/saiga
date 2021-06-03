@@ -24,19 +24,25 @@ Eigen::Vector3d Scene::residual3(const SceneImage& img, const StereoImagePoint& 
     SAIGA_ASSERT(ip.depth > 0);
 
     // project to screen
-    auto p = img.se3 * wp.p;
+    Vec3 p = img.se3 * wp.p;
     auto z = p(2);
 
+    Vec2 p_norm = p.head<2>() / z;
 
-    auto p2 = intrinsics[img.intr].project(p);
+    if (!distortion.empty())
+    {
+        p_norm = distortNormalizedPoint(p_norm, distortion[img.intr]);
+    }
+
+    auto p_img = intrinsics[img.intr].normalizedToImage(p_norm);
 
     auto w = ip.weight * scale();
 
     Eigen::Vector3d res;
-    res.head<2>() = (ip.point - p2);
+    res.head<2>() = (ip.point - p_img);
     //    res(2)        = (1.0 / ip.depth - 1.0 / z) * bf;
 
-    auto disparity      = p2(0) - bf / z;
+    auto disparity      = p_img(0) - bf / z;
     auto stereoPointObs = ip.point(0) - bf / ip.depth;
     res(2)              = stereoPointObs - disparity;
 
@@ -51,16 +57,22 @@ Eigen::Vector2d Scene::residual2(const SceneImage& img, const StereoImagePoint& 
 {
     WorldPoint& wp = worldPoints[ip.wp];
 
-    //    SAIGA_ASSERT(ip);
-    //    SAIGA_ASSERT(wp);
 
-    // project to screen
     auto p = img.se3 * wp.p;
-    // auto z  = p(2);
-    auto p2 = intrinsics[img.intr].project(p);
-    auto w  = ip.weight * scale();
+    auto z = p(2);
+
+    Vec2 p_norm = p.head<2>() / z;
+
+    if (!distortion.empty())
+    {
+        p_norm = distortNormalizedPoint(p_norm, distortion[img.intr]);
+    }
+
+    auto p_img = intrinsics[img.intr].normalizedToImage(p_norm);
+
+    auto w = ip.weight * scale();
     Eigen::Vector2d res;
-    res.head<2>() = (ip.point - p2);
+    res.head<2>() = (ip.point - p_img);
     res *= w;
 
     // if (z <= 0) res *= 10000000;
@@ -522,6 +534,13 @@ void Scene::addExtrinsicNoise(double stddev)
     for (SceneImage& e : images)
     {
         e.se3.translation() += Random::MatrixGauss<Vec3>(0, stddev);
+    }
+}
+void Scene::addIntrinsicNoise(double stddev)
+{
+    for (auto& intr : intrinsics)
+    {
+        intr = Vec5(intr.coeffs() + Random::MatrixGauss<Vec5>(0, stddev));
     }
 }
 

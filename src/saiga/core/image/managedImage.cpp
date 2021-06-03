@@ -149,7 +149,7 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
 {
     bool erg = false;
 
-    if(hint == "png")
+    if (hint == "png")
     {
 #ifdef SAIGA_USE_PNG
 
@@ -320,6 +320,19 @@ std::ostream& operator<<(std::ostream& os, const Image& f)
        << " channels/elementType " << channels(f.type) << "/" << (int)elementType(f.type)
        << " BPP: " << bitsPerPixel(f.type);
     return os;
+}
+vec4 Image::texture(vec2 uv)
+{
+    switch (type)
+    {
+        case ImageType::UC3:
+            return make_vec4(getImageView<ucvec3>().interUVGL(uv(0), uv(1)).cast<float>() * (1.f / 255.f), 1);
+            break;
+        case ImageType::UC4:
+            return getImageView<ucvec4>().interUVGL(uv(0), uv(1)).cast<float>() * (1.f / 255.f);
+            break;
+    }
+    return Saiga::vec4(0, 0, 0, 0);
 }
 
 }  // namespace Saiga

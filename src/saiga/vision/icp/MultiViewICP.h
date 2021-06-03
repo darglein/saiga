@@ -20,7 +20,7 @@ namespace ICP
  * Point-to-Plane metric is used.
  */
 SAIGA_VISION_API void multiViewICP(const std::vector<Depthmap::DepthMap>& depthMaps, AlignedVector<SE3>& guesses,
-                                   Intrinsics4 camera, int iterations,
+                                   IntrinsicsPinholed camera, int iterations,
                                    ProjectiveCorrespondencesParams params = ProjectiveCorrespondencesParams());
 
 
@@ -28,7 +28,7 @@ SAIGA_VISION_API void multiViewICP(const std::vector<Depthmap::DepthMap>& depthM
  * Aligns all depthmaps relative to the first one.
  */
 SAIGA_VISION_API void multiViewICPSimple(const std::vector<Depthmap::DepthMap>& depthMaps, AlignedVector<SE3>& guesses,
-                                         Intrinsics4 camera, int iterations,
+                                         IntrinsicsPinholed camera, int iterations,
                                          ProjectiveCorrespondencesParams params = ProjectiveCorrespondencesParams());
 
 

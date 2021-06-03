@@ -21,7 +21,7 @@ if(SAIGA_BUILD_SHARED)
 else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
 endif()
-
+target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_PRIVATE_CXX_FLAGS}>")
 target_link_libraries(${MODULE_NAME} ${ALL_CUDA_LIBS})
 target_link_libraries(${MODULE_NAME} ${CUDA_LIBS})
 target_link_libraries(${MODULE_NAME} ${CUDA_TARGETS})

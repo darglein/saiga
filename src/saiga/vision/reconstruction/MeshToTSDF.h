@@ -19,15 +19,24 @@ struct SimpleVertex
 {
     vec3 position;
     vec3 normal;
+
+    // The triangle index and its barycentric coordinates
+    int triangle_index;
+    vec3 bary;
+    float radius = 1;
 };
 using SimplePointCloud = std::vector<SimpleVertex>;
 
-SAIGA_VISION_API SimplePointCloud MeshToPointCloud(const std::vector<Triangle>& triangles, int N);
+// The Sample Probability of the i-th triangle is: Area(triangle[i]) * weight[i]
+SAIGA_VISION_API SimplePointCloud RandomSampleMesh(const std::vector<Triangle>& triangles,
+                                                   const std::vector<float>& weights, int N);
 
+// The search radius for each point is weights[i] * radius
 SAIGA_VISION_API SimplePointCloud ReducePointsPoissonDisc(const SimplePointCloud& points, float radius);
 
-
-SAIGA_VISION_API SimplePointCloud MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& triangles, int max_samples,
+// The Sample Probability of the i-th triangle is: Area(triangle[i]) * weight[i]
+SAIGA_VISION_API SimplePointCloud MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& triangles,
+                                                               const std::vector<float>& weights, int max_samples,
                                                                float radius);
 
 

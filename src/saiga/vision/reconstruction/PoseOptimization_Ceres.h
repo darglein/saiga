@@ -46,12 +46,12 @@ struct PoseOptimizationCeresCost
         return true;
     }
 
-    PoseOptimizationCeresCost(Intrinsics4 intr, Vec2 observed, Vec3 wp, double weight = 1)
+    PoseOptimizationCeresCost(IntrinsicsPinholed intr, Vec2 observed, Vec3 wp, double weight = 1)
         : _intr(intr), _observed(observed), _wp(wp), weight(weight)
     {
     }
 
-    Intrinsics4 _intr;
+    IntrinsicsPinholed _intr;
     Vec2 _observed;
     Vec3 _wp;
     double weight;

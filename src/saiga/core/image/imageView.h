@@ -126,9 +126,10 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     }
 
     HD inline T& operator()(int y, int x) { return rowPtr(y)[x]; }
-
     HD inline const T& operator()(int y, int x) const { return rowPtr(y)[x]; }
 
+    HD inline T& operator()(ivec2 p) { return this->operator()(p.y(), p.x()); }
+    HD inline const T& operator()(ivec2 p) const { return this->operator()(p.y(), p.x()); }
 
     HD inline T* rowPtr(int y)
     {
@@ -158,6 +159,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 
     // bilinear interpolated pixel with UV values [0,1]
     HD inline T interUV(float u, float v) const { return inter(v * (height - 1), u * (width - 1)); }
+    // using GL coordinates (y pointing upwards)
+    HD inline T interUVGL(float u, float v) const { return inter((1 - v) * (height - 1), u * (width - 1)); }
 
     // bilinear interpolated pixel with clamp to edge boundary
     HD inline T inter(float sy, float sx) const
@@ -165,29 +168,21 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         int x0 = iFloor(sx);
         int y0 = iFloor(sy);
 
-        // interpolation weights
-        float ax = sx - x0;
-        float ay = sy - y0;
-
         if (x0 < 0)
         {
             x0 = 0;
-            ax = 0;
         }
         if (x0 >= width)
         {
             x0 = width - 1;
-            ax = 0;
         }
         if (y0 < 0)
         {
             y0 = 0;
-            ay = 0;
         }
         if (y0 >= height)
         {
             y0 = height - 1;
-            ay = 0;
         }
 
 
@@ -207,8 +202,6 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         auto b01 = ttf.toFloat((*this)(y0, x1));
         auto b10 = ttf.toFloat((*this)(y1, x0));
         auto b11 = ttf.toFloat((*this)(y1, x1));
-
-        // auto res = (b00 * (1.0f - ax) + b01 * (ax)) * (1.0f - ay) + (b10 * (1.0f - ax) + b11 * (ax)) * (ay);
 
         typename TexelFloatConverter<T, false>::FloatType res =
             b00 * ((x1 - sx) * (y1 - sy)) + b01 * ((sx - x0) * (y1 - sy)) + b10 * ((x1 - sx) * (sy - y0)) +

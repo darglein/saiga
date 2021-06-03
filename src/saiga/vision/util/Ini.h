@@ -35,7 +35,7 @@ void fromIniString(const std::string& str, Sophus::SE3<_Scalar>& M)
 
 
 template <typename _Scalar>
-std::string toIniString(const Intrinsics4Base<_Scalar>& I)
+std::string toIniString(const IntrinsicsPinhole<_Scalar>& I)
 {
     return toIniString(I.coeffs());
 }
@@ -47,9 +47,9 @@ std::string toIniString(const StereoCamera4Base<_Scalar>& I)
 }
 
 template <typename _Scalar>
-void fromIniString(const std::string& str, Intrinsics4Base<_Scalar>& I)
+void fromIniString(const std::string& str, IntrinsicsPinhole<_Scalar>& I)
 {
-    typename Intrinsics4Base<_Scalar>::Vec4 v;
+    typename IntrinsicsPinhole<_Scalar>::Vec5 v;
     fromIniString(str, v);
     I.coeffs(v);
 }

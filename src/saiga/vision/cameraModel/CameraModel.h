@@ -15,7 +15,7 @@ namespace Saiga
 {
 struct PinholeCamera
 {
-    Intrinsics4 K;
+    IntrinsicsPinholed K;
     Distortion dis;
 };
 

@@ -75,7 +75,7 @@ double BAPoseOnly::computeQuadraticForm()
             else
             {
                 Matrix<double, 2, 6> JrowPose;
-                auto [res, depth] = BundleAdjustment(camera, ip.point, extr, wp, w, &JrowPose, nullptr);
+                auto [res, depth] = BundleAdjustment<double>(camera, ip.point, extr, wp, w, &JrowPose, nullptr);
 
 
 

@@ -81,21 +81,25 @@ bool Triangle::isDegenerate() const
 
 vec3 Triangle::RandomPointOnSurface() const
 {
-#if 0
-    auto bary = Random::MatrixUniform<vec3>(0, 1);
-    // make sure they sum up to 1
-    bary = bary / bary.array().sum();
-    return a * bary(0) + b * bary(1) + c * bary(2);
-#else
-    auto r = Random::MatrixUniform<vec2>(0, 1);
-
+    auto r  = Random::MatrixUniform<vec2>(0, 1);
     auto r1 = sqrt(r(0));
     auto r2 = r(1);
+
+    vec3 bary((1 - r1), (r1 * (1 - r2)), r2 * r1);
+    return InterpolateBarycentric(bary);
+
     return (1 - r1) * a + (r1 * (1 - r2)) * b + r2 * r1 * c;
-#endif
 }
 
+vec3 Triangle::RandomBarycentric() const
+{
+    auto r  = Random::MatrixUniform<vec2>(0, 1);
+    auto r1 = sqrt(r(0));
+    auto r2 = r(1);
 
+    vec3 bary((1 - r1), (r1 * (1 - r2)), r2 * r1);
+    return bary;
+}
 
 float mag2(const vec3& x)
 {
@@ -103,9 +107,9 @@ float mag2(const vec3& x)
 }
 
 // find distance x0 is from segment x1-x2
-static float point_segment_distance(const Vec3f& x0, const Vec3f& x1, const Vec3f& x2)
+static float point_segment_distance(const vec3& x0, const vec3& x1, const vec3& x2)
 {
-    Vec3f dx(x2 - x1);
+    vec3 dx(x2 - x1);
     float m2 = mag2(dx);
     // find parameter value of closest point on segment+++
     float s12 = (float)(dot(x2 - x0, dx) / m2);
@@ -127,7 +131,7 @@ vec3 Triangle::BarycentricCoordinates(const vec3& x0) const
     auto x2 = b;
     auto x3 = c;
     // first find barycentric coordinates of closest point on infinite plane
-    Vec3f x13(x1 - x3), x23(x2 - x3), x03(x0 - x3);
+    vec3 x13(x1 - x3), x23(x2 - x3), x03(x0 - x3);
     float m13 = mag2(x13), m23 = mag2(x23), d = dot(x13, x23);
     float invdet = 1.f / std::max(m13 * m23 - d * d, 1e-30f);
     float a = dot(x13, x03), b = dot(x23, x03);
@@ -139,13 +143,18 @@ vec3 Triangle::BarycentricCoordinates(const vec3& x0) const
     return {w12, w23, w31};
 }
 
+vec3 Triangle::InterpolateBarycentric(const vec3& bary) const
+{
+    return bary(0) * a + bary(1) * b + bary(2) * c;
+}
+
 float Triangle::Distance(const vec3& x0) const
 {
     auto x1 = a;
     auto x2 = b;
     auto x3 = c;
     // first find barycentric coordinates of closest point on infinite plane
-    Vec3f x13(x1 - x3), x23(x2 - x3), x03(x0 - x3);
+    vec3 x13(x1 - x3), x23(x2 - x3), x03(x0 - x3);
     float m13 = mag2(x13), m23 = mag2(x23), d = dot(x13, x23);
     float invdet = 1.f / std::max(m13 * m23 - d * d, 1e-30f);
     float a = dot(x13, x03), b = dot(x23, x03);

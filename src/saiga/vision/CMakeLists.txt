@@ -58,6 +58,7 @@ else ()
 endif()
 
 target_link_libraries(${MODULE_NAME} ${VISION_TARGETS}  ${VISION_LIBS})
+target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_PRIVATE_CXX_FLAGS}>")
 
 target_include_directories(
     ${MODULE_NAME}

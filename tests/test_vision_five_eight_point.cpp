@@ -92,8 +92,8 @@ class FiveEightPointTest
     SE3 reference_T;
     Mat3 reference_E, reference_F;
 
-    Intrinsics4 K1;
-    Intrinsics4 K2;
+    IntrinsicsPinholed K1;
+    IntrinsicsPinholed K2;
 
     int N;
     std::vector<Vec2> points1, points2;

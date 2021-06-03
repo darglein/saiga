@@ -61,7 +61,7 @@ struct FeatureGridBounds2
 
     // Undistorts points at the image edges
     // to compute the bounding box
-    void computeFromIntrinsicsDist(int w, int h, const Saiga::Intrinsics4Base<T>& intr,
+    void computeFromIntrinsicsDist(int w, int h, const Saiga::IntrinsicsPinhole<T>& intr,
                                    const Saiga::DistortionBase<T>& dist, int resolution = 20)
     {
         std::vector<Vec2> points;

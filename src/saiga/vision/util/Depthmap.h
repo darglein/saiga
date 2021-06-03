@@ -30,7 +30,7 @@ using DepthNormalMap  = ImageView<Vec3>;
  * Projects the depth points to camera space.
  * For invalid depth value the point will be at infinity.
  */
-SAIGA_VISION_API void toPointCloud(DepthMap dm, DepthPointCloud pc, const Intrinsics4& camera);
+SAIGA_VISION_API void toPointCloud(DepthMap dm, DepthPointCloud pc, const IntrinsicsPinholed& camera);
 
 
 /**

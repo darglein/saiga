@@ -17,19 +17,23 @@
 FUNC_DECL vec3 rgb2hsv(vec3 c)
 {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
 
-    float d = q.x - std::min(q.w, q.y);
+    vec4 p = mix(vec4(c[2], c[1], K[3], K[2]), vec4(c[1], c[2], K[0], K[1]), mix(1.f, 0.f, c[2] < c[1]));
+    vec4 q = mix(vec4(p[0], p[1], p[3], c[0]), vec4(c[0], p[1], p[2], p[0]), mix(1.f, 0.f, p[0] < c[0]));
+
+    float d = q[0] - std::min(q[3], q[1]);
     float e = 1.0e-10;
-    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+    return vec3(abs(q[2] + (q[3] - q[1]) / (6.0 * d + e)), d / (q[0] + e), q[0]);
 }
 
 FUNC_DECL vec3 hsv2rgb(vec3 c)
 {
     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0f - K.www);
-    return c.z * mix(vec3(K.xxx), vec3(clamp(p - K.xxx, vec3(0.0f), vec3(1.0f))), c.y);
+    //    vec3 fra = fract(make_vec3(c[0]) + make_vec3(K));
+    vec3 fra = (make_vec3(c[0]) + make_vec3(K));
+    fra      = fra.array() - fra.array().floor();
+    vec3 p   = vec3(fra * 6.0f - make_vec3(K[3])).array().abs();
+    return c[2] * mix(make_vec3(K[0]), clamp((p - make_vec3(K[0])).eval(), make_vec3(0.0), make_vec3(1.0)), c[1]);
 }
 
 #endif

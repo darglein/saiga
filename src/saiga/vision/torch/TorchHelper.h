@@ -41,8 +41,8 @@ inline void PrintTensorInfo(at::Tensor t)
     {
         mean = t.mean().item().toFloat();
     }
-    std::cout << "Tensor " << t.sizes() << " " << t.dtype() << " " << t.device() << " Min/Max " << mi << " " << ma
-              << " Mean " << mean << std::endl;
+    std::cout << "Tensor " <<  t.sizes() << " " << t.dtype() << " " << t.device() << " Min/Max " << mi << " " << ma
+              << " Mean " << mean << " req-grad " << t.requires_grad() << std::endl;
 }
 
 

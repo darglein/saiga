@@ -64,7 +64,21 @@ inline Sophus::SE3<T> scale(const Sophus::SE3<T>& a, double alpha)
  * | -y   x   0 |
  *
  */
-SAIGA_VISION_API extern Mat3 skew(const Vec3& a);
+
+template <typename T>
+HD inline Matrix<T, 3, 3> skew(const Vector<T, 3>& a)
+{
+    Matrix<T, 3, 3> m;
+    // clang-format off
+    m <<
+        0,      -a(2),  a(1),
+        a(2),   0,      -a(0),
+        -a(1),  a(0),   0;
+    // clang-format on
+
+    return m;
+}
+
 
 
 SAIGA_VISION_API extern Mat3 enforceRank2(const Mat3& M);

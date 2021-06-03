@@ -82,7 +82,7 @@ class SAIGA_VISION_API TwoViewReconstructionEightPoint : public TwoViewReconstru
 {
    public:
     // must be called once before running compute!
-    void init(const RansacParameters& ransac_params, Intrinsics4 K);
+    void init(const RansacParameters& ransac_params, IntrinsicsPinholed K);
     void compute(ArrayView<const Vec2> points1, ArrayView<const Vec2> points2, ArrayView<const Vec2> normalized_points1,
                  ArrayView<const Vec2> normalized_points2);
 

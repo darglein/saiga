@@ -13,8 +13,8 @@
  */
 vec2 distortNormalizedPoint(vec2 point, vec4 dis_1, vec4 dis_2)
 {
-    float x = point.x;
-    float y = point.y;
+    float x = point[0];
+    float y = point[1];
 
     float k1 = dis_1[0];
     float k2 = dis_1[1];

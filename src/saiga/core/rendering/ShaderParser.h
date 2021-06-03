@@ -13,7 +13,7 @@
 
 namespace Saiga
 {
-struct ShaderCode
+struct SAIGA_CORE_API ShaderCode
 {
     std::vector<std::string> dependent_files;
 
@@ -33,7 +33,7 @@ struct ShaderCode
 
 // This function loads the file given by a path and replaces #include commands
 // by the respective code. All includes are
-SAIGA_OPENGL_API ShaderCode LoadFileAndResolveIncludes(const std::string file, bool add_line_directives);
+SAIGA_CORE_API ShaderCode LoadFileAndResolveIncludes(const std::string file, bool add_line_directives);
 
 
 

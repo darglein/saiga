@@ -95,8 +95,8 @@ struct DiscreteResponseFunction
 
         // SAIGA_ASSERT(samples.size() == 256);
 
-        float factor_x = float(n) / (irradiance.size() - 1);
-        float factor_y = float(n) / (irradiance.back());
+        float factor_x = float(n - 1) / (irradiance.size() - 1);
+        float factor_y = float(n - 1) / (irradiance.back());
 
         for (int i = 0; i < irradiance.size() - 1; ++i)
         {

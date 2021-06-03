@@ -284,7 +284,7 @@ TEST(TSDF, Trace)
 
     //    SE3 view        = test->scene.images[0].V;
     SE3 model(Quat::Identity(), Vec3(0, 0, -2));
-    Intrinsics4 K(w, h, w / 2, h / 2);
+    IntrinsicsPinholed K(w, h, w / 2, h / 2, 0);
     Vec3 camera_pos = model.translation();
 
     auto tris = test->mesh.TriangleSoup();

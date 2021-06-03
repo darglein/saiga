@@ -90,7 +90,7 @@ struct SAIGA_VISION_API FusionScene
     // Set by the user
     std::vector<FusionImage> images;
     std::shared_ptr<std::vector<TemplatedImage<float>>> local_depth_images;
-    Intrinsics4 K;
+    IntrinsicsPinholed K;
     Distortion dis;
     FusionParams params;
 
