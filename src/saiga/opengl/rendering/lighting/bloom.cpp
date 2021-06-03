@@ -173,33 +173,39 @@ void Bloom::Render(Texture* hdr_texture)
 
     if (mode == DebugMode::DEBUG_ADD)
     {
-        copy_image_shader->bind();
-        bright_textures.front()->bindImageTexture(0, GL_READ_ONLY);
-        hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
-        copy_image_shader->dispatchComputeImage(hdr_texture, 16);
-        copy_image_shader->unbind();
+        if(copy_image_shader->bind())
+        {
+            bright_textures.front()->bindImageTexture(0, GL_READ_ONLY);
+            hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
+            copy_image_shader->dispatchComputeImage(hdr_texture, 16);
+            copy_image_shader->unbind();
+        }
         return;
     }
 
     if (mode == DebugMode::DEBUG_LAST)
     {
-        copy_image_shader->bind();
-        bright_textures.back()->bindImageTexture(0, GL_READ_ONLY);
-        hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
-        copy_image_shader->dispatchComputeImage(hdr_texture, 16);
-        copy_image_shader->unbind();
+        if(copy_image_shader->bind())
+        {
+            bright_textures.back()->bindImageTexture(0, GL_READ_ONLY);
+            hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
+            copy_image_shader->dispatchComputeImage(hdr_texture, 16);
+            copy_image_shader->unbind();
+        }
         return;
     }
 
 
-    combine_shader->bind();
-    hdr_texture->bindImageTexture(0, GL_READ_WRITE);
-    for (int i = 0; i < 1; ++i)
+    if(combine_shader->bind())
     {
-        combine_shader->upload(i, bright_textures[i], i);
+        hdr_texture->bindImageTexture(0, GL_READ_WRITE);
+        for (int i = 0; i < 1; ++i)
+        {
+            combine_shader->upload(i, bright_textures[i], i);
+        }
+        combine_shader->dispatchComputeImage(hdr_texture, 16);
+        combine_shader->unbind();
     }
-    combine_shader->dispatchComputeImage(hdr_texture, 16);
-    combine_shader->unbind();
 }
 void Bloom::resize(int w, int h)
 {
@@ -247,17 +253,20 @@ void Bloom::resize(int w, int h)
         }
     }
 }
-void Bloom::Blur() {  blurx_shader->bind();
-    blurx_shader->upload(5, bright_textures[i - 1], 0);
-    blur_textures[i - 1]->bindImageTexture(1, GL_WRITE_ONLY);
-    blurx_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
+void Bloom::Blur(Texture* source, Texture* target, Texture* tmp)
+{
+    blurx_shader->bind();
+    blurx_shader->upload(5, source, 0);
+    tmp->bindImageTexture(1, GL_WRITE_ONLY);
+    blurx_shader->dispatchComputeImage(tmp, 16);
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
     blurx_shader->unbind();
 
     blury_shader->bind();
-    blury_shader->upload(5, blur_textures[i - 1], 0);
-    bright_textures[i - 1]->bindImageTexture(1, GL_WRITE_ONLY);
-    blury_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
+    blury_shader->upload(5, tmp, 0);
+    target->bindImageTexture(1, GL_WRITE_ONLY);
+    blury_shader->dispatchComputeImage(target, 16);
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-    blury_shader->unbind();}
+    blury_shader->unbind();
+}
 }  // namespace Saiga

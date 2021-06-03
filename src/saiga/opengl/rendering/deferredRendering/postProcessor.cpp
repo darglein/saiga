@@ -219,14 +219,16 @@ void PostProcessor::applyShader(std::shared_ptr<PostProcessingShader> postProces
     framebuffers[currentBuffer].bind();
 
 
-    postProcessingShader->bind();
-    vec4 screenSize(width, height, 1.0 / width, 1.0 / height);
-    postProcessingShader->uploadScreenSize(screenSize);
-    postProcessingShader->uploadTexture((first) ? LightAccumulationTexture : textures[lastBuffer]);
-    postProcessingShader->uploadGbufferTextures(gbuffer);
-    postProcessingShader->uploadAdditionalUniforms();
-    quadMesh.BindAndDraw();
-    postProcessingShader->unbind();
+    if(postProcessingShader->bind())
+    {
+        vec4 screenSize(width, height, 1.0 / width, 1.0 / height);
+        postProcessingShader->uploadScreenSize(screenSize);
+        postProcessingShader->uploadTexture((first) ? LightAccumulationTexture : textures[lastBuffer]);
+        postProcessingShader->uploadGbufferTextures(gbuffer);
+        postProcessingShader->uploadAdditionalUniforms();
+        quadMesh.BindAndDraw();
+        postProcessingShader->unbind();
+    }
 
     //    framebuffers[currentBuffer].unbind();
 
@@ -251,14 +253,16 @@ void PostProcessor::renderLast(Framebuffer* target, ViewPort vp)
     //    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     target->bind();
     glDisable(GL_DEPTH_TEST);
-    passThroughShader->bind();
-    vec4 screenSize(width, height, 1.0 / width, 1.0 / height);
-    passThroughShader->uploadScreenSize(screenSize);
-    passThroughShader->uploadTexture(textures[currentBuffer]);
-    passThroughShader->uploadGbufferTextures(gbuffer);
-    passThroughShader->uploadAdditionalUniforms();
-    quadMesh.BindAndDraw();
-    passThroughShader->unbind();
+    if(passThroughShader->bind())
+    {
+        vec4 screenSize(width, height, 1.0 / width, 1.0 / height);
+        passThroughShader->uploadScreenSize(screenSize);
+        passThroughShader->uploadTexture(textures[currentBuffer]);
+        passThroughShader->uploadGbufferTextures(gbuffer);
+        passThroughShader->uploadAdditionalUniforms();
+        quadMesh.BindAndDraw();
+        passThroughShader->unbind();
+    }
     target->unbind();
 }
 
