@@ -83,7 +83,7 @@ class SAIGA_OPENGL_API Shader
     /**
      * Binds this shader to opengl. Maps to glUseProgram
      */
-    void bind();
+    bool bind();
 
     /**
      * Binds the default program (0) to opengl.

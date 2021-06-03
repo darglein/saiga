@@ -114,12 +114,8 @@ GLuint Shader::createProgram()
     assert_no_glerror();
     glLinkProgram(program);
     assert_no_glerror();
-    if (!printProgramLog())
-    {
-        // do not assert here, because printprogramlog will sometimes only print warnings.
-        //        SAIGA_SAIGA_ASSERT(0);
-        //		return 0;
-    }
+    printProgramLog();
+
 
     assert_no_glerror();
     for (auto& sp : shaders)
@@ -127,12 +123,19 @@ GLuint Shader::createProgram()
         sp->deleteGLShader();
     }
 
-    assert_no_glerror();
-
-    checkUniforms();
-
-    assert_no_glerror();
-    return program;
+    // Check if linking was actually successful
+    GLint isLinked = 0;
+    glGetProgramiv(program, GL_LINK_STATUS, &isLinked);
+    if (isLinked)
+    {
+        checkUniforms();
+        return program;
+    }
+    else
+    {
+        destroyProgram();
+        return 0;
+    }
 }
 
 void Shader::destroyProgram()
@@ -181,14 +184,21 @@ bool Shader::printProgramLog()
     }
 }
 
-void Shader::bind()
+bool Shader::bind()
 {
-    SAIGA_ASSERT(program);
-    // allow double bind
-    SAIGA_ASSERT(boundShader == program || boundShader == 0);
-    boundShader = program;
-    glUseProgram(program);
-    assert_no_glerror();
+    if (program)
+    {
+        // allow double bind
+        SAIGA_ASSERT(boundShader == program || boundShader == 0);
+        boundShader = program;
+        glUseProgram(program);
+        assert_no_glerror();
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 void Shader::unbind()

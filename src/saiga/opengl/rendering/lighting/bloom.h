@@ -16,7 +16,7 @@ struct BloomParameters
 {
     float bloom_threshold = 1;
     float bloom_strength  = 2;
-    int levels            = 6;
+    int levels            = 4;
     int flags             = 0;
 
     BloomParameters() { static_assert(sizeof(BloomParameters) == sizeof(float) * 4); }
@@ -41,10 +41,13 @@ class SAIGA_OPENGL_API Bloom
     bool params_dirty = true;
     BloomParameters params;
     DebugMode mode = DebugMode::NO_DEBUG;
-
+    int extract_downsample = 2;
    private:
     bool use_blur = true;
     void resize(int w, int h);
+
+    void Blur(Texture* source, Texture* target, Texture* tmp);
+
     int w = 0, h = 0;
     TemplatedUniformBuffer<BloomParameters> uniforms;
     std::vector<std::shared_ptr<Texture>> bright_textures;
