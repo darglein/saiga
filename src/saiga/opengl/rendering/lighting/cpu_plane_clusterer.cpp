@@ -776,29 +776,28 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     }
 }
 
-bool CPUPlaneClusterer::fillImGui()
+void CPUPlaneClusterer::imgui()
 {
-    bool changed = Clusterer::fillImGui();
-
-    changed |= ImGui::Checkbox("refinement", &refinement);
-
-    ImGui::Text("avgAllowedItemsPerCluster: %d", avgAllowedItemsPerCluster);
-
-    ImGui::Text("ItemListSize: %d KB", int(itemBuffer.itemList.size() * sizeof(clusterItem) * 0.001f));
-
-    if (ImGui::Checkbox("lightsDebug", &lightsDebug) && lightsDebug)
+    Clusterer::imgui();
+    if (ImGui::Begin("Clusterer"))
     {
-        updateLightsDebug = true;
-        changed           = true;
+        clustersDirty |= ImGui::Checkbox("refinement", &refinement);
+
+        ImGui::Text("avgAllowedItemsPerCluster: %d", avgAllowedItemsPerCluster);
+
+        ImGui::Text("ItemListSize: %d KB", int(itemBuffer.itemList.size() * sizeof(clusterItem) * 0.001f));
+
+        if (ImGui::Checkbox("lightsDebug", &lightsDebug) && lightsDebug)
+        {
+            updateLightsDebug = true;
+            clustersDirty     = true;
+        }
+        if (lightsDebug)
+            if (ImGui::Button("updateLightsDebug")) updateLightsDebug = true;
+
+        clustersDirty |= ImGui::Checkbox("SAT Debug", &SAT);
     }
-    if (lightsDebug)
-        if (ImGui::Button("updateLightsDebug")) updateLightsDebug = true;
-
-    changed |= ImGui::Checkbox("SAT Debug", &SAT);
-
-
-
-    return changed;
+    ImGui::End();
 }
 
 }  // namespace Saiga

@@ -224,7 +224,7 @@ void UberDeferredLighting::renderImGui()
 
     RendererLighting::renderImGui();
 
-    if (clustererType) lightClusterer->renderImGui();
+    if (clustererType) lightClusterer->imgui();
 }
 
 void UberDeferredLighting::setClusterType(int tp)

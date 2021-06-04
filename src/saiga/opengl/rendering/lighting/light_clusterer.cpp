@@ -13,7 +13,7 @@ namespace Saiga
 {
 Clusterer::Clusterer(GLTimerSystem* timer) : timer(timer)
 {
-    clustersDirty           = true;
+    clustersDirty = true;
 
     infoBuffer.createGLBuffer(nullptr, sizeof(infoBuf_t), GL_DYNAMIC_DRAW);
     clusterListBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
@@ -46,72 +46,60 @@ void Clusterer::resize(int _width, int _height)
 
 void Clusterer::loadComputeShaders() {}
 
-void Clusterer::renderImGui(bool* p_open)
+void Clusterer::imgui()
 {
-    beginImGui(p_open);
-    clustersDirty |= fillImGui();
-    endImGui();
-}
-
-
-void Clusterer::beginImGui(bool* p_open)
-{
-    ImGui::Begin("Clusterer", p_open);
-}
-
-bool Clusterer::fillImGui()
-{
-    bool changed = false;
-    ImGui::Text("resolution: %dx%d", width, height);
-
-    changed |= ImGui::Checkbox("clusterThreeDimensional", &clusterThreeDimensional);
-    changed |= ImGui::SliderInt("screenSpaceTileSize", &screenSpaceTileSize, 16, 1024);
-    screenSpaceTileSize = std::max(screenSpaceTileSize, 16);
-    if (clusterThreeDimensional)
+    if (ImGui::Begin("Clusterer"))
     {
-        changed |= ImGui::SliderInt("depthSplits", &depthSplits, 0, 127);
-    }
-    else
-        depthSplits = 0;
+        bool changed = false;
+        ImGui::Text("resolution: %dx%d", width, height);
 
-
-    changed |= ImGui::Checkbox("useSpecialNearCluster", &useSpecialNearCluster);
-    if (useSpecialNearCluster)
-    {
-        changed |= ImGui::SliderFloat("specialNearDepthPercent", &specialNearDepthPercent, 0.0f, 0.5f, "%.4f");
-    }
-
-
-    if (ImGui::Checkbox("clusterDebug", &clusterDebug) && clusterDebug) updateDebug = true;
-    if (clusterDebug)
-        if (ImGui::Button("updateDebug")) updateDebug = true;
-
-    changed |= updateDebug;  // When debug is enabled the clusters are rebuild.
-
-    changed |= ImGui::Checkbox("screenSpaceDebug", &screenSpaceDebug);
-    changed |= ImGui::Checkbox("splitDebug", &splitDebug);
-
-    static double sum = 0.0;
-    if (timerIndex == 0)
-    {
-        sum = 0.0;
-        for (int i = 0; i < 100; ++i)
+        changed |= ImGui::Checkbox("clusterThreeDimensional", &clusterThreeDimensional);
+        changed |= ImGui::SliderInt("screenSpaceTileSize", &screenSpaceTileSize, 16, 1024);
+        screenSpaceTileSize = std::max(screenSpaceTileSize, 16);
+        if (clusterThreeDimensional)
         {
-            sum += cpuAssignmentTimes[i] * 0.01;
+            changed |= ImGui::SliderInt("depthSplits", &depthSplits, 0, 127);
         }
+        else
+            depthSplits = 0;
+
+
+        changed |= ImGui::Checkbox("useSpecialNearCluster", &useSpecialNearCluster);
+        if (useSpecialNearCluster)
+        {
+            changed |= ImGui::SliderFloat("specialNearDepthPercent", &specialNearDepthPercent, 0.0f, 0.5f, "%.4f");
+        }
+
+
+        if (ImGui::Checkbox("clusterDebug", &clusterDebug) && clusterDebug) updateDebug = true;
+        if (clusterDebug)
+            if (ImGui::Button("updateDebug")) updateDebug = true;
+
+        changed |= updateDebug;  // When debug is enabled the clusters are rebuild.
+
+        changed |= ImGui::Checkbox("screenSpaceDebug", &screenSpaceDebug);
+        changed |= ImGui::Checkbox("splitDebug", &splitDebug);
+
+        static double sum = 0.0;
+        if (timerIndex == 0)
+        {
+            sum = 0.0;
+            for (int i = 0; i < 100; ++i)
+            {
+                sum += cpuAssignmentTimes[i] * 0.01;
+            }
+        }
+
+
+
+        ImGui::Text("  %f ms %s", lightAssignmentTimer.getTimeMS(), "CPU Light Assignment");
+        ImGui::Text("  %f ms %s", sum, "CPU Light Assignment (100 Avg.)");
+
+        clustersDirty = changed;
     }
-
-
-
-    ImGui::Text("  %f ms %s", lightAssignmentTimer.getTimeMS(), "CPU Light Assignment");
-    ImGui::Text("  %f ms %s", sum, "CPU Light Assignment (100 Avg.)");
-
-    return changed;
-}
-
-void Clusterer::endImGui()
-{
     ImGui::End();
 }
+
+
 
 }  // namespace Saiga

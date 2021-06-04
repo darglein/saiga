@@ -68,7 +68,7 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
 
    protected:
     const char* coloredShaderSource  = "asset/ColoredAsset.glsl";
-    const char* texturedShaderSource = "asset/TexturedAsset.glsl";
+    const char* texturedShaderSource = "asset/texturedAsset.glsl";
 
     bool cullLights = false;
 
