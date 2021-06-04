@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -41,7 +41,7 @@ namespace Saiga
  *
  */
 SAIGA_VISION_API Mat3 EssentialMatrix(const SE3& a, const SE3& b);
-SAIGA_VISION_API Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, const Intrinsics4& K2);
+SAIGA_VISION_API Mat3 EssentialMatrix(const Mat3& F, const IntrinsicsPinholed& K1, const IntrinsicsPinholed& K2);
 
 
 /**
@@ -52,7 +52,7 @@ SAIGA_VISION_API Mat3 EssentialMatrix(const Mat3& F, const Intrinsics4& K1, cons
  * F = K'^T^-1 * E * K^-1
  * F = K2^-T * E * K1^-1
  */
-SAIGA_VISION_API Mat3 FundamentalMatrix(const Mat3& E, const Intrinsics4& K1, const Intrinsics4& K2);
+SAIGA_VISION_API Mat3 FundamentalMatrix(const Mat3& E, const IntrinsicsPinholed& K1, const IntrinsicsPinholed& K2);
 
 
 // Normalize essential or fundamental matrix.

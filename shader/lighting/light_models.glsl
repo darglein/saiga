@@ -38,10 +38,15 @@ float intensitySpecular(vec3 position, vec3 normal, vec3 lightDir, float exponen
 //     - Implemented in the shader light_models.glsl
 float DistanceAttenuation(vec3 attenuation, float radius, float distance)
 {
+#if 1
+    float cutoff = 1.0 / (attenuation.z * radius * radius);
+    return max(0.f , 1.0 / (attenuation.z * distance * distance) - cutoff);
+#else
     float x         = distance / radius;
     float cutoff    = 1.f / (attenuation[0] + attenuation[1] + attenuation[2]);
     float intensity = 1.f / (attenuation[0] + attenuation[1] * x + attenuation[2] * x * x) - cutoff;
     return max(0.f, intensity);
+#endif
 }
 
 float DistanceAttenuation(vec4 attenuation_radius, float distance)

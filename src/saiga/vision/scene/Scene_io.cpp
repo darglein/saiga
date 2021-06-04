@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -161,7 +161,7 @@ void Scene::load(const std::string& file)
     worldPoints.resize(num_worldPoints);
     for (auto& i : intrinsics)
     {
-        Vec4 test;
+        Vec5 test;
         strm >> test;
         i = test;
     }

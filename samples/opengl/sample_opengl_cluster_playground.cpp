@@ -33,7 +33,7 @@ class Sample : public RendererSampleWindow
 
         planeAsset  = std::make_shared<ColoredAsset>(PlaneMesh(Plane(vec3(0, -0.1, 0), vec3(0, 1, 0))));
 //        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
-        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza/sponza.obj"));
+        //sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza/sponza.obj"));
         boxAsset    = std::make_shared<ColoredAsset>(BoxMesh(AABB(make_vec3(-0.5), make_vec3(0.5))));
 
         plane.asset = planeAsset;
@@ -181,7 +181,7 @@ class Sample : public RendererSampleWindow
                     vec2 point(r * cos(theta), r * sin(theta));
 
                     auto light = std::make_shared<PointLight>();
-                    light->setIntensity(1);
+                    light->setIntensity(10);
                     light->setRadius(1);
                     light->setPosition(vec3(point.x(), 0.5, point.y()));
 
@@ -217,7 +217,7 @@ class Sample : public RendererSampleWindow
                     vec2 point((r + 14.f) * cos(theta), r * sin(theta));
 
                     auto light = std::make_shared<PointLight>();
-                    light->setIntensity(1);
+                    light->setIntensity(10);
                     light->setRadius(linearRand(0.5f, 2.0f));
                     float h = linearRand(0.25f, 25.0f);
                     light->setPosition(vec3(point.x(), h, point.y()));
@@ -284,7 +284,7 @@ class Sample : public RendererSampleWindow
                 for (int i = 0; i < 4096; ++i)
                 {
                     auto light = std::make_shared<PointLight>();
-                    light->setIntensity(1);
+                    light->setIntensity(10);
 
                     light->setRadius(linearRand(0.5f, 2.0f));
                     light->setPosition(linearRand(vec3(-19.0f, 0.5 * light->getRadius(), -19.0f),
@@ -318,7 +318,7 @@ class Sample : public RendererSampleWindow
                     auto light = std::make_shared<PointLight>();
                     light->setIntensity(1);
 
-                    light->setRadius(1);
+                    light->setRadius(10);
                     light->setPosition(vec3(0, 0.5f, 0));
 
                     light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
@@ -351,7 +351,7 @@ class Sample : public RendererSampleWindow
                         auto light = std::make_shared<PointLight>();
                         light->setIntensity(1);
 
-                        light->setRadius(1);
+                        light->setRadius(10);
                         light->setPosition(vec3(i, 0.5f, j));
 
                         light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));

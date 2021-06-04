@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -13,17 +13,15 @@
 
 namespace Saiga
 {
-// todo: remove
-using framebuffer_texture_t = std::shared_ptr<Texture>;
 
 class SAIGA_OPENGL_API Framebuffer
 {
    protected:
     GLuint id = 0;
 
-    std::vector<framebuffer_texture_t> colorBuffers;
-    framebuffer_texture_t depthBuffer   = nullptr;
-    framebuffer_texture_t stencilBuffer = nullptr;
+    std::vector<std::shared_ptr<Texture>> colorBuffers;
+    std::shared_ptr<Texture> depthBuffer   = nullptr;
+    std::shared_ptr<Texture> stencilBuffer = nullptr;
 
    public:
     Framebuffer();
@@ -33,10 +31,10 @@ class SAIGA_OPENGL_API Framebuffer
 
     void MakeDefaultFramebuffer();
 
-    void attachTexture(framebuffer_texture_t texture);
-    void attachTextureDepth(framebuffer_texture_t texture);
-    void attachTextureStencil(framebuffer_texture_t texture);
-    void attachTextureDepthStencil(framebuffer_texture_t texture);
+    void attachTexture(std::shared_ptr<Texture> texture);
+    void attachTextureDepth(std::shared_ptr<Texture> texture);
+    void attachTextureStencil(std::shared_ptr<Texture> texture);
+    void attachTextureDepthStencil(std::shared_ptr<Texture> texture);
 
     void destroy();
     void create();
@@ -67,9 +65,9 @@ class SAIGA_OPENGL_API Framebuffer
     void blitDepth(int otherId);
     void blitColor(int otherId);
 
-    framebuffer_texture_t getTextureStencil() { return this->stencilBuffer; }
-    framebuffer_texture_t getTextureDepth() { return this->depthBuffer; }
-    framebuffer_texture_t getTextureColor(int _id) { return this->colorBuffers[_id]; }
+    std::shared_ptr<Texture> getTextureStencil() { return this->stencilBuffer; }
+    std::shared_ptr<Texture> getTextureDepth() { return this->depthBuffer; }
+    std::shared_ptr<Texture> getTextureColor(int _id) { return this->colorBuffers[_id]; }
     GLuint getId() { return id; }
 
     /**

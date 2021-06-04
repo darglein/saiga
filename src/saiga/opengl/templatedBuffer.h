@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -20,35 +20,26 @@ class TemplatedBuffer : public Buffer
     TemplatedBuffer(GLenum _target) : Buffer(_target) {}
     ~TemplatedBuffer() {}
 
-    void set(ArrayView<T> data, GLenum usage);
+    void create(ArrayView<T> data, GLenum usage) { Buffer::fill2(data.data(), data.size() * sizeof(T), usage); }
 
+    void update(T* data, int count, int offset = 0)
+    {
+        Buffer::updateBuffer(data, count * sizeof(T), offset * sizeof(T));
+    }
 
-    void fill(const T* data, int count, GLenum usage = GL_STATIC_DRAW);
+    void update(ArrayView<T> data, int offset = 0)
+    {
+        Buffer::updateBuffer(data.data(), data.size() * sizeof(T), offset * sizeof(T));
+    }
 
-    void updateBuffer(T* data, int count, int offset);
+    void get(ArrayView<T> data, int offset = 0)
+    {
+        Buffer::getBuffer(data.data(), data.size() * sizeof(T), offset * sizeof(T));
+    }
 
-    int getElementCount() const { return Buffer::size / sizeof(T); }
+    int Size() const { return Buffer::size / sizeof(T); }
 };
 
 
-
-template <typename T>
-void TemplatedBuffer<T>::set(ArrayView<T> data, GLenum _usage)
-{
-    Buffer::createGLBuffer(data.data(), data.size() * sizeof(T), _usage);
-}
-
-template <typename T>
-void TemplatedBuffer<T>::fill(const T* data, int count, GLenum usage)
-{
-    Buffer::fill(data, count * sizeof(T), usage);
-}
-
-
-template <typename T>
-void TemplatedBuffer<T>::updateBuffer(T* data, int count, int offset)
-{
-    Buffer::updateBuffer(data, count * sizeof(T), offset * sizeof(T));
-}
 
 }  // namespace Saiga

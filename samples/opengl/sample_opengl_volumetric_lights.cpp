@@ -36,13 +36,15 @@ class Sample : public SampleWindowDeferred
         sphere.rotateLocal(vec3(0, 1, 0), 180);
         sphere.calculateModel();
 
+        sun->setAmbientIntensity(0);
+        sun->setIntensity(0.2);
 
 
         pointLight = std::make_shared<PointLight>();
         renderer->lighting.AddLight(pointLight);
         //        pointLight->setAttenuation(AttenuationPresets::Quadratic);
-        pointLight->attenuation = (vec3(0, 0, 5));
-        pointLight->setIntensity(2);
+        pointLight->attenuation = (vec3(0, 0, 1));
+        pointLight->setIntensity(30);
         pointLight->setRadius(10);
         pointLight->setPosition(vec3(9, 3, 0));
         pointLight->setColorDiffuse(make_vec3(1));
@@ -52,8 +54,8 @@ class Sample : public SampleWindowDeferred
 
         spotLight = std::make_shared<SpotLight>();
         renderer->lighting.AddLight(spotLight);
-        spotLight->attenuation = (vec3(0, 0, 5));
-        spotLight->setIntensity(2);
+        spotLight->attenuation = (vec3(0, 0, 1));
+        spotLight->setIntensity(30);
         spotLight->setRadius(8);
         spotLight->setPosition(vec3(-10, 5, 0));
         spotLight->setColorDiffuse(make_vec3(1));

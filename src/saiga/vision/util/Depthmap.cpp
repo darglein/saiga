@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -12,7 +12,7 @@ namespace Saiga
 {
 namespace Depthmap
 {
-void toPointCloud(DepthMap dm, DepthPointCloud pc, const Intrinsics4& camera)
+void toPointCloud(DepthMap dm, DepthPointCloud pc, const IntrinsicsPinholed& camera)
 {
     SAIGA_ASSERT(dm.h == pc.h && dm.w == pc.w);
     for (int i = 0; i < dm.h; ++i)

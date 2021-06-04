@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -45,7 +45,7 @@ class SAIGA_OPENGL_API VRRenderer : public OpenGLRenderer
     mat4 viewLeft, viewRight;
 
     std::shared_ptr<PostProcessingShader> framebufferToDebugWindowShader;
-    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
+    UnifiedMeshBuffer quadMesh;
 };
 
 }  // namespace Saiga

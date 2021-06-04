@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -26,7 +26,8 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth()),
-      renderHeight(window.getHeight())
+      renderHeight(window.getHeight()),
+      quadMesh(FullScreenQuad())
 {
     if (params.useSMAA)
     {
@@ -46,7 +47,7 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
     }
     lighting.ssaoTexture = ssao ? ssao->bluredTexture : blackDummyTexture;
 
-    gbuffer.init(renderWidth, renderHeight, params.gbp);
+    gbuffer.init(renderWidth, renderHeight, params.srgb);
 
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor    = params.lightingClearColor;
@@ -56,9 +57,6 @@ DeferredRenderer::DeferredRenderer(OpenGLWindow& window, DeferredRenderingParame
 
 
     postProcessor.init(renderWidth, renderHeight, &gbuffer, params.ppp, lighting.lightAccumulationTexture);
-
-
-    quadMesh.fromMesh(FullScreenQuad());
 
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
@@ -133,7 +131,10 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
         renderGBuffer({camera, viewport});
     }
-    renderSSAO({camera, viewport});
+
+    if (params.useSSAO) ssao->render(camera, viewport, &gbuffer);
+
+
 
     lighting.ComputeCullingAndStatistics(camera);
 
@@ -146,7 +147,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         auto tim = timer->Measure("Lighting");
         bindCamera(camera);
         setViewPort(viewport);
-        renderLighting({camera, viewport});
+        lighting.render(camera, viewport);
     }
 
     {
@@ -154,46 +155,46 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         renderingInterface->render(camera, RenderPass::Forward);
     }
 
-    assert_no_glerror();
-
-
-    //    return;
-
-
-    if (params.writeDepthToOverlayBuffer)
     {
         auto tim = timer->Measure("Write depth");
-        writeGbufferDepthToCurrentFramebuffer();
+        // writeGbufferDepthToCurrentFramebuffer();
     }
-#if 0
-
-    startTimer(OVERLAY);
-
-    for (auto c : renderInfo.cameras)
-    {
-        auto camera = c.first;
-        bindCamera(camera);
-        setViewPort(c.second);
-    }
-    stopTimer(OVERLAY);
-#endif
-
-    // glViewport(0, 0, renderWidth, renderHeight);
-    setViewPort(viewport);
 
 
 
     lighting.applyVolumetricLightBuffer();
+    setViewPort(viewport);
+
+    if (params.hdr)
+    {
+        auto tim = timer->Measure("Tone Mapping Linear");
+        tone_mapper.MapLinear(lighting.lightAccumulationTexture.get());
+    }
+
+    if (params.bloom && params.hdr)
+    {
+        auto tim = timer->Measure("Bloom");
+        bloom.Render(lighting.lightAccumulationTexture.get());
+    }
 
     postProcessor.nextFrame();
     postProcessor.bindCurrentBuffer();
-    //    postProcessor.switchBuffer();
 
 
-    // postprocessor's 'currentbuffer' will still be bound after render
+
+    if (params.hdr)
+    {
+        auto tim = timer->Measure("Tone Mapping");
+        tone_mapper.Map(lighting.lightAccumulationTexture.get(),
+                        postProcessor.getTargetBuffer().getTextureColor(0).get());
+        postProcessor.switchBuffer();
+        postProcessor.bindCurrentBuffer();
+    }
+
+
     {
         auto tim = timer->Measure("Post Processing");
-        postProcessor.render();
+        postProcessor.render(!params.hdr);
     }
 
 
@@ -312,21 +313,6 @@ void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::View
 }
 
 
-void DeferredRenderer::renderLighting(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
-{
-    lighting.render(camera.first, camera.second);
-
-    assert_no_glerror();
-}
-
-void DeferredRenderer::renderSSAO(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
-{
-    if (params.useSSAO) ssao->render(camera.first, camera.second, &gbuffer);
-
-
-    assert_no_glerror();
-}
-
 void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
 {
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -335,7 +321,7 @@ void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
     glDepthFunc(GL_ALWAYS);
     blitDepthShader->bind();
     blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
-    quadMesh.bindAndDraw();
+    quadMesh.BindAndDraw();
     blitDepthShader->unbind();
     glDepthFunc(GL_LESS);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -364,6 +350,13 @@ void DeferredRenderer::renderImgui()
 
         ImGui::Separator();
 
+
+        if (ImGui::Checkbox("srgb", &params.srgb))
+        {
+            gbuffer.init(renderWidth, renderHeight, params.srgb);
+            lighting.lightAccumulationBuffer.attachTextureDepthStencil(gbuffer.getTextureDepth());
+        }
+
         if (ImGui::Checkbox("SMAA", &params.useSMAA))
         {
             if (params.useSMAA)
@@ -382,6 +375,7 @@ void DeferredRenderer::renderImgui()
         }
 
 
+        ImGui::Separator();
         if (ImGui::Checkbox("SSAO", &params.useSSAO))
         {
             if (params.useSSAO)
@@ -397,6 +391,21 @@ void DeferredRenderer::renderImgui()
         if (ssao)
         {
             ssao->renderImGui();
+        }
+
+
+        ImGui::Checkbox("hdr", &params.hdr);
+        if (params.hdr)
+        {
+            ImGui::Separator();
+            tone_mapper.imgui();
+        }
+
+        ImGui::Checkbox("bloom", &params.bloom);
+        if (params.bloom)
+        {
+            ImGui::Separator();
+            bloom.imgui();
         }
     }
     ImGui::End();

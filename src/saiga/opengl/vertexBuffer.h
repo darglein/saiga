@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -186,7 +186,7 @@ void VertexBuffer<vertex_t>::set(ArrayView<vertex_t> vertices, GLenum _usage)
     deleteGLBuffer();
     assert_no_glerror();
 
-    TemplatedBuffer<vertex_t>::set(vertices, _usage);
+    TemplatedBuffer<vertex_t>::create(vertices, _usage);
     //    createGLBuffer(vertices,_vertex_count * sizeof(vertex_t),usage);
 
     // create VAO and init
@@ -246,7 +246,7 @@ void VertexBuffer<vertex_t>::addInstancedBuffer(InstancedBuffer<data_t>& buffer,
 template <class vertex_t>
 void VertexBuffer<vertex_t>::draw(int startVertex, int count) const
 {
-    glDrawArrays(draw_mode, startVertex, count < 0 ? TemplatedBuffer<vertex_t>::getElementCount() : count);
+    glDrawArrays(draw_mode, startVertex, count < 0 ? TemplatedBuffer<vertex_t>::Size() : count);
     assert_no_glerror();
 }
 
@@ -255,7 +255,7 @@ template <class vertex_t>
 void VertexBuffer<vertex_t>::drawInstanced(int instanceCount, int indexOffset, int indexCount) const
 {
     glDrawArraysInstanced(draw_mode, indexOffset,
-                          indexCount < 0 ? TemplatedBuffer<vertex_t>::getElementCount() : indexCount, instanceCount);
+                          indexCount < 0 ? TemplatedBuffer<vertex_t>::Size() : indexCount, instanceCount);
     assert_no_glerror();
 }
 
@@ -299,11 +299,7 @@ SAIGA_OPENGL_API void VertexBuffer<VertexC>::setVertexAttributes();
 template <>
 SAIGA_OPENGL_API void VertexBuffer<VertexNT>::setVertexAttributes();
 template <>
-SAIGA_OPENGL_API void VertexBuffer<VertexNTD>::setVertexAttributes();
-template <>
 SAIGA_OPENGL_API void VertexBuffer<VertexNC>::setVertexAttributes();
-template <>
-SAIGA_OPENGL_API void VertexBuffer<BoneVertexCD>::setVertexAttributes();
 
 
 }  // namespace Saiga

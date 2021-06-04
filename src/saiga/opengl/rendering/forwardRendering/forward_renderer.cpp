@@ -66,7 +66,7 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     // forward pass with lighting
     lighting.ComputeCullingAndStatistics(camera);
     lighting.initRender();
-    assert_no_glerror();
+    lighting.ComputeCullingAndStatistics(camera);
 
     lighting.cluster(camera, viewport);
     {

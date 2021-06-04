@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -137,32 +137,25 @@ std::vector<std::vector<SparseTSDF::Triangle>> SparseTSDF::ExtractSurface(double
     return triangle_soup_per_block;
 }
 
-TriangleMesh<VertexNC, uint32_t> SparseTSDF::CreateMesh(const std::vector<std::vector<SparseTSDF::Triangle>>& triangles,
-                                                        bool post_process)
+UnifiedMesh SparseTSDF::CreateMesh(const std::vector<std::vector<SparseTSDF::Triangle>>& triangles, bool post_process)
 {
-    TriangleMesh<VertexNC, uint32_t> mesh;
+    UnifiedMesh mesh;
 
     for (auto& v : triangles)
     {
         for (auto& t : v)
         {
-            VertexNC tri[3];
+            int n = mesh.NumVertices();
             for (int i = 0; i < 3; ++i)
             {
-                tri[i].position.head<3>() = t[i].cast<float>();
-                tri[i].color              = vec4(1, 1, 1, 1);
+                mesh.position.push_back(t[i].cast<float>());
             }
-            mesh.addTriangle(tri);
+            mesh.triangles.push_back(ivec3(n, n + 1, n + 2));
         }
     }
 
-    if (post_process)
-    {
-        mesh.sortVerticesByPosition();
-        mesh.removeSubsequentDuplicates();
-        mesh.removeDegenerateFaces();
-        mesh.computePerVertexNormal();
-    }
+    mesh.CalculateVertexNormals();
+    mesh.SetVertexColor(vec4(1, 1, 1, 1));
 
     return mesh;
 }

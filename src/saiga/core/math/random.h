@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -10,6 +10,7 @@
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/assert.h"
 
+#include <random>
 #include <vector>
 
 namespace Saiga
@@ -37,6 +38,8 @@ SAIGA_CORE_API void setSeed(uint64_t seed);
  */
 SAIGA_CORE_API uint64_t generateTimeBasedSeed();
 
+// Returns the default saiga-generator for this thread
+SAIGA_CORE_API std::mt19937& generator();
 
 /**
  * Returns true with a probability of 's'.
@@ -79,6 +82,10 @@ SAIGA_CORE_API uint64_t urand64();
  * The returned indices are NOT sorted!
  */
 SAIGA_CORE_API std::vector<int> uniqueIndices(int sampleCount, int indexSize);
+
+
+// Returns an array of size 'size' with values from [0, size-1] in random order
+SAIGA_CORE_API std::vector<int> shuffleSequence(int size);
 
 
 SAIGA_CORE_API Vec3 ballRand(double radius);

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -29,7 +29,7 @@ namespace Saiga
 template <typename TransformationType>
 struct SymmetricProjectivePointCloudRegistration
 {
-    Intrinsics4 K;
+    IntrinsicsPinholed K;
     TransformationType T;
     std::vector<Vec3> points1, points2;
     double chi2Threshold;

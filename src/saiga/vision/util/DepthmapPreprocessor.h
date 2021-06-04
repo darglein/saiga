@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -48,14 +48,14 @@ class SAIGA_VISION_API DMPP
 
 
     DMPPParameters params;
-    DMPP(const Intrinsics4& camera = Intrinsics4(), const DMPPParameters& params = DMPPParameters());
+    DMPP(const IntrinsicsPinholed& camera = IntrinsicsPinholed(), const DMPPParameters& params = DMPPParameters());
 
 
     void operator()(DepthMap src, DepthMap dst);
     // Inplace preprocessing
     void operator()(DepthMap src);
 
-    void setCamera(const Intrinsics4& c) { camera = c; }
+    void setCamera(const IntrinsicsPinholed& c) { camera = c; }
 
     static void scaleDown2median(DepthMap src, DepthMap dst);
     void fillHoles(DepthMap vsrc, DepthMap vdst);
@@ -65,7 +65,7 @@ class SAIGA_VISION_API DMPP
     void renderGui();
 
    private:
-    Intrinsics4 camera;
+    IntrinsicsPinholed camera;
 };
 
 

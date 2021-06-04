@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -19,8 +19,8 @@ namespace Saiga
 class SAIGA_CORE_API AABB
 {
    public:
-    vec3 min = make_vec3(0);
-    vec3 max = make_vec3(0);
+    vec3 min = vec3(0, 0, 0);
+    vec3 max = vec3(0, 0, 0);
 
    public:
     HD AABB() {}
@@ -63,6 +63,8 @@ class SAIGA_CORE_API AABB
 
     // A list the 12 triangles (2 for each face)
     std::vector<Triangle> toTriangles() const;
+
+    std::pair<vec3, float> BoundingSphere() const;
 
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const AABB& dt);

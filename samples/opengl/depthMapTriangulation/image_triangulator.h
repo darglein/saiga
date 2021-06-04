@@ -149,3 +149,8 @@ class RQT_Triangulator : public Triangulator
                                              float threshold, Point2D a, Point2D b, Point2D c, Point2D d);
 };
 }  // namespace Saiga
+
+
+int main(){
+    return 0;
+}

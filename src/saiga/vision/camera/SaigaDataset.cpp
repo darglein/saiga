@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -64,7 +64,7 @@ int SaigaDataset::LoadMetaData()
 
     if (scale_down_depth && _intrinsics.imageSize.width == _intrinsics.depthImageSize.width)
     {
-        _intrinsics.depthModel.K.scale(0.5);
+        _intrinsics.depthModel.K = _intrinsics.depthModel.K.scale(0.5);
         _intrinsics.depthImageSize.width /= 2;
         _intrinsics.depthImageSize.height /= 2;
         std::cout << "Scaling down depth image." << std::endl;

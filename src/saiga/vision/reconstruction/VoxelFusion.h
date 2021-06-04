@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -13,6 +13,7 @@
 
 #include "SparseTSDF.h"
 
+#include <saiga/core/model/UnifiedMesh.h>
 #include <set>
 namespace Saiga
 {
@@ -89,7 +90,7 @@ struct SAIGA_VISION_API FusionScene
     // Set by the user
     std::vector<FusionImage> images;
     std::shared_ptr<std::vector<TemplatedImage<float>>> local_depth_images;
-    Intrinsics4 K;
+    IntrinsicsPinholed K;
     Distortion dis;
     FusionParams params;
 
@@ -104,7 +105,7 @@ struct SAIGA_VISION_API FusionScene
     std::shared_ptr<SparseTSDF> tsdf;
 
     std::vector<std::array<vec3, 3>> triangle_soup;
-    TriangleMesh<VertexNC, uint32_t> mesh;
+    UnifiedMesh mesh;
 
     std::vector<int> triangle_soup_inclusive_prefix_sum;
 

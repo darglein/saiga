@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -172,7 +172,7 @@ inline mat4 CVCamera2GLProjectionMatrix(const mat3& K, int viewportW, int viewpo
         0,                  2.0   / viewportH,  0,
         -1,                 -1,                 1
         );
-    // clang-format o
+    // clang-format on
 #endif
     auto test = removeViewPortTransform * K;
 

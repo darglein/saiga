@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -23,7 +23,7 @@ Scene CircleSphere(int numWorldPoints, int numCameras, int numImagePoints, bool 
         scene.worldPoints.push_back(wp);
     }
 
-    Intrinsics4 intr(1000, 1000, 500, 500);
+    IntrinsicsPinholed intr(1000, 1000, 500, 500, 0);
     scene.intrinsics.push_back(intr);
 
     for (int i = 0; i < numCameras; ++i)

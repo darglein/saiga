@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -68,7 +68,7 @@ struct FeatureGridBounds
 
     // Undistorts points at the image edges
     // to compute the bounding box
-    void computeFromIntrinsicsDist(int w, int h, const Saiga::Intrinsics4Base<T>& intr,
+    void computeFromIntrinsicsDist(int w, int h, const Saiga::IntrinsicsPinhole<T>& intr,
                                    const Saiga::DistortionBase<T>& dist, int resolution = 10)
     {
         std::vector<Vec2> points;

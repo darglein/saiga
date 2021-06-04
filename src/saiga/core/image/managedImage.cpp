@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -145,10 +145,16 @@ bool Image::load(const std::string& _path)
     return erg;
 }
 
-bool Image::loadFromMemory(ArrayView<const char> data)
+bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
 {
     bool erg = false;
 
+    if (hint == "png")
+    {
+#ifdef SAIGA_USE_PNG
+
+#endif
+    }
 #ifdef SAIGA_USE_FREEIMAGE
     erg = FIP::loadFromMemory(data, *this);
     return erg;
@@ -314,6 +320,21 @@ std::ostream& operator<<(std::ostream& os, const Image& f)
        << " channels/elementType " << channels(f.type) << "/" << (int)elementType(f.type)
        << " BPP: " << bitsPerPixel(f.type);
     return os;
+}
+vec4 Image::texture(vec2 uv)
+{
+    switch (type)
+    {
+        case ImageType::UC3:
+            return make_vec4(getImageView<ucvec3>().interUVGL(uv(0), uv(1)).cast<float>() * (1.f / 255.f), 1);
+            break;
+        case ImageType::UC4:
+            return getImageView<ucvec4>().interUVGL(uv(0), uv(1)).cast<float>() * (1.f / 255.f);
+            break;
+        default:
+            SAIGA_EXIT_ERROR("texture not implemented for this image type");
+    }
+    return Saiga::vec4(0, 0, 0, 0);
 }
 
 }  // namespace Saiga

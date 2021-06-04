@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -67,6 +67,10 @@ void OpenGLWindow::renderImGui(bool* p_open)
     {
         shaderLoader.reload();
     }
+
+    ImGui::SameLine();
+
+    ImGui::Checkbox("auto reload", &auto_reload_shaders);
 
     if (ImGui::Button("Screenshot"))
     {
@@ -143,6 +147,11 @@ void OpenGLWindow::update(float dt)
 {
     checkEvents();
     if (updating) updating->update(dt);
+
+    if (auto_reload_shaders)
+    {
+        shaderLoader.reload();
+    }
 }
 
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -243,6 +243,14 @@ struct ImageTypeTemplate<vec4>
     using ChannelType               = float;
     static constexpr ImageType type = F4;
 };
+
+template <>
+struct ImageTypeTemplate<double>
+{
+    using ChannelType               = double;
+    static constexpr ImageType type = D1;
+};
+
 
 
 

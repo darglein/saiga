@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -17,31 +17,34 @@
 #include <algorithm>
 namespace Saiga
 {
-SimplePointCloud MeshToPointCloud(const std::vector<Triangle>& _triangles, int N)
+SimplePointCloud RandomSampleMesh(const std::vector<Triangle>& triangles, const std::vector<float>& weights, int N)
 {
-    std::vector<Triangle> triangles = _triangles;
+    std::vector<double> sample_prob(triangles.size());
 
-    // std::sort(triangles.begin(), triangles.end(), [](auto a, auto b) { return a.Area() < b.Area(); });
-
-
-
-    std::vector<double> areas;
-    for (auto& t : triangles)
+#pragma omp parallel for
+    for (int i = 0; i < triangles.size(); ++i)
     {
-        areas.push_back(t.Area());
+        float prob     = triangles[i].Area() * weights[i];
+        sample_prob[i] = prob;
     }
 
-    DiscreteProbabilityDistribution<double> dis(areas);
+    DiscreteProbabilityDistribution<double> dis(sample_prob);
 
     SimplePointCloud points(N);
 
 #pragma omp parallel for
     for (int i = 0; i < N; ++i)
     {
-        auto t             = dis.sample();
-        auto& tri          = triangles[t];
-        points[i].position = tri.RandomPointOnSurface();
-        points[i].normal   = tri.normal();
+        auto t    = dis.sample();
+        auto& tri = triangles[t];
+
+        SimpleVertex v;
+        v.normal         = tri.normal();
+        v.bary           = tri.RandomBarycentric();
+        v.position       = tri.InterpolateBarycentric(v.bary);
+        v.triangle_index = t;
+        v.radius         = sample_prob[t];
+        points[i]        = v;
     }
     return points;
 }
@@ -52,7 +55,9 @@ SimplePointCloud ReducePointsPoissonDisc(const SimplePointCloud& mesh_points, fl
 
 
     std::vector<vec3> positions;
-    for(auto m : mesh_points){
+    positions.reserve(mesh_points.size());
+    for (auto m : mesh_points)
+    {
         positions.push_back(m.position);
     }
 
@@ -61,7 +66,7 @@ SimplePointCloud ReducePointsPoissonDisc(const SimplePointCloud& mesh_points, fl
     for (int i = 0; i < mesh_points.size(); ++i)
     {
         auto& p = mesh_points[i].position;
-        auto ps = tree.RadiusSearch(p, radius);
+        auto ps = tree.RadiusSearch(p, mesh_points[i].radius);
 
         bool found = false;
         for (auto pi : ps)
@@ -91,36 +96,20 @@ SimplePointCloud ReducePointsPoissonDisc(const SimplePointCloud& mesh_points, fl
     return result;
 }
 
-SimplePointCloud MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& triangles, int max_samples, float radius)
+SimplePointCloud MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& triangles, const std::vector<float>& weights,
+                                              int max_samples, float radius)
 {
     std::vector<int> num_samples_per_triangle(triangles.size(), 0);
-    if (0)
-    {
-        std::vector<double> areas;
-        for (auto& t : triangles)
-        {
-            areas.push_back(t.Area());
-        }
 
-        DiscreteProbabilityDistribution<double> dis(areas);
-
-#pragma omp parallel for
-        for (int i = 0; i < max_samples; ++i)
-        {
-            auto t = dis.sample();
-            num_samples_per_triangle[t]++;
-        }
-    }
-    else
     {
         double total_area = 0;
-        for (auto& t : triangles)
+        for (int i = 0; i < triangles.size(); ++i)
         {
-            total_area += t.Area();
+            total_area += triangles[i].Area() * weights[i];
         }
         for (int i = 0; i < triangles.size(); ++i)
         {
-            double ratio                = triangles[i].Area() / total_area;
+            double ratio                = triangles[i].Area() * weights[i] / total_area;
             num_samples_per_triangle[i] = std::round(ratio * max_samples);
         }
     }
@@ -130,13 +119,19 @@ SimplePointCloud MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& trian
 #pragma omp parallel for
     for (int i = 0; i < triangles.size(); ++i)
     {
-        int n = num_samples_per_triangle[i];
+        int n     = num_samples_per_triangle[i];
+        auto& tri = triangles[i];
 
         SimplePointCloud points(n);
         for (int j = 0; j < n; ++j)
         {
-            points[j].position = triangles[i].RandomPointOnSurface();
-            points[j].normal = triangles[i].normal();
+            SimpleVertex v;
+            v.normal         = tri.normal();
+            v.bary           = tri.RandomBarycentric();
+            v.position       = tri.InterpolateBarycentric(v.bary);
+            v.triangle_index = i;
+            v.radius         = (1.f / (weights[i] + 1e-10)) * radius;
+            points[j]        = v;
         }
 
         samples_per_triangle[i] = ReducePointsPoissonDisc(points, radius);
@@ -152,9 +147,7 @@ SimplePointCloud MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& trian
     }
 
     {
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::shuffle(result.begin(), result.end(), g);
+        std::shuffle(result.begin(), result.end(), Random::generator());
     }
     return ReducePointsPoissonDisc(result, radius);
 }
@@ -175,7 +168,8 @@ std::shared_ptr<SparseTSDF> MeshToTSDF(const std::vector<Triangle>& triangles, f
     std::shared_ptr<SparseTSDF> tsdf = std::make_shared<SparseTSDF>(voxel_size);
 
     {
-        auto points = MeshToPointCloud(triangles, 1000000);
+        std::vector<float> weights(triangles.size(), 1);
+        auto points = RandomSampleMesh(triangles, weights, 1000000);
         ProgressBar bar(std::cout, "M2TSDF Allocate V", triangles.size());
         for (auto& t : triangles)
         {

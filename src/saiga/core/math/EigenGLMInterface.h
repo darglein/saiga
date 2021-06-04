@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -22,6 +22,16 @@ HD constexpr typename Derived::PlainObject clamp(const Eigen::EigenBase<Derived>
     typename Derived::PlainObject tmp = x.derived().array().max(minVal.derived().array());
     return tmp.array().min(maxVal.derived().array());
 }
+
+template <typename Derived>
+HD constexpr typename Derived::PlainObject saturate(const Eigen::EigenBase<Derived>& x)
+{
+    typename Derived::PlainObject z, o;
+    z.setZero();
+    o.setOnes();
+    return clamp<Derived>(x, z, o);
+}
+
 
 template <typename Derived1, typename Derived2>
 HD constexpr auto mix(const Eigen::MatrixBase<Derived1>& a, const Eigen::MatrixBase<Derived2>& b,

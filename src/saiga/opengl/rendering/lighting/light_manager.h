@@ -45,6 +45,11 @@ class SAIGA_OPENGL_API LightManager
     std::vector<SpotLight::ShaderData> active_spot_lights_data;
     std::vector<DirectionalLight::ShaderData> active_directional_lights_data;
 
+
+    std::set<std::shared_ptr<PointLight>> pointLights;
+    std::set<std::shared_ptr<SpotLight>> spotLights;
+    std::set<std::shared_ptr<DirectionalLight>> directionalLights;
+
     // Lighting Statistics
     int totalLights;
     int visibleLights;
@@ -55,16 +60,11 @@ class SAIGA_OPENGL_API LightManager
 
     void imgui();
 
-    std::set<std::shared_ptr<PointLight>> pointLights;
-    std::set<std::shared_ptr<SpotLight>> spotLights;
-    std::set<std::shared_ptr<DirectionalLight>> directionalLights;
-
    protected:
     bool showLightingImgui = false;
     int selected_light     = -1;
     int selecte_light_type = 0;
     std::shared_ptr<LightBase> selected_light_ptr;
-
 
 };
 }  // namespace Saiga

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -30,9 +30,9 @@ struct DistortionBase
     T p1 = 0;
     T p2 = 0;
 
-    DistortionBase() {}
+    HD inline DistortionBase() {}
 
-    DistortionBase(const Eigen::Matrix<T, 8, 1>& c)
+    HD inline DistortionBase(const Eigen::Matrix<T, 8, 1>& c)
     {
         k1 = c(0);
         k2 = c(1);
@@ -44,7 +44,7 @@ struct DistortionBase
         p2 = c(7);
     }
 
-    Eigen::Matrix<T, 8, 1> Coeffs() const
+    HD inline Eigen::Matrix<T, 8, 1> Coeffs() const
     {
         Eigen::Matrix<T, 8, 1> result;
         result << k1, k2, k3, k4, k5, k6, p1, p2;
@@ -52,11 +52,53 @@ struct DistortionBase
     }
 
 
-    Eigen::Matrix<T, 8, 1> OpenCVOrder()
+    HD inline Eigen::Matrix<T, 8, 1> OpenCVOrder() const
     {
         Eigen::Matrix<T, 8, 1> result;
         result << k1, k2, p1, p2, k3, k4, k5, k6;
         return result;
+    }
+
+    template <typename G>
+    HD inline DistortionBase<G> cast() const
+    {
+        return Coeffs().template cast<G>().eval();
+    }
+
+    HD inline T RadialFactor(const Eigen::Matrix<T, 2, 1>& p)
+    {
+        T r2       = p.dot(p);
+        T r4       = r2 * r2;
+        T r6       = r2 * r4;
+        T radial_u = T(1) + k1 * r2 + k2 * r4 + k3 * r6;
+        T radial_v = T(1) + k4 * r2 + k5 * r4 + k6 * r6;
+
+        T radial_iv = T(1) / radial_v;
+        T radial    = radial_u * radial_iv;
+        return radial;
+    }
+
+    // Due to the higher oder polynomial the radial distortion is not monotonic.
+    // This results in a non-bijective mapping, where multiple world points are mapped to the same image points.
+    // To prevent this case, this function computes a threshold which should be passed as 'max_r' to
+    // distortNormalizedPoint.
+    HD inline T MonotonicThreshold(int steps = 100, T max_r = 2)
+    {
+        float last = 0;
+        float th   = max_r;
+        for (int i = 0; i < steps; ++i)
+        {
+            float a     = (float(i) / steps) * max_r;
+            float c     = RadialFactor(vec2(a, 0));
+            float shift = c * a;
+            if (shift - last < 0)
+            {
+                th = a;
+                break;
+            }
+            last = shift;
+        }
+        return th;
     }
 };
 
@@ -68,12 +110,13 @@ using Distortionf = DistortionBase<float>;
 
 /**
  * The OpenCV distortion model applied to a point in normalized image coordinates.
+ * You can find a glsl implementation in shader/vision/distortion.h
  */
-
-
 template <typename T>
-Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& point, const DistortionBase<T>& distortion,
-                                              Matrix<double, 2, 2>* J_point = nullptr)
+HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& point,
+                                                        const DistortionBase<T>& distortion,
+                                                        Matrix<T, 2, 2>* J_point      = nullptr,
+                                                        Matrix<T, 2, 8>* J_distortion = nullptr, T max_r = T(100000))
 {
     T x  = point.x();
     T y  = point.y();
@@ -90,10 +133,15 @@ Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& poin
 
     T x2 = x * x, y2 = y * y;
     T r2 = x2 + y2, _2xy = T(2) * x * y;
+    T r4 = r2 * r2;
+    T r6 = r4 * r2;
 
-    T radial_u = T(1) + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2;
-    T radial_v = T(1) + k4 * r2 + k5 * r2 * r2 + k6 * r2 * r2 * r2;
-    T radial   = (radial_u / radial_v);
+    T radial_u = T(1) + k1 * r2 + k2 * r4 + k3 * r6;
+    T radial_v = T(1) + k4 * r2 + k5 * r4 + k6 * r6;
+
+    T radial_iv = T(1) / radial_v;
+    T radial    = radial_u * radial_iv;
+
 
     T tangentialX = p1 * _2xy + p2 * (r2 + T(2) * x2);
     T tangentialY = p1 * (r2 + T(2) * y2) + p2 * _2xy;
@@ -101,13 +149,17 @@ Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& poin
     T xd = x * radial + tangentialX;
     T yd = y * radial + tangentialY;
 
+    if (r2 > max_r * max_r)
+    {
+        xd = x;
+        yd = y;
+        xd = 100000;
+        yd = 100000;
+    }
+
     if (J_point)
     {
-        auto& Jp = *J_point;
-        Jp.setZero();
-
-
-        Mat2 J_rad_u;
+        Matrix<T, 2, 2> J_rad_u;
         J_rad_u(0, 0) = k1 * (2 * x);
         J_rad_u(0, 1) = k1 * (2 * y);
         J_rad_u(0, 0) += k2 * (4 * x * x * x + 4 * x * y * y);
@@ -118,7 +170,7 @@ Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& poin
         J_rad_u(1, 1) = J_rad_u(0, 1);
 
 
-        Mat2 J_rad_v;
+        Matrix<T, 2, 2> J_rad_v;
         J_rad_v(0, 0) = k4 * (2 * x);
         J_rad_v(0, 1) = k4 * (2 * y);
         J_rad_v(0, 0) += k5 * (4 * x * x * x + 4 * x * y * y);
@@ -128,28 +180,50 @@ Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& poin
         J_rad_v(1, 0) = J_rad_v(0, 0);
         J_rad_v(1, 1) = J_rad_v(0, 1);
 
-        Mat2 J_rad;
-        J_rad = (J_rad_u * radial_v - J_rad_v * radial_u) / (radial_v * radial_v);
+        Matrix<T, 2, 2> J_rad;
+        J_rad = (J_rad_u * radial_v - J_rad_v * radial_u) * radial_iv * radial_iv;
 
-        Mat2 J_rad_mul_xy;
+        Matrix<T, 2, 2> J_rad_mul_xy;
         J_rad_mul_xy(0, 0) = x * J_rad(0, 0) + radial;
         J_rad_mul_xy(0, 1) = x * J_rad(0, 1);
         J_rad_mul_xy(1, 0) = y * J_rad(1, 0);
         J_rad_mul_xy(1, 1) = y * J_rad(1, 1) + radial;
 
-        Mat2 J_tan;
+        Matrix<T, 2, 2> J_tan;
         J_tan(0, 0) = 2 * p1 * y + 6 * p2 * x;
         J_tan(0, 1) = 2 * p1 * x + 2 * p2 * y;
 
         J_tan(1, 0) = 2 * p2 * y + 2 * p1 * x;
         J_tan(1, 1) = 2 * p2 * x + 6 * p1 * y;
 
-        Jp = J_rad_mul_xy + J_tan;
+        *J_point = J_rad_mul_xy + J_tan;
+    }
+
+    if (J_distortion)
+    {
+        auto& J = *J_distortion;
+        J(0, 0) = r2 * x * radial_iv;
+        J(0, 1) = r4 * x * radial_iv;
+        J(0, 2) = r6 * x * radial_iv;
+        J(1, 0) = r2 * y * radial_iv;
+        J(1, 1) = r4 * y * radial_iv;
+        J(1, 2) = r6 * y * radial_iv;
+
+        J(0, 3) = -r2 * radial_u * radial_iv * radial_iv * x;
+        J(0, 4) = -r4 * radial_u * radial_iv * radial_iv * x;
+        J(0, 5) = -r6 * radial_u * radial_iv * radial_iv * x;
+        J(1, 3) = -r2 * radial_u * radial_iv * radial_iv * y;
+        J(1, 4) = -r4 * radial_u * radial_iv * radial_iv * y;
+        J(1, 5) = -r6 * radial_u * radial_iv * radial_iv * y;
+
+        J(0, 6) = _2xy;
+        J(1, 7) = _2xy;
+        J(0, 7) = (r2 + T(2) * x2);
+        J(1, 6) = (r2 + T(2) * y2);
     }
 
     return {xd, yd};
 }
-
 
 
 template <typename T>
@@ -238,7 +312,7 @@ Eigen::Matrix<T, 2, 1> undistortNormalizedPoint1235(const Eigen::Matrix<T, 2, 1>
  */
 template <typename _InputIterator1, typename _InputIterator2, typename _T>
 inline void undistortAll(_InputIterator1 __first1, _InputIterator1 __last1, _InputIterator2 __output,
-                         const Intrinsics4Base<_T>& intr, const DistortionBase<_T>& dis)
+                         const IntrinsicsPinhole<_T>& intr, const DistortionBase<_T>& dis)
 {
     for (; __first1 != __last1; ++__first1, (void)++__output)
     {

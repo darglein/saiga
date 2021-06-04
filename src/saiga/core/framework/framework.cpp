@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -183,9 +183,9 @@ void printSaigaInfo()
     std::cout.unsetf(std::ios_base::floatfield);
     std::cout << ConsoleColor::RESET;
 
-    std::cout << "Pathes" << std::endl;
-    std::cout << "SAIGA_PROJECT_SOURCE_DIR " << SAIGA_PROJECT_SOURCE_DIR << std::endl;
-    std::cout << SearchPathes::shader << std::endl;
+    //    std::cout << "Pathes" << std::endl;
+    //    std::cout << "SAIGA_PROJECT_SOURCE_DIR " << SAIGA_PROJECT_SOURCE_DIR << std::endl;
+    //    std::cout << SearchPathes::shader << std::endl;
 }
 
 

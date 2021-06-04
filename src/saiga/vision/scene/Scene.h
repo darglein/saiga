@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -166,7 +166,9 @@ class SAIGA_VISION_API Scene
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    AlignedVector<Intrinsics4> intrinsics;
+    AlignedVector<IntrinsicsPinholed> intrinsics;
+    AlignedVector<Distortion> distortion;
+
     AlignedVector<WorldPoint> worldPoints;
     AlignedVector<SceneImage> images;
 
@@ -220,6 +222,7 @@ class SAIGA_VISION_API Scene
     void addWorldPointNoise(double stddev);
     void addImagePointNoise(double stddev);
     void addExtrinsicNoise(double stddev);
+    void addIntrinsicNoise(double stddev);
 
     // projects the world points to the images and
     // sets the image point = projection

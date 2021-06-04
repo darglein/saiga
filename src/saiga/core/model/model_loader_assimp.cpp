@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -168,11 +168,44 @@ static UnifiedMaterial ConvertMaterial(const aiMaterial* material)
     return mat;
 }
 
+static Image LoadEmbeddedTexture(aiTexture* tex)
+{
+    std::cout << "Load embedded " << tex->mFilename.C_Str() << " " << tex->achFormatHint << " " << tex->mWidth << "x"
+              << tex->mHeight << std::endl;
+
+    SAIGA_ASSERT(tex->mHeight == 0);
+
+    size_t size_bytes  = tex->mWidth;
+    std::string format = tex->achFormatHint;
+
+    ArrayView<const char> image_data((const char*)tex->pcData, size_bytes);
+
+    Image result;
+    if (!result.loadFromMemory(image_data, format))
+    {
+        std::cout << "unable to load image" << std::endl;
+    }
+    else
+    {
+        std::cout << result << std::endl;
+    }
+    return result;
+}
 
 UnifiedModel AssimpLoader::Model()
 {
     UnifiedModel model;
 
+    TraversePrintTree(scene->mRootNode);
+    //    exit(0);
+
+
+    // load embedded texture
+    for (unsigned int m = 0; m < scene->mNumTextures; ++m)
+    {
+        aiTexture* tex = scene->mTextures[m];
+        model.textures.push_back(LoadEmbeddedTexture(tex));
+    }
 
     for (unsigned int m = 0; m < scene->mNumMaterials; ++m)
     {
@@ -182,28 +215,24 @@ UnifiedModel AssimpLoader::Model()
     }
 
 
-    int current_vertex = 0;
-    int current_face   = 0;
 
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
     {
+        int current_vertex = 0;
+        int current_face   = 0;
+
         const aiMesh* mesh = scene->mMeshes[m];
 
 
-        UnifiedMaterialGroup umg;
-        umg.startFace  = current_face;
-        umg.numFaces   = mesh->mNumFaces;
-        umg.materialId = mesh->mMaterialIndex;
 
-        model.material_groups.push_back(umg);
-
-
+        UnifiedMesh unified_mesh;
+        unified_mesh.material_id = mesh->mMaterialIndex;
 
         if (mesh->HasPositions())
         {
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.position.push_back(convert_vector(mesh->mVertices[i]));
+                unified_mesh.position.push_back(convert_vector(mesh->mVertices[i]));
             }
         }
         else
@@ -215,37 +244,33 @@ UnifiedModel AssimpLoader::Model()
         {
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.normal.push_back(convert_vector(mesh->mNormals[i]));
+                unified_mesh.normal.push_back(convert_vector(mesh->mNormals[i]));
             }
-            SAIGA_ASSERT(model.position.size() == model.normal.size());
         }
 
         if (mesh->HasVertexColors(0))
         {
             SAIGA_ASSERT(!mesh->HasVertexColors(1));
-            model.color.resize(current_vertex);
 
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.color.push_back(convert_color(mesh->mColors[0][i]));
+                unified_mesh.color.push_back(convert_color(mesh->mColors[0][i]));
             }
-            SAIGA_ASSERT(model.position.size() == model.color.size());
         }
 
         if (mesh->HasTextureCoords(0))
         {
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
-                model.texture_coordinates.push_back(convert_vector(mesh->mTextureCoords[0][i]).head<2>());
+                unified_mesh.texture_coordinates.push_back(convert_vector(mesh->mTextureCoords[0][i]).head<2>());
             }
-            // SAIGA_ASSERT(model.position.size() == model.texture_coordinates.size());
         }
 
 
 
         if (mesh->HasBones())
         {
-            model.bone_info.resize(model.position.size());
+            unified_mesh.bone_info.resize(unified_mesh.position.size());
             for (unsigned int i = 0; i < mesh->mNumBones; ++i)
             {
                 aiBone* b = mesh->mBones[i];
@@ -254,12 +279,9 @@ UnifiedModel AssimpLoader::Model()
                     aiVertexWeight vw = b->mWeights[j];
                     int vid           = vw.mVertexId + current_vertex;
 
-                    auto& bi = model.bone_info[vid];
+                    auto& bi = unified_mesh.bone_info[vid];
 
                     bi.addBone(i, vw.mWeight);
-
-                    //                    vertex_t& bv      = out.vertices[vw->mVertexId];
-                    //                    loadBoneWeight(bv, i, vw->mWeight);
                 }
             }
         }
@@ -274,7 +296,7 @@ UnifiedModel AssimpLoader::Model()
                     ivec3 f1(f->mIndices[0], f->mIndices[1], f->mIndices[2]);
 
                     f1 += ivec3(current_vertex, current_vertex, current_vertex);
-                    model.triangles.push_back(f1);
+                    unified_mesh.triangles.push_back(f1);
                     current_face++;
                 }
             }
@@ -282,6 +304,8 @@ UnifiedModel AssimpLoader::Model()
 
 
         current_vertex += mesh->mNumVertices;
+
+        model.mesh.push_back(unified_mesh);
     }
 
 
@@ -326,42 +350,47 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
     scene.mRootNode->mMeshes[0] = 0;
     scene.mRootNode->mNumMeshes = 1;
 
+    SAIGA_ASSERT(model.mesh.size() == 1);
+
+    // SAIGA_EXIT_ERROR("todo");
     auto pMesh = scene.mMeshes[0];
 
-
-    if (model.HasPosition())
+    auto uni_mesh = model.mesh.front();
+    if (uni_mesh.HasPosition())
     {
-        pMesh->mNumVertices = model.position.size();
+        pMesh->mNumVertices = uni_mesh.position.size();
         pMesh->mVertices    = new aiVector3D[pMesh->mNumVertices];
         for (int i = 0; i < pMesh->mNumVertices; ++i)
         {
-            pMesh->mVertices[i] = convert_vector(model.position[i]);
+            pMesh->mVertices[i] = convert_vector(uni_mesh.position[i]);
         }
     }
 
-    if (model.HasNormal())
+    if (uni_mesh.HasNormal())
     {
+        SAIGA_ASSERT(uni_mesh.normal.size() == uni_mesh.NumVertices());
         pMesh->mNormals = new aiVector3D[pMesh->mNumVertices];
         for (int i = 0; i < pMesh->mNumVertices; ++i)
         {
-            pMesh->mNormals[i] = convert_vector(model.normal[i]);
+            pMesh->mNormals[i] = convert_vector(uni_mesh.normal[i]);
         }
     }
 
 
-    if (model.HasColor())
+    if (uni_mesh.HasColor())
     {
+        SAIGA_ASSERT(uni_mesh.color.size() == uni_mesh.NumVertices());
         pMesh->mColors[0] = new aiColor4D[pMesh->mNumVertices];
         for (int i = 0; i < pMesh->mNumVertices; ++i)
         {
-            auto c               = model.color[i];
+            auto c               = uni_mesh.color[i];
             pMesh->mColors[0][i] = aiColor4D(c(0), c(1), c(2), c(3));
         }
     }
 
-    if (model.triangles.size() > 0)
+    if (uni_mesh.triangles.size() > 0)
     {
-        pMesh->mNumFaces = model.triangles.size();
+        pMesh->mNumFaces = uni_mesh.triangles.size();
         pMesh->mFaces    = new aiFace[pMesh->mNumFaces];
 
         for (int i = 0; i < pMesh->mNumFaces; ++i)
@@ -370,7 +399,7 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
             pMesh->mFaces[i].mIndices    = new unsigned int[3];
             for (int j = 0; j < 3; ++j)
             {
-                pMesh->mFaces[i].mIndices[j] = model.triangles[i](j);
+                pMesh->mFaces[i].mIndices[j] = uni_mesh.triangles[i](j);
             }
         }
     }
@@ -380,7 +409,7 @@ void AssimpLoader::SaveModel(const UnifiedModel& model, const std::string& file)
 
     Assimp::ExportProperties properties;
 
-    if (model.triangles.empty() && model.lines.empty())
+    if (uni_mesh.triangles.empty() && uni_mesh.lines.empty())
     {
         // This is probably a point cloud
         properties.SetPropertyBool(AI_CONFIG_EXPORT_POINT_CLOUDS, true);
@@ -704,6 +733,20 @@ mat4 AssimpLoader::convert(aiMatrix4x4 mat)
         }
     }
     return ret;
+}
+void AssimpLoader::TraversePrintTree(aiNode* current_node, int depth)
+{
+    for (int i = 0; i < depth; ++i)
+    {
+        std::cout << " ";
+    }
+    mat4 t = convert(current_node->mTransformation);
+
+    std::cout << "Node " << current_node->mName.C_Str() << " Trans: " << t.col(3).transpose() << std::endl;
+    for (int i = 0; i < current_node->mNumChildren; ++i)
+    {
+        TraversePrintTree(current_node->mChildren[i], depth + 1);
+    }
 }
 
 }  // namespace Saiga

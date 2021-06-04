@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -10,7 +10,7 @@ namespace Saiga
 {
 TwoViewReconstruction::TwoViewReconstruction()
 {
-    Intrinsics4 intr;
+    IntrinsicsPinholed intr;
     scene.intrinsics.push_back(intr);
     scene.images.resize(2);
 
@@ -224,7 +224,7 @@ void TwoViewReconstruction::setMedianDepth(double d)
     scene.rescale(factor);
 }
 
-void TwoViewReconstructionEightPoint::init(const RansacParameters& ransac_params, Intrinsics4 K)
+void TwoViewReconstructionEightPoint::init(const RansacParameters& ransac_params, IntrinsicsPinholed K)
 {
     if (solve_normalized)
     {
@@ -256,7 +256,7 @@ void TwoViewReconstructionEightPoint::compute(ArrayView<const Vec2> points1, Arr
     scene.images[1].stereoPoints.resize(N);
     scene.worldPoints.resize(N);
 
-    Intrinsics4& K = scene.intrinsics.front();
+    IntrinsicsPinholed& K = scene.intrinsics.front();
 
     int threads = epr.Params().threads;
 

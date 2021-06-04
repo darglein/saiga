@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -41,8 +41,8 @@ inline void PrintTensorInfo(at::Tensor t)
     {
         mean = t.mean().item().toFloat();
     }
-    std::cout << "Tensor " << t.sizes() << " " << t.dtype() << " " << t.device() << " Min/Max " << mi << " " << ma
-              << " Mean " << mean << std::endl;
+    std::cout << "Tensor " <<  t.sizes() << " " << t.dtype() << " " << t.device() << " Min/Max " << mi << " " << ma
+              << " Mean " << mean << " req-grad " << t.requires_grad() << std::endl;
 }
 
 

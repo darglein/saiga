@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -22,7 +22,7 @@ namespace Saiga
 class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
 {
    public:
-    int currentStencilId  = 0;
+    int currentStencilId = 0;
 
     std::shared_ptr<Texture> ssaoTexture;
 
@@ -94,23 +94,26 @@ inline void DeferredLighting::renderLightVolume(lightMesh_t& mesh, T obj, Camera
     if (stencilCulling)
     {
         setupStencilPass();
-        stencilShader->bind();
-
-        stencilShader->uploadModel(obj->ModelMatrix());
-        mesh.bindAndDraw();
-        stencilShader->unbind();
+        if (stencilShader->bind())
+        {
+            stencilShader->uploadModel(obj->ModelMatrix());
+            mesh.bindAndDraw();
+            stencilShader->unbind();
+        }
     }
 
     setupLightPass(obj->volumetric);
     shader_t shader = (obj->castShadows ? (obj->volumetric ? shaderVolumetric : shaderShadow) : shaderNormal);
-    shader->bind();
-    shader->DeferredShader::uploadFramebuffer(&gbuffer);
-    shader->uploadScreenSize(vp.getVec4());
+    if (shader->bind())
+    {
+        shader->DeferredShader::uploadFramebuffer(&gbuffer);
+        shader->uploadScreenSize(vp.getVec4());
 
-    //    obj->bindUniforms(shader, cam);
-    shader->SetUniforms(obj, cam);
-    mesh.bindAndDraw();
-    shader->unbind();
+        //    obj->bindUniforms(shader, cam);
+        shader->SetUniforms(obj, cam);
+        mesh.bindAndDraw();
+        shader->unbind();
+    }
 }
 
 }  // namespace Saiga

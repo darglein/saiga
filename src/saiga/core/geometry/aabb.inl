@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -64,6 +64,13 @@ inline void AABB::setPosition(const vec3& v)
     vec3 mid = 0.5f * (min + max);
     mid      = v - mid;
     translate(mid);
+}
+inline std::pair<vec3, float> AABB::BoundingSphere() const
+{
+    vec3 center  = getPosition();
+    vec3 diag    = max - min;
+    float radius = diag.norm() * 0.5f;
+    return {center, radius};
 }
 
 

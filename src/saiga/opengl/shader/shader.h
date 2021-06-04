@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -9,7 +9,9 @@
 #include "saiga/core/math/math.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shaderpart.h"
+#include "saiga/opengl/texture/Texture2D.h"
 
+#include <filesystem>
 #include <memory>
 #include <vector>
 
@@ -36,11 +38,17 @@ class SAIGA_OPENGL_API Shader
 
    public:
     static GLuint getBoundShader() { return boundShader; }
+    static bool add_glsl_line_directives;
 
    public:
     GLuint program = 0;
     std::vector<std::shared_ptr<ShaderPart>> shaders;
-    std::string name;
+    std::string file;
+    ShaderCodeInjections injections;
+
+    // all files that are referenced by includes
+    // important for automatic shader reloading
+    std::vector<std::pair<std::string, std::filesystem::file_time_type>> dependent_files_and_date;
 
 
     Shader();
@@ -48,6 +56,8 @@ class SAIGA_OPENGL_API Shader
     Shader(Shader const&) = delete;
     Shader& operator=(Shader const&) = delete;
 
+    bool init(const std::string& file, const ShaderCodeInjections& injections = {});
+    bool reload();
 
     // ===================================== program stuff =====================================
 
@@ -73,7 +83,7 @@ class SAIGA_OPENGL_API Shader
     /**
      * Binds this shader to opengl. Maps to glUseProgram
      */
-    void bind();
+    [[nodiscard]] bool bind();
 
     /**
      * Binds the default program (0) to opengl.
@@ -120,9 +130,11 @@ class SAIGA_OPENGL_API Shader
      * Initates the compute operation.
      * The shader must be bound beforehand.
      */
-
     void dispatchCompute(const uvec3& num_groups);
     void dispatchCompute(GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z);
+
+    // Dispatches as many blocks as needed to cover the texture with 1 thread per pixel
+    void dispatchComputeImage(Texture2D* texture, int local_size);
 
     /**
      * Directly maps to glMemoryBarrier.
@@ -181,6 +193,7 @@ class SAIGA_OPENGL_API Shader
      */
 
     // basic uploads
+    void upload(int location, const mat3& m);
     void upload(int location, const mat4& m);
     void upload(int location, const vec4& v);
     void upload(int location, const vec3& v);

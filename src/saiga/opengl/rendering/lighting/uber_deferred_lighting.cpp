@@ -25,7 +25,7 @@ namespace Saiga
 using namespace uber;
 
 UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* timer)
-    : RendererLighting(timer), gbuffer(framebuffer)
+    : RendererLighting(timer), gbuffer(framebuffer),  quadMesh(FullScreenQuad())
 {
     createLightMeshes();
 
@@ -39,7 +39,7 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* 
 
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 
-    quadMesh.fromMesh(FullScreenQuad());
+    lightClusterer                 = std::make_shared<CPUPlaneClusterer>(timer);
 }
 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
@@ -149,7 +149,7 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
         lightingShader->uploadFramebuffer(&gbuffer);
         lightingShader->uploadScreenSize(viewPort.getVec4());
         lightingShader->uploadInvProj(inverse(cam->proj));
-        quadMesh.bindAndDraw();
+        quadMesh.BindAndDraw();
         lightingShader->unbind();
         assert_no_glerror();
 

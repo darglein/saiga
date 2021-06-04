@@ -80,12 +80,13 @@ in vec4 v_data;
 #include "AssetFragment.glsl"
 
 void main() {
-//    setGbufferData(color,normal,vec4(data.xy,userData,0));
+    //    setGbufferData(color,normal,vec4(data.xy,userData,0));
 
-  AssetMaterial material;
-  material.color = v_color * color;
-  material.data = v_data;
-  render(material,v_normal);
+    AssetMaterial material;
+    material.color = v_color * color;
+    material.data = v_data;
+    vec3 position = vec3(0);
+    render(material, position, v_normal);
 }
 
 

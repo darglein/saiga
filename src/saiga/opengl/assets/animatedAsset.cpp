@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -21,16 +21,21 @@ void AnimatedAsset::loadDefaultShaders()
 
 AnimatedAsset::AnimatedAsset(const UnifiedModel& model)
 {
-    auto mesh      = model.Mesh<BoneVertexCD, uint32_t>();
-    this->vertices = mesh.vertices;
-    this->faces    = mesh.faces;
+//    auto mesh      = model.mesh[0].Mesh<BoneVertexCD, uint32_t>();
+//    this->vertices = mesh.vertices;
+//    this->faces    = mesh.faces;
+    auto [mesh, groups] = model.CombinedMesh(VERTEX_POSITION | VERTEX_NORMAL | VERTEX_COLOR | VERTEX_BONE_INFO);
+    this->groups        = groups;
+    unified_buffer = std::make_shared<UnifiedMeshBuffer>(mesh);
+    loadDefaultShaders();
 
     animation_system = model.animation_system;
 
-    std::cout << "Create AnimatedAsset " << vertices.size() << " " << faces.size() << std::endl;
-    create();
+//    std::cout << "Create AnimatedAsset " << vertices.size() << " " << faces.size() << std::endl;
+//    create();
 }
 
+#if 0
 void AnimatedAsset::render(Camera* cam, const mat4& model, UniformBuffer& boneMatrices)
 {
     std::shared_ptr<BoneShader> bs = std::static_pointer_cast<BoneShader>(this->deferredShader);
@@ -54,5 +59,6 @@ void AnimatedAsset::renderDepth(Camera* cam, const mat4& model, UniformBuffer& b
     buffer.bindAndDraw();
     bs->unbind();
 }
+#endif
 
 }  // namespace Saiga

@@ -77,7 +77,7 @@ void RendererLighting::ComputeCullingAndStatistics(Camera* cam)
 
     if (active_point_lights_data.size() > point_light_data.Size())
     {
-        point_light_data.create(active_point_lights_data);
+        point_light_data.create(active_point_lights_data, GL_DYNAMIC_DRAW);
         point_light_data.bind(POINT_LIGHT_DATA_BINDING_POINT);
     }
     else
@@ -87,7 +87,7 @@ void RendererLighting::ComputeCullingAndStatistics(Camera* cam)
 
     if (active_spot_lights_data.size() > spot_light_data.Size())
     {
-        spot_light_data.create(active_spot_lights_data);
+        spot_light_data.create(active_spot_lights_data, GL_DYNAMIC_DRAW);
         spot_light_data.bind(SPOT_LIGHT_DATA_BINDING_POINT);
     }
     else
@@ -97,7 +97,7 @@ void RendererLighting::ComputeCullingAndStatistics(Camera* cam)
 
     if (active_directional_lights_data.size() > directional_light_data.Size())
     {
-        directional_light_data.create(active_directional_lights_data);
+        directional_light_data.create(active_directional_lights_data, GL_DYNAMIC_DRAW);
         directional_light_data.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
     }
     else

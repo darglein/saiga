@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -99,42 +99,45 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData* draw_data)
         {0.0f, 0.0f, -1.0f, 0.0f},
         {-1.0f, 1.0f, 0.0f, 1.0f},
     };
-    shader->bind();
-
-    glUniform1i(1, 0);
-    glUniformMatrix4fv(0, 1, GL_FALSE, &ortho_projection[0][0]);
-
-
-
-    for (int n = 0; n < draw_data->CmdListsCount; n++)
+    if(shader->bind())
     {
-        const ImDrawList* cmd_list         = draw_data->CmdLists[n];
-        const ImDrawIdx* idx_buffer_offset = 0;
+        glUniform1i(1, 0);
+        glUniformMatrix4fv(0, 1, GL_FALSE, &ortho_projection[0][0]);
 
-        buffer.VertexBuffer<ImDrawVert>::fill(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.size(), GL_DYNAMIC_DRAW);
-        buffer.IndexBuffer<ImDrawIdx>::fill(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.size(), GL_DYNAMIC_DRAW);
 
-        buffer.bind();
 
-        for (const ImDrawCmd* pcmd = cmd_list->CmdBuffer.begin(); pcmd != cmd_list->CmdBuffer.end(); pcmd++)
+        for (int n = 0; n < draw_data->CmdListsCount; n++)
         {
-            if (pcmd->UserCallback)
+            const ImDrawList* cmd_list         = draw_data->CmdLists[n];
+            const ImDrawIdx* idx_buffer_offset = 0;
+
+            buffer.VertexBuffer<ImDrawVert>::create(
+                ArrayView<ImDrawVert>(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.size()), GL_DYNAMIC_DRAW);
+            buffer.IndexBuffer<ImDrawIdx>::create(
+                ArrayView<ImDrawIdx>(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.size()), GL_DYNAMIC_DRAW);
+
+            buffer.bind();
+
+            for (const ImDrawCmd* pcmd = cmd_list->CmdBuffer.begin(); pcmd != cmd_list->CmdBuffer.end(); pcmd++)
             {
-                pcmd->UserCallback(cmd_list, pcmd);
+                if (pcmd->UserCallback)
+                {
+                    pcmd->UserCallback(cmd_list, pcmd);
+                }
+                else
+                {
+                    glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
+                    glScissor((int)pcmd->ClipRect.x, (int)(fb_height - pcmd->ClipRect.w),
+                              (int)(pcmd->ClipRect.z - pcmd->ClipRect.x), (int)(pcmd->ClipRect.w - pcmd->ClipRect.y));
+                    glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount,
+                                   sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
+                }
+                idx_buffer_offset += pcmd->ElemCount;
             }
-            else
-            {
-                glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
-                glScissor((int)pcmd->ClipRect.x, (int)(fb_height - pcmd->ClipRect.w),
-                          (int)(pcmd->ClipRect.z - pcmd->ClipRect.x), (int)(pcmd->ClipRect.w - pcmd->ClipRect.y));
-                glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount,
-                               sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
-            }
-            idx_buffer_offset += pcmd->ElemCount;
+            buffer.unbind();
         }
-        buffer.unbind();
+        shader->unbind();
     }
-    shader->unbind();
 
     // Restore modified GL state
     glBlendEquationSeparate(static_cast<GLenum>(last_blend_equation_rgb),
@@ -160,8 +163,6 @@ void ImGui_GL_Renderer::renderDrawLists(ImDrawData* draw_data)
 
     assert_no_glerror();
 }
-
-
 
 
 

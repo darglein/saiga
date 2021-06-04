@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -10,13 +10,7 @@
 
 namespace Saiga
 {
-Mat3 skew(const Vec3& a)
-{
-    Mat3 m;
-    using Scalar = double;
-    m << Scalar(0), -a(2), a(1), a(2), Scalar(0), -a(0), -a(1), a(0), Scalar(0);
-    return m;
-}
+
 
 
 

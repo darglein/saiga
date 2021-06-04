@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -11,7 +11,7 @@
 #include "saiga/core/util/ProgressBar.h"
 #include "saiga/core/util/Thread/SpinLock.h"
 #include "saiga/core/util/Thread/omp.h"
-
+#include "saiga/core/model/UnifiedMesh.h"
 #include "BlockSparseGrid.h"
 #include "MarchingCubes.h"
 
@@ -282,7 +282,7 @@ struct SAIGA_VISION_API SparseTSDF : public BlockSparseGrid<TSDFVoxel, 8>
                                                       bool verbose);
 
     // Create a triangle mesh from the list of triangles
-    TriangleMesh<VertexNC, uint32_t> CreateMesh(const std::vector<std::vector<Triangle>>& triangles, bool post_process);
+    UnifiedMesh CreateMesh(const std::vector<std::vector<Triangle>>& triangles, bool post_process);
 
     void ClampDistance(float distance);
 

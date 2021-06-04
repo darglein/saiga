@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -130,7 +130,11 @@ class SAIGA_CORE_API Image : public ImageBase
 
 
     bool load(const std::string& path);
-    bool loadFromMemory(ArrayView<const char> data);
+
+    // in hint you give a format hint to the decoder
+    // Accepted hint values are the types in all lower case.
+    // For example: png, jpg, dds,...
+    bool loadFromMemory(ArrayView<const char> data, const std::string& hint = "");
 
     bool save(const std::string& path) const;
 
@@ -151,6 +155,9 @@ class SAIGA_CORE_API Image : public ImageBase
 
     std::vector<uint8_t> compress();
     void decompress(std::vector<uint8_t> data);
+
+    // A glsl-like sample call
+    vec4 texture(vec2 uv);
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Image& f);
 };

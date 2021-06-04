@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -48,12 +48,12 @@ struct SymmetricProjectivePointCloudRegistrationCeresCostSE3
         return true;
     }
 
-    SymmetricProjectivePointCloudRegistrationCeresCostSE3(Intrinsics4 intr, Vec2 observed, Vec3 wp, double weight = 1)
+    SymmetricProjectivePointCloudRegistrationCeresCostSE3(IntrinsicsPinholed intr, Vec2 observed, Vec3 wp, double weight = 1)
         : _intr(intr), _observed(observed), _wp(wp), weight(weight)
     {
     }
 
-    Intrinsics4 _intr;
+    IntrinsicsPinholed _intr;
     Vec2 _observed;
     Vec3 _wp;
     double weight;
@@ -94,12 +94,12 @@ struct SymmetricProjectivePointCloudRegistrationCeresCostDSim3
         return true;
     }
 
-    SymmetricProjectivePointCloudRegistrationCeresCostDSim3(Intrinsics4 intr, Vec2 observed, Vec3 wp, double weight = 1)
+    SymmetricProjectivePointCloudRegistrationCeresCostDSim3(IntrinsicsPinholed intr, Vec2 observed, Vec3 wp, double weight = 1)
         : _intr(intr), _observed(observed), _wp(wp), weight(weight)
     {
     }
 
-    Intrinsics4 _intr;
+    IntrinsicsPinholed _intr;
     Vec2 _observed;
     Vec3 _wp;
     double weight;

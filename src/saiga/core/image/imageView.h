@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -44,6 +44,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     using RawDataType8 = typename std::conditional<std::is_const<T>::value, const uint8_t, uint8_t>::type;
     using NoConstType  = typename std::remove_const<T>::type;
     using Type         = T;
+    using ScalarType   = typename ImageTypeTemplate<T>::ChannelType;
+    static constexpr int num_channels = channels(ImageTypeTemplate<T>::type);
     union
     {
         RawDataType* data;
@@ -124,9 +126,10 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     }
 
     HD inline T& operator()(int y, int x) { return rowPtr(y)[x]; }
-
     HD inline const T& operator()(int y, int x) const { return rowPtr(y)[x]; }
 
+    HD inline T& operator()(ivec2 p) { return this->operator()(p.y(), p.x()); }
+    HD inline const T& operator()(ivec2 p) const { return this->operator()(p.y(), p.x()); }
 
     HD inline T* rowPtr(int y)
     {
@@ -140,8 +143,24 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         return reinterpret_cast<T*>(ptr);
     }
 
+    HD inline ScalarType* rowPtrElement(int y)
+    {
+        auto ptr = data8 + y * pitchBytes;
+        return reinterpret_cast<ScalarType*>(ptr);
+    }
+
+    HD inline const ScalarType* rowPtrElement(int y) const
+    {
+        auto ptr = data8 + y * pitchBytes;
+        return reinterpret_cast<ScalarType*>(ptr);
+    }
+
+    HD inline int ElementsPerRow() { return w * num_channels; }
+
     // bilinear interpolated pixel with UV values [0,1]
     HD inline T interUV(float u, float v) const { return inter(v * (height - 1), u * (width - 1)); }
+    // using GL coordinates (y pointing upwards)
+    HD inline T interUVGL(float u, float v) const { return inter((1 - v) * (height - 1), u * (width - 1)); }
 
     // bilinear interpolated pixel with clamp to edge boundary
     HD inline T inter(float sy, float sx) const
@@ -149,29 +168,21 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         int x0 = iFloor(sx);
         int y0 = iFloor(sy);
 
-        // interpolation weights
-        float ax = sx - x0;
-        float ay = sy - y0;
-
         if (x0 < 0)
         {
             x0 = 0;
-            ax = 0;
         }
         if (x0 >= width)
         {
             x0 = width - 1;
-            ax = 0;
         }
         if (y0 < 0)
         {
             y0 = 0;
-            ay = 0;
         }
         if (y0 >= height)
         {
             y0 = height - 1;
-            ay = 0;
         }
 
 
@@ -191,8 +202,6 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         auto b01 = ttf.toFloat((*this)(y0, x1));
         auto b10 = ttf.toFloat((*this)(y1, x0));
         auto b11 = ttf.toFloat((*this)(y1, x1));
-
-        // auto res = (b00 * (1.0f - ax) + b01 * (ax)) * (1.0f - ay) + (b10 * (1.0f - ax) + b11 * (ax)) * (ay);
 
         typename TexelFloatConverter<T, false>::FloatType res =
             b00 * ((x1 - sx) * (y1 - sy)) + b01 * ((sx - x0) * (y1 - sy)) + b10 * ((x1 - sx) * (sy - y0)) +
@@ -237,19 +246,22 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         }
     }
 
+
     // If the destination is of the same type we use a raw byte-wise copy.
     inline void copyTo(ImageView<T> dst) const
     {
         SAIGA_ASSERT(height == dst.height && width == dst.width);
         if (pitchBytes == dst.pitchBytes)
         {
+            // copy all at once
             memcpy(dst.data, data, size());
         }
         else
         {
+            // copy row by row
             for (int y = 0; y < height; ++y)
             {
-                memcpy(dst.rowPtr(y), rowPtr(y), width * sizeof(T));
+                memcpy(dst.rowPtrElement(y), rowPtrElement(y), width * sizeof(T));
             }
         }
     }
@@ -463,8 +475,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         x = min(max(0, x), width - 1);
         y = min(max(0, y), height - 1);
 #else
-        x      = std::min(std::max(0, x), width - 1);
-        y      = std::min(std::max(0, y), height - 1);
+        x = std::min(std::max(0, x), width - 1);
+        y = std::min(std::max(0, y), height - 1);
 #endif
     }
 
@@ -545,6 +557,19 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         multWithScalar(T(1) / maxV);
     }
 
+    inline bool isFinite()
+    {
+        bool finite = true;
+        for (int y = 0; y < height; ++y)
+        {
+            auto c_ptr = rowPtrElement(y);
+            for (int x = 0; x < ElementsPerRow(); ++x)
+            {
+                finite = finite & std::isfinite(c_ptr[x]);
+            }
+        }
+        return finite;
+    }
 
     inline void flipY()
     {

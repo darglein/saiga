@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -7,11 +7,12 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/math/math.h"
+#include "saiga/core/util/assert.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <saiga/core/util/assert.h>
 #include <vector>
 
 namespace Saiga
@@ -75,24 +76,42 @@ std::ostream& operator<<(std::ostream& stream, const Statistics<T>& object)
 }
 
 template <typename T>
-std::vector<T> gaussianBlurKernel(int radius, T sigma)
+Vector<T, -1> gaussianBlurKernel1d(int radius, T sigma)
 {
     const int ELEMENTS = radius * 2 + 1;
-    std::vector<T> kernel(ELEMENTS);
+    Vector<T, -1> kernel(ELEMENTS);
     T ivar2 = 1.0f / (2.0f * sigma * sigma);
-    T kernelSum(0);
-    for (int j = -radius; j <= radius; j++)
+    for (int x = -radius; x <= radius; x++)
     {
-        kernel[j + radius] = std::exp(-j * j * ivar2);
-        kernelSum += kernel[j + radius];
+        T d2               = x * x;
+        kernel[x + radius] = std::exp(-d2 * ivar2);
     }
     // normalize
-    for (int j = -radius; j <= radius; j++)
-    {
-        kernel[j + radius] /= kernelSum;
-    }
-    return kernel;
+    T s = kernel.array().sum();
+    return kernel / s;
 }
+
+
+template <typename T>
+Matrix<T, -1, -1> gaussianBlurKernel2d(int radius, T sigma)
+{
+    const int ELEMENTS = radius * 2 + 1;
+    Matrix<T, -1, -1> kernel(ELEMENTS, ELEMENTS);
+    T ivar2 = 1.0f / (2.0f * sigma * sigma);
+    for (int y = -radius; y <= radius; y++)
+    {
+        for (int x = -radius; x <= radius; x++)
+        {
+            float d2                       = x * x + y * y;
+            kernel(y + radius, x + radius) = std::exp(-d2 * ivar2);
+        }
+    }
+    // normalize
+    T s = kernel.array().sum();
+    return kernel / s;
+}
+
+
 
 template <typename T>
 void applyFilter1D(const std::vector<T>& src, std::vector<T>& dst, const std::vector<T>& kernel)

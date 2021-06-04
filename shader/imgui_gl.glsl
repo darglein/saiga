@@ -6,7 +6,6 @@
 
 
 ##GL_VERTEX_SHADER
-
 #version 330
 #extension GL_ARB_explicit_uniform_location : enable
 
@@ -27,7 +26,6 @@ void main()
 }
 
 ##GL_FRAGMENT_SHADER
-
 #version 330
 #extension GL_ARB_explicit_uniform_location : enable
 

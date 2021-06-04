@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -53,7 +53,7 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
         // Color Intrinsics
         // K
         auto Kstr = toIniString(model.K);
-        Kstr      = ini.GetAddString(group, "color_K", Kstr.c_str(), "#fx,fy,cx,cy");
+        Kstr      = ini.GetAddString(group, "color_K", Kstr.c_str(), "#fx,fy,cx,cy,s");
         fromIniString(Kstr, model.K);
 
         // Dis

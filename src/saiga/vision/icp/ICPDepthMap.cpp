@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -15,7 +15,7 @@ using namespace Depthmap;
 
 namespace ICP
 {
-DepthMapExtended::DepthMapExtended(const DepthMap& depth, const Intrinsics4& camera, const SE3& pose)
+DepthMapExtended::DepthMapExtended(const DepthMap& depth, const IntrinsicsPinholed& camera, const SE3& pose)
     : depth(depth), points(depth.h, depth.w), normals(depth.h, depth.w), camera(camera), pose(pose)
 {
     Saiga::Depthmap::toPointCloud(depth, points, camera);
@@ -108,7 +108,7 @@ AlignedVector<Correspondence> projectiveCorrespondences(const DepthMapExtended& 
 }
 
 SE3 alignDepthMaps(DepthMap referenceDepthMap, DepthMap sourceDepthMap, const SE3& refPose, const SE3& srcPose,
-                   const Intrinsics4& camera, int iterations, ProjectiveCorrespondencesParams params)
+                   const IntrinsicsPinholed& camera, int iterations, ProjectiveCorrespondencesParams params)
 {
     DepthMapExtended ref(referenceDepthMap, camera, refPose);
     DepthMapExtended src(sourceDepthMap, camera, srcPose);

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -74,9 +74,8 @@ struct SAIGA_CORE_API ImageBase : public ImageDimensions
     // size in bytes
     HD inline size_t size() const { return height * pitchBytes; }
 
-
-
     HD inline bool inImage(int y, int x) const { return x >= 0 && x < width && y >= 0 && y < height; }
+    HD inline bool inImage(ivec2 ip) const { return inImage(ip.y(), ip.x()); }
 
     template <typename AT>
     HD inline bool inImage(AT y, AT x) const

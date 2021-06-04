@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -64,7 +64,7 @@ class SAIGA_OPENGL_API SSAO
     Framebuffer ssao_framebuffer, ssao_framebuffer2;
     std::shared_ptr<Texture> ssaotex;
 
-    IndexedVertexBuffer<VertexNT, uint32_t> quadMesh;
+    UnifiedMeshBuffer quadMesh;
     vec2 screenSize;
     ivec2 ssaoSize;
     std::vector<vec3> kernelOffsets;

@@ -1,15 +1,16 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
 
 #pragma once
 #include "saiga/core/image/image.h"
+#include "saiga/core/util/statistics.h"
 #include "saiga/core/util/table.h"
 
-#include "torch/torch.h"
 #include "TorchHelper.h"
+#include "torch/torch.h"
 
 #include <torch/script.h>
 
@@ -31,7 +32,7 @@ at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
     at::Tensor tensor = torch::from_blob(img.data, {img.h, img.w, c}, type);
 
     // In pytorch image tensors are usually represented as channel first.
-    tensor = tensor.permute({2, 0, 1});
+    tensor = tensor.permute({2, 0, 1}).clone();
 
     if (normalize)
     {
@@ -58,7 +59,7 @@ at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
 template <typename T>
 TemplatedImage<T> TensorToImage(at::Tensor tensor)
 {
-    tensor = tensor.clone();
+    tensor           = tensor.clone();
     using ScalarType = typename ImageTypeTemplate<T>::ChannelType;
     if (tensor.dim() == 4)
     {
@@ -143,5 +144,26 @@ inline at::Tensor UnNormalizeRGB(at::Tensor x)
     x = un_color_normalize1(x);
     return x;
 }
+
+inline torch::Tensor Filter2dIndependentChannels(torch::Tensor x, Matrix<float, -1, -1> kernel, int padding)
+{
+    SAIGA_ASSERT(x.dim() == 4);
+    torch::Tensor K_slice = torch::from_blob(kernel.data(), {1, 1, kernel.rows(), kernel.cols()}).to(x.device());
+    torch::Tensor K       = torch::zeros({x.size(1), x.size(1), kernel.rows(), kernel.cols()}, x.options());
+    for (int c = 0; c < x.size(1); ++c)
+    {
+        K.slice(0, c, c + 1).slice(1, c, c + 1) = K_slice;
+    }
+    auto res = torch::conv2d(x, K, {}, 1, padding);
+    return res;
+}
+
+// Not very efficient gauss blur, because the kernel is always created on the fly.
+// Also the filter is not separated.
+inline torch::Tensor GaussBlur(torch::Tensor image, int radius, float sigma, int padding)
+{
+    return Filter2dIndependentChannels(image, gaussianBlurKernel2d(radius, sigma), padding);
+}
+
 
 }  // namespace Saiga
