@@ -101,7 +101,7 @@ void Error::DebugLogConst(GLenum source, GLenum type, GLuint id, GLenum severity
     (void)userParam;
     (void)length;
 
-
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) return;
     if (ignoreMap.find(id) != ignoreMap.end()) return;
 
 

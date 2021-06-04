@@ -8,6 +8,7 @@
 
 #include "saiga/core/math/math.h"
 #include "saiga/opengl/opengl.h"
+#include "saiga/opengl/shader/UniformHelper.h"
 #include "saiga/opengl/shader/shaderpart.h"
 #include "saiga/opengl/texture/Texture2D.h"
 
@@ -192,27 +193,31 @@ class SAIGA_OPENGL_API Shader
      * The shader must be bound beforehand.
      */
 
-    // basic uploads
-    void upload(int location, const mat3& m);
-    void upload(int location, const mat4& m);
-    void upload(int location, const vec4& v);
-    void upload(int location, const vec3& v);
-    void upload(int location, const vec2& v);
-    void upload(int location, const int& v);
-    void upload(int location, const float& f);
-    // array uploads
-    void upload(int location, int count, mat4* m);
-    void upload(int location, int count, vec4* v);
-    void upload(int location, int count, vec3* v);
-    void upload(int location, int count, vec2* v);
-    void upload(int location, int count, int* v);
-    void upload(int location, int count, float* v);
+    template <class T>
+    void upload(int location, const T& value)
+    {
+        SAIGA_ASSERT(isBound());
+        UniformHelper<T>::Set(location, 1, &value);
+    }
+
+    template <class T>
+    void upload(int location, int count, const T* values)
+    {
+        SAIGA_ASSERT(isBound());
+        UniformHelper<T>::Set(location, count, values);
+    }
 
     // binds the texture to the given texture unit and sets the uniform.
-    void upload(int location, TextureBase* texture, int textureUnit);
-    void upload(int location, std::shared_ptr<TextureBase> texture, int textureUnit);
-    void upload(int location, TextureBase& texture, int textureUnit);
-    //    void upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit);
+    void upload(int location, TextureBase* texture, int textureUnit) { upload(location, *texture, textureUnit); }
+    void upload(int location, std::shared_ptr<TextureBase> texture, int textureUnit)
+    {
+        upload(location, *texture, textureUnit);
+    }
+    void upload(int location, TextureBase& texture, int textureUnit)
+    {
+        SAIGA_ASSERT(isBound());
+        UniformHelper<TextureBase>::Set(location, textureUnit, &texture);
+    }
 };
 
 }  // namespace Saiga

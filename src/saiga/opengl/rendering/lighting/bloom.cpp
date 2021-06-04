@@ -73,7 +73,7 @@ void Bloom::Render(Texture* hdr_texture)
 
     if (extract_shader->bind())
     {
-        extract_shader->upload(5, hdr_texture, 0);
+        extract_shader->upload(5, *hdr_texture, 0);
         bright_textures.front()->bindImageTexture(1, GL_WRITE_ONLY);
         extract_shader->dispatchComputeImage(bright_textures.front().get(), 16);
         extract_shader->unbind();
@@ -95,7 +95,7 @@ void Bloom::Render(Texture* hdr_texture)
         for (int i = 1; i < params.levels; ++i)
         {
             // bright_textures[i - 1]->bindImageTexture(0, GL_READ_ONLY);
-            downsample_shader->upload(5, bright_textures[i - 1], 0);
+            downsample_shader->upload(5, *bright_textures[i - 1], 0);
             bright_textures[i]->bindImageTexture(1, GL_WRITE_ONLY);
             downsample_shader->dispatchComputeImage(bright_textures[i].get(), 16);
             glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
@@ -255,18 +255,21 @@ void Bloom::resize(int w, int h)
 }
 void Bloom::Blur(Texture* source, Texture* target, Texture* tmp)
 {
-    blurx_shader->bind();
-    blurx_shader->upload(5, source, 0);
-    tmp->bindImageTexture(1, GL_WRITE_ONLY);
-    blurx_shader->dispatchComputeImage(tmp, 16);
-    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-    blurx_shader->unbind();
-
-    blury_shader->bind();
-    blury_shader->upload(5, tmp, 0);
-    target->bindImageTexture(1, GL_WRITE_ONLY);
-    blury_shader->dispatchComputeImage(target, 16);
-    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-    blury_shader->unbind();
+    if(blurx_shader->bind())
+    {
+        blurx_shader->upload(5, source, 0);
+        tmp->bindImageTexture(1, GL_WRITE_ONLY);
+        blurx_shader->dispatchComputeImage(tmp, 16);
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+        blurx_shader->unbind();
+    }
+    if(blury_shader->bind())
+    {
+        blury_shader->upload(5, tmp, 0);
+        target->bindImageTexture(1, GL_WRITE_ONLY);
+        blury_shader->dispatchComputeImage(target, 16);
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+        blury_shader->unbind();
+    }
 }
 }  // namespace Saiga

@@ -19,7 +19,6 @@ ToneMapper::ToneMapper()
     shader        = shaderLoader.load<Shader>("tone_map.glsl");
     shader_linear = shaderLoader.load<Shader>("tone_map_linear.glsl");
 
-    average_brightness_shader = shaderLoader.load<Shader>("tone_map_average_brightness.glsl");
 
     uniforms.create(params, GL_DYNAMIC_DRAW);
     tmp_buffer.create(tmp_params, GL_DYNAMIC_DRAW);
@@ -49,27 +48,31 @@ void ToneMapper::MapLinear(Texture* input_hdr_color_image)
         ComputeOptimalExposureValue(input_hdr_color_image);
     }
 
-    shader_linear->bind();
-    input_hdr_color_image->bindImageTexture(0, GL_READ_WRITE);
-    uniforms.bind(3);
-    tmp_buffer.bind(4);
-    int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
-    int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
-    shader_linear->dispatchCompute(uvec3(gw, gh, 1));
-    shader_linear->unbind();
+    if (shader_linear->bind())
+    {
+        input_hdr_color_image->bindImageTexture(0, GL_READ_WRITE);
+        uniforms.bind(3);
+        tmp_buffer.bind(4);
+        int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
+        int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
+        shader_linear->dispatchCompute(uvec3(gw, gh, 1));
+        shader_linear->unbind();
+    }
 }
 
 
 void ToneMapper::Map(Texture* input_hdr_color_image, Texture* output_ldr_color_image)
 {
-    shader->bind();
-    input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
-    output_ldr_color_image->bindImageTexture(1, GL_WRITE_ONLY);
-    shader->upload(2, response_texture.get(), 0);
-    int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
-    int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
-    shader->dispatchCompute(uvec3(gw, gh, 1));
-    shader->unbind();
+    if (shader->bind())
+    {
+        input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
+        output_ldr_color_image->bindImageTexture(1, GL_WRITE_ONLY);
+        shader->upload(2, *response_texture, 0);
+        int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
+        int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
+        shader->dispatchCompute(uvec3(gw, gh, 1));
+        shader->unbind();
+    }
 }
 
 vec3 ColorTemperatureToRGB(float temperatureInKelvins)
@@ -181,30 +184,43 @@ void ToneMapper::imgui()
 }
 void ToneMapper::ComputeOptimalExposureValue(Texture* input_hdr_color_image)
 {
+    if (!average_brightness_shader)
+    {
+        average_brightness_shader = shaderLoader.load<Shader>("tone_map_average_brightness.glsl");
+    }
+
     tmp_params = TonemapTempParameters();
     tmp_buffer.update(tmp_params);
 
-    average_brightness_shader->bind();
-    tmp_buffer.bind(4);
-    input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
-    int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
-    int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
-    average_brightness_shader->dispatchCompute(uvec3(gw, gh, 1));
-    average_brightness_shader->unbind();
-    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-
-    if (download_tmp_values)
+    if (average_brightness_shader->bind())
     {
-        // this is every inefficient because we stall the GL pipeline!
-        tmp_buffer.get(tmp_params);
+        tmp_buffer.bind(4);
+        input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
+        int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
+        int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
+        average_brightness_shader->dispatchCompute(uvec3(gw, gh, 1));
+        average_brightness_shader->unbind();
 
-        float average_luminace = tmp_params.average_color_luminace.w();
-        computed_exposure      = log2(std::max(average_luminace / 0.33, 1e-4));
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 
-        vec3 avg             = tmp_params.average_color_luminace.head<3>();
-        float alpha          = avg[1] / avg[0];
-        float beta           = avg[1] / avg[2];
-        computed_white_point = vec3(alpha, 1, beta);
+        if (download_tmp_values)
+        {
+            // this is every inefficient because we stall the GL pipeline!
+            tmp_buffer.get(tmp_params);
+
+            float average_luminace = tmp_params.average_color_luminace.w();
+            computed_exposure      = log2(std::max(average_luminace / 0.33, 1e-4));
+
+            vec3 avg             = tmp_params.average_color_luminace.head<3>();
+            float alpha          = avg[1] / avg[0];
+            float beta           = avg[1] / avg[2];
+            computed_white_point = vec3(alpha, 1, beta);
+        }
+    }
+    else
+    {
+        tmp_params.average_color_luminace = vec4(1, 1, 1, 1);
+        tmp_buffer.update(tmp_params);
     }
 }
 

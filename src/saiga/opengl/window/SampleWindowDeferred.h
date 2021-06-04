@@ -17,7 +17,7 @@
 #include "saiga/opengl/world/LineSoup.h"
 #include "saiga/opengl/world/pointCloud.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
-
+#include "saiga/opengl/assets/AssetRenderSystem.h"
 
 
 namespace Saiga
@@ -50,6 +50,7 @@ class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow<WindowMana
     std::shared_ptr<DirectionalLight> sun;
     Glfw_Camera<PerspectiveCamera> camera;
 
+    AssetRenderSystem render_system;
     SimpleAssetObject groundPlane;
     ProceduralSkybox skybox;
 

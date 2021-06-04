@@ -126,48 +126,34 @@ void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camer
     if (shader->bind())
     {
         shader->uploadModel(model);
-#if 0
-    buffer.bind();
+        renderRaw(shader.get());
+        shader->unbind();
+    }
+}
+void TexturedAsset::renderRaw(MVPTextureShader* shader)
+{
+    unified_buffer->Bind();
     for (int i = 0; i < groups.size(); ++i)
     {
-        auto& tg  = groups[i];
+        auto& tg = groups[i];
+        SAIGA_ASSERT(tg.materialId >= 0 && tg.materialId < materials.size());
+
         auto& mat = materials[tg.materialId];
 
+        SAIGA_ASSERT(!mat.texture_diffuse.empty());
         if (mat.texture_diffuse.empty()) continue;
 
         SAIGA_ASSERT(!mat.texture_diffuse.empty());
         auto& tex = textures[texture_name_to_id[mat.texture_diffuse]];
-        shader->uploadTexture(tex.get());
-        buffer.draw(tg.numFaces * 3, tg.startFace * 3);
-    }
-    buffer.unbind();
-#else
-        unified_buffer->Bind();
-        for (int i = 0; i < groups.size(); ++i)
+
+        SAIGA_ASSERT(tex);
+        if (tex)
         {
-            auto& tg = groups[i];
-            SAIGA_ASSERT(tg.materialId >= 0 && tg.materialId < materials.size());
-
-            auto& mat = materials[tg.materialId];
-
-            SAIGA_ASSERT(!mat.texture_diffuse.empty());
-            if (mat.texture_diffuse.empty()) continue;
-
-            SAIGA_ASSERT(!mat.texture_diffuse.empty());
-            auto& tex = textures[texture_name_to_id[mat.texture_diffuse]];
-
-            SAIGA_ASSERT(tex);
-            if (tex)
-            {
-                shader->uploadTexture(tex.get());
-                // multi_buffer[i]->bindAndDraw();
-                unified_buffer->Draw(tg.startFace, tg.numFaces);
-            }
+            shader->uploadTexture(tex.get());
+            unified_buffer->Draw(tg.startFace, tg.numFaces);
         }
-        unified_buffer->Unbind();
-#endif
-        shader->unbind();
     }
+    unified_buffer->Unbind();
 }
 
 
