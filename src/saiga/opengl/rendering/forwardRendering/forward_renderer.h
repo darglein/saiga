@@ -9,6 +9,7 @@
 #include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/rendering/lighting/forward_lighting.h"
 #include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/rendering/deferredRendering/tone_mapper.h"
 
 namespace Saiga
 {
@@ -65,6 +66,10 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     int renderWidth        = 0;
     int renderHeight       = 0;
     ShaderLoader shaderLoader;
+    ToneMapper tone_mapper;
+
+    std::shared_ptr<Texture> lightAccumulationTexture;
+    Framebuffer lightAccumulationBuffer;
 
    protected:
     const char* coloredShaderSource  = "asset/ColoredAsset.glsl";

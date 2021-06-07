@@ -90,8 +90,8 @@ void DeferredLighting::init(int _width, int _height, bool _useTimers)
 void DeferredLighting::resize(int _width, int _height)
 {
     RendererLighting::resize(_width, _height);
-
     lightAccumulationBuffer.resize(_width, _height);
+
 }
 
 void DeferredLighting::initRender()

@@ -49,6 +49,9 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
 
     UniformBuffer lightInfoBuffer;
 
+    std::shared_ptr<Texture> lightAccumulationTexture;
+    Framebuffer lightAccumulationBuffer;
+
     UberDeferredLighting(GBuffer& gbuffer, GLTimerSystem* timer);
     UberDeferredLighting& operator=(UberDeferredLighting& l) = delete;
     ~UberDeferredLighting();

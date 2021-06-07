@@ -31,10 +31,14 @@ class Sample : public RendererSampleWindow
         renderer->lighting.stencilCulling = false;  // Required since stencil does limit to 256 lights.
 #endif
 
-        planeAsset  = std::make_shared<ColoredAsset>(PlaneMesh(Plane(vec3(0, -0.1, 0), vec3(0, 1, 0))));
-//        sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
-        //sponzaAsset = std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza/sponza.obj"));
-        boxAsset    = std::make_shared<ColoredAsset>(BoxMesh(AABB(make_vec3(-0.5), make_vec3(0.5))));
+        planeAsset = std::make_shared<ColoredAsset>(
+            PlaneMesh(Plane(vec3(0, -0.1, 0), vec3(0, 1, 0))).SetVertexColor(vec4(1, 1, 1, 1)));
+        //        sponzaAsset =
+        //        std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
+        sponzaAsset =
+            std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza/sponza.obj"));
+        boxAsset = std::make_shared<ColoredAsset>(
+            BoxMesh(AABB(make_vec3(-0.5), make_vec3(0.5))).SetVertexColor(vec4(1, 1, 1, 1)));
 
         plane.asset = planeAsset;
         plane.setScale(vec3(20, 1, 20));
@@ -107,10 +111,13 @@ class Sample : public RendererSampleWindow
         boxAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 
         auto tex_deferredShader = shaderLoader.load<MVPTextureShader>(shaderStrTex,
-                                                                {{ GL_FRAGMENT_SHADER,
-                                                                   "#define DEFERRED",
-                                                                   1 }});
-        auto tex_depthShader = shaderLoader.load<MVPTextureShader>(shaderStrTex, {{ GL_FRAGMENT_SHADER, "#define DEPTH", 1 }});
+                                                                      {{ GL_FRAGMENT_SHADER,
+                                                                         "#define DEFERRED",
+                                                                         1 }});
+        auto tex_depthShader    = shaderLoader.load<MVPTextureShader>(shaderStrTex,
+                                                                   {{ GL_FRAGMENT_SHADER,
+                                                                      "#define DEPTH",
+                                                                      1 }});
 
         sci;
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
@@ -181,7 +188,7 @@ class Sample : public RendererSampleWindow
                     vec2 point(r * cos(theta), r * sin(theta));
 
                     auto light = std::make_shared<PointLight>();
-                    light->setIntensity(10);
+                    light->setIntensity(1);
                     light->setRadius(1);
                     light->setPosition(vec3(point.x(), 0.5, point.y()));
 
@@ -193,7 +200,7 @@ class Sample : public RendererSampleWindow
                 }
                 auto dl = std::make_shared<DirectionalLight>();
                 dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.1f);
+                dl->setAmbientIntensity(0.05f);
                 renderer->lighting.AddLight(dl);
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
@@ -217,8 +224,9 @@ class Sample : public RendererSampleWindow
                     vec2 point((r + 14.f) * cos(theta), r * sin(theta));
 
                     auto light = std::make_shared<PointLight>();
-                    light->setIntensity(10);
-                    light->setRadius(linearRand(0.5f, 2.0f));
+                    light->setIntensity(1);
+                    light->setRadius(linearRand(1.5f, 4.0f));
+                    light->attenuation = vec3(0,0,1);
                     float h = linearRand(0.25f, 25.0f);
                     light->setPosition(vec3(point.x(), h, point.y()));
 
@@ -229,7 +237,7 @@ class Sample : public RendererSampleWindow
                 }
                 auto dl = std::make_shared<DirectionalLight>();
                 dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.1f);
+                dl->setAmbientIntensity(0.05f);
                 renderer->lighting.AddLight(dl);
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
@@ -265,7 +273,7 @@ class Sample : public RendererSampleWindow
                 }
                 auto dl = std::make_shared<DirectionalLight>();
                 dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.1f);
+                dl->setAmbientIntensity(0.05f);
                 renderer->lighting.AddLight(dl);
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
@@ -284,7 +292,7 @@ class Sample : public RendererSampleWindow
                 for (int i = 0; i < 4096; ++i)
                 {
                     auto light = std::make_shared<PointLight>();
-                    light->setIntensity(10);
+                    light->setIntensity(2);
 
                     light->setRadius(linearRand(0.5f, 2.0f));
                     light->setPosition(linearRand(vec3(-19.0f, 0.5 * light->getRadius(), -19.0f),
@@ -297,7 +305,7 @@ class Sample : public RendererSampleWindow
                 }
                 auto dl = std::make_shared<DirectionalLight>();
                 dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.1f);
+                dl->setAmbientIntensity(0.05f);
                 renderer->lighting.AddLight(dl);
 
                 camera.position = vec4(0.123655, 9.77907, 21.8321, 1);
@@ -328,7 +336,7 @@ class Sample : public RendererSampleWindow
                 }
                 auto dl = std::make_shared<DirectionalLight>();
                 dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.1f);
+                dl->setAmbientIntensity(0.05f);
                 renderer->lighting.AddLight(dl);
 
                 camera.position = vec4(-0.459712, 8.13201, 12.0926, 1);
@@ -362,7 +370,7 @@ class Sample : public RendererSampleWindow
                 }
                 auto dl = std::make_shared<DirectionalLight>();
                 dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.1f);
+                dl->setAmbientIntensity(0.05f);
                 renderer->lighting.AddLight(dl);
 
                 camera.position = vec4(-0.459712, 8.13201, 12.0926, 1);

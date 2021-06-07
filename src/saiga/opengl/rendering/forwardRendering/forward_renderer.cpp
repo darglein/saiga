@@ -35,6 +35,22 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
 {
     if (!rendering) return;
 
+    if (!lightAccumulationTexture)
+    {
+        lightAccumulationBuffer.create();
+
+        // NOTE: Use the same depth-stencil buffer as the gbuffer. I hope this works on every hardware :).
+        lightAccumulationBuffer.attachTextureDepthStencil(target_framebuffer->getTextureDepth());
+
+        lightAccumulationTexture = std::make_shared<Texture>();
+        lightAccumulationTexture->create(viewport.size.x(), viewport.size.y(), GL_RGBA, GL_RGBA16F, GL_HALF_FLOAT);
+        lightAccumulationBuffer.attachTexture(lightAccumulationTexture);
+
+        lightAccumulationBuffer.drawTo({0});
+        lightAccumulationBuffer.check();
+        lightAccumulationBuffer.unbind();
+    }
+
     Resize(viewport.size.x(), viewport.size.y());
 
     SAIGA_ASSERT(rendering);
@@ -54,7 +70,7 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
 
     setViewPort(viewport);
 
-    target_framebuffer->bind();
+    lightAccumulationBuffer.bind();
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glDisable(GL_BLEND);
@@ -75,6 +91,14 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
         glDepthFunc(GL_LESS);
     }
     lighting.render(camera, viewport);
+    lightAccumulationBuffer.unbind();
+
+    {
+        auto tim = timer->Measure("Tone Mapping");
+        tone_mapper.MapLinear(lightAccumulationTexture.get());
+        tone_mapper.Map(lightAccumulationTexture.get(), target_framebuffer->getTextureColor(0).get());
+    }
+
 
     assert_no_glerror();
 }
@@ -93,7 +117,9 @@ void ForwardRenderer::Resize(int windowWidth, int windowHeight)
     std::cout << "Resizing Window to : " << windowWidth << "," << windowHeight << std::endl;
     std::cout << "Framebuffer size: " << renderWidth << " " << renderHeight << std::endl;
 
+
     lighting.resize(windowWidth, windowHeight);
+    lightAccumulationBuffer.resize(windowWidth, windowHeight);
 }
 
 void ForwardRenderer::renderImgui()
@@ -117,6 +143,8 @@ void ForwardRenderer::renderImgui()
     ImGui::Checkbox("Depth Prepass", &depthPrepass);
 
     ImGui::Separator();
+
+    tone_mapper.imgui();
 
     ImGui::End();
 }

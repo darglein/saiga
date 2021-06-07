@@ -10,6 +10,7 @@
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/rendering/lighting/uber_deferred_lighting.h"
 #include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/rendering/deferredRendering/tone_mapper.h"
 
 
 namespace Saiga
@@ -96,6 +97,7 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
    protected:
     int renderWidth, renderHeight;
     GBuffer gbuffer;
+    ToneMapper tone_mapper;
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
     UnifiedMeshBuffer quadMesh;

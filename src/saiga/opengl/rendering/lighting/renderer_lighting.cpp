@@ -63,6 +63,8 @@ void RendererLighting::init(int _width, int _height, bool _useTimers)
     int shadowSamplesX = round(sqrt((float)shadowSamples));
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER, "#define SHADOWS", 1);
     shadowInjection.emplace_back(GL_FRAGMENT_SHADER, "#define SHADOW_SAMPLES_X " + std::to_string(shadowSamplesX), 2);
+
+
 }
 
 void RendererLighting::resize(int _width, int _height)

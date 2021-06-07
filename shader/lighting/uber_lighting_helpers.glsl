@@ -216,7 +216,7 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
         float Ispec = 0;
         if(Idiff > 0)
             Ispec = localIntensity * material.data.x  * intensitySpecular(position, normal, fragmentLightDir, 40);
-
+        Ispec = 0;
 
         vec3 color = lightColorDiffuse.rgb * (
                     Idiff * material.color.rgb +
@@ -388,6 +388,7 @@ vec3 calculateDirectionalLights(AssetMaterial material, vec3 position, vec3 norm
         if (Idiff > 0) Ispec = localIntensity * material.data.x * intensitySpecular(position, normal, fragmentLightDir, 40);
 
         float Iemissive = material.data.y;
+        Iemissive = 0;
 
         vec3 color = lightColorDiffuse.rgb *
                     (Idiff * material.color.rgb + Ispec * lightColorSpecular.w * lightColorSpecular.rgb + Iamb * material.color.rgb) +
@@ -395,5 +396,6 @@ vec3 calculateDirectionalLights(AssetMaterial material, vec3 position, vec3 norm
 
         result += color;
     }
+    //result = vec3(0);
     return result;
 }

@@ -21,7 +21,8 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth() * _params.renderScale),
-      renderHeight(window.getHeight() * _params.renderScale), quadMesh(FullScreenQuad())
+      renderHeight(window.getHeight() * _params.renderScale),
+      quadMesh(FullScreenQuad())
 {
     {
         // create a 2x2 grayscale black dummy texture
@@ -44,6 +45,8 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
 
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
+
+
 
     std::cout << "Uber Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight
               << std::endl;
@@ -115,6 +118,13 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
         setViewPort(viewport);
         renderingInterface->render(camera, RenderPass::Forward);
     }
+
+    {
+        auto tim = timer->Measure("Tone Mapping");
+        tone_mapper.MapLinear(lighting.lightAccumulationTexture.get());
+        tone_mapper.Map(lighting.lightAccumulationTexture.get(), target_framebuffer->getTextureColor(0).get());
+    }
+
 
     assert_no_glerror();
 }
@@ -271,6 +281,8 @@ void UberDeferredRenderer::renderImgui()
     ImGui::Checkbox("Cull Lights", &cullLights);
 
     ImGui::Separator();
+
+    tone_mapper.imgui();
 
     ImGui::End();
 }

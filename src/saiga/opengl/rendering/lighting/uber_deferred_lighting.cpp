@@ -46,12 +46,25 @@ void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
 {
     RendererLighting::init(_width, _height, _useTimers);
     if (clustererType) lightClusterer->init(_width, _height);
+
+    lightAccumulationBuffer.create();
+
+    lightAccumulationBuffer.attachTextureDepthStencil(gbuffer.getTextureDepth());
+
+    lightAccumulationTexture = std::make_shared<Texture>();
+    lightAccumulationTexture->create(_width, _height, GL_RGBA, GL_RGBA16F, GL_HALF_FLOAT);
+    lightAccumulationBuffer.attachTexture(lightAccumulationTexture);
+
+    lightAccumulationBuffer.drawTo({0});
+    lightAccumulationBuffer.check();
+    lightAccumulationBuffer.unbind();
 }
 
 void UberDeferredLighting::resize(int _width, int _height)
 {
     RendererLighting::resize(_width, _height);
     if (clustererType) lightClusterer->resize(_width, _height);
+    lightAccumulationBuffer.resize(_width, _height);
 }
 
 UberDeferredLighting::~UberDeferredLighting() {}
@@ -140,6 +153,7 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     }
 
 
+    lightAccumulationBuffer.bind();
     {
         auto tim = timer->Measure("Shade");
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -166,6 +180,8 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
         // glDepthMask(GL_FALSE);
     }
     if (clustererType) lightClusterer->renderDebug(cam);
+
+    lightAccumulationBuffer.unbind();
     assert_no_glerror();
 }
 
