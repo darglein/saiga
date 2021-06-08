@@ -20,12 +20,15 @@
 
 namespace Saiga
 {
+
+// TODO: classes start with a capital letter
 struct clusterItem
 {
     int32_t lightIndex = 0;
 };
 struct cluster
 {
+    // TODO: inconsistent int32_t <-> int
     int offset  = -1;
     int plCount = -1;
     int slCount = -1;
@@ -45,6 +48,7 @@ struct SpotLightClusterData
     SpotLightClusterData(vec3 w_center, float r) : world_center(w_center), radius(r) {}
 };
 
+// TODO: move to gpu impl
 class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
 {
    public:
@@ -59,6 +63,7 @@ class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
     }
 };
 
+// TODO: should match file name either rename file or rename this class
 class SAIGA_OPENGL_API Clusterer
 {
    public:
@@ -66,9 +71,11 @@ class SAIGA_OPENGL_API Clusterer
     Clusterer& operator=(Clusterer& c) = delete;
     virtual ~Clusterer();
 
+    // TODO: remove init? resize should be enough
     void init(int width, int height);
     void resize(int width, int height);
 
+    // TODO: create a parameter struct. see renderer.h for an example
     inline void enable3DClusters(bool enabled)
     {
         clusterThreeDimensional = enabled;
@@ -82,10 +89,16 @@ class SAIGA_OPENGL_API Clusterer
         clustersDirty       = true;
     }
 
+    // TODO: unused?
     inline bool clusters3D() { return clusterThreeDimensional; }
 
+    // TODO: unused?
     void loadComputeShaders();
 
+    // TODO: change interface. instead of the 4 functions below can we make it to a single:
+    //  virtual void clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<PointLight*> pls,
+    //                          ArrayView<SpotLight*> sls)
+    // See shadow_manager.h for an example
     inline void clearLightData()
     {
         pointLightsClusterData.clear();
@@ -109,6 +122,7 @@ class SAIGA_OPENGL_API Clusterer
 
     virtual void imgui();
 
+    // TODO: virtual? + move to .cpp
     virtual void renderDebug(Camera* cam)
     {
         if (!clusterDebug) return;
@@ -202,6 +216,7 @@ class SAIGA_OPENGL_API Clusterer
         return x + clusterInfoBuffer.clusterX * y + (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
     }
 
+    // TODO: this struct and the struct below seem unnecessary
     struct clusterBuffer_t
     {
         std::vector<cluster> clusterList;
@@ -224,6 +239,7 @@ class SAIGA_OPENGL_API Clusterer
          */
     } itemBuffer;
 
+    // TODO: use TemplatedShaderStorageBuffer
     ShaderStorageBuffer infoBuffer;
     ShaderStorageBuffer clusterListBuffer;
     ShaderStorageBuffer itemListBuffer;
