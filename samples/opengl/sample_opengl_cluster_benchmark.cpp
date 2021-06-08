@@ -40,9 +40,9 @@ class Sample : public RendererSampleWindow
         editor_layout->RegisterImguiWindow("Cluster Benchmark Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
         editor_gui.SetLayout(std::move(editor_layout));
 
-#ifdef SPONZA 
+#ifdef SPONZA
     TheAsset = std::make_shared<ColoredAsset>(
-            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf").SetVertexColor(vec4(1, 1, 1, 1)));
+            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf").SetVertexColor(vec4(1, 1, 1, 1)));
 
 
         assetObject.asset = TheAsset;
@@ -50,7 +50,7 @@ class Sample : public RendererSampleWindow
         assetObject.calculateModel();
 #else
         auto model =
-            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf");
+            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf").SetVertexColor(vec4(1, 1, 1, 1)));
         model    = model.Normalize();
         TheAsset = std::make_shared<ColoredAsset>(model);
         bb       = model.CombinedMesh().first.BoundingBox();
