@@ -340,5 +340,13 @@ UnifiedModel& UnifiedModel::ComputeColor()
     return *this;
 }
 
+UnifiedModel& UnifiedModel::SetVertexColor(const vec4& color)
+{
+    for (auto& m : mesh)
+    {
+        m.SetVertexColor(color);
+    }
+    return *this;
+}
 
 }  // namespace Saiga

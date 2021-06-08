@@ -40,9 +40,10 @@ class Sample : public RendererSampleWindow
         editor_layout->RegisterImguiWindow("Cluster Benchmark Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
         editor_gui.SetLayout(std::move(editor_layout));
 
-#ifdef SPONZA
-        TheAsset = std::make_shared<ColoredAsset>(
-            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
+#ifdef SPONZA 
+    TheAsset = std::make_shared<ColoredAsset>(
+            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf").SetVertexColor(vec4(1, 1, 1, 1)));
+
 
         assetObject.asset = TheAsset;
         assetObject.setScale(make_vec3(0.025f));
