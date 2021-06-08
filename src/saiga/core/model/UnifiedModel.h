@@ -67,6 +67,8 @@ class SAIGA_CORE_API UnifiedModel
     UnifiedModel& Normalize(float dimensions = 2.0f);
     UnifiedModel& AddMissingDummyTextures();
 
+    AABB BoundingBox() const;
+
     std::string name;
 
     std::vector<UnifiedMesh> mesh;

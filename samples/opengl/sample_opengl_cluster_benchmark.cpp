@@ -53,7 +53,7 @@ class Sample : public RendererSampleWindow
             UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf").SetVertexColor(vec4(1, 1, 1, 1)));
         model    = model.Normalize();
         TheAsset = std::make_shared<ColoredAsset>(model);
-        bb       = model.CombinedMesh().first.BoundingBox();
+        bb       = model.BoundingBox();
         bb.scale(make_vec3(50.0));
         assetObject.asset = TheAsset;
         assetObject.setScale(make_vec3(50.0));
