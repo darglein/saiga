@@ -40,9 +40,10 @@ class Sample : public RendererSampleWindow
         editor_layout->RegisterImguiWindow("Cluster Benchmark Sample", EditorLayoutL::WINDOW_POSITION_LEFT);
         editor_gui.SetLayout(std::move(editor_layout));
 
-#ifdef SPONZA
-        TheAsset = std::make_shared<ColoredAsset>(
-            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
+#ifdef SPONZA 
+    TheAsset = std::make_shared<ColoredAsset>(
+            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf").SetVertexColor(vec4(1, 1, 1, 1)));
+
 
         assetObject.asset = TheAsset;
         assetObject.setScale(make_vec3(0.025f));
@@ -98,11 +99,11 @@ class Sample : public RendererSampleWindow
         TheAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
-        lightCount = 0;
+        lightCount = 1;
 #ifdef SPONZA_LARGE
         lightSize = 6.0f;
 #else
-        lightSize      = 2.0f;
+        lightSize = 2.0f;
 #endif
 
         Random::setSeed(SEED);
@@ -181,7 +182,7 @@ class Sample : public RendererSampleWindow
 
         std::cout << "Program Initialized!" << std::endl;
 
-#define OFFLINE_BENCHMARK
+//#define OFFLINE_BENCHMARK
 #ifdef OFFLINE_BENCHMARK
         int w = 1920;
         int h = 1080;
@@ -349,6 +350,8 @@ class Sample : public RendererSampleWindow
             pl->setPosition(vec3(point.x(), h, point.y()));
         }
 #endif
+
+#ifdef OFFLINE_BENCHMARK
         // interpolate camera
         float t = (float)currentFrameUpdate / (float)(measureFrameCount - 1);
 #ifdef SPONZA
@@ -396,6 +399,7 @@ class Sample : public RendererSampleWindow
         camera.updateFromModel();
 
         currentFrameUpdate++;
+#endif
     }
 
     void setupBenchmark()
