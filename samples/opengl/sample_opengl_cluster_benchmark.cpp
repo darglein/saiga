@@ -42,17 +42,17 @@ class Sample : public RendererSampleWindow
 
 #ifdef SPONZA
         TheAsset = std::make_shared<ColoredAsset>(
-            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
+            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
 
         assetObject.asset = TheAsset;
         assetObject.setScale(make_vec3(0.025f));
         assetObject.calculateModel();
 #else
         auto model =
-            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf");
+            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/BistroExterior.gltf");
         model    = model.Normalize();
         TheAsset = std::make_shared<ColoredAsset>(model);
-        bb       = model.BoundingBox();
+        bb       = model.CombinedMesh().first.BoundingBox();
         bb.scale(make_vec3(50.0));
         assetObject.asset = TheAsset;
         assetObject.setScale(make_vec3(50.0));
@@ -98,11 +98,11 @@ class Sample : public RendererSampleWindow
         TheAsset->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
 #endif
 
-        lightCount = 0;
+        lightCount = 128;
 #ifdef SPONZA_LARGE
         lightSize = 6.0f;
 #else
-        lightSize      = 2.0f;
+        lightSize = 2.0f;
 #endif
 
         Random::setSeed(SEED);
@@ -181,7 +181,7 @@ class Sample : public RendererSampleWindow
 
         std::cout << "Program Initialized!" << std::endl;
 
-#define OFFLINE_BENCHMARK
+//#define OFFLINE_BENCHMARK
 #ifdef OFFLINE_BENCHMARK
         int w = 1920;
         int h = 1080;

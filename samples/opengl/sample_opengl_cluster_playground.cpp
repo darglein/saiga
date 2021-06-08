@@ -33,10 +33,10 @@ class Sample : public RendererSampleWindow
 
         planeAsset = std::make_shared<ColoredAsset>(
             PlaneMesh(Plane(vec3(0, -0.1, 0), vec3(0, 1, 0))).SetVertexColor(vec4(1, 1, 1, 1)));
-        //        sponzaAsset =
-        //        std::make_shared<TexturedAsset>(UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
-        sponzaAsset =
-            std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza/sponza.obj"));
+        sponzaAsset = std::make_shared<TexturedAsset>(
+            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf"));
+        // sponzaAsset =
+        //    std::make_shared<TexturedAsset>(UnifiedModel("/home/dari/Projects/saiga/data/user/sponza/sponza.obj"));
         boxAsset = std::make_shared<ColoredAsset>(
             BoxMesh(AABB(make_vec3(-0.5), make_vec3(0.5))).SetVertexColor(vec4(1, 1, 1, 1)));
 
@@ -226,8 +226,8 @@ class Sample : public RendererSampleWindow
                     auto light = std::make_shared<PointLight>();
                     light->setIntensity(1);
                     light->setRadius(linearRand(1.5f, 4.0f));
-                    light->attenuation = vec3(0,0,1);
-                    float h = linearRand(0.25f, 25.0f);
+                    light->attenuation = vec3(0, 0, 1);
+                    float h            = linearRand(0.25f, 25.0f);
                     light->setPosition(vec3(point.x(), h, point.y()));
 
                     light->setColorDiffuse(linearRand(vec3(0, 0, 0), vec3(1, 1, 1)));
