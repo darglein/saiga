@@ -62,7 +62,7 @@ void AssetRenderSystem::Render(Camera* cam, RenderPass render_pass)
                 if (data.flags & RENDER_DEFAULT)
                 {
                     shader_textured_deferred->uploadModel(data.model);
-                    data.asset->renderRaw(shader_textured_deferred.get());
+                    data.asset->RenderNoShaderBind(shader_textured_deferred.get());
                 }
             }
             shader_textured_deferred->unbind();

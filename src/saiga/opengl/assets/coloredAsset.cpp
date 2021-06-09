@@ -126,11 +126,11 @@ void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camer
     if (shader->bind())
     {
         shader->uploadModel(model);
-        renderRaw(shader.get());
+        RenderNoShaderBind(shader.get());
         shader->unbind();
     }
 }
-void TexturedAsset::renderRaw(MVPTextureShader* shader)
+void TexturedAsset::RenderNoShaderBind(MVPTextureShader* shader)
 {
     unified_buffer->Bind();
     for (int i = 0; i < groups.size(); ++i)
