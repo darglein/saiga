@@ -76,90 +76,98 @@ void BasicAsset< ShaderType>::render(Camera* cam, const mat4& model)
 {
     (void)cam;
     SAIGA_ASSERT(deferredShader);
-    deferredShader->bind();
-    //    shader->uploadAll(cam,model);
-    deferredShader->uploadModel(model);
-
-    //    glEnable(GL_POLYGON_OFFSET_FILL);
-    //    glPolygonOffset(1.0f,1.0f);
-
-    if (unified_buffer)
+    if(deferredShader->bind())
     {
-        unified_buffer->Bind();
-        unified_buffer->Draw();
-        unified_buffer->Unbind();
+        //    shader->uploadAll(cam,model);
+        deferredShader->uploadModel(model);
+
+        //    glEnable(GL_POLYGON_OFFSET_FILL);
+        //    glPolygonOffset(1.0f,1.0f);
+
+        if (unified_buffer)
+        {
+            unified_buffer->Bind();
+            unified_buffer->Draw();
+            unified_buffer->Unbind();
+        }
+
+        //    glDisable(GL_POLYGON_OFFSET_FILL);
+
+        deferredShader->unbind();
     }
-
-    //    glDisable(GL_POLYGON_OFFSET_FILL);
-
-    deferredShader->unbind();
 }
 
 template < typename ShaderType>
 void BasicAsset< ShaderType>::renderForward(Camera* cam, const mat4& model)
 {
     (void)cam;
-    forwardShader->bind();
-    //    shader->uploadAll(cam,model);
-    forwardShader->uploadModel(model);
-
-    //    glEnable(GL_POLYGON_OFFSET_FILL);
-    //    glPolygonOffset(1.0f,1.0f);
-
-    if (unified_buffer)
+    if(forwardShader->bind())
     {
-        unified_buffer->Bind();
-        unified_buffer->Draw();
-        unified_buffer->Unbind();
+        //    shader->uploadAll(cam,model);
+        forwardShader->uploadModel(model);
+
+        //    glEnable(GL_POLYGON_OFFSET_FILL);
+        //    glPolygonOffset(1.0f,1.0f);
+
+        if (unified_buffer)
+        {
+            unified_buffer->Bind();
+            unified_buffer->Draw();
+            unified_buffer->Unbind();
+        }
+
+        //    glDisable(GL_POLYGON_OFFSET_FILL);
+
+        forwardShader->unbind();
     }
-
-    //    glDisable(GL_POLYGON_OFFSET_FILL);
-
-    forwardShader->unbind();
 }
 
 template <typename ShaderType>
 void BasicAsset<ShaderType>::renderDepth(Camera* cam, const mat4& model)
 {
     (void)cam;
-    depthshader->bind();
-    depthshader->uploadModel(model);
-    if (unified_buffer)
+    if(depthshader->bind())
     {
-        unified_buffer->Bind();
-        unified_buffer->Draw();
-        unified_buffer->Unbind();
+        depthshader->uploadModel(model);
+        if (unified_buffer)
+        {
+            unified_buffer->Bind();
+            unified_buffer->Draw();
+            unified_buffer->Unbind();
+        }
+        depthshader->unbind();
     }
-    depthshader->unbind();
 }
 
 template <typename ShaderType>
 void BasicAsset<ShaderType>::renderWireframe(Camera* cam, const mat4& model)
 {
     (void)cam;
-    wireframeshader->bind();
-    wireframeshader->uploadModel(model);
-
-    //    glEnable(GL_POLYGON_OFFSET_LINE);
-
-    // negative values shifts the wireframe towards the camera,
-    // but a non zero factors does strange things for lines and increases
-    // the depth on lines with high slope towards the camera by too much.
-    // a visually better solution is to shift the triangles back a bit glPolygonOffset(1,1);
-    // and draw the wireframe without polygon offset.
-    //    glPolygonOffset(0.0f,-500.0f);
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    if (unified_buffer)
+    if(wireframeshader->bind())
     {
-        unified_buffer->Bind();
-        unified_buffer->Draw();
-        unified_buffer->Unbind();
-    }
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    //    glDisable(GL_POLYGON_OFFSET_LINE);
+        wireframeshader->uploadModel(model);
 
-    wireframeshader->unbind();
+        //    glEnable(GL_POLYGON_OFFSET_LINE);
+
+        // negative values shifts the wireframe towards the camera,
+        // but a non zero factors does strange things for lines and increases
+        // the depth on lines with high slope towards the camera by too much.
+        // a visually better solution is to shift the triangles back a bit glPolygonOffset(1,1);
+        // and draw the wireframe without polygon offset.
+        //    glPolygonOffset(0.0f,-500.0f);
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        if (unified_buffer)
+        {
+            unified_buffer->Bind();
+            unified_buffer->Draw();
+            unified_buffer->Unbind();
+        }
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        //    glDisable(GL_POLYGON_OFFSET_LINE);
+
+        wireframeshader->unbind();
+    }
 }
 
 template < typename ShaderType>

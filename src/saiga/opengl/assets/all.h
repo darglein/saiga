@@ -11,3 +11,5 @@
 #include <saiga/opengl/assets/asset.h>
 #include <saiga/opengl/assets/coloredAsset.h>
 #include <saiga/opengl/assets/simpleAssetObject.h>
+#include <saiga/opengl/assets/AssetRenderSystem.h>
+

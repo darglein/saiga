@@ -149,8 +149,8 @@ struct FrameGraphElement
     TimerSystem::TimeData* data;
 
     // Bounding box of the rectangle
-    vec2 box_min;
-    vec2 box_max;
+    vec2 box_min = vec2::Zero();
+    vec2 box_max = vec2::Zero();
 
     bool hover(vec2 mouse)
     {

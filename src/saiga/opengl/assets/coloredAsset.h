@@ -73,6 +73,7 @@ class SAIGA_OPENGL_API TexturedAsset : public BasicAsset< MVPTextureShader>
     virtual void renderForward(Camera* cam, const mat4& model) override;
     virtual void renderDepth(Camera* cam, const mat4& model) override;
 
+    void renderRaw(MVPTextureShader* shader);
    protected:
     void renderGroups(std::shared_ptr<MVPTextureShader> shader, Camera* cam, const mat4& model);
 

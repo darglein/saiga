@@ -48,29 +48,36 @@ LineVertexColoredAsset::LineVertexColoredAsset(const UnifiedMesh& model) : LineV
 
 void LineVertexColoredAsset::SetShaderColor(const vec4& color)
 {
-    deferredShader->bind();
-    deferredShader->uploadColor(color);
-    deferredShader->unbind();
+    if (deferredShader->bind())
+    {
+        deferredShader->uploadColor(color);
+        deferredShader->unbind();
+    }
 
-    forwardShader->bind();
-    forwardShader->uploadColor(color);
-    forwardShader->unbind();
+    if (forwardShader->bind())
+    {
+        forwardShader->uploadColor(color);
+        forwardShader->unbind();
+    }
 }
 
 void LineVertexColoredAsset::SetRenderFlags(RenderFlags flags)
 {
-    deferredShader->bind();
-    deferredShader->upload(3, int(flags));
-    deferredShader->unbind();
+    if (deferredShader->bind())
+    {
+        deferredShader->upload(3, int(flags));
+        deferredShader->unbind();
+    }
 
-    forwardShader->bind();
-    forwardShader->upload(3, int(flags));
-    forwardShader->unbind();
+    if (forwardShader->bind())
+    {
+        forwardShader->upload(3, int(flags));
+        forwardShader->unbind();
+    }
 }
 
 TexturedAsset::TexturedAsset(const UnifiedModel& model) : TexturedAsset()
 {
-
     auto [mesh, groups] = model.CombinedMesh(VERTEX_POSITION | VERTEX_NORMAL | VERTEX_TEXTURE_COORDINATES);
     this->groups        = groups;
 
@@ -116,28 +123,19 @@ void TexturedAsset::renderDepth(Camera* cam, const mat4& model)
 
 void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camera* cam, const mat4& model)
 {
-    shader->bind();
-    shader->uploadModel(model);
-#if 0
-    buffer.bind();
-    for (int i = 0; i < groups.size(); ++i)
+    if (shader->bind())
     {
-        auto& tg  = groups[i];
-        auto& mat = materials[tg.materialId];
-
-        if (mat.texture_diffuse.empty()) continue;
-
-        SAIGA_ASSERT(!mat.texture_diffuse.empty());
-        auto& tex = textures[texture_name_to_id[mat.texture_diffuse]];
-        shader->uploadTexture(tex.get());
-        buffer.draw(tg.numFaces * 3, tg.startFace * 3);
+        shader->uploadModel(model);
+        renderRaw(shader.get());
+        shader->unbind();
     }
-    buffer.unbind();
-#else
+}
+void TexturedAsset::renderRaw(MVPTextureShader* shader)
+{
     unified_buffer->Bind();
     for (int i = 0; i < groups.size(); ++i)
     {
-        auto& tg  = groups[i];
+        auto& tg = groups[i];
         SAIGA_ASSERT(tg.materialId >= 0 && tg.materialId < materials.size());
 
         auto& mat = materials[tg.materialId];
@@ -152,13 +150,10 @@ void TexturedAsset::renderGroups(std::shared_ptr<MVPTextureShader> shader, Camer
         if (tex)
         {
             shader->uploadTexture(tex.get());
-            // multi_buffer[i]->bindAndDraw();
             unified_buffer->Draw(tg.startFace, tg.numFaces);
         }
     }
     unified_buffer->Unbind();
-#endif
-    shader->unbind();
 }
 
 

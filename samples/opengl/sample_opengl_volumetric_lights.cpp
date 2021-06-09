@@ -69,17 +69,13 @@ class Sample : public SampleWindowDeferred
         std::cout << "Program Initialized!" << std::endl;
     }
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void interpolate(float dt, float interpolation)
     {
-        Base::render(cam, render_pass);
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
-        {
-            cube1.render(cam);
-            cube2.render(cam);
-            sphere.render(cam);
-        }
+        Base::interpolate(dt, interpolation);
+        render_system.Add(cube1.asset.get(), cube1.model, RENDER_DEFAULT | RENDER_SHADOW);
+        render_system.Add(cube2.asset.get(), cube2.model, RENDER_DEFAULT | RENDER_SHADOW);
+        render_system.Add(sphere.asset.get(), sphere.model, RENDER_DEFAULT | RENDER_SHADOW);
     }
-
 
 
    private:

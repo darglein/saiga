@@ -39,14 +39,8 @@ void main() {
         return;
     }
 
-    vec2 texel_position_large = (vec2(texel_position_small) * 2.f) + vec2(0.5);
-    ivec2 image_size_large = textureSize(inputTex, 0);
-    vec2 uv = Texel2UV(texel_position_large, image_size_large);
+    vec2 uv = Texel2UV(texel_position_small, image_size_small);
     vec3 hdr_value = texture(inputTex, uv).rgb;
-
-    uv = Texel2UV(texel_position_small, image_size_small);
     hdr_value = DownsampleBox(uv).rgb;
-
-    // vec3 hdr_value = imageLoad(inputTex, texel_position).rgb;
     imageStore(destTex, texel_position_small, vec4(hdr_value, 1));
 }

@@ -114,12 +114,8 @@ GLuint Shader::createProgram()
     assert_no_glerror();
     glLinkProgram(program);
     assert_no_glerror();
-    if (!printProgramLog())
-    {
-        // do not assert here, because printprogramlog will sometimes only print warnings.
-        //        SAIGA_SAIGA_ASSERT(0);
-        //		return 0;
-    }
+    printProgramLog();
+
 
     assert_no_glerror();
     for (auto& sp : shaders)
@@ -127,12 +123,19 @@ GLuint Shader::createProgram()
         sp->deleteGLShader();
     }
 
-    assert_no_glerror();
-
-    checkUniforms();
-
-    assert_no_glerror();
-    return program;
+    // Check if linking was actually successful
+    GLint isLinked = 0;
+    glGetProgramiv(program, GL_LINK_STATUS, &isLinked);
+    if (isLinked)
+    {
+        checkUniforms();
+        return program;
+    }
+    else
+    {
+        destroyProgram();
+        return 0;
+    }
 }
 
 void Shader::destroyProgram()
@@ -181,14 +184,21 @@ bool Shader::printProgramLog()
     }
 }
 
-void Shader::bind()
+bool Shader::bind()
 {
-    SAIGA_ASSERT(program);
-    // allow double bind
-    SAIGA_ASSERT(boundShader == program || boundShader == 0);
-    boundShader = program;
-    glUseProgram(program);
-    assert_no_glerror();
+    if (program)
+    {
+        // allow double bind
+        SAIGA_ASSERT(boundShader == program || boundShader == 0);
+        boundShader = program;
+        glUseProgram(program);
+        assert_no_glerror();
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 void Shader::unbind()
@@ -408,123 +418,5 @@ std::vector<GLint> Shader::getUniformBlockOffset(std::vector<GLint> indices)
     return ret;
 }
 
-// ===================================== uniform uploads =====================================
-
-void Shader::upload(int location, const mat3& m)
-{
-    SAIGA_ASSERT(isBound());
-    glUniformMatrix3fv(location, 1, GL_FALSE, m.data());
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, const mat4& m)
-{
-    SAIGA_ASSERT(isBound());
-    glUniformMatrix4fv(location, 1, GL_FALSE, m.data());
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, const vec4& v)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform4fv(location, 1, (GLfloat*)&v[0]);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, const vec3& v)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform3fv(location, 1, (GLfloat*)&v[0]);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, const vec2& v)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform2fv(location, 1, (GLfloat*)&v[0]);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, const int& i)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform1i(location, (GLint)i);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, const float& f)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform1f(location, (GLfloat)f);
-    assert_no_glerror();
-}
-
-
-void Shader::upload(int location, int count, mat4* m)
-{
-    SAIGA_ASSERT(isBound());
-    glUniformMatrix4fv(location, count, GL_FALSE, (GLfloat*)m);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, int count, vec4* v)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform4fv(location, count, (GLfloat*)v);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, int count, vec3* v)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform3fv(location, count, (GLfloat*)v);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, int count, vec2* v)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform2fv(location, count, (GLfloat*)v);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, int count, int* v)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform1iv(location, count, v);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, int count, float* v)
-{
-    SAIGA_ASSERT(isBound());
-    glUniform1fv(location, count, v);
-    assert_no_glerror();
-}
-
-void Shader::upload(int location, TextureBase* texture, int textureUnit)
-{
-    SAIGA_ASSERT(texture);
-    upload(location, *texture, textureUnit);
-}
-
-void Shader::upload(int location, std::shared_ptr<TextureBase> texture, int textureUnit)
-{
-    SAIGA_ASSERT(texture);
-    upload(location, *texture, textureUnit);
-}
-
-void Shader::upload(int location, TextureBase& texture, int textureUnit)
-{
-    SAIGA_ASSERT(isBound());
-    texture.bind(textureUnit);
-    Shader::upload(location, textureUnit);
-    assert_no_glerror();
-}
-
-// void Shader::upload(int location, std::shared_ptr<raw_Texture> texture, int textureUnit)
-//{
-//    upload(location,texture.get(),textureUnit);
-//}
 
 }  // namespace Saiga

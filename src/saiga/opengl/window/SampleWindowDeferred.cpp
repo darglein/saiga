@@ -53,19 +53,15 @@ void SampleWindowDeferred::interpolate(float dt, float interpolation)
     // Update the camera rotation. This could also be done in 'update' but
     // doing it in the interpolate step will reduce latency
     if (renderer->use_mouse_input_in_3dview) camera.interpolate(dt, interpolation);
+    render_system.Clear();
+    render_system.Add(groundPlane.asset.get(), groundPlane.getModelMatrix(), RENDER_DEFAULT | RENDER_SHADOW);
 }
 
 
 void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
 {
-    if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
-    {
-        if (showGrid)
-        {
-            groundPlane.render(cam, render_pass);
-        }
-    }
-    else if (render_pass == RenderPass::Forward)
+    render_system.Render(cam, render_pass);
+    if (render_pass == RenderPass::Forward)
     {
         skybox.sunDir = vec3(sun->getDirection());
         skybox.render(cam);

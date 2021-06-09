@@ -15,6 +15,7 @@
 
 namespace Saiga
 {
+#ifndef WIN32
 Vec2 BundleAdjustmentVerbose(const IntrinsicsPinholed& camera, const Vec2& observation, const SE3& pose,
                              const Vec3& point, double weight, Matrix<double, 2, 6>* jacobian_pose = nullptr,
                              Matrix<double, 2, 3>* jacobian_point = nullptr)
@@ -318,5 +319,5 @@ TEST(NumericDerivative, BundleAdjustmentDistortion)
     ExpectCloseRelative(J_dist_ref, J_dist_3, 1e-5);
     ExpectCloseRelative(J_K_ref, J_K_3, 1e-5);
 }
-
+#endif
 }  // namespace Saiga
