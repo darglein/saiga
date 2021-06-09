@@ -90,9 +90,19 @@ class SAIGA_CORE_API TimerSystem
 
     struct ScopedTimingSection
     {
-        ScopedTimingSection(TimeData& sec) : sec(sec) { sec.Start(); }
-        ~ScopedTimingSection() { sec.Stop(); }
-        TimeData& sec;
+        ScopedTimingSection(TimeData& sec) : sec(&sec) { sec.Start(); }
+        ScopedTimingSection(const ScopedTimingSection& other) = delete;
+        ~ScopedTimingSection()
+        {
+            if (sec) sec->Stop();
+            sec = nullptr;
+        }
+        ScopedTimingSection(ScopedTimingSection&& other)
+        {
+            sec       = other.sec;
+            other.sec = nullptr;
+        }
+        TimeData* sec = nullptr;
     };
 
     // ==== Public Interface ====
@@ -148,3 +158,10 @@ class SAIGA_CORE_API TimerSystem
 
 
 }  // namespace Saiga
+
+
+#define SAIGA_OPTIONAL_TIME_MEASURE(_name, _timer_system_ptr)                                              \
+    auto __op_func_timer =                                                                                 \
+        (_timer_system_ptr)                                                                                \
+            ? std::make_unique<Saiga::TimerSystem::ScopedTimingSection>(_timer_system_ptr->Measure(_name)) \
+            : nullptr

@@ -41,7 +41,7 @@ inline void PrintTensorInfo(at::Tensor t)
     {
         mean = t.mean().item().toFloat();
     }
-    std::cout << "Tensor " <<  t.sizes() << " " << t.dtype() << " " << t.device() << " Min/Max " << mi << " " << ma
+    std::cout << "Tensor " << t.sizes() << " " << t.dtype() << " " << t.device() << " Min/Max " << mi << " " << ma
               << " Mean " << mean << " req-grad " << t.requires_grad() << std::endl;
 }
 
@@ -74,7 +74,16 @@ inline torch::nn::AnyModule NormFromString(const std::string& str, int channels)
 {
     if (str == "bn")
     {
-        return torch::nn::AnyModule(torch::nn::BatchNorm2d(torch::nn::BatchNorm2dOptions(channels)));
+        return torch::nn::AnyModule(torch::nn::BatchNorm2d(torch::nn::BatchNorm2dOptions(channels).momentum(0.01)));
+    }
+    else if (str == "bn_no_stat")
+    {
+        return torch::nn::AnyModule(
+            torch::nn::InstanceNorm2d(torch::nn::InstanceNorm2dOptions(channels).track_running_stats(false)));
+    }
+    else if (str == "in")
+    {
+        return torch::nn::AnyModule(torch::nn::InstanceNorm2d(torch::nn::InstanceNorm2dOptions(channels)));
     }
     else if (str == "id")
     {

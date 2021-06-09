@@ -17,8 +17,7 @@ namespace Saiga
 class BasicBlockImpl : public torch::nn::Module
 {
    public:
-    BasicBlockImpl(int in_channels, int out_channels, int kernel_size = 3,
-                   std::string norm_str = "bn")
+    BasicBlockImpl(int in_channels, int out_channels, int kernel_size = 3, std::string norm_str = "bn")
     {
         block->push_back(
             torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size).padding(1)));
@@ -119,9 +118,11 @@ TORCH_MODULE(GatedBlock);
 class DownsampleBlockImpl : public torch::nn::Module
 {
    public:
-    DownsampleBlockImpl(int in_channels, int out_channels)
+    DownsampleBlockImpl(int in_channels, int out_channels, std::string norm_str = "bn")
     {
-        conv = GatedBlock(in_channels, out_channels);
+        SAIGA_ASSERT(in_channels > 0);
+        SAIGA_ASSERT(out_channels > 0);
+        conv = GatedBlock(in_channels, out_channels, 3, 1, 1, norm_str);
         down = torch::nn::AvgPool2d(torch::nn::AvgPool2dOptions({2, 2}));
 
 
@@ -147,24 +148,26 @@ TORCH_MODULE(DownsampleBlock);
 class UpsampleBlockImpl : public torch::nn::Module
 {
    public:
-    UpsampleBlockImpl(int out_channels, std::string upsample_mode = "deconv")
+    UpsampleBlockImpl(int in_channels, int out_channels, std::string upsample_mode = "deconv",
+                      std::string norm_str = "id")
     {
-        int num_filt = out_channels * 2;
+        SAIGA_ASSERT(in_channels > 0);
+        SAIGA_ASSERT(out_channels > 0);
 
         // conv = GatedBlock(in_channels, out_channels);
         if (upsample_mode == "deconv")
         {
             up->push_back(torch::nn::ConvTranspose2d(
-                torch::nn::ConvTranspose2dOptions(num_filt, out_channels, 4).stride(2).padding(1)));
+                torch::nn::ConvTranspose2dOptions(in_channels, out_channels, 4).stride(2).padding(1)));
         }
         else if (upsample_mode == "bilinear")
         {
             std::vector<double> scale = {2.0, 2.0};
             up->push_back(torch::nn::Upsample(
                 torch::nn::UpsampleOptions().scale_factor(scale).mode(torch::kBilinear).align_corners(false)));
-            up->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(num_filt, out_channels, 3).padding(1)));
+            up->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, out_channels, 3).padding(1)));
         }
-        conv = GatedBlock(out_channels * 2, out_channels, 3, 1, 1, "id");
+        conv = GatedBlock(out_channels * 2, out_channels, 3, 1, 1, norm_str);
 
 
 
@@ -203,23 +206,31 @@ struct MultiScaleUnet2dParams : public ParamsBase
         SAIGA_PARAM_LONG(num_output_channels);
         SAIGA_PARAM_LONG(feature_factor);
         SAIGA_PARAM_LONG(num_layers);
+        SAIGA_PARAM_BOOL(add_input_to_filters);
+        SAIGA_PARAM_BOOL(channels_last);
+        SAIGA_PARAM_BOOL(half_float);
 
         SAIGA_PARAM_STRING(upsample_mode);
-        SAIGA_PARAM_STRING(norm_layer);
+        SAIGA_PARAM_STRING(norm_layer_down);
+        SAIGA_PARAM_STRING(norm_layer_up);
         SAIGA_PARAM_STRING(last_act);
         SAIGA_PARAM_STRING(conv_block);
     }
 
 
-    int num_input_layers      = 5;
-    int num_input_channels    = 8;
-    int num_output_channels   = 3;
-    int feature_factor        = 4;
-    int num_layers            = 5;
-    std::string upsample_mode = "bilinear";
-    std::string norm_layer    = "bn";
-    std::string last_act      = "sigmoid";
-    std::string conv_block    = "partial";
+    int num_input_layers        = 5;
+    int num_input_channels      = 8;
+    int num_output_channels     = 3;
+    int feature_factor          = 4;
+    int num_layers              = 5;
+    bool add_input_to_filters   = false;
+    bool channels_last          = false;
+    bool half_float             = false;
+    std::string upsample_mode   = "bilinear";
+    std::string norm_layer_down = "bn";
+    std::string norm_layer_up   = "id";
+    std::string last_act        = "sigmoid";
+    std::string conv_block      = "partial";
 };
 
 // Rendering network with UNet architecture and multi-scale input.
@@ -245,36 +256,39 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
         std::vector<int> num_input_channels_per_layer;
         std::vector<int> filters = {4, 8, 16, 32, 64};
 
-        for (auto& f : filters)
-        {
-            f = f * params.feature_factor;
-        }
-
         std::vector<int> num_input_channels(params.num_input_layers, params.num_input_channels);
         for (int i = params.num_input_layers; i < 5; ++i)
         {
             num_input_channels.push_back(0);
         }
-
+        for (int i = 0; i < 5; ++i)
+        {
+            auto& f = filters[i];
+            f       = f * params.feature_factor;
+            if (params.add_input_to_filters && i >= 1)
+            {
+                f += num_input_channels[i];
+            }
+        }
 
 
         SAIGA_ASSERT(num_input_channels.size() == filters.size());
 
         start = GatedBlock(num_input_channels[0], filters[0]);
 
-        down1 = DownsampleBlock(filters[0], filters[1] - num_input_channels[1]);
-        down2 = DownsampleBlock(filters[1], filters[2] - num_input_channels[2]);
+        down1 = DownsampleBlock(filters[0], filters[1] - num_input_channels[1], params.norm_layer_down);
+        down2 = DownsampleBlock(filters[1], filters[2] - num_input_channels[2], params.norm_layer_down);
 
-        down3 = DownsampleBlock(filters[2], filters[3] - num_input_channels[3]);
+        down3 = DownsampleBlock(filters[2], filters[3] - num_input_channels[3], params.norm_layer_down);
 
         if (params.num_layers >= 5)
         {
-            down4 = DownsampleBlock(filters[3], filters[4] - num_input_channels[4]);
-            up4   = UpsampleBlock(filters[3], params.upsample_mode);
+            down4 = DownsampleBlock(filters[3], filters[4] - num_input_channels[4], params.norm_layer_down);
+            up4   = UpsampleBlock(filters[4], filters[3], params.upsample_mode, params.norm_layer_up);
         }
-        up3 = UpsampleBlock(filters[2], params.upsample_mode);
-        up2 = UpsampleBlock(filters[1], params.upsample_mode);
-        up1 = UpsampleBlock(filters[0], params.upsample_mode);
+        up3 = UpsampleBlock(filters[3], filters[2], params.upsample_mode, params.norm_layer_up);
+        up2 = UpsampleBlock(filters[2], filters[1], params.upsample_mode, params.norm_layer_up);
+        up1 = UpsampleBlock(filters[1], filters[0], params.upsample_mode, params.norm_layer_up);
 
         final->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(filters[0], params.num_output_channels, 1)));
         final->push_back(ActivationFromString(params.last_act));
@@ -296,6 +310,11 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
         register_module("up1", up1);
 
         register_module("final", final);
+
+        if (params.half_float)
+        {
+            this->to(torch::kFloat16);
+        }
     }
 
     at::Tensor forward(ArrayView<torch::Tensor> inputs)
@@ -325,7 +344,7 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
         if (params.num_input_layers >= 4) d3 = torch::cat({d3, inputs[3]}, 1);
 
 
-        if(params.num_layers >= 5)
+        if (params.num_layers >= 5)
         {
             auto d4 = down4->forward(d3);
             if (params.num_input_layers >= 5) d4 = torch::cat({d4, inputs[4]}, 1);

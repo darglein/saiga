@@ -67,11 +67,9 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
     }
 
     // In pytorch image tensors are usually represented as channel first.
+    tensor = tensor.to(torch::kFloat32);
     tensor = tensor.permute({1, 2, 0});
     tensor = tensor.cpu().contiguous();
-
-    SAIGA_ASSERT(tensor.dtype() == at::kFloat);
-
 
 
     // Normalize to [0,1]
