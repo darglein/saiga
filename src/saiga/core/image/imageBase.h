@@ -37,42 +37,6 @@ struct ImageDimensions
     HD inline explicit operator bool() { return valid(); }
     HD inline bool operator==(const ImageDimensions& other) const { return pair() == other.pair(); }
     HD inline bool operator!=(const ImageDimensions& other) const { return !((*this) == other); }
-};
-
-/**
- * @brief The ImageBase struct
- *
- * The base of all images. It does not manage memory.
- * It only captures the key concept of an image, which is a two dimensional array
- * with a 'pitch' offset between rows.
- */
-struct SAIGA_CORE_API ImageBase : public ImageDimensions
-{
-    size_t pitchBytes;
-
-    HD inline ImageBase() : ImageBase(0, 0, 0)
-    {
-        // static_assert(sizeof(ImageBase) == 16, "ImageBase size wrong!");
-    }
-
-    HD inline ImageBase(int h, int w, int p) : ImageDimensions(h, w), pitchBytes(p) {}
-
-
-    HD inline ImageDimensions dimensions() const { return *this; }
-    /**
-     * Usefull for range-based iteration over the image.
-     * Example:
-     *
-     * for(auto i : img.rowRange())
-     *   for(auto j : img.colRange())
-     *      img(i,j) = 0;
-     */
-    HD inline Range<int> rowRange(int border = 0) const { return {border, rows - border}; }
-    HD inline Range<int> colRange(int border = 0) const { return {border, cols - border}; }
-
-
-    // size in bytes
-    HD inline size_t size() const { return height * pitchBytes; }
 
     HD inline bool inImage(int y, int x) const { return x >= 0 && x < width && y >= 0 && y < height; }
     HD inline bool inImage(ivec2 ip) const { return inImage(ip.y(), ip.x()); }
@@ -102,12 +66,47 @@ struct SAIGA_CORE_API ImageBase : public ImageDimensions
         int x1 = width - 1 - x;
         int y0 = y;
         int y1 = height - 1 - y;
-#ifdef SAIGA_ON_DEVICE
         return std::min(x0, std::min(x1, std::min(y0, y1)));
-#else
-        return std::min(x0, std::min(x1, std::min(y0, y1)));
-#endif
     }
+
+    /**
+ * Usefull for range-based iteration over the image.
+ * Example:
+ *
+ * for(auto i : img.rowRange())
+ *   for(auto j : img.colRange())
+ *      img(i,j) = 0;
+ */
+    HD inline Range<int> rowRange(int border = 0) const { return {border, rows - border}; }
+    HD inline Range<int> colRange(int border = 0) const { return {border, cols - border}; }
+
+};
+
+/**
+ * @brief The ImageBase struct
+ *
+ * The base of all images. It does not manage memory.
+ * It only captures the key concept of an image, which is a two dimensional array
+ * with a 'pitch' offset between rows.
+ */
+struct SAIGA_CORE_API ImageBase : public ImageDimensions
+{
+    size_t pitchBytes;
+
+    HD inline ImageBase() : ImageBase(0, 0, 0)
+    {
+        // static_assert(sizeof(ImageBase) == 16, "ImageBase size wrong!");
+    }
+
+    HD inline ImageBase(int h, int w, int p) : ImageDimensions(h, w), pitchBytes(p) {}
+
+
+    HD inline ImageDimensions dimensions() const { return *this; }
+
+    // size in bytes
+    HD inline size_t size() const { return height * pitchBytes; }
+
+
 };
 
 }  // namespace Saiga
