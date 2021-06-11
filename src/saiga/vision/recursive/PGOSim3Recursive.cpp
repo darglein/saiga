@@ -1,4 +1,11 @@
-﻿#include "PGOSim3Recursive.h"
+﻿/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+
+#include "PGOSim3Recursive.h"
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/time/timer.h"
