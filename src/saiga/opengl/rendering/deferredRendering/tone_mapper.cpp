@@ -124,7 +124,7 @@ void ToneMapper::imgui()
 
         params_dirty |= ImGui::Checkbox("download_tmp_values (performance warning)", &download_tmp_values);
         ImGui::Text("Exposure Value (log2 scale)");
-        params_dirty |= ImGui::SliderFloat("###exposure_value", &params.exposure_value, -15, 15);
+        params_dirty |= ImGui::SliderFloat("###exposure_value", &params.exposure_value, -5, 20);
         ImGui::SameLine();
         if (ImGui::Button("reset EV"))
         {

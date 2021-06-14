@@ -117,4 +117,22 @@ inline torch::nn::AnyModule ActivationFromString(const std::string& str)
     }
 }
 
+
+inline torch::nn::AnyModule Pooling2DFromString(const std::string& str, torch::ExpandingArray<2> kernel_size)
+{
+    if (str == "average")
+    {
+        return torch::nn::AnyModule(torch::nn::AvgPool2d(torch::nn::AvgPool2dOptions(kernel_size)));
+    }
+    else if (str == "max")
+    {
+        return torch::nn::AnyModule(torch::nn::MaxPool2d(torch::nn::MaxPool2dOptions(kernel_size)));
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("Unknown activation " + str);
+        return {};
+    }
+}
+
 }  // namespace Saiga

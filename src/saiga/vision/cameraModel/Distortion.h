@@ -230,20 +230,20 @@ template <typename T>
 Eigen::Matrix<T, 2, 1> undistortPointGN(const Eigen::Matrix<T, 2, 1>& point, const Eigen::Matrix<T, 2, 1>& guess,
                                         const DistortionBase<T>& d, int iterations = 5)
 {
-    Eigen::Matrix<T, 2, 1> x = guess;
+    Eigen::Matrix<T, 2, 1> x          = guess;
+    Eigen::Matrix<T, 2, 1> last_point = guess;
 
-    T last_chi2     = std::numeric_limits<T>::infinity();
-    Vec2 last_point = guess;
+    T last_chi2 = std::numeric_limits<T>::infinity();
 
     for (int it = 0; it < iterations; ++it)
     {
-        Mat2 J;
-        Vec2 res = distortNormalizedPoint(x, d, &J) - point;
+        Eigen::Matrix<T, 2, 2> J;
+        Eigen::Matrix<T, 2, 1> res = distortNormalizedPoint(x, d, &J) - point;
 
         T chi2 = res.squaredNorm();
 
-        Mat2 JtJ = J.transpose() * J;
-        Vec2 Jtb = -J.transpose() * res;
+        Eigen::Matrix<T, 2, 2> JtJ = J.transpose() * J;
+        Eigen::Matrix<T, 2, 1> Jtb = -J.transpose() * res;
 
 
         if (chi2 > last_chi2)
@@ -255,7 +255,8 @@ Eigen::Matrix<T, 2, 1> undistortPointGN(const Eigen::Matrix<T, 2, 1>& point, con
 
         last_point = x;
         last_chi2  = chi2;
-        Vec2 delta = JtJ.ldlt().solve(Jtb);
+
+        Eigen::Matrix<T, 2, 1> delta = JtJ.ldlt().solve(Jtb);
         x += delta;
     }
 

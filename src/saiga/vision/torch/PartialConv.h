@@ -5,6 +5,7 @@
  */
 
 #pragma once
+#include "ImageTensor.h"
 #include "TorchHelper.h"
 
 
@@ -30,8 +31,16 @@ class PartialConv2dImpl : public torch::nn::Conv2dImpl
         register_buffer("weight_maskUpdater", weight_maskUpdater);
     }
 
-    torch::Tensor forward(torch::Tensor input, torch::Tensor mask)
+    std::pair<at::Tensor, at::Tensor> forward(const torch::Tensor input, const torch::Tensor mask)
     {
+        SAIGA_ASSERT(input.defined());
+        SAIGA_ASSERT(mask.defined());
+
+        // [b, 1, h, w]
+        SAIGA_ASSERT(mask.dim() == 4);
+        SAIGA_ASSERT(mask.size(1) == 1);
+
+
         torch::Tensor mask_ratio, update_mask;
         {
             torch::NoGradGuard nograd;
@@ -46,6 +55,8 @@ class PartialConv2dImpl : public torch::nn::Conv2dImpl
             mask_ratio = torch::mul(mask_ratio, update_mask);
         }
 
+        //        TensorToImage<unsigned char>(mask).save("mask.png");
+        //        TensorToImage<unsigned char>(update_mask).save("update_mask.png");
 
         auto raw_out = torch::nn::Conv2dImpl::forward(torch::mul(input, mask));
 
@@ -61,7 +72,7 @@ class PartialConv2dImpl : public torch::nn::Conv2dImpl
             output = torch::mul(raw_out, mask_ratio);
         }
 
-        return output;
+        return {output, update_mask};
     }
 
     torch::Tensor weight_maskUpdater;
