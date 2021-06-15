@@ -23,11 +23,20 @@ class PartialConv2dImpl : public torch::nn::Conv2dImpl
 {
    public:
     // Same parameters as conv2d
-    PartialConv2dImpl(torch::nn::Conv2dOptions options) : torch::nn::Conv2dImpl(options)
+    PartialConv2dImpl(torch::nn::Conv2dOptions options, bool multi_channel)
+        : torch::nn::Conv2dImpl(options), multi_channel(multi_channel)
     {
-        weight_maskUpdater = torch::ones({1, 1, options.kernel_size()->at(0), options.kernel_size()->at(1)});
-        slide_winsize      = weight_maskUpdater.size(0) * weight_maskUpdater.size(1) * weight_maskUpdater.size(2) *
-                        weight_maskUpdater.size(3);
+        if (multi_channel)
+        {
+            weight_maskUpdater = torch::ones({options.out_channels(), options.in_channels(),
+                                              options.kernel_size()->at(0), options.kernel_size()->at(1)});
+        }
+        else
+        {
+            weight_maskUpdater = torch::ones({1, 1, options.kernel_size()->at(0), options.kernel_size()->at(1)});
+        }
+
+        slide_winsize = weight_maskUpdater.size(1) * weight_maskUpdater.size(2) * weight_maskUpdater.size(3);
         register_buffer("weight_maskUpdater", weight_maskUpdater);
     }
 
@@ -36,9 +45,20 @@ class PartialConv2dImpl : public torch::nn::Conv2dImpl
         SAIGA_ASSERT(input.defined());
         SAIGA_ASSERT(mask.defined());
 
-        // [b, 1, h, w]
         SAIGA_ASSERT(mask.dim() == 4);
-        SAIGA_ASSERT(mask.size(1) == 1);
+
+        if (multi_channel)
+        {
+            // [b, c, h, w]
+             // PrintTensorInfo(input);
+             // PrintTensorInfo(mask);
+            SAIGA_ASSERT(input.sizes() == mask.sizes());
+        }
+        else
+        {
+            // [b, 1, h, w]
+            SAIGA_ASSERT(mask.size(1) == 1);
+        }
 
 
         torch::Tensor mask_ratio, update_mask;
@@ -77,6 +97,7 @@ class PartialConv2dImpl : public torch::nn::Conv2dImpl
 
     torch::Tensor weight_maskUpdater;
     float slide_winsize;
+    bool multi_channel;
 };
 
 TORCH_MODULE(PartialConv2d);

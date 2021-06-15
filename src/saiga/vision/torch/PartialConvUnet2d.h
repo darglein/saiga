@@ -59,9 +59,11 @@ TORCH_MODULE(BasicBlock);
 class PartialBlockImpl : public UnetBlockImpl
 {
    public:
-    PartialBlockImpl(int in_channels, int out_channels, int kernel_size = 3, std::string norm_str = "bn")
+    PartialBlockImpl(int in_channels, int out_channels, int kernel_size = 3, bool multi_channel = false,
+                     std::string norm_str = "bn")
     {
-        pconv = PartialConv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size).padding(1));
+        pconv =
+            PartialConv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size).padding(1), multi_channel);
 
         block->push_back(NormFromString(norm_str, out_channels));
         block->push_back(torch::nn::ReLU());
@@ -94,7 +96,7 @@ class GatedBlockImpl : public UnetBlockImpl
 {
    public:
     GatedBlockImpl(int in_channels, int out_channels, int kernel_size = 3, int stride = 1, int dilation = 1,
-                   std::string norm_str = "bn")
+                   std::string norm_str = "bn", std::string activation_str = "elu")
     {
         int n_pad_pxl = int(dilation * (kernel_size - 1) / 2);
 
@@ -102,7 +104,8 @@ class GatedBlockImpl : public UnetBlockImpl
                                                            .stride(stride)
                                                            .dilation(dilation)
                                                            .padding(n_pad_pxl)));
-        feature_transform->push_back(torch::nn::ELU());
+        // feature_transform->push_back(torch::nn::ELU());
+        feature_transform->push_back(ActivationFromString(activation_str));
 
         mask_transform->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size)
                                                         .stride(stride)
@@ -146,7 +149,11 @@ inline torch::nn::AnyModule UnetBlockFromString(const std::string& str, int in_c
     }
     else if (str == "partial")
     {
-        return torch::nn::AnyModule(PartialBlock(in_channels, out_channels, kernel_size, norm_str));
+        return torch::nn::AnyModule(PartialBlock(in_channels, out_channels, kernel_size, false, norm_str));
+    }
+    else if (str == "partial_multi")
+    {
+        return torch::nn::AnyModule(PartialBlock(in_channels, out_channels, kernel_size, true, norm_str));
     }
     else
     {
@@ -169,26 +176,61 @@ class DownsampleBlockImpl : public UnetBlockImpl
         // conv = GatedBlock(in_channels, out_channels, 3, 1, 1, norm_str);
         conv = UnetBlockFromString(conv_block, in_channels, out_channels, 3, 1, 1, norm_str);
         // down = torch::nn::AvgPool2d(torch::nn::AvgPool2dOptions({2, 2}));
-        down      = Pooling2DFromString(pooling_str, {2, 2});
-        down_mask = torch::nn::MaxPool2d(torch::nn::MaxPool2dOptions({2, 2}));
+
+        if (pooling_str == "conv")
+        {
+            down = torch::nn::AnyModule(
+                torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, in_channels, 2).stride(2).padding(0)));
+            down_mask = torch::nn::MaxPool2d(torch::nn::MaxPool2dOptions({2, 2}));
+        }
+        else if (pooling_str == "partial_multi")
+        {
+            down_combined = torch::nn::AnyModule(
+                PartialConv2d(torch::nn::Conv2dOptions(in_channels, in_channels, 2).stride(2).padding(0), true));
+        }
+        else
+        {
+            down      = Pooling2DFromString(pooling_str, {2, 2});
+            down_mask = torch::nn::MaxPool2d(torch::nn::MaxPool2dOptions({2, 2}));
+        }
 
         register_module("conv", conv.ptr());
-        register_module("down", down.ptr());
+
+        if (down_combined.is_empty())
+        {
+            register_module("down", down.ptr());
+            register_module("down_mask", down_mask.ptr());
+        }
+        else
+        {
+            register_module("down_combined", down_combined.ptr());
+        }
     }
 
     std::pair<at::Tensor, at::Tensor> forward(at::Tensor x, at::Tensor mask = {}) override
     {
-        auto outputs = down.forward(x);
-        if (mask.defined())
+        std::pair<at::Tensor, at::Tensor> downsampled_input;
+
+        if (down_combined.is_empty())
         {
-            mask = down_mask->forward(mask);
+            downsampled_input.first = down.forward(x);
+            if (mask.defined())
+            {
+                downsampled_input.second = down_mask->forward(mask);
+            }
         }
-        auto res = conv.forward<std::pair<at::Tensor, at::Tensor>>(outputs, mask);
+        else
+        {
+            downsampled_input = down_combined.forward<std::pair<at::Tensor, at::Tensor>>(x, mask);
+        }
+        auto res = conv.forward<std::pair<at::Tensor, at::Tensor>>(downsampled_input.first, downsampled_input.second);
         return res;
     }
 
     // GatedBlock conv = nullptr;
     torch::nn::AnyModule conv;
+
+    torch::nn::AnyModule down_combined;
     torch::nn::AnyModule down;
     torch::nn::MaxPool2d down_mask = nullptr;
 };
@@ -200,11 +242,13 @@ TORCH_MODULE(DownsampleBlock);
 class UpsampleBlockImpl : public torch::nn::Module
 {
    public:
-    UpsampleBlockImpl(int in_channels, int out_channels, std::string upsample_mode = "deconv",
+    UpsampleBlockImpl(int in_channels, int out_channels, std::string conv_block, std::string upsample_mode = "deconv",
                       std::string norm_str = "id")
     {
         SAIGA_ASSERT(in_channels > 0);
         SAIGA_ASSERT(out_channels > 0);
+
+        std::vector<double> scale = {2.0, 2.0};
 
         // conv = GatedBlock(in_channels, out_channels);
         if (upsample_mode == "deconv")
@@ -214,33 +258,80 @@ class UpsampleBlockImpl : public torch::nn::Module
         }
         else if (upsample_mode == "bilinear")
         {
-            std::vector<double> scale = {2.0, 2.0};
             up->push_back(torch::nn::Upsample(
                 torch::nn::UpsampleOptions().scale_factor(scale).mode(torch::kBilinear).align_corners(false)));
-            up->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, out_channels, 3).padding(1)));
         }
-        conv = GatedBlock(out_channels * 2, out_channels, 3, 1, 1, norm_str);
+        else if (upsample_mode == "nearest")
+        {
+            up->push_back(torch::nn::Upsample(torch::nn::UpsampleOptions().scale_factor(scale).mode(torch::kNearest)));
+            // up->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, out_channels, 3).padding(1)));
+        }
+
+        if (upsample_mode != "deconv")
+        {
+            if (conv_block == "partial_multi")
+            {
+                conv1 = torch::nn::AnyModule(
+                    PartialConv2d(torch::nn::Conv2dOptions(in_channels, out_channels, 3).padding(1), true));
+            }
+            else
+            {
+                conv1 = torch::nn::AnyModule(GatedBlock(in_channels, out_channels, 3, 1, 1, "id", "id"));
+            }
+        }
+        // conv = GatedBlock(out_channels * 2, out_channels, 3, 1, 1, norm_str);
+        conv2 = UnetBlockFromString(conv_block, out_channels * 2, out_channels, 3, 1, 1, norm_str);
 
 
+        up_mask = torch::nn::Upsample(torch::nn::UpsampleOptions().scale_factor(scale).mode(torch::kNearest));
 
         register_module("up", up);
-        register_module("conv", conv);
+        register_module("up_mask", up_mask);
+
+        if (!conv1.is_empty())
+        {
+            register_module("conv1", conv1.ptr());
+        }
+        register_module("conv2", conv2.ptr());
     }
 
-    at::Tensor forward(const at::Tensor inputs1, const torch::Tensor inputs2)
+    std::pair<at::Tensor, at::Tensor> forward(std::pair<at::Tensor, at::Tensor> layer_below,
+                                              std::pair<at::Tensor, at::Tensor> skip)
     {
-        auto in1_up = up->forward(inputs1);
+        // Upsample the layer from below
+        std::pair<at::Tensor, at::Tensor> same_layer_as_skip;
+        same_layer_as_skip.first = up->forward(layer_below.first);
+        SAIGA_ASSERT(skip.first.size(2) == same_layer_as_skip.first.size(2) &&
+                     skip.first.size(3) == same_layer_as_skip.first.size(3));
 
-        SAIGA_ASSERT(inputs2.size(2) == in1_up.size(2));
-        SAIGA_ASSERT(inputs2.size(3) == in1_up.size(3));
+        if (layer_below.second.defined())
+        {
+            same_layer_as_skip.second = up_mask->forward(layer_below.second);
+            SAIGA_ASSERT(skip.second.size(2) == same_layer_as_skip.second.size(2) &&
+                         skip.second.size(3) == same_layer_as_skip.second.size(3));
+        }
 
-        auto output = conv->forward(torch::cat({in1_up, inputs2}, 1));
+        if (!conv1.is_empty())
+        {
+            same_layer_as_skip =
+                conv1.forward<std::pair<at::Tensor, at::Tensor>>(same_layer_as_skip.first, same_layer_as_skip.second);
+        }
 
-        return output.first;
+        std::pair<at::Tensor, at::Tensor> output;
+        output.first = torch::cat({same_layer_as_skip.first, skip.first}, 1);
+        if (layer_below.second.defined())
+        {
+            output.second = torch::cat({same_layer_as_skip.second, skip.second}, 1);
+        }
+
+        return conv2.forward<std::pair<at::Tensor, at::Tensor>>(output.first, output.second);
     }
 
     torch::nn::Sequential up;
-    GatedBlock conv = nullptr;
+    torch::nn::Upsample up_mask = nullptr;
+    torch::nn::AnyModule conv1;
+    torch::nn::AnyModule conv2;
+    // GatedBlock conv             = nullptr;
     //    GatedBlock conv;
     //    torch::nn::AvgPool2d down;
 };
@@ -268,6 +359,7 @@ struct MultiScaleUnet2dParams : public ParamsBase
         SAIGA_PARAM_STRING(norm_layer_up);
         SAIGA_PARAM_STRING(last_act);
         SAIGA_PARAM_STRING(conv_block);
+        SAIGA_PARAM_STRING(conv_block_up);
         SAIGA_PARAM_STRING(pooling);
     }
 
@@ -285,6 +377,7 @@ struct MultiScaleUnet2dParams : public ParamsBase
     std::string norm_layer_up   = "id";
     std::string last_act        = "sigmoid";
     std::string conv_block      = "partial";
+    std::string conv_block_up   = "gated";
 
     // average, max
     std::string pooling = "average";
@@ -347,14 +440,18 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
         {
             down4 = DownsampleBlock(filters[3], filters[4] - num_input_channels[4], params.conv_block,
                                     params.norm_layer_down, params.pooling);
-            up4   = UpsampleBlock(filters[4], filters[3], params.upsample_mode, params.norm_layer_up);
+            up4 =
+                UpsampleBlock(filters[4], filters[3], params.conv_block_up, params.upsample_mode, params.norm_layer_up);
         }
-        up3 = UpsampleBlock(filters[3], filters[2], params.upsample_mode, params.norm_layer_up);
-        up2 = UpsampleBlock(filters[2], filters[1], params.upsample_mode, params.norm_layer_up);
-        up1 = UpsampleBlock(filters[1], filters[0], params.upsample_mode, params.norm_layer_up);
+        up3 = UpsampleBlock(filters[3], filters[2], params.conv_block_up, params.upsample_mode, params.norm_layer_up);
+        up2 = UpsampleBlock(filters[2], filters[1], params.conv_block_up, params.upsample_mode, params.norm_layer_up);
+        up1 = UpsampleBlock(filters[1], filters[0], params.conv_block_up, params.upsample_mode, params.norm_layer_up);
 
         final->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(filters[0], params.num_output_channels, 1)));
         final->push_back(ActivationFromString(params.last_act));
+
+        multi_channel_masks = params.conv_block == "partial_multi";
+        need_up_masks       = params.conv_block_up == "partial_multi";
 
         register_module("start", start.ptr());
 
@@ -401,32 +498,66 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
             }
         }
 
+        if (multi_channel_masks)
+        {
+            torch::NoGradGuard ngg;
+            // multi channel partial convolution needs a mask value for each channel.
+            // Here, we just repeat the masks along the channel dimension.
+            for (int i = 0; i < inputs.size(); ++i)
+            {
+                auto& ma = masks[i];
+                auto& in = inputs[i];
+                if (ma.size(1) == 1 && in.size(1) > 1)
+                {
+                    ma = ma.repeat({1, in.size(1), 1, 1});
+                }
+            }
+        }
+
         std::pair<torch::Tensor, torch::Tensor> d0, d1, d2, d3, d4;
-        torch::Tensor u0, u1, u2, u3, u4;
+        std::pair<torch::Tensor, torch::Tensor> u0, u1, u2, u3, u4;
 
         d0 = start.forward<std::pair<torch::Tensor, torch::Tensor>>(inputs[0], masks[0]);
 
         d1 = down1->forward(d0);
-        if (params.num_input_layers >= 2) d1.first = torch::cat({d1.first, inputs[1]}, 1);
+        if (params.num_input_layers >= 2)
+        {
+            d1.first = torch::cat({d1.first, inputs[1]}, 1);
+            if (multi_channel_masks) d1.second = torch::cat({d1.second, masks[1]}, 1);
+        }
 
         d2 = down2->forward(d1);
-        if (params.num_input_layers >= 3) d2.first = torch::cat({d2.first, inputs[2]}, 1);
+        if (params.num_input_layers >= 3)
+        {
+            d2.first = torch::cat({d2.first, inputs[2]}, 1);
+            if (multi_channel_masks) d2.second = torch::cat({d2.second, masks[2]}, 1);
+        }
 
         d3 = down3->forward(d2);
-        if (params.num_input_layers >= 4) d3.first = torch::cat({d3.first, inputs[3]}, 1);
+        if (params.num_input_layers >= 4)
+        {
+            d3.first = torch::cat({d3.first, inputs[3]}, 1);
+            if (multi_channel_masks) d3.second = torch::cat({d3.second, masks[3]}, 1);
+        }
 
 
         if (params.num_layers >= 5)
         {
             d4 = down4->forward(d3);
-            if (params.num_input_layers >= 5) d4.first = torch::cat({d4.first, inputs[4]}, 1);
-            u4 = d4.first;
-            u3 = up4->forward(u4, d3.first);
+            if (params.num_input_layers >= 5)
+            {
+                d4.first = torch::cat({d4.first, inputs[4]}, 1);
+                if (multi_channel_masks) d4.second = torch::cat({d4.second, masks[4]}, 1);
+            }
+
+            u4 = d4;
+            if (!need_up_masks) u4.second = {};
+            u3 = up4->forward(u4, d3);
         }
 
-        u2 = up3->forward(u3, d2.first);
-        u1 = up2->forward(u2, d1.first);
-        u0 = up1->forward(u1, d0.first);
+        u2 = up3->forward(u3, d2);
+        u1 = up2->forward(u2, d1);
+        u0 = up1->forward(u1, d0);
 
 #if 0
         TensorToImage<unsigned char>(masks[0]).save("mask_in.png");
@@ -439,10 +570,12 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
 #endif
 
 
-        return final->forward(u0);
+        return final->forward(u0.first);
     }
 
     MultiScaleUnet2dParams params;
+    bool multi_channel_masks = false;
+    bool need_up_masks       = false;
 
     torch::nn::AnyModule start;
 
