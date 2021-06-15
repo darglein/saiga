@@ -31,26 +31,31 @@ class BasicBlockImpl : public UnetBlockImpl
    public:
     BasicBlockImpl(int in_channels, int out_channels, int kernel_size = 3, std::string norm_str = "bn")
     {
-        block->push_back(
+        block1->push_back(
             torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size).padding(1)));
-        block->push_back(NormFromString(norm_str, out_channels));
-        block->push_back(torch::nn::ReLU());
+        block1->push_back(NormFromString(norm_str, out_channels));
+        block1->push_back(torch::nn::ReLU());
 
-        block->push_back(
+        block2->push_back(
             torch::nn::Conv2d(torch::nn::Conv2dOptions(out_channels, out_channels, kernel_size).padding(1)));
-        block->push_back(NormFromString(norm_str, out_channels));
-        block->push_back(torch::nn::ReLU());
+        block2->push_back(NormFromString(norm_str, out_channels));
+        block2->push_back(torch::nn::ReLU());
 
-        register_module("block", block);
+        register_module("block1", block1);
+        register_module("block2", block2);
     }
 
     std::pair<at::Tensor, at::Tensor> forward(at::Tensor x, at::Tensor mask = {}) override
     {
-        auto res = block->forward(x);
-        return {res, mask};
+        std::pair<at::Tensor, at::Tensor> result;
+        result.first  = block1->forward(x);
+        result.first  = block2->forward(result.first);
+        result.second = mask;
+        return result;
     }
 
-    torch::nn::Sequential block;
+    torch::nn::Sequential block1;
+    torch::nn::Sequential block2;
 };
 
 TORCH_MODULE(BasicBlock);
@@ -62,30 +67,37 @@ class PartialBlockImpl : public UnetBlockImpl
     PartialBlockImpl(int in_channels, int out_channels, int kernel_size = 3, bool multi_channel = false,
                      std::string norm_str = "bn")
     {
-        pconv =
+        pconv1 =
             PartialConv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size).padding(1), multi_channel);
+        block1->push_back(NormFromString(norm_str, out_channels));
+        block1->push_back(torch::nn::ReLU());
 
-        block->push_back(NormFromString(norm_str, out_channels));
-        block->push_back(torch::nn::ReLU());
+        pconv2 =
+            PartialConv2d(torch::nn::Conv2dOptions(out_channels, out_channels, kernel_size).padding(1), multi_channel);
+        block2->push_back(NormFromString(norm_str, out_channels));
+        block2->push_back(torch::nn::ReLU());
 
-        block->push_back(
-            torch::nn::Conv2d(torch::nn::Conv2dOptions(out_channels, out_channels, kernel_size).padding(1)));
-        block->push_back(NormFromString(norm_str, out_channels));
-        block->push_back(torch::nn::ReLU());
-
-        register_module("pconv", pconv);
-        register_module("block", block);
+        register_module("pconv1", pconv1);
+        register_module("pconv2", pconv2);
+        register_module("block1", block1);
+        register_module("block2", block2);
     }
 
     std::pair<at::Tensor, at::Tensor> forward(at::Tensor x, at::Tensor mask = {}) override
     {
-        auto [out_img, out_mask] = pconv->forward(x, mask);
-        return {block->forward(out_img), out_mask};
+        std::pair<at::Tensor, at::Tensor> result;
+        result       = pconv1->forward(x, mask);
+        result.first = block1->forward(result.first);
+
+        result       = pconv2->forward(result.first, result.second);
+        result.first = block2->forward(result.first);
+        return result;
     }
 
 
-    PartialConv2d pconv = nullptr;
-    torch::nn::Sequential block;
+    PartialConv2d pconv1 = nullptr;
+    PartialConv2d pconv2 = nullptr;
+    torch::nn::Sequential block1, block2;
 };
 
 TORCH_MODULE(PartialBlock);
@@ -104,7 +116,6 @@ class GatedBlockImpl : public UnetBlockImpl
                                                            .stride(stride)
                                                            .dilation(dilation)
                                                            .padding(n_pad_pxl)));
-        // feature_transform->push_back(torch::nn::ELU());
         feature_transform->push_back(ActivationFromString(activation_str));
 
         mask_transform->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size)
@@ -173,9 +184,7 @@ class DownsampleBlockImpl : public UnetBlockImpl
     {
         SAIGA_ASSERT(in_channels > 0);
         SAIGA_ASSERT(out_channels > 0);
-        // conv = GatedBlock(in_channels, out_channels, 3, 1, 1, norm_str);
         conv = UnetBlockFromString(conv_block, in_channels, out_channels, 3, 1, 1, norm_str);
-        // down = torch::nn::AvgPool2d(torch::nn::AvgPool2dOptions({2, 2}));
 
         if (pooling_str == "conv")
         {
@@ -331,9 +340,6 @@ class UpsampleBlockImpl : public torch::nn::Module
     torch::nn::Upsample up_mask = nullptr;
     torch::nn::AnyModule conv1;
     torch::nn::AnyModule conv2;
-    // GatedBlock conv             = nullptr;
-    //    GatedBlock conv;
-    //    torch::nn::AvgPool2d down;
 };
 
 TORCH_MODULE(UpsampleBlock);
@@ -496,6 +502,7 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
                 SAIGA_ASSERT(inputs[i].defined());
                 SAIGA_ASSERT(params.num_input_channels == inputs[i].size(1));
             }
+            SAIGA_ASSERT(masks[i].requires_grad() == false);
         }
 
         if (multi_channel_masks)
