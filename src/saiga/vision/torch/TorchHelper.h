@@ -143,4 +143,53 @@ inline torch::nn::AnyModule Pooling2DFromString(const std::string& str, torch::E
     }
 }
 
+
+//  After each epoch we mulitply the learning rate by the decay
+inline double ExponentialDecay(int epoch_id, int max_epochs, double decay)
+{
+    SAIGA_ASSERT(decay >= 0 && decay <= 1);
+    return decay;
+}
+
+// After <step_size> steps the learning rate is multiplied by decay
+inline double SteppedExponentialDecay(int epoch_id, int max_epochs, int step_size, double decay)
+{
+    SAIGA_ASSERT(epoch_id > 0);
+    SAIGA_ASSERT(decay >= 0 && decay <= 1);
+
+    if (epoch_id % step_size == 0)
+    {
+        return decay;
+    }
+    else
+    {
+        return 1;
+    }
+}
+
+
+// Set the LR of all param groups in this optimizer
+template <typename OptionsType>
+void SetLR(torch::optim::Optimizer* optimizer, double lr)
+{
+    for (auto& pg : optimizer->param_groups())
+    {
+        auto opt = dynamic_cast<OptionsType*>(&pg.options());
+        SAIGA_ASSERT(opt);
+        opt->lr() = lr;
+    }
+}
+
+// Multiplies the LR of all param groups by the given value
+template <typename OptionsType>
+void UpdateLR(torch::optim::Optimizer* optimizer, double factor)
+{
+    for (auto& pg : optimizer->param_groups())
+    {
+        auto opt = dynamic_cast<OptionsType*>(&pg.options());
+        SAIGA_ASSERT(opt);
+        opt->lr() = opt->lr() * factor;
+    }
+}
+
 }  // namespace Saiga

@@ -112,6 +112,10 @@ class GatedBlockImpl : public UnetBlockImpl
     {
         int n_pad_pxl = int(dilation * (kernel_size - 1) / 2);
 
+        SAIGA_ASSERT(kernel_size == 3);
+        SAIGA_ASSERT(n_pad_pxl == 1);
+
+
         feature_transform->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(in_channels, out_channels, kernel_size)
                                                            .stride(stride)
                                                            .dilation(dilation)
@@ -310,14 +314,12 @@ class UpsampleBlockImpl : public torch::nn::Module
         // Upsample the layer from below
         std::pair<at::Tensor, at::Tensor> same_layer_as_skip;
         same_layer_as_skip.first = up->forward(layer_below.first);
-        SAIGA_ASSERT(skip.first.size(2) == same_layer_as_skip.first.size(2) &&
-                     skip.first.size(3) == same_layer_as_skip.first.size(3));
 
         if (layer_below.second.defined())
         {
             same_layer_as_skip.second = up_mask->forward(layer_below.second);
-            SAIGA_ASSERT(skip.second.size(2) == same_layer_as_skip.second.size(2) &&
-                         skip.second.size(3) == same_layer_as_skip.second.size(3));
+            // SAIGA_ASSERT(skip.second.size(2) == same_layer_as_skip.second.size(2) &&
+            //              skip.second.size(3) == same_layer_as_skip.second.size(3));
         }
 
         if (!conv1.is_empty())
@@ -325,6 +327,9 @@ class UpsampleBlockImpl : public torch::nn::Module
             same_layer_as_skip =
                 conv1.forward<std::pair<at::Tensor, at::Tensor>>(same_layer_as_skip.first, same_layer_as_skip.second);
         }
+
+        SAIGA_ASSERT(skip.first.size(2) == same_layer_as_skip.first.size(2) &&
+                     skip.first.size(3) == same_layer_as_skip.first.size(3));
 
         std::pair<at::Tensor, at::Tensor> output;
         output.first = torch::cat({same_layer_as_skip.first, skip.first}, 1);
@@ -379,10 +384,10 @@ struct MultiScaleUnet2dParams : public ParamsBase
     bool channels_last          = false;
     bool half_float             = false;
     std::string upsample_mode   = "bilinear";
-    std::string norm_layer_down = "bn";
+    std::string norm_layer_down = "id";
     std::string norm_layer_up   = "id";
-    std::string last_act        = "sigmoid";
-    std::string conv_block      = "partial";
+    std::string last_act        = "";
+    std::string conv_block      = "gated";
     std::string conv_block_up   = "gated";
 
     // average, max
@@ -493,6 +498,9 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
     {
         SAIGA_ASSERT(inputs.size() == params.num_input_layers);
         SAIGA_ASSERT(masks.size() == params.num_input_layers);
+        // The downsampling should not happen on uneven image sizes!
+        SAIGA_ASSERT(inputs.front().size(2) % (1 << params.num_layers) == 0);
+        SAIGA_ASSERT(inputs.front().size(3) % (1 << params.num_layers) == 0);
         // debug check if input has correct format
         for (int i = 0; i < inputs.size(); ++i)
         {

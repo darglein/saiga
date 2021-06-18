@@ -88,13 +88,11 @@ struct DiscreteResponseFunction
         return *this;
     }
 
-    TemplatedImage<ucvec3> Image(int n = 256) const
+    TemplatedImage<ucvec3> Image(int n = 256, ucvec3 background_color = ucvec3(0, 0, 0),
+                                 ucvec3 color = ucvec3(255, 255, 255)) const
     {
         TemplatedImage<ucvec3> img(n, n);
-        img.getImageView().set(ucvec3(255, 255, 255));
-
-        // SAIGA_ASSERT(samples.size() == 256);
-
+        img.getImageView().template set(background_color);
         float factor_x = float(n - 1) / (irradiance.size() - 1);
         float factor_y = float(n - 1) / (irradiance.back());
 
@@ -102,10 +100,36 @@ struct DiscreteResponseFunction
         {
             vec2 start(i * factor_x, irradiance[i] * factor_y);
             vec2 end((i + 1) * factor_x, irradiance[i + 1] * factor_y);
-            ImageDraw::drawLineBresenham(img.getImageView(), start, end, ucvec3(0, 0, 0));
+            ImageDraw::drawLineBresenham(img.getImageView(), start, end, color);
         }
         img.getImageView().flipY();
         return img;
+    }
+
+    // Expects 3 response functions for r,g,b respectively
+    static TemplatedImage<ucvec3> RGBImage(ArrayView<DiscreteResponseFunction<T>> channel_response, int n = 256)
+    {
+        SAIGA_ASSERT(channel_response.size() == 3);
+        TemplatedImage<ucvec3> result(n, n);
+        result.makeZero();
+
+        auto R = channel_response[0].Image(n, ucvec3(0, 0, 0), ucvec3(255, 0, 0));
+        auto G = channel_response[1].Image(n, ucvec3(0, 0, 0), ucvec3(0, 255, 0));
+        auto B = channel_response[2].Image(n, ucvec3(0, 0, 0), ucvec3(0, 0, 255));
+
+        for (int i : result.rowRange())
+        {
+            for (int j : result.colRange())
+            {
+                ivec3 c(0, 0, 0);
+                c += R(i, j).template cast<int>();
+                c += G(i, j).template cast<int>();
+                c += B(i, j).template cast<int>();
+                c            = c.array().min(ivec3(255, 255, 255).array());
+                result(i, j) = c.cast<unsigned char>();
+            }
+        }
+        return result;
     }
 
 
