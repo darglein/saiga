@@ -20,14 +20,10 @@ namespace Saiga
 VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params)
     : OpenGLRenderer(window), params(params),  quadMesh(FullScreenQuad())
 {
-    if (!vr.init())
-    {
-        throw std::runtime_error("Could not initialize OpenVR!");
-    }
+    vr = std::make_shared<OpenVRWrapper>();
 
-
-    int width  = vr.renderWidth();
-    int height = vr.renderHeight();
+    int width  = vr->renderWidth();
+    int height = vr->renderHeight();
 
 
     std::shared_ptr<Texture> depth = std::make_shared<Texture>();
@@ -57,6 +53,8 @@ void VRRenderer::render(const RenderInfo& renderInfo)
 {
     if (!rendering) return;
 
+    vr->update();
+
 
     SAIGA_ASSERT(rendering);
     SAIGA_ASSERT(renderInfo);
@@ -64,23 +62,23 @@ void VRRenderer::render(const RenderInfo& renderInfo)
     auto camera = dynamic_cast<PerspectiveCamera*>(renderInfo.cameras.front().first);
     SAIGA_ASSERT(camera);
 
-    auto [cameraLeft, cameraRight] = vr.getEyeCameras(*camera);
+    auto [cameraLeft, cameraRight] = vr->getEyeCameras(*camera);
 
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    glViewport(0, 0, vr.renderWidth(), vr.renderHeight());
+    glViewport(0, 0, vr->renderWidth(), vr->renderHeight());
 
 
     renderEye(&cameraLeft, vr::Hmd_Eye::Eye_Left, framebuffers[0]);
     renderEye(&cameraRight, vr::Hmd_Eye::Eye_Right, framebuffers[1]);
 
 
-    vr.handleInput();
-    vr.UpdateHMDMatrixPose();
+    // vr->handleInput();
+    // vr->UpdateHMDMatrixPose();
 
-    vr.submitImage(vr::Hmd_Eye::Eye_Left, textures[0].get());
-    vr.submitImage(vr::Hmd_Eye::Eye_Right, textures[1].get());
+    vr->submitImage(vr::Hmd_Eye::Eye_Left, textures[0].get());
+    vr->submitImage(vr::Hmd_Eye::Eye_Right, textures[1].get());
 
 
     glDisable(GL_DEPTH_TEST);

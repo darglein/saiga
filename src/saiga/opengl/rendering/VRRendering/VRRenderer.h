@@ -39,7 +39,7 @@ class SAIGA_OPENGL_API VRRenderer : public OpenGLRenderer
     Framebuffer framebuffers[2];
     std::shared_ptr<Texture> textures[2];
 
-    VR::OpenVRWrapper vr;
+    std::shared_ptr<OpenVRWrapper> vr;
 
     mat4 projLeft, projRight;
     mat4 viewLeft, viewRight;

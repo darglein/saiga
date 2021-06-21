@@ -11,8 +11,6 @@
 #include <iostream>
 namespace Saiga
 {
-namespace VR
-{
 //-----------------------------------------------------------------------------
 // Purpose: Helper to get a string from a tracked device property and turn it
 //			into a std::string
@@ -32,7 +30,7 @@ std::string GetTrackedDeviceString(vr::TrackedDeviceIndex_t unDevice, vr::Tracke
 }
 
 
-bool OpenVRWrapper::init()
+OpenVRWrapper::OpenVRWrapper()
 {
     std::string m_strDriver;
     std::string m_strDisplay;
@@ -46,7 +44,7 @@ bool OpenVRWrapper::init()
         m_pHMD = NULL;
         std::cout << "Unable to init VR runtime: " << vr::VR_GetVRInitErrorAsEnglishDescription(eError) << std::endl;
         //        SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "VR_Init Failed", buf, NULL );
-        return false;
+        return;
     }
 
 
@@ -63,13 +61,19 @@ bool OpenVRWrapper::init()
 
     if (!vr::VRCompositor())
     {
+        m_pHMD = nullptr;
         printf("Compositor initialization failed. See log file for details\n");
-        return false;
+        return;
     }
 
-    m_pHMD->GetRecommendedRenderTargetSize(&m_nRenderWidth, &m_nRenderHeight);
+    SAIGA_ASSERT(m_pHMD);
 
-    return true;
+    m_pHMD->GetRecommendedRenderTargetSize(&m_nRenderWidth, &m_nRenderHeight);
+}
+OpenVRWrapper::~OpenVRWrapper()
+{
+    std::cout << "Shutdown VR" << std::endl;
+    vr::VR_Shutdown();
 }
 
 
@@ -120,26 +124,16 @@ void ProcessVREvent(const vr::VREvent_t& event)
         case vr::VREvent_TrackedDeviceDeactivated:
         {
             //            dprintf("Device %u detached.\n", event.trackedDeviceIndex);
-        std::cout << "Device detached " <<  event.trackedDeviceIndex << std::endl;
-//            std::terminate();
+            std::cout << "Device detached " << event.trackedDeviceIndex << std::endl;
+            //            std::terminate();
         }
         break;
         case vr::VREvent_TrackedDeviceUpdated:
         {
-//            std::terminate();
-                        std::cout << "Device updated. " <<  event.trackedDeviceIndex << std::endl;
+            //            std::terminate();
+            std::cout << "Device updated. " << event.trackedDeviceIndex << std::endl;
         }
         break;
-    }
-}
-
-void OpenVRWrapper::handleInput()
-{
-    // Process SteamVR events
-    vr::VREvent_t event;
-    while (m_pHMD->PollNextEvent(&event, sizeof(event)))
-    {
-        ProcessVREvent(event);
     }
 }
 
@@ -152,11 +146,46 @@ mat4 ConvertSteamVRMatrixToMatrix4(const vr::HmdMatrix34_t& matPose)
     return matrixObj.transpose();
 }
 
-
-void OpenVRWrapper::UpdateHMDMatrixPose()
+std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(const PerspectiveCamera& camera)
 {
-    if (!m_pHMD) return;
+    PerspectiveCamera left  = camera;
+    PerspectiveCamera right = camera;
 
+    left.proj  = GetHMDProjectionMatrix(vr::Hmd_Eye::Eye_Left, camera.zNear, camera.zFar);
+    right.proj = GetHMDProjectionMatrix(vr::Hmd_Eye::Eye_Right, camera.zNear, camera.zFar);
+
+    mat4 vl = GetHMDViewMatrix(vr::Hmd_Eye::Eye_Left);
+    mat4 vr = GetHMDViewMatrix(vr::Hmd_Eye::Eye_Right);
+
+    left.view  = vl * m_mat4HMDPose * camera.view;
+    right.view = vr * m_mat4HMDPose * camera.view;
+
+    //    -58.6051 -19.3548 -56.7005 -7.57974
+    //    13.4702  -79.1438 -5.04516 -20.4803
+    //    57.4138  24.3135  -54.5785 15.7798
+    //    0        -0       0        -81.9813
+
+    // std::cout << vl << std::endl;
+    // std::cout << m_mat4HMDPose << std::endl;
+    // std::cout << std::endl;
+    left.setModelMatrix(left.view.inverse());
+    left.recalculateMatrices();
+
+    right.setModelMatrix(right.view.inverse());
+    right.recalculateMatrices();
+
+    return {left, right};
+}
+void OpenVRWrapper::update()
+{
+    SAIGA_ASSERT(m_pHMD);
+
+    // Process SteamVR events
+    vr::VREvent_t event;
+    while (m_pHMD->PollNextEvent(&event, sizeof(event)))
+    {
+        ProcessVREvent(event);
+    }
     vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0);
 
     m_iValidPoseCount = 0;
@@ -202,36 +231,4 @@ void OpenVRWrapper::UpdateHMDMatrixPose()
         m_mat4HMDPose = m_mat4HMDPose.inverse();
     }
 }
-
-std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(const PerspectiveCamera& camera)
-{
-    PerspectiveCamera left  = camera;
-    PerspectiveCamera right = camera;
-
-    left.proj  = GetHMDProjectionMatrix(vr::Hmd_Eye::Eye_Left, camera.zNear, camera.zFar);
-    right.proj = GetHMDProjectionMatrix(vr::Hmd_Eye::Eye_Right, camera.zNear, camera.zFar);
-
-    mat4 vl = GetHMDViewMatrix(vr::Hmd_Eye::Eye_Left);
-    mat4 vr = GetHMDViewMatrix(vr::Hmd_Eye::Eye_Right);
-
-    left.view  = vl * m_mat4HMDPose * camera.view;
-    right.view = vr * m_mat4HMDPose * camera.view;
-
-//    -58.6051 -19.3548 -56.7005 -7.57974
-//    13.4702  -79.1438 -5.04516 -20.4803
-//    57.4138  24.3135  -54.5785 15.7798
-//    0        -0       0        -81.9813
-
-    std::cout << vl << std::endl;
-std::cout << m_mat4HMDPose << std::endl;
-std::cout << std::endl;
-    left.setModelMatrix(left.view.inverse());
-    left.recalculateMatrices();
-
-    right.setModelMatrix(right.view.inverse());
-    right.recalculateMatrices();
-
-    return {left, right};
-}
-}  // namespace VR
 }  // namespace Saiga

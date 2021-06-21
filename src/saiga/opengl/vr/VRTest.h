@@ -21,16 +21,17 @@
 
 namespace Saiga
 {
-namespace VR
-{
-// the base interface between saiga and openvr
-
+// The interface between saiga and openvr
 class SAIGA_OPENGL_API OpenVRWrapper
 {
    public:
-    bool init();
+
+    OpenVRWrapper();
+    ~OpenVRWrapper();
 
 
+
+    void update();
 
     mat4 GetHMDProjectionMatrix(vr::Hmd_Eye nEye, float newPlane, float farPlane);
 
@@ -40,9 +41,7 @@ class SAIGA_OPENGL_API OpenVRWrapper
     // send an opengl image to the HMD
     void submitImage(vr::Hmd_Eye nEye, TextureBase* texture);
 
-    void handleInput();
 
-    void UpdateHMDMatrixPose();
 
     // create camera for the left and right eye given the "head" camera.
     std::pair<PerspectiveCamera, PerspectiveCamera> getEyeCameras(const PerspectiveCamera& camera);
@@ -71,7 +70,4 @@ class SAIGA_OPENGL_API OpenVRWrapper
     uint32_t m_nRenderHeight;
 };
 
-
-
-}  // namespace VR
 }  // namespace Saiga
