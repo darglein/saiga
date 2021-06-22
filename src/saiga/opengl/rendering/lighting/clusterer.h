@@ -84,28 +84,7 @@ class SAIGA_OPENGL_API Clusterer
         clustersDirty       = true;
     }
 
-    // TODO: change interface. instead of the 4 functions below can we make it to a single:
-    //  virtual void clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<PointLight*> pls,
-    //                          ArrayView<SpotLight*> sls)
-    // See shadow_manager.h for an example
-    // -> Gibt keine Views, die Arrays mit den Daten hat nur der Clusterer.
-    inline void clearLightData()
-    {
-        pointLightsClusterData.clear();
-        spotLightsClusterData.clear();
-    }
-
-    inline void addPointLight(const vec3& position, const float& radius)
-    {
-        pointLightsClusterData.emplace_back(position, radius);
-    }
-
-    inline void addSpotLight(const vec3& position, const float& radius)
-    {
-        spotLightsClusterData.emplace_back(position, radius);
-    }
-
-    void clusterLights(Camera* cam, const ViewPort& viewPort);
+    void clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<PointLight*> pls, ArrayView<SpotLight*> sls);
 
     virtual void imgui();
 

@@ -47,7 +47,6 @@ void ForwardLighting::resize(int _width, int _height)
 
 void ForwardLighting::initRender()
 {
-
     auto tim = timer->Measure("Lightinit");
     RendererLighting::initRender();
     LightInfo li;
@@ -55,46 +54,16 @@ void ForwardLighting::initRender()
     li.spotLightCount        = 0;
     li.directionalLightCount = 0;
 
-    if (clustererType) lightClusterer->clearLightData();
     li.clusterEnabled = clustererType > 0;
 
     // Point Lights
-    for (auto& pl : active_point_lights)
-    {
-        if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
-
-        if (clustererType) lightClusterer->addPointLight(pl->position, pl->radius);
-
-        li.pointLightCount++;
-    }
+    li.pointLightCount = std::min((int)active_point_lights.size(), maximumNumberOfPointLights);
 
     // Spot Lights
-    for (auto& sl : active_spot_lights)
-    {
-        if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
-
-        if (clustererType)
-        {
-            float rad = radians(sl->getAngle());
-            float l   = sl->radius;
-            float radius;
-            if (rad > pi<float>() * 0.25f)
-                radius = l * tan(rad);
-            else
-                radius = l * 0.5f / (cos(rad) * cos(rad));
-            vec3 world_center = sl->position + sl->direction.normalized() * radius;
-            lightClusterer->addSpotLight(world_center, radius);
-        }
-
-        li.spotLightCount++;
-    }
+    li.spotLightCount = std::min((int)active_spot_lights.size(), maximumNumberOfSpotLights);
 
     // Directional Lights
-    for (auto& dl : active_directional_lights)
-    {
-        if (li.directionalLightCount >= maximumNumberOfDirectionalLights) break;  // just ignore too many lights...
-        li.directionalLightCount++;
-    }
+    li.directionalLightCount = std::min((int)active_directional_lights.size(), maximumNumberOfDirectionalLights);
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.directionalLightCount;
@@ -106,7 +75,7 @@ void ForwardLighting::cluster(Camera* cam, const ViewPort& viewPort)
 {
     if (clustererType)
     {
-        lightClusterer->clusterLights(cam, viewPort);
+        lightClusterer->clusterLights(cam, viewPort, active_point_lights, active_spot_lights);
         // At this point we can use clustering information in the lighting uber shader with the right binding points.
     }
 }

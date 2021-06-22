@@ -34,12 +34,6 @@ void Clusterer::resize(int _width, int _height)
     clustersDirty = true;
 }
 
-void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
-{
-    clusterLightsInternal(cam, viewPort);
-}
-
-/*
 void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<PointLight*> pls, ArrayView<SpotLight*> sls)
 {
     pointLightsClusterData.clear();
@@ -47,16 +41,12 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<P
     // Point Lights
     for (auto& pl : pls)
     {
-        if (!pl->shouldRender()) continue;
-
         pointLightsClusterData.emplace_back(pl->position, pl->radius);
     }
 
     // Spot Lights
     for (auto& sl : sls)
     {
-        if (!sl->shouldRender()) continue;
-
         float rad = radians(sl->getAngle());
         float l   = sl->radius;
         float radius;
@@ -70,7 +60,6 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<P
 
     clusterLightsInternal(cam, viewPort);
 }
-*/
 
 void Clusterer::renderDebug(Camera* cam)
 {
