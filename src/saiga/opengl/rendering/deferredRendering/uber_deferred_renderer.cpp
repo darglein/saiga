@@ -36,11 +36,6 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor    = params.lightingClearColor;
     lighting.init(renderWidth, renderHeight, params.useGPUTimers);
-    this->params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
-    this->params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
-    this->params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
-    lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                            params.maximumNumberOfSpotLights);
     lighting.loadShaders();
 
 

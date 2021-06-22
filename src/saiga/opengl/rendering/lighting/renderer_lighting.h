@@ -97,8 +97,6 @@ class SAIGA_OPENGL_API RendererLighting : public LightManager
 
     virtual void renderImGui();
 
-    virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights);
-
     virtual void setClusterType(int tp){};
 
     virtual std::shared_ptr<Clusterer> getClusterer() { return nullptr; };
@@ -129,11 +127,6 @@ class SAIGA_OPENGL_API RendererLighting : public LightManager
     GLTimerSystem* timer;
 
     ShadowManager shadowManager;
-
-
-    int maximumNumberOfDirectionalLights = 256;
-    int maximumNumberOfPointLights       = 256;
-    int maximumNumberOfSpotLights        = 256;
 
     TemplatedShaderStorageBuffer<PointLight::ShaderData> point_light_data;
     TemplatedShaderStorageBuffer<SpotLight::ShaderData> spot_light_data;

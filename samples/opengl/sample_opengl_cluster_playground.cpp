@@ -72,16 +72,6 @@ class Sample : public RendererSampleWindow
             b.calculateModel();
         }
 
-        int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-
-        int maximumNumberOfRendererSupportedDirectionalLights = maxSize / (int)sizeof(DirectionalLight::ShaderData);
-        int maximumNumberOfRendererSupportedPointLights       = maxSize / (int)sizeof(PointLight::ShaderData);
-        int maximumNumberOfRendererSupportedSpotLights        = maxSize / (int)sizeof(SpotLight::ShaderData);
-
-        renderer->setLightMaxima(maximumNumberOfRendererSupportedDirectionalLights,
-                                 maximumNumberOfRendererSupportedPointLights,
-                                 maximumNumberOfRendererSupportedSpotLights);
-
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
         const char* shaderStr    = renderer->getColoredShaderSource();
         const char* shaderStrTex = renderer->getTexturedShaderSource();
@@ -95,13 +85,6 @@ class Sample : public RendererSampleWindow
         ShaderPart::ShaderCodeInjections sci;
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
         sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
-
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights), 2);
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights), 3);
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
 
         auto forwardShader = shaderLoader.load<MVPColorShaderFL>(shaderStr, sci);
 
@@ -122,13 +105,6 @@ class Sample : public RendererSampleWindow
         sci;
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
         sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
-
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights), 2);
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights), 3);
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
 
         auto tex_forwardShader = shaderLoader.load<MVPTextureShaderFL>(shaderStrTex, sci);
 

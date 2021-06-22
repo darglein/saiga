@@ -17,10 +17,7 @@ using namespace Saiga;
 
 class Sample : public RendererSampleWindow
 {
-    using Base                                            = RendererSampleWindow;
-    int maximumNumberOfRendererSupportedDirectionalLights = 256;
-    int maximumNumberOfRendererSupportedPointLights       = 256;
-    int maximumNumberOfRendererSupportedSpotLights        = 256;
+    using Base = RendererSampleWindow;
 
    public:
     Sample()
@@ -49,21 +46,6 @@ class Sample : public RendererSampleWindow
         camera.position          = vec4(0.558927, 0.0488419, 0.00189565, 1);
         camera.rot               = quat(0.72404, -0.060576, 0.684689, 0.0572873);
 
-
-
-        int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-
-        maximumNumberOfRendererSupportedDirectionalLights = std::clamp(
-            maximumNumberOfRendererSupportedDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLight::ShaderData));
-        maximumNumberOfRendererSupportedPointLights =
-            std::clamp(maximumNumberOfRendererSupportedPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
-        maximumNumberOfRendererSupportedSpotLights =
-            std::clamp(maximumNumberOfRendererSupportedSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
-
-        renderer->setLightMaxima(maximumNumberOfRendererSupportedDirectionalLights,
-                                 maximumNumberOfRendererSupportedPointLights,
-                                 maximumNumberOfRendererSupportedSpotLights);
-
 // Next is needed for forward.
 #ifdef SINGLE_PASS_FORWARD_PIPELINE
         const char* shaderStr = renderer->getTexturedShaderSource();
@@ -78,12 +60,6 @@ class Sample : public RendererSampleWindow
         sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
         sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
 
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights), 2);
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights), 3);
-        sci.emplace_back(GL_FRAGMENT_SHADER,
-                         "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights), 4);
         auto forwardShader = shaderLoader.load<MVPTextureShaderFL>(shaderStr, sci);
 
         auto wireframeShader = shaderLoader.load<MVPTextureShader>(shaderStr);
@@ -94,7 +70,6 @@ class Sample : public RendererSampleWindow
 
         std::cout << "Program Initialized!" << std::endl;
     }
-
 
 
     void render(Camera* camera, RenderPass render_pass) override
@@ -124,66 +99,6 @@ class Sample : public RendererSampleWindow
         {
             ImGui::Begin("Rendering Lighting Sample");
 
-            bool supportChanged =
-                ImGui::InputInt("Renderer Supported Point Lights", &maximumNumberOfRendererSupportedPointLights);
-            supportChanged |=
-                ImGui::InputInt("Renderer Supported Spot Lights", &maximumNumberOfRendererSupportedSpotLights);
-            supportChanged |= ImGui::InputInt("Renderer Supported Directional Lights",
-                                              &maximumNumberOfRendererSupportedDirectionalLights);
-
-
-            if (supportChanged)
-            {
-                int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-
-                maximumNumberOfRendererSupportedDirectionalLights =
-                    std::clamp(maximumNumberOfRendererSupportedDirectionalLights, 0,
-                               maxSize / (int)sizeof(DirectionalLight::ShaderData));
-                maximumNumberOfRendererSupportedPointLights = std::clamp(maximumNumberOfRendererSupportedPointLights, 0,
-                                                                         maxSize / (int)sizeof(PointLight::ShaderData));
-                maximumNumberOfRendererSupportedSpotLights  = std::clamp(maximumNumberOfRendererSupportedSpotLights, 0,
-                                                                        maxSize / (int)sizeof(SpotLight::ShaderData));
-
-                renderer->setLightMaxima(maximumNumberOfRendererSupportedDirectionalLights,
-                                         maximumNumberOfRendererSupportedPointLights,
-                                         maximumNumberOfRendererSupportedSpotLights);
-
-
-                // Next is needed for forward.
-#ifdef SINGLE_PASS_FORWARD_PIPELINE
-                const char* shaderStr = renderer->getTexturedShaderSource();
-
-                auto deferredShader = shaderLoader.load<MVPTextureShader>(shaderStr,
-                                                                          {{ GL_FRAGMENT_SHADER,
-                                                                             "#define DEFERRED",
-                                                                             1 }});
-                auto depthShader    = shaderLoader.load<MVPTextureShader>(shaderStr,
-                                                                       {{ GL_FRAGMENT_SHADER,
-                                                                          "#define DEPTH",
-                                                                          1 }});
-
-                ShaderPart::ShaderCodeInjections sci;
-                sci.emplace_back(GL_VERTEX_SHADER, "#define FORWARD_LIT", 1);
-                sci.emplace_back(GL_FRAGMENT_SHADER, "#define FORWARD_LIT", 1);
-
-                sci.emplace_back(
-                    GL_FRAGMENT_SHADER,
-                    "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfRendererSupportedDirectionalLights), 2);
-                sci.emplace_back(GL_FRAGMENT_SHADER,
-                                 "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfRendererSupportedPointLights),
-                                 3);
-                sci.emplace_back(GL_FRAGMENT_SHADER,
-                                 "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfRendererSupportedSpotLights),
-                                 4);
-                auto forwardShader = shaderLoader.load<MVPTextureShaderFL>(shaderStr, sci);
-
-                auto wireframeShader = shaderLoader.load<MVPTextureShader>(shaderStr);
-
-                std::static_pointer_cast<TexturedAsset>(show.asset)
-                    ->setShader(deferredShader, forwardShader, depthShader, wireframeShader);
-#endif
-            }
-
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -192,8 +107,6 @@ class Sample : public RendererSampleWindow
             int32_t count = renderer->lighting.pointLights.size();
             if (ImGui::InputInt("Point Light Count (wanted)", &count))
             {
-                if (count > maximumNumberOfRendererSupportedPointLights)
-                    count = maximumNumberOfRendererSupportedPointLights;
                 renderer->lighting.pointLights.clear();
                 pointLights.clear();
                 Random::setSeed(LIGHT_SEED);
@@ -214,8 +127,6 @@ class Sample : public RendererSampleWindow
             count = renderer->lighting.spotLights.size();
             if (ImGui::InputInt("Spot Light Count (wanted)", &count))
             {
-                if (count > maximumNumberOfRendererSupportedSpotLights)
-                    count = maximumNumberOfRendererSupportedSpotLights;
                 renderer->lighting.spotLights.clear();
                 spotLights.clear();
                 Random::setSeed(LIGHT_SEED);
@@ -238,15 +149,13 @@ class Sample : public RendererSampleWindow
             count = renderer->lighting.directionalLights.size();
             if (ImGui::InputInt("Directional Light Count (wanted)", &count))
             {
-                if (count > maximumNumberOfRendererSupportedDirectionalLights)
-                    count = maximumNumberOfRendererSupportedDirectionalLights;
                 renderer->lighting.directionalLights.clear();
                 directionalLights.clear();
                 Random::setSeed(LIGHT_SEED);
                 for (int32_t i = 0; i < count; ++i)
                 {
                     std::shared_ptr<DirectionalLight> light = std::make_shared<DirectionalLight>();
-                    light->castShadows = false;
+                    light->castShadows                      = false;
                     light->setAmbientIntensity(0.01);
                     vec3 dir = Random::sphericalRand(1).cast<float>();
                     if (dir.y() > 0) dir.y() *= -1;

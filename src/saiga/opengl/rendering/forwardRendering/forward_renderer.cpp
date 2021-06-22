@@ -20,11 +20,6 @@ ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& para
     : OpenGLRenderer(window), params(params), lighting(timer.get())
 {
     lighting.init(window.getWidth(), window.getHeight(), false);
-    this->params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
-    this->params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
-    this->params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
-    lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                            params.maximumNumberOfSpotLights);
 
     std::cout << " Forward Renderer initialized. Render resolution: " << window.getWidth() << "x" << window.getHeight()
               << std::endl;

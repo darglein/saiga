@@ -22,12 +22,6 @@ ForwardLighting::ForwardLighting(GLTimerSystem* timer) : RendererLighting(timer)
 {
     int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
-    maximumNumberOfDirectionalLights =
-        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLight::ShaderData));
-    maximumNumberOfPointLights =
-        std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
-    maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
-
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 }
 
@@ -57,13 +51,13 @@ void ForwardLighting::initRender()
     li.clusterEnabled = clustererType > 0;
 
     // Point Lights
-    li.pointLightCount = std::min((int)active_point_lights.size(), maximumNumberOfPointLights);
+    li.pointLightCount = active_point_lights.size();
 
     // Spot Lights
-    li.spotLightCount = std::min((int)active_spot_lights.size(), maximumNumberOfSpotLights);
+    li.spotLightCount = active_spot_lights.size();
 
     // Directional Lights
-    li.directionalLightCount = std::min((int)active_directional_lights.size(), maximumNumberOfDirectionalLights);
+    li.directionalLightCount = active_directional_lights.size();
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.directionalLightCount;
@@ -95,26 +89,6 @@ void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
     if (clustererType) lightClusterer->renderDebug(cam);
     assert_no_glerror();
 }
-
-void ForwardLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
-{
-    maxDirectionalLights = std::max(0, maxDirectionalLights);
-    maxPointLights       = std::max(0, maxPointLights);
-    maxSpotLights        = std::max(0, maxSpotLights);
-
-    int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-
-    maximumNumberOfDirectionalLights =
-        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLight::ShaderData));
-    maximumNumberOfPointLights =
-        std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
-    maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
-
-    maximumNumberOfDirectionalLights = maxDirectionalLights;
-    maximumNumberOfPointLights       = maxPointLights;
-    maximumNumberOfSpotLights        = maxSpotLights;
-}
-
 
 void ForwardLighting::renderImGui()
 {

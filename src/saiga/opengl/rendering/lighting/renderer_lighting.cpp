@@ -206,19 +206,6 @@ void RendererLighting::renderDebug(Camera* cam)
     glEnable(GL_CULL_FACE);
 }
 
-void RendererLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
-{
-    maxDirectionalLights = std::max(0, maxDirectionalLights);
-    maxPointLights       = std::max(0, maxPointLights);
-    maxSpotLights        = std::max(0, maxSpotLights);
-
-    maximumNumberOfDirectionalLights = maxDirectionalLights;
-    maximumNumberOfPointLights       = maxPointLights;
-    maximumNumberOfSpotLights        = maxSpotLights;
-}
-
-
-
 void RendererLighting::createLightMeshes()
 {
     directionalLightMesh.fromMesh(FullScreenQuad());
