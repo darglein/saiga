@@ -23,4 +23,8 @@ SAIGA_OPENGL_API GLenum getGlFormat(ImageType type);
 SAIGA_OPENGL_API GLenum getGlFormatInteger(ImageType type);
 SAIGA_OPENGL_API GLenum getGlType(ImageType type);
 
+SAIGA_OPENGL_API std::string BindlessImageTypeName(GLenum gl_type);
+
+
+
 }  // namespace Saiga

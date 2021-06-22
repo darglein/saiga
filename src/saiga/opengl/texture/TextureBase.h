@@ -116,6 +116,8 @@ class SAIGA_OPENGL_API TextureBase
 
     void generateMipmaps();
 
+    GLenum InternalFormat() const { return internal_format; }
+
    protected:
     // The underlying GL texture name and target
     GLuint id = 0;

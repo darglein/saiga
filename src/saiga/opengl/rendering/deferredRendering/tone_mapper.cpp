@@ -8,16 +8,24 @@
 
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/glImageFormat.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 
 namespace Saiga
 {
-ToneMapper::ToneMapper()
+const char* tonemap_operator_names[6] = {"Gamma", "Texture", "Reinhard", "UE3", "UC2", "Drago"};
+
+
+ToneMapper::ToneMapper(GLenum input_type) : input_type(input_type)
 {
-    shader        = shaderLoader.load<Shader>("tone_map.glsl");
-    shader_linear = shaderLoader.load<Shader>("tone_map_linear.glsl");
+    auto input_type_str = BindlessImageTypeName(input_type);
+    ShaderPart::ShaderCodeInjections injection;
+    injection.emplace_back(GL_COMPUTE_SHADER, "#define INPUT_TYPE " + input_type_str, 1);
+
+    shader        = shaderLoader.load<Shader>("tone_map.glsl", injection);
+    shader_linear = shaderLoader.load<Shader>("tone_map_linear.glsl", injection);
 
 
     uniforms.create(params, GL_DYNAMIC_DRAW);
@@ -31,6 +39,7 @@ ToneMapper::ToneMapper()
 
 void ToneMapper::MapLinear(Texture* input_hdr_color_image)
 {
+    SAIGA_ASSERT(input_hdr_color_image->InternalFormat() == input_type);
     if (params_dirty)
     {
         uint32_t flags = (auto_exposure << 0) | (auto_white_balance << 1);
@@ -63,11 +72,17 @@ void ToneMapper::MapLinear(Texture* input_hdr_color_image)
 
 void ToneMapper::Map(Texture* input_hdr_color_image, Texture* output_ldr_color_image)
 {
+    SAIGA_ASSERT(input_hdr_color_image->InternalFormat() == input_type);
+    SAIGA_ASSERT(output_ldr_color_image->InternalFormat() == GL_RGBA8);
+    SAIGA_ASSERT(response_texture);
+
     if (shader->bind())
     {
         input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
         output_ldr_color_image->bindImageTexture(1, GL_WRITE_ONLY);
         shader->upload(2, *response_texture, 0);
+        shader->upload(3, gamma);
+        shader->upload(4, tm_operator);
         int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
         int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
         shader->dispatchCompute(uvec3(gw, gh, 1));
@@ -137,6 +152,12 @@ void ToneMapper::imgui()
 
         ImGui::Separator();
         ImGui::Text("Camera Response");
+
+
+        if (ImGui::Combo("Operator", &tm_operator, tonemap_operator_names, 6))
+        {
+            params_dirty = true;
+        }
 
         if (ImGui::Button("gamma = 2.2"))
         {

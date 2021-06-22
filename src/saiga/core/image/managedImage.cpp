@@ -168,16 +168,21 @@ bool Image::save(const std::string& path) const
 {
     SAIGA_ASSERT(valid());
 
-    std::string type = fileEnding(path);
+    std::string output_type = fileEnding(path);
 
-    if (type == "saigai")
+    if (output_type == "saigai")
     {
         // saiga raw image format
         return saveRaw(path);
     }
 
+    if(output_type == "jpg" && channels(this->type) != 3)
+    {
+        std::cerr << "jpg is only supported with 3 channels" << std::endl;
+        return false;
+    }
 
-    if (type == "png")
+    if (output_type == "png")
     {
 #ifdef SAIGA_USE_PNG
         return LibPNG::save(path, *this, false);
