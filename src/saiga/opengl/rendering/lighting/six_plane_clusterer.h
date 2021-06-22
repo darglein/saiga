@@ -5,7 +5,7 @@
  */
 
 #pragma once
-#include "saiga/opengl/rendering/lighting/light_clusterer.h"
+#include "saiga/opengl/rendering/lighting/clusterer.h"
 
 namespace Saiga
 {
@@ -16,10 +16,8 @@ class SAIGA_OPENGL_API SixPlaneClusterer : public Clusterer
     SixPlaneClusterer& operator=(SixPlaneClusterer& c) = delete;
     ~SixPlaneClusterer();
 
-    void clusterLights(Camera* cam, const ViewPort& viewPort) override { clusterLightsInternal(cam, viewPort); }
-
    private:
-    void clusterLightsInternal(Camera* cam, const ViewPort& viewPort);
+    void clusterLightsInternal(Camera* cam, const ViewPort& viewPort) override;
 
     void buildClusters(Camera* cam);
 

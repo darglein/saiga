@@ -47,16 +47,12 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
         lightClusterDataBuffer.updateBuffer(spotLightsClusterData.data(), slSize, plSize);
 
         clusterInfoBuffer.itemListCount = 0;
-        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+        infoBuffer.update(infoBufferView);
 
         // TODO Paul: Hardcoded!
         lightClusterDataBuffer.bind(10);
         clusterStructuresBuffer.bind(11);
     }
-
-    infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
-    clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
-    itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
 
     {
         auto tim = timer->Measure("GPU Light Assignment");
@@ -108,8 +104,8 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
 
     // Calculate Cluster Planes in View Space.
     int clusterCount = (int)(gridCount[0] * gridCount[1] * gridCount[2]);
-    clusterBuffer.clusterList.clear();
-    clusterBuffer.clusterList.resize(clusterCount);
+    clusterList.clear();
+    clusterList.resize(clusterCount);
     clusterInfoBuffer.clusterListCount = clusterCount;
 
     cullingCluster.clear();
@@ -251,18 +247,18 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
         clusterInfoBuffer.tileDebug  = screenSpaceDebug ? allowedItemsPerCluster : 0;
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
-        itemBuffer.itemList.clear();
-        itemBuffer.itemList.resize(allowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        clusterInfoBuffer.itemListCount = 0;  // itemBuffer.itemList.size();
+        itemList.clear();
+        itemList.resize(allowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+        clusterInfoBuffer.itemListCount = 0;  // itemList.size();
 
-        int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
+        int itemListSize = sizeof(ClusterItem) * itemList.size();
         int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-        SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
+        SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
 
-        itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
+        itemListBuffer.createGLBuffer(itemList.data(), itemListSize, GL_DYNAMIC_DRAW);
 
-        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-        clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
+        int clusterListSize = sizeof(Cluster) * clusterList.size();
+        clusterListBuffer.createGLBuffer(clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
 
         int clusterStructuresSize = sizeof(clusterBounds) * cullingCluster.size();
         clusterStructuresBuffer.createGLBuffer(cullingCluster.data(), clusterStructuresSize, GL_DYNAMIC_DRAW);

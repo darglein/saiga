@@ -152,7 +152,7 @@ class Sample : public RendererSampleWindow
             float r   = linearRand(-d * fovx, d * fovx);
             float h   = linearRand(-0.035 * degrees(camera.fovy), 0.35 * degrees(camera.fovy));
             vec3 p    = make_vec3(camera.position);
-#    if not defined(BISTRO_LINE) or defined(BISTRO_POINT)
+#    if !defined(BISTRO_LINE) && !defined(BISTRO_POINT)
             p += make_vec3(camera.getDirection().array() * z);
             p += make_vec3(camera.getRightVector().array() * r);
             p += make_vec3(camera.getUpVector().array() * h);

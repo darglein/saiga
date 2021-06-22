@@ -5,7 +5,7 @@
  */
 
 #pragma once
-#include "saiga/opengl/rendering/lighting/light_clusterer.h"
+#include "saiga/opengl/rendering/lighting/clusterer.h"
 
 namespace Saiga
 {
@@ -16,8 +16,6 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
     CPUPlaneClusterer& operator=(CPUPlaneClusterer& c) = delete;
     ~CPUPlaneClusterer();
 
-    void clusterLights(Camera* cam, const ViewPort& viewPort) override { clusterLightsInternal(cam, viewPort); }
-
     void renderDebug(Camera* cam) override
     {
         if (clusterDebug) Clusterer::renderDebug(cam);
@@ -27,7 +25,7 @@ class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
     bool refinement = true;
 
    private:
-    void clusterLightsInternal(Camera* cam, const ViewPort& viewPort);
+    void clusterLightsInternal(Camera* cam, const ViewPort& viewPort) override;
 
     void clusterLoop(vec3 sphereCenter, float sphereRadius, int index, bool pl, int& itemCount);
 

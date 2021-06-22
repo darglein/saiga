@@ -45,7 +45,7 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
 {
     RendererLighting::init(_width, _height, _useTimers);
-    if (clustererType) lightClusterer->init(_width, _height);
+    if (clustererType) lightClusterer->resize(_width, _height);
 
     lightAccumulationBuffer.create();
 
@@ -92,14 +92,12 @@ void UberDeferredLighting::initRender()
     li.spotLightCount        = 0;
     li.directionalLightCount = 0;
 
-    if (clustererType) lightClusterer->clearLightData();
     li.clusterEnabled = clustererType > 0;
 
     // Point Lights
     for (auto& pl : active_point_lights)
     {
         if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
-        if (!pl->shouldRender()) continue;
 
         if (clustererType) lightClusterer->addPointLight(pl->position, pl->radius);
 
@@ -110,7 +108,6 @@ void UberDeferredLighting::initRender()
     for (auto& sl : active_spot_lights)
     {
         if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
-        if (!sl->shouldRender()) continue;
 
         if (clustererType)
         {
@@ -132,7 +129,6 @@ void UberDeferredLighting::initRender()
     for (auto& dl : active_directional_lights)
     {
         if (li.directionalLightCount >= maximumNumberOfDirectionalLights) break;  // just ignore too many lights...
-        if (!dl->shouldRender()) continue;
         li.directionalLightCount++;
     }
 
@@ -264,7 +260,7 @@ void UberDeferredLighting::setClusterType(int tp)
                 return;
         }
 
-        lightClusterer->init(width, height);
+        lightClusterer->resize(width, height);
     }
 }
 

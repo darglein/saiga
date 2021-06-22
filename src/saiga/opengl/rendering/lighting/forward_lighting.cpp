@@ -36,7 +36,7 @@ ForwardLighting::~ForwardLighting() {}
 void ForwardLighting::init(int _width, int _height, bool _useTimers)
 {
     RendererLighting::init(_width, _height, _useTimers);
-    if (clustererType) lightClusterer->init(_width, _height);
+    if (clustererType) lightClusterer->resize(_width, _height);
 }
 
 void ForwardLighting::resize(int _width, int _height)
@@ -62,7 +62,6 @@ void ForwardLighting::initRender()
     for (auto& pl : active_point_lights)
     {
         if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
-        if (!pl->shouldRender()) continue;
 
         if (clustererType) lightClusterer->addPointLight(pl->position, pl->radius);
 
@@ -73,7 +72,6 @@ void ForwardLighting::initRender()
     for (auto& sl : active_spot_lights)
     {
         if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
-        if (!sl->shouldRender()) continue;
 
         if (clustererType)
         {
@@ -95,7 +93,6 @@ void ForwardLighting::initRender()
     for (auto& dl : active_directional_lights)
     {
         if (li.directionalLightCount >= maximumNumberOfDirectionalLights) break;  // just ignore too many lights...
-        if (!dl->shouldRender()) continue;
         li.directionalLightCount++;
     }
 
@@ -202,7 +199,7 @@ void ForwardLighting::setClusterType(int tp)
                 return;
         }
 
-        lightClusterer->init(width, height);
+        lightClusterer->resize(width, height);
     }
 }
 

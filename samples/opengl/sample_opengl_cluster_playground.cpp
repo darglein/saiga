@@ -198,10 +198,6 @@ class Sample : public RendererSampleWindow
                     pointLights.push_back(light);
                     r += 0.07f;
                 }
-                auto dl = std::make_shared<DirectionalLight>();
-                dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.05f);
-                renderer->lighting.AddLight(dl);
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
                 renderer->lighting.setClusterType(0);
@@ -224,7 +220,7 @@ class Sample : public RendererSampleWindow
                     vec2 point((r + 14.f) * cos(theta), r * sin(theta));
 
                     auto light = std::make_shared<PointLight>();
-                    light->setIntensity(1);
+                    light->setIntensity(0.75);
                     light->setRadius(linearRand(1.5f, 4.0f));
                     light->attenuation = vec3(0, 0, 1);
                     float h            = linearRand(0.25f, 25.0f);
@@ -235,10 +231,6 @@ class Sample : public RendererSampleWindow
                     renderer->lighting.AddLight(light);
                     pointLights.push_back(light);
                 }
-                auto dl = std::make_shared<DirectionalLight>();
-                dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.05f);
-                renderer->lighting.AddLight(dl);
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
                 renderer->lighting.setClusterType(2);
@@ -271,10 +263,6 @@ class Sample : public RendererSampleWindow
                     renderer->lighting.AddLight(light);
                     pointLights.push_back(light);
                 }
-                auto dl = std::make_shared<DirectionalLight>();
-                dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.05f);
-                renderer->lighting.AddLight(dl);
 
 #ifndef MULTI_PASS_DEFERRED_PIPELINE
                 renderer->lighting.setClusterType(2);
@@ -303,10 +291,6 @@ class Sample : public RendererSampleWindow
                     renderer->lighting.AddLight(light);
                     pointLights.push_back(light);
                 }
-                auto dl = std::make_shared<DirectionalLight>();
-                dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.05f);
-                renderer->lighting.AddLight(dl);
 
                 camera.position = vec4(0.123655, 9.77907, 21.8321, 1);
                 camera.rot      = quat(0.966454, -0.256838, -1.63342e-09, -2.06352e-09);
@@ -334,10 +318,6 @@ class Sample : public RendererSampleWindow
                     renderer->lighting.AddLight(light);
                     pointLights.push_back(light);
                 }
-                auto dl = std::make_shared<DirectionalLight>();
-                dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.05f);
-                renderer->lighting.AddLight(dl);
 
                 camera.position = vec4(-0.459712, 8.13201, 12.0926, 1);
                 camera.rot      = quat(0.957761, -0.287024, -0.0167178, -0.00501071);
@@ -368,10 +348,6 @@ class Sample : public RendererSampleWindow
                         pointLights.push_back(light);
                     }
                 }
-                auto dl = std::make_shared<DirectionalLight>();
-                dl->setIntensity(0.0f);
-                dl->setAmbientIntensity(0.05f);
-                renderer->lighting.AddLight(dl);
 
                 camera.position = vec4(-0.459712, 8.13201, 12.0926, 1);
                 camera.rot      = quat(0.957761, -0.287024, -0.0167178, -0.00501071);

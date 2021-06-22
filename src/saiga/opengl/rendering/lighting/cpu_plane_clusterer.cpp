@@ -33,7 +33,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
     {
         lightAssignmentTimer.start();
 
-        for (int c = 0; c < clusterBuffer.clusterList.size(); ++c)
+        for (int c = 0; c < clusterList.size(); ++c)
         {
             clusterCache[c].clear();
             clusterCache[c].push_back(0);  // PL Count
@@ -115,40 +115,38 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         }
 
         bool adaptSize = false;
-        if (itemCount > itemBuffer.itemList.size())
+        if (itemCount > itemList.size())
         {
             adaptSize = true;
             do
             {
                 avgAllowedItemsPerCluster *= 2;
-                itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-            } while (itemCount > itemBuffer.itemList.size());
+                itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+            } while (itemCount > itemList.size());
         }
-        if (itemCount < itemBuffer.itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2)
+        if (itemCount < itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2)
         {
             adaptSize = true;
             do
             {
                 avgAllowedItemsPerCluster /= 2;
-                itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-            } while (itemCount < itemBuffer.itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2);
+                itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+            } while (itemCount < itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2);
         }
 
         if (adaptSize)
         {
             auto tim = timer->Measure("Info Update");
 
-            clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
+            clusterInfoBuffer.itemListCount = itemList.size();
             clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
             clusterInfoBuffer.splitDebug    = splitDebug ? 1 : 0;
 
-            int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
-            int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-            SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
+            int itemListSize = sizeof(ClusterItem) * itemList.size();
+            int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+            SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
 
-            itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize);
-
-            infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+            infoBuffer.update(infoBufferView);
         }
 
         int globalOffset = 0;
@@ -156,10 +154,10 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         for (int c = 0; c < clusterCache.size(); ++c)
         {
             auto cl             = clusterCache[c];
-            cluster& gpuCluster = clusterBuffer.clusterList.at(c);
+            Cluster& gpuCluster = clusterList.at(c);
 
             gpuCluster.offset = globalOffset;
-            SAIGA_ASSERT(gpuCluster.offset < itemBuffer.itemList.size(), "Too many items!");
+            SAIGA_ASSERT(gpuCluster.offset < itemList.size(), "Too many items!");
             gpuCluster.plCount = cl[0];
             gpuCluster.slCount = cl.size() - 1 - cl[0];
             globalOffset += gpuCluster.plCount;
@@ -169,7 +167,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                 continue;
             }
 
-            memcpy(&(itemBuffer.itemList[gpuCluster.offset]), &cl[1], (cl.size() - 1) * sizeof(clusterItem));
+            memcpy(&(itemList[gpuCluster.offset]), &cl[1], (cl.size() - 1) * sizeof(ClusterItem));
 
             if (lightsDebug && updateLightsDebug && (gpuCluster.plCount > 0 || gpuCluster.slCount > 0))
             {
@@ -250,16 +248,25 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     {
         auto tim            = timer->Measure("clusterupdate");
-        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-        clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
+        if (clusterList.size() > clusterListBuffer.Size())
+        {
+            clusterListBuffer.create(clusterList, GL_DYNAMIC_DRAW);
+            clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
+        }
+        else
+        {
+            clusterListBuffer.update(clusterList);
+        }
 
-        int itemListSize = sizeof(clusterItem) * itemCount;
-        // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
-        itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
-
-        infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
-        clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
-        itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+        if (itemList.size() > itemListBuffer.Size())
+        {
+            itemListBuffer.create(itemList, GL_DYNAMIC_DRAW);
+            itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+        }
+        else
+        {
+            itemListBuffer.update(itemList);
+        }
     }
     assert_no_glerror();
 }
@@ -484,8 +491,8 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
     // Calculate Cluster Planes in View Space.
     int clusterCount = (int)(gridCount[0] * gridCount[1] * gridCount[2]);
-    clusterBuffer.clusterList.clear();
-    clusterBuffer.clusterList.resize(clusterCount);
+    clusterList.clear();
+    clusterList.resize(clusterCount);
     clusterInfoBuffer.clusterListCount = clusterCount;
     clusterCache.clear();
     clusterCache.resize(clusterCount);
@@ -759,20 +766,15 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         clusterInfoBuffer.tileDebug  = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
-        itemBuffer.itemList.clear();
-        itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
+        itemList.clear();
+        itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+        clusterInfoBuffer.itemListCount = itemList.size();
 
-        int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
-        int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-        SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
+        int itemListSize = sizeof(ClusterItem) * itemList.size();
+        int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+        SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
 
-        itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
-
-        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-        clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
-
-        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+        infoBuffer.update(infoBufferView);
     }
 }
 
@@ -785,7 +787,7 @@ void CPUPlaneClusterer::imgui()
 
         ImGui::Text("avgAllowedItemsPerCluster: %d", avgAllowedItemsPerCluster);
 
-        ImGui::Text("ItemListSize: %d KB", int(itemBuffer.itemList.size() * sizeof(clusterItem) * 0.001f));
+        ImGui::Text("ItemListSize: %d KB", int(itemList.size() * sizeof(ClusterItem) * 0.001f));
 
         if (ImGui::Checkbox("lightsDebug", &lightsDebug) && lightsDebug)
         {

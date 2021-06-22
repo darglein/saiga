@@ -5,10 +5,25 @@
  */
 
 #pragma once
-#include "saiga/opengl/rendering/lighting/light_clusterer.h"
+#include "saiga/opengl/rendering/lighting/clusterer.h"
 
 namespace Saiga
 {
+
+class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
+{
+   public:
+    GLint location_lightInfoBlock;
+
+    virtual void checkUniforms() override
+    {
+        Shader::checkUniforms();
+
+        location_lightInfoBlock = getUniformBlockLocation("lightInfoBlock");
+        setUniformBlockBinding(location_lightInfoBlock, LIGHT_INFO_BINDING_POINT);
+    }
+};
+
 class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
 {
    public:
@@ -16,10 +31,8 @@ class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
     GPUAssignmentClusterer& operator=(GPUAssignmentClusterer& c) = delete;
     ~GPUAssignmentClusterer();
 
-    void clusterLights(Camera* cam, const ViewPort& viewPort) override { clusterLightsInternal(cam, viewPort); }
-
    private:
-    void clusterLightsInternal(Camera* cam, const ViewPort& viewPort);
+    void clusterLightsInternal(Camera* cam, const ViewPort& viewPort) override;
 
     void buildClusters(Camera* cam);
 

@@ -9,7 +9,7 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/window/Interfaces.h"
-#include "saiga/opengl/rendering/lighting/light_clusterer.h"
+#include "saiga/opengl/rendering/lighting/clusterer.h"
 #include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/shaderStorageBuffer.h"

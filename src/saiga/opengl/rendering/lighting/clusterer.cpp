@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/rendering/lighting/light_clusterer.h"
+#include "saiga/opengl/rendering/lighting/clusterer.h"
 
 #include "saiga/core/imgui/imgui.h"
 
@@ -15,23 +15,13 @@ Clusterer::Clusterer(GLTimerSystem* timer) : timer(timer)
 {
     clustersDirty = true;
 
-    infoBuffer.createGLBuffer(nullptr, sizeof(infoBuf_t), GL_DYNAMIC_DRAW);
-    clusterListBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
-    itemListBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
+    infoBuffer.create(infoBufferView, GL_DYNAMIC_DRAW);
+    infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
 
     cached_projection = mat4::Identity();
-
-    loadComputeShaders();
 }
 
 Clusterer::~Clusterer() {}
-
-void Clusterer::init(int _width, int _height)
-{
-    width         = _width;
-    height        = _height;
-    clustersDirty = true;
-}
 
 void Clusterer::resize(int _width, int _height)
 {
@@ -44,7 +34,49 @@ void Clusterer::resize(int _width, int _height)
     clustersDirty = true;
 }
 
-void Clusterer::loadComputeShaders() {}
+void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort)
+{
+    clusterLightsInternal(cam, viewPort);
+}
+
+/*
+void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<PointLight*> pls, ArrayView<SpotLight*> sls)
+{
+    pointLightsClusterData.clear();
+    spotLightsClusterData.clear();
+    // Point Lights
+    for (auto& pl : pls)
+    {
+        if (!pl->shouldRender()) continue;
+
+        pointLightsClusterData.emplace_back(pl->position, pl->radius);
+    }
+
+    // Spot Lights
+    for (auto& sl : sls)
+    {
+        if (!sl->shouldRender()) continue;
+
+        float rad = radians(sl->getAngle());
+        float l   = sl->radius;
+        float radius;
+        if (rad > pi<float>() * 0.25f)
+            radius = l * tan(rad);
+        else
+            radius = l * 0.5f / (cos(rad) * cos(rad));
+        vec3 world_center = sl->position + sl->direction.normalized() * radius;
+        spotLightsClusterData.emplace_back(world_center, radius);
+    }
+
+    clusterLightsInternal(cam, viewPort);
+}
+*/
+
+void Clusterer::renderDebug(Camera* cam)
+{
+    if (!clusterDebug) return;
+    debugCluster.render(cam);
+}
 
 void Clusterer::imgui()
 {
