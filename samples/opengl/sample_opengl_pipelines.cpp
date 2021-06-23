@@ -33,7 +33,7 @@ class Sample : public RendererSampleWindow
         //    CheckerBoardPlane(make_ivec2(40, 40), 1.0f, Colors::darkgray, Colors::white));
 
         show.asset = std::make_shared<TexturedAsset>(
-            UnifiedModel("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf").Normalize());
+            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf").Normalize());
 
         // show.setPosition(vec4(0.0, -0.1, 0.0, 0.0));
 

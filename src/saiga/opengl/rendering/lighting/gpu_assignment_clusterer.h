@@ -40,7 +40,7 @@ class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
     // Structures for AABB cluster boundaries.
     //
 
-    struct clusterBounds
+    struct ClusterBounds
     {
         vec3 center;
         float pad0;
@@ -49,9 +49,8 @@ class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
     };
 
     int allowedItemsPerCluster = 1024;
-    std::vector<clusterBounds> cullingCluster;
+    std::vector<ClusterBounds> cullingCluster;
 
-    int allowedLights = 263000;
     ShaderStorageBuffer lightClusterDataBuffer;
     ShaderStorageBuffer clusterStructuresBuffer;
 

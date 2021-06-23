@@ -20,8 +20,6 @@ namespace Saiga
 GPUAssignmentClusterer::GPUAssignmentClusterer(GLTimerSystem* timer) : Clusterer(timer)
 {
     lightAssignmentShader = shaderLoader.load<LightAssignmentComputeShader>(assignmentShaderString);
-    lightClusterDataBuffer.createGLBuffer(nullptr, allowedLights * sizeof(PointLightClusterData), GL_DYNAMIC_DRAW);
-    clusterStructuresBuffer.createGLBuffer(nullptr, 0, GL_DYNAMIC_DRAW);
 
     screenSpaceTileSize     = 64;
     depthSplits             = 24;
@@ -42,16 +40,52 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
         auto tim = timer->Measure("Cluster Update");
 
         int plSize = sizeof(PointLightClusterData) * pointLightsClusterData.size();
-        lightClusterDataBuffer.updateBuffer(pointLightsClusterData.data(), plSize, 0);
         int slSize = sizeof(SpotLightClusterData) * spotLightsClusterData.size();
+
+        if (plSize + slSize > lightClusterDataBuffer.size)
+        {
+            lightClusterDataBuffer.createGLBuffer(nullptr, (plSize + slSize) * sizeof(PointLightClusterData),
+                                                  GL_DYNAMIC_DRAW);
+
+            lightClusterDataBuffer.bind(GPU_LIGHT_CLUSTER_DATA_BUFFER_BINDING_POINT);
+        }
+        lightClusterDataBuffer.updateBuffer(pointLightsClusterData.data(), plSize, 0);
         lightClusterDataBuffer.updateBuffer(spotLightsClusterData.data(), slSize, plSize);
 
         clusterInfoBuffer.itemListCount = 0;
         infoBuffer.update(infoBufferView);
 
-        // TODO Paul: Hardcoded!
-        lightClusterDataBuffer.bind(10);
-        clusterStructuresBuffer.bind(11);
+        int clusterStructuresSize = sizeof(ClusterBounds) * cullingCluster.size();
+        if (clusterStructuresSize > clusterStructuresBuffer.size)
+        {
+            clusterStructuresBuffer.createGLBuffer(cullingCluster.data(), clusterStructuresSize, GL_DYNAMIC_DRAW);
+
+            clusterStructuresBuffer.bind(GPU_LIGHT_CLUSTER_CLUSTER_STRUCTURES_BINDING_POINT);
+        }
+        else
+        {
+            clusterStructuresBuffer.updateBuffer(cullingCluster.data(), clusterStructuresSize, 0);
+        }
+
+        if (clusterList.size() > clusterListBuffer.Size())
+        {
+            clusterListBuffer.create(clusterList, GL_DYNAMIC_DRAW);
+            clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
+        }
+        else
+        {
+            clusterListBuffer.update(clusterList);
+        }
+
+        if (itemList.size() > itemListBuffer.Size())
+        {
+            itemListBuffer.create(itemList, GL_DYNAMIC_DRAW);
+            itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+        }
+        else
+        {
+            itemListBuffer.update(itemList);
+        }
     }
 
     {
@@ -252,19 +286,10 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
         clusterInfoBuffer.itemListCount = 0;  // itemList.size();
 
         int itemListSize = sizeof(ClusterItem) * itemList.size();
-        int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+        int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
         SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
 
-        itemListBuffer.createGLBuffer(itemList.data(), itemListSize, GL_DYNAMIC_DRAW);
-
-        int clusterListSize = sizeof(Cluster) * clusterList.size();
-        clusterListBuffer.createGLBuffer(clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
-
-        int clusterStructuresSize = sizeof(clusterBounds) * cullingCluster.size();
-        clusterStructuresBuffer.createGLBuffer(cullingCluster.data(), clusterStructuresSize, GL_DYNAMIC_DRAW);
-
-
-        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+        infoBuffer.update(infoBufferView);
     }
 }
 

@@ -397,11 +397,6 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
         int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
         SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
 
-        itemListBuffer.createGLBuffer(itemList.data(), itemListSize, GL_DYNAMIC_DRAW);
-
-        int clusterListSize = sizeof(Cluster) * clusterList.size();
-        clusterListBuffer.createGLBuffer(clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
-
         infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
     }
 }
