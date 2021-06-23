@@ -22,11 +22,15 @@ namespace Saiga
 {
 struct SAIGA_OPENGL_API ClustererParameters
 {
+    int32_t screenSpaceTileSize = 64;
+
     bool clusterThreeDimensional = false;
 
-    int32_t screenSpaceTileSize = 128;
+    int32_t depthSplits = 0;
 
-    int32_t depthSplits         = 0;
+    float specialNearDepthPercent = 0.06f;
+
+    bool useSpecialNearCluster = false;
 
     /**
      *  Reads all parameters from the given config file.
@@ -64,24 +68,16 @@ struct SpotLightClusterData
 class SAIGA_OPENGL_API Clusterer
 {
    public:
-    Clusterer(GLTimerSystem* timer);
+    Clusterer(GLTimerSystem* timer, const ClustererParameters& _params);
     Clusterer& operator=(Clusterer& c) = delete;
     virtual ~Clusterer();
 
     void resize(int32_t width, int32_t height);
 
-    // TODO: create a parameter struct. see renderer.h for an example
-    inline void enable3DClusters(bool enabled)
+    inline void setParameters(const ClustererParameters& _params)
     {
-        clusterThreeDimensional = enabled;
-        clustersDirty           = true;
-    }
-
-    inline void set(int32_t _tileSize, int32_t _depthSplits)
-    {
-        depthSplits         = _depthSplits;
-        screenSpaceTileSize = _tileSize;
-        clustersDirty       = true;
+        params        = _params;
+        clustersDirty = true;
     }
 
     void clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<PointLight*> pls, ArrayView<SpotLight*> sls);
@@ -99,18 +95,15 @@ class SAIGA_OPENGL_API Clusterer
     Timer lightAssignmentTimer;
 
    protected:
+    ClustererParameters params;
     int32_t width, height;
 
-    int32_t timerIndex          = 0;
-    int32_t screenSpaceTileSize = 128;
-    int32_t depthSplits         = 0;
+    int32_t timerIndex = 0;
     double cpuAssignmentTimes[100];
 
     GLTimerSystem* timer;
     mat4 cached_projection;
     bool clustersDirty = true;
-
-    bool clusterThreeDimensional = false;
 
     bool clusterDebug = false;
     bool updateDebug  = false;
@@ -118,10 +111,8 @@ class SAIGA_OPENGL_API Clusterer
     bool screenSpaceDebug = false;
     bool splitDebug       = false;
 
-    float specialNearDepthPercent = 0.06f;
-    bool useSpecialNearCluster    = true;
 
-    virtual void clusterLightsInternal(Camera* cam, const ViewPort& viewPort) {};
+    virtual void clusterLightsInternal(Camera* cam, const ViewPort& viewPort){};
 
     vec4 viewPosFromScreenPos(vec4 screen, const mat4& inverseProjection)
     {
@@ -190,10 +181,10 @@ class SAIGA_OPENGL_API Clusterer
     std::vector<Cluster> clusterList;
 
     /*
-    * ItemList
-    * Looks like this: [plIdx, slIdx, blIdx, dlIdx], [plIdx, slIdx, blIdx, dlIdx], ...
-    * So each item consists of indices for all light types (can be -1, when not set).
-    */
+     * ItemList
+     * Looks like this: [plIdx, slIdx, blIdx, dlIdx], [plIdx, slIdx, blIdx, dlIdx], ...
+     * So each item consists of indices for all light types (can be -1, when not set).
+     */
     std::vector<ClusterItem> itemList;
 
     ArrayView<infoBuf_t> infoBufferView = {clusterInfoBuffer};

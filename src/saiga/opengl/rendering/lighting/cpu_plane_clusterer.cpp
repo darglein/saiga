@@ -11,11 +11,8 @@
 
 namespace Saiga
 {
-CPUPlaneClusterer::CPUPlaneClusterer(GLTimerSystem* timer) : Clusterer(timer)
+CPUPlaneClusterer::CPUPlaneClusterer(GLTimerSystem* timer, const ClustererParameters& _params) : Clusterer(timer, _params)
 {
-    screenSpaceTileSize     = 64;
-    depthSplits             = 12;
-    clusterThreeDimensional = true;
 }
 
 CPUPlaneClusterer::~CPUPlaneClusterer() {}
@@ -458,7 +455,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     mat4 invProjection(inverse(cam->proj));
 
 
-    clusterInfoBuffer.screenSpaceTileSize = screenSpaceTileSize;
+    clusterInfoBuffer.screenSpaceTileSize = params.screenSpaceTileSize;
     clusterInfoBuffer.screenWidth         = width;
     clusterInfoBuffer.screenHeight        = height;
 
@@ -467,10 +464,10 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
 
     float gridCount[3];
-    gridCount[0] = std::ceil((float)width / (float)screenSpaceTileSize);
-    gridCount[1] = std::ceil((float)height / (float)screenSpaceTileSize);
-    if (clusterThreeDimensional)
-        gridCount[2] = depthSplits + 1;
+    gridCount[0] = std::ceil((float)width / (float)params.screenSpaceTileSize);
+    gridCount[1] = std::ceil((float)height / (float)params.screenSpaceTileSize);
+    if (params.clusterThreeDimensional)
+        gridCount[2] = params.depthSplits + 1;
     else
         gridCount[2] = 1;
 
@@ -478,8 +475,8 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     clusterInfoBuffer.clusterY = (int)gridCount[1];
 
     // special near
-    float specialNearDepth               = (camFar - camNear) * specialNearDepthPercent;
-    bool useSpecialNear                  = useSpecialNearCluster && specialNearDepth > 0.0f && gridCount[2] > 1;
+    float specialNearDepth               = (camFar - camNear) * params.specialNearDepthPercent;
+    bool useSpecialNear                  = params.useSpecialNearCluster && specialNearDepth > 0.0f && gridCount[2] > 1;
     clusterInfoBuffer.specialNearCluster = useSpecialNear ? 1 : 0;
     specialNearDepth                     = useSpecialNear ? specialNearDepth : 0.0f;
     clusterInfoBuffer.specialNearDepth   = specialNearDepth;
@@ -517,8 +514,8 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
     for (int x = 0; x < planesX.size(); ++x)
     {
-        vec4 screenSpaceBL(x * screenSpaceTileSize, 0, -1.0, 1.0);       // Bottom left
-        vec4 screenSpaceTL(x * screenSpaceTileSize, height, -1.0, 1.0);  // Top left
+        vec4 screenSpaceBL(x * params.screenSpaceTileSize, 0, -1.0, 1.0);       // Bottom left
+        vec4 screenSpaceTL(x * params.screenSpaceTileSize, height, -1.0, 1.0);  // Top left
 
         vec3 viewBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
         vec3 viewTL(make_vec3(viewPosFromScreenPos(screenSpaceTL, invProjection)));
@@ -538,8 +535,8 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
     for (int y = 0; y < planesY.size(); ++y)
     {
-        vec4 screenSpaceBL(0, y * screenSpaceTileSize, -1.0, 1.0);      // Bottom left
-        vec4 screenSpaceBR(width, y * screenSpaceTileSize, -1.0, 1.0);  // Bottom Right
+        vec4 screenSpaceBL(0, y * params.screenSpaceTileSize, -1.0, 1.0);      // Bottom left
+        vec4 screenSpaceBR(width, y * params.screenSpaceTileSize, -1.0, 1.0);  // Bottom Right
 
         vec3 viewBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
         vec3 viewBR(make_vec3(viewPosFromScreenPos(screenSpaceBR, invProjection)));
@@ -594,11 +591,11 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
             {
                 for (int z = 0; z < (int)gridCount[2]; ++z)
                 {
-                    vec4 screenSpaceBL(x * screenSpaceTileSize, y * screenSpaceTileSize, -1.0, 1.0);  // Bottom left
-                    vec4 screenSpaceTL(x * screenSpaceTileSize, (y + 1) * screenSpaceTileSize, -1.0, 1.0);  // Top left
-                    vec4 screenSpaceBR((x + 1) * screenSpaceTileSize, y * screenSpaceTileSize, -1.0,
+                    vec4 screenSpaceBL(x * params.screenSpaceTileSize, y * params.screenSpaceTileSize, -1.0, 1.0);  // Bottom left
+                    vec4 screenSpaceTL(x * params.screenSpaceTileSize, (y + 1) * params.screenSpaceTileSize, -1.0, 1.0);  // Top left
+                    vec4 screenSpaceBR((x + 1) * params.screenSpaceTileSize, y * params.screenSpaceTileSize, -1.0,
                                        1.0);  // Bottom Right
-                    vec4 screenSpaceTR((x + 1) * screenSpaceTileSize, (y + 1) * screenSpaceTileSize, -1.0,
+                    vec4 screenSpaceTR((x + 1) * params.screenSpaceTileSize, (y + 1) * params.screenSpaceTileSize, -1.0,
                                        1.0);  // Top Right
 
                     float tileNear;

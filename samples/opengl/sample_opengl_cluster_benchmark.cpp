@@ -41,8 +41,9 @@ class Sample : public RendererSampleWindow
         editor_gui.SetLayout(std::move(editor_layout));
 
 #ifdef SPONZA
-    TheAsset = std::make_shared<ColoredAsset>(
-            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf").SetVertexColor(vec4(1, 1, 1, 1)));
+        TheAsset = std::make_shared<ColoredAsset>(
+            UnifiedModel("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf")
+                .SetVertexColor(vec4(1, 1, 1, 1)));
 
 
         assetObject.asset = TheAsset;
@@ -86,7 +87,7 @@ class Sample : public RendererSampleWindow
 #ifdef SPONZA_LARGE
         lightSize = 6.0f;
 #else
-        lightSize = 2.0f;
+        lightSize      = 2.0f;
 #endif
 
         Random::setSeed(SEED);
@@ -431,36 +432,68 @@ class Sample : public RendererSampleWindow
                 break;
             case 1:
                 // TLD SP
-                renderer->lighting.setClusterType(1);
-                renderer->lighting.getClusterer()->set(tileSizeSettings[1], 0);
-                renderer->lighting.getClusterer()->enable3DClusters(false);
-                break;
+                {
+                    renderer->lighting.setClusterType(1);
+                    ClustererParameters params;
+                    params.screenSpaceTileSize     = tileSizeSettings[1];
+                    params.depthSplits             = 0;
+                    params.clusterThreeDimensional = false;
+                    params.useSpecialNearCluster   = false;
+                    renderer->lighting.lightClusterer->setParameters(params);
+                    break;
+                }
             case 2:
                 // TLD ISR
-                renderer->lighting.setClusterType(2);
-                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = true;
-                renderer->lighting.getClusterer()->set(tileSizeSettings[2], 0);
-                renderer->lighting.getClusterer()->enable3DClusters(false);
-                break;
+                {
+                    renderer->lighting.setClusterType(2);
+                    CPUPlaneClustererParameters params;
+                    params.screenSpaceTileSize     = tileSizeSettings[2];
+                    params.depthSplits             = 0;
+                    params.clusterThreeDimensional = false;
+                    params.useSpecialNearCluster   = false;
+                    params.refinement              = true;
+                    renderer->lighting.lightClusterer->setParameters(params);
+                    break;
+                }
             case 3:
                 // CLD SP
-                renderer->lighting.setClusterType(1);
-                renderer->lighting.getClusterer()->set(tileSizeSettings[3], depthSplitSettings[0]);
-                renderer->lighting.getClusterer()->enable3DClusters(true);
-                break;
+                {
+                    renderer->lighting.setClusterType(1);
+                    CPUPlaneClustererParameters params;
+                    params.screenSpaceTileSize     = tileSizeSettings[3];
+                    params.depthSplits             = depthSplitSettings[0];
+                    params.clusterThreeDimensional = true;
+                    params.useSpecialNearCluster   = true;
+                    params.specialNearDepthPercent = 0.06f;
+                    renderer->lighting.lightClusterer->setParameters(params);
+                    break;
+                }
             case 4:
                 // CLD ISR
-                renderer->lighting.setClusterType(2);
-                std::static_pointer_cast<CPUPlaneClusterer>(renderer->lighting.getClusterer())->refinement = true;
-                renderer->lighting.getClusterer()->set(tileSizeSettings[4], depthSplitSettings[1]);
-                renderer->lighting.getClusterer()->enable3DClusters(true);
-                break;
+                {
+                    renderer->lighting.setClusterType(2);
+                    CPUPlaneClustererParameters params;
+                    params.screenSpaceTileSize     = tileSizeSettings[4];
+                    params.depthSplits             = depthSplitSettings[1];
+                    params.clusterThreeDimensional = false;
+                    params.useSpecialNearCluster   = false;
+                    params.refinement              = true;
+                    renderer->lighting.lightClusterer->setParameters(params);
+                    break;
+                }
             case 5:
                 // CLD GA
-                renderer->lighting.setClusterType(3);
-                renderer->lighting.getClusterer()->set(tileSizeSettings[5], depthSplitSettings[2]);
-                renderer->lighting.getClusterer()->enable3DClusters(true);
-                break;
+                {
+                    renderer->lighting.setClusterType(3);
+                    CPUPlaneClustererParameters params;
+                    params.screenSpaceTileSize     = tileSizeSettings[5];
+                    params.depthSplits             = depthSplitSettings[2];
+                    params.clusterThreeDimensional = true;
+                    params.useSpecialNearCluster   = true;
+                    params.specialNearDepthPercent = 0.06f;
+                    renderer->lighting.lightClusterer->setParameters(params);
+                    break;
+                }
             default:
                 break;
         }

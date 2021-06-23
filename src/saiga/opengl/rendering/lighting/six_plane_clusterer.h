@@ -12,9 +12,20 @@ namespace Saiga
 class SAIGA_OPENGL_API SixPlaneClusterer : public Clusterer
 {
    public:
-    SixPlaneClusterer(GLTimerSystem* timer);
+    SixPlaneClusterer(GLTimerSystem* timer, const ClustererParameters& _params = SixPlaneClusterer::DefaultParameters());
     SixPlaneClusterer& operator=(SixPlaneClusterer& c) = delete;
     ~SixPlaneClusterer();
+
+    static ClustererParameters DefaultParameters()
+    {
+        ClustererParameters params;
+        params.screenSpaceTileSize = 128;
+        params.depthSplits = 0;
+        params.clusterThreeDimensional = false;
+        params.useSpecialNearCluster = false;
+
+        return params;
+    }
 
    private:
     void clusterLightsInternal(Camera* cam, const ViewPort& viewPort) override;

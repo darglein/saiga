@@ -27,9 +27,21 @@ class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
 class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
 {
    public:
-    GPUAssignmentClusterer(GLTimerSystem* timer);
+    GPUAssignmentClusterer(GLTimerSystem* timer, const ClustererParameters& _params = GPUAssignmentClusterer::DefaultParameters());
     GPUAssignmentClusterer& operator=(GPUAssignmentClusterer& c) = delete;
     ~GPUAssignmentClusterer();
+
+    static ClustererParameters DefaultParameters()
+    {
+        ClustererParameters params;
+        params.screenSpaceTileSize = 64;
+        params.depthSplits = 24;
+        params.clusterThreeDimensional = true;
+        params.useSpecialNearCluster = true;
+        params.specialNearDepthPercent = 0.06f;
+
+        return params;
+    }
 
    private:
     void clusterLightsInternal(Camera* cam, const ViewPort& viewPort) override;

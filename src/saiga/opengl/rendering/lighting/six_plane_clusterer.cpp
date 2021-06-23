@@ -11,11 +11,8 @@
 
 namespace Saiga
 {
-SixPlaneClusterer::SixPlaneClusterer(GLTimerSystem* timer) : Clusterer(timer)
+SixPlaneClusterer::SixPlaneClusterer(GLTimerSystem* timer, const ClustererParameters& _params) : Clusterer(timer, _params)
 {
-    screenSpaceTileSize     = 128;
-    depthSplits             = 0;
-    clusterThreeDimensional = false;
 }
 
 SixPlaneClusterer::~SixPlaneClusterer() {}
@@ -181,7 +178,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     mat4 invProjection(inverse(cam->proj));
 
 
-    clusterInfoBuffer.screenSpaceTileSize = screenSpaceTileSize;
+    clusterInfoBuffer.screenSpaceTileSize = params.screenSpaceTileSize;
     clusterInfoBuffer.screenWidth         = width;
     clusterInfoBuffer.screenHeight        = height;
 
@@ -190,10 +187,10 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 
 
     float gridCount[3];
-    gridCount[0] = std::ceil((float)width / (float)screenSpaceTileSize);
-    gridCount[1] = std::ceil((float)height / (float)screenSpaceTileSize);
-    if (clusterThreeDimensional)
-        gridCount[2] = depthSplits + 1;
+    gridCount[0] = std::ceil((float)width / (float)params.screenSpaceTileSize);
+    gridCount[1] = std::ceil((float)height / (float)params.screenSpaceTileSize);
+    if (params.clusterThreeDimensional)
+        gridCount[2] = params.depthSplits + 1;
     else
         gridCount[2] = 1;
 
@@ -201,8 +198,8 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     clusterInfoBuffer.clusterY = (int)gridCount[1];
 
     // special near
-    float specialNearDepth               = (camFar - camNear) * specialNearDepthPercent;
-    bool useSpecialNear                  = useSpecialNearCluster && specialNearDepth > 0.0f && gridCount[2] > 1;
+    float specialNearDepth               = (camFar - camNear) * params.specialNearDepthPercent;
+    bool useSpecialNear                  = params.useSpecialNearCluster && specialNearDepth > 0.0f && gridCount[2] > 1;
     clusterInfoBuffer.specialNearCluster = useSpecialNear ? 1 : 0;
     specialNearDepth                     = useSpecialNear ? specialNearDepth : 0.0f;
     clusterInfoBuffer.specialNearDepth   = specialNearDepth;
@@ -235,10 +232,10 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
         {
             for (int z = 0; z < (int)gridCount[2]; ++z)
             {
-                vec4 screenSpaceBL(x * screenSpaceTileSize, y * screenSpaceTileSize, -1.0, 1.0);        // Bottom left
-                vec4 screenSpaceTL(x * screenSpaceTileSize, (y + 1) * screenSpaceTileSize, -1.0, 1.0);  // Top left
-                vec4 screenSpaceBR((x + 1) * screenSpaceTileSize, y * screenSpaceTileSize, -1.0, 1.0);  // Bottom Right
-                vec4 screenSpaceTR((x + 1) * screenSpaceTileSize, (y + 1) * screenSpaceTileSize, -1.0,
+                vec4 screenSpaceBL(x * params.screenSpaceTileSize, y * params.screenSpaceTileSize, -1.0, 1.0);        // Bottom left
+                vec4 screenSpaceTL(x * params.screenSpaceTileSize, (y + 1) * params.screenSpaceTileSize, -1.0, 1.0);  // Top left
+                vec4 screenSpaceBR((x + 1) * params.screenSpaceTileSize, y * params.screenSpaceTileSize, -1.0, 1.0);  // Bottom Right
+                vec4 screenSpaceTR((x + 1) * params.screenSpaceTileSize, (y + 1) * params.screenSpaceTileSize, -1.0,
                                    1.0);  // Top Right
 
                 float tileNear;

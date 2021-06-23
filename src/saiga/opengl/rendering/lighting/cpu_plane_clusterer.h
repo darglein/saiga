@@ -9,12 +9,33 @@
 
 namespace Saiga
 {
+struct SAIGA_OPENGL_API CPUPlaneClustererParameters : public ClustererParameters
+{
+    bool refinement = true;
+
+    void fromConfigFile(const std::string& file){};
+};
+
 class SAIGA_OPENGL_API CPUPlaneClusterer : public Clusterer
 {
    public:
-    CPUPlaneClusterer(GLTimerSystem* timer);
+    CPUPlaneClusterer(GLTimerSystem* timer,
+                      const ClustererParameters& _params = CPUPlaneClusterer::DefaultParameters());
     CPUPlaneClusterer& operator=(CPUPlaneClusterer& c) = delete;
     ~CPUPlaneClusterer();
+
+    static ClustererParameters DefaultParameters()
+    {
+        CPUPlaneClustererParameters params;
+        params.screenSpaceTileSize     = 64;
+        params.depthSplits             = 12;
+        params.clusterThreeDimensional = true;
+        params.useSpecialNearCluster   = true;
+        params.specialNearDepthPercent = 0.06f;
+        params.refinement              = true;
+
+        return params;
+    }
 
     void renderDebug(Camera* cam) override
     {

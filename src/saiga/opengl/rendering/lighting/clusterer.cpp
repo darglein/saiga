@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-Clusterer::Clusterer(GLTimerSystem* timer) : timer(timer)
+Clusterer::Clusterer(GLTimerSystem* timer, const ClustererParameters& _params) : timer(timer), params(_params)
 {
     clustersDirty = true;
 
@@ -74,21 +74,21 @@ void Clusterer::imgui()
         bool changed = false;
         ImGui::Text("resolution: %dx%d", width, height);
 
-        changed |= ImGui::Checkbox("clusterThreeDimensional", &clusterThreeDimensional);
-        changed |= ImGui::SliderInt("screenSpaceTileSize", &screenSpaceTileSize, 16, 1024);
-        screenSpaceTileSize = std::max(screenSpaceTileSize, 16);
-        if (clusterThreeDimensional)
+        changed |= ImGui::Checkbox("clusterThreeDimensional", &params.clusterThreeDimensional);
+        changed |= ImGui::SliderInt("screenSpaceTileSize", &params.screenSpaceTileSize, 16, 1024);
+        params.screenSpaceTileSize = std::max(params.screenSpaceTileSize, 16);
+        if (params.clusterThreeDimensional)
         {
-            changed |= ImGui::SliderInt("depthSplits", &depthSplits, 0, 127);
+            changed |= ImGui::SliderInt("depthSplits", &params.depthSplits, 0, 127);
         }
         else
-            depthSplits = 0;
+            params.depthSplits = 0;
 
 
-        changed |= ImGui::Checkbox("useSpecialNearCluster", &useSpecialNearCluster);
-        if (useSpecialNearCluster)
+        changed |= ImGui::Checkbox("useSpecialNearCluster", &params.useSpecialNearCluster);
+        if (params.useSpecialNearCluster)
         {
-            changed |= ImGui::SliderFloat("specialNearDepthPercent", &specialNearDepthPercent, 0.0f, 0.5f, "%.4f");
+            changed |= ImGui::SliderFloat("specialNearDepthPercent", &params.specialNearDepthPercent, 0.0f, 0.5f, "%.4f");
         }
 
 
