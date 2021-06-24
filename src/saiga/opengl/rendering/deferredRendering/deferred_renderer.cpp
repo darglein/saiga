@@ -114,6 +114,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     params.maskUsedPixels = true;
 
+
     //    for (auto c : renderInfo.cameras)
     {
         //        auto camera = c.first;
@@ -127,10 +128,10 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         clearGBuffer();
         lighting.initRender();
         glDisable(GL_SCISSOR_TEST);
-
-
         renderGBuffer({camera, viewport});
     }
+
+
 
     if (params.useSSAO) ssao->render(camera, viewport, &gbuffer);
 

@@ -51,8 +51,8 @@ class SAIGA_CORE_API TimerSystem
 
     struct SAIGA_CORE_API TimeData
     {
-        explicit TimeData(std::unique_ptr<TimestampTimer> timer, int& current_depth)
-            : timer(std::move(timer)), current_depth(current_depth)
+        explicit TimeData(std::unique_ptr<TimestampTimer> timer, int& current_depth, std::string& name_stack)
+            : timer(std::move(timer)), current_depth(current_depth), name_stack(name_stack)
         {
         }
 
@@ -75,10 +75,11 @@ class SAIGA_CORE_API TimerSystem
         int count   = 0;
         bool active = false;
         int& current_depth;
+        std::string& name_stack;
 
         // stats
-        int depth;
-        std::string name;
+        int depth = -1;
+        std::string name, full_name;
         // statistics (all in ms)
         float stat_last   = 0;
         float stat_min    = 0;
@@ -111,7 +112,7 @@ class SAIGA_CORE_API TimerSystem
     virtual ~TimerSystem() {}
 
     ScopedTimingSection Measure(const std::string& name) { return ScopedTimingSection(GetTimer(name)); }
-    TimeData& GetTimer(const std::string& name);
+    TimeData& GetTimer(const std::string& name, bool rel_path = true);
 
     void BeginFrame();
     void EndFrame();
@@ -138,12 +139,16 @@ class SAIGA_CORE_API TimerSystem
 
 
     int current_depth = 0;
+    // Each time a timer scope is opened the name is added to the end of this string
+    // There we can use this as a unique identifier
+    std::string current_name_stack;
 
     bool capturing   = true;
     int current_view = 1;
 
     bool normalize_time      = true;
     float absolute_scale_fps = 60;
+
 
     std::string system_name;
     std::map<std::string, std::shared_ptr<TimeData>> data;
