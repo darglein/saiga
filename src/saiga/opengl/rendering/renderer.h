@@ -92,6 +92,10 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
     bool record_view_port_only = true;
     std::shared_ptr<VideoEncoder> encoder;
 #endif
+   protected:
+    void PrepareImgui();
+    void FinalizeImgui();
+
 };
 
 inline void setViewPort(const ViewPort& vp)

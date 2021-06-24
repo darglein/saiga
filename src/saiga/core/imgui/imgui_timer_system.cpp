@@ -105,6 +105,8 @@ void TimerSystem::EndFrame()
     {
         SAIGA_ASSERT(current_depth == 0);
     }
+    // Set depth to -1 so that we don't measure time outside of begin/end sections
+    current_depth = -1;
 }
 
 void TimerSystem::Imgui()
@@ -272,51 +274,49 @@ void TimerSystem::ImguiTable(ArrayView<TimeData*> timers, TimeData* total_time)
         {
             // Note: We are not using the sort_specs->dirty mechanism because the table is rebuild every
             // frame
-            std::sort(timers.begin(), timers.end(),
-                      [sorts_specs](const TimeData* a, const TimeData* b)
-                      {
-                          for (int n = 0; n < sorts_specs->SpecsCount; n++)
-                          {
-                              // Here we identify columns using the ColumnUserID value that we ourselves
-                              // passed to TableSetupColumn() We could also choose to identify columns based
-                              // on their index (sort_spec->ColumnIndex), which is simpler!
-                              const ImGuiTableColumnSortSpecs* sort_spec = &sorts_specs->Specs[n];
+            std::sort(timers.begin(), timers.end(), [sorts_specs](const TimeData* a, const TimeData* b) {
+                for (int n = 0; n < sorts_specs->SpecsCount; n++)
+                {
+                    // Here we identify columns using the ColumnUserID value that we ourselves
+                    // passed to TableSetupColumn() We could also choose to identify columns based
+                    // on their index (sort_spec->ColumnIndex), which is simpler!
+                    const ImGuiTableColumnSortSpecs* sort_spec = &sorts_specs->Specs[n];
 
-                              int delta = 0;
-                              switch (sort_spec->ColumnUserID)
-                              {
-                                  case TimingTableColumnId_ID:
-                                      delta = a->depth - b->depth;
-                                      break;
-                                  case TimingTableColumnId_Name:
-                                      delta = strcmp(a->name.c_str(), b->name.c_str());
-                                      break;
-                                  case TimingTableColumnId_Last:
-                                      delta = a->stat_last - b->stat_last < 0 ? -1 : 1;
-                                      break;
-                                  case TimingTableColumnId_Min:
-                                      delta = a->stat_min - b->stat_min < 0 ? -1 : 1;
-                                      break;
-                                  case TimingTableColumnId_Max:
-                                      delta = a->stat_max - b->stat_max < 0 ? -1 : 1;
-                                      break;
-                                  case TimingTableColumnId_Median:
-                                      delta = a->stat_median - b->stat_median < 0 ? -1 : 1;
-                                      break;
-                                  case TimingTableColumnId_Mean:
-                                      delta = a->stat_mean - b->stat_mean < 0 ? -1 : 1;
-                                      break;
-                                  default:
-                                      SAIGA_EXIT_ERROR("invalid column");
-                                      break;
-                              }
+                    int delta = 0;
+                    switch (sort_spec->ColumnUserID)
+                    {
+                        case TimingTableColumnId_ID:
+                            delta = a->depth - b->depth;
+                            break;
+                        case TimingTableColumnId_Name:
+                            delta = strcmp(a->name.c_str(), b->name.c_str());
+                            break;
+                        case TimingTableColumnId_Last:
+                            delta = a->stat_last - b->stat_last < 0 ? -1 : 1;
+                            break;
+                        case TimingTableColumnId_Min:
+                            delta = a->stat_min - b->stat_min < 0 ? -1 : 1;
+                            break;
+                        case TimingTableColumnId_Max:
+                            delta = a->stat_max - b->stat_max < 0 ? -1 : 1;
+                            break;
+                        case TimingTableColumnId_Median:
+                            delta = a->stat_median - b->stat_median < 0 ? -1 : 1;
+                            break;
+                        case TimingTableColumnId_Mean:
+                            delta = a->stat_mean - b->stat_mean < 0 ? -1 : 1;
+                            break;
+                        default:
+                            SAIGA_EXIT_ERROR("invalid column");
+                            break;
+                    }
 
-                              if (delta > 0) return sort_spec->SortDirection == ImGuiSortDirection_Ascending;
-                              if (delta < 0) return sort_spec->SortDirection == ImGuiSortDirection_Descending;
-                          }
+                    if (delta > 0) return sort_spec->SortDirection == ImGuiSortDirection_Ascending;
+                    if (delta < 0) return sort_spec->SortDirection == ImGuiSortDirection_Descending;
+                }
 
-                          return a->name < b->name;
-                      });
+                return a->name < b->name;
+            });
         }
 
         // Demonstrate using clipper for large vertical lists
@@ -392,9 +392,9 @@ void TimerSystem::ImguiTimeline(ArrayView<TimeData*> timers, TimeData* total_tim
         e.data = td;
         tds.push_back(e);
     }
-    std::sort(tds.begin(), tds.end(),
-              [](const FrameGraphElement& a, const FrameGraphElement& b)
-              { return a.data->last_measurement.first < b.data->last_measurement.first; });
+    std::sort(tds.begin(), tds.end(), [](const FrameGraphElement& a, const FrameGraphElement& b) {
+        return a.data->last_measurement.first < b.data->last_measurement.first;
+    });
 
 
 

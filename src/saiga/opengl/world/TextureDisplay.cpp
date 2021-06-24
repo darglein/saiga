@@ -13,8 +13,7 @@
 
 namespace Saiga
 {
-TextureDisplay::TextureDisplay()
- : buffer(FullScreenQuad())
+TextureDisplay::TextureDisplay() : buffer(FullScreenQuad())
 {
     shader = shaderLoader.load<MVPTextureShader>("post_processing/imagedisplay.glsl");
 }
@@ -28,13 +27,14 @@ void TextureDisplay::render(TextureBase* texture, const ivec2& position, const i
     setViewPort(vp);
 
 
-    shader->bind();
+    if (shader->bind())
+    {
+        shader->upload(0, (int)flip_y);
+        shader->uploadTexture(texture);
+        buffer.BindAndDraw();
 
-    shader->upload(0, (int)flip_y);
-    shader->uploadTexture(texture);
-    buffer.BindAndDraw();
-
-    shader->unbind();
+        shader->unbind();
+    }
 }
 
 }  // namespace Saiga

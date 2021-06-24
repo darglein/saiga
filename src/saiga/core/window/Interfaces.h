@@ -67,7 +67,8 @@ enum class RenderPass : int
     Deferred,
     Shadow,
     DepthPrepass,
-    GUI
+    GUI,
+    Final
 };
 
 enum RenderFlags : int

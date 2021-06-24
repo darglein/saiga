@@ -18,23 +18,16 @@
 namespace Saiga
 {
 VRRenderer::VRRenderer(OpenGLWindow& window, const VRRenderingParameters& params)
-    : OpenGLRenderer(window), params(params),  quadMesh(FullScreenQuad())
+    : DeferredRenderer(window, params), params(params), quadMesh(FullScreenQuad())
 {
     vr = std::make_shared<OpenVRWrapper>();
 
     int width  = vr->renderWidth();
     int height = vr->renderHeight();
 
-
-    std::shared_ptr<Texture> depth = std::make_shared<Texture>();
-    depth->create(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT32, GL_UNSIGNED_SHORT);
-
-    auto tex = depth;
-
     for (int i = 0; i < 2; ++i)
     {
         framebuffers[i].create();
-        framebuffers[i].attachTextureDepth(tex);
         textures[i] = std::make_shared<Texture>();
         textures[i]->create(width, height, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
         framebuffers[i].attachTexture(textures[i]);
@@ -67,15 +60,12 @@ void VRRenderer::render(const RenderInfo& renderInfo)
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    glViewport(0, 0, vr->renderWidth(), vr->renderHeight());
+    viewport_offset = ivec2(0, 0);
+    viewport_size   = ivec2(vr->renderWidth(), vr->renderHeight());
 
-
-    renderEye(&cameraLeft, vr::Hmd_Eye::Eye_Left, framebuffers[0]);
-    renderEye(&cameraRight, vr::Hmd_Eye::Eye_Right, framebuffers[1]);
-
-
-    // vr->handleInput();
-    // vr->UpdateHMDMatrixPose();
+    ViewPort vp(viewport_offset, viewport_size);
+    renderGL(&framebuffers[0], vp, &cameraLeft);
+    renderGL(&framebuffers[1], vp, &cameraRight);
 
     vr->submitImage(vr::Hmd_Eye::Eye_Left, textures[0].get());
     vr->submitImage(vr::Hmd_Eye::Eye_Right, textures[1].get());
@@ -87,55 +77,36 @@ void VRRenderer::render(const RenderInfo& renderInfo)
     glViewport(0, 0, outputWidth, outputHeight);
     Framebuffer::bindDefaultFramebuffer();
 
-    framebufferToDebugWindowShader->bind();
-    //    vec4 screenSize(width, height, 1.0 / width, 1.0 / height);
-    framebufferToDebugWindowShader->upload(0, textures[0], 0);
-    framebufferToDebugWindowShader->upload(1, textures[1], 1);
-    framebufferToDebugWindowShader->upload(2, vec2(outputWidth, outputHeight));
+    if (framebufferToDebugWindowShader->bind())
+    {
+        //    vec4 screenSize(width, height, 1.0 / width, 1.0 / height);
+        framebufferToDebugWindowShader->upload(0, textures[0], 0);
+        framebufferToDebugWindowShader->upload(1, textures[1], 1);
+        framebufferToDebugWindowShader->upload(2, vec2(outputWidth, outputHeight));
 
-    quadMesh.BindAndDraw();
-    framebufferToDebugWindowShader->unbind();
+        quadMesh.BindAndDraw();
+        framebufferToDebugWindowShader->unbind();
+    }
 
 
+    PrepareImgui();
+    FinalizeImgui();
 
-    glEnable(GL_BLEND);
+    // glEnable(GL_BLEND);
 
 
     // final render pass
-    if (imgui)
-    {
-        SAIGA_ASSERT(ImGui::GetCurrentContext());
-        imgui->beginFrame();
-        renderingInterface->render(camera, RenderPass::GUI);
-        imgui->endFrame();
-        imgui->render();
-    }
+    //if (imgui)
+    //{
+    //    SAIGA_ASSERT(ImGui::GetCurrentContext());
+    //    imgui->beginFrame();
+    //    renderingInterface->render(camera, RenderPass::GUI);
+    //    imgui->endFrame();
+    //    imgui->render();
+    //}
 
     if (params.useGlFinish) glFinish();
 }
-
-void VRRenderer::renderEye(Camera* camera, vr::Hmd_Eye eye, Framebuffer& target)
-{
-    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    SAIGA_ASSERT(renderingInterface);
-
-    camera->recalculatePlanes();
-    bindCamera(camera);
-
-    target.bind();
-
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    renderingInterface->render(camera, RenderPass::Forward);
-
-    target.unbind();
-}
-
 
 }  // namespace Saiga
 #endif

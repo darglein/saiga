@@ -137,7 +137,7 @@ class SAIGA_CORE_API TimerSystem
     int current_frame = 0;
 
 
-    int current_depth = 0;
+    int current_depth = -1;
 
     bool capturing   = true;
     int current_view = 1;

@@ -46,65 +46,7 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
     viewport_offset      = ivec2(0, 0);
     bool render_viewport = true;
 
-
-    // 1. Render the imgui
-    //      - If we are in editor mode this will also tell us the 3DView window-size
-    if (imgui)
-    {
-        SAIGA_ASSERT(ImGui::GetCurrentContext());
-
-
-        imgui->beginFrame();
-        window->renderImGui();
-        dynamic_cast<RenderingInterface*>(rendering)->render(nullptr, RenderPass::GUI);
-        renderImgui();
-        console.render();
-        timer->Imgui();
-#ifdef SAIGA_USE_FFMPEG
-        encoder->renderGUI();
-#endif
-
-        if (editor_gui.enabled)
-        {
-            ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-
-            use_mouse_input_in_3dview    = false;
-            use_keyboard_input_in_3dview = false;
-
-            if (ImGui::Begin("3DView", nullptr, flags))
-            {
-                ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 1));
-                ImGui::BeginChild("viewer_child", ImVec2(0, 0), false,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
-                ImGui::PopStyleColor();
-
-                use_mouse_input_in_3dview = ImGui::IsWindowHovered();
-                use_keyboard_input_in_3dview =
-                    use_mouse_input_in_3dview || (ImGui::IsWindowFocused() && !ImGui::captureKeyboard());
-
-                viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
-                viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
-
-                auto w_size   = ImGui::GetWindowContentRegionMax();
-                viewport_size = ivec2(w_size.x, w_size.y);
-
-                ImGui::EndChild();
-            }
-            else
-            {
-                render_viewport = false;
-            }
-            ImGui::End();
-        }
-    }
-
-    if (!editor_gui.enabled)
-    {
-        // In Fullscreen mode we check, if a gui element is used
-        use_mouse_input_in_3dview    = !ImGui::captureMouse();
-        use_keyboard_input_in_3dview = !ImGui::captureKeyboard();
-    }
-
+    PrepareImgui();
 
     if (render_viewport)
     {
@@ -124,23 +66,7 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
     }
 
     // 3. Add rendered 3DView to imgui (in editor mode only)
-    if (imgui)
-    {
-        if (editor_gui.enabled && render_viewport)
-        {
-            ImGui::Begin("3DView");
-            ImGui::BeginChild("viewer_child");
-            ImGui::Texture(target_framebuffer->getTextureColor(0).get(), ImVec2(viewport_size.x(), viewport_size.y()),
-                           true);
-            ImGui::EndChild();
-            ImGui::End();
-        }
-        // The imgui frame is now done
-        // -> Render it to the screen (default FB)
-        imgui->endFrame();
-        default_framebuffer.bind();
-        imgui->render();
-    }
+    FinalizeImgui();
 
 #ifdef SAIGA_USE_FFMPEG
     if (encoder && encoder->isEncoding())
@@ -239,6 +165,88 @@ void OpenGLRenderer::bindCamera(Camera* cam)
     cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
 }
 
+void OpenGLRenderer::PrepareImgui()
+{
+    // 1. Render the imgui
+    //      - If we are in editor mode this will also tell us the 3DView window-size
+    if (imgui)
+    {
+        SAIGA_ASSERT(ImGui::GetCurrentContext());
+
+
+        imgui->beginFrame();
+        window->renderImGui();
+        dynamic_cast<RenderingInterface*>(rendering)->render(nullptr, RenderPass::GUI);
+        renderImgui();
+        console.render();
+        timer->Imgui();
+#ifdef SAIGA_USE_FFMPEG
+        encoder->renderGUI();
+#endif
+
+        if (editor_gui.enabled)
+        {
+            ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
+            use_mouse_input_in_3dview    = false;
+            use_keyboard_input_in_3dview = false;
+
+            if (ImGui::Begin("3DView", nullptr, flags))
+            {
+                ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 1));
+                ImGui::BeginChild("viewer_child", ImVec2(0, 0), false,
+                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
+                ImGui::PopStyleColor();
+
+                use_mouse_input_in_3dview = ImGui::IsWindowHovered();
+                use_keyboard_input_in_3dview =
+                    use_mouse_input_in_3dview || (ImGui::IsWindowFocused() && !ImGui::captureKeyboard());
+
+                viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
+                viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
+
+                auto w_size   = ImGui::GetWindowContentRegionMax();
+                viewport_size = ivec2(w_size.x, w_size.y);
+
+                ImGui::EndChild();
+            }
+            else
+            {
+                render_viewport = false;
+            }
+            ImGui::End();
+        }
+    }
+
+    if (!editor_gui.enabled)
+    {
+        // In Fullscreen mode we check, if a gui element is used
+        use_mouse_input_in_3dview    = !ImGui::captureMouse();
+        use_keyboard_input_in_3dview = !ImGui::captureKeyboard();
+    }
+
+}
+
+void OpenGLRenderer::FinalizeImgui()
+{
+    if (imgui)
+    {
+        if (editor_gui.enabled && render_viewport)
+        {
+            ImGui::Begin("3DView");
+            ImGui::BeginChild("viewer_child");
+            ImGui::Texture(target_framebuffer->getTextureColor(0).get(), ImVec2(viewport_size.x(), viewport_size.y()),
+                           true);
+            ImGui::EndChild();
+            ImGui::End();
+        }
+        // The imgui frame is now done
+        // -> Render it to the screen (default FB)
+        imgui->endFrame();
+        default_framebuffer.bind();
+        imgui->render();
+    }
+}
 void RenderingParameters::fromConfigFile(const std::string& file)
 {
     Saiga::SimpleIni ini;
