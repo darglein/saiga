@@ -37,6 +37,8 @@ class TemplatedBuffer : public Buffer
         Buffer::getBuffer(data.data(), data.size() * sizeof(T), offset * sizeof(T));
     }
 
+    void resize(int new_size) { Buffer::resize(new_size * sizeof(T)); }
+
     int Size() const { return Buffer::size / sizeof(T); }
 };
 
