@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "VRTest.h"
+#include "OpenvrWrapper.h"
 
 #include "openvr/openvr.h"
 
@@ -37,16 +37,17 @@ OpenVRWrapper::OpenVRWrapper()
 
     // Loading the SteamVR Runtime
     vr::EVRInitError eError = vr::VRInitError_None;
-    m_pHMD                  = vr::VR_Init(&eError, vr::VRApplication_Scene);
+    vr_system               = vr::VR_Init(&eError, vr::VRApplication_Scene);
 
     if (eError != vr::VRInitError_None)
     {
-        m_pHMD = NULL;
+        vr_system = NULL;
         std::cout << "Unable to init VR runtime: " << vr::VR_GetVRInitErrorAsEnglishDescription(eError) << std::endl;
         //        SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "VR_Init Failed", buf, NULL );
         return;
     }
 
+    //    vr::Prop_DisplayAvailableFrameRates_Float_Array
 
     m_strDriver  = "No Driver";
     m_strDisplay = "No Display";
@@ -61,14 +62,14 @@ OpenVRWrapper::OpenVRWrapper()
 
     if (!vr::VRCompositor())
     {
-        m_pHMD = nullptr;
+        vr_system = nullptr;
         printf("Compositor initialization failed. See log file for details\n");
         return;
     }
 
-    SAIGA_ASSERT(m_pHMD);
+    SAIGA_ASSERT(vr_system);
 
-    m_pHMD->GetRecommendedRenderTargetSize(&m_nRenderWidth, &m_nRenderHeight);
+    vr_system->GetRecommendedRenderTargetSize(&m_nRenderWidth, &m_nRenderHeight);
 }
 OpenVRWrapper::~OpenVRWrapper()
 {
@@ -79,9 +80,9 @@ OpenVRWrapper::~OpenVRWrapper()
 
 mat4 OpenVRWrapper::GetHMDProjectionMatrix(vr::Hmd_Eye nEye, float newPlane, float farPlane)
 {
-    SAIGA_ASSERT(m_pHMD);
+    SAIGA_ASSERT(vr_system);
 
-    vr::HmdMatrix44_t mat = m_pHMD->GetProjectionMatrix(nEye, newPlane, farPlane);
+    vr::HmdMatrix44_t mat = vr_system->GetProjectionMatrix(nEye, newPlane, farPlane);
 
     mat4 matrixObj;
     matrixObj << mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0], mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
@@ -90,11 +91,11 @@ mat4 OpenVRWrapper::GetHMDProjectionMatrix(vr::Hmd_Eye nEye, float newPlane, flo
     return matrixObj.transpose();
 }
 
-mat4 OpenVRWrapper::GetHMDViewMatrix(vr::Hmd_Eye nEye)
+mat4 OpenVRWrapper::HeadToEyeView(vr::Hmd_Eye nEye)
 {
-    SAIGA_ASSERT(m_pHMD);
+    SAIGA_ASSERT(vr_system);
 
-    vr::HmdMatrix34_t matEyeRight = m_pHMD->GetEyeToHeadTransform(nEye);
+    vr::HmdMatrix34_t matEyeRight = vr_system->GetEyeToHeadTransform(nEye);
 
     mat4 matrixObj;
     matrixObj << matEyeRight.m[0][0], matEyeRight.m[1][0], matEyeRight.m[2][0], 0.0, matEyeRight.m[0][1],
@@ -106,7 +107,7 @@ mat4 OpenVRWrapper::GetHMDViewMatrix(vr::Hmd_Eye nEye)
 
 void OpenVRWrapper::submitImage(vr::Hmd_Eye nEye, TextureBase* texture)
 {
-    SAIGA_ASSERT(m_pHMD);
+    SAIGA_ASSERT(vr_system);
 
     vr::Texture_t vrtex          = {(void*)(uintptr_t)texture->getId(), vr::TextureType_OpenGL, vr::ColorSpace_Gamma};
     vr::EVRCompositorError error = vr::VRCompositor()->Submit(nEye, &vrtex);
@@ -154,20 +155,14 @@ std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(con
     left.proj  = GetHMDProjectionMatrix(vr::Hmd_Eye::Eye_Left, camera.zNear, camera.zFar);
     right.proj = GetHMDProjectionMatrix(vr::Hmd_Eye::Eye_Right, camera.zNear, camera.zFar);
 
-    mat4 vl = GetHMDViewMatrix(vr::Hmd_Eye::Eye_Left);
-    mat4 vr = GetHMDViewMatrix(vr::Hmd_Eye::Eye_Right);
+    mat4 vl = HeadToEyeView(vr::Hmd_Eye::Eye_Left);
+    mat4 vr = HeadToEyeView(vr::Hmd_Eye::Eye_Right);
 
-    left.view  = vl * m_mat4HMDPose * camera.view;
-    right.view = vr * m_mat4HMDPose * camera.view;
+    auto hmd_view = GetHMDViewMatrix();
 
-    //    -58.6051 -19.3548 -56.7005 -7.57974
-    //    13.4702  -79.1438 -5.04516 -20.4803
-    //    57.4138  24.3135  -54.5785 15.7798
-    //    0        -0       0        -81.9813
+    left.view  = vl * hmd_view * camera.view;
+    right.view = vr * hmd_view * camera.view;
 
-    // std::cout << vl << std::endl;
-    // std::cout << m_mat4HMDPose << std::endl;
-    // std::cout << std::endl;
     left.setModelMatrix(left.view.inverse());
     left.recalculateMatrices();
 
@@ -178,57 +173,29 @@ std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(con
 }
 void OpenVRWrapper::update()
 {
-    SAIGA_ASSERT(m_pHMD);
+    SAIGA_ASSERT(vr_system);
 
     // Process SteamVR events
     vr::VREvent_t event;
-    while (m_pHMD->PollNextEvent(&event, sizeof(event)))
+    while (vr_system->PollNextEvent(&event, sizeof(event)))
     {
         ProcessVREvent(event);
     }
+
+
+    vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
     vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0);
 
-    m_iValidPoseCount = 0;
-    m_strPoseClasses  = "";
-    for (int nDevice = 0; nDevice < vr::k_unMaxTrackedDeviceCount; ++nDevice)
+    for (int i = 0; i < vr::k_unMaxTrackedDeviceCount; ++i)
     {
-        if (m_rTrackedDevicePose[nDevice].bPoseIsValid)
+        if (m_rTrackedDevicePose[i].bPoseIsValid)
         {
-            m_iValidPoseCount++;
-            m_rmat4DevicePose[nDevice] =
-                ConvertSteamVRMatrixToMatrix4(m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking);
-            if (m_rDevClassChar[nDevice] == 0)
-            {
-                switch (m_pHMD->GetTrackedDeviceClass(nDevice))
-                {
-                    case vr::TrackedDeviceClass_Controller:
-                        m_rDevClassChar[nDevice] = 'C';
-                        break;
-                    case vr::TrackedDeviceClass_HMD:
-                        m_rDevClassChar[nDevice] = 'H';
-                        break;
-                    case vr::TrackedDeviceClass_Invalid:
-                        m_rDevClassChar[nDevice] = 'I';
-                        break;
-                    case vr::TrackedDeviceClass_GenericTracker:
-                        m_rDevClassChar[nDevice] = 'G';
-                        break;
-                    case vr::TrackedDeviceClass_TrackingReference:
-                        m_rDevClassChar[nDevice] = 'T';
-                        break;
-                    default:
-                        m_rDevClassChar[nDevice] = '?';
-                        break;
-                }
-            }
-            m_strPoseClasses += m_rDevClassChar[nDevice];
+            device_data[i].model = ConvertSteamVRMatrixToMatrix4(m_rTrackedDevicePose[i].mDeviceToAbsoluteTracking);
         }
     }
-
-    if (m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid)
-    {
-        m_mat4HMDPose = m_rmat4DevicePose[vr::k_unTrackedDeviceIndex_Hmd];
-        m_mat4HMDPose = m_mat4HMDPose.inverse();
-    }
+}
+mat4 OpenVRWrapper::GetHMDViewMatrix()
+{
+    return device_data[0].model.inverse();
 }
 }  // namespace Saiga

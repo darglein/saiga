@@ -45,6 +45,11 @@ ImageType saigaType(int color_type, int bit_depth)
     ImageElementType elementType = ImageElementType::IET_ELEMENT_UNKNOWN;
     switch (bit_depth)
     {
+        case 1:
+        case 2:
+        case 4:
+            // We have set png_expand from 1,2,4 bit to 8-bit
+            SAIGA_ASSERT(PNG_COLOR_TYPE_GRAY == PNG_COLOR_TYPE_GRAY);
         case 8:
             elementType = ImageElementType::IET_UCHAR;
             break;
@@ -187,8 +192,6 @@ bool load(const std::string& path, Image& img, bool invertY)
     int rowPadding   = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
     int bytesPerRow  = row_bytes + rowPadding;
 
-    //    img->data.resize(img->bytesPerRow * img->height);
-    img.create(ph, pw, bytesPerRow, saigaType(color_type, bit_depth));
 
 
     if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(png_ptr);
@@ -204,6 +207,10 @@ bool load(const std::string& path, Image& img, bool invertY)
     }
 
     png_set_packing(png_ptr);
+
+    //    img->data.resize(img->bytesPerRow * img->height);
+    img.create(ph, pw, bytesPerRow, saigaType(color_type, bit_depth));
+    img.makeZero();
 
 
     for (int i = 0; i < img.height; i++)

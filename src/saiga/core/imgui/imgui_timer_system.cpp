@@ -116,6 +116,8 @@ void TimerSystem::EndFrame()
     {
         SAIGA_ASSERT(current_depth == 0);
     }
+    // Set depth to -1 so that we don't measure time outside of begin/end sections
+    current_depth = -1;
 }
 
 void TimerSystem::Imgui()

@@ -138,7 +138,7 @@ class SAIGA_CORE_API TimerSystem
     int current_frame = 0;
 
 
-    int current_depth = 0;
+    int current_depth = -1;
     // Each time a timer scope is opened the name is added to the end of this string
     // There we can use this as a unique identifier
     std::string current_name_stack;

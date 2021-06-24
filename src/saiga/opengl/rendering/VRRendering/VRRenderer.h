@@ -9,17 +9,18 @@
 #include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/rendering/deferredRendering/postProcessor.h"
 #include "saiga/opengl/rendering/forwardRendering/forward_renderer.h"
+#include "saiga/opengl/rendering/deferredRendering/deferred_renderer.h"
 #include "saiga/opengl/rendering/renderer.h"
-#include "saiga/opengl/vr/VRTest.h"
+#include "saiga/opengl/vr/OpenvrWrapper.h"
 
 namespace Saiga
 {
-struct SAIGA_OPENGL_API VRRenderingParameters : public RenderingParameters
+struct SAIGA_OPENGL_API VRRenderingParameters : public DeferredRenderingParameters
 {
     void fromConfigFile(const std::string& file) {}
 };
 
-class SAIGA_OPENGL_API VRRenderer : public OpenGLRenderer
+class SAIGA_OPENGL_API VRRenderer : public DeferredRenderer
 {
    public:
     using InterfaceType = RenderingInterface;
@@ -33,8 +34,6 @@ class SAIGA_OPENGL_API VRRenderer : public OpenGLRenderer
     virtual void render(const RenderInfo& renderInfo) override;
 
    private:
-    void renderEye(Camera* camera, vr::Hmd_Eye eye, Framebuffer& target);
-
     // for left and right eye
     Framebuffer framebuffers[2];
     std::shared_ptr<Texture> textures[2];

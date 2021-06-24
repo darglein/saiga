@@ -222,6 +222,10 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         auto tim = timer->Measure("Final");
         postProcessor.renderLast(target_framebuffer, viewport);
 
+        target_framebuffer->bind();
+        renderingInterface->render(camera, RenderPass::Final);
+        target_framebuffer->unbind();
+
         if (params.useGlFinish)
         {
             glFinish();
@@ -233,6 +237,9 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
 void DeferredRenderer::clearGBuffer()
 {
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+
     gbuffer.bind();
 
     // glViewport(0, 0, renderWidth, renderHeight);
@@ -259,8 +266,6 @@ void DeferredRenderer::clearGBuffer()
 void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
     glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
 
     if (params.maskUsedPixels)
     {
