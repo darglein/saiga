@@ -20,6 +20,10 @@ namespace Saiga
 GPUAssignmentClusterer::GPUAssignmentClusterer(GLTimerSystem* timer, const ClustererParameters& _params) : Clusterer(timer, _params)
 {
     lightAssignmentShader = shaderLoader.load<LightAssignmentComputeShader>(assignmentShaderString);
+    clusterListBuffer.create(GL_DYNAMIC_DRAW);
+    clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
+    itemListBuffer.create(GL_DYNAMIC_DRAW);
+    itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
 }
 
 GPUAssignmentClusterer::~GPUAssignmentClusterer() {}
@@ -49,7 +53,7 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
         lightClusterDataBuffer.updateBuffer(spotLightsClusterData.data(), slSize, plSize);
 
         clusterInfoBuffer.itemListCount = 0;
-        infoBuffer.update(infoBufferView);
+        infoBuffer.update(clusterInfoBuffer);
 
         int clusterStructuresSize = sizeof(ClusterBounds) * cullingCluster.size();
         if (clusterStructuresSize > clusterStructuresBuffer.size)
@@ -61,26 +65,6 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
         else
         {
             clusterStructuresBuffer.updateBuffer(cullingCluster.data(), clusterStructuresSize, 0);
-        }
-
-        if (clusterList.size() > clusterListBuffer.Size())
-        {
-            clusterListBuffer.create(clusterList, GL_DYNAMIC_DRAW);
-            clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
-        }
-        else
-        {
-            clusterListBuffer.update(clusterList);
-        }
-
-        if (itemList.size() > itemListBuffer.Size())
-        {
-            itemListBuffer.create(itemList, GL_DYNAMIC_DRAW);
-            itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
-        }
-        else
-        {
-            itemListBuffer.update(itemList);
         }
     }
 
@@ -134,8 +118,7 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
 
     // Calculate Cluster Planes in View Space.
     int clusterCount = (int)(gridCount[0] * gridCount[1] * gridCount[2]);
-    clusterList.clear();
-    clusterList.resize(clusterCount);
+    clusterListBuffer.resize(clusterCount);
     clusterInfoBuffer.clusterListCount = clusterCount;
 
     cullingCluster.clear();
@@ -277,15 +260,10 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
         clusterInfoBuffer.tileDebug  = screenSpaceDebug ? allowedItemsPerCluster : 0;
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
-        itemList.clear();
-        itemList.resize(allowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        clusterInfoBuffer.itemListCount = 0;  // itemList.size();
+        itemListBuffer.resize(allowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+        clusterInfoBuffer.itemListCount = 0;
 
-        int itemListSize = sizeof(ClusterItem) * itemList.size();
-        int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-        SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
-
-        infoBuffer.update(infoBufferView);
+        infoBuffer.update(clusterInfoBuffer);
     }
 }
 

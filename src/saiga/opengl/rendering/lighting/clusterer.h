@@ -31,13 +31,6 @@ struct SAIGA_OPENGL_API ClustererParameters
     float specialNearDepthPercent = 0.06f;
 
     bool useSpecialNearCluster = false;
-
-    /**
-     *  Reads all parameters from the given config file.
-     *  Creates the file with the default values if it doesn't exist.
-     */
-     // TODO: remove this function if it's not implemented
-    void fromConfigFile(const std::string& file);
 };
 
 struct ClusterItem
@@ -88,15 +81,13 @@ class SAIGA_OPENGL_API Clusterer
     // TODO: virtual? -> wird überschrieben!
     virtual void renderDebug(Camera* cam);
 
-    // TODO: protected?
-   public:
+   protected:
     std::vector<PointLightClusterData> pointLightsClusterData;
 
     std::vector<SpotLightClusterData> spotLightsClusterData;
 
     Timer lightAssignmentTimer;
 
-   protected:
     ClustererParameters params;
     int32_t width, height;
 
@@ -173,29 +164,6 @@ class SAIGA_OPENGL_API Clusterer
     {
         return x + clusterInfoBuffer.clusterX * y + (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
     }
-
-
-    /*
-     * ClusterList
-     * Gets accessed based on pixel world space position (or screen space on 2D clustering)
-     * Looks like this: [offset, plCount, slCount, dlCount], [offset, plCount, slCount, dlCount]
-     * ... So for each cluster we store an offset in the itemList and the number of specific lights that were
-     * assigned.
-     */
-    // TODO: move to cpu clusterer?
-    std::vector<Cluster> clusterList;
-
-    /*
-     * ItemList
-     * Looks like this: [plIdx, slIdx, blIdx, dlIdx], [plIdx, slIdx, blIdx, dlIdx], ...
-     * So each item consists of indices for all light types (can be -1, when not set).
-     */
-    // TODO: move to cpu clusterer?
-    std::vector<ClusterItem> itemList;
-
-    // TODO: remove array view of a single element
-    // you should be able to pass clusterInfoBuffer direclty to the shader storage buffer update
-    ArrayView<infoBuf_t> infoBufferView = {clusterInfoBuffer};
 
     TemplatedShaderStorageBuffer<infoBuf_t> infoBuffer;
     TemplatedShaderStorageBuffer<Cluster> clusterListBuffer;

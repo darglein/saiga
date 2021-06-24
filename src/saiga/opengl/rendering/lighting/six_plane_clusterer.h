@@ -32,6 +32,22 @@ class SAIGA_OPENGL_API SixPlaneClusterer : public Clusterer
 
     void buildClusters(Camera* cam);
 
+    /*
+     * ClusterList
+     * Gets accessed based on pixel world space position (or screen space on 2D clustering)
+     * Looks like this: [offset, plCount, slCount, dlCount], [offset, plCount, slCount, dlCount]
+     * ... So for each cluster we store an offset in the itemList and the number of specific lights that were
+     * assigned.
+     */
+    std::vector<Cluster> clusterList;
+
+    /*
+     * ItemList
+     * Looks like this: [plIdx, slIdx, blIdx, dlIdx], [plIdx, slIdx, blIdx, dlIdx], ...
+     * So each item consists of indices for all light types (can be -1, when not set).
+     */
+    std::vector<ClusterItem> itemList;
+
     //
     // Structures for 6 plane cluster boundaries.
     //

@@ -116,7 +116,7 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
         SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
 
-        infoBuffer.update(infoBufferView);
+        infoBuffer.update(clusterInfoBuffer);
     }
 
     int globalOffset = 0;

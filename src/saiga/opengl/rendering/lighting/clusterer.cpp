@@ -15,7 +15,7 @@ Clusterer::Clusterer(GLTimerSystem* timer, const ClustererParameters& _params) :
 {
     clustersDirty = true;
 
-    infoBuffer.create(infoBufferView, GL_DYNAMIC_DRAW);
+    infoBuffer.create(clusterInfoBuffer, GL_DYNAMIC_DRAW);
     infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
 
     cached_projection = mat4::Identity();

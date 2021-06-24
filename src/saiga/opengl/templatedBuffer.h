@@ -22,6 +22,8 @@ class TemplatedBuffer : public Buffer
 
     void create(ArrayView<T> data, GLenum usage) { Buffer::fill2(data.data(), data.size() * sizeof(T), usage); }
 
+    void create(GLenum usage) { Buffer::fill2(nullptr, 0, usage); }
+
     void update(T* data, int count, int offset = 0)
     {
         Buffer::updateBuffer(data, count * sizeof(T), offset * sizeof(T));
