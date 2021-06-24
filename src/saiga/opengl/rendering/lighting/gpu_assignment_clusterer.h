@@ -24,6 +24,8 @@ class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
     }
 };
 
+// TODO: GPUAssignmentClusterer is a strange name compared to CPUPlaneClusterer
+// Maybe rename to GPUAabbClusterer?
 class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
 {
    public:
@@ -60,9 +62,11 @@ class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
         float pad1;
     };
 
+    // TODO: get rid of this variable
     int allowedItemsPerCluster = 1024;
     std::vector<ClusterBounds> cullingCluster;
 
+    // TODO: templated buffer
     ShaderStorageBuffer lightClusterDataBuffer;
     ShaderStorageBuffer clusterStructuresBuffer;
 
