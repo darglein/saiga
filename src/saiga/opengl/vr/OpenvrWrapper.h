@@ -21,11 +21,16 @@
 
 namespace Saiga
 {
+struct VrDeviceData
+{
+    mat4 model;
+};
+
+
 // The interface between saiga and openvr
 class SAIGA_OPENGL_API OpenVRWrapper
 {
    public:
-
     OpenVRWrapper();
     ~OpenVRWrapper();
 
@@ -34,9 +39,10 @@ class SAIGA_OPENGL_API OpenVRWrapper
     void update();
 
     mat4 GetHMDProjectionMatrix(vr::Hmd_Eye nEye, float newPlane, float farPlane);
+    mat4 GetHMDViewMatrix();
 
     // view matrix of the eye relative to the head
-    mat4 GetHMDViewMatrix(vr::Hmd_Eye nEye);
+    mat4 HeadToEyeView(vr::Hmd_Eye nEye);
 
     // send an opengl image to the HMD
     void submitImage(vr::Hmd_Eye nEye, TextureBase* texture);
@@ -48,24 +54,21 @@ class SAIGA_OPENGL_API OpenVRWrapper
 
     int renderWidth()
     {
-        SAIGA_ASSERT(m_pHMD);
+        SAIGA_ASSERT(vr_system);
         return m_nRenderWidth;
     }
     int renderHeight()
     {
-        SAIGA_ASSERT(m_pHMD);
+        SAIGA_ASSERT(vr_system);
         return m_nRenderHeight;
     }
 
    private:
-    vr::IVRSystem* m_pHMD = nullptr;
-    vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
-    int m_iValidPoseCount;
-    //    int m_iValidPoseCount_Last;
-    std::string m_strPoseClasses;  // what classes we saw poses for this frame
-    mat4 m_rmat4DevicePose[vr::k_unMaxTrackedDeviceCount];
-    char m_rDevClassChar[vr::k_unMaxTrackedDeviceCount];  // for each device, a character representing its class
-    mat4 m_mat4HMDPose;
+    vr::IVRSystem* vr_system = nullptr;
+
+    // All tracked devices, for example the HMD and the controllers
+    std::array<VrDeviceData, vr::k_unMaxTrackedDeviceCount> device_data;
+
     uint32_t m_nRenderWidth;
     uint32_t m_nRenderHeight;
 };

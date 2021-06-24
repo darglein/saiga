@@ -165,7 +165,7 @@ void OpenGLRenderer::bindCamera(Camera* cam)
     cameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
 }
 
-void OpenGLRenderer::PrepareImgui()
+void OpenGLRenderer::PrepareImgui(bool compute_viewport_size)
 {
     // 1. Render the imgui
     //      - If we are in editor mode this will also tell us the 3DView window-size
@@ -202,12 +202,14 @@ void OpenGLRenderer::PrepareImgui()
                 use_keyboard_input_in_3dview =
                     use_mouse_input_in_3dview || (ImGui::IsWindowFocused() && !ImGui::captureKeyboard());
 
-                viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
-                viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
+                if(compute_viewport_size)
+                {
+                    viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
+                    viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
 
-                auto w_size   = ImGui::GetWindowContentRegionMax();
-                viewport_size = ivec2(w_size.x, w_size.y);
-
+                    auto w_size   = ImGui::GetWindowContentRegionMax();
+                    viewport_size = ivec2(w_size.x, w_size.y);
+                }
                 ImGui::EndChild();
             }
             else

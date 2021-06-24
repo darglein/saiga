@@ -93,7 +93,7 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
     std::shared_ptr<VideoEncoder> encoder;
 #endif
    protected:
-    void PrepareImgui();
+    void PrepareImgui(bool compute_viewport_size = true);
     void FinalizeImgui();
 
 };

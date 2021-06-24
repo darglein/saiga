@@ -11,7 +11,7 @@
 #include "saiga/opengl/rendering/forwardRendering/forward_renderer.h"
 #include "saiga/opengl/rendering/deferredRendering/deferred_renderer.h"
 #include "saiga/opengl/rendering/renderer.h"
-#include "saiga/opengl/vr/VRTest.h"
+#include "saiga/opengl/vr/OpenvrWrapper.h"
 
 namespace Saiga
 {

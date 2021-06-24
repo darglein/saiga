@@ -46,57 +46,98 @@ void VRRenderer::render(const RenderInfo& renderInfo)
 {
     if (!rendering) return;
 
-    vr->update();
-
-
     SAIGA_ASSERT(rendering);
     SAIGA_ASSERT(renderInfo);
 
     auto camera = dynamic_cast<PerspectiveCamera*>(renderInfo.cameras.front().first);
     SAIGA_ASSERT(camera);
 
-    auto [cameraLeft, cameraRight] = vr->getEyeCameras(*camera);
 
-    RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    SAIGA_ASSERT(renderingInterface);
-
-    viewport_offset = ivec2(0, 0);
-    viewport_size   = ivec2(vr->renderWidth(), vr->renderHeight());
-
-    ViewPort vp(viewport_offset, viewport_size);
-    renderGL(&framebuffers[0], vp, &cameraLeft);
-    renderGL(&framebuffers[1], vp, &cameraRight);
-
-    vr->submitImage(vr::Hmd_Eye::Eye_Left, textures[0].get());
-    vr->submitImage(vr::Hmd_Eye::Eye_Right, textures[1].get());
+    PrepareImgui(false);
+    vr->update();
 
 
-    glDisable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
-
-    glViewport(0, 0, outputWidth, outputHeight);
-    Framebuffer::bindDefaultFramebuffer();
-
-    if (framebufferToDebugWindowShader->bind())
     {
-        //    vec4 screenSize(width, height, 1.0 / width, 1.0 / height);
-        framebufferToDebugWindowShader->upload(0, textures[0], 0);
-        framebufferToDebugWindowShader->upload(1, textures[1], 1);
-        framebufferToDebugWindowShader->upload(2, vec2(outputWidth, outputHeight));
+        SAIGA_ASSERT(timer);
+        timer->BeginFrame();
 
-        quadMesh.BindAndDraw();
-        framebufferToDebugWindowShader->unbind();
+
+        auto [cameraLeft, cameraRight] = vr->getEyeCameras(*camera);
+
+        RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
+        SAIGA_ASSERT(renderingInterface);
+
+        viewport_offset = ivec2(0, 0);
+        viewport_size   = ivec2(vr->renderWidth(), vr->renderHeight());
+        ViewPort vp(viewport_offset, viewport_size);
+
+        {
+            auto tim = timer->Measure("Left Eye");
+            renderGL(&framebuffers[0], vp, &cameraLeft);
+        }
+
+        {
+            auto tim = timer->Measure("Right Eye");
+            renderGL(&framebuffers[1], vp, &cameraRight);
+        }
+
+
+        {
+            auto tim = timer->Measure("Submit To HMD");
+            vr->submitImage(vr::Hmd_Eye::Eye_Left, textures[0].get());
+            vr->submitImage(vr::Hmd_Eye::Eye_Right, textures[1].get());
+        }
+        timer->EndFrame();
     }
 
 
-    PrepareImgui();
-    FinalizeImgui();
+    //    glDisable(GL_DEPTH_TEST);
+    //    glDepthMask(GL_FALSE);
+    //
+    //    glViewport(0, 0, outputWidth, outputHeight);
+    //    Framebuffer::bindDefaultFramebuffer();
+    //
+    //    if (framebufferToDebugWindowShader->bind())
+    //    {
+    //        //    vec4 screenSize(width, height, 1.0 / width, 1.0 / height);
+    //        framebufferToDebugWindowShader->upload(0, textures[0], 0);
+    //        framebufferToDebugWindowShader->upload(1, textures[1], 1);
+    //        framebufferToDebugWindowShader->upload(2, vec2(outputWidth, outputHeight));
+    //
+    //        quadMesh.BindAndDraw();
+    //        framebufferToDebugWindowShader->unbind();
+    //    }
+
+
+    // FinalizeImgui();
+
+    if (imgui)
+    {
+        if (editor_gui.enabled && render_viewport)
+        {
+            ImGui::Begin("3DView");
+            ImGui::BeginChild("viewer_child");
+
+            auto size = ImGui::GetWindowContentRegionMax();
+            size.x    = size.x / 2 - 2;
+            ImGui::Texture(textures[0].get(), size, true);
+            ImGui::SameLine();
+            ImGui::Texture(textures[1].get(), size, true);
+            ImGui::EndChild();
+            ImGui::End();
+        }
+        // The imgui frame is now done
+        // -> Render it to the screen (default FB)
+        imgui->endFrame();
+        default_framebuffer.bind();
+        imgui->render();
+    }
 
     // glEnable(GL_BLEND);
 
 
     // final render pass
-    //if (imgui)
+    // if (imgui)
     //{
     //    SAIGA_ASSERT(ImGui::GetCurrentContext());
     //    imgui->beginFrame();
