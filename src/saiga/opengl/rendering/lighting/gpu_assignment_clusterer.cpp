@@ -54,18 +54,6 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
 
         clusterInfoBuffer.itemListCount = 0;
         infoBuffer.update(clusterInfoBuffer);
-
-        int clusterStructuresSize = sizeof(ClusterBounds) * cullingCluster.size();
-        if (clusterStructuresSize > clusterStructuresBuffer.size)
-        {
-            clusterStructuresBuffer.createGLBuffer(cullingCluster.data(), clusterStructuresSize, GL_DYNAMIC_DRAW);
-
-            clusterStructuresBuffer.bind(GPU_LIGHT_CLUSTER_CLUSTER_STRUCTURES_BINDING_POINT);
-        }
-        else
-        {
-            clusterStructuresBuffer.updateBuffer(cullingCluster.data(), clusterStructuresSize, 0);
-        }
     }
 
     {
@@ -256,7 +244,7 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
     }
 
     {
-        auto tim                     = timer->Measure("Info Update");
+        auto tim                     = timer->Measure("Info And Structure Update");
         clusterInfoBuffer.tileDebug  = screenSpaceDebug ? allowedItemsPerCluster : 0;
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
@@ -264,6 +252,18 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
         clusterInfoBuffer.itemListCount = 0;
 
         infoBuffer.update(clusterInfoBuffer);
+
+        int clusterStructuresSize = sizeof(ClusterBounds) * cullingCluster.size();
+        if (clusterStructuresSize > clusterStructuresBuffer.size)
+        {
+            clusterStructuresBuffer.createGLBuffer(cullingCluster.data(), clusterStructuresSize, GL_DYNAMIC_DRAW);
+
+            clusterStructuresBuffer.bind(GPU_LIGHT_CLUSTER_CLUSTER_STRUCTURES_BINDING_POINT);
+        }
+        else
+        {
+            clusterStructuresBuffer.updateBuffer(cullingCluster.data(), clusterStructuresSize, 0);
+        }
     }
 }
 
