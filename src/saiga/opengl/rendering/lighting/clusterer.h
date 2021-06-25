@@ -22,15 +22,27 @@ namespace Saiga
 {
 struct SAIGA_OPENGL_API ClustererParameters
 {
+    // The size of the screen space tiles. Tiles are quadratic.
     int32_t screenSpaceTileSize = 64;
 
+    // True if the camera frustum should also be split in the camera z direction.
     bool clusterThreeDimensional = false;
 
+    // The number of depth splits.
     int32_t depthSplits = 0;
 
+    // True if a special first cluster should be used.
+    bool useSpecialNearCluster = false;
+
+    // The distance from the near plane to the first split, when useSpecialNearCluster is true.
+    // 0.0 means split == camera near plane depth, 1.0 means split == camera far plane depth.
     float specialNearDepthPercent = 0.06f;
 
-    bool useSpecialNearCluster = false;
+    // Extra refinement for better assignment. Is only used in the CPUPlaneClusterer.
+    bool refinement = true;
+
+    // Debug Seperating Axis Theorem. Attention: SLOW. Is only used in the CPUPlaneClusterer.
+    bool SAT = false;
 };
 
 struct ClusterItem
@@ -136,8 +148,7 @@ class SAIGA_OPENGL_API Clusterer
 
     vec3 zeroZIntersection(vec3 through, float z) { return through * z / through.z(); }
 
-    // TODO: Struct name!
-    struct infoBuf_t
+    struct ClustererInfoBuffer
     {
         int32_t clusterX;
         int32_t clusterY;
@@ -157,15 +168,16 @@ class SAIGA_OPENGL_API Clusterer
         int32_t specialNearCluster;
         float specialNearDepth;
         int32_t pad2 = 0;
-        // TODO: no inline declaration
-    } clusterInfoBuffer;
+    };
+
+    ClustererInfoBuffer clusterInfoBuffer;
 
     int32_t getTileIndex(int32_t x, int32_t y, int32_t z)
     {
         return x + clusterInfoBuffer.clusterX * y + (clusterInfoBuffer.clusterX * clusterInfoBuffer.clusterY) * z;
     }
 
-    TemplatedShaderStorageBuffer<infoBuf_t> infoBuffer;
+    TemplatedShaderStorageBuffer<ClustererInfoBuffer> infoBuffer;
     TemplatedShaderStorageBuffer<Cluster> clusterListBuffer;
     TemplatedShaderStorageBuffer<ClusterItem> itemListBuffer;
 };

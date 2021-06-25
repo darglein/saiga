@@ -24,14 +24,12 @@ class SAIGA_OPENGL_API LightAssignmentComputeShader : public Shader
     }
 };
 
-// TODO: GPUAssignmentClusterer is a strange name compared to CPUPlaneClusterer
-// Maybe rename to GPUAabbClusterer?
-class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
+class SAIGA_OPENGL_API GPUAABBClusterer : public Clusterer
 {
    public:
-    GPUAssignmentClusterer(GLTimerSystem* timer, const ClustererParameters& _params = GPUAssignmentClusterer::DefaultParameters());
-    GPUAssignmentClusterer& operator=(GPUAssignmentClusterer& c) = delete;
-    ~GPUAssignmentClusterer();
+    GPUAABBClusterer(GLTimerSystem* timer, const ClustererParameters& _params = GPUAABBClusterer::DefaultParameters());
+    GPUAABBClusterer& operator=(GPUAABBClusterer& c) = delete;
+    ~GPUAABBClusterer();
 
     static ClustererParameters DefaultParameters()
     {
@@ -50,7 +48,7 @@ class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
 
     void buildClusters(Camera* cam);
 
-    //_d
+    //
     // Structures for AABB cluster boundaries.
     //
 
@@ -62,13 +60,12 @@ class SAIGA_OPENGL_API GPUAssignmentClusterer : public Clusterer
         float pad1;
     };
 
-    // TODO: get rid of this variable
-    int allowedItemsPerCluster = 1024;
     std::vector<ClusterBounds> cullingCluster;
 
-    // TODO: templated buffer
+    // TODO: templated buffer -> One Template is not enough, buffer holds PointLightClusterData and SpotLightClusterData.
     ShaderStorageBuffer lightClusterDataBuffer;
-    ShaderStorageBuffer clusterStructuresBuffer;
+
+    TemplatedShaderStorageBuffer<ClusterBounds> clusterStructuresBuffer;
 
     float gridCount[3];
 

@@ -9,7 +9,7 @@
 #include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
 #include "saiga/opengl/rendering/lighting/directional_light.h"
-#include "saiga/opengl/rendering/lighting/gpu_assignment_clusterer.h"
+#include "saiga/opengl/rendering/lighting/gpu_aabb_clusterer.h"
 #include "saiga/opengl/rendering/lighting/point_light.h"
 #include "saiga/opengl/rendering/lighting/six_plane_clusterer.h"
 #include "saiga/opengl/rendering/lighting/spot_light.h"
@@ -135,7 +135,7 @@ void ForwardLighting::setClusterType(int tp)
                 lightClusterer = std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer));
                 break;
             case 3:
-                lightClusterer = std::static_pointer_cast<Clusterer>(std::make_shared<GPUAssignmentClusterer>(timer));
+                lightClusterer = std::static_pointer_cast<Clusterer>(std::make_shared<GPUAABBClusterer>(timer));
                 break;
             default:
                 lightClusterer = nullptr;

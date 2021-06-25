@@ -13,6 +13,7 @@ namespace Saiga
 {
 CPUPlaneClusterer::CPUPlaneClusterer(GLTimerSystem* timer, const ClustererParameters& _params) : Clusterer(timer, _params)
 {
+    itemList.resize(1);
 }
 
 CPUPlaneClusterer::~CPUPlaneClusterer() {}
@@ -39,7 +40,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         int maxDepthCluster = planesZ.size() - 2;
 
         if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
-        if (!SAT)
+        if (!params.SAT)
         {
             for (int i = 0; i < pointLightsClusterData.size(); ++i)
             {
@@ -117,18 +118,16 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             adaptSize = true;
             do
             {
-                avgAllowedItemsPerCluster *= 2;
-                itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+                itemList.resize(itemList.size() * 2);
             } while (itemCount > itemList.size());
         }
-        if (itemCount < itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2)
+        if (itemCount < itemList.size() * 0.5 && itemList.size() > 2)
         {
             adaptSize = true;
             do
             {
-                avgAllowedItemsPerCluster /= 2;
-                itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-            } while (itemCount < itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2);
+                itemList.resize(itemList.size() / 2);
+            } while (itemCount < itemList.size() * 0.5 && itemList.size() > 2);
         }
 
         if (adaptSize)
@@ -136,7 +135,7 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             auto tim = timer->Measure("Info Update");
 
             clusterInfoBuffer.itemListCount = itemList.size();
-            clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+            clusterInfoBuffer.tileDebug     = screenSpaceDebug ? itemList.size() : 0;
             clusterInfoBuffer.splitDebug    = splitDebug ? 1 : 0;
 
             int itemListSize = sizeof(ClusterItem) * itemList.size();
@@ -344,7 +343,7 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
 
 
 
-    if (!refinement)
+    if (!params.refinement)
     {
         // This is without the sphere refinement
         for (int z = z0; z < z1; ++z)
@@ -582,7 +581,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         planesZ[z] = Plane(viewFarClusterBL, vec3(0, 0, 1));
     }
 
-    if (SAT || clusterDebug || lightsDebug)
+    if (params.SAT || clusterDebug || lightsDebug)
     {
         debugFrusta.resize(clusterCount);
         for (int x = 0; x < (int)gridCount[0]; ++x)
@@ -760,11 +759,11 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     }
     {
         auto tim                     = timer->Measure("Info Update");
-        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? itemList.size() : 0;
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
         itemList.clear();
-        itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+        itemList.resize(1);
         clusterInfoBuffer.itemListCount = itemList.size();
 
         int itemListSize = sizeof(ClusterItem) * itemList.size();
@@ -780,9 +779,7 @@ void CPUPlaneClusterer::imgui()
     Clusterer::imgui();
     if (ImGui::Begin("Clusterer"))
     {
-        clustersDirty |= ImGui::Checkbox("refinement", &refinement);
-
-        ImGui::Text("avgAllowedItemsPerCluster: %d", avgAllowedItemsPerCluster);
+        clustersDirty |= ImGui::Checkbox("refinement", &params.refinement);
 
         ImGui::Text("ItemListSize: %d KB", int(itemList.size() * sizeof(ClusterItem) * 0.001f));
 
@@ -794,7 +791,7 @@ void CPUPlaneClusterer::imgui()
         if (lightsDebug)
             if (ImGui::Button("updateLightsDebug")) updateLightsDebug = true;
 
-        clustersDirty |= ImGui::Checkbox("SAT Debug", &SAT);
+        clustersDirty |= ImGui::Checkbox("SAT Debug", &params.SAT);
     }
     ImGui::End();
 }

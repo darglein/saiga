@@ -9,7 +9,7 @@
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/statistics.h"
 #include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
-#include "saiga/opengl/rendering/lighting/gpu_assignment_clusterer.h"
+#include "saiga/opengl/rendering/lighting/gpu_aabb_clusterer.h"
 #include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/rendering/lighting/six_plane_clusterer.h"
 #include "saiga/opengl/shader/shaderLoader.h"

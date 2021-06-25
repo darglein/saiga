@@ -13,6 +13,7 @@ namespace Saiga
 {
 SixPlaneClusterer::SixPlaneClusterer(GLTimerSystem* timer, const ClustererParameters& _params) : Clusterer(timer, _params)
 {
+    itemList.resize(1);
 }
 
 SixPlaneClusterer::~SixPlaneClusterer() {}
@@ -86,38 +87,36 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     bool adaptSize = false;
     if (itemCount > itemList.size())
-    {
-        adaptSize = true;
-        do
         {
-            avgAllowedItemsPerCluster *= 2;
-            itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        } while (itemCount > itemList.size());
-    }
-    if (itemCount < itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2)
-    {
-        adaptSize = true;
-        do
+            adaptSize = true;
+            do
+            {
+                itemList.resize(itemList.size() * 2);
+            } while (itemCount > itemList.size());
+        }
+        if (itemCount < itemList.size() * 0.5 && itemList.size() > 2)
         {
-            avgAllowedItemsPerCluster /= 2;
-            itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        } while (itemCount < itemList.size() * 0.5 && avgAllowedItemsPerCluster > 2);
-    }
+            adaptSize = true;
+            do
+            {
+                itemList.resize(itemList.size() / 2);
+            } while (itemCount < itemList.size() * 0.5 && itemList.size() > 2);
+        }
 
-    if (adaptSize)
-    {
-        auto tim = timer->Measure("Info Update");
+        if (adaptSize)
+        {
+            auto tim = timer->Measure("Info Update");
 
-        clusterInfoBuffer.itemListCount = itemList.size();
-        clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
-        clusterInfoBuffer.splitDebug    = splitDebug ? 1 : 0;
+            clusterInfoBuffer.itemListCount = itemList.size();
+            clusterInfoBuffer.tileDebug  = screenSpaceDebug ? itemList.size() : 0;
+            clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
-        int itemListSize = sizeof(ClusterItem) * itemList.size();
-        int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-        SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
+            int itemListSize = sizeof(ClusterItem) * itemList.size();
+            int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+            SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
 
-        infoBuffer.update(clusterInfoBuffer);
-    }
+            infoBuffer.update(clusterInfoBuffer);
+        }
 
     int globalOffset = 0;
 
@@ -383,11 +382,11 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 
     {
         auto tim                     = timer->Measure("Info Update");
-        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? itemList.size() : 0;
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
         itemList.clear();
-        itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+        itemList.resize(1);
         clusterInfoBuffer.itemListCount = itemList.size();
 
         int itemListSize = sizeof(ClusterItem) * itemList.size();

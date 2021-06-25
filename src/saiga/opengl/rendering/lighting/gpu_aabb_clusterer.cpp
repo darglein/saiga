@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/opengl/rendering/lighting/gpu_assignment_clusterer.h"
+#include "saiga/opengl/rendering/lighting/gpu_aabb_clusterer.h"
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/imgui/imgui_opengl.h"
@@ -17,7 +17,7 @@ namespace Saiga
 #define MINV(V1, V2) vec3(MIN(V1[0], V2[0]), MIN(V1[1], V2[1]), MIN(V1[2], V2[2]))
 #define MAXV(V1, V2) vec3(MAX(V1[0], V2[0]), MAX(V1[1], V2[1]), MAX(V1[2], V2[2]))
 
-GPUAssignmentClusterer::GPUAssignmentClusterer(GLTimerSystem* timer, const ClustererParameters& _params) : Clusterer(timer, _params)
+GPUAABBClusterer::GPUAABBClusterer(GLTimerSystem* timer, const ClustererParameters& _params) : Clusterer(timer, _params)
 {
     lightAssignmentShader = shaderLoader.load<LightAssignmentComputeShader>(assignmentShaderString);
     clusterListBuffer.create(GL_DYNAMIC_DRAW);
@@ -26,9 +26,9 @@ GPUAssignmentClusterer::GPUAssignmentClusterer(GLTimerSystem* timer, const Clust
     itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
 }
 
-GPUAssignmentClusterer::~GPUAssignmentClusterer() {}
+GPUAABBClusterer::~GPUAABBClusterer() {}
 
-void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewPort)
+void GPUAABBClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewPort)
 {
     assert_no_glerror();
     clustersDirty |= cam->proj != cached_projection;
@@ -68,7 +68,7 @@ void GPUAssignmentClusterer::clusterLightsInternal(Camera* cam, const ViewPort& 
     assert_no_glerror();
 }
 
-void GPUAssignmentClusterer::buildClusters(Camera* cam)
+void GPUAABBClusterer::buildClusters(Camera* cam)
 {
     clustersDirty = false;
     float camNear = cam->zNear;
@@ -245,24 +245,23 @@ void GPUAssignmentClusterer::buildClusters(Camera* cam)
 
     {
         auto tim                     = timer->Measure("Info And Structure Update");
-        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? allowedItemsPerCluster : 0;
+        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? 1024 : 0; // 1024 is a good size for the compute shader shared arrays.
         clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
-        itemListBuffer.resize(allowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
+        itemListBuffer.resize(1024 * clusterInfoBuffer.clusterListCount); // 1024 is a good size for the compute shader shared arrays.
         clusterInfoBuffer.itemListCount = 0;
 
         infoBuffer.update(clusterInfoBuffer);
 
-        int clusterStructuresSize = sizeof(ClusterBounds) * cullingCluster.size();
-        if (clusterStructuresSize > clusterStructuresBuffer.size)
+        if (cullingCluster.size() > clusterStructuresBuffer.Size())
         {
-            clusterStructuresBuffer.createGLBuffer(cullingCluster.data(), clusterStructuresSize, GL_DYNAMIC_DRAW);
+            clusterStructuresBuffer.create(cullingCluster, GL_DYNAMIC_DRAW);
 
             clusterStructuresBuffer.bind(GPU_LIGHT_CLUSTER_CLUSTER_STRUCTURES_BINDING_POINT);
         }
         else
         {
-            clusterStructuresBuffer.updateBuffer(cullingCluster.data(), clusterStructuresSize, 0);
+            clusterStructuresBuffer.update(cullingCluster);
         }
     }
 }
