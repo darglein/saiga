@@ -6,17 +6,35 @@
 
 #include "OpenvrWrapper.h"
 
+//#include "openvr/openvr_driver.h"
 #include "openvr/openvr.h"
 
 #include <iostream>
 namespace Saiga
 {
+static mat4 ConvertSteamVRMatrixToMatrix4(const vr::HmdMatrix34_t& mat)
+{
+    mat4 matrixObj;
+    matrixObj << mat.m[0][0], mat.m[1][0], mat.m[2][0], 0.0, mat.m[0][1], mat.m[1][1], mat.m[2][1], 0.0, mat.m[0][2],
+        mat.m[1][2], mat.m[2][2], 0.0, mat.m[0][3], mat.m[1][3], mat.m[2][3], 1.0f;
+    return matrixObj.transpose();
+}
+
+static mat4 ConvertSteamVRMatrixToMatrix4(const vr::HmdMatrix44_t& mat)
+{
+    mat4 matrixObj;
+    matrixObj << mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0], mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
+        mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2], mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3];
+    return matrixObj.transpose();
+}
+
+
 //-----------------------------------------------------------------------------
 // Purpose: Helper to get a string from a tracked device property and turn it
 //			into a std::string
 //-----------------------------------------------------------------------------
-std::string GetTrackedDeviceString(vr::TrackedDeviceIndex_t unDevice, vr::TrackedDeviceProperty prop,
-                                   vr::TrackedPropertyError* peError = NULL)
+static std::string GetTrackedDeviceString(vr::TrackedDeviceIndex_t unDevice, vr::TrackedDeviceProperty prop,
+                                          vr::TrackedPropertyError* peError = NULL)
 {
     uint32_t unRequiredBufferLen = vr::VRSystem()->GetStringTrackedDeviceProperty(unDevice, prop, NULL, 0, peError);
     if (unRequiredBufferLen == 0) return "";
@@ -81,17 +99,11 @@ OpenVRWrapper::~OpenVRWrapper()
 mat4 OpenVRWrapper::GetHMDProjectionMatrix(vr::Hmd_Eye nEye, float newPlane, float farPlane)
 {
     SAIGA_ASSERT(vr_system);
-
     vr::HmdMatrix44_t mat = vr_system->GetProjectionMatrix(nEye, newPlane, farPlane);
-
-    mat4 matrixObj;
-    matrixObj << mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0], mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
-        mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2], mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3];
-
-    return matrixObj.transpose();
+    return ConvertSteamVRMatrixToMatrix4(mat);
 }
 
-mat4 OpenVRWrapper::HeadToEyeView(vr::Hmd_Eye nEye)
+mat4 OpenVRWrapper::HeadToEyeModel(vr::Hmd_Eye nEye)
 {
     SAIGA_ASSERT(vr_system);
 
@@ -102,7 +114,7 @@ mat4 OpenVRWrapper::HeadToEyeView(vr::Hmd_Eye nEye)
         matEyeRight.m[1][1], matEyeRight.m[2][1], 0.0, matEyeRight.m[0][2], matEyeRight.m[1][2], matEyeRight.m[2][2],
         0.0, matEyeRight.m[0][3], matEyeRight.m[1][3], matEyeRight.m[2][3], 1.0f;
 
-    return matrixObj.transpose().inverse();
+    return matrixObj.transpose();
 }
 
 void OpenVRWrapper::submitImage(vr::Hmd_Eye nEye, TextureBase* texture)
@@ -138,14 +150,6 @@ void ProcessVREvent(const vr::VREvent_t& event)
     }
 }
 
-mat4 ConvertSteamVRMatrixToMatrix4(const vr::HmdMatrix34_t& matPose)
-{
-    mat4 matrixObj;
-    matrixObj << matPose.m[0][0], matPose.m[1][0], matPose.m[2][0], 0.0, matPose.m[0][1], matPose.m[1][1],
-        matPose.m[2][1], 0.0, matPose.m[0][2], matPose.m[1][2], matPose.m[2][2], 0.0, matPose.m[0][3], matPose.m[1][3],
-        matPose.m[2][3], 1.0f;
-    return matrixObj.transpose();
-}
 
 std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(const PerspectiveCamera& camera)
 {
@@ -155,20 +159,16 @@ std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(con
     left.proj  = GetHMDProjectionMatrix(vr::Hmd_Eye::Eye_Left, camera.zNear, camera.zFar);
     right.proj = GetHMDProjectionMatrix(vr::Hmd_Eye::Eye_Right, camera.zNear, camera.zFar);
 
-    mat4 vl = HeadToEyeView(vr::Hmd_Eye::Eye_Left);
-    mat4 vr = HeadToEyeView(vr::Hmd_Eye::Eye_Right);
+    mat4 vl = HeadToEyeModel(vr::Hmd_Eye::Eye_Left);
+    mat4 vr = HeadToEyeModel(vr::Hmd_Eye::Eye_Right);
 
-    auto hmd_view = GetHMDViewMatrix();
+    auto hmd_model = GetHMDModelMatrix();
 
-    left.view  = vl * hmd_view * camera.view;
-    right.view = vr * hmd_view * camera.view;
+    left.model  = camera.model * hmd_model * vl;
+    right.model = camera.model * hmd_model * vr;
 
-    left.setModelMatrix(left.view.inverse());
-    left.recalculateMatrices();
-
-    right.setModelMatrix(right.view.inverse());
-    right.recalculateMatrices();
-
+    left.updateFromModel();
+    right.updateFromModel();
     return {left, right};
 }
 void OpenVRWrapper::update()
@@ -194,8 +194,12 @@ void OpenVRWrapper::update()
         }
     }
 }
-mat4 OpenVRWrapper::GetHMDViewMatrix()
+mat4 OpenVRWrapper::GetHMDModelMatrix()
 {
-    return device_data[0].model.inverse();
+    return device_data[0].model;
+}
+vec3 OpenVRWrapper::LookingDirection()
+{
+    return -GetHMDModelMatrix().col(2).head<3>();
 }
 }  // namespace Saiga

@@ -33,6 +33,8 @@ class SAIGA_OPENGL_API VRRenderer : public DeferredRenderer
 
     virtual void render(const RenderInfo& renderInfo) override;
 
+    OpenVRWrapper& VR() { return *vr; }
+
    private:
     // for left and right eye
     Framebuffer framebuffers[2];

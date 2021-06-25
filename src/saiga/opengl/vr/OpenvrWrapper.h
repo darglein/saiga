@@ -39,13 +39,15 @@ class SAIGA_OPENGL_API OpenVRWrapper
     void update();
 
     mat4 GetHMDProjectionMatrix(vr::Hmd_Eye nEye, float newPlane, float farPlane);
-    mat4 GetHMDViewMatrix();
+    mat4 GetHMDModelMatrix();
 
     // view matrix of the eye relative to the head
-    mat4 HeadToEyeView(vr::Hmd_Eye nEye);
+    mat4 HeadToEyeModel(vr::Hmd_Eye nEye);
 
     // send an opengl image to the HMD
     void submitImage(vr::Hmd_Eye nEye, TextureBase* texture);
+
+    vec3 LookingDirection();
 
 
 

@@ -114,7 +114,7 @@ inline mat4 CV2GLView()
 
 
 
-inline mat4 CVCamera2GLProjectionMatrix2(mat3 K, ivec2 image_size, float znear = .01, float zfar = 1000.)
+inline mat4 CVCamera2GLProjectionMatrix(mat3 K, ivec2 image_size, float znear = .01, float zfar = 1000.)
 {
     float fx     = K(0, 0);
     float fy     = K(1, 1);
@@ -147,71 +147,28 @@ inline mat4 CVCamera2GLProjectionMatrix2(mat3 K, ivec2 image_size, float znear =
     return m;
 }
 
-
-inline mat4 CVCamera2GLProjectionMatrix(const mat3& K, int viewportW, int viewportH, float znear, float zfar)
+/**
+ * In CV the viewport transform is included in the K matrix.
+ * The viewport transform is removed (by multiplying the inverse) and
+ * a near and far clipping plane is added.
+ *
+ * The final projection matrix maps a point to the unit cube [-1,1]^3
+ */
+inline mat3 GLProjectionMatrix2CVCamera(const mat4& proj, int target_w, int target_h)
 {
-    /**
-     * In CV the viewport transform is included in the K matrix.
-     * The viewport transform is removed (by multiplying the inverse) and
-     * a near and far clipping plane is added.
-     *
-     * The final projection matrix maps a point to the unit cube [-1,1]^3
-     */
-#if 0
-    mat3 viewPortTransform(
-                0.5f * viewportW,   0,                  0.5f * viewportW,
-                0,                  0.5f * viewportH,   0.5f * viewportH,
-                0,                  0,                  1
-                );
-    auto removeViewPortTransform = inverse(transpose(viewPortTransform));
-    std::cout << viewPortTransform << std::endl << removeViewPortTransform << std::endl;
-#else
-    mat3 removeViewPortTransform = make_mat3(
-        // clang-format off
-        2.0 / viewportW,    0,                  0,
-        0,                  2.0   / viewportH,  0,
-        -1,                 -1,                 1
-        );
-    // clang-format on
-#endif
-    auto test = removeViewPortTransform * K;
+    mat3 K = mat3::Zero();
 
-    mat4 proj = make_mat4(test);
-    proj(0, 2) *= -1;
-    proj(3, 2) = -1;
-    proj(3, 3) = 0;
-    proj(2, 2) = -(zfar + znear) / (zfar - znear);
-    proj(2, 3) = -2.0f * zfar * znear / (zfar - znear);
-    return proj;
-}
-
-
-inline mat3 GLProjectionMatrix2CVCamera(const mat4& proj, int viewportW, int viewportH)
-{
-    /**
-     * In CV the viewport transform is included in the K matrix.
-     * The viewport transform is removed (by multiplying the inverse) and
-     * a near and far clipping plane is added.
-     *
-     * The final projection matrix maps a point to the unit cube [-1,1]^3
-     */
-
-    mat3 viewPortTransform = make_mat3(
-        // clang-format off
-        0.5f * viewportW,   0,                  0,
-        0,                  0.5f * viewportH,   0,
-        0.5f * viewportW,   0.5f * viewportH,   1
-        // clang-format on
-    );
-
-
-    mat3 K  = proj.block<3, 3>(0, 0);
+    K(0, 0) = target_w * proj(0, 0) / 2;
+    K(1, 1) = target_h * proj(1, 1) / 2;
     K(2, 2) = 1;
 
-    K = viewPortTransform * K;
+    K(0, 2) = -(proj(0, 2) - 1.0) * target_w / 2.f;
+    K(1, 2) = (proj(1, 2) + 1) * target_h / 2.f;
+
 
     return K;
 }
+
 
 inline vec2 cvApplyDistortion(vec2 point, float k1, float k2, float k3, float p1, float p2)
 {

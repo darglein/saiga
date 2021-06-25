@@ -66,6 +66,7 @@ void ToneMapper::MapLinear(Texture* input_hdr_color_image)
         int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
         shader_linear->dispatchCompute(uvec3(gw, gh, 1));
         shader_linear->unbind();
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
     }
 }
 
@@ -87,6 +88,7 @@ void ToneMapper::Map(Texture* input_hdr_color_image, Texture* output_ldr_color_i
         int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
         shader->dispatchCompute(uvec3(gw, gh, 1));
         shader->unbind();
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
     }
 }
 
