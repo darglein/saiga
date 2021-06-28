@@ -36,9 +36,9 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     int itemCount = 0;
 
-    for (int i = 0; i < pointLightsClusterData.size(); ++i)
+    for (int i = 0; i < pointLightCount; ++i)
     {
-        PointLightClusterData& plc = pointLightsClusterData[i];
+        LightBoundingSphere& plc = lightsClusterData[i];
         vec3 sphereCenter          = cam->WorldToView(plc.world_center);
         for (int c = 0; c < cullingCluster.size(); ++c)
         {
@@ -61,9 +61,9 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         }
     }
 
-    for (int i = 0; i < spotLightsClusterData.size(); ++i)
+    for (int i = pointLightCount; i < lightsClusterData.size(); ++i)
     {
-        SpotLightClusterData& plc = spotLightsClusterData[i];
+        LightBoundingSphere& plc = lightsClusterData[i];
         vec3 sphereCenter         = cam->WorldToView(plc.world_center);
         for (int c = 0; c < cullingCluster.size(); ++c)
         {

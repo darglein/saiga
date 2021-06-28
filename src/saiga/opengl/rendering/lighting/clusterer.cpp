@@ -36,13 +36,14 @@ void Clusterer::resize(int _width, int _height)
 
 void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<PointLight*> pls, ArrayView<SpotLight*> sls)
 {
-    pointLightsClusterData.clear();
-    spotLightsClusterData.clear();
+    lightsClusterData.clear();
+
     // Point Lights
     for (auto& pl : pls)
     {
-        pointLightsClusterData.emplace_back(pl->position, pl->radius);
+        lightsClusterData.emplace_back(pl->position, pl->radius);
     }
+    pointLightCount = pls.size();
 
     // Spot Lights
     for (auto& sl : sls)
@@ -55,7 +56,7 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<P
         else
             radius = l * 0.5f / (cos(rad) * cos(rad));
         vec3 world_center = sl->position + sl->direction.normalized() * radius;
-        spotLightsClusterData.emplace_back(world_center, radius);
+        lightsClusterData.emplace_back(world_center, radius);
     }
 
     clusterLightsInternal(cam, viewPort);

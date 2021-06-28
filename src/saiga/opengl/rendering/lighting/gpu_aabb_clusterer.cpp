@@ -39,18 +39,17 @@ void GPUAABBClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewPo
     {
         auto tim = timer->Measure("Cluster Update");
 
-        int plSize = sizeof(PointLightClusterData) * pointLightsClusterData.size();
-        int slSize = sizeof(SpotLightClusterData) * spotLightsClusterData.size();
+        int lightCount = lightsClusterData.size();
 
-        if (plSize + slSize > lightClusterDataBuffer.size)
+        if (lightCount > lightClusterDataBuffer.Size())
         {
-            lightClusterDataBuffer.createGLBuffer(nullptr, (plSize + slSize) * sizeof(PointLightClusterData),
-                                                  GL_DYNAMIC_DRAW);
-
+            lightClusterDataBuffer.create(lightsClusterData, GL_DYNAMIC_DRAW);
             lightClusterDataBuffer.bind(GPU_LIGHT_CLUSTER_DATA_BUFFER_BINDING_POINT);
         }
-        lightClusterDataBuffer.updateBuffer(pointLightsClusterData.data(), plSize, 0);
-        lightClusterDataBuffer.updateBuffer(spotLightsClusterData.data(), slSize, plSize);
+        else
+        {
+            lightClusterDataBuffer.update(lightsClusterData, 0);
+        }
 
         clusterInfoBuffer.itemListCount = 0;
         infoBuffer.update(clusterInfoBuffer);

@@ -42,24 +42,24 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
         if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
         if (!params.SAT)
         {
-            for (int i = 0; i < pointLightsClusterData.size(); ++i)
+            for (int i = 0; i < pointLightCount; ++i)
             {
-                PointLightClusterData& plc = pointLightsClusterData[i];
+                LightBoundingSphere& plc = lightsClusterData[i];
                 vec3 sphereCenter          = cam->WorldToView(plc.world_center);
                 clusterLoop(sphereCenter, plc.radius, i, true, itemCount);
             }
-            for (int i = 0; i < spotLightsClusterData.size(); ++i)
+            for (int i = pointLightCount; i < lightsClusterData.size(); ++i)
             {
-                SpotLightClusterData& slc = spotLightsClusterData[i];
+                LightBoundingSphere& slc = lightsClusterData[i];
                 vec3 sphereCenter         = cam->WorldToView(slc.world_center);
                 clusterLoop(sphereCenter, slc.radius, i, false, itemCount);
             }
         }
         else
         {
-            for (int i = 0; i < pointLightsClusterData.size(); ++i)
+            for (int i = 0; i < pointLightCount; ++i)
             {
-                auto& cData        = pointLightsClusterData[i];
+                auto& cData        = lightsClusterData[i];
                 vec3 sphereCenter  = cam->WorldToView(cData.world_center);
                 float sphereRadius = cData.radius;
                 Sphere sphere(sphereCenter, sphereRadius);
@@ -84,9 +84,9 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
                     }
                 }
             }
-            for (int i = 0; i < spotLightsClusterData.size(); ++i)
+            for (int i = pointLightCount; i < lightsClusterData.size(); ++i)
             {
-                auto& cData        = spotLightsClusterData[i];
+                auto& cData        = lightsClusterData[i];
                 vec3 sphereCenter  = cam->WorldToView(cData.world_center);
                 float sphereRadius = cData.radius;
                 Sphere sphere(sphereCenter, sphereRadius);

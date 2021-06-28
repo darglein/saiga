@@ -57,18 +57,11 @@ struct Cluster
     int32_t slCount = -1;
 };
 
-struct PointLightClusterData
+struct LightBoundingSphere
 {
     vec3 world_center;
     float radius;
-    PointLightClusterData(vec3 w_center, float r) : world_center(w_center), radius(r) {}
-};
-
-struct SpotLightClusterData
-{
-    vec3 world_center;  // should be sufficient -> center position of the spot light cone
-    float radius;       // should be sufficient -> bounding sphere instead of transformed cone
-    SpotLightClusterData(vec3 w_center, float r) : world_center(w_center), radius(r) {}
+    LightBoundingSphere(vec3 w_center, float r) : world_center(w_center), radius(r) {}
 };
 
 class SAIGA_OPENGL_API Clusterer
@@ -94,9 +87,8 @@ class SAIGA_OPENGL_API Clusterer
     virtual void renderDebug(Camera* cam);
 
    protected:
-    std::vector<PointLightClusterData> pointLightsClusterData;
-
-    std::vector<SpotLightClusterData> spotLightsClusterData;
+    std::vector<LightBoundingSphere> lightsClusterData;
+    int32_t pointLightCount;
 
     Timer lightAssignmentTimer;
 

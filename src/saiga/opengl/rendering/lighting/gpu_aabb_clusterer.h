@@ -62,8 +62,7 @@ class SAIGA_OPENGL_API GPUAABBClusterer : public Clusterer
 
     std::vector<ClusterBounds> cullingCluster;
 
-    // TODO: templated buffer -> One Template is not enough, buffer holds PointLightClusterData and SpotLightClusterData.
-    ShaderStorageBuffer lightClusterDataBuffer;
+    TemplatedShaderStorageBuffer<LightBoundingSphere> lightClusterDataBuffer;
 
     TemplatedShaderStorageBuffer<ClusterBounds> clusterStructuresBuffer;
 
