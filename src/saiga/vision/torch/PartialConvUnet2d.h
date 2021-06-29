@@ -311,6 +311,9 @@ class UpsampleBlockImpl : public torch::nn::Module
     std::pair<at::Tensor, at::Tensor> forward(std::pair<at::Tensor, at::Tensor> layer_below,
                                               std::pair<at::Tensor, at::Tensor> skip)
     {
+        SAIGA_ASSERT(layer_below.first.defined());
+        SAIGA_ASSERT(skip.first.defined());
+
         // Upsample the layer from below
         std::pair<at::Tensor, at::Tensor> same_layer_as_skip;
         same_layer_as_skip.first = up->forward(layer_below.first);
@@ -374,6 +377,7 @@ struct MultiScaleUnet2dParams : public ParamsBase
         SAIGA_PARAM_STRING(pooling);
     }
 
+    static constexpr int max_layers = 5;
 
     int num_input_layers        = 5;
     int num_input_channels      = 8;
@@ -430,58 +434,36 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
             {
                 f += num_input_channels[i];
             }
+            SAIGA_ASSERT(f >= num_input_channels[0]);
         }
 
 
         SAIGA_ASSERT(num_input_channels.size() == filters.size());
 
-        // start = GatedBlock(num_input_channels[0], filters[0]);
-
         start = UnetBlockFromString(params.conv_block, num_input_channels[0], filters[0], 3, 1, 1, "id");
-
-        down1 = DownsampleBlock(filters[0], filters[1] - num_input_channels[1], params.conv_block,
-                                params.norm_layer_down, params.pooling);
-        down2 = DownsampleBlock(filters[1], filters[2] - num_input_channels[2], params.conv_block,
-                                params.norm_layer_down, params.pooling);
-
-        down3 = DownsampleBlock(filters[2], filters[3] - num_input_channels[3], params.conv_block,
-                                params.norm_layer_down, params.pooling);
-
-        if (params.num_layers >= 5)
-        {
-            down4 = DownsampleBlock(filters[3], filters[4] - num_input_channels[4], params.conv_block,
-                                    params.norm_layer_down, params.pooling);
-            up4 =
-                UpsampleBlock(filters[4], filters[3], params.conv_block_up, params.upsample_mode, params.norm_layer_up);
-        }
-        up3 = UpsampleBlock(filters[3], filters[2], params.conv_block_up, params.upsample_mode, params.norm_layer_up);
-        up2 = UpsampleBlock(filters[2], filters[1], params.conv_block_up, params.upsample_mode, params.norm_layer_up);
-        up1 = UpsampleBlock(filters[1], filters[0], params.conv_block_up, params.upsample_mode, params.norm_layer_up);
+        register_module("start", start.ptr());
 
         final->push_back(torch::nn::Conv2d(torch::nn::Conv2dOptions(filters[0], params.num_output_channels, 1)));
         final->push_back(ActivationFromString(params.last_act));
+        register_module("final", final);
+
+        for (int i = 0; i < params.num_layers - 1; ++i)
+        {
+            // Down[i] transforms from layer (i) -> (i+1)
+            int down_in  = filters[i];
+            int down_out = filters[i + 1] - num_input_channels[i + 1];
+            down[i] = DownsampleBlock(down_in, down_out, params.conv_block, params.norm_layer_down, params.pooling);
+            register_module("down" + std::to_string(i + 1), down[i]);
+
+            // Up[i] transforms from layer (i+1) -> (i)
+            int up_in  = filters[i + 1];
+            int up_out = filters[i];
+            up[i]      = UpsampleBlock(up_in, up_out, params.conv_block_up, params.upsample_mode, params.norm_layer_up);
+            register_module("up" + std::to_string(i + 1), up[i]);
+        }
 
         multi_channel_masks = params.conv_block == "partial_multi";
         need_up_masks       = params.conv_block_up == "partial_multi";
-
-        register_module("start", start.ptr());
-
-        register_module("down1", down1);
-        register_module("down2", down2);
-        register_module("down3", down3);
-
-        if (params.num_layers >= 5)
-        {
-            register_module("down4", down4);
-            register_module("up4", up4);
-        }
-
-        register_module("up3", up3);
-        register_module("up2", up2);
-        register_module("up1", up1);
-
-        register_module("final", final);
-
         if (params.half_float)
         {
             this->to(torch::kFloat16);
@@ -529,63 +511,36 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
             }
         }
 
-        std::pair<torch::Tensor, torch::Tensor> d0, d1, d2, d3, d4;
-        std::pair<torch::Tensor, torch::Tensor> u0, u1, u2, u3, u4;
+        std::pair<torch::Tensor, torch::Tensor> d[MultiScaleUnet2dParams::max_layers];
 
-        d0 = start.forward<std::pair<torch::Tensor, torch::Tensor>>(inputs[0], masks[0]);
+        d[0] = start.forward<std::pair<torch::Tensor, torch::Tensor>>(inputs[0], masks[0]);
 
-        d1 = down1->forward(d0);
-        if (params.num_input_layers >= 2)
+        // Loops Range: [1,2, ... , layers-1]
+        // At 5 layers we have only 4 down-sample stages
+        for (int i = 1; i < params.num_layers; ++i)
         {
-            d1.first = torch::cat({d1.first, inputs[1]}, 1);
-            if (multi_channel_masks) d1.second = torch::cat({d1.second, masks[1]}, 1);
-        }
-
-        d2 = down2->forward(d1);
-        if (params.num_input_layers >= 3)
-        {
-            d2.first = torch::cat({d2.first, inputs[2]}, 1);
-            if (multi_channel_masks) d2.second = torch::cat({d2.second, masks[2]}, 1);
-        }
-
-        d3 = down3->forward(d2);
-        if (params.num_input_layers >= 4)
-        {
-            d3.first = torch::cat({d3.first, inputs[3]}, 1);
-            if (multi_channel_masks) d3.second = torch::cat({d3.second, masks[3]}, 1);
-        }
-
-
-        if (params.num_layers >= 5)
-        {
-            d4 = down4->forward(d3);
-            if (params.num_input_layers >= 5)
+            d[i] = down[i - 1]->forward(d[i - 1]);
+            if (params.num_input_layers > i)
             {
-                d4.first = torch::cat({d4.first, inputs[4]}, 1);
-                if (multi_channel_masks) d4.second = torch::cat({d4.second, masks[4]}, 1);
+                d[i].first = torch::cat({d[i].first, inputs[i]}, 1);
+                if (multi_channel_masks) d[i].second = torch::cat({d[i].second, masks[i]}, 1);
             }
-
-            u4 = d4;
-            if (!need_up_masks) u4.second = {};
-            u3 = up4->forward(u4, d3);
         }
 
-        u2 = up3->forward(u3, d2);
-        u1 = up2->forward(u2, d1);
-        u0 = up1->forward(u1, d0);
+        if (!need_up_masks)
+        {
+            for (int i = 0; i < params.num_layers; ++i)
+            {
+                d[i].second = {};
+            }
+        }
 
-#if 0
-        TensorToImage<unsigned char>(masks[0]).save("mask_in.png");
-        TensorToImage<unsigned char>(d0.second).save("mask0.png");
-        TensorToImage<unsigned char>(d1.second).save("mask1.png");
-        TensorToImage<unsigned char>(d2.second).save("mask2.png");
-        TensorToImage<unsigned char>(d3.second).save("mask3.png");
-        TensorToImage<unsigned char>(d4.second).save("mask4.png");
-        exit(0);
-#endif
-
-
-        return final->forward(u0.first);
+        // Loops Range: [layers-1, ... , 2, 1]
+        for (int i = params.num_layers - 1; i >= 1; --i)
+        {
+            d[i - 1] = up[i - 1]->forward(d[i], d[i - 1]);
+        }
+        return final->forward(d[0].first);
     }
 
     MultiScaleUnet2dParams params;
@@ -593,18 +548,10 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
     bool need_up_masks       = false;
 
     torch::nn::AnyModule start;
-
-    DownsampleBlock down1 = nullptr;
-    DownsampleBlock down2 = nullptr;
-    DownsampleBlock down3 = nullptr;
-    DownsampleBlock down4 = nullptr;
-
-    UpsampleBlock up1 = nullptr;
-    UpsampleBlock up2 = nullptr;
-    UpsampleBlock up3 = nullptr;
-    UpsampleBlock up4 = nullptr;
-
     torch::nn::Sequential final;
+
+    DownsampleBlock down[MultiScaleUnet2dParams::max_layers - 1] = {nullptr, nullptr, nullptr, nullptr};
+    UpsampleBlock up[MultiScaleUnet2dParams::max_layers - 1]     = {nullptr, nullptr, nullptr, nullptr};
 };
 
 TORCH_MODULE(MultiScaleUnet2d);
