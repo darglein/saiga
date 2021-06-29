@@ -9,7 +9,7 @@
 
 #include "camera.glsl"
 
-struct LightClusterData
+struct LightBoundingSphere
 {
     vec4 light; // xyz, w radius
 };
@@ -23,7 +23,7 @@ layout (std140, binding = 6) uniform lightInfoBlock
     int clusterEnabled;
 };
 
-struct cluster
+struct Cluster
 {
     int offset;
     int plCount;
@@ -50,26 +50,26 @@ layout (std430, binding = 7) coherent buffer clusterInfoBuffer
 
 layout (std430, binding = 8) buffer clusterBuffer
 {
-    cluster clusterList[];
+    Cluster clusterList[];
 };
 
-struct clusterItem
+struct ClusterItem
 {
     int lightIndex;
 };
 
 layout (std430, binding = 9) buffer itemBuffer
 {
-    clusterItem itemList[];
+    ClusterItem itemList[];
 };
 
 // Shader storage buffers are enabled
 layout (std430, binding = 10) buffer lightClusterData
 {
-    LightClusterData clusterData[];
+    LightBoundingSphere clusterData[];
 };
 
-struct clusterBounds
+struct ClusterBounds
 {
     vec3 center;
     vec3 extends;
@@ -77,7 +77,7 @@ struct clusterBounds
 
 layout (std430, binding = 11) buffer clusterStructures
 {
-    clusterBounds cullingCluster[];
+    ClusterBounds cullingCluster[];
 };
 
 #define MAX_SHARED_LIGHT_SOURCES 1024
@@ -118,7 +118,7 @@ void main()
     memoryBarrier();
     barrier();
 
-    clusterBounds bounds;
+    ClusterBounds bounds;
     bounds.center = cullingCluster[clusterIndex].center;
     bounds.extends = cullingCluster[clusterIndex].extends;
 

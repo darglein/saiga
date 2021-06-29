@@ -31,13 +31,6 @@ void main()
 
 layout(location = 0) out vec4 out_color;
 
-float lin(float d){
-
-    float f=7.0f;
-    float n = 1.0f;
-    return(2 * n) / (f + n - d * (f - n));
-}
-
 
 void main()
 {

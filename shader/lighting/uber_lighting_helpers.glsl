@@ -31,7 +31,6 @@ struct DirectionalLightData
     vec4 direction; // xyz, w ambient intensity
 };
 
-// Shader storage buffers are enabled
 layout (std430, binding = 2) buffer lightDataBlockPoint
 {
     PointLightData pointLights[];
@@ -56,7 +55,7 @@ layout (std140, binding = 6) uniform lightInfoBlock
     int clusterEnabled;
 };
 
-struct cluster
+struct Cluster
 {
     int offset;
     int plCount;
@@ -86,23 +85,17 @@ layout (std430, binding = 7) buffer clusterInfoBuffer
 
 layout (std430, binding = 8) buffer clusterBuffer
 {
-    cluster clusterList[];
+    Cluster clusterList[];
 };
 
-struct clusterItem
+struct ClusterItem
 {
     int lightIndex;
 };
 
-int lightIdxFromItem(in int item, in int part)
-{
-    int shift = part * 16;
-    return (item >> shift) & 0xffff;
-}
-
 layout (std430, binding = 9) buffer itemBuffer
 {
-    clusterItem itemList[];
+    ClusterItem itemList[];
 };
 
 struct AssetMaterial
@@ -177,22 +170,8 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
 
-    // if(clusterIndex > clusterListCount - 1)
-    // {
-    //     return vec3(0, 1, 0);
-    // }
-    // if(clusterIndex < 0)
-    // {
-    //     return vec3(1, 0, 0);
-    // }
-
     int lightCount           = clusterList[clusterIndex].plCount;
     int baseLightIndexOffset = clusterList[clusterIndex].offset;
-
-    // if(baseLightIndexOffset + lightCount - 1 > itemListCount - 1)
-    // {
-    //     return vec3(1, 1, 0);
-    // }
 
     for(int i = 0; i < lightCount; i++)
     {
@@ -241,22 +220,8 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal, flo
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
 
-    // if(clusterIndex > clusterListCount - 1)
-    // {
-    //     return vec3(1, 0, 0);
-    // }
-    // if(clusterIndex < 0)
-    // {
-    //     return vec3(1, 0, 0);
-    // }
-
     int lightCount           = clusterList[clusterIndex].slCount;
     int baseLightIndexOffset = clusterList[clusterIndex].offset + clusterList[clusterIndex].plCount;
-
-    // if(baseLightIndexOffset + lightCount -1 > itemListCount - 1)
-    // {
-    //     return vec3(1, 1, 0);
-    // }
 
     for(int i = 0; i < lightCount; i++)
     {
@@ -396,6 +361,5 @@ vec3 calculateDirectionalLights(AssetMaterial material, vec3 position, vec3 norm
 
         result += color;
     }
-    //result = vec3(0);
     return result;
 }
