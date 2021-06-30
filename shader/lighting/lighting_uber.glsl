@@ -44,7 +44,7 @@ void main()
     vec3 lighting = vec3(0);
 
     lighting += calculatePointLights(material, position, normal, depth);
-    lighting += calculateSpotLights(material, position, normal);
+    lighting += calculateSpotLights(material, position, normal, depth);
     lighting += calculateDirectionalLights(material, position, normal);
 
     out_color = vec4(lighting, 1);

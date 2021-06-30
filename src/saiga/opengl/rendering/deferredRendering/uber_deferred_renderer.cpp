@@ -21,7 +21,8 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
       lighting(gbuffer, timer.get()),
       params(_params),
       renderWidth(window.getWidth() * _params.renderScale),
-      renderHeight(window.getHeight() * _params.renderScale), quadMesh(FullScreenQuad())
+      renderHeight(window.getHeight() * _params.renderScale),
+      quadMesh(FullScreenQuad())
 {
     {
         // create a 2x2 grayscale black dummy texture
@@ -35,15 +36,11 @@ UberDeferredRenderer::UberDeferredRenderer(OpenGLWindow& window, UberDeferredRen
     lighting.shadowSamples = params.shadowSamples;
     lighting.clearColor    = params.lightingClearColor;
     lighting.init(renderWidth, renderHeight, params.useGPUTimers);
-    this->params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
-    this->params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
-    this->params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
-    lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                            params.maximumNumberOfSpotLights);
     lighting.loadShaders();
 
 
     blitDepthShader = shaderLoader.load<MVPTextureShader>("lighting/blitDepth.glsl");
+
 
 
     std::cout << "Uber Deferred Renderer initialized. Render resolution: " << renderWidth << "x" << renderHeight
@@ -88,9 +85,6 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
         auto tim = timer->Measure("Clear");
         clearGBuffer();
     }
-    assert_no_glerror();
-    lighting.initRender();
-    assert_no_glerror();
 
     {
         auto tim = timer->Measure("Geometry");
@@ -101,7 +95,8 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
     }
 
     lighting.ComputeCullingAndStatistics(camera);
-    // renderDepthMaps();
+    lighting.initRender();
+    assert_no_glerror();
 
     {
         auto tim = timer->Measure("Lighting");
@@ -119,6 +114,11 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
         renderingInterface->render(camera, RenderPass::Forward);
     }
 
+    {
+        auto tim = timer->Measure("Tone Mapping");
+        tone_mapper.MapLinear(lighting.lightAccumulationTexture.get());
+        tone_mapper.Map(lighting.lightAccumulationTexture.get(), target_framebuffer->getTextureColor(0).get());
+    }
 
 
     assert_no_glerror();
@@ -270,7 +270,7 @@ void UberDeferredRenderer::renderImgui()
         ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
     }
 
-    ImGui::Begin("Deferred Renderer", &should_render_imgui);
+    ImGui::Begin("Uber Deferred Renderer", &should_render_imgui);
 
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
@@ -279,9 +279,7 @@ void UberDeferredRenderer::renderImgui()
 
     ImGui::Separator();
 
-
-
-    ImGui::Checkbox("Show Lighting UI", &showLightingImgui);
+    tone_mapper.imgui();
 
     ImGui::End();
 }

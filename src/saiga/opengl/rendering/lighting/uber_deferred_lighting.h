@@ -11,7 +11,7 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/query/gpuTimer.h"
-#include "saiga/opengl/rendering/lighting/light_clusterer.h"
+#include "saiga/opengl/rendering/lighting/clusterer.h"
 #include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/shaderStorageBuffer.h"
@@ -46,12 +46,11 @@ class SAIGA_OPENGL_API UberDeferredLightingShader : public DeferredShader
 class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
 {
    public:
-    ShaderStorageBuffer lightDataBufferPoint;
-    ShaderStorageBuffer lightDataBufferSpot;
-    ShaderStorageBuffer lightDataBufferBox;
-    ShaderStorageBuffer lightDataBufferDirectional;
 
     UniformBuffer lightInfoBuffer;
+
+    std::shared_ptr<Texture> lightAccumulationTexture;
+    Framebuffer lightAccumulationBuffer;
 
     UberDeferredLighting(GBuffer& gbuffer, GLTimerSystem* timer);
     UberDeferredLighting& operator=(UberDeferredLighting& l) = delete;
@@ -66,15 +65,16 @@ class SAIGA_OPENGL_API UberDeferredLighting : public RendererLighting
 
     void renderImGui() override;
 
-    void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights) override;
+    void setClusterType(int tp) override;
+
+    std::shared_ptr<Clusterer> getClusterer() override { return lightClusterer; };
 
    public:
     std::shared_ptr<UberDeferredLightingShader> lightingShader;
     GBuffer& gbuffer;
     UnifiedMeshBuffer quadMesh;
     std::shared_ptr<Clusterer> lightClusterer;
-    // FIXME Reset to 0:
-    int clustererType = 2;
+    int clustererType = 0;
 };
 
 }  // namespace Saiga

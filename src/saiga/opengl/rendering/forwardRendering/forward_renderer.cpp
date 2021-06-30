@@ -20,11 +20,6 @@ ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& para
     : OpenGLRenderer(window), params(params), lighting(timer.get())
 {
     lighting.init(window.getWidth(), window.getHeight(), false);
-    this->params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
-    this->params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
-    this->params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
-    lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                            params.maximumNumberOfSpotLights);
 
     std::cout << " Forward Renderer initialized. Render resolution: " << window.getWidth() << "x" << window.getHeight()
               << std::endl;
@@ -35,6 +30,23 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
 {
     if (!rendering) return;
 
+    if (!lightAccumulationTexture)
+    {
+        lightAccumulationBuffer.create();
+
+        // NOTE: Use the same depth-stencil buffer as the gbuffer. I hope this works on every hardware :).
+        lightAccumulationBuffer.attachTextureDepthStencil(target_framebuffer->getTextureDepth());
+
+        lightAccumulationTexture = std::make_shared<Texture>();
+        lightAccumulationTexture->create(viewport.size.x(), viewport.size.y(), GL_RGBA, GL_RGBA16F, GL_HALF_FLOAT);
+        lightAccumulationBuffer.attachTexture(lightAccumulationTexture);
+
+        lightAccumulationBuffer.drawTo({0});
+        lightAccumulationBuffer.check();
+        lightAccumulationBuffer.unbind();
+    }
+
+    Resize(viewport.size.x(), viewport.size.y());
 
     SAIGA_ASSERT(rendering);
 
@@ -53,7 +65,7 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
 
     setViewPort(viewport);
 
-    target_framebuffer->bind();
+    lightAccumulationBuffer.bind();
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glDisable(GL_BLEND);
@@ -63,15 +75,24 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // forward pass with lighting
+    lighting.ComputeCullingAndStatistics(camera);
     lighting.initRender();
     lighting.ComputeCullingAndStatistics(camera);
 
+    lighting.cluster(camera, viewport);
     {
         auto tim = timer->Measure("Forward + Shade");
         renderingInterface->render(camera, RenderPass::Forward);
+        glDepthFunc(GL_LESS);
     }
     lighting.render(camera, viewport);
+    lightAccumulationBuffer.unbind();
 
+    {
+        auto tim = timer->Measure("Tone Mapping");
+        tone_mapper.MapLinear(lightAccumulationTexture.get());
+        tone_mapper.Map(lightAccumulationTexture.get(), target_framebuffer->getTextureColor(0).get());
+    }
 
 
     assert_no_glerror();
@@ -85,18 +106,40 @@ void ForwardRenderer::Resize(int windowWidth, int windowHeight)
         // -> Skip resize
         return;
     }
+
+    this->renderWidth  = windowWidth;
+    this->renderHeight = windowHeight;
+    std::cout << "Resizing Window to : " << windowWidth << "," << windowHeight << std::endl;
+    std::cout << "Framebuffer size: " << renderWidth << " " << renderHeight << std::endl;
+
+
     lighting.resize(windowWidth, windowHeight);
+    lightAccumulationBuffer.resize(windowWidth, windowHeight);
 }
 
 void ForwardRenderer::renderImgui()
 {
+    lighting.renderImGui();
+
+    if (!should_render_imgui) return;
+
+    if (!editor_gui.enabled)
+    {
+        int w = 340;
+        int h = 240;
+        ImGui::SetNextWindowPos(ImVec2(340, outputHeight - h), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_FirstUseEver);
+    }
+
     ImGui::Begin("Forward Renderer", &should_render_imgui);
+
     ImGui::Checkbox("wireframe", &params.wireframe);
     ImGui::Checkbox("Cull Lights", &cullLights);
+    ImGui::Checkbox("Depth Prepass", &depthPrepass);
 
     ImGui::Separator();
 
-    ImGui::Checkbox("Show Lighting UI", &showLightingImgui);
+    tone_mapper.imgui();
 
     ImGui::End();
 }

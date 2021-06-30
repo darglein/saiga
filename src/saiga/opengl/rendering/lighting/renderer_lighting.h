@@ -42,13 +42,6 @@ struct RendererLightingShaderNames
 
 namespace uber
 {
-struct LightData
-{
-    std::vector<PointLight::ShaderData> pointLights;
-    std::vector<SpotLight::ShaderData> spotLights;
-    std::vector<DirectionalLight::ShaderData> directionalLights;
-};
-
 struct LightInfo
 {
     int pointLightCount;
@@ -69,6 +62,10 @@ struct LightInfo
 #define LIGHT_CLUSTER_LIST_BINDING_POINT 8
 #define LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT 9
 
+#define GPU_LIGHT_CLUSTER_DATA_BUFFER_BINDING_POINT 10
+#define GPU_LIGHT_CLUSTER_CLUSTER_STRUCTURES_BINDING_POINT 11
+
+class Clusterer;
 class SAIGA_OPENGL_API RendererLighting : public LightManager
 {
    public:
@@ -103,7 +100,9 @@ class SAIGA_OPENGL_API RendererLighting : public LightManager
 
     virtual void renderImGui();
 
-    virtual void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights);
+    virtual void setClusterType(int tp){};
+
+    virtual std::shared_ptr<Clusterer> getClusterer() { return nullptr; };
 
 
    public:
@@ -131,11 +130,6 @@ class SAIGA_OPENGL_API RendererLighting : public LightManager
     GLTimerSystem* timer;
 
     ShadowManager shadowManager;
-
-
-    int maximumNumberOfDirectionalLights = 256;
-    int maximumNumberOfPointLights       = 256;
-    int maximumNumberOfSpotLights        = 256;
 
     TemplatedShaderStorageBuffer<PointLight::ShaderData> point_light_data;
     TemplatedShaderStorageBuffer<SpotLight::ShaderData> spot_light_data;

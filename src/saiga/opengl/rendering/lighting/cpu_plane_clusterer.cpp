@@ -11,7 +11,10 @@
 
 namespace Saiga
 {
-CPUPlaneClusterer::CPUPlaneClusterer(GLTimerSystem* timer, ClustererParameters _params) : Clusterer(timer, _params) {}
+CPUPlaneClusterer::CPUPlaneClusterer(GLTimerSystem* timer, const ClustererParameters& _params) : Clusterer(timer, _params)
+{
+    itemList.resize(1);
+}
 
 CPUPlaneClusterer::~CPUPlaneClusterer() {}
 
@@ -23,352 +26,424 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     if (clustersDirty) buildClusters(cam);
 
-    lightAssignmentTimer.start();
+    int itemCount = 0;
 
-    for (int c = 0; c < clusterBuffer.clusterList.size(); ++c)
     {
-        clusterCache[c].clear();
+        lightAssignmentTimer.start();
+
+        for (int c = 0; c < clusterList.size(); ++c)
+        {
+            clusterCache[c].clear();
+            clusterCache[c].push_back(0);  // PL Count
+        }
+
+        int maxDepthCluster = planesZ.size() - 2;
+
+        if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
+        if (!params.SAT)
+        {
+            for (int i = 0; i < pointLightCount; ++i)
+            {
+                LightBoundingSphere& plc = lightsClusterData[i];
+                vec3 sphereCenter          = cam->WorldToView(plc.world_center);
+                clusterLoop(sphereCenter, plc.radius, i, true, itemCount);
+            }
+            for (int i = pointLightCount; i < lightsClusterData.size(); ++i)
+            {
+                LightBoundingSphere& slc = lightsClusterData[i];
+                vec3 sphereCenter         = cam->WorldToView(slc.world_center);
+                clusterLoop(sphereCenter, slc.radius, i, false, itemCount);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < pointLightCount; ++i)
+            {
+                auto& cData        = lightsClusterData[i];
+                vec3 sphereCenter  = cam->WorldToView(cData.world_center);
+                float sphereRadius = cData.radius;
+                Sphere sphere(sphereCenter, sphereRadius);
+
+                for (int x = 0; x < planesX.size() - 1; ++x)
+                {
+                    for (int y = 0; y < planesY.size() - 1; ++y)
+                    {
+                        for (int z = 0; z < planesZ.size() - 1; ++z)
+                        {
+                            int tileIndex = getTileIndex(x, y, z);
+
+                            const Frustum& fr = debugFrusta[tileIndex];
+
+                            if (fr.intersectSAT(sphere))
+                            {
+                                clusterCache[tileIndex].push_back(i);
+                                clusterCache[tileIndex][0]++;
+                                itemCount++;
+                            }
+                        }
+                    }
+                }
+            }
+            for (int i = pointLightCount; i < lightsClusterData.size(); ++i)
+            {
+                auto& cData        = lightsClusterData[i];
+                vec3 sphereCenter  = cam->WorldToView(cData.world_center);
+                float sphereRadius = cData.radius;
+                Sphere sphere(sphereCenter, sphereRadius);
+
+                for (int x = 0; x < planesX.size() - 1; ++x)
+                {
+                    for (int y = 0; y < planesY.size() - 1; ++y)
+                    {
+                        for (int z = 0; z < planesZ.size() - 1; ++z)
+                        {
+                            int tileIndex = getTileIndex(x, y, z);
+
+                            const Frustum& fr = debugFrusta[tileIndex];
+
+                            if (fr.intersectSAT(sphere))
+                            {
+                                clusterCache[tileIndex].push_back(i);
+                                itemCount++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        bool adaptSize = false;
+        if (itemCount > itemList.size())
+        {
+            adaptSize = true;
+            do
+            {
+                itemList.resize(itemList.size() * 2);
+            } while (itemCount > itemList.size());
+        }
+        if (itemCount < itemList.size() * 0.5 && itemList.size() > 2)
+        {
+            adaptSize = true;
+            do
+            {
+                itemList.resize(itemList.size() / 2);
+            } while (itemCount < itemList.size() * 0.5 && itemList.size() > 2);
+        }
+
+        if (adaptSize)
+        {
+            auto tim = timer->Measure("Info Update");
+
+            clusterInfoBuffer.itemListCount = itemList.size();
+            clusterInfoBuffer.tileDebug     = screenSpaceDebug ? itemList.size() : 0;
+            clusterInfoBuffer.splitDebug    = splitDebug ? 1 : 0;
+
+            int itemListSize = sizeof(ClusterItem) * itemList.size();
+            int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+            SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
+
+            infoBuffer.update(clusterInfoBuffer);
+        }
+
+        int globalOffset = 0;
+
+        for (int c = 0; c < clusterCache.size(); ++c)
+        {
+            auto cl             = clusterCache[c];
+            Cluster& gpuCluster = clusterList.at(c);
+
+            gpuCluster.offset = globalOffset;
+            SAIGA_ASSERT(gpuCluster.offset < itemList.size(), "Too many items!");
+            gpuCluster.plCount = cl[0];
+            gpuCluster.slCount = cl.size() - 1 - cl[0];
+            globalOffset += gpuCluster.plCount;
+            globalOffset += gpuCluster.slCount;
+            if (cl.size() < 2)
+            {
+                continue;
+            }
+
+            memcpy(&(itemList[gpuCluster.offset]), &cl[1], (cl.size() - 1) * sizeof(ClusterItem));
+
+            if (lightsDebug && updateLightsDebug && (gpuCluster.plCount > 0 || gpuCluster.slCount > 0))
+            {
+                const auto& dbg = debugFrusta[c];
+                PointVertex v;
+                v.color = vec3(1, 1, 1);
+
+                v.position = dbg.vertices[2];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[0];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[1];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[3];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[2];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[6];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[4];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[5];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[7];
+                lightClustersDebug.lines.push_back(v);
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[6];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[2];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[6];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[0];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[4];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[3];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[7];
+                lightClustersDebug.lines.push_back(v);
+
+                v.position = dbg.vertices[1];
+                lightClustersDebug.lines.push_back(v);
+                v.position = dbg.vertices[5];
+                lightClustersDebug.lines.push_back(v);
+            }
+        }
+
+        if (lightsDebug && updateLightsDebug)
+        {
+            lightClustersDebug.lineWidth = 3;
+
+            lightClustersDebug.setModelMatrix(cam->getModelMatrix());  // is inverse view.
+            lightClustersDebug.translateLocal(vec3(0, 0, -0.0001f));
+#if 0
+        lightClustersDebug.setPosition(make_vec4(0));
+        lightClustersDebug.translateGlobal(vec3(0, 6, 0));
+        lightClustersDebug.setScale(make_vec3(0.33f));
+#endif
+            lightClustersDebug.calculateModel();
+            lightClustersDebug.updateBuffer();
+            updateLightsDebug = false;
+        }
+
+        lightAssignmentTimer.stop();
+        cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
+        timerIndex                     = (timerIndex + 1) % 100;
     }
 
-    int itemCount       = 0;
+    {
+        auto tim            = timer->Measure("clusterupdate");
+        if (clusterList.size() > clusterListBuffer.Size())
+        {
+            clusterListBuffer.create(clusterList, GL_DYNAMIC_DRAW);
+            clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
+        }
+        else
+        {
+            clusterListBuffer.update(clusterList);
+        }
+
+        if (itemList.size() > itemListBuffer.Size())
+        {
+            itemListBuffer.create(itemList, GL_DYNAMIC_DRAW);
+            itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+        }
+        else
+        {
+            itemListBuffer.update(itemList);
+        }
+    }
+    assert_no_glerror();
+}
+
+void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int index, bool pl, int& itemCount)
+{
     int maxDepthCluster = planesZ.size() - 2;
 
-    if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
-    if (!SAT)
+    int x0 = 0, x1 = planesX.size() - 1;
+    int y0 = 0, y1 = planesY.size() - 1;
+    int z0 = 0, z1 = planesZ.size() - 1;
+
+    int centerOutsideZ = 0;
+    int centerOutsideY = 0;
+
+    while (z0 <= z1 && planesZ[z0].distance(sphereCenter) >= sphereRadius)
     {
-        for (int i = 0; i < pointLightsClusterData.size(); ++i)
+        z0++;
+    }
+    if (--z0 < 0 && planesZ[0].distance(sphereCenter) < 0)
+    {
+        centerOutsideZ--;  // Center is behind camera far plane.
+    }
+    z0 = std::max(0, z0);
+    while (z1 >= z0 && -planesZ[z1].distance(sphereCenter) >= sphereRadius)
+    {
+        --z1;
+    }
+    if (++z1 > (int)planesZ.size() - 1 && planesZ[(int)planesZ.size() - 1].distance(sphereCenter) > 0)
+    {
+        centerOutsideZ++;  // Center is in front of camera near plane.
+    }
+    z1 = std::min(z1, (int)planesZ.size() - 1);
+    if (z0 >= z1)
+    {
+        return;
+    }
+
+
+    while (y0 <= y1 && planesY[y0].distance(sphereCenter) >= sphereRadius)
+    {
+        y0++;
+    }
+    if (--y0 < 0 && planesY[0].distance(sphereCenter) < 0)
+    {
+        centerOutsideY--;  // Center left outside frustum.
+    }
+    y0 = std::max(0, y0);
+    while (y1 >= y0 && -planesY[y1].distance(sphereCenter) >= sphereRadius)
+    {
+        --y1;
+    }
+    if (++y1 > (int)planesY.size() - 1 && planesY[(int)planesY.size() - 1].distance(sphereCenter) > 0)
+    {
+        centerOutsideY++;  // Center right outside frustum.
+    }
+    y1 = std::min(y1, (int)planesY.size() - 1);
+    if (y0 >= y1)
+    {
+        return;
+    }
+
+
+    while (x0 <= x1 && planesX[x0].distance(sphereCenter) >= sphereRadius)
+    {
+        x0++;
+    }
+    x0 = std::max(0, --x0);
+    while (x1 >= x0 && -planesX[x1].distance(sphereCenter) >= sphereRadius)
+    {
+        --x1;
+    }
+    x1 = std::min(++x1, (int)planesX.size() - 1);
+    if (x0 >= x1)
+    {
+        return;
+    }
+
+
+
+    if (!params.refinement)
+    {
+        // This is without the sphere refinement
+        for (int z = z0; z < z1; ++z)
         {
-            PointLightClusterData& plc = pointLightsClusterData[i];
-            vec3 sphereCenter          = cam->WorldToView(plc.world_center);
-            float sphereRadius         = plc.radius;
-
-            int x0 = 0, x1 = planesX.size() - 1;
-            int y0 = 0, y1 = planesY.size() - 1;
-            int z0 = 0, z1 = planesZ.size() - 1;
-
-            int centerOutsideZ = 0;
-            int centerOutsideY = 0;
-
-
-            while (z0 < z1 && planesZ[z0].distance(sphereCenter) >= sphereRadius)
+            for (int y = y0; y < y1; ++y)
             {
-                z0++;
-            }
-            if (--z0 < 0 && planesZ[0].distance(sphereCenter) < 0)
-            {
-                centerOutsideZ--;  // Center is behind camera far plane.
-            }
-            z0 = std::max(0, z0);
-            while (z1 >= z0 && -planesZ[z1].distance(sphereCenter) >= sphereRadius)
-            {
-                --z1;
-            }
-            if (++z1 > (int)planesZ.size() - 1 && planesZ[(int)planesZ.size() - 1].distance(sphereCenter) > 0)
-            {
-                centerOutsideZ++;  // Center is in front of camera near plane.
-            }
-            z1 = std::min(z1, (int)planesZ.size() - 1);
-            if (z0 >= z1)
-            {
-                continue;
-            }
-
-
-            while (y0 < y1 && planesY[y0].distance(sphereCenter) >= sphereRadius)
-            {
-                y0++;
-            }
-            if (--y0 < 0 && planesY[0].distance(sphereCenter) < 0)
-            {
-                centerOutsideY--;  // Center left outside frustum.
-            }
-            y0 = std::max(0, y0);
-            while (y1 >= y0 && -planesY[y1].distance(sphereCenter) >= sphereRadius)
-            {
-                --y1;
-            }
-            if (++y1 > (int)planesY.size() - 1 && planesY[(int)planesY.size() - 1].distance(sphereCenter) > 0)
-            {
-                centerOutsideY++;  // Center right outside frustum.
-            }
-            y1 = std::min(y1, (int)planesY.size() - 1);
-            if (y0 >= y1)
-            {
-                continue;
-            }
-
-
-            while (x0 < x1 && planesX[x0].distance(sphereCenter) >= sphereRadius)
-            {
-                x0++;
-            }
-            x0 = std::max(0, --x0);
-            while (x1 >= x0 && -planesX[x1].distance(sphereCenter) >= sphereRadius)
-            {
-                --x1;
-            }
-            x1 = std::min(++x1, (int)planesX.size() - 1);
-            if (x0 >= x1)
-            {
-                continue;
-            }
-
-
-
-            if (!refinement)
-            {
-                // This is without the sphere refinement
-                for (int z = z0; z < z1; ++z)
+                for (int x = x0; x < x1; ++x)
                 {
-                    for (int y = y0; y < y1; ++y)
-                    {
-                        for (int x = x0; x < x1; ++x)
-                        {
-                            int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
+                    int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
 
-                            clusterCache[tileIndex].push_back(i);
-                            itemCount++;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                if (centerOutsideZ < 0)
-                {
-                    z0 = -(int)planesZ.size() * 2;
-                }
-                if (centerOutsideZ > 0)
-                {
-                    z1 = (int)planesZ.size() * 2;
-                }
-                int cz      = (z0 + z1);
-                int centerZ = cz / 2;
-                if (centerOutsideZ == 0 && cz % 2 == 0)
-                {
-                    float d0 = planesZ[centerZ].distance(sphereCenter);
-                    if (d0 < 1e-5f) centerZ -= 1;
-                }
-
-                if (centerOutsideY < 0)
-                {
-                    y0 = -(int)planesY.size() * 2;
-                }
-                if (centerOutsideY > 0)
-                {
-                    y1 = (int)planesY.size() * 2;
-                }
-                int cy      = (y0 + y1);
-                int centerY = cy / 2;
-                if (centerOutsideY == 0 && cy % 2 == 0)
-                {
-                    float d0 = planesY[centerY].distance(sphereCenter);
-                    if (d0 < 1e-5f) centerY -= 1;
-                }
-
-                Sphere lightSphere(sphereCenter, sphereRadius);
-
-                z0 = std::max(0, z0);
-                z1 = std::min(z1, (int)planesZ.size() - 1);
-                y0 = std::max(0, y0);
-                y1 = std::min(y1, (int)planesY.size() - 1);
-
-                for (int z = z0; z < z1; ++z)
-                {
-                    Sphere zLight = lightSphere;
-                    if (z != centerZ)
-                    {
-                        Plane plane = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
-                        auto circle = plane.intersectingCircle(zLight.pos, zLight.r);
-                        zLight.pos  = circle.first;
-                        zLight.r    = circle.second;
-                        if (zLight.r < 1e-5) continue;
-                    }
-                    for (int y = y0; y < y1; ++y)
-                    {
-                        Sphere yLight = zLight;
-                        if (y != centerY)
-                        {
-                            Plane plane = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
-                            auto circle = plane.intersectingCircle(yLight.pos, yLight.r);
-                            yLight.pos  = circle.first;
-                            yLight.r    = circle.second;
-                            if (yLight.r < 1e-5) continue;
-                        }
-
-
-                        int x = x0;
-                        while (x < x1 && planesX[x].distance(yLight.pos) >= yLight.r) x++;
-                        x      = std::max(x0, --x);
-                        int xs = x1;
-                        while (xs >= x && -planesX[xs].distance(yLight.pos) >= yLight.r) --xs;
-                        xs = std::min(++xs, x1);
-
-                        for (; x < xs; ++x)
-                        {
-                            int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
-
-                            clusterCache[tileIndex].push_back(i);
-                            itemCount++;
-                        }
-                    }
+                    clusterCache[tileIndex].push_back(index);
+                    itemCount++;
+                    if (pl) clusterCache[tileIndex][0]++;
                 }
             }
         }
     }
     else
     {
-        for (int i = 0; i < pointLightsClusterData.size(); ++i)
+        if (centerOutsideZ < 0)
         {
-            auto& cData        = pointLightsClusterData[i];
-            vec3 sphereCenter  = cam->WorldToView(cData.world_center);
-            float sphereRadius = cData.radius;
-            Sphere sphere(sphereCenter, sphereRadius);
+            z0 = -(int)planesZ.size() * 4;
+        }
+        if (centerOutsideZ > 0)
+        {
+            z1 = (int)planesZ.size() * 4;
+        }
+        int cz      = (z0 + z1);
+        int centerZ = cz / 2;
+        if (centerOutsideZ == 0 && cz % 2 == 0)
+        {
+            float d0 = planesZ[centerZ].distance(sphereCenter);
+            if (d0 < 1e-5f) centerZ -= 1;
+        }
 
-            for (int x = 0; x < planesX.size() - 1; ++x)
+        if (centerOutsideY < 0)
+        {
+            y0 = -(int)planesY.size() * 4;
+        }
+        if (centerOutsideY > 0)
+        {
+            y1 = (int)planesY.size() * 4;
+        }
+        int cy      = (y0 + y1);
+        int centerY = cy / 2;
+        if (centerOutsideY == 0 && cy % 2 == 0)
+        {
+            float d0 = planesY[centerY].distance(sphereCenter);
+            if (d0 < 1e-5f) centerY -= 1;
+        }
+
+        Sphere lightSphere(sphereCenter, sphereRadius);
+
+        z0 = std::max(0, z0);
+        z1 = std::min(z1, (int)planesZ.size() - 1);
+        y0 = std::max(0, y0);
+        y1 = std::min(y1, (int)planesY.size() - 1);
+
+        for (int z = z0; z < z1; ++z)
+        {
+            Sphere zLight = lightSphere;
+            if (z != centerZ)
             {
-                for (int y = 0; y < planesY.size() - 1; ++y)
+                Plane plane = (z < centerZ) ? planesZ[z + 1] : planesZ[z].invert();
+                auto circle = plane.intersectingCircle(zLight.pos, zLight.r);
+                zLight.pos  = circle.first;
+                zLight.r    = circle.second;
+                if (zLight.r < 1e-5) continue;
+            }
+            for (int y = y0; y < y1; ++y)
+            {
+                Sphere yLight = zLight;
+                if (y != centerY)
                 {
-                    for (int z = 0; z < planesZ.size() - 1; ++z)
-                    {
-                        int tileIndex = getTileIndex(x, y, z);
+                    Plane plane = (y < centerY) ? planesY[y + 1] : planesY[y].invert();
+                    auto circle = plane.intersectingCircle(yLight.pos, yLight.r);
+                    yLight.pos  = circle.first;
+                    yLight.r    = circle.second;
+                    if (yLight.r < 1e-5) continue;
+                }
 
-                        const Frustum& fr = debugFrusta[tileIndex];
 
-                        if (fr.intersectSAT(sphere))
-                        {
-                            clusterCache[tileIndex].push_back(i);
-                            itemCount++;
-                        }
-                    }
+                int x = x0;
+                while (x < x1 && planesX[x].distance(yLight.pos) >= yLight.r) x++;
+                x      = std::max(x0, --x);
+                int xs = x1;
+                while (xs >= x && -planesX[xs].distance(yLight.pos) >= yLight.r) --xs;
+                xs = std::min(++xs, x1);
+
+                for (; x < xs; ++x)
+                {
+                    int tileIndex = getTileIndex(x, y, maxDepthCluster - z);
+
+                    clusterCache[tileIndex].push_back(index);
+                    itemCount++;
+                    if (pl) clusterCache[tileIndex][0]++;
                 }
             }
         }
     }
-
-    if (itemCount > itemBuffer.itemList.size())
-    {
-        do
-        {
-            avgAllowedItemsPerCluster *= 2;
-            itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        } while (itemCount > itemBuffer.itemList.size());
-
-        clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
-        clusterInfoBuffer.tileDebug     = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
-
-        int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
-        int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-        SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
-
-        itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize);
-
-        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
-    }
-
-    int globalOffset = 0;
-
-    for (int c = 0; c < clusterCache.size(); ++c)
-    {
-        auto cl             = clusterCache[c];
-        cluster& gpuCluster = clusterBuffer.clusterList.at(c);
-
-        gpuCluster.offset  = globalOffset;
-        gpuCluster.plCount = cl.size();
-        gpuCluster.slCount = 0;
-        SAIGA_ASSERT(gpuCluster.offset + gpuCluster.plCount < itemBuffer.itemList.size(), "Too many items!");
-        globalOffset += gpuCluster.plCount;
-
-        memcpy(&(itemBuffer.itemList[gpuCluster.offset]), cl.data(), cl.size() * sizeof(clusterItem));
-
-        if (lightsDebug && updateLightsDebug && gpuCluster.plCount > 0)
-        {
-            const auto& dbg = debugFrusta[c];
-            PointVertex v;
-            v.color = vec3(1, 1, 1);
-
-            v.position = dbg.vertices[2];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[0];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[1];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[3];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[2];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[6];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[4];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[5];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[7];
-            lightClustersDebug.lines.push_back(v);
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[6];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[2];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[6];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[0];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[4];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[3];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[7];
-            lightClustersDebug.lines.push_back(v);
-
-            v.position = dbg.vertices[1];
-            lightClustersDebug.lines.push_back(v);
-            v.position = dbg.vertices[5];
-            lightClustersDebug.lines.push_back(v);
-        }
-    }
-
-    if (lightsDebug && updateLightsDebug)
-    {
-        lightClustersDebug.lineWidth = 2;
-
-        lightClustersDebug.setModelMatrix(cam->getModelMatrix());  // is inverse view.
-        lightClustersDebug.translateLocal(vec3(0, 0, -0.0001f));
-#if 0
-        lightClustersDebug.setPosition(make_vec4(0));
-        lightClustersDebug.translateGlobal(vec3(0, 6, 0));
-        lightClustersDebug.setScale(make_vec3(0.33f));
-#endif
-        lightClustersDebug.calculateModel();
-        lightClustersDebug.updateBuffer();
-        updateLightsDebug = false;
-    }
-
-    lightAssignmentTimer.stop();
-
-    {
-        auto tim            = timer->Measure("clusterupdate");
-        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-        clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
-
-        int itemListSize = sizeof(clusterItem) * itemCount;
-        // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
-        itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
-
-        infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
-        clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
-        itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
-    }
-    assert_no_glerror();
 }
 
 void CPUPlaneClusterer::buildClusters(Camera* cam)
@@ -379,7 +454,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     mat4 invProjection(inverse(cam->proj));
 
 
-    clusterInfoBuffer.screenSpaceTileSize = screenSpaceTileSize;
+    clusterInfoBuffer.screenSpaceTileSize = params.screenSpaceTileSize;
     clusterInfoBuffer.screenWidth         = width;
     clusterInfoBuffer.screenHeight        = height;
 
@@ -388,23 +463,32 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
 
     float gridCount[3];
-    gridCount[0] = std::ceil((float)width / (float)screenSpaceTileSize);
-    gridCount[1] = std::ceil((float)height / (float)screenSpaceTileSize);
-    if (clusterThreeDimensional)
-        gridCount[2] = depthSplits + 1;
+    gridCount[0] = std::ceil((float)width / (float)params.screenSpaceTileSize);
+    gridCount[1] = std::ceil((float)height / (float)params.screenSpaceTileSize);
+    if (params.clusterThreeDimensional)
+        gridCount[2] = params.depthSplits + 1;
     else
         gridCount[2] = 1;
 
     clusterInfoBuffer.clusterX = (int)gridCount[0];
     clusterInfoBuffer.clusterY = (int)gridCount[1];
 
-    clusterInfoBuffer.scale = gridCount[2] / log2(camFar / camNear);
-    clusterInfoBuffer.bias  = -(gridCount[2] * log2(camNear) / log2(camFar / camNear));
+    // special near
+    float specialNearDepth               = (camFar - camNear) * params.specialNearDepthPercent;
+    bool useSpecialNear                  = params.useSpecialNearCluster && specialNearDepth > 0.0f && gridCount[2] > 1;
+    clusterInfoBuffer.specialNearCluster = useSpecialNear ? 1 : 0;
+    specialNearDepth                     = useSpecialNear ? specialNearDepth : 0.0f;
+    clusterInfoBuffer.specialNearDepth   = specialNearDepth;
+    float specialGridCount               = gridCount[2] - (useSpecialNear ? 1 : 0);
+
+    clusterInfoBuffer.scale = specialGridCount / log2(camFar / (camNear + specialNearDepth));
+    clusterInfoBuffer.bias =
+        -(specialGridCount * log2(camNear + specialNearDepth) / log2(camFar / (camNear + specialNearDepth)));
 
     // Calculate Cluster Planes in View Space.
     int clusterCount = (int)(gridCount[0] * gridCount[1] * gridCount[2]);
-    clusterBuffer.clusterList.clear();
-    clusterBuffer.clusterList.resize(clusterCount);
+    clusterList.clear();
+    clusterList.resize(clusterCount);
     clusterInfoBuffer.clusterListCount = clusterCount;
     clusterCache.clear();
     clusterCache.resize(clusterCount);
@@ -423,14 +507,14 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
     // const vec3 eyeView(0.0); Not required because it is zero.
     PointVertex v;
 
-    v.color = vec3(0.5, 0.125, 0);
+    v.color = vec3(1.0, 0.75, 0);
 
     vec3 p0, p1, p2;
 
     for (int x = 0; x < planesX.size(); ++x)
     {
-        vec4 screenSpaceBL(x * screenSpaceTileSize, 0, -1.0, 1.0);       // Bottom left
-        vec4 screenSpaceTL(x * screenSpaceTileSize, height, -1.0, 1.0);  // Top left
+        vec4 screenSpaceBL(x * params.screenSpaceTileSize, 0, -1.0, 1.0);       // Bottom left
+        vec4 screenSpaceTL(x * params.screenSpaceTileSize, height, -1.0, 1.0);  // Top left
 
         vec3 viewBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
         vec3 viewTL(make_vec3(viewPosFromScreenPos(screenSpaceTL, invProjection)));
@@ -450,8 +534,8 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
     for (int y = 0; y < planesY.size(); ++y)
     {
-        vec4 screenSpaceBL(0, y * screenSpaceTileSize, -1.0, 1.0);      // Bottom left
-        vec4 screenSpaceBR(width, y * screenSpaceTileSize, -1.0, 1.0);  // Bottom Right
+        vec4 screenSpaceBL(0, y * params.screenSpaceTileSize, -1.0, 1.0);      // Bottom left
+        vec4 screenSpaceBR(width, y * params.screenSpaceTileSize, -1.0, 1.0);  // Bottom Right
 
         vec3 viewBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
         vec3 viewBR(make_vec3(viewPosFromScreenPos(screenSpaceBR, invProjection)));
@@ -478,14 +562,26 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
         // Doom Depth Split, because it looks good.
         // float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
-        float tileFar = -camNear * pow(camFar / camNear, (gridCount[2] - (float)z) / gridCount[2]);
+        float tileFar;
+        if (useSpecialNear && z == planesZ.size() - 1)
+        {
+            tileFar = -camNear;
+        }
+        else
+        {
+            int calcZ = useSpecialNear ? (gridCount[2] - (float)z) - 1 : (gridCount[2] - (float)z);
+
+            // Doom Depth Split, because it looks good.
+            tileFar = -(camNear + specialNearDepth) *
+                      pow(camFar / (camNear + specialNearDepth), (float)calcZ / specialGridCount);
+        }
 
         vec3 viewFarClusterBL(zeroZIntersection(viewNearPlaneBL, tileFar));
 
         planesZ[z] = Plane(viewFarClusterBL, vec3(0, 0, 1));
     }
 
-    if (SAT || clusterDebug || lightsDebug)
+    if (params.SAT || clusterDebug || lightsDebug)
     {
         debugFrusta.resize(clusterCount);
         for (int x = 0; x < (int)gridCount[0]; ++x)
@@ -494,16 +590,29 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
             {
                 for (int z = 0; z < (int)gridCount[2]; ++z)
                 {
-                    vec4 screenSpaceBL(x * screenSpaceTileSize, y * screenSpaceTileSize, -1.0, 1.0);  // Bottom left
-                    vec4 screenSpaceTL(x * screenSpaceTileSize, (y + 1) * screenSpaceTileSize, -1.0, 1.0);  // Top left
-                    vec4 screenSpaceBR((x + 1) * screenSpaceTileSize, y * screenSpaceTileSize, -1.0,
+                    vec4 screenSpaceBL(x * params.screenSpaceTileSize, y * params.screenSpaceTileSize, -1.0, 1.0);  // Bottom left
+                    vec4 screenSpaceTL(x * params.screenSpaceTileSize, (y + 1) * params.screenSpaceTileSize, -1.0, 1.0);  // Top left
+                    vec4 screenSpaceBR((x + 1) * params.screenSpaceTileSize, y * params.screenSpaceTileSize, -1.0,
                                        1.0);  // Bottom Right
-                    vec4 screenSpaceTR((x + 1) * screenSpaceTileSize, (y + 1) * screenSpaceTileSize, -1.0,
+                    vec4 screenSpaceTR((x + 1) * params.screenSpaceTileSize, (y + 1) * params.screenSpaceTileSize, -1.0,
                                        1.0);  // Top Right
 
-                    // Doom Depth Split, because it looks good.
-                    float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
-                    float tileFar  = -camNear * pow(camFar / camNear, (float)(z + 1) / gridCount[2]);
+                    float tileNear;
+                    float tileFar;
+                    if (useSpecialNear && z == 0)
+                    {
+                        tileNear = -camNear;
+                        tileFar  = -(camNear + specialNearDepth);
+                    }
+                    else
+                    {
+                        int calcZ = useSpecialNear ? z - 1 : z;
+                        // Doom Depth Split, because it looks good.
+                        tileNear = -(camNear + specialNearDepth) *
+                                   pow(camFar / (camNear + specialNearDepth), (float)calcZ / specialGridCount);
+                        tileFar = -(camNear + specialNearDepth) *
+                                  pow(camFar / (camNear + specialNearDepth), (float)(calcZ + 1) / specialGridCount);
+                    }
 
                     vec3 viewNearPlaneBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
                     vec3 viewNearPlaneTL(make_vec3(viewPosFromScreenPos(screenSpaceTL, invProjection)));
@@ -635,7 +744,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
 
     if (clusterDebug && updateDebug)
     {
-        debugCluster.lineWidth = 1;
+        debugCluster.lineWidth = 2;
 
         debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
         debugCluster.translateLocal(vec3(0, 0, -0.0001f));
@@ -649,49 +758,42 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         updateDebug = false;
     }
     {
-        auto tim                    = timer->Measure("info");
-        clusterInfoBuffer.tileDebug = screenSpaceDebug ? avgAllowedItemsPerCluster : 0;
+        auto tim                     = timer->Measure("Info Update");
+        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? itemList.size() : 0;
+        clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
-        itemBuffer.itemList.clear();
-        itemBuffer.itemList.resize(avgAllowedItemsPerCluster * clusterInfoBuffer.clusterListCount);
-        clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
+        itemList.clear();
+        itemList.resize(1);
+        clusterInfoBuffer.itemListCount = itemList.size();
 
-        int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
-        int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-        SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
+        int itemListSize = sizeof(ClusterItem) * itemList.size();
+        int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+        SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
 
-        itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
-
-        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-        clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
-
-        infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
+        infoBuffer.update(clusterInfoBuffer);
     }
 }
 
-bool CPUPlaneClusterer::fillImGui()
+void CPUPlaneClusterer::imgui()
 {
-    bool changed = Clusterer::fillImGui();
-
-    changed |= ImGui::Checkbox("refinement", &refinement);
-
-    ImGui::Text("avgAllowedItemsPerCluster: %d", avgAllowedItemsPerCluster);
-
-    ImGui::Text("ItemListByteSize: %d", int(itemBuffer.itemList.size() * sizeof(clusterItem)));
-
-    if (ImGui::Checkbox("lightsDebug", &lightsDebug) && lightsDebug)
+    Clusterer::imgui();
+    if (ImGui::Begin("Clusterer"))
     {
-        updateLightsDebug = true;
-        changed           = true;
+        clustersDirty |= ImGui::Checkbox("refinement", &params.refinement);
+
+        ImGui::Text("ItemListSize: %d KB", int(itemList.size() * sizeof(ClusterItem) * 0.001f));
+
+        if (ImGui::Checkbox("lightsDebug", &lightsDebug) && lightsDebug)
+        {
+            updateLightsDebug = true;
+            clustersDirty     = true;
+        }
+        if (lightsDebug)
+            if (ImGui::Button("updateLightsDebug")) updateLightsDebug = true;
+
+        clustersDirty |= ImGui::Checkbox("SAT Debug", &params.SAT);
     }
-    if (lightsDebug)
-        if (ImGui::Button("updateLightsDebug")) updateLightsDebug = true;
-
-    changed |= ImGui::Checkbox("SAT Debug", &SAT);
-
-
-
-    return changed;
+    ImGui::End();
 }
 
 }  // namespace Saiga

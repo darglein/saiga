@@ -19,6 +19,7 @@ void ColoredAsset::loadDefaultShaders()
 
 ColoredAsset::ColoredAsset(const UnifiedMesh& model) : ColoredAsset()
 {
+    SAIGA_ASSERT(model.HasColor());
     unified_buffer = std::make_shared<UnifiedMeshBuffer>(model);
 }
 
@@ -145,6 +146,10 @@ void TexturedAsset::RenderNoShaderBind(MVPTextureShader* shader)
 
         SAIGA_ASSERT(!mat.texture_diffuse.empty());
         auto& tex = textures[texture_name_to_id[mat.texture_diffuse]];
+        shader->uploadTexture(tex.get());
+        buffer.draw(tg.numFaces * 3, tg.startFace * 3);
+    }
+    buffer.unbind();
 
         SAIGA_ASSERT(tex);
         if (tex)

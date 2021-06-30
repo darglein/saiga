@@ -340,5 +340,23 @@ UnifiedModel& UnifiedModel::ComputeColor()
     return *this;
 }
 
+UnifiedModel& UnifiedModel::SetVertexColor(const vec4& color)
+{
+    for (auto& m : mesh)
+    {
+        m.SetVertexColor(color);
+    }
+    return *this;
+}
+AABB UnifiedModel::BoundingBox() const
+{
+    AABB combined;
+    combined.makeNegative();
+    for (auto& m : mesh)
+    {
+        combined.growBox(m.BoundingBox());
+    }
+    return combined;
+}
 
 }  // namespace Saiga

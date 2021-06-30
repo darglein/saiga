@@ -64,7 +64,7 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
     {
         vec4 colorDiffuse;   // rgb intensity
         vec4 colorSpecular;  // rgb specular intensity
-        vec4 direction;      // xyz, w unused
+        vec4 direction;      // xyz, w ambient intensity
     };
 
     inline ShaderData GetShaderData()
@@ -72,7 +72,7 @@ class SAIGA_OPENGL_API DirectionalLight : public LightBase
         ShaderData data;
         data.colorDiffuse  = make_vec4(colorDiffuse, intensity);
         data.colorSpecular = make_vec4(colorSpecular, intensity_specular);
-        data.direction     = make_vec4(direction, 0.0f);
+        data.direction     = make_vec4(direction, ambientIntensity);
         return data;
     }
 

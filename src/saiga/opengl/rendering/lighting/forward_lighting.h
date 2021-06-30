@@ -9,7 +9,7 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/window/Interfaces.h"
-#include "saiga/opengl/rendering/lighting/light_clusterer.h"
+#include "saiga/opengl/rendering/lighting/clusterer.h"
 #include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/shaderStorageBuffer.h"
@@ -31,12 +31,23 @@ class SAIGA_OPENGL_API MVPColorShaderFL : public MVPColorShader
     }
 };
 
+class SAIGA_OPENGL_API MVPTextureShaderFL : public MVPTextureShader
+{
+   public:
+    GLint location_lightInfoBlock;
+
+    virtual void checkUniforms() override
+    {
+        MVPTextureShader::checkUniforms();
+
+        location_lightInfoBlock = getUniformBlockLocation("lightInfoBlock");
+        setUniformBlockBinding(location_lightInfoBlock, LIGHT_INFO_BINDING_POINT);
+    }
+};
+
 class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 {
    public:
-    ShaderStorageBuffer lightDataBufferPoint;
-    ShaderStorageBuffer lightDataBufferSpot;
-    ShaderStorageBuffer lightDataBufferDirectional;
 
     UniformBuffer lightInfoBuffer;
 
@@ -44,16 +55,25 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
     ForwardLighting& operator=(ForwardLighting& l) = delete;
     ~ForwardLighting();
 
+    void init(int _width, int _height, bool _useTimers) override;
+
+    void resize(int _width, int _height) override;
+
     void initRender() override;
+
+    void cluster(Camera* cam, const ViewPort& viewPort);
 
     void render(Camera* cam, const ViewPort& viewPort) override;
 
     void renderImGui() override;
 
-    void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights) override;
+    void setClusterType(int tp) override;
+
+    std::shared_ptr<Clusterer> getClusterer() override { return lightClusterer; };
 
    public:
     std::shared_ptr<Clusterer> lightClusterer;
+    int clustererType = 0;
 };
 
 }  // namespace Saiga

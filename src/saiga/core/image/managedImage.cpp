@@ -336,6 +336,8 @@ vec4 Image::texture(vec2 uv)
         case ImageType::UC4:
             return getImageView<ucvec4>().interUVGL(uv(0), uv(1)).cast<float>() * (1.f / 255.f);
             break;
+        default:
+            SAIGA_EXIT_ERROR("texture not implemented for this image type");
     }
     return Saiga::vec4(0, 0, 0, 0);
 }

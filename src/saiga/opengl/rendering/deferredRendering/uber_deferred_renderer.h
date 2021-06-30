@@ -10,16 +10,13 @@
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/rendering/lighting/uber_deferred_lighting.h"
 #include "saiga/opengl/rendering/renderer.h"
+#include "saiga/opengl/rendering/deferredRendering/tone_mapper.h"
 
 
 namespace Saiga
 {
 struct SAIGA_OPENGL_API UberDeferredRenderingParameters : public RenderingParameters
 {
-    int maximumNumberOfDirectionalLights = 256;
-    int maximumNumberOfPointLights       = 256;
-    int maximumNumberOfSpotLights        = 256;
-
     /**
      * When true the depth of the gbuffer is blitted to the default framebuffer.
      */
@@ -71,23 +68,6 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
     void renderGL(Framebuffer* target_framebuffer, ViewPort viewport, Camera* camera) override;
     void renderImgui() override;
 
-
-
-    inline void setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
-    {
-        // TODO Paul: Refactor!
-        params.maximumNumberOfDirectionalLights = maxDirectionalLights;
-        params.maximumNumberOfPointLights       = maxPointLights;
-        params.maximumNumberOfSpotLights        = maxSpotLights;
-
-        params.maximumNumberOfDirectionalLights = std::max(0, params.maximumNumberOfDirectionalLights);
-        params.maximumNumberOfPointLights       = std::max(0, params.maximumNumberOfPointLights);
-        params.maximumNumberOfSpotLights        = std::max(0, params.maximumNumberOfSpotLights);
-
-        lighting.setLightMaxima(params.maximumNumberOfDirectionalLights, params.maximumNumberOfPointLights,
-                                params.maximumNumberOfSpotLights);
-    }
-
     void Resize(int outputWidth, int outputHeight);
 
     int getRenderWidth() { return renderWidth; }
@@ -96,11 +76,11 @@ class SAIGA_OPENGL_API UberDeferredRenderer : public OpenGLRenderer
    protected:
     int renderWidth, renderHeight;
     GBuffer gbuffer;
+    ToneMapper tone_mapper;
 
     std::shared_ptr<MVPTextureShader> blitDepthShader;
     UnifiedMeshBuffer quadMesh;
     std::shared_ptr<Texture> blackDummyTexture;
-    bool showLightingImgui = false;
     bool cullLights        = false;
 
 
