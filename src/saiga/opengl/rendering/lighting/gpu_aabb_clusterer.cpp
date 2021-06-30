@@ -58,10 +58,12 @@ void GPUAABBClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewPo
     {
         auto tim = timer->Measure("GPU Light Assignment");
 
-        lightAssignmentShader->bind();
-        lightAssignmentShader->dispatchCompute(gridCount[0], gridCount[1], gridCount[2]);
-        lightAssignmentShader->memoryBarrier(MemoryBarrierMask::GL_BUFFER_UPDATE_BARRIER_BIT);
-        lightAssignmentShader->unbind();
+        if(lightAssignmentShader->bind())
+        {
+            lightAssignmentShader->dispatchCompute(gridCount[0], gridCount[1], gridCount[2]);
+            lightAssignmentShader->memoryBarrier(MemoryBarrierMask::GL_BUFFER_UPDATE_BARRIER_BIT);
+            lightAssignmentShader->unbind();
+        }
     }
 
     assert_no_glerror();

@@ -20,8 +20,6 @@ using namespace uber;
 
 ForwardLighting::ForwardLighting(GLTimerSystem* timer) : RendererLighting(timer)
 {
-    int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 }
 

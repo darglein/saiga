@@ -91,7 +91,6 @@ void DeferredLighting::resize(int _width, int _height)
 {
     RendererLighting::resize(_width, _height);
     lightAccumulationBuffer.resize(_width, _height);
-
 }
 
 void DeferredLighting::initRender()
@@ -163,13 +162,17 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
         if (shadowManager.point_light_shadows)
         {
-            pointLightShadowShader->bind();
-            pointLightShadowShader->upload(7, shadowManager.point_light_shadows.get(), 5);
-            pointLightShadowShader->unbind();
+            if (pointLightShadowShader->bind())
+            {
+                pointLightShadowShader->upload(7, shadowManager.point_light_shadows.get(), 5);
+                pointLightShadowShader->unbind();
+            }
 
-            pointLightVolumetricShader->bind();
-            pointLightVolumetricShader->upload(7, shadowManager.point_light_shadows.get(), 5);
-            pointLightVolumetricShader->unbind();
+            if (pointLightVolumetricShader->bind())
+            {
+                pointLightVolumetricShader->upload(7, shadowManager.point_light_shadows.get(), 5);
+                pointLightVolumetricShader->unbind();
+            }
             shadowManager.shadow_data_point_light.bind(SHADOW_DATA_BINDING_POINT);
         }
 
@@ -186,13 +189,17 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
         if (shadowManager.spot_light_shadows)
         {
-            spotLightShadowShader->bind();
-            spotLightShadowShader->upload(7, shadowManager.spot_light_shadows.get(), 5);
-            spotLightShadowShader->unbind();
+            if (spotLightShadowShader->bind())
+            {
+                spotLightShadowShader->upload(7, shadowManager.spot_light_shadows.get(), 5);
+                spotLightShadowShader->unbind();
+            }
 
-            spotLightVolumetricShader->bind();
-            spotLightVolumetricShader->upload(7, shadowManager.spot_light_shadows.get(), 5);
-            spotLightVolumetricShader->unbind();
+            if (spotLightVolumetricShader->bind())
+            {
+                spotLightVolumetricShader->upload(7, shadowManager.spot_light_shadows.get(), 5);
+                spotLightVolumetricShader->unbind();
+            }
 
             shadowManager.shadow_data_spot_light.bind(SHADOW_DATA_BINDING_POINT);
         }
@@ -233,9 +240,11 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
         if (shadowManager.cascaded_shadows)
         {
-            directionalLightShadowShader->bind();
-            directionalLightShadowShader->upload(9, shadowManager.cascaded_shadows.get(), 6);
-            directionalLightShadowShader->unbind();
+            if (directionalLightShadowShader->bind())
+            {
+                directionalLightShadowShader->upload(9, shadowManager.cascaded_shadows.get(), 6);
+                directionalLightShadowShader->unbind();
+            }
             shadowManager.shadow_data_directional_light.bind(SHADOW_DATA_BINDING_POINT);
         }
 
@@ -285,13 +294,16 @@ void DeferredLighting::postprocessVolumetric()
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
-    volumetricBuffer.bind();
-    volumetricBlurShader->bind();
-    volumetricBlurShader->uploadModel(mat4::Identity());
-    volumetricBlurShader->uploadTexture(volumetricLightTexture.get());
-    directionalLightMesh.bindAndDraw();
-    volumetricBlurShader->unbind();
-    volumetricBuffer.unbind();
+
+    if (volumetricBlurShader->bind())
+    {
+        volumetricBuffer.bind();
+        volumetricBlurShader->uploadModel(mat4::Identity());
+        volumetricBlurShader->uploadTexture(volumetricLightTexture.get());
+        directionalLightMesh.bindAndDraw();
+        volumetricBuffer.unbind();
+        volumetricBlurShader->unbind();
+    }
 
 
 
@@ -392,26 +404,28 @@ void DeferredLighting::renderDirectionalLights(Camera* cam, const ViewPort& vp, 
 
     std::shared_ptr<DirectionalLightShader> shader = (shadow) ? directionalLightShadowShader : directionalLightShader;
     SAIGA_ASSERT(shader);
-    shader->bind();
-    shader->DeferredShader::uploadFramebuffer(&gbuffer);
-    shader->uploadScreenSize(vp.getVec4());
-    shader->uploadSsaoTexture(ssaoTexture);
-
-
-
-    directionalLightMesh.bind();
-    for (auto& obj : active_directional_lights)
+    if(shader->bind())
     {
-        bool render =
-            (shadow && obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->castShadows);
-        if (render)
+        shader->DeferredShader::uploadFramebuffer(&gbuffer);
+        shader->uploadScreenSize(vp.getVec4());
+        shader->uploadSsaoTexture(ssaoTexture);
+
+
+
+        directionalLightMesh.bind();
+        for (auto& obj : active_directional_lights)
         {
-            shader->SetUniforms(obj, cam);
-            directionalLightMesh.draw();
+            bool render =
+                (shadow && obj->shouldCalculateShadowMap()) || (!shadow && obj->shouldRender() && !obj->castShadows);
+            if (render)
+            {
+                shader->SetUniforms(obj, cam);
+                directionalLightMesh.draw();
+            }
         }
+        directionalLightMesh.unbind();
+        shader->unbind();
     }
-    directionalLightMesh.unbind();
-    shader->unbind();
 }
 
 
@@ -454,12 +468,13 @@ void DeferredLighting::applyVolumetricLightBuffer()
     lightAccumulationBuffer.drawTo({0});
 
 
-    textureShader->bind();
-
-    textureShader->uploadModel(mat4::Identity());
-    textureShader->uploadTexture(volumetricLightTexture2.get());
-    directionalLightMesh.bindAndDraw();
-    textureShader->unbind();
+    if(textureShader->bind())
+    {
+        textureShader->uploadModel(mat4::Identity());
+        textureShader->uploadTexture(volumetricLightTexture2.get());
+        directionalLightMesh.bindAndDraw();
+        textureShader->unbind();
+    }
 
     assert_no_glerror();
 }

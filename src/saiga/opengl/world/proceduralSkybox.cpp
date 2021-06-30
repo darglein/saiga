@@ -20,19 +20,21 @@ ProceduralSkybox::ProceduralSkybox(const std::string& shader_str)
 
 void ProceduralSkybox::render(Camera* cam, const mat4& model)
 {
-    shader->bind();
-    shader->uploadModel(model);
+    if(shader->bind())
+    {
+        shader->uploadModel(model);
 
-    vec4 params = vec4(horizonHeight, distance, sunIntensity, sunSize);
-    shader->upload(0, params);
+        vec4 params = vec4(horizonHeight, distance, sunIntensity, sunSize);
+        shader->upload(0, params);
 
-    shader->upload(1, Color::srgb2linearrgb(sunDir));
-    shader->upload(2, Color::srgb2linearrgb(sunColor));
-    shader->upload(3, Color::srgb2linearrgb(highSkyColor));
-    shader->upload(4, Color::srgb2linearrgb(lowSkyColor));
-    mesh.BindAndDraw();
+        shader->upload(1, Color::srgb2linearrgb(sunDir));
+        shader->upload(2, Color::srgb2linearrgb(sunColor));
+        shader->upload(3, Color::srgb2linearrgb(highSkyColor));
+        shader->upload(4, Color::srgb2linearrgb(lowSkyColor));
+        mesh.BindAndDraw();
 
-    shader->unbind();
+        shader->unbind();
+    }
 }
 
 

@@ -29,8 +29,6 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* 
 {
     createLightMeshes();
 
-    int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 
     lightClusterer                 = std::make_shared<CPUPlaneClusterer>(timer);
@@ -116,12 +114,14 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         // Lighting Uber Shader
-        lightingShader->bind();
-        lightingShader->uploadFramebuffer(&gbuffer);
-        lightingShader->uploadScreenSize(viewPort.getVec4());
-        lightingShader->uploadInvProj(inverse(cam->proj));
-        quadMesh.BindAndDraw();
-        lightingShader->unbind();
+        if(lightingShader->bind())
+        {
+            lightingShader->uploadFramebuffer(&gbuffer);
+            lightingShader->uploadScreenSize(viewPort.getVec4());
+            lightingShader->uploadInvProj(inverse(cam->proj));
+            quadMesh.BindAndDraw();
+            lightingShader->unbind();
+        }
         assert_no_glerror();
 
         // reset state

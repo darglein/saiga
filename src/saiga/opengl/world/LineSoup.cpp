@@ -20,13 +20,14 @@ void LineSoup::render(Camera* cam)
 {
     if (buffer.getVAO() == 0) return;
     glLineWidth(lineWidth);
-    shader->bind();
+    if(shader->bind())
+    {
+        shader->uploadModel(model);
 
-    shader->uploadModel(model);
+        buffer.bindAndDraw();
 
-    buffer.bindAndDraw();
-
-    shader->unbind();
+        shader->unbind();
+    }
 }
 
 void LineSoup::updateBuffer()

@@ -26,18 +26,19 @@ void GLPointCloud::render(Camera* cam)
 
     auto shader = splat_geometry ? shader_geometry : shader_simple;
 
-    shader->bind();
-
-    if(splat_geometry)
+    if(shader->bind())
     {
-        shader->upload(0, world_point_size);
+        if (splat_geometry)
+        {
+            shader->upload(0, world_point_size);
+        }
+
+        shader->uploadModel(model);
+
+        buffer.bindAndDraw();
+
+        shader->unbind();
     }
-
-    shader->uploadModel(model);
-
-    buffer.bindAndDraw();
-
-    shader->unbind();
 }
 
 void GLPointCloud::updateBuffer()

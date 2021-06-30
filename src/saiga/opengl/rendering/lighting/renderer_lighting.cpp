@@ -135,74 +135,75 @@ void RendererLighting::renderDebug(Camera* cam)
     glDisable(GL_CULL_FACE);
 
 
-    debugShader->bind();
-
-    // ======================= Pointlights ===================
-
-    pointLightMesh.bind();
-    // center
-    for (auto& obj : pointLights)
+    if(debugShader->bind())
     {
-        if (!obj->active || !obj->visible)
+        // ======================= Pointlights ===================
+
+        pointLightMesh.bind();
+        // center
+        for (auto& obj : pointLights)
         {
-            continue;
+            if (!obj->active || !obj->visible)
+            {
+                continue;
+            }
+            float s = 1.f / obj->getRadius() * 0.1;
+            debugShader->uploadModel(obj->ModelMatrix() * scale(make_vec3(s)));
+            debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
+            pointLightMesh.draw();
         }
-        float s = 1.f / obj->getRadius() * 0.1;
-        debugShader->uploadModel(obj->ModelMatrix() * scale(make_vec3(s)));
-        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
-        pointLightMesh.draw();
-    }
 
-    // render outline
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    for (auto& obj : pointLights)
-    {
-        if (!obj->active || !obj->visible)
+        // render outline
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        for (auto& obj : pointLights)
         {
-            continue;
+            if (!obj->active || !obj->visible)
+            {
+                continue;
+            }
+            debugShader->uploadModel(obj->ModelMatrix());
+            debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
+            pointLightMesh.draw();
         }
-        debugShader->uploadModel(obj->ModelMatrix());
-        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
-        pointLightMesh.draw();
-    }
-    pointLightMesh.unbind();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        pointLightMesh.unbind();
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
-    //==================== Spotlights ==================
+        //==================== Spotlights ==================
 
-    spotLightMesh.bind();
-    // center
-    for (auto& obj : spotLights)
-    {
-        if (!obj->active || !obj->visible)
+        spotLightMesh.bind();
+        // center
+        for (auto& obj : spotLights)
         {
-            continue;
+            if (!obj->active || !obj->visible)
+            {
+                continue;
+            }
+            float s = 1.f / obj->getRadius() * 0.1;
+            debugShader->uploadModel(obj->ModelMatrix() * scale(make_vec3(s)));
+            debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
+            spotLightMesh.draw();
         }
-        float s = 1.f / obj->getRadius() * 0.1;
-        debugShader->uploadModel(obj->ModelMatrix() * scale(make_vec3(s)));
-        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
-        spotLightMesh.draw();
-    }
 
-    // render outline
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    for (auto& obj : spotLights)
-    {
-        if (!obj->active || !obj->visible)
+        // render outline
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        for (auto& obj : spotLights)
         {
-            continue;
+            if (!obj->active || !obj->visible)
+            {
+                continue;
+            }
+            debugShader->uploadModel(obj->ModelMatrix());
+            debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
+            spotLightMesh.draw();
         }
-        debugShader->uploadModel(obj->ModelMatrix());
-        debugShader->uploadColor(make_vec4(obj->colorDiffuse, 1));
-        spotLightMesh.draw();
+        spotLightMesh.unbind();
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+
+
+        debugShader->unbind();
     }
-    spotLightMesh.unbind();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-
-
-    debugShader->unbind();
     glEnable(GL_CULL_FACE);
 }
 

@@ -21,12 +21,14 @@ TextOverlay2D::TextOverlay2D(int width, int height) : layout(width, height)
 
 void TextOverlay2D::render()
 {
-    textShader->bind();
-    for (Text*& text : texts)
+    if(textShader->bind())
     {
-        if (text->visible) text->render(textShader);
+        for (Text*& text : texts)
+        {
+            if (text->visible) text->render(textShader);
+        }
+        textShader->unbind();
     }
-    textShader->unbind();
 }
 
 

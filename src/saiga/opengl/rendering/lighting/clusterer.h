@@ -91,14 +91,13 @@ class SAIGA_OPENGL_API Clusterer
     int32_t pointLightCount;
 
     Timer lightAssignmentTimer;
-
+    GLTimerSystem* timer;
     ClustererParameters params;
     int32_t width, height;
 
     int32_t timerIndex = 0;
     double cpuAssignmentTimes[100];
 
-    GLTimerSystem* timer;
     mat4 cached_projection;
     bool clustersDirty = true;
 

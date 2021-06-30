@@ -37,7 +37,6 @@ void CPUPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             clusterCache[c].push_back(0);  // PL Count
         }
 
-        int maxDepthCluster = planesZ.size() - 2;
 
         if (lightsDebug && updateLightsDebug) lightClustersDebug.lines.clear();
         if (!params.SAT)
@@ -520,7 +519,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         vec3 viewTL(make_vec3(viewPosFromScreenPos(screenSpaceTL, invProjection)));
 
         vec3 viewNearPlaneBL(zeroZIntersection(viewBL, -camNear));
-        vec3 viewNearPlaneTL(zeroZIntersection(viewTL, -camNear));
+        // vec3 viewNearPlaneTL(zeroZIntersection(viewTL, -camNear));
 
         vec3 viewFarPlaneBL(zeroZIntersection(viewBL, -camFar));
         vec3 viewFarPlaneTL(zeroZIntersection(viewTL, -camFar));
@@ -540,7 +539,7 @@ void CPUPlaneClusterer::buildClusters(Camera* cam)
         vec3 viewBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
         vec3 viewBR(make_vec3(viewPosFromScreenPos(screenSpaceBR, invProjection)));
 
-        vec3 viewNearPlaneBL(zeroZIntersection(viewBL, -camNear));
+        // vec3 viewNearPlaneBL(zeroZIntersection(viewBL, -camNear));
         vec3 viewNearPlaneBR(zeroZIntersection(viewBR, -camNear));
 
         vec3 viewFarPlaneBL(zeroZIntersection(viewBL, -camFar));

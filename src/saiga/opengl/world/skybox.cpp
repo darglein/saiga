@@ -27,14 +27,16 @@ void Skybox::setDistance(float d)
 
 void Skybox::render(Camera* cam)
 {
-    shader->bind();
-    shader->uploadModel(model);
-    shader->uploadModel(mat4::Identity());
-    shader->uploadTexture(cube_texture.get());
-    mesh.BindAndDraw();
-    cube_texture->unbind();
+    if(shader->bind())
+    {
+        shader->uploadModel(model);
+        shader->uploadModel(mat4::Identity());
+        shader->uploadTexture(cube_texture.get());
+        mesh.BindAndDraw();
+        cube_texture->unbind();
 
-    shader->unbind();
+        shader->unbind();
+    }
 }
 
 }  // namespace Saiga
