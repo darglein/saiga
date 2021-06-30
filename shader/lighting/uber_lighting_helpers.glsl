@@ -7,16 +7,6 @@
 #include "light_models.glsl"
 #include "camera.glsl"
 
-#ifndef MAX_PL_COUNT
-#define MAX_PL_COUNT 256
-#endif
-#ifndef MAX_SL_COUNT
-#define MAX_SL_COUNT 256
-#endif
-#ifndef MAX_DL_COUNT
-#define MAX_DL_COUNT 256
-#endif
-
 struct PointLightData
 {
     vec4 position; // xyz, w unused
@@ -41,20 +31,19 @@ struct DirectionalLightData
     vec4 direction; // xyz, w ambient intensity
 };
 
-// Shader storage buffers are enabled
 layout (std430, binding = 2) buffer lightDataBlockPoint
 {
-    PointLightData pointLights[MAX_PL_COUNT];
+    PointLightData pointLights[];
 };
 
 layout (std430, binding = 3) buffer lightDataBlockSpot
 {
-    SpotLightData spotLights[MAX_SL_COUNT];
+    SpotLightData spotLights[];
 };
 
 layout (std430, binding = 5) buffer lightDataBlockDirectional
 {
-    DirectionalLightData directionalLights[MAX_DL_COUNT];
+    DirectionalLightData directionalLights[];
 };
 
 layout (std140, binding = 6) uniform lightInfoBlock
@@ -66,7 +55,7 @@ layout (std140, binding = 6) uniform lightInfoBlock
     int clusterEnabled;
 };
 
-struct cluster
+struct Cluster
 {
     int offset;
     int plCount;
@@ -88,21 +77,25 @@ layout (std430, binding = 7) buffer clusterInfoBuffer
     int clusterListCount;
     int itemListCount;
     int tileDebug;
+    int splitDebug;
+
+    int specialNearCluster;
+    float specialNearDepth;
 };
 
 layout (std430, binding = 8) buffer clusterBuffer
 {
-    cluster clusterList[];
+    Cluster clusterList[];
 };
 
-struct clusterItem
+struct ClusterItem
 {
-    int lightIdx;
+    int lightIndex;
 };
 
 layout (std430, binding = 9) buffer itemBuffer
 {
-    clusterItem itemList[];
+    ClusterItem itemList[];
 };
 
 struct AssetMaterial
@@ -120,9 +113,15 @@ float linearDepth(float d){
 
 int getClusterIndex(vec2 pixelCoord, float depth)
 {
-    int zSplit       = int(max(log2(linearDepth(depth)) * scale + bias, 0.0));
+    int zSplit = specialNearCluster;
+    float lin = linearDepth(depth);
+    if(specialNearCluster > 0 && lin < specialNearDepth)
+        zSplit = 0;
+    else
+        zSplit += int(max(log2(lin) * scale + bias, 0.0));
     ivec3 clusters   = ivec3(pixelCoord.x / screenSpaceTileSize, pixelCoord.y / screenSpaceTileSize, zSplit);
     int clusterIndex = clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
+    return clusters.x + clusterX * clusters.y + (clusterX * clusterY) * clusters.z;
     return clusterIndex;
 }
 
@@ -130,7 +129,31 @@ vec3 debugCluster(float depth)
 {
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
     float normLightCount = float(clusterList[clusterIndex].plCount + clusterList[clusterIndex].slCount) / float(tileDebug);
+    if(normLightCount >= 1.0) return vec3(1);
     return vec3(normLightCount, 0.0, 1.0 - normLightCount);
+}
+
+vec3 palette[] =
+{
+    vec3(0,0,1),
+    vec3(0,1,0),
+    vec3(0,1,1),
+    vec3(1,0,0),
+    vec3(1,0,1),
+    vec3(1,1,0),
+    vec3(1,1,1),
+    vec3(0,0,0)
+};
+
+vec3 debugSplits(float depth)
+{
+    int zSplit = specialNearCluster;
+    float lin = linearDepth(depth);
+    if(specialNearCluster > 0 && lin < specialNearDepth)
+        zSplit = 0;
+    else
+        zSplit += int(max(log2(lin) * scale + bias, 0.0));
+    return palette[int(mod(zSplit, 8))];
 }
 
 vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal);
@@ -141,33 +164,19 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
         return calculatePointLightsNoClusters(material, position, normal);
     if(tileDebug > 0)
         return debugCluster(depth);
+    if(splitDebug > 0)
+        return debugSplits(depth);
     vec3 result = vec3(0);
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
 
-    if(clusterIndex > clusterListCount - 1)
-    {
-        return vec3(1, 0, 0);
-    }
-    if(clusterIndex < 0)
-    {
-        return vec3(1, 0, 0);
-    }
-
     int lightCount           = clusterList[clusterIndex].plCount;
     int baseLightIndexOffset = clusterList[clusterIndex].offset;
 
-    if(baseLightIndexOffset + lightCount - 1 > itemListCount - 1)
-    {
-        return vec3(1, 1, 0);
-    }
-
     for(int i = 0; i < lightCount; i++)
     {
-        int lightVectorIndex = itemList[baseLightIndexOffset + i].lightIdx;
-        if(lightVectorIndex >= pointLightCount)
-            return vec3(0, 0, 0);
-        PointLightData pl = pointLights[lightVectorIndex];
+        int lightItem = itemList[baseLightIndexOffset + i].lightIndex;
+        PointLightData pl = pointLights[lightItem];
         vec3 lightPosition = (view * vec4(pl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = pl.colorDiffuse;
         vec4 lightColorSpecular = pl.colorSpecular;
@@ -179,14 +188,14 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
 
         float visibility = 1.0;
 
-        float att = getAttenuation(lightAttenuation, distance(position, lightPosition));
+        float att = DistanceAttenuation(lightAttenuation, distance(position, lightPosition));
         float localIntensity = intensity * att * visibility;
 
         float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
         float Ispec = 0;
         if(Idiff > 0)
             Ispec = localIntensity * material.data.x  * intensitySpecular(position, normal, fragmentLightDir, 40);
-
+        Ispec = 0;
 
         vec3 color = lightColorDiffuse.rgb * (
                     Idiff * material.color.rgb +
@@ -197,47 +206,32 @@ vec3 calculatePointLights(AssetMaterial material, vec3 position, vec3 normal, fl
     return result;
 }
 
-/*
-vec3 calculateSpotLightsClustered(AssetMaterial material, vec3 position, vec3 normal, float depth)
+vec3 calculateSpotLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal);
+
+vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal, float depth)
 {
+    if(clusterEnabled == 0)
+        return calculateSpotLightsNoClusters(material, position, normal);
     if(tileDebug > 0)
         return debugCluster(depth);
+    if(splitDebug > 0)
+        return debugSplits(depth);
     vec3 result = vec3(0);
 
     int clusterIndex = getClusterIndex(gl_FragCoord.xy, depth);
 
-    if(clusterIndex > clusterListCount - 1)
-    {
-        return vec3(1, 0, 0);
-    }
-    if(clusterIndex < 0)
-    {
-        return vec3(1, 0, 0);
-    }
-
     int lightCount           = clusterList[clusterIndex].slCount;
-    int baseLightIndexOffset = clusterList[clusterIndex].offset;
-
-    if(baseLightIndexOffset + lightCount -1 > itemListCount - 1)
-    {
-        return vec3(1, 1, 0);
-    }
-    if(baseLightIndexOffset < 0 || lightCount < 0)
-    {
-        return vec3(1, 0, 0);
-    }
+    int baseLightIndexOffset = clusterList[clusterIndex].offset + clusterList[clusterIndex].plCount;
 
     for(int i = 0; i < lightCount; i++)
     {
-        int lightVectorIndex = itemList[baseLightIndexOffset + i].slIdx;
-        if(lightVectorIndex >= spotLightCount)
-            return vec3(0, 0, 0);
-        SpotLightData sl = spotLights[lightVectorIndex];
+        int lightItem = itemList[baseLightIndexOffset + i].lightIndex;
+        SpotLightData sl = spotLights[lightItem];
         vec3 lightPosition = (view * vec4(sl.position.xyz, 1)).rgb;
         vec4 lightColorDiffuse = sl.colorDiffuse;
         vec4 lightColorSpecular = sl.colorSpecular;
         vec4 lightAttenuation = sl.attenuation;
-        vec3 lightDirection = normalize((view * sl.direction).rgb);
+        vec3 lightDirection = normalize((view * -sl.direction).rgb);
         float lightAngle = sl.position.w;
 
 
@@ -247,7 +241,7 @@ vec3 calculateSpotLightsClustered(AssetMaterial material, vec3 position, vec3 no
         float visibility = 1.0;
 
         float distanceToLight = length(dot(position - lightPosition, lightDirection));
-        float att = spotAttenuation(fragmentLightDir, lightAngle, lightDirection) * getAttenuation(lightAttenuation, distanceToLight);
+        float att = spotAttenuation(fragmentLightDir, lightAngle, lightDirection) * DistanceAttenuation(lightAttenuation, distanceToLight);
         float localIntensity = intensity * att * visibility;
 
         float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
@@ -264,7 +258,6 @@ vec3 calculateSpotLightsClustered(AssetMaterial material, vec3 position, vec3 no
     }
     return result;
 }
-*/
 
 vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal)
 {
@@ -283,7 +276,7 @@ vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 
 
         float visibility = 1.0;
 
-        float att = getAttenuation(lightAttenuation, distance(position, lightPosition));
+        float att = DistanceAttenuation(lightAttenuation, distance(position, lightPosition));
         float localIntensity = intensity * att * visibility;
 
         float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
@@ -301,7 +294,7 @@ vec3 calculatePointLightsNoClusters(AssetMaterial material, vec3 position, vec3 
     return result;
 }
 
-vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
+vec3 calculateSpotLightsNoClusters(AssetMaterial material, vec3 position, vec3 normal)
 {
     vec3 result = vec3(0);
     for(int c = 0; c < spotLightCount; ++c)
@@ -311,7 +304,7 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
         vec4 lightColorDiffuse = sl.colorDiffuse;
         vec4 lightColorSpecular = sl.colorSpecular;
         vec4 lightAttenuation = sl.attenuation;
-        vec3 lightDirection = normalize((view * sl.direction).rgb);
+        vec3 lightDirection = normalize((view * -sl.direction).rgb);
         float lightAngle = sl.position.w;
 
 
@@ -321,7 +314,7 @@ vec3 calculateSpotLights(AssetMaterial material, vec3 position, vec3 normal)
         float visibility = 1.0;
 
         float distanceToLight = length(dot(position - lightPosition, lightDirection));
-        float att = spotAttenuation(fragmentLightDir, lightAngle, lightDirection) * getAttenuation(lightAttenuation, distanceToLight);
+        float att = spotAttenuation(fragmentLightDir, lightAngle, lightDirection) * DistanceAttenuation(lightAttenuation, distanceToLight);
         float localIntensity = intensity * att * visibility;
 
         float Idiff = localIntensity * intensityDiffuse(normal, fragmentLightDir);
@@ -360,6 +353,7 @@ vec3 calculateDirectionalLights(AssetMaterial material, vec3 position, vec3 norm
         if (Idiff > 0) Ispec = localIntensity * material.data.x * intensitySpecular(position, normal, fragmentLightDir, 40);
 
         float Iemissive = material.data.y;
+        Iemissive = 0;
 
         vec3 color = lightColorDiffuse.rgb *
                     (Idiff * material.color.rgb + Ispec * lightColorSpecular.w * lightColorSpecular.rgb + Iamb * material.color.rgb) +

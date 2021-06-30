@@ -152,6 +152,7 @@ EditorLayoutL::EditorLayoutL()
 {
     RegisterImguiWindow("Forward Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Deferred Renderer", WINDOW_POSITION_LEFT);
+    RegisterImguiWindow("Uber Deferred Renderer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("Clusterer", WINDOW_POSITION_LEFT);
     RegisterImguiWindow("OpenGLWindow", WINDOW_POSITION_LEFT);
 

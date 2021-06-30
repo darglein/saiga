@@ -11,7 +11,10 @@
 
 namespace Saiga
 {
-SixPlaneClusterer::SixPlaneClusterer(GLTimerSystem* timer, ClustererParameters _params) : Clusterer(timer, _params) {}
+SixPlaneClusterer::SixPlaneClusterer(GLTimerSystem* timer, const ClustererParameters& _params) : Clusterer(timer, _params)
+{
+    itemList.resize(1);
+}
 
 SixPlaneClusterer::~SixPlaneClusterer() {}
 
@@ -25,22 +28,22 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
 
     lightAssignmentTimer.start();
 
-    // memset(itemBuffer.itemList.data(), 0, sizeof(clusterItem) * itemBuffer.itemList.size());
-    const int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
-    int visibleLightIndices[maxClusterItemsPerCluster];
-
-    int globalOffset = 0;
-
-    for (int c = 0; c < culling_cluster.size(); ++c)
+    for (int c = 0; c < clusterList.size(); ++c)
     {
-        const auto& cluster_planes = culling_cluster[c].planes;
+        clusterCache[c].clear();
+        clusterCache[c].push_back(0);  // PL Count
+    }
 
-        int visiblePLCount = 0;
-        for (int i = 0; i < pointLightsClusterData.size(); ++i)
+    int itemCount = 0;
+
+    for (int i = 0; i < pointLightCount; ++i)
+    {
+        LightBoundingSphere& plc = lightsClusterData[i];
+        vec3 sphereCenter          = cam->WorldToView(plc.world_center);
+        for (int c = 0; c < cullingCluster.size(); ++c)
         {
-            PointLightClusterData& plc = pointLightsClusterData[i];
             bool intersection          = true;
-            vec3 sphereCenter          = cam->WorldToView(plc.world_center);
+            const auto& cluster_planes = cullingCluster[c].planes;
             for (int p = 0; p < 6; ++p)
             {
                 if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
@@ -51,42 +54,118 @@ void SixPlaneClusterer::clusterLightsInternal(Camera* cam, const ViewPort& viewP
             }
             if (intersection)
             {
-                if (visiblePLCount >= maxClusterItemsPerCluster) break;
-
-                visibleLightIndices[visiblePLCount] = i;
-                visiblePLCount++;
+                clusterCache[c].push_back(i);
+                clusterCache[c][0]++;
+                itemCount++;
             }
         }
+    }
 
-        cluster& gpuCluster = clusterBuffer.clusterList.at(c);
-        gpuCluster.offset   = globalOffset;
-        globalOffset += visiblePLCount;
-
-        for (int v = 0; v < visiblePLCount; ++v)
+    for (int i = pointLightCount; i < lightsClusterData.size(); ++i)
+    {
+        LightBoundingSphere& plc = lightsClusterData[i];
+        vec3 sphereCenter         = cam->WorldToView(plc.world_center);
+        for (int c = 0; c < cullingCluster.size(); ++c)
         {
-            itemBuffer.itemList[gpuCluster.offset + v].lightIdx = visibleLightIndices[v];
+            bool intersection          = true;
+            const auto& cluster_planes = cullingCluster[c].planes;
+            for (int p = 0; p < 6; ++p)
+            {
+                if (dot(cluster_planes[p].normal, sphereCenter) - cluster_planes[p].d + plc.radius < 0.0)
+                {
+                    intersection = false;
+                    break;
+                }
+            }
+            if (intersection)
+            {
+                clusterCache[c].push_back(i);
+                itemCount++;
+            }
+        }
+    }
+
+    bool adaptSize = false;
+    if (itemCount > itemList.size())
+        {
+            adaptSize = true;
+            do
+            {
+                itemList.resize(itemList.size() * 2);
+            } while (itemCount > itemList.size());
+        }
+        if (itemCount < itemList.size() * 0.5 && itemList.size() > 2)
+        {
+            adaptSize = true;
+            do
+            {
+                itemList.resize(itemList.size() / 2);
+            } while (itemCount < itemList.size() * 0.5 && itemList.size() > 2);
         }
 
-        gpuCluster.plCount = visiblePLCount;
-        gpuCluster.slCount = 0;
+        if (adaptSize)
+        {
+            auto tim = timer->Measure("Info Update");
+
+            clusterInfoBuffer.itemListCount = itemList.size();
+            clusterInfoBuffer.tileDebug  = screenSpaceDebug ? itemList.size() : 0;
+            clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
+
+            int itemListSize = sizeof(ClusterItem) * itemList.size();
+            int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+            SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
+
+            infoBuffer.update(clusterInfoBuffer);
+        }
+
+    int globalOffset = 0;
+
+    for (int c = 0; c < clusterCache.size(); ++c)
+    {
+        auto cl             = clusterCache[c];
+        Cluster& gpuCluster = clusterList.at(c);
+
+        gpuCluster.offset = globalOffset;
+        SAIGA_ASSERT(gpuCluster.offset < itemList.size(), "Too many items!");
+        gpuCluster.plCount = cl[0];
+        gpuCluster.slCount = cl.size() - 1 - cl[0];
+        globalOffset += gpuCluster.plCount;
+        globalOffset += gpuCluster.slCount;
+        if (cl.size() < 2)
+        {
+            continue;
+        }
+
+        memcpy(&(itemList[gpuCluster.offset]), &cl[1], (cl.size() - 1) * sizeof(ClusterItem));
     }
 
     lightAssignmentTimer.stop();
-
+    cpuAssignmentTimes[timerIndex] = lightAssignmentTimer.getTimeMS();
+    timerIndex                     = (timerIndex + 1) % 100;
 
     {
-        auto tim            = timer->Measure("ClusterUpdate");
-        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-        clusterListBuffer.updateBuffer(clusterBuffer.clusterList.data(), clusterListSize, 0);
+        auto tim = timer->Measure("ClusterUpdate");
+        if (clusterList.size() > clusterListBuffer.Size())
+        {
+            clusterListBuffer.create(clusterList, GL_DYNAMIC_DRAW);
+            clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
+        }
+        else
+        {
+            clusterListBuffer.update(clusterList);
+        }
 
-        int itemListSize = sizeof(clusterItem) * itemBuffer.itemList.size();
-        // std::cout << "Used " << globalOffset * sizeof(clusterItem) << " item slots of " << itemListSize << std::endl;
-        itemListBuffer.updateBuffer(itemBuffer.itemList.data(), itemListSize, 0);
-
-        infoBuffer.bind(LIGHT_CLUSTER_INFO_BINDING_POINT);
-        clusterListBuffer.bind(LIGHT_CLUSTER_LIST_BINDING_POINT);
-        itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+        if (itemList.size() > itemListBuffer.Size())
+        {
+            itemListBuffer.create(itemList, GL_DYNAMIC_DRAW);
+            itemListBuffer.bind(LIGHT_CLUSTER_ITEM_LIST_BINDING_POINT);
+        }
+        else
+        {
+            itemListBuffer.update(itemList);
+        }
     }
+
     assert_no_glerror();
 }
 
@@ -98,7 +177,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     mat4 invProjection(inverse(cam->proj));
 
 
-    clusterInfoBuffer.screenSpaceTileSize = screenSpaceTileSize;
+    clusterInfoBuffer.screenSpaceTileSize = params.screenSpaceTileSize;
     clusterInfoBuffer.screenWidth         = width;
     clusterInfoBuffer.screenHeight        = height;
 
@@ -107,27 +186,38 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 
 
     float gridCount[3];
-    gridCount[0] = std::ceil((float)width / (float)screenSpaceTileSize);
-    gridCount[1] = std::ceil((float)height / (float)screenSpaceTileSize);
-    if (clusterThreeDimensional)
-        gridCount[2] = depthSplits;
+    gridCount[0] = std::ceil((float)width / (float)params.screenSpaceTileSize);
+    gridCount[1] = std::ceil((float)height / (float)params.screenSpaceTileSize);
+    if (params.clusterThreeDimensional)
+        gridCount[2] = params.depthSplits + 1;
     else
         gridCount[2] = 1;
 
     clusterInfoBuffer.clusterX = (int)gridCount[0];
     clusterInfoBuffer.clusterY = (int)gridCount[1];
 
-    clusterInfoBuffer.scale = gridCount[2] / log2(camFar / camNear);
-    clusterInfoBuffer.bias  = -(gridCount[2] * log2(camNear) / log2(camFar / camNear));
+    // special near
+    float specialNearDepth               = (camFar - camNear) * params.specialNearDepthPercent;
+    bool useSpecialNear                  = params.useSpecialNearCluster && specialNearDepth > 0.0f && gridCount[2] > 1;
+    clusterInfoBuffer.specialNearCluster = useSpecialNear ? 1 : 0;
+    specialNearDepth                     = useSpecialNear ? specialNearDepth : 0.0f;
+    clusterInfoBuffer.specialNearDepth   = specialNearDepth;
+    float specialGridCount               = gridCount[2] - (useSpecialNear ? 1 : 0);
+
+    clusterInfoBuffer.scale = specialGridCount / log2(camFar / (camNear + specialNearDepth));
+    clusterInfoBuffer.bias =
+        -(specialGridCount * log2(camNear + specialNearDepth) / log2(camFar / (camNear + specialNearDepth)));
 
     // Calculate Cluster Planes in View Space.
     int clusterCount = (int)(gridCount[0] * gridCount[1] * gridCount[2]);
-    clusterBuffer.clusterList.clear();
-    clusterBuffer.clusterList.resize(clusterCount);
+    clusterList.clear();
+    clusterList.resize(clusterCount);
     clusterInfoBuffer.clusterListCount = clusterCount;
+    clusterCache.clear();
+    clusterCache.resize(clusterCount);
 
-    culling_cluster.clear();
-    culling_cluster.resize(clusterCount);
+    cullingCluster.clear();
+    cullingCluster.resize(clusterCount);
     if (clusterDebug)
     {
         debugCluster.lines.clear();
@@ -141,15 +231,28 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
         {
             for (int z = 0; z < (int)gridCount[2]; ++z)
             {
-                vec4 screenSpaceBL(x * screenSpaceTileSize, y * screenSpaceTileSize, -1.0, 1.0);        // Bottom left
-                vec4 screenSpaceTL(x * screenSpaceTileSize, (y + 1) * screenSpaceTileSize, -1.0, 1.0);  // Top left
-                vec4 screenSpaceBR((x + 1) * screenSpaceTileSize, y * screenSpaceTileSize, -1.0, 1.0);  // Bottom Right
-                vec4 screenSpaceTR((x + 1) * screenSpaceTileSize, (y + 1) * screenSpaceTileSize, -1.0,
+                vec4 screenSpaceBL(x * params.screenSpaceTileSize, y * params.screenSpaceTileSize, -1.0, 1.0);        // Bottom left
+                vec4 screenSpaceTL(x * params.screenSpaceTileSize, (y + 1) * params.screenSpaceTileSize, -1.0, 1.0);  // Top left
+                vec4 screenSpaceBR((x + 1) * params.screenSpaceTileSize, y * params.screenSpaceTileSize, -1.0, 1.0);  // Bottom Right
+                vec4 screenSpaceTR((x + 1) * params.screenSpaceTileSize, (y + 1) * params.screenSpaceTileSize, -1.0,
                                    1.0);  // Top Right
 
-                // Doom Depth Split, because it looks good.
-                float tileNear = -camNear * pow(camFar / camNear, (float)z / gridCount[2]);
-                float tileFar  = -camNear * pow(camFar / camNear, (float)(z + 1) / gridCount[2]);
+                float tileNear;
+                float tileFar;
+                if (useSpecialNear && z == 0)
+                {
+                    tileNear = -camNear;
+                    tileFar  = -(camNear + specialNearDepth);
+                }
+                else
+                {
+                    int calcZ = useSpecialNear ? z - 1 : z;
+                    // Doom Depth Split, because it looks good.
+                    tileNear = -(camNear + specialNearDepth) *
+                               pow(camFar / (camNear + specialNearDepth), (float)calcZ / specialGridCount);
+                    tileFar = -(camNear + specialNearDepth) *
+                              pow(camFar / (camNear + specialNearDepth), (float)(calcZ + 1) / specialGridCount);
+                }
 
                 vec3 viewNearPlaneBL(make_vec3(viewPosFromScreenPos(screenSpaceBL, invProjection)));
                 vec3 viewNearPlaneTL(make_vec3(viewPosFromScreenPos(screenSpaceTL, invProjection)));
@@ -194,7 +297,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 
                 int tileIndex = x + (int)gridCount[0] * y + (int)(gridCount[0] * gridCount[1]) * z;
 
-                auto& planes = culling_cluster.at(tileIndex).planes;
+                auto& planes = cullingCluster.at(tileIndex).planes;
                 planes[0]    = nearPlane;
                 planes[1]    = farPlane;
                 planes[2]    = leftPlane;
@@ -207,7 +310,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
                 {
                     PointVertex v;
 
-                    v.color = vec3(0.5, 0.125, 0);
+                    v.color = vec3(1.0, 0.75, 0);
 
                     v.position = viewNearClusterBL;
                     debugCluster.lines.push_back(v);
@@ -263,7 +366,7 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
 
     if (clusterDebug)
     {
-        debugCluster.lineWidth = 1;
+        debugCluster.lineWidth = 2;
 
         debugCluster.setModelMatrix(cam->getModelMatrix());  // is inverse view.
         debugCluster.translateLocal(vec3(0, 0, -0.0001f));
@@ -278,22 +381,17 @@ void SixPlaneClusterer::buildClusters(Camera* cam)
     }
 
     {
-        auto tim = timer->Measure("InfoUpdate");
-        itemBuffer.itemList.clear();
-        int maxClusterItemsPerCluster = 256;  // TODO Paul: Hardcoded?
+        auto tim                     = timer->Measure("Info Update");
+        clusterInfoBuffer.tileDebug  = screenSpaceDebug ? itemList.size() : 0;
+        clusterInfoBuffer.splitDebug = splitDebug ? 1 : 0;
 
-        clusterInfoBuffer.tileDebug = screenSpaceDebug ? 256 : 0;
-        itemBuffer.itemList.resize(maxClusterItemsPerCluster * clusterCount);
-        clusterInfoBuffer.itemListCount = itemBuffer.itemList.size();
+        itemList.clear();
+        itemList.resize(1);
+        clusterInfoBuffer.itemListCount = itemList.size();
 
-        int itemBufferSize = sizeof(itemBuffer) + sizeof(clusterItem) * itemBuffer.itemList.size();
-        int maxBlockSize   = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-        SAIGA_ASSERT(maxBlockSize > itemBufferSize, "Item SSB size too big!");
-
-        itemListBuffer.createGLBuffer(itemBuffer.itemList.data(), itemBufferSize, GL_DYNAMIC_DRAW);
-
-        int clusterListSize = sizeof(cluster) * clusterBuffer.clusterList.size();
-        clusterListBuffer.createGLBuffer(clusterBuffer.clusterList.data(), clusterListSize, GL_DYNAMIC_DRAW);
+        int itemListSize = sizeof(ClusterItem) * itemList.size();
+        int maxBlockSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
+        SAIGA_ASSERT(maxBlockSize > itemListSize, "Item SSB size too big!");
 
         infoBuffer.updateBuffer(&clusterInfoBuffer, sizeof(clusterInfoBuffer), 0);
     }

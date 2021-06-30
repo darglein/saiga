@@ -13,6 +13,7 @@
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
+#include "saiga/opengl/rendering/lighting/gpu_aabb_clusterer.h"
 #include "saiga/opengl/rendering/lighting/six_plane_clusterer.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
@@ -30,35 +31,34 @@ UberDeferredLighting::UberDeferredLighting(GBuffer& framebuffer, GLTimerSystem* 
 
     int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
 
-    maximumNumberOfDirectionalLights =
-        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLight::ShaderData));
-    maximumNumberOfPointLights =
-        std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
-    maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
-
-    lightDataBufferDirectional.createGLBuffer(
-        nullptr, sizeof(DirectionalLight::ShaderData) * maximumNumberOfDirectionalLights, GL_DYNAMIC_DRAW);
-    lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLight::ShaderData) * maximumNumberOfPointLights,
-                                        GL_DYNAMIC_DRAW);
-    lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLight::ShaderData) * maximumNumberOfSpotLights,
-                                       GL_DYNAMIC_DRAW);
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 
-    ClustererParameters params;
-    params.clusterThreeDimensional = true;
-    lightClusterer                 = std::make_shared<CPUPlaneClusterer>(timer, params);
+    lightClusterer                 = std::make_shared<CPUPlaneClusterer>(timer);
 }
 
 void UberDeferredLighting::init(int _width, int _height, bool _useTimers)
 {
     RendererLighting::init(_width, _height, _useTimers);
-    if (lightClusterer) lightClusterer->init(_width, _height, _useTimers);
+    if (clustererType) lightClusterer->resize(_width, _height);
+
+    lightAccumulationBuffer.create();
+
+    lightAccumulationBuffer.attachTextureDepthStencil(gbuffer.getTextureDepth());
+
+    lightAccumulationTexture = std::make_shared<Texture>();
+    lightAccumulationTexture->create(_width, _height, GL_RGBA, GL_RGBA16F, GL_HALF_FLOAT);
+    lightAccumulationBuffer.attachTexture(lightAccumulationTexture);
+
+    lightAccumulationBuffer.drawTo({0});
+    lightAccumulationBuffer.check();
+    lightAccumulationBuffer.unbind();
 }
 
 void UberDeferredLighting::resize(int _width, int _height)
 {
     RendererLighting::resize(_width, _height);
-    if (lightClusterer) lightClusterer->resize(_width, _height);
+    if (clustererType) lightClusterer->resize(_width, _height);
+    lightAccumulationBuffer.resize(_width, _height);
 }
 
 UberDeferredLighting::~UberDeferredLighting() {}
@@ -69,89 +69,33 @@ void UberDeferredLighting::loadShaders()
 
     const RendererLightingShaderNames& names = RendererLightingShaderNames();
 
-    ShaderPart::ShaderCodeInjections sci;
-
-    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfDirectionalLights), 1);
-    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfPointLights), 2);
-    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfSpotLights), 3);
-    lightingShader = shaderLoader.load<UberDeferredLightingShader>(names.lightingUberShader, sci);
+    lightingShader = shaderLoader.load<UberDeferredLightingShader>(names.lightingUberShader);
 }
 
 void UberDeferredLighting::initRender()
 {
     auto tim = timer->Measure("Lightinit");
-    // TODO Paul: We should refactor this for all single light pass renderers.
     RendererLighting::initRender();
     LightInfo li;
-    LightData ld;
     li.pointLightCount       = 0;
     li.spotLightCount        = 0;
     li.directionalLightCount = 0;
 
-    if (clustererType) lightClusterer->clearLightData();
+
     li.clusterEnabled = clustererType > 0;
 
     // Point Lights
-    for (auto pl : pointLights)
-    {
-        if (li.pointLightCount >= maximumNumberOfPointLights) break;  // just ignore too many lights...
-        if (!pl->shouldRender()) continue;
-        ld.pointLights.push_back(pl->GetShaderData());
-
-        if (clustererType) lightClusterer->addPointLight(pl->position, pl->radius);
-
-        li.pointLightCount++;
-    }
+    li.pointLightCount = active_point_lights.size();
 
     // Spot Lights
-    SpotLight::ShaderData glSpotLight;
-    for (auto sl : spotLights)
-    {
-        if (li.spotLightCount >= maximumNumberOfSpotLights) break;  // just ignore too many lights...
-        if (!sl->shouldRender()) continue;
-        glSpotLight = sl->GetShaderData();
-        ld.spotLights.push_back(glSpotLight);
-
-        if (clustererType)
-        {
-            float rad = radians(sl->getAngle());
-            float l   = tan(rad) * sl->radius;
-            float radius;
-            if (rad > pi<float>() * 0.25f)
-                radius = l * tan(rad);
-            else
-                radius = l * 0.5f / pow(cos(sl->getAngle()), 2.0f);
-            vec3 world_center =
-                sl->getPosition() +
-                vec3(glSpotLight.direction.x(), glSpotLight.direction.y(), glSpotLight.direction.z()) * radius;
-            lightClusterer->addSpotLight(world_center, radius);
-        }
-
-        li.spotLightCount++;
-    }
+    li.spotLightCount = active_spot_lights.size();
 
     // Directional Lights
-    for (auto dl : directionalLights)
-    {
-        if (li.directionalLightCount >= maximumNumberOfDirectionalLights) break;  // just ignore too many lights...
-        if (!dl->shouldRender()) continue;
-        ld.directionalLights.push_back(dl->GetShaderData());
-
-        li.directionalLightCount++;
-    }
-
-    lightDataBufferPoint.updateBuffer(ld.pointLights.data(), sizeof(PointLight::ShaderData) * li.pointLightCount, 0);
-    lightDataBufferSpot.updateBuffer(ld.spotLights.data(), sizeof(SpotLight::ShaderData) * li.spotLightCount, 0);
-    lightDataBufferDirectional.updateBuffer(ld.directionalLights.data(),
-                                            sizeof(DirectionalLight::ShaderData) * li.directionalLightCount, 0);
+    li.directionalLightCount = active_directional_lights.size();
 
     lightInfoBuffer.updateBuffer(&li, sizeof(LightInfo), 0);
     visibleLights = li.pointLightCount + li.spotLightCount + li.directionalLightCount;
 
-    lightDataBufferPoint.bind(POINT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferSpot.bind(SPOT_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferBox.bind(BOX_LIGHT_DATA_BINDING_POINT);
-    lightDataBufferDirectional.bind(DIRECTIONAL_LIGHT_DATA_BINDING_POINT);
     lightInfoBuffer.bind(LIGHT_INFO_BINDING_POINT);
 }
 
@@ -161,11 +105,12 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     RendererLighting::render(cam, viewPort);
     if (clustererType)
     {
-        lightClusterer->clusterLights(cam, viewPort);
+        lightClusterer->clusterLights(cam, viewPort, active_point_lights, active_spot_lights);
         // At this point we can use clustering information in the lighting uber shader with the right binding points.
     }
 
 
+    lightAccumulationBuffer.bind();
     {
         auto tim = timer->Measure("Shade");
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -192,77 +137,65 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
         // glDepthMask(GL_FALSE);
     }
     if (clustererType) lightClusterer->renderDebug(cam);
+
+    lightAccumulationBuffer.unbind();
     assert_no_glerror();
-}
-
-void UberDeferredLighting::setLightMaxima(int maxDirectionalLights, int maxPointLights, int maxSpotLights)
-{
-    maxDirectionalLights = std::max(0, maxDirectionalLights);
-    maxPointLights       = std::max(0, maxPointLights);
-    maxSpotLights        = std::max(0, maxSpotLights);
-
-    int maxSize = ShaderStorageBuffer::getMaxShaderStorageBlockSize();
-
-    maximumNumberOfDirectionalLights =
-        std::clamp(maximumNumberOfDirectionalLights, 0, maxSize / (int)sizeof(DirectionalLight::ShaderData));
-    maximumNumberOfPointLights =
-        std::clamp(maximumNumberOfPointLights, 0, maxSize / (int)sizeof(PointLight::ShaderData));
-    maximumNumberOfSpotLights = std::clamp(maximumNumberOfSpotLights, 0, maxSize / (int)sizeof(SpotLight::ShaderData));
-
-
-    if (maximumNumberOfDirectionalLights != maxDirectionalLights)
-    {
-        lightDataBufferDirectional.createGLBuffer(nullptr, sizeof(DirectionalLight::ShaderData) * maxDirectionalLights,
-                                                  GL_DYNAMIC_DRAW);
-    }
-    if (maximumNumberOfPointLights != maxPointLights)
-    {
-        lightDataBufferPoint.createGLBuffer(nullptr, sizeof(PointLight::ShaderData) * maxPointLights, GL_DYNAMIC_DRAW);
-    }
-    if (maximumNumberOfSpotLights != maxSpotLights)
-    {
-        lightDataBufferSpot.createGLBuffer(nullptr, sizeof(SpotLight::ShaderData) * maxSpotLights, GL_DYNAMIC_DRAW);
-    }
-    maximumNumberOfDirectionalLights = maxDirectionalLights;
-    maximumNumberOfPointLights       = maxPointLights;
-    maximumNumberOfSpotLights        = maxSpotLights;
-
-    const RendererLightingShaderNames& names = RendererLightingShaderNames();
-
-    ShaderPart::ShaderCodeInjections sci;
-    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_DL_COUNT" + std::to_string(maximumNumberOfDirectionalLights), 1);
-    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_PL_COUNT" + std::to_string(maximumNumberOfPointLights), 2);
-    sci.emplace_back(GL_FRAGMENT_SHADER, "#define MAX_SL_COUNT" + std::to_string(maximumNumberOfSpotLights), 3);
-    lightingShader = shaderLoader.load<UberDeferredLightingShader>(names.lightingUberShader, sci);
 }
 
 void UberDeferredLighting::renderImGui()
 {
-    RendererLighting::renderImGui();
-
     if (!showLightingImgui) return;
-    ImGui::Begin("UberDefferedLighting", &showLightingImgui);
 
-
-    const char* const clustererTypes[3] = {"None", "SixPlanes", "PlaneArrays"};
-
-    bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 3);
-
-    if (changed)
+    if (!editor_gui.enabled)
     {
-        if (clustererType > 0)
+        int w = 340;
+        int h = 240;
+        ImGui::SetNextWindowPos(ImVec2(680, height - h), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
+    }
+
+    if (ImGui::Begin("Lighting", &showLightingImgui))
+    {
+        const char* const clustererTypes[4] = {"None", "CPU SixPlanes", "CPU PlaneArrays", "GPU AABB Light Assignment"};
+
+        bool changed = ImGui::Combo("Mode", &clustererType, clustererTypes, 4);
+
+        if (changed)
         {
-            ClustererParameters params;
-            lightClusterer =
-                clustererType == 1
-                    ? std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer, params))
-                    : std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer, params));
-            lightClusterer->init(width, height, false);
+            setClusterType(clustererType);
         }
+        ImGui::Separator();
     }
     ImGui::End();
 
-    if (clustererType) lightClusterer->renderImGui();
+    RendererLighting::renderImGui();
+
+    if (clustererType) lightClusterer->imgui();
+}
+
+void UberDeferredLighting::setClusterType(int tp)
+{
+    clustererType = tp;
+    if (clustererType > 0)
+    {
+        switch (clustererType)
+        {
+            case 1:
+                lightClusterer = std::static_pointer_cast<Clusterer>(std::make_shared<SixPlaneClusterer>(timer));
+                break;
+            case 2:
+                lightClusterer = std::static_pointer_cast<Clusterer>(std::make_shared<CPUPlaneClusterer>(timer));
+                break;
+            case 3:
+                lightClusterer = std::static_pointer_cast<Clusterer>(std::make_shared<GPUAABBClusterer>(timer));
+                break;
+            default:
+                lightClusterer = nullptr;
+                return;
+        }
+
+        lightClusterer->resize(width, height);
+    }
 }
 
 }  // namespace Saiga

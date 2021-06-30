@@ -62,9 +62,12 @@ class SAIGA_CORE_API UnifiedModel
 
 
     UnifiedModel& ComputeColor();
+    UnifiedModel& SetVertexColor(const vec4& color);
 
     UnifiedModel& Normalize(float dimensions = 2.0f);
     UnifiedModel& AddMissingDummyTextures();
+
+    AABB BoundingBox() const;
 
     std::string name;
 

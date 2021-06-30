@@ -27,8 +27,10 @@ class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
     std::shared_ptr<Texture> ssaoTexture;
 
     std::shared_ptr<Texture> lightAccumulationTexture;
+    Framebuffer lightAccumulationBuffer;
+
     std::shared_ptr<Texture> volumetricLightTexture, volumetricLightTexture2;
-    Framebuffer lightAccumulationBuffer, volumetricBuffer;
+    Framebuffer  volumetricBuffer;
 
     DeferredLighting(GBuffer& gbuffer, GLTimerSystem* timer);
     DeferredLighting& operator=(DeferredLighting& l) = delete;
