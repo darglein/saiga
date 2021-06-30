@@ -13,6 +13,20 @@
 
 namespace Saiga
 {
+// Center crops the tensor x to target size.
+// Used for example in unets if the input is not a power of 2, because we lose some pixels after downsampling
+inline torch::Tensor CenterCrop2D(torch::Tensor x, torch::IntArrayRef target_size)
+{
+    // [b, c, h, w]
+    SAIGA_ASSERT(x.dim() == 4);
+
+    int diff_h = int(x.size(2) - target_size[2]) / 2;
+    int diff_w = int(x.size(3) - target_size[3]) / 2;
+
+    return x.slice(2, diff_h, diff_h + target_size[2]).slice(3, diff_w, diff_w + target_size[3]);
+}
+
+
 template <typename T>
 std::pair<std::vector<T>, std::vector<T>> SplitDataset(std::vector<T> data, float ratio)
 {

@@ -308,6 +308,22 @@ class UpsampleBlockImpl : public torch::nn::Module
         register_module("conv2", conv2.ptr());
     }
 
+    // Combines the upsampled tensor (below) with the skip connection (skip)
+    // Usually this can be done with a simple cat however if the size does not match we crop
+    torch::Tensor CombineBridge(torch::Tensor below, torch::Tensor skip)
+    {
+        // SAIGA_ASSERT(skip.first.size(2) == same_layer_as_skip.first.size(2) &&
+        //              skip.first.size(3) == same_layer_as_skip.first.size(3));
+        if (below.size(2) == skip.size(2) && below.size(3) == skip.size(3))
+        {
+            return torch::cat({below, skip}, 1);
+        }
+        else
+        {
+            return torch::cat({below, CenterCrop2D(skip, below.sizes())}, 1);
+        }
+    }
+
     std::pair<at::Tensor, at::Tensor> forward(std::pair<at::Tensor, at::Tensor> layer_below,
                                               std::pair<at::Tensor, at::Tensor> skip)
     {
@@ -331,14 +347,16 @@ class UpsampleBlockImpl : public torch::nn::Module
                 conv1.forward<std::pair<at::Tensor, at::Tensor>>(same_layer_as_skip.first, same_layer_as_skip.second);
         }
 
-        SAIGA_ASSERT(skip.first.size(2) == same_layer_as_skip.first.size(2) &&
-                     skip.first.size(3) == same_layer_as_skip.first.size(3));
 
         std::pair<at::Tensor, at::Tensor> output;
-        output.first = torch::cat({same_layer_as_skip.first, skip.first}, 1);
+        // [b, c, h, w]
+        // output.first = torch::cat({same_layer_as_skip.first, skip.first}, 1);
+        output.first = CombineBridge(same_layer_as_skip.first, skip.first);
+
         if (layer_below.second.defined())
         {
-            output.second = torch::cat({same_layer_as_skip.second, skip.second}, 1);
+            // output.second = torch::cat({same_layer_as_skip.second, skip.second}, 1);
+            output.second = CombineBridge(same_layer_as_skip.second, skip.second);
         }
 
         return conv2.forward<std::pair<at::Tensor, at::Tensor>>(output.first, output.second);
@@ -481,8 +499,8 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
         SAIGA_ASSERT(inputs.size() == params.num_input_layers);
         SAIGA_ASSERT(masks.size() == params.num_input_layers);
         // The downsampling should not happen on uneven image sizes!
-        SAIGA_ASSERT(inputs.front().size(2) % (1 << params.num_layers) == 0);
-        SAIGA_ASSERT(inputs.front().size(3) % (1 << params.num_layers) == 0);
+        // SAIGA_ASSERT(inputs.front().size(2) % (1 << params.num_layers) == 0);
+        // SAIGA_ASSERT(inputs.front().size(3) % (1 << params.num_layers) == 0);
         // debug check if input has correct format
         for (int i = 0; i < inputs.size(); ++i)
         {
