@@ -13,7 +13,7 @@ namespace AccelerationStructure
 {
 BruteForce::BruteForce(const std::vector<Saiga::Triangle>& triangles) : triangles(triangles) {}
 
-RayTriangleIntersection BruteForce::getClosest(const Ray& ray)
+RayTriangleIntersection BruteForce::getClosest(const Ray& ray) const
 {
     Intersection::RayTriangleIntersection result;
     for (size_t i = 0; i < triangles.size(); ++i)
@@ -29,7 +29,7 @@ RayTriangleIntersection BruteForce::getClosest(const Ray& ray)
     return result;
 }
 
-std::vector<RayTriangleIntersection> BruteForce::getAll(const Ray& ray)
+std::vector<RayTriangleIntersection> BruteForce::getAll(const Ray& ray) const
 {
     std::vector<RayTriangleIntersection> result;
     for (size_t i = 0; i < triangles.size(); ++i)
@@ -56,21 +56,21 @@ BVH::BVH(const std::vector<Saiga::Triangle>& triangles)
 }
 
 
-RayTriangleIntersection BVH::getClosest(const Ray& ray)
+RayTriangleIntersection BVH::getClosest(const Ray& ray) const
 {
     Intersection::RayTriangleIntersection result;
     if (!nodes.empty()) getClosest(0, ray, result);
     return result;
 }
 
-std::vector<Intersection::RayTriangleIntersection> BVH::getAll(const Ray& ray)
+std::vector<Intersection::RayTriangleIntersection> BVH::getAll(const Ray& ray) const
 {
     std::vector<RayTriangleIntersection> result;
     if (!nodes.empty()) getAll(0, ray, result);
     return result;
 }
 
-std::pair<float, int> BVH::ClosestPoint(const vec3& p)
+std::pair<float, int> BVH::ClosestPoint(const vec3& p) const
 {
     std::pair<float, int> result = {std::numeric_limits<float>::infinity(), -1};
     if (!nodes.empty())
@@ -81,7 +81,7 @@ std::pair<float, int> BVH::ClosestPoint(const vec3& p)
     return result;
 }
 
-AABB BVH::computeBox(int start, int end)
+AABB BVH::computeBox(int start, int end) const
 {
     AABB box;
     box.makeNegative();
@@ -103,9 +103,9 @@ void BVH::sortByAxis(int start, int end, int axis)
     std::sort(triangles.begin() + start, triangles.begin() + end, SortTriangleByAxis(axis));
 }
 
-void BVH::getClosest(int node, const Ray& ray, Intersection::RayTriangleIntersection& result)
+void BVH::getClosest(int node, const Ray& ray, Intersection::RayTriangleIntersection& result) const
 {
-    BVHNode& n = nodes[node];
+    const BVHNode& n = nodes[node];
 
     float aabbT;
 
@@ -135,9 +135,9 @@ void BVH::getClosest(int node, const Ray& ray, Intersection::RayTriangleIntersec
     }
 }
 
-void BVH::getAll(int node, const Ray& ray, std::vector<Intersection::RayTriangleIntersection>& result)
+void BVH::getAll(int node, const Ray& ray, std::vector<Intersection::RayTriangleIntersection>& result) const
 {
-    BVHNode& n = nodes[node];
+    const BVHNode& n = nodes[node];
 
     float aabbT;
 
@@ -167,9 +167,9 @@ void BVH::getAll(int node, const Ray& ray, std::vector<Intersection::RayTriangle
     }
 }
 
-void BVH::ClosestPoint(int node, const vec3& p, std::pair<float, int>& result)
+void BVH::ClosestPoint(int node, const vec3& p, std::pair<float, int>& result) const
 {
-    BVHNode& n = nodes[node];
+    const BVHNode& n = nodes[node];
 
 
     if (n._inner)

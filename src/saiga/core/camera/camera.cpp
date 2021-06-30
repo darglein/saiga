@@ -220,6 +220,7 @@ void PerspectiveCamera::imgui()
 
 void PerspectiveCamera::recomputeProj(int output_w, int output_h)
 {
+    if (!recompute_on_resize) return;
     aspect = float(output_w) / output_h;
     proj   = perspective(fovy, aspect, zNear, zFar);
 

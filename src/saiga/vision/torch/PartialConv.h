@@ -5,6 +5,7 @@
  */
 
 #pragma once
+#include "ImageTensor.h"
 #include "TorchHelper.h"
 
 
@@ -22,16 +23,44 @@ class PartialConv2dImpl : public torch::nn::Conv2dImpl
 {
    public:
     // Same parameters as conv2d
-    PartialConv2dImpl(torch::nn::Conv2dOptions options) : torch::nn::Conv2dImpl(options)
+    PartialConv2dImpl(torch::nn::Conv2dOptions options, bool multi_channel)
+        : torch::nn::Conv2dImpl(options), multi_channel(multi_channel)
     {
-        weight_maskUpdater = torch::ones({1, 1, options.kernel_size()->at(0), options.kernel_size()->at(1)});
-        slide_winsize      = weight_maskUpdater.size(0) * weight_maskUpdater.size(1) * weight_maskUpdater.size(2) *
-                        weight_maskUpdater.size(3);
+        if (multi_channel)
+        {
+            weight_maskUpdater = torch::ones({options.out_channels(), options.in_channels(),
+                                              options.kernel_size()->at(0), options.kernel_size()->at(1)});
+        }
+        else
+        {
+            weight_maskUpdater = torch::ones({1, 1, options.kernel_size()->at(0), options.kernel_size()->at(1)});
+        }
+
+        slide_winsize = weight_maskUpdater.size(1) * weight_maskUpdater.size(2) * weight_maskUpdater.size(3);
         register_buffer("weight_maskUpdater", weight_maskUpdater);
     }
 
-    torch::Tensor forward(torch::Tensor input, torch::Tensor mask)
+    std::pair<at::Tensor, at::Tensor> forward(const torch::Tensor input, const torch::Tensor mask)
     {
+        SAIGA_ASSERT(input.defined());
+        SAIGA_ASSERT(mask.defined());
+
+        SAIGA_ASSERT(mask.dim() == 4);
+
+        if (multi_channel)
+        {
+            // [b, c, h, w]
+             // PrintTensorInfo(input);
+             // PrintTensorInfo(mask);
+            SAIGA_ASSERT(input.sizes() == mask.sizes());
+        }
+        else
+        {
+            // [b, 1, h, w]
+            SAIGA_ASSERT(mask.size(1) == 1);
+        }
+
+
         torch::Tensor mask_ratio, update_mask;
         {
             torch::NoGradGuard nograd;
@@ -46,6 +75,8 @@ class PartialConv2dImpl : public torch::nn::Conv2dImpl
             mask_ratio = torch::mul(mask_ratio, update_mask);
         }
 
+        //        TensorToImage<unsigned char>(mask).save("mask.png");
+        //        TensorToImage<unsigned char>(update_mask).save("update_mask.png");
 
         auto raw_out = torch::nn::Conv2dImpl::forward(torch::mul(input, mask));
 
@@ -61,11 +92,12 @@ class PartialConv2dImpl : public torch::nn::Conv2dImpl
             output = torch::mul(raw_out, mask_ratio);
         }
 
-        return output;
+        return {output, update_mask};
     }
 
     torch::Tensor weight_maskUpdater;
     float slide_winsize;
+    bool multi_channel;
 };
 
 TORCH_MODULE(PartialConv2d);

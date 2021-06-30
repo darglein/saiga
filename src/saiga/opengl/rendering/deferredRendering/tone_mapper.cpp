@@ -8,18 +8,25 @@
 
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/glImageFormat.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 
 namespace Saiga
 {
-ToneMapper::ToneMapper()
-{
-    shader        = shaderLoader.load<Shader>("tone_map.glsl");
-    shader_linear = shaderLoader.load<Shader>("tone_map_linear.glsl");
+const char* tonemap_operator_names[6] = {"Gamma", "Texture", "Reinhard", "UE3", "UC2", "Drago"};
 
-    average_brightness_shader = shaderLoader.load<Shader>("tone_map_average_brightness.glsl");
+
+ToneMapper::ToneMapper(GLenum input_type) : input_type(input_type)
+{
+    auto input_type_str = BindlessImageTypeName(input_type);
+    ShaderPart::ShaderCodeInjections injection;
+    injection.emplace_back(GL_COMPUTE_SHADER, "#define INPUT_TYPE " + input_type_str, 1);
+
+    shader        = shaderLoader.load<Shader>("tone_map.glsl", injection);
+    shader_linear = shaderLoader.load<Shader>("tone_map_linear.glsl", injection);
+
 
     uniforms.create(params, GL_DYNAMIC_DRAW);
     tmp_buffer.create(tmp_params, GL_DYNAMIC_DRAW);
@@ -32,6 +39,7 @@ ToneMapper::ToneMapper()
 
 void ToneMapper::MapLinear(Texture* input_hdr_color_image)
 {
+    SAIGA_ASSERT(input_hdr_color_image->InternalFormat() == input_type);
     if (params_dirty)
     {
         uint32_t flags = (auto_exposure << 0) | (auto_white_balance << 1);
@@ -49,27 +57,39 @@ void ToneMapper::MapLinear(Texture* input_hdr_color_image)
         ComputeOptimalExposureValue(input_hdr_color_image);
     }
 
-    shader_linear->bind();
-    input_hdr_color_image->bindImageTexture(0, GL_READ_WRITE);
-    uniforms.bind(3);
-    tmp_buffer.bind(4);
-    int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
-    int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
-    shader_linear->dispatchCompute(uvec3(gw, gh, 1));
-    shader_linear->unbind();
+    if (shader_linear->bind())
+    {
+        input_hdr_color_image->bindImageTexture(0, GL_READ_WRITE);
+        uniforms.bind(3);
+        tmp_buffer.bind(4);
+        int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
+        int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
+        shader_linear->dispatchCompute(uvec3(gw, gh, 1));
+        shader_linear->unbind();
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+    }
 }
 
 
 void ToneMapper::Map(Texture* input_hdr_color_image, Texture* output_ldr_color_image)
 {
-    shader->bind();
-    input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
-    output_ldr_color_image->bindImageTexture(1, GL_WRITE_ONLY);
-    shader->upload(2, response_texture.get(), 0);
-    int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
-    int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
-    shader->dispatchCompute(uvec3(gw, gh, 1));
-    shader->unbind();
+    SAIGA_ASSERT(input_hdr_color_image->InternalFormat() == input_type);
+    SAIGA_ASSERT(output_ldr_color_image->InternalFormat() == GL_RGBA8);
+    SAIGA_ASSERT(response_texture);
+
+    if (shader->bind())
+    {
+        input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
+        output_ldr_color_image->bindImageTexture(1, GL_WRITE_ONLY);
+        shader->upload(2, *response_texture, 0);
+        shader->upload(3, gamma);
+        shader->upload(4, tm_operator);
+        int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
+        int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
+        shader->dispatchCompute(uvec3(gw, gh, 1));
+        shader->unbind();
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+    }
 }
 
 vec3 ColorTemperatureToRGB(float temperatureInKelvins)
@@ -121,7 +141,7 @@ void ToneMapper::imgui()
 
         params_dirty |= ImGui::Checkbox("download_tmp_values (performance warning)", &download_tmp_values);
         ImGui::Text("Exposure Value (log2 scale)");
-        params_dirty |= ImGui::SliderFloat("###exposure_value", &params.exposure_value, -15, 15);
+        params_dirty |= ImGui::SliderFloat("###exposure_value", &params.exposure_value, -5, 20);
         ImGui::SameLine();
         if (ImGui::Button("reset EV"))
         {
@@ -134,6 +154,12 @@ void ToneMapper::imgui()
 
         ImGui::Separator();
         ImGui::Text("Camera Response");
+
+
+        if (ImGui::Combo("Operator", &tm_operator, tonemap_operator_names, 6))
+        {
+            params_dirty = true;
+        }
 
         if (ImGui::Button("gamma = 2.2"))
         {
@@ -181,30 +207,43 @@ void ToneMapper::imgui()
 }
 void ToneMapper::ComputeOptimalExposureValue(Texture* input_hdr_color_image)
 {
+    if (!average_brightness_shader)
+    {
+        average_brightness_shader = shaderLoader.load<Shader>("tone_map_average_brightness.glsl");
+    }
+
     tmp_params = TonemapTempParameters();
     tmp_buffer.update(tmp_params);
 
-    average_brightness_shader->bind();
-    tmp_buffer.bind(4);
-    input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
-    int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
-    int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
-    average_brightness_shader->dispatchCompute(uvec3(gw, gh, 1));
-    average_brightness_shader->unbind();
-    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-
-    if (download_tmp_values)
+    if (average_brightness_shader->bind())
     {
-        // this is every inefficient because we stall the GL pipeline!
-        tmp_buffer.get(tmp_params);
+        tmp_buffer.bind(4);
+        input_hdr_color_image->bindImageTexture(0, GL_READ_ONLY);
+        int gw = iDivUp(input_hdr_color_image->getWidth(), 16);
+        int gh = iDivUp(input_hdr_color_image->getHeight(), 16);
+        average_brightness_shader->dispatchCompute(uvec3(gw, gh, 1));
+        average_brightness_shader->unbind();
 
-        float average_luminace = tmp_params.average_color_luminace.w();
-        computed_exposure      = log2(std::max(average_luminace / 0.33, 1e-4));
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 
-        vec3 avg             = tmp_params.average_color_luminace.head<3>();
-        float alpha          = avg[1] / avg[0];
-        float beta           = avg[1] / avg[2];
-        computed_white_point = vec3(alpha, 1, beta);
+        if (download_tmp_values)
+        {
+            // this is every inefficient because we stall the GL pipeline!
+            tmp_buffer.get(tmp_params);
+
+            float average_luminace = tmp_params.average_color_luminace.w();
+            computed_exposure      = log2(std::max(average_luminace / 0.33, 1e-4));
+
+            vec3 avg             = tmp_params.average_color_luminace.head<3>();
+            float alpha          = avg[1] / avg[0];
+            float beta           = avg[1] / avg[2];
+            computed_white_point = vec3(alpha, 1, beta);
+        }
+    }
+    else
+    {
+        tmp_params.average_color_luminace = vec4(1, 1, 1, 1);
+        tmp_buffer.update(tmp_params);
     }
 }
 

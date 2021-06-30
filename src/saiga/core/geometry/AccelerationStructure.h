@@ -28,8 +28,8 @@ class SAIGA_CORE_API Base
    public:
     virtual ~Base() {}
 
-    virtual RayTriangleIntersection getClosest(const Ray& ray)          = 0;
-    virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) = 0;
+    virtual RayTriangleIntersection getClosest(const Ray& ray) const          = 0;
+    virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) const = 0;
 
     float bvh_epsilon      = 0.0001;
     float triangle_epsilon = 0.00001;
@@ -43,8 +43,8 @@ class SAIGA_CORE_API BruteForce : public Base
     BruteForce(const std::vector<Triangle>& triangles);
     virtual ~BruteForce() {}
 
-    virtual RayTriangleIntersection getClosest(const Ray& ray) override;
-    virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) override;
+    virtual RayTriangleIntersection getClosest(const Ray& ray) const override;
+    virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) const override;
 
    private:
     std::vector<Triangle> triangles;
@@ -84,21 +84,21 @@ class SAIGA_CORE_API BVH : public Base
     virtual void construct() = 0;
 
 
-    virtual RayTriangleIntersection getClosest(const Ray& ray) override;
-    virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) override;
-    virtual std::pair<float, int> ClosestPoint(const vec3& p);
+    virtual RayTriangleIntersection getClosest(const Ray& ray) const override;
+    virtual std::vector<RayTriangleIntersection> getAll(const Ray& ray) const override;
+    virtual std::pair<float, int> ClosestPoint(const vec3& p) const;
 
    protected:
     std::vector<std::pair<Triangle, int>> triangles;
     std::vector<BVHNode> nodes;
 
-    AABB computeBox(int start, int end);
+    AABB computeBox(int start, int end) const;
     void sortByAxis(int start, int end, int axis);
 
     // Recursive traversal
-    void getClosest(int node, const Ray& ray, RayTriangleIntersection& result);
-    void getAll(int node, const Ray& ray, std::vector<RayTriangleIntersection>& result);
-    void ClosestPoint(int node, const vec3& p, std::pair<float, int>& result);
+    void getClosest(int node, const Ray& ray, RayTriangleIntersection& result) const;
+    void getAll(int node, const Ray& ray, std::vector<RayTriangleIntersection>& result) const;
+    void ClosestPoint(int node, const vec3& p, std::pair<float, int>& result) const;
 };
 
 class SAIGA_CORE_API ObjectMedianBVH : public BVH

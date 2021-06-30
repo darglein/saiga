@@ -23,18 +23,15 @@ class Sample : public SampleWindowDeferred
         std::cout << "Program Initialized!" << std::endl;
     }
 
+    void interpolate(float dt, float interpolation)
+    {
+        Base::interpolate(dt, interpolation);
+        render_system.Add(teapot.asset.get(), teapot.model, RENDER_DEFAULT | RENDER_SHADOW);
+    }
+
     void render(Camera* cam, RenderPass render_pass) override
     {
         Base::render(cam, render_pass);
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
-        {
-            teapot.render(cam, render_pass);
-        }
-
-        if (render_pass == RenderPass::GUI)
-        {
-            //            ImGui::ShowDemoWindow();
-        }
     }
 
 

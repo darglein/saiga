@@ -69,7 +69,7 @@ class Sample : public SampleWindowDeferred
             auto light = std::make_shared<PointLight>();
             renderer->lighting.AddLight(light);
 
-            light->setIntensity(2);
+            light->setIntensity(10);
 
 
             light->setRadius(linearRand(5, 30));
@@ -90,7 +90,7 @@ class Sample : public SampleWindowDeferred
             auto light = std::make_shared<SpotLight>();
             renderer->lighting.AddLight(light);
 
-            light->setIntensity(2);
+            light->setIntensity(10);
             light->setRadius(linearRand(8, 15));
             light->castShadows = true;
 
@@ -148,18 +148,18 @@ class Sample : public SampleWindowDeferred
         Base::update(dt);
 
     }
-
+    void interpolate(float dt, float interpolation)
+    {
+        Base::interpolate(dt, interpolation);
+        for (auto& o : objects)
+        {
+            render_system.Add(o.asset.get(), o.model, RENDER_DEFAULT | RENDER_SHADOW);
+        }
+    }
 
     void render(Camera* cam, RenderPass render_pass) override
     {
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
-        {
-            Base::render(cam, render_pass);
-            for (auto& o : objects)
-            {
-                o.render(cam, render_pass);
-            }
-        }
+        Base::render(cam, render_pass);
 
         if (render_pass == RenderPass::GUI)
         {

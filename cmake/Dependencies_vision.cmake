@@ -76,7 +76,6 @@ endif()
 PackageHelper(CHOLMOD ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIES}")
 
 
-
 # Currently only mkl is supported
 #set(BLA_VENDOR Intel10_64lp_seq)
 #find_package(BLAS QUIET)
@@ -111,6 +110,7 @@ PackageHelperTarget(k4a::k4a K4A_FOUND)
 if(K4A_FOUND)
     SET(SAIGA_USE_K4A 1)
 endif()
+
 
 set(VISION_INCLUDES ${PACKAGE_INCLUDES})
 set(VISION_LIBS ${LIBS})

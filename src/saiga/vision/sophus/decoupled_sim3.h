@@ -1,41 +1,9 @@
 ﻿/**
-BSD 3-Clause License
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
 
-This file is part of the Basalt project.
-https://gitlab.com/VladyslavUsenko/basalt-headers.git
-
-Copyright (c) 2019, Vladyslav Usenko and Nikolaus Demmel.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-@file
-@brief Useful utilities to work with SO(3) and SE(3) groups from Sophus.
-*/
 
 #pragma once
 
@@ -43,9 +11,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "saiga/vision/sophus/SophusSelector.h"
 
 
-
 namespace Sophus
 {
+// Decoupled implementation of the Sophus::Sim3.
+//
+// In the original Sophus::Sim3, the scale is stored in the quaternion with
+// sqrt(scale) = |sim3.quaternion|
+//
+// DSim3 decouples the scale and quaternion by storing the scale separately. This simplifies a lot of operations and
+// makes autodiff on DSim3 more robust.
 template <typename T>
 struct DSim3
 {
@@ -59,7 +33,6 @@ struct DSim3
         scale() = 1.0;
 
         static_assert(sizeof(DSim3<T>) == 8 * sizeof(T), "DSim size is incorrect!");
-        //        static_assert(alignof(DSim3<T>) == 8 * sizeof(T), "DSim size is incorrect!");
     }
     DSim3(const SE3<T>& se3, T scale = T(1))
     {
@@ -81,9 +54,6 @@ struct DSim3
         this->se3()   = SE3<T>(so3, t);
         this->scale() = scale;
     }
-
-
-    //    DSim3(const Sim3<T>& a) :se3(a.rxso3().quaternion().normalized(),a.translation()),scale(a.scale()){}
 
     /// Group multiplication, which is rotation concatenation.
     ///
@@ -159,6 +129,5 @@ inline void DSim3ToPointer(const DSim3<T>& sim3, T* ptr)
     Eigen::Map<Vector<T, 8>> x(ptr);
     x = sim3.params();
 }
-
 
 }  // namespace Sophus

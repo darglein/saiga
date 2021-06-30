@@ -61,13 +61,21 @@ class SAIGA_CORE_API RenderingInterfaceBase
 };
 
 
-enum class RenderPass
+enum class RenderPass : int
 {
     Forward,
     Deferred,
     Shadow,
     DepthPrepass,
-    GUI
+    GUI,
+    Final
+};
+
+enum RenderFlags : int
+{
+    RENDER_DEFAULT = 1,
+    RENDER_UNLIT   = 2,
+    RENDER_SHADOW  = 4,
 };
 
 

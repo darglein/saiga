@@ -228,10 +228,12 @@ void UberDeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_ALWAYS);
-    blitDepthShader->bind();
-    blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
-    quadMesh.BindAndDraw();
-    blitDepthShader->unbind();
+    if(blitDepthShader->bind())
+    {
+        blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
+        quadMesh.BindAndDraw();
+        blitDepthShader->unbind();
+    }
     glDepthFunc(GL_LESS);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 

@@ -53,5 +53,17 @@ GLenum getGlType(ImageType type)
 {
     return ImageElementTypeGL[(int)elementType(type)];
 }
+std::string BindlessImageTypeName(GLenum gl_type)
+{
+    switch (gl_type)
+    {
+        case gl::GLenum::GL_RGBA16F:
+            return "rgba16f";
+        case gl::GLenum::GL_RGBA32F:
+            return "rgba32f";
+        default:
+            throw std::runtime_error("Unknown gl_type " + std::to_string((int)gl_type));
+    }
+}
 
 }  // namespace Saiga

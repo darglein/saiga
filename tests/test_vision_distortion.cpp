@@ -15,7 +15,7 @@
 #include "numeric_derivative.h"
 using namespace Saiga;
 
-
+#ifndef WIN32
 TEST(Distortion, Solve)
 {
     IntrinsicsPinholed K(608.894, 608.742, 638.974, 364.492, 0);
@@ -69,3 +69,4 @@ TEST(NumericDerivative, DistortionDist)
     ExpectCloseRelative(res1, res2, 1e-5);
     ExpectCloseRelative(J1, J2, 1e-5);
 }
+#endif

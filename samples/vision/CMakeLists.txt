@@ -34,7 +34,13 @@ if(G2O_FOUND AND CERES_FOUND)
   saiga_vision_sample(sample_vision_ba_benchmark.cpp)
 endif()
 
-
+#gphoto2
+find_package(GPHOTO2 REQUIRED)
+if(GPHOTO2_FOUND)
+  saiga_vision_sample(sample_vision_hdr_capture.cpp ${GPHOTO2_LIBRARIES})
+  target_link_libraries(sample_vision_hdr_capture PUBLIC ${GPHOTO2_LIBRARIES})
+  target_include_directories(sample_vision_hdr_capture PUBLIC ${GPHOTO2_INCLUDE_DIRS})
+endif()
 
 if(SAIGA_MODULE_EXTRA AND OPENMESH_FOUND AND CERES_FOUND)
   saiga_vision_sample(sample_vision_arap.cpp)

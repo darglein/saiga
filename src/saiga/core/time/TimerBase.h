@@ -76,6 +76,24 @@ class SAIGA_TEMPLATE ScopedTimerPrint : public TimerBase
     std::string name;
 };
 
+class SAIGA_TEMPLATE ScopedTimerPrintLine : public TimerBase
+{
+   public:
+    ScopedTimerPrintLine(const std::string& name) : name(name)
+    {
+        std::cout << "Starting " << name << "..." << std::flush;
+        start();
+    }
+    ~ScopedTimerPrintLine()
+    {
+        stop();
+        auto time = getTimeMS();
+        std::cout << " Done in " << time << "ms." << std::endl;
+    }
+
+   public:
+    std::string name;
+};
 
 
 template <typename T = float, typename Unit = std::chrono::milliseconds>

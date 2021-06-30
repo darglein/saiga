@@ -59,7 +59,7 @@ class VRSample : public StandaloneWindow<WindowManagement::GLFW, VRRenderer>, pu
         cube2.translateGlobal(vec3(-11, 1, 2));
         cube2.calculateModel();
 
-        auto sphereAsset = std::make_shared<ColoredAsset>(UnifiedModel("teapot.obj"));
+        auto sphereAsset = std::make_shared<ColoredAsset>(UnifiedModel("teapot.obj").ComputeColor());
         sphere.asset     = sphereAsset;
         sphere.translateGlobal(vec3(0, 1, 8));
         sphere.rotateLocal(vec3(0, 1, 0), 180);

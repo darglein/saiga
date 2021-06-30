@@ -5,8 +5,12 @@
  */
 
 ##GL_COMPUTE_SHADER
-
 #version 430
+
+#ifndef INPUT_TYPE
+#error asdf
+#define INPUT_TYPE rgba16f
+#endif
 
 struct TonemapParameters
 {
@@ -34,7 +38,7 @@ layout (std140, binding = 4) buffer lightDataTmpBlockPoint
 };
 
 
-layout(binding=0, rgba16f) uniform image2D inputTex;
+layout(binding=0, INPUT_TYPE) uniform image2D inputTex;
 
 layout(local_size_x = 16, local_size_y = 16) in;
 

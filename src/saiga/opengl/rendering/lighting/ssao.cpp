@@ -117,17 +117,18 @@ void SSAO::render(Camera* cam, const ViewPort& vp, GBuffer* gbuffer)
     ssao_framebuffer.bind();
 
 
-    ssaoShader->bind();
-
-    //    gbuffer->clampToEdge();
-    ssaoShader->uploadScreenSize(vp.getVec4());
-    ssaoShader->uploadFramebuffer(gbuffer);
-    ssaoShader->uploadRandomImage(randomTexture);
-    ssaoShader->uploadData();
-    mat4 iproj = inverse(cam->proj);
-    ssaoShader->uploadInvProj(iproj);
-    quadMesh.BindAndDraw();
-    ssaoShader->unbind();
+    if(ssaoShader->bind())
+    {
+        //    gbuffer->clampToEdge();
+        ssaoShader->uploadScreenSize(vp.getVec4());
+        ssaoShader->uploadFramebuffer(gbuffer);
+        ssaoShader->uploadRandomImage(randomTexture);
+        ssaoShader->uploadData();
+        mat4 iproj = inverse(cam->proj);
+        ssaoShader->uploadInvProj(iproj);
+        quadMesh.BindAndDraw();
+        ssaoShader->unbind();
+    }
 
     ssao_framebuffer.unbind();
 
@@ -135,11 +136,12 @@ void SSAO::render(Camera* cam, const ViewPort& vp, GBuffer* gbuffer)
 
     ssao_framebuffer2.bind();
 
-    blurShader->bind();
-
-    blurShader->uploadTexture(ssaotex.get());
-    quadMesh.BindAndDraw();
-    blurShader->unbind();
+    if(blurShader->bind())
+    {
+        blurShader->uploadTexture(ssaotex.get());
+        quadMesh.BindAndDraw();
+        blurShader->unbind();
+    }
 
     ssao_framebuffer2.unbind();
 

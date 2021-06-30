@@ -84,22 +84,23 @@ void ParticleSystem::render(Camera* cam)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
 
-    particleShader->bind();
+    if(particleShader->bind())
+    {
+        particleShader->uploadModel(model);
+        particleShader->uploadTexture(arrayTexture.get());
 
-    particleShader->uploadModel(model);
-    particleShader->uploadTexture(arrayTexture.get());
+        particleShader->uploadTiming(tick, interpolation);
+        particleShader->uploadTimestep(secondsPerTick);
 
-    particleShader->uploadTiming(tick, interpolation);
-    particleShader->uploadTimestep(secondsPerTick);
+        //    particleBuffer.bindAndDraw();
+        // draw old particles first, so new ones are on top
+        particleBuffer.bind();
+        particleBuffer.draw(nextParticle, particleCount - nextParticle);
+        particleBuffer.draw(0, nextParticle);
+        particleBuffer.unbind();
 
-    //    particleBuffer.bindAndDraw();
-    // draw old particles first, so new ones are on top
-    particleBuffer.bind();
-    particleBuffer.draw(nextParticle, particleCount - nextParticle);
-    particleBuffer.draw(0, nextParticle);
-    particleBuffer.unbind();
-
-    particleShader->unbind();
+        particleShader->unbind();
+    }
 
     if (blending)
     {
@@ -109,23 +110,24 @@ void ParticleSystem::render(Camera* cam)
 
 void ParticleSystem::renderDeferred(Camera* cam, std::shared_ptr<TextureBase> detphTexture)
 {
-    deferredParticleShader->bind();
+    if(deferredParticleShader->bind())
+    {
+        deferredParticleShader->uploadModel(model);
+        deferredParticleShader->uploadTexture(arrayTexture.get());
+        deferredParticleShader->uploadDepthTexture(detphTexture);
+        deferredParticleShader->uploadTiming(tick, interpolation);
+        deferredParticleShader->uploadTimestep(secondsPerTick);
 
-    deferredParticleShader->uploadModel(model);
-    deferredParticleShader->uploadTexture(arrayTexture.get());
-    deferredParticleShader->uploadDepthTexture(detphTexture);
-    deferredParticleShader->uploadTiming(tick, interpolation);
-    deferredParticleShader->uploadTimestep(secondsPerTick);
+        deferredParticleShader->uploadCameraParameters(vec2(cam->zNear, cam->zFar));
+        //    particleBuffer.bindAndDraw();
 
-    deferredParticleShader->uploadCameraParameters(vec2(cam->zNear, cam->zFar));
-    //    particleBuffer.bindAndDraw();
+        particleBuffer.bind();
+        particleBuffer.draw(nextParticle, particleCount - nextParticle);
+        particleBuffer.draw(0, nextParticle);
+        particleBuffer.unbind();
 
-    particleBuffer.bind();
-    particleBuffer.draw(nextParticle, particleCount - nextParticle);
-    particleBuffer.draw(0, nextParticle);
-    particleBuffer.unbind();
-
-    deferredParticleShader->unbind();
+        deferredParticleShader->unbind();
+    }
 }
 
 

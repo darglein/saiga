@@ -102,6 +102,7 @@ SimplePointCloud MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& trian
     std::vector<int> num_samples_per_triangle(triangles.size(), 0);
 
     {
+        ScopedTimerPrintLine tim("Compute initial");
         double total_area = 0;
         for (int i = 0; i < triangles.size(); ++i)
         {
@@ -114,41 +115,51 @@ SimplePointCloud MeshToPointCloudPoissonDisc2(const std::vector<Triangle>& trian
         }
     }
 
+
     std::vector<SimplePointCloud> samples_per_triangle(triangles.size());
 
-#pragma omp parallel for
-    for (int i = 0; i < triangles.size(); ++i)
     {
-        int n     = num_samples_per_triangle[i];
-        auto& tri = triangles[i];
-
-        SimplePointCloud points(n);
-        for (int j = 0; j < n; ++j)
+        ScopedTimerPrintLine tim("Sample + Local Reduce");
+#pragma omp parallel for schedule(dynamic)
+        for (int i = 0; i < triangles.size(); ++i)
         {
-            SimpleVertex v;
-            v.normal         = tri.normal();
-            v.bary           = tri.RandomBarycentric();
-            v.position       = tri.InterpolateBarycentric(v.bary);
-            v.triangle_index = i;
-            v.radius         = (1.f / (weights[i] + 1e-10)) * radius;
-            points[j]        = v;
-        }
+            int n     = num_samples_per_triangle[i];
+            auto& tri = triangles[i];
 
-        samples_per_triangle[i] = ReducePointsPoissonDisc(points, radius);
+            SimplePointCloud points(n);
+            for (int j = 0; j < n; ++j)
+            {
+                SimpleVertex v;
+                v.normal         = tri.normal();
+                v.bary           = tri.RandomBarycentric();
+                v.position       = tri.InterpolateBarycentric(v.bary);
+                v.triangle_index = i;
+                v.radius         = (1.f / (weights[i] + 1e-10)) * radius;
+                points[j]        = v;
+            }
+
+            samples_per_triangle[i] = ReducePointsPoissonDisc(points, radius);
+        }
     }
 
     SimplePointCloud result;
-    result.reserve(max_samples);
 
 
-    for (auto& points : samples_per_triangle)
     {
-        result.insert(result.end(), points.begin(), points.end());
+        ScopedTimerPrintLine tim("Insert");
+        result.reserve(max_samples);
+        for (auto& points : samples_per_triangle)
+        {
+            result.insert(result.end(), points.begin(), points.end());
+        }
     }
 
     {
+        ScopedTimerPrintLine tim("Shuffle");
         std::shuffle(result.begin(), result.end(), Random::generator());
     }
+
+    ScopedTimerPrintLine tim("Global Reduce");
     return ReducePointsPoissonDisc(result, radius);
 }
 
