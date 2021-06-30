@@ -589,4 +589,24 @@ void TimerSystem::ImguiTooltip(TimeData* td, TimeData* total_time)
     ImGui::Text("Graph scale: %f", graph_scale);
     ImGui::EndTooltip();
 }
+void TimerSystem::PrintTable(std::ostream& strm)
+{
+    Table tab({30, 5, 10, 10, 10, 10}, strm);
+    tab.setFloatPrecision(5);
+    tab << "Name"
+        << "N"
+        << "Mean"
+        << "Median"
+        << "Min"
+        << "Max";
+    for (auto& st : data)
+    {
+        if (st.second->active)
+        {
+            auto values = st.second->ComputeTimes();
+            Statistics s(values);
+            tab << st.second->name << values.size() << s.mean << s.median << s.min << s.max;
+        }
+    }
+}
 }  // namespace Saiga

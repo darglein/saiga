@@ -150,7 +150,7 @@ void UnifiedModel::LocateTextures(const std::string& base)
         texture_name_to_id["*" + std::to_string(i)] = i;
     }
 
-    std::cout << "Embedded Textures " << textures.size() << std::endl;
+    // std::cout << "Embedded Textures " << textures.size() << std::endl;
     for (auto& mat : materials)
     {
         mat.texture_diffuse  = search(mat.texture_diffuse);
@@ -159,7 +159,7 @@ void UnifiedModel::LocateTextures(const std::string& base)
         mat.texture_alpha    = search(mat.texture_alpha);
         mat.texture_emissive = search(mat.texture_emissive);
     }
-    std::cout << "Total Textures " << textures.size() << std::endl;
+    // std::cout << "Total Textures " << textures.size() << std::endl;
 }
 
 

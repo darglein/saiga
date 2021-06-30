@@ -118,6 +118,9 @@ class SAIGA_CORE_API TimerSystem
     void EndFrame();
     void Imgui();
 
+    void Reset() { data.clear(); }
+    void PrintTable(std::ostream& strm);
+
     void Enable(bool v = true) { render_window = v; }
 
    protected:

@@ -64,6 +64,20 @@ struct DiscreteResponseFunction
         return alpha * b + (T(1) - alpha) * a;
     }
 
+    T NormalizedLeakyRead(float u, float leak_factor)
+    {
+        if (u < 0)
+        {
+            return leak_factor * u;
+        }
+        else if (u > 1)
+        {
+            return 1 + (u - 1) * leak_factor;
+        }
+
+        return NormalizedRead(u);
+    }
+
     DiscreteResponseFunction<T>& normalize(T target = 255)
     {
         SAIGA_ASSERT(irradiance.back() > 0);
