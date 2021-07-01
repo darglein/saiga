@@ -106,7 +106,7 @@ struct DiscreteResponseFunction
                                  ucvec3 color = ucvec3(255, 255, 255)) const
     {
         TemplatedImage<ucvec3> img(n, n);
-        img.getImageView().template set(background_color);
+        img.getImageView().template set<>(background_color);
         float factor_x = float(n - 1) / (irradiance.size() - 1);
         float factor_y = float(n - 1) / (irradiance.back());
 
