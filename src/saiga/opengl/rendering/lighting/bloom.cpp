@@ -9,25 +9,30 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/opengl/imgui/imgui_opengl.h"
+#include "saiga/opengl/glImageFormat.h"
 
 namespace Saiga
 {
-Bloom::Bloom()
+Bloom::Bloom(GLenum input_type) : input_type(input_type)
 {
-    extract_shader    = shaderLoader.load<Shader>("compute/bloom_extract_bright.glsl");
-    downsample_shader = shaderLoader.load<Shader>("compute/bloom_downsample.glsl");
-    upsample_shader   = shaderLoader.load<Shader>("compute/bloom_upsample.glsl");
-    combine_shader    = shaderLoader.load<Shader>("compute/bloom_combine_simple.glsl");
-    copy_image_shader = shaderLoader.load<Shader>("compute/copy_image.glsl");
+    auto input_type_str = BindlessImageTypeName(input_type);
+    ShaderPart::ShaderCodeInjections injection;
+    injection.emplace_back(GL_COMPUTE_SHADER, "#define INPUT_TYPE " + input_type_str, 1);
+
+    extract_shader    = shaderLoader.load<Shader>("compute/bloom_extract_bright.glsl", injection);
+    downsample_shader = shaderLoader.load<Shader>("compute/bloom_downsample.glsl", injection);
+    upsample_shader   = shaderLoader.load<Shader>("compute/bloom_upsample.glsl", injection);
+    combine_shader    = shaderLoader.load<Shader>("compute/bloom_combine_simple.glsl", injection);
+    copy_image_shader = shaderLoader.load<Shader>("compute/copy_image.glsl", injection);
 
     {
-        ShaderPart::ShaderCodeInjections sci;
+        ShaderPart::ShaderCodeInjections sci = injection;
         sci.emplace_back(GL_COMPUTE_SHADER, "#define BLUR_X 1", 3);
         sci.emplace_back(GL_COMPUTE_SHADER, "#define BLUR_SIZE 2", 3);
         blurx_shader = shaderLoader.load<Shader>("compute/compute_blur.glsl", sci);
     }
     {
-        ShaderPart::ShaderCodeInjections sci;
+        ShaderPart::ShaderCodeInjections sci = injection;
         sci.emplace_back(GL_COMPUTE_SHADER, "#define BLUR_Y 1", 3);
         sci.emplace_back(GL_COMPUTE_SHADER, "#define BLUR_SIZE 2", 3);
         blury_shader = shaderLoader.load<Shader>("compute/compute_blur.glsl", sci);
@@ -173,7 +178,7 @@ void Bloom::Render(Texture* hdr_texture)
 
     if (mode == DebugMode::DEBUG_ADD)
     {
-        if(copy_image_shader->bind())
+        if (copy_image_shader->bind())
         {
             bright_textures.front()->bindImageTexture(0, GL_READ_ONLY);
             hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
@@ -185,7 +190,7 @@ void Bloom::Render(Texture* hdr_texture)
 
     if (mode == DebugMode::DEBUG_LAST)
     {
-        if(copy_image_shader->bind())
+        if (copy_image_shader->bind())
         {
             bright_textures.back()->bindImageTexture(0, GL_READ_ONLY);
             hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
@@ -196,7 +201,7 @@ void Bloom::Render(Texture* hdr_texture)
     }
 
 
-    if(combine_shader->bind())
+    if (combine_shader->bind())
     {
         hdr_texture->bindImageTexture(0, GL_READ_WRITE);
         for (int i = 0; i < 1; ++i)
@@ -255,7 +260,7 @@ void Bloom::resize(int w, int h)
 }
 void Bloom::Blur(Texture* source, Texture* target, Texture* tmp)
 {
-    if(blurx_shader->bind())
+    if (blurx_shader->bind())
     {
         blurx_shader->upload(5, source, 0);
         tmp->bindImageTexture(1, GL_WRITE_ONLY);
@@ -263,7 +268,7 @@ void Bloom::Blur(Texture* source, Texture* target, Texture* tmp)
         glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
         blurx_shader->unbind();
     }
-    if(blury_shader->bind())
+    if (blury_shader->bind())
     {
         blury_shader->upload(5, tmp, 0);
         target->bindImageTexture(1, GL_WRITE_ONLY);

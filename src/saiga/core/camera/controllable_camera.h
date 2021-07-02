@@ -29,6 +29,7 @@ struct SAIGA_CORE_API CameraController
     std::vector<int> keyboardmap;
     std::vector<int> mousemap;
     vec3 rotationPoint = vec3(std::numeric_limits<float>::infinity(), 0, 0);
+    vec3 global_up     = vec3(0, 1, 0);
 
     bool mouseTurnLocal = false;
 
@@ -85,7 +86,7 @@ void Controllable_Camera<camera_t>::mouseRotate(float dx, float dy)
     if (mouseTurnLocal)
         this->turnLocal(dx * rotationSpeed, dy * rotationSpeed);
     else
-        this->turn(dx * rotationSpeed, dy * rotationSpeed);
+        this->turn(dx * rotationSpeed, dy * rotationSpeed, global_up);
     this->calculateModel();
     this->updateFromModel();
 }

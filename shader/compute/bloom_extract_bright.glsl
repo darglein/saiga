@@ -5,8 +5,8 @@
  */
 
 ##GL_COMPUTE_SHADER
-
 #version 430
+
 
 //layout(binding=0, rgba16f) uniform image2D inputTex;
 layout(location = 5) uniform sampler2D inputTex;
@@ -53,11 +53,23 @@ void main() {
 
     vec2 uv = Texel2UV(texel_position, image_size);
     vec3 hdr_value = texture(inputTex, uv).rgb;
-    //hdr_value = DownsampleBox(uv).rgb;
 
+    if (false)
+    {
+        hdr_value = max(hdr_value - vec3(params.bloom_threshold), vec3(0));
+    } else
+    {
+        float luminance = dot(hdr_value, vec3(1)) * 0.3333;
+        if (luminance > params.bloom_threshold)
+        {
+            // preserve luminance by rescaling the hdr value to the cutoff luminance
+            float remaining_luminance = luminance - params.bloom_threshold;
+            hdr_value = hdr_value * (remaining_luminance / luminance);
+        } else {
+            hdr_value = vec3(0);
+        }
 
-    hdr_value = max(hdr_value - vec3(params.bloom_threshold), vec3(0));
-
+    }
 
     imageStore(destTex, texel_position, vec4(hdr_value, 1));
 }

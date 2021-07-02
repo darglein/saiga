@@ -58,7 +58,7 @@ class SAIGA_CORE_API Object3D
     ~Object3D() {}
     void setPosition(const vec3& cords);
     void setPosition(const vec4& cords);
-    void turn(float angleX, float angleY);
+    void turn(float angleX, float angleY, const vec3& up);
     void turnLocal(float angleX, float angleY);
 
 

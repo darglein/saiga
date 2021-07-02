@@ -9,7 +9,6 @@
 
 
 #ifndef INPUT_TYPE
-#error asdf
 #define INPUT_TYPE rgba16f
 #endif
 

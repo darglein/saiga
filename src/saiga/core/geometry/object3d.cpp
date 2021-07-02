@@ -19,9 +19,9 @@ void Object3D::setSimpleDirection(const vec3& dir)
 
 
 
-void Object3D::turn(float angleX, float angleY)
+void Object3D::turn(float angleX, float angleY, const vec3& up)
 {
-    rotateGlobal(vec3(0, 1, 0), angleX);
+    rotateGlobal(up, angleX);
     mat4 modeltmp = model;
     rotateLocal(vec3(1, 0, 0), angleY);
     if (model.col(1)[1] < 0)

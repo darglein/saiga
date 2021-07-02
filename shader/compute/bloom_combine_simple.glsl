@@ -5,10 +5,15 @@
  */
 
 ##GL_COMPUTE_SHADER
-
 #version 430
 
-layout(binding=0, rgba16f) uniform image2D inputTex;
+
+
+#ifndef INPUT_TYPE
+#define INPUT_TYPE rgba16f
+#endif
+
+layout(binding=0, INPUT_TYPE) uniform image2D inputTex;
 // layout(binding=1, rgba16) uniform image2D destTex;
 
 layout(location = 0) uniform sampler2D blur1;

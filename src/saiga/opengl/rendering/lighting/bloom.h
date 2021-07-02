@@ -34,7 +34,7 @@ class SAIGA_OPENGL_API Bloom
         DEBUG_LAST,
     };
 
-    Bloom();
+    Bloom(GLenum input_type = GL_RGBA16F);
     void Render(Texture* hdr_texture);
     void imgui();
 
@@ -54,6 +54,7 @@ class SAIGA_OPENGL_API Bloom
     std::vector<std::shared_ptr<Texture>> blur_textures;
     std::shared_ptr<Shader> extract_shader, downsample_shader, upsample_shader, blurx_shader, blury_shader,
         combine_shader, copy_image_shader;
+    GLenum input_type;
 };
 
 }  // namespace Saiga

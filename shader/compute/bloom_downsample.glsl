@@ -5,7 +5,6 @@
  */
 
 ##GL_COMPUTE_SHADER
-
 #version 430
 
 
