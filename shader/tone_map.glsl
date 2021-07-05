@@ -58,19 +58,19 @@ void main() {
 
 
     if (operator == 0)
-    ldr_value = TonemapGamma(hdr_value, gamma);
+        ldr_value = TonemapGamma(hdr_value, gamma);
     else if (operator == 1)
-    ldr_value = TonemapTexture(hdr_value, camera_response_tex);
+        ldr_value = TonemapTexture(hdr_value, camera_response_tex);
     else if (operator == 2)
-    ldr_value = TonemapReinhard(hdr_value, gamma);
+        ldr_value = TonemapReinhard(hdr_value, gamma);
     else if (operator == 3)
-    ldr_value = TonemapUE3(hdr_value);
+        ldr_value = TonemapUE3(hdr_value);
     else if (operator == 4)
-    ldr_value = TonemapGamma(Tonemap_Filmic_UC2Default(hdr_value), gamma);
+        ldr_value = TonemapGamma(Tonemap_Filmic_UC2Default(hdr_value), gamma);
     else if (operator == 5)
-    ldr_value = TonemapDrago(hdr_value, gamma);
+        ldr_value = TonemapDrago(hdr_value, gamma);
     else
-    ldr_value = vec3(0);
+        ldr_value = vec3(0);
 
 
     //

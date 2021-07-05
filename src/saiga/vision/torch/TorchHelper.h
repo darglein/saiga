@@ -27,16 +27,6 @@ inline torch::Tensor CenterCrop2D(torch::Tensor x, torch::IntArrayRef target_siz
 }
 
 
-template <typename T>
-std::pair<std::vector<T>, std::vector<T>> SplitDataset(std::vector<T> data, float ratio)
-{
-    int total_n = data.size();
-    int first_n = std::round(total_n * ratio);
-    std::vector<T> a(data.begin(), data.begin() + first_n);
-    std::vector<T> b(data.begin() + first_n, data.end());
-    return {a, b};
-}
-
 /**
  * Writes some information of the given tensor to std::cout.
  */
@@ -47,16 +37,23 @@ inline void PrintTensorInfo(at::Tensor t)
         std::cout << "[undefined tensor]" << std::endl;
         return;
     }
-    auto mi = t.min().item().toFloat();
-    auto ma = t.max().item().toFloat();
 
-    float mean = 0;
-    if (t.dtype() == at::kFloat)
+    if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
     {
-        mean = t.mean().item().toFloat();
+        t = t.to(torch::kDouble);
+    }
+
+    double mi   = t.min().item().toDouble();
+    double ma   = t.max().item().toDouble();
+    double mean = 0;
+    double sum  = t.sum().item().toDouble();
+
+    if (t.dtype() == at::kFloat || t.dtype() == at::kDouble)
+    {
+        mean = t.mean().item().toDouble();
     }
     std::cout << "Tensor " << t.sizes() << " " << t.dtype() << " " << t.device() << " Min/Max " << mi << " " << ma
-              << " Mean " << mean << " req-grad " << t.requires_grad() << std::endl;
+              << " Mean " << mean << " Sum " << sum << " req-grad " << t.requires_grad() << std::endl;
 }
 
 

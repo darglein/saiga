@@ -58,7 +58,7 @@ bool save(const std::string& path, const Image& img)
 
 bool loadFIP(const std::string& path, fipImage& img)
 {
-    auto ret = img.load(path.c_str(), JPEG_EXIFROTATE);
+    auto ret = img.load(path.c_str(), JPEG_EXIFROTATE | JPEG_ACCURATE);
     return ret;
 }
 
