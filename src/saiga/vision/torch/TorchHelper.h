@@ -84,6 +84,22 @@ inline void PrintModelParams(torch::nn::Module module)
     std::cout << std::endl;
 }
 
+inline void PrintModelParamsCompact(torch::nn::Module module)
+{
+    size_t sum = 0;
+
+    for (auto& t : module.named_parameters())
+    {
+        size_t local_sum = 1;
+        for (auto i : t.value().sizes())
+        {
+            local_sum *= i;
+        }
+        sum += local_sum;
+    }
+    std::cout << "Total Model Params: " << sum << std::endl;
+}
+
 inline torch::nn::AnyModule NormFromString(const std::string& str, int channels)
 {
     if (str == "bn")

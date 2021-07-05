@@ -149,16 +149,18 @@ inline at::Tensor UnNormalizeRGB(at::Tensor x)
     return x;
 }
 
+inline torch::Tensor FilterTensor(Matrix<float, -1, -1> kernel)
+{
+    return torch::from_blob(kernel.data(), {1, 1, kernel.rows(), kernel.cols()}).clone();
+}
+
+
+
 inline torch::Tensor Filter2dIndependentChannels(torch::Tensor x, Matrix<float, -1, -1> kernel, int padding)
 {
     SAIGA_ASSERT(x.dim() == 4);
-    torch::Tensor K_slice = torch::from_blob(kernel.data(), {1, 1, kernel.rows(), kernel.cols()}).to(x.device());
-    torch::Tensor K       = torch::zeros({x.size(1), x.size(1), kernel.rows(), kernel.cols()}, x.options());
-    for (int c = 0; c < x.size(1); ++c)
-    {
-        K.slice(0, c, c + 1).slice(1, c, c + 1) = K_slice;
-    }
-    auto res = torch::conv2d(x, K, {}, 1, padding);
+    torch::Tensor K = torch::from_blob(kernel.data(), {1, 1, kernel.rows(), kernel.cols()}).to(x.device());
+    auto res        = torch::conv2d(x, K, {}, 1, padding, 1, x.size(1));
     return res;
 }
 
@@ -166,7 +168,9 @@ inline torch::Tensor Filter2dIndependentChannels(torch::Tensor x, Matrix<float, 
 // Also the filter is not separated.
 inline torch::Tensor GaussBlur(torch::Tensor image, int radius, float sigma, int padding)
 {
-    return Filter2dIndependentChannels(image, gaussianBlurKernel2d(radius, sigma), padding);
+    SAIGA_ASSERT(image.dim() == 4);
+    auto K = FilterTensor(gaussianBlurKernel2d(radius, sigma));
+    return torch::conv2d(image, K, {}, 1, padding, 1, image.size(1));
 }
 
 

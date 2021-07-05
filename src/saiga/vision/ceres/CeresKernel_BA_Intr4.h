@@ -40,7 +40,7 @@ struct CostBAMono
         T x = pc(0) / pc(2);
         T y = pc(1) / pc(2);
 
-        x = T(intr.fx) * x + T(intr.cx);
+        x = T(intr.fx) * x + T(intr.s) * y + T(intr.cx);
         y = T(intr.fy) * y + T(intr.cy);
 
         residual(0) = (T(observed(0)) - x) * T(weight);
@@ -48,12 +48,12 @@ struct CostBAMono
         return true;
     }
 
-    CostBAMono(const Intrinsics4& intr, const Eigen::Vector2d& observed, double weight = 1)
+    CostBAMono(const IntrinsicsPinholed& intr, const Eigen::Vector2d& observed, double weight = 1)
         : intr(intr), observed(observed), weight(weight)
     {
     }
 
-    Intrinsics4 intr;
+    IntrinsicsPinholed intr;
     Eigen::Vector2d observed;
     double weight;
 };
@@ -90,7 +90,7 @@ struct CostBAStereo
         T x = pc(0) / z;
         T y = pc(1) / z;
 
-        x = T(intr.fx) * x + T(intr.cx);
+        x = T(intr.fx) * x + T(intr.s) * y + T(intr.cx);
         y = T(intr.fy) * y + T(intr.cy);
 
         residual(0) = (T(observed(0)) - x);
@@ -116,13 +116,13 @@ struct CostBAStereo
         return true;
     }
 
-    CostBAStereo(const Intrinsics4& intr, const Eigen::Vector2d& observed, double stereoPoint, double bf,
+    CostBAStereo(const IntrinsicsPinholed& intr, const Eigen::Vector2d& observed, double stereoPoint, double bf,
                  const Vec2& weights)
         : intr(intr), observed(observed), stereoPoint(stereoPoint), bf(bf), weights(weights)
     {
     }
 
-    Intrinsics4 intr;
+    IntrinsicsPinholed intr;
     Eigen::Vector2d observed;
     double stereoPoint;
     double bf;

@@ -271,10 +271,7 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
     PreintCallBack cb;
     cb.scene       = this;
     cb.global_bias = params.use_global_bias;
-    if (!ad)
-    {
-        problemOptions.evaluation_callback = &cb;
-    }
+
 
     ceres::Problem problem(problemOptions);
     OptimizationOptions optimizationOptions;
@@ -285,6 +282,10 @@ void DecoupledImuScene::SolveCeres(const SolverOptions& params, bool ad)
     optimizationOptions.solverType             = OptimizationOptions::SolverType::Direct;
     ceres::Solver::Options ceres_options       = make_options(optimizationOptions);
 
+    if (!ad)
+    {
+        ceres_options.evaluation_callback = &cb;
+    }
     //    ceres_options.callbacks
 
 

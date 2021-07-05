@@ -8,8 +8,8 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
-#include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/glImageFormat.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
 
 namespace Saiga
 {
@@ -87,11 +87,13 @@ void Bloom::Render(Texture* hdr_texture)
 
     if (mode == DebugMode::DEBUG_EXTRACT)
     {
-        copy_image_shader->bind();
-        bright_textures.front()->bindImageTexture(0, GL_READ_ONLY);
-        hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
-        copy_image_shader->dispatchComputeImage(hdr_texture, 16);
-        copy_image_shader->unbind();
+        if (copy_image_shader->bind())
+        {
+            bright_textures.front()->bindImageTexture(0, GL_READ_ONLY);
+            hdr_texture->bindImageTexture(1, GL_WRITE_ONLY);
+            copy_image_shader->dispatchComputeImage(hdr_texture, 16);
+            copy_image_shader->unbind();
+        }
         return;
     }
 
@@ -113,49 +115,58 @@ void Bloom::Render(Texture* hdr_texture)
         {
             // blur lowest level
             int i = params.levels - 1;
-            blurx_shader->bind();
-            blurx_shader->upload(5, bright_textures[i], 0);
-            blur_textures[i]->bindImageTexture(1, GL_WRITE_ONLY);
-            blurx_shader->dispatchComputeImage(bright_textures[i].get(), 16);
-            glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-            blurx_shader->unbind();
+            if (blurx_shader->bind())
+            {
+                blurx_shader->upload(5, bright_textures[i], 0);
+                blur_textures[i]->bindImageTexture(1, GL_WRITE_ONLY);
+                blurx_shader->dispatchComputeImage(bright_textures[i].get(), 16);
+                glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+                blurx_shader->unbind();
+            }
 
-            blury_shader->bind();
-            blury_shader->upload(5, blur_textures[i], 0);
-            bright_textures[i]->bindImageTexture(1, GL_WRITE_ONLY);
-            blury_shader->dispatchComputeImage(bright_textures[i].get(), 16);
-            glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-            blury_shader->unbind();
+            if (blury_shader->bind())
+            {
+                blury_shader->upload(5, blur_textures[i], 0);
+                bright_textures[i]->bindImageTexture(1, GL_WRITE_ONLY);
+                blury_shader->dispatchComputeImage(bright_textures[i].get(), 16);
+                glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+                blury_shader->unbind();
+            }
         }
 
         for (int i = params.levels - 1; i > 0; i--)
         {
-            upsample_shader->bind();
-            upsample_shader->upload(5, bright_textures[i], 0);
-            upsample_shader->upload(7, i);
-            upsample_shader->upload(8, params.levels);
-            bright_textures[i - 1]->bindImageTexture(1, GL_READ_WRITE);
-            upsample_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
-            glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-            upsample_shader->unbind();
-
+            if (upsample_shader->bind())
+            {
+                upsample_shader->upload(5, bright_textures[i], 0);
+                upsample_shader->upload(7, i);
+                upsample_shader->upload(8, params.levels);
+                bright_textures[i - 1]->bindImageTexture(1, GL_READ_WRITE);
+                upsample_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
+                glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+                upsample_shader->unbind();
+            }
 
             // Don't blur the highest resolution layer to save some time
             if (i > 0)
             {
-                blurx_shader->bind();
-                blurx_shader->upload(5, bright_textures[i - 1], 0);
-                blur_textures[i - 1]->bindImageTexture(1, GL_WRITE_ONLY);
-                blurx_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
-                glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-                blurx_shader->unbind();
+                if (blurx_shader->bind())
+                {
+                    blurx_shader->upload(5, bright_textures[i - 1], 0);
+                    blur_textures[i - 1]->bindImageTexture(1, GL_WRITE_ONLY);
+                    blurx_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
+                    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+                    blurx_shader->unbind();
+                }
 
-                blury_shader->bind();
-                blury_shader->upload(5, blur_textures[i - 1], 0);
-                bright_textures[i - 1]->bindImageTexture(1, GL_WRITE_ONLY);
-                blury_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
-                glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-                blury_shader->unbind();
+                if (blury_shader->bind())
+                {
+                    blury_shader->upload(5, blur_textures[i - 1], 0);
+                    bright_textures[i - 1]->bindImageTexture(1, GL_WRITE_ONLY);
+                    blury_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
+                    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+                    blury_shader->unbind();
+                }
             }
         }
     }

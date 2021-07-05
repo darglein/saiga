@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "saiga/vision/VisionTypes.h"
+#include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/kernels/BA.h"
 
 #include "ceres/autodiff_cost_function.h"
@@ -60,7 +60,7 @@ struct CostBARSMono
         T x     = pc(0) / pc(2);
         T y     = pc(1) / pc(2);
 
-        x = T(intr.fx) * x + T(intr.cx);
+        x = T(intr.fx) * x + T(intr.s) * y + T(intr.cx);
         y = T(intr.fy) * y + T(intr.cy);
 
         residual(0) = (T(observed(0)) - x) * T(weight);
@@ -68,12 +68,12 @@ struct CostBARSMono
         return true;
     }
 
-    CostBARSMono(const Intrinsics4& intr, const Eigen::Vector2d& observed, double weight = 1)
+    CostBARSMono(const IntrinsicsPinholed& intr, const Eigen::Vector2d& observed, double weight = 1)
         : intr(intr), observed(observed), weight(weight)
     {
     }
 
-    Intrinsics4 intr;
+    IntrinsicsPinholed intr;
     Eigen::Vector2d observed;
     double weight;
 };
