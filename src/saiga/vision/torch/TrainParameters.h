@@ -33,8 +33,8 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
         SAIGA_PARAM_LONG(split_remove_neighbors);
         SAIGA_PARAM_BOOL(train_on_eval);
         SAIGA_PARAM_DOUBLE(train_factor);
-        SAIGA_PARAM_DOUBLE(num_workers_train);
-        SAIGA_PARAM_DOUBLE(num_workers_eval);
+        SAIGA_PARAM_LONG(num_workers_train);
+        SAIGA_PARAM_LONG(num_workers_eval);
     }
 
     // ======== Train Control =========
