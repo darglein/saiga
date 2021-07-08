@@ -108,6 +108,14 @@ using Distortionf = DistortionBase<float>;
 
 
 
+template <typename T>
+std::ostream& operator<<(std::ostream& strm, const DistortionBase<T> dist)
+{
+    strm << dist.Coeffs().transpose();
+    return strm;
+}
+
+
 /**
  * The OpenCV distortion model applied to a point in normalized image coordinates.
  * You can find a glsl implementation in shader/vision/distortion.h
