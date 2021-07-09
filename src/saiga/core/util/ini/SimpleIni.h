@@ -2100,9 +2100,9 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetDoubleValue(cons
     // convert to an ASCII string
     char szInput[64];
 #if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
-    sprintf_s(szInput, "%f", a_nValue);
+    sprintf_s(szInput, "%0.10f", a_nValue);
 #else   // !__STDC_WANT_SECURE_LIB__
-    sprintf(szInput, "%f", a_nValue);
+    sprintf(szInput, "%0.10f", a_nValue);
 #endif  // __STDC_WANT_SECURE_LIB__
 
     // convert to output text

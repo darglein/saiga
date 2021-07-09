@@ -45,6 +45,7 @@ void TimerSystem::TimeData::Start()
 {
     if (current_depth >= 0)
     {
+        // This timer has already been recorded.
         SAIGA_ASSERT(active == false);
         SAIGA_ASSERT(depth == -1);
         depth      = current_depth++;
