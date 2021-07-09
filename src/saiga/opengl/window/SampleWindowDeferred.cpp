@@ -54,7 +54,10 @@ void SampleWindowDeferred::interpolate(float dt, float interpolation)
     // doing it in the interpolate step will reduce latency
     if (renderer->use_mouse_input_in_3dview) camera.interpolate(dt, interpolation);
     render_system.Clear();
-    render_system.Add(groundPlane.asset.get(), groundPlane.getModelMatrix(), RENDER_DEFAULT | RENDER_SHADOW);
+    if (showGrid)
+    {
+        render_system.Add(groundPlane.asset.get(), groundPlane.getModelMatrix(), RENDER_DEFAULT | RENDER_SHADOW);
+    }
 }
 
 
@@ -63,8 +66,11 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
     render_system.Render(cam, render_pass);
     if (render_pass == RenderPass::Forward)
     {
-        skybox.sunDir = vec3(sun->getDirection());
-        skybox.render(cam);
+        if(showSkybox)
+        {
+            skybox.sunDir = vec3(sun->getDirection());
+            skybox.render(cam);
+        }
     }
     else if (render_pass == RenderPass::GUI)
     {
@@ -77,8 +83,14 @@ void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
         {
             ImGui::Checkbox("showSkybox", &showSkybox);
             ImGui::Checkbox("showGrid", &showGrid);
-            camera.imgui();
-            skybox.imgui();
+            if (ImGui::CollapsingHeader("Camera"))
+            {
+                camera.imgui();
+            }
+            if (ImGui::CollapsingHeader("Skybox"))
+            {
+                skybox.imgui();
+            }
         }
         ImGui::End();
     }

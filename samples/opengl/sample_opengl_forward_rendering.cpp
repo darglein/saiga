@@ -129,7 +129,6 @@ class Sample : public SampleWindowForward
 
 
    private:
-    Skybox skybox;
     bool add_values_to_console = false;
     GLPointCloud pointCloud;
     LineSoup lineSoup;

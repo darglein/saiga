@@ -20,7 +20,7 @@ namespace Saiga
 class SAIGA_OPENGL_API ProceduralSkybox : public ProceduralSkyboxBase
 {
    public:
-    ProceduralSkybox(const std::string& shader_str = "geometry/proceduralSkybox.glsl");
+    ProceduralSkybox(const std::string& shader_str = "geometry/skybox_procedural.glsl");
     void render(Camera* cam, const mat4& model = mat4::Identity());
 
    protected:

@@ -7,34 +7,33 @@
 #include "saiga/opengl/world/skybox.h"
 
 #include "saiga/core/model/model_from_shape.h"
+#include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
 {
-Skybox::Skybox() : mesh(SkyboxMesh(AABB(make_vec3(-1), make_vec3(1)))) {}
-
-void Skybox::setPosition(const vec3& p)
+Skybox::Skybox(std::shared_ptr<Texture> texture, const std::string mapping) : texture(texture), mesh(FullScreenQuad())
 {
-    model.col(3) = vec4(p[0], 0, p[2], 1);
-}
-
-void Skybox::setDistance(float d)
-{
-    model(0, 0) = d;
-    model(1, 1) = d;
-    model(2, 2) = d;
+    if (mapping == "spherical")
+    {
+        shader = shaderLoader.load<MVPTextureShader>("geometry/skybox_image.glsl");
+        type   = 0;
+    }
 }
 
 
 void Skybox::render(Camera* cam)
 {
-    if(shader->bind())
+    SAIGA_ASSERT(shader);
+    if (shader->bind())
     {
-        shader->uploadModel(model);
-        shader->uploadModel(mat4::Identity());
-        shader->uploadTexture(cube_texture.get());
-        mesh.BindAndDraw();
-        cube_texture->unbind();
-
+        // shader->uploadModel(model);
+        // shader->uploadModel(mat4::Identity());
+        if (type == 0)
+        {
+            shader->uploadTexture(texture.get());
+            mesh.BindAndDraw();
+            // cube_texture->unbind();
+        }
         shader->unbind();
     }
 }
