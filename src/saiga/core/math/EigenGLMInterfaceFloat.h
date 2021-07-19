@@ -53,7 +53,8 @@ constexpr float smoothstep(float edge0, float edge1, float x)
 }
 
 
-inline float fract(float a)
+template <typename T>
+HD inline T fract(T a)
 {
     return a - std::floor(a);
 }

@@ -159,7 +159,8 @@ inline torch::Tensor FilterTensor(Matrix<float, -1, -1> kernel)
 inline torch::Tensor Filter2dIndependentChannels(torch::Tensor x, Matrix<float, -1, -1> kernel, int padding)
 {
     SAIGA_ASSERT(x.dim() == 4);
-    torch::Tensor K = torch::from_blob(kernel.data(), {1, 1, kernel.rows(), kernel.cols()}).to(x.device());
+    torch::Tensor K = FilterTensor(kernel);
+    K               = K.repeat({x.size(1), 1, 1, 1}).to(x.device());
     auto res        = torch::conv2d(x, K, {}, 1, padding, 1, x.size(1));
     return res;
 }
@@ -170,6 +171,7 @@ inline torch::Tensor GaussBlur(torch::Tensor image, int radius, float sigma, int
 {
     SAIGA_ASSERT(image.dim() == 4);
     auto K = FilterTensor(gaussianBlurKernel2d(radius, sigma));
+    K      = K.repeat({image.size(1), 1, 1, 1}).to(image.device());
     return torch::conv2d(image, K, {}, 1, padding, 1, image.size(1));
 }
 
