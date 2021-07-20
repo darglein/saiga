@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-Skybox::Skybox(std::shared_ptr<Texture> texture, const std::string mapping) : texture(texture), mesh(FullScreenQuad())
+Skybox::Skybox(std::shared_ptr<Texture> texture, const std::string mapping) : mesh(FullScreenQuad()), texture(texture)
 {
     if (mapping == "spherical")
     {
