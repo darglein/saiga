@@ -7,8 +7,9 @@
 #ifndef NORMAL_SF_H
 #define NORMAL_SF_H
 
-#include "hlslDefines.h"
 #include "shaderConfig.h"
+//
+#include "hlslDefines.h"
 
 #undef INFINITY
 #define INFINITY 1024.0f
@@ -19,7 +20,7 @@
 // inverseSF / SF / inverseHSF / HSF - final version from the SFM paper.
 FUNC_DECL float inverseSF(float3 p, float n)
 {
-    float phi = std::min(atan2(p.y, p.x), PI), cosTheta = p.z;
+    float phi = std::min(atan2(p[1], p[0]), PI), cosTheta = p[2];
 
     float k = std::max(2.f, floor(log(n * PI * sqrt(5.f) * (1.f - cosTheta * cosTheta)) / log(PHI * PHI)));
 
@@ -67,7 +68,8 @@ FUNC_DECL float inverseHSF(float3 p, float n)
 {
     float phi = std::min(atan2(p.y, p.x), PI), cosTheta = std::max(p.z, 0.f);
 
-    float k = std::max(2.f, floor(log(2.f * n * PI * sqrt(5.f) * saturate(1.f - cosTheta * cosTheta)) / log(PHI * PHI)));
+    float k =
+        std::max(2.f, floor(log(2.f * n * PI * sqrt(5.f) * saturate(1.f - cosTheta * cosTheta)) / log(PHI * PHI)));
 
     float Fk = pow(PHI, k) / sqrt(5);
     float F0 = round(Fk), F1 = round(Fk * PHI);
