@@ -56,8 +56,8 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
     int duplicate_train_factor   = 1;
     bool shuffle_initial_indices = false;
     bool shuffle_train_indices   = true;
-    int num_workers_train        = 0;
-    int num_workers_eval         = 0;
+    int num_workers_train        = 2;
+    int num_workers_eval         = 2;
 
     // Let's say this value is set to 2, then if the idx 7 was selected as
     // test index the idxs 5,6,8,9 are deleted from train.

@@ -114,10 +114,12 @@ HD constexpr auto slerp(const Eigen::QuaternionBase<Derived>& a, const Eigen::Qu
     return a.slerp(alpha, b);
 }
 
-/**
- * Pixar Revised ONB
- * https://graphics.pixar.com/library/OrthonormalB/paper.pdf
- */
+//
+// Pixar Revised ONB
+// https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+//
+// n is aligned to the z-axis
+//
 template <typename Derived>
 Matrix<typename Derived::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived>& n)
 {
