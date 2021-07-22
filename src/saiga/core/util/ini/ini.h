@@ -107,6 +107,7 @@ struct ParamsBase
     virtual void Save(std::string file)
     {
         Saiga::SimpleIni ini_;
+        ini_.LoadFile(file.c_str());
         Params(ini_);
         ini_.SaveFile(file.c_str());
     }
