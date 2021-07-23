@@ -456,6 +456,8 @@ class CSimpleIniTempl
     };
 
    public:
+    // Adds the default prefix
+    bool write_default_prefix = false;
     /*-----------------------------------------------------------------------*/
 
     /** Default constructor.
@@ -2068,7 +2070,7 @@ long CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetAddLong(const SI_CHA
     auto v = GetValue(a_pSection, a_pKey, NULL);
     if (v == NULL)
     {
-        SetLongValue(a_pSection, a_pKey, a_nDefault, a_pComment, false, false, true);
+        SetLongValue(a_pSection, a_pKey, a_nDefault, a_pComment, false, false, write_default_prefix);
         return a_nDefault;
     }
     else
@@ -2156,7 +2158,7 @@ double CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetAddDouble(const SI
     auto v = GetValue(a_pSection, a_pKey, NULL);
     if (v == NULL)
     {
-        SetDoubleValue(a_pSection, a_pKey, a_nDefault, a_pComment, false, true);
+        SetDoubleValue(a_pSection, a_pKey, a_nDefault, a_pComment, false, write_default_prefix);
         return a_nDefault;
     }
     else
@@ -2246,7 +2248,7 @@ bool CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetAddBool(const SI_CHA
     auto v = GetValue(a_pSection, a_pKey, NULL);
     if (v == NULL)
     {
-        SetBoolValue(a_pSection, a_pKey, a_nDefault, a_pComment, false, true);
+        SetBoolValue(a_pSection, a_pKey, a_nDefault, a_pComment, false, write_default_prefix);
         return a_nDefault;
     }
     else
