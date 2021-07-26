@@ -23,7 +23,7 @@ class RPOTest
    public:
     RPOTest()
     {
-        scene.K    = StereoCamera4Base<T>(458.654, 457.296, 367.215, 248.375, 50);
+        scene.K    = StereoCamera4Base<T>(458.654, 457.296, 367.215, 248.375, 0, 50);
         scene.pose = Random::randomSE3();
 
         // Add some random observations

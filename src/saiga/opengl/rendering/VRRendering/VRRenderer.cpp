@@ -47,9 +47,8 @@ void VRRenderer::render(const RenderInfo& renderInfo)
     if (!rendering) return;
 
     SAIGA_ASSERT(rendering);
-    SAIGA_ASSERT(renderInfo);
 
-    auto camera = dynamic_cast<PerspectiveCamera*>(renderInfo.cameras.front().first);
+    auto camera = dynamic_cast<PerspectiveCamera*>(renderInfo.camera);
     SAIGA_ASSERT(camera);
 
 

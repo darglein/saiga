@@ -23,7 +23,7 @@ namespace Saiga
 {
 namespace Vulkan
 {
-class SAIGA_VULKAN_API VulkanForwardRenderingInterface : public RenderingInterfaceBase
+class SAIGA_VULKAN_API VulkanForwardRenderingInterface : public RenderingInterface
 {
    public:
     virtual void transfer(vk::CommandBuffer cmd) {}

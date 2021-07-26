@@ -87,17 +87,17 @@ class Sample : public SampleWindowForward
 
 
 
-    void render(Camera* camera, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        Base::render(camera, render_pass);
+        Base::render(render_info);
 
-        if (render_pass == RenderPass::Forward)
+        if (render_info.render_pass == RenderPass::Forward)
         {
-            pointCloud.render(camera);
-            lineSoup.render(camera);
-            frustum.renderForward(camera, mat4::Identity());
+            pointCloud.render(render_info.camera);
+            lineSoup.render(render_info.camera);
+            frustum.renderForward(render_info.camera, mat4::Identity());
         }
-        else if (render_pass == RenderPass::GUI)
+        else if (render_info.render_pass == RenderPass::GUI)
         {
             if (add_values_to_console)
             {

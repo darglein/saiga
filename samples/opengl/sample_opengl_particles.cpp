@@ -123,10 +123,10 @@ class Sample : public SampleWindowDeferred
         updatebuffer();
     }
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        Base::render(cam, render_pass);
-        if (render_pass == RenderPass::Forward)
+        Base::render(render_info);
+        if (render_info.render_pass == RenderPass::Forward)
         {
             if (render_points)
             {
@@ -140,7 +140,7 @@ class Sample : public SampleWindowDeferred
             }
         }
 
-        if (render_pass == RenderPass::GUI)
+        if (render_info.render_pass == RenderPass::GUI)
         {
             if (ImGui::Begin("Saiga Sample"))
             {

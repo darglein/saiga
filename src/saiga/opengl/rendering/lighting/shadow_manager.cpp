@@ -132,7 +132,12 @@ void ShadowManager::RenderShadowMaps(Camera* view_point, RenderingInterface* ren
 
     shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
 
-    DepthFunction depthFunc = [&](Camera* cam) -> void { renderer->render(cam, RenderPass::Shadow); };
+    DepthFunction depthFunc = [&](Camera* cam) -> void {
+        RenderInfo ri;
+        ri.camera      = cam;
+        ri.render_pass = RenderPass::Shadow;
+        renderer->render(ri);
+    };
 
     shadow_framebuffer.bind();
     for (auto& light : dls)

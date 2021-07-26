@@ -36,9 +36,9 @@ void AssetRenderSystem::Clear()
     colored_assets.clear();
     textured_assets.clear();
 }
-void AssetRenderSystem::Render(Camera* cam, RenderPass render_pass)
+void AssetRenderSystem::Render(RenderInfo render_info)
 {
-    if (render_pass == RenderPass::Deferred)
+    if (render_info.render_pass == RenderPass::Deferred)
     {
         // Colored assets
         if (!colored_assets.empty() && shader_colored_deferred->bind())
@@ -68,14 +68,14 @@ void AssetRenderSystem::Render(Camera* cam, RenderPass render_pass)
             shader_textured_deferred->unbind();
         }
     }
-    else if (render_pass == RenderPass::Shadow || render_pass == RenderPass::DepthPrepass)
+    else if (render_info.render_pass == RenderPass::Shadow || render_info.render_pass == RenderPass::DepthPrepass)
     {
         // Colored assets
         if (!colored_assets.empty() && shader_colored_depth->bind())
         {
             for (auto& data : colored_assets)
             {
-                if (data.flags & RENDER_SHADOW || render_pass == RenderPass::DepthPrepass)
+                if (data.flags & RENDER_SHADOW || render_info.render_pass == RenderPass::DepthPrepass)
                 {
                     shader_colored_depth->uploadModel(data.model);
                     data.asset->renderRaw();

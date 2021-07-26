@@ -40,7 +40,7 @@ class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow<WindowMana
 
 
 
-    virtual void render(Camera* camera, RenderPass render_pass) override;
+    virtual void render(RenderInfo render_info) override;
 
     virtual void keyPressed(int key, int scancode, int mods) override;
 

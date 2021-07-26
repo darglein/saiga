@@ -71,15 +71,15 @@ class Sample : public SampleWindowDeferred
         vec_bone_matrices = asset->animation_system.Matrices();
         bone_matrices.updateBuffer(vec_bone_matrices.data(), vec_bone_matrices.size() * sizeof(mat4), 0);
     }
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        Base::render(cam, render_pass);
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        Base::render(render_info);
+        if (render_info.render_pass == RenderPass::Deferred || render_info.render_pass == RenderPass::Shadow)
         {
-            asset->render(cam, mat4::Identity());
+            asset->render(render_info.camera, mat4::Identity());
         }
 
-        if (render_pass == RenderPass::GUI)
+        if (render_info.render_pass == RenderPass::GUI)
         {
             ImGui::SetNextWindowPos(ImVec2(0, 200), ImGuiCond_Once);
             ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_Once);

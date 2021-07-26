@@ -29,9 +29,9 @@ class Sample : public SampleWindowDeferred
         render_system.Add(teapot.asset.get(), teapot.model, RENDER_DEFAULT | RENDER_SHADOW);
     }
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        Base::render(cam, render_pass);
+        Base::render(render_info);
     }
 
 

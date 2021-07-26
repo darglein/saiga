@@ -111,7 +111,7 @@ void UberDeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort vi
         auto tim = timer->Measure("Forward");
         bindCamera(camera);
         setViewPort(viewport);
-        renderingInterface->render(camera, RenderPass::Forward);
+        renderingInterface->render({camera, RenderPass::Forward});
     }
 
     {
@@ -189,7 +189,7 @@ void UberDeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::
         glLineWidth(params.wireframeLineSize);
     }
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    renderingInterface->render(camera.first, RenderPass::Deferred);
+    renderingInterface->render({camera.first, RenderPass::Deferred});
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 

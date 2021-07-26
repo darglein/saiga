@@ -81,18 +81,18 @@ class Sample : public SampleWindowDeferred
     void update(float dt) override { Base::update(dt); }
 
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        if (render_info.render_pass == RenderPass::Deferred || render_info.render_pass == RenderPass::Shadow)
         {
-            Base::render(cam, render_pass);
+            Base::render(render_info);
             for (auto& o : objects)
             {
-                o.render(cam, render_pass);
+                o.render(render_info.camera, render_info.render_pass);
             }
         }
 
-        if (render_pass == RenderPass::GUI)
+        if (render_info.render_pass == RenderPass::GUI)
         {
             if (ImGui::Begin("Saiga Sample"))
             {

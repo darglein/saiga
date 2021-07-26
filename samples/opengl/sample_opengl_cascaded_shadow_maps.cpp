@@ -90,19 +90,19 @@ class Sample : public SampleWindowDeferred
     }
 
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        Base::render(cam, render_pass);
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        Base::render(render_info);
+        if (render_info.render_pass == RenderPass::Deferred || render_info.render_pass == RenderPass::Shadow)
         {
-            groundPlane.render(cam);
+            groundPlane.render(render_info.camera);
 
             for (auto& c : cubes)
             {
-                c.render(cam);
+                c.render(render_info.camera);
             }
         }
-        else if (render_pass == RenderPass::GUI)
+        else if (render_info.render_pass == RenderPass::GUI)
         {
             ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);

@@ -85,21 +85,21 @@ class VRSample : public StandaloneWindow<WindowManagement::GLFW, VRRenderer>, pu
         camera.interpolate(dt, interpolation);
     }
 
-    void render(Camera* camera, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        sphere.render(camera, render_pass);
-        cube1.render(camera, render_pass);
-        cube2.render(camera, render_pass);
+        sphere.render(render_info.camera, render_info.render_pass);
+        cube1.render(render_info.camera, render_info.render_pass);
+        cube2.render(render_info.camera, render_info.render_pass);
 
 
-        if (render_pass == RenderPass::Forward)
+        if (render_info.render_pass == RenderPass::Forward)
         {
             // The skybox is rendered after lighting and before post processing
-            groundPlane.renderForward(camera);
+            groundPlane.renderForward(render_info.camera);
 
-            skybox.render(camera);
+            skybox.render(render_info.camera);
         }
-        else if (render_pass == RenderPass::GUI)
+        else if (render_info.render_pass == RenderPass::GUI)
         {
             ImGui::SetNextWindowPos(ImVec2(50, 400), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);

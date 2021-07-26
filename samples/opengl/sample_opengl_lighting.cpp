@@ -6,7 +6,7 @@
 
 #include "saiga/core/math/random.h"
 #include "saiga/core/model/model_from_shape.h"
-#include "saiga/opengl/shader/shaderLoader.h"
+#include "saiga/core/util/arguments.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
 
 using namespace Saiga;
@@ -143,11 +143,7 @@ class Sample : public SampleWindowDeferred
     }
 
 
-    void update(float dt) override
-    {
-        Base::update(dt);
-
-    }
+    void update(float dt) override { Base::update(dt); }
     void interpolate(float dt, float interpolation)
     {
         Base::interpolate(dt, interpolation);
@@ -157,16 +153,17 @@ class Sample : public SampleWindowDeferred
         }
     }
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        Base::render(cam, render_pass);
+        Base::render(render_info);
 
-        if (render_pass == RenderPass::GUI)
+        if (render_info.render_pass == RenderPass::GUI)
         {
             if (ImGui::Begin("Saiga Sample"))
             {
                 static const char* types[3] = {"Point Light", "Spot Light", "Directional Light"};
-                if(ImGui::Combo("Codec", &current_type, types, 3)){
+                if (ImGui::Combo("Codec", &current_type, types, 3))
+                {
                     for (auto l : point_lights)
                     {
                         l->active = (current_type == 0);
@@ -199,10 +196,21 @@ class Sample : public SampleWindowDeferred
     AABB bounding_box;
 };
 
+struct MyArguments : public Arguments
+{
+    float f = 1;
+    int i   = 2;
+
+    MyArguments() { RegisterArgument("f", f); }
+};
 
 
 int main(int argc, char* args[])
 {
+    MyArguments ma;
+    ma.Load("test.ini", true);
+    return 0;
+
     // This should be only called if this is a sample located in saiga/samples
     initSaigaSample();
 

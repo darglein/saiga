@@ -15,14 +15,47 @@ class Camera;
 class WindowBase;
 class RenderingInterfaceBase;
 
+
+enum class RenderPass : int
+{
+    Forward,
+    Deferred,
+    Shadow,
+    DepthPrepass,
+    GUI,
+    Final,
+    Undefined
+};
+
+enum RenderFlags : int
+{
+    RENDER_DEFAULT = 1,
+    RENDER_UNLIT   = 2,
+    RENDER_SHADOW  = 4,
+};
+
 /**
  * This struct is passed to the renderers.
  */
 struct RenderInfo
 {
-    std::vector<std::pair<Camera*, ViewPort>> cameras;
-    explicit operator bool() const { return !cameras.empty(); }
+    RenderInfo() {}
+    RenderInfo(Camera* cam, RenderPass rp) : camera(cam), render_pass(rp) {}
+    Camera* camera         = nullptr;
+    RenderPass render_pass = RenderPass::Undefined;
+    RenderFlags render_flags;
+    void* render_context;
 };
+
+
+
+class SAIGA_CORE_API RenderingInterface
+{
+   public:
+    virtual ~RenderingInterface() {}
+    virtual void render(RenderInfo render_info) {}
+};
+
 
 /**
  * Base class of all render engines.
@@ -39,10 +72,10 @@ class SAIGA_CORE_API RendererBase
    public:
     RendererBase();
     virtual ~RendererBase() {}
-    RenderingInterfaceBase* rendering = nullptr;
+    RenderingInterface* rendering = nullptr;
 
 
-    void setRenderObject(RenderingInterfaceBase& r) { rendering = &r; }
+    void setRenderObject(RenderingInterface& r) { rendering = &r; }
 
     virtual void renderImgui() {}
 
@@ -51,41 +84,6 @@ class SAIGA_CORE_API RendererBase
     bool should_render_imgui = false;
 };
 
-/**
- * Base class for all rendering interfaces.
- */
-class SAIGA_CORE_API RenderingInterfaceBase
-{
-   public:
-    virtual ~RenderingInterfaceBase() {}
-};
-
-
-enum class RenderPass : int
-{
-    Forward,
-    Deferred,
-    Shadow,
-    DepthPrepass,
-    GUI,
-    Final
-};
-
-enum RenderFlags : int
-{
-    RENDER_DEFAULT = 1,
-    RENDER_UNLIT   = 2,
-    RENDER_SHADOW  = 4,
-};
-
-
-class SAIGA_CORE_API RenderingInterface : public RenderingInterfaceBase
-{
-   public:
-    virtual ~RenderingInterface() {}
-
-    virtual void render(Camera* camera, RenderPass render_pass) {}
-};
 
 
 /**

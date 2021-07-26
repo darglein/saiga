@@ -87,7 +87,7 @@ class Sample : public SampleWindowForward
             rightTexture->updateFromImage(rightImage);
         }
     }
-    void render(Camera* camera, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
         if (render_pass == RenderPass::GUI)
         {

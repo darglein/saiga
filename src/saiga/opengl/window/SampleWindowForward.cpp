@@ -54,14 +54,14 @@ void SampleWindowForward::interpolate(float dt, float interpolation)
 
 
 
-void SampleWindowForward::render(Camera* camera, RenderPass render_pass)
+void SampleWindowForward::render(RenderInfo render_info)
 {
-    if (render_pass == RenderPass::Forward)
+    if (render_info.render_pass == RenderPass::Forward)
     {
-        if (showSkybox) skybox.render(camera);
-        if (showGrid) groundPlane.renderForward(camera);
+        if (showSkybox) skybox.render(render_info.camera);
+        if (showGrid) groundPlane.renderForward(render_info.camera);
     }
-    else if (render_pass == RenderPass::GUI)
+    else if (render_info.render_pass == RenderPass::GUI)
     {
     }
 }

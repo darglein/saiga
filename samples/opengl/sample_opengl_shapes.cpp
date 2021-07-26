@@ -87,34 +87,34 @@ class Sample : public SampleWindowDeferred
         }
     }
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        Base::render(cam, render_pass);
+        Base::render(render_info);
 
         for (auto& o : objects)
         {
-            o.render(cam, render_pass);
+            o.render(render_info.camera, render_info.render_pass);
         }
 
 
 
-        if (render_pass == RenderPass::Forward)
+        if (render_info.render_pass == RenderPass::Forward)
         {
             glEnable(GL_POLYGON_OFFSET_LINE);
             glPolygonOffset(0.0f, -500.0f);
             for (auto& o : objects)
             {
-                o.renderWireframe(cam);
+                o.renderWireframe(render_info.camera);
             }
             glDisable(GL_POLYGON_OFFSET_LINE);
 
             for (auto& o : line_objects)
             {
-                o.renderForward(cam);
+                o.renderForward(render_info.camera);
             }
         }
 
-        if (render_pass == RenderPass::GUI)
+        if (render_info.render_pass == RenderPass::GUI)
         {
             //            ImGui::ShowDemoWindow();
         }

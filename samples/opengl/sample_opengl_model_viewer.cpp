@@ -86,17 +86,17 @@ class Sample : public SampleWindowDeferred
     }
 
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        if (render_pass == RenderPass::Shadow)
+        if (render_info.render_pass == RenderPass::Shadow)
         {
-            object.renderDepth(cam);
+            object.renderDepth(render_info.camera);
         }
-        else if (render_pass == RenderPass::Deferred)
+        else if (render_info.render_pass == RenderPass::Deferred)
         {
-            object.render(cam, render_pass);
+            object.render(render_info.camera, render_info.render_pass);
         }
-        else if (render_pass == RenderPass::Forward)
+        else if (render_info.render_pass == RenderPass::Forward)
         {
             //            TexturedAsset* ta = dynamic_cast<TexturedAsset*>(object.asset.get());
             //            SAIGA_ASSERT(ta);
@@ -120,11 +120,11 @@ class Sample : public SampleWindowDeferred
                 //        glLineWidth(1);
                 glPolygonOffset(0, -500);
 
-                object.renderWireframe(cam);
+                object.renderWireframe(render_info.camera);
                 glDisable(GL_POLYGON_OFFSET_LINE);
             }
         }
-        else if (render_pass == RenderPass::GUI)
+        else if (render_info.render_pass == RenderPass::GUI)
         {
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);

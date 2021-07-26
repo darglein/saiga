@@ -82,13 +82,13 @@ class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
     void update(float dt) override {}
     void interpolate(float dt, float interpolation) override {}
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        skybox.render(cam);
-        groundPlane.renderForward(cam);
-        cube1.renderForward(cam);
-        cube2.renderForward(cam);
-        sphere.renderForward(cam);
+        skybox.render(render_info.camera);
+        groundPlane.renderForward(render_info.camera);
+        cube1.renderForward(render_info.camera);
+        cube2.renderForward(render_info.camera);
+        sphere.renderForward(render_info.camera);
 
 
         window->ScreenshotDefaultFramebuffer().save("render.png");

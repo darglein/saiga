@@ -42,9 +42,9 @@ class Sample : public SampleWindowDeferred
         count++;
     }
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        if (render_pass == RenderPass::GUI)
+        if (render_info.render_pass == RenderPass::GUI)
         {
             glDisable(GL_DEPTH_TEST);
             glEnable(GL_BLEND);

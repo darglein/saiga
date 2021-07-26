@@ -37,12 +37,12 @@ class Sample : public SampleWindowDeferred
         render_system.Add(teapot.asset.get(), teapot.model, RENDER_DEFAULT | RENDER_SHADOW);
     }
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        Base::render(cam, render_pass);
-        if (render_pass == RenderPass::Forward)
+        Base::render(render_info);
+        if (render_info.render_pass == RenderPass::Forward)
         {
-            skybox->render(cam);
+            skybox->render(render_info.camera);
         }
     }
 

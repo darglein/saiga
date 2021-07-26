@@ -36,7 +36,6 @@ OpenGLRenderer::~OpenGLRenderer() {}
 
 void OpenGLRenderer::render(const RenderInfo& renderInfo)
 {
-    SAIGA_ASSERT(renderInfo.cameras.size() == 1);
     SAIGA_ASSERT(target_framebuffer);
 
 
@@ -52,7 +51,7 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
     {
         // 2. Render 3DView to framebuffer
         ResizeTarget(viewport_size.x(), viewport_size.y());
-        Camera* camera = renderInfo.cameras.front().first;
+        Camera* camera = renderInfo.camera;
         camera->recomputeProj(outputWidth, outputHeight);
         ViewPort viewport = ViewPort({0, 0}, {outputWidth, outputHeight});
         auto target_fb    = editor_gui.enabled ? target_framebuffer.get() : &default_framebuffer;
@@ -176,7 +175,11 @@ void OpenGLRenderer::PrepareImgui(bool compute_viewport_size)
 
         imgui->beginFrame();
         window->renderImGui();
-        dynamic_cast<RenderingInterface*>(rendering)->render(nullptr, RenderPass::GUI);
+
+        RenderInfo ri;
+        ri.camera = nullptr;
+        ri.render_pass = RenderPass::GUI;
+        dynamic_cast<RenderingInterface*>(rendering)->render(ri);
         renderImgui();
         console.render();
         timer->Imgui();

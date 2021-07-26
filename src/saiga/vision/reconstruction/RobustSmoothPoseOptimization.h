@@ -180,7 +180,7 @@ struct SAIGA_TEMPLATE SAIGA_ALIGN_CACHE RobustSmoothPoseOptimization
                     }
                     else
                     {
-                        auto [res, depth] = BundleAdjustment(camera, o.ip, guess, wp, o.weight, &JrowM, nullptr);
+                        auto [res, depth] = BundleAdjustment<T>(camera, o.ip, guess, wp, o.weight, &JrowM, nullptr);
                         auto res_2        = res.squaredNorm();
 #if 1
                         // Remove outliers

@@ -38,7 +38,7 @@ class Sample : public SampleWindowForward
 
 
     void update(float dt) override;
-    void render(Camera* camera, RenderPass render_pass) override;
+    void render(RenderInfo render_info) override;
 
    private:
     // render objects

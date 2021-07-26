@@ -135,19 +135,19 @@ class SampleSplitScreen : public StandaloneWindow<WindowManagement::GLFW, Deferr
         if (renderer->use_mouse_input_in_3dview) cameras[activeCamera].interpolate(dt, interpolation);
     }
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        if (render_info.render_pass == RenderPass::Deferred || render_info.render_pass == RenderPass::Shadow)
         {
-            groundPlane.render(cam, render_pass);
-            teapot.render(cam, render_pass);
+            groundPlane.render(render_info.camera, render_info.render_pass);
+            teapot.render(render_info.camera, render_info.render_pass);
         }
-        else if (render_pass == RenderPass::Forward)
+        else if (render_info.render_pass == RenderPass::Forward)
         {
             skybox.sunDir = vec3(sun->getDirection());
-            skybox.render(cam);
+            skybox.render(render_info.camera);
         }
-        else if (render_pass == RenderPass::GUI)
+        else if (render_info.render_pass == RenderPass::GUI)
         {
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);

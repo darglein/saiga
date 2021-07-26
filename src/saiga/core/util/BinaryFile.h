@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/util/assert.h"
 
 #include <cstring>
 #include <fstream>

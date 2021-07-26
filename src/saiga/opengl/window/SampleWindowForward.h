@@ -38,7 +38,7 @@ class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManag
     void update(float dt) override;
     void interpolate(float dt, float interpolation) override;
 
-    virtual void render(Camera* camera, RenderPass render_pass) override;
+    virtual void render(RenderInfo render_info) override;
 
     void keyPressed(int key, int scancode, int mods) override;
 

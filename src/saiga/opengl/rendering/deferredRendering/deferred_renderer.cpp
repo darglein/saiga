@@ -153,7 +153,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     {
         auto tim = timer->Measure("Forward");
-        renderingInterface->render(camera, RenderPass::Forward);
+        renderingInterface->render({camera, RenderPass::Forward});
     }
 
     {
@@ -223,7 +223,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         postProcessor.renderLast(target_framebuffer, viewport);
 
         target_framebuffer->bind();
-        renderingInterface->render(camera, RenderPass::Final);
+        renderingInterface->render({camera, RenderPass::Final});
         target_framebuffer->unbind();
 
         if (params.useGlFinish)
@@ -302,7 +302,7 @@ void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::View
         glLineWidth(params.wireframeLineSize);
     }
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
-    renderingInterface->render(camera.first, RenderPass::Deferred);
+    renderingInterface->render({camera.first, RenderPass::Deferred});
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
@@ -325,7 +325,7 @@ void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_ALWAYS);
-    if(blitDepthShader->bind())
+    if (blitDepthShader->bind())
     {
         blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
         quadMesh.BindAndDraw();

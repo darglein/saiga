@@ -27,7 +27,7 @@ class SAIGA_OPENGL_API AssetRenderSystem
    public:
     AssetRenderSystem();
     void Clear();
-    void Render(Camera* cam, RenderPass render_pass);
+    void Render(RenderInfo render_info);
     void Add(Asset* asset, const mat4& transformation, int render_flags);
 
    private:

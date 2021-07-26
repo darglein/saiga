@@ -43,18 +43,18 @@ class Sample : public SampleWindowDeferred
 
     void update(float dt) override;
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        SampleWindowDeferred::render(cam, render_pass);
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        SampleWindowDeferred::render(render_info);
+        if (render_info.render_pass == RenderPass::Deferred ||render_info. render_pass == RenderPass::Shadow)
         {
-            for (auto& cube : cubes) cube.render(cam);
+            for (auto& cube : cubes) cube.render(render_info.camera);
         }
-        else if (render_pass == RenderPass::Forward)
+        else if (render_info.render_pass == RenderPass::Forward)
         {
-            physics.render(cam);
+            physics.render(render_info.camera);
         }
-        else if (render_pass == RenderPass::GUI)
+        else if (render_info.render_pass == RenderPass::GUI)
         {
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_FirstUseEver);

@@ -41,12 +41,12 @@ class Sample : public SampleWindowDeferred
     }
 
 
-    void render(Camera* cam, RenderPass render_pass) override
+    void render(RenderInfo render_info) override
     {
-        Base::render(cam, render_pass);
-        if (render_pass == RenderPass::Deferred || render_pass == RenderPass::Shadow)
+        Base::render(render_info);
+        if (render_info.render_pass == RenderPass::Deferred || render_info.render_pass == RenderPass::Shadow)
         {
-            box.render(cam);
+            box.render(render_info.camera);
         }
     }
 

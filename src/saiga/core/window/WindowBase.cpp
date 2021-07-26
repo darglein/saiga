@@ -60,9 +60,8 @@ void WindowBase::render()
     SAIGA_ASSERT(renderer);
 
     RenderInfo renderInfo;
-    renderInfo.cameras = activeCameras;
+    renderInfo.camera = activeCameras.front().first;
 
-    SAIGA_ASSERT(!renderInfo.cameras.empty(), "No camera set!");
 
     if (renderer) renderer->render(renderInfo);
 }

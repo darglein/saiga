@@ -61,18 +61,18 @@ void SampleWindowDeferred::interpolate(float dt, float interpolation)
 }
 
 
-void SampleWindowDeferred::render(Camera* cam, RenderPass render_pass)
+void SampleWindowDeferred::render(RenderInfo render_info)
 {
-    render_system.Render(cam, render_pass);
-    if (render_pass == RenderPass::Forward)
+    render_system.Render(render_info);
+    if (render_info.render_pass == RenderPass::Forward)
     {
         if(showSkybox)
         {
             skybox.sunDir = vec3(sun->getDirection());
-            skybox.render(cam);
+            skybox.render(render_info.camera);
         }
     }
-    else if (render_pass == RenderPass::GUI)
+    else if (render_info.render_pass == RenderPass::GUI)
     {
         if (!editor_gui.enabled)
         {

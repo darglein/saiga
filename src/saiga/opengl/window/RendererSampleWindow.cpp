@@ -35,13 +35,13 @@ void RendererSampleWindow::interpolate(float dt, float interpolation)
     if (renderer->use_mouse_input_in_3dview) camera.interpolate(dt, interpolation);
 }
 
-void RendererSampleWindow::render(Camera* cam, RenderPass render_pass)
+void RendererSampleWindow::render(RenderInfo render_info)
 {
-    if (render_pass == RenderPass::Forward)
+    if (render_info.render_pass == RenderPass::Forward)
     {
-        if (showSkybox) skybox.render(cam);
+        if (showSkybox) skybox.render(render_info.camera);
     }
-    else if (render_pass == RenderPass::GUI)
+    else if (render_info.render_pass == RenderPass::GUI)
     {
     }
 }
