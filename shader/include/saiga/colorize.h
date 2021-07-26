@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017 Darius Rückert
+ * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
@@ -35,7 +35,7 @@ FUNC_DECL vec3 colorizeRedGreen(float alpha)
 FUNC_DECL vec3 colorizeFusion(float x)
 {
     float t = saturate(x);
-    return saturate(vec3(sqrt(t), t * t * t, std::max(sin(3.1415 * 1.75 * t), pow(t, 12.0))));
+    return saturate(vec3(sqrt(t), t * t * t, max(sin(3.1415 * 1.75 * t), pow(t, 12.0))));
 }
 
 FUNC_DECL vec3 colorizeFusionHDR(float x)

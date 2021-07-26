@@ -159,6 +159,8 @@ class SAIGA_CORE_API UnifiedMesh
     std::vector<Vector<IndexType, 2>> LineIndexList() const;
 
 
+    void SaveCompressed(const std::string& file);
+    void LoadCompressed(const std::string& file);
 
    private:
     void LocateTextures(const std::string& base);

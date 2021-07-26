@@ -53,9 +53,21 @@ constexpr float smoothstep(float edge0, float edge1, float x)
 }
 
 
-inline float fract(float a)
+HD inline float fract(float a)
 {
     return a - std::floor(a);
+}
+
+
+HD inline double fract(double a)
+{
+    return a - std::floor(a);
+}
+
+template <typename Derived>
+HD constexpr typename Derived::PlainObject fract(const Eigen::MatrixBase<Derived>& v)
+{
+    return (v.array() - v.array().floor());
 }
 
 template <typename T>

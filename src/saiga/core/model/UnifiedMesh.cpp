@@ -9,8 +9,11 @@
 #include "saiga/core/geometry/kdtree.h"
 #include "saiga/core/math/Morton.h"
 #include "saiga/core/math/random.h"
+#include "saiga/core/util/BinaryFile.h"
+#include "saiga/core/util/file.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/core/util/zlib.h"
 
 #include "internal/noGraphicsAPI.h"
 
@@ -478,6 +481,28 @@ UnifiedMesh& UnifiedMesh::RemoveDoubles(float distance)
     }
 
     return EraseVertices(to_erase);
+}
+
+void UnifiedMesh::SaveCompressed(const std::string& file)
+{
+    BinaryOutputVector strm;
+    strm << position << normal << color << texture_coordinates << data << bone_info;
+    strm << triangles << lines;
+    strm << material_id;
+    auto compressed = compress(strm.data.data(), strm.data.size());
+    File::saveFileBinary(file, compressed.data(), compressed.size());
+}
+
+void UnifiedMesh::LoadCompressed(const std::string& file)
+{
+    *this = {};
+
+    auto compressed_data = File::loadFileBinary(file);
+    auto data_raw            = uncompress(compressed_data.data());
+    BinaryInputVector strm(data_raw.data(), data_raw.size());
+    strm >> position >> normal >> color >> texture_coordinates >> data >> bone_info;
+    strm >> triangles >> lines;
+    strm >> material_id;
 }
 
 template <>

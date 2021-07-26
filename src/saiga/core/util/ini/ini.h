@@ -107,6 +107,7 @@ struct ParamsBase
     virtual void Save(std::string file)
     {
         Saiga::SimpleIni ini_;
+        ini_.LoadFile(file.c_str());
         Params(ini_);
         ini_.SaveFile(file.c_str());
     }
@@ -121,6 +122,8 @@ struct ParamsBase
 #define SAIGA_PARAM_LONG(_variable) INI_GETADD_LONG(ini_, name_.c_str(), _variable)
 #define SAIGA_PARAM_STRING(_variable) INI_GETADD_STRING(ini_, name_.c_str(), _variable)
 #define SAIGA_PARAM_STRING_LIST(_variable, _sep) INI_GETADD_STRING_LIST_COMMENT(ini_, name_.c_str(), _variable, _sep, 0)
+#define SAIGA_PARAM_STRING_LIST_COMMENT(_variable, _sep, _comment) \
+    INI_GETADD_STRING_LIST_COMMENT(ini_, name_.c_str(), _variable, _sep, _comment)
 #define SAIGA_PARAM_DOUBLE(_variable) INI_GETADD_DOUBLE(ini_, name_.c_str(), _variable)
 
 #define SAIGA_PARAM_STRING_COMMENT(_variable, _comment) \

@@ -286,7 +286,7 @@ Eigen::Matrix<T, 2, 1> undistortPointGN(const Eigen::Matrix<T, 2, 1>& point, con
  * The inverse OpenCV distortion model with 5 parameters.
  */
 template <typename T>
-Eigen::Matrix<T, 2, 1> undistortNormalizedPoint1235(const Eigen::Matrix<T, 2, 1>& point,
+HD inline Eigen::Matrix<T, 2, 1> undistortNormalizedPointSimple(const Eigen::Matrix<T, 2, 1>& point,
                                                     const DistortionBase<T>& distortion, int iterations = 5)
 {
     T x  = point.x();

@@ -271,6 +271,7 @@ enum SI_Error
 #    define SI_WCHAR_T UChar
 #endif
 
+#define default_prefix "_default("
 
 // ---------------------------------------------------------------------------
 //                              MAIN TEMPLATE CLASS
@@ -455,6 +456,8 @@ class CSimpleIniTempl
     };
 
    public:
+    // Adds the default prefix
+    bool write_default_prefix = false;
     /*-----------------------------------------------------------------------*/
 
     /** Default constructor.
@@ -544,6 +547,8 @@ class CSimpleIniTempl
 
     /** Query the status of spaces output */
     bool UsingSpaces() const { return m_bSpaces; }
+
+    bool IsDefaultValue(const char* str) const { return strncmp(default_prefix, str, strlen(default_prefix)) == 0; }
 
     /*-----------------------------------------------------------------------*/
     /** @}
@@ -951,7 +956,8 @@ class CSimpleIniTempl
         @return SI_INSERTED Value was inserted
      */
     SI_Error SetLongValue(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey, long a_nValue,
-                          const SI_CHAR* a_pComment = NULL, bool a_bUseHex = false, bool a_bForceReplace = false);
+                          const SI_CHAR* a_pComment = NULL, bool a_bUseHex = false, bool a_bForceReplace = false,
+                          bool add_default_prefix = false);
 
     /** Add or update a double value. This will always insert
         when multiple keys are enabled.
@@ -974,7 +980,8 @@ class CSimpleIniTempl
         @return SI_INSERTED Value was inserted
      */
     SI_Error SetDoubleValue(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey, double a_nValue,
-                            const SI_CHAR* a_pComment = NULL, bool a_bForceReplace = false);
+                            const SI_CHAR* a_pComment = NULL, bool a_bForceReplace = false,
+                            bool add_default_prefix = false);
 
     /** Add or update a boolean value. This will always insert
         when multiple keys are enabled.
@@ -997,7 +1004,8 @@ class CSimpleIniTempl
         @return SI_INSERTED Value was inserted
      */
     SI_Error SetBoolValue(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey, bool a_bValue,
-                          const SI_CHAR* a_pComment = NULL, bool a_bForceReplace = false);
+                          const SI_CHAR* a_pComment = NULL, bool a_bForceReplace = false,
+                          bool add_default_prefix = false);
 
     /** Delete an entire section, or a key from a section. Note that the
         data returned by GetSection is invalid and must not be used after
@@ -1237,7 +1245,7 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::LoadFile(const char
     FILE* fp = NULL;
 #if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
     fopen_s(&fp, a_pszFile, "rb");
-#else   // !__STDC_WANT_SECURE_LIB__
+#else  // !__STDC_WANT_SECURE_LIB__
     fp = fopen(a_pszFile, "rb");
 #endif  // __STDC_WANT_SECURE_LIB__
     if (!fp)
@@ -1257,14 +1265,14 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::LoadFile(const SI_W
     FILE* fp = NULL;
 #        if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
     _wfopen_s(&fp, a_pwszFile, L"rb");
-#        else   // !__STDC_WANT_SECURE_LIB__
+#        else  // !__STDC_WANT_SECURE_LIB__
     fp = _wfopen(a_pwszFile, L"rb");
 #        endif  // __STDC_WANT_SECURE_LIB__
     if (!fp) return SI_FILE;
     SI_Error rc = LoadFile(fp);
     fclose(fp);
     return rc;
-#    else   // !_WIN32 (therefore SI_CONVERT_ICU)
+#    else  // !_WIN32 (therefore SI_CONVERT_ICU)
     char szFile[256];
     u_austrncpy(szFile, a_pwszFile, sizeof(szFile));
     return LoadFile(szFile);
@@ -1989,6 +1997,11 @@ long CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetLongValue(const SI_C
         return a_nDefault;
     }
 
+    if (IsDefaultValue(pszValue))
+    {
+        return a_nDefault;
+    }
+
     // handle the value as hex if prefaced with "0x"
     long nValue     = a_nDefault;
     char* pszSuffix = szValue;
@@ -2016,24 +2029,34 @@ template <class SI_CHAR, class SI_STRLESS, class SI_CONVERTER>
 SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetLongValue(const SI_CHAR* a_pSection,
                                                                           const SI_CHAR* a_pKey, long a_nValue,
                                                                           const SI_CHAR* a_pComment, bool a_bUseHex,
-                                                                          bool a_bForceReplace)
+                                                                          bool a_bForceReplace, bool add_default_prefix)
 {
     // use SetValue to create sections
     if (!a_pSection || !a_pKey) return SI_FAIL;
 
     hasChanged = true;
-    // convert to an ASCII string
-    char szInput[64];
+    std::string input_str;
+    {
+        // convert to an ASCII string
+        char szInput[64];
 #if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
-    sprintf_s(szInput, a_bUseHex ? "0x%lx" : "%ld", a_nValue);
-#else   // !__STDC_WANT_SECURE_LIB__
-    sprintf(szInput, a_bUseHex ? "0x%lx" : "%ld", a_nValue);
+        sprintf_s(szInput, a_bUseHex ? "0x%lx" : "%ld", a_nValue);
+#else  // !__STDC_WANT_SECURE_LIB__
+        sprintf(szInput, a_bUseHex ? "0x%lx" : "%ld", a_nValue);
 #endif  // __STDC_WANT_SECURE_LIB__
+        input_str = szInput;
+    }
+
+    if (add_default_prefix)
+    {
+        input_str = default_prefix + input_str + ")";
+    }
+
 
     // convert to output text
     SI_CHAR szOutput[64];
     SI_CONVERTER c(m_bStoreIsUtf8);
-    c.ConvertFromStore(szInput, strlen(szInput) + 1, szOutput, sizeof(szOutput) / sizeof(SI_CHAR));
+    c.ConvertFromStore(input_str.c_str(), input_str.size() + 1, szOutput, sizeof(szOutput) / sizeof(SI_CHAR));
 
     // actually add it
     return AddEntry(a_pSection, a_pKey, szOutput, a_pComment, a_bForceReplace, true);
@@ -2047,7 +2070,7 @@ long CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetAddLong(const SI_CHA
     auto v = GetValue(a_pSection, a_pKey, NULL);
     if (v == NULL)
     {
-        SetLongValue(a_pSection, a_pKey, a_nDefault, a_pComment);
+        SetLongValue(a_pSection, a_pKey, a_nDefault, a_pComment, false, false, write_default_prefix);
         return a_nDefault;
     }
     else
@@ -2074,6 +2097,11 @@ double CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetDoubleValue(const 
         return a_nDefault;
     }
 
+    if (IsDefaultValue(pszValue))
+    {
+        return a_nDefault;
+    }
+
     char* pszSuffix = NULL;
     double nValue   = strtod(szValue, &pszSuffix);
 
@@ -2090,25 +2118,33 @@ template <class SI_CHAR, class SI_STRLESS, class SI_CONVERTER>
 SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetDoubleValue(const SI_CHAR* a_pSection,
                                                                             const SI_CHAR* a_pKey, double a_nValue,
                                                                             const SI_CHAR* a_pComment,
-                                                                            bool a_bForceReplace)
+                                                                            bool a_bForceReplace,
+                                                                            bool add_default_prefix)
 {
     // use SetValue to create sections
     if (!a_pSection || !a_pKey) return SI_FAIL;
 
     hasChanged = true;
 
-    // convert to an ASCII string
-    char szInput[64];
+    std::string input_str;
+    {
+        // convert to an ASCII string
+        char szInput[64];
 #if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
-    sprintf_s(szInput, "%0.10f", a_nValue);
-#else   // !__STDC_WANT_SECURE_LIB__
-    sprintf(szInput, "%0.10f", a_nValue);
+        sprintf_s(szInput, "%0.10f", a_nValue);
+#else  // !__STDC_WANT_SECURE_LIB__
+        sprintf(szInput, "%0.10f", a_nValue);
 #endif  // __STDC_WANT_SECURE_LIB__
-
+        input_str = szInput;
+    }
+    if (add_default_prefix)
+    {
+        input_str = default_prefix + input_str + ")";
+    }
     // convert to output text
     SI_CHAR szOutput[64];
     SI_CONVERTER c(m_bStoreIsUtf8);
-    c.ConvertFromStore(szInput, strlen(szInput) + 1, szOutput, sizeof(szOutput) / sizeof(SI_CHAR));
+    c.ConvertFromStore(input_str.c_str(), input_str.size() + 1, szOutput, sizeof(szOutput) / sizeof(SI_CHAR));
 
     // actually add it
     return AddEntry(a_pSection, a_pKey, szOutput, a_pComment, a_bForceReplace, true);
@@ -2122,7 +2158,7 @@ double CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetAddDouble(const SI
     auto v = GetValue(a_pSection, a_pKey, NULL);
     if (v == NULL)
     {
-        SetDoubleValue(a_pSection, a_pKey, a_nDefault, a_pComment);
+        SetDoubleValue(a_pSection, a_pKey, a_nDefault, a_pComment, false, write_default_prefix);
         return a_nDefault;
     }
     else
@@ -2139,6 +2175,11 @@ bool CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetBoolValue(const SI_C
     // return the default if we don't have a value
     const SI_CHAR* pszValue = GetValue(a_pSection, a_pKey, NULL, a_pHasMultiple);
     if (!pszValue || !*pszValue) return a_bDefault;
+
+    if (IsDefaultValue(pszValue))
+    {
+        return a_bDefault;
+    }
 
     // we only look at the minimum number of characters
     switch (pszValue[0])
@@ -2172,20 +2213,28 @@ template <class SI_CHAR, class SI_STRLESS, class SI_CONVERTER>
 SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetBoolValue(const SI_CHAR* a_pSection,
                                                                           const SI_CHAR* a_pKey, bool a_bValue,
                                                                           const SI_CHAR* a_pComment,
-                                                                          bool a_bForceReplace)
+                                                                          bool a_bForceReplace, bool add_default_prefix)
 {
     // use SetValue to create sections
     if (!a_pSection || !a_pKey) return SI_FAIL;
 
     hasChanged = true;
 
-    // convert to an ASCII string
-    const char* pszInput = a_bValue ? "true" : "false";
+    std::string input_str;
+    {
+        // convert to an ASCII string
+        const char* pszInput = a_bValue ? "true" : "false";
 
+        input_str = pszInput;
+    }
+    if (add_default_prefix)
+    {
+        input_str = default_prefix + input_str + ")";
+    }
     // convert to output text
     SI_CHAR szOutput[64];
     SI_CONVERTER c(m_bStoreIsUtf8);
-    c.ConvertFromStore(pszInput, strlen(pszInput) + 1, szOutput, sizeof(szOutput) / sizeof(SI_CHAR));
+    c.ConvertFromStore(input_str.c_str(), input_str.size() + 1, szOutput, sizeof(szOutput) / sizeof(SI_CHAR));
 
     // actually add it
     return AddEntry(a_pSection, a_pKey, szOutput, a_pComment, a_bForceReplace, true);
@@ -2199,7 +2248,7 @@ bool CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetAddBool(const SI_CHA
     auto v = GetValue(a_pSection, a_pKey, NULL);
     if (v == NULL)
     {
-        SetBoolValue(a_pSection, a_pKey, a_nDefault, a_pComment);
+        SetBoolValue(a_pSection, a_pKey, a_nDefault, a_pComment, false, write_default_prefix);
         return a_nDefault;
     }
     else
@@ -2346,7 +2395,7 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SaveFile(const char
     FILE* fp = NULL;
 #if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
     fopen_s(&fp, a_pszFile, "wb");
-#else   // !__STDC_WANT_SECURE_LIB__
+#else  // !__STDC_WANT_SECURE_LIB__
     fp = fopen(a_pszFile, "wb");
 #endif  // __STDC_WANT_SECURE_LIB__
     if (!fp) return SI_FILE;
@@ -2364,14 +2413,14 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SaveFile(const SI_W
     FILE* fp = NULL;
 #        if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
     _wfopen_s(&fp, a_pwszFile, L"wb");
-#        else   // !__STDC_WANT_SECURE_LIB__
+#        else  // !__STDC_WANT_SECURE_LIB__
     fp = _wfopen(a_pwszFile, L"wb");
 #        endif  // __STDC_WANT_SECURE_LIB__
     if (!fp) return SI_FILE;
     SI_Error rc = SaveFile(fp, a_bAddSignature);
     fclose(fp);
     return rc;
-#    else   // !_WIN32 (therefore SI_CONVERT_ICU)
+#    else  // !_WIN32 (therefore SI_CONVERT_ICU)
     char szFile[256];
     u_austrncpy(szFile, a_pwszFile, sizeof(szFile));
     return SaveFile(szFile, a_bAddSignature);
@@ -3436,6 +3485,8 @@ typedef SimpleIni Ini;
 #ifdef _MSC_VER
 #    pragma warning(pop)
 #endif
+
+#undef default_prefix
 
 }  // namespace Saiga
 

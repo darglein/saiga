@@ -95,23 +95,23 @@ void TextOverlay3D::update(float secondsPerTick)
 
 void TextOverlay3D::renderText(Camera* cam, float interpolationInSeconds)
 {
-    textShader->bind();
-
-
-    mat4 v   = cam->model;
-    v.col(3) = vec4(0, 0, 0, 1);
-
-
-    for (TextContainer& p : texts)
+    if(textShader->bind())
     {
-        //        textShader->uploadFade(p.getFade());
-        p.interpolate(interpolationInSeconds, v);
+        mat4 v   = cam->model;
+        v.col(3) = vec4(0, 0, 0, 1);
+
+
+        for (TextContainer& p : texts)
+        {
+            //        textShader->uploadFade(p.getFade());
+            p.interpolate(interpolationInSeconds, v);
 
 
 
-        p.text->render(textShader);
+            p.text->render(textShader);
+        }
+        textShader->unbind();
     }
-    textShader->unbind();
 }
 
 

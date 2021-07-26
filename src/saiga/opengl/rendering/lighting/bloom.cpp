@@ -172,18 +172,20 @@ void Bloom::Render(Texture* hdr_texture)
     }
     else
     {
-        upsample_shader->bind();
-        for (int i = params.levels - 1; i > 0; i--)
+        if(upsample_shader->bind())
         {
-            // bright_textures[i - 1]->bindImageTexture(0, GL_READ_ONLY);
-            upsample_shader->upload(5, bright_textures[i], 0);
-            upsample_shader->upload(7, i);
-            upsample_shader->upload(8, params.levels);
-            bright_textures[i - 1]->bindImageTexture(1, GL_READ_WRITE);
-            upsample_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
-            glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+            for (int i = params.levels - 1; i > 0; i--)
+            {
+                // bright_textures[i - 1]->bindImageTexture(0, GL_READ_ONLY);
+                upsample_shader->upload(5, bright_textures[i], 0);
+                upsample_shader->upload(7, i);
+                upsample_shader->upload(8, params.levels);
+                bright_textures[i - 1]->bindImageTexture(1, GL_READ_WRITE);
+                upsample_shader->dispatchComputeImage(bright_textures[i - 1].get(), 16);
+                glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+            }
+            upsample_shader->unbind();
         }
-        upsample_shader->unbind();
     }
 
 

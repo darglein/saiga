@@ -120,6 +120,7 @@ struct BinaryInputVector
 
     void read(char* dst, size_t size)
     {
+        SAIGA_ASSERT(current + size <= this->size);
         auto src = data + current;
         memcpy(dst, src, size);
         current += size;

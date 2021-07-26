@@ -76,6 +76,23 @@ HD constexpr typename Derived::Scalar length(const Eigen::MatrixBase<Derived>& v
     return v.norm();
 }
 
+//HD constexpr float abs(float v)
+//{
+//    return std::abs(v);
+//}
+//
+//HD constexpr double abs(double v)
+//{
+//    return std::abs(v);
+//}
+
+using std::abs;
+
+template <typename Derived>
+HD constexpr Derived abs(const Eigen::MatrixBase<Derived>& v)
+{
+    return v.array().abs();
+}
 
 template <typename Derived>
 HD constexpr Derived normalize(const Eigen::MatrixBase<Derived>& v)
@@ -97,11 +114,12 @@ HD constexpr auto slerp(const Eigen::QuaternionBase<Derived>& a, const Eigen::Qu
     return a.slerp(alpha, b);
 }
 
-
-/**
- * Pixar Revised ONB
- * https://graphics.pixar.com/library/OrthonormalB/paper.pdf
- */
+//
+// Pixar Revised ONB
+// https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+//
+// n is aligned to the z-axis
+//
 template <typename Derived>
 Matrix<typename Derived::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived>& n)
 {

@@ -88,10 +88,7 @@ bool Shader::init(const std::string& file, const ShaderCodeInjections& injection
         std::vector<std::string> content(c.code.begin() + p.start, c.code.begin() + p.end);
 
         auto shader = std::make_shared<ShaderPart>(content, gl_type, injections);
-        if (shader->valid)
-        {
-            shaders.push_back(shader);
-        }
+        shaders.push_back(shader);
     }
 
     createProgram();
@@ -103,12 +100,20 @@ bool Shader::init(const std::string& file, const ShaderCodeInjections& injection
 
 GLuint Shader::createProgram()
 {
+    for (auto& sp : shaders)
+    {
+        if (!sp->valid)
+        {
+            destroyProgram();
+            return 0;
+        }
+    }
+
     program = glCreateProgram();
 
     // attach all shaders
     for (auto& sp : shaders)
     {
-        //        std::cout << "Attaching shader " << sp->id << std::endl;
         glAttachShader(program, sp->id);
     }
     assert_no_glerror();
@@ -144,7 +149,6 @@ void Shader::destroyProgram()
     {
         glDeleteProgram(program);
         program = 0;
-        // assert_no_glerror();
     }
 }
 
