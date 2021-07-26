@@ -36,20 +36,21 @@ in vec2 tc;
 layout(location=0) out vec3 out_color;
 
 uniform bool cylindricMapping;
-const float PI = 3.1415927;
 
 vec2 SphericalCoordinates(vec3 r)
 {
-    vec2 lookup_coord = r.xy;
+     const float pi = 3.14159265358979323846;
+
+    vec2 lookup_coord = vec2(r[0], r[1]);
     // Note, coordinate system is (mathematical [x,y,z]) => (here: [x,-z,y])
     // also Note, r is required to be normalized for theta.
     // spheric
-    float phi = atan(-r.z, r.x);    // angle in [-PI, PI]
-    float x = phi / (2.0 * PI);     // in [-.5,.5]
+    float phi = atan(-r[2], r[0]);
+    float x = phi / (2.0 * pi);     // in [-.5,.5]
     x = fract(x);                   // uv-coord in [0,1]    // is not needed. just for convenience (but it changes seam-position)
 
-    float theta = acos(r.y);    // [1,-1] ->  [0,Pi]    // acos(r.y/length(r)), if r not normalized
-    float y = theta / PI;       // uv in [0,1]
+    float theta = acos(r[1]);       // [1,-1] ->  [0,Pi]    // acos(r.y/length(r)), if r not normalized
+    float y = theta / pi;       // uv in [0,1]
     y = 1 - y;                  // texture-coordinate-y is flipped in opengl
 
     lookup_coord = vec2(x, y);
