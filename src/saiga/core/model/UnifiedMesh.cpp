@@ -498,7 +498,7 @@ void UnifiedMesh::LoadCompressed(const std::string& file)
     *this = {};
 
     auto compressed_data = File::loadFileBinary(file);
-    auto data_raw            = uncompress(compressed_data.data());
+    auto data_raw        = uncompress(compressed_data.data());
     BinaryInputVector strm(data_raw.data(), data_raw.size());
     strm >> position >> normal >> color >> texture_coordinates >> data >> bone_info;
     strm >> triangles >> lines;
@@ -523,7 +523,6 @@ std::vector<Vertex> UnifiedMesh::VertexList() const
 
     return mesh;
 }
-
 
 template <>
 std::vector<VertexC> UnifiedMesh::VertexList() const

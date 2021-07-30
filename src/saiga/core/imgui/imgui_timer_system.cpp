@@ -128,14 +128,7 @@ void TimerSystem::Imgui()
 
     // if(!total_time.active) return;
 
-    std::vector<TimeData*> timers;
-    for (auto& st : data)
-    {
-        if (st.second->active)
-        {
-            timers.push_back(st.second.get());
-        }
-    }
+    std::vector<TimeData*> timers = ActiveTimers();
     TimerSystem::Imgui(system_name, timers, &total_time);
 }
 TimerSystem::TimeData& TimerSystem::GetTimer(const std::string& name, bool rel_path)
@@ -592,6 +585,11 @@ void TimerSystem::ImguiTooltip(TimeData* td, TimeData* total_time)
 }
 void TimerSystem::PrintTable(std::ostream& strm)
 {
+    for (auto t : data)
+    {
+        if (t.second->active) t.second->ComputeStatistics();
+    }
+
     Table tab({30, 5, 10, 10, 10, 10}, strm);
     tab.setFloatPrecision(5);
     tab << "Name"
@@ -600,14 +598,31 @@ void TimerSystem::PrintTable(std::ostream& strm)
         << "Median"
         << "Min"
         << "Max";
+
+    auto timers = ActiveTimers();
+    for (auto& st : timers)
+    {
+        auto values = st->ComputeTimes();
+        Statistics s(values);
+        tab << st->name << values.size() << s.mean << s.median << s.min << s.max;
+    }
+}
+std::vector<TimerSystem::TimeData*> TimerSystem::ActiveTimers()
+{
+    std::vector<TimeData*> result;
+
+
     for (auto& st : data)
     {
         if (st.second->active)
         {
-            auto values = st.second->ComputeTimes();
-            Statistics s(values);
-            tab << st.second->name << values.size() << s.mean << s.median << s.min << s.max;
+            result.push_back(st.second.get());
         }
     }
+
+    std::sort(result.begin(), result.end(), [](TimeData* a, TimeData* b) { return a->stat_mean > b->stat_mean; });
+
+
+    return result;
 }
 }  // namespace Saiga

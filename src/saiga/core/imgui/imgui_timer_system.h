@@ -156,6 +156,8 @@ class SAIGA_CORE_API TimerSystem
     std::string system_name;
     std::map<std::string, std::shared_ptr<TimeData>> data;
 
+    std::vector<TimeData*> ActiveTimers();
+
     // These methods are only for specific derived implementations that require setup code.
     // For example, in CUDA we setup the relative frame timers, because default CUDA events are only able to measure
     // time differences.

@@ -20,7 +20,7 @@ class CudaTimerSystem : public TimerSystem
 
    protected:
     virtual void BeginFrameImpl() override { base_timer.startTimer(); }
-    virtual void EndFrameImpl() override { base_timer.stopTimer(); }
+    virtual void EndFrameImpl() override { base_timer.stopTimer(true); }
 
     virtual std::unique_ptr<TimestampTimer> CreateTimer() override
     {

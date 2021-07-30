@@ -38,8 +38,13 @@ struct ImageDimensions
     HD inline bool operator==(const ImageDimensions& other) const { return pair() == other.pair(); }
     HD inline bool operator!=(const ImageDimensions& other) const { return !((*this) == other); }
 
+
     HD inline bool inImage(int y, int x) const { return x >= 0 && x < width && y >= 0 && y < height; }
     HD inline bool inImage(ivec2 ip) const { return inImage(ip.y(), ip.x()); }
+
+    // This is the fast version of the check, which uses the trick that a negative number converted
+    // to an unsigned is very large.
+    HD inline bool inImage2(int y, int x) const { return (unsigned)x < width & (unsigned)y < height; }
 
     template <typename AT>
     HD inline bool inImage(AT y, AT x) const
@@ -70,16 +75,15 @@ struct ImageDimensions
     }
 
     /**
- * Usefull for range-based iteration over the image.
- * Example:
- *
- * for(auto i : img.rowRange())
- *   for(auto j : img.colRange())
- *      img(i,j) = 0;
- */
+     * Usefull for range-based iteration over the image.
+     * Example:
+     *
+     * for(auto i : img.rowRange())
+     *   for(auto j : img.colRange())
+     *      img(i,j) = 0;
+     */
     HD inline Range<int> rowRange(int border = 0) const { return {border, rows - border}; }
     HD inline Range<int> colRange(int border = 0) const { return {border, cols - border}; }
-
 };
 
 /**
@@ -105,8 +109,6 @@ struct SAIGA_CORE_API ImageBase : public ImageDimensions
 
     // size in bytes
     HD inline size_t size() const { return height * pitchBytes; }
-
-
 };
 
 }  // namespace Saiga

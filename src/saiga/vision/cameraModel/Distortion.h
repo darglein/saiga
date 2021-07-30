@@ -159,8 +159,6 @@ HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2
 
     if (r2 > max_r * max_r)
     {
-        xd = x;
-        yd = y;
         xd = 100000;
         yd = 100000;
     }

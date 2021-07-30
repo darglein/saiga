@@ -86,17 +86,19 @@ class SAIGA_CUDA_API MultiFrameTimer
 
 
     void startTimer() { events[queryFrontBuffer][0].record(stream); }
-    float stopTimer()
+    float stopTimer(bool wait_back_buffer = false)
     {
         events[queryFrontBuffer][1].record(stream);
-
-
         time = -1;
 
         // Skip first iteration, because calling elapsed time on an events without a previous record
         // results in an error.
         if (Valid())
         {
+            if (wait_back_buffer)
+            {
+                events[queryBackBuffer][1].synchronize();
+            }
             time = CudaEvent::elapsedTime(events[queryBackBuffer][0], events[queryBackBuffer][1]);
         }
         swap();
@@ -134,6 +136,7 @@ class RelativeCudaTimer : public TimestampTimer
         SAIGA_ASSERT(base_timer);
         if (timer.Valid())
         {
+            timer.FrontBuffer()[1]->synchronize();
             float begin_ms = CUDA::CudaEvent::elapsedTime(*base_timer->BackBuffer()[0], *timer.FrontBuffer()[0]);
             float end_ms   = CUDA::CudaEvent::elapsedTime(*base_timer->BackBuffer()[0], *timer.FrontBuffer()[1]);
 

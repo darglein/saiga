@@ -80,6 +80,7 @@ class SAIGA_CORE_API UnifiedMesh
     UnifiedMesh& CalculateVertexNormals();
 
 
+
     // Duplicates vertices so that each vertex is used exactly in one face.
     UnifiedMesh& FlatShading();
 
