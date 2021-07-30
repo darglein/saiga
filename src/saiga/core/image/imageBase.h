@@ -44,7 +44,7 @@ struct ImageDimensions
 
     // This is the fast version of the check, which uses the trick that a negative number converted
     // to an unsigned is very large.
-    HD inline bool inImage2(int y, int x) const { return (unsigned)x < width & (unsigned)y < height; }
+    HD inline bool inImage2(int y, int x) const { return (((unsigned)x) < width) & (((unsigned)y) < height); }
 
     template <typename AT>
     HD inline bool inImage(AT y, AT x) const
