@@ -119,7 +119,7 @@ struct IntrinsicsPinhole
         Mat3 k;
         // clang-format off
         k <<
-            fx, s,  cx,
+          fx, s,  cx,
             0,  fy, cy,
             0,  0,  1;
         // clang-format on
