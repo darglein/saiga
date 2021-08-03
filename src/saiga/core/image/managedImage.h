@@ -37,7 +37,10 @@ class SAIGA_CORE_API Image : public ImageBase
     Image(const std::string& file)
     {
         auto res = load(file);
-        SAIGA_ASSERT(res);
+        if (!res)
+        {
+            SAIGA_EXIT_ERROR("Could not load file " + file);
+        }
     }
 
     // Note: This creates a copy of img
