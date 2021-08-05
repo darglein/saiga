@@ -17,7 +17,7 @@ namespace Saiga
 template <typename T>
 inline T translationalError(const Sophus::SE3<T>& a, const Sophus::SE3<T>& b)
 {
-    Vec3 diff = a.translation() - b.translation();
+    Eigen::Matrix<T, 3, 1> diff = a.translation() - b.translation();
     return diff.norm();
 }
 
@@ -25,8 +25,8 @@ inline T translationalError(const Sophus::SE3<T>& a, const Sophus::SE3<T>& b)
 template <typename T>
 inline T rotationalError(const Sophus::SE3<T>& a, const Sophus::SE3<T>& b)
 {
-    Quat q1 = a.unit_quaternion();
-    Quat q2 = b.unit_quaternion();
+    Eigen::Quaternion<T> q1 = a.unit_quaternion();
+    Eigen::Quaternion<T> q2 = b.unit_quaternion();
     return q1.angularDistance(q2);
 }
 
@@ -110,8 +110,8 @@ namespace Sophus
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const Sophus::SE3<T>& se3)
 {
-    Saiga::Quat q = se3.unit_quaternion();
-    Saiga::Vec3 t = se3.translation();
+    auto q = se3.unit_quaternion();
+    auto t = se3.translation();
     os << "SE3(Quatwxyz(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "),Vec3(" << t(0) << "," << t(1)
        << "," << t(2) << "))";
     return os;

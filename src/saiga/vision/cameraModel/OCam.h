@@ -11,10 +11,15 @@
 
 namespace Saiga
 {
+// Important!!!
+// This is the right-handed model, which is not identical to the original matlab implementation.
+// In particular the input point is swapped in x-y direction and z is multiplied by -1.
+// The output point is then swapped back.
 template <typename T>
-HD Vector<T, 2> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView<T> coeff_poly)
+HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView<const T> coeff_poly,
+                            float cutoff = 10000)
 {
-    using Vec2 = Vector<T, 2>;
+    using Vec3 = Vector<T, 3>;
 
     T c  = coeff_affine(0);
     T d  = coeff_affine(1);
@@ -22,19 +27,30 @@ HD Vector<T, 2> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
     T cx = coeff_affine(3);
     T cy = coeff_affine(4);
 
-    T norm  = sqrt(p[0] * p[0] + p[1] * p[1]);
-    T theta = atan(p[2] / norm);
+    // Coordinate system switch!!
+    T x = p(1);
+    T y = p(0);
+    T z = -p(2);
+
+    T norm  = sqrt(x * x + y * y);
+    T theta = atan(z / norm);
+    T dist  = p.norm();
+
+    if (theta > cutoff)
+    {
+        return Vec3(0.f, 0.f, 0.f);
+    }
 
     if (norm < 1e-6)
     {
-        return Vec2(cx, cy);
+        return Vec3(cx, cy, dist);
     }
 
 
     T invnorm = 1 / norm;
     T t       = theta;
     T rho     = coeff_poly[0];
-    int t_i   = 1;
+    T t_i     = 1;
 
     for (int i = 1; i < coeff_poly.size(); i++)
     {
@@ -42,13 +58,15 @@ HD Vector<T, 2> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
         rho += t_i * coeff_poly[i];
     }
 
-    T x = p[0] * invnorm * rho;
-    T y = p[1] * invnorm * rho;
+    T np_x = x * invnorm * rho;
+    T np_y = y * invnorm * rho;
 
-    Vec2 res;
-    res[0] = x * c + y * d + cx;
-    res[1] = x * e + y + cy;
-    return res;
+
+    T image_x = np_x * c + np_y * d + cx;
+    T image_y = np_x * e + np_y + cy;
+
+    // Again coordinate system switch!!
+    return Vec3(image_y, image_x, dist);
 }
 
 // Based on: Omnidirectional Camera Calibration Toolbox
@@ -99,11 +117,23 @@ struct OCam
     int NumProjectParams() const { return 5 + poly_world2cam.size(); }
     int NumUnProjectParams() const { return 5 + poly_cam2world.size(); }
 
+    // Only the affine parameters are scaled!
+    OCam<T> scale(T s) const
+    {
+        OCam<T> res = *this;
+        res.SetAffineParams(AffineParams() * s);
+        return res;
+    }
+
     Eigen::Matrix<T, 5, 1> AffineParams() const
     {
-        Eigen::Matrix<T, 5, 1> p;
-        p << c, d, e, cx, cy;
-        return p;
+        Eigen::Matrix<T, 5, 1> par;
+        par(0) = c;
+        par(1) = d;
+        par(2) = e;
+        par(3) = cx;
+        par(4) = cy;
+        return par;
     }
     void SetAffineParams(Eigen::Matrix<T, 5, 1> par)
     {
@@ -142,7 +172,11 @@ struct OCam
 
     // The project/unproject functions are inspired by
     // https://github.com/stonear/OCamCalib/blob/master/ocam_functions.h
-    Vec2 Project(Vec3 p) const { return ProjectOCam(p, AffineParams(), poly_world2cam); }
+    Vec2 Project(Vec3 p) const
+    {
+        ArrayView<const T> pv(poly_world2cam.data(), poly_world2cam.size());
+        return ProjectOCam<T>(p, AffineParams(), pv).template head<2>();
+    }
 
     Vec3 InverseProject(Vec2 p, T depth = 1) const
     {
@@ -168,13 +202,13 @@ struct OCam
 template <typename T>
 std::ostream& operator<<(std::ostream& strm, const OCam<T> intr)
 {
-    strm << intr.w << "x" << intr.h << "(" << intr.c << ", " << intr.d << ", " << intr.e << ", " << intr.cx << ", "
-         << intr.cy << ") (";
+    strm << intr.w << "x" << intr.h << " affine(" << intr.c << ", " << intr.d << ", " << intr.e << ", " << intr.cx
+         << ", " << intr.cy << ") cam2world(";
     for (auto d : intr.poly_cam2world)
     {
         strm << d << ", ";
     }
-    strm << ") (";
+    strm << ") world2cam(";
     for (auto d : intr.poly_world2cam)
     {
         strm << d << ", ";
