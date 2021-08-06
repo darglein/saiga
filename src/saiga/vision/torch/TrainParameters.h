@@ -20,6 +20,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
         SAIGA_PARAM_BOOL(do_eval);
         SAIGA_PARAM_LONG(batch_size);
         SAIGA_PARAM_LONG(inner_batch_size);
+        SAIGA_PARAM_LONG(inner_sample_size);
         SAIGA_PARAM_LONG(num_epochs);
         SAIGA_PARAM_LONG(save_checkpoints_its);
         SAIGA_PARAM_BOOL(eval_only_on_checkpoint);
@@ -47,6 +48,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
     bool eval_only_on_checkpoint = false;
     int batch_size               = 4;
     int inner_batch_size         = 1;
+    int inner_sample_size        = 1;
 
     std::string name = "default";
 

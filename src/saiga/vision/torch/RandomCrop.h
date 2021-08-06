@@ -13,8 +13,8 @@
 namespace Saiga
 {
 // Computes the image crop as a homography matrix (returned as upper diagonal matrix).
-IntrinsicsPinholef RandomImageCrop(ivec2 image_size_input, ivec2 image_size_crop, bool translate_to_border,
-                                   bool random_translation, vec2 min_max_zoom = vec2(1, 1))
+inline IntrinsicsPinholef RandomImageCrop(ivec2 image_size_input, ivec2 image_size_crop, bool translate_to_border,
+                                          bool random_translation, vec2 min_max_zoom = vec2(1, 1))
 {
     IntrinsicsPinholef K_crop = IntrinsicsPinholef();
 
@@ -38,7 +38,7 @@ IntrinsicsPinholef RandomImageCrop(ivec2 image_size_input, ivec2 image_size_crop
     {
         if (translate_to_border)
         {
-            vec2 border = image_size_crop.cast<float>();
+            vec2 border = image_size_crop.cast<float>() * 0.5f;
             delta.x()   = Random::sampleDouble(-border.x(), max_translation.x() + border.x());
             delta.y()   = Random::sampleDouble(-border.y(), max_translation.y() + border.y());
         }
@@ -64,4 +64,51 @@ IntrinsicsPinholef RandomImageCrop(ivec2 image_size_input, ivec2 image_size_crop
 
     return K_crop;
 }
+
+inline std::vector<IntrinsicsPinholef> RandomImageCrop(int N, int tries_per_crop, ivec2 image_size_input,
+                                                       ivec2 image_size_crop, bool translate_to_border,
+                                                       bool random_translation, vec2 min_max_zoom = vec2(1, 1))
+{
+    std::vector<vec2> centers;
+    std::vector<IntrinsicsPinholef> res;
+    for (int i = 0; i < N; ++i)
+    {
+        IntrinsicsPinholef best;
+        vec2 best_c;
+        float best_dis = -1;
+
+        for (int j = 0; j < tries_per_crop; ++j)
+        {
+            auto intr = RandomImageCrop(image_size_input, image_size_crop, translate_to_border, random_translation,
+                                        min_max_zoom);
+
+            vec2 c = image_size_crop.cast<float>() * 0.5f;
+            c      = intr.inverse().normalizedToImage(c);
+
+            float dis = 3573575737;
+            for (auto& c2 : centers)
+            {
+                float d = (c - c2).squaredNorm();
+                if (d < dis)
+                {
+                    dis = d;
+                }
+            }
+
+            if (centers.empty()) dis = 0;
+
+            if (j == 0 || dis > best_dis)
+            {
+                best     = intr;
+                best_c   = c;
+                best_dis = dis;
+            }
+        }
+
+        centers.push_back(best_c);
+        res.push_back(best);
+    }
+    return res;
+}
+
 }  // namespace Saiga
