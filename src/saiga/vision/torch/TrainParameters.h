@@ -15,6 +15,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
     SAIGA_PARAM_STRUCT_FUNCTIONS(TrainParams);
     virtual void Params(Saiga::SimpleIni& ini_) override
     {
+        SAIGA_PARAM_LONG(random_seed);
         SAIGA_PARAM_BOOL(do_train);
         SAIGA_PARAM_BOOL(do_eval);
         SAIGA_PARAM_LONG(batch_size);
@@ -38,6 +39,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
     }
 
     // ======== Train Control =========
+    uint64_t random_seed         = 3746934646;
     bool do_train                = true;
     bool do_eval                 = true;
     int num_epochs               = 20;
