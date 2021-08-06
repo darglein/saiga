@@ -36,6 +36,7 @@ endfunction()
 
 if(MODULE_CORE)
   saiga_test(test_core_align.cpp)
+  saiga_test(test_core_normal_packing.cpp)
   saiga_test(test_core_frustum.cpp)
   saiga_test(test_core_kdtree.cpp)
   if(SAIGA_USE_ZLIB)
