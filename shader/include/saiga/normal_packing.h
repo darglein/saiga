@@ -4,8 +4,8 @@
  * See LICENSE file for more information.
  */
 
-#ifndef HSV_H
-#define HSV_H
+#ifndef NORMAL_PACKING_H
+#define NORMAL_PACKING_H
 
 #include "shaderConfig.h"
 
