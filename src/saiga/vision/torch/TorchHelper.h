@@ -38,6 +38,7 @@ inline void PrintTensorInfo(at::Tensor t)
         return;
     }
 
+    auto type = t.dtype();
     if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
     {
         t = t.to(torch::kDouble);
@@ -52,7 +53,7 @@ inline void PrintTensorInfo(at::Tensor t)
     {
         mean = t.mean().item().toDouble();
     }
-    std::cout << "Tensor " << t.sizes() << " " << t.dtype() << " " << t.device() << " Min/Max " << mi << " " << ma
+    std::cout << "Tensor " << t.sizes() << " " << type << " " << t.device() << " Min/Max " << mi << " " << ma
               << " Mean " << mean << " Sum " << sum << " req-grad " << t.requires_grad() << std::endl;
 }
 

@@ -43,7 +43,7 @@ FUNC_DECL vec2 PackNormalStereographic(vec3 n)
     return enc;
 }
 
-vec3 UnpackNormalStereographic(vec2 enc)
+FUNC_DECL vec3 UnpackNormalStereographic(vec2 enc)
 {
     // enc = enc * 2 - vec2(1, 1);
 
@@ -61,13 +61,13 @@ vec3 UnpackNormalStereographic(vec2 enc)
 
 
 
-vec2 PackNormalSpherical(vec3 n)
+FUNC_DECL vec2 PackNormalSpherical(vec3 n)
 {
     float kPI = 3.1415926536f;
     vec2 enc  = vec2(atan2(n[1], n[0]) / kPI, n[2]);
     return enc;
 }
-vec3 UnpackNormalSpherical(vec2 enc)
+FUNC_DECL vec3 UnpackNormalSpherical(vec2 enc)
 {
     float kPI = 3.1415926536f;
     vec2 scth;

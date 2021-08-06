@@ -31,7 +31,7 @@ using Saiga::vec4;
 using std::max;
 using std::min;
 using namespace Saiga;
-#    define FUNC_DECL inline
+#    define FUNC_DECL HD inline
 #else
 #    define FUNC_DECL
 
