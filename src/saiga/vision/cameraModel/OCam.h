@@ -52,9 +52,10 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
 
     if (norm < 1e-6)
     {
+        if (jacobian_point) jacobian_point->setZero();
+        if (jacobian_affine) jacobian_affine->setZero();
         return Vec3(cx, cy, dist);
     }
-
 
     T rho = coeff_poly[0];
     T t_i = 1;
@@ -71,9 +72,6 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
 
     T image_x = np_x * c + np_y * d + cx;
     T image_y = np_x * e + np_y + cy;
-
-    // T image_x = np_x;
-    // T image_y = np_y;
 
     if (jacobian_point)
     {
