@@ -22,7 +22,8 @@ namespace Saiga
 //
 template <typename T>
 HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView<const T> coeff_poly,
-                            float cutoff = 10000, Matrix<T, 2, 3>* jacobian_point = nullptr)
+                            float cutoff = 10000, Matrix<T, 2, 3>* jacobian_point = nullptr,
+                            Matrix<T, 2, 5>* jacobian_affine = nullptr)
 {
     using Vec3 = Vector<T, 3>;
 
@@ -108,7 +109,7 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
         J(1, 2) = drho_dz * y / norm;
 
         // Affine transformation
-        Mat2 affine;
+        Matrix<T, 2, 2> affine;
         affine(0, 0) = c;
         affine(0, 1) = d;
         affine(1, 0) = e;
@@ -129,10 +130,23 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
             J(1, 0) = b;
             J(1, 1) = a;
             J(1, 2) = c;
-            
+
             J(0, 2) = -J(0, 2);
             J(1, 2) = -J(1, 2);
         }
+    }
+
+    if (jacobian_affine)
+    {
+        auto& J = *jacobian_affine;
+        J.setZero();
+
+        // Warning this already contains the coordinate transform!!!
+        J(1, 0) = np_x;
+        J(1, 1) = np_y;
+        J(0, 2) = np_x;
+        J(0, 4) = 1;
+        J(1, 3) = 1;
     }
 
     // Again coordinate system switch!!

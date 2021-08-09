@@ -14,7 +14,6 @@
 
 namespace Saiga
 {
-
 TEST(Derivative, ProjectOCam)
 {
     Random::setSeed(903476346);
@@ -32,8 +31,13 @@ TEST(Derivative, ProjectOCam)
     J_point_1.setZero();
     J_point_2.setZero();
 
+    Matrix<double, 2, 5> J_affine_1, J_affine_2;
+    J_affine_1.setZero();
+    J_affine_2.setZero();
+
+
     Vec2 res1, res2;
-    res1 = ProjectOCam<double>(p, cam.AffineParams(), world_2_cam, 0.5, &J_point_1).head<2>();
+    res1 = ProjectOCam<double>(p, cam.AffineParams(), world_2_cam, 0.5, &J_point_1, &J_affine_1).head<2>();
 
     std::cout << "res " << res1.transpose() << std::endl;
 
@@ -44,8 +48,17 @@ TEST(Derivative, ProjectOCam)
             },
             p, &J_point_2);
     }
+
+    {
+        res2 = EvaluateNumeric(
+            [=](auto aff) { return ProjectOCam<double>(p, aff, world_2_cam, 0.5).template head<2>().eval(); },
+            cam.AffineParams(), &J_affine_2);
+    }
+
+
     ExpectCloseRelative(res1, res2, 1e-5);
     ExpectCloseRelative(J_point_1, J_point_2, 1e-5);
+    ExpectCloseRelative(J_affine_1, J_affine_2, 1e-5);
 }
 
 
