@@ -37,8 +37,8 @@ void CheckNormalPacking(T pack, G unpack, int its)
     std::vector<vec3> extreme_normals = {vec3(1, 0, 0),  vec3(-1, 0, 0), vec3(0, 1, 0),
                                          vec3(0, -1, 0), vec3(0, 0, 1),  vec3(0, 0, -1)};
 
-    float max_error      = 0;
-    float max_error_half = 0;
+    std::vector<float> errors;
+    std::vector<float> errors_half;
 
     for (int i = 0; i < its; ++i)
     {
@@ -55,12 +55,7 @@ void CheckNormalPacking(T pack, G unpack, int its)
         vec3 n2  = unpack(enc);
 
         float diff = (n - n2).norm();
-
-        if (diff > max_error)
-        {
-            max_error = diff;
-        }
-
+        errors.push_back(diff);
         EXPECT_NEAR(diff, 0, 1e-1);
 
 
@@ -70,11 +65,7 @@ void CheckNormalPacking(T pack, G unpack, int its)
             Vector<Eigen::half, 2> half_vec = enc.template cast<Eigen::half>();
             vec3 n_half                     = unpack(half_vec.cast<float>());
             float diff_half                 = (n - n_half).norm();
-            if (diff_half > max_error_half)
-            {
-                max_error_half = diff_half;
-            }
-
+            errors_half.push_back(diff_half);
             if (!std::isfinite(diff) || diff > 1e-1 || i < 5 + extreme_normals.size())
             {
                 tab << n(0) << n(1) << n(2) << " -> " << enc(0) << enc(1) << " -> " << n2(0) << n2(1) << n2(2) << " = "
@@ -93,13 +84,15 @@ void CheckNormalPacking(T pack, G unpack, int its)
 
         // std::cout << n.transpose() << " | " << n2.transpose() << " | " << diff << std::endl;
     }
-    std::cout << "max error (float): " << max_error << std::endl;
-    std::cout << "max error (half) : " << max_error_half << std::endl;
+    std::cout << "errors (float): " << std::endl;
+    std::cout << Statistics(errors) << std::endl;
+    std::cout << "errors (half) : " << std::endl;
+    std::cout << Statistics(errors_half) << std::endl;
     std::cout << std::endl;
 }
 
- const int its = 1000 * 1000;
-//const int its = 10;
+const int its = 1000 * 1000;
+// const int its = 10;
 
 TEST(NormalPacking, Spheremap)
 {

@@ -15,9 +15,14 @@ namespace Saiga
 // This is the right-handed model, which is not identical to the original matlab implementation.
 // In particular the input point is swapped in x-y direction and z is multiplied by -1.
 // The output point is then swapped back.
+//
+// The derivate is currently only available in respect to p.
+//
+// Return: [ Vec2(image_point), distance_to_camera ]
+//
 template <typename T>
 HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView<const T> coeff_poly,
-                            float cutoff = 10000)
+                             float cutoff = 10000, Matrix<T, 2, 3>* jacobian_point = nullptr)
 {
     using Vec3 = Vector<T, 3>;
 
@@ -32,9 +37,12 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
     T y = p(0);
     T z = -p(2);
 
-    T norm  = sqrt(x * x + y * y);
-    T theta = atan(z / norm);
-    T dist  = p.norm();
+    T norm2     = x * x + y * y;
+    T norm      = sqrt(norm2);
+    T invnorm   = 1 / norm;
+    T z_by_norm = z * invnorm;
+    T theta     = atan(z_by_norm);
+    T dist      = p.norm();
 
     if (theta > cutoff)
     {
@@ -47,14 +55,12 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
     }
 
 
-    T invnorm = 1 / norm;
-    T t       = theta;
-    T rho     = coeff_poly[0];
-    T t_i     = 1;
+    T rho = coeff_poly[0];
+    T t_i = 1;
 
     for (int i = 1; i < coeff_poly.size(); i++)
     {
-        t_i *= t;
+        t_i *= theta;
         rho += t_i * coeff_poly[i];
     }
 
@@ -64,6 +70,58 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
 
     T image_x = np_x * c + np_y * d + cx;
     T image_y = np_x * e + np_y + cy;
+
+    // T image_x = np_x;
+    // T image_y = np_y;
+
+    if (jacobian_point)
+    {
+        auto& J = *jacobian_point;
+
+        // rho w.r.t theta
+        T drho_dtheta = 0;
+        T t_i         = 1;
+        for (int i = 1; i < coeff_poly.size(); i++)
+        {
+            drho_dtheta += i * coeff_poly[i] * t_i;
+            t_i *= theta;
+        }
+
+        // theta w.r.t x y z
+        T xyz_norm_sqr = norm2 + z * z;
+        T dtheta_dx    = (-1.0 * x * z_by_norm) / (xyz_norm_sqr);
+        T dtheta_dy    = (-1.0 * y * z_by_norm) / (xyz_norm_sqr);
+        T dtheta_dz    = norm / (xyz_norm_sqr);
+
+        // rho w.r.t x y z
+        T drho_dx = drho_dtheta * dtheta_dx;
+        T drho_dy = drho_dtheta * dtheta_dy;
+        T drho_dz = drho_dtheta * dtheta_dz;
+
+        // uv_raw w.r.t x y z
+        // J(0, 0)  = (norm - x * x / norm) / norm2 * rho + drho_dx * x / norm;
+        J(0, 0) = (invnorm - x * x / (norm * norm2)) * rho + drho_dx * x / norm;
+        J(0, 1) = (-1.0 * x * y / norm) / norm2 * rho + drho_dy * x / norm;
+        J(0, 2) = drho_dz * x / norm;
+        J(1, 0) = (-1.0 * x * y / norm) / norm2 * rho + drho_dx * y / norm;
+        J(1, 1) = (norm - y * y / norm) / norm2 * rho + drho_dy * y / norm;
+        J(1, 2) = drho_dz * y / norm;
+
+        // Affine transformation
+        Mat2 affine;
+        affine(0, 0) = c;
+        affine(0, 1) = d;
+        affine(1, 0) = e;
+        affine(1, 1) = 1;
+        J            = affine * J;
+
+        // swap coordinates and negate z
+        std::swap(J(0, 0), J(1, 1));
+        std::swap(J(1, 0), J(0, 1));
+        std::swap(J(0, 2), J(1, 2));
+        J(0, 2) = -J(0, 2);
+        J(1, 2) = -J(1, 2);
+    }
 
     // Again coordinate system switch!!
     return Vec3(image_y, image_x, dist);
@@ -142,6 +200,22 @@ struct OCam
         e  = par(2);
         cx = par(3);
         cy = par(4);
+    }
+
+    Eigen::Matrix<T, 3, 3> AffineMatrix() const
+    {
+        Eigen::Matrix<T, 3, 3> res;
+        res.setZero();
+
+        res(0, 0) = c;
+        res(0, 1) = d;
+        res(0, 2) = cx;
+
+        res(1, 1) = c;
+        res(0, 1) = d;
+
+
+        return res;
     }
 
     void SetCam2World(ArrayView<T> params)
