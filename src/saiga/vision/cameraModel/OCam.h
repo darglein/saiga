@@ -22,7 +22,7 @@ namespace Saiga
 //
 template <typename T>
 HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView<const T> coeff_poly,
-                             float cutoff = 10000, Matrix<T, 2, 3>* jacobian_point = nullptr)
+                            float cutoff = 10000, Matrix<T, 2, 3>* jacobian_point = nullptr)
 {
     using Vec3 = Vector<T, 3>;
 
@@ -115,12 +115,24 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
         affine(1, 1) = 1;
         J            = affine * J;
 
-        // swap coordinates and negate z
-        std::swap(J(0, 0), J(1, 1));
-        std::swap(J(1, 0), J(0, 1));
-        std::swap(J(0, 2), J(1, 2));
-        J(0, 2) = -J(0, 2);
-        J(1, 2) = -J(1, 2);
+        if (true)
+        {
+            // swap coordinates and negate z
+            auto a = J(0, 0);
+            auto b = J(0, 1);
+            auto c = J(0, 2);
+
+            J(0, 0) = J(1, 1);
+            J(0, 1) = J(1, 0);
+            J(0, 2) = J(1, 2);
+
+            J(1, 0) = b;
+            J(1, 1) = a;
+            J(1, 2) = c;
+            
+            J(0, 2) = -J(0, 2);
+            J(1, 2) = -J(1, 2);
+        }
     }
 
     // Again coordinate system switch!!
