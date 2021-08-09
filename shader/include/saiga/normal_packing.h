@@ -80,6 +80,34 @@ FUNC_DECL vec3 UnpackNormalSpherical(vec2 enc)
     return vec3(scth[1] * scphi[0], scth[0] * scphi[0], scphi[1]);
 }
 
+FUNC_DECL unsigned int PackNormal10Bit(vec3 n)
+{
+    const unsigned int factor = 1 << 10;
+
+    // [-1,1] -> [0,1]
+    n              = n * 0.5f + vec3(0.5f, 0.5f, 0.5f);
+    unsigned int x = round(n[0] * (factor - 1));
+    unsigned int y = round(n[1] * (factor - 1));
+    unsigned int z = round(n[2] * (factor - 1));
+
+    unsigned int enc = x | (y << 10) | (z << 20);
+    return enc;
+}
+
+FUNC_DECL vec3 UnpackNormal10Bit(unsigned int enc)
+{
+    const unsigned int factor = 1 << 10;
+
+    unsigned int x = (enc >> 0) & (factor - 1);
+    unsigned int y = (enc >> 10) & (factor - 1);
+    unsigned int z = (enc >> 20) & (factor - 1);
+
+    vec3 n = vec3(x, y, z) / float(factor - 1);
+
+    n = (n - vec3(0.5f, 0.5f, 0.5f)) * 2.f;
+
+    return n.normalized();
+}
 
 
 #endif

@@ -37,7 +37,8 @@ void CheckNormalPacking(T pack, G unpack, int its)
     std::vector<vec3> extreme_normals = {vec3(1, 0, 0),  vec3(-1, 0, 0), vec3(0, 1, 0),
                                          vec3(0, -1, 0), vec3(0, 0, 1),  vec3(0, 0, -1)};
 
-    float max_error = 0;
+    float max_error      = 0;
+    float max_error_half = 0;
 
     for (int i = 0; i < its; ++i)
     {
@@ -50,14 +51,8 @@ void CheckNormalPacking(T pack, G unpack, int its)
 
         EXPECT_NEAR(n.norm(), 1, 1e-5);
 
-        vec2 enc = pack(n);
-
-        if (!enc.array().allFinite())
-        {
-            std::cout << "non finite encoding " << enc.transpose() << std::endl;
-        }
-        vec3 n2 = unpack(enc);
-
+        auto enc = pack(n);
+        vec3 n2  = unpack(enc);
 
         float diff = (n - n2).norm();
 
@@ -69,18 +64,42 @@ void CheckNormalPacking(T pack, G unpack, int its)
         EXPECT_NEAR(diff, 0, 1e-1);
 
 
-        if (!std::isfinite(diff) || diff > 1e-4 || i < 10 + extreme_normals.size())
+
+        if constexpr (std::is_same<decltype(enc), vec2>::value)
         {
-            tab << n(0) << n(1) << n(2) << " -> " << enc(0) << enc(1) << " -> " << n2(0) << n2(1) << n2(2) << " = "
-                << diff;
+            Vector<Eigen::half, 2> half_vec = enc.template cast<Eigen::half>();
+            vec3 n_half                     = unpack(half_vec.cast<float>());
+            float diff_half                 = (n - n_half).norm();
+            if (diff_half > max_error_half)
+            {
+                max_error_half = diff_half;
+            }
+
+            if (!std::isfinite(diff) || diff > 1e-1 || i < 5 + extreme_normals.size())
+            {
+                tab << n(0) << n(1) << n(2) << " -> " << enc(0) << enc(1) << " -> " << n2(0) << n2(1) << n2(2) << " = "
+                    << diff;
+            }
         }
+        else
+        {
+            if (!std::isfinite(diff) || diff > 1e-1 || i < 5 + extreme_normals.size())
+            {
+                tab << n(0) << n(1) << n(2) << " -> " << enc << ""
+                    << " -> " << n2(0) << n2(1) << n2(2) << " = " << diff;
+            }
+        }
+
+
         // std::cout << n.transpose() << " | " << n2.transpose() << " | " << diff << std::endl;
     }
-    std::cout << "max error: " << max_error << std::endl;
+    std::cout << "max error (float): " << max_error << std::endl;
+    std::cout << "max error (half) : " << max_error_half << std::endl;
     std::cout << std::endl;
 }
 
-const int its = 1000 * 1000;
+ const int its = 1000 * 1000;
+//const int its = 10;
 
 TEST(NormalPacking, Spheremap)
 {
@@ -97,4 +116,10 @@ TEST(NormalPacking, Stereographic)
 TEST(NormalPacking, Spherical)
 {
     CheckNormalPacking(PackNormalSpherical, UnpackNormalSpherical, its);
+}
+
+
+TEST(NormalPacking, 10bit)
+{
+    CheckNormalPacking(PackNormal10Bit, UnpackNormal10Bit, its);
 }
