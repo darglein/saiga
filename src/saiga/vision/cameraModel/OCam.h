@@ -151,6 +151,47 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
     return Vec3(image_y, image_x, dist);
 }
 
+template <typename T>
+HD Vector<T, 3> UnprojectOCam(Vector<T, 2> p, T distance_to_cam, Vector<T, 5> coeff_affine, ArrayView<const T> coeff_poly)
+{
+    using Vec3 = Vector<T, 3>;
+
+    T c  = coeff_affine(0);
+    T d  = coeff_affine(1);
+    T e  = coeff_affine(2);
+    T cx = coeff_affine(3);
+    T cy = coeff_affine(4);
+
+    T image_x = p(1);
+    T image_y = p(0);
+
+
+    T invdet = 1 / (c - d * e);  // 1/det(A), where A = [c,d;e,1] as in the Matlab file
+    T xp     = invdet * ((image_x - cx) - d * (image_y - cy));
+    T yp     = invdet * (-e * (image_x - cx) + c * (image_y - cy));
+
+    T r   = sqrt(xp * xp + yp * yp);  // distance [pixels] of  the point from the image center
+    T zp  = coeff_poly[0];
+    T r_i = 1;
+
+    for (int i = 1; i < coeff_poly.size(); i++)
+    {
+        r_i *= r;
+        zp += r_i * coeff_poly[i];
+    }
+
+    // normalize to unit norm
+    T inv_norm = 1 / sqrt(xp * xp + yp * yp + zp * zp);
+
+    inv_norm *= distance_to_cam;
+
+    T px = inv_norm * xp;
+    T py = inv_norm * yp;
+    T pz = inv_norm * zp;
+
+    return {py, px, -pz};
+}
+
 // Based on: Omnidirectional Camera Calibration Toolbox
 // https://sites.google.com/site/scarabotix/ocamcalib-toolbox
 //
