@@ -78,6 +78,7 @@ class SAIGA_CORE_API BVH : public Base
         int axis;
     };
 
+    BVH() {}
     BVH(const std::vector<Triangle>& triangles);
     virtual ~BVH() {}
 
@@ -104,6 +105,7 @@ class SAIGA_CORE_API BVH : public Base
 class SAIGA_CORE_API ObjectMedianBVH : public BVH
 {
    public:
+    ObjectMedianBVH() {}
     ObjectMedianBVH(const std::vector<Triangle>& triangles, int leafTriangles = 5)
         : BVH(triangles), leafTriangles(leafTriangles)
     {

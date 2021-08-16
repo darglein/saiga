@@ -152,10 +152,9 @@ HD Vector<T, 3> ProjectOCam(Vector<T, 3> p, Vector<T, 5> coeff_affine, ArrayView
 }
 
 template <typename T>
-HD Vector<T, 3> UnprojectOCam(Vector<T, 2> p, T distance_to_cam, Vector<T, 5> coeff_affine, ArrayView<const T> coeff_poly)
+HD Vector<T, 3> UnprojectOCam(Vector<T, 2> p, T distance_to_cam, Vector<T, 5> coeff_affine,
+                              ArrayView<const T> coeff_poly)
 {
-    using Vec3 = Vector<T, 3>;
-
     T c  = coeff_affine(0);
     T d  = coeff_affine(1);
     T e  = coeff_affine(2);
@@ -209,16 +208,17 @@ struct OCam
     T e  = 0;
     T cx = 0;
     T cy = 0;
-    Eigen::Matrix<T, -1, 1> poly_cam2world;
-    Eigen::Matrix<T, -1, 1> poly_world2cam;
+    std::vector<T> poly_cam2world;
+    std::vector<T> poly_world2cam;
 
     OCam() {}
 
-    OCam(int w, int h, Eigen::Matrix<T, 5, 1> ap, Eigen::Matrix<T, -1, 1> poly_cam2world,
-         Eigen::Matrix<T, -1, 1> poly_world2cam)
-        : w(w), h(h), poly_cam2world(poly_cam2world), poly_world2cam(poly_world2cam)
+    OCam(int w, int h, Eigen::Matrix<T, 5, 1> ap, ArrayView<T> _poly_cam2world, ArrayView<T> _poly_world2cam)
+        : w(w), h(h)
     {
         SetAffineParams(ap);
+        SetCam2World(_poly_cam2world);
+        SetWorld2Cam(_poly_world2cam);
     }
 
     Eigen::Matrix<T, -1, 1> ProjectParams()
@@ -288,7 +288,7 @@ struct OCam
         poly_cam2world.resize(params.size());
         for (int i = 0; i < params.size(); ++i)
         {
-            poly_cam2world(i) = params[i];
+            poly_cam2world[i] = params[i];
         }
     }
 
@@ -297,15 +297,27 @@ struct OCam
         poly_world2cam.resize(params.size());
         for (int i = 0; i < params.size(); ++i)
         {
-            poly_world2cam(i) = params[i];
+            poly_world2cam[i] = params[i];
         }
     }
 
     template <typename G>
     OCam<G> cast()
     {
-        return OCam<G>(w, h, AffineParams().template cast<G>(), poly_cam2world.template cast<G>(),
-                       poly_world2cam.template cast<G>());
+        std::vector<G> poly_cam2world_new;
+        std::vector<G> poly_world2cam_new;
+
+        for (auto v : poly_cam2world)
+        {
+            poly_cam2world_new.push_back(v);
+        }
+
+        for (auto v : poly_world2cam)
+        {
+            poly_world2cam_new.push_back(v);
+        }
+
+        return OCam<G>(w, h, AffineParams().template cast<G>(), poly_cam2world_new, poly_world2cam_new);
     }
 
 
@@ -313,8 +325,7 @@ struct OCam
     // https://github.com/stonear/OCamCalib/blob/master/ocam_functions.h
     Vec2 Project(Vec3 p) const
     {
-        ArrayView<const T> pv(poly_world2cam.data(), poly_world2cam.size());
-        return ProjectOCam<T>(p, AffineParams(), pv).template head<2>();
+        return ProjectOCam<T>(p, AffineParams(), poly_world2cam).template head<2>();
     }
 
     Vec3 InverseProject(Vec2 p, T depth = 1) const
