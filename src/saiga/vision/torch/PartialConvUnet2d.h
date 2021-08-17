@@ -452,7 +452,11 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
             {
                 f += num_input_channels[i];
             }
-            SAIGA_ASSERT(f >= num_input_channels[0]);
+
+            if (i >= 1)
+            {
+                SAIGA_ASSERT(f >= num_input_channels[0]);
+            }
         }
 
 

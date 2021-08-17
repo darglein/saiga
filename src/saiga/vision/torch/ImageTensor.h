@@ -73,18 +73,20 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
     SAIGA_ASSERT(channels(ImageTypeTemplate<T>::type) == tensor.size(0));
 
     // In pytorch image tensors are usually represented as channel first.
-    tensor = tensor.to(torch::kFloat32);
     tensor = tensor.permute({1, 2, 0});
     tensor = tensor.cpu().contiguous();
 
 
-    // Normalize to [0,1]
-    if constexpr (std::is_same<ScalarType, unsigned char>::value)
+
+    // Convert to byte
+    if (tensor.dtype() == torch::kFloat32 && std::is_same<ScalarType, unsigned char>::value)
     {
         tensor = 255.f * tensor;
         tensor = tensor.clamp(0, 255);
         tensor = tensor.toType(at::kByte);
     }
+
+    SAIGA_ASSERT(tensor.dtype() == torch::kByte);
 
 
     int h = tensor.size(0);
