@@ -22,30 +22,35 @@ TEST(Derivative, Model)
     OCam<double> cam;
 
     Vec5 affine;
-    affine << 1.000120, 0.003123, -0.003111, 1826.300049, 2725.010010;
+    affine << 1.0001200000e+00, 3.1232900000e-03, -3.1106100000e-03, 1.8263000000e+03, 2.7250100000e+03;
     cam.SetAffineParams(affine);
 
-    std::vector<double> world_2_cam = {2185.330078, 1374.650024, -195.684006, -277.934998, 140.244003, 489.372009,
-                                       -103.584000, -667.950012, 56.145100,   756.213989,  105.819000, -574.442017,
-                                       -214.572998, 240.039001,  152.841995,  -27.509800,  -39.366600, -7.958420};
+    std::vector<double> world_2_cam = {2.1853300000e+03,  1.3746500000e+03, -1.9568400000e+02, -2.7793500000e+02,
+                                       1.4024400000e+02,  4.8937200000e+02, -1.0358400000e+02, -6.6795000000e+02,
+                                       5.6145100000e+01,  7.5621400000e+02, 1.0581900000e+02,  -5.7444200000e+02,
+                                       -2.1457300000e+02, 2.4003900000e+02, 1.5284200000e+02,  -2.7509800000e+01,
+                                       -3.9366600000e+01, -7.9584200000e+00};
 
-    std::vector<double> cam_2_world = {-1376.069946, 0.000000, 0.000355, -0.000000, 0.000000, -0.000000, 0.000000};
+    std::vector<double> cam_2_world = {-1.3760700000e+03, 0.0000000000e+00,  3.5451700000e-04, -2.6874700000e-07,
+                                       2.5379600000e-10,  -1.0337200000e-13, 1.6999900000e-17};
 
-    Vec3 p = Random::MatrixUniform<Vec3>(-1,1);
-    p(2) = 0.8;
+    for (int i = 0; i < 1000; ++i)
+    {
+        Vec2 ip  = Random::MatrixUniform<Vec2>(1000, 3000);
+        double z = 1.2;
 
-
-    Vec3 ip_z = ProjectOCam<double>(p, cam.AffineParams(), world_2_cam, 0.5);
-    Vec2 ip   = ip_z.head<2>();
-    double z  = ip_z(2);
-
-    Vec3 res2 = UnprojectOCam<double>(ip, z, cam.AffineParams(), cam_2_world);
+        Vec3 wp = UnprojectOCam<double>(ip, z, cam.AffineParams(), cam_2_world);
 
 
+        Vec3 ip_z = ProjectOCam<double>(wp, cam.AffineParams(), world_2_cam, 0.5);
+        Vec2 ip2  = ip_z.head<2>();
+        double z2 = ip_z(2);
 
-    std::cout << cam << std::endl;
-    std::cout << p.transpose() << " -> " << ip.transpose() << " -> " << res2.transpose() << std::endl;
-    exit(0);
+        ExpectClose(z, z2, 1e-3);
+
+        // we allow a 0.5 pixel error
+        ExpectCloseRelative(ip, ip2, 0.5, false);
+    }
 }
 TEST(Derivative, ProjectOCam)
 {
@@ -71,9 +76,6 @@ TEST(Derivative, ProjectOCam)
 
     Vec2 res1, res2;
     res1 = ProjectOCam<double>(p, cam.AffineParams(), world_2_cam, 0.5, &J_point_1, &J_affine_1).head<2>();
-
-    std::cout << "res " << res1.transpose() << std::endl;
-
     {
         res2 = EvaluateNumeric(
             [=](auto p) {
