@@ -214,9 +214,15 @@ endif()
 STRING(REGEX REPLACE "\\\\" "/" SAIGA_SHADER_PREFIX ${SAIGA_SHADER_PREFIX} )
 STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${SAIGA_INSTALL_PREFIX} )
 
+## Generate source file with git commit
+include(GetGitRevisionDescription)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_buildconfig.h")
 set(SAIGA_MODULES_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_modules.h")
+set(SAIGA_GIT_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_git_sha1.h")
+set(SAIGA_CONFIGURED_FILES ${SAIGA_BUILDCONFIG_FILE} ${SAIGA_MODULES_FILE} ${SAIGA_GIT_FILE})
 #INCLUDE_DIRECTORIES(${SAIGA_BUILDCONFIG_DIR})
 configure_file (
     "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_buildconfig.h.in"
@@ -226,6 +232,13 @@ configure_file (
     "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_modules.h.in"
     "${SAIGA_MODULES_FILE}"
     )
+configure_file (
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/${LIB_NAME}/saiga_git_sha1.h.in"
+        "${SAIGA_GIT_FILE}"
+        @ONLY
+)
+
+
 
 set(SAIGA_CONFIG_CMAKE_FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/SAIGAConfig.cmake")
 configure_file(
@@ -245,6 +258,9 @@ write_basic_package_version_file(
     VERSION ${SAIGA_VERSION}
     COMPATIBILITY AnyNewerVersion
     )
+
+
+
 
 ############# SOURCE ###############
 

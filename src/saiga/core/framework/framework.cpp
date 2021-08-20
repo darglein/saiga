@@ -18,6 +18,7 @@
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/saiga_git_sha1.h"
 
 namespace Saiga
 {
@@ -116,6 +117,7 @@ void printSaigaInfo()
     std::cout << ConsoleColor::BLUE;
     Table table({2, 18, 16, 1});
 
+    std::cout << "Ref. " << GIT_SHA1 << std::endl;
     std::cout << "=============== Saiga ===============" << std::endl;
     table << "|"
           << "Saiga Version" << SAIGA_VERSION << "|";
@@ -179,7 +181,9 @@ void printSaigaInfo()
 #endif
           << "|";
 
+    table << "git: " << GIT_SHA1;
     std::cout << "=====================================" << std::endl;
+
     std::cout.unsetf(std::ios_base::floatfield);
     std::cout << ConsoleColor::RESET;
 
