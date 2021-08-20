@@ -26,6 +26,259 @@ inline torch::Tensor CenterCrop2D(torch::Tensor x, torch::IntArrayRef target_siz
     return x.slice(2, diff_h, diff_h + target_size[2]).slice(3, diff_w, diff_w + target_size[3]);
 }
 
+inline torch::Tensor CenterEmplace(torch::Tensor x, torch::Tensor ref)
+{
+    auto target_size = x.sizes();
+    // [b, c, h, w]
+    SAIGA_ASSERT(x.dim() == 4);
+
+    int diff_h = int(x.size(2) - target_size[2]) / 2;
+    int diff_w = int(x.size(3) - target_size[3]) / 2;
+
+    auto ref_copy = ref.clone();
+
+    ref_copy.slice(2, diff_h, diff_h + target_size[2]).slice(3, diff_w, diff_w + target_size[3]) = x;
+    return ref_copy;
+}
+
+
+/**
+ * Writes some information of the given tensor to std::cout.
+ */
+inline void PrintTensorInfo(at::Tensor t)
+{
+    if (!t.defined())
+    {
+        std::cout << "[undefined tensor]" << std::endl;
+        return;
+    }
+
+    auto type = t.dtype();
+    if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
+    {
+        t = t.to(torch::kDouble);
+    }
+
+    double mi   = t.min().item().toDouble();
+    double ma   = t.max().item().toDouble();
+    double mean = 0;
+    double sum  = t.sum().item().toDouble();
+
+    if (t.dtype() == at::kFloat || t.dtype() == at::kDouble)
+    {
+        mean = t.mean().item().toDouble();
+    }
+    std::cout << "Tensor " << t.sizes() << " " << type << " " << t.device() << " Min/Max " << mi << " " << ma
+              << " Mean " << mean << " Sum " << sum << " req-grad " << t.requires_grad() << std::endl;
+}
+
+
+inline void PrintModelParams(torch::nn::Module module)
+{
+    Table tab({40, 25, 10, 15});
+    size_t sum = 0;
+
+    tab << "Name"
+        << "Params"
+        << "Params"
+        << "Sum";
+    for (auto& t : module.named_parameters())
+    {
+        size_t local_sum = 1;
+        for (auto i : t.value().sizes())
+        {
+            local_sum *= i;
+        }
+        sum += local_sum;
+        std::stringstream strm;
+        strm << t.value().sizes();
+        tab << t.key() << strm.str() << local_sum << sum;
+    }
+    std::cout << std::endl;
+}
+
+inline void PrintModelParamsCompact(torch::nn::Module module)
+{
+    size_t sum = 0;
+
+    for (auto& t : module.named_parameters())
+    {
+        size_t local_sum = 1;
+        for (auto i : t.value().sizes())
+        {
+            local_sum *= i;
+        }
+        sum += local_sum;
+    }
+    std::cout << "Total Model Params: " << sum << std::endl;
+}
+
+inline torch::nn::AnyModule NormFromString(const std::string& str, int channels)
+{
+    if (str == "bn")
+    {
+        return torch::nn::AnyModule(torch::nn::BatchNorm2d(torch::nn::BatchNorm2dOptions(channels).momentum(0.01)));
+    }
+    else if (str == "bn_no_stat")
+    {
+        return torch::nn::AnyModule(
+            torch::nn::InstanceNorm2d(torch::nn::InstanceNorm2dOptions(channels).track_running_stats(false)));
+    }
+    else if (str == "in")
+    {
+        return torch::nn::AnyModule(torch::nn::InstanceNorm2d(torch::nn::InstanceNorm2dOptions(channels)));
+    }
+    else if (str == "id")
+    {
+        return torch::nn::AnyModule(torch::nn::Identity());
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("Unknown norm " + str);
+        return {};
+    }
+}
+
+inline torch::nn::AnyModule ActivationFromString(const std::string& str)
+{
+    if (str == "id" || str.empty())
+    {
+        return torch::nn::AnyModule(torch::nn::Identity());
+    }
+    else if (str == "sigmoid")
+    {
+        return torch::nn::AnyModule(torch::nn::Sigmoid());
+    }
+    else if (str == "tanh")
+    {
+        return torch::nn::AnyModule(torch::nn::Tanh());
+    }
+    else if (str == "elu")
+    {
+        return torch::nn::AnyModule(torch::nn::ELU());
+    }
+    else if (str == "relu")
+    {
+        return torch::nn::AnyModule(torch::nn::ReLU());
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("Unknown activation " + str);
+        return {};
+    }
+}
+
+
+inline torch::nn::AnyModule Pooling2DFromString(const std::string& str, torch::ExpandingArray<2> kernel_size)
+{
+    if (str == "average")
+    {
+        return torch::nn::AnyModule(torch::nn::AvgPool2d(torch::nn::AvgPool2dOptions(kernel_size)));
+    }
+    else if (str == "max")
+    {
+        return torch::nn::AnyModule(torch::nn::MaxPool2d(torch::nn::MaxPool2dOptions(kernel_size)));
+    }
+    else
+    {
+        SAIGA_EXIT_ERROR("Unknown activation " + str);
+        return {};
+    }
+}
+
+
+//  After each epoch we mulitply the learning rate by the decay
+inline double ExponentialDecay(int epoch_id, int max_epochs, double decay)
+{
+    SAIGA_ASSERT(decay >= 0 && decay <= 1);
+    return decay;
+}
+
+// After <step_size> steps the learning rate is multiplied by decay
+inline double SteppedExponentialDecay(int epoch_id, int max_epochs, int step_size, double decay)
+{
+    SAIGA_ASSERT(epoch_id > 0);
+    SAIGA_ASSERT(decay >= 0 && decay <= 1);
+
+    if (epoch_id % step_size == 0)
+    {
+        return decay;
+    }
+    else
+    {
+        return 1;
+    }
+}
+
+
+// Set the LR of all param groups in this optimizer
+template <typename OptionsType>
+void SetLR(torch::optim::Optimizer* optimizer, double lr)
+{
+    for (auto& pg : optimizer->param_groups())
+    {
+        auto opt = dynamic_cast<OptionsType*>(&pg.options());
+        SAIGA_ASSERT(opt);
+        opt->lr() = lr;
+    }
+}
+
+// Multiplies the LR of all param groups by the given value
+template <typename OptionsType>
+void UpdateLR(torch::optim::Optimizer* optimizer, double factor)
+{
+    for (auto& pg : optimizer->param_groups())
+    {
+        auto opt = dynamic_cast<OptionsType*>(&pg.options());
+        SAIGA_ASSERT(opt);
+        opt->lr() = opt->lr() * factor;
+    }
+}
+
+}  // namespace Saiga
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#pragma once
+#include "saiga/core/image/image.h"
+#include "saiga/core/util/table.h"
+
+#include "torch/torch.h"
+
+
+namespace Saiga
+{
+// Center crops the tensor x to target size.
+// Used for example in unets if the input is not a power of 2, because we lose some pixels after downsampling
+inline torch::Tensor CenterCrop2D(torch::Tensor x, torch::IntArrayRef target_size)
+{
+    // [b, c, h, w]
+    SAIGA_ASSERT(x.dim() == 4);
+
+    int diff_h = int(x.size(2) - target_size[2]) / 2;
+    int diff_w = int(x.size(3) - target_size[3]) / 2;
+
+    return x.slice(2, diff_h, diff_h + target_size[2]).slice(3, diff_w, diff_w + target_size[3]);
+}
+
+inline torch::Tensor CenterEmplace(torch::Tensor x, torch::Tensor ref)
+{
+    auto target_size = x.sizes();
+    // [b, c, h, w]
+    SAIGA_ASSERT(x.dim() == 4);
+
+    int diff_h = int(x.size(2) - target_size[2]) / 2;
+    int diff_w = int(x.size(3) - target_size[3]) / 2;
+
+    auto ref_copy = ref.clone();
+
+    ref_copy.slice(2, diff_h, diff_h + target_size[2]).slice(3, diff_w, diff_w + target_size[3]) = x;
+    return ref_copy;
+}
+
 
 /**
  * Writes some information of the given tensor to std::cout.

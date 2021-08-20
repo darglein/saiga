@@ -6,4 +6,4 @@
 
 #pragma once
 
-#define GIT_SHA1 "@GIT_SHA1@"
+#define SAIGA_GIT_SHA1 "@SAIGA_GIT_SHA1@"

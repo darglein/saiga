@@ -117,7 +117,7 @@ void printSaigaInfo()
     std::cout << ConsoleColor::BLUE;
     Table table({2, 18, 16, 1});
 
-    std::cout << "Ref. " << GIT_SHA1 << std::endl;
+    std::cout << "Ref. " << SAIGA_GIT_SHA1 << std::endl;
     std::cout << "=============== Saiga ===============" << std::endl;
     table << "|"
           << "Saiga Version" << SAIGA_VERSION << "|";
@@ -180,8 +180,6 @@ void printSaigaInfo()
         "0"
 #endif
           << "|";
-
-    table << "git: " << GIT_SHA1;
     std::cout << "=====================================" << std::endl;
 
     std::cout.unsetf(std::ios_base::floatfield);
