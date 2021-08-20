@@ -45,6 +45,9 @@ std::pair<std::vector<int>, std::vector<int>> TrainParams::Split(std::vector<int
         train_indices = std::vector<int>(all_indices.begin(), all_indices.begin() + first_n);
         test_indices  = std::vector<int>(all_indices.begin() + first_n, all_indices.end());
     }
+    if (split_method == "random")
+    {
+    }
     else
     {
         // uniform split
@@ -91,7 +94,7 @@ std::pair<std::vector<int>, std::vector<int>> TrainParams::Split(std::vector<int
         for (auto i : to_remove)
         {
             auto it = std::find(train_indices.begin(), train_indices.end(), i);
-            if(it != train_indices.end())
+            if (it != train_indices.end())
             {
                 train_indices.erase(it);
             }

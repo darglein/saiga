@@ -8,6 +8,9 @@
 
 #include "saiga/core/util/BinaryFile.h"
 #include "saiga/vision/VisionTypes.h"
+
+#include <filesystem>
+
 namespace Saiga
 {
 struct ColmapReader
@@ -22,9 +25,18 @@ struct ColmapReader
     // colmap/src/base/reconstruction.cc
     ColmapReader(const std::string& dir)
     {
+        std::string img_file = dir + "/images.bin";
+        std::string cam_file = dir + "/cameras.bin";
+        std::string poi_file = dir + "/points3D.bin";
+
+        SAIGA_ASSERT(std::filesystem::exists(img_file));
+        SAIGA_ASSERT(std::filesystem::exists(cam_file));
+        SAIGA_ASSERT(std::filesystem::exists(poi_file));
+
+
         {
             // Read images
-            BinaryFile file(dir + "/images.bin", std::ios::in);
+            BinaryFile file(img_file, std::ios::in);
 
             uint64_t num_images;
             file >> num_images;
@@ -67,11 +79,14 @@ struct ColmapReader
 
                 images.push_back(ci);
             }
+
+
+            std::sort(images.begin(), images.end(), [](auto& i1, auto& i2) { return i1.image_id < i2.image_id; });
         }
 
         {
-            // Read images
-            BinaryFile file(dir + "/cameras.bin", std::ios::in);
+            // Read cameras
+            BinaryFile file(cam_file, std::ios::in);
 
             uint64_t num_cameras;
             file >> num_cameras;
@@ -87,6 +102,18 @@ struct ColmapReader
                 std::cout << "camera model: " << c.model_id << std::endl;
                 switch (c.model_id)
                 {
+                    case 1:
+                    {
+                        // Pinhole
+                        // fx, fy, cx, cy
+                        std::array<double, 4> coeffs;
+                        file >> coeffs;
+                        c.K.fx = coeffs[0];
+                        c.K.fy = coeffs[1];
+                        c.K.cx = coeffs[2];
+                        c.K.cy = coeffs[3];
+                        break;
+                    }
                     case 3:
                     {
                         // RADIAL
@@ -102,7 +129,8 @@ struct ColmapReader
                         break;
                     }
                     default:
-                        SAIGA_EXIT_ERROR("unknown camera model. checkout colmap/src/base/camera_models.h");
+                        SAIGA_EXIT_ERROR(
+                            "unknown camera model. checkout colmap/src/base/camera_models.h and update this file.");
                 }
             }
         }
