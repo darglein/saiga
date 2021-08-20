@@ -25,6 +25,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
         SAIGA_PARAM_LONG(save_checkpoints_its);
         SAIGA_PARAM_BOOL(eval_only_on_checkpoint);
         SAIGA_PARAM_STRING(name);
+        SAIGA_PARAM_BOOL(debug);
 
 
         SAIGA_PARAM_STRING(split_method);
@@ -49,6 +50,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
     int batch_size               = 4;
     int inner_batch_size         = 1;
     int inner_sample_size        = 1;
+    bool debug                   = false;
 
     std::string name = "default";
 
