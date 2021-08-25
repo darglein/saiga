@@ -85,6 +85,7 @@
 #define SAIGA_ON_HOST
 
 #ifdef __CUDACC__
+#    define SAIGA_HOST __host__
 #    define HD __host__ __device__
 #    define IS_CUDA
 #    if defined(__CUDA_ARCH__) && __CUDA_ARCH__ > 0
@@ -95,6 +96,7 @@
 #    if !defined(HD)
 #        define HD
 #    endif
+#    define SAIGA_HOST
 #endif
 
 #ifdef __CUDACC__
