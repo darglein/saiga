@@ -172,10 +172,13 @@ bool captureKeyboard()
     return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureKeyboard;
 }
 
+std::streambuf* test;
+
 IMConsole::IMConsole(const std::string& name, const Saiga::ivec2& position, const Saiga::ivec2& size,
                      bool write_to_cout)
     : std::ostream(this), name(name), position(position), size(size), writeToCout(write_to_cout)
 {
+    cout_buf = std::cout.rdbuf();
 }
 
 void IMConsole::render()
@@ -251,8 +254,7 @@ int IMConsole::overflow(int c)
     }
     if (writeToCout)
     {
-        std::cout << (char)c;
-        if (c == '\n') std::cout.flush();
+        cout_buf->sputc(c);
     }
 
     if (scrollToBottom)

@@ -13,6 +13,16 @@
 
 namespace Saiga
 {
+// Cuts of 'border_size' pixels from each image border
+inline torch::Tensor CenterCrop2D(torch::Tensor x, int border_size)
+{
+    // [b, c, h, w]
+    SAIGA_ASSERT(x.dim() == 4);
+
+    return x.slice(2, border_size, x.size(2) - 2 * border_size).slice(3, border_size, x.size(3) - 2 * border_size);
+}
+
+
 // Center crops the tensor x to target size.
 // Used for example in unets if the input is not a power of 2, because we lose some pixels after downsampling
 inline torch::Tensor CenterCrop2D(torch::Tensor x, torch::IntArrayRef target_size)
@@ -26,18 +36,19 @@ inline torch::Tensor CenterCrop2D(torch::Tensor x, torch::IntArrayRef target_siz
     return x.slice(2, diff_h, diff_h + target_size[2]).slice(3, diff_w, diff_w + target_size[3]);
 }
 
-inline torch::Tensor CenterEmplace(torch::Tensor x, torch::Tensor ref)
+// emplace 'src' into the center of 'target'
+inline torch::Tensor CenterEmplace(torch::Tensor src, torch::Tensor target)
 {
-    auto target_size = x.sizes();
+    auto src_size = src.sizes();
     // [b, c, h, w]
-    SAIGA_ASSERT(x.dim() == 4);
+    SAIGA_ASSERT(src.dim() == 4);
 
-    int diff_h = int(x.size(2) - target_size[2]) / 2;
-    int diff_w = int(x.size(3) - target_size[3]) / 2;
+    int diff_h = int(target.size(2) - src_size[2]) / 2;
+    int diff_w = int(target.size(3) - src_size[3]) / 2;
 
-    auto ref_copy = ref.clone();
+    auto ref_copy = target.clone();
 
-    ref_copy.slice(2, diff_h, diff_h + target_size[2]).slice(3, diff_w, diff_w + target_size[3]) = x;
+    ref_copy.slice(2, diff_h, diff_h + src_size[2]).slice(3, diff_w, diff_w + src_size[3]) = src;
     return ref_copy;
 }
 

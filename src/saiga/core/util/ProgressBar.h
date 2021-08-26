@@ -39,8 +39,13 @@ namespace Saiga
 struct ProgressBar
 {
     ProgressBar(std::ostream& strm, const std::string header, int end, int length = 30,
-                bool show_remaining_time = false)
-        : strm(strm), prefix(header), end(end), length(length), show_remaining_time(show_remaining_time)
+                bool show_remaining_time = false, int update_time_ms = 100)
+        : strm(strm),
+          prefix(header),
+          end(end),
+          length(length),
+          show_remaining_time(show_remaining_time),
+          update_time_ms(update_time_ms)
     {
         SAIGA_ASSERT(end >= 0);
         print();
@@ -83,6 +88,7 @@ struct ProgressBar
     int end;
     int length;
     bool show_remaining_time;
+    int update_time_ms;
 
     void run()
     {
@@ -92,7 +98,7 @@ struct ProgressBar
                 print();
                 //                std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 std::unique_lock<std::mutex> l(lock);
-                cv.wait_for(l, std::chrono::milliseconds(100));
+                cv.wait_for(l, std::chrono::milliseconds(update_time_ms));
             }
             print();
             strm << std::endl;

@@ -18,7 +18,7 @@
 struct ImDrawList;
 namespace ImGui
 {
-class SAIGA_CORE_API IMConsole : public std::ostream, protected std::streambuf
+class SAIGA_CORE_API IMConsole : public std::ostream, public std::streambuf
 {
    public:
     IMConsole(const std::string& name = "Console", const Saiga::ivec2& position = {0, 0},
@@ -49,6 +49,7 @@ class SAIGA_CORE_API IMConsole : public std::ostream, protected std::streambuf
     bool scrollToBottom         = true;
     std::string data;
     std::shared_ptr<std::ofstream> outFile;
+    std::streambuf* cout_buf;
 };
 
 // An ImGUi table window where you can add new lines like in Saiga::Table.

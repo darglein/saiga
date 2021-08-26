@@ -3,11 +3,12 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-
 #include "TrainParameters.h"
 
 #include "saiga/core/math/random.h"
+#include "saiga/core/util/file.h"
 
+#include <filesystem>
 #include <iostream>
 
 namespace Saiga
@@ -113,17 +114,21 @@ std::pair<std::vector<int>, std::vector<int>> TrainParams::Split(std::vector<int
         test_indices.resize(n);
     }
 
-    if (duplicate_train_factor > 1)
+    return {train_indices, test_indices};
+}
+std::vector<int> TrainParams::ReadIndexFile(const std::string& file)
+{
+    SAIGA_ASSERT(std::filesystem::exists(file));
+    auto lines = File::loadFileStringArray(file);
+
+    std::vector<int> res;
+
+    for (auto l : lines)
     {
-        // this multiplies the epoch size
-        // increases performance for small epoch sizes
-        auto cp = train_indices;
-        for (int i = 1; i < duplicate_train_factor; ++i)
-        {
-            train_indices.insert(train_indices.end(), cp.begin(), cp.end());
-        }
+        if(l.empty()) continue;
+        res.push_back(to_int(l));
     }
 
-    return {train_indices, test_indices};
+    return res;
 }
 }  // namespace Saiga
