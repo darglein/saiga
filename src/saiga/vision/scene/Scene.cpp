@@ -540,7 +540,9 @@ void Scene::addIntrinsicNoise(double stddev)
 {
     for (auto& intr : intrinsics)
     {
-        intr = Vec5(intr.coeffs() + Random::MatrixGauss<Vec5>(0, stddev));
+        Vec5 rnd = Random::MatrixGauss<Vec5>(0, stddev);
+        rnd(4) *= 0.1;
+        intr = Vec5(intr.coeffs() + rnd);
     }
 }
 

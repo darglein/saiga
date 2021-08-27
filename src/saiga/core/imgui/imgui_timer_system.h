@@ -60,6 +60,13 @@ class SAIGA_CORE_API TimerSystem
         void Start();
         void Stop();
 
+        // statistics (all in ms)
+        float stat_last   = 0;
+        float stat_min    = 0;
+        float stat_max    = 0;
+        float stat_median = 0;
+        float stat_mean   = 0;
+        float stat_sdev   = 0;
        private:
         friend class TimerSystem;
         void ResizeSamples(int num_samples);
@@ -80,13 +87,7 @@ class SAIGA_CORE_API TimerSystem
         // stats
         int depth = -1;
         std::string name, full_name;
-        // statistics (all in ms)
-        float stat_last   = 0;
-        float stat_min    = 0;
-        float stat_max    = 0;
-        float stat_median = 0;
-        float stat_mean   = 0;
-        float stat_sdev   = 0;
+
     };
 
     struct ScopedTimingSection
