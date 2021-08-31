@@ -223,6 +223,19 @@ void ScaleDown2(ImageView<const ucvec4> src, ImageView<ucvec4> dst)
         }
     }
 }
+TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2)
+{
+    TemplatedImage<unsigned char> result(img1.dimensions());
+    for (int i : img1.rowRange())
+    {
+        for (int j : img1.colRange())
+        {
+            int diff     = (img1(i, j).cast<int>() - img2(i, j).cast<int>()).array().abs().maxCoeff();
+            result(i, j) = diff;
+        }
+    }
+    return result;
+}
 
 
 

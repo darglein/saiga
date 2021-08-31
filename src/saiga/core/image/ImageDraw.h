@@ -18,7 +18,7 @@ namespace ImageDraw
 // Draw a filled rectangle, with AABB like min/max values
 // note: the high bounds will be exclusive
 template <typename T, typename S>
-void drawRectangle(ImageView<T> img, const vec2& low, const vec2& high, const S& color)
+void FillRectangle(ImageView<T> img, const ivec2& low, const ivec2& high, const S& color)
 {
     for (int dy = low.y(); dy < high.y(); ++dy)
     {
@@ -28,6 +28,29 @@ void drawRectangle(ImageView<T> img, const vec2& low, const vec2& high, const S&
         }
     }
 }
+
+// Draws the outline of a rectangle
+template <typename T, typename S>
+void DrawRectangle(ImageView<T> img, const ivec2& low, const ivec2& high, const S& color, int thickness)
+{
+    SAIGA_ASSERT(thickness > 0);
+    int r = (thickness - 1) / 2;
+    for (int t = -r; t <= r; ++t)
+    {
+        for (int dy = low.y() - r; dy < high.y() + r; ++dy)
+        {
+            img.clampedWrite(dy, low(0) + t, color);
+            img.clampedWrite(dy, high(0) + t, color);
+        }
+
+        for (int dx = low.x() - r; dx < high.x() + r; ++dx)
+        {
+            img.clampedWrite(low(1) + t, dx, color);
+            img.clampedWrite(high(1) + t, dx, color);
+        }
+    }
+}
+
 
 // Draw a filled circle
 template <typename T, typename S>

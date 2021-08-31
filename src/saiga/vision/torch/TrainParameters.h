@@ -26,6 +26,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
         SAIGA_PARAM_BOOL(eval_only_on_checkpoint);
         SAIGA_PARAM_STRING(name);
         SAIGA_PARAM_BOOL(debug);
+        SAIGA_PARAM_STRING(output_file_type);
 
 
         SAIGA_PARAM_STRING(split_method);
@@ -53,6 +54,8 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
     int inner_batch_size         = 1;
     int inner_sample_size        = 1;
     bool debug                   = false;
+
+    std::string output_file_type = ".jpg";
 
     std::string name = "default";
 

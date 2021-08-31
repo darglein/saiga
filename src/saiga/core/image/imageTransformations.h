@@ -8,7 +8,7 @@
 
 #include "saiga/core/math/math.h"
 
-#include "imageView.h"
+#include "templatedImage.h"
 
 
 namespace Saiga
@@ -42,6 +42,11 @@ SAIGA_CORE_API float sharpness(ImageView<const unsigned char> src);
  */
 SAIGA_CORE_API bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax);
 SAIGA_CORE_API bool save(const std::string& path, ImageView<float> img, float vmin, float vmax);
+
+// Computes the per pixel error and writes it into an output image.
+// The error is computed as (img1 - img2).abs().maxChannel()
+//
+SAIGA_CORE_API TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2);
 
 }  // namespace ImageTransformation
 }  // namespace Saiga

@@ -97,9 +97,9 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         return subImageView(start_h, start_w, output_h, output_w);
     }
 
-    HD inline ImageView<T> centerCrop(int border_size)
+    HD inline ImageView<T> centerCrop2(int border_y, int border_x)
     {
-        return subImageView(border_size, border_size, h - border_size * 2, w - border_size * 2);
+        return subImageView(border_y, border_x, h - border_y * 2, w - border_x * 2);
     }
 
     /**

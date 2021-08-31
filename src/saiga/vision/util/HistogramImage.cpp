@@ -82,12 +82,12 @@ void HistogramImage::drawGridLines(ImageView<ucvec4> imgv, bool drawHistBoxes)
         {
             for (int j = 0; j < outputW; ++j)
             {
-                vec2 low(j * dx, i * dy);
-                vec2 high((j + 1) * dx, (i + 1) * dy);
+                ivec2 low(j * dx, i * dy);
+                ivec2 high((j + 1) * dx, (i + 1) * dy);
 
                 if (img(i, j) >= 1)
                 {
-                    ImageDraw::drawRectangle(imgv, low, high, ucvec4(0, 0, 255, 255));
+                    ImageDraw::FillRectangle(imgv, low, high, ucvec4(0, 0, 255, 255));
                 }
             }
         }
