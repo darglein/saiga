@@ -243,7 +243,7 @@ quat mix(const quat& a, const quat& b, float alpha)
     return a.slerp(alpha, b);
 }
 
-Quat Saiga::mix(const Quat& a, const Quat& b, double alpha)
+Quat mix(const Quat& a, const Quat& b, double alpha)
 {
     return a.slerp(alpha, b);
 }
