@@ -74,7 +74,7 @@ struct ColmapReader
                     file >> p.world_point_index;
                 }
 
-                std::cout << ci.name << " " << ci.image_id << " " << ci.camera_id << std::endl;
+                std::cout << ci.name << " " << ci.image_id << " " << ci.camera_id << " ";
                 std::cout << ci.q << " | " << ci.t.transpose() << std::endl;
 
                 images.push_back(ci);
@@ -99,7 +99,7 @@ struct ColmapReader
                 file >> c.camera_id >> c.model_id;
                 file >> c.w >> c.h;
 
-                std::cout << "camera model: " << c.model_id << std::endl;
+                std::cout << "id: " << c.camera_id << " camera model: " << c.model_id << " ";
                 switch (c.model_id)
                 {
                     case 1:
@@ -112,6 +112,19 @@ struct ColmapReader
                         c.K.fy = coeffs[1];
                         c.K.cx = coeffs[2];
                         c.K.cy = coeffs[3];
+                        break;
+                    }
+                    case 2:
+                    {
+                        // Simple Radial
+                        // f, cx, cy, k1
+                        std::array<double, 4> coeffs;
+                        file >> coeffs;
+                        c.K.fx   = coeffs[0];
+                        c.K.fy   = coeffs[0];
+                        c.K.cx   = coeffs[1];
+                        c.K.cy   = coeffs[2];
+                        c.dis.k1 = coeffs[3];
                         break;
                     }
                     case 3:
@@ -132,6 +145,7 @@ struct ColmapReader
                         SAIGA_EXIT_ERROR(
                             "unknown camera model. checkout colmap/src/base/camera_models.h and update this file.");
                 }
+                std::cout << " K: " << c.K << " Dis: " << c.dis << std::endl;
             }
         }
     }

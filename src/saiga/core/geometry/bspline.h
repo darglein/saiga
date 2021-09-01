@@ -13,17 +13,18 @@
 
 namespace Saiga
 {
-template <typename P>
+template <typename P, typename T>
 class Bspline
 {
    public:
-    Bspline(int degree = 3, std::vector<P> controlPoints = std::vector<P>());
+    Bspline() {}
+    Bspline(std::vector<P> controlPoints, int degree = 3);
 
     /**
      * @brief Bspline::getPointOnCurve
      * @param a: The position on the curve in the range [0,1]
      */
-    P getPointOnCurve(float a);
+    P getPointOnCurve(T a);
 
     void addPoint(const P& p)
     {
@@ -54,39 +55,39 @@ class Bspline
     }
 
 
-    template <typename T>
-    friend std::ostream& operator<<(std::ostream& os, const Bspline<T>& bs);
+    template <typename A, typename B>
+    friend std::ostream& operator<<(std::ostream& os, const Bspline<A, B>& bs);
 
 
     std::vector<P> controlPoints;
     int degree;
 
    private:
-    std::vector<float> knots;
+    std::vector<T> knots;
 
     // temp storage needed for deBoor
     std::vector<P> dd;
 
 
-    P deBoor(float u);
+    P deBoor(T u);
 };
 
-template <typename P>
-Bspline<P>::Bspline(int degree, std::vector<P> controlPoints) : controlPoints(controlPoints), degree(degree)
+template <typename P, typename T>
+Bspline<P, T>::Bspline(std::vector<P> controlPoints, int degree) : controlPoints(controlPoints), degree(degree)
 {
     normalize();
 }
 
-template <typename P>
-P Bspline<P>::getPointOnCurve(float a)
+template <typename P, typename T>
+P Bspline<P, T>::getPointOnCurve(T a)
 {
     a = clamp(a, 0.f, 1.f);
     a = a * (knots[controlPoints.size()] - knots[degree]) + knots[degree];
     return deBoor(a);
 }
 
-template <typename P>
-P Bspline<P>::deBoor(float u)
+template <typename P, typename T>
+P Bspline<P, T>::deBoor(T u)
 {
     int m = controlPoints.size();
 
@@ -105,7 +106,7 @@ P Bspline<P>::deBoor(float u)
     for (int k = 1; k <= degree; ++k)
         for (int i = k; i <= degree; ++i)
         {
-            float a     = (u - knots[j - degree + i]) / (knots[j + i + 1 - k] - knots[j - degree + i]);
+            T a         = (u - knots[j - degree + i]) / (knots[j + i + 1 - k] - knots[j - degree + i]);
             int ind     = i - k + 1;
             dd[ind - 1] = mix(dd[ind - 1], dd[ind], a);
         }
@@ -114,8 +115,8 @@ P Bspline<P>::deBoor(float u)
 }
 
 
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const Bspline<T>& bs)
+template <typename P, typename T>
+std::ostream& operator<<(std::ostream& os, const Bspline<P, T>& bs)
 {
     os << "Bspline n=" << bs.degree << " m=" << bs.controlPoints.size() << " #knots=" << bs.knots.size() << std::endl;
     std::cout << "knots:  ";

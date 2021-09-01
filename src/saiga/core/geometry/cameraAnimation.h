@@ -7,15 +7,14 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/geometry/bspline.h"
 #include "saiga/core/math/math.h"
-#include "saiga/opengl/animation/bspline.h"
-#include "saiga/opengl/assets/all.h"
 
 #include <saiga/core/time/time.h>
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API Interpolation
+class SAIGA_CORE_API Interpolation
 {
    public:
     struct Keyframe
@@ -24,17 +23,10 @@ class SAIGA_OPENGL_API Interpolation
         vec3 position;
     };
 
-    //    Keyframe interpolate(const Keyframe& f1, const Keyframe& f2, float alpha);
-
-    //    Keyframe interpolate(
-    //            const Keyframe& f1, const Keyframe& f2,
-    //            const Keyframe& f3, const Keyframe& f4, float alpha);
-
     std::vector<Keyframe> keyframes;
 
     void addKeyframe(const quat& R, const vec3& t) { keyframes.push_back({R, t}); }
 
-    //    Keyframe get(double time);
     Keyframe getNormalized(double time);
 
 
@@ -46,30 +38,26 @@ class SAIGA_OPENGL_API Interpolation
     float totalTime         = 5;
     int selectedKeyframe    = 0;
 
-    Bspline<vec3> positionSpline;
-    Bspline<quat> orientationSpline;
+    Bspline<vec3, float> positionSpline;
+    Bspline<quat, float> orientationSpline;
 
     Interpolation() {}
 
 
-    void start(Camera& cam, float totalTimeS, float dt);
-    bool update(Camera& cam);
+    //    void start(Camera& cam, float totalTimeS, float dt);
+    //    bool update(Camera& cam);
 
 
     void updateCurve();
     bool isRunning() { return tick <= totalTicks; }
 
-    void render();
-    void renderGui(Camera& cam);
-
+    //    void render();
+    //    void renderGui(Camera& cam);
+    //
     // Camera path mesh
     bool visible        = true;
     int subSamples      = 5;
     float keyframeScale = 0.5;
-    std::shared_ptr<Asset> cameraPathAsset;
-
-   private:
-    void createAsset();
 };
 
 

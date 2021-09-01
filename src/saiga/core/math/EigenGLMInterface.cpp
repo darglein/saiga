@@ -4,7 +4,10 @@
  * See LICENSE file for more information.
  */
 
+#include "EigenGLMInterface.h"
+
 #include "math.h"
+
 
 namespace Saiga
 {
@@ -240,6 +243,11 @@ quat mix(const quat& a, const quat& b, float alpha)
     return a.slerp(alpha, b);
 }
 
+Quat Saiga::mix(const Quat& a, const Quat& b, double alpha)
+{
+    return a.slerp(alpha, b);
+}
+
 quat quat_cast(const mat3& m)
 {
     return quat(m).normalized();
@@ -280,5 +288,6 @@ mat4 translate(const vec3& t)
     m.block<3, 1>(0, 3) = t;
     return m;
 }
+
 
 }  // namespace Saiga
