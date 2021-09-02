@@ -30,16 +30,9 @@ namespace Saiga
  */
 class SAIGA_CORE_API Table
 {
-   private:
-    int currentCol = 0;
-    int numCols    = 0;
-    int precision  = -1;
-    std::vector<int> colWidth;
-    std::ostream* strm = nullptr;
-
    public:
     Table() : strm(&std::cout) {}
-    Table(const std::vector<int>& colWidth, std::ostream& strm = std::cout);
+    Table(const std::vector<int>& colWidth, std::ostream& strm = std::cout, char additional_sep = '\0');
 
     void setStream(std::ostream& strm) { this->strm = &strm; }
 
@@ -57,10 +50,18 @@ class SAIGA_CORE_API Table
         }
 
         (*strm) << std::setw(colWidth[currentCol]) << std::left << t;
-        currentCol = (currentCol + 1) % numCols;
-        if (currentCol == 0)
+
+        currentCol++;
+
+
+        if (currentCol == numCols)
         {
+            currentCol = 0;
             (*strm) << std::endl;
+        }
+        else
+        {
+            (*strm) << additional_sep;
         }
 
         if (precision > 0)
@@ -69,6 +70,14 @@ class SAIGA_CORE_API Table
         }
         return *this;
     }
+
+   private:
+    int currentCol = 0;
+    int numCols    = 0;
+    int precision  = -1;
+    std::vector<int> colWidth;
+    std::ostream* strm  = nullptr;
+    char additional_sep = '\0';
 };
 
 }  // namespace Saiga

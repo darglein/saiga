@@ -10,7 +10,8 @@
 
 namespace Saiga
 {
-Table::Table(const std::vector<int>& colWidth, std::ostream& strm) : strm(&strm)
+Table::Table(const std::vector<int>& colWidth, std::ostream& strm, char additional_sep)
+    : strm(&strm), additional_sep(additional_sep)
 {
     setColWidth(colWidth);
 }
