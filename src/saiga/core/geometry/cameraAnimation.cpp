@@ -155,22 +155,22 @@ Interpolation::Keyframe Interpolation::getNormalized(double time)
 //    return true;
 //}
 
-void Interpolation::updateCurve()
-{
-    positionSpline.controlPoints.clear();
-    orientationSpline.controlPoints.clear();
-
-    for (auto& kf : keyframes)
-    {
-        positionSpline.addPoint(kf.position);
-        orientationSpline.addPoint(kf.rot);
-    }
-
-
-    positionSpline.normalize();
-    orientationSpline.normalize();
-
-}
+//void Interpolation::updateCurve()
+//{
+//    positionSpline.controlPoints.clear();
+//    orientationSpline.controlPoints.clear();
+//
+//    for (auto& kf : keyframes)
+//    {
+//        positionSpline.addPoint(kf.position);
+//        orientationSpline.addPoint(kf.rot);
+//    }
+//
+//
+//    positionSpline.normalize();
+//    orientationSpline.normalize();
+//
+//}
 //
 //void Interpolation::renderGui(Camera& camera)
 //{

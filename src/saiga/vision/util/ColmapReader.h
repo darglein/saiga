@@ -10,6 +10,7 @@
 #include "saiga/vision/VisionTypes.h"
 
 #include <filesystem>
+#include <map>
 
 namespace Saiga
 {
@@ -87,5 +88,10 @@ struct SAIGA_VISION_API ColmapReader
     std::vector<ColmapCamera> cameras;
     std::vector<ColmapImage> images;
     std::vector<ColmapWorldpoint> points;
+
+
+    std::map<uint32_t, uint32_t> col_cam_to_id;
+    std::map<uint32_t, uint32_t> col_img_to_id;
+    std::map<uint64_t, uint64_t> col_point_to_id;
 };
 }  // namespace Saiga

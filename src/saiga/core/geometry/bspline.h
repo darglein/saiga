@@ -6,6 +6,7 @@
 
 #pragma once
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/core/util/assert.h"
 
 #include <iostream>
@@ -18,7 +19,10 @@ class Bspline
 {
    public:
     Bspline() {}
-    Bspline(std::vector<P> controlPoints, int degree = 3);
+    Bspline(std::vector<P> controlPoints, int degree = 3) : controlPoints(controlPoints), degree(degree)
+    {
+        MakeUniformKnots();
+    }
 
     /**
      * @brief Bspline::getPointOnCurve
@@ -32,7 +36,18 @@ class Bspline
         controlPoints.push_back(p);
     }
 
-    void normalize(bool interpolateEnds = true)
+    void SetEndinterpolationknots()
+    {
+        int numKnots = knots.size();
+        for (int i = 0; i < degree; ++i)
+        {
+            knots[i]                = knots[degree];
+            knots[numKnots - i - 1] = knots[numKnots - degree - 1];
+        }
+    }
+
+
+    void MakeUniformKnots(bool interpolateEnds = true)
     {
         int numKnots = controlPoints.size() + degree + 1;
 
@@ -46,12 +61,14 @@ class Bspline
 
         if (interpolateEnds)
         {
-            for (int i = 0; i < degree; ++i)
-            {
-                knots[i]                = knots[degree];
-                knots[numKnots - i - 1] = knots[numKnots - degree - 1];
-            }
+            SetEndinterpolationknots();
         }
+    }
+
+    void MakeDistanceKnots(ArrayView<T> distances)
+    {
+        SAIGA_ASSERT(distances.size() == controlPoints.size() - 1);
+        SetEndinterpolationknots();
     }
 
 
@@ -73,14 +90,9 @@ class Bspline
 };
 
 template <typename P, typename T>
-Bspline<P, T>::Bspline(std::vector<P> controlPoints, int degree) : controlPoints(controlPoints), degree(degree)
-{
-    normalize();
-}
-
-template <typename P, typename T>
 P Bspline<P, T>::getPointOnCurve(T a)
 {
+    SAIGA_ASSERT(knots.size() > degree);
     a = clamp(a, 0.f, 1.f);
     a = a * (knots[controlPoints.size()] - knots[degree]) + knots[degree];
     return deBoor(a);
@@ -90,6 +102,7 @@ template <typename P, typename T>
 P Bspline<P, T>::deBoor(T u)
 {
     int m = controlPoints.size();
+    SAIGA_ASSERT(m > degree);
 
     dd.resize((degree + 1) * (degree + 1));
 

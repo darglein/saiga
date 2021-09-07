@@ -5,7 +5,6 @@
  */
 #include "ColmapReader.h"
 
-#include <map>
 
 namespace Saiga
 {
@@ -26,10 +25,9 @@ void ColmapReader::Load(const std::string& dir)
     SAIGA_ASSERT(std::filesystem::exists(poi_file));
 
 
-
-    std::map<uint32_t, uint32_t> col_cam_to_id;
-    std::map<uint32_t, uint32_t> col_img_to_id;
-    std::map<uint64_t, uint64_t> col_point_to_id;
+    col_point_to_id.clear();
+    col_img_to_id.clear();
+    col_cam_to_id.clear();
 
     col_point_to_id[colmapkInvalidPoint3DId] = colmapkInvalidPoint3DId;
     col_img_to_id[colmapkInvalidPoint2DIdx]  = colmapkInvalidPoint2DIdx;
@@ -192,7 +190,7 @@ void ColmapReader::Load(const std::string& dir)
         }
 
 
-        std::sort(images.begin(), images.end(), [](auto& i1, auto& i2) { return i1.image_id < i2.image_id; });
+        std::sort(images.begin(), images.end(), [](auto& i1, auto& i2) { return i1.name < i2.name; });
 
         for (int i = 0; i < num_images; ++i)
         {
