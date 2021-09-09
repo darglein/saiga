@@ -42,10 +42,10 @@ void VideoEncoder::frame(ImageView<ucvec4> image)
     {
         SAIGA_ASSERT(image.w == encoder->inWidth);
         SAIGA_ASSERT(image.h == encoder->inHeight);
-        auto img = encoder->getFrameBuffer();
+//        auto img = encoder->getFrameBuffer();
 
-        image.copyTo(img->getImageView());
-        encoder->addFrame(img);
+//        image.copyTo(img->getImageView());
+        encoder->addFrame(image);
     }
 }
 

@@ -30,9 +30,11 @@ class SAIGA_OPENGL_API VideoEncoder
     VideoEncoder(int w, int h);
     ~VideoEncoder();
 
-
     void resize(int w, int h);
+
     void frame(ImageView<ucvec4> image);
+
+
     void renderGUI();
 
     // Can be used externally, for example, by mapping it to a key.

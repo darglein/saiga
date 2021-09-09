@@ -41,7 +41,6 @@ FFMPEGEncoder::FFMPEGEncoder(const std::string& filename, int outWidth, int outH
       outFps(outFps),
       bitRate(bitRate),
       videoCodecId(videoCodecId),
-      imageStorage(bufferSize),
       imageQueue(bufferSize),
       frameStorage(bufferSize),
       frameQueue(bufferSize)
@@ -90,29 +89,21 @@ void FFMPEGEncoder::scaleThreadFunc()
 
 bool FFMPEGEncoder::scaleFrame()
 {
-    std::shared_ptr<EncoderImageType> image;
+    std::shared_ptr<TemplatedImage<ucvec4>> image;
     if (!imageQueue.tryGet(image))
     {
         return false;
     }
     AVFrame* frame = frameStorage.get();
     scaleFrame(image, frame);
-    imageStorage.add(image);
     frameQueue.add(frame);
     return true;
 }
 
-void FFMPEGEncoder::scaleFrame(std::shared_ptr<EncoderImageType> image, AVFrame* frame)
+void FFMPEGEncoder::scaleFrame(std::shared_ptr<TemplatedImage<ucvec4>> image, AVFrame* frame)
 {
     uint8_t* inData[1] = {image->data8()};          // RGB24 have one plane
     int inLinesize[1]  = {(int)image->pitchBytes};  // RGB stride
-
-    // flip
-    if (false)
-    {
-        inData[0] += inLinesize[0] * (image->height - 1);
-        inLinesize[0] = -inLinesize[0];
-    }
 
     SAIGA_ASSERT(image);
     SAIGA_ASSERT(frame);
@@ -188,16 +179,17 @@ bool FFMPEGEncoder::encodeFrame(AVFrame* frame)
 }
 
 
-void FFMPEGEncoder::addFrame(std::shared_ptr<EncoderImageType> image)
+void FFMPEGEncoder::addFrame(ImageView<ucvec4> view)
 {
-    //    std::cout << "Add frame. Queue states: Scale="<<imageQueue.count()<<" Encode="<<frameQueue.count()<<endl;
+    SAIGA_ASSERT(view.w == inWidth);
+    SAIGA_ASSERT(view.h == inHeight);
+
+    auto image = std::make_shared<TemplatedImage<ucvec4>>(view);
+
+
     imageQueue.add(image);
 }
 
-std::shared_ptr<FFMPEGEncoder::EncoderImageType> FFMPEGEncoder::getFrameBuffer()
-{
-    return imageStorage.get();
-}
 
 void FFMPEGEncoder::finishEncoding()
 {
@@ -221,7 +213,6 @@ void FFMPEGEncoder::finishEncoding()
 
     avcodec_free_context(&m_codecContext);
 
-    imageStorage.clear();
     frameStorage.clear();
 
     std::cout << "encoding done." << std::endl;
@@ -355,13 +346,6 @@ void FFMPEGEncoder::startEncoding()
 
 void FFMPEGEncoder::createBuffers()
 {
-    for (int i = 0; i < (int)imageStorage.capacity(); ++i)
-    {
-        std::shared_ptr<EncoderImageType> img = std::make_shared<EncoderImageType>(inHeight, inWidth);
-        imageStorage.add(img);
-    }
-
-
     for (int i = 0; i < (int)frameStorage.capacity(); ++i)
     {
         AVFrame* frame = av_frame_alloc();

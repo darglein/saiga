@@ -30,7 +30,6 @@ namespace Saiga
 class SAIGA_OPENGL_API FFMPEGEncoder
 {
    public:
-    using EncoderImageType = TemplatedImage<ucvec4>;
 
     // Recommended codecs and container formats:
     //  .mp4    AV_CODEC_ID_H264
@@ -41,8 +40,7 @@ class SAIGA_OPENGL_API FFMPEGEncoder
     ~FFMPEGEncoder();
 
 
-    void addFrame(std::shared_ptr<EncoderImageType> image);
-    std::shared_ptr<EncoderImageType> getFrameBuffer();
+    void addFrame(ImageView<ucvec4> image);
 
 
     bool isRunning() { return running; }
@@ -57,8 +55,7 @@ class SAIGA_OPENGL_API FFMPEGEncoder
     AVCodecID videoCodecId;
 
    private:
-    SynchronizedBuffer<std::shared_ptr<EncoderImageType>> imageStorage;
-    SynchronizedBuffer<std::shared_ptr<EncoderImageType>> imageQueue;
+    SynchronizedBuffer<std::shared_ptr<TemplatedImage<ucvec4>>> imageQueue;
 
     SynchronizedBuffer<AVFrame*> frameStorage;
     SynchronizedBuffer<AVFrame*> frameQueue;
@@ -80,7 +77,7 @@ class SAIGA_OPENGL_API FFMPEGEncoder
     int ticksPerFrame;
     // AVPacket pkt;
     SwsContext* ctx = nullptr;
-    void scaleFrame(std::shared_ptr<EncoderImageType> image, AVFrame* frame);
+    void scaleFrame(std::shared_ptr<TemplatedImage<ucvec4>> image, AVFrame* frame);
     bool encodeFrame(AVFrame* frame);
     bool encodeFrame();
     bool scaleFrame();
