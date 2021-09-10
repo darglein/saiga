@@ -12,6 +12,7 @@ add_subdirectory(util)
 add_subdirectory(tests)
 add_subdirectory(imgui)
 add_subdirectory(rendering)
+add_subdirectory(sophus)
 
 
 if (GLFW_FOUND)

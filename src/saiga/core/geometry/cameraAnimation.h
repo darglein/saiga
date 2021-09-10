@@ -9,48 +9,75 @@
 #include "saiga/config.h"
 #include "saiga/core/geometry/bspline.h"
 #include "saiga/core/math/math.h"
+#include "saiga/core/model/UnifiedMesh.h"
+#include "saiga/core/sophus/Sophus.h"
 
 #include <saiga/core/time/time.h>
 
 namespace Saiga
 {
-class SAIGA_CORE_API Interpolation
+struct SplineKeyframe
+{
+    // nearest neighbor interpolation
+    int user_index;
+    std::string name;
+
+    // Data (linear interpolated)
+    Eigen::Matrix<double, -1, 1> user_data;
+
+    // Spherical correct interpolation
+    Sophus::SE3d pose;
+};
+
+
+inline SplineKeyframe mix(const SplineKeyframe& a, const SplineKeyframe& b, double alpha)
+{
+    SplineKeyframe result = alpha < 0.5 ? a : b;
+    result.pose           = mix(a.pose, b.pose, alpha);
+    result.user_data = (1 - alpha) * a.user_data + alpha * b.user_data;
+    return result;
+}
+
+
+
+// A b-spline path for an object, for example a camera.
+class SAIGA_CORE_API SplinePath
 {
    public:
-    struct Keyframe
-    {
-        quat rot;
-        vec3 position;
-    };
+    std::vector<SplineKeyframe> keyframes;
+    Bspline<SplineKeyframe, double> spline;
 
-    std::vector<Keyframe> keyframes;
-
-    void addKeyframe(const quat& R, const vec3& t) { keyframes.push_back({R, t}); }
-
-    Keyframe getNormalized(double time);
+    void Insert(const SplineKeyframe& p) { keyframes.push_back(p); }
 
 
+    std::vector<SplineKeyframe> Trajectory();
 
-    bool cubicInterpolation = true;
-    int totalTicks          = 0;
-    int tick                = 1;
-    float dt                = 1 / 60.0;
-    float totalTime         = 5;
-    int selectedKeyframe    = 0;
 
-    Bspline<vec3, float> positionSpline;
-    Bspline<quat, float> orientationSpline;
+    int selectedKeyframe = 0;
 
-    Interpolation() {}
+
+    SplinePath() {}
 
 
     //    void start(Camera& cam, float totalTimeS, float dt);
     //    bool update(Camera& cam);
 
 
-    void updateCurve();
-    bool isRunning() { return tick <= totalTicks; }
+    void updateCurve()
+    {
+        if (keyframes.size() < 4)
+        {
+            return;
+        }
 
+        spline = Bspline<SplineKeyframe, double>(keyframes);
+    }
+
+    void PrintUserId();
+
+
+    // return: true if something was changed
+    bool imgui();
     //    void render();
     //    void renderGui(Camera& cam);
     //
@@ -58,6 +85,13 @@ class SAIGA_CORE_API Interpolation
     bool visible        = true;
     int subSamples      = 5;
     float keyframeScale = 0.5;
+
+    float time_in_seconds = 15;
+    int frame_rate        = 60;
+
+    // A mesh to visualize the trajectory.
+    // Should be called each time an update was made
+    UnifiedMesh ProxyMesh();
 };
 
 

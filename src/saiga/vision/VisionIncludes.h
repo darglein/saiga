@@ -11,7 +11,7 @@
 #include "saiga/core/util/Align.h"
 #include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/core/util/Range.h"
-#include "saiga/vision/sophus/Sophus.h"
+#include "saiga/core/sophus/Sophus.h"
 
 namespace Saiga
 {

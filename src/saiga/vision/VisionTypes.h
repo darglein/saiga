@@ -14,42 +14,6 @@
 
 namespace Saiga
 {
-template <typename T>
-inline T translationalError(const Sophus::SE3<T>& a, const Sophus::SE3<T>& b)
-{
-    Eigen::Matrix<T, 3, 1> diff = a.translation() - b.translation();
-    return diff.norm();
-}
-
-// the angle (in radian) between two rotations
-template <typename T>
-inline T rotationalError(const Sophus::SE3<T>& a, const Sophus::SE3<T>& b)
-{
-    Eigen::Quaternion<T> q1 = a.unit_quaternion();
-    Eigen::Quaternion<T> q2 = b.unit_quaternion();
-    return q1.angularDistance(q2);
-}
-
-// Spherical interpolation
-template <typename T>
-inline Sophus::SE3<T> slerp(const Sophus::SE3<T>& a, const Sophus::SE3<T>& b, T alpha)
-{
-    using Vec3 = Eigen::Matrix<T, 3, 1>;
-    using Quat = Eigen::Quaternion<T>;
-
-    Vec3 t  = (1.0 - alpha) * a.translation() + (alpha)*b.translation();
-    Quat q1 = a.unit_quaternion();
-    Quat q2 = b.unit_quaternion();
-    Quat q  = q1.slerp(alpha, q2);
-    return Sophus::SE3<T>(q, t);
-}
-
-// scale the transformation by a scalar
-template <typename T>
-inline Sophus::SE3<T> scale(const Sophus::SE3<T>& a, double alpha)
-{
-    return slerp(Sophus::SE3<T>(), a, alpha);
-}
 
 
 /**

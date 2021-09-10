@@ -13,149 +13,101 @@
 #include <iostream>
 namespace Saiga
 {
-#if 0
-Interpolation::Keyframe Interpolation::get(double time)
+bool SplinePath::imgui()
 {
+    bool changed = false;
+    ImGui::InputFloat("time_in_seconds", &time_in_seconds);
+    ImGui::InputInt("frame_rate", &frame_rate);
 
-    int frame = Saiga::iCeil(time);
-
-    int prevFrame = std::max(0,frame - 1);
-
-
-
-    float alpha = fract(time);
-
-    //    std::cout << "Interpolation " << prevFrame << "," << frame << " " << time << " " << alpha << std::endl;
-    if(alpha == 0)
-        return keyframes[frame];
-
-
-    if(cubicInterpolation)
+    ImGui::Text("Keyframes");
+    ImGui::SetNextItemWidth(300);
+    if (ImGui::ListBoxHeader("###keyfrmeas", 10))
     {
-
-        int if0 = std::max(0,prevFrame-1);
-        int if1 = prevFrame;
-        int if2 = frame;
-        int if3 = std::min((int)keyframes.size()-1,frame+1);
-
-
-        Keyframe& f0 = keyframes[if0];
-        Keyframe& f1 = keyframes[if1];
-        Keyframe& f2 = keyframes[if2];
-        Keyframe& f3 = keyframes[if3];
-
-
-        return interpolate(f0,f1,f2,f3,alpha);
-    }
-
-    else{
-        Keyframe& f1 = keyframes[prevFrame];
-        Keyframe& f2 = keyframes[frame];
-        return interpolate(f1,f2,alpha);
-
-    }
-}
-
-Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::Interpolation::Keyframe &f1, const Saiga::Interpolation::Keyframe &f2, const Saiga::Interpolation::Keyframe &f3, const Saiga::Interpolation::Keyframe &f4, float alpha)
-{
-
-    float tau = 1;
-
-    Keyframe res;
-
-
-    float u = alpha;
-    float u2 = u * u;
-    float u3 = u2 * u;
-
-    mat4 A = {
-        0,2,0,0,
-        -1,0,1,0,
-        2,-5,4,-1,
-        -1,3,-3,1
-    };
-    A = mat4(transpose(A));
-
-
-    //        std::cout << A << std::endl;
-    vec3 ps[4] = {f1.position,f2.position,f3.position,f4.position};
-
-    vec3 ps2[4];
-
-
-    for(int i = 0; i < 4; ++i)
-    {
-        vec3 p(0);
-        for(int j = 0; j < 4; ++j)
+        for (int i = 0; i < keyframes.size(); ++i)
         {
-            p += A[j][i] * ps[j];
+            std::string str =
+                std::to_string(i) + ": " + std::to_string(keyframes[i].user_index) + " " + keyframes[i].name;
+            if (ImGui::Selectable(str.c_str(), selectedKeyframe == i))
+            {
+                selectedKeyframe = i;
+            }
         }
-        ps2[i] = p;
-        //            std::cout << "p " << p << std::endl;
+        ImGui::ListBoxFooter();
+    }
+    if (ImGui::Button("remove selected"))
+    {
+        if (selectedKeyframe >= 0 && selectedKeyframe < keyframes.size())
+        {
+            changed = true;
+            keyframes.erase(keyframes.begin() + selectedKeyframe);
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("remove all"))
+    {
+        keyframes.clear();
+        changed = true;
     }
 
-
-    res.position = 0.5f * (1.f * ps2[0] + u * ps2[1] + u2 * ps2[2] + u3 * ps2[3]);
-    //        res.position =  mix(f1.position,f2.position,alpha);
-
-
-    res.rot =  slerp(f2.rot,f3.rot,alpha);
-    return res;
+    if (ImGui::Button("print"))
+    {
+        PrintUserId();
+    }
+    return changed;
 }
-
-Saiga::Interpolation::Keyframe Saiga::Interpolation::interpolate(const Saiga::Interpolation::Keyframe &f1, const Saiga::Interpolation::Keyframe &f2, float alpha)
+std::vector<SplineKeyframe> SplinePath::Trajectory()
 {
-    Keyframe res;
-    res.position =  mix(f1.position,f2.position,alpha);
-    res.rot =  slerp(f1.rot,f2.rot,alpha);
-    return res;
+    int total_frames = time_in_seconds * frame_rate;
+    std::vector<SplineKeyframe> result;
+    for (int a = 0; a < total_frames; ++a)
+    {
+        double alpha = a / double(total_frames - 1);
+        auto T       = spline.getPointOnCurve(alpha);
+        result.push_back(T);
+    }
+
+    return result;
 }
-#endif
-
-
-Interpolation::Keyframe Interpolation::getNormalized(double time)
+UnifiedMesh SplinePath::ProxyMesh()
 {
-    time = clamp(time, 0.0, 1.0);
-    //    return get( (keyframes.size()-1)*time);
+    UnifiedMesh mesh;
 
-    vec3 p = positionSpline.getPointOnCurve(time);
-    quat q = orientationSpline.getPointOnCurve(time);
-    return {q, p};
+    if (keyframes.size() < 4)
+    {
+        return mesh;
+    }
+
+    int samples = keyframes.size() * 10;
+
+    for (int a = 0; a < samples; ++a)
+    {
+        double alpha = a / double(samples - 1);
+        auto T       = spline.getPointOnCurve(alpha);
+
+        mesh.position.push_back(T.pose.translation().cast<float>());
+        mesh.color.push_back(vec4(1, 0, 0, 1));
+    }
+
+    for (int i = 0; i < mesh.NumVertices() - 1; ++i)
+    {
+        mesh.lines.push_back({i, i + 1});
+    }
+
+    return mesh;
 }
-//
-//void Interpolation::start(Camera& cam, float totalTimeS, float dt)
-//{
-//    totalTicks = totalTimeS / dt;
-//    tick       = 0;
-//
-//    std::cout << "Starting Camera Interpolation. " << totalTimeS << "s  dt=" << dt << " TotalTicks: " << totalTicks
-//              << std::endl;
-//
-//    update(cam);
-//}
-//
-//bool Interpolation::update(Camera& camera)
-//{
-//    if (tick > totalTicks) return false;
-//
-//    float cameraAlpha = float(tick) / totalTicks;
-//    auto kf           = getNormalized(cameraAlpha);
-//
-//    camera.position = make_vec4(kf.position, 1);
-//    camera.rot      = kf.rot;
-//
-//    camera.calculateModel();
-//    camera.updateFromModel();
-//
-//    cameraAlpha += 0.002;
-//
-//
-//    tick++;
-//
-//    return true;
-//}
+void SplinePath::PrintUserId()
+{
+    std::vector<int> user_ids;
+    for (auto& f : keyframes)
+    {
+        user_ids.push_back(f.user_index);
+    }
 
-//void Interpolation::updateCurve()
+    std::cout << "SplinePath User ids:\n";
+    std::cout << to_string(user_ids.begin(), user_ids.end()) << std::endl;
+}
+
+// void Interpolation::updateCurve()
 //{
 //    positionSpline.controlPoints.clear();
 //    orientationSpline.controlPoints.clear();
@@ -172,7 +124,7 @@ Interpolation::Keyframe Interpolation::getNormalized(double time)
 //
 //}
 //
-//void Interpolation::renderGui(Camera& camera)
+// void Interpolation::renderGui(Camera& camera)
 //{
 //    bool changed = false;
 //

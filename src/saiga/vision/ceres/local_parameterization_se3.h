@@ -1,5 +1,5 @@
 #pragma once
-#include "saiga/vision/sophus/Sophus.h"
+#include "saiga/core/sophus/Sophus.h"
 
 #include <ceres/autodiff_local_parameterization.h>
 #include <ceres/local_parameterization.h>
