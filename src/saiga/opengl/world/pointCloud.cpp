@@ -11,22 +11,19 @@
 
 namespace Saiga
 {
-GLPointCloud::GLPointCloud()
+GLPointCloud::GLPointCloud(const Saiga::UnifiedMesh& point_cloud_mesh) : buffer(point_cloud_mesh, GL_POINTS)
 {
-    shader_simple = shaderLoader.load<MVPShader>("geometry/colored_points.glsl");
+    shader_simple   = shaderLoader.load<MVPShader>("geometry/colored_points.glsl");
     shader_geometry = shaderLoader.load<MVPShader>("geometry/colored_points_geometry.glsl");
-
-    buffer.setDrawMode(GL_POINTS);
 }
 
 void GLPointCloud::render(Camera* cam)
 {
-    if (buffer.getVAO() == 0) return;
     glPointSize(screen_point_size);
 
     auto shader = splat_geometry ? shader_geometry : shader_simple;
 
-    if(shader->bind())
+    if (shader->bind())
     {
         if (splat_geometry)
         {
@@ -35,19 +32,12 @@ void GLPointCloud::render(Camera* cam)
 
         shader->uploadModel(model);
 
-        buffer.bindAndDraw();
+        buffer.BindAndDraw();
 
         shader->unbind();
     }
 }
 
-void GLPointCloud::updateBuffer()
-{
-    if (points.size() > 0)
-    {
-        buffer.set(points, GL_STATIC_DRAW);
-    }
-}
 void GLPointCloud::imgui()
 {
     ImGui::InputFloat("screen_point_size", &screen_point_size);
@@ -59,14 +49,5 @@ void GLPointCloud::imgui()
 }
 
 
-template <>
-void VertexBuffer<PointVertex>::setVertexAttributes()
-{
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PointVertex), NULL);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(PointVertex), (void*)(3 * sizeof(GLfloat)));
-}
 
 }  // namespace Saiga

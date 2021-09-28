@@ -41,6 +41,10 @@ class SAIGA_OPENGL_API UnifiedMeshBuffer
     TemplatedBuffer<vec2> tc            = {GL_ARRAY_BUFFER};
     TemplatedBuffer<BoneInfo> bone_info = {GL_ARRAY_BUFFER};
 
+    // true on indexed face set.
+    // false if vertex array is directly drawn.
+    bool is_indexed  = true;
+
     int num_elements = 0;
     int indices_per_element;
     GLuint gl_vao = 0;

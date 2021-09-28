@@ -15,34 +15,26 @@
 
 namespace Saiga
 {
-struct SAIGA_OPENGL_API PointVertex
-{
-    vec3 position;
-    vec3 color;
-};
-
-
 
 class SAIGA_OPENGL_API GLPointCloud : public Object3D
 {
    public:
-    bool splat_geometry = false;
+    bool splat_geometry     = false;
     float screen_point_size = 3;
-    float world_point_size = 0.1;
-    std::vector<PointVertex> points;
+    float world_point_size  = 0.1;
 
-    GLPointCloud();
+    GLPointCloud(const Saiga::UnifiedMesh& point_cloud_mesh);
+
     void render(Camera* cam);
     void updateBuffer();
 
     std::shared_ptr<MVPShader> shader_simple, shader_geometry;
-    VertexBuffer<PointVertex> buffer;
 
     void imgui();
+
+    UnifiedMeshBuffer buffer;
 };
 
 
-template <>
-SAIGA_OPENGL_API void VertexBuffer<PointVertex>::setVertexAttributes();
 
 }  // namespace Saiga

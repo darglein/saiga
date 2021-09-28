@@ -10,6 +10,17 @@
 
 namespace Saiga
 {
+
+
+template <>
+void VertexBuffer<PointVertex>::setVertexAttributes()
+{
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PointVertex), NULL);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(PointVertex), (void*)(3 * sizeof(GLfloat)));
+}
 LineSoup::LineSoup()
 {
     shader = shaderLoader.load<MVPShader>("geometry/colored_points.glsl");
