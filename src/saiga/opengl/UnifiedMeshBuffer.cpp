@@ -90,6 +90,15 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
     //    std::cout << "UnifiedMeshBuffer " << indices.Size() << " " << position.Size() << " "
     //              << normal.Size() << " " << color.Size() << std::endl;
 }
+
+
+UnifiedMeshBuffer::~UnifiedMeshBuffer()
+{
+    glDeleteVertexArrays(1, &gl_vao);
+    gl_vao = 0;
+}
+
+
 void UnifiedMeshBuffer::Draw(int offset, int count)
 {
     //    if(count > num_triangles)  count = num_triangles;

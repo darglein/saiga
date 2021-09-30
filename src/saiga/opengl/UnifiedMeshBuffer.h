@@ -22,6 +22,10 @@ class SAIGA_OPENGL_API UnifiedMeshBuffer
 {
    public:
     UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode = GL_TRIANGLES);
+    ~UnifiedMeshBuffer();
+
+    UnifiedMeshBuffer(const UnifiedMeshBuffer&) = delete;
+    UnifiedMeshBuffer& operator=(UnifiedMeshBuffer const&) = delete;
 
     void Bind();
     void Unbind();
