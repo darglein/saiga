@@ -20,6 +20,9 @@
 #include "saiga/core/util/tostring.h"
 #include "saiga/saiga_git_sha1.h"
 
+#include "glog/logging.h"
+
+
 namespace Saiga
 {
 bool initialized = false;
@@ -73,6 +76,8 @@ bool findShaders(const SaigaParameters& params)
 
 void SaigaParameters::fromConfigFile(const std::string& file)
 {
+    CHECK_NE(1, 2) << ": The world must be ending!";
+
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
 
@@ -238,6 +243,7 @@ void initSaiga(const SaigaParameters& params)
 
     setThreadName(params.mainThreadName);
 
+#if 0
     el::Configurations defaultConf;
     defaultConf.setToDefault();
     // Values are always std::string
@@ -259,7 +265,7 @@ void initSaiga(const SaigaParameters& params)
     }
 
     el::Loggers::reconfigureLogger("default", defaultConf);
-
+#endif
 
     printSaigaInfo();
 
