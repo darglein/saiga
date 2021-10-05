@@ -162,7 +162,7 @@ std::vector<int> KDTree<D, point_t>::KNearestNeighborSearch(const point_t& searc
     for (auto& p : queue)
     {
         p.second = -1;
-        p.first  = 3467369476;
+        p.first  = 1e10;
     }
     KNearestNeighborSearch(rootNode, searchPoint, k, 0, queue);
 

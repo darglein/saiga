@@ -329,12 +329,14 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
     {
         x0++;
     }
-    x0 = std::max(0, --x0);
+    --x0;
+    x0 = std::max(0, x0);
     while (x1 >= x0 && -planesX[x1].distance(sphereCenter) >= sphereRadius)
     {
         --x1;
     }
-    x1 = std::min(++x1, (int)planesX.size() - 1);
+    ++x1;
+    x1 = std::min(x1, (int)planesX.size() - 1);
     if (x0 >= x1)
     {
         return;
@@ -427,10 +429,12 @@ void CPUPlaneClusterer::clusterLoop(vec3 sphereCenter, float sphereRadius, int i
 
                 int x = x0;
                 while (x < x1 && planesX[x].distance(yLight.pos) >= yLight.r) x++;
-                x      = std::max(x0, --x);
+                --x;
+                x      = std::max(x0, x);
                 int xs = x1;
                 while (xs >= x && -planesX[xs].distance(yLight.pos) >= yLight.r) --xs;
-                xs = std::min(++xs, x1);
+                ++xs;
+                xs = std::min(xs, x1);
 
                 for (; x < xs; ++x)
                 {

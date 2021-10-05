@@ -22,7 +22,7 @@ void write(const std::string& file, const std::vector<char>& data)
         return;
     }
 
-    auto written = fwrite(0, 1, data.size(), dest);
+    auto written = fwrite(data.data(), 1, data.size(), dest);
     SAIGA_ASSERT(written == data.size());
 
     fclose(dest);

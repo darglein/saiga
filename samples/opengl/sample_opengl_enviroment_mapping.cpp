@@ -31,7 +31,7 @@ class Sample : public SampleWindowDeferred
         std::cout << "Program Initialized!" << std::endl;
     }
 
-    void interpolate(float dt, float interpolation)
+    void interpolate(float dt, float interpolation) override
     {
         Base::interpolate(dt, interpolation);
         render_system.Add(teapot.asset.get(), teapot.model, RENDER_DEFAULT | RENDER_SHADOW);

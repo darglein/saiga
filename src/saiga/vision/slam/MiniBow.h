@@ -352,7 +352,7 @@ class TemplatedVocabulary
 
     // shared OMP variables
     using TransformResult = std::tuple<WordId, NodeId, WordValue>;
-    int N;
+    int N = 0;
     std::vector<TransformResult> transformedFeatures;
 
     /**

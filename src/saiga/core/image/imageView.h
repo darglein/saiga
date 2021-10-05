@@ -72,7 +72,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     // size in bytes
     HD inline int size() const { return height * pitchBytes; }
 
-    HD inline bool empty() const { return width == 0 | height == 0; }
+    HD inline bool empty() const { return (width == 0) | (height == 0); }
 
 
     // a view to a sub image

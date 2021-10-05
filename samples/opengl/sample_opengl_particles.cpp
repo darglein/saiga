@@ -130,13 +130,15 @@ class Sample : public SampleWindowDeferred
         {
             if (render_points)
             {
-                shader_simple->bind();
-                shader_simple->uploadModel(mat4::Identity());
+                if (shader_simple->bind())
+                {
+                    shader_simple->uploadModel(mat4::Identity());
 
-                auto buffer = buffers[current_draw_buffer];
-                buffer->bindAndDraw();
+                    auto buffer = buffers[current_draw_buffer];
+                    buffer->bindAndDraw();
 
-                shader_simple->unbind();
+                    shader_simple->unbind();
+                }
             }
         }
 

@@ -36,9 +36,6 @@ class GphotoWrapper
         CHECK_GP(gp_camera_new(&camera));
         CHECK_GP(gp_camera_init(camera, context));
 
-        CameraFilePath camera_file_path;
-
-
         SAIGA_ASSERT(camera);
 
         CHECK_GP(gp_camera_get_config(camera, &config_widget, context));

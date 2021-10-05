@@ -144,7 +144,7 @@ class Sample : public SampleWindowDeferred
 
 
     void update(float dt) override { Base::update(dt); }
-    void interpolate(float dt, float interpolation)
+    void interpolate(float dt, float interpolation) override
     {
         Base::interpolate(dt, interpolation);
         for (auto& o : objects)

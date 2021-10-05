@@ -231,8 +231,8 @@ void DirectionalLight::fitNearPlaneToScene(AABB sceneBB)
             p = Clipping::clipPolygonAxisAlignedPlane(p, 1, orthoBox.max[1], false);
         }
 
-        float maxZ = -12057135;
-        float minZ = 0213650235;
+        float maxZ = -1e-10;
+        float minZ = 1e10;
 
         for (auto& p : trisp)
         {
