@@ -6,6 +6,7 @@
 
 #include "imageTransformations.h"
 
+#include "saiga/colorize.h"
 #include "saiga/core/util/color.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -237,7 +238,38 @@ TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const ucvec3> img1, I
     return result;
 }
 
+TemplatedImage<ucvec3> ErrorImage(ImageView<ucvec3> img1, ImageView<ucvec3> img2)
+{
+    auto absolute_diff = ImageTransformation::AbsolutePixelError(img1, img2);
 
+    TemplatedImage<ucvec3> error_img(img1.dimensions());
+    for (int i : error_img.rowRange())
+    {
+        for (int j : error_img.colRange())
+        {
+            float error = absolute_diff(i, j) / 255.f;
+            vec3 c      = saturate(colorizeTurbo(error));
+
+            error_img(i, j) = (c * 255.f).cast<unsigned char>();
+        }
+    }
+    return error_img;
+}
+
+
+long L1Difference(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2)
+{
+    long result = 0;
+    for (int i : img1.rowRange())
+    {
+        for (int j : img1.colRange())
+        {
+            long diff = (img1(i, j).cast<int>() - img2(i, j).cast<int>()).array().abs().sum();
+            result += diff;
+        }
+    }
+    return result;
+}
 
 }  // namespace ImageTransformation
 }  // namespace Saiga

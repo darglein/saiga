@@ -40,13 +40,13 @@ void DrawRectangle(ImageView<T> img, const ivec2& low, const ivec2& high, const 
         for (int dy = low.y() - r; dy < high.y() + r; ++dy)
         {
             img.clampedWrite(dy, low(0) + t, color);
-            img.clampedWrite(dy, high(0) + t, color);
+            img.clampedWrite(dy, high(0) + t - 1, color);
         }
 
         for (int dx = low.x() - r; dx < high.x() + r; ++dx)
         {
             img.clampedWrite(low(1) + t, dx, color);
-            img.clampedWrite(high(1) + t, dx, color);
+            img.clampedWrite(high(1) + t - 1, dx, color);
         }
     }
 }

@@ -48,6 +48,26 @@ bool loadFromMemory(ArrayView<const char> data, Image& img)
 }
 
 
+std::vector<unsigned char> saveToMemory(const Image& img, std::string file_extension)
+{
+    fipImage fimg;
+    convert(img, fimg);
+
+    FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(file_extension.c_str());
+
+    fipMemoryIO io;
+    fimg.saveToMemory(format, io);
+
+    unsigned char* data;
+    unsigned int size;
+    io.acquire(&data, &size);
+
+    std::vector<unsigned char> result(size);
+    memcpy(result.data(), data, size);
+    return result;
+}
+
+
 bool save(const std::string& path, const Image& img)
 {
     fipImage fimg;
@@ -370,7 +390,6 @@ void printAllMetaData(fipImage& img)
         }
     }
 }
-
 
 
 }  // namespace FIP

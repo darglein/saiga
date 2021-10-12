@@ -26,6 +26,7 @@ SAIGA_CORE_API bool loadFromMemory(ArrayView<const char> data, Image& img);
 
 // writes an image to file with freeimage
 SAIGA_CORE_API bool save(const std::string& path, const Image& img);
+SAIGA_CORE_API std::vector<unsigned char> saveToMemory(const Image& img, std::string file_extension = ".jpg");
 
 // helper functions if you want to actually have fipimages
 // these are used by load and save from above
