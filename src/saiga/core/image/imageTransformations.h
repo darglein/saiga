@@ -29,6 +29,7 @@ SAIGA_CORE_API void RGBAToGrayF(ImageView<const ucvec4> src, ImageView<float> ds
 
 // just sets the color channels to the gray value
 SAIGA_CORE_API void Gray8ToRGBA(ImageView<unsigned char> src, ImageView<ucvec4> dst, unsigned char alpha = 255);
+SAIGA_CORE_API void Gray8ToRGB(ImageView<unsigned char> src, ImageView<ucvec3> dst);
 
 
 

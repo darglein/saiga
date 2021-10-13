@@ -145,6 +145,15 @@ void Gray8ToRGBA(ImageView<unsigned char> src, ImageView<ucvec4> dst, unsigned c
 {
     src.copyToTransform(dst, Gray8ToRGBATrans(alpha));
 }
+struct Gray8ToRGBTrans
+{
+    ucvec3 operator()(const unsigned char& v) { return ucvec3(v, v, v); }
+};
+
+void Gray8ToRGB(ImageView<unsigned char> src, ImageView<ucvec3> dst)
+{
+    src.copyToTransform(dst, Gray8ToRGBTrans());
+}
 
 float sharpness(ImageView<const unsigned char> src)
 {
