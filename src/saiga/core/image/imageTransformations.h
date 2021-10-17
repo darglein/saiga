@@ -47,15 +47,19 @@ SAIGA_CORE_API bool save(const std::string& path, ImageView<float> img, float vm
 // Computes the per pixel error and writes it into an output image.
 // The error is computed as (img1 - img2).abs().maxChannel()
 //
-SAIGA_CORE_API TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2);
+SAIGA_CORE_API TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const ucvec3> img1,
+                                                                ImageView<const ucvec3> img2);
+SAIGA_CORE_API TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const unsigned char> img1,
+                                                                ImageView<const unsigned char> img2);
 
 
 // Per pixel error colorized using the turbo color bar.
 SAIGA_CORE_API TemplatedImage<ucvec3> ErrorImage(ImageView<ucvec3> img1, ImageView<ucvec3> img2);
+SAIGA_CORE_API TemplatedImage<ucvec3> ErrorImage(ImageView<unsigned char> img1, ImageView<unsigned char> img2);
 
 // Absolute image difference summed up over all pixels (will get very large)
 SAIGA_CORE_API long L1Difference(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2);
+SAIGA_CORE_API long L1Difference(ImageView<const unsigned char> img1, ImageView<const unsigned char> img2);
 
 }  // namespace ImageTransformation
 }  // namespace Saiga
-
