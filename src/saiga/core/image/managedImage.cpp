@@ -164,6 +164,23 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
     return erg;
 }
 
+std::vector<unsigned char> Image::saveToMemory(std::string file_extension)
+{
+    std::vector<unsigned char> result;
+
+    if (file_extension == "png")
+    {
+#ifdef SAIGA_USE_PNG
+
+#endif
+    }
+#ifdef SAIGA_USE_FREEIMAGE
+    return Saiga::FIP::saveToMemory(*this, file_extension);
+#endif
+
+    return result;
+}
+
 bool Image::save(const std::string& path) const
 {
     SAIGA_ASSERT(valid());
@@ -176,7 +193,7 @@ bool Image::save(const std::string& path) const
         return saveRaw(path);
     }
 
-    if(output_type == "jpg" && channels(this->type) != 3)
+    if (output_type == "jpg" && channels(this->type) != 3)
     {
         std::cerr << "jpg is only supported with 3 channels" << std::endl;
         return false;

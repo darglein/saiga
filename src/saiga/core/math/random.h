@@ -52,6 +52,10 @@ SAIGA_CORE_API bool sampleBool(double s);
  */
 SAIGA_CORE_API double sampleDouble(double min, double max);
 
+// The range [min,max] is subdivided into 'count' eval segments.
+// Each segment gets exactly one sample.
+SAIGA_CORE_API std::vector<double> StratifiedSample(double min, double max, int count);
+
 /**
  * Uniform integer in this range.
  * Note:

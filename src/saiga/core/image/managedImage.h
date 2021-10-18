@@ -138,6 +138,7 @@ class SAIGA_CORE_API Image : public ImageBase
     // Accepted hint values are the types in all lower case.
     // For example: png, jpg, dds,...
     bool loadFromMemory(ArrayView<const char> data, const std::string& hint = "");
+    std::vector<unsigned char> saveToMemory(std::string file_extension = "png");
 
     bool save(const std::string& path) const;
 
