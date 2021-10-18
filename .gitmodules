@@ -18,4 +18,4 @@
 	url = ../../darglein/zlib.git
 [submodule "submodules/glog"]
 	path = submodules/glog
-	url = git@github.com:google/glog.git
+	url = ../../google/glog.git
