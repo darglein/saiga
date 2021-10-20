@@ -28,17 +28,25 @@ target_link_libraries(${MODULE_NAME} ${CUDA_TARGETS})
 #list(APPEND SAIGA_CUDA_FLAGS "-std=c++14")
 
 
-#set_property(TARGET ${MODULE_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
 target_compile_options(
         ${MODULE_NAME} PUBLIC
         $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>
 )
 
 # Note, requires the 'SHELL' here so we can have multiple flags named 'gencode'
-target_compile_options(
-        ${MODULE_NAME} PRIVATE
-        "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:${SAIGA_CUDA_ARCH_FLAGS}>"
-)
+#target_compile_options(
+#        ${MODULE_NAME} PRIVATE
+#        "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:${SAIGA_CUDA_ARCH_FLAGS}>"
+#)
+
+while (SAIGA_CUDA_ARCH_FLAGS)
+    list(POP_FRONT SAIGA_CUDA_ARCH_FLAGS A B)
+    target_compile_options(
+            ${MODULE_NAME} PRIVATE
+            "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:${A} ${B}>"
+    )
+endwhile ()
+
 
 target_include_directories(
         ${MODULE_NAME}
