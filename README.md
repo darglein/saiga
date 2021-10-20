@@ -68,20 +68,19 @@ Utility
 #### Building With Submodules
 
 ```
+sudo apt install xorg-dev
+
 git clone git@github.com:darglein/saiga.git
 git submodule update --init --recursive
-``` exarbsem20
+``` 
 
 #### Linux
  - Install dependencies with the package manager (in older Linux systems you might have to compile the latest library versions by yourself)
 
    Package names for Ubuntu and other Debian-based distributions. Install these with `sudo apt install <package_name>`
 ```
-# Required
-cmake libglm-dev
-
 # Window Management
-libsdl2-dev libglfw3-dev
+libglfw3-dev
 
 # Image
 libpng-dev libfreeimage-dev libfreeimageplus-dev

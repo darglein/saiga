@@ -31,6 +31,12 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
         indices.create(indices_data, GL_STATIC_DRAW);
         indices.bind();
     }
+    else if (draw_mode == GL_POINTS)
+    {
+        is_indexed          = false;
+        indices_per_element = 0;
+        num_elements        = mesh.NumVertices();
+    }
     else
     {
         SAIGA_EXIT_ERROR("invalid draw mode");
@@ -84,6 +90,15 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
     //    std::cout << "UnifiedMeshBuffer " << indices.Size() << " " << position.Size() << " "
     //              << normal.Size() << " " << color.Size() << std::endl;
 }
+
+
+UnifiedMeshBuffer::~UnifiedMeshBuffer()
+{
+    glDeleteVertexArrays(1, &gl_vao);
+    gl_vao = 0;
+}
+
+
 void UnifiedMeshBuffer::Draw(int offset, int count)
 {
     //    if(count > num_triangles)  count = num_triangles;
@@ -92,8 +107,16 @@ void UnifiedMeshBuffer::Draw(int offset, int count)
     SAIGA_ASSERT(offset < num_elements);
     SAIGA_ASSERT(offset + count <= num_elements);
     SAIGA_ASSERT(offset >= 0 && offset + count <= num_elements);
-    glDrawElements(draw_mode, count * indices_per_element, GL_UNSIGNED_INT,
-                   (void*)(intptr_t)(offset * indices_per_element * sizeof(uint32_t)));
+
+    if (is_indexed)
+    {
+        glDrawElements(draw_mode, count * indices_per_element, GL_UNSIGNED_INT,
+                       (void*)(intptr_t)(offset * indices_per_element * sizeof(uint32_t)));
+    }
+    else
+    {
+        glDrawArrays(draw_mode, offset, count);
+    }
 }
 void UnifiedMeshBuffer::Bind()
 {

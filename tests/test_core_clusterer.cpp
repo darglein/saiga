@@ -228,7 +228,7 @@ class ClustererTest : public ::testing::Test
                         while (xs >= x && -planesX[xs].distance(yLight.pos) >= yLight.r) --xs;
                         xs = std::min(++xs, x1);
 
-                        for (x; x < xs; ++x)
+                        for (; x < xs; ++x)
                         {
                             int tileIndex = x + clusterX * y + (clusterX * clusterY) * z;
 

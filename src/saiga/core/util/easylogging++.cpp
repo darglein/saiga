@@ -15,6 +15,7 @@
 //  http://muflihun.com
 //
 
+#if 0
 #include "easylogging++.h"
 
 #if defined(AUTO_INITIALIZE_EASYLOGGINGPP)
@@ -2178,7 +2179,7 @@ Logger* RegisteredLoggers::get(const std::string& id, bool forceCreation)
         logger_->m_logBuilder = m_defaultLogBuilder;
         registerNew(id, logger_);
         LoggerRegistrationCallback* callback = nullptr;
-        for (const std::pair<std::string, base::type::LoggerRegistrationCallbackPtr>& h : m_loggerRegistrationCallbacks)
+        for (const auto& h : m_loggerRegistrationCallbacks)
         {
             callback = h.second.get();
             if (callback != nullptr && callback->enabled())
@@ -2888,7 +2889,7 @@ void LogDispatcher::dispatch(void)
     }
     LogDispatchCallback* callback = nullptr;
     LogDispatchData data;
-    for (const std::pair<std::string, base::type::LogDispatchCallbackPtr>& h : ELPP->m_logDispatchCallbacks)
+    for (const auto& h : ELPP->m_logDispatchCallbacks)
     {
         callback = h.second.get();
         if (callback != nullptr && callback->enabled())
@@ -3635,3 +3636,5 @@ const std::string VersionInfo::releaseDate(void)
 }
 
 }  // namespace el
+
+#endif

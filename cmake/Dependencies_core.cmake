@@ -21,6 +21,7 @@ if(SAIGA_USE_SUBMODULES)
   PackageHelperTarget(zlibstatic ZLIB_FOUND)
   PackageHelperTarget(png_static PNG_FOUND)
   PackageHelperTarget(assimp ASSIMP_FOUND)
+  PackageHelperTarget(glog GLOG_FOUND)
 else()
   # Without submodules we use find_package to find the required dependencies
   find_package(Eigen3 3.3.90 QUIET REQUIRED)

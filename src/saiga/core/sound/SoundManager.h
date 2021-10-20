@@ -21,7 +21,6 @@
 
 #include <alc.h>
 
-
 namespace Saiga
 {
 namespace sound

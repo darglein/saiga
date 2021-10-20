@@ -7,7 +7,7 @@
 
 
 #include "saiga/vision/VisionTypes.h"
-#include "saiga/vision/sophus/decoupled_sim3.h"
+#include "saiga/core/sophus/decoupled_sim3.h"
 #include "saiga/vision/util/Random.h"
 
 #include "gtest/gtest.h"

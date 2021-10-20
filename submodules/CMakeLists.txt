@@ -4,6 +4,14 @@ message("Adding Submodule eigen")
 add_subdirectory(eigen)
 message("=================================")
 
+message("Adding Submodule glog")
+set(WITH_GFLAGS OFF CACHE INTERNAL "")
+set(WITH_GTEST OFF CACHE INTERNAL "")
+set(WITH_UNWIND OFF CACHE INTERNAL "")
+add_subdirectory(glog)
+SET(SAIGA_USE_GLOG 1 PARENT_SCOPE)
+message("=================================")
+
 
 message("=================================")
 message("Adding Submodule glfw")

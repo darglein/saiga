@@ -6,6 +6,7 @@
 
 #include "imageTransformations.h"
 
+#include "saiga/colorize.h"
 #include "saiga/core/util/color.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -144,6 +145,15 @@ void Gray8ToRGBA(ImageView<unsigned char> src, ImageView<ucvec4> dst, unsigned c
 {
     src.copyToTransform(dst, Gray8ToRGBATrans(alpha));
 }
+struct Gray8ToRGBTrans
+{
+    ucvec3 operator()(const unsigned char& v) { return ucvec3(v, v, v); }
+};
+
+void Gray8ToRGB(ImageView<unsigned char> src, ImageView<ucvec3> dst)
+{
+    src.copyToTransform(dst, Gray8ToRGBTrans());
+}
 
 float sharpness(ImageView<const unsigned char> src)
 {
@@ -238,6 +248,85 @@ TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const ucvec3> img1, I
 }
 
 
+TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const unsigned char> img1,
+                                                                      ImageView<const unsigned char> img2)
+{
+    TemplatedImage<unsigned char> result(img1.dimensions());
+    for (int i : img1.rowRange())
+    {
+        for (int j : img1.colRange())
+        {
+            int diff     = std::abs(int(img1(i, j)) - int(img2(i,j)));
+            result(i, j) = diff;
+        }
+    }
+    return result;
+}
+
+TemplatedImage<ucvec3> ErrorImage(ImageView<ucvec3> img1, ImageView<ucvec3> img2)
+{
+    auto absolute_diff = ImageTransformation::AbsolutePixelError(img1, img2);
+
+    TemplatedImage<ucvec3> error_img(img1.dimensions());
+    for (int i : error_img.rowRange())
+    {
+        for (int j : error_img.colRange())
+        {
+            float error = absolute_diff(i, j) / 255.f;
+            vec3 c      = saturate(colorizeTurbo(error));
+
+            error_img(i, j) = (c * 255.f).cast<unsigned char>();
+        }
+    }
+    return error_img;
+}
+
+
+TemplatedImage<ucvec3> ErrorImage(ImageView<unsigned char> img1, ImageView<unsigned char> img2)
+{
+    auto absolute_diff = AbsolutePixelError(img1, img2);
+
+    TemplatedImage<ucvec3> error_img(img1.dimensions());
+    for (int i : error_img.rowRange())
+    {
+        for (int j : error_img.colRange())
+        {
+            float error = absolute_diff(i, j) / 255.f;
+            vec3 c      = saturate(colorizeTurbo(error));
+
+            error_img(i, j) = (c * 255.f).cast<unsigned char>();
+        }
+    }
+    return error_img;
+}
+
+
+long L1Difference(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2)
+{
+    long result = 0;
+    for (int i : img1.rowRange())
+    {
+        for (int j : img1.colRange())
+        {
+            long diff = (img1(i, j).cast<int>() - img2(i, j).cast<int>()).array().abs().sum();
+            result += diff;
+        }
+    }
+    return result;
+}
+long L1Difference(ImageView<const unsigned char> img1, ImageView<const unsigned char> img2)
+{
+    long result = 0;
+    for (int i : img1.rowRange())
+    {
+        for (int j : img1.colRange())
+        {
+            long diff = std::abs(img1(i, j)- img2(i, j));
+            result += diff;
+        }
+    }
+    return result;
+}
 
 }  // namespace ImageTransformation
 }  // namespace Saiga

@@ -26,15 +26,18 @@ class Sample : public SampleWindowForward
    public:
     Sample()
     {
+        UnifiedMesh pc;
+
         for (int i = 0; i < 10000; ++i)
         {
-            PointVertex v;
-            v.position = linearRand(make_vec3(-3), make_vec3(3));
-            v.color    = linearRand(make_vec3(0), make_vec3(1));
+            pc.position.push_back(linearRand(make_vec3(-3), make_vec3(3)));
 
-            pointCloud.points.push_back(v);
+            vec4 c = linearRand(make_vec4(0), make_vec4(1));
+            c(3)   = 1;
+            pc.color.push_back(c);
         }
-        pointCloud.updateBuffer();
+        pointCloud = std::make_shared<GLPointCloud>(pc);
+
 
         {
             // let's just draw the coordiante axis
@@ -93,7 +96,7 @@ class Sample : public SampleWindowForward
 
         if (render_info.render_pass == RenderPass::Forward)
         {
-            pointCloud.render(render_info.camera);
+            pointCloud->render(render_info.camera);
             lineSoup.render(render_info.camera);
             frustum.renderForward(render_info.camera, mat4::Identity());
         }
@@ -130,7 +133,7 @@ class Sample : public SampleWindowForward
 
    private:
     bool add_values_to_console = false;
-    GLPointCloud pointCloud;
+    std::shared_ptr<GLPointCloud> pointCloud;
     LineSoup lineSoup;
     LineVertexColoredAsset frustum;
 };

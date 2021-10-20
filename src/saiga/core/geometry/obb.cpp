@@ -19,7 +19,7 @@ void OBB::setOrientationScale(vec3 x, vec3 y, vec3 z)
 
 void OBB::fitToPoints(int axis, vec3* points, int count)
 {
-    float xMin = 234235125, xMax = -34853690;
+    float xMin = 1e10, xMax = -1e10;
 
     vec3 dir = orientationScale.col(axis);
     dir      = normalize(dir);

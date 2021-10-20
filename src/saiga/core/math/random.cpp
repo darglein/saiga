@@ -43,6 +43,22 @@ double sampleDouble(double min, double max)
     return dis(generator());
 }
 
+std::vector<double> StratifiedSample(double min, double max, int count)
+{
+    std::vector<double> result;
+    result.reserve(count);
+
+    double step = (max - min) / count;
+    std::uniform_real_distribution<double> dis(0, step);
+
+    for (int i = 0; i < count; ++i)
+    {
+        double v = min + i * step + dis(generator());
+        result.push_back(v);
+    }
+    return result;
+}
+
 int rand()
 {
     std::uniform_int_distribution<int> dis(0, std::numeric_limits<int>::max());

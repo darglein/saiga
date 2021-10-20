@@ -26,6 +26,9 @@
  * - define ELPP_EXPORT SAIGA_CORE_API
  * - Add ELPP_EXPORT to the writer class
  */
+ // we now use glog instead of easylogging++
+#define EASYLOGGINGPP_H
+#include "glog/logging.h"
 
 #ifndef EASYLOGGINGPP_H
 #define EASYLOGGINGPP_H

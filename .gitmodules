@@ -16,3 +16,6 @@
 [submodule "submodules/zlib"]
 	path = submodules/zlib
 	url = ../../darglein/zlib.git
+[submodule "submodules/glog"]
+	path = submodules/glog
+	url = ../../google/glog.git

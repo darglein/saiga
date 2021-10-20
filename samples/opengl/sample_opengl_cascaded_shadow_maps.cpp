@@ -139,13 +139,12 @@ class Sample : public SampleWindowDeferred
             if (ImGui::InputFloat("Camera Near Plane", &nearPlane))
                 camera.setProj(60.0f, window->getAspectRatio(), nearPlane, farPlane);
 
-            static int numCascades = 1;
 
-            static int currentItem      = 2;
-            static const char* items[5] = {"128", "256", "512", "1024", "2048"};
+//            static int currentItem      = 2;
+//            static const char* items[5] = {"128", "256", "512", "1024", "2048"};
+//            static int itemsi[5] = {128, 256, 512, 1024, 2048};
 
-            static int itemsi[5] = {128, 256, 512, 1024, 2048};
-
+                        static int numCascades = 1;
             if (ImGui::InputInt("Num Cascades", &numCascades))
             {
                 sun->BuildCascades(numCascades);
