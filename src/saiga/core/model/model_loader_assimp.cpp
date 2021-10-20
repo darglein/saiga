@@ -9,7 +9,7 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
 
-#if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
+#if defined(SAIGA_USE_ASSIMP)
 #    include "saiga/core/util/assert.h"
 
 #    include <iostream>

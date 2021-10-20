@@ -395,7 +395,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
             {
                 int gx = x * factor;
 
-                typename TFC::FloatType sum(0);
+                typename TFC::FloatType sum = TFC::Converter::ZeroFloat();
 
                 // Average inner patch
                 for (int i = 0; i < factor; ++i)
@@ -480,8 +480,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         x = min(max(0, x), width - 1);
         y = min(max(0, y), height - 1);
 #else
-        x = std::min(std::max(0, x), width - 1);
-        y = std::min(std::max(0, y), height - 1);
+        x      = std::min(std::max(0, x), width - 1);
+        y      = std::min(std::max(0, y), height - 1);
 #endif
     }
 

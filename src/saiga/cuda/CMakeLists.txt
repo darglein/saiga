@@ -31,7 +31,7 @@ target_link_libraries(${MODULE_NAME} ${CUDA_TARGETS})
 
 
 
-set_property(TARGET ${MODULE_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
+#set_property(TARGET ${MODULE_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
 target_compile_options(${MODULE_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
 
 target_include_directories(

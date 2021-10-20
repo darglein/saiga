@@ -19,6 +19,7 @@ struct SAIGA_TEMPLATE MatchingFloatType
     using FloatType = typename std::remove_const<T>::type;
     static inline FloatType convert(const T& t) { return FloatType(t); }
     static inline T convertBack(const FloatType& t) { return T(t); }
+    static inline T ZeroFloat() { return T(0); }
 };
 
 template <>
@@ -48,6 +49,7 @@ struct MatchingFloatType<ucvec3>
     {
         return t.array().round().cast<unsigned char>();
     }
+    static inline FloatType ZeroFloat() { return FloatType::Zero(); }
 };
 template <>
 struct MatchingFloatType<ucvec4>
@@ -69,6 +71,7 @@ struct MatchingFloatType<ucvec4>
         return FloatType(t);
 #endif
     }
+    static inline FloatType ZeroFloat() { return FloatType::Zero(); }
 };
 
 

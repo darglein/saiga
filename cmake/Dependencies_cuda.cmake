@@ -59,20 +59,6 @@ if(CUDA_FOUND)
   endif()
 
 
-  # 30 GTX 7xx
-  # 52 GTX 9xx
-  # 61 GTX 10xx
-  # 75 RTX 20xx
-  # 86 RTX 30xx
-  if(${SAIGA_CUDA_VERSION} VERSION_LESS "11")
-    set(SAIGA_CUDA_ARCH "30-virtual" "52-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
-  else()
-    # CUDA 11 and later doesn't support 30 anymore
-    set(SAIGA_CUDA_ARCH "52-virtual" "75-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
-  endif()
-
-  message(STATUS "SAIGA_CUDA_ARCH ${SAIGA_CUDA_ARCH}")
-
 
   if(NOT MSVC)
     list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=-fopenmp")
@@ -102,6 +88,25 @@ if(CUDA_FOUND)
   if(BUILD_SHARED)
     list(APPEND SAIGA_CUDA_FLAGS "-Xcompiler=-DSAIGA_DLL_EXPORTS")
   endif()
+
+
+#  # 30 GTX 7xx
+#  # 52 GTX 9xx
+#  # 61 GTX 10xx
+#  # 75 RTX 20xx
+#  # 86 RTX 30xx
+#  if(${SAIGA_CUDA_VERSION} VERSION_LESS "11")
+#    set(SAIGA_CUDA_ARCH "30-virtual" "52-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
+#  else()
+#    # CUDA 11 and later doesn't support 30 anymore
+#    set(SAIGA_CUDA_ARCH "52-virtual" "75-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
+#  endif()
+
+  include(select_compute_arch)
+  CUDA_SELECT_NVCC_ARCH_FLAGS(ARCH_FLAGS Auto)
+  list(APPEND SAIGA_CUDA_FLAGS ${ARCH_FLAGS})
+  message(STATUS "CUDA ARCH: ${ARCH_FLAGS}")
+
 
   set(CMAKE_CUDA_STANDARD 14)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)

@@ -20,12 +20,13 @@ endif()
 
 
 #opencv
-find_package(OpenCV QUIET)
-if(OpenCV_FOUND)
-    SET(SAIGA_USE_OPENCV 1)
-endif()
-PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRARIES}")
-
+if (SAIGA_WITH_OPENCV)
+    find_package(OpenCV QUIET)
+    if (OpenCV_FOUND)
+        SET(SAIGA_USE_OPENCV 1)
+    endif ()
+    PackageHelper(OpenCV "${OpenCV_FOUND}" "${OpenCV_INCLUDE_DIRS}" "${OpenCV_LIBRARIES}")
+endif ()
 
 set(CMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY ON)
 set(CMAKE_EXPORT_NO_PACKAGE_REGISTRY ON)

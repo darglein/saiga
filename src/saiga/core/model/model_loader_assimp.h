@@ -8,7 +8,7 @@
 
 #include "saiga/config.h"
 
-#if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_ASSIMP)
+#if defined(SAIGA_USE_ASSIMP)
 
 #    include "saiga/core/geometry/triangle_mesh.h"
 #    include "saiga/core/model/UnifiedModel.h"
