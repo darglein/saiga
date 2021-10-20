@@ -1,26 +1,24 @@
 set(MODULE_NAME "saiga_cuda")
 
 
-
-
 # ==== Load All Files ====
 
-FILE(GLOB_RECURSE CUDA_SRC  "*.cpp" "*.cu" "*.cc")
-FILE(GLOB_RECURSE CUDA_HEADER  "*.h" "*.hpp" "*.inl")
+FILE(GLOB_RECURSE CUDA_SRC "*.cpp" "*.cu" "*.cc")
+FILE(GLOB_RECURSE CUDA_HEADER "*.h" "*.hpp" "*.inl")
 
 # the internal files are added to core
 SET(SAIGA_ALL_FILES
-    ${CUDA_SRC}
-    ${CUDA_HEADER}
-    )
+        ${CUDA_SRC}
+        ${CUDA_HEADER}
+        )
 
 
-if(SAIGA_BUILD_SHARED)
+if (SAIGA_BUILD_SHARED)
     add_definitions(-DSAIGA_DLL_EXPORTS)
     add_library(${MODULE_NAME} SHARED ${SAIGA_ALL_FILES})
 else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
-endif()
+endif ()
 target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_PRIVATE_CXX_FLAGS}>")
 target_link_libraries(${MODULE_NAME} ${ALL_CUDA_LIBS})
 target_link_libraries(${MODULE_NAME} ${CUDA_LIBS})
@@ -30,26 +28,34 @@ target_link_libraries(${MODULE_NAME} ${CUDA_TARGETS})
 #list(APPEND SAIGA_CUDA_FLAGS "-std=c++14")
 
 
-
 #set_property(TARGET ${MODULE_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
-target_compile_options(${MODULE_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
+target_compile_options(
+        ${MODULE_NAME} PUBLIC
+        $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>
+)
+
+# Note, requires the 'SHELL' here so we can have multiple flags named 'gencode'
+target_compile_options(
+        ${MODULE_NAME} PRIVATE
+        "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:${SAIGA_CUDA_ARCH_FLAGS}>"
+)
 
 target_include_directories(
-    ${MODULE_NAME}
-    PUBLIC
-    $<INSTALL_INTERFACE:include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
-    "$<BUILD_INTERFACE:${CUDA_INCLUDES}>"
-    #PRIVATE
-    # for the internal files
-    #${PROJECT_SOURCE_DIR}/src/
-    )
+        ${MODULE_NAME}
+        PUBLIC
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>
+        "$<BUILD_INTERFACE:${CUDA_INCLUDES}>"
+        #PRIVATE
+        # for the internal files
+        #${PROJECT_SOURCE_DIR}/src/
+)
 
 install(
-    TARGETS ${MODULE_NAME}
-    EXPORT ${LIB_EXPORT}
-    RUNTIME DESTINATION ${INSTALL_BIN}
-    LIBRARY DESTINATION ${INSTALL_SHARED}
-    ARCHIVE DESTINATION ${INSTALL_LIB}
-    )
+        TARGETS ${MODULE_NAME}
+        EXPORT ${LIB_EXPORT}
+        RUNTIME DESTINATION ${INSTALL_BIN}
+        LIBRARY DESTINATION ${INSTALL_SHARED}
+        ARCHIVE DESTINATION ${INSTALL_LIB}
+)
 
