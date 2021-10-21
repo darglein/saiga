@@ -8,7 +8,14 @@
 #include "TorchHelper.h"
 
 #include <torch/script.h>
+
+#if __has_include(<torchvision/csrc/models/vgg.h>)
+// Use this if torchvision was added as a submodule
+#include <torchvision/csrc/models/vgg.h>
+#else
+// System path otherwise
 #include <torchvision/models/vgg.h>
+#endif
 
 namespace Saiga
 {

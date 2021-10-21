@@ -26,7 +26,7 @@ inline bool PlanePlane(const Plane& p1, const Plane& p2, Ray& outRay)
 
 
 inline bool RaySphere(const vec3& rayOrigin, const vec3& rayDir, const vec3& spherePos, float sphereRadius, float& t1,
-               float& t2)
+                      float& t2)
 {
     vec3 L  = rayOrigin - spherePos;
     float a = dot(rayDir, rayDir);
@@ -67,7 +67,7 @@ inline bool RaySphere(const Ray& ray, const Sphere& sphere, float& t1, float& t2
 
 
 inline RayTriangleIntersection RayTriangle(const vec3& direction, const vec3& origin, const vec3& A, const vec3& B,
-                                    const vec3& C, float epsilon)
+                                           const vec3& C, float epsilon)
 {
     RayTriangleIntersection inter;
 
@@ -166,22 +166,27 @@ inline bool RayAABB(const vec3& origin, const vec3& direction, const vec3& boxmi
 {
     using std::max;
     using std::min;
-    vec3 dirfrac;
-    dirfrac[0] = 1.0f / direction[0];
-    dirfrac[1] = 1.0f / direction[1];
-    dirfrac[2] = 1.0f / direction[2];
+    vec3 inv_dir = 1.0 / direction.array();
 
     // lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
     // r.org is origin of ray
-    float t1 = (boxmin[0] - origin[0]) * dirfrac[0];
-    float t2 = (boxmax[0] - origin[0]) * dirfrac[0];
-    float t3 = (boxmin[1] - origin[1]) * dirfrac[1];
-    float t4 = (boxmax[1] - origin[1]) * dirfrac[1];
-    float t5 = (boxmin[2] - origin[2]) * dirfrac[2];
-    float t6 = (boxmax[2] - origin[2]) * dirfrac[2];
+    vec3 t_min;
+    t_min(0) = (boxmin[0] - origin[0]) * inv_dir[0];
+    t_min(1) = (boxmin[1] - origin[1]) * inv_dir[1];
+    t_min(2) = (boxmin[2] - origin[2]) * inv_dir[2];
+    t_min    = (boxmin - origin).array() * inv_dir.array();
 
-    float tmin = std::max(max(min(t1, t2), std::min(t3, t4)), std::min(t5, t6));
-    float tmax = std::min(min(max(t1, t2), std::max(t3, t4)), std::max(t5, t6));
+    vec3 t_max;
+    t_max(0) = (boxmax[0] - origin[0]) * inv_dir[0];
+    t_max(1) = (boxmax[1] - origin[1]) * inv_dir[1];
+    t_max(2) = (boxmax[2] - origin[2]) * inv_dir[2];
+    t_max    = (boxmax - origin).array() * inv_dir.array();
+
+    // float tmin = std::max(max(min(t_min(0), t_max(0)), std::min(t_min(1), t_max(1))), std::min(t_min(2), t_max(2)));
+    // float tmax = std::min(min(max(t_min(0), t_max(0)), std::max(t_min(1), t_max(1))), std::max(t_min(2), t_max(2)));
+
+    float tmin = t_min.array().min(t_max.array()).maxCoeff();
+    float tmax = t_min.array().max(t_max.array()).minCoeff();
 
     // if tmax < 0, ray (line) is intersecting AABB, but whole AABB is behing us
     if (tmax < 0)

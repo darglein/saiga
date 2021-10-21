@@ -38,6 +38,7 @@ if (SAIGA_BUILD_SHARED)
     add_library(${MODULE_NAME} SHARED ${SAIGA_ALL_FILES})
 else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
+    set_property(TARGET ${MODULE_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 endif ()
 
 target_compile_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_CXX_FLAGS}>")
