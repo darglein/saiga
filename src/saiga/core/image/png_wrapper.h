@@ -16,24 +16,33 @@
 
 #include "managedImage.h"
 
+#include "image_io.h"
 #ifdef SAIGA_USE_PNG
+
+
+#    include <png.h>
+#    include <zlib.h>
+
 
 namespace Saiga
 {
-namespace LibPNG
+class SAIGA_CORE_API ImageIOLibPNG : public ImageIO
 {
-enum class Compression
-{
-    fast,
-    medium,
-    best
+   public:
+    virtual bool Save2File(const std::string& path, const Image& img, ImageSaveFlags flags = ImageSaveFlags()) override;
+
+    virtual std::vector<unsigned char> Save2Memory(const Image& img,
+                                                   ImageSaveFlags flags = ImageSaveFlags()) override;
+
+    virtual std::optional<Image> LoadFromFile(const std::string& path,
+                                              ImageLoadFlags flags = ImageLoadFlags()) override;
+    virtual std::optional<Image> LoadFromMemory(void* data, size_t size,
+                                                ImageLoadFlags flags = ImageLoadFlags()) override;
+
+   private:
 };
 
-SAIGA_CORE_API bool save(const std::string& path, const Image& img, bool invertY = false,
-                         Compression compression = Compression::medium);
-SAIGA_CORE_API bool load(const std::string& path, Image& img, bool invertY = false);
 
-}  // namespace LibPNG
 }  // namespace Saiga
 
 #endif

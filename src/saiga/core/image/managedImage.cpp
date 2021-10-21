@@ -117,6 +117,7 @@ bool Image::load(const std::string& _path)
     bool erg         = false;
     std::string type = fileEnding(path);
 
+
     if (type == "saigai")
     {
         // saiga raw image format
@@ -127,7 +128,18 @@ bool Image::load(const std::string& _path)
     if (type == "png")
     {
 #ifdef SAIGA_USE_PNG
-        return LibPNG::load(path, *this, false);
+        ImageIOLibPNG io;
+        auto result = io.LoadFromFile(path);
+        if (result.has_value())
+        {
+            *this = result.value();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+
 #else
         std::cerr << "Warning: Using .png without libpng. This might be slow." << std::endl;
 #endif
@@ -172,6 +184,10 @@ std::vector<unsigned char> Image::saveToMemory(std::string file_extension)
     {
 #ifdef SAIGA_USE_PNG
 
+
+        ImageIOLibPNG io;
+        return io.Save2Memory(*this);
+        SAIGA_EXIT_ERROR("png not implemneted");
 #endif
     }
 #ifdef SAIGA_USE_FREEIMAGE
@@ -202,7 +218,11 @@ bool Image::save(const std::string& path) const
     if (output_type == "png")
     {
 #ifdef SAIGA_USE_PNG
-        return LibPNG::save(path, *this, false);
+        // return LibPNG::save(path, *this, false);
+
+        ImageIOLibPNG io;
+        return io.Save2File(path, *this);
+
 #else
         std::cerr << "Warning: Using .png without libpng. This might be slow." << std::endl;
 #endif
