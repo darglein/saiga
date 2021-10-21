@@ -31,7 +31,7 @@ void WindowParameters::fromConfigFile(const std::string& file)
                             "# 0 Windowed\n"
                             "# 1 WindowedBorderless\n"
                             "# 2 Fullscreen\n"
-                            "# 3 Fullscreen\n"
+                            "# 3 FullscreenWindowed\n"
                             "# 4 FullscreenBorderless");
 
     INI_GETADD(ini, section, alwaysOnTop);

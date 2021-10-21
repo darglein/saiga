@@ -101,12 +101,9 @@ inline std::vector<std::string> ReadWriteIniList(Saiga::SimpleIni& ini, std::vec
  * INI_GETADD_DOUBLE(ini, "Math", foo);
  */
 #define INI_GETADD_COMMENT(_ini, _section, _variable, _comment) \
-    ReadWriteIni(_ini, _variable, _section, #_variable, _comment)
+    _variable = ReadWriteIni(_ini, _variable, _section, #_variable, _comment)
 
 #define INI_GETADD_LIST_COMMENT(_ini, _section, _variable, _sep, _comment) \
-    ReadWriteIniList(_ini, _variable, _section, #_variable, _comment, _sep)
-
-#define INI_GETADD_MATRIX_COMMENT(_ini, _section, _variable, _comment) \
-    StringToMatrix((_ini).GetAddString(_section, #_variable, MatrixToString(_variable).c_str(), _comment), _variable)
+    _variable = ReadWriteIniList(_ini, _variable, _section, #_variable, _comment, _sep)
 
 #define INI_GETADD(_ini, _section, _variable) INI_GETADD_COMMENT(_ini, _section, _variable, "")
