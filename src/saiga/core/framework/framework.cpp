@@ -88,15 +88,15 @@ void SaigaParameters::fromConfigFile(const std::string& file)
         "# shaderDirectory = shader!/usr/local/share/saiga/shader!somepath/asdf/shader";
 
     char sep = '!';
-    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", shaderDirectory, sep, comment.c_str());
-    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", modelDirectory, sep, comment.c_str());
-    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", fontDirectory, sep, comment.c_str());
-    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", textureDirectory, sep, comment.c_str());
-    INI_GETADD_STRING_LIST_COMMENT(ini, "saiga", dataDirectory, sep, comment.c_str());
+    INI_GETADD_LIST_COMMENT(ini, "saiga", shaderDirectory, sep, comment.c_str());
+    INI_GETADD_LIST_COMMENT(ini, "saiga", modelDirectory, sep, comment.c_str());
+    INI_GETADD_LIST_COMMENT(ini, "saiga", fontDirectory, sep, comment.c_str());
+    INI_GETADD_LIST_COMMENT(ini, "saiga", textureDirectory, sep, comment.c_str());
+    INI_GETADD_LIST_COMMENT(ini, "saiga", dataDirectory, sep, comment.c_str());
 
-    INI_GETADD_STRING(ini, "saiga", mainThreadName);
-    INI_GETADD_BOOL(ini, "saiga", logging_enabled);
-    INI_GETADD_LONG(ini, "saiga", verbose_logging);
+    INI_GETADD(ini, "saiga", mainThreadName);
+    INI_GETADD(ini, "saiga", logging_enabled);
+    INI_GETADD(ini, "saiga", verbose_logging);
 
     if (ini.changed()) ini.SaveFile(file.c_str());
 }

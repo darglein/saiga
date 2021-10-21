@@ -14,14 +14,14 @@ void DatasetParameters::fromConfigFile(const std::string& file)
     ini.LoadFile(file.c_str());
 
     auto group = "Dataset";
-    INI_GETADD_DOUBLE(ini, group, playback_fps);
-    INI_GETADD_STRING(ini, group, dir);
-    INI_GETADD_LONG(ini, group, startFrame);
-    INI_GETADD_LONG(ini, group, maxFrames);
-    INI_GETADD_BOOL(ini, group, multiThreadedLoad);
-    INI_GETADD_BOOL(ini, group, preload);
-    INI_GETADD_BOOL(ini, group, normalize_timestamps);
-    INI_GETADD_DOUBLE(ini, group, ground_truth_time_offset);
+    INI_GETADD(ini, group, playback_fps);
+    INI_GETADD(ini, group, dir);
+    INI_GETADD(ini, group, startFrame);
+    INI_GETADD(ini, group, maxFrames);
+    INI_GETADD(ini, group, multiThreadedLoad);
+    INI_GETADD(ini, group, preload);
+    INI_GETADD(ini, group, normalize_timestamps);
+    INI_GETADD(ini, group, ground_truth_time_offset);
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 

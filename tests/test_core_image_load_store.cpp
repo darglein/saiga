@@ -38,10 +38,13 @@ void testSaveLoadLibPNG(const TemplatedImage<T>& img)
 #ifdef SAIGA_USE_PNG
     std::string file = "loadstoretest_libpng.png";
     std::filesystem::remove(file);
-    EXPECT_TRUE(LibPNG::save(file, img));
+
+    ImageIOLibPNG io;
+    EXPECT_TRUE(io.Save2File(file, img));
 
     TemplatedImage<T> img2;
-    EXPECT_TRUE(LibPNG::load(file, img2));
+    img2 = io.LoadFromFile(file).value();
+    // EXPECT_TRUE();
 
     EXPECT_EQ(img.dimensions(), img2.dimensions());
     EXPECT_EQ(img, img2);
@@ -242,23 +245,6 @@ TEST(ImageLoadStoreBenchmark, PNG_UC4)
     }
 #endif
 
-#ifdef SAIGA_USE_PNG
-    {
-        std::string file   = "loadstoretest_libpng.png";
-        auto store_measure = measureObject(5, [&]() {
-            std::filesystem::remove(file);
-            EXPECT_TRUE(LibPNG::save(file, img));
-        });
-
-        auto load_measure = measureObject(5, [&]() {
-            TemplatedImage<T> img2;
-            EXPECT_TRUE(LibPNG::load(file, img2));
-        });
-
-        std::cout << "LibPNG Median Store Time: " << store_measure.median << std::endl;
-        std::cout << "LibPNG Median Load Time: " << load_measure.median << std::endl;
-    }
-#endif
 
 #ifdef SAIGA_USE_FREEIMAGE
     {

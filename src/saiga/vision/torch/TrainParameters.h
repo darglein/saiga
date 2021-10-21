@@ -5,7 +5,7 @@
  */
 
 #pragma once
-#include "saiga/core/util/ini/ini.h"
+#include "saiga/core/util/ini/Params.h"
 
 
 namespace Saiga
@@ -13,38 +13,38 @@ namespace Saiga
 struct SAIGA_VISION_API TrainParams : public ParamsBase
 {
     SAIGA_PARAM_STRUCT_FUNCTIONS(TrainParams);
-    virtual void Params(Saiga::SimpleIni& ini_) override
+    virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
     {
-        SAIGA_PARAM_LONG(random_seed);
-        SAIGA_PARAM_BOOL(do_train);
-        SAIGA_PARAM_BOOL(do_eval);
-        SAIGA_PARAM_LONG(batch_size);
-        SAIGA_PARAM_LONG(inner_batch_size);
-        SAIGA_PARAM_LONG(inner_sample_size);
-        SAIGA_PARAM_LONG(num_epochs);
-        SAIGA_PARAM_LONG(save_checkpoints_its);
-        SAIGA_PARAM_BOOL(eval_only_on_checkpoint);
-        SAIGA_PARAM_STRING(name);
-        SAIGA_PARAM_BOOL(debug);
-        SAIGA_PARAM_STRING(output_file_type);
+        SAIGA_PARAM(random_seed);
+        SAIGA_PARAM(do_train);
+        SAIGA_PARAM(do_eval);
+        SAIGA_PARAM(batch_size);
+        SAIGA_PARAM(inner_batch_size);
+        SAIGA_PARAM(inner_sample_size);
+        SAIGA_PARAM(num_epochs);
+        SAIGA_PARAM(save_checkpoints_its);
+        SAIGA_PARAM(eval_only_on_checkpoint);
+        SAIGA_PARAM(name);
+        SAIGA_PARAM(debug);
+        SAIGA_PARAM(output_file_type);
 
 
-        SAIGA_PARAM_STRING(split_method);
-        SAIGA_PARAM_LONG(max_images);
-        SAIGA_PARAM_LONG(duplicate_train_factor);
-        SAIGA_PARAM_BOOL(shuffle_initial_indices);
-        SAIGA_PARAM_BOOL(shuffle_train_indices);
-        SAIGA_PARAM_LONG(split_remove_neighbors);
-        SAIGA_PARAM_STRING(split_index_file_train);
-        SAIGA_PARAM_STRING(split_index_file_test);
-        SAIGA_PARAM_BOOL(train_on_eval);
-        SAIGA_PARAM_DOUBLE(train_factor);
-        SAIGA_PARAM_LONG(num_workers_train);
-        SAIGA_PARAM_LONG(num_workers_eval);
+        SAIGA_PARAM(split_method);
+        SAIGA_PARAM(max_images);
+        SAIGA_PARAM(duplicate_train_factor);
+        SAIGA_PARAM(shuffle_initial_indices);
+        SAIGA_PARAM(shuffle_train_indices);
+        SAIGA_PARAM(split_remove_neighbors);
+        SAIGA_PARAM(split_index_file_train);
+        SAIGA_PARAM(split_index_file_test);
+        SAIGA_PARAM(train_on_eval);
+        SAIGA_PARAM(train_factor);
+        SAIGA_PARAM(num_workers_train);
+        SAIGA_PARAM(num_workers_eval);
     }
 
     // ======== Train Control =========
-    uint64_t random_seed         = 3746934646;
+    long random_seed             = 3746934646;
     bool do_train                = true;
     bool do_eval                 = true;
     int num_epochs               = 20;

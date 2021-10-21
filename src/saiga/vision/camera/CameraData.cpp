@@ -31,21 +31,21 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
 
     auto group = "RGBD-Sensor";
 
-    INI_GETADD_BOOL(ini, group, bgr);
+    INI_GETADD(ini, group, bgr);
 
-    INI_GETADD_LONG(ini, group, fps);
+    INI_GETADD(ini, group, fps);
 
 
-    INI_GETADD_DOUBLE_COMMENT(ini, group, depthFactor, "# The depth values are divided by this value to get meters.");
-    INI_GETADD_DOUBLE_COMMENT(ini, group, maxDepth, "# Depth values above this value are unstable.");
+    INI_GETADD_COMMENT(ini, group, depthFactor, "# The depth values are divided by this value to get meters.");
+    INI_GETADD_COMMENT(ini, group, maxDepth, "# Depth values above this value are unstable.");
 
-    INI_GETADD_DOUBLE_COMMENT(ini, group, bf, "# Baseline times fx");
+    INI_GETADD_COMMENT(ini, group, bf, "# Baseline times fx");
 
-    INI_GETADD_LONG_COMMENT(ini, group, imageSize.w, "# RGB Image");
-    INI_GETADD_LONG(ini, group, imageSize.h);
+    INI_GETADD_COMMENT(ini, group, imageSize.w, "# RGB Image");
+    INI_GETADD(ini, group, imageSize.h);
 
-    INI_GETADD_LONG_COMMENT(ini, group, depthImageSize.w, "# Depth Image");
-    INI_GETADD_LONG(ini, group, depthImageSize.h);
+    INI_GETADD_COMMENT(ini, group, depthImageSize.w, "# Depth Image");
+    INI_GETADD(ini, group, depthImageSize.h);
 
 
 

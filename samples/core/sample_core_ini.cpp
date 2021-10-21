@@ -9,8 +9,34 @@
 
 using namespace Saiga;
 
-int main(int argc, char* args[])
+
+struct SAIGA_VISION_API SampleParams : public ParamsBase
 {
+    SAIGA_PARAM_STRUCT_FUNCTIONS(SampleParams);
+    virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
+    {
+        SAIGA_PARAM(split_method);
+        SAIGA_PARAM(max_images);
+        SAIGA_PARAM(train_on_eval);
+        SAIGA_PARAM(train_factor);
+    }
+
+    std::string split_method = "";
+    bool train_on_eval       = false;
+    double train_factor      = 0.9;
+    int max_images           = -1;
+};
+
+int main(int argc, char* argv[])
+{
+
+    SampleParams params("params.ini");
+
+    CLI::App app{"Example programm", "exmaple_programm"};
+    params.Load(app);
+    CLI11_PARSE(app, argc, argv);
+    std::cout << "split:" <<  params.split_method << std::endl;
+
     /**
      * This sample demonstrates the use of the ini class.
      */
@@ -35,4 +61,6 @@ int main(int argc, char* args[])
     std::cout << name << " " << w << "x" << h << " " << b << " " << std::endl << m << std::endl;
 
     if (ini.changed()) ini.SaveFile(fileName);
+
+
 }

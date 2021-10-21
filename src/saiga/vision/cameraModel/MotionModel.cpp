@@ -15,8 +15,8 @@ void MotionModel::Settings::fromConfigFile(const std::string& file)
     Saiga::SimpleIni ini;
     ini.LoadFile(file.c_str());
 
-    INI_GETADD_LONG(ini, "MotionModel", valid_range);
-    INI_GETADD_DOUBLE(ini, "MotionModel", damping);
+    INI_GETADD(ini, "MotionModel", valid_range);
+    INI_GETADD(ini, "MotionModel", damping);
 
     if (ini.changed()) ini.SaveFile(file.c_str());
 }

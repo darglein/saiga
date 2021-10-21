@@ -12,4 +12,5 @@
 #include "Thread/all.h"
 #include "crash.h"
 #include "ini/ini.h"
+#include "ini/Params.h"
 #include "pipeline.h"
