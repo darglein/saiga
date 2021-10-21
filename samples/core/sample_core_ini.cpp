@@ -15,9 +15,9 @@ struct SAIGA_VISION_API SampleParams : public ParamsBase
     SAIGA_PARAM_STRUCT_FUNCTIONS(SampleParams);
     virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
     {
-        SAIGA_PARAM(split_method);
+        SAIGA_PARAM_COMMENT(split_method, "more comments");
         SAIGA_PARAM(max_images);
-        SAIGA_PARAM(train_on_eval);
+        SAIGA_PARAM_COMMENT(train_on_eval, "test comment");
         SAIGA_PARAM(train_factor);
     }
 
