@@ -5,7 +5,7 @@
  */
 
 #pragma once
-#include "saiga/core/util/ini/ini.h"
+#include "saiga/core/util/ini/Params.h"
 
 #include "ImageTensor.h"
 #include "PartialConv.h"
@@ -375,24 +375,24 @@ struct MultiScaleUnet2dParams : public ParamsBase
 {
     SAIGA_PARAM_STRUCT_FUNCTIONS(MultiScaleUnet2dParams);
 
-    virtual void Params(Saiga::SimpleIni& ini_) override
+    virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
     {
-        SAIGA_PARAM_LONG(num_input_layers);
-        SAIGA_PARAM_LONG(num_input_channels);
-        SAIGA_PARAM_LONG(num_output_channels);
-        SAIGA_PARAM_LONG(feature_factor);
-        SAIGA_PARAM_LONG(num_layers);
-        SAIGA_PARAM_BOOL(add_input_to_filters);
-        SAIGA_PARAM_BOOL(channels_last);
-        SAIGA_PARAM_BOOL(half_float);
+        SAIGA_PARAM(num_input_layers);
+        SAIGA_PARAM(num_input_channels);
+        SAIGA_PARAM(num_output_channels);
+        SAIGA_PARAM(feature_factor);
+        SAIGA_PARAM(num_layers);
+        SAIGA_PARAM(add_input_to_filters);
+        SAIGA_PARAM(channels_last);
+        SAIGA_PARAM(half_float);
 
-        SAIGA_PARAM_STRING(upsample_mode);
-        SAIGA_PARAM_STRING(norm_layer_down);
-        SAIGA_PARAM_STRING(norm_layer_up);
-        SAIGA_PARAM_STRING(last_act);
-        SAIGA_PARAM_STRING(conv_block);
-        SAIGA_PARAM_STRING(conv_block_up);
-        SAIGA_PARAM_STRING(pooling);
+        SAIGA_PARAM(upsample_mode);
+        SAIGA_PARAM(norm_layer_down);
+        SAIGA_PARAM(norm_layer_up);
+        SAIGA_PARAM(last_act);
+        SAIGA_PARAM(conv_block);
+        SAIGA_PARAM(conv_block_up);
+        SAIGA_PARAM(pooling);
     }
 
     static constexpr int max_layers = 5;

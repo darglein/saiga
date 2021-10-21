@@ -77,9 +77,14 @@ struct ParamsBase
     if (ini) _variable = INI_GETADD(*ini, name_.c_str(), _variable); \
     if (app) app->add_option("--" #_variable, _variable)
 
-#define SAIGA_PARAM_LIST(_variable, _sep) _variable = INI_GETADD_LIST_COMMENT(ini_, name_.c_str(), _variable, _sep, 0)
-#define SAIGA_PARAM_LIST_COMMENT(_variable, _sep, _comment) \
-    _variable = INI_GETADD_STRING_LIST_COMMENT(ini_, name_.c_str(), _variable, _sep, _comment)
+#define SAIGA_PARAM_COMMENT(_variable, _comment)                                       \
+    if (ini) _variable = INI_GETADD_COMMENT(*ini, name_.c_str(), _variable, _comment); \
+    if (app) app->add_option("--" #_variable, _variable, _comment)
 
-#define SAIGA_PARAM_COMMENT(_variable, _comment) \
-    _variable = INI_GETADD_COMMENT(ini_, name_.c_str(), _variable, _comment)
+#define SAIGA_PARAM_LIST(_variable, _sep) \
+    if (ini) _variable = INI_GETADD_LIST_COMMENT(*ini, name_.c_str(), _variable, _sep, "");
+
+#define SAIGA_PARAM_LIST_COMMENT(_variable, _sep, _comment) \
+    if (ini) _variable = INI_GETADD_LIST_COMMENT(*ini, name_.c_str(), _variable, _sep, _comment);
+
+

@@ -12,7 +12,7 @@ SET(SAIGA_ALL_FILES
         ${CUDA_HEADER}
         )
 
-
+cmake_policy(SET CMP0104 OLD)
 if (SAIGA_BUILD_SHARED)
     add_definitions(-DSAIGA_DLL_EXPORTS)
     add_library(${MODULE_NAME} SHARED ${SAIGA_ALL_FILES})
@@ -38,6 +38,7 @@ target_compile_options(
 #        ${MODULE_NAME} PRIVATE
 #        "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:${SAIGA_CUDA_ARCH_FLAGS}>"
 #)
+
 
 while (SAIGA_CUDA_ARCH_FLAGS)
     list(POP_FRONT SAIGA_CUDA_ARCH_FLAGS A B)
