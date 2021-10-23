@@ -30,7 +30,6 @@ message(STATUS "\nBuild Options")
 #option (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
 OptionsHelper (SAIGA_BUILD_SHARED "Build this library as a shared library" ON)
 
-OptionsHelper (SAIGA_USE_SUBMODULES "alot of error checks and more console output" ON)
 OptionsHelper (SAIGA_DEBUG "alot of error checks and more console output" OFF)
 OptionsHelper (SAIGA_ASSERTS "enable the SAIGA_ASSERT makro" ON)
 OptionsHelper (SAIGA_BUILD_SAMPLES "build samples" ON)
@@ -54,6 +53,7 @@ OptionsHelper(SAIGA_DEBUG_MSAN "Enable the memory sanitizer. Does not work in co
 OptionsHelper(SAIGA_DEBUG_TSAN "Enable the thread sanitizer. Does not work in combination with ASAN." OFF)
 OptionsHelper(SAIGA_DEBIAN_BUILD "Saiga is currently build into a Debian Package. This will overwrite a lot of compile flags." OFF)
 
+OptionsHelper(SAIGA_BUILD_GLFW   "Build the GLFW as a submodule" ON)
 
 OptionsHelper(SAIGA_MODULE_CORE   "Build the core module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_OPENGL "Build the opengl module, if possible." ON)

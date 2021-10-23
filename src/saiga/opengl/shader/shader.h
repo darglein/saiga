@@ -12,7 +12,7 @@
 #include "saiga/opengl/shader/shaderpart.h"
 #include "saiga/opengl/texture/Texture2D.h"
 
-#include <filesystem>
+#include "saiga/core/util/FileSystem.h"
 #include <memory>
 #include <vector>
 

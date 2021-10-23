@@ -19,7 +19,7 @@
 #include "saiga/vision/camera/CameraBase.h"
 #include "saiga/vision/camera/all.h"
 
-#include <filesystem>
+#include "saiga/core/util/FileSystem.h"
 using namespace Saiga;
 #include <k4a/k4a.h>
 

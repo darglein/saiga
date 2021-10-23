@@ -32,26 +32,6 @@ else ()
 endif ()
 
 
-
-
-message("=================================")
-message("Adding Submodule glfw")
-set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
-set(GLFW_BUILD_EXAMPLES OFF CACHE INTERNAL "")
-set(GLFW_BUILD_TESTS OFF CACHE INTERNAL "")
-set(GLFW_BUILD_DOCS OFF CACHE INTERNAL "")
-
-add_subdirectory(${PROJECT_SOURCE_DIR}/submodules/glfw)
-set_target_properties(glfw PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
-SET(SAIGA_USE_GLFW 1 PARENT_SCOPE)
-
-#find_package(glfw3 CONFIG QUIET REQUIRED)
-PackageHelperTarget(glfw GLFW_FOUND)
-SET(SAIGA_USE_GLFW 1)
-PackageHelperTarget(glfw GLFW_FOUND)
-message("=================================")
-
-
 #freetype2
 find_package(Freetype QUIET)
 PackageHelper(Freetype "${FREETYPE_FOUND}" "${FREETYPE_INCLUDE_DIRS}" "${FREETYPE_LIBRARIES}")

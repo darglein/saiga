@@ -8,6 +8,7 @@
 
 #include "saiga/core/math/String.h"
 #include "saiga/core/time/all.h"
+#include "saiga/core/util/FileSystem.h"
 #include "saiga/core/util/file.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
@@ -15,7 +16,6 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <algorithm>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>

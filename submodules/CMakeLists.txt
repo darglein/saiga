@@ -1,6 +1,6 @@
 message("=================================")
 message("Adding Submodule eigen")
- set(BUILD_TESTING OFF CACHE INTERNAL "")
+set(BUILD_TESTING OFF CACHE INTERNAL "")
 add_subdirectory(eigen)
 message("=================================")
 
@@ -29,8 +29,8 @@ set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR} CACHE PATH "zlib dir" FORCE)
 
 # include dir that use the zlib target
 target_include_directories(${ZLIB_TARGET} PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/zlib>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/zlib>  )
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/zlib>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/zlib>)
 
 #set_target_properties(${ZLIB_TARGET} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
 SET(SAIGA_USE_ZLIB 1 PARENT_SCOPE)
@@ -44,6 +44,24 @@ target_link_libraries(zlib INTERFACE zlibstatic)
 
 message("=================================")
 
+
+if (SAIGA_BUILD_GLFW)
+    message("=================================")
+    message("Adding Submodule glfw")
+    set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
+    set(GLFW_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+    set(GLFW_BUILD_TESTS OFF CACHE INTERNAL "")
+    set(GLFW_BUILD_DOCS OFF CACHE INTERNAL "")
+
+    add_subdirectory(${PROJECT_SOURCE_DIR}/submodules/glfw)
+    set_target_properties(glfw PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+    SET(SAIGA_USE_GLFW 1 PARENT_SCOPE)
+
+    #find_package(glfw3 CONFIG QUIET REQUIRED)
+    SET(SAIGA_USE_GLFW 1)
+#    PackageHelperTarget(glfw GLFW_FOUND)
+    message("=================================")
+endif ()
 
 message("=================================")
 message("Adding Submodule libPNG")
@@ -61,9 +79,9 @@ add_subdirectory(libpng)
 
 set_property(TARGET png_static PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-  target_include_directories(png_static PUBLIC
-$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/libpng>
-$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/libpng>  )
+target_include_directories(png_static PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/libpng>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/libpng>)
 
 set_target_properties(png_static PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
 SET(SAIGA_USE_PNG 1 PARENT_SCOPE)
@@ -100,3 +118,5 @@ PackageHelperTarget(gtest GTEST_FOUND)
 set(GTEST_FOUND 1 PARENT_SCOPE)
 set(GTEST_TARGETS gtest gtest_main)
 message("=================================")
+
+

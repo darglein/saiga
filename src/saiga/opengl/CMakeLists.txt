@@ -61,6 +61,7 @@ endif()
 
 target_link_libraries(${MODULE_NAME} ${OPENGL_TARGETS} ${OPENGL_LIBS})
 target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_PRIVATE_CXX_FLAGS}>")
+target_link_options(${MODULE_NAME} PUBLIC ${SAIGA_LD_FLAGS})
 
 target_include_directories(
     ${MODULE_NAME}

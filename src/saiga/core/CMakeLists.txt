@@ -49,7 +49,8 @@ target_link_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_LD_
 target_compile_features(${MODULE_NAME} PUBLIC cxx_std_17)
 
 target_link_libraries(${MODULE_NAME} PUBLIC ${CORE_LIBS} ${CORE_TARGETS})
-target_link_options(${MODULE_NAME} PUBLIC ${SAIGA_LD_FLAGS})
+#target_link_options(${MODULE_NAME} PUBLIC ${SAIGA_LD_FLAGS})
+target_link_libraries(${MODULE_NAME} PRIVATE $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,8.0>>:stdc++fs>)
 
 target_include_directories(
         ${MODULE_NAME}
