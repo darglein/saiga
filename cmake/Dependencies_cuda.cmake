@@ -119,5 +119,5 @@ endif()
 
 set(CUDA_INCLUDES ${PACKAGE_INCLUDES})
 set(CUDA_LIBS ${LIBS})
-set(CUDA_TARGETS saiga_core saiga_vision ${LIB_TARGETS})
+set(CUDA_TARGETS ${LIB_TARGETS})
 

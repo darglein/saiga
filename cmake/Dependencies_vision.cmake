@@ -115,7 +115,7 @@ endif()
 
 set(VISION_INCLUDES ${PACKAGE_INCLUDES})
 set(VISION_LIBS ${LIBS})
-set(VISION_TARGETS saiga_core ${LIB_TARGETS})
+set(VISION_TARGETS ${LIB_TARGETS})
 
 
 message(STATUS "Saiga vision enabled.")

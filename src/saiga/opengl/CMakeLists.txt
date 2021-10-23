@@ -60,6 +60,7 @@ else ()
 endif()
 
 target_link_libraries(${MODULE_NAME} ${OPENGL_TARGETS} ${OPENGL_LIBS})
+target_link_libraries(${MODULE_NAME} saiga_core)
 target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_PRIVATE_CXX_FLAGS}>")
 target_link_options(${MODULE_NAME} PUBLIC ${SAIGA_LD_FLAGS})
 

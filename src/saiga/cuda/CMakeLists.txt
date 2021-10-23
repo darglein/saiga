@@ -23,6 +23,10 @@ target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA
 target_link_libraries(${MODULE_NAME} ${ALL_CUDA_LIBS})
 target_link_libraries(${MODULE_NAME} ${CUDA_LIBS})
 target_link_libraries(${MODULE_NAME} ${CUDA_TARGETS})
+target_link_libraries(${MODULE_NAME} saiga_core)
+if (SAIGA_VISION)
+    target_link_libraries(${MODULE_NAME} saiga_vision)
+endif ()
 #set_target_properties(${MODULE_NAME} PROPERTIES CXX_STANDARD 17)
 
 #list(APPEND SAIGA_CUDA_FLAGS "-std=c++14")
