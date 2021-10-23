@@ -123,6 +123,7 @@ class LPIPS
         input  = input * 2 - 1;
         target = target * 2 - 1;
 
+        module.to(input.device());
         std::vector<torch::jit::IValue> inputs;
         inputs.push_back(input);
         inputs.push_back(target);
