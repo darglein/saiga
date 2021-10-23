@@ -54,6 +54,8 @@
 #include "saiga/vision/features/Features.h"
 #include "saiga/vision/features/OrbPattern.h"
 
+#ifdef SAIGA_VISION
+
 #include "OrbDescriptors.h"
 namespace Saiga
 {
@@ -256,3 +258,5 @@ void ORB::ComputeAngles(cudaTextureObject_t tex, Saiga::ImageView<unsigned char>
 
 }  // namespace CUDA
 }  // namespace Saiga
+
+#endif

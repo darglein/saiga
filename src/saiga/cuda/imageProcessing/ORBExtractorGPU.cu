@@ -59,6 +59,7 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/cuda/cudaHelper.h"
 
+#ifdef SAIGA_VISION
 #include "ORBExtractorGPU.h"
 
 #include <thread>
@@ -335,5 +336,7 @@ void ORBExtractorGPU::ComputePyramid(Saiga::ImageView<unsigned char> image)
     }
 }
 }  // namespace Saiga
+
+#endif
 
 #endif
