@@ -232,15 +232,22 @@ void SetLR(torch::optim::Optimizer* optimizer, double lr)
     }
 }
 
-// Multiplies the LR of all param groups by the given value
-template <typename OptionsType>
-void UpdateLR(torch::optim::Optimizer* optimizer, double factor)
+
+inline void UpdateLR(torch::optim::Optimizer* optimizer, double factor)
 {
     for (auto& pg : optimizer->param_groups())
     {
-        auto opt = dynamic_cast<OptionsType*>(&pg.options());
-        SAIGA_ASSERT(opt);
-        opt->lr() = opt->lr() * factor;
+        auto opt_adam = dynamic_cast<torch::optim::AdamOptions*>(&pg.options());
+        if (opt_adam)
+        {
+            opt_adam->lr() = opt_adam->lr() * factor;
+        }
+
+        auto opt_sgd = dynamic_cast<torch::optim::SGDOptions*>(&pg.options());
+        if (opt_sgd)
+        {
+            opt_sgd->lr() = opt_sgd->lr() * factor;
+        }
     }
 }
 
