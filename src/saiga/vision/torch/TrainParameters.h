@@ -5,11 +5,12 @@
  */
 
 #pragma once
+#include "saiga/core/math/random.h"
+#include "saiga/core/time/time.h"
+#include "saiga/core/util/FileSystem.h"
+#include "saiga/core/util/file.h"
 #include "saiga/core/util/ini/Params.h"
 
-#include "saiga/core/math/random.h"
-#include "saiga/core/util/file.h"
-#include "saiga/core/util/FileSystem.h"
 #include <iostream>
 
 namespace Saiga
@@ -88,6 +89,8 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
     inline std::pair<std::vector<int>, std::vector<int>> Split(std::vector<int> all_indices) const;
 
     inline std::vector<int> ReadIndexFile(const std::string& file);
+
+    inline std::string ExperimentString() { return CurrentTimeString("%F_%T") + "_" + name; }
 };
 
 
@@ -204,7 +207,7 @@ std::vector<int> TrainParams::ReadIndexFile(const std::string& file)
 
     for (auto l : lines)
     {
-        if(l.empty()) continue;
+        if (l.empty()) continue;
         res.push_back(to_int(l));
     }
 
