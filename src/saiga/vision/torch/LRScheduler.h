@@ -28,6 +28,10 @@ class LRSchedulerPlateau
             {
                 _num_epochs_no_improvement++;
             }
+        }else
+        {
+            best_loss = value;
+            return 1;
         }
 
         if (_num_epochs_no_improvement == patience)
