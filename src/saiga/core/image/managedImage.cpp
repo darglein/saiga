@@ -176,7 +176,7 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
     return erg;
 }
 
-std::vector<unsigned char> Image::saveToMemory(std::string file_extension)
+std::vector<unsigned char> Image::saveToMemory(std::string file_extension) const
 {
     std::vector<unsigned char> result;
 
