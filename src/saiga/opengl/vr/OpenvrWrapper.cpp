@@ -169,6 +169,8 @@ std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(con
 
     left.updateFromModel();
     right.updateFromModel();
+
+    // std::cout << "lr pos " << left.position.transpose() << " | " << right.position.transpose() << std::endl;
     return {left, right};
 }
 void OpenVRWrapper::update()
@@ -191,6 +193,7 @@ void OpenVRWrapper::update()
         if (m_rTrackedDevicePose[i].bPoseIsValid)
         {
             device_data[i].model = ConvertSteamVRMatrixToMatrix4(m_rTrackedDevicePose[i].mDeviceToAbsoluteTracking);
+            // std::cout << "got pose " << i << " " << device_data[i].model.col(3).transpose() << std::endl;
         }
     }
 }

@@ -10,6 +10,7 @@
 #include "saiga/cuda/cuda.h"
 #include "saiga/cuda/event.h"
 
+#include <array>
 #include <iostream>
 #include <string>
 

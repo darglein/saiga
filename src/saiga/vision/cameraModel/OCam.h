@@ -192,7 +192,7 @@ HD Vector<T, 3> UnprojectOCam(Vector<T, 2> p, T distance_to_cam, Vector<T, 5> co
 }
 
 // Based on: Omnidirectional Camera Calibration Toolbox
-// https://sites.google.com/site/scarabotix/ocamcalib-toolbox
+// https://sites.google.com/site/scarabotix/ocamcalib-omnidirectional-camera-calibration-toolbox-for-matlab?authuser=0
 //
 // This is a fisheye camera model, for wide-angle cameras.
 //

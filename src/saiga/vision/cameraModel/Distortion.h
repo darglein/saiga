@@ -12,11 +12,10 @@
 namespace Saiga
 {
 /**
- * The 5 paramter Rad-Tan Distortion model.
- * Stored in the following vector.
- * (k1,k2,p1,p2,k3)
+ * The 8 parameter Rad-Tan Distortion model.
+ * https://docs.opencv.org/4.5.4/d9/d0c/group__calib3d.html
  *
- * If the camera is given as a 4 parameter rad-tan just set k3=0.
+ * Note: The order of coefficients is different to OpenCV
  */
 template <typename T>
 struct DistortionBase
