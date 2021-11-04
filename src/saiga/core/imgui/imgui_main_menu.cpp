@@ -127,7 +127,8 @@ EditorGui::EditorGui()
 {
     main_menu.AddItem(
         "Saiga", "Editor GUI",
-        [this]() {
+        [this]()
+        {
             enabled          = !enabled;
             reset_work_space = true;
             std::cout << "Set Editor GUI " << enabled << std::endl;
@@ -141,9 +142,15 @@ EditorGui::EditorGui()
 
 void EditorLayout::PlaceWindows()
 {
-    for (auto& windows : initial_layout)
+    for (auto& window : initial_layout)
     {
-        ImGui::DockBuilderDockWindow(windows.first.c_str(), node_map[windows.second]);
+        if (window.second >= node_map.size())
+        {
+            std::cerr << "Warning: Window " << window.first << " has the illegal position " << window.second
+                      << std::endl;
+            continue;
+        }
+        ImGui::DockBuilderDockWindow(window.first.c_str(), node_map[window.second]);
     }
 }
 

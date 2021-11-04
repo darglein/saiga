@@ -127,6 +127,43 @@ inline bool SaveTensor(at::Tensor t, const std::string& file)
     return true;
 }
 
+
+// Converts a list of images into a 2D grid of images.
+// Useful for displaying multiple images at once.
+//
+// Input:
+//      image_batch [N, c, h, w]
+// Output:
+//      [c, new_h, new_w]
+inline torch::Tensor ImageBatchToImageGrid(torch::Tensor image_batch)
+{
+    int N = image_batch.size(0);
+    int c = image_batch.size(1);
+    int h = image_batch.size(2);
+    int w = image_batch.size(3);
+
+    int grid_w  = ceil(sqrt(N));
+    int grid_h  = ceil(double(N) / grid_w);
+    int N_after = grid_w * grid_h;
+
+    if (N < N_after)
+    {
+        // pad with black images
+        auto sizes   = image_batch.sizes().vec();
+        sizes[0]     = N_after - N;
+        auto padding = torch::zeros({sizes}, image_batch.options());
+        image_batch  = torch::cat({image_batch, padding}, 0);
+    }
+
+    // [ gh, gw, c, h, w]
+    image_batch = image_batch.reshape({grid_h, grid_w, c, h, w});
+    // [c, gh, h, gw, w]
+    image_batch = image_batch.permute({2, 0, 3, 1, 4});
+    // [c, gh * h, gw * w]
+    image_batch = image_batch.reshape({c, grid_h * h, grid_w * w});
+    return image_batch;
+}
+
 /**
  * RGB image normalization of a 3 channel float-tensor using the Pytorch standart weights.
  */
