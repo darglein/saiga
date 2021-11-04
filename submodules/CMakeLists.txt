@@ -20,8 +20,11 @@ message("Adding Submodule ZLIB")
 set(ZLIB_BUILD_SHARED OFF CACHE INTERNAL "")
 set(ZLIB_BUILD_STATIC ON CACHE INTERNAL "")
 
+# Need this because for some reason assimps exports zlib as well
+set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
 set(ZLIB_TARGET zlibstatic)
 add_subdirectory(zlib)
+set(SKIP_INSTALL_ALL OFF CACHE INTERNAL "")
 
 # libPNG uses include_directory(ZLIB_INCLUDE_DIR) therefore we have to set these variables
 set(ZLIB_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib CACHE PATH "zlib dir" FORCE)
@@ -71,7 +74,6 @@ set(PNG_STATIC ON CACHE INTERNAL "")
 set(PNG_SHARED OFF CACHE INTERNAL "")
 set(PNG_EXECUTABLES OFF CACHE INTERNAL "")
 set(PNG_TESTS OFF CACHE INTERNAL "")
-#set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
 
 include_directories(${ZLIB_INCLUDE_DIRS})
 
@@ -108,6 +110,8 @@ set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE INTERNAL "")
 
 add_subdirectory(assimp)
 set_target_properties(assimp PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+
+
 SET(SAIGA_USE_ASSIMP 1 PARENT_SCOPE)
 message("=================================")
 
