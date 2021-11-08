@@ -28,8 +28,9 @@ at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
     constexpr int c  = channels(ImageTypeTemplate<T>::type);
 
 
-    auto type         = at::typeMetaToScalarType(caffe2::TypeMeta::Make<ScalarType>());
-    at::Tensor tensor = torch::from_blob(img.data, {img.h, img.w, c}, type);
+    auto type = at::typeMetaToScalarType(caffe2::TypeMeta::Make<ScalarType>());
+    at::Tensor tensor =
+        torch::from_blob(img.data, {img.h, img.w, c}, {(long)(img.pitchBytes / sizeof(ScalarType)), c, 1}, type);
 
     // In pytorch image tensors are usually represented as channel first.
     tensor = tensor.permute({2, 0, 1}).clone();
@@ -86,13 +87,13 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
         tensor = tensor.toType(at::kByte);
     }
 
-    SAIGA_ASSERT(tensor.dtype() == torch::kByte);
+    // SAIGA_ASSERT(tensor.dtype() == torch::kByte);
 
 
     int h = tensor.size(0);
     int w = tensor.size(1);
 
-    ImageView<T> out_view(h, w, tensor.stride(0), tensor.data_ptr<unsigned char>());
+    ImageView<T> out_view(h, w, tensor.stride(0) * sizeof(ScalarType), tensor.data_ptr<ScalarType>());
 
     TemplatedImage<T> img(h, w);
     out_view.copyTo(img.getImageView());
@@ -137,6 +138,7 @@ inline bool SaveTensor(at::Tensor t, const std::string& file)
 //      [c, new_h, new_w]
 inline torch::Tensor ImageBatchToImageGrid(torch::Tensor image_batch)
 {
+    SAIGA_ASSERT(image_batch.dim() == 4);
     int N = image_batch.size(0);
     int c = image_batch.size(1);
     int h = image_batch.size(2);
@@ -161,6 +163,28 @@ inline torch::Tensor ImageBatchToImageGrid(torch::Tensor image_batch)
     image_batch = image_batch.permute({2, 0, 3, 1, 4});
     // [c, gh * h, gw * w]
     image_batch = image_batch.reshape({c, grid_h * h, grid_w * w});
+    return image_batch;
+}
+
+
+// Converts a list of images into a row where all images are placed next to each other.
+//
+// Input:
+//      image_batch [N, c, h, w]
+// Output:
+//      [1, c, h, N * w]
+inline torch::Tensor ImageBatchToImageRow(torch::Tensor image_batch)
+{
+    SAIGA_ASSERT(image_batch.dim() == 4);
+    int N = image_batch.size(0);
+    int c = image_batch.size(1);
+    int h = image_batch.size(2);
+    int w = image_batch.size(3);
+
+    // [c,  h, N, w]
+    image_batch = image_batch.permute({1, 2, 0, 3});
+    // [1, c, h, N*w]
+    image_batch = image_batch.reshape({1, c, h, N * w});
     return image_batch;
 }
 

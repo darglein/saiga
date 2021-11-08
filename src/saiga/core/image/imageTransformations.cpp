@@ -249,14 +249,14 @@ TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const ucvec3> img1, I
 
 
 TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const unsigned char> img1,
-                                                                      ImageView<const unsigned char> img2)
+                                                 ImageView<const unsigned char> img2)
 {
     TemplatedImage<unsigned char> result(img1.dimensions());
     for (int i : img1.rowRange())
     {
         for (int j : img1.colRange())
         {
-            int diff     = std::abs(int(img1(i, j)) - int(img2(i,j)));
+            int diff     = std::abs(int(img1(i, j)) - int(img2(i, j)));
             result(i, j) = diff;
         }
     }
@@ -300,6 +300,20 @@ TemplatedImage<ucvec3> ErrorImage(ImageView<unsigned char> img1, ImageView<unsig
     return error_img;
 }
 
+TemplatedImage<ucvec3> ColorizeTurbo(ImageView<float> img)
+{
+    TemplatedImage<ucvec3> error_img(img.dimensions());
+    for (int i : error_img.rowRange())
+    {
+        for (int j : error_img.colRange())
+        {
+            float error     = img(i, j);
+            vec3 c          = saturate(colorizeTurbo(error));
+            error_img(i, j) = (c * 255.f).cast<unsigned char>();
+        }
+    }
+    return error_img;
+}
 
 long L1Difference(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2)
 {
@@ -321,7 +335,7 @@ long L1Difference(ImageView<const unsigned char> img1, ImageView<const unsigned 
     {
         for (int j : img1.colRange())
         {
-            long diff = std::abs(img1(i, j)- img2(i, j));
+            long diff = std::abs(img1(i, j) - img2(i, j));
             result += diff;
         }
     }

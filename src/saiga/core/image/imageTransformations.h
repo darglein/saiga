@@ -56,6 +56,7 @@ SAIGA_CORE_API TemplatedImage<unsigned char> AbsolutePixelError(ImageView<const 
 // Per pixel error colorized using the turbo color bar.
 SAIGA_CORE_API TemplatedImage<ucvec3> ErrorImage(ImageView<ucvec3> img1, ImageView<ucvec3> img2);
 SAIGA_CORE_API TemplatedImage<ucvec3> ErrorImage(ImageView<unsigned char> img1, ImageView<unsigned char> img2);
+SAIGA_CORE_API TemplatedImage<ucvec3> ColorizeTurbo(ImageView<float> img);
 
 // Absolute image difference summed up over all pixels (will get very large)
 SAIGA_CORE_API long L1Difference(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2);
