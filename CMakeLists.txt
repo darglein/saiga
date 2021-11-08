@@ -3,17 +3,19 @@
 set(LIB_NAME saiga)
 set(LIB_EXPORT saiga-export)
 
-project (${LIB_NAME} CXX)
+set (SAIGA_VERSION_MAJOR 1)
+set (SAIGA_VERSION_MINOR 3)
+set (SAIGA_VERSION_PATCH 2)
+set(SAIGA_VERSION ${SAIGA_VERSION_MAJOR}.${SAIGA_VERSION_MINOR}.${SAIGA_VERSION_PATCH})
+
+project(Saiga VERSION ${SAIGA_VERSION} LANGUAGES C CXX)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 include(helper_macros)
 
 
 
-set (SAIGA_VERSION_MAJOR 1)
-set (SAIGA_VERSION_MINOR 3)
-set (SAIGA_VERSION_PATCH 2)
-set(SAIGA_VERSION ${SAIGA_VERSION_MAJOR}.${SAIGA_VERSION_MINOR}.${SAIGA_VERSION_PATCH})
+
 
 # Turn on the ability to create folders to organize projects (.vcproj)
 # It creates "CMakePredefinedTargets" folder by default and adds CMake

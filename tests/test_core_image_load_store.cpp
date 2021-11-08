@@ -44,7 +44,6 @@ void testSaveLoadLibPNG(const TemplatedImage<T>& img)
 
     TemplatedImage<T> img2;
     img2 = io.LoadFromFile(file).value();
-    // EXPECT_TRUE();
 
     EXPECT_EQ(img.dimensions(), img2.dimensions());
     EXPECT_EQ(img, img2);
@@ -60,15 +59,16 @@ void testSaveLoadFreeimage(const TemplatedImage<T>& img, const std::string& type
 #ifdef SAIGA_USE_FREEIMAGE
     std::string file = "loadstoretest_freeimage." + type;
     std::filesystem::remove(file);
-    EXPECT_TRUE(FIP::save(file, img));
+
+
+    ImageIOLibFreeimage io;
+    EXPECT_TRUE(io.Save2File(file, img));
 
     TemplatedImage<T> img2;
-    img2.makeZero();
-
-    EXPECT_TRUE(FIP::load(file, img2, 0));
+    img2 = io.LoadFromFile(file).value();
 
     EXPECT_EQ(img.dimensions(), img2.dimensions());
-    EXPECT_EQ(img.getConstImageView(), img2.getConstImageView());
+    EXPECT_EQ(img, img2);
 #endif
 }
 
@@ -242,25 +242,6 @@ TEST(ImageLoadStoreBenchmark, PNG_UC4)
 
         std::cout << "Saiga (raw zlib compressed) Median Store Time: " << store_measure.median << std::endl;
         std::cout << "Saiga (raw zlib compressed) Median Load Time: " << load_measure.median << std::endl;
-    }
-#endif
-
-
-#ifdef SAIGA_USE_FREEIMAGE
-    {
-        std::string file   = "loadstoretest_freeimage.png";
-        auto store_measure = measureObject(5, [&]() {
-            std::filesystem::remove(file);
-            EXPECT_TRUE(FIP::save(file, img));
-        });
-
-        auto load_measure = measureObject(5, [&]() {
-            TemplatedImage<T> img2;
-            EXPECT_TRUE(FIP::load(file, img2, 0));
-        });
-
-        std::cout << "Freeimage Median Store Time: " << store_measure.median << std::endl;
-        std::cout << "Freeimage Median Load Time: " << load_measure.median << std::endl;
     }
 #endif
 }

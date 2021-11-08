@@ -148,8 +148,19 @@ bool Image::load(const std::string& _path)
 
     // use libfreeimage if available
 #ifdef SAIGA_USE_FREEIMAGE
-    erg = FIP::load(path, *this, 0);
-    return erg;
+    {
+        ImageIOLibFreeimage io;
+        auto result = io.LoadFromFile(path);
+        if (result.has_value())
+        {
+            *this = result.value();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 #endif
 
     // as a last resort use stb_image.h from the internals directory
@@ -168,8 +179,9 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
 #endif
     }
 #ifdef SAIGA_USE_FREEIMAGE
-    erg = FIP::loadFromMemory(data, *this);
-    return erg;
+    SAIGA_EXIT_ERROR("not implemented");
+    // erg = FIP::loadFromMemory(data, *this);
+    // return erg;
 #endif
 
 
@@ -191,7 +203,8 @@ std::vector<unsigned char> Image::saveToMemory(std::string file_extension) const
 #endif
     }
 #ifdef SAIGA_USE_FREEIMAGE
-    return Saiga::FIP::saveToMemory(*this, file_extension);
+    SAIGA_EXIT_ERROR("not implemented");
+    // return Saiga::FIP::saveToMemory(*this, file_extension);
 #endif
 
     return result;
@@ -229,7 +242,11 @@ bool Image::save(const std::string& path) const
     }
 
 #ifdef SAIGA_USE_FREEIMAGE
-    return FIP::save(path, *this);
+    {
+        ImageIOLibFreeimage io;
+        return io.Save2File(path, *this);
+    }
+    // return FIP::save(path, *this);
 #endif
 
     // as a last resort use stb_image.h from the internals directory

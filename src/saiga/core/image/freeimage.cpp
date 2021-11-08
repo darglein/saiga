@@ -11,119 +11,17 @@
 #ifdef SAIGA_USE_FREEIMAGE
 #    include "internal/noGraphicsAPI.h"
 
-#    include <FreeImagePlus.h>
+// #    include <FreeImagePlus.h>
+#    include <FreeImage.h>
 #    include <cstring>
 
 namespace Saiga
 {
-namespace FIP
+static FREE_IMAGE_TYPE FIType(ImageType type)
 {
-bool load(const std::string& path, Image& img, ImageMetadata* metaData)
-{
-    fipImage fimg;
-    if (!loadFIP(path, fimg))
-    {
-        return false;
-    }
-
-    if (metaData)
-    {
-        getMetaData(fimg, *metaData);
-        //        printAllMetaData(fimg);
-    }
-
-    convert(fimg, img);
-
-    return true;
-}
-
-bool loadFromMemory(ArrayView<const char> data, Image& img)
-{
-    fipImage fimg;
-
-    fipMemoryIO fipmem((BYTE*)data.data(), data.size());
-    if (!fimg.loadFromMemory(fipmem)) return false;
-    convert(fimg, img);
-    return true;
-}
-
-
-std::vector<unsigned char> saveToMemory(const Image& img, std::string file_extension)
-{
-    fipImage fimg;
-    convert(img, fimg);
-
-    FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(file_extension.c_str());
-
-    fipMemoryIO io;
-    fimg.saveToMemory(format, io);
-
-    unsigned char* data;
-    unsigned int size;
-    io.acquire(&data, &size);
-
-    std::vector<unsigned char> result(size);
-    memcpy(result.data(), data, size);
-    return result;
-}
-
-
-bool save(const std::string& path, const Image& img)
-{
-    fipImage fimg;
-    convert(img, fimg);
-
-    return saveFIP(path, fimg);
-}
-
-bool loadFIP(const std::string& path, fipImage& img)
-{
-    auto ret = img.load(path.c_str(), JPEG_EXIFROTATE | JPEG_ACCURATE);
-    return ret;
-}
-
-bool saveFIP(const std::string& path, fipImage& img)
-{
-    SAIGA_ASSERT(img.isValid());
-    // fipImage is not const to ensure compatibility with version 3.18.0 of freeimage
-    FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(path.c_str());
-    SAIGA_ASSERT(format != FIF_UNKNOWN);
-
-    bool ret = false;
-
-    ret = img.save(path.c_str());
-
-
-
-    return ret;
-}
-
-
-void convert(const Image& _src, fipImage& dest)
-{
-    auto src = _src;
-
-#    if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
-    if (src.type == UC3)
-    {
-        ImageView<ucvec3> img = src.getImageView<ucvec3>();
-        img.swapChannels(0, 2);
-    }
-    if (src.type == UC4)
-    {
-        ImageView<ucvec4> img = src.getImageView<ucvec4>();
-        img.swapChannels(0, 2);
-    }
-#    endif
-
-
-    //    int bpp = elementSize(src.type) * 8;
-    int bpp = bitsPerPixel(src.type);
-
-
     FREE_IMAGE_TYPE t = FIT_UNKNOWN;
 
-    switch (_src.type)
+    switch (type)
     {
         case UC1:
         case UC2:
@@ -163,30 +61,13 @@ void convert(const Image& _src, fipImage& dest)
     }
 
     SAIGA_ASSERT(t != FIT_UNKNOWN);
-
-    auto res = dest.setSize(t, src.width, src.height, bpp);
-
-    SAIGA_ASSERT(res);
-
-
-    // The FreeImage coordinate system is upside down relative to usual graphics conventions.
-    // Thus, the scanlines are stored upside down, with the first scan in memory being the bottommost scan in the image.
-    for (int i = 0; i < src.rows; ++i)
-    {
-        memcpy(dest.getScanLine(src.rows - i - 1), src.rowPtr(i), std::min<int>(dest.getScanWidth(), src.pitchBytes));
-    }
+    return t;
 }
 
-
-void convert(const fipImage& src, Image& dest)
+static int Channels(FREE_IMAGE_COLOR_TYPE type)
 {
-    SAIGA_ASSERT(src.isValid());
-    dest.width  = src.getWidth();
-    dest.height = src.getHeight();
-
-
     int channels = -1;
-    switch (src.getColorType())
+    switch (type)
     {
         case FIC_MINISBLACK:
             channels = 1;
@@ -201,19 +82,105 @@ void convert(const fipImage& src, Image& dest)
             break;
     }
     SAIGA_ASSERT(channels != -1);
+    return channels;
+}
+
+#    if 0
+void convert(const fipImage& src, Image& dest)
+{
+    SAIGA_ASSERT(src.isValid());
+    dest.width  = src.getWidth();
+    dest.height = src.getHeight();
 
 
 
-    if (src.getBitsPerPixel() == 32 && channels == 3)
+    //    std::cout << "Channels: " << format.getChannels() << " BitsPerPixel: " << src.getBitsPerPixel() << " Bitdepth:
+    //    " << format.getBitDepth() << std::endl;
+
+    //    std::cout << format << std::endl;
+
+
+    dest.create();
+
+    // The FreeImage coordinate system is upside down relative to usual graphics conventions.
+    // Thus, the scanlines are stored upside down, with the first scan in memory being the bottommost scan in the image.
+    for (int i = 0; i < dest.rows; ++i)
+    {
+        memcpy(dest.rowPtr(dest.rows - i - 1), src.getScanLine(i), std::min<int>(dest.pitchBytes, src.getScanWidth()));
+    }
+
+
+
+#    if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
+    if (dest.type == UC3)
+    {
+        ImageView<ucvec3> img = dest.getImageView<ucvec3>();
+        img.swapChannels(0, 2);
+    }
+    if (dest.type == UC4)
+    {
+        ImageView<ucvec4> img = dest.getImageView<ucvec4>();
+        img.swapChannels(0, 2);
+    }
+#    endif
+}
+
+
+bool loadFromMemory(ArrayView<const char> data, Image& img)
+{
+    fipImage fimg;
+
+    fipMemoryIO fipmem((BYTE*)data.data(), data.size());
+    if (!fimg.loadFromMemory(fipmem)) return false;
+    convert(fimg, img);
+    return true;
+}
+
+std::vector<unsigned char> saveToMemory(const Image& img, std::string file_extension)
+{
+    fipImage fimg;
+    convert(img, fimg);
+
+    FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(file_extension.c_str());
+
+    fipMemoryIO io;
+    fimg.saveToMemory(format, io);
+
+    unsigned char* data;
+    unsigned int size;
+    io.acquire(&data, &size);
+
+    std::vector<unsigned char> result(size);
+    memcpy(result.data(), data, size);
+    return result;
+}
+
+
+#    endif
+std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::string& path, ImageLoadFlags flags)
+{
+    FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(path.c_str());
+    FIBITMAP* bm             = FreeImage_Load(format, path.c_str(), JPEG_EXIFROTATE | JPEG_ACCURATE);
+    if (bm == nullptr)
+    {
+        return {};
+    }
+
+
+    FREE_IMAGE_COLOR_TYPE ftype = FreeImage_GetColorType(bm);
+    FREE_IMAGE_TYPE itype       = FreeImage_GetImageType(bm);
+    int channels                = Channels(ftype);
+    int bpp                     = FreeImage_GetBPP(bm);
+    if (bpp == 32 && channels == 3)
     {
         channels = 4;
     }
-    //    src.getImageType()
-
-    int bitDepth = src.getBitsPerPixel() / channels;
+    int bitDepth = bpp / channels;
+    int h        = FreeImage_GetHeight(bm);
+    int w        = FreeImage_GetWidth(bm);
 
     ImageElementType elementType = ImageElementType::IET_ELEMENT_UNKNOWN;
-    switch (src.getImageType())
+    switch (itype)
     {
         case FIT_BITMAP:
             switch (bitDepth)
@@ -252,147 +219,82 @@ void convert(const fipImage& src, Image& dest)
 
     if (elementType == ImageElementType::IET_ELEMENT_UNKNOWN)
     {
-        throw std::runtime_error("Unknown FIT type " + std::to_string(src.getImageType()));
+        throw std::runtime_error("Unknown FIT type " + std::to_string(itype));
     }
 
+    auto saiga_type = getType(channels, elementType);
 
+    Image img(h, w, saiga_type);
 
-    //    std::cout << "Channels: " << format.getChannels() << " BitsPerPixel: " << src.getBitsPerPixel() << " Bitdepth:
-    //    " << format.getBitDepth() << std::endl;
-
-    //    std::cout << format << std::endl;
-
-    dest.type = getType(channels, elementType);
-    dest.create();
-
-    // The FreeImage coordinate system is upside down relative to usual graphics conventions.
-    // Thus, the scanlines are stored upside down, with the first scan in memory being the bottommost scan in the image.
-    for (int i = 0; i < dest.rows; ++i)
+    for (int i = 0; i < img.rows; ++i)
     {
-        memcpy(dest.rowPtr(dest.rows - i - 1), src.getScanLine(i), std::min<int>(dest.pitchBytes, src.getScanWidth()));
+        auto str_line    = FreeImage_GetScanLine(bm, i);
+        size_t copy_size = w * (bpp / 8);
+        memcpy(img.rowPtr(img.rows - i - 1), str_line, copy_size);
     }
 
 
 
 #    if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
-    if (dest.type == UC3)
+    if (img.type == UC3)
     {
-        ImageView<ucvec3> img = dest.getImageView<ucvec3>();
+        ImageView<ucvec3> v = img.getImageView<ucvec3>();
+        v.swapChannels(0, 2);
+    }
+    if (img.type == UC4)
+    {
+        ImageView<ucvec4> v = img.getImageView<ucvec4>();
+        v.swapChannels(0, 2);
+    }
+#    endif
+
+    return img;
+}
+
+
+bool ImageIOLibFreeimage::Save2File(const std::string& path, const Image& img, ImageSaveFlags flags)
+{
+    Image src = img;
+#    if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
+    if (src.type == UC3)
+    {
+        ImageView<ucvec3> img = src.getImageView<ucvec3>();
         img.swapChannels(0, 2);
     }
-    if (dest.type == UC4)
+    if (src.type == UC4)
     {
-        ImageView<ucvec4> img = dest.getImageView<ucvec4>();
+        ImageView<ucvec4> img = src.getImageView<ucvec4>();
         img.swapChannels(0, 2);
     }
 #    endif
-}
 
+    // fipImage is not const to ensure compatibility with version 3.18.0 of freeimage
+    FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(path.c_str());
+    int bpp                  = bitsPerPixel(src.type);
+    FREE_IMAGE_TYPE type     = FIType(src.type);
+    SAIGA_ASSERT(format != FIF_UNKNOWN);
 
-static double parseFraction(const void* data)
-{
-    const int* idata = reinterpret_cast<const int*>(data);
+    FIBITMAP* bm = FreeImage_AllocateT(type, img.w, img.h, bpp);
+    SAIGA_ASSERT(bm);
 
-    return double(idata[0]) / double(idata[1]);
-}
-
-void getMetaData(fipImage& img, ImageMetadata& metaData)
-{
-    metaData.width  = img.getWidth();
-    metaData.height = img.getHeight();
-
-    fipTag tag;
-    fipMetadataFind finder;
-    if (finder.findFirstMetadata(FIMD_EXIF_MAIN, img, tag))
+    // The FreeImage coordinate system is upside down relative to usual graphics conventions.
+    // Thus, the scanlines are stored upside down, with the first scan in memory being the bottommost scan in the image.
+    for (int i = 0; i < src.rows; ++i)
     {
-        do
-        {
-            std::string t = tag.getKey();
+        auto line = FreeImage_GetScanLine(bm, src.rows - i - 1);
+        SAIGA_ASSERT(line);
 
-            if (t == "DateTime")
-            {
-                metaData.DateTime = tag.toString(FIMD_EXIF_MAIN);
-            }
-            else if (t == "Make")
-            {
-                metaData.Make = (char*)tag.getValue();
-            }
-            else if (t == "Model")
-            {
-                metaData.Model = (char*)tag.getValue();
-            }
-            else
-            {
-                //                std::cout << "Tag: " << tag.getKey() << " Value: " << tag.toString(FIMD_EXIF_MAIN) <<
-                //                std::endl;
-            }
-
-        } while (finder.findNextMetadata(tag));
+        size_t copy_size = src.w * (bpp / 8);
+        memcpy(line, src.rowPtr(i), copy_size);
     }
 
-    // the class can be called again with another metadata model
-    if (finder.findFirstMetadata(FIMD_EXIF_EXIF, img, tag))
-    {
-        do
-        {
-            std::string t = tag.getKey();
-            if (t == "FocalLength")
-            {
-                metaData.FocalLengthMM = parseFraction(tag.getValue());
-            }
-            else if (t == "FocalLengthIn35mmFilm")
-            {
-                metaData.FocalLengthMM35 = reinterpret_cast<const short*>(tag.getValue())[0];
-            }
-            else if (t == "FocalPlaneResolutionUnit")
-            {
-                metaData.FocalPlaneResolutionUnit =
-                    (ImageMetadata::ResolutionUnit) reinterpret_cast<const short*>(tag.getValue())[0];
-            }
-            else if (t == "FocalPlaneXResolution")
-            {
-                metaData.FocalPlaneXResolution = parseFraction(tag.getValue());
-            }
-            else if (t == "FocalPlaneYResolution")
-                metaData.FocalPlaneYResolution = parseFraction(tag.getValue());
-            else if (t == "ExposureTime")
-                metaData.ExposureTime = parseFraction(tag.getValue());
-            else if (t == "ISOSpeedRatings")
-                metaData.ISOSpeedRatings = reinterpret_cast<const short*>(tag.getValue())[0];
-            else
-            {
-                //                std::cout << "Tag: " << tag.getKey() << " Value: " << tag.toString(FIMD_EXIF_EXIF) <<
-                //                std::endl;
-            }
-        } while (finder.findNextMetadata(tag));
-    }
+
+    bool ret = FreeImage_Save(format, bm, path.c_str());
+    FreeImage_Unload(bm);
+    return ret;
 }
 
 
-void printAllMetaData(fipImage& img)
-{
-    for (int i = 0; i <= 11; ++i)
-    {
-        FREE_IMAGE_MDMODEL model = (FREE_IMAGE_MDMODEL)i;
-        std::cout << "Model: " << model << std::endl;
-        fipTag tag;
-        fipMetadataFind finder;
-        if (finder.findFirstMetadata(model, img, tag))
-        {
-            do
-            {
-                std::string t = tag.getKey();
-
-                std::cout << tag.getKey() << " : " << tag.toString(model) << " Type: " << tag.getType() << std::endl;
-
-
-            } while (finder.findNextMetadata(tag));
-        }
-    }
-}
-
-
-}  // namespace FIP
 }  // namespace Saiga
 
 

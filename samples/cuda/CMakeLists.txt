@@ -4,6 +4,8 @@ macro(cuda_sample FILE_NAME)
 
   set(TARGET_NAME ${NAME})
 
+  # cuda architecture
+  cmake_policy(SET CMP0104 OLD)
   add_executable(${TARGET_NAME} ${FILE_NAME})
   message(STATUS "Sample enabled:      ${NAME}")
 
@@ -11,7 +13,8 @@ macro(cuda_sample FILE_NAME)
   target_link_libraries(${TARGET_NAME} PUBLIC saiga_core saiga_cuda)
   target_link_libraries(${TARGET_NAME} PUBLIC ${ARGN})
 
-  set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
+
+  #set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
   target_compile_options(${TARGET_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
 
   set_target_properties(${TARGET_NAME} PROPERTIES FOLDER samples/${PREFIX})
