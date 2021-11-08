@@ -23,36 +23,6 @@ PackageHelperTarget(png_static PNG_FOUND)
 PackageHelperTarget(assimp ASSIMP_FOUND)
 PackageHelperTarget(glog GLOG_FOUND)
 
-#
-#  # Without submodules we use find_package to find the required dependencies
-#  find_package(Eigen3 3.3.90 QUIET REQUIRED)
-#  PackageHelperTarget(Eigen3::Eigen EIGEN3_FOUND)
-#
-##  find_package(glfw3 CONFIG QUIET REQUIRED)
-##  PackageHelperTarget(glfw GLFW_FOUND)
-##  SET(SAIGA_USE_GLFW 1)
-#
-#  find_package(ZLIB QUIET)
-#  PackageHelper(ZLIB ${ZLIB_FOUND} "${ZLIB_INCLUDE_DIRS}" "${ZLIB_LIBRARIES}")
-#  if(ZLIB_FOUND)
-#    SET(SAIGA_USE_ZLIB 1)
-#  endif()
-#
-#
-#  find_package(PNG QUIET)
-#  PackageHelper(PNG ${PNG_FOUND} "${PNG_INCLUDE_DIRS}" "${PNG_LIBRARIES}")
-#  if(PNG_FOUND)
-#    SET(SAIGA_USE_PNG 1)
-#  endif()
-#
-#  find_package(ASSIMP QUIET)
-#  PackageHelper(ASSIMP ${ASSIMP_FOUND} "${ASSIMP_INCLUDE_DIRS}" "${ASSIMP_LIBRARIES}")
-#  if(ASSIMP_FOUND)
-#    SET(SAIGA_USE_ASSIMP 1)
-#  endif()
-#endif()
-
-
 #openmp
 if (SAIGA_CXX_WCLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
@@ -87,14 +57,6 @@ endif (WIN32)
 ############# Optional Libraries ###############
 
 
-#GLFW
-#find_package(GLFW 3.2 QUIET)
-#PackageHelper(GLFW ${GLFW_FOUND} "${GLFW_INCLUDE_DIR}" "${GLFW_LIBRARIES}")
-
-
-#target_link_libraries(main PRIVATE glfw)
-
-
 #openal
 find_package(OpenAL QUIET)
 if (OPENAL_FOUND)
@@ -118,25 +80,11 @@ if (OPUS_FOUND)
 endif ()
 PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
-
-#libfreeimage
-#find_package(FreeImagePlus QUIET)
-#PackageHelper(FreeImagePlus ${FREEIMAGEPLUS_FOUND} "${FREEIMAGEPLUS_INCLUDE_PATH}" "${FREEIMAGEPLUS_LIBRARIES}")
 find_package(FreeImage QUIET)
-PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_PATH}" "${FREEIMAGE_LIBRARIES}")
-#if (FREEIMAGE_FOUND AND FREEIMAGEPLUS_FOUND)
+PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_DIRS}" "${FREEIMAGE_LIBRARIES}")
 if (FREEIMAGE_FOUND)
     SET(SAIGA_USE_FREEIMAGE 1)
 endif ()
-
-
-#c++17 filesystem
-#find_package(Filesystem REQUIRED QUIET)
-#SET(SAIGA_USE_FILESYSTEM 1)
-#PackageHelperTarget(std::filesystem FILESYSTEM_FOUND)
-#if(FILESYSTEM_FOUND)
-#endif()
-
 
 #openmesh
 find_package(OpenMesh QUIET)
@@ -144,7 +92,6 @@ if (OPENMESH_FOUND)
     SET(SAIGA_USE_OPENMESH 1)
 endif ()
 PackageHelper(OpenMesh ${OPENMESH_FOUND} "${OPENMESH_INCLUDE_DIRS}" "${OPENMESH_LIBRARIES}")
-
 
 set(CORE_INCLUDES ${PACKAGE_INCLUDES})
 set(CORE_LIBS ${LIBS})
