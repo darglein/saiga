@@ -5,7 +5,7 @@
  */
 
 #pragma once
-
+#include <optional>
 #include "managedImage.h"
 namespace Saiga
 {

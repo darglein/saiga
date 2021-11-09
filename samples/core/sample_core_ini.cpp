@@ -10,7 +10,7 @@
 using namespace Saiga;
 
 
-struct SAIGA_VISION_API SampleParams : public ParamsBase
+struct SampleParams : public ParamsBase
 {
     SAIGA_PARAM_STRUCT_FUNCTIONS(SampleParams);
     virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
