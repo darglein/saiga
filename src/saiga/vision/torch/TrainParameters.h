@@ -90,7 +90,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
 
     inline std::vector<int> ReadIndexFile(const std::string& file);
 
-    inline std::string ExperimentString() { return CurrentTimeString("%F_%T") + "_" + name; }
+    inline std::string ExperimentString() { return CurrentTimeString("%F_%H-%M-%S") + "_" + name; }
 };
 
 

@@ -56,7 +56,7 @@ void SampleWindowDeferred::interpolate(float dt, float interpolation)
     render_system.Clear();
     if (showGrid)
     {
-        render_system.Add(groundPlane.asset.get(), groundPlane.getModelMatrix(), RENDER_DEFAULT | RENDER_SHADOW);
+
     }
 }
 
