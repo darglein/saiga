@@ -7,9 +7,9 @@
 #pragma once
 
 #include "saiga/core/util/BinaryFile.h"
+#include "saiga/core/util/FileSystem.h"
 #include "saiga/vision/VisionTypes.h"
 
-#include "saiga/core/util/FileSystem.h"
 #include <map>
 
 namespace Saiga
@@ -109,9 +109,12 @@ void ColmapReader::Load(const std::string& dir)
     std::string cam_file = dir + "/cameras.bin";
     std::string poi_file = dir + "/points3D.bin";
 
-    SAIGA_ASSERT(std::filesystem::exists(img_file));
-    SAIGA_ASSERT(std::filesystem::exists(cam_file));
-    SAIGA_ASSERT(std::filesystem::exists(poi_file));
+
+    if (!std::filesystem::exists(img_file) || !std::filesystem::exists(cam_file) || !std::filesystem::exists(poi_file))
+    {
+        SAIGA_EXIT_ERROR("\nCould not read sparse COLMAP reconstruction. \nMake sure that '" + img_file + "', '" +
+                         cam_file + "' and '" + poi_file + "' exist. \nMaybe you forgot to add '/0/' to the path?");
+    }
 
 
     col_point_to_id.clear();
@@ -524,4 +527,3 @@ bool ColmapReader::Check()
 
 
 }  // namespace Saiga
-
