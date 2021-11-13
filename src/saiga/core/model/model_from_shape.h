@@ -35,13 +35,12 @@ SAIGA_CORE_API UnifiedMesh BoxMesh(const AABB& box);
 SAIGA_CORE_API UnifiedMesh SkyboxMesh(const AABB& box);
 
 
-SAIGA_CORE_API UnifiedMesh CheckerBoardPlane(const ivec2& size, float quadSize, const vec4& color1,
-                                              const vec4& color2);
+SAIGA_CORE_API UnifiedMesh CheckerBoardPlane(const ivec2& size, float quadSize, const vec4& color1, const vec4& color2);
 
 
 // ============= Line Meshes =============
 
-SAIGA_CORE_API UnifiedMesh GridBoxLineMesh(const AABB& box, ivec3 steps);
+SAIGA_CORE_API UnifiedMesh GridBoxLineMesh(const AABB& box, ivec3 steps = ivec3(1, 1, 1));
 
 
 /**
@@ -77,7 +76,7 @@ SAIGA_CORE_API UnifiedMesh FrustumLineMesh(const Frustum& frustum);
 // Create a simple 2.5D heighmap from an image.
 // One vertex is created for every pixel and connected by triangles.
 SAIGA_CORE_API UnifiedMesh SimpleHeightmap(const ImageView<uint16_t> image, float height_scale, float horizontal_scale,
-                                            bool translate_to_origin);
+                                           bool translate_to_origin);
 
 
 
