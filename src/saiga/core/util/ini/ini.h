@@ -36,25 +36,25 @@
  *
  */
 //
-//template <typename T>
-//inline T ReadWriteIni(Saiga::SimpleIni& ini, T variable, std::string section, std::string variable_name,
+// template <typename T>
+// inline T ReadWriteIni(Saiga::SimpleIni& ini, T variable, std::string section, std::string variable_name,
 //                      std::string comment = "");
 //
-//template <>
+// template <>
 inline std::string ReadWriteIni(Saiga::SimpleIni& ini, std::string variable, std::string section,
                                 std::string variable_name, std::string comment)
 {
     return ini.GetAddString(section.c_str(), variable_name.c_str(), variable.c_str(), comment.c_str());
 }
 
-//template <>
+// template <>
 inline double ReadWriteIni(Saiga::SimpleIni& ini, double variable, std::string section, std::string variable_name,
                            std::string comment)
 {
     return ini.GetAddDouble(section.c_str(), variable_name.c_str(), variable, comment.c_str());
 }
 
-//template <>
+// template <>
 inline long ReadWriteIni(Saiga::SimpleIni& ini, long variable, std::string section, std::string variable_name,
                          std::string comment)
 {
@@ -67,7 +67,7 @@ inline long ReadWriteIni(Saiga::SimpleIni& ini, int variable, std::string sectio
     return ini.GetAddLong(section.c_str(), variable_name.c_str(), variable, comment.c_str());
 }
 
-//template <>
+// template <>
 inline bool ReadWriteIni(Saiga::SimpleIni& ini, bool variable, std::string section, std::string variable_name,
                          std::string comment)
 {
@@ -86,6 +86,46 @@ inline std::vector<std::string> ReadWriteIniList(Saiga::SimpleIni& ini, std::vec
     return Saiga::split(
         ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(variable, sep).c_str(), comment.c_str()),
         sep);
+}
+
+
+template <typename _Scalar, int _Rows, int _Cols>
+std::string toIniString(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M, char sep)
+{
+    std::string str;
+    // Add entries to string, separated with ' ' in row major order.
+    for (int i = 0; i < M.rows(); ++i)
+        for (int j = 0; j < M.cols(); ++j) str += Saiga::to_string(M(i, j)) + sep;
+    if (!str.empty())
+    {
+        // remove last sep
+        str.pop_back();
+    }
+
+    return str;
+}
+
+
+template <typename _Scalar, int _Rows, int _Cols>
+void fromIniString(const std::string& str, Eigen::Matrix<_Scalar, _Rows, _Cols>& M, char sep)
+{
+    auto arr = Saiga::split(str, sep);
+    SAIGA_ASSERT((int)arr.size() == M.rows() * M.cols());
+
+    for (int i = 0; i < M.rows(); ++i)
+        for (int j = 0; j < M.cols(); ++j)
+            M(i, j) = Saiga::FromStringConverter<_Scalar>::convert(arr[i * M.cols() + j]);
+}
+
+template <typename T, int rows, int cols>
+inline Eigen::Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Eigen::Matrix<T, rows, cols> variable,
+                                                     std::string section, std::string variable_name,
+                                                     std::string comment, char sep)
+{
+    std::string str = toIniString(variable, sep);
+    str             = ini.GetAddString(section.c_str(), variable_name.c_str(), str.c_str(), comment.c_str());
+    fromIniString(str, variable, sep);
+    return variable;
 }
 
 /**

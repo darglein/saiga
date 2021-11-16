@@ -104,7 +104,7 @@ void SplinePath::PrintUserId()
     }
 
     std::cout << "SplinePath User ids:\n";
-    std::cout << to_string(user_ids.begin(), user_ids.end()) << std::endl;
+    std::cout << to_string_iterator(user_ids.begin(), user_ids.end()) << std::endl;
 }
 
 // void Interpolation::updateCurve()

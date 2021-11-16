@@ -58,7 +58,7 @@ struct SAIGA_CORE_API VertexC : public Vertex
 struct SAIGA_CORE_API VertexNT : public VertexN
 {
     vec2 texture = make_vec2(0);
-    vec2 padding;
+    vec2 padding = make_vec2(0);
 
     VertexNT() {}
     VertexNT(const vec3& position) : VertexN(position) {}

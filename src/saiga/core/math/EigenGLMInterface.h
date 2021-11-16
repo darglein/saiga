@@ -158,8 +158,6 @@ Matrix<typename Derived1::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived1>& d
     return R;
 }
 
-
-
 SAIGA_CORE_API extern mat4 scale(const vec3& t);
 SAIGA_CORE_API extern mat4 translate(const vec3& t);
 SAIGA_CORE_API extern mat4 rotate(float angle, const vec3& axis);

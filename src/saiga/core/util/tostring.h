@@ -208,7 +208,7 @@ SAIGA_TEMPLATE std::vector<T> string_to_array(const std::string& string, char se
 }
 
 template <typename Iterator>
-SAIGA_TEMPLATE std::string to_string(Iterator begin, Iterator end)
+SAIGA_TEMPLATE std::string to_string_iterator(Iterator begin, Iterator end)
 {
     std::string result = "{";
     while (begin != end)
