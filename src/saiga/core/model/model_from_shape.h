@@ -25,6 +25,9 @@ SAIGA_CORE_API UnifiedMesh IcoSphereMesh(const Sphere& sphere, int resolution);
 SAIGA_CORE_API UnifiedMesh CylinderMesh(float radius, float height, int sectors);
 SAIGA_CORE_API UnifiedMesh ConeMesh(const Cone& cone, int sectors);
 
+// Creates a triangle mesh from 3 colored cylinders
+SAIGA_CORE_API UnifiedMesh CoordinateSystemMesh(float scale = 1, bool add_sphere = false);
+
 
 SAIGA_CORE_API UnifiedMesh PlaneMesh(const Plane& plane);
 

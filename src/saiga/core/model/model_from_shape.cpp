@@ -589,7 +589,7 @@ UnifiedMesh FrustumLineMesh(const Frustum& frustum)
     return model;
 }
 UnifiedMesh SimpleHeightmap(const ImageView<uint16_t> image, float height_scale, float horizontal_scale,
-                             bool translate_to_origin)
+                            bool translate_to_origin)
 {
     UnifiedMesh model;
 
@@ -649,6 +649,29 @@ UnifiedMesh SimpleHeightmap(const ImageView<uint16_t> image, float height_scale,
 
 
     return model;
+}
+UnifiedMesh CoordinateSystemMesh(float scale, bool add_sphere)
+{
+    UnifiedMesh result;
+
+    auto base_cylinder = CylinderMesh(0.05, 1, 10).transform(translate(vec3(0, 0.5, 0)));
+
+    result = UnifiedMesh(base_cylinder).SetVertexColor(vec4(0, 1, 0, 1));
+    result = UnifiedMesh(result, UnifiedMesh(base_cylinder)
+                                     .SetVertexColor(vec4(0, 0, 1, 1))
+                                     .transform(Saiga::rotate(radians(90.f), vec3(1, 0, 0))));
+    result = UnifiedMesh(result, UnifiedMesh(base_cylinder)
+                                     .SetVertexColor(vec4(1, 0, 0, 1))
+                                     .transform(Saiga::rotate(radians(-90.f), vec3(0, 0, 1))));
+
+    if (add_sphere)
+    {
+        result = UnifiedMesh(result, IcoSphereMesh(Sphere(vec3(0, 0, 0), 0.1), 3).SetVertexColor(vec4(1, 1, 1, 1)));
+    }
+
+    result.transform(Saiga::scale(vec3(scale, scale, scale)));
+
+    return result;
 }
 
 

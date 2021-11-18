@@ -21,6 +21,7 @@ struct StaticDeviceTensor
 
     StaticDeviceTensor(torch::Tensor t)
     {
+        SAIGA_ASSERT(t.is_cuda());
         SAIGA_ASSERT(t.dim() == dim);
         data = t.template data_ptr<T>();
         for (int i = 0; i < dim; ++i)
