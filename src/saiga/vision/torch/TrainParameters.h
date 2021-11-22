@@ -32,6 +32,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
         SAIGA_PARAM(name);
         SAIGA_PARAM(debug);
         SAIGA_PARAM(output_file_type);
+        SAIGA_PARAM(checkpoint_directory);
 
 
         SAIGA_PARAM(split_method);
@@ -63,6 +64,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
     std::string output_file_type = ".jpg";
 
     std::string name = "default";
+    std::string checkpoint_directory     = "";
 
     // ======== Dataset splitting ========
     std::string split_method     = "";
