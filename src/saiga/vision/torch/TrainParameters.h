@@ -216,4 +216,26 @@ std::vector<int> TrainParams::ReadIndexFile(const std::string& file)
     return res;
 }
 
+
+inline std::vector<int> ReduceIndicesUniform(std::vector<int> all_indices, int target_size)
+{
+    if (target_size < 0)
+    {
+        return all_indices;
+    }
+
+    target_size = std::min<int>(target_size, all_indices.size());
+
+    double step = (double)all_indices.size() / target_size;
+
+    std::vector<int> result;
+    for (int i = 0; i < target_size; ++i)
+    {
+        int x = round(i * step);
+        result.push_back(all_indices[x]);
+    }
+    return result;
+}
+
+
 }  // namespace Saiga
