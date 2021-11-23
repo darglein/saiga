@@ -33,10 +33,14 @@ endif ()
 
 
 #freetype2
-find_package(Freetype QUIET)
-PackageHelper(Freetype "${FREETYPE_FOUND}" "${FREETYPE_INCLUDE_DIRS}" "${FREETYPE_LIBRARIES}")
-if (FREETYPE_FOUND)
-    SET(SAIGA_USE_FREETYPE 1)
+if (SAIGA_WITH_FREETYPE)
+    find_package(Freetype QUIET)
+    PackageHelper(Freetype "${FREETYPE_FOUND}" "${FREETYPE_INCLUDE_DIRS}" "${FREETYPE_LIBRARIES}")
+    if (FREETYPE_FOUND)
+        SET(SAIGA_USE_FREETYPE 1)
+    else ()
+        SET(SAIGA_USE_FREETYPE 0)
+    endif ()
 endif ()
 
 #bullet
@@ -55,11 +59,15 @@ endif ()
 PackageHelper(EGL ${EGL_FOUND} "${EGL_INCLUDE_DIRS}" "${EGL_LIBRARIES}")
 
 #FFMPEG
-find_package(FFMPEG QUIET)
-if (FFMPEG_FOUND)
-    SET(SAIGA_USE_FFMPEG 1)
+if (SAIGA_WITH_FFMPEG)
+    find_package(FFMPEG QUIET)
+    if (FFMPEG_FOUND)
+        SET(SAIGA_USE_FFMPEG 1)
+    else ()
+        SET(SAIGA_USE_FFMPEG 0)
+    endif ()
+    PackageHelper(FFMPEG ${FFMPEG_FOUND} "${FFMPEG_INCLUDE_DIR}" "${FFMPEG_LIBRARIES}")
 endif ()
-PackageHelper(FFMPEG ${FFMPEG_FOUND} "${FFMPEG_INCLUDE_DIR}" "${FFMPEG_LIBRARIES}")
 
 
 ## OpenVR / steamVR
