@@ -45,10 +45,11 @@ struct SAIGA_OPENGL_API ClustererParameters
     bool SAT = false;
 };
 
-struct ClusterItem
-{
-    int32_t lightIndex = 0;
-};
+//struct ClusterItem
+//{
+//    int32_t lightIndex = 0;
+//};
+using ClusterItem = int32_t;
 
 struct Cluster
 {
