@@ -62,6 +62,12 @@ inline void PrintTensorInfo(at::Tensor t)
         return;
     }
 
+    if(t.numel() == 0)
+    {
+        std::cout << "[empty tensor " <<  t.sizes() << "]" << std::endl;
+        return;
+    }
+
     auto type = t.dtype();
     if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
     {
