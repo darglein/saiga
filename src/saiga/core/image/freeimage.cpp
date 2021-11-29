@@ -219,6 +219,7 @@ std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::string& path, 
 
     if (elementType == ImageElementType::IET_ELEMENT_UNKNOWN)
     {
+        FreeImage_Unload(bm);
         throw std::runtime_error("Unknown FIT type " + std::to_string(itype));
     }
 
@@ -247,7 +248,7 @@ std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::string& path, 
         v.swapChannels(0, 2);
     }
 #    endif
-
+    FreeImage_Unload(bm);
     return img;
 }
 
