@@ -20,3 +20,25 @@ inline Saiga::vec2* at::Tensor::data_ptr<Saiga::vec2>() const
     CHECK_EQ(stride(dim() - 1), 1);
     return (Saiga::vec2*)data_ptr<float>();
 }
+template <>
+inline Saiga::Quat* at::Tensor::data_ptr<Saiga::Quat>() const
+{
+    CHECK_EQ(size(dim() - 1), 4);
+    CHECK_EQ(stride(dim() - 1), 1);
+    return (Saiga::Quat*)data_ptr<double>();
+}
+
+template <>
+inline Saiga::Vec3* at::Tensor::data_ptr<Saiga::Vec3>() const
+{
+    CHECK_EQ(size(dim() - 1), 3);
+    CHECK_EQ(stride(dim() - 1), 1);
+    return (Saiga::Vec3*)data_ptr<double>();
+}
+template <>
+inline Saiga::Vec2* at::Tensor::data_ptr<Saiga::Vec2>() const
+{
+    CHECK_EQ(size(dim() - 1), 2);
+    CHECK_EQ(stride(dim() - 1), 1);
+    return (Saiga::Vec2*)data_ptr<double>();
+}
