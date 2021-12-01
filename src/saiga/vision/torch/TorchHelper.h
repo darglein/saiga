@@ -50,22 +50,19 @@ inline torch::Tensor CenterEmplace(torch::Tensor src, torch::Tensor target)
     return ref_copy;
 }
 
-
-/**
- * Writes some information of the given tensor to std::cout.
- */
-inline void PrintTensorInfo(at::Tensor t)
+inline std::string TensorInfo(at::Tensor t)
 {
+    std::stringstream strm;
     if (!t.defined())
     {
-        std::cout << "[undefined tensor]" << std::endl;
-        return;
+        strm << "[undefined tensor]";
+        return strm.str();
     }
 
-    if(t.numel() == 0)
+    if (t.numel() == 0)
     {
-        std::cout << "[empty tensor " <<  t.sizes() << "]" << std::endl;
-        return;
+        strm << "[empty tensor " << t.sizes() << "]";
+        return strm.str();
     }
 
     auto type = t.dtype();
@@ -83,8 +80,17 @@ inline void PrintTensorInfo(at::Tensor t)
     {
         mean = t.mean().item().toDouble();
     }
-    std::cout << "Tensor " << t.sizes() << " " << type << " " << t.device() << " Min/Max " << mi << " " << ma
-              << " Mean " << mean << " Sum " << sum << " req-grad " << t.requires_grad() << std::endl;
+    strm << "Tensor " << t.sizes() << " " << type << " " << t.device() << " Min/Max " << mi << " " << ma << " Mean "
+         << mean << " Sum " << sum << " req-grad " << t.requires_grad();
+    return strm.str();
+}
+
+/**
+ * Writes some information of the given tensor to std::cout.
+ */
+inline void PrintTensorInfo(at::Tensor t)
+{
+    std::cout << TensorInfo(t) << std::endl;
 }
 
 
