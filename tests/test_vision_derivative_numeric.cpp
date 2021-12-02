@@ -91,49 +91,29 @@ TEST(NumericDerivative, Polynomial)
 
 
 
-Vec3 RotatePoint(const SE3& pose, const Vec3& point, Matrix<double, 3, 6>* jacobian_pose = nullptr,
-                 Matrix<double, 3, 3>* jacobian_point = nullptr)
-{
-    Vec3 residual = pose * point;
-
-    if (jacobian_pose)
-    {
-        // translation
-        jacobian_pose->block<3, 3>(0, 0).setIdentity();
-        jacobian_pose->block<3, 3>(0, 3) = -skew(residual);
-    }
-
-    if (jacobian_point)
-    {
-        auto R            = pose.so3().matrix();
-        (*jacobian_point) = R;
-    }
-    return residual;
-}
-
-
 TEST(NumericDerivative, RotatePoint)
 {
-    SE3 pose_c_w = Random::randomSE3();
+    Quat rot = Random::randomQuat<double>();
     Vec3 wp      = Vec3::Random();
 
-    Matrix<double, 3, 6> J_pose_1, J_pose_2;
+    Matrix<double, 3, 3> J_pose_1, J_pose_2;
     Matrix<double, 3, 3> J_point_1, J_point_2;
     Vec3 res1, res2;
 
-    res1 = RotatePoint(pose_c_w, wp, &J_pose_1, &J_point_1);
+    res1 = RotatePoint(rot, wp, &J_pose_1, &J_point_1);
 
     {
-        Vec6 eps = Vec6::Zero();
+        Vec3 eps = Vec3::Zero();
         res2     = EvaluateNumeric(
             [=](auto p) {
-                auto se3 = Sophus::se3_expd(p) * pose_c_w;
+                Quat q = Sophus::SO3<double>::exp(p).unit_quaternion();
+                auto se3 = q * rot;
                 return RotatePoint(se3, wp);
             },
             eps, &J_pose_2);
     }
     {
-        res2 = EvaluateNumeric([=](auto p) { return RotatePoint(pose_c_w, p); }, wp, &J_point_2);
+        res2 = EvaluateNumeric([=](auto p) { return RotatePoint(rot, p); }, wp, &J_point_2);
     }
 
     ExpectCloseRelative(res1, res2, 1e-5);

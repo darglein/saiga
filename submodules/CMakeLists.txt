@@ -117,6 +117,7 @@ message("=================================")
 
 message("=================================")
 message("Adding Submodule googletest")
+set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
 add_subdirectory(googletest)
 PackageHelperTarget(gtest GTEST_FOUND)
 set(GTEST_FOUND 1 PARENT_SCOPE)
