@@ -182,6 +182,10 @@ inline torch::nn::AnyModule ActivationFromString(const std::string& str)
     {
         return torch::nn::AnyModule(torch::nn::ReLU());
     }
+    else if (str == "silu")
+    {
+        return torch::nn::AnyModule(torch::nn::SiLU());
+    }
     else
     {
         SAIGA_EXIT_ERROR("Unknown activation " + str);
