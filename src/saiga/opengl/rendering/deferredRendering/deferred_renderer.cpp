@@ -353,6 +353,7 @@ void DeferredRenderer::renderImgui()
 
     if (ImGui::Begin("Deferred Renderer", &should_render_imgui))
     {
+        OpenGLRenderer::renderImgui();
         ImGui::Checkbox("wireframe", &params.wireframe);
         ImGui::Checkbox("offsetGeometry", &params.offsetGeometry);
 

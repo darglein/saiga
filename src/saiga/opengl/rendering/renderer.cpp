@@ -177,7 +177,7 @@ void OpenGLRenderer::PrepareImgui(bool compute_viewport_size)
         window->renderImGui();
 
         RenderInfo ri;
-        ri.camera = nullptr;
+        ri.camera      = nullptr;
         ri.render_pass = RenderPass::GUI;
         dynamic_cast<RenderingInterface*>(rendering)->render(ri);
         renderImgui();
@@ -205,7 +205,7 @@ void OpenGLRenderer::PrepareImgui(bool compute_viewport_size)
                 use_keyboard_input_in_3dview =
                     use_mouse_input_in_3dview || (ImGui::IsWindowFocused() && !ImGui::captureKeyboard());
 
-                if(compute_viewport_size)
+                if (compute_viewport_size)
                 {
                     viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
                     viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
@@ -229,7 +229,6 @@ void OpenGLRenderer::PrepareImgui(bool compute_viewport_size)
         use_mouse_input_in_3dview    = !ImGui::captureMouse();
         use_keyboard_input_in_3dview = !ImGui::captureKeyboard();
     }
-
 }
 
 void OpenGLRenderer::FinalizeImgui()
@@ -250,6 +249,18 @@ void OpenGLRenderer::FinalizeImgui()
         imgui->endFrame();
         default_framebuffer.bind();
         imgui->render();
+    }
+}
+void OpenGLRenderer::renderImgui()
+{
+    RendererBase::renderImgui();
+
+    if (ImGui::Button("screenshot viewport"))
+    {
+        TemplatedImage<ucvec4> img(outputHeight, outputWidth);
+        target_framebuffer->getTextureColor(0)->download(img.data8());
+        img.getImageView().flipY();
+        img.save("screenshot_3dview.png");
     }
 }
 void RenderingParameters::fromConfigFile(const std::string& file)
