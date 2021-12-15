@@ -90,7 +90,7 @@ struct SAIGA_VISION_API TrainParams : public ParamsBase
     // Splits the index array into [train, eval] indices using the parameters of this struct
     inline std::pair<std::vector<int>, std::vector<int>> Split(std::vector<int> all_indices) const;
 
-    inline std::vector<int> ReadIndexFile(const std::string& file);
+    static inline std::vector<int> ReadIndexFile(const std::string& file);
 
     inline std::string ExperimentString() { return CurrentTimeString("%F_%H-%M-%S") + "_" + name; }
 };
