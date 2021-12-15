@@ -57,10 +57,12 @@ void OpenGLWindow::renderImGui(bool* p_open)
     ImGui::Text("Camera Direction: %s", to_string(-make_vec3(getCamera()->getDirection()).transpose()).c_str());
     if (ImGui::Button("Printf camera"))
     {
-        std::cout << "camera.position = vec4(" << getCamera()->position(0) << ", " << getCamera()->position(1) << ", "
-                  << getCamera()->position(2) << ", " << getCamera()->position(3) << ");" << std::endl;
-        std::cout << "camera.rot = " << getCamera()->rot << ";" << std::endl;
-        //        createTRSmatrix()
+        auto t = getCamera()->position;
+        auto q = getCamera()->rot;
+        std::cout << "camera.position = vec4(" << t(0) << "," << t(1) << "," << t(2) << "," << 1 << ");"
+                  << std::endl;
+        std::cout << "camera.rot = quat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << ");"
+                  << std::endl;
     }
 
     if (ImGui::Button("Reload Shaders"))
@@ -124,6 +126,8 @@ TemplatedImage<ucvec4> OpenGLWindow::ScreenshotDefaultFramebuffer()
 {
     GLint dims[4] = {0};
     glGetIntegerv(GL_VIEWPORT, dims);
+    int x = dims[0];
+    int y = dims[1];
     int w = dims[2];
     int h = dims[3];
 
@@ -134,7 +138,7 @@ TemplatedImage<ucvec4> OpenGLWindow::ScreenshotDefaultFramebuffer()
     GLint fb;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fb);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glReadPixels(0, 0, out.width, out.height, getGlFormat(out.type), getGlType(out.type), out.data());
+    glReadPixels(x, y, out.width, out.height, getGlFormat(out.type), getGlType(out.type), out.data());
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
 
     out.getImageView().flipY();

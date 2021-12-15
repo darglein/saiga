@@ -66,6 +66,9 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
     // This can be for example be used to generate eye-rays
     ivec2 WindowCoordinatesToViewport(ivec2 window_coords) { return window_coords - viewport_offset; }
 
+
+    virtual void renderImgui() override;
+
     std::shared_ptr<ImGui_GL_Renderer> imgui;
     std::shared_ptr<GLTimerSystem> timer;
 

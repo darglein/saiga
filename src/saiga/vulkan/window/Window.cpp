@@ -47,8 +47,6 @@ void VulkanWindow::renderImGui(bool* p_open)
         ImGui::Text("Camera Direction: %s", to_string(-make_vec3(getCamera()->getDirection())).c_str());
         if (ImGui::Button("Printf camera"))
         {
-            //            std::cout << "camera.position = vec4(" << currentCamera->position << ";" << std::endl;
-
             auto t = getCamera()->position;
             auto q = getCamera()->rot;
             std::cout << "camera.position = vec4(" << t(0) << "," << t(1) << "," << t(2) << "," << 1 << ");"
