@@ -553,7 +553,7 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
         {
             for (int i = 0; i < params.num_layers; ++i)
             {
-                d[i].second = {};
+                d[i].second = torch::Tensor();
             }
         }
 
