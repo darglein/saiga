@@ -152,7 +152,7 @@ TORCH_MODULE(GatedBlock);
 
 inline torch::nn::AnyModule UnetBlockFromString(const std::string& str, int in_channels, int out_channels,
                                                 int kernel_size = 3, int stride = 1, int dilation = 1,
-                                                std::string norm_str = "id")
+                                                std::string norm_str = "id", std::string activation_str = "elu")
 {
     if (str == "basic")
     {
@@ -160,7 +160,8 @@ inline torch::nn::AnyModule UnetBlockFromString(const std::string& str, int in_c
     }
     else if (str == "gated")
     {
-        return torch::nn::AnyModule(GatedBlock(in_channels, out_channels, kernel_size, stride, dilation, norm_str));
+        return torch::nn::AnyModule(
+            GatedBlock(in_channels, out_channels, kernel_size, stride, dilation, norm_str, activation_str));
     }
     else if (str == "partial")
     {
@@ -184,11 +185,11 @@ class DownsampleBlockImpl : public UnetBlockImpl
     using UnetBlockImpl::forward;
 
     DownsampleBlockImpl(int in_channels, int out_channels, std::string conv_block, std::string norm_str,
-                        std::string pooling_str)
+                        std::string pooling_str, std::string activation_str)
     {
         SAIGA_ASSERT(in_channels > 0);
         SAIGA_ASSERT(out_channels > 0);
-        conv = UnetBlockFromString(conv_block, in_channels, out_channels, 3, 1, 1, norm_str);
+        conv = UnetBlockFromString(conv_block, in_channels, out_channels, 3, 1, 1, norm_str, activation_str);
 
         if (pooling_str == "conv")
         {
@@ -256,7 +257,7 @@ class UpsampleBlockImpl : public torch::nn::Module
 {
    public:
     UpsampleBlockImpl(int in_channels, int out_channels, std::string conv_block, std::string upsample_mode = "deconv",
-                      std::string norm_str = "id")
+                      std::string norm_str = "id", std::string activation = "id")
     {
         SAIGA_ASSERT(in_channels > 0);
         SAIGA_ASSERT(out_channels > 0);
@@ -293,7 +294,7 @@ class UpsampleBlockImpl : public torch::nn::Module
             }
         }
         // conv = GatedBlock(out_channels * 2, out_channels, 3, 1, 1, norm_str);
-        conv2 = UnetBlockFromString(conv_block, out_channels * 2, out_channels, 3, 1, 1, norm_str);
+        conv2 = UnetBlockFromString(conv_block, out_channels * 2, out_channels, 3, 1, 1, norm_str, activation);
 
 
         up_mask = torch::nn::Upsample(torch::nn::UpsampleOptions().scale_factor(scale).mode(torch::kNearest));
@@ -393,6 +394,7 @@ struct MultiScaleUnet2dParams : public ParamsBase
         SAIGA_PARAM(conv_block);
         SAIGA_PARAM(conv_block_up);
         SAIGA_PARAM(pooling);
+        SAIGA_PARAM(activation);
     }
 
     static constexpr int max_layers = 5;
@@ -408,9 +410,10 @@ struct MultiScaleUnet2dParams : public ParamsBase
     std::string upsample_mode   = "bilinear";
     std::string norm_layer_down = "id";
     std::string norm_layer_up   = "id";
-    std::string last_act        = "";
+    std::string last_act        = "id";
     std::string conv_block      = "gated";
     std::string conv_block_up   = "gated";
+    std::string activation      = "elu";
 
     // average, max
     std::string pooling = "average";
@@ -474,13 +477,15 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
             // Down[i] transforms from layer (i) -> (i+1)
             int down_in  = filters[i];
             int down_out = filters[i + 1] - num_input_channels[i + 1];
-            down[i] = DownsampleBlock(down_in, down_out, params.conv_block, params.norm_layer_down, params.pooling);
+            down[i]      = DownsampleBlock(down_in, down_out, params.conv_block, params.norm_layer_down, params.pooling,
+                                           params.activation);
             register_module("down" + std::to_string(i + 1), down[i]);
 
             // Up[i] transforms from layer (i+1) -> (i)
             int up_in  = filters[i + 1];
             int up_out = filters[i];
-            up[i]      = UpsampleBlock(up_in, up_out, params.conv_block_up, params.upsample_mode, params.norm_layer_up);
+            up[i]      = UpsampleBlock(up_in, up_out, params.conv_block_up, params.upsample_mode, params.norm_layer_up,
+                                       params.activation);
             register_module("up" + std::to_string(i + 1), up[i]);
         }
 
