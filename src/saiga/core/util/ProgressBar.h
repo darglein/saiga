@@ -39,13 +39,14 @@ namespace Saiga
 struct ProgressBar
 {
     ProgressBar(std::ostream& strm, const std::string header, int end, int length = 30,
-                bool show_remaining_time = false, int update_time_ms = 100)
+                bool show_remaining_time = false, int update_time_ms = 100, std::string element_name = "e")
         : strm(strm),
           prefix(header),
           end(end),
           length(length),
           show_remaining_time(show_remaining_time),
-          update_time_ms(update_time_ms)
+          update_time_ms(update_time_ms),
+          element_name(element_name)
     {
         SAIGA_ASSERT(end >= 0);
         print();
@@ -89,23 +90,22 @@ struct ProgressBar
     int length;
     bool show_remaining_time;
     int update_time_ms;
+    std::string element_name;
 
     void run()
     {
-        st = ScopedThread([this]() {
-            while (running && current.load() < end)
+        st = ScopedThread(
+            [this]()
             {
+                while (running && current.load() < end)
+                {
+                    print();
+                    std::unique_lock<std::mutex> l(lock);
+                    cv.wait_for(l, std::chrono::milliseconds(update_time_ms));
+                }
                 print();
-                //                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                std::unique_lock<std::mutex> l(lock);
-                cv.wait_for(l, std::chrono::milliseconds(update_time_ms));
-            }
-            print();
-            strm << std::endl;
-            //            auto time = timer.stop();
-            //            double s  = std::chrono::duration_cast<std::chrono::duration<double>>(time).count();
-            //            strm << "Done in " << s << " seconds. (" << (s / end) << " s/element)" << std::endl;
-        });
+                strm << std::endl;
+            });
     }
 
     void print()
@@ -161,7 +161,7 @@ struct ProgressBar
             // performance stats
             double s              = std::chrono::duration_cast<std::chrono::duration<double>>(time).count();
             double ele_per_second = current / s;
-            strm << "[" << std::setprecision(2) << std::fixed << ele_per_second << " e/s]";
+            strm << "[" << std::setprecision(2) << std::fixed << ele_per_second << " " << element_name << "/s]";
         }
 
         {
@@ -171,7 +171,6 @@ struct ProgressBar
         strm << std::flush;
         strm << std::setprecision(6);
         strm.flags(f);
-        //        strm << std::endl;
     }
 };
 
