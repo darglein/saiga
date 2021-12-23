@@ -75,13 +75,15 @@ inline std::string TensorInfo(at::Tensor t)
     double ma   = t.max().item().toDouble();
     double mean = 0;
     double sum  = t.sum().item().toDouble();
+    double sdev = 0;
 
-    if (t.dtype() == at::kFloat || t.dtype() == at::kDouble)
+    if (t.dtype() == at::kDouble)
     {
         mean = t.mean().item().toDouble();
+        sdev = t.std().item().toDouble();
     }
     strm << "Tensor " << t.sizes() << " " << type << " " << t.device() << " Min/Max " << mi << " " << ma << " Mean "
-         << mean << " Sum " << sum << " req-grad " << t.requires_grad();
+         << mean << " Sum " << sum << " sdev " << sdev << " req-grad " << t.requires_grad();
     return strm.str();
 }
 
@@ -185,6 +187,10 @@ inline torch::nn::AnyModule ActivationFromString(const std::string& str)
     else if (str == "silu")
     {
         return torch::nn::AnyModule(torch::nn::SiLU());
+    }
+    else if (str == "softplus")
+    {
+        return torch::nn::AnyModule(torch::nn::Softplus());
     }
     else
     {
