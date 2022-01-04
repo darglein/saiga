@@ -82,8 +82,17 @@ inline std::string TensorInfo(at::Tensor t)
         mean = t.mean().item().toDouble();
         sdev = t.std().item().toDouble();
     }
-    strm << "Tensor " << t.sizes() << " " << type << " " << t.device() << " Min/Max " << mi << " " << ma << " Mean "
-         << mean << " Sum " << sum << " sdev " << sdev << " req-grad " << t.requires_grad();
+
+    if (t.dim() == 0 && t.numel() == 1)
+    {
+        strm << "Scalar Tensor " << type << " " << t.device() << " req-grad " << t.requires_grad() << " Value: " << mi;
+    }
+    else
+    {
+        strm << "Tensor " << t.sizes() << " " << type << " " << t.device() << " Min/Max " << mi << " " << ma << " Mean "
+             << mean << " Sum " << sum << " sdev " << sdev << " req-grad " << t.requires_grad();
+    }
+
     return strm.str();
 }
 
