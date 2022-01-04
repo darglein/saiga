@@ -186,6 +186,10 @@ inline torch::nn::AnyModule ActivationFromString(const std::string& str)
     {
         return torch::nn::AnyModule(torch::nn::SiLU());
     }
+    else if (str == "softplus")
+    {
+        return torch::nn::AnyModule(torch::nn::Softplus());
+    }
     else
     {
         SAIGA_EXIT_ERROR("Unknown activation " + str);

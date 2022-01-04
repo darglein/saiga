@@ -8,7 +8,7 @@
 class LRSchedulerPlateau
 {
    public:
-    LRSchedulerPlateau(double reduce_factor = 0.5, int patience = 5) : reduce_factor(reduce_factor), patience(patience)
+    LRSchedulerPlateau(double reduce_factor = 0.5, int patience = 5, bool reset_at_reduce = false) : reduce_factor(reduce_factor), patience(patience), reset_at_reduce(reset_at_reduce)
     {
     }
 
@@ -36,6 +36,10 @@ class LRSchedulerPlateau
 
         if (_num_epochs_no_improvement == patience)
         {
+            if(reset_at_reduce)
+            {
+                best_loss = std::optional<double>();
+            }
             _num_epochs_no_improvement = 0;
             return reduce_factor;
         }
@@ -44,9 +48,8 @@ class LRSchedulerPlateau
 
    private:
     double reduce_factor;
-
-
     int patience;
+    bool reset_at_reduce;
 
     int _num_epochs_no_improvement = 0;
     std::optional<double> best_loss;
