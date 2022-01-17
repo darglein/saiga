@@ -112,7 +112,6 @@ Matrix<T, -1, -1> gaussianBlurKernel2d(int radius, T sigma)
 }
 
 
-
 template <typename T>
 void applyFilter1D(const std::vector<T>& src, std::vector<T>& dst, const std::vector<T>& kernel)
 {

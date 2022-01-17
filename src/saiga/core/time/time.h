@@ -25,6 +25,7 @@ using animationtime_t = std::chrono::duration<double>;
 
 
 // Time format: https://man7.org/linux/man-pages/man3/strftime.3.html
+// Example Format: "%F_%H-%M-%S"
 inline std::string CurrentTimeString(const std::string& format)
 {
     const int b_size = 200;
