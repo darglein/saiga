@@ -279,6 +279,12 @@ inline void UpdateLR(torch::optim::Optimizer* optimizer, double factor)
         {
             opt_sgd->lr() = opt_sgd->lr() * factor;
         }
+
+        auto opt_rms = dynamic_cast<torch::optim::RMSpropOptions*>(&pg.options());
+        if (opt_rms)
+        {
+            opt_rms->lr() = opt_rms->lr() * factor;
+        }
     }
 }
 
