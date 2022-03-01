@@ -9,6 +9,7 @@ unset(CUDA_FOUND)
 unset(CMAKE_CUDA_COMPILER)
 
 
+message(STATUS "SAIGA_CUDA_VERSION ${SAIGA_CUDA_VERSION}")
 find_package(CUDAToolkit 10.2)
 
 
@@ -50,9 +51,9 @@ if(CUDA_FOUND)
   endif()
 
   if(CUDAToolkit_VERSION)
-    set(SAIGA_CUDA_VERSION ${CUDAToolkit_VERSION})
+    set(SAIGA_CUDA_VERSION ${CUDAToolkit_VERSION} CACHE STRING "Detected CUDA Version")
   elseif(CUDA_VERSION)
-    set(SAIGA_CUDA_VERSION ${CUDA_VERSION})
+    set(SAIGA_CUDA_VERSION ${CUDA_VERSION}  CACHE STRING "Detected CUDA Version")
   elseif(SAIGA_CUDA_VERSION)
   else()
     message(FATAL_ERROR "Unknown cuda version ${SAIGA_CUDA_VERSION} ${CUDAToolkit_VERSION} ${CUDA_VERSION}")

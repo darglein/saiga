@@ -63,11 +63,12 @@ if(G2O_FOUND)
 endif()
 
 #ceres
-find_package(Ceres QUIET)
-PackageHelperTarget(ceres CERES_FOUND)
-if(CERES_FOUND)
-    SET(SAIGA_USE_CERES 1)
-endif()
+# ceres is currently broken because of the submodules of eigen/glog
+#find_package(Ceres QUIET)
+#PackageHelperTarget(ceres CERES_FOUND)
+#if(CERES_FOUND)
+#    SET(SAIGA_USE_CERES 1)
+#endif()
 
 #cholmod
 find_package(CHOLMOD QUIET)
