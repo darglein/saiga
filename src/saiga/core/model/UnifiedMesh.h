@@ -75,6 +75,9 @@ class SAIGA_CORE_API UnifiedMesh
     // Set n = -n
     UnifiedMesh& FlipNormals();
 
+    // Reorder the triangle indices
+    UnifiedMesh& InvertTriangleOrder();
+
 
     // Computes the per vertex normal by weighting each face normal by its surface area.
     UnifiedMesh& CalculateVertexNormals();
@@ -89,8 +92,12 @@ class SAIGA_CORE_API UnifiedMesh
     // Faces are currently not updated (maybe todo in the future)
     UnifiedMesh& EraseVertices(ArrayView<int> vertices);
 
-
+    // Merge vertices that are closer than 'distance' apart
     UnifiedMesh& RemoveDoubles(float distance);
+
+
+    // Remove triangles that reference the same vertex twice
+    UnifiedMesh& RemoveDegenerateTriangles();
 
     //
     // gather == true:

@@ -24,7 +24,8 @@ namespace Saiga
 {
 UnifiedMesh::UnifiedMesh(const UnifiedMesh& a, const UnifiedMesh& b)
 {
-    auto combine = [&](auto v1, auto v2) {
+    auto combine = [&](auto v1, auto v2)
+    {
         decltype(v1) flat;
 
         if (!v1.empty() && v2.empty())
@@ -108,9 +109,20 @@ UnifiedMesh& UnifiedMesh::FlipNormals()
     return *this;
 }
 
+UnifiedMesh& UnifiedMesh::InvertTriangleOrder()
+{
+    for (auto& tri : triangles)
+    {
+        ivec3 new_tri(tri(0), tri(2), tri(1));
+        tri = new_tri;
+    }
+    return *this;
+}
+
 UnifiedMesh& UnifiedMesh::FlatShading()
 {
-    auto flatten = [this](auto old) {
+    auto flatten = [this](auto old)
+    {
         decltype(old) flat;
         for (auto& tri : triangles)
         {
@@ -166,7 +178,8 @@ UnifiedMesh& UnifiedMesh::EraseVertices(ArrayView<int> vertices)
 
     int old_size = NumVertices();
 
-    auto erase = [&](auto old) {
+    auto erase = [&](auto old)
+    {
         SAIGA_ASSERT(old.size() == old_size);
         decltype(old) flat;
         for (int i = 0; i < old_size; ++i)
@@ -222,7 +235,8 @@ UnifiedMesh& UnifiedMesh::ReorderVertices(ArrayView<int> idx, bool gather)
         SAIGA_ASSERT(i >= 0 && i < NumVertices());
     }
 
-    auto reorder = [&](auto old) {
+    auto reorder = [&](auto old)
+    {
         decltype(old) new_vert(old.size());
         for (int i = 0; i < old.size(); ++i)
         {
@@ -481,6 +495,14 @@ UnifiedMesh& UnifiedMesh::RemoveDoubles(float distance)
     }
 
     return EraseVertices(to_erase);
+}
+
+UnifiedMesh& UnifiedMesh::RemoveDegenerateTriangles()
+{
+    triangles.erase(std::remove_if(triangles.begin(), triangles.end(),
+                                   [](const auto& f) { return f(0) == f(1) || f(0) == f(2) || f(1) == f(2); }),
+                    triangles.end());
+    return *this;
 }
 
 void UnifiedMesh::SaveCompressed(const std::string& file)

@@ -374,4 +374,37 @@ std::pair<std::array<std::array<vec3, 3>, 16>, int> MarchingCubes(const std::arr
     return {triangles, ntriang};
 }
 
+
+std::vector<std::array<vec3, 3>> MarchingCubes(float* data, int depth, int height, int width, float isolevel)
+{
+    auto sdf_grid = [&](int z, int y, int x) { return data[z * height * width + y * width + x]; };
+
+    std::vector<std::array<vec3, 3>> triangle_soup;
+
+    for (int i = 0; i < depth - 1; ++i)
+    {
+        for (int j = 0; j < height - 1; ++j)
+        {
+            for (int k = 0; k < width - 1; ++k)
+            {
+                std::array<std::pair<vec3, float>, 8> cell;
+                cell[0] = {vec3(k, j, i), sdf_grid(i, j, k)};
+                cell[1] = {vec3(k + 1, j, i), sdf_grid(i, j, k + 1)};
+                cell[2] = {vec3(k + 1, j, i + 1), sdf_grid(i + 1, j, k + 1)};
+                cell[3] = {vec3(k, j, i + 1), sdf_grid(i + 1, j, k)};
+                cell[4] = {vec3(k, j + 1, i), sdf_grid(i, j + 1, k)};
+                cell[5] = {vec3(k + 1, j + 1, i), sdf_grid(i, j + 1, k + 1)};
+                cell[6] = {vec3(k + 1, j + 1, i + 1), sdf_grid(i + 1, j + 1, k + 1)};
+                cell[7] = {vec3(k, j + 1, i + 1), sdf_grid(i + 1, j + 1, k)};
+
+                auto [triangles, count] = MarchingCubes(cell, isolevel);
+                for (int c = 0; c < count; ++c)
+                {
+                    triangle_soup.push_back(triangles[c]);
+                }
+            }
+        }
+    }
+    return triangle_soup;
+}
 }  // namespace Saiga
