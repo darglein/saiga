@@ -14,9 +14,9 @@ unset(LIBS)
 unset(MODULE_VISION)
 
 
-if(NOT MODULE_CORE)
+if (NOT MODULE_CORE)
     return()
-endif()
+endif ()
 
 
 #opencv
@@ -35,32 +35,34 @@ set(CMAKE_EXPORT_NO_PACKAGE_REGISTRY ON)
 #Sophus
 find_package(Sophus QUIET)
 PackageHelperTarget(Sophus::Sophus SOPHUS_FOUND)
-if(SOPHUS_FOUND)
+if (SOPHUS_FOUND)
     SET(SAIGA_SYSTEM_SOPHUS 1)
-endif()
+endif ()
 
 
 # lib yaml for dataset loading
-find_package(yaml-cpp QUIET)
-PackageHelperTarget(yaml-cpp YAML_FOUND)
-if(YAML_FOUND)
-    SET(SAIGA_USE_YAML_CPP 1)
-endif()
+if (SAIGA_WITH_YAMLCPP)
+    find_package(yaml-cpp QUIET)
+    PackageHelperTarget(yaml-cpp YAML_FOUND)
+    if (YAML_FOUND)
+        SET(SAIGA_USE_YAML_CPP 1)
+    endif ()
+endif ()
 
 #Recursive
 SET(SAIGA_USE_EIGENRECURSIVE 1)
 find_package(EigenRecursive QUIET)
 PackageHelperTarget(Eigen::EigenRecursive EIGENRECURSIVE_FOUND)
-if(EIGENRECURSIVE_FOUND)
+if (EIGENRECURSIVE_FOUND)
     SET(SAIGA_SYSTEM_EIGENRECURSIVE 1)
-endif()
+endif ()
 
 #g2o
 find_package(g2o QUIET)
 PackageHelperTarget(g2o::core G2O_FOUND)
-if(G2O_FOUND)
+if (G2O_FOUND)
     SET(SAIGA_USE_G2O 1)
-endif()
+endif ()
 
 #ceres
 # ceres is currently broken because of the submodules of eigen/glog
@@ -72,9 +74,9 @@ endif()
 
 #cholmod
 find_package(CHOLMOD QUIET)
-if(CHOLMOD_FOUND)
+if (CHOLMOD_FOUND)
     SET(SAIGA_USE_CHOLMOD 1)
-endif()
+endif ()
 PackageHelper(CHOLMOD ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIES}")
 
 
@@ -89,29 +91,28 @@ PackageHelper(CHOLMOD ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIE
 #message(STATUS "LAPACK Library: ${LAPACK_LIBRARIES}")
 
 #mkl
-if(SAIGA_WITH_MKL)
+if (SAIGA_WITH_MKL)
     find_package(MKL QUIET)
-    if(MKL_FOUND )
+    if (MKL_FOUND)
         SET(SAIGA_USE_MKL 1)
-    endif()
+    endif ()
     PackageHelper(MKL "${MKL_FOUND}" "${MKL_INCLUDE_DIR}" "${MKL_LIBRARIES}")
-endif()
-
+endif ()
 
 
 #openni2
 find_package(OpenNI2 QUIET)
-if(OPENNI2_FOUND)
+if (OPENNI2_FOUND)
     SET(SAIGA_USE_OPENNI2 1)
-endif()
+endif ()
 PackageHelper(OpenNI2 "${OPENNI2_FOUND}" "${OPENNI2_INCLUDE_DIRS}" "${OPENNI2_LIBRARIES}")
 
 #kinect azure sdk
 find_package(k4a QUIET)
 PackageHelperTarget(k4a::k4a K4A_FOUND)
-if(K4A_FOUND)
+if (K4A_FOUND)
     SET(SAIGA_USE_K4A 1)
-endif()
+endif ()
 
 
 set(VISION_INCLUDES ${PACKAGE_INCLUDES})

@@ -47,7 +47,7 @@ target_compile_options(
 while (SAIGA_CUDA_ARCH_FLAGS)
     list(POP_FRONT SAIGA_CUDA_ARCH_FLAGS A B)
     target_compile_options(
-            ${MODULE_NAME} PRIVATE
+            ${MODULE_NAME} PUBLIC
             "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:${A} ${B}>"
     )
 endwhile ()
