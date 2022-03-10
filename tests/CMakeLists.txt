@@ -30,7 +30,7 @@ function(saiga_test FILE_NAME)
     )
 
 
-  set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
+  #set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
   target_compile_options(${TARGET_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:${SAIGA_CUDA_FLAGS}>)
 
   set_target_properties(${TARGET_NAME} PROPERTIES FOLDER tests/${PREFIX})

@@ -105,7 +105,7 @@ if (CUDA_FOUND)
     include(select_compute_arch)
 
     if (SAIGA_CUDA_ARCH)
-      message(STATUS "Using user defined CUDA Arch: " ${SAIGA_CUDA_ARCH})
+      message(STATUS "Using user defined CUDA Arch: " "${SAIGA_CUDA_ARCH}")
         CUDA_SELECT_NVCC_ARCH_FLAGS(SAIGA_CUDA_ARCH_FLAGS ${SAIGA_CUDA_ARCH})
     else ()
         message(STATUS "Using automatic CUDA Arch detection...")
