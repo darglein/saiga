@@ -22,12 +22,22 @@ inline void PrintMemoryInfo()
     cudaMemGetInfo(&mem_free, &mem_total);
     double mem_free_gb  = mem_free / (1000.0 * 1000.0 * 1000.0);
     double mem_total_gb = mem_total / (1000.0 * 1000.0 * 1000.0);
-    double mem_alloc_gb    = mem_total_gb - mem_free_gb;
+    double mem_alloc_gb = mem_total_gb - mem_free_gb;
     int device;
     cudaGetDevice(&device);
-    std::cout << "CUDA Used Memory (Device " << device << "): " << mem_alloc_gb << " / " << mem_total_gb << " GB" << std::endl;
+    std::cout << "CUDA Used Memory (Device " << device << "): " << mem_alloc_gb << " / " << mem_total_gb << " GB"
+              << std::endl;
 }
 
+inline double UsedMemoryGB()
+{
+    size_t mem_free, mem_total;
+    cudaMemGetInfo(&mem_free, &mem_total);
+    double mem_free_gb  = mem_free / (1000.0 * 1000.0 * 1000.0);
+    double mem_total_gb = mem_total / (1000.0 * 1000.0 * 1000.0);
+    double mem_alloc_gb = mem_total_gb - mem_free_gb;
+    return mem_alloc_gb;
+}
 
 // Beginning of GPU Architecture definitions
 inline int _ConvertSMVer2Cores(int major, int minor)
