@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <torch/torch.h>
 
 
@@ -8,7 +9,8 @@
 class LRSchedulerPlateau
 {
    public:
-    LRSchedulerPlateau(double reduce_factor = 0.5, int patience = 5, bool reset_at_reduce = false) : reduce_factor(reduce_factor), patience(patience), reset_at_reduce(reset_at_reduce)
+    LRSchedulerPlateau(double reduce_factor = 0.5, int patience = 5, bool reset_at_reduce = false)
+        : reduce_factor(reduce_factor), patience(patience), reset_at_reduce(reset_at_reduce)
     {
     }
 
@@ -28,7 +30,8 @@ class LRSchedulerPlateau
             {
                 _num_epochs_no_improvement++;
             }
-        }else
+        }
+        else
         {
             best_loss = value;
             return 1;
@@ -36,7 +39,7 @@ class LRSchedulerPlateau
 
         if (_num_epochs_no_improvement == patience)
         {
-            if(reset_at_reduce)
+            if (reset_at_reduce)
             {
                 best_loss = std::optional<double>();
             }

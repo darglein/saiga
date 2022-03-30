@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-struct SAIGA_VISION_API TrainParams : public ParamsBase
+struct TrainParams : public ParamsBase
 {
     SAIGA_PARAM_STRUCT_FUNCTIONS(TrainParams);
     virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
