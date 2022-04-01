@@ -57,28 +57,30 @@ endif (WIN32)
 ############# Optional Libraries ###############
 
 
-#openal
-find_package(OpenAL QUIET)
-if (OPENAL_FOUND)
-    SET(SAIGA_USE_OPENAL 1)
+if (SAIGA_WITH_OPENAL)
+    #openal
+    find_package(OpenAL QUIET)
+    if (OPENAL_FOUND)
+        SET(SAIGA_USE_OPENAL 1)
+    endif ()
+    PackageHelper(OpenAL ${OPENAL_FOUND} "${OPENAL_INCLUDE_DIR}" "${OPENAL_LIBRARY}")
+
+
+    #alut
+    find_package(ALUT QUIET)
+    if (ALUT_FOUND)
+        SET(SAIGA_USE_ALUT 1)
+    endif ()
+    PackageHelper(ALUT ${ALUT_FOUND} "${ALUT_INCLUDE_DIRS}" "${ALUT_LIBRARIES}")
+
+
+    #opus
+    find_package(Opus QUIET)
+    if (OPUS_FOUND)
+        SET(SAIGA_USE_OPUS 1)
+    endif ()
+    PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 endif ()
-PackageHelper(OpenAL ${OPENAL_FOUND} "${OPENAL_INCLUDE_DIR}" "${OPENAL_LIBRARY}")
-
-
-#alut
-find_package(ALUT QUIET)
-if (ALUT_FOUND)
-    SET(SAIGA_USE_ALUT 1)
-endif ()
-PackageHelper(ALUT ${ALUT_FOUND} "${ALUT_INCLUDE_DIRS}" "${ALUT_LIBRARIES}")
-
-
-#opus
-find_package(Opus QUIET)
-if (OPUS_FOUND)
-    SET(SAIGA_USE_OPUS 1)
-endif ()
-PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 
 find_package(FreeImage QUIET)
 PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_DIRS}" "${FREEIMAGE_LIBRARIES}")
@@ -86,12 +88,15 @@ if (FREEIMAGE_FOUND)
     SET(SAIGA_USE_FREEIMAGE 1)
 endif ()
 
+
+if (SAIGA_WITH_OPENMESH)
 #openmesh
 find_package(OpenMesh QUIET)
 if (OPENMESH_FOUND)
     SET(SAIGA_USE_OPENMESH 1)
 endif ()
 PackageHelper(OpenMesh ${OPENMESH_FOUND} "${OPENMESH_INCLUDE_DIRS}" "${OPENMESH_LIBRARIES}")
+endif()
 
 set(CORE_INCLUDES ${PACKAGE_INCLUDES})
 set(CORE_LIBS ${LIBS})
