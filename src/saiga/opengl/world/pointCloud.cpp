@@ -13,39 +13,56 @@ namespace Saiga
 {
 GLPointCloud::GLPointCloud(const Saiga::UnifiedMesh& point_cloud_mesh) : buffer(point_cloud_mesh, GL_POINTS)
 {
-    shader_simple   = shaderLoader.load<MVPShader>("geometry/colored_points.glsl");
-    shader_geometry = shaderLoader.load<MVPShader>("geometry/colored_points_geometry.glsl");
+    ShaderPart::ShaderCodeInjections injection;
+    injection.emplace_back(GL_GEOMETRY_SHADER, "#define SHADOW", 2);
+    injection.emplace_back(GL_FRAGMENT_SHADER, "#define SHADOW", 2);
+    injection.emplace_back(GL_FRAGMENT_SHADER, "#define WRITE_DEPTH", 2);
+
+    shader_default        = shaderLoader.load<MVPShader>("geometry/point_cloud_default.glsl");
+    shader_default_shadow = shaderLoader.load<MVPShader>("geometry/point_cloud_default.glsl", injection);
+
+    shader_sphere        = shaderLoader.load<MVPShader>("geometry/point_cloud_sphere.glsl");
+    shader_sphere_shadow = shaderLoader.load<MVPShader>("geometry/point_cloud_sphere.glsl", injection);
+
+    shader_disc = shaderLoader.load<MVPShader>("geometry/point_cloud_disc.glsl");
 }
 
-void GLPointCloud::render(Camera* cam)
+void GLPointCloud::render(RenderInfo render_info)
 {
-    glPointSize(screen_point_size);
-
-    auto shader = splat_geometry ? shader_geometry : shader_simple;
+    std::shared_ptr<MVPShader> shader;
+    switch (render_type)
+    {
+        case PointRenderType::DEFAULT:
+            shader = render_info.render_pass == RenderPass::Shadow ? shader_default_shadow : shader_default;
+            glPointSize(point_size);
+            break;
+        case PointRenderType::SPHERE:
+            shader = render_info.render_pass == RenderPass::Shadow ? shader_sphere_shadow : shader_sphere;
+            break;
+        case PointRenderType::ORIENTED_DISC:
+            shader = shader_disc;
+            break;
+    }
 
     if (shader->bind())
     {
-        if (splat_geometry)
+        if (render_type != PointRenderType::DEFAULT)
         {
-            shader->upload(0, world_point_size);
+            shader->upload(0, point_radius);
         }
-
+        shader->upload(1, (int)cull_backface);
         shader->uploadModel(model);
-
         buffer.BindAndDraw();
-
         shader->unbind();
     }
 }
 
 void GLPointCloud::imgui()
 {
-    ImGui::InputFloat("screen_point_size", &screen_point_size);
-    ImGui::InputFloat("world_point_size", &world_point_size);
-
-
-
-    ImGui::Checkbox("splat_geometry", &splat_geometry);
+    ImGui::Checkbox("cull_backface", &cull_backface);
+    ImGui::InputFloat("point_size", &point_size);
+    ImGui::InputFloat("point_radius", &point_radius);
+    ImGui::SliderInt("render_type", (int*)&render_type, 0, 2);
 }
 
 

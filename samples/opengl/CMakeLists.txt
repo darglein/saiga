@@ -31,6 +31,11 @@ if (GLFW_FOUND)
   saiga_opengl_sample(sample_opengl_bloom.cpp)
   saiga_opengl_sample(sample_opengl_enviroment_mapping.cpp)
 
+  if (SAIGA_VISION)
+    saiga_opengl_sample(sample_opengl_point_rendering.cpp)
+    target_link_libraries(sample_opengl_point_rendering PUBLIC saiga_vision)
+  endif()
+
   if (ASSIMP_FOUND)
     saiga_opengl_sample(sample_opengl_bone_animation.cpp)
   endif ()
