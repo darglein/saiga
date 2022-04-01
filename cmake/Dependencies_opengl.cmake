@@ -43,12 +43,14 @@ if (SAIGA_WITH_FREETYPE)
     endif ()
 endif ()
 
-#bullet
-find_package(Bullet QUIET)
-if (BULLET_FOUND)
-    SET(SAIGA_USE_BULLET 1)
+if (SAIGA_WITH_BULLET)
+    #bullet
+    find_package(Bullet QUIET)
+    if (BULLET_FOUND)
+        SET(SAIGA_USE_BULLET 1)
+    endif ()
+    PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARIES}")
 endif ()
-PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARIES}")
 
 
 #EGL
@@ -70,11 +72,13 @@ if (SAIGA_WITH_FFMPEG)
 endif ()
 
 
-## OpenVR / steamVR
-find_package(OpenVR QUIET)
-PackageHelper(OpenVR ${OPENVR_FOUND} "${OPENVR_INCLUDE_DIRS}" "${OPENVR_LIBRARY}")
-if (OPENVR_FOUND)
-    set(SAIGA_VR 1)
+if (SAIGA_WITH_OPENVR)
+    ## OpenVR / steamVR
+    find_package(OpenVR QUIET)
+    PackageHelper(OpenVR ${OPENVR_FOUND} "${OPENVR_INCLUDE_DIRS}" "${OPENVR_LIBRARY}")
+    if (OPENVR_FOUND)
+        set(SAIGA_VR 1)
+    endif ()
 endif ()
 
 set(OPENGL_INCLUDES ${PACKAGE_INCLUDES})

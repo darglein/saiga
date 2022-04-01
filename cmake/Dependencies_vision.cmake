@@ -58,10 +58,12 @@ if (EIGENRECURSIVE_FOUND)
 endif ()
 
 #g2o
-find_package(g2o QUIET)
-PackageHelperTarget(g2o::core G2O_FOUND)
-if (G2O_FOUND)
-    SET(SAIGA_USE_G2O 1)
+if (SAIGA_WITH_G2O)
+    find_package(g2o QUIET)
+    PackageHelperTarget(g2o::core G2O_FOUND)
+    if (G2O_FOUND)
+        SET(SAIGA_USE_G2O 1)
+    endif ()
 endif ()
 
 #ceres
@@ -73,11 +75,13 @@ endif ()
 #endif()
 
 #cholmod
-find_package(CHOLMOD QUIET)
-if (CHOLMOD_FOUND)
-    SET(SAIGA_USE_CHOLMOD 1)
+if (SAIGA_WITH_CHOLMOD)
+    find_package(CHOLMOD QUIET)
+    if (CHOLMOD_FOUND)
+        SET(SAIGA_USE_CHOLMOD 1)
+    endif ()
+    PackageHelper(CHOLMOD ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIES}")
 endif ()
-PackageHelper(CHOLMOD ${CHOLMOD_FOUND} "${CHOLMOD_INCLUDES}" "${CHOLMOD_LIBRARIES}")
 
 
 # Currently only mkl is supported
@@ -100,20 +104,24 @@ if (SAIGA_WITH_MKL)
 endif ()
 
 
-#openni2
-find_package(OpenNI2 QUIET)
-if (OPENNI2_FOUND)
-    SET(SAIGA_USE_OPENNI2 1)
-endif ()
-PackageHelper(OpenNI2 "${OPENNI2_FOUND}" "${OPENNI2_INCLUDE_DIRS}" "${OPENNI2_LIBRARIES}")
-
-#kinect azure sdk
-find_package(k4a QUIET)
-PackageHelperTarget(k4a::k4a K4A_FOUND)
-if (K4A_FOUND)
-    SET(SAIGA_USE_K4A 1)
+if (SAIGA_WITH_OPENNI)
+    #openni2
+    find_package(OpenNI2 QUIET)
+    if (OPENNI2_FOUND)
+        SET(SAIGA_USE_OPENNI2 1)
+    endif ()
+    PackageHelper(OpenNI2 "${OPENNI2_FOUND}" "${OPENNI2_INCLUDE_DIRS}" "${OPENNI2_LIBRARIES}")
 endif ()
 
+
+if (SAIGA_WITH_K4A)
+    #kinect azure sdk
+    find_package(k4a QUIET)
+    PackageHelperTarget(k4a::k4a K4A_FOUND)
+    if (K4A_FOUND)
+        SET(SAIGA_USE_K4A 1)
+    endif ()
+endif ()
 
 set(VISION_INCLUDES ${PACKAGE_INCLUDES})
 set(VISION_LIBS ${LIBS})
