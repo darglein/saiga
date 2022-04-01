@@ -6,43 +6,40 @@
 
 
 ##GL_VERTEX_SHADER
-
 #version 330
 #extension GL_ARB_explicit_uniform_location : enable
+
 layout(location=0) in vec3 in_position;
-layout(location=1) in vec3 in_color;
+layout(location=1) in vec3 in_normal;
+layout(location=2) in vec4 in_color;
 
 #include "camera.glsl"
 uniform mat4 model;
-
-
-layout(location = 0) uniform float world_radius = 0.1;
-
-out vec3 color;
+layout(location=0) uniform float point_radius;
+out vec4 color;
 out float radius;
 
 void main() {
-    color = in_color.rgb;
-    radius = world_radius;
-    gl_Position = model* vec4(in_position.xyz,1);
+    color = in_color;
+    gl_Position = model * vec4(in_position.xyz,1);
+    radius = point_radius;
 }
-
 
 
 
 ##GL_GEOMETRY_SHADER
 #version 400
-
+#extension GL_ARB_explicit_uniform_location : enable
 layout(points) in;
-in vec3[1] color;
+in vec4[1] color;
 in float[1] radius;
 layout(triangle_strip, max_vertices=4) out;
 
 #include "camera.glsl"
 uniform mat4 model;
-
+layout(location=1) uniform int cull_backface;
 out vec2 tc;
-out vec3 color2;
+out vec4 color2;
 out vec4 centerV;
 out float r;
 out vec3 dir;
@@ -51,9 +48,9 @@ out vec4 posV;
 
 
 void main() {
-//    if (color[0].a == 0.0) {
-//        return;
-//    }
+    if (color[0].a == 0.0) {
+        return;
+    }
     //create a billboard with the given radius
     vec4 centerWorld = gl_in[0].gl_Position;
 
@@ -95,24 +92,55 @@ void main() {
 }
 
 
-
 ##GL_FRAGMENT_SHADER
+#version 400
 
-#version 330
 
-in vec3 color2;
+in float r;
+in vec4 color2;
 in vec2 tc;
+in vec4 centerV;
+in vec4 posW;
+in vec4 posV;
+in vec3 dir;
+
+#include "camera.glsl"
+uniform mat4 model;
 
 
-layout(location=0) out vec4 out_color;
+#include "geometry/geometry_helper_fs.glsl"
+
+
 
 void main() {
-    vec2 ctc = (vec2(0.5) - tc) * 2;
-    float d = dot(ctc, ctc);
-//    out_color = vec4(d,d,d,1);
-    if(d > 0.5) discard;
+    vec2 reltc = tc*2-vec2(1);
+    reltc *= r;
+    float lensqr = dot(reltc, reltc);
+    if(lensqr > r*r)
+    discard;
 
-    out_color = vec4(color2,1);
+    //solving x^2 + y^2 + z^2 = r^2 for z
+    float z = sqrt(r*r - lensqr);
+
+    vec4 vertexMV = posV;
+    vertexMV.z += z;
+
+    vec3 n = normalize(vec3(vertexMV)-vec3(centerV));
+    vec4 fragPosP = proj * vertexMV;
+    fragPosP /= fragPosP.w;
+
+    #ifdef WRITE_DEPTH
+    float out_d = fragPosP.z * 0.5f + 0.5f;
+
+    #ifdef SHADOW
+    out_d += 0.001f;
+    #endif
+    gl_FragDepth = out_d;
+    #endif
+
+    #ifndef SHADOW
+    vec3 data = vec3(1, 0, 0);
+    setGbufferData(vec3(color2), n, vec4(data.xy, 0, 0));
+    #endif
 }
-
 

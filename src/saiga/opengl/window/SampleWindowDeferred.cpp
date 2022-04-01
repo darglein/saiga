@@ -56,7 +56,7 @@ void SampleWindowDeferred::interpolate(float dt, float interpolation)
     render_system.Clear();
     if (showGrid)
     {
-
+        render_system.Add(groundPlane.asset.get(), groundPlane.model, RENDER_DEFAULT);
     }
 }
 
@@ -66,7 +66,7 @@ void SampleWindowDeferred::render(RenderInfo render_info)
     render_system.Render(render_info);
     if (render_info.render_pass == RenderPass::Forward)
     {
-        if(showSkybox)
+        if (showSkybox)
         {
             skybox.sunDir = vec3(sun->getDirection());
             skybox.render(render_info.camera);

@@ -52,6 +52,8 @@ target_link_libraries(${MODULE_NAME} PUBLIC ${CORE_LIBS} ${CORE_TARGETS})
 #target_link_options(${MODULE_NAME} PUBLIC ${SAIGA_LD_FLAGS})
 target_link_libraries(${MODULE_NAME} PRIVATE $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,8.0>>:stdc++fs>)
 
+#message(FATAL_ERROR "saiga core libs: ${CORE_LIBS} | ${CORE_TARGETS}")
+
 target_include_directories(
         ${MODULE_NAME}
         PUBLIC
