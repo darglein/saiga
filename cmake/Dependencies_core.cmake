@@ -34,10 +34,10 @@ else ()
 
     #PackageHelperTarget(OpenMP::OpenMP_CXX OPENMP_FOUND)
     PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OpenMP_CXX_LIB_NAMES}")
-    # if(OPENMP_FOUND)
-    #   list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
-    #   list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
-    # endif()
+     if(OPENMP_FOUND)
+       list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
+       list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
+     endif()
 
     #        # This line doesn't work with nvcc + gcc8.3. Just uncomment it.
     #        if(SAIGA_CXX_GNU)
