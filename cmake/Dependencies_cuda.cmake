@@ -14,10 +14,10 @@ find_package(CUDAToolkit 10.2)
 
 
 #Check Language is an extra module so we need to include it.
-include(CheckLanguage)
-check_language(CUDA)
+#include(CheckLanguage)
+#check_language(CUDA)
 
-if (CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
+if (CUDAToolkit_FOUND)
     enable_language(CUDA)
     message(STATUS "Enabled CUDA. Version: ${CUDAToolkit_VERSION}")
     set(CUDA_FOUND TRUE)
