@@ -7,7 +7,8 @@
 #include "imgui_opengl.h"
 
 #include "saiga/core/util/statistics.h"
-
+#include "saiga/core/imgui/imgui_internal.h"
+#include "saiga/core/imgui/imgui.h"
 
 namespace Saiga
 {
@@ -183,3 +184,124 @@ void ImGui::Texture(Saiga::TextureBase* texture, const ImVec2& size, bool flip_y
         Image(id, size, ImVec2(0, 0), ImVec2(1, 1), tint_col, border_col);
     }
 }
+
+void ImGui::TextureRotate90(Saiga::TextureBase* texture, const ImVec2& size, bool flip_y, bool right_rotate, const ImVec4& tint_col,
+                    const ImVec4& border_col)
+{
+    size_t tid     = texture->getId();
+    
+    ImTextureID id = (ImTextureID)tid;
+
+    ImGuiWindow* window = GetCurrentWindow();
+    if (window->SkipItems)
+        return;
+
+    ImRect bb(window->DC.CursorPos, window->DC.CursorPos + size);
+    if (border_col.w > 0.0f){
+        bb.Max.x +=2;
+        bb.Max.y +=2;    ItemSize(bb);
+    }
+    if (!ItemAdd(bb, 0))
+        return;
+
+    ImVec2 size_u = ImVec2((bb.Max.x-bb.Min.x), (bb.Max.y-bb.Min.y));
+    ImVec2 pos[4] =
+    {
+        bb.Min + ImVec2(0,0), //ImRotate(ImVec2(-size_u.x * 0.5f, -size_u.y * 0.5f), cos_a, sin_a), // 
+        bb.Min + ImVec2(size_u.x, 0), //ImRotate(ImVec2(+size_u.x * 0.5f, -size_u.y * 0.5f), cos_a, sin_a), // 
+        bb.Min + ImVec2(size_u.x , size_u.y), //ImRotate(ImVec2(+size_u.x * 0.5f, +size_u.y * 0.5f), cos_a, sin_a), // 
+        bb.Min + ImVec2(0, size_u.y)  //ImRotate(ImVec2(-size_u.x * 0.5f, +size_u.y * 0.5f), cos_a, sin_a) //  
+    };
+    ImVec2 uvs[4] = 
+    {
+        ImVec2(1,0),
+        ImVec2(1,1),
+        ImVec2(0,1),
+        ImVec2(0,0)
+    };
+    if(right_rotate){
+        uvs[0]= ImVec2(0,1);
+        uvs[1]= ImVec2(0,0);
+        uvs[2]= ImVec2(1,0);
+        uvs[3]= ImVec2(1,1);
+    }
+
+          //window->DrawList->AddImage(id, bb.Min + ImVec2(1, 1), bb.Max + ImVec2(-1, -1), uv0, uv1, GetColorU32(tint_col));
+    window->DrawList->AddImageQuad(id, pos[0], pos[1], pos[2], pos[3], uvs[0], uvs[1], uvs[2], uvs[3], IM_COL32_WHITE);
+  
+}
+
+void ImGui::TextureRotated(Saiga::TextureBase* texture, const ImVec2& size, bool flip_y, float rotation_angle, const ImVec4& tint_col,
+                    const ImVec4& border_col)
+{
+
+    //TODO still buggy
+    size_t tid     = texture->getId();
+    texture->setBorderColor(Saiga::vec4(0,0,0,1));
+    texture->setWrap(GL_CLAMP_TO_BORDER);
+    ImTextureID id = (ImTextureID)tid;
+
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems)
+        return;
+
+    ImRect bb(window->DC.CursorPos, window->DC.CursorPos + size);
+    if (border_col.w > 0.0f){
+        bb.Max.x +=2;
+        bb.Max.y +=2;
+    }
+    ItemSize(bb);
+    if (!ItemAdd(bb, 0))
+        return;
+
+    ImVec2 size_u = ImVec2((bb.Max.x-bb.Min.x), (bb.Max.y-bb.Min.y));
+   // ImVec2 size_u = size;
+    ImVec2 center = ImVec2(bb.Min.x+ (bb.Max.x-bb.Min.x) / 2.f, bb.Min.y + (bb.Max.y-bb.Min.y)  / 2.f);
+    float cos_a = cosf(-rotation_angle * 2.f*M_PI/ 360.f);
+    float sin_a = sinf(-rotation_angle * 2.f*M_PI/ 360.f);
+    ImVec2 pos[4] =
+    {
+        center + ImVec2(-size_u.x * 0.5f, -size_u.y * 0.5f), //ImRotate(ImVec2(-size_u.x * 0.5f, -size_u.y * 0.5f), cos_a, sin_a), // 
+        center + ImVec2(+size_u.x * 0.5f, -size_u.y * 0.5f), //ImRotate(ImVec2(+size_u.x * 0.5f, -size_u.y * 0.5f), cos_a, sin_a), // 
+        center + ImVec2(+size_u.x * 0.5f, +size_u.y * 0.5f), //ImRotate(ImVec2(+size_u.x * 0.5f, +size_u.y * 0.5f), cos_a, sin_a), // 
+        center + ImVec2(-size_u.x * 0.5f, +size_u.y * 0.5f)  //ImRotate(ImVec2(-size_u.x * 0.5f, +size_u.y * 0.5f), cos_a, sin_a) //  
+    };
+    ImVec2 uvs[4] = 
+    {
+        center + ImRotate(ImVec2(-size_u.x * 0.5f, -size_u.y * 0.5f), cos_a, sin_a),
+        center + ImRotate(ImVec2(+size_u.x * 0.5f, -size_u.y * 0.5f), cos_a, sin_a),
+        center + ImRotate(ImVec2(+size_u.x * 0.5f, +size_u.y * 0.5f), cos_a, sin_a),
+        center + ImRotate(ImVec2(-size_u.x * 0.5f, +size_u.y * 0.5f), cos_a, sin_a) 
+    };
+    for(int i=0; i<4; ++i){
+        uvs[i].x -= bb.Min.x;
+        uvs[i].y -= bb.Min.y;
+        uvs[i].x /= (bb.Max.x-bb.Min.x);
+        uvs[i].y /= (bb.Max.y-bb.Min.y);
+        
+    }
+
+    //ImVec2 uvs[4] = 
+    //{ 
+    //    ImVec2(0.5f,0.5f) + ImRotate(ImVec2(-0.5f, -0.5f),cos_a,sin_a), 
+    //    ImVec2(0.5f,0.5f) + ImRotate(ImVec2(0.5f, -0.5f),cos_a,sin_a), 
+    //    ImVec2(0.5f,0.5f) + ImRotate(ImVec2(0.5f, 0.5f),cos_a,sin_a), 
+    //    ImVec2(0.5f,0.5f) + ImRotate(ImVec2(-0.5f, 0.5f),cos_a,sin_a) 
+    //};
+    
+    if (border_col.w > 0.0f)
+    {
+        window->DrawList->AddRect(bb.Min, bb.Max, GetColorU32(border_col), 0.0f);
+        window->DrawList->AddImageQuad(id, pos[0], pos[1], pos[2], pos[3], uvs[0], uvs[1], uvs[2], uvs[3], IM_COL32_WHITE);
+        //    ImVec2 b(c.x, a.y), d(a.x, c.y), uv_b(uv_c.x, uv_a.y), uv_d(uv_a.x, uv_c.y);
+
+      //  window->DrawList->AddImage(id, bb.Min + ImVec2(1, 1), ImVec2(bb.Max.x -1,  bb.Max.y -1), uv0, uv1, GetColorU32(tint_col));
+    }
+    else
+    {
+        window->DrawList->AddImageQuad(id, pos[0], pos[1], pos[2], pos[3], uvs[0], uvs[1], uvs[2], uvs[3], IM_COL32_WHITE);
+//        window->DrawList->AddImage(id, bb.Min, bb.Max, uv0, uv1, GetColorU32(tint_col));
+    }
+    
+}
+

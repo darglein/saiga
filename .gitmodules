@@ -3,19 +3,19 @@
 	url = https://gitlab.com/libeigen/eigen.git
 [submodule "submodules/libpng"]
 	path = submodules/libpng
-	url = ../../glennrp/libpng.git
+	url = https://github.com/glennrp/libpng.git
 [submodule "submodules/assimp"]
 	path = submodules/assimp
-	url = ../../assimp/assimp.git
+	url = https://github.com/assimp/assimp.git
 [submodule "submodules/googletest"]
 	path = submodules/googletest
-	url = ../../google/googletest.git
+	url = https://github.com/google/googletest.git
 [submodule "submodules/glfw"]
 	path = submodules/glfw
-	url = ../../glfw/glfw.git
+	url = https://github.com/glfw/glfw.git
 [submodule "submodules/zlib"]
 	path = submodules/zlib
-	url = ../../darglein/zlib.git
+	url = https://github.com/darglein/zlib.git
 [submodule "submodules/glog"]
 	path = submodules/glog
-	url = ../../google/glog.git
+	url = https://github.com/google/glog.git
