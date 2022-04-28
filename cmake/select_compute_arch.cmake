@@ -204,6 +204,9 @@ function(CUDA_SELECT_NVCC_ARCH_FLAGS out_variable)
   # Now process the list and look for names
   string(REGEX REPLACE "[ \t]+" ";" CUDA_ARCH_LIST "${CUDA_ARCH_LIST}")
   list(REMOVE_DUPLICATES CUDA_ARCH_LIST)
+
+  set(out_arch ${CUDA_ARCH_LIST})
+
   foreach(arch_name ${CUDA_ARCH_LIST})
     set(arch_bin)
     set(arch_ptx)
@@ -298,4 +301,5 @@ function(CUDA_SELECT_NVCC_ARCH_FLAGS out_variable)
   string(REPLACE ";" " " nvcc_archs_readable "${nvcc_archs_readable}")
   set(${out_variable}          ${nvcc_flags}          PARENT_SCOPE)
   set(${out_variable}_readable ${nvcc_archs_readable} PARENT_SCOPE)
+  set(${out_variable}_arches ${CUDA_ARCH_LIST} PARENT_SCOPE)
 endfunction()
