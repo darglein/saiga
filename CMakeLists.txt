@@ -43,7 +43,6 @@ OptionsHelper (SAIGA_ARCHNATIVE "adds the -march=native compile flag" ON)
 OptionsHelper (SAIGA_CUDA_DEBUG "enables CUDA_SYNC_CHECK_ERROR and CUDA_ASSERT" ON)
 OptionsHelper (SAIGA_CUDA_BLSP "enables cublas and cusparse" OFF)
 OptionsHelper (SAIGA_CUDA_RDC "cuda relocateable device code" OFF)
-OptionsHelper (SAIGA_CUDA_ARCH "Compile for a specific CUDA Arch. If empty the systems Arch is used. Example: \"7.5;8.0;8.6;8.6+PTX\"" "")
 OptionsHelper(SAIGA_BUILD_DOC "Build documentation" OFF)
 OptionsHelper(SAIGA_NO_INSTALL "The build directory can be used for external projects." OFF)
 OptionsHelper(SAIGA_LEGACY_GLM "Use GLM instead of eigen. This feature will be removed in the near future" OFF)
@@ -54,6 +53,9 @@ OptionsHelper(SAIGA_DEBUG_ASAN "Enable the address sanitizer. Does not work in c
 OptionsHelper(SAIGA_DEBUG_MSAN "Enable the memory sanitizer. Does not work in combination with TSAN." OFF)
 OptionsHelper(SAIGA_DEBUG_TSAN "Enable the thread sanitizer. Does not work in combination with ASAN." OFF)
 OptionsHelper(SAIGA_DEBIAN_BUILD "Saiga is currently build into a Debian Package. This will overwrite a lot of compile flags." OFF)
+
+#OptionsHelper (SAIGA_CUDA_ARCH "Compile for a specific CUDA Arch. If empty the systems Arch is used. Example: \"7.5;8.0;8.6;8.6+PTX\"" "")
+set(SAIGA_CUDA_ARCH "" CACHE string "Compile for a specific CUDA Arch. If empty the systems Arch is used. Example: \"7.5;8.0;8.6;8.6+PTX\"")
 
 OptionsHelper(SAIGA_BUILD_GLFW   "Build the GLFW as a submodule" ON)
 
