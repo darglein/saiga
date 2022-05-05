@@ -18,7 +18,6 @@ add_subdirectory(torch)
 add_subdirectory(features)
 
 if (OPENCV_FOUND)
-    add_subdirectory(orb)
     add_subdirectory(opencv)
 endif()
 

@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-struct Rectification
+struct SAIGA_VISION_API Rectification
 {
     IntrinsicsPinholed K_src;
     Saiga::Distortion D_src;
