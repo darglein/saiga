@@ -2128,14 +2128,22 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetDoubleValue(cons
 
     std::string input_str;
     {
+        auto to_string2 = [](double d)
+        {
+            std::ostringstream oss;
+            oss << std::setprecision(10) << std::noshowpoint << d;
+            std::string str = oss.str();
+            return str;
+        };
         // convert to an ASCII string
-        char szInput[64];
-#if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
-        sprintf_s(szInput, "%0.10f", a_nValue);
-#else  // !__STDC_WANT_SECURE_LIB__
-        sprintf(szInput, "%0.10f", a_nValue);
-#endif  // __STDC_WANT_SECURE_LIB__
-        input_str = szInput;
+//        char szInput[64];
+//#if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
+//        sprintf_s(szInput, "%0.10f", a_nValue);
+//#else  // !__STDC_WANT_SECURE_LIB__
+//        sprintf(szInput, "%0.10f", a_nValue);
+//#endif  // __STDC_WANT_SECURE_LIB__
+//        input_str = szInput;
+        input_str = to_string2(a_nValue);
     }
     if (add_default_prefix)
     {
