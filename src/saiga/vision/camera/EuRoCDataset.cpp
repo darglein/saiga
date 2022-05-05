@@ -115,7 +115,12 @@ int EuRoCDataset::LoadMetaData()
         VLOG(1) << config["comment"].as<std::string>();
         SAIGA_ASSERT(config["camera_model"].as<std::string>() == "pinhole");
         intrinsics.fps = config["rate_hz"].as<double>();
-        intrinsics.model.K.coeffs(readYamlMatrix<Vec5>(config["intrinsics"]));
+
+        // in the euroc config only the first 4 elements are used
+        Vec4 kparams = readYamlMatrix<Vec4>(config["intrinsics"]);
+        Vec5 kparamsfull = Vec5::Zero();
+        kparamsfull.head<4>() = kparams;
+        intrinsics.model.K.coeffs(kparamsfull);
         auto res               = readYamlMatrix<ivec2>(config["resolution"]);
         intrinsics.imageSize.w = res(0);
         intrinsics.imageSize.h = res(1);
@@ -136,7 +141,15 @@ int EuRoCDataset::LoadMetaData()
         YAML::Node config = YAML::LoadFile(rightImageSensor);
         VLOG(1) << config["comment"].as<std::string>();
         SAIGA_ASSERT(config["camera_model"].as<std::string>() == "pinhole");
-        intrinsics.rightModel.K.coeffs(readYamlMatrix<Vec5>(config["intrinsics"]));
+
+        // in the euroc config only the first 4 elements are used
+        Vec4 kparams = readYamlMatrix<Vec4>(config["intrinsics"]);
+        Vec5 kparamsfull = Vec5::Zero();
+        kparamsfull.head<4>() = kparams;
+        intrinsics.rightModel.K.coeffs(kparamsfull);
+        /// intrinsics.rightModel.K.coeffs(readYamlMatrix<Vec5>(config["intrinsics"]));
+
+
         auto res                    = readYamlMatrix<ivec2>(config["resolution"]);
         intrinsics.rightImageSize.w = res(0);
         intrinsics.rightImageSize.h = res(1);

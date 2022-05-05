@@ -55,7 +55,7 @@ OptionsHelper(SAIGA_DEBUG_TSAN "Enable the thread sanitizer. Does not work in co
 OptionsHelper(SAIGA_DEBIAN_BUILD "Saiga is currently build into a Debian Package. This will overwrite a lot of compile flags." OFF)
 
 #OptionsHelper (SAIGA_CUDA_ARCH "Compile for a specific CUDA Arch. If empty the systems Arch is used. Example: \"7.5;8.0;8.6;8.6+PTX\"" "")
-set(SAIGA_CUDA_ARCH "" CACHE string "Compile for a specific CUDA Arch. If empty the systems Arch is used. Example: \"7.5;8.0;8.6;8.6+PTX\"")
+set(SAIGA_CUDA_ARCH "" CACHE STRING "Compile for a specific CUDA Arch. If empty the systems Arch is used. Example: \"7.5;8.0;8.6;8.6+PTX\"")
 
 OptionsHelper(SAIGA_BUILD_GLFW   "Build the GLFW as a submodule" ON)
 
@@ -77,6 +77,7 @@ OptionsHelper(SAIGA_WITH_OPENNI "Include the openmesh library, if possible." ON)
 OptionsHelper(SAIGA_WITH_K4A "Include the openmesh library, if possible." ON)
 OptionsHelper(SAIGA_WITH_BULLET "Include the openmesh library, if possible." OFF)
 OptionsHelper(SAIGA_WITH_OPENVR "Include the openmesh library, if possible." ON)
+OptionsHelper(SAIGA_WITH_OPENCV "Include the opencv library, if possible." OFF)
 
 
 if(SAIGA_DEBIAN_BUILD)
