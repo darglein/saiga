@@ -130,6 +130,8 @@ class SAIGA_CUDA_API MultiFrameTimer
 class RelativeCudaTimer : public TimestampTimer
 {
    public:
+    RelativeCudaTimer(cudaStream_t stream = 0) : timer(stream) {}
+
     void Start() { timer.startTimer(); }
     void Stop() { timer.stopTimer(); }
     std::pair<uint64_t, uint64_t> LastMeasurement()
