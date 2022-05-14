@@ -20,7 +20,7 @@ struct SAIGA_VISION_API WorldPoint
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    Eigen::Vector3d p;
+    Vec3 p;
     bool valid    = false;
     bool constant = false;
 
@@ -75,14 +75,14 @@ struct SAIGA_VISION_API StereoImagePoint
 
     double depth = -1;
 
-    Eigen::Vector2d point;
+    Vec2 point;
     float weight = 1;
 
     bool outlier = false;
 
     // === computed by reprojection
     double repDepth = 0;
-    Eigen::Vector2d repPoint;
+    Vec2 repPoint;
 
     explicit operator bool() const { return wp != -1 && !outlier; }
 

@@ -142,7 +142,7 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
     HD SameObject slerp(Scalar alpha, SameObject other) const
     {
         Scalar cosHalfTheta = this->dot(other);
-        if (abs(cosHalfTheta) >= 1.0)
+        if (std::abs(cosHalfTheta) >= 1.0)
         {
             return *this;
         }

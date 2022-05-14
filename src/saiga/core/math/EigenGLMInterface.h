@@ -283,6 +283,7 @@ SAIGA_CORE_API extern mat4 rotate(float angle, const vec3& axis);
 SAIGA_CORE_API extern quat rotate(const quat& q, float angle, const vec3& axis);
 
 SAIGA_CORE_API extern quat angleAxis(float angle, const vec3& axis);
+SAIGA_CORE_API extern Quat angleAxis(double angle, const Vec3& axis);
 SAIGA_CORE_API extern quat mix(const quat& a, const quat& b, float alpha);
 SAIGA_CORE_API extern Quat mix(const Quat& a, const Quat& b, double alpha);
 SAIGA_CORE_API extern quat quat_cast(const mat3& m);

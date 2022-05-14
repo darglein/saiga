@@ -7,7 +7,6 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/assert.h"
 #include "point_light.h"
-#include "internal/noGraphicsAPI.h"
 namespace Saiga
 {
 PointLight::PointLight()

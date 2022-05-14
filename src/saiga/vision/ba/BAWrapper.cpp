@@ -75,13 +75,15 @@ OptimizationResults BAWrapper::initAndSolve(const OptimizationOptions& optimizat
 
 Optimizer* BAWrapper::opt()
 {
+#ifdef SAIGA_USE_EIGENRECURSIVE
     if (fw == Framework::Recursive) return static_cast<BARec*>(ba.get());
+#endif
 #ifdef SAIGA_USE_CERES
-    else if (fw == Framework::Ceres)
+    if (fw == Framework::Ceres)
         return static_cast<CeresBA*>(ba.get());
 #endif
 #ifdef SAIGA_USE_G2O
-    else if (fw == Framework::G2O)
+    if (fw == Framework::G2O)
         return static_cast<g2oBA2*>(ba.get());
 #endif
     SAIGA_EXIT_ERROR("unknown framework.");

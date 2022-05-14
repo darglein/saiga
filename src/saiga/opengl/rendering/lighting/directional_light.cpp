@@ -10,7 +10,6 @@
 #include "saiga/core/geometry/obb.h"
 #include "saiga/core/imgui/imgui.h"
 
-#include "internal/noGraphicsAPI.h"
 namespace Saiga
 {
 void DirectionalLight::BuildCascades(int _numCascades)

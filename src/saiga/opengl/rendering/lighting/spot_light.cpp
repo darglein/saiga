@@ -8,7 +8,6 @@
 
 #include "saiga/core/imgui/imgui.h"
 
-#include "internal/noGraphicsAPI.h"
 
 namespace Saiga
 {

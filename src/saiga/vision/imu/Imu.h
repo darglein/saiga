@@ -62,9 +62,11 @@ Eigen::Quaternion<T> OmegaToQuaternion(Vector<T, 3> omega, T dt)
     }
 
     auto axis = omega / angle;
-    Eigen::AngleAxis<T> aa(angle * dt, axis);
-    Eigen::Quaternion<T> q(aa);
-    return q;
+
+    return angleAxis(angle*dt,axis);
+//    Eigen::AngleAxis<T> aa(angle * dt, axis);
+//    Eigen::Quaternion<T> q(aa);
+//    return q;
 
 #if 0
     T theta_half      = omega.norm() * 0.5 * dt;
@@ -78,13 +80,14 @@ Eigen::Quaternion<T> OmegaToQuaternion(Vector<T, 3> omega, T dt)
 #endif
 }
 
+#ifdef SAIGA_USE_EIGEN
 template <typename T>
 Vector<T, 3> QuaternionToOmega(Eigen::Quaternion<T> q)
 {
     Eigen::AngleAxis<T> aa(q);
     return aa.axis() * aa.angle();
 }
-
+#endif
 
 struct SAIGA_VISION_API Data
 {
