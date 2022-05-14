@@ -3,6 +3,8 @@
 
 #include "saiga/core/image/imageView.h"
 #include "saiga/cuda/cudaHelper.h"
+
+#ifdef SAIGA_USE_EIGEN
 #include "saiga/vision/features/Features.h"
 
 #include <vector>
@@ -30,3 +32,5 @@ class SAIGA_CUDA_API ORB
 
 }  // namespace CUDA
 }  // namespace Saiga
+
+#endif

@@ -59,7 +59,9 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/cuda/cudaHelper.h"
 
-#ifdef SAIGA_VISION
+#if defined(SAIGA_USE_CUDA_TOOLKIT) && !defined(_WIN32) && defined(SAIGA_USE_EIGEN) && defined(SAIGA_VISION)
+
+
 #include "ORBExtractorGPU.h"
 
 #include <thread>

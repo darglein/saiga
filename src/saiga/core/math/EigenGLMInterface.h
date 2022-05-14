@@ -169,43 +169,45 @@ Matrix<typename Derived1::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived1>& d
 
 #else
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-_Scalar distance(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-                 Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD _Scalar distance(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                    Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     return (m1 - m2).norm();
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> cross(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-                                                        Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> cross(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                                                           Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     return m1.cross(m2);
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-_Scalar dot(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-            Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD _Scalar dot(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+               Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     return m1.dot(m2);
 }
 
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> normalize(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
+HD Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> normalize(
+    const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
 {
     return m1.normalized();
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> ArrayMult(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-                                                            Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> ArrayMult(
+    const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1, Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     return m1.cross(m2);
 }
 
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> inverse(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
+HD Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> inverse(
+    const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
 {
     return m1.inverse();
 }
@@ -219,7 +221,7 @@ HD constexpr auto mix(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& a
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-_Scalar length(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
+HD _Scalar length(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
 {
     return m1.norm();
 }

@@ -25,10 +25,13 @@
 #include "saiga/cuda/imageProcessing/OrbDescriptors.h"
 #include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/cuda/pinned_vector.h"
+
+
+#if defined(SAIGA_USE_CUDA_TOOLKIT) && !defined(_WIN32) && defined(SAIGA_USE_EIGEN)
+
 #include "saiga/vision/features/FeatureDistribution.h"
 #include "saiga/vision/util/ScalePyramid.h"
 
-#if defined(SAIGA_USE_CUDA_TOOLKIT) && !defined(_WIN32)
 
 namespace Saiga
 {

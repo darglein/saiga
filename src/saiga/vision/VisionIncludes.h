@@ -18,7 +18,6 @@ namespace Saiga
 using SE3 = Sophus::SE3d;
 using SO3 = Sophus::SO3d;
 // using Sim3  = Sophus::Sim3d;
-using DSim3 = Sophus::DSim3<double>;
 
 
 // No idea why this method doesn't exist in sophus
@@ -39,6 +38,9 @@ using DSim3 = Sophus::DSim3<double>;
 //    return {se3, scale};
 //}
 
+#ifdef SAIGA_USE_EIGEN
+
+using DSim3 = Sophus::DSim3<double>;
 
 // Returns the SE3 which is inversely matching the given sim3:
 //
@@ -57,5 +59,5 @@ inline Sophus::SE3<T> inverseMatchingSE3(const Sophus::DSim3<T>& sim3)
     return Sophus::SE3<T>(q, t);
 }
 
-
+#endif
 }  // namespace Saiga
