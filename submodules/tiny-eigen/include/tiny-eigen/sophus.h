@@ -108,6 +108,7 @@ class SO3
 
     Eigen::Matrix<T, 3, 3> matrix() const { return q.matrix(); }
 
+
    private:
     Quat q;
 };
@@ -141,6 +142,15 @@ class alignas(sizeof(T) * 8) SE3
     HD SO3<T>& so3() { return _so3; }
     HD const SO3<T>& so3() const { return _so3; }
 
+
+ Eigen::Matrix<T,7,1> params() const{
+     Eigen::Matrix<T,7,1> data;
+     data.template head<4>() = unit_quaternion().coeffs();
+     data(4) = t(0);
+     data(5) = t(1);
+     data(6) = t(2);
+     return data;
+ }
    private:
     SO3<T> _so3;
     Vec3 t;

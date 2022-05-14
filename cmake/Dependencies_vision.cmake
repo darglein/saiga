@@ -49,12 +49,14 @@ if (SAIGA_WITH_YAMLCPP)
     endif ()
 endif ()
 
-#Recursive
-SET(SAIGA_USE_EIGENRECURSIVE 1)
-find_package(EigenRecursive QUIET)
-PackageHelperTarget(Eigen::EigenRecursive EIGENRECURSIVE_FOUND)
-if (EIGENRECURSIVE_FOUND)
-    SET(SAIGA_SYSTEM_EIGENRECURSIVE 1)
+if (NOT SAIGA_WITH_TINY_EIGEN)
+    #Recursive
+    SET(SAIGA_USE_EIGENRECURSIVE 1)
+    find_package(EigenRecursive QUIET)
+    PackageHelperTarget(Eigen::EigenRecursive EIGENRECURSIVE_FOUND)
+    if (EIGENRECURSIVE_FOUND)
+        SET(SAIGA_SYSTEM_EIGENRECURSIVE 1)
+    endif ()
 endif ()
 
 #g2o

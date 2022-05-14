@@ -11,6 +11,9 @@
 #include <cmath>
 #include <iostream>
 
+// don't need to do anything here because we don't use aligned vectors
+#define EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 namespace Eigen
 {
 template <typename _Scalar, int _Rows, int _Cols, int _Options>
@@ -391,7 +394,7 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
     using SameMatrix          = Array<_Scalar, _Rows, _Cols, _Options>;
     static constexpr int Size = _Rows * _Cols;
     static_assert(_Rows > 0, "Rows must be positive");
-    static_assert(_Options == ColMajor, "Only colmajor supportet");
+    static_assert((_Options & RowMajor) == 0, "Only colmajor supportet");
 
     HD Array() {}
 
@@ -488,7 +491,7 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
     using SameMatrix          = MatrixView<_Scalar, _Rows, _Cols, _Options>;
     static constexpr int Size = _Rows * _Cols;
     static_assert(_Rows > 0, "Rows must be positive");
-    static_assert(_Options == ColMajor, "Only colmajor supportet");
+    static_assert((_Options & RowMajor) == 0, "Only colmajor supportet");
 
     HD MatrixView(Scalar* data, int row_stride, int col_stride)
         : _data(data), _row_stride(row_stride), _col_stride(col_stride)
