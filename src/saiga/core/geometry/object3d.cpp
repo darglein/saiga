@@ -75,7 +75,6 @@ std::ostream& operator<<(std::ostream& os, const Saiga::Object3D& o)
 
 void Saiga::Object3D::setModelMatrix(const mat4& _model)
 {
-#ifdef SAIGA_FULL_EIGEN
     // this is the inverse of createTRSmatrix
     model    = _model;
     position = model.col(3);
@@ -83,23 +82,10 @@ void Saiga::Object3D::setModelMatrix(const mat4& _model)
     scale[0] = length(vec3(R.col(0)));
     scale[1] = length(vec3(R.col(1)));
     scale[2] = length(vec3(R.col(2)));
-    R.col(0) /= scale[0];
-    R.col(1) /= scale[1];
-    R.col(2) /= scale[2];
-    rot = quat_cast(R);
-#else
-    // this is the inverse of createTRSmatrix
-    model    = _model;
-    position = model.col(3);
-    mat3 R(model);
-    scale[0] = length(R.col(0).eval());
-    scale[1] = length(R.col(1).eval());
-    scale[2] = length(R.col(2).eval());
     R.col(0) = R.col(0) / scale[0];
     R.col(1) = R.col(1) / scale[1];
     R.col(2) = R.col(2) / scale[2];
-    rot      = quat_cast(R);
-#endif
+    rot = quat_cast(R);
 }
 
 }  // namespace Saiga

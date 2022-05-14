@@ -119,7 +119,7 @@ int main(int argc, char* args[])
 
                 if (iteration == max_iteration) alpha = 0;
 
-                vec3 color = clamp(colorizePlasma(alpha), vec3(0), vec3(1));
+                vec3 color = clamp(colorizePlasma(alpha), vec3(0,0,0), vec3(1,1,1));
 
                 //                vec3 color = clamp(vec3(alpha ),vec3(0),vec3(1));
 

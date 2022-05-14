@@ -23,7 +23,7 @@ namespace Polygon
 {
 inline vec3 center(const PolygonType& pol)
 {
-    vec3 c(0);
+    vec3 c(0, 0, 0);
     for (auto po : pol)
     {
         c += po;

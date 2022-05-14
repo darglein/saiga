@@ -47,7 +47,7 @@ TEST(Matrix, View)
     EXPECT_EQ(view.at(0), 3.f);
     EXPECT_EQ(view.at(1), 2.f);
     Vec5 zerovec = Vec5::Zero();
-    view = zerovec;
+    view         = zerovec;
     EXPECT_EQ(view.at(0), 0.f);
     EXPECT_EQ(view.at(1), 0.f);
 
@@ -58,11 +58,18 @@ TEST(Matrix, View)
     }
 
     EXPECT_EQ(data[4], 0.f);
-
-
 }
 #endif
+TEST(Matrix, inverse)
+{
+    Mat4 m  = Mat4::Identity() * 4;
+    m(0,1) = 1;
+    Mat4 m2 = m.inverse();
 
+    std::cout << m2 << std::endl;
+    Mat4 m3 = m2.inverse();
+    std::cout << m3 << std::endl;
+}
 
 TEST(Matrix, RowCol)
 {

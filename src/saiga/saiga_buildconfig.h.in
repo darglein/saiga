@@ -19,7 +19,6 @@
 #cmakedefine SAIGA_STRICT_FP
 #cmakedefine SAIGA_FULL_OPTIMIZE
 #cmakedefine SAIGA_CUDA_DEBUG
-#cmakedefine SAIGA_FULL_EIGEN
 #cmakedefine SAIGA_DEBUG_ASAN
 #cmakedefine SAIGA_DEBUG_TSAN
 #cmakedefine SAIGA_DEBIAN_BUILD

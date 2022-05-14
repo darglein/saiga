@@ -53,7 +53,7 @@ class SAIGA_OPENGL_API Particle
     // uniform scaled
     void setScale(float radius, float upscale = 0);
     // non uniform scaled
-    void setScale(const vec2& scale, const vec2& upscale = vec2(0));
+    void setScale(const vec2& scale, const vec2& upscale = vec2(0,0));
 
     void setVelocity(const vec3& v);
 

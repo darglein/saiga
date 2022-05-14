@@ -17,14 +17,14 @@ template <typename T>
 class SE3
 {
    public:
-    SE3(){}
+    SE3() {}
 };
 
 template <typename T>
 class Sim3
 {
    public:
-    Sim3(){}
+    Sim3() {}
 };
 
 }  // namespace Sophus

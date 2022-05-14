@@ -26,8 +26,34 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
 
     static SameObject Identity() { return SameObject(1, 0, 0, 0); }
 
-    static SameObject FromTwoVectors(Matrix<Scalar, 3, 1> v1, Matrix<Scalar, 3, 1> v2) { return {}; }
-    static SameObject FromAngleAxis(Scalar angle, Matrix<Scalar, 3, 1> v1) { return {}; }
+    static SameObject FromTwoVectors(Matrix<Scalar, 3, 1> a, Matrix<Scalar, 3, 1> b)
+    {
+        Matrix<Scalar, 3, 1> v0 = a.normalized();
+        Matrix<Scalar, 3, 1> v1 = b.normalized();
+        Scalar c                = v1.dot(v0);
+
+
+        Matrix<Scalar, 3, 1> axis = v0.cross(v1);
+        Scalar s                  = sqrt((Scalar(1) + c) * Scalar(2));
+        Scalar invs               = Scalar(1) / s;
+
+        axis = axis * invs;
+        SameObject result;
+        result.x() = axis.x();
+        result.y() = axis.y();
+        result.z() = axis.z();
+        result.w() = s * Scalar(0.5);
+        return result;
+    }
+    static SameObject FromAngleAxis(Scalar angle, Matrix<Scalar, 3, 1> v1)
+    {
+        Matrix<Scalar, 3, 1> vn = v1.normalized();
+
+        angle *= 0.5f;
+        float sinAngle = sin(angle);
+
+        return SameObject(cos(angle), vn.x() * sinAngle, vn.y() * sinAngle, vn.z() * sinAngle);
+    }
 
     Quaternion() {}
     Quaternion(_Scalar w, _Scalar x, _Scalar y, _Scalar z)
@@ -38,25 +64,113 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         _data[3] = w;
     }
 
-    Quaternion(const Matrix<_Scalar, 3, 3>& m) {}
+    Quaternion(const Matrix<_Scalar, 3, 3>& rm)
+    {
+        Scalar t = rm(0, 0) + rm(1, 1) + rm(2, 2);
+        if (t > 0)
+        {
+            Scalar s = 0.5 / std::sqrt(t + 1);
+            (*this)  = Quaternion<Scalar>(0.25 / s, (rm(2, 1) - rm(1, 2)) * s, (rm(0, 2) - rm(2, 0)) * s,
+                                         (rm(1, 0) - rm(0, 1)) * s);
+        }
+        else
+        {
+            if (rm(0, 0) > rm(1, 1) && rm(0, 0) > rm(2, 2))
+            {
+                Scalar s = 2.0 * std::sqrt(1.0 + rm(0, 0) - rm(1, 1) - rm(2, 2));
+                (*this)  = Quaternion<Scalar>((rm(2, 1) - rm(1, 2)) / s, 0.25 * s, (rm(0, 1) + rm(1, 0)) / s,
+                                             (rm(0, 2) + rm(2, 0)) / s);
+            }
+            else if (rm(1, 1) > rm(2, 2))
+            {
+                Scalar s = 2.0 * std::sqrt(1.0 + rm(1, 1) - rm(0, 0) - rm(2, 2));
+                (*this)  = Quaternion<Scalar>((rm(0, 2) - rm(2, 0)) / s, (rm(0, 1) + rm(1, 0)) / s, 0.25 * s,
+                                             (rm(1, 2) + rm(2, 1)) / s);
+            }
+            else
+            {
+                Scalar s = 2.0 * std::sqrt(1.0 + rm(2, 2) - rm(0, 0) - rm(1, 1));
+                (*this)  = Quaternion<Scalar>((rm(1, 0) - rm(0, 1)) / s, (rm(0, 2) + rm(2, 0)) / s,
+                                             (rm(1, 2) + rm(2, 1)) / s, 0.25 * s);
+            }
+        }
+    }
 
     Matrix<_Scalar, 3, 3> matrix() const
     {
         Matrix<_Scalar, 3, 3> result;
+
+
+        Scalar s = w();
+        Scalar x = _data[0];
+        Scalar y = _data[1];
+        Scalar z = _data[2];
+
+        result(0, 0) = 1 - 2 * y * y - 2 * z * z;
+        result(0, 1) = 2 * x * y - 2 * s * z;
+        result(0, 2) = 2 * x * z + 2 * s * y;
+        result(1, 0) = 2 * x * y + 2 * s * z;
+        result(1, 1) = 1 - 2 * x * x - 2 * z * z;
+        result(1, 2) = 2 * y * z - 2 * s * x;
+        result(2, 0) = 2 * x * z - 2 * s * y;
+        result(2, 1) = 2 * y * z + 2 * s * x;
+        result(2, 2) = 1 - 2 * x * x - 2 * y * y;
+
         return result;
     }
 
     Matrix<_Scalar, 4, 1> coeffs() const
     {
-        Matrix<_Scalar, 4, 1> result;
+        Matrix<_Scalar, 4, 1> result(_data[0], _data[1], _data[2], _data[3]);
         return result;
     }
 
 
-    SameObject inverse() const { return SameObject(); }
-    SameObject normalized() const { return SameObject(); }
+    SameObject inverse() const { return SameObject(w(), -x(), -y(), -z()); }
+    SameObject normalized() const
+    {
+        Scalar scale = 1 / norm();
+        SameObject result;
+        result.w() = w() * scale;
+        result.x() = x() * scale;
+        result.y() = y() * scale;
+        result.z() = z() * scale;
+        return result;
+    }
+    Scalar norm() const { return coeffs().norm(); }
 
-    SameObject slerp(Scalar alpha, SameObject other) const { return SameObject(); }
+    SameObject slerp(Scalar alpha, SameObject other) const
+    {
+        Scalar cosHalfTheta = this->dot(other);
+        if (abs(cosHalfTheta) >= 1.0)
+        {
+            return *this;
+        }
+        // Calculate temporary values.
+        SameObject result;
+        double halfTheta    = acos(cosHalfTheta);
+        double sinHalfTheta = sqrt(1.0 - cosHalfTheta * cosHalfTheta);
+        // if theta = 180 degrees then result is not fully defined
+        // we could rotate around any axis normal to qa or qb
+        if (fabs(sinHalfTheta) < 0.001)
+        {  // fabs is floating point absolute
+            result.w() = (this->w() * 0.5 + other.w() * 0.5);
+            result.x() = (this->x() * 0.5 + other.x() * 0.5);
+            result.y() = (this->y() * 0.5 + other.y() * 0.5);
+            result.z() = (this->z() * 0.5 + other.z() * 0.5);
+            return result;
+        }
+        double ratioA = sin((1 - alpha) * halfTheta) / sinHalfTheta;
+        double ratioB = sin(alpha * halfTheta) / sinHalfTheta;
+        // calculate Quaternion.
+        result.w() = (this->w() * ratioA + other.w() * ratioB);
+        result.x() = (this->x() * ratioA + other.x() * ratioB);
+        result.y() = (this->y() * ratioA + other.y() * ratioB);
+        result.z() = (this->z() * ratioA + other.z() * ratioB);
+        return result;
+    }
+
+    Scalar dot(const SameObject& other) const { return this->coeffs().dot(other.coeffs()); }
 
     Scalar& x() { return _data[0]; }
     Scalar& y() { return _data[1]; }
@@ -75,16 +189,20 @@ template <typename _Scalar, int _Options>
 Matrix<_Scalar, 3, 1, _Options> operator*(const Quaternion<_Scalar> quat, const Matrix<_Scalar, 3, 1, _Options>& v)
 {
     Matrix<_Scalar, 3, 1, _Options> result;
-    throw 1;
-    return result;
+    return quat.matrix() * v;
 }
 
 template <typename _Scalar>
- Quaternion<_Scalar> operator*(const Quaternion<_Scalar> quat, const Quaternion<_Scalar>& v)
+Quaternion<_Scalar> operator*(const Quaternion<_Scalar> q1, const Quaternion<_Scalar>& q2)
 {
-    Quaternion<_Scalar>  result;
-    throw 1;
-    return result;
+    Quaternion<_Scalar> q;
+
+    q.w() = q1.w() * q2.w() - q1.x() * q2.x() - q1.y() * q2.y() - q1.z() * q2.z();
+    q.x() = q1.w() * q2.x() + q1.x() * q2.w() + q1.y() * q2.z() - q1.z() * q2.y();
+    q.y() = q1.w() * q2.y() - q1.x() * q2.z() + q1.y() * q2.w() + q1.z() * q2.x();
+    q.z() = q1.w() * q2.z() + q1.x() * q2.y() - q1.y() * q2.x() + q1.z() * q2.w();
+
+    return q;
 }
 
 using Quaternionf = Quaternion<float>;

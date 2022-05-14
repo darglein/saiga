@@ -33,9 +33,9 @@ void Text::calculateNormalizationMatrix()
         float height = 1.0f;
 
         vec3 offset                   = boundingBox.getPosition();
-        normalizationMatrix.col(0)[0] = 1.0f / height;
-        normalizationMatrix.col(1)[1] = 1.0f / height;
-        normalizationMatrix.col(2)[2] = 1.0f / height;
+        normalizationMatrix(0,0) = 1.0f / height;
+        normalizationMatrix(1,1) = 1.0f / height;
+        normalizationMatrix(2,2) = 1.0f / height;
         normalizationMatrix.col(3)    = make_vec4(-offset * 1.0f / height, 1);
         boundingBox.transform(normalizationMatrix);
     }
