@@ -174,7 +174,7 @@ void PLYLoader::parseMeshBinary()
         vec3 pos(x[0], x[1], x[2]);
 
 
-        vec3 color(1);
+        vec3 color(1, 1, 1);
         if (offsetType[3].second == 1)
         {
             unsigned char* c = reinterpret_cast<unsigned char*>(start + offsetType[3].first);

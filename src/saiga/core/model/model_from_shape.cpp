@@ -434,7 +434,7 @@ UnifiedMesh GridPlaneLineMesh(const ivec2& dimension, const vec2& spacing)
     {
         vec3 p1 = vec3(spacing.x() * i, 0, -size[1]);
         vec3 p2 = vec3(spacing.x() * i, 0, size[1]);
-        model.lines.push_back({vertices.size(), vertices.size() + 1});
+        model.lines.push_back({(int)vertices.size(), (int)vertices.size() + 1});
         vertices.push_back(p1);
         vertices.push_back(p2);
     }
@@ -443,7 +443,7 @@ UnifiedMesh GridPlaneLineMesh(const ivec2& dimension, const vec2& spacing)
     {
         vec3 p1 = vec3(-size[0], 0, spacing.y() * i);
         vec3 p2 = vec3(+size[0], 0, spacing.y() * i);
-        model.lines.push_back({vertices.size(), vertices.size() + 1});
+        model.lines.push_back({(int)vertices.size(), (int)vertices.size() + 1});
         vertices.push_back(p1);
         vertices.push_back(p2);
     }

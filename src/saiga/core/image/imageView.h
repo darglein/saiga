@@ -12,7 +12,7 @@
 
 #include "floatTexels.h"
 #include "imageBase.h"
-
+#include <cstring>
 #include <algorithm>
 #include <array>
 

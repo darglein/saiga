@@ -78,15 +78,15 @@ HD constexpr typename Derived::Scalar length(const Eigen::MatrixBase<Derived>& v
     return v.norm();
 }
 
-//HD constexpr float abs(float v)
+// HD constexpr float abs(float v)
 //{
-//    return std::abs(v);
-//}
+//     return std::abs(v);
+// }
 //
-//HD constexpr double abs(double v)
+// HD constexpr double abs(double v)
 //{
-//    return std::abs(v);
-//}
+//     return std::abs(v);
+// }
 
 using std::abs;
 
@@ -115,6 +115,13 @@ HD constexpr auto slerp(const Eigen::QuaternionBase<Derived>& a, const Eigen::Qu
 {
     return a.slerp(alpha, b);
 }
+
+template <typename Derived>
+HD constexpr typename Derived::PlainObject fract(const Eigen::MatrixBase<Derived>& v)
+{
+    return (v.array() - v.array().floor());
+}
+
 
 //
 // Pixar Revised ONB
@@ -159,6 +166,112 @@ Matrix<typename Derived1::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived1>& d
     R.col(1) = R.col(2).cross(R.col(0));
     return R;
 }
+
+#else
+template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
+_Scalar distance(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                 Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+{
+    return (m1 - m2).norm();
+}
+
+template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
+Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> cross(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                                                        Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+{
+    return m1.cross(m2);
+}
+
+template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
+_Scalar dot(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+            Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+{
+    return m1.dot(m2);
+}
+
+
+template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
+Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> normalize(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
+{
+    return m1.normalized();
+}
+
+template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
+Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> ArrayMult(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                                                            Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+{
+    return m1.cross(m2);
+}
+
+
+template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
+Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> inverse(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
+{
+    return m1.inverse();
+}
+
+
+template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
+HD constexpr auto mix(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& a,
+                      const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& b, _Scalar alpha)
+{
+    return (1 - alpha) * a + alpha * b;
+}
+
+template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
+_Scalar length(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
+{
+    return m1.norm();
+}
+
+template <typename Scalar>
+HD constexpr auto slerp(const Eigen::Quaternion<Scalar>& a, const Eigen::Quaternion<Scalar>& b, Scalar alpha)
+{
+    return a.slerp(alpha, b);
+}
+
+template <typename Scalar>
+HD constexpr auto normalize(const Eigen::Quaternion<Scalar>& a)
+{
+    return a.normalized();
+}
+
+
+template <typename Derived>
+HD constexpr Derived abs(const Eigen::MatrixBase<Derived>& v)
+{
+    return v.derived().array().abs();
+}
+
+template <typename Derived>
+HD constexpr typename Derived::PlainObject clamp(const Eigen::MatrixBase<Derived>& x,
+                                                 const Eigen::MatrixBase<Derived>& minVal,
+                                                 const Eigen::MatrixBase<Derived>& maxVal)
+{
+    typename Derived::PlainObject tmp = x.derived().array().max(minVal.derived().array());
+    return tmp.array().min(maxVal.derived().array());
+}
+
+template <typename Derived>
+HD constexpr typename Derived::PlainObject fract(const Eigen::MatrixBase<Derived>& v)
+{
+    return (v.derived().array() - v.derived().array().floor());
+}
+
+
+
+template <typename Derived>
+HD constexpr typename Derived::PlainObject saturate(const Eigen::MatrixBase<Derived>& x)
+{
+    typename Derived::PlainObject z, o;
+    z.setZero();
+    o.setOnes();
+    return clamp<Derived>(x, z, o);
+}
+
+
+
+using std::abs;
 
 #endif
 
