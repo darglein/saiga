@@ -63,6 +63,7 @@ struct Test
 
 int main()
 {
+    initSaigaSample();
     printSaigaInfo();
     auto saigaFlags = EigenHelper::getSaigaEigenCompileFlags();
     std::cout << saigaFlags << std::endl;

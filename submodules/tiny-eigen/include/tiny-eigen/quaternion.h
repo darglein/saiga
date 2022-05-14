@@ -46,6 +46,13 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         return result;
     }
 
+    Matrix<_Scalar, 4, 1> coeffs() const
+    {
+        Matrix<_Scalar, 4, 1> result;
+        return result;
+    }
+
+
     SameObject inverse() const { return SameObject(); }
     SameObject normalized() const { return SameObject(); }
 

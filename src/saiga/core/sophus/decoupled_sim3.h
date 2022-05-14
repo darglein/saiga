@@ -10,7 +10,7 @@
 
 #include "SophusSelector.h"
 
-
+#if SAIGA_REAL_SOPHUS
 namespace Sophus
 {
 // Decoupled implementation of the Sophus::Sim3.
@@ -131,3 +131,6 @@ inline void DSim3ToPointer(const DSim3<T>& sim3, T* ptr)
 }
 
 }  // namespace Sophus
+
+
+#endif

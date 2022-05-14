@@ -11,6 +11,8 @@
 #include "saiga/core/math/String.h"
 
 #include <iostream>
+
+#ifdef SAIGA_USE_EIGEN
 namespace Saiga
 {
 bool SplinePath::imgui()
@@ -234,3 +236,4 @@ void SplinePath::PrintUserId()
 
 
 }  // namespace Saiga
+#endif
