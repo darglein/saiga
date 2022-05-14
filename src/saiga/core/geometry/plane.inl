@@ -17,15 +17,15 @@ inline HD Plane::Plane() : normal(vec3(0, 1, 0)), d(0)
 
 inline HD Plane::Plane(const vec3& point, const vec3& normal)
 {
-    this->normal = normalize(normal);
-    d            = dot(point, this->normal);
+    this->normal = normal.normalized();
+    d            = point.dot(this->normal);
 }
 
 inline HD Plane::Plane(const vec3& p1, const vec3& p2, const vec3& p3)
 {
     normal = cross(p2 - p1, p3 - p1);
-    normal = normalize(normal);
-    d      = dot(p1, this->normal);
+    normal = normal.normalized();
+    d      = p1.dot(this->normal);
 }
 
 inline HD Plane Plane::invert() const

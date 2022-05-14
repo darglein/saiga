@@ -6,7 +6,16 @@
 
 #pragma once
 
+
+#include "saiga/saiga_modules.h"
+
+#ifdef SAIGA_USE_EIGEN
 #include <Eigen/Geometry>
+#else
+#include "tiny-eigen/quaternion.h"
+#endif
+
+#include <iostream>
 
 /**
  * Just a reminder how Eigen quaternions work:
