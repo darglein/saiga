@@ -24,7 +24,7 @@ namespace Saiga
 //    auto compressed   = compress(data.data(), data.size() * sizeof(int));
 //    auto decompressed = uncompress(compressed.data());
 //
-SAIGA_CORE_API std::vector<unsigned char> compress(const void* data, size_t size);
+SAIGA_CORE_API std::vector<unsigned char> compress(const void* data, std::size_t size);
 SAIGA_CORE_API std::vector<unsigned char> uncompress(const void* data);
 }  // namespace Saiga
 

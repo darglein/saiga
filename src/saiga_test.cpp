@@ -84,6 +84,7 @@ int main()
     printTestInfo("Align Vec4", alignof(Vec4) == 32);
     printTestInfo("Align Quat", alignof(Quat) == 32);
 
+
     std::cout << std::endl;
     if (allTestsOk)
     {

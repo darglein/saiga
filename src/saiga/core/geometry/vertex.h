@@ -9,6 +9,8 @@
 #include "saiga/config.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/Align.h"
+
+#include <array>
 namespace Saiga
 {
 /**
@@ -135,7 +137,6 @@ struct SAIGA_CORE_API BoneInfo
     // number of bones with weight > 0
     int activeBones();
 };
-
 
 
 
