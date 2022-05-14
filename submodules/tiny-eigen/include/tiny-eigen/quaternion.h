@@ -24,9 +24,9 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
     using Scalar     = _Scalar;
     using SameObject = Quaternion<_Scalar>;
 
-    static SameObject Identity() { return SameObject(1, 0, 0, 0); }
+    HD static SameObject Identity() { return SameObject(1, 0, 0, 0); }
 
-    static SameObject FromTwoVectors(Matrix<Scalar, 3, 1> a, Matrix<Scalar, 3, 1> b)
+    HD static SameObject FromTwoVectors(Matrix<Scalar, 3, 1> a, Matrix<Scalar, 3, 1> b)
     {
         Matrix<Scalar, 3, 1> v0 = a.normalized();
         Matrix<Scalar, 3, 1> v1 = b.normalized();
@@ -45,7 +45,7 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         result.w() = s * Scalar(0.5);
         return result;
     }
-    static SameObject FromAngleAxis(Scalar angle, Matrix<Scalar, 3, 1> v1)
+    HD static SameObject FromAngleAxis(Scalar angle, Matrix<Scalar, 3, 1> v1)
     {
         Matrix<Scalar, 3, 1> vn = v1.normalized();
 
@@ -55,8 +55,8 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         return SameObject(cos(angle), vn.x() * sinAngle, vn.y() * sinAngle, vn.z() * sinAngle);
     }
 
-    Quaternion() {}
-    Quaternion(_Scalar w, _Scalar x, _Scalar y, _Scalar z)
+    HD Quaternion() {}
+    HD Quaternion(_Scalar w, _Scalar x, _Scalar y, _Scalar z)
     {
         _data[0] = x;
         _data[1] = y;
@@ -64,7 +64,7 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         _data[3] = w;
     }
 
-    Quaternion(const Matrix<_Scalar, 3, 3>& rm)
+    HD Quaternion(const Matrix<_Scalar, 3, 3>& rm)
     {
         Scalar t = rm(0, 0) + rm(1, 1) + rm(2, 2);
         if (t > 0)
@@ -96,7 +96,7 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         }
     }
 
-    Matrix<_Scalar, 3, 3> matrix() const
+    HD Matrix<_Scalar, 3, 3> matrix() const
     {
         Matrix<_Scalar, 3, 3> result;
 
@@ -119,15 +119,15 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         return result;
     }
 
-    Matrix<_Scalar, 4, 1> coeffs() const
+    HD Matrix<_Scalar, 4, 1> coeffs() const
     {
         Matrix<_Scalar, 4, 1> result(_data[0], _data[1], _data[2], _data[3]);
         return result;
     }
 
 
-    SameObject inverse() const { return SameObject(w(), -x(), -y(), -z()); }
-    SameObject normalized() const
+    HD SameObject inverse() const { return SameObject(w(), -x(), -y(), -z()); }
+    HD SameObject normalized() const
     {
         Scalar scale = 1 / norm();
         SameObject result;
@@ -137,9 +137,9 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         result.z() = z() * scale;
         return result;
     }
-    Scalar norm() const { return coeffs().norm(); }
+    HD Scalar norm() const { return coeffs().norm(); }
 
-    SameObject slerp(Scalar alpha, SameObject other) const
+    HD SameObject slerp(Scalar alpha, SameObject other) const
     {
         Scalar cosHalfTheta = this->dot(other);
         if (abs(cosHalfTheta) >= 1.0)
@@ -170,30 +170,32 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         return result;
     }
 
-    Scalar dot(const SameObject& other) const { return this->coeffs().dot(other.coeffs()); }
+    Matrix<Scalar, 3, 1> vec() const { return Matrix<Scalar, 3, 1>(x(), y(), z()); }
 
-    Scalar& x() { return _data[0]; }
-    Scalar& y() { return _data[1]; }
-    Scalar& z() { return _data[2]; }
-    Scalar& w() { return _data[3]; }
-    const Scalar& x() const { return _data[0]; }
-    const Scalar& y() const { return _data[1]; }
-    const Scalar& z() const { return _data[2]; }
-    const Scalar& w() const { return _data[3]; }
+    HD Scalar dot(const SameObject& other) const { return this->coeffs().dot(other.coeffs()); }
+
+    HD Scalar& x() { return _data[0]; }
+    HD Scalar& y() { return _data[1]; }
+    HD Scalar& z() { return _data[2]; }
+    HD Scalar& w() { return _data[3]; }
+    HD const Scalar& x() const { return _data[0]; }
+    HD const Scalar& y() const { return _data[1]; }
+    HD const Scalar& z() const { return _data[2]; }
+    HD const Scalar& w() const { return _data[3]; }
 
    private:
     _Scalar _data[4];
 };
 
 template <typename _Scalar, int _Options>
-Matrix<_Scalar, 3, 1, _Options> operator*(const Quaternion<_Scalar> quat, const Matrix<_Scalar, 3, 1, _Options>& v)
+HD Matrix<_Scalar, 3, 1, _Options> operator*(const Quaternion<_Scalar> quat, const Matrix<_Scalar, 3, 1, _Options>& v)
 {
     Matrix<_Scalar, 3, 1, _Options> result;
     return quat.matrix() * v;
 }
 
 template <typename _Scalar>
-Quaternion<_Scalar> operator*(const Quaternion<_Scalar> q1, const Quaternion<_Scalar>& q2)
+HD Quaternion<_Scalar> operator*(const Quaternion<_Scalar> q1, const Quaternion<_Scalar>& q2)
 {
     Quaternion<_Scalar> q;
 

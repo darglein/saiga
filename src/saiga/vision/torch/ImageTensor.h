@@ -212,14 +212,17 @@ inline at::Tensor UnNormalizeRGB(at::Tensor x)
     return x;
 }
 
-inline torch::Tensor FilterTensor(Matrix<float, -1, -1> kernel)
+
+template <int rows, int cols>
+inline torch::Tensor FilterTensor(Matrix<float, rows, cols> kernel)
 {
     return torch::from_blob(kernel.data(), {1, 1, kernel.rows(), kernel.cols()}).clone();
 }
 
 
 
-inline torch::Tensor Filter2dIndependentChannels(torch::Tensor x, Matrix<float, -1, -1> kernel, int padding)
+template <int rows, int cols>
+inline torch::Tensor Filter2dIndependentChannels(torch::Tensor x, Matrix<float, rows, cols> kernel, int padding)
 {
     SAIGA_ASSERT(x.dim() == 4);
     torch::Tensor K = FilterTensor(kernel);
@@ -227,6 +230,8 @@ inline torch::Tensor Filter2dIndependentChannels(torch::Tensor x, Matrix<float, 
     auto res        = torch::conv2d(x, K, {}, 1, padding, 1, x.size(1));
     return res;
 }
+
+#ifdef SAIGA_USE_EIGEN
 
 // Not very efficient gauss blur, because the kernel is always created on the fly.
 // Also the filter is not separated.
@@ -237,6 +242,6 @@ inline torch::Tensor GaussBlur(torch::Tensor image, int radius, float sigma, int
     K      = K.repeat({image.size(1), 1, 1, 1}).to(image.device());
     return torch::conv2d(image, K, {}, 1, padding, 1, image.size(1));
 }
-
+#endif
 
 }  // namespace Saiga

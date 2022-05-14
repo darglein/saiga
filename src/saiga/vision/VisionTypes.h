@@ -33,12 +33,22 @@ template <typename T>
 HD inline Matrix<T, 3, 3> skew(const Vector<T, 3>& a)
 {
     Matrix<T, 3, 3> m;
-    // clang-format off
-    m <<
-        0,      -a(2),  a(1),
-        a(2),   0,      -a(0),
-        -a(1),  a(0),   0;
-    // clang-format on
+    // m <<
+    //     0,      -a(2),  a(1),
+    //     a(2),   0,      -a(0),
+    //     -a(1),  a(0),   0;
+    m(0, 0) = 0;
+    m(0, 1) = -a(2);
+    m(0, 2) = a(1);
+
+    m(1, 0) = a(2);
+    m(1, 1) = 0;
+    m(1, 2) = -a(0);
+
+    m(2, 0) = -a(1);
+    m(2, 1) = a(0);
+    m(2, 2) = 0;
+
 
     return m;
 }
@@ -55,6 +65,7 @@ SAIGA_VISION_API extern Vec3 infinityVec3();
 
 namespace Eigen
 {
+#ifdef SAIGA_USE_EIGEN
 template <typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
 inline std::istream& operator>>(std::istream& is, Eigen::Matrix<_Scalar, _Rows, _Cols, _Options, _MaxRows, _MaxCols>& m)
 {
@@ -67,6 +78,7 @@ inline std::istream& operator>>(std::istream& is, Eigen::Matrix<_Scalar, _Rows, 
     }
     return is;
 }
+#endif
 }  // namespace Eigen
 
 namespace Sophus

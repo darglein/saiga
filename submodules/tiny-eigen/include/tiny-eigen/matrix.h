@@ -72,23 +72,23 @@ class MatrixBase
     using SameMatrix      = Derived;
     using PlainObject     = Derived;
 
-    const Derived& derived() const { return *static_cast<const Derived*>(this); }
-    Derived& derived() { return *static_cast<Derived*>(this); }
+    HD const Derived& derived() const { return *static_cast<const Derived*>(this); }
+    HD Derived& derived() { return *static_cast<Derived*>(this); }
 
-    Scalar& operator()(int i, int j) { return derived()(i, j); }
-    const Scalar& operator()(int i, int j) const { return derived()(i, j); }
-
-
-
-    Scalar& at(int i) { return derived().at(i); }
-    const Scalar& at(int i) const { return derived().at(i); }
+    HD Scalar& operator()(int i, int j) { return derived()(i, j); }
+    HD const Scalar& operator()(int i, int j) const { return derived()(i, j); }
 
 
-    int rows() const { return derived().rows(); }
-    int cols() const { return derived().cols(); }
-    int size() const { return derived().size(); }
 
-    Scalar minCoeff() const
+    HD Scalar& at(int i) { return derived().at(i); }
+    HD const Scalar& at(int i) const { return derived().at(i); }
+
+
+    HD int rows() const { return derived().rows(); }
+    HD int cols() const { return derived().cols(); }
+    HD int size() const { return derived().size(); }
+
+    HD Scalar minCoeff() const
     {
         Scalar result = derived().at(0);
         for (int i = 1; i < derived().size(); ++i)
@@ -98,7 +98,7 @@ class MatrixBase
         return result;
     }
 
-    Scalar sum() const
+    HD Scalar sum() const
     {
         Scalar result = 0;
         for (int i = 0; i < derived().size(); ++i)
@@ -108,7 +108,18 @@ class MatrixBase
         return result;
     }
 
-    Scalar maxCoeff() const
+    HD Scalar prod() const
+    {
+        Scalar result = 1;
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            result *= derived().at(i);
+        }
+        return result;
+    }
+
+
+    HD Scalar maxCoeff() const
     {
         Scalar result = derived().at(0);
         for (int i = 1; i < derived().size(); ++i)
@@ -119,7 +130,7 @@ class MatrixBase
     }
 
 
-    Scalar norm() const
+    HD Scalar norm() const
     {
         Scalar result = 0;
         for (int i = 0; i < derived().size(); ++i)
@@ -129,7 +140,7 @@ class MatrixBase
         return sqrt(result);
     }
 
-    Scalar squaredNorm() const
+    HD Scalar squaredNorm() const
     {
         Scalar result = 0;
         for (int i = 0; i < derived().size(); ++i)
@@ -139,18 +150,18 @@ class MatrixBase
         return result;
     }
 
-    DenseReturnType eval() const { return *this; }
+    HD DenseReturnType eval() const { return *this; }
 
-    DenseReturnType normalized() const { return *this / norm(); }
+    HD DenseReturnType normalized() const { return *this / norm(); }
 
 
-    SameMatrix& normalize()
+    HD SameMatrix& normalize()
     {
         derived() = derived() / norm();
         return derived();
     }
 
-    Scalar dot(const SameMatrix& other) const
+    HD Scalar dot(const SameMatrix& other) const
     {
         Scalar result = 0;
         for (int i = 0; i < derived().size(); ++i)
@@ -160,7 +171,7 @@ class MatrixBase
         return result;
     }
 
-    DenseReturnType cross(const SameMatrix& other) const
+    HD DenseReturnType cross(const SameMatrix& other) const
     {
         DenseReturnType result;
         result.at(0) = at(1) * other.at(2) - at(2) * other.at(1);
@@ -171,18 +182,21 @@ class MatrixBase
 
 
 
-    DenseReturnType operator-() const
+    HD DenseReturnType operator-() const
     {
         DenseReturnType result;
-        for (int i = 0; i < derived().size(); ++i)
+        for (int i = 0; i < rows(); ++i)
         {
-            result.at(i) = -derived().at(i);
+            for (int j = 0; j < cols(); ++j)
+            {
+                result(i, j) = -derived()(i, j);
+            }
         }
         return result;
     }
 
 
-    void setZero()
+    HD void setZero()
     {
         for (int i = 0; i < rows(); ++i)
         {
@@ -194,7 +208,7 @@ class MatrixBase
     }
 
 
-    void setOnes()
+    HD void setOnes()
     {
         for (int i = 0; i < rows(); ++i)
         {
@@ -207,7 +221,7 @@ class MatrixBase
 
 
 
-    DenseReturnType inverse() const
+    HD DenseReturnType inverse() const
     {
         int N               = cols();
         DenseReturnType mat = DenseReturnType::Identity();
@@ -266,7 +280,7 @@ class MatrixBase
         return mat;
     }
 
-    DenseReturnType round() const
+    HD DenseReturnType round() const
     {
         DenseReturnType result;
         for (int i = 0; i < derived().size(); ++i)
@@ -276,9 +290,9 @@ class MatrixBase
         return result;
     }
 
-    bool operator!=(SameMatrix other) const { return !((*this) == other); }
+    HD bool operator!=(SameMatrix other) const { return !((*this) == other); }
 
-    bool operator==(SameMatrix other) const
+    HD bool operator==(SameMatrix other) const
     {
         bool result = true;
         for (int i = 0; i < rows(); ++i)
@@ -291,7 +305,7 @@ class MatrixBase
         return result;
     }
 
-    DenseReturnType operator&&(SameMatrix other) const
+    HD DenseReturnType operator&&(SameMatrix other) const
     {
         DenseReturnType result;
         for (int i = 0; i < derived().size(); ++i)
@@ -301,7 +315,7 @@ class MatrixBase
         return result;
     }
 
-    DenseReturnType operator<=(SameMatrix other) const
+    HD DenseReturnType operator<=(SameMatrix other) const
     {
         DenseReturnType result;
         for (int i = 0; i < derived().size(); ++i)
@@ -311,7 +325,7 @@ class MatrixBase
         return result;
     }
 
-    DenseReturnType operator<(SameMatrix other) const
+    HD DenseReturnType operator<(SameMatrix other) const
     {
         DenseReturnType result;
         for (int i = 0; i < derived().size(); ++i)
@@ -321,7 +335,7 @@ class MatrixBase
         return result;
     }
 
-    Scalar all() const
+    HD Scalar all() const
     {
         Scalar result = 0;
         for (int i = 0; i < derived().size(); ++i)
@@ -332,7 +346,7 @@ class MatrixBase
     }
 
 
-    DenseReturnType operator>=(SameMatrix other) const
+    HD DenseReturnType operator>=(SameMatrix other) const
     {
         DenseReturnType result;
         for (int i = 0; i < derived().size(); ++i)
@@ -343,26 +357,26 @@ class MatrixBase
     }
 
 
-    SameMatrix& operator+=(const SameMatrix& other)
+    HD SameMatrix& operator+=(const SameMatrix& other)
     {
         derived() = derived() + other;
         return derived();
     }
 
-    SameMatrix& operator-=(const SameMatrix& other)
+    HD SameMatrix& operator-=(const SameMatrix& other)
     {
         derived() = derived() - other;
         return derived();
     }
 
 
-    SameMatrix& operator*=(Scalar value)
+    HD SameMatrix& operator*=(Scalar value)
     {
         derived() = derived() * value;
         return derived();
     }
 
-    SameMatrix& operator/=(Scalar other)
+    HD SameMatrix& operator/=(Scalar other)
     {
         *this = *this / other;
         return derived();
@@ -379,16 +393,28 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
     static_assert(_Rows > 0, "Rows must be positive");
     static_assert(_Options == ColMajor, "Only colmajor supportet");
 
-    Array() {}
+    HD Array() {}
 
-    _Scalar* data() { return data; }
-    const _Scalar* data() const { return data; }
+    template <typename OtherType>
+    HD Array(const MatrixBase<OtherType>& other)
+    {
+        for (int i = 0; i < rows(); ++i)
+        {
+            for (int j = 0; j < cols(); ++j)
+            {
+                (*this)(i, j) = other(i, j);
+            }
+        }
+    }
 
-    _Scalar& operator()(int i, int j) { return _data[j * _Rows + i]; }
-    const _Scalar& operator()(int i, int j) const { return _data[j * _Rows + i]; }
+    HD _Scalar* data() { return data; }
+    HD const _Scalar* data() const { return data; }
+
+    HD _Scalar& operator()(int i, int j) { return _data[j * _Rows + i]; }
+    HD const _Scalar& operator()(int i, int j) const { return _data[j * _Rows + i]; }
 
     template <typename T>
-    Array<T, _Rows, _Cols, _Options> cast() const
+    HD Array<T, _Rows, _Cols, _Options> cast() const
     {
         Array<T, _Rows, _Cols, _Options> result;
         for (int i = 0; i < result.size(); ++i)
@@ -399,7 +425,8 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
-    SameMatrix min(SameMatrix other) const
+
+    HD SameMatrix min(SameMatrix other) const
     {
         SameMatrix result;
         for (int i = 0; i < size(); ++i)
@@ -409,7 +436,7 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
-    SameMatrix max(SameMatrix other) const
+    HD SameMatrix max(SameMatrix other) const
     {
         SameMatrix result;
         for (int i = 0; i < size(); ++i)
@@ -419,7 +446,7 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
-    SameMatrix abs() const
+    HD SameMatrix abs() const
     {
         SameMatrix result;
         for (int i = 0; i < size(); ++i)
@@ -430,7 +457,7 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
     }
 
 
-    SameMatrix floor() const
+    HD SameMatrix floor() const
     {
         SameMatrix result;
         for (int i = 0; i < size(); ++i)
@@ -440,12 +467,12 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
-    int rows() const { return _Rows; }
-    int cols() const { return _Cols; }
-    int size() const { return Size; }
+    HD int rows() const { return _Rows; }
+    HD int cols() const { return _Cols; }
+    HD int size() const { return Size; }
 
-    _Scalar& at(int index) { return _data[index]; }
-    const _Scalar& at(int index) const { return _data[index]; }
+    HD _Scalar& at(int index) { return _data[index]; }
+    HD const _Scalar& at(int index) const { return _data[index]; }
 
 
 
@@ -463,13 +490,13 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
     static_assert(_Rows > 0, "Rows must be positive");
     static_assert(_Options == ColMajor, "Only colmajor supportet");
 
-    MatrixView(Scalar* data, int row_stride, int col_stride)
+    HD MatrixView(Scalar* data, int row_stride, int col_stride)
         : _data(data), _row_stride(row_stride), _col_stride(col_stride)
     {
     }
 
     template <typename OtherType>
-    SameMatrix& operator=(const MatrixBase<OtherType>& other)
+    HD SameMatrix& operator=(const MatrixBase<OtherType>& other)
     {
         for (int i = 0; i < rows(); ++i)
         {
@@ -482,17 +509,17 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
     }
 
 
-    _Scalar& operator()(int i, int j) { return _data[i * _row_stride + j * _col_stride]; }
-    const _Scalar& operator()(int i, int j) const { return _data[i * _row_stride + j * _col_stride]; }
+    HD _Scalar& operator()(int i, int j) { return _data[i * _row_stride + j * _col_stride]; }
+    HD const _Scalar& operator()(int i, int j) const { return _data[i * _row_stride + j * _col_stride]; }
 
 
-    Scalar& at(int i) { return _data[i * _row_stride]; }
-    const Scalar& at(int i) const { return _data[i * _row_stride]; }
+    HD Scalar& at(int i) { return _data[i * _row_stride]; }
+    HD const Scalar& at(int i) const { return _data[i * _row_stride]; }
 
 
-    int rows() const { return _Rows; }
-    int cols() const { return _Cols; }
-    int size() const { return Size; }
+    HD int rows() const { return _Rows; }
+    HD int cols() const { return _Cols; }
+    HD int size() const { return Size; }
 
    private:
     _Scalar* _data = nullptr;
@@ -510,7 +537,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     static_assert(_Rows > 0, "Rows must be positive");
     static_assert((_Options & RowMajor) == 0, "Only colmajor supportet");
 
-    static SameMatrix Zero()
+    HD static SameMatrix Zero()
     {
         SameMatrix result;
         for (int i = 0; i < result.size(); ++i)
@@ -520,7 +547,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
-    static SameMatrix Ones()
+    HD static SameMatrix Ones()
     {
         SameMatrix result;
         for (int i = 0; i < result.size(); ++i)
@@ -530,7 +557,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
-    static SameMatrix Identity()
+    HD static SameMatrix Identity()
     {
         static_assert(_Rows == _Cols, "Only valid for square matrices.");
         SameMatrix result = Zero();
@@ -541,10 +568,10 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
-    Matrix() {}
+    HD Matrix() {}
 
     template <typename OtherType>
-    Matrix(const MatrixBase<OtherType>& other)
+    HD Matrix(const MatrixBase<OtherType>& other)
     {
         for (int i = 0; i < rows(); ++i)
         {
@@ -555,23 +582,23 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         }
     }
 
-    Matrix(const Array<_Scalar, _Rows, _Cols, _Options> other) { this->array() = other; }
+    HD Matrix(const Array<_Scalar, _Rows, _Cols, _Options> other) { this->array() = other; }
 
     // Vector constructors
-    Matrix(_Scalar x0, _Scalar x1)
+    HD Matrix(_Scalar x0, _Scalar x1)
     {
         static_assert(_Rows == 2 && _Cols == 1, "Constructor only valid for vectors.");
         _data[0] = x0;
         _data[1] = x1;
     }
-    Matrix(_Scalar x0, _Scalar x1, _Scalar x2)
+    HD Matrix(_Scalar x0, _Scalar x1, _Scalar x2)
     {
         static_assert(_Rows == 3 && _Cols == 1, "Constructor only valid for vectors.");
         _data[0] = x0;
         _data[1] = x1;
         _data[2] = x2;
     }
-    Matrix(_Scalar x0, _Scalar x1, _Scalar x2, _Scalar x3)
+    HD Matrix(_Scalar x0, _Scalar x1, _Scalar x2, _Scalar x3)
     {
         static_assert(_Rows == 4 && _Cols == 1, "Constructor only valid for vectors.");
         _data[0] = x0;
@@ -580,60 +607,70 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         _data[3] = x3;
     }
 
-    _Scalar* data() { return _data; }
-    const _Scalar* data() const { return _data; }
-
-    _Scalar& operator[](int i)
+    HD Matrix(_Scalar x0, _Scalar x1, _Scalar x2, _Scalar x3, _Scalar x4)
     {
-        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
-        return _data[i];
-    }
-    const _Scalar& operator[](int i) const
-    {
-        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
-        return _data[i];
+        static_assert(_Rows == 5 && _Cols == 1, "Constructor only valid for vectors.");
+        _data[0] = x0;
+        _data[1] = x1;
+        _data[2] = x2;
+        _data[3] = x3;
+        _data[4] = x4;
     }
 
-    _Scalar& operator()(int i)
-    {
-        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
-        return _data[i];
-    }
-    const _Scalar& operator()(int i) const
-    {
-        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
-        return _data[i];
-    }
+    HD _Scalar* data() { return _data; }
+    HD const _Scalar* data() const { return _data; }
 
-    _Scalar& at(int i)
+    HD _Scalar& operator[](int i)
     {
         static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
         return _data[i];
     }
-    const _Scalar& at(int i) const
+    HD const _Scalar& operator[](int i) const
     {
         static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
         return _data[i];
     }
 
-    _Scalar& operator()(int i, int j) { return _data[j * _Rows + i]; }
-    const _Scalar& operator()(int i, int j) const { return _data[j * _Rows + i]; }
+    HD _Scalar& operator()(int i)
+    {
+        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
+        return _data[i];
+    }
+    HD const _Scalar& operator()(int i) const
+    {
+        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
+        return _data[i];
+    }
 
-    Scalar& x() { return _data[0]; }
-    Scalar& y() { return _data[1]; }
-    Scalar& z() { return _data[2]; }
-    Scalar& w() { return _data[3]; }
-    const Scalar& x() const { return _data[0]; }
-    const Scalar& y() const { return _data[1]; }
-    const Scalar& z() const { return _data[2]; }
-    const Scalar& w() const { return _data[3]; }
+    HD _Scalar& at(int i)
+    {
+        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
+        return _data[i];
+    }
+    HD const _Scalar& at(int i) const
+    {
+        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
+        return _data[i];
+    }
 
-    int rows() const { return _Rows; }
-    int cols() const { return _Cols; }
-    int size() const { return Size; }
+    HD _Scalar& operator()(int i, int j) { return _data[j * _Rows + i]; }
+    HD const _Scalar& operator()(int i, int j) const { return _data[j * _Rows + i]; }
+
+    HD Scalar& x() { return _data[0]; }
+    HD Scalar& y() { return _data[1]; }
+    HD Scalar& z() { return _data[2]; }
+    HD Scalar& w() { return _data[3]; }
+    HD const Scalar& x() const { return _data[0]; }
+    HD const Scalar& y() const { return _data[1]; }
+    HD const Scalar& z() const { return _data[2]; }
+    HD const Scalar& w() const { return _data[3]; }
+
+    HD int rows() const { return _Rows; }
+    HD int cols() const { return _Cols; }
+    HD int size() const { return Size; }
 
     template <typename T>
-    Matrix<T, _Rows, _Cols, _Options> cast() const
+    HD Matrix<T, _Rows, _Cols, _Options> cast() const
     {
         Matrix<T, _Rows, _Cols, _Options> result;
         for (int i = 0; i < result.size(); ++i)
@@ -644,7 +681,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
-    Matrix<Scalar, _Cols, _Rows, _Options> transpose() const
+    HD Matrix<Scalar, _Cols, _Rows, _Options> transpose() const
     {
         Matrix<Scalar, _Cols, _Rows, _Options> result;
         for (int i = 0; i < rows(); ++i)
@@ -657,49 +694,59 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
+    HD MatrixView<Scalar, 1, _Cols, _Options> row(int id)
+    {
+        return MatrixView<Scalar, 1, _Cols, _Options>(&((*this)(id, 0)), 1, _Rows);
+    }
 
-    MatrixView<Scalar, _Rows, 1, _Options> col(int id)
+    HD Matrix<Scalar, 1, _Cols, _Options> row(int id) const
+    {
+        return MatrixView<const Scalar, 1, _Cols, _Options>(&((*this)(id, 0)), 1, _Rows);
+    }
+
+
+    HD MatrixView<Scalar, _Rows, 1, _Options> col(int id)
     {
         return MatrixView<Scalar, _Rows, 1, _Options>(&((*this)(0, id)), 1, 1);
     }
 
-    Matrix<Scalar, _Rows, 1, _Options> col(int id) const
+    HD Matrix<Scalar, _Rows, 1, _Options> col(int id) const
     {
         return MatrixView<const Scalar, _Rows, 1, _Options>(&((*this)(0, id)), 1, 1);
     }
 
     template <int NewRows, int NewCols>
-    MatrixView<Scalar, NewRows, NewCols, _Options> block(int i, int j)
+    HD MatrixView<Scalar, NewRows, NewCols, _Options> block(int i, int j)
     {
         return MatrixView<Scalar, NewRows, NewCols, _Options>(&((*this)(i, j)), 1, _Cols);
     }
 
     template <int NewRows, int NewCols>
-    Matrix<Scalar, NewRows, NewCols, _Options> block(int i, int j) const
+    HD Matrix<Scalar, NewRows, NewCols, _Options> block(int i, int j) const
     {
         return MatrixView<const Scalar, NewRows, NewCols, _Options>(&((*this)(i, j)), 1, _Cols);
     }
 
 
     template <int NewRows>
-    Matrix<Scalar, NewRows, 1, _Options> head()
+    HD Matrix<Scalar, NewRows, 1, _Options> head()
     {
         return MatrixView<Scalar, NewRows, 1, _Options>(&((*this)(0, 0)), 1, 1);
     }
 
     template <int NewRows>
-    Matrix<Scalar, NewRows, 1, _Options> head() const
+    HD Matrix<Scalar, NewRows, 1, _Options> head() const
     {
         return MatrixView<const Scalar, NewRows, 1, _Options>(&((*this)(0, 0)), 1, 1);
     }
 
 
-    const Array<_Scalar, _Rows, _Cols, _Options>& array() const
+    HD const Array<_Scalar, _Rows, _Cols, _Options>& array() const
     {
         return *reinterpret_cast<const Array<_Scalar, _Rows, _Cols, _Options>*>(this);
     }
 
-    Array<_Scalar, _Rows, _Cols, _Options>& array()
+    HD Array<_Scalar, _Rows, _Cols, _Options>& array()
     {
         return *reinterpret_cast<Array<_Scalar, _Rows, _Cols, _Options>*>(this);
     }
@@ -710,7 +757,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
 };
 
 template <typename Derived>
-typename Derived::PlainObject operator-(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
+HD typename Derived::PlainObject operator-(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
 {
     typename Derived::PlainObject result;
     for (int i = 0; i < result.size(); ++i)
@@ -721,7 +768,7 @@ typename Derived::PlainObject operator-(const MatrixBase<Derived>& m1, const Mat
 }
 
 template <typename Derived>
-typename Derived::PlainObject operator+(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
+HD typename Derived::PlainObject operator+(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
 {
     typename Derived::PlainObject result;
     for (int i = 0; i < result.size(); ++i)
@@ -733,14 +780,14 @@ typename Derived::PlainObject operator+(const MatrixBase<Derived>& m1, const Mat
 
 
 template <typename Derived>
-typename Derived::PlainObject operator*(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
+HD typename Derived::PlainObject operator*(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
 {
     typename Derived::PlainObject result;
     return v * m1;
 }
 
 template <typename Derived>
-typename Derived::PlainObject operator*(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
+HD typename Derived::PlainObject operator*(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
 {
     typename Derived::PlainObject result;
     for (int i = 0; i < result.rows(); ++i)
@@ -754,7 +801,7 @@ typename Derived::PlainObject operator*(typename Derived::Scalar v, const Matrix
 }
 
 template <typename Derived>
-typename Derived::DenseReturnType operator/(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
+HD typename Derived::DenseReturnType operator/(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
 {
     typename Derived::DenseReturnType result;
     for (int i = 0; i < result.rows(); ++i)
@@ -768,7 +815,7 @@ typename Derived::DenseReturnType operator/(const MatrixBase<Derived>& m1, typen
 }
 
 template <typename Derived>
-typename Derived::PlainObject operator/(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
+HD typename Derived::PlainObject operator/(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
 {
     typename Derived::PlainObject result;
     for (int i = 0; i < result.rows(); ++i)
@@ -782,8 +829,8 @@ typename Derived::PlainObject operator/(typename Derived::Scalar v, const Matrix
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0, int _Rows1, int _Cols1, int _Options1>
-Matrix<_Scalar, _Rows0, _Cols1, _Options0> operator*(const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-                                                     Matrix<_Scalar, _Rows1, _Cols1, _Options1> m2)
+HD Matrix<_Scalar, _Rows0, _Cols1, _Options0> operator*(const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                                                        Matrix<_Scalar, _Rows1, _Cols1, _Options1> m2)
 {
     static_assert(_Rows1 == _Cols0, "Invalid matrix shapes");
     Matrix<_Scalar, _Rows0, _Cols1, _Options0> result;
@@ -803,8 +850,8 @@ Matrix<_Scalar, _Rows0, _Cols1, _Options0> operator*(const Matrix<_Scalar, _Rows
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-Array<_Scalar, _Rows0, _Cols0, _Options0> operator*(const Array<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-                                                    Array<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD Array<_Scalar, _Rows0, _Cols0, _Options0> operator*(const Array<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                                                       Array<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     Array<_Scalar, _Rows0, _Cols0, _Options0> result;
     for (int i = 0; i < m1.rows(); ++i)
@@ -818,8 +865,8 @@ Array<_Scalar, _Rows0, _Cols0, _Options0> operator*(const Array<_Scalar, _Rows0,
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-Array<_Scalar, _Rows0, _Cols0, _Options0> operator/(const Array<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-                                                    Array<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD Array<_Scalar, _Rows0, _Cols0, _Options0> operator/(const Array<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                                                       Array<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     Array<_Scalar, _Rows0, _Cols0, _Options0> result;
     for (int i = 0; i < m1.rows(); ++i)
@@ -846,5 +893,9 @@ std::ostream& operator<<(std::ostream& strm, const MatrixBase<Derived>& m1)
     }
     return strm;
 }
+
+
+template <typename T, int rows>
+using Vector = Matrix<T, rows, 1>;
 
 }  // namespace Eigen

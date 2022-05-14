@@ -12,6 +12,10 @@
 #include "saiga/cuda/event.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/stream.h"
+
+
+#if defined(SAIGA_USE_EIGEN)
+
 #include "saiga/vision/features/Features.h"
 
 
@@ -72,3 +76,6 @@ class SAIGA_CUDA_API Fast
 
 }  // namespace CUDA
 }  // namespace Saiga
+
+
+#endif

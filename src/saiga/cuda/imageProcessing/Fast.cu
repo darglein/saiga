@@ -49,6 +49,8 @@
 
 #include "Fast.h"
 
+
+#if defined(SAIGA_USE_EIGEN)
 namespace Saiga
 {
 namespace CUDA
@@ -967,3 +969,4 @@ int Fast::Download(Saiga::ArrayView<Saiga::KeyPoint<float>> keypoints, cudaStrea
 
 }  // namespace CUDA
 }  // namespace Saiga
+#endif

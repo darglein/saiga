@@ -12,6 +12,7 @@ namespace Saiga
 {
 namespace CUDA
 {
+#ifdef SAIGA_USE_EIGEN
 thrust::device_vector<float> createGaussianBlurKernel(int radius, float sigma)
 {
     SAIGA_ASSERT(radius <= SAIGA_MAX_CONVOLUTION_RADIUS && radius > 0);
@@ -67,6 +68,6 @@ void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, A
 #endif
 }
 
-
+#endif
 }  // namespace CUDA
 }  // namespace Saiga
