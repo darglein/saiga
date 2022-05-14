@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "saiga/core/sophus/SophusSelector.h"
 
+#if SAIGA_REAL_SOPHUS
 namespace Sophus
 {
 /// @brief Decoupled version of logmap for SE(3)
@@ -404,3 +405,5 @@ inline Sophus::SE3<T> scale(const Sophus::SE3<T>& a, double alpha)
 }
 
 }  // namespace Saiga
+
+#endif

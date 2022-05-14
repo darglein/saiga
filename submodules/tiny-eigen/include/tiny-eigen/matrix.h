@@ -18,7 +18,8 @@ template <typename _Scalar, int _Rows, int _Cols, int _Options>
 class MatrixView;
 template <typename _Scalar, int _Rows, int _Cols, int _Options>
 class Array;
-namespace internal {
+namespace internal
+{
 
 template <typename T>
 struct traits;
@@ -48,7 +49,7 @@ struct traits<Array<_Scalar, _Rows, _Cols, _Options>>
     using DenseReturnType = Array<_Scalar, _Rows, _Cols, _Options>;
 };
 
-}
+}  // namespace internal
 
 enum StorageOptions {
     /** Storage order is column major (see \ref TopicStorageOrders). */
@@ -137,9 +138,9 @@ class MatrixBase
         return result;
     }
 
-    SameMatrix eval() const { return *this; }
+    DenseReturnType eval() const { return *this; }
 
-    SameMatrix normalized() const { return *this / norm(); }
+    DenseReturnType normalized() const { return *this / norm(); }
 
 
     SameMatrix& normalize()
@@ -232,6 +233,47 @@ class MatrixBase
         for (int i = 0; i < derived().size(); ++i)
         {
             result.at(i) = derived().at(i) && other.derived().at(i);
+        }
+        return result;
+    }
+
+    DenseReturnType operator<=(SameMatrix other) const
+    {
+        DenseReturnType result;
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            result.at(i) = derived().at(i) <= other.derived().at(i);
+        }
+        return result;
+    }
+
+    DenseReturnType operator<(SameMatrix other) const
+    {
+        DenseReturnType result;
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            result.at(i) = derived().at(i) < other.derived().at(i);
+        }
+        return result;
+    }
+
+    Scalar all() const
+    {
+        Scalar result = 0;
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            result &= derived().at(i);
+        }
+        return result;
+    }
+
+
+    DenseReturnType operator>=(SameMatrix other) const
+    {
+        DenseReturnType result;
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            result.at(i) = derived().at(i) >= other.derived().at(i);
         }
         return result;
     }
@@ -340,6 +382,8 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
     _Scalar& at(int index) { return _data[index]; }
     const _Scalar& at(int index) const { return _data[index]; }
 
+
+
    private:
     _Scalar _data[Size];
 };
@@ -360,8 +404,21 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
     }
 
 
+//    template <typename OtherType>
+//    MatrixView(const MatrixBase<OtherType>& other)
+//    {
+//        for (int i = 0; i < rows(); ++i)
+//        {
+//            for (int j = 0; j < cols(); ++j)
+//            {
+//                (*this)(i, j) = other(i, j);
+//            }
+//        }
+//    }
+
+
     template <typename OtherType>
-    MatrixView(const MatrixBase<OtherType> other)
+    SameMatrix& operator=(const MatrixBase<OtherType>& other)
     {
         for (int i = 0; i < rows(); ++i)
         {
@@ -370,14 +427,24 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
                 (*this)(i, j) = other(i, j);
             }
         }
+        return *this;
     }
+
+
+    _Scalar& operator()(int i, int j) { return _data[i * _row_stride + j * _col_stride]; }
+    const _Scalar& operator()(int i, int j) const { return _data[i * _row_stride + j * _col_stride]; }
+
+
+    Scalar& at(int i) { return _data[i * _row_stride]; }
+    const Scalar& at(int i) const { return _data[i * _row_stride]; }
+
 
     int rows() const { return _Rows; }
     int cols() const { return _Cols; }
     int size() const { return Size; }
 
    private:
-    _Scalar* _data;
+    _Scalar* _data = nullptr;
     // distance between neighboring rows/cols
     int _row_stride, _col_stride;
 };
@@ -397,7 +464,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         SameMatrix result;
         for (int i = 0; i < result.size(); ++i)
         {
-            result.at(i) = 0;
+            result._data[i] = 0;
         }
         return result;
     }
@@ -407,7 +474,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         SameMatrix result;
         for (int i = 0; i < result.size(); ++i)
         {
-            result.at(i) = 1;
+            result._data[i] = 1;
         }
         return result;
     }
@@ -426,7 +493,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     Matrix() {}
 
     template <typename OtherType>
-    Matrix(const MatrixBase<OtherType> other)
+    Matrix(const MatrixBase<OtherType>& other)
     {
         for (int i = 0; i < rows(); ++i)
         {
@@ -481,6 +548,17 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         return _data[i];
     }
     const _Scalar& operator()(int i) const
+    {
+        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
+        return _data[i];
+    }
+
+    _Scalar& at(int i)
+    {
+        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
+        return _data[i];
+    }
+    const _Scalar& at(int i) const
     {
         static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
         return _data[i];
@@ -549,9 +627,6 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     }
 
 
-    _Scalar& at(int index) { return _data[index]; }
-    const _Scalar& at(int index) const { return _data[index]; }
-
     const Array<_Scalar, _Rows, _Cols, _Options>& array() const
     {
         return *reinterpret_cast<const Array<_Scalar, _Rows, _Cols, _Options>*>(this);
@@ -605,9 +680,9 @@ typename Derived::PlainObject operator*(typename Derived::Scalar v, const Matrix
 }
 
 template <typename Derived>
-typename Derived::PlainObject operator/(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
+typename Derived::DenseReturnType operator/(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
 {
-    typename Derived::PlainObject result;
+    typename Derived::DenseReturnType result;
     return result;
 }
 
@@ -638,6 +713,14 @@ Array<_Scalar, _Rows0, _Cols0, _Options0> operator*(const Array<_Scalar, _Rows0,
 template <typename Derived>
 std::ostream& operator<<(std::ostream& strm, const MatrixBase<Derived>& m1)
 {
+    for (int i = 0; i < m1.rows(); ++i)
+    {
+        for (int j = 0; j < m1.cols(); ++j)
+        {
+            strm << m1(i, j) << " ";
+        }
+        strm << "\n";
+    }
     return strm;
 }
 

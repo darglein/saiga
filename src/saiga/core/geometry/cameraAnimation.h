@@ -14,6 +14,7 @@
 
 #include <saiga/core/time/time.h>
 
+#ifdef SAIGA_USE_EIGEN
 namespace Saiga
 {
 struct SplineKeyframe
@@ -97,3 +98,4 @@ class SAIGA_CORE_API SplinePath
 
 
 }  // namespace Saiga
+#endif

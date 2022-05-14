@@ -24,7 +24,7 @@ void Object3D::turn(float angleX, float angleY, const vec3& up)
     rotateGlobal(up, angleX);
     mat4 modeltmp = model;
     rotateLocal(vec3(1, 0, 0), angleY);
-    if (model.col(1)[1] < 0)
+    if (model(1, 1) < 0)
     {
         model = modeltmp;
     }
@@ -90,15 +90,15 @@ void Saiga::Object3D::setModelMatrix(const mat4& _model)
 #else
     // this is the inverse of createTRSmatrix
     model    = _model;
-    position = col(model, 3);
+    position = model.col(3);
     mat3 R(model);
-    scale[0] = length(col(R, 0));
-    scale[1] = length(col(R, 1));
-    scale[2] = length(col(R, 2));
-    R[0] /= scale[0];
-    R[1] /= scale[1];
-    R[2] /= scale[2];
-    rot = quat_cast(R);
+    scale[0] = length(R.col(0).eval());
+    scale[1] = length(R.col(1).eval());
+    scale[2] = length(R.col(2).eval());
+    R.col(0) = R.col(0) / scale[0];
+    R.col(1) = R.col(1) / scale[1];
+    R.col(2) = R.col(2) / scale[2];
+    rot      = quat_cast(R);
 #endif
 }
 
