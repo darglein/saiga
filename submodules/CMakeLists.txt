@@ -1,7 +1,14 @@
+
+
 message("=================================")
-message("Adding Submodule eigen")
-set(BUILD_TESTING OFF CACHE INTERNAL "")
-add_subdirectory(eigen)
+if (SAIGA_WITH_TINY_EIGEN)
+    message("Adding Submodule tiniy-eigen")
+    add_subdirectory(tiny-eigen)
+else ()
+    message("Adding Submodule eigen")
+    set(BUILD_TESTING OFF CACHE INTERNAL "")
+    add_subdirectory(eigen)
+endif ()
 message("=================================")
 
 message("Adding Submodule glog")
@@ -62,7 +69,7 @@ if (SAIGA_BUILD_GLFW)
 
     #find_package(glfw3 CONFIG QUIET REQUIRED)
     SET(SAIGA_USE_GLFW 1)
-#    PackageHelperTarget(glfw GLFW_FOUND)
+    #    PackageHelperTarget(glfw GLFW_FOUND)
     message("=================================")
 endif ()
 

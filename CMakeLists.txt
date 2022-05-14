@@ -78,6 +78,7 @@ OptionsHelper(SAIGA_WITH_K4A "Include the openmesh library, if possible." ON)
 OptionsHelper(SAIGA_WITH_BULLET "Include the openmesh library, if possible." OFF)
 OptionsHelper(SAIGA_WITH_OPENVR "Include the openmesh library, if possible." ON)
 OptionsHelper(SAIGA_WITH_OPENCV "Include the opencv library, if possible." OFF)
+OptionsHelper(SAIGA_WITH_TINY_EIGEN "Use the tiny-eigen library instead of the real Eigen" OFF)
 
 
 if(SAIGA_DEBIAN_BUILD)
@@ -95,11 +96,6 @@ add_definitions()
 
 set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/External)
 
-
-set(SAIGA_FULL_EIGEN 1)
-if(SAIGA_LEGACY_GLM)
-    set(SAIGA_FULL_EIGEN 0)
-endif()
 
 ############# OUTPUT ###############
 

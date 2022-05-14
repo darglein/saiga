@@ -6,7 +6,11 @@
 
 #pragma once
 
-#include <Eigen/Core>
+#ifdef SAIGA_USE_EIGEN
+#include <Eigen/Geometry>
+#else
+#include "tiny-eigen/matrix.h"
+#endif
 
 
 namespace Saiga

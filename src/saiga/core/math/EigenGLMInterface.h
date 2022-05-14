@@ -14,17 +14,19 @@
 
 namespace Saiga
 {
+
+#ifdef SAIGA_USE_EIGEN
 template <typename Derived>
-HD constexpr typename Derived::PlainObject clamp(const Eigen::EigenBase<Derived>& x,
-                                                 const Eigen::EigenBase<Derived>& minVal,
-                                                 const Eigen::EigenBase<Derived>& maxVal)
+HD constexpr typename Derived::PlainObject clamp(const Eigen::MatrixBase<Derived>& x,
+                                                 const Eigen::MatrixBase<Derived>& minVal,
+                                                 const Eigen::MatrixBase<Derived>& maxVal)
 {
     typename Derived::PlainObject tmp = x.derived().array().max(minVal.derived().array());
     return tmp.array().min(maxVal.derived().array());
 }
 
 template <typename Derived>
-HD constexpr typename Derived::PlainObject saturate(const Eigen::EigenBase<Derived>& x)
+HD constexpr typename Derived::PlainObject saturate(const Eigen::MatrixBase<Derived>& x)
 {
     typename Derived::PlainObject z, o;
     z.setZero();
@@ -157,6 +159,8 @@ Matrix<typename Derived1::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived1>& d
     R.col(1) = R.col(2).cross(R.col(0));
     return R;
 }
+
+#endif
 
 SAIGA_CORE_API extern mat4 scale(const vec3& t);
 SAIGA_CORE_API extern mat4 translate(const vec3& t);
