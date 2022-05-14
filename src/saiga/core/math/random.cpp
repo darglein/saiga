@@ -11,6 +11,7 @@
 #include <chrono>
 #include <numeric>
 #include <random>
+#include <algorithm>
 
 namespace Saiga
 {

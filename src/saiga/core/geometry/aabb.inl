@@ -7,6 +7,7 @@
 #pragma once
 
 #include "aabb.h"
+#include <algorithm>
 
 namespace Saiga
 {

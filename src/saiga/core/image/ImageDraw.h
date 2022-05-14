@@ -82,8 +82,8 @@ void drawLineBresenham(ImageView<T> img, const vec2& start, const vec2& end, con
     int x1 = round(end[0]);
     int y1 = round(end[1]);
 
-    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    int dy = abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int dx = std::abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    int dy = std::abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
     int err = (dx > dy ? dx : -dy) / 2, e2;
 
     for (;;)

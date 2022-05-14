@@ -135,7 +135,7 @@ inline double linearRand(double low, double high)
 }
 
 
-
+#ifdef SAIGA_USE_EIGEN
 template <typename Derived>
 inline typename Derived::PlainObject linearRand(const Eigen::DenseBase<Derived>& low,
                                                 const Eigen::DenseBase<Derived>& high)
@@ -150,6 +150,22 @@ inline typename Derived::PlainObject linearRand(const Eigen::DenseBase<Derived>&
     }
     return result;
 }
+#else
+template <typename Derived>
+inline typename Derived::PlainObject linearRand(const Eigen::MatrixBase<Derived>& low,
+                                                const Eigen::MatrixBase<Derived>& high)
+{
+    typename Derived::PlainObject result;
+    for (int i = 0; i < low.rows(); ++i)
+    {
+        for (int j = 0; j < low.cols(); ++j)
+        {
+            result(i, j) = linearRand(low(i, j), high(i, j));
+        }
+    }
+    return result;
+}
+#endif
 
 
 

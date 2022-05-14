@@ -10,6 +10,7 @@
 #include "saiga/core/util/assert.h"
 
 #include <iostream>
+#include <tuple>
 namespace Saiga
 {
 namespace EigenHelper

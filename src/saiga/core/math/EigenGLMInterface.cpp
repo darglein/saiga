@@ -170,7 +170,26 @@ mat4 make_mat4(float a00, float a01, float a02, float a03, float a10, float a11,
                float a21, float a22, float a23, float a30, float a31, float a32, float a33)
 {
     mat4 m;
-    m << a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33;
+    // m << a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33;
+    m(0, 0) = a00;
+    m(0, 1) = a01;
+    m(0, 2) = a02;
+    m(0, 3) = a03;
+
+    m(1, 0) = a10;
+    m(1, 1) = a11;
+    m(1, 2) = a12;
+    m(1, 3) = a13;
+
+    m(2, 0) = a20;
+    m(2, 1) = a21;
+    m(2, 2) = a22;
+    m(2, 3) = a23;
+
+    m(3, 0) = a30;
+    m(3, 1) = a31;
+    m(3, 2) = a32;
+    m(3, 3) = a33;
     return m.transpose();
 }
 
@@ -178,7 +197,26 @@ mat4 make_mat4_row_major(float a00, float a01, float a02, float a03, float a10, 
                          float a20, float a21, float a22, float a23, float a30, float a31, float a32, float a33)
 {
     mat4 m;
-    m << a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33;
+    //    m << a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33;
+    m(0, 0) = a00;
+    m(0, 1) = a01;
+    m(0, 2) = a02;
+    m(0, 3) = a03;
+
+    m(1, 0) = a10;
+    m(1, 1) = a11;
+    m(1, 2) = a12;
+    m(1, 3) = a13;
+
+    m(2, 0) = a20;
+    m(2, 1) = a21;
+    m(2, 2) = a22;
+    m(2, 3) = a23;
+
+    m(3, 0) = a30;
+    m(3, 1) = a31;
+    m(3, 2) = a32;
+    m(3, 3) = a33;
     return m;
 }
 
@@ -197,7 +235,18 @@ mat3 make_mat3(const mat4& m)
 mat3 make_mat3(float a00, float a01, float a02, float a10, float a11, float a12, float a20, float a21, float a22)
 {
     mat3 m;
-    m << a00, a01, a02, a10, a11, a12, a20, a21, a22;
+    //    m << a00, a01, a02, a10, a11, a12, a20, a21, a22;
+    m(0, 0) = a00;
+    m(0, 1) = a01;
+    m(0, 2) = a02;
+
+    m(1, 0) = a10;
+    m(1, 1) = a11;
+    m(1, 2) = a12;
+
+    m(2, 0) = a20;
+    m(2, 1) = a21;
+    m(2, 2) = a22;
     return m.transpose();
 }
 
@@ -234,8 +283,12 @@ quat make_quat(const mat4& m)
 
 quat angleAxis(float angle, const vec3& axis)
 {
+#ifdef SAIGA_USE_EIGEN
     Eigen::AngleAxisf aa(angle, axis);
     return make_quat(aa.matrix());
+#else
+    return quat::FromAngleAxis(angle, axis);
+#endif
 }
 
 quat mix(const quat& a, const quat& b, float alpha)
@@ -265,14 +318,18 @@ quat inverse(const quat& q)
 
 mat4 rotate(float angle, const vec3& axis)
 {
-    Eigen::AngleAxisf aa(angle, axis);
-    return make_mat4(aa.matrix());
+#ifdef SAIGA_USE_EIGEN
+      Eigen::AngleAxisf aa(angle, axis);
+      return make_mat4(aa.matrix());
+#else
+    return make_mat4(quat::FromAngleAxis(angle, axis).matrix());
+#endif
 }
 
 quat rotate(const quat& q, float angle, const vec3& axis)
 {
-    Eigen::AngleAxisf aa(angle, axis);
-    return q * aa;
+    quat q2 = angleAxis(angle,axis);
+    return q * q2;
 }
 
 

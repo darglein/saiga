@@ -729,7 +729,8 @@ mat4 AssimpLoader::convert(aiMatrix4x4 mat)
     {
         for (int j = 0; j < 4; ++j)
         {
-            ret.col(i)[j] = mat[j][i];
+            // ret.col(i)[j] = mat[j][i];
+            ret(j,i) = mat[j][i];
         }
     }
     return ret;
