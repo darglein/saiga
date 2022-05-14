@@ -96,7 +96,7 @@ class Sample : public SampleWindowForward
 
         if (render_info.render_pass == RenderPass::Forward)
         {
-            pointCloud->render(render_info.camera);
+            pointCloud->render(render_info);
             lineSoup.render(render_info.camera);
             frustum.renderForward(render_info.camera, mat4::Identity());
         }

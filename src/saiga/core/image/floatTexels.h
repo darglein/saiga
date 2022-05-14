@@ -57,19 +57,13 @@ struct MatchingFloatType<ucvec4>
     using FloatType = vec4;
     static inline FloatType convert(const ucvec4& t)
     {
-#ifdef SAIGA_FULL_EIGEN
         return t.cast<float>();
-#else
-        return FloatType(t);
-#endif
+
     }
     static inline ucvec4 convertBack(const FloatType& t)
     {
-#ifdef SAIGA_FULL_EIGEN
         return t.array().round().cast<unsigned char>();
-#else
-        return FloatType(t);
-#endif
+
     }
     static inline FloatType ZeroFloat() { return FloatType::Zero(); }
 };
@@ -81,19 +75,13 @@ struct MatchingFloatType<usvec3>
     using FloatType = vec3;
     static inline FloatType convert(const usvec3& t)
     {
-#ifdef SAIGA_FULL_EIGEN
         return t.cast<float>();
-#else
-        return FloatType(t);
-#endif
+
     }
     static inline usvec3 convertBack(const FloatType& t)
     {
-#ifdef SAIGA_FULL_EIGEN
         return t.array().round().cast<unsigned short>();
-#else
-        return FloatType(t);
-#endif
+
     }
 };
 

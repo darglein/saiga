@@ -8,6 +8,7 @@ else ()
     message("Adding Submodule eigen")
     set(BUILD_TESTING OFF CACHE INTERNAL "")
     add_subdirectory(eigen)
+    set(SAIGA_USE_EIGEN 1 PARENT_SCOPE)
 endif ()
 message("=================================")
 

@@ -7,6 +7,7 @@
 #pragma once
 #include "config.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -162,14 +163,13 @@ class MatrixBase
     DenseReturnType cross(const SameMatrix& other) const
     {
         DenseReturnType result;
+        result.at(0) = at(1) * other.at(2) - at(2) * other.at(1);
+        result.at(1) = at(2) * other.at(0) - at(0) * other.at(2);
+        result.at(2) = at(0) * other.at(1) - at(1) * other.at(0);
         return result;
     }
 
-    DenseReturnType transpose() const
-    {
-        DenseReturnType result;
-        return result;
-    }
+
 
     DenseReturnType operator-() const
     {
@@ -184,18 +184,24 @@ class MatrixBase
 
     void setZero()
     {
-        for (int i = 0; i < derived().size(); ++i)
+        for (int i = 0; i < rows(); ++i)
         {
-            derived().at(i) = 0;
+            for (int j = 0; j < cols(); ++j)
+            {
+                derived()(i, j) = 0;
+            }
         }
     }
 
 
     void setOnes()
     {
-        for (int i = 0; i < derived().size(); ++i)
+        for (int i = 0; i < rows(); ++i)
         {
-            derived().at(i) = 1;
+            for (int j = 0; j < cols(); ++j)
+            {
+                derived()(i, j) = 1;
+            }
         }
     }
 
@@ -203,8 +209,61 @@ class MatrixBase
 
     DenseReturnType inverse() const
     {
-        DenseReturnType result;
-        return result;
+        int N               = cols();
+        DenseReturnType mat = DenseReturnType::Identity();
+        // mat.setZero();
+
+        DenseReturnType m = *this;
+
+        // code from
+        // https://www.scratchapixel.com/lessons/mathematics-physics-for-computer-graphics/matrix-inverse
+        for (unsigned column = 0; column < N; ++column)
+        {
+            // Swap row in case our pivot point is not working
+            if (m(column, column) == 0)
+            {
+                unsigned big = column;
+                for (unsigned row = 0; row < N; ++row)
+                    if (fabs(m(row, column)) > fabs(m(big, column))) big = row;
+                // Print this is a singular matrix, return identity ?
+                if (big == column) fprintf(stderr, "Singular matrix\n");
+                // Swap rows
+                else
+                    for (unsigned j = 0; j < N; ++j)
+                    {
+                        std::swap(m(column, j), m(big, j));
+                        std::swap(mat(column, j), mat(big, j));
+                    }
+            }
+            // Set each row in the column to 0
+            for (unsigned row = 0; row < N; ++row)
+            {
+                if (row != column)
+                {
+                    Scalar coeff = m(row, column) / m(column, column);
+                    if (coeff != 0)
+                    {
+                        for (unsigned j = 0; j < N; ++j)
+                        {
+                            m(row, j) -= coeff * m(column, j);
+                            mat(row, j) -= coeff * mat(column, j);
+                        }
+                        // Set the element to 0 for safety
+                        m(row, column) = 0;
+                    }
+                }
+            }
+        }
+        // Set each element of the diagonal to 1
+        for (unsigned row = 0; row < N; ++row)
+        {
+            for (unsigned column = 0; column < N; ++column)
+            {
+                mat(row, column) /= m(row, row);
+            }
+        }
+
+        return mat;
     }
 
     DenseReturnType round() const
@@ -217,12 +276,17 @@ class MatrixBase
         return result;
     }
 
+    bool operator!=(SameMatrix other) const { return !((*this) == other); }
+
     bool operator==(SameMatrix other) const
     {
         bool result = true;
-        for (int i = 0; i < derived().size(); ++i)
+        for (int i = 0; i < rows(); ++i)
         {
-            result &= derived().at(i) == other.derived().at(i);
+            for (int j = 0; j < cols(); ++j)
+            {
+                result &= derived()(i, j) == other.derived()(i, j);
+            }
         }
         return result;
     }
@@ -318,6 +382,7 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
     Array() {}
 
     _Scalar* data() { return data; }
+    const _Scalar* data() const { return data; }
 
     _Scalar& operator()(int i, int j) { return _data[j * _Rows + i]; }
     const _Scalar& operator()(int i, int j) const { return _data[j * _Rows + i]; }
@@ -403,20 +468,6 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
     {
     }
 
-
-//    template <typename OtherType>
-//    MatrixView(const MatrixBase<OtherType>& other)
-//    {
-//        for (int i = 0; i < rows(); ++i)
-//        {
-//            for (int j = 0; j < cols(); ++j)
-//            {
-//                (*this)(i, j) = other(i, j);
-//            }
-//        }
-//    }
-
-
     template <typename OtherType>
     SameMatrix& operator=(const MatrixBase<OtherType>& other)
     {
@@ -457,7 +508,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     using SameMatrix          = Matrix<_Scalar, _Rows, _Cols, _Options>;
     static constexpr int Size = _Rows * _Cols;
     static_assert(_Rows > 0, "Rows must be positive");
-    static_assert(_Options == ColMajor, "Only colmajor supportet");
+    static_assert((_Options & RowMajor) == 0, "Only colmajor supportet");
 
     static SameMatrix Zero()
     {
@@ -529,7 +580,8 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         _data[3] = x3;
     }
 
-    _Scalar* data() { return data; }
+    _Scalar* data() { return _data; }
+    const _Scalar* data() const { return _data; }
 
     _Scalar& operator[](int i)
     {
@@ -591,6 +643,21 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
 
         return result;
     }
+
+    Matrix<Scalar, _Cols, _Rows, _Options> transpose() const
+    {
+        Matrix<Scalar, _Cols, _Rows, _Options> result;
+        for (int i = 0; i < rows(); ++i)
+        {
+            for (int j = 0; j < cols(); ++j)
+            {
+                result(j, i) = (*this)(i, j);
+            }
+        }
+        return result;
+    }
+
+
     MatrixView<Scalar, _Rows, 1, _Options> col(int id)
     {
         return MatrixView<Scalar, _Rows, 1, _Options>(&((*this)(0, id)), 1, 1);
@@ -669,13 +736,20 @@ template <typename Derived>
 typename Derived::PlainObject operator*(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
 {
     typename Derived::PlainObject result;
-    return result;
+    return v * m1;
 }
 
 template <typename Derived>
 typename Derived::PlainObject operator*(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
 {
     typename Derived::PlainObject result;
+    for (int i = 0; i < result.rows(); ++i)
+    {
+        for (int j = 0; j < result.cols(); ++j)
+        {
+            result(i, j) = v * m1(i, j);
+        }
+    }
     return result;
 }
 
@@ -683,6 +757,13 @@ template <typename Derived>
 typename Derived::DenseReturnType operator/(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
 {
     typename Derived::DenseReturnType result;
+    for (int i = 0; i < result.rows(); ++i)
+    {
+        for (int j = 0; j < result.cols(); ++j)
+        {
+            result(i, j) = m1(i, j) / v;
+        }
+    }
     return result;
 }
 
@@ -690,6 +771,13 @@ template <typename Derived>
 typename Derived::PlainObject operator/(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
 {
     typename Derived::PlainObject result;
+    for (int i = 0; i < result.rows(); ++i)
+    {
+        for (int j = 0; j < result.cols(); ++j)
+        {
+            result(i, j) = v / m1(i, j);
+        }
+    }
     return result;
 }
 
@@ -697,7 +785,20 @@ template <typename _Scalar, int _Rows0, int _Cols0, int _Options0, int _Rows1, i
 Matrix<_Scalar, _Rows0, _Cols1, _Options0> operator*(const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
                                                      Matrix<_Scalar, _Rows1, _Cols1, _Options1> m2)
 {
+    static_assert(_Rows1 == _Cols0, "Invalid matrix shapes");
     Matrix<_Scalar, _Rows0, _Cols1, _Options0> result;
+    result.setZero();
+
+    for (int i = 0; i < result.rows(); ++i)
+    {
+        for (int j = 0; j < result.cols(); ++j)
+        {
+            for (int k = 0; k < _Rows1; ++k)
+            {
+                result(i, j) += m1(i, k) * m2(k, j);
+            }
+        }
+    }
     return result;
 }
 
@@ -706,6 +807,28 @@ Array<_Scalar, _Rows0, _Cols0, _Options0> operator*(const Array<_Scalar, _Rows0,
                                                     Array<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     Array<_Scalar, _Rows0, _Cols0, _Options0> result;
+    for (int i = 0; i < m1.rows(); ++i)
+    {
+        for (int j = 0; j < m1.cols(); ++j)
+        {
+            result(i, j) = m1(i, j) * m2(i, j);
+        }
+    }
+    return result;
+}
+
+template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
+Array<_Scalar, _Rows0, _Cols0, _Options0> operator/(const Array<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                                                    Array<_Scalar, _Rows0, _Cols0, _Options0> m2)
+{
+    Array<_Scalar, _Rows0, _Cols0, _Options0> result;
+    for (int i = 0; i < m1.rows(); ++i)
+    {
+        for (int j = 0; j < m1.cols(); ++j)
+        {
+            result(i, j) = m1(i, j) / m2(i, j);
+        }
+    }
     return result;
 }
 

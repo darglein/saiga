@@ -6,6 +6,7 @@
 
 #include "saiga/core/Core.h"
 
+#include <omp.h>
 using namespace Saiga;
 
 void report(int i)

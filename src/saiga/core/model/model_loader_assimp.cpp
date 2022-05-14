@@ -743,7 +743,7 @@ void AssimpLoader::TraversePrintTree(aiNode* current_node, int depth)
     }
     mat4 t = convert(current_node->mTransformation);
 
-    std::cout << "Node " << current_node->mName.C_Str() << " Trans: " << t.col(3).transpose() << std::endl;
+    std::cout << "Node " << current_node->mName.C_Str() << " Trans: " << t.col(3).eval().transpose() << std::endl;
     for (int i = 0; i < current_node->mNumChildren; ++i)
     {
         TraversePrintTree(current_node->mChildren[i], depth + 1);
