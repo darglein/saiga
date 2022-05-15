@@ -295,7 +295,7 @@ Quat angleAxis(double angle, const Vec3& axis)
 {
 #ifdef SAIGA_USE_EIGEN
     Eigen::AngleAxisd aa(angle, axis);
-    return make_quat(aa.matrix());
+    return Quat(aa.matrix());
 #else
     return Quat::FromAngleAxis(angle, axis);
 #endif
