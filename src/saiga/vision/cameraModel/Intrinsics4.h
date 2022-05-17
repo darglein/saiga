@@ -117,12 +117,21 @@ struct IntrinsicsPinhole
     HD inline Mat3 matrix() const
     {
         Mat3 k;
-        // clang-format off
-        k <<
-          fx, s,  cx,
-            0,  fy, cy,
-            0,  0,  1;
-        // clang-format on
+
+        //   fx, s,  cx,
+        //     0,  fy, cy,
+        //     0,  0,  1;
+        k(0,0) = fx;
+        k(0,1) = s;
+        k(0,2) = cx;
+
+        k(1,0) = 0;
+        k(1,1) = fy;
+        k(1,2) = cy;
+
+        k(2,0) = 0;
+        k(2,1) = 0;
+        k(2,2) = 1;
         return k;
     }
 
