@@ -676,9 +676,12 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     HD Matrix<T, _Rows, _Cols, _Options> cast() const
     {
         Matrix<T, _Rows, _Cols, _Options> result;
-        for (int i = 0; i < result.size(); ++i)
+        for (int i = 0; i < rows(); ++i)
         {
-            result.at(i) = (T)at(i);
+            for (int j = 0; j < cols(); ++j)
+            {
+                result(i,j) = (T) (*this)(i, j);
+            }
         }
 
         return result;
