@@ -29,6 +29,12 @@ class SO3
     HD SO3<Scalar> inverse() const { return SO3<Scalar>(q.inverse()); }
 
 
+    template <typename G>
+    HD SO3<G> cast()
+    {
+        return SO3<G>(q.template cast<G>());
+    }
+
     HD static SO3<T> exp(Vec3 const& omega)
     {
         using std::abs;
@@ -132,6 +138,14 @@ class alignas(sizeof(T) * 8) SE3
     }
 
 
+
+    template <typename G>
+    HD SE3<G> cast()
+    {
+        return SE3<G>(_so3.template cast<G>(), t.template cast<G>());
+    }
+
+
     HD Vec3& translation() { return t; }
     HD Quat& unit_quaternion() { return so3().unit_quaternion(); }
     HD const Vec3& translation() const { return t; }
@@ -145,6 +159,7 @@ class alignas(sizeof(T) * 8) SE3
 
     HD SO3<T>& so3() { return _so3; }
     HD const SO3<T>& so3() const { return _so3; }
+
 
 
     Eigen::Matrix<T, 7, 1> params() const
