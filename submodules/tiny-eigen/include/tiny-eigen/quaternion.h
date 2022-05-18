@@ -96,6 +96,14 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         }
     }
 
+
+    template <typename G>
+    HD Quaternion<G> cast()
+    {
+        return Quaternion<G>(w(), x(), y(), z());
+    }
+
+
     HD Matrix<_Scalar, 3, 3> matrix() const
     {
         Matrix<_Scalar, 3, 3> result;
