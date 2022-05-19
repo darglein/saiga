@@ -160,6 +160,13 @@ class alignas(sizeof(T) * 8) SE3
     HD SO3<T>& so3() { return _so3; }
     HD const SO3<T>& so3() const { return _so3; }
 
+    Eigen::Matrix<T, 4, 4> matrix() const
+    {
+        Eigen::Matrix<T, 4, 4> result = Eigen::Matrix<T, 4, 4>::Identity();
+        result.template block<3, 3>(0, 0) = unit_quaternion().matrix();
+        result.template block<3, 1>(0, 3) = t;
+        return result;
+    }
 
 
     Eigen::Matrix<T, 7, 1> params() const
