@@ -895,7 +895,10 @@ std::ostream& operator<<(std::ostream& strm, const MatrixBase<Derived>& m1)
         {
             strm << m1(i, j) << " ";
         }
-        strm << "\n";
+        if(i < m1.rows()- 1)
+        {
+            strm << "\n";
+        }
     }
     return strm;
 }
