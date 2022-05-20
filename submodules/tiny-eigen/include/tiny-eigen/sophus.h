@@ -138,6 +138,7 @@ class alignas(sizeof(T) * 8) SE3
     }
 
 
+    HD static SE3<T> fitToSE3(const Eigen::Matrix<T, 4, 4>& tra) { return SE3(tra); }
 
     template <typename G>
     HD SE3<G> cast()
@@ -162,7 +163,7 @@ class alignas(sizeof(T) * 8) SE3
 
     Eigen::Matrix<T, 4, 4> matrix() const
     {
-        Eigen::Matrix<T, 4, 4> result = Eigen::Matrix<T, 4, 4>::Identity();
+        Eigen::Matrix<T, 4, 4> result     = Eigen::Matrix<T, 4, 4>::Identity();
         result.template block<3, 3>(0, 0) = unit_quaternion().matrix();
         result.template block<3, 1>(0, 3) = t;
         return result;
