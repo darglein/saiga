@@ -42,7 +42,6 @@ class SAIGA_OPENGL_API ForwardRenderer : public OpenGLRenderer
     inline const char* getColoredShaderSource() { return coloredShaderSource; }
     inline const char* getTexturedShaderSource() { return texturedShaderSource; }
 
-   private:
     int renderWidth        = 0;
     int renderHeight       = 0;
     ShaderLoader shaderLoader;
