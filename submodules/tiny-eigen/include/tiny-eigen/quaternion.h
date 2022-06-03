@@ -129,10 +129,13 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
 
     HD Matrix<_Scalar, 4, 1> coeffs() const
     {
-        Matrix<_Scalar, 4, 1> result(_data[0], _data[1], _data[2], _data[3]);
-        return result;
+        return _data;
     }
 
+    HD Matrix<_Scalar, 4, 1>& coeffs()
+    {
+        return _data;
+    }
 
     HD SameObject inverse() const { return SameObject(w(), -x(), -y(), -z()); }
     HD SameObject normalized() const
@@ -144,6 +147,14 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         result.y() = y() * scale;
         result.z() = z() * scale;
         return result;
+    }
+    HD void normalize()
+    {
+        Scalar scale = 1 / norm();
+        w() *= scale;
+        x() *= scale;
+        y() *= scale;
+        z() *= scale;
     }
     HD Scalar norm() const { return coeffs().norm(); }
 
@@ -192,7 +203,7 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
     HD const Scalar& w() const { return _data[3]; }
 
    private:
-    _Scalar _data[4];
+    Matrix<Scalar, 4, 1> _data;
 };
 
 template <typename _Scalar, int _Options>
