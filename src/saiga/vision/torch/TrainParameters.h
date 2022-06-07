@@ -17,9 +17,11 @@ namespace Saiga
 {
 struct TrainParams : public ParamsBase
 {
-    SAIGA_PARAM_STRUCT_FUNCTIONS(TrainParams);
-    virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
-    {
+    SAIGA_PARAM_STRUCT(TrainParams);
+    SAIGA_PARAM_STRUCT_FUNCTIONS;
+//    virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
+    template <class ParamIterator>
+    void Params(ParamIterator* it){
         SAIGA_PARAM(random_seed);
         SAIGA_PARAM(do_train);
         SAIGA_PARAM(do_eval);
