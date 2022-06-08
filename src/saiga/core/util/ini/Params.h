@@ -170,26 +170,6 @@ struct ParamsBase
         Params(&tableit);                                         \
     }
 
-//#define SAIGA_PARAM(_variable)                           \
-//    if (ini) INI_GETADD(*ini, name_.c_str(), _variable); \
-//    if (app) app->add_option("--" #_variable, _variable, "", true)
-//
-//#define SAIGA_PARAM_COMMENT(_variable, _comment)                           \
-//    if (ini) INI_GETADD_COMMENT(*ini, name_.c_str(), _variable, _comment); \
-//    if (app) app->add_option("--" #_variable, _variable, _comment, true)
-//
-//#define SAIGA_PARAM_LIST(_variable, _sep) \
-//    if (ini) INI_GETADD_LIST_COMMENT(*ini, name_.c_str(), _variable, _sep, "");
-//
-//// a variation where the list is also passed to the command line parser
-//#define SAIGA_PARAM_LIST2(_variable, _sep)                                      \
-//    if (ini) INI_GETADD_LIST_COMMENT(*ini, name_.c_str(), _variable, _sep, ""); \
-//    if (app && _sep == ' ') app->add_option("--" #_variable, _variable, "", true)
-//
-//#define SAIGA_PARAM_LIST_COMMENT(_variable, _sep, _comment) \
-//    if (ini) INI_GETADD_LIST_COMMENT(*ini, name_.c_str(), _variable, _sep, _comment);
-
-
 #define SAIGA_PARAM_DEFAULT(_variable) (ParamStructType()._variable)
 
 #define SAIGA_PARAM(_variable) \
