@@ -113,7 +113,7 @@ class SO3
         return two_atan_nbyw_by_n * unit_quaternion().vec();
     }
 
-    Eigen::Matrix<T, 3, 3> matrix() const { return q.matrix(); }
+    HD Eigen::Matrix<T, 3, 3> matrix() const { return q.matrix(); }
 
 
    private:
@@ -147,6 +147,8 @@ class alignas(sizeof(T) * 8) SE3
     }
 
 
+    HD void setQuaternion(const Quat& q) { so3() = SO3<Scalar>(q); }
+
     HD Vec3& translation() { return t; }
     HD Quat& unit_quaternion() { return so3().unit_quaternion(); }
     HD const Vec3& translation() const { return t; }
@@ -161,7 +163,10 @@ class alignas(sizeof(T) * 8) SE3
     HD SO3<T>& so3() { return _so3; }
     HD const SO3<T>& so3() const { return _so3; }
 
-    Eigen::Matrix<T, 4, 4> matrix() const
+    HD const Scalar* data() const { return (Scalar*)(this); }
+    HD Scalar* data() { return (Scalar*)(this); }
+
+    HD Eigen::Matrix<T, 4, 4> matrix() const
     {
         Eigen::Matrix<T, 4, 4> result     = Eigen::Matrix<T, 4, 4>::Identity();
         result.template block<3, 3>(0, 0) = unit_quaternion().matrix();
@@ -170,7 +175,7 @@ class alignas(sizeof(T) * 8) SE3
     }
 
 
-    Eigen::Matrix<T, 7, 1> params() const
+    HD Eigen::Matrix<T, 7, 1> params() const
     {
         Eigen::Matrix<T, 7, 1> data;
         data.template head<4>() = unit_quaternion().coeffs();
@@ -222,4 +227,6 @@ HD SE3<T> operator*(const SE3<T>& a, const SE3<T>& b)
 
 using SE3d = SE3<double>;
 using SO3d = SO3<double>;
+using SE3f = SE3<float>;
+using SO3f = SO3<float>;
 }  // namespace Sophus

@@ -51,10 +51,14 @@ class SSIMImpl : public torch::nn::Module
    public:
     SSIMImpl(int radius = 2, float max_value = 1)
     {
+#ifdef SAIGA_USE_EIGEN
         kernel_raw = FilterTensor(gaussianBlurKernel2d(radius, 1.5f));
-        C1         = pow(0.01 * max_value, 2);
-        C2         = pow(0.03 * max_value, 2);
-        padding    = radius;
+#else
+        SAIGA_ASSERT(false);
+#endif
+        C1      = pow(0.01 * max_value, 2);
+        C2      = pow(0.03 * max_value, 2);
+        padding = radius;
         register_buffer("kernel_raw", kernel_raw);
     }
     torch::Tensor forward(torch::Tensor img1, torch::Tensor img2)
@@ -102,15 +106,19 @@ class SSIM3DImpl : public torch::nn::Module
    public:
     SSIM3DImpl(int radius = 2, float max_value = 1)
     {
+#ifdef SAIGA_USE_EIGEN
         int filter_size = radius * 2 + 1;
         auto t          = FilterTensor(gaussianBlurKernel1d<float>(radius, 1.5)).squeeze(0).squeeze(0);
         auto t2d        = t.mm(t.t());
         auto t3d        = t.mm(t2d.reshape({1, -1})).reshape({filter_size, filter_size, filter_size});
 
         kernel_raw = t3d.unsqueeze(0).unsqueeze(0);
-        C1         = pow(0.01 * max_value, 2);
-        C2         = pow(0.03 * max_value, 2);
-        padding    = radius;
+#else
+        SAIGA_ASSERT(0);
+#endif
+        C1      = pow(0.01 * max_value, 2);
+        C2      = pow(0.03 * max_value, 2);
+        padding = radius;
         register_buffer("kernel_raw", kernel_raw);
     }
     torch::Tensor forward(torch::Tensor img1, torch::Tensor img2)

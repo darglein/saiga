@@ -41,9 +41,63 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "saiga/core/sophus/SophusSelector.h"
 
-#if SAIGA_REAL_SOPHUS
 namespace Sophus
 {
+
+
+#if SAIGA_REAL_SOPHUS
+template <typename Scalar>
+inline Eigen::Matrix<Scalar, 7, 1> dsim3_logd(const DSim3<Scalar>& sim3)
+{
+    Eigen::Matrix<Scalar, 7, 1> upsilon_omega_scale;
+    upsilon_omega_scale.template head<6>() = se3_logd(sim3.se3());
+    upsilon_omega_scale(6)                 = log(sim3.scale());
+    return upsilon_omega_scale;
+}
+
+template <typename Derived>
+HD inline DSim3<typename Derived::Scalar> dsim3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 7);
+
+    using Scalar = typename Derived::Scalar;
+    return DSim3<Scalar>(se3_expd(upsilon_omega.template head<6>()), exp(upsilon_omega(6)));
+}
+template <typename Scalar>
+inline void decoupled_inc(const Eigen::Matrix<Scalar, 6, 1>& inc, Sophus::DSim3<Scalar>& T)
+{
+    decoupled_inc(inc.template head<6>(), T.se3());
+    T.scale() = exp(inc(6)) * T.scale();
+}
+
+#else
+
+template <class Scalar>
+struct Constants
+{
+    HD static Scalar epsilon() { return Scalar(1e-10); }
+
+    HD static Scalar epsilonSqrt()
+    {
+        using std::sqrt;
+        return sqrt(epsilon());
+    }
+
+    HD static Scalar pi() { return Scalar(3.141592653589793238462643383279502884); }
+};
+
+template <>
+struct Constants<float>
+{
+    HD static float constexpr epsilon() { return static_cast<float>(1e-5); }
+
+    HD static float epsilonSqrt() { return std::sqrt(epsilon()); }
+
+    HD static float constexpr pi() { return 3.141592653589793238462643383279502884f; }
+};
+
+#endif
 /// @brief Decoupled version of logmap for SE(3)
 ///
 /// For SE(3) element vector
@@ -75,14 +129,6 @@ inline typename Sim3<Scalar>::Tangent sim3_logd(const Sim3<Scalar>& se3)
     return upsilon_omega;
 }
 
-template <typename Scalar>
-inline Eigen::Matrix<Scalar, 7, 1> dsim3_logd(const DSim3<Scalar>& sim3)
-{
-    Eigen::Matrix<Scalar, 7, 1> upsilon_omega_scale;
-    upsilon_omega_scale.template head<6>() = se3_logd(sim3.se3());
-    upsilon_omega_scale(6)                 = log(sim3.scale());
-    return upsilon_omega_scale;
-}
 
 
 /// @brief Decoupled version of expmap for SE(3)
@@ -99,23 +145,11 @@ inline Eigen::Matrix<Scalar, 7, 1> dsim3_logd(const DSim3<Scalar>& sim3)
 template <typename Derived>
 HD inline SE3<typename Derived::Scalar> se3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
 {
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 6);
-
     using Scalar = typename Derived::Scalar;
-
-    return SE3<Scalar>(SO3<Scalar>::exp(upsilon_omega.template tail<3>()), upsilon_omega.template head<3>());
+    return SE3<Scalar>(SO3<Scalar>::exp(upsilon_omega.eval().template tail<3>()),
+                       upsilon_omega.eval().template head<3>());
 }
 
-template <typename Derived>
-HD inline DSim3<typename Derived::Scalar> dsim3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
-{
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 7);
-
-    using Scalar = typename Derived::Scalar;
-    return DSim3<Scalar>(se3_expd(upsilon_omega.template head<6>()), exp(upsilon_omega(6)));
-}
 
 /// @brief Right Jacobian for SO(3)
 ///
@@ -128,11 +162,6 @@ HD inline DSim3<typename Derived::Scalar> dsim3_expd(const Eigen::MatrixBase<Der
 template <typename Derived1, typename Derived2>
 inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
 {
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
-    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
-
     using Scalar = typename Derived1::Scalar;
 
     Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
@@ -165,11 +194,6 @@ inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen
 template <typename Derived1, typename Derived2>
 inline void leftJacobianSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
 {
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
-    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
-
     using Scalar = typename Derived1::Scalar;
 
     Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
@@ -201,11 +225,6 @@ inline void leftJacobianSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen:
 template <typename Derived1, typename Derived2>
 inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
 {
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
-    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
-
     using Scalar = typename Derived1::Scalar;
 
     Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
@@ -237,11 +256,6 @@ inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1>& phi, const Ei
 template <typename Derived1, typename Derived2>
 inline void leftJacobianInvSO3(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
 {
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
-    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 3, 3);
-
     using Scalar = typename Derived1::Scalar;
 
     Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
@@ -272,11 +286,6 @@ inline void leftJacobianInvSO3(const Eigen::MatrixBase<Derived1>& phi, const Eig
 template <typename Derived1, typename Derived2>
 inline void rightJacobianSE3Decoupled(const Eigen::MatrixBase<Derived1>& phi, const Eigen::MatrixBase<Derived2>& J_phi)
 {
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 6);
-    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 6, 6);
-
     using Scalar = typename Derived1::Scalar;
 
     Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
@@ -301,11 +310,6 @@ template <typename Derived1, typename Derived2>
 inline void rightJacobianInvSE3Decoupled(const Eigen::MatrixBase<Derived1>& phi,
                                          const Eigen::MatrixBase<Derived2>& J_phi)
 {
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 6);
-    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 6, 6);
-
     using Scalar = typename Derived1::Scalar;
 
     Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
@@ -322,11 +326,6 @@ template <typename Derived1, typename Derived2>
 inline void rightJacobianInvDSim3Decoupled(const Eigen::MatrixBase<Derived1>& phi,
                                            const Eigen::MatrixBase<Derived2>& J_phi)
 {
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 7);
-    EIGEN_STATIC_ASSERT_MATRIX_SPECIFIC_SIZE(Derived2, 7, 7);
-
     using Scalar = typename Derived1::Scalar;
 
     Eigen::MatrixBase<Derived2>& J = const_cast<Eigen::MatrixBase<Derived2>&>(J_phi);
@@ -342,18 +341,12 @@ inline void rightJacobianInvDSim3Decoupled(const Eigen::MatrixBase<Derived1>& ph
 
 
 template <typename Scalar>
-inline void decoupled_inc(const Sophus::Vector6d& inc, Sophus::SE3<Scalar>& T)
+inline void decoupled_inc(const Eigen::Matrix<Scalar, 6, 1>& inc, Sophus::SE3<Scalar>& T)
 {
-    T.translation() += inc.head<3>();
-    T.so3() = Sophus::SO3d::exp(inc.tail<3>()) * T.so3();
+    T.translation() += inc.template head<3>();
+    T.so3() = Sophus::SO3d::exp(inc.template tail<3>()) * T.so3();
 }
 
-template <typename Scalar>
-inline void decoupled_inc(const Sophus::Vector7d& inc, Sophus::DSim3<Scalar>& T)
-{
-    decoupled_inc(inc.head<6>(), T.se3());
-    T.scale() = exp(inc(6)) * T.scale();
-}
 
 }  // namespace Sophus
 
@@ -404,6 +397,4 @@ inline Sophus::SE3<T> scale(const Sophus::SE3<T>& a, double alpha)
     return slerp(Sophus::SE3<T>(), a, alpha);
 }
 
-}  // namespace Saiga
-
-#endif
+}  // namespace Sophus

@@ -272,6 +272,29 @@ HD constexpr typename Derived::PlainObject saturate(const Eigen::MatrixBase<Deri
 }
 
 
+//
+// Pixar Revised ONB
+// https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+//
+// n is aligned to the z-axis
+//
+template <typename Derived>
+Matrix<typename Derived::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived>& n)
+{
+    using T    = typename Derived::Scalar;
+    using Mat3 = Matrix<T, 3, 3>;
+    using Vec3 = Matrix<T, 3, 1>;
+
+    T sign = n(2) > 0 ? 1.0f : -1.0f;  // emulate copysign
+    T a    = -1.0f / (sign + n(2));
+    T b    = n(0) * n(1) * a;
+    Mat3 v;
+    v.col(2) = n;
+    v.col(1) = Vec3(1.0f + sign * n(0) * n(0) * a, sign * b, -sign * n(0));
+    v.col(0) = Vec3(b, sign + n(1) * n(1) * a, -n(1));
+    return v;
+}
+
 
 using std::abs;
 
