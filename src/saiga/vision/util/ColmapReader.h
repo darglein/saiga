@@ -59,7 +59,8 @@ struct ColmapWorldpoint
     std::vector<Track> tracks;
 };
 
-struct SAIGA_VISION_API ColmapReader
+// Don't need to export because it is header only
+struct ColmapReader
 {
     // the colmap sfm directory must be given
     // Expects the following files inside this directory

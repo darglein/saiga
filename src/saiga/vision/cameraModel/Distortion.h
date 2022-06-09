@@ -46,7 +46,14 @@ struct DistortionBase
     HD inline Eigen::Matrix<T, 8, 1> Coeffs() const
     {
         Eigen::Matrix<T, 8, 1> result;
-        result << k1, k2, k3, k4, k5, k6, p1, p2;
+        result(0) = k1;
+        result(1) = k2;
+        result(2) = k3;
+        result(3) = k4;
+        result(4) = k5;
+        result(5) = k6;
+        result(6) = p1;
+        result(7) = p2;
         return result;
     }
 
@@ -284,7 +291,7 @@ Eigen::Matrix<T, 2, 1> undistortPointGN(const Eigen::Matrix<T, 2, 1>& point, con
  */
 template <typename T>
 HD inline Eigen::Matrix<T, 2, 1> undistortNormalizedPointSimple(const Eigen::Matrix<T, 2, 1>& point,
-                                                    const DistortionBase<T>& distortion, int iterations = 5)
+                                                                const DistortionBase<T>& distortion, int iterations = 5)
 {
     T x  = point.x();
     T y  = point.y();

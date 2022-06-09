@@ -375,9 +375,11 @@ TORCH_MODULE(UpsampleBlock);
 
 struct MultiScaleUnet2dParams : public ParamsBase
 {
-    SAIGA_PARAM_STRUCT_FUNCTIONS(MultiScaleUnet2dParams);
+    SAIGA_PARAM_STRUCT(MultiScaleUnet2dParams);
+    SAIGA_PARAM_STRUCT_FUNCTIONS;
 
-    virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
+    template <class ParamIterator>
+    void Params(ParamIterator* it)
     {
         SAIGA_PARAM(num_input_layers);
         SAIGA_PARAM(num_input_channels);

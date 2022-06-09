@@ -81,7 +81,8 @@ class MatrixBase
     HD Scalar& operator()(int i, int j) { return derived()(i, j); }
     HD const Scalar& operator()(int i, int j) const { return derived()(i, j); }
 
-
+    HD Scalar& operator()(int i) { return derived()(i); }
+    HD const Scalar& operator()(int i) const { return derived()(i); }
 
     HD Scalar& at(int i) { return derived().at(i); }
     HD const Scalar& at(int i) const { return derived().at(i); }
@@ -243,14 +244,18 @@ class MatrixBase
                 for (unsigned row = 0; row < N; ++row)
                     if (fabs(m(row, column)) > fabs(m(big, column))) big = row;
                 // Print this is a singular matrix, return identity ?
-                if (big == column) fprintf(stderr, "Singular matrix\n");
-                // Swap rows
+                if (big == column)
+                {
+                    return mat;
+                }
                 else
+                {
                     for (unsigned j = 0; j < N; ++j)
                     {
                         std::swap(m(column, j), m(big, j));
                         std::swap(mat(column, j), mat(big, j));
                     }
+                }
             }
             // Set each row in the column to 0
             for (unsigned row = 0; row < N; ++row)
@@ -291,6 +296,36 @@ class MatrixBase
             result.at(i) = std::round(derived().at(i));
         }
         return result;
+    }
+
+    HD bool allFinite() const
+    {
+        for (int i = 0; i < rows(); ++i)
+        {
+            for (int j = 0; j < cols(); ++j)
+            {
+                if (!std::isfinite(derived()(i, j)))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    HD bool isZero() const
+    {
+        for (int i = 0; i < rows(); ++i)
+        {
+            for (int j = 0; j < cols(); ++j)
+            {
+                if (derived()(i, j) != 0)
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     HD bool operator!=(SameMatrix other) const { return !((*this) == other); }
@@ -680,7 +715,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         {
             for (int j = 0; j < cols(); ++j)
             {
-                result(i,j) = (T) (*this)(i, j);
+                result(i, j) = (T)(*this)(i, j);
             }
         }
 
@@ -746,6 +781,17 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         return MatrixView<const Scalar, NewRows, 1, _Options>(&((*this)(0, 0)), 1, 1);
     }
 
+    template <int NewRows>
+    HD Matrix<Scalar, NewRows, 1, _Options> tail()
+    {
+        return MatrixView<Scalar, NewRows, 1, _Options>(&((*this)(rows() - NewRows, 0)), 1, 1);
+    }
+
+    template <int NewRows>
+    HD Matrix<Scalar, NewRows, 1, _Options> tail() const
+    {
+        return MatrixView<Scalar, NewRows, 1, _Options>(&((*this)(rows() - NewRows, 0)), 1, 1);
+    }
 
     HD const Array<_Scalar, _Rows, _Cols, _Options>& array() const
     {
@@ -763,39 +809,44 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
 };
 
 template <typename Derived>
-HD typename Derived::PlainObject operator-(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
+HD typename Derived::DenseReturnType operator-(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
 {
-    typename Derived::PlainObject result;
-    for (int i = 0; i < result.size(); ++i)
+    typename Derived::DenseReturnType result;
+    for (int i = 0; i < result.rows(); ++i)
     {
-        result.at(i) = m1.at(i) - m2.at(i);
+        for (int j = 0; j < result.cols(); ++j)
+        {
+            result(i, j) = m1(i, j) - m2(i, j);
+        }
     }
     return result;
 }
 
 template <typename Derived>
-HD typename Derived::PlainObject operator+(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
+HD typename Derived::DenseReturnType operator+(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
 {
-    typename Derived::PlainObject result;
-    for (int i = 0; i < result.size(); ++i)
+    typename Derived::DenseReturnType result;
+    for (int i = 0; i < result.rows(); ++i)
     {
-        result.at(i) = m1.at(i) + m2.at(i);
+        for (int j = 0; j < result.cols(); ++j)
+        {
+            result(i, j) = m1(i, j) + m2(i, j);
+        }
     }
     return result;
 }
 
 
 template <typename Derived>
-HD typename Derived::PlainObject operator*(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
+HD typename Derived::DenseReturnType operator*(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
 {
-    typename Derived::PlainObject result;
     return v * m1;
 }
 
 template <typename Derived>
-HD typename Derived::PlainObject operator*(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
+HD typename Derived::DenseReturnType operator*(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
 {
-    typename Derived::PlainObject result;
+    typename Derived::DenseReturnType result;
     for (int i = 0; i < result.rows(); ++i)
     {
         for (int j = 0; j < result.cols(); ++j)
@@ -895,7 +946,7 @@ std::ostream& operator<<(std::ostream& strm, const MatrixBase<Derived>& m1)
         {
             strm << m1(i, j) << " ";
         }
-        if(i < m1.rows()- 1)
+        if (i < m1.rows() - 1)
         {
             strm << "\n";
         }

@@ -15,16 +15,19 @@ namespace Saiga
 static mat4 ConvertSteamVRMatrixToMatrix4(const vr::HmdMatrix34_t& mat)
 {
     mat4 matrixObj;
-    matrixObj << mat.m[0][0], mat.m[1][0], mat.m[2][0], 0.0, mat.m[0][1], mat.m[1][1], mat.m[2][1], 0.0, mat.m[0][2],
-        mat.m[1][2], mat.m[2][2], 0.0, mat.m[0][3], mat.m[1][3], mat.m[2][3], 1.0f;
+    matrixObj =
+        make_mat4_row_major(mat.m[0][0], mat.m[1][0], mat.m[2][0], 0.0, mat.m[0][1], mat.m[1][1], mat.m[2][1], 0.0,
+                            mat.m[0][2], mat.m[1][2], mat.m[2][2], 0.0, mat.m[0][3], mat.m[1][3], mat.m[2][3], 1.0f);
+
     return matrixObj.transpose();
 }
 
 static mat4 ConvertSteamVRMatrixToMatrix4(const vr::HmdMatrix44_t& mat)
 {
     mat4 matrixObj;
-    matrixObj << mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0], mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
-        mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2], mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3];
+    matrixObj = make_mat4_row_major(mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0], mat.m[0][1], mat.m[1][1],
+                                    mat.m[2][1], mat.m[3][1], mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
+                                    mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]);
     return matrixObj.transpose();
 }
 
@@ -110,9 +113,10 @@ mat4 OpenVRWrapper::HeadToEyeModel(vr::Hmd_Eye nEye)
     vr::HmdMatrix34_t matEyeRight = vr_system->GetEyeToHeadTransform(nEye);
 
     mat4 matrixObj;
-    matrixObj << matEyeRight.m[0][0], matEyeRight.m[1][0], matEyeRight.m[2][0], 0.0, matEyeRight.m[0][1],
-        matEyeRight.m[1][1], matEyeRight.m[2][1], 0.0, matEyeRight.m[0][2], matEyeRight.m[1][2], matEyeRight.m[2][2],
-        0.0, matEyeRight.m[0][3], matEyeRight.m[1][3], matEyeRight.m[2][3], 1.0f;
+    matrixObj = make_mat4_row_major(matEyeRight.m[0][0], matEyeRight.m[1][0], matEyeRight.m[2][0], 0.0,
+                                    matEyeRight.m[0][1], matEyeRight.m[1][1], matEyeRight.m[2][1], 0.0,
+                                    matEyeRight.m[0][2], matEyeRight.m[1][2], matEyeRight.m[2][2], 0.0,
+                                    matEyeRight.m[0][3], matEyeRight.m[1][3], matEyeRight.m[2][3], 1.0f);
 
     return matrixObj.transpose();
 }
@@ -203,6 +207,6 @@ mat4 OpenVRWrapper::GetHMDModelMatrix()
 }
 vec3 OpenVRWrapper::LookingDirection()
 {
-    return -GetHMDModelMatrix().col(2).head<3>();
+    return -GetHMDModelMatrix().col(2).eval().head<3>();
 }
 }  // namespace Saiga

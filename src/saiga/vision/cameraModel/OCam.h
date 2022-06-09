@@ -221,18 +221,18 @@ struct OCam
         SetWorld2Cam(_poly_world2cam);
     }
 
-    Eigen::Matrix<T, -1, 1> ProjectParams()
+    std::vector<T> ProjectParams()
     {
-        Eigen::Matrix<T, -1, 1> res;
+        std::vector<T> res;
         res.resize(NumProjectParams());
-        res(0) = c;
-        res(1) = d;
-        res(2) = e;
-        res(3) = cx;
-        res(4) = cy;
+        res[0] = c;
+        res[1] = d;
+        res[2] = e;
+        res[3] = cx;
+        res[4] = cy;
         for (int i = 0; i < poly_world2cam.size(); ++i)
         {
-            res(5 + i) = poly_world2cam[i];
+            res[5 + i] = poly_world2cam[i];
         }
         return res;
     }
