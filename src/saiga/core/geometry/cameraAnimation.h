@@ -14,7 +14,6 @@
 
 #include <saiga/core/time/time.h>
 
-#ifdef SAIGA_USE_EIGEN
 namespace Saiga
 {
 struct SplineKeyframe
@@ -24,7 +23,7 @@ struct SplineKeyframe
     std::string name;
 
     // Data (linear interpolated)
-    Eigen::Matrix<double, -1, 1> user_data;
+    std::vector<double> user_data;
 
     // Spherical correct interpolation
     Sophus::SE3d pose;
@@ -35,7 +34,13 @@ inline SplineKeyframe mix(const SplineKeyframe& a, const SplineKeyframe& b, doub
 {
     SplineKeyframe result = alpha < 0.5 ? a : b;
     result.pose           = mix(a.pose, b.pose, alpha);
-    result.user_data = (1 - alpha) * a.user_data + alpha * b.user_data;
+
+    result.user_data.resize(a.user_data.size());
+    for(int i =0; i < a.user_data.size(); ++i){
+
+        result.user_data[i] = (1 - alpha) * a.user_data[i] + alpha * b.user_data[i];
+    }
+
     return result;
 }
 
@@ -98,4 +103,3 @@ class SAIGA_CORE_API SplinePath
 
 
 }  // namespace Saiga
-#endif

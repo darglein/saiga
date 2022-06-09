@@ -12,7 +12,6 @@
 
 #include <iostream>
 
-#ifdef SAIGA_USE_EIGEN
 namespace Saiga
 {
 bool SplinePath::imgui()
@@ -236,4 +235,3 @@ void SplinePath::PrintUserId()
 
 
 }  // namespace Saiga
-#endif
