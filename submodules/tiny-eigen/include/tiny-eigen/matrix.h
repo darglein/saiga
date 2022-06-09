@@ -154,9 +154,9 @@ class MatrixBase
         return result;
     }
 
-    HD DenseReturnType eval() const { return *this; }
+    HD DenseReturnType eval() const { return derived(); }
 
-    HD DenseReturnType normalized() const { return *this / norm(); }
+    HD DenseReturnType normalized() const { return derived() / norm(); }
 
 
     HD SameMatrix& normalize()
@@ -231,7 +231,7 @@ class MatrixBase
         DenseReturnType mat = DenseReturnType::Identity();
         // mat.setZero();
 
-        DenseReturnType m = *this;
+        DenseReturnType m = derived();
 
         // code from
         // https://www.scratchapixel.com/lessons/mathematics-physics-for-computer-graphics/matrix-inverse
@@ -243,9 +243,12 @@ class MatrixBase
                 unsigned big = column;
                 for (unsigned row = 0; row < N; ++row)
                     if (fabs(m(row, column)) > fabs(m(big, column))) big = row;
-                // Print this is a singular matrix, return identity ?
                 if (big == column)
                 {
+                    // Print this is a singular matrix, return identity ?
+#ifdef SAIGA_HOST
+                    printf("inverse error");
+#endif
                     return mat;
                 }
                 else
@@ -328,7 +331,10 @@ class MatrixBase
         return true;
     }
 
-    HD bool operator!=(SameMatrix other) const { return !((*this) == other); }
+    HD bool operator!=(SameMatrix other) const
+    {
+        return !((*this) == other);
+    }
 
     HD bool operator==(SameMatrix other) const
     {
@@ -416,7 +422,7 @@ class MatrixBase
 
     HD SameMatrix& operator/=(Scalar other)
     {
-        *this = *this / other;
+        derived() = derived() / other;
         return derived();
     }
 };
@@ -770,7 +776,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
 
 
     template <int NewRows>
-    HD Matrix<Scalar, NewRows, 1, _Options> head()
+    HD MatrixView<Scalar, NewRows, 1, _Options> head()
     {
         return MatrixView<Scalar, NewRows, 1, _Options>(&((*this)(0, 0)), 1, 1);
     }
@@ -782,7 +788,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     }
 
     template <int NewRows>
-    HD Matrix<Scalar, NewRows, 1, _Options> tail()
+    HD MatrixView<Scalar, NewRows, 1, _Options> tail()
     {
         return MatrixView<Scalar, NewRows, 1, _Options>(&((*this)(rows() - NewRows, 0)), 1, 1);
     }
