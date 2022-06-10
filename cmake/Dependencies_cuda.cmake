@@ -41,7 +41,9 @@ if (CUDA_FOUND)
     PackageHelperTarget(CUDA::nppig CUDA_FOUND)
 
     # Debuging tools
-    PackageHelperTarget(CUDA::nvToolsExt CUDA_FOUND)
+    if(SAIGA_CUDA_WITH_NVTOOLS)
+        PackageHelperTarget(CUDA::nvToolsExt CUDA_FOUND)
+    endif()
 
 
     if (SAIGA_CUDA_RDC)
