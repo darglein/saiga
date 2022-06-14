@@ -82,4 +82,8 @@ HD constexpr int iFloorDiv(int a, int b)
     return d * b == a ? d : d - ((a < 0) ^ (b < 0));
 }
 
+HD constexpr bool ispow2(unsigned x) {
+    return !(x & (x - 1));
+}
+
 }  // namespace Saiga
