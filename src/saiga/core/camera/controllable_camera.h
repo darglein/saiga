@@ -53,6 +53,7 @@ class Controllable_Camera : public CameraController, public camera_t
     void setInput(bool v) { input = v; }
 
     void mouseRotate(float dx, float dy);
+    void mousePan(float dx, float dy);
     void mouseRotateAroundPoint(float dx, float dy);
     void mouseRotateAroundPoint(float dx, float dy, vec3 point);
     void mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up);
@@ -135,6 +136,8 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     this->calculateModel();
     this->updateFromModel();
 #else
+
+#if 0
     vec2 relMovement(dx, dy);
     float angle = length(relMovement);
     if (angle == 0) return;
@@ -151,10 +154,41 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 
     p += point;
     this->position = make_vec4(p, 1);
+#else
+
+    vec3 offset = inverse(this->rot) * (make_vec3(this->position) - point);
+
+    vec2 turnAngle = vec2(-dx, -dy) * 0.004f;
+
+    this->rot = angleAxis(turnAngle.x(), vec3(0.f, 0.f, 1.f)) * this->rot;
+    this->rot = this->rot * angleAxis(turnAngle.y(), vec3(1.f, 0.f, 0.f));
+    this->rot = normalize(this->rot);
+
+    this->position = make_vec4(point + this->rot * offset, 1.f);
+
+#endif
+
     //        camera.rotateAroundPoint(make_vec3(0),vec3(1,0,0),relMovement[1]);
     this->calculateModel();
     this->updateFromModel();
 #endif
+}
+
+template <class camera_t>
+void Controllable_Camera<camera_t>::mousePan(float dx, float dy)
+{
+
+    float speed = 0.01f;
+
+    float RIGHT = dx;
+    float UP = -dy;
+
+    vec3 trans  = speed * (RIGHT * vec3(1, 0, 0) + UP * vec3(0, 1, 0));
+    this->translateLocal(trans);
+
+
+    this->calculateModel();
+    this->updateFromModel();
 }
 
 
@@ -238,7 +272,8 @@ void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation)
 
     if (dragState == 1)
     {
-        this->mouseRotate(mousedelta[0], mousedelta[1]);
+        //this->mouseRotate(mousedelta[0], mousedelta[1]);
+        this->mousePan(mousedelta[0], mousedelta[1]);
     }
     else if (dragState == 2)
     {
