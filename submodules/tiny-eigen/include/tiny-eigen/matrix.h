@@ -765,13 +765,13 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     template <int NewRows, int NewCols>
     HD MatrixView<Scalar, NewRows, NewCols, _Options> block(int i, int j)
     {
-        return MatrixView<Scalar, NewRows, NewCols, _Options>(&((*this)(i, j)), 1, _Cols);
+        return MatrixView<Scalar, NewRows, NewCols, _Options>(&((*this)(i, j)), 1, _Rows);
     }
 
     template <int NewRows, int NewCols>
     HD Matrix<Scalar, NewRows, NewCols, _Options> block(int i, int j) const
     {
-        return MatrixView<const Scalar, NewRows, NewCols, _Options>(&((*this)(i, j)), 1, _Cols);
+        return MatrixView<const Scalar, NewRows, NewCols, _Options>(&((*this)(i, j)), 1, _Rows);
     }
 
 
@@ -828,10 +828,10 @@ HD typename Derived::DenseReturnType operator-(const MatrixBase<Derived>& m1, co
     return result;
 }
 
-template <typename Derived>
-HD typename Derived::DenseReturnType operator+(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
+template <typename Derived1, typename Derived2>
+HD typename Derived1::DenseReturnType operator+(const MatrixBase<Derived1>& m1, const MatrixBase<Derived2>& m2)
 {
-    typename Derived::DenseReturnType result;
+    typename Derived1::DenseReturnType result;
     for (int i = 0; i < result.rows(); ++i)
     {
         for (int j = 0; j < result.cols(); ++j)
