@@ -64,6 +64,8 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         _data[3] = w;
     }
 
+    HD Quaternion(const Matrix<Scalar, 4, 1>& coeff) { _data = coeff; }
+
     HD Quaternion(const Matrix<_Scalar, 3, 3>& rm)
     {
         Scalar t = rm(0, 0) + rm(1, 1) + rm(2, 2);
@@ -127,15 +129,9 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         return result;
     }
 
-    HD Matrix<_Scalar, 4, 1> coeffs() const
-    {
-        return _data;
-    }
+    HD Matrix<_Scalar, 4, 1> coeffs() const { return _data; }
 
-    HD Matrix<_Scalar, 4, 1>& coeffs()
-    {
-        return _data;
-    }
+    HD Matrix<_Scalar, 4, 1>& coeffs() { return _data; }
 
     HD SameObject inverse() const { return SameObject(w(), -x(), -y(), -z()); }
     HD SameObject normalized() const
@@ -160,6 +156,33 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
 
     HD SameObject slerp(Scalar alpha, SameObject other) const
     {
+#if 1
+        // Eigen implentation
+        const Scalar one = Scalar(1) - std::numeric_limits<Scalar>::epsilon();
+        Scalar d         = this->dot(other);
+        Scalar absD      = std::abs(d);
+
+        Scalar scale0;
+        Scalar scale1;
+
+        if (absD >= one)
+        {
+            scale0 = Scalar(1) - alpha;
+            scale1 = alpha;
+        }
+        else
+        {
+            // theta is the angle between the 2 quaternions
+            Scalar theta    = acos(absD);
+            Scalar sinTheta = sin(theta);
+
+            scale0 = sin((Scalar(1) - alpha) * theta) / sinTheta;
+            scale1 = sin((alpha * theta)) / sinTheta;
+        }
+        if (d < Scalar(0)) scale1 = -scale1;
+
+        return Quaternion<Scalar>(scale0 * coeffs() + scale1 * other.coeffs());
+#endif
         Scalar cosHalfTheta = this->dot(other);
         if (std::abs(cosHalfTheta) >= 1.0)
         {
@@ -189,18 +212,48 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         return result;
     }
 
-    Matrix<Scalar, 3, 1> vec() const { return Matrix<Scalar, 3, 1>(x(), y(), z()); }
+    Matrix<Scalar, 3, 1> vec() const
+    {
+        return Matrix<Scalar, 3, 1>(x(), y(), z());
+    }
 
-    HD Scalar dot(const SameObject& other) const { return this->coeffs().dot(other.coeffs()); }
+    HD Scalar dot(const SameObject& other) const
+    {
+        return this->coeffs().dot(other.coeffs());
+    }
 
-    HD Scalar& x() { return _data[0]; }
-    HD Scalar& y() { return _data[1]; }
-    HD Scalar& z() { return _data[2]; }
-    HD Scalar& w() { return _data[3]; }
-    HD const Scalar& x() const { return _data[0]; }
-    HD const Scalar& y() const { return _data[1]; }
-    HD const Scalar& z() const { return _data[2]; }
-    HD const Scalar& w() const { return _data[3]; }
+    HD Scalar& x()
+    {
+        return _data[0];
+    }
+    HD Scalar& y()
+    {
+        return _data[1];
+    }
+    HD Scalar& z()
+    {
+        return _data[2];
+    }
+    HD Scalar& w()
+    {
+        return _data[3];
+    }
+    HD const Scalar& x() const
+    {
+        return _data[0];
+    }
+    HD const Scalar& y() const
+    {
+        return _data[1];
+    }
+    HD const Scalar& z() const
+    {
+        return _data[2];
+    }
+    HD const Scalar& w() const
+    {
+        return _data[3];
+    }
 
    private:
     Matrix<Scalar, 4, 1> _data;
