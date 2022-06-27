@@ -13,7 +13,6 @@ void CameraController::imgui()
     ImGui::InputFloat("movementSpeed", &movementSpeed);
     ImGui::InputFloat("movementSpeedFast", &movementSpeedFast);
     ImGui::InputFloat("rotationSpeed", &rotationSpeed);
-    ImGui::Checkbox("mouseTurnLocal", &mouseTurnLocal);
 }
 
 }  // namespace Saiga

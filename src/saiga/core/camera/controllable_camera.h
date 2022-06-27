@@ -16,6 +16,16 @@
 
 namespace Saiga
 {
+
+enum class CameraControlMode
+{
+    ROTATE_AROUND_POINT,
+    ROTATE_AROUND_POINT_FIX_UP_VECTOR,
+    ROTATE_FIRST_PERSON,
+    ROTATE_FIRST_PERSON_FIX_UP_VECTOR,
+    PAN,
+};
+
 struct SAIGA_CORE_API CameraController
 {
     float movementSpeed     = 10;
@@ -31,7 +41,8 @@ struct SAIGA_CORE_API CameraController
     vec3 rotationPoint = vec3(std::numeric_limits<float>::infinity(), 0, 0);
     vec3 global_up     = vec3(0, 1, 0);
 
-    bool mouseTurnLocal = false;
+    CameraControlMode mode0 = CameraControlMode::ROTATE_FIRST_PERSON_FIX_UP_VECTOR;
+    CameraControlMode mode1 = CameraControlMode::ROTATE_AROUND_POINT;
 
     void imgui();
 };
@@ -52,9 +63,13 @@ class Controllable_Camera : public CameraController, public camera_t
     void disableInput() { input = false; }
     void setInput(bool v) { input = v; }
 
-    void mouseRotate(float dx, float dy);
+
+    void mouseAction(float dx, float dy, CameraControlMode mode);
+
+    void mouseRotateFirstPerson(float dx, float dy);
+    void mouseRotateFirstPerson(float dx, float dy, vec3 up);
+
     void mousePan(float dx, float dy);
-    void mouseRotateAroundPoint(float dx, float dy);
     void mouseRotateAroundPoint(float dx, float dy, vec3 point);
     void mouseRotateAroundPoint(float dx, float dy, vec3 point, vec3 up);
 
@@ -82,33 +97,21 @@ class Controllable_Camera : public CameraController, public camera_t
 };
 
 template <class camera_t>
-void Controllable_Camera<camera_t>::mouseRotate(float dx, float dy)
+void Controllable_Camera<camera_t>::mouseRotateFirstPerson(float dx, float dy)
 {
-    if (mouseTurnLocal)
-        this->turnLocal(dx * rotationSpeed, dy * rotationSpeed);
-    else
-        this->turn(dx * rotationSpeed, dy * rotationSpeed, global_up);
+    this->turnLocal(dx * rotationSpeed, dy * rotationSpeed);
     this->calculateModel();
     this->updateFromModel();
 }
 
-
 template <class camera_t>
-void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy)
+void Controllable_Camera<camera_t>::mouseRotateFirstPerson(float dx, float dy, vec3 up)
 {
-    vec3 point;
-    if (rotationPoint[0] == std::numeric_limits<float>::infinity())
-    {
-        vec3 dir = make_vec3(this->getDirection());
-        point    = this->getPosition() - 10.0f * dir;
-    }
-    else
-    {
-        point = rotationPoint;
-    }
-
-    mouseRotateAroundPoint(-dx, -dy, point);
+    this->turn(dx * rotationSpeed, dy * rotationSpeed, up);
+    this->calculateModel();
+    this->updateFromModel();
 }
+
 
 
 template <class camera_t>
@@ -137,7 +140,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
     this->updateFromModel();
 #else
 
-#if 0
+#    if 0
     vec2 relMovement(dx, dy);
     float angle = length(relMovement);
     if (angle == 0) return;
@@ -154,7 +157,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 
     p += point;
     this->position = make_vec4(p, 1);
-#else
+#    else
 
     vec3 offset = inverse(this->rot) * (make_vec3(this->position) - point);
 
@@ -166,7 +169,7 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 
     this->position = make_vec4(point + this->rot * offset, 1.f);
 
-#endif
+#    endif
 
     //        camera.rotateAroundPoint(make_vec3(0),vec3(1,0,0),relMovement[1]);
     this->calculateModel();
@@ -177,13 +180,12 @@ void Controllable_Camera<camera_t>::mouseRotateAroundPoint(float dx, float dy, v
 template <class camera_t>
 void Controllable_Camera<camera_t>::mousePan(float dx, float dy)
 {
-
     float speed = 0.01f;
 
     float RIGHT = dx;
-    float UP = -dy;
+    float UP    = -dy;
 
-    vec3 trans  = speed * (RIGHT * vec3(1, 0, 0) + UP * vec3(0, 1, 0));
+    vec3 trans = speed * (RIGHT * vec3(1, 0, 0) + UP * vec3(0, 1, 0));
     this->translateLocal(trans);
 
 
@@ -251,7 +253,41 @@ void Controllable_Camera<camera_t>::update(float delta)
     this->updateFromModel();
 }
 
+template <class camera_t>
+void Controllable_Camera<camera_t>::mouseAction(float dx, float dy, CameraControlMode mode)
+{
+    vec3 actual_rotation_point;
+    if (rotationPoint[0] == std::numeric_limits<float>::infinity())
+    {
+        vec3 dir              = make_vec3(this->getDirection());
+        actual_rotation_point = this->getPosition() - 10.0f * dir;
+    }
+    else
+    {
+        actual_rotation_point = rotationPoint;
+    }
+    vec3 actual_up = global_up;
 
+
+    switch (mode)
+    {
+        case CameraControlMode::ROTATE_AROUND_POINT:
+            this->mouseRotateAroundPoint(dx, dy, actual_rotation_point);
+            break;
+        case CameraControlMode::ROTATE_AROUND_POINT_FIX_UP_VECTOR:
+            this->mouseRotateAroundPoint(dx, dy, actual_rotation_point, actual_up);
+            break;
+        case CameraControlMode::ROTATE_FIRST_PERSON:
+            this->mouseRotateFirstPerson(dx, dy);
+            break;
+        case CameraControlMode::ROTATE_FIRST_PERSON_FIX_UP_VECTOR:
+            this->mouseRotateFirstPerson(dx, dy, actual_up);
+            break;
+        case CameraControlMode::PAN:
+            this->mousePan(dx, dy);
+            break;
+    }
+}
 template <class camera_t>
 void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation)
 {
@@ -272,12 +308,11 @@ void Controllable_Camera<camera_t>::interpolate(float dt, float interpolation)
 
     if (dragState == 1)
     {
-        //this->mouseRotate(mousedelta[0], mousedelta[1]);
-        this->mousePan(mousedelta[0], mousedelta[1]);
+        mouseAction(mousedelta[0], mousedelta[1], mode0);
     }
     else if (dragState == 2)
     {
-        this->mouseRotateAroundPoint(mousedelta[0], mousedelta[1]);
+        mouseAction(mousedelta[0], mousedelta[1], mode1);
     }
 
 
