@@ -400,6 +400,12 @@ class MatrixBase
         return result;
     }
 
+    HD SameMatrix& operator+=(Scalar value)
+    {
+        derived() = derived() + value;
+        return derived();
+    }
+
 
     HD SameMatrix& operator+=(const SameMatrix& other)
     {
@@ -814,10 +820,10 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     _Scalar _data[Size];
 };
 
-template <typename Derived>
-HD typename Derived::DenseReturnType operator-(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
+template <typename Derived1, typename Derived2>
+HD typename Derived1::DenseReturnType operator-(const MatrixBase<Derived1>& m1, const MatrixBase<Derived2>& m2)
 {
-    typename Derived::DenseReturnType result;
+    typename Derived1::DenseReturnType result;
     for (int i = 0; i < result.rows(); ++i)
     {
         for (int j = 0; j < result.cols(); ++j)
@@ -837,6 +843,27 @@ HD typename Derived1::DenseReturnType operator+(const MatrixBase<Derived1>& m1, 
         for (int j = 0; j < result.cols(); ++j)
         {
             result(i, j) = m1(i, j) + m2(i, j);
+        }
+    }
+    return result;
+}
+
+
+template <typename Derived>
+HD typename Derived::DenseReturnType operator+(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
+{
+    return v + m1;
+}
+
+template <typename Derived>
+HD typename Derived::DenseReturnType operator+(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
+{
+    typename Derived::DenseReturnType result;
+    for (int i = 0; i < result.rows(); ++i)
+    {
+        for (int j = 0; j < result.cols(); ++j)
+        {
+            result(i, j) = v + m1(i, j);
         }
     }
     return result;
