@@ -41,7 +41,7 @@ struct StaticDeviceTensor
     // same as get but with bounds checks
     HD inline T& At(std::array<IndexType, dim> indices)
     {
-        int index = 0;
+        IndexType index = 0;
         for (int i = 0; i < dim; ++i)
         {
             CUDA_KERNEL_ASSERT(indices[i] >= 0 && indices[i] < sizes[i]);
@@ -52,7 +52,7 @@ struct StaticDeviceTensor
 
     HD inline T& Get(std::array<IndexType, dim> indices)
     {
-        int index = 0;
+        IndexType index = 0;
         for (int i = 0; i < dim; ++i)
         {
             index += strides[i] * indices[i];
