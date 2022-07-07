@@ -66,9 +66,12 @@ inline std::string TensorInfo(at::Tensor t)
     }
 
     auto type = t.dtype();
-    if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
+    if (t.numel() < 1000L * 1000 * 500)
     {
-        t = t.to(torch::kDouble);
+        if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
+        {
+            t = t.to(torch::kDouble);
+        }
     }
 
     double mi   = t.min().item().toDouble();
