@@ -17,7 +17,7 @@ inline __half* at::TensorBase::data_ptr<__half>() const
 
 namespace Saiga
 {
-template <typename T, int dim, typename IndexType = int>
+template <typename T, int dim, typename IndexType = int64_t>
 struct StaticDeviceTensor
 {
     T* data;
