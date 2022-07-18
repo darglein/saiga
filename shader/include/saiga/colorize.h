@@ -11,6 +11,16 @@
 #include "shaderConfig.h"
 
 /**
+ * This is not really a "color" map.
+ * It just converts a float to a vec3.
+ */
+FUNC_DECL vec3 colorizeGray(float alpha)
+{
+    alpha = saturate(alpha);
+    return vec3(alpha,alpha, alpha);
+}
+
+/**
  * Creates a smooth HSV color transition from Blue(=0) to Red(=1).
  * The returned value is in RGB space.
  */
