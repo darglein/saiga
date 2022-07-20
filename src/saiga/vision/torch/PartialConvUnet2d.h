@@ -409,7 +409,7 @@ struct MultiScaleUnet2dParams : public ParamsBase
 
     static constexpr int max_layers = 5;
 
-    int num_input_layers        = 5;
+    int num_input_layers        = 4;
     int num_input_channels      = 8;
     int num_output_channels     = 3;
     int feature_factor          = 4;
@@ -458,7 +458,7 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
    public:
     MultiScaleUnet2dImpl(MultiScaleUnet2dParams params) : params(params)
     {
-        std::cout << "Using MultiScaleUnet2d " << std::endl;
+        std::cout << "Using MultiScaleUnet2d with "<< params.conv_block << " downblock and " << params.conv_block_up << " upblock" << std::endl;
 
         std::vector<int> num_input_channels_per_layer;
         std::vector<int> filters = {params.filter1, params.filter2, params.filter3, params.filter4, params.filter5};
