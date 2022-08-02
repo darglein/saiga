@@ -45,6 +45,49 @@ namespace Sophus
 {
 
 
+
+/// @brief Decoupled version of logmap for SE(3)
+///
+/// For SE(3) element vector
+/// \f[
+/// \begin{pmatrix} R & t \\ 0 & 1 \end{pmatrix} \in SE(3),
+/// \f]
+/// returns \f$ (t, \log(R)) \in \mathbb{R}^6 \f$. Here rotation is not coupled
+/// with translation.
+///
+/// @param[in] SE(3) member
+/// @return tangent vector (6x1 vector)
+template <typename Scalar>
+inline typename SE3<Scalar>::Tangent se3_logd(const SE3<Scalar>& se3)
+{
+    typename SE3<Scalar>::Tangent upsilon_omega;
+    upsilon_omega.template head<3>() = se3.translation();
+    upsilon_omega.template tail<3>() = se3.so3().log();
+
+    return upsilon_omega;
+}
+
+
+
+/// @brief Decoupled version of expmap for SE(3)
+///
+/// For tangent vector \f$ (\upsilon, \omega) \in \mathbb{R}^6 \f$ returns
+/// \f[
+/// \begin{pmatrix} \exp(\omega) & \upsilon \\ 0 & 1 \end{pmatrix} \in SE(3),
+/// \f]
+/// where \f$ \exp(\omega) \in SO(3) \f$. Here rotation is not coupled with
+/// translation.
+///
+/// @param[in] tangent vector (6x1 vector)
+/// @return  SE(3) member
+template <typename Derived>
+HD inline SE3<typename Derived::Scalar> se3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
+{
+    using Scalar = typename Derived::Scalar;
+    return SE3<Scalar>(SO3<Scalar>::exp(upsilon_omega.eval().template tail<3>()),
+                       upsilon_omega.eval().template head<3>());
+}
+
 #if SAIGA_REAL_SOPHUS
 template <typename Scalar>
 inline Eigen::Matrix<Scalar, 7, 1> dsim3_logd(const DSim3<Scalar>& sim3)
@@ -98,27 +141,6 @@ struct Constants<float>
 };
 
 #endif
-/// @brief Decoupled version of logmap for SE(3)
-///
-/// For SE(3) element vector
-/// \f[
-/// \begin{pmatrix} R & t \\ 0 & 1 \end{pmatrix} \in SE(3),
-/// \f]
-/// returns \f$ (t, \log(R)) \in \mathbb{R}^6 \f$. Here rotation is not coupled
-/// with translation.
-///
-/// @param[in] SE(3) member
-/// @return tangent vector (6x1 vector)
-template <typename Scalar>
-inline typename SE3<Scalar>::Tangent se3_logd(const SE3<Scalar>& se3)
-{
-    typename SE3<Scalar>::Tangent upsilon_omega;
-    upsilon_omega.template head<3>() = se3.translation();
-    upsilon_omega.template tail<3>() = se3.so3().log();
-
-    return upsilon_omega;
-}
-
 template <typename Scalar>
 inline typename Sim3<Scalar>::Tangent sim3_logd(const Sim3<Scalar>& se3)
 {
@@ -130,25 +152,6 @@ inline typename Sim3<Scalar>::Tangent sim3_logd(const Sim3<Scalar>& se3)
 }
 
 
-
-/// @brief Decoupled version of expmap for SE(3)
-///
-/// For tangent vector \f$ (\upsilon, \omega) \in \mathbb{R}^6 \f$ returns
-/// \f[
-/// \begin{pmatrix} \exp(\omega) & \upsilon \\ 0 & 1 \end{pmatrix} \in SE(3),
-/// \f]
-/// where \f$ \exp(\omega) \in SO(3) \f$. Here rotation is not coupled with
-/// translation.
-///
-/// @param[in] tangent vector (6x1 vector)
-/// @return  SE(3) member
-template <typename Derived>
-HD inline SE3<typename Derived::Scalar> se3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
-{
-    using Scalar = typename Derived::Scalar;
-    return SE3<Scalar>(SO3<Scalar>::exp(upsilon_omega.eval().template tail<3>()),
-                       upsilon_omega.eval().template head<3>());
-}
 
 
 /// @brief Right Jacobian for SO(3)

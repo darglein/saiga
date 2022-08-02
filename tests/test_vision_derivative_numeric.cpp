@@ -94,7 +94,7 @@ TEST(NumericDerivative, Polynomial)
 TEST(NumericDerivative, RotatePoint)
 {
     Quat rot = Random::randomQuat<double>();
-    Vec3 wp      = Vec3::Random();
+    Vec3 wp  = Vec3::Random();
 
     Matrix<double, 3, 3> J_pose_1, J_pose_2;
     Matrix<double, 3, 3> J_point_1, J_point_2;
@@ -105,8 +105,9 @@ TEST(NumericDerivative, RotatePoint)
     {
         Vec3 eps = Vec3::Zero();
         res2     = EvaluateNumeric(
-            [=](auto p) {
-                Quat q = Sophus::SO3<double>::exp(p).unit_quaternion();
+            [=](auto p)
+            {
+                Quat q   = Sophus::SO3<double>::exp(p).unit_quaternion();
                 auto se3 = q * rot;
                 return RotatePoint(se3, wp);
             },
@@ -119,6 +120,73 @@ TEST(NumericDerivative, RotatePoint)
     ExpectCloseRelative(res1, res2, 1e-5);
     ExpectCloseRelative(J_pose_1, J_pose_2, 1e-5);
     ExpectCloseRelative(J_point_1, J_point_2, 1e-5);
+}
+
+
+template <typename T = double>
+HD inline Vector<T, 3> RotatePointRightStep2(const Eigen::Quaternion<T>& rotation, const Vector<T, 3>& point,
+                                            Matrix<T, 3, 3>* jacobian_rotation = nullptr,
+                                            Matrix<T, 3, 3>* jacobian_point    = nullptr)
+{
+    const Vector<T, 3> rotated_point = rotation * point;
+
+    if (jacobian_rotation)
+    {
+        Matrix<T, 3, 3> gr = -skew(rotated_point);
+        *jacobian_rotation = gr * rotation.matrix();
+#    if 0
+Matrix<T, 3, 3> gr_right;
+        for (int i = 0; i < 3; ++i)
+        {
+            Matrix<T, 3, 1> row = gr.row(i).transpose();
+            Eigen::Quaternion<T> quat = Sophus::SO3<double>::exp(row).unit_quaternion();
+            Eigen::Quaternion<T> quat_right = rotation.inverse() * quat * rotation;
+            Matrix<T, 3, 1> row_right = Sophus::SO3<double>(quat_right).log();
+            gr_right.row(i) = row_right.transpose();
+        }
+#    endif
+    }
+
+    if (jacobian_point)
+    {
+        *jacobian_point = rotation.matrix();
+    }
+
+    return rotated_point;
+}
+
+TEST(NumericDerivative, RotatePointRight)
+{
+    Quat rot = Random::randomQuat<double>();
+    Vec3 wp  = Vec3::Random();
+
+    Matrix<double, 3, 3> J_pose_1, J_pose_2;
+    Matrix<double, 3, 3> J_point_1, J_point_2;
+    Vec3 res1, res2;
+
+    res1 = RotatePointRightStep2(rot, wp, &J_pose_1, &J_point_1);
+
+    {
+        Vec3 eps = Vec3::Zero();
+        res2     = EvaluateNumeric(
+            [=](auto p)
+            {
+                Quat q   = Sophus::SO3<double>::exp(p).unit_quaternion();
+                auto se3 = rot * q;
+                return RotatePointRightStep2(se3, wp);
+            },
+            eps, &J_pose_2);
+    }
+    {
+        res2 = EvaluateNumeric([=](auto p) { return RotatePointRightStep2(rot, p); }, wp, &J_point_2);
+    }
+
+    ExpectCloseRelative(res1, res2, 1e-5, false);
+
+    std::cout << J_pose_1 << std::endl;
+    std::cout << J_pose_2 << std::endl;
+    ExpectCloseRelative(J_pose_1, J_pose_2, 1e-5, false);
+    ExpectCloseRelative(J_point_1, J_point_2, 1e-5, false);
 }
 
 
@@ -158,7 +226,8 @@ TEST(NumericDerivative, RotatePointTwice)
     {
         Vec3 eps = Vec3::Zero();
         res2     = EvaluateNumeric(
-            [=](auto p) {
+            [=](auto p)
+            {
                 auto se3 = Sophus::SO3d::exp(p) * pose1;
                 return RotatePointTwice(se3, pose2, wp);
             },
@@ -245,7 +314,8 @@ TEST(NumericDerivative, RotatePointProject)
     {
         Vec6 eps = Vec6::Zero();
         res2     = EvaluateNumeric(
-            [=](auto p) {
+            [=](auto p)
+            {
                 auto se3 = Sophus::se3_expd(p) * pose_c_w;
                 //                auto se3 = SE3::exp(p) * pose_c_w;
                 return RotatePointProject(se3, wp);
@@ -356,7 +426,8 @@ TEST(NumericDerivative, RotatePointProjectSim3)
     {
         Vec7 eps = Vec7::Zero();
         res2     = EvaluateNumeric(
-            [=](auto p) {
+            [=](auto p)
+            {
                 auto se3 = Sophus::dsim3_expd(p) * pose_c_w;
                 return RotatePointProject(se3, wp);
             },
@@ -366,9 +437,9 @@ TEST(NumericDerivative, RotatePointProjectSim3)
         res2 = EvaluateNumeric([=](auto p) { return RotatePointProject(pose_c_w, p); }, wp, &J_point_2);
     }
 
-    ExpectCloseRelative(res1, res2, 1e-10);
-    ExpectCloseRelative(J_pose_1, J_pose_2, 1e-5);
-    ExpectCloseRelative(J_point_1, J_point_2, 1e-10);
+    ExpectCloseRelative(res1, res2, 1e-10, false);
+    ExpectCloseRelative(J_pose_1, J_pose_2, 1e-5, false);
+    ExpectCloseRelative(J_point_1, J_point_2, 1e-10, false);
 }
 
 
