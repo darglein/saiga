@@ -7,6 +7,7 @@
 #pragma once
 #include "TorchHelper.h"
 
+#ifdef __CUDACC__
 // Converts the torch half type to the CUDA build-in half type
 // Only available from cuda files
 template <>
@@ -14,6 +15,7 @@ inline __half* at::TensorBase::data_ptr<__half>() const
 {
     return (__half*)data_ptr<torch::Half>();
 }
+#endif
 
 namespace Saiga
 {
