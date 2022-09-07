@@ -36,6 +36,8 @@ struct SAIGA_OPENGL_API RenderingParameters
      */
     bool userViewPort = false;
 
+
+
     /**
      *  Reads all paramters from the given config file.
      *  Creates the file with the default values if it doesn't exist.

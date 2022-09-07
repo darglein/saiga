@@ -198,6 +198,7 @@ enum class ImGuiTheme : int
 {
     SAIGA = 0,
     IMGUI,  // imgui default theme
+    DARK, // dark theme by philipp
 };
 
 struct SAIGA_CORE_API ImGuiParameters

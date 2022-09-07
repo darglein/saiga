@@ -39,7 +39,7 @@ void ForwardLighting::resize(int _width, int _height)
 
 void ForwardLighting::initRender()
 {
-    auto tim = timer->Measure("Lightinit");
+    SAIGA_OPTIONAL_TIME_MEASURE("Lightinit", timer);
     RendererLighting::initRender();
     LightInfo li;
     li.pointLightCount       = 0;
@@ -74,7 +74,7 @@ void ForwardLighting::cluster(Camera* cam, const ViewPort& viewPort)
 
 void ForwardLighting::render(Camera* cam, const ViewPort& viewPort)
 {
-    auto tim = timer->Measure("Light Render");
+    SAIGA_OPTIONAL_TIME_MEASURE("Light Render", timer);
     // Does nothing
     RendererLighting::render(cam, viewPort);
 
