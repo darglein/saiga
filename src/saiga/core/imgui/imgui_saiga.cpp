@@ -7,6 +7,7 @@
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/util/statistics.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/core/fontawesome/IconsFontAwesome5.h"
 
 #include "internal/noGraphicsAPI.h"
 
@@ -313,12 +314,27 @@ void initImGui(const ImGuiParameters& params)
     {
         ImFontConfig conf;
         conf.RasterizerMultiply = params.fontBrightness;
-        io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
+        //io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
+        io.FontDefault = io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
     }
     else
     {
         // use default integrated imgui font
         io.Fonts->AddFontDefault();
+    }
+
+    if (params.icons)
+    {
+        auto iconsFile = SearchPathes::font(FONT_ICON_FILE_NAME_FAS);
+        if (!iconsFile.empty())
+        {
+            static const ImWchar iconsRanges[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
+            ImFontConfig iconsConfig;
+            iconsConfig.MergeMode  = true;
+            iconsConfig.PixelSnapH = true;
+            io.FontDefault = io.Fonts->AddFontFromFileTTF(iconsFile.c_str(), params.fontSize,
+                                                          &iconsConfig, iconsRanges);
+        }
     }
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -425,6 +441,7 @@ void ImGuiParameters::fromConfigFile(const std::string& file)
 
     enable         = ini.GetAddBool("imgui", "enable", enable);
     font           = ini.GetAddString("imgui", "font", font.c_str());
+    icons          = ini.GetAddBool("imgui", "icons", icons);
     fontSize       = ini.GetAddLong("imgui", "fontSize", fontSize);
     fontBrightness = ini.GetAddDouble("imgui", "fontBrightness", fontBrightness);
 
