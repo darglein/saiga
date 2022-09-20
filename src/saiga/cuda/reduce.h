@@ -37,6 +37,18 @@ __device__ inline T warpReduceSum(T val)
     return val;
 }
 
+template <typename T, typename OP, unsigned int LOCAL_WARP_SIZE = 32>
+__device__ inline T warpReduce(T val, OP op)
+{
+#pragma unroll
+    for (int offset = LOCAL_WARP_SIZE / 2; offset > 0; offset /= 2)
+    {
+        auto v = shfl_xor(val, offset);
+        val    = op(val, v);
+    }
+    return val;
+}
+
 
 template <typename T, unsigned int BLOCK_SIZE>
 __device__ inline T blockReduceSum(T val, T* shared)
@@ -89,17 +101,7 @@ __device__ inline T blockReduceAtomicSum(T val, T* shared)
 // More general reductions with a custom OP
 
 
-template <typename T, typename OP>
-__device__ inline T warpReduce(T val, OP op)
-{
-    static_assert(sizeof(T) <= 8, "Only 8 byte reductions are supportet.");
-    for (int offset = warpSize >> 1; offset > 0; offset >>= 1)
-    {
-        auto v = shfl_down( val, offset);
-        val    = op(val, v);
-    }
-    return val;
-}
+
 
 template <int BLOCK_SIZE, typename T, typename OP>
 __device__ inline T blockReduce(T val, OP op, T default_val)
@@ -120,18 +122,18 @@ __device__ inline T blockReduce(T val, OP op, T default_val)
 
     __syncthreads();
 
-
-    if (threadIdx.x < BLOCK_SIZE / 32)
-    {
-        val = shared[threadIdx.x];
-    }
-    else
-    {
-        val = default_val;
-    }
-
     if (warpid == 0)
     {
+        if (threadIdx.x < BLOCK_SIZE / 32)
+        {
+            val = shared[threadIdx.x];
+        }
+        else
+        {
+            val = default_val;
+        }
+
+
         val = warpReduce(val, op);
     }
 
