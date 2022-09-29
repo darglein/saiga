@@ -8,6 +8,7 @@
 
 #include "config.h"
 #include "matrix.h"
+#include <limits>
 namespace Eigen
 {
 

@@ -517,6 +517,16 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
         return result;
     }
 
+    HD SameMatrix ceil() const
+    {
+        SameMatrix result;
+        for (int i = 0; i < size(); ++i)
+        {
+            result.at(i) = std::ceil(at(i));
+        }
+        return result;
+    }
+
     HD int rows() const { return _Rows; }
     HD int cols() const { return _Cols; }
     HD int size() const { return Size; }
