@@ -126,11 +126,20 @@ void printSaigaInfo()
     std::cout << "=============== Saiga ===============" << std::endl;
     table << "|"
           << "Saiga Version" << SAIGA_VERSION << "|";
+
+#ifdef TINY_EIGEN
+    table << "|"
+          << "Tiny Eigen Version"
+          << (to_string(EIGEN_WORLD_VERSION) + "." + to_string(EIGEN_MAJOR_VERSION) + "." +
+              to_string(EIGEN_MINOR_VERSION))
+          << "|";
+#else
     table << "|"
           << "Eigen Version"
           << (to_string(EIGEN_WORLD_VERSION) + "." + to_string(EIGEN_MAJOR_VERSION) + "." +
               to_string(EIGEN_MINOR_VERSION))
           << "|";
+#endif
 
     table << "|"
           << "Compiler" << (SAIGA_COMPILER_STRING) << "|";
