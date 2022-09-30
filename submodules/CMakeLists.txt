@@ -2,7 +2,7 @@
 
 message("=================================")
 if (SAIGA_WITH_TINY_EIGEN)
-    message("Adding Submodule tiniy-eigen")
+    message("Adding Submodule tiny-eigen")
     add_subdirectory(tiny-eigen)
 else ()
     message("Adding Submodule eigen")

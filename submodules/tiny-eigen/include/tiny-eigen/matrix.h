@@ -255,8 +255,16 @@ class MatrixBase
                 {
                     for (unsigned j = 0; j < N; ++j)
                     {
-                        std::swap(m(column, j), m(big, j));
-                        std::swap(mat(column, j), mat(big, j));
+                        // std::swap(m(column, j), m(big, j));
+                        // std::swap(mat(column, j), mat(big, j));
+
+                        auto tmp1 = m(column, j);
+                        m(column, j) = m(big, j);
+                        m(big, j) = tmp1;
+
+                        auto tmp2 = mat(column, j);
+                        mat(column, j) = mat(big, j);
+                        mat(big, j) = tmp2;
                     }
                 }
             }
