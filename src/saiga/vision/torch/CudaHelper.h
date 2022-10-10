@@ -19,7 +19,7 @@ inline __half* at::TensorBase::data_ptr<__half>() const
 
 namespace Saiga
 {
-template <typename T, int dim, typename IndexType = int64_t>
+template <typename T, int dim, typename IndexType = int64_t, bool CUDA = true>
 struct StaticDeviceTensor
 {
     T* data;
@@ -31,7 +31,14 @@ struct StaticDeviceTensor
     StaticDeviceTensor(torch::Tensor t)
     {
         SAIGA_ASSERT(t.defined());
-        SAIGA_ASSERT(t.is_cuda());
+        if (CUDA)
+        {
+            SAIGA_ASSERT(t.is_cuda());
+        }
+        else
+        {
+            SAIGA_ASSERT(t.is_cpu());
+        }
         SAIGA_ASSERT(t.dim() == dim);
         data = t.template data_ptr<T>();
         for (int i = 0; i < dim; ++i)
@@ -56,7 +63,7 @@ struct StaticDeviceTensor
 
     HD inline T& Get(std::array<IndexType, dim> indices)
     {
-        int64_t  index = 0;
+        int64_t index = 0;
         for (int i = 0; i < dim; ++i)
         {
             index += (int64_t)strides[i] * (int64_t)indices[i];
