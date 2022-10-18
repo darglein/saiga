@@ -174,7 +174,7 @@ inline torch::nn::AnyModule NormFromString(const std::string& str, int channels)
     }
 }
 
-inline torch::nn::AnyModule ActivationFromString(const std::string& str)
+inline torch::nn::AnyModule ActivationFromString(const std::string& str, float beta)
 {
     if (str == "id" || str.empty())
     {
@@ -202,7 +202,7 @@ inline torch::nn::AnyModule ActivationFromString(const std::string& str)
     }
     else if (str == "softplus")
     {
-        return torch::nn::AnyModule(torch::nn::Softplus());
+        return torch::nn::AnyModule(torch::nn::Softplus(torch::nn::SoftplusOptions().beta(beta)));
     }
     else
     {
