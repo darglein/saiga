@@ -203,6 +203,12 @@ inline torch::nn::AnyModule ActivationFromString(const std::string& str, float b
     else if (str == "softplus")
     {
         return torch::nn::AnyModule(torch::nn::Softplus(torch::nn::SoftplusOptions().beta(beta)));
+    } else if (str == "softplus2")
+    {
+        return torch::nn::AnyModule(torch::nn::Softplus(torch::nn::SoftplusOptions().beta(2)));
+    } else if (str == "softplus4")
+    {
+        return torch::nn::AnyModule(torch::nn::Softplus(torch::nn::SoftplusOptions().beta(4)));
     }
     else
     {
