@@ -376,6 +376,11 @@ std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::string& path, ImageL
     if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(png_ptr);
 
 
+    // update the color_type data because it might has changed due to the calls above
+    png_read_update_info( png_ptr, info_ptr );
+    png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
+
+
     if (bit_depth > 8)
     {
         png_set_swap(png_ptr);
