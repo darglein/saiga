@@ -30,7 +30,11 @@ struct StaticDeviceTensor
 
     StaticDeviceTensor(torch::Tensor t)
     {
-        SAIGA_ASSERT(t.defined());
+        if (!t.defined() || t.numel() == 0)
+        {
+            data = nullptr;
+            return;
+        }
         if (CUDA)
         {
             SAIGA_ASSERT(t.is_cuda());
@@ -51,6 +55,7 @@ struct StaticDeviceTensor
     // same as get but with bounds checks
     HD inline T& At(std::array<IndexType, dim> indices)
     {
+        CUDA_KERNEL_ASSERT(data);
         // The array offset is always 64 bit and does not depend on the index type
         int64_t index = 0;
         for (int i = 0; i < dim; ++i)
