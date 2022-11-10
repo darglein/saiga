@@ -53,6 +53,7 @@ if (MODULE_CORE)
     saiga_test(test_core_progressbar.cpp)
     saiga_test(test_core_rectangular_decomposition.cpp)
     saiga_test(test_core_plane_intersecting_circle.cpp)
+    saiga_test(test_vision_derivative_chain_rule.cpp)
 
     if (OpenCV_FOUND AND MODULE_EXTRA)
         saiga_test(test_core_image_load_store.cpp ${EXTRA_LIBS})
