@@ -11,39 +11,10 @@
 
 namespace Saiga
 {
-template <typename T = double>
-HD inline Vector<T, 3> Unproject(const Vector<T, 2>& pixel, const Vector<T, 4>& camera,
-                                 Matrix<T, 3, 4>* J_camera = nullptr)
+
+inline double Sqrt(double a, Matrix<double, 1, 1>* jacobian = nullptr)
 {
-    double fx = camera(0);
-    double fy = camera(1);
-    double cx = camera(2);
-    double cy = camera(3);
-
-    Vec3 direction;
-    direction(0) = (pixel.x() - cx) / fx;
-    direction(1) = (pixel.y() - cy) / fy;
-    direction(2) = 1;
-
-    if (J_camera)
-    {
-        auto& J = *J_camera;
-        J.setZero();
-
-        J(0, 0) = -1.0 / (fx * fx) * (pixel.x() - cx);
-        J(1, 1) = -1.0 / (fy * fy) * (pixel.y() - cy);
-
-        J(0, 2) = -1.0 / fx;
-        J(1, 3) = -1.0 / fy;
-    }
-    return direction;
-}
-
-
-template <typename T = double>
-HD inline double Sqrt(double a, Matrix<T, 1, 1>* jacobian = nullptr)
-{
-    T result = sqrt(a);
+    double result = sqrt(a);
 
     if (jacobian)
     {
@@ -55,7 +26,7 @@ HD inline double Sqrt(double a, Matrix<T, 1, 1>* jacobian = nullptr)
     return result;
 }
 
-HD inline double SelfDot(Vec3 v, Matrix<double, 1, 3>* jacobian = nullptr)
+inline double SelfDot(Vec3 v, Matrix<double, 1, 3>* jacobian = nullptr)
 {
     // result = v.dot(v);
     double result = v(0) * v(0) + v(1) * v(1) + v(2) * v(2);
@@ -72,8 +43,8 @@ HD inline double SelfDot(Vec3 v, Matrix<double, 1, 3>* jacobian = nullptr)
     return result;
 }
 
-template <typename T = double>
-HD inline double Norm(const Vector<T, 3>& v, Matrix<T, 1, 3>* J_v = nullptr)
+
+inline double Norm(const Vector<double, 3>& v, Matrix<double, 1, 3>* J_v = nullptr)
 {
     // sqrt(x*x+y*y+z*z)
 
@@ -93,7 +64,7 @@ HD inline double Norm(const Vector<T, 3>& v, Matrix<T, 1, 3>* J_v = nullptr)
     return result;
 }
 
-HD inline Vec3 DivideVectorByScalar(const Vec3& v, double a, Matrix<double, 3, 3>* J_v = nullptr,
+inline Vec3 DivideVectorByScalar(const Vec3& v, double a, Matrix<double, 3, 3>* J_v = nullptr,
                                     Matrix<double, 3, 1>* J_a = nullptr)
 {
     // result_x = v_x / a
@@ -122,31 +93,31 @@ HD inline Vec3 DivideVectorByScalar(const Vec3& v, double a, Matrix<double, 3, 3
     return result;
 }
 
-template <typename T = double>
-HD inline Vector<T, 3> Normalize(const Vector<T, 3>& v, Matrix<T, 3, 3>* J_v = nullptr)
-{
-    Matrix<T, 1, 3> J_l_v;
-    T l = Norm(v, &J_l_v);
 
-    Matrix<T, 3, 3> J_result_v;
-    Matrix<T, 3, 1> J_result_l;
-    Vector<T, 3> result = DivideVectorByScalar(v, l, &J_result_v, &J_result_l);
+HD inline Vector<double, 3> Normalize(const Vector<double, 3>& v, Matrix<double, 3, 3>* J_v = nullptr)
+{
+    Matrix<double, 1, 3> J_length_v;
+    double length = Norm(v, &J_length_v);
+
+    Matrix<double, 3, 3> J_result_v;
+    Matrix<double, 3, 1> J_result_l;
+    Vector<double, 3> result = DivideVectorByScalar(v, length, &J_result_v, &J_result_l);
 
     if (J_v)
     {
         auto& J = *J_v;
 
-        J = J_result_l * J_l_v;
+        J = J_result_l * J_length_v;
         J += J_result_v;
     }
 
     return result;
 }
 
-Vec3 RayGeneration(Vec2 uv, Vec4 camera, ivec2 image_size, Matrix<double, 3, 4>* J_camera = nullptr)
-{
-    Vec2 pixel = uv.array() * (image_size - ivec2(1, 1)).array().cast<double>();
 
+HD inline Vector<double, 3> Unproject(const Vector<double, 2>& pixel, const Vector<double, 4>& camera,
+                                 Matrix<double, 3, 4>* J_camera = nullptr)
+{
     double fx = camera(0);
     double fy = camera(1);
     double cx = camera(2);
@@ -156,25 +127,6 @@ Vec3 RayGeneration(Vec2 uv, Vec4 camera, ivec2 image_size, Matrix<double, 3, 4>*
     direction(0) = (pixel.x() - cx) / fx;
     direction(1) = (pixel.y() - cy) / fy;
     direction(2) = 1;
-
-
-    double length             = direction.norm();
-    Vec3 direction_normalized = direction / length;
-
-
-
-    direction_normalized(0) =
-        direction(0) / sqrt(direction(0) * direction(0) + direction(1) * direction(1) + direction(2) * direction(2));
-
-
-    double x = pixel.x();
-    double y = pixel.y();
-    double c = cx;
-    double b = cy;
-    double f = fx;
-    double g = fy;
-    direction_normalized(0) =
-        ((x - c) / f) / sqrt(((x - c) / f) * ((x - c) / f) + ((y - b) / g) * ((y - b) / g) + 1 * 1);
 
     if (J_camera)
     {
@@ -187,17 +139,15 @@ Vec3 RayGeneration(Vec2 uv, Vec4 camera, ivec2 image_size, Matrix<double, 3, 4>*
         J(0, 2) = -1.0 / fx;
         J(1, 3) = -1.0 / fy;
     }
-
-    return direction_normalized;
+    return direction;
 }
 
-
-Vec3 RayGenerationChainRule(Vec2 uv, Vec4 camera, ivec2 image_size, Matrix<double, 3, 4>* J_camera = nullptr)
+Vec3 RayGeneration(Vec2 uv, Vec4 camera, ivec2 image_size, Matrix<double, 3, 4>* J_camera = nullptr)
 {
     Vec2 pixel = uv.array() * (image_size - ivec2(1, 1)).array().cast<double>();
 
     Matrix<double, 3, 4> J_direction_camera;
-    Vec3 direction = Unproject(pixel, camera, &J_direction_camera);
+    Vec3 direction = Unproject(pixel,camera,&J_direction_camera);
 
     Matrix<double, 3, 3> J_result_direction;
     Vec3 result = Normalize(direction, &J_result_direction);
@@ -205,11 +155,14 @@ Vec3 RayGenerationChainRule(Vec2 uv, Vec4 camera, ivec2 image_size, Matrix<doubl
     if (J_camera)
     {
         auto& J = *J_camera;
-        J       = J_result_direction * J_direction_camera;
+        J.setZero();
+
+        J = J_result_direction * J_direction_camera;
     }
 
     return result;
 }
+
 
 
 TEST(NumericDerivative, RayGeneration)
@@ -220,7 +173,7 @@ TEST(NumericDerivative, RayGeneration)
 
     Matrix<double, 3, 4> J_camera, J_camera_numeric;
 
-    auto res1 = RayGenerationChainRule(uv, camera, image_size, &J_camera);
+    auto res1 = RayGeneration(uv, camera, image_size, &J_camera);
     auto res2 = EvaluateNumeric([&](auto p) { return RayGeneration(uv, p, image_size); }, camera, &J_camera_numeric);
 
     ExpectCloseRelative(res1, res2, 1e-5);
@@ -230,3 +183,5 @@ TEST(NumericDerivative, RayGeneration)
 
 
 }  // namespace Saiga
+
+
