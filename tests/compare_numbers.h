@@ -34,7 +34,7 @@ inline bool ExpectClose(double x, double y, double max_difference)
 }
 
 template <typename Derived1, typename Derived2>
-inline bool ExpectCloseRelative(const Eigen::DenseBase<Derived1>& a, const Eigen::DenseBase<Derived2>& b,
+inline bool ExpectCloseRelative(const Eigen::MatrixBase<Derived1>& a, const Eigen::MatrixBase<Derived2>& b,
                                 double max_abs_relative_difference, bool relative = true)
 {
     EXPECT_EQ(a.rows(), b.rows());
