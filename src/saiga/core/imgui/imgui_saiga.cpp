@@ -105,7 +105,7 @@ void ColoredBar::renderBackground()
 
     if (m_auto_size)
     {
-        m_size[0] = ImGui::GetContentRegionAvailWidth();
+        m_size[0] = ImGui::GetContentRegionAvail().x;
     }
 
     for (uint32_t i = 0; i < m_rows; ++i)

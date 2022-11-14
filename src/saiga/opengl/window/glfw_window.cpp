@@ -256,6 +256,11 @@ bool glfw_Window::initInput()
     // keyboard
     glfwSetCharCallback(window, glfw_EventHandler::character_callback);
     glfwSetKeyCallback(window, glfw_EventHandler::key_callback);
+
+
+//    glfwSetWindowUserPointer(window, this);
+    glfwSetDropCallback(window, glfw_EventHandler::drop_callback);
+
     return true;
 }
 

@@ -60,6 +60,14 @@ class SAIGA_CORE_API glfw_ResizeListener
     virtual void window_size_callback(int width, int height) {}
 };
 
+class SAIGA_CORE_API glfw_ExternalDropListener
+{
+   public:
+    glfw_ExternalDropListener();
+    virtual ~glfw_ExternalDropListener();
+    virtual void drop_call_back(GLFWwindow* window, std::vector<std::string> names) {}
+};
+
 class SAIGA_CORE_API glfw_EventHandler
 {
    public:
@@ -67,6 +75,7 @@ class SAIGA_CORE_API glfw_EventHandler
     static std::vector<glfw_KeyListener*> keyListener;
     static std::vector<glfw_MouseListener*> mouseListener;
     static std::vector<glfw_ResizeListener*> resizeListener;
+    static std::vector<glfw_ExternalDropListener*> dropListener;
 
 
     // called from glfw window joystick //NOTE it is called inside the update step, not the glfwPollEvents function
@@ -81,6 +90,8 @@ class SAIGA_CORE_API glfw_EventHandler
 
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void character_callback(GLFWwindow* window, unsigned int codepoint);
+
+    static void drop_callback(GLFWwindow* window, int count, const char* files[]);
 };
 
 

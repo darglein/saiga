@@ -59,9 +59,9 @@ class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGui_GL_Renderer,
     void scroll(double xoffset, double yoffset) override;
 
    protected:
-    double g_Time          = 0.0f;
-    bool g_MousePressed[3] = {false, false, false};
-    float g_MouseWheel     = 0.0f;
+//    double g_Time          = 0.0f;
+//    bool g_MousePressed[3] = {false, false, false};
+//    float g_MouseWheel     = 0.0f;
 
     // not nice to make this window static
     static GLFWwindow* g_Window;
