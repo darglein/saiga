@@ -183,3 +183,12 @@ void ImGui::Texture(Saiga::TextureBase* texture, const ImVec2& size, bool flip_y
         Image(id, size, ImVec2(0, 0), ImVec2(1, 1), tint_col, border_col);
     }
 }
+
+void ImGui::Texture(Saiga::TextureBase* texture, const ImVec2& size, ImVec2 uv0, ImVec2 uv1, const ImVec4& tint_col,
+                    const ImVec4& border_col)
+{
+    size_t tid     = texture->getId();
+    ImTextureID id = (ImTextureID)tid;
+
+    Image(id, size, uv0, uv1, tint_col, border_col);
+}
