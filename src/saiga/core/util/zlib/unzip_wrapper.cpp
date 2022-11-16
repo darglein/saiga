@@ -61,7 +61,7 @@ std::vector<Unzipfile> UnzipToMemory(const std::string& path)
         else
         {
             // Entry is a file, so extract it.
-            std::cout << "unzip " << filename << " " << (file_info.compressed_size / (1000 * 1000)) << "MB -> "
+            std::cout << "  Unzip " << filename << " " << (file_info.compressed_size / (1000 * 1000)) << "MB -> "
                       << (file_info.uncompressed_size / (1000 * 1000)) << "MB" << std::endl;
             if (unzOpenCurrentFile(zipfile) != UNZ_OK)
             {
@@ -70,39 +70,33 @@ std::vector<Unzipfile> UnzipToMemory(const std::string& path)
                 return {};
             }
 
-#if 1
             Unzipfile file;
             file.name = filename;
-            file.data.reserve(file_info.uncompressed_size);
-
-            ProgressBar bar(std::cout, "Unzip", file_info.uncompressed_size / (1000), 30, false, 100, "KB");
-
-
-            int read_block_size = 10000;
-
-
-            int error = UNZ_OK;
-            do
+            file.data.resize(file_info.uncompressed_size);
+            size_t current_data = 0;
             {
-                size_t old_size = file.data.size();
-                file.data.resize(std::min(old_size + read_block_size, file_info.uncompressed_size));
+                ProgressBar bar(std::cout, "  Unzip", file_info.uncompressed_size / (1000), 30, false, 100, "KB");
+                int read_block_size = 10000;
 
-                error = unzReadCurrentFile(zipfile, file.data.data() + old_size, read_block_size);
-                if (error < 0)
+
+                int error = UNZ_OK;
+                do
                 {
-                    printf("error %d\n", error);
-                    unzCloseCurrentFile(zipfile);
-                    unzClose(zipfile);
-                    return {};
-                }
-                file.data.resize(old_size + error);
+                    error = unzReadCurrentFile(zipfile, file.data.data() + current_data, read_block_size);
+                    if (error < 0)
+                    {
+                        printf("error %d\n", error);
+                        unzCloseCurrentFile(zipfile);
+                        unzClose(zipfile);
+                        return {};
+                    }
 
-                bar.addProgress(error / 1000);
-            } while (error > 0);
+                    current_data += error;
 
-
-            SAIGA_ASSERT(file.data.size() == file_info.uncompressed_size);
-#endif
+                    bar.addProgress(error / 1000);
+                } while (error > 0);
+                SAIGA_ASSERT(current_data == file_info.uncompressed_size);
+            }
             out_files.emplace_back(std::move(file));
         }
 
