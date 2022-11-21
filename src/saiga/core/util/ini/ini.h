@@ -12,6 +12,9 @@
 
 #include "SimpleIni.h"
 
+namespace Saiga
+{
+
 /**
  *  ============== Usage Example ===============
  * Note:    The "getAdd" functions add the keys if they don't exist yet.
@@ -88,6 +91,36 @@ inline std::vector<std::string> ReadWriteIniList(Saiga::SimpleIni& ini, std::vec
         sep);
 }
 
+template <>
+inline std::vector<double> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<double> variable, std::string section,
+                                            std::string variable_name, std::string comment, char sep)
+{
+    auto to_string2 = [](double d)
+    {
+        std::ostringstream oss;
+        oss << std::setprecision(10) << std::noshowpoint << d;
+        std::string str = oss.str();
+        return str;
+    };
+
+    std::vector<std::string> tmp;
+    for (auto v : variable)
+    {
+        tmp.push_back(to_string2(v));
+    }
+
+    tmp = Saiga::split(
+        ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(), comment.c_str()),
+        sep);
+
+    std::vector<double> result;
+    for (auto v : tmp)
+    {
+        result.push_back(to_double(v));
+    }
+    return result;
+}
+
 
 template <typename _Scalar, int _Rows, int _Cols>
 std::string toIniString(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M, char sep)
@@ -128,6 +161,8 @@ inline Eigen::Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Eige
     return variable;
 }
 
+}
+
 /**
  * Helper macros for creating the most common use-case:
  *
@@ -141,9 +176,10 @@ inline Eigen::Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Eige
  * INI_GETADD_DOUBLE(ini, "Math", foo);
  */
 #define INI_GETADD_COMMENT(_ini, _section, _variable, _comment) \
-    _variable = ReadWriteIni(_ini, _variable, _section, #_variable, _comment)
+    _variable = Saiga::ReadWriteIni(_ini, _variable, _section, #_variable, _comment)
 
 #define INI_GETADD_LIST_COMMENT(_ini, _section, _variable, _sep, _comment) \
-    _variable = ReadWriteIniList(_ini, _variable, _section, #_variable, _comment, _sep)
+    _variable = Saiga::ReadWriteIniList(_ini, _variable, _section, #_variable, _comment, _sep)
 
 #define INI_GETADD(_ini, _section, _variable) INI_GETADD_COMMENT(_ini, _section, _variable, "")
+
