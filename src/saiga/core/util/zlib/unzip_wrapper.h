@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/config.h"
+#include "saiga/core/util/ProgressBar.h"
 
 #include <string>
 #include <vector>
@@ -22,7 +23,8 @@ struct Unzipfile
 
 
 // Extracts all files inside a .zip into memory
-SAIGA_CORE_API std::vector<Unzipfile> UnzipToMemory(const std::string& path);
+SAIGA_CORE_API std::vector<Unzipfile> UnzipToMemory(const std::string& path,
+                                                    ProgressBarManager* progress_bar = nullptr);
 
 
 }  // namespace Saiga

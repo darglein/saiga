@@ -17,7 +17,7 @@ namespace Saiga
 #define dir_delimter '/'
 #define MAX_FILENAME 512
 
-std::vector<Unzipfile> UnzipToMemory(const std::string& path)
+std::vector<Unzipfile> UnzipToMemory(const std::string& path, ProgressBarManager* progress_bar )
 {
     // Open the zip file
     unzFile zipfile = unzOpen(path.c_str());
@@ -75,7 +75,11 @@ std::vector<Unzipfile> UnzipToMemory(const std::string& path)
             file.data.resize(file_info.uncompressed_size);
             size_t current_data = 0;
             {
-                ProgressBar bar(std::cout, "  Unzip", file_info.uncompressed_size / (1000), 30, false, 100, "KB");
+                // ProgressBar bar(std::cout, "  Unzip", file_info.uncompressed_size / (1000), 30, false, 100, "KB");
+
+                auto bar = SAIGA_OPTIONAL_PROGRESS_BAR(progress_bar, "Unzip",
+                                                       file_info.uncompressed_size);
+
                 int read_block_size = 10000;
 
 
@@ -93,7 +97,7 @@ std::vector<Unzipfile> UnzipToMemory(const std::string& path)
 
                     current_data += error;
 
-                    bar.addProgress(error / 1000);
+                    if(bar) bar->addProgress(error);
                 } while (error > 0);
                 SAIGA_ASSERT(current_data == file_info.uncompressed_size);
             }
