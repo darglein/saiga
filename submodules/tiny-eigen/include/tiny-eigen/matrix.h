@@ -685,6 +685,17 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         _data[4] = x4;
     }
 
+    HD Matrix(_Scalar x0, _Scalar x1, _Scalar x2, _Scalar x3, _Scalar x4, _Scalar x5)
+    {
+        static_assert(_Rows == 6 && _Cols == 1, "Constructor only valid for vectors.");
+        _data[0] = x0;
+        _data[1] = x1;
+        _data[2] = x2;
+        _data[3] = x3;
+        _data[4] = x4;
+        _data[5] = x5;
+    }
+
     HD _Scalar* data() { return _data; }
     HD const _Scalar* data() const { return _data; }
 

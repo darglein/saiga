@@ -17,7 +17,57 @@ namespace Saiga
 #define dir_delimter '/'
 #define MAX_FILENAME 512
 
-std::vector<Unzipfile> UnzipToMemory(const std::string& path)
+
+static void UnzipCurrent(unzFile zipfile, Unzipfile& out_data, ProgressBarManager* progress_bar)
+{
+    // Entry is a file, so extract it.
+    std::cout << "  Unzip " << out_data.name << " " << (out_data.compressed_size) << "B -> "
+              << (out_data.uncompressed_size) << "B" << std::endl;
+    if (unzOpenCurrentFile(zipfile) != UNZ_OK)
+    {
+        printf("could not open file\n");
+        unzClose(zipfile);
+        return;
+    }
+
+    char* output_ptr = out_data.user_data_ptr;
+
+    if (!output_ptr)
+    {
+        out_data.data.resize(out_data.uncompressed_size);
+        output_ptr = out_data.data.data();
+    }
+    size_t current_data = 0;
+    {
+        // ProgressBar bar(std::cout, "  Unzip", file_info.uncompressed_size / (1000), 30, false, 100, "KB");
+
+        auto bar = SAIGA_OPTIONAL_PROGRESS_BAR(progress_bar, "Unzip", out_data.uncompressed_size);
+
+        int read_block_size = 10000;
+
+
+        int error = UNZ_OK;
+        do
+        {
+            error = unzReadCurrentFile(zipfile, output_ptr + current_data, read_block_size);
+            if (error < 0)
+            {
+                printf("error %d\n", error);
+                unzCloseCurrentFile(zipfile);
+                unzClose(zipfile);
+                return;
+            }
+
+            current_data += error;
+
+            if (bar) bar->addProgress(error);
+        } while (error > 0);
+        SAIGA_ASSERT(current_data == out_data.uncompressed_size);
+    }
+    unzCloseCurrentFile(zipfile);
+}
+
+std::vector<Unzipfile> UnzipInfo(const std::string& path)
 {
     // Open the zip file
     unzFile zipfile = unzOpen(path.c_str());
@@ -36,8 +86,6 @@ std::vector<Unzipfile> UnzipToMemory(const std::string& path)
         return {};
     }
 
-
-
     std::vector<Unzipfile> out_files;
     // Loop to extract all files
     uLong i;
@@ -52,61 +100,12 @@ std::vector<Unzipfile> UnzipToMemory(const std::string& path)
             unzClose(zipfile);
             return {};
         }
-
-        // Check if this entry is a directory or file.
-        const size_t filename_length = std::string(filename).size();
-        if (filename[filename_length - 1] == dir_delimter)
-        {
-        }
-        else
-        {
-            // Entry is a file, so extract it.
-            std::cout << "unzip " << filename << " " << (file_info.compressed_size / (1000 * 1000)) << "MB -> "
-                      << (file_info.uncompressed_size / (1000 * 1000)) << "MB" << std::endl;
-            if (unzOpenCurrentFile(zipfile) != UNZ_OK)
-            {
-                printf("could not open file\n");
-                unzClose(zipfile);
-                return {};
-            }
-
-#if 1
-            Unzipfile file;
-            file.name = filename;
-            file.data.reserve(file_info.uncompressed_size);
-
-            ProgressBar bar(std::cout, "Unzip", file_info.uncompressed_size / (1000), 30, false, 100, "KB");
-
-
-            int read_block_size = 10000;
-
-
-            int error = UNZ_OK;
-            do
-            {
-                size_t old_size = file.data.size();
-                file.data.resize(std::min(old_size + read_block_size, file_info.uncompressed_size));
-
-                error = unzReadCurrentFile(zipfile, file.data.data() + old_size, read_block_size);
-                if (error < 0)
-                {
-                    printf("error %d\n", error);
-                    unzCloseCurrentFile(zipfile);
-                    unzClose(zipfile);
-                    return {};
-                }
-                file.data.resize(old_size + error);
-
-                bar.addProgress(error / 1000);
-            } while (error > 0);
-
-
-            SAIGA_ASSERT(file.data.size() == file_info.uncompressed_size);
-#endif
-            out_files.emplace_back(std::move(file));
-        }
-
-        unzCloseCurrentFile(zipfile);
+        Unzipfile file;
+        file.name              = filename;
+        file.compressed_size   = file_info.compressed_size;
+        file.uncompressed_size = file_info.uncompressed_size;
+        file.file_id_in_zip    = i;
+        out_files.emplace_back(std::move(file));
 
         // Go the the next entry listed in the zip file.
         if ((i + 1) < global_info.number_entry)
@@ -122,6 +121,62 @@ std::vector<Unzipfile> UnzipToMemory(const std::string& path)
 
     unzClose(zipfile);
     return out_files;
+}
+
+std::vector<Unzipfile> UnzipToMemory(const std::string& path, ProgressBarManager* progress_bar)
+{
+    auto info = UnzipInfo(path);
+    UnzipToMemory(path, info, progress_bar);
+    return info;
+}
+
+void UnzipToMemory(const std::string& path, std::vector<Unzipfile>& info, ProgressBarManager* progress_bar)
+{
+    // Open the zip file
+    unzFile zipfile = unzOpen(path.c_str());
+    if (zipfile == NULL)
+    {
+        printf("%s: not found\n", path.c_str());
+        return;
+    }
+
+
+    // Loop to extract all files
+    for (uLong i = 0; i < info.size(); ++i)
+    {
+        SAIGA_ASSERT(i == info[i].file_id_in_zip);
+        UnzipCurrent(zipfile, info[i], progress_bar);
+
+        // Go the the next entry listed in the zip file.
+        if ((i + 1) < info.size())
+        {
+            if (unzGoToNextFile(zipfile) != UNZ_OK)
+            {
+                printf("cound not read next file\n");
+                unzClose(zipfile);
+                return;
+            }
+        }
+    }
+}
+void UnzipSingleFileToMemory(const std::string& path, Unzipfile& info, ProgressBarManager* progress_bar)
+{
+    // Open the zip file
+    unzFile zipfile = unzOpen(path.c_str());
+    if (zipfile == NULL)
+    {
+        printf("%s: not found\n", path.c_str());
+        return;
+    }
+
+    for (int i = 0; i < info.file_id_in_zip; ++i)
+    {
+        unzGoToNextFile(zipfile);
+    }
+
+    UnzipCurrent(zipfile, info, progress_bar);
+
+    unzClose(zipfile);
 }
 
 
