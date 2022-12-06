@@ -122,6 +122,29 @@ inline std::vector<double> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<d
 }
 
 
+template <>
+inline std::vector<int> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<int> variable, std::string section,
+                                            std::string variable_name, std::string comment, char sep)
+{
+
+    std::vector<std::string> tmp;
+    for (auto v : variable)
+    {
+        tmp.push_back(std::to_string(v));
+    }
+
+    tmp = Saiga::split(
+        ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(), comment.c_str()),
+        sep);
+
+    std::vector<int> result;
+    for (auto v : tmp)
+    {
+        result.push_back(to_long(v));
+    }
+    return result;
+}
+
 template <typename _Scalar, int _Rows, int _Cols>
 std::string toIniString(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M, char sep)
 {
