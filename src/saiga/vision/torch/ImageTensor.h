@@ -136,7 +136,7 @@ inline bool SaveTensor(at::Tensor t, const std::string& file)
 //      image_batch [N, c, h, w]
 // Output:
 //      [c, new_h, new_w]
-inline torch::Tensor ImageBatchToImageGrid(torch::Tensor image_batch)
+    inline torch::Tensor ImageBatchToImageGrid(torch::Tensor image_batch, int target_grid_w = -1)
 {
     SAIGA_ASSERT(image_batch.dim() == 4);
     int N = image_batch.size(0);
@@ -144,7 +144,12 @@ inline torch::Tensor ImageBatchToImageGrid(torch::Tensor image_batch)
     int h = image_batch.size(2);
     int w = image_batch.size(3);
 
-    int grid_w  = ceil(sqrt(N));
+    int grid_w = target_grid_w;
+    if (target_grid_w <= 0)
+    {
+        grid_w = ceil(sqrt(N));
+    }
+
     int grid_h  = ceil(double(N) / grid_w);
     int N_after = grid_w * grid_h;
 
