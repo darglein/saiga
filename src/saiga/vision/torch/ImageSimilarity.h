@@ -37,6 +37,24 @@ class PSNRImpl : public torch::nn::Module
 TORCH_MODULE(PSNR);
 
 
+template <typename T>
+Matrix<T, 5, 5> gaussianBlurKernel2d_tinyeigen(int radius, T sigma)
+{
+    Matrix<T, 5, 5> kernel;
+    T ivar2 = 1.0f / (2.0f * sigma * sigma);
+    for (int y = -radius; y <= radius; y++)
+    {
+        for (int x = -radius; x <= radius; x++)
+        {
+            float d2                       = x * x + y * y;
+            kernel(y + radius, x + radius) = std::exp(-d2 * ivar2);
+        }
+    }
+    // normalize
+    T s = kernel.array().sum();
+    return kernel / s;
+}
+
 // Structured Similarity Index (SSIM)
 // https://en.wikipedia.org/wiki/Structural_similarity
 // High value means high similarity
@@ -54,17 +72,29 @@ class SSIMImpl : public torch::nn::Module
 #ifdef SAIGA_USE_EIGEN
         kernel_raw = FilterTensor(gaussianBlurKernel2d(radius, 1.5f));
 #else
-        SAIGA_ASSERT(false);
+        if(radius != 2)
+            SAIGA_ASSERT(false);
+        kernel_raw = FilterTensor(gaussianBlurKernel2d_tinyeigen(radius, 1.5f));
+
 #endif
         C1      = pow(0.01 * max_value, 2);
         C2      = pow(0.03 * max_value, 2);
         padding = radius;
         register_buffer("kernel_raw", kernel_raw);
     }
+
     torch::Tensor forward(torch::Tensor img1, torch::Tensor img2)
+    {
+        auto ssim_map = get_ssim_map(img1, img2);
+        return ssim_map.mean();
+    }
+
+    torch::Tensor get_ssim_map(torch::Tensor img1, torch::Tensor img2)
     {
         SAIGA_ASSERT(img1.dim() == 4);
         SAIGA_ASSERT(img2.dim() == 4);
+        SAIGA_ASSERT(img1.device() == img2.device());
+
         auto kernel = kernel_raw.repeat({img2.size(1), 1, 1, 1});
 
         auto mu1 = torch::conv2d(img1, kernel, {}, 1, padding, 1, img1.size(1));
@@ -79,8 +109,7 @@ class SSIMImpl : public torch::nn::Module
         auto sigma12 = torch::conv2d(img1 * img2, kernel, {}, 1, padding, 1, img1.size(1)) - mu12;
 
         auto ssim_map = ((2 * mu12 + C1) * (2 * sigma12 + C2)) / ((mu11 + mu22 + C1) * (sigma11 + sigma22 + C2));
-
-        return ssim_map.mean();
+        return ssim_map;
     }
 
    private:

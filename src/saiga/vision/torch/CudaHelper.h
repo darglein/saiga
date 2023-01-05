@@ -39,7 +39,7 @@ struct StaticDeviceTensor
     }
 
     HD inline IndexType size(IndexType i){
-      //  CUDA_KERNEL_ASSERT(i<dim);
+        CUDA_KERNEL_ASSERT(i<dim);
         return sizes[i];
     }
 
@@ -61,11 +61,6 @@ struct StaticDeviceTensor
         int index = 0;
         for (int i = 0; i < dim; ++i)
         {
-            if(indices[i]>sizes[i])
-            {
-                printf("  -  %d, > %d  -  \n", indices[i], sizes[i]);
-          //      while(1);
-            }
             index += strides[i] * indices[i];
         }
         return data[index];
@@ -79,71 +74,9 @@ struct StaticDeviceTensor
 
     HD inline ImageDimensions Image()
     {
-        static_assert(dim >= 2, "mus thave atleast 2 dimensions to be an image");
+        static_assert(dim >= 2, "must have atleast 2 dimensions to be an image");
         return ImageDimensions(sizes[dim - 2], sizes[dim - 1]);
     }
 };
 
-/*
-template <typename T, int dim, typename IndexType = int>
-struct StaticHostMappedTensor
-{
-    T* data;
-    IndexType sizes[dim];
-    IndexType strides[dim];
-
-    StaticHostMappedTensor() = default;
-
-    StaticHostMappedTensor(torch::Tensor t)
-    {
-        SAIGA_ASSERT(t.is_cpu());
-        SAIGA_ASSERT(t.dim() == dim);
-        data = t.template data_ptr<T>();
-        cudaHostRegister(data,t.nbytes(),cudaHostRegisterReadOnly);
-
-        for (int i = 0; i < dim; ++i)
-        {
-            sizes[i]   = t.size(i);
-            strides[i] = t.stride(i);
-        }
-    }
-    ~StaticHostMappedTensor(){
-        cudaHostUnregister(data);
-    }
-
-    // same as get but with bounds checks
-    HD inline T& At(std::array<IndexType, dim> indices)
-    {
-        int index = 0;
-        for (int i = 0; i < dim; ++i)
-        {
-            CUDA_KERNEL_ASSERT(indices[i] >= 0 && indices[i] < sizes[i]);
-            index += strides[i] * indices[i];
-        }
-        return data[index];
-    }
-
-    HD inline T& Get(std::array<IndexType, dim> indices)
-    {
-        int index = 0;
-        for (int i = 0; i < dim; ++i)
-        {
-            index += strides[i] * indices[i];
-        }
-        return data[index];
-    }
-
-    template <typename... Ts>
-    HD inline T& operator()(Ts... args)
-    {
-        return Get({args...});
-    }
-
-    HD inline ImageDimensions Image()
-    {
-        static_assert(dim >= 2, "mus thave atleast 2 dimensions to be an image");
-        return ImageDimensions(sizes[dim - 2], sizes[dim - 1]);
-    }
-};
-*/
 }  // namespace Saiga
