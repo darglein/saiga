@@ -1,7 +1,7 @@
 #pragma once
 #include "saiga/core/math/math.h"
 
-#include "torch/torch.h"
+#include "saiga/vision/torch/torch.h"
 
 
 #if TORCH_VERSION_MAJOR > 1 || TORCH_VERSION_MINOR >= 11

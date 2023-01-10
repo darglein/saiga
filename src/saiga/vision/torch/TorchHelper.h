@@ -8,7 +8,7 @@
 #include "saiga/core/image/image.h"
 #include "saiga/core/util/table.h"
 
-#include "torch/torch.h"
+#include "saiga/vision/torch/torch.h"
 
 
 namespace Saiga
