@@ -1195,6 +1195,7 @@ class is_direct_constructible
 // NVCC warns about narrowing conversions here
 #ifdef __CUDACC__
 #    pragma nv_diag_suppress 2361
+#    pragma diag_suppress 2361
 #endif
         TT { std::declval<CC>() }
 #ifdef __CUDACC__
