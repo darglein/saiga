@@ -65,17 +65,16 @@ void Image::create(int h, int w)
 
 void Image::create(int h, int w, ImageType t)
 {
-    pitchBytes = 0;
-    height     = h;
-    width      = w;
-    type       = t;
-    create();
+    create(h, w, 0, t);
 }
 
 void Image::create(int h, int w, int p, ImageType t)
 {
     pitchBytes = p;
-    create(h, w, t);
+    height     = h;
+    width      = w;
+    type       = t;
+    create();
 }
 
 void Image::clear()

@@ -33,6 +33,11 @@ struct StaticDeviceTensor
         if (!t.defined() || t.numel() == 0)
         {
             data = nullptr;
+            for (int i = 0; i < dim; ++i)
+            {
+                sizes[i]   = 0;
+                strides[i] = 0;
+            }
             return;
         }
         if (CUDA)
