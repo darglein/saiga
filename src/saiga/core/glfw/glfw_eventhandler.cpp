@@ -20,6 +20,7 @@ std::vector<glfw_JoystickListener*> glfw_EventHandler::joystickListener;
 std::vector<glfw_KeyListener*> glfw_EventHandler::keyListener;
 std::vector<glfw_MouseListener*> glfw_EventHandler::mouseListener;
 std::vector<glfw_ResizeListener*> glfw_EventHandler::resizeListener;
+std::vector<glfw_ExternalDropListener*> glfw_EventHandler::dropListener;
 
 
 
@@ -68,6 +69,17 @@ glfw_ResizeListener::~glfw_ResizeListener()
     v.erase(std::remove(v.begin(), v.end(), this), v.end());
 }
 
+
+glfw_ExternalDropListener::glfw_ExternalDropListener()
+{
+    glfw_EventHandler::dropListener.push_back(this);
+}
+
+glfw_ExternalDropListener::~glfw_ExternalDropListener()
+{
+    auto& v = glfw_EventHandler::dropListener;
+    v.erase(std::remove(v.begin(), v.end(), this), v.end());
+}
 
 void glfw_EventHandler::joystick_key_callback(int button, bool pressed)
 {
@@ -150,6 +162,20 @@ void glfw_EventHandler::character_callback(GLFWwindow* window, unsigned int code
     for (auto& kl : keyListener)
     {
         kl->character(codepoint);
+    }
+}
+
+void glfw_EventHandler::drop_callback(GLFWwindow* window, int count, const char* files[])
+{
+    glfwShowWindow(window);
+    std::vector<std::string> dropped_data;
+    for (int i = 0; i < count; ++i)
+    {
+        dropped_data.push_back(files[i]);
+    }
+    for (auto& dl : dropListener)
+    {
+        dl->drop_call_back(window, dropped_data);
     }
 }
 

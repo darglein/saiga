@@ -177,10 +177,9 @@ Ray Camera::PixelRay(vec2 pixel, int w, int h, bool flip_y)
 
 void Camera::imgui()
 {
-    bool changed = false;
-    changed |= ImGui::InputFloat("zNear", &zNear);
-    changed |= ImGui::InputFloat("zFar", &zFar);
-    changed |= ImGui::Checkbox("vulkanTransform", &vulkanTransform);
+    ImGui::InputFloat("zNear", &zNear);
+    ImGui::InputFloat("zFar", &zFar);
+    ImGui::Checkbox("vulkanTransform", &vulkanTransform);
 }
 
 
@@ -213,9 +212,8 @@ void PerspectiveCamera::setProj(float _fovy, float _aspect, float _zNear, float 
 void PerspectiveCamera::imgui()
 {
     Camera::imgui();
-    bool changed = false;
-    changed |= ImGui::InputFloat("fovy", &fovy);
-    changed |= ImGui::InputFloat("aspect", &aspect);
+    ImGui::InputFloat("fovy", &fovy);
+    ImGui::InputFloat("aspect", &aspect);
 }
 
 void PerspectiveCamera::recomputeProj(int output_w, int output_h)

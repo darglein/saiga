@@ -7,6 +7,7 @@
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/util/statistics.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/core/fontawesome/IconsFontAwesome5.h"
 
 #include "internal/noGraphicsAPI.h"
 
@@ -104,7 +105,7 @@ void ColoredBar::renderBackground()
 
     if (m_auto_size)
     {
-        m_size[0] = ImGui::GetContentRegionAvailWidth();
+        m_size[0] = ImGui::GetContentRegionAvail().x;
     }
 
     for (uint32_t i = 0; i < m_rows; ++i)
@@ -304,6 +305,56 @@ void IMTable::Render()
 
 namespace Saiga
 {
+
+
+
+static void set_imgui_dark_theme()
+{
+    ImGui::StyleColorsDark();
+
+    auto& colors              = ImGui::GetStyle().Colors;
+    colors[ImGuiCol_WindowBg] = ImVec4{0.1f, 0.105f, 0.11f, 1.0f};
+
+    // Headers
+    colors[ImGuiCol_Header]        = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_HeaderHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_HeaderActive]  = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    // Buttons
+    colors[ImGuiCol_Button]        = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_ButtonHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_ButtonActive]  = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    // Frame BG
+    colors[ImGuiCol_FrameBg]        = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_FrameBgHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_FrameBgActive]  = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    // Tabs
+    colors[ImGuiCol_Tab]                = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TabHovered]         = ImVec4{0.38f, 0.3805f, 0.381f, 1.0f};
+    colors[ImGuiCol_TabActive]          = ImVec4{0.28f, 0.2805f, 0.281f, 1.0f};
+    colors[ImGuiCol_TabUnfocused]       = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+
+    // Title
+    colors[ImGuiCol_TitleBg]          = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TitleBgActive]    = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+
+    ImGuiStyle& style     = ImGui::GetStyle();
+    style.FrameBorderSize = 1.f;
+    style.FramePadding    = ImVec2(5.f, 2.f);
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style.WindowRounding        = 0.f;
+        colors[ImGuiCol_WindowBg].w = 1.f;
+    }
+}
+
 void initImGui(const ImGuiParameters& params)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -313,12 +364,27 @@ void initImGui(const ImGuiParameters& params)
     {
         ImFontConfig conf;
         conf.RasterizerMultiply = params.fontBrightness;
-        io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
+        //io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
+        io.FontDefault = io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
     }
     else
     {
         // use default integrated imgui font
         io.Fonts->AddFontDefault();
+    }
+
+    if (params.icons)
+    {
+        auto iconsFile = SearchPathes::font(FONT_ICON_FILE_NAME_FAS);
+        if (!iconsFile.empty())
+        {
+            static const ImWchar iconsRanges[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
+            ImFontConfig iconsConfig;
+            iconsConfig.MergeMode  = true;
+            iconsConfig.PixelSnapH = true;
+            io.FontDefault = io.Fonts->AddFontFromFileTTF(iconsFile.c_str(), params.fontSize,
+                                                          &iconsConfig, iconsRanges);
+        }
     }
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -350,6 +416,11 @@ void initImGui(const ImGuiParameters& params)
             color_highlight_low     = make_vec3(0.5);
             color_highlight_high    = make_vec3(0.6);
             break;
+        }
+        case ImGuiTheme::DARK:
+        {
+            set_imgui_dark_theme();
+            return;
         }
         default:
         {
@@ -425,6 +496,7 @@ void ImGuiParameters::fromConfigFile(const std::string& file)
 
     enable         = ini.GetAddBool("imgui", "enable", enable);
     font           = ini.GetAddString("imgui", "font", font.c_str());
+    icons          = ini.GetAddBool("imgui", "icons", icons);
     fontSize       = ini.GetAddLong("imgui", "fontSize", fontSize);
     fontBrightness = ini.GetAddDouble("imgui", "fontBrightness", fontBrightness);
 

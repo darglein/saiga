@@ -21,6 +21,30 @@
 #include <condition_variable>
 namespace Saiga
 {
+
+struct ProgressBarBase
+{
+   public:
+    ProgressBarBase(int64_t _end, std::string prefix) : end(_end), prefix(prefix) {}
+    virtual ~ProgressBarBase() {}
+
+    void addProgress(int64_t i) { current += i; }
+
+
+    void SetPostfix(const std::string& str)
+    {
+        std::unique_lock l(lock);
+        postfix = str;
+    }
+    int64_t end;
+    std::atomic_int64_t current = 0;
+
+    std::string prefix;
+    std::string postfix;
+    std::mutex lock;
+};
+
+
 /**
  * A synchronized progress bar for console output.
  * You must not write to the given stream while the progress bar is active.
@@ -36,13 +60,12 @@ namespace Saiga
  * }
  *
  */
-struct ProgressBar
+struct ProgressBar : public ProgressBarBase
 {
-    ProgressBar(std::ostream& strm, const std::string header, int end, int length = 30,
+    ProgressBar(std::ostream& strm, const std::string header, int64_t end, int length = 30,
                 bool show_remaining_time = false, int update_time_ms = 100, std::string element_name = "e")
-        : strm(strm),
-          prefix(header),
-          end(end),
+        : ProgressBarBase(end, header),
+          strm(strm),
           length(length),
           show_remaining_time(show_remaining_time),
           update_time_ms(update_time_ms),
@@ -58,13 +81,7 @@ struct ProgressBar
     }
 
     ~ProgressBar() { Quit(); }
-    void addProgress(int i) { current += i; }
 
-    void SetPostfix(const std::string& str)
-    {
-        std::unique_lock l(lock);
-        postfix = str;
-    }
 
     void Quit()
     {
@@ -80,13 +97,9 @@ struct ProgressBar
     TimerBase timer;
     std::ostream& strm;
     ScopedThread st;
-    std::string prefix;
-    std::string postfix;
     std::atomic_bool running = true;
-    std::atomic_int current  = 0;
-    std::mutex lock;
     std::condition_variable cv;
-    int end;
+
     int length;
     bool show_remaining_time;
     int update_time_ms;
@@ -173,5 +186,24 @@ struct ProgressBar
         strm.flags(f);
     }
 };
+
+
+class SAIGA_CORE_API ProgressBarManager
+{
+   public:
+    ProgressBarManager() {}
+
+    std::shared_ptr<ProgressBarBase> ScopedProgressBar(std::string name, int64_t end);
+
+    bool Imgui();
+
+
+    std::shared_ptr<ProgressBarBase> current_bar;
+    std::mutex lock;
+};
+
+
+#define SAIGA_OPTIONAL_PROGRESS_BAR(progress_bar_pointer, name, end) \
+    (progress_bar_pointer) ? progress_bar_pointer->ScopedProgressBar(name, end) : nullptr
 
 }  // namespace Saiga

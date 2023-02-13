@@ -66,6 +66,9 @@ struct SAIGA_OPENGL_API OpenGLParameters
 
     bool verbose = false;
 
+
+    bool use_timers = true;
+
     /**
      *  Reads all paramters from the given config file.
      *  Creates the file with the default values if it doesn't exist.

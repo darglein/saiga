@@ -198,6 +198,7 @@ enum class ImGuiTheme : int
 {
     SAIGA = 0,
     IMGUI,  // imgui default theme
+    DARK, // dark theme by philipp
 };
 
 struct SAIGA_CORE_API ImGuiParameters
@@ -205,6 +206,7 @@ struct SAIGA_CORE_API ImGuiParameters
     // imgui parameters
     bool enable          = true;
     std::string font     = "SourceSansPro-Regular.ttf";
+    bool icons           = false;
     int fontSize         = 18;
     float fontBrightness = 2;
     ImGuiTheme theme     = ImGuiTheme::SAIGA;

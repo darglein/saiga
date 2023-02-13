@@ -140,7 +140,7 @@ vec3 Triangle::BarycentricCoordinates(const vec3& x0) const
     float w31 = invdet * (m13 * b - d * a);
     float w12 = 1 - w23 - w31;
 
-    return {w12, w23, w31};
+    return {w23, w31, w12};
 }
 
 vec3 Triangle::InterpolateBarycentric(const vec3& bary) const

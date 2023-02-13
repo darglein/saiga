@@ -40,6 +40,42 @@ HD inline Vector<T, 3> RotatePoint(const Eigen::Quaternion<T>& rotation, const V
     return rotated_point;
 }
 
+// Similar as above but the update is multiplied from the right!
+//
+//      auto new_rotation = old_rotation * delta;
+//
+template <typename T = double>
+HD inline Vector<T, 3> RotatePointRightStep(const Eigen::Quaternion<T>& rotation, const Vector<T, 3>& point,
+                                        Matrix<T, 3, 3>* jacobian_rotation = nullptr,
+                                        Matrix<T, 3, 3>* jacobian_point    = nullptr)
+{
+    const Vector<T, 3> rotated_point = rotation * point;
+
+    if (jacobian_rotation)
+    {
+        Matrix<T, 3, 3> gr = -skew(rotated_point);
+        *jacobian_rotation = gr * rotation.matrix();
+#    if 0
+Matrix<T, 3, 3> gr_right;
+        for (int i = 0; i < 3; ++i)
+        {
+            Matrix<T, 3, 1> row = gr.row(i).transpose();
+            Eigen::Quaternion<T> quat = Sophus::SO3<double>::exp(row).unit_quaternion();
+            Eigen::Quaternion<T> quat_right = rotation.inverse() * quat * rotation;
+            Matrix<T, 3, 1> row_right = Sophus::SO3<double>(quat_right).log();
+            gr_right.row(i) = row_right.transpose();
+        }
+#    endif
+    }
+
+    if (jacobian_point)
+    {
+        *jacobian_point = rotation.matrix();
+    }
+
+    return rotated_point;
+}
+
 template <typename T = double>
 HD inline Vector<T, 3> TransformPoint(const Sophus::SE3<T>& pose, const Vector<T, 3>& point,
                                       Matrix<T, 3, 6>* jacobian_pose  = nullptr,

@@ -81,7 +81,7 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
 
     lighting.cluster(camera, viewport);
     {
-        auto tim = timer->Measure("Forward + Shade");
+        SAIGA_OPTIONAL_TIME_MEASURE("Forward + Shade", timer);
         renderingInterface->render({camera, RenderPass::Forward});
         glDepthFunc(GL_LESS);
     }
@@ -89,7 +89,7 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     lightAccumulationBuffer.unbind();
 
     {
-        auto tim = timer->Measure("Tone Mapping");
+        SAIGA_OPTIONAL_TIME_MEASURE("Tone Mapping", timer);
         tone_mapper.MapLinear(lightAccumulationTexture.get());
         tone_mapper.Map(lightAccumulationTexture.get(), target_framebuffer->getTextureColor(0).get());
     }

@@ -13,7 +13,7 @@
 
 namespace Saiga
 {
-Bloom::Bloom(GLenum input_type) : input_type(input_type)
+Bloom::Bloom(GLenum _input_type) : input_type(_input_type)
 {
     auto input_type_str = BindlessImageTypeName(input_type);
     ShaderPart::ShaderCodeInjections injection;

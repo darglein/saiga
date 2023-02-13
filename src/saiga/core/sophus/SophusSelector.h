@@ -24,9 +24,9 @@
 #        include "External/sim3.hpp"
 #    endif
 
-#define SAIGA_REAL_SOPHUS 1
+#    define SAIGA_REAL_SOPHUS 1
 #else
 
 #    include "tiny-eigen/sophus.h"
-#define SAIGA_REAL_SOPHUS 0
+#    define SAIGA_REAL_SOPHUS 0
 #endif

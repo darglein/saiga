@@ -8,6 +8,9 @@
 
 #include "config.h"
 #include "matrix.h"
+
+#include <limits>
+
 namespace Eigen
 {
 
@@ -212,48 +215,18 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         return result;
     }
 
-    Matrix<Scalar, 3, 1> vec() const
-    {
-        return Matrix<Scalar, 3, 1>(x(), y(), z());
-    }
+    Matrix<Scalar, 3, 1> vec() const { return Matrix<Scalar, 3, 1>(x(), y(), z()); }
 
-    HD Scalar dot(const SameObject& other) const
-    {
-        return this->coeffs().dot(other.coeffs());
-    }
+    HD Scalar dot(const SameObject& other) const { return this->coeffs().dot(other.coeffs()); }
 
-    HD Scalar& x()
-    {
-        return _data[0];
-    }
-    HD Scalar& y()
-    {
-        return _data[1];
-    }
-    HD Scalar& z()
-    {
-        return _data[2];
-    }
-    HD Scalar& w()
-    {
-        return _data[3];
-    }
-    HD const Scalar& x() const
-    {
-        return _data[0];
-    }
-    HD const Scalar& y() const
-    {
-        return _data[1];
-    }
-    HD const Scalar& z() const
-    {
-        return _data[2];
-    }
-    HD const Scalar& w() const
-    {
-        return _data[3];
-    }
+    HD Scalar& x() { return _data[0]; }
+    HD Scalar& y() { return _data[1]; }
+    HD Scalar& z() { return _data[2]; }
+    HD Scalar& w() { return _data[3]; }
+    HD const Scalar& x() const { return _data[0]; }
+    HD const Scalar& y() const { return _data[1]; }
+    HD const Scalar& z() const { return _data[2]; }
+    HD const Scalar& w() const { return _data[3]; }
 
    private:
     Matrix<Scalar, 4, 1> _data;

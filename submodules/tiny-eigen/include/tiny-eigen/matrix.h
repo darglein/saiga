@@ -223,12 +223,6 @@ class MatrixBase
         }
     }
 
-    //void _swap_cuda_ ( Scalar& a, Scalar& b )
-    //{
-    //    Scalar c(a); a=b; b=c;
-    //}
-
-
     HD DenseReturnType inverse() const
     {
         int N               = cols();
@@ -259,16 +253,16 @@ class MatrixBase
                 {
                     for (unsigned j = 0; j < N; ++j)
                     {
-#if __CUDACC__
-                        auto c = (m(column, j)); m(column, j)=m(big, j);  m(big, j) = c;
-                        c = (mat(column, j)); mat(column, j)=mat(big, j);  mat(big, j) = c;
-//                        _swap_cuda_(m(column, j), m(big, j));
-//                        _swap_cuda_(mat(column, j), mat(big, j));
+                        // std::swap(m(column, j), m(big, j));
+                        // std::swap(mat(column, j), mat(big, j));
 
-#else
-                        std::swap(m(column, j), m(big, j));
-                        std::swap(mat(column, j), mat(big, j));
-#endif
+                        auto tmp1 = m(column, j);
+                        m(column, j) = m(big, j);
+                        m(big, j) = tmp1;
+
+                        auto tmp2 = mat(column, j);
+                        mat(column, j) = mat(big, j);
+                        mat(big, j) = tmp2;
                     }
                 }
             }
@@ -412,6 +406,12 @@ class MatrixBase
         return result;
     }
 
+
+    HD SameMatrix& operator+=(Scalar value)
+    {
+        derived() = derived() + value;
+        return derived();
+    }
 
     HD SameMatrix& operator+=(const SameMatrix& other)
     {
@@ -682,6 +682,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         _data[3] = x3;
         _data[4] = x4;
     }
+
     HD Matrix(_Scalar x0, _Scalar x1, _Scalar x2, _Scalar x3, _Scalar x4, _Scalar x5)
     {
         static_assert(_Rows == 6 && _Cols == 1, "Constructor only valid for vectors.");
@@ -715,6 +716,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         _data[6] = x6;
         _data[7] = x7;
     }
+
     HD _Scalar* data() { return _data; }
     HD const _Scalar* data() const { return _data; }
 
@@ -868,10 +870,11 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     _Scalar _data[Size];
 };
 
-template <typename Derived>
-HD typename Derived::DenseReturnType operator-(const MatrixBase<Derived>& m1, const MatrixBase<Derived>& m2)
+
+template <typename Derived1, typename Derived2>
+HD typename Derived1::DenseReturnType operator-(const MatrixBase<Derived1>& m1, const MatrixBase<Derived2>& m2)
 {
-    typename Derived::DenseReturnType result;
+    typename Derived1::DenseReturnType result;
     for (int i = 0; i < result.rows(); ++i)
     {
         for (int j = 0; j < result.cols(); ++j)
@@ -891,6 +894,27 @@ HD typename Derived1::DenseReturnType operator+(const MatrixBase<Derived1>& m1, 
         for (int j = 0; j < result.cols(); ++j)
         {
             result(i, j) = m1(i, j) + m2(i, j);
+        }
+    }
+    return result;
+}
+
+
+template <typename Derived>
+HD typename Derived::DenseReturnType operator+(const MatrixBase<Derived>& m1, typename Derived::Scalar v)
+{
+    return v + m1;
+}
+
+template <typename Derived>
+HD typename Derived::DenseReturnType operator+(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
+{
+    typename Derived::DenseReturnType result;
+    for (int i = 0; i < result.rows(); ++i)
+    {
+        for (int j = 0; j < result.cols(); ++j)
+        {
+            result(i, j) = v + m1(i, j);
         }
     }
     return result;

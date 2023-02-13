@@ -1193,12 +1193,18 @@ class is_direct_constructible
     template <typename TT, typename CC>
     static auto test(int, std::true_type) -> decltype(
 // NVCC warns about narrowing conversions here
+
 #ifdef __CUDACC__
+
+#if CUDART_VERSION >= 11060
+#    pragma nv_diag_suppress 2361
+#else
 #    pragma diag_suppress 2361
+#endif
 #endif
         TT { std::declval<CC>() }
 #ifdef __CUDACC__
-#    pragma diag_default 2361
+#    pragma nv_diag_default 2361
 #endif
         ,
         std::is_move_assignable<TT>());

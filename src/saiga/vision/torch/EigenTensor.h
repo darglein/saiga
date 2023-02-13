@@ -1,12 +1,8 @@
 #pragma once
 #include "saiga/core/math/math.h"
 
-#include "torch/torch.h"
+#include "saiga/vision/torch/torch.h"
 
-// torch changed the logging and checking interface in later versions
-#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 13
-#    define CHECK_EQ TORCH_CHECK_EQ
-#endif
 
 #if TORCH_VERSION_MAJOR > 1 || TORCH_VERSION_MINOR >= 11
 // This is a helper function so that we can use
@@ -88,8 +84,4 @@ inline Saiga::Vec2* at::Tensor::data_ptr<Saiga::Vec2>() const
     CHECK_EQ(stride(dim() - 1), 1);
     return (Saiga::Vec2*)data_ptr<double>();
 }
-#endif
-
-#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 13
-#    undef CHECK_EQ
 #endif

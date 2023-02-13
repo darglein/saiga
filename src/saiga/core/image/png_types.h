@@ -30,6 +30,9 @@ inline ImageType saigaType(int color_type, int bit_depth)
         case PNG_COLOR_TYPE_RGB_ALPHA:
             channels = 4;
             break;
+        case PNG_COLOR_TYPE_PALETTE:
+            SAIGA_EXIT_ERROR("PNG_COLOR_TYPE_PALETTE color type is not supportet!");
+            break;
         default:
             std::cout << "unknown png color type: " << color_type << std::endl;
             SAIGA_EXIT_ERROR("Unknown Color Type");

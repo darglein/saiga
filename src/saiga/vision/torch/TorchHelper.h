@@ -7,8 +7,7 @@
 #pragma once
 #include "saiga/core/image/image.h"
 #include "saiga/core/util/table.h"
-
-#include "torch/torch.h"
+#include "saiga/vision/torch/torch.h"
 
 
 namespace Saiga
@@ -50,6 +49,17 @@ inline torch::Tensor CenterEmplace(torch::Tensor src, torch::Tensor target)
     return ref_copy;
 }
 
+inline std::vector<long> IndexToCoordinate(long index, std::vector<long> sizes)
+{
+    std::vector<long> result(sizes.size());
+    for (int d = sizes.size() - 1; d >= 0; --d)
+    {
+        result[d] = index % sizes[d];
+        index /= sizes[d];
+    }
+    return result;
+}
+
 inline std::string TensorInfo(at::Tensor t)
 {
     std::stringstream strm;
@@ -66,12 +76,21 @@ inline std::string TensorInfo(at::Tensor t)
     }
 
     auto type = t.dtype();
-    if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
+    if (t.numel() < 1000L * 1000 * 500)
     {
-        t = t.to(torch::kDouble);
+        if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
+        {
+            t = t.to(torch::kDouble);
+        }
     }
 
-    double mi   = t.min().item().toDouble();
+    // double mi   = t.min().item().toDouble();
+
+    auto [mi_t, mi_ind_t] = t.view({-1}).min(0);
+    double mi             = mi_t.item<double>();
+    long mi_ind           = mi_ind_t.item<long>();
+    auto mi_coords        = IndexToCoordinate(mi_ind, t.sizes().vec());
+
     double ma   = t.max().item().toDouble();
     double mean = 0;
     double sum  = t.sum().item().toDouble();
@@ -92,6 +111,13 @@ inline std::string TensorInfo(at::Tensor t)
         strm << "Tensor " << t.sizes() << " " << type << " " << t.device() << " Min/Max " << mi << " " << ma << " Mean "
              << mean << " Sum " << sum << " sdev " << sdev << " req-grad " << t.requires_grad();
     }
+
+    strm << " Min-Coords: [";
+    for (auto c : mi_coords)
+    {
+        strm << c << ", ";
+    }
+    strm << "]";
 
     return strm.str();
 }
@@ -171,7 +197,7 @@ inline torch::nn::AnyModule NormFromString(const std::string& str, int channels)
     }
 }
 
-inline torch::nn::AnyModule ActivationFromString(const std::string& str)
+inline torch::nn::AnyModule ActivationFromString(const std::string& str, float beta = 1.f)
 {
     if (str == "id" || str.empty())
     {
@@ -199,7 +225,15 @@ inline torch::nn::AnyModule ActivationFromString(const std::string& str)
     }
     else if (str == "softplus")
     {
-        return torch::nn::AnyModule(torch::nn::Softplus());
+        return torch::nn::AnyModule(torch::nn::Softplus(torch::nn::SoftplusOptions().beta(beta)));
+    }
+    else if (str == "softplus2")
+    {
+        return torch::nn::AnyModule(torch::nn::Softplus(torch::nn::SoftplusOptions().beta(2)));
+    }
+    else if (str == "softplus4")
+    {
+        return torch::nn::AnyModule(torch::nn::Softplus(torch::nn::SoftplusOptions().beta(4)));
     }
     else
     {

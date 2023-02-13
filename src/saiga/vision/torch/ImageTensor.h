@@ -61,6 +61,12 @@ template <typename T>
 TemplatedImage<T> TensorToImage(at::Tensor tensor)
 {
     SAIGA_ASSERT(tensor.defined());
+
+    if (tensor.dim() == 2)
+    {
+        tensor = tensor.unsqueeze(0);
+    }
+
     SAIGA_ASSERT(tensor.dim() == 3 || tensor.dim() == 4);
     tensor           = tensor.clone();
     using ScalarType = typename ImageTypeTemplate<T>::ChannelType;
@@ -77,7 +83,10 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
     tensor = tensor.permute({1, 2, 0});
     tensor = tensor.cpu().contiguous();
 
-
+    if (tensor.dtype() == torch::kFloat16 || tensor.dtype() == torch::kFloat64)
+    {
+        tensor = tensor.to(torch::kFloat32);
+    }
 
     // Convert to byte
     if (tensor.dtype() == torch::kFloat32 && std::is_same<ScalarType, unsigned char>::value)
@@ -141,7 +150,7 @@ inline bool SaveTensor(at::Tensor t, const std::string& file)
 //      image_batch [N, c, h, w]
 // Output:
 //      [c, new_h, new_w]
-inline torch::Tensor ImageBatchToImageGrid(torch::Tensor image_batch)
+inline torch::Tensor ImageBatchToImageGrid(torch::Tensor image_batch, int target_grid_w = -1)
 {
     SAIGA_ASSERT(image_batch.dim() == 4);
     int N = image_batch.size(0);
@@ -149,7 +158,12 @@ inline torch::Tensor ImageBatchToImageGrid(torch::Tensor image_batch)
     int h = image_batch.size(2);
     int w = image_batch.size(3);
 
-    int grid_w  = ceil(sqrt(N));
+    int grid_w = target_grid_w;
+    if (target_grid_w <= 0)
+    {
+        grid_w = ceil(sqrt(N));
+    }
+
     int grid_h  = ceil(double(N) / grid_w);
     int N_after = grid_w * grid_h;
 

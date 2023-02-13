@@ -61,7 +61,10 @@ class SAIGA_CORE_API Table
         }
         else
         {
-            (*strm) << additional_sep;
+            if(additional_sep != '\0')
+            {
+                (*strm) << additional_sep;
+            }
         }
 
         if (precision > 0)
