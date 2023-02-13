@@ -26,12 +26,6 @@ inline __device__ T shuffleSwapCompare(T x, int mask, int direction)
     auto y = Saiga::CUDA::shfl_xor(x, mask, SIZE);
     return x < y == direction ? y : x;
 }
-template <unsigned int SIZE = 32>
-inline __device__ float2 shuffleSwapCompare(float2 x, int mask, int direction)
-{
-    auto y = Saiga::CUDA::shfl_xor(x, mask, SIZE);
-    return x.x < y.x == direction ? y : x;
-}
 
 
 template <unsigned int SIZE, typename T>

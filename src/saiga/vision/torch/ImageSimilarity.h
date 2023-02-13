@@ -72,8 +72,7 @@ class SSIMImpl : public torch::nn::Module
 #ifdef SAIGA_USE_EIGEN
         kernel_raw = FilterTensor(gaussianBlurKernel2d(radius, 1.5f));
 #else
-        if(radius != 2)
-            SAIGA_ASSERT(false);
+        if (radius != 2) SAIGA_ASSERT(false);
         kernel_raw = FilterTensor(gaussianBlurKernel2d_tinyeigen(radius, 1.5f));
 
 #endif
@@ -224,27 +223,5 @@ class LPIPS
 
     torch::jit::script::Module module;
 };
-
-
-class FovVDP
-{
-   public:
-    FovVDP(const std::string& file) { module = torch::jit::load(file); }
-
-    torch::Tensor forward(torch::Tensor input, torch::Tensor target)
-    {
-        SAIGA_ASSERT(input.dim() == 4);
-        SAIGA_ASSERT(target.dim() == 4);
-
-        module.to(input.device());
-        std::vector<torch::jit::IValue> inputs;
-        inputs.push_back(input);
-        inputs.push_back(target);
-        return module.forward(inputs).toTensor();
-    }
-
-    torch::jit::script::Module module;
-};
-
 
 }  // namespace Saiga

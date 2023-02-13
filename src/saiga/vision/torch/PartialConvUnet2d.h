@@ -399,11 +399,7 @@ struct MultiScaleUnet2dParams : public ParamsBase
         SAIGA_PARAM(pooling);
         SAIGA_PARAM(activation);
         SAIGA_PARAM(network_version);
-        SAIGA_PARAM(filter1);
-        SAIGA_PARAM(filter2);
-        SAIGA_PARAM(filter3);
-        SAIGA_PARAM(filter4);
-        SAIGA_PARAM(filter5);
+        SAIGA_PARAM_LIST(filters_network, ' ');
     }
 
     static constexpr int max_layers = 5;
@@ -427,12 +423,8 @@ struct MultiScaleUnet2dParams : public ParamsBase
     // average, max
     std::string pooling = "average";
 
-    std::string network_version = "MultiScaleUnet2d";
-    int filter1                 = 4;
-    int filter2                 = 8;
-    int filter3                 = 16;
-    int filter4                 = 32;
-    int filter5                 = 64;
+    std::string network_version      = "MultiScaleUnet2d";
+    std::vector<int> filters_network = {4, 8, 16, 32, 64};
 };
 
 
@@ -460,7 +452,7 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
                   << " upblock" << std::endl;
 
         std::vector<int> num_input_channels_per_layer;
-        std::vector<int> filters = {params.filter1, params.filter2, params.filter3, params.filter4, params.filter5};
+        std::vector<int> filters = params.filters_network;
 
         std::vector<int> num_input_channels(params.num_input_layers, params.num_input_channels);
         for (int i = params.num_input_layers; i < 5; ++i)
