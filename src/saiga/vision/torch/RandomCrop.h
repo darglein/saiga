@@ -14,7 +14,8 @@ namespace Saiga
 {
 // Computes the image crop as a homography matrix (returned as upper diagonal matrix).
 inline IntrinsicsPinholef RandomImageCrop(ivec2 image_size_input, ivec2 image_size_crop, bool translate_to_border,
-                                          bool random_translation, vec2 min_max_zoom = vec2(1, 1))
+                                          bool random_translation, bool gaussian_sampling = false,
+                                          vec2 min_max_zoom = vec2(1, 1))
 {
     IntrinsicsPinholef K_crop = IntrinsicsPinholef();
 
@@ -33,23 +34,32 @@ inline IntrinsicsPinholef RandomImageCrop(ivec2 image_size_input, ivec2 image_si
 
     vec2 max_translation = image_size_input.cast<float>() * zoom - image_size_crop.cast<float>();
 
-
     if (random_translation)
     {
+        vec2 min_sample = vec2(0, 0);
+        vec2 max_sample = max_translation;
+
         if (translate_to_border)
         {
             vec2 border = image_size_crop.cast<float>() * 0.5f;
-            delta.x()   = Random::sampleDouble(-border.x(), max_translation.x() + border.x());
-            delta.y()   = Random::sampleDouble(-border.y(), max_translation.y() + border.y());
+            min_sample  = -border;
+            max_sample  = max_translation + border;
+            // delta.x()   = Random::sampleDouble(-border.x(), max_translation.x() + border.x());
+            // delta.y()   = Random::sampleDouble(-border.y(), max_translation.y() + border.y());
+        }
+        if (!gaussian_sampling)
+        {
+            delta.x() = Random::sampleDouble(min_sample.x(), max_sample.x());
+            delta.y() = Random::sampleDouble(min_sample.y(), max_sample.y());
         }
         else
         {
-            delta.x() = Random::sampleDouble(0, max_translation.x());
-            delta.y() = Random::sampleDouble(0, max_translation.y());
+            vec2 len_2 = 0.5 * (max_sample - min_sample);
+            // 95% of samples are inside [-1,1]
+            delta.x() = Random::gaussRand(0, 0.5) * len_2.x() + len_2.x() + min_sample.x();
+            delta.y() = Random::gaussRand(0, 0.5) * len_2.y() + len_2.y() + min_sample.y();
         }
-
         delta = delta.array().max(vec2::Zero().array()).min(max_translation.array());
-        // std::cout << "max translation " << max_translation.transpose() << std::endl;
     }
     else
     {
@@ -67,7 +77,8 @@ inline IntrinsicsPinholef RandomImageCrop(ivec2 image_size_input, ivec2 image_si
 
 inline std::vector<IntrinsicsPinholef> RandomImageCrop(int N, int tries_per_crop, ivec2 image_size_input,
                                                        ivec2 image_size_crop, bool translate_to_border,
-                                                       bool random_translation, vec2 min_max_zoom = vec2(1, 1))
+                                                       bool random_translation, bool gaussian_sampling = false,
+                                                       vec2 min_max_zoom = vec2(1, 1))
 {
     std::vector<vec2> centers;
     std::vector<IntrinsicsPinholef> res;
@@ -80,7 +91,7 @@ inline std::vector<IntrinsicsPinholef> RandomImageCrop(int N, int tries_per_crop
         for (int j = 0; j < tries_per_crop; ++j)
         {
             auto intr = RandomImageCrop(image_size_input, image_size_crop, translate_to_border, random_translation,
-                                        min_max_zoom);
+                                        gaussian_sampling, min_max_zoom);
 
             vec2 c = image_size_crop.cast<float>() * 0.5f;
             c      = intr.inverse().normalizedToImage(c);

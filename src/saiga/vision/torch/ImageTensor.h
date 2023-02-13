@@ -94,6 +94,11 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
         tensor = 255.f * tensor;
         tensor = tensor.clamp(0, 255);
         tensor = tensor.toType(at::kByte);
+    } else if (tensor.dtype() == torch::kFloat32 && std::is_same<ScalarType, unsigned short>::value){
+        tensor = 32767.f * tensor;
+        tensor = tensor.clamp(-32767, 32767);
+        tensor = tensor.toType(at::kShort);
+
     }
 
     // SAIGA_ASSERT(tensor.dtype() == torch::kByte);

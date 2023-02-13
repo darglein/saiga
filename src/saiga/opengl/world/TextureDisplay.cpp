@@ -18,7 +18,8 @@ TextureDisplay::TextureDisplay() : buffer(FullScreenQuad())
     shader = shaderLoader.load<MVPTextureShader>("post_processing/imagedisplay.glsl");
 }
 
-void TextureDisplay::render(TextureBase* texture, const ivec2& position, const ivec2& size, bool flip_y)
+/*0: no rotation, 1: right rotation, -1: left rotation*/
+void TextureDisplay::render(TextureBase* texture, const ivec2& position, const ivec2& size, bool flip_y, int rotate_result)
 {
     ViewPort vp;
     vp.position = position;
@@ -30,6 +31,7 @@ void TextureDisplay::render(TextureBase* texture, const ivec2& position, const i
     if (shader->bind())
     {
         shader->upload(0, (int)flip_y);
+        shader->upload(1, rotate_result);
         shader->uploadTexture(texture);
         buffer.BindAndDraw();
 

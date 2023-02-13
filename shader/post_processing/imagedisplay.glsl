@@ -10,6 +10,8 @@
 #extension GL_ARB_explicit_uniform_location : enable
 
 layout(location=0) in vec3 in_position;
+//0: no rotation, 1: right rotation, -1: left rotation
+layout(location=1) uniform int rotate_result = 0; 
 
 #include "camera.glsl"
 
@@ -18,6 +20,11 @@ out vec2 tc;
 
 void main() {
     tc = vec2(in_position.x,in_position.y);
+    if(rotate_result >0)
+        tc = vec2(-in_position.y,in_position.x);
+    if(rotate_result <0)
+        tc = vec2(in_position.y,-in_position.x);
+        
     tc = tc * 0.5f + 0.5f;
     gl_Position = vec4(in_position.x,in_position.y,0,1);
 }

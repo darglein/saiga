@@ -197,7 +197,7 @@ inline torch::nn::AnyModule NormFromString(const std::string& str, int channels)
     }
 }
 
-inline torch::nn::AnyModule ActivationFromString(const std::string& str, float beta)
+inline torch::nn::AnyModule ActivationFromString(const std::string& str, float beta = 2.f)
 {
     if (str == "id" || str.empty())
     {

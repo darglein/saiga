@@ -60,9 +60,12 @@ SAIGA_OPENGL_API void Texture(Saiga::TextureBase* texture, const ImVec2& size, b
                               const ImVec4& tint_col   = ImVec4(1, 1, 1, 1),
                               const ImVec4& border_col = ImVec4(0, 0, 0, 0));
 
-SAIGA_OPENGL_API void Texture(Saiga::TextureBase* texture, const ImVec2& size,
-                              ImVec2 uv0 = ImVec2(0, 0),
-                              ImVec2 uv1 = ImVec2(1, 1),
-                              const ImVec4& tint_col   = ImVec4(1, 1, 1, 1),
+SAIGA_OPENGL_API void Texture(Saiga::TextureBase* texture, const ImVec2& size, ImVec2 uv0 = ImVec2(0, 0),
+                              ImVec2 uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1),
                               const ImVec4& border_col = ImVec4(0, 0, 0, 0));
-}
+
+SAIGA_OPENGL_API void TextureRotate90(Saiga::TextureBase* texture, const ImVec2& size, bool flip_y, bool right_rotate,
+                                      const ImVec4& tint_col   = ImVec4(1, 1, 1, 1),
+                                      const ImVec4& border_col = ImVec4(0, 0, 0, 0));
+
+}  // namespace ImGui

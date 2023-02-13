@@ -223,8 +223,6 @@ class MatrixBase
         }
     }
 
-
-
     HD DenseReturnType inverse() const
     {
         int N               = cols();
@@ -408,12 +406,12 @@ class MatrixBase
         return result;
     }
 
+
     HD SameMatrix& operator+=(Scalar value)
     {
         derived() = derived() + value;
         return derived();
     }
-
 
     HD SameMatrix& operator+=(const SameMatrix& other)
     {
@@ -695,6 +693,29 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         _data[4] = x4;
         _data[5] = x5;
     }
+    HD Matrix(_Scalar x0, _Scalar x1, _Scalar x2, _Scalar x3, _Scalar x4, _Scalar x5, _Scalar x6)
+    {
+        static_assert(_Rows == 7 && _Cols == 1, "Constructor only valid for vectors.");
+        _data[0] = x0;
+        _data[1] = x1;
+        _data[2] = x2;
+        _data[3] = x3;
+        _data[4] = x4;
+        _data[5] = x5;
+        _data[6] = x6;
+    }
+    HD Matrix(_Scalar x0, _Scalar x1, _Scalar x2, _Scalar x3, _Scalar x4, _Scalar x5, _Scalar x6, _Scalar x7)
+    {
+        static_assert(_Rows == 8 && _Cols == 1, "Constructor only valid for vectors.");
+        _data[0] = x0;
+        _data[1] = x1;
+        _data[2] = x2;
+        _data[3] = x3;
+        _data[4] = x4;
+        _data[5] = x5;
+        _data[6] = x6;
+        _data[7] = x7;
+    }
 
     HD _Scalar* data() { return _data; }
     HD const _Scalar* data() const { return _data; }
@@ -848,6 +869,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
    private:
     _Scalar _data[Size];
 };
+
 
 template <typename Derived1, typename Derived2>
 HD typename Derived1::DenseReturnType operator-(const MatrixBase<Derived1>& m1, const MatrixBase<Derived2>& m2)

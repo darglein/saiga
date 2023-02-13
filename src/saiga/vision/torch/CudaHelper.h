@@ -7,6 +7,7 @@
 #pragma once
 #include "TorchHelper.h"
 
+
 #ifdef __CUDACC__
 // Converts the torch half type to the CUDA build-in half type
 // Only available from cuda files
@@ -57,6 +58,12 @@ struct StaticDeviceTensor
         }
     }
 
+    HD inline IndexType size(IndexType i)
+    {
+        CUDA_KERNEL_ASSERT(i < dim);
+        return sizes[i];
+    }
+
     // same as get but with bounds checks
     HD inline T& At(std::array<IndexType, dim> indices)
     {
@@ -89,7 +96,7 @@ struct StaticDeviceTensor
 
     HD inline ImageDimensions Image()
     {
-        static_assert(dim >= 2, "mus thave atleast 2 dimensions to be an image");
+        static_assert(dim >= 2, "must have atleast 2 dimensions to be an image");
         return ImageDimensions(sizes[dim - 2], sizes[dim - 1]);
     }
 };

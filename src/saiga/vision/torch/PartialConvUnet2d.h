@@ -6,6 +6,7 @@
 
 #pragma once
 #include "saiga/core/util/ini/Params.h"
+#include "saiga/core/util/ini/ini.h"
 
 #include "ImageTensor.h"
 #include "PartialConv.h"
@@ -397,11 +398,13 @@ struct MultiScaleUnet2dParams : public ParamsBase
         SAIGA_PARAM(conv_block_up);
         SAIGA_PARAM(pooling);
         SAIGA_PARAM(activation);
+        SAIGA_PARAM(network_version);
+        SAIGA_PARAM_LIST(filters_network, ' ');
     }
 
     static constexpr int max_layers = 5;
 
-    int num_input_layers        = 5;
+    int num_input_layers        = 4;
     int num_input_channels      = 8;
     int num_output_channels     = 3;
     int feature_factor          = 4;
@@ -419,7 +422,11 @@ struct MultiScaleUnet2dParams : public ParamsBase
 
     // average, max
     std::string pooling = "average";
+
+    std::string network_version      = "MultiScaleUnet2d";
+    std::vector<int> filters_network = {4, 8, 16, 32, 64};
 };
+
 
 // Rendering network with UNet architecture and multi-scale input.
 //
@@ -441,8 +448,11 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
    public:
     MultiScaleUnet2dImpl(MultiScaleUnet2dParams params) : params(params)
     {
+        std::cout << "Using MultiScaleUnet2d with " << params.conv_block << " downblock and " << params.conv_block_up
+                  << " upblock" << std::endl;
+
         std::vector<int> num_input_channels_per_layer;
-        std::vector<int> filters = {4, 8, 16, 32, 64};
+        std::vector<int> filters = params.filters_network;
 
         std::vector<int> num_input_channels(params.num_input_layers, params.num_input_channels);
         for (int i = params.num_input_layers; i < 5; ++i)
@@ -524,22 +534,6 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
             SAIGA_ASSERT(masks[i].requires_grad() == false);
         }
 
-        if (multi_channel_masks)
-        {
-            torch::NoGradGuard ngg;
-            // multi channel partial convolution needs a mask value for each channel.
-            // Here, we just repeat the masks along the channel dimension.
-            for (int i = 0; i < inputs.size(); ++i)
-            {
-                auto& ma = masks[i];
-                auto& in = inputs[i];
-                if (ma.size(1) == 1 && in.size(1) > 1)
-                {
-                    ma = ma.repeat({1, in.size(1), 1, 1});
-                }
-            }
-        }
-
         std::pair<torch::Tensor, torch::Tensor> d[MultiScaleUnet2dParams::max_layers];
 
         d[0] = start.forward<std::pair<torch::Tensor, torch::Tensor>>(inputs[0], masks[0]);
@@ -552,7 +546,6 @@ class MultiScaleUnet2dImpl : public torch::nn::Module
             if (params.num_input_layers > i)
             {
                 d[i].first = torch::cat({d[i].first, inputs[i]}, 1);
-                if (multi_channel_masks) d[i].second = torch::cat({d[i].second, masks[i]}, 1);
             }
         }
 
