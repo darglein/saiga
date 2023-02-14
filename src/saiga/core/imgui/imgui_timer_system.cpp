@@ -609,8 +609,9 @@ void TimerSystem::PrintTable(std::ostream& strm)
         if (t.second->active) t.second->ComputeStatistics();
     }
 
-    Table tab({50, 5, 10, 10, 10, 10}, strm);
-    tab.setFloatPrecision(5);
+    Table tab({50, 6, 10, 10, 10, 10}, strm);
+    tab.other_col_left = false;
+    tab.setFloatPrecision(3);
     tab << "Name"
         << "N"
         << "Mean"

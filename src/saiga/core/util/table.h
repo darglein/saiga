@@ -46,10 +46,20 @@ class SAIGA_CORE_API Table
         SAIGA_ASSERT(strm);
         if (precision > 0)
         {
-            (*strm) << std::setprecision(precision);
+            (*strm) << std::fixed << std::setprecision(precision);
         }
 
-        (*strm) << std::setw(colWidth[currentCol]) << std::left << t;
+
+        if (currentCol == 0)
+        {
+            (*strm) << (first_col_left ? std::left : std::right);
+        }
+        else
+        {
+            (*strm) << (other_col_left ? std::left : std::right);
+        }
+
+        (*strm) << std::setw(colWidth[currentCol]) << t;
 
         currentCol++;
 
@@ -61,7 +71,7 @@ class SAIGA_CORE_API Table
         }
         else
         {
-            if(additional_sep != '\0')
+            if (additional_sep != '\0')
             {
                 (*strm) << additional_sep;
             }
@@ -73,6 +83,10 @@ class SAIGA_CORE_API Table
         }
         return *this;
     }
+
+    bool first_col_left = true;
+    bool other_col_left = true;
+
 
    private:
     int currentCol = 0;
