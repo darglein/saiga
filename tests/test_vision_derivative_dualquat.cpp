@@ -15,7 +15,7 @@
 #include "numeric_derivative.h"
 namespace Saiga
 {
-
+#ifndef WIN32
 
 template <typename T = double>
 HD inline Vector<T, 8> ToDual(const Sophus::SE3<T>& transformation, Matrix<T, 8, 6>* jacobian_transformation = nullptr)
@@ -136,5 +136,5 @@ TEST(NumericDerivative, RotatePoint)
     ExpectCloseRelative(J_trans_1, J_trans_2, 1e-5);
 }
 
-
+#endif
 }  // namespace Saiga

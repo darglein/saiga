@@ -89,30 +89,7 @@ HD inline SE3<typename Derived::Scalar> se3_expd(const Eigen::MatrixBase<Derived
 }
 
 #if SAIGA_REAL_SOPHUS
-template <typename Scalar>
-inline Eigen::Matrix<Scalar, 7, 1> dsim3_logd(const DSim3<Scalar>& sim3)
-{
-    Eigen::Matrix<Scalar, 7, 1> upsilon_omega_scale;
-    upsilon_omega_scale.template head<6>() = se3_logd(sim3.se3());
-    upsilon_omega_scale(6)                 = log(sim3.scale());
-    return upsilon_omega_scale;
-}
 
-template <typename Derived>
-HD inline DSim3<typename Derived::Scalar> dsim3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
-{
-    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 7);
-
-    using Scalar = typename Derived::Scalar;
-    return DSim3<Scalar>(se3_expd(upsilon_omega.template head<6>()), exp(upsilon_omega(6)));
-}
-template <typename Scalar>
-inline void decoupled_inc(const Eigen::Matrix<Scalar, 6, 1>& inc, Sophus::DSim3<Scalar>& T)
-{
-    decoupled_inc(inc.template head<6>(), T.se3());
-    T.scale() = exp(inc(6)) * T.scale();
-}
 
 #else
 
@@ -348,6 +325,31 @@ inline void decoupled_inc(const Eigen::Matrix<Scalar, 6, 1>& inc, Sophus::SE3<Sc
 {
     T.translation() += inc.template head<3>();
     T.so3() = Sophus::SO3d::exp(inc.template tail<3>()) * T.so3();
+}
+
+template <typename Scalar>
+inline Eigen::Matrix<Scalar, 7, 1> dsim3_logd(const DSim3<Scalar>& sim3)
+{
+    Eigen::Matrix<Scalar, 7, 1> upsilon_omega_scale;
+    upsilon_omega_scale.template head<6>() = se3_logd(sim3.se3());
+    upsilon_omega_scale(6)                 = log(sim3.scale());
+    return upsilon_omega_scale;
+}
+
+template <typename Derived>
+HD inline DSim3<typename Derived::Scalar> dsim3_expd(const Eigen::MatrixBase<Derived>& upsilon_omega)
+{
+    EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 7);
+
+    using Scalar = typename Derived::Scalar;
+    return DSim3<Scalar>(se3_expd(upsilon_omega.template head<6>()), exp(upsilon_omega(6)));
+}
+template <typename Scalar>
+inline void decoupled_inc(const Eigen::Matrix<Scalar, 7, 1>& inc, Sophus::DSim3<Scalar>& T)
+{
+    decoupled_inc(inc.template head<6>().eval(), T.se3());
+    T.scale() = exp(inc(6)) * T.scale();
 }
 
 

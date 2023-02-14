@@ -82,6 +82,7 @@ static AlignedVector<TumRGBDDataset::GroundTruth> readGT(std::string file)
 TumRGBDDataset::TumRGBDDataset(const DatasetParameters& _params, int freiburg)
     : DatasetCameraBase(_params), freiburg(freiburg)
 {
+    camera_type = CameraInputType::RGBD;
     Load();
 }
 

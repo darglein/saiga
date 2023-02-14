@@ -124,6 +124,7 @@ void TimerSystem::EndFrame()
 
 void TimerSystem::Imgui()
 {
+    if(!frame_timer) return;
     SAIGA_ASSERT(current_name_stack.empty());
 
     // if(!total_time.active) return;

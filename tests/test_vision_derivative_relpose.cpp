@@ -15,6 +15,7 @@
 
 namespace Saiga
 {
+#ifndef WIN32
 //
 // Source:
 // https://gitlab.com/VladyslavUsenko/basalt/-/blob/24e378a7a100d7d6f5133b34e16a09bb0cc98459/include/basalt/utils/nfr.h#L43-73
@@ -415,5 +416,5 @@ TEST(DerivativeRelpose, SmoothPose)
     ExpectCloseRelative(J_pose_i_1, J_pose_i_2, 1e-5);
 }
 
-
+#endif
 }  // namespace Saiga

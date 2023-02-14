@@ -5,6 +5,7 @@
  */
 
 #include "saiga/core/Core.h"
+#include "saiga/core/util/ini/Params.h"
 
 
 using namespace Saiga;
@@ -12,8 +13,11 @@ using namespace Saiga;
 
 struct SampleParams : public ParamsBase
 {
-    SAIGA_PARAM_STRUCT_FUNCTIONS(SampleParams);
-    virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
+    SAIGA_PARAM_STRUCT(SampleParams);
+    SAIGA_PARAM_STRUCT_FUNCTIONS;
+
+    template <class ParamIterator>
+    void Params(ParamIterator* it)
     {
         SAIGA_PARAM_COMMENT(split_method, "more comments");
         SAIGA_PARAM(max_images);

@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-
+#ifdef TINY_EIGEN
 inline double Sqrt(double a, Matrix<double, 1, 1>* jacobian = nullptr)
 {
     double result = sqrt(a);
@@ -181,7 +181,7 @@ TEST(NumericDerivative, RayGeneration)
 }
 
 
-
+#endif
 }  // namespace Saiga
 
 

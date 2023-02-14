@@ -262,7 +262,7 @@ void DMPP::applyFilterToImage(DepthMap vsrc, DepthMap vdst)
 void DMPP::computeMinMax(DepthMap vsrc, float& dmin, float& dmax)
 {
     dmin = 5345345;
-    dmax = -345345435;
+    dmax = -3345435;
     // look for min/max
     for (int i = 0; i < vsrc.height; ++i)
     {

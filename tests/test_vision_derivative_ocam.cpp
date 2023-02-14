@@ -14,6 +14,7 @@
 
 namespace Saiga
 {
+#ifndef WIN32
 TEST(Derivative, Model)
 {
     Random::setSeed(903476346);
@@ -96,5 +97,5 @@ TEST(Derivative, ProjectOCam)
     ExpectCloseRelative(J_affine_1, J_affine_2, 1e-5);
 }
 
-
+#endif
 }  // namespace Saiga

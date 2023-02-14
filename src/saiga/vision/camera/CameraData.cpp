@@ -94,6 +94,7 @@ void RGBDIntrinsics::fromConfigFile(const std::string& file)
 
 
     if (ini.changed()) ini.SaveFile(file.c_str());
+    ini.SaveFile(file.c_str());
 }
 
 std::ostream& operator<<(std::ostream& strm, const RGBDIntrinsics& value)
