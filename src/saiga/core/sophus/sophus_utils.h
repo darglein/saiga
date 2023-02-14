@@ -327,6 +327,7 @@ inline void decoupled_inc(const Eigen::Matrix<Scalar, 6, 1>& inc, Sophus::SE3<Sc
     T.so3() = Sophus::SO3d::exp(inc.template tail<3>()) * T.so3();
 }
 
+#if SAIGA_REAL_SOPHUS
 template <typename Scalar>
 inline Eigen::Matrix<Scalar, 7, 1> dsim3_logd(const DSim3<Scalar>& sim3)
 {
@@ -351,6 +352,7 @@ inline void decoupled_inc(const Eigen::Matrix<Scalar, 7, 1>& inc, Sophus::DSim3<
     decoupled_inc(inc.template head<6>().eval(), T.se3());
     T.scale() = exp(inc(6)) * T.scale();
 }
+#endif
 
 
 }  // namespace Sophus
