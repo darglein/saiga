@@ -103,13 +103,14 @@ void TimerSystem::BeginFrame()
 
     BeginFrameImpl();
     SAIGA_ASSERT(current_name_stack.empty());
-    GetTimer("Frame", false).Start();
+    frame_timer = CreateNewTimer("Frame");
+    frame_timer->Start();
 }
 
 
 void TimerSystem::EndFrame()
 {
-    GetTimer("Frame", false).Stop();
+    frame_timer->Stop();
     SAIGA_ASSERT(current_name_stack.empty());
     EndFrameImpl();
 
@@ -124,20 +125,31 @@ void TimerSystem::EndFrame()
 void TimerSystem::Imgui()
 {
     SAIGA_ASSERT(current_name_stack.empty());
-    TimeData& total_time = GetTimer("Frame", false);
 
     // if(!total_time.active) return;
 
     std::vector<TimeData*> timers = ActiveTimers();
-    TimerSystem::Imgui(system_name, timers, &total_time);
+    TimerSystem::Imgui(system_name, timers, frame_timer);
 }
-TimerSystem::TimeData& TimerSystem::GetTimer(const std::string& name, bool rel_path)
+TimerSystem::TimeData* TimerSystem::CreateNewTimer(const std::string& _name)
 {
-    SAIGA_ASSERT(!name.empty());
+    SAIGA_ASSERT(!_name.empty());
+    std::string name, full_name;
 
-    std::string full_name         = rel_path ? current_name_stack + name : name;
+    for (int i = 0; true; ++i)
+    {
+        // search for non started timer
+        name                          = _name;
+        full_name                     = current_name_stack + "/" + name + std::to_string(i);
+        std::shared_ptr<TimeData>& td = data[full_name];
+
+        if (!td || !td->active)
+        {
+            break;
+        }
+    }
+
     std::shared_ptr<TimeData>& td = data[full_name];
-
     if (!td)
     {
         td = std::make_shared<TimeData>(CreateTimer(), current_depth, current_name_stack);
@@ -145,9 +157,14 @@ TimerSystem::TimeData& TimerSystem::GetTimer(const std::string& name, bool rel_p
         td->name      = name;
         td->full_name = full_name;
     }
-    return *td;
-}
+    else
+    {
+        // use timer from last frame (must be inactive)
+        SAIGA_ASSERT(!td->active);
+    }
 
+    return td.get();
+}
 
 enum TimingTableColumnId
 {
@@ -592,7 +609,7 @@ void TimerSystem::PrintTable(std::ostream& strm)
         if (t.second->active) t.second->ComputeStatistics();
     }
 
-    Table tab({40, 5, 10, 10, 10, 10}, strm);
+    Table tab({50, 5, 10, 10, 10, 10}, strm);
     tab.setFloatPrecision(5);
     tab << "Name"
         << "N"
@@ -611,7 +628,7 @@ void TimerSystem::PrintTable(std::ostream& strm)
         Statistics s(values);
 
         std::string offset;
-        for (auto i = 0; i < st->depth; ++i) offset += "  ";
+        for (auto i = 0; i < st->depth; ++i) offset += "|  ";
         tab << (offset + st->name) << values.size() << s.mean << s.median << s.min << s.max;
     }
 }
@@ -630,7 +647,8 @@ std::vector<TimerSystem::TimeData*> TimerSystem::ActiveTimers()
 
     // std::sort(result.begin(), result.end(), [](TimeData* a, TimeData* b) { return a->stat_mean > b->stat_mean; });
 
-    std::sort(result.begin(), result.end(), [](TimeData* a, TimeData* b) { return a->last_measurement.first < b->last_measurement.first; });
+    std::sort(result.begin(), result.end(),
+              [](TimeData* a, TimeData* b) { return a->last_measurement.first < b->last_measurement.first; });
 
 
     return result;

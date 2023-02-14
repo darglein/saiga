@@ -112,8 +112,9 @@ class SAIGA_CORE_API TimerSystem
     TimerSystem(const std::string& name) : system_name(name) {}
     virtual ~TimerSystem() {}
 
-    ScopedTimingSection Measure(const std::string& name) { return ScopedTimingSection(GetTimer(name)); }
-    TimeData& GetTimer(const std::string& name, bool rel_path = true);
+    ScopedTimingSection Measure(const std::string& name) { return ScopedTimingSection(*CreateNewTimer(name)); }
+    TimeData* CreateNewTimer(const std::string& name);
+    TimeData* GetExistingTimer(const std::string& name);
 
     void BeginFrame();
     void EndFrame();
@@ -123,7 +124,7 @@ class SAIGA_CORE_API TimerSystem
     void PrintTable(std::ostream& strm);
 
     void Enable(bool v = true) { render_window = v; }
-
+    TimeData* FrameTimer() { return frame_timer; }
    protected:
     // Called by the sub classes. This abstracts the various timer implementations from the measurements
     void Imgui(const std::string& name, ArrayView<TimeData*> timers, TimeData* total_time);
@@ -156,6 +157,8 @@ class SAIGA_CORE_API TimerSystem
 
     std::string system_name;
     std::map<std::string, std::shared_ptr<TimeData>> data;
+
+    TimeData* frame_timer = nullptr;
 
     std::vector<TimeData*> ActiveTimers();
 
