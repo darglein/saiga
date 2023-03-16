@@ -120,10 +120,11 @@ void printSaigaInfo()
 
 
     std::cout << ConsoleColor::BLUE;
-    Table table({2, 18, 16, 1});
+    Table table({2, 24, 24, 1});
 
-    std::cout << "Ref. " << SAIGA_GIT_SHA1 << std::endl;
     std::cout << "=============== Saiga ===============" << std::endl;
+    table << "|"
+          << "Git Ref." SAIGA_GIT_SHA1 << "" << "|";
     table << "|"
           << "Saiga Version" << SAIGA_VERSION << "|";
 
