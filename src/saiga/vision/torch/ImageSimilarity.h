@@ -37,10 +37,11 @@ class PSNRImpl : public torch::nn::Module
 TORCH_MODULE(PSNR);
 
 
-template <typename T>
-Matrix<T, 5, 5> gaussianBlurKernel2d_tinyeigen(int radius, T sigma)
+template <typename T, int RADIUS>
+Matrix<T, RADIUS * 2 + 1, RADIUS * 2 + 1> gaussianBlurKernel2d_tinyeigen(int radius, T sigma)
 {
-    Matrix<T, 5, 5> kernel;
+    SAIGA_ASSERT(radius == RADIUS);
+    Matrix<T, RADIUS * 2 + 1, RADIUS * 2 + 1> kernel;
     T ivar2 = 1.0f / (2.0f * sigma * sigma);
     for (int y = -radius; y <= radius; y++)
     {
@@ -73,7 +74,7 @@ class SSIMImpl : public torch::nn::Module
         kernel_raw = FilterTensor(gaussianBlurKernel2d(radius, 1.5f));
 #else
         if (radius != 2) SAIGA_ASSERT(false);
-        kernel_raw = FilterTensor(gaussianBlurKernel2d_tinyeigen(radius, 1.5f));
+        kernel_raw = FilterTensor(gaussianBlurKernel2d_tinyeigen<float, 2>(radius, 1.5f));
 
 #endif
         C1      = pow(0.01 * max_value, 2);
