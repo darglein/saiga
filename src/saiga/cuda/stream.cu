@@ -57,7 +57,7 @@ void CudaStream::setName(const std::string& name)
 #if !defined(_WIN32) && defined(SAIGA_USE_CUDA_TOOLKIT) && defined(SAIGA_CUDA_WITH_NVTOOLS)
     nvtxNameCudaStreamA(stream, name.c_str());
 #else
-    SAIGA_EXIT_ERROR("setName only working if you enable SAIGA_CUDA_WITH_NVTOOLS in cmake");
+    std::cerr << "CudaStream::setName only working if you enable SAIGA_CUDA_WITH_NVTOOLS in cmake" << std::endl;
 #endif
 }
 
