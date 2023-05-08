@@ -9,6 +9,7 @@
 #include "saiga/config.h"
 
 #include <algorithm>
+#include <functional>
 
 namespace Saiga
 {
