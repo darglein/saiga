@@ -61,7 +61,7 @@ class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeList
     static void getCurrentPrimaryMonitorResolution(int* width, int* height);
     static void getMaxResolution(int* width, int* height);
 
-    virtual std::shared_ptr<ImGui_GL_Renderer> createImGui() override;
+    virtual std::shared_ptr<ImGuiRenderer> createImGui() override;
 };
 
 }  // namespace Saiga

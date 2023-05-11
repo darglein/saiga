@@ -17,21 +17,6 @@
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API ImGui_GL_Renderer : public ImGuiRenderer
-{
-   public:
-    ImGui_GL_Renderer(const ImGuiParameters& params);
-    virtual ~ImGui_GL_Renderer();
-
-    void render();
-
-   protected:
-    std::shared_ptr<Shader> shader;
-    std::shared_ptr<Texture> texture;
-    IndexedVertexBuffer<ImDrawVert, ImDrawIdx> buffer;
-
-    virtual void renderDrawLists(ImDrawData* draw_data);
-};
 
 
 

@@ -32,7 +32,7 @@ class SAIGA_OPENGL_API OpenGLWindow : public WindowBase
 
 
 
-    virtual std::shared_ptr<ImGui_GL_Renderer> createImGui() { return nullptr; }
+    virtual std::shared_ptr<ImGuiRenderer> createImGui() { return nullptr; }
 
     virtual void swap();
     virtual void update(float dt);

@@ -74,7 +74,7 @@ void glfw_Window::getMaxResolution(int* width, int* height)
     *height = mode[count - 1].height;
 }
 
-std::shared_ptr<ImGui_GL_Renderer> glfw_Window::createImGui()
+std::shared_ptr<ImGuiRenderer> glfw_Window::createImGui()
 {
     if (windowParameters.imguiParameters.enable)
     {

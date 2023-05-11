@@ -30,8 +30,10 @@
 // ImGui::Render() and ImGui_ImplXXXX_Shutdown(). If you are new to ImGui, see examples/README.txt and documentation at
 // the top of imgui.cpp. https://github.com/ocornut/imgui
 
-#include "imgui_impl_glfw.h"
 #include "imgui_impl_glfw_gl3.h"
+
+#include "internal/imgui_impl_glfw.h"
+#include "internal/imgui_impl_opengl3.h"
 #ifdef SAIGA_USE_GLFW
 #    include "saiga/core/glfw/saiga_glfw.h"
 #    include "saiga/core/imgui/imgui.h"
@@ -51,16 +53,21 @@ GLFWwindow* ImGui_GLFW_Renderer::g_Window = NULL;
 
 
 
-ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParameters& params) : ImGui_GL_Renderer(params)
+ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParameters& params) : ImGuiRenderer(params)
 {
-    g_Window    = window;
-    ImGui_ImplGlfw_InitForOpenGL(window,true);
+    ImGui_ImplOpenGL3_Init();
+    g_Window = window;
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
 }
 
-ImGui_GLFW_Renderer::~ImGui_GLFW_Renderer() {}
+ImGui_GLFW_Renderer::~ImGui_GLFW_Renderer()
+{
+    ImGui_ImplOpenGL3_Shutdown();
+}
 
 void ImGui_GLFW_Renderer::beginFrame()
 {
+    ImGui_ImplOpenGL3_NewFrame();
     int display_w, display_h;
     glfwGetFramebufferSize(g_Window, &display_w, &display_h);
 
@@ -73,24 +80,21 @@ void ImGui_GLFW_Renderer::beginFrame()
     editor_gui.render(display_w, display_h);
     // main_menu.render();
 }
-
+void ImGui_GLFW_Renderer::render()
+{
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
 
 
 void ImGui_GLFW_Renderer::keyPressed(int key, int scancode, int mods)
 {
-
-        main_menu.Keypressed(key);
-
+    main_menu.Keypressed(key);
 }
 
 
-void ImGui_GLFW_Renderer::keyReleased(int key, int scancode, int mods)
-{
-}
+void ImGui_GLFW_Renderer::keyReleased(int key, int scancode, int mods) {}
 
-void ImGui_GLFW_Renderer::character(unsigned int codepoint)
-{
-}
+void ImGui_GLFW_Renderer::character(unsigned int codepoint) {}
 
 
 // bool ImGui_GLFW_Renderer::mouse_button_event(GLFWwindow* window, int button, int action, int mods)
@@ -100,9 +104,7 @@ void ImGui_GLFW_Renderer::character(unsigned int codepoint)
 //    //    return wantsCaptureMouse;
 //}
 
-void ImGui_GLFW_Renderer::scroll(double xoffset, double yoffset)
-{
-}
+void ImGui_GLFW_Renderer::scroll(double xoffset, double yoffset) {}
 
 }  // namespace Saiga
 #endif
