@@ -63,6 +63,7 @@ ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParamete
 ImGui_GLFW_Renderer::~ImGui_GLFW_Renderer()
 {
     ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
 }
 
 void ImGui_GLFW_Renderer::beginFrame()
