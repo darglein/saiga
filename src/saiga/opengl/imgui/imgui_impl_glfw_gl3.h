@@ -42,7 +42,7 @@ struct GLFWwindow;
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGui_GL_Renderer,
+class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGuiRenderer,
                                              public glfw_KeyListener,
                                              public glfw_MouseListener
 {
@@ -51,6 +51,7 @@ class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGui_GL_Renderer,
     ~ImGui_GLFW_Renderer();
 
     virtual void beginFrame() override;
+    void render() override;
 
     void keyPressed(int key, int scancode, int mods) override;
     void keyReleased(int key, int scancode, int mods) override;

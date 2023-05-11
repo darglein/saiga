@@ -75,7 +75,7 @@ class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
 
     virtual void renderImgui() override;
 
-    std::shared_ptr<ImGui_GL_Renderer> imgui;
+    std::shared_ptr<ImGuiRenderer> imgui;
     std::shared_ptr<GLTimerSystem> timer;
 
     int outputWidth = -1, outputHeight = -1;
