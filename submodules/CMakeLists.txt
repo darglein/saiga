@@ -29,7 +29,9 @@ set(ZLIB_BUILD_SHARED OFF CACHE INTERNAL "")
 set(ZLIB_BUILD_STATIC ON CACHE INTERNAL "")
 
 # Need this because for some reason assimps exports zlib as well
-set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
+if(SAIGA_WITH_ASSIMP)
+    set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
+endif()
 set(ZLIB_TARGET zlibstatic)
 add_subdirectory(zlib)
 set(SKIP_INSTALL_ALL OFF CACHE INTERNAL "")
@@ -110,27 +112,32 @@ SET(SAIGA_USE_PNG 1 PARENT_SCOPE)
 message("=================================")
 
 
-message("=================================")
-message("Adding Submodule assimp")
+if(SAIGA_WITH_ASSIMP)
+    message("=================================")
+    message("Adding Submodule assimp")
 
-set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "")
-set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE INTERNAL "")
+    set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "")
+    set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE INTERNAL "")
 
-add_subdirectory(assimp)
-set_target_properties(assimp PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+    add_subdirectory(assimp)
+    set_target_properties(assimp PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
 
 
-SET(SAIGA_USE_ASSIMP 1 PARENT_SCOPE)
-message("=================================")
+    SET(SAIGA_USE_ASSIMP 1 PARENT_SCOPE)
+    message("=================================")
+endif()
 
-message("=================================")
-message("Adding Submodule googletest")
-set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-add_subdirectory(googletest)
-set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
-PackageHelperTarget(gtest GTEST_FOUND)
-set(GTEST_FOUND 1 PARENT_SCOPE)
-set(GTEST_TARGETS gtest gtest_main)
-message("=================================")
+
+if(SAIGA_WITH_GTEST)
+    message("=================================")
+    message("Adding Submodule googletest")
+    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+    add_subdirectory(googletest)
+    set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
+    PackageHelperTarget(gtest GTEST_FOUND)
+    set(GTEST_FOUND 1 PARENT_SCOPE)
+    set(GTEST_TARGETS gtest gtest_main)
+    message("=================================")
+endif()
 
 
