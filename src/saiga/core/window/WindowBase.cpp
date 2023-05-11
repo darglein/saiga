@@ -60,7 +60,10 @@ void WindowBase::render()
     SAIGA_ASSERT(renderer);
 
     RenderInfo renderInfo;
-    renderInfo.camera = activeCameras.front().first;
+    if (!activeCameras.empty())
+    {
+        renderInfo.camera = activeCameras.front().first;
+    }
 
 
     if (renderer) renderer->render(renderInfo);

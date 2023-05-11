@@ -119,7 +119,7 @@ inline double to_double(const std::string_view& str)
 #    endif
 }
 
-inline double to_long(const std::string_view& str)
+inline long to_long(const std::string_view& str)
 {
     return std::atol(std::string(str).c_str());
 }
