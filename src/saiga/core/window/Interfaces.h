@@ -70,7 +70,7 @@ class SAIGA_CORE_API RenderingInterface
 class SAIGA_CORE_API RendererBase
 {
    public:
-    RendererBase();
+    RendererBase(bool mainMenuItem = true);
     virtual ~RendererBase() {}
     RenderingInterface* rendering = nullptr;
 

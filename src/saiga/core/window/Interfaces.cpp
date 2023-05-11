@@ -13,10 +13,13 @@
 #include "WindowBase.h"
 namespace Saiga
 {
-RendererBase::RendererBase()
+RendererBase::RendererBase(bool mainMenuItem)
 {
-    main_menu.AddItem(
-        "Saiga", "Renderer", [this]() { should_render_imgui = !should_render_imgui; }, 296, "F7");
+    if (mainMenuItem)
+    {
+        main_menu.AddItem(
+            "Saiga", "Renderer", [this]() { should_render_imgui = !should_render_imgui; }, 296, "F7");
+    }
 }
 
 }  // namespace Saiga

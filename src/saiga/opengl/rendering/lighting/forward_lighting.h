@@ -51,7 +51,7 @@ class SAIGA_OPENGL_API ForwardLighting : public RendererLighting
 
     UniformBuffer lightInfoBuffer;
 
-    ForwardLighting(GLTimerSystem* timer);
+    ForwardLighting(GLTimerSystem* timer, bool createLightingMainMenuItem = true);
     ForwardLighting& operator=(ForwardLighting& l) = delete;
     ~ForwardLighting();
 

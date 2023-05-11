@@ -19,8 +19,11 @@ glfw_Window::glfw_Window(WindowParameters windowParameters, OpenGLParameters ope
     : OpenGLWindow(windowParameters, openglParameters)
 {
     create();
-    main_menu.AddItem(
-        "Saiga", "Window", [this]() { showImgui = !showImgui; }, 295, "F6");
+    if (windowParameters.createWindowMenuItem)
+    {
+        main_menu.AddItem(
+            "Saiga", "Window", [this]() { showImgui = !showImgui; }, 295, "F6");
+    }
 }
 
 glfw_Window::~glfw_Window()

@@ -37,6 +37,10 @@ struct SAIGA_OPENGL_API RenderingParameters
     bool userViewPort = false;
 
 
+    bool createRendererMainMenuItem = true;
+    bool createLogMainMenuItem = true;
+    bool createLightingMainMenuItem = true;
+
 
     /**
      *  Reads all paramters from the given config file.
@@ -49,7 +53,7 @@ struct SAIGA_OPENGL_API RenderingParameters
 class SAIGA_OPENGL_API OpenGLRenderer : public RendererBase
 {
    public:
-    OpenGLRenderer(OpenGLWindow& window);
+    OpenGLRenderer(OpenGLWindow& window, bool rendererMainMenuItem = true, bool logMainMenuItem = true);
     virtual ~OpenGLRenderer();
 
 

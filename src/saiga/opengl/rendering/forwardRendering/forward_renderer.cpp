@@ -17,7 +17,7 @@
 namespace Saiga
 {
 ForwardRenderer::ForwardRenderer(OpenGLWindow& window, const ParameterType& params)
-    : OpenGLRenderer(window), params(params), lighting(timer.get())
+    : OpenGLRenderer(window, params.createRendererMainMenuItem, params.createLogMainMenuItem), params(params), lighting(timer.get(), params.createLightingMainMenuItem)
 {
     lighting.init(window.getWidth(), window.getHeight(), false);
 

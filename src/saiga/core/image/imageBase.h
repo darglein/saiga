@@ -11,7 +11,7 @@
 #include "saiga/core/util/Range.h"
 namespace Saiga
 {
-struct ImageDimensions
+struct SAIGA_CORE_API ImageDimensions
 {
     union
     {

@@ -78,7 +78,7 @@ class SAIGA_OPENGL_API RendererLighting : public LightManager
 
 
 
-    RendererLighting(GLTimerSystem* timer);
+    RendererLighting(GLTimerSystem* timer, bool createLightingMainMenuItem = true);
     RendererLighting& operator=(RendererLighting& l) = delete;
     ~RendererLighting();
 

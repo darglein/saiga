@@ -23,7 +23,7 @@ namespace Saiga
 /**
  * A very simple C++11 timer.
  */
-class SAIGA_TEMPLATE TimerBase
+class SAIGA_TEMPLATE SAIGA_CORE_API TimerBase
 {
    public:
     // 64-bit nanoseconds

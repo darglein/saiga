@@ -14,11 +14,15 @@
 
 namespace Saiga
 {
-OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window) : window(&window)
+OpenGLRenderer::OpenGLRenderer(OpenGLWindow& window, bool rendererMainMenuItem, bool logMainMenuItem) 
+    : RendererBase(rendererMainMenuItem), window(&window)
 {
     editor_gui.enabled = true;
-    main_menu.AddItem(
-        "Saiga", "Log", []() { console.should_render = !console.should_render; }, 299, "F10");
+    if (logMainMenuItem)
+    {
+        main_menu.AddItem(
+            "Saiga", "Log", []() { console.should_render = !console.should_render; }, 299, "F10");
+    }
 
     cameraBuffer.createGLBuffer(nullptr, sizeof(CameraDataGLSL), GL_DYNAMIC_DRAW);
 

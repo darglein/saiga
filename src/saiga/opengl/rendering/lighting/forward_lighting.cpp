@@ -18,7 +18,8 @@ namespace Saiga
 {
 using namespace uber;
 
-ForwardLighting::ForwardLighting(GLTimerSystem* timer) : RendererLighting(timer)
+ForwardLighting::ForwardLighting(GLTimerSystem* timer, bool createLightingMainMenuItem) 
+    : RendererLighting(timer, createLightingMainMenuItem)
 {
     lightInfoBuffer.createGLBuffer(nullptr, sizeof(LightInfo), GL_DYNAMIC_DRAW);
 }

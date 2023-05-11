@@ -38,6 +38,8 @@ struct SAIGA_CORE_API WindowParameters
     bool updateJoystick   = false;
     int monitorId         = 0;  // Important for Fullscreen mode. 0 is always the primary monitor.
 
+    bool createWindowMenuItem = true;
+
 
     // time in seconds between debug screenshots. negativ for no debug screenshots
     float debugScreenshotTime       = -1.0f;

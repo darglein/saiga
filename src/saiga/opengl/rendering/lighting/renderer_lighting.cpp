@@ -19,13 +19,15 @@
 
 namespace Saiga
 {
-RendererLighting::RendererLighting(GLTimerSystem* timer) : timer(timer)
+RendererLighting::RendererLighting(GLTimerSystem* timer, bool createLightingMainMenuItem) : timer(timer)
 {
     createLightMeshes();
 
-
-    main_menu.AddItem(
-        "Saiga", "Lighting", [this]() { showLightingImgui = !showLightingImgui; }, 297, "F8");
+    if (createLightingMainMenuItem)
+    {
+        main_menu.AddItem(
+            "Saiga", "Lighting", [this]() { showLightingImgui = !showLightingImgui; }, 297, "F8");
+    }
 }
 
 RendererLighting::~RendererLighting() {}
