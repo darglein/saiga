@@ -50,7 +50,6 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
     // In editor mode this will be set by the imgui-window
     viewport_size        = ivec2(window->getWidth(), window->getHeight());
     viewport_offset      = ivec2(0, 0);
-    bool render_viewport = true;
 
     PrepareImgui();
 
@@ -207,32 +206,31 @@ void OpenGLRenderer::PrepareImgui(bool compute_viewport_size)
             use_mouse_input_in_3dview    = false;
             use_keyboard_input_in_3dview = false;
 
-            if (ImGui::Begin("3DView", nullptr, flags))
+            if(render_viewport)
             {
-                ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 1));
-                ImGui::BeginChild("viewer_child", ImVec2(0, 0), false,
-                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
-                ImGui::PopStyleColor();
-
-                use_mouse_input_in_3dview = ImGui::IsWindowHovered();
-                use_keyboard_input_in_3dview =
-                    use_mouse_input_in_3dview || (ImGui::IsWindowFocused() && !ImGui::captureKeyboard());
-
-                if (compute_viewport_size)
+                if (ImGui::Begin("3DView", &render_viewport, flags))
                 {
-                    viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
-                    viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
+                    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 1));
+                    ImGui::BeginChild("viewer_child", ImVec2(0, 0), false,
+                                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
+                    ImGui::PopStyleColor();
 
-                    auto w_size   = ImGui::GetWindowContentRegionMax();
-                    viewport_size = ivec2(w_size.x, w_size.y);
+                    use_mouse_input_in_3dview = ImGui::IsWindowHovered();
+                    use_keyboard_input_in_3dview =
+                        use_mouse_input_in_3dview || (ImGui::IsWindowFocused() && !ImGui::captureKeyboard());
+
+                    if (compute_viewport_size)
+                    {
+                        viewport_offset.x() = ImGui::GetCursorPosX() + ImGui::GetWindowPos().x;
+                        viewport_offset.y() = ImGui::GetCursorPosY() + ImGui::GetWindowPos().y;
+
+                        auto w_size   = ImGui::GetWindowContentRegionMax();
+                        viewport_size = ivec2(w_size.x, w_size.y);
+                    }
+                    ImGui::EndChild();
                 }
-                ImGui::EndChild();
+                ImGui::End();
             }
-            else
-            {
-                render_viewport = false;
-            }
-            ImGui::End();
         }
     }
 
