@@ -68,6 +68,12 @@ ImGui_GLFW_Renderer::~ImGui_GLFW_Renderer()
 
 void ImGui_GLFW_Renderer::beginFrame()
 {
+    ImGuiIO& io = ImGui::GetIO();
+    if (!io.Fonts->IsBuilt())
+    {
+        ImGui_ImplOpenGL3_CreateFontsTexture();
+    }
+
     ImGui_ImplOpenGL3_NewFrame();
     int display_w, display_h;
     glfwGetFramebufferSize(g_Window, &display_w, &display_h);

@@ -359,33 +359,7 @@ void initImGui(const ImGuiParameters& params)
 {
     ImGuiIO& io = ImGui::GetIO();
 
-    auto fontFile = SearchPathes::font(params.font);
-    if (!fontFile.empty())
-    {
-        ImFontConfig conf;
-        conf.RasterizerMultiply = params.fontBrightness;
-        //io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
-        io.FontDefault = io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
-    }
-    else
-    {
-        // use default integrated imgui font
-        io.Fonts->AddFontDefault();
-    }
-
-    if (params.icons)
-    {
-        auto iconsFile = SearchPathes::font(FONT_ICON_FILE_NAME_FAS);
-        if (!iconsFile.empty())
-        {
-            static const ImWchar iconsRanges[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
-            ImFontConfig iconsConfig;
-            iconsConfig.MergeMode  = true;
-            iconsConfig.PixelSnapH = true;
-            io.FontDefault = io.Fonts->AddFontFromFileTTF(iconsFile.c_str(), params.fontSize,
-                                                          &iconsConfig, iconsRanges);
-        }
-    }
+    updateImGuiFontSettings(params);
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigDockingWithShift = false;
@@ -487,6 +461,40 @@ void initImGui(const ImGuiParameters& params)
     colors[ImGuiCol_TextSelectedBg] = COL_ALPHA(color_background_low, 0.43f);
     colors[ImGuiCol_PopupBg]        = COL_ALPHA(color_background_low, 0.92f);
     // colors[ImGuiCol_ModalWindowDarkening] = COL_ALPHA(color_background_low, 0.73f);
+}
+
+void updateImGuiFontSettings(const ImGuiParameters& params) 
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    auto fontFile = SearchPathes::font(params.font);
+    io.Fonts->Clear();
+    if (!fontFile.empty())
+    {
+        ImFontConfig conf;
+        conf.RasterizerMultiply = params.fontBrightness;
+        // io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
+        io.FontDefault = io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
+    }
+    else
+    {
+        // use default integrated imgui font
+        io.Fonts->AddFontDefault();
+    }
+
+    if (params.icons)
+    {
+        auto iconsFile = SearchPathes::font(FONT_ICON_FILE_NAME_FAS);
+        if (!iconsFile.empty())
+        {
+            static const ImWchar iconsRanges[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
+            ImFontConfig iconsConfig;
+            iconsConfig.MergeMode  = true;
+            iconsConfig.PixelSnapH = true;
+            io.FontDefault =
+                io.Fonts->AddFontFromFileTTF(iconsFile.c_str(), params.fontSize, &iconsConfig, iconsRanges);
+        }
+    }
 }
 
 void ImGuiParameters::fromConfigFile(const std::string& file)

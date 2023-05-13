@@ -21,11 +21,21 @@ ImGuiRenderer::~ImGuiRenderer()
     ImGui::DestroyContext();
 }
 
-
-
 void ImGuiRenderer::endFrame()
 {
     ImGui::Render();
+
+    if (paramsDirty)
+    {
+        Saiga::updateImGuiFontSettings(params);
+        paramsDirty = false;
+    }
+}
+
+void ImGuiRenderer::updateFontSettings(ImGuiParameters params) 
+{
+    this->params = params;
+    paramsDirty  = true;
 }
 
 // void ImGuiRenderer::render()

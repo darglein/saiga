@@ -219,6 +219,7 @@ struct SAIGA_CORE_API ImGuiParameters
 };
 
 SAIGA_CORE_API void initImGui(const ImGuiParameters& params);
+SAIGA_CORE_API void updateImGuiFontSettings(const ImGuiParameters& params);
 
 // The main console from saiga
 SAIGA_CORE_API extern ImGui::IMConsole console;

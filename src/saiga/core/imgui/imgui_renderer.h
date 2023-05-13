@@ -23,9 +23,14 @@ class SAIGA_CORE_API ImGuiRenderer
     virtual void beginFrame() = 0;
     virtual void endFrame();
 
+    void updateFontSettings(ImGuiParameters params);
+
 
     virtual void render() {}
 
+   private:
+    ImGuiParameters params;
+    bool paramsDirty = false;
 };
 
 }  // namespace Saiga
