@@ -24,6 +24,7 @@
 
 //---- Define attributes of all API symbols declarations, e.g. for DLL under Windows.
 #define IMGUI_API SAIGA_CORE_API
+#define IMGUI_IMPL_API SAIGA_LOCAL
 
 //---- Don't define obsolete functions/enums names. Consider enabling from time to time after updating to avoid using
 // soon-to-be obsolete function/names. #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
