@@ -38,6 +38,12 @@ struct UniformHelper<int>
 
 
 template <>
+struct UniformHelper<ivec2>
+{
+    static void Set(int l, int c, const ivec2* v) { glUniform2i(l, v->x(), v->y()); }
+};
+
+template <>
 struct UniformHelper<vec2>
 {
     static void Set(int l, int c, const vec2* v) { glUniform2fv(l, c, v->data()); }
