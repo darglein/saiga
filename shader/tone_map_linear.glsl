@@ -17,7 +17,7 @@ struct TonemapParameters
     vec4 white_point_exposure;
     vec4 vignette_coeffs;
     vec2 vignette_offset;
-    uint flags;
+    int flags;
     float padding;
 };
 
