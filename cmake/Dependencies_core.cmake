@@ -82,10 +82,12 @@ if (SAIGA_WITH_OPENAL)
     PackageHelper(Opus ${OPUS_FOUND} "${OPUS_INCLUDE_DIRS}" "${OPUS_LIBRARIES}")
 endif ()
 
-find_package(FreeImage QUIET)
-PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_DIRS}" "${FREEIMAGE_LIBRARIES}")
-if (FREEIMAGE_FOUND)
-    SET(SAIGA_USE_FREEIMAGE 1)
+if (SAIGA_WITH_FREEIMAGE)
+    find_package(FreeImage QUIET)
+    PackageHelper(FreeImage ${FREEIMAGE_FOUND} "${FREEIMAGE_INCLUDE_DIRS}" "${FREEIMAGE_LIBRARIES}")
+    if (FREEIMAGE_FOUND)
+        SET(SAIGA_USE_FREEIMAGE 1)
+    endif ()
 endif ()
 
 
