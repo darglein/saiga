@@ -40,10 +40,10 @@ static bool UnzipCurrent(unzFile zipfile, Unzipfile& out_data, ProgressBarManage
     {
         // ProgressBar bar(std::cout, "  Unzip", file_info.uncompressed_size / (1000), 30, false, 100, "KB");
 
-        auto bar = SAIGA_OPTIONAL_PROGRESS_BAR(progress_bar, "Unzip", out_data.uncompressed_size);
-
         int read_block_size = 10000;
 
+        size_t num_blocks = (out_data.uncompressed_size + read_block_size - 1) / read_block_size;
+        auto bar          = SAIGA_OPTIONAL_PROGRESS_BAR(progress_bar, "Unzip", num_blocks);
 
         int error = UNZ_OK;
         do
@@ -58,7 +58,7 @@ static bool UnzipCurrent(unzFile zipfile, Unzipfile& out_data, ProgressBarManage
 
             current_data += error;
 
-            if (bar) bar->addProgress(error);
+            if (bar) bar->addProgress(1);
         } while (error > 0);
         SAIGA_ASSERT(current_data == out_data.uncompressed_size);
     }
@@ -91,9 +91,9 @@ std::vector<Unzipfile> UnzipInfo(const std::string& path)
     for (i = 0; i < global_info.number_entry; ++i)
     {
         // Get info about current file.
-        unz_file_info file_info;
+        unz_file_info64 file_info;
         char filename[MAX_FILENAME];
-        if (unzGetCurrentFileInfo(zipfile, &file_info, filename, MAX_FILENAME, NULL, 0, NULL, 0) != UNZ_OK)
+        if (unzGetCurrentFileInfo64(zipfile, &file_info, filename, MAX_FILENAME, NULL, 0, NULL, 0) != UNZ_OK)
         {
             printf("could not read file info\n");
             unzClose(zipfile);

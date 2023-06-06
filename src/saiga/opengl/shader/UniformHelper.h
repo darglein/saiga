@@ -36,6 +36,18 @@ struct UniformHelper<int>
     static void Set(int l, int c, const int* v) { glUniform1iv(l, c, v); }
 };
 
+template <>
+struct UniformHelper<unsigned int>
+{
+    static void Set(int l, int c, const unsigned int* v) { glUniform1uiv(l, c, v); }
+};
+
+
+template <>
+struct UniformHelper<ivec2>
+{
+    static void Set(int l, int c, const ivec2* v) { glUniform2i(l, v->x(), v->y()); }
+};
 
 template <>
 struct UniformHelper<vec2>
