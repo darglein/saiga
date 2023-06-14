@@ -49,9 +49,9 @@ inline torch::Tensor CenterEmplace(torch::Tensor src, torch::Tensor target)
     return ref_copy;
 }
 
-inline std::vector<long> IndexToCoordinate(long index, std::vector<long> sizes)
+inline std::vector<int64_t> IndexToCoordinate(int64_t index, std::vector<int64_t> sizes)
 {
-    std::vector<long> result(sizes.size());
+    std::vector<int64_t> result(sizes.size());
     for (int d = sizes.size() - 1; d >= 0; --d)
     {
         result[d] = index % sizes[d];
@@ -76,7 +76,7 @@ inline std::string TensorInfo(at::Tensor t)
     }
 
     auto type = t.dtype();
-    if (t.numel() < 1000L * 1000 * 500)
+    if (t.numel() < int64_t(1000) * 1000 * 500)
     {
         if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
         {
@@ -88,7 +88,7 @@ inline std::string TensorInfo(at::Tensor t)
 
     auto [mi_t, mi_ind_t] = t.view({-1}).min(0);
     double mi             = mi_t.item<double>();
-    long mi_ind           = mi_ind_t.item<long>();
+    int64_t mi_ind           = mi_ind_t.item<int64_t>();
     auto mi_coords        = IndexToCoordinate(mi_ind, t.sizes().vec());
 
     double ma   = t.max().item().toDouble();

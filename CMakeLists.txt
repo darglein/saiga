@@ -60,6 +60,7 @@ OptionsHelper(SAIGA_DEBIAN_BUILD "Saiga is currently build into a Debian Package
 set(SAIGA_CUDA_ARCH "" CACHE STRING "Compile for a specific CUDA Arch. If empty the systems Arch is used. Example: \"7.5;8.0;8.6;8.6+PTX\"")
 
 OptionsHelper(SAIGA_BUILD_GLFW   "Build the GLFW as a submodule" ON)
+OptionsHelper(SAIGA_GLFW_STATIC   "Use static linking of the glfw library" OFF)
 
 OptionsHelper(SAIGA_MODULE_CORE   "Build the core module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_OPENGL "Build the opengl module, if possible." ON)
