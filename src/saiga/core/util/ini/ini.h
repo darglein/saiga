@@ -58,13 +58,13 @@ inline double ReadWriteIni(Saiga::SimpleIni& ini, double variable, std::string s
 }
 
 // template <>
-inline long ReadWriteIni(Saiga::SimpleIni& ini, long variable, std::string section, std::string variable_name,
+inline int64_t ReadWriteIni(Saiga::SimpleIni& ini, int64_t variable, std::string section, std::string variable_name,
                          std::string comment)
 {
     return ini.GetAddLong(section.c_str(), variable_name.c_str(), variable, comment.c_str());
 }
 
-inline long ReadWriteIni(Saiga::SimpleIni& ini, int variable, std::string section, std::string variable_name,
+inline int64_t ReadWriteIni(Saiga::SimpleIni& ini, int variable, std::string section, std::string variable_name,
                          std::string comment)
 {
     return ini.GetAddLong(section.c_str(), variable_name.c_str(), variable, comment.c_str());

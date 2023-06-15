@@ -22,9 +22,10 @@
 #    pragma warning(disable : 4267)
 #    pragma warning(disable : 4505)  // Unreferenced local function has been removed
 
-
+#    ifndef NOMINMAX
 // because windows.h has stupid min/max defines
 #    define NOMINMAX
+#endif
 // so we get std::min std::max
 #    include <algorithm>
 #endif

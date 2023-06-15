@@ -97,11 +97,11 @@ class SO3
             {
                 if (w > Scalar(0))
                 {
-                    two_atan_nbyw_by_n = M_PI / n;
+                    two_atan_nbyw_by_n = 3.14159265358979323846 / n;
                 }
                 else
                 {
-                    two_atan_nbyw_by_n = -M_PI / n;
+                    two_atan_nbyw_by_n = -3.14159265358979323846 / n;
                 }
             }
             else
