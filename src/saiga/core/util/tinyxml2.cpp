@@ -433,11 +433,11 @@ const char* XMLUtil::ReadBOM(const char* p, bool* bom)
 }
 
 
-void XMLUtil::ConvertUTF32ToUTF8(unsigned long input, char* output, int* length)
+void XMLUtil::ConvertUTF32ToUTF8(uint64_t input, char* output, int* length)
 {
-    const unsigned long BYTE_MASK          = 0xBF;
-    const unsigned long BYTE_MARK          = 0x80;
-    const unsigned long FIRST_BYTE_MARK[7] = {0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC};
+    const uint64_t BYTE_MASK          = 0xBF;
+    const uint64_t BYTE_MARK          = 0x80;
+    const uint64_t FIRST_BYTE_MARK[7] = {0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC};
 
     if (input < 0x80)
     {
@@ -495,7 +495,7 @@ const char* XMLUtil::GetCharacterRef(const char* p, char* value, int* length)
 
     if (*(p + 1) == '#' && *(p + 2))
     {
-        unsigned long ucs = 0;
+        uint64_t ucs = 0;
         TIXMLASSERT(sizeof(ucs) >= 4);
         ptrdiff_t delta             = 0;
         unsigned mult               = 1;
@@ -2275,22 +2275,22 @@ XMLError XMLDocument::LoadFile(const char* filename)
     return _errorID;
 }
 
-// This is likely overengineered template art to have a check that unsigned long value incremented
-// by one still fits into size_t. If size_t type is larger than unsigned long type
+// This is likely overengineered template art to have a check that uint64_t value incremented
+// by one still fits into size_t. If size_t type is larger than uint64_t type
 // (x86_64-w64-mingw32 target) then the check is redundant and gcc and clang emit
 // -Wtype-limits warning. This piece makes the compiler select code with a check when a check
-// is useful and code with no check when a check is redundant depending on how size_t and unsigned long
+// is useful and code with no check when a check is redundant depending on how size_t and uint64_t
 // types sizes relate to each other.
-template <bool = (sizeof(unsigned long) >= sizeof(size_t))>
+template <bool = (sizeof(uint64_t) >= sizeof(size_t))>
 struct LongFitsIntoSizeTMinusOne
 {
-    static bool Fits(unsigned long value) { return value < (size_t)-1; }
+    static bool Fits(uint64_t value) { return value < (size_t)-1; }
 };
 
 template <>
 struct LongFitsIntoSizeTMinusOne<false>
 {
-    static bool Fits(unsigned long) { return true; }
+    static bool Fits(uint64_t) { return true; }
 };
 
 XMLError XMLDocument::LoadFile(FILE* fp)

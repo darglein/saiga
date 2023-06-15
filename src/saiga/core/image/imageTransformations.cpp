@@ -157,7 +157,7 @@ void Gray8ToRGB(ImageView<unsigned char> src, ImageView<ucvec3> dst)
 
 float sharpness(ImageView<const unsigned char> src)
 {
-    long sum = 0;
+    int64_t sum = 0;
     for (auto i : src.rowRange(1))
     {
         for (auto j : src.colRange(1))
@@ -315,27 +315,27 @@ TemplatedImage<ucvec3> ColorizeTurbo(ImageView<float> img)
     return error_img;
 }
 
-long L1Difference(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2)
+int64_t L1Difference(ImageView<const ucvec3> img1, ImageView<const ucvec3> img2)
 {
-    long result = 0;
+    int64_t result = 0;
     for (int i : img1.rowRange())
     {
         for (int j : img1.colRange())
         {
-            long diff = (img1(i, j).cast<int>() - img2(i, j).cast<int>()).array().abs().sum();
+            int64_t diff = (img1(i, j).cast<int>() - img2(i, j).cast<int>()).array().abs().sum();
             result += diff;
         }
     }
     return result;
 }
-long L1Difference(ImageView<const unsigned char> img1, ImageView<const unsigned char> img2)
+int64_t L1Difference(ImageView<const unsigned char> img1, ImageView<const unsigned char> img2)
 {
-    long result = 0;
+    int64_t result = 0;
     for (int i : img1.rowRange())
     {
         for (int j : img1.colRange())
         {
-            long diff = std::abs(img1(i, j) - img2(i, j));
+            int64_t diff = std::abs(img1(i, j) - img2(i, j));
             result += diff;
         }
     }

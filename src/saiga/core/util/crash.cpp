@@ -47,7 +47,7 @@ void addCustomSegfaultHandler(std::function<void()> fnc)
 /* This structure mirrors the one found in /usr/include/asm/ucontext.h */
 typedef struct _sig_ucontext
 {
-    unsigned long uc_flags;
+    uint64_t uc_flags;
     struct ucontext* uc_link;
     stack_t uc_stack;
     struct sigcontext uc_mcontext;

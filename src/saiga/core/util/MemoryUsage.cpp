@@ -104,7 +104,7 @@ static size_t getCurrentRSS()
 
 #elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
     /* Linux ---------------------------------------------------- */
-    long rss = 0L;
+    int64_t rss = 0L;
     FILE* fp = NULL;
     if ((fp = fopen("/proc/self/statm", "r")) == NULL) return (size_t)0L; /* Can't open? */
     if (fscanf(fp, "%*s%ld", &rss) != 1)

@@ -847,10 +847,10 @@ class CSimpleIniTempl
         @return a_nDefault      Key was not found in the section
         @return other           Value of the key
      */
-    long GetLongValue(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey, long a_nDefault = 0,
+    int64_t GetLongValue(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey, int64_t a_nDefault = 0,
                       bool* a_pHasMultiple = NULL) const;
 
-    long GetAddLong(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey, long a_nDefault = 0,
+    int64_t GetAddLong(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey, int64_t a_nDefault = 0,
                     const SI_CHAR* a_pComment = NULL, bool* a_pHasMultiple = NULL);
 
     /** Retrieve a numeric value for a specific key. If multiple keys are enabled
@@ -955,7 +955,7 @@ class CSimpleIniTempl
         @return SI_UPDATED  Value was updated
         @return SI_INSERTED Value was inserted
      */
-    SI_Error SetLongValue(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey, long a_nValue,
+    SI_Error SetLongValue(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey, int64_t a_nValue,
                           const SI_CHAR* a_pComment = NULL, bool a_bUseHex = false, bool a_bForceReplace = false,
                           bool add_default_prefix = false);
 
@@ -1289,7 +1289,7 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::LoadFile(FILE* a_fp
     {
         return SI_FILE;
     }
-    long lSize = ftell(a_fpFile);
+    int64_t lSize = ftell(a_fpFile);
     if (lSize < 0)
     {
         return SI_FILE;
@@ -1982,8 +1982,8 @@ const SI_CHAR* CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetAddString(
 }
 
 template <class SI_CHAR, class SI_STRLESS, class SI_CONVERTER>
-long CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetLongValue(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey,
-                                                                      long a_nDefault, bool* a_pHasMultiple) const
+int64_t CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetLongValue(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey,
+                                                                      int64_t a_nDefault, bool* a_pHasMultiple) const
 {
     // return the default if we don't have a value
     const SI_CHAR* pszValue = GetValue(a_pSection, a_pKey, NULL, a_pHasMultiple);
@@ -2003,7 +2003,7 @@ long CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetLongValue(const SI_C
     }
 
     // handle the value as hex if prefaced with "0x"
-    long nValue     = a_nDefault;
+    int64_t nValue     = a_nDefault;
     char* pszSuffix = szValue;
     if (szValue[0] == '0' && (szValue[1] == 'x' || szValue[1] == 'X'))
     {
@@ -2027,7 +2027,7 @@ long CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetLongValue(const SI_C
 
 template <class SI_CHAR, class SI_STRLESS, class SI_CONVERTER>
 SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetLongValue(const SI_CHAR* a_pSection,
-                                                                          const SI_CHAR* a_pKey, long a_nValue,
+                                                                          const SI_CHAR* a_pKey, int64_t a_nValue,
                                                                           const SI_CHAR* a_pComment, bool a_bUseHex,
                                                                           bool a_bForceReplace, bool add_default_prefix)
 {
@@ -2063,8 +2063,8 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetLongValue(const 
 }
 
 template <class SI_CHAR, class SI_STRLESS, class SI_CONVERTER>
-long CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetAddLong(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey,
-                                                                    long a_nDefault, const SI_CHAR* a_pComment,
+int64_t CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetAddLong(const SI_CHAR* a_pSection, const SI_CHAR* a_pKey,
+                                                                    int64_t a_nDefault, const SI_CHAR* a_pComment,
                                                                     bool* a_pHasMultiple)
 {
     auto v = GetValue(a_pSection, a_pKey, NULL);
@@ -2749,10 +2749,10 @@ struct SI_GenericCase
 {
     bool operator()(const SI_CHAR* pLeft, const SI_CHAR* pRight) const
     {
-        long cmp;
+        int64_t cmp;
         for (; *pLeft && *pRight; ++pLeft, ++pRight)
         {
-            cmp = (long)*pLeft - (long)*pRight;
+            cmp = (int64_t)*pLeft - (int64_t)*pRight;
             if (cmp != 0)
             {
                 return cmp < 0;
@@ -2774,10 +2774,10 @@ struct SI_GenericNoCase
     inline SI_CHAR locase(SI_CHAR ch) const { return (ch < 'A' || ch > 'Z') ? ch : (ch - 'A' + 'a'); }
     bool operator()(const SI_CHAR* pLeft, const SI_CHAR* pRight) const
     {
-        long cmp;
+        int64_t cmp;
         for (; *pLeft && *pRight; ++pLeft, ++pRight)
         {
-            cmp = (long)locase(*pLeft) - (long)locase(*pRight);
+            cmp = (int64_t)locase(*pLeft) - (int64_t)locase(*pRight);
             if (cmp != 0)
             {
                 return cmp < 0;

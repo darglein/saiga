@@ -443,7 +443,7 @@ static inline string esc(char c)
     return string(buf);
 }
 
-static inline bool in_range(long x, long lower, long upper)
+static inline bool in_range(int64_t x, int64_t lower, int64_t upper)
 {
     return (x >= lower && x <= upper);
 }
@@ -564,7 +564,7 @@ struct JsonParser final
      *
      * Encode pt as UTF-8 and add it to out.
      */
-    void encode_utf8(long pt, string& out)
+    void encode_utf8(int64_t pt, string& out)
     {
         if (pt < 0) return;
 
@@ -599,7 +599,7 @@ struct JsonParser final
     string parse_string()
     {
         string out;
-        long last_escaped_codepoint = -1;
+        int64_t last_escaped_codepoint = -1;
         while (true)
         {
             if (i == str.size()) return fail("unexpected end of input in string", "");
@@ -645,7 +645,7 @@ struct JsonParser final
                         return fail("bad \\u escape: " + esc, "");
                 }
 
-                long codepoint = strtol(esc.data(), nullptr, 16);
+                int64_t codepoint = strtol(esc.data(), nullptr, 16);
 
                 // JSON specifies that characters outside the BMP shall be encoded as a pair
                 // of 4-hex-digit \u escapes encoding their surrogate pair components. Check

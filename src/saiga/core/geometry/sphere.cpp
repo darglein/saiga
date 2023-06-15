@@ -40,7 +40,7 @@ bool Sphere::intersectAabb2(const AABB& other) const
 
     // find the square of the distance
     // from the sphere to the box
-    for (long i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
     {
         if (pos[i] < other.min[i])
         {
