@@ -20,7 +20,7 @@ class SO3
     using Scalar = T;
 
    public:
-    HD SO3() {}
+    HD SO3() : q(Quat::Identity()) {}
     HD SO3(const Quat& q) : q(q.normalized()) {}
     HD SO3(const Eigen::Matrix<T, 3, 3>& R) : q(R) { q = q.normalized(); }
     HD Quat& unit_quaternion() { return q; }
@@ -130,7 +130,7 @@ class alignas(sizeof(T) * 8) SE3
 
 
    public:
-    HD SE3() {}
+    HD SE3() : t(0, 0, 0) {}
     HD SE3(const Quat& q, const Vec3& v) : _so3(q), t(v) {}
     HD SE3(const SO3<T>& q, const Vec3& v) : _so3(q), t(v) {}
     HD SE3(const Eigen::Matrix<T, 4, 4>& tra) : _so3(tra.template block<3, 3>(0, 0)), t(tra.template block<3, 1>(0, 3))
