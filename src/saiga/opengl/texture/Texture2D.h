@@ -46,7 +46,7 @@ class SAIGA_OPENGL_API Texture2D : public TextureBase
      */
     void upload(const void* data);
 
-    void resize(int width, int height);
+    void resize(int width, int height, void* data = nullptr);
     void uploadSubImage(int x, int y, int width, int height, void* data);
 
    private:

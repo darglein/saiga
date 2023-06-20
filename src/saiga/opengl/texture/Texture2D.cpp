@@ -98,11 +98,11 @@ void Texture2D::upload(const void* data)
 
 
 
-void Texture2D::resize(int width, int height)
+void Texture2D::resize(int width, int height, void* data)
 {
     this->width  = width;
     this->height = height;
-    upload(nullptr);
+    upload(data);
 }
 void Texture2D::uploadSubImage(int x, int y, int width, int height, void* data)
 {
