@@ -85,11 +85,16 @@ inline std::string TensorInfo(at::Tensor t)
     }
 
     // double mi   = t.min().item().toDouble();
-
-    auto [mi_t, mi_ind_t] = t.view({-1}).min(0);
-    double mi             = mi_t.item<double>();
-    int64_t mi_ind           = mi_ind_t.item<int64_t>();
-    auto mi_coords        = IndexToCoordinate(mi_ind, t.sizes().vec());
+    double mi      = 0;
+    int64_t mi_ind = 0;
+    std::vector<int64_t> mi_coords;
+    if (t.is_contiguous())
+    {
+        auto [mi_t, mi_ind_t] = t.view({-1}).min(0);
+        mi                    = mi_t.item<double>();
+        mi_ind                = mi_ind_t.item<int64_t>();
+        mi_coords             = IndexToCoordinate(mi_ind, t.sizes().vec());
+    }
 
     double ma   = t.max().item().toDouble();
     double mean = 0;
