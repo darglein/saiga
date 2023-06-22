@@ -25,7 +25,7 @@ namespace CUDA
  * float time = CudaEvent::elapsedTime(start,stop);
  *
  */
-class SAIGA_CUDA_API CudaEvent
+class CudaEvent
 {
    public:
     cudaEvent_t event = 0;

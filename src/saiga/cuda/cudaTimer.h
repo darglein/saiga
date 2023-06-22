@@ -29,7 +29,7 @@ namespace CUDA
  * }
  *
  */
-class SAIGA_CUDA_API ScopedTimer
+class ScopedTimer
 {
    public:
     ScopedTimer(float& time, cudaStream_t stream = 0) : time(time), stream(stream) { start.record(stream); }
@@ -49,7 +49,7 @@ class SAIGA_CUDA_API ScopedTimer
 
 
 
-class SAIGA_CUDA_API ScopedTimerPrint
+class ScopedTimerPrint
 {
    public:
     ScopedTimerPrint(const std::string& name, cudaStream_t stream = 0) : name(name), stream(stream)
@@ -79,7 +79,7 @@ class SAIGA_CUDA_API ScopedTimerPrint
  * These calls do not empty the GPU command queue and return immediately.
  *
  */
-class SAIGA_CUDA_API MultiFrameTimer
+class MultiFrameTimer
 {
    public:
     MultiFrameTimer(cudaStream_t stream = 0) : stream(stream) {}
