@@ -24,6 +24,7 @@ namespace Saiga
 template <typename T>
 at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
 {
+    if(!img.valid()) return torch::Tensor();
     using ScalarType = typename ImageTypeTemplate<T>::ChannelType;
     constexpr int c  = channels(ImageTypeTemplate<T>::type);
 

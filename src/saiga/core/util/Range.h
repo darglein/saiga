@@ -110,8 +110,10 @@ template <typename T, typename KeyIterator>
 class IndirectRange
 {
    public:
-    class iterator : public std::iterator<std::input_iterator_tag, T>
+    class iterator//  : public std::iterator<std::input_iterator_tag, T>
     {
+        using value_type = T;
+
         KeyIterator it;
         T* value;
 
