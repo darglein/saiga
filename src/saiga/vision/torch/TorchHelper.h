@@ -22,7 +22,7 @@ inline torch::Tensor CenterCrop2D(torch::Tensor x, int border_size)
 
 // Center crops the tensor x to target size.
 // Used for example in unets if the input is not a power of 2, because we lose some pixels after downsampling
-inline torch::Tensor CenterCrop2D(torch::Tensor x, torch::IntArrayRef target_size)
+inline torch::Tensor CenterCrop2D(torch::Tensor x, std::vector<int64_t> target_size)
 {
     // [b, c, h, w]
     SAIGA_ASSERT(x.dim() == 4);
@@ -135,7 +135,7 @@ inline void PrintTensorInfo(at::Tensor t)
     std::cout << TensorInfo(t) << std::endl;
 }
 
-
+#ifndef TINY_TORCH
 inline void PrintModelParams(torch::nn::Module module)
 {
     Table tab({40, 25, 10, 15});
@@ -326,5 +326,6 @@ inline void UpdateLR(torch::optim::Optimizer* optimizer, double factor)
         }
     }
 }
+#endif
 
 }  // namespace Saiga
