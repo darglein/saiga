@@ -33,7 +33,7 @@ at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
 
 #ifdef TINY_TORCH
     throw std::runtime_error("not implemented");
-    ScalarType type;
+    tinytorch::ScalarType type;
 #else
     auto type = at::typeMetaToScalarType(caffe2::TypeMeta::Make<ScalarType>());
 #endif

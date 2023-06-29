@@ -6,6 +6,7 @@
 
 #pragma once
 #include "TorchHelper.h"
+#include "cuda_runtime.h"
 
 
 #ifdef __CUDACC__

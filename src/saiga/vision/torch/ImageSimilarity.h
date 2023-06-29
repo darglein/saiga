@@ -8,6 +8,8 @@
 #include "ImageTensor.h"
 #include "TorchHelper.h"
 
+#ifndef TINY_TORCH
+
 #include <torch/script.h>
 
 namespace Saiga
@@ -226,3 +228,5 @@ class LPIPS
 };
 
 }  // namespace Saiga
+
+#endif
