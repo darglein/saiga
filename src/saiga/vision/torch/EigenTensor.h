@@ -3,6 +3,9 @@
 
 #include "saiga/vision/torch/torch.h"
 
+#ifdef TINY_TORCH
+#include "glog/logging.h"
+#endif
 
 #if TORCH_VERSION_MAJOR > 1 || TORCH_VERSION_MINOR >= 11
 // This is a helper function so that we can use
