@@ -204,7 +204,7 @@ inline torch::nn::AnyModule NormFromString(const std::string& str, int channels)
 
 inline torch::nn::AnyModule ActivationFromString(const std::string& str, float beta = 2.f)
 {
-    if (str == "id" || str.empty())
+    if (str == "id" || str == "none" || str.empty())
     {
         return torch::nn::AnyModule(torch::nn::Identity());
     }
