@@ -386,7 +386,6 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         TFC ttf;
 
 
-        float div = 1.0f / (factor * factor);
 
         for (int y = 0; y < a.height; ++y)
         {
@@ -397,12 +396,18 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 
                 typename TFC::FloatType sum = TFC::Converter::ZeroFloat();
 
+                int end_y = std::min(gy + factor, height-1);
+                int end_x = std::min(gx + factor, width-1);
+
+
+                float div = 1.0f / ((end_y - gy) * (end_x - gx));
+
                 // Average inner patch
-                for (int i = 0; i < factor; ++i)
+                for (int i = gy; i < end_y; ++i)
                 {
-                    for (int j = 0; j < factor; ++j)
+                    for (int j = gx; j < end_x; ++j)
                     {
-                        T2 value = (*this)(gy + i, gx + j);
+                        T2 value = (*this)(gy, gx );
                         sum += ttf.toFloat(value);
                     }
                 }
