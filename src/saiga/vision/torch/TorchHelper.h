@@ -62,6 +62,7 @@ inline std::vector<int64_t> IndexToCoordinate(int64_t index, std::vector<int64_t
 
 inline std::string TensorInfo(at::Tensor t)
 {
+    torch::NoGradGuard ngg;
     std::stringstream strm;
     if (!t.defined())
     {
