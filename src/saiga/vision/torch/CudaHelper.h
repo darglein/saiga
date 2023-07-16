@@ -6,12 +6,13 @@
 
 #pragma once
 #include "TorchHelper.h"
+
 #include "cuda_runtime.h"
 
 
 #ifdef __CUDACC__
 
-#ifndef TINY_TORCH
+#    ifndef TINY_TORCH
 // Converts the torch half type to the CUDA build-in half type
 // Only available from cuda files
 template <>
@@ -19,7 +20,7 @@ inline __half* at::TensorBase::data_ptr<__half>() const
 {
     return (__half*)data_ptr<torch::Half>();
 }
-#endif
+#    endif
 #endif
 
 namespace Saiga
@@ -60,6 +61,43 @@ struct StaticDeviceTensor
             sizes[i]   = t.size(i);
             strides[i] = t.stride(i);
         }
+    }
+
+    template <typename G>
+    HD StaticDeviceTensor<G, dim, IndexType, CUDA> cast()
+    {
+        StaticDeviceTensor<G, dim, IndexType, CUDA> result;
+        result.data = reinterpret_cast<G*>(data);
+
+        for (int i = 0; i < dim - 1; ++i)
+        {
+            result.sizes[i] = sizes[i];
+
+            if constexpr (sizeof(G) > sizeof(T))
+            {
+                // CHECK_EQ(strides[i] % (sizeof(G) / sizeof(T)), 0);
+                result.strides[i] = strides[i] / (sizeof(G) / sizeof(T));
+            }
+            else
+            {
+                result.strides[i] = strides[i] * (sizeof(T) / sizeof(G));
+            }
+        }
+
+        if constexpr (sizeof(G) > sizeof(T))
+        {
+            // CHECK_EQ(strides[dim - 1], 1);
+            // CHECK_EQ(result.sizes[dim - 1] % (sizeof(G) / sizeof(T)), 0);
+            result.sizes[dim - 1]   = sizes[dim - 1] / (sizeof(G) / sizeof(T));
+            result.strides[dim - 1] = 1;
+        }
+        else
+        {
+            result.sizes[dim - 1]   = sizes[dim - 1] * (sizeof(T) / sizeof(G));
+            result.strides[dim - 1] = 1;
+        }
+
+        return result;
     }
 
     HD inline IndexType size(IndexType i)
@@ -103,6 +141,23 @@ struct StaticDeviceTensor
         static_assert(dim >= 2, "must have atleast 2 dimensions to be an image");
         return ImageDimensions(sizes[dim - 2], sizes[dim - 1]);
     }
+
+    void Print()
+    {
+        std::cout << "StaticDeviceTensor<" << typeid(T).name() << "," << dim << "," << typeid(IndexType).name() << ","
+                  << CUDA << "> [";
+        for (int i = 0; i < dim; ++i)
+        {
+            std::cout << sizes[i] << ",";
+        }
+        std::cout << "] [";
+        for (int i = 0; i < dim; ++i)
+        {
+            std::cout << strides[i] << ",";
+        }
+        std::cout << "]\n";
+    }
 };
+
 
 }  // namespace Saiga
