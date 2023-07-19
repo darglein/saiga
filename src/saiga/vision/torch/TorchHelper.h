@@ -69,6 +69,7 @@ inline std::string TensorInfo(at::Tensor t)
         strm << "[undefined tensor]";
         return strm.str();
     }
+    t = t.cpu();
 
     if (t.numel() == 0)
     {
@@ -114,8 +115,9 @@ inline std::string TensorInfo(at::Tensor t)
     }
     else
     {
-        strm << "Tensor " << t.sizes() << " " << type << " " << t.device() << " Min/Max " << mi << " " << ma << " Mean "
-             << mean << " Sum " << sum << " sdev " << sdev << " req-grad " << t.requires_grad();
+        strm << "Tensor " << t.sizes() << " " << t.strides() << " " << type << " " << t.device() << " Min/Max " << mi
+             << " " << ma << " Mean " << mean << " Sum " << sum << " sdev " << sdev << " req-grad "
+             << t.requires_grad();
     }
 
     strm << " Min-Coords: [";
