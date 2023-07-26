@@ -12,6 +12,37 @@ namespace Saiga
 {
 namespace CUDA
 {
+
+template <int Size>
+struct SizeToVectorType
+{
+};
+template <>
+struct SizeToVectorType<2>
+{
+    using VectorType = short;
+};
+template <>
+struct SizeToVectorType<4>
+{
+    using VectorType = int;
+};
+template <>
+struct SizeToVectorType<8>
+{
+    using VectorType = int2;
+};
+template <>
+struct SizeToVectorType<16>
+{
+    using VectorType = int4;
+};
+template <>
+struct SizeToVectorType<32>
+{
+    using VectorType = double4;
+};
+
 /**
  *  Copy a large datatype T with vector instructions.
  * Example: if you have a 32 byte datatype and use int4 as a vector type
@@ -29,6 +60,15 @@ __device__ inline void vectorCopy(const T* source, T* dest)
     {
         dest4[i] = source4[i];
     }
+}
+
+template <typename T>
+HD inline void vectorCopySimple(const T* source, T* dest)
+{
+    using VECTOR_TYPE          = typename SizeToVectorType<sizeof(T)>::VectorType;
+    const VECTOR_TYPE* source4 = reinterpret_cast<const VECTOR_TYPE*>(source);
+    VECTOR_TYPE* dest4         = reinterpret_cast<VECTOR_TYPE*>(dest);
+    dest4[0]                   = source4[0];
 }
 
 
@@ -60,7 +100,7 @@ __device__ inline void vectorArrayCopy(const T* source, T* dest)
 //_CUB_LOAD_ALL(LOAD_CV, cv)
 //_CUB_LOAD_ALL(LOAD_LDG, global.nc)
 
-//#define _CUB_LOAD_4(cub_modifier, ptx_modifier)
+// #define _CUB_LOAD_4(cub_modifier, ptx_modifier)
 
 /**
  * Cache at global level (cache in L2 and below, not L1).
