@@ -69,6 +69,7 @@ inline std::string TensorInfo(at::Tensor t)
         strm << "[undefined tensor]";
         return strm.str();
     }
+    auto device = t.device();
     t = t.cpu();
 
     if (t.numel() == 0)
@@ -111,11 +112,11 @@ inline std::string TensorInfo(at::Tensor t)
 
     if (t.dim() == 0 && t.numel() == 1)
     {
-        strm << "Scalar Tensor " << type << " " << t.device() << " req-grad " << t.requires_grad() << " Value: " << mi;
+        strm << "Scalar Tensor " << type << " " << device << " req-grad " << t.requires_grad() << " Value: " << mi;
     }
     else
     {
-        strm << "Tensor " << t.sizes() << " " << t.strides() << " " << type << " " << t.device() << " Min/Max " << mi
+        strm << "Tensor " << t.sizes() << " " << t.strides() << " " << type << " " << device << " Min/Max " << mi
              << " " << ma << " Mean " << mean << " Sum " << sum << " sdev " << sdev << " req-grad "
              << t.requires_grad();
     }
