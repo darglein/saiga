@@ -70,7 +70,6 @@ inline std::string TensorInfo(at::Tensor t)
         return strm.str();
     }
     auto device = t.device();
-    t = t.cpu();
 
     if (t.numel() == 0)
     {
@@ -86,6 +85,7 @@ inline std::string TensorInfo(at::Tensor t)
             t = t.to(torch::kDouble);
         }
     }
+    t = t.cpu();
 
     // double mi   = t.min().item().toDouble();
     double mi      = 0;
