@@ -13,7 +13,7 @@
 #include "torch/torch.h"
 
 #ifndef TINY_TORCH
-#include <torch/script.h>
+#    include <torch/script.h>
 #endif
 
 namespace Saiga
@@ -26,17 +26,16 @@ namespace Saiga
 template <typename T>
 at::Tensor ImageViewToTensor(ImageView<T> img, bool normalize = true)
 {
-    if(!img.valid()) return torch::Tensor();
+    if (!img.valid()) return torch::Tensor();
     using ScalarType = typename ImageTypeTemplate<T>::ChannelType;
     constexpr int c  = channels(ImageTypeTemplate<T>::type);
 
-
 #ifdef TINY_TORCH
-    throw std::runtime_error("not implemented");
-    torch::ScalarType type;
+    auto type = torch::CppTypeToScalarType<ScalarType>::value;
 #else
     auto type = at::typeMetaToScalarType(caffe2::TypeMeta::Make<ScalarType>());
 #endif
+
     at::Tensor tensor =
         torch::from_blob(img.data, {img.h, img.w, c}, {(long)(img.pitchBytes / sizeof(ScalarType)), c, 1}, type);
 
@@ -102,15 +101,13 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
         tensor = 255.f * tensor;
         tensor = tensor.clamp(0, 255);
         tensor = tensor.to(at::kByte);
-    } else if (tensor.dtype() == torch::kFloat && std::is_same<ScalarType, unsigned short>::value){
+    }
+    else if (tensor.dtype() == torch::kFloat && std::is_same<ScalarType, unsigned short>::value)
+    {
         tensor = 32767.f * tensor;
         tensor = tensor.clamp(-32767, 32767);
         tensor = tensor.to(at::kShort);
-
     }
-
-    // SAIGA_ASSERT(tensor.dtype() == torch::kByte);
-
 
     int h = tensor.size(0);
     int w = tensor.size(1);
