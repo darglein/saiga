@@ -237,6 +237,7 @@ inline at::Tensor UnNormalizeRGB(at::Tensor x)
     return x;
 }
 
+#endif
 
 template <int rows, int cols>
 inline torch::Tensor FilterTensor(Matrix<float, rows, cols> kernel)
@@ -255,7 +256,6 @@ inline torch::Tensor Filter2dIndependentChannels(torch::Tensor x, Matrix<float, 
     auto res        = torch::conv2d(x, K, {}, 1, padding, 1, x.size(1));
     return res;
 }
-#endif
 
 #ifdef SAIGA_USE_EIGEN
 
