@@ -70,6 +70,8 @@ inline std::string TensorInfo(at::Tensor t)
         return strm.str();
     }
     auto device = t.device();
+    auto requ_grad = t.requires_grad();
+    void* ptr = t.data_ptr();
 
     if (t.numel() == 0)
     {
@@ -112,13 +114,13 @@ inline std::string TensorInfo(at::Tensor t)
 
     if (t.dim() == 0 && t.numel() == 1)
     {
-        strm << "Scalar Tensor " << type << " " << device << " req-grad " << t.requires_grad() << " Value: " << mi;
+        strm << "Scalar Tensor " << type << " " << device << " req-grad " << requ_grad<< " Value: " << mi;
     }
     else
     {
         strm << "Tensor " << t.sizes() << " " << t.strides() << " " << type << " " << device << " Min/Max " << mi
              << " " << ma << " Mean " << mean << " Sum " << sum << " sdev " << sdev << " req-grad "
-             << t.requires_grad();
+             << requ_grad << " ptr " << ptr;
     }
 
     strm << " Min-Coords: [";
