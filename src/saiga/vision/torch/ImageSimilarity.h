@@ -7,13 +7,14 @@
 #pragma once
 #include "ImageTensor.h"
 #include "TorchHelper.h"
+#include "saiga/core/math/math.h"
 
 
 template <typename T, int RADIUS>
-Matrix<T, RADIUS * 2 + 1, RADIUS * 2 + 1> gaussianBlurKernel2d_tinyeigen(int radius, T sigma)
+Saiga::Matrix<T, RADIUS * 2 + 1, RADIUS * 2 + 1> gaussianBlurKernel2d_tinyeigen(int radius, T sigma)
 {
     SAIGA_ASSERT(radius == RADIUS);
-    Matrix<T, RADIUS * 2 + 1, RADIUS * 2 + 1> kernel;
+    Saiga::Matrix<T, RADIUS * 2 + 1, RADIUS * 2 + 1> kernel;
     T ivar2 = 1.0f / (2.0f * sigma * sigma);
     for (int y = -radius; y <= radius; y++)
     {
