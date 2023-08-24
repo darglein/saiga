@@ -14,7 +14,6 @@
 
 namespace Saiga
 {
-
 /**
  *  ============== Usage Example ===============
  * Note:    The "getAdd" functions add the keys if they don't exist yet.
@@ -47,34 +46,39 @@ namespace Saiga
 inline std::string ReadWriteIni(Saiga::SimpleIni& ini, std::string variable, std::string section,
                                 std::string variable_name, std::string comment)
 {
-    return ini.GetAddString(section.c_str(), variable_name.c_str(), variable.c_str(), comment.c_str());
+    return ini.GetAddString(section.c_str(), variable_name.c_str(), variable.c_str(),
+                            comment.length() == 0 ? nullptr : comment.c_str());
 }
 
 // template <>
 inline double ReadWriteIni(Saiga::SimpleIni& ini, double variable, std::string section, std::string variable_name,
                            std::string comment)
 {
-    return ini.GetAddDouble(section.c_str(), variable_name.c_str(), variable, comment.c_str());
+    return ini.GetAddDouble(section.c_str(), variable_name.c_str(), variable,
+                            comment.length() == 0 ? nullptr : comment.c_str());
 }
 
 // template <>
 inline int64_t ReadWriteIni(Saiga::SimpleIni& ini, int64_t variable, std::string section, std::string variable_name,
-                         std::string comment)
+                            std::string comment)
 {
-    return ini.GetAddLong(section.c_str(), variable_name.c_str(), variable, comment.c_str());
+    return ini.GetAddLong(section.c_str(), variable_name.c_str(), variable,
+                          comment.length() == 0 ? nullptr : comment.c_str());
 }
 
 inline int64_t ReadWriteIni(Saiga::SimpleIni& ini, int variable, std::string section, std::string variable_name,
-                         std::string comment)
+                            std::string comment)
 {
-    return ini.GetAddLong(section.c_str(), variable_name.c_str(), variable, comment.c_str());
+    return ini.GetAddLong(section.c_str(), variable_name.c_str(), variable,
+                          comment.length() == 0 ? nullptr : comment.c_str());
 }
 
 // template <>
 inline bool ReadWriteIni(Saiga::SimpleIni& ini, bool variable, std::string section, std::string variable_name,
                          std::string comment)
 {
-    return ini.GetAddBool(section.c_str(), variable_name.c_str(), variable, comment.c_str());
+    return ini.GetAddBool(section.c_str(), variable_name.c_str(), variable,
+                          comment.length() == 0 ? nullptr : comment.c_str());
 }
 
 template <typename T>
@@ -86,9 +90,9 @@ inline std::vector<std::string> ReadWriteIniList(Saiga::SimpleIni& ini, std::vec
                                                  std::string section, std::string variable_name, std::string comment,
                                                  char sep)
 {
-    return Saiga::split(
-        ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(variable, sep).c_str(), comment.c_str()),
-        sep);
+    return Saiga::split(ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(variable, sep).c_str(),
+                                         comment.length() == 0 ? nullptr : comment.c_str()),
+                        sep);
 }
 
 template <>
@@ -109,9 +113,9 @@ inline std::vector<double> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<d
         tmp.push_back(to_string2(v));
     }
 
-    tmp = Saiga::split(
-        ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(), comment.c_str()),
-        sep);
+    tmp = Saiga::split(ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(),
+                                        comment.length() == 0 ? nullptr : comment.c_str()),
+                       sep);
 
     std::vector<double> result;
     for (auto v : tmp)
@@ -124,18 +128,17 @@ inline std::vector<double> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<d
 
 template <>
 inline std::vector<int> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<int> variable, std::string section,
-                                            std::string variable_name, std::string comment, char sep)
+                                         std::string variable_name, std::string comment, char sep)
 {
-
     std::vector<std::string> tmp;
     for (auto v : variable)
     {
         tmp.push_back(std::to_string(v));
     }
 
-    tmp = Saiga::split(
-        ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(), comment.c_str()),
-        sep);
+    tmp = Saiga::split(ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(),
+                                        comment.length() == 0 ? nullptr : comment.c_str()),
+                       sep);
 
     std::vector<int> result;
     for (auto v : tmp)
@@ -179,12 +182,13 @@ inline Eigen::Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Eige
                                                      std::string comment, char sep)
 {
     std::string str = toIniString(variable, sep);
-    str             = ini.GetAddString(section.c_str(), variable_name.c_str(), str.c_str(), comment.c_str());
+    str             = ini.GetAddString(section.c_str(), variable_name.c_str(), str.c_str(),
+                           comment.length() == 0 ? nullptr : comment.c_str());
     fromIniString(str, variable, sep);
     return variable;
 }
 
-}
+}  // namespace Saiga
 
 /**
  * Helper macros for creating the most common use-case:
@@ -205,4 +209,3 @@ inline Eigen::Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Eige
     _variable = Saiga::ReadWriteIniList(_ini, _variable, _section, #_variable, _comment, _sep)
 
 #define INI_GETADD(_ini, _section, _variable) INI_GETADD_COMMENT(_ini, _section, _variable, "")
-
