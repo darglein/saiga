@@ -69,9 +69,9 @@ inline std::string TensorInfo(at::Tensor t)
         strm << "[undefined tensor]";
         return strm.str();
     }
-    auto device = t.device();
+    auto device    = t.device();
     auto requ_grad = t.requires_grad();
-    void* ptr = t.data_ptr();
+    void* ptr      = t.data_ptr();
 
     if (t.numel() == 0)
     {
@@ -87,19 +87,24 @@ inline std::string TensorInfo(at::Tensor t)
             t = t.to(torch::kDouble);
         }
     }
-    t = t.cpu();
 
-    // double mi   = t.min().item().toDouble();
-    double mi      = 0;
-    int64_t mi_ind = 0;
     std::vector<int64_t> mi_coords;
+#if 0
+double mi = 0;
+int64_t mi_ind = 0;
     if (t.is_contiguous())
     {
         auto [mi_t, mi_ind_t] = t.view({-1}).min(0);
         mi                    = mi_t.item<double>();
-        mi_ind                = mi_ind_t.item<int64_t>();
+        if(mi_ind_t.defined())
+        {
+            mi_ind = mi_ind_t.item<int64_t>();
+        }
         mi_coords             = IndexToCoordinate(mi_ind, t.sizes().vec());
     }
+#else
+    double mi = t.min().item().toDouble();
+#endif
 
     double ma   = t.max().item().toDouble();
     double mean = 0;
@@ -114,13 +119,13 @@ inline std::string TensorInfo(at::Tensor t)
 
     if (t.dim() == 0 && t.numel() == 1)
     {
-        strm << "Scalar Tensor " << type << " " << device << " req-grad " << requ_grad<< " Value: " << mi;
+        strm << "Scalar Tensor " << type << " " << device << " req-grad " << requ_grad << " Value: " << mi;
     }
     else
     {
-        strm << "Tensor " << t.sizes() << " " << t.strides() << " " << type << " " << device << " Min/Max " << mi
-             << " " << ma << " Mean " << mean << " Sum " << sum << " sdev " << sdev << " req-grad "
-             << requ_grad << " ptr " << ptr;
+        strm << "Tensor " << t.sizes() << " " << t.strides() << " " << type << " " << device << " Min/Max " << mi << " "
+             << ma << " Mean " << mean << " Sum " << sum << " sdev " << sdev << " req-grad " << requ_grad << " ptr "
+             << ptr;
     }
 
     strm << " Min-Coords: [";
