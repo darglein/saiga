@@ -74,7 +74,9 @@
 
 // remove all CUDA_SYNC_CHECK_ERROR and CUDA_ASSERTS
 #ifndef NDEBUG
-#    define CUDA_DEBUG
+#    ifndef CUDA_DEBUG
+#        define CUDA_DEBUG
+#    endif
 #endif
 
 
