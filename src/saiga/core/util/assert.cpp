@@ -5,6 +5,7 @@
  */
 
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/crash.h"
 
 #include "internal/noGraphicsAPI.h"
 
@@ -15,11 +16,12 @@ namespace Saiga
 void saiga_assert_fail(const std::string& __assertion, const char* __file, unsigned int __line, const char* __function,
                        const std::string& __message)
 {
-    std::cout << "Assertion '" << __assertion << "' failed!" << std::endl;
+    std::cout << "Saiga Assertion '" << __assertion << "' failed!" << std::endl;
     std::cout << "  File: " << __file << ":" << __line << std::endl;
     std::cout << "  Function: " << __function << std::endl;
     if (!__message.empty()) std::cout << "  Message: " << __message << std::endl;
 
+    printCurrentStack();
     // stops and raise SIGABRT
     std::abort();
 }

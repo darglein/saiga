@@ -57,6 +57,7 @@ typedef struct _sig_ucontext
 
 void printCurrentStack()
 {
+    std::cout << "printCurrentStack... " << std::endl;
     void* array[50];
     char** messages;
     int size, i;
