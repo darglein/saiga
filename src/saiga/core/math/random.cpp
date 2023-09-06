@@ -8,10 +8,10 @@
 
 #include "saiga/core/util/assert.h"
 
+#include <algorithm>
 #include <chrono>
 #include <numeric>
 #include <random>
-#include <algorithm>
 
 namespace Saiga
 {
@@ -89,8 +89,16 @@ double gaussRand(double mean, double stddev)
 
 std::vector<int> uniqueIndices(int sampleCount, int indexSize)
 {
-    SAIGA_ASSERT(sampleCount <= indexSize);
-
+    if (sampleCount >= indexSize)
+    {
+        // just return all
+        std::vector<int> data;
+        for (int i = 0; i < indexSize; ++i)
+        {
+            data.push_back(i);
+        }
+        return data;
+    }
     std::vector<bool> used(indexSize, false);
     std::vector<int> data(sampleCount);
 
