@@ -17,8 +17,9 @@ struct MemoryInfo
     bool valid = false;
 
     // in bytes
-    size_t current_memory_used = 0;
-    size_t max_memory_used     = 0;
+    size_t current_memory_used  = 0;
+    size_t max_memory_used      = 0;
+    size_t max_memory_available = 0;
 };
 
 SAIGA_CORE_API extern MemoryInfo GetMemoryInfo();

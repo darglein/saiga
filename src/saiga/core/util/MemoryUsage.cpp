@@ -37,6 +37,19 @@
 #include "MemoryUsage.h"
 
 
+static size_t getMaxSystemMemory()
+{
+#if defined(_WIN32)
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    GlobalMemoryStatusEx(&status);
+    return status.ullTotalPhys;
+#else
+    size_t pages     = sysconf(_SC_PHYS_PAGES);
+    size_t page_size = sysconf(_SC_PAGE_SIZE);
+    return pages * page_size;
+#endif
+}
 /**
  * Returns the peak (maximum so far) resident set size (physical
  * memory use) measured in bytes, or zero if the value cannot be
@@ -105,7 +118,7 @@ static size_t getCurrentRSS()
 #elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
     /* Linux ---------------------------------------------------- */
     int64_t rss = 0L;
-    FILE* fp = NULL;
+    FILE* fp    = NULL;
     if ((fp = fopen("/proc/self/statm", "r")) == NULL) return (size_t)0L; /* Can't open? */
     if (fscanf(fp, "%*s%ld", &rss) != 1)
     {
@@ -126,9 +139,10 @@ namespace Saiga
 MemoryInfo GetMemoryInfo()
 {
     MemoryInfo result;
-    result.current_memory_used = getCurrentRSS();
-    result.max_memory_used     = getPeakRSS();
-    result.valid               = result.current_memory_used > 0 && result.max_memory_used > 0;
+    result.current_memory_used  = getCurrentRSS();
+    result.max_memory_used      = getPeakRSS();
+    result.max_memory_available = getMaxSystemMemory();
+    result.valid                = result.current_memory_used > 0 && result.max_memory_used > 0;
     return result;
 }
 
@@ -136,7 +150,8 @@ std::ostream& operator<<(std::ostream& strm, const MemoryInfo& mem_info)
 {
     strm << "[Memory Info]\n";
     strm << "Current Usage (MB): " << mem_info.current_memory_used / (1000.0 * 1000.0) << "\n";
-    strm << "Max Usage (MB):     " << mem_info.max_memory_used / (1000.0 * 1000.0);
+    strm << "Max Usage (MB):     " << mem_info.max_memory_used / (1000.0 * 1000.0) << "\n";
+    strm << "Max Available (MB): " << mem_info.max_memory_available / (1000.0 * 1000.0);
     return strm;
 }
 
