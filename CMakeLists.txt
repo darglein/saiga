@@ -71,6 +71,7 @@ OptionsHelper(SAIGA_MODULE_CUDA   "Build the cuda module, if possible." ON)
 
 OptionsHelper(SAIGA_WITH_GTEST "Include the GTEST library, if possible." ON)
 OptionsHelper(SAIGA_WITH_ASSIMP "Include the ASSIMP library, if possible." ON)
+OptionsHelper(SAIGA_WITH_LIBZIP "Include the libzip library, if possible." ON)
 OptionsHelper(SAIGA_WITH_MKL "Include the MKL library, if possible." OFF)
 OptionsHelper(SAIGA_WITH_FFMPEG "Include the FFMPEG library, if possible." ON)
 OptionsHelper(SAIGA_WITH_FREETYPE "Include the Freetype library, if possible." ON)

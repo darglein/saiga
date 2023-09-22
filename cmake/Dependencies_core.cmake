@@ -21,6 +21,7 @@ PackageHelperTarget(glfw GLFW_FOUND)
 PackageHelperTarget(zlibstatic ZLIB_FOUND)
 PackageHelperTarget(png_static PNG_FOUND)
 PackageHelperTarget(assimp ASSIMP_FOUND)
+PackageHelperTarget(zip LIBZIP_FOUND)
 PackageHelperTarget(glog GLOG_FOUND)
 
 #openmp

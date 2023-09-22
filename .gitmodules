@@ -19,3 +19,6 @@
 [submodule "submodules/glog"]
 	path = submodules/glog
 	url = ../../google/glog.git
+[submodule "submodules/libzip"]
+	path = submodules/libzip
+	url = git@github.com:nih-at/libzip.git

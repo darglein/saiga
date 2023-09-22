@@ -146,4 +146,23 @@ if(SAIGA_WITH_GTEST)
     message("=================================")
 endif()
 
+if(SAIGA_WITH_LIBZIP)
+	message("=================================")
+    message("Adding Submodule libzip")
+	
+	message(${ZLIB_LIBRARIES})
+	
+	set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+	set(ZLIB_LIBRARY " ")
+	set(ZIP_ENABLE_ZLIB ON CACHE BOOL "Enable zlib support")
+	set(BUILD_TOOLS OFF CACHE INTERNAL "")
+	set(BUILD_REGRESS OFF CACHE INTERNAL "")
+	set(BUILD_EXAMPLES OFF CACHE INTERNAL "")
+	set(BUILD_DOC OFF CACHE INTERNAL "")
+    add_subdirectory(libzip)
+	
+    SET(SAIGA_USE_LIBZIP 1 PARENT_SCOPE)
+    message("=================================")
+endif()
+
 

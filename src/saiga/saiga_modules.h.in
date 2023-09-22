@@ -56,3 +56,5 @@
 #cmakedefine SAIGA_SYSTEM_SOPHUS
 #cmakedefine SAIGA_VISION
 #cmakedefine SAIGA_CUDA_WITH_NVTOOLS
+
+#cmakedefine SAIGA_USE_LIBZIP
