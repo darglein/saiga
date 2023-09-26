@@ -165,6 +165,7 @@ if(SAIGA_WITH_LIBZIP)
 
 
     add_subdirectory(libzip)
+    set_property(TARGET zip PROPERTY POSITION_INDEPENDENT_CODE ON)
 
     SET(SAIGA_USE_LIBZIP 1 PARENT_SCOPE)
     message("=================================")
