@@ -4,6 +4,7 @@
 
 #include <zip.h>
 #include <iostream>
+#include <utility>
 
 namespace Saiga
 {
