@@ -16,7 +16,7 @@ function(saiga_test FILE_NAME)
 
 
     # cuda architecture
-    cmake_policy(SET CMP0104 OLD)
+    #cmake_policy(SET CMP0104 OLD)
     add_executable(${TARGET_NAME} ${FILE_NAME})
     message(STATUS "Test enabled:      ${NAME}")
 

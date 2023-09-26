@@ -82,6 +82,8 @@ if (SAIGA_BUILD_GLFW)
     message("=================================")
 endif ()
 
+
+
 message("=================================")
 message("Adding Submodule libPNG")
 
@@ -146,45 +148,25 @@ if(SAIGA_WITH_GTEST)
     message("=================================")
 endif()
 
-	#add_library(ZLIB::ZLIB ALIAS zlib)
-	#message(${ZLIB_TARGET})
-	#message(${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-	#set(ZLIB_LIBRARY zlibstatic.lib)
-	
-	
+
+
+
 if(SAIGA_WITH_LIBZIP)
-	message("=================================")
+    message("=================================")
     message("Adding Submodule libzip")
-	
-	
-	
-	
-	set(LIBZIP_BUILD_ZLIB ON)
-		
-	#set(LIBZIP_DO_INSTALL OFF)
-	#set(ZLIB_LINK_LIBRARY_NAME zlib)
-	
-	
-	add_library(ZLIB::ZLIB ALIAS zlib)
-	
-	
-	
-	
-	set(BUILD_SHARED_LIBS OFF)
-	#set(ZIP_ENABLE_ZLIB ON)
-	
-	
-	# Disable tools
-	set(BUILD_TOOLS OFF CACHE INTERNAL "")
-	set(BUILD_REGRESS OFF CACHE INTERNAL "")
-	set(BUILD_EXAMPLES OFF CACHE INTERNAL "")
-	set(BUILD_DOC OFF CACHE INTERNAL "")
-	
-	
+
+    set(BUILD_SHARED_LIBS OFF)
+
+    # Disable tools
+    set(BUILD_TOOLS OFF CACHE INTERNAL "")
+    set(BUILD_REGRESS OFF CACHE INTERNAL "")
+    set(BUILD_EXAMPLES OFF CACHE INTERNAL "")
+    set(BUILD_DOC OFF CACHE INTERNAL "")
+
+
     add_subdirectory(libzip)
-	
+
     SET(SAIGA_USE_LIBZIP 1 PARENT_SCOPE)
     message("=================================")
 endif()
-
 
