@@ -80,7 +80,9 @@ inline std::string TensorInfo(at::Tensor t)
     }
 
     auto type = t.dtype();
-    if (t.numel() < int64_t(1000) * 1000 * 500)
+
+    // below 1MB size
+    if (t.numel() * t.element_size() < int64_t(1000) * 1000)
     {
         if (t.dtype() == at::kFloat || t.dtype() == at::kHalf)
         {
@@ -88,34 +90,11 @@ inline std::string TensorInfo(at::Tensor t)
         }
     }
 
-    std::vector<int64_t> mi_coords;
-#if 0
-double mi = 0;
-int64_t mi_ind = 0;
-    if (t.is_contiguous())
-    {
-        auto [mi_t, mi_ind_t] = t.view({-1}).min(0);
-        mi                    = mi_t.item<double>();
-        if(mi_ind_t.defined())
-        {
-            mi_ind = mi_ind_t.item<int64_t>();
-        }
-        mi_coords             = IndexToCoordinate(mi_ind, t.sizes().vec());
-    }
-#else
-    double mi = t.min().item().toDouble();
-#endif
-
+    double mi   = t.min().item().toDouble();
     double ma   = t.max().item().toDouble();
-    double mean = 0;
+    double mean = t.mean().item().toDouble();
     double sum  = t.sum().item().toDouble();
-    double sdev = 0;
-
-    if (t.dtype() == at::kDouble)
-    {
-        mean = t.mean().item().toDouble();
-        sdev = t.std().item().toDouble();
-    }
+    double sdev = t.std().item().toDouble();
 
     if (t.dim() == 0 && t.numel() == 1)
     {
@@ -127,13 +106,6 @@ int64_t mi_ind = 0;
              << ma << " Mean " << mean << " Sum " << sum << " sdev " << sdev << " req-grad " << requ_grad << " ptr "
              << ptr;
     }
-
-    strm << " Min-Coords: [";
-    for (auto c : mi_coords)
-    {
-        strm << c << ", ";
-    }
-    strm << "]";
 
     return strm.str();
 }
