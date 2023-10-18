@@ -1,4 +1,6 @@
 
+#pragma once
+
 #include "saiga/config.h"
 #include "saiga/core/util/ProgressBar.h"
 #include <string>
