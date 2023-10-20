@@ -177,6 +177,21 @@ std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(con
     // std::cout << "lr pos " << left.position.transpose() << " | " << right.position.transpose() << std::endl;
     return {left, right};
 }
+mat4 OpenVRWrapper::GetControllerModel(int controller_index)
+{
+    for (int i = 0; i < m_numTrackedDevices; ++i)
+    {
+        if (device_data[i].device_class == vr::TrackedDeviceClass_Controller)
+        {
+            if (controller_index == 0)
+            {
+                return device_data[i].model;
+            }
+            --controller_index;
+        }
+    }
+    return mat4::Identity();
+}
 void OpenVRWrapper::update()
 {
     SAIGA_ASSERT(vr_system);
@@ -192,12 +207,16 @@ void OpenVRWrapper::update()
     vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
     vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0);
 
+    m_numTrackedDevices = 0;
     for (int i = 0; i < vr::k_unMaxTrackedDeviceCount; ++i)
     {
         if (m_rTrackedDevicePose[i].bPoseIsValid)
         {
             device_data[i].model = ConvertSteamVRMatrixToMatrix4(m_rTrackedDevicePose[i].mDeviceToAbsoluteTracking);
             // std::cout << "got pose " << i << " " << device_data[i].model.col(3).transpose() << std::endl;
+            device_data[i].device_class = vr_system->GetTrackedDeviceClass(i);
+
+            ++m_numTrackedDevices;
         }
     }
 }
