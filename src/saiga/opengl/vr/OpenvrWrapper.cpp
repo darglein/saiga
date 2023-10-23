@@ -229,16 +229,19 @@ void OpenVRWrapper::update()
                     bool old_right_down = device.controller_button_right.down;
                     bool old_up_down    = device.controller_button_up.down;
                     bool old_down_down  = device.controller_button_down.down;
+                    bool old_trigger_down = device.controller_trigger.down;
 
                     device.controller_button_left.pressed  = false;
                     device.controller_button_right.pressed = false;
                     device.controller_button_up.pressed    = false;
                     device.controller_button_down.pressed  = false;
+                    device.controller_trigger.pressed  = false;
 
                     device.controller_button_left.down  = false;
                     device.controller_button_right.down = false;
                     device.controller_button_up.down    = false;
                     device.controller_button_down.down  = false;
+                    device.controller_trigger.down  = false;
 
                     if ((controllerState.ulButtonPressed & (1 << vr::k_EButton_ProximitySensor)) != 0)
                     {
@@ -251,6 +254,12 @@ void OpenVRWrapper::update()
                         device.controller_button_right.pressed = device.controller_button_right.down && !old_right_down;
                         device.controller_button_up.pressed    = device.controller_button_up.down && !old_up_down;
                         device.controller_button_down.pressed  = device.controller_button_down.down && !old_down_down;
+                    }
+
+                    if ((controllerState.ulButtonPressed & (1ull << vr::k_EButton_SteamVR_Trigger)) != 0)
+                    {
+                        device.controller_trigger.down = controllerState.rAxis[1].x > 0.2f;
+                        device.controller_trigger.pressed = device.controller_trigger.down && !old_trigger_down;
                     }
 
                     //if (device.controller_button_left.pressed)

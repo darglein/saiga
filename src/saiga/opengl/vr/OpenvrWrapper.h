@@ -37,6 +37,8 @@ struct VrDeviceData
     VrControllerButtonState controller_button_right;
     VrControllerButtonState controller_button_up;
     VrControllerButtonState controller_button_down;
+
+    VrControllerButtonState controller_trigger;
 };
 
 // The interface between saiga and openvr
