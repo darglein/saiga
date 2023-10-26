@@ -27,6 +27,8 @@ struct SAIGA_CORE_API SaigaParameters
 
     bool logging_enabled = false;
     int verbose_logging  = false;
+
+    bool ensureSaigaShadersExist = true;
     /**
      *  Reads all paramters from the given config file.
      *  Creates the file with the default values if it doesn't exist.
