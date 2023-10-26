@@ -58,6 +58,7 @@ class SAIGA_OPENGL_API Shader
     Shader& operator=(Shader const&) = delete;
 
     bool init(const std::string& file, const ShaderCodeInjections& injections = {});
+    bool init_from_string(const std::string& source_code, const ShaderCodeInjections& injections = {});
     bool reload();
 
     // ===================================== program stuff =====================================
