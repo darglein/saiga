@@ -177,6 +177,21 @@ std::pair<PerspectiveCamera, PerspectiveCamera> OpenVRWrapper::getEyeCameras(con
     // std::cout << "lr pos " << left.position.transpose() << " | " << right.position.transpose() << std::endl;
     return {left, right};
 }
+VrDeviceData OpenVRWrapper::GetController(int controller_index)
+{
+    for (int i = 0; i < m_numTrackedDevices; ++i)
+    {
+        if (device_data[i].device_class == vr::TrackedDeviceClass_Controller)
+        {
+            if (controller_index == 0)
+            {
+                return device_data[i];
+            }
+            --controller_index;
+        }
+    }
+    return {mat4::Identity()};
+}
 void OpenVRWrapper::update()
 {
     SAIGA_ASSERT(vr_system);
@@ -192,12 +207,84 @@ void OpenVRWrapper::update()
     vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
     vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0);
 
+    m_numTrackedDevices = 0;
     for (int i = 0; i < vr::k_unMaxTrackedDeviceCount; ++i)
     {
         if (m_rTrackedDevicePose[i].bPoseIsValid)
         {
-            device_data[i].model = ConvertSteamVRMatrixToMatrix4(m_rTrackedDevicePose[i].mDeviceToAbsoluteTracking);
+            auto& device = device_data[m_numTrackedDevices++];
+
+            device.model = ConvertSteamVRMatrixToMatrix4(m_rTrackedDevicePose[i].mDeviceToAbsoluteTracking);
             // std::cout << "got pose " << i << " " << device_data[i].model.col(3).transpose() << std::endl;
+            device.device_class = vr_system->GetTrackedDeviceClass(i);
+
+            if (device.device_class == vr::TrackedDeviceClass_Controller)
+            {
+                vr::VRControllerState_t controllerState;
+                vr_system->GetControllerState(i, &controllerState, sizeof(controllerState));
+
+                if (m_lastPacketNum != controllerState.unPacketNum)
+                {
+                    bool old_left_down  = device.controller_button_left.down;
+                    bool old_right_down = device.controller_button_right.down;
+                    bool old_up_down    = device.controller_button_up.down;
+                    bool old_down_down  = device.controller_button_down.down;
+                    bool old_trigger_down = device.controller_trigger.down;
+
+                    device.controller_button_left.pressed  = false;
+                    device.controller_button_right.pressed = false;
+                    device.controller_button_up.pressed    = false;
+                    device.controller_button_down.pressed  = false;
+                    device.controller_trigger.pressed  = false;
+
+                    device.controller_button_left.down  = false;
+                    device.controller_button_right.down = false;
+                    device.controller_button_up.down    = false;
+                    device.controller_button_down.down  = false;
+                    device.controller_trigger.down  = false;
+
+                    if ((controllerState.ulButtonPressed & (1 << vr::k_EButton_ProximitySensor)) != 0)
+                    {
+                        device.controller_button_left.down  = controllerState.rAxis[0].x < -0.2f;
+                        device.controller_button_right.down = controllerState.rAxis[0].x > 0.2f;
+                        device.controller_button_up.down    = controllerState.rAxis[0].y > 0.2f;
+                        device.controller_button_down.down  = controllerState.rAxis[0].y < -0.2f;
+
+                        device.controller_button_left.pressed  = device.controller_button_left.down && !old_left_down;
+                        device.controller_button_right.pressed = device.controller_button_right.down && !old_right_down;
+                        device.controller_button_up.pressed    = device.controller_button_up.down && !old_up_down;
+                        device.controller_button_down.pressed  = device.controller_button_down.down && !old_down_down;
+                    }
+
+                    if ((controllerState.ulButtonPressed & (1ull << vr::k_EButton_SteamVR_Trigger)) != 0)
+                    {
+                        device.controller_trigger.down = controllerState.rAxis[1].x > 0.2f;
+                        device.controller_trigger.pressed = device.controller_trigger.down && !old_trigger_down;
+                    }
+
+                    //if (device.controller_button_left.pressed)
+                    //{
+                    //    std::cout << "Left\n";
+                    //}
+                    //
+                    //if (device.controller_button_right.pressed)
+                    //{
+                    //    std::cout << "Right\n";
+                    //}
+                    //
+                    //if (device.controller_button_up.pressed)
+                    //{
+                    //    std::cout << "Up\n";
+                    //}
+                    //
+                    //if (device.controller_button_down.pressed)
+                    //{
+                    //    std::cout << "Down\n";
+                    //}
+
+                    m_lastPacketNum = controllerState.unPacketNum;
+                }
+            }
         }
     }
 }

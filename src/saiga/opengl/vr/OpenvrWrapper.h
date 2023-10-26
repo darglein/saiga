@@ -21,11 +21,25 @@
 
 namespace Saiga
 {
+struct VrControllerButtonState
+{
+    bool pressed;
+    bool down;
+};
+
 struct VrDeviceData
 {
     mat4 model;
-};
+    vr::ETrackedDeviceClass device_class;
 
+    // If this is a controller.
+    VrControllerButtonState controller_button_left;
+    VrControllerButtonState controller_button_right;
+    VrControllerButtonState controller_button_up;
+    VrControllerButtonState controller_button_down;
+
+    VrControllerButtonState controller_trigger;
+};
 
 // The interface between saiga and openvr
 class SAIGA_OPENGL_API OpenVRWrapper
@@ -54,6 +68,8 @@ class SAIGA_OPENGL_API OpenVRWrapper
     // create camera for the left and right eye given the "head" camera.
     std::pair<PerspectiveCamera, PerspectiveCamera> getEyeCameras(const PerspectiveCamera& camera);
 
+    VrDeviceData GetController(int controller_index);
+
     int renderWidth()
     {
         SAIGA_ASSERT(vr_system);
@@ -73,6 +89,9 @@ class SAIGA_OPENGL_API OpenVRWrapper
 
     uint32_t m_nRenderWidth;
     uint32_t m_nRenderHeight;
+
+    uint32_t m_numTrackedDevices;
+    uint32_t m_lastPacketNum;
 };
 
 }  // namespace Saiga

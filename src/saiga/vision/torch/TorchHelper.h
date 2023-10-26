@@ -92,9 +92,13 @@ inline std::string TensorInfo(at::Tensor t)
 
     double mi   = t.min().item().toDouble();
     double ma   = t.max().item().toDouble();
-    double mean = t.mean().item().toDouble();
     double sum  = t.sum().item().toDouble();
-    double sdev = t.std().item().toDouble();
+    double mean = sum / t.numel();
+    double sdev = 0;
+    if(t.scalar_type() == torch::kFloat32)
+    {
+        sdev = t.std().item().toDouble();
+    }
 
     if (t.dim() == 0 && t.numel() == 1)
     {
