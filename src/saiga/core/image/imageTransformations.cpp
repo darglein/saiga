@@ -180,7 +180,21 @@ TemplatedImage<unsigned char> FloatToChar(ImageView<float> img)
         {
             float f         = clamp(img(i, j), 0.0f, 1.0f);
             unsigned char c = Saiga::iRound(f * 255.0f);
-            result(i,j) = c;
+            result(i, j)    = c;
+        }
+    }
+    return result;
+}
+TemplatedImage<unsigned short> FloatToShort(ImageView<float> img, float scale_img )
+{
+    TemplatedImage<unsigned short> result(img.dimensions());
+    for (int i = 0; i < img.height; ++i)
+    {
+        for (int j = 0; j < img.width; ++j)
+        {
+            float f         = clamp(img(i, j) * scale_img, 0.0f, 1.0f);
+            unsigned short c = Saiga::iRound(f * ((1 << 16) - 1));
+            result(i, j)    = c;
         }
     }
     return result;

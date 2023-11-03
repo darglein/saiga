@@ -43,6 +43,8 @@ SAIGA_CORE_API float sharpness(ImageView<const unsigned char> src);
  */
 
 SAIGA_CORE_API TemplatedImage<unsigned char> FloatToChar(ImageView<float> img);
+SAIGA_CORE_API TemplatedImage<unsigned short> FloatToShort(ImageView<float> img, float scale_img = 1);
+
 SAIGA_CORE_API bool saveHSV(const std::string& path, ImageView<float> img, float vmin, float vmax);
 SAIGA_CORE_API bool save(const std::string& path, ImageView<float> img, float vmin, float vmax);
 
