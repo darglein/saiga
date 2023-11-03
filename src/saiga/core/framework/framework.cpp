@@ -237,13 +237,16 @@ void initSaiga(const SaigaParameters& params)
 
     FP::resetSSECSR();
 
-    bool gotShaders = findShaders(params);
+    if (params.ensureSaigaShadersExist)
+    {
+        bool gotShaders = findShaders(params);
 
-    if (!gotShaders) exit(1);
+        if (!gotShaders) exit(1);
 
+        SearchPathes::shader.addSearchPath(shaderDir);
+        SearchPathes::shader.addSearchPath(shaderDir + "/include");
+    }
 
-    SearchPathes::shader.addSearchPath(shaderDir);
-    SearchPathes::shader.addSearchPath(shaderDir + "/include");
     SearchPathes::shader.addSearchPath(params.shaderDirectory);
 
     SearchPathes::image.addSearchPath(params.textureDirectory);

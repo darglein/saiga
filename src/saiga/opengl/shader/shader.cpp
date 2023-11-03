@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 
 namespace Saiga
 {
@@ -67,6 +68,52 @@ bool Shader::init(const std::string& file, const ShaderCodeInjections& injection
         auto date = std::filesystem::last_write_time(f);
         dependent_files_and_date.emplace_back(f, date);
     }
+
+    for (auto p : c.parts)
+    {
+        if (p.type.empty() || p.end - p.start == 0) continue;
+        GLenum gl_type = GL_NONE;
+        for (int i = 0; i < ShaderPart::shaderTypeCount; ++i)
+        {
+            if (p.type == ShaderPart::shaderTypeStrings[i])
+            {
+                gl_type = ShaderPart::shaderTypes[i];
+            }
+        }
+
+        if (gl_type == GL_NONE)
+        {
+            SAIGA_EXIT_ERROR("Unknown shader type: " + p.type);
+        }
+
+        std::vector<std::string> content(c.code.begin() + p.start, c.code.begin() + p.end);
+
+        auto shader = std::make_shared<ShaderPart>(content, gl_type, injections);
+        shaders.push_back(shader);
+    }
+
+    createProgram();
+    return true;
+}
+
+bool Shader::init_from_string(const std::string& source_code, const ShaderCodeInjections& injections)
+{
+    this->injections = injections;
+    shaders.clear();
+    dependent_files_and_date.clear();
+
+    ShaderCode c;
+    c.valid = true;
+
+    std::stringstream ss(source_code);
+    std::string line;
+    while (std::getline(ss, line, '\n'))
+    {
+        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+        c.code.push_back(line);
+    }
+
+    c.DetectParts();
 
     for (auto p : c.parts)
     {
