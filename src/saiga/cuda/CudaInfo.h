@@ -9,6 +9,8 @@
 
 #include "saiga/cuda/cudaHelper.h"
 
+#include "saiga/core/util/ConsoleColor.h"
+#include "saiga/core/util/table.h"
 
 
 namespace Saiga
@@ -71,10 +73,6 @@ inline int _ConvertSMVer2Cores(int major, int minor)
 
         index++;
     }
-
-    // If we don't find the values, we default use the previous one to run properly
-    printf("MapSMtoCores for SM %d.%d is undefined.  Default to use %d Cores/SM\n", major, minor,
-           nGpuArchCoresPerSM[index - 1].Cores);
     return nGpuArchCoresPerSM[index - 1].Cores;
 }
 // copied from helper_cuda.h in the samples
@@ -183,18 +181,15 @@ inline void initCUDA()
         std::cout << "Please install a CUDA cabable Graphics Driver and restart the computer!" << std::endl;
         exit(1);
     }
-    std::cout << "CUDA Runtime Version: " << runtimeVersion << std::endl;
 
     int driverVersion;
     CHECK_CUDA_ERROR(cudaDriverGetVersion(&driverVersion));
-    std::cout << "CUDA Driver Version: " << driverVersion << std::endl;
 
 #ifdef CUDA_DEBUG
     bool cudadebug = true;
 #else
     bool cudadebug = false;
 #endif
-    std::cout << "CUDA DEBUG = " << cudadebug << std::endl;
 
     int deviceCount;
     CHECK_CUDA_ERROR(cudaGetDeviceCount(&deviceCount));
@@ -204,6 +199,25 @@ inline void initCUDA()
     int devID;
     devID = gpuGetMaxGflopsDeviceId();
     CHECK_CUDA_ERROR(cudaSetDevice(devID));
+
+
+
+    cudaDeviceProp deviceProp;
+    CHECK_CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, devID));
+
+    std::cout << ConsoleColor::GREEN;
+    Table table({2, 24, 32, 1});
+    std::cout << "======================= CUDA Init =======================" << std::endl;
+    table <<"|" << "Runtime Version" << runtimeVersion << "|";
+    table <<"|" << "Driver Version" << driverVersion <<  "|";
+    table <<"|" << "CUDA_DEBUG" << cudadebug <<  "|";
+    table <<"|" << "Device name" << deviceProp.name <<  "|";
+    table <<"|" << "Compute capabilities" << std::to_string(deviceProp.major) + "." + std::to_string(deviceProp.minor) <<  "|";
+    table <<"|" << "Global Memory" << deviceProp.totalGlobalMem <<  "|";
+    std::cout << "=========================================================" << std::endl;
+
+    std::cout.unsetf(std::ios_base::floatfield);
+    std::cout << ConsoleColor::RESET;
 }
 
 
