@@ -114,14 +114,13 @@ class SAIGA_CORE_API TimerSystem
 
     ScopedTimingSection Measure(const std::string& name) { return ScopedTimingSection(*CreateNewTimer(name)); }
     TimeData* CreateNewTimer(const std::string& name);
-    TimeData* GetExistingTimer(const std::string& name);
 
     void BeginFrame();
     void EndFrame();
     void Imgui();
 
     void Reset() { data.clear(); }
-    void PrintTable(std::ostream& strm);
+    void PrintTable(std::ostream& strm, int name_size = 50);
 
     void Enable(bool v = true) { render_window = v; }
     TimeData* FrameTimer() { return frame_timer; }

@@ -167,6 +167,7 @@ TimerSystem::TimeData* TimerSystem::CreateNewTimer(const std::string& _name)
     return td.get();
 }
 
+
 enum TimingTableColumnId
 {
     TimingTableColumnId_ID,
@@ -603,14 +604,14 @@ void TimerSystem::ImguiTooltip(TimeData* td, TimeData* total_time)
     ImGui::Text("Graph scale: %f", graph_scale);
     ImGui::EndTooltip();
 }
-void TimerSystem::PrintTable(std::ostream& strm)
+void TimerSystem::PrintTable(std::ostream& strm, int name_size)
 {
     for (auto t : data)
     {
         if (t.second->active) t.second->ComputeStatistics();
     }
 
-    Table tab({50, 6, 10, 10, 10, 10}, strm);
+    Table tab({name_size, 6, 10, 10, 10, 10}, strm);
     tab.other_col_left = false;
     tab.setFloatPrecision(3);
     tab << "Name"
