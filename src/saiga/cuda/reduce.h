@@ -24,15 +24,14 @@ namespace CUDA
  *     output[ti.warp_id] = sum;
  *
  */
-template <typename T, unsigned int LOCAL_WARP_SIZE = 32, bool RESULT_FOR_ALL_THREADS = false, typename ShuffleType = T>
+template <typename T, unsigned int LOCAL_WARP_SIZE = 32>
 __device__ inline T warpReduceSum(T val)
 {
 #pragma unroll
     for (int offset = LOCAL_WARP_SIZE / 2; offset > 0; offset /= 2)
     {
-        auto v =
-            RESULT_FOR_ALL_THREADS ? shfl_xor<T, ShuffleType>(val, offset) : shfl_down<T, ShuffleType>(val, offset);
-        val = val + v;
+        auto v = shfl_xor<T>(val, offset);
+        val    = val + v;
     }
     return val;
 }
@@ -51,7 +50,7 @@ __device__ inline T warpReduce(T val, OP op)
 
 
 template <typename T, unsigned int BLOCK_SIZE>
-__device__ inline T blockReduceSum(T val, T* shared)
+__device__ inline T blockReduceSum(T val, T* shared, T default_value)
 {
     int lane = threadIdx.x & (SAIGA_WARP_SIZE - 1);
     int wid  = threadIdx.x / SAIGA_WARP_SIZE;
@@ -62,7 +61,7 @@ __device__ inline T blockReduceSum(T val, T* shared)
 
     __syncthreads();
 
-    val = (threadIdx.x < BLOCK_SIZE / SAIGA_WARP_SIZE) ? shared[lane] : 0;
+    val = (threadIdx.x < BLOCK_SIZE / SAIGA_WARP_SIZE) ? shared[lane] : default_value;
 
     if (wid == 0) val = warpReduceSum<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(val);  // Final reduce within first warp
     return val;
@@ -99,7 +98,6 @@ __device__ inline T blockReduceAtomicSum(T val, T* shared)
 
 // ===============
 // More general reductions with a custom OP
-
 
 
 
