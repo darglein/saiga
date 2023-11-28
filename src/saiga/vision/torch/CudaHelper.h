@@ -36,7 +36,7 @@ struct StaticDeviceTensor
 
     StaticDeviceTensor(torch::Tensor t)
     {
-        if (!t.defined() || t.numel() == 0)
+        if (!t.defined())
         {
             data = nullptr;
             for (int i = 0; i < dim; ++i)
