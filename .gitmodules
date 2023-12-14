@@ -22,3 +22,6 @@
 [submodule "submodules/libzip"]
 	path = submodules/libzip
 	url = git@github.com:pkurth/libzip.git
+[submodule "submodules/TinyTIFF"]
+	path = submodules/TinyTIFF
+	url = https://github.com/jkriege2/TinyTIFF.git
