@@ -23,6 +23,7 @@
 #include "internal/noGraphicsAPI.h"
 #include "internal/stb_image_read_wrapper.h"
 #include "internal/stb_image_write_wrapper.h"
+#include "saiga/core/image/tinytiff_wrapper.h"
 
 #include <fstream>
 namespace Saiga
@@ -141,6 +142,13 @@ bool Image::load(const std::string& _path)
 
 #else
         std::cerr << "Warning: Using .png without libpng. This might be slow." << std::endl;
+#endif
+    }
+
+    if (type == "tif" || type == "tiff")
+    {
+#ifdef SAIGA_USE_TINYTIFF
+        return loadImageTinyTiff(path, *this);
 #endif
     }
 
