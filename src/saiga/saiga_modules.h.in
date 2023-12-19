@@ -28,6 +28,7 @@
 #cmakedefine SAIGA_USE_PNG
 #cmakedefine SAIGA_USE_ZLIB
 #cmakedefine SAIGA_USE_FREEIMAGE
+#cmakedefine SAIGA_USE_TINYTIFF
 
 #cmakedefine SAIGA_USE_FFMPEG
 #cmakedefine SAIGA_USE_OPENNI2

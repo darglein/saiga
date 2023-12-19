@@ -28,20 +28,20 @@ const float sobely[9] = float[](1,2,1,
 
 
 
-vec4 filter3x3(const float filter[9]){
+vec4 filter3x3(const float kernel[9]){
     vec4 color;
 
-    color += filter[0]*texture( image, tc + vec2(-screenSize.z,-screenSize.w) );
-    color += filter[1]*texture( image, tc + vec2(0,-screenSize.w) ).rgb;
-    color += filter[2]*texture( image, tc + vec2(screenSize.z,-screenSize.w) );
+    color += kernel[0]*texture( image, tc + vec2(-screenSize.z,-screenSize.w) );
+    color += kernel[1]*texture( image, tc + vec2(0,-screenSize.w) ).rgb;
+    color += kernel[2]*texture( image, tc + vec2(screenSize.z,-screenSize.w) );
 
-    color += filter[3]*texture( image, tc + vec2(-screenSize.z,0) );
-    color += filter[4]*texture( image, tc + vec2(0,0) ).rgb;
-    color += filter[5]*texture( image, tc + vec2(screenSize.z,0) );
+    color += kernel[3]*texture( image, tc + vec2(-screenSize.z,0) );
+    color += kernel[4]*texture( image, tc + vec2(0,0) ).rgb;
+    color += kernel[5]*texture( image, tc + vec2(screenSize.z,0) );
 
-    color += filter[6]*texture( image, tc + vec2(-screenSize.z,screenSize.w) );
-    color += filter[7]*texture( image, tc + vec2(0,screenSize.w) );
-    color += filter[8]*texture( image, tc + vec2(screenSize.z,screenSize.w) );
+    color += kernel[6]*texture( image, tc + vec2(-screenSize.z,screenSize.w) );
+    color += kernel[7]*texture( image, tc + vec2(0,screenSize.w) );
+    color += kernel[8]*texture( image, tc + vec2(screenSize.z,screenSize.w) );
 
     return color;
 }
