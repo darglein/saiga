@@ -181,7 +181,7 @@ if(SAIGA_WITH_TINYTIFF)
     set(TinyTIFF_BUILD_TESTS OFF)
 
     add_subdirectory(TinyTIFF)
-    #set_property(TARGET TinyTIFFShared PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET TinyTIFF PROPERTY POSITION_INDEPENDENT_CODE ON)
 
     SET(SAIGA_USE_TINYTIFF 1 PARENT_SCOPE)
     message("=================================")

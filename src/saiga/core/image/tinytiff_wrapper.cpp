@@ -26,7 +26,6 @@ bool loadImageTinyTiff(const std::string& path, Image& img)
     //std::cout << "    ImageDescription:\n" << TinyTIFFReader_getImageDescription(tiffr) << "\n";
     uint32_t frames = TinyTIFFReader_countFrames(tiffr);
     //std::cout << "    frames: " << frames << "\n";
-    uint32_t frame = 0;
     if (TinyTIFFReader_wasError(tiffr))
     {
         std::cout << "   ERROR:" << TinyTIFFReader_getLastError(tiffr) << "\n";
@@ -42,7 +41,7 @@ bool loadImageTinyTiff(const std::string& path, Image& img)
 
     const uint16_t sample_format = TinyTIFFReader_getSampleFormat(tiffr);
 
-    ImageType type;
+    ImageType type = ImageType::UC1;
     if (sample_format == TINYTIFF_SAMPLEFORMAT_FLOAT)
     {
         type = ImageType::F1;
