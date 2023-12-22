@@ -27,7 +27,8 @@ class TemplatedImage : public Image
         auto res = load(file);
         if (!res)
         {
-            SAIGA_EXIT_ERROR("Could not load file " + file);
+            //SAIGA_EXIT_ERROR("Could not load file " + file);
+            std::cerr << "Could not load file '" << file << "'\n";
         }
     }
 
