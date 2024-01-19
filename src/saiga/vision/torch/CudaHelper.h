@@ -146,6 +146,10 @@ struct StaticDeviceTensor
         return ImageDimensions(sizes[dim - 2], sizes[dim - 1]);
     }
 
+    HD inline bool defined(){
+        return data != nullptr;
+    }
+
     void Print()
     {
         std::cout << "StaticDeviceTensor<" << typeid(T).name() << "," << dim << "," << typeid(IndexType).name() << ","
