@@ -60,6 +60,33 @@ inline std::vector<int64_t> IndexToCoordinate(int64_t index, std::vector<int64_t
     return result;
 }
 
+// input:
+//      image [3, ...]
+//      mask  [1, ...]
+// output:
+//      image [3, ...]
+inline torch::Tensor SetMaskToColor(torch::Tensor image, torch::Tensor mask, vec3 color)
+{
+    if (mask.dim() == image.dim() - 1)
+    {
+        mask = mask.unsqueeze(0);
+    }
+    mask          = mask.to(image.dtype()).to(image.device());
+    auto inv_mask = 1 - mask;
+
+    // set mask to 0
+    image = image * inv_mask;
+
+    std::vector<int64_t> color_sizes(image.dim(), 1);
+    color_sizes[0] = 3;
+    torch::Tensor color_tensor =
+        torch::from_blob(color.data(), color_sizes, torch::kFloat).to(image.dtype()).to(image.device());
+
+    // add color to image
+    image = image + mask * color_tensor;
+    return image;
+}
+
 inline std::string TensorInfo(at::Tensor t)
 {
     torch::NoGradGuard ngg;
@@ -95,7 +122,7 @@ inline std::string TensorInfo(at::Tensor t)
     double sum  = t.sum().item().toDouble();
     double mean = sum / t.numel();
     double sdev = 0;
-    if(t.scalar_type() == torch::kFloat32)
+    if (t.scalar_type() == torch::kFloat32)
     {
         sdev = t.std().item().toDouble();
     }
