@@ -116,6 +116,8 @@ bool Image::load(const std::string& _path)
 
     bool erg         = false;
     std::string type = fileEnding(path);
+    std::transform(type.begin(), type.end(), type.begin(),
+        [](char c) { return std::tolower(c); });
 
 
     if (type == "saigai")
