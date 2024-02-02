@@ -172,6 +172,34 @@ if(SAIGA_WITH_LIBZIP)
 endif()
 
 
+if(SAIGA_WITH_LIBTIFF)
+    message("=================================")
+    message("Adding Submodule libtiff")
+
+    set(tiff-tools OFF)
+    set(tiff-tools-unsupported OFF)
+    set(tiff-tests OFF)
+    set(tiff-contrib OFF)
+    set(tiff-docs OFF)
+    set(tiff-deprecated OFF)
+    set(tiff-install OFF)
+    
+    macro(install)
+    endmacro()
+    
+    add_subdirectory(libtiff)
+
+    macro(install)
+        _install(${ARGN})
+    endmacro()
+    
+    set_property(TARGET tiff PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET tiffxx PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+    SET(SAIGA_USE_LIBTIFF 1 PARENT_SCOPE)
+    message("=================================")
+endif()
+
 if(SAIGA_WITH_TINYTIFF)
     message("=================================")
     message("Adding Submodule TinyTIFF")

@@ -23,6 +23,7 @@
 #include "internal/noGraphicsAPI.h"
 #include "internal/stb_image_read_wrapper.h"
 #include "internal/stb_image_write_wrapper.h"
+#include "saiga/core/image/libtiff_wrapper.h"
 #include "saiga/core/image/tinytiff_wrapper.h"
 
 #include <fstream>
@@ -149,6 +150,9 @@ bool Image::load(const std::string& _path)
 
     if (type == "tif" || type == "tiff")
     {
+#ifdef SAIGA_USE_LIBTIFF
+        return loadImageLibTiff(path, *this);
+#endif
 #ifdef SAIGA_USE_TINYTIFF
         return loadImageTinyTiff(path, *this);
 #endif
