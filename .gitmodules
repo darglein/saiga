@@ -27,4 +27,4 @@
 	url = https://github.com/jkriege2/TinyTIFF.git
 [submodule "submodules/libtiff"]
 	path = submodules/libtiff
-	url = git@gitlab.com:libtiff/libtiff.git
+	url = https://gitlab.com/libtiff/libtiff.git
