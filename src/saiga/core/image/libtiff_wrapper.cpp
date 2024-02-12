@@ -15,7 +15,7 @@ bool loadImageLibTiff(const std::string& path, Image& img)
     if (tif) 
     {
         uint32_t width, height;
-        uint16 bitspersample, sample_format, samples;
+        uint16_t bitspersample, sample_format, samples;
 
         // Get the image width and height
         TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
@@ -51,7 +51,7 @@ bool loadImageLibTiff(const std::string& path, Image& img)
         //size_t buffer_size = TIFFScanlineSize(tif);
         //SAIGA_ASSERT(buffer_size == img.pitchBytes);
 
-        for (uint32 row = 0; row < height; ++row) 
+        for (uint32_t row = 0; row < height; ++row)
         {
             TIFFReadScanline(tif, img.rowPtr(row), row);
         }
