@@ -256,13 +256,13 @@ class MatrixBase
                         // std::swap(m(column, j), m(big, j));
                         // std::swap(mat(column, j), mat(big, j));
 
-                        auto tmp1 = m(column, j);
+                        auto tmp1    = m(column, j);
                         m(column, j) = m(big, j);
-                        m(big, j) = tmp1;
+                        m(big, j)    = tmp1;
 
-                        auto tmp2 = mat(column, j);
+                        auto tmp2      = mat(column, j);
                         mat(column, j) = mat(big, j);
-                        mat(big, j) = tmp2;
+                        mat(big, j)    = tmp2;
                     }
                 }
             }
@@ -337,10 +337,7 @@ class MatrixBase
         return true;
     }
 
-    HD bool operator!=(SameMatrix other) const
-    {
-        return !((*this) == other);
-    }
+    HD bool operator!=(SameMatrix other) const { return !((*this) == other); }
 
     HD bool operator==(SameMatrix other) const
     {
@@ -546,7 +543,7 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
     _Scalar _data[Size];
 };
 
-template <typename _Scalar, int _Rows, int _Cols, int _Options>
+template <typename _Scalar, int _Rows, int _Cols, int _Options = ColMajor>
 class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>>
 {
    public:
@@ -559,6 +556,20 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
     HD MatrixView(Scalar* data, int row_stride, int col_stride)
         : _data(data), _row_stride(row_stride), _col_stride(col_stride)
     {
+    }
+
+
+    // assignment of two views should copy the data from to the other
+    SameMatrix& operator=(const SameMatrix& other)
+    {
+        for (int i = 0; i < rows(); ++i)
+        {
+            for (int j = 0; j < cols(); ++j)
+            {
+                (*this)(i, j) = other(i, j);
+            }
+        }
+        return *this;
     }
 
     template <typename OtherType>
