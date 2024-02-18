@@ -15,15 +15,34 @@ bool loadImageLibTiff(const std::string& path, Image& img)
     if (tif) 
     {
         uint32_t width, height;
-        uint16_t bitspersample, sample_format, samples;
+        uint16_t bitspersample = 0, sample_format = SAMPLEFORMAT_UINT, samples = 1;
 
         // Get the image width and height
-        TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width);
-        TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height);
+        if (!TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width))
+        {
+            std::cerr << "The file '" << path << "' has no 'TIFFTAG_IMAGEWIDTH'. The file is probably corrupted\n";
+            return false;
+        }
+        if (!TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height))
+        {
+            std::cerr << "The file '" << path << "' has no 'TIFFTAG_IMAGELENGTH'. The file is probably corrupted\n";
+            return false;
+        }
+        if (!TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bitspersample)) 
+        {
+            std::cerr << "The file '" << path << "' has no 'TIFFTAG_BITSPERSAMPLE'. The file is probably corrupted\n";
+            return false;
+        }
 
-        TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bitspersample);
-        TIFFGetField(tif, TIFFTAG_SAMPLEFORMAT, &sample_format);
-        TIFFGetField(tif, TIFFTAG_SAMPLESPERPIXEL, &samples);
+        // These tags might actually be not present. In these cases the default values are used.
+        if (!TIFFGetField(tif, TIFFTAG_SAMPLEFORMAT, &sample_format))
+        {
+            sample_format = SAMPLEFORMAT_UINT;
+        }
+        if (!TIFFGetField(tif, TIFFTAG_SAMPLESPERPIXEL, &samples))
+        {
+            samples = 1;
+        }
 
 
         ImageType type = ImageType::UC1;
@@ -40,9 +59,11 @@ bool loadImageLibTiff(const std::string& path, Image& img)
             type = (bitspersample == 8) ? ImageType::C1 : (bitspersample == 16) ? ImageType::S1 : ImageType::I1;
         }
 
+
         if (samples != 1)
         {
-            throw std::runtime_error("We currently only support 1 channel tifs.");
+            std::cout << "Image '" << path << "' has more than one channel. Only loading first channel\n";
+            samples = 1;
         }
 
         type = (ImageType)((int)type + samples - 1);
