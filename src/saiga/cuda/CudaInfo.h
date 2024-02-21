@@ -44,16 +44,25 @@ inline double UsedMemoryGB()
 inline void initCUDA(int device_id = 0)
 {
     int runtimeVersion;
-    auto err = cudaRuntimeGetVersion(&runtimeVersion);
-    if (err != cudaSuccess)
     {
-        std::cout << "Invalid CUDA Runtime!" << std::endl;
-        std::cout << "Please install a CUDA cabable Graphics Driver and restart the computer!" << std::endl;
-        exit(1);
+        cudaError_t cudaErrorCode = cudaRuntimeGetVersion(&runtimeVersion);
+        if (cudaErrorCode != cudaSuccess)
+        {
+            std::cout << "Invalid CUDA Runtime!" << std::endl;
+            std::cout << "Please install a CUDA cabable Graphics Driver and restart the computer!" << std::endl;
+            throw std::runtime_error(cudaGetErrorString(cudaErrorCode));
+            //exit(1);
+        }
     }
 
     int driverVersion;
-    CHECK_CUDA_ERROR(cudaDriverGetVersion(&driverVersion));
+    {
+        cudaError_t cudaErrorCode = cudaDriverGetVersion(&driverVersion);
+        if (cudaErrorCode != cudaSuccess)
+        {
+            throw std::runtime_error(cudaGetErrorString(cudaErrorCode));
+        }
+    }
 
 #ifdef CUDA_DEBUG
     bool cudadebug = true;
@@ -63,7 +72,13 @@ inline void initCUDA(int device_id = 0)
 
 
     cudaDeviceProp deviceProp;
-    CHECK_CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, device_id));
+    {
+        cudaError_t cudaErrorCode = cudaGetDeviceProperties(&deviceProp, device_id);
+        if (cudaErrorCode != cudaSuccess)
+        {
+            throw std::runtime_error(cudaGetErrorString(cudaErrorCode));
+        }
+    }
 
     std::cout << ConsoleColor::GREEN;
     Table table({2, 24, 32, 1});
