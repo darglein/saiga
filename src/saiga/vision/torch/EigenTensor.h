@@ -1,10 +1,9 @@
 #pragma once
 #include "saiga/core/math/math.h"
-
 #include "saiga/vision/torch/torch.h"
 
 #ifdef TINY_TORCH
-#include "glog/logging.h"
+#    include "glog/logging.h"
 #endif
 
 #if TORCH_VERSION_MAJOR > 1 || TORCH_VERSION_MINOR >= 11
@@ -59,6 +58,13 @@ inline Saiga::Vec2* at::TensorBase::data_ptr<Saiga::Vec2>() const
 // tensor.data_ptr<vec3>() on tensors with the shape
 //   [x,x,...,x,3]
 template <>
+inline Saiga::vec4* at::Tensor::data_ptr<Saiga::vec4>() const
+{
+    CHECK_EQ(size(dim() - 1), 4);
+    CHECK_EQ(stride(dim() - 1), 1);
+    return (Saiga::vec4*)data_ptr<float>();
+}
+template <>
 inline Saiga::vec3* at::Tensor::data_ptr<Saiga::vec3>() const
 {
     CHECK_EQ(size(dim() - 1), 3);
@@ -86,7 +92,13 @@ inline Saiga::Quat* at::Tensor::data_ptr<Saiga::Quat>() const
     CHECK_EQ(stride(dim() - 1), 1);
     return (Saiga::Quat*)data_ptr<double>();
 }
-
+template <>
+inline Saiga::Vec4* at::Tensor::data_ptr<Saiga::Vec4>() const
+{
+    CHECK_EQ(size(dim() - 1), 4);
+    CHECK_EQ(stride(dim() - 1), 1);
+    return (Saiga::Vec4*)data_ptr<double>();
+}
 template <>
 inline Saiga::Vec3* at::Tensor::data_ptr<Saiga::Vec3>() const
 {
