@@ -28,7 +28,7 @@ namespace Saiga
 template <typename T, int dim, typename IndexType = int64_t, bool CUDA = true>
 struct StaticDeviceTensor
 {
-    T* data;
+    T* data = nullptr;
     IndexType sizes[dim];
     IndexType strides[dim];
 
