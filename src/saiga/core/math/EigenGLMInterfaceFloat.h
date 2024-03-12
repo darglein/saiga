@@ -40,14 +40,14 @@ constexpr float clamp(float v, float mi, float ma)
     return std::min(ma, std::max(mi, v));
 }
 
-#ifdef IS_CUDA
-// Already defined in CUDA's device_functions.hpp
-#else
-SAIGA_HOST constexpr float saturate(float v)
+//#ifdef IS_CUDA
+//// Already defined in CUDA's device_functions.hpp
+//#else
+HD constexpr float saturate(float v)
 {
     return clamp(v, 0, 1);
 }
-#endif
+//#endif
 
 constexpr float smoothstep(float edge0, float edge1, float x)
 {
