@@ -70,9 +70,10 @@ HD constexpr int iCeil(float value)
     return ((int)value) + (((int)value) < value);
 }
 
-HD constexpr int iRound(float value)
+template <typename T>
+HD constexpr int iRound(T value)
 {
-    return (int)(value + (value >= 0 ? 0.5f : -0.5f));
+    return (int)(value + (value >= 0 ? T(0.5) : T(-0.5f)));
 }
 
 // Like integer division, but also rounds down on negative numbers.
