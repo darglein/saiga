@@ -10,6 +10,9 @@ namespace Saiga
 {
 bool loadImageLibTiff(const std::string& path, Image& img)
 {
+    TIFFSetWarningHandler(nullptr);
+    TIFFSetWarningHandlerExt(nullptr);
+
     TIFF* tif = TIFFOpen(path.c_str(), "r");
 
     if (tif) 
