@@ -7,6 +7,7 @@
 #pragma once
 
 
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/commandLineArguments.h"
 
 #include "ini.h"
@@ -48,6 +49,34 @@ struct ApplicationParamIterator
         if (sep == ' ')
         {
             // app->add_option("--" + name, *variable, comment, true);
+        }
+    }
+
+    template <typename _Scalar, int _Rows, int _Cols>
+    void SaigaParamList(std::string section, Eigen::Matrix<_Scalar, _Rows, _Cols>& variable,
+                        Eigen::Matrix<_Scalar, _Rows, _Cols> default_value, std::string name, char sep,
+                        std::string comment = "")
+    {
+        if (sep == ' ')
+        {
+            auto call_back = [&variable](const std::vector<std::string>& result) -> bool
+            {
+                SAIGA_ASSERT(result.size() == _Rows * _Cols);
+                for(int i = 0; i < _Rows; ++i)
+                {
+                    for(int j = 0; j < _Cols; ++j)
+                    {
+                        variable(i,j) = Saiga::to_double(result[i*_Cols+j]);
+                    }
+                }
+                return true;
+            };
+            auto call_back2 = []() -> std::string { return ""; };
+
+            CLI::Option* options = app->add_option("--" + section + "." + name, call_back, comment, true, call_back2);
+            options->type_size(1);
+            options->expected(_Rows*_Cols);
+
         }
     }
 
@@ -126,9 +155,7 @@ struct ParamsBase
 
 #define SAIGA_PARAM_STRUCT(_Name)                      \
     using ParamStructType = _Name;                     \
-    _Name() : ParamsBase(#_Name)                       \
-    {                                                  \
-    }                                                  \
+    _Name() : ParamsBase(#_Name) {}                    \
     _Name(const std::string file) : ParamsBase(#_Name) \
     {                                                  \
         Load(file);                                    \
