@@ -10,6 +10,14 @@
 #include "hsv.h"
 #include "shaderConfig.h"
 
+
+FUNC_DECL vec3 divergingRedBlue(float alpha)
+{
+    alpha = clamp(alpha, -1, 1);
+
+    return alpha > 0 ? vec3(alpha, alpha, 0) : vec3(0, -alpha, -alpha);
+}
+
 /**
  * This is not really a "color" map.
  * It just converts a float to a vec3.
@@ -17,7 +25,7 @@
 FUNC_DECL vec3 colorizeGray(float alpha)
 {
     alpha = saturate(alpha);
-    return vec3(alpha,alpha, alpha);
+    return vec3(alpha, alpha, alpha);
 }
 
 /**
