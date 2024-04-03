@@ -20,11 +20,11 @@ namespace Saiga
 struct PNGLoadStore
 {
     // temp variables for libpng. Don't modify them!!!
-    png_byte** row_pointers;
-    void* png_ptr;
-    void* info_ptr;
-    FILE* infile;
-    FILE* outfile;
+    png_byte** row_pointers = nullptr;
+    void* png_ptr           = nullptr;
+    void* info_ptr          = nullptr;
+    FILE* infile            = nullptr;
+    FILE* outfile           = nullptr;
     jmp_buf jmpbuf;
 };
 
@@ -238,12 +238,13 @@ bool ImageIOLibPNG::Save2File(const std::string& path, const Image& img, ImageSa
 struct TPngDestructor
 {
     png_struct* p;
+    png_infop info_ptr = nullptr;
     TPngDestructor(png_struct* p) : p(p) {}
     ~TPngDestructor()
     {
         if (p)
         {
-            png_destroy_write_struct(&p, NULL);
+            png_destroy_write_struct(&p, &info_ptr);
         }
     }
 };
@@ -261,6 +262,7 @@ std::vector<unsigned char> ImageIOLibPNG::Save2Memory(const Image& img, ImageSav
 
     TPngDestructor destroyPng(p);
     png_infop info_ptr = png_create_info_struct(p);
+    destroyPng.info_ptr = info_ptr;
     setjmp(png_jmpbuf(p));
 
     int bit_depth  = bitsPerChannel(img.type);
@@ -280,6 +282,8 @@ std::vector<unsigned char> ImageIOLibPNG::Save2Memory(const Image& img, ImageSav
     png_set_rows(p, info_ptr, &rows[0]);
     png_set_write_fn(p, &out_data, PngWriteCallback, NULL);
     png_write_png(p, info_ptr, PNG_TRANSFORM_IDENTITY, NULL);
+
+
     return out_data;
 }
 std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::string& path, ImageLoadFlags flags)
@@ -377,7 +381,7 @@ std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::string& path, ImageL
 
 
     // update the color_type data because it might has changed due to the calls above
-    png_read_update_info( png_ptr, info_ptr );
+    png_read_update_info(png_ptr, info_ptr);
     png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
 
 
