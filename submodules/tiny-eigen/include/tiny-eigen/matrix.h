@@ -440,6 +440,8 @@ template <typename _Scalar, int _Rows, int _Cols, int _Options = ColMajor>
 class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
 {
    public:
+    static constexpr int Rows = _Rows;
+    static constexpr int Cols = _Cols;
     using Scalar              = _Scalar;
     using SameMatrix          = Array<_Scalar, _Rows, _Cols, _Options>;
     static constexpr int Size = _Rows * _Cols;
@@ -547,6 +549,8 @@ template <typename _Scalar, int _Rows, int _Cols, int _Options = ColMajor>
 class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>>
 {
    public:
+    static constexpr int Rows = _Rows;
+    static constexpr int Cols = _Cols;
     using Scalar              = _Scalar;
     using SameMatrix          = MatrixView<_Scalar, _Rows, _Cols, _Options>;
     static constexpr int Size = _Rows * _Cols;
@@ -575,6 +579,8 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
     template <typename OtherType>
     HD SameMatrix& operator=(const MatrixBase<OtherType>& other)
     {
+        static_assert(Rows == OtherType::Rows && Cols == OtherType::Cols,
+                      "Assignment is only allowed with the same dimensions.");
         for (int i = 0; i < rows(); ++i)
         {
             for (int j = 0; j < cols(); ++j)
@@ -608,6 +614,8 @@ template <typename _Scalar, int _Rows, int _Cols, int _Options = ColMajor>
 class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
 {
    public:
+    static constexpr int Rows = _Rows;
+    static constexpr int Cols = _Cols;
     using Scalar              = _Scalar;
     using SameMatrix          = Matrix<_Scalar, _Rows, _Cols, _Options>;
     static constexpr int Size = _Rows * _Cols;
@@ -650,6 +658,8 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     template <typename OtherType>
     HD Matrix(const MatrixBase<OtherType>& other)
     {
+        static_assert(Rows == OtherType::Rows && Cols == OtherType::Cols,
+                      "Assignment is only allowed with the same dimensions.");
         for (int i = 0; i < rows(); ++i)
         {
             for (int j = 0; j < cols(); ++j)
@@ -776,9 +786,9 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     HD const Scalar& z() const { return _data[2]; }
     HD const Scalar& w() const { return _data[3]; }
 
-    HD int rows() const { return _Rows; }
-    HD int cols() const { return _Cols; }
-    HD int size() const { return Size; }
+    constexpr int rows() const { return _Rows; }
+    constexpr int cols() const { return _Cols; }
+    constexpr int size() const { return Size; }
 
     template <typename T>
     HD Matrix<T, _Rows, _Cols, _Options> cast() const
