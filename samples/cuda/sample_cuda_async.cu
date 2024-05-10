@@ -5,25 +5,26 @@
  */
 
 
-#include <thrust/device_vector.h>
+#include "saiga/core/math/math.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/cuda/CudaInfo.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/event.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/stream.h"
-#include "saiga/core/math/math.h"
-#include "saiga/core/util/assert.h"
 
 #include <iostream>
 #include <vector>
+
+#include <thrust/device_vector.h>
 
 using namespace Saiga;
 
 using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
 
-//#define LECTURE
+// #define LECTURE
 
 template <int K>
 class Element
@@ -89,7 +90,7 @@ static void uploadProcessDownloadAsync(int N, int slices, int streamCount)
     Saiga::pinned_vector<T> h_data(N);
     //        thrust::host_vector<T> h_data(N);
     thrust::device_vector<T> d_data(N);
-//    size_t size = N * sizeof(T);
+    //    size_t size = N * sizeof(T);
 
 
 
@@ -107,23 +108,33 @@ static void uploadProcessDownloadAsync(int N, int slices, int streamCount)
 
 
 
-        Saiga::CUDA::ScopedTimerPrint tim("uploadProcessDownloadAsync " + std::to_string(slices));
-
-        for (int i = 0; i < slices; ++i)
+        std::vector<float> times;
+        for (int it = 0; it < 10; ++it)
         {
-            // Pick current stream and slice
-            auto& stream = streams[i % streamCount];
-            auto d_slice = vd.slice_n(i * sliceN, sliceN);
-            auto h_slice = vh.slice_n(i * sliceN, sliceN);
+            float time;
+            {
+                Saiga::CUDA::ScopedTimer tim(time);
+                for (int i = 0; i < slices; ++i)
+                {
+                    // Pick current stream and slice
+                    auto& stream = streams[i % streamCount];
+                    auto d_slice = vd.slice_n(i * sliceN, sliceN);
+                    auto h_slice = vh.slice_n(i * sliceN, sliceN);
 
-            // Compute launch arguments
-            const unsigned int BLOCK_SIZE = 128;
-            const unsigned int BLOCKS     = Saiga::CUDA::getBlockCount(sliceN, BLOCK_SIZE);
+                    // Compute launch arguments
+                    const unsigned int BLOCK_SIZE = 128;
+                    const unsigned int BLOCKS     = Saiga::CUDA::getBlockCount(sliceN, BLOCK_SIZE);
 
-            cudaMemcpyAsync(d_slice.data(), h_slice.data(), slizeSize, cudaMemcpyHostToDevice, stream);
-            process<T><<<BLOCKS, BLOCK_SIZE, 0, stream>>>(d_slice);
-            cudaMemcpyAsync(h_slice.data(), d_slice.data(), slizeSize, cudaMemcpyDeviceToHost, stream);
+                    cudaMemcpyAsync(d_slice.data(), h_slice.data(), slizeSize, cudaMemcpyHostToDevice, stream);
+                    process<T><<<BLOCKS, BLOCK_SIZE, 0, stream>>>(d_slice);
+                    cudaMemcpyAsync(h_slice.data(), d_slice.data(), slizeSize, cudaMemcpyDeviceToHost, stream);
+                }
+            }
+            times.push_back(time);
         }
+        std::sort(times.begin(), times.end());
+        std::cout << "uploadProcessDownloadAsync " << N << " " << slices <<
+            " " << streamCount << " Time: " << times[times.size() / 2] << "ms\n";
     }
 }
 
