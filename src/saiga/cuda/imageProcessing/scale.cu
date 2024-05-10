@@ -138,7 +138,7 @@ void abs(ImageView<float> img)
 
 
 
-#define USE_HARDWARE_INTER
+//#define USE_HARDWARE_INTER
 
 #ifdef USE_HARDWARE_INTER
 static texture<float, cudaTextureType2D, cudaReadModeElementType> floatTex;

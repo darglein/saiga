@@ -76,7 +76,7 @@ __global__ void dot(ArrayView<T> v1, ArrayView<T> v2, T* out)
 
     T sum = dotLocalVector<T, BLOCK_SIZE>(v1, v2);
 
-    sum = blockReduceSum<T, BLOCK_SIZE>(sum, shared);
+    sum = blockReduceSum<T, BLOCK_SIZE>(sum, shared, 0);
     if (threadIdx.x == 0) atomicAdd(out, sum);
 }
 

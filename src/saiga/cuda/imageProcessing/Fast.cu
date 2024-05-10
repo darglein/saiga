@@ -909,7 +909,7 @@ Fast::~Fast() {}
 
 void Fast::Detect(Saiga::ImageView<unsigned char> d_image, cudaStream_t stream)
 {
-    auto h_counter         = (unsigned int*)h_counter_keypoint_location.data();
+    auto h_counter         = (unsigned int*)h_counter_keypoint_location.data().get();
     auto d_counter         = (unsigned int*)counter_keypoint_location.data().get();
     auto keypoint_location = counter_keypoint_location.data().get() + 1;
     {
@@ -924,9 +924,9 @@ void Fast::Detect(Saiga::ImageView<unsigned char> d_image, cudaStream_t stream)
 
 
 
-        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_counter_keypoint_location.data(), counter_keypoint_location.data().get(),
+        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_counter_keypoint_location.data().get(), counter_keypoint_location.data().get(),
                                          sizeof(short2) * (actual_max_keypoints + 1), cudaMemcpyDeviceToHost, stream));
-        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_keypoint_score.data(), keypoint_score.data().get(),
+        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_keypoint_score.data().get(), keypoint_score.data().get(),
                                          sizeof(float) * actual_max_keypoints, cudaMemcpyDeviceToHost, stream));
         detection_finished.record(stream);
     }
@@ -935,7 +935,7 @@ void Fast::Detect(Saiga::ImageView<unsigned char> d_image, cudaStream_t stream)
 int Fast::Download(Saiga::ArrayView<Saiga::KeyPoint<float>> keypoints, cudaStream_t stream)
 {
     detection_finished.synchronize();
-    auto h_counter         = (unsigned int*)h_counter_keypoint_location.data();
+    auto h_counter         = (unsigned int*)h_counter_keypoint_location.data().get();
     auto keypoint_location = counter_keypoint_location.data().get() + 1;
     auto count             = h_counter[0];
 
@@ -943,10 +943,10 @@ int Fast::Download(Saiga::ArrayView<Saiga::KeyPoint<float>> keypoints, cudaStrea
     if (count > actual_max_keypoints)
     {
         auto remaining_points = count - actual_max_keypoints;
-        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_counter_keypoint_location.data() + actual_max_keypoints + 1,
+        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_counter_keypoint_location.data().get() + actual_max_keypoints + 1,
                                          keypoint_location + actual_max_keypoints, sizeof(short2) * remaining_points,
                                          cudaMemcpyDeviceToHost, stream));
-        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_keypoint_score.data() + actual_max_keypoints,
+        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_keypoint_score.data().get() + actual_max_keypoints,
                                          keypoint_score.data().get() + actual_max_keypoints,
                                          sizeof(float) * remaining_points, cudaMemcpyDeviceToHost, stream));
         actual_max_keypoints = count * 1.05;

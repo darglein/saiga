@@ -185,7 +185,7 @@ __global__ void IC_Angle_kernel(cudaTextureObject_t tex, Saiga::ImageView<unsign
         m_10 += u * tex2D<unsigned char>(tex, loc.x + u, loc.y);
     }
 
-    m_10 = Saiga::CUDA::warpReduceSum<int, 32, false>(m_10);
+    m_10 = Saiga::CUDA::warpReduceSum<int, 32>(m_10);
 
     for (int v = 1; v <= HALF_PATCH_SIZE; ++v)
     {
@@ -206,8 +206,8 @@ __global__ void IC_Angle_kernel(cudaTextureObject_t tex, Saiga::ImageView<unsign
             m_sum += u * (val_plus + val_minus);
         }
 
-        m_sum = Saiga::CUDA::warpReduceSum<int, 32, false>(m_sum);
-        v_sum = Saiga::CUDA::warpReduceSum<int, 32, false>(v_sum);
+        m_sum = Saiga::CUDA::warpReduceSum<int, 32>(m_sum);
+        v_sum = Saiga::CUDA::warpReduceSum<int, 32>(v_sum);
 
         m_10 += m_sum;
         m_01 += v * v_sum;

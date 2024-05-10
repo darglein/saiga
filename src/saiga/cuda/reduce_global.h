@@ -62,7 +62,7 @@ __global__ void reduceBlockShared(ArrayView<T> in, T* out)
     __shared__ T shared[BLOCK_SIZE / SAIGA_WARP_SIZE];
 
     T sum = reduceLocalVector<T, BLOCK_SIZE>(in);
-    sum   = blockReduceSum<T, BLOCK_SIZE>(sum, shared);
+    sum   = blockReduceSum<T, BLOCK_SIZE>(sum, shared, 0);
     if (threadIdx.x == 0) atomicAdd(out, sum);
 }
 

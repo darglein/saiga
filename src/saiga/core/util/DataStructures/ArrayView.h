@@ -73,11 +73,6 @@ struct SAIGA_TEMPLATE ArrayView
     {
     }
 
-
-#ifdef SAIGA_ARRAY_VIEW_THRUST
-    ArrayView(thrust::device_vector<T>& vector) : data_(vector.data().get()), n(vector.size()) {}
-    ArrayView(const thrust::device_vector<T>& vector) : data_(vector.data().get()), n(vector.size()) {}
-#else
     // For thrust device vectors which use .data().get() to get the raw pointer.
     template <typename Cont,
               typename std::enable_if<std::is_convertible<decltype(std::declval<Cont>().data().get()), T*>::value &&
@@ -87,6 +82,20 @@ struct SAIGA_TEMPLATE ArrayView
     ArrayView(Cont& dv) : data_(dv.data().get()), n(dv.size())
     {
     }
+
+#ifdef SAIGA_ARRAY_VIEW_THRUST
+    ArrayView(thrust::device_vector<T>& vector) : data_(vector.data().get()), n(vector.size()) {}
+    ArrayView(const thrust::device_vector<T>& vector) : data_(vector.data().get()), n(vector.size()) {}
+#else
+    // For thrust device vectors which use .data().get() to get the raw pointer.
+//    template <typename Cont,
+//              typename std::enable_if<std::is_convertible<decltype(std::declval<Cont>().data().get()), T*>::value &&
+//                                          std::is_convertible<decltype(std::declval<Cont>().size()), size_t>::value &&
+//                                          !std::is_same<Cont, ArrayView<T>>::value,
+//                                      int>::type = 0>
+//    ArrayView(Cont& dv) : data_(dv.data().get()), n(dv.size())
+//    {
+//    }
 #endif
 
     HD reference operator[](size_t id) const SAIGA_NOEXCEPT { return data_[id]; }
