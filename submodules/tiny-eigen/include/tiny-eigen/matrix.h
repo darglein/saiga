@@ -564,7 +564,7 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
 
 
     // assignment of two views should copy the data from to the other
-    SameMatrix& operator=(const SameMatrix& other)
+    HD SameMatrix& operator=(const SameMatrix& other)
     {
         for (int i = 0; i < rows(); ++i)
         {
