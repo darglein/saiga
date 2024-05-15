@@ -145,6 +145,7 @@ struct TablePrintParamIterator
 struct ParamsBase
 {
     ParamsBase(const std::string name) : name_(name) {}
+    virtual ~ParamsBase() {}
     std::string name_;
 
     // virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) = 0;
