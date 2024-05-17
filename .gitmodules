@@ -21,10 +21,10 @@
 	url = ../../google/glog.git
 [submodule "submodules/libzip"]
 	path = submodules/libzip
-	url = git@github.com:pkurth/libzip.git
+	url = ../../pkurth/libzip.git
 [submodule "submodules/TinyTIFF"]
 	path = submodules/TinyTIFF
-	url = https://github.com/jkriege2/TinyTIFF.git
+	url = ../../jkriege2/TinyTIFF.git
 [submodule "submodules/libtiff"]
 	path = submodules/libtiff
 	url = https://gitlab.com/libtiff/libtiff.git
