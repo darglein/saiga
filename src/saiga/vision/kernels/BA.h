@@ -22,8 +22,8 @@ namespace Saiga
 //
 template <typename T = double>
 HD inline Vector<T, 3> RotatePoint(const Eigen::Quaternion<T>& rotation, const Vector<T, 3>& point,
-                                   Matrix<T, 3, 3>* jacobian_rotation  = nullptr,
-                                   Matrix<T, 3, 3>* jacobian_point = nullptr)
+                                   Matrix<T, 3, 3>* jacobian_rotation = nullptr,
+                                   Matrix<T, 3, 3>* jacobian_point    = nullptr)
 {
     const Vector<T, 3> rotated_point = rotation * point;
 
@@ -40,14 +40,15 @@ HD inline Vector<T, 3> RotatePoint(const Eigen::Quaternion<T>& rotation, const V
     return rotated_point;
 }
 
+
 // Similar as above but the update is multiplied from the right!
 //
 //      auto new_rotation = old_rotation * delta;
 //
 template <typename T = double>
 HD inline Vector<T, 3> RotatePointRightStep(const Eigen::Quaternion<T>& rotation, const Vector<T, 3>& point,
-                                        Matrix<T, 3, 3>* jacobian_rotation = nullptr,
-                                        Matrix<T, 3, 3>* jacobian_point    = nullptr)
+                                            Matrix<T, 3, 3>* jacobian_rotation = nullptr,
+                                            Matrix<T, 3, 3>* jacobian_point    = nullptr)
 {
     const Vector<T, 3> rotated_point = rotation * point;
 
@@ -55,7 +56,7 @@ HD inline Vector<T, 3> RotatePointRightStep(const Eigen::Quaternion<T>& rotation
     {
         Matrix<T, 3, 3> gr = -skew(rotated_point);
         *jacobian_rotation = gr * rotation.matrix();
-#    if 0
+#if 0
 Matrix<T, 3, 3> gr_right;
         for (int i = 0; i < 3; ++i)
         {
@@ -65,7 +66,7 @@ Matrix<T, 3, 3> gr_right;
             Matrix<T, 3, 1> row_right = Sophus::SO3<double>(quat_right).log();
             gr_right.row(i) = row_right.transpose();
         }
-#    endif
+#endif
     }
 
     if (jacobian_point)
@@ -75,6 +76,59 @@ Matrix<T, 3, 3> gr_right;
 
     return rotated_point;
 }
+
+
+template <typename T = double>
+HD inline const Eigen::Quaternion<T> RotationInverse(const Eigen::Quaternion<T>& rotation,
+                                                     Matrix<T, 3, 3>* jacobian_rotation = nullptr)
+{
+    Eigen::Quaternion<T> result = rotation.inverse();
+//    result = rotation;
+
+    if (jacobian_rotation)
+    {
+        *jacobian_rotation = -rotation.inverse().matrix();
+    }
+
+
+    return result;
+}
+
+template <typename T = double>
+HD inline Matrix<T, 2, 1> NormalizedPointToImage(const Matrix<T, 2, 1>& p, const Matrix<T, 5, 1>& K,
+                                                 Matrix<T, 2, 2>* J_point = nullptr, Matrix<T, 2, 5>* J_K = nullptr)
+{
+    Vector<T, 2> ip;
+    ip(0) = K(0) * p(0) + K(2) + K(4) * p(1);
+    ip(1) = K(1) * p(1) + K(3);
+
+    if (J_point)
+    {
+        (*J_point)(0, 0) = K(0);
+        (*J_point)(0, 1) = K(4);
+        (*J_point)(1, 0) = 0;
+        (*J_point)(1, 1) = K(1);
+    }
+
+    if (J_K)
+    {
+        (*J_K)(0, 0) = p(0);
+        (*J_K)(0, 1) = 0;
+        (*J_K)(0, 2) = 1;
+        (*J_K)(0, 3) = 0;
+        (*J_K)(0, 4) = p(1);
+
+        (*J_K)(1, 0) = 0;
+        (*J_K)(1, 1) = p(1);
+        (*J_K)(1, 2) = 0;
+        (*J_K)(1, 3) = 1;
+        (*J_K)(1, 4) = 0;
+    }
+
+    return ip;
+}
+
+
 
 template <typename T = double>
 HD inline Vector<T, 3> TransformPoint(const Sophus::SE3<T>& pose, const Vector<T, 3>& point,
