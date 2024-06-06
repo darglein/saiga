@@ -80,6 +80,19 @@ struct ApplicationParamIterator
         }
     }
 
+    template <typename _Scalar>
+    void SaigaParamList(std::string section, Eigen::Quaternion<_Scalar>& variable,
+        Eigen::Quaternion<_Scalar> default_value, std::string name, char sep,
+        std::string comment = "")
+    {
+        Eigen::Matrix<_Scalar, 4, 1> coeffs = variable.coeffs();
+        Eigen::Matrix<_Scalar, 4, 1> default_coeffs = default_value.coeffs();
+
+        SaigaParamList(section, coeffs, default_coeffs, name, sep, comment);
+
+        variable = Eigen::Quaternion<_Scalar>(coeffs);
+    }
+
     template <typename T>
     void SaigaParamList(std::string section, std::vector<T>& variable, std::vector<T> default_value, std::string name,
                         char sep, std::string comment = "")

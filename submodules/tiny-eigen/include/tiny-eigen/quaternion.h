@@ -103,7 +103,7 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
 
 
     template <typename G>
-    HD Quaternion<G> cast()
+    HD Quaternion<G> cast() const
     {
         return Quaternion<G>(w(), x(), y(), z());
     }
