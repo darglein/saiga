@@ -134,12 +134,9 @@ struct StaticDeviceTensor
         int64_t index = 0;
         for (int i = 0; i < dim; ++i)
         {
-#if  defined(CUDA_DEBUG) && defined(TT_DEVICE_CODE)
+#if defined(CUDA_DEBUG) && defined(__CUDACC__)
             CUDA_KERNEL_ASSERT(indices[i] >= 0);
             CUDA_KERNEL_ASSERT(indices[i] < sizes[i]);
-#elif TT_DEBUG
-            CHECK(indices[i] >= 0);
-            CHECK(indices[i] < sizes[i]);
 #endif
             index += (int64_t)strides[i] * (int64_t)indices[i];
         }
@@ -158,9 +155,7 @@ struct StaticDeviceTensor
         return ImageDimensions(sizes[dim - 2], sizes[dim - 1]);
     }
 
-    HD inline bool defined(){
-        return data != nullptr;
-    }
+    HD inline bool defined() { return data != nullptr; }
 
     void Print()
     {
