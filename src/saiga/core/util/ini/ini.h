@@ -188,6 +188,17 @@ inline Eigen::Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Eige
     return variable;
 }
 
+template <typename T>
+inline Eigen::Quaternion<T> ReadWriteIniList(Saiga::SimpleIni& ini, Eigen::Quaternion<T> variable,
+    std::string section, std::string variable_name,
+    std::string comment, char sep)
+{
+    Eigen::Matrix<T, 4, 1> coeffs = variable.coeffs();
+    coeffs = ReadWriteIniList(ini, coeffs, section, variable_name, comment, sep);
+    variable = Eigen::Quaternion<T>(coeffs);
+    return variable;
+}
+
 }  // namespace Saiga
 
 /**
