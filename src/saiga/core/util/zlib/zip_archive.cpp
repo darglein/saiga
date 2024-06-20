@@ -137,7 +137,7 @@ bool ZipArchiveFile::read(void* out_data, ProgressBarManager* progress_bar) cons
     }
 
 
-    int read_block_size = 10000;
+    int read_block_size = 1000;
 
     size_t num_blocks = (uncompressed_size + read_block_size - 1) / read_block_size;
     auto bar          = SAIGA_OPTIONAL_PROGRESS_BAR(progress_bar, "Unzip", num_blocks);
