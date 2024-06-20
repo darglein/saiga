@@ -60,6 +60,13 @@ target_link_libraries(zlib INTERFACE zlibstatic)
 message("=================================")
 
 
+message("=================================")
+message("Adding Submodule zstd")
+set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
+set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
+set(BUILD_SHARED_LIBS OFF)
+add_subdirectory(zstd/build/cmake/)
+
 if (SAIGA_BUILD_GLFW)
     message("=================================")
     message("Adding Submodule glfw")

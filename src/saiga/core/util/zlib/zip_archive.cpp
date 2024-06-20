@@ -19,6 +19,7 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
     {
         std::cout << "ZIP: Failed to open or create archive.\n";
     }
+
 }
 
 ZipArchive::ZipArchive(ZipArchive&& o) 
@@ -106,6 +107,11 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, siz
     }
 
     auto index = (int)zip_file_add(archive, filename.string().c_str(), source, ZIP_FL_OVERWRITE);
+
+    // ZIP_CM_STORE uncompressed
+    // ZIP_CM_DEFAULT
+    // ZIP_CM_ZSTD
+     zip_set_file_compression(archive,index, ZIP_CM_ZSTD, 0);
     if (index < 0)
     {
         std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';
