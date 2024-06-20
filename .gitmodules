@@ -28,3 +28,6 @@
 [submodule "submodules/libtiff"]
 	path = submodules/libtiff
 	url = https://gitlab.com/libtiff/libtiff.git
+[submodule "submodules/zstd"]
+	path = submodules/zstd
+	url = ../../facebook/zstd.git
