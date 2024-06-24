@@ -2,9 +2,9 @@
 
 #if defined(SAIGA_USE_LIBZIP)
 
-#include <zip.h>
-#include <iostream>
-#include <utility>
+#    include <iostream>
+#    include <utility>
+#    include <zip.h>
 
 namespace Saiga
 {
@@ -19,18 +19,16 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
     {
         std::cout << "ZIP: Failed to open or create archive.\n";
     }
-
 }
 
-ZipArchive::ZipArchive(ZipArchive&& o) 
-    : archive(std::exchange(o.archive, nullptr)) {}
+ZipArchive::ZipArchive(ZipArchive&& o) : archive(std::exchange(o.archive, nullptr)) {}
 
 ZipArchive::~ZipArchive()
 {
     close();
 }
 
-void ZipArchive::close() 
+void ZipArchive::close()
 {
     if (archive)
     {
@@ -92,7 +90,7 @@ std::pair<bool, ZipArchiveFile> ZipArchive::find_file(const std::filesystem::pat
     return {false, {}};
 }
 
-bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, size_t size)
+bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, size_t size, int zip_flags)
 {
     if (!archive)
     {
@@ -111,7 +109,15 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, siz
     // ZIP_CM_STORE uncompressed
     // ZIP_CM_DEFAULT
     // ZIP_CM_ZSTD
-     zip_set_file_compression(archive,index, ZIP_CM_ZSTD, 0);
+    if (zip_flags == 0)
+    {
+        zip_set_file_compression(archive, index, ZIP_CM_ZSTD, 0);
+    }
+    else
+    {
+        zip_set_file_compression(archive, index, ZIP_CM_DEFAULT, 0);
+    }
+
     if (index < 0)
     {
         std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';

@@ -46,7 +46,10 @@ struct SAIGA_CORE_API ZipArchive
     std::vector<ZipArchiveFile> get_files() const;
     std::pair<bool, ZipArchiveFile> find_file(const std::filesystem::path& name) const;
 
-    bool add_file(const std::filesystem::path& filename, void* data, size_t size);
+    // flags:
+    // 0 default zstd
+    // 1 old libz
+    bool add_file(const std::filesystem::path& filename, void* data, size_t size, int zip_flags);
 
 private:
     zip* archive = nullptr;
