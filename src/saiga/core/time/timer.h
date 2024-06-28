@@ -24,9 +24,23 @@ class SAIGA_CORE_API TimestampTimer
 {
    public:
     virtual ~TimestampTimer() {}
-    virtual void Start() = 0;
-    virtual void Stop() = 0;
-    virtual std::pair<uint64_t, uint64_t> LastMeasurement()  = 0;
+    virtual void Start()                                    = 0;
+    virtual void Stop()                                     = 0;
+    virtual std::pair<uint64_t, uint64_t> LastMeasurement() = 0;
+};
+
+class SAIGA_CORE_API CPUTimestampTimer : public TimestampTimer
+{
+   public:
+    virtual ~CPUTimestampTimer() {}
+    virtual void Start() { start = std::chrono::high_resolution_clock::now(); }
+    virtual void Stop() { stop = std::chrono::high_resolution_clock::now(); }
+    virtual std::pair<uint64_t, uint64_t> LastMeasurement()
+    {
+        return {start.time_since_epoch().count(), stop.time_since_epoch().count()};
+    }
+
+    std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
 };
 
 /**

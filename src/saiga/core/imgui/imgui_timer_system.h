@@ -67,6 +67,7 @@ class SAIGA_CORE_API TimerSystem
         float stat_median = 0;
         float stat_mean   = 0;
         float stat_sdev   = 0;
+
        private:
         friend class TimerSystem;
         void ResizeSamples(int num_samples);
@@ -87,7 +88,6 @@ class SAIGA_CORE_API TimerSystem
         // stats
         int depth = -1;
         std::string name, full_name;
-
     };
 
     struct ScopedTimingSection
@@ -124,6 +124,7 @@ class SAIGA_CORE_API TimerSystem
 
     void Enable(bool v = true) { render_window = v; }
     TimeData* FrameTimer() { return frame_timer; }
+
    protected:
     // Called by the sub classes. This abstracts the various timer implementations from the measurements
     void Imgui(const std::string& name, ArrayView<TimeData*> timers, TimeData* total_time);
@@ -166,7 +167,7 @@ class SAIGA_CORE_API TimerSystem
     // time differences.
     virtual void BeginFrameImpl() {}
     virtual void EndFrameImpl() {}
-    virtual std::unique_ptr<TimestampTimer> CreateTimer() = 0;
+    virtual std::unique_ptr<TimestampTimer> CreateTimer() { return std::make_unique<CPUTimestampTimer>(); }
 };
 
 
