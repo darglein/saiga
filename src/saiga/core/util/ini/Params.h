@@ -62,11 +62,11 @@ struct ApplicationParamIterator
             auto call_back = [&variable](const std::vector<std::string>& result) -> bool
             {
                 SAIGA_ASSERT(result.size() == _Rows * _Cols);
-                for(int i = 0; i < _Rows; ++i)
+                for (int i = 0; i < _Rows; ++i)
                 {
-                    for(int j = 0; j < _Cols; ++j)
+                    for (int j = 0; j < _Cols; ++j)
                     {
-                        variable(i,j) = Saiga::to_double(result[i*_Cols+j]);
+                        variable(i, j) = Saiga::to_double(result[i * _Cols + j]);
                     }
                 }
                 return true;
@@ -75,17 +75,15 @@ struct ApplicationParamIterator
 
             CLI::Option* options = app->add_option("--" + section + "." + name, call_back, comment, true, call_back2);
             options->type_size(1);
-            options->expected(_Rows*_Cols);
-
+            options->expected(_Rows * _Cols);
         }
     }
 
     template <typename _Scalar>
     void SaigaParamList(std::string section, Eigen::Quaternion<_Scalar>& variable,
-        Eigen::Quaternion<_Scalar> default_value, std::string name, char sep,
-        std::string comment = "")
+                        Eigen::Quaternion<_Scalar> default_value, std::string name, char sep, std::string comment = "")
     {
-        Eigen::Matrix<_Scalar, 4, 1> coeffs = variable.coeffs();
+        Eigen::Matrix<_Scalar, 4, 1> coeffs         = variable.coeffs();
         Eigen::Matrix<_Scalar, 4, 1> default_coeffs = default_value.coeffs();
 
         SaigaParamList(section, coeffs, default_coeffs, name, sep, comment);
@@ -121,8 +119,7 @@ struct TablePrintParamIterator
     void SaigaParamList(std::string section, T& variable, T default_value, std::string name, char sep,
                         std::string comment = "")
     {
-        strm << std::left << std::setw(column_width) << name << std::right << "(skipped)"
-             << "\n";
+        strm << std::left << std::setw(column_width) << name << std::right << "(skipped)" << "\n";
     }
 };
 
@@ -167,12 +164,12 @@ struct ParamsBase
     // virtual void Params(ParamIterator* ini) = 0;
 };
 
-#define SAIGA_PARAM_STRUCT(_Name)                      \
-    using ParamStructType = _Name;                     \
-    _Name() : ParamsBase(#_Name) {}                    \
-    _Name(const std::string file) : ParamsBase(#_Name) \
-    {                                                  \
-        Load(file);                                    \
+#define SAIGA_PARAM_STRUCT(_Name)                                \
+    using ParamStructType = _Name;                               \
+    _Name() : ParamsBase(#_Name) {}                              \
+    explicit _Name(const std::string& file) : ParamsBase(#_Name) \
+    {                                                            \
+        Load(file);                                              \
     }
 
 #define SAIGA_PARAM_STRUCT_FUNCTIONS                              \
@@ -184,7 +181,7 @@ struct ParamsBase
     }                                                             \
                                                                   \
                                                                   \
-    virtual void Load(std::string file)                           \
+    virtual void Load(const std::string& file)                    \
     {                                                             \
         Saiga::SimpleIni ini_;                                    \
         ini_.LoadFile(file.c_str());                              \
@@ -195,7 +192,7 @@ struct ParamsBase
     }                                                             \
                                                                   \
                                                                   \
-    virtual void Save(std::string file)                           \
+    virtual void Save(const std::string& file)                    \
     {                                                             \
         Saiga::SimpleIni ini_;                                    \
         ini_.LoadFile(file.c_str());                              \
