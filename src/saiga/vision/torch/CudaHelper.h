@@ -116,29 +116,29 @@ struct StaticDeviceTensor
         return count;
     }
 
-    HD inline int64_t Offset(std::array<IndexType, dim> indices)
+    HD inline IndexType Offset(std::array<IndexType, dim> indices)
     {
         CUDA_KERNEL_ASSERT(data);
         // The array offset is always 64 bit and does not depend on the index type
-        int64_t index = 0;
+        IndexType index = 0;
         for (int i = 0; i < dim; ++i)
         {
             CUDA_KERNEL_ASSERT(indices[i] >= 0 && indices[i] < sizes[i]);
-            index += (int64_t)strides[i] * (int64_t)indices[i];
+            index += strides[i] * indices[i];
         }
         return index;
     }
 
     HD inline T& Get(std::array<IndexType, dim> indices)
     {
-        int64_t index = 0;
+        IndexType index = 0;
         for (int i = 0; i < dim; ++i)
         {
 #if defined(CUDA_DEBUG) && defined(__CUDACC__)
             CUDA_KERNEL_ASSERT(indices[i] >= 0);
             CUDA_KERNEL_ASSERT(indices[i] < sizes[i]);
 #endif
-            index += (int64_t)strides[i] * (int64_t)indices[i];
+            index += strides[i] * indices[i];
         }
         return data[index];
     }
