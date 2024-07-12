@@ -43,7 +43,7 @@ namespace Saiga
 class SAIGA_CORE_API ThreadPool
 {
    public:
-    ThreadPool(size_t threads, const std::string& name = "ThreadPool");
+    explicit ThreadPool(size_t threads, const std::string& name = "ThreadPool");
     ~ThreadPool();
 
     template <class F, class... Args>
@@ -56,7 +56,12 @@ class SAIGA_CORE_API ThreadPool
         std::unique_lock<std::mutex> lock(queue_mutex);
         return tasks.size();
     }
-    size_t getWorkingThreads() { return workingThreads; }
+
+    size_t getWorkingThreads()
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        return workingThreads;
+    }
 
    private:
     // number of currently working threads
@@ -65,7 +70,7 @@ class SAIGA_CORE_API ThreadPool
     // need to keep track of threads so we can join them
     std::vector<std::thread> workers;
     // the task queue
-    std::queue<std::function<void()> > tasks;
+    std::queue<std::function<void()>> tasks;
 
     // synchronization
     std::mutex queue_mutex;
@@ -79,8 +84,8 @@ auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename std::inv
     using return_type = typename std::invoke_result_t<F, Args...>;
 
 
-    auto task = std::make_shared<std::packaged_task<return_type()> >(
-        std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+    auto task =
+        std::make_shared<std::packaged_task<return_type()>>(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
     std::future<return_type> res = task->get_future();
 
 
