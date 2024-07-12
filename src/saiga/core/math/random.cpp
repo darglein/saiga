@@ -12,6 +12,7 @@
 #include <chrono>
 #include <numeric>
 #include <random>
+#include <thread>
 
 namespace Saiga
 {
@@ -19,7 +20,8 @@ namespace Random
 {
 std::mt19937& generator()
 {
-    static thread_local std::mt19937 gen(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+    static thread_local std::mt19937 gen(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) *
+                                         (std::hash<std::thread::id>{}(std::this_thread::get_id()) + 1));
     return gen;
 }
 
