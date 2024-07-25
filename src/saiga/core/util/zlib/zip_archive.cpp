@@ -14,7 +14,7 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
     int flag = mode == ZipMode::Read ? ZIP_RDONLY : (ZIP_CREATE | ZIP_TRUNCATE);
 
     int error = 0;
-    archive   = zip_open(path.string().c_str(), flag, &error);
+    archive   = zip_open(path.u8string().c_str(), flag, &error);
     if (!archive)
     {
         std::cout << "ZIP: Failed to open or create archive.\n";
