@@ -104,7 +104,7 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, siz
         return false;
     }
 
-    auto index = (int)zip_file_add(archive, filename.string().c_str(), source, ZIP_FL_OVERWRITE);
+    auto index = (int)zip_file_add(archive, filename.u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
 
     // ZIP_CM_STORE uncompressed
     // ZIP_CM_DEFAULT
