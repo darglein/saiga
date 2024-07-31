@@ -32,7 +32,15 @@ class CudaEvent
 
 
     CudaEvent() { create(); }
+
+    // The copy constructors just create a new event
+    // This is not very intuitive, but makes using std::vector and other things a lot easier
     CudaEvent(const CudaEvent& other) { create(); }
+    CudaEvent& operator=(const CudaEvent&)
+    {
+        create();
+        return *this;
+    }
     ~CudaEvent() { destroy(); }
 
     void destroy()
