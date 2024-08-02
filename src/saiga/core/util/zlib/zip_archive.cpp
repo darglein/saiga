@@ -11,6 +11,7 @@ namespace Saiga
 
 ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
 {
+    std::filesystem::remove(path);
     int flag = mode == ZipMode::Read ? ZIP_RDONLY : (ZIP_CREATE | ZIP_TRUNCATE);
 
     int error = 0;
