@@ -44,7 +44,8 @@ int ZipArchive::file_count() const
     {
         return 0;
     }
-    return zip_get_num_files(archive);
+    // return zip_get_num_files(archive);
+    return zip_get_num_entries(archive, 0);
 }
 
 static ZipArchiveFile file_from_stat(zip_stat_t stat, zip* archive)
@@ -63,7 +64,8 @@ std::vector<ZipArchiveFile> ZipArchive::get_files() const
 
     if (archive)
     {
-        int numFiles = zip_get_num_files(archive);
+        // int numFiles = zip_get_num_files(archive);
+        int numFiles = zip_get_num_entries(archive, 0);
         for (int i = 0; i < numFiles; ++i)
         {
             zip_stat_t stat;
