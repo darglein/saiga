@@ -11,7 +11,10 @@ namespace Saiga
 
 ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
 {
-    std::filesystem::remove(path);
+    if(mode == ZipMode::Write)
+    {
+        std::filesystem::remove(path);
+    }
     int flag = mode == ZipMode::Read ? ZIP_RDONLY : (ZIP_CREATE | ZIP_TRUNCATE);
 
     int error = 0;
@@ -99,8 +102,11 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, siz
     {
         return false;
     }
-
+    // zip_source_commit_write()
     zip_source* source = zip_source_buffer(archive, data, size, 0);
+
+
+    // zip_source_buffer_create()
     if (!source)
     {
         std::cout << "ZIP: Failed to create source buffer.\n" << zip_strerror(archive);
