@@ -2932,6 +2932,7 @@ class Number : public Validator
 
 }  // namespace detail
 
+#if 0
 // Static is not needed here, because global const implies static.
 
 /// Check for existing file (returns error message if check fails)
@@ -2957,6 +2958,7 @@ const detail::NonNegativeNumber NonNegativeNumber;
 
 /// Check for a number
 const detail::Number Number;
+#endif
 
 /// Produce a range (factory). Min and max are inclusive.
 class Range : public Validator
