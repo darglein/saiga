@@ -19,6 +19,13 @@ enum class ZipMode
     Write,
 };
 
+enum class ZipCompressionMethod
+{
+    UNCOMPRESSED,
+    ZSTD,
+    ZLIB,
+};
+
 struct SAIGA_CORE_API ZipArchiveFile
 {
     std::filesystem::path filename;
@@ -33,10 +40,7 @@ struct SAIGA_CORE_API ZipIncrementalWrite
 {
     ZipIncrementalWrite() = default;
     ZipIncrementalWrite(zip* archive, zip_source* source) : archive(archive), source(source) {}
-    ZipIncrementalWrite(ZipIncrementalWrite&& o) noexcept
-        : archive(std::exchange(o.archive, nullptr)), source(std::exchange(o.source, nullptr))
-    {
-    }
+    ZipIncrementalWrite(ZipIncrementalWrite&& o) noexcept;
     ~ZipIncrementalWrite();
 
     bool write(void* data, size_t size);
@@ -73,13 +77,13 @@ struct SAIGA_CORE_API ZipArchive
     // flags:
     // 0 default zstd
     // 1 old libz
-    bool add_file(const std::filesystem::path& filename, void* data, size_t size, int zip_flags);
-    bool add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source, int zip_flags);
+    bool add_file(const std::filesystem::path& filename, void* data, size_t size, ZipCompressionMethod method);
+    bool add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source, ZipCompressionMethod method);
 
-    ZipIncrementalWrite begin_incremental_write(const std::filesystem::path& filename, int zip_flags);
+    ZipIncrementalWrite begin_incremental_write(const std::filesystem::path& filename, ZipCompressionMethod method);
 private:
 
-    int64_t add_file_internal(const std::filesystem::path& filename, zip_source* source, int zip_flags);
+    int64_t add_file_internal(const std::filesystem::path& filename, zip_source* source, ZipCompressionMethod method);
 
     zip* archive = nullptr;
 };

@@ -96,7 +96,7 @@ std::pair<bool, ZipArchiveFile> ZipArchive::find_file(const std::filesystem::pat
     return {false, {}};
 }
 
-bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, size_t size, int zip_flags)
+bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, size_t size, ZipCompressionMethod method)
 {
     if (!archive)
     {
@@ -110,7 +110,7 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, siz
         return false;
     }
 
-    auto index = add_file_internal(filename, source, zip_flags);
+    auto index = add_file_internal(filename, source, method);
     if (index < 0)
     {
         std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';
@@ -121,7 +121,7 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, siz
     return true;
 }
 
-ZipIncrementalWrite ZipArchive::begin_incremental_write(const std::filesystem::path& filename, int zip_flags)
+ZipIncrementalWrite ZipArchive::begin_incremental_write(const std::filesystem::path& filename, ZipCompressionMethod method)
 {
     if (!archive)
     {
@@ -135,7 +135,7 @@ ZipIncrementalWrite ZipArchive::begin_incremental_write(const std::filesystem::p
         return {};
     }
 
-    auto index = add_file_internal(filename, source, zip_flags);
+    auto index = add_file_internal(filename, source, method);
     if (index < 0)
     {
         std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';
@@ -163,6 +163,11 @@ bool ZipIncrementalWrite::write(void* data, size_t size)
     }
 
     return true;
+}
+
+ZipIncrementalWrite::ZipIncrementalWrite(ZipIncrementalWrite&& o) noexcept
+    : archive(std::exchange(o.archive, nullptr)), source(std::exchange(o.source, nullptr))
+{
 }
 
 ZipIncrementalWrite::~ZipIncrementalWrite()
@@ -213,7 +218,7 @@ static zip_int64_t source_callback(void* userdata, void* data, zip_uint64_t len,
 }
 
 
-bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source, int zip_flags)
+bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source, ZipCompressionMethod method)
 {
     if (!archive)
     {
@@ -227,7 +232,7 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource
         return 1;
     }
 
-    auto index = add_file_internal(filename, source, zip_flags);
+    auto index = add_file_internal(filename, source, method);
     if (index < 0)
     {
         std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';
@@ -238,21 +243,25 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource
     return true;
 }
 
-int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip_source* source, int zip_flags)
+int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip_source* source, ZipCompressionMethod method)
 {
     auto index = (int)zip_file_add(archive, filename.u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
 
-    // ZIP_CM_STORE uncompressed
-    // ZIP_CM_DEFAULT
-    // ZIP_CM_ZSTD
-    if (zip_flags == 0)
+    auto libzip_method = ZIP_CM_ZSTD;
+    switch (method)
     {
-        zip_set_file_compression(archive, index, ZIP_CM_ZSTD, 0);
+        case ZipCompressionMethod::UNCOMPRESSED:
+            libzip_method = ZIP_CM_STORE;
+            break;
+        case ZipCompressionMethod::ZSTD:
+            libzip_method = ZIP_CM_ZSTD;
+            break;
+        case ZipCompressionMethod::ZLIB:
+            libzip_method = ZIP_CM_DEFAULT;
+            break;
     }
-    else
-    {
-        zip_set_file_compression(archive, index, ZIP_CM_DEFAULT, 0);
-    }
+
+    zip_set_file_compression(archive, index, libzip_method, 0);
 
     return index;
 }
