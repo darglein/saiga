@@ -39,10 +39,21 @@ __device__ inline T warpReduceSum(T val)
 template <typename T, typename OP, unsigned int LOCAL_WARP_SIZE = 32>
 __device__ inline T warpReduce(T val, OP op)
 {
+    unsigned int mask = 0xFFFFFFFF;
+    if (LOCAL_WARP_SIZE < 32)
+    {
+        unsigned int lane_id  = threadIdx.x & 31U;
+        unsigned int sub_warp = lane_id / LOCAL_WARP_SIZE;
+        unsigned int low_mask = (0xFFFFFFFFU) >> (32U - LOCAL_WARP_SIZE);
+        mask                  = low_mask << (sub_warp * LOCAL_WARP_SIZE);
+        // printf("%#010x %#010x %#010x\n", lane_id , sub_warp, mask);
+    }
+//    return val;
+
 #pragma unroll
     for (int offset = LOCAL_WARP_SIZE / 2; offset > 0; offset /= 2)
     {
-        auto v = shfl_xor(val, offset);
+        auto v = shfl_xor(val, offset,LOCAL_WARP_SIZE, mask);
         val    = op(val, v);
     }
     return val;
@@ -104,7 +115,8 @@ __device__ inline T blockReduceAtomicSum(T val, T* shared)
 template <int BLOCK_SIZE, typename T, typename OP>
 __device__ inline T blockReduce(T val, OP op, T default_val)
 {
-    __shared__ T shared[BLOCK_SIZE / 32];
+    constexpr int reduce_elems = BLOCK_SIZE / 32;
+    __shared__ T shared[reduce_elems == 0 ? 1 : reduce_elems];
 
     int lane   = threadIdx.x % 32;
     int warpid = threadIdx.x / 32;
@@ -112,31 +124,51 @@ __device__ inline T blockReduce(T val, OP op, T default_val)
     // Each warp reduces with registers
     val = warpReduce(val, op);
 
-    // The first thread in each warp writes to smem
-    if (lane == 0)
-    {
-        shared[warpid] = val;
-    }
 
-    __syncthreads();
-
-    if (warpid == 0)
+    if constexpr (reduce_elems > 0)
     {
-        if (threadIdx.x < BLOCK_SIZE / 32)
+        // The first thread in each warp writes to smem
+        if (lane == 0)
         {
-            val = shared[threadIdx.x];
-        }
-        else
-        {
-            val = default_val;
+            shared[warpid] = val;
         }
 
+        __syncthreads();
 
-        val = warpReduce(val, op);
+        if (warpid == 0)
+        {
+            if (threadIdx.x < reduce_elems)
+            {
+                val = shared[threadIdx.x];
+            }
+            else
+            {
+                val = default_val;
+            }
+
+
+            val = warpReduce(val, op);
+        }
     }
-
-
     return val;
+}
+
+
+template <int BLOCK_SIZE, typename T, typename OP>
+__device__ inline T reduce(T val, OP op, T default_val)
+{
+    if constexpr (BLOCK_SIZE == 1)
+    {
+        return val;
+    }
+    else if constexpr (BLOCK_SIZE <= 32)
+    {
+        return warpReduce<T, OP, BLOCK_SIZE>(val, op);
+    }
+    else
+    {
+        return blockReduce<BLOCK_SIZE, T, OP>(val, op, default_val);
+    }
 }
 
 }  // namespace CUDA
