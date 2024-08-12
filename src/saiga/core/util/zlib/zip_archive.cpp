@@ -102,17 +102,144 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, siz
     {
         return false;
     }
-    // zip_source_commit_write()
+
     zip_source* source = zip_source_buffer(archive, data, size, 0);
-
-
-    // zip_source_buffer_create()
     if (!source)
     {
         std::cout << "ZIP: Failed to create source buffer.\n" << zip_strerror(archive);
         return false;
     }
 
+    auto index = add_file_internal(filename, source, zip_flags);
+    if (index < 0)
+    {
+        std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';
+        zip_source_free(source);
+        return false;
+    }
+
+    return true;
+}
+
+ZipIncrementalWrite ZipArchive::begin_incremental_write(const std::filesystem::path& filename, int zip_flags)
+{
+    if (!archive)
+    {
+        return {};
+    }
+
+    zip_source* source = zip_source_buffer_create(nullptr, 0, 0, nullptr);
+    if (!source)
+    {
+        std::cout << "ZIP: Failed to create source buffer.\n" << zip_strerror(archive);
+        return {};
+    }
+
+    auto index = add_file_internal(filename, source, zip_flags);
+    if (index < 0)
+    {
+        std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';
+        zip_source_free(source);
+        return {};
+    }
+
+    if (zip_source_begin_write(source) < 0) 
+    {
+        std::cout << "ZIP: Failed to begin write: " << zip_strerror(archive) << '\n';
+        zip_source_free(source);
+        return {};
+    }
+
+    return ZipIncrementalWrite(archive, source);
+}
+
+bool ZipIncrementalWrite::write(void* data, size_t size)
+{
+    if (zip_source_write(source, data, size) < 0)
+    {
+        std::cout << "ZIP: Failed to write block: " << zip_strerror(archive) << '\n';
+        zip_source_rollback_write(source);
+        return false;
+    }
+
+    return true;
+}
+
+ZipIncrementalWrite::~ZipIncrementalWrite()
+{
+    if (source)
+    {
+        if (zip_source_commit_write(source) < 0) 
+        {
+            std::cout << "ZIP: Failed to commit write: " << zip_strerror(archive) << '\n';
+            zip_source_rollback_write(source);
+        }
+    }
+}
+
+
+
+
+static zip_int64_t source_callback(void* userdata, void* data, zip_uint64_t len, zip_source_cmd_t cmd)
+{
+    ZipCustomSource* source = (ZipCustomSource*)userdata;
+
+    switch (cmd) 
+    {
+        case ZIP_SOURCE_READ: 
+        {
+            return source->read_next(data, len);
+        }
+
+        case ZIP_SOURCE_STAT: 
+        {
+            zip_stat_t* st = (zip_stat_t*)data;
+            zip_stat_init(st);
+
+            st->valid = ZIP_STAT_SIZE;
+            st->size = source->total_size();
+
+            return sizeof(*st);
+        }
+
+        case ZIP_SOURCE_OPEN:
+        case ZIP_SOURCE_CLOSE:
+        case ZIP_SOURCE_FREE:
+            return 0;
+
+        default:
+            return -1;
+    }
+}
+
+
+bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source, int zip_flags)
+{
+    if (!archive)
+    {
+        return {};
+    }
+
+    zip_source_t* source = zip_source_function(archive, source_callback, custom_source);
+    if (!source)
+    {
+        std::cout << "ZIP: Failed to create callback source.\n";
+        return 1;
+    }
+
+    auto index = add_file_internal(filename, source, zip_flags);
+    if (index < 0)
+    {
+        std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';
+        zip_source_free(source);
+        return false;
+    }
+
+    return true;
+}
+
+int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip_source* source, int zip_flags)
+{
     auto index = (int)zip_file_add(archive, filename.u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
 
     // ZIP_CM_STORE uncompressed
@@ -127,14 +254,7 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, siz
         zip_set_file_compression(archive, index, ZIP_CM_DEFAULT, 0);
     }
 
-    if (index < 0)
-    {
-        std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';
-        zip_source_free(source);
-        return false;
-    }
-
-    return true;
+    return index;
 }
 
 bool ZipArchiveFile::read(void* out_data, ProgressBarManager* progress_bar) const
