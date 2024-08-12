@@ -25,7 +25,7 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
     }
 }
 
-ZipArchive::ZipArchive(ZipArchive&& o) : archive(std::exchange(o.archive, nullptr)) {}
+ZipArchive::ZipArchive(ZipArchive&& o) noexcept : archive(std::exchange(o.archive, nullptr)) {}
 
 ZipArchive::~ZipArchive()
 {

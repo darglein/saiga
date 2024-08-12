@@ -60,7 +60,7 @@ struct ZipCustomSource
 struct SAIGA_CORE_API ZipArchive
 {
     ZipArchive(const std::filesystem::path& path, ZipMode mode);
-    ZipArchive(ZipArchive&& o);
+    ZipArchive(ZipArchive&& o) noexcept;
     ZipArchive(const ZipArchive&) = delete;
     ~ZipArchive();
 
@@ -74,9 +74,6 @@ struct SAIGA_CORE_API ZipArchive
     std::vector<ZipArchiveFile> get_files() const;
     std::pair<bool, ZipArchiveFile> find_file(const std::filesystem::path& name) const;
 
-    // flags:
-    // 0 default zstd
-    // 1 old libz
     bool add_file(const std::filesystem::path& filename, void* data, size_t size, ZipCompressionMethod method);
     bool add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source, ZipCompressionMethod method);
 
