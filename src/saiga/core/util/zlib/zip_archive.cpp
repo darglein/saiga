@@ -36,7 +36,10 @@ void ZipArchive::close()
 {
     if (archive)
     {
-        zip_close(archive);
+        if (zip_close(archive) != 0)
+        {
+            std::cout << "ZIP: Failed to write ZIP archive.\n" << zip_strerror(archive);
+        }
         archive = nullptr;
     }
 }
