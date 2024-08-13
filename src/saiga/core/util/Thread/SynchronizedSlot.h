@@ -55,6 +55,14 @@ class SynchronizedSlot
         return std::move(slot);
     }
 
+    T& peek()
+    {
+        std::unique_lock l(mut);
+        // Wait until full
+        cv_consumer.wait(l, [this]() { return full(); });
+        return slot;
+    }
+
    private:
     std::atomic<bool> valid = false;
     std::mutex mut;
