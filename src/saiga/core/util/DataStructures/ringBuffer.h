@@ -193,6 +193,10 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
         return result;
     }
 
+    T& peek()
+    {
+        return (*this)[front];
+    }
 
     void clear()
     {

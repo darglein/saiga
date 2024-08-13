@@ -103,6 +103,15 @@ class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
         return result;
     }
 
+
+
+    T& peek()
+    {
+        std::unique_lock<decltype(lock)> l(lock);
+        not_empty.wait(l, [this]() { return !this->empty(); });
+        return RingBuffer<T>::peek();
+    }
+
     // Blocks until we got an elemnt or the duration has passed.
     // Returns T() on timeout.
     template <typename TimeType>
