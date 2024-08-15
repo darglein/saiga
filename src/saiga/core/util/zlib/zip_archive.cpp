@@ -9,6 +9,14 @@
 namespace Saiga
 {
 
+static void print_error(const char* prefix, int err)
+{
+    zip_error_t error;
+    zip_error_init_with_code(&error, err);
+    std::cout << prefix << "\n" << zip_error_strerror(&error);
+    zip_error_fini(&error);
+}
+
 ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
 {
     if(mode == ZipMode::Write)
@@ -21,7 +29,7 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
     archive   = zip_open(path.u8string().c_str(), flag, &error);
     if (!archive)
     {
-        std::cout << "ZIP: Failed to open or create archive.\n";
+        print_error("ZIP: Failed to open or create archive.", error);
     }
 }
 
@@ -57,7 +65,7 @@ int ZipArchive::file_count() const
 static ZipArchiveFile file_from_stat(zip_stat_t stat, zip* archive)
 {
     ZipArchiveFile file;
-    file.filename          = stat.name;
+    file.filename          = std::filesystem::u8path(stat.name);
     file.compressed_size   = stat.comp_size;
     file.uncompressed_size = stat.size;
     file.archive           = archive;
@@ -75,7 +83,7 @@ std::vector<ZipArchiveFile> ZipArchive::get_files() const
         for (int i = 0; i < numFiles; ++i)
         {
             zip_stat_t stat;
-            if (zip_stat_index(archive, i, 0, &stat) == 0)
+            if (zip_stat_index(archive, i, ZIP_FL_ENC_UTF_8, &stat) == 0)
             {
                 result.push_back(file_from_stat(stat, archive));
             }
@@ -90,7 +98,7 @@ std::pair<bool, ZipArchiveFile> ZipArchive::find_file(const std::filesystem::pat
     if (archive)
     {
         zip_stat_t stat;
-        if (zip_stat(archive, name.string().c_str(), 0, &stat) == 0)
+        if (zip_stat(archive, name.u8string().c_str(), ZIP_FL_ENC_UTF_8, &stat) == 0)
         {
             return {true, file_from_stat(stat, archive)};
         }
@@ -276,7 +284,7 @@ bool ZipArchiveFile::read(void* out_data, ProgressBarManager* progress_bar) cons
         return false;
     }
 
-    zip_file_t* file = zip_fopen(archive, filename.string().c_str(), 0);
+    zip_file_t* file = zip_fopen(archive, filename.u8string().c_str(), ZIP_FL_ENC_UTF_8);
     if (!file)
     {
         std::cout << "ZIP: Failed to open file in archive.\n";
