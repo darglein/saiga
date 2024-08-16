@@ -37,12 +37,12 @@ __device__ inline T warpReduceSum(T val)
 }
 
 template <typename T, typename OP, unsigned int LOCAL_WARP_SIZE = 32>
-__device__ inline T warpReduce(T val, OP op)
+__device__ inline T warpReduce(T val, OP op, unsigned int thread_id = threadIdx.x)
 {
     unsigned int mask = 0xFFFFFFFF;
     if (LOCAL_WARP_SIZE < 32)
     {
-        unsigned int lane_id  = threadIdx.x & 31U;
+        unsigned int lane_id  = thread_id & 31U;
         unsigned int sub_warp = lane_id / LOCAL_WARP_SIZE;
         unsigned int low_mask = (0xFFFFFFFFU) >> (32U - LOCAL_WARP_SIZE);
         mask                  = low_mask << (sub_warp * LOCAL_WARP_SIZE);
@@ -113,13 +113,13 @@ __device__ inline T blockReduceAtomicSum(T val, T* shared)
 
 
 template <int BLOCK_SIZE, typename T, typename OP>
-__device__ inline T blockReduce(T val, OP op, T default_val)
+__device__ inline T blockReduce(T val, OP op, T default_val, unsigned int thread_id = threadIdx.x)
 {
     constexpr int reduce_elems = BLOCK_SIZE / 32;
     __shared__ T shared[reduce_elems == 0 ? 1 : reduce_elems];
 
-    int lane   = threadIdx.x % 32;
-    int warpid = threadIdx.x / 32;
+    int lane   = thread_id % 32;
+    int warpid = thread_id / 32;
 
     // Each warp reduces with registers
     val = warpReduce(val, op);
@@ -139,7 +139,7 @@ __device__ inline T blockReduce(T val, OP op, T default_val)
         {
             if (threadIdx.x < reduce_elems)
             {
-                val = shared[threadIdx.x];
+                val = shared[thread_id];
             }
             else
             {
@@ -155,7 +155,7 @@ __device__ inline T blockReduce(T val, OP op, T default_val)
 
 
 template <int BLOCK_SIZE, typename T, typename OP>
-__device__ inline T reduce(T val, OP op, T default_val)
+__device__ inline T reduce(T val, OP op, T default_val, unsigned int thread_id = threadIdx.x)
 {
     if constexpr (BLOCK_SIZE == 1)
     {
@@ -163,11 +163,11 @@ __device__ inline T reduce(T val, OP op, T default_val)
     }
     else if constexpr (BLOCK_SIZE <= 32)
     {
-        return warpReduce<T, OP, BLOCK_SIZE>(val, op);
+        return warpReduce<T, OP, BLOCK_SIZE>(val, op, thread_id);
     }
     else
     {
-        return blockReduce<BLOCK_SIZE, T, OP>(val, op, default_val);
+        return blockReduce<BLOCK_SIZE, T, OP>(val, op, default_val, thread_id);
     }
 }
 
