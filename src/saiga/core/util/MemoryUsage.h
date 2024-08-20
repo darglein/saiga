@@ -16,10 +16,13 @@ struct MemoryInfo
 {
     bool valid = false;
 
-    // in bytes
+    // in bytes for this process
     size_t current_memory_used  = 0;
     size_t max_memory_used      = 0;
     size_t max_memory_available = 0;
+
+    // for the whole system
+    size_t total_memory_used = 0;
 };
 
 SAIGA_CORE_API extern MemoryInfo GetMemoryInfo();
