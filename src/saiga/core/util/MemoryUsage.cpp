@@ -56,6 +56,7 @@ static size_t getMaxSystemMemory()
 }
 
 
+#if !defined(_WIN32)
 inline long long get_val(const std::string& target, const std::string& content)
 {
     long long result  = -1;
@@ -69,6 +70,7 @@ inline long long get_val(const std::string& target, const std::string& content)
     }
     return result;
 }
+#endif
 
 static size_t getUsedSystemMemory()
 {
