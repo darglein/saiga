@@ -28,6 +28,7 @@
 #        include <procfs.h>
 
 #    elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
+#        include <fstream>
 #        include <stdio.h>
 
 #    endif
@@ -55,6 +56,20 @@ static size_t getMaxSystemMemory()
 }
 
 
+inline long long get_val(const std::string& target, const std::string& content)
+{
+    long long result  = -1;
+    std::size_t start = content.find(target);
+    if (start != std::string::npos)
+    {
+        int begin          = start + target.length();
+        std::size_t end    = content.find("kB", start);
+        std::string substr = content.substr(begin, end - begin);
+        result             = std::stoll(substr) * 1000;
+    }
+    return result;
+}
+
 static size_t getUsedSystemMemory()
 {
 #if defined(_WIN32)
@@ -63,6 +78,15 @@ static size_t getUsedSystemMemory()
     GlobalMemoryStatusEx(&status);
     return status.ullTotalPhys - status.ullAvailPhys;
 #else
+    std::ifstream proc_meminfo("/proc/meminfo");
+    if (proc_meminfo.good())
+    {
+        std::string content((std::istreambuf_iterator<char>(proc_meminfo)), std::istreambuf_iterator<char>());
+        size_t total = get_val("MemTotal:", content);
+        size_t avail = get_val("MemAvailable:", content);
+        return total - avail;
+    }
+
     struct sysinfo memInfo;
     sysinfo(&memInfo);
 
@@ -70,6 +94,7 @@ static size_t getUsedSystemMemory()
     // Multiply in next statement to avoid int overflow on right hand side...
     physMemUsed *= memInfo.mem_unit;
     return physMemUsed;
+
 #endif
 }
 /**
