@@ -85,7 +85,7 @@ std::string fileEnding(const std::string& str)
             return str.substr(d, str.size());
         }
     }
-    return std::string();
+    return str;
 }
 
 std::string removeFileEnding(const std::string& str)

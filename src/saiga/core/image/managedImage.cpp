@@ -185,12 +185,34 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
 {
     bool erg = false;
 
-    if (hint == "png")
+    std::string type = fileEnding(hint);
+    std::transform(type.begin(), type.end(), type.begin(),
+                   [](char c) { return std::tolower(c); });
+
+    if (type == "png")
     {
 #ifdef SAIGA_USE_PNG
-
+        ImageIOLibPNG io;
+        auto result = io.LoadFromMemory(data.data(), data.size());
+        if (result.has_value())
+        {
+            *this = result.value();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
 #endif
     }
+
+    if (type == "tif" || type == "tiff")
+    {
+#ifdef SAIGA_USE_LIBTIFF
+        return loadImageFromMemoryLibTiff(data.data(),data.size(), *this);
+#endif
+    }
+
 #ifdef SAIGA_USE_FREEIMAGE
     SAIGA_EXIT_ERROR("not implemented");
     // erg = FIP::loadFromMemory(data, *this);
@@ -251,6 +273,16 @@ bool Image::save(const std::string& path) const
 
 #else
         std::cerr << "Warning: Using .png without libpng. This might be slow." << std::endl;
+#endif
+    }
+
+    if (output_type == "tif" || output_type == "tiff")
+    {
+#ifdef SAIGA_USE_LIBTIFF
+        return saveImageLibTiff(path, *this);
+#endif
+#ifdef SAIGA_USE_TINYTIFF
+        return loadImageTinyTiff(path, *this);
 #endif
     }
 

@@ -261,7 +261,7 @@ std::vector<unsigned char> ImageIOLibPNG::Save2Memory(const Image& img, ImageSav
     png_structp p = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 
     TPngDestructor destroyPng(p);
-    png_infop info_ptr = png_create_info_struct(p);
+    png_infop info_ptr  = png_create_info_struct(p);
     destroyPng.info_ptr = info_ptr;
     setjmp(png_jmpbuf(p));
 
@@ -412,9 +412,133 @@ std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::string& path, ImageL
     fclose(pngls.infile);
     return img;
 }
-std::optional<Image> ImageIOLibPNG::LoadFromMemory(void* data, size_t size, ImageLoadFlags flags)
+
+struct PngMemoryStreamHelper
 {
-    return {};
+    const char* data;
+    size_t pos = 0;
+    size_t size;
+};
+static void ReadDataFromInputStream(png_structp png_ptr, png_bytep outBytes, png_size_t byteCountToRead)
+{
+    png_voidp io_ptr = png_get_io_ptr(png_ptr);
+    if (io_ptr == NULL) return;
+
+    PngMemoryStreamHelper& stream = *(PngMemoryStreamHelper*)io_ptr;
+    SAIGA_ASSERT(stream.pos + byteCountToRead <= stream.size);
+    memcpy(outBytes, stream.data + stream.pos, byteCountToRead);
+    stream.pos += byteCountToRead;
+
+}  // end ReadDataFromInputStream()
+
+std::optional<Image> ImageIOLibPNG::LoadFromMemory(const void* data, size_t size, ImageLoadFlags flags)
+{
+    PNGLoadStore pngls;
+    png_structp png_ptr;
+    png_infop info_ptr;
+
+    unsigned int sig_read = 0;
+
+    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+
+
+    if (png_ptr == NULL)
+    {
+        return {};
+    }
+
+    /* Allocate/initialize the memory
+     * for image information.  REQUIRED. */
+    info_ptr = png_create_info_struct(png_ptr);
+    if (info_ptr == NULL)
+    {
+        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        return {};
+    }
+
+    /* Set error handling if you are
+     * using the setjmp/longjmp method
+     * (this is the normal method of
+     * doing things with libpng).
+     * REQUIRED unless you  set up
+     * your own error handlers in
+     * the png_create_read_struct()
+     * earlier.
+     */
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        /* Free all of the memory associated
+         * with the png_ptr and info_ptr */
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        /* If we get here, we had a
+         * problem reading the file */
+        return {};
+    }
+
+    PngMemoryStreamHelper input_stream;
+    input_stream.data = (char*)data;
+    input_stream.size = size;
+    png_set_read_fn(png_ptr, &input_stream, ReadDataFromInputStream);
+
+
+    /* If we have already
+     * read some of the signature */
+    png_set_sig_bytes(png_ptr, sig_read);
+
+    png_read_info(png_ptr, info_ptr);
+
+    png_uint_32 pw, ph;
+    int bit_depth;
+    int color_type;
+    int interlace_type;
+    png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
+    SAIGA_ASSERT(interlace_type == PNG_INTERLACE_NONE);
+
+    unsigned int row_bytes = png_get_rowbytes(png_ptr, info_ptr);
+
+    // we want to row-align the image in our output data
+    int rowAlignment = 4;
+    int rowPadding   = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
+    int bytesPerRow  = row_bytes + rowPadding;
+
+
+
+    if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(png_ptr);
+
+    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(png_ptr);
+
+    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(png_ptr);
+
+
+    // update the color_type data because it might has changed due to the calls above
+    png_read_update_info(png_ptr, info_ptr);
+    png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
+
+
+    if (bit_depth > 8)
+    {
+        png_set_swap(png_ptr);
+    }
+
+    png_set_packing(png_ptr);
+
+    //    img->data.resize(img->bytesPerRow * img->height);
+    Image img;
+    img.create(ph, pw, bytesPerRow, saigaType(color_type, bit_depth));
+    img.makeZero();
+
+
+    for (int i = 0; i < img.height; i++)
+    {
+        auto rowPtr = (png_byte*)img.rowPtr(i);
+        png_read_row(png_ptr, rowPtr, nullptr);
+    }
+
+    /* Clean up after the read,
+     * and free any memory allocated */
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    return img;
 }
+
 }  // namespace Saiga
 #endif

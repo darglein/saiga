@@ -38,6 +38,6 @@ class SAIGA_CORE_API ImageIO
                                                    ImageSaveFlags flags = ImageSaveFlags()) = 0;
 
     virtual std::optional<Image> LoadFromFile(const std::string& path, ImageLoadFlags flags = ImageLoadFlags())   = 0;
-    virtual std::optional<Image> LoadFromMemory(void* data, size_t size, ImageLoadFlags flags = ImageLoadFlags()) = 0;
+    virtual std::optional<Image> LoadFromMemory(const void* data, size_t size, ImageLoadFlags flags = ImageLoadFlags()) = 0;
 };
 }  // namespace Saiga
