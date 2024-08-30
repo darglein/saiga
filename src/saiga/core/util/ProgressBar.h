@@ -63,13 +63,15 @@ struct ProgressBarBase
 struct ProgressBar : public ProgressBarBase
 {
     ProgressBar(std::ostream& strm, const std::string header, int64_t end, int length = 30,
-                bool show_remaining_time = false, int update_time_ms = 100, std::string element_name = "e")
+                bool show_remaining_time = false, int update_time_ms = 100, std::string element_name = "e",
+                float element_factor = 1)
         : ProgressBarBase(end, header),
           strm(strm),
           length(length),
           show_remaining_time(show_remaining_time),
           update_time_ms(update_time_ms),
-          element_name(element_name)
+          element_name(element_name),
+          element_factor(element_factor)
     {
         SAIGA_ASSERT(end >= 0);
         print();
@@ -104,6 +106,7 @@ struct ProgressBar : public ProgressBarBase
     bool show_remaining_time;
     int update_time_ms;
     std::string element_name;
+    float element_factor;
 
     void run()
     {
@@ -172,8 +175,8 @@ struct ProgressBar : public ProgressBarBase
 
         {
             // performance stats
-            double s              = std::chrono::duration_cast<std::chrono::duration<double>>(time).count();
-            double ele_per_second = current / s;
+            double elapsed_time   = std::chrono::duration_cast<std::chrono::duration<double>>(time).count();
+            double ele_per_second = current * element_factor / elapsed_time;
             strm << "[" << std::setprecision(2) << std::fixed << ele_per_second << " " << element_name << "/s]";
         }
 
