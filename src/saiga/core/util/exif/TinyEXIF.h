@@ -35,7 +35,7 @@
 #define __TINYEXIF_H__
 
 #include "saiga/config.h"
-
+#include <cstdint>
 #include <string>
 
 #ifdef _MSC_VER

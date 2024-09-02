@@ -15,6 +15,7 @@
 #include <cstring>
 #include <algorithm>
 #include <array>
+#include <cstdint>
 
 #if 0
 #    if defined(SAIGA_USE_CUDA)

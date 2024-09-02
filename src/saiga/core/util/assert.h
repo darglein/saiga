@@ -5,7 +5,7 @@
  */
 
 #include "saiga/config.h"
-
+#include <cstdint>
 #include <string>
 
 // similar to unix assert.h implementation

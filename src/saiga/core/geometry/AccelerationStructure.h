@@ -13,7 +13,7 @@
 #include "intersection.h"
 #include "ray.h"
 #include "triangle.h"
-
+#include <cstdint>
 
 namespace Saiga
 {

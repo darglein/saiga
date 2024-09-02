@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/math/math.h"
+#include <cstdint>
 
 namespace Saiga
 {
