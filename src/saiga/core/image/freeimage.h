@@ -32,7 +32,7 @@ class SAIGA_CORE_API ImageIOLibFreeimage : public ImageIO
 
     virtual std::optional<Image> LoadFromFile(const std::string& path,
                                               ImageLoadFlags flags = ImageLoadFlags()) override;
-    virtual std::optional<Image> LoadFromMemory(void* data, size_t size,
+    virtual std::optional<Image> LoadFromMemory(const void* data, size_t size,
                                                 ImageLoadFlags flags = ImageLoadFlags()) override
     {
         return {};

@@ -281,9 +281,6 @@ bool Image::save(const std::string& path) const
 #ifdef SAIGA_USE_LIBTIFF
         return saveImageLibTiff(path, *this);
 #endif
-#ifdef SAIGA_USE_TINYTIFF
-        return loadImageTinyTiff(path, *this);
-#endif
     }
 
 #ifdef SAIGA_USE_FREEIMAGE
