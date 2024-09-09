@@ -15,7 +15,11 @@
 
 namespace Saiga
 {
-Joystick2 joystick;
+Joystick2& joystick()
+{
+    static Joystick2 j;
+    return j;
+}
 
 Joystick2::Joystick2() : Keyboard(100)
 {

@@ -46,8 +46,8 @@ class SAIGA_CORE_API Joystick2 : public Keyboard
     void printAxisState();
 };
 
+SAIGA_CORE_API Joystick2& joystick();
 
 
-extern SAIGA_CORE_API Joystick2 joystick;
 
 }  // namespace Saiga

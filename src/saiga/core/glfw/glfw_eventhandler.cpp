@@ -141,7 +141,7 @@ void glfw_EventHandler::key_callback(GLFWwindow* window, int key, int scancode, 
 {
     if (action == GLFW_PRESS)
     {
-        keyboard.setKeyState(key, true);
+        keyboard().setKeyState(key, true);
         for (auto& kl : keyListener)
         {
             kl->keyPressed(key, scancode, mods);
@@ -149,7 +149,7 @@ void glfw_EventHandler::key_callback(GLFWwindow* window, int key, int scancode, 
     }
     else if (action == GLFW_RELEASE)
     {
-        keyboard.setKeyState(key, false);
+        keyboard().setKeyState(key, false);
         for (auto& kl : keyListener)
         {
             kl->keyReleased(key, scancode, mods);

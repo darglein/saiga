@@ -231,11 +231,11 @@ void Controllable_Camera<camera_t>::update(float delta)
     if (input)
     {
         int FORWARD =
-            keyboard.getMappedKeyState(Forward, keyboardmap) - keyboard.getMappedKeyState(Backward, keyboardmap);
-        int RIGHT = keyboard.getMappedKeyState(Right, keyboardmap) - keyboard.getMappedKeyState(Left, keyboardmap);
+            keyboard().getMappedKeyState(Forward, keyboardmap) - keyboard().getMappedKeyState(Backward, keyboardmap);
+        int RIGHT = keyboard().getMappedKeyState(Right, keyboardmap) - keyboard().getMappedKeyState(Left, keyboardmap);
 
         float speed;
-        if (keyboard.getMappedKeyState(Fast, keyboardmap))
+        if (keyboard().getMappedKeyState(Fast, keyboardmap))
         {
             speed = movementSpeedFast;
         }
@@ -245,7 +245,7 @@ void Controllable_Camera<camera_t>::update(float delta)
         }
 
         vec3 trans  = delta * speed * FORWARD * vec3(0, 0, -1) + delta * speed * RIGHT * vec3(1, 0, 0);
-        vec3 transg = vec3(0, 1, 0) * (delta * speed * keyboard.getMappedKeyState(Up, keyboardmap));
+        vec3 transg = vec3(0, 1, 0) * (delta * speed * keyboard().getMappedKeyState(Up, keyboardmap));
         this->translateLocal(trans);
         this->translateGlobal(transg);
     }

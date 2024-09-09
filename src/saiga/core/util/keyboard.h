@@ -37,6 +37,6 @@ class SAIGA_CORE_API Keyboard
     void printKeyState();
 };
 
-extern SAIGA_CORE_API Keyboard keyboard;
+SAIGA_CORE_API Keyboard& keyboard();
 
 }  // namespace Saiga

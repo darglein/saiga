@@ -37,24 +37,24 @@ void glfw_Joystick::update()
     {
         return;
     }
-    joystick.setCount(aC, bC);
+    joystick().setCount(aC, bC);
 
     for (int i = 0; i < aC; ++i)
     {
         float state = clamp(axes[i], -1.0f, 1.0f);
-        joystick.setAxisState(i, state);
-        int changed = joystick.setVirtualAxisKeyState(i, state);
+        joystick().setAxisState(i, state);
+        int changed = joystick().setVirtualAxisKeyState(i, state);
         if (changed != -1)
         {
-            glfw_EventHandler::joystick_key_callback(changed, joystick.getKeyState(changed));
-            glfw_EventHandler::joystick_key_callback(changed + 1, joystick.getKeyState(changed + 1));
+            glfw_EventHandler::joystick_key_callback(changed, joystick().getKeyState(changed));
+            glfw_EventHandler::joystick_key_callback(changed + 1, joystick().getKeyState(changed + 1));
         }
     }
 
     for (int i = 0; i < bC; ++i)
     {
         int state   = (int)ax[i] == GLFW_PRESS;
-        int changed = joystick.setKeyState(i, state);
+        int changed = joystick().setKeyState(i, state);
         if (changed != -1)
         {
             glfw_EventHandler::joystick_key_callback(i, state);

@@ -14,8 +14,12 @@
 
 namespace Saiga
 {
-Keyboard keyboard(1024);
 
+Keyboard& keyboard()
+{
+    static Keyboard k(1024);
+    return k;
+}
 
 Keyboard::Keyboard(int numKeys)
 {
