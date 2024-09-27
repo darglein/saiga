@@ -46,6 +46,13 @@ double sampleDouble(double min, double max)
     return dis(generator());
 }
 
+float sampleFloat(float min, float max)
+{
+    std::uniform_real_distribution<float> dis(min, max);
+    return dis(generator());
+}
+
+
 std::vector<double> StratifiedSample(double min, double max, int count)
 {
     std::vector<double> result;

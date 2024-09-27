@@ -51,6 +51,7 @@ SAIGA_CORE_API bool sampleBool(double s);
  * Returns a uniform random value in the given range.
  */
 SAIGA_CORE_API double sampleDouble(double min, double max);
+SAIGA_CORE_API float sampleFloat(float min, float max);
 
 // The range [min,max] is subdivided into 'count' eval segments.
 // Each segment gets exactly one sample.
