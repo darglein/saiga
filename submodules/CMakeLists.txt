@@ -192,6 +192,7 @@ if(SAIGA_WITH_LIBTIFF)
     set(tiff-docs OFF CACHE INTERNAL "")
     set(tiff-deprecated OFF CACHE INTERNAL "")
     set(tiff-install OFF CACHE INTERNAL "")
+    set(zlib ON CACHE INTERNAL "")
     
     macro(install)
     endmacro()
