@@ -28,6 +28,7 @@
 [submodule "submodules/libtiff"]
 	path = submodules/libtiff
 	url = ../../pkurth/libtiff.git
+	branch = master
 [submodule "submodules/zstd"]
 	path = submodules/zstd
 	url = ../../facebook/zstd.git
