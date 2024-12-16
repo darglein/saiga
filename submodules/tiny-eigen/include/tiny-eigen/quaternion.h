@@ -215,7 +215,7 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         return result;
     }
 
-    Matrix<Scalar, 3, 1> vec() const { return Matrix<Scalar, 3, 1>(x(), y(), z()); }
+    HD Matrix<Scalar, 3, 1> vec() const { return Matrix<Scalar, 3, 1>(x(), y(), z()); }
 
     HD Scalar dot(const SameObject& other) const { return this->coeffs().dot(other.coeffs()); }
 
