@@ -57,6 +57,16 @@ inline Saiga::Vec2* at::TensorBase::data_ptr<Saiga::Vec2>() const
 // This is a helper function so that we can use
 // tensor.data_ptr<vec3>() on tensors with the shape
 //   [x,x,...,x,3]
+
+template <>
+inline Saiga::quat* at::Tensor::data_ptr<Saiga::quat>() const
+{
+    if (!defined()) return nullptr;
+    CHECK_EQ(size(dim() - 1), 4);
+    CHECK_EQ(stride(dim() - 1), 1);
+    return (Saiga::quat*)data_ptr<float>();
+}
+
 template <>
 inline Saiga::vec5* at::Tensor::data_ptr<Saiga::vec5>() const
 {
