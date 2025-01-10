@@ -7,10 +7,9 @@
 #pragma once
 
 
-#include "saiga/cuda/cudaHelper.h"
-
 #include "saiga/core/util/ConsoleColor.h"
 #include "saiga/core/util/table.h"
+#include "saiga/cuda/cudaHelper.h"
 
 
 namespace Saiga
@@ -41,7 +40,7 @@ inline double UsedMemoryGB()
     return mem_alloc_gb;
 }
 
-inline void initCUDA(int device_id = 0)
+inline void initCUDA(std::vector<int> device_ids = {0})
 {
     int runtimeVersion;
     {
@@ -51,7 +50,7 @@ inline void initCUDA(int device_id = 0)
             std::cout << "Invalid CUDA Runtime!" << std::endl;
             std::cout << "Please install a CUDA cabable Graphics Driver and restart the computer!" << std::endl;
             throw std::runtime_error(cudaGetErrorString(cudaErrorCode));
-            //exit(1);
+            // exit(1);
         }
     }
 
@@ -71,24 +70,34 @@ inline void initCUDA(int device_id = 0)
 #endif
 
 
-    cudaDeviceProp deviceProp;
-    {
-        cudaError_t cudaErrorCode = cudaGetDeviceProperties(&deviceProp, device_id);
-        if (cudaErrorCode != cudaSuccess)
-        {
-            throw std::runtime_error(cudaGetErrorString(cudaErrorCode));
-        }
-    }
 
     std::cout << ConsoleColor::GREEN;
     Table table({2, 24, 32, 1});
     std::cout << "======================= CUDA Init =======================" << std::endl;
-    table <<"|" << "Runtime Version" << runtimeVersion << "|";
-    table <<"|" << "Driver Version" << driverVersion <<  "|";
-    table <<"|" << "CUDA_DEBUG" << cudadebug <<  "|";
-    table <<"|" << "Device name" << deviceProp.name <<  "|";
-    table <<"|" << "Compute capabilities" << std::to_string(deviceProp.major) + "." + std::to_string(deviceProp.minor) <<  "|";
-    table <<"|" << "Global Memory" << deviceProp.totalGlobalMem <<  "|";
+    table << "|" << "Runtime Version" << runtimeVersion << "|";
+    table << "|" << "Driver Version" << driverVersion << "|";
+    table << "|" << "CUDA_DEBUG" << cudadebug << "|";
+
+
+    for (int device_id : device_ids)
+    {
+        cudaDeviceProp deviceProp;
+        {
+            cudaError_t cudaErrorCode = cudaGetDeviceProperties(&deviceProp, device_id);
+            if (cudaErrorCode != cudaSuccess)
+            {
+                throw std::runtime_error(cudaGetErrorString(cudaErrorCode));
+            }
+        }
+        table << "|" << " " << "" << "|";
+        table << "|" << "Device ID " << device_id << "|";
+        table << "|" << "Device name" << deviceProp.name << "|";
+        table << "|" << "Compute capabilities"
+              << std::to_string(deviceProp.major) + "." + std::to_string(deviceProp.minor) << "|";
+        table << "|" << "Global Memory (GiB)" << deviceProp.totalGlobalMem / (1024.0 * 1024 * 1024) << "|";
+    }
+
+
     std::cout << "=========================================================" << std::endl;
 
     std::cout.unsetf(std::ios_base::floatfield);
