@@ -18,6 +18,9 @@ template <class Derived>
 class QuaternionBase
 {
    public:
+
+    HD const Derived& derived() const { return *static_cast<const Derived*>(this); }
+    HD Derived& derived() { return *static_cast<Derived*>(this); }
 };
 
 template <typename _Scalar>

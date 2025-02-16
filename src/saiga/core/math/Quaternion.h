@@ -39,8 +39,9 @@ using Quat = Eigen::Quaterniond;
 namespace Eigen
 {
 template <typename Derived>
-inline std::ostream& operator<<(std::ostream& os, const Eigen::QuaternionBase<Derived>& q)
+inline std::ostream& operator<<(std::ostream& os, const Eigen::QuaternionBase<Derived>& q2)
 {
+    auto q = q2.derived();
     os << "quat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << ")";
     return os;
 }
