@@ -68,6 +68,7 @@ SAIGA_CORE_API int uniformInt(int low, int high);
 /**
  * A normal-distributed random value
  */
+SAIGA_CORE_API float gaussRand(float mean = 0, float stddev = 1);
 SAIGA_CORE_API double gaussRand(double mean = 0, double stddev = 1);
 
 

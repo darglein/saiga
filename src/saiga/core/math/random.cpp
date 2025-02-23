@@ -88,6 +88,12 @@ int uniformInt(int low, int high)
     return dis(generator());
 }
 
+float gaussRand(float mean, float stddev)
+{
+    std::normal_distribution<float> dis(mean, stddev);
+    return dis(generator());
+}
+
 double gaussRand(double mean, double stddev)
 {
     std::normal_distribution<double> dis(mean, stddev);
