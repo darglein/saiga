@@ -65,9 +65,10 @@ HD constexpr int iFloor(T value)
     return ((int)value) - (((int)value) > value);
 }
 
-HD constexpr int iCeil(float value)
+template <typename T = int>
+HD constexpr T iCeil(float value)
 {
-    return ((int)value) + (((int)value) < value);
+    return ((T)value) + (((T)value) < value);
 }
 
 template <typename T>
