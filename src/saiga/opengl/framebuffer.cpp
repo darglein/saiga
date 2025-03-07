@@ -146,6 +146,15 @@ void Framebuffer::attachTexture(std::shared_ptr<Texture> texture)
     glFramebufferTexture2D(GL_FRAMEBUFFER, cid, texture->getTarget(), texture->getId(), 0);
 }
 
+void Framebuffer::attachTexture(std::shared_ptr<Texture> texture, int index)
+{
+    SAIGA_ASSERT(colorBuffers.size() > index);
+    bind();
+    colorBuffers[index] = texture;
+    GLenum cid = GL_COLOR_ATTACHMENT0 + index;
+    glFramebufferTexture2D(GL_FRAMEBUFFER, cid, texture->getTarget(), texture->getId(), 0);
+}
+
 void Framebuffer::attachTextureDepth(std::shared_ptr<Texture> texture)
 {
     bind();

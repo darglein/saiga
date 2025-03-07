@@ -32,9 +32,11 @@ class SAIGA_OPENGL_API Framebuffer
     void MakeDefaultFramebuffer();
 
     void attachTexture(std::shared_ptr<Texture> texture);
+    void attachTexture(std::shared_ptr<Texture> texture, int index);
     void attachTextureDepth(std::shared_ptr<Texture> texture);
     void attachTextureStencil(std::shared_ptr<Texture> texture);
     void attachTextureDepthStencil(std::shared_ptr<Texture> texture);
+    std::shared_ptr<Texture> getColorBuffer(int index) const { return colorBuffers[index]; }
 
     void destroy();
     void create();
