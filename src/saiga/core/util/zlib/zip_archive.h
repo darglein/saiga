@@ -4,11 +4,14 @@
 #include "saiga/core/util/ProgressBar.h"
 #include <string>
 #include <filesystem>
+// #include <zip.h>
 
 #if defined(SAIGA_USE_LIBZIP)
 
 struct zip;
 struct zip_source;
+struct zip_file;
+typedef struct zip_file zip_file_t;
 
 namespace Saiga
 {
@@ -33,7 +36,17 @@ struct SAIGA_CORE_API ZipArchiveFile
     size_t uncompressed_size;
     zip* archive;
 
-    bool read(void* out_data, ProgressBarManager* progress_bar = nullptr) const;
+
+
+    bool read_all(void* out_data, ProgressBarManager* progress_bar = nullptr);
+
+
+    bool open();
+    bool close();
+    bool read(void* out_data, size_t size) ;
+
+private:
+    zip_file_t* file = 0;
 };
 
 struct SAIGA_CORE_API ZipIncrementalWrite

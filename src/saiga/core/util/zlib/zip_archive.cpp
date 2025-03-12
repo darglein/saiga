@@ -277,14 +277,35 @@ int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip
     return index;
 }
 
-bool ZipArchiveFile::read(void* out_data, ProgressBarManager* progress_bar) const
+
+bool ZipArchiveFile::open()
+{
+    file = zip_fopen(archive, filename.u8string().c_str(), ZIP_FL_ENC_UTF_8);
+    return true;
+}
+
+bool ZipArchiveFile::close()
+{
+    zip_fclose(file);
+    file = 0;
+    return true;
+}
+
+bool ZipArchiveFile::read(void* out_data, size_t size)
+{
+    auto read_result = zip_fread(file, out_data, size);
+    SAIGA_ASSERT(size ==  read_result);
+    return true;
+}
+
+bool ZipArchiveFile::read_all(void* out_data, ProgressBarManager* progress_bar)
 {
     if (!archive)
     {
         return false;
     }
 
-    zip_file_t* file = zip_fopen(archive, filename.u8string().c_str(), ZIP_FL_ENC_UTF_8);
+    open();
     if (!file)
     {
         std::cout << "ZIP: Failed to open file in archive.\n";
@@ -317,7 +338,7 @@ bool ZipArchiveFile::read(void* out_data, ProgressBarManager* progress_bar) cons
 
 
     zip_fread(file, out_data, uncompressed_size);
-    zip_fclose(file);
+    close();
     return true;
 }
 
