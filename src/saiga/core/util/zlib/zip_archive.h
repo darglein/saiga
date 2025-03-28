@@ -56,6 +56,8 @@ struct SAIGA_CORE_API ZipIncrementalWrite
     ZipIncrementalWrite(ZipIncrementalWrite&& o) noexcept;
     ~ZipIncrementalWrite();
 
+    void operator=(ZipIncrementalWrite&& o) noexcept;
+
     bool write(void* data, size_t size);
 
     operator bool() const { return source != nullptr; }

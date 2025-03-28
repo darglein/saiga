@@ -181,6 +181,12 @@ ZipIncrementalWrite::ZipIncrementalWrite(ZipIncrementalWrite&& o) noexcept
 {
 }
 
+void ZipIncrementalWrite::operator=(ZipIncrementalWrite&& o) noexcept
+{
+    std::swap(archive, o.archive);
+    std::swap(source, o.source);
+}
+
 ZipIncrementalWrite::~ZipIncrementalWrite()
 {
     if (source)
