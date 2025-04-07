@@ -350,6 +350,11 @@ void glfw_Window::setWindowIcon(Image* image)
     glfwSetWindowIcon(window, 1, &glfwimage);
 }
 
+void glfw_Window::setWindowTitle(const std::string& title)
+{
+    glfwSetWindowTitle(window, title.c_str());
+}
+
 
 
 }  // namespace Saiga

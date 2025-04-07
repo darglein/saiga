@@ -41,6 +41,7 @@ class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeList
     void setGLFWcursor(GLFWcursor* cursor);
     GLFWcursor* createGLFWcursor(Image* image, int midX, int midY);
     void setWindowIcon(Image* image);
+    void setWindowTitle(const std::string& title);
 
     virtual void window_size_callback(int width, int height) override;
 
