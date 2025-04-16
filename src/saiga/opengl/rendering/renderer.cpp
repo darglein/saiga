@@ -183,6 +183,7 @@ void OpenGLRenderer::PrepareImgui(bool compute_viewport_size)
     {
         SAIGA_ASSERT(ImGui::GetCurrentContext());
 
+        dynamic_cast<RenderingInterface*>(rendering)->prepare_frame();
 
         imgui->beginFrame();
         window->renderImGui();

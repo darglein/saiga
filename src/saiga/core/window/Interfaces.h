@@ -53,6 +53,7 @@ class SAIGA_CORE_API RenderingInterface
 {
    public:
     virtual ~RenderingInterface() {}
+    virtual void prepare_frame() {}
     virtual void render(RenderInfo render_info) {}
 };
 
