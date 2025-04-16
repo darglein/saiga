@@ -264,6 +264,20 @@ bool glfw_Window::initInput()
 //    glfwSetWindowUserPointer(window, this);
     glfwSetDropCallback(window, glfw_EventHandler::drop_callback);
 
+
+    auto close_callback = [](GLFWwindow* window) 
+    {
+        for (auto& cl : glfw_EventHandler::closeListener)
+        {
+            if (!cl->window_close_callback())
+            {
+                glfwSetWindowShouldClose(window, GLFW_FALSE);
+            }
+        }
+    };
+
+    glfwSetWindowCloseCallback(window, close_callback);
+
     return true;
 }
 

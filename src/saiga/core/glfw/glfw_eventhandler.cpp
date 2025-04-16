@@ -21,6 +21,7 @@ std::vector<glfw_KeyListener*> glfw_EventHandler::keyListener;
 std::vector<glfw_MouseListener*> glfw_EventHandler::mouseListener;
 std::vector<glfw_ResizeListener*> glfw_EventHandler::resizeListener;
 std::vector<glfw_ExternalDropListener*> glfw_EventHandler::dropListener;
+std::vector<glfw_CloseListener*> glfw_EventHandler::closeListener;
 
 
 
@@ -78,6 +79,17 @@ glfw_ExternalDropListener::glfw_ExternalDropListener()
 glfw_ExternalDropListener::~glfw_ExternalDropListener()
 {
     auto& v = glfw_EventHandler::dropListener;
+    v.erase(std::remove(v.begin(), v.end(), this), v.end());
+}
+
+glfw_CloseListener::glfw_CloseListener()
+{
+    glfw_EventHandler::closeListener.push_back(this);
+}
+
+glfw_CloseListener::~glfw_CloseListener()
+{
+    auto& v = glfw_EventHandler::closeListener;
     v.erase(std::remove(v.begin(), v.end(), this), v.end());
 }
 
@@ -176,6 +188,17 @@ void glfw_EventHandler::drop_callback(GLFWwindow* window, int count, const char*
     for (auto& dl : dropListener)
     {
         dl->drop_call_back(window, dropped_data);
+    }
+}
+
+void glfw_EventHandler::close_callback(GLFWwindow* window)
+{
+    for (auto& cl : closeListener)
+    {
+        if (!cl->window_close_callback())
+        {
+            glfwSetWindowShouldClose(window, GLFW_FALSE);
+        }
     }
 }
 
