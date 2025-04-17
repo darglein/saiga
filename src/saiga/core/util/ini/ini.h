@@ -7,7 +7,8 @@
 #pragma once
 
 
-#include "saiga/core/math/math.h"
+#include "saiga/core/math/Types.h"
+#include "saiga/core/math/Quaternion.h"
 #include "saiga/core/util/tostring.h"
 
 #include "SimpleIni.h"

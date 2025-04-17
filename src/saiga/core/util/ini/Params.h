@@ -7,9 +7,11 @@
 #pragma once
 
 
-#include "saiga/core/math/math.h"
+#include "saiga/core/math/Types.h"
+#include "saiga/core/math/Quaternion.h"
 #include "saiga/core/util/commandLineArguments.h"
 
+#include "saiga/core/util/ini/ParamsReduced.h"
 #include "ini.h"
 
 
@@ -123,54 +125,7 @@ struct TablePrintParamIterator
     }
 };
 
-// The saiga param macros (below) can be used to define simple param structs in ini files.
-// An example struct should look like this:
-//
-//  SAIGA_PARAM_STRUCT(NetworkParams)
-//  {
-//      SAIGA_PARAM_STRUCT_FUNCTIONS(NetworkParams);
-//
-//      double d        = 2;
-//      long n          = 10;
-//      std::string str = "blabla";
-//
-//      void Params()
-//      {
-//          SAIGA_PARAM_DOUBLE(d);
-//          SAIGA_PARAM_LONG(n);
-//          SAIGA_PARAM_STRING(str);
-//      }
-//  };
-//
-// To update the parameters by the command line use:
-//
-//      // First load from config file
-//      MyParams params("config.ini");
-//
-//      // No update from command line
-//       CLI::App app{"Example programm", "exmaple_programm"};
-//      params.Load(app);
-//      CLI11_PARSE(app, argc, argv);
 
-struct ParamsBase
-{
-    ParamsBase(const std::string name) : name_(name) {}
-    virtual ~ParamsBase() {}
-    std::string name_;
-
-    // virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) = 0;
-
-    // template<class ParamIterator>
-    // virtual void Params(ParamIterator* ini) = 0;
-};
-
-#define SAIGA_PARAM_STRUCT(_Name)                                \
-    using ParamStructType = _Name;                               \
-    _Name() : ParamsBase(#_Name) {}                              \
-    explicit _Name(const std::string& file) : ParamsBase(#_Name) \
-    {                                                            \
-        Load(file);                                              \
-    }
 
 #define SAIGA_PARAM_STRUCT_FUNCTIONS                              \
     void Load(CLI::App& app)                                      \
@@ -208,20 +163,41 @@ struct ParamsBase
         Params(&tableit);                                         \
     }
 
-#define SAIGA_PARAM_DEFAULT(_variable) (ParamStructType()._variable)
 
-#define SAIGA_PARAM(_variable) \
-    if (it) it->SaigaParam(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, "")
+#define SAIGA_PARAM_STRUCT_FUNCTIONS_NAMED(name)                              \
+    void name::Load(CLI::App& app)                                      \
+    {                                                             \
+        ApplicationParamIterator appit;                           \
+        appit.app = &app;                                         \
+        Params(&appit);                                           \
+    }                                                             \
+                                                                  \
+                                                                  \
+    void name::Load(const std::string& file)                    \
+    {                                                             \
+        Saiga::SimpleIni ini_;                                    \
+        ini_.LoadFile(file.c_str());                              \
+        IniFileParamIterator iniit;                               \
+        iniit.ini = &ini_;                                        \
+        Params(&iniit);                                           \
+        if (ini_.changed()) ini_.SaveFile(file.c_str());          \
+    }                                                             \
+                                                                  \
+                                                                  \
+    void name::Save(const std::string& file)                    \
+    {                                                             \
+        Saiga::SimpleIni ini_;                                    \
+        ini_.LoadFile(file.c_str());                              \
+        IniFileParamIterator iniit;                               \
+        iniit.ini = &ini_;                                        \
+        Params(&iniit);                                           \
+        ini_.SaveFile(file.c_str());                              \
+    }                                                             \
+    void name::Print(std::ostream& strm, int column_width) \
+    {                                                             \
+        TablePrintParamIterator tableit(strm, column_width);      \
+        strm << "[" << name_ << "]\n";                            \
+        Params(&tableit);                                         \
+    }
 
-#define SAIGA_PARAM_COMMENT(_variable, _comment) \
-    if (it) it->SaigaParam(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, _comment)
 
-#define SAIGA_PARAM_LIST(_variable, _sep) \
-    if (it) it->SaigaParamList(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, _sep, "")
-
-// a variation where the list is also passed to the command line parser
-#define SAIGA_PARAM_LIST2(_variable, _sep) \
-    if (it) it->SaigaParamList(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, _sep, "")
-
-#define SAIGA_PARAM_LIST_COMMENT(_variable, _sep, _comment) \
-    if (it) it->SaigaParamList(name_, _variable, _variable, #_variable, _sep, _comment)
