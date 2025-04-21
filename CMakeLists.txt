@@ -240,7 +240,7 @@ STRING(REGEX REPLACE "\\\\" "/" SAIGA_INSTALL_PREFIX ${SAIGA_INSTALL_PREFIX} )
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC SAIGA_GIT_SHA1)
 
-set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include" CACHE PATH "Path to the build config files")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_buildconfig.h")
 set(SAIGA_MODULES_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_modules.h")
 set(SAIGA_GIT_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_git_sha1.h")
