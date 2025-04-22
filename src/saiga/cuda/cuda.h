@@ -22,7 +22,7 @@
 #    define __device__
 #endif
 #if !defined(__launch_bounds__)
-#    define __launch_bounds__
+#    define __launch_bounds__(x)
 #endif
 
 
