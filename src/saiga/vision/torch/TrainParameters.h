@@ -219,7 +219,8 @@ std::vector<int> TrainParams::ReadIndexFile(const std::string& file)
 }
 
 
-inline std::vector<int> ReduceIndicesUniform(std::vector<int> all_indices, int target_size)
+template<typename T>
+inline std::vector<T> ReduceIndicesUniform(std::vector<T> all_indices, int target_size)
 {
     if (target_size < 0)
     {
@@ -230,7 +231,7 @@ inline std::vector<int> ReduceIndicesUniform(std::vector<int> all_indices, int t
 
     double step = (double)all_indices.size() / target_size;
 
-    std::vector<int> result;
+    std::vector<T> result;
     for (int i = 0; i < target_size; ++i)
     {
         int x = round(i * step);
