@@ -43,6 +43,9 @@ class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeList
     void setWindowIcon(Image* image);
     void setWindowTitle(const std::string& title);
 
+    void requestAttention();
+    void bringToFront();
+
     virtual void window_size_callback(int width, int height) override;
 
    protected:

@@ -369,6 +369,20 @@ void glfw_Window::setWindowTitle(const std::string& title)
     glfwSetWindowTitle(window, title.c_str());
 }
 
+void glfw_Window::requestAttention()
+{
+    glfwRequestWindowAttention(window);
+}
+
+void glfw_Window::bringToFront()
+{
+    if (glfwGetWindowAttrib(window, GLFW_ICONIFIED))
+    {
+        glfwRestoreWindow(window);
+    }
+    glfwShowWindow(window);
+}
+
 
 
 }  // namespace Saiga
