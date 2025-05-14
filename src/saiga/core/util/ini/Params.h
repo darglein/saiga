@@ -97,7 +97,7 @@ struct ApplicationParamIterator
     void SaigaParamList(std::string section, std::vector<T>& variable, std::vector<T> default_value, std::string name,
                         char sep, std::string comment = "")
     {
-        if (sep == ' ')
+        //if (sep == ' ')
         {
             app->add_option("--" + section + "." + name, variable, comment, true);
         }
