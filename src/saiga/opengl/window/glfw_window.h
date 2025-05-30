@@ -46,6 +46,8 @@ class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeList
     void requestAttention();
     void bringToFront();
 
+    float getContentScale();
+
     virtual void window_size_callback(int width, int height) override;
 
    protected:

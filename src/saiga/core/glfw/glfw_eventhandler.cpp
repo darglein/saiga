@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -22,6 +22,7 @@ std::vector<glfw_MouseListener*> glfw_EventHandler::mouseListener;
 std::vector<glfw_ResizeListener*> glfw_EventHandler::resizeListener;
 std::vector<glfw_ExternalDropListener*> glfw_EventHandler::dropListener;
 std::vector<glfw_CloseListener*> glfw_EventHandler::closeListener;
+std::vector<glfw_ContentScaleListener*> glfw_EventHandler::contentScaleListener;
 
 
 
@@ -90,6 +91,17 @@ glfw_CloseListener::glfw_CloseListener()
 glfw_CloseListener::~glfw_CloseListener()
 {
     auto& v = glfw_EventHandler::closeListener;
+    v.erase(std::remove(v.begin(), v.end(), this), v.end());
+}
+
+glfw_ContentScaleListener::glfw_ContentScaleListener()
+{
+    glfw_EventHandler::contentScaleListener.push_back(this);
+}
+
+glfw_ContentScaleListener::~glfw_ContentScaleListener()
+{
+    auto& v = glfw_EventHandler::contentScaleListener;
     v.erase(std::remove(v.begin(), v.end(), this), v.end());
 }
 
@@ -199,6 +211,14 @@ void glfw_EventHandler::close_callback(GLFWwindow* window)
         {
             glfwSetWindowShouldClose(window, GLFW_FALSE);
         }
+    }
+}
+
+void glfw_EventHandler::content_scale_callback(GLFWwindow* window, float x_scale, float y_scale)
+{
+    for (auto& cl : contentScaleListener)
+    {
+        cl->content_scale_change_callback((x_scale + y_scale) * 0.5f);
     }
 }
 

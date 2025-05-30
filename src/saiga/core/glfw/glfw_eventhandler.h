@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -76,6 +76,14 @@ public:
     virtual bool window_close_callback() { return true; }
 };
 
+class SAIGA_CORE_API glfw_ContentScaleListener
+{
+public:
+    glfw_ContentScaleListener();
+    virtual ~glfw_ContentScaleListener();
+    virtual void content_scale_change_callback(float scale) { }
+};
+
 class SAIGA_CORE_API glfw_EventHandler
 {
    public:
@@ -85,6 +93,7 @@ class SAIGA_CORE_API glfw_EventHandler
     static std::vector<glfw_ResizeListener*> resizeListener;
     static std::vector<glfw_ExternalDropListener*> dropListener;
     static std::vector<glfw_CloseListener*> closeListener;
+    static std::vector<glfw_ContentScaleListener*> contentScaleListener;
 
 
     // called from glfw window joystick //NOTE it is called inside the update step, not the glfwPollEvents function
@@ -103,6 +112,8 @@ class SAIGA_CORE_API glfw_EventHandler
     static void drop_callback(GLFWwindow* window, int count, const char* files[]);
 
     static void close_callback(GLFWwindow* window);
+
+    static void content_scale_callback(GLFWwindow* window, float x_scale, float y_scale);
 };
 
 

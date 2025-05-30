@@ -264,7 +264,6 @@ bool glfw_Window::initInput()
 //    glfwSetWindowUserPointer(window, this);
     glfwSetDropCallback(window, glfw_EventHandler::drop_callback);
 
-
     auto close_callback = [](GLFWwindow* window) 
     {
         for (auto& cl : glfw_EventHandler::closeListener)
@@ -277,6 +276,8 @@ bool glfw_Window::initInput()
     };
 
     glfwSetWindowCloseCallback(window, close_callback);
+
+    glfwSetWindowContentScaleCallback(window, glfw_EventHandler::content_scale_callback);
 
     return true;
 }
@@ -381,6 +382,13 @@ void glfw_Window::bringToFront()
         glfwRestoreWindow(window);
     }
     glfwShowWindow(window);
+}
+
+float glfw_Window::getContentScale()
+{
+    float xscale, yscale;
+    glfwGetWindowContentScale(window, &xscale, &yscale);
+    return (xscale + yscale) * 0.5f;
 }
 
 
