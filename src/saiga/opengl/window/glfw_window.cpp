@@ -13,6 +13,11 @@
 
 #    include "glfw_window.h"
 
+
+#ifdef WIN32
+#include <Windows.h>
+#endif
+
 namespace Saiga
 {
 glfw_Window::glfw_Window(WindowParameters windowParameters, OpenGLParameters openglParameters)
@@ -218,8 +223,20 @@ bool glfw_Window::initWindow()
 
     if (!window)
     {
-        glfwTerminate();
         std::cerr << "glfwCreateWindow returned false!" << std::endl;
+#ifdef WIN32
+        const char* error_desc;
+        int glfw_error = glfwGetError(&error_desc);
+        if (glfw_error == GLFW_NO_ERROR)
+        {
+            error_desc = "Unknown error";
+        }
+
+        MessageBoxA(NULL, error_desc, "Window creation error", MB_OK | MB_ICONERROR);
+        exit(EXIT_FAILURE);
+#endif
+
+        glfwTerminate();
         return false;
     }
 
