@@ -97,17 +97,18 @@ void crit_err_hdlr(int sig_num, siginfo_t* info, void* ucontext)
     (void)uc;
 #    endif
 
+    std::cout << std::endl;
     std::cout << "signal " << sig_num << " (" << strsignal(sig_num) << ")"
               << ", address is " << info->si_addr << " from " << (void*)caller_address << std::endl;
 
 
-    printCurrentStack();
+    // printCurrentStack();
 
     if (customCrashHandler) customCrashHandler();
 
 
     // make sure the program exits here, because otherwise the programm will continue after the segfault
-    SAIGA_ASSERT(0);
+    Saiga::saiga_assert_fail("Segmentation Fault!", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION, "");
     exit(EXIT_FAILURE);
 }
 
@@ -121,7 +122,7 @@ void catchSegFaults()
 
     if (sigaction(SIGSEGV, &sigact, (struct sigaction*)NULL) != 0)
     {
-        std::cerr << "error setting signal handlern" << std::endl;
+        std::cerr << "error setting signal handler" << std::endl;
         SAIGA_ASSERT(0);
     }
 }
@@ -173,13 +174,14 @@ void printCurrentStack()
 
 void SignalHandler(int signal)
 {
-    printCurrentStack();
 
     if (customCrashHandler) customCrashHandler();
 
 
     // make sure the program exits here, because otherwise the programm will continue after the segfault
-    SAIGA_ASSERT(0);
+    // SAIGA_ASSERT(0);
+    std::cout << std::endl;
+    Saiga::saiga_assert_fail("Segmentation Fault!", __FILE__, __LINE__, SAIGA_ASSERT_FUNCTION, "");
     exit(EXIT_FAILURE);
 }
 
