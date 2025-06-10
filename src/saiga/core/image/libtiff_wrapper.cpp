@@ -86,6 +86,7 @@ bool loadImageLibTiff(const std::string& path, Image& img)
 
     return true;
 }
+
 bool saveImageLibTiff(const std::string& path, const Image& img)
 {
     TIFFSetWarningHandler(nullptr);
@@ -107,9 +108,23 @@ bool saveImageLibTiff(const std::string& path, const Image& img)
         return false;
     }
 
+    if (channels(img.type) == 1)
+    {
+        if (!TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK))
+        {
+            return false;
+        }
+    }
+    else
+    {
+        if (!TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB))
+        {
+            return false;
+        }
+    }
 
     uint16_t bitspersample = 0, sample_format = SAMPLEFORMAT_UINT;
-    uint16_t samples = 1;
+    uint16_t samples       = 1;
     switch (img.type)
     {
         case ImageType::UC1:
@@ -163,7 +178,8 @@ struct membuf : std::streambuf
         this->setg(p, p, p + size);
     }
 
-    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in) override
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+                     std::ios_base::openmode which = std::ios_base::in) override
     {
         if (dir == std::ios_base::cur)
             gbump(off);
@@ -179,9 +195,12 @@ struct membuf : std::streambuf
         return seekoff(sp - pos_type(off_type(0)), std::ios_base::beg, which);
     }
 };
+
 struct imemstream : virtual membuf, std::istream
 {
-    imemstream(char const* base, size_t size) : membuf(base, size), std::istream(static_cast<std::streambuf*>(this)) {}
+    imemstream(char const* base, size_t size) : membuf(base, size), std::istream(static_cast<std::streambuf*>(this))
+    {
+    }
 };
 
 bool loadImageFromMemoryLibTiff(const void* data, size_t size, Image& img)
@@ -260,8 +279,6 @@ bool loadImageFromMemoryLibTiff(const void* data, size_t size, Image& img)
 
     return true;
 }
-
-
-}  // namespace Saiga
+} // namespace Saiga
 
 #endif
