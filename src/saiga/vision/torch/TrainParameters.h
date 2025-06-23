@@ -19,9 +19,10 @@ struct TrainParams : public ParamsBase
 {
     SAIGA_PARAM_STRUCT(TrainParams);
     SAIGA_PARAM_STRUCT_FUNCTIONS;
-//    virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
+    //    virtual void Params(Saiga::SimpleIni* ini, CLI::App* app) override
     template <class ParamIterator>
-    void Params(ParamIterator* it){
+    void Params(ParamIterator* it)
+    {
         SAIGA_PARAM(random_seed);
         SAIGA_PARAM(do_train);
         SAIGA_PARAM(do_eval);
@@ -52,7 +53,7 @@ struct TrainParams : public ParamsBase
     }
 
     // ======== Train Control =========
-    long random_seed             = 3746934646;
+    int64_t random_seed          = 3746934646;
     bool do_train                = true;
     bool do_eval                 = true;
     int num_epochs               = 20;
@@ -65,8 +66,8 @@ struct TrainParams : public ParamsBase
 
     std::string output_file_type = ".jpg";
 
-    std::string name = "default";
-    std::string checkpoint_directory     = "";
+    std::string name                 = "default";
+    std::string checkpoint_directory = "";
 
     // ======== Dataset splitting ========
     std::string split_method     = "";
@@ -219,7 +220,7 @@ std::vector<int> TrainParams::ReadIndexFile(const std::string& file)
 }
 
 
-template<typename T>
+template <typename T>
 inline std::vector<T> ReduceIndicesUniform(std::vector<T> all_indices, int target_size)
 {
     if (target_size < 0)

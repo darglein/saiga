@@ -10,6 +10,7 @@
 #include "saiga/core/math/Types.h"
 #include "saiga/core/math/Quaternion.h"
 #include "saiga/core/util/commandLineArguments.h"
+#include "saiga/core/util/assert.h"
 
 #include "saiga/core/util/ini/ParamsReduced.h"
 #include "ini.h"

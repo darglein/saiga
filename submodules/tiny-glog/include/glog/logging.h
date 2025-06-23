@@ -9,6 +9,7 @@
 #include <iostream>
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 struct NullStream : public std::ostream
 {

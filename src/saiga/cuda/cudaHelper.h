@@ -6,11 +6,11 @@
 
 #pragma once
 
-#define SAIGA_ARRAY_VIEW_THRUST
+//#define SAIGA_ARRAY_VIEW_THRUST
 
 #include "saiga/config.h"
 #include "saiga/core/math/imath.h"
-#include "saiga/core/util/DataStructures/ArrayView.h"
+
 #include "saiga/cuda/cuda.h"
 #include "saiga/cuda/cudaTimer.h"
 

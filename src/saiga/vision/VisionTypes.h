@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/vision/VisionIncludes.h"
 #include "saiga/vision/cameraModel/Distortion.h"
 #include "saiga/vision/cameraModel/Intrinsics4.h"
