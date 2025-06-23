@@ -13,7 +13,6 @@
 #include "saiga/core/util/DataStructures/ArrayView.h"
 #include "saiga/cuda/cuda.h"
 #include "saiga/cuda/cudaTimer.h"
-#include "saiga/cuda/thrust_helper.h"
 
 
 

@@ -12,14 +12,20 @@ else ()
 endif ()
 message("=================================")
 
-message("Adding Submodule glog")
-set(WITH_GFLAGS OFF CACHE INTERNAL "")
-set(WITH_GTEST OFF CACHE INTERNAL "")
-set(WITH_UNWIND OFF CACHE INTERNAL "")
-set(BUILD_TESTING OFF CACHE INTERNAL "")
 
-add_subdirectory(glog)
-SET(SAIGA_USE_GLOG 1 PARENT_SCOPE)
+if (SAIGA_WITH_TINY_GLOG)
+    message("Adding Submodule tiny-glog")
+    add_subdirectory(tiny-glog)
+else ()
+    message("Adding Submodule glog")
+    set(WITH_GFLAGS OFF CACHE INTERNAL "")
+    set(WITH_GTEST OFF CACHE INTERNAL "")
+    set(WITH_UNWIND OFF CACHE INTERNAL "")
+    set(BUILD_TESTING OFF CACHE INTERNAL "")
+    add_subdirectory(glog)
+    SET(SAIGA_USE_GLOG 1 PARENT_SCOPE)
+endif ()
+
 message("=================================")
 
 
@@ -31,9 +37,9 @@ set(ZLIB_BUILD_SHARED OFF CACHE INTERNAL "")
 set(ZLIB_BUILD_STATIC ON CACHE INTERNAL "")
 
 # Need this because for some reason assimps exports zlib as well
-if(SAIGA_WITH_ASSIMP)
+if (SAIGA_WITH_ASSIMP)
     set(SKIP_INSTALL_ALL ON CACHE INTERNAL "")
-endif()
+endif ()
 set(ZLIB_TARGET zlibstatic)
 add_subdirectory(zlib)
 set(SKIP_INSTALL_ALL OFF CACHE INTERNAL "")
@@ -71,18 +77,18 @@ if (SAIGA_BUILD_GLFW)
     message("=================================")
     message("Adding Submodule glfw")
 
-    if(SAIGA_GLFW_STATIC)
+    if (SAIGA_GLFW_STATIC)
         set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-    else()
+    else ()
         set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
-    endif()
+    endif ()
 
     set(GLFW_BUILD_EXAMPLES OFF CACHE INTERNAL "")
     set(GLFW_BUILD_TESTS OFF CACHE INTERNAL "")
     set(GLFW_BUILD_DOCS OFF CACHE INTERNAL "")
 
     add_subdirectory(${PROJECT_SOURCE_DIR}/submodules/glfw)
-#    set_target_properties(glfw PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
+    #    set_target_properties(glfw PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
     SET(SAIGA_USE_GLFW 1 PARENT_SCOPE)
 
     #find_package(glfw3 CONFIG QUIET REQUIRED)
@@ -90,7 +96,6 @@ if (SAIGA_BUILD_GLFW)
     #    PackageHelperTarget(glfw GLFW_FOUND)
     message("=================================")
 endif ()
-
 
 
 message("=================================")
@@ -129,7 +134,7 @@ SET(SAIGA_USE_PNG 1 PARENT_SCOPE)
 message("=================================")
 
 
-if(SAIGA_WITH_ASSIMP)
+if (SAIGA_WITH_ASSIMP)
     message("=================================")
     message("Adding Submodule assimp")
 
@@ -142,10 +147,10 @@ if(SAIGA_WITH_ASSIMP)
 
     SET(SAIGA_USE_ASSIMP 1 PARENT_SCOPE)
     message("=================================")
-endif()
+endif ()
 
 
-if(SAIGA_WITH_GTEST)
+if (SAIGA_WITH_GTEST)
     message("=================================")
     message("Adding Submodule googletest")
     set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
@@ -155,12 +160,10 @@ if(SAIGA_WITH_GTEST)
     set(GTEST_FOUND 1 PARENT_SCOPE)
     set(GTEST_TARGETS gtest gtest_main)
     message("=================================")
-endif()
+endif ()
 
 
-
-
-if(SAIGA_WITH_LIBZIP)
+if (SAIGA_WITH_LIBZIP)
     message("=================================")
     message("Adding Submodule libzip")
 
@@ -178,10 +181,10 @@ if(SAIGA_WITH_LIBZIP)
 
     SET(SAIGA_USE_LIBZIP 1 PARENT_SCOPE)
     message("=================================")
-endif()
+endif ()
 
 
-if(SAIGA_WITH_LIBTIFF)
+if (SAIGA_WITH_LIBTIFF)
     message("=================================")
     message("Adding Submodule libtiff")
 
@@ -193,16 +196,16 @@ if(SAIGA_WITH_LIBTIFF)
     set(tiff-deprecated OFF CACHE INTERNAL "")
     set(tiff-install OFF CACHE INTERNAL "")
     set(zlib ON CACHE INTERNAL "")
-    
+
     macro(install)
     endmacro()
-    
+
     add_subdirectory(libtiff)
 
     macro(install)
         _install(${ARGN})
     endmacro()
-    
+
     set_property(TARGET tiff PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET tiffxx PROPERTY POSITION_INDEPENDENT_CODE ON)
 
@@ -211,9 +214,9 @@ if(SAIGA_WITH_LIBTIFF)
 
     SET(SAIGA_USE_LIBTIFF 1 PARENT_SCOPE)
     message("=================================")
-endif()
+endif ()
 
-if(SAIGA_WITH_TINYTIFF)
+if (SAIGA_WITH_TINYTIFF)
     message("=================================")
     message("Adding Submodule TinyTIFF")
 
@@ -226,5 +229,5 @@ if(SAIGA_WITH_TINYTIFF)
 
     SET(SAIGA_USE_TINYTIFF 1 PARENT_SCOPE)
     message("=================================")
-endif()
+endif ()
 

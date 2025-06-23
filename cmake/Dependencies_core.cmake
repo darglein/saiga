@@ -22,7 +22,7 @@ PackageHelperTarget(zlibstatic ZLIB_FOUND)
 PackageHelperTarget(png_static PNG_FOUND)
 PackageHelperTarget(assimp ASSIMP_FOUND)
 PackageHelperTarget(zip LIBZIP_FOUND)
-PackageHelperTarget(glog GLOG_FOUND)
+PackageHelperTarget(glog::glog GLOG_FOUND)
 PackageHelperTarget(TIFF::CXX LIBTIFF_FOUND)
 PackageHelperTarget(TinyTIFF TINYTIFF_FOUND)
 
