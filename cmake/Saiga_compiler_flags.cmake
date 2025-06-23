@@ -93,6 +93,11 @@ if (SAIGA_CXX_MSVC OR SAIGA_CXX_WCLANG)
     list(APPEND SAIGA_CXX_FLAGS "/bigobj")
     #multiprocessor compilation for visual studio
     list(APPEND SAIGA_CXX_FLAGS "/MP")
+
+    # non dll-interface struct 'xx' used as base for dll-interface struct 'xx'
+    list(APPEND SAIGA_CXX_FLAGS "/wd4275")
+
+
 #    set(CMAKE_CXX_FLAGS "/MP ${CMAKE_CXX_FLAGS}")
     add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
 endif ()

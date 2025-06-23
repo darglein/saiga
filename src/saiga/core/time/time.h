@@ -30,13 +30,20 @@ inline std::string CurrentTimeString(const std::string& format)
 {
     const int b_size = 200;
     time_t rawtime;
-    struct tm* timeinfo;
     char buffer[b_size];
 
     time(&rawtime);
-    timeinfo = localtime(&rawtime);
 
+#ifdef _WIN32
+    struct tm timeinfo;
+    localtime_s(&timeinfo, &rawtime);
+    strftime(buffer, b_size, format.c_str(), &timeinfo);
+#else
+    struct tm* timeinfo;
+    timeinfo = localtime(&rawtime);
     strftime(buffer, b_size, format.c_str(), timeinfo);
+#endif
+
 
     return std::string(buffer);
 }
