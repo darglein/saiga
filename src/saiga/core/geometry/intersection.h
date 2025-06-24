@@ -46,7 +46,7 @@ HD inline bool RaySphere(const Ray& ray, const Sphere& sphere, float& t1, float&
 struct RayTriangleIntersection
 {
     bool valid = false;
-    float t    = std::numeric_limits<float>().infinity();  // position on ray
+    float t    = std::numeric_limits<float>().max();  // position on ray
     bool backFace;
     int triangleIndex;  // usefull for raytracers
 

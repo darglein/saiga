@@ -38,7 +38,7 @@ struct SAIGA_CORE_API CameraController
 
     std::vector<int> keyboardmap;
     std::vector<int> mousemap;
-    vec3 rotationPoint = vec3(std::numeric_limits<float>::infinity(), 0, 0);
+    vec3 rotationPoint = vec3(std::numeric_limits<float>::max(), 0, 0);
     vec3 global_up     = vec3(0, 1, 0);
 
     CameraControlMode mode0 = CameraControlMode::ROTATE_FIRST_PERSON_FIX_UP_VECTOR;
@@ -257,7 +257,7 @@ template <class camera_t>
 void Controllable_Camera<camera_t>::mouseAction(float dx, float dy, CameraControlMode mode)
 {
     vec3 actual_rotation_point;
-    if (rotationPoint[0] == std::numeric_limits<float>::infinity())
+    if (rotationPoint[0] == std::numeric_limits<float>::max())
     {
         vec3 dir              = make_vec3(this->getDirection());
         actual_rotation_point = this->getPosition() - 10.0f * dir;
