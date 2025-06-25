@@ -57,6 +57,8 @@ target_include_directories(${ZLIB_TARGET} PUBLIC
 SET(SAIGA_USE_ZLIB 1 PARENT_SCOPE)
 SET(ZLIB_FOUND 1)
 set(ZLIB_LIBRARIES ${ZLIB_TARGET} CACHE INTERNAL "")
+set(ZLIB_LIBRARY zlibstatic CACHE INTERNAL "")
+add_library(ZLIB::ZLIB ALIAS ${ZLIB_TARGET})
 
 
 # Create a fake zlib target which also points to the zlib static library
@@ -101,10 +103,11 @@ endif ()
 message("=================================")
 message("Adding Submodule libPNG")
 
-set(PNG_BUILD_ZLIB ON CACHE INTERNAL "")
+#set(PNG_BUILD_ZLIB ON CACHE INTERNAL "")
 set(PNG_STATIC ON CACHE INTERNAL "")
 set(PNG_SHARED OFF CACHE INTERNAL "")
-set(PNG_EXECUTABLES OFF CACHE INTERNAL "")
+#set(PNG_EXECUTABLES OFF CACHE INTERNAL "")
+set(PNG_TOOLS OFF CACHE INTERNAL "")
 set(PNG_TESTS OFF CACHE INTERNAL "")
 
 include_directories(${ZLIB_INCLUDE_DIRS})

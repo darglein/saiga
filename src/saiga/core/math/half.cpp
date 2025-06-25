@@ -42,17 +42,17 @@ static inline uint32_t uint32_lt(uint32_t a, uint32_t b)
     return (uint32_t)((int32_t)(a - b) >> 31);
 }
 
-static inline uint32_t uint32_gte(uint32_t a, uint32_t b)
-{
-    return ~uint32_lt(a, b);
-}
-
-static inline uint32_t uint32_gt(uint32_t a, uint32_t b)
-{
-    // NOTE: Result is invalid when b=INT32_MIN, a=INT32_MAX
-    // For the purposes used in half.c the result is always valid
-    return (uint32_t)((int32_t)(b - a) >> 31);
-}
+// static inline uint32_t uint32_gte(uint32_t a, uint32_t b)
+// {
+//     return ~uint32_lt(a, b);
+// }
+//
+// static inline uint32_t uint32_gt(uint32_t a, uint32_t b)
+// {
+//     // NOTE: Result is invalid when b=INT32_MIN, a=INT32_MAX
+//     // For the purposes used in half.c the result is always valid
+//     return (uint32_t)((int32_t)(b - a) >> 31);
+// }
 
 static inline uint32_t uint32_nez(uint32_t a)
 {
@@ -64,10 +64,10 @@ static inline uint32_t uint32_eqz(uint32_t a)
     return ~uint32_nez(a);
 }
 
-static inline uint32_t uint32_nez_p(uint32_t a)
-{
-    return (uint32_t)((uint32_t)(a | -a) >> 31);
-}
+// static inline uint32_t uint32_nez_p(uint32_t a)
+// {
+//     return (uint32_t)((uint32_t)(a | -a) >> 31);
+// }
 
 static inline uint32_t uint32_eq(uint32_t a, uint32_t b)
 {
@@ -133,15 +133,15 @@ static inline uint16_t uint16_eqz(uint16_t a)
     return ~uint16_nez(a);
 }
 
-static inline uint16_t uint16_nez_p(uint16_t a)
-{
-    return (uint16_t)((uint16_t)(a | -a) >> 15);
-}
-
-static inline uint16_t uint16_eqz_p(uint16_t a)
-{
-    return ~uint16_nez_p(a);
-}
+// static inline uint16_t uint16_nez_p(uint16_t a)
+// {
+//     return (uint16_t)((uint16_t)(a | -a) >> 15);
+// }
+//
+// static inline uint16_t uint16_eqz_p(uint16_t a)
+// {
+//     return ~uint16_nez_p(a);
+// }
 
 static inline uint16_t uint16_eq(uint16_t a, uint16_t b)
 {
