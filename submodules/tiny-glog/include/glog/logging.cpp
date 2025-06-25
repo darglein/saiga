@@ -26,7 +26,6 @@ void InstallFailureFunction(void (*custom_glog_fail_func)())
 }  // namespace google
 
 
-LogMessage::~LogMessage() {}
 LogStreamVoidifier LogMessage::stream()
 {
     if (result)

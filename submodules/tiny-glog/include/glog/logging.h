@@ -37,7 +37,7 @@
 // This object will be returned by LogMessage::stream()
 // It provides an operator<< that conditionally writes,
 // AND an implicit conversion to bool to enable the if (...) check.
-class LogStreamVoidifier
+class TINY_GLOG_API LogStreamVoidifier
 {
    public:
     // Constructor for the active (logging enabled) state
@@ -90,8 +90,6 @@ struct TINY_GLOG_API LogMessage
             std::cout << "Check failed in " << file << ":" << line << "\n    ";
         }
     }
-
-    ~LogMessage();
 
     // This method now returns our new proxy object by value.
     // This is the key to chaining and conditional evaluation.
