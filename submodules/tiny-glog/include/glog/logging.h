@@ -18,9 +18,9 @@
 #    define TINY_GLOG_HELPER_DLL_EXPORT __declspec(dllexport)
 #    define TINY_GLOG_HELPER_DLL_LOCAL
 #else
-#        define TINY_GLOG_HELPER_DLL_IMPORT __attribute__((visibility("default")))
-#        define TINY_GLOG_HELPER_DLL_EXPORT __attribute__((visibility("default")))
-#        define TINY_GLOG_HELPER_DLL_LOCAL __attribute__((visibility("hidden")))
+#    define TINY_GLOG_HELPER_DLL_IMPORT __attribute__((visibility("default")))
+#    define TINY_GLOG_HELPER_DLL_EXPORT __attribute__((visibility("default")))
+#    define TINY_GLOG_HELPER_DLL_LOCAL __attribute__((visibility("hidden")))
 #endif
 
 
@@ -31,47 +31,39 @@
 #    define TINY_GLOG_API TINY_GLOG_HELPER_DLL_IMPORT
 #endif
 
-// --- NullBuffer and NullStream (as before) ---
-class NullBuffer : public std::streambuf {
-public:
-    int overflow(int c) override {
-        return traits_type::not_eof(c);
-    }
-};
 
-struct NullStream : public std::ostream {
-    NullStream() : std::ostream(&m_null_buffer) {}
-private:
-    NullBuffer m_null_buffer;
-};
-
-// Global null stream instance
-// NullStream glog_nstrm; // Moved declaration above for clarity
 
 // --- The New Conditional Proxy Object ---
 // This object will be returned by LogMessage::stream()
 // It provides an operator<< that conditionally writes,
 // AND an implicit conversion to bool to enable the if (...) check.
-class LogStreamVoidifier {
-public:
+class LogStreamVoidifier
+{
+   public:
     // Constructor for the active (logging enabled) state
     LogStreamVoidifier(std::ostream& os) : m_stream(&os) {}
 
     // Constructor for the inactive (logging disabled) state
     LogStreamVoidifier() : m_stream(nullptr) {}
 
+    ~LogStreamVoidifier();
+
     // Overload for operator<< that only writes if m_stream is not null
-    template<typename T>
-    LogStreamVoidifier& operator<<(const T& val) {
-        if (m_stream) {
+    template <typename T>
+    LogStreamVoidifier& operator<<(const T& val)
+    {
+        if (m_stream)
+        {
             *m_stream << val;
         }
         return *this;
     }
 
     // Handle manipulators like std::endl, std::flush
-    LogStreamVoidifier& operator<<(std::ostream& (*pf)(std::ostream&)) {
-        if (m_stream) {
+    LogStreamVoidifier& operator<<(std::ostream& (*pf)(std::ostream&))
+    {
+        if (m_stream)
+        {
             *m_stream << pf;
         }
         return *this;
@@ -81,12 +73,10 @@ public:
     // This allows the "if (LogMessage(...).stream())" pattern.
     // When m_stream is nullptr, it evaluates to false, short-circuiting the "&&"
     // or allowing an if statement to skip the block.
-    operator bool() const {
-        return m_stream != nullptr;
-    }
+    operator bool() const { return m_stream != nullptr; }
 
-private:
-    std::ostream* m_stream; // Pointer to the actual stream (std::cout or nullptr)
+   private:
+    std::ostream* m_stream;  // Pointer to the actual stream (std::cout or nullptr)
 };
 
 
@@ -116,14 +106,12 @@ struct TINY_GLOG_API LogMessage
 // of the LogStreamVoidifier.
 // The `(void)0` provides an empty statement if the if condition is false.
 // This is a common trick to make the macro parse correctly in all contexts.
-#define CHECK_OP_LOG(name, op, val1, val2, log)                                     \
+#define CHECK_OP_LOG(name, op, val1, val2, log)                                       \
     if (LogStreamVoidifier _ls_void = log(__FILE__, __LINE__, val1 op val2).stream()) \
-        _ls_void                                                                     \
-            << "(" #val1 #op #val2 ") " << val1 << " " #op " " << val2 << "\n    "
+    _ls_void << "(" #val1 #op #val2 ") " << val1 << " " #op " " << val2 << "\n    "
 
-#define CHECK_OP_LOG2(name, val1, log)                                              \
-    if (LogStreamVoidifier _ls_void = log(__FILE__, __LINE__, val1).stream())      \
-        _ls_void << "( " #val1 ")\n    "
+#define CHECK_OP_LOG2(name, val1, log) \
+    if (LogStreamVoidifier _ls_void = log(__FILE__, __LINE__, val1).stream()) _ls_void << "( " #val1 ")\n    "
 
 
 // Keep the rest of your macros as they are, as they use CHECK_OP_LOG / CHECK_OP_LOG2

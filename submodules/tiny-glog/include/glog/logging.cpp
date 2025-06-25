@@ -6,13 +6,11 @@
 #include "logging.h"
 
 
-NullStream glog_nstrm;
-
-
 
 // A default no-op function if no custom one is installed
-void default_glog_fail_func() {
-   abort();
+void default_glog_fail_func()
+{
+    abort();
 }
 
 
@@ -21,37 +19,30 @@ void (*g_custom_glog_fail_func)() = &default_glog_fail_func;
 namespace google
 {
 // --- Implementation of InstallFailureFunction ---
-void InstallFailureFunction(void (*custom_glog_fail_func)()) {
+void InstallFailureFunction(void (*custom_glog_fail_func)())
+{
     g_custom_glog_fail_func = custom_glog_fail_func;
 }
-}
-
-// std::ostream& LogMessage::stream()
-// {
-//     auto& strm = result ? glog_nstrm : std::cout;
-//     return strm;
-// }
+}  // namespace google
 
 
-LogMessage::~LogMessage()
-{
-    if (!result)
-    {
-        // If check failed, flush and abort
-        std::cout << std::endl;
-        g_custom_glog_fail_func();
-    }
-}
-// Implementation of LogMessage::stream()
+LogMessage::~LogMessage() {}
 LogStreamVoidifier LogMessage::stream()
 {
-    if (result) {
-        // If check passed, return an inactive LogStreamVoidifier.
-        // Its 'operator bool' will be false, and 'operator<<' will do nothing.
+    if (result)
+    {
         return LogStreamVoidifier();
-    } else {
-        // If check failed, return an active LogStreamVoidifier, pointing to std::cout.
-        // Its 'operator bool' will be true, and 'operator<<' will write to std::cout.
+    }
+    else
+    {
         return LogStreamVoidifier(std::cout);
+    }
+}
+LogStreamVoidifier::~LogStreamVoidifier()
+{
+    if (m_stream)
+    {
+        (*m_stream) << std::flush;
+        g_custom_glog_fail_func();
     }
 }
