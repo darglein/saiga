@@ -213,7 +213,7 @@ if (SAIGA_WITH_LIBTIFF)
     set_property(TARGET tiffxx PROPERTY POSITION_INDEPENDENT_CODE ON)
 
     # this exe can't be disable -> write it to a different dir
-    set_target_properties(tiff_mkg3states PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin_tiff")
+    #set_target_properties(tiff_mkg3states PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin_tiff")
 
     SET(SAIGA_USE_LIBTIFF 1 PARENT_SCOPE)
     message("=================================")
