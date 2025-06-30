@@ -35,6 +35,7 @@ message("Adding Submodule ZLIB")
 
 set(ZLIB_BUILD_SHARED OFF CACHE INTERNAL "")
 set(ZLIB_BUILD_STATIC ON CACHE INTERNAL "")
+set(ZLIB_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 
 # Need this because for some reason assimps exports zlib as well
 if (SAIGA_WITH_ASSIMP)
@@ -177,7 +178,7 @@ if (SAIGA_WITH_LIBZIP)
     set(BUILD_REGRESS OFF CACHE INTERNAL "")
     set(BUILD_EXAMPLES OFF CACHE INTERNAL "")
     set(BUILD_DOC OFF CACHE INTERNAL "")
-
+    set(BUILD_OSSFUZZ OFF CACHE INTERNAL "")
 
     add_subdirectory(libzip)
     set_property(TARGET zip PROPERTY POSITION_INDEPENDENT_CODE ON)
