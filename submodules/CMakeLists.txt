@@ -73,6 +73,7 @@ message("=================================")
 message("Adding Submodule zstd")
 set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
+set(ZSTD_BUILD_PROGRAMS OFF CACHE INTERNAL "")
 set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(zstd/build/cmake/)
 
