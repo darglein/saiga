@@ -18,6 +18,10 @@
 #include "saiga/core/glfw/glfw_joystick.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 
+#ifdef WIN32
+#include <Windows.h>
+#endif
+
 struct GLFWwindow;
 struct GLFWcursor;
 
@@ -45,6 +49,10 @@ class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeList
 
     void requestAttention();
     void bringToFront();
+
+#ifdef WIN32
+    HWND getNative();
+#endif
 
     float getContentScale();
 

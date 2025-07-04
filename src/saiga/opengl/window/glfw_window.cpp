@@ -16,6 +16,11 @@
 
 #ifdef WIN32
 #include <Windows.h>
+
+#define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_EXPOSE_NATIVE_WGL
+#define GLFW_NATIVE_INCLUDE_NONE
+#include <GLFW/glfw3native.h>
 #endif
 
 namespace Saiga
@@ -407,6 +412,13 @@ float glfw_Window::getContentScale()
     glfwGetWindowContentScale(window, &xscale, &yscale);
     return (xscale + yscale) * 0.5f;
 }
+
+#ifdef WIN32
+HWND glfw_Window::getNative()
+{
+    return glfwGetWin32Window(window);
+}
+#endif
 
 
 
