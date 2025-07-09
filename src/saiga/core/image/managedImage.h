@@ -39,7 +39,8 @@ class SAIGA_CORE_API Image : public ImageBase
         auto res = load(file);
         if (!res)
         {
-            SAIGA_EXIT_ERROR("Could not load file " + file);
+            throw std::runtime_error("Could not load file " + file);
+            //SAIGA_EXIT_ERROR("Could not load file " + file);
         }
     }
 
