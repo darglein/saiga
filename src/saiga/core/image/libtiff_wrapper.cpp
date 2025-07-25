@@ -211,7 +211,7 @@ bool loadImageFromMemoryLibTiff(const void* data, size_t size, Image& img)
 
     imemstream strm((const char*)data, size);
     // TIFF* tif = TIFFOpen(path.c_str(), "r");
-    TIFF* tif = TIFFStreamOpen("balbla", &strm);
+    TIFF* tif = TIFFStreamOpen("Tiff Loader", &strm);
 
     if (!tif) return false;
 
