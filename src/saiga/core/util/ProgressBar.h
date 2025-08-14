@@ -176,7 +176,7 @@ struct ProgressBar : public ProgressBarBase
         {
             // performance stats
             double elapsed_time   = std::chrono::duration_cast<std::chrono::duration<double>>(time).count();
-            double ele_per_second = current * element_factor / elapsed_time;
+            double ele_per_second = elapsed_time > 0 ? current * element_factor / elapsed_time : 0;
             strm << "[" << std::setprecision(2) << std::fixed << ele_per_second << " " << element_name << "/s]";
         }
 
