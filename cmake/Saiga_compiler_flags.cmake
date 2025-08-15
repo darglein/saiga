@@ -174,9 +174,3 @@ if (SAIGA_DEBUG_TSAN)
 endif ()
 
 
-if (SAIGA_DEBIAN_BUILD)
-    if (NOT SAIGA_CXX_CLANG AND NOT SAIGA_CXX_GNU)
-        message(FATAL_ERROR "Only GCC and Clang is supported for a debian build.")
-    endif ()
-    list(APPEND SAIGA_CXX_FLAGS "-mavx2 -mfma")
-endif ()
