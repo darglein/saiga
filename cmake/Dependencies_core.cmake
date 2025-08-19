@@ -28,7 +28,7 @@ PackageHelperTarget(TinyTIFF TINYTIFF_FOUND)
 
 #openmp
 if (SAIGA_CXX_WCLANG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
     find_library(OMP_LIB libomp PATH_SUFFIXES lib)
     message(STATUS ${OMP_LIB})
     SET(LIBS ${LIBS} ${OMP_LIB})

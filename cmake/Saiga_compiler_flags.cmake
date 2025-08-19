@@ -83,16 +83,19 @@ endif ()
 
 if (SAIGA_CXX_WCLANG)
     # Fixes: cannot use 'throw' with exceptions disabled
-    list(APPEND SAIGA_CXX_FLAGS "-Xclang -fcxx-exceptions")
+    #list(APPEND SAIGA_CXX_FLAGS "-Xclang -fcxx-exceptions")
     # some eigen header generates this warning
     add_definitions(-D_SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING)
 endif ()
 
+if (SAIGA_CXX_MSVC)
+    #multiprocessor compilation for visual studio
+    list(APPEND SAIGA_CXX_FLAGS "/MP")
+endif()
+
 if (SAIGA_CXX_MSVC OR SAIGA_CXX_WCLANG)
     # required for some crazy eigen stuff
     list(APPEND SAIGA_CXX_FLAGS "/bigobj")
-    #multiprocessor compilation for visual studio
-    list(APPEND SAIGA_CXX_FLAGS "/MP")
 
     # non dll-interface struct 'xx' used as base for dll-interface struct 'xx'
     list(APPEND SAIGA_CXX_FLAGS "/wd4275")
