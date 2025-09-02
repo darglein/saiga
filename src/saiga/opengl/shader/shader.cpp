@@ -51,7 +51,7 @@ bool Shader::reload()
     }
 }
 
-bool Shader::init(const std::string& file, const ShaderCodeInjections& injections)
+bool Shader::init(const std::filesystem::path& file, const ShaderCodeInjections& injections)
 {
     std::cout << "loading shader " << file << std::endl;
     this->file       = file;

@@ -18,12 +18,12 @@ namespace Saiga
 {
 class SAIGA_OPENGL_API ShaderLoader
 {
-    ObjectCache<std::string, std::shared_ptr<Shader>, ShaderPart::ShaderCodeInjections> cache;
+    ObjectCache<std::filesystem::path, std::shared_ptr<Shader>, ShaderPart::ShaderCodeInjections> cache;
 
    public:
     virtual ~ShaderLoader() {}
     template <typename shader_t>
-    std::shared_ptr<shader_t> load(const std::string& name,
+    std::shared_ptr<shader_t> load(const std::filesystem::path& name,
                                    const ShaderPart::ShaderCodeInjections& sci = ShaderPart::ShaderCodeInjections());
 
     void reload()
@@ -36,12 +36,12 @@ class SAIGA_OPENGL_API ShaderLoader
 
 
 template <typename shader_t>
-std::shared_ptr<shader_t> ShaderLoader::load(const std::string& name, const ShaderPart::ShaderCodeInjections& sci)
+std::shared_ptr<shader_t> ShaderLoader::load(const std::filesystem::path& name, const ShaderPart::ShaderCodeInjections& sci)
 {
-    std::string fullName = SearchPathes::shader(name);
+    std::filesystem::path fullName = SearchPathes::shader(name);
     if (fullName.empty())
     {
-        std::cout << "Could not find file '" << name << "'. Make sure it exists and the search pathes are set."
+        std::cout << "Could not find file '" << name.u8string() << "'. Make sure it exists and the search pathes are set."
                   << std::endl;
         std::cerr << SearchPathes::shader << std::endl;
         SAIGA_ASSERT(0);

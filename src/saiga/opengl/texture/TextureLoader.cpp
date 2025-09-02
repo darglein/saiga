@@ -16,9 +16,9 @@ bool operator==(const TextureParameters& lhs, const TextureParameters& rhs)
 }
 
 
-std::shared_ptr<Texture> TextureLoader::load(const std::string& name, const TextureParameters& params)
+std::shared_ptr<Texture> TextureLoader::load(const std::filesystem::path& name, const TextureParameters& params)
 {
-    std::string fullName = SearchPathes::image(name);
+    std::filesystem::path fullName = SearchPathes::image(name);
     if (fullName.empty())
     {
         std::cout << "Could not find file '" << name << "'. Make sure it exists and the search pathes are set." << std::endl;

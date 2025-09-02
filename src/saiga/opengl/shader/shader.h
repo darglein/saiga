@@ -44,12 +44,12 @@ class SAIGA_OPENGL_API Shader
    public:
     GLuint program = 0;
     std::vector<std::shared_ptr<ShaderPart>> shaders;
-    std::string file;
+    std::filesystem::path file;
     ShaderCodeInjections injections;
 
     // all files that are referenced by includes
     // important for automatic shader reloading
-    std::vector<std::pair<std::string, std::filesystem::file_time_type>> dependent_files_and_date;
+    std::vector<std::pair<std::filesystem::path, std::filesystem::file_time_type>> dependent_files_and_date;
 
 
     Shader();
@@ -57,7 +57,7 @@ class SAIGA_OPENGL_API Shader
     Shader(Shader const&) = delete;
     Shader& operator=(Shader const&) = delete;
 
-    bool init(const std::string& file, const ShaderCodeInjections& injections = {});
+    bool init(const std::filesystem::path& file, const ShaderCodeInjections& injections = {});
     bool init_from_string(const std::string& source_code, const ShaderCodeInjections& injections = {});
     bool reload();
 

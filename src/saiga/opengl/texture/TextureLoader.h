@@ -25,10 +25,10 @@ class SAIGA_OPENGL_API TextureLoader : public Singleton<TextureLoader>
 {
     friend class Singleton<TextureLoader>;
 
-    ObjectCache<std::string, std::shared_ptr<Texture>, TextureParameters> cache;
+    ObjectCache<std::filesystem::path, std::shared_ptr<Texture>, TextureParameters> cache;
 
    public:
-    std::shared_ptr<Texture> load(const std::string& name, const TextureParameters& params = TextureParameters());
+    std::shared_ptr<Texture> load(const std::filesystem::path& name, const TextureParameters& params = TextureParameters());
 };
 
 }  // namespace Saiga

@@ -46,6 +46,17 @@ ShaderCode LoadFileAndResolveIncludes(const std::filesystem::path& file, bool ad
         return result;
     }
 
+    auto forwardslash_filename = [](const std::filesystem::path& p)
+    {
+        std::string s = p.u8string();
+        std::transform(s.begin(), s.end(), s.begin(), [](char c)
+        {
+            if (c == '\\') { c = '/'; }
+            return c;
+        });
+        return s;
+    };
+
     const std::string version("#version");
     const std::string include("#include ");
 
@@ -71,14 +82,14 @@ ShaderCode LoadFileAndResolveIncludes(const std::filesystem::path& file, bool ad
             if (add_line_directives)
             {
                 // add #line before and after #includes
-                std::string lineCommand = "#line " + std::to_string(1) + " \"" + includeFileName.string() + "\"";
+                std::string lineCommand = "#line " + std::to_string(1) + " \"" + forwardslash_filename(includeFileName) + "\"";
                 ret.push_back(lineCommand);
                 addedLines++;
             }
             ret.push_back(line);
             if (add_line_directives)
             {
-                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file.string() + "\"";
+                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + forwardslash_filename(file) + "\"";
                 ret.push_back(lineCommand);
                 addedLines++;
             }
@@ -89,7 +100,7 @@ ShaderCode LoadFileAndResolveIncludes(const std::filesystem::path& file, bool ad
             ret.push_back(line);
             if (add_line_directives)
             {
-                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file.string() + "\"";
+                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + forwardslash_filename(file) + "\"";
                 ret.push_back(lineCommand);
                 addedLines++;
             }
