@@ -10,49 +10,45 @@
 
 #include <string>
 #include <vector>
-#ifdef _WIN32
-#    include "saiga/core/util/windows_dirent.h"
-#else
-#    include <dirent.h>
-#endif
+#include <filesystem>
+
 namespace Saiga
 {
 class SAIGA_CORE_API Directory
 {
    public:
-    Directory(const std::string& dir);
+    Directory(const std::filesystem::path& dir);
     ~Directory();
 
 
     /**
      * Gets all regular files in this directory.
      */
-    std::vector<std::string> getFiles();
+    std::vector<std::filesystem::path> getFiles();
 
     /**
      * Like above, but only if the file ends on "ending"
      */
-    std::vector<std::string> getFilesEnding(const std::string& ending);
+    std::vector<std::filesystem::path> getFilesEnding(const std::filesystem::path& ending);
 
     /**
      * Like above, but only if the file starts with "prefix"
      */
-    std::vector<std::string> getFilesPrefix(const std::string& prefix);
+    std::vector<std::filesystem::path> getFilesPrefix(const std::filesystem::path& prefix);
 
     /**
      * Gets all directories in this directory.
      */
-    std::vector<std::string> getDirectories();
-    std::vector<std::string> getDirectories(const std::string& ending);
+    std::vector<std::filesystem::path> getDirectories();
+    std::vector<std::filesystem::path> getDirectories(const std::filesystem::path& ending);
 
 
-    bool existsFile(const std::string& file);
+    bool existsFile(const std::filesystem::path& file);
 
-    std::string operator()() { return dirname; }
+    std::filesystem::path operator()() { return dirname; }
 
    private:
-    std::string dirname;
-    DIR* dir = nullptr;
+       std::filesystem::path dirname;
 };
 
 }  // namespace Saiga

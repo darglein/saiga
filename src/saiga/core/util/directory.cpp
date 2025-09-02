@@ -18,106 +18,72 @@
 
 namespace Saiga
 {
-Directory::Directory(const std::string& dir)
+Directory::Directory(const std::filesystem::path& dir)
 {
     dirname = dir;
-    if ((this->dir = opendir(dir.c_str())) == NULL)
-    {
-        //        std::cout<<"could not open directory: "<<dir<<std::endl;
-        //        SAIGA_ASSERT(0);
-    }
 }
 
 Directory::~Directory()
 {
-    if (dir) closedir(dir);
 }
 
-std::vector<std::string> Directory::getFiles()
+std::vector<std::filesystem::path> Directory::getFiles()
 {
-    std::vector<std::string> out;
-    if (!dir) return out;
+    std::vector<std::filesystem::path> out;
 
-    struct dirent* ent;
-    rewinddir(dir);
-    while ((ent = readdir(dir)) != NULL)
+    for (auto& it : std::filesystem::directory_iterator(dirname))
     {
-        if (ent->d_type == DT_REG)
+        if (it.is_regular_file())
         {
-            std::string str(ent->d_name);
-            out.push_back(str);
-        }
-        else if (ent->d_type == DT_UNKNOWN)
-        {
-            // On some filesystems like XFS the d_type is always DT_UNKNOWN.
-            // We need to use stat to check if it's a regular file. (Thanks to Samuel Nelson)
-            std::string fullFileName = dirname + "/" + std::string(ent->d_name);
-            struct stat st;
-            int ret = stat(fullFileName.c_str(), &st);
-            SAIGA_ASSERT(ret == 0);
-            if (S_ISREG(st.st_mode))
-            {
-                std::string str(ent->d_name);
-                out.push_back(str);
-            }
+            out.push_back(it.path());
         }
     }
     return out;
 }
 
 
-std::vector<std::string> Directory::getFilesEnding(const std::string& ending)
+std::vector<std::filesystem::path> Directory::getFilesEnding(const std::filesystem::path& ending)
 {
     auto tmp = getFiles();
-    auto e   = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasEnding(s, ending); });
+    auto e   = std::remove_if(tmp.begin(), tmp.end(), [&](const std::filesystem::path& s) { return !hasEnding(s.u8string(), ending.u8string()); });
     tmp.erase(e, tmp.end());
     return tmp;
 }
 
-std::vector<std::string> Directory::getFilesPrefix(const std::string& prefix)
+std::vector<std::filesystem::path> Directory::getFilesPrefix(const std::filesystem::path& prefix)
 {
     auto tmp = getFiles();
-    auto e   = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasPrefix(s, prefix); });
+    auto e   = std::remove_if(tmp.begin(), tmp.end(), [&](const std::filesystem::path& s) { return !hasPrefix(s.u8string(), prefix.u8string()); });
     tmp.erase(e, tmp.end());
     return tmp;
 }
 
 
-std::vector<std::string> Directory::getDirectories()
+std::vector<std::filesystem::path> Directory::getDirectories()
 {
-    std::vector<std::string> out;
-    if (!dir) return out;
+    std::vector<std::filesystem::path> out;
 
-    struct dirent* ent;
-    while ((ent = readdir(dir)) != NULL)
+    for (auto& it : std::filesystem::directory_iterator(dirname))
     {
-        if (ent->d_type == DT_DIR)
+        if (it.is_directory())
         {
-            std::string str(ent->d_name);
-            out.push_back(str);
+            out.push_back(it.path());
         }
     }
     return out;
 }
 
 
-std::vector<std::string> Directory::getDirectories(const std::string& ending)
+std::vector<std::filesystem::path> Directory::getDirectories(const std::filesystem::path& ending)
 {
     auto tmp = getDirectories();
 
-    auto e = std::remove_if(tmp.begin(), tmp.end(), [&](std::string& s) { return !hasEnding(s, ending); });
+    auto e = std::remove_if(tmp.begin(), tmp.end(), [&](const std::filesystem::path& s) { return !hasEnding(s.u8string(), ending.u8string()); });
     tmp.erase(e, tmp.end());
     return tmp;
-    //    for(auto& str : tmp)
-    //    {
-    //        if(hasEnding(str,ending))
-    //        {
-    //            out.push_back(str);
-    //        }
-    //    }
 }
 
-bool Directory::existsFile(const std::string& file)
+bool Directory::existsFile(const std::filesystem::path& file)
 {
     auto all = getFiles();
     return std::find(all.begin(), all.end(), file) != all.end();
