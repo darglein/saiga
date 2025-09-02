@@ -19,6 +19,7 @@
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/core/util/string_to_path.h"
 
 #include "internal/noGraphicsAPI.h"
 #include "internal/stb_image_read_wrapper.h"
@@ -103,7 +104,7 @@ bool Image::valid() const
 
 
 
-bool Image::load(const std::string& _path)
+bool Image::load(const std::filesystem::path& _path)
 {
     clear();
 
@@ -116,19 +117,19 @@ bool Image::load(const std::string& _path)
     }
 
     bool erg         = false;
-    std::string type = fileEnding(path);
+    std::string type = path.extension().string();
     std::transform(type.begin(), type.end(), type.begin(),
         [](char c) { return std::tolower(c); });
 
 
-    if (type == "saigai")
+    if (type == ".saigai")
     {
         // saiga raw image format
         return loadRaw(path);
     }
 
     // use libpng for png images
-    if (type == "png")
+    if (type == ".png")
     {
 #ifdef SAIGA_USE_PNG
         ImageIOLibPNG io;
@@ -148,7 +149,7 @@ bool Image::load(const std::string& _path)
 #endif
     }
 
-    if (type == "tif" || type == "tiff")
+    if (type == ".tif" || type == ".tiff")
     {
 #ifdef SAIGA_USE_LIBTIFF
         return loadImageLibTiff(path, *this);
@@ -177,7 +178,7 @@ bool Image::load(const std::string& _path)
 #endif
 
     // as a last resort use stb_image.h from the internals directory
-    erg = loadImageSTB(path, *this);
+    erg = loadImageSTB(path_to_string(path), *this);
     return erg;
 }
 
@@ -245,25 +246,25 @@ std::vector<unsigned char> Image::saveToMemory(std::string file_extension) const
     return result;
 }
 
-bool Image::save(const std::string& path) const
+bool Image::save(const std::filesystem::path& path) const
 {
     SAIGA_ASSERT(valid());
 
-    std::string output_type = fileEnding(path);
+    auto output_type = path.extension();
 
-    if (output_type == "saigai")
+    if (output_type == ".saigai")
     {
         // saiga raw image format
         return saveRaw(path);
     }
 
-    if (output_type == "jpg" && channels(this->type) != 3)
+    if (output_type == ".jpg" && channels(this->type) != 3)
     {
         std::cerr << "jpg is only supported with 3 channels" << std::endl;
         return false;
     }
 
-    if (output_type == "png")
+    if (output_type == ".png")
     {
 #ifdef SAIGA_USE_PNG
         // return LibPNG::save(path, *this, false);
@@ -276,7 +277,7 @@ bool Image::save(const std::string& path) const
 #endif
     }
 
-    if (output_type == "tif" || output_type == "tiff")
+    if (output_type == ".tif" || output_type == ".tiff")
     {
 #ifdef SAIGA_USE_LIBTIFF
         return saveImageLibTiff(path, *this);
@@ -286,13 +287,13 @@ bool Image::save(const std::string& path) const
 #ifdef SAIGA_USE_FREEIMAGE
     {
         ImageIOLibFreeimage io;
-        return io.Save2File(path, *this);
+        return io.Save2File(path_to_string(path), *this);
     }
     // return FIP::save(path, *this);
 #endif
 
     // as a last resort use stb_image.h from the internals directory
-    return saveImageSTB(path, *this);
+    return saveImageSTB(path_to_string(path), *this);
 }
 
 constexpr int saiga_image_magic_number            = 8574385;
@@ -301,7 +302,7 @@ constexpr size_t saiga_image_header_size          = 4 * sizeof(int);
 
 
 
-bool Image::loadRaw(const std::string& path)
+bool Image::loadRaw(const std::filesystem::path& path)
 {
     clear();
 
@@ -359,7 +360,7 @@ bool Image::loadRaw(const std::string& path)
     return true;
 }
 
-bool Image::saveRaw(const std::string& path, bool do_compress) const
+bool Image::saveRaw(const std::filesystem::path& path, bool do_compress) const
 {
     BinaryOutputVector stream;
 
@@ -392,7 +393,7 @@ bool Image::saveRaw(const std::string& path, bool do_compress) const
     return true;
 }
 
-bool Image::saveConvert(const std::string& path, float minValue, float maxValue)
+bool Image::saveConvert(const std::filesystem::path& path, float minValue, float maxValue)
 {
     if (type == ImageType::F1)
     {

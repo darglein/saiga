@@ -32,12 +32,12 @@ class SAIGA_CORE_API ImageIO
    public:
     ImageIO() {}
 
-    virtual bool Save2File(const std::string& path, const Image& img, ImageSaveFlags flags = ImageSaveFlags()) = 0;
+    virtual bool Save2File(const std::filesystem::path& path, const Image& img, ImageSaveFlags flags = ImageSaveFlags()) = 0;
 
     virtual std::vector<unsigned char> Save2Memory(const Image& img,
                                                    ImageSaveFlags flags = ImageSaveFlags()) = 0;
 
-    virtual std::optional<Image> LoadFromFile(const std::string& path, ImageLoadFlags flags = ImageLoadFlags())   = 0;
+    virtual std::optional<Image> LoadFromFile(const std::filesystem::path& path, ImageLoadFlags flags = ImageLoadFlags())   = 0;
     virtual std::optional<Image> LoadFromMemory(const void* data, size_t size, ImageLoadFlags flags = ImageLoadFlags()) = 0;
 };
 }  // namespace Saiga

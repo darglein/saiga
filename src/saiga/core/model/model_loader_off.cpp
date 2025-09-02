@@ -35,7 +35,7 @@ OffModelLoader::OffModelLoader(const std::string& file) : file(file)
 
 bool OffModelLoader::loadFile(const std::string& _file)
 {
-    this->file = SearchPathes::model(_file);
+    this->file = SearchPathes::model(_file).string();
     if (file == "")
     {
         std::cerr << "Could not open file " << _file << std::endl;

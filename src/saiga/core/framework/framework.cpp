@@ -26,7 +26,7 @@
 namespace Saiga
 {
 bool initialized = false;
-std::string shaderDir;
+std::filesystem::path shaderDir;
 
 
 bool isShaderDirectory(const std::string& dir)
@@ -38,7 +38,7 @@ bool isShaderDirectory(const std::string& dir)
 
 bool findShaders(const SaigaParameters& params)
 {
-    std::vector<std::string> searchPathes = {
+    std::vector<std::filesystem::path> searchPathes = {
         // First check in the local working directory
         "shader",
     };
@@ -53,7 +53,7 @@ bool findShaders(const SaigaParameters& params)
 
     for (auto str : searchPathes)
     {
-        if (isShaderDirectory(str))
+        if (isShaderDirectory(str.string()))
         {
             shaderDir = str;
             break;
@@ -244,7 +244,7 @@ void initSaiga(const SaigaParameters& params)
         if (!gotShaders) exit(1);
 
         SearchPathes::shader.addSearchPath(shaderDir);
-        SearchPathes::shader.addSearchPath(shaderDir + "/include");
+        SearchPathes::shader.addSearchPath(shaderDir / "include");
     }
 
     SearchPathes::shader.addSearchPath(params.shaderDirectory);

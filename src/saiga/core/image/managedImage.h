@@ -12,6 +12,7 @@
 #include "saiga/core/util/DataStructures/ArrayView.h"
 
 #include <vector>
+#include <filesystem>
 
 namespace Saiga
 {
@@ -34,12 +35,12 @@ class SAIGA_CORE_API Image : public ImageBase
     Image(ImageType type) : type(type) {}
     Image(int h, int w, ImageType type);
     Image(ImageDimensions dimensions, ImageType type);
-    Image(const std::string& file)
+    Image(const std::filesystem::path& file)
     {
         auto res = load(file);
         if (!res)
         {
-            throw std::runtime_error("Could not load file " + file);
+            throw std::runtime_error("Could not load file " + file.u8string());
             //SAIGA_EXIT_ERROR("Could not load file " + file);
         }
     }
@@ -133,7 +134,7 @@ class SAIGA_CORE_API Image : public ImageBase
     }
 
 
-    bool load(const std::string& path);
+    bool load(const std::filesystem::path& path);
 
     // in hint you give a format hint to the decoder
     // Accepted hint values are the types in all lower case.
@@ -141,21 +142,21 @@ class SAIGA_CORE_API Image : public ImageBase
     bool loadFromMemory(ArrayView<const char> data, const std::string& hint = "");
     std::vector<unsigned char> saveToMemory(std::string file_extension = "png") const;
 
-    bool save(const std::string& path) const;
+    bool save(const std::filesystem::path& path) const;
 
     // save in a custom saiga format
     // this can handle all image types
     // If the compress flag is set, we apply zlib lossless compression.
     // Loading dosen't change for compressed files, because we store a flag in the header.
-    bool loadRaw(const std::string& path);
-    bool saveRaw(const std::string& path, bool compress = false) const;
+    bool loadRaw(const std::filesystem::path& path);
+    bool saveRaw(const std::filesystem::path& path, bool compress = false) const;
 
     /**
      * Tries to convert the given image to a storable format.
      * For example:
      * Floating point images are converted to 8-bit grayscale images.
      */
-    bool saveConvert(const std::string& path, float minValue = 0, float maxValue = 1);
+    bool saveConvert(const std::filesystem::path& path, float minValue = 0, float maxValue = 1);
 
 
     std::vector<uint8_t> compress();

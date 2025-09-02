@@ -162,7 +162,7 @@ ObjModelLoader::ObjModelLoader(const std::string& file) : file(file)
 
 bool ObjModelLoader::loadFile(const std::string& _file)
 {
-    this->file = SearchPathes::model(_file);
+    this->file = SearchPathes::model(_file).string();
     if (file == "")
     {
         std::cerr << "Could not open file " << _file << std::endl;
@@ -491,7 +491,7 @@ void ObjModelLoader::parseLine()
     {
         FileChecker fc;
 
-        std::string mtl_file = fc.getRelative(file, std::string(lineParser.next()));
+        std::string mtl_file = fc.getRelative(file, std::string(lineParser.next())).string();
 
         out_model.materials = LoadMTL(mtl_file);
     }

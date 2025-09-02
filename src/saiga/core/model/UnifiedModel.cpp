@@ -124,10 +124,10 @@ void UnifiedModel::LocateTextures(const std::string& base)
 
         // first search relative to the parent
         std::string result;
-        result = SearchPathes::model.getRelative(base, str);
+        result = SearchPathes::model.getRelative(base, str).string();
 
         // no search in the image dir
-        if (result.empty()) result = SearchPathes::image.getRelative(base, str);
+        if (result.empty()) result = SearchPathes::image.getRelative(base, str).string();
 
         if (result.empty())
         {
