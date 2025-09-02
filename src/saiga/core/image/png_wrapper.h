@@ -29,12 +29,12 @@ namespace Saiga
 class SAIGA_CORE_API ImageIOLibPNG : public ImageIO
 {
    public:
-    virtual bool Save2File(const std::string& path, const Image& img, ImageSaveFlags flags = ImageSaveFlags()) override;
+    virtual bool Save2File(const std::filesystem::path& path, const Image& img, ImageSaveFlags flags = ImageSaveFlags()) override;
 
     virtual std::vector<unsigned char> Save2Memory(const Image& img,
                                                    ImageSaveFlags flags = ImageSaveFlags()) override;
 
-    virtual std::optional<Image> LoadFromFile(const std::string& path,
+    virtual std::optional<Image> LoadFromFile(const std::filesystem::path& path,
                                               ImageLoadFlags flags = ImageLoadFlags()) override;
     virtual std::optional<Image> LoadFromMemory(const void* data, size_t size,
                                                 ImageLoadFlags flags = ImageLoadFlags()) override;

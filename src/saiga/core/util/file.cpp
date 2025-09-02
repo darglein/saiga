@@ -18,7 +18,7 @@ namespace Saiga
 {
 namespace File
 {
-std::vector<char> loadFileBinary(const std::string& file)
+std::vector<char> loadFileBinary(const std::filesystem::path& file)
 {
     std::vector<char> result;
 
@@ -37,7 +37,7 @@ std::vector<char> loadFileBinary(const std::string& file)
     return result;
 }
 
-std::string loadFileString(const std::string& file)
+std::string loadFileString(const std::filesystem::path& file)
 {
     std::string fileContent;
     std::ifstream fileStream(file, std::ios::in);
@@ -101,7 +101,7 @@ std::vector<std::string> loadFileStringArray(const std::string& file)
     return fileContent;
 }
 
-void saveFileBinary(const std::string& file, const void* data, size_t size)
+void saveFileBinary(const std::filesystem::path& file, const void* data, size_t size)
 {
     std::ofstream is(file, std::ios::binary | std::ios::out);
     if (!is.is_open())

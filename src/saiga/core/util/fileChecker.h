@@ -10,6 +10,7 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
 namespace Saiga
 {
@@ -19,13 +20,11 @@ class SAIGA_CORE_API FileChecker
     FileChecker();
 
     // searches for 'file' at all search pathes and returns the full name
-    std::string getFile(const std::string& file);
-    std::string operator()(const std::string& file) { return getFile(file); }
-
-
+    std::filesystem::path getFile(const std::filesystem::path& file);
+    std::filesystem::path operator()(const std::filesystem::path& file) { return getFile(file); }
 
     // returns the full file name of 'file' that is relative addressed to 'basefile'
-    std::string getRelative(const std::string& baseFile, const std::string& file);
+    std::filesystem::path getRelative(const std::filesystem::path& baseFile, const std::filesystem::path& file);
 
     /**
      * returns the parent directory of 'file'
@@ -33,7 +32,7 @@ class SAIGA_CORE_API FileChecker
      * test/image.png
      * ->   test/
      */
-    static std::string getParentDirectory(const std::string& file);
+    static std::filesystem::path getParentDirectory(const std::filesystem::path& file);
 
     /**
      * returns the raw file name of 'file'
@@ -41,18 +40,17 @@ class SAIGA_CORE_API FileChecker
      * test/image.png
      * ->   image.png
      */
-    std::string getFileName(const std::string& file);
+    std::filesystem::path getFileName(const std::filesystem::path& file);
 
     /**
      * Like above, but only if the file ends on "ending"
      */
     void getFiles(std::vector<std::string>& out, const std::string& predir, const std::string& ending);
 
-    void addSearchPath(const std::string& path);
-    void addSearchPath(const std::vector<std::string>& paths);
+    bool existsFile(const std::filesystem::path& file);
 
-    bool existsFile(const std::string& file);
-
+    void addSearchPath(const std::filesystem::path& path);
+    void addSearchPath(const std::vector<std::filesystem::path>& paths);
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const FileChecker& fc);
 
@@ -60,7 +58,7 @@ class SAIGA_CORE_API FileChecker
     // all file search functions search at these pathes.
     // the first match will return.
     // the empty path is added by default.
-    std::vector<std::string> searchPathes;
+    std::vector<std::filesystem::path> searchPathes;
 };
 
 

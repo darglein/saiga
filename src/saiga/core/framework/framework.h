@@ -10,18 +10,19 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
 namespace Saiga
 {
 struct SAIGA_CORE_API SaigaParameters
 {
     // share/ directory where saiga has been installed.
-    std::vector<std::string> shaderDirectory  = {"shader/", SAIGA_SHADER_PREFIX};
-    std::vector<std::string> textureDirectory = {"textures/"};
-    std::vector<std::string> modelDirectory   = {"models/"};
-    std::vector<std::string> fontDirectory    = {"fonts/"};
+    std::vector<std::filesystem::path> shaderDirectory  = {"shader/", SAIGA_SHADER_PREFIX};
+    std::vector<std::filesystem::path> textureDirectory = {"textures/"};
+    std::vector<std::filesystem::path> modelDirectory   = {"models/"};
+    std::vector<std::filesystem::path> fontDirectory    = {"fonts/"};
     // for everything else
-    std::vector<std::string> dataDirectory = {"data/"};
+    std::vector<std::filesystem::path> dataDirectory = {"data/"};
 
     std::string mainThreadName = "Saiga::main";
 

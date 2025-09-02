@@ -474,7 +474,7 @@ void updateImGuiFontSettings(const ImGuiParameters& params)
         ImFontConfig conf;
         conf.RasterizerMultiply = params.fontBrightness;
         // io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
-        io.FontDefault = io.Fonts->AddFontFromFileTTF(fontFile.c_str(), params.fontSize, &conf);
+        io.FontDefault = io.Fonts->AddFontFromFileTTF(fontFile.string().c_str(), params.fontSize, &conf);
     }
     else
     {
@@ -492,7 +492,7 @@ void updateImGuiFontSettings(const ImGuiParameters& params)
             iconsConfig.MergeMode  = true;
             iconsConfig.PixelSnapH = true;
             io.FontDefault =
-                io.Fonts->AddFontFromFileTTF(iconsFile.c_str(), params.fontSize, &iconsConfig, iconsRanges);
+                io.Fonts->AddFontFromFileTTF(iconsFile.string().c_str(), params.fontSize, &iconsConfig, iconsRanges);
         }
     }
 }

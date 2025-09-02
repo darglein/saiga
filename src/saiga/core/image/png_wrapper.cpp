@@ -209,11 +209,15 @@ static void writepng_encode_image(const Image& img, PNGLoadStore* pngls, bool in
 
 
 
-bool ImageIOLibPNG::Save2File(const std::string& path, const Image& img, ImageSaveFlags flags)
+bool ImageIOLibPNG::Save2File(const std::filesystem::path& path, const Image& img, ImageSaveFlags flags)
 {
     PNGLoadStore pngls;
 
+#ifdef WIN32
+    FILE* fp = _wfopen(path.c_str(), L"wb");
+#else
     FILE* fp = fopen(path.c_str(), "wb");
+#endif
     if (!fp)
     {
         std::cout << "could not open file: " << path.c_str() << std::endl;
@@ -286,7 +290,7 @@ std::vector<unsigned char> ImageIOLibPNG::Save2Memory(const Image& img, ImageSav
 
     return out_data;
 }
-std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::string& path, ImageLoadFlags flags)
+std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::filesystem::path& path, ImageLoadFlags flags)
 {
     PNGLoadStore pngls;
     png_structp png_ptr;
@@ -295,7 +299,11 @@ std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::string& path, ImageL
     unsigned int sig_read = 0;
 
 
+#ifdef WIN32
+    if ((pngls.infile = _wfopen(path.c_str(), L"rb")) == NULL) return {};
+#else
     if ((pngls.infile = fopen(path.c_str(), "rb")) == NULL) return {};
+#endif
 
     /* Create and initialize the png_struct
      * with the desired error handler

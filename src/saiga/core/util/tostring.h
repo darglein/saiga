@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #ifdef SAIGA_HAS_STRING_VIEW
 #    include <string_view>
@@ -73,6 +74,10 @@ inline std::string to_string(const std::string& v)
 inline std::string to_string(const char* v)
 {
     return std::string(v);
+}
+inline std::string to_string(const std::filesystem::path& v)
+{
+    return v.u8string();
 }
 
 template <typename T>

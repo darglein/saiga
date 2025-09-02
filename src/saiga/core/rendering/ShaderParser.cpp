@@ -17,7 +17,7 @@
 
 namespace Saiga
 {
-static std::string getFileFromInclude(const std::string& file, std::string line)
+static std::filesystem::path getFileFromInclude(const std::filesystem::path& file, std::string line)
 {
     const std::string include("#include ");
     line = line.substr(include.size() - 1);
@@ -29,13 +29,13 @@ static std::string getFileFromInclude(const std::string& file, std::string line)
     line.erase(it, line.end());
 
     // recursivly load includes
-    std::string includeFileName = line;
-    includeFileName             = SearchPathes::shader.getRelative(file, includeFileName);
+    std::filesystem::path includeFileName = line;
+    includeFileName                       = SearchPathes::shader.getRelative(file, includeFileName);
     return includeFileName;
 }
 
 
-ShaderCode LoadFileAndResolveIncludes(const std::string file, bool add_line_directives)
+ShaderCode LoadFileAndResolveIncludes(const std::filesystem::path& file, bool add_line_directives)
 {
     ShaderCode result;
     result.dependent_files.push_back(file);
@@ -66,19 +66,19 @@ ShaderCode LoadFileAndResolveIncludes(const std::string file, bool add_line_dire
 
         if (include.size() < line.size() && line.compare(0, include.length(), include) == 0)
         {
-            std::string includeFileName = getFileFromInclude(file, line);
+            std::filesystem::path includeFileName = getFileFromInclude(file, line);
 
             if (add_line_directives)
             {
                 // add #line before and after #includes
-                std::string lineCommand = "#line " + std::to_string(1) + " \"" + includeFileName + "\"";
+                std::string lineCommand = "#line " + std::to_string(1) + " \"" + includeFileName.string() + "\"";
                 ret.push_back(lineCommand);
                 addedLines++;
             }
             ret.push_back(line);
             if (add_line_directives)
             {
-                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file + "\"";
+                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file.string() + "\"";
                 ret.push_back(lineCommand);
                 addedLines++;
             }
@@ -89,7 +89,7 @@ ShaderCode LoadFileAndResolveIncludes(const std::string file, bool add_line_dire
             ret.push_back(line);
             if (add_line_directives)
             {
-                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file + "\"";
+                std::string lineCommand = "#line " + std::to_string(ret.size() - addedLines + 1) + " \"" + file.string() + "\"";
                 ret.push_back(lineCommand);
                 addedLines++;
             }
@@ -108,7 +108,7 @@ ShaderCode LoadFileAndResolveIncludes(const std::string file, bool add_line_dire
         std::string line = ret[i];
         if (include.size() < line.size() && line.compare(0, include.length(), include) == 0)
         {
-            std::string includeFileName = getFileFromInclude(file, line);
+            std::filesystem::path includeFileName = getFileFromInclude(file, line);
 
             auto included_code = LoadFileAndResolveIncludes(includeFileName, add_line_directives);
             if (!included_code.valid)

@@ -10,14 +10,15 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
 namespace Saiga
 {
 namespace File
 {
-SAIGA_CORE_API std::vector<char> loadFileBinary(const std::string& file);
+SAIGA_CORE_API std::vector<char> loadFileBinary(const std::filesystem::path& file);
 
-SAIGA_CORE_API std::string loadFileString(const std::string& file);
+SAIGA_CORE_API std::string loadFileString(const std::filesystem::path& file);
 
 // returns an array of lines
 SAIGA_CORE_API std::vector<std::string> loadFileStringArray(const std::string& file);
@@ -26,6 +27,6 @@ SAIGA_CORE_API void removeWindowsLineEnding(std::string& line);
 SAIGA_CORE_API void removeWindowsLineEnding(std::vector<std::string>& file);
 
 
-SAIGA_CORE_API void saveFileBinary(const std::string& file, const void* data, size_t size);
+SAIGA_CORE_API void saveFileBinary(const std::filesystem::path& file, const void* data, size_t size);
 }  // namespace File
 }  // namespace Saiga

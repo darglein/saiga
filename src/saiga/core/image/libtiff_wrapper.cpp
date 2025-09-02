@@ -9,12 +9,16 @@
 
 namespace Saiga
 {
-bool loadImageLibTiff(const std::string& path, Image& img)
+bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
 {
     TIFFSetWarningHandler(nullptr);
     TIFFSetWarningHandlerExt(nullptr);
 
+#ifdef WIN32
+    TIFF* tif = TIFFOpenW(path.c_str(), "r");
+#else
     TIFF* tif = TIFFOpen(path.c_str(), "r");
+#endif
 
     if (!tif) return false;
 
@@ -87,12 +91,16 @@ bool loadImageLibTiff(const std::string& path, Image& img)
     return true;
 }
 
-bool saveImageLibTiff(const std::string& path, const Image& img)
+bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
 {
     TIFFSetWarningHandler(nullptr);
     TIFFSetWarningHandlerExt(nullptr);
 
+#ifdef WIN32
+    TIFF* tif = TIFFOpenW(path.c_str(), "w");
+#else
     TIFF* tif = TIFFOpen(path.c_str(), "w");
+#endif
     if (!tif) return false;
 
     uint32_t width  = img.width;

@@ -7,12 +7,12 @@
 #pragma once
 
 
-#include "saiga/core/math/Types.h"
 #include "saiga/core/math/Quaternion.h"
-#include "saiga/core/util/commandLineArguments.h"
+#include "saiga/core/math/Types.h"
 #include "saiga/core/util/assert.h"
-
+#include "saiga/core/util/commandLineArguments.h"
 #include "saiga/core/util/ini/ParamsReduced.h"
+
 #include "ini.h"
 
 
@@ -98,7 +98,7 @@ struct ApplicationParamIterator
     void SaigaParamList(std::string section, std::vector<T>& variable, std::vector<T> default_value, std::string name,
                         char sep, std::string comment = "")
     {
-        //if (sep == ' ')
+        // if (sep == ' ')
         {
             app->add_option("--" + section + "." + name, variable, comment, true);
         }
@@ -137,7 +137,7 @@ struct TablePrintParamIterator
     }                                                             \
                                                                   \
                                                                   \
-    virtual void Load(const std::string& file)                    \
+    virtual void Load(const std::filesystem::path& file)          \
     {                                                             \
         Saiga::SimpleIni ini_;                                    \
         ini_.LoadFile(file.c_str());                              \
@@ -148,7 +148,7 @@ struct TablePrintParamIterator
     }                                                             \
                                                                   \
                                                                   \
-    virtual void Save(const std::string& file)                    \
+    virtual void Save(const std::filesystem::path& file)          \
     {                                                             \
         Saiga::SimpleIni ini_;                                    \
         ini_.LoadFile(file.c_str());                              \
@@ -165,40 +165,38 @@ struct TablePrintParamIterator
     }
 
 
-#define SAIGA_PARAM_STRUCT_FUNCTIONS_NAMED(name)                              \
-    void name::Load(CLI::App& app)                                      \
-    {                                                             \
-        ApplicationParamIterator appit;                           \
-        appit.app = &app;                                         \
-        Params(&appit);                                           \
-    }                                                             \
-                                                                  \
-                                                                  \
-    void name::Load(const std::string& file)                    \
-    {                                                             \
-        Saiga::SimpleIni ini_;                                    \
-        ini_.LoadFile(file.c_str());                              \
-        IniFileParamIterator iniit;                               \
-        iniit.ini = &ini_;                                        \
-        Params(&iniit);                                           \
-        if (ini_.changed()) ini_.SaveFile(file.c_str());          \
-    }                                                             \
-                                                                  \
-                                                                  \
-    void name::Save(const std::string& file)                    \
-    {                                                             \
-        Saiga::SimpleIni ini_;                                    \
-        ini_.LoadFile(file.c_str());                              \
-        IniFileParamIterator iniit;                               \
-        iniit.ini = &ini_;                                        \
-        Params(&iniit);                                           \
-        ini_.SaveFile(file.c_str());                              \
-    }                                                             \
-    void name::Print(std::ostream& strm, int column_width) \
-    {                                                             \
-        TablePrintParamIterator tableit(strm, column_width);      \
-        strm << "[" << name_ << "]\n";                            \
-        Params(&tableit);                                         \
+#define SAIGA_PARAM_STRUCT_FUNCTIONS_NAMED(name)             \
+    void name::Load(CLI::App& app)                           \
+    {                                                        \
+        ApplicationParamIterator appit;                      \
+        appit.app = &app;                                    \
+        Params(&appit);                                      \
+    }                                                        \
+                                                             \
+                                                             \
+    void name::Load(const std::filesystem::path& file)       \
+    {                                                        \
+        Saiga::SimpleIni ini_;                               \
+        ini_.LoadFile(file.c_str());                         \
+        IniFileParamIterator iniit;                          \
+        iniit.ini = &ini_;                                   \
+        Params(&iniit);                                      \
+        if (ini_.changed()) ini_.SaveFile(file.c_str());     \
+    }                                                        \
+                                                             \
+                                                             \
+    void name::Save(const std::filesystem::path& file)       \
+    {                                                        \
+        Saiga::SimpleIni ini_;                               \
+        ini_.LoadFile(file.c_str());                         \
+        IniFileParamIterator iniit;                          \
+        iniit.ini = &ini_;                                   \
+        Params(&iniit);                                      \
+        ini_.SaveFile(file.c_str());                         \
+    }                                                        \
+    void name::Print(std::ostream& strm, int column_width)   \
+    {                                                        \
+        TablePrintParamIterator tableit(strm, column_width); \
+        strm << "[" << name_ << "]\n";                       \
+        Params(&tableit);                                    \
     }
-
-

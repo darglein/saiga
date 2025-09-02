@@ -10,6 +10,9 @@
 #include "saiga/core/math/Types.h"
 #include "saiga/core/math/Quaternion.h"
 #include "saiga/core/util/tostring.h"
+#include "saiga/core/util/string_to_path.h"
+
+#include <filesystem>
 
 #include "SimpleIni.h"
 
@@ -49,6 +52,13 @@ inline std::string ReadWriteIni(Saiga::SimpleIni& ini, std::string variable, std
 {
     return ini.GetAddString(section.c_str(), variable_name.c_str(), variable.c_str(),
                             comment.length() == 0 ? nullptr : comment.c_str());
+}
+
+inline std::filesystem::path ReadWriteIni(Saiga::SimpleIni& ini, std::filesystem::path variable, std::string section,
+    std::string variable_name, std::string comment)
+{
+    std::string str = ReadWriteIni(ini, variable.u8string(), section, variable_name, comment);
+    return str.empty() ? "" : string_to_path(str);
 }
 
 // template <>
@@ -97,6 +107,29 @@ inline std::vector<std::string> ReadWriteIniList(Saiga::SimpleIni& ini, std::vec
 }
 
 template <>
+inline std::vector<std::filesystem::path> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<std::filesystem::path> variable,
+    std::string section, std::string variable_name, std::string comment,
+    char sep)
+{
+    std::vector<std::string> tmp;
+    for (const auto& v : variable)
+    {
+        tmp.push_back(v.u8string());
+    }
+
+    tmp = Saiga::split(ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(),
+        comment.length() == 0 ? nullptr : comment.c_str()),
+        sep);
+
+    std::vector<std::filesystem::path> result;
+    for (const auto& v : tmp)
+    {
+        result.push_back(string_to_path(v));
+    }
+    return result;
+}
+
+template <>
 inline std::vector<double> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<double> variable, std::string section,
                                             std::string variable_name, std::string comment, char sep)
 {
@@ -109,7 +142,7 @@ inline std::vector<double> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<d
     };
 
     std::vector<std::string> tmp;
-    for (auto v : variable)
+    for (const auto& v : variable)
     {
         tmp.push_back(to_string2(v));
     }
@@ -119,7 +152,7 @@ inline std::vector<double> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<d
                        sep);
 
     std::vector<double> result;
-    for (auto v : tmp)
+    for (const auto& v : tmp)
     {
         result.push_back(to_double(v));
     }
@@ -132,7 +165,7 @@ inline std::vector<int> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<int>
                                          std::string variable_name, std::string comment, char sep)
 {
     std::vector<std::string> tmp;
-    for (auto v : variable)
+    for (const auto& v : variable)
     {
         tmp.push_back(std::to_string(v));
     }
@@ -142,7 +175,7 @@ inline std::vector<int> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<int>
                        sep);
 
     std::vector<int> result;
-    for (auto v : tmp)
+    for (const auto& v : tmp)
     {
         result.push_back(to_long(v));
     }

@@ -57,18 +57,18 @@ struct ParamsBase
     // virtual void Params(ParamIterator* ini) = 0;
 };
 
-#define SAIGA_PARAM_STRUCT(_Name)                                \
-    using ParamStructType = _Name;                               \
-    _Name() : ParamsBase(#_Name) {}                              \
-    explicit _Name(const std::string& file) : ParamsBase(#_Name) \
-    {                                                            \
-        Load(file);                                              \
+#define SAIGA_PARAM_STRUCT(_Name)                                          \
+    using ParamStructType = _Name;                                         \
+    _Name() : ParamsBase(#_Name) {}                                        \
+    explicit _Name(const std::filesystem::path& file) : ParamsBase(#_Name) \
+    {                                                                      \
+        Load(file);                                                        \
     }
 
 #define SAIGA_PARAM_STRUCT_FUNCTION_DEFINITIONS \
     void Load(CLI::App& app);                   \
-    virtual void Load(const std::string& file); \
-    virtual void Save(const std::string& file); \
+    virtual void Load(const std::filesystem::path& file); \
+    virtual void Save(const std::filesystem::path& file); \
     virtual void Print(std::ostream& strm, int column_width = 30);
 
 

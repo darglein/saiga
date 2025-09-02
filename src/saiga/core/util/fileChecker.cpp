@@ -23,31 +23,40 @@ FileChecker::FileChecker()
     searchPathes.push_back(".");
 }
 
-std::string FileChecker::getFile(const std::string& file)
+std::filesystem::path FileChecker::getFile(const std::filesystem::path& file)
 {
-    if (file.empty()) return "";
+    if (file.empty()) return {};
 
     // Check without search pathes
     if (existsFile(file)) return file;
 
-
-    for (std::string& path : searchPathes)
+    for (const std::filesystem::path& path : searchPathes)
     {
         // Do not generate a double '/'
-        std::string fullName = file.front() == '/' ? path + file : path + "/" + file;
+        std::filesystem::path fullName = path / file;
         if (existsFile(fullName))
         {
             return fullName;
         }
     }
-    return "";
+    return {};
 }
 
-std::string FileChecker::getRelative(const std::string& baseFile, const std::string& file)
+void FileChecker::addSearchPath(const std::filesystem::path& path)
+{
+    searchPathes.push_back(path);
+}
+
+void FileChecker::addSearchPath(const std::vector<std::filesystem::path>& paths)
+{
+    for (auto& s : paths) addSearchPath(s);
+}
+
+std::filesystem::path FileChecker::getRelative(const std::filesystem::path& baseFile, const std::filesystem::path& file)
 {
     // first check at path relative to the parent
-    auto parent              = getParentDirectory(baseFile);
-    std::string relativeName = parent + file;
+    auto parent = getParentDirectory(baseFile);
+    std::filesystem::path relativeName = parent / file;
     if (existsFile(relativeName))
     {
         return relativeName;
@@ -55,62 +64,17 @@ std::string FileChecker::getRelative(const std::string& baseFile, const std::str
     return getFile(file);
 }
 
-std::string FileChecker::getParentDirectory(const std::string& file)
+std::filesystem::path FileChecker::getParentDirectory(const std::filesystem::path& file)
 {
-    // search last '/' from the end
-    for (auto it = file.rbegin(); it != file.rend(); ++it)
-    {
-        if (*it == '/')
-        {
-            auto d = std::distance(it, file.rend());
-            return file.substr(0, d);
-        }
-    }
-    return "";
+    return file.parent_path();
 }
 
-std::string FileChecker::getFileName(const std::string& file)
+std::filesystem::path FileChecker::getFileName(const std::filesystem::path& file)
 {
-    // search last '/' from the end
-    for (auto it = file.rbegin(); it != file.rend(); ++it)
-    {
-        if (*it == '/')
-        {
-            auto d = std::distance(it, file.rend());
-            return file.substr(d);
-        }
-    }
-    return "";
+    return file.filename();
 }
 
-void FileChecker::getFiles(std::vector<std::string>& out, const std::string& predir, const std::string& ending)
-{
-    for (std::string& path : searchPathes)
-    {
-        std::string dir = path + "/" + predir;
-        std::cout << dir << std::endl;
-        Directory d(dir);
-
-
-        auto tmp = d.getFilesEnding(ending);
-        for (auto& s : tmp)
-        {
-            s = dir + "/" + s;
-        }
-        out.insert(out.end(), tmp.begin(), tmp.end());
-    }
-}
-void FileChecker::addSearchPath(const std::string& path)
-{
-    searchPathes.push_back(path);
-}
-
-void FileChecker::addSearchPath(const std::vector<std::string>& paths)
-{
-    for (auto& s : paths) addSearchPath(s);
-}
-
-bool FileChecker::existsFile(const std::string& file)
+bool FileChecker::existsFile(const std::filesystem::path& file)
 {
     try
     {
