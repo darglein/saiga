@@ -35,7 +35,7 @@ std::vector<std::filesystem::path> Directory::getFiles()
     {
         if (it.is_regular_file())
         {
-            out.push_back(it.path());
+            out.push_back(std::filesystem::relative(it.path(), dirname));
         }
     }
     return out;
@@ -67,7 +67,7 @@ std::vector<std::filesystem::path> Directory::getDirectories()
     {
         if (it.is_directory())
         {
-            out.push_back(it.path());
+            out.push_back(std::filesystem::relative(it.path(), dirname));
         }
     }
     return out;

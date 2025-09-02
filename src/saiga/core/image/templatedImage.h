@@ -22,13 +22,13 @@ class TemplatedImage : public Image
     TemplatedImage() : Image(TType::type) {}
     TemplatedImage(int h, int w) : Image(h, w, TType::type) {}
     TemplatedImage(ImageDimensions dimensions) : Image(dimensions, TType::type) {}
-    TemplatedImage(const std::string& file)
+    TemplatedImage(const std::filesystem::path& file)
     {
         auto res = load(file);
         if (!res)
         {
             //SAIGA_EXIT_ERROR("Could not load file " + file);
-            std::cerr << "Could not load file '" << file << "'\n";
+            std::cerr << "Could not load file '" << file.u8string() << "'\n";
         }
     }
 
@@ -70,7 +70,7 @@ class TemplatedImage : public Image
     operator ImageView<const T>() const { return getConstImageView(); }
 
     // Load + type check
-    bool load(const std::string& path)
+    bool load(const std::filesystem::path& path)
     {
         auto r = Image::load(path);
         if (!r)
@@ -83,7 +83,7 @@ class TemplatedImage : public Image
             std::cerr << "Image type does not match template argument!" << std::endl;
             std::cerr << "Loaded:   " << channels(type) << "/" << (int)elementType(type) << std::endl;
             std::cerr << "Template: " << channels(TType::type) << "/" << (int)elementType(TType::type) << std::endl;
-            std::cerr << "Path:     " << path << std::endl;
+            std::cerr << "Path:     " << path.u8string() << std::endl;
             SAIGA_EXIT_ERROR("Image Load failed!");
         }
         SAIGA_ASSERT(type == TType::type);
