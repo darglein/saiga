@@ -152,10 +152,19 @@ inline std::vector<int> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<int>
 template <typename _Scalar, int _Rows, int _Cols>
 std::string toIniString(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M, char sep)
 {
+    auto to_string2 = [](_Scalar d)
+    {
+        std::ostringstream oss;
+        oss << std::setprecision(10) << std::noshowpoint << d;
+        std::string str = oss.str();
+        return str;
+    };
+
+
     std::string str;
     // Add entries to string, separated with ' ' in row major order.
     for (int i = 0; i < M.rows(); ++i)
-        for (int j = 0; j < M.cols(); ++j) str += Saiga::to_string(M(i, j)) + sep;
+        for (int j = 0; j < M.cols(); ++j) str += to_string2(M(i, j)) + sep;
     if (!str.empty())
     {
         // remove last sep
