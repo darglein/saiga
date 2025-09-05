@@ -14,7 +14,7 @@ bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
     TIFFSetWarningHandler(nullptr);
     TIFFSetWarningHandlerExt(nullptr);
 
-#ifdef WIN32
+#ifdef _WIN32
     TIFF* tif = TIFFOpenW(path.c_str(), "r");
 #else
     TIFF* tif = TIFFOpen(path.c_str(), "r");
@@ -96,7 +96,7 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
     TIFFSetWarningHandler(nullptr);
     TIFFSetWarningHandlerExt(nullptr);
 
-#ifdef WIN32
+#ifdef _WIN32
     TIFF* tif = TIFFOpenW(path.c_str(), "w");
 #else
     TIFF* tif = TIFFOpen(path.c_str(), "w");

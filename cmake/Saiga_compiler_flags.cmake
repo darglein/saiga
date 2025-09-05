@@ -5,9 +5,9 @@ set(SAIGA_CXX_FLAGS_MSVC OFF)
 
 set(SAIGA_COMPILER_STRING ${CMAKE_CXX_COMPILER_ID})
 
-if (${CMAKE_CXX_COMPILER_FRONTEND_VARIANT} MATCHES "GNU")
+if ("${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}" MATCHES "GNU")
     set(SAIGA_CXX_FLAGS_GNU ON)
-elseif (${CMAKE_CXX_COMPILER_FRONTEND_VARIANT} STREQUAL "MSVC")
+elseif ("${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}" MATCHES "MSVC")
     set(SAIGA_CXX_FLAGS_MSVC ON)
 else ()
     message(FATAL_ERROR "Unknown CXX Compiler frontend. '${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}'")
@@ -45,9 +45,9 @@ if (SAIGA_CXX_FLAGS_GNU)
 endif ()
 
 #if (SAIGA_CXX_WCLANG)
-    # Fixes: cannot use 'throw' with exceptions disabled
-    #list(APPEND SAIGA_CXX_FLAGS "-Xclang -fcxx-exceptions")
-    # some eigen header generates this warning
+# Fixes: cannot use 'throw' with exceptions disabled
+#list(APPEND SAIGA_CXX_FLAGS "-Xclang -fcxx-exceptions")
+# some eigen header generates this warning
 #    add_definitions(-D_SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING)
 #endif ()
 
@@ -55,14 +55,14 @@ if (SAIGA_CXX_FLAGS_MSVC)
     #multiprocessor compilation for visual studio
     list(APPEND SAIGA_CXX_FLAGS "/MP")
 
-   # required for some crazy eigen stuff
+    # required for some crazy eigen stuff
     list(APPEND SAIGA_CXX_FLAGS "/bigobj")
 
     # non dll-interface struct 'xx' used as base for dll-interface struct 'xx'
     list(APPEND SAIGA_CXX_FLAGS "/wd4275")
 
 
-#    set(CMAKE_CXX_FLAGS "/MP ${CMAKE_CXX_FLAGS}")
+    #    set(CMAKE_CXX_FLAGS "/MP ${CMAKE_CXX_FLAGS}")
     add_definitions(-D_ENABLE_EXTENDED_ALIGNED_STORAGE)
 endif ()
 

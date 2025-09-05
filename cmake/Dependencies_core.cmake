@@ -53,9 +53,10 @@ endif ()
 
 
 #dbghelp for crash.cpp
-if (WIN32)
+#if (WIN32)
+if ("${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}" MATCHES "MSVC")
     SET(LIBS ${LIBS} DbgHelp)
-endif (WIN32)
+endif ()
 
 ############# Optional Libraries ###############
 
