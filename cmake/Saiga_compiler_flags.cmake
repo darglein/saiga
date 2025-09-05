@@ -51,9 +51,13 @@ endif ()
 #    add_definitions(-D_SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING)
 #endif ()
 
+
 if (SAIGA_CXX_FLAGS_MSVC)
-    #multiprocessor compilation for visual studio
-    list(APPEND SAIGA_CXX_FLAGS "/MP")
+
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
+        #multiprocessor compilation for visual studio
+        list(APPEND SAIGA_CXX_FLAGS "/MP")
+    endif ()
 
     # required for some crazy eigen stuff
     list(APPEND SAIGA_CXX_FLAGS "/bigobj")
