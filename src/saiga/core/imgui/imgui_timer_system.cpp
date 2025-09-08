@@ -545,12 +545,12 @@ void TimerSystem::ImguiTooltip(TimeData* td, TimeData* total_time)
 
     ImGui::TextUnformatted("Begin (ns)");
     ImGui::NextColumn();
-    ImGui::Text("%lu", td->last_measurement.first - total_time->last_measurement.first);
+    ImGui::Text("%llu", td->last_measurement.first - total_time->last_measurement.first);
     ImGui::NextColumn();
 
     ImGui::TextUnformatted("End (ns)");
     ImGui::NextColumn();
-    ImGui::Text("%lu", td->last_measurement.second - total_time->last_measurement.first);
+    ImGui::Text("%llu", td->last_measurement.second - total_time->last_measurement.first);
     ImGui::NextColumn();
 
 

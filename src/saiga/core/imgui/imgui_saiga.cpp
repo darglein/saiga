@@ -98,6 +98,20 @@ void HzTimeGraph::renderImGuiDerived()
     ImGui::Text("%s Time: %fms Hz: %f", name.c_str(), lastValue, 1000.0f / hzExp);
 }
 
+ColoredBar::ColoredBar(vec2 size, BarColor background, bool auto_size, uint32_t rows, float rounding,
+                       int rounding_corners)
+    : m_size(size),
+      m_back_color(background),
+      m_auto_size(auto_size),
+      m_rows(rows),
+      m_lastCorner(rows),
+      m_lastDrawList(nullptr),
+      m_rounding(rounding),
+      m_rounding_corners(rounding_corners)
+{
+    SAIGA_ASSERT(rows >= 1, "Must have a positive number of rows");
+}
+
 
 void ColoredBar::renderBackground()
 {
@@ -161,7 +175,6 @@ void ColoredBar::DrawRect(const vec2& begin, const vec2& end, const ColoredBar::
 {
     m_lastDrawList->AddRectFilled(begin, end, ImColor(color.fill), m_rounding, m_rounding_corners);
 }
-
 
 bool captureMouse()
 {

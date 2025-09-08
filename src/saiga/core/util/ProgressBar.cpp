@@ -32,7 +32,7 @@ bool ProgressBarManager::Imgui()
 
     float f = double(c) / e;
 
-    ImGui::Text("%s, %ld/%ld", bar->prefix.c_str(), c, e);
+    ImGui::Text("%s, %lld/%lld", bar->prefix.c_str(), c, e);
     ImGui::ProgressBar(f);
 
 

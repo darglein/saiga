@@ -150,18 +150,7 @@ class SAIGA_CORE_API ColoredBar
 
    public:
     ColoredBar(vec2 size, BarColor background, bool auto_size = false, uint32_t rows = 1, float rounding = 0.0f,
-               int rounding_corners = 0)
-        : m_size(size),
-          m_back_color(background),
-          m_auto_size(auto_size),
-          m_rows(rows),
-          m_lastCorner(rows),
-          m_lastDrawList(nullptr),
-          m_rounding(rounding),
-          m_rounding_corners(rounding_corners)
-    {
-        SAIGA_ASSERT(rows >= 1, "Must have a positive number of rows");
-    }
+               int rounding_corners = 0);
     void renderBackground();
     void renderArea(float begin, float end, const BarColor& color, bool outline = true);
 };
