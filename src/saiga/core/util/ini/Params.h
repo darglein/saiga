@@ -45,6 +45,22 @@ struct ApplicationParamIterator
         app->add_option("--" + section + "." + name, variable, comment, true);
     }
 
+    template <>
+    void SaigaParam<std::filesystem::path>(std::string section,
+        std::filesystem::path& variable,
+        std::filesystem::path default_value,
+        std::string name,
+        std::string comment)
+    {
+        auto call_back = [&variable](const std::string& result) 
+        {
+            variable = string_to_path(result);
+            return true;
+        };
+
+        app->add_option_function<std::string>("--" + section + "." + name, call_back, comment);
+    }
+
     template <typename T>
     void SaigaParamList(std::string section, T& variable, T default_value, std::string name, char sep,
                         std::string comment = "")
@@ -101,6 +117,27 @@ struct ApplicationParamIterator
         // if (sep == ' ')
         {
             app->add_option("--" + section + "." + name, variable, comment, true);
+        }
+    }
+
+    template <>
+    void SaigaParamList<std::filesystem::path>(std::string section, std::vector<std::filesystem::path>& variable, std::vector<std::filesystem::path> default_value, std::string name,
+        char sep, std::string comment)
+    {
+        // if (sep == ' ')
+        {
+            auto call_back = [&variable](const std::vector<std::string>& result)
+            {
+                variable.clear();
+                variable.reserve(result.size());
+                for (const std::string& s : result)
+                {
+                    variable.push_back(string_to_path(s));
+                }
+                return true;
+            };
+
+            app->add_option_function<std::vector<std::string>>("--" + section + "." + name, call_back, comment);
         }
     }
 };
