@@ -45,8 +45,7 @@ struct ApplicationParamIterator
         app->add_option("--" + section + "." + name, variable, comment, true);
     }
 
-    template <>
-    void SaigaParam<std::filesystem::path>(std::string section,
+    void SaigaParam(std::string section,
         std::filesystem::path& variable,
         std::filesystem::path default_value,
         std::string name,
@@ -120,8 +119,7 @@ struct ApplicationParamIterator
         }
     }
 
-    template <>
-    void SaigaParamList<std::filesystem::path>(std::string section, std::vector<std::filesystem::path>& variable, std::vector<std::filesystem::path> default_value, std::string name,
+    void SaigaParamList(std::string section, std::vector<std::filesystem::path>& variable, std::vector<std::filesystem::path> default_value, std::string name,
         char sep, std::string comment)
     {
         // if (sep == ' ')
