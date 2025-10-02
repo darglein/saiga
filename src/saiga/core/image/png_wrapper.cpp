@@ -213,11 +213,11 @@ bool ImageIOLibPNG::Save2File(const std::filesystem::path& path, const Image& im
 {
     PNGLoadStore pngls;
 
-#ifdef WIN32
+#    ifdef WIN32
     FILE* fp = _wfopen(path.c_str(), L"wb");
-#else
+#    else
     FILE* fp = fopen(path.c_str(), "wb");
-#endif
+#    endif
     if (!fp)
     {
         std::cout << "could not open file: " << path.c_str() << std::endl;
@@ -299,11 +299,11 @@ std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::filesystem::path& pa
     unsigned int sig_read = 0;
 
 
-#ifdef WIN32
+#    ifdef WIN32
     if ((pngls.infile = _wfopen(path.c_str(), L"rb")) == NULL) return {};
-#else
+#    else
     if ((pngls.infile = fopen(path.c_str(), "rb")) == NULL) return {};
-#endif
+#    endif
 
     /* Create and initialize the png_struct
      * with the desired error handler
@@ -372,13 +372,6 @@ std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::filesystem::path& pa
     png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
     SAIGA_ASSERT(interlace_type == PNG_INTERLACE_NONE);
 
-    unsigned int row_bytes = png_get_rowbytes(png_ptr, info_ptr);
-
-    // we want to row-align the image in our output data
-    int rowAlignment = 4;
-    int rowPadding   = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
-    int bytesPerRow  = row_bytes + rowPadding;
-
 
 
     if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(png_ptr);
@@ -391,6 +384,14 @@ std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::filesystem::path& pa
     // update the color_type data because it might has changed due to the calls above
     png_read_update_info(png_ptr, info_ptr);
     png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
+
+
+    unsigned int row_bytes = png_get_rowbytes(png_ptr, info_ptr);
+
+    // we want to row-align the image in our output data
+    int rowAlignment = 4;
+    int rowPadding   = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
+    int bytesPerRow  = row_bytes + rowPadding;
 
 
     if (bit_depth > 8)
