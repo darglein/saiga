@@ -229,7 +229,7 @@ bool glfw_Window::initWindow()
     if (!window)
     {
         std::cerr << "glfwCreateWindow returned false!" << std::endl;
-#ifdef WIN32
+
         const char* error_desc;
         int glfw_error = glfwGetError(&error_desc);
         if (glfw_error == GLFW_NO_ERROR)
@@ -237,12 +237,10 @@ bool glfw_Window::initWindow()
             error_desc = "Unknown error";
         }
 
-        MessageBoxA(NULL, error_desc, "Window creation error", MB_OK | MB_ICONERROR);
-        exit(EXIT_FAILURE);
-#endif
-
         glfwTerminate();
-        return false;
+
+        throw std::runtime_error(error_desc);
+        //return false;
     }
 
     glfwMakeContextCurrent(window);
