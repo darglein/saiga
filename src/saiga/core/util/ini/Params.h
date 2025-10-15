@@ -45,13 +45,10 @@ struct ApplicationParamIterator
         app->add_option("--" + section + "." + name, variable, comment, true);
     }
 
-    void SaigaParam(std::string section,
-        std::filesystem::path& variable,
-        std::filesystem::path default_value,
-        std::string name,
-        std::string comment)
+    void SaigaParam(std::string section, std::filesystem::path& variable, std::filesystem::path default_value,
+                    std::string name, std::string comment)
     {
-        auto call_back = [&variable](const std::string& result) 
+        auto call_back = [&variable](const std::string& result)
         {
             variable = string_to_path(result);
             return true;
@@ -119,8 +116,9 @@ struct ApplicationParamIterator
         }
     }
 
-    void SaigaParamList(std::string section, std::vector<std::filesystem::path>& variable, std::vector<std::filesystem::path> default_value, std::string name,
-        char sep, std::string comment)
+    void SaigaParamList(std::string section, std::vector<std::filesystem::path>& variable,
+                        std::vector<std::filesystem::path> default_value, std::string name, char sep,
+                        std::string comment)
     {
         // if (sep == ' ')
         {
@@ -151,6 +149,32 @@ struct TablePrintParamIterator
     void SaigaParam(std::string section, T& variable, T default_value, std::string name, std::string comment = "")
     {
         strm << std::left << std::setw(column_width) << name << std::right << variable << "\n";
+    }
+
+    template <typename _Scalar, int _Rows, int _Cols>
+    void SaigaParamList(std::string section, Eigen::Matrix<_Scalar, _Rows, _Cols>& variable,
+                        Eigen::Matrix<_Scalar, _Rows, _Cols> default_value, std::string name, char sep,
+                        std::string comment = "")
+    {
+        strm << std::left << std::setw(column_width) << name << std::right;
+        for (int i = 0; i < _Rows; ++i)
+        {
+            for (int j = 0; j < _Cols; ++j)
+            {
+                strm << variable(i, j) << " ";
+            }
+        }
+        strm << "\n";
+    }
+
+    template <typename _Scalar>
+    void SaigaParamList(std::string section, Eigen::Quaternion<_Scalar>& variable,
+                        Eigen::Quaternion<_Scalar> default_value, std::string name, char sep, std::string comment = "")
+    {
+        Eigen::Matrix<_Scalar, 4, 1> coeffs         = variable.coeffs();
+        Eigen::Matrix<_Scalar, 4, 1> default_coeffs = default_value.coeffs();
+
+        SaigaParamList(section, coeffs, default_coeffs, name, sep, comment);
     }
 
     template <typename T>
