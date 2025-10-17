@@ -116,6 +116,14 @@ inline Saiga::Quat* at::Tensor::data_ptr<Saiga::Quat>() const
     return (Saiga::Quat*)data_ptr<double>();
 }
 template <>
+inline Saiga::Vec8* at::Tensor::data_ptr<Saiga::Vec8>() const
+{
+    if (!defined()) return nullptr;
+    CHECK_EQ(size(dim() - 1), 8);
+    CHECK_EQ(stride(dim() - 1), 1);
+    return (Saiga::Vec8*)data_ptr<double>();
+}
+template <>
 inline Saiga::Vec5* at::Tensor::data_ptr<Saiga::Vec5>() const
 {
     if (!defined()) return nullptr;
