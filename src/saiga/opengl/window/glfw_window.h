@@ -50,6 +50,8 @@ class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeList
     void requestAttention();
     void bringToFront();
 
+    void maximize();
+
 #ifdef WIN32
     HWND getNative();
 #endif

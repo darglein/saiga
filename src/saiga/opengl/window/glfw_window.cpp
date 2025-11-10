@@ -404,6 +404,11 @@ void glfw_Window::bringToFront()
     glfwShowWindow(window);
 }
 
+void glfw_Window::maximize()
+{
+    glfwMaximizeWindow(window);
+}
+
 float glfw_Window::getContentScale()
 {
     float xscale, yscale;
