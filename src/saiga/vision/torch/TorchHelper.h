@@ -123,7 +123,7 @@ inline std::string TensorInfo(at::Tensor t)
     double sum  = t.sum().item().toDouble();
     double mean = sum / t.numel();
     double sdev = 0;
-    if (t.scalar_type() == torch::kFloat32)
+    if (t.scalar_type() == torch::kFloat32 || t.scalar_type() == torch::kDouble)
     {
         sdev = t.std().item().toDouble();
     }
