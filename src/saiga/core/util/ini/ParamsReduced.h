@@ -10,6 +10,7 @@
 #include "saiga/core/math/Types.h"
 
 #include <vector>
+#include <filesystem>
 
 namespace CLI
 {
