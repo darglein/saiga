@@ -89,7 +89,7 @@ struct ApplicationParamIterator
             auto call_back2 = []() -> std::string { return ""; };
 
             CLI::Option* options = app->add_option("--" + section + "." + name, call_back, comment, true, call_back2);
-            options->type_size(_Rows * _Cols);
+            options->type_size(1);
             options->expected(_Rows * _Cols);
         }
     }
@@ -98,14 +98,6 @@ struct ApplicationParamIterator
     void SaigaParamList(std::string section, Eigen::Quaternion<_Scalar>& variable,
                         Eigen::Quaternion<_Scalar> default_value, std::string name, char sep, std::string comment = "")
     {
-        // Eigen::Matrix<_Scalar, 4, 1> coeffs         = variable.coeffs().eval();
-        // Eigen::Matrix<_Scalar, 4, 1> default_coeffs = default_value.coeffs().eval();
-
-        // SaigaParamList(section, coeffs, default_coeffs, name, sep, comment);
-
-        // variable = Eigen::Quaternion<_Scalar>(coeffs);
-
-
         if (sep == ' ')
         {
             auto call_back = [&variable](const std::vector<std::string>& result) -> bool
@@ -123,7 +115,7 @@ struct ApplicationParamIterator
             auto call_back2 = []() -> std::string { return ""; };
 
             CLI::Option* options = app->add_option("--" + section + "." + name, call_back, comment, true, call_back2);
-            options->type_size(4);
+            options->type_size(1);
             options->expected(4);
         }
     }
