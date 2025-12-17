@@ -143,6 +143,11 @@ class RelativeCudaTimer : public TimestampTimer
             float begin_ms = CUDA::CudaEvent::elapsedTime(*base_timer->BackBuffer()[0], *timer.FrontBuffer()[0]);
             float end_ms   = CUDA::CudaEvent::elapsedTime(*base_timer->BackBuffer()[0], *timer.FrontBuffer()[1]);
 
+            if (begin_ms <= 0 || end_ms <= 0)
+            {
+                return {0, 0};
+            }
+
             std::pair<uint64_t, uint64_t> m(begin_ms * (1000 * 1000), end_ms * (1000 * 1000));
             return m;
         }
