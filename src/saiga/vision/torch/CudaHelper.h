@@ -34,7 +34,7 @@ struct StaticDeviceTensor
 
     StaticDeviceTensor() = default;
 
-    StaticDeviceTensor(torch::Tensor t)
+    StaticDeviceTensor(torch::Tensor& t)
     {
         if (!t.defined())
         {
