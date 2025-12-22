@@ -74,12 +74,12 @@ struct ProgressBar : public ProgressBarBase
           element_factor(element_factor)
     {
         SAIGA_ASSERT(end >= 0);
+        timer.start();
         print();
         if (end > 0)
         {
             run();
         }
-        timer.start();
     }
 
     ~ProgressBar() { Quit(); }
