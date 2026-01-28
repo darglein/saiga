@@ -38,6 +38,9 @@ HD inline bool RaySphere(const vec3& rayOrigin, const vec3& rayDir, const vec3& 
                          float& t1, float& t2);
 HD inline bool RaySphere(const Ray& ray, const Sphere& sphere, float& t1, float& t2);
 
+
+// Assuming you have a vec2 struct and a dot(vec2, vec2) function defined
+inline bool RayCircle(const vec2& rayOrigin, const vec2& rayDir, const vec2& circlePos, float circleRadius, float& t1, float& t2);
 /**
  * Intersection of a ray with a triangle.
  * There are either no interesection or exactly one at 't'.

@@ -60,6 +60,45 @@ inline bool RaySphere(const vec3& rayOrigin, const vec3& rayDir, const vec3& sph
     return true;
 }
 
+// Assuming you have a vec2 struct and a dot(vec2, vec2) function defined
+inline bool RayCircle(const vec2& rayOrigin, const vec2& rayDir, const vec2& circlePos, float circleRadius, float& t1, float& t2)
+{
+    // L is the vector from the circle center to the ray origin
+    vec2 L  = rayOrigin - circlePos;
+
+    float a = dot(rayDir, rayDir);
+    float b = 2 * dot(rayDir, L);
+    float c = dot(L, L) - circleRadius * circleRadius;
+
+    // Discriminant
+    float D = b * b + (-4.0f) * a * c;
+
+    // Ray misses the circle
+    if (D < 0) return false;
+
+    // Ray grazes the circle (tangent)
+    if (D == 0)
+    {
+        t1 = t2 = -0.5f * b / a;
+    }
+    else
+    {
+        // Ray intersects the circle at two points
+        t1 = -0.5f * (b + sqrt(D)) / a;
+        t2 = -0.5f * (b - sqrt(D)) / a;
+    }
+
+    // Ensure t1 is the entry point (smaller value) and t2 is the exit point
+    if (t1 > t2)
+    {
+        float tmp = t1;
+        t1        = t2;
+        t2        = tmp;
+    }
+
+    return true;
+}
+
 inline bool RaySphere(const Ray& ray, const Sphere& sphere, float& t1, float& t2)
 {
     return RaySphere(ray.origin, ray.direction, sphere.pos, sphere.r, t1, t2);
