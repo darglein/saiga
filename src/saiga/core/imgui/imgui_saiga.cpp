@@ -375,6 +375,7 @@ void initImGui(const ImGuiParameters& params)
     updateImGuiFontSettings(params);
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigDockingWithShift = false;
 
     vec3 color_text;

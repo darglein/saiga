@@ -90,6 +90,13 @@ void ImGui_GLFW_Renderer::beginFrame()
 void ImGui_GLFW_Renderer::render()
 {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    GLFWwindow* backup = glfwGetCurrentContext();
+
+    ImGui::UpdatePlatformWindows();
+    ImGui::RenderPlatformWindowsDefault();
+
+    glfwMakeContextCurrent(backup);
 }
 
 
