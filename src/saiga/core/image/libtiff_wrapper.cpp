@@ -86,6 +86,34 @@ bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
     }
 
 
+    float xres, yres;
+    bool has_xres = TIFFGetField(tif, TIFFTAG_XRESOLUTION, &xres);
+    bool has_yres = TIFFGetField(tif, TIFFTAG_YRESOLUTION, &yres);
+
+    if (has_xres && has_yres)
+    {
+        uint16_t unit;
+        TIFFGetFieldDefaulted(tif, TIFFTAG_RESOLUTIONUNIT, &unit);
+
+        vec2 pixel_size_mm;
+
+        if (unit == RESUNIT_CENTIMETER)
+        {
+            // xres is pixels/cm -> 10 / res = mm/pixel
+            pixel_size_mm.x() = 10.f / xres;
+            pixel_size_mm.y() = 10.f / yres;
+        }
+        else if (unit == RESUNIT_INCH)
+        {
+            // xres is pixels/inch -> 25.4 / res = mm/pixel
+            pixel_size_mm.x() = 25.4f / xres;
+            pixel_size_mm.y() = 25.4f / yres;
+        }
+
+        img.set_resolution(pixel_size_mm);
+    }
+
+
     TIFFClose(tif);
 
     return true;
@@ -175,6 +203,16 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
     if (!TIFFSetField(tif, TIFFTAG_SAMPLESPERPIXEL, samples))
     {
         return false;
+    }
+
+    auto resolution_mm = img.get_resolution();
+    if (resolution_mm.has_value())
+    {
+        TIFFSetField(tif, TIFFTAG_RESOLUTIONUNIT, RESUNIT_CENTIMETER);
+
+        // Pixels per centimeter
+        TIFFSetField(tif, TIFFTAG_XRESOLUTION, 10.f / resolution_mm.value().x());
+        TIFFSetField(tif, TIFFTAG_YRESOLUTION, 10.f / resolution_mm.value().y());
     }
 
 

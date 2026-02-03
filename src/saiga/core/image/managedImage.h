@@ -13,6 +13,7 @@
 
 #include <vector>
 #include <filesystem>
+#include <optional>
 
 namespace Saiga
 {
@@ -29,6 +30,7 @@ class SAIGA_CORE_API Image : public ImageBase
 
    protected:
     std::vector<byte_t> vdata;
+    std::optional<vec2> resolution_mm;
 
    public:
     Image() {}
@@ -73,6 +75,9 @@ class SAIGA_CORE_API Image : public ImageBase
      * Checks if this image has at least 1 pixel and a valid type.
      */
     bool valid() const;
+
+    void set_resolution(vec2 resolution_mm) { this->resolution_mm = resolution_mm; }
+    std::optional<vec2> get_resolution() const { return resolution_mm; };
 
     void* data() { return vdata.data(); }
     const void* data() const { return vdata.data(); }
