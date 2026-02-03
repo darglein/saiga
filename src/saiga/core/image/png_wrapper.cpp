@@ -105,6 +105,16 @@ static int writepng_init(const Image& img, PNGLoadStore* pngls, ImageCompression
     }
 
 
+
+    auto resolution_mm = img.get_resolution();
+    if (resolution_mm.has_value())
+    {
+        png_uint_32 xres = (png_uint_32)(1000.f / resolution_mm.value().x() + 0.5f);
+        png_uint_32 yres = (png_uint_32)(1000.f / resolution_mm.value().y() + 0.5f);
+        png_set_pHYs(png_ptr, info_ptr, xres, yres, PNG_RESOLUTION_METER);
+    }
+
+
     /* setjmp() must be called in every function that calls a PNG-writing
      * libpng function, unless an alternate error handler was installed--
      * but compatible error handlers must either use longjmp() themselves
@@ -411,6 +421,18 @@ std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::filesystem::path& pa
     {
         auto rowPtr = (png_byte*)img.rowPtr(i);
         png_read_row(png_ptr, rowPtr, nullptr);
+    }
+
+    png_uint_32 res_x, res_y;
+    int unit_type;
+
+    if (png_get_pHYs(png_ptr, info_ptr, &res_x, &res_y, &unit_type))
+    {
+        if (unit_type == PNG_RESOLUTION_METER)
+        {
+            vec2 pixelSizeMM = vec2(1000.f / res_x, 1000.f / res_y);
+            img.set_resolution(pixelSizeMM);
+        }
     }
 
     /* Clean up after the read,
