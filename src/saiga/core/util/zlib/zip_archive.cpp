@@ -239,14 +239,14 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource
 {
     if (!archive)
     {
-        return {};
+        return false;
     }
 
     zip_source_t* source = zip_source_function(archive, source_callback, custom_source);
     if (!source)
     {
         std::cout << "ZIP: Failed to create callback source.\n";
-        return 1;
+        return false;
     }
 
     auto index = add_file_internal(filename, source, method);
@@ -260,9 +260,45 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource
     return true;
 }
 
+bool ZipArchive::add_file(const std::filesystem::path& filename, const std::filesystem::path& file_to_add, ZipCompressionMethod method)
+{
+    if (!archive)
+    {
+        return false;
+    }
+
+    zip_source_t* source = zip_source_file(archive, file_to_add.u8string().c_str(), 0, 0);
+
+    auto index = add_file_internal(filename, source, method);
+    if (index < 0)
+    {
+        std::cout << "ZIP: Failed to add file to archive: " << zip_strerror(archive) << '\n';
+        zip_source_free(source);
+        return false;
+    }
+
+    return true;
+}
+
+bool ZipArchive::add_folder(const std::filesystem::path& foldername, const std::filesystem::path& folder_to_add, ZipCompressionMethod method)
+{
+    for (auto& entry : std::filesystem::recursive_directory_iterator(folder_to_add)) 
+    {
+        if (std::filesystem::is_directory(entry)) continue;
+
+        auto relative_path = std::filesystem::relative(entry.path(), folder_to_add);
+
+        if (!add_file(foldername / relative_path, entry.path(), method))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip_source* source, ZipCompressionMethod method)
 {
-    auto index = (int)zip_file_add(archive, filename.u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
+    auto index = (int)zip_file_add(archive, filename.generic_u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
 
     auto libzip_method = ZIP_CM_ZSTD;
     switch (method)

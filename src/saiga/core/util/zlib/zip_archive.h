@@ -91,6 +91,9 @@ struct SAIGA_CORE_API ZipArchive
 
     bool add_file(const std::filesystem::path& filename, void* data, size_t size, ZipCompressionMethod method);
     bool add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source, ZipCompressionMethod method);
+    bool add_file(const std::filesystem::path& filename, const std::filesystem::path& file_to_add, ZipCompressionMethod method);
+
+    bool add_folder(const std::filesystem::path& foldername, const std::filesystem::path& folder_to_add, ZipCompressionMethod method);
 
     ZipIncrementalWrite begin_incremental_write(const std::filesystem::path& filename, ZipCompressionMethod method);
 private:
