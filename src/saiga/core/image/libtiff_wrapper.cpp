@@ -110,7 +110,10 @@ bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
             pixel_size_mm.y() = 25.4f / yres;
         }
 
-        img.set_resolution(pixel_size_mm);
+        if (pixel_size_mm.x() > 0 && pixel_size_mm.y() > 0)
+        {
+            img.set_resolution(pixel_size_mm);
+        }
     }
 
 
