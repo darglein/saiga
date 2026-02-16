@@ -179,6 +179,11 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
             bitspersample = 8;
             samples = 3;
             break;
+        case ImageType::UC4:
+            sample_format = SAMPLEFORMAT_UINT;
+            bitspersample = 8;
+            samples = 4;
+            break;
         case ImageType::US3:
             sample_format = SAMPLEFORMAT_UINT;
             bitspersample = 16;
