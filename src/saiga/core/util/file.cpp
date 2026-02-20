@@ -67,13 +67,13 @@ std::string loadFileString(const std::filesystem::path& file)
     return fileContent;
 }
 
-std::vector<std::string> loadFileStringArray(const std::string& file)
+std::vector<std::string> loadFileStringArray(const std::filesystem::path& file)
 {
     std::vector<std::string> fileContent;
     std::ifstream fileStream(file, std::ios::in);
     if (!fileStream.is_open())
     {
-        std::cout << "File not found " << file << std::endl;
+        std::cout << "File not found " << file.u8string() << std::endl;
         return {};
     }
     std::string line = "";
