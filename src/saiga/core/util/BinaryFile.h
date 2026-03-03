@@ -29,7 +29,7 @@ namespace Saiga
  */
 struct BinaryFile
 {
-    BinaryFile(const std::string& file, std::ios_base::openmode __mode = std::ios_base::in)
+    BinaryFile(const std::filesystem::path& file, std::ios_base::openmode __mode = std::ios_base::in)
         : strm(file, std::ios::binary | __mode)
     {
     }
