@@ -698,6 +698,8 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     {
         static_assert(Rows == OtherType::Rows && Cols == OtherType::Cols,
                       "Assignment is only allowed with the same dimensions.");
+        static_assert(std::is_same_v<Scalar, std::remove_const_t<typename OtherType::Scalar>>,
+                     "Assignment is only allowed with the same scalar type.");
         for (int i = 0; i < rows(); ++i)
         {
             for (int j = 0; j < cols(); ++j)

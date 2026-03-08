@@ -143,9 +143,9 @@ class SAIGA_TEMPLATE iRect
             return true;
         }
 
-        Vector<bool, 3> begin_test = begin.array() <= other.begin.array();
-        Vector<bool, 3> end_test   = end.array() >= other.end.array();
-        Vector<bool, 3> contain    = begin_test.array() && end_test.array();
+        Vector<bool, 3> begin_test = (begin.array() <= other.begin.array()).template cast<bool>();
+        Vector<bool, 3> end_test   = (end.array() >= other.end.array()).template cast<bool>();
+        Vector<bool, 3> contain    = (begin_test.array() && end_test.array()).template cast<bool>();
 
         int sum_contain = contain.cast<int>().array().sum();
 
