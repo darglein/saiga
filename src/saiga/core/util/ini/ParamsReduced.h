@@ -9,8 +9,8 @@
 #include "saiga/core/math/Quaternion.h"
 #include "saiga/core/math/Types.h"
 
-#include <vector>
 #include <filesystem>
+#include <vector>
 
 namespace CLI
 {
@@ -66,11 +66,11 @@ struct ParamsBase
         Load(file);                                                        \
     }
 
-#define SAIGA_PARAM_STRUCT_FUNCTION_DEFINITIONS \
-    void Load(CLI::App& app);                   \
-    virtual void Load(const std::filesystem::path& file); \
-    virtual void Save(const std::filesystem::path& file); \
-    virtual void Print(std::ostream& strm, int column_width = 30);
+#define SAIGA_PARAM_STRUCT_FUNCTION_DEFINITIONS                 \
+    void Load(CLI::App& app);                                   \
+    virtual void Load(const std::filesystem::path& file);       \
+    virtual void Save(const std::filesystem::path& file) const; \
+    virtual void Print(std::ostream& strm, int column_width = 30) const;
 
 
 #define SAIGA_PARAM_DEFAULT(_variable) (ParamStructType()._variable)

@@ -107,7 +107,7 @@ struct ApplicationParamIterator
                 Eigen::Matrix<_Scalar, 4, 1> coeffs;
                 for (int i = 0; i < 4; ++i)
                 {
-                        coeffs(i) = Saiga::to_double(result[i]);
+                    coeffs(i) = Saiga::to_double(result[i]);
                 }
                 variable = Eigen::Quaternion<_Scalar>(coeffs);
                 return true;
@@ -201,75 +201,79 @@ struct TablePrintParamIterator
 
 
 
-#define SAIGA_PARAM_STRUCT_FUNCTIONS                              \
-    void Load(CLI::App& app)                                      \
-    {                                                             \
-        ApplicationParamIterator appit;                           \
-        appit.app = &app;                                         \
-        Params(&appit);                                           \
-    }                                                             \
-                                                                  \
-                                                                  \
-    virtual void Load(const std::filesystem::path& file)          \
-    {                                                             \
-        Saiga::SimpleIni ini_;                                    \
-        ini_.LoadFile(file.c_str());                              \
-        IniFileParamIterator iniit;                               \
-        iniit.ini = &ini_;                                        \
-        Params(&iniit);                                           \
-        if (ini_.changed()) ini_.SaveFile(file.c_str());          \
-    }                                                             \
-                                                                  \
-                                                                  \
-    virtual void Save(const std::filesystem::path& file)          \
-    {                                                             \
-        Saiga::SimpleIni ini_;                                    \
-        ini_.LoadFile(file.c_str());                              \
-        IniFileParamIterator iniit;                               \
-        iniit.ini = &ini_;                                        \
-        Params(&iniit);                                           \
-        ini_.SaveFile(file.c_str());                              \
-    }                                                             \
-    virtual void Print(std::ostream& strm, int column_width = 30) \
-    {                                                             \
-        TablePrintParamIterator tableit(strm, column_width);      \
-        strm << "[" << name_ << "]\n";                            \
-        Params(&tableit);                                         \
+#define SAIGA_PARAM_STRUCT_FUNCTIONS                                    \
+    void Load(CLI::App& app)                                            \
+    {                                                                   \
+        ApplicationParamIterator appit;                                 \
+        appit.app = &app;                                               \
+        Params(&appit);                                                 \
+    }                                                                   \
+                                                                        \
+                                                                        \
+    virtual void Load(const std::filesystem::path& file)                \
+    {                                                                   \
+        Saiga::SimpleIni ini_;                                          \
+        ini_.LoadFile(file.c_str());                                    \
+        IniFileParamIterator iniit;                                     \
+        iniit.ini = &ini_;                                              \
+        Params(&iniit);                                                 \
+        if (ini_.changed()) ini_.SaveFile(file.c_str());                \
+    }                                                                   \
+                                                                        \
+                                                                        \
+    virtual void Save(const std::filesystem::path& file) const          \
+    {                                                                   \
+        Saiga::SimpleIni ini_;                                          \
+        ini_.LoadFile(file.c_str());                                    \
+        IniFileParamIterator iniit;                                     \
+        iniit.ini = &ini_;                                              \
+        auto cpy  = *this;                                              \
+        cpy.Params(&iniit);                                             \
+        ini_.SaveFile(file.c_str());                                    \
+    }                                                                   \
+    virtual void Print(std::ostream& strm, int column_width = 30) const \
+    {                                                                   \
+        TablePrintParamIterator tableit(strm, column_width);            \
+        strm << "[" << name_ << "]\n";                                  \
+        auto cpy = *this;                                               \
+        cpy.Params(&tableit);                                           \
     }
 
 
-#define SAIGA_PARAM_STRUCT_FUNCTIONS_NAMED(name)             \
-    void name::Load(CLI::App& app)                           \
-    {                                                        \
-        ApplicationParamIterator appit;                      \
-        appit.app = &app;                                    \
-        Params(&appit);                                      \
-    }                                                        \
-                                                             \
-                                                             \
-    void name::Load(const std::filesystem::path& file)       \
-    {                                                        \
-        Saiga::SimpleIni ini_;                               \
-        ini_.LoadFile(file.c_str());                         \
-        IniFileParamIterator iniit;                          \
-        iniit.ini = &ini_;                                   \
-        Params(&iniit);                                      \
-        if (ini_.changed()) ini_.SaveFile(file.c_str());     \
-    }                                                        \
-                                                             \
-                                                             \
-    void name::Save(const std::filesystem::path& file)       \
-    {                                                        \
-        Saiga::SimpleIni ini_;                               \
-        ini_.LoadFile(file.c_str());                         \
-        IniFileParamIterator iniit;                          \
-        iniit.ini = &ini_;                                   \
-        Params(&iniit);                                      \
-        ini_.SaveFile(file.c_str());                         \
-    }                                                        \
-    void name::Print(std::ostream& strm, int column_width)   \
-    {                                                        \
-        TablePrintParamIterator tableit(strm, column_width); \
-        strm << "[" << name_ << "]\n";                       \
-        Params(&tableit);                                    \
+#define SAIGA_PARAM_STRUCT_FUNCTIONS_NAMED(name)                 \
+    void name::Load(CLI::App& app)                               \
+    {                                                            \
+        ApplicationParamIterator appit;                          \
+        appit.app = &app;                                        \
+        Params(&appit);                                          \
+    }                                                            \
+                                                                 \
+                                                                 \
+    void name::Load(const std::filesystem::path& file)           \
+    {                                                            \
+        Saiga::SimpleIni ini_;                                   \
+        ini_.LoadFile(file.c_str());                             \
+        IniFileParamIterator iniit;                              \
+        iniit.ini = &ini_;                                       \
+        Params(&iniit);                                          \
+        if (ini_.changed()) ini_.SaveFile(file.c_str());         \
+    }                                                            \
+                                                                 \
+                                                                 \
+    void name::Save(const std::filesystem::path& file) const     \
+    {                                                            \
+        Saiga::SimpleIni ini_;                                   \
+        ini_.LoadFile(file.c_str());                             \
+        IniFileParamIterator iniit;                              \
+        iniit.ini = &ini_;                                       \
+        auto cpy  = *this;                                       \
+        cpy.Params(&iniit);                                      \
+        ini_.SaveFile(file.c_str());                             \
+    }                                                            \
+    void name::Print(std::ostream& strm, int column_width) const \
+    {                                                            \
+        TablePrintParamIterator tableit(strm, column_width);     \
+        strm << "[" << name_ << "]\n";                           \
+        auto cpy = *this;                                        \
+        cpy.Params(&tableit);                                    \
     }
