@@ -25,6 +25,7 @@ PackageHelperTarget(zip LIBZIP_FOUND)
 PackageHelperTarget(glog::glog GLOG_FOUND)
 PackageHelperTarget(TIFF::CXX LIBTIFF_FOUND)
 PackageHelperTarget(TinyTIFF TINYTIFF_FOUND)
+PackageHelperTarget(avif LIBAVIF_FOUND)
 
 #openmp
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND SAIGA_CXX_FLAGS_MSVC)
@@ -92,6 +93,12 @@ endif ()
 
 if (SAIGA_WITH_TINYTIFF)
     SET(SAIGA_USE_TINYTIFF 1 PARENT_SCOPE)
+endif ()
+
+if (SAIGA_WITH_LIBAVIF)
+    SET(SAIGA_USE_LIBAVIF 1 PARENT_SCOPE)
+    
+    list(APPEND CORE_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SVT-AV1/Source/API")
 endif ()
 
 

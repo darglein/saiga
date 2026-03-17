@@ -26,6 +26,7 @@
 #include "internal/stb_image_write_wrapper.h"
 #include "saiga/core/image/libtiff_wrapper.h"
 #include "saiga/core/image/tinytiff_wrapper.h"
+#include "saiga/core/image/libavif_wrapper.h"
 
 #include <fstream>
 namespace Saiga
@@ -159,6 +160,13 @@ bool Image::load(const std::filesystem::path& _path)
 #endif
     }
 
+    if (type == ".avif")
+    {
+#ifdef SAIGA_USE_LIBAVIF
+        return loadImageLibAVIF(path, *this);
+#endif
+    }
+
 
     // use libfreeimage if available
 #ifdef SAIGA_USE_FREEIMAGE
@@ -211,6 +219,13 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
     {
 #ifdef SAIGA_USE_LIBTIFF
         return loadImageFromMemoryLibTiff(data.data(),data.size(), *this);
+#endif
+    }
+
+    if (type == "avif")
+    {
+#ifdef SAIGA_USE_LIBAVIF
+        return loadImageFromMemoryLibAVIF(data.data(), data.size(), *this);
 #endif
     }
 
@@ -281,6 +296,13 @@ bool Image::save(const std::filesystem::path& path) const
     {
 #ifdef SAIGA_USE_LIBTIFF
         return saveImageLibTiff(path, *this);
+#endif
+    }
+
+    if (output_type == ".avif")
+    {
+#ifdef SAIGA_USE_LIBAVIF
+        return saveImageLibAVIF(path, *this);
 #endif
     }
 

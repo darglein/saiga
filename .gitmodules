@@ -32,3 +32,9 @@
 [submodule "submodules/zstd"]
 	path = submodules/zstd
 	url = ../../facebook/zstd.git
+[submodule "submodules/libavif"]
+	path = submodules/libavif
+	url = git@github.com:AOMediaCodec/libavif.git
+[submodule "submodules/SVT-AV1"]
+	path = submodules/SVT-AV1
+	url = https://gitlab.com/AOMediaCodec/SVT-AV1.git

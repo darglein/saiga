@@ -68,6 +68,10 @@ target_include_directories(
         #${PROJECT_SOURCE_DIR}/src/
 )
 
+if (SAIGA_WITH_LIBAVIF)
+    target_include_directories(${MODULE_NAME} PRIVATE "${PROJECT_SOURCE_DIR}/submodules/SVT-AV1/Source/API")
+endif ()
+
 set(OTHER_EXPORT_TARGETS "")
 
 install(

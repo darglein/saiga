@@ -247,3 +247,51 @@ if (SAIGA_WITH_TINYTIFF)
     message("=================================")
 endif ()
 
+
+if (SAIGA_WITH_LIBAVIF)
+    message("=================================")
+    message("Adding Submodule svt")
+
+    set(BUILD_APPS OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+    add_subdirectory(SVT-AV1)
+
+    message("=================================")
+
+
+    # --- THE HEADER WRAPPER HACK ---
+    # libavif expects headers in an "svt-av1" subfolder. 
+    # We copy them to a fake directory in the build tree to satisfy libavif.
+    set(SVT_WRAPPER_DIR "${CMAKE_CURRENT_BINARY_DIR}/svt_wrapper_includes")
+    file(MAKE_DIRECTORY "${SVT_WRAPPER_DIR}/svt-av1")
+    file(GLOB SVT_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API/*.h")
+    file(COPY ${SVT_HEADERS} DESTINATION "${SVT_WRAPPER_DIR}/svt-av1/")
+
+    # Inject this new folder directly into the SVT-AV1 target's public include paths
+    target_include_directories(SvtAv1Enc INTERFACE "${SVT_WRAPPER_DIR}")
+    # -------------------------------
+
+
+
+    message("=================================")
+    message("Adding Submodule libavif")
+
+    set(AVIF_CODEC_AOM OFF CACHE BOOL "" FORCE)
+    set(AVIF_LOCAL_AOM OFF CACHE BOOL "" FORCE)
+
+    set(AVIF_CODEC_SVT SYSTEM CACHE STRING "" FORCE)
+    set(AVIF_LOCAL_SVT OFF CACHE BOOL "" FORCE)
+
+    #set(SVT_AV1_FOUND ON CACHE BOOL "" FORCE)
+    #set(SVT_AV1_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API" CACHE PATH "" FORCE)
+    #set(SVT_AV1_LIBRARY SvtAv1Enc CACHE STRING "" FORCE)
+
+    set (AVIF_LIBYUV OFF)
+
+    add_subdirectory(libavif)
+
+    SET(SAIGA_USE_LIBAVIF 1 PARENT_SCOPE)
+    message("=================================")
+endif ()
+
