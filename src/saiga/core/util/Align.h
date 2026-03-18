@@ -9,6 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/core/math/imath.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -162,10 +163,12 @@ inline std::shared_ptr<_Tp> make_aligned_shared(_Args&&... __args)
     auto ptr = (_Tp*)aligned_malloc<Alignment>(sizeof(_Tp));
     new (ptr) _Tp(std::forward<_Args>(__args)...);
     //    return std::shared_ptr<_Tp>(ptr, &aligned_free);
-    return std::shared_ptr<_Tp>(ptr, [](_Tp* ptr) {
-        ptr->~_Tp();
-        aligned_free(ptr);
-    });
+    return std::shared_ptr<_Tp>(ptr,
+                                [](_Tp* ptr)
+                                {
+                                    ptr->~_Tp();
+                                    aligned_free(ptr);
+                                });
 
     //    typedef typename std::remove_cv<_Tp>::type _Tp_nc;
     //    return std::allocate_shared<_Tp>(aligned_allocator<_Tp_nc, Alignment>(), std::forward<_Args>(__args)...);
