@@ -255,12 +255,17 @@ if (SAIGA_WITH_LIBAVIF)
     set(BUILD_APPS OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+    set(BACKUP_MASM_EXTS "${CMAKE_ASM_MASM_SOURCE_FILE_EXTENSIONS}")
+    set(CMAKE_ASM_MASM_SOURCE_FILE_EXTENSIONS "")
+    set(CMAKE_ASM_NASM_SOURCE_FILE_EXTENSIONS "asm;nasm;nas")
+
     add_subdirectory(SVT-AV1)
+
+    set(CMAKE_ASM_MASM_SOURCE_FILE_EXTENSIONS "${BACKUP_MASM_EXTS}")
 
     message("=================================")
 
 
-    # --- THE HEADER WRAPPER HACK ---
     # libavif expects headers in an "svt-av1" subfolder. 
     # We copy them to a fake directory in the build tree to satisfy libavif.
     set(SVT_WRAPPER_DIR "${CMAKE_CURRENT_BINARY_DIR}/svt_wrapper_includes")
