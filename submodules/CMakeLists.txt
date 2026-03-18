@@ -250,51 +250,62 @@ endif ()
 
 if (SAIGA_WITH_LIBAVIF)
     message("=================================")
-    message("Adding Submodule svt")
+    message("Adding SVT-AV1 as an Isolated External Project")
 
-    set(BUILD_APPS OFF CACHE BOOL "" FORCE)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    include(ExternalProject)
 
-    set(BACKUP_MASM_EXTS "${CMAKE_ASM_MASM_SOURCE_FILE_EXTENSIONS}")
-    set(CMAKE_ASM_MASM_SOURCE_FILE_EXTENSIONS "")
-    set(CMAKE_ASM_NASM_SOURCE_FILE_EXTENSIONS "asm;nasm;nas")
+    set(SVT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/svt_ext")
+    set(SVT_INSTALL_DIR "${SVT_PREFIX}/install")
 
-    add_subdirectory(SVT-AV1)
+    # 1. Create dummy include folder so CMake doesn't panic during generation
+    file(MAKE_DIRECTORY "${SVT_INSTALL_DIR}/include/svt-av1")
 
-    set(CMAKE_ASM_MASM_SOURCE_FILE_EXTENSIONS "${BACKUP_MASM_EXTS}")
+    # 2. Isolate SVT-AV1 into its own independent CMake build process
+    ExternalProject_Add(svt_av1_isolated
+        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1"
+        PREFIX "${SVT_PREFIX}"
+        INSTALL_DIR "${SVT_INSTALL_DIR}"
+        CMAKE_ARGS
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_APPS=OFF
+            -DBUILD_DEC=OFF
+            -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+    )
 
-    message("=================================")
+    # 3. Create an IMPORTED target for our main project to link against
+    add_library(SvtAv1Enc STATIC IMPORTED)
+    add_dependencies(SvtAv1Enc svt_av1_isolated)
 
+    # 4. Handle cross-platform binaries (Windows .lib vs Linux .a)
+    if (WIN32)
+        set(SVT_LIB_PATH "${SVT_INSTALL_DIR}/lib/SvtAv1Enc.lib")
+    else()
+        # Note: Depending on the Linux distro/compiler, SVT-AV1 sometimes outputs 
+        # to lib64/ instead of lib/. If it fails on Linux, change this to lib64/.
+        set(SVT_LIB_PATH "${SVT_INSTALL_DIR}/lib/libSvtAv1Enc.a")
+    endif()
 
-    # libavif expects headers in an "svt-av1" subfolder. 
-    # We copy them to a fake directory in the build tree to satisfy libavif.
-    set(SVT_WRAPPER_DIR "${CMAKE_CURRENT_BINARY_DIR}/svt_wrapper_includes")
-    file(MAKE_DIRECTORY "${SVT_WRAPPER_DIR}/svt-av1")
-    file(GLOB SVT_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API/*.h")
-    file(COPY ${SVT_HEADERS} DESTINATION "${SVT_WRAPPER_DIR}/svt-av1/")
+    set_target_properties(SvtAv1Enc PROPERTIES
+        IMPORTED_LOCATION "${SVT_LIB_PATH}"
+        INTERFACE_INCLUDE_DIRECTORIES "${SVT_INSTALL_DIR}/include/svt-av1"
+    )
 
-    # Inject this new folder directly into the SVT-AV1 target's public include paths
-    target_include_directories(SvtAv1Enc INTERFACE "${SVT_WRAPPER_DIR}")
-    # -------------------------------
-
-
-
-    message("=================================")
-    message("Adding Submodule libavif")
+    # 5. Tell libavif we "found" the pre-installed library
+    set(SvtAv1Enc_FOUND ON CACHE BOOL "" FORCE)
+    set(SVT_AV1_INCLUDE_DIR "${SVT_INSTALL_DIR}/include/svt-av1" CACHE PATH "" FORCE)
 
     set(AVIF_CODEC_AOM OFF CACHE BOOL "" FORCE)
     set(AVIF_LOCAL_AOM OFF CACHE BOOL "" FORCE)
+    set(AVIF_LIBYUV OFF CACHE BOOL "" FORCE)
 
-    set(AVIF_CODEC_SVT SYSTEM CACHE STRING "" FORCE)
+    set(AVIF_CODEC_SVT ON CACHE BOOL "" FORCE)
     set(AVIF_LOCAL_SVT OFF CACHE BOOL "" FORCE)
 
-    #set(SVT_AV1_FOUND ON CACHE BOOL "" FORCE)
-    #set(SVT_AV1_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API" CACHE PATH "" FORCE)
-    #set(SVT_AV1_LIBRARY SvtAv1Enc CACHE STRING "" FORCE)
-
-    set (AVIF_LIBYUV OFF)
-
     add_subdirectory(libavif)
+    
+    # 6. Link the isolated target
+    target_link_libraries(avif PRIVATE SvtAv1Enc)
 
     SET(SAIGA_USE_LIBAVIF 1 PARENT_SCOPE)
     message("=================================")
