@@ -15,15 +15,24 @@
 
 namespace Saiga
 {
-// All vector types are formed from this typedef.
-// -> A vector is a Nx1 Eigen::Matrix.
+
+
+#ifdef SAIGA_USE_EIGEN
 template <typename Scalar, int Size>
 using Vector = Eigen::Matrix<Scalar, Size, 1, Eigen::ColMajor>;
+template <typename Scalar, int Rows, int Cols, int Options= Eigen::ColMajor>
+using Matrix = Eigen::Matrix<Scalar, Rows, Cols,Options>;
+template <typename Derived2>
+using MatrixBase = Eigen::MatrixBase<Derived2>;
+#else
+template <typename Scalar, int Size>
+using Vector = TinyEigen::Matrix<Scalar, Size, 1, TinyEigen::ColMajor>;
+template <typename Scalar, int Rows, int Cols, int Options=TinyEigen::ColMajor>
+using Matrix = TinyEigen::Matrix<Scalar, Rows, Cols, Options>;
+template <typename Derived2>
+using MatrixBase = TinyEigen::MatrixBase<Derived2>;
+#endif
 
-// All 2D fixed size matrices are formed from this typedef.
-// They are all stored in column major order.
-template <typename Scalar, int Rows, int Cols>
-using Matrix = Eigen::Matrix<Scalar, Rows, Cols, Eigen::ColMajor>;
 
 // ===== Double Precision (Capital Letter) ======
 using Vec2 = Vector<double, 2>;

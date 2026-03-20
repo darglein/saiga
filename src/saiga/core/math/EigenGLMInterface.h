@@ -169,93 +169,93 @@ Matrix<typename Derived1::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived1>& d
 
 #else
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-HD _Scalar distance(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-                    Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD _Scalar distance(const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                    Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     return (m1 - m2).norm();
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-HD Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> cross(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-                                                           Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD Matrix<_Scalar, _Rows0, _Cols0, _Options0> cross(const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+                                                           Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     return m1.cross(m2);
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-HD _Scalar dot(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
-               Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD _Scalar dot(const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1,
+               Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     return m1.dot(m2);
 }
 
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-HD Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> normalize(
-    const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
+HD Matrix<_Scalar, _Rows0, _Cols0, _Options0> normalize(
+    const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
 {
     return m1.normalized();
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-HD Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> ArrayMult(
-    const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1, Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
+HD Matrix<_Scalar, _Rows0, _Cols0, _Options0> ArrayMult(
+    const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1, Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
     return m1.cross(m2);
 }
 
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-HD Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0> inverse(
-    const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
+HD Matrix<_Scalar, _Rows0, _Cols0, _Options0> inverse(
+    const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
 {
     return m1.inverse();
 }
 
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-HD constexpr auto mix(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& a,
-                      const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& b, _Scalar alpha)
+HD constexpr auto mix(const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& a,
+                      const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& b, _Scalar alpha)
 {
     return (1 - alpha) * a + alpha * b;
 }
 
 template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
-HD _Scalar length(const Eigen::Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
+HD _Scalar length(const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1)
 {
     return m1.norm();
 }
 
 template <typename Scalar>
-HD constexpr auto slerp(const Eigen::Quaternion<Scalar>& a, const Eigen::Quaternion<Scalar>& b, Scalar alpha)
+HD constexpr auto slerp(const TinyEigen::Quaternion<Scalar>& a, const TinyEigen::Quaternion<Scalar>& b, Scalar alpha)
 {
     return a.slerp(alpha, b);
 }
 
 template <typename Scalar>
-HD constexpr auto normalize(const Eigen::Quaternion<Scalar>& a)
+HD constexpr auto normalize(const TinyEigen::Quaternion<Scalar>& a)
 {
     return a.normalized();
 }
 
 
 template <typename Derived>
-HD constexpr Derived abs(const Eigen::MatrixBase<Derived>& v)
+HD constexpr Derived abs(const TinyEigen::MatrixBase<Derived>& v)
 {
     return v.derived().array().abs();
 }
 
 template <typename Derived>
-HD constexpr typename Derived::PlainObject clamp(const Eigen::MatrixBase<Derived>& x,
-                                                 const Eigen::MatrixBase<Derived>& minVal,
-                                                 const Eigen::MatrixBase<Derived>& maxVal)
+HD constexpr typename Derived::PlainObject clamp(const TinyEigen::MatrixBase<Derived>& x,
+                                                 const TinyEigen::MatrixBase<Derived>& minVal,
+                                                 const TinyEigen::MatrixBase<Derived>& maxVal)
 {
     typename Derived::PlainObject tmp = x.derived().array().max(minVal.derived().array());
     return tmp.array().min(maxVal.derived().array());
 }
 
 template <typename Derived>
-HD constexpr typename Derived::PlainObject fract(const Eigen::MatrixBase<Derived>& v)
+HD constexpr typename Derived::PlainObject fract(const TinyEigen::MatrixBase<Derived>& v)
 {
     return (v.derived().array() - v.derived().array().floor());
 }
@@ -263,7 +263,7 @@ HD constexpr typename Derived::PlainObject fract(const Eigen::MatrixBase<Derived
 
 
 template <typename Derived>
-HD constexpr typename Derived::PlainObject saturate(const Eigen::MatrixBase<Derived>& x)
+HD constexpr typename Derived::PlainObject saturate(const TinyEigen::MatrixBase<Derived>& x)
 {
     typename Derived::PlainObject z, o;
     z.setZero();
@@ -279,7 +279,7 @@ HD constexpr typename Derived::PlainObject saturate(const Eigen::MatrixBase<Deri
 // n is aligned to the z-axis
 //
 template <typename Derived>
-Matrix<typename Derived::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived>& n)
+Matrix<typename Derived::Scalar, 3, 3> onb(const TinyEigen::MatrixBase<Derived>& n)
 {
     using T    = typename Derived::Scalar;
     using Mat3 = Matrix<T, 3, 3>;

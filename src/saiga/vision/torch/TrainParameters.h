@@ -15,7 +15,7 @@
 
 namespace Saiga
 {
-struct TrainParams : public ParamsBase
+struct TrainParams : public Saiga::ParamsBase
 {
     SAIGA_PARAM_STRUCT(TrainParams);
     SAIGA_PARAM_STRUCT_FUNCTIONS;

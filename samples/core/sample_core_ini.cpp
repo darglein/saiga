@@ -11,7 +11,7 @@
 using namespace Saiga;
 
 
-struct SampleParams : public ParamsBase
+struct SampleParams : public Saiga::ParamsBase
 {
     SAIGA_PARAM_STRUCT(SampleParams);
     SAIGA_PARAM_STRUCT_FUNCTIONS;

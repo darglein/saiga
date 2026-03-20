@@ -117,11 +117,11 @@ MatrixType MatrixGauss(typename MatrixType::Scalar mean = 0, typename MatrixType
 }
 
 template <typename Scalar>
-Eigen::Quaternion<Scalar> randomQuat()
+Quaternion<Scalar> randomQuat()
 {
     using Vec = Vector<Scalar, 4>;
     Vec r     = Random::MatrixUniform<Vec>(-1, 1);
-    Eigen::Quaternion<Scalar> q;
+    Quaternion<Scalar> q;
     q.coeffs() = r;
     q.normalize();
     if (q.w() < 0) q.coeffs() *= -1;
@@ -154,8 +154,8 @@ inline typename Derived::PlainObject linearRand(const Eigen::DenseBase<Derived>&
 }
 #else
 template <typename Derived>
-inline typename Derived::PlainObject linearRand(const Eigen::MatrixBase<Derived>& low,
-                                                const Eigen::MatrixBase<Derived>& high)
+inline typename Derived::PlainObject linearRand(const TinyEigen::MatrixBase<Derived>& low,
+                                                const TinyEigen::MatrixBase<Derived>& high)
 {
     typename Derived::PlainObject result;
     for (int i = 0; i < low.rows(); ++i)

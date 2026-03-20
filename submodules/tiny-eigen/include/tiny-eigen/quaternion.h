@@ -11,7 +11,7 @@
 
 #include <limits>
 
-namespace Eigen
+namespace TinyEigen
 {
 
 template <class Derived>

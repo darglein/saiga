@@ -15,14 +15,14 @@ namespace Sophus
 template <typename T>
 class SO3
 {
-    using Vec3   = Eigen::Matrix<T, 3, 1>;
-    using Quat   = Eigen::Quaternion<T>;
+    using Vec3   = TinyEigen::Matrix<T, 3, 1>;
+    using Quat   = TinyEigen::Quaternion<T>;
     using Scalar = T;
 
    public:
     HD SO3() : q(Quat::Identity()) {}
     HD SO3(const Quat& q) : q(q.normalized()) {}
-    HD SO3(const Eigen::Matrix<T, 3, 3>& R) : q(R) { q = q.normalized(); }
+    HD SO3(const TinyEigen::Matrix<T, 3, 3>& R) : q(R) { q = q.normalized(); }
     HD Quat& unit_quaternion() { return q; }
     HD const Quat& unit_quaternion() const { return q; }
 
@@ -113,7 +113,7 @@ class SO3
         return two_atan_nbyw_by_n * unit_quaternion().vec();
     }
 
-    HD Eigen::Matrix<T, 3, 3> matrix() const { return q.matrix(); }
+    HD TinyEigen::Matrix<T, 3, 3> matrix() const { return q.matrix(); }
 
 
    private:
@@ -124,8 +124,8 @@ class SO3
 template <typename T>
 class alignas(sizeof(T) * 8) SE3
 {
-    using Vec3   = Eigen::Matrix<T, 3, 1>;
-    using Quat   = Eigen::Quaternion<T>;
+    using Vec3   = TinyEigen::Matrix<T, 3, 1>;
+    using Quat   = TinyEigen::Quaternion<T>;
     using Scalar = T;
 
 
@@ -133,12 +133,12 @@ class alignas(sizeof(T) * 8) SE3
     HD SE3() : t(0, 0, 0) {}
     HD SE3(const Quat& q, const Vec3& v) : _so3(q), t(v) {}
     HD SE3(const SO3<T>& q, const Vec3& v) : _so3(q), t(v) {}
-    HD SE3(const Eigen::Matrix<T, 4, 4>& tra) : _so3(tra.template block<3, 3>(0, 0)), t(tra.template block<3, 1>(0, 3))
+    HD SE3(const TinyEigen::Matrix<T, 4, 4>& tra) : _so3(tra.template block<3, 3>(0, 0)), t(tra.template block<3, 1>(0, 3))
     {
     }
 
 
-    HD static SE3<T> fitToSE3(const Eigen::Matrix<T, 4, 4>& tra) { return SE3(tra); }
+    HD static SE3<T> fitToSE3(const TinyEigen::Matrix<T, 4, 4>& tra) { return SE3(tra); }
 
     template <typename G>
     HD SE3<G> cast()
@@ -166,18 +166,18 @@ class alignas(sizeof(T) * 8) SE3
     HD const Scalar* data() const { return (Scalar*)(this); }
     HD Scalar* data() { return (Scalar*)(this); }
 
-    HD Eigen::Matrix<T, 4, 4> matrix() const
+    HD TinyEigen::Matrix<T, 4, 4> matrix() const
     {
-        Eigen::Matrix<T, 4, 4> result     = Eigen::Matrix<T, 4, 4>::Identity();
+        TinyEigen::Matrix<T, 4, 4> result     = TinyEigen::Matrix<T, 4, 4>::Identity();
         result.template block<3, 3>(0, 0) = unit_quaternion().matrix();
         result.template block<3, 1>(0, 3) = t;
         return result;
     }
 
 
-    HD Eigen::Matrix<T, 7, 1> params() const
+    HD TinyEigen::Matrix<T, 7, 1> params() const
     {
-        Eigen::Matrix<T, 7, 1> data;
+        TinyEigen::Matrix<T, 7, 1> data;
         data.template head<4>() = unit_quaternion().coeffs();
         data(4)                 = t(0);
         data(5)                 = t(1);
@@ -198,14 +198,14 @@ class Sim3
 };
 
 template <typename T>
-HD Eigen::Matrix<T, 3, 1> operator*(const SO3<T>& a, const Eigen::Matrix<T, 3, 1>& v)
+HD TinyEigen::Matrix<T, 3, 1> operator*(const SO3<T>& a, const TinyEigen::Matrix<T, 3, 1>& v)
 {
     return a.unit_quaternion() * v;
 }
 
 
 template <typename T>
-HD Eigen::Matrix<T, 3, 1> operator*(const SE3<T>& a, const Eigen::Matrix<T, 3, 1>& v)
+HD TinyEigen::Matrix<T, 3, 1> operator*(const SE3<T>& a, const TinyEigen::Matrix<T, 3, 1>& v)
 {
     return a.unit_quaternion() * v + a.translation();
 }

@@ -31,7 +31,7 @@ struct DistortionBase
 
     HD inline DistortionBase() {}
 
-    HD inline DistortionBase(const Eigen::Matrix<T, 8, 1>& c)
+    HD inline DistortionBase(const Matrix<T, 8, 1>& c)
     {
         k1 = c(0);
         k2 = c(1);
@@ -43,9 +43,9 @@ struct DistortionBase
         p2 = c(7);
     }
 
-    HD inline Eigen::Matrix<T, 8, 1> Coeffs() const
+    HD inline Matrix<T, 8, 1> Coeffs() const
     {
-        Eigen::Matrix<T, 8, 1> result;
+        Matrix<T, 8, 1> result;
         result(0) = k1;
         result(1) = k2;
         result(2) = k3;
@@ -58,9 +58,9 @@ struct DistortionBase
     }
 
 
-    HD inline Eigen::Matrix<T, 8, 1> OpenCVOrder() const
+    HD inline Matrix<T, 8, 1> OpenCVOrder() const
     {
-        Eigen::Matrix<T, 8, 1> result;
+        Matrix<T, 8, 1> result;
         result << k1, k2, p1, p2, k3, k4, k5, k6;
         return result;
     }
@@ -71,7 +71,7 @@ struct DistortionBase
         return Coeffs().template cast<G>().eval();
     }
 
-    HD inline T RadialFactor(const Eigen::Matrix<T, 2, 1>& p)
+    HD inline T RadialFactor(const Matrix<T, 2, 1>& p)
     {
         T r2       = p.dot(p);
         T r4       = r2 * r2;
@@ -127,7 +127,7 @@ std::ostream& operator<<(std::ostream& strm, const DistortionBase<T> dist)
  * You can find a glsl implementation in shader/vision/distortion.h
  */
 template <typename T>
-HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2, 1>& point,
+HD inline Matrix<T, 2, 1> distortNormalizedPoint(const Matrix<T, 2, 1>& point,
                                                         const DistortionBase<T>& distortion,
                                                         Matrix<T, 2, 2>* J_point      = nullptr,
                                                         Matrix<T, 2, 8>* J_distortion = nullptr, T max_r = T(100000))
@@ -239,23 +239,23 @@ HD inline Eigen::Matrix<T, 2, 1> distortNormalizedPoint(const Eigen::Matrix<T, 2
 
 
 template <typename T>
-Eigen::Matrix<T, 2, 1> undistortPointGN(const Eigen::Matrix<T, 2, 1>& point, const Eigen::Matrix<T, 2, 1>& guess,
+Matrix<T, 2, 1> undistortPointGN(const Matrix<T, 2, 1>& point, const Matrix<T, 2, 1>& guess,
                                         const DistortionBase<T>& d, int iterations = 5)
 {
-    Eigen::Matrix<T, 2, 1> x          = guess;
-    Eigen::Matrix<T, 2, 1> last_point = guess;
+    Matrix<T, 2, 1> x          = guess;
+    Matrix<T, 2, 1> last_point = guess;
 
     T last_chi2 = std::numeric_limits<T>::infinity();
 
     for (int it = 0; it < iterations; ++it)
     {
-        Eigen::Matrix<T, 2, 2> J;
-        Eigen::Matrix<T, 2, 1> res = distortNormalizedPoint(x, d, &J) - point;
+        Matrix<T, 2, 2> J;
+        Matrix<T, 2, 1> res = distortNormalizedPoint(x, d, &J) - point;
 
         T chi2 = res.squaredNorm();
 
-        Eigen::Matrix<T, 2, 2> JtJ = J.transpose() * J;
-        Eigen::Matrix<T, 2, 1> Jtb = -J.transpose() * res;
+        Matrix<T, 2, 2> JtJ = J.transpose() * J;
+        Matrix<T, 2, 1> Jtb = -J.transpose() * res;
 
 
         if (chi2 > last_chi2)
@@ -268,7 +268,7 @@ Eigen::Matrix<T, 2, 1> undistortPointGN(const Eigen::Matrix<T, 2, 1>& point, con
         last_point = x;
         last_chi2  = chi2;
 
-        Eigen::Matrix<T, 2, 1> delta = JtJ.ldlt().solve(Jtb);
+        Matrix<T, 2, 1> delta = JtJ.ldlt().solve(Jtb);
         x += delta;
     }
 
@@ -290,7 +290,7 @@ Eigen::Matrix<T, 2, 1> undistortPointGN(const Eigen::Matrix<T, 2, 1>& point, con
  * The inverse OpenCV distortion model with 5 parameters.
  */
 template <typename T>
-HD inline Eigen::Matrix<T, 2, 1> undistortNormalizedPointSimple(const Eigen::Matrix<T, 2, 1>& point,
+HD inline Matrix<T, 2, 1> undistortNormalizedPointSimple(const Matrix<T, 2, 1>& point,
                                                                 const DistortionBase<T>& distortion, int iterations = 5)
 {
     T x  = point.x();

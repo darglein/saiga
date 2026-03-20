@@ -373,7 +373,7 @@ class UpsampleBlockImpl : public torch::nn::Module
 TORCH_MODULE(UpsampleBlock);
 
 
-struct MultiScaleUnet2dParams : public ParamsBase
+struct MultiScaleUnet2dParams : public Saiga::ParamsBase
 {
     SAIGA_PARAM_STRUCT(MultiScaleUnet2dParams);
     SAIGA_PARAM_STRUCT_FUNCTIONS;

@@ -183,7 +183,7 @@ inline std::vector<int> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<int>
 }
 
 template <typename _Scalar, int _Rows, int _Cols>
-std::string toIniString(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M, char sep)
+std::string toIniString(const Matrix<_Scalar, _Rows, _Cols>& M, char sep)
 {
     auto to_string2 = [](_Scalar d)
     {
@@ -209,7 +209,7 @@ std::string toIniString(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M, char sep)
 
 
 template <typename _Scalar, int _Rows, int _Cols>
-void fromIniString(const std::string& str, Eigen::Matrix<_Scalar, _Rows, _Cols>& M, char sep)
+void fromIniString(const std::string& str, Matrix<_Scalar, _Rows, _Cols>& M, char sep)
 {
     auto arr = Saiga::split(str, sep);
     SAIGA_ASSERT((int)arr.size() == M.rows() * M.cols());
@@ -220,7 +220,7 @@ void fromIniString(const std::string& str, Eigen::Matrix<_Scalar, _Rows, _Cols>&
 }
 
 template <typename T, int rows, int cols>
-inline Eigen::Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Eigen::Matrix<T, rows, cols> variable,
+inline Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Matrix<T, rows, cols> variable,
                                                      std::string section, std::string variable_name,
                                                      std::string comment, char sep)
 {
@@ -232,13 +232,13 @@ inline Eigen::Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Eige
 }
 
 template <typename T>
-inline Eigen::Quaternion<T> ReadWriteIniList(Saiga::SimpleIni& ini, Eigen::Quaternion<T> variable,
+inline Quaternion<T> ReadWriteIniList(Saiga::SimpleIni& ini, Quaternion<T> variable,
     std::string section, std::string variable_name,
     std::string comment, char sep)
 {
-    Eigen::Matrix<T, 4, 1> coeffs = variable.coeffs();
+    Matrix<T, 4, 1> coeffs = variable.coeffs();
     coeffs = ReadWriteIniList(ini, coeffs, section, variable_name, comment, sep);
-    variable = Eigen::Quaternion<T>(coeffs);
+    variable = Quaternion<T>(coeffs);
     return variable;
 }
 

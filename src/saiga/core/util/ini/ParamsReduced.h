@@ -17,6 +17,8 @@ namespace CLI
 class App;
 }
 
+namespace Saiga
+{
 // The saiga param macros (below) can be used to define simple param structs in ini files.
 // An example struct should look like this:
 //
@@ -57,13 +59,14 @@ struct ParamsBase
     // template<class ParamIterator>
     // virtual void Params(ParamIterator* ini) = 0;
 };
+}  // namespace Saiga
 
-#define SAIGA_PARAM_STRUCT(_Name)                                          \
-    using ParamStructType = _Name;                                         \
-    _Name() : ParamsBase(#_Name) {}                                        \
-    explicit _Name(const std::filesystem::path& file) : ParamsBase(#_Name) \
-    {                                                                      \
-        Load(file);                                                        \
+#define SAIGA_PARAM_STRUCT(_Name)                                                 \
+    using ParamStructType = _Name;                                                \
+    _Name() : Saiga::ParamsBase(#_Name) {}                                        \
+    explicit _Name(const std::filesystem::path& file) : Saiga::ParamsBase(#_Name) \
+    {                                                                             \
+        Load(file);                                                               \
     }
 
 #define SAIGA_PARAM_STRUCT_FUNCTION_DEFINITIONS                 \

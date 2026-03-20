@@ -11,10 +11,12 @@
 #include <cmath>
 #include <iostream>
 
+#ifndef EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 // don't need to do anything here because we don't use aligned vectors
 #define EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#endif
 
-namespace Eigen
+namespace TinyEigen
 {
 template <typename _Scalar, int _Rows, int _Cols, int _Options>
 class Matrix;

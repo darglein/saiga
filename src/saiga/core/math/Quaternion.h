@@ -32,14 +32,31 @@
  */
 namespace Saiga
 {
+
+#ifdef SAIGA_USE_EIGEN
+template <typename Scalar>
+using Quaternion = Eigen::Quaternion<Scalar>;
+
 using quat = Eigen::Quaternionf;
 using Quat = Eigen::Quaterniond;
+#else
+template <typename Scalar>
+using Quaternion = TinyEigen::Quaternion<Scalar>;
+
+using quat = TinyEigen::Quaternionf;
+using Quat = TinyEigen::Quaterniond;
+#endif
 }  // namespace Saiga
 
+
+#ifdef SAIGA_USE_EIGEN
 namespace Eigen
+#else
+namespace TinyEigen
+#endif
 {
 template <typename Derived>
-inline std::ostream& operator<<(std::ostream& os, const Eigen::QuaternionBase<Derived>& q2)
+inline std::ostream& operator<<(std::ostream& os, const QuaternionBase<Derived>& q2)
 {
     auto q = q2.derived();
     os << "quat(" << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << ")";

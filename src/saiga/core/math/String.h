@@ -16,7 +16,7 @@
 namespace Saiga
 {
 template <typename _Scalar, int _Rows, int _Cols>
-std::string toIniString(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M)
+std::string toIniString(const Matrix<_Scalar, _Rows, _Cols>& M)
 {
     std::string str;
     // Add entries to string, separated with ' ' in row major order.
@@ -28,7 +28,7 @@ std::string toIniString(const Eigen::Matrix<_Scalar, _Rows, _Cols>& M)
 
 
 template <typename _Scalar, int _Rows, int _Cols>
-void fromIniString(const std::string& str, Eigen::Matrix<_Scalar, _Rows, _Cols>& M)
+void fromIniString(const std::string& str, Matrix<_Scalar, _Rows, _Cols>& M)
 {
     auto arr = Saiga::split(str, ' ');
     SAIGA_ASSERT((int)arr.size() == M.rows() * M.cols());

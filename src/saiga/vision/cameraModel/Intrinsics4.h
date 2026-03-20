@@ -24,11 +24,11 @@ namespace Saiga
 template <typename T>
 struct IntrinsicsPinhole
 {
-    using Vec5 = Eigen::Matrix<T, 5, 1>;
-    using Vec3 = Eigen::Matrix<T, 3, 1>;
-    using Vec2 = Eigen::Matrix<T, 2, 1>;
-    using Mat3 = Eigen::Matrix<T, 3, 3>;
-    using Mat2 = Eigen::Matrix<T, 2, 2>;
+    using Vec5 = Saiga::Matrix<T, 5, 1>;
+    using Vec3 = Saiga::Matrix<T, 3, 1>;
+    using Vec2 = Saiga::Matrix<T, 2, 1>;
+    using Mat3 = Saiga::Matrix<T, 3, 3>;
+    using Mat2 = Saiga::Matrix<T, 2, 2>;
 
     // Initialized to identity
     T fx = 1, fy = 1;
@@ -171,7 +171,7 @@ std::ostream& operator<<(std::ostream& strm, const IntrinsicsPinhole<T> intr)
 template <typename T>
 struct StereoCamera4Base : public IntrinsicsPinhole<T>
 {
-    using Vec6 = Eigen::Matrix<T, 6, 1>;
+    using Vec6 = Saiga::Matrix<T, 6, 1>;
     using Base = IntrinsicsPinhole<T>;
     using Base::cx;
     using Base::cy;
