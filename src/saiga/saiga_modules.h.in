@@ -30,6 +30,7 @@
 #cmakedefine SAIGA_USE_FREEIMAGE
 #cmakedefine SAIGA_USE_LIBTIFF
 #cmakedefine SAIGA_USE_TINYTIFF
+#cmakedefine SAIGA_USE_LIBAVIF
 
 #cmakedefine SAIGA_USE_FFMPEG
 #cmakedefine SAIGA_USE_OPENNI2

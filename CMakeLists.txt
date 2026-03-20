@@ -75,6 +75,7 @@ OptionsHelper(SAIGA_WITH_FREETYPE "Include the Freetype library, if possible." O
 OptionsHelper(SAIGA_WITH_FREEIMAGE "Include the Freeimage library, if possible." ON)
 OptionsHelper(SAIGA_WITH_TINYTIFF "Include the TinyTIFF library, if possible." OFF)
 OptionsHelper(SAIGA_WITH_LIBTIFF "Include the libtiff library, if possible." ON)
+OptionsHelper(SAIGA_WITH_LIBAVIF "Include the libavif library, if possible." OFF)
 OptionsHelper(SAIGA_WITH_YAMLCPP "Include the yaml-cpp library, if possible." ON)
 OptionsHelper(SAIGA_WITH_OPENAL "Include the OPENAL and other Sound libraries, if possible." ON)
 OptionsHelper(SAIGA_WITH_OPENMESH "Include the openmesh library, if possible." ON)
