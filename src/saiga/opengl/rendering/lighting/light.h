@@ -45,7 +45,7 @@ using DepthFunction = std::function<void(Camera*)>;
 
 struct ShadowData
 {
-    Eigen::Matrix<float,4,4,Eigen::DontAlign> view_to_light;
+    Saiga::Matrix<float,4,4, TinyEigen::DontAlign> view_to_light;
     vec2 shadow_planes;
     vec2 inv_shadow_map_size;
 
