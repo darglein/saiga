@@ -4,13 +4,29 @@
 #include <iostream>
 
 #include "stb_image.h"
+#include "saiga/core/util/string_to_path.h"
+#include <fstream>
 
 namespace Saiga
 {
-bool loadImageSTB(const std::string& path, Image& img)
+bool loadImageSTB(const std::filesystem::path& path, Image& img)
 {
+    // Handle unicode paths
+#ifdef _WIN32
+    FILE* file = _wfopen(path.c_str(), L"rb");
+#else
+    FILE* file = fopen(path.c_str(), "rb");
+#endif
+
+    if (!file)
+    {
+        return false;
+    }
+
     int x, y, n;
-    unsigned char* data = stbi_load(path.c_str(), &x, &y, &n, 0);
+    unsigned char* data = stbi_load_from_file(file, &x, &y, &n, 0);
+    fclose(file);
+
     int pitch           = x * n;
     if (!data) return false;
 

@@ -11,7 +11,7 @@
 
 namespace Saiga
 {
-SAIGA_LOCAL bool saveImageSTB(const std::string& path, const Image& img);
+SAIGA_LOCAL bool saveImageSTB(const std::filesystem::path& path, const Image& img);
 
 SAIGA_LOCAL std::vector<uint8_t> compressImageSTB(const Image& img);
 

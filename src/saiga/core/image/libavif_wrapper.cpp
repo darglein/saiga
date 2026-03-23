@@ -183,7 +183,6 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
     avifEncoderDestroy(encoder);
     avifImageDestroy(image);
 
-    std::cout << "Successfully saved " << path << std::endl;
     return true;
 }
 
