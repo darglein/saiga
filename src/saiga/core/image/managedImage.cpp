@@ -186,7 +186,7 @@ bool Image::load(const std::filesystem::path& _path)
 #endif
 
     // as a last resort use stb_image.h from the internals directory
-    erg = loadImageSTB(path_to_string(path), *this);
+    erg = loadImageSTB(path, *this);
     return erg;
 }
 
@@ -315,7 +315,7 @@ bool Image::save(const std::filesystem::path& path) const
 #endif
 
     // as a last resort use stb_image.h from the internals directory
-    return saveImageSTB(path_to_string(path), *this);
+    return saveImageSTB(path, *this);
 }
 
 constexpr int saiga_image_magic_number            = 8574385;
