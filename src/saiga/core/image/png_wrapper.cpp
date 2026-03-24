@@ -252,10 +252,16 @@ std::vector<unsigned char> ImageIOLibPNG::Save2Memory(const Image& img, ImageSav
             png_set_pHYs(writer.png, writer.info, xres, yres, PNG_RESOLUTION_METER);
         }
 
+        int transforms = PNG_TRANSFORM_IDENTITY;
+        if (bit_depth > 8)
+        {
+            transforms |= PNG_TRANSFORM_SWAP_ENDIAN;
+        }
+
         std::vector<unsigned char> out_data;
         png_set_rows(writer.png, writer.info, rows.data());
         png_set_write_fn(writer.png, &out_data, PngWriteCallback, NULL);
-        png_write_png(writer.png, writer.info, PNG_TRANSFORM_IDENTITY, NULL);
+        png_write_png(writer.png, writer.info, transforms, NULL);
 
         return out_data;
     }
