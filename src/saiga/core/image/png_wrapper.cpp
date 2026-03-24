@@ -8,7 +8,7 @@
 
 #include "saiga/core/util/assert.h"
 
-#include <cstring>  // for memcpy
+#include <cstring>
 #include <iostream>
 
 #ifdef SAIGA_USE_PNG
@@ -17,19 +17,101 @@
 #    include "png_types.h"
 namespace Saiga
 {
-struct PNGLoadStore
+
+class PngException : public std::runtime_error
 {
-    // temp variables for libpng. Don't modify them!!!
-    png_byte** row_pointers = nullptr;
-    void* png_ptr           = nullptr;
-    void* info_ptr          = nullptr;
-    FILE* infile            = nullptr;
-    FILE* outfile           = nullptr;
-    jmp_buf jmpbuf;
+   public:
+    PngException(const std::string& msg) : std::runtime_error(msg) {}
+};
+static void CxxPngErrorHandler(png_structp png_ptr, png_const_charp msg)
+{
+    // Throwing an exception satisfies libpng's requirement that this function never returns.
+    throw PngException(msg ? msg : "Unknown libpng error");
+}
+static void CxxPngWarningHandler(png_structp png_ptr, png_const_charp msg)
+{
+    std::cerr << "libpng warning: " << (msg ? msg : "Unknown") << std::endl;
+}
+
+// RAII for reading
+struct ScopedPngReader
+{
+    png_structp png = nullptr;
+    png_infop info  = nullptr;
+
+    ScopedPngReader()
+    {
+        // Notice we pass our custom error handlers here!
+        png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, CxxPngErrorHandler, CxxPngWarningHandler);
+        if (png)
+        {
+            info = png_create_info_struct(png);
+        }
+    }
+
+    ~ScopedPngReader()
+    {
+        if (png)
+        {
+            png_destroy_read_struct(&png, info ? &info : nullptr, nullptr);
+        }
+    }
+
+    bool is_valid() const { return png != nullptr && info != nullptr; }
+};
+
+// RAII for writing
+struct ScopedPngWriter
+{
+    png_structp png = nullptr;
+    png_infop info  = nullptr;
+
+    ScopedPngWriter()
+    {
+        // Notice we pass our custom error handlers here!
+        png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, CxxPngErrorHandler, CxxPngWarningHandler);
+        if (png)
+        {
+            info = png_create_info_struct(png);
+        }
+    }
+
+    ~ScopedPngWriter()
+    {
+        if (png)
+        {
+            png_destroy_write_struct(&png, info ? &info : nullptr);
+        }
+    }
+
+    bool is_valid() const { return png != nullptr && info != nullptr; }
+};
+
+// RAII for C-style FILE pointers
+struct ScopedFile
+{
+    FILE* fp = nullptr;
+    ScopedFile(const std::filesystem::path& path, const char* mode)
+    {
+#    ifdef WIN32
+        // Minor fix: _wfopen expects a wide string mode too
+        std::wstring wmode(mode, mode + strlen(mode));
+        fp = _wfopen(path.c_str(), wmode.c_str());
+#    else
+        fp = fopen(path.c_str(), mode);
+#    endif
+    }
+    ~ScopedFile()
+    {
+        if (fp) fclose(fp);
+    }
+    operator FILE*() const { return fp; }
+    bool is_valid() const { return fp != nullptr; }
 };
 
 
-void setCompression(png_structp png_ptr, ImageCompression compression)
+
+static void setCompression(png_structp png_ptr, ImageCompression compression)
 {
     switch (compression)
     {
@@ -53,202 +135,69 @@ void setCompression(png_structp png_ptr, ImageCompression compression)
     }
 }
 
-
-static void writepng_error_handler(png_structp png_ptr, png_const_charp msg)
-{
-    PNGLoadStore* image;
-
-    /* This function, aside from the extra step of retrieving the "error
-     * pointer" (below) and the fact that it exists within the application
-     * rather than within libpng, is essentially identical to libpng's
-     * default error handler.  The second point is critical:  since both
-     * setjmp() and longjmp() are called from the same code, they are
-     * guaranteed to have compatible notions of how big a jmp_buf is,
-     * regardless of whether _BSD_SOURCE or anything else has (or has not)
-     * been defined. */
-
-    fprintf(stderr, "writepng libpng error: %s\n", msg);
-    fflush(stderr);
-
-    image = static_cast<PNGLoadStore*>(png_get_error_ptr(png_ptr));
-    if (image == NULL)
-    { /* we are completely hosed now */
-        fprintf(stderr, "writepng severe error:  jmpbuf not recoverable; terminating.\n");
-        fflush(stderr);
-        SAIGA_ASSERT(0);
-    }
-
-    longjmp(image->jmpbuf, 1);
-}
-
-
-
-/* returns 0 for success, 2 for libpng problem, 4 for out of memory, 11 for
- *  unexpected pnmtype; note that outfile might be stdout */
-
-static int writepng_init(const Image& img, PNGLoadStore* pngls, ImageCompression compression)
-{
-    png_structp png_ptr; /* note:  temporary variables! */
-    png_infop info_ptr;
-
-
-    /* could also replace libpng warning-handler (final NULL), but no need: */
-
-    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, writepng_error_handler, NULL);
-    if (!png_ptr) return 4; /* out of memory */
-
-    info_ptr = png_create_info_struct(png_ptr);
-    if (!info_ptr)
-    {
-        png_destroy_write_struct(&png_ptr, NULL);
-        return 4; /* out of memory */
-    }
-
-
-
-    auto resolution_mm = img.get_resolution();
-    if (resolution_mm.has_value())
-    {
-        png_uint_32 xres = (png_uint_32)(1000.f / resolution_mm.value().x() + 0.5f);
-        png_uint_32 yres = (png_uint_32)(1000.f / resolution_mm.value().y() + 0.5f);
-        png_set_pHYs(png_ptr, info_ptr, xres, yres, PNG_RESOLUTION_METER);
-    }
-
-
-    /* setjmp() must be called in every function that calls a PNG-writing
-     * libpng function, unless an alternate error handler was installed--
-     * but compatible error handlers must either use longjmp() themselves
-     * (as in this program) or exit immediately, so here we go: */
-
-    if (setjmp(pngls->jmpbuf))
-    {
-        png_destroy_write_struct(&png_ptr, &info_ptr);
-        return 2;
-    }
-
-
-    /* make sure outfile is (re)opened in BINARY mode */
-
-    png_init_io(png_ptr, pngls->outfile);
-
-
-    /* set the compression levels--in general, always want to leave filtering
-     * turned on (except for palette images) and allow all of the filters,
-     * which is the default; want 32K zlib window, unless entire image buffer
-     * is 16K or smaller (unknown here)--also the default; usually want max
-     * compression (NOT the default); and remaining compression flags should
-     * be left alone */
-
-    // png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
-    /*
-    >> this is default for no filtering; Z_FILTERED is default otherwise:
-    png_set_compression_strategy(png_ptr, Z_DEFAULT_STRATEGY);
-    >> these are all defaults:
-    png_set_compression_mem_level(png_ptr, 8);
-    png_set_compression_window_bits(png_ptr, 15);
-    png_set_compression_method(png_ptr, 8);
- */
-
-
-    /* set the image parameters appropriately */
-
-
-
-    int bit_depth  = bitsPerChannel(img.type);
-    int color_type = PngColorType(img.type);
-
-
-    png_set_IHDR(png_ptr, info_ptr, img.width, img.height, bit_depth, color_type, PNG_INTERLACE_NONE,
-                 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-    setCompression(png_ptr, compression);
-
-    /* write all chunks up to (but not including) first IDAT */
-    png_write_info(png_ptr, info_ptr);
-
-
-    /* if we wanted to write any more text info *after* the image data, we
-     * would set up text struct(s) here and call png_set_text() again, with
-     * just the new data; png_set_tIME() could also go here, but it would
-     * have no effect since we already called it above (only one tIME chunk
-     * allowed) */
-
-
-    /* set up the transformations:  for now, just pack low-bit-depth pixels
-     * into bytes (one, two or four pixels per byte) */
-    png_set_packing(png_ptr);
-
-    /*  png_set_shift(png_ptr, &sig_bit);  to scale low-bit-depth values */
-
-    png_set_swap(png_ptr);
-
-    //    std::cout << "bit depth " << bit_depth << std::endl;
-
-    /* make sure we save our pointers for use in writepng_encode_image() */
-
-    pngls->png_ptr  = png_ptr;
-    pngls->info_ptr = info_ptr;
-
-    SAIGA_ASSERT(pngls->png_ptr);
-    SAIGA_ASSERT(pngls->info_ptr);
-
-    return 0;
-}
-
-
-
-static void writepng_encode_image(const Image& img, PNGLoadStore* pngls, bool invertY)
-{
-    png_structp png_ptr = (png_structp)pngls->png_ptr;
-    png_infop info_ptr  = (png_infop)pngls->info_ptr;
-
-
-    //    std::vector<png_byte*> rows(img.height);
-
-    for (int i = 0; i < img.height; i++)
-    {
-        auto rowPtr = (png_byte*)img.rowPtr(invertY ? img.height - i - 1 : i);
-        //        rows[i]     = rowPtr;
-        png_write_row(png_ptr, rowPtr);
-    }
-
-    //    png_write_image(png_ptr, rows.data());
-
-    png_write_end(png_ptr, NULL);
-    png_destroy_write_struct(&png_ptr, &info_ptr);
-}
-
-
-
 bool ImageIOLibPNG::Save2File(const std::filesystem::path& path, const Image& img, ImageSaveFlags flags)
 {
-    PNGLoadStore pngls;
-
-#    ifdef WIN32
-    FILE* fp = _wfopen(path.c_str(), L"wb");
-#    else
-    FILE* fp = fopen(path.c_str(), "wb");
-#    endif
-    if (!fp)
+    ScopedFile file(path, "wb");
+    if (!file.is_valid())
     {
-        std::cout << "could not open file: " << path.c_str() << std::endl;
+        std::cerr << "could not open file: " << path.string() << std::endl;
         return false;
     }
 
-    pngls.outfile = fp;
-
-
-    if (writepng_init(img, &pngls, flags.compression) != 0)
+    ScopedPngWriter writer;
+    if (!writer.is_valid())
     {
-        std::cout << "error write png init" << std::endl;
+        std::cerr << "could not allocate libpng write structs" << std::endl;
+        return false;
     }
 
-    writepng_encode_image(img, &pngls, false);
+    try
+    {
+        // If ANY libpng function fails below this line, it throws PngException.
+        // The catch block will catch it, and ScopedFile/ScopedPngWriter destructors
+        // will safely release the memory and close the file.
 
-    fclose(fp);
+        png_init_io(writer.png, file);
 
-    return true;
+        auto resolution_mm = img.get_resolution();
+        if (resolution_mm.has_value())
+        {
+            png_uint_32 xres = (png_uint_32)(1000.f / resolution_mm.value().x() + 0.5f);
+            png_uint_32 yres = (png_uint_32)(1000.f / resolution_mm.value().y() + 0.5f);
+            png_set_pHYs(writer.png, writer.info, xres, yres, PNG_RESOLUTION_METER);
+        }
+
+        int bit_depth  = bitsPerChannel(img.type);
+        int color_type = PngColorType(img.type);
+
+        png_set_IHDR(writer.png, writer.info, img.width, img.height, bit_depth, color_type, PNG_INTERLACE_NONE,
+                     PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+
+        setCompression(writer.png, flags.compression);
+
+        png_write_info(writer.png, writer.info);
+
+        png_set_packing(writer.png);
+        png_set_swap(writer.png);
+
+        bool invertY = false;
+
+        for (int i = 0; i < img.height; i++)
+        {
+            auto rowPtr = (png_byte*)img.rowPtr(invertY ? img.height - i - 1 : i);
+            png_write_row(writer.png, rowPtr);
+        }
+
+        png_write_end(writer.png, NULL);
+
+        return true;
+    }
+    catch (const PngException& e)
+    {
+        std::cerr << "Failed to save PNG: " << e.what() << std::endl;
+        return false;
+    }
 }
-
 struct TPngDestructor
 {
     png_struct* p;
@@ -272,178 +221,120 @@ static void PngWriteCallback(png_structp png_ptr, png_bytep data, png_size_t len
 
 std::vector<unsigned char> ImageIOLibPNG::Save2Memory(const Image& img, ImageSaveFlags flags)
 {
-    png_structp p = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-
-    TPngDestructor destroyPng(p);
-    png_infop info_ptr  = png_create_info_struct(p);
-    destroyPng.info_ptr = info_ptr;
-    setjmp(png_jmpbuf(p));
-
-    int bit_depth  = bitsPerChannel(img.type);
-    int color_type = PngColorType(img.type);
-
-
-    png_set_IHDR(p, info_ptr, img.width, img.height, bit_depth, color_type, PNG_INTERLACE_NONE,
-                 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-
-    // png_set_compression_level(p, 1);
-    std::vector<unsigned char*> rows(img.height);
-    for (size_t y = 0; y < img.h; ++y)
+    ScopedPngWriter writer;
+    if (!writer.is_valid())
     {
-        rows[y] = (unsigned char*)img.rowPtr(y);
+        std::cerr << "could not allocate libpng write structs" << std::endl;
+        return {};
     }
-    std::vector<unsigned char> out_data;
-    png_set_rows(p, info_ptr, &rows[0]);
-    png_set_write_fn(p, &out_data, PngWriteCallback, NULL);
-    png_write_png(p, info_ptr, PNG_TRANSFORM_IDENTITY, NULL);
 
+    try
+    {
+        int bit_depth  = bitsPerChannel(img.type);
+        int color_type = PngColorType(img.type);
 
-    return out_data;
+        png_set_IHDR(writer.png, writer.info, img.width, img.height, bit_depth, color_type, PNG_INTERLACE_NONE,
+                     PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+
+        setCompression(writer.png, flags.compression);
+
+        std::vector<unsigned char*> rows(img.height);
+        for (size_t y = 0; y < img.height; ++y) // Note: changed img.h to img.height to match your other code
+        {
+            rows[y] = (unsigned char*)img.rowPtr(y);
+        }
+
+        auto resolution_mm = img.get_resolution();
+        if (resolution_mm.has_value())
+        {
+            png_uint_32 xres = (png_uint_32)(1000.f / resolution_mm.value().x() + 0.5f);
+            png_uint_32 yres = (png_uint_32)(1000.f / resolution_mm.value().y() + 0.5f);
+            png_set_pHYs(writer.png, writer.info, xres, yres, PNG_RESOLUTION_METER);
+        }
+
+        std::vector<unsigned char> out_data;
+        png_set_rows(writer.png, writer.info, rows.data());
+        png_set_write_fn(writer.png, &out_data, PngWriteCallback, NULL);
+        png_write_png(writer.png, writer.info, PNG_TRANSFORM_IDENTITY, NULL);
+
+        return out_data;
+    }
+    catch (const PngException& e)
+    {
+        std::cerr << "Failed to save PNG to memory: " << e.what() << std::endl;
+        return {};
+    }
 }
+
 std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::filesystem::path& path, ImageLoadFlags flags)
 {
-    PNGLoadStore pngls;
-    png_structp png_ptr;
-    png_infop info_ptr;
+    ScopedFile file(path, "rb");
+    if (!file.is_valid()) return {};
 
-    unsigned int sig_read = 0;
+    ScopedPngReader reader;
+    if (!reader.is_valid()) return {};
 
-
-#    ifdef WIN32
-    if ((pngls.infile = _wfopen(path.c_str(), L"rb")) == NULL) return {};
-#    else
-    if ((pngls.infile = fopen(path.c_str(), "rb")) == NULL) return {};
-#    endif
-
-    /* Create and initialize the png_struct
-     * with the desired error handler
-     * functions.  If you want to use the
-     * default stderr and longjump method,
-     * you can supply NULL for the last
-     * three parameters.  We also supply the
-     * the compiler header file version, so
-     * that we know if the application
-     * was compiled with a compatible version
-     * of the library.  REQUIRED
-     */
-    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-
-
-    if (png_ptr == NULL)
+    try
     {
-        fclose(pngls.infile);
-        return {};
-    }
+        png_init_io(reader.png, file);
+        png_set_sig_bytes(reader.png, 0);  // Assuming 0 sig bytes read
+        png_read_info(reader.png, reader.info);
 
-    /* Allocate/initialize the memory
-     * for image information.  REQUIRED. */
-    info_ptr = png_create_info_struct(png_ptr);
-    if (info_ptr == NULL)
-    {
-        fclose(pngls.infile);
-        png_destroy_read_struct(&png_ptr, NULL, NULL);
-        return {};
-    }
+        png_uint_32 pw, ph;
+        int bit_depth, color_type, interlace_type;
+        png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
 
-    /* Set error handling if you are
-     * using the setjmp/longjmp method
-     * (this is the normal method of
-     * doing things with libpng).
-     * REQUIRED unless you  set up
-     * your own error handlers in
-     * the png_create_read_struct()
-     * earlier.
-     */
-    if (setjmp(png_jmpbuf(png_ptr)))
-    {
-        /* Free all of the memory associated
-         * with the png_ptr and info_ptr */
-        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-        fclose(pngls.infile);
-        /* If we get here, we had a
-         * problem reading the file */
-        return {};
-    }
+        SAIGA_ASSERT(interlace_type == PNG_INTERLACE_NONE);
 
-    /* Set up the output control if
-     * you are using standard C streams */
-    png_init_io(png_ptr, pngls.infile);
+        // ... color transformations ...
+        if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(reader.png);
+        if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(reader.png);
+        if (png_get_valid(reader.png, reader.info, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(reader.png);
 
-    /* If we have already
-     * read some of the signature */
-    png_set_sig_bytes(png_ptr, sig_read);
+        png_read_update_info(reader.png, reader.info);
+        png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
 
-    png_read_info(png_ptr, info_ptr);
+        unsigned int row_bytes = png_get_rowbytes(reader.png, reader.info);
+        int rowAlignment       = 4;
+        int rowPadding         = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
+        int bytesPerRow        = row_bytes + rowPadding;
 
-    png_uint_32 pw, ph;
-    int bit_depth;
-    int color_type;
-    int interlace_type;
-    png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
-    SAIGA_ASSERT(interlace_type == PNG_INTERLACE_NONE);
+        if (bit_depth > 8) png_set_swap(reader.png);
+        png_set_packing(reader.png);
 
+        Image img;
+        img.create(ph, pw, bytesPerRow, saigaType(color_type, bit_depth));
+        img.makeZero();
 
-
-    if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(png_ptr);
-
-    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(png_ptr);
-
-    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(png_ptr);
-
-
-    // update the color_type data because it might has changed due to the calls above
-    png_read_update_info(png_ptr, info_ptr);
-    png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
-
-
-    unsigned int row_bytes = png_get_rowbytes(png_ptr, info_ptr);
-
-    // we want to row-align the image in our output data
-    int rowAlignment = 4;
-    int rowPadding   = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
-    int bytesPerRow  = row_bytes + rowPadding;
-
-
-    if (bit_depth > 8)
-    {
-        png_set_swap(png_ptr);
-    }
-
-    png_set_packing(png_ptr);
-
-    //    img->data.resize(img->bytesPerRow * img->height);
-    Image img;
-    img.create(ph, pw, bytesPerRow, saigaType(color_type, bit_depth));
-    img.makeZero();
-
-
-    for (int i = 0; i < img.height; i++)
-    {
-        auto rowPtr = (png_byte*)img.rowPtr(i);
-        png_read_row(png_ptr, rowPtr, nullptr);
-    }
-
-    png_uint_32 res_x, res_y;
-    int unit_type;
-
-    if (png_get_pHYs(png_ptr, info_ptr, &res_x, &res_y, &unit_type))
-    {
-        if (unit_type == PNG_RESOLUTION_METER)
+        for (int i = 0; i < img.height; i++)
         {
-            vec2 pixelSizeMM = vec2(1000.f / res_x, 1000.f / res_y);
-            img.set_resolution(pixelSizeMM);
+            auto rowPtr = (png_byte*)img.rowPtr(i);
+            // If this fails, it throws PngException.
+            // reader and file destructors clean everything up automatically.
+            png_read_row(reader.png, rowPtr, nullptr);
         }
+
+        png_uint_32 res_x, res_y;
+        int unit_type;
+
+        if (png_get_pHYs(reader.png, reader.info, &res_x, &res_y, &unit_type))
+        {
+            if (unit_type == PNG_RESOLUTION_METER && res_x > 0 && res_y > 0)
+            {
+                // Assuming vec2 is your math vector type
+                vec2 pixelSizeMM = vec2(1000.f / res_x, 1000.f / res_y);
+                img.set_resolution(pixelSizeMM);
+            }
+        }
+
+        return img;
     }
-
-    /* Clean up after the read,
-     * and free any memory allocated */
-    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-
-    /* Close the file */
-    fclose(pngls.infile);
-    return img;
+    catch (const PngException& e)
+    {
+        std::cerr << "Failed to load PNG: " << e.what() << std::endl;
+        return {};  // Return empty optional on failure
+    }
 }
-
 struct PngMemoryStreamHelper
 {
     const char* data;
@@ -456,119 +347,108 @@ static void ReadDataFromInputStream(png_structp png_ptr, png_bytep outBytes, png
     if (io_ptr == NULL) return;
 
     PngMemoryStreamHelper& stream = *(PngMemoryStreamHelper*)io_ptr;
-    SAIGA_ASSERT(stream.pos + byteCountToRead <= stream.size);
+
+    // Check for bounds. If we over-read, trigger a libpng error (which throws PngException)
+    if (stream.pos + byteCountToRead > stream.size)
+    {
+        png_error(png_ptr, "Unexpected end of memory stream while reading PNG.");
+        return;
+    }
+
     memcpy(outBytes, stream.data + stream.pos, byteCountToRead);
     stream.pos += byteCountToRead;
-
-}  // end ReadDataFromInputStream()
+}
 
 std::optional<Image> ImageIOLibPNG::LoadFromMemory(const void* data, size_t size, ImageLoadFlags flags)
 {
-    PNGLoadStore pngls;
-    png_structp png_ptr;
-    png_infop info_ptr;
-
-    unsigned int sig_read = 0;
-
-    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-
-
-    if (png_ptr == NULL)
+    // 1. Automatically allocates png and info structs, binding our C++ exception handlers
+    ScopedPngReader reader;
+    if (!reader.is_valid())
     {
+        std::cerr << "Failed to allocate libpng read structs." << std::endl;
         return {};
     }
 
-    /* Allocate/initialize the memory
-     * for image information.  REQUIRED. */
-    info_ptr = png_create_info_struct(png_ptr);
-    if (info_ptr == NULL)
+    try
     {
-        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        PngMemoryStreamHelper input_stream;
+        input_stream.data = (char*)data;
+        input_stream.size = size;
+        png_set_read_fn(reader.png, &input_stream, ReadDataFromInputStream);
+
+        unsigned int sig_read = 0;
+        png_set_sig_bytes(reader.png, sig_read);
+
+        png_read_info(reader.png, reader.info);
+
+        png_uint_32 pw, ph;
+        int bit_depth;
+        int color_type;
+        int interlace_type;
+        png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
+        SAIGA_ASSERT(interlace_type == PNG_INTERLACE_NONE);
+
+        if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(reader.png);
+
+        if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(reader.png);
+
+        if (png_get_valid(reader.png, reader.info, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(reader.png);
+
+        // update the color_type data because it might have changed due to the calls above
+        png_read_update_info(reader.png, reader.info);
+        png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
+
+
+        unsigned int row_bytes = png_get_rowbytes(reader.png, reader.info);
+
+        // we want to row-align the image in our output data
+        int rowAlignment = 4;
+        int rowPadding   = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
+        int bytesPerRow  = row_bytes + rowPadding;
+
+        if (bit_depth > 8)
+        {
+            png_set_swap(reader.png);
+        }
+
+        png_set_packing(reader.png);
+
+        Image img;
+        img.create(ph, pw, bytesPerRow, saigaType(color_type, bit_depth));
+        img.makeZero();
+
+        png_uint_32 res_x, res_y;
+        int unit_type;
+
+        if (png_get_pHYs(reader.png, reader.info, &res_x, &res_y, &unit_type))
+        {
+            if (unit_type == PNG_RESOLUTION_METER && res_x > 0 && res_y > 0)
+            {
+                vec2 pixelSizeMM = vec2(1000.f / res_x, 1000.f / res_y);
+                img.set_resolution(pixelSizeMM);
+            }
+        }
+
+        // --- READ IMAGE DATA ---
+
+        for (int i = 0; i < img.height; i++)
+        {
+            auto rowPtr = (png_byte*)img.rowPtr(i);
+            // If the memory stream runs out or gets corrupted, this throws PngException
+            png_read_row(reader.png, rowPtr, nullptr);
+        }
+
+        // Return safely. ScopedPngReader's destructor runs automatically here
+        // and safely destroys reader.png and reader.info.
+        return img;
+    }
+    catch (const PngException& e)
+    {
+        std::cerr << "Failed to load PNG from memory: " << e.what() << std::endl;
+
+        // Return empty optional. ScopedPngReader cleans up libpng structs automatically.
         return {};
     }
-
-    /* Set error handling if you are
-     * using the setjmp/longjmp method
-     * (this is the normal method of
-     * doing things with libpng).
-     * REQUIRED unless you  set up
-     * your own error handlers in
-     * the png_create_read_struct()
-     * earlier.
-     */
-    if (setjmp(png_jmpbuf(png_ptr)))
-    {
-        /* Free all of the memory associated
-         * with the png_ptr and info_ptr */
-        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-        /* If we get here, we had a
-         * problem reading the file */
-        return {};
-    }
-
-    PngMemoryStreamHelper input_stream;
-    input_stream.data = (char*)data;
-    input_stream.size = size;
-    png_set_read_fn(png_ptr, &input_stream, ReadDataFromInputStream);
-
-
-    /* If we have already
-     * read some of the signature */
-    png_set_sig_bytes(png_ptr, sig_read);
-
-    png_read_info(png_ptr, info_ptr);
-
-    png_uint_32 pw, ph;
-    int bit_depth;
-    int color_type;
-    int interlace_type;
-    png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
-    SAIGA_ASSERT(interlace_type == PNG_INTERLACE_NONE);
-
-    unsigned int row_bytes = png_get_rowbytes(png_ptr, info_ptr);
-
-    // we want to row-align the image in our output data
-    int rowAlignment = 4;
-    int rowPadding   = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
-    int bytesPerRow  = row_bytes + rowPadding;
-
-
-
-    if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(png_ptr);
-
-    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(png_ptr);
-
-    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(png_ptr);
-
-
-    // update the color_type data because it might has changed due to the calls above
-    png_read_update_info(png_ptr, info_ptr);
-    png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
-
-
-    if (bit_depth > 8)
-    {
-        png_set_swap(png_ptr);
-    }
-
-    png_set_packing(png_ptr);
-
-    //    img->data.resize(img->bytesPerRow * img->height);
-    Image img;
-    img.create(ph, pw, bytesPerRow, saigaType(color_type, bit_depth));
-    img.makeZero();
-
-
-    for (int i = 0; i < img.height; i++)
-    {
-        auto rowPtr = (png_byte*)img.rowPtr(i);
-        png_read_row(png_ptr, rowPtr, nullptr);
-    }
-
-    /* Clean up after the read,
-     * and free any memory allocated */
-    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-    return img;
 }
 
 }  // namespace Saiga
