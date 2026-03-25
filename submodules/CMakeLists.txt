@@ -252,9 +252,12 @@ if (SAIGA_WITH_LIBAVIF)
     message("=================================")
     message("Adding Submodule svt")
 
+    set(ENABLE_LTO OFF CACHE BOOL "Disable LTO for SVT" FORCE)
     set(BUILD_APPS OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+    set(SVT_AV1_LTO OFF CACHE BOOL "Disable LTO for SVT-AV1" FORCE)
+    set(ENABLE_AVX512 OFF CACHE BOOL "Disable LTO for SVT-AV1" FORCE)
     add_subdirectory(SVT-AV1)
 
     message("=================================")
