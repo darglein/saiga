@@ -44,7 +44,7 @@ bool saveImageSTB(const std::filesystem::path& path, const Image& img)
         {
             stbi__write_context s;
             stbi__start_write_callbacks(&s, stbi__stdio_write, (void*)file);
-            int r = stbi_write_jpg_core(&s, w, h, comp, (unsigned char*)img.data(), 90);
+            int r = stbi_write_jpg_core(&s, w, h, comp, (unsigned char*)img.data(), img.get_compression_quality());
         }
 
         fclose(file);

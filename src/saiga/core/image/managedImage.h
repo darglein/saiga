@@ -31,6 +31,7 @@ class SAIGA_CORE_API Image : public ImageBase
    protected:
     std::vector<byte_t> vdata;
     std::optional<vec2> resolution_mm;
+    int compression_quality = 90;
 
    public:
     Image() {}
@@ -78,6 +79,9 @@ class SAIGA_CORE_API Image : public ImageBase
 
     void set_resolution(vec2 resolution_mm) { this->resolution_mm = resolution_mm; }
     std::optional<vec2> get_resolution() const { return resolution_mm; };
+
+    void set_compression_quality(int quality) { this->compression_quality = quality; }
+    int get_compression_quality() const { return compression_quality; }
 
     void* data() { return vdata.data(); }
     const void* data() const { return vdata.data(); }
