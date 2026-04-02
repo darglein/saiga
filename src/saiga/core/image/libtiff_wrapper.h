@@ -10,6 +10,7 @@ namespace Saiga
 SAIGA_LOCAL bool loadImageLibTiff(const std::filesystem::path& path, Image& img);
 SAIGA_LOCAL bool saveImageLibTiff(const std::filesystem::path& path, const Image& img);
 
+SAIGA_LOCAL std::vector<uint8_t> saveImageLibTiff2Memory(const Image& img);
 SAIGA_LOCAL bool loadImageFromMemoryLibTiff(const void* data, size_t size, Image& img);
 }  // namespace Saiga
 

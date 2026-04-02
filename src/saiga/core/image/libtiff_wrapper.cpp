@@ -6,6 +6,7 @@
 #    include "tiffio.hxx"
 
 #    include <iostream>
+#    include <sstream>
 
 namespace Saiga
 {
@@ -14,11 +15,11 @@ bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
     TIFFSetWarningHandler(nullptr);
     TIFFSetWarningHandlerExt(nullptr);
 
-#ifdef _WIN32
+#    ifdef _WIN32
     TIFF* tif = TIFFOpenW(path.c_str(), "r");
-#else
+#    else
     TIFF* tif = TIFFOpen(path.c_str(), "r");
-#endif
+#    endif
 
     if (!tif) return false;
 
@@ -127,11 +128,11 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
     TIFFSetWarningHandler(nullptr);
     TIFFSetWarningHandlerExt(nullptr);
 
-#ifdef _WIN32
+#    ifdef _WIN32
     TIFF* tif = TIFFOpenW(path.c_str(), "w");
-#else
+#    else
     TIFF* tif = TIFFOpen(path.c_str(), "w");
-#endif
+#    endif
     if (!tif) return false;
 
     uint32_t width  = img.width;
@@ -163,7 +164,7 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
     }
 
     uint16_t bitspersample = 0, sample_format = SAMPLEFORMAT_UINT;
-    uint16_t samples       = 1;
+    uint16_t samples = 1;
     switch (img.type)
     {
         case ImageType::UC1:
@@ -173,21 +174,21 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
         case ImageType::US1:
             sample_format = SAMPLEFORMAT_UINT;
             bitspersample = 16;
-            break; 
+            break;
         case ImageType::UC3:
             sample_format = SAMPLEFORMAT_UINT;
             bitspersample = 8;
-            samples = 3;
+            samples       = 3;
             break;
         case ImageType::UC4:
             sample_format = SAMPLEFORMAT_UINT;
             bitspersample = 8;
-            samples = 4;
+            samples       = 4;
             break;
         case ImageType::US3:
             sample_format = SAMPLEFORMAT_UINT;
             bitspersample = 16;
-            samples = 3;
+            samples       = 3;
             break;
         case ImageType::F1:
             sample_format = SAMPLEFORMAT_IEEEFP;
@@ -234,6 +235,127 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
     return true;
 }
 
+std::vector<uint8_t> saveImageLibTiff2Memory(const Image& img)
+{
+    TIFFSetWarningHandler(nullptr);
+    TIFFSetWarningHandlerExt(nullptr);
+
+    // Create an output string stream in binary mode
+    std::ostringstream os(std::ios_base::binary);
+
+    // Open the TIFF writing context using the C++ stream wrapper
+    TIFF* tif = TIFFStreamOpen("MemoryTIFF", &os);
+    if (!tif) return {};
+
+    uint32_t width  = img.width;
+    uint32_t height = img.height;
+
+    // Get the image width and height
+    if (!TIFFSetField(tif, TIFFTAG_IMAGEWIDTH, width))
+    {
+        TIFFClose(tif);
+        return {};
+    }
+    if (!TIFFSetField(tif, TIFFTAG_IMAGELENGTH, height))
+    {
+        TIFFClose(tif);
+        return {};
+    }
+
+    if (channels(img.type) == 1)
+    {
+        if (!TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK))
+        {
+            TIFFClose(tif);
+            return {};
+        }
+    }
+    else
+    {
+        if (!TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB))
+        {
+            TIFFClose(tif);
+            return {};
+        }
+    }
+
+    uint16_t bitspersample = 0, sample_format = SAMPLEFORMAT_UINT;
+    uint16_t samples = 1;
+    switch (img.type)
+    {
+        case ImageType::UC1:
+            sample_format = SAMPLEFORMAT_UINT;
+            bitspersample = 8;
+            break;
+        case ImageType::US1:
+            sample_format = SAMPLEFORMAT_UINT;
+            bitspersample = 16;
+            break;
+        case ImageType::UC3:
+            sample_format = SAMPLEFORMAT_UINT;
+            bitspersample = 8;
+            samples       = 3;
+            break;
+        case ImageType::UC4:
+            sample_format = SAMPLEFORMAT_UINT;
+            bitspersample = 8;
+            samples       = 4;
+            break;
+        case ImageType::US3:
+            sample_format = SAMPLEFORMAT_UINT;
+            bitspersample = 16;
+            samples       = 3;
+            break;
+        case ImageType::F1:
+            sample_format = SAMPLEFORMAT_IEEEFP;
+            bitspersample = 32;
+            break;
+        default:
+            TIFFClose(tif);
+            return {};
+    }
+
+    if (!TIFFSetField(tif, TIFFTAG_BITSPERSAMPLE, bitspersample))
+    {
+        TIFFClose(tif);
+        return {};
+    }
+
+    if (!TIFFSetField(tif, TIFFTAG_SAMPLEFORMAT, sample_format))
+    {
+        TIFFClose(tif);
+        return {};
+    }
+
+    if (!TIFFSetField(tif, TIFFTAG_SAMPLESPERPIXEL, samples))
+    {
+        TIFFClose(tif);
+        return {};
+    }
+
+    auto resolution_mm = img.get_resolution();
+    if (resolution_mm.has_value())
+    {
+        TIFFSetField(tif, TIFFTAG_RESOLUTIONUNIT, RESUNIT_CENTIMETER);
+
+        // Pixels per centimeter
+        TIFFSetField(tif, TIFFTAG_XRESOLUTION, 10.f / resolution_mm.value().x());
+        TIFFSetField(tif, TIFFTAG_YRESOLUTION, 10.f / resolution_mm.value().y());
+    }
+
+    for (uint32_t row = 0; row < height; ++row)
+    {
+        TIFFWriteScanline(tif, const_cast<void*>(img.rowPtr(row)), row);
+    }
+
+    // TIFFClose flushes the internal buffers and writes the final directory structure to the stream
+    TIFFClose(tif);
+
+    // Extract the binary string from the stream and copy it into the output vector
+    std::string str_data = os.str();
+    return std::vector<uint8_t>(str_data.begin(), str_data.end());
+}
+
 struct membuf : std::streambuf
 {
     membuf(char const* base, size_t size)
@@ -262,9 +384,7 @@ struct membuf : std::streambuf
 
 struct imemstream : virtual membuf, std::istream
 {
-    imemstream(char const* base, size_t size) : membuf(base, size), std::istream(static_cast<std::streambuf*>(this))
-    {
-    }
+    imemstream(char const* base, size_t size) : membuf(base, size), std::istream(static_cast<std::streambuf*>(this)) {}
 };
 
 bool loadImageFromMemoryLibTiff(const void* data, size_t size, Image& img)
@@ -343,6 +463,6 @@ bool loadImageFromMemoryLibTiff(const void* data, size_t size, Image& img)
 
     return true;
 }
-} // namespace Saiga
+}  // namespace Saiga
 
 #endif

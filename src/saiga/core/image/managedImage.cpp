@@ -13,20 +13,20 @@
 
 // for the load and save function
 #include "saiga/core/image/freeimage.h"
+#include "saiga/core/image/libavif_wrapper.h"
+#include "saiga/core/image/libtiff_wrapper.h"
 #include "saiga/core/image/png_wrapper.h"
 #include "saiga/core/image/templatedImage.h"
+#include "saiga/core/image/tinytiff_wrapper.h"
 #include "saiga/core/math/imath.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/fileChecker.h"
-#include "saiga/core/util/tostring.h"
 #include "saiga/core/util/string_to_path.h"
+#include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
 #include "internal/stb_image_read_wrapper.h"
 #include "internal/stb_image_write_wrapper.h"
-#include "saiga/core/image/libtiff_wrapper.h"
-#include "saiga/core/image/tinytiff_wrapper.h"
-#include "saiga/core/image/libavif_wrapper.h"
 
 #include <fstream>
 namespace Saiga
@@ -119,8 +119,7 @@ bool Image::load(const std::filesystem::path& _path)
 
     bool erg         = false;
     std::string type = path.extension().string();
-    std::transform(type.begin(), type.end(), type.begin(),
-        [](char c) { return std::tolower(c); });
+    std::transform(type.begin(), type.end(), type.begin(), [](char c) { return std::tolower(c); });
 
 
     if (type == ".saigai")
@@ -195,8 +194,7 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
     bool erg = false;
 
     std::string type = fileEnding(hint);
-    std::transform(type.begin(), type.end(), type.begin(),
-                   [](char c) { return std::tolower(c); });
+    std::transform(type.begin(), type.end(), type.begin(), [](char c) { return std::tolower(c); });
 
     if (type == "png")
     {
@@ -218,7 +216,7 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
     if (type == "tif" || type == "tiff")
     {
 #ifdef SAIGA_USE_LIBTIFF
-        return loadImageFromMemoryLibTiff(data.data(),data.size(), *this);
+        return loadImageFromMemoryLibTiff(data.data(), data.size(), *this);
 #endif
     }
 
@@ -246,13 +244,19 @@ std::vector<unsigned char> Image::saveToMemory(std::string file_extension) const
     if (file_extension == "png")
     {
 #ifdef SAIGA_USE_PNG
-
-
         ImageIOLibPNG io;
         return io.Save2Memory(*this);
         SAIGA_EXIT_ERROR("png not implemneted");
 #endif
     }
+
+    if (file_extension == "tif" || file_extension == "tiff")
+    {
+#ifdef SAIGA_USE_LIBTIFF
+        return saveImageLibTiff2Memory(*this);
+#endif
+    }
+
 #ifdef SAIGA_USE_FREEIMAGE
     SAIGA_EXIT_ERROR("not implemented");
     // return Saiga::FIP::saveToMemory(*this, file_extension);
