@@ -148,9 +148,9 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
     // 4. Set up the Encoder
     avifEncoder* encoder = avifEncoderCreate();
     // Quality ranges from 0 (lossless) to 100 (worst). 60 is a good default for lossy.
-    encoder->quality      = 60;
-    encoder->qualityAlpha = AVIF_QUALITY_LOSSLESS;
-    encoder->speed        = 6;  // Speed ranges from 0 (slowest/best) to 10 (fastest)
+    encoder->quality      = img.get_compression_quality();
+    encoder->qualityAlpha = img.get_compression_quality();
+    encoder->speed        = AVIF_SPEED_DEFAULT;
 
     // 5. Encode the Image
     avifRWData output       = AVIF_DATA_EMPTY;
