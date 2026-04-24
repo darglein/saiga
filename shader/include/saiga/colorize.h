@@ -10,12 +10,52 @@
 #include "hsv.h"
 #include "shaderConfig.h"
 
+FUNC_DECL vec3 divergingFireIce(float alpha)
+{
+    alpha = clamp(alpha, -1.0, 1.0);
+    float a = abs(alpha);
+
+    // Non-linear curve creates a delayed "glow" effect
+    float glow = a * a * a;
+
+    // Positive: Black -> Red -> Yellow
+    // Negative: Black -> Blue -> Cyan
+    return alpha > 0.0
+        ? vec3(a, glow, 0.0)
+        : vec3(0.0, glow, a);
+}
+
+FUNC_DECL vec3 divergingSmoothCoolwarm(float alpha)
+{
+    alpha = clamp(alpha, -1.0, 1.0);
+    float a = abs(alpha);
+
+    // Smoothstep creates an elegant S-curve transition
+    float t = smoothstep(0.0, 1.0, a);
+
+    vec3 mid  = vec3(0.90, 0.90, 0.90); // Off-white/Light gray center
+    vec3 warm = vec3(0.70, 0.15, 0.20); // Deep rich red
+    vec3 cool = vec3(0.15, 0.35, 0.75); // Deep rich blue
+
+    return alpha > 0.0 ? mix(mid, warm, t) : mix(mid, cool, t);
+}
 
 FUNC_DECL vec3 divergingRedBlue(float alpha)
 {
     alpha = clamp(alpha, -1, 1);
 
     return alpha > 0 ? vec3(alpha, alpha, 0) : vec3(0, -alpha, -alpha);
+}
+
+FUNC_DECL vec3 divergingWhiteCenterRedBlue(float alpha)
+{
+    alpha = clamp(alpha, -1.0, 1.0);
+
+    // Positive: Keep Red at 1.0, pull Green and Blue down to 0
+    // Negative: Keep Blue at 1.0, pull Red and Green down to 0
+    return alpha > 0.0
+        ? vec3(1.0, 1.0 - alpha, 1.0 - alpha)
+        : vec3(1.0 + alpha, 1.0 + alpha, 1.0);
 }
 
 /**

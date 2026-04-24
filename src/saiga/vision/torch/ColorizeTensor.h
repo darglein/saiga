@@ -17,6 +17,10 @@ namespace Saiga
 template <typename ColorizeFunc>
 inline torch::Tensor ColorizeTensor(torch::Tensor input, ColorizeFunc func = colorizeTurbo)
 {
+    if (input.dim() == 3 && input.size(0) == 1)
+    {
+        input = input.squeeze(0);
+    }
     auto t = input.cpu().reshape({-1}).to(torch::kFloat);
 
     int n    = t.size(0);
