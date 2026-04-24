@@ -19,7 +19,7 @@ static void print_error(const char* prefix, int err)
 
 ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
 {
-    if(mode == ZipMode::Write)
+    if (mode == ZipMode::Write)
     {
         std::filesystem::remove(path);
     }
@@ -98,7 +98,7 @@ std::pair<bool, ZipArchiveFile> ZipArchive::find_file(const std::filesystem::pat
     if (archive)
     {
         zip_stat_t stat;
-        if (zip_stat(archive, name.u8string().c_str(), ZIP_FL_ENC_UTF_8, &stat) == 0)
+        if (zip_stat(archive, name.generic_u8string().c_str(), ZIP_FL_ENC_UTF_8, &stat) == 0)
         {
             return {true, file_from_stat(stat, archive)};
         }
@@ -132,7 +132,8 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, void* data, siz
     return true;
 }
 
-ZipIncrementalWrite ZipArchive::begin_incremental_write(const std::filesystem::path& filename, ZipCompressionMethod method)
+ZipIncrementalWrite ZipArchive::begin_incremental_write(const std::filesystem::path& filename,
+                                                        ZipCompressionMethod method)
 {
     if (!archive)
     {
@@ -154,7 +155,7 @@ ZipIncrementalWrite ZipArchive::begin_incremental_write(const std::filesystem::p
         return {};
     }
 
-    if (zip_source_begin_write(source) < 0) 
+    if (zip_source_begin_write(source) < 0)
     {
         std::cout << "ZIP: Failed to begin write: " << zip_strerror(archive) << '\n';
         zip_source_free(source);
@@ -191,7 +192,7 @@ ZipIncrementalWrite::~ZipIncrementalWrite()
 {
     if (source)
     {
-        if (zip_source_commit_write(source) < 0) 
+        if (zip_source_commit_write(source) < 0)
         {
             std::cout << "ZIP: Failed to commit write: " << zip_strerror(archive) << '\n';
             zip_source_rollback_write(source);
@@ -201,25 +202,24 @@ ZipIncrementalWrite::~ZipIncrementalWrite()
 
 
 
-
 static zip_int64_t source_callback(void* userdata, void* data, zip_uint64_t len, zip_source_cmd_t cmd)
 {
     ZipCustomSource* source = (ZipCustomSource*)userdata;
 
-    switch (cmd) 
+    switch (cmd)
     {
-        case ZIP_SOURCE_READ: 
+        case ZIP_SOURCE_READ:
         {
             return source->read_next(data, len);
         }
 
-        case ZIP_SOURCE_STAT: 
+        case ZIP_SOURCE_STAT:
         {
             zip_stat_t* st = (zip_stat_t*)data;
             zip_stat_init(st);
 
             st->valid = ZIP_STAT_SIZE;
-            st->size = source->total_size();
+            st->size  = source->total_size();
 
             return sizeof(*st);
         }
@@ -235,7 +235,8 @@ static zip_int64_t source_callback(void* userdata, void* data, zip_uint64_t len,
 }
 
 
-bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source, ZipCompressionMethod method)
+bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source,
+                          ZipCompressionMethod method)
 {
     if (!archive)
     {
@@ -260,7 +261,8 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, ZipCustomSource
     return true;
 }
 
-bool ZipArchive::add_file(const std::filesystem::path& filename, const std::filesystem::path& file_to_add, ZipCompressionMethod method)
+bool ZipArchive::add_file(const std::filesystem::path& filename, const std::filesystem::path& file_to_add,
+                          ZipCompressionMethod method)
 {
     if (!archive)
     {
@@ -280,9 +282,10 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, const std::file
     return true;
 }
 
-bool ZipArchive::add_folder(const std::filesystem::path& foldername, const std::filesystem::path& folder_to_add, ZipCompressionMethod method)
+bool ZipArchive::add_folder(const std::filesystem::path& foldername, const std::filesystem::path& folder_to_add,
+                            ZipCompressionMethod method)
 {
-    for (auto& entry : std::filesystem::recursive_directory_iterator(folder_to_add)) 
+    for (auto& entry : std::filesystem::recursive_directory_iterator(folder_to_add))
     {
         if (std::filesystem::is_directory(entry)) continue;
 
@@ -296,9 +299,11 @@ bool ZipArchive::add_folder(const std::filesystem::path& foldername, const std::
     return true;
 }
 
-int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip_source* source, ZipCompressionMethod method)
+int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip_source* source,
+                                      ZipCompressionMethod method)
 {
-    auto index = (int)zip_file_add(archive, filename.generic_u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
+    auto index =
+        (int)zip_file_add(archive, filename.generic_u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
 
     auto libzip_method = ZIP_CM_ZSTD;
     switch (method)
@@ -336,7 +341,7 @@ bool ZipArchiveFile::close()
 bool ZipArchiveFile::read(void* out_data, size_t size)
 {
     auto read_result = zip_fread(file, out_data, size);
-    SAIGA_ASSERT(size ==  read_result);
+    SAIGA_ASSERT(size == read_result);
     return true;
 }
 
