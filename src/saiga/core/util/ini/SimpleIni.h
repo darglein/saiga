@@ -2131,7 +2131,7 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetDoubleValue(cons
         auto to_string2 = [](double d)
         {
             std::ostringstream oss;
-            oss << std::setprecision(10) << std::noshowpoint << d;
+            oss << std::setprecision(20) << std::noshowpoint << d;
             std::string str = oss.str();
             return str;
         };
