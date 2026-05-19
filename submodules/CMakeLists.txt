@@ -275,8 +275,6 @@ if (SAIGA_WITH_LIBAVIF)
     target_include_directories(SvtAv1Enc INTERFACE "${SVT_WRAPPER_DIR}")
     # -------------------------------
 
-
-
     message("=================================")
     message("Adding Submodule libavif")
 
@@ -286,9 +284,9 @@ if (SAIGA_WITH_LIBAVIF)
     set(AVIF_CODEC_SVT SYSTEM CACHE STRING "" FORCE)
     set(AVIF_LOCAL_SVT OFF CACHE BOOL "" FORCE)
 
-    #set(SVT_AV1_FOUND ON CACHE BOOL "" FORCE)
-    #set(SVT_AV1_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API" CACHE PATH "" FORCE)
-    #set(SVT_AV1_LIBRARY SvtAv1Enc CACHE STRING "" FORCE)
+    set(SVT_AV1_FOUND ON CACHE BOOL "" FORCE)
+    set(SVT_AV1_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API" CACHE PATH "" FORCE)
+    set(SVT_AV1_LIBRARY SvtAv1Enc CACHE STRING "" FORCE)
 
     set (AVIF_LIBYUV OFF)
 
