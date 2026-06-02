@@ -9,9 +9,9 @@
 
 #include "saiga/config.h"
 
+#include <atomic>
 #include <string>
 #include <thread>
-#include <atomic>
 
 namespace Saiga
 {
@@ -40,20 +40,27 @@ SAIGA_CORE_API extern void setThreadName(std::thread& thread, const std::string&
 class SAIGA_CORE_API ScopedThread : public std::thread
 {
    public:
-    template <typename... Args>
-    ScopedThread(Args&&... args) : std::thread(std::forward<Args>(args)...)
+    // template <typename... Args>
+    // ScopedThread(Args&&... args) : std::thread(std::forward<Args>(args)...)
+    // {
+    // }
+    ScopedThread() = default;
+
+    template <typename T>
+    ScopedThread(T function) : std::thread(function, &terminate_called)
     {
     }
     ScopedThread(ScopedThread&& __t) { swap(__t); }
     ScopedThread& operator=(ScopedThread&& __t) noexcept;
-    ~ScopedThread()
+    ~ScopedThread() { Quit(); }
+
+    void Quit()
     {
         terminate_called = true;
         if (joinable()) join();
     }
 
-
-    std::atomic<bool> terminate_called   = false;
+    std::atomic<bool> terminate_called = false;
 
    private:
     // Scoped Threads are not allowed to detach.
