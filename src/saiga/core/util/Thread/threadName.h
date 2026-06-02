@@ -11,6 +11,7 @@
 
 #include <string>
 #include <thread>
+#include <atomic>
 
 namespace Saiga
 {
@@ -47,8 +48,12 @@ class SAIGA_CORE_API ScopedThread : public std::thread
     ScopedThread& operator=(ScopedThread&& __t) noexcept;
     ~ScopedThread()
     {
+        terminate_called = true;
         if (joinable()) join();
     }
+
+
+    std::atomic<bool> terminate_called   = false;
 
    private:
     // Scoped Threads are not allowed to detach.
