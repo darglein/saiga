@@ -201,7 +201,7 @@ std::ostream& operator<<(std::ostream& strm, const MemoryInfo& mem_info)
     strm << "[Memory Info]\n";
     strm << "Current Usage (MB): " << mem_info.current_memory_used / (1000.0 * 1000.0) << "\n";
     strm << "Max Usage (MB):     " << mem_info.max_memory_used / (1000.0 * 1000.0) << "\n";
-    strm << "Max Available (MB): " << mem_info.max_memory_available / (1000.0 * 1000.0);
+    strm << "Max Available (MB): " << mem_info.max_memory_available / (1000.0 * 1000.0)<< "\n";
     strm << "Total used (MB): " << mem_info.total_memory_used / (1000.0 * 1000.0);
     return strm;
 }
