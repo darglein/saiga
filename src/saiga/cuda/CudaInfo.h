@@ -137,15 +137,7 @@ inline void printCUDAInfo()
     std::cout << "  32-Bit Registers per SM: " << deviceProp.regsPerMultiprocessor << std::endl;
     std::cout << "  L2 cache size: " << deviceProp.l2CacheSize << std::endl;
     std::cout << "  Multi-Processors: " << deviceProp.multiProcessorCount << std::endl;
-    std::cout << "  Memory Clock Rate (KHz): " << deviceProp.memoryClockRate << std::endl;
     std::cout << "  Memory Bus Width (bits): " << deviceProp.memoryBusWidth << std::endl;
-
-    // In this calculation, we convert the memory clock rate to Hz,
-    // multiply it by the interface width (divided by 8, to convert bits to bytes)
-    // and multiply by 2 due to the double data rate. Finally, we divide by 109 to convert the result to GB/s.
-    double clockRateHz = deviceProp.memoryClockRate * 1000.0;
-    std::cout << "  Theoretical Memory Bandwidth (GB/s): "
-              << 2.0 * clockRateHz * (deviceProp.memoryBusWidth / 8) / 1.0e9 << std::endl;
 
 
     std::cout << "  32-Bit Registers per Thread (100% Occ): "

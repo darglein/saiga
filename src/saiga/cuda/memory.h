@@ -40,7 +40,11 @@ struct SizeToVectorType<16>
 template <>
 struct SizeToVectorType<32>
 {
+#if CUDART_VERSION > 13000
+    using VectorType = double4_32a;
+#else
     using VectorType = double4;
+#endif
 };
 
 /**

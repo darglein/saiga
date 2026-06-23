@@ -167,6 +167,13 @@ struct TablePrintParamIterator
         strm << std::left << std::setw(column_width) << name << std::right << variable << "\n";
     }
 
+    template <>
+    void SaigaParam(std::string section, std::filesystem::path& variable, std::filesystem::path default_value,
+                    std::string name, std::string comment)
+    {
+        strm << std::left << std::setw(column_width) << name << std::right << variable.u8string() << "\n";
+    }
+
     template <typename _Scalar, int _Rows, int _Cols>
     void SaigaParamList(std::string section, Matrix<_Scalar, _Rows, _Cols>& variable,
                         Matrix<_Scalar, _Rows, _Cols> default_value, std::string name, char sep,

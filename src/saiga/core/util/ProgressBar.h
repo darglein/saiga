@@ -111,7 +111,7 @@ struct ProgressBar : public ProgressBarBase
     void run()
     {
         st = ScopedThread(
-            [this]()
+            [this](std::atomic<bool>*  terminate_called)
             {
                 while (running && current.load() < end)
                 {

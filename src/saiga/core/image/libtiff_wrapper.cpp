@@ -453,15 +453,15 @@ bool loadImageFromMemoryLibTiff(const void* data, size_t size, Image& img)
     // size_t buffer_size = TIFFScanlineSize(tif);
     // SAIGA_ASSERT(buffer_size == img.pitchBytes);
 
+    bool result = true;
     for (uint32_t row = 0; row < height; ++row)
     {
-        TIFFReadScanline(tif, img.rowPtr(row), row);
+        result &= TIFFReadScanline(tif, img.rowPtr(row), row) == 1;
     }
-
 
     TIFFClose(tif);
 
-    return true;
+    return result;
 }
 }  // namespace Saiga
 
