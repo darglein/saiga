@@ -244,6 +244,7 @@ bool glfw_Window::initWindow()
     }
 
     glfwMakeContextCurrent(window);
+    window_title = getName();
 
     // vsync
     glfwSwapInterval(windowParameters.vsync ? 1 : 0);
@@ -387,6 +388,7 @@ void glfw_Window::setWindowIcon(Image* image)
 
 void glfw_Window::setWindowTitle(const std::string& title)
 {
+    window_title = title;
     glfwSetWindowTitle(window, title.c_str());
 }
 
@@ -422,7 +424,6 @@ HWND glfw_Window::getNative()
     return glfwGetWin32Window(window);
 }
 #endif
-
 
 
 }  // namespace Saiga
