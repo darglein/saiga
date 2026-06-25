@@ -35,6 +35,42 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
 
 ZipArchive::ZipArchive(ZipArchive&& o) noexcept : archive(std::exchange(o.archive, nullptr)) {}
 
+ZipArchive::ZipArchive(const ZipArchiveFile& nested_file)
+{
+    zip_error_t zerror;
+    zip_error_init(&zerror);
+
+    // Create a data source that reads directly from the outer archive's file entry
+    // The -1 length tells libzip to read up to the end of the file.
+    zip_source_t* src = zip_source_zip_create(nested_file.archive, nested_file.index,
+                                              0,   // flags
+                                              0,   // start offset
+                                              -1,  // length
+                                              &zerror);
+
+    if (!src)
+    {
+        std::cout << "ZIP: Failed to create source for nested archive:\n" << zip_error_strerror(&zerror) << std::endl;
+        zip_error_fini(&zerror);
+        return;
+    }
+
+    // Open the inner zip archive using the source we just created.
+    // We enforce ZIP_RDONLY since writing to a nested archive dynamically is significantly more complex.
+    archive = zip_open_from_source(src, ZIP_RDONLY, &zerror);
+
+    if (!archive)
+    {
+        print_error("ZIP: Failed to open nested archive.", zerror.zip_err);
+
+        // zip_open_from_source takes ownership of the source ONLY if it succeeds.
+        // If it fails, we are responsible for freeing it.
+        zip_source_free(src);
+    }
+
+    zip_error_fini(&zerror);
+}
+
 ZipArchive::~ZipArchive()
 {
     close();
@@ -69,6 +105,7 @@ static ZipArchiveFile file_from_stat(zip_stat_t stat, zip* archive)
     file.compressed_size   = stat.comp_size;
     file.uncompressed_size = stat.size;
     file.archive           = archive;
+    file.index             = stat.index;
     return file;
 }
 

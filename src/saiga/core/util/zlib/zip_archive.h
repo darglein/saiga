@@ -2,8 +2,9 @@
 
 #include "saiga/config.h"
 #include "saiga/core/util/ProgressBar.h"
-#include <string>
+
 #include <filesystem>
+#include <string>
 // #include <zip.h>
 
 #if defined(SAIGA_USE_LIBZIP)
@@ -36,16 +37,16 @@ struct SAIGA_CORE_API ZipArchiveFile
     size_t uncompressed_size;
     zip* archive;
 
-
+    uint64_t index;
 
     bool read_all(void* out_data, ProgressBarManager* progress_bar = nullptr);
 
 
     bool open();
     bool close();
-    bool read(void* out_data, size_t size) ;
+    bool read(void* out_data, size_t size);
 
-private:
+   private:
     zip_file_t* file = 0;
 };
 
@@ -62,13 +63,13 @@ struct SAIGA_CORE_API ZipIncrementalWrite
 
     operator bool() const { return source != nullptr; }
 
-    zip* archive = nullptr;
+    zip* archive       = nullptr;
     zip_source* source = nullptr;
 };
 
 struct ZipCustomSource
 {
-    virtual size_t total_size() const = 0;
+    virtual size_t total_size() const                = 0;
     virtual size_t read_next(void* dest, size_t len) = 0;
 };
 
@@ -77,13 +78,16 @@ struct SAIGA_CORE_API ZipArchive
     ZipArchive(const std::filesystem::path& path, ZipMode mode);
     ZipArchive(ZipArchive&& o) noexcept;
     ZipArchive(const ZipArchive&) = delete;
+
+    ZipArchive(const ZipArchiveFile& nested_file);  // Read nested zip
+
     ~ZipArchive();
 
-    ZipArchive& operator=(ZipArchive&&) = default;
+    ZipArchive& operator=(ZipArchive&&)      = default;
     ZipArchive& operator=(const ZipArchive&) = delete;
 
     void close();
-    
+
     int file_count() const;
 
     std::vector<ZipArchiveFile> get_files() const;
@@ -91,18 +95,20 @@ struct SAIGA_CORE_API ZipArchive
 
     bool add_file(const std::filesystem::path& filename, void* data, size_t size, ZipCompressionMethod method);
     bool add_file(const std::filesystem::path& filename, ZipCustomSource* custom_source, ZipCompressionMethod method);
-    bool add_file(const std::filesystem::path& filename, const std::filesystem::path& file_to_add, ZipCompressionMethod method);
+    bool add_file(const std::filesystem::path& filename, const std::filesystem::path& file_to_add,
+                  ZipCompressionMethod method);
 
-    bool add_folder(const std::filesystem::path& foldername, const std::filesystem::path& folder_to_add, ZipCompressionMethod method);
+    bool add_folder(const std::filesystem::path& foldername, const std::filesystem::path& folder_to_add,
+                    ZipCompressionMethod method);
 
     ZipIncrementalWrite begin_incremental_write(const std::filesystem::path& filename, ZipCompressionMethod method);
-private:
 
+   private:
     int64_t add_file_internal(const std::filesystem::path& filename, zip_source* source, ZipCompressionMethod method);
 
     zip* archive = nullptr;
 };
 
-}
+}  // namespace Saiga
 
 #endif
