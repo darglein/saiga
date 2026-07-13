@@ -11,7 +11,9 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include "imgui.h"
+
 
 namespace ImGui
 {

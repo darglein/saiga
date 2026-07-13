@@ -22,19 +22,19 @@ bool SplinePath::imgui()
 
     ImGui::Text("Keyframes");
     ImGui::SetNextItemWidth(300);
-    if (ImGui::ListBoxHeader("###keyfrmeas", 10))
-    {
-        for (int i = 0; i < keyframes.size(); ++i)
-        {
-            std::string str =
-                std::to_string(i) + ": " + std::to_string(keyframes[i].user_index) + " " + keyframes[i].name;
-            if (ImGui::Selectable(str.c_str(), selectedKeyframe == i))
-            {
-                selectedKeyframe = i;
-            }
-        }
-        ImGui::ListBoxFooter();
-    }
+    //if (ImGui::ListBoxHeader("###keyfrmeas", 10))
+    //{
+    //    for (int i = 0; i < keyframes.size(); ++i)
+    //    {
+    //        std::string str =
+    //            std::to_string(i) + ": " + std::to_string(keyframes[i].user_index) + " " + keyframes[i].name;
+    //        if (ImGui::Selectable(str.c_str(), selectedKeyframe == i))
+    //        {
+    //            selectedKeyframe = i;
+    //        }
+    //    }
+    //    ImGui::ListBoxFooter();
+    //}
     if (ImGui::Button("remove selected"))
     {
         if (selectedKeyframe >= 0 && selectedKeyframe < keyframes.size())

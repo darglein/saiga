@@ -7,6 +7,7 @@
 #include "imgui_timer_system.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/imgui/imgui_stdlib.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/statistics.h"
 #include "saiga/core/util/tostring.h"
@@ -372,7 +373,7 @@ void TimerSystem::ImguiTable(ArrayView<TimeData*> timers, TimeData* total_time)
                 ImGui::PushStyleColor(ImGuiCol_Header, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
                 //                static int item_is_selected;
                 if (ImGui::Selectable(item->name.c_str(), false,
-                                      ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap))
+                                      ImGuiSelectableFlags_SpanAllColumns/* | ImGuiSelectableFlags_AllowItemOverlap*/))
                 {
                 }
                 if (ImGui::IsItemHovered())

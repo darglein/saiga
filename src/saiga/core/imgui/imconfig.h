@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "saiga/export.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/assert.h"
 

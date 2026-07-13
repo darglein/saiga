@@ -88,41 +88,41 @@ void LightManager::imgui()
         ImGui::Text("visibleLights/totalLights: %d/%d", visibleLights, totalLights);
         ImGui::Text("renderedDepthmaps: %d", renderedDepthmaps);
 
-        if (ImGui::ListBoxHeader("Lights", 4))
-        {
-            int lid = 0;
-            for (auto l : directionalLights)
-            {
-                std::string name = "Directional Light " + std::to_string(lid);
-                if (ImGui::Selectable(name.c_str(), selected_light == lid))
-                {
-                    selected_light     = lid;
-                    selected_light_ptr = l;
-                }
-                lid++;
-            }
-            for (auto l : spotLights)
-            {
-                std::string name = "Spot Light " + std::to_string(lid);
-                if (ImGui::Selectable(name.c_str(), selected_light == lid))
-                {
-                    selected_light     = lid;
-                    selected_light_ptr = l;
-                }
-                lid++;
-            }
-            for (auto l : pointLights)
-            {
-                std::string name = "Point Light " + std::to_string(lid);
-                if (ImGui::Selectable(name.c_str(), selected_light == lid))
-                {
-                    selected_light     = lid;
-                    selected_light_ptr = l;
-                }
-                lid++;
-            }
-            ImGui::ListBoxFooter();
-        }
+        //if (ImGui::ListBoxHeader("Lights", 4))
+        //{
+        //    int lid = 0;
+        //    for (auto l : directionalLights)
+        //    {
+        //        std::string name = "Directional Light " + std::to_string(lid);
+        //        if (ImGui::Selectable(name.c_str(), selected_light == lid))
+        //        {
+        //            selected_light     = lid;
+        //            selected_light_ptr = l;
+        //        }
+        //        lid++;
+        //    }
+        //    for (auto l : spotLights)
+        //    {
+        //        std::string name = "Spot Light " + std::to_string(lid);
+        //        if (ImGui::Selectable(name.c_str(), selected_light == lid))
+        //        {
+        //            selected_light     = lid;
+        //            selected_light_ptr = l;
+        //        }
+        //        lid++;
+        //    }
+        //    for (auto l : pointLights)
+        //    {
+        //        std::string name = "Point Light " + std::to_string(lid);
+        //        if (ImGui::Selectable(name.c_str(), selected_light == lid))
+        //        {
+        //            selected_light     = lid;
+        //            selected_light_ptr = l;
+        //        }
+        //        lid++;
+        //    }
+        //    ImGui::ListBoxFooter();
+        //}
     }
     ImGui::End();
 
