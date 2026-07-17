@@ -24,6 +24,8 @@ void SvtLogSilencer(void* context, SvtAv1LogLevel level, const char* tag, const 
     }
 }
 
+static std::once_flag svt_init_flag;
+
 bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
 {
     if (img.type != ImageType::UC1 && img.type != ImageType::UC3 && img.type != ImageType::UC4 &&
@@ -32,7 +34,24 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
         return false;
     }
 
-    svt_av1_set_log_callback(SvtLogSilencer, nullptr);
+    std::call_once(svt_init_flag, []() {
+        // Set the global log callback once
+        svt_av1_set_log_callback(SvtLogSilencer, nullptr);
+
+        // Perform a tiny dummy encode to force SVT-AV1 to run its internal
+        // RTCD (Run-Time CPU Detect) SIMD initialization sequentially.
+        avifEncoder* dummy_encoder = avifEncoderCreate();
+        avifImage* dummy_image = avifImageCreate(4, 4, 8, AVIF_PIXEL_FORMAT_YUV420);
+        avifImageAllocatePlanes(dummy_image, AVIF_PLANES_YUV);
+        avifRWData dummy_output = AVIF_DATA_EMPTY;
+
+        // This triggers the underlying SVT-AV1 init block safely
+        avifEncoderWrite(dummy_encoder, dummy_image, &dummy_output);
+
+        avifRWDataFree(&dummy_output);
+        avifImageDestroy(dummy_image);
+        avifEncoderDestroy(dummy_encoder);
+        });
 
     int channels = Saiga::channels(img.type);
     uint32_t width = img.width;

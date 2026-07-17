@@ -262,6 +262,11 @@ std::vector<unsigned char> Image::saveToMemory(std::string file_extension) const
     // return Saiga::FIP::saveToMemory(*this, file_extension);
 #endif
 
+    if (file_extension == "jpg")
+    {
+        return compressImageSTB(*this, file_extension);
+    }
+
     return result;
 }
 
@@ -433,7 +438,7 @@ bool Image::saveConvert(const std::filesystem::path& path, float minValue, float
 
 std::vector<uint8_t> Image::compress()
 {
-    return compressImageSTB(*this);
+    return compressImageSTB(*this, "png");
 }
 
 void Image::decompress(std::vector<uint8_t> data)

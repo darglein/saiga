@@ -58,7 +58,7 @@ bool saveImageSTB(const std::filesystem::path& path, const Image& img)
     }
 }
 
-std::vector<uint8_t> compressImageSTB(const Image& img)
+std::vector<uint8_t> compressImageSTB(const Image& img, const std::string& type)
 {
     int w               = img.width;
     int h               = img.height;
@@ -66,16 +66,40 @@ std::vector<uint8_t> compressImageSTB(const Image& img)
     int stride_in_bytes = img.pitchBytes;
 
 
-    int len;
-    unsigned char* png = stbi_write_png_to_mem((unsigned char*)img.data(), stride_in_bytes, w, h, comp, &len);
+    if (type == "png")
+    {
+        int len;
+        unsigned char* png = stbi_write_png_to_mem((unsigned char*)img.data(), stride_in_bytes, w, h, comp, &len);
 
-    std::vector<uint8_t> data(len);
-    memcpy(data.data(), png, len);
+        std::vector<uint8_t> data(len);
+        memcpy(data.data(), png, len);
 
+        STBIW_FREE(png);
 
-    STBIW_FREE(png);
+        return data;
+    }
+    else if (type == "jpg")
+    {
+        auto write_callback = [](void* context, void* data, int size)
+        {
+            std::vector<uint8_t>* vec = static_cast<std::vector<uint8_t>*>(context);
+            const uint8_t* bytes      = static_cast<const uint8_t*>(data);
+            vec->insert(vec->end(), bytes, bytes + size);
+        };
 
-    return data;
+        std::vector<uint8_t> data;
+        // Use the callback to write directly into our vector
+        stbi_write_jpg_to_func(
+            write_callback,
+            &data,
+            w, h, comp,
+            img.data(),
+            img.get_compression_quality()
+        );
+        return data;
+    }
+
+    return {};
 }
 
 
