@@ -7,6 +7,7 @@
 #    include <avif/avif.h>
 #    include <fstream>
 #    include <iostream>
+#    include <mutex>
 
 namespace Saiga
 {
