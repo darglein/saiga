@@ -71,6 +71,9 @@ struct ZipCustomSource
 {
     virtual size_t total_size() const                = 0;
     virtual size_t read_next(void* dest, size_t len) = 0;
+
+    // If the source data is already compressed, you can set this here.
+    virtual ZipCompressionMethod source_compression_method() const { return ZipCompressionMethod::UNCOMPRESSED; }
 };
 
 struct SAIGA_CORE_API ZipArchive
@@ -108,6 +111,8 @@ struct SAIGA_CORE_API ZipArchive
 
     zip* archive = nullptr;
 };
+
+SAIGA_CORE_API std::vector<uint8_t> compress_zstd(const void* data, const size_t size, int compression_level = 0);
 
 }  // namespace Saiga
 

@@ -5,6 +5,7 @@
 #    include <iostream>
 #    include <utility>
 #    include <zip.h>
+#    include <zstd.h>
 
 namespace Saiga
 {
@@ -239,6 +240,24 @@ ZipIncrementalWrite::~ZipIncrementalWrite()
 
 
 
+static int map_compression_method(ZipCompressionMethod method)
+{
+    auto libzip_method = ZIP_CM_ZSTD;
+    switch (method)
+    {
+        case ZipCompressionMethod::UNCOMPRESSED:
+            libzip_method = ZIP_CM_STORE;
+            break;
+        case ZipCompressionMethod::ZSTD:
+            libzip_method = ZIP_CM_ZSTD;
+            break;
+        case ZipCompressionMethod::ZLIB:
+            libzip_method = ZIP_CM_DEFAULT;
+            break;
+    }
+    return libzip_method;
+}
+
 static zip_int64_t source_callback(void* userdata, void* data, zip_uint64_t len, zip_source_cmd_t cmd)
 {
     ZipCustomSource* source = (ZipCustomSource*)userdata;
@@ -255,8 +274,19 @@ static zip_int64_t source_callback(void* userdata, void* data, zip_uint64_t len,
             zip_stat_t* st = (zip_stat_t*)data;
             zip_stat_init(st);
 
-            st->valid = ZIP_STAT_SIZE;
-            st->size  = source->total_size();
+            if (source->source_compression_method() != ZipCompressionMethod::UNCOMPRESSED)
+            {
+                st->valid |= ZIP_STAT_COMP_METHOD;
+                st->comp_method = map_compression_method(source->source_compression_method());
+            }
+
+            // ONLY set ZIP_STAT_SIZE if total size is known upfront!
+            // If total_size() == -1, libzip dynamically calculates size at EOF.
+            if (source->total_size() != static_cast<size_t>(-1))
+            {
+                st->valid |= ZIP_STAT_SIZE;
+                st->size = source->total_size();
+            }
 
             return sizeof(*st);
         }
@@ -342,19 +372,7 @@ int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip
     auto index =
         (int)zip_file_add(archive, filename.generic_u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
 
-    auto libzip_method = ZIP_CM_ZSTD;
-    switch (method)
-    {
-        case ZipCompressionMethod::UNCOMPRESSED:
-            libzip_method = ZIP_CM_STORE;
-            break;
-        case ZipCompressionMethod::ZSTD:
-            libzip_method = ZIP_CM_ZSTD;
-            break;
-        case ZipCompressionMethod::ZLIB:
-            libzip_method = ZIP_CM_DEFAULT;
-            break;
-    }
+    auto libzip_method = map_compression_method(method);
 
     zip_set_file_compression(archive, index, libzip_method, 0);
 
@@ -424,6 +442,23 @@ bool ZipArchiveFile::read_all(void* out_data, ProgressBarManager* progress_bar)
     zip_fread(file, out_data, uncompressed_size);
     close();
     return true;
+}
+
+std::vector<uint8_t> compress_zstd(const void* data, const size_t size, int compression_level)
+{
+    size_t max_compressed = ZSTD_compressBound(size);
+    std::vector<uint8_t> compressed_buffer(max_compressed);
+
+    size_t comp_size = ZSTD_compress(compressed_buffer.data(), compressed_buffer.size(), data, size, compression_level);
+
+    if (ZSTD_isError(comp_size))
+    {
+        throw std::runtime_error(std::string("ZSTD Compression Failed: ") + ZSTD_getErrorName(comp_size));
+    }
+
+    compressed_buffer.resize(comp_size);
+
+    return compressed_buffer;
 }
 
 }  // namespace Saiga

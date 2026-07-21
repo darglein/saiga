@@ -111,6 +111,8 @@ endif ()
 PackageHelper(OpenMesh ${OPENMESH_FOUND} "${OPENMESH_INCLUDE_DIRS}" "${OPENMESH_LIBRARIES}")
 endif()
 
+SET(LIBS ${LIBS} libzstd_static)
+
 set(CORE_INCLUDES ${PACKAGE_INCLUDES})
 set(CORE_LIBS ${LIBS})
 set(CORE_TARGETS ${LIB_TARGETS})
