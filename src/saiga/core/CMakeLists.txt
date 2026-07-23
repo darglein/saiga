@@ -68,7 +68,7 @@ target_include_directories(
         #${PROJECT_SOURCE_DIR}/src/
 )
 
-if (SAIGA_WITH_LIBAVIF)
+if (SAIGA_WITH_SVTAV1)
     target_include_directories(${MODULE_NAME} PRIVATE "${PROJECT_SOURCE_DIR}/submodules/SVT-AV1/Source/API")
 endif ()
 

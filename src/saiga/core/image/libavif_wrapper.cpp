@@ -2,7 +2,9 @@
 
 #ifdef SAIGA_USE_LIBAVIF
 
-#    include "EbSvtAv1Enc.h"  // The native SVT-AV1 header
+#    if defined(SAIGA_USE_SVTAV1)
+#        include "EbSvtAv1Enc.h"  // Native SVT-AV1 header for log callback / init
+#    endif
 
 #    include <avif/avif.h>
 #    include <fstream>
@@ -16,16 +18,9 @@ bool loadImageLibAVIF(const std::filesystem::path& path, Image& img)
     return false;
 }
 
-void SvtLogSilencer(void* context, SvtAv1LogLevel level, const char* tag, const char* fmt, va_list args)
-{
-    if (level <= SVT_AV1_LOG_ERROR)
-    {
-        std::cerr << "[SVT-AV1 ERROR] ";
-        vfprintf(stderr, fmt, args);
-    }
-}
-
+#    if defined(SAIGA_USE_SVTAV1)
 static std::once_flag svt_init_flag;
+#    endif
 
 bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
 {
@@ -35,38 +30,73 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
         return false;
     }
 
-    std::call_once(svt_init_flag, []() {
-        // Set the global log callback once
-        svt_av1_set_log_callback(SvtLogSilencer, nullptr);
 
-        // Perform a tiny dummy encode to force SVT-AV1 to run its internal
-        // RTCD (Run-Time CPU Detect) SIMD initialization sequentially.
-        avifEncoder* dummy_encoder = avifEncoderCreate();
-        avifImage* dummy_image = avifImageCreate(4, 4, 8, AVIF_PIXEL_FORMAT_YUV420);
-        avifImageAllocatePlanes(dummy_image, AVIF_PLANES_YUV);
-        avifRWData dummy_output = AVIF_DATA_EMPTY;
+    auto encoder_choice = AVIF_CODEC_CHOICE_AUTO;
 
-        // This triggers the underlying SVT-AV1 init block safely
-        avifEncoderWrite(dummy_encoder, dummy_image, &dummy_output);
+#    if defined(SAIGA_USE_LIBAOM)
+    encoder_choice = AVIF_CODEC_CHOICE_AOM;
+#    elif defined(SAIGA_USE_SVTAV1)
+    encoder_choice = AVIF_CODEC_CHOICE_SVT;
+#else
+#error No AVIF codec available
+#    endif
 
-        avifRWDataFree(&dummy_output);
-        avifImageDestroy(dummy_image);
-        avifEncoderDestroy(dummy_encoder);
-        });
 
-    int channels = Saiga::channels(img.type);
-    uint32_t width = img.width;
+#    if defined(SAIGA_USE_SVTAV1)
+    if (encoder_choice == AVIF_CODEC_CHOICE_SVT)
+    {
+        // SVT-AV1 specific thread-safety & logger warm-up workaround.
+        std::call_once(svt_init_flag,
+                       []()
+                       {
+                           auto svt_log_silencer =
+                               [](void* context, SvtAv1LogLevel level, const char* tag, const char* fmt, va_list args)
+                           {
+                               if (level <= SVT_AV1_LOG_ERROR)
+                               {
+                                   std::cerr << "[SVT-AV1 ERROR] ";
+                                   vfprintf(stderr, fmt, args);
+                               }
+                           };
+
+                           svt_av1_set_log_callback(svt_log_silencer, nullptr);
+
+                           // Perform a tiny dummy encode to force SVT-AV1 to run its internal
+                           // RTCD (Run-Time CPU Detect) SIMD initialization sequentially.
+                           avifEncoder* dummy_encoder = avifEncoderCreate();
+
+                           // Force the dummy encoder to specifically trigger SVT-AV1
+                           dummy_encoder->codecChoice = AVIF_CODEC_CHOICE_SVT;
+
+                           avifImage* dummy_image = avifImageCreate(4, 4, 8, AVIF_PIXEL_FORMAT_YUV420);
+                           avifImageAllocatePlanes(dummy_image, AVIF_PLANES_YUV);
+                           avifRWData dummy_output = AVIF_DATA_EMPTY;
+
+                           avifEncoderWrite(dummy_encoder, dummy_image, &dummy_output);
+
+                           avifRWDataFree(&dummy_output);
+                           avifImageDestroy(dummy_image);
+                           avifEncoderDestroy(dummy_encoder);
+                       });
+    }
+#    endif
+
+    int channels    = Saiga::channels(img.type);
+    uint32_t width  = img.width;
     uint32_t height = img.height;
 
     avifPixelFormat yuvFormat = AVIF_PIXEL_FORMAT_YUV420;
 
-    // --- BIT DEPTH CHANGE POINT 1 ---
-    // Change this to 10, 12, or 14 for higher bit depths.
-    int bitDepth = elementSize(elementType(img.type)) * 8;
+    if (encoder_choice == AVIF_CODEC_CHOICE_AOM)
+    {
+        yuvFormat = (channels == 1) ? AVIF_PIXEL_FORMAT_YUV400 : AVIF_PIXEL_FORMAT_YUV444;
+    }
+
+    int bitDepth         = elementSize(elementType(img.type)) * 8;
     int originalBitDepth = bitDepth;
     if (bitDepth == 16) bitDepth = 10;
 
-    // 2. Create the main AVIF image container
+    // 1. Create the main AVIF image container
     avifImage* image = avifImageCreate(width, height, bitDepth, yuvFormat);
     if (!image)
     {
@@ -74,82 +104,77 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
         return false;
     }
 
-    // 3. Populate the image data based on the format
+    // 2. Populate image data
     if (channels == 1)
     {
-        // GRAYSCALE: We skip RGB conversion and write directly to the Y plane.
+        // GRAYSCALE: Skip RGB conversion and write directly to the Y plane.
         avifImageAllocatePlanes(image, AVIF_PLANES_YUV);
 
-        // 1. Copy the Luminance (Y) data
-        // Automatically handle the stride for 16-bit integers if bitDepth > 8
         size_t copyBytes = (bitDepth > 8) ? (width * 2) : width;
 
         for (int y = 0; y < height; ++y)
         {
             if (bitDepth == 8)
             {
-                uint8_t* targetRow = image->yuvPlanes[AVIF_CHAN_Y] + (y * image->yuvRowBytes[AVIF_CHAN_Y]);
+                uint8_t* targetRow    = image->yuvPlanes[AVIF_CHAN_Y] + (y * image->yuvRowBytes[AVIF_CHAN_Y]);
                 const void* sourceRow = img.rowPtr(y);
-
                 std::memcpy(targetRow, sourceRow, copyBytes);
             }
             else if (bitDepth == 10)
             {
-                uint16_t* targetRow = reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_Y] + (y * image->yuvRowBytes[AVIF_CHAN_Y]));
+                uint16_t* targetRow =
+                    reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_Y] + (y * image->yuvRowBytes[AVIF_CHAN_Y]));
                 const uint16_t* sourceRow = reinterpret_cast<const uint16_t*>(img.rowPtr(y));
 
                 for (int x = 0; x < width; ++x)
                 {
-                    // Shift 16-bit down to 10-bit (65535 -> 1023)
                     targetRow[x] = sourceRow[x] >> 6;
                 }
             }
         }
 
-        // --- NEW: PACIFY SVT-AV1 BY FAKING THE COLOR PLANES ---
-        // For 4:2:0, the UV planes are exactly half the width and height of the Y plane.
-        uint32_t uvHeight = (height + 1) / 2;
-        uint32_t uvWidth = (width + 1) / 2;
-
-        // The "neutral" color value depends on the bit depth.
-        // 8-bit = 128 | 10-bit = 512 | 12-bit = 2048 | 14-bit = 8192
-        int neutralChroma = 1 << (bitDepth - 1);
-
-        for (uint32_t y = 0; y < uvHeight; ++y)
+        if (yuvFormat != AVIF_PIXEL_FORMAT_YUV400)
         {
-            if (bitDepth == 8)
+            SAIGA_ASSERT(yuvFormat == AVIF_PIXEL_FORMAT_YUV420);
+
+            uint32_t uvHeight = (height + 1) / 2;
+            uint32_t uvWidth = (width + 1) / 2;
+            int neutralChroma = 1 << (bitDepth - 1);
+
+            for (uint32_t y = 0; y < uvHeight; ++y)
             {
-                // For 8-bit, we can efficiently use memset
-                uint8_t* uRow = image->yuvPlanes[AVIF_CHAN_U] + (y * image->yuvRowBytes[AVIF_CHAN_U]);
-                uint8_t* vRow = image->yuvPlanes[AVIF_CHAN_V] + (y * image->yuvRowBytes[AVIF_CHAN_V]);
-                memset(uRow, neutralChroma, uvWidth);
-                memset(vRow, neutralChroma, uvWidth);
-            }
-            else
-            {
-                // For >8-bit, we cast the pointers to 16-bit and fill manually
-                uint16_t* uRow = reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_U] + (y * image->yuvRowBytes[AVIF_CHAN_U]));
-                uint16_t* vRow = reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_V] + (y * image->yuvRowBytes[AVIF_CHAN_V]));
-                for (uint32_t x = 0; x < uvWidth; ++x)
+                if (bitDepth == 8)
                 {
-                    uRow[x] = neutralChroma;
-                    vRow[x] = neutralChroma;
+                    uint8_t* uRow = image->yuvPlanes[AVIF_CHAN_U] + (y * image->yuvRowBytes[AVIF_CHAN_U]);
+                    uint8_t* vRow = image->yuvPlanes[AVIF_CHAN_V] + (y * image->yuvRowBytes[AVIF_CHAN_V]);
+                    memset(uRow, neutralChroma, uvWidth);
+                    memset(vRow, neutralChroma, uvWidth);
+                }
+                else
+                {
+                    uint16_t* uRow =
+                        reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_U] + (y * image->yuvRowBytes[AVIF_CHAN_U]));
+                    uint16_t* vRow =
+                        reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_V] + (y * image->yuvRowBytes[AVIF_CHAN_V]));
+                    for (uint32_t x = 0; x < uvWidth; ++x)
+                    {
+                        uRow[x] = neutralChroma;
+                        vRow[x] = neutralChroma;
+                    }
                 }
             }
         }
     }
     else if (channels == 3 || channels == 4)
     {
-        // RGB or RGBA: We use the helper struct to convert to YUV
         avifRGBImage rgbImage;
         avifRGBImageSetDefaults(&rgbImage, image);
 
-        rgbImage.format = (channels == 3) ? AVIF_RGB_FORMAT_RGB : AVIF_RGB_FORMAT_RGBA;
-        rgbImage.pixels = (uint8_t*)img.data8();
+        rgbImage.format   = (channels == 3) ? AVIF_RGB_FORMAT_RGB : AVIF_RGB_FORMAT_RGBA;
+        rgbImage.pixels   = (uint8_t*)img.data8();
         rgbImage.rowBytes = img.pitchBytes;
-        rgbImage.depth = originalBitDepth;
+        rgbImage.depth    = originalBitDepth;
 
-        // Convert RGB to YUV
         avifResult convertResult = avifImageRGBToYUV(image, &rgbImage);
         if (convertResult != AVIF_RESULT_OK)
         {
@@ -165,14 +190,15 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
         return false;
     }
 
-    // 4. Set up the Encoder
-    avifEncoder* encoder = avifEncoderCreate();
-    // Quality ranges from 0 (lossless) to 100 (worst). 60 is a good default for lossy.
+    // 3. Set up the Encoder
+    avifEncoder* encoder  = avifEncoderCreate();
+    encoder->codecChoice  = encoder_choice;
     encoder->quality      = img.get_compression_quality();
     encoder->qualityAlpha = img.get_compression_quality();
-    encoder->speed        = AVIF_SPEED_DEFAULT;
+    encoder->speed        = AVIF_SPEED_FASTEST;
+    encoder->maxThreads   = 1;
 
-    // 5. Encode the Image
+    // 4. Encode the Image
     avifRWData output       = AVIF_DATA_EMPTY;
     avifResult encodeResult = avifEncoderWrite(encoder, image, &output);
 
@@ -184,7 +210,7 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
         return false;
     }
 
-    // 6. Save to disk
+    // 5. Save to disk
     std::ofstream file(path, std::ios::binary);
     if (!file)
     {
@@ -198,7 +224,7 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
     file.write(reinterpret_cast<const char*>(output.data), output.size);
     file.close();
 
-    // 7. Cleanup
+    // 6. Cleanup
     avifRWDataFree(&output);
     avifEncoderDestroy(encoder);
     avifImageDestroy(image);

@@ -249,50 +249,164 @@ endif ()
 
 
 if (SAIGA_WITH_LIBAVIF)
-    message("=================================")
-    message("Adding Submodule svt")
+    message(STATUS "=================================")
+    message(STATUS "Configuring libavif")
 
-    set(ENABLE_LTO OFF CACHE BOOL "Disable LTO for SVT" FORCE)
-    set(BUILD_APPS OFF CACHE BOOL "" FORCE)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    # Global options for libavif
+    set(AVIF_LIBYUV OFF CACHE STRING "" FORCE)
+    set(AVIF_BUILD_APPS OFF CACHE BOOL "" FORCE)
+    set(AVIF_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
-    set(SVT_AV1_LTO OFF CACHE BOOL "Disable LTO for SVT-AV1" FORCE)
-    set(ENABLE_AVX512 OFF CACHE BOOL "Disable LTO for SVT-AV1" FORCE)
-    add_subdirectory(SVT-AV1)
+    # -------------------------------------------------------------
+    # 1. SVT-AV1 Codec Configuration
+    # -------------------------------------------------------------
+    if (SAIGA_WITH_SVTAV1)
+        message(STATUS "Adding Submodule SVT-AV1")
 
-    message("=================================")
+        set(ENABLE_LTO OFF CACHE BOOL "Disable LTO for SVT" FORCE)
+        set(BUILD_APPS OFF CACHE BOOL "" FORCE)
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(SVT_AV1_LTO OFF CACHE BOOL "Disable LTO for SVT-AV1" FORCE)
+        set(ENABLE_AVX512 OFF CACHE BOOL "Disable LTO for SVT-AV1" FORCE)
 
+        add_subdirectory(SVT-AV1)
 
-    # --- THE HEADER WRAPPER HACK ---
-    # libavif expects headers in an "svt-av1" subfolder. 
-    # We copy them to a fake directory in the build tree to satisfy libavif.
-    set(SVT_WRAPPER_DIR "${CMAKE_CURRENT_BINARY_DIR}/svt_wrapper_includes")
-    file(MAKE_DIRECTORY "${SVT_WRAPPER_DIR}/svt-av1")
-    file(GLOB SVT_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API/*.h")
-    file(COPY ${SVT_HEADERS} DESTINATION "${SVT_WRAPPER_DIR}/svt-av1/")
+        # Header wrapper hack to satisfy libavif's expected include layout
+        set(SVT_WRAPPER_DIR "${CMAKE_CURRENT_BINARY_DIR}/svt_wrapper_includes")
+        file(MAKE_DIRECTORY "${SVT_WRAPPER_DIR}/svt-av1")
+        file(GLOB SVT_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API/*.h")
+        file(COPY ${SVT_HEADERS} DESTINATION "${SVT_WRAPPER_DIR}/svt-av1/")
 
-    # Inject this new folder directly into the SVT-AV1 target's public include paths
-    target_include_directories(SvtAv1Enc INTERFACE "${SVT_WRAPPER_DIR}")
-    # -------------------------------
+        target_include_directories(SvtAv1Enc INTERFACE "${SVT_WRAPPER_DIR}")
 
-    message("=================================")
-    message("Adding Submodule libavif")
+        set(AVIF_CODEC_SVT SYSTEM CACHE STRING "" FORCE)
+        set(AVIF_LOCAL_SVT OFF CACHE BOOL "" FORCE)
+        set(SVT_AV1_FOUND ON CACHE BOOL "" FORCE)
+        set(SVT_AV1_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API" CACHE PATH "" FORCE)
+        set(SVT_AV1_LIBRARY SvtAv1Enc CACHE STRING "" FORCE)
+        
+        set(SAIGA_USE_SVTAV1 1 PARENT_SCOPE)
+    else ()
+        set(AVIF_CODEC_SVT OFF CACHE STRING "" FORCE)
+        set(AVIF_LOCAL_SVT OFF CACHE BOOL "" FORCE)
+    endif ()
 
-    set(AVIF_CODEC_AOM OFF CACHE BOOL "" FORCE)
-    set(AVIF_LOCAL_AOM OFF CACHE BOOL "" FORCE)
+    # -------------------------------------------------------------
+    # 2. libaom Codec Configuration
+    # -------------------------------------------------------------
+    if (SAIGA_WITH_LIBAOM)
+        message(STATUS "Adding Submodule aom")
 
-    set(AVIF_CODEC_SVT SYSTEM CACHE STRING "" FORCE)
-    set(AVIF_LOCAL_SVT OFF CACHE BOOL "" FORCE)
+        # Locate Perl for libaom if not automatically found on Windows
+        if (WIN32 AND NOT PERL_EXECUTABLE)
+            if (EXISTS "C:/Program Files/Git/usr/bin/perl.exe")
+                set(PERL_EXECUTABLE "C:/Program Files/Git/usr/bin/perl.exe" CACHE FILEPATH "" FORCE)
+            endif ()
+        endif ()
 
-    set(SVT_AV1_FOUND ON CACHE BOOL "" FORCE)
-    set(SVT_AV1_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SVT-AV1/Source/API" CACHE PATH "" FORCE)
-    set(SVT_AV1_LIBRARY SvtAv1Enc CACHE STRING "" FORCE)
+        # Locate NASM & Inject into runtime PATH
+        if (NOT AS_EXECUTABLE OR NOT EXISTS "${AS_EXECUTABLE}")
+            find_program(AS_EXECUTABLE NAMES nasm nasm.exe yasm yasm.exe
+                PATHS
+                "C:/Program Files/NASM"
+                "C:/Program Files (x86)/NASM"
+                "$ENV{LOCALAPPDATA}/bin/NASM"
+                "$ENV{LOCALAPPDATA}/Programs/NASM"
+                "$ENV{ProgramData}/chocolatey/bin"
+            )
+        endif ()
 
-    set (AVIF_LIBYUV OFF)
+        if (AS_EXECUTABLE)
+            message(STATUS "Found NASM assembler for libaom: ${AS_EXECUTABLE}")
+            get_filename_component(NASM_DIR "${AS_EXECUTABLE}" DIRECTORY)
+            file(TO_CMAKE_PATH "${NASM_DIR}" NASM_DIR)
+            set(ENV{PATH} "${NASM_DIR};$ENV{PATH}")
+        else ()
+            message(FATAL_ERROR "NASM executable (nasm.exe) not found! Install NASM or set -DAS_EXECUTABLE='path/to/nasm.exe'")
+        endif ()
 
+        # --- SANDBOX FUNCTION TO PREVENT LIBAOM FLAG/CACHE POLLUTION ---
+        function(build_aom_isolated)
+            # 1. Save ALL C and CXX flags (base + configuration variants)
+            foreach(lang C CXX)
+                foreach(config "" _DEBUG _RELEASE _RELWITHDEBINFO _MINSIZEREL)
+                    set(SAVED_${lang}_FLAGS${config} "${CMAKE_${lang}_FLAGS${config}}")
+                endforeach()
+            endforeach()
+            set(SAVED_BUILD_SHARED "${BUILD_SHARED_LIBS}")
+
+            # Set libaom cache variables
+            set(ENABLE_NASM ON CACHE BOOL "Enable NASM assembly optimizations in libaom" FORCE)
+            set(AS_EXECUTABLE "${AS_EXECUTABLE}" CACHE FILEPATH "Path to NASM/YASM assembler for libaom" FORCE)
+            set(CMAKE_ASM_NASM_COMPILER "${AS_EXECUTABLE}" CACHE FILEPATH "NASM compiler" FORCE)
+
+            set(ENABLE_DOCS OFF CACHE BOOL "" FORCE)
+            set(ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
+            set(ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+            set(ENABLE_TOOLS OFF CACHE BOOL "" FORCE)
+            set(ENABLE_VS_IDE_PROJECTS OFF CACHE BOOL "" FORCE)
+            set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+            set(CONFIG_AV1_DECODER 0 CACHE STRING "" FORCE)
+
+            # Fix target name collision ("dist") between libzip & libaom
+            function(add_custom_target target_name)
+                if("${target_name}" STREQUAL "dist")
+                    _add_custom_target(aom_dist ${ARGN})
+                else()
+                    _add_custom_target(${target_name} ${ARGN})
+                endif()
+            endfunction()
+
+            add_subdirectory(aom)
+
+            # 2. Restore ALL flags in both CACHE and local scope
+            foreach(lang C CXX)
+                foreach(config "" _DEBUG _RELEASE _RELWITHDEBINFO _MINSIZEREL)
+                    set(CMAKE_${lang}_FLAGS${config} "${SAVED_${lang}_FLAGS${config}}" CACHE STRING "" FORCE)
+                    set(CMAKE_${lang}_FLAGS${config} "${SAVED_${lang}_FLAGS${config}}")
+                endforeach()
+            endforeach()
+    
+            set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED}" CACHE BOOL "" FORCE)
+            set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED}")
+        endfunction()
+
+        build_aom_isolated()
+
+        # Expose libaom include paths specifically and ONLY to libavif
+        set(AOM_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/aom")
+        set(AOM_BIN_DIR "${CMAKE_CURRENT_BINARY_DIR}/aom")
+
+        if (TARGET aom)
+            target_include_directories(aom INTERFACE 
+                "${AOM_SRC_DIR}"
+                "${AOM_BIN_DIR}"
+            )
+        endif ()
+
+        set(AVIF_CODEC_AOM SYSTEM CACHE STRING "" FORCE)
+        set(AVIF_CODEC_AOM_ENCODE ON CACHE BOOL "" FORCE)
+        set(AVIF_CODEC_AOM_DECODE OFF CACHE BOOL "" FORCE)
+        set(AVIF_LOCAL_AOM OFF CACHE BOOL "" FORCE)
+
+        set(AOM_FOUND ON CACHE BOOL "" FORCE)
+        set(AOM_INCLUDE_DIR "${AOM_SRC_DIR};${AOM_BIN_DIR}" CACHE PATH "" FORCE)
+        set(AOM_LIBRARIES aom CACHE STRING "" FORCE)
+        
+        set(SAIGA_USE_LIBAOM 1 PARENT_SCOPE)
+    else ()
+        set(AVIF_CODEC_AOM OFF CACHE STRING "" FORCE)
+        set(AVIF_LOCAL_AOM OFF CACHE BOOL "" FORCE)
+    endif ()
+
+    # -------------------------------------------------------------
+    # 3. Add libavif Submodule
+    # -------------------------------------------------------------
+    message(STATUS "Adding Submodule libavif")
     add_subdirectory(libavif)
 
-    SET(SAIGA_USE_LIBAVIF 1 PARENT_SCOPE)
-    message("=================================")
+    set(SAIGA_USE_LIBAVIF 1 PARENT_SCOPE)
+    message(STATUS "=================================")
 endif ()
 

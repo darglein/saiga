@@ -38,3 +38,6 @@
 [submodule "submodules/SVT-AV1"]
 	path = submodules/SVT-AV1
 	url = https://gitlab.com/AOMediaCodec/SVT-AV1.git
+[submodule "submodules/aom"]
+	path = submodules/aom
+	url = https://aomedia.googlesource.com/aom
