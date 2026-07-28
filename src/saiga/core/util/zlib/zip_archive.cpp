@@ -20,11 +20,25 @@ static void print_error(const char* prefix, int err)
 
 ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
 {
+    int flag = 0;
+
     if (mode == ZipMode::Write)
     {
         std::filesystem::remove(path);
+        // ZIP_CREATE: Create if it doesn't exist
+        // ZIP_TRUNCATE: Wipe existing contents
+        flag = ZIP_CREATE | ZIP_TRUNCATE;
     }
-    int flag = mode == ZipMode::Read ? ZIP_RDONLY : (ZIP_CREATE | ZIP_TRUNCATE);
+    else if (mode == ZipMode::Update)
+    {
+        // ZIP_CREATE: Create if missing, but DO NOT truncate.
+        // libzip defaults to read/write mode unless ZIP_RDONLY is specified.
+        flag = ZIP_CREATE;
+    }
+    else if (mode == ZipMode::Read)
+    {
+        flag = ZIP_RDONLY;
+    }
 
     int error = 0;
     archive   = zip_open(path.u8string().c_str(), flag, &error);

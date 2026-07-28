@@ -21,6 +21,7 @@ enum class ZipMode
 {
     Read,
     Write,
+    Update
 };
 
 enum class ZipCompressionMethod
