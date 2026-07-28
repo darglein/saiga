@@ -73,8 +73,10 @@ struct ZipCustomSource
     virtual size_t total_size() const                = 0;
     virtual size_t read_next(void* dest, size_t len) = 0;
 
-    // If the source data is already compressed, you can set this here.
+    // If the source data is already compressed, you can set this here. In this case you must also provide the crc32
+    // method, which returns the crc32 of the uncompressed data.
     virtual ZipCompressionMethod source_compression_method() const { return ZipCompressionMethod::UNCOMPRESSED; }
+    virtual uint32_t crc32() const { return 0; }
 };
 
 struct SAIGA_CORE_API ZipArchive

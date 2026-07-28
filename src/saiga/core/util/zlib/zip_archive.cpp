@@ -292,15 +292,13 @@ static zip_int64_t source_callback(void* userdata, void* data, zip_uint64_t len,
             {
                 st->valid |= ZIP_STAT_COMP_METHOD;
                 st->comp_method = map_compression_method(source->source_compression_method());
+
+                st->valid |= ZIP_STAT_CRC;
+                st->crc = source->crc32();
             }
 
-            // ONLY set ZIP_STAT_SIZE if total size is known upfront!
-            // If total_size() == -1, libzip dynamically calculates size at EOF.
-            if (source->total_size() != static_cast<size_t>(-1))
-            {
-                st->valid |= ZIP_STAT_SIZE;
-                st->size = source->total_size();
-            }
+            st->valid |= ZIP_STAT_SIZE;
+            st->size = source->total_size();
 
             return sizeof(*st);
         }
