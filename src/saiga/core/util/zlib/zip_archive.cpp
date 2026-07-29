@@ -24,7 +24,8 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
 
     if (mode == ZipMode::Write)
     {
-        std::filesystem::remove(path);
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
         // ZIP_CREATE: Create if it doesn't exist
         // ZIP_TRUNCATE: Wipe existing contents
         flag = ZIP_CREATE | ZIP_TRUNCATE;
@@ -48,7 +49,10 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
     }
 }
 
-ZipArchive::ZipArchive(ZipArchive&& o) noexcept : archive(std::exchange(o.archive, nullptr)) {}
+ZipArchive::ZipArchive(ZipArchive&& o) noexcept
+    : archive(std::exchange(o.archive, nullptr)), last_error_message(std::move(o.last_error_message))
+{
+}
 
 ZipArchive::ZipArchive(const ZipArchiveFile& nested_file)
 {
@@ -91,16 +95,38 @@ ZipArchive::~ZipArchive()
     close();
 }
 
-void ZipArchive::close()
+ZipArchive& ZipArchive::operator=(ZipArchive&& o)
+{
+    if (this != &o)
+    {
+        close();
+        archive = std::exchange(o.archive, nullptr);
+        last_error_message = std::move(o.last_error_message);
+    }
+    return *this;
+}
+
+bool ZipArchive::close(std::string* out_error)
 {
     if (archive)
     {
         if (zip_close(archive) != 0)
         {
-            std::cout << "ZIP: Failed to write ZIP archive Zip Error: " << zip_strerror(archive) << std::endl;
+            last_error_message = zip_strerror(archive);
+
+            std::cout << "ZIP: Failed to close/commit archive: " << last_error_message << std::endl;
+            zip_discard(archive);
         }
+
         archive = nullptr;
     }
+
+    if (!last_error_message.empty() && out_error)
+    {
+        *out_error = last_error_message;
+    }
+
+    return last_error_message.empty();
 }
 
 int ZipArchive::file_count() const

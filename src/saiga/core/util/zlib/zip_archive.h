@@ -89,10 +89,11 @@ struct SAIGA_CORE_API ZipArchive
 
     ~ZipArchive();
 
-    ZipArchive& operator=(ZipArchive&&)      = default;
+    ZipArchive& operator=(ZipArchive&& o);
     ZipArchive& operator=(const ZipArchive&) = delete;
 
-    void close();
+    bool is_open() const { return archive != nullptr; }
+    bool close(std::string* out_error = nullptr);
 
     int file_count() const;
 
@@ -109,10 +110,13 @@ struct SAIGA_CORE_API ZipArchive
 
     ZipIncrementalWrite begin_incremental_write(const std::filesystem::path& filename, ZipCompressionMethod method);
 
+    std::string get_last_error() const { return last_error_message; }
+
    private:
     int64_t add_file_internal(const std::filesystem::path& filename, zip_source* source, ZipCompressionMethod method);
 
     zip* archive = nullptr;
+    std::string last_error_message;
 };
 
 SAIGA_CORE_API std::vector<uint8_t> compress_zstd(const void* data, const size_t size, int compression_level = 0);
