@@ -73,6 +73,7 @@ using uvec4 = Vector<unsigned int, 4>;
 using ivec2 = Vector<int, 2>;
 using ivec3 = Vector<int, 3>;
 using ivec4 = Vector<int, 4>;
+using ivec8 = Vector<int, 8>;
 
 using cvec2 = Vector<char, 2>;
 using cvec3 = Vector<char, 3>;

@@ -115,6 +115,25 @@ inline Saiga::Quat* at::Tensor::data_ptr<Saiga::Quat>() const
     CHECK_EQ(stride(dim() - 1), 1);
     return (Saiga::Quat*)data_ptr<double>();
 }
+
+template <>
+inline Saiga::vec8* at::Tensor::data_ptr<Saiga::vec8>() const
+{
+    if (!defined()) return nullptr;
+    CHECK_EQ(size(dim() - 1), 8);
+    CHECK_EQ(stride(dim() - 1), 1);
+    return (Saiga::vec8*)data_ptr<float>();
+}
+
+template <>
+inline Saiga::ivec8* at::Tensor::data_ptr<Saiga::ivec8>() const
+{
+    if (!defined()) return nullptr;
+    CHECK_EQ(size(dim() - 1), 8);
+    CHECK_EQ(stride(dim() - 1), 1);
+    return (Saiga::ivec8*)data_ptr<int>();
+}
+
 template <>
 inline Saiga::Vec8* at::Tensor::data_ptr<Saiga::Vec8>() const
 {
