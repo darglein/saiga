@@ -322,6 +322,7 @@ void glfw_Window::window_size_callback(int width, int height)
 
 void glfw_Window::error_callback(int error, const char* description)
 {
+    if (error == 65548) return;
     std::cout << "glfw error: " << error << " " << description << std::endl;
 }
 
