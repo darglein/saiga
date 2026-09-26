@@ -53,8 +53,7 @@ OptionsHelper(SAIGA_DEBUG_MSAN "Enable the memory sanitizer. Does not work in co
 OptionsHelper(SAIGA_DEBUG_TSAN "Enable the thread sanitizer. Does not work in combination with ASAN." OFF)
 OptionsHelper(SAIGA_HEADER_DIR "Writes the directory of the project dir to headers so that for example the Saiga shaders are always found correctly" ON)
 
-#OptionsHelper (SAIGA_CUDA_ARCH "Compile for a specific CUDA Arch. If empty the systems Arch is used. Example: \"7.5;8.0;8.6;8.6+PTX\"" "")
-set(SAIGA_CUDA_ARCH "" CACHE STRING "Compile for a specific CUDA Arch. If empty the systems Arch is used. Example: \"7.5;8.0;8.6;8.6+PTX\"")
+set(SAIGA_CUDA_ARCH "" CACHE STRING "Compile for a specific CUDA Arch. If empty the systems Arch is used. Archs are dotless numbers matching the nvcc flags, e.g. 75, 86, 90a or 89+PTX. Example: \"75;80;86;89;89+PTX\"")
 
 OptionsHelper(SAIGA_BUILD_GLFW "Build the GLFW as a submodule" ON)
 OptionsHelper(SAIGA_GLFW_STATIC "Use static linking of the glfw library" OFF)
