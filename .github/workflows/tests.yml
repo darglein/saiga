@@ -1,0 +1,58 @@
+name: Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ubuntu:
+    name: Ubuntu (CPU only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build ccache \
+            xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ubuntu-24.04
+          max-size: 2G
+
+      # CUDA, OpenGL and Vulkan need a GPU which the hosted runners don't have.
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSAIGA_MODULE_CUDA=OFF \
+            -DSAIGA_MODULE_OPENGL=OFF \
+            -DSAIGA_MODULE_VULKAN=OFF \
+            -DSAIGA_BUILD_SAMPLES=OFF \
+            -DSAIGA_ARCHNATIVE=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        working-directory: build
+        run: ctest --output-on-failure --parallel 4
