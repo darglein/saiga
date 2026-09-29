@@ -51,7 +51,7 @@ jobs:
             -DSAIGA_ARCHNATIVE=OFF
 
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel -- -k 0
 
       - name: Test
         working-directory: build
