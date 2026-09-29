@@ -38,6 +38,7 @@ jobs:
           max-size: 2G
 
       # CUDA, OpenGL and Vulkan need a GPU which the hosted runners don't have.
+      # SAIGA_WRITE_PROJECT_DIR_TO_HEADER lets the tests find shader/ and data/ from the build dir.
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
@@ -48,7 +49,8 @@ jobs:
             -DSAIGA_MODULE_OPENGL=OFF \
             -DSAIGA_MODULE_VULKAN=OFF \
             -DSAIGA_BUILD_SAMPLES=OFF \
-            -DSAIGA_ARCHNATIVE=OFF
+            -DSAIGA_ARCHNATIVE=OFF \
+            -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON
 
       - name: Build
         run: cmake --build build --parallel -- -k 0
