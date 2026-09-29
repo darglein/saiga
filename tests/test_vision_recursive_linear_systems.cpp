@@ -111,7 +111,8 @@ TEST(RecursiveLinearSolver, SparseBlock)
 
         BType x(n);
 
-        Eigen::Index iters = 50;
+        // Same limit as Eigen::ConjugateGradient above. The random matrix depends on the std lib, 50 is not always enough.
+        Eigen::Index iters = 2 * A_ex.cols();
         double tol_error   = 1e-20;
         Eigen::Recursive::recursive_conjugate_gradient(
             [&](const BType& v, BType& result) { result = A.template selfadjointView<Eigen::Upper>() * v; }, b, x, P,

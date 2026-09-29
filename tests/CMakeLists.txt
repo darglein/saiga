@@ -26,7 +26,7 @@ function(saiga_test FILE_NAME)
 
     add_test(
             NAME ${TARGET_NAME}
-            COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}
+            COMMAND ${TARGET_NAME}
     )
 
 

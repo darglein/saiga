@@ -31,6 +31,8 @@ std::filesystem::path shaderDir;
 
 bool isShaderDirectory(const std::string& dir)
 {
+    // Directory throws on non-existing paths
+    if (!std::filesystem::is_directory(dir + "/geometry")) return false;
     Directory dirbase(dir);
     Directory dirgeo(dir + "/geometry");
     return dirbase.existsFile("imgui_gl.glsl") && dirgeo.existsFile("deferred_mvp_texture.glsl");
