@@ -1,0 +1,20 @@
+--- a/src/saiga/core/imgui/imgui.h
++++ b/src/saiga/core/imgui/imgui.h
+@@ -2065,6 +2065,7 @@
+     ImGuiMouseCursor_ResizeNESW,        // When hovering over the bottom-left corner of a window
+     ImGuiMouseCursor_ResizeNWSE,        // When hovering over the bottom-right corner of a window
+     ImGuiMouseCursor_Hand,              // (Unused by Dear ImGui functions. Use for e.g. hyperlinks)
++    ImGuiMouseCursor_Crosshair,         // When overering over a viewport, plot, etc. SAIGA PATCH: crosshair cursor
+     ImGuiMouseCursor_Wait,              // When waiting for something to process/load.
+     ImGuiMouseCursor_Progress,          // When waiting for something to process/load, but application is still interactive.
+     ImGuiMouseCursor_NotAllowed,        // When hovering something with disallowed interaction. Usually a crossed circle.
+--- a/src/saiga/opengl/imgui/internal/imgui_impl_glfw.cpp
++++ b/src/saiga/opengl/imgui/internal/imgui_impl_glfw.cpp
+@@ -620,6 +620,7 @@
+     bd->MouseCursors[ImGuiMouseCursor_ResizeNS] = glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
+     bd->MouseCursors[ImGuiMouseCursor_ResizeEW] = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+     bd->MouseCursors[ImGuiMouseCursor_Hand] = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
++    bd->MouseCursors[ImGuiMouseCursor_Crosshair] = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR); // SAIGA PATCH: crosshair cursor
+ #if GLFW_HAS_NEW_CURSORS
+     bd->MouseCursors[ImGuiMouseCursor_ResizeAll] = glfwCreateStandardCursor(GLFW_RESIZE_ALL_CURSOR);
+     bd->MouseCursors[ImGuiMouseCursor_ResizeNESW] = glfwCreateStandardCursor(GLFW_RESIZE_NESW_CURSOR);

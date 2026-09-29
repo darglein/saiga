@@ -807,6 +807,7 @@ bool ImGui::ButtonEx(const char* label, const ImVec2& size_arg, ImGuiButtonFlags
 
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
+    if (hovered) SetMouseCursor(ImGuiMouseCursor_Hand); // SAIGA PATCH: hand cursor over clickable widgets
 
     // Render
     const ImU32 col = GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
@@ -1196,6 +1197,7 @@ bool ImGui::ImageButtonEx(ImGuiID id, ImTextureRef tex_ref, const ImVec2& image_
 
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
+    if (hovered) SetMouseCursor(ImGuiMouseCursor_Hand); // SAIGA PATCH: hand cursor over clickable widgets
 
     // Render
     const ImU32 col = GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
@@ -1278,6 +1280,7 @@ bool ImGui::Checkbox(const char* label, bool* v)
 
     bool hovered, held;
     bool pressed = ButtonBehavior(total_bb, id, &hovered, &held);
+    if (hovered) SetMouseCursor(ImGuiMouseCursor_Hand); // SAIGA PATCH: hand cursor over clickable widgets
 
     // Range-Selection/Multi-selection support (footer)
     if (is_multi_select)
@@ -1397,6 +1400,7 @@ bool ImGui::RadioButton(const char* label, bool active)
 
     bool hovered, held;
     bool pressed = ButtonBehavior(total_bb, id, &hovered, &held);
+    if (hovered) SetMouseCursor(ImGuiMouseCursor_Hand); // SAIGA PATCH: hand cursor over clickable widgets
     if (pressed)
         MarkItemEdited(id);
 
@@ -1972,6 +1976,7 @@ bool ImGui::BeginCombo(const char* label, const char* preview_value, ImGuiComboF
     // Open on click
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held);
+    if (hovered) SetMouseCursor(ImGuiMouseCursor_Hand); // SAIGA PATCH: hand cursor over clickable widgets
     const ImGuiID popup_id = ImHashStr("##ComboPopup", 0, id);
     bool popup_open = IsPopupOpen(popup_id, ImGuiPopupFlags_None);
     if (pressed && !popup_open)
@@ -7036,6 +7041,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
 
     bool hovered, held;
     bool pressed = ButtonBehavior(interact_bb, id, &hovered, &held, button_flags);
+    if (hovered) SetMouseCursor(ImGuiMouseCursor_Hand); // SAIGA PATCH: hand cursor over clickable widgets
     bool toggled = false;
     if (!is_leaf)
     {
@@ -7458,6 +7464,7 @@ bool ImGui::Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
 
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, button_flags);
+    if (hovered) SetMouseCursor(ImGuiMouseCursor_Hand); // SAIGA PATCH: hand cursor over clickable widgets
     bool auto_selected = false;
 
     // Multi-selection support (footer)
@@ -10798,6 +10805,7 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
         hovered = held = pressed = false;
     else
         pressed = ButtonBehavior(bb, id, &hovered, &held, button_flags);
+    if (hovered) SetMouseCursor(ImGuiMouseCursor_Hand); // SAIGA PATCH: hand cursor over clickable widgets
     if (pressed && !is_tab_button)
         TabBarQueueFocus(tab_bar, tab);
 
