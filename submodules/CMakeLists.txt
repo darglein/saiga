@@ -1,3 +1,6 @@
+# The static submodule libraries are linked into shared libraries (saiga, assimp)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 
 
 message("=================================")
