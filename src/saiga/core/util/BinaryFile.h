@@ -10,6 +10,7 @@
 #include "saiga/core/util/assert.h"
 
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>

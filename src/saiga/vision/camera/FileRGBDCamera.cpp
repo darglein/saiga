@@ -32,8 +32,8 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
 
     std::vector<std::string> rgbImages;
     std::vector<std::string> depthImages;
-    rgbImages   = dir.getFilesEnding(".png");
-    depthImages = dir.getFilesEnding(".saigai");
+    for (auto& f : dir.getFilesEnding(".png")) rgbImages.push_back(f.string());
+    for (auto& f : dir.getFilesEnding(".saigai")) depthImages.push_back(f.string());
 
 
     SAIGA_ASSERT(rgbImages.size() == depthImages.size());
@@ -57,7 +57,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
     {
         auto& f = frames[i];
 
-        RGBImageType cimg(dir() + "/" + rgbImages[i]);
+        RGBImageType cimg(dir() / rgbImages[i]);
         //        cimg.load(dir() + rgbImages[i]);
 
         // make sure it matches the defined intrinsics
@@ -67,7 +67,7 @@ void FileRGBDCamera::preload(const std::string& datasetDir, bool multithreaded)
         //        rgbo.w = cimg.w;
 
 
-        DepthImageType dimg(dir() + "/" + depthImages[i]);
+        DepthImageType dimg(dir() / depthImages[i]);
         //        dimg.load(dir() + depthImages[i]);
 
         // make sure it matches the defined intrinsics

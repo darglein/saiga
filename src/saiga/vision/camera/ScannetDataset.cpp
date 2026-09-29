@@ -156,7 +156,7 @@ int ScannetDataset::LoadMetaData()
     Directory color_dir(params.dir + "/color/");
 
     std::vector<std::string> files;
-    files = color_dir.getFilesEnding(".jpg");
+    for (auto& f : color_dir.getFilesEnding(".jpg")) files.push_back(f.string());
 
     int N = files.size();
 
