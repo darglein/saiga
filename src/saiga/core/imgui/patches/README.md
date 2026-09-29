@@ -31,8 +31,11 @@ Run all commands from the saiga root.
    ```
 
 4. `grep -rn "SAIGA PATCH" src/saiga` lists every patched line for review.
+5. Build and run `test_core_imgui_cursors`. It checks the cursors these patches set, and the CI runs it on every pull
+   request.
 
 ## Adding a patch
 
 Mark every changed line with a `// SAIGA PATCH: <short description>` comment, add the diff here as the next numbered
-`.patch` file, and add a row to the table above.
+`.patch` file, add a row to the table above, and cover the change in a test (see
+`tests/test_core_imgui_cursors.cpp`).
