@@ -200,6 +200,42 @@ TEST_F(ImGuiCursor, Tab)
               ImGuiMouseCursor_Hand);
 }
 
+TEST_F(ImGuiCursor, SliderFloat)
+{
+    EXPECT_EQ(cursor_while_hovering(
+                  []
+                  {
+                      static float value = 0.5f;
+                      ImGui::SliderFloat("Slider", &value, 0.f, 1.f);
+                      return last_item_rect();
+                  }),
+              ImGuiMouseCursor_Hand);
+}
+
+TEST_F(ImGuiCursor, SliderInt)
+{
+    EXPECT_EQ(cursor_while_hovering(
+                  []
+                  {
+                      static int value = 5;
+                      ImGui::SliderInt("Slider", &value, 0, 10);
+                      return last_item_rect();
+                  }),
+              ImGuiMouseCursor_Hand);
+}
+
+TEST_F(ImGuiCursor, DragFloatKeepsArrow)
+{
+    EXPECT_EQ(cursor_while_hovering(
+                  []
+                  {
+                      static float value = 0.5f;
+                      ImGui::DragFloat("Drag", &value);
+                      return last_item_rect();
+                  }),
+              ImGuiMouseCursor_Arrow);
+}
+
 TEST_F(ImGuiCursor, InvisibleButtonKeepsArrow)
 {
     EXPECT_EQ(cursor_while_hovering(

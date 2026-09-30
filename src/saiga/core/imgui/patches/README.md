@@ -9,6 +9,7 @@ the pristine upstream files.
 |-------|--------|
 | `0001-crosshair-cursor.patch` | Adds `ImGuiMouseCursor_Crosshair` and maps it to `GLFW_CROSSHAIR_CURSOR` in the GLFW backend. |
 | `0002-hand-cursor-on-clickable-widgets.patch` | Shows `ImGuiMouseCursor_Hand` while hovering buttons, image buttons, checkboxes, radio buttons, combos, tree nodes, collapsing headers, selectables, menu items and tabs. `InvisibleButton` is left unchanged because it is typically used for canvases. |
+| `0003-hand-cursor-on-sliders.patch` | Shows `ImGuiMouseCursor_Hand` while hovering or dragging a slider (`SliderScalar`, which the `SliderFloat`/`SliderInt`/`SliderAngle` variants use). Drags keep the arrow. |
 
 ## Updating ImGui
 
