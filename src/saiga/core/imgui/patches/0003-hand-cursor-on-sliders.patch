@@ -1,0 +1,11 @@
+--- a/src/saiga/core/imgui/imgui_widgets.cpp
++++ b/src/saiga/core/imgui/imgui_widgets.cpp
+@@ -3384,6 +3384,8 @@ bool ImGui::SliderScalar(const char* label, ImGuiDataType data_type, void* p_dat
+         return TempInputScalar(frame_bb, id, label, data_type, p_data, format, clamp_enabled ? p_min : NULL, clamp_enabled ? p_max : NULL);
+     }
+ 
++    if (hovered || g.ActiveId == id) SetMouseCursor(ImGuiMouseCursor_Hand); // SAIGA PATCH: hand cursor over sliders
++
+     // Draw frame
+     const ImU32 frame_col = GetColorU32(g.ActiveId == id ? ImGuiCol_FrameBgActive : hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
+     RenderNavCursor(frame_bb, id);
