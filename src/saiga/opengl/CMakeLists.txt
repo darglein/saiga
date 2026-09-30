@@ -58,6 +58,7 @@ if(SAIGA_BUILD_SHARED)
 else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
 endif()
+saiga_add_version_resource(${MODULE_NAME} "Saiga OpenGL")
 
 target_link_libraries(${MODULE_NAME} ${OPENGL_TARGETS} ${OPENGL_LIBS})
 target_link_libraries(${MODULE_NAME} saiga_core)

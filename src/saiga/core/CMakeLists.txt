@@ -40,6 +40,7 @@ else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
     set_property(TARGET ${MODULE_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 endif ()
+saiga_add_version_resource(${MODULE_NAME} "Saiga Core")
 
 target_compile_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_CXX_FLAGS}>")
 target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_PRIVATE_CXX_FLAGS}>")
