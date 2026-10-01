@@ -54,6 +54,7 @@ if(SAIGA_BUILD_SHARED)
 else ()
     add_library(${MODULE_NAME} STATIC ${SAIGA_ALL_FILES})
 endif()
+saiga_add_version_resource(${MODULE_NAME} "Saiga Vision")
 
 target_link_libraries(${MODULE_NAME} ${VISION_TARGETS} ${VISION_LIBS})
 target_link_libraries(${MODULE_NAME} saiga_core)
