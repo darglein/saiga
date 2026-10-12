@@ -52,13 +52,24 @@ class SAIGA_CORE_API FileChecker
     void addSearchPath(const std::filesystem::path& path);
     void addSearchPath(const std::vector<std::filesystem::path>& paths);
 
+    /**
+     * If disabled, only absolute candidates are returned: relative file names and relative search pathes (including
+     * the default "" and ".") are not resolved against the working directory.
+     * Applications that load trusted data (shaders, fonts, DLL folders, ...) should disable this, because the working
+     * directory is often a user-chosen folder, e.g. the folder of an opened document.
+     */
+    void setSearchWorkingDirectory(bool enabled) { searchWorkingDirectory = enabled; }
+
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const FileChecker& fc);
 
    private:
+    bool isAllowed(const std::filesystem::path& file) const;
+
     // all file search functions search at these pathes.
     // the first match will return.
     // the empty path is added by default.
     std::vector<std::filesystem::path> searchPathes;
+    bool searchWorkingDirectory = true;
 };
 
 
