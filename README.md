@@ -72,7 +72,9 @@ sudo apt install xorg-dev
 
 git clone git@github.com:darglein/saiga.git
 git submodule update --init --recursive
-``` 
+```
+
+In a `git worktree`, run `scripts/setup_worktree.sh` instead. It initializes the submodules with `--reference` to the main checkout, so they share its objects instead of being cloned again. 
 
 #### Linux
  - Install dependencies with the package manager (in older Linux systems you might have to compile the latest library versions by yourself)
