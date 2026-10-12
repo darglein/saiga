@@ -28,13 +28,13 @@ std::filesystem::path FileChecker::getFile(const std::filesystem::path& file)
     if (file.empty()) return {};
 
     // Check without search pathes
-    if (existsFile(file)) return file;
+    if (isAllowed(file) && existsFile(file)) return file;
 
     for (const std::filesystem::path& path : searchPathes)
     {
         // Do not generate a double '/'
         std::filesystem::path fullName = path / file;
-        if (existsFile(fullName))
+        if (isAllowed(fullName) && existsFile(fullName))
         {
             return fullName;
         }
@@ -57,7 +57,7 @@ std::filesystem::path FileChecker::getRelative(const std::filesystem::path& base
     // first check at path relative to the parent
     auto parent = getParentDirectory(baseFile);
     std::filesystem::path relativeName = parent / file;
-    if (existsFile(relativeName))
+    if (isAllowed(relativeName) && existsFile(relativeName))
     {
         return relativeName;
     }
@@ -72,6 +72,11 @@ std::filesystem::path FileChecker::getParentDirectory(const std::filesystem::pat
 std::filesystem::path FileChecker::getFileName(const std::filesystem::path& file)
 {
     return file.filename();
+}
+
+bool FileChecker::isAllowed(const std::filesystem::path& file) const
+{
+    return searchWorkingDirectory || file.is_absolute();
 }
 
 bool FileChecker::existsFile(const std::filesystem::path& file)
