@@ -511,6 +511,7 @@ namespace ImGui
     IMGUI_API void          SetScrollHereY(float center_y_ratio = 0.5f);                    // adjust scrolling amount to make current cursor position visible. center_y_ratio=0.0: top, 0.5: center, 1.0: bottom. When using to make a "default/current item" visible, consider using SetItemDefaultFocus() instead.
     IMGUI_API void          SetScrollFromPosX(float local_x, float center_x_ratio = 0.5f);  // adjust scrolling amount to make given position visible. Generally GetCursorStartPos() + offset to compute a valid position.
     IMGUI_API void          SetScrollFromPosY(float local_y, float center_y_ratio = 0.5f);  // adjust scrolling amount to make given position visible. Generally GetCursorStartPos() + offset to compute a valid position.
+    IMGUI_API void          SetWindowScrollSpeedMultiplier(float multiplier);               // scale how far the mouse wheel scrolls the current window. 1.0f = default. Kept until changed, so calling it once per frame is fine.
 
     // Parameters stacks (font)
     //  - PushFont(font, 0.0f)                       // Change font and keep current size
