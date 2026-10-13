@@ -4761,6 +4761,7 @@ ImGuiWindow::ImGuiWindow(ImGuiContext* ctx, const char* name) : DrawListInst(NUL
     TabId = GetID("#TAB");
     ScrollTarget = ImVec2(FLT_MAX, FLT_MAX);
     ScrollTargetCenterRatio = ImVec2(0.5f, 0.5f);
+    ScrollSpeedMultiplier = 1.0f;
     AutoPosLastDirection = ImGuiDir_None;
     AutoFitFramesX = AutoFitFramesY = -1;
     SetWindowPosAllowFlags = SetWindowSizeAllowFlags = SetWindowCollapsedAllowFlags = SetWindowDockAllowFlags = 0;
@@ -11189,7 +11190,7 @@ void ImGui::UpdateMouseWheel()
             {
                 LockWheelingWindow(window, wheel.x);
                 float max_step = window->InnerRect.GetWidth() * 0.67f;
-                float scroll_step = ImTrunc(ImMin(2 * window->FontRefSize, max_step));
+                float scroll_step = ImTrunc(ImMin(2 * window->FontRefSize * window->ScrollSpeedMultiplier, max_step));
                 SetScrollX(window, window->Scroll.x - wheel.x * scroll_step);
                 g.WheelingWindowScrolledFrame = g.FrameCount;
             }
@@ -11197,7 +11198,7 @@ void ImGui::UpdateMouseWheel()
             {
                 LockWheelingWindow(window, wheel.y);
                 float max_step = window->InnerRect.GetHeight() * 0.67f;
-                float scroll_step = ImTrunc(ImMin(5 * window->FontRefSize, max_step));
+                float scroll_step = ImTrunc(ImMin(5 * window->FontRefSize * window->ScrollSpeedMultiplier, max_step));
                 SetScrollY(window, window->Scroll.y - wheel.y * scroll_step);
                 g.WheelingWindowScrolledFrame = g.FrameCount;
             }
@@ -12814,6 +12815,12 @@ void ImGui::SetScrollY(float scroll_y)
 {
     ImGuiContext& g = *GImGui;
     SetScrollY(g.CurrentWindow, scroll_y);
+}
+
+void ImGui::SetWindowScrollSpeedMultiplier(float multiplier)
+{
+    ImGuiContext& g = *GImGui;
+    g.CurrentWindow->ScrollSpeedMultiplier = multiplier;
 }
 
 // Note that a local position will vary depending on initial scroll value,
