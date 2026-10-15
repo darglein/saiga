@@ -87,7 +87,11 @@ struct ProgressBar : public ProgressBarBase
 
     void Quit()
     {
-        running = false;
+        {
+            // set under the lock, otherwise the notification can get lost and the thread waits for update_time_ms
+            std::unique_lock<std::mutex> l(lock);
+            running = false;
+        }
         cv.notify_one();
         if (st.joinable())
         {
@@ -117,7 +121,7 @@ struct ProgressBar : public ProgressBarBase
                 {
                     print();
                     std::unique_lock<std::mutex> l(lock);
-                    cv.wait_for(l, std::chrono::milliseconds(update_time_ms));
+                    cv.wait_for(l, std::chrono::milliseconds(update_time_ms), [this]() { return !running; });
                 }
                 print();
                 strm << std::endl;
