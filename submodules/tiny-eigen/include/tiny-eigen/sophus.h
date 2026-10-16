@@ -26,7 +26,7 @@ class SO3
     HD Quat& unit_quaternion() { return q; }
     HD const Quat& unit_quaternion() const { return q; }
 
-    HD SO3<Scalar> inverse() const { return SO3<Scalar>(q.inverse()); }
+    HD SO3<Scalar> inverse() const { return SO3<Scalar>(q.conjugate()); }
 
 
     template <typename G>

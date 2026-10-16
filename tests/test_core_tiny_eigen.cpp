@@ -25,6 +25,24 @@ TEST(TinyEigen, All)
 {
     EXPECT_TRUE((Vec3i(1, 2, 3).array() >= Vec3i(0, 2, 3).array()).all());
     EXPECT_FALSE((Vec3i(1, 2, 3).array() >= Vec3i(0, 3, 3).array()).all());
+
+    EXPECT_TRUE((Vec3f(1, 2, 3).array() < Vec3f(2, 3, 4).array()).all());
+    EXPECT_FALSE((Vec3f(1, 2, 3).array() < Vec3f(2, 2, 4).array()).all());
+}
+
+TEST(TinyEigen, Any)
+{
+    EXPECT_TRUE((Vec3i(1, 2, 3).array() < Vec3i(0, 0, 4).array()).any());
+    EXPECT_FALSE((Vec3f(1, 2, 3).array() < Vec3f(1, 2, 3).array()).any());
+}
+
+TEST(TinyEigen, MatrixReduction)
+{
+    Mat3f m = Mat3f::Identity() * 2.f;
+    EXPECT_FLOAT_EQ(m.sum(), 6);
+    EXPECT_FLOAT_EQ(m.squaredNorm(), 12);
+    EXPECT_FLOAT_EQ(m.maxCoeff(), 2);
+    EXPECT_FLOAT_EQ(m.minCoeff(), 0);
 }
 
 TEST(TinyEigen, ArrayData)
@@ -87,6 +105,29 @@ TEST(TinyEigen, InverseWithPivotSwap)
     }
 }
 
+TEST(TinyEigen, InverseOfSingularMatrixIsIdentity)
+{
+    Mat4d m = Mat4d::Zero();
+    m(0, 0) = 1;
+    m(1, 1) = 1;
+    EXPECT_EQ(m.inverse(), Mat4d::Identity());
+}
+
+TEST(TinyEigen, QuaternionInverse)
+{
+    Quaternion<double> q(2, 0, 0, 0);
+    auto inv = q.inverse();
+    EXPECT_DOUBLE_EQ(inv.w(), 0.5);
+    EXPECT_DOUBLE_EQ((q * inv).w(), 1);
+
+    Quaternion<double> r(1, 2, 3, 4);
+    auto id = r * r.inverse();
+    EXPECT_NEAR(id.w(), 1, 1e-12);
+    EXPECT_NEAR(id.vec().norm(), 0, 1e-12);
+
+    EXPECT_EQ(r.conjugate().coeffs(), Quaternion<double>(1, -2, -3, -4).coeffs());
+}
+
 TEST(TinyEigen, QuaternionFromOppositeVectors)
 {
     Vec3f a(0, 0, 2);
@@ -137,8 +178,39 @@ TEST(TinyGlog, CheckOperatorPrecedence)
     CHECK_NE(1 | 2, 0);
 }
 
+TEST(TinyGlog, CheckEvaluatesOnce)
+{
+    int calls = 0;
+    auto f    = [&]() { return ++calls; };
+    CHECK_EQ(f(), 1);
+    EXPECT_EQ(calls, 1);
+    CHECK(f() == 2);
+    EXPECT_EQ(calls, 2);
+}
+
+TEST(TinyGlog, CheckNotNullReturnsValue)
+{
+    int value = 5;
+    int* p    = &value;
+    int* q    = CHECK_NOTNULL(p);
+    EXPECT_EQ(q, p);
+    EXPECT_EQ(*CHECK_NOTNULL(&value), 5);
+}
+
+TEST(TinyGlog, VlogAboveZeroIsSilent)
+{
+    int evaluated = 0;
+    auto f        = [&]() { return ++evaluated; };
+    VLOG(1) << f();
+    EXPECT_EQ(evaluated, 0);
+    VLOG(0) << f() << "\n";
+    EXPECT_EQ(evaluated, 1);
+}
+
 TEST(TinyGlogDeathTest, CheckFails)
 {
-    EXPECT_DEATH(CHECK(false), "");
-    EXPECT_DEATH(CHECK_EQ(1, 2), "");
+    EXPECT_DEATH(CHECK(false), "Check failed");
+    EXPECT_DEATH(CHECK_EQ(1, 2) << "custom message", "\\(1 == 2\\) 1 == 2(.|\n)*custom message");
+    int* null = nullptr;
+    EXPECT_DEATH(CHECK_NOTNULL(null), "null != nullptr");
 }

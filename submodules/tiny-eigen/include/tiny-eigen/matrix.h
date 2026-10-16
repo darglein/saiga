@@ -283,11 +283,8 @@ class MatrixBase
                     if (fabs(m(row, column)) > fabs(m(big, column))) big = row;
                 if (big == column)
                 {
-                    // Print this is a singular matrix, return identity ?
-#ifdef SAIGA_HOST
-                    printf("inverse error");
-#endif
-                    return mat;
+                    // Singular matrix: return the identity like the 2x2 and 3x3 cases.
+                    return DenseReturnType::Identity();
                 }
                 else
                 {
@@ -422,14 +419,28 @@ class MatrixBase
         return result;
     }
 
-    HD Scalar all() const
+    HD bool all() const
     {
-        Scalar result = 1;
         for (int i = 0; i < derived().size(); ++i)
         {
-            result &= derived().at(i);
+            if (derived().at(i) == Scalar(0))
+            {
+                return false;
+            }
         }
-        return result;
+        return true;
+    }
+
+    HD bool any() const
+    {
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            if (derived().at(i) != Scalar(0))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -805,16 +816,8 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
         return _data[i];
     }
 
-    HD _Scalar& at(int i)
-    {
-        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
-        return _data[i];
-    }
-    HD const _Scalar& at(int i) const
-    {
-        static_assert(_Rows == 1 || _Cols == 1, "Constructor only valid for vectors.");
-        return _data[i];
-    }
+    HD _Scalar& at(int i) { return _data[i]; }
+    HD const _Scalar& at(int i) const { return _data[i]; }
 
     HD _Scalar& operator()(int i, int j) { return _data[j * _Rows + i]; }
     HD const _Scalar& operator()(int i, int j) const { return _data[j * _Rows + i]; }
@@ -1105,4 +1108,4 @@ std::ostream& operator<<(std::ostream& strm, const MatrixBase<Derived>& m1)
 template <typename T, int rows>
 using Vector = Matrix<T, rows, 1>;
 
-}  // namespace Eigen
+}  // namespace TinyEigen

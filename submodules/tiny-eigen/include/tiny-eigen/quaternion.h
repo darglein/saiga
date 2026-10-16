@@ -148,7 +148,17 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
 
     HD Matrix<_Scalar, 4, 1>& coeffs() { return _data; }
 
-    HD SameObject inverse() const { return SameObject(w(), -x(), -y(), -z()); }
+    HD SameObject conjugate() const { return SameObject(w(), -x(), -y(), -z()); }
+
+    HD SameObject inverse() const
+    {
+        Scalar n2 = coeffs().squaredNorm();
+        if (n2 > Scalar(0))
+        {
+            return SameObject(conjugate().coeffs() / n2);
+        }
+        return SameObject(Matrix<Scalar, 4, 1>::Zero());
+    }
     HD SameObject normalized() const
     {
         Scalar scale = 1 / norm();
@@ -171,7 +181,6 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
 
     HD SameObject slerp(Scalar alpha, SameObject other) const
     {
-#if 1
         // Eigen implentation
         const Scalar one = Scalar(1) - std::numeric_limits<Scalar>::epsilon();
         Scalar d         = this->dot(other);
@@ -197,34 +206,6 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         if (d < Scalar(0)) scale1 = -scale1;
 
         return Quaternion<Scalar>(scale0 * coeffs() + scale1 * other.coeffs());
-#endif
-        Scalar cosHalfTheta = this->dot(other);
-        if (std::abs(cosHalfTheta) >= 1.0)
-        {
-            return *this;
-        }
-        // Calculate temporary values.
-        SameObject result;
-        double halfTheta    = acos(cosHalfTheta);
-        double sinHalfTheta = sqrt(1.0 - cosHalfTheta * cosHalfTheta);
-        // if theta = 180 degrees then result is not fully defined
-        // we could rotate around any axis normal to qa or qb
-        if (fabs(sinHalfTheta) < 0.001)
-        {  // fabs is floating point absolute
-            result.w() = (this->w() * 0.5 + other.w() * 0.5);
-            result.x() = (this->x() * 0.5 + other.x() * 0.5);
-            result.y() = (this->y() * 0.5 + other.y() * 0.5);
-            result.z() = (this->z() * 0.5 + other.z() * 0.5);
-            return result;
-        }
-        double ratioA = sin((1 - alpha) * halfTheta) / sinHalfTheta;
-        double ratioB = sin(alpha * halfTheta) / sinHalfTheta;
-        // calculate Quaternion.
-        result.w() = (this->w() * ratioA + other.w() * ratioB);
-        result.x() = (this->x() * ratioA + other.x() * ratioB);
-        result.y() = (this->y() * ratioA + other.y() * ratioB);
-        result.z() = (this->z() * ratioA + other.z() * ratioB);
-        return result;
     }
 
     HD Matrix<Scalar, 3, 1> vec() const { return Matrix<Scalar, 3, 1>(x(), y(), z()); }
@@ -247,7 +228,6 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
 template <typename _Scalar, int _Options>
 HD Matrix<_Scalar, 3, 1, _Options> operator*(const Quaternion<_Scalar> quat, const Matrix<_Scalar, 3, 1, _Options>& v)
 {
-    Matrix<_Scalar, 3, 1, _Options> result;
     return quat.matrix() * v;
 }
 
@@ -267,4 +247,4 @@ HD Quaternion<_Scalar> operator*(const Quaternion<_Scalar> q1, const Quaternion<
 using Quaternionf = Quaternion<float>;
 using Quaterniond = Quaternion<double>;
 
-}  // namespace Eigen
+}  // namespace TinyEigen

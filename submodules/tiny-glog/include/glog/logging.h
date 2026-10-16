@@ -10,6 +10,7 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <utility>
 
 
 
@@ -76,7 +77,7 @@ class TINY_GLOG_API LogStreamVoidifier
     operator bool() const { return m_stream != nullptr; }
 
    private:
-    std::ostream* m_stream;  // Pointer to the actual stream (std::cout or nullptr)
+    std::ostream* m_stream;  // Pointer to the actual stream (std::cerr or nullptr)
 };
 
 
@@ -86,8 +87,8 @@ struct TINY_GLOG_API LogMessage
     {
         if (!result)
         {
-            // If check failed, do the initial output immediately to std::cout
-            std::cout << "Check failed in " << file << ":" << line << "\n    ";
+            // If check failed, do the initial output immediately to std::cerr
+            std::cerr << "Check failed in " << file << ":" << line << "\n    ";
         }
     }
 
@@ -98,29 +99,55 @@ struct TINY_GLOG_API LogMessage
     bool result;
 };
 
-// --- Modified Macros ---
+namespace tiny_glog
+{
+// Evaluates both operands once. On failure, prints the expression with both values and returns an active stream
+// that calls the failure function when it is destroyed.
+template <typename T1, typename T2, typename Compare>
+LogStreamVoidifier CheckOp(const char* file, int line, const char* expression, const char* op, const T1& v1,
+                           const T2& v2, Compare compare)
+{
+    if (compare(v1, v2))
+    {
+        return LogStreamVoidifier();
+    }
+    LogMessage message(file, line, false);
+    std::cerr << expression << v1 << " " << op << " " << v2 << "\n    ";
+    return message.stream();
+}
+
+template <typename T>
+T CheckNotNull(const char* file, int line, const char* expression, T&& t)
+{
+    if (t == nullptr)
+    {
+        LogMessage message(file, line, false);
+        message.stream() << "(" << expression << " != nullptr)\n";
+    }
+    return std::forward<T>(t);
+}
+}  // namespace tiny_glog
 
 // The macros expand to 'if (...) {} else stream', so an 'else' that follows a CHECK in user code
 // binds to the user's 'if' and not to the one inside the macro.
-#define CHECK_OP_LOG(name, op, val1, val2, log)                                                    \
-    if (LogStreamVoidifier _ls_void = log(__FILE__, __LINE__, (val1)op(val2)).stream(); !_ls_void) \
-    {                                                                                              \
-    }                                                                                              \
-    else                                                                                           \
-        _ls_void << "(" #val1 #op #val2 ") " << (val1) << " " #op " " << (val2) << "\n    "
+#define CHECK_OP(name, op, val1, val2)                                                                      \
+    if (LogStreamVoidifier _ls_void =                                                                       \
+            tiny_glog::CheckOp(__FILE__, __LINE__, "(" #val1 " " #op " " #val2 ") ", #op, (val1), (val2),   \
+                               [](const auto& _a, const auto& _b) { return static_cast<bool>(_a op _b); }); \
+        !_ls_void)                                                                                          \
+    {                                                                                                       \
+    }                                                                                                       \
+    else                                                                                                    \
+        _ls_void << ""
 
-#define CHECK_OP_LOG2(name, val1, log)                                                   \
-    if (LogStreamVoidifier _ls_void = log(__FILE__, __LINE__, val1).stream(); !_ls_void) \
-    {                                                                                    \
-    }                                                                                    \
-    else                                                                                 \
+#define CHECK(val1)                                                                                     \
+    if (LogStreamVoidifier _ls_void = LogMessage(__FILE__, __LINE__, (bool)(val1)).stream(); !_ls_void) \
+    {                                                                                                   \
+    }                                                                                                   \
+    else                                                                                                \
         _ls_void << "( " #val1 ")\n    "
 
-
-// Keep the rest of your macros as they are, as they use CHECK_OP_LOG / CHECK_OP_LOG2
-#define CHECK_OP(name, op, val1, val2) CHECK_OP_LOG(name, op, val1, val2, LogMessage)
-#define CHECK(val1) CHECK_OP_LOG2(_EQ, (bool)(val1), LogMessage)
-#define CHECK_NOTNULL(val1) CHECK_OP(_GT, !=, val1, 0)
+#define CHECK_NOTNULL(val1) tiny_glog::CheckNotNull(__FILE__, __LINE__, #val1, (val1))
 #define CHECK_EQ(val1, val2) CHECK_OP(_EQ, ==, val1, val2)
 #define CHECK_NE(val1, val2) CHECK_OP(_NE, !=, val1, val2)
 #define CHECK_LE(val1, val2) CHECK_OP(_LE, <=, val1, val2)
@@ -128,7 +155,13 @@ struct TINY_GLOG_API LogMessage
 #define CHECK_GE(val1, val2) CHECK_OP(_GE, >=, val1, val2)
 #define CHECK_GT(val1, val2) CHECK_OP(_GT, >, val1, val2)
 
-#define VLOG(x) std::cout
+// Like glog with the default verbosity 0: only VLOG(0) prints.
+#define VLOG(x)  \
+    if ((x) > 0) \
+    {            \
+    }            \
+    else         \
+        std::cerr
 
 
 namespace google
