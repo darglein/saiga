@@ -23,13 +23,13 @@ inline torch::Tensor ColorizeTensor(torch::Tensor input, ColorizeFunc func = col
     }
     auto t = input.cpu().reshape({-1}).to(torch::kFloat);
 
-    int n    = t.size(0);
+    int64_t n = t.size(0);
     auto out = torch::empty({3, n});
 
     float* in_ptr  = t.data_ptr<float>();
     float* out_ptr = out.data_ptr<float>();
 
-    for (int i = 0; i < n; ++i)
+    for (int64_t i = 0; i < n; ++i)
     {
         float f = in_ptr[i];
         vec3 c  = func(f);

@@ -133,7 +133,7 @@ std::pair<std::vector<int>, std::vector<int>> TrainParams::Split(std::vector<int
         train_indices = std::vector<int>(all_indices.begin(), all_indices.begin() + first_n);
         test_indices  = std::vector<int>(all_indices.begin() + first_n, all_indices.end());
     }
-    if (split_method == "random")
+    else if (split_method == "random")
     {
     }
     else
@@ -150,6 +150,8 @@ std::pair<std::vector<int>, std::vector<int>> TrainParams::Split(std::vector<int
         while (t < total_n)
         {
             int idx = std::round(t);
+            // t < total_n can still round up to total_n
+            if (idx >= total_n) break;
             test_indices.push_back(all_indices[idx]);
 
             for (int i = last_idx + 1; i < idx; ++i)

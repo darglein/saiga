@@ -18,7 +18,8 @@ inline torch::Tensor CenterCrop2D(torch::Tensor x, int border_size)
 {
     // [b, c, h, w]
     SAIGA_ASSERT(x.dim() == 4);
-    return x.slice(2, border_size, x.size(2) - 2 * border_size).slice(3, border_size, x.size(3) - 2 * border_size);
+    // slice() takes the end index, which removes border_size on both sides
+    return x.slice(2, border_size, x.size(2) - border_size).slice(3, border_size, x.size(3) - border_size);
 }
 
 // Center crops the tensor x to target size.
@@ -68,9 +69,12 @@ inline std::vector<int64_t> IndexToCoordinate(int64_t index, std::vector<int64_t
 //      image [3, ...]
 inline torch::Tensor SetMaskToColor(torch::Tensor image, torch::Tensor mask, vec3 color)
 {
+    // The channel dimension of [c, h, w] and [n, c, h, w] images
+    int64_t channel_dim = image.dim() - 3;
+    SAIGA_ASSERT(channel_dim >= 0);
     if (mask.dim() == image.dim() - 1)
     {
-        mask = mask.unsqueeze(0);
+        mask = mask.unsqueeze(channel_dim);
     }
     mask          = mask.to(image.dtype()).to(image.device());
     auto inv_mask = 1 - mask;
@@ -79,7 +83,7 @@ inline torch::Tensor SetMaskToColor(torch::Tensor image, torch::Tensor mask, vec
     image = image * inv_mask;
 
     std::vector<int64_t> color_sizes(image.dim(), 1);
-    color_sizes[0] = 3;
+    color_sizes[channel_dim] = 3;
     torch::Tensor color_tensor =
         torch::from_blob(color.data(), color_sizes, torch::kFloat).to(image.dtype()).to(image.device());
 

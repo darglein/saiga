@@ -104,9 +104,16 @@ TemplatedImage<T> TensorToImage(at::Tensor tensor)
     }
     else if (tensor.dtype() == torch::kFloat && std::is_same<ScalarType, unsigned short>::value)
     {
+#if defined(TINY_TORCH) || TORCH_VERSION_MAJOR > 2 || (TORCH_VERSION_MAJOR == 2 && TORCH_VERSION_MINOR >= 3)
+        // [0,1] -> [0,65535]. Converting to the signed kShort and reading it as unsigned short wrapped negative values.
+        tensor = 65535.f * tensor;
+        tensor = tensor.clamp(0, 65535);
+        tensor = tensor.to(at::kUInt16);
+#else
         tensor = 32767.f * tensor;
         tensor = tensor.clamp(-32767, 32767);
         tensor = tensor.to(at::kShort);
+#endif
     }
 
     int h = tensor.size(0);

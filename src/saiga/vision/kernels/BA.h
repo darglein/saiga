@@ -187,7 +187,7 @@ inline std::pair<Vector<T, 2>, T> BundleAdjustment(const IntrinsicsPinhole<T>& c
                                                    Matrix<T, 2, 3>* jacobian_point = nullptr)
 {
     Vector<T, 3> p      = pose * point;
-    Vector<T, 2> p_by_z = Vec2(p(0) / p(2), p(1) / p(2));
+    Vector<T, 2> p_by_z = Vector<T, 2>(p(0) / p(2), p(1) / p(2));
 
     Vector<T, 2> residual;
     residual(0) = camera.fx * p_by_z(0) + camera.s * p_by_z(1) + camera.cx - observation(0);
