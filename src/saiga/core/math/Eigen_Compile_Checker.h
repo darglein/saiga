@@ -92,7 +92,7 @@ struct SAIGA_CORE_API EigenCompileFlags
 #endif
     }
 
-    bool operator==(const EigenCompileFlags& o)
+    bool operator==(const EigenCompileFlags& o) const
     {
         return std::make_tuple(versionWorld, versionMajor, versionMinor, fma, sse3, ssse3, sse41, sse42, avx, avx2,
                                avx512) == std::make_tuple(o.versionWorld, o.versionMajor, o.versionMinor, o.fma, o.sse3,

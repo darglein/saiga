@@ -150,17 +150,17 @@ struct FromStringConverter<float>
 template <>
 struct FromStringConverter<double>
 {
-    static float convert(const std::string& str) { return to_double(str); }
+    static double convert(const std::string& str) { return to_double(str); }
 };
 template <>
 struct FromStringConverter<int>
 {
-    static float convert(const std::string& str) { return to_int(str); }
+    static int convert(const std::string& str) { return to_int(str); }
 };
 template <>
 struct FromStringConverter<long>
 {
-    static float convert(const std::string& str) { return to_long(str); }
+    static long convert(const std::string& str) { return to_long(str); }
 };
 
 

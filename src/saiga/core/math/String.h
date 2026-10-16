@@ -12,6 +12,13 @@
 #include "Quaternion.h"
 #include "Types.h"
 
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <type_traits>
+
 
 namespace Saiga
 {
@@ -21,7 +28,20 @@ std::string toIniString(const Matrix<_Scalar, _Rows, _Cols>& M)
     std::string str;
     // Add entries to string, separated with ' ' in row major order.
     for (int i = 0; i < M.rows(); ++i)
-        for (int j = 0; j < M.cols(); ++j) str += Saiga::to_string(M(i, j), 12) + " ";
+    {
+        for (int j = 0; j < M.cols(); ++j)
+        {
+            if constexpr (std::is_floating_point<_Scalar>::value)
+            {
+                // max_digits10 significant digits are needed to read back the exact same value.
+                str += Saiga::to_string(double(M(i, j)), std::numeric_limits<_Scalar>::max_digits10 - 1) + " ";
+            }
+            else
+            {
+                str += Saiga::to_string(M(i, j)) + " ";
+            }
+        }
+    }
 
     return str;
 }
@@ -30,8 +50,16 @@ std::string toIniString(const Matrix<_Scalar, _Rows, _Cols>& M)
 template <typename _Scalar, int _Rows, int _Cols>
 void fromIniString(const std::string& str, Matrix<_Scalar, _Rows, _Cols>& M)
 {
-    auto arr = Saiga::split(str, ' ');
-    SAIGA_ASSERT((int)arr.size() == M.rows() * M.cols());
+    std::vector<std::string> arr;
+    for (auto& s : Saiga::split(str, ' '))
+    {
+        if (!s.empty()) arr.push_back(s);
+    }
+    if ((int)arr.size() != M.rows() * M.cols())
+    {
+        throw std::invalid_argument("Expected " + std::to_string(M.rows() * M.cols()) + " values but got " +
+                                    std::to_string(arr.size()) + " in '" + str + "'");
+    }
 
     for (int i = 0; i < M.rows(); ++i)
         for (int j = 0; j < M.cols(); ++j) M(i, j) = FromStringConverter<_Scalar>::convert(arr[i * M.cols() + j]);

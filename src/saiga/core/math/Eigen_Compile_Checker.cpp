@@ -44,8 +44,7 @@ std::ostream& operator<<(std::ostream& strm, const EigenCompileFlags& flags)
           << "NEON " << flags.neon << "|";
     table << "|"
           << "VSX " << flags.vsx << "|";
-    table << "|"
-          << "ALTIVEC" << flags.altivec << "|";
+    table << "|" << "ALTIVEC " << flags.altivec << "|";
     table << "|"
           << "ZVECTOR " << flags.zvector << "|";
 

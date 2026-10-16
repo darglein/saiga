@@ -100,3 +100,71 @@ TEST(MathFunctions, HalfRoundtrip)
     EXPECT_EQ(float(h), 1.5f);
     EXPECT_EQ(float(half(-0.25f)), -0.25f);
 }
+
+TEST(MathFunctions, Round)
+{
+    EXPECT_EQ(iRound(0.49999997f), 0);
+    EXPECT_EQ(iRound(0.5f), 1);
+    EXPECT_EQ(iRound(2.5), 3);
+    EXPECT_EQ(iRound(-2.5), -3);
+    EXPECT_EQ(iRound(-0.49999997f), 0);
+    EXPECT_EQ(iRound(-1.2), -1);
+    EXPECT_EQ(iRound(7.0), 7);
+}
+
+TEST(MathFunctions, IsPow2)
+{
+    EXPECT_FALSE(ispow2(0));
+    EXPECT_TRUE(ispow2(1));
+    EXPECT_TRUE(ispow2(64));
+    EXPECT_FALSE(ispow2(6));
+}
+
+TEST(MathFunctions, FromIniString)
+{
+    Mat2 m;
+    fromIniString("0.1  0.2 0.30000000000000004 4 ", m);
+    EXPECT_EQ(m(0, 0), 0.1);
+    EXPECT_EQ(m(0, 1), 0.2);
+    EXPECT_EQ(m(1, 0), 0.30000000000000004);
+    EXPECT_EQ(m(1, 1), 4);
+
+    Mat2 m2;
+    fromIniString(toIniString(m), m2);
+    EXPECT_EQ(m, m2);
+
+    EXPECT_THROW(fromIniString("1 2 3", m), std::invalid_argument);
+}
+
+TEST(MathFunctions, RandomQuatIsUniform)
+{
+    // For uniformly distributed rotations with w >= 0, the mean of w is 4 / (3 pi).
+    Random::setSeed(5);
+    const int n = 100000;
+    double sum  = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        auto q = Random::randomQuat<double>();
+        EXPECT_NEAR(q.norm(), 1, 1e-12);
+        EXPECT_GE(q.w(), 0);
+        sum += q.w();
+    }
+    EXPECT_NEAR(sum / n, 4.0 / (3.0 * pi<double>()), 0.003);
+}
+
+TEST(MathFunctions, IniStringRoundtrip)
+{
+    Matrix<float, 2, 2> f;
+    f(0, 0) = 0.1f;
+    f(0, 1) = 1.f / 3.f;
+    f(1, 0) = -12345.678f;
+    f(1, 1) = 3e-20f;
+    Matrix<float, 2, 2> f2;
+    fromIniString(toIniString(f), f2);
+    EXPECT_EQ(f, f2);
+
+    ivec3 i(1, -2, 123456789);
+    ivec3 i2;
+    fromIniString(toIniString(i), i2);
+    EXPECT_EQ(i, i2);
+}

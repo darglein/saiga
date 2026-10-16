@@ -83,10 +83,15 @@ HD constexpr T iCeil(U value)
     return ((T)value) + (((T)value) < value);
 }
 
+// Rounds half away from zero. Adding 0.5 before truncating would round the float just below 0.5 up to 1.
 template <typename T>
 HD constexpr int iRound(T value)
 {
-    return (int)(value + (value >= 0 ? T(0.5) : T(-0.5f)));
+    int t  = (int)value;
+    T frac = value - T(t);
+    if (frac >= T(0.5)) return t + 1;
+    if (frac <= T(-0.5)) return t - 1;
+    return t;
 }
 
 // Like integer division, but also rounds down on negative numbers.
@@ -96,8 +101,9 @@ HD constexpr int iFloorDiv(int a, int b)
     return d * b == a ? d : d - ((a < 0) ^ (b < 0));
 }
 
-HD constexpr bool ispow2(unsigned x) {
-    return !(x & (x - 1));
+HD constexpr bool ispow2(unsigned x)
+{
+    return x != 0 && !(x & (x - 1));
 }
 
 }  // namespace Saiga

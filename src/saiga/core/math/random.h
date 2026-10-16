@@ -133,8 +133,10 @@ MatrixType MatrixGauss(typename MatrixType::Scalar mean = 0, typename MatrixType
 template <typename Scalar>
 Quaternion<Scalar> randomQuat()
 {
+    // A normal distributed 4D vector is uniform on the unit sphere after normalization, which gives a uniform
+    // distribution of rotations. Normalizing a point of the cube [-1,1]^4 would favor the corners.
     using Vec = Vector<Scalar, 4>;
-    Vec r     = Random::MatrixUniform<Vec>(-1, 1);
+    Vec r     = Random::MatrixGauss<Vec>(0, 1);
     Quaternion<Scalar> q;
     q.coeffs() = r;
     q.normalize();
