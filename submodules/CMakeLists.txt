@@ -151,6 +151,9 @@ if (SAIGA_WITH_ASSIMP)
     set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE INTERNAL "")
 
     add_subdirectory(assimp)
+    # assimp compiles only its C++ code with -fvisibility=hidden. Its bundled C libraries (kuba zip, miniz) would
+    # otherwise export symbols such as zip_open and zip_close, which then replace libzip's functions in saiga_core.
+    set_target_properties(assimp PROPERTIES C_VISIBILITY_PRESET hidden)
     #set_target_properties(assimp PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
 
 
