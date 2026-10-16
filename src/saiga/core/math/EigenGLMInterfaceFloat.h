@@ -8,7 +8,11 @@
 
 #include "saiga/config.h"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
+
+#include <type_traits>
 
 namespace Saiga
 {
@@ -93,9 +97,9 @@ HD inline float mix(const float& a, const float& b, float alpha)
 template <typename T>
 inline T sinc(const T x)
 {
-    if (abs(x) >= std::numeric_limits<T>::epsilon())
+    if (std::abs(x) >= std::numeric_limits<T>::epsilon())
     {
-        return (sin(x) / x);
+        return (std::sin(x) / x);
     }
     else
     {

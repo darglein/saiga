@@ -1,5 +1,6 @@
 #include "half.h"
 
+#include <cstring>
 #include <stdint.h>
 
 
@@ -33,13 +34,6 @@ static inline uint32_t uint32_or3(uint32_t a, uint32_t b, uint32_t c)
 static inline uint32_t uint32_mux(uint32_t mask, uint32_t a, uint32_t b)
 {
     return ((mask & (uint32_t)a) | ((~mask) & (uint32_t)b));
-}
-
-static inline uint32_t uint32_lt(uint32_t a, uint32_t b)
-{
-    // NOTE: Result is invalid when a=INT32_MAX, b=INT32_MIN
-    // For the purposes used in half.c the result is always valid
-    return (uint32_t)((int32_t)(a - b) >> 31);
 }
 
 // static inline uint32_t uint32_gte(uint32_t a, uint32_t b)
@@ -148,19 +142,9 @@ static inline uint16_t uint16_eq(uint16_t a, uint16_t b)
     return (~uint16_nez(a - b));
 }
 
-static inline uint16_t uint16_andc(uint16_t a, uint16_t b)
-{
-    return (a & (~b));
-}
-
 static inline uint16_t uint16_and(uint16_t a, uint16_t b)
 {
     return (a & b);
-}
-
-static inline uint16_t uint16_andsrl(uint16_t a, uint16_t b, uint16_t sa)
-{
-    return ((a & b) >> sa);
 }
 
 static inline uint16_t uint16_or(uint16_t a, uint16_t b)
@@ -186,11 +170,6 @@ static inline uint16_t uint16_addm(uint16_t a, uint16_t b, uint16_t mask)
 static inline uint16_t uint16_sub(uint16_t a, uint16_t b)
 {
     return (a - b);
-}
-
-static inline uint16_t uint16_xor(uint16_t a, uint16_t b)
-{
-    return (a ^ b);
 }
 
 static inline uint16_t uint16_srl(uint16_t a, uint16_t sa)
@@ -373,7 +352,9 @@ uint32_t half_to_float(uint16_t h)
 
 half::half(float f)
 {
-    h = half_from_float(*(uint32_t*)&f);
+    uint32_t bits;
+    std::memcpy(&bits, &f, sizeof(bits));
+    h = half_from_float(bits);
 }
 
 half::half(uint16_t i)
@@ -381,9 +362,11 @@ half::half(uint16_t i)
     h = i;
 }
 
-half::operator float()
+half::operator float() const
 {
-    uint32_t f = half_to_float(h);
-    return *(float*)&f;
+    uint32_t bits = half_to_float(h);
+    float f;
+    std::memcpy(&f, &bits, sizeof(f));
+    return f;
 }
 }  // namespace Saiga

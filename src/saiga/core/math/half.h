@@ -13,6 +13,6 @@ struct SAIGA_CORE_API half
     half(float f);
     half(uint16_t i);
 
-    operator float();
+    operator float() const;
 };
 }  // namespace Saiga

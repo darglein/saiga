@@ -40,7 +40,14 @@ template <typename T, typename U>
 HD constexpr T iAlignUp(T a, U b)
 {
     static_assert(std::is_integral<T>::value && std::is_integral<U>::value, "only applicable to integral types");
-    return (a % b != 0) ? (a - a % b + b) : a;
+    T r = a % b;
+    if (r == 0) return a;
+    // For negative a the remainder is negative, so a - r is already the next multiple above a.
+    if constexpr (std::is_signed<T>::value)
+    {
+        if (r < 0) return a - r;
+    }
+    return a - r + b;
 }
 
 /**
@@ -56,7 +63,12 @@ template <typename T, typename U>
 HD constexpr T iAlignDown(T a, U b)
 {
     static_assert(std::is_integral<T>::value && std::is_integral<U>::value, "only applicable to integral types");
-    return a - a % b;
+    T r = a % b;
+    if constexpr (std::is_signed<T>::value)
+    {
+        if (r < 0) return a - r - b;
+    }
+    return a - r;
 }
 
 template <typename T>
@@ -65,8 +77,8 @@ HD constexpr int iFloor(T value)
     return ((int)value) - (((int)value) > value);
 }
 
-template <typename T = int>
-HD constexpr T iCeil(float value)
+template <typename T = int, typename U = float>
+HD constexpr T iCeil(U value)
 {
     return ((T)value) + (((T)value) < value);
 }

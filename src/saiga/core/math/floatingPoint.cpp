@@ -124,6 +124,8 @@ bool checkSSECSR()
     return true;
 }
 
+void breakSSECSR() {}
+
 void printCPUInfo()
 {
     // TODO: Windows

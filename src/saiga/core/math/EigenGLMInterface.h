@@ -142,9 +142,9 @@ Matrix<typename Derived::Scalar, 3, 3> onb(const Eigen::MatrixBase<Derived>& n)
     T a    = -1.0f / (sign + n[2]);
     T b    = n[0] * n[1] * a;
     Mat3 v;
+    v.col(0) = Vec3(1.0f + sign * n[0] * n[0] * a, sign * b, -sign * n[0]);
+    v.col(1) = Vec3(b, sign + n[1] * n[1] * a, -n[1]);
     v.col(2) = n;
-    v.col(1) = Vec3(1.0f + sign * n[0] * n[0] * a, sign * b, -sign * n[0]);
-    v.col(0) = Vec3(b, sign + n[1] * n[1] * a, -n[1]);
     return v;
 }
 
@@ -201,7 +201,7 @@ template <typename _Scalar, int _Rows0, int _Cols0, int _Options0>
 HD Matrix<_Scalar, _Rows0, _Cols0, _Options0> ArrayMult(
     const Matrix<_Scalar, _Rows0, _Cols0, _Options0>& m1, Matrix<_Scalar, _Rows0, _Cols0, _Options0> m2)
 {
-    return m1.cross(m2);
+    return m1.array() * m2.array();
 }
 
 
@@ -289,9 +289,9 @@ Matrix<typename Derived::Scalar, 3, 3> onb(const TinyEigen::MatrixBase<Derived>&
     T a    = -1.0f / (sign + n(2));
     T b    = n(0) * n(1) * a;
     Mat3 v;
+    v.col(0) = Vec3(1.0f + sign * n(0) * n(0) * a, sign * b, -sign * n(0));
+    v.col(1) = Vec3(b, sign + n(1) * n(1) * a, -n(1));
     v.col(2) = n;
-    v.col(1) = Vec3(1.0f + sign * n(0) * n(0) * a, sign * b, -sign * n(0));
-    v.col(0) = Vec3(b, sign + n(1) * n(1) * a, -n(1));
     return v;
 }
 

@@ -173,13 +173,13 @@ Vec3 ballRand(double radius)
 
 Vec3 sphericalRand(double radius)
 {
-    float z = Random::sampleDouble(-1.0, 1.0);
-    float a = Random::sampleDouble(0.0, pi<double>() * 2.0);
+    double z = Random::sampleDouble(-1.0, 1.0);
+    double a = Random::sampleDouble(0.0, pi<double>() * 2.0);
 
-    float r = sqrt(1.0 - z * z);
+    double r = std::sqrt(1.0 - z * z);
 
-    float x = r * cos(a);
-    float y = r * sin(a);
+    double x = r * std::cos(a);
+    double y = r * std::sin(a);
 
     return Vec3(x, y, z) * radius;
 }

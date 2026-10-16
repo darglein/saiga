@@ -101,9 +101,23 @@ SAIGA_CORE_API Vec3 sphericalRand(double radius);
 template <typename MatrixType>
 MatrixType MatrixUniform(typename MatrixType::Scalar low = -1, typename MatrixType::Scalar high = 1)
 {
+    using Scalar = typename MatrixType::Scalar;
     MatrixType M;
     for (int i = 0; i < M.rows(); ++i)
-        for (int j = 0; j < M.cols(); ++j) M(i, j) = sampleDouble(low, high);
+    {
+        for (int j = 0; j < M.cols(); ++j)
+        {
+            if constexpr (std::is_integral<Scalar>::value)
+            {
+                // Truncating a sampled double would never return 'high' and rounds towards zero.
+                M(i, j) = Scalar(uniformInt(low, high));
+            }
+            else
+            {
+                M(i, j) = Scalar(sampleDouble(low, high));
+            }
+        }
+    }
     return M;
 }
 
