@@ -8,6 +8,8 @@
 
 #include "saiga/cuda/cuda.h"
 
+#include <iostream>
+
 namespace Saiga
 {
 namespace CUDA
@@ -41,7 +43,20 @@ class CudaEvent
         create();
         return *this;
     }
-    ~CudaEvent() { destroy(); }
+    ~CudaEvent()
+    {
+        // Destructors also run while an exception (for example from a CUDA error) unwinds. After a sticky CUDA error
+        // cudaEventDestroy fails as well, so only report it instead of aborting.
+        if (event)
+        {
+            cudaError_t err = cudaEventDestroy(event);
+            if (err != cudaSuccess)
+            {
+                std::cerr << "cudaEventDestroy failed: " << cudaGetErrorString(err) << std::endl;
+            }
+            event = 0;
+        }
+    }
 
     void destroy()
     {

@@ -40,7 +40,7 @@ struct SizeToVectorType<16>
 template <>
 struct SizeToVectorType<32>
 {
-#if CUDART_VERSION > 13000
+#if CUDART_VERSION >= 13000
     using VectorType = double4_32a;
 #else
     using VectorType = double4;
@@ -152,11 +152,13 @@ __device__ __forceinline__ uint4 loadNoL1Cache16(uint4 const* ptr)
 template <typename T>
 __device__ inline T loadNoL1Cache(T const* ptr)
 {
+    static_assert(sizeof(T) == 4 || sizeof(T) == 8 || sizeof(T) == 16, "Only 4, 8 and 16 byte types are supported.");
     T t;
-    if (sizeof(T) == 4)
+    if constexpr (sizeof(T) == 4)
         reinterpret_cast<unsigned int*>(&t)[0] = loadNoL1Cache4(reinterpret_cast<unsigned int const*>(ptr));
-    if (sizeof(T) == 8) reinterpret_cast<uint2*>(&t)[0] = loadNoL1Cache8(reinterpret_cast<uint2 const*>(ptr));
-    if (sizeof(T) == 16) reinterpret_cast<uint4*>(&t)[0] = loadNoL1Cache16(reinterpret_cast<uint4 const*>(ptr));
+    if constexpr (sizeof(T) == 8) reinterpret_cast<uint2*>(&t)[0] = loadNoL1Cache8(reinterpret_cast<uint2 const*>(ptr));
+    if constexpr (sizeof(T) == 16)
+        reinterpret_cast<uint4*>(&t)[0] = loadNoL1Cache16(reinterpret_cast<uint4 const*>(ptr));
     return t;
 }
 

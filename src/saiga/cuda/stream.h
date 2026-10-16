@@ -29,6 +29,9 @@ class SAIGA_CUDA_API CudaStream
 
 
     CudaStream();
+    // The stream is owned by this object, a copy would destroy it twice.
+    CudaStream(const CudaStream&)            = delete;
+    CudaStream& operator=(const CudaStream&) = delete;
 
     ~CudaStream();
 

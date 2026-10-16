@@ -127,6 +127,9 @@ __device__ inline T blockReduce(T val, OP op, T default_val, unsigned int thread
 
     if constexpr (reduce_elems > 0)
     {
+        // Warp 0 of a previous call at the same call site (for example in a loop) may still read 'shared'.
+        __syncthreads();
+
         // The first thread in each warp writes to smem
         if (lane == 0)
         {
@@ -137,7 +140,7 @@ __device__ inline T blockReduce(T val, OP op, T default_val, unsigned int thread
 
         if (warpid == 0)
         {
-            if (threadIdx.x < reduce_elems)
+            if (thread_id < reduce_elems)
             {
                 val = shared[thread_id];
             }

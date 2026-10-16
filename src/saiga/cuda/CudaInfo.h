@@ -19,8 +19,13 @@ namespace CUDA
 
 inline void PrintMemoryInfo()
 {
-    size_t mem_free, mem_total;
-    cudaMemGetInfo(&mem_free, &mem_total);
+    size_t mem_free = 0, mem_total = 0;
+    cudaError_t err = cudaMemGetInfo(&mem_free, &mem_total);
+    if (err != cudaSuccess)
+    {
+        std::cout << "cudaMemGetInfo failed: " << cudaGetErrorString(err) << std::endl;
+        return;
+    }
     double mem_free_gb  = mem_free / (1000.0 * 1000.0 * 1000.0);
     double mem_total_gb = mem_total / (1000.0 * 1000.0 * 1000.0);
     double mem_alloc_gb = mem_total_gb - mem_free_gb;
@@ -30,10 +35,11 @@ inline void PrintMemoryInfo()
               << std::endl;
 }
 
+// Returns 0 if the memory info is not available.
 inline double UsedMemoryGB()
 {
-    size_t mem_free, mem_total;
-    cudaMemGetInfo(&mem_free, &mem_total);
+    size_t mem_free = 0, mem_total = 0;
+    if (cudaMemGetInfo(&mem_free, &mem_total) != cudaSuccess) return 0;
     double mem_free_gb  = mem_free / (1000.0 * 1000.0 * 1000.0);
     double mem_total_gb = mem_total / (1000.0 * 1000.0 * 1000.0);
     double mem_alloc_gb = mem_total_gb - mem_free_gb;
