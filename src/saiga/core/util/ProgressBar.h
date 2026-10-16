@@ -169,7 +169,7 @@ struct ProgressBar : public ProgressBarBase
             // Time
             strm << "[" << DurationToString(time);
 
-            if (show_remaining_time)
+            if (show_remaining_time && progress > 0)
             {
                 auto remaining_time = time * (1 / progress) - time;
                 strm << "<" << DurationToString(remaining_time);
@@ -211,6 +211,6 @@ class SAIGA_CORE_API ProgressBarManager
 
 
 #define SAIGA_OPTIONAL_PROGRESS_BAR(progress_bar_pointer, name, end) \
-    (progress_bar_pointer) ? progress_bar_pointer->ScopedProgressBar(name, end) : nullptr
+    ((progress_bar_pointer) ? (progress_bar_pointer)->ScopedProgressBar(name, end) : nullptr)
 
 }  // namespace Saiga

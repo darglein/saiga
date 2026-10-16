@@ -18,7 +18,7 @@ bool ProgressBarManager::Imgui()
         bar = current_bar;
 
 
-        if (bar && bar->current == bar->end)
+        if (bar && bar->current >= bar->end)
         {
             current_bar = {};
         }
@@ -30,9 +30,9 @@ bool ProgressBarManager::Imgui()
     int64_t e = bar->end;
 
 
-    float f = double(c) / e;
+    float f = e > 0 ? double(c) / e : 0;
 
-    ImGui::Text("%s, %lld/%lld", bar->prefix.c_str(), c, e);
+    ImGui::Text("%s, %lld/%lld", bar->prefix.c_str(), (long long)c, (long long)e);
     ImGui::ProgressBar(f);
 
 

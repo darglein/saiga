@@ -107,9 +107,11 @@ class ScopedTimer : public TimerBase
 
     explicit ScopedTimer(T& target) : target(&target) { start(); }
 
-    ScopedTimer(ScopedTimer&& other) noexcept : target(other.target) {}
+    // The moved-from timer must not write the time anymore.
+    ScopedTimer(ScopedTimer&& other) noexcept : TimerBase(other), target(other.target) { other.target = nullptr; }
     ~ScopedTimer()
     {
+        if (!target) return;
         T time  = std::chrono::duration_cast<std::chrono::duration<T, typename Unit::period>>(stop()).count();
         *target = time;
     }

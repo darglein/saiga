@@ -83,14 +83,15 @@ void createGlobalThreadPool(int threads)
     if (threads < 0)
     {
 #if defined(_OPENMP)
-        threads = omp_get_thread_num();
+        // omp_get_thread_num() would be the index of the calling thread (0 outside of a parallel region).
+        threads = omp_get_max_threads();
 #else
         threads = std::thread::hardware_concurrency();
+#endif
         if (threads <= 0)
         {
             threads = 8;
         }
-#endif
     }
 
     SAIGA_ASSERT(!globalThreadPool);

@@ -129,7 +129,7 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
 
     int _capacity;
 
-    RingBuffer(int capacity) : std::vector<T>(capacity), _capacity(capacity) {}
+    RingBuffer(int capacity) : std::vector<T>(capacity), _capacity(capacity) { SAIGA_ASSERT(capacity > 0); }
 
     ~RingBuffer() {}
 

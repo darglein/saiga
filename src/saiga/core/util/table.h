@@ -59,7 +59,7 @@ class SAIGA_CORE_API Table
             (*strm) << (other_col_left ? std::left : std::right);
         }
 
-        (*strm) << std::setw(colWidth[currentCol]) << t;
+        (*strm) << std::setw(currentCol < numCols ? colWidth[currentCol] : 0) << t;
 
         currentCol++;
 

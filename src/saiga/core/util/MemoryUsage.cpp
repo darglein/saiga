@@ -28,6 +28,8 @@
 #        include <procfs.h>
 
 #    elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
+#        include <cinttypes>
+#        include <cstdlib>
 #        include <fstream>
 #        include <stdio.h>
 
@@ -39,6 +41,8 @@
 
 
 #include "MemoryUsage.h"
+
+#include <algorithm>
 
 
 static size_t getMaxSystemMemory()
@@ -57,18 +61,17 @@ static size_t getMaxSystemMemory()
 
 
 #if !defined(_WIN32)
+// Returns the value of 'target' in /proc/meminfo in bytes or -1 if it is missing.
 inline long long get_val(const std::string& target, const std::string& content)
 {
-    long long result  = -1;
     std::size_t start = content.find(target);
-    if (start != std::string::npos)
-    {
-        int begin          = start + target.length();
-        std::size_t end    = content.find("kB", start);
-        std::string substr = content.substr(begin, end - begin);
-        result             = std::stoll(substr) * 1000;
-    }
-    return result;
+    if (start == std::string::npos) return -1;
+    const char* begin = content.c_str() + start + target.length();
+    char* end         = nullptr;
+    long long value   = std::strtoll(begin, &end, 10);
+    if (end == begin || value < 0) return -1;
+    // The unit in /proc/meminfo is "kB", which is actually KiB.
+    return value * 1024;
 }
 #endif
 
@@ -84,9 +87,10 @@ static size_t getUsedSystemMemory()
     if (proc_meminfo.good())
     {
         std::string content((std::istreambuf_iterator<char>(proc_meminfo)), std::istreambuf_iterator<char>());
-        size_t total = get_val("MemTotal:", content);
-        size_t avail = get_val("MemAvailable:", content);
-        return total - avail;
+        long long total = get_val("MemTotal:", content);
+        long long avail = get_val("MemAvailable:", content);
+        // MemAvailable is missing on old kernels, use sysinfo below then
+        if (total >= 0 && avail >= 0 && avail <= total) return size_t(total - avail);
     }
 
     struct sysinfo memInfo;
@@ -169,7 +173,7 @@ static size_t getCurrentRSS()
     int64_t rss = 0L;
     FILE* fp    = NULL;
     if ((fp = fopen("/proc/self/statm", "r")) == NULL) return (size_t)0L; /* Can't open? */
-    if (fscanf(fp, "%*s%ld", &rss) != 1)
+    if (fscanf(fp, "%*s%" SCNd64, &rss) != 1)
     {
         fclose(fp);
         return (size_t)0L; /* Can't read? */
@@ -189,7 +193,8 @@ MemoryInfo GetMemoryInfo()
 {
     MemoryInfo result;
     result.current_memory_used  = getCurrentRSS();
-    result.max_memory_used      = getPeakRSS();
+    // The kernel updates the peak lazily, so it can be smaller than the current value.
+    result.max_memory_used      = std::max(getPeakRSS(), result.current_memory_used);
     result.max_memory_available = getMaxSystemMemory();
     result.total_memory_used    = getUsedSystemMemory();
     result.valid                = result.current_memory_used > 0 && result.max_memory_used > 0;

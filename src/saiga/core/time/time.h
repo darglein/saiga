@@ -39,9 +39,10 @@ inline std::string CurrentTimeString(const std::string& format)
     localtime_s(&timeinfo, &rawtime);
     strftime(buffer, b_size, format.c_str(), &timeinfo);
 #else
-    struct tm* timeinfo;
-    timeinfo = localtime(&rawtime);
-    strftime(buffer, b_size, format.c_str(), timeinfo);
+    // localtime is not thread-safe
+    struct tm timeinfo;
+    localtime_r(&rawtime, &timeinfo);
+    strftime(buffer, b_size, format.c_str(), &timeinfo);
 #endif
 
 

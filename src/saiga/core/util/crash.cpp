@@ -22,7 +22,7 @@
 #endif
 
 
-#if defined(__unix__)
+#if defined(__unix__) || defined(__APPLE__)
 #    include <execinfo.h>
 #    include <signal.h>
 #    include <stdio.h>
@@ -41,19 +41,8 @@ void addCustomSegfaultHandler(std::function<void()> fnc)
     customCrashHandler = fnc;
 }
 
-#if defined(__unix__)
+#if defined(__unix__) || defined(__APPLE__)
 // Source: http://stackoverflow.com/questions/77005/how-to-generate-a-stacktrace-when-my-gcc-c-app-crashes
-
-/* This structure mirrors the one found in /usr/include/asm/ucontext.h */
-typedef struct _sig_ucontext
-{
-    uint64_t uc_flags;
-    struct ucontext* uc_link;
-    stack_t uc_stack;
-    struct sigcontext uc_mcontext;
-    sigset_t uc_sigmask;
-} sig_ucontext_t;
-
 
 void printCurrentStack()
 {
@@ -77,6 +66,19 @@ void printCurrentStack()
 
     free(messages);
 }
+#endif
+
+#if defined(__unix__)
+/* This structure mirrors the one found in /usr/include/asm/ucontext.h */
+typedef struct _sig_ucontext
+{
+    uint64_t uc_flags;
+    struct ucontext* uc_link;
+    stack_t uc_stack;
+    struct sigcontext uc_mcontext;
+    sigset_t uc_sigmask;
+} sig_ucontext_t;
+
 
 void crit_err_hdlr(int sig_num, siginfo_t* info, void* ucontext)
 {
@@ -140,7 +142,8 @@ void printCurrentStack()
     // to undecorate the symbol names we're returned.  If you want, you can add other
     // symbol servers or paths via a semi-colon separated list in SymInitialized.
     ::SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_INCLUDE_32BIT_MODULES | SYMOPT_UNDNAME);
-    if (!::SymInitialize(::GetCurrentProcess(), "http://msdl.microsoft.com/download/symbols", TRUE)) return;
+    // The default search path (executable directory, _NT_SYMBOL_PATH) is used for the pdb files.
+    if (!::SymInitialize(::GetCurrentProcess(), NULL, TRUE)) return;
 
     // Capture up to 25 stack frames from the current call stack.  We're going to
     // skip the first stack frame returned because that's the GetStackWalk function

@@ -46,7 +46,12 @@ class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
     {
         std::unique_lock<decltype(lock)> l(lock);
         Base::clear();
+        not_full.notify_all();
     }
+
+    // Note: Each condition variable has two kinds of waiters (for example add() and waitUntilEmpty() on not_full).
+    // notify_one() could wake a waiter whose condition is still false, and the waiter that could continue would never
+    // be woken. Therefore all notifications use notify_all().
 
     // blocks until buffer is empty
     void waitUntilEmpty()
@@ -69,7 +74,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
         std::unique_lock<decltype(lock)> l(lock);
         not_full.wait(l, [this]() { return !this->full(); });
         RingBuffer<T>::add(std::forward<G>(data));
-        not_empty.notify_one();
+        not_empty.notify_all();
     }
 
     template <typename G>
@@ -77,7 +82,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
     {
         std::unique_lock<decltype(lock)> l(lock);
         auto ret = RingBuffer<T>::addOverride(std::forward<G>(data));
-        not_empty.notify_one();
+        not_empty.notify_all();
         return ret;
     }
 
@@ -89,7 +94,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
             return false;
         }
         RingBuffer<T>::add(v);
-        not_empty.notify_one();
+        not_empty.notify_all();
         return true;
     }
 
@@ -99,7 +104,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
         std::unique_lock<decltype(lock)> l(lock);
         not_empty.wait(l, [this]() { return !this->empty(); });
         T result = RingBuffer<T>::get();
-        not_full.notify_one();
+        not_full.notify_all();
         return result;
     }
 
@@ -121,7 +126,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
         bool got_something = not_empty.wait_for(l, duration, [this]() { return !this->empty(); });
         if (!got_something) return T();
         T result = RingBuffer<T>::get();
-        not_full.notify_one();
+        not_full.notify_all();
         return result;
     }
 
@@ -133,7 +138,7 @@ class SAIGA_TEMPLATE SynchronizedBuffer : protected RingBuffer<T>
             return false;
         }
         v = RingBuffer<T>::get();
-        not_full.notify_one();
+        not_full.notify_all();
         return true;
     }
 };
