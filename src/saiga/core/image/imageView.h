@@ -12,10 +12,11 @@
 
 #include "floatTexels.h"
 #include "imageBase.h"
-#include <cstring>
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 
 #if 0
 #    if defined(SAIGA_USE_CUDA)
@@ -71,7 +72,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     HD inline ImageView(const ImageView<NoConstType>& other) : ImageBase(other), data(other.data) {}
 
     // size in bytes
-    HD inline int size() const { return height * pitchBytes; }
+    HD inline size_t size() const { return height * pitchBytes; }
 
     HD inline bool empty() const { return (width == 0) | (height == 0); }
 
@@ -171,34 +172,17 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     // bilinear interpolated pixel with clamp to edge boundary
     HD inline T inter(float sy, float sx) const
     {
-        int x0 = iFloor(sx);
-        int y0 = iFloor(sy);
+        // Clamp the sample position (not only the texel indices), so the weights stay in [0,1]. Otherwise samples
+        // outside of the image were extrapolated, and the last row/column (x0 == x1) had all weights 0.
+        sx = sx < 0 ? 0 : (sx > width - 1 ? float(width - 1) : sx);
+        sy = sy < 0 ? 0 : (sy > height - 1 ? float(height - 1) : sy);
 
-        if (x0 < 0)
-        {
-            x0 = 0;
-        }
-        if (x0 >= width)
-        {
-            x0 = width - 1;
-        }
-        if (y0 < 0)
-        {
-            y0 = 0;
-        }
-        if (y0 >= height)
-        {
-            y0 = height - 1;
-        }
-
-
-#ifdef SAIGA_ON_DEVICE
-        int x1 = std::min(x0 + 1, width - 1);
-        int y1 = std::min(y0 + 1, height - 1);
-#else
-        int x1 = std::min(x0 + 1, width - 1);
-        int y1 = std::min(y0 + 1, height - 1);
-#endif
+        int x0   = iFloor(sx);
+        int y0   = iFloor(sy);
+        int x1   = x0 + 1 < width ? x0 + 1 : x0;
+        int y1   = y0 + 1 < height ? y0 + 1 : y0;
+        float fx = sx - x0;
+        float fy = sy - y0;
 
         // We need to convert the texel to a floating point type for interpolation.
         // This enables us to interpolate classic 8-bit rgb images.
@@ -210,8 +194,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         auto b11 = ttf.toFloat((*this)(y1, x1));
 
         typename TexelFloatConverter<T, false>::FloatType res =
-            b00 * ((x1 - sx) * (y1 - sy)) + b01 * ((sx - x0) * (y1 - sy)) + b10 * ((x1 - sx) * (sy - y0)) +
-            b11 * ((sx - x0) * (sy - y0));
+            b00 * ((1 - fx) * (1 - fy)) + b01 * (fx * (1 - fy)) + b10 * ((1 - fx) * fy) + b11 * (fx * fy);
 
         return ttf.fromFloat(res);
     }
@@ -397,8 +380,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
 
                 typename TFC::FloatType sum = TFC::Converter::ZeroFloat();
 
-                int end_y = std::min(gy + factor, height-1);
-                int end_x = std::min(gx + factor, width-1);
+                int end_y = std::min(gy + factor, height);
+                int end_x = std::min(gx + factor, width);
 
 
                 float div = 1.0f / ((end_y - gy) * (end_x - gx));
@@ -408,8 +391,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
                 {
                     for (int j = gx; j < end_x; ++j)
                     {
-                        T2 value = (*this)(gy, gx );
-                        sum += ttf.toFloat(value);
+                        sum += ttf.toFloat((*this)(i, j));
                     }
                 }
 
@@ -486,8 +468,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         x = min(max(0, x), width - 1);
         y = min(max(0, y), height - 1);
 #else
-        x      = std::min(std::max(0, x), width - 1);
-        y      = std::min(std::max(0, y), height - 1);
+        x = std::min(std::max(0, x), width - 1);
+        y = std::min(std::max(0, y), height - 1);
 #endif
     }
 
@@ -504,7 +486,8 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     inline void findMinMax(U& minV, U& maxV) const
     {
         minV = std::numeric_limits<U>::max();
-        maxV = std::numeric_limits<U>::min();
+        // lowest(), because min() is the smallest positive value for floating point types
+        maxV = std::numeric_limits<U>::lowest();
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
@@ -519,7 +502,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     inline void findMinMaxOutlier(T& minV, T& maxV, T outlier)
     {
         minV = std::numeric_limits<T>::max();
-        maxV = std::numeric_limits<T>::min();
+        maxV = std::numeric_limits<T>::lowest();
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
@@ -565,7 +548,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         T minV, maxV;
         findMinMax(minV, maxV);
         add(-minV);
-        multWithScalar(T(1) / maxV);
+        if (maxV > minV) multWithScalar(T(1) / (maxV - minV));
     }
 
     inline bool isFinite()

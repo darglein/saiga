@@ -28,7 +28,9 @@
 #include "internal/stb_image_read_wrapper.h"
 #include "internal/stb_image_write_wrapper.h"
 
+#include <algorithm>
 #include <fstream>
+#include <limits>
 namespace Saiga
 {
 Image::Image(int h, int w, ImageType type)
@@ -274,7 +276,9 @@ bool Image::save(const std::filesystem::path& path) const
 {
     SAIGA_ASSERT(valid());
 
-    auto output_type = path.extension();
+    // The extension is case insensitive, like in load()
+    std::string output_type = path.extension().string();
+    std::transform(output_type.begin(), output_type.end(), output_type.begin(), [](char c) { return std::tolower(c); });
 
     if (output_type == ".saigai")
     {
@@ -339,13 +343,17 @@ bool Image::loadRaw(const std::filesystem::path& path)
 
 
 
+    // The file is untrusted: validate the header before using it.
     auto data = File::loadFileBinary(path);
+    if (data.size() < saiga_image_header_size)
+    {
+        std::cerr << "Invalid saiga image " << path << std::endl;
+        return false;
+    }
     BinaryInputVector stream(data.data(), data.size());
 
-    int magic;
-    stream >> magic >> width >> height >> type;
-
-
+    int magic, w, h, t;
+    stream >> magic >> w >> h >> t;
 
     bool compress = false;
     if (magic == saiga_image_magic_number)
@@ -358,34 +366,58 @@ bool Image::loadRaw(const std::filesystem::path& path)
     }
     else
     {
-        SAIGA_EXIT_ERROR("invalid magic number");
+        std::cerr << "Invalid magic number in " << path << std::endl;
+        return false;
     }
 
-    pitchBytes = 0;
-    create();
-    SAIGA_ASSERT(type != TYPE_UNKNOWN);
-    int es = elementSize(type);
+    if (w <= 0 || h <= 0 || t < 0 || t >= int(TYPE_UNKNOWN) ||
+        size_t(w) * elementSize(ImageType(t)) > size_t(std::numeric_limits<int>::max()))
+    {
+        std::cerr << "Invalid image size or type in " << path << std::endl;
+        return false;
+    }
 
+    size_t line_size = size_t(w) * elementSize(ImageType(t));
+    size_t data_size = line_size * h;
+
+    const unsigned char* pixels = (const unsigned char*)data.data() + saiga_image_header_size;
+    size_t pixels_size          = data.size() - saiga_image_header_size;
+
+#ifdef SAIGA_USE_ZLIB
+    std::vector<unsigned char> uncompressed;
+#endif
     if (compress)
     {
 #ifdef SAIGA_USE_ZLIB
-        auto uncompressed = Saiga::uncompress(stream.data + stream.current);
-        size_t line_size  = width * es;
-        for (int i = 0; i < height; ++i)
+        auto result = Saiga::uncompress(pixels, pixels_size, data_size);
+        if (!result.has_value() || result->size() != data_size)
         {
-            size_t offset = i * width * es;
-            memcpy(rowPtr(i), uncompressed.data() + offset, line_size);
+            std::cerr << "Invalid compressed data in " << path << std::endl;
+            return false;
         }
+        uncompressed = std::move(result.value());
+        pixels       = uncompressed.data();
+        pixels_size  = uncompressed.size();
 #else
-        SAIGA_EXIT_ERROR("zlib required!");
+        std::cerr << "Loading compressed saiga images requires zlib" << std::endl;
+        return false;
 #endif
     }
-    else
+
+    if (pixels_size < data_size)
     {
-        for (int i = 0; i < height; ++i)
-        {
-            stream.read((char*)rowPtr(i), width * es);
-        }
+        std::cerr << "Truncated saiga image " << path << std::endl;
+        return false;
+    }
+
+    width      = w;
+    height     = h;
+    type       = ImageType(t);
+    pitchBytes = 0;
+    create();
+    for (int i = 0; i < height; ++i)
+    {
+        memcpy(rowPtr(i), pixels + i * line_size, line_size);
     }
 
     return true;
@@ -430,7 +462,7 @@ bool Image::saveConvert(const std::filesystem::path& path, float minValue, float
     {
         Saiga::TemplatedImage<ucvec4> i(h, w);
         Saiga::ImageTransformation::depthToRGBA(getImageView<float>(), i.getImageView(), minValue, maxValue);
-        i.save(path);
+        return i.save(path);
     }
 
     return false;

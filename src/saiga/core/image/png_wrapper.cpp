@@ -10,6 +10,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <limits>
 
 #ifdef SAIGA_USE_PNG
 #    include "internal/noGraphicsAPI.h"
@@ -272,6 +273,74 @@ std::vector<unsigned char> ImageIOLibPNG::Save2Memory(const Image& img, ImageSav
     }
 }
 
+// Reads the image after the io functions of reader.png have been set. Throws PngException on libpng errors.
+static std::optional<Image> ReadPng(ScopedPngReader& reader)
+{
+    png_read_info(reader.png, reader.info);
+
+    png_uint_32 pw, ph;
+    int bit_depth, color_type, interlace_type;
+    png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
+
+    if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(reader.png);
+    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(reader.png);
+    if (png_get_valid(reader.png, reader.info, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(reader.png);
+    // PNG stores 16 bit values big endian
+    if (bit_depth > 8) png_set_swap(reader.png);
+    png_set_packing(reader.png);
+    // Interlaced images are read with multiple passes over all rows.
+    int passes = png_set_interlace_handling(reader.png);
+
+    // All transformations must be set before this call.
+    png_read_update_info(reader.png, reader.info);
+    png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
+
+    ImageType type = saigaType(color_type, bit_depth);
+    if (type == TYPE_UNKNOWN || pw == 0 || ph == 0 || pw > png_uint_32(std::numeric_limits<int>::max()) ||
+        ph > png_uint_32(std::numeric_limits<int>::max()))
+    {
+        std::cerr << "Unsupported PNG: " << pw << "x" << ph << " color type " << color_type << " bit depth "
+                  << bit_depth << std::endl;
+        return {};
+    }
+
+    size_t row_bytes = png_get_rowbytes(reader.png, reader.info);
+    // we want to row-align the image in our output data
+    size_t rowAlignment = 4;
+    size_t bytesPerRow  = (row_bytes + rowAlignment - 1) / rowAlignment * rowAlignment;
+    if (bytesPerRow > size_t(std::numeric_limits<int>::max()))
+    {
+        std::cerr << "Unsupported PNG: rows are too large" << std::endl;
+        return {};
+    }
+
+    Image img;
+    img.create(ph, pw, bytesPerRow, type);
+    img.makeZero();
+
+    for (int pass = 0; pass < passes; ++pass)
+    {
+        for (int i = 0; i < img.height; i++)
+        {
+            // If this fails, it throws PngException.
+            png_read_row(reader.png, (png_byte*)img.rowPtr(i), nullptr);
+        }
+    }
+
+    png_uint_32 res_x, res_y;
+    int unit_type;
+    if (png_get_pHYs(reader.png, reader.info, &res_x, &res_y, &unit_type))
+    {
+        if (unit_type == PNG_RESOLUTION_METER && res_x > 0 && res_y > 0)
+        {
+            vec2 pixelSizeMM = vec2(1000.f / res_x, 1000.f / res_y);
+            img.set_resolution(pixelSizeMM);
+        }
+    }
+
+    return img;
+}
+
 std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::filesystem::path& path, ImageLoadFlags flags)
 {
     ScopedFile file(path, "rb");
@@ -284,56 +353,7 @@ std::optional<Image> ImageIOLibPNG::LoadFromFile(const std::filesystem::path& pa
     {
         png_init_io(reader.png, file);
         png_set_sig_bytes(reader.png, 0);  // Assuming 0 sig bytes read
-        png_read_info(reader.png, reader.info);
-
-        png_uint_32 pw, ph;
-        int bit_depth, color_type, interlace_type;
-        png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
-
-        SAIGA_ASSERT(interlace_type == PNG_INTERLACE_NONE);
-
-        // ... color transformations ...
-        if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(reader.png);
-        if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(reader.png);
-        if (png_get_valid(reader.png, reader.info, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(reader.png);
-
-        png_read_update_info(reader.png, reader.info);
-        png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
-
-        unsigned int row_bytes = png_get_rowbytes(reader.png, reader.info);
-        int rowAlignment       = 4;
-        int rowPadding         = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
-        int bytesPerRow        = row_bytes + rowPadding;
-
-        if (bit_depth > 8) png_set_swap(reader.png);
-        png_set_packing(reader.png);
-
-        Image img;
-        img.create(ph, pw, bytesPerRow, saigaType(color_type, bit_depth));
-        img.makeZero();
-
-        for (int i = 0; i < img.height; i++)
-        {
-            auto rowPtr = (png_byte*)img.rowPtr(i);
-            // If this fails, it throws PngException.
-            // reader and file destructors clean everything up automatically.
-            png_read_row(reader.png, rowPtr, nullptr);
-        }
-
-        png_uint_32 res_x, res_y;
-        int unit_type;
-
-        if (png_get_pHYs(reader.png, reader.info, &res_x, &res_y, &unit_type))
-        {
-            if (unit_type == PNG_RESOLUTION_METER && res_x > 0 && res_y > 0)
-            {
-                // Assuming vec2 is your math vector type
-                vec2 pixelSizeMM = vec2(1000.f / res_x, 1000.f / res_y);
-                img.set_resolution(pixelSizeMM);
-            }
-        }
-
-        return img;
+        return ReadPng(reader);
     }
     catch (const PngException& e)
     {
@@ -384,69 +404,7 @@ std::optional<Image> ImageIOLibPNG::LoadFromMemory(const void* data, size_t size
 
         unsigned int sig_read = 0;
         png_set_sig_bytes(reader.png, sig_read);
-
-        png_read_info(reader.png, reader.info);
-
-        png_uint_32 pw, ph;
-        int bit_depth;
-        int color_type;
-        int interlace_type;
-        png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
-        SAIGA_ASSERT(interlace_type == PNG_INTERLACE_NONE);
-
-        if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(reader.png);
-
-        if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(reader.png);
-
-        if (png_get_valid(reader.png, reader.info, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(reader.png);
-
-        // update the color_type data because it might have changed due to the calls above
-        png_read_update_info(reader.png, reader.info);
-        png_get_IHDR(reader.png, reader.info, &pw, &ph, &bit_depth, &color_type, &interlace_type, NULL, NULL);
-
-
-        unsigned int row_bytes = png_get_rowbytes(reader.png, reader.info);
-
-        // we want to row-align the image in our output data
-        int rowAlignment = 4;
-        int rowPadding   = (rowAlignment - (row_bytes % rowAlignment)) % rowAlignment;
-        int bytesPerRow  = row_bytes + rowPadding;
-
-        if (bit_depth > 8)
-        {
-            png_set_swap(reader.png);
-        }
-
-        png_set_packing(reader.png);
-
-        Image img;
-        img.create(ph, pw, bytesPerRow, saigaType(color_type, bit_depth));
-        img.makeZero();
-
-        png_uint_32 res_x, res_y;
-        int unit_type;
-
-        if (png_get_pHYs(reader.png, reader.info, &res_x, &res_y, &unit_type))
-        {
-            if (unit_type == PNG_RESOLUTION_METER && res_x > 0 && res_y > 0)
-            {
-                vec2 pixelSizeMM = vec2(1000.f / res_x, 1000.f / res_y);
-                img.set_resolution(pixelSizeMM);
-            }
-        }
-
-        // --- READ IMAGE DATA ---
-
-        for (int i = 0; i < img.height; i++)
-        {
-            auto rowPtr = (png_byte*)img.rowPtr(i);
-            // If the memory stream runs out or gets corrupted, this throws PngException
-            png_read_row(reader.png, rowPtr, nullptr);
-        }
-
-        // Return safely. ScopedPngReader's destructor runs automatically here
-        // and safely destroys reader.png and reader.info.
-        return img;
+        return ReadPng(reader);
     }
     catch (const PngException& e)
     {

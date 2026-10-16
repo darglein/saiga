@@ -8,6 +8,8 @@
 
 #include "saiga/config.h"
 
+#include <cstddef>
+#include <optional>
 #include <vector>
 
 #ifdef SAIGA_USE_ZLIB
@@ -26,6 +28,11 @@ namespace Saiga
 //
 SAIGA_CORE_API std::vector<unsigned char> compress(const void* data, std::size_t size);
 SAIGA_CORE_API std::vector<unsigned char> uncompress(const void* data);
+
+// Like above for untrusted data: never reads more than 'size' bytes and returns nothing if the data is invalid or
+// would decompress to more than max_decompressed_size bytes.
+SAIGA_CORE_API std::optional<std::vector<unsigned char>> uncompress(const void* data, std::size_t size,
+                                                                    std::size_t max_decompressed_size);
 }  // namespace Saiga
 
 #endif

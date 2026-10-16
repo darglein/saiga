@@ -5,41 +5,46 @@
 #    include "tiffio.h"
 #    include "tiffio.hxx"
 
+#    include <cstring>
 #    include <iostream>
+#    include <limits>
 #    include <sstream>
+#    include <vector>
 
 namespace Saiga
 {
-bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
+namespace
 {
-    TIFFSetWarningHandler(nullptr);
-    TIFFSetWarningHandlerExt(nullptr);
+struct ScopedTiff
+{
+    TIFF* tif;
+    explicit ScopedTiff(TIFF* tif) : tif(tif) {}
+    ~ScopedTiff()
+    {
+        if (tif) TIFFClose(tif);
+    }
+};
 
-#    ifdef _WIN32
-    TIFF* tif = TIFFOpenW(path.c_str(), "r");
-#    else
-    TIFF* tif = TIFFOpen(path.c_str(), "r");
-#    endif
-
-    if (!tif) return false;
-
-    uint32_t width, height;
-    uint16_t bitspersample = 0, sample_format = SAMPLEFORMAT_UINT, samples = 1;
+// Reads the first channel of the first directory of an open tiff into img.
+bool LoadTiff(TIFF* tif, Image& img, const std::string& name)
+{
+    uint32_t width = 0, height = 0;
+    uint16_t bitspersample = 0, sample_format = SAMPLEFORMAT_UINT, samples = 1, planar = PLANARCONFIG_CONTIG;
 
     // Get the image width and height
     if (!TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width))
     {
-        std::cerr << "The file '" << path << "' has no 'TIFFTAG_IMAGEWIDTH'. The file is probably corrupted\n";
+        std::cerr << "The file '" << name << "' has no 'TIFFTAG_IMAGEWIDTH'. The file is probably corrupted\n";
         return false;
     }
     if (!TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height))
     {
-        std::cerr << "The file '" << path << "' has no 'TIFFTAG_IMAGELENGTH'. The file is probably corrupted\n";
+        std::cerr << "The file '" << name << "' has no 'TIFFTAG_IMAGELENGTH'. The file is probably corrupted\n";
         return false;
     }
     if (!TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bitspersample))
     {
-        std::cerr << "The file '" << path << "' has no 'TIFFTAG_BITSPERSAMPLE'. The file is probably corrupted\n";
+        std::cerr << "The file '" << name << "' has no 'TIFFTAG_BITSPERSAMPLE'. The file is probably corrupted\n";
         return false;
     }
 
@@ -52,51 +57,103 @@ bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
     {
         samples = 1;
     }
+    TIFFGetFieldDefaulted(tif, TIFFTAG_PLANARCONFIG, &planar);
 
-
-    ImageType type = ImageType::UC1;
+    ImageType type = TYPE_UNKNOWN;
     if (sample_format == SAMPLEFORMAT_IEEEFP)
     {
-        type = ImageType::F1;
+        type = (bitspersample == 32) ? ImageType::F1 : (bitspersample == 64) ? ImageType::D1 : TYPE_UNKNOWN;
     }
     else if (sample_format == SAMPLEFORMAT_UINT)
     {
-        type = (bitspersample == 8) ? ImageType::UC1 : (bitspersample == 16) ? ImageType::US1 : ImageType::UI1;
+        type = (bitspersample == 8)    ? ImageType::UC1
+               : (bitspersample == 16) ? ImageType::US1
+               : (bitspersample == 32) ? ImageType::UI1
+                                       : TYPE_UNKNOWN;
     }
     else if (sample_format == SAMPLEFORMAT_INT)
     {
-        type = (bitspersample == 8) ? ImageType::C1 : (bitspersample == 16) ? ImageType::S1 : ImageType::I1;
+        type = (bitspersample == 8)    ? ImageType::C1
+               : (bitspersample == 16) ? ImageType::S1
+               : (bitspersample == 32) ? ImageType::I1
+                                       : TYPE_UNKNOWN;
     }
 
+    if (type == TYPE_UNKNOWN)
+    {
+        std::cerr << "The file '" << name << "' has an unsupported pixel format (" << bitspersample
+                  << " bits per sample, sample format " << sample_format << ")\n";
+        return false;
+    }
+    if (samples == 0)
+    {
+        std::cerr << "The file '" << name << "' has 0 samples per pixel\n";
+        return false;
+    }
+    if (width == 0 || height == 0 || width > uint32_t(std::numeric_limits<int>::max() / (8 * samples)) ||
+        height > uint32_t(std::numeric_limits<int>::max()))
+    {
+        std::cerr << "The file '" << name << "' has an invalid size " << width << "x" << height << "\n";
+        return false;
+    }
 
     if (samples != 1)
     {
-        std::cout << "Image '" << path << "' has more than one channel. Only loading first channel\n";
-        samples = 1;
+        std::cout << "Image '" << name << "' has more than one channel. Only loading first channel\n";
     }
 
-    type = (ImageType)((int)type + samples - 1);
     img.create(height, width, type);
 
-    // size_t buffer_size = TIFFScanlineSize(tif);
-    // SAIGA_ASSERT(buffer_size == img.pitchBytes);
-
-    for (uint32_t row = 0; row < height; ++row)
+    // TIFFReadScanline always writes a complete scanline, which contains all samples of a pixel for contiguous
+    // data. Read into a separate buffer if that is larger than one row of the (single channel) output image.
+    const size_t row_bytes       = size_t(width) * elementSize(type);
+    const tmsize_t scanline_size = TIFFScanlineSize(tif);
+    if (scanline_size <= 0)
     {
-        TIFFReadScanline(tif, img.rowPtr(row), row);
+        return false;
+    }
+    const bool interleaved = samples > 1 && planar == PLANARCONFIG_CONTIG;
+    if (!interleaved && size_t(scanline_size) != row_bytes)
+    {
+        std::cerr << "The file '" << name << "' has an unexpected scanline size\n";
+        return false;
+    }
+    std::vector<uint8_t> scanline(interleaved ? size_t(scanline_size) : 0);
+    if (interleaved && size_t(scanline_size) < row_bytes * samples)
+    {
+        std::cerr << "The file '" << name << "' has an unexpected scanline size\n";
+        return false;
     }
 
+    const size_t pixel_bytes = elementSize(type);
+    for (uint32_t row = 0; row < height; ++row)
+    {
+        if (interleaved)
+        {
+            if (TIFFReadScanline(tif, scanline.data(), row, 0) != 1) return false;
+            auto dst = (uint8_t*)img.rowPtr(row);
+            for (uint32_t x = 0; x < width; ++x)
+            {
+                memcpy(dst + x * pixel_bytes, scanline.data() + size_t(x) * samples * pixel_bytes, pixel_bytes);
+            }
+        }
+        else
+        {
+            // For separate planes, sample 0 is the first channel.
+            if (TIFFReadScanline(tif, img.rowPtr(row), row, 0) != 1) return false;
+        }
+    }
 
-    float xres, yres;
+    float xres = 0, yres = 0;
     bool has_xres = TIFFGetField(tif, TIFFTAG_XRESOLUTION, &xres);
     bool has_yres = TIFFGetField(tif, TIFFTAG_YRESOLUTION, &yres);
 
-    if (has_xres && has_yres)
+    if (has_xres && has_yres && xres > 0 && yres > 0)
     {
-        uint16_t unit;
+        uint16_t unit = RESUNIT_NONE;
         TIFFGetFieldDefaulted(tif, TIFFTAG_RESOLUTIONUNIT, &unit);
 
-        vec2 pixel_size_mm;
+        vec2 pixel_size_mm(0, 0);
 
         if (unit == RESUNIT_CENTIMETER)
         {
@@ -116,10 +173,27 @@ bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
             img.set_resolution(pixel_size_mm);
         }
     }
+    return true;
+}
+}  // namespace
 
+bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
+{
+    TIFFSetWarningHandler(nullptr);
+    TIFFSetWarningHandlerExt(nullptr);
 
-    TIFFClose(tif);
+#    ifdef _WIN32
+    ScopedTiff tif(TIFFOpenW(path.c_str(), "r"));
+#    else
+    ScopedTiff tif(TIFFOpen(path.c_str(), "r"));
+#    endif
 
+    if (!tif.tif) return false;
+    if (!LoadTiff(tif.tif, img, path.u8string()))
+    {
+        img.clear();
+        return false;
+    }
     return true;
 }
 
@@ -129,10 +203,11 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
     TIFFSetWarningHandlerExt(nullptr);
 
 #    ifdef _WIN32
-    TIFF* tif = TIFFOpenW(path.c_str(), "w");
+    ScopedTiff scoped_tif(TIFFOpenW(path.c_str(), "w"));
 #    else
-    TIFF* tif = TIFFOpen(path.c_str(), "w");
+    ScopedTiff scoped_tif(TIFFOpen(path.c_str(), "w"));
 #    endif
+    TIFF* tif = scoped_tif.tif;
     if (!tif) return false;
 
     uint32_t width  = img.width;
@@ -227,12 +302,14 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
 
     for (uint32_t row = 0; row < height; ++row)
     {
-        TIFFWriteScanline(tif, const_cast<void*>(img.rowPtr(row)), row);
+        if (TIFFWriteScanline(tif, const_cast<void*>(img.rowPtr(row)), row) != 1)
+        {
+            return false;
+        }
     }
 
-    TIFFClose(tif);
-
-    return true;
+    // Writes the directory, so a full disk is reported here.
+    return TIFFFlush(tif) == 1;
 }
 
 std::vector<uint8_t> saveImageLibTiff2Memory(const Image& img)
@@ -345,7 +422,11 @@ std::vector<uint8_t> saveImageLibTiff2Memory(const Image& img)
 
     for (uint32_t row = 0; row < height; ++row)
     {
-        TIFFWriteScanline(tif, const_cast<void*>(img.rowPtr(row)), row);
+        if (TIFFWriteScanline(tif, const_cast<void*>(img.rowPtr(row)), row) != 1)
+        {
+            TIFFClose(tif);
+            return {};
+        }
     }
 
     // TIFFClose flushes the internal buffers and writes the final directory structure to the stream
@@ -367,12 +448,19 @@ struct membuf : std::streambuf
     pos_type seekoff(off_type off, std::ios_base::seekdir dir,
                      std::ios_base::openmode which = std::ios_base::in) override
     {
+        // Offsets come from the (untrusted) file. Positions outside of the buffer must fail, otherwise the next read
+        // would access memory outside of it.
+        off_type base = 0;
         if (dir == std::ios_base::cur)
-            gbump(off);
+            base = gptr() - eback();
         else if (dir == std::ios_base::end)
-            setg(eback(), egptr() + off, egptr());
-        else if (dir == std::ios_base::beg)
-            setg(eback(), eback() + off, egptr());
+            base = egptr() - eback();
+        off_type size = egptr() - eback();
+        if (off < -base || off > size - base)
+        {
+            return pos_type(off_type(-1));
+        }
+        setg(eback(), eback() + base + off, egptr());
         return gptr() - eback();
     }
 
@@ -392,76 +480,16 @@ bool loadImageFromMemoryLibTiff(const void* data, size_t size, Image& img)
     TIFFSetWarningHandler(nullptr);
     TIFFSetWarningHandlerExt(nullptr);
 
-
     imemstream strm((const char*)data, size);
-    // TIFF* tif = TIFFOpen(path.c_str(), "r");
-    TIFF* tif = TIFFStreamOpen("Tiff Loader", &strm);
+    ScopedTiff tif(TIFFStreamOpen("Tiff Loader", &strm));
 
-    if (!tif) return false;
-
-    uint32_t width, height;
-    uint16_t bitspersample = 0, sample_format = SAMPLEFORMAT_UINT, samples = 1;
-
-    // Get the image width and height
-    if (!TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &width))
+    if (!tif.tif) return false;
+    if (!LoadTiff(tif.tif, img, "memory"))
     {
+        img.clear();
         return false;
     }
-    if (!TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &height))
-    {
-        return false;
-    }
-    if (!TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bitspersample))
-    {
-        return false;
-    }
-
-    // These tags might actually be not present. In these cases the default values are used.
-    if (!TIFFGetField(tif, TIFFTAG_SAMPLEFORMAT, &sample_format))
-    {
-        sample_format = SAMPLEFORMAT_UINT;
-    }
-    if (!TIFFGetField(tif, TIFFTAG_SAMPLESPERPIXEL, &samples))
-    {
-        samples = 1;
-    }
-
-
-    ImageType type = ImageType::UC1;
-    if (sample_format == SAMPLEFORMAT_IEEEFP)
-    {
-        type = ImageType::F1;
-    }
-    else if (sample_format == SAMPLEFORMAT_UINT)
-    {
-        type = (bitspersample == 8) ? ImageType::UC1 : (bitspersample == 16) ? ImageType::US1 : ImageType::UI1;
-    }
-    else if (sample_format == SAMPLEFORMAT_INT)
-    {
-        type = (bitspersample == 8) ? ImageType::C1 : (bitspersample == 16) ? ImageType::S1 : ImageType::I1;
-    }
-
-
-    if (samples != 1)
-    {
-        samples = 1;
-    }
-
-    type = (ImageType)((int)type + samples - 1);
-    img.create(height, width, type);
-
-    // size_t buffer_size = TIFFScanlineSize(tif);
-    // SAIGA_ASSERT(buffer_size == img.pitchBytes);
-
-    bool result = true;
-    for (uint32_t row = 0; row < height; ++row)
-    {
-        result &= TIFFReadScanline(tif, img.rowPtr(row), row) == 1;
-    }
-
-    TIFFClose(tif);
-
-    return result;
+    return true;
 }
 }  // namespace Saiga
 

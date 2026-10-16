@@ -30,22 +30,14 @@ inline ImageType saigaType(int color_type, int bit_depth)
         case PNG_COLOR_TYPE_RGB_ALPHA:
             channels = 4;
             break;
-        case PNG_COLOR_TYPE_PALETTE:
-            SAIGA_EXIT_ERROR("PNG_COLOR_TYPE_PALETTE color type is not supportet!");
-            break;
         default:
-            std::cout << "unknown png color type: " << color_type << std::endl;
-            SAIGA_EXIT_ERROR("Unknown Color Type");
+            // Palette images are converted to RGB before this is called.
+            return TYPE_UNKNOWN;
     }
 
     ImageElementType elementType = ImageElementType::IET_ELEMENT_UNKNOWN;
     switch (bit_depth)
     {
-        case 1:
-        case 2:
-        case 4:
-            // We have set png_expand from 1,2,4 bit to 8-bit
-            SAIGA_ASSERT(PNG_COLOR_TYPE_GRAY == PNG_COLOR_TYPE_GRAY);
         case 8:
             elementType = ImageElementType::IET_UCHAR;
             break;
@@ -56,8 +48,8 @@ inline ImageType saigaType(int color_type, int bit_depth)
             elementType = ImageElementType::IET_UINT;
             break;
         default:
-            std::cout << "unknown bit depth: " << bit_depth << std::endl;
-            SAIGA_EXIT_ERROR("Unknown bit depth");
+            // 1, 2 and 4 bit images are expanded to 8 bit before this is called.
+            return TYPE_UNKNOWN;
     }
 
 

@@ -9,6 +9,7 @@
 #include "saiga/core/util/assert.h"
 
 #ifdef SAIGA_USE_ZLIB
+#    include <cstring>
 #    include <zlib.h>
 namespace Saiga
 {
@@ -52,7 +53,9 @@ int compress3(Bytef* dest, size_t* destLen, const Bytef* source, size_t sourceLe
             sourceLen -= (size_t)stream.avail_in;
         }
         err = deflate(&stream, sourceLen ? Z_NO_FLUSH : Z_FINISH);
+        // total_out is only 32 bit on some platforms, so count it here and reset it (like in uncompress3)
         total_out_uint64 += stream.total_out;
+        stream.total_out = 0;
 
     } while (err == Z_OK);
 
@@ -167,6 +170,26 @@ std::vector<unsigned char> uncompress(const void* data)
 
     SAIGA_ASSERT(actual_out_size == decompressed_data_size);
 
+    return result;
+}
+
+std::optional<std::vector<unsigned char>> uncompress(const void* data, size_t size, size_t max_decompressed_size)
+{
+    if (size < header_size) return {};
+    size_t header[3];
+    memcpy(header, data, header_size);
+    size_t compressed_data_size   = header[1];
+    size_t decompressed_data_size = header[2];
+    if (header[0] != magic_value || compressed_data_size > size - header_size ||
+        decompressed_data_size > max_decompressed_size)
+    {
+        return {};
+    }
+
+    std::vector<unsigned char> result(decompressed_data_size);
+    size_t actual_out_size = decompressed_data_size;
+    int err = uncompress3(result.data(), &actual_out_size, (const Byte*)data + header_size, &compressed_data_size);
+    if (err != Z_OK || actual_out_size != decompressed_data_size) return {};
     return result;
 }
 
