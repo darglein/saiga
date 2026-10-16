@@ -424,7 +424,7 @@ class MatrixBase
 
     HD Scalar all() const
     {
-        Scalar result = 0;
+        Scalar result = 1;
         for (int i = 0; i < derived().size(); ++i)
         {
             result &= derived().at(i);
