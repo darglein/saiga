@@ -101,9 +101,28 @@ inline std::string to_string(double v, int precision)
 
 
 
+/**
+ * Locale independent number conversion. The decimal separator is always '.', whatever the C locale is set to.
+ *
+ * ParseNumber is strict: it returns false unless the whole string (ignoring leading and trailing whitespace) is a
+ * number that fits into T.
+ */
+SAIGA_CORE_API bool ParseNumber(const std::string& str, double& out);
+SAIGA_CORE_API bool ParseNumber(const std::string& str, float& out);
+SAIGA_CORE_API bool ParseNumber(const std::string& str, long long& out);
+SAIGA_CORE_API bool ParseNumber(const std::string& str, long& out);
+SAIGA_CORE_API bool ParseNumber(const std::string& str, int& out);
+
+// The shortest string that is read back as exactly the same value.
+SAIGA_CORE_API std::string NumberToStringRoundtrip(double v);
+SAIGA_CORE_API std::string NumberToStringRoundtrip(float v);
+
+// Like std::atof (a number prefix, 0 if there is none), but independent of the C locale.
+SAIGA_CORE_API double ParseDoublePrefix(const char* str, size_t length);
+
 inline float to_float(const std::string& str)
 {
-    return std::atof(str.c_str());
+    return float(ParseDoublePrefix(str.data(), str.size()));
 }
 
 inline int to_int(const std::string& str)
@@ -114,13 +133,7 @@ inline int to_int(const std::string& str)
 #ifdef SAIGA_HAS_STRING_VIEW
 inline double to_double(const std::string_view& str)
 {
-#    if 0
-    double d;
-    std::from_chars(str.data(),str.data()+str.size(),d);
-    return d;
-#    else
-    return std::atof(std::string(str).c_str());
-#    endif
+    return ParseDoublePrefix(str.data(), str.size());
 }
 
 inline long to_long(const std::string_view& str)
@@ -130,7 +143,7 @@ inline long to_long(const std::string_view& str)
 #else
 inline double to_double(const std::string& str)
 {
-    return std::atof(str.c_str());
+    return ParseDoublePrefix(str.data(), str.size());
 }
 inline long int to_long(const std::string& str)
 {

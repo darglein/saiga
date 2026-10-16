@@ -76,16 +76,21 @@ struct ApplicationParamIterator
     {
         if (sep == ' ')
         {
+            // Returning false lets CLI11 report the invalid value instead of storing 0.
             auto call_back = [&variable](const std::vector<std::string>& result) -> bool
             {
-                SAIGA_ASSERT(result.size() == _Rows * _Cols);
+                if (result.size() != _Rows * _Cols) return false;
+                Matrix<_Scalar, _Rows, _Cols> tmp;
                 for (int i = 0; i < _Rows; ++i)
                 {
                     for (int j = 0; j < _Cols; ++j)
                     {
-                        variable(i, j) = Saiga::to_double(result[i * _Cols + j]);
+                        double v;
+                        if (!Saiga::ParseNumber(result[i * _Cols + j], v)) return false;
+                        tmp(i, j) = _Scalar(v);
                     }
                 }
+                variable = tmp;
                 return true;
             };
             auto call_back2 = []() -> std::string { return ""; };
@@ -104,12 +109,14 @@ struct ApplicationParamIterator
         {
             auto call_back = [&variable](const std::vector<std::string>& result) -> bool
             {
-                SAIGA_ASSERT(result.size() == 4);
+                if (result.size() != 4) return false;
 
                 Matrix<_Scalar, 4, 1> coeffs;
                 for (int i = 0; i < 4; ++i)
                 {
-                    coeffs(i) = Saiga::to_double(result[i]);
+                    double v;
+                    if (!Saiga::ParseNumber(result[i], v)) return false;
+                    coeffs(i) = _Scalar(v);
                 }
                 variable = Quaternion<_Scalar>(coeffs);
                 return true;

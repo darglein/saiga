@@ -213,8 +213,10 @@
 #    pragma warning(disable : 4127 4503 4702 4786)
 #endif
 #include "saiga/config.h"
+#include "saiga/core/util/tostring.h"
 
 #include <algorithm>
+#include <cinttypes>
 #include <cstdlib>
 #include <cstring>
 #include <list>
@@ -2008,11 +2010,12 @@ int64_t CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetLongValue(const S
     if (szValue[0] == '0' && (szValue[1] == 'x' || szValue[1] == 'X'))
     {
         if (!szValue[2]) return a_nDefault;
-        nValue = strtol(&szValue[2], &pszSuffix, 16);
+        // strtoll: long is only 32 bit on Windows
+        nValue = strtoll(&szValue[2], &pszSuffix, 16);
     }
     else
     {
-        nValue = strtol(szValue, &pszSuffix, 10);
+        nValue = strtoll(szValue, &pszSuffix, 10);
     }
 
     // any invalid strings will return the default value
@@ -2038,12 +2041,9 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetLongValue(const 
     std::string input_str;
     {
         // convert to an ASCII string
+        // %ld is only 32 bit on Windows
         char szInput[64];
-#if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
-        sprintf_s(szInput, a_bUseHex ? "0x%lx" : "%ld", a_nValue);
-#else  // !__STDC_WANT_SECURE_LIB__
-        sprintf(szInput, a_bUseHex ? "0x%lx" : "%ld", a_nValue);
-#endif  // __STDC_WANT_SECURE_LIB__
+        snprintf(szInput, sizeof(szInput), a_bUseHex ? "0x%" PRIx64 : "%" PRId64, a_nValue);
         input_str = szInput;
     }
 
@@ -2102,11 +2102,10 @@ double CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::GetDoubleValue(const 
         return a_nDefault;
     }
 
-    char* pszSuffix = NULL;
-    double nValue   = strtod(szValue, &pszSuffix);
-
+    // strtod depends on the C locale (decimal comma in some locales), ini files always use '.'
+    double nValue = 0;
     // any invalid strings will return the default value
-    if (!pszSuffix || *pszSuffix)
+    if (!Saiga::ParseNumber(std::string(szValue), nValue))
     {
         return a_nDefault;
     }
@@ -2128,22 +2127,8 @@ SI_Error CSimpleIniTempl<SI_CHAR, SI_STRLESS, SI_CONVERTER>::SetDoubleValue(cons
 
     std::string input_str;
     {
-        auto to_string2 = [](double d)
-        {
-            std::ostringstream oss;
-            oss << std::setprecision(20) << std::noshowpoint << d;
-            std::string str = oss.str();
-            return str;
-        };
-        // convert to an ASCII string
-//        char szInput[64];
-//#if __STDC_WANT_SECURE_LIB__ && !_WIN32_WCE
-//        sprintf_s(szInput, "%0.10f", a_nValue);
-//#else  // !__STDC_WANT_SECURE_LIB__
-//        sprintf(szInput, "%0.10f", a_nValue);
-//#endif  // __STDC_WANT_SECURE_LIB__
-//        input_str = szInput;
-        input_str = to_string2(a_nValue);
+        // The shortest string that reads back as the same value, independent of the locale.
+        input_str = Saiga::NumberToStringRoundtrip(a_nValue);
     }
     if (add_default_prefix)
     {

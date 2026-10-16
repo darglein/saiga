@@ -7,17 +7,71 @@
 #pragma once
 
 
-#include "saiga/core/math/Types.h"
 #include "saiga/core/math/Quaternion.h"
-#include "saiga/core/util/tostring.h"
+#include "saiga/core/math/Types.h"
 #include "saiga/core/util/string_to_path.h"
-
-#include <filesystem>
+#include "saiga/core/util/tostring.h"
 
 #include "SimpleIni.h"
 
+#include <filesystem>
+#include <limits>
+#include <stdexcept>
+
+#include <type_traits>
+
 namespace Saiga
 {
+namespace IniInternal
+{
+// Splits a list value. Surrounding whitespace is ignored, and with ' ' as separator so are repeated spaces.
+inline std::vector<std::string> SplitList(const std::string& str, char sep)
+{
+    std::vector<std::string> result;
+    for (auto& s : Saiga::split(str, sep))
+    {
+        auto begin = s.find_first_not_of(" \t\r\n");
+        if (begin == std::string::npos)
+        {
+            if (sep == ' ') continue;
+            s.clear();
+        }
+        else
+        {
+            s = s.substr(begin, s.find_last_not_of(" \t\r\n") - begin + 1);
+        }
+        result.push_back(s);
+    }
+    return result;
+}
+
+template <typename T>
+std::string ValueToString(T v)
+{
+    if constexpr (std::is_floating_point<T>::value)
+    {
+        return NumberToStringRoundtrip(v);
+    }
+    else
+    {
+        return std::to_string(v);
+    }
+}
+
+template <typename T>
+T ParseValue(const std::string& str, const std::string& section, const std::string& name)
+{
+    using ParseType = std::conditional_t<std::is_floating_point<T>::value, T, long long>;
+    ParseType value;
+    if (!ParseNumber(str, value) || (std::is_integral<T>::value && (value < ParseType(std::numeric_limits<T>::min()) ||
+                                                                    value > ParseType(std::numeric_limits<T>::max()))))
+    {
+        throw std::runtime_error("Invalid value '" + str + "' in [" + section + "] " + name);
+    }
+    return T(value);
+}
+}  // namespace IniInternal
+
 /**
  *  ============== Usage Example ===============
  * Note:    The "getAdd" functions add the keys if they don't exist yet.
@@ -133,28 +187,21 @@ template <>
 inline std::vector<double> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<double> variable, std::string section,
                                             std::string variable_name, std::string comment, char sep)
 {
-    auto to_string2 = [](double d)
-    {
-        std::ostringstream oss;
-        oss << std::setprecision(10) << std::noshowpoint << d;
-        std::string str = oss.str();
-        return str;
-    };
-
     std::vector<std::string> tmp;
     for (const auto& v : variable)
     {
-        tmp.push_back(to_string2(v));
+        tmp.push_back(IniInternal::ValueToString(v));
     }
 
-    tmp = Saiga::split(ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(),
-                                        comment.length() == 0 ? nullptr : comment.c_str()),
-                       sep);
+    tmp =
+        IniInternal::SplitList(ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(),
+                                                comment.length() == 0 ? nullptr : comment.c_str()),
+                               sep);
 
     std::vector<double> result;
     for (const auto& v : tmp)
     {
-        result.push_back(to_double(v));
+        result.push_back(IniInternal::ParseValue<double>(v, section, variable_name));
     }
     return result;
 }
@@ -170,14 +217,15 @@ inline std::vector<int> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<int>
         tmp.push_back(std::to_string(v));
     }
 
-    tmp = Saiga::split(ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(),
-                                        comment.length() == 0 ? nullptr : comment.c_str()),
-                       sep);
+    tmp =
+        IniInternal::SplitList(ini.GetAddString(section.c_str(), variable_name.c_str(), Saiga::concat(tmp, sep).c_str(),
+                                                comment.length() == 0 ? nullptr : comment.c_str()),
+                               sep);
 
     std::vector<int> result;
     for (const auto& v : tmp)
     {
-        result.push_back(to_long(v));
+        result.push_back(IniInternal::ParseValue<int>(v, section, variable_name));
     }
     return result;
 }
@@ -185,19 +233,10 @@ inline std::vector<int> ReadWriteIniList(Saiga::SimpleIni& ini, std::vector<int>
 template <typename _Scalar, int _Rows, int _Cols>
 std::string toIniString(const Matrix<_Scalar, _Rows, _Cols>& M, char sep)
 {
-    auto to_string2 = [](_Scalar d)
-    {
-        std::ostringstream oss;
-        oss << std::setprecision(10) << std::noshowpoint << d;
-        std::string str = oss.str();
-        return str;
-    };
-
-
     std::string str;
     // Add entries to string, separated with ' ' in row major order.
     for (int i = 0; i < M.rows(); ++i)
-        for (int j = 0; j < M.cols(); ++j) str += to_string2(M(i, j)) + sep;
+        for (int j = 0; j < M.cols(); ++j) str += IniInternal::ValueToString(M(i, j)) + sep;
     if (!str.empty())
     {
         // remove last sep
@@ -208,15 +247,21 @@ std::string toIniString(const Matrix<_Scalar, _Rows, _Cols>& M, char sep)
 }
 
 
+// Throws std::runtime_error if the number of values does not match or a value is not a number.
 template <typename _Scalar, int _Rows, int _Cols>
-void fromIniString(const std::string& str, Matrix<_Scalar, _Rows, _Cols>& M, char sep)
+void fromIniString(const std::string& str, Matrix<_Scalar, _Rows, _Cols>& M, char sep, const std::string& section = "",
+                   const std::string& name = "")
 {
-    auto arr = Saiga::split(str, sep);
-    SAIGA_ASSERT((int)arr.size() == M.rows() * M.cols());
+    auto arr = IniInternal::SplitList(str, sep);
+    if ((int)arr.size() != M.rows() * M.cols())
+    {
+        throw std::runtime_error("Expected " + std::to_string(M.rows() * M.cols()) + " values in [" + section + "] " +
+                                 name + " but got " + std::to_string(arr.size()) + ": '" + str + "'");
+    }
 
     for (int i = 0; i < M.rows(); ++i)
         for (int j = 0; j < M.cols(); ++j)
-            M(i, j) = Saiga::FromStringConverter<_Scalar>::convert(arr[i * M.cols() + j]);
+            M(i, j) = IniInternal::ParseValue<_Scalar>(arr[i * M.cols() + j], section, name);
 }
 
 template <typename T, int rows, int cols>
@@ -227,7 +272,7 @@ inline Matrix<T, rows, cols> ReadWriteIniList(Saiga::SimpleIni& ini, Matrix<T, r
     std::string str = toIniString(variable, sep);
     str             = ini.GetAddString(section.c_str(), variable_name.c_str(), str.c_str(),
                            comment.length() == 0 ? nullptr : comment.c_str());
-    fromIniString(str, variable, sep);
+    fromIniString(str, variable, sep, section, variable_name);
     return variable;
 }
 

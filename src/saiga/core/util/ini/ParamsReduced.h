@@ -78,18 +78,40 @@ struct ParamsBase
 
 #define SAIGA_PARAM_DEFAULT(_variable) (ParamStructType()._variable)
 
+// The macros expand to 'if (!it) {} else ...' so that an 'else' after a macro binds to the caller's 'if'.
 #define SAIGA_PARAM(_variable) \
-    if (it) it->SaigaParam(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, "")
+    if (!it)                   \
+    {                          \
+    }                          \
+    else                       \
+        it->SaigaParam(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, "")
 
 #define SAIGA_PARAM_COMMENT(_variable, _comment) \
-    if (it) it->SaigaParam(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, _comment)
+    if (!it)                                     \
+    {                                            \
+    }                                            \
+    else                                         \
+        it->SaigaParam(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, _comment)
 
 #define SAIGA_PARAM_LIST(_variable, _sep) \
-    if (it) it->SaigaParamList(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, _sep, "")
+    if (!it)                              \
+    {                                     \
+    }                                     \
+    else                                  \
+        it->SaigaParamList(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, _sep, "")
 
 // a variation where the list is also passed to the command line parser
 #define SAIGA_PARAM_LIST2(_variable, _sep) \
-    if (it) it->SaigaParamList(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, _sep, "")
+    if (!it)                               \
+    {                                      \
+    }                                      \
+    else                                   \
+        it->SaigaParamList(name_, _variable, SAIGA_PARAM_DEFAULT(_variable), #_variable, _sep, "")
 
+// Uses the current value as default, so it also works for local variables that are not members of the struct.
 #define SAIGA_PARAM_LIST_COMMENT(_variable, _sep, _comment) \
-    if (it) it->SaigaParamList(name_, _variable, _variable, #_variable, _sep, _comment)
+    if (!it)                                                \
+    {                                                       \
+    }                                                       \
+    else                                                    \
+        it->SaigaParamList(name_, _variable, _variable, #_variable, _sep, _comment)
