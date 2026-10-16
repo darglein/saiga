@@ -100,16 +100,21 @@ struct TINY_GLOG_API LogMessage
 
 // --- Modified Macros ---
 
-// The key change is to use an 'if' statement that leverages the 'operator bool()'
-// of the LogStreamVoidifier.
-// The `(void)0` provides an empty statement if the if condition is false.
-// This is a common trick to make the macro parse correctly in all contexts.
-#define CHECK_OP_LOG(name, op, val1, val2, log)                                       \
-    if (LogStreamVoidifier _ls_void = log(__FILE__, __LINE__, val1 op val2).stream()) \
-    _ls_void << "(" #val1 #op #val2 ") " << val1 << " " #op " " << val2 << "\n    "
+// The macros expand to 'if (...) {} else stream', so an 'else' that follows a CHECK in user code
+// binds to the user's 'if' and not to the one inside the macro.
+#define CHECK_OP_LOG(name, op, val1, val2, log)                                                    \
+    if (LogStreamVoidifier _ls_void = log(__FILE__, __LINE__, (val1)op(val2)).stream(); !_ls_void) \
+    {                                                                                              \
+    }                                                                                              \
+    else                                                                                           \
+        _ls_void << "(" #val1 #op #val2 ") " << (val1) << " " #op " " << (val2) << "\n    "
 
-#define CHECK_OP_LOG2(name, val1, log) \
-    if (LogStreamVoidifier _ls_void = log(__FILE__, __LINE__, val1).stream()) _ls_void << "( " #val1 ")\n    "
+#define CHECK_OP_LOG2(name, val1, log)                                                   \
+    if (LogStreamVoidifier _ls_void = log(__FILE__, __LINE__, val1).stream(); !_ls_void) \
+    {                                                                                    \
+    }                                                                                    \
+    else                                                                                 \
+        _ls_void << "( " #val1 ")\n    "
 
 
 // Keep the rest of your macros as they are, as they use CHECK_OP_LOG / CHECK_OP_LOG2

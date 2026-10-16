@@ -39,6 +39,15 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
         Scalar c                = v1.dot(v0);
 
 
+        if (c < Scalar(-1) + Scalar(1e-6))
+        {
+            // Opposite vectors: rotate by 180 degrees around any axis orthogonal to v0.
+            Matrix<Scalar, 3, 1> other =
+                v0.x() * v0.x() < Scalar(0.81) ? Matrix<Scalar, 3, 1>(1, 0, 0) : Matrix<Scalar, 3, 1>(0, 1, 0);
+            Matrix<Scalar, 3, 1> axis = v0.cross(other).normalized();
+            return SameObject(0, axis.x(), axis.y(), axis.z());
+        }
+
         Matrix<Scalar, 3, 1> axis = v0.cross(v1);
         Scalar s                  = sqrt((Scalar(1) + c) * Scalar(2));
         Scalar invs               = Scalar(1) / s;
@@ -55,8 +64,8 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
     {
         Matrix<Scalar, 3, 1> vn = v1.normalized();
 
-        angle *= 0.5f;
-        float sinAngle = sin(angle);
+        angle *= Scalar(0.5);
+        Scalar sinAngle = sin(angle);
 
         return SameObject(cos(angle), vn.x() * sinAngle, vn.y() * sinAngle, vn.z() * sinAngle);
     }

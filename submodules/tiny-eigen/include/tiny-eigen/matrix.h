@@ -279,7 +279,7 @@ class MatrixBase
             if (m(column, column) == 0)
             {
                 unsigned big = column;
-                for (unsigned row = 0; row < N; ++row)
+                for (unsigned row = column + 1; row < N; ++row)
                     if (fabs(m(row, column)) > fabs(m(big, column))) big = row;
                 if (big == column)
                 {
@@ -502,8 +502,8 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
         }
     }
 
-    HD _Scalar* data() { return data; }
-    HD const _Scalar* data() const { return data; }
+    HD _Scalar* data() { return _data; }
+    HD const _Scalar* data() const { return _data; }
 
     HD _Scalar& operator()(int i, int j) { return _data[j * _Rows + i]; }
     HD const _Scalar& operator()(int i, int j) const { return _data[j * _Rows + i]; }
@@ -636,8 +636,8 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
     HD const _Scalar& operator()(int i, int j) const { return _data[i * _row_stride + j * _col_stride]; }
 
 
-    HD Scalar& at(int i) { return _data[i * _row_stride]; }
-    HD const Scalar& at(int i) const { return _data[i * _row_stride]; }
+    HD Scalar& at(int i) { return (*this)(i % _Rows, i / _Rows); }
+    HD const Scalar& at(int i) const { return (*this)(i % _Rows, i / _Rows); }
 
 
     HD int rows() const { return _Rows; }
@@ -915,7 +915,7 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
     template <int NewRows>
     HD Matrix<Scalar, NewRows, 1, _Options> tail() const
     {
-        return MatrixView<Scalar, NewRows, 1, _Options>(&((*this)(rows() - NewRows, 0)), 1, 1);
+        return MatrixView<const Scalar, NewRows, 1, _Options>(&((*this)(rows() - NewRows, 0)), 1, 1);
     }
 
     HD const Array<_Scalar, _Rows, _Cols, _Options>& array() const
@@ -1019,9 +1019,9 @@ HD typename Derived::DenseReturnType operator/(const MatrixBase<Derived>& m1, ty
 }
 
 template <typename Derived>
-HD typename Derived::PlainObject operator/(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
+HD typename Derived::DenseReturnType operator/(typename Derived::Scalar v, const MatrixBase<Derived>& m1)
 {
-    typename Derived::PlainObject result;
+    typename Derived::DenseReturnType result;
     for (int i = 0; i < result.rows(); ++i)
     {
         for (int j = 0; j < result.cols(); ++j)

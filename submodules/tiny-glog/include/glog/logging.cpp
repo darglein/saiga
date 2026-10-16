@@ -5,6 +5,8 @@
  */
 #include "logging.h"
 
+#include <cstdlib>
+
 
 
 // A default no-op function if no custom one is installed

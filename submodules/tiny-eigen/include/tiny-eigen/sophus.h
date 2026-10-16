@@ -30,7 +30,7 @@ class SO3
 
 
     template <typename G>
-    HD SO3<G> cast()
+    HD SO3<G> cast() const
     {
         return SO3<G>(q.template cast<G>());
     }
@@ -141,7 +141,7 @@ class alignas(sizeof(T) * 8) SE3
     HD static SE3<T> fitToSE3(const TinyEigen::Matrix<T, 4, 4>& tra) { return SE3(tra); }
 
     template <typename G>
-    HD SE3<G> cast()
+    HD SE3<G> cast() const
     {
         return SE3<G>(_so3.template cast<G>(), t.template cast<G>());
     }
