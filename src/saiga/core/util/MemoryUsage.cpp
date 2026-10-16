@@ -194,7 +194,7 @@ MemoryInfo GetMemoryInfo()
     MemoryInfo result;
     result.current_memory_used  = getCurrentRSS();
     // The kernel updates the peak lazily, so it can be smaller than the current value.
-    result.max_memory_used      = std::max(getPeakRSS(), result.current_memory_used);
+    result.max_memory_used      = (std::max)(getPeakRSS(), result.current_memory_used);
     result.max_memory_available = getMaxSystemMemory();
     result.total_memory_used    = getUsedSystemMemory();
     result.valid                = result.current_memory_used > 0 && result.max_memory_used > 0;
