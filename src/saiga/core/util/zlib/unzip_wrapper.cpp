@@ -60,7 +60,12 @@ static bool UnzipCurrent(unzFile zipfile, Unzipfile& out_data, ProgressBarManage
 
             if (bar) bar->addProgress(1);
         } while (error > 0);
-        SAIGA_ASSERT(current_data == out_data.uncompressed_size);
+        if (current_data != out_data.uncompressed_size)
+        {
+            printf("unzip: expected %zu bytes but got %zu\n", out_data.uncompressed_size, current_data);
+            unzCloseCurrentFile(zipfile);
+            return false;
+        }
     }
     unzCloseCurrentFile(zipfile);
     return true;

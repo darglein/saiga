@@ -2,6 +2,7 @@
 
 #if defined(SAIGA_USE_LIBZIP)
 
+#    include <algorithm>
 #    include <iostream>
 #    include <utility>
 #    include <zip.h>
@@ -10,12 +11,14 @@
 namespace Saiga
 {
 
-static void print_error(const char* prefix, int err)
+static std::string print_error(const char* prefix, int err)
 {
     zip_error_t error;
     zip_error_init_with_code(&error, err);
-    std::cout << prefix << "\n" << zip_error_strerror(&error);
+    std::string message = zip_error_strerror(&error);
+    std::cout << prefix << "\n" << message << std::endl;
     zip_error_fini(&error);
+    return message;
 }
 
 ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
@@ -45,7 +48,7 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
     archive   = zip_open(path.u8string().c_str(), flag, &error);
     if (!archive)
     {
-        print_error("ZIP: Failed to open or create archive.", error);
+        last_error_message = print_error("ZIP: Failed to open or create archive.", error);
     }
 }
 
@@ -61,15 +64,25 @@ ZipArchive::ZipArchive(const ZipArchiveFile& nested_file)
 
     // Create a data source that reads directly from the outer archive's file entry
     // The -1 length tells libzip to read up to the end of the file.
+#    if LIBZIP_VERSION_MAJOR > 1 || (LIBZIP_VERSION_MAJOR == 1 && LIBZIP_VERSION_MINOR >= 10)
+    zip_source_t* src = zip_source_zip_file_create(nested_file.archive, nested_file.index,
+                                                   0,        // flags
+                                                   0,        // start offset
+                                                   -1,       // length
+                                                   nullptr,  // password
+                                                   &zerror);
+#    else
     zip_source_t* src = zip_source_zip_create(nested_file.archive, nested_file.index,
                                               0,   // flags
                                               0,   // start offset
                                               -1,  // length
                                               &zerror);
+#    endif
 
     if (!src)
     {
-        std::cout << "ZIP: Failed to create source for nested archive:\n" << zip_error_strerror(&zerror) << std::endl;
+        last_error_message = zip_error_strerror(&zerror);
+        std::cout << "ZIP: Failed to create source for nested archive:\n" << last_error_message << std::endl;
         zip_error_fini(&zerror);
         return;
     }
@@ -80,7 +93,7 @@ ZipArchive::ZipArchive(const ZipArchiveFile& nested_file)
 
     if (!archive)
     {
-        print_error("ZIP: Failed to open nested archive.", zerror.zip_err);
+        last_error_message = print_error("ZIP: Failed to open nested archive.", zerror.zip_err);
 
         // zip_open_from_source takes ownership of the source ONLY if it succeeds.
         // If it fails, we are responsible for freeing it.
@@ -236,7 +249,9 @@ ZipIncrementalWrite ZipArchive::begin_incremental_write(const std::filesystem::p
     if (zip_source_begin_write(source) < 0)
     {
         std::cout << "ZIP: Failed to begin write: " << zip_strerror(archive) << '\n';
-        zip_source_free(source);
+        // zip_file_add succeeded, so the archive owns the source. Freeing it here would leave a dangling pointer in
+        // the archive. Deleting the entry releases the source.
+        zip_delete(archive, index);
         return {};
     }
 
@@ -245,10 +260,16 @@ ZipIncrementalWrite ZipArchive::begin_incremental_write(const std::filesystem::p
 
 bool ZipIncrementalWrite::write(void* data, size_t size)
 {
+    if (!source)
+    {
+        return false;
+    }
     if (zip_source_write(source, data, size) < 0)
     {
         std::cout << "ZIP: Failed to write block: " << zip_strerror(archive) << '\n';
         zip_source_rollback_write(source);
+        // The write was rolled back, so there is nothing left to commit in the destructor.
+        source = nullptr;
         return false;
     }
 
@@ -375,6 +396,12 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, const std::file
     }
 
     zip_source_t* source = zip_source_file(archive, file_to_add.u8string().c_str(), 0, 0);
+    if (!source)
+    {
+        last_error_message = zip_strerror(archive);
+        std::cout << "ZIP: Failed to open " << file_to_add << ": " << last_error_message << '\n';
+        return false;
+    }
 
     auto index = add_file_internal(filename, source, method);
     if (index < 0)
@@ -390,11 +417,20 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, const std::file
 bool ZipArchive::add_folder(const std::filesystem::path& foldername, const std::filesystem::path& folder_to_add,
                             ZipCompressionMethod method)
 {
-    for (auto& entry : std::filesystem::recursive_directory_iterator(folder_to_add))
+    std::error_code ec;
+    std::filesystem::recursive_directory_iterator it(folder_to_add, ec);
+    if (ec)
     {
-        if (std::filesystem::is_directory(entry)) continue;
+        last_error_message = "Failed to iterate " + folder_to_add.u8string() + ": " + ec.message();
+        std::cout << "ZIP: " << last_error_message << '\n';
+        return false;
+    }
+    for (auto& entry : it)
+    {
+        if (!entry.is_regular_file(ec)) continue;
 
-        auto relative_path = std::filesystem::relative(entry.path(), folder_to_add);
+        // relative() would resolve symlinks and could produce '../' paths that escape the folder inside the archive.
+        auto relative_path = entry.path().lexically_relative(folder_to_add);
 
         if (!add_file(foldername / relative_path, entry.path(), method))
         {
@@ -407,12 +443,21 @@ bool ZipArchive::add_folder(const std::filesystem::path& foldername, const std::
 int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip_source* source,
                                       ZipCompressionMethod method)
 {
-    auto index =
-        (int)zip_file_add(archive, filename.generic_u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
+    zip_int64_t index =
+        zip_file_add(archive, filename.generic_u8string().c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
+    if (index < 0)
+    {
+        last_error_message = zip_strerror(archive);
+        return index;
+    }
 
     auto libzip_method = map_compression_method(method);
 
-    zip_set_file_compression(archive, index, libzip_method, 0);
+    if (zip_set_file_compression(archive, index, libzip_method, 0) != 0)
+    {
+        std::cout << "ZIP: Failed to set the compression method of " << filename << ": " << zip_strerror(archive)
+                  << '\n';
+    }
 
     return index;
 }
@@ -420,21 +465,40 @@ int64_t ZipArchive::add_file_internal(const std::filesystem::path& filename, zip
 
 bool ZipArchiveFile::open()
 {
-    file = zip_fopen(archive, filename.u8string().c_str(), ZIP_FL_ENC_UTF_8);
-    return true;
+    if (file)
+    {
+        close();
+    }
+    if (!archive)
+    {
+        return false;
+    }
+    file = zip_fopen_index(archive, index, 0);
+    return file != nullptr;
 }
 
 bool ZipArchiveFile::close()
 {
-    zip_fclose(file);
-    file = 0;
+    if (file)
+    {
+        zip_fclose(file);
+        file = 0;
+    }
     return true;
 }
 
 bool ZipArchiveFile::read(void* out_data, size_t size)
 {
+    if (!file)
+    {
+        return false;
+    }
     auto read_result = zip_fread(file, out_data, size);
-    SAIGA_ASSERT(size == read_result);
+    if (read_result < 0 || zip_uint64_t(read_result) != size)
+    {
+        std::cout << "ZIP: Failed to read " << size << " bytes from " << filename << '\n';
+        return false;
+    }
     return true;
 }
 
@@ -445,15 +509,15 @@ bool ZipArchiveFile::read_all(void* out_data, ProgressBarManager* progress_bar)
         return false;
     }
 
-    open();
-    if (!file)
+    if (!open())
     {
         std::cout << "ZIP: Failed to open file in archive.\n";
         return false;
     }
 
-
-    int read_block_size = 1024;
+    // out_data has room for exactly uncompressed_size bytes (the size stored in the archive). Never request more,
+    // even if the entry contains more data than that.
+    size_t read_block_size = 1024 * 1024;
 
     size_t num_blocks = (uncompressed_size + read_block_size - 1) / read_block_size;
     auto bar          = SAIGA_OPTIONAL_PROGRESS_BAR(progress_bar, "Unzip", num_blocks);
@@ -461,24 +525,51 @@ bool ZipArchiveFile::read_all(void* out_data, ProgressBarManager* progress_bar)
     uint8_t* byte_ptr = (uint8_t*)out_data;
     size_t cursor     = 0;
 
-    zip_int64_t read_result = 0;
-    do
+    while (cursor < uncompressed_size)
     {
-        read_result = zip_fread(file, byte_ptr + cursor, read_block_size);
+        size_t to_read          = std::min(read_block_size, uncompressed_size - cursor);
+        zip_int64_t read_result = zip_fread(file, byte_ptr + cursor, to_read);
         if (read_result < 0)
         {
             std::cout << "ZIP: Failed to read from file: " << zip_file_strerror(file) << '\n';
+            close();
             return false;
+        }
+        if (read_result == 0)
+        {
+            break;
         }
 
         cursor += read_result;
 
         if (bar) bar->addProgress(1);
-    } while (read_result > 0);
+    }
 
-
-    zip_fread(file, out_data, uncompressed_size);
+    // Read once more to reach the end of the entry: libzip checks the CRC there, and any further data means that
+    // the entry is larger than the size stored in the archive.
+    bool at_end = false;
+    if (cursor == uncompressed_size)
+    {
+        uint8_t extra;
+        zip_int64_t read_result = zip_fread(file, &extra, 1);
+        if (read_result < 0)
+        {
+            std::cout << "ZIP: Failed to read from file: " << zip_file_strerror(file) << '\n';
+        }
+        at_end = read_result == 0;
+    }
     close();
+
+    if (!at_end)
+    {
+        std::cout << "ZIP: " << filename << " does not match its size or checksum in the archive\n";
+        return false;
+    }
+    if (cursor != uncompressed_size)
+    {
+        std::cout << "ZIP: Expected " << uncompressed_size << " bytes in " << filename << " but got " << cursor << '\n';
+        return false;
+    }
     return true;
 }
 

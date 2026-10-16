@@ -33,9 +33,11 @@ std::vector<std::filesystem::path> Directory::getFiles()
 
     for (auto& it : std::filesystem::directory_iterator(dirname))
     {
-        if (it.is_regular_file())
+        // relative() would resolve symlinks and return the path of the link target instead of the entry name.
+        std::error_code ec;
+        if (it.is_regular_file(ec))
         {
-            out.push_back(std::filesystem::relative(it.path(), dirname));
+            out.push_back(it.path().filename());
         }
     }
     return out;
@@ -65,9 +67,10 @@ std::vector<std::filesystem::path> Directory::getDirectories()
 
     for (auto& it : std::filesystem::directory_iterator(dirname))
     {
-        if (it.is_directory())
+        std::error_code ec;
+        if (it.is_directory(ec))
         {
-            out.push_back(std::filesystem::relative(it.path(), dirname));
+            out.push_back(it.path().filename());
         }
     }
     return out;

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "saiga/config.h"
+
 #include <filesystem>
+#include <string>
 
 SAIGA_CORE_API bool is_valid_utf8(const std::string& string);
 SAIGA_CORE_API std::filesystem::path string_to_path(const std::string& s);
