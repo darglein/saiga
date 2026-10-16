@@ -13,8 +13,11 @@
 // https://aras-p.info/texts/CompactNormalStorage.html#method04spheremap
 FUNC_DECL vec2 PackNormalSpheremap(const vec3& n)
 {
-    float p  = sqrt(n.z() * 8 + 8);
-    vec2 enc = vec2(n[0], n[1]) * (1.f / p);
+    // 1 + z cancels near z = -1. For a unit normal 1 + z = (x^2 + y^2) / (1 - z), which is accurate there.
+    float xy2        = n[0] * n[0] + n[1] * n[1];
+    float one_plus_z = n.z() < 0 ? xy2 / (1 - n.z()) : 1 + n.z();
+    float p          = sqrt(one_plus_z * 8);
+    vec2 enc         = vec2(n[0], n[1]) * (1.f / p);
     // enc += vec2(0.5f, 0.5f);
     return enc;
 }
