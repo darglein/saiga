@@ -8,7 +8,7 @@ Guidance for AI coding agents (and humans) working in this repository.
 renderers, a CUDA module, and a vision module for SLAM, reconstruction, registration and
 optimization).
 
-- Language: C++17 (`cxx_std_17` on `saiga_core`), CUDA 14 for the CUDA module
+- Language: C++17 (`cxx_std_17` on `saiga_core`), CUDA code is compiled as C++17 and needs CUDA 12.0 or newer
 - Build system: CMake (>= 3.16), version 1.3.2 (root `CMakeLists.txt`)
 - Namespace: `Saiga`
 - Libraries: one shared library per module — `saiga_core`, `saiga_opengl`, `saiga_vulkan`,

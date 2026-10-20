@@ -9,8 +9,8 @@ unset(CUDA_FOUND)
 unset(CMAKE_CUDA_COMPILER)
 
 
-message(STATUS "SAIGA_CUDA_VERSION ${SAIGA_CUDA_VERSION}")
-find_package(CUDAToolkit 10.2)
+# Older toolkits are reported as "unsuitable version" and the CUDA module is disabled.
+find_package(CUDAToolkit 12.0)
 
 
 #Check Language is an extra module so we need to include it.
@@ -51,14 +51,7 @@ if (CUDA_FOUND)
         list(APPEND SAIGA_CUDA_FLAGS "--relocatable-device-code=true")
     endif ()
 
-    if (CUDAToolkit_VERSION)
-        set(SAIGA_CUDA_VERSION ${CUDAToolkit_VERSION} CACHE STRING "Detected CUDA Version")
-    elseif (CUDA_VERSION)
-        set(SAIGA_CUDA_VERSION ${CUDA_VERSION} CACHE STRING "Detected CUDA Version")
-    elseif (SAIGA_CUDA_VERSION)
-    else ()
-        message(FATAL_ERROR "Unknown cuda version ${SAIGA_CUDA_VERSION} ${CUDAToolkit_VERSION} ${CUDA_VERSION}")
-    endif ()
+    set(SAIGA_CUDA_VERSION ${CUDAToolkit_VERSION} CACHE STRING "Detected CUDA Version" FORCE)
 
 
     if (NOT MSVC)
@@ -91,18 +84,6 @@ if (CUDA_FOUND)
     endif ()
     message(STATUS "SAIGA_CUDA_FLAGS: ${SAIGA_CUDA_FLAGS}")
 
-
-    #  # 30 GTX 7xx
-    #  # 52 GTX 9xx
-    #  # 61 GTX 10xx
-    #  # 75 RTX 20xx
-    #  # 86 RTX 30xx
-    #  if(${SAIGA_CUDA_VERSION} VERSION_LESS "11")
-    #    set(SAIGA_CUDA_ARCH "30-virtual" "52-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
-    #  else()
-    #    # CUDA 11 and later doesn't support 30 anymore
-    #    set(SAIGA_CUDA_ARCH "52-virtual" "75-virtual" CACHE STRING "The cuda architecture used for compiling .cu files")
-    #  endif()
 
     include(select_compute_arch)
 

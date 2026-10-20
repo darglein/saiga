@@ -1196,11 +1196,7 @@ class is_direct_constructible
 
 #ifdef __CUDACC__
 
-#if CUDART_VERSION >= 11060
 #    pragma nv_diag_suppress 2361
-#else
-#    pragma diag_suppress 2361
-#endif
 #endif
         TT { std::declval<CC>() }
 #ifdef __CUDACC__
