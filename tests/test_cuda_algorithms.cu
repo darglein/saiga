@@ -418,6 +418,53 @@ TEST(CudaWarp, ShuffleCopy)
     TestShuffleCopy<4>();
 }
 
+// The groups without a particle return early and the remaining lanes pass their mask.
+template <int G>
+__global__ static void ShuffleCopyPartialWarpKernel(ArrayView<ShuffleParticle> particles)
+{
+    CUDA::ThreadInfo<0, G> ti;
+    bool active       = ti.warp_id < particles.size();
+    unsigned int mask = __ballot_sync(0xFFFFFFFF, active);
+    if (!active) return;
+
+    ShuffleParticle p;
+    CUDA::loadShuffleStruct<G, ShuffleParticle, int4>(particles.data(), &p, ti.lane_id, ti.warp_id, particles.size(),
+                                                      mask);
+    p.a.x += 1;
+    CUDA::storeShuffleStruct<G, ShuffleParticle, int4>(particles.data(), &p, ti.lane_id, ti.warp_id, particles.size(),
+                                                       mask);
+}
+
+// Regression test: the shuffles always used the full warp mask, and the documented usage returned early for the lanes
+// without an element. Shuffles with a full mask in a partial warp are undefined behavior (current GPUs and synccheck
+// happen to tolerate it, so this test only checks the masked version).
+TEST(CudaWarp, ShuffleCopyPartialWarp)
+{
+    const int G = 4;
+    for (int n : {1, 5, 13, 31})
+    {
+        std::vector<ShuffleParticle> h(n);
+        for (int i = 0; i < n; ++i)
+        {
+            float f = i * 12;
+            h[i].a  = make_float4(f, f + 1, f + 2, f + 3);
+            h[i].b  = make_float4(f + 4, f + 5, f + 6, f + 7);
+            h[i].c  = make_float4(f + 8, f + 9, f + 10, f + 11);
+        }
+        thrust::device_vector<ShuffleParticle> d(h.begin(), h.end());
+        ShuffleCopyPartialWarpKernel<G><<<iDivUp(n * G, 64), 64>>>(d);
+        CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+        thrust::host_vector<ShuffleParticle> r = d;
+        for (int i = 0; i < n; ++i)
+        {
+            float f = i * 12;
+            EXPECT_EQ(r[i].a.x, f + 1) << "n " << n << " i " << i;
+            EXPECT_EQ(r[i].a.y, f + 1) << "n " << n << " i " << i;
+            EXPECT_EQ(r[i].c.w, f + 11) << "n " << n << " i " << i;
+        }
+    }
+}
+
 // ======================== Random ========================
 
 template <int N>

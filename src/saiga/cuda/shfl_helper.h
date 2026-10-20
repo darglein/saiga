@@ -37,14 +37,14 @@ __device__ inline double __shfl_down(double var, unsigned int srcLane, int width
 #endif
 
 template <typename T, typename ShuffleType = int>
-__device__ inline T shfl(T var, unsigned int srcLane, int width = SAIGA_WARP_SIZE)
+__device__ inline T shfl(T var, unsigned int srcLane, int width = SAIGA_WARP_SIZE, unsigned int mask = 0xFFFFFFFF)
 {
     static_assert(sizeof(T) % sizeof(ShuffleType) == 0, "Cannot shuffle this type.");
     ShuffleType* a = reinterpret_cast<ShuffleType*>(&var);
     for (int i = 0; i < sizeof(T) / sizeof(ShuffleType); ++i)
     {
 #ifdef SAIGA_CUDA_USE_SHFL_SYNC
-        a[i] = __shfl_sync(0xFFFFFFFF, a[i], srcLane, width);
+        a[i] = __shfl_sync(mask, a[i], srcLane, width);
 #else
         a[i] = __shfl(a[i], srcLane, width);
 #endif
