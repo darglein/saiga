@@ -87,8 +87,8 @@ OptionsHelper(SAIGA_WITH_K4A "Include the openmesh library, if possible." ON)
 OptionsHelper(SAIGA_WITH_BULLET "Include the openmesh library, if possible." OFF)
 OptionsHelper(SAIGA_WITH_OPENVR "Include the openmesh library, if possible." ON)
 OptionsHelper(SAIGA_WITH_OPENCV "Include the opencv library, if possible." OFF)
-OptionsHelper(SAIGA_WITH_TINY_EIGEN "Use the tiny-eigen library instead of the real Eigen" OFF)
-OptionsHelper(SAIGA_WITH_TINY_GLOG "Use the tiny-glog library instead of the real glog" OFF)
+OptionsHelper(SAIGA_WITH_TINY_EIGEN "Use the tiny-eigen library instead of the real Eigen" ON)
+OptionsHelper(SAIGA_WITH_TINY_GLOG "Use the tiny-glog library instead of the real glog" ON)
 
 
 DefaultBuildType(RelWithDebInfo)
