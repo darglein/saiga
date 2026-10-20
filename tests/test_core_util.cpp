@@ -34,8 +34,10 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <sstream>
+#include <string>
 #include <vector>
 
 using namespace Saiga;
@@ -345,6 +347,29 @@ TEST(Exif, GPSOutsideOfSegment)
     ASSERT_EQ(info2.parseFromEXIFSegment(b.data.data(), segment_end), PARSE_EXIF_SUCCESS);
     EXPECT_EQ(info2.GeoLocation.Latitude, 0);
     EXPECT_EQ(info2.GeoLocation.Altitude, 0);
+}
+
+TEST(FileChecker, GetFiles)
+{
+    // getFiles() was declared but never defined, so calling it failed to link.
+    auto dir = std::filesystem::temp_directory_path() / "saiga_test_core_util_filechecker_getfiles";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "sub" / "dir.png");
+    for (auto name : {"b.png", "a.png", "c.jpg"}) std::ofstream(dir / "sub" / name) << "x";
+
+    FileChecker fc;
+    fc.setSearchWorkingDirectory(false);
+    fc.addSearchPath(dir);
+    // The same directory through a second search path is listed once.
+    fc.addSearchPath(dir / "sub" / "..");
+    std::vector<std::string> out = {"existing"};
+    fc.getFiles(out, "sub", ".png");
+    EXPECT_EQ(out, (std::vector<std::string>{"existing", path_to_string(dir / "sub" / "a.png"),
+                                             path_to_string(dir / "sub" / "b.png")}));
+
+    out.clear();
+    fc.getFiles(out, "missing", ".png");
+    EXPECT_TRUE(out.empty());
 }
 
 // ============================================================================

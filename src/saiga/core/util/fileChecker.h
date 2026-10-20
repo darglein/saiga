@@ -43,7 +43,12 @@ class SAIGA_CORE_API FileChecker
     std::filesystem::path getFileName(const std::filesystem::path& file);
 
     /**
-     * Like above, but only if the file ends on "ending"
+     * Appends the full names of all regular files in the directory 'predir' whose names end on 'ending'.
+     * 'predir' is searched at all search pathes; a directory reached through several search pathes is listed once.
+     * The files of each directory are sorted by name.
+     * Example:
+     * getFiles(out, "textures", ".png")
+     * ->   out = {"<search path>/textures/a.png", "<search path>/textures/b.png", ...}
      */
     void getFiles(std::vector<std::string>& out, const std::string& predir, const std::string& ending);
 
