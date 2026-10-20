@@ -415,6 +415,43 @@ TEST(CudaRandom, IndependentSequences)
     EXPECT_EQ(ToHost(d_out2), h);
 }
 
+__global__ static void SampleConeKernel(ArrayView<curandState> states, vec3 dir, float angle, ArrayView<vec3> out,
+                                        ArrayView<vec3> out_sphere)
+{
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid >= states.size()) return;
+    curandState s   = states[tid];
+    out[tid]        = CUDA::sampleCone(dir, angle, s);
+    out_sphere[tid] = CUDA::sphericalRand(2.0f, s);
+}
+
+// Regression test: sampleCone did not compile in device code (it called the host function Saiga::rotation). It also
+// rotated the samples of sampleUnitCone, which are around the y axis, as if they were around the z axis.
+TEST(CudaRandom, SampleCone)
+{
+    const int n = 2000;
+    thrust::device_vector<curandState> states(n);
+    CUDA::initRandom(states, 123);
+
+    for (vec3 dir : {vec3(0, 0, 1), vec3(1, 0, 0), vec3(0, 1, 0), vec3(1, 2, -3).normalized()})
+    {
+        float angle = 0.2f;
+        thrust::device_vector<vec3> d_out(n), d_sphere(n);
+        SampleConeKernel<<<iDivUp(n, 128), 128>>>(states, dir, angle, d_out, d_sphere);
+        thrust::host_vector<vec3> h_out    = d_out;
+        thrust::host_vector<vec3> h_sphere = d_sphere;
+        int outside                        = 0;
+        for (int i = 0; i < n; ++i)
+        {
+            vec3 v = h_out[i];
+            EXPECT_NEAR(v.norm(), 1, 1e-4);
+            if (v.dot(dir) < std::cos(angle) - 1e-4) outside++;
+            EXPECT_NEAR(h_sphere[i].norm(), 2, 1e-4);
+        }
+        EXPECT_EQ(outside, 0) << dir.transpose();
+    }
+}
+
 // ======================== Small matrix inverse ========================
 
 TEST(CudaMath, InverseSymmetric)
