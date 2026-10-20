@@ -41,3 +41,22 @@ TEST(ImageView, CopySubViewKeepsSurroundingPixels)
         }
     }
 }
+
+TEST(ImageView, ArrayImageAndImageArrayView)
+{
+    // getImageView() and getConstImageView() called themselves through the conversion operators (stack overflow).
+    ArrayImage<int> a(3, 2);
+    for (int i = 0; i < 6; ++i) a._data[i] = i;
+    EXPECT_EQ(a(2, 1), 5);
+    EXPECT_EQ(a.getImageView()(1, 0), 2);
+    const ArrayImage<int>& ca = a;
+    EXPECT_EQ(ca.getConstImageView()(2, 1), 5);
+    ImageView<int> converted = a;
+    EXPECT_EQ(converted(2, 0), 4);
+
+    std::vector<int> stack(2 * 3 * 2);
+    for (size_t i = 0; i < stack.size(); ++i) stack[i] = i;
+    ImageArrayView<int> arr(ImageView<int>(3, 2, stack.data()), 2);
+    EXPECT_EQ(arr[1](0, 0), 6);
+    EXPECT_EQ(arr.atIARVxxx(1, 2, 1), 11);
+}
