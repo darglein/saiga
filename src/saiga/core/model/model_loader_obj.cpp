@@ -18,12 +18,13 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <sstream>
+#include <tuple>
 
 namespace Saiga
 {
-static StringViewParser lineParser = {"\t ,\n", true};
-static StringViewParser faceParser = {"/", false};
+static constexpr std::string_view line_delims = "\t ,\n";
 
 
 struct ObjLine
@@ -34,6 +35,7 @@ struct ObjLine
     ObjLine() {}
     ObjLine(const std::string& line)
     {
+        StringViewParser lineParser(line_delims, true);
         lineParser.set(line);
         key = lineParser.next();
 
@@ -132,15 +134,11 @@ std::vector<UnifiedMaterial> LoadMTL(const std::string& file)
 // examples:
 // v1/vt1/vn1        12/51/1
 // v1//vn1           51//4
-inline ObjModelLoader::IndexedVertex2 parseIV(std::string_view line)
+// The returned indices are zero based, relative (negative) indices are resolved in addFace.
+static ObjModelLoader::IndexedVertex2 parseIV(std::string_view line)
 {
     ObjModelLoader::IndexedVertex2 iv;
-#if 0
-    std::vector<std::string> s = split(line, '/');
-    if (s.size() > 0 && s[0].size() > 0) iv.v = std::atoi(s[0].c_str()) - 1;
-    if (s.size() > 1 && s[1].size() > 0) iv.t = std::atoi(s[1].c_str()) - 1;
-    if (s.size() > 2 && s[2].size() > 0) iv.n = std::atoi(s[2].c_str()) - 1;
-#else
+    StringViewParser faceParser("/", false);
     faceParser.set(line);
     std::string_view tmp;
     tmp = faceParser.next();
@@ -149,7 +147,6 @@ inline ObjModelLoader::IndexedVertex2 parseIV(std::string_view line)
     if (!tmp.empty()) iv.t = to_long(tmp) - 1;
     tmp = faceParser.next();
     if (!tmp.empty()) iv.n = to_long(tmp) - 1;
-#endif
     return iv;
 }
 
@@ -170,308 +167,167 @@ bool ObjModelLoader::loadFile(const std::string& _file)
         return false;
     }
 
-    //    std::ifstream stream(file, std::ios::in);
-    //    if (!stream.is_open())
-    //    {
-    //        throw std::runtime_error("Search Pathes broken!");
-    //    }
-
-
-    std::cout << "[ObjModelLoader] Loading " << file << std::endl;
+    out_model = UnifiedModel();
+    vertices.clear();
+    normals.clear();
+    texCoords.clear();
+    faces.clear();
+    material_groups.clear();
 
     UnifiedMaterialGroup tg;
-    tg.startFace = 0;
-    tg.numFaces  = 0;
-    out_model.material_groups.push_back(tg);
+    tg.startFace  = 0;
+    tg.numFaces   = 0;
+    tg.materialId = -1;
+    material_groups.push_back(tg);
 
-    std::vector<std::string> data;
+    std::vector<std::string> data = File::loadFileStringArray(file);
+    File::removeWindowsLineEnding(data);
+    for (auto& line : data)
     {
-        //        SAIGA_BLOCK_TIMER();
-        data = File::loadFileStringArray(file);
-        File::removeWindowsLineEnding(data);
-    }
-    {
-        //        SAIGA_BLOCK_TIMER();
-        for (auto& line : data)
-        {
-            lineParser.set(line);
-            parseLine();
-        }
+        parseLine(line);
     }
 
     // finish last group
-    UnifiedMaterialGroup& lastGroup = out_model.material_groups[out_model.material_groups.size() - 1];
+    UnifiedMaterialGroup& lastGroup = material_groups.back();
     lastGroup.numFaces              = faces.size() - lastGroup.startFace;
 
-
-    // remove groups with 0 faces
-    out_model.material_groups.erase(std::remove_if(out_model.material_groups.begin(), out_model.material_groups.end(),
-                                                   [](const UnifiedMaterialGroup& otg) { return otg.numFaces == 0; }),
-                                    out_model.material_groups.end());
-
-    std::cout << "[ObjModelLoader] Done.  "
-              << "V " << vertices.size() << " N " << normals.size() << " T " << texCoords.size() << " F "
-              << faces.size() << " Material Groups " << out_model.material_groups.size() << std::endl;
-
-
-
-    //    std::cout<<"number of vertices "<<vertices.size()<<" number of faces "<<faces.size()<<endl;
-    createVertexIndexList();
-    //    std::cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
-    separateVerticesByGroup();
-    //    std::cout<<"number of vertices "<<outVertices.size()<<" number of faces "<<outTriangles.size()<<endl;
-
-    calculateMissingNormals();
-
-    //    std::cout<<"objloader finished :)"<<endl;
+    createMeshes();
     return true;
 }
 
-void ObjModelLoader::separateVerticesByGroup()
+void ObjModelLoader::createMeshes()
 {
-    // make sure faces from different triangle groups do not reference the same vertex
-    // needs to be called after createVertexIndexList()
-#if 0
-
-    std::vector<int> vertexReference(outVertices.size(), INVALID_VERTEX_ID);
-
-    for (int t = 0; t < (int)out_model.material_groups.size(); ++t)
+    auto check_index = [this](int index, size_t size, const char* name)
     {
-        UnifiedMaterialGroup& tg = out_model.material_groups[t];
-        for (int i = 0; i < tg.numFaces; ++i)
+        if (index < 0 || index >= (int)size)
         {
-            ivec3& face = out_model.triangles[i + tg.startFace];
+            throw std::runtime_error("Invalid " + std::string(name) + " index in OBJ file " + file);
+        }
+    };
 
-            for (int j = 0; j < 3; ++j)
+    for (auto& group : material_groups)
+    {
+        if (group.numFaces == 0) continue;
+
+        int material_id = group.materialId;
+        if (material_id < 0)
+        {
+            // Faces without (or with an unknown) material get a default material, so that every mesh has a valid
+            // material id like the meshes of the other loaders.
+            auto it = std::find_if(out_model.materials.begin(), out_model.materials.end(),
+                                   [](const UnifiedMaterial& m) { return m.name == "default"; });
+            if (it == out_model.materials.end())
             {
-                int index = face[j];
-                if (vertexReference[index] == INVALID_VERTEX_ID) vertexReference[index] = t;
-                if (vertexReference[index] != t)
+                UnifiedMaterial m("default");
+                m.color_diffuse = vec4(1, 1, 1, 1);
+                out_model.materials.push_back(m);
+                it = out_model.materials.end() - 1;
+            }
+            material_id = it - out_model.materials.begin();
+        }
+
+        UnifiedMesh mesh;
+        mesh.material_id = material_id;
+
+        bool has_tc = false, has_normal = false, missing_normal = false;
+        for (int f = group.startFace; f < group.startFace + group.numFaces; ++f)
+        {
+            for (auto& iv : faces[f])
+            {
+                has_tc |= iv.t != INVALID_VERTEX_ID;
+                has_normal |= iv.n != INVALID_VERTEX_ID;
+                missing_normal |= iv.n == INVALID_VERTEX_ID;
+            }
+        }
+
+        // One output vertex per distinct (position, texture, normal) index triple.
+        std::map<std::tuple<int, int, int>, int> vertex_map;
+        std::vector<bool> normal_given;
+        for (int f = group.startFace; f < group.startFace + group.numFaces; ++f)
+        {
+            ivec3 tri;
+            for (int i = 0; i < 3; ++i)
+            {
+                const IndexedVertex2& iv = faces[f][i];
+                auto key                 = std::make_tuple(iv.v, iv.t, iv.n);
+                auto it                  = vertex_map.find(key);
+                if (it != vertex_map.end())
                 {
-                    // duplicate vertices
-                    VertexNT v   = outVertices[index];
-                    int newIndex = outVertices.size();
-                    outVertices.push_back(v);
-                    face[j] = newIndex;
-                    vertexReference.push_back(t);
-                    //                    SAIGA_ASSERT(0);
+                    tri(i) = it->second;
+                    continue;
+                }
+
+                check_index(iv.v, vertices.size(), "vertex");
+                mesh.position.push_back(vertices[iv.v]);
+                if (has_tc)
+                {
+                    vec2 tc = vec2(0, 0);
+                    if (iv.t != INVALID_VERTEX_ID)
+                    {
+                        check_index(iv.t, texCoords.size(), "texture coordinate");
+                        tc = texCoords[iv.t];
+                    }
+                    mesh.texture_coordinates.push_back(tc);
+                }
+                vec3 n = vec3(0, 0, 0);
+                if (iv.n != INVALID_VERTEX_ID)
+                {
+                    check_index(iv.n, normals.size(), "normal");
+                    n = normals[iv.n];
+                }
+                mesh.normal.push_back(n);
+                normal_given.push_back(iv.n != INVALID_VERTEX_ID);
+
+                tri(i)          = mesh.NumVertices() - 1;
+                vertex_map[key] = tri(i);
+            }
+            mesh.triangles.push_back(tri);
+        }
+
+        if (missing_normal)
+        {
+            // Compute the area weighted normals and use them only for the vertices without a given normal.
+            std::vector<vec3> given_normals = mesh.normal;
+            mesh.CalculateVertexNormals();
+            if (has_normal)
+            {
+                for (int i = 0; i < mesh.NumVertices(); ++i)
+                {
+                    if (normal_given[i]) mesh.normal[i] = given_normals[i];
                 }
             }
         }
+
+        out_model.mesh.push_back(mesh);
     }
-#endif
-}
-
-void ObjModelLoader::calculateMissingNormals()
-{
-#if 0
-    for (auto tri : out_model.triangles)
-    {
-        auto& v1 = outVertices[tri[0]];
-        auto& v2 = outVertices[tri[1]];
-        auto& v3 = outVertices[tri[2]];
-
-        vec3 normal = normalize(cross(make_vec3(v3.position - v1.position), make_vec3(v2.position - v1.position)));
-
-        if (v1.normal == vec4(0, 0, 0, 0)) v1.normal = make_vec4(normal, 0);
-        if (v2.normal == vec4(0, 0, 0, 0)) v2.normal = make_vec4(normal, 0);
-        if (v3.normal == vec4(0, 0, 0, 0)) v3.normal = make_vec4(normal, 0);
-    }
-#endif
-}
-
-#if 0
-void ObjModelLoader::computeVertexColorAndData()
-{
-    vertexColors.resize(outVertices.size(), make_vec4(1));
-    vertexData.resize(outVertices.size(), make_vec4(0));
-
-    for (UnifiedMaterialGroup& tg : out_model.material_groups)
-    {
-        for (int i = 0; i < tg.numFaces; ++i)
-        {
-            ivec3& face = out_model.triangles[i + tg.startFace];
-            for (int f = 0; f < 3; ++f)
-            {
-                int index            = face[f];
-                vertexColors[index]  = out_model.materials[tg.materialId].color_diffuse;
-                float spec           = dot(out_model.materials[tg.materialId].color_specular, make_vec4(1)) / 4.0f;
-                vertexData[index][0] = spec;
-            }
-        }
-    }
-}
-void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh)
-{
-    if (vertexColors.empty())
-    {
-        computeVertexColorAndData();
-    }
-
-    SAIGA_ASSERT(vertexColors.size() == outVertices.size());
-    mesh.faces.reserve( out_model.triangles.size());
-    for (ivec3& oj :  out_model.triangles)
-    {
-        mesh.addFace(oj(0), oj(1), oj(2));
-    }
-
-    mesh.vertices.reserve(outTriangles.size());
-    for (unsigned int i = 0; i < outVertices.size(); ++i)
-    {
-        auto& v = outVertices[i];
-        VertexNC vn;
-        vn.position = v.position;
-        vn.normal   = v.normal;
-        vn.color    = vertexColors[i];
-        vn.data     = vertexData[i];
-        mesh.addVertex(vn);
-    }
-}
-
-void ObjModelLoader::toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh)
-{
-    //    SAIGA_ASSERT(texCoords.size() == outVertices.size());
-    if (vertexColors.empty())
-    {
-        computeVertexColorAndData();
-    }
-    SAIGA_ASSERT(vertexData.size() == outVertices.size());
-
-    mesh.faces.reserve(outTriangles.size());
-    for (ivec3& oj : outTriangles)
-    {
-        mesh.addFace(oj(0), oj(1), oj(2));
-    }
-
-    mesh.vertices.reserve(outTriangles.size());
-    for (unsigned int i = 0; i < outVertices.size(); ++i)
-    {
-        auto& v = outVertices[i];
-        VertexNTD vn;
-        vn.position = v.position;
-        vn.normal   = v.normal;
-        vn.texture  = v.texture;
-        vn.data     = vertexData[i];
-        mesh.addVertex(vn);
-    }
-}
-#endif
-
-void ObjModelLoader::createVertexIndexList()
-{
-#if 0
-    std::vector<bool> vertices_used(vertices.size(), false);
-
-    outVertices.resize(vertices.size());
-
-    for (std::vector<IndexedVertex2>& f : faces)
-    {
-        ivec3 fa;
-        for (int i = 0; i < 3; i++)
-        {
-            IndexedVertex2& currentVertex = f[i];
-            int vert                      = currentVertex.v;
-            int norm                      = currentVertex.n;
-            int tex                       = currentVertex.t;
-
-            VertexNT verte;
-            if (vert >= 0)
-            {
-                SAIGA_ASSERT(vert < (int)vertices.size());
-                verte.position = make_vec4(vertices[vert], 1);
-            }
-            if (norm >= 0)
-            {
-                SAIGA_ASSERT(norm < (int)normals.size());
-                verte.normal = make_vec4(normals[norm], 0);
-            }
-            if (tex >= 0)
-            {
-                SAIGA_ASSERT(tex < (int)texCoords.size());
-                verte.texture = texCoords[tex];
-            }
-
-
-            int index = INVALID_VERTEX_ID;
-            if (vertices_used[vert])
-            {
-                if (verte == outVertices[vert])
-                {
-                    index = vert;
-                }
-            }
-            else
-            {
-                outVertices[vert]   = verte;
-                index               = vert;
-                vertices_used[vert] = true;
-            }
-
-            if (index == INVALID_VERTEX_ID)
-            {
-                index = outVertices.size();
-                outVertices.push_back(verte);
-            }
-            fa[i] = index;
-        }
-
-        out_model.triangles.push_back(fa);
-    }
-#endif
 }
 
 std::vector<std::vector<ObjModelLoader::IndexedVertex2>> ObjModelLoader::triangulateFace(
     const std::vector<IndexedVertex2>& f)
 {
+    // Fan triangulation (0, 1, 2), (0, 2, 3), ... keeps the orientation of the polygon.
     std::vector<std::vector<IndexedVertex2>> newFaces;
-
-    // more than 3 indices -> triangulate
-    std::vector<IndexedVertex2> face;
-    int cornerCount = 1;
-    IndexedVertex2 startVertex, lastVertex;
-    for (const IndexedVertex2& currentVertex : f)
+    for (size_t i = 2; i < f.size(); ++i)
     {
-        if (cornerCount <= 3)
-        {
-            if (cornerCount == 1) startVertex = currentVertex;
-            face.push_back(currentVertex);
-            if (cornerCount == 3) newFaces.push_back(face);
-        }
-        else
-        {
-            face.resize(3);
-            face[0] = lastVertex;
-            face[1] = currentVertex;
-            face[2] = startVertex;
-            newFaces.push_back(face);
-        }
-
-        lastVertex = currentVertex;
-        cornerCount++;
+        newFaces.push_back({f[0], f[i - 1], f[i]});
     }
     return newFaces;
 }
 
-void ObjModelLoader::parseLine()
+void ObjModelLoader::parseLine(std::string_view line)
 {
+    StringViewParser lineParser(line_delims, true);
+    lineParser.set(line);
     auto header = lineParser.next();
 
-    if (header == "#")
-    {
-    }
-    else if (header == "usemtl")
+    if (header == "usemtl")
     {
         // finish current group and create new one
-        if (!out_model.material_groups.empty())
-        {
-            UnifiedMaterialGroup& currentGroup = out_model.material_groups[out_model.material_groups.size() - 1];
-            currentGroup.numFaces              = faces.size() - currentGroup.startFace;
-        }
+        UnifiedMaterialGroup& currentGroup = material_groups.back();
+        currentGroup.numFaces              = faces.size() - currentGroup.startFace;
+
         UnifiedMaterialGroup newGroup;
         newGroup.startFace = faces.size();
-
-        //         newGroup.material  = materialLoader.getMaterial(std::string(lineParser.next()));
-        //        newGroup.materialId = materialLoader.getMaterialId(std::string(lineParser.next()));
 
         std::string mtl_name = std::string(lineParser.next());
         int mtl_id           = -1;
@@ -483,26 +339,28 @@ void ObjModelLoader::parseLine()
                 break;
             }
         }
+        if (mtl_id == -1)
+        {
+            std::cerr << "[ObjModelLoader] Unknown material " << mtl_name << " in " << file << std::endl;
+        }
         newGroup.materialId = mtl_id;
 
-        out_model.material_groups.push_back(newGroup);
+        material_groups.push_back(newGroup);
     }
     else if (header == "mtllib")
     {
         FileChecker fc;
-
-        std::string mtl_file = fc.getRelative(file, std::string(lineParser.next())).string();
-
-        out_model.materials = LoadMTL(mtl_file);
-    }
-    else if (header == "g")
-    {
-    }
-    else if (header == "o")
-    {
-    }
-    else if (header == "s")
-    {
+        for (auto name = lineParser.next(); !name.empty(); name = lineParser.next())
+        {
+            std::string mtl_file = fc.getRelative(file, std::string(name)).string();
+            if (mtl_file.empty())
+            {
+                std::cerr << "[ObjModelLoader] Could not find material file " << name << std::endl;
+                continue;
+            }
+            auto mats = LoadMTL(mtl_file);
+            out_model.materials.insert(out_model.materials.end(), mats.begin(), mats.end());
+        }
     }
     else if (header == "v")
     {
@@ -529,48 +387,33 @@ void ObjModelLoader::parseLine()
     }
     else if (header == "f")
     {
-        parseF();
+        std::vector<IndexedVertex2> ivs;
+        for (auto f = lineParser.next(); !f.empty(); f = lineParser.next())
+        {
+            ivs.push_back(parseIV(f));
+        }
+        addFace(std::move(ivs));
     }
 }
 
 
 
-void ObjModelLoader::parseF()
+void ObjModelLoader::addFace(std::vector<IndexedVertex2> ivs)
 {
-    ivs.clear();
-
-    std::string_view f = lineParser.next();
-    while (!f.empty())
+    // Relative indexing: the OBJ index -k (stored as -k-1) refers to the k-th last element read so far.
+    // The OBJ index 0 is invalid. It is stored as -1 and rejected as out of range in createMeshes.
+    auto resolve = [](int& index, size_t size)
     {
-        ivs.push_back(parseIV(f));
-        f = lineParser.next();
+        if (index < -1 && index != INVALID_VERTEX_ID) index = (int)size + index + 1;
+    };
+    for (auto& i : ivs)
+    {
+        resolve(i.v, vertices.size());
+        resolve(i.n, normals.size());
+        resolve(i.t, texCoords.size());
     }
 
     auto nf = triangulateFace(ivs);
-
-    // relative indexing, when the index is negativ
-    for (auto& f : nf)
-    {
-        for (auto& i : f)
-        {
-            if (i.v < 0 && i.v != INVALID_VERTEX_ID)
-            {
-                int absIndex = vertices.size() + i.v + 1;
-                i.v          = absIndex;
-            }
-            if (i.n < 0 && i.n != INVALID_VERTEX_ID)
-            {
-                int absIndex = normals.size() + i.n + 1;
-                i.n          = absIndex;
-            }
-            if (i.t < 0 && i.t != INVALID_VERTEX_ID)
-            {
-                int absIndex = texCoords.size() + i.t + 1;
-                i.t          = absIndex;
-            }
-        }
-    }
-
     faces.insert(faces.end(), nf.begin(), nf.end());
 }
 

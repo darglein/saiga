@@ -8,6 +8,7 @@
 
 #include "aabb.h"
 #include <algorithm>
+#include <cmath>
 
 namespace Saiga
 {
@@ -24,9 +25,23 @@ inline float AABB::DistanceSquared(const vec3& p) const
 
 inline void AABB::transform(const mat4& trafo)
 {
-    // only for scaling and translation correct !!!!
-    min = make_vec3(trafo * make_vec4(min, 1));
-    max = make_vec3(trafo * make_vec4(max, 1));
+    // Bounding box of the transformed box for an affine trafo (Arvo): the center is transformed, the half extent is
+    // mapped by the element-wise absolute value of the linear part.
+    vec3 center = 0.5f * (min + max);
+    vec3 half   = 0.5f * (max - min);
+    vec3 new_center, new_half;
+    for (int i = 0; i < 3; ++i)
+    {
+        new_center(i) = trafo(i, 3);
+        new_half(i)   = 0;
+        for (int j = 0; j < 3; ++j)
+        {
+            new_center(i) += trafo(i, j) * center(j);
+            new_half(i) += std::abs(trafo(i, j)) * half(j);
+        }
+    }
+    min = new_center - new_half;
+    max = new_center + new_half;
 }
 
 inline void AABB::makeNegative()

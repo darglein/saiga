@@ -17,6 +17,7 @@
 #include "saiga/core/geometry/kdtree.h"
 #include "saiga/core/geometry/object3d.h"
 #include "saiga/core/geometry/triangle.h"
+#include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/math/CoordinateSystems.h"
 #include "saiga/core/math/random.h"
 
@@ -24,6 +25,7 @@
 
 #include <algorithm>
 #include <sstream>
+#include <tuple>
 
 using namespace Saiga;
 
@@ -714,4 +716,132 @@ TEST(Geometry, KDTreeMatchesBruteForce)
         std::sort(expected.begin(), expected.end());
         EXPECT_EQ(radius, expected);
     }
+}
+
+// Regression test: AABB::transform only transformed min and max, which is wrong for rotations and negative scales.
+TEST(Geometry, AABBTransform)
+{
+    AABB box(vec3(-1, -2, -3), vec3(1, 2, 3));
+
+    // 90 degree rotation around z: x extent and y extent swap.
+    AABB r = box;
+    r.transform(translate(vec3(10, 0, 0)) * Saiga::rotate(radians(90.f), vec3(0, 0, 1)));
+    EXPECT_NEAR((r.min - vec3(8, -1, -3)).norm(), 0, 1e-5) << r.min.transpose();
+    EXPECT_NEAR((r.max - vec3(12, 1, 3)).norm(), 0, 1e-5) << r.max.transpose();
+
+    // Negative scale must keep min <= max.
+    AABB s(vec3(1, 1, 1), vec3(2, 3, 4));
+    s.transform(scale(vec3(-1, 2, 1)));
+    EXPECT_EQ(s.min, vec3(-2, 2, 1));
+    EXPECT_EQ(s.max, vec3(-1, 6, 4));
+
+    // A general rotation: the result must be the bounding box of the transformed corners.
+    mat4 T = translate(vec3(1, 2, 3)) * Saiga::rotate(radians(30.f), vec3(1, 2, 3).normalized());
+    AABB expected;
+    expected.makeNegative();
+    for (int i = 0; i < 8; ++i)
+    {
+        expected.growBox(make_vec3(T * make_vec4(box.cornerPoint(i), 1)));
+    }
+    AABB t = box;
+    t.transform(T);
+    EXPECT_NEAR((t.min - expected.min).norm(), 0, 1e-5);
+    EXPECT_NEAR((t.max - expected.max).norm(), 0, 1e-5);
+}
+
+// Regression test: Mesh::normalizeScale divided by (largest coordinate - smallest coordinate) over all axes instead
+// of by the largest extent of the bounding box.
+TEST(Geometry, MeshNormalizeScale)
+{
+    TriangleMesh<Vertex, uint32_t> mesh;
+    mesh.addVertex(Vertex(vec3(10, 0, 0)));
+    mesh.addVertex(Vertex(vec3(11, 1, 0)));
+    mesh.addVertex(Vertex(vec3(10, 0, 2)));
+    mesh.addFace(0, 1, 2);
+    mesh.normalizeScale();
+    EXPECT_NEAR(mesh.aabb().maxSize(), 1, 1e-6);
+
+    mesh.normalizeScale(0.25);
+    EXPECT_NEAR(mesh.aabb().maxSize(), 1 / 1.5, 1e-6);
+}
+
+// Regression test: a ray parallel to a box face had (boxmin - origin) * (1/0) = 0 * inf = NaN when it started exactly
+// in the face plane, which then poisoned the min/max reduction.
+TEST(Geometry, RayAABBInFacePlane)
+{
+    AABB box(vec3(-1, -1, -1), vec3(1, 1, 1));
+    float t = 0;
+
+    // Rays lying exactly in a face plane (y = 1, x = -1, z = 1) touch the closed box.
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 1, 0.5)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(0, 1, 0), vec3(-1, -5, 0)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 1, 1)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 0, 1)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    // In a face plane, but pointing away or passing next to the box.
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(-1, 0, 0), vec3(-5, 1, 0.5)), box, t));
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 1, 2)), box, t));
+
+    // Axis parallel rays, inside and outside of the slabs, including a negative zero direction component.
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(0, 0, 1), vec3(0.5, 0.5, -5)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(-0.f, -0.f, -1), vec3(0.5, 0.5, 5)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(0, 0, 1), vec3(1.5, 0.5, -5)), box, t));
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(0, 0, 1), vec3(0.5, 0.5, 5)), box, t));
+
+    // Starting inside the box: t is the (negative) entry distance.
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(0, 0, 0)), box, t));
+    EXPECT_FLOAT_EQ(t, -1);
+}
+
+// Regression test: sortVerticesByPosition compared coordinates with a tolerance, which is not a strict weak ordering
+// (undefined behavior in std::sort). Near-duplicates must still end up next to each other.
+TEST(Geometry, TriangleMeshSortVerticesByPosition)
+{
+    TriangleMesh<Vertex, uint32_t> mesh;
+    Random::setSeed(3);
+    std::vector<vec3> centers;
+    for (int i = 0; i < 50; ++i)
+    {
+        // Cluster centers in the middle of the epsilon cells, so that the jittered copies share a cell.
+        centers.push_back(vec3(Random::uniformInt(0, 5), Random::uniformInt(0, 5), Random::uniformInt(0, 5)) +
+                          vec3(0.0005, 0.0005, 0.0005));
+    }
+    std::sort(centers.begin(), centers.end(),
+              [](const vec3& a, const vec3& b) { return std::tie(a[0], a[1], a[2]) < std::tie(b[0], b[1], b[2]); });
+    centers.erase(std::unique(centers.begin(), centers.end()), centers.end());
+
+    for (int i = 0; i < 300; ++i)
+    {
+        int c  = i < (int)centers.size() ? i : Random::uniformInt(0, centers.size() - 1);
+        vec3 p = centers[c] + Random::MatrixUniform<vec3>(-1e-5, 1e-5);
+        mesh.addVertex(Vertex(p));
+    }
+    for (int i = 0; i + 2 < 300; i += 3)
+    {
+        mesh.addFace(i, i + 1, i + 2);
+    }
+    std::vector<vec3> face_positions;
+    for (auto& f : mesh.faces)
+        for (int j = 0; j < 3; ++j) face_positions.push_back(make_vec3(mesh.vertices[f(j)].position));
+
+    mesh.sortVerticesByPosition(1e-3);
+
+    // The faces still reference the same positions.
+    std::vector<vec3> sorted_face_positions;
+    for (auto& f : mesh.faces)
+        for (int j = 0; j < 3; ++j) sorted_face_positions.push_back(make_vec3(mesh.vertices[f(j)].position));
+    EXPECT_EQ(face_positions, sorted_face_positions);
+
+    mesh.removeSubsequentDuplicates(1e-3);
+    ASSERT_EQ(mesh.vertices.size(), centers.size());
+    for (size_t i = 0; i < centers.size(); ++i)
+    {
+        EXPECT_NEAR((make_vec3(mesh.vertices[i].position) - centers[i]).norm(), 0, 1e-4);
+    }
+    EXPECT_TRUE(mesh.isValid());
 }

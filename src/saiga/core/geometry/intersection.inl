@@ -6,6 +6,8 @@
 
 #include "intersection.h"
 
+#include <limits>
+
 
 namespace Saiga
 {
@@ -200,43 +202,33 @@ inline bool RayPlane(const Ray& r, const Plane& p, float& t)
     return false;
 }
 
-// source
-// http://gamedev.stackexchange.com/questions/18436/most-efficient-AABB-vs-ray-collision-algorithms
+// Slab test. The box is closed: a ray that only touches a face, edge or corner intersects it.
 inline bool RayAABB(const vec3& origin, const vec3& direction, const vec3& boxmin, const vec3& boxmax, float& t)
 {
-    using std::max;
-    using std::min;
-    vec3 inv_dir = 1.0 / direction.array();
-
-    // lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
-    // r.org is origin of ray
-    vec3 t_min;
-    t_min(0) = (boxmin[0] - origin[0]) * inv_dir[0];
-    t_min(1) = (boxmin[1] - origin[1]) * inv_dir[1];
-    t_min(2) = (boxmin[2] - origin[2]) * inv_dir[2];
-    t_min    = (boxmin - origin).array() * inv_dir.array();
-
-    vec3 t_max;
-    t_max(0) = (boxmax[0] - origin[0]) * inv_dir[0];
-    t_max(1) = (boxmax[1] - origin[1]) * inv_dir[1];
-    t_max(2) = (boxmax[2] - origin[2]) * inv_dir[2];
-    t_max    = (boxmax - origin).array() * inv_dir.array();
-
-    // float tmin = std::max(max(min(t_min(0), t_max(0)), std::min(t_min(1), t_max(1))), std::min(t_min(2), t_max(2)));
-    // float tmax = std::min(min(max(t_min(0), t_max(0)), std::max(t_min(1), t_max(1))), std::max(t_min(2), t_max(2)));
-
-    float tmin = t_min.array().min(t_max.array()).maxCoeff();
-    float tmax = t_min.array().max(t_max.array()).minCoeff();
-
-    // if tmax < 0, ray (line) is intersecting AABB, but whole AABB is behing us
-    if (tmax < 0)
+    float tmin = -std::numeric_limits<float>::infinity();
+    float tmax = std::numeric_limits<float>::infinity();
+    for (int i = 0; i < 3; ++i)
     {
-        t = tmax;
-        return false;
+        if (direction[i] == 0)
+        {
+            // Parallel to the slab: (boxmin - origin) / 0 would give 0 * inf = NaN for a ray in a face plane.
+            if (origin[i] < boxmin[i] || origin[i] > boxmax[i])
+            {
+                t = tmax;
+                return false;
+            }
+            continue;
+        }
+        float inv_dir = 1.0f / direction[i];
+        float t0      = (boxmin[i] - origin[i]) * inv_dir;
+        float t1      = (boxmax[i] - origin[i]) * inv_dir;
+        tmin          = std::max(tmin, std::min(t0, t1));
+        tmax          = std::min(tmax, std::max(t0, t1));
     }
 
+    // if tmax < 0, ray (line) is intersecting AABB, but whole AABB is behing us
     // if tmin > tmax, ray doesn't intersect AABB
-    if (tmin > tmax)
+    if (tmax < 0 || tmin > tmax)
     {
         t = tmax;
         return false;

@@ -6,6 +6,7 @@
 
 #include "saiga/config.h"
 #include "saiga/core/Core.h"
+#include "saiga/core/math/HomogeneousLSE.h"
 #include "saiga/core/math/all.h"
 #include "saiga/core/util/Align.h"
 
@@ -78,4 +79,52 @@ TEST(Matrix, RowCol)
     //    Vec4 v = m.col(0);
     //
     //    std::cout << v << std::endl;
+}
+
+// Regression: solveHomogeneousQR, solveHomogeneousCOD and solveHomogeneousBDCSVD picked the solution column with
+// A.rows() instead of A.cols(), which is wrong (or out of bounds) for every non-square A.
+TEST(HomogeneousLSE, NonSquare)
+{
+    using MatrixXd = Eigen::Matrix<double, -1, -1>;
+    using VectorXd = Eigen::Matrix<double, -1, 1>;
+
+    // Wide (3x4, full row rank) and tall (6x4, rank 3) matrices, both with a one-dimensional null space.
+    MatrixXd wide(3, 4);
+    for (int i = 0; i < wide.rows(); ++i)
+    {
+        for (int j = 0; j < wide.cols(); ++j)
+        {
+            wide(i, j) = std::sin(1.7 * i + 0.9 * j * j + 0.3);
+        }
+    }
+    MatrixXd b(6, 3);
+    for (int i = 0; i < b.rows(); ++i)
+    {
+        for (int j = 0; j < b.cols(); ++j)
+        {
+            b(i, j) = std::cos(0.8 * i * i + 1.1 * j + 0.2);
+        }
+    }
+    MatrixXd tall = b * wide;
+
+    for (const MatrixXd& A : {wide, tall})
+    {
+        auto check = [&](const VectorXd& x, const char* name)
+        {
+            ASSERT_EQ(x.rows(), A.cols()) << name;
+            EXPECT_NEAR(x.norm(), 1, 1e-10) << name;
+            EXPECT_LT((A * x).norm(), 1e-10) << name << " " << A.rows() << "x" << A.cols();
+        };
+        VectorXd x;
+        solveHomogeneousLU(A, x);
+        check(x, "LU");
+        solveHomogeneousQR(A, x);
+        check(x, "QR");
+        solveHomogeneousCOD(A, x);
+        check(x, "COD");
+        solveHomogeneousJacobiSVD(A, x);
+        check(x, "JacobiSVD");
+        solveHomogeneousBDCSVD(A, x);
+        check(x, "BDCSVD");
+    }
 }

@@ -187,8 +187,8 @@ void KDTree<D, point_t>::KNearestNeighborSearch(index_t currentNode, const point
     if (currentNode == -1) return;
 
     // calculate distance to current point and update the current best
-    float d     = distance(nodes[currentNode].p, searchPoint);
-    float lastD = addToQueue(queue, currentNode, d);
+    float d = distance(nodes[currentNode].p, searchPoint);
+    addToQueue(queue, currentNode, d);
 
 
     // the (signed) distance of the searchpoint to the current split axis
@@ -202,9 +202,9 @@ void KDTree<D, point_t>::KNearestNeighborSearch(index_t currentNode, const point
     KNearestNeighborSearch(dAxis > 0 ? nodes[currentNode].left : nodes[currentNode].right, searchPoint, k, currentAxis,
                            queue);
 
-    // when the distance to the axis is greater than the current distance
-    // we don't need to traverse the other sub tree
-    if (dAxisSquared >= lastD) return;
+    // when the distance to the axis is greater than the current k-th best distance
+    // we don't need to traverse the other sub tree (the first subtree may have improved it)
+    if (dAxisSquared >= queue.back().first) return;
 
     // there may be a better point in this subtree
     KNearestNeighborSearch(dAxis > 0 ? nodes[currentNode].right : nodes[currentNode].left, searchPoint, k, currentAxis,

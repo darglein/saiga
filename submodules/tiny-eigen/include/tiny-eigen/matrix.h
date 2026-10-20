@@ -275,32 +275,27 @@ class MatrixBase
         // https://www.scratchapixel.com/lessons/mathematics-physics-for-computer-graphics/matrix-inverse
         for (unsigned column = 0; column < N; ++column)
         {
-            // Swap row in case our pivot point is not working
-            if (m(column, column) == 0)
+            // Partial pivoting: always use the row with the largest |pivot|. Swapping only on an exactly zero
+            // pivot makes the elimination numerically unstable for tiny pivots.
+            unsigned big = column;
+            for (unsigned row = column + 1; row < N; ++row)
+                if (fabs(m(row, column)) > fabs(m(big, column))) big = row;
+            if (m(big, column) == 0)
             {
-                unsigned big = column;
-                for (unsigned row = column + 1; row < N; ++row)
-                    if (fabs(m(row, column)) > fabs(m(big, column))) big = row;
-                if (big == column)
+                // Singular matrix: return the identity like the 2x2 and 3x3 cases.
+                return DenseReturnType::Identity();
+            }
+            if (big != column)
+            {
+                for (unsigned j = 0; j < N; ++j)
                 {
-                    // Singular matrix: return the identity like the 2x2 and 3x3 cases.
-                    return DenseReturnType::Identity();
-                }
-                else
-                {
-                    for (unsigned j = 0; j < N; ++j)
-                    {
-                        // std::swap(m(column, j), m(big, j));
-                        // std::swap(mat(column, j), mat(big, j));
+                    auto tmp1    = m(column, j);
+                    m(column, j) = m(big, j);
+                    m(big, j)    = tmp1;
 
-                        auto tmp1    = m(column, j);
-                        m(column, j) = m(big, j);
-                        m(big, j)    = tmp1;
-
-                        auto tmp2      = mat(column, j);
-                        mat(column, j) = mat(big, j);
-                        mat(big, j)    = tmp2;
-                    }
+                    auto tmp2      = mat(column, j);
+                    mat(column, j) = mat(big, j);
+                    mat(big, j)    = tmp2;
                 }
             }
             // Set each row in the column to 0
