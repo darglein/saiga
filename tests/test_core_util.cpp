@@ -84,3 +84,24 @@ TEST(Env, GetMissing)
     // getenv returns nullptr for a missing variable, which was passed to the std::string constructor.
     EXPECT_EQ(GetEnv("SAIGA_TEST_ENV_VARIABLE_THAT_IS_NOT_SET"), "");
 }
+
+TEST(Color, FloatConstructor)
+{
+    // The default alpha of the float constructor was 255 instead of 1, which is scaled by 255 again.
+    Color c(1.0f, 0.5f, 0.0f);
+    EXPECT_EQ(c.r, 255);
+    EXPECT_EQ(c.g, 128);
+    EXPECT_EQ(c.b, 0);
+    EXPECT_EQ(c.a, 255);
+
+    // Out of range values are clamped instead of overflowing the unsigned char.
+    Color d(vec4(2.0f, -1.0f, 0.2f, 1.5f));
+    EXPECT_EQ(d.r, 255);
+    EXPECT_EQ(d.g, 0);
+    EXPECT_EQ(d.b, 51);
+    EXPECT_EQ(d.a, 255);
+
+    vec4 v = Color(10, 20, 30, 40).toVec4();
+    EXPECT_FLOAT_EQ(v(0), 10 / 255.f);
+    EXPECT_FLOAT_EQ(v(3), 40 / 255.f);
+}

@@ -9,6 +9,7 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <algorithm>
+#include <cmath>
 namespace Saiga
 {
 Color::operator vec3() const
@@ -28,7 +29,15 @@ Color::Color(const vec3& c) : Color(make_vec4(c, 1)) {}
 
 Color::Color(const ucvec4& c) : r(c(0)), g(c(1)), b(c(2)), a(c(3)) {}
 
-Color::Color(const vec4& c) : Color(ucvec4((c * 255.0f).array().round().cast<unsigned char>())) {}
+Color::Color(const vec4& c)
+{
+    // Clamp first, converting a float outside of [0,255] to unsigned char is undefined.
+    uint8_t* dst[4] = {&r, &g, &b, &a};
+    for (int i = 0; i < 4; ++i)
+    {
+        *dst[i] = (uint8_t)std::round(std::clamp(c(i), 0.0f, 1.0f) * 255.0f);
+    }
+}
 
 Saiga::Color::operator ucvec4() const
 {
