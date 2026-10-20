@@ -229,6 +229,13 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
 #endif
     }
 
+    // stb_image detects the format from the data (for example jpg, bmp or png without libpng)
+    {
+        std::vector<uint8_t> bytes(data.begin(), data.end());
+        erg = decompressImageSTB(*this, bytes);
+        if (erg) return true;
+    }
+
 #ifdef SAIGA_USE_FREEIMAGE
     SAIGA_EXIT_ERROR("not implemented");
     // erg = FIP::loadFromMemory(data, *this);

@@ -1,105 +1,83 @@
 ﻿#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write_wrapper.h"
 
+#include <algorithm>
+#include <cstring>
+#include <fstream>
 #include <iostream>
 
 #include "stb_image_write.h"
 
 namespace Saiga
 {
-bool saveImageSTB(const std::filesystem::path& path, const Image& img)
+static void AppendToVector(void* context, void* data, int size)
 {
-    if (img.type == UC1 || img.type == UC2 || img.type == UC3 || img.type == UC4)
-    {
-        int w               = img.width;
-        int h               = img.height;
-        int comp            = channels(img.type);
-        int stride_in_bytes = img.pitchBytes;
-
-        // Handle unicode paths
-#ifdef _WIN32
-        FILE* file = _wfopen(path.c_str(), L"wb");
-#else
-        FILE* file = fopen(path.c_str(), "wb");
-#endif
-
-        if (!file)
-        {
-            return false;
-        }
-
-
-        std::string type = path.extension().string();
-        std::transform(type.begin(), type.end(), type.begin(),
-            [](char c) { return std::tolower(c); });
-
-
-        if (type == ".png")
-        {
-            int len;
-            auto data = stbi_write_png_to_mem((unsigned char*)img.data(), stride_in_bytes, w, h, comp, &len);
-            fwrite(data, 1, len, file);
-        }
-        else if (type == ".jpg")
-        {
-            stbi__write_context s;
-            stbi__start_write_callbacks(&s, stbi__stdio_write, (void*)file);
-            int r = stbi_write_jpg_core(&s, w, h, comp, (unsigned char*)img.data(), img.get_compression_quality());
-        }
-
-        fclose(file);
-
-        return true;
-    }
-    else
-    {
-        std::cerr << "saveImageSTB: unsupported image type." << std::endl;
-        return false;
-    }
+    auto vec   = static_cast<std::vector<uint8_t>*>(context);
+    auto bytes = static_cast<const uint8_t*>(data);
+    vec->insert(vec->end(), bytes, bytes + size);
 }
 
-std::vector<uint8_t> compressImageSTB(const Image& img, const std::string& type)
+// Encodes an 8 bit image as "png" or "jpg". Returns an empty vector if the type or format is not supported or the
+// encoding failed.
+static std::vector<uint8_t> EncodeImageSTB(const Image& img, const std::string& type)
 {
+    if (img.type != UC1 && img.type != UC2 && img.type != UC3 && img.type != UC4)
+    {
+        return {};
+    }
+
     int w               = img.width;
     int h               = img.height;
     int comp            = channels(img.type);
     int stride_in_bytes = img.pitchBytes;
 
-
+    std::vector<uint8_t> result;
+    int ok = 0;
     if (type == "png")
     {
-        int len;
-        unsigned char* png = stbi_write_png_to_mem((unsigned char*)img.data(), stride_in_bytes, w, h, comp, &len);
-
-        std::vector<uint8_t> data(len);
-        memcpy(data.data(), png, len);
-
-        STBIW_FREE(png);
-
-        return data;
+        ok = stbi_write_png_to_func(AppendToVector, &result, w, h, comp, img.data(), stride_in_bytes);
     }
     else if (type == "jpg")
     {
-        auto write_callback = [](void* context, void* data, int size)
+        // The jpg writer has no stride parameter, so the rows must be tightly packed.
+        size_t row_bytes = size_t(w) * comp;
+        std::vector<uint8_t> packed(row_bytes * h);
+        for (int y = 0; y < h; ++y)
         {
-            std::vector<uint8_t>* vec = static_cast<std::vector<uint8_t>*>(context);
-            const uint8_t* bytes      = static_cast<const uint8_t*>(data);
-            vec->insert(vec->end(), bytes, bytes + size);
-        };
-
-        std::vector<uint8_t> data;
-        // Use the callback to write directly into our vector
-        stbi_write_jpg_to_func(
-            write_callback,
-            &data,
-            w, h, comp,
-            img.data(),
-            img.get_compression_quality()
-        );
-        return data;
+            memcpy(packed.data() + y * row_bytes, img.rowPtr(y), row_bytes);
+        }
+        ok = stbi_write_jpg_to_func(AppendToVector, &result, w, h, comp, packed.data(), img.get_compression_quality());
     }
 
-    return {};
+    if (!ok)
+    {
+        result.clear();
+    }
+    return result;
+}
+
+bool saveImageSTB(const std::filesystem::path& path, const Image& img)
+{
+    std::string type = path.extension().string();
+    std::transform(type.begin(), type.end(), type.begin(), [](char c) { return std::tolower(c); });
+    if (!type.empty() && type[0] == '.') type = type.substr(1);
+
+    auto data = EncodeImageSTB(img, type);
+    if (data.empty())
+    {
+        std::cerr << "saveImageSTB: unsupported image type or file format " << path << std::endl;
+        return false;
+    }
+
+    std::ofstream file(path, std::ios::binary | std::ios::out);
+    file.write((const char*)data.data(), data.size());
+    file.close();
+    return bool(file);
+}
+
+std::vector<uint8_t> compressImageSTB(const Image& img, const std::string& type)
+{
+    return EncodeImageSTB(img, type);
 }
 
 
