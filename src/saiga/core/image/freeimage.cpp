@@ -7,6 +7,7 @@
 #include "freeimage.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/string_to_path.h"
 
 #ifdef SAIGA_USE_FREEIMAGE
 #    include "internal/noGraphicsAPI.h"
@@ -81,8 +82,40 @@ static int Channels(FREE_IMAGE_COLOR_TYPE type)
         default:
             break;
     }
-    SAIGA_ASSERT(channels != -1);
     return channels;
+}
+
+// Converts the FIT_BITMAP layouts that have no matching saiga type (palette images, less than 8 bits per pixel,
+// 16 bit RGB555/565 and min-is-white greyscale) to 8 bit greyscale, 24 bit RGB or 32 bit RGBA. Takes ownership of bm
+// and returns nullptr if the conversion is not possible.
+static FIBITMAP* ConvertToSupportedBitmap(FIBITMAP* bm)
+{
+    if (FreeImage_GetImageType(bm) != FIT_BITMAP) return bm;
+
+    FREE_IMAGE_COLOR_TYPE ctype = FreeImage_GetColorType(bm);
+    unsigned int bpp            = FreeImage_GetBPP(bm);
+    if (ctype == FIC_CMYK)
+    {
+        FreeImage_Unload(bm);
+        return nullptr;
+    }
+    if (bpp >= 8 && bpp != 16 && ctype != FIC_PALETTE && ctype != FIC_MINISWHITE) return bm;
+
+    FIBITMAP* converted = nullptr;
+    if (FreeImage_IsTransparent(bm))
+    {
+        converted = FreeImage_ConvertTo32Bits(bm);
+    }
+    else if (ctype == FIC_MINISBLACK || ctype == FIC_MINISWHITE)
+    {
+        converted = FreeImage_ConvertToGreyscale(bm);
+    }
+    else
+    {
+        converted = FreeImage_ConvertTo24Bits(bm);
+    }
+    FreeImage_Unload(bm);
+    return converted;
 }
 
 #    if 0
@@ -111,7 +144,7 @@ void convert(const fipImage& src, Image& dest)
 
 
 
-#    if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
+#        if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
     if (dest.type == UC3)
     {
         ImageView<ucvec3> img = dest.getImageView<ucvec3>();
@@ -122,7 +155,7 @@ void convert(const fipImage& src, Image& dest)
         ImageView<ucvec4> img = dest.getImageView<ucvec4>();
         img.swapChannels(0, 2);
     }
-#    endif
+#        endif
 }
 
 
@@ -157,10 +190,16 @@ std::vector<unsigned char> saveToMemory(const Image& img, std::string file_exten
 
 
 #    endif
-std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::string& path, ImageLoadFlags flags)
+std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::filesystem::path& file, ImageLoadFlags flags)
 {
+    std::string path         = path_to_string(file);
     FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(path.c_str());
     FIBITMAP* bm             = FreeImage_Load(format, path.c_str(), JPEG_EXIFROTATE | JPEG_ACCURATE);
+    if (bm == nullptr)
+    {
+        return {};
+    }
+    bm = ConvertToSupportedBitmap(bm);
     if (bm == nullptr)
     {
         return {};
@@ -170,7 +209,12 @@ std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::string& path, 
     FREE_IMAGE_COLOR_TYPE ftype = FreeImage_GetColorType(bm);
     FREE_IMAGE_TYPE itype       = FreeImage_GetImageType(bm);
     int channels                = Channels(ftype);
-    int bpp                     = FreeImage_GetBPP(bm);
+    if (channels == -1)
+    {
+        FreeImage_Unload(bm);
+        return {};
+    }
+    int bpp = FreeImage_GetBPP(bm);
     if (bpp == 32 && channels == 3)
     {
         channels = 4;
@@ -229,8 +273,9 @@ std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::string& path, 
 
     for (int i = 0; i < img.rows; ++i)
     {
-        auto str_line    = FreeImage_GetScanLine(bm, i);
-        size_t copy_size = w * (bpp / 8);
+        auto str_line = FreeImage_GetScanLine(bm, i);
+        // bpp is a multiple of 8 after ConvertToSupportedBitmap.
+        size_t copy_size = size_t(w) * (bpp / 8);
         memcpy(img.rowPtr(img.rows - i - 1), str_line, copy_size);
     }
 
@@ -253,9 +298,10 @@ std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::string& path, 
 }
 
 
-bool ImageIOLibFreeimage::Save2File(const std::string& path, const Image& img, ImageSaveFlags flags)
+bool ImageIOLibFreeimage::Save2File(const std::filesystem::path& file, const Image& img, ImageSaveFlags flags)
 {
-    Image src = img;
+    std::string path = path_to_string(file);
+    Image src        = img;
 #    if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
     if (src.type == UC3)
     {
