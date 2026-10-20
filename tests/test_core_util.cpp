@@ -105,3 +105,39 @@ TEST(Color, FloatConstructor)
     EXPECT_FLOAT_EQ(v(0), 10 / 255.f);
     EXPECT_FLOAT_EQ(v(3), 40 / 255.f);
 }
+
+static void ExpectVecNear(const vec3& a, const vec3& b, float eps = 1e-4f)
+{
+    for (int i = 0; i < 3; ++i) EXPECT_NEAR(a(i), b(i), eps) << i << ": " << a.transpose() << " | " << b.transpose();
+}
+
+TEST(Color, HSV)
+{
+    ExpectVecNear(Color::hsv2rgb(vec3(0, 1, 1)), vec3(1, 0, 0));
+    ExpectVecNear(Color::hsv2rgb(vec3(1.f / 3, 1, 1)), vec3(0, 1, 0));
+    ExpectVecNear(Color::hsv2rgb(vec3(2.f / 3, 1, 1)), vec3(0, 0, 1));
+    ExpectVecNear(Color::hsv2rgb(vec3(0.5f, 0.5f, 0.8f)), vec3(0.4f, 0.8f, 0.8f));
+
+    // rgb2hsv selected the wrong branch of the two GLSL step() functions, e.g. pure green returned v = 0.
+    ExpectVecNear(Color::rgb2hsv(vec3(1, 0, 0)), vec3(0, 1, 1));
+    ExpectVecNear(Color::rgb2hsv(vec3(0, 1, 0)), vec3(1.f / 3, 1, 1));
+    ExpectVecNear(Color::rgb2hsv(vec3(0, 0, 1)), vec3(2.f / 3, 1, 1));
+    ExpectVecNear(Color::rgb2hsv(vec3(0.4f, 0.8f, 0.8f)), vec3(0.5f, 0.5f, 0.8f));
+
+    for (float h : {0.05f, 0.2f, 0.45f, 0.6f, 0.8f, 0.95f})
+    {
+        vec3 hsv(h, 0.7f, 0.9f);
+        ExpectVecNear(Color::rgb2hsv(Color::hsv2rgb(hsv)), hsv);
+    }
+}
+
+TEST(Color, SRGB)
+{
+    for (float f : {0.0f, 0.001f, 0.2f, 0.5f, 1.0f})
+    {
+        vec3 c(f, f, f);
+        ExpectVecNear(Color::linearrgb2srgb(Color::srgb2linearrgb(c)), c);
+        ExpectVecNear(Color::linearrgb2xyz(Color::xyz2linearrgb(c)), c, 1e-3f);
+    }
+    EXPECT_NEAR(Color::srgb2linearrgb(vec3(0.5f, 0.5f, 0.5f))(0), 0.214f, 1e-3f);
+}

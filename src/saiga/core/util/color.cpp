@@ -112,12 +112,13 @@ vec3 Color::rgb2hsv(vec3 c)
 {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
 
-    vec4 p = mix(vec4(c[2], c[1], K[3], K[2]), vec4(c[1], c[2], K[0], K[1]), mix(1.f, 0.f, c[2] < c[1]));
-    vec4 q = mix(vec4(p[0], p[1], p[3], c[0]), vec4(c[0], p[1], p[2], p[0]), mix(1.f, 0.f, p[0] < c[0]));
+    // GLSL step(edge, x) = x < edge ? 0 : 1
+    vec4 p = mix(vec4(c[2], c[1], K[3], K[2]), vec4(c[1], c[2], K[0], K[1]), c[1] < c[2] ? 0.f : 1.f);
+    vec4 q = mix(vec4(p[0], p[1], p[3], c[0]), vec4(c[0], p[1], p[2], p[0]), c[0] < p[0] ? 0.f : 1.f);
 
     float d = q[0] - std::min(q[3], q[1]);
     float e = 1.0e-10;
-    return vec3(abs(q[2] + (q[3] - q[1]) / (6.0 * d + e)), d / (q[0] + e), q[0]);
+    return vec3(std::abs(q[2] + (q[3] - q[1]) / (6.0f * d + e)), d / (q[0] + e), q[0]);
 }
 
 vec3 Color::hsv2rgb(vec3 c)
