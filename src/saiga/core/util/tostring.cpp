@@ -157,14 +157,15 @@ std::string concat(const std::vector<std::string>& s, char delim)
 std::string leadingZeroString(int number, int characterCount)
 {
     std::string n = Saiga::to_string(number);
-    if (n.size() > characterCount)
+    if (characterCount < 0 || n.size() >= size_t(characterCount))
     {
         return n;
     }
 
-    std::string nleading(characterCount - n.size(), '0');
-    nleading.insert(nleading.end(), n.begin(), n.end());
-    return nleading;
+    // The zeros go after the sign: -5 -> "-05"
+    size_t sign = number < 0 ? 1 : 0;
+    n.insert(sign, size_t(characterCount) - n.size(), '0');
+    return n;
 }
 
 bool hasEnding(std::string const& fullString, std::string const& ending)
@@ -193,16 +194,17 @@ bool hasPrefix(const std::string& fullString, const std::string& prefix)
 
 std::string fileEnding(const std::string& str)
 {
-    // search last '.' from the end
+    // search last '.' from the end, but only in the file name
     for (auto it = str.rbegin(); it != str.rend(); ++it)
     {
+        if (*it == '/' || *it == '\\') break;
         if (*it == '.')
         {
             auto d = std::distance(it, str.rend());
             return str.substr(d, str.size());
         }
     }
-    return str;
+    return std::string();
 }
 
 std::string removeFileEnding(const std::string& str)

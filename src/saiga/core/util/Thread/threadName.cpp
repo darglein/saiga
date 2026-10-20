@@ -72,7 +72,10 @@ void setThreadName(const std::string& name)
 void setThreadName(std::thread& thread, const std::string& name)
 {
 #ifdef __APPLE__
-    pthread_setname_np(name.c_str());
+    // macOS can only name the calling thread. Calling pthread_setname_np here would rename the caller instead of
+    // 'thread', so this is a no-op. Call setThreadName(name) from inside the thread instead.
+    (void)thread;
+    (void)name;
 #elif _WIN32
     DWORD threadId = ::GetThreadId(static_cast<HANDLE>(thread.native_handle()));
     SetThreadName(threadId, name.c_str());

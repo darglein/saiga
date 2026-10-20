@@ -4,11 +4,13 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/time/gameTime.h"
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/time.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/MemoryUsage.h"
 #include "saiga/core/util/Thread/SpinLock.h"
+#include "saiga/core/util/Thread/SynchronizedBlockAllocator.h"
 #include "saiga/core/util/Thread/SynchronizedBuffer.h"
 #include "saiga/core/util/Thread/SynchronizedSlot.h"
 #include "saiga/core/util/Thread/semaphore.h"
@@ -19,9 +21,14 @@
 
 #include "gtest/gtest.h"
 
+#include <atomic>
+#include <cstdint>
 #include <future>
+#include <iostream>
 #include <sstream>
+#include <string>
 #include <thread>
+#include <vector>
 
 #if defined(__linux__)
 #    include <pthread.h>
@@ -214,6 +221,125 @@ TEST(PipelineStage, StopWithFullQueue)
     overriding.get(v);
     EXPECT_GT(v, 0);
     overriding.stop();
+}
+
+TEST(SynchronizedBlockAllocator, AllocateFree)
+{
+    // The header did not compile: it used members that were never declared and had no way to allocate an object.
+    struct Counted
+    {
+        Counted(int v, std::atomic<int>* alive) : v(v), alive(alive) { (*alive)++; }
+        Counted(const Counted&) = delete;
+        ~Counted() { (*alive)--; }
+        int v;
+        std::atomic<int>* alive;
+    };
+
+    std::atomic<int> alive = 0;
+    {
+        SynchronizedBlockAllocator<Counted> allocator(3);
+        EXPECT_EQ(allocator.getCapacity(), 3);
+        int a = allocator.allocate(1, &alive);
+        int b = allocator.allocate(2, &alive);
+        int c = allocator.allocate(3, &alive);
+        EXPECT_EQ(a, 0);
+        EXPECT_EQ(b, 1);
+        EXPECT_EQ(c, 2);
+        EXPECT_EQ(allocator.allocate(4, &alive), SynchronizedBlockAllocator<Counted>::invalidIndex);
+        EXPECT_EQ(alive, 3);
+        EXPECT_EQ(allocator.size(), 3);
+        EXPECT_EQ(allocator.get(b).v, 2);
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(&allocator.get(b)) % alignof(Counted), 0);
+
+        allocator.free(b);
+        EXPECT_FALSE(allocator.isConstructed(b));
+        EXPECT_EQ(alive, 2);
+        EXPECT_EQ(allocator.allocate(5, &alive), b);
+        EXPECT_EQ(allocator.get(b).v, 5);
+    }
+    // The destructor frees the remaining objects.
+    EXPECT_EQ(alive, 0);
+
+    SynchronizedBlockAllocator<std::string> allocator(64);
+    std::vector<std::thread> threads;
+    for (int t = 0; t < 4; ++t)
+    {
+        threads.emplace_back(
+            [&allocator, t]()
+            {
+                for (int i = 0; i < 1000; ++i)
+                {
+                    int id = allocator.allocate(std::to_string(t));
+                    ASSERT_NE(id, SynchronizedBlockAllocator<std::string>::invalidIndex);
+                    EXPECT_EQ(allocator.get(id), std::to_string(t));
+                    allocator.free(id);
+                }
+            });
+    }
+    for (auto& t : threads) t.join();
+    EXPECT_EQ(allocator.size(), 0);
+}
+
+TEST(ThreadPool, EnqueueAfterQuit)
+{
+    // quit() clears the workers, so enqueue() treated the pool as an empty pool and ran the task on the calling thread
+    // instead of rejecting it.
+    ThreadPool pool(2);
+    EXPECT_EQ(pool.enqueue([]() { return 1; }).get(), 1);
+    pool.quit();
+    bool executed = false;
+    EXPECT_THROW(pool.enqueue([&executed]() { executed = true; }), std::runtime_error);
+    EXPECT_FALSE(executed);
+
+    ThreadPool empty(0);
+    EXPECT_EQ(empty.enqueue([]() { return 2; }).get(), 2);
+    empty.quit();
+    EXPECT_THROW(empty.enqueue([]() {}), std::runtime_error);
+}
+
+TEST(ThreadPoolDeathTest, QuitFromWorker)
+{
+    // A worker that called quit() tried to join itself. The std::system_error ended up in the future of the task and
+    // the program terminated later in the destructor of the still joinable std::thread, without a useful message.
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    EXPECT_DEATH(
+        {
+            // The assertion message is printed to stdout, but the death test matches stderr.
+            std::cout.rdbuf(std::cerr.rdbuf());
+            ThreadPool pool(1);
+            pool.enqueue([&pool]() { pool.quit(); }).wait();
+        },
+        "own worker threads");
+}
+
+TEST(Time, AverageTimerNotFull)
+{
+    // The average included the zero-initialized slots until 'number' measurements were taken, so a single 2 ms
+    // measurement reported 0.2 ms and a minimum of 0. A timer with number = 0 divided by zero.
+    AverageTimer average(10);
+    average.start();
+    std::this_thread::sleep_for(2ms);
+    average.stop();
+    EXPECT_GE(average.getTimeMS(), 2);
+    EXPECT_GE(average.getMinimumTimeMS(), 2);
+
+    AverageTimer zero(0);
+    zero.start();
+    std::this_thread::sleep_for(1ms);
+    zero.stop();
+    EXPECT_GE(zero.getTimeMS(), 1);
+}
+
+TEST(Time, GameTimeZeroTimestep)
+{
+    // With dt == 0, shouldRender() divided by the length of the update interval, which is 0.
+    GameTime time;
+    time.init(tick_t(0), tick_t(0));
+    std::this_thread::sleep_for(1ms);
+    EXPECT_TRUE(time.shouldUpdate());
+    std::this_thread::sleep_for(1ms);
+    EXPECT_TRUE(time.shouldRender());
+    EXPECT_EQ(time.interpolation, 0.0);
 }
 
 TEST(ThreadPool, ManyTasks)

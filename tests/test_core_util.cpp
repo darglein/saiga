@@ -34,8 +34,10 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <sstream>
+#include <string>
 #include <vector>
 
 using namespace Saiga;
@@ -346,6 +348,125 @@ TEST(Exif, GPSOutsideOfSegment)
     EXPECT_EQ(info2.GeoLocation.Latitude, 0);
     EXPECT_EQ(info2.GeoLocation.Altitude, 0);
 }
+
+TEST(FileChecker, GetFiles)
+{
+    // getFiles() was declared but never defined, so calling it failed to link.
+    auto dir = std::filesystem::temp_directory_path() / "saiga_test_core_util_filechecker_getfiles";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "sub" / "dir.png");
+    for (auto name : {"b.png", "a.png", "c.jpg"}) std::ofstream(dir / "sub" / name) << "x";
+
+    FileChecker fc;
+    fc.setSearchWorkingDirectory(false);
+    fc.addSearchPath(dir);
+    // The same directory through a second search path is listed once.
+    fc.addSearchPath(dir / "sub" / "..");
+    std::vector<std::string> out = {"existing"};
+    fc.getFiles(out, "sub", ".png");
+    EXPECT_EQ(out, (std::vector<std::string>{"existing", path_to_string(dir / "sub" / "a.png"),
+                                             path_to_string(dir / "sub" / "b.png")}));
+
+    out.clear();
+    fc.getFiles(out, "missing", ".png");
+    EXPECT_TRUE(out.empty());
+}
+
+TEST(String, LeadingZeroStringNegative)
+{
+    // The zeros were inserted before the sign: -5 -> "0-5".
+    EXPECT_EQ(leadingZeroString(-5, 3), "-05");
+    EXPECT_EQ(leadingZeroString(-5, 2), "-5");
+    EXPECT_EQ(leadingZeroString(-123, 2), "-123");
+    EXPECT_EQ(leadingZeroString(5, 0), "5");
+    EXPECT_EQ(leadingZeroString(5, -1), "5");
+    EXPECT_EQ(leadingZeroString(0, 3), "000");
+}
+
+TEST(String, FileEndingWithoutEnding)
+{
+    // A name without ending returned the whole name, and a '.' in a directory name was taken as the ending.
+    EXPECT_EQ(fileEnding("noext"), "");
+    EXPECT_EQ(fileEnding("dir.d/noext"), "");
+    EXPECT_EQ(fileEnding("dir.d\\noext"), "");
+    EXPECT_EQ(fileEnding("dir.d/file.png"), "png");
+    EXPECT_EQ(fileEnding("file."), "");
+    EXPECT_EQ(fileEnding(""), "");
+}
+
+TEST(BitMath, CountTrailingZeroNegative)
+{
+    // -x overflowed for INT_MIN (undefined behavior, reported by the undefined behavior sanitizer).
+    EXPECT_EQ(countTrailingZero(std::numeric_limits<int>::min()), 31);
+    EXPECT_EQ(countTrailingZero(-1), 0);
+    EXPECT_EQ(countTrailingZero(-8), 3);
+}
+
+TEST(DataStructures, FixedVectorCopy)
+{
+    // The implicit copy of FixedVectorHeap copied the data pointer, so both vectors freed the same memory. The implicit
+    // copy of FixedVectorStack copied the raw bytes of the elements, which were then destroyed twice.
+    FixedVectorHeap<std::string> heap(3);
+    heap.emplace_back("a long string that does not fit into the small string buffer");
+    heap.emplace_back("b");
+    {
+        FixedVectorHeap<std::string> copy(heap);
+        EXPECT_NE(copy.data(), heap.data());
+        EXPECT_EQ(copy.size(), 2);
+        EXPECT_EQ(copy.capacity(), 3);
+        EXPECT_EQ(copy[0], heap[0]);
+        copy[1] = "c";
+        EXPECT_EQ(heap[1], "b");
+
+        FixedVectorHeap<std::string> assigned(1);
+        assigned.emplace_back("x");
+        assigned = copy;
+        EXPECT_EQ(assigned.size(), 2);
+        EXPECT_EQ(assigned[1], "c");
+
+        FixedVectorHeap<std::string> moved(std::move(assigned));
+        EXPECT_EQ(moved.size(), 2);
+        EXPECT_EQ(assigned.size(), 0);
+        EXPECT_EQ(assigned.capacity(), 0);
+        assigned = std::move(moved);
+        EXPECT_EQ(assigned[0], heap[0]);
+    }
+    EXPECT_EQ(heap[1], "b");
+
+    FixedVectorStack<std::string, 3> stack;
+    stack.emplace_back("a long string that does not fit into the small string buffer");
+    {
+        FixedVectorStack<std::string, 3> copy(stack);
+        EXPECT_EQ(copy.size(), 1);
+        EXPECT_EQ(copy[0], stack[0]);
+        copy[0] = "c";
+        FixedVectorStack<std::string, 3> assigned;
+        assigned = copy;
+        EXPECT_EQ(assigned[0], "c");
+    }
+    EXPECT_EQ(stack[0], "a long string that does not fit into the small string buffer");
+}
+
+#ifdef SAIGA_ASSERTS
+TEST(DataStructuresDeathTest, RingBufferEmpty)
+{
+    // get() and peek() on an empty buffer read the element at index -1.
+    RingBuffer<int> rb(2);
+    // The assertion message is printed to stdout, but the death test matches stderr.
+    EXPECT_DEATH(
+        {
+            std::cout.rdbuf(std::cerr.rdbuf());
+            rb.get();
+        },
+        "empty buffer");
+    EXPECT_DEATH(
+        {
+            std::cout.rdbuf(std::cerr.rdbuf());
+            rb.peek();
+        },
+        "empty buffer");
+}
+#endif
 
 // ============================================================================
 // Coverage tests without a known bug
