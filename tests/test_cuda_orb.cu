@@ -9,6 +9,7 @@
 #include "saiga/core/math/all.h"
 #include "saiga/core/util/statistics.h"
 #include "saiga/cuda/imageProcessing/Fast.h"
+#include "saiga/cuda/imageProcessing/ORBExtractorGPU.h"
 #include "saiga/cuda/imageProcessing/OrbDescriptors.h"
 #include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/cuda/thrust_helper.h"
@@ -249,6 +250,43 @@ TEST(Fast, MoreKeypointsThanMax)
                 EXPECT_GE(p.y(), 4);
                 EXPECT_LT(p.x(), test.random.w - 4);
                 EXPECT_LT(p.y(), test.random.h - 4);
+            }
+        }
+    }
+}
+
+// The extractor owns texture objects of its pyramid levels, which were never destroyed. This test runs the complete
+// extractor (and its destructor) several times.
+TEST(ORBExtractorGPU, Detect)
+{
+    TemplatedImage<unsigned char> image(240, 320);
+    for (int i : image.rowRange())
+    {
+        for (int j : image.colRange())
+        {
+            image(i, j) = Random::uniformInt(0, 255);
+        }
+    }
+
+    for (int run = 0; run < 3; ++run)
+    {
+        ORBExtractorGPU extractor(500, 1.2, 4, 20, 7);
+        for (int frame = 0; frame < 2; ++frame)
+        {
+            std::vector<KeyPoint<float>> keypoints;
+            std::vector<DescriptorORB> descriptors;
+            int n = extractor.Detect(image.getImageView(), keypoints, descriptors);
+            EXPECT_GT(n, 100);
+            EXPECT_EQ(keypoints.size(), n);
+            EXPECT_EQ(descriptors.size(), n);
+            // The FAST keypoints are collected with atomics, so the exact result differs slightly between runs.
+            EXPECT_LE(n, 600);
+            for (auto& kp : keypoints)
+            {
+                EXPECT_GE(kp.point.x(), 0);
+                EXPECT_GE(kp.point.y(), 0);
+                EXPECT_LT(kp.point.x(), image.w);
+                EXPECT_LT(kp.point.y(), image.h);
             }
         }
     }

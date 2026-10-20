@@ -67,7 +67,7 @@ class SAIGA_CUDA_API ORBExtractorGPU
         Saiga::CUDA::CudaImage<unsigned char> image;
         Saiga::CUDA::CudaImage<unsigned char> image_gauss;
 
-        cudaTextureObject_t image_obj, image_gauss_obj;
+        cudaTextureObject_t image_obj = 0, image_gauss_obj = 0;
 
         std::unique_ptr<Saiga::CUDA::Fast> fast;
 
