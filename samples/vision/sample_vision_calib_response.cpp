@@ -107,7 +107,7 @@ class ResponseCalib
         for (auto f : files)
         {
             ResponseImage ri;
-            ri.file = dir + "/" + f;
+            ri.file = dir + "/" + f.string();
 
 
             auto data = File::loadFileBinary(ri.file);

@@ -8,6 +8,7 @@
 #include "saiga/core/util/table.h"
 #include "saiga/cuda/bitonicSort.h"
 #include "saiga/cuda/cudaHelper.h"
+#include "saiga/cuda/thrust_helper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/pinned_vector.h"
 

@@ -4,12 +4,13 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/math/math.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/memory.h"
 #include "saiga/cuda/reduce.h"
 #include "saiga/cuda/tests/test_helper.h"
-#include "saiga/core/math/math.h"
+#include "saiga/cuda/thrust_helper.h"
 
 #include <fstream>
 #include <random>
@@ -17,7 +18,7 @@
 using Saiga::ArrayView;
 using Saiga::CUDA::ThreadInfo;
 
-//#define LECTURE
+// #define LECTURE
 
 std::ofstream outstrm;
 
@@ -102,10 +103,8 @@ __global__ static void randomAccessLdg(ArrayView<T> data, ArrayView<T> result)
 }
 
 
-static texture<int, 1, cudaReadModeElementType> dataTexture;
-
 template <typename T, unsigned int BLOCK_SIZE, unsigned int K>
-__global__ static void randomAccessTexture(ArrayView<T> data, ArrayView<T> result)
+__global__ static void randomAccessTexture(cudaTextureObject_t dataTexture, ArrayView<T> data, ArrayView<T> result)
 {
     ThreadInfo<BLOCK_SIZE> ti;
     if (ti.thread_id >= result.size()) return;
@@ -117,7 +116,7 @@ __global__ static void randomAccessTexture(ArrayView<T> data, ArrayView<T> resul
     {
         r          = simpleRand(r);
         auto index = r % data.size();
-        sum += tex1Dfetch(dataTexture, index);
+        sum += tex1Dfetch<T>(dataTexture, index);
     }
 
     // Reduce the cache impact of the output array
@@ -171,10 +170,13 @@ void randomAccessTest2(int numIndices, int numElements)
         d_result = result;
 
         //        cudaFuncSetCacheConfig(randomAccessConstRestricted<ElementType,BLOCK_SIZE,K>,cudaFuncCachePreferShared);
-        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
-            randomAccessConstRestricted<ElementType, BLOCK_SIZE, K>
-                <<<BLOCKS, BLOCK_SIZE>>>(d_data, d_data.data().get(), d_result);
-        });
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
+            its,
+            [&]()
+            {
+                randomAccessConstRestricted<ElementType, BLOCK_SIZE, K>
+                    <<<BLOCKS, BLOCK_SIZE>>>(d_data, d_data.data().get(), d_result);
+            });
         test.addMeassurement("randomAccessConstRestricted", st.median);
         outstrm << test.bandwidth(st.median) << ",";
 
@@ -186,9 +188,8 @@ void randomAccessTest2(int numIndices, int numElements)
     {
         d_result = result;
 
-        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(its, [&]() {
-            randomAccessLdg<ElementType, BLOCK_SIZE, K><<<BLOCKS, BLOCK_SIZE>>>(d_data, d_result);
-        });
+        auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
+            its, [&]() { randomAccessLdg<ElementType, BLOCK_SIZE, K><<<BLOCKS, BLOCK_SIZE>>>(d_data, d_result); });
         test.addMeassurement("randomAccessLdg", st.median);
         outstrm << test.bandwidth(st.median) << ",";
 
@@ -201,15 +202,27 @@ void randomAccessTest2(int numIndices, int numElements)
 
 #endif
     {
-        cudaBindTexture(0, dataTexture, d_data.data().get(), d_data.size() * sizeof(ElementType));
+        cudaResourceDesc res_desc        = {};
+        res_desc.resType                 = cudaResourceTypeLinear;
+        res_desc.res.linear.devPtr       = d_data.data().get();
+        res_desc.res.linear.desc         = cudaCreateChannelDesc<ElementType>();
+        res_desc.res.linear.sizeInBytes  = d_data.size() * sizeof(ElementType);
+        cudaTextureDesc tex_desc         = {};
+        tex_desc.readMode                = cudaReadModeElementType;
+        cudaTextureObject_t data_texture = 0;
+        CHECK_CUDA_ERROR(cudaCreateTextureObject(&data_texture, &res_desc, &tex_desc, nullptr));
         d_result = result;
 
         auto st = Saiga::measureObject<Saiga::CUDA::ScopedTimer>(
-            its, [&]() { randomAccessTexture<ElementType, BLOCK_SIZE, K><<<BLOCKS, BLOCK_SIZE>>>(d_data, d_result); });
+            its,
+            [&]()
+            {
+                randomAccessTexture<ElementType, BLOCK_SIZE, K><<<BLOCKS, BLOCK_SIZE>>>(data_texture, d_data, d_result);
+            });
         test.addMeassurement("randomAccessTexture", st.median);
         outstrm << test.bandwidth(st.median);
 
-        cudaUnbindTexture(dataTexture);
+        CHECK_CUDA_ERROR(cudaDestroyTextureObject(data_texture));
         CUDA_SYNC_CHECK_ERROR();
     }
 

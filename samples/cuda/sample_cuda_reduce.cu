@@ -6,6 +6,7 @@
 
 #include "saiga/core/math/math.h"
 #include "saiga/cuda/cudaHelper.h"
+#include "saiga/cuda/thrust_helper.h"
 #include "saiga/cuda/device_helper.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/reduce.h"
