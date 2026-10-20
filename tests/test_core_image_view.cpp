@@ -588,3 +588,11 @@ TEST(ImageTransformation, DepthToRGBAEmptyRange)
     EXPECT_EQ(rgba(0, 2), hsv1(0, 0));
     EXPECT_NE(rgba(0, 1), rgba(0, 2));
 }
+
+TEST(ImageGenerator, CheckerBoardClampsColors)
+{
+    // Colors outside of [0,1] were converted to uint8_t without clamping (undefined behavior, in practice wrapped).
+    auto img = ImageGenerator::checkerBoard(vec3(2, -1, 0.5f), vec3(1.5f, -0.5f, 1), 1, 2, 1);
+    EXPECT_EQ(img->at<ucvec3>(0, 0), ucvec3(255, 0, 127));
+    EXPECT_EQ(img->at<ucvec3>(0, 1), ucvec3(255, 0, 255));
+}
