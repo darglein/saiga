@@ -141,3 +141,59 @@ TEST(Color, SRGB)
     }
     EXPECT_NEAR(Color::srgb2linearrgb(vec3(0.5f, 0.5f, 0.5f))(0), 0.214f, 1e-3f);
 }
+
+static std::filesystem::path UtilTestDir()
+{
+    auto dir = std::filesystem::temp_directory_path() / "saiga_test_core_util";
+    std::filesystem::create_directories(dir);
+    return dir;
+}
+
+static void WriteUtilText(const std::filesystem::path& file, const std::string& content)
+{
+    std::ofstream strm(file, std::ios::binary);
+    strm << content;
+}
+
+TEST(Translator, LastLineWithoutNewline)
+{
+    // The last line was skipped if the file did not end with a newline.
+    auto file = UtilTestDir() / "translation_last_line.txt";
+    WriteUtilText(file, "# comment\nhello,hallo,greeting\nyes,ja,");
+    Translator t;
+    t.init(file.string());
+    EXPECT_EQ(t.translate("hello", ""), "hallo");
+    EXPECT_EQ(t.translate("yes", ""), "ja");
+}
+
+TEST(Translator, EscapedEscapeBeforeSeparator)
+{
+    // A separator that follows an escaped escape symbol ("\\,") was treated as escaped.
+    auto file = UtilTestDir() / "translation_escape.txt";
+    WriteUtilText(file, "back\\\\,slash\\\\,\nco\\,mma,Kom\\,ma,\nline,a\\nb,\n");
+    Translator t;
+    t.init(file.string());
+    EXPECT_EQ(t.translate("back\\", ""), "slash\\");
+    EXPECT_EQ(t.translate("co,mma", ""), "Kom,ma");
+    EXPECT_EQ(t.translate("line", ""), "a\nb");
+}
+
+TEST(Translator, WriteReadRoundtrip)
+{
+    auto file = UtilTestDir() / "translation_roundtrip.txt";
+    std::filesystem::remove(file);
+    {
+        Translator t;
+        t.init(file.string());
+        // Unknown keys are added with an identity translation.
+        EXPECT_EQ(t.translate("plain", "note"), "plain");
+        EXPECT_EQ(t.translate("a,b\\c\nd", "x,y"), "a,b\\c\nd");
+        EXPECT_EQ(t.translate("ends with\\", ""), "ends with\\");
+        t.writeToFile();
+    }
+    Translator t;
+    t.init(file.string());
+    EXPECT_EQ(t.translate("plain", ""), "plain");
+    EXPECT_EQ(t.translate("a,b\\c\nd", ""), "a,b\\c\nd");
+    EXPECT_EQ(t.translate("ends with\\", ""), "ends with\\");
+}

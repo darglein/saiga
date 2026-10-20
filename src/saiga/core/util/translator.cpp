@@ -114,11 +114,6 @@ bool Translator::readTranslationFile()
         {
             TranslationEntry te;
 
-            if (stream.eof())
-            {
-                break;
-            }
-
             // remove carriage return from windows
             line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
 
@@ -136,17 +131,25 @@ bool Translator::readTranslationFile()
             utf32line.erase(std::remove(utf32line.begin(), utf32line.end(), '\r'), utf32line.end());
 
 
-            // find positions of spacers (without leading escape symbols)
+            // find positions of spacers that are not escaped. An escape symbol escapes only the next character, so
+            // "\\," is an escaped escape symbol followed by a spacer.
             std::vector<int> spacerPos;
-            int pos       = 0;
-            uint32_t prev = 0;
+            int pos      = 0;
+            bool escaped = false;
             for (auto c : utf32line)
             {
-                if ((int)c == spacer && (int)prev != escapesymbol)
+                if (escaped)
+                {
+                    escaped = false;
+                }
+                else if ((int)c == escapesymbol)
+                {
+                    escaped = true;
+                }
+                else if ((int)c == spacer)
                 {
                     spacerPos.push_back(pos);
                 }
-                prev = c;
                 pos++;
             }
 
