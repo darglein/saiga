@@ -12,5 +12,9 @@ namespace Saiga
 {
 namespace Intersection
 {
+bool SphereAABB(const vec3& c, float r, const AABB& bb2)
+{
+    return bb2.DistanceSquared(c) <= r * r;
+}
 }  // namespace Intersection
 }  // namespace Saiga
