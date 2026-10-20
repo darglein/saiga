@@ -36,6 +36,7 @@ void TextureBase::create()
     glBindTexture(target, id);
     glBindTexture(target, 0);
     assert_no_glerror();
+    new_texture = true;
 }
 
 void TextureBase::destroy()

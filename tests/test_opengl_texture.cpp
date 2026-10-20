@@ -476,3 +476,42 @@ TEST_F(OpenGLTexture, GenerateMipmapsInteger)
     tex_float.generateMipmaps();
     EXPECT_EQ(GetTexParameter(tex_float, GL_TEXTURE_MIN_FILTER), GL_LINEAR_MIPMAP_LINEAR);
 }
+
+// Every upload (resize, updateFromImage) reset the filter and wrap parameters to the defaults, so for example the
+// nearest filtering of a framebuffer texture was lost on a resize.
+TEST_F(OpenGLTexture, ReuploadKeepsParameters)
+{
+    Texture2D tex;
+    tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_CLAMP_TO_EDGE);
+
+    tex.setFiltering(GL_NEAREST);
+    tex.setWrap(GL_REPEAT);
+    tex.resize(8, 3);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_NEAREST);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MAG_FILTER), GL_NEAREST);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_T), GL_REPEAT);
+
+    TemplatedImage<ucvec4> img(3, 8);
+    img.getImageView().set(ucvec4(1, 2, 3, 4));
+    tex.updateFromImage(img);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_NEAREST);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_REPEAT);
+
+    // A new texture gets the defaults again
+    tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_CLAMP_TO_EDGE);
+}
+
+// A resize drops the mipmaps, so a mipmap filter would make the texture incomplete.
+TEST_F(OpenGLTexture, ResizeMipmappedTexture)
+{
+    Texture2D tex;
+    tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    tex.generateMipmaps();
+    tex.resize(3, 5);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+}

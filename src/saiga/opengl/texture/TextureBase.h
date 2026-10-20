@@ -143,6 +143,10 @@ class SAIGA_OPENGL_API TextureBase
     // Every texture has an internal-format/colortype/datatype
     GLenum internal_format;
     GLenum color_type, data_type;
+
+    // Set by create(): the parameters of the GL texture are still the GL defaults. Subclasses that set their default
+    // parameters on the first upload use this to keep the parameters of the user on later uploads.
+    bool new_texture = false;
 };
 
 

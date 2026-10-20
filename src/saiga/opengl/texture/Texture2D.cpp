@@ -84,6 +84,12 @@ void Texture2D::create(int width, int height, GLenum color_type, GLenum internal
 void Texture2D::upload(const void* data)
 {
     bind();
+    GLint old_width = 0, old_height = 0;
+    if (!new_texture)
+    {
+        glGetTexLevelParameteriv(target, 0, GL_TEXTURE_WIDTH, &old_width);
+        glGetTexLevelParameteriv(target, 0, GL_TEXTURE_HEIGHT, &old_height);
+    }
     glTexImage2D(target,                               // target
                  0,                                    // level, 0 = base, no minimap,
                  static_cast<GLint>(internal_format),  // internalformat
@@ -93,7 +99,26 @@ void Texture2D::upload(const void* data)
                  color_type,  // format
                  data_type,   // type
                  data);
-    setDefaultParameters();
+    if (new_texture)
+    {
+        // Only a new texture gets the default parameters. A resize or update keeps the parameters of the user.
+        setDefaultParameters();
+        new_texture = false;
+    }
+    else if (old_width != width || old_height != height)
+    {
+        // The mipmaps of the old size no longer match level 0: a mipmap filter would make the texture incomplete.
+        GLint min_filter = 0;
+        glGetTexParameteriv(target, GL_TEXTURE_MIN_FILTER, &min_filter);
+        if (min_filter == GL_NEAREST_MIPMAP_NEAREST || min_filter == GL_NEAREST_MIPMAP_LINEAR)
+        {
+            glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_NEAREST));
+        }
+        else if (min_filter == GL_LINEAR_MIPMAP_NEAREST || min_filter == GL_LINEAR_MIPMAP_LINEAR)
+        {
+            glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
+        }
+    }
     assert_no_glerror();
     unbind();
 }
