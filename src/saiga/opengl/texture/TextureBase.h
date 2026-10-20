@@ -10,6 +10,8 @@
 #include "saiga/core/image/image.h"
 #include "saiga/opengl/opengl.h"
 
+#include <functional>
+
 namespace Saiga
 {
 class SAIGA_OPENGL_API TextureBase
@@ -119,6 +121,14 @@ class SAIGA_OPENGL_API TextureBase
     GLenum InternalFormat() const { return internal_format; }
 
    protected:
+    /**
+     * Calls upload(ptr) with an unpack state (GL_UNPACK_ALIGNMENT, GL_UNPACK_ROW_LENGTH) that reads 'height' rows of
+     * 'width' pixels, which are 'pitch_bytes' apart in 'data'. If no unpack state describes this pitch, ptr points to a
+     * packed copy of the rows. The previous unpack state is restored afterwards.
+     */
+    static void uploadWithPitch(int width, int height, ImageType type, size_t pitch_bytes, const void* data,
+                                const std::function<void(const void*)>& upload);
+
     // The underlying GL texture name and target
     GLuint id = 0;
     GLenum target;

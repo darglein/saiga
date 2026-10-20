@@ -75,13 +75,18 @@ bool TextureCube::fromImage(std::vector<Image>& images)
 
     TextureBase::create();
 
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_X, images[1].data());
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, images[0].data());
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, images[3].data());
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, images[2].data());
+    auto upload_face = [this](GLenum face, const Image& img)
+    {
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(),
+                        [&](const void* data) { uploadData(face, data); });
+    };
+    upload_face(GL_TEXTURE_CUBE_MAP_POSITIVE_X, images[1]);
+    upload_face(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, images[0]);
+    upload_face(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, images[3]);
+    upload_face(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, images[2]);
 
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, images[4].data());
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, images[5].data());
+    upload_face(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, images[4]);
+    upload_face(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, images[5]);
 
     assert_no_glerror();
     return true;

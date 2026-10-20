@@ -143,6 +143,51 @@ void TextureBase::setBorderColor(vec4 color)
 }
 
 
+void TextureBase::uploadWithPitch(int width, int height, ImageType type, size_t pitch_bytes, const void* data,
+                                  const std::function<void(const void*)>& upload)
+{
+    GLint old_alignment = 4, old_row_length = 0;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &old_alignment);
+    glGetIntegerv(GL_UNPACK_ROW_LENGTH, &old_row_length);
+
+    size_t pixel_size = elementSize(type);
+    size_t row_bytes  = width * pixel_size;
+
+    GLint alignment  = 0;
+    GLint row_length = 0;
+    for (GLint a : {8, 4, 2, 1})
+    {
+        if (iAlignUp(row_bytes, a) == pitch_bytes)
+        {
+            alignment = a;
+            break;
+        }
+    }
+    if (alignment == 0 && pixel_size > 0 && pitch_bytes % pixel_size == 0 && pitch_bytes >= row_bytes)
+    {
+        alignment  = 1;
+        row_length = pitch_bytes / pixel_size;
+    }
+
+    std::vector<char> packed;
+    if (alignment == 0 && data)
+    {
+        alignment = 1;
+        packed.resize(row_bytes * height);
+        for (int y = 0; y < height; ++y)
+        {
+            memcpy(packed.data() + y * row_bytes, static_cast<const char*>(data) + y * pitch_bytes, row_bytes);
+        }
+        data = packed.data();
+    }
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment == 0 ? 1 : alignment);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+    upload(data);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, old_alignment);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, old_row_length);
+}
+
 void TextureBase::setFormat(ImageType type, bool srgb, bool integer)
 {
     SAIGA_ASSERT(!srgb);

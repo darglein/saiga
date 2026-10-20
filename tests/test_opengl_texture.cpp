@@ -187,6 +187,76 @@ TEST_F(OpenGLTexture, Texture3DFromInvalidImages)
     EXPECT_FALSE(tex.fromImage(images));
 }
 
+// Rows of an image with a pitch larger than the default alignment were uploaded as if they were tightly packed.
+TEST_F(OpenGLTexture, FromImageWithPitch)
+{
+    int w = 3, h = 4;
+    TemplatedImage<ucvec4> img;
+    img.create(h, w, 64);
+    ASSERT_EQ(img.pitchBytes, 64u);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = ucvec4(x + 1, y + 1, 9, 255);
+
+    for (bool flip : {false, true})
+    {
+        Texture2D tex(img, false, flip);
+
+        TemplatedImage<ucvec4> result(h, w);
+        ASSERT_TRUE(tex.download(result.data()));
+        for (int y = 0; y < img.h; ++y)
+            for (int x = 0; x < img.w; ++x)
+                EXPECT_EQ(result(y, x), img(flip ? h - 1 - y : y, x)) << x << " " << y << " " << flip;
+    }
+
+    // The unpack state of the caller is restored
+    GLint alignment = 0, row_length = -1;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+    glGetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);
+    EXPECT_EQ(alignment, 4);
+    EXPECT_EQ(row_length, 0);
+}
+
+// A pitch that is not a multiple of the pixel size can not be described by GL_UNPACK_ROW_LENGTH.
+TEST_F(OpenGLTexture, FromRGBImageWithOddPitch)
+{
+    int w = 5, h = 3;
+    TemplatedImage<ucvec3> img;
+    img.create(h, w, 17);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = ucvec3(x + 1, y + 1, 9);
+
+    Texture2D tex(img);
+
+    TemplatedImage<ucvec3> result(h, w);
+    ASSERT_TRUE(tex.download(result.data()));
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
+}
+
+TEST_F(OpenGLTexture, Texture3DFromImageWithPitch)
+{
+    int w = 3, h = 2, d = 2;
+    std::vector<Image> images;
+    for (int z = 0; z < d; ++z)
+    {
+        TemplatedImage<ucvec4> img;
+        img.create(h, w, 32);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) img(y, x) = ucvec4(x, y, z, 255);
+        images.push_back(img);
+    }
+
+    Texture3D tex;
+    ASSERT_TRUE(tex.fromImage(images));
+
+    std::vector<ucvec4> result(w * h * d);
+    ASSERT_TRUE(tex.download(result.data()));
+    for (int z = 0; z < d; ++z)
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+                EXPECT_EQ(result[(z * h + y) * w + x], ucvec4(x, y, z, 255)) << x << " " << y << " " << z;
+}
+
 // Signed 8 bit images were stored in an unsigned normalized format, which clamped negative values to 0.
 TEST_F(OpenGLTexture, FromSignedCharImage)
 {

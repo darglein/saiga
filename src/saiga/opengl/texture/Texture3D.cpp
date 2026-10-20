@@ -81,7 +81,8 @@ bool Texture3D::fromImage(std::vector<Image>& images)
     for (int i = 0; i < depth; i++)
     {
         Image& img = images[i];
-        uploadSubImage(0, 0, i, width, height, 1, img.data());
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(),
+                        [&](const void* data) { uploadSubImage(0, 0, i, width, height, 1, const_cast<void*>(data)); });
     }
 
 

@@ -40,6 +40,7 @@ Texture2D::Texture2D(const Image& img, bool srgb, bool flipY, bool integer) : Te
     height = img.height;
     TextureBase::create();
 
+    auto upload_fn = [this](const void* data) { upload(data); };
     if (flipY)
     {
         std::vector<char> data(img.pitchBytes * img.h);
@@ -47,11 +48,11 @@ Texture2D::Texture2D(const Image& img, bool srgb, bool flipY, bool integer) : Te
         {
             memcpy(&data[i * img.pitchBytes], img.rowPtr(img.h - i - 1), img.pitchBytes);
         }
-        upload(data.data());
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, data.data(), upload_fn);
     }
     else
     {
-        upload(img.data());
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(), upload_fn);
     }
 }
 
@@ -67,7 +68,7 @@ void Texture2D::setDefaultParameters()
 
 void Texture2D::updateFromImage(const Image& img)
 {
-    upload(img.data());
+    uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(), [this](const void* data) { upload(data); });
 }
 
 void Texture2D::create(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,
