@@ -7,12 +7,12 @@
 #pragma once
 
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/FileSystem.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/UniformHelper.h"
 #include "saiga/opengl/shader/shaderpart.h"
 #include "saiga/opengl/texture/Texture2D.h"
 
-#include "saiga/core/util/FileSystem.h"
 #include <memory>
 #include <vector>
 
@@ -54,11 +54,13 @@ class SAIGA_OPENGL_API Shader
 
     Shader();
     virtual ~Shader();
-    Shader(Shader const&) = delete;
+    Shader(Shader const&)            = delete;
     Shader& operator=(Shader const&) = delete;
 
     bool init(const std::filesystem::path& file, const ShaderCodeInjections& injections = {});
     bool init_from_string(const std::string& source_code, const ShaderCodeInjections& injections = {});
+    // Calls init again if one of the files changed. If the new code does not compile or link, the old program is kept
+    // and false is returned; the next reload tries again after the next change of a file.
     bool reload();
 
     // ===================================== program stuff =====================================

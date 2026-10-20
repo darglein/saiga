@@ -41,14 +41,42 @@ bool Shader::reload()
         }
     }
 
-    if (need_reload)
-    {
-        return init(file, injections);
-    }
-    else
+    if (!need_reload)
     {
         return true;
     }
+
+    // Keep the working program (and the uniform locations of checkUniforms) until the new one is linked, so that an
+    // error during hot reloading does not leave the shader unusable.
+    GLuint old_program = program;
+    auto old_shaders   = shaders;
+    auto old_files     = dependent_files_and_date;
+    program            = 0;
+
+    if (init(file, injections))
+    {
+        std::swap(program, old_program);
+        destroyProgram();
+        program = old_program;
+        return true;
+    }
+
+    destroyProgram();
+    program = old_program;
+    shaders = old_shaders;
+    if (dependent_files_and_date.empty())
+    {
+        // The file could not be read
+        dependent_files_and_date = old_files;
+    }
+    // Try again after the next change of a file
+    for (auto& f_t : dependent_files_and_date)
+    {
+        std::error_code ec;
+        auto date = std::filesystem::last_write_time(f_t.first, ec);
+        if (!ec) f_t.second = date;
+    }
+    return false;
 }
 
 bool Shader::init(const std::filesystem::path& file, const ShaderCodeInjections& injections)
