@@ -55,7 +55,7 @@ namespace Saiga
 {
 namespace CUDA
 {
-//todo maybe change
+// todo maybe change
 static __constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
 
 
@@ -75,9 +75,9 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
 
     const int x = blockIdx.x * BLOCK_DIM_X + threadIdx.x;
 
-    if (x >= src.cols) return;
-
-    const T* src_col = src.rowPtr(0) + x;
+    // The threads right of the last column must not return, because they have to reach the __syncthreads below. They
+    // load the last column instead and do not write anything.
+    const int x_load = min(x, src.cols - 1);
 
     const int yStart = blockIdx.y * (BLOCK_DIM_Y * PATCH_PER_BLOCK) + threadIdx.y;
 
@@ -86,7 +86,7 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
         // Upper halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
-            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] = src(yStart - (HALO_SIZE - j) * BLOCK_DIM_Y, x);
+            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] = src(yStart - (HALO_SIZE - j) * BLOCK_DIM_Y, x_load);
     }
     else
     {
@@ -95,7 +95,8 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
         for (int j = 0; j < HALO_SIZE; ++j)
             //            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] = brd.at_low(yStart - (HALO_SIZE - j) *
             //            BLOCK_DIM_Y, src_col, src.pitchBytes);
-            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] = src(max(yStart - (HALO_SIZE - j) * BLOCK_DIM_Y, 0), x);
+            smem[threadIdx.y + j * BLOCK_DIM_Y][threadIdx.x] =
+                src(max(yStart - (HALO_SIZE - j) * BLOCK_DIM_Y, 0), x_load);
     }
 
     if (blockIdx.y + 2 < gridDim.y)
@@ -104,13 +105,13 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
 #pragma unroll
         for (int j = 0; j < PATCH_PER_BLOCK; ++j)
             smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] =
-                src(yStart + j * BLOCK_DIM_Y, x);
+                src(yStart + j * BLOCK_DIM_Y, x_load);
 
-            // Lower halo
+        // Lower halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
             smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] =
-                src(yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y, x);
+                src(yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y, x_load);
     }
     else
     {
@@ -120,15 +121,15 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
             //            smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] =
             //            brd.at_high(yStart + j * BLOCK_DIM_Y, src_col, src.pitchBytes);
             smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] =
-                src(min(yStart + j * BLOCK_DIM_Y, src.height - 1), x);
+                src(min(yStart + j * BLOCK_DIM_Y, src.height - 1), x_load);
 
-            // Lower halo
+        // Lower halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
             //            smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x]
             //            = brd.at_high(yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y, src_col, src.pitchBytes);
             smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] =
-                src(min(yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y, src.height - 1), x);
+                src(min(yStart + (PATCH_PER_BLOCK + j) * BLOCK_DIM_Y, src.height - 1), x_load);
     }
 
     __syncthreads();
@@ -138,7 +139,7 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
     {
         const int y = yStart + j * BLOCK_DIM_Y;
 
-        if (y < src.rows)
+        if (y < src.rows && x < src.cols)
         {
             sum_t sum = 0;
 
@@ -169,7 +170,10 @@ static void convolveCol(ImageView<float> src, ImageView<float> dst)
 
 void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius)
 {
-    SAIGA_ASSERT(kernel.size() > 0 && kernel.size() <= SAIGA_MAX_KERNEL_SIZE);
+    SAIGA_ASSERT(radius >= 1 && radius <= SAIGA_MAX_CONVOLUTION_RADIUS,
+                 "convolveCol: unsupported radius " + std::to_string(radius));
+    SAIGA_ASSERT(kernel.size() == 2 * radius + 1, "convolveCol: the kernel size " + std::to_string(kernel.size()) +
+                                                      " is not 2 * radius + 1 = " + std::to_string(2 * radius + 1));
     CHECK_CUDA_ERROR(
         cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size() * sizeof(float), 0, cudaMemcpyDeviceToDevice));
 
@@ -248,7 +252,7 @@ void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<fl
             convolveCol<float, 24>(src, dst);
             break;
         default:
-            SAIGA_ASSERT(0);
+            SAIGA_ASSERT(false, "convolveCol: unsupported radius");
     }
 }
 

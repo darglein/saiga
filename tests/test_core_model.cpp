@@ -1,0 +1,422 @@
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#include "saiga/core/model/UnifiedMesh.h"
+#include "saiga/core/model/UnifiedModel.h"
+#include "saiga/core/model/model_from_shape.h"
+#include "saiga/core/model/model_loader_obj.h"
+#include "saiga/core/model/model_loader_off.h"
+#include "saiga/core/model/model_loader_ply.h"
+
+#include "gtest/gtest.h"
+
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+
+using namespace Saiga;
+
+// Regression test: operator<< of UnifiedMaterial and UnifiedModel wrote to std::cout instead of the given stream.
+TEST(UnifiedModel, StreamOperatorsWriteToStream)
+{
+    UnifiedMaterial mat("my_material");
+    std::stringstream strm;
+    strm << mat;
+    EXPECT_NE(strm.str().find("my_material"), std::string::npos);
+
+    UnifiedModel model;
+    model.name = "my_model";
+    model.materials.push_back(mat);
+    std::stringstream strm2;
+    strm2 << model;
+    EXPECT_NE(strm2.str().find("my_model"), std::string::npos);
+    EXPECT_NE(strm2.str().find("Materials"), std::string::npos);
+    EXPECT_NE(strm2.str().find("my_material"), std::string::npos);
+}
+
+// Regression test: EraseVertices (and therefore RemoveDoubles) updated the triangle indices but not the line indices.
+TEST(UnifiedMesh, EraseVerticesUpdatesLines)
+{
+    UnifiedMesh mesh;
+    mesh.position  = {vec3(0, 0, 0), vec3(1, 0, 0), vec3(2, 0, 0), vec3(3, 0, 0)};
+    mesh.lines     = {ivec2(0, 1), ivec2(2, 3), ivec2(1, 3)};
+    mesh.triangles = {ivec3(1, 2, 3), ivec3(0, 2, 3)};
+
+    std::vector<int> erase = {0};
+    mesh.EraseVertices(erase);
+    ASSERT_EQ(mesh.NumVertices(), 3);
+    EXPECT_EQ(mesh.triangles, std::vector<ivec3>({ivec3(0, 1, 2)}));
+    // The line that used vertex 0 is removed, the others are shifted.
+    EXPECT_EQ(mesh.lines, std::vector<ivec2>({ivec2(1, 2), ivec2(0, 2)}));
+
+    UnifiedMesh mesh2;
+    mesh2.position = {vec3(0, 0, 0), vec3(1, 0, 0), vec3(1, 0, 0), vec3(2, 0, 0)};
+    mesh2.lines    = {ivec2(0, 1), ivec2(2, 3)};
+    mesh2.RemoveDoubles(0.01);
+    ASSERT_EQ(mesh2.NumVertices(), 3);
+    EXPECT_EQ(mesh2.lines, std::vector<ivec2>({ivec2(0, 1), ivec2(1, 2)}));
+}
+
+// Regression test: ReorderMorton64 added the bounding box minimum instead of subtracting it, so the Morton codes of
+// meshes with a negative bounding box were computed from negative (wrapped) coordinates.
+TEST(UnifiedMesh, ReorderMorton64)
+{
+    UnifiedMesh mesh;
+    std::vector<int> order = {7, 2, 9, 0, 4, 1, 8, 3, 6, 5};
+    for (int i : order)
+    {
+        float t = -10.f + i;
+        mesh.position.push_back(vec3(t, 2 * t, 0.5f * t));
+    }
+    mesh.ReorderMorton64();
+    ASSERT_EQ(mesh.NumVertices(), 10);
+    // All coordinates grow with t, so the Morton order is the order of t.
+    for (int i = 0; i + 1 < mesh.NumVertices(); ++i)
+    {
+        EXPECT_LT(mesh.position[i].x(), mesh.position[i + 1].x()) << i;
+    }
+}
+
+// Regression test: SmoothVertexColors divided by zero for vertices that are not part of a triangle.
+TEST(UnifiedMesh, SmoothVertexColorsIsolatedVertex)
+{
+    UnifiedMesh mesh;
+    mesh.position  = {vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 1, 0), vec3(5, 5, 5)};
+    mesh.color     = {vec4(1, 0, 0, 1), vec4(0, 1, 0, 1), vec4(0, 0, 1, 1), vec4(1, 1, 1, 1)};
+    mesh.triangles = {ivec3(0, 1, 2)};
+    mesh.SmoothVertexColors(1, 1);
+    for (auto& c : mesh.color) EXPECT_TRUE(c.allFinite());
+    EXPECT_NEAR((mesh.color[0] - vec4(1.f / 3, 1.f / 3, 1.f / 3, 1)).norm(), 0, 1e-6);
+    EXPECT_NEAR((mesh.color[3] - vec4(1, 1, 1, 1)).norm(), 0, 1e-6);
+}
+
+// Regression test: transform() multiplied the normals with the model matrix, so a scaling changed their length and a
+// non-uniform scaling tilted them.
+TEST(UnifiedMesh, TransformNormals)
+{
+    UnifiedMesh mesh;
+    mesh.position  = {vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 1, 0)};
+    mesh.triangles = {ivec3(0, 1, 2)};
+    mesh.normal    = {vec3(1, 1, 0).normalized(), vec3(0, 0, 1), vec3(0, 0, 0)};
+    mesh.transform(translate(vec3(1, 2, 3)) * scale(vec3(2, 1, 1)));
+
+    EXPECT_NEAR((mesh.position[1] - vec3(3, 2, 3)).norm(), 0, 1e-6);
+    // The plane x + y = 0 becomes x / 2 + y = 0, which has the normal (1, 2, 0) / sqrt(5).
+    EXPECT_NEAR((mesh.normal[0] - vec3(1, 2, 0).normalized()).norm(), 0, 1e-6);
+    EXPECT_NEAR((mesh.normal[1] - vec3(0, 0, 1)).norm(), 0, 1e-6);
+    // Zero normals stay zero.
+    EXPECT_EQ(mesh.normal[2], vec3(0, 0, 0));
+
+    // A flattening (singular) transformation made every normal NaN.
+    mesh.normal = {vec3(0, 0, 1), vec3(1, 1, 1).normalized(), vec3(1, 0, 0)};
+    mesh.transform(scale(vec3(1, 1, 0)));
+    for (auto& n : mesh.normal)
+    {
+        EXPECT_TRUE(std::isfinite(n.x()) && std::isfinite(n.y()) && std::isfinite(n.z()));
+    }
+    EXPECT_NEAR((mesh.normal[0] - vec3(0, 0, 1)).norm(), 0, 1e-6);
+    EXPECT_NEAR((mesh.normal[1] - vec3(0, 0, 1)).norm(), 0, 1e-6);
+
+    // A mirroring keeps the normals on the same side of the surface.
+    mesh.normal = {vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1)};
+    mesh.transform(scale(vec3(-1, 1, 1)));
+    EXPECT_NEAR((mesh.normal[0] - vec3(-1, 0, 0)).norm(), 0, 1e-6);
+}
+
+static void ExpectClosedSphere(const UnifiedMesh& mesh, const Sphere& s)
+{
+    ASSERT_GT(mesh.NumVertices(), 0);
+    ASSERT_GT(mesh.NumFaces(), 0);
+    for (int i = 0; i < mesh.NumVertices(); ++i)
+    {
+        EXPECT_NEAR((mesh.position[i] - s.pos).norm(), s.r, 1e-4 * s.r) << i;
+        EXPECT_NEAR(mesh.normal[i].norm(), 1, 1e-4) << i;
+        EXPECT_NEAR((mesh.normal[i] - (mesh.position[i] - s.pos).normalized()).norm(), 0, 1e-4) << i;
+    }
+    // The triangles are ordered counter clockwise when seen from the outside.
+    for (auto t : mesh.triangles)
+    {
+        Triangle tri(mesh.position[t(0)], mesh.position[t(1)], mesh.position[t(2)]);
+        EXPECT_GT(tri.normal().dot(tri.center() - s.pos), 0);
+    }
+    // The volume of the closed mesh (divergence theorem) is close to the sphere volume.
+    double volume = 0;
+    for (auto t : mesh.triangles)
+    {
+        Vec3 a = (mesh.position[t(0)] - s.pos).cast<double>();
+        Vec3 b = (mesh.position[t(1)] - s.pos).cast<double>();
+        Vec3 c = (mesh.position[t(2)] - s.pos).cast<double>();
+        volume += a.dot(b.cross(c)) / 6.0;
+    }
+    double sphere_volume = 4.0 / 3.0 * pi<double>() * s.r * s.r * s.r;
+    EXPECT_NEAR(volume / sphere_volume, 1, 0.05);
+}
+
+// Regression test: the normals of IcoSphereMesh had the length of the radius, because transform() scaled them.
+TEST(UnifiedMesh, IcoSphere)
+{
+    Sphere s(vec3(-1, 0.5, 2), 0.5);
+    ExpectClosedSphere(IcoSphereMesh(s, 2), s);
+}
+
+// Regression test: UVSphereMesh placed all vertices on a cone (the y coordinate used sin(-2 pi + ...) instead of
+// -cos(...)) and then multiplied the model with the scalar 1 / sectors instead of the sphere radius.
+TEST(UnifiedMesh, UVSphere)
+{
+    Sphere s(vec3(1, 2, 3), 2);
+    ExpectClosedSphere(UVSphereMesh(s, 20, 30), s);
+}
+
+
+static std::string TempFile(const std::string& name, const std::string& content)
+{
+    auto path = std::filesystem::temp_directory_path() / ("saiga_test_model_" + name);
+    std::ofstream strm(path, std::ios::binary);
+    strm << content;
+    return path.string();
+}
+
+// Regression test: the OFF loader compared the number of triangles with the number of faces in the header, so a file
+// with quads (2 triangles each) was never completely parsed and a polygon with more than 4 corners overflowed the
+// index array.
+TEST(ModelLoader, OffWithQuadsAndPolygons)
+{
+    std::string content =
+        "OFF\n"
+        "6 3 0\n"
+        "0 0 0\n"
+        "1 0 0\n"
+        "1 1 0\n"
+        "0 1 0\n"
+        "2 0 0\n"
+        "2 1 0\n"
+        "4 0 1 2 3\n"
+        "3 1 4 5\n"
+        "5 0 1 4 5 2\n";
+    auto file = TempFile("mesh.off", content);
+    OffModelLoader loader;
+    EXPECT_TRUE(loader.loadFile(file));
+    EXPECT_EQ(loader.mesh.vertices.size(), 6u);
+    // 2 + 1 + 3 triangles
+    EXPECT_EQ(loader.mesh.faces.size(), 6u);
+    EXPECT_TRUE(loader.mesh.isValid());
+    std::filesystem::remove(file);
+}
+
+// Regression test: a face line with fewer indices than its corner count read the missing indices as 0, and the index
+// buffer was allocated from the (untrusted) corner count.
+TEST(ModelLoader, OffMissingIndices)
+{
+    for (std::string face : {"5 0 1 2\n", "2000000000 0 1 2\n"})
+    {
+        auto file = TempFile("missing.off", "OFF\n3 1 0\n0 0 0\n1 0 0\n0 1 0\n" + face);
+        OffModelLoader loader;
+        EXPECT_FALSE(loader.loadFile(file)) << face;
+        std::filesystem::remove(file);
+    }
+}
+
+// Regression test: the vertex and face counts of the header were used to reserve memory without a check, so a negative
+// or huge count threw std::length_error or std::bad_alloc out of loadFile.
+TEST(ModelLoader, OffInvalidCounts)
+{
+    for (std::string counts : {"-1 1 0\n", "3 -1 0\n", "2000000000 1 0\n", "3 2000000000 0\n", "5000000000 1 0\n"})
+    {
+        auto file = TempFile("counts.off", "OFF\n" + counts + "0 0 0\n1 0 0\n0 1 0\n3 0 1 2\n");
+        OffModelLoader loader;
+        bool result = true;
+        EXPECT_NO_THROW(result = loader.loadFile(file)) << counts;
+        EXPECT_FALSE(result) << counts;
+        std::filesystem::remove(file);
+    }
+}
+
+// Regression test: the binary PLY loader read beyond the end of the file for truncated files and did not check the
+// face indices.
+TEST(ModelLoader, PlyRoundTripAndInvalidFiles)
+{
+    TriangleMesh<VertexNC, uint32_t> mesh;
+    for (int i = 0; i < 4; ++i)
+    {
+        VertexNC v;
+        v.position = vec4(i, 2 * i, -i, 1);
+        v.normal   = vec4(0, 0, 1, 0);
+        v.color    = vec4(0.25f * i, 0.5, 1, 1);
+        mesh.addVertex(v);
+    }
+    mesh.addFace(0, 1, 2);
+    mesh.addFace(0, 2, 3);
+
+    auto file = (std::filesystem::temp_directory_path() / "saiga_test_model_mesh.ply").string();
+    PLYLoader::save(file, mesh);
+
+    {
+        PLYLoader loader(file);
+        ASSERT_EQ(loader.mesh.vertices.size(), 4u);
+        ASSERT_EQ(loader.mesh.faces.size(), 2u);
+        for (int i = 0; i < 4; ++i)
+        {
+            EXPECT_EQ(loader.mesh.vertices[i].position, mesh.vertices[i].position);
+            EXPECT_NEAR((loader.mesh.vertices[i].color - mesh.vertices[i].color).norm(), 0, 1e-6);
+        }
+        EXPECT_EQ(loader.mesh.faces[1], mesh.faces[1]);
+    }
+
+    std::string data;
+    {
+        std::ifstream strm(file, std::ios::binary);
+        data = std::string((std::istreambuf_iterator<char>(strm)), std::istreambuf_iterator<char>());
+    }
+
+    // Truncated file
+    auto truncated = TempFile("truncated.ply", data.substr(0, data.size() - 5));
+    EXPECT_THROW(PLYLoader loader(truncated), std::runtime_error);
+
+    // Face index out of range
+    std::string bad_index = data;
+    int32_t idx           = 100;
+    std::memcpy(&bad_index[bad_index.size() - 4], &idx, sizeof(idx));
+    auto bad = TempFile("bad_index.ply", bad_index);
+    EXPECT_THROW(PLYLoader loader(bad), std::runtime_error);
+
+    std::filesystem::remove(file);
+    std::filesystem::remove(truncated);
+    std::filesystem::remove(bad);
+}
+
+// Regression test: the PLY header parser searched the newline after end_header beyond the end of the data and aborted
+// with an assertion on malformed headers instead of throwing like the rest of the loader.
+TEST(ModelLoader, PlyInvalidHeader)
+{
+    for (std::string header :
+         {"ply\nformat binary_little_endian 1.0\nelement vertex 1\nend_header", "ply\nformat ascii 1.0\nend_header\n",
+          "ply\nelement\nend_header\n", "ply\nproperty float x\nend_header\n", "not a ply file"})
+    {
+        auto file = TempFile("header.ply", header);
+        EXPECT_THROW(PLYLoader loader(file), std::runtime_error) << header;
+        std::filesystem::remove(file);
+    }
+}
+
+// Regression test: the OBJ loader never converted the parsed faces into the model (the conversion was disabled), so
+// loading an OBJ file returned a model without meshes.
+TEST(ModelLoader, Obj)
+{
+    std::string mtl =
+        "newmtl red\n"
+        "Kd 1 0 0\n"
+        "newmtl blue\n"
+        "Kd 0 0 1\n";
+    auto mtl_file = TempFile("obj_test.mtl", mtl);
+
+    std::string obj =
+        "# comment\n"
+        "mtllib saiga_test_model_obj_test.mtl\n"
+        "v 0 0 0\n"
+        "v 1 0 0\n"
+        "v 1 1 0\n"
+        "v 0 1 0\n"
+        "vt 0 0\n"
+        "vt 1 0\n"
+        "vt 1 1\n"
+        "vt 0 1\n"
+        "vn 0 0 1\n"
+        "g group\n"
+        "s off\n"
+        "usemtl red\n"
+        // a quad with position/texture/normal indices
+        "f 1/1/1 2/2/1 3/3/1 4/4/1\n"
+        "usemtl blue\n"
+        "v 2 0 0\n"
+        "v 2 1 0\n"
+        "v 3 0.5 0\n"
+        // a pentagon with negative (relative) indices and without texture coordinates
+        "f 2//1 -3//-1 -1//1 -2//1 3//1\n"
+        // a triangle without normals in the same material group
+        "f 5 6 7\r\n";
+    auto obj_file = TempFile("obj_test.obj", obj);
+
+    ObjModelLoader loader;
+    ASSERT_TRUE(loader.loadFile(obj_file));
+    auto& model = loader.out_model;
+
+    ASSERT_EQ(model.materials.size(), 2u);
+    EXPECT_EQ(model.materials[0].name, "red");
+    EXPECT_EQ(vec3(model.materials[0].color_diffuse.head<3>()), vec3(1, 0, 0));
+    EXPECT_EQ(model.materials[1].name, "blue");
+
+    ASSERT_EQ(model.mesh.size(), 2u);
+
+    // Quad -> 2 triangles, 4 vertices.
+    auto& red = model.mesh[0];
+    EXPECT_EQ(red.material_id, 0);
+    EXPECT_EQ(red.NumFaces(), 2);
+    ASSERT_EQ(red.NumVertices(), 4);
+    ASSERT_TRUE(red.HasTC());
+    ASSERT_TRUE(red.HasNormal());
+    for (int i = 0; i < red.NumVertices(); ++i)
+    {
+        EXPECT_EQ(red.normal[i], vec3(0, 0, 1));
+        // In this file the texture coordinate equals the xy position.
+        EXPECT_EQ(red.texture_coordinates[i], vec2(red.position[i].head<2>()));
+    }
+    // Fan triangulation keeps the counter clockwise orientation (normal +z).
+    for (auto& t : red.triangles)
+    {
+        vec3 n = cross(red.position[t(1)] - red.position[t(0)], red.position[t(2)] - red.position[t(0)]);
+        EXPECT_GT(n.z(), 0);
+    }
+
+    // Pentagon (3 triangles) + triangle.
+    auto& blue = model.mesh[1];
+    EXPECT_EQ(blue.material_id, 1);
+    EXPECT_EQ(blue.NumFaces(), 4);
+    EXPECT_FALSE(blue.HasTC());
+    ASSERT_TRUE(blue.HasNormal());
+    // Positions of the pentagon (2, 5, 7, 6, 3) and of the triangle (5, 6, 7) with a different normal index
+    // (none) are separate vertices: 5 + 3.
+    ASSERT_EQ(blue.NumVertices(), 8);
+    std::vector<vec3> pentagon = {vec3(1, 0, 0), vec3(2, 0, 0), vec3(3, 0.5, 0), vec3(2, 1, 0), vec3(1, 1, 0)};
+    for (int i = 0; i < 3; ++i)
+    {
+        auto& t = blue.triangles[i];
+        EXPECT_EQ(blue.position[t(0)], pentagon[0]);
+        EXPECT_EQ(blue.position[t(1)], pentagon[i + 1]);
+        EXPECT_EQ(blue.position[t(2)], pentagon[i + 2]);
+    }
+    // The missing normals of the last triangle (clockwise in xy -> -z) are computed from the face.
+    auto& last = blue.triangles[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        EXPECT_NEAR((blue.normal[last(i)] - vec3(0, 0, -1)).norm(), 0, 1e-6);
+        EXPECT_EQ(blue.normal[blue.triangles[0](i)], vec3(0, 0, 1));
+    }
+
+    // Invalid indices throw instead of reading out of bounds.
+    auto bad_file = TempFile("obj_test_bad.obj", "v 0 0 0\nv 1 0 0\nf 1 2 3\n");
+    ObjModelLoader bad_loader;
+    EXPECT_THROW(bad_loader.loadFile(bad_file), std::runtime_error);
+    // An index outside of the int range wrapped around to the valid vertex 1.
+    auto huge_file = TempFile("obj_test_huge.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 4294967297 2 3\n");
+    ObjModelLoader huge_loader;
+    EXPECT_THROW(huge_loader.loadFile(huge_file), std::runtime_error);
+
+    // Faces before the first usemtl (or with an unknown material) get a default material.
+    auto plain_file = TempFile("obj_test_plain.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+    ObjModelLoader plain_loader;
+    ASSERT_TRUE(plain_loader.loadFile(plain_file));
+    ASSERT_EQ(plain_loader.out_model.mesh.size(), 1u);
+    ASSERT_EQ(plain_loader.out_model.materials.size(), 1u);
+    EXPECT_EQ(plain_loader.out_model.mesh[0].material_id, 0);
+    EXPECT_EQ(plain_loader.out_model.mesh[0].NumFaces(), 1);
+
+    std::filesystem::remove(mtl_file);
+    std::filesystem::remove(obj_file);
+    std::filesystem::remove(bad_file);
+    std::filesystem::remove(huge_file);
+    std::filesystem::remove(plain_file);
+}

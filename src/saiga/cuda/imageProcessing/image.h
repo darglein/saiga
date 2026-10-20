@@ -56,6 +56,7 @@ struct CudaImage : public ImageBase
 
     CudaImage& operator=(const CudaImage<T>& other)
     {
+        if (this == &other) return *this;
         create(other.h, other.w);
         CopyImage(other.getConstImageView(), getImageView(), cudaMemcpyDeviceToDevice);
         return *this;
@@ -81,12 +82,15 @@ struct CudaImage : public ImageBase
 
     /**
      * Uploads the given host-imageview.
-     * Allocates the required memory, if necessary.
+     * Allocates the required memory, if necessary. The existing allocation is kept if the size does not change, so
+     * that views and texture objects of this image stay valid.
      */
     void upload(ImageView<const T> h_img, cudaStream_t stream = 0)
     {
-        this->ImageBase::operator=(h_img);
-        create();
+        if (!data_ || h_img.h != h || h_img.w != w)
+        {
+            create(h_img.h, h_img.w);
+        }
         CopyImageAsync(h_img, getImageView(), cudaMemcpyHostToDevice, stream);
     }
 

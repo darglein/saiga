@@ -425,7 +425,8 @@ TemplatedImage<ucvec4> DeferredRenderer::DownloadRender()
     auto texture = postProcessor.getCurrentTexture();
 
     TemplatedImage<ucvec4> result(renderHeight, renderWidth);
-    texture->download(result.data());
+    // The post processor textures are RGBA16 for the medium and high quality: convert to 8 bit
+    texture->download(result.data(), GL_RGBA, GL_UNSIGNED_BYTE);
     return result;
 }
 TemplatedImage<float> DeferredRenderer::DownloadDepth()

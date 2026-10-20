@@ -16,7 +16,7 @@ namespace Saiga
 // This value is reset after the program exits.
 SAIGA_CORE_API int SetEnv(const std::string& name, const std::string& value, int replace);
 
-// Read the current value of an enviroment variable.
+// Read the current value of an enviroment variable. Returns an empty string if it is not set.
 SAIGA_CORE_API std::string GetEnv(const std::string& name);
 
 }  // namespace Saiga

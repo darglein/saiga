@@ -8,7 +8,7 @@ Guidance for AI coding agents (and humans) working in this repository.
 renderers, a CUDA module, and a vision module for SLAM, reconstruction, registration and
 optimization).
 
-- Language: C++17 (`cxx_std_17` on `saiga_core`), CUDA 14 for the CUDA module
+- Language: C++17 (`cxx_std_17` on `saiga_core`), CUDA code is compiled as C++17 and needs CUDA 12.0 or newer
 - Build system: CMake (>= 3.16), version 1.3.2 (root `CMakeLists.txt`)
 - Namespace: `Saiga`
 - Libraries: one shared library per module — `saiga_core`, `saiga_opengl`, `saiga_vulkan`,
@@ -42,7 +42,8 @@ data/                   Sample assets (textures, models)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
-                        libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF (built from submodules/CMakeLists.txt)
+                        libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF (built from submodules/CMakeLists.txt),
+                        plus tiny-eigen and tiny-glog, which are plain files maintained in this repository
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
 .github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build (OpenGL on Mesa llvmpipe) + ctest
 travis/, .travis.yml    Legacy Travis CI — unused
@@ -169,7 +170,9 @@ ctest -R test_core_ini --output-on-failure             # one test
   `Module enabled` / `Test enabled` lines.
 - Generated headers live in `build/include/saiga/` (`saiga_buildconfig.h`, `saiga_modules.h`) — do not
   edit them; change the `src/saiga/*.h.in` templates.
-- Do not modify anything under `submodules/` (third-party code pinned by commit).
+- Do not modify the git submodules under `submodules/` (third-party code pinned by commit). The exceptions are
+  `submodules/tiny-eigen` and `submodules/tiny-glog`: they are regular files of this repository and are edited here
+  (tests: `tests/test_core_tiny_eigen.cpp`).
 - `build*/` and `cmake-build-*/` are git-ignored; build in-tree in `build/`.
 
 ## Verification

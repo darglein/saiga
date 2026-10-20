@@ -195,7 +195,9 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
 {
     bool erg = false;
 
+    // The hint is either a file name or only the ending, e.g. the format hint of an embedded texture ("png").
     std::string type = fileEnding(hint);
+    if (type.empty()) type = hint;
     std::transform(type.begin(), type.end(), type.begin(), [](char c) { return std::tolower(c); });
 
     if (type == "png")
@@ -229,6 +231,13 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
 #endif
     }
 
+    // stb_image detects the format from the data (for example jpg, bmp or png without libpng)
+    {
+        std::vector<uint8_t> bytes(data.begin(), data.end());
+        erg = decompressImageSTB(*this, bytes);
+        if (erg) return true;
+    }
+
 #ifdef SAIGA_USE_FREEIMAGE
     SAIGA_EXIT_ERROR("not implemented");
     // erg = FIP::loadFromMemory(data, *this);
@@ -258,11 +267,6 @@ std::vector<unsigned char> Image::saveToMemory(std::string file_extension) const
         return saveImageLibTiff2Memory(*this);
 #endif
     }
-
-#ifdef SAIGA_USE_FREEIMAGE
-    SAIGA_EXIT_ERROR("not implemented");
-    // return Saiga::FIP::saveToMemory(*this, file_extension);
-#endif
 
     if (file_extension == "jpg")
     {
@@ -322,7 +326,8 @@ bool Image::save(const std::filesystem::path& path) const
 #ifdef SAIGA_USE_FREEIMAGE
     {
         ImageIOLibFreeimage io;
-        return io.Save2File(path_to_string(path), *this);
+        // Formats unknown to FreeImage fall through to stb.
+        if (io.Save2File(path_to_string(path), *this)) return true;
     }
     // return FIP::save(path, *this);
 #endif
@@ -427,6 +432,10 @@ bool Image::saveRaw(const std::filesystem::path& path, bool do_compress) const
 {
     BinaryOutputVector stream;
 
+#ifndef SAIGA_USE_ZLIB
+    // Without zlib the pixels are stored uncompressed, so the header must not claim otherwise.
+    do_compress = false;
+#endif
     int magic = do_compress ? saiga_compressed_image_magic_number : saiga_image_magic_number;
     stream << magic << width << height << type;
     SAIGA_ASSERT(stream.data.size() == saiga_image_header_size);
@@ -438,22 +447,24 @@ bool Image::saveRaw(const std::filesystem::path& path, bool do_compress) const
         stream.write((char*)rowPtr(i), width * es);
     }
 
+    std::ofstream is(path, std::ios::binary | std::ios::out);
 #ifdef SAIGA_USE_ZLIB
     if (do_compress)
     {
         auto compressed_data =
             Saiga::compress(stream.data.data() + saiga_image_header_size, stream.data.size() - saiga_image_header_size);
 
-        std::ofstream is(path, std::ios::binary | std::ios::out);
         is.write(stream.data.data(), saiga_image_header_size);
         is.write((const char*)compressed_data.data(), compressed_data.size());
     }
     else
 #endif
     {
-        File::saveFileBinary(path, stream.data.data(), stream.data.size());
+        is.write(stream.data.data(), stream.data.size());
     }
-    return true;
+    is.close();
+    // Report a file that could not be opened or written.
+    return bool(is);
 }
 
 bool Image::saveConvert(const std::filesystem::path& path, float minValue, float maxValue)

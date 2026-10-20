@@ -55,12 +55,12 @@
 
 #ifdef SAIGA_VISION
 
-#ifdef SAIGA_USE_EIGEN
+#    ifdef SAIGA_USE_EIGEN
 
-#include "saiga/vision/features/Features.h"
-#include "saiga/vision/features/OrbPattern.h"
+#        include "saiga/vision/features/Features.h"
+#        include "saiga/vision/features/OrbPattern.h"
 
-#include "OrbDescriptors.h"
+#        include "OrbDescriptors.h"
 namespace Saiga
 {
 namespace CUDA
@@ -103,7 +103,8 @@ __global__ void calcOrb_kernel(cudaTextureObject_t tex, Saiga::ImageView<unsigne
 
     int t0, t1, val;
 
-    auto GET_VALUE = [&](int idx) -> int {
+    auto GET_VALUE = [&](int idx) -> int
+    {
         int2 pat = pattern[idx];
         float fx = loc.x + (pat.x * a - pat.y * b);
         float fy = loc.y + (pat.x * b + pat.y * a);
@@ -143,6 +144,9 @@ __global__ void calcOrb_kernel(cudaTextureObject_t tex, Saiga::ImageView<unsigne
 
 
     result[threadIdx.x] = (unsigned char)val;
+
+    // Threads 0..7 read the bytes written by the other threads of the block.
+    __syncthreads();
 
     if (threadIdx.x < 8)
     {
@@ -263,5 +267,5 @@ void ORB::ComputeAngles(cudaTextureObject_t tex, Saiga::ImageView<unsigned char>
 }  // namespace CUDA
 }  // namespace Saiga
 
-#endif
+#    endif
 #endif

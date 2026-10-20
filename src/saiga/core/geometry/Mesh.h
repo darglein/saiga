@@ -78,11 +78,9 @@ class Mesh
     {
         auto box = aabb();
 
-        float total_max = box.max.array().maxCoeff();
-        float total_min = box.min.array().minCoeff();
-        float size = total_max - total_min;
+        // Scale the largest extent of the bounding box (plus padding on both sides) to 1.
+        float size   = box.maxSize();
         const auto s = 1 / (size + 2 * padding * size);
-        //        float s = 1.0 /
         mat4 t = scale(make_vec3(s));
         transform(t);
     }

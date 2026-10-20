@@ -28,8 +28,7 @@ if(CMAKE_CUDA_COMPILER_LOADED) # CUDA as a language
 endif()
 
 # Version-gated list of all supported (base) architectures per toolkit release.
-# Gated at the exact CUDA releases that introduced the architecture:
-#   11.8: 89 (Ada), 90 (Hopper)      12.0: 87
+# Gated at the exact CUDA releases that introduced the architecture (CUDA 12.0 is the minimum):
 #   12.8: 100, 101, 120 (Blackwell)  12.9: 103, 121 (Blackwell)
 #   13.0: 88, 110, 107 (Rubin); 101 was dropped again
 if(CUDA_VERSION VERSION_GREATER_EQUAL "13.0")
@@ -47,23 +46,10 @@ elseif(CUDA_VERSION VERSION_GREATER_EQUAL "12.8")
       "50" "52" "53" "60" "61" "62" "70" "72" "75"
       "80" "86" "87" "89" "90"
       "100" "101" "120")
-elseif(CUDA_VERSION VERSION_GREATER_EQUAL "12.0")
+else()
   set(CUDA_ALL_GPU_ARCHITECTURES
       "50" "52" "53" "60" "61" "62" "70" "72" "75"
       "80" "86" "87" "89" "90")
-elseif(CUDA_VERSION VERSION_GREATER_EQUAL "11.8")
-  set(CUDA_ALL_GPU_ARCHITECTURES
-      "50" "52" "53" "60" "61" "62" "70" "72" "75"
-      "80" "86" "89" "90")
-elseif(CUDA_VERSION VERSION_GREATER_EQUAL "11.1")
-  set(CUDA_ALL_GPU_ARCHITECTURES
-      "50" "52" "53" "60" "61" "62" "70" "72" "75" "80" "86")
-elseif(CUDA_VERSION VERSION_GREATER_EQUAL "11.0")
-  set(CUDA_ALL_GPU_ARCHITECTURES
-      "50" "52" "53" "60" "61" "62" "70" "72" "75" "80")
-else()
-  set(CUDA_ALL_GPU_ARCHITECTURES
-      "35" "50" "52" "53" "60" "61" "62" "70" "72" "75")
 endif()
 list(GET CUDA_ALL_GPU_ARCHITECTURES -1 CUDA_MAX_GPU_ARCHITECTURE)
 

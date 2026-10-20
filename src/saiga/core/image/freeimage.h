@@ -16,21 +16,22 @@
 
 #ifdef SAIGA_USE_FREEIMAGE
 
-//class fipImage;
+// class fipImage;
 
 namespace Saiga
 {
 class SAIGA_CORE_API ImageIOLibFreeimage : public ImageIO
 {
    public:
-    virtual bool Save2File(const std::string& path, const Image& img, ImageSaveFlags flags = ImageSaveFlags()) override;
+    virtual bool Save2File(const std::filesystem::path& path, const Image& img,
+                           ImageSaveFlags flags = ImageSaveFlags()) override;
 
     virtual std::vector<unsigned char> Save2Memory(const Image& img, ImageSaveFlags flags = ImageSaveFlags()) override
     {
         return {};
     }
 
-    virtual std::optional<Image> LoadFromFile(const std::string& path,
+    virtual std::optional<Image> LoadFromFile(const std::filesystem::path& path,
                                               ImageLoadFlags flags = ImageLoadFlags()) override;
     virtual std::optional<Image> LoadFromMemory(const void* data, size_t size,
                                                 ImageLoadFlags flags = ImageLoadFlags()) override
@@ -56,14 +57,14 @@ class SAIGA_CORE_API ImageIOLibFreeimage : public ImageIO
 //
 //// conersion between saiga's image and freeimage's fipimage
 //// these are used by load and save from above
-//SAIGA_CORE_API extern void convert(const fipImage& src, Image& dest);
-//SAIGA_CORE_API extern void convert(const Image& src,
-//                                   fipImage& dest);  // copy the src image because we need to flip red and blue :(
+// SAIGA_CORE_API extern void convert(const fipImage& src, Image& dest);
+// SAIGA_CORE_API extern void convert(const Image& src,
+//                                    fipImage& dest);  // copy the src image because we need to flip red and blue :(
 //
 //// reads the meta data of a fipimage
 //// is used by load from above
-//SAIGA_CORE_API extern void getMetaData(fipImage& img, ImageMetadata& metaData);
-//SAIGA_CORE_API extern void printAllMetaData(fipImage& img);
+// SAIGA_CORE_API extern void getMetaData(fipImage& img, ImageMetadata& metaData);
+// SAIGA_CORE_API extern void printAllMetaData(fipImage& img);
 
 
 }  // namespace Saiga

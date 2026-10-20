@@ -10,6 +10,8 @@
 
 #include "gtest/gtest.h"
 
+#include <cstring>
+
 namespace Saiga
 {
 TEST(zlib, SimpleCompressUncompress)
@@ -78,6 +80,26 @@ TEST(zlib, BinaryVectorCompress)
     BinaryInputVector iv(decompressed.data(), decompressed.size());
     iv >> data2;
     EXPECT_EQ(data, data2);
+}
+
+TEST(zlib, DeclaredSizeZero)
+{
+    // With a declared size of 0, the data is decoded into a one byte scratch buffer to detect a stream that is not
+    // empty. Coverage only: the fix of that check (it read stream.total_out, which the loop resets) only changes the
+    // error code of the internal uncompress3 (Z_DATA_ERROR instead of Z_BUF_ERROR), and both are reported as a
+    // failure by uncompress.
+    std::vector<unsigned char> data(100, 7);
+    auto compressed = compress(data.data(), data.size());
+    size_t header[3];
+    memcpy(header, compressed.data(), sizeof(header));
+    header[2] = 0;
+    memcpy(compressed.data(), header, sizeof(header));
+    EXPECT_FALSE(uncompress(compressed.data(), compressed.size(), 1000).has_value());
+
+    auto empty  = compress(data.data(), 0);
+    auto result = uncompress(empty.data(), empty.size(), 1000);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result->empty());
 }
 
 }  // namespace Saiga

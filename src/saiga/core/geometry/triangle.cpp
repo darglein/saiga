@@ -70,8 +70,11 @@ bool Triangle::isDegenerate() const
     for (int i = 0; i < 3; ++i)
     {
         float a = cosAngleAtCorner(i);
-        if (a <= -1 || a >= 1) return true;
+        // NaN if two corners are identical
+        if (!(a > -1 && a < 1)) return true;
     }
+    // Exactly collinear corners can give a cosine slightly below 1 due to rounding.
+    if (cross(b - a, c - a).squaredNorm() == 0) return true;
     return false;
     //    return !std::isfinite(angleAtCorner(0)) || !std::isfinite(angleAtCorner(1)) ||
     //    !std::isfinite(angleAtCorner(2));

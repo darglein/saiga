@@ -8,8 +8,11 @@
 #include "saiga/core/image/all.h"
 #include "saiga/core/math/all.h"
 #include "saiga/core/util/statistics.h"
+#include "saiga/cuda/imageProcessing/Fast.h"
+#include "saiga/cuda/imageProcessing/ORBExtractorGPU.h"
 #include "saiga/cuda/imageProcessing/OrbDescriptors.h"
 #include "saiga/cuda/imageProcessing/image.h"
+#include "saiga/cuda/thrust_helper.h"
 #include "saiga/vision/features/OrbDescriptors.h"
 
 #include "gtest/gtest.h"
@@ -219,4 +222,72 @@ TEST(ORB, DescriptorRandom)
     // Random angles is a little above 0 because of sin/cos differences
     EXPECT_LE(stat_random.max, 10);
     EXPECT_EQ(stat_random.median, 0);
+}
+
+// Regression test: Fast::Download returned the number of detected keypoints even if it was larger than
+// maxKeypoints. It then copied (and later scheduled copies of) more keypoints than the buffers hold.
+TEST(Fast, MoreKeypointsThanMax)
+{
+    CUDA::CudaStream stream;
+    for (int max_keypoints : {10, 100000})
+    {
+        CUDA::Fast fast(20, 7, max_keypoints);
+        std::vector<KeyPoint<float>> keypoints(fast.MaxKeypoints());
+        int last_n = -1;
+        for (int i = 0; i < 3; ++i)
+        {
+            fast.Detect(test.d_random.getImageView(), stream);
+            int n = fast.Download(keypoints, stream);
+            EXPECT_GT(n, 0);
+            EXPECT_LE(n, fast.MaxKeypoints());
+            if (last_n >= 0) EXPECT_EQ(n, last_n);
+            last_n = n;
+
+            for (int k = 0; k < n; ++k)
+            {
+                auto p = keypoints[k].point;
+                EXPECT_GE(p.x(), 4);
+                EXPECT_GE(p.y(), 4);
+                EXPECT_LT(p.x(), test.random.w - 4);
+                EXPECT_LT(p.y(), test.random.h - 4);
+            }
+        }
+    }
+}
+
+// The extractor owns texture objects of its pyramid levels, which were never destroyed. This test runs the complete
+// extractor (and its destructor) several times.
+TEST(ORBExtractorGPU, Detect)
+{
+    TemplatedImage<unsigned char> image(240, 320);
+    for (int i : image.rowRange())
+    {
+        for (int j : image.colRange())
+        {
+            image(i, j) = Random::uniformInt(0, 255);
+        }
+    }
+
+    for (int run = 0; run < 3; ++run)
+    {
+        ORBExtractorGPU extractor(500, 1.2, 4, 20, 7);
+        for (int frame = 0; frame < 2; ++frame)
+        {
+            std::vector<KeyPoint<float>> keypoints;
+            std::vector<DescriptorORB> descriptors;
+            int n = extractor.Detect(image.getImageView(), keypoints, descriptors);
+            EXPECT_GT(n, 100);
+            EXPECT_EQ(keypoints.size(), n);
+            EXPECT_EQ(descriptors.size(), n);
+            // The FAST keypoints are collected with atomics, so the exact result differs slightly between runs.
+            EXPECT_LE(n, 600);
+            for (auto& kp : keypoints)
+            {
+                EXPECT_GE(kp.point.x(), 0);
+                EXPECT_GE(kp.point.y(), 0);
+                EXPECT_LT(kp.point.x(), image.w);
+                EXPECT_LT(kp.point.y(), image.h);
+            }
+        }
+    }
 }

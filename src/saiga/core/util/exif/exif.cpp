@@ -63,7 +63,7 @@ class IFEntry
     using rational_vector = std::vector<Rational>;
 
     IFEntry() : tag_(0xFF), format_(0xFF), data_(0), length_(0), val_byte_(nullptr) {}
-    IFEntry(const IFEntry&) = delete;
+    IFEntry(const IFEntry&)            = delete;
     IFEntry& operator=(const IFEntry&) = delete;
     IFEntry(IFEntry&& other)
         : tag_(other.tag_),
@@ -130,7 +130,8 @@ class IFEntry
     unsigned length_;
 
     // Parsed fields
-    union {
+    union
+    {
         byte_vector* val_byte_;
         ascii_vector* val_string_;
         short_vector* val_short_;
@@ -297,11 +298,12 @@ bool extract_values(C& container, const unsigned char* buf, const unsigned base,
     }
     else
     {
-        data = buf + base + entry.data();
-        if (data + sizeof(T) * entry.length() > buf + len)
+        // Compare offsets instead of pointers, a pointer past the end of the buffer is undefined.
+        if (size_t(base) + entry.data() + sizeof(T) * entry.length() > len)
         {
             return false;
         }
+        data = buf + base + entry.data();
     }
     container.resize(entry.length());
     for (size_t i = 0; i < entry.length(); ++i)
@@ -375,7 +377,7 @@ IFEntry parseIFEntry_temp(const unsigned char* buf, const unsigned offs, const u
             }
             // and cut zero byte at the end, since we don't want that in the
             // std::string
-            if (result.val_string()[result.val_string().length() - 1] == '\0')
+            if (!result.val_string().empty() && result.val_string().back() == '\0')
             {
                 result.val_string().resize(result.val_string().length() - 1);
             }
@@ -420,6 +422,17 @@ T parse_value(const unsigned char* buf, bool alignIntel)
     {
         return parse<T, false>(buf);
     }
+}
+
+// GPS rationals are RATIONAL (format 5); some writers use SRATIONAL (format 10), whose words are signed.
+static double parse_gps_rational(const unsigned char* buf, bool alignIntel, unsigned short format)
+{
+    Rational r = parse_value<Rational>(buf, alignIntel);
+    if (format != 10) return r;
+    int32_t numerator   = static_cast<int32_t>(r.numerator);
+    int32_t denominator = static_cast<int32_t>(r.denominator);
+    if (denominator == 0) return 0;
+    return static_cast<double>(numerator) / static_cast<double>(denominator);
 }
 
 void parseIFEntryHeader(const unsigned char* buf, bool alignIntel, unsigned short& tag, unsigned short& format,
@@ -568,8 +581,9 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
     int num_entries = parse_value<uint16_t>(buf + offs, alignIntel);
     if (offs + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
     offs += 2;
-    unsigned exif_sub_ifd_offset = len;
-    unsigned gps_sub_ifd_offset  = len;
+    // 64 bit, so that offsets near 2^32 do not wrap around and pass the bound checks below.
+    uint64_t exif_sub_ifd_offset = len;
+    uint64_t gps_sub_ifd_offset  = len;
     while (--num_entries >= 0)
     {
         IFEntry result = parseIFEntry(buf, offs, alignIntel, tiff_header_start, len);
@@ -618,12 +632,12 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
             case 0x8825:
                 // GPS IFS offset
-                gps_sub_ifd_offset = tiff_header_start + result.data();
+                gps_sub_ifd_offset = uint64_t(tiff_header_start) + result.data();
                 break;
 
             case 0x8769:
                 // EXIF SubIFD offset
-                exif_sub_ifd_offset = tiff_header_start + result.data();
+                exif_sub_ifd_offset = uint64_t(tiff_header_start) + result.data();
                 break;
         }
     }
@@ -634,9 +648,9 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
     // typical user might want.
     if (exif_sub_ifd_offset + 4 <= len)
     {
-        offs            = exif_sub_ifd_offset;
+        offs            = unsigned(exif_sub_ifd_offset);
         int num_entries = parse_value<uint16_t>(buf + offs, alignIntel);
-        if (offs + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
+        if (uint64_t(offs) + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
         offs += 2;
         while (--num_entries >= 0)
         {
@@ -727,7 +741,7 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 0xa20e:
                     // EXIF Focal plane X-resolution
-                    if (result.format() == 5)
+                    if (result.format() == 5 && result.val_rational().size())
                     {
                         this->LensInfo.FocalPlaneXResolution = result.val_rational()[0];
                     }
@@ -735,7 +749,7 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 0xa20f:
                     // EXIF Focal plane Y-resolution
-                    if (result.format() == 5)
+                    if (result.format() == 5 && result.val_rational().size())
                     {
                         this->LensInfo.FocalPlaneYResolution = result.val_rational()[0];
                     }
@@ -783,15 +797,17 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
     // there. Note that it's possible that the GPS SubIFD doesn't exist.
     if (gps_sub_ifd_offset + 4 <= len)
     {
-        offs            = gps_sub_ifd_offset;
+        offs            = unsigned(gps_sub_ifd_offset);
         int num_entries = parse_value<uint16_t>(buf + offs, alignIntel);
-        if (offs + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
+        if (uint64_t(offs) + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
         offs += 2;
         while (--num_entries >= 0)
         {
             unsigned short tag, format;
             unsigned length, data;
             parseIFEntryHeader(buf + offs, alignIntel, tag, format, length, data);
+            // The values are stored at an offset that must be checked against the segment length.
+            auto data_fits = [&](size_t bytes) { return size_t(tiff_header_start) + data + bytes <= len; };
             switch (tag)
             {
                 case 1:
@@ -809,14 +825,14 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 2:
                     // GPS latitude
-                    if ((format == 5 || format == 10) && length == 3)
+                    if ((format == 5 || format == 10) && length == 3 && data_fits(24))
                     {
                         this->GeoLocation.LatComponents.degrees =
-                            parse_value<Rational>(buf + data + tiff_header_start, alignIntel);
+                            parse_gps_rational(buf + data + tiff_header_start, alignIntel, format);
                         this->GeoLocation.LatComponents.minutes =
-                            parse_value<Rational>(buf + data + tiff_header_start + 8, alignIntel);
+                            parse_gps_rational(buf + data + tiff_header_start + 8, alignIntel, format);
                         this->GeoLocation.LatComponents.seconds =
-                            parse_value<Rational>(buf + data + tiff_header_start + 16, alignIntel);
+                            parse_gps_rational(buf + data + tiff_header_start + 16, alignIntel, format);
                         this->GeoLocation.Latitude = this->GeoLocation.LatComponents.degrees +
                                                      this->GeoLocation.LatComponents.minutes / 60 +
                                                      this->GeoLocation.LatComponents.seconds / 3600;
@@ -842,14 +858,14 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 4:
                     // GPS longitude
-                    if ((format == 5 || format == 10) && length == 3)
+                    if ((format == 5 || format == 10) && length == 3 && data_fits(24))
                     {
                         this->GeoLocation.LonComponents.degrees =
-                            parse_value<Rational>(buf + data + tiff_header_start, alignIntel);
+                            parse_gps_rational(buf + data + tiff_header_start, alignIntel, format);
                         this->GeoLocation.LonComponents.minutes =
-                            parse_value<Rational>(buf + data + tiff_header_start + 8, alignIntel);
+                            parse_gps_rational(buf + data + tiff_header_start + 8, alignIntel, format);
                         this->GeoLocation.LonComponents.seconds =
-                            parse_value<Rational>(buf + data + tiff_header_start + 16, alignIntel);
+                            parse_gps_rational(buf + data + tiff_header_start + 16, alignIntel, format);
                         this->GeoLocation.Longitude = this->GeoLocation.LonComponents.degrees +
                                                       this->GeoLocation.LonComponents.minutes / 60 +
                                                       this->GeoLocation.LonComponents.seconds / 3600;
@@ -869,9 +885,10 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 6:
                     // GPS altitude
-                    if ((format == 5 || format == 10))
+                    if ((format == 5 || format == 10) && data_fits(8))
                     {
-                        this->GeoLocation.Altitude = parse_value<Rational>(buf + data + tiff_header_start, alignIntel);
+                        this->GeoLocation.Altitude =
+                            parse_gps_rational(buf + data + tiff_header_start, alignIntel, format);
                         if (1 == this->GeoLocation.AltitudeRef)
                         {
                             this->GeoLocation.Altitude = -this->GeoLocation.Altitude;
@@ -881,9 +898,9 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 11:
                     // GPS degree of precision (DOP)
-                    if ((format == 5 || format == 10))
+                    if ((format == 5 || format == 10) && data_fits(8))
                     {
-                        this->GeoLocation.DOP = parse_value<Rational>(buf + data + tiff_header_start, alignIntel);
+                        this->GeoLocation.DOP = parse_gps_rational(buf + data + tiff_header_start, alignIntel, format);
                     }
                     break;
             }

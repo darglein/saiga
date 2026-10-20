@@ -79,7 +79,8 @@ Frustum::IntersectionResult Frustum::pointInFrustum(const vec3& p) const
 {
     for (int i = 0; i < 6; i++)
     {
-        if (planes[i].distance(p) < 0) return OUTSIDE;
+        // The planes point outwards, so points inside the frustum have a negative distance.
+        if (planes[i].distance(p) > 0) return OUTSIDE;
     }
     return INSIDE;
 }

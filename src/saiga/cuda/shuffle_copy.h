@@ -13,32 +13,32 @@ namespace Saiga
 namespace CUDA
 {
 /**
+ * Coalesced load/store of structs with a group of G lanes per struct.
  *
- * Example Ussage:
+ * The shuffles are synchronizing: every lane in 'mask' must call the function, and the default mask is the full warp.
+ * Out of range elements are handled through 'count', so do not return early for the lanes without an element.
+ * If whole groups of a warp have exited before the call, pass the lanes that are still active (the groups that exit
+ * must be complete, because the lanes of a group exchange their values):
  *
- * //Global array of particles with size = 8 * float
+ * // Global array of particles with size = 8 * float
  * Saiga::ArrayView<Particle> particles
  *
  * Saiga::CUDA::ThreadInfo<0,2> ti;
  *
- * //Do not return with thread id because we need the threads for loading
- * if (ti.warp_id*2 >= particles.size())
- *       return;
- *
- * //Load to registers
+ * // Load to registers. All lanes take part, also those with ti.warp_id >= particles.size().
  * Particle particle;
  * loadShuffleStruct<2,Particle,float4>(particles.data(),&particle,ti.lane_id,ti.warp_id,particles.size());
  *
- * //do something with particle
+ * // do something with particle
  *
- * //Store in global memory
+ * // Store in global memory
  * storeShuffleStruct<2,Particle,float4>(particles.data(),&particle,ti.lane_id,ti.warp_id,particles.size());
  *
  */
 
 template <int G, int SIZE, typename VectorType = int4>
 __device__ inline void loadShuffle(VectorType* globalStart, VectorType* localStart, int lane, int globalOffset,
-                                   int Nvectors)
+                                   int Nvectors, unsigned int mask = 0xFFFFFFFF)
 {
     static_assert(SIZE % sizeof(VectorType) == 0, "Type must be loadable by vector type.");
 
@@ -73,7 +73,7 @@ __device__ inline void loadShuffle(VectorType* globalStart, VectorType* localSta
             // broadcast loaded value to all threads in this warp
             for (int s = 0; s < G; ++s)
             {
-                l[s] = shfl(tmp, s, G);
+                l[s] = shfl(tmp, s, G, mask);
             }
 
             // this thread now has the correct value
@@ -91,7 +91,7 @@ __device__ inline void loadShuffle(VectorType* globalStart, VectorType* localSta
 
 template <int G, int SIZE, typename VectorType = int4>
 __device__ inline void storeShuffle(VectorType* globalStart, VectorType* localStart, int lane, int globalOffset,
-                                    int Nvectors)
+                                    int Nvectors, unsigned int mask = 0xFFFFFFFF)
 {
     static_assert(SIZE % sizeof(VectorType) == 0, "Type must be loadable by vector type.");
 
@@ -124,7 +124,7 @@ __device__ inline void storeShuffle(VectorType* globalStart, VectorType* localSt
             // broadcast loaded value to all threads in this warp
             for (int s = 0; s < G; ++s)
             {
-                l[s] = shfl(l[s], g, G);
+                l[s] = shfl(l[s], g, G, mask);
             }
 
             // this loop does the same as "tmp = l[lane]", but with static indexing
@@ -148,23 +148,25 @@ __device__ inline void storeShuffle(VectorType* globalStart, VectorType* localSt
 
 
 template <int LOCAL_WARP_SIZE, typename T, typename VectorType = int4>
-__device__ inline void loadShuffleStruct(T* globalStart, T* localStart, int laneId, int warpId, int count)
+__device__ inline void loadShuffleStruct(T* globalStart, T* localStart, int laneId, int warpId, int count,
+                                         unsigned int mask = 0xFFFFFFFF)
 {
     static_assert(sizeof(T) % sizeof(VectorType) == 0, "Type must be loadable by vector type.");
     const int vectors_per_element = sizeof(T) / sizeof(VectorType);
     loadShuffle<LOCAL_WARP_SIZE, sizeof(T), VectorType>(
         reinterpret_cast<VectorType*>(globalStart), reinterpret_cast<VectorType*>(localStart), laneId,
-        warpId * LOCAL_WARP_SIZE * vectors_per_element, count * vectors_per_element);
+        warpId * LOCAL_WARP_SIZE * vectors_per_element, count * vectors_per_element, mask);
 }
 
 template <int LOCAL_WARP_SIZE, typename T, typename VectorType = int4>
-__device__ inline void storeShuffleStruct(T* globalStart, T* localStart, int laneId, int warpId, int count)
+__device__ inline void storeShuffleStruct(T* globalStart, T* localStart, int laneId, int warpId, int count,
+                                          unsigned int mask = 0xFFFFFFFF)
 {
     static_assert(sizeof(T) % sizeof(VectorType) == 0, "Type must be loadable by vector type.");
     const int vectors_per_element = sizeof(T) / sizeof(VectorType);
     storeShuffle<LOCAL_WARP_SIZE, sizeof(T), VectorType>(
         reinterpret_cast<VectorType*>(globalStart), reinterpret_cast<VectorType*>(localStart), laneId,
-        warpId * LOCAL_WARP_SIZE * vectors_per_element, count * vectors_per_element);
+        warpId * LOCAL_WARP_SIZE * vectors_per_element, count * vectors_per_element, mask);
 }
 
 }  // namespace CUDA

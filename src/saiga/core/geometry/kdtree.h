@@ -25,7 +25,7 @@ class SAIGA_TEMPLATE KDTree
     KDTree() {}
     KDTree(const std::vector<point_t>& points);
 
-    // returns the nearest point in this tree to the searchpoint
+    // returns the nearest point in this tree to the searchpoint or -1 if the tree is empty
     int NearestNeighborSearch(const point_t& searchPoint);
 
     // returns the k nearest points in this tree to the searchpoint
@@ -110,8 +110,9 @@ typename KDTree<D, point_t>::index_t KDTree<D, point_t>::make_tree(index_t start
 template <int D, typename point_t>
 int KDTree<D, point_t>::NearestNeighborSearch(const point_t& searchPoint)
 {
-    KDTree::index_t bestNode;
-    float bestDist = std::numeric_limits<float>::infinity();
+    if (rootNode == -1) return -1;
+    KDTree::index_t bestNode = rootNode;
+    float bestDist           = std::numeric_limits<float>::infinity();
     NearestNeighborSearch(rootNode, searchPoint, 0, bestNode, bestDist);
     return nodes[bestNode].initial_index;
 }
@@ -158,6 +159,7 @@ void KDTree<D, point_t>::NearestNeighborSearch(index_t currentNode, const point_
 template <int D, typename point_t>
 std::vector<int> KDTree<D, point_t>::KNearestNeighborSearch(const point_t& searchPoint, int k)
 {
+    if (k <= 0) return {};
     queue_t queue(k);
     for (auto& p : queue)
     {
@@ -185,8 +187,8 @@ void KDTree<D, point_t>::KNearestNeighborSearch(index_t currentNode, const point
     if (currentNode == -1) return;
 
     // calculate distance to current point and update the current best
-    float d     = distance(nodes[currentNode].p, searchPoint);
-    float lastD = addToQueue(queue, currentNode, d);
+    float d = distance(nodes[currentNode].p, searchPoint);
+    addToQueue(queue, currentNode, d);
 
 
     // the (signed) distance of the searchpoint to the current split axis
@@ -200,9 +202,9 @@ void KDTree<D, point_t>::KNearestNeighborSearch(index_t currentNode, const point
     KNearestNeighborSearch(dAxis > 0 ? nodes[currentNode].left : nodes[currentNode].right, searchPoint, k, currentAxis,
                            queue);
 
-    // when the distance to the axis is greater than the current distance
-    // we don't need to traverse the other sub tree
-    if (dAxisSquared >= lastD) return;
+    // when the distance to the axis is greater than the current k-th best distance
+    // we don't need to traverse the other sub tree (the first subtree may have improved it)
+    if (dAxisSquared >= queue.back().first) return;
 
     // there may be a better point in this subtree
     KNearestNeighborSearch(dAxis > 0 ? nodes[currentNode].right : nodes[currentNode].left, searchPoint, k, currentAxis,

@@ -15,8 +15,10 @@
 #include "Mesh.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <numeric>
+#include <tuple>
 
 namespace Saiga
 {
@@ -139,7 +141,8 @@ class TriangleMesh : public Mesh<vertex_t>
     bool empty() const { return faces.empty() || vertices.empty(); }
 
     /**
-     * Sorts the vertices by (x,y,z) lexical.
+     * Sorts the vertices by (x,y,z) lexical, first on a grid with cell size epsilon and then exactly.
+     * Vertices closer than epsilon are therefore adjacent, unless they lie in different grid cells.
      * The face indices are correct to match the new vertices.
      */
     void sortVerticesByPosition(double epsilon = 1e-5);
@@ -148,6 +151,8 @@ class TriangleMesh : public Mesh<vertex_t>
     /**
      * Removes subsequent vertices if they have identical position.
      * It make sense to call it after 'sortVerticesByPosition'.
+     * Only adjacent vertices are compared: near-duplicates that 'sortVerticesByPosition' places in different grid
+     * cells (for example x = -1e-8 and x = 1e-8) are not merged.
      *
      * The face indices are updated accordingly.
      */
@@ -444,25 +449,22 @@ bool TriangleMesh<vertex_t, index_t>::isValid() const
 template <typename vertex_t, typename index_t>
 void TriangleMesh<vertex_t, index_t>::sortVerticesByPosition(double epsilon)
 {
-    double eps_squared = epsilon * epsilon;
-
     std::vector<int> tmp_indices(vertices.size());
     std::vector<int> tmp_indices2(vertices.size());
     std::iota(tmp_indices.begin(), tmp_indices.end(), 0);
 
-    std::sort(tmp_indices.begin(), tmp_indices.end(), [&](int a, int b) {
-        vec4 p1 = vertices[a].position;
-        vec4 p2 = vertices[b].position;
-
-        vec4 p3 = (p1 - p2);
-        p3      = p3.array() * p3.array();
-
-        p1[0] = p3[0] < eps_squared ? p2[0] : p1[0];
-        p1[1] = p3[1] < eps_squared ? p2[1] : p1[1];
-        p1[2] = p3[2] < eps_squared ? p2[2] : p1[2];
-
-        return std::tie(p1[0], p1[1], p1[2]) < std::tie(p2[0], p2[1], p2[2]);
-    });
+    // Sort by the epsilon grid cell first and by the exact position second. Comparing coordinates with a
+    // tolerance directly is not a strict weak ordering (closeness is not transitive), which is undefined
+    // behavior in std::sort. Vertices closer than epsilon are adjacent unless a cell boundary separates them.
+    auto cell = [epsilon](float x) { return epsilon > 0 ? std::floor(x / epsilon) : 0.0; };
+    std::sort(tmp_indices.begin(), tmp_indices.end(),
+              [&](int a, int b)
+              {
+                  const vec4& p1 = vertices[a].position;
+                  const vec4& p2 = vertices[b].position;
+                  return std::make_tuple(cell(p1[0]), cell(p1[1]), cell(p1[2]), p1[0], p1[1], p1[2], a) <
+                         std::make_tuple(cell(p2[0]), cell(p2[1]), cell(p2[2]), p2[0], p2[1], p2[2], b);
+              });
 
     std::vector<vertex_t> new_vertices(vertices.size());
     for (int i = 0; i < (int)new_vertices.size(); ++i)

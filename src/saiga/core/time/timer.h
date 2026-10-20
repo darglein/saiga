@@ -95,6 +95,7 @@ class SAIGA_CORE_API ExponentialTimer : public Timer
 class SAIGA_CORE_API AverageTimer : public Timer
 {
    public:
+    // Averages the last 'number' measurements (at least 1).
     AverageTimer(int number = 10);
     virtual tick_t getCurrentTime() override { return currentTime; }
 

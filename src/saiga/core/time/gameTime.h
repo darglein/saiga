@@ -19,21 +19,21 @@ class SAIGA_CORE_API GameTime
    private:
     Timer gameTimer;
     double timeScale = 1.f;
-    tick_t nextUpdateTime;
-    tick_t nextFrameTime;
+    tick_t nextUpdateTime = tick_t(0);
+    tick_t nextFrameTime  = tick_t(0);
 
     // realtime scaled by timeScale
     tick_t scaledTime = tick_t(0);
 
     // only used for interpolation calculation
-    tick_t actualUpdateTime;
+    tick_t actualUpdateTime = tick_t(0);
 
     // time since start of the game
-    tick_t lastRealTime;
-    tick_t realTime;
+    tick_t lastRealTime = tick_t(0);
+    tick_t realTime     = tick_t(0);
 
     // when updating this is equal to update time and while rendering this is equal to render time
-    tick_t currentTime;
+    tick_t currentTime = tick_t(0);
 
     bool jtl = false;
 
@@ -41,22 +41,22 @@ class SAIGA_CORE_API GameTime
     tick_t base = std::chrono::seconds(1);
 
 
-    tick_t maxGameLoopDelay;
+    tick_t maxGameLoopDelay = tick_t(0);
 
 
     // time at which the last 'update' took place
     // while updating this is equal to time
     // while rendering time should be greater than updatetime
-    tick_t updatetime;
+    tick_t updatetime = tick_t(0);
 
-    tick_t renderTime;
-    double interpolation;
+    tick_t renderTime    = tick_t(0);
+    double interpolation = 0;
 
     // timestep of 'update'
-    tick_t dt;
+    tick_t dt = tick_t(0);
 
     // timestep of 'render' (only != 0 if fps are limited)
-    tick_t dtr;
+    tick_t dtr = tick_t(0);
 
     bool printInfoMsg = true;
 

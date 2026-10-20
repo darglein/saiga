@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/query/timeStampQuery.h"
 
 #include "opengl_test_context.h"
@@ -60,4 +61,42 @@ TEST_F(OpenGLQuery, CopyAssignmentToElapsedQuery)
     elapsed.record();
     ASSERT_EQ(glGetError(), GL_NO_ERROR);
     EXPECT_GT(elapsed.waitTimestamp(), 0u);
+}
+
+TEST_F(OpenGLQuery, OpenGLTimer)
+{
+    OpenGLTimer timer;
+    timer.start();
+    glFinish();
+    timer.stop();
+    EXPECT_GE(timer.getTimeMS(), 0.f);
+}
+
+TEST_F(OpenGLQuery, MultiFrameTimerTimestamps)
+{
+    MultiFrameOpenGLTimer timer(true);
+    timer.create();
+    for (int i = 0; i < 4; ++i)
+    {
+        timer.Start();
+        timer.Stop();
+        ASSERT_EQ(glGetError(), GL_NO_ERROR) << i;
+        // The time of the previous frame: begin and end of the same frame
+        EXPECT_LT(timer.getTimeMS(), 1000.f) << i;
+    }
+}
+
+// With GL_TIME_ELAPSED queries, the first Stop() read the result of a query that had never been started, which is a
+// GL_INVALID_OPERATION.
+TEST_F(OpenGLQuery, MultiFrameTimerElapsed)
+{
+    MultiFrameOpenGLTimer timer(false);
+    timer.create();
+    for (int i = 0; i < 4; ++i)
+    {
+        timer.Start();
+        timer.Stop();
+        ASSERT_EQ(glGetError(), GL_NO_ERROR) << i;
+        EXPECT_LT(timer.getTimeMS(), 1000.f) << i;
+    }
 }

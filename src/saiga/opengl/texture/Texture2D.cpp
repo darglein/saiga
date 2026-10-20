@@ -7,6 +7,7 @@
 #include "Texture2D.h"
 
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/glImageFormat.h"
 #include "saiga/opengl/texture/Texture.h"
 
 namespace Saiga
@@ -27,7 +28,8 @@ void Texture1D::create(int size, GLenum color_type, GLenum internal_format, GLen
                  color_type,                           // format
                  data_type,                            // type
                  data);
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(defaultFilter()));
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(defaultFilter()));
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(GL_CLAMP_TO_EDGE));
     assert_no_glerror();
     unbind();
@@ -40,6 +42,7 @@ Texture2D::Texture2D(const Image& img, bool srgb, bool flipY, bool integer) : Te
     height = img.height;
     TextureBase::create();
 
+    auto upload_fn = [this](const void* data) { upload(data); };
     if (flipY)
     {
         std::vector<char> data(img.pitchBytes * img.h);
@@ -47,19 +50,19 @@ Texture2D::Texture2D(const Image& img, bool srgb, bool flipY, bool integer) : Te
         {
             memcpy(&data[i * img.pitchBytes], img.rowPtr(img.h - i - 1), img.pitchBytes);
         }
-        upload(data.data());
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, data.data(), upload_fn);
     }
     else
     {
-        upload(img.data());
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(), upload_fn);
     }
 }
 
 
 void Texture2D::setDefaultParameters()
 {
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(defaultFilter()));
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(defaultFilter()));
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(GL_CLAMP_TO_EDGE));
     glTexParameteri(target, GL_TEXTURE_WRAP_T, static_cast<GLint>(GL_CLAMP_TO_EDGE));
 }
@@ -67,7 +70,13 @@ void Texture2D::setDefaultParameters()
 
 void Texture2D::updateFromImage(const Image& img)
 {
-    upload(img.data());
+    // The upload reads width * height pixels of the texture's format from the image.
+    SAIGA_ASSERT(getGlType(img.type) == data_type &&
+                     (getGlFormat(img.type) == color_type || getGlFormatInteger(img.type) == color_type),
+                 "The image type does not match the texture format");
+    width  = img.w;
+    height = img.h;
+    uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(), [this](const void* data) { upload(data); });
 }
 
 void Texture2D::create(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,
@@ -91,7 +100,27 @@ void Texture2D::upload(const void* data)
                  color_type,  // format
                  data_type,   // type
                  data);
-    setDefaultParameters();
+    if (new_texture)
+    {
+        // Only a new texture gets the default parameters. A resize or update keeps the parameters of the user.
+        setDefaultParameters();
+        new_texture = false;
+    }
+    else
+    {
+        // The mipmaps no longer match level 0: after a resize a mipmap filter would make the texture incomplete, and
+        // after an update of the same size it would sample the mipmaps of the old image.
+        GLint min_filter = 0;
+        glGetTexParameteriv(target, GL_TEXTURE_MIN_FILTER, &min_filter);
+        if (min_filter == GL_NEAREST_MIPMAP_NEAREST || min_filter == GL_NEAREST_MIPMAP_LINEAR)
+        {
+            glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_NEAREST));
+        }
+        else if (min_filter == GL_LINEAR_MIPMAP_NEAREST || min_filter == GL_LINEAR_MIPMAP_LINEAR)
+        {
+            glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
+        }
+    }
     assert_no_glerror();
     unbind();
 }

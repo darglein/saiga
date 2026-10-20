@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/opengl/texture/CubeTexture.h"
 #include "saiga/opengl/texture/Texture2D.h"
 #include "saiga/opengl/texture/Texture3D.h"
 
@@ -185,4 +186,433 @@ TEST_F(OpenGLTexture, Texture3DFromInvalidImages)
 
     images[1] = TemplatedImage<float>(4, 4);
     EXPECT_FALSE(tex.fromImage(images));
+}
+
+// Rows of an image with a pitch larger than the default alignment were uploaded as if they were tightly packed.
+TEST_F(OpenGLTexture, FromImageWithPitch)
+{
+    int w = 3, h = 4;
+    TemplatedImage<ucvec4> img;
+    img.create(h, w, 64);
+    ASSERT_EQ(img.pitchBytes, 64u);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = ucvec4(x + 1, y + 1, 9, 255);
+
+    for (bool flip : {false, true})
+    {
+        Texture2D tex(img, false, flip);
+
+        TemplatedImage<ucvec4> result(h, w);
+        ASSERT_TRUE(tex.download(result.data()));
+        for (int y = 0; y < img.h; ++y)
+            for (int x = 0; x < img.w; ++x)
+                EXPECT_EQ(result(y, x), img(flip ? h - 1 - y : y, x)) << x << " " << y << " " << flip;
+    }
+
+    // The unpack state of the caller is restored
+    GLint alignment = 0, row_length = -1;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+    glGetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);
+    EXPECT_EQ(alignment, 4);
+    EXPECT_EQ(row_length, 0);
+}
+
+// A pitch that is not a multiple of the pixel size can not be described by GL_UNPACK_ROW_LENGTH.
+TEST_F(OpenGLTexture, FromRGBImageWithOddPitch)
+{
+    int w = 5, h = 3;
+    TemplatedImage<ucvec3> img;
+    img.create(h, w, 17);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = ucvec3(x + 1, y + 1, 9);
+
+    Texture2D tex(img);
+
+    TemplatedImage<ucvec3> result(h, w);
+    ASSERT_TRUE(tex.download(result.data()));
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
+}
+
+TEST_F(OpenGLTexture, Texture3DFromImageWithPitch)
+{
+    int w = 3, h = 2, d = 2;
+    std::vector<Image> images;
+    for (int z = 0; z < d; ++z)
+    {
+        TemplatedImage<ucvec4> img;
+        img.create(h, w, 32);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) img(y, x) = ucvec4(x, y, z, 255);
+        images.push_back(img);
+    }
+
+    Texture3D tex;
+    ASSERT_TRUE(tex.fromImage(images));
+
+    std::vector<ucvec4> result(w * h * d);
+    ASSERT_TRUE(tex.download(result.data()));
+    for (int z = 0; z < d; ++z)
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+                EXPECT_EQ(result[(z * h + y) * w + x], ucvec4(x, y, z, 255)) << x << " " << y << " " << z;
+}
+
+// Signed 8 bit images were stored in an unsigned normalized format, which clamped negative values to 0.
+TEST_F(OpenGLTexture, FromSignedCharImage)
+{
+    int w = 8, h = 2;
+    TemplatedImage<char> img(h, w);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = static_cast<char>((x - 4) * 30 + y);
+
+    Texture2D tex(img);
+
+    TemplatedImage<char> result(h, w);
+    ASSERT_TRUE(tex.download(result.data()));
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
+}
+
+// 32 bit integer images have an integer internal format, which can only be uploaded with an integer color format.
+TEST_F(OpenGLTexture, FromIntImage)
+{
+    int w = 4, h = 3;
+    TemplatedImage<int> img(h, w);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = (x - 2) * 100000 + y;
+
+    Texture2D tex(img);
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
+    EXPECT_EQ(tex.InternalFormat(), GL_R32I);
+
+    TemplatedImage<int> result(h, w);
+    result.makeZero();
+    ASSERT_TRUE(tex.download(result.data()));
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
+}
+
+// The integer flag selected an integer color format, but kept the normalized internal format of 8 and 16 bit images.
+TEST_F(OpenGLTexture, FromImageInteger)
+{
+    int w = 4, h = 2;
+    TemplatedImage<unsigned short> img(h, w);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = static_cast<unsigned short>(x * 1000 + y);
+
+    Texture2D tex(img, false, false, true);
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
+    EXPECT_EQ(tex.InternalFormat(), GL_R16UI);
+
+    TemplatedImage<unsigned short> result(h, w);
+    result.makeZero();
+    ASSERT_TRUE(tex.download(result.data()));
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
+}
+
+// setFormat asserted on srgb, so Texture2D(img, true) and TextureLoader with srgb = true aborted.
+TEST_F(OpenGLTexture, FromImageSRGB)
+{
+    TemplatedImage<ucvec4> img(2, 2);
+    img.getImageView().set(ucvec4(10, 20, 30, 255));
+
+    Texture2D tex(img, true);
+    EXPECT_EQ(tex.InternalFormat(), GL_SRGB8_ALPHA8);
+
+    TemplatedImage<ucvec4> result(2, 2);
+    ASSERT_TRUE(tex.download(result.data()));
+    EXPECT_EQ(result(1, 1), ucvec4(10, 20, 30, 255));
+}
+
+// DeferredRenderer::DownloadRender downloaded the RGBA16 post processing texture (medium and high quality) with its
+// own data type into an 8 bit image, which wrote twice the size of the image.
+TEST_F(OpenGLTexture, DownloadConverted)
+{
+    int w = 3, h = 2;
+    std::vector<unsigned short> data(w * h * 4);
+    for (size_t i = 0; i < data.size(); ++i) data[i] = static_cast<unsigned short>(i * 257 * 10);
+
+    Texture2D tex;
+    tex.create(w, h, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT, data.data());
+
+    std::vector<unsigned char> result(w * h * 4 + 16, 0xcd);
+    ASSERT_TRUE(tex.download(result.data(), GL_RGBA, GL_UNSIGNED_BYTE));
+    for (int i = 0; i < w * h * 4; ++i) EXPECT_EQ(result[i], i * 10) << i;
+    // Nothing is written behind the 8 bit image
+    for (int i = w * h * 4; i < static_cast<int>(result.size()); ++i) EXPECT_EQ(result[i], 0xcd) << i;
+}
+
+// TextureCube::fromImage asserted on a wrong number of images and uploaded all faces with the size of the first one,
+// which read behind the end of smaller images.
+TEST_F(OpenGLTexture, CubeFromImage)
+{
+    int s = 4;
+    std::vector<Image> images;
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> img(s, s);
+        img.getImageView().set(ucvec4(i, 10 * i, 0, 255));
+        images.push_back(img);
+    }
+
+    TextureCube tex;
+    ASSERT_TRUE(tex.fromImage(images));
+
+    // The order of the faces in the image vector
+    GLenum faces[6] = {GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                       GL_TEXTURE_CUBE_MAP_NEGATIVE_X, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y};
+    tex.bind();
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> result(s, s);
+        glGetTexImage(faces[i], 0, GL_RGBA, GL_UNSIGNED_BYTE, result.data());
+        EXPECT_EQ(result(s - 1, s - 1), ucvec4(i, 10 * i, 0, 255)) << i;
+    }
+    tex.unbind();
+
+    std::vector<Image> five(images.begin(), images.begin() + 5);
+    EXPECT_FALSE(tex.fromImage(five));
+
+    auto smaller = images;
+    smaller[3]   = TemplatedImage<ucvec4>(2, 2);
+    EXPECT_FALSE(tex.fromImage(smaller));
+
+    std::vector<Image> not_square(6, TemplatedImage<ucvec4>(4, 2));
+    EXPECT_FALSE(tex.fromImage(not_square));
+}
+
+// Texture3D::create and fromImage bound the texture with bind(0), which changed the active texture unit.
+TEST_F(OpenGLTexture, Texture3DCreateKeepsActiveTexture)
+{
+    glActiveTexture(GL_TEXTURE3);
+
+    Texture3D tex;
+    tex.create(2, 2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    GLint active = 0;
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+    EXPECT_EQ(active, GL_TEXTURE3);
+
+    std::vector<Image> images(2, TemplatedImage<ucvec4>(2, 2));
+    ASSERT_TRUE(tex.fromImage(images));
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+    EXPECT_EQ(active, GL_TEXTURE3);
+
+    glActiveTexture(GL_TEXTURE0);
+}
+
+// TextureBase::download called glGetTexImage with GL_TEXTURE_CUBE_MAP, which is not a valid target (GL error).
+TEST_F(OpenGLTexture, CubeDownload)
+{
+    int s = 4;
+    std::vector<Image> images;
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> img(s, s);
+        img.getImageView().set(ucvec4(i, 10 * i, 0, 255));
+        images.push_back(img);
+    }
+    TextureCube tex;
+    ASSERT_TRUE(tex.fromImage(images));
+
+    // The faces have no common layout in a single buffer
+    std::vector<ucvec4> all(6 * s * s);
+    EXPECT_FALSE(tex.download(all.data()));
+
+    // The order of the faces in the image vector
+    GLenum faces[6] = {GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                       GL_TEXTURE_CUBE_MAP_NEGATIVE_X, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y};
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> result(s, s);
+        result.makeZero();
+        ASSERT_TRUE(tex.downloadFace(faces[i], result.data()));
+        for (int y = 0; y < s; ++y)
+            for (int x = 0; x < s; ++x) EXPECT_EQ(result(y, x), ucvec4(i, 10 * i, 0, 255)) << i;
+    }
+    EXPECT_FALSE(tex.downloadFace(GL_TEXTURE_2D, all.data()));
+}
+
+// The downloads used the current GL_PACK_ALIGNMENT, so with a pack alignment changed by the caller the rows did not
+// have the layout of an Image (rows padded to 4 bytes), and rows of 15 bytes were written without padding.
+TEST_F(OpenGLTexture, DownloadRowLayout)
+{
+    int s = 5;
+    std::vector<Image> images;
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec3> img(s, s);
+        for (int y = 0; y < s; ++y)
+            for (int x = 0; x < s; ++x) img(y, x) = ucvec3(i, x + 1, y + 1);
+        images.push_back(img);
+    }
+    TextureCube cube;
+    ASSERT_TRUE(cube.fromImage(images));
+    Texture2D tex(images[0]);
+
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+
+    // 15 bytes per row, padded to 16
+    const int pitch = 16;
+    const int guard = 16;
+    std::vector<unsigned char> buffer(s * pitch + guard, 0xAB);
+    auto expect_rows = [&](Image& img, const std::string& name)
+    {
+        for (int y = 0; y < s; ++y)
+            for (int x = 0; x < s; ++x)
+                for (int c = 0; c < 3; ++c)
+                    EXPECT_EQ(buffer[y * pitch + x * 3 + c], img.at<ucvec3>(y, x)(c)) << name << " " << y << " " << x;
+        for (int i = 0; i < guard; ++i) EXPECT_EQ(buffer[s * pitch + i], 0xAB) << name << " " << i;
+    };
+
+    // images[1] is the positive x face, see CubeDownload
+    ASSERT_TRUE(cube.downloadFace(GL_TEXTURE_CUBE_MAP_POSITIVE_X, buffer.data()));
+    expect_rows(images[1], "cube face");
+
+    std::fill(buffer.begin(), buffer.end(), 0xAB);
+    ASSERT_TRUE(tex.download(buffer.data()));
+    expect_rows(images[0], "texture 2D");
+
+    // The pack state of the caller is restored
+    GLint alignment = 0;
+    glGetIntegerv(GL_PACK_ALIGNMENT, &alignment);
+    EXPECT_EQ(alignment, 1);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+}
+
+static GLint GetTexParameter(TextureBase& tex, GLenum name)
+{
+    GLint value = 0;
+    tex.bind();
+    glGetTexParameteriv(tex.getTarget(), name, &value);
+    tex.unbind();
+    return value;
+}
+
+// setWrap only set the S and T coordinates, not R of 3D and cube textures.
+TEST_F(OpenGLTexture, SetWrap3D)
+{
+    Texture3D tex;
+    tex.create(2, 2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    tex.setWrap(GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_T), GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_R), GL_REPEAT);
+
+    TextureCube cube;
+    cube.create(2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    cube.setWrap(GL_MIRRORED_REPEAT);
+    EXPECT_EQ(GetTexParameter(cube, GL_TEXTURE_WRAP_R), GL_MIRRORED_REPEAT);
+}
+
+// generateMipmaps set GL_LINEAR_MIPMAP_LINEAR on integer textures, which makes them incomplete. They are not
+// filterable, so glGenerateMipmap does not accept them either.
+TEST_F(OpenGLTexture, GenerateMipmapsInteger)
+{
+    TemplatedImage<unsigned int> img(4, 4);
+    img.getImageView().set(7);
+    Texture2D tex(img);
+    tex.generateMipmaps();
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_NEAREST);
+
+    Texture2D tex_float;
+    tex_float.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    tex_float.generateMipmaps();
+    EXPECT_EQ(GetTexParameter(tex_float, GL_TEXTURE_MIN_FILTER), GL_LINEAR_MIPMAP_LINEAR);
+}
+
+// Every upload (resize, updateFromImage) reset the filter and wrap parameters to the defaults, so for example the
+// nearest filtering of a framebuffer texture was lost on a resize.
+TEST_F(OpenGLTexture, ReuploadKeepsParameters)
+{
+    Texture2D tex;
+    tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_CLAMP_TO_EDGE);
+
+    tex.setFiltering(GL_NEAREST);
+    tex.setWrap(GL_REPEAT);
+    tex.resize(8, 3);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_NEAREST);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MAG_FILTER), GL_NEAREST);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_T), GL_REPEAT);
+
+    TemplatedImage<ucvec4> img(3, 8);
+    img.getImageView().set(ucvec4(1, 2, 3, 4));
+    tex.updateFromImage(img);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_NEAREST);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_REPEAT);
+
+    // A new texture gets the defaults again
+    tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_CLAMP_TO_EDGE);
+}
+
+// updateFromImage uploaded with the stored texture size instead of the image size, so a larger image was cut off and
+// a smaller one was read out of bounds.
+TEST_F(OpenGLTexture, UpdateFromImageOfDifferentSize)
+{
+    TemplatedImage<ucvec4> small(2, 2);
+    small.getImageView().set(ucvec4(0, 0, 0, 0));
+    Texture2D tex(small);
+
+    TemplatedImage<ucvec4> img(3, 5);
+    for (int y = 0; y < img.h; ++y)
+    {
+        for (int x = 0; x < img.w; ++x)
+        {
+            img(y, x) = ucvec4(x, y, x + y, 255);
+        }
+    }
+    tex.updateFromImage(img);
+    EXPECT_EQ(tex.getWidth(), 5);
+    EXPECT_EQ(tex.getHeight(), 3);
+
+    tex.bind();
+    GLint w = 0, h = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+    tex.unbind();
+    EXPECT_EQ(w, 5);
+    EXPECT_EQ(h, 3);
+
+    TemplatedImage<ucvec4> result(3, 5);
+    tex.download(result.data());
+    for (int y = 0; y < img.h; ++y)
+    {
+        for (int x = 0; x < img.w; ++x)
+        {
+            EXPECT_EQ(result(y, x), img(y, x));
+        }
+    }
+}
+
+// A resize drops the mipmaps, so a mipmap filter would make the texture incomplete.
+TEST_F(OpenGLTexture, ResizeMipmappedTexture)
+{
+    Texture2D tex;
+    tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    tex.generateMipmaps();
+    tex.resize(3, 5);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+}
+
+// An update of the same size kept the mipmap filter, so the mipmaps of the old image were sampled.
+TEST_F(OpenGLTexture, UpdateMipmappedTexture)
+{
+    TemplatedImage<ucvec4> a(4, 4);
+    a.getImageView().set(ucvec4(1, 2, 3, 4));
+    Texture2D tex(a);
+    tex.generateMipmaps();
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR_MIPMAP_LINEAR);
+
+    TemplatedImage<ucvec4> b(4, 4);
+    b.getImageView().set(ucvec4(5, 6, 7, 8));
+    tex.updateFromImage(b);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
 }

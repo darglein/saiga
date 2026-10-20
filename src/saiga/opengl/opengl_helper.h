@@ -10,6 +10,7 @@
 
 #include "opengl.h"
 
+#include <string>
 #include <vector>
 
 namespace gl
@@ -41,7 +42,10 @@ enum class OpenGLVendor
     Unknown
 };
 
+// The vendor of the current context (GL_VENDOR)
 SAIGA_OPENGL_API OpenGLVendor getOpenGLVendor();
+// The vendor of a GL_VENDOR string
+SAIGA_OPENGL_API OpenGLVendor classifyOpenGLVendor(const std::string& vendor);
 
 struct SAIGA_OPENGL_API OpenGLParameters
 {
@@ -84,4 +88,4 @@ SAIGA_LOCAL void cleanupSaigaGL();
 
 #define SAIGA_OPENGL_INCLUDED
 
-//#endif
+// #endif

@@ -9,6 +9,8 @@
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/glImageFormat.h"
 
+#include <iostream>
+
 namespace Saiga
 {
 TextureBase::~TextureBase()
@@ -34,6 +36,7 @@ void TextureBase::create()
     glBindTexture(target, id);
     glBindTexture(target, 0);
     assert_no_glerror();
+    new_texture = true;
 }
 
 void TextureBase::destroy()
@@ -49,16 +52,36 @@ void TextureBase::destroy()
 
 bool TextureBase::download(void* data)
 {
-    if (id == 0)
+    return download(data, color_type, data_type);
+}
+
+bool TextureBase::download(void* data, GLenum format, GLenum type)
+{
+    // glGetTexImage does not accept GL_TEXTURE_CUBE_MAP, see TextureCube::downloadFace
+    if (id == 0 || target == GL_TEXTURE_CUBE_MAP)
     {
         return false;
     }
 
     bind();
-    glGetTexImage(target, 0, color_type, data_type, data);
+    getTexImageImageLayout(target, format, type, data);
     assert_no_glerror();
     unbind();
     return true;
+}
+
+void TextureBase::getTexImageImageLayout(GLenum target, GLenum format, GLenum type, void* data)
+{
+    // The written row size depends on the pack state, so a pack state changed by the caller would write a different
+    // layout than the one of the Image (or buffer) that receives the data.
+    GLint old_alignment = 4, old_row_length = 0;
+    glGetIntegerv(GL_PACK_ALIGNMENT, &old_alignment);
+    glGetIntegerv(GL_PACK_ROW_LENGTH, &old_row_length);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+    glGetTexImage(target, 0, format, type, data);
+    glPixelStorei(GL_PACK_ALIGNMENT, old_alignment);
+    glPixelStorei(GL_PACK_ROW_LENGTH, old_row_length);
 }
 
 void TextureBase::bind()
@@ -104,6 +127,10 @@ void TextureBase::setWrap(GLenum param)
     bind();
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(param));
     glTexParameteri(target, GL_TEXTURE_WRAP_T, static_cast<GLint>(param));
+    if (target == GL_TEXTURE_3D || target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+    {
+        glTexParameteri(target, GL_TEXTURE_WRAP_R, static_cast<GLint>(param));
+    }
     unbind();
     assert_no_glerror();
 }
@@ -126,6 +153,14 @@ void TextureBase::setParameter(GLenum name, GLenum param)
 
 void TextureBase::generateMipmaps()
 {
+    // Integer formats are not filterable: glGenerateMipmap does not accept them and a mipmap filter without mipmaps
+    // would make the texture incomplete.
+    if (defaultFilter() == GL_NEAREST)
+    {
+        std::cerr << "TextureBase::generateMipmaps: Mipmaps of integer textures are not supported." << std::endl;
+        return;
+    }
+
     bind();
     glGenerateMipmap(target);
     unbind();
@@ -143,11 +178,75 @@ void TextureBase::setBorderColor(vec4 color)
 }
 
 
+void TextureBase::uploadWithPitch(int width, int height, ImageType type, size_t pitch_bytes, const void* data,
+                                  const std::function<void(const void*)>& upload)
+{
+    GLint old_alignment = 4, old_row_length = 0;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &old_alignment);
+    glGetIntegerv(GL_UNPACK_ROW_LENGTH, &old_row_length);
+
+    size_t pixel_size = elementSize(type);
+    size_t row_bytes  = width * pixel_size;
+
+    GLint alignment  = 0;
+    GLint row_length = 0;
+    for (GLint a : {8, 4, 2, 1})
+    {
+        if (iAlignUp(row_bytes, a) == pitch_bytes)
+        {
+            alignment = a;
+            break;
+        }
+    }
+    if (alignment == 0 && pixel_size > 0 && pitch_bytes % pixel_size == 0 && pitch_bytes >= row_bytes)
+    {
+        alignment  = 1;
+        row_length = pitch_bytes / pixel_size;
+    }
+
+    std::vector<char> packed;
+    if (alignment == 0 && data)
+    {
+        alignment = 1;
+        packed.resize(row_bytes * height);
+        for (int y = 0; y < height; ++y)
+        {
+            memcpy(packed.data() + y * row_bytes, static_cast<const char*>(data) + y * pitch_bytes, row_bytes);
+        }
+        data = packed.data();
+    }
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment == 0 ? 1 : alignment);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+    upload(data);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, old_alignment);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, old_row_length);
+}
+
+GLenum TextureBase::defaultFilter() const
+{
+    switch (color_type)
+    {
+        case GL_RED_INTEGER:
+        case GL_RG_INTEGER:
+        case GL_RGB_INTEGER:
+        case GL_RGBA_INTEGER:
+        case GL_BGR_INTEGER:
+        case GL_BGRA_INTEGER:
+            return GL_NEAREST;
+        default:
+            return GL_LINEAR;
+    }
+}
+
 void TextureBase::setFormat(ImageType type, bool srgb, bool integer)
 {
-    SAIGA_ASSERT(!srgb);
-    //    SAIGA_ASSERT(0);
-    internal_format = getGlInternalFormat(type, srgb);
+    auto element_type = elementType(type);
+    // Floating point images have no integer format, 32 bit integer images have no normalized one.
+    if (element_type == ImageElementType::IET_FLOAT || element_type == ImageElementType::IET_DOUBLE) integer = false;
+    if (element_type == ImageElementType::IET_INT || element_type == ImageElementType::IET_UINT) integer = true;
+
+    internal_format = getGlInternalFormat(type, srgb, integer);
     data_type       = getGlType(type);
     if (integer)
     {

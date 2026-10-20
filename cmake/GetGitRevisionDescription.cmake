@@ -113,6 +113,9 @@ function(get_git_head_revision _refspecvar _hashvar)
     # In both cases .git is a file instead of a directory.
     #
     if(NOT IS_DIRECTORY ${GIT_DIR})
+        if(NOT GIT_FOUND)
+            find_package(Git QUIET)
+        endif()
         # The following git command will return a non empty string that
         # points to the super project working tree if the current
         # source dir is inside a git submodule.
@@ -143,8 +146,17 @@ function(get_git_head_revision _refspecvar _hashvar)
             string(REGEX REPLACE "gitdir: (.*)$" "\\1" git_worktree_dir
                                  ${worktree_ref})
             string(STRIP ${git_worktree_dir} git_worktree_dir)
-            _git_find_closest_git_dir("${git_worktree_dir}" GIT_DIR)
+            # gitdir may be relative to the directory containing the .git file
+            get_filename_component(_git_file_dir ${GIT_DIR} PATH)
+            get_filename_component(git_worktree_dir ${git_worktree_dir} ABSOLUTE BASE_DIR ${_git_file_dir})
+            set(GIT_DIR "${git_worktree_dir}")
             set(HEAD_SOURCE_FILE "${git_worktree_dir}/HEAD")
+        endif()
+        # The gitdir of a worktree only holds HEAD; the refs live in the common git dir.
+        if(EXISTS "${GIT_DIR}/commondir")
+            file(READ "${GIT_DIR}/commondir" _git_common_dir)
+            string(STRIP "${_git_common_dir}" _git_common_dir)
+            get_filename_component(GIT_DIR "${_git_common_dir}" ABSOLUTE BASE_DIR "${GIT_DIR}")
         endif()
     else()
         set(HEAD_SOURCE_FILE "${GIT_DIR}/HEAD")

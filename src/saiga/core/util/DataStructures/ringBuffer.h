@@ -186,6 +186,7 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
     // removes one element and returns it
     T get()
     {
+        SAIGA_ASSERT(!empty(), "RingBuffer::get() on an empty buffer");
         T result       = std::move((*this)[front]);
         (*this)[front] = T();  // override with default element
         front          = (front + 1) % capacity();
@@ -195,6 +196,7 @@ class SAIGA_TEMPLATE RingBuffer : public std::vector<T>
 
     T& peek()
     {
+        SAIGA_ASSERT(!empty(), "RingBuffer::peek() on an empty buffer");
         return (*this)[front];
     }
 

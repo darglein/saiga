@@ -49,6 +49,8 @@ class SAIGA_CORE_API ThreadPool
     template <class F, class... Args>
     auto enqueue(F&& f, Args&&... args) -> std::future<typename std::invoke_result_t<F, Args...>>;
 
+    // Finishes all queued tasks and joins the workers. Afterwards, enqueue() throws std::runtime_error.
+    // Must not be called from a task of this pool, because a worker cannot join itself.
     void quit();
 
     size_t queueSize()
@@ -66,6 +68,8 @@ class SAIGA_CORE_API ThreadPool
    private:
     // number of currently working threads
     size_t workingThreads = 0;
+    // The number of workers passed to the constructor. Unlike workers.size(), it does not change in quit().
+    const size_t numThreads;
     std::string name;
     // need to keep track of threads so we can join them
     std::vector<std::thread> workers;
@@ -89,7 +93,19 @@ auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename std::inv
     std::future<return_type> res = task->get_future();
 
 
-    if (workers.size() == 0)
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+
+        // don't allow enqueueing after stopping the pool
+        if (stop) throw std::runtime_error("enqueue on stopped ThreadPool");
+
+        if (numThreads > 0)
+        {
+            tasks.emplace([task]() { (*task)(); });
+        }
+    }
+
+    if (numThreads == 0)
     {
         // This is an empty thread pool
         // -> execute this task here without adding it to the queue
@@ -98,15 +114,6 @@ auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename std::inv
         return res;
     }
 
-
-    {
-        std::unique_lock<std::mutex> lock(queue_mutex);
-
-        // don't allow enqueueing after stopping the pool
-        if (stop) throw std::runtime_error("enqueue on stopped ThreadPool");
-
-        tasks.emplace([task]() { (*task)(); });
-    }
     condition.notify_one();
     return res;
 }

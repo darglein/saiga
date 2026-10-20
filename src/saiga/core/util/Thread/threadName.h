@@ -10,6 +10,7 @@
 #include "saiga/config.h"
 
 #include <atomic>
+#include <memory>
 #include <string>
 #include <thread>
 
@@ -22,6 +23,7 @@ namespace Saiga
  * Slight modifications on the interface.
  */
 SAIGA_CORE_API extern void setThreadName(const std::string& name);
+// Names another thread. Not supported on macOS (a thread can only name itself there), where this does nothing.
 SAIGA_CORE_API extern void setThreadName(std::thread& thread, const std::string& name);
 
 /**
@@ -46,23 +48,33 @@ class SAIGA_CORE_API ScopedThread : public std::thread
     // }
     ScopedThread() = default;
 
+    // The function receives a pointer to the terminate flag, which is set by Quit().
+    // The flag is allocated on the heap, because the thread keeps using it after the ScopedThread has been moved.
+    // The thread is started in the body, so the flag is initialized before the thread can read it.
     template <typename T>
-    ScopedThread(T function) : std::thread(function, &terminate_called)
+    ScopedThread(T function)
     {
+        std::thread t(function, terminate_called.get());
+        std::thread::swap(t);
     }
-    ScopedThread(ScopedThread&& __t) { swap(__t); }
+    ScopedThread(ScopedThread&& __t)
+    {
+        std::thread::swap(__t);
+        terminate_called.swap(__t.terminate_called);
+    }
     ScopedThread& operator=(ScopedThread&& __t) noexcept;
     ~ScopedThread() { Quit(); }
 
     void Quit()
     {
-        terminate_called = true;
+        *terminate_called = true;
         if (joinable()) join();
     }
 
-    std::atomic<bool> terminate_called = false;
-
    private:
+    std::unique_ptr<std::atomic<bool>> terminate_called = std::make_unique<std::atomic<bool>>(false);
+
+
     // Scoped Threads are not allowed to detach.
     // Note: Upcasting ScopedThread to std::thread and then detaching is UB
     using std::thread::detach;

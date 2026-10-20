@@ -18,6 +18,7 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <sstream>
 
 namespace Saiga
@@ -48,7 +49,7 @@ bool OffModelLoader::loadFile(const std::string& _file)
     std::vector<std::string> data = File::loadFileStringArray(file);
     File::removeWindowsLineEnding(data);
 
-    int num_vertices = 0, num_faces = 0;
+    int num_vertices = 0, num_faces = 0, num_parsed_faces = 0;
 
     for (auto& line : data)
     {
@@ -64,12 +65,20 @@ bool OffModelLoader::loadFile(const std::string& _file)
             StringViewParser lineParser = {" ", true};
             lineParser.set(line);
 
-            num_vertices = to_long(lineParser.next());
-            num_faces    = to_long(lineParser.next());
+            long vertex_count = to_long(lineParser.next());
+            long face_count   = to_long(lineParser.next());
+            if (vertex_count < 0 || face_count < 0 || vertex_count > std::numeric_limits<int>::max() ||
+                face_count > std::numeric_limits<int>::max())
+            {
+                std::cout << "Invalid counts " << vertex_count << " " << face_count << std::endl;
+                return false;
+            }
+            num_vertices = vertex_count;
+            num_faces    = face_count;
 
-
-            mesh.vertices.reserve(num_vertices);
-            mesh.faces.reserve(num_faces);
+            // Every vertex and face is on its own line, so a corrupt count must not cause a huge allocation.
+            mesh.vertices.reserve(std::min<size_t>(num_vertices, data.size()));
+            mesh.faces.reserve(std::min<size_t>(num_faces, data.size()));
 
             state = ParsingState::VERTICES;
         }
@@ -99,25 +108,40 @@ bool OffModelLoader::loadFile(const std::string& _file)
             StringViewParser lineParser = {" ", true};
             lineParser.set(line);
             int count = to_long(lineParser.next());
+            if (count < 3)
+            {
+                std::cout << "Invalid face with " << count << " corners" << std::endl;
+                return false;
+            }
 
-            SAIGA_ASSERT(count == 3 || count == 4);
-            std::array<uint32_t, 4> indices;
+            // Not sized from count: a corrupt count must not cause a huge allocation.
+            std::vector<uint32_t> indices;
             for (int i = 0; i < count; ++i)
             {
-                indices[i] = to_long(lineParser.next());
+                auto token = lineParser.next();
+                if (token.empty())
+                {
+                    std::cout << "Face with " << count << " corners has only " << i << " indices" << std::endl;
+                    return false;
+                }
+                long index = to_long(token);
+                if (index < 0 || index >= num_vertices)
+                {
+                    std::cout << "Invalid vertex index " << index << std::endl;
+                    return false;
+                }
+                indices.push_back(index);
             }
 
-            if (count == 3)
+            // Triangle fan. A quad (0,1,2,3) gives the same triangles as addQuad.
+            for (int i = 1; i + 1 < count; ++i)
             {
-                mesh.addFace(indices.data());
+                mesh.addFace(indices[0], indices[i], indices[i + 1]);
             }
-            else if (count == 4)
-            {
-                mesh.addQuad(indices.data());
-            }
+            num_parsed_faces++;
 
-
-            if ((int)mesh.faces.size() == num_faces)
+            // A polygon can add more than one triangle, so count the parsed faces.
+            if (num_parsed_faces == num_faces)
             {
                 state = ParsingState::DONE;
             }

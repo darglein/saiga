@@ -6,6 +6,9 @@
 
 #include "saiga/opengl/opengl_helper.h"
 
+#include <filesystem>
+#include <fstream>
+
 #include "opengl_test_context.h"
 
 using namespace Saiga;
@@ -60,4 +63,62 @@ TEST_F(OpenGLContext, Recreate)
     glGenTextures(1, &tex);
     EXPECT_NE(tex, 0u);
     glDeleteTextures(1, &tex);
+}
+
+// The config file documents the profile values 'ANY' 'CORE' 'COMPATIBILITY', but the core profile was written and
+// parsed as "saiga_core": a file with "CORE" selected the compatibility profile.
+TEST(OpenGLParametersConfig, Profile)
+{
+    auto file = std::filesystem::temp_directory_path() / "saiga_test_opengl_parameters.ini";
+    std::filesystem::remove(file);
+
+    // Writes the defaults, then reads them back
+    OpenGLParameters params;
+    params.fromConfigFile(file.string());
+    EXPECT_EQ(params.profile, OpenGLParameters::Profile::CORE);
+    OpenGLParameters params2;
+    params2.profile = OpenGLParameters::Profile::ANY;
+    params2.fromConfigFile(file.string());
+    EXPECT_EQ(params2.profile, OpenGLParameters::Profile::CORE);
+
+    for (auto [name, profile] :
+         {std::pair{"ANY", OpenGLParameters::Profile::ANY}, std::pair{"CORE", OpenGLParameters::Profile::CORE},
+          std::pair{"COMPATIBILITY", OpenGLParameters::Profile::COMPATIBILITY}})
+    {
+        {
+            std::ofstream strm(file);
+            strm << "[opengl]\nprofile = " << name << "\n";
+        }
+        OpenGLParameters p;
+        p.fromConfigFile(file.string());
+        EXPECT_EQ(p.profile, profile) << name;
+    }
+    std::filesystem::remove(file);
+}
+
+// getOpenGLVendor searched for "ati" before "intel" and "mesa", so every vendor containing these letters (for example
+// "Microsoft Corporation") was reported as Ati.
+TEST(OpenGLVendorString, Classify)
+{
+    EXPECT_EQ(classifyOpenGLVendor("NVIDIA Corporation"), OpenGLVendor::Nvidia);
+    EXPECT_EQ(classifyOpenGLVendor("ATI Technologies Inc."), OpenGLVendor::Ati);
+    EXPECT_EQ(classifyOpenGLVendor("AMD"), OpenGLVendor::Ati);
+    EXPECT_EQ(classifyOpenGLVendor("Advanced Micro Devices, Inc."), OpenGLVendor::Ati);
+    EXPECT_EQ(classifyOpenGLVendor("Intel"), OpenGLVendor::Intel);
+    EXPECT_EQ(classifyOpenGLVendor("Intel Corporation"), OpenGLVendor::Intel);
+    EXPECT_EQ(classifyOpenGLVendor("Intel Open Source Technology Center"), OpenGLVendor::Intel);
+    EXPECT_EQ(classifyOpenGLVendor("Mesa"), OpenGLVendor::Mesa);
+    EXPECT_EQ(classifyOpenGLVendor("Mesa/X.org"), OpenGLVendor::Mesa);
+    EXPECT_EQ(classifyOpenGLVendor("Microsoft Corporation"), OpenGLVendor::Unknown);
+    EXPECT_EQ(classifyOpenGLVendor("Apple Computer, Inc."), OpenGLVendor::Unknown);
+    EXPECT_EQ(classifyOpenGLVendor("Collabora Ltd"), OpenGLVendor::Unknown);
+    EXPECT_EQ(classifyOpenGLVendor("VMware, Inc."), OpenGLVendor::Unknown);
+    EXPECT_EQ(classifyOpenGLVendor(""), OpenGLVendor::Unknown);
+}
+
+TEST_F(OpenGLContext, Vendor)
+{
+    std::string vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    EXPECT_EQ(getOpenGLVendor(), classifyOpenGLVendor(vendor));
+    std::cout << "Vendor: " << vendor << std::endl;
 }

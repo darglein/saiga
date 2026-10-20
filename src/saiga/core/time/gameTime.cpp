@@ -111,7 +111,9 @@ bool GameTime::shouldRender()
         currentTime = renderTime;
 
         //        calculate the interpolation value. Useful when the framerate is higher than the update rate
-        interpolation = (double)ticksSinceLastUpdate.count() / (nextUpdateTime - updatetime).count();
+        auto updateStep = (nextUpdateTime - updatetime).count();
+        // With dt == 0 (or before the first update) there is no interval to interpolate in.
+        interpolation = updateStep > 0 ? (double)ticksSinceLastUpdate.count() / updateStep : 0.0;
         interpolation = clamp(interpolation, 0.0, 1.0);
 
 

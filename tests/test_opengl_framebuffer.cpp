@@ -169,3 +169,60 @@ TEST_F(OpenGLFramebuffer, BlitColor)
 
     Framebuffer::bindDefaultFramebuffer();
 }
+
+TEST_F(OpenGLFramebuffer, BlitDepth)
+{
+    int w = 5, h = 4;
+    Framebuffer src, dst;
+    src.create();
+    src.attachTextureDepth(DepthTexture(w, h));
+    src.drawToNone();
+    src.check();
+    glClearDepth(0.25);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    dst.create();
+    dst.attachTextureDepth(DepthTexture(w, h));
+    dst.drawToNone();
+    dst.check();
+    glClearDepth(1.0);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    src.blitDepth(dst.getId());
+
+    std::vector<float> depth(w * h, 0.f);
+    ASSERT_TRUE(dst.getTextureDepth()->download(depth.data()));
+    for (float d : depth) EXPECT_FLOAT_EQ(d, 0.25f);
+
+    Framebuffer::bindDefaultFramebuffer();
+}
+
+TEST_F(OpenGLFramebuffer, DepthStencilAttachment)
+{
+    int w = 4, h = 3;
+    auto depth_stencil = std::make_shared<Texture>();
+    depth_stencil->create(w, h, GL_DEPTH_STENCIL, GL_DEPTH24_STENCIL8, GL_UNSIGNED_INT_24_8);
+
+    Framebuffer fb;
+    fb.create();
+    fb.attachTexture(ColorTexture(w, h));
+    fb.attachTextureDepthStencil(depth_stencil);
+    fb.check();
+    EXPECT_EQ(fb.getTextureDepth(), depth_stencil);
+    EXPECT_EQ(fb.getTextureStencil(), depth_stencil);
+
+    fb.resize(7, 6);
+    EXPECT_EQ(depth_stencil->getWidth(), 7);
+    EXPECT_EQ(depth_stencil->getHeight(), 6);
+    fb.check();
+
+    glClearStencil(0x5a);
+    glClear(GL_STENCIL_BUFFER_BIT);
+    std::vector<unsigned char> stencil(7 * 6, 0);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, 7, 6, GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, stencil.data());
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    for (auto s : stencil) EXPECT_EQ(s, 0x5a);
+
+    fb.unbind();
+}

@@ -32,7 +32,7 @@
 
 namespace Saiga
 {
-ThreadPool::ThreadPool(size_t threads, const std::string& name) : name(name), stop(false)
+ThreadPool::ThreadPool(size_t threads, const std::string& name) : numThreads(threads), name(name), stop(false)
 {
     workingThreads = threads;
     for (size_t i = 0; i < threads; ++i)
@@ -69,6 +69,15 @@ void ThreadPool::quit()
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
         if (stop) return;
+        for (std::thread& worker : workers)
+        {
+            if (worker.get_id() == std::this_thread::get_id())
+            {
+                // join() would throw std::system_error (resource_deadlock_would_occur) into the future of the task
+                // and the destructor of the still joinable worker would terminate the program later.
+                SAIGA_EXIT_ERROR("ThreadPool::quit() was called from one of its own worker threads.");
+            }
+        }
         stop = true;
     }
     condition.notify_all();

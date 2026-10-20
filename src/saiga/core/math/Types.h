@@ -24,6 +24,8 @@ template <typename Scalar, int Rows, int Cols, int Options= Eigen::ColMajor>
 using Matrix = Eigen::Matrix<Scalar, Rows, Cols,Options>;
 template <typename Derived2>
 using MatrixBase = Eigen::MatrixBase<Derived2>;
+// Matrix option for an unaligned (tightly packed) matrix, e.g. in GPU buffer structs.
+constexpr int MatrixDontAlign = Eigen::DontAlign;
 #else
 template <typename Scalar, int Size>
 using Vector = TinyEigen::Matrix<Scalar, Size, 1, TinyEigen::ColMajor>;
@@ -31,6 +33,7 @@ template <typename Scalar, int Rows, int Cols, int Options=TinyEigen::ColMajor>
 using Matrix = TinyEigen::Matrix<Scalar, Rows, Cols, Options>;
 template <typename Derived2>
 using MatrixBase = TinyEigen::MatrixBase<Derived2>;
+constexpr int MatrixDontAlign = TinyEigen::DontAlign;
 #endif
 
 

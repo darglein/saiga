@@ -142,7 +142,7 @@ int uncompress3(Bytef* dest, size_t* destLen, const Bytef* source, size_t* sourc
     *sourceLen -= len + stream.avail_in;
     if (dest != buf)
         *destLen = total_out_uint64;
-    else if (stream.total_out && err == Z_BUF_ERROR)
+    else if (total_out_uint64 && err == Z_BUF_ERROR)  // stream.total_out is reset in the loop
         left = 1;
 
     inflateEnd(&stream);

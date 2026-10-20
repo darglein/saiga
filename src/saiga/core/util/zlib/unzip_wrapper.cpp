@@ -166,6 +166,7 @@ void UnzipToMemory(const std::string& path, std::vector<Unzipfile>& info, Progre
             }
         }
     }
+    unzClose(zipfile);
 }
 void UnzipSingleFileToMemory(const std::string& path, Unzipfile& info, ProgressBarManager* progress_bar)
 {

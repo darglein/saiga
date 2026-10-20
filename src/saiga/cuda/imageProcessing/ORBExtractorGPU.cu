@@ -73,7 +73,13 @@ const int PATCH_SIZE = 31;
 namespace Saiga
 {
 ORBExtractorGPU::Level::Level() {}
-ORBExtractorGPU::Level::~Level() {}
+ORBExtractorGPU::Level::~Level()
+{
+    // The kernels of this level read the textures on 'stream'.
+    stream.synchronize();
+    if (image_obj) CHECK_CUDA_ERROR(cudaDestroyTextureObject(image_obj));
+    if (image_gauss_obj) CHECK_CUDA_ERROR(cudaDestroyTextureObject(image_gauss_obj));
+}
 void ORBExtractorGPU::Level::Reserve(int initial_N, int final_N)
 {
     descriptors.resize(final_N);
@@ -100,7 +106,16 @@ ORBExtractorGPU::ORBExtractorGPU(int _nfeatures, float _scaleFactor, int _nlevel
     descriptor_stream.setName("descritpor");
 }
 
-ORBExtractorGPU::~ORBExtractorGPU() {}
+ORBExtractorGPU::~ORBExtractorGPU()
+{
+    // AllocatePyramid made orb_stream the global NPP stream. NPP accesses the current stream in the next nppSetStream,
+    // so it must not stay set after the stream is destroyed.
+    if (!levels.empty() && nppGetStream() == orb_stream.stream)
+    {
+        orb_stream.synchronize();
+        nppSetStream(0);
+    }
+}
 
 int ORBExtractorGPU::Detect(Saiga::ImageView<unsigned char> image, std::vector<Saiga::KeyPoint<float>>& keypoints,
                             std::vector<Saiga::DescriptorORB>& descriptors)

@@ -8,6 +8,7 @@
 
 #include "saiga/core/util/assert.h"
 
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <limits>
@@ -112,6 +113,17 @@ struct ScopedFile
 
 
 
+// Converts a pixel size in mm to the pixels per meter of the pHYs chunk. Returns false for sizes that have no valid
+// pHYs value (zero, negative, non-finite or so small that the value overflows), so no resolution is written.
+static bool PixelsPerMeter(float pixel_size_mm, png_uint_32& out)
+{
+    if (!(pixel_size_mm > 0)) return false;
+    double ppm = std::floor(1000.0 / pixel_size_mm + 0.5);
+    if (!(ppm >= 1 && ppm <= double(PNG_UINT_31_MAX))) return false;
+    out = (png_uint_32)ppm;
+    return true;
+}
+
 static void setCompression(png_structp png_ptr, ImageCompression compression)
 {
     switch (compression)
@@ -163,9 +175,11 @@ bool ImageIOLibPNG::Save2File(const std::filesystem::path& path, const Image& im
         auto resolution_mm = img.get_resolution();
         if (resolution_mm.has_value())
         {
-            png_uint_32 xres = (png_uint_32)(1000.f / resolution_mm.value().x() + 0.5f);
-            png_uint_32 yres = (png_uint_32)(1000.f / resolution_mm.value().y() + 0.5f);
-            png_set_pHYs(writer.png, writer.info, xres, yres, PNG_RESOLUTION_METER);
+            png_uint_32 xres, yres;
+            if (PixelsPerMeter(resolution_mm.value().x(), xres) && PixelsPerMeter(resolution_mm.value().y(), yres))
+            {
+                png_set_pHYs(writer.png, writer.info, xres, yres, PNG_RESOLUTION_METER);
+            }
         }
 
         int bit_depth  = bitsPerChannel(img.type);
@@ -240,7 +254,7 @@ std::vector<unsigned char> ImageIOLibPNG::Save2Memory(const Image& img, ImageSav
         setCompression(writer.png, flags.compression);
 
         std::vector<unsigned char*> rows(img.height);
-        for (size_t y = 0; y < img.height; ++y) // Note: changed img.h to img.height to match your other code
+        for (size_t y = 0; y < img.height; ++y)  // Note: changed img.h to img.height to match your other code
         {
             rows[y] = (unsigned char*)img.rowPtr(y);
         }
@@ -248,9 +262,11 @@ std::vector<unsigned char> ImageIOLibPNG::Save2Memory(const Image& img, ImageSav
         auto resolution_mm = img.get_resolution();
         if (resolution_mm.has_value())
         {
-            png_uint_32 xres = (png_uint_32)(1000.f / resolution_mm.value().x() + 0.5f);
-            png_uint_32 yres = (png_uint_32)(1000.f / resolution_mm.value().y() + 0.5f);
-            png_set_pHYs(writer.png, writer.info, xres, yres, PNG_RESOLUTION_METER);
+            png_uint_32 xres, yres;
+            if (PixelsPerMeter(resolution_mm.value().x(), xres) && PixelsPerMeter(resolution_mm.value().y(), yres))
+            {
+                png_set_pHYs(writer.png, writer.info, xres, yres, PNG_RESOLUTION_METER);
+            }
         }
 
         int transforms = PNG_TRANSFORM_IDENTITY;

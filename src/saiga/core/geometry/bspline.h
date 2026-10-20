@@ -132,10 +132,10 @@ template <typename P, typename T>
 std::ostream& operator<<(std::ostream& os, const Bspline<P, T>& bs)
 {
     os << "Bspline n=" << bs.degree << " m=" << bs.controlPoints.size() << " #knots=" << bs.knots.size() << std::endl;
-    std::cout << "knots:  ";
+    os << "knots:  ";
     for (auto n : bs.knots) os << n << ", ";
     os << std::endl;
-    std::cout << "control points:  ";
+    os << "control points:  ";
     for (auto n : bs.controlPoints) os << n << ", ";
     return os;
 }

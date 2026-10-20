@@ -9,7 +9,9 @@
 
 #include "gtest/gtest.h"
 
+#include <cmath>
 #include <cstring>
+#include <limits>
 
 using namespace Saiga;
 
@@ -92,7 +94,7 @@ TEST(ImageDecode, SaveUpperCaseExtension)
 }
 #endif
 
-#ifdef SAIGA_USE_LIBTIFF
+#if defined(SAIGA_USE_LIBTIFF) || defined(SAIGA_USE_TINYTIFF)
 
 struct TiffDesc
 {
@@ -102,6 +104,10 @@ struct TiffDesc
     // 0: put the strip right after the header
     uint32_t strip_offset_override = 0;
     uint32_t ifd_offset_override   = 0;
+    // 0: the size of pixels
+    uint32_t strip_byte_count_override = 0;
+    // number of directories (pages), all with the same pixels
+    int pages = 1;
 };
 
 // A minimal uncompressed little endian tiff with one strip.
@@ -138,34 +144,41 @@ static std::vector<unsigned char> MakeTiff(const TiffDesc& d)
         {273, 4, 1, d.strip_offset_override ? d.strip_offset_override : strip_offset},
         {277, 3, 1, d.samples},
         {278, 4, 1, d.height},
-        {279, 4, 1, uint32_t(d.pixels.size())},
+        {279, 4, 1, d.strip_byte_count_override ? d.strip_byte_count_override : uint32_t(d.pixels.size())},
         {284, 3, 1, 1},
         {339, 3, d.samples, short_array(format_offset, d.format)},
     };
-    put16(entries.size());
-    for (auto& e : entries)
+    const uint32_t ifd_size = 2 + 12 * entries.size() + 4;
+    for (int page = 0; page < d.pages; ++page)
     {
-        put16(e.tag);
-        put16(e.type);
-        put32(e.count);
-        if (e.type == 3 && e.count <= 2)
+        put16(entries.size());
+        for (auto& e : entries)
         {
-            // short values are stored left aligned in the value field
-            put16(e.value);
-            put16(e.count == 2 ? e.value : 0);
+            put16(e.tag);
+            put16(e.type);
+            put32(e.count);
+            if (e.type == 3 && e.count <= 2)
+            {
+                // short values are stored left aligned in the value field
+                put16(e.value);
+                put16(e.count == 2 ? e.value : 0);
+            }
+            else
+            {
+                put32(e.value);
+            }
         }
-        else
-        {
-            put32(e.value);
-        }
+        put32(page + 1 < d.pages ? ifd_offset + (page + 1) * ifd_size : 0);
     }
-    put32(0);
 
     uint32_t ifd = d.ifd_offset_override ? d.ifd_offset_override : ifd_offset;
     std::memcpy(&out[4], &ifd, 4);
     return out;
 }
 
+#endif
+
+#ifdef SAIGA_USE_LIBTIFF
 TEST(ImageDecode, TiffGray16)
 {
     TiffDesc d;
@@ -267,6 +280,146 @@ TEST(ImageDecode, TiffInvalid)
         Image img;
         EXPECT_FALSE(LoadFromBytes(img, truncated, "tiff")) << size;
     }
+}
+#endif
+
+#if defined(SAIGA_USE_TINYTIFF) && !defined(SAIGA_USE_LIBTIFF)
+// TinyTIFF can only read files.
+static bool LoadTinyTiff(Image& img, const TiffDesc& d, const std::string& name)
+{
+    auto file  = TestDir() / name;
+    auto bytes = MakeTiff(d);
+    File::saveFileBinary(file, bytes.data(), bytes.size());
+    return img.load(file);
+}
+
+TEST(ImageDecode, TinyTiffRowPitch)
+{
+    // The sample data was read densely into the image, whose rows are padded to 4 bytes, so all rows after the first
+    // were shifted (and the last one was cut off).
+    TiffDesc d;
+    d.width  = 3;
+    d.height = 3;
+    d.pixels = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    Image img;
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_pitch.tif"));
+    ASSERT_EQ(img.type, UC1);
+    ASSERT_EQ(img.h, 3);
+    ASSERT_EQ(img.w, 3);
+    ASSERT_NE(img.pitchBytes, 3);
+    for (int y = 0; y < 3; ++y)
+        for (int x = 0; x < 3; ++x) EXPECT_EQ(img.at<uint8_t>(y, x), y * 3 + x + 1) << y << " " << x;
+}
+
+TEST(ImageDecode, TinyTiffGray16AndFloat)
+{
+    TiffDesc d;
+    d.width  = 3;
+    d.bits   = 16;
+    d.pixels = {1, 0, 2, 0, 0xff, 0xff};
+    Image img;
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_gray16.tif"));
+    ASSERT_EQ(img.type, US1);
+    EXPECT_EQ(img.at<uint16_t>(0, 0), 1);
+    EXPECT_EQ(img.at<uint16_t>(0, 2), 0xffff);
+
+    float fvalues[2] = {1.5f, -2.25f};
+    d                = TiffDesc();
+    d.width          = 2;
+    d.bits           = 32;
+    d.format         = 3;
+    d.pixels.resize(8);
+    std::memcpy(d.pixels.data(), fvalues, 8);
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_float.tif"));
+    ASSERT_EQ(img.type, F1);
+    EXPECT_EQ(img.at<float>(0, 1), -2.25f);
+}
+
+TEST(ImageDecode, TinyTiffDouble)
+{
+    // 64 bit floats were read into a 32 bit float image (heap overflow).
+    TiffDesc d;
+    d.width          = 2;
+    d.bits           = 64;
+    d.format         = 3;
+    double values[2] = {1.5, -2.25};
+    d.pixels.resize(16);
+    std::memcpy(d.pixels.data(), values, 16);
+    Image img;
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_double.tif"));
+    ASSERT_EQ(img.type, D1);
+    EXPECT_EQ(img.at<double>(0, 0), 1.5);
+    EXPECT_EQ(img.at<double>(0, 1), -2.25);
+}
+
+TEST(ImageDecode, TinyTiffUnsupportedBitDepth)
+{
+    // Unknown bit depths were mapped to a 32 bit type (64 bit integers overflowed the buffer).
+    TiffDesc d;
+    d.width = 2;
+    d.bits  = 64;
+    d.pixels.resize(16);
+    Image img;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_uint64.tif"));
+
+    d.format = 2;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_int64.tif"));
+}
+
+TEST(ImageDecode, TinyTiffRgbRejected)
+{
+    // Every sample was written over the same single channel buffer of a multi channel image. TinyTIFF does not bound
+    // the copy of interleaved samples, so multi channel images are rejected.
+    TiffDesc d;
+    d.width   = 5;
+    d.height  = 3;
+    d.samples = 3;
+    for (uint32_t y = 0; y < d.height; ++y)
+        for (uint32_t x = 0; x < d.width; ++x) d.pixels.insert(d.pixels.end(), {uint8_t(x + 10 * y), 200, 201});
+    Image img;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_rgb.tif"));
+
+    // A strip byte count larger than the image made TinyTIFF write past the end of the 1 byte sample buffer
+    // (heap overflow).
+    d                           = TiffDesc();
+    d.samples                   = 2;
+    d.pixels                    = {1, 2};
+    d.strip_byte_count_override = 4000;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_chunky_overflow.tif"));
+}
+
+TEST(ImageDecode, TinyTiffMultiPageLoadsFirstPage)
+{
+    // Multi page files triggered an assertion (abort).
+    TiffDesc d;
+    d.width  = 2;
+    d.pixels = {7, 8};
+    d.pages  = 3;
+    Image img;
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_pages.tif"));
+    ASSERT_EQ(img.type, UC1);
+    EXPECT_EQ(img.at<uint8_t>(0, 0), 7);
+    EXPECT_EQ(img.at<uint8_t>(0, 1), 8);
+}
+
+TEST(ImageDecode, TinyTiffInvalid)
+{
+    TiffDesc d;
+    d.width = 0;
+    Image img;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_empty.tif"));
+
+    d        = TiffDesc();
+    d.width  = 4;
+    d.bits   = 12;
+    d.pixels = {1, 2, 3, 4, 5, 6};
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_12bit.tif"));
+
+    std::vector<unsigned char> garbage = {'n', 'o', 't', ' ', 't', 'i', 'f', 'f'};
+    auto file                          = TestDir() / "tiny_garbage.tif";
+    File::saveFileBinary(file, garbage.data(), garbage.size());
+    EXPECT_FALSE(img.load(file));
+    EXPECT_FALSE(img.load(TestDir() / "tiny_does_not_exist.tif"));
 }
 #endif
 
@@ -380,3 +533,306 @@ TEST(ImageViewOps, MinMaxAndNormalize)
     EXPECT_FLOAT_EQ(img(0, 1), 0.5f);
     EXPECT_FLOAT_EQ(img(0, 2), 1);
 }
+
+// Fills all bytes of the visible pixels with a pattern (not the row padding).
+static void FillPattern(Image& img, int seed)
+{
+    int es = elementSize(img.type);
+    for (int y = 0; y < img.h; ++y)
+    {
+        auto row = (uint8_t*)img.rowPtr(y);
+        for (int b = 0; b < img.w * es; ++b) row[b] = uint8_t(b * 7 + y * 13 + seed);
+    }
+}
+
+static bool SamePixels(const Image& a, const Image& b)
+{
+    if (a.type != b.type || a.dimensions() != b.dimensions()) return false;
+    int row_bytes = a.w * elementSize(a.type);
+    for (int y = 0; y < a.h; ++y)
+    {
+        if (std::memcmp(a.rowPtr(y), b.rowPtr(y), row_bytes) != 0) return false;
+    }
+    return true;
+}
+
+TEST(ImageDecode, SaveRawReportsErrors)
+{
+    // saveRaw always returned true, even if the file could not be written.
+    TemplatedImage<unsigned char> img(2, 2);
+    img.makeZero();
+    auto file = TestDir() / "does_not_exist" / "x.saigai";
+    EXPECT_FALSE(img.saveRaw(file, false));
+    EXPECT_FALSE(img.saveRaw(file, true));
+    EXPECT_FALSE(img.save(file));
+}
+
+TEST(ImageDecode, SaigaRawAllTypes)
+{
+    for (int t = 0; t < int(TYPE_UNKNOWN); ++t)
+    {
+        Image img(3, 5, ImageType(t));
+        FillPattern(img, t);
+        for (bool compress : {false, true})
+        {
+            auto file = TestDir() / "all_types.saigai";
+            ASSERT_TRUE(img.saveRaw(file, compress));
+            Image loaded;
+            ASSERT_TRUE(loaded.load(file)) << t;
+            EXPECT_TRUE(SamePixels(img, loaded)) << t << " " << compress;
+        }
+    }
+}
+
+TEST(ImageDecode, StbSaveUnsupportedFormat)
+{
+    // The stb fallback wrote an empty file and returned true for extensions it does not support.
+    TemplatedImage<ucvec3> img(2, 2);
+    img.makeZero();
+    auto file = TestDir() / "unsupported.xyz";
+    std::filesystem::remove(file);
+    EXPECT_FALSE(img.save(file));
+
+    TemplatedImage<float> fimg(2, 2);
+    fimg.makeZero();
+    EXPECT_FALSE(fimg.save(TestDir() / "float.jpg"));
+}
+
+static TemplatedImage<ucvec3> SmoothRGB(int h, int w)
+{
+    TemplatedImage<ucvec3> img(h, w);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) img(y, x) = ucvec3(y * 255 / (h - 1), x * 255 / (w - 1), 128);
+    return img;
+}
+
+static int MaxAbsDifference(ImageView<const ucvec3> a, ImageView<const ucvec3> b)
+{
+    int result = 0;
+    for (int y = 0; y < a.h; ++y)
+        for (int x = 0; x < a.w; ++x)
+            result = std::max(result, (a(y, x).cast<int>() - b(y, x).cast<int>()).array().abs().maxCoeff());
+    return result;
+}
+
+TEST(ImageDecode, JpgRowPadding)
+{
+    // The jpg writer ignored the row pitch, so images whose rows are padded (here 13 * 3 = 39 -> 40 bytes) were
+    // sheared. Loading jpg data from memory also always failed.
+    auto img = SmoothRGB(16, 13);
+    ASSERT_NE(img.pitchBytes, 13 * 3);
+
+    auto bytes = img.saveToMemory("jpg");
+    ASSERT_FALSE(bytes.empty());
+    Image decoded;
+    ASSERT_TRUE(LoadFromBytes(decoded, bytes, "jpg"));
+    ASSERT_EQ(decoded.type, UC3);
+    ASSERT_EQ(decoded.dimensions(), img.dimensions());
+    EXPECT_LE(MaxAbsDifference(img.getConstImageView(), decoded.getConstImageView<ucvec3>()), 12);
+
+    auto file = TestDir() / "padded.jpg";
+    ASSERT_TRUE(img.save(file));
+    Image loaded;
+    ASSERT_TRUE(loaded.load(file));
+    ASSERT_EQ(loaded.type, UC3);
+    EXPECT_LE(MaxAbsDifference(img.getConstImageView(), loaded.getConstImageView<ucvec3>()), 12);
+}
+
+TEST(ImageDecode, StbPngCompressRoundtrip)
+{
+    for (ImageType type : {UC1, UC2, UC3, UC4})
+    {
+        Image img(5, 7, type);
+        FillPattern(img, int(type));
+        auto bytes = img.compress();
+        ASSERT_FALSE(bytes.empty());
+        Image decoded;
+        decoded.decompress(bytes);
+        EXPECT_TRUE(SamePixels(img, decoded)) << type;
+    }
+    // Only 8 bit images are supported
+    Image img16(2, 2, US1);
+    img16.makeZero();
+    EXPECT_TRUE(img16.compress().empty());
+}
+
+#ifdef SAIGA_USE_PNG
+TEST(ImageDecode, PngRoundtripAllTypes)
+{
+    for (ImageType type : {UC1, UC2, UC3, UC4, US1, US2, US3, US4})
+    {
+        // odd width -> padded rows
+        Image img(4, 7, type);
+        FillPattern(img, int(type));
+        img.set_resolution(vec2(0.5f, 0.25f));
+
+        auto file = TestDir() / "roundtrip.png";
+        ASSERT_TRUE(img.save(file)) << type;
+        Image loaded;
+        ASSERT_TRUE(loaded.load(file)) << type;
+        EXPECT_TRUE(SamePixels(img, loaded)) << type;
+        ASSERT_TRUE(loaded.get_resolution().has_value());
+        EXPECT_NEAR(loaded.get_resolution()->x(), 0.5f, 1e-3);
+        EXPECT_NEAR(loaded.get_resolution()->y(), 0.25f, 1e-3);
+
+        auto bytes = img.saveToMemory("png");
+        ASSERT_FALSE(bytes.empty());
+        Image decoded;
+        ASSERT_TRUE(LoadFromBytes(decoded, bytes, "png"));
+        EXPECT_TRUE(SamePixels(img, decoded)) << type;
+        ASSERT_TRUE(decoded.get_resolution().has_value());
+    }
+
+    // png has no floating point formats
+    Image fimg(2, 2, F1);
+    fimg.makeZero();
+    EXPECT_FALSE(fimg.save(TestDir() / "float.png"));
+}
+#endif
+
+#ifdef SAIGA_USE_LIBTIFF
+TEST(ImageDecode, TiffRoundtrip)
+{
+    for (ImageType type : {UC1, US1, F1})
+    {
+        Image img(4, 7, type);
+        FillPattern(img, int(type));
+        if (type == F1)
+        {
+            // avoid NaN patterns, which do not compare equal
+            for (int y = 0; y < img.h; ++y)
+                for (int x = 0; x < img.w; ++x) img.at<float>(y, x) = y * 0.5f - x;
+        }
+        img.set_resolution(vec2(0.1f, 0.2f));
+
+        auto file = TestDir() / "roundtrip.tiff";
+        ASSERT_TRUE(img.save(file)) << type;
+        Image loaded;
+        ASSERT_TRUE(loaded.load(file)) << type;
+        EXPECT_TRUE(SamePixels(img, loaded)) << type;
+        ASSERT_TRUE(loaded.get_resolution().has_value());
+        EXPECT_NEAR(loaded.get_resolution()->x(), 0.1f, 1e-4);
+        EXPECT_NEAR(loaded.get_resolution()->y(), 0.2f, 1e-4);
+
+        auto bytes = img.saveToMemory("tiff");
+        ASSERT_FALSE(bytes.empty());
+        Image decoded;
+        ASSERT_TRUE(LoadFromBytes(decoded, bytes, "tif"));
+        EXPECT_TRUE(SamePixels(img, decoded)) << type;
+    }
+
+    // Multi channel images are saved, but only the first channel is loaded.
+    TemplatedImage<ucvec3> rgb(3, 5);
+    for (int y = 0; y < 3; ++y)
+        for (int x = 0; x < 5; ++x) rgb(y, x) = ucvec3(x + y * 5, 1, 2);
+    auto file = TestDir() / "rgb_roundtrip.tif";
+    ASSERT_TRUE(rgb.save(file));
+    Image loaded;
+    ASSERT_TRUE(loaded.load(file));
+    ASSERT_EQ(loaded.type, UC1);
+    EXPECT_EQ(loaded.at<unsigned char>(2, 4), 14);
+
+    // Unsupported types
+    Image d(2, 2, D1);
+    d.makeZero();
+    EXPECT_FALSE(d.save(TestDir() / "double.tif"));
+    EXPECT_TRUE(d.saveToMemory("tif").empty());
+}
+#endif
+
+#ifdef SAIGA_USE_PNG
+TEST(ImageDecode, PngInvalidResolution)
+{
+    // The pixels per meter were computed as 1000 / resolution without a check, so a zero, negative or tiny resolution
+    // converted inf or an out of range value to an integer (undefined behavior).
+    for (float r : {0.0f, -1.0f, 1e-30f, std::numeric_limits<float>::quiet_NaN()})
+    {
+        Image img(2, 3, UC1);
+        img.makeZero();
+        img.set_resolution(vec2(r, 0.5f));
+
+        auto file = TestDir() / "invalid_resolution.png";
+        ASSERT_TRUE(img.save(file)) << r;
+        Image loaded;
+        ASSERT_TRUE(loaded.load(file)) << r;
+        EXPECT_FALSE(loaded.get_resolution().has_value()) << r;
+
+        auto bytes = img.saveToMemory("png");
+        ASSERT_FALSE(bytes.empty()) << r;
+        Image decoded;
+        ASSERT_TRUE(LoadFromBytes(decoded, bytes, "png")) << r;
+        EXPECT_FALSE(decoded.get_resolution().has_value()) << r;
+    }
+}
+#endif
+
+#ifdef SAIGA_USE_LIBAVIF
+template <typename T>
+static void FillSmooth(Image& img, int max_value)
+{
+    int c = channels(img.type);
+    for (int y = 0; y < img.h; ++y)
+    {
+        T* row = (T*)img.rowPtr(y);
+        for (int x = 0; x < img.w; ++x)
+            for (int i = 0; i < c; ++i)
+                row[x * c + i] = T((x * 7 + y * 5 + i * 40) * max_value / (img.w * 7 + img.h * 5 + 3 * 40));
+    }
+}
+
+template <typename T>
+static int MaxAbsDifferenceT(const Image& a, const Image& b)
+{
+    int c = channels(a.type), result = 0;
+    for (int y = 0; y < a.h; ++y)
+    {
+        const T* ra = (const T*)a.rowPtr(y);
+        const T* rb = (const T*)b.rowPtr(y);
+        for (int x = 0; x < a.w * c; ++x) result = std::max(result, std::abs(int(ra[x]) - int(rb[x])));
+    }
+    return result;
+}
+
+TEST(ImageDecode, AvifRoundtrip)
+{
+#    ifndef SAIGA_USE_LIBAOM
+    // aom is the only AV1 decoder built by saiga. The SVT-AV1 encoder also stores gray images as YUV420.
+    GTEST_SKIP() << "No AV1 decoder";
+#    endif
+    // Loading avif images always returned false.
+    for (ImageType type : {UC1, UC3, UC4, US1, US3})
+    {
+        bool is16 = elementType(type) == ImageElementType::IET_USHORT;
+        // odd width -> padded rows
+        Image img(17, 23, type);
+        if (is16)
+            FillSmooth<uint16_t>(img, 65535);
+        else
+            FillSmooth<uint8_t>(img, 255);
+        img.set_compression_quality(100);
+
+        auto file = TestDir() / "roundtrip.avif";
+        ASSERT_TRUE(img.save(file)) << type;
+
+        Image loaded;
+        ASSERT_TRUE(loaded.load(file)) << type;
+        ASSERT_EQ(loaded.type, type);
+        ASSERT_EQ(loaded.dimensions(), img.dimensions());
+        // 16 bit images are stored with 10 bits
+        int diff = is16 ? MaxAbsDifferenceT<uint16_t>(img, loaded) : MaxAbsDifferenceT<uint8_t>(img, loaded);
+        EXPECT_LE(diff, is16 ? 4 * 64 : 4) << type;
+
+        auto bytes = File::loadFileBinary(file);
+        Image decoded;
+        ASSERT_TRUE(decoded.loadFromMemory(ArrayView<const char>(bytes.data(), bytes.size()), "avif")) << type;
+        ASSERT_EQ(decoded.type, type);
+        int diff2 = is16 ? MaxAbsDifferenceT<uint16_t>(loaded, decoded) : MaxAbsDifferenceT<uint8_t>(loaded, decoded);
+        EXPECT_EQ(diff2, 0) << type;
+    }
+
+    std::vector<unsigned char> garbage = {'n', 'o', 't', ' ', 'a', 'v', 'i', 'f'};
+    Image img;
+    EXPECT_FALSE(LoadFromBytes(img, garbage, "avif"));
+    EXPECT_FALSE(img.load(TestDir() / "does_not_exist.avif"));
+}
+#endif

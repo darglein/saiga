@@ -36,9 +36,13 @@ void solveHomogeneousLU(const Matrix& A, Vector& x)
 template <typename Matrix, typename Vector, bool normalize = true>
 void solveHomogeneousQR(const Matrix& A, Vector& x)
 {
-    Eigen::ColPivHouseholderQR<Matrix> qr(A.transpose());
-    Matrix Q = qr.householderQ();
-    x        = Q.col(A.rows() - 1);
+    // A^T = Q R with Q of size cols x cols. The null space of A is spanned by the last columns of Q.
+    using TransposedMatrix =
+        Eigen::Matrix<typename Matrix::Scalar, Matrix::ColsAtCompileTime, Matrix::RowsAtCompileTime>;
+    using SquareMatrix = Eigen::Matrix<typename Matrix::Scalar, Matrix::ColsAtCompileTime, Matrix::ColsAtCompileTime>;
+    Eigen::ColPivHouseholderQR<TransposedMatrix> qr(A.transpose());
+    SquareMatrix Q = qr.householderQ();
+    x              = Q.col(A.cols() - 1);
     if constexpr (normalize) x.normalize();
 }
 
@@ -48,8 +52,9 @@ template <typename Matrix, typename Vector, bool normalize = true>
 void solveHomogeneousCOD(const Matrix& A, Vector& x)
 {
     Eigen::CompleteOrthogonalDecomposition<Matrix> cod(A);
-    Matrix Z = cod.matrixZ().transpose();
-    x        = cod.colsPermutation() * Z.col(A.rows() - 1);
+    using SquareMatrix = Eigen::Matrix<typename Matrix::Scalar, Matrix::ColsAtCompileTime, Matrix::ColsAtCompileTime>;
+    SquareMatrix Z     = cod.matrixZ().transpose();
+    x                  = cod.colsPermutation() * Z.col(A.cols() - 1);
     if constexpr (normalize) x.normalize();
 }
 
@@ -68,7 +73,7 @@ template <typename Matrix, typename Vector, bool normalize = true>
 void solveHomogeneousBDCSVD(const Matrix& A, Vector& x)
 {
     Eigen::BDCSVD<Matrix> svd(A, Eigen::ComputeFullV);
-    x = svd.matrixV().col(A.rows() - 1);
+    x = svd.matrixV().col(A.cols() - 1);
     if constexpr (normalize) x.normalize();
 }
 

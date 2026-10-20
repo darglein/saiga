@@ -24,6 +24,13 @@ void MultiFrameOpenGLTimer::create()
         {
             queries[i][j].create(use_time_stamps);
         }
+        if (!use_time_stamps)
+        {
+            // Stop() reads the front buffer query of the previous frame. Run it once, because the result of a query
+            // that has never been started can not be read.
+            queries[i][0].begin();
+            queries[i][0].end();
+        }
     }
 }
 

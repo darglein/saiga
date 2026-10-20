@@ -22,11 +22,14 @@ void Object3D::setSimpleDirection(const vec3& dir)
 void Object3D::turn(float angleX, float angleY, const vec3& up)
 {
     rotateGlobal(up, angleX);
-    mat4 modeltmp = model;
+    quat rottmp   = rot;
+    float old_dot = make_vec3(getUpVector()).dot(up);
     rotateLocal(vec3(1, 0, 0), angleY);
-    if (model(1, 1) < 0)
+    // Don't turn upside down. An object that is already upside down may still pitch back towards upright.
+    float new_dot = make_vec3(getUpVector()).dot(up);
+    if (new_dot < 0 && new_dot < old_dot)
     {
-        model = modeltmp;
+        rot = rottmp;
     }
 }
 
@@ -38,7 +41,8 @@ void Object3D::turnLocal(float angleX, float angleY)
 
 void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angle)
 {
-    rotateLocal(axis, angle);
+    // The position is rotated around the global axis, so the orientation must be too.
+    rotateGlobal(axis, angle);
 
     translateGlobal(vec3(-point));
     quat qrot = angleAxis(radians(angle), axis);
@@ -49,11 +53,20 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
 
 quat Object3D::getSimpleDirectionQuat(const vec3& dir)
 {
-    mat4 rotmat   = mat4::Identity();
-    rotmat.col(0) = make_vec4(normalize(cross(dir, vec3(0, 1, 0))), 0);
-    rotmat.col(1) = make_vec4(0, 1, 0, 0);
-    rotmat.col(2) = make_vec4(-dir, 0);
-
+    // Orthonormal basis looking along -z. The up vector is only (0,1,0) if dir is horizontal.
+    vec3 z = -dir.normalized();
+    vec3 x = cross(dir, vec3(0, 1, 0));
+    if (x.squaredNorm() < 1e-12f * dir.squaredNorm())
+    {
+        // dir is vertical: any horizontal right vector is valid.
+        x = cross(dir, vec3(0, 0, -1));
+    }
+    x      = normalize(x);
+    vec3 y = cross(z, x);
+    mat3 rotmat;
+    rotmat.col(0) = x;
+    rotmat.col(1) = y;
+    rotmat.col(2) = z;
     return (make_quat(rotmat)).normalized();
 }
 
@@ -85,7 +98,7 @@ void Saiga::Object3D::setModelMatrix(const mat4& _model)
     R.col(0) = R.col(0) / scale[0];
     R.col(1) = R.col(1) / scale[1];
     R.col(2) = R.col(2) / scale[2];
-    rot = quat_cast(R);
+    rot      = quat_cast(R);
 }
 
 }  // namespace Saiga

@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 namespace Saiga
@@ -32,23 +33,53 @@ bool Shader::reload()
     bool need_reload = false;
     for (auto& f_t : dependent_files_and_date)
     {
-        SAIGA_ASSERT(std::filesystem::exists(f_t.first));
-        auto date = std::filesystem::last_write_time(f_t.first);
+        // A file that is missing (for example while an editor saves it) is not an error. It is checked again on the
+        // next call.
+        std::error_code ec;
+        auto date = std::filesystem::last_write_time(f_t.first, ec);
 
-        if (date > f_t.second)
+        if (!ec && date > f_t.second)
         {
             need_reload = true;
         }
     }
 
-    if (need_reload)
-    {
-        return init(file, injections);
-    }
-    else
+    if (!need_reload)
     {
         return true;
     }
+
+    // Keep the working program (and the uniform locations of checkUniforms) until the new one is linked, so that an
+    // error during hot reloading does not leave the shader unusable.
+    GLuint old_program = program;
+    auto old_shaders   = shaders;
+    auto old_files     = dependent_files_and_date;
+    program            = 0;
+
+    if (init(file, injections))
+    {
+        std::swap(program, old_program);
+        destroyProgram();
+        program = old_program;
+        return true;
+    }
+
+    destroyProgram();
+    program = old_program;
+    shaders = old_shaders;
+    if (dependent_files_and_date.empty())
+    {
+        // The file could not be read
+        dependent_files_and_date = old_files;
+    }
+    // Try again after the next change of a file
+    for (auto& f_t : dependent_files_and_date)
+    {
+        std::error_code ec;
+        auto date = std::filesystem::last_write_time(f_t.first, ec);
+        if (!ec) f_t.second = date;
+    }
+    return false;
 }
 
 bool Shader::init(const std::filesystem::path& file, const ShaderCodeInjections& injections)
@@ -64,8 +95,16 @@ bool Shader::init(const std::filesystem::path& file, const ShaderCodeInjections&
 
     for (auto f : c.dependent_files)
     {
-        SAIGA_ASSERT(std::filesystem::exists(f));
-        auto date = std::filesystem::last_write_time(f);
+        // No exception: reload() restores the old program only if init returns false.
+        std::error_code ec;
+        auto date = std::filesystem::last_write_time(f, ec);
+        if (ec)
+        {
+            std::cerr << "Shader::init: could not read the modification time of " << f << ": " << ec.message()
+                      << std::endl;
+            dependent_files_and_date.clear();
+            return false;
+        }
         dependent_files_and_date.emplace_back(f, date);
     }
 
@@ -436,11 +475,18 @@ GLint Shader::getUniformBlockSize(GLuint blockLocation)
 
 std::vector<GLint> Shader::getUniformBlockIndices(GLuint blockLocation)
 {
-    GLint ret;
+    // An invalid block index is a GL error and leaves the count unset
+    if (program == 0) return {};
+    GLint num_blocks = 0;
+    glGetProgramiv(program, GL_ACTIVE_UNIFORM_BLOCKS, &num_blocks);
+    if (blockLocation >= static_cast<GLuint>(num_blocks)) return {};
+
+    GLint ret = 0;
     glGetActiveUniformBlockiv(program, blockLocation, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &ret);
+    if (ret <= 0) return {};
 
     std::vector<GLint> indices(ret);
-    glGetActiveUniformBlockiv(program, blockLocation, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, &indices[0]);
+    glGetActiveUniformBlockiv(program, blockLocation, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, indices.data());
 
     return indices;
 }

@@ -41,13 +41,17 @@ __device__ inline T blockInclusiveScan(const CUDA::ThreadInfo<BLOCK_SIZE>& ti, T
     __syncthreads();
 
 
-    if (ti.local_thread_id < BLOCK_SIZE / SAIGA_WARP_SIZE)
+    if (ti.warp_lane == 0)
     {
-        // Scan in first warp
-        T valWarp          = shared[ti.lane_id];
-        valWarp            = warpInclusiveScan<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(valWarp, ti.lane_id);
-        shared[ti.lane_id] = valWarp;
-        if (ti.lane_id == BLOCK_SIZE / SAIGA_WARP_SIZE - 1)
+        // Scan in first warp. The whole warp takes part, because the shuffles use a full warp mask and a width of
+        // BLOCK_SIZE / 32 is invalid if that is not a power of two.
+        const unsigned int num_warps = BLOCK_SIZE / SAIGA_WARP_SIZE;
+        T valWarp                    = ti.lane_id < num_warps ? shared[ti.lane_id] : T(0);
+        valWarp                      = warpInclusiveScan(valWarp, ti.lane_id);
+        // All lanes have read 'shared' before it is overwritten.
+        __syncwarp();
+        if (ti.lane_id < num_warps) shared[ti.lane_id] = valWarp;
+        if (ti.lane_id == num_warps - 1)
         {
             *sharedBlockPrefix = valWarp;
         }
@@ -86,13 +90,17 @@ __device__ inline T blockInclusiveScan(T val, T* shared, T* sharedBlockPrefix)
     __syncthreads();
 
 
-    if (local_thread_id < BLOCK_SIZE / SAIGA_WARP_SIZE)
+    if (warp_lane == 0)
     {
-        // Scan in first warp
-        T valWarp       = shared[lane_id];
-        valWarp         = warpInclusiveScan<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(valWarp, lane_id);
-        shared[lane_id] = valWarp;
-        if (lane_id == BLOCK_SIZE / SAIGA_WARP_SIZE - 1)
+        // Scan in first warp. The whole warp takes part, because the shuffles use a full warp mask and a width of
+        // BLOCK_SIZE / 32 is invalid if that is not a power of two.
+        const unsigned int num_warps = BLOCK_SIZE / SAIGA_WARP_SIZE;
+        T valWarp                    = lane_id < num_warps ? shared[lane_id] : T(0);
+        valWarp                      = warpInclusiveScan(valWarp, lane_id);
+        // All lanes have read 'shared' before it is overwritten.
+        __syncwarp();
+        if (lane_id < num_warps) shared[lane_id] = valWarp;
+        if (lane_id == num_warps - 1)
         {
             *sharedBlockPrefix = valWarp;
         }
@@ -114,14 +122,25 @@ __device__ inline T blockInclusiveScan(T val, T* shared, T* sharedBlockPrefix)
 }
 
 
-#define SCAN_BLOCK_PREFIX 0x00
-#define SCAN_BLOCK_AGGREGATE 0x01
+// Status words of the decoupled look-back in tiledSinglePassScan: the flag is stored in the upper 32 bits and the
+// (inclusive prefix or aggregate) sum in the lower 32 bits, so the full 32 bit range of the sums can be used and the
+// flag and the value are always read and written together.
+#define SCAN_BLOCK_INVALID 0x0ULL
+#define SCAN_BLOCK_AGGREGATE 0x1ULL
+#define SCAN_BLOCK_PREFIX 0x2ULL
 
+/**
+ * Single pass prefix sum (scan) with a decoupled look-back.
+ *
+ * 'aggregate' must have getBlockCount(in.size(), ELEMENTS_PER_BLOCK) + 1 elements and must be set to zero before the
+ * kernel is launched (for example with cudaMemsetAsync). The first elements hold the status of each block, the last
+ * one is a counter that gives the blocks their ordered ids. The sums are computed modulo 2^32.
+ */
 template <bool EXCLUSIVE_SCAN = true, unsigned int BLOCK_SIZE = 256, unsigned int TILES_PER_BLOCK = 8,
           typename vector_type = int4, bool CHECK_BOUNDS = true>
 __global__ __launch_bounds__(BLOCK_SIZE) void tiledSinglePassScan(ArrayView<unsigned int> in,
                                                                   ArrayView<unsigned int> out,
-                                                                  ArrayView<unsigned int> aggregate)
+                                                                  ArrayView<unsigned long long> aggregate)
 {
     const unsigned int ELEMENTS_PER_VECTOR = sizeof(vector_type) / sizeof(unsigned int);
     const unsigned int ELEMENTS_PER_TILE   = BLOCK_SIZE * ELEMENTS_PER_VECTOR;
@@ -144,8 +163,8 @@ __global__ __launch_bounds__(BLOCK_SIZE) void tiledSinglePassScan(ArrayView<unsi
 
     if (ti.local_thread_id == 0)
     {
-        // we use the last element of the aggregate array as a global counter starting from -1
-        orderedBlockId    = atomicAdd(&aggregate[numBlocks], 1) + 1;
+        // the last element of the aggregate array is a global counter starting from 0
+        orderedBlockId    = atomicAdd(&aggregate[numBlocks], 1ULL);
         currentTilePrefix = 0;
         blockExclusive    = 0;
     }
@@ -224,46 +243,44 @@ __global__ __launch_bounds__(BLOCK_SIZE) void tiledSinglePassScan(ArrayView<unsi
         unsigned int blockSum = shared[BLOCK_SIZE / SAIGA_WARP_SIZE - 1];
 
 
-        aggregate[block] = (((blockSum) & ((1 << 30) - 1)) | (1 << 30));
+        // The status words are written by other blocks while we spin on them. A plain load may be served from the
+        // (incoherent) L1 cache or hoisted out of the loop, so the update would be seen very late or never. The
+        // aligned 64 bit volatile accesses are single instructions, so flag and value are always consistent.
+        volatile unsigned long long* status = aggregate.data();
+
         if (block == 0)
         {
-            aggregate[0]            = blockSum;
+            status[0]               = (SCAN_BLOCK_PREFIX << 32) | blockSum;
             global_exclusive_prefix = 0;
         }
         else
         {
+            status[block] = (SCAN_BLOCK_AGGREGATE << 32) | blockSum;
+
             int current_pred        = block - 1;
             global_exclusive_prefix = 0;
             while (current_pred >= 0)
             {
-#if 0
-                //In fact L1 cache is disabled by default for global memory reads,
-                //if this changes use this special function
-                unsigned int blockData = loadNoL1Cache(aggregate.data()+current_pred);
-                //                unsigned int blockData = atomicCAS(aggregate.data()+current_pred,0,0);
-#else
-                unsigned int blockData = aggregate[current_pred];
-#endif
+                unsigned long long blockData = status[current_pred];
 
-                unsigned int offsetData = (blockData) & ((1 << 30) - 1);
-                bool prefixAvailable    = blockData >> 30 == SCAN_BLOCK_PREFIX;
-                bool aggregateAvailable = blockData >> 30 == SCAN_BLOCK_AGGREGATE;
+                unsigned int offsetData = static_cast<unsigned int>(blockData);
+                unsigned long long flag = blockData >> 32;
 
-                if (prefixAvailable)
+                if (flag == SCAN_BLOCK_PREFIX)
                 {
                     global_exclusive_prefix += offsetData;
                     break;
                 }
 
-                if (aggregateAvailable)
+                if (flag == SCAN_BLOCK_AGGREGATE)
                 {
                     global_exclusive_prefix += offsetData;
-                    if (current_pred-- == 0) break;
+                    current_pred--;
                 }
             }
 
-            aggregate[block] = ((blockSum + global_exclusive_prefix) & ((1 << 30) - 1));
-            blockExclusive   = global_exclusive_prefix;
+            status[block]  = (SCAN_BLOCK_PREFIX << 32) | (blockSum + global_exclusive_prefix);
+            blockExclusive = global_exclusive_prefix;
         }
     }
 

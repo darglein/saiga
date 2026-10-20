@@ -48,12 +48,12 @@ __device__ inline T warpReduce(T val, OP op, unsigned int thread_id = threadIdx.
         mask                  = low_mask << (sub_warp * LOCAL_WARP_SIZE);
         // printf("%#010x %#010x %#010x\n", lane_id , sub_warp, mask);
     }
-//    return val;
+    //    return val;
 
 #pragma unroll
     for (int offset = LOCAL_WARP_SIZE / 2; offset > 0; offset /= 2)
     {
-        auto v = shfl_xor(val, offset,LOCAL_WARP_SIZE, mask);
+        auto v = shfl_xor(val, offset, LOCAL_WARP_SIZE, mask);
         val    = op(val, v);
     }
     return val;
@@ -68,13 +68,18 @@ __device__ inline T blockReduceSum(T val, T* shared, T default_value)
 
     val = warpReduceSum(val);
 
+    // Warp 0 of a previous call with the same 'shared' (for example in a loop) may still read it.
+    __syncthreads();
+
     if (lane == 0) shared[wid] = val;
 
     __syncthreads();
 
     val = (threadIdx.x < BLOCK_SIZE / SAIGA_WARP_SIZE) ? shared[lane] : default_value;
 
-    if (wid == 0) val = warpReduceSum<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(val);  // Final reduce within first warp
+    // Final reduce within the first warp. All 32 lanes take part (lanes without a partial sum hold default_value),
+    // because a sub-warp reduction of width BLOCK_SIZE / 32 drops values if that is not a power of two.
+    if (wid == 0) val = warpReduceSum<T>(val);
     return val;
 }
 
@@ -85,6 +90,10 @@ __device__ inline T blockReduceAtomicSum(T val, T* shared)
 
     // Each warp reduces with registers
     val = warpReduceSum(val);
+
+    // A previous call with the same 'shared' may still read it. In the source only thread 0 reads the result, but the
+    // compiler may load it in all threads.
+    __syncthreads();
 
     // Init shared memory
     if (threadIdx.x == 0) shared[0] = T(0);

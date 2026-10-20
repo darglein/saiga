@@ -192,6 +192,8 @@ SAIGA_CORE_API bool hasPrefix(std::string const& fullString, std::string const& 
  *
  * "bla.jpg" -> "jpg"
  * "/usr/local/test.asdf" -> "asdf"
+ * "noext" -> ""
+ * "dir.d/noext" -> ""
  */
 SAIGA_CORE_API std::string fileEnding(std::string const& str);
 SAIGA_CORE_API std::string removeFileEnding(std::string const& str);

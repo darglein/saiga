@@ -46,7 +46,7 @@ struct UniformHelper<unsigned int>
 template <>
 struct UniformHelper<ivec2>
 {
-    static void Set(int l, int c, const ivec2* v) { glUniform2i(l, v->x(), v->y()); }
+    static void Set(int l, int c, const ivec2* v) { glUniform2iv(l, c, v->data()); }
 };
 
 template <>

@@ -10,6 +10,8 @@
 #include "saiga/core/image/image.h"
 #include "saiga/opengl/opengl.h"
 
+#include <functional>
+
 namespace Saiga
 {
 class SAIGA_OPENGL_API TextureBase
@@ -18,7 +20,7 @@ class SAIGA_OPENGL_API TextureBase
     TextureBase(GLenum target) : target(target) {}
     virtual ~TextureBase();
 
-    TextureBase(TextureBase const&) = delete;
+    TextureBase(TextureBase const&)            = delete;
     TextureBase& operator=(TextureBase const&) = delete;
 
     // Create and destroy the underlying GL types.
@@ -26,8 +28,11 @@ class SAIGA_OPENGL_API TextureBase
     void create(GLenum color_type, GLenum internal_format, GLenum data_type);
     void destroy();
 
-    // Downloads the GPU data
+    // Downloads the GPU data. The rows are padded to 4 bytes like the rows of an Image, independent of the current
+    // GL_PACK_ALIGNMENT. Returns false for cube maps, use TextureCube::downloadFace.
     bool download(void* data);
+    // Downloads the GPU data converted to the given color format and data type (glGetTexImage)
+    bool download(void* data, GLenum format, GLenum type);
 
 
     // Bind the texture to the target.
@@ -112,6 +117,8 @@ class SAIGA_OPENGL_API TextureBase
      * For one- and two-dimensional array and cube map array textures, each layer is filtered independently.
      *
      * Cube map and array textures are accepted only if the GL version is 4.0 or higher.
+     *
+     * Integer textures are not filterable and keep their single level (and filter).
      */
 
     void generateMipmaps();
@@ -119,6 +126,21 @@ class SAIGA_OPENGL_API TextureBase
     GLenum InternalFormat() const { return internal_format; }
 
    protected:
+    /**
+     * Calls upload(ptr) with an unpack state (GL_UNPACK_ALIGNMENT, GL_UNPACK_ROW_LENGTH) that reads 'height' rows of
+     * 'width' pixels, which are 'pitch_bytes' apart in 'data'. If no unpack state describes this pitch, ptr points to a
+     * packed copy of the rows. The previous unpack state is restored afterwards.
+     */
+    static void uploadWithPitch(int width, int height, ImageType type, size_t pitch_bytes, const void* data,
+                                const std::function<void(const void*)>& upload);
+
+    // glGetTexImage of level 0 with rows padded to 4 bytes like the rows of an Image: GL_PACK_ALIGNMENT is 4 and
+    // GL_PACK_ROW_LENGTH is 0 during the call, the previous pack state is restored afterwards.
+    static void getTexImageImageLayout(GLenum target, GLenum format, GLenum type, void* data);
+
+    // GL_LINEAR, or GL_NEAREST for integer textures, which are incomplete (fetches return 0) with linear filtering.
+    GLenum defaultFilter() const;
+
     // The underlying GL texture name and target
     GLuint id = 0;
     GLenum target;
@@ -126,6 +148,10 @@ class SAIGA_OPENGL_API TextureBase
     // Every texture has an internal-format/colortype/datatype
     GLenum internal_format;
     GLenum color_type, data_type;
+
+    // Set by create(): the parameters of the GL texture are still the GL defaults. Subclasses that set their default
+    // parameters on the first upload use this to keep the parameters of the user on later uploads.
+    bool new_texture = false;
 };
 
 

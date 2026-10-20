@@ -45,11 +45,11 @@ using DepthFunction = std::function<void(Camera*)>;
 
 struct ShadowData
 {
-    Saiga::Matrix<float,4,4, TinyEigen::DontAlign> view_to_light;
+    Saiga::Matrix<float, 4, 4, MatrixDontAlign> view_to_light;
     vec2 shadow_planes;
     vec2 inv_shadow_map_size;
 
-    ShadowData() { static_assert(sizeof(ShadowData) ==  20 * sizeof(float)); }
+    ShadowData() { static_assert(sizeof(ShadowData) == 20 * sizeof(float)); }
 };
 
 
@@ -71,7 +71,7 @@ class SAIGA_OPENGL_API LightBase
     vec2 polygon_offset = vec2(2.0f, 10.0f);
 
 
-    int shadow_id = -1;
+    int shadow_id       = -1;
     int active_light_id = -1;
 
     LightBase() {}

@@ -1,0 +1,544 @@
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#include "saiga/config.h"
+#include "saiga/core/image/all.h"
+#include "saiga/core/math/random.h"
+#include "saiga/cuda/CudaInfo.h"
+#include "saiga/cuda/imageProcessing/image.h"
+#include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/pinned_vector.h"
+#include "saiga/cuda/stream.h"
+
+#include "gtest/gtest.h"
+
+#include <csignal>
+#include <functional>
+
+namespace Saiga
+{
+static TemplatedImage<float> RandomImage(int h, int w, float min_value = -1, float max_value = 1)
+{
+    TemplatedImage<float> img(h, w);
+    for (int y = 0; y < h; ++y)
+    {
+        for (int x = 0; x < w; ++x)
+        {
+            img(y, x) = Random::sampleDouble(min_value, max_value);
+        }
+    }
+    return img;
+}
+
+static TemplatedImage<float> Download(CUDA::CudaImage<float>& d_img)
+{
+    TemplatedImage<float> img(d_img.h, d_img.w);
+    d_img.download(img.getImageView());
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    return img;
+}
+
+static void ExpectImageNear(ImageView<const float> expected, ImageView<const float> actual, float eps,
+                            const std::string& name)
+{
+    ASSERT_EQ(expected.dimensions(), actual.dimensions()) << name;
+    int errors = 0;
+    for (int y = 0; y < expected.h; ++y)
+    {
+        for (int x = 0; x < expected.w; ++x)
+        {
+            float e = expected(y, x);
+            float a = actual(y, x);
+            if (!(std::abs(e - a) <= eps * std::max(1.f, std::abs(e))))
+            {
+                if (errors < 5)
+                {
+                    ADD_FAILURE() << name << ": pixel (" << y << "," << x << ") expected " << e << " got " << a;
+                }
+                errors++;
+            }
+        }
+    }
+    EXPECT_EQ(errors, 0) << name << " (" << expected.h << "x" << expected.w << ")";
+}
+
+// Correlation along the rows with clamp-to-edge border handling.
+static TemplatedImage<float> CpuConvolveRow(ImageView<const float> src, const std::vector<float>& kernel)
+{
+    int radius = kernel.size() / 2;
+    TemplatedImage<float> dst(src.h, src.w);
+    for (int y = 0; y < src.h; ++y)
+    {
+        for (int x = 0; x < src.w; ++x)
+        {
+            double sum = 0;
+            for (int k = -radius; k <= radius; ++k)
+            {
+                int sx = std::min(std::max(x + k, 0), src.w - 1);
+                sum += kernel[k + radius] * src(y, sx);
+            }
+            dst(y, x) = sum;
+        }
+    }
+    return dst;
+}
+
+static TemplatedImage<float> CpuConvolveCol(ImageView<const float> src, const std::vector<float>& kernel)
+{
+    int radius = kernel.size() / 2;
+    TemplatedImage<float> dst(src.h, src.w);
+    for (int y = 0; y < src.h; ++y)
+    {
+        for (int x = 0; x < src.w; ++x)
+        {
+            double sum = 0;
+            for (int k = -radius; k <= radius; ++k)
+            {
+                int sy = std::min(std::max(y + k, 0), src.h - 1);
+                sum += kernel[k + radius] * src(sy, x);
+            }
+            dst(y, x) = sum;
+        }
+    }
+    return dst;
+}
+
+// An asymmetric kernel, so that a flipped kernel or swapped axes are detected.
+static std::vector<float> RandomKernel(int radius)
+{
+    std::vector<float> kernel(radius * 2 + 1);
+    float sum = 0;
+    for (auto& k : kernel)
+    {
+        k = Random::sampleDouble(0.1, 1);
+        sum += k;
+    }
+    for (auto& k : kernel) k /= sum;
+    return kernel;
+}
+
+static const std::vector<std::pair<int, int>> test_sizes = {{48, 64}, {53, 97}, {20, 30}, {1, 37}, {131, 1}, {67, 258}};
+
+using SinglePassFunction = std::function<void(ImageView<float>, ImageView<float>, Saiga::ArrayView<float>, int)>;
+
+static void TestSeparable(const std::string& name, SinglePassFunction f, std::vector<int> radii)
+{
+    // The output is a view of the first columns of a wider image, so that writes behind the last column are detected
+    // (they would land in the row padding of an image of the exact width).
+    const int guard_columns = 4;
+    const float sentinel    = -12345;
+    for (auto size : test_sizes)
+    {
+        auto h_src = RandomImage(size.first, size.second);
+        CUDA::CudaImage<float> d_src(h_src.getConstImageView());
+        CUDA::CudaImage<float> d_dst(h_src.h, h_src.w + guard_columns);
+
+        for (int radius : radii)
+        {
+            auto kernel = RandomKernel(radius);
+            thrust::device_vector<float> d_kernel(kernel);
+
+            auto expected =
+                CpuConvolveCol(CpuConvolveRow(h_src.getConstImageView(), kernel).getConstImageView(), kernel);
+
+            CUDA::fill(d_dst.getImageView(), sentinel);
+            f(d_src.getImageView(), d_dst.getImageView().subImageView(0, 0, h_src.h, h_src.w), d_kernel, radius);
+            CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+            auto result           = Download(d_dst);
+            std::string test_name = name + " radius " + std::to_string(radius);
+            auto result_view      = result.getConstImageView().subImageView(0, 0, h_src.h, h_src.w);
+            ExpectImageNear(expected.getConstImageView(), result_view, 1e-5, test_name);
+            int guard_errors = 0;
+            for (int y = 0; y < result.h; ++y)
+                for (int x = h_src.w; x < result.w; ++x) guard_errors += result(y, x) != sentinel;
+            EXPECT_EQ(guard_errors, 0) << test_name << ": written behind the last column (" << h_src.h << "x"
+                                       << h_src.w << ")";
+        }
+    }
+}
+
+TEST(CudaConvolution, Row)
+{
+    std::vector<int> radii;
+    for (int r = 1; r <= SAIGA_MAX_CONVOLUTION_RADIUS; ++r) radii.push_back(r);
+
+    for (auto size : test_sizes)
+    {
+        auto h_src = RandomImage(size.first, size.second);
+        CUDA::CudaImage<float> d_src(h_src.getConstImageView());
+        CUDA::CudaImage<float> d_dst(h_src.h, h_src.w);
+        for (int radius : radii)
+        {
+            auto kernel = RandomKernel(radius);
+            thrust::device_vector<float> d_kernel(kernel);
+            CUDA::convolveRow(d_src.getImageView(), d_dst.getImageView(), d_kernel, radius);
+            auto expected = CpuConvolveRow(h_src.getConstImageView(), kernel);
+            auto result   = Download(d_dst);
+            ExpectImageNear(expected.getConstImageView(), result.getConstImageView(), 1e-5,
+                            "row radius " + std::to_string(radius));
+        }
+    }
+}
+
+TEST(CudaConvolution, Col)
+{
+    std::vector<int> radii;
+    for (int r = 1; r <= SAIGA_MAX_CONVOLUTION_RADIUS; ++r) radii.push_back(r);
+
+    for (auto size : test_sizes)
+    {
+        auto h_src = RandomImage(size.first, size.second);
+        CUDA::CudaImage<float> d_src(h_src.getConstImageView());
+        CUDA::CudaImage<float> d_dst(h_src.h, h_src.w);
+        for (int radius : radii)
+        {
+            auto kernel = RandomKernel(radius);
+            thrust::device_vector<float> d_kernel(kernel);
+            CUDA::convolveCol(d_src.getImageView(), d_dst.getImageView(), d_kernel, radius);
+            auto expected = CpuConvolveCol(h_src.getConstImageView(), kernel);
+            auto result   = Download(d_dst);
+            ExpectImageNear(expected.getConstImageView(), result.getConstImageView(), 1e-5,
+                            "col radius " + std::to_string(radius));
+        }
+    }
+}
+
+TEST(CudaConvolution, ApplyFilterSeparate)
+{
+    auto h_src = RandomImage(53, 97);
+    CUDA::CudaImage<float> d_src(h_src.getConstImageView());
+    CUDA::CudaImage<float> d_tmp(h_src.h, h_src.w);
+    CUDA::CudaImage<float> d_dst(h_src.h, h_src.w);
+
+    auto kernel_row = RandomKernel(3);
+    auto kernel_col = RandomKernel(5);
+    thrust::device_vector<float> d_kernel_row(kernel_row);
+    thrust::device_vector<float> d_kernel_col(kernel_col);
+
+    CUDA::applyFilterSeparate(d_src.getImageView(), d_dst.getImageView(), d_tmp.getImageView(), d_kernel_row,
+                              d_kernel_col);
+    auto expected =
+        CpuConvolveCol(CpuConvolveRow(h_src.getConstImageView(), kernel_row).getConstImageView(), kernel_col);
+    auto result = Download(d_dst);
+    ExpectImageNear(expected.getConstImageView(), result.getConstImageView(), 1e-5, "applyFilterSeparate");
+}
+
+TEST(CudaConvolution, GaussianKernel)
+{
+    for (int radius : {1, 4, SAIGA_MAX_CONVOLUTION_RADIUS})
+    {
+        float sigma                       = radius / 2.f;
+        thrust::host_vector<float> kernel = CUDA::createGaussianBlurKernel(radius, sigma);
+        ASSERT_EQ(kernel.size(), radius * 2 + 1);
+        float sum = 0;
+        for (int i = 0; i < kernel.size(); ++i)
+        {
+            float x = i - radius;
+            EXPECT_NEAR(kernel[i] / kernel[radius], std::exp(-x * x / (2 * sigma * sigma)), 1e-5);
+            sum += kernel[i];
+        }
+        EXPECT_NEAR(sum, 1, 1e-5);
+    }
+}
+
+TEST(CudaConvolution, SinglePassOuterLinear)
+{
+    TestSeparable("OuterLinear", CUDA::convolveSinglePassSeparateOuterLinear, {1, 2, 3, 4, 5, 6, 7, 8, 9});
+}
+
+TEST(CudaConvolution, SinglePassOuterHalo)
+{
+    TestSeparable("OuterHalo", CUDA::convolveSinglePassSeparateOuterHalo, {1, 2, 3, 4, 5, 6, 7, 8});
+}
+
+TEST(CudaConvolution, SinglePassInner)
+{
+    TestSeparable("Inner", CUDA::convolveSinglePassSeparateInner, {1, 2, 3, 4, 5, 6, 7, 8});
+}
+
+TEST(CudaConvolution, SinglePassInner75)
+{
+    TestSeparable("Inner75", CUDA::convolveSinglePassSeparateInner75, {1, 2, 3, 4, 5, 6, 7, 8});
+    TestSeparable("applyFilterSeparateSinglePass",
+                  [](ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int)
+                  { CUDA::applyFilterSeparateSinglePass(src, dst, kernel); }, {1, 4, 8});
+}
+
+// Regression test: if the width was not a multiple of the vector size (2 or 4 floats), the right border used the
+// values behind the last column instead of clamping to it, and the last vector was written past the last column.
+TEST(CudaConvolution, SinglePassInnerShuffle)
+{
+    TestSeparable("InnerShuffle", CUDA::convolveSinglePassSeparateInnerShuffle,
+                  {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 24});
+}
+
+#ifdef SAIGA_ASSERTS
+// Regression test: the convolutions are only instantiated for some radii, and an unsupported radius silently did
+// nothing. The kernel size was not checked against the radius either. (SAIGA_ASSERT prints its message to stdout, so
+// only the abort is checked.)
+TEST(CudaConvolutionDeathTest, InvalidArguments)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    CUDA::CudaImage<float> d_src(32, 32);
+    CUDA::CudaImage<float> d_dst(32, 32);
+    auto src = d_src.getImageView();
+    auto dst = d_dst.getImageView();
+
+    using ConvolutionFunction = void (*)(ImageView<float>, ImageView<float>, Saiga::ArrayView<float>, int);
+    std::vector<std::pair<ConvolutionFunction, int>> functions = {
+        {CUDA::convolveRow, SAIGA_MAX_CONVOLUTION_RADIUS},  {CUDA::convolveCol, SAIGA_MAX_CONVOLUTION_RADIUS},
+        {CUDA::convolveSinglePassSeparateOuterLinear, 9},   {CUDA::convolveSinglePassSeparateOuterHalo, 8},
+        {CUDA::convolveSinglePassSeparateInner, 8},         {CUDA::convolveSinglePassSeparateInner75, 8},
+        {CUDA::convolveSinglePassSeparateInnerShuffle, 24},
+    };
+    for (auto [f, max_radius] : functions)
+    {
+        thrust::device_vector<float> too_large(RandomKernel(max_radius + 1));
+        EXPECT_EXIT(f(src, dst, too_large, max_radius + 1), testing::KilledBySignal(SIGABRT), "");
+    }
+
+    thrust::device_vector<float> kernel(RandomKernel(3));
+    EXPECT_EXIT(CUDA::convolveRow(src, dst, kernel, 2), testing::KilledBySignal(SIGABRT), "");
+    EXPECT_EXIT(CUDA::convolveCol(src, dst, kernel, 2), testing::KilledBySignal(SIGABRT), "");
+    EXPECT_EXIT(CUDA::convolveSinglePassSeparateInner(src, dst, kernel, 2), testing::KilledBySignal(SIGABRT), "");
+
+    // The shuffle version has no instantiation for some radii below its maximum.
+    thrust::device_vector<float> kernel17(RandomKernel(17));
+    EXPECT_EXIT(CUDA::convolveSinglePassSeparateInnerShuffle(src, dst, kernel17, 17), testing::KilledBySignal(SIGABRT),
+                "");
+    // applyFilterSeparateSinglePass derives the radius from the kernel size and supports radius <= 8.
+    thrust::device_vector<float> kernel9(RandomKernel(9));
+    EXPECT_EXIT(CUDA::applyFilterSeparateSinglePass(src, dst, kernel9), testing::KilledBySignal(SIGABRT), "");
+}
+#endif
+
+__global__ static void Spin(long long cycles)
+{
+    long long start = clock64();
+    while (clock64() - start < cycles)
+    {
+    }
+}
+
+// Regression test: CudaImage::upload freed and reallocated the device memory on every call, even if the size did not
+// change. Views, sub-image views and texture objects created from the image (for example in ORBExtractorGPU) then
+// pointed to freed memory (unless the driver happened to return the same address), and the implicit cudaFree
+// synchronized the whole device, so an upload on a stream was never asynchronous.
+TEST(CudaImage, UploadKeepsAllocation)
+{
+    {
+        const int h = 64, w = 64;
+        pinned_vector<float> pinned(h * w, 1.f);
+        ImageView<const float> pinned_view(h, w, pinned.data().get());
+        CUDA::CudaImage<float> d_img(pinned_view);
+        CUDA::CudaStream stream;
+        CUDA::CudaEvent spin_done;
+        Spin<<<1, 1, 0, stream>>>(500 * 1000 * 1000);
+        spin_done.record(stream);
+        d_img.upload(pinned_view, stream);
+        EXPECT_FALSE(spin_done.isCompleted()) << "upload blocked until the device was idle";
+        stream.synchronize();
+    }
+
+    auto h_a = RandomImage(37, 101);
+    auto h_b = RandomImage(37, 101);
+    CUDA::CudaImage<float> d_img(h_a.getConstImageView());
+    ImageView<float> view = d_img.getImageView();
+
+    // Allocate other images in between, so that a reallocation would not return the same address.
+    std::vector<std::unique_ptr<CUDA::CudaImage<float>>> others;
+    for (int i = 0; i < 3; ++i)
+    {
+        d_img.upload(h_b.getConstImageView());
+        others.push_back(std::make_unique<CUDA::CudaImage<float>>(h_a.getConstImageView()));
+        EXPECT_EQ(d_img.data(), view.data);
+        EXPECT_EQ(d_img.pitchBytes, view.pitchBytes);
+    }
+
+    TemplatedImage<float> result(h_b.h, h_b.w);
+    CUDA::CopyImage(ImageView<const float>(view), result.getImageView(), cudaMemcpyDeviceToHost);
+    ExpectImageNear(h_b.getConstImageView(), result.getConstImageView(), 0, "upload");
+
+    // A different size must reallocate.
+    auto h_c = RandomImage(50, 20);
+    d_img.upload(h_c.getConstImageView());
+    EXPECT_EQ(d_img.h, 50);
+    EXPECT_EQ(d_img.w, 20);
+    ExpectImageNear(h_c.getConstImageView(), Download(d_img).getConstImageView(), 0, "upload resized");
+
+    // Copy assignment and copy construction create deep copies.
+    CUDA::CudaImage<float> copy(d_img);
+    EXPECT_NE(copy.data(), d_img.data());
+    ExpectImageNear(h_c.getConstImageView(), Download(copy).getConstImageView(), 0, "copy");
+    const CUDA::CudaImage<float>& same = copy;
+    copy                               = same;
+    ExpectImageNear(h_c.getConstImageView(), Download(copy).getConstImageView(), 0, "self assignment");
+}
+
+TEST(CudaImageProcessing, PointOperations)
+{
+    auto h_src = RandomImage(37, 133);
+    CUDA::CudaImage<float> d_img(h_src.getConstImageView());
+
+    TemplatedImage<float> expected(h_src.h, h_src.w);
+
+    CUDA::add(d_img.getImageView(), 2.5f);
+    for (int y = 0; y < h_src.h; ++y)
+        for (int x = 0; x < h_src.w; ++x) expected(y, x) = h_src(y, x) + 2.5f;
+    ExpectImageNear(expected.getConstImageView(), Download(d_img).getConstImageView(), 1e-6, "add");
+
+    CUDA::mult(d_img.getImageView(), -3.f);
+    for (int y = 0; y < h_src.h; ++y)
+        for (int x = 0; x < h_src.w; ++x) expected(y, x) *= -3.f;
+    ExpectImageNear(expected.getConstImageView(), Download(d_img).getConstImageView(), 1e-6, "mult");
+
+    CUDA::abs(d_img.getImageView());
+    for (int y = 0; y < h_src.h; ++y)
+        for (int x = 0; x < h_src.w; ++x) expected(y, x) = std::abs(expected(y, x));
+    ExpectImageNear(expected.getConstImageView(), Download(d_img).getConstImageView(), 1e-6, "abs");
+
+    CUDA::fill(d_img.getImageView(), 7.f);
+    for (int y = 0; y < h_src.h; ++y)
+        for (int x = 0; x < h_src.w; ++x) expected(y, x) = 7.f;
+    ExpectImageNear(expected.getConstImageView(), Download(d_img).getConstImageView(), 0, "fill");
+}
+
+TEST(CudaImageProcessing, Subtract)
+{
+    auto h_a = RandomImage(29, 141);
+    auto h_b = RandomImage(29, 141);
+    CUDA::CudaImage<float> d_a(h_a.getConstImageView());
+    CUDA::CudaImage<float> d_b(h_b.getConstImageView());
+    CUDA::CudaImage<float> d_dst(h_a.h, h_a.w);
+
+    CUDA::subtract(d_a.getImageView(), d_b.getImageView(), d_dst.getImageView());
+
+    TemplatedImage<float> expected(h_a.h, h_a.w);
+    for (int y = 0; y < h_a.h; ++y)
+        for (int x = 0; x < h_a.w; ++x) expected(y, x) = h_a(y, x) - h_b(y, x);
+    ExpectImageNear(expected.getConstImageView(), Download(d_dst).getConstImageView(), 0, "subtract");
+}
+
+TEST(CudaImageProcessing, SubtractMulti)
+{
+    const int n = 4, h = 31, w = 139;
+    std::vector<TemplatedImage<float>> h_src;
+    for (int i = 0; i < n; ++i) h_src.push_back(RandomImage(h, w));
+
+    // n images stored consecutively with the same pitch
+    CUDA::CudaImage<float> d_src(h * n, w);
+    CUDA::CudaImage<float> d_dst(h * (n - 1), w);
+    ImageView<float> src_view = d_src.getImageView();
+    src_view.h                = h;
+    ImageView<float> dst_view = d_dst.getImageView();
+    dst_view.h                = h;
+    ImageArrayView<float> src(src_view, n);
+    ImageArrayView<float> dst(dst_view, n - 1);
+    for (int i = 0; i < n; ++i)
+    {
+        CUDA::CopyImage(h_src[i].getConstImageView(), src[i], cudaMemcpyHostToDevice);
+    }
+
+    CUDA::subtractMulti(src, dst);
+
+    for (int i = 0; i < n - 1; ++i)
+    {
+        TemplatedImage<float> result(h, w);
+        CUDA::CopyImage(ImageView<const float>(dst[i]), result.getImageView(), cudaMemcpyDeviceToHost);
+        TemplatedImage<float> expected(h, w);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) expected(y, x) = h_src[i + 1](y, x) - h_src[i](y, x);
+        ExpectImageNear(expected.getConstImageView(), result.getConstImageView(), 0,
+                        "subtractMulti " + std::to_string(i));
+    }
+}
+
+// Regression test: scaleUp2Linear uses ImageView::inter on the device, which called the host-only
+// TexelFloatConverter. The kernel wrote 0 for every pixel.
+TEST(CudaImageProcessing, Scale)
+{
+    auto h_src = RandomImage(33, 75);
+    CUDA::CudaImage<float> d_src(h_src.getConstImageView());
+
+    CUDA::CudaImage<float> d_down(h_src.h / 2, h_src.w / 2);
+    CUDA::scaleDown2EveryOther(d_src.getImageView(), d_down.getImageView());
+    TemplatedImage<float> expected_down(h_src.h / 2, h_src.w / 2);
+    for (int y = 0; y < expected_down.h; ++y)
+        for (int x = 0; x < expected_down.w; ++x) expected_down(y, x) = h_src(2 * y, 2 * x);
+    ExpectImageNear(expected_down.getConstImageView(), Download(d_down).getConstImageView(), 0, "scaleDown");
+
+    CUDA::CudaImage<float> d_up(h_src.h * 2, h_src.w * 2);
+    CUDA::scaleUp2Linear(d_src.getImageView(), d_up.getImageView());
+    TemplatedImage<float> expected_up(h_src.h * 2, h_src.w * 2);
+    for (int y = 0; y < expected_up.h; ++y)
+        for (int x = 0; x < expected_up.w; ++x)
+            expected_up(y, x) = h_src.getConstImageView().inter((y + 0.5f) * 0.5f - 0.5f, (x + 0.5f) * 0.5f - 0.5f);
+    ExpectImageNear(expected_up.getConstImageView(), Download(d_up).getConstImageView(), 1e-5, "scaleUp");
+}
+
+TEST(CudaImageProcessing, Conversions)
+{
+    const int h = 23, w = 157;
+    std::vector<uchar3> rgb_data(h * w), rgb2_data(h * w);
+    std::vector<uchar4> rgba_data(h * w);
+    for (auto& c : rgb_data)
+        c = make_uchar3(Random::uniformInt(0, 255), Random::uniformInt(0, 255), Random::uniformInt(0, 255));
+    ImageView<uchar3> rgb(h, w, rgb_data.data());
+    ImageView<uchar3> rgb2(h, w, rgb2_data.data());
+    ImageView<uchar4> rgba(h, w, rgba_data.data());
+
+    CUDA::CudaImage<uchar3> d_rgb{ImageView<const uchar3>(rgb)};
+    CUDA::CudaImage<uchar4> d_rgba(h, w);
+    CUDA::CudaImage<uchar3> d_rgb2(h, w);
+    CUDA::CudaImage<float> d_gray(h, w);
+
+    CUDA::convertRGBtoRGBA(d_rgb.getImageView(), d_rgba.getImageView(), 17);
+    d_rgba.download(rgba);
+    CUDA::convertRGBAtoRGB(d_rgba.getImageView(), d_rgb2.getImageView());
+    d_rgb2.download(rgb2);
+    CUDA::convertRGBAtoGrayscale(d_rgba.getImageView(), d_gray.getImageView());
+    auto gray = Download(d_gray);
+
+    for (int y = 0; y < h; ++y)
+    {
+        for (int x = 0; x < w; ++x)
+        {
+            auto c = rgb(y, x);
+            auto r = rgba(y, x);
+            EXPECT_TRUE(r.x == c.x && r.y == c.y && r.z == c.z && r.w == 17);
+            auto r2 = rgb2(y, x);
+            EXPECT_TRUE(r2.x == c.x && r2.y == c.y && r2.z == c.z);
+            EXPECT_NEAR(gray(y, x), 0.2126f * c.x + 0.7152f * c.y + 0.0722f * c.z, 1e-3);
+        }
+    }
+
+    CUDA::convertBGRtoRGBA(d_rgb.getImageView(), d_rgba.getImageView(), 3);
+    d_rgba.download(rgba);
+    CUDA::convertRGBAtoBGR(d_rgba.getImageView(), d_rgb2.getImageView());
+    d_rgb2.download(rgb2);
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    for (int y = 0; y < h; ++y)
+    {
+        for (int x = 0; x < w; ++x)
+        {
+            auto c = rgb(y, x);
+            auto r = rgba(y, x);
+            EXPECT_TRUE(r.x == c.z && r.y == c.y && r.z == c.x && r.w == 3);
+            auto r2 = rgb2(y, x);
+            EXPECT_TRUE(r2.x == c.x && r2.y == c.y && r2.z == c.z);
+        }
+    }
+}
+
+}  // namespace Saiga
+
+int main(int argc, char** argv)
+{
+    Saiga::CUDA::initCUDA();
+    Saiga::Random::setSeed(3487);
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

@@ -153,7 +153,10 @@ class EntryParser
     uint16_t GetTag() const { return tag; }
     uint32_t GetLength() const { return length; }
     uint32_t GetData() const { return parse32(buf + offs + 8, alignIntel); }
-    uint32_t GetSubIFD() const { return tiff_header_start + GetData(); }
+    // Offset of the values (or of a sub IFD) in the buffer. 64 bit, so that a large offset cannot wrap around.
+    uint64_t GetSubIFD() const { return uint64_t(tiff_header_start) + GetData(); }
+    // True if 'bytes' bytes at the offset of the values are inside the buffer.
+    bool ValuesFit(uint64_t bytes) const { return GetSubIFD() + bytes <= len; }
 
     bool IsRational() const { return format == 5 || format == 10; }
 
@@ -183,14 +186,14 @@ class EntryParser
     }
     bool Fetch(double& val) const
     {
-        if (!IsRational()) return false;
+        if (!IsRational() || length == 0 || !ValuesFit(8)) return false;
         val = parseEXIFRational(buf + GetSubIFD(), alignIntel);
         return true;
     }
     bool Fetch(double& val, uint32_t idx) const
     {
-        if (!IsRational() || length <= idx) return false;
-        val = parseEXIFRational(buf + GetSubIFD() + idx * 8, alignIntel);
+        if (!IsRational() || length <= idx || !ValuesFit((uint64_t(idx) + 1) * 8)) return false;
+        val = parseEXIFRational(buf + GetSubIFD() + uint64_t(idx) * 8, alignIntel);
         return true;
     }
 
@@ -217,6 +220,10 @@ class EntryParser
                                        unsigned len, bool intel)
     {
         std::string value;
+        if (num_components == 0)
+        {
+            return value;
+        }
         if (num_components <= 4)
         {
             value.resize(num_components);
@@ -225,7 +232,7 @@ class EntryParser
             for (unsigned i = 0; i < num_components; ++i, j -= j_m) value[i] = data >> j & 0xff;
             if (value[num_components - 1] == '\0') value.resize(num_components - 1);
         }
-        else if (base + data + num_components <= len)
+        else if (uint64_t(base) + data + num_components <= len)
         {
             const char* const sz((const char*)buf + base + data);
             if (sz[--num_components] == '\0')
@@ -301,7 +308,10 @@ int EXIFInfo::parseFrom(const uint8_t* buf, unsigned len)
                 return app1s();
             case JM_APP1:
             {
+                // The segment must fit into the buffer and its length includes the two length bytes.
+                if (pos + 2 > len) return app1s(PARSE_EXIF_ERROR_NO_JPEG);
                 const uint16_t section_length(EntryParser::parse16(buf + pos, false));
+                if (section_length < 2 || uint64_t(pos) + section_length > len) return app1s(PARSE_EXIF_ERROR_NO_JPEG);
                 int ret;
                 switch (ret = parseFromEXIFSegment(buf + pos + 2, section_length - 2))
                 {
@@ -327,8 +337,9 @@ int EXIFInfo::parseFrom(const uint8_t* buf, unsigned len)
             default:
             {
                 // read section length
+                if (pos + 2 > len) return app1s(PARSE_EXIF_ERROR_NO_JPEG);
                 const uint16_t section_length(EntryParser::parse16(buf + pos, false));
-                if (pos + section_length > len) return app1s(PARSE_EXIF_ERROR_NO_JPEG);
+                if (uint64_t(pos) + section_length > len) return app1s(PARSE_EXIF_ERROR_NO_JPEG);
                 // skip the section
                 pos += section_length;
             }
@@ -390,9 +401,9 @@ int EXIFInfo::parseFromEXIFSegment(const uint8_t* buf, unsigned len)
     offs += 2;
     if (0x2a != EntryParser::parse16(buf + offs, alignIntel())) return PARSE_EXIF_ERROR_CORRUPT;
     offs += 2;
-    const unsigned first_ifd_offset = EntryParser::parse32(buf + offs, alignIntel());
-    offs += first_ifd_offset - 4;
-    if (offs >= len) return PARSE_EXIF_ERROR_CORRUPT;
+    const uint64_t first_ifd = uint64_t(tiff_header_start) + EntryParser::parse32(buf + offs, alignIntel());
+    if (first_ifd >= len) return PARSE_EXIF_ERROR_CORRUPT;
+    offs = unsigned(first_ifd);
 
     // Now parsing the first Image File Directory (IFD0, for the main image).
     // An IFD consists of a variable number of 12-byte directory entries. The
@@ -400,11 +411,11 @@ int EXIFInfo::parseFromEXIFSegment(const uint8_t* buf, unsigned len)
     // entries in the section. The last 4 bytes of the IFD contain an offset
     // to the next IFD, which means this IFD must contain exactly 6 + 12 * num
     // bytes of data.
-    if (offs + 2 > len) return PARSE_EXIF_ERROR_CORRUPT;
+    if (uint64_t(offs) + 2 > len) return PARSE_EXIF_ERROR_CORRUPT;
     int num_entries = EntryParser::parse16(buf + offs, alignIntel());
-    if (offs + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
-    unsigned exif_sub_ifd_offset = len;
-    unsigned gps_sub_ifd_offset  = len;
+    if (uint64_t(offs) + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
+    uint64_t exif_sub_ifd_offset = len;
+    uint64_t gps_sub_ifd_offset  = len;
     EntryParser parser(buf, len, tiff_header_start, alignIntel());
     parser.Init(offs + 2);
     while (--num_entries >= 0)
@@ -511,9 +522,9 @@ int EXIFInfo::parseFromEXIFSegment(const uint8_t* buf, unsigned len)
     // typical user might want.
     if (exif_sub_ifd_offset + 4 <= len)
     {
-        offs            = exif_sub_ifd_offset;
+        offs            = unsigned(exif_sub_ifd_offset);
         int num_entries = EntryParser::parse16(buf + offs, alignIntel());
-        if (offs + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
+        if (uint64_t(offs) + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
         parser.Init(offs + 2);
         while (--num_entries >= 0)
         {
@@ -655,9 +666,9 @@ int EXIFInfo::parseFromEXIFSegment(const uint8_t* buf, unsigned len)
     // there. Note that it's possible that the GPS SubIFD doesn't exist.
     if (gps_sub_ifd_offset + 4 <= len)
     {
-        offs            = gps_sub_ifd_offset;
+        offs            = unsigned(gps_sub_ifd_offset);
         int num_entries = EntryParser::parse16(buf + offs, alignIntel());
-        if (offs + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
+        if (uint64_t(offs) + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
         parser.Init(offs + 2);
         while (--num_entries >= 0)
         {
@@ -707,15 +718,16 @@ int EXIFInfo::parseFromEXIFSegment(const uint8_t* buf, unsigned len)
                     // GPS timestamp
                     if (parser.IsRational() && parser.GetLength() == 3)
                     {
-                        double h, m, s;
-                        parser.Fetch(h, 0);
-                        parser.Fetch(m, 1);
-                        parser.Fetch(s, 2);
-                        char buffer[256];
+                        double h = 0, m = 0, s = 0;
+                        // The values can lie outside of the segment: do not store a made up timestamp.
+                        if (parser.Fetch(h, 0) && parser.Fetch(m, 1) && parser.Fetch(s, 2))
+                        {
+                            char buffer[256];
 #if _MSC_VER > 1800 || !defined(_MSC_VER)
-                        snprintf(buffer, 256, "%g %g %g", h, m, s);
+                            snprintf(buffer, 256, "%g %g %g", h, m, s);
 #endif
-                        GeoLocation.GPSTimeStamp = buffer;
+                            GeoLocation.GPSTimeStamp = buffer;
+                        }
                     }
                     break;
 
@@ -882,6 +894,9 @@ void EXIFInfo::clear()
     RelatedImageWidth  = 0;
     RelatedImageHeight = 0;
     Orientation        = 0;
+    XResolution        = 0;
+    YResolution        = 0;
+    ResolutionUnit     = 0;
     BitsPerSample      = 0;
     ExposureTime       = 0;
     FNumber            = 0;

@@ -81,7 +81,8 @@ inline int solve_deg3(double a, double b, double c, double d, double& x0, double
         }
         else
         {
-            x0 = pow(2 * R, 1 / 3.0) - b_a_3;
+            // pow() returns NaN for a negative base (e.g. x^3 + 1 = 0), the real cube root is needed.
+            x0 = std::cbrt(2 * R) - b_a_3;
             return 1;
         }
     }
@@ -194,7 +195,7 @@ inline int solve_deg4(double a, double b, double c, double d, double e, double& 
     return nb_real_roots;
 }
 
-inline int solve_deg4(const Eigen::Matrix<double, 5, 1>& coeffs, Vec4& roots_real)
+inline int solve_deg4(const Matrix<double, 5, 1>& coeffs, Vec4& roots_real)
 {
     return solve_deg4(coeffs(0), coeffs(1), coeffs(2), coeffs(3), coeffs(4), roots_real(0), roots_real(1),
                       roots_real(2), roots_real(3));

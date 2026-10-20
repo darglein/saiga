@@ -7,6 +7,8 @@
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
+#include <cmath>
+
 #include "tiny-eigen/matrix.h"
 #include "tiny-eigen/quaternion.h"
 #include "tiny-eigen/sophus.h"
@@ -105,12 +107,83 @@ TEST(TinyEigen, InverseWithPivotSwap)
     }
 }
 
+TEST(TinyEigen, InverseRandom)
+{
+    // Compare A * inv(A) with the identity for a few fixed, well conditioned matrices of different sizes.
+    Matrix<double, 5, 5> a;
+    for (int i = 0; i < 5; ++i)
+    {
+        for (int j = 0; j < 5; ++j)
+        {
+            a(i, j) = std::sin(1.3 * i + 0.7 * j * j) + (i == j ? 3 : 0);
+        }
+    }
+    auto id5 = a * a.inverse();
+    for (int i = 0; i < 5; ++i)
+    {
+        for (int j = 0; j < 5; ++j)
+        {
+            EXPECT_NEAR(id5(i, j), i == j ? 1 : 0, 1e-12) << i << " " << j;
+        }
+    }
+
+    Mat3f b;
+    b(0, 0)  = 2;
+    b(0, 1)  = 1;
+    b(0, 2)  = 0;
+    b(1, 0)  = -1;
+    b(1, 1)  = 3;
+    b(1, 2)  = 1;
+    b(2, 0)  = 0.5f;
+    b(2, 1)  = 0;
+    b(2, 2)  = 4;
+    auto id3 = b * b.inverse();
+    for (int i = 0; i < 3; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            EXPECT_NEAR(id3(i, j), i == j ? 1 : 0, 1e-6) << i << " " << j;
+        }
+    }
+
+    Matrix<double, 2, 2> c;
+    c(0, 0) = 4;
+    c(0, 1) = 7;
+    c(1, 0) = 2;
+    c(1, 1) = 6;
+    auto ci = c.inverse();
+    EXPECT_NEAR(ci(0, 0), 0.6, 1e-12);
+    EXPECT_NEAR(ci(0, 1), -0.7, 1e-12);
+    EXPECT_NEAR(ci(1, 0), -0.2, 1e-12);
+    EXPECT_NEAR(ci(1, 1), 0.4, 1e-12);
+}
+
 TEST(TinyEigen, InverseOfSingularMatrixIsIdentity)
 {
     Mat4d m = Mat4d::Zero();
     m(0, 0) = 1;
     m(1, 1) = 1;
     EXPECT_EQ(m.inverse(), Mat4d::Identity());
+}
+
+TEST(TinyEigen, InverseWithTinyPivot)
+{
+    // Regression: the 4x4 Gauss-Jordan inverse only swapped rows for an exactly zero pivot. With the tiny first
+    // pivot 1e-8 the elimination cancelled the other entries in float and returned a badly wrong inverse.
+    Matrix<float, 4, 4> m = Matrix<float, 4, 4>::Identity();
+    m(0, 0)               = 1e-8f;
+    m(0, 1)               = 1;
+    m(1, 0)               = 1;
+    m(1, 1)               = 1;
+
+    Matrix<float, 4, 4> identity = m * m.inverse();
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            EXPECT_NEAR(identity(i, j), i == j ? 1 : 0, 1e-5) << i << " " << j;
+        }
+    }
 }
 
 TEST(TinyEigen, QuaternionInverse)

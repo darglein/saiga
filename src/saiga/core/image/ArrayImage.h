@@ -23,16 +23,18 @@ class ArrayImage : public ImageBase
     ArrayImage(int h, int w) : ImageBase(h, w, w * sizeof(T)), _data(w * h) {}
 
 
+    // Construct the views from the ImageBase explicitly. "res(*this)" selected the conversion operators below, which
+    // call these functions again (infinite recursion).
     ImageView<T> getImageView()
     {
-        ImageView<T> res(*this);
+        ImageView<T> res(static_cast<const ImageBase&>(*this));
         res.data = data();
         return res;
     }
 
     ImageView<const T> getConstImageView() const
     {
-        ImageView<const T> res(*this);
+        ImageView<const T> res(static_cast<const ImageBase&>(*this));
         res.data = data();
         return res;
     }

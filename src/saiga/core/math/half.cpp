@@ -53,11 +53,6 @@ static inline uint32_t uint32_nez(uint32_t a)
     return (uint32_t)((int32_t)(a | -a) >> 31);
 }
 
-static inline uint32_t uint32_eqz(uint32_t a)
-{
-    return ~uint32_nez(a);
-}
-
 // static inline uint32_t uint32_nez_p(uint32_t a)
 // {
 //     return (uint32_t)((uint32_t)(a | -a) >> 31);
@@ -66,11 +61,6 @@ static inline uint32_t uint32_eqz(uint32_t a)
 static inline uint32_t uint32_eq(uint32_t a, uint32_t b)
 {
     return (~uint32_nez(a - b));
-}
-
-static inline uint32_t uint32_srl(uint32_t a, uint32_t sa)
-{
-    return (a >> sa);
 }
 
 static inline uint32_t uint32_sll(uint32_t a, uint32_t sa)
@@ -93,40 +83,6 @@ static inline uint32_t uint32_sub(uint32_t a, uint32_t b)
     return (a - b);
 }
 
-static inline uint16_t uint16_mux(uint16_t mask, uint16_t a, uint16_t b)
-{
-    return ((mask & (uint16_t)a) | ((~mask) & (uint16_t)b));
-}
-
-static inline uint16_t uint16_lt(uint16_t a, uint16_t b)
-{
-    // NOTE: Result is invalid when a=INT16_MAX, b=INT16_MIN
-    // For the purposes used in half.c the result is always valid
-    return (uint16_t)((int16_t)(a - b) >> 15);
-}
-
-static inline uint16_t uint16_gte(uint16_t a, uint16_t b)
-{
-    return ~uint16_lt(a, b);
-}
-
-static inline uint16_t uint16_gt(uint16_t a, uint16_t b)
-{
-    // NOTE: Result is invalid when b=INT32_MIN, a=INT32_MAX
-    // For the purposes used in half.c the result is always valid
-    return (uint16_t)((int16_t)(b - a) >> 15);
-}
-
-static inline uint16_t uint16_nez(uint16_t a)
-{
-    return (uint16_t)((int16_t)(a | -a) >> 15);
-}
-
-static inline uint16_t uint16_eqz(uint16_t a)
-{
-    return ~uint16_nez(a);
-}
-
 // static inline uint16_t uint16_nez_p(uint16_t a)
 // {
 //     return (uint16_t)((uint16_t)(a | -a) >> 15);
@@ -137,11 +93,6 @@ static inline uint16_t uint16_eqz(uint16_t a)
 //     return ~uint16_nez_p(a);
 // }
 
-static inline uint16_t uint16_eq(uint16_t a, uint16_t b)
-{
-    return (~uint16_nez(a - b));
-}
-
 static inline uint16_t uint16_and(uint16_t a, uint16_t b)
 {
     return (a & b);
@@ -150,11 +101,6 @@ static inline uint16_t uint16_and(uint16_t a, uint16_t b)
 static inline uint16_t uint16_or(uint16_t a, uint16_t b)
 {
     return (a | b);
-}
-
-static inline uint16_t uint16_or3(uint16_t a, uint16_t b, uint16_t c)
-{
-    return (a | b | c);
 }
 
 static inline uint16_t uint16_add(uint16_t a, uint16_t b)
@@ -182,19 +128,9 @@ static inline uint16_t uint16_srlm(uint16_t a, uint16_t sa, uint16_t mask)
     return ((a >> sa) & mask);
 }
 
-static inline uint16_t uint16_sll(uint16_t a, uint16_t sa)
-{
-    return (a << sa);
-}
-
 static inline uint16_t uint16_not(uint16_t a)
 {
     return (~a);
-}
-
-static inline uint16_t uint16_cp(uint16_t a)
-{
-    return (a);
 }
 
 static inline uint16_t uint16_cntlz(uint16_t x)
@@ -223,75 +159,43 @@ static inline uint16_t uint16_cntlz(uint16_t x)
 
 uint16_t half_from_float(uint32_t f)
 {
-    const uint16_t one                        = 0x0001;
-    const uint32_t f_s_mask                   = 0x80000000;
-    const uint32_t f_e_mask                   = 0x7f800000;
-    const uint32_t f_m_mask                   = 0x007fffff;
-    const uint32_t f_m_hidden_bit             = 0x00800000;
-    const uint32_t f_m_round_bit              = 0x00001000;
-    const uint32_t f_snan_mask                = 0x7fc00000;
-    const uint16_t f_e_bias                   = 0x007f;
-    const uint16_t h_e_bias                   = 0x000f;
-    const uint16_t f_s_pos                    = 0x001f;
-    const uint16_t h_s_pos                    = 0x000f;
-    const uint16_t f_e_pos                    = 0x0017;
-    const uint16_t h_e_pos                    = 0x000a;
-    const uint16_t h_e_mask                   = 0x7c00;
-    const uint16_t h_snan_mask                = 0x7e00;
-    const uint16_t f_e_flagged_value          = 0x00ff;
-    const uint16_t h_e_mask_value             = uint16_srl(h_e_mask, h_e_pos);
-    const uint16_t f_h_s_pos_offset           = uint16_sub(f_s_pos, h_s_pos);
-    const uint16_t f_h_bias_offset            = uint16_sub(f_e_bias, h_e_bias);
-    const uint16_t f_h_m_pos_offset           = uint16_sub(f_e_pos, h_e_pos);
-    const uint16_t h_nan_min                  = uint16_or(h_e_mask, one);
-    const uint32_t f_s_masked                 = uint32_and(f, f_s_mask);
-    const uint32_t f_e_masked                 = uint32_and(f, f_e_mask);
-    const uint16_t h_s                        = uint32_srl(f_s_masked, f_h_s_pos_offset);
-    const uint16_t f_e                        = uint32_srl(f_e_masked, f_e_pos);
-    const uint32_t f_m                        = uint32_and(f, f_m_mask);
-    const uint16_t f_e_half_bias              = uint16_sub(f_e, f_h_bias_offset);
-    const uint32_t f_m_round_mask             = uint32_and(f_m, f_m_round_bit);
-    const uint32_t f_m_round_offset           = uint32_sll(f_m_round_mask, one);
-    const uint32_t f_m_rounded                = uint32_add(f_m, f_m_round_offset);
-    const uint32_t f_m_denorm_sa              = uint32_sub(one, f_e_half_bias);
-    const uint32_t f_m_with_hidden            = uint32_or(f_m_rounded, f_m_hidden_bit);
-    const uint32_t f_m_denorm                 = uint32_srl(f_m_with_hidden, f_m_denorm_sa);
-    const uint16_t h_m_denorm                 = uint32_srl(f_m_denorm, f_h_m_pos_offset);
-    const uint16_t h_denorm                   = uint16_or(h_s, h_m_denorm);
-    const uint16_t h_inf                      = uint16_or(h_s, h_e_mask);
-    const uint16_t m_nan                      = uint32_srl(f_m, f_h_m_pos_offset);
-    const uint16_t h_nan                      = uint16_or3(h_s, h_e_mask, m_nan);
-    const uint16_t h_nan_notinf               = uint16_or(h_s, h_nan_min);
-    const uint16_t h_e_norm_overflow_offset   = uint16_add(f_e_half_bias, one);
-    const uint16_t h_e_norm_overflow          = uint16_sll(h_e_norm_overflow_offset, h_e_pos);
-    const uint16_t h_norm_overflow            = uint16_or(h_s, h_e_norm_overflow);
-    const uint16_t h_e_norm                   = uint16_sll(f_e_half_bias, h_e_pos);
-    const uint16_t h_m_norm                   = uint32_srl(f_m_rounded, f_h_m_pos_offset);
-    const uint16_t h_norm                     = uint16_or3(h_s, h_e_norm, h_m_norm);
-    const uint16_t is_h_denorm                = uint16_gte(f_h_bias_offset, f_e);
-    const uint16_t f_h_e_biased_flag          = uint16_sub(f_e_flagged_value, f_h_bias_offset);
-    const uint16_t is_f_e_flagged             = uint16_eq(f_e_half_bias, f_h_e_biased_flag);
-    const uint16_t is_f_m_zero                = uint32_eqz(f_m);
-    const uint16_t is_h_nan_zero              = uint16_eqz(m_nan);
-    const uint16_t is_f_inf                   = uint16_and(is_f_e_flagged, is_f_m_zero);
-    const uint16_t is_f_nan_underflow         = uint16_and(is_f_e_flagged, is_h_nan_zero);
-    const uint16_t is_f_nan                   = uint16_cp(is_f_e_flagged);
-    const uint16_t is_e_overflow              = uint16_gt(f_e_half_bias, h_e_mask_value);
-    const uint32_t f_m_rounded_overflow       = uint32_and(f_m_rounded, f_m_hidden_bit);
-    const uint32_t is_m_norm_overflow         = uint32_nez(f_m_rounded_overflow);
-    const uint16_t is_h_inf                   = uint16_or(is_e_overflow, is_f_inf);
-    const uint32_t f_snan                     = uint32_and(f, f_snan_mask);
-    const uint32_t is_f_snan                  = uint32_eq(f_snan, f_snan_mask);
-    const uint16_t h_snan                     = uint16_or(h_s, h_snan_mask);
-    const uint16_t check_overflow_result      = uint16_mux(is_m_norm_overflow, h_norm_overflow, h_norm);
-    const uint16_t check_nan_result           = uint16_mux(is_f_nan, h_nan, check_overflow_result);
-    const uint16_t check_nan_underflow_result = uint16_mux(is_f_nan_underflow, h_nan_notinf, check_nan_result);
-    const uint16_t check_inf_result           = uint16_mux(is_h_inf, h_inf, check_nan_underflow_result);
-    const uint16_t check_denorm_result        = uint16_mux(is_h_denorm, h_denorm, check_inf_result);
-    const uint16_t check_snan_result          = uint16_mux(is_f_snan, h_snan, check_denorm_result);
-    const uint16_t result                     = uint16_cp(check_snan_result);
+    // Round to nearest, ties to even (the IEEE default and what the hardware conversions do).
+    const uint16_t sign = (f >> 16) & 0x8000;
+    const uint32_t a    = f & 0x7fffffff;
 
-    return (result);
+    if (a >= 0x7f800000)
+    {
+        // Inf stays inf. NaN stays NaN: keep the upper payload bits and set the quiet bit, so that a NaN whose
+        // payload is only in the low bits does not turn into inf.
+        return a == 0x7f800000 ? (sign | 0x7c00) : (sign | 0x7e00 | ((a >> 13) & 0x3ff));
+    }
+    if (a >= 0x477ff000)
+    {
+        // >= 65520 (halfway between the largest half 65504 and 65536) rounds to inf.
+        return sign | 0x7c00;
+    }
+    if (a >= 0x38800000)
+    {
+        // Normal half: rebias the exponent (127 -> 15). A carry of the rounding increments the exponent.
+        uint32_t h   = (a - 0x38000000) >> 13;
+        uint32_t rem = a & 0x1fff;
+        if (rem > 0x1000 || (rem == 0x1000 && (h & 1))) h++;
+        return sign | (uint16_t)h;
+    }
+    if (a <= 0x33000000)
+    {
+        // <= 2^-25 (half of the smallest denormal 2^-24) rounds to zero.
+        return sign;
+    }
+    // Denormal half: value = m * 2^(e - 150), the result is value / 2^-24 = m >> (126 - e) with shift in [14, 24].
+    const uint32_t e     = a >> 23;
+    const uint32_t m     = (a & 0x7fffff) | 0x800000;
+    const uint32_t shift = 126 - e;
+    uint32_t h           = m >> shift;
+    const uint32_t rem   = m & ((1u << shift) - 1);
+    const uint32_t mid   = 1u << (shift - 1);
+    if (rem > mid || (rem == mid && (h & 1))) h++;
+    return sign | (uint16_t)h;
 }
 
 uint32_t half_to_float(uint16_t h)

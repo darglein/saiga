@@ -31,7 +31,8 @@ int SetEnv(const std::string& name, const std::string& value, int replace)
 
 std::string GetEnv(const std::string& name)
 {
-    return std::string(getenv(name.c_str()));
+    const char* value = getenv(name.c_str());
+    return value ? std::string(value) : std::string();
 }
 
 
