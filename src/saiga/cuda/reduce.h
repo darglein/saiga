@@ -48,12 +48,12 @@ __device__ inline T warpReduce(T val, OP op, unsigned int thread_id = threadIdx.
         mask                  = low_mask << (sub_warp * LOCAL_WARP_SIZE);
         // printf("%#010x %#010x %#010x\n", lane_id , sub_warp, mask);
     }
-//    return val;
+    //    return val;
 
 #pragma unroll
     for (int offset = LOCAL_WARP_SIZE / 2; offset > 0; offset /= 2)
     {
-        auto v = shfl_xor(val, offset,LOCAL_WARP_SIZE, mask);
+        auto v = shfl_xor(val, offset, LOCAL_WARP_SIZE, mask);
         val    = op(val, v);
     }
     return val;
@@ -74,7 +74,9 @@ __device__ inline T blockReduceSum(T val, T* shared, T default_value)
 
     val = (threadIdx.x < BLOCK_SIZE / SAIGA_WARP_SIZE) ? shared[lane] : default_value;
 
-    if (wid == 0) val = warpReduceSum<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(val);  // Final reduce within first warp
+    // Final reduce within the first warp. All 32 lanes take part (lanes without a partial sum hold default_value),
+    // because a sub-warp reduction of width BLOCK_SIZE / 32 drops values if that is not a power of two.
+    if (wid == 0) val = warpReduceSum<T>(val);
     return val;
 }
 

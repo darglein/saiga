@@ -50,11 +50,14 @@ __device__ inline vec3 sampleUnitCone(float angle, curandState& state)
 
 __device__ inline vec3 sampleCone(const vec3& dir, float angle, curandState& state)
 {
-    vec3 v    = sampleUnitCone(angle, state);
-    vec3 cdir = vec3(0, 0, 1);
-    quat q    = rotation(cdir, dir);
-    vec3 r    = q * v;
-    return vec3(r);
+    // sampleUnitCone samples around the y axis. Map y to 'dir' with an orthonormal basis (tangent, dir, bitangent).
+    // Saiga::rotation is a host function and cannot be used here.
+    vec3 v       = sampleUnitCone(angle, state);
+    vec3 d       = dir.normalized();
+    vec3 helper  = fabsf(d.x()) < 0.9f ? vec3(1, 0, 0) : vec3(0, 1, 0);
+    vec3 tangent = helper.cross(d).normalized();
+    vec3 bitan   = d.cross(tangent);
+    return tangent * v.x() + d * v.y() + bitan * v.z();
 }
 
 SAIGA_CUDA_API extern void initRandom(ArrayView<curandState> states, unsigned long long seed);

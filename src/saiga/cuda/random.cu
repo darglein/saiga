@@ -5,12 +5,12 @@
  */
 
 
+#include "saiga/core/time/timer.h"
 #include "saiga/cuda/cudaHelper.h"
 #include "saiga/cuda/random.h"
 #include "saiga/cuda/tests/test.h"
 #include "saiga/cuda/tests/test_helper.h"
 #include "saiga/cuda/thread_info.h"
-#include "saiga/core/time/timer.h"
 
 #include <algorithm>
 
@@ -28,11 +28,10 @@ __global__ static void curand_setup_kernel(ArrayView<curandState> state, unsigne
     // grid stride loop
     for (auto tid = ti.thread_id; tid < state.size(); tid += ti.grid_size)
     {
-        /* Each thread gets same seed, a different sequence
-       number, no offset */
-        curandState localState = state[tid];
-        curand_init(seed, tid % 997, tid / 997 * 10, &localState);
-        //        curand_init(seed, tid, 0, &localState);
+        // Each thread gets the same seed and its own sequence number. (A sequence of tid % 997 with an offset of
+        // tid / 997 * 10 made the sequences of threads that are 997 apart overlap after 10 numbers.)
+        curandState localState;
+        curand_init(seed, tid, 0, &localState);
         state[tid] = localState;
     }
 }
