@@ -4,14 +4,17 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/math/Polynomial4.h"
 #include "saiga/core/math/all.h"
 #include "saiga/core/math/half.h"
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <vector>
 
 using namespace Saiga;
 
@@ -237,4 +240,66 @@ TEST(MathFunctions, IniStringRoundtrip)
     ivec3 i2;
     fromIniString(toIniString(i), i2);
     EXPECT_EQ(i, i2);
+}
+
+// Regression test: for Q == 0 the cubic solver used pow(2 * R, 1 / 3.0), which is NaN for negative R (x^3 + 1 = 0).
+TEST(MathFunctions, SolveCubicNegativeCubeRoot)
+{
+    double x0 = 0, x1 = 0, x2 = 0;
+    EXPECT_EQ(solve_deg3(1, 0, 0, 1, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, -1, 1e-12);
+
+    EXPECT_EQ(solve_deg3(2, 0, 0, -16, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, 2, 1e-12);
+
+    // (x + 1)^3 - 8 = 0 -> x = 1, shifted so that b != 0.
+    EXPECT_EQ(solve_deg3(1, 3, 3, -7, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, 1, 1e-12);
+
+    EXPECT_EQ(solve_deg3(1, 3, 3, 9, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, -3, 1e-12);
+}
+
+TEST(MathFunctions, SolvePolynomials)
+{
+    double x0 = 0, x1 = 0, x2 = 0, x3 = 0;
+
+    EXPECT_EQ(solve_deg2(1, -3, 2, x0, x1), 2);
+    EXPECT_NEAR(std::min(x0, x1), 1, 1e-12);
+    EXPECT_NEAR(std::max(x0, x1), 2, 1e-12);
+    EXPECT_EQ(solve_deg2(1, 0, 1, x0, x1), 0);
+
+    // (x - 1)(x - 2)(x + 3) = x^3 - 7x + 6
+    EXPECT_EQ(solve_deg3(1, 0, -7, 6, x0, x1, x2), 3);
+    std::vector<double> r = {x0, x1, x2};
+    std::sort(r.begin(), r.end());
+    EXPECT_NEAR(r[0], -3, 1e-10);
+    EXPECT_NEAR(r[1], 1, 1e-10);
+    EXPECT_NEAR(r[2], 2, 1e-10);
+
+    // Degenerate leading coefficients fall back to lower degrees.
+    EXPECT_EQ(solve_deg3(0, 1, -3, 2, x0, x1, x2), 2);
+    EXPECT_EQ(solve_deg3(0, 0, 2, -4, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, 2, 1e-12);
+
+    // (x-1)(x-2)(x-3)(x-4)
+    EXPECT_EQ(solve_deg4(1, -10, 35, -50, 24, x0, x1, x2, x3), 4);
+    r = {x0, x1, x2, x3};
+    std::sort(r.begin(), r.end());
+    for (int i = 0; i < 4; ++i) EXPECT_NEAR(r[i], i + 1, 1e-8);
+
+    // x^4 - 1 has the real roots -1 and 1.
+    Matrix<double, 5, 1> coeffs;
+    coeffs(0) = 1;
+    coeffs(1) = 0;
+    coeffs(2) = 0;
+    coeffs(3) = 0;
+    coeffs(4) = -1;
+    Vec4 roots;
+    EXPECT_EQ(solve_deg4(coeffs, roots), 2);
+    EXPECT_NEAR(std::min(roots(0), roots(1)), -1, 1e-10);
+    EXPECT_NEAR(std::max(roots(0), roots(1)), 1, 1e-10);
+
+    // x^4 + 1 has no real roots.
+    EXPECT_EQ(solve_deg4(1, 0, 0, 0, 1, x0, x1, x2, x3), 0);
 }
