@@ -146,3 +146,11 @@ TEST(UnifiedMesh, IcoSphere)
     Sphere s(vec3(-1, 0.5, 2), 0.5);
     ExpectClosedSphere(IcoSphereMesh(s, 2), s);
 }
+
+// Regression test: UVSphereMesh placed all vertices on a cone (the y coordinate used sin(-2 pi + ...) instead of
+// -cos(...)) and then multiplied the model with the scalar 1 / sectors instead of the sphere radius.
+TEST(UnifiedMesh, UVSphere)
+{
+    Sphere s(vec3(1, 2, 3), 2);
+    ExpectClosedSphere(UVSphereMesh(s, 20, 30), s);
+}
