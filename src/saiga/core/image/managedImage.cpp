@@ -434,6 +434,10 @@ bool Image::saveRaw(const std::filesystem::path& path, bool do_compress) const
 {
     BinaryOutputVector stream;
 
+#ifndef SAIGA_USE_ZLIB
+    // Without zlib the pixels are stored uncompressed, so the header must not claim otherwise.
+    do_compress = false;
+#endif
     int magic = do_compress ? saiga_compressed_image_magic_number : saiga_image_magic_number;
     stream << magic << width << height << type;
     SAIGA_ASSERT(stream.data.size() == saiga_image_header_size);
