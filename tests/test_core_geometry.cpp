@@ -443,3 +443,19 @@ TEST(Geometry, HalfEdgeMeshNeighbours)
     EXPECT_EQ(out.vertices.size(), mesh.vertices.size());
     EXPECT_EQ(out.toTriangleList().size(), 4u);
 }
+
+// Regression test: closestPointOnCircle normalized a zero vector (NaN) if the point projects onto the circle center.
+TEST(Geometry, CircleClosestPoint)
+{
+    Circle c(vec3(1, 2, 3), 2, vec3(0, 0, 1));
+    vec3 p = c.closestPointOnCircle(vec3(4, 2, 7));
+    EXPECT_NEAR((p - vec3(3, 2, 3)).norm(), 0, 1e-5);
+    EXPECT_NEAR(c.distance(vec3(4, 2, 7)), std::sqrt(1.f + 16.f), 1e-5);
+
+    // Every point on the circle is closest to a point on the axis.
+    vec3 q = c.closestPointOnCircle(vec3(1, 2, 10));
+    EXPECT_TRUE(q.allFinite());
+    EXPECT_NEAR((q - c.pos).norm(), 2, 1e-5);
+    EXPECT_NEAR((q - c.pos).dot(c.normal), 0, 1e-5);
+    EXPECT_NEAR(c.distance(vec3(1, 2, 10)), std::sqrt(4.f + 49.f), 1e-5);
+}

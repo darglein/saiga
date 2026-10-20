@@ -23,7 +23,13 @@ float Circle::distance(const vec3& p) const
 vec3 Circle::closestPointOnCircle(const vec3& p) const
 {
     vec3 pp = getPlane().closestPointOnPlane(p);
-    vec3 d  = normalize(vec3(pp - pos));
+    vec3 d  = vec3(pp - pos);
+    if (d.squaredNorm() == 0)
+    {
+        // p is on the axis of the circle: all points on the circle are equally close.
+        d = onb(getPlane().normal).col(0);
+    }
+    d = normalize(d);
     return pos + d * r;
 }
 
