@@ -116,6 +116,8 @@ class SAIGA_OPENGL_API TextureBase
      * For one- and two-dimensional array and cube map array textures, each layer is filtered independently.
      *
      * Cube map and array textures are accepted only if the GL version is 4.0 or higher.
+     *
+     * Integer textures are not filterable and keep their single level (and filter).
      */
 
     void generateMipmaps();

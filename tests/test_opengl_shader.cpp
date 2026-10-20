@@ -683,3 +683,34 @@ TEST_F(OpenGLShader, UniformBlockIndicesOfInvalidBlock)
     EXPECT_TRUE(shader.getUniformBlockIndices(block + 10).empty());
     EXPECT_TRUE(shader.getUniformBlockIndices(GL_INVALID_INDEX).empty());
 }
+
+// generateMipmaps set GL_LINEAR_MIPMAP_LINEAR on integer textures (which have no mipmaps, glGenerateMipmap does not
+// accept them), which made them incomplete: every fetch returned 0.
+TEST_F(OpenGLShader, SampleMipmappedIntegerTexture)
+{
+    int w = 4, h = 4;
+    TemplatedImage<unsigned int> img(h, w);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) img(y, x) = 100 * y + x + 1;
+
+    Texture2D tex(img);
+    tex.generateMipmaps();
+
+    std::vector<unsigned int> zeros(w * h, 0);
+    TemplatedShaderStorageBuffer<unsigned int> out_buffer;
+    out_buffer.create(zeros, GL_DYNAMIC_READ);
+
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(integer_texture_compute_shader));
+    out_buffer.bind(0);
+    ASSERT_TRUE(shader.bind());
+    shader.upload(0, tex, 0);
+    shader.dispatchCompute(shader.getNumGroupsCeil(uvec3(w, h, 1)));
+    shader.unbind();
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+
+    std::vector<unsigned int> result(w * h);
+    out_buffer.get(result);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) EXPECT_EQ(result[y * w + x], img(y, x)) << x << " " << y;
+}

@@ -435,3 +435,44 @@ TEST_F(OpenGLTexture, CubeDownload)
     }
     EXPECT_FALSE(tex.downloadFace(GL_TEXTURE_2D, all.data()));
 }
+
+static GLint GetTexParameter(TextureBase& tex, GLenum name)
+{
+    GLint value = 0;
+    tex.bind();
+    glGetTexParameteriv(tex.getTarget(), name, &value);
+    tex.unbind();
+    return value;
+}
+
+// setWrap only set the S and T coordinates, not R of 3D and cube textures.
+TEST_F(OpenGLTexture, SetWrap3D)
+{
+    Texture3D tex;
+    tex.create(2, 2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    tex.setWrap(GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_T), GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_R), GL_REPEAT);
+
+    TextureCube cube;
+    cube.create(2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    cube.setWrap(GL_MIRRORED_REPEAT);
+    EXPECT_EQ(GetTexParameter(cube, GL_TEXTURE_WRAP_R), GL_MIRRORED_REPEAT);
+}
+
+// generateMipmaps set GL_LINEAR_MIPMAP_LINEAR on integer textures, which makes them incomplete. They are not
+// filterable, so glGenerateMipmap does not accept them either.
+TEST_F(OpenGLTexture, GenerateMipmapsInteger)
+{
+    TemplatedImage<unsigned int> img(4, 4);
+    img.getImageView().set(7);
+    Texture2D tex(img);
+    tex.generateMipmaps();
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_NEAREST);
+
+    Texture2D tex_float;
+    tex_float.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    tex_float.generateMipmaps();
+    EXPECT_EQ(GetTexParameter(tex_float, GL_TEXTURE_MIN_FILTER), GL_LINEAR_MIPMAP_LINEAR);
+}

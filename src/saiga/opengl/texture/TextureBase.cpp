@@ -9,6 +9,8 @@
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/glImageFormat.h"
 
+#include <iostream>
+
 namespace Saiga
 {
 TextureBase::~TextureBase()
@@ -110,6 +112,10 @@ void TextureBase::setWrap(GLenum param)
     bind();
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(param));
     glTexParameteri(target, GL_TEXTURE_WRAP_T, static_cast<GLint>(param));
+    if (target == GL_TEXTURE_3D || target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+    {
+        glTexParameteri(target, GL_TEXTURE_WRAP_R, static_cast<GLint>(param));
+    }
     unbind();
     assert_no_glerror();
 }
@@ -132,6 +138,14 @@ void TextureBase::setParameter(GLenum name, GLenum param)
 
 void TextureBase::generateMipmaps()
 {
+    // Integer formats are not filterable: glGenerateMipmap does not accept them and a mipmap filter without mipmaps
+    // would make the texture incomplete.
+    if (defaultFilter() == GL_NEAREST)
+    {
+        std::cerr << "TextureBase::generateMipmaps: Mipmaps of integer textures are not supported." << std::endl;
+        return;
+    }
+
     bind();
     glGenerateMipmap(target);
     unbind();
