@@ -384,3 +384,22 @@ TEST_F(OpenGLTexture, CubeFromImage)
     std::vector<Image> not_square(6, TemplatedImage<ucvec4>(4, 2));
     EXPECT_FALSE(tex.fromImage(not_square));
 }
+
+// Texture3D::create and fromImage bound the texture with bind(0), which changed the active texture unit.
+TEST_F(OpenGLTexture, Texture3DCreateKeepsActiveTexture)
+{
+    glActiveTexture(GL_TEXTURE3);
+
+    Texture3D tex;
+    tex.create(2, 2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    GLint active = 0;
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+    EXPECT_EQ(active, GL_TEXTURE3);
+
+    std::vector<Image> images(2, TemplatedImage<ucvec4>(2, 2));
+    ASSERT_TRUE(tex.fromImage(images));
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+    EXPECT_EQ(active, GL_TEXTURE3);
+
+    glActiveTexture(GL_TEXTURE0);
+}
