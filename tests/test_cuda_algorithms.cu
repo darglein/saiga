@@ -107,6 +107,53 @@ TEST(CudaReduce, GlobalSumNonPowerOfTwoWarps)
     }
 }
 
+// Each block reduces its BLOCK_SIZE elements twice with the same shared memory.
+template <unsigned int BLOCK_SIZE>
+__global__ static void BlockReduceTwiceKernel(ArrayView<int> in, ArrayView<int> out)
+{
+    __shared__ int shared[BLOCK_SIZE / SAIGA_WARP_SIZE];
+    __shared__ int shared_atomic[1];
+    int i = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+    int v = i < in.size() ? in[i] : 0;
+
+    int s1 = CUDA::blockReduceSum<int, BLOCK_SIZE>(v, shared, 0);
+    int s2 = CUDA::blockReduceSum<int, BLOCK_SIZE>(2 * v + 1, shared, 0);
+    int a1 = CUDA::blockReduceAtomicSum<int, BLOCK_SIZE>(v, shared_atomic);
+    int a2 = CUDA::blockReduceAtomicSum<int, BLOCK_SIZE>(3 * v, shared_atomic);
+    if (threadIdx.x == 0)
+    {
+        out[blockIdx.x * 4 + 0] = s1;
+        out[blockIdx.x * 4 + 1] = s2;
+        out[blockIdx.x * 4 + 2] = a1;
+        out[blockIdx.x * 4 + 3] = a2;
+    }
+}
+
+// Regression test: blockReduceSum and blockReduceAtomicSum had no barrier before writing to 'shared'. In a second call,
+// the other warps could overwrite the per-warp sums while warp 0 was still reading the values of the first call (found
+// by compute-sanitizer --tool racecheck).
+TEST(CudaReduce, BlockReduceTwice)
+{
+    const unsigned int BLOCK_SIZE = 1024;
+    const int blocks              = 200;
+    const int n                   = blocks * BLOCK_SIZE - 17;
+    auto h_data                   = RandomVector<int>(n, -100, 100);
+    thrust::device_vector<int> d_data(h_data);
+    thrust::device_vector<int> d_out(blocks * 4);
+    BlockReduceTwiceKernel<BLOCK_SIZE><<<blocks, BLOCK_SIZE>>>(d_data, d_out);
+    auto h_out = ToHost(d_out);
+    for (int b = 0; b < blocks; ++b)
+    {
+        int begin = b * BLOCK_SIZE;
+        int end   = std::min(n, begin + int(BLOCK_SIZE));
+        int sum   = std::accumulate(h_data.begin() + begin, h_data.begin() + end, 0);
+        EXPECT_EQ(h_out[b * 4 + 0], sum) << "block " << b;
+        EXPECT_EQ(h_out[b * 4 + 1], 2 * sum + int(BLOCK_SIZE)) << "block " << b;
+        EXPECT_EQ(h_out[b * 4 + 2], sum) << "block " << b;
+        EXPECT_EQ(h_out[b * 4 + 3], 3 * sum) << "block " << b;
+    }
+}
+
 struct MaxOp
 {
     __device__ int operator()(int a, int b) const { return a > b ? a : b; }

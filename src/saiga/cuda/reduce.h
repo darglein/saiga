@@ -68,6 +68,9 @@ __device__ inline T blockReduceSum(T val, T* shared, T default_value)
 
     val = warpReduceSum(val);
 
+    // Warp 0 of a previous call with the same 'shared' (for example in a loop) may still read it.
+    __syncthreads();
+
     if (lane == 0) shared[wid] = val;
 
     __syncthreads();
@@ -87,6 +90,10 @@ __device__ inline T blockReduceAtomicSum(T val, T* shared)
 
     // Each warp reduces with registers
     val = warpReduceSum(val);
+
+    // A previous call with the same 'shared' may still read it. In the source only thread 0 reads the result, but the
+    // compiler may load it in all threads.
+    __syncthreads();
 
     // Init shared memory
     if (threadIdx.x == 0) shared[0] = T(0);
