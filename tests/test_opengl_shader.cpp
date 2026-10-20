@@ -8,6 +8,7 @@
 #include "saiga/opengl/shader/shader.h"
 #include "saiga/opengl/shaderStorageBuffer.h"
 #include "saiga/opengl/texture/Texture2D.h"
+#include "saiga/opengl/texture/Texture3D.h"
 
 #include "opengl_test_context.h"
 
@@ -348,4 +349,58 @@ TEST_F(OpenGLShader, UploadUniformArrays)
         for (int c = 0; c < 4; ++c) EXPECT_EQ(value[c * 4 + r], m4(r, c)) << r << " " << c;
 
     shader.unbind();
+}
+
+// Samples the center of every voxel of a 3D texture and writes the red channel (0..255) into a buffer.
+static const char* texture3d_compute_shader = R"(
+##GL_COMPUTE_SHADER
+#version 430
+layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+layout(location = 0) uniform sampler3D src;
+layout(std430, binding = 0) writeonly buffer Out { uint data_out[]; };
+void main()
+{
+    ivec3 p = ivec3(gl_GlobalInvocationID.xyz);
+    ivec3 size = textureSize(src, 0);
+    if (any(greaterThanEqual(p, size))) return;
+    vec4 c = texture(src, (vec3(p) + 0.5) / vec3(size));
+    data_out[(p.z * size.y + p.y) * size.x + p.x] = uint(round(c.r * 255.0));
+}
+)";
+
+// Texture3D::fromImage did not set the filter parameters. The default minification filter uses mipmaps, which
+// fromImage does not create, so the texture was incomplete and every sample returned 0.
+TEST_F(OpenGLShader, SampleTexture3DFromImage)
+{
+    int w = 3, h = 2, d = 2;
+    std::vector<Image> images;
+    for (int z = 0; z < d; ++z)
+    {
+        TemplatedImage<ucvec4> img(h, w);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) img(y, x) = ucvec4(1 + x + 10 * y + 100 * z, 0, 0, 255);
+        images.push_back(img);
+    }
+    Texture3D tex;
+    ASSERT_TRUE(tex.fromImage(images));
+
+    std::vector<unsigned int> zeros(w * h * d, 0);
+    TemplatedShaderStorageBuffer<unsigned int> out_buffer;
+    out_buffer.create(zeros, GL_DYNAMIC_READ);
+
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(texture3d_compute_shader));
+    out_buffer.bind(0);
+    ASSERT_TRUE(shader.bind());
+    shader.upload(0, tex, 0);
+    shader.dispatchCompute(shader.getNumGroupsCeil(uvec3(w, h, d)));
+    shader.unbind();
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+
+    std::vector<unsigned int> result(w * h * d);
+    out_buffer.get(result);
+    for (int z = 0; z < d; ++z)
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+                EXPECT_EQ(result[(z * h + y) * w + x], 1u + x + 10 * y + 100 * z) << x << " " << y << " " << z;
 }
