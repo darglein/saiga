@@ -391,3 +391,55 @@ TEST(Geometry, KDTreeEmptyQueries)
     EXPECT_TRUE(tree.KNearestNeighborSearch(vec3(0, 0, 0), 0).empty());
     EXPECT_EQ(tree.NearestNeighborSearch(vec3(0.9, 0, 0)), 1);
 }
+
+static std::vector<int> SortedNeighbours(HalfEdgeMesh<Vertex, uint32_t>& hem, int v)
+{
+    std::vector<int> n;
+    hem.getNeighbours(v, n);
+    std::sort(n.begin(), n.end());
+    return n;
+}
+
+// Regression test: getNeighbours missed the last neighbor of a boundary vertex when walking in the second direction
+// (e.g. vertex 0 of a single triangle only returned one neighbor).
+TEST(Geometry, HalfEdgeMeshNeighbours)
+{
+    TriangleMesh<Vertex, uint32_t> mesh;
+    // A square of 4 triangles around the center vertex 4.
+    mesh.addVertex(Vertex(vec3(0, 0, 0)));
+    mesh.addVertex(Vertex(vec3(1, 0, 0)));
+    mesh.addVertex(Vertex(vec3(1, 1, 0)));
+    mesh.addVertex(Vertex(vec3(0, 1, 0)));
+    mesh.addVertex(Vertex(vec3(0.5, 0.5, 0)));
+    mesh.addFace(0, 1, 4);
+    mesh.addFace(1, 2, 4);
+    mesh.addFace(2, 3, 4);
+    mesh.addFace(3, 0, 4);
+
+    HalfEdgeMesh<Vertex, uint32_t> hem(mesh);
+    EXPECT_TRUE(hem.isValid());
+    EXPECT_EQ(SortedNeighbours(hem, 4), std::vector<int>({0, 1, 2, 3}));
+    for (int v = 0; v < 4; ++v)
+    {
+        std::vector<int> expected = {(v + 1) % 4, (v + 3) % 4, 4};
+        std::sort(expected.begin(), expected.end());
+        EXPECT_EQ(SortedNeighbours(hem, v), expected) << v;
+    }
+
+    TriangleMesh<Vertex, uint32_t> single;
+    single.addVertex(Vertex(vec3(0, 0, 0)));
+    single.addVertex(Vertex(vec3(1, 0, 0)));
+    single.addVertex(Vertex(vec3(0, 1, 0)));
+    single.addFace(0, 1, 2);
+    HalfEdgeMesh<Vertex, uint32_t> hem2(single);
+    EXPECT_EQ(SortedNeighbours(hem2, 0), std::vector<int>({1, 2}));
+    EXPECT_EQ(SortedNeighbours(hem2, 1), std::vector<int>({0, 2}));
+    EXPECT_EQ(SortedNeighbours(hem2, 2), std::vector<int>({0, 1}));
+
+    // Round trip back to an indexed face set.
+    TriangleMesh<Vertex, uint32_t> out;
+    hem.toIFS(out);
+    EXPECT_EQ(out.faces.size(), mesh.faces.size());
+    EXPECT_EQ(out.vertices.size(), mesh.vertices.size());
+    EXPECT_EQ(out.toTriangleList().size(), 4u);
+}
