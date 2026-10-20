@@ -244,14 +244,9 @@ __global__ __launch_bounds__(BLOCK_SIZE) void tiledSinglePassScan(ArrayView<unsi
             global_exclusive_prefix = 0;
             while (current_pred >= 0)
             {
-#if 0
-                //In fact L1 cache is disabled by default for global memory reads,
-                //if this changes use this special function
-                unsigned int blockData = loadNoL1Cache(aggregate.data()+current_pred);
-                //                unsigned int blockData = atomicCAS(aggregate.data()+current_pred,0,0);
-#else
-                unsigned int blockData = aggregate[current_pred];
-#endif
+                // This value is written by other blocks while we spin on it. A plain load may be served from the
+                // (incoherent) L1 cache or hoisted out of the loop, so the update would be seen very late or never.
+                unsigned int blockData = *static_cast<volatile unsigned int*>(aggregate.data() + current_pred);
 
                 unsigned int offsetData = (blockData) & ((1 << 30) - 1);
                 bool prefixAvailable    = blockData >> 30 == SCAN_BLOCK_PREFIX;

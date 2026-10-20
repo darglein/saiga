@@ -219,6 +219,61 @@ TEST(CudaScan, BlockInclusiveScan)
     }
 }
 
+template <bool EXCLUSIVE>
+static void TestTiledScan(int n)
+{
+    const unsigned int BLOCK_SIZE = 256;
+    const unsigned int TILES      = 8;
+    const unsigned int ELEMENTS   = BLOCK_SIZE * TILES * 4;
+
+    auto h_data = RandomVector<unsigned int>(n, 0, 3);
+    std::vector<unsigned int> expected(n);
+    unsigned int sum = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        if (EXCLUSIVE) expected[i] = sum;
+        sum += h_data[i];
+        if (!EXCLUSIVE) expected[i] = sum;
+    }
+
+    thrust::device_vector<unsigned int> d_data(h_data);
+    thrust::device_vector<unsigned int> d_out(n, 0xFFFFFFFF);
+    int blocks = CUDA::getBlockCount(n, ELEMENTS);
+    thrust::device_vector<unsigned int> d_aggregate(blocks + 1, 0xFFFFFFFF);
+
+    float ms;
+    {
+        CUDA::ScopedTimer timer(ms);
+        CUDA::tiledSinglePassScan<EXCLUSIVE, BLOCK_SIZE, TILES, int4, true>
+            <<<blocks, BLOCK_SIZE>>>(d_data, d_out, d_aggregate);
+    }
+    // Regression test: the decoupled look-back spun on a plain (L1 cached) load of the predecessor's aggregate. It
+    // took seconds instead of microseconds to see the update, or never saw it and hung.
+    EXPECT_LT(ms, 1000) << "n " << n;
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    auto h_out = ToHost(d_out);
+
+    int errors = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        if (h_out[i] != expected[i])
+        {
+            if (errors < 5) ADD_FAILURE() << "index " << i << " expected " << expected[i] << " got " << h_out[i];
+            errors++;
+        }
+    }
+    EXPECT_EQ(errors, 0) << "n " << n << " exclusive " << EXCLUSIVE;
+}
+
+TEST(CudaScan, TiledSinglePassScan)
+{
+    for (int n : {1, 3, 4, 5, 8191, 8192, 8193, 100000, 1000003, 10000000})
+    {
+        TestTiledScan<true>(n);
+        TestTiledScan<false>(n);
+    }
+}
+
 // ======================== Warp sort / shuffle ========================
 
 template <unsigned int SIZE>
