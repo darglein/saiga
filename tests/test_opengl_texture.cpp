@@ -506,6 +506,45 @@ TEST_F(OpenGLTexture, ReuploadKeepsParameters)
     EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_CLAMP_TO_EDGE);
 }
 
+// updateFromImage uploaded with the stored texture size instead of the image size, so a larger image was cut off and
+// a smaller one was read out of bounds.
+TEST_F(OpenGLTexture, UpdateFromImageOfDifferentSize)
+{
+    TemplatedImage<ucvec4> small(2, 2);
+    small.getImageView().set(ucvec4(0, 0, 0, 0));
+    Texture2D tex(small);
+
+    TemplatedImage<ucvec4> img(3, 5);
+    for (int y = 0; y < img.h; ++y)
+    {
+        for (int x = 0; x < img.w; ++x)
+        {
+            img(y, x) = ucvec4(x, y, x + y, 255);
+        }
+    }
+    tex.updateFromImage(img);
+    EXPECT_EQ(tex.getWidth(), 5);
+    EXPECT_EQ(tex.getHeight(), 3);
+
+    tex.bind();
+    GLint w = 0, h = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+    tex.unbind();
+    EXPECT_EQ(w, 5);
+    EXPECT_EQ(h, 3);
+
+    TemplatedImage<ucvec4> result(3, 5);
+    tex.download(result.data());
+    for (int y = 0; y < img.h; ++y)
+    {
+        for (int x = 0; x < img.w; ++x)
+        {
+            EXPECT_EQ(result(y, x), img(y, x));
+        }
+    }
+}
+
 // A resize drops the mipmaps, so a mipmap filter would make the texture incomplete.
 TEST_F(OpenGLTexture, ResizeMipmappedTexture)
 {

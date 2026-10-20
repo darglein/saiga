@@ -7,6 +7,7 @@
 #include "Texture2D.h"
 
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/glImageFormat.h"
 #include "saiga/opengl/texture/Texture.h"
 
 namespace Saiga
@@ -69,6 +70,12 @@ void Texture2D::setDefaultParameters()
 
 void Texture2D::updateFromImage(const Image& img)
 {
+    // The upload reads width * height pixels of the texture's format from the image.
+    SAIGA_ASSERT(getGlType(img.type) == data_type &&
+                     (getGlFormat(img.type) == color_type || getGlFormatInteger(img.type) == color_type),
+                 "The image type does not match the texture format");
+    width  = img.w;
+    height = img.h;
     uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(), [this](const void* data) { upload(data); });
 }
 
