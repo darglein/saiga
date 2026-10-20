@@ -323,6 +323,9 @@ utf32string Encoding::UTF8toUTF32(const std::string& str)
         unsigned char c = str[i];
         int size        = sizeTable[c];
 
+        // a sequence that is cut off at the end of the string
+        if (size > (int)str.size() - i) size = -1;
+
         std::vector<unsigned char> utf8char;
         for (int j = 0; j < size; ++j)
         {
@@ -365,9 +368,9 @@ std::vector<unsigned char> Encoding::UTF32toUTF8(uint32_t utf32char)
         size = 1;
     else if (utf32char >= 0x80 && utf32char <= 0x7FF)
         size = 2;
-    else if (utf32char >= 800 && utf32char <= 0xFFFF)
+    else if (utf32char >= 0x800 && utf32char <= 0xFFFF)
         size = 3;
-    else if (utf32char >= 10000 && utf32char <= 0x1FFFFF)
+    else if (utf32char >= 0x10000 && utf32char <= 0x1FFFFF)
         size = 4;
     else
     {
@@ -391,14 +394,14 @@ std::vector<unsigned char> Encoding::UTF32toUTF8(uint32_t utf32char)
         case 3:
             // format 4|4 2|6 2|6
             utf32char = utf32char & 0xFFFF;
-            result.push_back((utf32char >> 12) | (0x6 << 5));
+            result.push_back((utf32char >> 12) | (0xE << 4));
             result.push_back(((utf32char >> 6) & 0x3F) | (0x2 << 6));
             result.push_back(((utf32char >> 0) & 0x3F) | (0x2 << 6));
             break;
         case 4:
             // format 5|3 2|6 2|6 2|6
             utf32char = utf32char & 0x1FFFFF;
-            result.push_back((utf32char >> 18) | (0x6 << 5));
+            result.push_back((utf32char >> 18) | (0x1E << 3));
             result.push_back(((utf32char >> 12) & 0x3F) | (0x2 << 6));
             result.push_back(((utf32char >> 6) & 0x3F) | (0x2 << 6));
             result.push_back(((utf32char >> 0) & 0x3F) | (0x2 << 6));

@@ -38,3 +38,34 @@ TEST(String, SizeToStringHuge)
     EXPECT_EQ(sizeToString(std::numeric_limits<size_t>::max()), "16.0 EB");
     EXPECT_EQ(sizeToString(std::numeric_limits<size_t>::max(), 1000), "18.4 EB");
 }
+
+TEST(Encoding, UTF32toUTF8)
+{
+    // The lead byte of 3 and 4 byte sequences was 110xxxxx (the 2 byte marker) instead of 1110xxxx / 11110xxx.
+    EXPECT_EQ(Encoding::UTF32toUTF8(utf32string{0x41}), "A");
+    EXPECT_EQ(Encoding::UTF32toUTF8(utf32string{0xE4}), "\xC3\xA4");
+    EXPECT_EQ(Encoding::UTF32toUTF8(utf32string{0x20AC}), "\xE2\x82\xAC");
+    EXPECT_EQ(Encoding::UTF32toUTF8(utf32string{0x1F600}), "\xF0\x9F\x98\x80");
+}
+
+TEST(Encoding, Roundtrip)
+{
+    utf32string all;
+    for (uint32_t c : {0x0u, 0x7Fu, 0x80u, 0x7FFu, 0x800u, 0xFFFFu, 0x10000u, 0x10FFFFu}) all.push_back(c);
+    auto utf8 = Encoding::UTF32toUTF8(all);
+    EXPECT_EQ(utf8.size(), 2 * 1 + 2 * 2 + 2 * 3 + 2 * 4);
+    EXPECT_EQ(Encoding::UTF8toUTF32(utf8), all);
+
+    std::string text = "a\xC3\xA4\xE2\x82\xAC\xF0\x9F\x98\x80z";
+    EXPECT_EQ(Encoding::UTF8toUTF32(text), (utf32string{'a', 0xE4, 0x20AC, 0x1F600, 'z'}));
+    EXPECT_EQ(Encoding::UTF32toUTF8(Encoding::UTF8toUTF32(text)), text);
+}
+
+TEST(Encoding, TruncatedUTF8)
+{
+    // A multi byte sequence cut off at the end of the string was read past the end of the string.
+    std::string truncated = "ab\xF0\x9F";
+    EXPECT_EQ(Encoding::UTF8toUTF32(truncated), (utf32string{'a', 'b'}));
+    // Invalid bytes are skipped.
+    EXPECT_EQ(Encoding::UTF8toUTF32(std::string("a\x80z")), (utf32string{'a', 'z'}));
+}
