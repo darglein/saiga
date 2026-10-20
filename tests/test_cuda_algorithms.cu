@@ -94,6 +94,19 @@ TEST(CudaReduce, GlobalSum)
     }
 }
 
+// Regression test: blockReduceSum reduced the per-warp partial sums with a sub-warp reduction of width
+// BLOCK_SIZE/32. For a block size whose warp count is not a power of two (e.g. 96 = 3 warps) the
+// partial sum of the last warp was dropped.
+TEST(CudaReduce, GlobalSumNonPowerOfTwoWarps)
+{
+    for (int n : {96, 1000, 100001})
+    {
+        TestGlobalReduce<int, 96>(n);
+        TestGlobalReduce<int, 192>(n);
+        TestGlobalReduce<int, 320>(n);
+    }
+}
+
 struct MaxOp
 {
     __device__ int operator()(int a, int b) const { return a > b ? a : b; }
