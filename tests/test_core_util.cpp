@@ -372,6 +372,28 @@ TEST(FileChecker, GetFiles)
     EXPECT_TRUE(out.empty());
 }
 
+TEST(String, LeadingZeroStringNegative)
+{
+    // The zeros were inserted before the sign: -5 -> "0-5".
+    EXPECT_EQ(leadingZeroString(-5, 3), "-05");
+    EXPECT_EQ(leadingZeroString(-5, 2), "-5");
+    EXPECT_EQ(leadingZeroString(-123, 2), "-123");
+    EXPECT_EQ(leadingZeroString(5, 0), "5");
+    EXPECT_EQ(leadingZeroString(5, -1), "5");
+    EXPECT_EQ(leadingZeroString(0, 3), "000");
+}
+
+TEST(String, FileEndingWithoutEnding)
+{
+    // A name without ending returned the whole name, and a '.' in a directory name was taken as the ending.
+    EXPECT_EQ(fileEnding("noext"), "");
+    EXPECT_EQ(fileEnding("dir.d/noext"), "");
+    EXPECT_EQ(fileEnding("dir.d\\noext"), "");
+    EXPECT_EQ(fileEnding("dir.d/file.png"), "png");
+    EXPECT_EQ(fileEnding("file."), "");
+    EXPECT_EQ(fileEnding(""), "");
+}
+
 TEST(DataStructures, FixedVectorCopy)
 {
     // The implicit copy of FixedVectorHeap copied the data pointer, so both vectors freed the same memory. The implicit

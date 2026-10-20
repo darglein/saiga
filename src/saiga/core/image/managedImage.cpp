@@ -195,7 +195,9 @@ bool Image::loadFromMemory(ArrayView<const char> data, const std::string& hint)
 {
     bool erg = false;
 
+    // The hint is either a file name or only the ending, e.g. the format hint of an embedded texture ("png").
     std::string type = fileEnding(hint);
+    if (type.empty()) type = hint;
     std::transform(type.begin(), type.end(), type.begin(), [](char c) { return std::tolower(c); });
 
     if (type == "png")
