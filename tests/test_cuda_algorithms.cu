@@ -164,6 +164,61 @@ TEST(CudaReduce, Generic)
 
 // ======================== Scans ========================
 
+template <unsigned int BLOCK_SIZE, int TILES>
+__global__ static void BlockScanKernel(ArrayView<int> in, ArrayView<int> out)
+{
+    __shared__ int shared[BLOCK_SIZE / SAIGA_WARP_SIZE];
+    __shared__ int prefix;
+    if (threadIdx.x == 0) prefix = 0;
+    __syncthreads();
+
+    for (int t = 0; t < TILES; ++t)
+    {
+        int i = (blockIdx.x * TILES + t) * BLOCK_SIZE + threadIdx.x;
+        int v = i < in.size() ? in[i] : 0;
+        v     = CUDA::blockInclusiveScan<BLOCK_SIZE>(v, shared, &prefix);
+        if (i < in.size()) out[i] = v;
+    }
+}
+
+template <unsigned int BLOCK_SIZE, int TILES>
+static void TestBlockScan(int n)
+{
+    auto h_data = RandomVector<int>(n, 0, 10);
+    thrust::device_vector<int> d_data(h_data);
+    thrust::device_vector<int> d_out(n, -1);
+    int blocks = iDivUp(n, BLOCK_SIZE * TILES);
+    BlockScanKernel<BLOCK_SIZE, TILES><<<blocks, BLOCK_SIZE>>>(d_data, d_out);
+    auto h_out = ToHost(d_out);
+
+    int errors = 0;
+    for (int b = 0; b < blocks; ++b)
+    {
+        int sum = 0;
+        for (int i = b * BLOCK_SIZE * TILES; i < std::min(n, (b + 1) * int(BLOCK_SIZE) * TILES); ++i)
+        {
+            sum += h_data[i];
+            if (h_out[i] != sum) errors++;
+        }
+    }
+    EXPECT_EQ(errors, 0) << "block scan with block size " << BLOCK_SIZE << " n " << n;
+}
+
+// Regression test: the scan over the per-warp sums used a shuffle of width BLOCK_SIZE/32 (invalid if that is
+// not a power of two) and was executed by only BLOCK_SIZE/32 lanes with a full warp mask, which hung the kernel.
+TEST(CudaScan, BlockInclusiveScan)
+{
+    for (int n : {1, 100, 1000, 12345})
+    {
+        TestBlockScan<32, 1>(n);
+        TestBlockScan<64, 2>(n);
+        TestBlockScan<96, 2>(n);
+        TestBlockScan<128, 3>(n);
+        TestBlockScan<256, 2>(n);
+        TestBlockScan<1024, 1>(n);
+    }
+}
+
 // ======================== Warp sort / shuffle ========================
 
 template <unsigned int SIZE>

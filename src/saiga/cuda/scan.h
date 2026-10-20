@@ -41,13 +41,17 @@ __device__ inline T blockInclusiveScan(const CUDA::ThreadInfo<BLOCK_SIZE>& ti, T
     __syncthreads();
 
 
-    if (ti.local_thread_id < BLOCK_SIZE / SAIGA_WARP_SIZE)
+    if (ti.warp_lane == 0)
     {
-        // Scan in first warp
-        T valWarp          = shared[ti.lane_id];
-        valWarp            = warpInclusiveScan<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(valWarp, ti.lane_id);
-        shared[ti.lane_id] = valWarp;
-        if (ti.lane_id == BLOCK_SIZE / SAIGA_WARP_SIZE - 1)
+        // Scan in first warp. The whole warp takes part, because the shuffles use a full warp mask and a width of
+        // BLOCK_SIZE / 32 is invalid if that is not a power of two.
+        const unsigned int num_warps = BLOCK_SIZE / SAIGA_WARP_SIZE;
+        T valWarp                    = ti.lane_id < num_warps ? shared[ti.lane_id] : T(0);
+        valWarp                      = warpInclusiveScan(valWarp, ti.lane_id);
+        // All lanes have read 'shared' before it is overwritten.
+        __syncwarp();
+        if (ti.lane_id < num_warps) shared[ti.lane_id] = valWarp;
+        if (ti.lane_id == num_warps - 1)
         {
             *sharedBlockPrefix = valWarp;
         }
@@ -86,13 +90,17 @@ __device__ inline T blockInclusiveScan(T val, T* shared, T* sharedBlockPrefix)
     __syncthreads();
 
 
-    if (local_thread_id < BLOCK_SIZE / SAIGA_WARP_SIZE)
+    if (warp_lane == 0)
     {
-        // Scan in first warp
-        T valWarp       = shared[lane_id];
-        valWarp         = warpInclusiveScan<T, BLOCK_SIZE / SAIGA_WARP_SIZE>(valWarp, lane_id);
-        shared[lane_id] = valWarp;
-        if (lane_id == BLOCK_SIZE / SAIGA_WARP_SIZE - 1)
+        // Scan in first warp. The whole warp takes part, because the shuffles use a full warp mask and a width of
+        // BLOCK_SIZE / 32 is invalid if that is not a power of two.
+        const unsigned int num_warps = BLOCK_SIZE / SAIGA_WARP_SIZE;
+        T valWarp                    = lane_id < num_warps ? shared[lane_id] : T(0);
+        valWarp                      = warpInclusiveScan(valWarp, lane_id);
+        // All lanes have read 'shared' before it is overwritten.
+        __syncwarp();
+        if (lane_id < num_warps) shared[lane_id] = valWarp;
+        if (lane_id == num_warps - 1)
         {
             *sharedBlockPrefix = valWarp;
         }
