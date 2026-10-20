@@ -22,11 +22,12 @@ void Object3D::setSimpleDirection(const vec3& dir)
 void Object3D::turn(float angleX, float angleY, const vec3& up)
 {
     rotateGlobal(up, angleX);
-    mat4 modeltmp = model;
+    quat rottmp = rot;
     rotateLocal(vec3(1, 0, 0), angleY);
-    if (model(1, 1) < 0)
+    // Don't turn upside down.
+    if (make_vec3(getUpVector()).dot(up) < 0)
     {
-        model = modeltmp;
+        rot = rottmp;
     }
 }
 
@@ -38,7 +39,8 @@ void Object3D::turnLocal(float angleX, float angleY)
 
 void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angle)
 {
-    rotateLocal(axis, angle);
+    // The position is rotated around the global axis, so the orientation must be too.
+    rotateGlobal(axis, angle);
 
     translateGlobal(vec3(-point));
     quat qrot = angleAxis(radians(angle), axis);
@@ -49,11 +51,14 @@ void Object3D::rotateAroundPoint(const vec3& point, const vec3& axis, float angl
 
 quat Object3D::getSimpleDirectionQuat(const vec3& dir)
 {
-    mat4 rotmat   = mat4::Identity();
-    rotmat.col(0) = make_vec4(normalize(cross(dir, vec3(0, 1, 0))), 0);
-    rotmat.col(1) = make_vec4(0, 1, 0, 0);
-    rotmat.col(2) = make_vec4(-dir, 0);
-
+    // Orthonormal basis looking along -z. The up vector is only (0,1,0) if dir is horizontal.
+    vec3 z = -dir.normalized();
+    vec3 x = normalize(cross(dir, vec3(0, 1, 0)));
+    vec3 y = cross(z, x);
+    mat3 rotmat;
+    rotmat.col(0) = x;
+    rotmat.col(1) = y;
+    rotmat.col(2) = z;
     return (make_quat(rotmat)).normalized();
 }
 

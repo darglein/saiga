@@ -221,3 +221,96 @@ TEST(Camera, CVIntrinsicsRoundTrip)
     EXPECT_NEAR(pix.x(), u_gl, 1e-2);
     EXPECT_NEAR(pix.y(), v_gl, 1e-2);
 }
+
+static void ExpectMatNear(const mat4& a, const mat4& b, float eps)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            EXPECT_NEAR(a(i, j), b(i, j), eps) << i << " " << j;
+        }
+    }
+}
+
+// Regression test: turn() should not rotate the object upside down. It checked the up vector of the stale 'model'
+// matrix and restored only 'model', so the rotation was never limited.
+TEST(Object3D, TurnDoesNotFlipOver)
+{
+    Object3D obj;
+    obj.calculateModel();
+    for (int i = 0; i < 20; ++i)
+    {
+        obj.turn(0, 20, vec3(0, 1, 0));
+        obj.calculateModel();
+        EXPECT_GE(obj.getUpVector().y(), -1e-5) << i;
+    }
+    // Turning sideways is not limited.
+    obj.turn(30, 0, vec3(0, 1, 0));
+    EXPECT_GE(obj.getUpVector().y(), -1e-5);
+}
+
+// Regression test: rotateAroundPoint rotated the position around the global axis but the orientation around the
+// local axis, so a rotated object ended up with a wrong orientation.
+TEST(Object3D, RotateAroundPoint)
+{
+    Object3D obj;
+    obj.setPosition(vec3(1, 0, 0));
+    obj.rot     = angleAxis(radians(90.f), vec3(0, 0, 1));
+    mat4 before = obj.getModelMatrix();
+
+    vec3 point(0, 0, 2);
+    obj.rotateAroundPoint(point, vec3(1, 0, 0), 90);
+
+    mat4 expected = translate(point) * rotate(radians(90.f), vec3(1, 0, 0)) * translate(-point) * before;
+    ExpectMatNear(obj.getModelMatrix(), expected, 1e-5);
+}
+
+// Regression test: getSimpleDirectionQuat built a non-orthonormal matrix if 'dir' was not horizontal, so the
+// resulting rotation did not look along 'dir'.
+TEST(Object3D, SimpleDirection)
+{
+    for (vec3 dir : {vec3(0, 0, -1), vec3(1, 0, 0), vec3(1, 1, 0), vec3(-2, -1, 3), vec3(0.1, -5, 0.3)})
+    {
+        Object3D obj;
+        obj.setSimpleDirection(dir);
+        EXPECT_NEAR(obj.rot.norm(), 1, 1e-5);
+        // The object looks along -z, like an OpenGL camera.
+        vec3 look = -make_vec3(obj.getDirection());
+        EXPECT_NEAR((look - dir.normalized()).norm(), 0, 1e-5) << dir.transpose();
+        // The right vector is horizontal.
+        EXPECT_NEAR(obj.getRightVector().y(), 0, 1e-5) << dir.transpose();
+        EXPECT_GT(obj.getUpVector().y(), 0) << dir.transpose();
+    }
+}
+
+TEST(Object3D, ModelMatrixRoundTrip)
+{
+    Object3D obj;
+    obj.setPosition(vec3(1, -2, 3));
+    obj.rot = angleAxis(0.7f, vec3(1, 2, 3).normalized());
+    obj.setScale(vec3(2, 0.5, 3));
+    mat4 m = obj.getModelMatrix();
+
+    Object3D obj2;
+    obj2.setModelMatrix(m);
+    ExpectMatNear(obj2.getModelMatrix(), m, 1e-5);
+    EXPECT_NEAR((obj2.getScale() - vec3(2, 0.5, 3)).norm(), 0, 1e-5);
+
+    // Global and local rotations.
+    Object3D a;
+    a.rot      = angleAxis(0.3f, vec3(0, 1, 0));
+    Object3D b = a;
+    a.rotateGlobal(vec3(1, 0, 0), 40);
+    b.rotateLocal(vec3(1, 0, 0), 40);
+    ExpectMatNear(make_mat4(a.rot), rotate(radians(40.f), vec3(1, 0, 0)) * make_mat4(angleAxis(0.3f, vec3(0, 1, 0))),
+                  1e-5);
+    ExpectMatNear(make_mat4(b.rot), make_mat4(angleAxis(0.3f, vec3(0, 1, 0))) * rotate(radians(40.f), vec3(1, 0, 0)),
+                  1e-5);
+
+    // Interpolation hits both end points.
+    Object3D i0 = Object3D::interpolate(obj, a, 0);
+    Object3D i1 = Object3D::interpolate(obj, a, 1);
+    ExpectMatNear(i0.getModelMatrix(), obj.getModelMatrix(), 1e-5);
+    ExpectMatNear(i1.getModelMatrix(), a.getModelMatrix(), 1e-5);
+}
