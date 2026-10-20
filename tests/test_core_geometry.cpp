@@ -108,3 +108,116 @@ TEST(Geometry, PlaneStreamOperator)
     strm << Plane(vec3(0, 0, 1), vec3(0, 0, 1));
     EXPECT_NE(strm.str().find("d = 1"), std::string::npos);
 }
+
+static void ExpectFrustumMatchesMatrices(Camera& cam)
+{
+    cam.recalculatePlanes();
+    auto vertices = cam.vertices;
+    auto planes   = cam.planes;
+    cam.recalculatePlanesFromMatrices();
+    for (int i = 0; i < 8; ++i)
+    {
+        EXPECT_NEAR((vertices[i] - cam.vertices[i]).norm(), 0, 1e-3)
+            << i << ": " << vertices[i].transpose() << " | " << cam.vertices[i].transpose();
+    }
+    for (int i = 0; i < 6; ++i)
+    {
+        EXPECT_NEAR((planes[i].normal - cam.planes[i].normal).norm(), 0, 1e-3) << i;
+        EXPECT_NEAR(planes[i].d, cam.planes[i].d, 1e-3) << i;
+    }
+}
+
+// Regression test: the frustum of a perspective camera with aspect > 1 was too large, because perspective() applies
+// fovy to the longer (horizontal) side, but recalculatePlanes() applied it vertically.
+TEST(Camera, PerspectiveFrustumMatchesProjection)
+{
+    for (float aspect : {0.5f, 1.0f, 2.0f})
+    {
+        PerspectiveCamera cam;
+        cam.setProj(60, aspect, 0.5, 20);
+        cam.setView(vec3(1, 2, 3), vec3(0, 0, -5), vec3(0, 1, 0));
+        ExpectFrustumMatchesMatrices(cam);
+    }
+}
+
+// Regression test: OrthographicCamera::recalculatePlanes used the up vector as viewing direction.
+TEST(Camera, OrthographicFrustumMatchesProjection)
+{
+    OrthographicCamera cam;
+    cam.setProj(-2, 3, -1, 4, 0.5, 20);
+    cam.setView(vec3(1, 2, 3), vec3(0, 0, -5), vec3(0, 1, 0));
+    ExpectFrustumMatchesMatrices(cam);
+
+    cam.setView(vec3(0, 0, 0), vec3(0, 0, -1), vec3(0, 1, 0));
+    cam.recalculatePlanes();
+    EXPECT_EQ(cam.sphereInFrustum(Sphere(vec3(0, 1, -10), 0.1)), Frustum::INSIDE);
+    EXPECT_EQ(cam.sphereInFrustum(Sphere(vec3(0, 1, 10), 0.1)), Frustum::OUTSIDE);
+    EXPECT_EQ(cam.sphereInFrustum(Sphere(vec3(0, -10, -10), 0.1)), Frustum::OUTSIDE);
+}
+
+// Regression test: the operator<< of Camera was not exported, so it could not be used outside of saiga_core.
+TEST(Camera, StreamOperator)
+{
+    PerspectiveCamera cam;
+    cam.name = "my_camera";
+    std::stringstream strm;
+    strm << static_cast<const Camera&>(cam);
+    EXPECT_EQ(strm.str(), "my_camera");
+}
+
+TEST(Camera, ProjectUnproject)
+{
+    PerspectiveCamera cam;
+    cam.setProj(70, 1.5, 0.1, 100);
+    cam.setView(vec3(1, 2, 3), vec3(0, 0, -5), vec3(0, 1, 0));
+
+    vec3 world(0.5, 0.2, -4);
+    vec3 view = cam.WorldToView(world);
+    EXPECT_LT(view.z(), 0);
+    vec3 ndc = cam.ViewToNormalized(view);
+    vec2 ip  = cam.NormalizedToImage(ndc, 640, 480);
+
+    vec3 ndc2   = cam.ImageToNormalized(ip, ndc.z(), 640, 480);
+    vec3 world2 = cam.ViewToWorld(cam.NormalizedToView(ndc2));
+    EXPECT_NEAR((world - world2).norm(), 0, 1e-3);
+
+    // The pixel ray through the projected point passes through the world point.
+    Ray r = cam.PixelRay(ip, 640, 480, false);
+    EXPECT_NEAR(r.direction.norm(), 1, 1e-5);
+    vec3 to_point = (world - r.origin).normalized();
+    EXPECT_NEAR(to_point.dot(r.direction), 1, 1e-5);
+
+    // Depth linearization round trip.
+    float d = 0.7f;
+    EXPECT_NEAR(cam.nonlinearDepth(cam.linearDepth(d)), d, 1e-5);
+}
+
+TEST(Camera, CVIntrinsicsRoundTrip)
+{
+    mat3 K  = mat3::Identity();
+    K(0, 0) = 500;
+    K(1, 1) = 520;
+    K(0, 2) = 310;
+    K(1, 2) = 250;
+    mat4 P  = CVCamera2GLProjectionMatrix(K, ivec2(640, 480), 0.1, 100);
+    mat3 K2 = GLProjectionMatrix2CVCamera(P, 640, 480);
+    for (int i = 0; i < 3; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            EXPECT_NEAR(K(i, j), K2(i, j), 1e-3) << i << " " << j;
+        }
+    }
+
+    // A point in CV camera coordinates projects to the same pixel with K and with the GL projection.
+    vec3 p_cv(0.3, -0.2, 2.0);
+    vec3 pix = K * p_cv;
+    pix /= pix.z();
+    vec4 p_gl  = GL2CVView() * make_vec4(p_cv, 1);
+    vec4 clip  = P * p_gl;
+    vec3 ndc   = make_vec3(clip) / clip.w();
+    float u_gl = (ndc.x() * 0.5f + 0.5f) * 640;
+    float v_gl = (1 - (ndc.y() * 0.5f + 0.5f)) * 480;
+    EXPECT_NEAR(pix.x(), u_gl, 1e-2);
+    EXPECT_NEAR(pix.y(), v_gl, 1e-2);
+}

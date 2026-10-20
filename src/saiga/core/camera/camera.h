@@ -103,7 +103,7 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
     void imgui();
 
    private:
-    friend std::ostream& operator<<(std::ostream& os, const Camera& ca);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Camera& ca);
 };
 
 //========================= PerspectiveCamera =========================
