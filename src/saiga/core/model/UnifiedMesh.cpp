@@ -82,9 +82,14 @@ UnifiedMesh& UnifiedMesh::transform(const mat4& T)
     }
     if (HasNormal())
     {
+        // Normals are transformed with the inverse transpose, so that they stay orthogonal to the surface under a
+        // non-uniform scaling, and are renormalized.
+        mat3 N = make_mat3(T).inverse().transpose();
         for (auto& n : normal)
         {
-            n = (T * make_vec4(n, 0)).head<3>();
+            n         = N * n;
+            float len = n.norm();
+            if (len > 0) n /= len;
         }
     }
     return *this;
@@ -222,6 +227,19 @@ UnifiedMesh& UnifiedMesh::EraseVertices(ArrayView<int> vertices)
     triangles.erase(std::remove_if(triangles.begin(), triangles.end(), [](ivec3 t) { return t(0) == -1; }),
                     triangles.end());
 
+    // same for the lines
+    for (auto& l : lines)
+    {
+        if (valid_vertex[l(0)] && valid_vertex[l(1)])
+        {
+            l = ivec2(new_indices[l(0)], new_indices[l(1)]);
+        }
+        else
+        {
+            l(0) = -1;
+        }
+    }
+    lines.erase(std::remove_if(lines.begin(), lines.end(), [](ivec2 l) { return l(0) == -1; }), lines.end());
 
     return *this;
 }
@@ -305,7 +323,7 @@ UnifiedMesh& UnifiedMesh::ReorderMorton64()
     morton_list.reserve(NumVertices());
     for (int i = 0; i < NumVertices(); ++i)
     {
-        vec3 p  = (position[i] + offset).array() * scale.array();
+        vec3 p  = (position[i] - offset).array() * scale.array();
         auto mc = Morton3D(p.cast<int>());
         morton_list.emplace_back(mc, i);
     }
@@ -328,7 +346,7 @@ UnifiedMesh& UnifiedMesh::ReorderMorton64()
         std::vector<std::pair<uint64_t, int>> morton_list;
         for (int i = 0; i < NumVertices(); ++i)
         {
-            vec3 p  = (position[i] + offset).array() * scale.array();
+            vec3 p  = (position[i] - offset).array() * scale.array();
             auto mc = Morton3D(p.cast<int>());
             morton_list.emplace_back(mc, i);
         }
@@ -443,7 +461,8 @@ UnifiedMesh& UnifiedMesh::SmoothVertexColors(int iterations, float self_weight)
 
         for (int i = 0; i < NumVertices(); ++i)
         {
-            colors_new[i] = colors_new[i] / count[i];
+            // vertices without a triangle keep their color
+            colors_new[i] = count[i] > 0 ? vec4(colors_new[i] / count[i]) : color[i];
         }
 
         color = colors_new;
