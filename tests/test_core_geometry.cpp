@@ -377,3 +377,17 @@ TEST(Geometry, TriangleFunctions)
     EXPECT_NEAR(t2.Area(), 8, 1e-5);
     EXPECT_NEAR((t2.center() - t.center()).norm(), 0, 1e-6);
 }
+
+// Regression test: a nearest neighbor search on an empty tree read an uninitialized node index and a k-nearest
+// neighbor search with k = 0 accessed queue[-1].
+TEST(Geometry, KDTreeEmptyQueries)
+{
+    KDTree<3, vec3> empty_tree(std::vector<vec3>{});
+    EXPECT_EQ(empty_tree.NearestNeighborSearch(vec3(0, 0, 0)), -1);
+    EXPECT_TRUE(empty_tree.KNearestNeighborSearch(vec3(0, 0, 0), 3).empty());
+    EXPECT_TRUE(empty_tree.RadiusSearch(vec3(0, 0, 0), 1).empty());
+
+    KDTree<3, vec3> tree(std::vector<vec3>{vec3(0, 0, 0), vec3(1, 0, 0)});
+    EXPECT_TRUE(tree.KNearestNeighborSearch(vec3(0, 0, 0), 0).empty());
+    EXPECT_EQ(tree.NearestNeighborSearch(vec3(0.9, 0, 0)), 1);
+}
