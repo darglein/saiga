@@ -18,7 +18,11 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
         indices_per_element = 3;
         num_elements        = mesh.NumFaces();
         std::vector<uint32_t> indices_data(num_elements * indices_per_element);
-        std::memcpy(&indices_data[0], &mesh.triangles[0], num_elements * sizeof(uint32_t) * indices_per_element);
+        if (num_elements > 0)
+        {
+            std::memcpy(indices_data.data(), mesh.triangles.data(),
+                        num_elements * sizeof(uint32_t) * indices_per_element);
+        }
         indices.create(indices_data, GL_STATIC_DRAW);
         indices.bind();
     }
@@ -27,7 +31,10 @@ UnifiedMeshBuffer::UnifiedMeshBuffer(UnifiedMesh mesh, GLenum draw_mode) : draw_
         indices_per_element = 2;
         num_elements        = mesh.lines.size();
         std::vector<uint32_t> indices_data(num_elements * indices_per_element);
-        std::memcpy(&indices_data[0], &mesh.lines[0], num_elements * sizeof(uint32_t) * indices_per_element);
+        if (num_elements > 0)
+        {
+            std::memcpy(indices_data.data(), mesh.lines.data(), num_elements * sizeof(uint32_t) * indices_per_element);
+        }
         indices.create(indices_data, GL_STATIC_DRAW);
         indices.bind();
     }
@@ -102,7 +109,8 @@ UnifiedMeshBuffer::~UnifiedMeshBuffer()
 void UnifiedMeshBuffer::Draw(int offset, int count)
 {
     //    if(count > num_triangles)  count = num_triangles;
-    SAIGA_ASSERT(num_elements > 0);
+    // An empty mesh has nothing to draw
+    if (num_elements == 0) return;
     count = std::min(count, num_elements - offset);
     SAIGA_ASSERT(offset < num_elements);
     SAIGA_ASSERT(offset + count <= num_elements);

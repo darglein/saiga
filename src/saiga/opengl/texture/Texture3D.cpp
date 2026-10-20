@@ -55,7 +55,19 @@ void Texture3D::uploadSubImage(int x, int y, int z, int width, int height, int d
 
 bool Texture3D::fromImage(std::vector<Image>& images)
 {
-    depth = images.size();
+    if (images.empty()) return false;
+    // All slices are uploaded with the size and format of the first image
+    for (auto& img : images)
+    {
+        if (img.width != images[0].width || img.height != images[0].height || img.type != images[0].type)
+        {
+            return false;
+        }
+    }
+
+    width  = images[0].width;
+    height = images[0].height;
+    depth  = images.size();
     setFormat(images[0].type);
 
 
@@ -69,9 +81,6 @@ bool Texture3D::fromImage(std::vector<Image>& images)
     for (int i = 0; i < depth; i++)
     {
         Image& img = images[i];
-        // make sure all images have the same format
-        //        SAIGA_ASSERT(width == img.width && height == img.height && internal_format ==
-        //        img.Format().getGlInternalFormat());
         uploadSubImage(0, 0, i, width, height, 1, img.data());
     }
 

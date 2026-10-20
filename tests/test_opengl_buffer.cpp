@@ -4,10 +4,14 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/opengl/UnifiedMeshBuffer.h"
+#include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shaderStorageBuffer.h"
 #include "saiga/opengl/templatedBuffer.h"
 
 #include "opengl_test_context.h"
+
+#include <type_traits>
 
 using namespace Saiga;
 
@@ -109,4 +113,60 @@ TEST_F(OpenGLBuffer, ShaderStorageLimits)
 {
     EXPECT_GE(ShaderStorageBuffer::getMaxShaderStorageBufferBindings(), 8);
     EXPECT_GE(ShaderStorageBuffer::getMaxShaderStorageBlockSize(), 1 << 24);
+}
+
+// Copying a buffer without a GL object read from buffer 0 (GL_INVALID_OPERATION) and created a new GL buffer.
+TEST_F(OpenGLBuffer, CopyEmptyBuffer)
+{
+    TemplatedBuffer<int> buffer(GL_ARRAY_BUFFER);
+    Buffer copy(buffer);
+    EXPECT_EQ(copy.getBufferObject(), 0u);
+    EXPECT_EQ(copy.size, 0u);
+}
+
+// updateFromMesh passed the vertex count and offset as byte count and byte offset.
+TEST_F(OpenGLBuffer, IndexedVertexBufferUpdateFromMesh)
+{
+    TriangleMesh<VertexNT, GLuint> mesh;
+    for (int i = 0; i < 6; ++i) mesh.vertices.push_back(VertexNT(vec3(i, 0, 0)));
+    mesh.addFace(0, 1, 2);
+    mesh.addFace(3, 4, 5);
+
+    IndexedVertexBuffer<VertexNT, GLuint> buffer;
+    buffer.fromMesh(mesh, GL_DYNAMIC_DRAW);
+    EXPECT_EQ(buffer.VertexCount(), 6);
+    EXPECT_EQ(buffer.IndexCount(), 6);
+
+    for (int i = 0; i < 6; ++i) mesh.vertices[i].position(0) = 10 + i;
+    buffer.updateFromMesh(mesh, 3, 2);
+
+    std::vector<VertexNT> result(6);
+    buffer.VertexBuffer<VertexNT>::get(result);
+    std::vector<float> expected = {0, 1, 12, 13, 14, 5};
+    for (int i = 0; i < 6; ++i) EXPECT_EQ(result[i].position(0), expected[i]) << i;
+}
+
+// The draw mode of a VertexBuffer was uninitialized until setDrawMode was called.
+TEST_F(OpenGLBuffer, VertexBufferDefaultDrawMode)
+{
+    VertexBuffer<Vertex> buffer;
+    EXPECT_EQ(buffer.getDrawMode(), GL_TRIANGLES);
+}
+
+// A copy of a VertexBuffer shared the VAO of the original and deleted it twice.
+static_assert(!std::is_copy_constructible_v<VertexBuffer<Vertex>>, "VertexBuffer must not be copyable");
+static_assert(!std::is_copy_assignable_v<VertexBuffer<Vertex>>, "VertexBuffer must not be copyable");
+static_assert(!std::is_copy_constructible_v<IndexedVertexBuffer<Vertex, GLuint>>,
+              "IndexedVertexBuffer must not be copyable");
+
+// The constructor of UnifiedMeshBuffer indexed into the empty index vector of a mesh without faces or lines.
+TEST_F(OpenGLBuffer, UnifiedMeshBufferEmptyMesh)
+{
+    UnifiedMesh mesh;
+    for (GLenum mode : {GL_TRIANGLES, GL_LINES, GL_POINTS})
+    {
+        UnifiedMeshBuffer buffer(mesh, mode);
+        EXPECT_EQ(buffer.num_elements, 0);
+        buffer.BindAndDraw();
+    }
 }

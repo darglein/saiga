@@ -5,6 +5,7 @@
  */
 
 #include "saiga/opengl/texture/Texture2D.h"
+#include "saiga/opengl/texture/Texture3D.h"
 
 #include "opengl_test_context.h"
 
@@ -142,4 +143,46 @@ TEST_F(OpenGLTexture, FromPaddedRGBImage)
     ASSERT_TRUE(tex.download(result.data()));
     for (int y = 0; y < img.h; ++y)
         for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
+}
+
+// Texture3D::fromImage did not set the width and height and created the texture with uninitialized sizes.
+TEST_F(OpenGLTexture, Texture3DFromImage)
+{
+    int w = 5, h = 3, d = 2;
+    std::vector<Image> images;
+    for (int z = 0; z < d; ++z)
+    {
+        TemplatedImage<ucvec4> img(h, w);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) img(y, x) = ucvec4(x, y, z, 255);
+        images.push_back(img);
+    }
+
+    Texture3D tex;
+    ASSERT_TRUE(tex.fromImage(images));
+    EXPECT_EQ(tex.width, w);
+    EXPECT_EQ(tex.height, h);
+    EXPECT_EQ(tex.depth, d);
+
+    std::vector<ucvec4> result(w * h * d);
+    ASSERT_TRUE(tex.download(result.data()));
+    for (int z = 0; z < d; ++z)
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+                EXPECT_EQ(result[(z * h + y) * w + x], ucvec4(x, y, z, 255)) << x << " " << y << " " << z;
+}
+
+// Texture3D::fromImage read images[0] of an empty vector and uploaded smaller slices with the size of the first one.
+TEST_F(OpenGLTexture, Texture3DFromInvalidImages)
+{
+    std::vector<Image> images;
+    Texture3D tex;
+    EXPECT_FALSE(tex.fromImage(images));
+
+    images.push_back(TemplatedImage<ucvec4>(4, 4));
+    images.push_back(TemplatedImage<ucvec4>(2, 2));
+    EXPECT_FALSE(tex.fromImage(images));
+
+    images[1] = TemplatedImage<float>(4, 4);
+    EXPECT_FALSE(tex.fromImage(images));
 }

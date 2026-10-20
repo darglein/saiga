@@ -24,6 +24,18 @@ QueryObject::QueryObject(const QueryObject& other) : QueryObject()
     }
 }
 
+QueryObject& QueryObject::operator=(const QueryObject& other)
+{
+    // Like the copy constructor: each object owns its own query, the query state is not copied.
+    if (this != &other)
+    {
+        // Delete the old query first: it may be a GL_TIME_ELAPSED query, which can not record a timestamp.
+        destroy();
+        if (other.id) create(true);
+    }
+    return *this;
+}
+
 void QueryObject::create(bool initial_record)
 {
     if (!id) glGenQueries(1, &id);

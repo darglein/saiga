@@ -110,6 +110,7 @@ if (MODULE_OPENGL AND EGL_FOUND)
     saiga_test(test_opengl_framebuffer.cpp "saiga_opengl")
     saiga_test(test_opengl_buffer.cpp "saiga_opengl")
     saiga_test(test_opengl_shader.cpp "saiga_opengl")
+    saiga_test(test_opengl_query.cpp "saiga_opengl")
 endif ()
 
 if (MODULE_CUDA)

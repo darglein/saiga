@@ -199,7 +199,7 @@ void IndexedVertexBuffer<vertex_t, index_t>::updateFromMesh(TriangleMesh<vertex_
                                                             int vertex_offset)
 {
     SAIGA_ASSERT((int)mesh.vertices.size() >= vertex_offset + vertex_count);
-    VertexBuffer<vertex_t>::updateBuffer(&mesh.vertices[vertex_offset], vertex_count, vertex_offset);
+    VertexBuffer<vertex_t>::update(&mesh.vertices[vertex_offset], vertex_count, vertex_offset);
 }
 
 }  // namespace Saiga

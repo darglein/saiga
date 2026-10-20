@@ -75,6 +75,52 @@ TEST_F(OpenGLShader, CompileError)
     EXPECT_FALSE(shader.bind());
 }
 
+// init returned true on a link error.
+TEST_F(OpenGLShader, LinkErrorReturnsFalse)
+{
+    Shader shader;
+    // Compiles, but the call of the undefined function f fails to link.
+    EXPECT_FALSE(shader.init_from_string(
+        "##GL_FRAGMENT_SHADER\n#version 330\nvec4 f();\nout vec4 c;\nvoid main() { c = f(); }\n"));
+    EXPECT_EQ(shader.program, 0u);
+
+    EXPECT_TRUE(shader.init_from_string(fullscreen_color_shader));
+    EXPECT_NE(shader.program, 0u);
+}
+
+// A second init (as on a reload) leaked the GL program of the first one.
+TEST_F(OpenGLShader, ReinitDeletesOldProgram)
+{
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(fullscreen_color_shader));
+    GLuint first = shader.program;
+    ASSERT_NE(first, 0u);
+
+    ASSERT_TRUE(shader.init_from_string(fullscreen_color_shader));
+    EXPECT_NE(shader.program, 0u);
+    // The driver may reuse the name of the deleted program.
+    EXPECT_TRUE(shader.program == first || glIsProgram(first) == GL_FALSE);
+}
+
+// A reinit of a bound shader left the deleted program bound and Shader::boundShader pointing to it.
+TEST_F(OpenGLShader, ReinitWhileBound)
+{
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(fullscreen_color_shader));
+    ASSERT_TRUE(shader.bind());
+
+    ASSERT_TRUE(shader.init_from_string(fullscreen_color_shader));
+    EXPECT_EQ(Shader::getBoundShader(), 0u);
+    GLint current = -1;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &current);
+    EXPECT_EQ(current, 0);
+
+    ASSERT_TRUE(shader.bind());
+    EXPECT_TRUE(shader.isBound());
+    shader.unbind();
+    EXPECT_EQ(Shader::getBoundShader(), 0u);
+}
+
 TEST_F(OpenGLShader, RenderFullscreenTriangle)
 {
     int w = 16, h = 12;

@@ -29,6 +29,34 @@ class OpenGLFramebuffer : public OpenGLTest
     }
 };
 
+// A second create() leaked the first framebuffer object.
+TEST_F(OpenGLFramebuffer, RecreateDeletesOldFramebuffer)
+{
+    Framebuffer fb;
+    fb.create();
+    GLuint first = fb.getId();
+    ASSERT_NE(first, 0u);
+
+    fb.create();
+    EXPECT_NE(fb.getId(), 0u);
+    // The driver may reuse the name of the deleted framebuffer.
+    EXPECT_TRUE(fb.getId() == first || glIsFramebuffer(first) == GL_FALSE);
+    fb.unbind();
+}
+
+// drawTo with no ids indexed into an empty vector.
+TEST_F(OpenGLFramebuffer, DrawToNoBuffers)
+{
+    Framebuffer fb;
+    fb.create();
+    fb.attachTexture(ColorTexture(4, 4));
+    fb.drawTo({});
+    GLint draw_buffer = -1;
+    glGetIntegerv(GL_DRAW_BUFFER0, &draw_buffer);
+    EXPECT_EQ(draw_buffer, static_cast<GLint>(GL_NONE));
+    fb.unbind();
+}
+
 TEST_F(OpenGLFramebuffer, ClearColorAndDepth)
 {
     int w = 32, h = 16;
