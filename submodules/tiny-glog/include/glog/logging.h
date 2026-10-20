@@ -47,6 +47,12 @@ class TINY_GLOG_API LogStreamVoidifier
     // Constructor for the inactive (logging disabled) state
     LogStreamVoidifier() : m_stream(nullptr) {}
 
+    // An active object calls the failure function in its destructor, so a copy would report the failure twice.
+    LogStreamVoidifier(const LogStreamVoidifier&)            = delete;
+    LogStreamVoidifier& operator=(const LogStreamVoidifier&) = delete;
+    LogStreamVoidifier(LogStreamVoidifier&& other) noexcept : m_stream(other.m_stream) { other.m_stream = nullptr; }
+    LogStreamVoidifier& operator=(LogStreamVoidifier&&) = delete;
+
     ~LogStreamVoidifier();
 
     // Overload for operator<< that only writes if m_stream is not null
