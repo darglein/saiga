@@ -280,6 +280,38 @@ TEST(SynchronizedBlockAllocator, AllocateFree)
     EXPECT_EQ(allocator.size(), 0);
 }
 
+TEST(ThreadPool, EnqueueAfterQuit)
+{
+    // quit() clears the workers, so enqueue() treated the pool as an empty pool and ran the task on the calling thread
+    // instead of rejecting it.
+    ThreadPool pool(2);
+    EXPECT_EQ(pool.enqueue([]() { return 1; }).get(), 1);
+    pool.quit();
+    bool executed = false;
+    EXPECT_THROW(pool.enqueue([&executed]() { executed = true; }), std::runtime_error);
+    EXPECT_FALSE(executed);
+
+    ThreadPool empty(0);
+    EXPECT_EQ(empty.enqueue([]() { return 2; }).get(), 2);
+    empty.quit();
+    EXPECT_THROW(empty.enqueue([]() {}), std::runtime_error);
+}
+
+TEST(ThreadPoolDeathTest, QuitFromWorker)
+{
+    // A worker that called quit() tried to join itself. The std::system_error ended up in the future of the task and
+    // the program terminated later in the destructor of the still joinable std::thread, without a useful message.
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    EXPECT_DEATH(
+        {
+            // The assertion message is printed to stdout, but the death test matches stderr.
+            std::cout.rdbuf(std::cerr.rdbuf());
+            ThreadPool pool(1);
+            pool.enqueue([&pool]() { pool.quit(); }).wait();
+        },
+        "own worker threads");
+}
+
 TEST(ThreadPool, ManyTasks)
 {
     ThreadPool pool(4, "TestPool");
