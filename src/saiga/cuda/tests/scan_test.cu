@@ -48,7 +48,7 @@ void scanTest()
     thrust::device_vector<uint> d_res(N + ELEMENTS_PER_BLOCK, -1);
     thrust::host_vector<uint> h_res(N + ELEMENTS_PER_BLOCK, -1);
 
-    thrust::device_vector<uint> aggregate(CUDA::getBlockCount(N, ELEMENTS_PER_BLOCK) + 1, -1);
+    thrust::device_vector<unsigned long long> aggregate(CUDA::getBlockCount(N, ELEMENTS_PER_BLOCK) + 1, 0);
 
     {
         float time;

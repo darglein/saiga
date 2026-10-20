@@ -56,7 +56,7 @@ namespace Saiga
 {
 namespace CUDA
 {
-//todo maybe change
+// todo maybe change
 static __constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
 
 
@@ -75,11 +75,9 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
 
     const int y = blockIdx.y * BLOCK_DIM_Y + threadIdx.y;
 
-    if (y >= src.height) return;
-
-
-
-    const float* src_row = src.rowPtr(y);
+    // The threads below the last row must not return, because they have to reach the __syncthreads below. They load
+    // the last row instead and do not write anything.
+    const float* src_row = src.rowPtr(min(y, src.height - 1));
 
     const int xStart = blockIdx.x * (PATCH_PER_BLOCK * BLOCK_DIM_X) + threadIdx.x;
 
@@ -108,7 +106,7 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
             smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X] =
                 src_row[xStart + j * BLOCK_DIM_X];
 
-            // Load right halo
+        // Load right halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
             smem[threadIdx.y][threadIdx.x + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_X + j * BLOCK_DIM_X] =
@@ -124,7 +122,7 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
             smem[threadIdx.y][threadIdx.x + HALO_SIZE * BLOCK_DIM_X + j * BLOCK_DIM_X] =
                 src_row[min(xStart + j * BLOCK_DIM_X, src.width - 1)];
 
-            // Load right halo
+        // Load right halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
             //            smem[threadIdx.y][threadIdx.x + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_X + j * BLOCK_DIM_X]
@@ -140,7 +138,7 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
     {
         const int x = xStart + j * BLOCK_DIM_X;
 
-        if (x < src.width)
+        if (x < src.width && y < src.height)
         {
             sum_t sum = 0;
 
@@ -171,7 +169,10 @@ static void convolveRow(ImageView<float> src, ImageView<float> dst)
 
 void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius)
 {
-    SAIGA_ASSERT(kernel.size() > 0 && kernel.size() <= SAIGA_MAX_KERNEL_SIZE);
+    SAIGA_ASSERT(radius >= 1 && radius <= SAIGA_MAX_CONVOLUTION_RADIUS,
+                 "convolveRow: unsupported radius " + std::to_string(radius));
+    SAIGA_ASSERT(kernel.size() == 2 * radius + 1, "convolveRow: the kernel size " + std::to_string(kernel.size()) +
+                                                      " is not 2 * radius + 1 = " + std::to_string(2 * radius + 1));
     CHECK_CUDA_ERROR(
         cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size() * sizeof(float), 0, cudaMemcpyDeviceToDevice));
 
@@ -250,7 +251,7 @@ void convolveRow(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<fl
             convolveRow<float, 24>(src, dst);
             break;
         default:
-            SAIGA_ASSERT(0);
+            SAIGA_ASSERT(false, "convolveRow: unsupported radius");
     }
 }
 

@@ -16,6 +16,16 @@ namespace CUDA
 // todo maybe change
 static __constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
 
+// The convolutions are only instantiated for some radii. Without these checks, an unsupported radius did nothing.
+static void CheckConvolutionArguments(const char* function, Saiga::ArrayView<float> kernel, int radius,
+                                      bool radius_supported)
+{
+    SAIGA_ASSERT(radius_supported, std::string(function) + ": unsupported radius " + std::to_string(radius));
+    SAIGA_ASSERT(kernel.size() == 2 * radius + 1, std::string(function) + ": the kernel size " +
+                                                      std::to_string(kernel.size()) +
+                                                      " is not 2 * radius + 1 = " + std::to_string(2 * radius + 1));
+}
+
 
 template <typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int Y_ELEMENTS>
 __global__ static void d_convolveOuterLinear(ImageView<T> src, ImageView<T> dst)
@@ -725,6 +735,7 @@ inline void convolveInnerShuffle(ImageView<T> src, ImageView<T> dst)
 void convolveSinglePassSeparateOuterLinear(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel,
                                            int radius)
 {
+    CheckConvolutionArguments("convolveSinglePassSeparateOuterLinear", kernel, radius, radius >= 1 && radius <= 9);
     CHECK_CUDA_ERROR(
         cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size() * sizeof(float), 0, cudaMemcpyDeviceToDevice));
     switch (radius)
@@ -756,12 +767,15 @@ void convolveSinglePassSeparateOuterLinear(ImageView<float> src, ImageView<float
         case 9:
             CUDA::convolveOuterLinear<float, 9>(src, dst);
             break;
+        default:
+            SAIGA_ASSERT(false, "convolveSinglePassSeparateOuterLinear: unsupported radius");
     }
 }
 
 void convolveSinglePassSeparateOuterHalo(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel,
                                          int radius)
 {
+    CheckConvolutionArguments("convolveSinglePassSeparateOuterHalo", kernel, radius, radius >= 1 && radius <= 8);
     CHECK_CUDA_ERROR(
         cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size() * sizeof(float), 0, cudaMemcpyDeviceToDevice));
     switch (radius)
@@ -790,12 +804,15 @@ void convolveSinglePassSeparateOuterHalo(ImageView<float> src, ImageView<float> 
         case 8:
             CUDA::convolveOuterHalo<float, 8>(src, dst);
             break;
+        default:
+            SAIGA_ASSERT(false, "convolveSinglePassSeparateOuterHalo: unsupported radius");
     }
 }
 
 void convolveSinglePassSeparateInner(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel,
                                      int radius)
 {
+    CheckConvolutionArguments("convolveSinglePassSeparateInner", kernel, radius, radius >= 1 && radius <= 8);
     CHECK_CUDA_ERROR(
         cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size() * sizeof(float), 0, cudaMemcpyDeviceToDevice));
     switch (radius)
@@ -824,6 +841,8 @@ void convolveSinglePassSeparateInner(ImageView<float> src, ImageView<float> dst,
         case 8:
             CUDA::convolveInner<float, 8>(src, dst);
             break;
+        default:
+            SAIGA_ASSERT(false, "convolveSinglePassSeparateInner: unsupported radius");
     }
 }
 
@@ -831,6 +850,7 @@ void convolveSinglePassSeparateInner(ImageView<float> src, ImageView<float> dst,
 void convolveSinglePassSeparateInner75(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel,
                                        int radius)
 {
+    CheckConvolutionArguments("convolveSinglePassSeparateInner75", kernel, radius, radius >= 1 && radius <= 8);
     CHECK_CUDA_ERROR(
         cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size() * sizeof(float), 0, cudaMemcpyDeviceToDevice));
     switch (radius)
@@ -859,6 +879,8 @@ void convolveSinglePassSeparateInner75(ImageView<float> src, ImageView<float> ds
         case 8:
             CUDA::convolveInner<float, 8, true>(src, dst);
             break;
+        default:
+            SAIGA_ASSERT(false, "convolveSinglePassSeparateInner75: unsupported radius");
     }
 }
 
@@ -866,6 +888,8 @@ void convolveSinglePassSeparateInner75(ImageView<float> src, ImageView<float> ds
 void convolveSinglePassSeparateInnerShuffle(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel,
                                             int radius)
 {
+    CheckConvolutionArguments("convolveSinglePassSeparateInnerShuffle", kernel, radius,
+                              (radius >= 0 && radius <= 16) || radius == 20 || radius == 24);
     CHECK_CUDA_ERROR(
         cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size() * sizeof(float), 0, cudaMemcpyDeviceToDevice));
     switch (radius)
@@ -939,6 +963,8 @@ void convolveSinglePassSeparateInnerShuffle(ImageView<float> src, ImageView<floa
         case 24:
             CUDA::convolveInnerShuffle<float, 24, int4>(src, dst);
             break;
+        default:
+            SAIGA_ASSERT(false, "convolveSinglePassSeparateInnerShuffle: unsupported radius");
     }
 }
 

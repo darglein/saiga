@@ -14,6 +14,7 @@
 
 #include "gtest/gtest.h"
 
+#include <csignal>
 #include <functional>
 
 namespace Saiga
@@ -261,6 +262,44 @@ TEST(CudaConvolution, SinglePassInnerShuffle)
 {
     TestSeparable("InnerShuffle", CUDA::convolveSinglePassSeparateInnerShuffle,
                   {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 24});
+}
+
+// Regression test: the convolutions are only instantiated for some radii, and an unsupported radius silently did
+// nothing. The kernel size was not checked against the radius either. (SAIGA_ASSERT prints its message to stdout, so
+// only the abort is checked.)
+TEST(CudaConvolutionDeathTest, InvalidArguments)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    CUDA::CudaImage<float> d_src(32, 32);
+    CUDA::CudaImage<float> d_dst(32, 32);
+    auto src = d_src.getImageView();
+    auto dst = d_dst.getImageView();
+
+    using ConvolutionFunction = void (*)(ImageView<float>, ImageView<float>, Saiga::ArrayView<float>, int);
+    std::vector<std::pair<ConvolutionFunction, int>> functions = {
+        {CUDA::convolveRow, SAIGA_MAX_CONVOLUTION_RADIUS},  {CUDA::convolveCol, SAIGA_MAX_CONVOLUTION_RADIUS},
+        {CUDA::convolveSinglePassSeparateOuterLinear, 9},   {CUDA::convolveSinglePassSeparateOuterHalo, 8},
+        {CUDA::convolveSinglePassSeparateInner, 8},         {CUDA::convolveSinglePassSeparateInner75, 8},
+        {CUDA::convolveSinglePassSeparateInnerShuffle, 24},
+    };
+    for (auto [f, max_radius] : functions)
+    {
+        thrust::device_vector<float> too_large(RandomKernel(max_radius + 1));
+        EXPECT_EXIT(f(src, dst, too_large, max_radius + 1), testing::KilledBySignal(SIGABRT), "");
+    }
+
+    thrust::device_vector<float> kernel(RandomKernel(3));
+    EXPECT_EXIT(CUDA::convolveRow(src, dst, kernel, 2), testing::KilledBySignal(SIGABRT), "");
+    EXPECT_EXIT(CUDA::convolveCol(src, dst, kernel, 2), testing::KilledBySignal(SIGABRT), "");
+    EXPECT_EXIT(CUDA::convolveSinglePassSeparateInner(src, dst, kernel, 2), testing::KilledBySignal(SIGABRT), "");
+
+    // The shuffle version has no instantiation for some radii below its maximum.
+    thrust::device_vector<float> kernel17(RandomKernel(17));
+    EXPECT_EXIT(CUDA::convolveSinglePassSeparateInnerShuffle(src, dst, kernel17, 17), testing::KilledBySignal(SIGABRT),
+                "");
+    // applyFilterSeparateSinglePass derives the radius from the kernel size and supports radius <= 8.
+    thrust::device_vector<float> kernel9(RandomKernel(9));
+    EXPECT_EXIT(CUDA::applyFilterSeparateSinglePass(src, dst, kernel9), testing::KilledBySignal(SIGABRT), "");
 }
 
 __global__ static void Spin(long long cycles)

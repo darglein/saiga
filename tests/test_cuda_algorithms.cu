@@ -107,6 +107,53 @@ TEST(CudaReduce, GlobalSumNonPowerOfTwoWarps)
     }
 }
 
+// Each block reduces its BLOCK_SIZE elements twice with the same shared memory.
+template <unsigned int BLOCK_SIZE>
+__global__ static void BlockReduceTwiceKernel(ArrayView<int> in, ArrayView<int> out)
+{
+    __shared__ int shared[BLOCK_SIZE / SAIGA_WARP_SIZE];
+    __shared__ int shared_atomic[1];
+    int i = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+    int v = i < in.size() ? in[i] : 0;
+
+    int s1 = CUDA::blockReduceSum<int, BLOCK_SIZE>(v, shared, 0);
+    int s2 = CUDA::blockReduceSum<int, BLOCK_SIZE>(2 * v + 1, shared, 0);
+    int a1 = CUDA::blockReduceAtomicSum<int, BLOCK_SIZE>(v, shared_atomic);
+    int a2 = CUDA::blockReduceAtomicSum<int, BLOCK_SIZE>(3 * v, shared_atomic);
+    if (threadIdx.x == 0)
+    {
+        out[blockIdx.x * 4 + 0] = s1;
+        out[blockIdx.x * 4 + 1] = s2;
+        out[blockIdx.x * 4 + 2] = a1;
+        out[blockIdx.x * 4 + 3] = a2;
+    }
+}
+
+// Regression test: blockReduceSum and blockReduceAtomicSum had no barrier before writing to 'shared'. In a second call,
+// the other warps could overwrite the per-warp sums while warp 0 was still reading the values of the first call (found
+// by compute-sanitizer --tool racecheck).
+TEST(CudaReduce, BlockReduceTwice)
+{
+    const unsigned int BLOCK_SIZE = 1024;
+    const int blocks              = 200;
+    const int n                   = blocks * BLOCK_SIZE - 17;
+    auto h_data                   = RandomVector<int>(n, -100, 100);
+    thrust::device_vector<int> d_data(h_data);
+    thrust::device_vector<int> d_out(blocks * 4);
+    BlockReduceTwiceKernel<BLOCK_SIZE><<<blocks, BLOCK_SIZE>>>(d_data, d_out);
+    auto h_out = ToHost(d_out);
+    for (int b = 0; b < blocks; ++b)
+    {
+        int begin = b * BLOCK_SIZE;
+        int end   = std::min(n, begin + int(BLOCK_SIZE));
+        int sum   = std::accumulate(h_data.begin() + begin, h_data.begin() + end, 0);
+        EXPECT_EQ(h_out[b * 4 + 0], sum) << "block " << b;
+        EXPECT_EQ(h_out[b * 4 + 1], 2 * sum + int(BLOCK_SIZE)) << "block " << b;
+        EXPECT_EQ(h_out[b * 4 + 2], sum) << "block " << b;
+        EXPECT_EQ(h_out[b * 4 + 3], 3 * sum) << "block " << b;
+    }
+}
+
 struct MaxOp
 {
     __device__ int operator()(int a, int b) const { return a > b ? a : b; }
@@ -220,13 +267,13 @@ TEST(CudaScan, BlockInclusiveScan)
 }
 
 template <bool EXCLUSIVE>
-static void TestTiledScan(int n)
+static void TestTiledScan(int n, int max_value = 3)
 {
     const unsigned int BLOCK_SIZE = 256;
     const unsigned int TILES      = 8;
     const unsigned int ELEMENTS   = BLOCK_SIZE * TILES * 4;
 
-    auto h_data = RandomVector<unsigned int>(n, 0, 3);
+    auto h_data = RandomVector<unsigned int>(n, 0, max_value);
     std::vector<unsigned int> expected(n);
     unsigned int sum = 0;
     for (int i = 0; i < n; ++i)
@@ -239,7 +286,7 @@ static void TestTiledScan(int n)
     thrust::device_vector<unsigned int> d_data(h_data);
     thrust::device_vector<unsigned int> d_out(n, 0xFFFFFFFF);
     int blocks = CUDA::getBlockCount(n, ELEMENTS);
-    thrust::device_vector<unsigned int> d_aggregate(blocks + 1, 0xFFFFFFFF);
+    thrust::device_vector<unsigned long long> d_aggregate(blocks + 1, 0);
 
     float ms;
     {
@@ -271,6 +318,18 @@ TEST(CudaScan, TiledSinglePassScan)
     {
         TestTiledScan<true>(n);
         TestTiledScan<false>(n);
+    }
+}
+
+// Regression test: the look-back stored the flag in the upper 2 bits and the sum in the lower 30 bits of a 32 bit
+// status word (block 0 did not even mask its sum). Prefix sums of 2^30 and more were corrupted.
+TEST(CudaScan, TiledSinglePassScanLargeSums)
+{
+    // The total sums are slightly above 2^30, 2^31 and 2^32 (wraps around).
+    for (int max_value : {2200, 4400, 9000})
+    {
+        TestTiledScan<true>(1000003, max_value);
+        TestTiledScan<false>(1000003, max_value);
     }
 }
 
@@ -357,6 +416,53 @@ TEST(CudaWarp, ShuffleCopy)
     TestShuffleCopy<1>();
     TestShuffleCopy<2>();
     TestShuffleCopy<4>();
+}
+
+// The groups without a particle return early and the remaining lanes pass their mask.
+template <int G>
+__global__ static void ShuffleCopyPartialWarpKernel(ArrayView<ShuffleParticle> particles)
+{
+    CUDA::ThreadInfo<0, G> ti;
+    bool active       = ti.warp_id < particles.size();
+    unsigned int mask = __ballot_sync(0xFFFFFFFF, active);
+    if (!active) return;
+
+    ShuffleParticle p;
+    CUDA::loadShuffleStruct<G, ShuffleParticle, int4>(particles.data(), &p, ti.lane_id, ti.warp_id, particles.size(),
+                                                      mask);
+    p.a.x += 1;
+    CUDA::storeShuffleStruct<G, ShuffleParticle, int4>(particles.data(), &p, ti.lane_id, ti.warp_id, particles.size(),
+                                                       mask);
+}
+
+// Regression test: the shuffles always used the full warp mask, and the documented usage returned early for the lanes
+// without an element. Shuffles with a full mask in a partial warp are undefined behavior (current GPUs and synccheck
+// happen to tolerate it, so this test only checks the masked version).
+TEST(CudaWarp, ShuffleCopyPartialWarp)
+{
+    const int G = 4;
+    for (int n : {1, 5, 13, 31})
+    {
+        std::vector<ShuffleParticle> h(n);
+        for (int i = 0; i < n; ++i)
+        {
+            float f = i * 12;
+            h[i].a  = make_float4(f, f + 1, f + 2, f + 3);
+            h[i].b  = make_float4(f + 4, f + 5, f + 6, f + 7);
+            h[i].c  = make_float4(f + 8, f + 9, f + 10, f + 11);
+        }
+        thrust::device_vector<ShuffleParticle> d(h.begin(), h.end());
+        ShuffleCopyPartialWarpKernel<G><<<iDivUp(n * G, 64), 64>>>(d);
+        CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+        thrust::host_vector<ShuffleParticle> r = d;
+        for (int i = 0; i < n; ++i)
+        {
+            float f = i * 12;
+            EXPECT_EQ(r[i].a.x, f + 1) << "n " << n << " i " << i;
+            EXPECT_EQ(r[i].a.y, f + 1) << "n " << n << " i " << i;
+            EXPECT_EQ(r[i].c.w, f + 11) << "n " << n << " i " << i;
+        }
+    }
 }
 
 // ======================== Random ========================
