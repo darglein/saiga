@@ -222,13 +222,13 @@ std::string removeFileEnding(const std::string& str)
 
 std::string sizeToString(size_t size, size_t base, size_t max, const char* sep, std::streamsize precision)
 {
-    const static std::array<const char*, 6> prefixes = {"B", "kB", "MB", "GB", "TB", "PB"};
+    const static std::array<const char*, 7> prefixes = {"B", "kB", "MB", "GB", "TB", "PB", "EB"};
 
     double float_size = size;
 
     int count = 0;
 
-    while (float_size > max)
+    while (float_size > max && count + 1 < (int)prefixes.size())
     {
         ++count;
         float_size /= base;
