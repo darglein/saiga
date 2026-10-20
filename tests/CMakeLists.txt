@@ -127,6 +127,9 @@ if (MODULE_CUDA)
     if (MODULE_VISION)
         saiga_test(test_cuda_orb.cu "saiga_cuda" "saiga_vision")
     endif ()
+    if (MODULE_OPENGL AND EGL_FOUND)
+        saiga_test(test_cuda_opengl_interop.cpp "saiga_cuda" "saiga_opengl")
+    endif ()
 endif ()
 
 

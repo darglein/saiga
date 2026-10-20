@@ -10,6 +10,7 @@
 #include "saiga/opengl/opengl.h"
 
 #include <iostream>
+#include <utility>
 
 #include <cuda_gl_interop.h>
 
@@ -18,10 +19,37 @@ namespace Saiga
 {
 namespace CUDA
 {
+// Owns a registered OpenGL resource, so it can be moved but not copied (a copy would unregister it a second time).
 class Interop
 {
    public:
+    Interop() = default;
     ~Interop() { unregisterBuffer(); }
+
+    Interop(const Interop&)            = delete;
+    Interop& operator=(const Interop&) = delete;
+
+    Interop(Interop&& other) noexcept { *this = std::move(other); }
+    Interop& operator=(Interop&& other) noexcept
+    {
+        if (this != &other)
+        {
+            unregisterBuffer();
+            array            = other.array;
+            gl_buffer        = other.gl_buffer;
+            graphic_resource = other.graphic_resource;
+            device_ptr       = other.device_ptr;
+            size             = other.size;
+            mapped           = other.mapped;
+            gl_target        = other.gl_target;
+
+            other.graphic_resource = nullptr;
+            other.device_ptr       = nullptr;
+            other.array            = nullptr;
+            other.mapped           = false;
+        }
+        return *this;
+    }
 
     // Registers an OpenGL buffer object. Wrapper for cudaGraphicsGLRegisterBuffer
     void registerBuffer(int glbuffer)
@@ -57,10 +85,7 @@ class Interop
 
     // Get an device pointer through which to access a mapped graphics resource. Wrapper for
     // cudaGraphicsResourceGetMappedPointer
-    void* getDevicePtr()
-    {
-        return device_ptr;
-    }
+    void* getDevicePtr() { return device_ptr; }
 
     size_t get_size() { return size; }
 
@@ -83,16 +108,17 @@ class Interop
         mapped     = true;
     }
 
-    cudaArray_t array;
+    cudaArray_t array = nullptr;
+
    private:
-    unsigned int gl_buffer;
+    unsigned int gl_buffer                 = 0;
     cudaGraphicsResource* graphic_resource = nullptr;
-    void* device_ptr;
-    size_t size;
-    bool mapped = false;
+    void* device_ptr                       = nullptr;
+    size_t size                            = 0;
+    bool mapped                            = false;
 
 
-    GLenum gl_target;
+    GLenum gl_target = GL_NONE;
 };
 
 }  // namespace CUDA
