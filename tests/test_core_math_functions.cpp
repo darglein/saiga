@@ -9,6 +9,10 @@
 
 #include "gtest/gtest.h"
 
+#include <cmath>
+#include <cstring>
+#include <limits>
+
 using namespace Saiga;
 
 TEST(MathFunctions, AlignUpDown)
@@ -99,6 +103,72 @@ TEST(MathFunctions, HalfRoundtrip)
     const half h(1.5f);
     EXPECT_EQ(float(h), 1.5f);
     EXPECT_EQ(float(half(-0.25f)), -0.25f);
+}
+
+static float FloatFromBits(uint32_t b)
+{
+    float f;
+    std::memcpy(&f, &b, sizeof(f));
+    return f;
+}
+
+// Regression test: float -> half produced NaN (0x7c01) for values slightly above 65536, inf for NaNs with a small
+// payload, the smallest denormal instead of zero for tiny floats (a shift by >= 32 bits), 2^-15 instead of 2^-14 for
+// floats just below 2^-14 and rounded ties away from zero instead of to even.
+TEST(MathFunctions, HalfFromFloatEdgeCases)
+{
+    EXPECT_EQ(half(0.f).h, 0x0000);
+    EXPECT_EQ(half(-0.f).h, 0x8000);
+    EXPECT_EQ(half(65504.f).h, 0x7bff);
+    EXPECT_EQ(half(65519.99f).h, 0x7bff);
+    EXPECT_EQ(half(65520.f).h, 0x7c00);
+    EXPECT_EQ(half(65568.f).h, 0x7c00);
+    EXPECT_EQ(half(-1e10f).h, 0xfc00);
+    EXPECT_EQ(half(std::numeric_limits<float>::infinity()).h, 0x7c00);
+    EXPECT_EQ(half(-std::numeric_limits<float>::infinity()).h, 0xfc00);
+    EXPECT_TRUE(std::isnan(float(half(FloatFromBits(0x7f800001)))));
+    EXPECT_TRUE(std::isnan(float(half(std::numeric_limits<float>::quiet_NaN()))));
+
+    EXPECT_EQ(half(1e-37f).h, 0x0000);
+    EXPECT_EQ(half(-1e-37f).h, 0x8000);
+    EXPECT_EQ(half(std::numeric_limits<float>::denorm_min()).h, 0x0000);
+    EXPECT_EQ(half(FloatFromBits(0x387fffff)).h, 0x0400);  // just below 2^-14
+    EXPECT_EQ(half(std::ldexp(1.f, -14)).h, 0x0400);
+    EXPECT_EQ(half(std::ldexp(1.f, -24)).h, 0x0001);
+    EXPECT_EQ(half(std::ldexp(1.f, -25)).h, 0x0000);                       // tie -> even (0)
+    EXPECT_EQ(half(std::nextafter(std::ldexp(1.f, -25), 1.f)).h, 0x0001);  // above the tie
+    EXPECT_EQ(half(std::ldexp(3.f, -25)).h, 0x0002);                       // tie -> even (2)
+
+    EXPECT_EQ(half(1.f + std::ldexp(1.f, -11)).h, 0x3c00);  // tie -> even
+    EXPECT_EQ(half(1.f + std::ldexp(3.f, -11)).h, 0x3c02);  // tie -> even
+    EXPECT_EQ(half(2047.f + 0.5f).h, half(2048.f).h);
+}
+
+TEST(MathFunctions, HalfAllValues)
+{
+    for (uint32_t i = 0; i < 0x10000; ++i)
+    {
+        const uint16_t bits = i;
+        const float f       = half(bits);
+        const bool is_nan   = (bits & 0x7c00) == 0x7c00 && (bits & 0x03ff) != 0;
+        EXPECT_EQ(std::isnan(f), is_nan) << i;
+        if (is_nan) continue;
+        // Every half is exactly representable as float and converts back to itself.
+        EXPECT_EQ(half(f).h, bits) << i;
+        EXPECT_EQ(std::signbit(f), (bits & 0x8000) != 0) << i;
+    }
+
+    // The midpoint between two neighbouring finite halves is exact in float and rounds to the even one.
+    for (uint32_t i = 0; i < 0x7bff; ++i)
+    {
+        const float lo  = half(uint16_t(i));
+        const float hi  = half(uint16_t(i + 1));
+        const float mid = (lo + hi) / 2;
+        EXPECT_EQ(half(mid).h, (i & 1) ? i + 1 : i) << i;
+        EXPECT_EQ(half(std::nextafter(mid, 0.f)).h, i) << i;
+        EXPECT_EQ(half(std::nextafter(mid, 1e6f)).h, i + 1) << i;
+        EXPECT_EQ(half(-mid).h, ((i & 1) ? i + 1 : i) | 0x8000) << i;
+    }
 }
 
 TEST(MathFunctions, Round)
