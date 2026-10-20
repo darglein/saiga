@@ -286,6 +286,20 @@ TEST(Object3D, SimpleDirection)
     }
 }
 
+// Regression test: for a vertical 'dir' the cross product with the up vector is zero, so the rotation became NaN.
+TEST(Object3D, SimpleDirectionVertical)
+{
+    for (vec3 dir : {vec3(0, -1, 0), vec3(0, 2, 0)})
+    {
+        Object3D obj;
+        obj.setSimpleDirection(dir);
+        EXPECT_NEAR(obj.rot.norm(), 1, 1e-5) << dir.transpose();
+        vec3 look = -make_vec3(obj.getDirection());
+        EXPECT_NEAR((look - dir.normalized()).norm(), 0, 1e-5) << dir.transpose();
+        EXPECT_NEAR(obj.getRightVector().y(), 0, 1e-5) << dir.transpose();
+    }
+}
+
 TEST(Object3D, ModelMatrixRoundTrip)
 {
     Object3D obj;

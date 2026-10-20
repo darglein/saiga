@@ -53,7 +53,13 @@ quat Object3D::getSimpleDirectionQuat(const vec3& dir)
 {
     // Orthonormal basis looking along -z. The up vector is only (0,1,0) if dir is horizontal.
     vec3 z = -dir.normalized();
-    vec3 x = normalize(cross(dir, vec3(0, 1, 0)));
+    vec3 x = cross(dir, vec3(0, 1, 0));
+    if (x.squaredNorm() < 1e-12f * dir.squaredNorm())
+    {
+        // dir is vertical: any horizontal right vector is valid.
+        x = cross(dir, vec3(0, 0, -1));
+    }
+    x      = normalize(x);
     vec3 y = cross(z, x);
     mat3 rotmat;
     rotmat.col(0) = x;
@@ -90,7 +96,7 @@ void Saiga::Object3D::setModelMatrix(const mat4& _model)
     R.col(0) = R.col(0) / scale[0];
     R.col(1) = R.col(1) / scale[1];
     R.col(2) = R.col(2) / scale[2];
-    rot = quat_cast(R);
+    rot      = quat_cast(R);
 }
 
 }  // namespace Saiga
