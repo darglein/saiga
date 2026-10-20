@@ -95,3 +95,30 @@ TEST(OpenGLParametersConfig, Profile)
     }
     std::filesystem::remove(file);
 }
+
+// getOpenGLVendor searched for "ati" before "intel" and "mesa", so every vendor containing these letters (for example
+// "Microsoft Corporation") was reported as Ati.
+TEST(OpenGLVendorString, Classify)
+{
+    EXPECT_EQ(classifyOpenGLVendor("NVIDIA Corporation"), OpenGLVendor::Nvidia);
+    EXPECT_EQ(classifyOpenGLVendor("ATI Technologies Inc."), OpenGLVendor::Ati);
+    EXPECT_EQ(classifyOpenGLVendor("AMD"), OpenGLVendor::Ati);
+    EXPECT_EQ(classifyOpenGLVendor("Advanced Micro Devices, Inc."), OpenGLVendor::Ati);
+    EXPECT_EQ(classifyOpenGLVendor("Intel"), OpenGLVendor::Intel);
+    EXPECT_EQ(classifyOpenGLVendor("Intel Corporation"), OpenGLVendor::Intel);
+    EXPECT_EQ(classifyOpenGLVendor("Intel Open Source Technology Center"), OpenGLVendor::Intel);
+    EXPECT_EQ(classifyOpenGLVendor("Mesa"), OpenGLVendor::Mesa);
+    EXPECT_EQ(classifyOpenGLVendor("Mesa/X.org"), OpenGLVendor::Mesa);
+    EXPECT_EQ(classifyOpenGLVendor("Microsoft Corporation"), OpenGLVendor::Unknown);
+    EXPECT_EQ(classifyOpenGLVendor("Apple Computer, Inc."), OpenGLVendor::Unknown);
+    EXPECT_EQ(classifyOpenGLVendor("Collabora Ltd"), OpenGLVendor::Unknown);
+    EXPECT_EQ(classifyOpenGLVendor("VMware, Inc."), OpenGLVendor::Unknown);
+    EXPECT_EQ(classifyOpenGLVendor(""), OpenGLVendor::Unknown);
+}
+
+TEST_F(OpenGLContext, Vendor)
+{
+    std::string vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    EXPECT_EQ(getOpenGLVendor(), classifyOpenGLVendor(vendor));
+    std::cout << "Vendor: " << vendor << std::endl;
+}
