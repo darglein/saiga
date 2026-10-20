@@ -403,6 +403,48 @@ static bool SamePixels(const Image& a, const Image& b)
     return true;
 }
 
+TEST(ImageDecode, SaveRawReportsErrors)
+{
+    // saveRaw always returned true, even if the file could not be written.
+    TemplatedImage<unsigned char> img(2, 2);
+    img.makeZero();
+    auto file = TestDir() / "does_not_exist" / "x.saigai";
+    EXPECT_FALSE(img.saveRaw(file, false));
+    EXPECT_FALSE(img.saveRaw(file, true));
+    EXPECT_FALSE(img.save(file));
+}
+
+TEST(ImageDecode, SaigaRawAllTypes)
+{
+    for (int t = 0; t < int(TYPE_UNKNOWN); ++t)
+    {
+        Image img(3, 5, ImageType(t));
+        FillPattern(img, t);
+        for (bool compress : {false, true})
+        {
+            auto file = TestDir() / "all_types.saigai";
+            ASSERT_TRUE(img.saveRaw(file, compress));
+            Image loaded;
+            ASSERT_TRUE(loaded.load(file)) << t;
+            EXPECT_TRUE(SamePixels(img, loaded)) << t << " " << compress;
+        }
+    }
+}
+
+TEST(ImageDecode, StbSaveUnsupportedFormat)
+{
+    // The stb fallback wrote an empty file and returned true for extensions it does not support.
+    TemplatedImage<ucvec3> img(2, 2);
+    img.makeZero();
+    auto file = TestDir() / "unsupported.xyz";
+    std::filesystem::remove(file);
+    EXPECT_FALSE(img.save(file));
+
+    TemplatedImage<float> fimg(2, 2);
+    fimg.makeZero();
+    EXPECT_FALSE(fimg.save(TestDir() / "float.jpg"));
+}
+
 static TemplatedImage<ucvec3> SmoothRGB(int h, int w)
 {
     TemplatedImage<ucvec3> img(h, w);
@@ -418,31 +460,6 @@ static int MaxAbsDifference(ImageView<const ucvec3> a, ImageView<const ucvec3> b
         for (int x = 0; x < a.w; ++x)
             result = std::max(result, (a(y, x).cast<int>() - b(y, x).cast<int>()).array().abs().maxCoeff());
     return result;
-}
-
-TEST(ImageDecode, SaveRawReportsErrors)
-{
-    // saveRaw always returned true, even if the file could not be written.
-    TemplatedImage<unsigned char> img(2, 2);
-    img.makeZero();
-    auto file = TestDir() / "does_not_exist" / "x.saigai";
-    EXPECT_FALSE(img.saveRaw(file, false));
-    EXPECT_FALSE(img.saveRaw(file, true));
-    EXPECT_FALSE(img.save(file));
-}
-
-TEST(ImageDecode, StbSaveUnsupportedFormat)
-{
-    // The stb fallback wrote an empty file and returned true for extensions it does not support.
-    TemplatedImage<ucvec3> img(2, 2);
-    img.makeZero();
-    auto file = TestDir() / "unsupported.xyz";
-    std::filesystem::remove(file);
-    EXPECT_FALSE(img.save(file));
-
-    TemplatedImage<float> fimg(2, 2);
-    fimg.makeZero();
-    EXPECT_FALSE(fimg.save(TestDir() / "float.jpg"));
 }
 
 TEST(ImageDecode, JpgRowPadding)
@@ -485,3 +502,87 @@ TEST(ImageDecode, StbPngCompressRoundtrip)
     img16.makeZero();
     EXPECT_TRUE(img16.compress().empty());
 }
+
+#ifdef SAIGA_USE_PNG
+TEST(ImageDecode, PngRoundtripAllTypes)
+{
+    for (ImageType type : {UC1, UC2, UC3, UC4, US1, US2, US3, US4})
+    {
+        // odd width -> padded rows
+        Image img(4, 7, type);
+        FillPattern(img, int(type));
+        img.set_resolution(vec2(0.5f, 0.25f));
+
+        auto file = TestDir() / "roundtrip.png";
+        ASSERT_TRUE(img.save(file)) << type;
+        Image loaded;
+        ASSERT_TRUE(loaded.load(file)) << type;
+        EXPECT_TRUE(SamePixels(img, loaded)) << type;
+        ASSERT_TRUE(loaded.get_resolution().has_value());
+        EXPECT_NEAR(loaded.get_resolution()->x(), 0.5f, 1e-3);
+        EXPECT_NEAR(loaded.get_resolution()->y(), 0.25f, 1e-3);
+
+        auto bytes = img.saveToMemory("png");
+        ASSERT_FALSE(bytes.empty());
+        Image decoded;
+        ASSERT_TRUE(LoadFromBytes(decoded, bytes, "png"));
+        EXPECT_TRUE(SamePixels(img, decoded)) << type;
+        ASSERT_TRUE(decoded.get_resolution().has_value());
+    }
+
+    // png has no floating point formats
+    Image fimg(2, 2, F1);
+    fimg.makeZero();
+    EXPECT_FALSE(fimg.save(TestDir() / "float.png"));
+}
+#endif
+
+#ifdef SAIGA_USE_LIBTIFF
+TEST(ImageDecode, TiffRoundtrip)
+{
+    for (ImageType type : {UC1, US1, F1})
+    {
+        Image img(4, 7, type);
+        FillPattern(img, int(type));
+        if (type == F1)
+        {
+            // avoid NaN patterns, which do not compare equal
+            for (int y = 0; y < img.h; ++y)
+                for (int x = 0; x < img.w; ++x) img.at<float>(y, x) = y * 0.5f - x;
+        }
+        img.set_resolution(vec2(0.1f, 0.2f));
+
+        auto file = TestDir() / "roundtrip.tiff";
+        ASSERT_TRUE(img.save(file)) << type;
+        Image loaded;
+        ASSERT_TRUE(loaded.load(file)) << type;
+        EXPECT_TRUE(SamePixels(img, loaded)) << type;
+        ASSERT_TRUE(loaded.get_resolution().has_value());
+        EXPECT_NEAR(loaded.get_resolution()->x(), 0.1f, 1e-4);
+        EXPECT_NEAR(loaded.get_resolution()->y(), 0.2f, 1e-4);
+
+        auto bytes = img.saveToMemory("tiff");
+        ASSERT_FALSE(bytes.empty());
+        Image decoded;
+        ASSERT_TRUE(LoadFromBytes(decoded, bytes, "tif"));
+        EXPECT_TRUE(SamePixels(img, decoded)) << type;
+    }
+
+    // Multi channel images are saved, but only the first channel is loaded.
+    TemplatedImage<ucvec3> rgb(3, 5);
+    for (int y = 0; y < 3; ++y)
+        for (int x = 0; x < 5; ++x) rgb(y, x) = ucvec3(x + y * 5, 1, 2);
+    auto file = TestDir() / "rgb_roundtrip.tif";
+    ASSERT_TRUE(rgb.save(file));
+    Image loaded;
+    ASSERT_TRUE(loaded.load(file));
+    ASSERT_EQ(loaded.type, UC1);
+    EXPECT_EQ(loaded.at<unsigned char>(2, 4), 14);
+
+    // Unsupported types
+    Image d(2, 2, D1);
+    d.makeZero();
+    EXPECT_FALSE(d.save(TestDir() / "double.tif"));
+    EXPECT_TRUE(d.saveToMemory("tif").empty());
+}
+#endif
