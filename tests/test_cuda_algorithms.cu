@@ -374,6 +374,47 @@ __global__ static void DrawRandom(ArrayView<curandState> states, ArrayView<float
     states[tid] = s;
 }
 
+// Regression test: initRandom gave thread t the sequence (t % 997) at offset (t / 997) * 10. Therefore the 11th
+// number of thread t was identical to the 1st number of thread t + 997.
+TEST(CudaRandom, IndependentSequences)
+{
+    const int n_states = 3000;
+    const int N        = 32;
+    thrust::device_vector<curandState> states(n_states);
+    CUDA::initRandom(states, 3654);
+    thrust::device_vector<float> d_out(n_states * N);
+    DrawRandom<N><<<iDivUp(n_states, 128), 128>>>(states, d_out);
+    auto h = ToHost(d_out);
+
+    for (auto f : h)
+    {
+        EXPECT_GE(f, 2);
+        EXPECT_LE(f, 5);
+    }
+    double mean = std::accumulate(h.begin(), h.end(), 0.0) / h.size();
+    EXPECT_NEAR(mean, 3.5, 0.05);
+
+    // Count how many (thread, index) pairs reappear in another thread.
+    std::vector<std::vector<float>> sequences(n_states);
+    for (int t = 0; t < n_states; ++t) sequences[t] = std::vector<float>(h.begin() + t * N, h.begin() + (t + 1) * N);
+
+    int duplicated_sequences = 0;
+    for (int t = 0; t + 997 < n_states; ++t)
+    {
+        auto& a = sequences[t];
+        auto& b = sequences[t + 997];
+        if (std::equal(a.begin() + 10, a.end(), b.begin())) duplicated_sequences++;
+    }
+    EXPECT_EQ(duplicated_sequences, 0);
+
+    // The same seed must give the same numbers.
+    thrust::device_vector<curandState> states2(n_states);
+    CUDA::initRandom(states2, 3654);
+    thrust::device_vector<float> d_out2(n_states * N);
+    DrawRandom<N><<<iDivUp(n_states, 128), 128>>>(states2, d_out2);
+    EXPECT_EQ(ToHost(d_out2), h);
+}
+
 // ======================== Small matrix inverse ========================
 
 TEST(CudaMath, InverseSymmetric)
