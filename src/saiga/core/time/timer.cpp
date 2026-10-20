@@ -37,15 +37,26 @@ void ExponentialTimer::addMeassurment(tick_t time)
 //============================================================================================
 
 
-AverageTimer::AverageTimer(int number) : lastTimes(number, tick_t(0)), number(number) {}
+AverageTimer::AverageTimer(int number) : number(std::max(number, 1))
+{
+    lastTimes.reserve(this->number);
+}
 
 
 
 void AverageTimer::addMeassurment(tick_t time)
 {
-    lastTime                 = time;
-    lastTimes[currentTimeId] = time;
-    currentTimeId            = (currentTimeId + 1) % lastTimes.size();
+    lastTime = time;
+    // Only the measurements so far are averaged until the buffer is full.
+    if (lastTimes.size() < size_t(number))
+    {
+        lastTimes.push_back(time);
+    }
+    else
+    {
+        lastTimes[currentTimeId] = time;
+    }
+    currentTimeId = (currentTimeId + 1) % number;
 
     currentTime = tick_t(0);
     minimum     = lastTimes[0];

@@ -312,6 +312,36 @@ TEST(ThreadPoolDeathTest, QuitFromWorker)
         "own worker threads");
 }
 
+TEST(Time, AverageTimerNotFull)
+{
+    // The average included the zero-initialized slots until 'number' measurements were taken, so a single 2 ms
+    // measurement reported 0.2 ms and a minimum of 0. A timer with number = 0 divided by zero.
+    AverageTimer average(10);
+    average.start();
+    std::this_thread::sleep_for(2ms);
+    average.stop();
+    EXPECT_GE(average.getTimeMS(), 2);
+    EXPECT_GE(average.getMinimumTimeMS(), 2);
+
+    AverageTimer zero(0);
+    zero.start();
+    std::this_thread::sleep_for(1ms);
+    zero.stop();
+    EXPECT_GE(zero.getTimeMS(), 1);
+}
+
+TEST(Time, GameTimeZeroTimestep)
+{
+    // With dt == 0, shouldRender() divided by the length of the update interval, which is 0.
+    GameTime time;
+    time.init(tick_t(0), tick_t(0));
+    std::this_thread::sleep_for(1ms);
+    EXPECT_TRUE(time.shouldUpdate());
+    std::this_thread::sleep_for(1ms);
+    EXPECT_TRUE(time.shouldRender());
+    EXPECT_EQ(time.interpolation, 0.0);
+}
+
 TEST(ThreadPool, ManyTasks)
 {
     ThreadPool pool(4, "TestPool");
