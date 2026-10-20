@@ -69,3 +69,18 @@ TEST(Encoding, TruncatedUTF8)
     // Invalid bytes are skipped.
     EXPECT_EQ(Encoding::UTF8toUTF32(std::string("a\x80z")), (utf32string{'a', 'z'}));
 }
+
+TEST(Env, SetAndGet)
+{
+    EXPECT_EQ(SetEnv("SAIGA_TEST_ENV_VALUE", "abc", 1), 0);
+    EXPECT_EQ(GetEnv("SAIGA_TEST_ENV_VALUE"), "abc");
+    // replace = 0 keeps the old value
+    EXPECT_EQ(SetEnv("SAIGA_TEST_ENV_VALUE", "def", 0), 0);
+    EXPECT_EQ(GetEnv("SAIGA_TEST_ENV_VALUE"), "abc");
+}
+
+TEST(Env, GetMissing)
+{
+    // getenv returns nullptr for a missing variable, which was passed to the std::string constructor.
+    EXPECT_EQ(GetEnv("SAIGA_TEST_ENV_VARIABLE_THAT_IS_NOT_SET"), "");
+}
