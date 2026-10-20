@@ -271,3 +271,81 @@ TEST_F(OpenGLShader, SampleIntegerTexture)
     for (int y = 0; y < h; ++y)
         for (int x = 0; x < w; ++x) EXPECT_EQ(result[y * w + x], img(y, x)) << x << " " << y;
 }
+
+static const char* uniform_array_shader = R"(
+##GL_VERTEX_SHADER
+#version 330
+uniform ivec2 iv[3];
+uniform vec3 v3[2];
+uniform mat3 m3[2];
+uniform mat4 m4;
+out vec4 v;
+void main()
+{
+    v = vec4(iv[0].x + iv[1].y + iv[2].x, v3[0].x + v3[1].z, m3[0][1][2] + m3[1][2][0], 0) + m4[3];
+    gl_Position = vec4(0);
+}
+
+##GL_FRAGMENT_SHADER
+#version 330
+in vec4 v;
+out vec4 c;
+void main()
+{
+    c = v;
+}
+)";
+
+// UniformHelper<ivec2> ignored the count and only uploaded the first element of an array.
+TEST_F(OpenGLShader, UploadUniformArrays)
+{
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(uniform_array_shader));
+    ASSERT_TRUE(shader.bind());
+
+    auto location = [&](const std::string& name) { return shader.getUniformLocation(name.c_str()); };
+
+    ivec2 iv[3] = {ivec2(1, 2), ivec2(3, 4), ivec2(5, 6)};
+    shader.upload(location("iv"), 3, iv);
+    for (int i = 0; i < 3; ++i)
+    {
+        GLint value[2] = {0, 0};
+        glGetUniformiv(shader.program, location("iv[" + std::to_string(i) + "]"), value);
+        EXPECT_EQ(value[0], iv[i].x()) << i;
+        EXPECT_EQ(value[1], iv[i].y()) << i;
+    }
+
+    vec3 v3[2] = {vec3(1, 2, 3), vec3(4, 5, 6)};
+    shader.upload(location("v3"), 2, v3);
+    for (int i = 0; i < 2; ++i)
+    {
+        float value[3] = {};
+        glGetUniformfv(shader.program, location("v3[" + std::to_string(i) + "]"), value);
+        for (int j = 0; j < 3; ++j) EXPECT_EQ(value[j], v3[i](j)) << i << " " << j;
+    }
+
+    // Matrices are column major on both sides
+    mat3 m3[2];
+    for (int i = 0; i < 2; ++i)
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c) m3[i](r, c) = 100 * i + 10 * r + c;
+    shader.upload(location("m3"), 2, m3);
+    for (int i = 0; i < 2; ++i)
+    {
+        float value[9] = {};
+        glGetUniformfv(shader.program, location("m3[" + std::to_string(i) + "]"), value);
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c) EXPECT_EQ(value[c * 3 + r], m3[i](r, c)) << i << " " << r << " " << c;
+    }
+
+    mat4 m4;
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 4; ++c) m4(r, c) = 10 * r + c;
+    shader.upload(location("m4"), m4);
+    float value[16] = {};
+    glGetUniformfv(shader.program, location("m4"), value);
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 4; ++c) EXPECT_EQ(value[c * 4 + r], m4(r, c)) << r << " " << c;
+
+    shader.unbind();
+}
