@@ -404,3 +404,53 @@ TEST_F(OpenGLShader, SampleTexture3DFromImage)
             for (int x = 0; x < w; ++x)
                 EXPECT_EQ(result[(z * h + y) * w + x], 1u + x + 10 * y + 100 * z) << x << " " << y << " " << z;
 }
+
+// Writes VALUE (a define injected by the test) to the buffer.
+static const char* injection_compute_shader = R"(##GL_COMPUTE_SHADER
+#version 430
+layout(local_size_x = 1) in;
+layout(std430, binding = 0) writeonly buffer Out { uint data_out[]; };
+void main()
+{
+    data_out[0] = VALUE;
+}
+)";
+
+static unsigned int RunInjectionShader(const ShaderCodeInjections& injections)
+{
+    std::vector<unsigned int> zeros(1, 0);
+    TemplatedShaderStorageBuffer<unsigned int> out_buffer;
+    out_buffer.create(zeros, GL_DYNAMIC_READ);
+
+    Shader shader;
+    if (!shader.init_from_string(injection_compute_shader, injections)) return 0;
+    out_buffer.bind(0);
+    if (!shader.bind()) return 0;
+    shader.dispatchCompute(1, 1, 1);
+    shader.unbind();
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+
+    std::vector<unsigned int> result(1);
+    out_buffer.get(result);
+    return result[0];
+}
+
+TEST_F(OpenGLShader, CodeInjection)
+{
+    // Line 1 is the line after #version. Injections of other shader types are ignored.
+    EXPECT_EQ(RunInjectionShader({{GL_COMPUTE_SHADER, "#define VALUE 42u", 1},
+                                  {GL_FRAGMENT_SHADER, "#error not a fragment shader", 1}}),
+              42u);
+    // Later injections at the same line are inserted before the earlier ones.
+    EXPECT_EQ(RunInjectionShader({{GL_COMPUTE_SHADER, "#define VALUE (A + B)", 1},
+                                  {GL_COMPUTE_SHADER, "#define A 3u", 1},
+                                  {GL_COMPUTE_SHADER, "#define B 4u", 1}}),
+              7u);
+}
+
+// An injection behind the last line of a shader inserted past the end of the code vector.
+TEST_F(OpenGLShader, CodeInjectionAtEnd)
+{
+    // Appended at the end, behind main(): the macro is only defined after its use, so the compilation fails.
+    EXPECT_EQ(RunInjectionShader({{GL_COMPUTE_SHADER, "#define VALUE 1u", 1000}}), 0u);
+}

@@ -8,6 +8,7 @@
 
 #include "saiga/opengl/error.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 
@@ -22,13 +23,15 @@ const std::string ShaderPart::shaderTypeStrings[] = {"GL_COMPUTE_SHADER",      "
 
 ShaderPart::ShaderPart(const std::vector<std::string>& content, GLenum type, const ShaderCodeInjections& injections)
 {
-    code = content;
+    code       = content;
     this->type = type;
     for (auto& sci : injections)
     {
         if (sci.type == type)
         {
-            code.insert(code.begin() + sci.line, sci.code + "\n");
+            // Lines behind the end are appended
+            int line = std::clamp(sci.line, 0, static_cast<int>(code.size()));
+            code.insert(code.begin() + line, sci.code + "\n");
         }
     }
 
@@ -155,7 +158,6 @@ void ShaderPart::printError()
     std::cout << this->getTypeString() << " info log:" << std::endl;
     std::cout << error << std::endl;
 }
-
 
 
 
