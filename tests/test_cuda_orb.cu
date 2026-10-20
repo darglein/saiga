@@ -10,6 +10,7 @@
 #include "saiga/core/util/statistics.h"
 #include "saiga/cuda/imageProcessing/OrbDescriptors.h"
 #include "saiga/cuda/imageProcessing/image.h"
+#include "saiga/cuda/thrust_helper.h"
 #include "saiga/vision/features/OrbDescriptors.h"
 
 #include "gtest/gtest.h"

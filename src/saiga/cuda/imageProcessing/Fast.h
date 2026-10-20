@@ -12,11 +12,12 @@
 #include "saiga/cuda/event.h"
 #include "saiga/cuda/pinned_vector.h"
 #include "saiga/cuda/stream.h"
+#include "saiga/cuda/thrust_helper.h"
 
 
 #if defined(SAIGA_USE_EIGEN)
 
-#include "saiga/vision/features/Features.h"
+#    include "saiga/vision/features/Features.h"
 
 
 namespace Saiga
