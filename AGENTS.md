@@ -74,8 +74,6 @@ Mesa's software renderer). Use it unless the change needs CUDA or Vulkan:
 ```shell
 cmake -S . -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DSAIGA_MODULE_CUDA=OFF \
-  -DSAIGA_MODULE_OPENGL=ON \
   -DSAIGA_MODULE_VULKAN=OFF \
   -DSAIGA_BUILD_SAMPLES=OFF \
   -DSAIGA_ARCHNATIVE=OFF \
