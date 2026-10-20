@@ -107,7 +107,7 @@ bool Translator::readTranslationFile()
         return false;
     }
 
-    int lineNumber = 0;
+    [[maybe_unused]] int lineNumber = 0;
     try
     {
         for (std::string line; std::getline(stream, line); lineNumber++)

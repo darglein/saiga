@@ -219,7 +219,6 @@ UnifiedModel AssimpLoader::Model()
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m)
     {
         int current_vertex = 0;
-        int current_face   = 0;
 
         const aiMesh* mesh = scene->mMeshes[m];
 
@@ -297,7 +296,6 @@ UnifiedModel AssimpLoader::Model()
 
                     f1 += ivec3(current_vertex, current_vertex, current_vertex);
                     unified_mesh.triangles.push_back(f1);
-                    current_face++;
                 }
             }
         }
@@ -730,7 +728,7 @@ mat4 AssimpLoader::convert(aiMatrix4x4 mat)
         for (int j = 0; j < 4; ++j)
         {
             // ret.col(i)[j] = mat[j][i];
-            ret(j,i) = mat[j][i];
+            ret(j, i) = mat[j][i];
         }
     }
     return ret;

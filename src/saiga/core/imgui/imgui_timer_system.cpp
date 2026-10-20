@@ -125,7 +125,7 @@ void TimerSystem::EndFrame()
 
 void TimerSystem::Imgui()
 {
-    if(!frame_timer) return;
+    if (!frame_timer) return;
     SAIGA_ASSERT(current_name_stack.empty());
 
     // if(!total_time.active) return;
@@ -373,7 +373,7 @@ void TimerSystem::ImguiTable(ArrayView<TimeData*> timers, TimeData* total_time)
                 ImGui::PushStyleColor(ImGuiCol_Header, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
                 //                static int item_is_selected;
                 if (ImGui::Selectable(item->name.c_str(), false,
-                                      ImGuiSelectableFlags_SpanAllColumns/* | ImGuiSelectableFlags_AllowItemOverlap*/))
+                                      ImGuiSelectableFlags_SpanAllColumns /* | ImGuiSelectableFlags_AllowItemOverlap*/))
                 {
                 }
                 if (ImGui::IsItemHovered())
@@ -428,8 +428,7 @@ void TimerSystem::ImguiTimeline(ArrayView<TimeData*> timers, TimeData* total_tim
         e.data = td;
         tds.push_back(e);
     }
-    std::sort(tds.begin(), tds.end(),
-              [](const FrameGraphElement& a, const FrameGraphElement& b)
+    std::sort(tds.begin(), tds.end(), [](const FrameGraphElement& a, const FrameGraphElement& b)
               { return a.data->last_measurement.first < b.data->last_measurement.first; });
 
 
@@ -546,12 +545,12 @@ void TimerSystem::ImguiTooltip(TimeData* td, TimeData* total_time)
 
     ImGui::TextUnformatted("Begin (ns)");
     ImGui::NextColumn();
-    ImGui::Text("%llu", td->last_measurement.first - total_time->last_measurement.first);
+    ImGui::Text("%llu", (unsigned long long)(td->last_measurement.first - total_time->last_measurement.first));
     ImGui::NextColumn();
 
     ImGui::TextUnformatted("End (ns)");
     ImGui::NextColumn();
-    ImGui::Text("%llu", td->last_measurement.second - total_time->last_measurement.first);
+    ImGui::Text("%llu", (unsigned long long)(td->last_measurement.second - total_time->last_measurement.first));
     ImGui::NextColumn();
 
 
