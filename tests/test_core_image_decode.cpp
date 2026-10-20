@@ -758,3 +758,70 @@ TEST(ImageDecode, PngInvalidResolution)
     }
 }
 #endif
+
+#ifdef SAIGA_USE_LIBAVIF
+template <typename T>
+static void FillSmooth(Image& img, int max_value)
+{
+    int c = channels(img.type);
+    for (int y = 0; y < img.h; ++y)
+    {
+        T* row = (T*)img.rowPtr(y);
+        for (int x = 0; x < img.w; ++x)
+            for (int i = 0; i < c; ++i)
+                row[x * c + i] = T((x * 7 + y * 5 + i * 40) * max_value / (img.w * 7 + img.h * 5 + 3 * 40));
+    }
+}
+
+template <typename T>
+static int MaxAbsDifferenceT(const Image& a, const Image& b)
+{
+    int c = channels(a.type), result = 0;
+    for (int y = 0; y < a.h; ++y)
+    {
+        const T* ra = (const T*)a.rowPtr(y);
+        const T* rb = (const T*)b.rowPtr(y);
+        for (int x = 0; x < a.w * c; ++x) result = std::max(result, std::abs(int(ra[x]) - int(rb[x])));
+    }
+    return result;
+}
+
+TEST(ImageDecode, AvifRoundtrip)
+{
+    // Loading avif images always returned false.
+    for (ImageType type : {UC1, UC3, UC4, US1, US3})
+    {
+        bool is16 = elementType(type) == ImageElementType::IET_USHORT;
+        // odd width -> padded rows
+        Image img(17, 23, type);
+        if (is16)
+            FillSmooth<uint16_t>(img, 65535);
+        else
+            FillSmooth<uint8_t>(img, 255);
+        img.set_compression_quality(100);
+
+        auto file = TestDir() / "roundtrip.avif";
+        ASSERT_TRUE(img.save(file)) << type;
+
+        Image loaded;
+        ASSERT_TRUE(loaded.load(file)) << type;
+        ASSERT_EQ(loaded.type, type);
+        ASSERT_EQ(loaded.dimensions(), img.dimensions());
+        // 16 bit images are stored with 10 bits
+        int diff = is16 ? MaxAbsDifferenceT<uint16_t>(img, loaded) : MaxAbsDifferenceT<uint8_t>(img, loaded);
+        EXPECT_LE(diff, is16 ? 4 * 64 : 4) << type;
+
+        auto bytes = File::loadFileBinary(file);
+        Image decoded;
+        ASSERT_TRUE(decoded.loadFromMemory(ArrayView<const char>(bytes.data(), bytes.size()), "avif")) << type;
+        ASSERT_EQ(decoded.type, type);
+        int diff2 = is16 ? MaxAbsDifferenceT<uint16_t>(loaded, decoded) : MaxAbsDifferenceT<uint8_t>(loaded, decoded);
+        EXPECT_EQ(diff2, 0) << type;
+    }
+
+    std::vector<unsigned char> garbage = {'n', 'o', 't', ' ', 'a', 'v', 'i', 'f'};
+    Image img;
+    EXPECT_FALSE(LoadFromBytes(img, garbage, "avif"));
+    EXPECT_FALSE(img.load(TestDir() / "does_not_exist.avif"));
+}
+#endif

@@ -354,7 +354,8 @@ if (SAIGA_WITH_LIBAVIF)
             set(ENABLE_VS_IDE_PROJECTS OFF CACHE BOOL "" FORCE)
             set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
-            set(CONFIG_AV1_DECODER 0 CACHE STRING "" FORCE)
+            # The decoder is needed to load avif images (SVT-AV1 can only encode).
+            set(CONFIG_AV1_DECODER 1 CACHE STRING "" FORCE)
 
             # Fix target name collision ("dist") between libzip & libaom
             function(add_custom_target target_name)
@@ -394,7 +395,7 @@ if (SAIGA_WITH_LIBAVIF)
 
         set(AVIF_CODEC_AOM SYSTEM CACHE STRING "" FORCE)
         set(AVIF_CODEC_AOM_ENCODE ON CACHE BOOL "" FORCE)
-        set(AVIF_CODEC_AOM_DECODE OFF CACHE BOOL "" FORCE)
+        set(AVIF_CODEC_AOM_DECODE ON CACHE BOOL "" FORCE)
         set(AVIF_LOCAL_AOM OFF CACHE BOOL "" FORCE)
 
         set(AOM_FOUND ON CACHE BOOL "" FORCE)

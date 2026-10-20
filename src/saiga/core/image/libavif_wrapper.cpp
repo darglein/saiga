@@ -7,15 +7,110 @@
 #    endif
 
 #    include <avif/avif.h>
+#    include <cstring>
 #    include <fstream>
 #    include <iostream>
+#    include <iterator>
 #    include <mutex>
+#    include <vector>
 
 namespace Saiga
 {
+// Converts a decoded avif image to UC1/UC3/UC4 (8 bit) or US1/US3/US4 (more than 8 bit, scaled to 16 bit).
+// Monochrome images without alpha become single channel images.
+static bool ConvertDecodedAVIF(const avifImage* image, Image& img)
+{
+    const bool alpha     = image->alphaPlane != nullptr;
+    const bool gray      = image->yuvFormat == AVIF_PIXEL_FORMAT_YUV400 && !alpha;
+    const bool high      = image->depth > 8;
+    const int channels   = gray ? 1 : alpha ? 4 : 3;
+    const ImageType type = getType(channels, high ? ImageElementType::IET_USHORT : ImageElementType::IET_UCHAR);
+
+    avifRGBImage rgb;
+    avifRGBImageSetDefaults(&rgb, image);
+    rgb.format = alpha ? AVIF_RGB_FORMAT_RGBA : AVIF_RGB_FORMAT_RGB;
+    rgb.depth  = high ? 16 : 8;
+
+    Image result(image->height, image->width, type);
+    if (!gray)
+    {
+        rgb.pixels   = (uint8_t*)result.data8();
+        rgb.rowBytes = result.pitchBytes;
+        avifResult r = avifImageYUVToRGB(image, &rgb);
+        if (r != AVIF_RESULT_OK)
+        {
+            std::cerr << "Failed to convert YUV to RGB: " << avifResultToString(r) << std::endl;
+            return false;
+        }
+    }
+    else
+    {
+        // The YUV to RGB conversion also handles limited range, so convert to RGB and keep the first channel.
+        if (avifRGBImageAllocatePixels(&rgb) != AVIF_RESULT_OK) return false;
+        avifResult r = avifImageYUVToRGB(image, &rgb);
+        if (r != AVIF_RESULT_OK)
+        {
+            std::cerr << "Failed to convert YUV to RGB: " << avifResultToString(r) << std::endl;
+            avifRGBImageFreePixels(&rgb);
+            return false;
+        }
+        const size_t pixel_bytes = high ? 2 : 1;
+        for (int y = 0; y < result.h; ++y)
+        {
+            const uint8_t* src = rgb.pixels + size_t(y) * rgb.rowBytes;
+            uint8_t* dst       = (uint8_t*)result.rowPtr(y);
+            for (int x = 0; x < result.w; ++x)
+            {
+                std::memcpy(dst + x * pixel_bytes, src + x * 3 * pixel_bytes, pixel_bytes);
+            }
+        }
+        avifRGBImageFreePixels(&rgb);
+    }
+    img = std::move(result);
+    return true;
+}
+
+bool loadImageFromMemoryLibAVIF(const void* data, size_t size, Image& img)
+{
+    avifDecoder* decoder = avifDecoderCreate();
+    avifImage* image     = avifImageCreateEmpty();
+    if (!decoder || !image)
+    {
+        if (decoder) avifDecoderDestroy(decoder);
+        if (image) avifImageDestroy(image);
+        return false;
+    }
+
+    bool ok      = false;
+    avifResult r = avifDecoderReadMemory(decoder, image, (const uint8_t*)data, size);
+    if (r == AVIF_RESULT_OK)
+    {
+        ok = ConvertDecodedAVIF(image, img);
+    }
+    else
+    {
+        // AVIF_RESULT_NO_CODEC_AVAILABLE if libavif was built without an AV1 decoder.
+        std::cerr << "Failed to decode avif image: " << avifResultToString(r) << std::endl;
+    }
+
+    avifImageDestroy(image);
+    avifDecoderDestroy(decoder);
+    return ok;
+}
+
 bool loadImageLibAVIF(const std::filesystem::path& path, Image& img)
 {
-    return false;
+    std::ifstream file(path, std::ios::binary);
+    if (!file)
+    {
+        return false;
+    }
+    std::vector<char> data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    if (file.bad())
+    {
+        return false;
+    }
+    return loadImageFromMemoryLibAVIF(data.data(), data.size(), img);
 }
 
 #    if defined(SAIGA_USE_SVTAV1)
@@ -37,8 +132,8 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
     encoder_choice = AVIF_CODEC_CHOICE_AOM;
 #    elif defined(SAIGA_USE_SVTAV1)
     encoder_choice = AVIF_CODEC_CHOICE_SVT;
-#else
-#error No AVIF codec available
+#    else
+#        error No AVIF codec available
 #    endif
 
 
@@ -108,7 +203,12 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
     if (channels == 1)
     {
         // GRAYSCALE: Skip RGB conversion and write directly to the Y plane.
-        avifImageAllocatePlanes(image, AVIF_PLANES_YUV);
+        if (avifImageAllocatePlanes(image, AVIF_PLANES_YUV) != AVIF_RESULT_OK)
+        {
+            std::cerr << "Failed to allocate the avif planes." << std::endl;
+            avifImageDestroy(image);
+            return false;
+        }
 
         size_t copyBytes = (bitDepth > 8) ? (width * 2) : width;
 
@@ -138,7 +238,7 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
             SAIGA_ASSERT(yuvFormat == AVIF_PIXEL_FORMAT_YUV420);
 
             uint32_t uvHeight = (height + 1) / 2;
-            uint32_t uvWidth = (width + 1) / 2;
+            uint32_t uvWidth  = (width + 1) / 2;
             int neutralChroma = 1 << (bitDepth - 1);
 
             for (uint32_t y = 0; y < uvHeight; ++y)
@@ -152,10 +252,10 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
                 }
                 else
                 {
-                    uint16_t* uRow =
-                        reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_U] + (y * image->yuvRowBytes[AVIF_CHAN_U]));
-                    uint16_t* vRow =
-                        reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_V] + (y * image->yuvRowBytes[AVIF_CHAN_V]));
+                    uint16_t* uRow = reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_U] +
+                                                                 (y * image->yuvRowBytes[AVIF_CHAN_U]));
+                    uint16_t* vRow = reinterpret_cast<uint16_t*>(image->yuvPlanes[AVIF_CHAN_V] +
+                                                                 (y * image->yuvRowBytes[AVIF_CHAN_V]));
                     for (uint32_t x = 0; x < uvWidth; ++x)
                     {
                         uRow[x] = neutralChroma;
@@ -230,11 +330,6 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
     avifImageDestroy(image);
 
     return true;
-}
-
-bool loadImageFromMemoryLibAVIF(const void* data, size_t size, Image& img)
-{
-    return false;
 }
 }  // namespace Saiga
 
