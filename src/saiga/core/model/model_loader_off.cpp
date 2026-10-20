@@ -48,7 +48,7 @@ bool OffModelLoader::loadFile(const std::string& _file)
     std::vector<std::string> data = File::loadFileStringArray(file);
     File::removeWindowsLineEnding(data);
 
-    int num_vertices = 0, num_faces = 0;
+    int num_vertices = 0, num_faces = 0, num_parsed_faces = 0;
 
     for (auto& line : data)
     {
@@ -99,25 +99,33 @@ bool OffModelLoader::loadFile(const std::string& _file)
             StringViewParser lineParser = {" ", true};
             lineParser.set(line);
             int count = to_long(lineParser.next());
+            if (count < 3)
+            {
+                std::cout << "Invalid face with " << count << " corners" << std::endl;
+                return false;
+            }
 
-            SAIGA_ASSERT(count == 3 || count == 4);
-            std::array<uint32_t, 4> indices;
+            std::vector<uint32_t> indices(count);
             for (int i = 0; i < count; ++i)
             {
-                indices[i] = to_long(lineParser.next());
+                long index = to_long(lineParser.next());
+                if (index < 0 || index >= num_vertices)
+                {
+                    std::cout << "Invalid vertex index " << index << std::endl;
+                    return false;
+                }
+                indices[i] = index;
             }
 
-            if (count == 3)
+            // Triangle fan. A quad (0,1,2,3) gives the same triangles as addQuad.
+            for (int i = 1; i + 1 < count; ++i)
             {
-                mesh.addFace(indices.data());
+                mesh.addFace(indices[0], indices[i], indices[i + 1]);
             }
-            else if (count == 4)
-            {
-                mesh.addQuad(indices.data());
-            }
+            num_parsed_faces++;
 
-
-            if ((int)mesh.faces.size() == num_faces)
+            // A polygon can add more than one triangle, so count the parsed faces.
+            if (num_parsed_faces == num_faces)
             {
                 state = ParsingState::DONE;
             }

@@ -154,3 +154,92 @@ TEST(UnifiedMesh, UVSphere)
     Sphere s(vec3(1, 2, 3), 2);
     ExpectClosedSphere(UVSphereMesh(s, 20, 30), s);
 }
+
+
+static std::string TempFile(const std::string& name, const std::string& content)
+{
+    auto path = std::filesystem::temp_directory_path() / ("saiga_test_model_" + name);
+    std::ofstream strm(path, std::ios::binary);
+    strm << content;
+    return path.string();
+}
+
+// Regression test: the OFF loader compared the number of triangles with the number of faces in the header, so a file
+// with quads (2 triangles each) was never completely parsed and a polygon with more than 4 corners overflowed the
+// index array.
+TEST(ModelLoader, OffWithQuadsAndPolygons)
+{
+    std::string content =
+        "OFF\n"
+        "6 3 0\n"
+        "0 0 0\n"
+        "1 0 0\n"
+        "1 1 0\n"
+        "0 1 0\n"
+        "2 0 0\n"
+        "2 1 0\n"
+        "4 0 1 2 3\n"
+        "3 1 4 5\n"
+        "5 0 1 4 5 2\n";
+    auto file = TempFile("mesh.off", content);
+    OffModelLoader loader;
+    EXPECT_TRUE(loader.loadFile(file));
+    EXPECT_EQ(loader.mesh.vertices.size(), 6u);
+    // 2 + 1 + 3 triangles
+    EXPECT_EQ(loader.mesh.faces.size(), 6u);
+    EXPECT_TRUE(loader.mesh.isValid());
+    std::filesystem::remove(file);
+}
+
+// Regression test: the binary PLY loader read beyond the end of the file for truncated files and did not check the
+// face indices.
+TEST(ModelLoader, PlyRoundTripAndInvalidFiles)
+{
+    TriangleMesh<VertexNC, uint32_t> mesh;
+    for (int i = 0; i < 4; ++i)
+    {
+        VertexNC v;
+        v.position = vec4(i, 2 * i, -i, 1);
+        v.normal   = vec4(0, 0, 1, 0);
+        v.color    = vec4(0.25f * i, 0.5, 1, 1);
+        mesh.addVertex(v);
+    }
+    mesh.addFace(0, 1, 2);
+    mesh.addFace(0, 2, 3);
+
+    auto file = (std::filesystem::temp_directory_path() / "saiga_test_model_mesh.ply").string();
+    PLYLoader::save(file, mesh);
+
+    {
+        PLYLoader loader(file);
+        ASSERT_EQ(loader.mesh.vertices.size(), 4u);
+        ASSERT_EQ(loader.mesh.faces.size(), 2u);
+        for (int i = 0; i < 4; ++i)
+        {
+            EXPECT_EQ(loader.mesh.vertices[i].position, mesh.vertices[i].position);
+            EXPECT_NEAR((loader.mesh.vertices[i].color - mesh.vertices[i].color).norm(), 0, 1e-6);
+        }
+        EXPECT_EQ(loader.mesh.faces[1], mesh.faces[1]);
+    }
+
+    std::string data;
+    {
+        std::ifstream strm(file, std::ios::binary);
+        data = std::string((std::istreambuf_iterator<char>(strm)), std::istreambuf_iterator<char>());
+    }
+
+    // Truncated file
+    auto truncated = TempFile("truncated.ply", data.substr(0, data.size() - 5));
+    EXPECT_THROW(PLYLoader loader(truncated), std::runtime_error);
+
+    // Face index out of range
+    std::string bad_index = data;
+    int32_t idx           = 100;
+    std::memcpy(&bad_index[bad_index.size() - 4], &idx, sizeof(idx));
+    auto bad = TempFile("bad_index.ply", bad_index);
+    EXPECT_THROW(PLYLoader loader(bad), std::runtime_error);
+
+    std::filesystem::remove(file);
+    std::filesystem::remove(truncated);
+    std::filesystem::remove(bad);
+}
