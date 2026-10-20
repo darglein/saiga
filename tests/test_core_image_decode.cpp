@@ -104,6 +104,8 @@ struct TiffDesc
     // 0: put the strip right after the header
     uint32_t strip_offset_override = 0;
     uint32_t ifd_offset_override   = 0;
+    // 0: the size of pixels
+    uint32_t strip_byte_count_override = 0;
     // number of directories (pages), all with the same pixels
     int pages = 1;
 };
@@ -142,7 +144,7 @@ static std::vector<unsigned char> MakeTiff(const TiffDesc& d)
         {273, 4, 1, d.strip_offset_override ? d.strip_offset_override : strip_offset},
         {277, 3, 1, d.samples},
         {278, 4, 1, d.height},
-        {279, 4, 1, uint32_t(d.pixels.size())},
+        {279, 4, 1, d.strip_byte_count_override ? d.strip_byte_count_override : uint32_t(d.pixels.size())},
         {284, 3, 1, 1},
         {339, 3, d.samples, short_array(format_offset, d.format)},
     };
@@ -364,10 +366,10 @@ TEST(ImageDecode, TinyTiffUnsupportedBitDepth)
     EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_int64.tif"));
 }
 
-TEST(ImageDecode, TinyTiffRgbLoadsFirstChannel)
+TEST(ImageDecode, TinyTiffRgbRejected)
 {
-    // Every sample was written over the same single channel buffer of a multi channel image, so the image contained
-    // the last sample in the first third of its pixels.
+    // Every sample was written over the same single channel buffer of a multi channel image. TinyTIFF does not bound
+    // the copy of interleaved samples, so multi channel images are rejected.
     TiffDesc d;
     d.width   = 5;
     d.height  = 3;
@@ -375,10 +377,15 @@ TEST(ImageDecode, TinyTiffRgbLoadsFirstChannel)
     for (uint32_t y = 0; y < d.height; ++y)
         for (uint32_t x = 0; x < d.width; ++x) d.pixels.insert(d.pixels.end(), {uint8_t(x + 10 * y), 200, 201});
     Image img;
-    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_rgb.tif"));
-    ASSERT_EQ(img.type, UC1);
-    for (int y = 0; y < img.h; ++y)
-        for (int x = 0; x < img.w; ++x) EXPECT_EQ(img.at<uint8_t>(y, x), uint8_t(x + 10 * y)) << y << " " << x;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_rgb.tif"));
+
+    // A strip byte count larger than the image made TinyTIFF write past the end of the 1 byte sample buffer
+    // (heap overflow).
+    d                           = TiffDesc();
+    d.samples                   = 2;
+    d.pixels                    = {1, 2};
+    d.strip_byte_count_override = 4000;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_chunky_overflow.tif"));
 }
 
 TEST(ImageDecode, TinyTiffMultiPageLoadsFirstPage)

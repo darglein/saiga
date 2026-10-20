@@ -74,7 +74,11 @@ bool loadImageTinyTiff(const std::string& path, Image& img)
     }
     if (samples != 1)
     {
-        std::cout << "Image '" << path << "' has more than one channel. Only loading first channel\n";
+        // For interleaved samples, TinyTIFF copies as many samples as the strip byte counts declare without checking
+        // the size of the output buffer, so a corrupt file overflows it. The planar configuration is not exposed, so
+        // multi channel images are rejected.
+        std::cerr << "The file '" << path << "' has " << samples << " samples per pixel, which TinyTIFF cannot load\n";
+        return false;
     }
 
     // TinyTIFF writes the sample densely (without row padding), but the rows of img are aligned to 4 bytes.

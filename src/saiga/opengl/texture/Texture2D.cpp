@@ -91,12 +91,6 @@ void Texture2D::create(int width, int height, GLenum color_type, GLenum internal
 void Texture2D::upload(const void* data)
 {
     bind();
-    GLint old_width = 0, old_height = 0;
-    if (!new_texture)
-    {
-        glGetTexLevelParameteriv(target, 0, GL_TEXTURE_WIDTH, &old_width);
-        glGetTexLevelParameteriv(target, 0, GL_TEXTURE_HEIGHT, &old_height);
-    }
     glTexImage2D(target,                               // target
                  0,                                    // level, 0 = base, no minimap,
                  static_cast<GLint>(internal_format),  // internalformat
@@ -112,9 +106,10 @@ void Texture2D::upload(const void* data)
         setDefaultParameters();
         new_texture = false;
     }
-    else if (old_width != width || old_height != height)
+    else
     {
-        // The mipmaps of the old size no longer match level 0: a mipmap filter would make the texture incomplete.
+        // The mipmaps no longer match level 0: after a resize a mipmap filter would make the texture incomplete, and
+        // after an update of the same size it would sample the mipmaps of the old image.
         GLint min_filter = 0;
         glGetTexParameteriv(target, GL_TEXTURE_MIN_FILTER, &min_filter);
         if (min_filter == GL_NEAREST_MIPMAP_NEAREST || min_filter == GL_NEAREST_MIPMAP_LINEAR)

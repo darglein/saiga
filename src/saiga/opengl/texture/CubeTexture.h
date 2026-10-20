@@ -40,7 +40,8 @@ class SAIGA_OPENGL_API TextureCube : public TextureBase
     void create(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,
                 const void* data = nullptr);
 
-    // Downloads one face (GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...). TextureBase::download fails for cube maps.
+    // Downloads one face (GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...). The rows are padded to 4 bytes like in
+    // TextureBase::download, which fails for cube maps.
     bool downloadFace(GLenum face, void* data);
     // Downloads one face converted to the given color format and data type (glGetTexImage)
     bool downloadFace(GLenum face, void* data, GLenum format, GLenum type);

@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 namespace Saiga
@@ -32,10 +33,12 @@ bool Shader::reload()
     bool need_reload = false;
     for (auto& f_t : dependent_files_and_date)
     {
-        SAIGA_ASSERT(std::filesystem::exists(f_t.first));
-        auto date = std::filesystem::last_write_time(f_t.first);
+        // A file that is missing (for example while an editor saves it) is not an error. It is checked again on the
+        // next call.
+        std::error_code ec;
+        auto date = std::filesystem::last_write_time(f_t.first, ec);
 
-        if (date > f_t.second)
+        if (!ec && date > f_t.second)
         {
             need_reload = true;
         }
@@ -92,8 +95,16 @@ bool Shader::init(const std::filesystem::path& file, const ShaderCodeInjections&
 
     for (auto f : c.dependent_files)
     {
-        SAIGA_ASSERT(std::filesystem::exists(f));
-        auto date = std::filesystem::last_write_time(f);
+        // No exception: reload() restores the old program only if init returns false.
+        std::error_code ec;
+        auto date = std::filesystem::last_write_time(f, ec);
+        if (ec)
+        {
+            std::cerr << "Shader::init: could not read the modification time of " << f << ": " << ec.message()
+                      << std::endl;
+            dependent_files_and_date.clear();
+            return false;
+        }
         dependent_files_and_date.emplace_back(f, date);
     }
 

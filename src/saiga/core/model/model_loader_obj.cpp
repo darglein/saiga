@@ -16,8 +16,10 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <sstream>
 #include <tuple>
@@ -137,16 +139,24 @@ std::vector<UnifiedMaterial> LoadMTL(const std::string& file)
 // The returned indices are zero based, relative (negative) indices are resolved in addFace.
 static ObjModelLoader::IndexedVertex2 parseIV(std::string_view line)
 {
+    // An index outside of the int range would wrap around to a valid index. It becomes -1 (the invalid OBJ index 0),
+    // which createMeshes rejects.
+    auto parse_index = [](std::string_view str)
+    {
+        long long index = std::strtoll(std::string(str).c_str(), nullptr, 10) - 1;
+        if (index < std::numeric_limits<int>::min() || index > std::numeric_limits<int>::max()) return -1;
+        return int(index);
+    };
     ObjModelLoader::IndexedVertex2 iv;
     StringViewParser faceParser("/", false);
     faceParser.set(line);
     std::string_view tmp;
     tmp = faceParser.next();
-    if (!tmp.empty()) iv.v = to_long(tmp) - 1;
+    if (!tmp.empty()) iv.v = parse_index(tmp);
     tmp = faceParser.next();
-    if (!tmp.empty()) iv.t = to_long(tmp) - 1;
+    if (!tmp.empty()) iv.t = parse_index(tmp);
     tmp = faceParser.next();
-    if (!tmp.empty()) iv.n = to_long(tmp) - 1;
+    if (!tmp.empty()) iv.n = parse_index(tmp);
     return iv;
 }
 

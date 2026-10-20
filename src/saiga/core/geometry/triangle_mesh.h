@@ -151,6 +151,8 @@ class TriangleMesh : public Mesh<vertex_t>
     /**
      * Removes subsequent vertices if they have identical position.
      * It make sense to call it after 'sortVerticesByPosition'.
+     * Only adjacent vertices are compared: near-duplicates that 'sortVerticesByPosition' places in different grid
+     * cells (for example x = -1e-8 and x = 1e-8) are not merged.
      *
      * The face indices are updated accordingly.
      */

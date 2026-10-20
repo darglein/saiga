@@ -157,6 +157,36 @@ TEST(TinyEXIF, GPSOutsideOfSegment)
     EXPECT_FALSE(info2.GeoLocation.hasAltitude());
 }
 
+TEST(TinyEXIF, GPSTimeStampOutsideOfSegment)
+{
+    // The timestamp was stored as "0 0 0" (midnight) when its rationals were outside of the segment.
+    ExifBuilder b;
+    uint32_t gps_ifd = 8 + 2 + 12 + 4;
+    b.U16(1);
+    b.Entry(0x8825, 4, 1, gps_ifd);
+    b.U32(0);
+    ASSERT_EQ(b.Offset(), gps_ifd);
+    uint32_t time = gps_ifd + 2 + 12 + 4;
+    b.U16(1);
+    b.Entry(7, 5, 3, time);
+    b.U32(0);
+    ASSERT_EQ(b.Offset(), time);
+    size_t segment_end = b.data.size();
+    for (uint32_t v : {12, 30, 15})
+    {
+        b.U32(v);
+        b.U32(1);
+    }
+
+    EXIFInfo info;
+    ASSERT_EQ(info.parseFromEXIFSegment(b.data.data(), unsigned(b.data.size())), PARSE_EXIF_SUCCESS);
+    EXPECT_EQ(info.GeoLocation.GPSTimeStamp, "12 30 15");
+
+    EXIFInfo info2;
+    ASSERT_EQ(info2.parseFromEXIFSegment(b.data.data(), unsigned(segment_end)), PARSE_EXIF_SUCCESS);
+    EXPECT_EQ(info2.GeoLocation.GPSTimeStamp, "");
+}
+
 TEST(TinyEXIF, SegmentLongerThanBuffer)
 {
     // The length of the APP1 segment was not checked against the buffer, so the EXIF data behind the end of the buffer

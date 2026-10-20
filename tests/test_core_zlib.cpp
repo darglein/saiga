@@ -85,7 +85,9 @@ TEST(zlib, BinaryVectorCompress)
 TEST(zlib, DeclaredSizeZero)
 {
     // With a declared size of 0, the data is decoded into a one byte scratch buffer to detect a stream that is not
-    // empty. That check read stream.total_out, which the loop resets, instead of the accumulated output size.
+    // empty. Coverage only: the fix of that check (it read stream.total_out, which the loop resets) only changes the
+    // error code of the internal uncompress3 (Z_DATA_ERROR instead of Z_BUF_ERROR), and both are reported as a
+    // failure by uncompress.
     std::vector<unsigned char> data(100, 7);
     auto compressed = compress(data.data(), data.size());
     size_t header[3];

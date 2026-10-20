@@ -436,6 +436,53 @@ TEST_F(OpenGLTexture, CubeDownload)
     EXPECT_FALSE(tex.downloadFace(GL_TEXTURE_2D, all.data()));
 }
 
+// The downloads used the current GL_PACK_ALIGNMENT, so with a pack alignment changed by the caller the rows did not
+// have the layout of an Image (rows padded to 4 bytes), and rows of 15 bytes were written without padding.
+TEST_F(OpenGLTexture, DownloadRowLayout)
+{
+    int s = 5;
+    std::vector<Image> images;
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec3> img(s, s);
+        for (int y = 0; y < s; ++y)
+            for (int x = 0; x < s; ++x) img(y, x) = ucvec3(i, x + 1, y + 1);
+        images.push_back(img);
+    }
+    TextureCube cube;
+    ASSERT_TRUE(cube.fromImage(images));
+    Texture2D tex(images[0]);
+
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+
+    // 15 bytes per row, padded to 16
+    const int pitch = 16;
+    const int guard = 16;
+    std::vector<unsigned char> buffer(s * pitch + guard, 0xAB);
+    auto expect_rows = [&](Image& img, const std::string& name)
+    {
+        for (int y = 0; y < s; ++y)
+            for (int x = 0; x < s; ++x)
+                for (int c = 0; c < 3; ++c)
+                    EXPECT_EQ(buffer[y * pitch + x * 3 + c], img.at<ucvec3>(y, x)(c)) << name << " " << y << " " << x;
+        for (int i = 0; i < guard; ++i) EXPECT_EQ(buffer[s * pitch + i], 0xAB) << name << " " << i;
+    };
+
+    // images[1] is the positive x face, see CubeDownload
+    ASSERT_TRUE(cube.downloadFace(GL_TEXTURE_CUBE_MAP_POSITIVE_X, buffer.data()));
+    expect_rows(images[1], "cube face");
+
+    std::fill(buffer.begin(), buffer.end(), 0xAB);
+    ASSERT_TRUE(tex.download(buffer.data()));
+    expect_rows(images[0], "texture 2D");
+
+    // The pack state of the caller is restored
+    GLint alignment = 0;
+    glGetIntegerv(GL_PACK_ALIGNMENT, &alignment);
+    EXPECT_EQ(alignment, 1);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+}
+
 static GLint GetTexParameter(TextureBase& tex, GLenum name)
 {
     GLint value = 0;
@@ -552,5 +599,20 @@ TEST_F(OpenGLTexture, ResizeMipmappedTexture)
     tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
     tex.generateMipmaps();
     tex.resize(3, 5);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+}
+
+// An update of the same size kept the mipmap filter, so the mipmaps of the old image were sampled.
+TEST_F(OpenGLTexture, UpdateMipmappedTexture)
+{
+    TemplatedImage<ucvec4> a(4, 4);
+    a.getImageView().set(ucvec4(1, 2, 3, 4));
+    Texture2D tex(a);
+    tex.generateMipmaps();
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR_MIPMAP_LINEAR);
+
+    TemplatedImage<ucvec4> b(4, 4);
+    b.getImageView().set(ucvec4(5, 6, 7, 8));
+    tex.updateFromImage(b);
     EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
 }

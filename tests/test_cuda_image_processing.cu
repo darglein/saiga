@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
 #include "saiga/core/image/all.h"
 #include "saiga/core/math/random.h"
 #include "saiga/cuda/CudaInfo.h"
@@ -125,11 +126,15 @@ using SinglePassFunction = std::function<void(ImageView<float>, ImageView<float>
 
 static void TestSeparable(const std::string& name, SinglePassFunction f, std::vector<int> radii)
 {
+    // The output is a view of the first columns of a wider image, so that writes behind the last column are detected
+    // (they would land in the row padding of an image of the exact width).
+    const int guard_columns = 4;
+    const float sentinel    = -12345;
     for (auto size : test_sizes)
     {
         auto h_src = RandomImage(size.first, size.second);
         CUDA::CudaImage<float> d_src(h_src.getConstImageView());
-        CUDA::CudaImage<float> d_dst(h_src.h, h_src.w);
+        CUDA::CudaImage<float> d_dst(h_src.h, h_src.w + guard_columns);
 
         for (int radius : radii)
         {
@@ -139,12 +144,18 @@ static void TestSeparable(const std::string& name, SinglePassFunction f, std::ve
             auto expected =
                 CpuConvolveCol(CpuConvolveRow(h_src.getConstImageView(), kernel).getConstImageView(), kernel);
 
-            CUDA::fill(d_dst.getImageView(), -12345);
-            f(d_src.getImageView(), d_dst.getImageView(), d_kernel, radius);
+            CUDA::fill(d_dst.getImageView(), sentinel);
+            f(d_src.getImageView(), d_dst.getImageView().subImageView(0, 0, h_src.h, h_src.w), d_kernel, radius);
             CHECK_CUDA_ERROR(cudaDeviceSynchronize());
-            auto result = Download(d_dst);
-            ExpectImageNear(expected.getConstImageView(), result.getConstImageView(), 1e-5,
-                            name + " radius " + std::to_string(radius));
+            auto result           = Download(d_dst);
+            std::string test_name = name + " radius " + std::to_string(radius);
+            auto result_view      = result.getConstImageView().subImageView(0, 0, h_src.h, h_src.w);
+            ExpectImageNear(expected.getConstImageView(), result_view, 1e-5, test_name);
+            int guard_errors = 0;
+            for (int y = 0; y < result.h; ++y)
+                for (int x = h_src.w; x < result.w; ++x) guard_errors += result(y, x) != sentinel;
+            EXPECT_EQ(guard_errors, 0) << test_name << ": written behind the last column (" << h_src.h << "x"
+                                       << h_src.w << ")";
         }
     }
 }
@@ -264,6 +275,7 @@ TEST(CudaConvolution, SinglePassInnerShuffle)
                   {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 24});
 }
 
+#ifdef SAIGA_ASSERTS
 // Regression test: the convolutions are only instantiated for some radii, and an unsupported radius silently did
 // nothing. The kernel size was not checked against the radius either. (SAIGA_ASSERT prints its message to stdout, so
 // only the abort is checked.)
@@ -301,6 +313,7 @@ TEST(CudaConvolutionDeathTest, InvalidArguments)
     thrust::device_vector<float> kernel9(RandomKernel(9));
     EXPECT_EXIT(CUDA::applyFilterSeparateSinglePass(src, dst, kernel9), testing::KilledBySignal(SIGABRT), "");
 }
+#endif
 
 __global__ static void Spin(long long cycles)
 {

@@ -123,7 +123,7 @@ bool TextureCube::downloadFace(GLenum face, void* data, GLenum format, GLenum ty
     }
 
     bind();
-    glGetTexImage(face, 0, format, type, data);
+    getTexImageImageLayout(face, format, type, data);
     assert_no_glerror();
     unbind();
     return true;

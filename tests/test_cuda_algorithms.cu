@@ -27,6 +27,7 @@
 #include <climits>
 #include <numeric>
 #include <thrust/mr/allocator.h>
+#include <thrust/fill.h>
 #include <thrust/sort.h>
 
 #include <thrust/execution_policy.h>
@@ -287,6 +288,13 @@ static void TestTiledScan(int n, int max_value = 3)
     thrust::device_vector<unsigned int> d_out(n, 0xFFFFFFFF);
     int blocks = CUDA::getBlockCount(n, ELEMENTS);
     thrust::device_vector<unsigned long long> d_aggregate(blocks + 1, 0);
+
+    // Untimed warm-up launch: the first launch of an instantiation can include module loading and JIT compilation.
+    CUDA::tiledSinglePassScan<EXCLUSIVE, BLOCK_SIZE, TILES, int4, true>
+        <<<blocks, BLOCK_SIZE>>>(d_data, d_out, d_aggregate);
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+    thrust::fill(d_out.begin(), d_out.end(), 0xFFFFFFFF);
+    thrust::fill(d_aggregate.begin(), d_aggregate.end(), 0);
 
     float ms;
     {

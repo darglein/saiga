@@ -581,8 +581,9 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
     int num_entries = parse_value<uint16_t>(buf + offs, alignIntel);
     if (offs + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
     offs += 2;
-    unsigned exif_sub_ifd_offset = len;
-    unsigned gps_sub_ifd_offset  = len;
+    // 64 bit, so that offsets near 2^32 do not wrap around and pass the bound checks below.
+    uint64_t exif_sub_ifd_offset = len;
+    uint64_t gps_sub_ifd_offset  = len;
     while (--num_entries >= 0)
     {
         IFEntry result = parseIFEntry(buf, offs, alignIntel, tiff_header_start, len);
@@ -631,12 +632,12 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
             case 0x8825:
                 // GPS IFS offset
-                gps_sub_ifd_offset = tiff_header_start + result.data();
+                gps_sub_ifd_offset = uint64_t(tiff_header_start) + result.data();
                 break;
 
             case 0x8769:
                 // EXIF SubIFD offset
-                exif_sub_ifd_offset = tiff_header_start + result.data();
+                exif_sub_ifd_offset = uint64_t(tiff_header_start) + result.data();
                 break;
         }
     }
@@ -647,9 +648,9 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
     // typical user might want.
     if (exif_sub_ifd_offset + 4 <= len)
     {
-        offs            = exif_sub_ifd_offset;
+        offs            = unsigned(exif_sub_ifd_offset);
         int num_entries = parse_value<uint16_t>(buf + offs, alignIntel);
-        if (offs + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
+        if (uint64_t(offs) + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
         offs += 2;
         while (--num_entries >= 0)
         {
@@ -796,9 +797,9 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
     // there. Note that it's possible that the GPS SubIFD doesn't exist.
     if (gps_sub_ifd_offset + 4 <= len)
     {
-        offs            = gps_sub_ifd_offset;
+        offs            = unsigned(gps_sub_ifd_offset);
         int num_entries = parse_value<uint16_t>(buf + offs, alignIntel);
-        if (offs + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
+        if (uint64_t(offs) + 6 + 12 * num_entries > len) return PARSE_EXIF_ERROR_CORRUPT;
         offs += 2;
         while (--num_entries >= 0)
         {

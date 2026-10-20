@@ -137,6 +137,18 @@ TEST(MathFunctions, HalfFromFloatEdgeCases)
     EXPECT_EQ(half(1e-37f).h, 0x0000);
     EXPECT_EQ(half(-1e-37f).h, 0x8000);
     EXPECT_EQ(half(std::numeric_limits<float>::denorm_min()).h, 0x0000);
+    // The values above wrap the shift count modulo 32 on x86 and gave zero anyway, this one gave 0x0001.
+    EXPECT_EQ(half(1e-36f).h, 0x0000);
+    // Every float below 2^-25 rounds to zero.
+    for (int e = -149; e <= -26; ++e)
+    {
+        for (float m : {1.f, 1.25f, 1.5f, 1.999f})
+        {
+            float f = std::ldexp(m, e);
+            EXPECT_EQ(half(f).h, 0x0000) << f;
+            EXPECT_EQ(half(-f).h, 0x8000) << f;
+        }
+    }
     EXPECT_EQ(half(FloatFromBits(0x387fffff)).h, 0x0400);  // just below 2^-14
     EXPECT_EQ(half(std::ldexp(1.f, -14)).h, 0x0400);
     EXPECT_EQ(half(std::ldexp(1.f, -24)).h, 0x0001);

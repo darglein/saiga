@@ -719,14 +719,15 @@ int EXIFInfo::parseFromEXIFSegment(const uint8_t* buf, unsigned len)
                     if (parser.IsRational() && parser.GetLength() == 3)
                     {
                         double h = 0, m = 0, s = 0;
-                        parser.Fetch(h, 0);
-                        parser.Fetch(m, 1);
-                        parser.Fetch(s, 2);
-                        char buffer[256];
+                        // The values can lie outside of the segment: do not store a made up timestamp.
+                        if (parser.Fetch(h, 0) && parser.Fetch(m, 1) && parser.Fetch(s, 2))
+                        {
+                            char buffer[256];
 #if _MSC_VER > 1800 || !defined(_MSC_VER)
-                        snprintf(buffer, 256, "%g %g %g", h, m, s);
+                            snprintf(buffer, 256, "%g %g %g", h, m, s);
 #endif
-                        GeoLocation.GPSTimeStamp = buffer;
+                            GeoLocation.GPSTimeStamp = buffer;
+                        }
                     }
                     break;
 

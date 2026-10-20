@@ -669,6 +669,14 @@ TEST_F(OpenGLShader, FailedReloadKeepsProgram)
     EXPECT_EQ(RunShader(shader), 4u);
     EXPECT_TRUE(shader.program == program || glIsProgram(program) == GL_FALSE);
 
+    // A missing file (for example while an editor saves it) triggered an assertion or an exception that left the
+    // shader without a program.
+    program = shader.program;
+    std::filesystem::remove(file);
+    EXPECT_TRUE(shader.reload());
+    EXPECT_EQ(shader.program, program);
+    EXPECT_EQ(RunShader(shader), 4u);
+
     std::filesystem::remove_all(dir);
 }
 

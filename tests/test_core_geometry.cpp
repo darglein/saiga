@@ -252,6 +252,19 @@ TEST(Object3D, TurnDoesNotFlipOver)
     EXPECT_GE(obj.getUpVector().y(), -1e-5);
 }
 
+// Every pitch step of an object that was already upside down was reverted, so it could not pitch back.
+TEST(Object3D, TurnUpsideDownCanPitch)
+{
+    Object3D obj;
+    obj.rot          = angleAxis(radians(180.f), vec3(0, 0, 1));
+    vec3 old_dir     = make_vec3(obj.getDirection());
+    float old_up_dot = obj.getUpVector().y();
+    EXPECT_NEAR(old_up_dot, -1, 1e-5);
+    obj.turn(0, 20, vec3(0, 1, 0));
+    EXPECT_GT((make_vec3(obj.getDirection()) - old_dir).norm(), 0.1);
+    EXPECT_GT(obj.getUpVector().y(), old_up_dot + 0.01);
+}
+
 // Regression test: rotateAroundPoint rotated the position around the global axis but the orientation around the
 // local axis, so a rotated object ended up with a wrong orientation.
 TEST(Object3D, RotateAroundPoint)

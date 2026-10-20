@@ -28,7 +28,8 @@ class SAIGA_OPENGL_API TextureBase
     void create(GLenum color_type, GLenum internal_format, GLenum data_type);
     void destroy();
 
-    // Downloads the GPU data. Returns false for cube maps, use TextureCube::downloadFace.
+    // Downloads the GPU data. The rows are padded to 4 bytes like the rows of an Image, independent of the current
+    // GL_PACK_ALIGNMENT. Returns false for cube maps, use TextureCube::downloadFace.
     bool download(void* data);
     // Downloads the GPU data converted to the given color format and data type (glGetTexImage)
     bool download(void* data, GLenum format, GLenum type);
@@ -132,6 +133,10 @@ class SAIGA_OPENGL_API TextureBase
      */
     static void uploadWithPitch(int width, int height, ImageType type, size_t pitch_bytes, const void* data,
                                 const std::function<void(const void*)>& upload);
+
+    // glGetTexImage of level 0 with rows padded to 4 bytes like the rows of an Image: GL_PACK_ALIGNMENT is 4 and
+    // GL_PACK_ROW_LENGTH is 0 during the call, the previous pack state is restored afterwards.
+    static void getTexImageImageLayout(GLenum target, GLenum format, GLenum type, void* data);
 
     // GL_LINEAR, or GL_NEAREST for integer textures, which are incomplete (fetches return 0) with linear filtering.
     GLenum defaultFilter() const;

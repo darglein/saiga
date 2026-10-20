@@ -20,6 +20,8 @@
 #include "model_loader_obj.h"
 #include "model_loader_ply.h"
 
+#include <cmath>
+
 namespace Saiga
 {
 UnifiedMesh::UnifiedMesh(const UnifiedMesh& a, const UnifiedMesh& b)
@@ -83,13 +85,21 @@ UnifiedMesh& UnifiedMesh::transform(const mat4& T)
     if (HasNormal())
     {
         // Normals are transformed with the inverse transpose, so that they stay orthogonal to the surface under a
-        // non-uniform scaling, and are renormalized.
-        mat3 N = make_mat3(T).inverse().transpose();
+        // non-uniform scaling, and are renormalized. The cofactor matrix det(M) * M^-T has the same direction and is
+        // also defined for singular transformations (for example a zero scale), where the inverse is not.
+        mat3 M  = make_mat3(T);
+        vec3 c0 = M.col(0), c1 = M.col(1), c2 = M.col(2);
+        mat3 N;
+        N.col(0)  = cross(c1, c2);
+        N.col(1)  = cross(c2, c0);
+        N.col(2)  = cross(c0, c1);
+        float det = c0.dot(N.col(0));
+        if (det < 0) N = -N;
         for (auto& n : normal)
         {
             n         = N * n;
             float len = n.norm();
-            if (len > 0) n /= len;
+            if (std::isfinite(len) && len > 0) n /= len;
         }
     }
     return *this;

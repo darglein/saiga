@@ -110,6 +110,21 @@ TEST(UnifiedMesh, TransformNormals)
     EXPECT_NEAR((mesh.normal[1] - vec3(0, 0, 1)).norm(), 0, 1e-6);
     // Zero normals stay zero.
     EXPECT_EQ(mesh.normal[2], vec3(0, 0, 0));
+
+    // A flattening (singular) transformation made every normal NaN.
+    mesh.normal = {vec3(0, 0, 1), vec3(1, 1, 1).normalized(), vec3(1, 0, 0)};
+    mesh.transform(scale(vec3(1, 1, 0)));
+    for (auto& n : mesh.normal)
+    {
+        EXPECT_TRUE(std::isfinite(n.x()) && std::isfinite(n.y()) && std::isfinite(n.z()));
+    }
+    EXPECT_NEAR((mesh.normal[0] - vec3(0, 0, 1)).norm(), 0, 1e-6);
+    EXPECT_NEAR((mesh.normal[1] - vec3(0, 0, 1)).norm(), 0, 1e-6);
+
+    // A mirroring keeps the normals on the same side of the surface.
+    mesh.normal = {vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1)};
+    mesh.transform(scale(vec3(-1, 1, 1)));
+    EXPECT_NEAR((mesh.normal[0] - vec3(-1, 0, 0)).norm(), 0, 1e-6);
 }
 
 static void ExpectClosedSphere(const UnifiedMesh& mesh, const Sphere& s)
@@ -201,6 +216,21 @@ TEST(ModelLoader, OffMissingIndices)
         auto file = TempFile("missing.off", "OFF\n3 1 0\n0 0 0\n1 0 0\n0 1 0\n" + face);
         OffModelLoader loader;
         EXPECT_FALSE(loader.loadFile(file)) << face;
+        std::filesystem::remove(file);
+    }
+}
+
+// Regression test: the vertex and face counts of the header were used to reserve memory without a check, so a negative
+// or huge count threw std::length_error or std::bad_alloc out of loadFile.
+TEST(ModelLoader, OffInvalidCounts)
+{
+    for (std::string counts : {"-1 1 0\n", "3 -1 0\n", "2000000000 1 0\n", "3 2000000000 0\n", "5000000000 1 0\n"})
+    {
+        auto file = TempFile("counts.off", "OFF\n" + counts + "0 0 0\n1 0 0\n0 1 0\n3 0 1 2\n");
+        OffModelLoader loader;
+        bool result = true;
+        EXPECT_NO_THROW(result = loader.loadFile(file)) << counts;
+        EXPECT_FALSE(result) << counts;
         std::filesystem::remove(file);
     }
 }
@@ -370,6 +400,10 @@ TEST(ModelLoader, Obj)
     auto bad_file = TempFile("obj_test_bad.obj", "v 0 0 0\nv 1 0 0\nf 1 2 3\n");
     ObjModelLoader bad_loader;
     EXPECT_THROW(bad_loader.loadFile(bad_file), std::runtime_error);
+    // An index outside of the int range wrapped around to the valid vertex 1.
+    auto huge_file = TempFile("obj_test_huge.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 4294967297 2 3\n");
+    ObjModelLoader huge_loader;
+    EXPECT_THROW(huge_loader.loadFile(huge_file), std::runtime_error);
 
     // Faces before the first usemtl (or with an unknown material) get a default material.
     auto plain_file = TempFile("obj_test_plain.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
@@ -383,5 +417,6 @@ TEST(ModelLoader, Obj)
     std::filesystem::remove(mtl_file);
     std::filesystem::remove(obj_file);
     std::filesystem::remove(bad_file);
+    std::filesystem::remove(huge_file);
     std::filesystem::remove(plain_file);
 }

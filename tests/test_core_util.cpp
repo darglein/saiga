@@ -83,9 +83,14 @@ TEST(Encoding, Roundtrip)
 
 TEST(Encoding, TruncatedUTF8)
 {
-    // A multi byte sequence cut off at the end of the string was read past the end of the string.
+    // A multi byte sequence cut off at the end of the string was read past the end of the string. The result did not
+    // change, because the NUL terminator is no continuation byte, so only ASan (SAIGA_DEBUG_ASAN) detects the read. It
+    // needs a string on the heap that is allocated with the exact size (no small string optimization).
     std::string truncated = "ab\xF0\x9F";
     EXPECT_EQ(Encoding::UTF8toUTF32(truncated), (utf32string{'a', 'b'}));
+    std::string long_text = std::string(32, 'a') + "\xF0";
+    std::string heap_truncated(long_text.data(), long_text.size());
+    EXPECT_EQ(Encoding::UTF8toUTF32(heap_truncated), utf32string(32, 'a'));
     // Invalid bytes are skipped.
     EXPECT_EQ(Encoding::UTF8toUTF32(std::string("a\x80z")), (utf32string{'a', 'z'}));
 }
@@ -369,6 +374,22 @@ TEST(Exif, GPSOutsideOfSegment)
     ASSERT_EQ(info2.parseFromEXIFSegment(b.data.data(), segment_end), PARSE_EXIF_SUCCESS);
     EXPECT_EQ(info2.GeoLocation.Latitude, 0);
     EXPECT_EQ(info2.GeoLocation.Altitude, 0);
+}
+
+TEST(Exif, SubIFDOffsetWrapsAround)
+{
+    // The sub IFD offsets were computed in 32 bits, so an offset near 2^32 wrapped around, passed the bound checks and
+    // the IFD was read about 4 GB past the buffer.
+    for (uint16_t tag : {0x8825, 0x8769})
+    {
+        ExifBuilder b;
+        b.U16(1);
+        b.Entry(tag, 4, 1, 0xFFFFFFF7);
+        b.U32(0);
+
+        easyexif::EXIFInfo info;
+        EXPECT_EQ(info.parseFromEXIFSegment(b.data.data(), b.data.size()), PARSE_EXIF_SUCCESS) << tag;
+    }
 }
 
 TEST(FileChecker, GetFiles)

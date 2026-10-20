@@ -18,6 +18,7 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <sstream>
 
 namespace Saiga
@@ -64,12 +65,20 @@ bool OffModelLoader::loadFile(const std::string& _file)
             StringViewParser lineParser = {" ", true};
             lineParser.set(line);
 
-            num_vertices = to_long(lineParser.next());
-            num_faces    = to_long(lineParser.next());
+            long vertex_count = to_long(lineParser.next());
+            long face_count   = to_long(lineParser.next());
+            if (vertex_count < 0 || face_count < 0 || vertex_count > std::numeric_limits<int>::max() ||
+                face_count > std::numeric_limits<int>::max())
+            {
+                std::cout << "Invalid counts " << vertex_count << " " << face_count << std::endl;
+                return false;
+            }
+            num_vertices = vertex_count;
+            num_faces    = face_count;
 
-
-            mesh.vertices.reserve(num_vertices);
-            mesh.faces.reserve(num_faces);
+            // Every vertex and face is on its own line, so a corrupt count must not cause a huge allocation.
+            mesh.vertices.reserve(std::min<size_t>(num_vertices, data.size()));
+            mesh.faces.reserve(std::min<size_t>(num_faces, data.size()));
 
             state = ParsingState::VERTICES;
         }

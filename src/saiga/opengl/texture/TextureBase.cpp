@@ -64,10 +64,24 @@ bool TextureBase::download(void* data, GLenum format, GLenum type)
     }
 
     bind();
-    glGetTexImage(target, 0, format, type, data);
+    getTexImageImageLayout(target, format, type, data);
     assert_no_glerror();
     unbind();
     return true;
+}
+
+void TextureBase::getTexImageImageLayout(GLenum target, GLenum format, GLenum type, void* data)
+{
+    // The written row size depends on the pack state, so a pack state changed by the caller would write a different
+    // layout than the one of the Image (or buffer) that receives the data.
+    GLint old_alignment = 4, old_row_length = 0;
+    glGetIntegerv(GL_PACK_ALIGNMENT, &old_alignment);
+    glGetIntegerv(GL_PACK_ROW_LENGTH, &old_row_length);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+    glGetTexImage(target, 0, format, type, data);
+    glPixelStorei(GL_PACK_ALIGNMENT, old_alignment);
+    glPixelStorei(GL_PACK_ROW_LENGTH, old_row_length);
 }
 
 void TextureBase::bind()

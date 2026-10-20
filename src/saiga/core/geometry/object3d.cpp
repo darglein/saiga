@@ -22,10 +22,12 @@ void Object3D::setSimpleDirection(const vec3& dir)
 void Object3D::turn(float angleX, float angleY, const vec3& up)
 {
     rotateGlobal(up, angleX);
-    quat rottmp = rot;
+    quat rottmp   = rot;
+    float old_dot = make_vec3(getUpVector()).dot(up);
     rotateLocal(vec3(1, 0, 0), angleY);
-    // Don't turn upside down.
-    if (make_vec3(getUpVector()).dot(up) < 0)
+    // Don't turn upside down. An object that is already upside down may still pitch back towards upright.
+    float new_dot = make_vec3(getUpVector()).dot(up);
+    if (new_dot < 0 && new_dot < old_dot)
     {
         rot = rottmp;
     }
