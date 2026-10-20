@@ -9,6 +9,8 @@
 
 #include "gtest/gtest.h"
 
+#include <climits>
+
 using namespace Saiga;
 
 template <typename T>
@@ -595,4 +597,13 @@ TEST(ImageGenerator, CheckerBoardClampsColors)
     auto img = ImageGenerator::checkerBoard(vec3(2, -1, 0.5f), vec3(1.5f, -0.5f, 1), 1, 2, 1);
     EXPECT_EQ(img->at<ucvec3>(0, 0), ucvec3(255, 0, 127));
     EXPECT_EQ(img->at<ucvec3>(0, 1), ucvec3(255, 0, 255));
+}
+
+TEST(ImageFormat, NormalizeScaleSignedChar)
+{
+    // The normalization scale of (signed) char was 255, so the largest value 127 became 0.5 instead of 1.
+    TexelFloatConverter<char, true> c;
+    EXPECT_FLOAT_EQ(c.toFloat(char(CHAR_MAX)), 1.0f);
+    EXPECT_EQ(c.fromFloat(1.0f), char(CHAR_MAX));
+    EXPECT_EQ(c.fromFloat(0.0f), char(0));
 }

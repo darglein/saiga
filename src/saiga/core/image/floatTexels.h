@@ -11,6 +11,7 @@
 
 #include "imageFormat.h"
 
+#include <climits>
 #include <cmath>
 
 #include <type_traits>
@@ -88,7 +89,8 @@ struct SAIGA_TEMPLATE NormalizeScale
 template <typename ST>
 struct NormalizeScale<char, ST>
 {
-    constexpr static ST scale = ST(0xFF);
+    // char is signed on most platforms, so its largest value is 127 (CHAR_MAX), not 255.
+    constexpr static ST scale = ST(CHAR_MAX);
 };
 template <typename ST>
 struct NormalizeScale<unsigned char, ST>
