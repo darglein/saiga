@@ -147,7 +147,12 @@ void TextureBase::setFormat(ImageType type, bool srgb, bool integer)
 {
     SAIGA_ASSERT(!srgb);
     //    SAIGA_ASSERT(0);
-    internal_format = getGlInternalFormat(type, srgb);
+    auto element_type = elementType(type);
+    // Floating point images have no integer format, 32 bit integer images have no normalized one.
+    if (element_type == ImageElementType::IET_FLOAT || element_type == ImageElementType::IET_DOUBLE) integer = false;
+    if (element_type == ImageElementType::IET_INT || element_type == ImageElementType::IET_UINT) integer = true;
+
+    internal_format = getGlInternalFormat(type, srgb, integer);
     data_type       = getGlType(type);
     if (integer)
     {

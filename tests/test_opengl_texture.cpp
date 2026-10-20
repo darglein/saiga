@@ -186,3 +186,59 @@ TEST_F(OpenGLTexture, Texture3DFromInvalidImages)
     images[1] = TemplatedImage<float>(4, 4);
     EXPECT_FALSE(tex.fromImage(images));
 }
+
+// Signed 8 bit images were stored in an unsigned normalized format, which clamped negative values to 0.
+TEST_F(OpenGLTexture, FromSignedCharImage)
+{
+    int w = 8, h = 2;
+    TemplatedImage<char> img(h, w);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = static_cast<char>((x - 4) * 30 + y);
+
+    Texture2D tex(img);
+
+    TemplatedImage<char> result(h, w);
+    ASSERT_TRUE(tex.download(result.data()));
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
+}
+
+// 32 bit integer images have an integer internal format, which can only be uploaded with an integer color format.
+TEST_F(OpenGLTexture, FromIntImage)
+{
+    int w = 4, h = 3;
+    TemplatedImage<int> img(h, w);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = (x - 2) * 100000 + y;
+
+    Texture2D tex(img);
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
+    EXPECT_EQ(tex.InternalFormat(), GL_R32I);
+
+    TemplatedImage<int> result(h, w);
+    result.makeZero();
+    ASSERT_TRUE(tex.download(result.data()));
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
+}
+
+// The integer flag selected an integer color format, but kept the normalized internal format of 8 and 16 bit images.
+TEST_F(OpenGLTexture, FromImageInteger)
+{
+    int w = 4, h = 2;
+    TemplatedImage<unsigned short> img(h, w);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = static_cast<unsigned short>(x * 1000 + y);
+
+    Texture2D tex(img, false, false, true);
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
+    EXPECT_EQ(tex.InternalFormat(), GL_R16UI);
+
+    TemplatedImage<unsigned short> result(h, w);
+    result.makeZero();
+    ASSERT_TRUE(tex.download(result.data()));
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
+}
