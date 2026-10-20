@@ -190,8 +190,6 @@ void TextureBase::uploadWithPitch(int width, int height, ImageType type, size_t 
 
 void TextureBase::setFormat(ImageType type, bool srgb, bool integer)
 {
-    SAIGA_ASSERT(!srgb);
-    //    SAIGA_ASSERT(0);
     auto element_type = elementType(type);
     // Floating point images have no integer format, 32 bit integer images have no normalized one.
     if (element_type == ImageElementType::IET_FLOAT || element_type == ImageElementType::IET_DOUBLE) integer = false;

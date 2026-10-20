@@ -312,3 +312,17 @@ TEST_F(OpenGLTexture, FromImageInteger)
     for (int y = 0; y < img.h; ++y)
         for (int x = 0; x < img.w; ++x) EXPECT_EQ(result(y, x), img(y, x)) << x << " " << y;
 }
+
+// setFormat asserted on srgb, so Texture2D(img, true) and TextureLoader with srgb = true aborted.
+TEST_F(OpenGLTexture, FromImageSRGB)
+{
+    TemplatedImage<ucvec4> img(2, 2);
+    img.getImageView().set(ucvec4(10, 20, 30, 255));
+
+    Texture2D tex(img, true);
+    EXPECT_EQ(tex.InternalFormat(), GL_SRGB8_ALPHA8);
+
+    TemplatedImage<ucvec4> result(2, 2);
+    ASSERT_TRUE(tex.download(result.data()));
+    EXPECT_EQ(result(1, 1), ucvec4(10, 20, 30, 255));
+}
