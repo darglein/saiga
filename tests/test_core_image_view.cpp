@@ -556,3 +556,35 @@ TEST(ImageView, GradientsOfSingleRowOrColumn)
     EXPECT_EQ(g(0, 0), -1);
     EXPECT_EQ(g(2, 2), -1);
 }
+
+TEST(ImageTransformation, DepthToRGBAEmptyRange)
+{
+    // minD == maxD divided by zero (0/0 = NaN for depths equal to minD, converted to uint8 is undefined).
+    TemplatedImage<uint16_t> depth(1, 3);
+    depth(0, 0) = 50;
+    depth(0, 1) = 100;
+    depth(0, 2) = 150;
+    TemplatedImage<ucvec4> rgba(1, 3);
+    ImageTransformation::depthToRGBA(depth.getConstImageView(), rgba.getImageView(), uint16_t(100), uint16_t(100));
+    EXPECT_EQ(rgba(0, 0), ucvec4(0, 0, 0, 255));
+    EXPECT_EQ(rgba(0, 1), ucvec4(0, 0, 0, 255));
+    EXPECT_EQ(rgba(0, 2), ucvec4(255, 255, 255, 255));
+
+    TemplatedImage<float> fdepth(1, 3);
+    fdepth(0, 0) = 0.5f;
+    fdepth(0, 1) = 1;
+    fdepth(0, 2) = 2;
+    ImageTransformation::depthToRGBA(fdepth.getConstImageView(), rgba.getImageView(), 1, 1);
+    EXPECT_EQ(rgba(0, 0), ucvec4(0, 0, 0, 255));
+    EXPECT_EQ(rgba(0, 1), ucvec4(0, 0, 0, 255));
+    EXPECT_EQ(rgba(0, 2), ucvec4(255, 255, 255, 255));
+
+    TemplatedImage<ucvec4> hsv1(1, 1);
+    ImageTransformation::depthToRGBA_HSV(fdepth.getConstImageView(), rgba.getImageView(), 1, 1);
+    ImageTransformation::depthToRGBA_HSV(fdepth.getConstImageView().subImageView(0, 2, 1, 1), hsv1.getImageView(), 0,
+                                         1);
+    // depth <= minD maps to 0 and depth > minD to 1 (like a depth of 2 in [0,1])
+    EXPECT_EQ(rgba(0, 0), rgba(0, 1));
+    EXPECT_EQ(rgba(0, 2), hsv1(0, 0));
+    EXPECT_NE(rgba(0, 1), rgba(0, 2));
+}

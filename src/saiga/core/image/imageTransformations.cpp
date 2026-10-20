@@ -42,6 +42,18 @@ void RemoveAlphaChannel(ImageView<const ucvec4> src, ImageView<ucvec3> dst)
 }
 
 
+// Maps d from [minD,maxD] to [0,1]. Depths outside of the range are clamped, because they would overflow the 8 bit
+// channels. An empty range (maxD == minD) becomes a step at minD instead of a division by zero. An inverted range
+// (maxD < minD) maps near depths to bright values.
+static float NormalizeDepth(float d, float minD, float maxD)
+{
+    if (maxD == minD)
+    {
+        return d > minD ? 1.0f : 0.0f;
+    }
+    return clamp((d - minD) / (maxD - minD), 0.0f, 1.0f);
+}
+
 void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4> dst, uint16_t minD, uint16_t maxD)
 {
     SAIGA_ASSERT(src.width == dst.width && src.height == dst.height);
@@ -49,10 +61,7 @@ void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4> dst, uint16_t 
     {
         for (int j = 0; j < src.width; ++j)
         {
-            float d = src(i, j);
-            d       = (d - minD) / float(maxD - minD);
-            // Depths outside of [minD,maxD] would overflow the 8 bit channels.
-            d = clamp(d, 0.0f, 1.0f);
+            float d = NormalizeDepth(src(i, j), minD, maxD);
 
             dst(i, j) = ucvec4(d * 255, d * 255, d * 255, 255);
         }
@@ -66,9 +75,7 @@ void depthToRGBA(ImageView<const float> src, ImageView<ucvec4> dst, float minD, 
     {
         for (int j = 0; j < src.width; ++j)
         {
-            float d = src(i, j);
-            d       = (d - minD) / (maxD - minD);
-            d       = clamp(d, 0.0f, 1.0f);
+            float d = NormalizeDepth(src(i, j), minD, maxD);
 
             dst(i, j) = ucvec4(d * 255, d * 255, d * 255, 255);
         }
@@ -82,10 +89,7 @@ void depthToRGBA_HSV(ImageView<const float> src, ImageView<ucvec4> dst, float mi
     {
         for (int j = 0; j < src.width; ++j)
         {
-            float d = src(i, j);
-            d       = (d - minD) / (maxD - minD);
-
-            d = clamp(d, 0.0f, 1.0f);
+            float d = NormalizeDepth(src(i, j), minD, maxD);
 
             vec3 hsv(d * (240.0 / 360.0), 1, 1);
             Saiga::Color c(Color::hsv2rgb(hsv));
