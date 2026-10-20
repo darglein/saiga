@@ -271,6 +271,7 @@ void VertexBuffer<vertex_t>::addExternalBuffer(Buffer& buffer, GLuint index, GLi
     buffer.bind();
     glEnableVertexAttribArray(index);
     glVertexAttribPointer(index, size, type, normalized, stride, pointer);
+    unbind();
 }
 
 
