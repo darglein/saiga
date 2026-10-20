@@ -17,6 +17,7 @@
 #include "saiga/core/geometry/kdtree.h"
 #include "saiga/core/geometry/object3d.h"
 #include "saiga/core/geometry/triangle.h"
+#include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/math/CoordinateSystems.h"
 #include "saiga/core/math/random.h"
 
@@ -745,4 +746,20 @@ TEST(Geometry, AABBTransform)
     t.transform(T);
     EXPECT_NEAR((t.min - expected.min).norm(), 0, 1e-5);
     EXPECT_NEAR((t.max - expected.max).norm(), 0, 1e-5);
+}
+
+// Regression test: Mesh::normalizeScale divided by (largest coordinate - smallest coordinate) over all axes instead
+// of by the largest extent of the bounding box.
+TEST(Geometry, MeshNormalizeScale)
+{
+    TriangleMesh<Vertex, uint32_t> mesh;
+    mesh.addVertex(Vertex(vec3(10, 0, 0)));
+    mesh.addVertex(Vertex(vec3(11, 1, 0)));
+    mesh.addVertex(Vertex(vec3(10, 0, 2)));
+    mesh.addFace(0, 1, 2);
+    mesh.normalizeScale();
+    EXPECT_NEAR(mesh.aabb().maxSize(), 1, 1e-6);
+
+    mesh.normalizeScale(0.25);
+    EXPECT_NEAR(mesh.aabb().maxSize(), 1 / 1.5, 1e-6);
 }
