@@ -138,3 +138,16 @@ TEST(ImageTransformation, DepthToRGBAUnsignedShortClamps)
     ImageTransformation::depthToRGBA(depth.getConstImageView(), rgba.getImageView(), uint16_t(100), uint16_t(200));
     EXPECT_EQ(rgba(0, 3), ucvec4(0, 0, 0, 255));
 }
+
+TEST(ImageTransformation, SharpnessIsSymmetric)
+{
+    // Only rising edges were counted (max of the signed differences), so a mirrored image was "less sharp".
+    TemplatedImage<unsigned char> img(5, 6);
+    for (int y = 0; y < 5; ++y)
+        for (int x = 0; x < 6; ++x) img(y, x) = x < 3 ? 0 : 200;
+    float s1 = ImageTransformation::sharpness(img.getConstImageView());
+    EXPECT_GT(s1, 0);
+    img.getImageView().flipX();
+    float s2 = ImageTransformation::sharpness(img.getConstImageView());
+    EXPECT_FLOAT_EQ(s1, s2);
+}

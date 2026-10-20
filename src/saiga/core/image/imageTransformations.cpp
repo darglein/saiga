@@ -164,8 +164,9 @@ float sharpness(ImageView<const unsigned char> src)
     {
         for (auto j : src.colRange(1))
         {
-            auto dx = src(i, j + 1) - src(i, j - 1);
-            auto dy = src(i + 1, j) - src(i - 1, j);
+            // The magnitude of the gradient, so that falling edges count as much as rising edges.
+            auto dx = std::abs(src(i, j + 1) - src(i, j - 1));
+            auto dy = std::abs(src(i + 1, j) - src(i - 1, j));
             sum += std::max(dx, dy);
         }
     }
