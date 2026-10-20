@@ -9,6 +9,8 @@
 #include "saiga/cuda/CudaInfo.h"
 #include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/cuda/imageProcessing/imageProcessing.h"
+#include "saiga/cuda/pinned_vector.h"
+#include "saiga/cuda/stream.h"
 
 #include "gtest/gtest.h"
 
@@ -259,6 +261,69 @@ TEST(CudaConvolution, SinglePassInnerShuffle)
 {
     TestSeparable("InnerShuffle", CUDA::convolveSinglePassSeparateInnerShuffle,
                   {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 24});
+}
+
+__global__ static void Spin(long long cycles)
+{
+    long long start = clock64();
+    while (clock64() - start < cycles)
+    {
+    }
+}
+
+// Regression test: CudaImage::upload freed and reallocated the device memory on every call, even if the size did not
+// change. Views, sub-image views and texture objects created from the image (for example in ORBExtractorGPU) then
+// pointed to freed memory (unless the driver happened to return the same address), and the implicit cudaFree
+// synchronized the whole device, so an upload on a stream was never asynchronous.
+TEST(CudaImage, UploadKeepsAllocation)
+{
+    {
+        const int h = 64, w = 64;
+        pinned_vector<float> pinned(h * w, 1.f);
+        ImageView<const float> pinned_view(h, w, pinned.data().get());
+        CUDA::CudaImage<float> d_img(pinned_view);
+        CUDA::CudaStream stream;
+        CUDA::CudaEvent spin_done;
+        Spin<<<1, 1, 0, stream>>>(500 * 1000 * 1000);
+        spin_done.record(stream);
+        d_img.upload(pinned_view, stream);
+        EXPECT_FALSE(spin_done.isCompleted()) << "upload blocked until the device was idle";
+        stream.synchronize();
+    }
+
+    auto h_a = RandomImage(37, 101);
+    auto h_b = RandomImage(37, 101);
+    CUDA::CudaImage<float> d_img(h_a.getConstImageView());
+    ImageView<float> view = d_img.getImageView();
+
+    // Allocate other images in between, so that a reallocation would not return the same address.
+    std::vector<std::unique_ptr<CUDA::CudaImage<float>>> others;
+    for (int i = 0; i < 3; ++i)
+    {
+        d_img.upload(h_b.getConstImageView());
+        others.push_back(std::make_unique<CUDA::CudaImage<float>>(h_a.getConstImageView()));
+        EXPECT_EQ(d_img.data(), view.data);
+        EXPECT_EQ(d_img.pitchBytes, view.pitchBytes);
+    }
+
+    TemplatedImage<float> result(h_b.h, h_b.w);
+    CUDA::CopyImage(ImageView<const float>(view), result.getImageView(), cudaMemcpyDeviceToHost);
+    ExpectImageNear(h_b.getConstImageView(), result.getConstImageView(), 0, "upload");
+
+    // A different size must reallocate.
+    auto h_c = RandomImage(50, 20);
+    d_img.upload(h_c.getConstImageView());
+    EXPECT_EQ(d_img.h, 50);
+    EXPECT_EQ(d_img.w, 20);
+    ExpectImageNear(h_c.getConstImageView(), Download(d_img).getConstImageView(), 0, "upload resized");
+
+    // Copy assignment and copy construction create deep copies.
+    CUDA::CudaImage<float> copy(d_img);
+    EXPECT_NE(copy.data(), d_img.data());
+    ExpectImageNear(h_c.getConstImageView(), Download(copy).getConstImageView(), 0, "copy");
+    const CUDA::CudaImage<float>& same = copy;
+    copy                               = same;
+    ExpectImageNear(h_c.getConstImageView(), Download(copy).getConstImageView(), 0, "self assignment");
 }
 
 TEST(CudaImageProcessing, PointOperations)
