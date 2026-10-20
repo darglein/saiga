@@ -23,6 +23,7 @@ namespace Saiga
  * Slight modifications on the interface.
  */
 SAIGA_CORE_API extern void setThreadName(const std::string& name);
+// Names another thread. Not supported on macOS (a thread can only name itself there), where this does nothing.
 SAIGA_CORE_API extern void setThreadName(std::thread& thread, const std::string& name);
 
 /**
