@@ -4,11 +4,14 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/time.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/MemoryUsage.h"
+#include "saiga/core/util/Thread/SpinLock.h"
 #include "saiga/core/util/Thread/SynchronizedBuffer.h"
 #include "saiga/core/util/Thread/SynchronizedSlot.h"
+#include "saiga/core/util/Thread/semaphore.h"
 #include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/Thread/threadPool.h"
 #include "saiga/core/util/pipeline.h"
@@ -211,4 +214,147 @@ TEST(PipelineStage, StopWithFullQueue)
     overriding.get(v);
     EXPECT_GT(v, 0);
     overriding.stop();
+}
+
+TEST(ThreadPool, ManyTasks)
+{
+    ThreadPool pool(4, "TestPool");
+    std::vector<std::future<int>> results;
+    for (int i = 0; i < 100; ++i) results.push_back(pool.enqueue([](int x) { return x * x; }, i));
+    for (int i = 0; i < 100; ++i) EXPECT_EQ(results[i].get(), i * i);
+
+    auto exception = pool.enqueue([]() -> int { throw std::runtime_error("task failed"); });
+    EXPECT_THROW(exception.get(), std::runtime_error);
+
+    pool.quit();
+    EXPECT_EQ(pool.queueSize(), 0);
+
+    // A pool without workers runs the task on the calling thread.
+    ThreadPool empty(0);
+    EXPECT_EQ(empty.enqueue([]() { return std::this_thread::get_id(); }).get(), std::this_thread::get_id());
+}
+
+TEST(Semaphore, NotifyWait)
+{
+    Semaphore sem;
+    EXPECT_FALSE(sem.trywait());
+    sem.notify();
+    EXPECT_TRUE(sem.trywait());
+    EXPECT_FALSE(sem.trywait());
+
+    std::atomic<int> done = 0;
+    std::thread t(
+        [&]()
+        {
+            sem.wait();
+            sem.wait();
+            done = 1;
+        });
+    sem.notify();
+    std::this_thread::sleep_for(5ms);
+    EXPECT_EQ(done, 0);
+    sem.notify();
+    t.join();
+    EXPECT_EQ(done, 1);
+}
+
+TEST(SpinLock, MutualExclusion)
+{
+    SpinLock lock;
+    EXPECT_TRUE(lock.try_lock());
+    EXPECT_FALSE(lock.try_lock());
+    lock.unlock();
+
+    int counter = 0;
+    std::vector<std::thread> threads;
+    for (int t = 0; t < 4; ++t)
+    {
+        threads.emplace_back(
+            [&]()
+            {
+                for (int i = 0; i < 10000; ++i)
+                {
+                    std::unique_lock l(lock);
+                    counter++;
+                }
+            });
+    }
+    for (auto& t : threads) t.join();
+    EXPECT_EQ(counter, 40000);
+}
+
+TEST(SynchronizedBuffer, Basic)
+{
+    SynchronizedBuffer<int> buffer(2);
+    EXPECT_EQ(buffer.capacity(), 2);
+    EXPECT_TRUE(buffer.emptysync());
+    EXPECT_TRUE(buffer.tryAdd(1));
+    EXPECT_TRUE(buffer.tryAdd(2));
+    EXPECT_FALSE(buffer.tryAdd(3));
+    EXPECT_EQ(buffer.count(), 2);
+    EXPECT_TRUE(buffer.addOverride(3));
+    EXPECT_EQ(buffer.peek(), 2);
+    int v;
+    EXPECT_TRUE(buffer.tryGet(v));
+    EXPECT_EQ(v, 2);
+    EXPECT_EQ(buffer.get(), 3);
+    EXPECT_FALSE(buffer.tryGet(v));
+    EXPECT_EQ(buffer.getTimeout(1ms), 0);
+
+    // producer / consumer
+    std::thread producer(
+        [&]()
+        {
+            for (int i = 1; i <= 1000; ++i) buffer.add(i);
+        });
+    long sum = 0;
+    for (int i = 1; i <= 1000; ++i) sum += buffer.get();
+    producer.join();
+    EXPECT_EQ(sum, 1000 * 1001 / 2);
+}
+
+TEST(Time, DurationToString)
+{
+    using namespace std::chrono;
+    EXPECT_EQ(DurationToString(milliseconds(0)), "00:00:000");
+    EXPECT_EQ(DurationToString(seconds(62) + milliseconds(5)), "01:02:005");
+    EXPECT_EQ(DurationToString(hours(3) + minutes(4) + seconds(5) + milliseconds(60)), "03:04:05:060");
+}
+
+TEST(Time, Timers)
+{
+    Timer timer;
+    timer.start();
+    std::this_thread::sleep_for(2ms);
+    auto t = timer.stop();
+    EXPECT_GE(t, std::chrono::milliseconds(2));
+    EXPECT_GE(timer.getTimeMS(), 2);
+    EXPECT_NEAR(timer.getTimeMicrS(), timer.getTimeMS() * 1000, 1e-6);
+
+    AverageTimer average(2);
+    average.start();
+    average.stop();
+    average.start();
+    std::this_thread::sleep_for(2ms);
+    average.stop();
+    EXPECT_LE(average.getMinimumTimeMS(), average.getTimeMS());
+    EXPECT_GE(average.getMaximumTimeMS(), 2);
+
+    ExponentialTimer exponential(0.5);
+    exponential.start();
+    std::this_thread::sleep_for(2ms);
+    exponential.stop();
+    // smoothed: half of the measurement
+    EXPECT_NEAR(exponential.getTimeMS(), exponential.TimerBase::getTimeMS() / 2, 1e-3);
+
+    float ms = -1;
+    {
+        auto st = make_scoped_timer<std::chrono::milliseconds, float>(ms);
+        std::this_thread::sleep_for(1ms);
+    }
+    EXPECT_GE(ms, 1);
+
+    auto stats = measureObject(3, []() {});
+    EXPECT_EQ(stats.numValues, 3);
+    EXPECT_GE(stats.min, 0);
 }

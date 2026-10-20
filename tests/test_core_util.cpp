@@ -4,20 +4,38 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/util/BinaryFile.h"
+#include "saiga/core/util/DataStructures/ArrayView.h"
+#include "saiga/core/util/DataStructures/FixedVector.h"
+#include "saiga/core/util/DataStructures/ObjectCache.h"
+#include "saiga/core/util/DataStructures/ringBuffer.h"
+#include "saiga/core/util/Range.h"
+#include "saiga/core/util/bitmath.h"
 #include "saiga/core/util/color.h"
+#include "saiga/core/util/directory.h"
+#include "saiga/core/util/discreteProbabilityDistribution.h"
 #include "saiga/core/util/encoding.h"
 #include "saiga/core/util/env.h"
 #include "saiga/core/util/exif/exif.h"
+#include "saiga/core/util/fileChecker.h"
+#include "saiga/core/util/keyboard.h"
+#include "saiga/core/util/perlinnoise.h"
+#include "saiga/core/util/statistics.h"
+#include "saiga/core/util/string_to_path.h"
+#include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/core/util/translator.h"
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <sstream>
 #include <vector>
 
 using namespace Saiga;
@@ -327,4 +345,412 @@ TEST(Exif, GPSOutsideOfSegment)
     ASSERT_EQ(info2.parseFromEXIFSegment(b.data.data(), segment_end), PARSE_EXIF_SUCCESS);
     EXPECT_EQ(info2.GeoLocation.Latitude, 0);
     EXPECT_EQ(info2.GeoLocation.Altitude, 0);
+}
+
+// ============================================================================
+// Coverage tests without a known bug
+// ============================================================================
+
+TEST(String, SplitConcat)
+{
+    EXPECT_EQ(split("a,b,,c", ','), (std::vector<std::string>{"a", "b", "", "c"}));
+    EXPECT_EQ(split("", ','), (std::vector<std::string>{}));
+    EXPECT_EQ(concat({"a", "b", "", "c"}, ','), "a,b,,c");
+    EXPECT_EQ(concat({}, ','), "");
+
+    EXPECT_EQ(leadingZeroString(7, 3), "007");
+    EXPECT_EQ(leadingZeroString(1234, 3), "1234");
+
+    EXPECT_TRUE(hasEnding("image.png", ".png"));
+    EXPECT_FALSE(hasEnding("png", ".png"));
+    EXPECT_TRUE(hasPrefix("image.png", "ima"));
+    EXPECT_FALSE(hasPrefix("im", "image"));
+
+    EXPECT_EQ(fileEnding("bla.jpg"), "jpg");
+    EXPECT_EQ(fileEnding("/usr/local/test.tar.gz"), "gz");
+    EXPECT_EQ(removeFileEnding("/usr/local/test.tar.gz"), "/usr/local/test.tar");
+
+    EXPECT_EQ(array_to_string(std::vector<int>{1, 2, 3}, ','), "1,2,3");
+    EXPECT_EQ(string_to_array<int>("1 2 3"), (std::vector<int>{1, 2, 3}));
+    EXPECT_EQ(string_to_array<double>("0.5,-1", ','), (std::vector<double>{0.5, -1}));
+    std::vector<int> v = {4, 5};
+    EXPECT_EQ(to_string_iterator(v.begin(), v.end()), "{4, 5}");
+    EXPECT_EQ(Saiga::to_string(std::filesystem::path("a/b")), "a/b");
+    EXPECT_EQ(Saiga::to_string(0.5, 2), "5.00e-01");
+}
+
+TEST(String, StringViewParser)
+{
+    StringViewParser parser;
+    std::string input = "  a, bc,,d\n";
+    parser.set(input);
+    EXPECT_EQ(parser.next(), "a");
+    EXPECT_EQ(parser.next(), "bc");
+    EXPECT_EQ(parser.next(), "d");
+    EXPECT_EQ(parser.next(), "");
+
+    StringViewParser strict(",", false);
+    strict.set("a,,b");
+    EXPECT_EQ(strict.next(), "a");
+    EXPECT_EQ(strict.next(), "");
+    EXPECT_EQ(strict.next(), "b");
+}
+
+TEST(String, MatrixToString)
+{
+    Mat3 M;
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j) M(i, j) = i * 3 + j + 0.5;
+    Mat3 M2;
+    StringToMatrix(MatrixToString(M), M2);
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j) EXPECT_EQ(M(i, j), M2(i, j));
+}
+
+TEST(String, Utf8Path)
+{
+    EXPECT_TRUE(is_valid_utf8("abc"));
+    EXPECT_TRUE(is_valid_utf8("\xC3\xA4\xE2\x82\xAC\xF0\x9F\x98\x80"));
+    EXPECT_FALSE(is_valid_utf8("\xC3"));              // truncated
+    EXPECT_FALSE(is_valid_utf8("\xC0\x80"));          // overlong
+    EXPECT_FALSE(is_valid_utf8("\xED\xA0\x80"));      // surrogate
+    EXPECT_FALSE(is_valid_utf8("\xF4\x90\x80\x80"));  // > U+10FFFF
+    EXPECT_FALSE(is_valid_utf8("\xFF"));
+
+    std::string utf8 = "dir/\xC3\xA4.txt";
+    EXPECT_EQ(string_to_path(utf8).u8string(), utf8);
+    EXPECT_EQ(path_to_string(std::filesystem::path("a/b.txt")), "a/b.txt");
+}
+
+TEST(DataStructures, RingBuffer)
+{
+    RingBuffer<int> rb(3);
+    EXPECT_TRUE(rb.empty());
+    EXPECT_EQ(rb.count(), 0);
+    rb.add(1);
+    rb.add(2);
+    rb.add(3);
+    EXPECT_TRUE(rb.full());
+    EXPECT_EQ(rb.count(), 3);
+    EXPECT_EQ(rb.peek(), 1);
+    EXPECT_TRUE(rb.addOverride(4));
+    EXPECT_EQ(rb.count(), 3);
+    EXPECT_EQ(rb.get(), 2);
+    EXPECT_FALSE(rb.addOverride(5));
+    EXPECT_EQ(rb.get(), 3);
+    EXPECT_EQ(rb.get(), 4);
+    EXPECT_EQ(rb.count(), 1);
+    EXPECT_EQ(rb.get(), 5);
+    EXPECT_TRUE(rb.empty());
+
+    // wrap around several times
+    for (int i = 0; i < 10; ++i)
+    {
+        rb.add(i);
+        rb.add(i + 100);
+        EXPECT_EQ(rb.count(), 2);
+        EXPECT_EQ(rb.get(), i);
+        EXPECT_EQ(rb.get(), i + 100);
+    }
+    rb.add(1);
+    rb.clear();
+    EXPECT_TRUE(rb.empty());
+}
+
+namespace
+{
+struct NonMovable
+{
+    NonMovable(int v, int* destroyed) : v(v), destroyed(destroyed) {}
+    NonMovable(const NonMovable&) = delete;
+    ~NonMovable() { (*destroyed)++; }
+    int v;
+    int* destroyed;
+};
+}  // namespace
+
+TEST(DataStructures, FixedVector)
+{
+    int destroyed = 0;
+    {
+        FixedVectorHeap<NonMovable> heap(4);
+        EXPECT_EQ(heap.emplace_back(1, &destroyed), 0);
+        EXPECT_EQ(heap.emplace_back(2, &destroyed), 1);
+        EXPECT_EQ(heap.size(), 2);
+        EXPECT_EQ(heap.back().v, 2);
+        EXPECT_TRUE((isAligned<NonMovable, 64>(heap.data())));
+        heap.pop_back();
+        EXPECT_EQ(destroyed, 1);
+        EXPECT_EQ(heap[0].v, 1);
+    }
+    EXPECT_EQ(destroyed, 2);
+
+    destroyed = 0;
+    {
+        FixedVectorStack<NonMovable, 3> stack;
+        EXPECT_TRUE(stack.empty());
+        stack.emplace_back(1, &destroyed);
+        stack.emplace_back(2, &destroyed);
+        int sum = 0;
+        for (auto& e : stack) sum += e.v;
+        EXPECT_EQ(sum, 3);
+        stack.clear();
+        EXPECT_EQ(destroyed, 2);
+        stack.emplace_back(3, &destroyed);
+    }
+    EXPECT_EQ(destroyed, 3);
+}
+
+TEST(DataStructures, ArrayView)
+{
+    std::vector<int> v = {1, 2, 3, 4, 5};
+    ArrayView<int> av(v);
+    EXPECT_EQ(av.size(), 5);
+    EXPECT_EQ(av.byte_size(), 5 * sizeof(int));
+    EXPECT_EQ(av.front(), 1);
+    EXPECT_EQ(av.back(), 5);
+    EXPECT_EQ(av.slice(1, 2).size(), 2);
+    EXPECT_EQ(av.slice(1, 2)[0], 2);
+    EXPECT_EQ(av.slice_n(3, 2)[1], 5);
+    EXPECT_EQ(av.head(2).back(), 2);
+    EXPECT_EQ(av.tail(2).front(), 4);
+    av.pop_back();
+    EXPECT_EQ(av.size(), 4);
+
+    ArrayView<const int> cav = av;
+    int sum                  = 0;
+    for (auto i : cav) sum += i;
+    EXPECT_EQ(sum, 10);
+
+    int arr[3] = {7, 8, 9};
+    auto av2   = make_ArrayView(arr);
+    EXPECT_EQ(av2.size(), 3);
+    av2[1] = 0;
+    EXPECT_EQ(arr[1], 0);
+
+    int single = 3;
+    EXPECT_EQ(ArrayView<int>(single).size(), 1);
+    EXPECT_TRUE(ArrayView<int>().empty());
+}
+
+TEST(DataStructures, ObjectCache)
+{
+    ObjectCache<std::string, int, int> cache;
+    cache.put("a", 1, 10);
+    cache.put("a", 2, 20);
+    int v = 0;
+    EXPECT_TRUE(cache.get("a", v, 20));
+    EXPECT_EQ(v, 2);
+    EXPECT_TRUE(cache.exists("a", 10));
+    EXPECT_FALSE(cache.exists("a", 30));
+    EXPECT_FALSE(cache.get("b", v, 10));
+    cache.clear();
+    EXPECT_FALSE(cache.exists("a", 10));
+}
+
+TEST(Statistics, Basic)
+{
+    Statistics<double> st(std::vector<double>{4, 1, 3, 2});
+    EXPECT_EQ(st.numValues, 4);
+    EXPECT_EQ(st.min, 1);
+    EXPECT_EQ(st.max, 4);
+    EXPECT_EQ(st.median, 3);
+    EXPECT_EQ(st.sum, 10);
+    EXPECT_EQ(st.mean, 2.5);
+    EXPECT_DOUBLE_EQ(st.variance, 1.25);
+    EXPECT_DOUBLE_EQ(st.sdev, std::sqrt(1.25));
+    EXPECT_DOUBLE_EQ(st.rms, std::sqrt(30.0 / 4));
+
+    Statistics<float> empty(std::vector<float>{});
+    EXPECT_EQ(empty.numValues, 0);
+    EXPECT_EQ(empty.mean, 0);
+}
+
+TEST(Statistics, Filter)
+{
+    // gaussianBlurKernel1d/2d need dynamic matrices, which tiny eigen does not have
+    std::vector<double> src = {1, 1, 1, 10, 1};
+    std::vector<double> dst(src.size());
+    applyFilter1D(src, dst, std::vector<double>{0.25, 0.5, 0.25});
+    EXPECT_DOUBLE_EQ(dst[0], 1);
+    EXPECT_DOUBLE_EQ(dst[2], 3.25);
+    EXPECT_DOUBLE_EQ(dst[3], 5.5);
+    EXPECT_DOUBLE_EQ(dst[4], 3.25);
+}
+
+TEST(Range, Iterate)
+{
+    std::vector<int> r;
+    for (auto i : Range<int>(2, 5)) r.push_back(i);
+    EXPECT_EQ(r, (std::vector<int>{2, 3, 4}));
+
+    r.clear();
+    for (auto i : Range<int>(0, 6, 2).inverse()) r.push_back(i);
+    EXPECT_EQ(r, (std::vector<int>{4, 2, 0}));
+
+    r.clear();
+    for (auto i : StridedRange<int>(0, 7, 3)) r.push_back(i);
+    EXPECT_EQ(r, (std::vector<int>{0, 3, 6}));
+
+    std::vector<int> keys   = {2, 0};
+    std::vector<char> value = {'a', 'b', 'c'};
+    std::string s;
+    for (auto& c : IndirectRange<char, std::vector<int>::iterator>(keys.begin(), keys.end(), value.data())) s += c;
+    EXPECT_EQ(s, "ca");
+}
+
+TEST(DiscreteProbabilityDistribution, Frequencies)
+{
+    Random::setSeed(3487);
+    std::vector<double> probabilities = {1, 0, 3, 6};
+    DiscreteProbabilityDistribution<double> dist(probabilities);
+    std::vector<int> count(4, 0);
+    int n = 100000;
+    for (int i = 0; i < n; ++i)
+    {
+        int s = dist.sample();
+        ASSERT_GE(s, 0);
+        ASSERT_LT(s, 4);
+        count[s]++;
+    }
+    EXPECT_EQ(count[1], 0);
+    EXPECT_NEAR(count[0] / double(n), 0.1, 0.01);
+    EXPECT_NEAR(count[2] / double(n), 0.3, 0.01);
+    EXPECT_NEAR(count[3] / double(n), 0.6, 0.01);
+}
+
+TEST(BinaryFile, Roundtrip)
+{
+    BinaryOutputVector out;
+    out << 42 << 1.5 << std::vector<int>{1, 2, 3};
+
+    BinaryInputVector in(out.data.data(), out.data.size());
+    int i;
+    double d;
+    std::vector<int> v;
+    in >> i >> d >> v;
+    EXPECT_EQ(i, 42);
+    EXPECT_EQ(d, 1.5);
+    EXPECT_EQ(v, (std::vector<int>{1, 2, 3}));
+    EXPECT_EQ(in.current, in.size);
+
+    auto file = std::filesystem::temp_directory_path() / "saiga_test_core_util_binary.bin";
+    {
+        BinaryFile bf(file, std::ios_base::out);
+        bf << 7 << std::vector<float>{0.5f, 2.f};
+    }
+    BinaryFile bf(file, std::ios_base::in);
+    int a;
+    std::vector<float> f;
+    bf >> a >> f;
+    EXPECT_EQ(a, 7);
+    EXPECT_EQ(f, (std::vector<float>{0.5f, 2.f}));
+}
+
+TEST(BitMath, FloatConversion)
+{
+    for (unsigned int x : {0u, 1u << 9, 12345u << 9, 0xFFFFFE00u})
+    {
+        float f = uintToNFloat(x);
+        EXPECT_GE(f, 0.f);
+        EXPECT_LT(f, 1.f);
+        EXPECT_EQ(NFloatToUint(f), x);
+
+        float s = uintToNSFloat(x);
+        EXPECT_GE(s, -1.f);
+        EXPECT_LT(s, 1.f);
+        EXPECT_EQ(NSFloatToUint(s), x);
+    }
+    EXPECT_EQ(countTrailingZero(1), 0);
+    EXPECT_EQ(countTrailingZero(8), 3);
+    EXPECT_EQ(countTrailingZero(12), 2);
+    EXPECT_EQ(countTrailingZero(1 << 30), 30);
+    EXPECT_EQ(countTrailingZero(0), 32);
+}
+
+TEST(PerlinNoise, Range)
+{
+    PerlinNoise reference;
+    PerlinNoise seeded(17);
+    for (int i = 0; i < 1000; ++i)
+    {
+        double x = i * 0.137, y = i * 0.071, z = i * 0.023;
+        double n = reference.noise(x, y, z);
+        EXPECT_GE(n, 0);
+        EXPECT_LE(n, 1);
+        EXPECT_EQ(n, reference.noise(x, y, z));
+        double s = seeded.noise(x, y, z);
+        EXPECT_GE(s, 0);
+        EXPECT_LE(s, 1);
+    }
+    // the gradient noise is 0 (-> 0.5) at integer lattice points
+    EXPECT_DOUBLE_EQ(reference.noise(3, 5, 7), 0.5);
+    EXPECT_GT(reference.fBm(0.3, 0.4, 0.5, 4), 0);
+}
+
+TEST(Keyboard, KeyState)
+{
+    Keyboard k(10);
+    EXPECT_EQ(k.getKeyState(3), 0);
+    EXPECT_EQ(k.setKeyState(3, 1), 3);
+    EXPECT_EQ(k.setKeyState(3, 1), -1);  // unchanged
+    EXPECT_EQ(k.getKeyState(3), 1);
+    EXPECT_TRUE(k.getMappedKeyState(0, {3}));
+    EXPECT_FALSE(k.getMappedKeyState(1, {3}));
+    EXPECT_EQ(k.getKeyState(100), 0);
+    EXPECT_EQ(k.setKeyState(-1, 1), -1);
+}
+
+TEST(Table, Columns)
+{
+    std::stringstream strm;
+    Table table({3, 5}, strm, '|');
+    table << "a" << 1 << "bb" << 22;
+    EXPECT_EQ(strm.str(), "a  |1    \nbb |22   \n");
+}
+
+TEST(FileChecker, SearchPathes)
+{
+    auto dir = std::filesystem::temp_directory_path() / "saiga_test_core_util_filechecker";
+    std::filesystem::create_directories(dir / "sub");
+    std::ofstream(dir / "sub" / "file.txt") << "x";
+    std::ofstream(dir / "base.txt") << "x";
+
+    FileChecker fc;
+    EXPECT_TRUE(fc.getFile("file.txt").empty());
+    EXPECT_TRUE(fc.getFile("").empty());
+    fc.addSearchPath(dir / "sub");
+    EXPECT_EQ(fc.getFile("file.txt"), dir / "sub" / "file.txt");
+    EXPECT_EQ(fc("file.txt"), dir / "sub" / "file.txt");
+    // relative to the base file first
+    EXPECT_EQ(fc.getRelative(dir / "base.txt", "sub/file.txt"), dir / "sub/file.txt");
+    EXPECT_EQ(fc.getRelative(dir / "base.txt", "file.txt"), dir / "sub" / "file.txt");
+    EXPECT_EQ(FileChecker::getParentDirectory(dir / "base.txt"), dir);
+    EXPECT_EQ(fc.getFileName(dir / "base.txt"), "base.txt");
+
+    FileChecker relative;
+    relative.addSearchPath(std::filesystem::relative(dir / "sub"));
+    relative.setSearchWorkingDirectory(false);
+    EXPECT_TRUE(relative.getFile("file.txt").empty());
+}
+
+TEST(Directory, Filters)
+{
+    auto dir = std::filesystem::temp_directory_path() / "saiga_test_core_util_directory";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "images_dir");
+    for (auto name : {"img_1.png", "img_2.jpg", "other.png"}) std::ofstream(dir / name) << "x";
+
+    Directory d(dir);
+    auto sorted = [](std::vector<std::filesystem::path> v)
+    {
+        std::sort(v.begin(), v.end());
+        return v;
+    };
+    EXPECT_EQ(sorted(d.getFilesEnding(".png")), (std::vector<std::filesystem::path>{"img_1.png", "other.png"}));
+    EXPECT_EQ(sorted(d.getFilesPrefix("img_")), (std::vector<std::filesystem::path>{"img_1.png", "img_2.jpg"}));
+    EXPECT_EQ(d.getDirectories("_dir"), (std::vector<std::filesystem::path>{"images_dir"}));
+    EXPECT_TRUE(d.getDirectories(".png").empty());
+    EXPECT_TRUE(d.existsFile("other.png"));
+    EXPECT_FALSE(d.existsFile("images_dir"));
 }
