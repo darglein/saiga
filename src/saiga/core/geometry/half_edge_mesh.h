@@ -596,9 +596,6 @@ void HalfEdgeMesh<vertex_t, index_t>::flipEdge(int he)
     vertices[v2].halfEdge = h1;
     vertices[v3].halfEdge = h4;
 
-    std::cout << h0 << "," << h1 << "," << h2 << "," << h3 << "," << h4 << "," << h5 << "," << std::endl;
-    std::cout << h6 << "," << h7 << "," << h8 << "," << h9 << "," << std::endl;
-    std::cout << std::endl;
 }
 
 
