@@ -192,6 +192,44 @@ TEST(CudaConvolution, Col)
     }
 }
 
+TEST(CudaConvolution, ApplyFilterSeparate)
+{
+    auto h_src = RandomImage(53, 97);
+    CUDA::CudaImage<float> d_src(h_src.getConstImageView());
+    CUDA::CudaImage<float> d_tmp(h_src.h, h_src.w);
+    CUDA::CudaImage<float> d_dst(h_src.h, h_src.w);
+
+    auto kernel_row = RandomKernel(3);
+    auto kernel_col = RandomKernel(5);
+    thrust::device_vector<float> d_kernel_row(kernel_row);
+    thrust::device_vector<float> d_kernel_col(kernel_col);
+
+    CUDA::applyFilterSeparate(d_src.getImageView(), d_dst.getImageView(), d_tmp.getImageView(), d_kernel_row,
+                              d_kernel_col);
+    auto expected =
+        CpuConvolveCol(CpuConvolveRow(h_src.getConstImageView(), kernel_row).getConstImageView(), kernel_col);
+    auto result = Download(d_dst);
+    ExpectImageNear(expected.getConstImageView(), result.getConstImageView(), 1e-5, "applyFilterSeparate");
+}
+
+TEST(CudaConvolution, GaussianKernel)
+{
+    for (int radius : {1, 4, SAIGA_MAX_CONVOLUTION_RADIUS})
+    {
+        float sigma                       = radius / 2.f;
+        thrust::host_vector<float> kernel = CUDA::createGaussianBlurKernel(radius, sigma);
+        ASSERT_EQ(kernel.size(), radius * 2 + 1);
+        float sum = 0;
+        for (int i = 0; i < kernel.size(); ++i)
+        {
+            float x = i - radius;
+            EXPECT_NEAR(kernel[i] / kernel[radius], std::exp(-x * x / (2 * sigma * sigma)), 1e-5);
+            sum += kernel[i];
+        }
+        EXPECT_NEAR(sum, 1, 1e-5);
+    }
+}
+
 TEST(CudaConvolution, SinglePassOuterLinear)
 {
     TestSeparable("OuterLinear", CUDA::convolveSinglePassSeparateOuterLinear, {1, 2, 3, 4, 5, 6, 7, 8, 9});
@@ -210,6 +248,9 @@ TEST(CudaConvolution, SinglePassInner)
 TEST(CudaConvolution, SinglePassInner75)
 {
     TestSeparable("Inner75", CUDA::convolveSinglePassSeparateInner75, {1, 2, 3, 4, 5, 6, 7, 8});
+    TestSeparable("applyFilterSeparateSinglePass",
+                  [](ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int)
+                  { CUDA::applyFilterSeparateSinglePass(src, dst, kernel); }, {1, 4, 8});
 }
 
 TEST(CudaImageProcessing, PointOperations)

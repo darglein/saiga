@@ -12,21 +12,20 @@ namespace Saiga
 {
 namespace CUDA
 {
-#ifdef SAIGA_USE_EIGEN
 thrust::device_vector<float> createGaussianBlurKernel(int radius, float sigma)
 {
     SAIGA_ASSERT(radius <= SAIGA_MAX_CONVOLUTION_RADIUS && radius > 0);
-#if 0
+#ifndef SAIGA_USE_EIGEN
     const int ELEMENTS = radius * 2 + 1;
     thrust::host_vector<float> kernel(ELEMENTS);
     float kernelSum = 0.0f;
-    float ivar2 = 1.0f/(2.0f*sigma*sigma);
-    for (int j=-radius;j<=radius;j++) {
-        kernel[j+radius] = (float)expf(-(double)j*j*ivar2);
-        kernelSum += kernel[j+radius];
+    float ivar2     = 1.0f / (2.0f * sigma * sigma);
+    for (int j = -radius; j <= radius; j++)
+    {
+        kernel[j + radius] = (float)expf(-(double)j * j * ivar2);
+        kernelSum += kernel[j + radius];
     }
-    for (int j=-radius;j<=radius;j++)
-        kernel[j+radius] /= kernelSum;
+    for (int j = -radius; j <= radius; j++) kernel[j + radius] /= kernelSum;
     return thrust::device_vector<float>(kernel);
 #else
     auto kernel = gaussianBlurKernel1d<float>(radius, sigma);
@@ -68,6 +67,5 @@ void applyFilterSeparateSinglePass(ImageView<float> src, ImageView<float> dst, A
 #endif
 }
 
-#endif
 }  // namespace CUDA
 }  // namespace Saiga
