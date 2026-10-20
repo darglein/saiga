@@ -715,3 +715,34 @@ TEST(Geometry, KDTreeMatchesBruteForce)
         EXPECT_EQ(radius, expected);
     }
 }
+
+// Regression test: AABB::transform only transformed min and max, which is wrong for rotations and negative scales.
+TEST(Geometry, AABBTransform)
+{
+    AABB box(vec3(-1, -2, -3), vec3(1, 2, 3));
+
+    // 90 degree rotation around z: x extent and y extent swap.
+    AABB r = box;
+    r.transform(translate(vec3(10, 0, 0)) * Saiga::rotate(radians(90.f), vec3(0, 0, 1)));
+    EXPECT_NEAR((r.min - vec3(8, -1, -3)).norm(), 0, 1e-5) << r.min.transpose();
+    EXPECT_NEAR((r.max - vec3(12, 1, 3)).norm(), 0, 1e-5) << r.max.transpose();
+
+    // Negative scale must keep min <= max.
+    AABB s(vec3(1, 1, 1), vec3(2, 3, 4));
+    s.transform(scale(vec3(-1, 2, 1)));
+    EXPECT_EQ(s.min, vec3(-2, 2, 1));
+    EXPECT_EQ(s.max, vec3(-1, 6, 4));
+
+    // A general rotation: the result must be the bounding box of the transformed corners.
+    mat4 T = translate(vec3(1, 2, 3)) * Saiga::rotate(radians(30.f), vec3(1, 2, 3).normalized());
+    AABB expected;
+    expected.makeNegative();
+    for (int i = 0; i < 8; ++i)
+    {
+        expected.growBox(make_vec3(T * make_vec4(box.cornerPoint(i), 1)));
+    }
+    AABB t = box;
+    t.transform(T);
+    EXPECT_NEAR((t.min - expected.min).norm(), 0, 1e-5);
+    EXPECT_NEAR((t.max - expected.max).norm(), 0, 1e-5);
+}
