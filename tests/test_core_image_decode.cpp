@@ -9,7 +9,9 @@
 
 #include "gtest/gtest.h"
 
+#include <cmath>
 #include <cstring>
+#include <limits>
 
 using namespace Saiga;
 
@@ -584,5 +586,31 @@ TEST(ImageDecode, TiffRoundtrip)
     d.makeZero();
     EXPECT_FALSE(d.save(TestDir() / "double.tif"));
     EXPECT_TRUE(d.saveToMemory("tif").empty());
+}
+#endif
+
+#ifdef SAIGA_USE_PNG
+TEST(ImageDecode, PngInvalidResolution)
+{
+    // The pixels per meter were computed as 1000 / resolution without a check, so a zero, negative or tiny resolution
+    // converted inf or an out of range value to an integer (undefined behavior).
+    for (float r : {0.0f, -1.0f, 1e-30f, std::numeric_limits<float>::quiet_NaN()})
+    {
+        Image img(2, 3, UC1);
+        img.makeZero();
+        img.set_resolution(vec2(r, 0.5f));
+
+        auto file = TestDir() / "invalid_resolution.png";
+        ASSERT_TRUE(img.save(file)) << r;
+        Image loaded;
+        ASSERT_TRUE(loaded.load(file)) << r;
+        EXPECT_FALSE(loaded.get_resolution().has_value()) << r;
+
+        auto bytes = img.saveToMemory("png");
+        ASSERT_FALSE(bytes.empty()) << r;
+        Image decoded;
+        ASSERT_TRUE(LoadFromBytes(decoded, bytes, "png")) << r;
+        EXPECT_FALSE(decoded.get_resolution().has_value()) << r;
+    }
 }
 #endif
