@@ -100,3 +100,11 @@ TEST(Table, WithoutColumns)
     table << "a" << 1;
     EXPECT_NE(strm.str().find('a'), std::string::npos);
 }
+
+TEST(Time, CurrentTimeStringLong)
+{
+    // The result was read from an uninitialized buffer if it did not fit into 200 characters.
+    std::string format(300, 'x');
+    EXPECT_EQ(CurrentTimeString(format + "%Y").size(), 304);
+    EXPECT_EQ(CurrentTimeString(""), "");
+}

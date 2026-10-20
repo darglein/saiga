@@ -10,8 +10,10 @@
 #include "saiga/core/util/tostring.h"
 
 #include <chrono>
+#include <ctime>
 #include <sstream>
 #include <string>
+#include <vector>
 
 
 namespace Saiga
@@ -28,25 +30,27 @@ using animationtime_t = std::chrono::duration<double>;
 // Example Format: "%F_%H-%M-%S"
 inline std::string CurrentTimeString(const std::string& format)
 {
-    const int b_size = 200;
     time_t rawtime;
-    char buffer[b_size];
-
     time(&rawtime);
 
 #ifdef _WIN32
     struct tm timeinfo;
     localtime_s(&timeinfo, &rawtime);
-    strftime(buffer, b_size, format.c_str(), &timeinfo);
 #else
     // localtime is not thread-safe
     struct tm timeinfo;
     localtime_r(&rawtime, &timeinfo);
-    strftime(buffer, b_size, format.c_str(), &timeinfo);
 #endif
 
-
-    return std::string(buffer);
+    // strftime returns 0 (and the buffer content is undefined) if the result does not fit into the buffer.
+    // An empty result also returns 0, so give up at some point.
+    for (size_t b_size = 200; b_size <= 200 + 64 * format.size(); b_size *= 2)
+    {
+        std::vector<char> buffer(b_size);
+        size_t length = strftime(buffer.data(), b_size, format.c_str(), &timeinfo);
+        if (length > 0) return std::string(buffer.data(), length);
+    }
+    return std::string();
 }
 
 
