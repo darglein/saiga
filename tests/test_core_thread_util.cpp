@@ -8,6 +8,7 @@
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/MemoryUsage.h"
 #include "saiga/core/util/Thread/SynchronizedBuffer.h"
+#include "saiga/core/util/Thread/SynchronizedSlot.h"
 #include "saiga/core/util/Thread/threadPool.h"
 #include "saiga/core/util/table.h"
 
@@ -107,4 +108,25 @@ TEST(Time, CurrentTimeStringLong)
     std::string format(300, 'x');
     EXPECT_EQ(CurrentTimeString(format + "%Y").size(), 304);
     EXPECT_EQ(CurrentTimeString(""), "");
+}
+
+TEST(SynchronizedSlot, SetDoesNotMoveFromLvalue)
+{
+    // set() and setOverride() used std::move on their forwarding reference and emptied the caller's lvalue.
+    SynchronizedSlot<std::string> slot;
+    std::string value = "a long string that does not fit into the small string buffer";
+    slot.set(value);
+    EXPECT_EQ(value, "a long string that does not fit into the small string buffer");
+    EXPECT_EQ(slot.get(), value);
+
+    slot.setOverride(value);
+    slot.setOverride(value);
+    EXPECT_EQ(value, "a long string that does not fit into the small string buffer");
+    EXPECT_EQ(slot.peek(), value);
+    EXPECT_EQ(slot.get(), value);
+    EXPECT_TRUE(slot.empty());
+
+    std::thread producer([&]() { slot.set(std::string("x")); });
+    EXPECT_EQ(slot.get(), "x");
+    producer.join();
 }
