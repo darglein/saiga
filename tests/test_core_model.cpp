@@ -7,6 +7,7 @@
 #include "saiga/core/model/UnifiedMesh.h"
 #include "saiga/core/model/UnifiedModel.h"
 #include "saiga/core/model/model_from_shape.h"
+#include "saiga/core/model/model_loader_obj.h"
 #include "saiga/core/model/model_loader_off.h"
 #include "saiga/core/model/model_loader_ply.h"
 
@@ -242,4 +243,118 @@ TEST(ModelLoader, PlyRoundTripAndInvalidFiles)
     std::filesystem::remove(file);
     std::filesystem::remove(truncated);
     std::filesystem::remove(bad);
+}
+
+// Regression test: the OBJ loader never converted the parsed faces into the model (the conversion was disabled), so
+// loading an OBJ file returned a model without meshes.
+TEST(ModelLoader, Obj)
+{
+    std::string mtl =
+        "newmtl red\n"
+        "Kd 1 0 0\n"
+        "newmtl blue\n"
+        "Kd 0 0 1\n";
+    auto mtl_file = TempFile("obj_test.mtl", mtl);
+
+    std::string obj =
+        "# comment\n"
+        "mtllib saiga_test_model_obj_test.mtl\n"
+        "v 0 0 0\n"
+        "v 1 0 0\n"
+        "v 1 1 0\n"
+        "v 0 1 0\n"
+        "vt 0 0\n"
+        "vt 1 0\n"
+        "vt 1 1\n"
+        "vt 0 1\n"
+        "vn 0 0 1\n"
+        "g group\n"
+        "s off\n"
+        "usemtl red\n"
+        // a quad with position/texture/normal indices
+        "f 1/1/1 2/2/1 3/3/1 4/4/1\n"
+        "usemtl blue\n"
+        "v 2 0 0\n"
+        "v 2 1 0\n"
+        "v 3 0.5 0\n"
+        // a pentagon with negative (relative) indices and without texture coordinates
+        "f 2//1 -3//-1 -1//1 -2//1 3//1\n"
+        // a triangle without normals in the same material group
+        "f 5 6 7\r\n";
+    auto obj_file = TempFile("obj_test.obj", obj);
+
+    ObjModelLoader loader;
+    ASSERT_TRUE(loader.loadFile(obj_file));
+    auto& model = loader.out_model;
+
+    ASSERT_EQ(model.materials.size(), 2u);
+    EXPECT_EQ(model.materials[0].name, "red");
+    EXPECT_EQ(vec3(model.materials[0].color_diffuse.head<3>()), vec3(1, 0, 0));
+    EXPECT_EQ(model.materials[1].name, "blue");
+
+    ASSERT_EQ(model.mesh.size(), 2u);
+
+    // Quad -> 2 triangles, 4 vertices.
+    auto& red = model.mesh[0];
+    EXPECT_EQ(red.material_id, 0);
+    EXPECT_EQ(red.NumFaces(), 2);
+    ASSERT_EQ(red.NumVertices(), 4);
+    ASSERT_TRUE(red.HasTC());
+    ASSERT_TRUE(red.HasNormal());
+    for (int i = 0; i < red.NumVertices(); ++i)
+    {
+        EXPECT_EQ(red.normal[i], vec3(0, 0, 1));
+        // In this file the texture coordinate equals the xy position.
+        EXPECT_EQ(red.texture_coordinates[i], vec2(red.position[i].head<2>()));
+    }
+    // Fan triangulation keeps the counter clockwise orientation (normal +z).
+    for (auto& t : red.triangles)
+    {
+        vec3 n = cross(red.position[t(1)] - red.position[t(0)], red.position[t(2)] - red.position[t(0)]);
+        EXPECT_GT(n.z(), 0);
+    }
+
+    // Pentagon (3 triangles) + triangle.
+    auto& blue = model.mesh[1];
+    EXPECT_EQ(blue.material_id, 1);
+    EXPECT_EQ(blue.NumFaces(), 4);
+    EXPECT_FALSE(blue.HasTC());
+    ASSERT_TRUE(blue.HasNormal());
+    // Positions of the pentagon (2, 5, 7, 6, 3) and of the triangle (5, 6, 7) with a different normal index
+    // (none) are separate vertices: 5 + 3.
+    ASSERT_EQ(blue.NumVertices(), 8);
+    std::vector<vec3> pentagon = {vec3(1, 0, 0), vec3(2, 0, 0), vec3(3, 0.5, 0), vec3(2, 1, 0), vec3(1, 1, 0)};
+    for (int i = 0; i < 3; ++i)
+    {
+        auto& t = blue.triangles[i];
+        EXPECT_EQ(blue.position[t(0)], pentagon[0]);
+        EXPECT_EQ(blue.position[t(1)], pentagon[i + 1]);
+        EXPECT_EQ(blue.position[t(2)], pentagon[i + 2]);
+    }
+    // The missing normals of the last triangle (clockwise in xy -> -z) are computed from the face.
+    auto& last = blue.triangles[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        EXPECT_NEAR((blue.normal[last(i)] - vec3(0, 0, -1)).norm(), 0, 1e-6);
+        EXPECT_EQ(blue.normal[blue.triangles[0](i)], vec3(0, 0, 1));
+    }
+
+    // Invalid indices throw instead of reading out of bounds.
+    auto bad_file = TempFile("obj_test_bad.obj", "v 0 0 0\nv 1 0 0\nf 1 2 3\n");
+    ObjModelLoader bad_loader;
+    EXPECT_THROW(bad_loader.loadFile(bad_file), std::runtime_error);
+
+    // Faces before the first usemtl (or with an unknown material) get a default material.
+    auto plain_file = TempFile("obj_test_plain.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+    ObjModelLoader plain_loader;
+    ASSERT_TRUE(plain_loader.loadFile(plain_file));
+    ASSERT_EQ(plain_loader.out_model.mesh.size(), 1u);
+    ASSERT_EQ(plain_loader.out_model.materials.size(), 1u);
+    EXPECT_EQ(plain_loader.out_model.mesh[0].material_id, 0);
+    EXPECT_EQ(plain_loader.out_model.mesh[0].NumFaces(), 1);
+
+    std::filesystem::remove(mtl_file);
+    std::filesystem::remove(obj_file);
+    std::filesystem::remove(bad_file);
+    std::filesystem::remove(plain_file);
 }

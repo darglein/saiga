@@ -18,35 +18,25 @@ namespace Saiga
 SAIGA_CORE_API std::vector<UnifiedMaterial> LoadMTL(const std::string& file);
 
 
+// Loads a Wavefront OBJ file into a UnifiedModel.
+//
+// Supported: v, vt, vn, f (polygons are triangulated as a fan, negative indices are relative to the end of the
+// current list), mtllib and usemtl. Each material group becomes one UnifiedMesh with that material. Vertices are
+// shared within a mesh if they have the same position, texture and normal index. Missing normals are computed from
+// the faces. Other statements (groups, objects, smoothing groups, lines, ...) are ignored.
 class SAIGA_CORE_API ObjModelLoader
 {
    public:
     std::string file;
-    bool verbose = false;
 
    public:
     ObjModelLoader() {}
     ObjModelLoader(const std::string& file);
 
-
-
+    // Throws std::runtime_error for invalid face indices.
     bool loadFile(const std::string& file);
 
-    //    AlignedVector<vec4> vertexData;    // x: specular
-    //    AlignedVector<vec4> vertexColors;  // only when given by the material. Otherwise: white!
-    std::vector<VertexNT> outVertices;
-    // std::vector<ivec3> outTriangles;
-
     UnifiedModel out_model;
-    //    std::vector<UnifiedMaterialGroup> triangleGroups;
-    //    std::vector<UnifiedMaterial> materials;
-    void separateVerticesByGroup();
-    void calculateMissingNormals();
-    void computeVertexColorAndData();
-
-    //    void toTriangleMesh(TriangleMesh<VertexNC, uint32_t>& mesh);
-    //    void toTriangleMesh(TriangleMesh<VertexNTD, uint32_t>& mesh);
-
 
     static constexpr int INVALID_VERTEX_ID = -911365965;
     struct SAIGA_CORE_API IndexedVertex2
@@ -56,26 +46,21 @@ class SAIGA_CORE_API ObjModelLoader
         int t = INVALID_VERTEX_ID;
     };
 
-
    private:
     std::vector<vec3> vertices;
     std::vector<vec3> normals;
     std::vector<vec2> texCoords;
 
     std::vector<std::vector<IndexedVertex2>> faces;
+    std::vector<UnifiedMaterialGroup> material_groups;
 
-
-    void createVertexIndexList();
+    void createMeshes();
 
     std::vector<std::vector<IndexedVertex2>> triangulateFace(const std::vector<IndexedVertex2>& face);
 
-
-    // ================== Parser Tmp Variables ================
-
-    std::vector<IndexedVertex2> ivs;
-    void parseLine();
-
-    void parseF();
+    void parseLine(std::string_view line);
+    // Resolves relative indices and adds the triangulated polygon.
+    void addFace(std::vector<IndexedVertex2> ivs);
 };
 
 }  // namespace Saiga

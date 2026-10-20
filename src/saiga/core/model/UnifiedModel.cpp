@@ -37,30 +37,21 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
         throw std::runtime_error("Could not open file " + file_name);
     }
 
-    std::string type = fileEnding(file_name);
-
-    if (type == "obj" && false)
-    {
-#if 0
-        ObjModelLoader loader(full_file);
-        *this = loader.out_model;
-        for (auto& v : loader.outVertices)
-        {
-            position.push_back(v.position.head<3>());
-            normal.push_back(v.normal.head<3>());
-            texture_coordinates.push_back(v.texture);
-        }
-        LocateTextures(full_file);
-#endif
-    }
 #ifdef SAIGA_USE_ASSIMP
-    else
+    // Assimp also reads OBJ files, so the built-in OBJ loader is only the fallback without Assimp.
     {
         AssimpLoader al(full_file);
         *this = al.Model();
         LocateTextures(full_file);
     }
 #else
+    std::string type = fileEnding(file_name);
+    if (type == "obj")
+    {
+        ObjModelLoader loader(full_file.string());
+        *this = loader.out_model;
+        LocateTextures(full_file.string());
+    }
     else
     {
         throw std::runtime_error(
