@@ -671,3 +671,15 @@ TEST_F(OpenGLShader, FailedReloadKeepsProgram)
 
     std::filesystem::remove_all(dir);
 }
+
+// getUniformBlockIndices read the uninitialized count of an invalid block and wrote to &indices[0] of an empty
+// vector.
+TEST_F(OpenGLShader, UniformBlockIndicesOfInvalidBlock)
+{
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(uniform_block_compute_shader));
+    GLuint block = shader.getUniformBlockLocation("Params");
+    ASSERT_NE(block, GL_INVALID_INDEX);
+    EXPECT_TRUE(shader.getUniformBlockIndices(block + 10).empty());
+    EXPECT_TRUE(shader.getUniformBlockIndices(GL_INVALID_INDEX).empty());
+}

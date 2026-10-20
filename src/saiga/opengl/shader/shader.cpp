@@ -464,11 +464,18 @@ GLint Shader::getUniformBlockSize(GLuint blockLocation)
 
 std::vector<GLint> Shader::getUniformBlockIndices(GLuint blockLocation)
 {
-    GLint ret;
+    // An invalid block index is a GL error and leaves the count unset
+    if (program == 0) return {};
+    GLint num_blocks = 0;
+    glGetProgramiv(program, GL_ACTIVE_UNIFORM_BLOCKS, &num_blocks);
+    if (blockLocation >= static_cast<GLuint>(num_blocks)) return {};
+
+    GLint ret = 0;
     glGetActiveUniformBlockiv(program, blockLocation, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &ret);
+    if (ret <= 0) return {};
 
     std::vector<GLint> indices(ret);
-    glGetActiveUniformBlockiv(program, blockLocation, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, &indices[0]);
+    glGetActiveUniformBlockiv(program, blockLocation, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, indices.data());
 
     return indices;
 }
