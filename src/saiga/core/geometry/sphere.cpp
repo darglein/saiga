@@ -29,7 +29,7 @@ int Sphere::intersectAabb(const AABB& other) const
 
 void Sphere::getMinimumAabb(AABB& box) const
 {
-    vec3 rad(r + 1, r + 1, r + 1);
+    vec3 rad(r, r, r);
     box.min = pos - rad;
     box.max = pos + rad;
 }

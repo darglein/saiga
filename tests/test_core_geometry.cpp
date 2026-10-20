@@ -314,3 +314,66 @@ TEST(Object3D, ModelMatrixRoundTrip)
     ExpectMatNear(i0.getModelMatrix(), obj.getModelMatrix(), 1e-5);
     ExpectMatNear(i1.getModelMatrix(), a.getModelMatrix(), 1e-5);
 }
+
+// Regression test: isDegenerate missed triangles with two identical corners (the corner angles are NaN) and exactly
+// collinear corners (rounding gives cos(angle) slightly below 1).
+TEST(Geometry, TriangleDegenerate)
+{
+    vec3 a(0.1, 0.7, 0.3), b(1, 2, 3.3), c(-0.4, 1.1, 2);
+    EXPECT_FALSE(Triangle(a, b, c).isDegenerate());
+    EXPECT_TRUE(Triangle(a, a, c).isDegenerate());
+    EXPECT_TRUE(Triangle(a, b, b).isDegenerate());
+    EXPECT_TRUE(Triangle(c, b, c).isDegenerate());
+    EXPECT_TRUE(Triangle(a, a, a).isDegenerate());
+    EXPECT_TRUE(Triangle(vec3(0, 0, 0), vec3(1, 2, 3), vec3(2, 4, 6)).isDegenerate());
+    EXPECT_TRUE(Triangle(vec3(1, 1, 1), vec3(3, 3, 3), vec3(2, 2, 2)).isDegenerate());
+}
+
+// Regression test: Sphere::getMinimumAabb added 1 to the radius, so the box was not the minimal one.
+TEST(Geometry, SphereMinimumAabb)
+{
+    Sphere s(vec3(1, 2, 3), 0.5);
+    AABB box;
+    s.getMinimumAabb(box);
+    EXPECT_NEAR((box.min - vec3(0.5, 1.5, 2.5)).norm(), 0, 1e-6);
+    EXPECT_NEAR((box.max - vec3(1.5, 2.5, 3.5)).norm(), 0, 1e-6);
+}
+
+TEST(Geometry, TriangleFunctions)
+{
+    Triangle t(vec3(0, 0, 0), vec3(2, 0, 0), vec3(0, 2, 0));
+    EXPECT_NEAR(t.Area(), 2, 1e-6);
+    EXPECT_NEAR((t.normal() - vec3(0, 0, 1)).norm(), 0, 1e-6);
+    EXPECT_NEAR((t.center() - vec3(2.f / 3, 2.f / 3, 0)).norm(), 0, 1e-6);
+    EXPECT_NEAR(t.angleAtCorner(0), pi<float>() / 2, 1e-5);
+    EXPECT_NEAR(t.angleAtCorner(1), pi<float>() / 4, 1e-5);
+    EXPECT_NEAR(t.minimalAngle(), pi<float>() / 4, 1e-5);
+
+    // Distance to the interior, an edge and a corner.
+    EXPECT_NEAR(t.Distance(vec3(0.5, 0.5, 3)), 3, 1e-5);
+    EXPECT_NEAR(t.Distance(vec3(1, -1, 0)), 1, 1e-5);
+    EXPECT_NEAR(t.Distance(vec3(3, -1, 0)), std::sqrt(2.f), 1e-5);
+    EXPECT_NEAR(t.Distance(vec3(-1, -1, 0)), std::sqrt(2.f), 1e-5);
+    EXPECT_NEAR(t.Distance(vec3(2, 2, 0)), std::sqrt(2.f), 1e-5);
+
+    // Barycentric coordinates reproduce the projected point.
+    vec3 p(0.5, 0.25, 7);
+    vec3 bary = t.BarycentricCoordinates(p);
+    EXPECT_NEAR(bary.sum(), 1, 1e-6);
+    EXPECT_NEAR((t.InterpolateBarycentric(bary) - vec3(0.5, 0.25, 0)).norm(), 0, 1e-5);
+
+    Random::setSeed(10);
+    for (int i = 0; i < 100; ++i)
+    {
+        vec3 r = t.RandomPointOnSurface();
+        EXPECT_NEAR(t.Distance(r), 0, 1e-5);
+        vec3 b = t.RandomBarycentric();
+        EXPECT_NEAR(b.sum(), 1, 1e-5);
+        EXPECT_GE(b.minCoeff(), 0);
+    }
+
+    Triangle t2 = t;
+    t2.ScaleUniform(2);
+    EXPECT_NEAR(t2.Area(), 8, 1e-5);
+    EXPECT_NEAR((t2.center() - t.center()).norm(), 0, 1e-6);
+}
