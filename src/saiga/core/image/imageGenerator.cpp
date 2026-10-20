@@ -28,29 +28,21 @@ std::shared_ptr<Image> ImageGenerator::checkerBoard(vec3 color1, vec3 color2, in
 
     uint8_t r2 = color2[0] * 255.0f, g2 = color2[1] * 255.0f, b2 = color2[2] * 255.0f;
 
-    bool black = true;
     for (int qx = 0; qx < numQuadsX; ++qx)
     {
         for (int qy = 0; qy < numQuadsY; ++qy)
         {
+            // Neighboring quads have different colors (independent of the number of quads).
+            bool first = (qx + qy) % 2 == 0;
             for (int i = 0; i < quadSize; ++i)
             {
                 for (int j = 0; j < quadSize; ++j)
                 {
-                    if (black)
-                    {
-                        image->at<ucvec3>(qx * quadSize + i, qy * quadSize + j) = ucvec3(r1, g1, b1);
-                    }
-                    else
-                    {
-                        image->at<ucvec3>(qx * quadSize + i, qy * quadSize + j) = ucvec3(r2, g2, b2);
-                    }
+                    image->at<ucvec3>(qy * quadSize + i, qx * quadSize + j) =
+                        first ? ucvec3(r1, g1, b1) : ucvec3(r2, g2, b2);
                 }
             }
-
-            black = !black;
         }
-        black = !black;
     }
 
     //    image->save("debug/checkerboard.png");

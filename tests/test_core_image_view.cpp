@@ -95,3 +95,26 @@ TEST(ImageView, ArrayImageAndImageArrayView)
     EXPECT_EQ(arr[1](0, 0), 6);
     EXPECT_EQ(arr.atIARVxxx(1, 2, 1), 11);
 }
+
+TEST(ImageGenerator, CheckerBoardNonSquare)
+{
+    // x and y were swapped, which wrote outside of the image for numQuadsX > numQuadsY and left parts of the image
+    // unset. With an odd numQuadsY, quads in the same row also had the same color.
+    vec3 c1(1, 1, 1), c2(0, 0, 0);
+    for (auto [nx, ny] : {std::pair{4, 1}, std::pair{1, 4}, std::pair{3, 3}, std::pair{2, 3}})
+    {
+        auto img = ImageGenerator::checkerBoard(c1, c2, 2, nx, ny);
+        ASSERT_EQ(img->width, 2 * nx);
+        ASSERT_EQ(img->height, 2 * ny);
+        for (int y = 0; y < img->height; ++y)
+        {
+            for (int x = 0; x < img->width; ++x)
+            {
+                bool first          = ((x / 2) + (y / 2)) % 2 == 0;
+                unsigned char value = first ? 255 : 0;
+                EXPECT_EQ(img->at<ucvec3>(y, x), ucvec3(value, value, value))
+                    << nx << "x" << ny << " pixel " << y << " " << x;
+            }
+        }
+    }
+}
