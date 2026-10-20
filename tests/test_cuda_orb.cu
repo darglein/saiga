@@ -8,6 +8,7 @@
 #include "saiga/core/image/all.h"
 #include "saiga/core/math/all.h"
 #include "saiga/core/util/statistics.h"
+#include "saiga/cuda/imageProcessing/Fast.h"
 #include "saiga/cuda/imageProcessing/OrbDescriptors.h"
 #include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/cuda/thrust_helper.h"
@@ -220,4 +221,35 @@ TEST(ORB, DescriptorRandom)
     // Random angles is a little above 0 because of sin/cos differences
     EXPECT_LE(stat_random.max, 10);
     EXPECT_EQ(stat_random.median, 0);
+}
+
+// Regression test: Fast::Download returned the number of detected keypoints even if it was larger than
+// maxKeypoints. It then copied (and later scheduled copies of) more keypoints than the buffers hold.
+TEST(Fast, MoreKeypointsThanMax)
+{
+    CUDA::CudaStream stream;
+    for (int max_keypoints : {10, 100000})
+    {
+        CUDA::Fast fast(20, 7, max_keypoints);
+        std::vector<KeyPoint<float>> keypoints(fast.MaxKeypoints());
+        int last_n = -1;
+        for (int i = 0; i < 3; ++i)
+        {
+            fast.Detect(test.d_random.getImageView(), stream);
+            int n = fast.Download(keypoints, stream);
+            EXPECT_GT(n, 0);
+            EXPECT_LE(n, fast.MaxKeypoints());
+            if (last_n >= 0) EXPECT_EQ(n, last_n);
+            last_n = n;
+
+            for (int k = 0; k < n; ++k)
+            {
+                auto p = keypoints[k].point;
+                EXPECT_GE(p.x(), 4);
+                EXPECT_GE(p.y(), 4);
+                EXPECT_LT(p.x(), test.random.w - 4);
+                EXPECT_LT(p.y(), test.random.h - 4);
+            }
+        }
+    }
 }

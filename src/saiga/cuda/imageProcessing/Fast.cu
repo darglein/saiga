@@ -924,7 +924,8 @@ void Fast::Detect(Saiga::ImageView<unsigned char> d_image, cudaStream_t stream)
 
 
 
-        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_counter_keypoint_location.data().get(), counter_keypoint_location.data().get(),
+        CHECK_CUDA_ERROR(cudaMemcpyAsync(h_counter_keypoint_location.data().get(),
+                                         counter_keypoint_location.data().get(),
                                          sizeof(short2) * (actual_max_keypoints + 1), cudaMemcpyDeviceToHost, stream));
         CHECK_CUDA_ERROR(cudaMemcpyAsync(h_keypoint_score.data().get(), keypoint_score.data().get(),
                                          sizeof(float) * actual_max_keypoints, cudaMemcpyDeviceToHost, stream));
@@ -937,7 +938,8 @@ int Fast::Download(Saiga::ArrayView<Saiga::KeyPoint<float>> keypoints, cudaStrea
     detection_finished.synchronize();
     auto h_counter         = (unsigned int*)h_counter_keypoint_location.data().get();
     auto keypoint_location = counter_keypoint_location.data().get() + 1;
-    auto count             = h_counter[0];
+    // The kernel counts all detected keypoints, but stores at most maxKeypoints.
+    int count = std::min<int>(h_counter[0], maxKeypoints);
 
 
     if (count > actual_max_keypoints)
@@ -949,7 +951,7 @@ int Fast::Download(Saiga::ArrayView<Saiga::KeyPoint<float>> keypoints, cudaStrea
         CHECK_CUDA_ERROR(cudaMemcpyAsync(h_keypoint_score.data().get() + actual_max_keypoints,
                                          keypoint_score.data().get() + actual_max_keypoints,
                                          sizeof(float) * remaining_points, cudaMemcpyDeviceToHost, stream));
-        actual_max_keypoints = count * 1.05;
+        actual_max_keypoints = std::min<int>(count * 1.05, maxKeypoints);
 
         CHECK_CUDA_ERROR(cudaStreamSynchronize(stream));
     }
