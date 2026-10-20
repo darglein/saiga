@@ -188,6 +188,22 @@ void TextureBase::uploadWithPitch(int width, int height, ImageType type, size_t 
     glPixelStorei(GL_UNPACK_ROW_LENGTH, old_row_length);
 }
 
+GLenum TextureBase::defaultFilter() const
+{
+    switch (color_type)
+    {
+        case GL_RED_INTEGER:
+        case GL_RG_INTEGER:
+        case GL_RGB_INTEGER:
+        case GL_RGBA_INTEGER:
+        case GL_BGR_INTEGER:
+        case GL_BGRA_INTEGER:
+            return GL_NEAREST;
+        default:
+            return GL_LINEAR;
+    }
+}
+
 void TextureBase::setFormat(ImageType type, bool srgb, bool integer)
 {
     auto element_type = elementType(type);

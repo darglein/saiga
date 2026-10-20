@@ -129,6 +129,9 @@ class SAIGA_OPENGL_API TextureBase
     static void uploadWithPitch(int width, int height, ImageType type, size_t pitch_bytes, const void* data,
                                 const std::function<void(const void*)>& upload);
 
+    // GL_LINEAR, or GL_NEAREST for integer textures, which are incomplete (fetches return 0) with linear filtering.
+    GLenum defaultFilter() const;
+
     // The underlying GL texture name and target
     GLuint id = 0;
     GLenum target;

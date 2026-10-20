@@ -226,3 +226,48 @@ TEST_F(OpenGLShader, ComputeShaderImage)
     for (int y = 0; y < h; ++y)
         for (int x = 0; x < w; ++x) EXPECT_EQ(img(y, x), ucvec4(x, y, x + y, 255)) << x << " " << y;
 }
+
+// Copies the texels of an integer texture into a buffer with texelFetch.
+static const char* integer_texture_compute_shader = R"(
+##GL_COMPUTE_SHADER
+#version 430
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(location = 0) uniform usampler2D src;
+layout(std430, binding = 0) writeonly buffer Out { uint data_out[]; };
+void main()
+{
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = textureSize(src, 0);
+    if (p.x >= size.x || p.y >= size.y) return;
+    data_out[p.y * size.x + p.x] = texelFetch(src, p, 0).r;
+}
+)";
+
+// Integer textures were created with GL_LINEAR filtering, which makes them incomplete: every fetch returned 0.
+TEST_F(OpenGLShader, SampleIntegerTexture)
+{
+    int w = 5, h = 3;
+    TemplatedImage<unsigned int> img(h, w);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) img(y, x) = 1000 * y + x + 1;
+
+    Texture2D tex(img);
+
+    std::vector<unsigned int> zeros(w * h, 0);
+    TemplatedShaderStorageBuffer<unsigned int> out_buffer;
+    out_buffer.create(zeros, GL_DYNAMIC_READ);
+
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(integer_texture_compute_shader));
+    out_buffer.bind(0);
+    ASSERT_TRUE(shader.bind());
+    shader.upload(0, tex, 0);
+    shader.dispatchCompute(shader.getNumGroupsCeil(uvec3(w, h, 1)));
+    shader.unbind();
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+
+    std::vector<unsigned int> result(w * h);
+    out_buffer.get(result);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) EXPECT_EQ(result[y * w + x], img(y, x)) << x << " " << y;
+}
