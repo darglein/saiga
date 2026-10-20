@@ -268,11 +268,6 @@ std::vector<unsigned char> Image::saveToMemory(std::string file_extension) const
 #endif
     }
 
-#ifdef SAIGA_USE_FREEIMAGE
-    SAIGA_EXIT_ERROR("not implemented");
-    // return Saiga::FIP::saveToMemory(*this, file_extension);
-#endif
-
     if (file_extension == "jpg")
     {
         return compressImageSTB(*this, file_extension);
@@ -331,7 +326,8 @@ bool Image::save(const std::filesystem::path& path) const
 #ifdef SAIGA_USE_FREEIMAGE
     {
         ImageIOLibFreeimage io;
-        return io.Save2File(path_to_string(path), *this);
+        // Formats unknown to FreeImage fall through to stb.
+        if (io.Save2File(path_to_string(path), *this)) return true;
     }
     // return FIP::save(path, *this);
 #endif

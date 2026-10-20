@@ -788,6 +788,10 @@ static int MaxAbsDifferenceT(const Image& a, const Image& b)
 
 TEST(ImageDecode, AvifRoundtrip)
 {
+#    ifndef SAIGA_USE_LIBAOM
+    // aom is the only AV1 decoder built by saiga. The SVT-AV1 encoder also stores gray images as YUV420.
+    GTEST_SKIP() << "No AV1 decoder";
+#    endif
     // Loading avif images always returned false.
     for (ImageType type : {UC1, UC3, UC4, US1, US3})
     {

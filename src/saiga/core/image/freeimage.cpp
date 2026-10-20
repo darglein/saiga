@@ -319,7 +319,10 @@ bool ImageIOLibFreeimage::Save2File(const std::filesystem::path& file, const Ima
     FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(path.c_str());
     int bpp                  = bitsPerPixel(src.type);
     FREE_IMAGE_TYPE type     = FIType(src.type);
-    SAIGA_ASSERT(format != FIF_UNKNOWN);
+    if (format == FIF_UNKNOWN)
+    {
+        return false;
+    }
 
     FIBITMAP* bm = FreeImage_AllocateT(type, img.w, img.h, bpp);
     SAIGA_ASSERT(bm);
