@@ -166,6 +166,26 @@ TEST(TinyEigen, InverseOfSingularMatrixIsIdentity)
     EXPECT_EQ(m.inverse(), Mat4d::Identity());
 }
 
+TEST(TinyEigen, InverseWithTinyPivot)
+{
+    // Regression: the 4x4 Gauss-Jordan inverse only swapped rows for an exactly zero pivot. With the tiny first
+    // pivot 1e-8 the elimination cancelled the other entries in float and returned a badly wrong inverse.
+    Matrix<float, 4, 4> m = Matrix<float, 4, 4>::Identity();
+    m(0, 0)               = 1e-8f;
+    m(0, 1)               = 1;
+    m(1, 0)               = 1;
+    m(1, 1)               = 1;
+
+    Matrix<float, 4, 4> identity = m * m.inverse();
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            EXPECT_NEAR(identity(i, j), i == j ? 1 : 0, 1e-5) << i << " " << j;
+        }
+    }
+}
+
 TEST(TinyEigen, QuaternionInverse)
 {
     Quaternion<double> q(2, 0, 0, 0);
