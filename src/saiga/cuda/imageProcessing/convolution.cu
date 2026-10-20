@@ -715,15 +715,6 @@ inline void convolveInnerShuffle(ImageView<T> src, ImageView<T> dst)
     dim3 threads(BLOCK_W, BLOCK_H);
 
 
-    if (sizeof(VectorType) >= 8)
-        cudaFuncSetSharedMemConfig(
-            d_convolveInnerShuffle2<T, RADIUS, BLOCK_W, BLOCK_H, X_ELEMENTS, Y_ELEMENTS, VectorType>,
-            cudaSharedMemBankSizeEightByte);
-    else
-        cudaFuncSetSharedMemConfig(
-            d_convolveInnerShuffle2<T, RADIUS, BLOCK_W, BLOCK_H, X_ELEMENTS, Y_ELEMENTS, VectorType>,
-            cudaSharedMemBankSizeFourByte);
-
     d_convolveInnerShuffle2<T, RADIUS, BLOCK_W, BLOCK_H, X_ELEMENTS, Y_ELEMENTS, VectorType>
         <<<blocks, threads>>>(src, dst);
 
