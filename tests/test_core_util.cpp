@@ -394,6 +394,14 @@ TEST(String, FileEndingWithoutEnding)
     EXPECT_EQ(fileEnding(""), "");
 }
 
+TEST(BitMath, CountTrailingZeroNegative)
+{
+    // -x overflowed for INT_MIN (undefined behavior, reported by the undefined behavior sanitizer).
+    EXPECT_EQ(countTrailingZero(std::numeric_limits<int>::min()), 31);
+    EXPECT_EQ(countTrailingZero(-1), 0);
+    EXPECT_EQ(countTrailingZero(-8), 3);
+}
+
 TEST(DataStructures, FixedVectorCopy)
 {
     // The implicit copy of FixedVectorHeap copied the data pointer, so both vectors freed the same memory. The implicit
