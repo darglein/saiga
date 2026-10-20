@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <sstream>
+#include <tuple>
 
 using namespace Saiga;
 
@@ -795,4 +796,52 @@ TEST(Geometry, RayAABBInFacePlane)
     // Starting inside the box: t is the (negative) entry distance.
     EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(0, 0, 0)), box, t));
     EXPECT_FLOAT_EQ(t, -1);
+}
+
+// Regression test: sortVerticesByPosition compared coordinates with a tolerance, which is not a strict weak ordering
+// (undefined behavior in std::sort). Near-duplicates must still end up next to each other.
+TEST(Geometry, TriangleMeshSortVerticesByPosition)
+{
+    TriangleMesh<Vertex, uint32_t> mesh;
+    Random::setSeed(3);
+    std::vector<vec3> centers;
+    for (int i = 0; i < 50; ++i)
+    {
+        // Cluster centers in the middle of the epsilon cells, so that the jittered copies share a cell.
+        centers.push_back(vec3(Random::uniformInt(0, 5), Random::uniformInt(0, 5), Random::uniformInt(0, 5)) +
+                          vec3(0.0005, 0.0005, 0.0005));
+    }
+    std::sort(centers.begin(), centers.end(),
+              [](const vec3& a, const vec3& b) { return std::tie(a[0], a[1], a[2]) < std::tie(b[0], b[1], b[2]); });
+    centers.erase(std::unique(centers.begin(), centers.end()), centers.end());
+
+    for (int i = 0; i < 300; ++i)
+    {
+        int c  = i < (int)centers.size() ? i : Random::uniformInt(0, centers.size() - 1);
+        vec3 p = centers[c] + Random::MatrixUniform<vec3>(-1e-5, 1e-5);
+        mesh.addVertex(Vertex(p));
+    }
+    for (int i = 0; i + 2 < 300; i += 3)
+    {
+        mesh.addFace(i, i + 1, i + 2);
+    }
+    std::vector<vec3> face_positions;
+    for (auto& f : mesh.faces)
+        for (int j = 0; j < 3; ++j) face_positions.push_back(make_vec3(mesh.vertices[f(j)].position));
+
+    mesh.sortVerticesByPosition(1e-3);
+
+    // The faces still reference the same positions.
+    std::vector<vec3> sorted_face_positions;
+    for (auto& f : mesh.faces)
+        for (int j = 0; j < 3; ++j) sorted_face_positions.push_back(make_vec3(mesh.vertices[f(j)].position));
+    EXPECT_EQ(face_positions, sorted_face_positions);
+
+    mesh.removeSubsequentDuplicates(1e-3);
+    ASSERT_EQ(mesh.vertices.size(), centers.size());
+    for (size_t i = 0; i < centers.size(); ++i)
+    {
+        EXPECT_NEAR((make_vec3(mesh.vertices[i].position) - centers[i]).norm(), 0, 1e-4);
+    }
+    EXPECT_TRUE(mesh.isValid());
 }
