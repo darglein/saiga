@@ -75,11 +75,9 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
 
     const int y = blockIdx.y * BLOCK_DIM_Y + threadIdx.y;
 
-    if (y >= src.height) return;
-
-
-
-    const float* src_row = src.rowPtr(y);
+    // The threads below the last row must not return, because they have to reach the __syncthreads below. They load
+    // the last row instead and do not write anything.
+    const float* src_row = src.rowPtr(min(y, src.height - 1));
 
     const int xStart = blockIdx.x * (PATCH_PER_BLOCK * BLOCK_DIM_X) + threadIdx.x;
 
@@ -140,7 +138,7 @@ __global__ void linearRowFilter(ImageView<float> src, ImageView<float> dst, cons
     {
         const int x = xStart + j * BLOCK_DIM_X;
 
-        if (x < src.width)
+        if (x < src.width && y < src.height)
         {
             sum_t sum = 0;
 
