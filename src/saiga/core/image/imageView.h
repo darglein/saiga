@@ -412,6 +412,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     inline void gx(ImageView<T> gradient) const
     {
         SAIGA_ASSERT(height == gradient.height && width == gradient.width);
+        if (width == 0) return;
 
         for (int y = 0; y < height; ++y)
         {
@@ -421,9 +422,9 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
                 gradient(y, x)         = zentralDifference / T(2);
             }
             // left border (forward difference)
-            gradient(y, 0) = (*this)(y, 1) - (*this)(y, 0);
+            gradient(y, 0) = (*this)(y, std::min(1, w - 1)) - (*this)(y, 0);
             // right border (backward difference)
-            gradient(y, w - 1) = (*this)(y, w - 1) - (*this)(y, w - 2);
+            gradient(y, w - 1) = (*this)(y, w - 1) - (*this)(y, std::max(w - 2, 0));
         }
     }
 
@@ -434,6 +435,7 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     inline void gy(ImageView<T> gradient) const
     {
         SAIGA_ASSERT(height == gradient.height && width == gradient.width);
+        if (height == 0) return;
 
         for (int y = 1; y < height - 1; ++y)
         {
@@ -448,9 +450,9 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
         for (int x = 0; x < width; ++x)
         {
             // upper border (forward difference)
-            gradient(0, x) = (*this)(1, x) - (*this)(0, x);
+            gradient(0, x) = (*this)(std::min(1, h - 1), x) - (*this)(0, x);
             // lower border (backward difference)
-            gradient(h - 1, x) = (*this)(h - 1, x) - (*this)(h - 2, x);
+            gradient(h - 1, x) = (*this)(h - 1, x) - (*this)(std::max(h - 2, 0), x);
         }
     }
 

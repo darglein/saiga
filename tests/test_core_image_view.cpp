@@ -524,3 +524,35 @@ TEST(ManagedImage, Texture)
     EXPECT_FLOAT_EQ(c(1), 0);
     EXPECT_FLOAT_EQ(c(3), 0);
 }
+
+TEST(ImageView, GradientsOfSingleRowOrColumn)
+{
+    // For width or height 1 the border differences read the pixel at index 1, which is outside of the view.
+    // The views below are sub views of a larger image, so that pixel exists and has a different value.
+    TemplatedImage<float> img(3, 3);
+    for (int y = 0; y < 3; ++y)
+        for (int x = 0; x < 3; ++x) img(y, x) = 10 * y + x;
+
+    TemplatedImage<float> g(3, 3);
+    g.getImageView().set(-1);
+
+    auto column = img.getImageView().subImageView(0, 1, 3, 1);
+    auto gcol   = g.getImageView().subImageView(0, 1, 3, 1);
+    column.gx(gcol);
+    for (int y = 0; y < 3; ++y) EXPECT_EQ(gcol(y, 0), 0) << y;
+    column.gy(gcol);
+    EXPECT_EQ(gcol(0, 0), 10);
+    EXPECT_EQ(gcol(1, 0), 10);
+    EXPECT_EQ(gcol(2, 0), 10);
+
+    auto row  = img.getImageView().subImageView(1, 0, 1, 3);
+    auto grow = g.getImageView().subImageView(1, 0, 1, 3);
+    row.gy(grow);
+    for (int x = 0; x < 3; ++x) EXPECT_EQ(grow(0, x), 0) << x;
+    row.gx(grow);
+    for (int x = 0; x < 3; ++x) EXPECT_EQ(grow(0, x), 1) << x;
+
+    // Pixels outside of the views are not written.
+    EXPECT_EQ(g(0, 0), -1);
+    EXPECT_EQ(g(2, 2), -1);
+}
