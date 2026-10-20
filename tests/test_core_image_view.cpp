@@ -42,6 +42,41 @@ TEST(ImageView, CopySubViewKeepsSurroundingPixels)
     }
 }
 
+TEST(ImageView, ScaleDownPow2UnsignedShort)
+{
+    // The sum was accumulated in unsigned short, which overflowed for bright images.
+    TemplatedImage<unsigned short> img(4, 4);
+    img.getImageView().set(60000);
+    img(0, 0) = 60001;
+    img(0, 1) = 60002;
+    TemplatedImage<unsigned short> small(2, 2);
+    img.getImageView().copyScaleDownPow2(small.getImageView(), 2);
+    EXPECT_EQ(small(0, 0), 60001);  // 60000.75 rounded
+    EXPECT_EQ(small(1, 1), 60000);
+}
+
+TEST(ImageView, ScaleDownPow2UnsignedChar)
+{
+    // Did not compile, because the unsigned char texel converter had no ZeroFloat().
+    TemplatedImage<unsigned char> img(2, 4);
+    FillSequence(img.getImageView());
+    TemplatedImage<unsigned char> small(1, 2);
+    img.getImageView().copyScaleDownPow2(small.getImageView(), 2);
+    EXPECT_EQ(small(0, 0), 3);  // (0 + 1 + 4 + 5) / 4 = 2.5 rounded
+    EXPECT_EQ(small(0, 1), 5);  // (2 + 3 + 6 + 7) / 4 = 4.5 rounded
+}
+
+TEST(ImageView, InterpolateUnsignedShortRounds)
+{
+    // Interpolated integer values were truncated.
+    TemplatedImage<unsigned short> img(1, 2);
+    img(0, 0) = 10;
+    img(0, 1) = 11;
+    auto v    = img.getImageView();
+    EXPECT_EQ(v.inter(0, 0.75f), 11);
+    EXPECT_EQ(v.inter(0, 0.25f), 10);
+}
+
 TEST(ImageView, ArrayImageAndImageArrayView)
 {
     // getImageView() and getConstImageView() called themselves through the conversion operators (stack overflow).
