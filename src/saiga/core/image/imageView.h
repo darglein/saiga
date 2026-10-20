@@ -240,7 +240,9 @@ struct SAIGA_TEMPLATE ImageView : public ImageBase
     inline void copyTo(ImageView<T> dst) const
     {
         SAIGA_ASSERT(height == dst.height && width == dst.width);
-        if (pitchBytes == dst.pitchBytes)
+        // A single memcpy also copies the padding between the rows. That is only allowed if there is none, otherwise
+        // it would read/overwrite pixels outside of sub-image views.
+        if (pitchBytes == dst.pitchBytes && pitchBytes == width * sizeof(T))
         {
             // copy all at once
             memcpy(dst.data, data, size());

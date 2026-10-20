@@ -11,29 +11,44 @@
 
 #include "imageFormat.h"
 
+#include <cmath>
+
+#include <type_traits>
+
 namespace Saiga
 {
 template <typename T>
 struct SAIGA_TEMPLATE MatchingFloatType
 {
-    using FloatType = typename std::remove_const<T>::type;
+    using NoConstType = typename std::remove_const<T>::type;
+    // Integer texels are processed as floating point values. Otherwise sums (for example in copyScaleDownPow2)
+    // overflow, and interpolated values are truncated instead of rounded.
+    using FloatType =
+        typename std::conditional<std::is_integral<NoConstType>::value,
+                                  typename std::conditional<(sizeof(NoConstType) <= 2), float, double>::type,
+                                  NoConstType>::type;
     static inline FloatType convert(const T& t) { return FloatType(t); }
-    static inline T convertBack(const FloatType& t) { return T(t); }
-    static inline T ZeroFloat() { return T(0); }
+    static inline T convertBack(const FloatType& t)
+    {
+        if constexpr (std::is_integral<NoConstType>::value)
+        {
+            return T(std::round(t));
+        }
+        else
+        {
+            return T(t);
+        }
+    }
+    static inline FloatType ZeroFloat() { return FloatType(0); }
 };
 
 template <>
 struct MatchingFloatType<unsigned char>
 {
     using FloatType = float;
-    static inline FloatType convert(const unsigned char& t)
-    {
-        return float(t);
-    }
-    static inline unsigned char convertBack(const FloatType& t)
-    {
-        return (unsigned char)(round(t));
-    }
+    static inline FloatType convert(const unsigned char& t) { return float(t); }
+    static inline unsigned char convertBack(const FloatType& t) { return (unsigned char)(round(t)); }
+    static inline FloatType ZeroFloat() { return 0; }
 };
 
 
@@ -41,30 +56,16 @@ template <>
 struct MatchingFloatType<ucvec3>
 {
     using FloatType = vec3;
-    static inline FloatType convert(const ucvec3& t)
-    {
-        return t.cast<float>();
-    }
-    static inline ucvec3 convertBack(const FloatType& t)
-    {
-        return t.array().round().cast<unsigned char>();
-    }
+    static inline FloatType convert(const ucvec3& t) { return t.cast<float>(); }
+    static inline ucvec3 convertBack(const FloatType& t) { return t.array().round().cast<unsigned char>(); }
     static inline FloatType ZeroFloat() { return FloatType::Zero(); }
 };
 template <>
 struct MatchingFloatType<ucvec4>
 {
     using FloatType = vec4;
-    static inline FloatType convert(const ucvec4& t)
-    {
-        return t.cast<float>();
-
-    }
-    static inline ucvec4 convertBack(const FloatType& t)
-    {
-        return t.array().round().cast<unsigned char>();
-
-    }
+    static inline FloatType convert(const ucvec4& t) { return t.cast<float>(); }
+    static inline ucvec4 convertBack(const FloatType& t) { return t.array().round().cast<unsigned char>(); }
     static inline FloatType ZeroFloat() { return FloatType::Zero(); }
 };
 
@@ -73,16 +74,9 @@ template <>
 struct MatchingFloatType<usvec3>
 {
     using FloatType = vec3;
-    static inline FloatType convert(const usvec3& t)
-    {
-        return t.cast<float>();
-
-    }
-    static inline usvec3 convertBack(const FloatType& t)
-    {
-        return t.array().round().cast<unsigned short>();
-
-    }
+    static inline FloatType convert(const usvec3& t) { return t.cast<float>(); }
+    static inline usvec3 convertBack(const FloatType& t) { return t.array().round().cast<unsigned short>(); }
+    static inline FloatType ZeroFloat() { return FloatType::Zero(); }
 };
 
 template <typename T, typename ST = float>
