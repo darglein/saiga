@@ -27,7 +27,8 @@ void Texture1D::create(int size, GLenum color_type, GLenum internal_format, GLen
                  color_type,                           // format
                  data_type,                            // type
                  data);
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(defaultFilter()));
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(defaultFilter()));
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(GL_CLAMP_TO_EDGE));
     assert_no_glerror();
     unbind();
@@ -40,6 +41,7 @@ Texture2D::Texture2D(const Image& img, bool srgb, bool flipY, bool integer) : Te
     height = img.height;
     TextureBase::create();
 
+    auto upload_fn = [this](const void* data) { upload(data); };
     if (flipY)
     {
         std::vector<char> data(img.pitchBytes * img.h);
@@ -47,19 +49,19 @@ Texture2D::Texture2D(const Image& img, bool srgb, bool flipY, bool integer) : Te
         {
             memcpy(&data[i * img.pitchBytes], img.rowPtr(img.h - i - 1), img.pitchBytes);
         }
-        upload(data.data());
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, data.data(), upload_fn);
     }
     else
     {
-        upload(img.data());
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(), upload_fn);
     }
 }
 
 
 void Texture2D::setDefaultParameters()
 {
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(defaultFilter()));
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(defaultFilter()));
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(GL_CLAMP_TO_EDGE));
     glTexParameteri(target, GL_TEXTURE_WRAP_T, static_cast<GLint>(GL_CLAMP_TO_EDGE));
 }
@@ -67,7 +69,7 @@ void Texture2D::setDefaultParameters()
 
 void Texture2D::updateFromImage(const Image& img)
 {
-    upload(img.data());
+    uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(), [this](const void* data) { upload(data); });
 }
 
 void Texture2D::create(int width, int height, GLenum color_type, GLenum internal_format, GLenum data_type,

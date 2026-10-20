@@ -54,8 +54,8 @@ void TextureCube::uploadData(const void* data)
 
 void TextureCube::setDefaultParameters()
 {
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(defaultFilter()));
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(defaultFilter()));
     glTexParameteri(target, GL_TEXTURE_WRAP_R, static_cast<GLint>(GL_CLAMP_TO_EDGE));
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(GL_CLAMP_TO_EDGE));
     glTexParameteri(target, GL_TEXTURE_WRAP_T, static_cast<GLint>(GL_CLAMP_TO_EDGE));
@@ -65,7 +65,16 @@ void TextureCube::setDefaultParameters()
 
 bool TextureCube::fromImage(std::vector<Image>& images)
 {
-    SAIGA_ASSERT(images.size() == 6);
+    if (images.size() != 6) return false;
+    // All faces are uploaded with the size and format of the first image. Cube map faces must be square.
+    for (auto& img : images)
+    {
+        if (img.width != images[0].width || img.height != images[0].height || img.type != images[0].type ||
+            img.width != img.height)
+        {
+            return false;
+        }
+    }
 
     auto& refImage = images.front();
 
@@ -75,13 +84,18 @@ bool TextureCube::fromImage(std::vector<Image>& images)
 
     TextureBase::create();
 
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_X, images[1].data());
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, images[0].data());
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, images[3].data());
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, images[2].data());
+    auto upload_face = [this](GLenum face, const Image& img)
+    {
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(),
+                        [&](const void* data) { uploadData(face, data); });
+    };
+    upload_face(GL_TEXTURE_CUBE_MAP_POSITIVE_X, images[1]);
+    upload_face(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, images[0]);
+    upload_face(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, images[3]);
+    upload_face(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, images[2]);
 
-    uploadData(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, images[4].data());
-    uploadData(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, images[5].data());
+    upload_face(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, images[4]);
+    upload_face(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, images[5]);
 
     assert_no_glerror();
     return true;

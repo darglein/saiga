@@ -6,6 +6,9 @@
 
 #include "saiga/opengl/opengl_helper.h"
 
+#include <filesystem>
+#include <fstream>
+
 #include "opengl_test_context.h"
 
 using namespace Saiga;
@@ -60,4 +63,35 @@ TEST_F(OpenGLContext, Recreate)
     glGenTextures(1, &tex);
     EXPECT_NE(tex, 0u);
     glDeleteTextures(1, &tex);
+}
+
+// The config file documents the profile values 'ANY' 'CORE' 'COMPATIBILITY', but the core profile was written and
+// parsed as "saiga_core": a file with "CORE" selected the compatibility profile.
+TEST(OpenGLParametersConfig, Profile)
+{
+    auto file = std::filesystem::temp_directory_path() / "saiga_test_opengl_parameters.ini";
+    std::filesystem::remove(file);
+
+    // Writes the defaults, then reads them back
+    OpenGLParameters params;
+    params.fromConfigFile(file.string());
+    EXPECT_EQ(params.profile, OpenGLParameters::Profile::CORE);
+    OpenGLParameters params2;
+    params2.profile = OpenGLParameters::Profile::ANY;
+    params2.fromConfigFile(file.string());
+    EXPECT_EQ(params2.profile, OpenGLParameters::Profile::CORE);
+
+    for (auto [name, profile] :
+         {std::pair{"ANY", OpenGLParameters::Profile::ANY}, std::pair{"CORE", OpenGLParameters::Profile::CORE},
+          std::pair{"COMPATIBILITY", OpenGLParameters::Profile::COMPATIBILITY}})
+    {
+        {
+            std::ofstream strm(file);
+            strm << "[opengl]\nprofile = " << name << "\n";
+        }
+        OpenGLParameters p;
+        p.fromConfigFile(file.string());
+        EXPECT_EQ(p.profile, profile) << name;
+    }
+    std::filesystem::remove(file);
 }

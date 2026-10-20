@@ -10,7 +10,6 @@
 #include "saiga/opengl/templatedBuffer.h"
 
 #include "opengl_test_context.h"
-
 #include <type_traits>
 
 using namespace Saiga;
@@ -169,4 +168,35 @@ TEST_F(OpenGLBuffer, UnifiedMeshBufferEmptyMesh)
         EXPECT_EQ(buffer.num_elements, 0);
         buffer.BindAndDraw();
     }
+}
+
+// addExternalBuffer left the VAO bound, so the next index buffer bind replaced the index buffer of that VAO.
+TEST_F(OpenGLBuffer, AddExternalBufferUnbindsVAO)
+{
+    std::vector<Vertex> vertices(3, Vertex(vec3(0, 0, 0)));
+    std::vector<GLuint> indices = {0, 1, 2};
+    IndexedVertexBuffer<Vertex, GLuint> buffer;
+    buffer.set(vertices, indices, GL_STATIC_DRAW);
+
+    TemplatedBuffer<float> extra(GL_ARRAY_BUFFER);
+    std::vector<float> extra_data = {1, 2, 3};
+    extra.create(extra_data, GL_STATIC_DRAW);
+    buffer.addExternalBuffer(extra, 5, 1, GL_FLOAT, GL_FALSE, sizeof(float));
+
+    GLint vao = -1;
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+    EXPECT_EQ(vao, 0);
+
+    IndexBuffer<GLuint> other;
+    other.create(indices, GL_STATIC_DRAW);
+
+    buffer.bind();
+    GLint element_buffer = 0;
+    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &element_buffer);
+    EXPECT_EQ(element_buffer, static_cast<GLint>(buffer.IndexBuffer<GLuint>::getBufferObject()));
+    // The attribute of the external buffer is part of the VAO
+    GLint enabled = 0;
+    glGetVertexAttribiv(5, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &enabled);
+    EXPECT_EQ(enabled, 1);
+    buffer.unbind();
 }

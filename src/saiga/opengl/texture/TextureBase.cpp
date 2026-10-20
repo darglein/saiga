@@ -49,13 +49,18 @@ void TextureBase::destroy()
 
 bool TextureBase::download(void* data)
 {
+    return download(data, color_type, data_type);
+}
+
+bool TextureBase::download(void* data, GLenum format, GLenum type)
+{
     if (id == 0)
     {
         return false;
     }
 
     bind();
-    glGetTexImage(target, 0, color_type, data_type, data);
+    glGetTexImage(target, 0, format, type, data);
     assert_no_glerror();
     unbind();
     return true;
@@ -143,11 +148,75 @@ void TextureBase::setBorderColor(vec4 color)
 }
 
 
+void TextureBase::uploadWithPitch(int width, int height, ImageType type, size_t pitch_bytes, const void* data,
+                                  const std::function<void(const void*)>& upload)
+{
+    GLint old_alignment = 4, old_row_length = 0;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &old_alignment);
+    glGetIntegerv(GL_UNPACK_ROW_LENGTH, &old_row_length);
+
+    size_t pixel_size = elementSize(type);
+    size_t row_bytes  = width * pixel_size;
+
+    GLint alignment  = 0;
+    GLint row_length = 0;
+    for (GLint a : {8, 4, 2, 1})
+    {
+        if (iAlignUp(row_bytes, a) == pitch_bytes)
+        {
+            alignment = a;
+            break;
+        }
+    }
+    if (alignment == 0 && pixel_size > 0 && pitch_bytes % pixel_size == 0 && pitch_bytes >= row_bytes)
+    {
+        alignment  = 1;
+        row_length = pitch_bytes / pixel_size;
+    }
+
+    std::vector<char> packed;
+    if (alignment == 0 && data)
+    {
+        alignment = 1;
+        packed.resize(row_bytes * height);
+        for (int y = 0; y < height; ++y)
+        {
+            memcpy(packed.data() + y * row_bytes, static_cast<const char*>(data) + y * pitch_bytes, row_bytes);
+        }
+        data = packed.data();
+    }
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment == 0 ? 1 : alignment);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+    upload(data);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, old_alignment);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, old_row_length);
+}
+
+GLenum TextureBase::defaultFilter() const
+{
+    switch (color_type)
+    {
+        case GL_RED_INTEGER:
+        case GL_RG_INTEGER:
+        case GL_RGB_INTEGER:
+        case GL_RGBA_INTEGER:
+        case GL_BGR_INTEGER:
+        case GL_BGRA_INTEGER:
+            return GL_NEAREST;
+        default:
+            return GL_LINEAR;
+    }
+}
+
 void TextureBase::setFormat(ImageType type, bool srgb, bool integer)
 {
-    SAIGA_ASSERT(!srgb);
-    //    SAIGA_ASSERT(0);
-    internal_format = getGlInternalFormat(type, srgb);
+    auto element_type = elementType(type);
+    // Floating point images have no integer format, 32 bit integer images have no normalized one.
+    if (element_type == ImageElementType::IET_FLOAT || element_type == ImageElementType::IET_DOUBLE) integer = false;
+    if (element_type == ImageElementType::IET_INT || element_type == ImageElementType::IET_UINT) integer = true;
+
+    internal_format = getGlInternalFormat(type, srgb, integer);
     data_type       = getGlType(type);
     if (integer)
     {

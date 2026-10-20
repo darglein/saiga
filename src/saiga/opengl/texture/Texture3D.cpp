@@ -37,8 +37,8 @@ void Texture3D::create(int width, int height, int depth, GLenum color_type, GLen
 
 void Texture3D::setDefaultParameters()
 {
-    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
-    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(defaultFilter()));
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(defaultFilter()));
     glTexParameteri(target, GL_TEXTURE_WRAP_R, static_cast<GLint>(GL_CLAMP_TO_EDGE));
     glTexParameteri(target, GL_TEXTURE_WRAP_S, static_cast<GLint>(GL_CLAMP_TO_EDGE));
     glTexParameteri(target, GL_TEXTURE_WRAP_T, static_cast<GLint>(GL_CLAMP_TO_EDGE));
@@ -76,12 +76,14 @@ bool Texture3D::fromImage(std::vector<Image>& images)
     //    glTexStorage3D(target, 1, internal_format, width, height, depth);
     glTexImage3D(target, 0, static_cast<GLint>(internal_format), width, height, depth, 0, color_type, data_type,
                  nullptr);
+    setDefaultParameters();
 
     assert_no_glerror();
     for (int i = 0; i < depth; i++)
     {
         Image& img = images[i];
-        uploadSubImage(0, 0, i, width, height, 1, img.data());
+        uploadWithPitch(img.w, img.h, img.type, img.pitchBytes, img.data(),
+                        [&](const void* data) { uploadSubImage(0, 0, i, width, height, 1, const_cast<void*>(data)); });
     }
 
 
