@@ -7,8 +7,14 @@
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/shader/shader.h"
 #include "saiga/opengl/shaderStorageBuffer.h"
+#include "saiga/opengl/texture/ArrayTexture2D.h"
 #include "saiga/opengl/texture/Texture2D.h"
 #include "saiga/opengl/texture/Texture3D.h"
+#include "saiga/opengl/uniformBuffer.h"
+
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
 
 #include "opengl_test_context.h"
 
@@ -453,4 +459,156 @@ TEST_F(OpenGLShader, CodeInjectionAtEnd)
 {
     // Appended at the end, behind main(): the macro is only defined after its use, so the compilation fails.
     EXPECT_EQ(RunInjectionShader({{GL_COMPUTE_SHADER, "#define VALUE 1u", 1000}}), 0u);
+}
+
+static unsigned int RunShader(Shader& shader)
+{
+    std::vector<unsigned int> zeros(1, 0);
+    TemplatedShaderStorageBuffer<unsigned int> out_buffer;
+    out_buffer.create(zeros, GL_DYNAMIC_READ);
+    out_buffer.bind(0);
+    if (!shader.bind()) return 0;
+    shader.dispatchCompute(1, 1, 1);
+    shader.unbind();
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+
+    std::vector<unsigned int> result(1);
+    out_buffer.get(result);
+    return result[0];
+}
+
+static void WriteFile(const std::filesystem::path& file, const std::string& content)
+{
+    std::filesystem::create_directories(file.parent_path());
+    std::ofstream strm(file);
+    strm << content;
+}
+
+// Loads a shader file with nested includes (relative to the including file) and reloads it after an included file
+// changed.
+TEST_F(OpenGLShader, LoadFileWithIncludesAndReload)
+{
+    auto dir = std::filesystem::temp_directory_path() / "saiga_test_opengl_shader_include";
+    std::filesystem::remove_all(dir);
+
+    WriteFile(dir / "main.glsl",
+              "##GL_COMPUTE_SHADER\r\n"
+              "#version 430\r\n"
+              "layout(local_size_x = 1) in;\r\n"
+              "layout(std430, binding = 0) writeonly buffer Out { uint data_out[]; };\r\n"
+              "#include \"inc/a.glsl\"\r\n"
+              "void main() { data_out[0] = A + B; }\r\n");
+    WriteFile(dir / "inc/a.glsl", "#include \"b.glsl\"\nconst uint A = 10u;\n");
+    WriteFile(dir / "inc/b.glsl", "const uint B = 5u;\n");
+
+    Shader shader;
+    ASSERT_TRUE(shader.init(dir / "main.glsl"));
+    EXPECT_EQ(shader.dependent_files_and_date.size(), 3u);
+    EXPECT_EQ(RunShader(shader), 15u);
+
+    // Nothing changed
+    GLuint program = shader.program;
+    EXPECT_TRUE(shader.reload());
+    EXPECT_EQ(shader.program, program);
+
+    WriteFile(dir / "inc/b.glsl", "const uint B = 7u;\n");
+    auto time = std::filesystem::last_write_time(dir / "main.glsl");
+    std::filesystem::last_write_time(dir / "inc/b.glsl", time + std::chrono::seconds(10));
+    EXPECT_TRUE(shader.reload());
+    EXPECT_EQ(RunShader(shader), 17u);
+
+    std::filesystem::remove_all(dir);
+}
+
+static const char* uniform_block_compute_shader = R"(
+##GL_COMPUTE_SHADER
+#version 430
+layout(local_size_x = 1) in;
+layout(std140) uniform Params
+{
+    vec4 scale;
+    uint offset;
+};
+layout(std430, binding = 0) writeonly buffer Out { uint data_out[]; };
+void main()
+{
+    data_out[0] = uint(scale.x * scale.w) + offset;
+}
+)";
+
+TEST_F(OpenGLShader, UniformBuffer)
+{
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(uniform_block_compute_shader));
+
+    GLuint block = shader.getUniformBlockLocation("Params");
+    ASSERT_NE(block, GL_INVALID_INDEX);
+    EXPECT_EQ(shader.getUniformBlockSize(block), 32);
+    auto indices = shader.getUniformBlockIndices(block);
+    ASSERT_EQ(indices.size(), 2u);
+    auto offsets = shader.getUniformBlockOffset(indices);
+    std::sort(offsets.begin(), offsets.end());
+    EXPECT_EQ(offsets, std::vector<GLint>({0, 16}));
+
+    struct Params
+    {
+        vec4 scale;
+        unsigned int offset;
+        unsigned int padding[3];
+    } params;
+    params.scale  = vec4(3, 0, 0, 5);
+    params.offset = 100;
+
+    UniformBuffer ubo;
+    ubo.createGLBuffer(&params, sizeof(params), GL_DYNAMIC_DRAW);
+    ubo.bind(3);
+    shader.setUniformBlockBinding(block, 3);
+    EXPECT_EQ(RunShader(shader), 115u);
+
+    params.offset = 200;
+    ubo.updateBuffer(&params, sizeof(params), 0);
+    EXPECT_EQ(RunShader(shader), 215u);
+
+    EXPECT_GE(UniformBuffer::getMaxUniformBlockSize(), 16384);
+    EXPECT_GE(UniformBuffer::getMaxUniformBufferBindings(), 36);
+}
+
+// Sums the texels of all layers of an array texture.
+static const char* array_texture_compute_shader = R"(
+##GL_COMPUTE_SHADER
+#version 430
+layout(local_size_x = 1) in;
+layout(location = 0) uniform sampler2DArray src;
+layout(std430, binding = 0) writeonly buffer Out { uint data_out[]; };
+void main()
+{
+    ivec3 size = textureSize(src, 0);
+    float sum = 0;
+    for (int z = 0; z < size.z; ++z)
+        for (int y = 0; y < size.y; ++y)
+            for (int x = 0; x < size.x; ++x) sum += texelFetch(src, ivec3(x, y, z), 0).r;
+    data_out[0] = uint(sum);
+}
+)";
+
+TEST_F(OpenGLShader, ArrayTexture)
+{
+    int w = 3, h = 2, d = 4;
+    ArrayTexture2D tex;
+    tex.create(w, h, d, GL_RED, GL_R32F, GL_FLOAT);
+    std::vector<float> data(w * h * d);
+    for (size_t i = 0; i < data.size(); ++i) data[i] = i;
+    tex.uploadSubImage(0, 0, 0, w, h, d, data.data());
+
+    std::vector<float> result(data.size(), -1.f);
+    ASSERT_TRUE(tex.download(result.data()));
+    EXPECT_EQ(result, data);
+
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(array_texture_compute_shader));
+    ASSERT_TRUE(shader.bind());
+    shader.upload(0, tex, 1);
+    shader.unbind();
+    unsigned int n = data.size();
+    EXPECT_EQ(RunShader(shader), n * (n - 1) / 2);
 }
