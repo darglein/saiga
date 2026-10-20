@@ -763,3 +763,36 @@ TEST(Geometry, MeshNormalizeScale)
     mesh.normalizeScale(0.25);
     EXPECT_NEAR(mesh.aabb().maxSize(), 1 / 1.5, 1e-6);
 }
+
+// Regression test: a ray parallel to a box face had (boxmin - origin) * (1/0) = 0 * inf = NaN when it started exactly
+// in the face plane, which then poisoned the min/max reduction.
+TEST(Geometry, RayAABBInFacePlane)
+{
+    AABB box(vec3(-1, -1, -1), vec3(1, 1, 1));
+    float t = 0;
+
+    // Rays lying exactly in a face plane (y = 1, x = -1, z = 1) touch the closed box.
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 1, 0.5)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(0, 1, 0), vec3(-1, -5, 0)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 1, 1)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 0, 1)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    // In a face plane, but pointing away or passing next to the box.
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(-1, 0, 0), vec3(-5, 1, 0.5)), box, t));
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 1, 2)), box, t));
+
+    // Axis parallel rays, inside and outside of the slabs, including a negative zero direction component.
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(0, 0, 1), vec3(0.5, 0.5, -5)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(-0.f, -0.f, -1), vec3(0.5, 0.5, 5)), box, t));
+    EXPECT_FLOAT_EQ(t, 4);
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(0, 0, 1), vec3(1.5, 0.5, -5)), box, t));
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(0, 0, 1), vec3(0.5, 0.5, 5)), box, t));
+
+    // Starting inside the box: t is the (negative) entry distance.
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(0, 0, 0)), box, t));
+    EXPECT_FLOAT_EQ(t, -1);
+}
