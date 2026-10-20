@@ -50,7 +50,9 @@ void depthToRGBA(ImageView<const uint16_t> src, ImageView<ucvec4> dst, uint16_t 
         for (int j = 0; j < src.width; ++j)
         {
             float d = src(i, j);
-            d       = (d - minD) / (maxD - minD);
+            d       = (d - minD) / float(maxD - minD);
+            // Depths outside of [minD,maxD] would overflow the 8 bit channels.
+            d = clamp(d, 0.0f, 1.0f);
 
             dst(i, j) = ucvec4(d * 255, d * 255, d * 255, 255);
         }
@@ -185,16 +187,16 @@ TemplatedImage<unsigned char> FloatToChar(ImageView<float> img)
     }
     return result;
 }
-TemplatedImage<unsigned short> FloatToShort(ImageView<float> img, float scale_img )
+TemplatedImage<unsigned short> FloatToShort(ImageView<float> img, float scale_img)
 {
     TemplatedImage<unsigned short> result(img.dimensions());
     for (int i = 0; i < img.height; ++i)
     {
         for (int j = 0; j < img.width; ++j)
         {
-            float f         = clamp(img(i, j) * scale_img, 0.0f, 1.0f);
+            float f          = clamp(img(i, j) * scale_img, 0.0f, 1.0f);
             unsigned short c = Saiga::iRound(f * ((1 << 16) - 1));
-            result(i, j)    = c;
+            result(i, j)     = c;
         }
     }
     return result;

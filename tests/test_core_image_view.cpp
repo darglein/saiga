@@ -118,3 +118,23 @@ TEST(ImageGenerator, CheckerBoardNonSquare)
         }
     }
 }
+
+TEST(ImageTransformation, DepthToRGBAUnsignedShortClamps)
+{
+    // Depths outside of [minD,maxD] were not clamped and wrapped around in the 8 bit output.
+    TemplatedImage<uint16_t> depth(1, 4);
+    depth(0, 0) = 100;
+    depth(0, 1) = 150;
+    depth(0, 2) = 200;
+    depth(0, 3) = 400;
+    TemplatedImage<ucvec4> rgba(1, 4);
+    ImageTransformation::depthToRGBA(depth.getConstImageView(), rgba.getImageView(), uint16_t(100), uint16_t(200));
+    EXPECT_EQ(rgba(0, 0), ucvec4(0, 0, 0, 255));
+    EXPECT_EQ(rgba(0, 1)(0), 127);
+    EXPECT_EQ(rgba(0, 2), ucvec4(255, 255, 255, 255));
+    EXPECT_EQ(rgba(0, 3), ucvec4(255, 255, 255, 255));
+
+    depth(0, 3) = 50;
+    ImageTransformation::depthToRGBA(depth.getConstImageView(), rgba.getImageView(), uint16_t(100), uint16_t(200));
+    EXPECT_EQ(rgba(0, 3), ucvec4(0, 0, 0, 255));
+}
