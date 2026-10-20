@@ -253,6 +253,14 @@ TEST(CudaConvolution, SinglePassInner75)
                   { CUDA::applyFilterSeparateSinglePass(src, dst, kernel); }, {1, 4, 8});
 }
 
+// Regression test: if the width was not a multiple of the vector size (2 or 4 floats), the right border used the
+// values behind the last column instead of clamping to it, and the last vector was written past the last column.
+TEST(CudaConvolution, SinglePassInnerShuffle)
+{
+    TestSeparable("InnerShuffle", CUDA::convolveSinglePassSeparateInnerShuffle,
+                  {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 24});
+}
+
 TEST(CudaImageProcessing, PointOperations)
 {
     auto h_src = RandomImage(37, 133);

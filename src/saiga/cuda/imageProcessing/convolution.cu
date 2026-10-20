@@ -13,7 +13,7 @@ namespace Saiga
 {
 namespace CUDA
 {
-//todo maybe change
+// todo maybe change
 static __constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
 
 
@@ -483,7 +483,7 @@ __global__ static void d_convolveInnerShuffle(ImageView<T> src, ImageView<T> dst
 template <typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, unsigned int X_ELEMENTS,
           unsigned int Y_ELEMENTS, typename VectorType = int2>
 //__launch_bounds__(BLOCK_W* BLOCK_H, 3)
-     __global__ static void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
+__global__ static void d_convolveInnerShuffle2(ImageView<T> src, ImageView<T> dst)
 {
     const unsigned int TILE_W = BLOCK_W;
     const unsigned int TILE_H = BLOCK_H;
@@ -559,11 +559,14 @@ template <typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, un
                 localElementsT[RADIUS + k] = localElementsT[RADIUS];
             }
         }
-        if (x >= src.width)
+        else if (x + int(X_ELEMENTS) > src.width)
         {
+            // Clamp to the right edge. The loaded vector (at colId) contains the last column. If the width is not a
+            // multiple of X_ELEMENTS, it also contains elements behind the last column, which must not be used.
+            T last_value = localElementsT[RADIUS + src.width - 1 - colId];
             for (int k = 0; k < X_ELEMENTS; ++k)
             {
-                localElementsT[RADIUS + k] = localElementsT[RADIUS + X_ELEMENTS - 1];
+                if (x + k >= src.width) localElementsT[RADIUS + k] = last_value;
             }
         }
 
@@ -677,7 +680,18 @@ template <typename T, int RADIUS, unsigned int BLOCK_W, unsigned int BLOCK_H, un
             }
         }
 
-        reinterpret_cast<VectorType*>(elem)[0] = reinterpret_cast<VectorType*>(sum)[0];
+        if (colId + int(X_ELEMENTS) <= dst.width)
+        {
+            reinterpret_cast<VectorType*>(elem)[0] = reinterpret_cast<VectorType*>(sum)[0];
+        }
+        else
+        {
+            // Do not write behind the last column.
+            for (int k = 0; k < X_ELEMENTS; ++k)
+            {
+                if (colId + k < dst.width) elem[k] = sum[k];
+            }
+        }
     }
 }
 
