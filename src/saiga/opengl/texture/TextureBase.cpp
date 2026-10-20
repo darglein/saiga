@@ -49,13 +49,18 @@ void TextureBase::destroy()
 
 bool TextureBase::download(void* data)
 {
+    return download(data, color_type, data_type);
+}
+
+bool TextureBase::download(void* data, GLenum format, GLenum type)
+{
     if (id == 0)
     {
         return false;
     }
 
     bind();
-    glGetTexImage(target, 0, color_type, data_type, data);
+    glGetTexImage(target, 0, format, type, data);
     assert_no_glerror();
     unbind();
     return true;

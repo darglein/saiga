@@ -326,3 +326,21 @@ TEST_F(OpenGLTexture, FromImageSRGB)
     ASSERT_TRUE(tex.download(result.data()));
     EXPECT_EQ(result(1, 1), ucvec4(10, 20, 30, 255));
 }
+
+// DeferredRenderer::DownloadRender downloaded the RGBA16 post processing texture (medium and high quality) with its
+// own data type into an 8 bit image, which wrote twice the size of the image.
+TEST_F(OpenGLTexture, DownloadConverted)
+{
+    int w = 3, h = 2;
+    std::vector<unsigned short> data(w * h * 4);
+    for (size_t i = 0; i < data.size(); ++i) data[i] = static_cast<unsigned short>(i * 257 * 10);
+
+    Texture2D tex;
+    tex.create(w, h, GL_RGBA, GL_RGBA16, GL_UNSIGNED_SHORT, data.data());
+
+    std::vector<unsigned char> result(w * h * 4 + 16, 0xcd);
+    ASSERT_TRUE(tex.download(result.data(), GL_RGBA, GL_UNSIGNED_BYTE));
+    for (int i = 0; i < w * h * 4; ++i) EXPECT_EQ(result[i], i * 10) << i;
+    // Nothing is written behind the 8 bit image
+    for (int i = w * h * 4; i < static_cast<int>(result.size()); ++i) EXPECT_EQ(result[i], 0xcd) << i;
+}

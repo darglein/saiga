@@ -30,6 +30,8 @@ class SAIGA_OPENGL_API TextureBase
 
     // Downloads the GPU data
     bool download(void* data);
+    // Downloads the GPU data converted to the given color format and data type (glGetTexImage)
+    bool download(void* data, GLenum format, GLenum type);
 
 
     // Bind the texture to the target.
