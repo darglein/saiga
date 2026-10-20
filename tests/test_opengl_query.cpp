@@ -32,10 +32,32 @@ TEST_F(OpenGLQuery, CopyAssignment)
         query.create(true);
         copy = query;
     }
-    // Fails with a GL error if the query of copy was deleted with the source
+    // Recording on a query that was deleted with the source is a GL error. Check it before waiting, which would
+    // otherwise never end.
     copy.record();
+    ASSERT_EQ(glGetError(), GL_NO_ERROR);
     copy.waitTimestamp();
 
     QueryObject empty;
     copy = empty;
+}
+
+// The copy assignment kept the query of the destination. If it had been used with begin()/end(), it is a
+// GL_TIME_ELAPSED query, and recording a timestamp on it is a GL error.
+TEST_F(OpenGLQuery, CopyAssignmentToElapsedQuery)
+{
+    QueryObject elapsed;
+    elapsed.create(false);
+    elapsed.begin();
+    elapsed.end();
+    elapsed.waitTimestamp();
+
+    QueryObject query;
+    query.create(true);
+    elapsed = query;
+    ASSERT_EQ(glGetError(), GL_NO_ERROR);
+
+    elapsed.record();
+    ASSERT_EQ(glGetError(), GL_NO_ERROR);
+    EXPECT_GT(elapsed.waitTimestamp(), 0u);
 }
