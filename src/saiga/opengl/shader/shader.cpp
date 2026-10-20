@@ -194,6 +194,12 @@ void Shader::destroyProgram()
 {
     if (program != 0)
     {
+        // A deleted program stays in use until it is unbound
+        if (boundShader == program)
+        {
+            glUseProgram(0);
+            boundShader = 0;
+        }
         glDeleteProgram(program);
         program = 0;
     }

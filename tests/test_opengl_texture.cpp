@@ -171,3 +171,18 @@ TEST_F(OpenGLTexture, Texture3DFromImage)
             for (int x = 0; x < w; ++x)
                 EXPECT_EQ(result[(z * h + y) * w + x], ucvec4(x, y, z, 255)) << x << " " << y << " " << z;
 }
+
+// Texture3D::fromImage read images[0] of an empty vector and uploaded smaller slices with the size of the first one.
+TEST_F(OpenGLTexture, Texture3DFromInvalidImages)
+{
+    std::vector<Image> images;
+    Texture3D tex;
+    EXPECT_FALSE(tex.fromImage(images));
+
+    images.push_back(TemplatedImage<ucvec4>(4, 4));
+    images.push_back(TemplatedImage<ucvec4>(2, 2));
+    EXPECT_FALSE(tex.fromImage(images));
+
+    images[1] = TemplatedImage<float>(4, 4);
+    EXPECT_FALSE(tex.fromImage(images));
+}

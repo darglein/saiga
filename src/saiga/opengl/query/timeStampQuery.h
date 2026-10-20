@@ -21,6 +21,7 @@ class SAIGA_OPENGL_API QueryObject
 
     // Note: The query state is not copied.
     QueryObject(const QueryObject& other);
+    QueryObject& operator=(const QueryObject& other);
 
     // Create/destroy the underlying OpenGL objects.
     void create(bool initial_record);

@@ -24,6 +24,19 @@ QueryObject::QueryObject(const QueryObject& other) : QueryObject()
     }
 }
 
+QueryObject& QueryObject::operator=(const QueryObject& other)
+{
+    // Like the copy constructor: each object owns its own query, the query state is not copied.
+    if (this != &other)
+    {
+        if (other.id)
+            create(true);
+        else
+            destroy();
+    }
+    return *this;
+}
+
 void QueryObject::create(bool initial_record)
 {
     if (!id) glGenQueries(1, &id);

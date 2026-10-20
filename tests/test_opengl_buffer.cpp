@@ -4,11 +4,14 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shaderStorageBuffer.h"
 #include "saiga/opengl/templatedBuffer.h"
 
 #include "opengl_test_context.h"
+
+#include <type_traits>
 
 using namespace Saiga;
 
@@ -141,4 +144,29 @@ TEST_F(OpenGLBuffer, IndexedVertexBufferUpdateFromMesh)
     buffer.VertexBuffer<VertexNT>::get(result);
     std::vector<float> expected = {0, 1, 12, 13, 14, 5};
     for (int i = 0; i < 6; ++i) EXPECT_EQ(result[i].position(0), expected[i]) << i;
+}
+
+// The draw mode of a VertexBuffer was uninitialized until setDrawMode was called.
+TEST_F(OpenGLBuffer, VertexBufferDefaultDrawMode)
+{
+    VertexBuffer<Vertex> buffer;
+    EXPECT_EQ(buffer.getDrawMode(), GL_TRIANGLES);
+}
+
+// A copy of a VertexBuffer shared the VAO of the original and deleted it twice.
+static_assert(!std::is_copy_constructible_v<VertexBuffer<Vertex>>, "VertexBuffer must not be copyable");
+static_assert(!std::is_copy_assignable_v<VertexBuffer<Vertex>>, "VertexBuffer must not be copyable");
+static_assert(!std::is_copy_constructible_v<IndexedVertexBuffer<Vertex, GLuint>>,
+              "IndexedVertexBuffer must not be copyable");
+
+// The constructor of UnifiedMeshBuffer indexed into the empty index vector of a mesh without faces or lines.
+TEST_F(OpenGLBuffer, UnifiedMeshBufferEmptyMesh)
+{
+    UnifiedMesh mesh;
+    for (GLenum mode : {GL_TRIANGLES, GL_LINES, GL_POINTS})
+    {
+        UnifiedMeshBuffer buffer(mesh, mode);
+        EXPECT_EQ(buffer.num_elements, 0);
+        buffer.BindAndDraw();
+    }
 }

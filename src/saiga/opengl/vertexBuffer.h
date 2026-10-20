@@ -54,6 +54,10 @@ class VertexBuffer : public TemplatedBuffer<vertex_t>
     VertexBuffer() : TemplatedBuffer<vertex_t>(GL_ARRAY_BUFFER) {}
     ~VertexBuffer() { deleteGLBuffer(); }
 
+    // A copy would share the VAO with the original and delete it twice.
+    VertexBuffer(const VertexBuffer&) = delete;
+    VertexBuffer& operator=(const VertexBuffer&) = delete;
+
 
     /*
      *  Creates OpenGL buffers and uploads data.
@@ -146,8 +150,8 @@ class VertexBuffer : public TemplatedBuffer<vertex_t>
                            const void* pointer = nullptr);
 
    protected:
-    GLenum draw_mode;
-    GLuint gl_vao = 0;
+    GLenum draw_mode = GL_TRIANGLES;
+    GLuint gl_vao    = 0;
 
     /*
      *  Tells OpenGL how to handle the vertices.
