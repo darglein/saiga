@@ -44,7 +44,7 @@ tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
                         libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF (built from submodules/CMakeLists.txt)
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
-.github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build + ctest
+.github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build (OpenGL on Mesa llvmpipe) + ctest
 travis/, .travis.yml    Legacy Travis CI — unused
 ```
 
@@ -59,7 +59,8 @@ System packages (what CI installs on Ubuntu 24.04):
 ```shell
 sudo apt-get install -y --no-install-recommends \
   build-essential cmake ninja-build ccache \
-  xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules
+  xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules \
+  libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri
 ```
 
 The dependency list in `README.md` is partly outdated (e.g. GLM is no longer used — Eigen is the
@@ -67,14 +68,14 @@ math backend); most image/compression libraries come from `submodules/`.
 
 ## Build (Linux)
 
-The canonical build is the CI recipe — CPU only, no samples. Use it unless the change needs a
-GPU module:
+The canonical build is the CI recipe — no GPU, no samples (the OpenGL module is built and tested on
+Mesa's software renderer). Use it unless the change needs CUDA or Vulkan:
 
 ```shell
 cmake -S . -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DSAIGA_MODULE_CUDA=OFF \
-  -DSAIGA_MODULE_OPENGL=OFF \
+  -DSAIGA_MODULE_OPENGL=ON \
   -DSAIGA_MODULE_VULKAN=OFF \
   -DSAIGA_BUILD_SAMPLES=OFF \
   -DSAIGA_ARCHNATIVE=OFF \
@@ -87,8 +88,8 @@ cmake --build build --parallel -- -k 0
 - Without Ninja, drop `-G Ninja` and `-- -k 0` (Makefiles: `cmake --build build --parallel $(nproc)`).
 - **CMake >= 4.0** refuses the `cmake_minimum_required(VERSION 3.0)` of `submodules/glog`; add
   `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to the configure. (CI uses CMake 3.28 and does not need it.)
-- The CUDA, OpenGL and Vulkan modules need a GPU / CUDA toolkit / display libraries and are **not
-  covered by CI**. For a CUDA build leave `SAIGA_MODULE_CUDA=ON` and pin the archs with
+- The CUDA and Vulkan modules need a GPU / CUDA toolkit and are **not covered by CI**. The OpenGL
+  module is, but only through its headless tests (no window, renderers or samples). For a CUDA build leave `SAIGA_MODULE_CUDA=ON` and pin the archs with
   `-DSAIGA_CUDA_ARCH="86;89"` (dotless, e.g. `75;80;86;89+PTX`), otherwise the installed GPU is
   autodetected.
 - The first build also compiles the submodules (their tests are off) and takes a while; later builds
@@ -110,7 +111,7 @@ cmake --build build --parallel -- -k 0
 | `SAIGA_WITH_TINY_EIGEN` / `_TINY_GLOG` | OFF | Use the tiny replacements instead of Eigen / glog (disables vision + some tests) |
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
-what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Vision** and
+what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Vision + Opengl** and
 39 tests; the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
@@ -130,7 +131,13 @@ ctest -R test_core_ini --output-on-failure             # one test
 - Test style: `using namespace Saiga;`, plain `TEST(Suite, Name)`, `EXPECT_*`/`ASSERT_*`; a
   regression test carries a short comment describing the bug it guards against.
 - Shared helpers: `tests/compare_numbers.h`, `tests/numeric_derivative.h` (numeric Jacobians for the
-  vision derivative tests).
+  vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture).
+- **OpenGL tests** (`test_opengl_*`, built when OpenGL + EGL are found) need no window or X server: the
+  `OpenGLTest` fixture creates a headless EGL context (`CreateEGLContext()`, from the first EGL device —
+  e.g. the NVIDIA GPU — else Mesa) and **skips** every test if there is no EGL display. Derive the
+  suite from `OpenGLTest` and use `TEST_F`; it fails a test that leaves a GL error behind. The core
+  profile needs a bound VAO to draw. To run them on Mesa's software renderer as CI does:
+  `__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1 ctest -R test_opengl`.
 
 ## Code Conventions
 
@@ -174,5 +181,6 @@ cmake -S . -B build <CI options above> && cmake --build build --parallel   # mus
 cd build && ctest --output-on-failure --parallel 4                         # all tests must pass
 ```
 
-For changes in the CUDA / OpenGL / Vulkan modules, which CI does not build, also build that module
-locally (with a GPU) and say so if it could not be built.
+For changes in the CUDA / Vulkan modules, which CI does not build, also build that module locally (with
+a GPU) and say so if it could not be built. CI covers the OpenGL module only through the
+`test_opengl_*` tests; for rendering changes also run a sample on a GPU.

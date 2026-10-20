@@ -330,17 +330,8 @@ uvec3 Shader::getNumGroupsCeil(const uvec3& problem_size)
 
 uvec3 Shader::getNumGroupsCeil(const uvec3& problem_size, const uvec3& work_group_size)
 {
-    //    uvec3 ret = problem_size/work_group_size;
-    //    uvec3 rest = problem_size%work_group_size;
-
-    //    ret[0] += rest[0] ? 1 : 0;
-    //    ret[1] += rest[1] ? 1 : 0;
-    //    ret[2] += rest[2] ? 1 : 0;
-
-    //    return ret;
-
-    SAIGA_EXIT_ERROR("sldg");
-    return problem_size;  //(problem_size + work_group_size - uvec3(1)) / (work_group_size);
+    return uvec3(iDivUp(problem_size[0], work_group_size[0]), iDivUp(problem_size[1], work_group_size[1]),
+                 iDivUp(problem_size[2], work_group_size[2]));
 }
 
 void Shader::dispatchCompute(const uvec3& num_groups)
