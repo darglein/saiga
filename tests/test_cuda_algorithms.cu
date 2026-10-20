@@ -267,13 +267,13 @@ TEST(CudaScan, BlockInclusiveScan)
 }
 
 template <bool EXCLUSIVE>
-static void TestTiledScan(int n)
+static void TestTiledScan(int n, int max_value = 3)
 {
     const unsigned int BLOCK_SIZE = 256;
     const unsigned int TILES      = 8;
     const unsigned int ELEMENTS   = BLOCK_SIZE * TILES * 4;
 
-    auto h_data = RandomVector<unsigned int>(n, 0, 3);
+    auto h_data = RandomVector<unsigned int>(n, 0, max_value);
     std::vector<unsigned int> expected(n);
     unsigned int sum = 0;
     for (int i = 0; i < n; ++i)
@@ -286,7 +286,7 @@ static void TestTiledScan(int n)
     thrust::device_vector<unsigned int> d_data(h_data);
     thrust::device_vector<unsigned int> d_out(n, 0xFFFFFFFF);
     int blocks = CUDA::getBlockCount(n, ELEMENTS);
-    thrust::device_vector<unsigned int> d_aggregate(blocks + 1, 0xFFFFFFFF);
+    thrust::device_vector<unsigned long long> d_aggregate(blocks + 1, 0);
 
     float ms;
     {
@@ -318,6 +318,18 @@ TEST(CudaScan, TiledSinglePassScan)
     {
         TestTiledScan<true>(n);
         TestTiledScan<false>(n);
+    }
+}
+
+// Regression test: the look-back stored the flag in the upper 2 bits and the sum in the lower 30 bits of a 32 bit
+// status word (block 0 did not even mask its sum). Prefix sums of 2^30 and more were corrupted.
+TEST(CudaScan, TiledSinglePassScanLargeSums)
+{
+    // The total sums are slightly above 2^30, 2^31 and 2^32 (wraps around).
+    for (int max_value : {2200, 4400, 9000})
+    {
+        TestTiledScan<true>(1000003, max_value);
+        TestTiledScan<false>(1000003, max_value);
     }
 }
 
