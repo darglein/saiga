@@ -17,20 +17,20 @@ template <typename T>
 struct SAIGA_TEMPLATE MatchingFloatType
 {
     using FloatType = typename std::remove_const<T>::type;
-    static inline FloatType convert(const T& t) { return FloatType(t); }
-    static inline T convertBack(const FloatType& t) { return T(t); }
-    static inline T ZeroFloat() { return T(0); }
+    HD static inline FloatType convert(const T& t) { return FloatType(t); }
+    HD static inline T convertBack(const FloatType& t) { return T(t); }
+    HD static inline T ZeroFloat() { return T(0); }
 };
 
 template <>
 struct MatchingFloatType<unsigned char>
 {
     using FloatType = float;
-    static inline FloatType convert(const unsigned char& t)
+    HD static inline FloatType convert(const unsigned char& t)
     {
         return float(t);
     }
-    static inline unsigned char convertBack(const FloatType& t)
+    HD static inline unsigned char convertBack(const FloatType& t)
     {
         return (unsigned char)(round(t));
     }
@@ -119,13 +119,14 @@ struct SAIGA_TEMPLATE TexelFloatConverter
     using FloatType = typename MatchingFloatType<T>::FloatType;
 
 
-    FloatType toFloat(TexelType t)
+    // HD, because ImageView::inter uses it and is called in CUDA kernels (for example scaleUp2Linear).
+    HD FloatType toFloat(TexelType t)
     {
         auto f = Converter::convert(t);
         return normalize ? f * (1.0f / NS::scale) : f;
     }
 
-    TexelType fromFloat(FloatType f)
+    HD TexelType fromFloat(FloatType f)
     {
         if (normalize) f *= NS::scale;
         auto t = Converter::convertBack(f);

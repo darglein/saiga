@@ -404,6 +404,29 @@ TEST(CudaImageProcessing, SubtractMulti)
     }
 }
 
+// Regression test: scaleUp2Linear uses ImageView::inter on the device, which called the host-only
+// TexelFloatConverter. The kernel wrote 0 for every pixel.
+TEST(CudaImageProcessing, Scale)
+{
+    auto h_src = RandomImage(33, 75);
+    CUDA::CudaImage<float> d_src(h_src.getConstImageView());
+
+    CUDA::CudaImage<float> d_down(h_src.h / 2, h_src.w / 2);
+    CUDA::scaleDown2EveryOther(d_src.getImageView(), d_down.getImageView());
+    TemplatedImage<float> expected_down(h_src.h / 2, h_src.w / 2);
+    for (int y = 0; y < expected_down.h; ++y)
+        for (int x = 0; x < expected_down.w; ++x) expected_down(y, x) = h_src(2 * y, 2 * x);
+    ExpectImageNear(expected_down.getConstImageView(), Download(d_down).getConstImageView(), 0, "scaleDown");
+
+    CUDA::CudaImage<float> d_up(h_src.h * 2, h_src.w * 2);
+    CUDA::scaleUp2Linear(d_src.getImageView(), d_up.getImageView());
+    TemplatedImage<float> expected_up(h_src.h * 2, h_src.w * 2);
+    for (int y = 0; y < expected_up.h; ++y)
+        for (int x = 0; x < expected_up.w; ++x)
+            expected_up(y, x) = h_src.getConstImageView().inter((y + 0.5f) * 0.5f - 0.5f, (x + 0.5f) * 0.5f - 0.5f);
+    ExpectImageNear(expected_up.getConstImageView(), Download(d_up).getConstImageView(), 1e-5, "scaleUp");
+}
+
 TEST(CudaImageProcessing, Conversions)
 {
     const int h = 23, w = 157;
