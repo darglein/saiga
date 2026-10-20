@@ -65,7 +65,16 @@ void TextureCube::setDefaultParameters()
 
 bool TextureCube::fromImage(std::vector<Image>& images)
 {
-    SAIGA_ASSERT(images.size() == 6);
+    if (images.size() != 6) return false;
+    // All faces are uploaded with the size and format of the first image. Cube map faces must be square.
+    for (auto& img : images)
+    {
+        if (img.width != images[0].width || img.height != images[0].height || img.type != images[0].type ||
+            img.width != img.height)
+        {
+            return false;
+        }
+    }
 
     auto& refImage = images.front();
 

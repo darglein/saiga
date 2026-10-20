@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/opengl/texture/CubeTexture.h"
 #include "saiga/opengl/texture/Texture2D.h"
 #include "saiga/opengl/texture/Texture3D.h"
 
@@ -343,4 +344,43 @@ TEST_F(OpenGLTexture, DownloadConverted)
     for (int i = 0; i < w * h * 4; ++i) EXPECT_EQ(result[i], i * 10) << i;
     // Nothing is written behind the 8 bit image
     for (int i = w * h * 4; i < static_cast<int>(result.size()); ++i) EXPECT_EQ(result[i], 0xcd) << i;
+}
+
+// TextureCube::fromImage asserted on a wrong number of images and uploaded all faces with the size of the first one,
+// which read behind the end of smaller images.
+TEST_F(OpenGLTexture, CubeFromImage)
+{
+    int s = 4;
+    std::vector<Image> images;
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> img(s, s);
+        img.getImageView().set(ucvec4(i, 10 * i, 0, 255));
+        images.push_back(img);
+    }
+
+    TextureCube tex;
+    ASSERT_TRUE(tex.fromImage(images));
+
+    // The order of the faces in the image vector
+    GLenum faces[6] = {GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                       GL_TEXTURE_CUBE_MAP_NEGATIVE_X, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y};
+    tex.bind();
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> result(s, s);
+        glGetTexImage(faces[i], 0, GL_RGBA, GL_UNSIGNED_BYTE, result.data());
+        EXPECT_EQ(result(s - 1, s - 1), ucvec4(i, 10 * i, 0, 255)) << i;
+    }
+    tex.unbind();
+
+    std::vector<Image> five(images.begin(), images.begin() + 5);
+    EXPECT_FALSE(tex.fromImage(five));
+
+    auto smaller = images;
+    smaller[3]   = TemplatedImage<ucvec4>(2, 2);
+    EXPECT_FALSE(tex.fromImage(smaller));
+
+    std::vector<Image> not_square(6, TemplatedImage<ucvec4>(4, 2));
+    EXPECT_FALSE(tex.fromImage(not_square));
 }
