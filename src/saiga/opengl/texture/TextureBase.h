@@ -20,7 +20,7 @@ class SAIGA_OPENGL_API TextureBase
     TextureBase(GLenum target) : target(target) {}
     virtual ~TextureBase();
 
-    TextureBase(TextureBase const&) = delete;
+    TextureBase(TextureBase const&)            = delete;
     TextureBase& operator=(TextureBase const&) = delete;
 
     // Create and destroy the underlying GL types.
@@ -28,7 +28,7 @@ class SAIGA_OPENGL_API TextureBase
     void create(GLenum color_type, GLenum internal_format, GLenum data_type);
     void destroy();
 
-    // Downloads the GPU data
+    // Downloads the GPU data. Returns false for cube maps, use TextureCube::downloadFace.
     bool download(void* data);
     // Downloads the GPU data converted to the given color format and data type (glGetTexImage)
     bool download(void* data, GLenum format, GLenum type);

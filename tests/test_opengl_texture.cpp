@@ -403,3 +403,35 @@ TEST_F(OpenGLTexture, Texture3DCreateKeepsActiveTexture)
 
     glActiveTexture(GL_TEXTURE0);
 }
+
+// TextureBase::download called glGetTexImage with GL_TEXTURE_CUBE_MAP, which is not a valid target (GL error).
+TEST_F(OpenGLTexture, CubeDownload)
+{
+    int s = 4;
+    std::vector<Image> images;
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> img(s, s);
+        img.getImageView().set(ucvec4(i, 10 * i, 0, 255));
+        images.push_back(img);
+    }
+    TextureCube tex;
+    ASSERT_TRUE(tex.fromImage(images));
+
+    // The faces have no common layout in a single buffer
+    std::vector<ucvec4> all(6 * s * s);
+    EXPECT_FALSE(tex.download(all.data()));
+
+    // The order of the faces in the image vector
+    GLenum faces[6] = {GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                       GL_TEXTURE_CUBE_MAP_NEGATIVE_X, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y};
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> result(s, s);
+        result.makeZero();
+        ASSERT_TRUE(tex.downloadFace(faces[i], result.data()));
+        for (int y = 0; y < s; ++y)
+            for (int x = 0; x < s; ++x) EXPECT_EQ(result(y, x), ucvec4(i, 10 * i, 0, 255)) << i;
+    }
+    EXPECT_FALSE(tex.downloadFace(GL_TEXTURE_2D, all.data()));
+}

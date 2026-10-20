@@ -54,7 +54,8 @@ bool TextureBase::download(void* data)
 
 bool TextureBase::download(void* data, GLenum format, GLenum type)
 {
-    if (id == 0)
+    // glGetTexImage does not accept GL_TEXTURE_CUBE_MAP, see TextureCube::downloadFace
+    if (id == 0 || target == GL_TEXTURE_CUBE_MAP)
     {
         return false;
     }
