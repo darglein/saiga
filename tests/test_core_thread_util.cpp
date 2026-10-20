@@ -18,6 +18,10 @@
 #include <sstream>
 #include <thread>
 
+#if defined(__linux__)
+#    include <pthread.h>
+#endif
+
 using namespace Saiga;
 using namespace std::chrono_literals;
 
@@ -153,3 +157,27 @@ TEST(ScopedThread, QuitAfterMove)
     EXPECT_TRUE(finished);
     EXPECT_FALSE(st2.joinable());
 }
+
+#if defined(__linux__)
+TEST(ThreadName, LongNameOfOtherThread)
+{
+    // Linux limits thread names to 15 characters. pthread_setname_np fails for longer names, so the name of another
+    // thread was not set at all (setThreadName() of the calling thread uses prctl, which truncates).
+    std::atomic<bool> stop = false;
+    std::thread t(
+        [&]()
+        {
+            while (!stop) std::this_thread::sleep_for(1ms);
+        });
+    setThreadName(t, "a_very_long_thread_name");
+    char name[16] = {};
+    EXPECT_EQ(pthread_getname_np(t.native_handle(), name, sizeof(name)), 0);
+    EXPECT_STREQ(name, "a_very_long_thr");
+
+    setThreadName(t, "short");
+    EXPECT_EQ(pthread_getname_np(t.native_handle(), name, sizeof(name)), 0);
+    EXPECT_STREQ(name, "short");
+    stop = true;
+    t.join();
+}
+#endif
