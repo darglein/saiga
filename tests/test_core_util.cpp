@@ -197,3 +197,134 @@ TEST(Translator, WriteReadRoundtrip)
     EXPECT_EQ(t.translate("a,b\\c\nd", ""), "a,b\\c\nd");
     EXPECT_EQ(t.translate("ends with\\", ""), "ends with\\");
 }
+
+// Builds a little endian EXIF segment ("Exif\0\0" + TIFF header). Offsets of the entries are relative to the TIFF
+// header, which starts at byte 6.
+struct ExifBuilder
+{
+    std::vector<unsigned char> data;
+
+    ExifBuilder()
+    {
+        const char header[] = "Exif\0\0II";
+        data.insert(data.end(), header, header + 8);
+        U16(0x2a);
+        U32(8);
+    }
+    void U16(uint16_t v)
+    {
+        data.push_back(v & 0xFF);
+        data.push_back(v >> 8);
+    }
+    void U32(uint32_t v)
+    {
+        U16(v & 0xFFFF);
+        U16(v >> 16);
+    }
+    void Entry(uint16_t tag, uint16_t format, uint32_t length, uint32_t value)
+    {
+        U16(tag);
+        U16(format);
+        U32(length);
+        U32(value);
+    }
+    // Offset of the next byte relative to the TIFF header
+    uint32_t Offset() const { return uint32_t(data.size() - 6); }
+};
+
+TEST(Exif, ParseIFD0)
+{
+    ExifBuilder b;
+    uint32_t make_offset = 8 + 2 + 3 * 12 + 4;
+    b.U16(3);
+    b.Entry(0x10F, 2, 6, make_offset);  // Make (stored after the IFD)
+    b.Entry(0x110, 2, 4, 0x00636261);   // Model "abc\0" stored inline
+    b.Entry(0x112, 3, 1, 6);            // Orientation
+    b.U32(0);
+    ASSERT_EQ(b.Offset(), make_offset);
+    const char make[] = "Saiga";
+    b.data.insert(b.data.end(), make, make + 6);
+
+    easyexif::EXIFInfo info;
+    ASSERT_EQ(info.parseFromEXIFSegment(b.data.data(), b.data.size()), PARSE_EXIF_SUCCESS);
+    EXPECT_EQ(info.Make, "Saiga");
+    EXPECT_EQ(info.Model, "abc");
+    EXPECT_EQ(info.Orientation, 6);
+    EXPECT_EQ(info.ByteAlign, 1);
+
+    EXPECT_EQ(info.parseFromEXIFSegment(b.data.data(), 5), PARSE_EXIF_ERROR_NO_EXIF);
+    EXPECT_EQ(info.parseFrom(b.data.data(), b.data.size()), PARSE_EXIF_ERROR_NO_JPEG);
+}
+
+TEST(Exif, EmptyString)
+{
+    // A string entry with zero length read the character before the (empty) string.
+    ExifBuilder b;
+    b.U16(1);
+    b.Entry(0x10F, 2, 0, 0);
+    b.U32(0);
+
+    easyexif::EXIFInfo info;
+    ASSERT_EQ(info.parseFromEXIFSegment(b.data.data(), b.data.size()), PARSE_EXIF_SUCCESS);
+    EXPECT_EQ(info.Make, "");
+}
+
+TEST(Exif, EmptyRational)
+{
+    // The focal plane resolution was read from an empty vector if the entry had zero values.
+    ExifBuilder b;
+    uint32_t sub_ifd = 8 + 2 + 12 + 4;
+    b.U16(1);
+    b.Entry(0x8769, 4, 1, sub_ifd);
+    b.U32(0);
+    ASSERT_EQ(b.Offset(), sub_ifd);
+    uint32_t value = sub_ifd + 2 + 3 * 12 + 4;
+    b.U16(3);
+    b.Entry(0xa20e, 5, 0, 0);
+    b.Entry(0xa20f, 5, 0, 0);
+    b.Entry(0x829d, 5, 1, value);  // FNumber
+    b.U32(0);
+    ASSERT_EQ(b.Offset(), value);
+    b.U32(28);
+    b.U32(10);
+
+    easyexif::EXIFInfo info;
+    ASSERT_EQ(info.parseFromEXIFSegment(b.data.data(), b.data.size()), PARSE_EXIF_SUCCESS);
+    EXPECT_EQ(info.LensInfo.FocalPlaneXResolution, 0);
+    EXPECT_EQ(info.LensInfo.FocalPlaneYResolution, 0);
+    EXPECT_DOUBLE_EQ(info.FNumber, 2.8);
+}
+
+TEST(Exif, GPSOutsideOfSegment)
+{
+    // The GPS rationals were read without checking the offset against the segment length.
+    ExifBuilder b;
+    uint32_t gps_ifd = 8 + 2 + 12 + 4;
+    b.U16(1);
+    b.Entry(0x8825, 4, 1, gps_ifd);
+    b.U32(0);
+    ASSERT_EQ(b.Offset(), gps_ifd);
+    uint32_t lat = gps_ifd + 2 + 2 * 12 + 4;
+    b.U16(2);
+    b.Entry(2, 5, 3, lat);  // latitude
+    b.Entry(6, 5, 1, lat);  // altitude
+    b.U32(0);
+    ASSERT_EQ(b.Offset(), lat);
+    size_t segment_end = b.data.size();
+    // Valid rationals behind the end of the segment that is passed to the parser.
+    for (int i = 0; i < 3; ++i)
+    {
+        b.U32(10);
+        b.U32(1);
+    }
+
+    easyexif::EXIFInfo info;
+    ASSERT_EQ(info.parseFromEXIFSegment(b.data.data(), b.data.size()), PARSE_EXIF_SUCCESS);
+    EXPECT_NEAR(info.GeoLocation.Latitude, 10 + 10 / 60.0 + 10 / 3600.0, 1e-9);
+    EXPECT_EQ(info.GeoLocation.Altitude, 10);
+
+    easyexif::EXIFInfo info2;
+    ASSERT_EQ(info2.parseFromEXIFSegment(b.data.data(), segment_end), PARSE_EXIF_SUCCESS);
+    EXPECT_EQ(info2.GeoLocation.Latitude, 0);
+    EXPECT_EQ(info2.GeoLocation.Altitude, 0);
+}
