@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/math/CoordinateSystems.h"
+#include "saiga/core/math/Morton.h"
 #include "saiga/core/math/Polynomial4.h"
 #include "saiga/core/math/all.h"
 #include "saiga/core/math/half.h"
@@ -302,4 +304,132 @@ TEST(MathFunctions, SolvePolynomials)
 
     // x^4 + 1 has no real roots.
     EXPECT_EQ(solve_deg4(1, 0, 0, 0, 1, x0, x1, x2, x3), 0);
+}
+
+TEST(MathFunctions, Morton)
+{
+    // Reference: interleave the bits one by one.
+    auto reference = [](uint32_t x, uint32_t y, uint32_t z)
+    {
+        uint64_t r = 0;
+        for (int i = 0; i < 21; ++i)
+        {
+            r |= uint64_t((x >> i) & 1) << (3 * i);
+            r |= uint64_t((y >> i) & 1) << (3 * i + 1);
+            r |= uint64_t((z >> i) & 1) << (3 * i + 2);
+        }
+        return r;
+    };
+    EXPECT_EQ(Morton3D(ivec3(0, 0, 0)), 0u);
+    EXPECT_EQ(Morton3D(ivec3(1, 0, 0)), 1u);
+    EXPECT_EQ(Morton3D(ivec3(0, 1, 0)), 2u);
+    EXPECT_EQ(Morton3D(ivec3(0, 0, 1)), 4u);
+    const int max = (1 << 21) - 1;
+    EXPECT_EQ(Morton3D(ivec3(max, max, max)), (uint64_t(1) << 63) - 1);
+    Random::setSeed(7);
+    for (int i = 0; i < 1000; ++i)
+    {
+        ivec3 v = Random::MatrixUniform<ivec3>(0, max);
+        EXPECT_EQ(Morton3D(v), reference(v.x(), v.y(), v.z()));
+    }
+}
+
+TEST(MathFunctions, IntegerFunctions)
+{
+    EXPECT_EQ(iDivUp(10, 3), 4);
+    EXPECT_EQ(iDivUp(9, 3), 3);
+    EXPECT_EQ(iDivUp(0, 3), 0);
+    EXPECT_EQ(iFloorDiv(7, 2), 3);
+    EXPECT_EQ(iFloorDiv(-7, 2), -4);
+    EXPECT_EQ(iFloorDiv(-6, 2), -3);
+    EXPECT_EQ(iFloorDiv(7, -2), -4);
+    EXPECT_EQ(iFloor(-0.5f), -1);
+    EXPECT_EQ(iFloor(1.5f), 1);
+    EXPECT_EQ(iFloor(-2.0), -2);
+    EXPECT_EQ(iCeil(-0.5f), 0);
+}
+
+TEST(MathFunctions, QuaternionFunctions)
+{
+    quat q = angleAxis(radians(90.f), vec3(0, 0, 1));
+    EXPECT_NEAR((q * vec3(1, 0, 0) - vec3(0, 1, 0)).norm(), 0, 1e-6);
+    EXPECT_NEAR((make_mat3(q) * vec3(1, 0, 0) - vec3(0, 1, 0)).norm(), 0, 1e-6);
+    EXPECT_NEAR((make_mat4(q) - rotate(radians(90.f), vec3(0, 0, 1))).norm(), 0, 1e-6);
+
+    // Matrix -> quaternion round trip for rotations with different traces.
+    for (auto axis : {vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1), vec3(1, 2, 3).normalized()})
+    {
+        for (float angle : {0.1f, 1.5f, 3.0f, 3.14159f})
+        {
+            quat a = angleAxis(angle, axis);
+            quat b = quat_cast(make_mat3(a));
+            EXPECT_NEAR(std::abs(a.dot(b)), 1, 1e-5) << axis.transpose() << " " << angle;
+        }
+    }
+
+    // Shortest rotation between two vectors, also for opposite vectors.
+    for (auto [a, b] : {std::pair<vec3, vec3>{vec3(1, 0, 0), vec3(0, 1, 0)},
+                        {vec3(1, 2, 3), vec3(-2, 0.5, 1)},
+                        {vec3(1, 0, 0), vec3(-1, 0, 0)},
+                        {vec3(0, 0, 2), vec3(0, 0, -1)}})
+    {
+        quat r = rotation(a, b);
+        EXPECT_NEAR(r.norm(), 1, 1e-5);
+        EXPECT_NEAR((r * a.normalized() - b.normalized()).norm(), 0, 1e-5) << a.transpose() << " | " << b.transpose();
+    }
+
+    // Slerp
+    quat q0 = quat::Identity();
+    quat q1 = angleAxis(radians(90.f), vec3(0, 1, 0));
+    quat qh = slerp(q0, q1, 0.5f);
+    EXPECT_NEAR(std::abs(qh.dot(angleAxis(radians(45.f), vec3(0, 1, 0)))), 1, 1e-6);
+    EXPECT_NEAR(std::abs(mix(q0, q1, 1.f).dot(q1)), 1, 1e-6);
+
+    // Inverse and composition
+    quat qi = inverse(q1);
+    EXPECT_NEAR(std::abs((q1 * qi).w()), 1, 1e-6);
+    quat qr = rotate(q0, radians(90.f), vec3(0, 1, 0));
+    EXPECT_NEAR(std::abs(qr.dot(q1)), 1, 1e-6);
+}
+
+TEST(MathFunctions, CoordinateSystems)
+{
+    mat4 a = GL2VulkanNormalizedImage();
+    mat4 b = Vulkan2GLNormalizedImage();
+    EXPECT_NEAR((a * b - mat4::Identity()).norm(), 0, 1e-6);
+    EXPECT_NEAR((GL2CVView() * CV2GLView() - mat4::Identity()).norm(), 0, 1e-6);
+    // GL depth -1 maps to Vulkan depth 0 and 1 to 1.
+    EXPECT_NEAR((a * vec4(0, 0, -1, 1))(2), 0, 1e-6);
+    EXPECT_NEAR((a * vec4(0, 0, 1, 1))(2), 1, 1e-6);
+
+    // Without distortion the point is unchanged.
+    EXPECT_EQ(cvApplyDistortion(vec2(0.3, -0.2), 0, 0, 0, 0, 0), vec2(0.3, -0.2));
+    // Radial distortion scales with (1 + k1 r^2).
+    vec2 d = cvApplyDistortion(vec2(0.3, 0.4), 0.1, 0, 0, 0, 0);
+    EXPECT_NEAR((d - vec2(0.3, 0.4) * (1 + 0.1f * 0.25f)).norm(), 0, 1e-6);
+}
+
+TEST(MathFunctions, ProjectionMatrices)
+{
+    // perspective() maps the near and far plane to -1 and 1.
+    mat4 P = perspective(radians(60.f), 1.5f, 0.5f, 50.f);
+    vec4 n = P * vec4(0, 0, -0.5, 1);
+    vec4 f = P * vec4(0, 0, -50, 1);
+    EXPECT_NEAR(n.z() / n.w(), -1, 1e-5);
+    EXPECT_NEAR(f.z() / f.w(), 1, 1e-4);
+    // The field of view is applied to the longer side (here the width).
+    vec4 side = P * vec4(std::tan(radians(30.f)), 0, -1, 1);
+    EXPECT_NEAR(side.x() / side.w(), 1, 1e-5);
+
+    mat4 O = ortho(-2, 2, -1, 1, 0.5, 10);
+    vec4 c = O * vec4(2, 1, -10, 1);
+    EXPECT_NEAR((c - vec4(1, 1, 1, 1)).norm(), 0, 1e-6);
+
+    // lookAt moves the eye to the origin and looks along -z.
+    mat4 V = lookAt(vec3(1, 2, 3), vec3(1, 2, -7), vec3(0, 1, 0));
+    EXPECT_NEAR((V * vec4(1, 2, 3, 1) - vec4(0, 0, 0, 1)).norm(), 0, 1e-6);
+    EXPECT_NEAR((V * vec4(1, 2, -7, 1) - vec4(0, 0, -10, 1)).norm(), 0, 1e-5);
+
+    mat4 T = createTRSmatrix(vec3(1, 2, 3), angleAxis(radians(90.f), vec3(0, 0, 1)), vec3(2, 2, 2));
+    EXPECT_NEAR((T * vec4(1, 0, 0, 1) - vec4(1, 4, 3, 1)).norm(), 0, 1e-5);
 }

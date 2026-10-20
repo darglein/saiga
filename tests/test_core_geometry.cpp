@@ -459,3 +459,259 @@ TEST(Geometry, CircleClosestPoint)
     EXPECT_NEAR((q - c.pos).dot(c.normal), 0, 1e-5);
     EXPECT_NEAR(c.distance(vec3(1, 2, 10)), std::sqrt(4.f + 49.f), 1e-5);
 }
+
+TEST(Geometry, RayIntersections)
+{
+    // Ray - sphere
+    float t1, t2;
+    ASSERT_TRUE(Intersection::RaySphere(Ray(vec3(0, 0, 1), vec3(0, 0, -5)), Sphere(vec3(0, 0, 0), 2), t1, t2));
+    EXPECT_NEAR(t1, 3, 1e-5);
+    EXPECT_NEAR(t2, 7, 1e-5);
+    EXPECT_FALSE(Intersection::RaySphere(Ray(vec3(0, 0, 1), vec3(3, 0, -5)), Sphere(vec3(0, 0, 0), 2), t1, t2));
+
+    ASSERT_TRUE(Intersection::RayCircle(vec2(-5, 0), vec2(2, 0), vec2(0, 0), 1, t1, t2));
+    EXPECT_NEAR(t1, 2, 1e-5);
+    EXPECT_NEAR(t2, 3, 1e-5);
+
+    // Ray - triangle. The front side is the counter clockwise side (+z here).
+    Triangle tri(vec3(-1, -1, 0), vec3(1, -1, 0), vec3(0, 1, 0));
+    auto hit = Intersection::RayTriangle(Ray(vec3(0, 0, -1), vec3(0, 0, 3)), tri);
+    ASSERT_TRUE(hit.valid);
+    EXPECT_NEAR(hit.t, 3, 1e-5);
+    EXPECT_FALSE(hit.backFace);
+    hit = Intersection::RayTriangle(Ray(vec3(0, 0, 1), vec3(0, 0, -3)), tri);
+    ASSERT_TRUE(hit.valid);
+    EXPECT_TRUE(hit.backFace);
+    EXPECT_FALSE(Intersection::RayTriangle(Ray(vec3(0, 0, -1), vec3(5, 0, 3)), tri).valid);
+    // The triangle is behind the ray
+    EXPECT_FALSE(Intersection::RayTriangle(Ray(vec3(0, 0, 1), vec3(0, 0, 3)), tri).valid);
+
+    // Ray - plane
+    float t;
+    EXPECT_TRUE(Intersection::RayPlane(Ray(vec3(0, -1, 0), vec3(0, 5, 0)), Plane(vec3(0, 2, 0), vec3(0, 1, 0)), t));
+    EXPECT_NEAR(t, 3, 1e-5);
+    EXPECT_FALSE(Intersection::RayPlane(Ray(vec3(1, 0, 0), vec3(0, 5, 0)), Plane(vec3(0, 2, 0), vec3(0, 1, 0)), t));
+
+    // Ray - AABB
+    AABB box(vec3(-1, -1, -1), vec3(1, 1, 1));
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0.5, 0.2).normalized(), vec3(-5, -2.5, -1)), box, t));
+    EXPECT_TRUE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 0.5, 0.5)), box, t));
+    EXPECT_NEAR(t, 4, 1e-5);
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(-1, 0, 0), vec3(-5, 0.5, 0.5)), box, t));
+    EXPECT_FALSE(Intersection::RayAABB(Ray(vec3(1, 0, 0), vec3(-5, 2.5, 0.5)), box, t));
+
+    EXPECT_TRUE(Intersection::SphereSphere(Sphere(vec3(0, 0, 0), 1), Sphere(vec3(1.5, 0, 0), 1)));
+    EXPECT_FALSE(Intersection::SphereSphere(Sphere(vec3(0, 0, 0), 1), Sphere(vec3(2.5, 0, 0), 1)));
+    EXPECT_TRUE(Intersection::AABBAABB(box, AABB(vec3(0.5, 0.5, 0.5), vec3(2, 2, 2))));
+    EXPECT_FALSE(Intersection::AABBAABB(box, AABB(vec3(1.5, 0.5, 0.5), vec3(2, 2, 2))));
+}
+
+TEST(Geometry, AABBFunctions)
+{
+    AABB box;
+    box.makeNegative();
+    box.growBox(vec3(1, 2, 3));
+    box.growBox(vec3(-1, 0, 5));
+    EXPECT_EQ(box.min, vec3(-1, 0, 3));
+    EXPECT_EQ(box.max, vec3(1, 2, 5));
+    EXPECT_EQ(box.maxDimension(), 0);
+    EXPECT_EQ(box.maxSize(), 2);
+    EXPECT_EQ(box.getPosition(), vec3(0, 1, 4));
+    EXPECT_TRUE(box.contains(vec3(0, 1, 4)));
+    EXPECT_FALSE(box.contains(vec3(0, 1, 6)));
+    EXPECT_EQ(box.DistanceSquared(vec3(0, 1, 4)), 0);
+    EXPECT_EQ(box.DistanceSquared(vec3(3, 1, 4)), 4);
+    EXPECT_EQ(box.DistanceSquared(vec3(3, 4, 4)), 8);
+
+    for (int i = 0; i < 8; ++i)
+    {
+        vec3 c = box.cornerPoint(i);
+        EXPECT_TRUE(box.contains(c));
+        EXPECT_EQ(box.DistanceSquared(c), 0);
+    }
+
+    auto tris = box.toTriangles();
+    ASSERT_EQ(tris.size(), 12u);
+    float area = 0;
+    for (auto& t : tris) area += t.Area();
+    EXPECT_NEAR(area, 2 * (2 * 2 + 2 * 2 + 2 * 2), 1e-5);
+
+    box.setPosition(vec3(10, 10, 10));
+    EXPECT_EQ(box.getPosition(), vec3(10, 10, 10));
+    box.scale(vec3(2, 1, 1));
+    EXPECT_EQ(box.Size(), vec3(4, 2, 2));
+
+    AABB inv(vec3(1, 1, 1), vec3(0, 2, 0));
+    inv.ensureValidity();
+    EXPECT_EQ(inv.min, vec3(0, 1, 0));
+    EXPECT_EQ(inv.max, vec3(1, 2, 1));
+
+    auto [center, radius] = inv.BoundingSphere();
+    EXPECT_EQ(center, vec3(0.5, 1.5, 0.5));
+    EXPECT_NEAR(radius, std::sqrt(3.f) * 0.5f, 1e-6);
+}
+
+TEST(Geometry, ClipTriangleAABB)
+{
+    AABB box(vec3(0, 0, 0), vec3(1, 1, 1));
+
+    // Completely inside: unchanged
+    Triangle inside(vec3(0.1, 0.1, 0.5), vec3(0.9, 0.1, 0.5), vec3(0.5, 0.9, 0.5));
+    auto p = Clipping::clipTriAABB(inside, box);
+    EXPECT_EQ(p.size(), 3u);
+
+    // Completely outside: empty
+    Triangle outside(vec3(2, 2, 2), vec3(3, 2, 2), vec3(2, 3, 2));
+    EXPECT_TRUE(Clipping::clipTriAABB(outside, box).empty());
+
+    // A large triangle in the plane z = 0.5 covering the box: the result is the square of the box.
+    Triangle large(vec3(-10, -10, 0.5), vec3(10, -10, 0.5), vec3(0, 20, 0.5));
+    p = Clipping::clipTriAABB(large, box);
+    EXPECT_GE(p.size(), 4u);
+    AABB bb = Clipping::clipTriAABBtoBox(large, box);
+    EXPECT_NEAR((bb.min - vec3(0, 0, 0.5)).norm(), 0, 1e-5);
+    EXPECT_NEAR((bb.max - vec3(1, 1, 0.5)).norm(), 0, 1e-5);
+    for (auto& v : p)
+    {
+        EXPECT_GE(v.minCoeff(), -1e-5);
+        EXPECT_LE(v.maxCoeff(), 1 + 1e-5);
+    }
+}
+
+TEST(Geometry, FrustumIntersectSAT)
+{
+    Frustum f1(mat4::Identity(), radians(60.f), 1, 1, 10);
+    // The same frustum moved far to the side does not intersect.
+    Frustum f2(translate(vec3(100, 0, 0)), radians(60.f), 1, 1, 10);
+    // Moved a little: intersects.
+    Frustum f3(translate(vec3(1, 0, 0)), radians(60.f), 1, 1, 10);
+    EXPECT_TRUE(f1.intersectSAT(f1));
+    EXPECT_FALSE(f1.intersectSAT(f2));
+    EXPECT_TRUE(f1.intersectSAT(f3));
+
+    EXPECT_TRUE(f1.intersectSAT(Sphere(vec3(0, 0, -5), 0.5)));
+    EXPECT_FALSE(f1.intersectSAT(Sphere(vec3(0, 0, 5), 0.5)));
+    EXPECT_FALSE(f1.intersectSAT(Sphere(vec3(20, 0, -5), 0.5)));
+
+    // The bounding sphere contains all corners.
+    for (auto& v : f1.vertices)
+    {
+        EXPECT_LE((v - f1.boundingSphere.pos).norm(), f1.boundingSphere.r + 1e-4);
+    }
+    EXPECT_EQ(f1.pointInSphereFrustum(vec3(0, 0, -5)), Frustum::INSIDE);
+    EXPECT_EQ(f1.pointInSphereFrustum(vec3(0, 0, 50)), Frustum::OUTSIDE);
+
+    EXPECT_EQ(f1.sideOfPlane(Plane(vec3(0, 0, 1), vec3(0, 0, 1))), -1);
+    EXPECT_EQ(f1.sideOfPlane(Plane(vec3(0, 0, -20), vec3(0, 0, 1))), 1);
+    EXPECT_EQ(f1.sideOfPlane(Plane(vec3(0, 0, -5), vec3(0, 0, 1))), 0);
+}
+
+TEST(Geometry, BVHMatchesBruteForce)
+{
+    Random::setSeed(42);
+    std::vector<Triangle> triangles;
+    for (int i = 0; i < 300; ++i)
+    {
+        vec3 c = Random::MatrixUniform<vec3>(-5, 5);
+        triangles.emplace_back(c + Random::MatrixUniform<vec3>(-0.5, 0.5), c + Random::MatrixUniform<vec3>(-0.5, 0.5),
+                               c + Random::MatrixUniform<vec3>(-0.5, 0.5));
+    }
+
+    AccelerationStructure::BruteForce brute(triangles);
+    AccelerationStructure::ObjectMedianBVH bvh(triangles, 4);
+
+    int hits = 0;
+    for (int i = 0; i < 300; ++i)
+    {
+        // Every second ray points towards a triangle, so that there are enough hits.
+        vec3 origin = Random::MatrixUniform<vec3>(-7, 7);
+        vec3 dir    = Random::sphericalRand(1).cast<float>();
+        if (i % 2 == 0) dir = (triangles[i].center() - origin).normalized();
+        Ray r(dir, origin);
+        auto a = brute.getClosest(r);
+        auto b = bvh.getClosest(r);
+        ASSERT_EQ(a.valid, b.valid) << i;
+        if (a.valid)
+        {
+            hits++;
+            EXPECT_NEAR(a.t, b.t, 1e-4) << i;
+            EXPECT_EQ(a.triangleIndex, b.triangleIndex) << i;
+        }
+        EXPECT_EQ(brute.getAll(r).size(), bvh.getAll(r).size()) << i;
+
+        vec3 p    = Random::MatrixUniform<vec3>(-7, 7);
+        auto cp   = bvh.ClosestPoint(p);
+        float ref = std::numeric_limits<float>::infinity();
+        for (auto& t : triangles) ref = std::min(ref, t.Distance(p));
+        EXPECT_NEAR(cp.first, ref, 1e-4) << i;
+        EXPECT_NEAR(triangles[cp.second].Distance(p), ref, 1e-4) << i;
+    }
+    EXPECT_GT(hits, 150);
+
+    // An empty structure never hits.
+    AccelerationStructure::ObjectMedianBVH empty(std::vector<Triangle>{}, 4);
+    EXPECT_FALSE(empty.getClosest(Ray(vec3(1, 0, 0), vec3(0, 0, 0))).valid);
+}
+
+TEST(Geometry, BezierAndBspline)
+{
+    Bezier<vec2> bez({vec2(0, 0), vec2(1, 2), vec2(3, 2), vec2(4, 0)});
+    EXPECT_EQ(bez.evaluate(0), vec2(0, 0));
+    EXPECT_EQ(bez.evaluate(1), vec2(4, 0));
+    // B(0.5) = (P0 + 3 P1 + 3 P2 + P3) / 8
+    EXPECT_NEAR((bez.evaluate(0.5) - vec2(2, 1.5)).norm(), 0, 1e-6);
+
+    // Degree elevation and subdivision don't change the curve.
+    Bezier<vec2> elevated = bez;
+    elevated.degreeElavation();
+    EXPECT_EQ(elevated.N, 4);
+    auto halves = bez.subdivide(1);
+    ASSERT_EQ(halves.size(), 2u);
+    for (float t : {0.f, 0.2f, 0.5f, 0.7f, 1.f})
+    {
+        EXPECT_NEAR((elevated.evaluate(t) - bez.evaluate(t)).norm(), 0, 1e-5) << t;
+        EXPECT_NEAR((halves[0].evaluate(t) - bez.evaluate(t * 0.5f)).norm(), 0, 1e-5) << t;
+        EXPECT_NEAR((halves[1].evaluate(t) - bez.evaluate(0.5f + t * 0.5f)).norm(), 0, 1e-5) << t;
+    }
+    EXPECT_EQ(bez.createLine(2).size(), 4u * 3 + 1);
+
+    // A B-spline with end interpolation starts and ends at the control points. A cubic B-spline with 4 control
+    // points and clamped knots is the Bezier curve.
+    Bspline<vec2, float> spline({vec2(0, 0), vec2(1, 2), vec2(3, 2), vec2(4, 0)}, 3);
+    EXPECT_NEAR((spline.getPointOnCurve(0) - vec2(0, 0)).norm(), 0, 1e-5);
+    EXPECT_NEAR((spline.getPointOnCurve(1) - vec2(4, 0)).norm(), 0, 1e-5);
+    for (float t : {0.1f, 0.5f, 0.8f})
+    {
+        EXPECT_NEAR((spline.getPointOnCurve(t) - bez.evaluate(t)).norm(), 0, 1e-5) << t;
+    }
+}
+
+TEST(Geometry, KDTreeMatchesBruteForce)
+{
+    Random::setSeed(3);
+    std::vector<vec3> points;
+    for (int i = 0; i < 500; ++i) points.push_back(Random::MatrixUniform<vec3>(-1, 1));
+    KDTree<3, vec3> tree(points);
+
+    for (int i = 0; i < 50; ++i)
+    {
+        vec3 q = Random::MatrixUniform<vec3>(-1.2, 1.2);
+        std::vector<std::pair<float, int>> dist;
+        for (int j = 0; j < (int)points.size(); ++j) dist.push_back({(points[j] - q).squaredNorm(), j});
+        std::sort(dist.begin(), dist.end());
+
+        EXPECT_EQ(tree.NearestNeighborSearch(q), dist[0].second);
+
+        auto knn = tree.KNearestNeighborSearch(q, 5);
+        ASSERT_EQ(knn.size(), 5u);
+        for (int k = 0; k < 5; ++k) EXPECT_EQ(knn[k], dist[k].second);
+
+        float r     = 0.3;
+        auto radius = tree.RadiusSearch(q, r);
+        std::vector<int> expected;
+        for (auto& d : dist)
+            if (d.first < r * r) expected.push_back(d.second);
+        std::sort(expected.begin(), expected.end());
+        EXPECT_EQ(radius, expected);
+    }
+}
