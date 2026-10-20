@@ -4,11 +4,13 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/time/gameTime.h"
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/time.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/MemoryUsage.h"
 #include "saiga/core/util/Thread/SpinLock.h"
+#include "saiga/core/util/Thread/SynchronizedBlockAllocator.h"
 #include "saiga/core/util/Thread/SynchronizedBuffer.h"
 #include "saiga/core/util/Thread/SynchronizedSlot.h"
 #include "saiga/core/util/Thread/semaphore.h"
@@ -19,9 +21,14 @@
 
 #include "gtest/gtest.h"
 
+#include <atomic>
+#include <cstdint>
 #include <future>
+#include <iostream>
 #include <sstream>
+#include <string>
 #include <thread>
+#include <vector>
 
 #if defined(__linux__)
 #    include <pthread.h>
@@ -214,6 +221,63 @@ TEST(PipelineStage, StopWithFullQueue)
     overriding.get(v);
     EXPECT_GT(v, 0);
     overriding.stop();
+}
+
+TEST(SynchronizedBlockAllocator, AllocateFree)
+{
+    // The header did not compile: it used members that were never declared and had no way to allocate an object.
+    struct Counted
+    {
+        Counted(int v, std::atomic<int>* alive) : v(v), alive(alive) { (*alive)++; }
+        Counted(const Counted&) = delete;
+        ~Counted() { (*alive)--; }
+        int v;
+        std::atomic<int>* alive;
+    };
+
+    std::atomic<int> alive = 0;
+    {
+        SynchronizedBlockAllocator<Counted> allocator(3);
+        EXPECT_EQ(allocator.getCapacity(), 3);
+        int a = allocator.allocate(1, &alive);
+        int b = allocator.allocate(2, &alive);
+        int c = allocator.allocate(3, &alive);
+        EXPECT_EQ(a, 0);
+        EXPECT_EQ(b, 1);
+        EXPECT_EQ(c, 2);
+        EXPECT_EQ(allocator.allocate(4, &alive), SynchronizedBlockAllocator<Counted>::invalidIndex);
+        EXPECT_EQ(alive, 3);
+        EXPECT_EQ(allocator.size(), 3);
+        EXPECT_EQ(allocator.get(b).v, 2);
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(&allocator.get(b)) % alignof(Counted), 0);
+
+        allocator.free(b);
+        EXPECT_FALSE(allocator.isConstructed(b));
+        EXPECT_EQ(alive, 2);
+        EXPECT_EQ(allocator.allocate(5, &alive), b);
+        EXPECT_EQ(allocator.get(b).v, 5);
+    }
+    // The destructor frees the remaining objects.
+    EXPECT_EQ(alive, 0);
+
+    SynchronizedBlockAllocator<std::string> allocator(64);
+    std::vector<std::thread> threads;
+    for (int t = 0; t < 4; ++t)
+    {
+        threads.emplace_back(
+            [&allocator, t]()
+            {
+                for (int i = 0; i < 1000; ++i)
+                {
+                    int id = allocator.allocate(std::to_string(t));
+                    ASSERT_NE(id, SynchronizedBlockAllocator<std::string>::invalidIndex);
+                    EXPECT_EQ(allocator.get(id), std::to_string(t));
+                    allocator.free(id);
+                }
+            });
+    }
+    for (auto& t : threads) t.join();
+    EXPECT_EQ(allocator.size(), 0);
 }
 
 TEST(ThreadPool, ManyTasks)
