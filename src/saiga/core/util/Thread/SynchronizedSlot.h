@@ -29,7 +29,7 @@ class SynchronizedSlot
         // Wait until empty
         cv_producer.wait(l, [this]() { return empty(); });
         // Set slot and notify the consumer
-        slot  = std::move(value);
+        slot  = std::forward<G>(value);
         valid = true;
         cv_consumer.notify_one();
     }
@@ -40,7 +40,7 @@ class SynchronizedSlot
         std::unique_lock l(mut);
         // Set slot and notify the consumer
         // Do not wait if already full
-        slot  = std::move(value);
+        slot  = std::forward<G>(value);
         valid = true;
         cv_consumer.notify_one();
     }

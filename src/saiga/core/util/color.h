@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/math/math.h"
+
 #include <cstdint>
 
 namespace Saiga
@@ -19,7 +20,8 @@ class SAIGA_CORE_API Color
     constexpr Color() : r(255), g(255), b(255), a(255) {}
     constexpr Color(int r, int g, int b, int a = 255) : r(r), g(g), b(b), a(a) {}
 
-    Color(float r, float g, float b, float a = 255);
+    // Components in the range [0,1]
+    Color(float r, float g, float b, float a = 1);
 
     Color(const vec3& c);
 

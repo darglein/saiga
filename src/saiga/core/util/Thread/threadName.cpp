@@ -77,8 +77,9 @@ void setThreadName(std::thread& thread, const std::string& name)
     DWORD threadId = ::GetThreadId(static_cast<HANDLE>(thread.native_handle()));
     SetThreadName(threadId, name.c_str());
 #else
+    // pthread_setname_np fails for names longer than 15 characters (prctl above truncates them).
     auto handle = thread.native_handle();
-    pthread_setname_np(handle, name.c_str());
+    pthread_setname_np(handle, name.substr(0, 15).c_str());
 #endif
 }
 
@@ -88,7 +89,8 @@ ScopedThread& ScopedThread::operator=(ScopedThread&& __t) noexcept
     {
         SAIGA_EXIT_ERROR("Cannot assign to a running thread.");
     }
-    swap(__t);
+    std::thread::swap(__t);
+    terminate_called.swap(__t.terminate_called);
     return *this;
 }
 

@@ -297,11 +297,12 @@ bool extract_values(C& container, const unsigned char* buf, const unsigned base,
     }
     else
     {
-        data = buf + base + entry.data();
-        if (data + sizeof(T) * entry.length() > buf + len)
+        // Compare offsets instead of pointers, a pointer past the end of the buffer is undefined.
+        if (size_t(base) + entry.data() + sizeof(T) * entry.length() > len)
         {
             return false;
         }
+        data = buf + base + entry.data();
     }
     container.resize(entry.length());
     for (size_t i = 0; i < entry.length(); ++i)
@@ -375,7 +376,7 @@ IFEntry parseIFEntry_temp(const unsigned char* buf, const unsigned offs, const u
             }
             // and cut zero byte at the end, since we don't want that in the
             // std::string
-            if (result.val_string()[result.val_string().length() - 1] == '\0')
+            if (!result.val_string().empty() && result.val_string().back() == '\0')
             {
                 result.val_string().resize(result.val_string().length() - 1);
             }
@@ -727,7 +728,7 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 0xa20e:
                     // EXIF Focal plane X-resolution
-                    if (result.format() == 5)
+                    if (result.format() == 5 && result.val_rational().size())
                     {
                         this->LensInfo.FocalPlaneXResolution = result.val_rational()[0];
                     }
@@ -735,7 +736,7 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 0xa20f:
                     // EXIF Focal plane Y-resolution
-                    if (result.format() == 5)
+                    if (result.format() == 5 && result.val_rational().size())
                     {
                         this->LensInfo.FocalPlaneYResolution = result.val_rational()[0];
                     }
@@ -792,6 +793,8 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
             unsigned short tag, format;
             unsigned length, data;
             parseIFEntryHeader(buf + offs, alignIntel, tag, format, length, data);
+            // The values are stored at an offset that must be checked against the segment length.
+            auto data_fits = [&](size_t bytes) { return size_t(tiff_header_start) + data + bytes <= len; };
             switch (tag)
             {
                 case 1:
@@ -809,7 +812,7 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 2:
                     // GPS latitude
-                    if ((format == 5 || format == 10) && length == 3)
+                    if ((format == 5 || format == 10) && length == 3 && data_fits(24))
                     {
                         this->GeoLocation.LatComponents.degrees =
                             parse_value<Rational>(buf + data + tiff_header_start, alignIntel);
@@ -842,7 +845,7 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 4:
                     // GPS longitude
-                    if ((format == 5 || format == 10) && length == 3)
+                    if ((format == 5 || format == 10) && length == 3 && data_fits(24))
                     {
                         this->GeoLocation.LonComponents.degrees =
                             parse_value<Rational>(buf + data + tiff_header_start, alignIntel);
@@ -869,7 +872,7 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 6:
                     // GPS altitude
-                    if ((format == 5 || format == 10))
+                    if ((format == 5 || format == 10) && data_fits(8))
                     {
                         this->GeoLocation.Altitude = parse_value<Rational>(buf + data + tiff_header_start, alignIntel);
                         if (1 == this->GeoLocation.AltitudeRef)
@@ -881,7 +884,7 @@ int easyexif::EXIFInfo::parseFromEXIFSegment(const unsigned char* buf, unsigned 
 
                 case 11:
                     // GPS degree of precision (DOP)
-                    if ((format == 5 || format == 10))
+                    if ((format == 5 || format == 10) && data_fits(8))
                     {
                         this->GeoLocation.DOP = parse_value<Rational>(buf + data + tiff_header_start, alignIntel);
                     }
