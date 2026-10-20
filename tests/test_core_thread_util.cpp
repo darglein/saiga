@@ -9,6 +9,7 @@
 #include "saiga/core/util/MemoryUsage.h"
 #include "saiga/core/util/Thread/SynchronizedBuffer.h"
 #include "saiga/core/util/Thread/SynchronizedSlot.h"
+#include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/Thread/threadPool.h"
 #include "saiga/core/util/table.h"
 
@@ -129,4 +130,26 @@ TEST(SynchronizedSlot, SetDoesNotMoveFromLvalue)
     std::thread producer([&]() { slot.set(std::string("x")); });
     EXPECT_EQ(slot.get(), "x");
     producer.join();
+}
+
+TEST(ScopedThread, QuitAfterMove)
+{
+    // The thread received a pointer to the terminate flag of the object that started it. After a move it pointed to
+    // the flag of the moved-from (possibly destroyed) object, so Quit() of the new owner was never seen by the thread.
+    std::atomic<bool> finished = false;
+    ScopedThread st;
+    st = ScopedThread(
+        [&finished](std::atomic<bool>* terminate)
+        {
+            while (!*terminate) std::this_thread::sleep_for(1ms);
+            finished = true;
+        });
+    ScopedThread st2(std::move(st));
+    EXPECT_FALSE(st.joinable());
+    std::this_thread::sleep_for(20ms);
+    EXPECT_FALSE(finished);
+
+    st2.Quit();
+    EXPECT_TRUE(finished);
+    EXPECT_FALSE(st2.joinable());
 }

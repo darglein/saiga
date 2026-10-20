@@ -88,7 +88,8 @@ ScopedThread& ScopedThread::operator=(ScopedThread&& __t) noexcept
     {
         SAIGA_EXIT_ERROR("Cannot assign to a running thread.");
     }
-    swap(__t);
+    std::thread::swap(__t);
+    terminate_called.swap(__t.terminate_called);
     return *this;
 }
 
