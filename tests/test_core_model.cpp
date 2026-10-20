@@ -4,10 +4,17 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/model/UnifiedMesh.h"
 #include "saiga/core/model/UnifiedModel.h"
+#include "saiga/core/model/model_from_shape.h"
+#include "saiga/core/model/model_loader_off.h"
+#include "saiga/core/model/model_loader_ply.h"
 
 #include "gtest/gtest.h"
 
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 
 using namespace Saiga;
