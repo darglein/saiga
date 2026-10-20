@@ -438,22 +438,24 @@ bool Image::saveRaw(const std::filesystem::path& path, bool do_compress) const
         stream.write((char*)rowPtr(i), width * es);
     }
 
+    std::ofstream is(path, std::ios::binary | std::ios::out);
 #ifdef SAIGA_USE_ZLIB
     if (do_compress)
     {
         auto compressed_data =
             Saiga::compress(stream.data.data() + saiga_image_header_size, stream.data.size() - saiga_image_header_size);
 
-        std::ofstream is(path, std::ios::binary | std::ios::out);
         is.write(stream.data.data(), saiga_image_header_size);
         is.write((const char*)compressed_data.data(), compressed_data.size());
     }
     else
 #endif
     {
-        File::saveFileBinary(path, stream.data.data(), stream.data.size());
+        is.write(stream.data.data(), stream.data.size());
     }
-    return true;
+    is.close();
+    // Report a file that could not be opened or written.
+    return bool(is);
 }
 
 bool Image::saveConvert(const std::filesystem::path& path, float minValue, float maxValue)

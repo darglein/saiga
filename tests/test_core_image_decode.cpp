@@ -380,3 +380,14 @@ TEST(ImageViewOps, MinMaxAndNormalize)
     EXPECT_FLOAT_EQ(img(0, 1), 0.5f);
     EXPECT_FLOAT_EQ(img(0, 2), 1);
 }
+
+TEST(ImageDecode, SaveRawReportsErrors)
+{
+    // saveRaw always returned true, even if the file could not be written.
+    TemplatedImage<unsigned char> img(2, 2);
+    img.makeZero();
+    auto file = TestDir() / "does_not_exist" / "x.saigai";
+    EXPECT_FALSE(img.saveRaw(file, false));
+    EXPECT_FALSE(img.saveRaw(file, true));
+    EXPECT_FALSE(img.save(file));
+}
