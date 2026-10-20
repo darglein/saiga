@@ -315,6 +315,28 @@ TEST(Exif, EmptyRational)
     EXPECT_DOUBLE_EQ(info.FNumber, 2.8);
 }
 
+TEST(Exif, GPSSignedRational)
+{
+    // GPS values stored as SRATIONAL (format 10) were decoded as unsigned, so -100 became about 4.3e9.
+    ExifBuilder b;
+    uint32_t gps_ifd = 8 + 2 + 12 + 4;
+    b.U16(1);
+    b.Entry(0x8825, 4, 1, gps_ifd);
+    b.U32(0);
+    ASSERT_EQ(b.Offset(), gps_ifd);
+    uint32_t alt = gps_ifd + 2 + 12 + 4;
+    b.U16(1);
+    b.Entry(6, 10, 1, alt);  // altitude
+    b.U32(0);
+    ASSERT_EQ(b.Offset(), alt);
+    b.U32(uint32_t(-200));
+    b.U32(2);
+
+    easyexif::EXIFInfo info;
+    ASSERT_EQ(info.parseFromEXIFSegment(b.data.data(), b.data.size()), PARSE_EXIF_SUCCESS);
+    EXPECT_DOUBLE_EQ(info.GeoLocation.Altitude, -100);
+}
+
 TEST(Exif, GPSOutsideOfSegment)
 {
     // The GPS rationals were read without checking the offset against the segment length.
