@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/opengl/indexedVertexBuffer.h"
 #include "saiga/opengl/shaderStorageBuffer.h"
 #include "saiga/opengl/templatedBuffer.h"
 
@@ -109,4 +110,35 @@ TEST_F(OpenGLBuffer, ShaderStorageLimits)
 {
     EXPECT_GE(ShaderStorageBuffer::getMaxShaderStorageBufferBindings(), 8);
     EXPECT_GE(ShaderStorageBuffer::getMaxShaderStorageBlockSize(), 1 << 24);
+}
+
+// Copying a buffer without a GL object read from buffer 0 (GL_INVALID_OPERATION) and created a new GL buffer.
+TEST_F(OpenGLBuffer, CopyEmptyBuffer)
+{
+    TemplatedBuffer<int> buffer(GL_ARRAY_BUFFER);
+    Buffer copy(buffer);
+    EXPECT_EQ(copy.getBufferObject(), 0u);
+    EXPECT_EQ(copy.size, 0u);
+}
+
+// updateFromMesh passed the vertex count and offset as byte count and byte offset.
+TEST_F(OpenGLBuffer, IndexedVertexBufferUpdateFromMesh)
+{
+    TriangleMesh<VertexNT, GLuint> mesh;
+    for (int i = 0; i < 6; ++i) mesh.vertices.push_back(VertexNT(vec3(i, 0, 0)));
+    mesh.addFace(0, 1, 2);
+    mesh.addFace(3, 4, 5);
+
+    IndexedVertexBuffer<VertexNT, GLuint> buffer;
+    buffer.fromMesh(mesh, GL_DYNAMIC_DRAW);
+    EXPECT_EQ(buffer.VertexCount(), 6);
+    EXPECT_EQ(buffer.IndexCount(), 6);
+
+    for (int i = 0; i < 6; ++i) mesh.vertices[i].position(0) = 10 + i;
+    buffer.updateFromMesh(mesh, 3, 2);
+
+    std::vector<VertexNT> result(6);
+    buffer.VertexBuffer<VertexNT>::get(result);
+    std::vector<float> expected = {0, 1, 12, 13, 14, 5};
+    for (int i = 0; i < 6; ++i) EXPECT_EQ(result[i].position(0), expected[i]) << i;
 }

@@ -55,7 +55,10 @@ void Texture3D::uploadSubImage(int x, int y, int z, int width, int height, int d
 
 bool Texture3D::fromImage(std::vector<Image>& images)
 {
-    depth = images.size();
+    SAIGA_ASSERT(!images.empty());
+    width  = images[0].width;
+    height = images[0].height;
+    depth  = images.size();
     setFormat(images[0].type);
 
 

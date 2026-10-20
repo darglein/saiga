@@ -92,8 +92,7 @@ bool Shader::init(const std::filesystem::path& file, const ShaderCodeInjections&
         shaders.push_back(shader);
     }
 
-    createProgram();
-    return true;
+    return createProgram() != 0;
 }
 
 bool Shader::init_from_string(const std::string& source_code, const ShaderCodeInjections& injections)
@@ -138,8 +137,7 @@ bool Shader::init_from_string(const std::string& source_code, const ShaderCodeIn
         shaders.push_back(shader);
     }
 
-    createProgram();
-    return true;
+    return createProgram() != 0;
 }
 
 // ===================================== program stuff =====================================
@@ -156,6 +154,8 @@ GLuint Shader::createProgram()
         }
     }
 
+    // Delete the program of an earlier init/reload
+    destroyProgram();
     program = glCreateProgram();
 
     // attach all shaders

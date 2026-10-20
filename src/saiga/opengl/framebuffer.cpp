@@ -39,6 +39,7 @@ void Framebuffer::create()
     if (id)
     {
         std::cerr << "Warning Framebuffer already created!" << std::endl;
+        destroy();
     }
     glGenFramebuffers(1, &id);
     bind();
@@ -132,7 +133,7 @@ void Framebuffer::drawTo(std::vector<int> colorBufferIds)
     {
         DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + colorBufferIds[i];
     }
-    glDrawBuffers(count, &DrawBuffers[0]);
+    glDrawBuffers(count, DrawBuffers.data());
 }
 
 

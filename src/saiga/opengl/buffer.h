@@ -78,8 +78,11 @@ inline Buffer::~Buffer()
     deleteGLBuffer();
 }
 
-inline Buffer::Buffer(Buffer const& other) : target(other.target)
+inline Buffer::Buffer(Buffer const& other) : target(other.target), usage(other.usage)
 {
+    // A buffer without a GL object has nothing to copy
+    if (!other.buffer) return;
+
     std::vector<unsigned char> data(other.size);
     other.getBuffer(data.data(), other.size, 0);
 
