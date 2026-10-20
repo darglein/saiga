@@ -55,7 +55,7 @@ namespace Saiga
 {
 namespace CUDA
 {
-//todo maybe change
+// todo maybe change
 static __constant__ float d_Kernel[SAIGA_MAX_KERNEL_SIZE];
 
 
@@ -106,7 +106,7 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
             smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] =
                 src(yStart + j * BLOCK_DIM_Y, x);
 
-            // Lower halo
+        // Lower halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
             smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] =
@@ -122,7 +122,7 @@ __global__ void linearColumnFilter(ImageView<float> src, ImageView<float> dst, c
             smem[threadIdx.y + HALO_SIZE * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x] =
                 src(min(yStart + j * BLOCK_DIM_Y, src.height - 1), x);
 
-            // Lower halo
+        // Lower halo
 #pragma unroll
         for (int j = 0; j < HALO_SIZE; ++j)
             //            smem[threadIdx.y + (PATCH_PER_BLOCK + HALO_SIZE) * BLOCK_DIM_Y + j * BLOCK_DIM_Y][threadIdx.x]
@@ -169,7 +169,10 @@ static void convolveCol(ImageView<float> src, ImageView<float> dst)
 
 void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<float> kernel, int radius)
 {
-    SAIGA_ASSERT(kernel.size() > 0 && kernel.size() <= SAIGA_MAX_KERNEL_SIZE);
+    SAIGA_ASSERT(radius >= 1 && radius <= SAIGA_MAX_CONVOLUTION_RADIUS,
+                 "convolveCol: unsupported radius " + std::to_string(radius));
+    SAIGA_ASSERT(kernel.size() == 2 * radius + 1, "convolveCol: the kernel size " + std::to_string(kernel.size()) +
+                                                      " is not 2 * radius + 1 = " + std::to_string(2 * radius + 1));
     CHECK_CUDA_ERROR(
         cudaMemcpyToSymbol(d_Kernel, kernel.data(), kernel.size() * sizeof(float), 0, cudaMemcpyDeviceToDevice));
 
@@ -248,7 +251,7 @@ void convolveCol(ImageView<float> src, ImageView<float> dst, Saiga::ArrayView<fl
             convolveCol<float, 24>(src, dst);
             break;
         default:
-            SAIGA_ASSERT(0);
+            SAIGA_ASSERT(false, "convolveCol: unsupported radius");
     }
 }
 
