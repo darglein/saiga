@@ -2,83 +2,95 @@
 
 #ifdef SAIGA_USE_TINYTIFF
 
+#    include <cstring>
 #    include <iostream>
+#    include <limits>
+#    include <memory>
 #    include <tinytiffreader.h>
+#    include <vector>
 
 namespace Saiga
 {
+// Loads the first channel of the first frame, like the libtiff wrapper.
 bool loadImageTinyTiff(const std::string& path, Image& img)
 {
-    TinyTIFFReaderFile* tiffr = NULL;
-    tiffr                     = TinyTIFFReader_open(path.c_str());
+    TinyTIFFReaderFile* tiffr = TinyTIFFReader_open(path.c_str());
     if (!tiffr)
     {
-        std::cout << "    ERROR reading (not existent, not accessible or no TIFF file)\n";
+        std::cerr << "Could not open the tiff file '" << path << "'\n";
         return false;
     }
+    // Closes the reader on every return path.
+    std::unique_ptr<TinyTIFFReaderFile, decltype(&TinyTIFFReader_close)> guard(tiffr, &TinyTIFFReader_close);
 
     if (TinyTIFFReader_wasError(tiffr))
     {
-        std::cout << "   ERROR:" << TinyTIFFReader_getLastError(tiffr) << "\n";
+        std::cerr << "Error reading '" << path << "': " << TinyTIFFReader_getLastError(tiffr) << "\n";
         return false;
     }
-
-    //std::cout << "    ImageDescription:\n" << TinyTIFFReader_getImageDescription(tiffr) << "\n";
-    uint32_t frames = TinyTIFFReader_countFrames(tiffr);
-    //std::cout << "    frames: " << frames << "\n";
-    if (TinyTIFFReader_wasError(tiffr))
-    {
-        std::cout << "   ERROR:" << TinyTIFFReader_getLastError(tiffr) << "\n";
-        return false;
-    }
-
-    SAIGA_ASSERT(frames == 1);
 
     const uint32_t width         = TinyTIFFReader_getWidth(tiffr);
     const uint32_t height        = TinyTIFFReader_getHeight(tiffr);
     const uint16_t samples       = TinyTIFFReader_getSamplesPerPixel(tiffr);
     const uint16_t bitspersample = TinyTIFFReader_getBitsPerSample(tiffr, 0);
-
     const uint16_t sample_format = TinyTIFFReader_getSampleFormat(tiffr);
 
-    ImageType type = ImageType::UC1;
+    ImageType type = TYPE_UNKNOWN;
     if (sample_format == TINYTIFF_SAMPLEFORMAT_FLOAT)
     {
-        type = ImageType::F1;
+        type = (bitspersample == 32) ? ImageType::F1 : (bitspersample == 64) ? ImageType::D1 : TYPE_UNKNOWN;
     }
     else if (sample_format == TINYTIFF_SAMPLEFORMAT_UINT)
     {
-        type = (bitspersample == 8) ? ImageType::UC1 : (bitspersample == 16) ? ImageType::US1 : ImageType::UI1;
+        type = (bitspersample == 8)    ? ImageType::UC1
+               : (bitspersample == 16) ? ImageType::US1
+               : (bitspersample == 32) ? ImageType::UI1
+                                       : TYPE_UNKNOWN;
     }
     else if (sample_format == TINYTIFF_SAMPLEFORMAT_INT)
     {
-        type = (bitspersample == 8) ? ImageType::C1 : (bitspersample == 16) ? ImageType::S1 : ImageType::I1;
+        type = (bitspersample == 8)    ? ImageType::C1
+               : (bitspersample == 16) ? ImageType::S1
+               : (bitspersample == 32) ? ImageType::I1
+                                       : TYPE_UNKNOWN;
     }
-
-    type = (ImageType)((int)type + samples - 1);
-    img.create(height, width, type);
-
-    bool ok                      = true;
-    //std::cout << "    size of frame " << frame << ": " << width << "x" << height << "\n";
-    //std::cout << "    each pixel has " << samples << " samples with " << bitspersample << " bits each\n";
-    if (ok)
+    if (type == TYPE_UNKNOWN)
     {
-        for (uint16_t sample = 0; sample < samples; sample++)
-        {
-            // read the sample
-            TinyTIFFReader_getSampleData(tiffr, img.rowPtr(0), sample);
-            if (TinyTIFFReader_wasError(tiffr))
-            {
-                ok = false;
-                std::cout << "   ERROR:" << TinyTIFFReader_getLastError(tiffr) << "\n";
-                break;
-            }
-        }
+        std::cerr << "The file '" << path << "' has an unsupported pixel format (" << bitspersample
+                  << " bits per sample, sample format " << sample_format << ")\n";
+        return false;
+    }
+    if (samples == 0)
+    {
+        std::cerr << "The file '" << path << "' has 0 samples per pixel\n";
+        return false;
+    }
+    if (width == 0 || height == 0 || width > uint32_t(std::numeric_limits<int>::max() / 8) ||
+        height > uint32_t(std::numeric_limits<int>::max()))
+    {
+        std::cerr << "The file '" << path << "' has an invalid size " << width << "x" << height << "\n";
+        return false;
+    }
+    if (samples != 1)
+    {
+        std::cout << "Image '" << path << "' has more than one channel. Only loading first channel\n";
     }
 
-    TinyTIFFReader_close(tiffr);
+    // TinyTIFF writes the sample densely (without row padding), but the rows of img are aligned to 4 bytes.
+    const size_t row_bytes = size_t(width) * (bitspersample / 8);
+    std::vector<unsigned char> buffer(row_bytes * height);
+    if (!TinyTIFFReader_getSampleData(tiffr, buffer.data(), 0) || TinyTIFFReader_wasError(tiffr))
+    {
+        std::cerr << "Error reading '" << path << "': " << TinyTIFFReader_getLastError(tiffr) << "\n";
+        return false;
+    }
 
-    return ok;
+    img.create(height, width, type);
+    for (uint32_t y = 0; y < height; ++y)
+    {
+        std::memcpy(img.rowPtr(y), buffer.data() + y * row_bytes, row_bytes);
+    }
+    return true;
 }
 }  // namespace Saiga
 

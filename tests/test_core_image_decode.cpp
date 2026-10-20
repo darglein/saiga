@@ -94,7 +94,7 @@ TEST(ImageDecode, SaveUpperCaseExtension)
 }
 #endif
 
-#ifdef SAIGA_USE_LIBTIFF
+#if defined(SAIGA_USE_LIBTIFF) || defined(SAIGA_USE_TINYTIFF)
 
 struct TiffDesc
 {
@@ -104,6 +104,8 @@ struct TiffDesc
     // 0: put the strip right after the header
     uint32_t strip_offset_override = 0;
     uint32_t ifd_offset_override   = 0;
+    // number of directories (pages), all with the same pixels
+    int pages = 1;
 };
 
 // A minimal uncompressed little endian tiff with one strip.
@@ -144,30 +146,37 @@ static std::vector<unsigned char> MakeTiff(const TiffDesc& d)
         {284, 3, 1, 1},
         {339, 3, d.samples, short_array(format_offset, d.format)},
     };
-    put16(entries.size());
-    for (auto& e : entries)
+    const uint32_t ifd_size = 2 + 12 * entries.size() + 4;
+    for (int page = 0; page < d.pages; ++page)
     {
-        put16(e.tag);
-        put16(e.type);
-        put32(e.count);
-        if (e.type == 3 && e.count <= 2)
+        put16(entries.size());
+        for (auto& e : entries)
         {
-            // short values are stored left aligned in the value field
-            put16(e.value);
-            put16(e.count == 2 ? e.value : 0);
+            put16(e.tag);
+            put16(e.type);
+            put32(e.count);
+            if (e.type == 3 && e.count <= 2)
+            {
+                // short values are stored left aligned in the value field
+                put16(e.value);
+                put16(e.count == 2 ? e.value : 0);
+            }
+            else
+            {
+                put32(e.value);
+            }
         }
-        else
-        {
-            put32(e.value);
-        }
+        put32(page + 1 < d.pages ? ifd_offset + (page + 1) * ifd_size : 0);
     }
-    put32(0);
 
     uint32_t ifd = d.ifd_offset_override ? d.ifd_offset_override : ifd_offset;
     std::memcpy(&out[4], &ifd, 4);
     return out;
 }
 
+#endif
+
+#ifdef SAIGA_USE_LIBTIFF
 TEST(ImageDecode, TiffGray16)
 {
     TiffDesc d;
@@ -269,6 +278,141 @@ TEST(ImageDecode, TiffInvalid)
         Image img;
         EXPECT_FALSE(LoadFromBytes(img, truncated, "tiff")) << size;
     }
+}
+#endif
+
+#if defined(SAIGA_USE_TINYTIFF) && !defined(SAIGA_USE_LIBTIFF)
+// TinyTIFF can only read files.
+static bool LoadTinyTiff(Image& img, const TiffDesc& d, const std::string& name)
+{
+    auto file  = TestDir() / name;
+    auto bytes = MakeTiff(d);
+    File::saveFileBinary(file, bytes.data(), bytes.size());
+    return img.load(file);
+}
+
+TEST(ImageDecode, TinyTiffRowPitch)
+{
+    // The sample data was read densely into the image, whose rows are padded to 4 bytes, so all rows after the first
+    // were shifted (and the last one was cut off).
+    TiffDesc d;
+    d.width  = 3;
+    d.height = 3;
+    d.pixels = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    Image img;
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_pitch.tif"));
+    ASSERT_EQ(img.type, UC1);
+    ASSERT_EQ(img.h, 3);
+    ASSERT_EQ(img.w, 3);
+    ASSERT_NE(img.pitchBytes, 3);
+    for (int y = 0; y < 3; ++y)
+        for (int x = 0; x < 3; ++x) EXPECT_EQ(img.at<uint8_t>(y, x), y * 3 + x + 1) << y << " " << x;
+}
+
+TEST(ImageDecode, TinyTiffGray16AndFloat)
+{
+    TiffDesc d;
+    d.width  = 3;
+    d.bits   = 16;
+    d.pixels = {1, 0, 2, 0, 0xff, 0xff};
+    Image img;
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_gray16.tif"));
+    ASSERT_EQ(img.type, US1);
+    EXPECT_EQ(img.at<uint16_t>(0, 0), 1);
+    EXPECT_EQ(img.at<uint16_t>(0, 2), 0xffff);
+
+    float fvalues[2] = {1.5f, -2.25f};
+    d                = TiffDesc();
+    d.width          = 2;
+    d.bits           = 32;
+    d.format         = 3;
+    d.pixels.resize(8);
+    std::memcpy(d.pixels.data(), fvalues, 8);
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_float.tif"));
+    ASSERT_EQ(img.type, F1);
+    EXPECT_EQ(img.at<float>(0, 1), -2.25f);
+}
+
+TEST(ImageDecode, TinyTiffDouble)
+{
+    // 64 bit floats were read into a 32 bit float image (heap overflow).
+    TiffDesc d;
+    d.width          = 2;
+    d.bits           = 64;
+    d.format         = 3;
+    double values[2] = {1.5, -2.25};
+    d.pixels.resize(16);
+    std::memcpy(d.pixels.data(), values, 16);
+    Image img;
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_double.tif"));
+    ASSERT_EQ(img.type, D1);
+    EXPECT_EQ(img.at<double>(0, 0), 1.5);
+    EXPECT_EQ(img.at<double>(0, 1), -2.25);
+}
+
+TEST(ImageDecode, TinyTiffUnsupportedBitDepth)
+{
+    // Unknown bit depths were mapped to a 32 bit type (64 bit integers overflowed the buffer).
+    TiffDesc d;
+    d.width = 2;
+    d.bits  = 64;
+    d.pixels.resize(16);
+    Image img;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_uint64.tif"));
+
+    d.format = 2;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_int64.tif"));
+}
+
+TEST(ImageDecode, TinyTiffRgbLoadsFirstChannel)
+{
+    // Every sample was written over the same single channel buffer of a multi channel image, so the image contained
+    // the last sample in the first third of its pixels.
+    TiffDesc d;
+    d.width   = 5;
+    d.height  = 3;
+    d.samples = 3;
+    for (uint32_t y = 0; y < d.height; ++y)
+        for (uint32_t x = 0; x < d.width; ++x) d.pixels.insert(d.pixels.end(), {uint8_t(x + 10 * y), 200, 201});
+    Image img;
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_rgb.tif"));
+    ASSERT_EQ(img.type, UC1);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) EXPECT_EQ(img.at<uint8_t>(y, x), uint8_t(x + 10 * y)) << y << " " << x;
+}
+
+TEST(ImageDecode, TinyTiffMultiPageLoadsFirstPage)
+{
+    // Multi page files triggered an assertion (abort).
+    TiffDesc d;
+    d.width  = 2;
+    d.pixels = {7, 8};
+    d.pages  = 3;
+    Image img;
+    ASSERT_TRUE(LoadTinyTiff(img, d, "tiny_pages.tif"));
+    ASSERT_EQ(img.type, UC1);
+    EXPECT_EQ(img.at<uint8_t>(0, 0), 7);
+    EXPECT_EQ(img.at<uint8_t>(0, 1), 8);
+}
+
+TEST(ImageDecode, TinyTiffInvalid)
+{
+    TiffDesc d;
+    d.width = 0;
+    Image img;
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_empty.tif"));
+
+    d        = TiffDesc();
+    d.width  = 4;
+    d.bits   = 12;
+    d.pixels = {1, 2, 3, 4, 5, 6};
+    EXPECT_FALSE(LoadTinyTiff(img, d, "tiny_12bit.tif"));
+
+    std::vector<unsigned char> garbage = {'n', 'o', 't', ' ', 't', 'i', 'f', 'f'};
+    auto file                          = TestDir() / "tiny_garbage.tif";
+    File::saveFileBinary(file, garbage.data(), garbage.size());
+    EXPECT_FALSE(img.load(file));
+    EXPECT_FALSE(img.load(TestDir() / "tiny_does_not_exist.tif"));
 }
 #endif
 
