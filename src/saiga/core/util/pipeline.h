@@ -10,6 +10,7 @@
 #include "saiga/core/util/Thread/SynchronizedBuffer.h"
 #include "saiga/core/util/Thread/threadName.h"
 
+#include <atomic>
 #include <mutex>
 #include <thread>
 
@@ -60,6 +61,9 @@ class SAIGA_TEMPLATE PipelineStage
         if (running)
         {
             running = false;
+            // Without override the worker can be blocked in add() on a full queue. Make room, so that it can see
+            // running = false. It adds at most one more element after this, because running is already false.
+            if (!override) buffer.clear();
             if (t.joinable()) t.join();
         }
     }
@@ -71,7 +75,8 @@ class SAIGA_TEMPLATE PipelineStage
     std::string getName() const { return name; }
 
    private:
-    volatile bool running = false;
+    // Written by stop() and read by the worker thread
+    std::atomic<bool> running = false;
     SynchronizedBuffer<OutputType> buffer;
     std::thread t;
     std::string name;

@@ -11,10 +11,12 @@
 #include "saiga/core/util/Thread/SynchronizedSlot.h"
 #include "saiga/core/util/Thread/threadName.h"
 #include "saiga/core/util/Thread/threadPool.h"
+#include "saiga/core/util/pipeline.h"
 #include "saiga/core/util/table.h"
 
 #include "gtest/gtest.h"
 
+#include <future>
 #include <sstream>
 #include <thread>
 
@@ -181,3 +183,32 @@ TEST(ThreadName, LongNameOfOtherThread)
     t.join();
 }
 #endif
+
+TEST(PipelineStage, StopWithFullQueue)
+{
+    // Without override, the worker blocks in add() once the queue is full. stop() joined it without making room in
+    // the queue and waited forever.
+    auto stage                = new PipelineStage<int, 1, false>("test");
+    std::atomic<int> produced = 0;
+    stage->run([&produced]() { return ++produced; });
+    // The first element fills the queue, the worker blocks in add() with the second one.
+    while (produced < 2) std::this_thread::sleep_for(1ms);
+    std::this_thread::sleep_for(10ms);
+
+    auto stopped = std::async(std::launch::async, [stage]() { stage->stop(); });
+    if (stopped.wait_for(5s) != std::future_status::ready)
+    {
+        // Leak the stage and the future, their destructors would block forever.
+        new auto(std::move(stopped));
+        FAIL() << "PipelineStage::stop() did not return";
+    }
+    delete stage;
+
+    PipelineStage<int, 2, true> overriding;
+    std::atomic<int> counter = 0;
+    overriding.run([&counter]() { return ++counter; });
+    int v = 0;
+    overriding.get(v);
+    EXPECT_GT(v, 0);
+    overriding.stop();
+}
