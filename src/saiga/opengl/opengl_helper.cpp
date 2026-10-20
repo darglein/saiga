@@ -8,13 +8,15 @@
 
 #include "saiga/core/util/ConsoleColor.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/core/util/table.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/core/util/easylogging++.h"
+
 #include <algorithm>
+#include <cctype>
 #include <glbinding/glbinding.h>
 
 
@@ -141,32 +143,41 @@ std::vector<std::string> getExtensions()
 
 OpenGLVendor getOpenGLVendor()
 {
-    std::string ven = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
-    std::transform(ven.begin(), ven.end(), ven.begin(), ::tolower);
+    auto vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    return vendor ? classifyOpenGLVendor(vendor) : OpenGLVendor::Unknown;
+}
 
+OpenGLVendor classifyOpenGLVendor(const std::string& vendor)
+{
+    std::string lower = vendor;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-    if (ven.find("nvidia") != std::string::npos)
+    if (lower.find("nvidia") != std::string::npos) return OpenGLVendor::Nvidia;
+    if (lower.find("intel") != std::string::npos) return OpenGLVendor::Intel;
+
+    // "ati" is part of many words (e.g. "Corporation"), so ATI and AMD are only matched as whole, upper case words.
+    std::vector<std::string> words;
+    std::string word;
+    for (char c : vendor + " ")
     {
-        return OpenGLVendor::Nvidia;
+        if (std::isalnum(static_cast<unsigned char>(c)))
+        {
+            word += c;
+        }
+        else if (!word.empty())
+        {
+            words.push_back(word);
+            word.clear();
+        }
     }
-
-    if (ven.find("ati") != std::string::npos)
+    for (auto& w : words)
     {
-        return OpenGLVendor::Ati;
+        if (w == "ATI" || w == "AMD") return OpenGLVendor::Ati;
     }
+    if (lower.find("advanced micro devices") != std::string::npos) return OpenGLVendor::Ati;
 
-
-    if (ven.find("intel") != std::string::npos)
-    {
-        return OpenGLVendor::Intel;
-    }
-
-
-    if (ven.find("mesa") != std::string::npos)
-    {
-        return OpenGLVendor::Mesa;
-    }
-
+    if (lower.find("mesa") != std::string::npos) return OpenGLVendor::Mesa;
 
     return OpenGLVendor::Unknown;
 }
@@ -197,7 +208,7 @@ void OpenGLParameters::fromConfigFile(const std::string& file)
     versionMajor      = ini.GetAddLong("opengl", "versionMajor", versionMajor);
     versionMinor      = ini.GetAddLong("opengl", "versionMinor", versionMinor);
     profileString     = ini.GetAddString("opengl", "profile", profileString.c_str(),
-                                     "# One of the following: 'ANY' 'CORE' 'COMPATIBILITY'");
+                                         "# One of the following: 'ANY' 'CORE' 'COMPATIBILITY'");
 
 
 

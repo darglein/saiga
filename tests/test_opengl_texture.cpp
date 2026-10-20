@@ -384,3 +384,134 @@ TEST_F(OpenGLTexture, CubeFromImage)
     std::vector<Image> not_square(6, TemplatedImage<ucvec4>(4, 2));
     EXPECT_FALSE(tex.fromImage(not_square));
 }
+
+// Texture3D::create and fromImage bound the texture with bind(0), which changed the active texture unit.
+TEST_F(OpenGLTexture, Texture3DCreateKeepsActiveTexture)
+{
+    glActiveTexture(GL_TEXTURE3);
+
+    Texture3D tex;
+    tex.create(2, 2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    GLint active = 0;
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+    EXPECT_EQ(active, GL_TEXTURE3);
+
+    std::vector<Image> images(2, TemplatedImage<ucvec4>(2, 2));
+    ASSERT_TRUE(tex.fromImage(images));
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+    EXPECT_EQ(active, GL_TEXTURE3);
+
+    glActiveTexture(GL_TEXTURE0);
+}
+
+// TextureBase::download called glGetTexImage with GL_TEXTURE_CUBE_MAP, which is not a valid target (GL error).
+TEST_F(OpenGLTexture, CubeDownload)
+{
+    int s = 4;
+    std::vector<Image> images;
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> img(s, s);
+        img.getImageView().set(ucvec4(i, 10 * i, 0, 255));
+        images.push_back(img);
+    }
+    TextureCube tex;
+    ASSERT_TRUE(tex.fromImage(images));
+
+    // The faces have no common layout in a single buffer
+    std::vector<ucvec4> all(6 * s * s);
+    EXPECT_FALSE(tex.download(all.data()));
+
+    // The order of the faces in the image vector
+    GLenum faces[6] = {GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                       GL_TEXTURE_CUBE_MAP_NEGATIVE_X, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y};
+    for (int i = 0; i < 6; ++i)
+    {
+        TemplatedImage<ucvec4> result(s, s);
+        result.makeZero();
+        ASSERT_TRUE(tex.downloadFace(faces[i], result.data()));
+        for (int y = 0; y < s; ++y)
+            for (int x = 0; x < s; ++x) EXPECT_EQ(result(y, x), ucvec4(i, 10 * i, 0, 255)) << i;
+    }
+    EXPECT_FALSE(tex.downloadFace(GL_TEXTURE_2D, all.data()));
+}
+
+static GLint GetTexParameter(TextureBase& tex, GLenum name)
+{
+    GLint value = 0;
+    tex.bind();
+    glGetTexParameteriv(tex.getTarget(), name, &value);
+    tex.unbind();
+    return value;
+}
+
+// setWrap only set the S and T coordinates, not R of 3D and cube textures.
+TEST_F(OpenGLTexture, SetWrap3D)
+{
+    Texture3D tex;
+    tex.create(2, 2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    tex.setWrap(GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_T), GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_R), GL_REPEAT);
+
+    TextureCube cube;
+    cube.create(2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    cube.setWrap(GL_MIRRORED_REPEAT);
+    EXPECT_EQ(GetTexParameter(cube, GL_TEXTURE_WRAP_R), GL_MIRRORED_REPEAT);
+}
+
+// generateMipmaps set GL_LINEAR_MIPMAP_LINEAR on integer textures, which makes them incomplete. They are not
+// filterable, so glGenerateMipmap does not accept them either.
+TEST_F(OpenGLTexture, GenerateMipmapsInteger)
+{
+    TemplatedImage<unsigned int> img(4, 4);
+    img.getImageView().set(7);
+    Texture2D tex(img);
+    tex.generateMipmaps();
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_NEAREST);
+
+    Texture2D tex_float;
+    tex_float.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    tex_float.generateMipmaps();
+    EXPECT_EQ(GetTexParameter(tex_float, GL_TEXTURE_MIN_FILTER), GL_LINEAR_MIPMAP_LINEAR);
+}
+
+// Every upload (resize, updateFromImage) reset the filter and wrap parameters to the defaults, so for example the
+// nearest filtering of a framebuffer texture was lost on a resize.
+TEST_F(OpenGLTexture, ReuploadKeepsParameters)
+{
+    Texture2D tex;
+    tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_CLAMP_TO_EDGE);
+
+    tex.setFiltering(GL_NEAREST);
+    tex.setWrap(GL_REPEAT);
+    tex.resize(8, 3);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_NEAREST);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MAG_FILTER), GL_NEAREST);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_REPEAT);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_T), GL_REPEAT);
+
+    TemplatedImage<ucvec4> img(3, 8);
+    img.getImageView().set(ucvec4(1, 2, 3, 4));
+    tex.updateFromImage(img);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_NEAREST);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_REPEAT);
+
+    // A new texture gets the defaults again
+    tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_WRAP_S), GL_CLAMP_TO_EDGE);
+}
+
+// A resize drops the mipmaps, so a mipmap filter would make the texture incomplete.
+TEST_F(OpenGLTexture, ResizeMipmappedTexture)
+{
+    Texture2D tex;
+    tex.create(4, 4, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE);
+    tex.generateMipmaps();
+    tex.resize(3, 5);
+    EXPECT_EQ(GetTexParameter(tex, GL_TEXTURE_MIN_FILTER), GL_LINEAR);
+}

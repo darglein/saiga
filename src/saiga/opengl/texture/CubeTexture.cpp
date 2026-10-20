@@ -110,4 +110,23 @@ void TextureCube::create(int width, int height, GLenum color_type, GLenum intern
     uploadData(data);
 }
 
+bool TextureCube::downloadFace(GLenum face, void* data)
+{
+    return downloadFace(face, data, color_type, data_type);
+}
+
+bool TextureCube::downloadFace(GLenum face, void* data, GLenum format, GLenum type)
+{
+    if (id == 0 || face < GL_TEXTURE_CUBE_MAP_POSITIVE_X || face > GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
+    {
+        return false;
+    }
+
+    bind();
+    glGetTexImage(face, 0, format, type, data);
+    assert_no_glerror();
+    unbind();
+    return true;
+}
+
 }  // namespace Saiga

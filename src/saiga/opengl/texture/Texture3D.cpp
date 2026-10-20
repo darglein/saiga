@@ -26,7 +26,7 @@ void Texture3D::create(int width, int height, int depth, GLenum color_type, GLen
     this->internal_format = internal_format;
 
     TextureBase::create();
-    bind(0);
+    bind();
     glTexImage3D(target, 0, static_cast<GLint>(internal_format), width, height, depth, 0, color_type, data_type,
                  nullptr);
     setDefaultParameters();
@@ -72,7 +72,7 @@ bool Texture3D::fromImage(std::vector<Image>& images)
 
 
     TextureBase::create();
-    bind(0);
+    bind();
     //    glTexStorage3D(target, 1, internal_format, width, height, depth);
     glTexImage3D(target, 0, static_cast<GLint>(internal_format), width, height, depth, 0, color_type, data_type,
                  nullptr);

@@ -612,3 +612,105 @@ TEST_F(OpenGLShader, ArrayTexture)
     unsigned int n = data.size();
     EXPECT_EQ(RunShader(shader), n * (n - 1) / 2);
 }
+
+// A reload that failed to compile deleted the working program, so a typo during hot reloading left the shader
+// unusable until the file was fixed.
+TEST_F(OpenGLShader, FailedReloadKeepsProgram)
+{
+    auto dir  = std::filesystem::temp_directory_path() / "saiga_test_opengl_shader_failed_reload";
+    auto file = dir / "main.glsl";
+    std::filesystem::remove_all(dir);
+
+    auto shader_code = [](const std::string& body)
+    {
+        return "##GL_COMPUTE_SHADER\n#version 430\nlayout(local_size_x = 1) in;\n"
+               "layout(std430, binding = 0) writeonly buffer Out { uint data_out[]; };\n" +
+               body + "\n";
+    };
+
+    WriteFile(file, shader_code("void main() { data_out[0] = 3u; }"));
+    auto time = std::filesystem::last_write_time(file);
+
+    Shader shader;
+    ASSERT_TRUE(shader.init(file));
+    GLuint program = shader.program;
+    EXPECT_EQ(RunShader(shader), 3u);
+
+    // Compile error
+    WriteFile(file, shader_code("void main() { data_out[0] = this is not glsl; }"));
+    std::filesystem::last_write_time(file, time + std::chrono::seconds(10));
+    EXPECT_FALSE(shader.reload());
+    EXPECT_EQ(shader.program, program);
+    EXPECT_EQ(glIsProgram(program), GL_TRUE);
+    EXPECT_EQ(RunShader(shader), 3u);
+
+    // Link error
+    WriteFile(file, shader_code("uint f();\nvoid main() { data_out[0] = f(); }"));
+    std::filesystem::last_write_time(file, time + std::chrono::seconds(20));
+    EXPECT_FALSE(shader.reload());
+    EXPECT_EQ(shader.program, program);
+    EXPECT_EQ(RunShader(shader), 3u);
+
+    // Bound while the reload fails
+    ASSERT_TRUE(shader.bind());
+    WriteFile(file, shader_code("void main() { data_out[0] = this is not glsl; }"));
+    std::filesystem::last_write_time(file, time + std::chrono::seconds(30));
+    EXPECT_FALSE(shader.reload());
+    EXPECT_TRUE(shader.isBound());
+    GLint current = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &current);
+    EXPECT_EQ(static_cast<GLuint>(current), program);
+    shader.unbind();
+
+    WriteFile(file, shader_code("void main() { data_out[0] = 4u; }"));
+    std::filesystem::last_write_time(file, time + std::chrono::seconds(40));
+    EXPECT_TRUE(shader.reload());
+    EXPECT_NE(shader.program, 0u);
+    EXPECT_EQ(RunShader(shader), 4u);
+    EXPECT_TRUE(shader.program == program || glIsProgram(program) == GL_FALSE);
+
+    std::filesystem::remove_all(dir);
+}
+
+// getUniformBlockIndices read the uninitialized count of an invalid block and wrote to &indices[0] of an empty
+// vector.
+TEST_F(OpenGLShader, UniformBlockIndicesOfInvalidBlock)
+{
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(uniform_block_compute_shader));
+    GLuint block = shader.getUniformBlockLocation("Params");
+    ASSERT_NE(block, GL_INVALID_INDEX);
+    EXPECT_TRUE(shader.getUniformBlockIndices(block + 10).empty());
+    EXPECT_TRUE(shader.getUniformBlockIndices(GL_INVALID_INDEX).empty());
+}
+
+// generateMipmaps set GL_LINEAR_MIPMAP_LINEAR on integer textures (which have no mipmaps, glGenerateMipmap does not
+// accept them), which made them incomplete: every fetch returned 0.
+TEST_F(OpenGLShader, SampleMipmappedIntegerTexture)
+{
+    int w = 4, h = 4;
+    TemplatedImage<unsigned int> img(h, w);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) img(y, x) = 100 * y + x + 1;
+
+    Texture2D tex(img);
+    tex.generateMipmaps();
+
+    std::vector<unsigned int> zeros(w * h, 0);
+    TemplatedShaderStorageBuffer<unsigned int> out_buffer;
+    out_buffer.create(zeros, GL_DYNAMIC_READ);
+
+    Shader shader;
+    ASSERT_TRUE(shader.init_from_string(integer_texture_compute_shader));
+    out_buffer.bind(0);
+    ASSERT_TRUE(shader.bind());
+    shader.upload(0, tex, 0);
+    shader.dispatchCompute(shader.getNumGroupsCeil(uvec3(w, h, 1)));
+    shader.unbind();
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+
+    std::vector<unsigned int> result(w * h);
+    out_buffer.get(result);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) EXPECT_EQ(result[y * w + x], img(y, x)) << x << " " << y;
+}

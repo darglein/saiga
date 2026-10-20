@@ -20,7 +20,7 @@ class SAIGA_OPENGL_API TextureBase
     TextureBase(GLenum target) : target(target) {}
     virtual ~TextureBase();
 
-    TextureBase(TextureBase const&) = delete;
+    TextureBase(TextureBase const&)            = delete;
     TextureBase& operator=(TextureBase const&) = delete;
 
     // Create and destroy the underlying GL types.
@@ -28,7 +28,7 @@ class SAIGA_OPENGL_API TextureBase
     void create(GLenum color_type, GLenum internal_format, GLenum data_type);
     void destroy();
 
-    // Downloads the GPU data
+    // Downloads the GPU data. Returns false for cube maps, use TextureCube::downloadFace.
     bool download(void* data);
     // Downloads the GPU data converted to the given color format and data type (glGetTexImage)
     bool download(void* data, GLenum format, GLenum type);
@@ -116,6 +116,8 @@ class SAIGA_OPENGL_API TextureBase
      * For one- and two-dimensional array and cube map array textures, each layer is filtered independently.
      *
      * Cube map and array textures are accepted only if the GL version is 4.0 or higher.
+     *
+     * Integer textures are not filterable and keep their single level (and filter).
      */
 
     void generateMipmaps();
@@ -141,6 +143,10 @@ class SAIGA_OPENGL_API TextureBase
     // Every texture has an internal-format/colortype/datatype
     GLenum internal_format;
     GLenum color_type, data_type;
+
+    // Set by create(): the parameters of the GL texture are still the GL defaults. Subclasses that set their default
+    // parameters on the first upload use this to keep the parameters of the user on later uploads.
+    bool new_texture = false;
 };
 
 
