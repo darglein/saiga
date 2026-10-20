@@ -105,16 +105,23 @@ bool OffModelLoader::loadFile(const std::string& _file)
                 return false;
             }
 
-            std::vector<uint32_t> indices(count);
+            // Not sized from count: a corrupt count must not cause a huge allocation.
+            std::vector<uint32_t> indices;
             for (int i = 0; i < count; ++i)
             {
-                long index = to_long(lineParser.next());
+                auto token = lineParser.next();
+                if (token.empty())
+                {
+                    std::cout << "Face with " << count << " corners has only " << i << " indices" << std::endl;
+                    return false;
+                }
+                long index = to_long(token);
                 if (index < 0 || index >= num_vertices)
                 {
                     std::cout << "Invalid vertex index " << index << std::endl;
                     return false;
                 }
-                indices[i] = index;
+                indices.push_back(index);
             }
 
             // Triangle fan. A quad (0,1,2,3) gives the same triangles as addQuad.

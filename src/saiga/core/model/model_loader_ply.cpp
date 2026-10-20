@@ -50,24 +50,30 @@ int PLYLoader::sizeoftype(std::string t)
     {
         return 1;
     }
-    SAIGA_ASSERT(0);
-    return -1;
+    throw std::runtime_error("PLYLoader: unsupported property type " + t);
 }
 
 void PLYLoader::parseHeader()
 {
     // Note: the header is always in ascii and ends with the string end_header
+    // The file content is untrusted, so malformed headers throw like the checks in parseMeshBinary.
+    auto check = [](bool condition, const char* message)
+    {
+        if (!condition) throw std::runtime_error(std::string("PLYLoader: ") + message);
+    };
+
     std::string str2(data.begin(), data.end());
     auto pos = str2.find("end_header");
 
-    SAIGA_ASSERT(pos != std::string::npos);
+    check(pos != std::string::npos, "no end_header");
 
     dataStart = pos;
     // go until next newline
-    while (data[dataStart] != '\n')
+    while (size_t(dataStart) < data.size() && data[dataStart] != '\n')
     {
         dataStart++;
     }
+    check(size_t(dataStart) < data.size(), "unexpected end of header");
     dataStart++;
 
     std::string header(str2.begin(), str2.begin() + pos);
@@ -75,7 +81,7 @@ void PLYLoader::parseHeader()
 
     std::vector<std::string> headerLines = split(header, '\n');
 
-    SAIGA_ASSERT(headerLines[0] == "ply");
+    check(!headerLines.empty() && headerLines[0] == "ply", "missing ply magic");
 
     int elementStatus = -1;
     for (auto l : headerLines)
@@ -91,11 +97,13 @@ void PLYLoader::parseHeader()
 
         if (type == "format")
         {
-            SAIGA_ASSERT(splitLine[1] == "binary_little_endian");
+            check(splitLine.size() > 1 && splitLine[1] == "binary_little_endian",
+                  "only binary_little_endian is supported");
         }
 
         if (type == "element")
         {
+            check(splitLine.size() > 2, "invalid element line");
             std::string& ident = splitLine[1];
 
             if (ident == "vertex")
@@ -112,7 +120,8 @@ void PLYLoader::parseHeader()
 
         if (type == "property")
         {
-            SAIGA_ASSERT(elementStatus != -1);
+            check(elementStatus != -1, "property before element");
+            check(splitLine.size() > 2, "invalid property line");
 
             if (elementStatus == 1)
             {
@@ -124,8 +133,8 @@ void PLYLoader::parseHeader()
             }
             if (elementStatus == 2)
             {
-                SAIGA_ASSERT(splitLine[1] == "list");
-                SAIGA_ASSERT(splitLine[4] == "vertex_indices");
+                check(splitLine.size() > 4 && splitLine[1] == "list" && splitLine[4] == "vertex_indices",
+                      "invalid face property");
 
                 faceVertexCountType = splitLine[2];
                 faceVertexIndexType = splitLine[3];
@@ -160,7 +169,7 @@ void PLYLoader::parseHeader()
     //    std::cout << "vertex size: " << vertexSize << std::endl;
 
 
-    SAIGA_ASSERT(vertexCount > 0 && faceCount > 0);
+    check(vertexCount > 0 && faceCount > 0, "no vertices or faces");
     //        std::cout << header << std::endl;
 }
 

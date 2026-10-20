@@ -3,6 +3,7 @@
 #ifdef SAIGA_USE_TINYTIFF
 
 #    include <cstring>
+#    include <filesystem>
 #    include <iostream>
 #    include <limits>
 #    include <memory>
@@ -78,6 +79,15 @@ bool loadImageTinyTiff(const std::string& path, Image& img)
 
     // TinyTIFF writes the sample densely (without row padding), but the rows of img are aligned to 4 bytes.
     const size_t row_bytes = size_t(width) * (bitspersample / 8);
+    // TinyTIFF only reads uncompressed images, so the pixel data must fit into the file. This rejects corrupt
+    // headers before they cause a huge allocation.
+    std::error_code ec;
+    const auto file_size = std::filesystem::file_size(path, ec);
+    if (ec || uint64_t(row_bytes) * height > file_size)
+    {
+        std::cerr << "The file '" << path << "' is too small for an image of size " << width << "x" << height << "\n";
+        return false;
+    }
     std::vector<unsigned char> buffer(row_bytes * height);
     if (!TinyTIFFReader_getSampleData(tiffr, buffer.data(), 0) || TinyTIFFReader_wasError(tiffr))
     {

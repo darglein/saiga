@@ -192,6 +192,19 @@ TEST(ModelLoader, OffWithQuadsAndPolygons)
     std::filesystem::remove(file);
 }
 
+// Regression test: a face line with fewer indices than its corner count read the missing indices as 0, and the index
+// buffer was allocated from the (untrusted) corner count.
+TEST(ModelLoader, OffMissingIndices)
+{
+    for (std::string face : {"5 0 1 2\n", "2000000000 0 1 2\n"})
+    {
+        auto file = TempFile("missing.off", "OFF\n3 1 0\n0 0 0\n1 0 0\n0 1 0\n" + face);
+        OffModelLoader loader;
+        EXPECT_FALSE(loader.loadFile(file)) << face;
+        std::filesystem::remove(file);
+    }
+}
+
 // Regression test: the binary PLY loader read beyond the end of the file for truncated files and did not check the
 // face indices.
 TEST(ModelLoader, PlyRoundTripAndInvalidFiles)
@@ -243,6 +256,20 @@ TEST(ModelLoader, PlyRoundTripAndInvalidFiles)
     std::filesystem::remove(file);
     std::filesystem::remove(truncated);
     std::filesystem::remove(bad);
+}
+
+// Regression test: the PLY header parser searched the newline after end_header beyond the end of the data and aborted
+// with an assertion on malformed headers instead of throwing like the rest of the loader.
+TEST(ModelLoader, PlyInvalidHeader)
+{
+    for (std::string header :
+         {"ply\nformat binary_little_endian 1.0\nelement vertex 1\nend_header", "ply\nformat ascii 1.0\nend_header\n",
+          "ply\nelement\nend_header\n", "ply\nproperty float x\nend_header\n", "not a ply file"})
+    {
+        auto file = TempFile("header.ply", header);
+        EXPECT_THROW(PLYLoader loader(file), std::runtime_error) << header;
+        std::filesystem::remove(file);
+    }
 }
 
 // Regression test: the OBJ loader never converted the parsed faces into the model (the conversion was disabled), so
