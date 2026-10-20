@@ -14,6 +14,5 @@
 
 #include <thrust/detail/config.h>
 
-#include <thrust/detail/config/host_device.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>

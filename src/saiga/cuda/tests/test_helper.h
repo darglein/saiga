@@ -9,6 +9,7 @@
 #include "saiga/config.h"
 #include "saiga/core/time/performanceMeasure.h"
 #include "saiga/core/time/timer.h"
+#include "saiga/cuda/thrust_helper.h"
 
 #include <iostream>
 

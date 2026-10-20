@@ -13,6 +13,9 @@
 #include "saiga/cuda/imageProcessing/image.h"
 #include "saiga/cuda/thrust_helper.h"
 
+#include <thrust/extrema.h>
+#include <thrust/sort.h>
+
 #include "gtest/gtest.h"
 
 #include "compare_numbers.h"

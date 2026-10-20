@@ -8,6 +8,7 @@
 
 
 #include <thrust/host_vector.h>
+#include <thrust/mr/allocator.h>
 // #include <thrust/system/cuda/experimental/pinned_allocator.h>
 #include <thrust/system/cuda/memory_resource.h>
 
