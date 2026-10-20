@@ -33,7 +33,7 @@ UnifiedMesh UVSphereMesh(const Sphere& sphere, int rings, int sectors)
     {
         for (int s = 0; s < sectors; s++)
         {
-            float y = sphere.r * sin(-two_pi<float>() + pi<float>() * r * R);
+            float y = -sphere.r * cos(pi<float>() * r * R);
             float x = sphere.r * cos(2 * pi<float>() * s * S) * sin(pi<float>() * r * R);
             float z = sphere.r * sin(2 * pi<float>() * s * S) * sin(pi<float>() * r * R);
 
@@ -66,8 +66,9 @@ UnifiedMesh UVSphereMesh(const Sphere& sphere, int rings, int sectors)
         }
     }
 
-    mat4 T = translate(sphere.pos);
-    model.transform(T * S);
+    // The positions above are normalized, the radius is applied here.
+    mat4 T = translate(sphere.pos) * scale(make_vec3(sphere.r));
+    model.transform(T);
 
     return model;
 }

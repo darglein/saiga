@@ -12,6 +12,8 @@
 #include "internal/noGraphicsAPI.h"
 
 #include <algorithm>
+#include <cstring>
+#include <stdexcept>
 
 namespace Saiga
 {
@@ -164,29 +166,45 @@ void PLYLoader::parseHeader()
 
 void PLYLoader::parseMeshBinary()
 {
+    // The file content is untrusted: check every read against the end of the data and every face index.
+    auto read = [this](size_t offset, auto& value)
+    {
+        if (offset > data.size() || data.size() - offset < sizeof(value))
+        {
+            throw std::runtime_error("PLYLoader: unexpected end of file");
+        }
+        std::memcpy(&value, data.data() + offset, sizeof(value));
+    };
+
+    for (int c = 0; c < 3; ++c)
+    {
+        if (offsetType[c].second != 4) throw std::runtime_error("PLYLoader: the vertex positions must be float");
+    }
+
     for (int i = 0; i < vertexCount; ++i)
     {
-        char* start = data.data() + dataStart + i * vertexSize;
+        size_t start = size_t(dataStart) + size_t(i) * vertexSize;
 
-
-
-        float* x = reinterpret_cast<float*>(start + offsetType[0].first);
-        vec3 pos(x[0], x[1], x[2]);
-
+        vec3 pos;
+        for (int c = 0; c < 3; ++c)
+        {
+            read(start + offsetType[c].first, pos(c));
+        }
 
         vec3 color(1, 1, 1);
-        if (offsetType[3].second == 1)
+        for (int c = 0; c < 3; ++c)
         {
-            unsigned char* c = reinterpret_cast<unsigned char*>(start + offsetType[3].first);
-            color            = vec3(c[0], c[1], c[2]);
-            color /= 255.0f;
+            if (offsetType[3 + c].second == 1)
+            {
+                unsigned char uc;
+                read(start + offsetType[3 + c].first, uc);
+                color(c) = uc / 255.0f;
+            }
+            else if (offsetType[3 + c].second == 4)
+            {
+                read(start + offsetType[3 + c].first, color(c));
+            }
         }
-        else if (offsetType[3].second == 4)
-        {
-            float* c = reinterpret_cast<float*>(start + offsetType[3].first);
-            color    = vec3(c[0], c[1], c[2]);
-        }
-
 
         VertexNC v;
         v.position = make_vec4(pos, 1);
@@ -194,31 +212,37 @@ void PLYLoader::parseMeshBinary()
         mesh.addVertex(v);
     }
 
-    int faceStart = dataStart + vertexCount * vertexSize;
-    char* start   = data.data() + faceStart;
+    size_t start = size_t(dataStart) + size_t(vertexCount) * vertexSize;
 
     int countSize = sizeoftype(faceVertexCountType);
+    if (sizeoftype(faceVertexIndexType) != 4) throw std::runtime_error("PLYLoader: the face indices must be int");
 
     for (int i = 0; i < faceCount; ++i)
     {
         int c = 0;
         if (countSize == 1)
         {
-            c = *reinterpret_cast<unsigned char*>(start);
+            unsigned char uc;
+            read(start, uc);
+            c = uc;
         }
         else if (countSize == 4)
         {
-            c = *reinterpret_cast<int*>(start);
+            read(start, c);
         }
         start += countSize;
 
-        SAIGA_ASSERT(c == 3);
+        if (c != 3) throw std::runtime_error("PLYLoader: only triangles are supported");
 
-        uint32_t* face = reinterpret_cast<uint32_t*>(start);
+        uint32_t face[3];
+        for (int j = 0; j < 3; ++j)
+        {
+            read(start + j * sizeof(uint32_t), face[j]);
+            if (face[j] >= uint32_t(vertexCount)) throw std::runtime_error("PLYLoader: invalid vertex index");
+        }
         mesh.addFace(face);
 
         start += sizeof(uint32_t) * c;
-        //            std::cout << c << std::endl;
     }
 
     mesh.computePerVertexNormal();

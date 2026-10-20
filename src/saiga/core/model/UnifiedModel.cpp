@@ -23,7 +23,7 @@ namespace Saiga
 {
 std::ostream& operator<<(std::ostream& strm, const UnifiedMaterial& material)
 {
-    std::cout << "[Mat] " << std::setw(20) << material.name << material.color_diffuse.transpose()
+    strm << "[Mat] " << std::setw(20) << material.name << material.color_diffuse.transpose()
               << ", tex: " << material.texture_diffuse << ", " << material.texture_normal << ", "
               << material.texture_bump << ", " << material.texture_alpha << ", " << material.texture_emissive;
     return strm;
@@ -166,10 +166,10 @@ void UnifiedModel::LocateTextures(const std::string& base)
 
 std::ostream& operator<<(std::ostream& strm, const UnifiedModel& model)
 {
-    std::cout << "[UnifiedModel] " << model.name << "\n";
+    strm << "[UnifiedModel] " << model.name << "\n";
     // std::cout << "  Vertices " << model.position.size() << " Triangles " << model.triangles.size() << "\n";
     // std::cout << "  Bounding Box " << model.BoundingBox() << "\n";
-    std::cout << "Materials\n";
+    strm << "Materials\n";
     for (auto& m : model.materials)
     {
         strm << " " << m << std::endl;

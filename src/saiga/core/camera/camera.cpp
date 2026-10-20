@@ -249,11 +249,14 @@ void PerspectiveCamera::recalculatePlanes()
     // far plane
     planes[1] = Plane(farplanepos, dir);
 
+    // Like perspective(), apply fovy to the longer side of the image.
     float tang = tan(fovy * 0.5);
-    float nh   = zNear * tang;
-    float nw   = nh * aspect;
-    float fh   = zFar * tang;
-    float fw   = fh * aspect;
+    float th   = aspect > 1 ? tang / aspect : tang;
+    float tw   = th * aspect;
+    float nh   = zNear * th;
+    float nw   = zNear * tw;
+    float fh   = zFar * th;
+    float fw   = zFar * tw;
 
     // calcuate 4 corners of nearplane
     vertices[0] = nearplanepos + nh * up - nw * right;
@@ -325,7 +328,7 @@ void OrthographicCamera::recalculatePlanes()
 {
     vec3 rightv = make_vec3((model.col(0)));
     vec3 up     = make_vec3((model.col(1)));
-    vec3 dir    = make_vec3(-(model.col(1)));
+    vec3 dir    = make_vec3(-(model.col(2)));
 
     vec3 nearplanepos = getPosition() + dir * zNear;
     vec3 farplanepos  = getPosition() + dir * zFar;

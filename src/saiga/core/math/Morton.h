@@ -7,6 +7,8 @@
 #pragma once
 
 #include "saiga/core/math/math.h"
+
+#include <cstdint>
 namespace Saiga
 {
 inline uint64_t Morton3DBitInterleave64(uint64_t x)

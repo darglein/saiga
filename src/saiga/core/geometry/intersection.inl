@@ -18,7 +18,8 @@ inline bool PlanePlane(const Plane& p1, const Plane& p2, Ray& outRay)
     vec3 p3_normal = cross(p1.normal, p2.normal);
     auto det       = dot(p3_normal, p3_normal);
     if (det < epsilon<float>()) return false;
-    auto outPoint = ((cross(p3_normal, p2.normal) * p1.d) + (cross(p1.normal, p3_normal) * p2.d)) / det;
+    // The planes are n * x = d (not n * x + d = 0 as in the linked answer).
+    auto outPoint = ((cross(p2.normal, p3_normal) * p1.d) + (cross(p3_normal, p1.normal) * p2.d)) / det;
     auto outDir   = p3_normal;
     outRay        = Ray(outDir, outPoint);
     return true;

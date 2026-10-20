@@ -25,7 +25,7 @@ class SAIGA_TEMPLATE KDTree
     KDTree() {}
     KDTree(const std::vector<point_t>& points);
 
-    // returns the nearest point in this tree to the searchpoint
+    // returns the nearest point in this tree to the searchpoint or -1 if the tree is empty
     int NearestNeighborSearch(const point_t& searchPoint);
 
     // returns the k nearest points in this tree to the searchpoint
@@ -110,8 +110,9 @@ typename KDTree<D, point_t>::index_t KDTree<D, point_t>::make_tree(index_t start
 template <int D, typename point_t>
 int KDTree<D, point_t>::NearestNeighborSearch(const point_t& searchPoint)
 {
-    KDTree::index_t bestNode;
-    float bestDist = std::numeric_limits<float>::infinity();
+    if (rootNode == -1) return -1;
+    KDTree::index_t bestNode = rootNode;
+    float bestDist           = std::numeric_limits<float>::infinity();
     NearestNeighborSearch(rootNode, searchPoint, 0, bestNode, bestDist);
     return nodes[bestNode].initial_index;
 }
@@ -158,6 +159,7 @@ void KDTree<D, point_t>::NearestNeighborSearch(index_t currentNode, const point_
 template <int D, typename point_t>
 std::vector<int> KDTree<D, point_t>::KNearestNeighborSearch(const point_t& searchPoint, int k)
 {
+    if (k <= 0) return {};
     queue_t queue(k);
     for (auto& p : queue)
     {

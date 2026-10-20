@@ -64,6 +64,8 @@ if (MODULE_CORE)
     saiga_test(test_core_rectangular_decomposition.cpp)
     saiga_test(test_core_plane_intersecting_circle.cpp)
     saiga_test(test_core_imgui_cursors.cpp)
+    saiga_test(test_core_geometry.cpp)
+    saiga_test(test_core_model.cpp)
 
     if (OpenCV_FOUND AND MODULE_EXTRA)
         saiga_test(test_core_image_load_store.cpp ${EXTRA_LIBS})

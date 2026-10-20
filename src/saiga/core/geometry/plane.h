@@ -70,7 +70,7 @@ class SAIGA_TEMPLATE Plane
     HD vec3 getPoint() const;
 
 
-    friend std::ostream& operator<<(std::ostream& os, const Plane& plane);
+    SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const Plane& plane);
 };
 
 }  // namespace Saiga

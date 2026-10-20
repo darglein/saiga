@@ -4,10 +4,19 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/math/CoordinateSystems.h"
+#include "saiga/core/math/Morton.h"
+#include "saiga/core/math/Polynomial4.h"
 #include "saiga/core/math/all.h"
 #include "saiga/core/math/half.h"
 
 #include "gtest/gtest.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <limits>
+#include <vector>
 
 using namespace Saiga;
 
@@ -101,6 +110,72 @@ TEST(MathFunctions, HalfRoundtrip)
     EXPECT_EQ(float(half(-0.25f)), -0.25f);
 }
 
+static float FloatFromBits(uint32_t b)
+{
+    float f;
+    std::memcpy(&f, &b, sizeof(f));
+    return f;
+}
+
+// Regression test: float -> half produced NaN (0x7c01) for values slightly above 65536, inf for NaNs with a small
+// payload, the smallest denormal instead of zero for tiny floats (a shift by >= 32 bits), 2^-15 instead of 2^-14 for
+// floats just below 2^-14 and rounded ties away from zero instead of to even.
+TEST(MathFunctions, HalfFromFloatEdgeCases)
+{
+    EXPECT_EQ(half(0.f).h, 0x0000);
+    EXPECT_EQ(half(-0.f).h, 0x8000);
+    EXPECT_EQ(half(65504.f).h, 0x7bff);
+    EXPECT_EQ(half(65519.99f).h, 0x7bff);
+    EXPECT_EQ(half(65520.f).h, 0x7c00);
+    EXPECT_EQ(half(65568.f).h, 0x7c00);
+    EXPECT_EQ(half(-1e10f).h, 0xfc00);
+    EXPECT_EQ(half(std::numeric_limits<float>::infinity()).h, 0x7c00);
+    EXPECT_EQ(half(-std::numeric_limits<float>::infinity()).h, 0xfc00);
+    EXPECT_TRUE(std::isnan(float(half(FloatFromBits(0x7f800001)))));
+    EXPECT_TRUE(std::isnan(float(half(std::numeric_limits<float>::quiet_NaN()))));
+
+    EXPECT_EQ(half(1e-37f).h, 0x0000);
+    EXPECT_EQ(half(-1e-37f).h, 0x8000);
+    EXPECT_EQ(half(std::numeric_limits<float>::denorm_min()).h, 0x0000);
+    EXPECT_EQ(half(FloatFromBits(0x387fffff)).h, 0x0400);  // just below 2^-14
+    EXPECT_EQ(half(std::ldexp(1.f, -14)).h, 0x0400);
+    EXPECT_EQ(half(std::ldexp(1.f, -24)).h, 0x0001);
+    EXPECT_EQ(half(std::ldexp(1.f, -25)).h, 0x0000);                       // tie -> even (0)
+    EXPECT_EQ(half(std::nextafter(std::ldexp(1.f, -25), 1.f)).h, 0x0001);  // above the tie
+    EXPECT_EQ(half(std::ldexp(3.f, -25)).h, 0x0002);                       // tie -> even (2)
+
+    EXPECT_EQ(half(1.f + std::ldexp(1.f, -11)).h, 0x3c00);  // tie -> even
+    EXPECT_EQ(half(1.f + std::ldexp(3.f, -11)).h, 0x3c02);  // tie -> even
+    EXPECT_EQ(half(2047.f + 0.5f).h, half(2048.f).h);
+}
+
+TEST(MathFunctions, HalfAllValues)
+{
+    for (uint32_t i = 0; i < 0x10000; ++i)
+    {
+        const uint16_t bits = i;
+        const float f       = half(bits);
+        const bool is_nan   = (bits & 0x7c00) == 0x7c00 && (bits & 0x03ff) != 0;
+        EXPECT_EQ(std::isnan(f), is_nan) << i;
+        if (is_nan) continue;
+        // Every half is exactly representable as float and converts back to itself.
+        EXPECT_EQ(half(f).h, bits) << i;
+        EXPECT_EQ(std::signbit(f), (bits & 0x8000) != 0) << i;
+    }
+
+    // The midpoint between two neighbouring finite halves is exact in float and rounds to the even one.
+    for (uint32_t i = 0; i < 0x7bff; ++i)
+    {
+        const float lo  = half(uint16_t(i));
+        const float hi  = half(uint16_t(i + 1));
+        const float mid = (lo + hi) / 2;
+        EXPECT_EQ(half(mid).h, (i & 1) ? i + 1 : i) << i;
+        EXPECT_EQ(half(std::nextafter(mid, 0.f)).h, i) << i;
+        EXPECT_EQ(half(std::nextafter(mid, 1e6f)).h, i + 1) << i;
+        EXPECT_EQ(half(-mid).h, ((i & 1) ? i + 1 : i) | 0x8000) << i;
+    }
+}
+
 TEST(MathFunctions, Round)
 {
     EXPECT_EQ(iRound(0.49999997f), 0);
@@ -167,4 +242,194 @@ TEST(MathFunctions, IniStringRoundtrip)
     ivec3 i2;
     fromIniString(toIniString(i), i2);
     EXPECT_EQ(i, i2);
+}
+
+// Regression test: for Q == 0 the cubic solver used pow(2 * R, 1 / 3.0), which is NaN for negative R (x^3 + 1 = 0).
+TEST(MathFunctions, SolveCubicNegativeCubeRoot)
+{
+    double x0 = 0, x1 = 0, x2 = 0;
+    EXPECT_EQ(solve_deg3(1, 0, 0, 1, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, -1, 1e-12);
+
+    EXPECT_EQ(solve_deg3(2, 0, 0, -16, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, 2, 1e-12);
+
+    // (x + 1)^3 - 8 = 0 -> x = 1, shifted so that b != 0.
+    EXPECT_EQ(solve_deg3(1, 3, 3, -7, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, 1, 1e-12);
+
+    EXPECT_EQ(solve_deg3(1, 3, 3, 9, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, -3, 1e-12);
+}
+
+TEST(MathFunctions, SolvePolynomials)
+{
+    double x0 = 0, x1 = 0, x2 = 0, x3 = 0;
+
+    EXPECT_EQ(solve_deg2(1, -3, 2, x0, x1), 2);
+    EXPECT_NEAR(std::min(x0, x1), 1, 1e-12);
+    EXPECT_NEAR(std::max(x0, x1), 2, 1e-12);
+    EXPECT_EQ(solve_deg2(1, 0, 1, x0, x1), 0);
+
+    // (x - 1)(x - 2)(x + 3) = x^3 - 7x + 6
+    EXPECT_EQ(solve_deg3(1, 0, -7, 6, x0, x1, x2), 3);
+    std::vector<double> r = {x0, x1, x2};
+    std::sort(r.begin(), r.end());
+    EXPECT_NEAR(r[0], -3, 1e-10);
+    EXPECT_NEAR(r[1], 1, 1e-10);
+    EXPECT_NEAR(r[2], 2, 1e-10);
+
+    // Degenerate leading coefficients fall back to lower degrees.
+    EXPECT_EQ(solve_deg3(0, 1, -3, 2, x0, x1, x2), 2);
+    EXPECT_EQ(solve_deg3(0, 0, 2, -4, x0, x1, x2), 1);
+    EXPECT_NEAR(x0, 2, 1e-12);
+
+    // (x-1)(x-2)(x-3)(x-4)
+    EXPECT_EQ(solve_deg4(1, -10, 35, -50, 24, x0, x1, x2, x3), 4);
+    r = {x0, x1, x2, x3};
+    std::sort(r.begin(), r.end());
+    for (int i = 0; i < 4; ++i) EXPECT_NEAR(r[i], i + 1, 1e-8);
+
+    // x^4 - 1 has the real roots -1 and 1.
+    Matrix<double, 5, 1> coeffs;
+    coeffs(0) = 1;
+    coeffs(1) = 0;
+    coeffs(2) = 0;
+    coeffs(3) = 0;
+    coeffs(4) = -1;
+    Vec4 roots;
+    EXPECT_EQ(solve_deg4(coeffs, roots), 2);
+    EXPECT_NEAR(std::min(roots(0), roots(1)), -1, 1e-10);
+    EXPECT_NEAR(std::max(roots(0), roots(1)), 1, 1e-10);
+
+    // x^4 + 1 has no real roots.
+    EXPECT_EQ(solve_deg4(1, 0, 0, 0, 1, x0, x1, x2, x3), 0);
+}
+
+TEST(MathFunctions, Morton)
+{
+    // Reference: interleave the bits one by one.
+    auto reference = [](uint32_t x, uint32_t y, uint32_t z)
+    {
+        uint64_t r = 0;
+        for (int i = 0; i < 21; ++i)
+        {
+            r |= uint64_t((x >> i) & 1) << (3 * i);
+            r |= uint64_t((y >> i) & 1) << (3 * i + 1);
+            r |= uint64_t((z >> i) & 1) << (3 * i + 2);
+        }
+        return r;
+    };
+    EXPECT_EQ(Morton3D(ivec3(0, 0, 0)), 0u);
+    EXPECT_EQ(Morton3D(ivec3(1, 0, 0)), 1u);
+    EXPECT_EQ(Morton3D(ivec3(0, 1, 0)), 2u);
+    EXPECT_EQ(Morton3D(ivec3(0, 0, 1)), 4u);
+    const int max = (1 << 21) - 1;
+    EXPECT_EQ(Morton3D(ivec3(max, max, max)), (uint64_t(1) << 63) - 1);
+    Random::setSeed(7);
+    for (int i = 0; i < 1000; ++i)
+    {
+        ivec3 v = Random::MatrixUniform<ivec3>(0, max);
+        EXPECT_EQ(Morton3D(v), reference(v.x(), v.y(), v.z()));
+    }
+}
+
+TEST(MathFunctions, IntegerFunctions)
+{
+    EXPECT_EQ(iDivUp(10, 3), 4);
+    EXPECT_EQ(iDivUp(9, 3), 3);
+    EXPECT_EQ(iDivUp(0, 3), 0);
+    EXPECT_EQ(iFloorDiv(7, 2), 3);
+    EXPECT_EQ(iFloorDiv(-7, 2), -4);
+    EXPECT_EQ(iFloorDiv(-6, 2), -3);
+    EXPECT_EQ(iFloorDiv(7, -2), -4);
+    EXPECT_EQ(iFloor(-0.5f), -1);
+    EXPECT_EQ(iFloor(1.5f), 1);
+    EXPECT_EQ(iFloor(-2.0), -2);
+    EXPECT_EQ(iCeil(-0.5f), 0);
+}
+
+TEST(MathFunctions, QuaternionFunctions)
+{
+    quat q = angleAxis(radians(90.f), vec3(0, 0, 1));
+    EXPECT_NEAR((q * vec3(1, 0, 0) - vec3(0, 1, 0)).norm(), 0, 1e-6);
+    EXPECT_NEAR((make_mat3(q) * vec3(1, 0, 0) - vec3(0, 1, 0)).norm(), 0, 1e-6);
+    EXPECT_NEAR((make_mat4(q) - rotate(radians(90.f), vec3(0, 0, 1))).norm(), 0, 1e-6);
+
+    // Matrix -> quaternion round trip for rotations with different traces.
+    for (auto axis : {vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1), vec3(1, 2, 3).normalized()})
+    {
+        for (float angle : {0.1f, 1.5f, 3.0f, 3.14159f})
+        {
+            quat a = angleAxis(angle, axis);
+            quat b = quat_cast(make_mat3(a));
+            EXPECT_NEAR(std::abs(a.dot(b)), 1, 1e-5) << axis.transpose() << " " << angle;
+        }
+    }
+
+    // Shortest rotation between two vectors, also for opposite vectors.
+    for (auto [a, b] : {std::pair<vec3, vec3>{vec3(1, 0, 0), vec3(0, 1, 0)},
+                        {vec3(1, 2, 3), vec3(-2, 0.5, 1)},
+                        {vec3(1, 0, 0), vec3(-1, 0, 0)},
+                        {vec3(0, 0, 2), vec3(0, 0, -1)}})
+    {
+        quat r = rotation(a, b);
+        EXPECT_NEAR(r.norm(), 1, 1e-5);
+        EXPECT_NEAR((r * a.normalized() - b.normalized()).norm(), 0, 1e-5) << a.transpose() << " | " << b.transpose();
+    }
+
+    // Slerp
+    quat q0 = quat::Identity();
+    quat q1 = angleAxis(radians(90.f), vec3(0, 1, 0));
+    quat qh = slerp(q0, q1, 0.5f);
+    EXPECT_NEAR(std::abs(qh.dot(angleAxis(radians(45.f), vec3(0, 1, 0)))), 1, 1e-6);
+    EXPECT_NEAR(std::abs(mix(q0, q1, 1.f).dot(q1)), 1, 1e-6);
+
+    // Inverse and composition
+    quat qi = inverse(q1);
+    EXPECT_NEAR(std::abs((q1 * qi).w()), 1, 1e-6);
+    quat qr = rotate(q0, radians(90.f), vec3(0, 1, 0));
+    EXPECT_NEAR(std::abs(qr.dot(q1)), 1, 1e-6);
+}
+
+TEST(MathFunctions, CoordinateSystems)
+{
+    mat4 a = GL2VulkanNormalizedImage();
+    mat4 b = Vulkan2GLNormalizedImage();
+    EXPECT_NEAR((a * b - mat4::Identity()).norm(), 0, 1e-6);
+    EXPECT_NEAR((GL2CVView() * CV2GLView() - mat4::Identity()).norm(), 0, 1e-6);
+    // GL depth -1 maps to Vulkan depth 0 and 1 to 1.
+    EXPECT_NEAR((a * vec4(0, 0, -1, 1))(2), 0, 1e-6);
+    EXPECT_NEAR((a * vec4(0, 0, 1, 1))(2), 1, 1e-6);
+
+    // Without distortion the point is unchanged.
+    EXPECT_EQ(cvApplyDistortion(vec2(0.3, -0.2), 0, 0, 0, 0, 0), vec2(0.3, -0.2));
+    // Radial distortion scales with (1 + k1 r^2).
+    vec2 d = cvApplyDistortion(vec2(0.3, 0.4), 0.1, 0, 0, 0, 0);
+    EXPECT_NEAR((d - vec2(0.3, 0.4) * (1 + 0.1f * 0.25f)).norm(), 0, 1e-6);
+}
+
+TEST(MathFunctions, ProjectionMatrices)
+{
+    // perspective() maps the near and far plane to -1 and 1.
+    mat4 P = perspective(radians(60.f), 1.5f, 0.5f, 50.f);
+    vec4 n = P * vec4(0, 0, -0.5, 1);
+    vec4 f = P * vec4(0, 0, -50, 1);
+    EXPECT_NEAR(n.z() / n.w(), -1, 1e-5);
+    EXPECT_NEAR(f.z() / f.w(), 1, 1e-4);
+    // The field of view is applied to the longer side (here the width).
+    vec4 side = P * vec4(std::tan(radians(30.f)), 0, -1, 1);
+    EXPECT_NEAR(side.x() / side.w(), 1, 1e-5);
+
+    mat4 O = ortho(-2, 2, -1, 1, 0.5, 10);
+    vec4 c = O * vec4(2, 1, -10, 1);
+    EXPECT_NEAR((c - vec4(1, 1, 1, 1)).norm(), 0, 1e-6);
+
+    // lookAt moves the eye to the origin and looks along -z.
+    mat4 V = lookAt(vec3(1, 2, 3), vec3(1, 2, -7), vec3(0, 1, 0));
+    EXPECT_NEAR((V * vec4(1, 2, 3, 1) - vec4(0, 0, 0, 1)).norm(), 0, 1e-6);
+    EXPECT_NEAR((V * vec4(1, 2, -7, 1) - vec4(0, 0, -10, 1)).norm(), 0, 1e-5);
+
+    mat4 T = createTRSmatrix(vec3(1, 2, 3), angleAxis(radians(90.f), vec3(0, 0, 1)), vec3(2, 2, 2));
+    EXPECT_NEAR((T * vec4(1, 0, 0, 1) - vec4(1, 4, 3, 1)).norm(), 0, 1e-5);
 }

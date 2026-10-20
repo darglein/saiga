@@ -674,7 +674,12 @@ void HalfEdgeMesh<vertex_t, index_t>::getNeighbours(int vertex, std::vector<int>
             //            SAIGA_ASSERT(flip.vertex == removeVertex);
             //            flip.vertex = newVertex;
 
-            if (flip.oppositeHalfEdge == -1) break;
+            if (flip.oppositeHalfEdge == -1)
+            {
+                // Boundary: the start of the incoming edge is the last neighbor in this direction.
+                neighs.push_back(edgeList[flip.prevHalfEdge].vertex);
+                break;
+            }
 
             currentHf = flip.oppositeHalfEdge;
 
