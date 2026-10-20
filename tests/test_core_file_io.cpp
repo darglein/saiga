@@ -7,6 +7,7 @@
 #include "saiga/config.h"
 #include "saiga/core/util/directory.h"
 #include "saiga/core/util/file.h"
+#include "saiga/core/util/zlib/unzip_wrapper.h"
 #include "saiga/core/util/zlib/zip_archive.h"
 
 #include "gtest/gtest.h"
@@ -237,4 +238,54 @@ TEST(FileIO, ZipAddFolder)
     EXPECT_FALSE(missing.add_folder("", dir / "does_not_exist", ZipCompressionMethod::ZLIB));
 }
 
+TEST(FileIO, UnzipToMemory)
+{
+    auto dir = TestDir();
+    std::vector<char> data(25000);
+    for (size_t i = 0; i < data.size(); ++i) data[i] = char(i * 3);
+    auto path = WriteStoredZip(dir, data);
+
+    auto info = UnzipInfo(path.string());
+    ASSERT_EQ(info.size(), 1);
+    EXPECT_EQ(info[0].name, "entry.bin");
+    EXPECT_EQ(info[0].uncompressed_size, data.size());
+
+    auto files = UnzipToMemory(path.string());
+    ASSERT_EQ(files.size(), 1);
+    EXPECT_EQ(files[0].data, data);
+
+    Unzipfile single = info[0];
+    UnzipSingleFileToMemory(path.string(), single);
+    EXPECT_EQ(single.data, data);
+
+    std::vector<char> user_buffer(data.size());
+    single.user_data_ptr = user_buffer.data();
+    single.data.clear();
+    UnzipSingleFileToMemory(path.string(), single);
+    EXPECT_EQ(user_buffer, data);
+    EXPECT_TRUE(single.data.empty());
+}
+
+#    if defined(__linux__)
+static int OpenFileDescriptors()
+{
+    std::error_code ec;
+    int count = 0;
+    for (auto it = std::filesystem::directory_iterator("/proc/self/fd", ec); !ec && it != decltype(it)(); ++it) count++;
+    return count;
+}
+
+TEST(FileIO, UnzipToMemoryClosesFile)
+{
+    // UnzipToMemory() never closed the zip file after extracting all entries.
+    auto dir  = TestDir();
+    auto path = WriteStoredZip(dir, std::vector<char>(100, 'u'));
+    auto info = UnzipInfo(path.string());
+    ASSERT_EQ(info.size(), 1);
+
+    int before = OpenFileDescriptors();
+    for (int i = 0; i < 10; ++i) UnzipToMemory(path.string(), info);
+    EXPECT_EQ(OpenFileDescriptors(), before);
+}
+#    endif
 #endif
