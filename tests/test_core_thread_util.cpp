@@ -170,6 +170,16 @@ TEST(ScopedThread, QuitAfterMove)
     EXPECT_FALSE(st2.joinable());
 }
 
+TEST(ScopedThread, QuitWakesWaitFor)
+{
+    // Quit() would block for an hour if it did not wake the wait
+    bool woken = false;
+    ScopedThread st([&woken](ScopedThread::TerminateFlag* terminate)
+                    { woken = terminate->WaitFor(std::chrono::hours(1)); });
+    st.Quit();
+    EXPECT_TRUE(woken);
+}
+
 #if defined(__linux__)
 TEST(ThreadName, LongNameOfOtherThread)
 {

@@ -10,9 +10,13 @@
 #include "saiga/config.h"
 
 #include <atomic>
+#include <chrono>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
+
+#include <condition_variable>
 
 namespace Saiga
 {
@@ -42,6 +46,37 @@ SAIGA_CORE_API extern void setThreadName(std::thread& thread, const std::string&
 class SAIGA_CORE_API ScopedThread : public std::thread
 {
    public:
+    // The terminate flag passed to the thread function. It derives from std::atomic<bool>, so functions taking a
+    // std::atomic<bool>* still work. A periodic task should wait with WaitFor() instead of sleeping: Quit() wakes it
+    // immediately, while a sleep delays Quit() (and the destructor) by up to the full period.
+    class TerminateFlag : public std::atomic<bool>
+    {
+       public:
+        TerminateFlag() : std::atomic<bool>(false) {}
+
+        // Waits for the duration or until Quit() is called. Returns whether Quit() was called.
+        template <typename Rep, typename Period>
+        bool WaitFor(const std::chrono::duration<Rep, Period>& duration)
+        {
+            std::unique_lock<std::mutex> l(mutex);
+            return cv.wait_for(l, duration, [this]() { return load(); });
+        }
+
+        void Set()
+        {
+            {
+                // under the lock, so a thread between the check of the predicate and the wait cannot miss it
+                std::lock_guard<std::mutex> l(mutex);
+                store(true);
+            }
+            cv.notify_all();
+        }
+
+       private:
+        std::mutex mutex;
+        std::condition_variable cv;
+    };
+
     // template <typename... Args>
     // ScopedThread(Args&&... args) : std::thread(std::forward<Args>(args)...)
     // {
@@ -67,12 +102,12 @@ class SAIGA_CORE_API ScopedThread : public std::thread
 
     void Quit()
     {
-        *terminate_called = true;
+        terminate_called->Set();
         if (joinable()) join();
     }
 
    private:
-    std::unique_ptr<std::atomic<bool>> terminate_called = std::make_unique<std::atomic<bool>>(false);
+    std::unique_ptr<TerminateFlag> terminate_called = std::make_unique<TerminateFlag>();
 
 
     // Scoped Threads are not allowed to detach.
