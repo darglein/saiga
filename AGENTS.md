@@ -30,6 +30,7 @@ src/
   saiga/
     core/               saiga_core: math, image (load/store/decode), util (threads, ini, file io), geometry,
                         camera, imgui, window, sound, model, time, sophus, ...
+                        image/stb_image.h and image/stb_image_write.h export stb (vendored in image/stb/)
     vision/             saiga_vision: ba, pgo, imu, features, reconstruction, slam, recursive solvers, ceres/g2o glue
     cuda/               saiga_cuda: device helpers, reduce/scan/shfl, memory, streams, imageProcessing, thrust helpers
     opengl/             saiga_opengl: buffers, shaders, textures, rendering, window, imgui, ffmpeg, vr

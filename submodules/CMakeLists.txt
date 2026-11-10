@@ -18,6 +18,7 @@ message("=================================")
 
 if (SAIGA_WITH_TINY_GLOG)
     message("Adding Submodule tiny-glog")
+    set(TINY_GLOG_BUILD_SHARED ${SAIGA_BUILD_SHARED})
     add_subdirectory(tiny-glog)
 else ()
     message("Adding Submodule glog")
