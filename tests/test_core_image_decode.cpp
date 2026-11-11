@@ -618,7 +618,8 @@ static int MaxAbsDifference(ImageView<const ucvec3> a, ImageView<const ucvec3> b
 TEST(ImageDecode, JpgRowPadding)
 {
     // The jpg writer ignored the row pitch, so images whose rows are padded (here 13 * 3 = 39 -> 40 bytes) were
-    // sheared. Loading jpg data from memory also always failed.
+    // sheared. Loading jpg data from memory also always failed. A sheared image is off by almost 200; the bound only
+    // allows the 4:2:0 chroma subsampling the writer uses at quality 90 and below, which costs 13 on this gradient.
     auto img = SmoothRGB(16, 13);
     ASSERT_NE(img.pitchBytes, 13 * 3);
 
@@ -628,14 +629,14 @@ TEST(ImageDecode, JpgRowPadding)
     ASSERT_TRUE(LoadFromBytes(decoded, bytes, "jpg"));
     ASSERT_EQ(decoded.type, UC3);
     ASSERT_EQ(decoded.dimensions(), img.dimensions());
-    EXPECT_LE(MaxAbsDifference(img.getConstImageView(), decoded.getConstImageView<ucvec3>()), 12);
+    EXPECT_LE(MaxAbsDifference(img.getConstImageView(), decoded.getConstImageView<ucvec3>()), 16);
 
     auto file = TestDir() / "padded.jpg";
     ASSERT_TRUE(img.save(file));
     Image loaded;
     ASSERT_TRUE(loaded.load(file));
     ASSERT_EQ(loaded.type, UC3);
-    EXPECT_LE(MaxAbsDifference(img.getConstImageView(), loaded.getConstImageView<ucvec3>()), 12);
+    EXPECT_LE(MaxAbsDifference(img.getConstImageView(), loaded.getConstImageView<ucvec3>()), 16);
 }
 
 TEST(ImageDecode, StbPngCompressRoundtrip)
