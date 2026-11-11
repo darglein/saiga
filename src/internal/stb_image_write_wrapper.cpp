@@ -1,12 +1,11 @@
-﻿#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write_wrapper.h"
+﻿#include "stb_image_write_wrapper.h"
 
 #include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 
-#include "stb_image_write.h"
+#include "saiga/core/image/stb_image_write.h"
 
 namespace Saiga
 {

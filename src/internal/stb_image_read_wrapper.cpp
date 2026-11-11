@@ -1,9 +1,8 @@
-﻿#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image_read_wrapper.h"
+﻿#include "stb_image_read_wrapper.h"
 
 #include <iostream>
 
-#include "stb_image.h"
+#include "saiga/core/image/stb_image.h"
 #include "saiga/core/util/string_to_path.h"
 #include <fstream>
 

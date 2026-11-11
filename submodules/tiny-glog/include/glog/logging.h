@@ -26,7 +26,9 @@
 
 
 
-#ifdef tiny_glog_EXPORTS
+#if defined(TINY_GLOG_STATIC)
+#    define TINY_GLOG_API
+#elif defined(tiny_glog_EXPORTS)
 #    define TINY_GLOG_API TINY_GLOG_HELPER_DLL_EXPORT
 #else
 #    define TINY_GLOG_API TINY_GLOG_HELPER_DLL_IMPORT
