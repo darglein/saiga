@@ -1,0 +1,106 @@
+name: CUDA tests (simulated H100)
+
+# Optional, non-required check. The hosted runners have no GPU, so tests.yml
+# builds with SAIGA_MODULE_CUDA=OFF. This job builds the CUDA module and runs
+# the test_cuda_* gtests on a simulated NVIDIA H100
+# (https://github.com/pantheongpu/pantheonsim). A simulator cannot reproduce
+# hardware-specific behavior or timing, so it complements real-GPU testing and
+# does not replace it.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/saiga/core/**"
+      - "src/saiga/cuda/**"
+      - "src/internal/**"
+      - "src/*.h.in"
+      - "tests/test_cuda_*"
+      - "tests/CMakeLists.txt"
+      - "cmake/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/gpu-sim.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cuda-sim:
+    name: Ubuntu (CUDA 12.6 on a simulated H100)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: true
+          persist-credentials: false
+
+      # Installs CUDA 12.6 (nvcc, cudart, NPP) and the simulated H100. CUDA 13
+      # does not work yet: its NPP no longer has nppGetStreamContext, which
+      # NppiHelper.h calls.
+      # library-path false: saiga_cuda links the toolkit's NPP, so the tests
+      # run under `vgpu run` instead.
+      - name: Set up the simulated GPU and CUDA toolkit
+        uses: pantheongpu/setup-pantheonsim@ab71a07326835be678918901c340d53a83358067 # v0.1.6
+        with:
+          gpu: nvidia/h100
+          cuda-toolkit: "12.6"
+          library-path: "false"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build ccache
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: ubuntu-24.04-gpu-sim
+          max-size: 2G
+
+      # Only Core and Cuda are needed for the CUDA tests, so OpenGL (and GLFW)
+      # are off. 90+PTX adds compute_90 PTX, which the simulator runs; the
+      # simulator also needs the shared CUDA runtime.
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.6/bin/nvcc \
+            -DCUDAToolkit_ROOT=/usr/local/cuda-12.6 \
+            -DCMAKE_CUDA_RUNTIME_LIBRARY=Shared \
+            -DSAIGA_MODULE_CUDA=ON \
+            -DSAIGA_CUDA_ARCH=90+PTX \
+            -DSAIGA_MODULE_OPENGL=OFF \
+            -DSAIGA_MODULE_VULKAN=OFF \
+            -DSAIGA_BUILD_GLFW=OFF \
+            -DSAIGA_BUILD_SAMPLES=OFF \
+            -DSAIGA_ARCHNATIVE=OFF \
+            -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON
+
+      - name: Build
+        run: |
+          cmake --build build --parallel 3 --target \
+            test_cuda_simple test_cuda_thrust \
+            test_cuda_bvh test_cuda_algorithms test_cuda_image_processing \
+            -- -k 0
+
+      # Left out, because of simulator limits rather than saiga bugs:
+      # - test_cuda_image: the simulator's NPP has no nppGetStreamContext,
+      #   nppiFilterGaussBorder_8u_C1R_Ctx or nppiResize_8u_C1R_Ctx, so the
+      #   binary does not load.
+      # - CudaImage.UploadKeepsAllocation: a kernel launch on the simulator
+      #   finishes before the launch call returns, so its "upload does not
+      #   wait for the device" check cannot pass (pantheonsim#523).
+      - name: Test
+        working-directory: build
+        env:
+          GTEST_FILTER: "-CudaImage.UploadKeepsAllocation"
+        run: vgpu run ctest --output-on-failure -R '^test_cuda_' -E '^test_cuda_image$'
