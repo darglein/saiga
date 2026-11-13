@@ -14,7 +14,7 @@ on:
       - "src/saiga/core/**"
       - "src/saiga/cuda/**"
       - "src/internal/**"
-      - "src/*.h.in"
+      - "src/saiga/*.h.in"
       - "tests/test_cuda_*"
       - "tests/CMakeLists.txt"
       - "cmake/**"
