@@ -20,8 +20,20 @@ if(SAIGA_MODULE_VULKAN)
     find_package(Vulkan QUIET)
     PackageHelperTarget(Vulkan::Vulkan VULKAN_FOUND)
 
-    find_package(GLslang QUIET)
-    PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
+    # glslang >= 11 installs a CMake config with imported targets (headers in <prefix>/include/glslang/...).
+    # Older installs (and old Vulkan SDKs) are handled by cmake/FindGLslang.cmake.
+    # Its targets reference the glslang executable (Debian/Ubuntu: glslang-tools) and the config fails with a
+    # FATAL_ERROR (despite QUIET) if that is missing, so only look for it when the executable exists.
+    find_program(SAIGA_GLSLANG_EXECUTABLE NAMES glslang glslangValidator)
+    if(SAIGA_GLSLANG_EXECUTABLE)
+        find_package(glslang CONFIG QUIET)
+    endif()
+    if(TARGET glslang::SPIRV)
+        PackageHelperTarget(glslang::SPIRV GLSLANG_FOUND)
+    else()
+        find_package(GLslang QUIET)
+        PackageHelper(GLslang "${GLSLANG_FOUND}" "${GLSLANG_SPIRV_INCLUDE_DIR}" "${GLSLANG_LIBRARIES}")
+    endif()
     if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
         message(STATUS "Saiga vulkan enabled.")
         SET(SAIGA_USE_VULKAN 1)

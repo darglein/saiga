@@ -16,7 +16,16 @@ namespace Vulkan
 class SAIGA_VULKAN_API ShaderPipelineBase
 {
    public:
+    ShaderPipelineBase() = default;
     ~ShaderPipelineBase() { destroy(); }
+
+    // Owns the shader modules
+    ShaderPipelineBase(const ShaderPipelineBase&)                = delete;
+    ShaderPipelineBase& operator=(const ShaderPipelineBase&)     = delete;
+    ShaderPipelineBase(ShaderPipelineBase&&) noexcept            = default;
+    ShaderPipelineBase& operator=(ShaderPipelineBase&&) noexcept = default;
+
+    // The load functions replace the current modules.
 
     bool load(vk::Device device, std::vector<std::string> shaders);
     bool loadGLSL(vk::Device device,
@@ -25,10 +34,14 @@ class SAIGA_VULKAN_API ShaderPipelineBase
     bool loadCompute(vk::Device device, std::string shader, std::string injection = {});
 
 
+    // Destroys the shader modules. Pipelines created from them stay valid.
     void destroy();
-    void reload();
 
-    // Returns if any of the shader modules was reloaded
+    // Recompiles all modules loaded from GLSL files (a module that fails to compile keeps its previous version).
+    // Returns true if any module was recompiled.
+    bool reload();
+
+    // Returns if any of the shader modules was reloaded successfully. Cheap, see ShaderModule::autoReload().
     bool autoReload();
 
     /**
@@ -38,7 +51,6 @@ class SAIGA_VULKAN_API ShaderPipelineBase
     bool valid();
 
    protected:
-    vk::Device device;
     std::vector<vk::PipelineShaderStageCreateInfo> pipelineInfo;
     std::vector<ShaderModule> modules;
 

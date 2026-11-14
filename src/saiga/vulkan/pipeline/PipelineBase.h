@@ -26,6 +26,10 @@ class SAIGA_VULKAN_API PipelineBase
     PipelineBase(vk::PipelineBindPoint type);
     virtual ~PipelineBase() { destroy(); }
 
+    // Owns Vulkan objects
+    PipelineBase(const PipelineBase&)            = delete;
+    PipelineBase& operator=(const PipelineBase&) = delete;
+
     void init(VulkanBase& base, uint32_t numDescriptorSetLayouts);
     void destroy();
 
@@ -70,6 +74,9 @@ class SAIGA_VULKAN_API PipelineBase
 
     bool isInitialized() { return base; }
     void createPipelineLayout();
+
+    // Sets the pipeline. The old one is destroyed once the frames in flight, which may still use it, are complete.
+    void replacePipeline(vk::Pipeline newPipeline);
 
     virtual bool checkShader() = 0;
 };

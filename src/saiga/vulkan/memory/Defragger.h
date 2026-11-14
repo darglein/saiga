@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#include "saiga/core/util/easylogging++.h"
 #include "saiga/core/util/Thread/threadName.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/vulkan/CommandPool.h"
 #include "saiga/vulkan/Queue.h"
 
@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <condition_variable>
+#include <unordered_map>
 
 namespace Saiga::Vulkan
 {
@@ -87,7 +88,7 @@ class Defragger
         Target() = default;
 
         vk::DeviceMemory memory;
-        vk::DeviceSize offset, size;
+        vk::DeviceSize offset = 0, size = 0;
 
         friend std::ostream& operator<<(std::ostream& os, const Target& target)
         {
@@ -111,12 +112,18 @@ class Defragger
             return os;
         }
     };
+    // A recorded copy, which is submitted by the main thread (perform_defrag).
     struct DefragOp
     {
-        DefragOp(T* _target, T* src, vk::CommandBuffer _cmd) : target(_target), source(src), cmd(_cmd) {}
+        DefragOp(T* _target, T* src, vk::CommandBuffer _cmd, vk::QueryPool _queryPool)
+            : target(_target), source(src), cmd(_cmd), queryPool(_queryPool)
+        {
+        }
 
         T *target, *source;
         vk::CommandBuffer cmd;
+        // Two timestamps (begin/end) of this copy, may be null.
+        vk::QueryPool queryPool;
 
         friend std::ostream& operator<<(std::ostream& os, const DefragOp& op)
         {
@@ -124,64 +131,81 @@ class Defragger
             return os;
         }
     };
+    // A submitted copy. It is complete when copyTimeline reaches signal_value.
     struct CopyOp
     {
-        CopyOp(T* _target, T* src, vk::CommandBuffer _cmd, vk::Fence _fence, vk::Semaphore _wait, vk::Semaphore _signal)
-            : target(_target), source(src), cmd(_cmd), fence(_fence), wait_semaphore(_wait), signal_semaphore(_signal)
+        CopyOp(T* _target, T* src, vk::CommandBuffer _cmd, vk::QueryPool _queryPool, uint64_t _signal_value)
+            : target(_target), source(src), cmd(_cmd), queryPool(_queryPool), signal_value(_signal_value)
         {
         }
         T *target, *source;
         vk::CommandBuffer cmd;
-        vk::Fence fence;
-        vk::Semaphore wait_semaphore, signal_semaphore;
+        vk::QueryPool queryPool;
+        uint64_t signal_value;
 
         friend std::ostream& operator<<(std::ostream& os, const CopyOp& op)
         {
             os << PointerOutput<T>(op.target) << "<-" << PointerOutput<T>(op.source) << " cmd: " << op.cmd
-               << " fence: " << op.fence << " wsem: " << op.wait_semaphore << " ssem: " << op.signal_semaphore;
+               << " signal: " << op.signal_value;
             return os;
         }
     };
+    // A completed (and swapped) copy. target holds the old memory of source, which is freed when the frame timeline
+    // reaches wait_value (frames in flight may still use it).
     struct FreeOp
     {
-        FreeOp(T* _target, T* src, uint64_t _delay) : target(_target), source(src), delay(_delay) {}
+        FreeOp(T* _target, T* src, uint64_t _wait_value) : target(_target), source(src), wait_value(_wait_value) {}
         T *target, *source;
-        uint64_t delay;
+        uint64_t wait_value;
 
         friend std::ostream& operator<<(std::ostream& os, const FreeOp& op)
         {
-            os << PointerOutput<T>(op.target) << "<-" << PointerOutput<T>(op.source) << " delay: " << op.delay;
+            os << PointerOutput<T>(op.target) << "<-" << PointerOutput<T>(op.source) << " wait: " << op.wait_value;
             return os;
         }
     };
 
     std::vector<std::vector<vk::DeviceSize>> all_free;
     VulkanBase* base;
-    uint64_t dealloc_delay;
     vk::Device device;
     ChunkAllocator<T>* allocator;
 
+    // Only accessed by the worker, or by the main thread while the worker is stopped.
     std::vector<PossibleOp> possibleOps;
+    // Protected by defrag_mutex.
     std::list<DefragOp> defragOps;
+    // Protected by copy_mutex.
     std::deque<CopyOp> copyOps;
+    // Only accessed by the worker, or by the main thread while the worker is stopped.
     std::list<FreeOp> freeOps;
     std::set<T*> currentDefragSources;
 
-    bool valid, enabled;
+    std::atomic_bool valid, enabled;
     std::atomic_bool running, quit;
-    std::atomic_uint64_t frame_number;
+    bool exited = false;
 
     std::mutex start_mutex, running_mutex, defrag_mutex, copy_mutex;
     std::condition_variable start_condition;
+
+    // The worker waits on this while it can only wait for the main thread (submission) or the GPU.
+    std::mutex wait_mutex;
+    std::condition_variable wait_condition;
+
     std::thread worker;
 
     CommandPool commandPool;
 
+    // Chains the copies: copy i waits for value i - 1 and signals i. Protected by copy_mutex.
+    vk::Semaphore copyTimeline;
+    uint64_t copyCounter = 0;
+
+    // Timestamps of the main queue. timestampMask == 0: not supported.
+    uint64_t timestampMask = 0;
+    double timestampPeriod = 1.0;  // ns per tick
+
+    std::atomic<double> kbPerNanoSecond;
+
     void worker_func();
-
-
-    vk::QueryPool queryPool;
-    double kbPerNanoSecond = std::numeric_limits<double>::infinity();
 
     // Defrag thread functions
 
@@ -189,42 +213,72 @@ class Defragger
 
     bool find_defrag_ops();
     void fill_free_list();
+    // Returns true if new copies were recorded.
     bool create_copy_commands();
 
-    void perform_single_defrag(DefragOp& op, vk::Semaphore semaphore);
+    void perform_single_defrag(DefragOp& op, vk::Semaphore frameTimeline, uint64_t waitValue);
 
+    // Submits defrag ops. Requires defrag_mutex.
+    std::pair<bool, int64_t> submit_defrag_ops(int64_t allowed_time, vk::Semaphore frameTimeline, uint64_t waitValue);
+
+    // Returns true if copies were completed.
     bool complete_copy_commands();
 
-    bool perform_free_operations();
+    // Returns true if memory was freed. force: free without waiting for the frames.
+    bool perform_free_operations(bool force);
+
+    void update_copy_speed(const CopyOp& copy);
+
+    vk::QueryPool create_query_pool();
+
+    // Frees the command buffer and the query pool of an op and the resources of create_copy_command.
+    void release_op_resources(vk::CommandBuffer cmd, vk::QueryPool queryPool);
 
     // end defrag thread functions
    public:
     DefraggerConfiguration config;
 
-    Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator, uint32_t _dealloc_delay = 0);
+    Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator);
 
 
-    Defragger(const Defragger& other) = delete;
+    Defragger(const Defragger& other)            = delete;
     Defragger& operator=(const Defragger& other) = delete;
 
-    virtual ~Defragger() { exit(); }
+    // Derived classes must call exit() in their destructor, the worker calls their virtual functions.
+    virtual ~Defragger();
 
+    // Stops the worker and frees all pending operations. Idempotent.
     void exit();
 
     void start();
     void stop();
 
-    std::pair<bool, int64_t> perform_defrag(int64_t allowed_time, vk::Semaphore semaphore);
+    /**
+     * Submits the recorded copies, which take at most allowed_time (ns). They wait for frameTimeline >= waitValue.
+     * Called by the main thread.
+     */
+    std::pair<bool, int64_t> perform_defrag(int64_t allowed_time, vk::Semaphore frameTimeline, uint64_t waitValue);
+
+    /**
+     * Defragments until nothing can be moved anymore. Blocks until all copies are complete and the old memory is
+     * freed. Must be called by the thread that submits the frames, outside of the frame recording (it waits for all
+     * submitted frames and frees memory they used).
+     */
+    void full_defrag();
 
     void setEnabled(bool enable) { enabled = enable; }
 
     void invalidate(T* memoryLocation);
 
-    void update(uint32_t _frame_number) { frame_number = _frame_number; }
-
-
    protected:
-    virtual void create_copy_command(PossibleOp& op, T*, vk::CommandBuffer cmd) = 0;
+    // Records the copy from op.source to the reserved space. Returns false if the copy could not be recorded.
+    virtual bool create_copy_command(PossibleOp& op, T*, vk::CommandBuffer cmd) = 0;
+
+    // Releases per copy resources of create_copy_command (called when the copy is complete or dropped).
+    virtual void release_copy_resources(vk::CommandBuffer cmd) {}
+
+    // Returns false if the location can not be moved by this defragger.
+    virtual bool is_movable(T* location) { return true; }
 
    private:
     template <typename Iter>
@@ -282,11 +336,6 @@ class Defragger
     {
         return (*iter).get();
     }
-
-    inline bool anyOperationsRemaining() const
-    {
-        return !possibleOps.empty() || !defragOps.empty() || !copyOps.empty() || !freeOps.empty();
-    }
 };
 
 
@@ -294,14 +343,15 @@ class Defragger
 class BufferDefragger final : public Defragger<BufferMemoryLocation>
 {
    public:
-    BufferDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<BufferMemoryLocation>* allocator,
-                    uint32_t dealloc_delay)
-        : Defragger(base, device, allocator, dealloc_delay)
+    BufferDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<BufferMemoryLocation>* allocator)
+        : Defragger(base, device, allocator)
     {
     }
 
+    ~BufferDefragger() override;
+
    protected:
-    void create_copy_command(PossibleOp& op, BufferMemoryLocation* reservedSpace, vk::CommandBuffer cmd) override;
+    bool create_copy_command(PossibleOp& op, BufferMemoryLocation* reservedSpace, vk::CommandBuffer cmd) override;
 };
 
 struct CommandHash
@@ -315,15 +365,22 @@ struct CommandHash
 class ImageDefragger final : public Defragger<ImageMemoryLocation>
 {
    private:
+    std::mutex sets_mutex;
     std::unordered_map<vk::CommandBuffer, vk::DescriptorSet, CommandHash> usedSets;
     ImageCopyComputeShader* img_copy_shader;
 
    public:
     ImageDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<ImageMemoryLocation>* allocator,
-                   uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader);
+                   ImageCopyComputeShader* _img_copy_shader);
+
+    ~ImageDefragger() override;
 
    protected:
-    void create_copy_command(PossibleOp& op, ImageMemoryLocation* reservedSpace, vk::CommandBuffer cmd) override;
+    bool create_copy_command(PossibleOp& op, ImageMemoryLocation* reservedSpace, vk::CommandBuffer cmd) override;
+
+    void release_copy_resources(vk::CommandBuffer cmd) override;
+
+    bool is_movable(ImageMemoryLocation* location) override;
 };
 
 }  // namespace Saiga::Vulkan::Memory

@@ -9,122 +9,148 @@
 
 #include "ImageCopyComputeShader.h"
 
+#include <array>
+#include <chrono>
+#include <cmath>
+#include <limits>
 #include <optional>
 namespace Saiga::Vulkan::Memory
 {
 template <typename T>
-bool Defragger<T>::perform_free_operations()
-{
-    uint64_t current_frame = base->current_frame;
-
-    for (auto current = freeOps.begin(); running && current != freeOps.end();)
-    {
-        auto delay = current->delay;
-        if (delay < current_frame)
-        {
-            if (current->target)
-            {
-                VLOG(3) << "Free op " << *current;
-                allocator->deallocate(current->target);
-                if (current->source)
-                {
-                    current->source->mark_dynamic();
-                }
-            }
-            else
-            {
-                LOG(ERROR) << "Error free " << *current;
-            }
-            auto found = currentDefragSources.find(current->source);
-            SAIGA_ASSERT(found != currentDefragSources.end());
-            currentDefragSources.erase(found);
-            current = freeOps.erase(current);
-        }
-        else
-        {
-            current++;
-        }
-    }
-    return !freeOps.empty();
-}
-
-template <typename T>
-Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator, uint32_t _dealloc_delay)
+Defragger<T>::Defragger(VulkanBase* _base, vk::Device _device, ChunkAllocator<T>* _allocator)
     : base(_base),
-      dealloc_delay(_dealloc_delay),
-      // dealloc_delay(240),
       device(_device),
       allocator(_allocator),
-      possibleOps(),
-      defragOps(),
-      copyOps(),
-      freeOps(),
-      currentDefragSources(),
       valid(true),
       enabled(false),
       running(false),
       quit(false),
-      frame_number(0),
-      worker(&Defragger::worker_func, this),
-      queryPool(nullptr)
+      kbPerNanoSecond(std::numeric_limits<double>::infinity())
 {
-    auto queryPoolInfo = vk::QueryPoolCreateInfo{vk::QueryPoolCreateFlags(), vk::QueryType::eTimestamp, 2};
-    queryPool          = base->device.createQueryPool(queryPoolInfo);
     config.update_sizes(allocator->m_chunkSize);
 
     commandPool = base->mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eTransient);
+
+    vk::SemaphoreTypeCreateInfo timelineInfo(vk::SemaphoreType::eTimeline, 0);
+    vk::SemaphoreCreateInfo semaphoreInfo;
+    semaphoreInfo.pNext = &timelineInfo;
+    copyTimeline        = device.createSemaphore(semaphoreInfo);
+
+    auto family    = base->mainQueue.getQueueFamilyIndex();
+    auto validBits = base->queueFamilyProperties.at(family).timestampValidBits;
+    if (validBits > 0)
+    {
+        timestampMask   = validBits >= 64 ? ~uint64_t(0) : ((uint64_t(1) << validBits) - 1);
+        timestampPeriod = base->physicalDevice.getProperties().limits.timestampPeriod;
+    }
+    // The worker thread is started by the first start(), after the derived object is fully constructed.
+}
+
+template <typename T>
+Defragger<T>::~Defragger()
+{
+    exit();
 }
 
 template <typename T>
 void Defragger<T>::exit()
 {
-    if (quit)
+    if (exited)
     {
         return;
     }
-    running = false;
-    std::unique_lock<std::mutex> lock(running_mutex);
+    exited = true;
 
     {
         std::lock_guard<std::mutex> lock(start_mutex);
         running = false;
         quit    = true;
     }
-    start_condition.notify_one();
-    worker.join();
-
-    if (queryPool)
+    start_condition.notify_all();
+    wait_condition.notify_all();
+    if (worker.joinable())
     {
-        base->device.destroyQueryPool(queryPool);
-        queryPool = nullptr;
-    }
-    for (CopyOp& copyOp : copyOps)
-    {
-        base->device.waitForFences(copyOp.fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-
-        base->device.destroy(copyOp.fence);
-        base->device.destroy(copyOp.signal_semaphore);
-        commandPool.freeCommandBuffer(copyOp.cmd);
+        worker.join();
     }
 
-    for (DefragOp& defragOp : defragOps)
+    // The submitted copies and the frames which used the old memory of the free ops must be complete.
+    device.waitIdle();
+
+    std::scoped_lock lock(defrag_mutex, copy_mutex);
+    for (DefragOp& op : defragOps)
     {
-        commandPool.freeCommandBuffer(defragOp.cmd);
+        release_op_resources(op.cmd, op.queryPool);
+        allocator->deallocate(op.target);
+        op.source->mark_dynamic();
     }
-    //    commandPool.destroy();
+    defragOps.clear();
+
+    for (CopyOp& op : copyOps)
+    {
+        release_op_resources(op.cmd, op.queryPool);
+        allocator->deallocate(op.target);
+        op.source->mark_dynamic();
+    }
+    copyOps.clear();
+
+    for (FreeOp& op : freeOps)
+    {
+        allocator->deallocate(op.target);
+        if (op.source)
+        {
+            op.source->mark_dynamic();
+        }
+    }
+    freeOps.clear();
+    possibleOps.clear();
+    currentDefragSources.clear();
+
+    if (copyTimeline)
+    {
+        device.destroy(copyTimeline);
+        copyTimeline = nullptr;
+    }
+    // The command pool is owned (and destroyed) by the queue that created it.
 }
 
+template <typename T>
+void Defragger<T>::release_op_resources(vk::CommandBuffer cmd, vk::QueryPool queryPool)
+{
+    release_copy_resources(cmd);
+    commandPool.freeCommandBuffer(cmd);
+    if (queryPool)
+    {
+        device.destroy(queryPool);
+    }
+}
+
+template <typename T>
+vk::QueryPool Defragger<T>::create_query_pool()
+{
+    if (timestampMask == 0)
+    {
+        return nullptr;
+    }
+    return device.createQueryPool(vk::QueryPoolCreateInfo{vk::QueryPoolCreateFlags(), vk::QueryType::eTimestamp, 2});
+}
 
 template <typename T>
 void Defragger<T>::start()
 {
-    if (!valid || !enabled || running)
+    if (!valid || !enabled || running || exited)
     {
         return;
     }
-    // defrag_operations.clear();
     {
         std::lock_guard<std::mutex> lock(start_mutex);
+        if (quit)
+        {
+            return;
+        }
+        if (!worker.joinable())
+        {
+            worker = std::thread(&Defragger::worker_func, this);
+        }
         running = true;
     }
     start_condition.notify_one();
@@ -133,12 +159,14 @@ void Defragger<T>::start()
 template <typename T>
 void Defragger<T>::stop()
 {
-    if (!valid || !running)
+    if (!valid)
     {
         return;
     }
     running = false;
+    wait_condition.notify_all();
     {
+        // Returns when the worker has left run().
         std::unique_lock<std::mutex> lock(running_mutex);
     }
 }
@@ -148,21 +176,26 @@ template <typename T>
 void Defragger<T>::worker_func()
 {
     Saiga::setThreadName("Defragger");
-    if (!valid)
-    {
-        return;
-    }
     while (true)
     {
-        std::unique_lock<std::mutex> lock(start_mutex);
-        start_condition.wait(lock, [this] { return running || quit; });
-        if (quit)
         {
-            return;
+            std::unique_lock<std::mutex> lock(start_mutex);
+            start_condition.wait(lock, [this] { return running || quit; });
+            if (quit)
+            {
+                return;
+            }
         }
         std::unique_lock<std::mutex> running_lock(running_mutex);
+        // stop() may have been called before this thread got the lock.
+        if (!running)
+        {
+            continue;
+        }
         if (allocator->chunks.empty())
         {
+            // Nothing to do. Otherwise the wait predicate stays true and this thread spins.
+            running = false;
             continue;
         }
 
@@ -175,19 +208,35 @@ void Defragger<T>::worker_func()
 template <typename T>
 void Defragger<T>::run()
 {
-    bool performed = true;
     while (running)
     {
-        performed = false;
-        performed |= find_defrag_ops();
-        performed |= create_copy_commands();
-        performed |= complete_copy_commands();
-        performed |= perform_free_operations();
-
-        if (!performed)
+        bool progress = false;
+        if (find_defrag_ops())
         {
-            running = false;
+            progress |= create_copy_commands();
         }
+        progress |= complete_copy_commands();
+        progress |= perform_free_operations(false);
+
+        if (progress)
+        {
+            continue;
+        }
+
+        bool pending;
+        {
+            std::scoped_lock lock(defrag_mutex, copy_mutex);
+            pending = !defragOps.empty() || !copyOps.empty() || !freeOps.empty();
+        }
+        if (!pending)
+        {
+            // Nothing can be moved anymore.
+            break;
+        }
+
+        // Only waiting for the main thread (submission, frames) or the GPU.
+        std::unique_lock<std::mutex> lock(wait_mutex);
+        wait_condition.wait_for(lock, std::chrono::milliseconds(1));
     }
 }
 
@@ -225,7 +274,7 @@ bool Defragger<T>::find_defrag_ops()
                 continue;
             }
 
-            if (currentDefragSources.find(get(curr)) != currentDefragSources.end())
+            if (currentDefragSources.find(get(curr)) != currentDefragSources.end() || !is_movable(get(curr)))
             {
                 continue;
             }
@@ -344,7 +393,8 @@ bool Defragger<T>::find_defrag_ops()
                         targets_found++;
                     }
 
-                    alloc_iter++;
+                    // There is one more free slot than allocations: don't increment past the end.
+                    if (alloc_iter != t_allocs.cend()) ++alloc_iter;
                 }
             }
 
@@ -380,8 +430,7 @@ bool Defragger<T>::find_defrag_ops()
                   [](const auto& entry, const auto& other) { return entry.weight < other.weight; });
     }
     return performed;
-
-}  // namespace Saiga::Vulkan::Memory
+}
 
 template <typename T>
 void Defragger<T>::fill_free_list()
@@ -433,7 +482,7 @@ void Defragger<T>::fill_free_list()
 template <typename T>
 bool Defragger<T>::create_copy_commands()
 {
-    //    bool performed = false;
+    bool created = false;
 
     std::scoped_lock defrag_lock(defrag_mutex);
 
@@ -442,45 +491,82 @@ bool Defragger<T>::create_copy_commands()
         PossibleOp& op = *opIter;
 
         auto existingOp = currentDefragSources.find(op.source);
-        if (op.source->is_static() || existingOp != currentDefragSources.end())
+        if (op.source->is_static() || existingOp != currentDefragSources.end() || !is_movable(op.source))
         {
             continue;
         }
 
         T* reserve_space =
             allocator->reserve_if_free(op.target.memory, static_cast<FreeListEntry>(op.target), op.source->size);
-        ;
-        if (reserve_space)
+
+        if (!reserve_space)
         {
-            //            VLOG(3) << "/*Cpy*/ op" << op;
-            op.source->mark_static();
-            auto cmd = commandPool.createAndBeginOneTimeBuffer();
-            cmd.resetQueryPool(queryPool, 0, 2);
-            cmd.writeTimestamp(vk::PipelineStageFlagBits::eTopOfPipe, queryPool, 0);
-            create_copy_command(op, reserve_space, cmd);
-            cmd.writeTimestamp(vk::PipelineStageFlagBits::eBottomOfPipe, queryPool, 1);
-            cmd.end();
-
-            auto [iterator, inserted] = currentDefragSources.insert(op.source);
-            SAIGA_ASSERT(inserted && iterator != currentDefragSources.end(), "Source already in use");
-
-            defragOps.push_back(DefragOp{reserve_space, op.source, cmd});
-            VLOG(3) << "Defrag " << defragOps.back();
+            continue;
         }
-        //        performed = true;
+
+        op.source->mark_static();
+        auto cmd       = commandPool.createAndBeginOneTimeBuffer();
+        auto queryPool = create_query_pool();
+        if (queryPool)
+        {
+            cmd.resetQueryPool(queryPool, 0, 2);
+            cmd.writeTimestamp2(vk::PipelineStageFlagBits2::eTopOfPipe, queryPool, 0);
+        }
+        bool recorded = create_copy_command(op, reserve_space, cmd);
+        if (queryPool)
+        {
+            cmd.writeTimestamp2(vk::PipelineStageFlagBits2::eBottomOfPipe, queryPool, 1);
+        }
+        cmd.end();
+
+        if (!recorded)
+        {
+            VLOG(3) << "Could not record the copy " << op;
+            release_op_resources(cmd, queryPool);
+            allocator->deallocate(reserve_space);
+            op.source->mark_dynamic();
+            continue;
+        }
+
+        auto [iterator, inserted] = currentDefragSources.insert(op.source);
+        SAIGA_ASSERT(inserted && iterator != currentDefragSources.end(), "Source already in use");
+
+        defragOps.push_back(DefragOp{reserve_space, op.source, cmd, queryPool});
+        VLOG(3) << "Defrag " << defragOps.back();
+        created = true;
     }
 
     possibleOps.clear();
 
-    return !defragOps.empty();
+    return created;
 }
 
 
 template <typename T>
-std::pair<bool, int64_t> Defragger<T>::perform_defrag(int64_t allowed_time, vk::Semaphore semaphore)
+std::pair<bool, int64_t> Defragger<T>::perform_defrag(int64_t allowed_time, vk::Semaphore frameTimeline,
+                                                      uint64_t waitValue)
 {
-    std::scoped_lock defrag_lock(defrag_mutex);
+    std::pair<bool, int64_t> result;
+    {
+        std::scoped_lock defrag_lock(defrag_mutex);
+        result = submit_defrag_ops(allowed_time, frameTimeline, waitValue);
+    }
+
+    if (result.first)
+    {
+        wait_condition.notify_all();
+    }
+    start();
+
+    return result;
+}
+
+template <typename T>
+std::pair<bool, int64_t> Defragger<T>::submit_defrag_ops(int64_t allowed_time, vk::Semaphore frameTimeline,
+                                                         uint64_t waitValue)
+{
     auto remaining_time = allowed_time;
+    const double speed  = kbPerNanoSecond;
 
     bool first = true, performed = false;
     auto op = defragOps.begin();
@@ -488,136 +574,223 @@ std::pair<bool, int64_t> Defragger<T>::perform_defrag(int64_t allowed_time, vk::
     {
         std::scoped_lock copy_lock(copy_mutex);
 
-        auto sizeInKB = op->source->size / 1024;
-        if (!first && (remaining_time - (sizeInKB / kbPerNanoSecond)) < 0)
+        // The first copy is always submitted, otherwise a copy that takes longer than the budget never happens.
+        const double sizeInKB = static_cast<double>(op->source->size) / 1024.0;
+        const auto duration   = std::isinf(speed) || speed <= 0 ? int64_t(0) : static_cast<int64_t>(sizeInKB / speed);
+        if (!first && remaining_time - duration < 0)
         {
             break;
         }
 
-        perform_single_defrag(*op, first ? semaphore : nullptr);
+        perform_single_defrag(*op, frameTimeline, waitValue);
 
-        remaining_time -= sizeInKB / kbPerNanoSecond;
+        remaining_time -= duration;
 
         op        = defragOps.erase(op);
         first     = false;
         performed = true;
     }
-
-    start();
-
     return std::make_pair(performed, remaining_time);
 }
 
 
 template <typename T>
-void Defragger<T>::perform_single_defrag(Defragger<T>::DefragOp& op, vk::Semaphore semaphore)
+void Defragger<T>::perform_single_defrag(Defragger<T>::DefragOp& op, vk::Semaphore frameTimeline, uint64_t waitValue)
 {
-    //    std::scoped_lock copy_lock(copy_mutex);
-    //    VLOG(3) << "Run op " << op;
-
-    vk::SubmitInfo submit;
-
-    submit.commandBufferCount = 1;
-    submit.pCommandBuffers    = &op.cmd;
-    vk::Semaphore wait;
-    std::array<vk::PipelineStageFlags, 2> waitStage{
-        vk::PipelineStageFlagBits::eAllCommands | vk::PipelineStageFlagBits::eAllGraphics,
-        vk::PipelineStageFlagBits::eAllCommands | vk::PipelineStageFlagBits::eAllGraphics};
-
-    std::vector<vk::Semaphore> waitSemaphores;
-
-    if (semaphore)
+    // The copy runs after the frame (frameTimeline >= waitValue) and after the previous copy (copyTimeline).
+    std::array<vk::SemaphoreSubmitInfo, 2> waitSemaphores;
+    uint32_t waitCount = 0;
+    if (frameTimeline && waitValue > 0)
     {
-        waitSemaphores.push_back(semaphore);
+        waitSemaphores[waitCount++] =
+            vk::SemaphoreSubmitInfo(frameTimeline, waitValue, vk::PipelineStageFlagBits2::eAllCommands);
     }
-    if (copyOps.empty())
+    if (copyCounter > 0)
     {
-        wait = nullptr;
-    }
-    else
-    {
-        waitSemaphores.push_back(copyOps.back().signal_semaphore);
-        wait = copyOps.back().signal_semaphore;
+        waitSemaphores[waitCount++] =
+            vk::SemaphoreSubmitInfo(copyTimeline, copyCounter, vk::PipelineStageFlagBits2::eAllCommands);
     }
 
-    auto fence        = device.createFence(vk::FenceCreateInfo{});
-    auto sigSemaphore = device.createSemaphore(vk::SemaphoreCreateInfo{});
+    const uint64_t signalValue = ++copyCounter;
 
+    vk::CommandBufferSubmitInfo cmdInfo(op.cmd);
+    vk::SemaphoreSubmitInfo signalInfo(copyTimeline, signalValue, vk::PipelineStageFlagBits2::eAllCommands);
 
-    submit.waitSemaphoreCount   = waitSemaphores.size();
-    submit.pWaitSemaphores      = waitSemaphores.data();
-    submit.pWaitDstStageMask    = waitStage.data();
-    submit.signalSemaphoreCount = 1;
-    submit.pSignalSemaphores    = &sigSemaphore;
+    vk::SubmitInfo2 submit;
+    submit.waitSemaphoreInfoCount   = waitCount;
+    submit.pWaitSemaphoreInfos      = waitSemaphores.data();
+    submit.commandBufferInfoCount   = 1;
+    submit.pCommandBufferInfos      = &cmdInfo;
+    submit.signalSemaphoreInfoCount = 1;
+    submit.pSignalSemaphoreInfos    = &signalInfo;
 
-    base->mainQueue.submit(submit, fence);
+    base->mainQueue.submit2(submit);
 
-
-    copyOps.push_back(CopyOp{op.target, op.source, op.cmd, fence, wait, sigSemaphore});
+    copyOps.push_back(CopyOp{op.target, op.source, op.cmd, op.queryPool, signalValue});
 
     VLOG(3) << "Copy " << copyOps.back();
 }
 
 template <typename T>
+void Defragger<T>::update_copy_speed(const CopyOp& copy)
+{
+    if (!copy.queryPool)
+    {
+        return;
+    }
+    std::array<uint64_t, 2> timestamps{};
+    auto result = device.getQueryPoolResults(copy.queryPool, 0, 2, sizeof(uint64_t) * timestamps.size(),
+                                             timestamps.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64);
+    if (result != vk::Result::eSuccess)
+    {
+        return;
+    }
+    // Ticks -> ns. The mask handles a wrap around of the valid bits.
+    const auto ticks      = (timestamps[1] - timestamps[0]) & timestampMask;
+    const double duration = static_cast<double>(ticks) * timestampPeriod;
+    if (duration <= 0)
+    {
+        return;
+    }
+
+    const double last = (static_cast<double>(copy.source->size) / 1024.0) / duration;
+    VLOG(3) << "DURATION: " << duration << " ns " << last << " KB/ns";
+    const double current = kbPerNanoSecond;
+    if (std::isinf(current))
+    {
+        kbPerNanoSecond = last;
+    }
+    else
+    {
+        kbPerNanoSecond = 0.9 * last + 0.1 * current;
+    }
+}
+
+template <typename T>
 bool Defragger<T>::complete_copy_commands()
 {
-    while (!copyOps.empty())
+    bool completed = false;
+    while (true)
     {
+        // copyOps is filled by the main thread, so it must only be accessed under the lock.
+        std::scoped_lock copy_lock(copy_mutex);
+        if (copyOps.empty())
         {
-            using namespace std::chrono_literals;
-            //            std::this_thread::sleep_for(10us);
+            break;
         }
+
+        CopyOp& copy = copyOps.front();
+
+        if (device.getSemaphoreCounterValue(copyTimeline) < copy.signal_value)
         {
-            std::scoped_lock copy_lock(copy_mutex);
+            break;
+        }
 
-            CopyOp& copy = copyOps.front();
+        update_copy_speed(copy);
 
-            auto result = device.waitForFences(copy.fence, VK_TRUE, 1000);
-            if (result != vk::Result::eSuccess)
+        allocator->swap(copy.target, copy.source);
+
+        // The frame that is recorded now may still use the old memory (now in copy.target).
+        freeOps.push_back(FreeOp{copy.target, copy.source, base->currentFrameSignalValue()});
+
+        VLOG(3) << "Free " << freeOps.back();
+        copy.source->modified();
+
+        release_op_resources(copy.cmd, copy.queryPool);
+
+        copyOps.pop_front();
+        completed = true;
+    }
+    return completed;
+}
+
+template <typename T>
+bool Defragger<T>::perform_free_operations(bool force)
+{
+    if (freeOps.empty())
+    {
+        return false;
+    }
+    const uint64_t completed_value = force ? std::numeric_limits<uint64_t>::max() : base->completedFrameValue();
+
+    bool performed = false;
+    for (auto current = freeOps.begin(); (running || force) && current != freeOps.end();)
+    {
+        if (current->wait_value <= completed_value)
+        {
+            VLOG(3) << "Free op " << *current;
+            allocator->deallocate(current->target);
+            if (current->source)
             {
-                break;
+                current->source->mark_dynamic();
             }
-
-            std::array<uint64_t, 2> timestamps;
-            base->device.getQueryPoolResults(queryPool, 0, 2, sizeof(uint64_t) * timestamps.size(), timestamps.data(),
-                                             8, vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
-            auto duration = timestamps[1] - timestamps[0];
-
-            auto last = static_cast<double>(copy.source->size / 1024) / duration;
-            VLOG(3) << "DURATION: " << duration << " " << last;
-            if (std::isinf(kbPerNanoSecond))
-            {
-                kbPerNanoSecond = last;
-            }
-            else
-            {
-                kbPerNanoSecond = 0.9 * last + 0.1 * kbPerNanoSecond;
-            }
-
-            allocator->swap(copy.target, copy.source);
-
-            freeOps.push_back(FreeOp{copy.target, copy.source, frame_number + dealloc_delay});
-
-            VLOG(3) << "Free " << freeOps.back();
-            copy.source->modified();
-
-
-            device.destroy(copy.fence);
-
-            if (copy.wait_semaphore)
-            {
-                device.destroy(copy.wait_semaphore);
-            }
-            if (copy.signal_semaphore && copyOps.size() == 1)
-            {
-                device.destroy(copy.signal_semaphore);
-            }
-            commandPool.freeCommandBuffer(copy.cmd);
-
-            copyOps.pop_front();
+            auto found = currentDefragSources.find(current->source);
+            SAIGA_ASSERT(found != currentDefragSources.end());
+            currentDefragSources.erase(found);
+            current   = freeOps.erase(current);
+            performed = true;
+        }
+        else
+        {
+            current++;
         }
     }
-    return !copyOps.empty();
+    return performed;
+}
+
+template <typename T>
+void Defragger<T>::full_defrag()
+{
+    if (!valid || exited)
+    {
+        return;
+    }
+
+    // The worker must not run concurrently. It blocks on this lock if it is started meanwhile.
+    std::unique_lock<std::mutex> running_lock(running_mutex);
+    running = true;
+
+    while (running)
+    {
+        bool created = false;
+        if (find_defrag_ops())
+        {
+            created = create_copy_commands();
+        }
+
+        // Submit all copies (also the ones recorded by the worker before). They wait for the submitted frames.
+        const uint64_t submittedFrames = base->current_frame;
+        {
+            std::scoped_lock defrag_lock(defrag_mutex);
+            submit_defrag_ops(std::numeric_limits<int64_t>::max(), base->frameTimeline, submittedFrames);
+        }
+
+        uint64_t lastCopy;
+        {
+            std::scoped_lock copy_lock(copy_mutex);
+            lastCopy = copyCounter;
+        }
+        if (lastCopy > 0)
+        {
+            vk::SemaphoreWaitInfo waitInfo;
+            waitInfo.semaphoreCount = 1;
+            waitInfo.pSemaphores    = &copyTimeline;
+            waitInfo.pValues        = &lastCopy;
+            auto result             = device.waitSemaphores(waitInfo, std::numeric_limits<uint64_t>::max());
+            SAIGA_ASSERT(result == vk::Result::eSuccess);
+        }
+        complete_copy_commands();
+
+        // The old memory may be used by the frames in flight. No frame is recorded while this function blocks.
+        base->waitFrameValue(submittedFrames);
+        perform_free_operations(true);
+
+        if (!created)
+        {
+            break;
+        }
+    }
+    running = false;
 }
 
 template <typename T>
@@ -628,56 +801,51 @@ void Defragger<T>::invalidate(T* memoryLocation)
     auto defrag               = currentDefragSources.find(memoryLocation);
     auto isCurrentlyDefragged = defrag != currentDefragSources.end();
 
-    if (isCurrentlyDefragged)
+    if (!isCurrentlyDefragged)
     {
-        VLOG(3) << "in use " << PointerOutput<T>(memoryLocation);
-        std::scoped_lock lock(defrag_mutex, copy_mutex);
-
-        auto defragOp = std::find_if(defragOps.begin(), defragOps.end(),
-                                     [&](const auto& entry) { return entry.source == memoryLocation; });
-
-        if (defragOp != defragOps.end())
-        {
-            commandPool.freeCommandBuffer(defragOp->cmd);
-            allocator->deallocate(defragOp->target);
-            defragOps.erase(defragOp);
-        }
-
-        auto copyOp = std::find_if(copyOps.begin(), copyOps.end(),
-                                   [&](const auto& entry) { return entry.source == memoryLocation; });
-
-        if (copyOp != copyOps.end())
-        {
-            base->device.waitForFences(copyOp->fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-
-            base->device.destroy(copyOp->fence);
-            if (copyOp->wait_semaphore)
-            {
-                base->device.destroy(copyOp->wait_semaphore);
-            }
-            if (copyOp != copyOps.begin())
-            {
-                std::prev(copyOp)->signal_semaphore = nullptr;
-            }
-
-            commandPool.freeCommandBuffer(copyOp->cmd);
-            allocator->deallocate(copyOp->target);
-            copyOps.erase(copyOp);
-        }
-
-        auto freeOp = std::find_if(freeOps.begin(), freeOps.end(),
-                                   [&](const auto& entry) { return entry.source == memoryLocation; });
-        if (freeOp != freeOps.end())
-        {
-            freeOp->source = nullptr;
-
-            allocator->deallocate(freeOp->target);
-
-            freeOps.erase(freeOp);
-        }
-
-        currentDefragSources.erase(defrag);
+        return;
     }
+
+    VLOG(3) << "in use " << PointerOutput<T>(memoryLocation);
+    std::scoped_lock lock(defrag_mutex, copy_mutex);
+
+    auto defragOp = std::find_if(defragOps.begin(), defragOps.end(),
+                                 [&](const auto& entry) { return entry.source == memoryLocation; });
+
+    if (defragOp != defragOps.end())
+    {
+        release_op_resources(defragOp->cmd, defragOp->queryPool);
+        allocator->deallocate(defragOp->target);
+        defragOps.erase(defragOp);
+    }
+
+    auto copyOp =
+        std::find_if(copyOps.begin(), copyOps.end(), [&](const auto& entry) { return entry.source == memoryLocation; });
+
+    if (copyOp != copyOps.end())
+    {
+        // Later copies wait for smaller timeline values, so they are not affected by dropping this one.
+        vk::SemaphoreWaitInfo waitInfo;
+        waitInfo.semaphoreCount = 1;
+        waitInfo.pSemaphores    = &copyTimeline;
+        waitInfo.pValues        = &copyOp->signal_value;
+        auto result             = device.waitSemaphores(waitInfo, std::numeric_limits<uint64_t>::max());
+        SAIGA_ASSERT(result == vk::Result::eSuccess);
+
+        release_op_resources(copyOp->cmd, copyOp->queryPool);
+        allocator->deallocate(copyOp->target);
+        copyOps.erase(copyOp);
+    }
+
+    auto freeOp =
+        std::find_if(freeOps.begin(), freeOps.end(), [&](const auto& entry) { return entry.source == memoryLocation; });
+    if (freeOp != freeOps.end())
+    {
+        allocator->deallocate(freeOp->target);
+        freeOps.erase(freeOp);
+    }
+
+    currentDefragSources.erase(defrag);
 }
 
 
@@ -686,20 +854,49 @@ template class Defragger<BufferMemoryLocation>;
 template class Defragger<ImageMemoryLocation>;
 
 
-void BufferDefragger::create_copy_command(BufferDefragger::PossibleOp& op, BufferMemoryLocation* reserve_space,
+BufferDefragger::~BufferDefragger()
+{
+    exit();
+}
+
+bool BufferDefragger::create_copy_command(BufferDefragger::PossibleOp& op, BufferMemoryLocation* reserve_space,
                                           vk::CommandBuffer cmd)
 
 {
-    //    BufferMemoryLocation* reserve_space = allocator->reserve_space(op.targetMemory, op.target,
-    //    op.source->size);
     VLOG(3) << "Create Buffer Copy" << PointerOutput<BufferMemoryLocation>(reserve_space) << " " << op << " " << cmd;
     copy_buffer(cmd, reserve_space, op.source);
+    return true;
 }
 
-void ImageDefragger::create_copy_command(ImageDefragger::PossibleOp& op, ImageMemoryLocation* reserve_space,
+ImageDefragger::ImageDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<ImageMemoryLocation>* allocator,
+                               ImageCopyComputeShader* _img_copy_shader)
+    : Defragger(base, device, allocator), usedSets(), img_copy_shader(_img_copy_shader)
+{
+    if (!img_copy_shader->is_initialized())
+    {
+        LOG(ERROR) << "Image copy shader could not be loaded. Image defragmentation is not possible.";
+        valid = false;
+    }
+}
+
+ImageDefragger::~ImageDefragger()
+{
+    exit();
+}
+
+bool ImageDefragger::is_movable(ImageMemoryLocation* location)
+{
+    return ImageCopyComputeShader::can_copy(location->data);
+}
+
+bool ImageDefragger::create_copy_command(ImageDefragger::PossibleOp& op, ImageMemoryLocation* reserve_space,
                                          vk::CommandBuffer cmd)
 {
     auto new_data = op.source->data;
+    // The copies of the handles must not be destroyed by new_data.
+    new_data.image   = nullptr;
+    new_data.view    = nullptr;
+    new_data.sampler = nullptr;
     new_data.create_image(device);
 
     bind_image_data(device, reserve_space, std::move(new_data));
@@ -707,18 +904,25 @@ void ImageDefragger::create_copy_command(ImageDefragger::PossibleOp& op, ImageMe
     reserve_space->data.create_sampler(device);
 
     auto set = img_copy_shader->copy_image(cmd, reserve_space, op.source);
+    if (!set)
+    {
+        // The image, view and sampler are destroyed by the deallocation of reserve_space.
+        return false;
+    }
+    std::scoped_lock lock(sets_mutex);
     usedSets.insert(std::make_pair(cmd, set.value()));
+    return true;
 }
 
-
-ImageDefragger::ImageDefragger(VulkanBase* base, vk::Device device, ChunkAllocator<ImageMemoryLocation>* allocator,
-                               uint32_t dealloc_delay, ImageCopyComputeShader* _img_copy_shader)
-    : Defragger(base, device, allocator, dealloc_delay), usedSets(), img_copy_shader(_img_copy_shader)
+void ImageDefragger::release_copy_resources(vk::CommandBuffer cmd)
 {
-    if (!img_copy_shader->is_initialized())
+    std::scoped_lock lock(sets_mutex);
+    auto found = usedSets.find(cmd);
+    if (found != usedSets.end())
     {
-        LOG(ERROR) << "Image copy shader could not be loaded. Image defragmentation is not possible.";
-        valid = false;
+        // The copy is complete or was never submitted.
+        base->descriptorPool.freeDescriptorSet(found->second);
+        usedSets.erase(found);
     }
 }
 

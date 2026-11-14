@@ -68,16 +68,19 @@ class SAIGA_VULKAN_API FrameTimings
 
     struct SAIGA_VULKAN_API Timing
     {
-        vk::Fence fence;
+        // The frame is complete when the frame timeline reaches this value.
+        uint64_t timelineValue = 0;
 
         SectionTimes sections;
 
         Timing() = default;
-        explicit Timing(size_t numSections) : fence(nullptr), sections(numSections) {}
+        explicit Timing(size_t numSections) : sections(numSections) {}
     };
 
-
-    vk::CommandBuffer dummy = nullptr;
+    // Nanoseconds per timestamp tick
+    double timestampPeriod = 1;
+    // Mask of the valid timestamp bits
+    uint64_t timestampMask = ~uint64_t(0);
 
     std::optional<SuitablePause> bestSection;
     std::optional<SectionTimes> lastFrameSections;
@@ -86,15 +89,16 @@ class SAIGA_VULKAN_API FrameTimings
 
 
     vk::Device device;
-    Saiga::Vulkan::Queue* queue;
+    vk::Semaphore frameTimeline;
+    Saiga::Vulkan::Queue* queue = nullptr;
     std::vector<Timing> timings;
-    uint32_t numberOfFrames, next, current, running, frameWindow;
+    uint32_t numberOfFrames = 0, next = 0, current = 0, running = 0, frameWindow = 0;
 
     vk::QueryPool queryPool;
     std::set<Entry, KeyComparator> frameSections;
     std::map<std::string, uint32_t> nameToSectionMap;
     Finder finder;
-    Memory::VulkanMemory* memory;
+    Memory::VulkanMemory* memory = nullptr;
     void destroyPool();
 
     inline uint32_t getCount() const { return static_cast<uint32_t>(frameSections.size() * 2); }
@@ -104,69 +108,18 @@ class SAIGA_VULKAN_API FrameTimings
 
    public:
     FrameTimings() = default;
+    ~FrameTimings() { destroyPool(); }
 
-    ~FrameTimings()
-    {
-        if (device && dummy)
-        {
-            queue->commandPool.freeCommandBuffer(dummy);
-        }
-        destroyPool();
-    }
-
-    FrameTimings(vk::Device _device, Saiga::Vulkan::Queue* _queue, Memory::VulkanMemory* _memory)
-        : device(_device),
-          queue(_queue),
-          timings(0),
-          numberOfFrames(0),
-          next(0),
-          current(0),
-          running(0),
-          frameWindow(0),
-          queryPool(nullptr),
-          frameSections(),
-          finder(),
-          memory(_memory)
-    {
-        dummy = queue->commandPool.allocateCommandBuffer();
-
-        vk::CommandBufferBeginInfo cbbi;
-        cbbi.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
-        dummy.begin(cbbi);
-        dummy.end();
-    }
-
-    FrameTimings& operator=(FrameTimings&& other) noexcept
-    {
-        if (this != &other)
-        {
-            device          = other.device;
-            timings         = std::move(other.timings);
-            numberOfFrames  = other.numberOfFrames;
-            next            = other.next;
-            current         = other.current;
-            running         = other.running;
-            frameWindow     = other.frameWindow;
-            queryPool       = other.queryPool;
-            frameSections   = std::move(other.frameSections);
-            memory          = other.memory;
-            dummy           = other.dummy;
-            queue           = other.queue;
-            other.device    = nullptr;
-            other.queryPool = nullptr;
-            other.memory    = nullptr;
-            other.dummy     = nullptr;
-            other.queue     = nullptr;
-        }
-        return *this;
-    }
-
-    FrameTimings(FrameTimings&&)      = delete;
-    FrameTimings(const FrameTimings&) = delete;
+    FrameTimings(const FrameTimings&)            = delete;
     FrameTimings& operator=(const FrameTimings&) = delete;
 
-    void beginFrame(const FrameSync& sync);
-    void update();
+    void init(vk::Device device, vk::PhysicalDevice physicalDevice, Saiga::Vulkan::Queue* queue,
+              Memory::VulkanMemory* memory);
+
+    // timelineValue: the frame timeline value the frame signals when it is complete.
+    void beginFrame(uint64_t timelineValue);
+    // Reads the timestamps of the completed frames.
+    void update(vk::Semaphore frameTimeline);
 
     void registerFrameSection(const std::string& name, uint32_t index);
     void unregisterFrameSection(uint32_t index);
@@ -178,6 +131,7 @@ class SAIGA_VULKAN_API FrameTimings
 
     void resetFrame(vk::CommandBuffer cmd);
 
-    void finishFrame(vk::Semaphore semaphore);
+    // Starts defragmentation copies (after the frame with the given timeline value) if a suitable pause was found.
+    void finishFrame(vk::Semaphore frameTimeline, uint64_t timelineValue);
 };
 }  // namespace Saiga::Vulkan

@@ -12,20 +12,6 @@
 
 #ifdef SAIGA_USE_GLFW
 #    include "GLFWWindow.h"
-#else
-namespace Saiga
-{
-using GLFWWindow = void;
-}
-#endif
-
-#ifdef SAIGA_USE_SDL
-#    include "SDLWindow.h"
-#else
-namespace Saiga
-{
-using SDLWindow = void;
-}
 #endif
 
 
@@ -36,7 +22,6 @@ namespace Vulkan
 {
 enum class WindowManagement
 {
-    SDL,
     GLFW
 };
 
@@ -45,17 +30,13 @@ struct GetWindowType
 {
 };
 
-template <>
-struct GetWindowType<WindowManagement::SDL>
-{
-    using Type = SDLWindow;
-};
-
+#ifdef SAIGA_USE_GLFW
 template <>
 struct GetWindowType<WindowManagement::GLFW>
 {
     using Type = GLFWWindow;
 };
+#endif
 
 
 template <WindowManagement WM, typename Renderer>

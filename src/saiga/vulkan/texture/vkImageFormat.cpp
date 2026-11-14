@@ -6,6 +6,8 @@
 
 #include "vkImageFormat.h"
 
+#include "saiga/core/util/assert.h"
+
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
@@ -29,8 +31,12 @@ static const vk::Format ImageTypeInternalVK[] = {
     vk::Format::eR64Sfloat, vk::Format::eR64G64Sfloat, vk::Format::eR64G64B64Sfloat, vk::Format::eR64G64B64A64Sfloat};
 
 
+static_assert(sizeof(ImageTypeInternalVK) / sizeof(ImageTypeInternalVK[0]) == TYPE_UNKNOWN,
+              "The table must have one format per image type");
+
 vk::Format getvkFormat(ImageType type)
 {
+    SAIGA_ASSERT(type >= 0 && type < TYPE_UNKNOWN, "getvkFormat: unknown image type");
     return ImageTypeInternalVK[type];
 }
 

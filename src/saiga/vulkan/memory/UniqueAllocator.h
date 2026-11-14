@@ -15,6 +15,8 @@
 #include "SafeAllocator.h"
 
 #include <limits>
+#include <memory>
+#include <mutex>
 #include <vulkan/vulkan.hpp>
 
 #include <saiga/core/util/easylogging++.h>
@@ -65,7 +67,7 @@ class SAIGA_VULKAN_API UniqueAllocator
 
     ~UniqueAllocator() { destroy(); }
 
-    UniqueAllocator(const UniqueAllocator&) = delete;
+    UniqueAllocator(const UniqueAllocator&)            = delete;
     UniqueAllocator& operator=(const UniqueAllocator&) = delete;
 
     BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);

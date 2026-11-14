@@ -1,31 +1,41 @@
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
 #pragma once
 
 #include "saiga/vulkan/svulkan.h"
 
 #include <string>
+
 namespace Saiga
 {
 namespace Vulkan
 {
+/**
+ * Validation layer output through VK_EXT_debug_utils.
+ * Warnings are printed, errors are printed and fail an assertion (with SAIGA_ASSERTS on).
+ */
 class SAIGA_VULKAN_API Debug
 {
    public:
-    void init(VkInstance instance,
-              VkDebugReportFlagsEXT flags       = VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_ERROR_BIT_EXT,
-              VkDebugReportCallbackEXT callBack = VK_NULL_HANDLE);
+    ~Debug() { destroy(); }
+
+    // The create info for the messenger. Also chained into the instance create info, so that messages from
+    // vkCreateInstance/vkDestroyInstance are reported as well.
+    static vk::DebugUtilsMessengerCreateInfoEXT createInfo();
+
+    void init(vk::Instance instance);
     void destroy();
+
     static std::string getDebugValidationLayers();
 
    private:
     vk::Instance instance;
-
-    PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallback   = VK_NULL_HANDLE;
-    PFN_vkDestroyDebugReportCallbackEXT DestroyDebugReportCallback = VK_NULL_HANDLE;
-    PFN_vkDebugReportMessageEXT dbgBreakCallback                   = VK_NULL_HANDLE;
-    VkDebugReportCallbackEXT msgCallback                           = VK_NULL_HANDLE;
+    VkDebugUtilsMessengerEXT messenger = VK_NULL_HANDLE;
 };
-
-
 
 }  // namespace Vulkan
 }  // namespace Saiga

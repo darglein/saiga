@@ -33,10 +33,14 @@ class SAIGA_VULKAN_API ImageChunkAllocator final : public ChunkAllocator<ImageMe
     ImageChunkAllocator(ImageChunkAllocator&& other)      = default;
 
     ImageChunkAllocator& operator=(const ImageChunkAllocator& other) = delete;
-    ImageChunkAllocator& operator=(ImageChunkAllocator&& other) = default;
+    ImageChunkAllocator& operator=(ImageChunkAllocator&& other)      = default;
 
     ~ImageChunkAllocator() override = default;
 
+    /**
+     * Allocates memory for the (created) image and binds it. Returns nullptr if the image can not be allocated by
+     * this allocator (memory type, alignment or size), the image is not changed then.
+     */
     ImageMemoryLocation* allocate(ImageData& image);
 
     void deallocate(ImageMemoryLocation* location) override;

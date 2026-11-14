@@ -3,23 +3,31 @@
  * Licensed under the MIT License.
  * See LICENSE file for more information.
  */
-/*
- * UI overlay class using ImGui
- *
- * Copyright (C) 2017 by Sascha Willems - www.saschawillems.de
- *
- * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
- */
 
 #pragma once
 
-#include "saiga/core/math/math.h"
+#include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 
-typedef struct SDL_Window SDL_Window;
+struct GLFWwindow;
 
 namespace Saiga
 {
 namespace Vulkan
 {
-}
+/**
+ * ImGui for a GLFW window: input and window handling by the ImGui GLFW backend (saiga/core/glfw/imgui_impl_glfw.h),
+ * rendering by the ImGuiVulkanRenderer.
+ *
+ * The Vulkan renderer draws only into the main window, so ImGui's multi-viewport support is disabled.
+ */
+class SAIGA_VULKAN_API ImGuiGLFWRenderer : public ImGuiVulkanRenderer
+{
+   public:
+    ImGuiGLFWRenderer(size_t frameCount, const ImGuiParameters& params, GLFWwindow* window);
+    ~ImGuiGLFWRenderer() override;
+
+    void beginFrame() override;
+};
+
+}  // namespace Vulkan
 }  // namespace Saiga

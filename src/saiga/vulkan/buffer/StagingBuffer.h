@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -22,7 +22,7 @@ class SAIGA_VULKAN_API StagingBuffer : public Buffer
     StagingBuffer(const StagingBuffer& other)     = delete;
     StagingBuffer(StagingBuffer&& other) noexcept = default;
 
-    StagingBuffer& operator=(const StagingBuffer& other) = delete;
+    StagingBuffer& operator=(const StagingBuffer& other)     = delete;
     StagingBuffer& operator=(StagingBuffer&& other) noexcept = default;
 
     ~StagingBuffer() override = default;

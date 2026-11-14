@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   ubuntu:
-    name: Ubuntu (CPU only, OpenGL on llvmpipe)
+    name: Ubuntu (CPU only, OpenGL on llvmpipe, Vulkan compile-only)
     runs-on: ubuntu-24.04
     timeout-minutes: 120
 
@@ -30,7 +30,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build ccache \
             xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules \
-            libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri
+            libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri \
+            libvulkan-dev glslang-dev glslang-tools spirv-tools
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
@@ -38,8 +39,8 @@ jobs:
           key: ubuntu-24.04
           max-size: 2G
 
-      # CUDA and Vulkan need a GPU which the hosted runners don't have. The OpenGL tests run headless on an
-      # EGL context from Mesa's software renderer (llvmpipe).
+      # CUDA needs a GPU which the hosted runners don't have. The Vulkan module is only compiled (it has no tests).
+      # The OpenGL tests run headless on an EGL context from Mesa's software renderer (llvmpipe).
       # SAIGA_WRITE_PROJECT_DIR_TO_HEADER lets the tests find shader/ and data/ from the build dir.
       - name: Configure
         run: |
@@ -49,10 +50,14 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSAIGA_MODULE_CUDA=OFF \
             -DSAIGA_MODULE_OPENGL=ON \
-            -DSAIGA_MODULE_VULKAN=OFF \
+            -DSAIGA_MODULE_VULKAN=ON \
             -DSAIGA_BUILD_SAMPLES=OFF \
             -DSAIGA_ARCHNATIVE=OFF \
             -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON
+
+      # A missing dependency silently disables a module, so check that Vulkan is really built.
+      - name: Check enabled modules
+        run: grep -q "define SAIGA_USE_VULKAN" build/include/saiga/saiga_modules.h
 
       - name: Build
         run: cmake --build build --parallel -- -k 0

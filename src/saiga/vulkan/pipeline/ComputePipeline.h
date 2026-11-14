@@ -26,12 +26,19 @@ class SAIGA_VULKAN_API ComputePipeline : public PipelineBase
 
     void reload();
 
+    // Destroys the pipeline (deferred, see PipelineBase::destroy) and the shader modules.
+    void destroy()
+    {
+        shaderPipeline.destroy();
+        PipelineBase::destroy();
+    }
+
     bool autoReload = true;
 
    protected:
     virtual bool checkShader() override;
 
-    int reloadCounter = 0;
+    vk::Pipeline createPipeline();
 };
 
 

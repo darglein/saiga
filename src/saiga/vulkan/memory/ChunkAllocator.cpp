@@ -56,7 +56,7 @@ T* ChunkAllocator<T>::allocate_in_free_space(vk::DeviceSize size, ChunkIterator<
         lower_bound(chunkAlloc->allocations.begin(), chunkAlloc->allocations.end(), memoryEnd,
                     [](const auto& element, vk::DeviceSize value) { return element->offset < value; });
 
-    val = chunkAlloc->allocations.insert(insertionPoint, move(targetLocation))->get();
+    val = chunkAlloc->allocations.insert(insertionPoint, std::move(targetLocation))->get();
     chunkAlloc->allocated += size;
     return val;
 }
@@ -178,6 +178,8 @@ void ChunkAllocator<T>::swap(T* target, T* source)
 
     std::swap(source->offset, target->offset);
     std::swap(source->memory, target->memory);
+    // The mapped pointer belongs to the memory/offset; otherwise upload/download would use the old (freed) region.
+    std::swap(source->mappedPointer, target->mappedPointer);
 
 
     std::swap(source->data, target->data);
@@ -192,15 +194,15 @@ template <typename FreeEntry>
 void ChunkAllocator<T>::add_to_free_list(const ChunkIterator<T>& chunk, const FreeEntry& location) const
 {
     auto& freeList = chunk->freeList;
-    auto found = lower_bound(freeList.begin(), freeList.end(), location, [](const auto& free_entry, const auto& value) {
-        return free_entry.offset < value.offset;
-    });
+    auto found = lower_bound(freeList.begin(), freeList.end(), location, [](const auto& free_entry, const auto& value)
+                             { return free_entry.offset < value.offset; });
 
     FreeIterator<T> free;
 
-    auto previous = prev(found);
-    if (found != freeList.begin() && previous->end() == location.offset)
+    // Check begin() before prev(): decrementing begin() is undefined.
+    if (found != freeList.begin() && std::prev(found)->end() == location.offset)
     {
+        auto previous = std::prev(found);
         previous->size += location.size;
         free = previous;
     }
@@ -318,20 +320,16 @@ template <typename T>
 MemoryStats ChunkAllocator<T>::collectMemoryStats()
 {
     std::scoped_lock lock(allocationMutex);
-    int numAllocs                = 0;
     uint64_t usedSpace           = 0;
     uint64_t fragmentedFreeSpace = 0;
     uint64_t totalFreeSpace      = 0;
     for (auto& chunk : chunks)
     {
-        int j = 0;
-        ConstAllocationIterator<T> allocIter;
         ConstFreeIterator<T> freeIter;
-        for (allocIter = chunk.allocations.cbegin(), j = 0; allocIter != chunk.allocations.cend(); ++allocIter, ++j)
+        for (const auto& allocation : chunk.allocations)
         {
-            usedSpace += (*allocIter)->size;
+            usedSpace += allocation->size;
         }
-        numAllocs += j;
 
         if (!chunk.freeList.empty())
         {

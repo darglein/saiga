@@ -99,6 +99,13 @@ struct SAIGA_VULKAN_API ImageData
 
     explicit operator bool() const { return image && view; }
 
+    // Compares the handles (the create infos are not compared).
+    bool operator==(const ImageData& other) const
+    {
+        return layout == other.layout && image == other.image && view == other.view && sampler == other.sampler;
+    }
+    bool operator!=(const ImageData& other) const { return !(*this == other); }
+
     void copy_create_info_from(ImageData const& other) { set_info(other.image_create_info, other.view_create_info); }
 
     void set_info(vk::ImageCreateInfo const& _image_create_info, vk::ImageViewCreateInfo const& _view_create_info)
@@ -164,57 +171,104 @@ struct SAIGA_VULKAN_API ImageData
         return descriptorInfo;
     }
 
+    static vk::ImageAspectFlags aspectFlags(vk::Format format)
+    {
+        switch (format)
+        {
+            case vk::Format::eD16Unorm:
+            case vk::Format::eX8D24UnormPack32:
+            case vk::Format::eD32Sfloat:
+                return vk::ImageAspectFlagBits::eDepth;
+            case vk::Format::eS8Uint:
+                return vk::ImageAspectFlagBits::eStencil;
+            case vk::Format::eD16UnormS8Uint:
+            case vk::Format::eD24UnormS8Uint:
+            case vk::Format::eD32SfloatS8Uint:
+                return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+            default:
+                return vk::ImageAspectFlagBits::eColor;
+        }
+    }
+
+    /**
+     * Records a layout transition of all mip levels and layers from the current layout to newLayout (synchronization2).
+     * The stage/access masks are chosen for the layout pair: uploads (undefined/shader read -> transfer dst ->
+     * shader read) with a conservative full barrier for all other layouts (e.g. general for storage images).
+     */
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout)
     {
-        auto& imageLayout                       = layout;
-        vk::ImageMemoryBarrier barrier          = {};
-        barrier.oldLayout                       = imageLayout;
-        barrier.newLayout                       = newLayout;
-        barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image                           = image;
-        barrier.subresourceRange.aspectMask     = vk::ImageAspectFlagBits::eColor;
-        barrier.subresourceRange.baseMipLevel   = 0;
-        barrier.subresourceRange.levelCount     = 1;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount     = 1;
-        //        barrier.srcAccessMask = 0; // TODO
-        //        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite; // TODO
+        using Stage  = vk::PipelineStageFlagBits2;
+        using Access = vk::AccessFlagBits2;
 
+        const auto oldLayout = layout;
 
-        vk::PipelineStageFlags sourceStage;
-        vk::PipelineStageFlags destinationStage;
+        vk::ImageMemoryBarrier2 barrier;
+        barrier.oldLayout           = oldLayout;
+        barrier.newLayout           = newLayout;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image               = image;
+        // The layout is tracked per image, so transition all mip levels and layers.
+        barrier.subresourceRange = vk::ImageSubresourceRange(aspectFlags(image_create_info.format), 0,
+                                                             VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS);
 
-        if (imageLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
+        // Accesses before the transition (source scope).
+        switch (oldLayout)
         {
-            barrier.srcAccessMask = {};
-            barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-
-            sourceStage      = vk::PipelineStageFlagBits::eHost;
-            destinationStage = vk::PipelineStageFlagBits::eTransfer;
-        }
-        else if (imageLayout == vk::ImageLayout::eTransferDstOptimal &&
-                 newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
-        {
-            barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-            barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-            sourceStage      = vk::PipelineStageFlagBits::eTransfer;
-            destinationStage = vk::PipelineStageFlagBits::eAllCommands;
-        }
-        else
-        {
-            //            throw std::invalid_argument("unsupported layout transition!");
-            barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
-            barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-            sourceStage      = vk::PipelineStageFlagBits::eAllCommands;
-            destinationStage = vk::PipelineStageFlagBits::eAllCommands;
+            case vk::ImageLayout::eUndefined:
+            case vk::ImageLayout::ePreinitialized:
+                // Nothing to wait for, the content is discarded (preinitialized: host writes are visible at submit).
+                barrier.srcStageMask  = Stage::eNone;
+                barrier.srcAccessMask = Access::eNone;
+                break;
+            case vk::ImageLayout::eTransferDstOptimal:
+                barrier.srcStageMask  = Stage::eAllTransfer;
+                barrier.srcAccessMask = Access::eTransferWrite;
+                break;
+            case vk::ImageLayout::eTransferSrcOptimal:
+                // Write after read: an execution dependency is enough.
+                barrier.srcStageMask  = Stage::eAllTransfer;
+                barrier.srcAccessMask = Access::eNone;
+                break;
+            case vk::ImageLayout::eShaderReadOnlyOptimal:
+                barrier.srcStageMask  = Stage::eAllCommands;
+                barrier.srcAccessMask = Access::eNone;
+                break;
+            default:
+                // E.g. general (storage image writes, transfers, ...): wait for all writes.
+                barrier.srcStageMask  = Stage::eAllCommands;
+                barrier.srcAccessMask = Access::eMemoryWrite;
+                break;
         }
 
-        cmd.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);
+        // Accesses after the transition (destination scope).
+        switch (newLayout)
+        {
+            case vk::ImageLayout::eTransferDstOptimal:
+                barrier.dstStageMask  = Stage::eAllTransfer;
+                barrier.dstAccessMask = Access::eTransferWrite;
+                break;
+            case vk::ImageLayout::eTransferSrcOptimal:
+                barrier.dstStageMask  = Stage::eAllTransfer;
+                barrier.dstAccessMask = Access::eTransferRead;
+                break;
+            case vk::ImageLayout::eShaderReadOnlyOptimal:
+                barrier.dstStageMask  = Stage::eAllCommands;
+                barrier.dstAccessMask = Access::eShaderRead;
+                break;
+            default:
+                // E.g. general (storage image reads/writes, transfers, ...).
+                barrier.dstStageMask  = Stage::eAllCommands;
+                barrier.dstAccessMask = Access::eMemoryRead | Access::eMemoryWrite;
+                break;
+        }
 
-        imageLayout = newLayout;
+        vk::DependencyInfo dependency;
+        dependency.imageMemoryBarrierCount = 1;
+        dependency.pImageMemoryBarriers    = &barrier;
+        cmd.pipelineBarrier2(dependency);
+
+        layout = newLayout;
     }
 };
 using ImageMemoryLocation = BaseMemoryLocation<ImageData>;

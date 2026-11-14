@@ -15,6 +15,16 @@ namespace Saiga
 {
 namespace Vulkan
 {
+/**
+ * The attachment formats a graphics pipeline renders to (dynamic rendering, replaces the render pass).
+ */
+struct SAIGA_VULKAN_API RenderingFormats
+{
+    std::vector<vk::Format> color;
+    vk::Format depth   = vk::Format::eUndefined;
+    vk::Format stencil = vk::Format::eUndefined;
+};
+
 class SAIGA_VULKAN_API PipelineInfo
 {
    public:
@@ -77,9 +87,14 @@ class SAIGA_VULKAN_API PipelineInfo
 
     void addShaders(Saiga::Vulkan::GraphicsShaderPipeline& shaders);
 
-    vk::GraphicsPipelineCreateInfo createCreateInfo(vk::PipelineLayout pipelineLayout, vk::RenderPass renderPass);
+    // The returned struct points into this object, which must stay alive until the pipeline is created.
+    vk::GraphicsPipelineCreateInfo createCreateInfo(vk::PipelineLayout pipelineLayout, const RenderingFormats& formats);
 
    private:
+    bool hasVertexInfo = false;
+    RenderingFormats renderingFormats;
+    vk::PipelineRenderingCreateInfo renderingInfo;
+    std::vector<vk::PipelineColorBlendAttachmentState> blendAttachmentStates;
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     vk::PipelineVertexInputStateCreateInfo vi;
     vk::VertexInputBindingDescription vertexInputBindings;
@@ -92,6 +107,7 @@ void PipelineInfo::addVertexInfo()
 {
     VKVertexAttribBinder<VertexType> va;
     va.getVKAttribs(vertexInputBindings, vertexInputAttributes);
+    hasVertexInfo = true;
 }
 
 

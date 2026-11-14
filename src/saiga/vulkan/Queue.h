@@ -32,7 +32,12 @@ class SAIGA_VULKAN_API Queue
     vk::Fence submit(vk::CommandBuffer cmd);
 
     void submit(vk::SubmitInfo submitInfo, vk::Fence fence);
+    // vkQueueSubmit2 (synchronization2)
+    void submit2(const vk::SubmitInfo2& submitInfo, vk::Fence fence = nullptr);
     void submitAndWait(vk::CommandBuffer cmd);
+
+    // vkQueuePresentKHR. Synchronized with the submits on this queue (queues must be externally synchronized).
+    vk::Result present(const vk::PresentInfoKHR& presentInfo);
 
 
 

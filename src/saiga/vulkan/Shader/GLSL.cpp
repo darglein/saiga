@@ -10,9 +10,19 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
 
-#include "SPIRV/GlslangToSpv.h"
-#include "SPIRV/spirv.hpp"
+// glslang >= 11 installs its headers as glslang/SPIRV/..., older versions as SPIRV/...
+#if __has_include("glslang/SPIRV/GlslangToSpv.h")
+#    include "glslang/SPIRV/GlslangToSpv.h"
+#else
+#    include "SPIRV/GlslangToSpv.h"
+#endif
+#include "glslang/Public/ShaderLang.h"
+#if __has_include("glslang/build_info.h")
+#    include "glslang/build_info.h"
+#endif
 
+#include <cstring>
+#include <deque>
 #include <iostream>
 
 namespace Saiga
@@ -21,7 +31,8 @@ namespace Vulkan
 {
 namespace GLSLANG
 {
-static TBuiltInResource Resources;
+// The resource limits of the compiled shaders. Filled once, see GetResources() below.
+static const TBuiltInResource& GetResources();
 
 
 static EShLanguage FindLanguage(const vk::ShaderStageFlagBits shader_type)
@@ -53,11 +64,36 @@ static EShLanguage FindLanguage(const vk::ShaderStageFlagBits shader_type)
 }
 
 
+// Links the (single stage) program, which runs glslang's link-time checks, e.g. a missing main, and generates SPIR-V.
+// Returns an empty vector on failure.
+static std::vector<uint32_t> LinkToSpirv(glslang::TShader& shader, EShLanguage stage, EShMessages messages)
+{
+    glslang::TProgram program;
+    program.addShader(&shader);
+    if (!program.link(messages))
+    {
+        std::cout << program.getInfoLog() << std::endl;
+        std::cout << program.getInfoDebugLog() << std::endl;
+        return {};
+    }
+
+    std::vector<uint32_t> spirv;
+    spv::SpvBuildLogger logger;
+    glslang::GlslangToSpv(*program.getIntermediate(stage), spirv, &logger);
+    auto messages_str = logger.getAllMessages();
+    if (!messages_str.empty()) std::cout << messages_str << std::endl;
+    return spirv;
+}
+
 struct MyIncluder : public glslang::TShader::Includer
 {
-    std::vector<std::string> data;
+    // A deque never moves its elements, so the pointers handed to glslang stay valid when more includes are loaded.
+    // (A vector would move the strings, which invalidates the data of short strings stored inline.)
+    std::deque<std::string> data;
     std::string baseFile;
     std::vector<IncludeResult*> results;
+    // All included files (for the hot reload of a shader when one of its includes changes)
+    std::vector<std::string> includedFiles;
 
     virtual ~MyIncluder()
     {
@@ -76,18 +112,14 @@ struct MyIncluder : public glslang::TShader::Includer
         //        std::cout << "include request '" << headerName << "' '" << includerName << "' " << inclusionDepth <<
         //        std::endl; std::cout << "base " << base << std::endl;
 
-        auto includeFileName = SearchPathes::shader.getRelative(base, headerName);
+        auto includeFileName = SearchPathes::shader.getRelative(base, headerName).string();
 
-        if (includeFileName == "")
+        if (includeFileName.empty())
         {
-            //            std::cout << "relative include not found" << std::endl;
             return nullptr;
         }
-        else
-        {
-            //            std::cout << "found " << includeFileName << std::endl;
-        }
 
+        includedFiles.push_back(includeFileName);
         data.push_back(File::loadFileString(includeFileName));
 
         IncludeResult* result = new IncludeResult(includeFileName, data.back().data(), data.back().size(), nullptr);
@@ -116,30 +148,35 @@ std::vector<uint32_t> createFromString(const std::string& shaderString, const vk
     // Enable SPIR-V and Vulkan rules when parsing GLSL
     EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
 
-    if (!shader.parse(&Resources, 100, false, messages))
+    if (!shader.parse(&GetResources(), 100, false, messages))
     {
         std::cout << shader.getInfoLog() << std::endl;
         std::cout << shader.getInfoDebugLog() << std::endl;
         return {};  // something didn't work
     }
 
-    std::vector<uint32_t> spirv;
-    glslang::GlslangToSpv(*shader.getIntermediate(), spirv);
-    return spirv;
+    return LinkToSpirv(shader, FindLanguage(shader_type), messages);
 }
 
 std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFlagBits shader_type,
-                               const std::string& injection)
+                               const std::string& injection, std::vector<std::string>* includedFiles)
 {
-    auto file = SearchPathes::shader(_file);
+    if (includedFiles) includedFiles->clear();
+    auto file = SearchPathes::shader(_file).string();
 
-    if (file == "")
+    // Not an assert: during a hot reload the file may be missing temporarily (e.g. an editor saving by rename).
+    if (file.empty())
     {
         std::cout << "Could not find " << _file << std::endl;
-        SAIGA_ASSERT(0);
+        return {};
     }
 
     auto shaderString = Saiga::File::loadFileString(file);
+    if (shaderString.empty())
+    {
+        std::cout << "Could not load " << file << std::endl;
+        return {};
+    }
 
     glslang::TShader shader(FindLanguage(shader_type));
 
@@ -150,13 +187,19 @@ std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFl
     // Enable SPIR-V and Vulkan rules when parsing GLSL
     EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
 
-    if (!injection.empty()) addInjectionAfterVersion(shaderString, injection);
+    if (!injection.empty() && !addInjectionAfterVersion(shaderString, injection))
+    {
+        std::cout << "Error in " << _file << ": no #version line for the injection" << std::endl;
+        return {};
+    }
 
 
     const char* shaderStrings[1] = {shaderString.c_str()};
     shader.setStrings(shaderStrings, 1);
 
-    if (!shader.parse(&Resources, 100, false, messages, includer))
+    bool parsed = shader.parse(&GetResources(), 100, false, messages, includer);
+    if (includedFiles) *includedFiles = includer.includedFiles;
+    if (!parsed)
     {
         std::cout << "Error in " << _file << std::endl;
         std::cout << shader.getInfoLog() << std::endl;
@@ -164,47 +207,40 @@ std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFl
         return {};  // something didn't work
     }
 
-    std::vector<uint32_t> spirv;
-    glslang::GlslangToSpv(*shader.getIntermediate(), spirv);
-
-    //    std::vector<uint32_t> spvinjection = {0x20011, 12 };
-    //    spirv.insert(spirv.begin()+7,spvinjection.begin(),spvinjection.end());
-
-    //    for(int i = 0 ;i < 20; ++i)
-    //    {
-    //        std::cout << std::hex << spirv[i] << std::endl;
-    //    }
+    auto spirv = LinkToSpirv(shader, FindLanguage(shader_type), messages);
+    if (spirv.empty()) std::cout << "Error in " << _file << std::endl;
     return spirv;
 }
 
 std::vector<uint32_t> loadSPIRV(const std::string& file)
 {
     auto file2 = SearchPathes::shader(file);
-    auto data  = Saiga::File::loadFileBinary(file2);
-    SAIGA_ASSERT(data.size() % 4 == 0);
+    if (file2.empty())
+    {
+        std::cout << "Could not find " << file << std::endl;
+        return {};
+    }
+    auto data = Saiga::File::loadFileBinary(file2);
+    if (data.size() % 4 != 0)
+    {
+        std::cout << "Invalid SPIR-V file (size not a multiple of 4) " << file << std::endl;
+        return {};
+    }
     std::vector<uint32_t> spirv(data.size() / 4);
     memcpy(spirv.data(), data.data(), data.size());
     return spirv;
 }
 
-void addInjectionAfterVersion(std::string& shaderString, const std::string& injections)
+bool addInjectionAfterVersion(std::string& shaderString, const std::string& injections)
 {
     // search for version line
     size_t pos = shaderString.find("#version");
-    SAIGA_ASSERT(pos != std::string::npos);
-    // go to \n
-    bool found = false;
-    for (; pos < shaderString.size(); ++pos)
-    {
-        if (shaderString[pos] == '\n')
-        {
-            found = true;
-            break;
-        }
-    }
-    SAIGA_ASSERT(found);
-    shaderString.insert(shaderString.begin() + pos, '\n');
-    shaderString.insert(shaderString.begin() + pos + 1, injections.begin(), injections.end());
+    if (pos == std::string::npos) return false;
+    // go to the end of the line
+    pos = shaderString.find('\n', pos);
+    if (pos == std::string::npos) return false;
+    shaderString.insert(pos, "\n" + injections);
+    return true;
 }
 
 
@@ -302,11 +338,47 @@ static void init_resources(TBuiltInResource& Resources)
     Resources.limits.generalSamplerIndexing               = 1;
     Resources.limits.generalVariableIndexing              = 1;
     Resources.limits.generalConstantMatrixVectorIndexing  = 1;
+
+    // Limits added in later glslang versions (the values of glslang's GetDefaultResources()). They are 0 otherwise,
+    // which makes e.g. mesh shaders or dual source blending fail to compile.
+#if defined(GLSLANG_VERSION_MAJOR) && GLSLANG_VERSION_MAJOR >= 12
+    Resources.maxMeshOutputVerticesNV     = 256;
+    Resources.maxMeshOutputPrimitivesNV   = 512;
+    Resources.maxMeshWorkGroupSizeX_NV    = 32;
+    Resources.maxMeshWorkGroupSizeY_NV    = 1;
+    Resources.maxMeshWorkGroupSizeZ_NV    = 1;
+    Resources.maxTaskWorkGroupSizeX_NV    = 32;
+    Resources.maxTaskWorkGroupSizeY_NV    = 1;
+    Resources.maxTaskWorkGroupSizeZ_NV    = 1;
+    Resources.maxMeshViewCountNV          = 4;
+    Resources.maxMeshOutputVerticesEXT    = 256;
+    Resources.maxMeshOutputPrimitivesEXT  = 256;
+    Resources.maxMeshWorkGroupSizeX_EXT   = 128;
+    Resources.maxMeshWorkGroupSizeY_EXT   = 128;
+    Resources.maxMeshWorkGroupSizeZ_EXT   = 128;
+    Resources.maxTaskWorkGroupSizeX_EXT   = 128;
+    Resources.maxTaskWorkGroupSizeY_EXT   = 128;
+    Resources.maxTaskWorkGroupSizeZ_EXT   = 128;
+    Resources.maxMeshViewCountEXT         = 4;
+    Resources.maxDualSourceDrawBuffersEXT = 1;
+#endif
 }
+
+static const TBuiltInResource& GetResources()
+{
+    // Value-initialized: fields unknown to this code stay 0.
+    static const TBuiltInResource resources = []()
+    {
+        TBuiltInResource r = {};
+        init_resources(r);
+        return r;
+    }();
+    return resources;
+}
+
 void init()
 {
     glslang::InitializeProcess();
-    init_resources(Resources);
 }
 
 void quit()

@@ -13,7 +13,6 @@ namespace Saiga::Vulkan::Memory
 using vk::AllocationCallbacks;
 using vk::Device;
 using vk::DeviceMemory;
-using vk::DispatchLoaderStatic;
 using vk::MemoryAllocateInfo;
 using vk::Optional;
 using vk::Result;
@@ -24,12 +23,12 @@ class SafeAllocator : public Singleton<SafeAllocator>
     std::mutex allocMutex;
 
    public:
-	   SafeAllocator() = default;
+    SafeAllocator() = default;
 
-	   SafeAllocator(const SafeAllocator&) = delete;
-	   SafeAllocator& operator=(const SafeAllocator&) = delete;
+    SafeAllocator(const SafeAllocator&)            = delete;
+    SafeAllocator& operator=(const SafeAllocator&) = delete;
 
-    template <typename Dispatch = DispatchLoaderStatic>
+    template <typename Dispatch = VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>
     inline Result allocateMemory(const Device device, const MemoryAllocateInfo* pAllocateInfo,
                                  const AllocationCallbacks* pAllocator, DeviceMemory* pMemory,
                                  Dispatch const& d = Dispatch())
@@ -40,7 +39,7 @@ class SafeAllocator : public Singleton<SafeAllocator>
         return result;
     }
 
-    template <typename Dispatch = DispatchLoaderStatic>
+    template <typename Dispatch = VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>
     DeviceMemory allocateMemory(const Device device, const MemoryAllocateInfo& allocateInfo,
                                 Optional<const AllocationCallbacks> allocator = nullptr, Dispatch const& d = Dispatch())
     {

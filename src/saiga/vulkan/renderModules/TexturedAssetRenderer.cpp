@@ -21,6 +21,7 @@ namespace Vulkan
 void TexturedAssetRenderer::destroy()
 {
     Pipeline::destroy();
+    shaderPipeline.destroy();
     uniformBufferVS.destroy();
 }
 
@@ -44,8 +45,8 @@ void TexturedAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 vie
     uniformBufferVS.update(cmd, sizeof(UBOVS), &uboVS);
 }
 
-void TexturedAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass, const std::string& vertShader,
-                                 const std::string& fragShader)
+void TexturedAssetRenderer::init(VulkanBase& vulkanDevice, const RenderingFormats& formats,
+                                 const std::string& vertShader, const std::string& fragShader)
 {
     PipelineBase::init(vulkanDevice, 1);
     uniformBufferVS.init(vulkanDevice, &uboVS, sizeof(UBOVS));
@@ -58,7 +59,7 @@ void TexturedAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPa
     PipelineInfo info;
     info.addVertexInfo<VertexType>();
     //    auto info2 = info;
-    create(renderPass, info);
+    create(formats, info);
 }
 
 StaticDescriptorSet TexturedAssetRenderer::createAndUpdateDescriptorSet(Texture& texture)

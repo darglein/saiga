@@ -13,29 +13,55 @@
 namespace Saiga::Vulkan
 {
 template <typename Finder>
-void FrameTimings<Finder>::beginFrame(const FrameSync& sync)
+void FrameTimings<Finder>::init(vk::Device _device, vk::PhysicalDevice physicalDevice, Saiga::Vulkan::Queue* _queue,
+                                Memory::VulkanMemory* _memory)
 {
-    auto& timing = timings[next];
-    timing.fence = sync.frameFence;
-    current      = next;
-    next         = (next + 1) % numberOfFrames;
+    device = _device;
+    queue  = _queue;
+    memory = _memory;
+
+    timestampPeriod = physicalDevice.getProperties().limits.timestampPeriod;
+    auto validBits  = physicalDevice.getQueueFamilyProperties()[queue->getQueueFamilyIndex()].timestampValidBits;
+    SAIGA_ASSERT(validBits > 0, "The main queue does not support timestamps");
+    timestampMask = validBits >= 64 ? ~uint64_t(0) : ((uint64_t(1) << validBits) - 1);
 }
 
 template <typename Finder>
-void FrameTimings<Finder>::update()
+void FrameTimings<Finder>::beginFrame(uint64_t timelineValue)
 {
+    auto& timing         = timings[next];
+    timing.timelineValue = timelineValue;
+    current              = next;
+    next                 = (next + 1) % numberOfFrames;
+}
+
+template <typename Finder>
+void FrameTimings<Finder>::update(vk::Semaphore _frameTimeline)
+{
+    frameTimeline = _frameTimeline;
+    if (!frameTimeline) return;
+    auto completed = device.getSemaphoreCounterValue(frameTimeline);
     // auto iter = running;
 
     while (running != next)
     {
         auto& timing = timings[running];
 
-        auto finished = device.getFenceStatus(timing.fence) == vk::Result::eSuccess;
+        auto finished = timing.timelineValue <= completed;
 
         if (finished)
         {
-            device.getQueryPoolResults(queryPool, getFirst(running), getCount(), getCount() * 8, timing.sections.data(),
-                                       8, vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
+            auto result = device.getQueryPoolResults(queryPool, getFirst(running), getCount(), getCount() * 8,
+                                                     timing.sections.data(), 8,
+                                                     vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
+            SAIGA_ASSERT(result == vk::Result::eSuccess);
+
+            // Ticks -> nanoseconds
+            for (auto& s : timing.sections)
+            {
+                s.first  = static_cast<uint64_t>((s.first & timestampMask) * timestampPeriod);
+                s.second = static_cast<uint64_t>((s.second & timestampMask) * timestampPeriod);
+            }
 
             if (lastFrameSections.has_value())
             {
@@ -45,11 +71,11 @@ void FrameTimings<Finder>::update()
                 for (curr = lastValue.begin(), next = lastValue.begin() + 1, pauseIter = insertionPoint->pauses.begin();
                      next != lastValue.end(); curr++, next++, pauseIter++)
                 {
-                    const auto pause = next->first - curr->second;
-                    *pauseIter       = pause;
+                    // Sections begin at TOP_OF_PIPE and end at BOTTOM_OF_PIPE, so they can overlap.
+                    *pauseIter = next->first > curr->second ? next->first - curr->second : 0;
                 }
-                const auto lastPause = timing.sections.begin()->first - curr->second;
-                *pauseIter           = lastPause;
+                auto first_begin = timing.sections.begin()->first;
+                *pauseIter       = first_begin > curr->second ? first_begin - curr->second : 0;
             }
 
             bestSection = finder.findSuitablePause(recentFramePauses, insertionPoint);
@@ -155,39 +181,25 @@ template <typename Finder>
 void FrameTimings<Finder>::enterSection(const std::string& name, vk::CommandBuffer cmd)
 {
     auto index = nameToSectionMap[name];
-    cmd.writeTimestamp(vk::PipelineStageFlagBits::eTopOfPipe, queryPool, getBegin(index));
+    cmd.writeTimestamp2(vk::PipelineStageFlagBits2::eTopOfPipe, queryPool, getBegin(index));
 }
 
 template <typename Finder>
 void FrameTimings<Finder>::leaveSection(const std::string& name, vk::CommandBuffer cmd)
 {
     auto index = nameToSectionMap[name];
-    cmd.writeTimestamp(vk::PipelineStageFlagBits::eBottomOfPipe, queryPool, getEnd(index));
+    cmd.writeTimestamp2(vk::PipelineStageFlagBits2::eBottomOfPipe, queryPool, getEnd(index));
 }
 
 template <typename Finder>
-void FrameTimings<Finder>::finishFrame(vk::Semaphore semaphore)
+void FrameTimings<Finder>::finishFrame(vk::Semaphore _frameTimeline, uint64_t timelineValue)
 {
-    bool performed = false;
-
-    if (bestSection.has_value())
+    if (bestSection.has_value() && memory)
     {
-        auto best = bestSection.value();
-        auto time = static_cast<int64_t>(0.8 * best.length);
-        performed = memory->performTimedDefrag(time, semaphore);
-    }
-
-    if (!performed)
-    {
-        // No defrag took place. have to submit dummy command buffer to wait for semaphore
-        vk::PipelineStageFlags wait{vk::PipelineStageFlagBits::eAllCommands | vk::PipelineStageFlagBits::eAllGraphics};
-        vk::SubmitInfo si;
-        si.commandBufferCount = 1;
-        si.pCommandBuffers    = &dummy;
-        si.waitSemaphoreCount = 1;
-        si.pWaitSemaphores    = &semaphore;
-        si.pWaitDstStageMask  = &wait;
-        queue->submit(si, nullptr);
+        // Pauses are in ns. Clamp, so that a huge (bogus) pause does not overflow.
+        auto best = std::min<uint64_t>(bestSection.value().length, uint64_t(1e9));
+        auto time = static_cast<int64_t>(0.8 * best);
+        memory->performTimedDefrag(time, _frameTimeline, timelineValue);
     }
 }
 

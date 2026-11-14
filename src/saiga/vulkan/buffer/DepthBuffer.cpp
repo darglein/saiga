@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -15,11 +15,17 @@ static const Memory::ImageType depth_buffer_type{vk::ImageUsageFlagBits::eDepthS
                                                  vk::MemoryPropertyFlagBits::eDeviceLocal};
 void DepthBuffer::destroy()
 {
-    if (location)
+    if (!location) return;
+
+    // The device is gone after VulkanBase::destroy() (the allocator was destroyed with it).
+    if (base && base->device)
     {
-        base->memory.deallocateImage(depth_buffer_type, location);
-        location = nullptr;
+        // Frames in flight may still render to the depth buffer.
+        auto b   = base;
+        auto loc = location;
+        base->deferDelete([b, loc]() { b->memory.deallocateImage(depth_buffer_type, loc); });
     }
+    location = nullptr;
 }
 
 void DepthBuffer::init(VulkanBase& base, int width, int height)
@@ -35,19 +41,19 @@ void DepthBuffer::init(VulkanBase& base, int width, int height)
         vk::PhysicalDevice physicalDevice = base.physicalDevice;
         props                             = physicalDevice.getFormatProperties(format);
 
-        if (props.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
-        {
-            image_info.tiling = vk::ImageTiling::eLinear;
-        }
-        else if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+        // Optimal tiling is required for depth attachments by the spec for the common depth formats and is faster.
+        if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
         {
             image_info.tiling = vk::ImageTiling::eOptimal;
         }
+        else if (props.linearTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+        {
+            image_info.tiling = vk::ImageTiling::eLinear;
+        }
         else
         {
-            /* Try other depth formats? */
-            std::cout << "VK_FORMAT_D16_UNORM Unsupported.\n";
-            exit(-1);
+            SAIGA_ASSERT(false, "DepthBuffer: the format " + vk::to_string(format) +
+                                    " is not supported as depth attachment on this device");
         }
         image_info.imageType             = vk::ImageType::e2D;
         image_info.format                = format;

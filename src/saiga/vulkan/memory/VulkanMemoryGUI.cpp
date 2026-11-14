@@ -25,6 +25,9 @@ void VulkanMemory::renderGUI()
         return;
     }
 
+    // The allocator maps may be changed by allocations in other threads.
+    std::scoped_lock lock(allocatorMutex);
+
     ImGui::Indent();
 
     static std::unordered_map<vk::MemoryPropertyFlags, MemoryStats> memoryTypeStats;
@@ -95,6 +98,10 @@ void VulkanMemory::renderGUI()
     for (auto& allocator : imageAllocators)
     {
         allocator.second.allocator->showDetailStats(mem_stats_open);
+    }
+    if (fallbackAllocator)
+    {
+        fallbackAllocator->showDetailStats();
     }
 
     ImGui::Unindent();

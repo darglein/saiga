@@ -6,17 +6,21 @@
 
 #include "DescriptorSetLayout.h"
 
-
-void Saiga::Vulkan::DescriptorSet::assign(uint32_t index, Saiga::Vulkan::UniformBuffer* buffer)
+namespace Saiga::Vulkan
 {
+void DescriptorSet::assign(uint32_t index, UniformBuffer* buffer)
+{
+    SAIGA_ASSERT(descriptorSet && layout && buffer);
     auto binding = layout->getBindingForIndex(index);
     auto info    = buffer->getDescriptorInfo();
     base->device.updateDescriptorSets(
         {vk::WriteDescriptorSet{descriptorSet, binding.binding, 0, 1, binding.descriptorType, nullptr, &info, nullptr}},
         nullptr);
 }
-void Saiga::Vulkan::DescriptorSet::assign(uint32_t index, Saiga::Vulkan::Texture* texture)
+
+void DescriptorSet::assign(uint32_t index, Texture* texture)
 {
+    SAIGA_ASSERT(descriptorSet && layout && texture && texture->memoryLocation);
     auto binding = layout->getBindingForIndex(index);
     auto time    = Clock::now();
     auto info    = texture->getDescriptorInfo();
@@ -25,16 +29,27 @@ void Saiga::Vulkan::DescriptorSet::assign(uint32_t index, Saiga::Vulkan::Texture
         nullptr);
     assigned_textures[index] = std::make_pair(texture, time);
 }
-Saiga::Vulkan::DescriptorSet::~DescriptorSet()
+
+void DescriptorSet::release()
 {
-    if (base && descriptorSet)
+    // The pool is gone after VulkanBase::destroy().
+    if (base && base->device && descriptorSet)
     {
         VLOG(3) << "~DescriptorSet(): " << descriptorSet;
-        base->descriptorPool.freeDescriptorSet(descriptorSet);
-        descriptorSet = nullptr;
+        // Command buffers in flight may still use the set (VUID-vkFreeDescriptorSets-pDescriptorSets-00309).
+        auto pool = &base->descriptorPool;
+        auto set  = descriptorSet;
+        base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
     }
+    descriptorSet = nullptr;
 }
-Saiga::Vulkan::DescriptorSet::DescriptorSet(Saiga::Vulkan::DescriptorSet&& other) noexcept
+
+DescriptorSet::~DescriptorSet()
+{
+    release();
+}
+
+DescriptorSet::DescriptorSet(DescriptorSet&& other) noexcept
     : base(other.base),
       layout(other.layout),
       descriptorSet(other.descriptorSet),
@@ -43,11 +58,15 @@ Saiga::Vulkan::DescriptorSet::DescriptorSet(Saiga::Vulkan::DescriptorSet&& other
     other.base          = nullptr;
     other.layout        = nullptr;
     other.descriptorSet = nullptr;
+    other.assigned_textures.clear();
 }
-Saiga::Vulkan::DescriptorSet& Saiga::Vulkan::DescriptorSet::operator=(Saiga::Vulkan::DescriptorSet&& other) noexcept
+
+DescriptorSet& DescriptorSet::operator=(DescriptorSet&& other) noexcept
 {
     if (this != &other)
     {
+        release();
+
         base              = other.base;
         layout            = other.layout;
         descriptorSet     = other.descriptorSet;
@@ -56,39 +75,33 @@ Saiga::Vulkan::DescriptorSet& Saiga::Vulkan::DescriptorSet::operator=(Saiga::Vul
         other.base          = nullptr;
         other.layout        = nullptr;
         other.descriptorSet = nullptr;
+        other.assigned_textures.clear();
     }
 
     return *this;
 }
-void Saiga::Vulkan::DynamicDescriptorSet::update()
-{
-    uint32_t current_frame = base->current_frame;
 
-    if (m_old_set.first && m_old_set.second < current_frame)
-    {
-        base->descriptorPool.freeDescriptorSet(m_old_set.first);
-        m_old_set = std::make_pair(nullptr, 0xFFFFFFF);
-    }
+void DynamicDescriptorSet::update()
+{
+    if (!descriptorSet) return;
 
     vk::DescriptorSet new_set = nullptr;
-    std::vector<vk::DescriptorImageInfo> image_infos;
-    std::vector<vk::WriteDescriptorSet> write_updates;
 
-    image_infos.reserve(assigned_textures.size());
-    write_updates.reserve(assigned_textures.size());
     for (auto& entry : assigned_textures)
     {
         auto& [texture, time] = entry.second;
+        if (!texture->memoryLocation) continue;
 
         if (texture->memoryLocation->modified_time > time)
         {
             if (!new_set)
             {
-                new_set   = layout->createDuplicateSet(descriptorSet);
-                m_old_set = std::make_pair(descriptorSet, current_frame + base->numSwapchainFrames + 5);
+                // The current set may be used by frames in flight, so it is not updated in place.
+                new_set = layout->createDuplicateSet(descriptorSet);
             }
 
-            base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set,texture->getDescriptorInfo()),nullptr);
+            auto info = texture->getDescriptorInfo();
+            base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
 
             time = texture->memoryLocation->modified_time;
         }
@@ -96,36 +109,9 @@ void Saiga::Vulkan::DynamicDescriptorSet::update()
 
     if (new_set)
     {
+        // Free the old set once the frames that may use it have completed.
+        release();
         descriptorSet = new_set;
     }
 }
-
-Saiga::Vulkan::DynamicDescriptorSet::~DynamicDescriptorSet()
-{
-    if (base && m_old_set.first)
-    {
-        base->descriptorPool.freeDescriptorSet(m_old_set.first);
-        m_old_set = std::make_pair(nullptr, 0xFFFFFFFF);
-    }
-}
-Saiga::Vulkan::DynamicDescriptorSet::DynamicDescriptorSet(Saiga::Vulkan::DynamicDescriptorSet&& other) noexcept
-    : DescriptorSet(std::move(other)), m_old_set(std::move(other.m_old_set))
-{
-    other.m_old_set = std::make_pair(nullptr, 0xFFFFFFFF);
-}
-Saiga::Vulkan::DynamicDescriptorSet& Saiga::Vulkan::DynamicDescriptorSet::operator=(
-    Saiga::Vulkan::DynamicDescriptorSet&& other) noexcept
-{
-    DescriptorSet::operator=(static_cast<DescriptorSet&&>(other));
-    if (this != &other)
-    {
-        if (base && m_old_set.first)
-        {
-            base->descriptorPool.freeDescriptorSet(m_old_set.first);
-        }
-        m_old_set       = std::move(other.m_old_set);
-        other.m_old_set = std::make_pair(nullptr, 0xFFFFFFFF);
-    }
-
-    return *this;
-}
+}  // namespace Saiga::Vulkan

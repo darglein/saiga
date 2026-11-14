@@ -11,6 +11,13 @@
 
 namespace Saiga::Vulkan::Memory
 {
+template <typename Allocations>
+static vk::DeviceSize sumSizes(const Allocations& allocations)
+{
+    return std::accumulate(allocations.begin(), allocations.end(), vk::DeviceSize(0),
+                           [](vk::DeviceSize sum, const auto& location) { return sum + location->size; });
+}
+
 void UniqueAllocator::deallocate(BufferMemoryLocation* location)
 {
     std::scoped_lock lock(mutex);
@@ -46,6 +53,7 @@ void UniqueAllocator::deallocate(ImageMemoryLocation* location)
 
 void UniqueAllocator::destroy()
 {
+    std::scoped_lock lock(mutex);
     for (auto& location : m_allocations)
     {
         destroy(m_device, location.get());
@@ -121,10 +129,20 @@ void UniqueAllocator::showDetailStats()
     {
         ImGui::Indent();
 
-        ImGui::LabelText("Number of allocations", "%lu", m_allocations.size());
-        const auto totalSize = std::accumulate(m_allocations.begin(), m_allocations.end(), 0UL,
-                                               [](const auto& a, const auto& b) { return a + b->size; });
-        ImGui::LabelText("Size of allocations", "%s", sizeToString(totalSize).c_str());
+        size_t numBuffers, numImages;
+        vk::DeviceSize bufferSize, imageSize;
+        {
+            std::scoped_lock lock(mutex);
+            numBuffers = m_allocations.size();
+            numImages  = m_image_allocations.size();
+            bufferSize = sumSizes(m_allocations);
+            imageSize  = sumSizes(m_image_allocations);
+        }
+
+        ImGui::LabelText("Number of buffer allocations", "%zu", numBuffers);
+        ImGui::LabelText("Size of buffer allocations", "%s", sizeToString(bufferSize).c_str());
+        ImGui::LabelText("Number of image allocations", "%zu", numImages);
+        ImGui::LabelText("Size of image allocations", "%s", sizeToString(imageSize).c_str());
 
         ImGui::Unindent();
     }
@@ -132,8 +150,8 @@ void UniqueAllocator::showDetailStats()
 
 MemoryStats UniqueAllocator::collectMemoryStats()
 {
-    const auto totalSize = std::accumulate(m_allocations.begin(), m_allocations.end(), 0UL,
-                                           [](const auto& a, const auto& b) { return a + b->size; });
+    std::scoped_lock lock(mutex);
+    const vk::DeviceSize totalSize = sumSizes(m_allocations) + sumSizes(m_image_allocations);
 
     return MemoryStats{totalSize, totalSize, 0};
 }

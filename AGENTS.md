@@ -34,7 +34,12 @@ src/
     vision/             saiga_vision: ba, pgo, imu, features, reconstruction, slam, recursive solvers, ceres/g2o glue
     cuda/               saiga_cuda: device helpers, reduce/scan/shfl, memory, streams, imageProcessing, thrust helpers
     opengl/             saiga_opengl: buffers, shaders, textures, rendering, window, imgui, ffmpeg, vr
-    vulkan/             saiga_vulkan: instance, swapchain, pipelines, memory, renderer
+    vulkan/             saiga_vulkan: instance, swapchain, pipelines, memory, renderer. Vulkan 1.3 core only
+                        (instance/device API version 1.3 also on 1.4 drivers; extensions: only surface/swapchain and
+                        debug_utils for validation) and uses its core
+                        features: dynamic rendering (pipelines take RenderingFormats, no VkRenderPass),
+                        synchronization2 (pipelineBarrier2/submit2) and timeline semaphores
+                        (VulkanBase::frameTimeline; VulkanBase::deferDelete for objects in use by frames in flight)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -46,7 +51,7 @@ submodules/             Vendored git submodules: eigen, glog, googletest, glfw, 
                         libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF (built from submodules/CMakeLists.txt),
                         plus tiny-eigen and tiny-glog, which are plain files maintained in this repository
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
-.github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build (OpenGL on Mesa llvmpipe) + ctest
+.github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build (OpenGL on Mesa llvmpipe, Vulkan compile-only) + ctest
 travis/, .travis.yml    Legacy Travis CI — unused
 ```
 
@@ -62,7 +67,8 @@ System packages (what CI installs on Ubuntu 24.04):
 sudo apt-get install -y --no-install-recommends \
   build-essential cmake ninja-build ccache \
   xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules \
-  libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri
+  libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri \
+  libvulkan-dev glslang-dev glslang-tools spirv-tools
 ```
 
 The dependency list in `README.md` is partly outdated (e.g. GLM is no longer used — Eigen is the
@@ -71,12 +77,11 @@ math backend); most image/compression libraries come from `submodules/`.
 ## Build (Linux)
 
 The canonical build is the CI recipe — no GPU, no samples (the OpenGL module is built and tested on
-Mesa's software renderer). Use it unless the change needs CUDA or Vulkan:
+Mesa's software renderer, the Vulkan module is only compiled). Use it unless the change needs CUDA:
 
 ```shell
 cmake -S . -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DSAIGA_MODULE_VULKAN=OFF \
   -DSAIGA_BUILD_SAMPLES=OFF \
   -DSAIGA_ARCHNATIVE=OFF \
   -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON
@@ -88,8 +93,10 @@ cmake --build build --parallel -- -k 0
 - Without Ninja, drop `-G Ninja` and `-- -k 0` (Makefiles: `cmake --build build --parallel $(nproc)`).
 - **CMake >= 4.0** refuses the `cmake_minimum_required(VERSION 3.0)` of `submodules/glog`; add
   `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to the configure. (CI uses CMake 3.28 and does not need it.)
-- The CUDA and Vulkan modules need a GPU / CUDA toolkit and are **not covered by CI**. The OpenGL
-  module is, but only through its headless tests (no window, renderers or samples). For a CUDA build leave `SAIGA_MODULE_CUDA=ON` and pin the archs with
+- The CUDA module needs a GPU / CUDA toolkit and is **not covered by CI**. The Vulkan module is only
+  compile-checked (no tests, no samples); it needs the Vulkan headers and glslang (glslang >= 11 is found through its
+  CMake config, older ones through `cmake/FindGLslang.cmake`). The OpenGL module is covered, but only through its
+  headless tests (no window, renderers or samples). For a CUDA build leave `SAIGA_MODULE_CUDA=ON` and pin the archs with
   `-DSAIGA_CUDA_ARCH="86;89"` (dotless, e.g. `75;80;86;89+PTX`), otherwise the installed GPU is
   autodetected.
 - The first build also compiles the submodules (their tests are off) and takes a while; later builds
@@ -111,7 +118,7 @@ cmake --build build --parallel -- -k 0
 | `SAIGA_WITH_TINY_EIGEN` / `_TINY_GLOG` | OFF | Use the tiny replacements instead of Eigen / glog (disables vision + some tests) |
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
-what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Vision + Opengl** and
+what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Vision + Opengl + Vulkan** and
 39 tests; the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
@@ -183,6 +190,8 @@ cmake -S . -B build <CI options above> && cmake --build build --parallel   # mus
 cd build && ctest --output-on-failure --parallel 4                         # all tests must pass
 ```
 
-For changes in the CUDA / Vulkan modules, which CI does not build, also build that module locally (with
-a GPU) and say so if it could not be built. CI covers the OpenGL module only through the
-`test_opengl_*` tests; for rendering changes also run a sample on a GPU.
+For changes in the CUDA module, which CI does not build, also build that module locally (with a GPU) and say so
+if it could not be built. CI only compiles the Vulkan module and covers the OpenGL module only through the
+`test_opengl_*` tests; for rendering changes also run a sample on a GPU (Vulkan: `samples/vulkan`, they use GLFW). The Vulkan samples save a
+screenshot of frame 60 and exit when the environment variable `SAIGA_SCREENSHOT=<file.png>` is set, which allows checking
+the output without looking at the window (F12 saves `screenshot.png` interactively).

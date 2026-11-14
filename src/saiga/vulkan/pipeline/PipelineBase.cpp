@@ -26,10 +26,37 @@ void PipelineBase::destroy()
 {
     if (!device) return;
     VLOG(3) << "Destroying pipeline " << pipeline;
-    vkDestroyPipeline(device, pipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-    for (auto& l : descriptorSetLayouts) l.destroy();
+
+    // Command buffers in flight may still use the pipeline and its layouts. The lambda gets copies of the layouts
+    // (they share the handle, only the copies are destroyed): the descriptor sets created from them point to the
+    // elements of descriptorSetLayouts, which stay valid as long as this object.
+    auto dev     = device;
+    auto p       = pipeline;
+    auto layout  = pipelineLayout;
+    auto layouts = descriptorSetLayouts;
+    base->deferDelete(
+        [dev, p, layout, layouts]() mutable
+        {
+            if (p) dev.destroyPipeline(p);
+            if (layout) dev.destroyPipelineLayout(layout);
+            for (auto& l : layouts) l.destroy();
+        });
+
+    pipeline       = nullptr;
+    pipelineLayout = nullptr;
+    pushConstantRanges.clear();
     device = nullptr;
+}
+
+void PipelineBase::replacePipeline(vk::Pipeline newPipeline)
+{
+    if (pipeline)
+    {
+        auto dev = device;
+        auto old = pipeline;
+        base->deferDelete([dev, old]() { dev.destroyPipeline(old); });
+    }
+    pipeline = newPipeline;
 }
 
 vk::DescriptorSet PipelineBase::createRawDescriptorSet(uint32_t id)
@@ -105,6 +132,13 @@ void PipelineBase::createPipelineLayout()
     vk::PipelineLayoutCreateInfo pPipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), layouts.size(),
                                                            layouts.data(), pushConstantRanges.size(),
                                                            pushConstantRanges.data());
+    if (pipelineLayout)
+    {
+        // create() called again
+        auto dev = device;
+        auto old = pipelineLayout;
+        base->deferDelete([dev, old]() { dev.destroyPipelineLayout(old); });
+    }
     pipelineLayout = device.createPipelineLayout(pPipelineLayoutCreateInfo);
     SAIGA_ASSERT(pipelineLayout);
 }

@@ -64,7 +64,7 @@ ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
 }
 
 
-void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPass)
+void ImGuiVulkanRenderer::initResources(VulkanBase& _base, const RenderingFormats& formats)
 {
     this->base         = &_base;
     this->vulkanDevice = &_base;
@@ -122,7 +122,7 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, VkRenderPass renderPa
         info.depthStencilState.depthWriteEnable = VK_FALSE;
         info.blendAttachmentState.blendEnable   = VK_TRUE;
         info.addVertexInfo<ImDrawVert>();
-        create(renderPass, info);
+        create(formats, info);
     }
 
     frameData.reserve(frameCount);
@@ -183,11 +183,17 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
     //    vertexBuffer.bind(commandBuffer);
     //    indexBuffer.bind(commandBuffer);
 
-    VkViewport viewport =
-        vks::initializers::viewport(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y, 0.0f, 1.0f);
+    // ImGui works in window coordinates (DisplaySize), the swap chain has the framebuffer size, which is larger with
+    // display scaling. The viewport covers the framebuffer and the clip rects are scaled to it.
+    ImVec2 fb_scale = io.DisplayFramebufferScale;
+    float fb_width  = io.DisplaySize.x * fb_scale.x;
+    float fb_height = io.DisplaySize.y * fb_scale.y;
+    if (fb_width <= 0 || fb_height <= 0) return;
+
+    VkViewport viewport = vks::initializers::viewport(fb_width, fb_height, 0.0f, 1.0f);
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-    // UI scale and translate via push constants
+    // UI scale and translate via push constants (in window coordinates)
     pushConstBlock.scale     = vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
     pushConstBlock.translate = make_vec2(-1.0f);
     pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(PushConstBlock), &pushConstBlock);
@@ -208,11 +214,23 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
             for (int32_t j = 0; j < cmd_list->CmdBuffer.Size; j++)
             {
                 const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[j];
+
+                float x0 = std::max(pcmd->ClipRect.x * fb_scale.x, 0.0f);
+                float y0 = std::max(pcmd->ClipRect.y * fb_scale.y, 0.0f);
+                float x1 = std::min(pcmd->ClipRect.z * fb_scale.x, fb_width);
+                float y1 = std::min(pcmd->ClipRect.w * fb_scale.y, fb_height);
+                if (x1 <= x0 || y1 <= y0)
+                {
+                    // Completely clipped. Without this check the extent underflows.
+                    indexOffset += pcmd->ElemCount;
+                    continue;
+                }
+
                 VkRect2D scissorRect;
-                scissorRect.offset.x      = std::max((int32_t)(pcmd->ClipRect.x), 0);
-                scissorRect.offset.y      = std::max((int32_t)(pcmd->ClipRect.y), 0);
-                scissorRect.extent.width  = (uint32_t)(pcmd->ClipRect.z - std::max((int32_t)(pcmd->ClipRect.x), 0));
-                scissorRect.extent.height = (uint32_t)(pcmd->ClipRect.w - std::max((int32_t)(pcmd->ClipRect.y), 0));
+                scissorRect.offset.x      = (int32_t)x0;
+                scissorRect.offset.y      = (int32_t)y0;
+                scissorRect.extent.width  = (uint32_t)(x1 - x0);
+                scissorRect.extent.height = (uint32_t)(y1 - y0);
                 vkCmdSetScissor(commandBuffer, 0, 1, &scissorRect);
                 vkCmdDrawIndexed(commandBuffer, pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
                 indexOffset += pcmd->ElemCount;

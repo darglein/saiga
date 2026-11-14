@@ -11,8 +11,6 @@
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/imath.h"
-#include "saiga/core/sdl/sdl_camera.h"
-#include "saiga/core/sdl/sdl_eventhandler.h"
 #include "saiga/core/time/timer.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/window/Interfaces.h"
@@ -24,7 +22,7 @@
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
 #include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
-#include "saiga/vulkan/window/SDLSample.h"
+#include "saiga/vulkan/window/GLFWSample.h"
 
 #include <algorithm>
 #include <iterator>
@@ -34,9 +32,10 @@
 #include <vector>
 using namespace Saiga;
 using Saiga::Vulkan::Memory::BufferMemoryLocation;
-class VulkanExample : public VulkanSDLExampleBase
+class VulkanExample : public VulkanExampleBase
 {
-    std::array<std::string, 5> image_names{"cat.png", "red-panda.png", "dog.png", "pika.png", "ludi.png"};
+    std::array<std::string, 5> image_names{"textures/box.png", "textures/redie.png", "textures/sample.png",
+                                           "textures/landscape.jpg", "textures/bar.png"};
     std::array<std::shared_ptr<Saiga::Image>, 5> images;
     std::vector<std::shared_ptr<Saiga::Vulkan::Buffer>> test_allocs;
     std::vector<std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t>> allocations;
@@ -86,15 +85,13 @@ class VulkanExample : public VulkanSDLExampleBase
     float defrag_current_free = -1;
     std::vector<unsigned int> defrag_seeds;
 
-    bool show_textures = false;
-    Saiga::SDLCamera<Saiga::PerspectiveCamera> camera;
+    bool show_textures = true;
 
 
     //    bool displayModels = true;
 
 
-    void keyPressed(SDL_Keysym key) override;
-    void keyReleased(SDL_Keysym key) override;
+    void keyPressed(int key, int scancode, int mods) override;
 
     void alloc_index(int index);
 
@@ -141,7 +138,13 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
     }
     num_allocations.resize(10, std::make_pair(nullptr, 0));
 
-    textureDisplay.init(base, renderer->renderPass);
+    textureDisplay.init(base, renderer->renderingFormats());
+
+    // Start with one allocation of each texture, so that there is something to see.
+    for (auto i = 0U; i < images.size(); ++i)
+    {
+        tex_allocations.push_back(allocate(image_type, i));
+    }
 }
 
 
@@ -149,8 +152,8 @@ void VulkanExample::init(Saiga::Vulkan::VulkanBase& base)
 void VulkanExample::update(float dt)
 {
     static std::uniform_int_distribution<> size_dist(1, 64);
-    camera.update(dt);
-    camera.interpolate(dt, 0);
+    // Camera input, unless ImGui uses it.
+    VulkanExampleBase::update(dt);
 
     static int frameCount = 0;
 
@@ -444,6 +447,10 @@ void VulkanExample::renderGUI()
 
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("Example settings");
+
+    ImGui::TextWrapped(
+        "Keys: A/D allocate/free buffers, Z/C allocate/free textures, 1-0 toggle single buffers, R all of them, "
+        "V verify buffer contents, J full defragmentation (needs enableDefragmentation=true in config.ini).");
 
     bool old_enable = enable_defragger;
     ImGui::Checkbox("Defragger enabled", &old_enable);
@@ -820,48 +827,51 @@ void VulkanExample::defragProfiling()
     }
 }
 
-void VulkanExample::keyPressed(SDL_Keysym key)
+void VulkanExample::keyPressed(int key, int scancode, int mods)
 {
+    // Don't trigger the hotkeys while typing into an ImGui field.
+    if (ImGui::captureKeyboard()) return;
+
     static std::uniform_int_distribution<unsigned long> alloc_dist(1UL, 8UL), size_dist(0UL, 3UL), image_dist(0, 4);
 
 
 
     int single_unassign = -1;
     unsigned long num_allocs;
-    switch (key.scancode)
+    switch (key)
     {
-        case SDL_SCANCODE_0:
+        case GLFW_KEY_0:
             single_unassign = 10;
             break;
-        case SDL_SCANCODE_9:
+        case GLFW_KEY_9:
             single_unassign = 9;
             break;
-        case SDL_SCANCODE_8:
+        case GLFW_KEY_8:
             single_unassign = 8;
             break;
-        case SDL_SCANCODE_7:
+        case GLFW_KEY_7:
             single_unassign = 7;
             break;
-        case SDL_SCANCODE_6:
+        case GLFW_KEY_6:
             single_unassign = 6;
             break;
-        case SDL_SCANCODE_5:
+        case GLFW_KEY_5:
             single_unassign = 5;
             break;
-        case SDL_SCANCODE_4:
+        case GLFW_KEY_4:
             single_unassign = 4;
             break;
-        case SDL_SCANCODE_3:
+        case GLFW_KEY_3:
             single_unassign = 3;
             break;
-        case SDL_SCANCODE_2:
+        case GLFW_KEY_2:
             single_unassign = 2;
             break;
-        case SDL_SCANCODE_1:
+        case GLFW_KEY_1:
             single_unassign = 1;
             break;
 
-        case SDL_SCANCODE_A:
+        case GLFW_KEY_A:
             renderer->base().memory.enable_defragmentation(buffer_type, false);
             renderer->base().memory.stop_defrag(buffer_type);
             num_allocs = alloc_dist(mersenne_twister);
@@ -875,7 +885,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer->base().memory.enable_defragmentation(buffer_type, enable_defragger);
             renderer->base().memory.start_defrag(buffer_type);
             break;
-        case SDL_SCANCODE_D:
+        case GLFW_KEY_D:
 
             renderer->base().memory.enable_defragmentation(buffer_type, false);
             renderer->base().memory.stop_defrag(buffer_type);
@@ -893,7 +903,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer->base().memory.start_defrag(buffer_type);
 
             break;
-        case SDL_SCANCODE_Z:
+        case GLFW_KEY_Z:
         {
             renderer->base().memory.enable_defragmentation(image_type, false);
             renderer->base().memory.stop_defrag(image_type);
@@ -909,7 +919,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer->base().memory.start_defrag(image_type);
         }
         break;
-        case SDL_SCANCODE_C:
+        case GLFW_KEY_C:
         {
             renderer->base().memory.enable_defragmentation(image_type, false);
             renderer->base().memory.stop_defrag(image_type);
@@ -929,7 +939,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer->base().memory.start_defrag(image_type);
         }
         break;
-        case SDL_SCANCODE_R:
+        case GLFW_KEY_R:
             renderer->base().memory.enable_defragmentation(buffer_type, false);
             renderer->base().memory.stop_defrag(buffer_type);
 
@@ -940,7 +950,7 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             renderer->base().memory.enable_defragmentation(buffer_type, enable_defragger);
             renderer->base().memory.start_defrag(buffer_type);
             break;
-        case SDL_SCANCODE_V:
+        case GLFW_KEY_V:
         {
             for (auto& numAlloc : num_allocations)
             {
@@ -965,15 +975,17 @@ void VulkanExample::keyPressed(SDL_Keysym key)
             }
         }
         break;
-        case SDL_SCANCODE_ESCAPE:
+        case GLFW_KEY_ESCAPE:
             cleanup();
             window->close();
             break;
 
-        case SDL_SCANCODE_J:
+        case GLFW_KEY_J:
             renderer->base().memory.full_defrag();
             break;
         default:
+            // e.g. G (toggle GUI)
+            VulkanExampleBase::keyPressed(key, scancode, mods);
             break;
     }
 
@@ -1000,8 +1012,6 @@ void VulkanExample::alloc_index(int index)
         // num_allocations[index] = renderer->base().memory.allocate(buffer_type, sizes[3]);
     }
 }
-
-void VulkanExample::keyReleased(SDL_Keysym key) {}
 
 std::pair<std::shared_ptr<Saiga::Vulkan::Buffer>, uint32_t> VulkanExample::allocate(
     Saiga::Vulkan::Memory::BufferType type, unsigned long long int size)
@@ -1074,7 +1084,6 @@ void VulkanExample::cleanup()
 }
 
 
-#undef main
 int main(const int argc, const char* argv[])
 {
     initSaigaSample();

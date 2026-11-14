@@ -12,6 +12,14 @@
 namespace Saiga::Vulkan
 {
 struct VulkanBase;
+
+/**
+ * The bindings of a descriptor set layout and (after create()) the vk::DescriptorSetLayout handle.
+ *
+ * The handle is not owned in the RAII sense: there is no destructor, destroy() must be called explicitly and is
+ * idempotent. A copy shares the handle, so destroy() must be called on exactly one of the copies (PipelineBase copies
+ * the layouts into a deferred deletion and destroys them there).
+ */
 class SAIGA_VULKAN_API DescriptorSetLayout
 {
    public:
@@ -19,9 +27,9 @@ class SAIGA_VULKAN_API DescriptorSetLayout
     using BindingMapEntry = BindingMapType::value_type;
 
    private:
-    VulkanBase* base;
+    VulkanBase* base = nullptr;
     BindingMapType bindings;
-    vk::DescriptorSetLayout layout;
+    vk::DescriptorSetLayout layout = nullptr;
 
    public:
     void destroy();
@@ -45,6 +53,7 @@ class SAIGA_VULKAN_API DescriptorSetLayout
 
     inline const vk::DescriptorSetLayoutBinding& getBindingForIndex(uint32_t index) const { return bindings.at(index); }
 
+    // A new set with the same descriptors as set.
     vk::DescriptorSet createDuplicateSet(vk::DescriptorSet set)
     {
         auto duplicate = base->descriptorPool.allocateDescriptorSet(layout);
@@ -52,9 +61,11 @@ class SAIGA_VULKAN_API DescriptorSetLayout
         std::vector<vk::CopyDescriptorSet> copies(bindings.size());
 
         std::transform(bindings.begin(), bindings.end(), copies.begin(),
-                       [=](const std::pair<uint32_t, vk::DescriptorSetLayoutBinding>& binding) {
+                       [=](const std::pair<uint32_t, vk::DescriptorSetLayoutBinding>& binding)
+                       {
                            return vk::CopyDescriptorSet{
-                               set, binding.second.binding, 0, duplicate, binding.second.binding, 0, 1};
+                               set, binding.second.binding,        0, duplicate, binding.second.binding,
+                               0,   binding.second.descriptorCount};
                        });
 
         base->device.updateDescriptorSets(nullptr, copies);
