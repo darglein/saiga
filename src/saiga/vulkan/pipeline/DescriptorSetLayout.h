@@ -9,6 +9,7 @@
 
 #include <exception>
 #include <map>
+#include <set>
 namespace Saiga::Vulkan
 {
 struct VulkanBase;
@@ -53,22 +54,24 @@ class SAIGA_VULKAN_API DescriptorSetLayout
 
     inline const vk::DescriptorSetLayoutBinding& getBindingForIndex(uint32_t index) const { return bindings.at(index); }
 
-    // A new set with the same descriptors as set.
-    vk::DescriptorSet createDuplicateSet(vk::DescriptorSet set)
+    /**
+     * A new set with the same descriptors as set, except for the bindings with the given indices: these are left
+     * unwritten and must be written by the caller. A descriptor whose image, view, sampler or buffer was destroyed
+     * (e.g. of a resource the defragmenter moved) must not be copied.
+     */
+    vk::DescriptorSet createDuplicateSet(vk::DescriptorSet set, const std::set<uint32_t>& skipIndices = {})
     {
         auto duplicate = base->descriptorPool.allocateDescriptorSet(layout);
 
-        std::vector<vk::CopyDescriptorSet> copies(bindings.size());
+        std::vector<vk::CopyDescriptorSet> copies;
+        for (auto& binding : bindings)
+        {
+            if (skipIndices.count(binding.first)) continue;
+            copies.emplace_back(set, binding.second.binding, 0, duplicate, binding.second.binding, 0,
+                                binding.second.descriptorCount);
+        }
 
-        std::transform(bindings.begin(), bindings.end(), copies.begin(),
-                       [=](const std::pair<uint32_t, vk::DescriptorSetLayoutBinding>& binding)
-                       {
-                           return vk::CopyDescriptorSet{
-                               set, binding.second.binding,        0, duplicate, binding.second.binding,
-                               0,   binding.second.descriptorCount};
-                       });
-
-        base->device.updateDescriptorSets(nullptr, copies);
+        if (!copies.empty()) base->device.updateDescriptorSets(nullptr, copies);
 
         return duplicate;
     }

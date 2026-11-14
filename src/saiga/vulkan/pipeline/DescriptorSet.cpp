@@ -108,28 +108,36 @@ void DynamicDescriptorSet::update()
 {
     if (!descriptorSet) return;
 
-    vk::DescriptorSet new_set = nullptr;
+    bool moved = false;
+    for (auto& entry : assigned_textures)
+    {
+        auto& location = entry.second.texture->memoryLocation;
+        if (location && location->modified_time > entry.second.time) moved = true;
+    }
+    for (auto& entry : assigned_buffers)
+    {
+        auto* location = entry.second.first->memoryLocation();
+        if (location && location->modified_time > entry.second.second) moved = true;
+    }
+    if (!moved) return;
+
+    // The current set may be used by frames in flight, so it is not updated in place. The assigned resources are
+    // written again instead of copied: the old set still refers to the image, view, sampler or buffer a moved
+    // resource had before, which may be destroyed already.
+    std::set<uint32_t> assigned;
+    for (auto& entry : assigned_textures) assigned.insert(entry.first);
+    for (auto& entry : assigned_buffers) assigned.insert(entry.first);
+    vk::DescriptorSet new_set = layout->createDuplicateSet(descriptorSet, assigned);
 
     for (auto& entry : assigned_textures)
     {
         auto& texture = entry.second.texture;
-        auto& time    = entry.second.time;
         if (!texture->memoryLocation) continue;
 
-        if (texture->memoryLocation->modified_time > time)
-        {
-            if (!new_set)
-            {
-                // The current set may be used by frames in flight, so it is not updated in place.
-                new_set = layout->createDuplicateSet(descriptorSet);
-            }
-
-            auto info = texture->getDescriptorInfo();
-            if (entry.second.sampler) info.sampler = entry.second.sampler;
-            base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
-
-            time = texture->memoryLocation->modified_time;
-        }
+        auto info = texture->getDescriptorInfo();
+        if (entry.second.sampler) info.sampler = entry.second.sampler;
+        base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
+        entry.second.time = texture->memoryLocation->modified_time;
     }
 
     for (auto& entry : assigned_buffers)
@@ -138,25 +146,13 @@ void DynamicDescriptorSet::update()
         auto* location       = buffer->memoryLocation();
         if (!location) continue;
 
-        if (location->modified_time > time)
-        {
-            if (!new_set)
-            {
-                new_set = layout->createDuplicateSet(descriptorSet);
-            }
-
-            auto info = buffer->createInfo();
-            base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
-
-            time = location->modified_time;
-        }
+        auto info = buffer->createInfo();
+        base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
+        time = location->modified_time;
     }
 
-    if (new_set)
-    {
-        // Free the old set once the frames that may use it have completed.
-        release();
-        descriptorSet = new_set;
-    }
+    // Free the old set once the frames that may use it have completed.
+    release();
+    descriptorSet = new_set;
 }
 }  // namespace Saiga::Vulkan
