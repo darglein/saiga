@@ -210,11 +210,10 @@ bool ShaderModule::autoReload()
     lastCheck = now;
 
     auto times = getWriteTimes();
-    for (auto& t : times)
-    {
-        // A file is missing: try again later.
-        if (t == std::filesystem::file_time_type::min()) return false;
-    }
+    // The shader file itself is missing (e.g. while an editor saves it): try again later. A missing include is a
+    // change (e.g. it was renamed and the #include updated): reload() rebuilds the dependency list, also if the
+    // compilation fails, so this does not repeat.
+    if (times[0] == std::filesystem::file_time_type::min()) return false;
     if (times == lastWrites) return false;
 
     std::cout << "File Update detected. Reloading " << file << std::endl;

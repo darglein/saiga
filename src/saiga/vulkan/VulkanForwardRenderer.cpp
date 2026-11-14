@@ -260,7 +260,7 @@ std::unique_ptr<StagingBuffer> VulkanForwardRenderer::recordScreenshot(vk::Comma
 void VulkanForwardRenderer::saveScreenshot(StagingBuffer& buffer, const std::string& file)
 {
     TemplatedImage<ucvec4> img(SurfaceHeight, surfaceWidth);
-    buffer.download(img.data());
+    buffer.download(img.data(), size_t(surfaceWidth) * SurfaceHeight * 4);
     auto format = getColorFormat();
     if (format == vk::Format::eB8G8R8A8Unorm || format == vk::Format::eB8G8R8A8Srgb)
     {

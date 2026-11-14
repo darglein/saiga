@@ -115,6 +115,8 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
    private:
     uint32_t frameIndex = 0;
+    // The window's framebuffer size when the swap chain was created
+    ivec2 swapChainFramebufferSize = ivec2(0, 0);
     std::array<FrameSync, framesInFlight> frames;
 
     // One per swap chain image: a binary semaphore may only be signaled again after the presentation engine has

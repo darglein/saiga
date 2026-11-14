@@ -126,7 +126,7 @@ void Buffer::stagedDownload(void* data)
     base->mainQueue.submitAndWait(cmd);
     base->mainQueue.commandPool.freeCommandBuffer(cmd);
 
-    staging.download(data);
+    staging.download(data, size());
     staging.destroyImmediately();
 }
 

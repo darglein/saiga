@@ -44,7 +44,9 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     timings.registerFrameSection("TRANSFER", 0);
     timings.registerFrameSection("MAIN", 1);
     timings.registerFrameSection("IMGUI", 2);
-    timings.create(framesInFlight);
+    // One more entry than frames in flight: up to framesInFlight entries are unread, and a full ring must be
+    // distinguishable from an empty one.
+    timings.create(framesInFlight + 1);
 
     if (vulkanParameters.enableImgui)
     {
@@ -72,9 +74,10 @@ void VulkanRenderer::init()
     SAIGA_ASSERT(state == State::INITIALIZED);
 
     // Used by the swap chain if the surface does not define its size (e.g. Wayland).
-    ivec2 framebuffer_size = window.getFramebufferSize();
-    surfaceWidth           = framebuffer_size.x();
-    SurfaceHeight          = framebuffer_size.y();
+    ivec2 framebuffer_size   = window.getFramebufferSize();
+    surfaceWidth             = framebuffer_size.x();
+    SurfaceHeight            = framebuffer_size.y();
+    swapChainFramebufferSize = framebuffer_size;
     swapChain.create(&surfaceWidth, &SurfaceHeight, vulkanParameters.vsync);
 
     destroySwapChainObjects();
@@ -96,6 +99,14 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     {
         if (state == State::RENDERABLE) reset();
         return;
+    }
+
+    // Surfaces without a fixed extent (Wayland) may not report OUT_OF_DATE/SUBOPTIMAL when the framebuffer size
+    // changes (e.g. a scale change). Compared with the framebuffer size at swap chain creation (the swap chain extent
+    // can differ from it by clamping).
+    if (state == State::RENDERABLE && framebuffer_size != swapChainFramebufferSize)
+    {
+        reset();
     }
 
     if (state == State::RESET)

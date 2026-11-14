@@ -143,7 +143,7 @@ void Defragger<T>::start()
     }
     {
         std::lock_guard<std::mutex> lock(start_mutex);
-        if (quit)
+        if (quit || pauseCount > 0)
         {
             return;
         }
@@ -154,6 +154,35 @@ void Defragger<T>::start()
         running = true;
     }
     start_condition.notify_one();
+}
+
+template <typename T>
+void Defragger<T>::pause()
+{
+    {
+        // Under start_mutex: a concurrent start() either ran before (and is stopped below) or sees the count.
+        std::lock_guard<std::mutex> lock(start_mutex);
+        pauseCount++;
+        running = false;
+    }
+    wait_condition.notify_all();
+    {
+        // Returns when the worker has left run().
+        std::unique_lock<std::mutex> lock(running_mutex);
+    }
+}
+
+template <typename T>
+void Defragger<T>::resume()
+{
+    bool restart;
+    {
+        std::lock_guard<std::mutex> lock(start_mutex);
+        SAIGA_ASSERT(pauseCount > 0);
+        pauseCount--;
+        restart = pauseCount == 0;
+    }
+    if (restart) start();
 }
 
 template <typename T>
@@ -746,7 +775,10 @@ void Defragger<T>::full_defrag()
         return;
     }
 
-    // The worker must not run concurrently. It blocks on this lock if it is started meanwhile.
+    // The worker must not run concurrently. Stop it first: while it waits in run() for the main thread (which is
+    // blocked here), it holds running_mutex, so locking without stopping would deadlock. The ops it already recorded
+    // are submitted and completed below. It blocks on this lock if it is started meanwhile.
+    stop();
     std::unique_lock<std::mutex> running_lock(running_mutex);
     running = true;
 
@@ -865,6 +897,13 @@ bool BufferDefragger::create_copy_command(BufferDefragger::PossibleOp& op, Buffe
 {
     VLOG(3) << "Create Buffer Copy" << PointerOutput<BufferMemoryLocation>(reserve_space) << " " << op << " " << cmd;
     copy_buffer(cmd, reserve_space, op.source);
+
+    // Later frames read the moved data (vertex/index/uniform/storage) after the swap; make the copy's writes
+    // available and visible to them.
+    vk::MemoryBarrier2 barrier(vk::PipelineStageFlagBits2::eAllTransfer, vk::AccessFlagBits2::eTransferWrite,
+                               vk::PipelineStageFlagBits2::eAllCommands,
+                               vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite);
+    cmd.pipelineBarrier2(vk::DependencyInfo({}, barrier, nullptr, nullptr));
     return true;
 }
 

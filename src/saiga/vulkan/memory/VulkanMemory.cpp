@@ -291,14 +291,14 @@ BufferMemoryLocation* VulkanMemory::allocate(const BufferType& type, vk::DeviceS
     {
         if (container->defragger)
         {
-            container->defragger->stop();
+            container->defragger->pause();
         }
 
         location = container->allocator->allocate(size);
 
         if (container->defragger)
         {
-            container->defragger->start();
+            container->defragger->resume();
         }
     }
     else
@@ -328,7 +328,7 @@ ImageMemoryLocation* VulkanMemory::allocate(const ImageType& type, ImageData& im
     {
         if (container->defragger)
         {
-            container->defragger->stop();
+            container->defragger->pause();
         }
 
         // nullptr if the allocator can not hold the image (size, alignment or memory type).
@@ -336,7 +336,7 @@ ImageMemoryLocation* VulkanMemory::allocate(const ImageType& type, ImageData& im
 
         if (container->defragger)
         {
-            container->defragger->start();
+            container->defragger->resume();
         }
     }
 
@@ -370,7 +370,7 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, BufferMemoryLocation
 
     if (container->defragger)
     {
-        container->defragger->stop();
+        container->defragger->pause();
         container->defragger->invalidate(location);
     }
 
@@ -378,7 +378,7 @@ void VulkanMemory::deallocateBuffer(const BufferType& type, BufferMemoryLocation
 
     if (container->defragger)
     {
-        container->defragger->start();
+        container->defragger->resume();
     }
 }
 
@@ -401,7 +401,7 @@ void VulkanMemory::deallocateImage(const ImageType& type, ImageMemoryLocation* l
 
     if (container->defragger)
     {
-        container->defragger->stop();
+        container->defragger->pause();
         container->defragger->invalidate(location);
     }
 
@@ -409,7 +409,7 @@ void VulkanMemory::deallocateImage(const ImageType& type, ImageMemoryLocation* l
 
     if (container->defragger)
     {
-        container->defragger->start();
+        container->defragger->resume();
     }
 }
 

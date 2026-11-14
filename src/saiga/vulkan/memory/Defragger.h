@@ -185,6 +185,8 @@ class Defragger
     bool exited = false;
 
     std::mutex start_mutex, running_mutex, defrag_mutex, copy_mutex;
+    // Number of active pause() calls, guarded by start_mutex.
+    int pauseCount = 0;
     std::condition_variable start_condition;
 
     // The worker waits on this while it can only wait for the main thread (submission) or the GPU.
@@ -252,6 +254,13 @@ class Defragger
 
     void start();
     void stop();
+
+    /**
+     * Counted pause for allocate/deallocate, which may run on several threads: the worker stays stopped (also
+     * against start() from other threads or perform_defrag) until every pause() was matched by a resume().
+     */
+    void pause();
+    void resume();
 
     /**
      * Submits the recorded copies, which take at most allowed_time (ns). They wait for frameTimeline >= waitValue.
