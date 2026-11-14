@@ -54,13 +54,15 @@ class SAIGA_VULKAN_API PipelineInfo
                                                                  0,
                                                                  0};
 
+    // Blending is off by default. If enabled: alpha blending ("over") of color and alpha, so that the alpha of an
+    // attachment stays correct (an opaque source writes alpha = 1) when it is blended again later.
     vk::PipelineColorBlendAttachmentState blendAttachmentState = {
         false,
         vk::BlendFactor::eSrcAlpha,
         vk::BlendFactor::eOneMinusSrcAlpha,
         vk::BlendOp::eAdd,
+        vk::BlendFactor::eOne,
         vk::BlendFactor::eOneMinusSrcAlpha,
-        vk::BlendFactor::eZero,
         vk::BlendOp::eAdd,
         vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |
             vk::ColorComponentFlagBits::eA};

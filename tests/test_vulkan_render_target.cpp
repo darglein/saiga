@@ -178,18 +178,19 @@ TEST_F(VulkanRenderTarget, DrawAndSample)
     auto frame = RenderFrame();
     ASSERT_EQ(frame.w, width);
 
-    // The first pass: green in the top left quarter of the target, the clear color elsewhere. Only the color is
-    // compared: TextureDisplay blends, and the alpha blend factors of the default PipelineInfo do not keep alpha.
+    // The first pass: green in the top left quarter of the target, the clear color elsewhere.
+    // TextureDisplay blends: an opaque source must keep the target opaque. The alpha blend factors of the default
+    // PipelineInfo used to write alpha = 0, which made the green part invisible in the second pass.
+    ucvec4 green_color(0, 255, 0, 255), blue(0, 0, 255, 255);
     auto pixels = Pixels(target.colorTexture());
     ASSERT_EQ(pixels.size(), size_t(16 * 16));
-    EXPECT_EQ(pixels[4 * 16 + 4](0), 0);
-    EXPECT_EQ(pixels[4 * 16 + 4](1), 255);
-    EXPECT_EQ(pixels[4 * 16 + 4](2), 0);
-    EXPECT_EQ(pixels[4 * 16 + 12], ucvec4(0, 0, 255, 255));
-    EXPECT_EQ(pixels[12 * 16 + 4], ucvec4(0, 0, 255, 255));
+    EXPECT_EQ(pixels[4 * 16 + 4], green_color);
+    EXPECT_EQ(pixels[4 * 16 + 12], blue);
+    EXPECT_EQ(pixels[12 * 16 + 4], blue);
 
-    // The second pass: the 16x16 target magnified to 32x32 in the frame.
-    ucvec4 blue(0, 0, 255, 255);
+    // The second pass: the 16x16 target magnified to 32x32 in the frame. blit.vert shows the first texture row at
+    // the bottom (see the shader), so the green quarter is at the bottom left of the rectangle.
+    EXPECT_EQ(frame(24, 8), green_color);
     EXPECT_EQ(frame(8, 8), blue);
     EXPECT_EQ(frame(8, 24), blue);
     EXPECT_EQ(frame(24, 24), blue);
