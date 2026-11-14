@@ -30,10 +30,13 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     vulkanParameters.physicalDeviceFeatures.largePoints      = VK_TRUE;
     base().createLogicalDevice(vulkanParameters, surface);
 
-    swapChain.connect(instance, base().physicalDevice, base().device);
-    swapChain.initSurface(surface);
-    SAIGA_ASSERT(swapChain.queueNodeIndex == base().mainQueue.getQueueFamilyIndex(),
-                 "The main queue must be able to present");
+    if (!isHeadless())
+    {
+        swapChain.connect(instance, base().physicalDevice, base().device);
+        swapChain.initSurface(surface);
+        SAIGA_ASSERT(swapChain.queueNodeIndex == base().mainQueue.getQueueFamilyIndex(),
+                     "The main queue must be able to present");
+    }
 
     for (auto& f : frames) f.create(base().device);
 
@@ -67,6 +70,34 @@ void VulkanRenderer::destroySwapChainObjects()
 {
     for (auto s : renderComplete) base().device.destroySemaphore(s);
     renderComplete.clear();
+    // Deferred, see Texture::destroy.
+    offscreenImages.clear();
+}
+
+vk::Image VulkanRenderer::colorImage(uint32_t imageIndex) const
+{
+    if (isHeadless()) return offscreenImages[imageIndex].memoryLocation->data.image;
+    return swapChain.images[imageIndex];
+}
+
+vk::ImageView VulkanRenderer::colorImageView(uint32_t imageIndex) const
+{
+    if (isHeadless()) return offscreenImages[imageIndex].memoryLocation->data.view;
+    return swapChain.buffers[imageIndex].view;
+}
+
+vk::ImageLayout VulkanRenderer::finalColorLayout() const
+{
+    return isHeadless() ? vk::ImageLayout::eTransferSrcOptimal : vk::ImageLayout::ePresentSrcKHR;
+}
+
+bool VulkanRenderer::colorImagesSupportTransferSrc() const
+{
+    if (isHeadless())
+    {
+        return bool(offscreenImages.front().type.usageFlags & vk::ImageUsageFlagBits::eTransferSrc);
+    }
+    return swapChain.imageUsage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 }
 
 void VulkanRenderer::init()
@@ -78,12 +109,24 @@ void VulkanRenderer::init()
     surfaceWidth             = framebuffer_size.x();
     SurfaceHeight            = framebuffer_size.y();
     swapChainFramebufferSize = framebuffer_size;
-    swapChain.create(&surfaceWidth, &SurfaceHeight, vulkanParameters.vsync);
 
     destroySwapChainObjects();
-    for (uint32_t i = 0; i < swapChain.imageCount; ++i)
+    if (isHeadless())
     {
-        renderComplete.push_back(base().device.createSemaphore(vk::SemaphoreCreateInfo{}));
+        offscreenImages.resize(framesInFlight);
+        for (auto& image : offscreenImages)
+        {
+            image.create(base(), surfaceWidth, SurfaceHeight, offscreenFormat,
+                         vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled);
+        }
+    }
+    else
+    {
+        swapChain.create(&surfaceWidth, &SurfaceHeight, vulkanParameters.vsync);
+        for (uint32_t i = 0; i < swapChain.imageCount; ++i)
+        {
+            renderComplete.push_back(base().device.createSemaphore(vk::SemaphoreCreateInfo{}));
+        }
     }
 
     createBuffers(swapChainSize(), surfaceWidth, SurfaceHeight);
@@ -125,24 +168,35 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     base().waitFrameValue(sync.timelineValue);
     timings.update(base().frameTimeline);
 
-    uint32_t imageIndex = 0;
-    VkResult err        = swapChain.acquireNextImage(sync.imageAvailable, &imageIndex);
-    if (err == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        reset();
-        return;
-    }
-    // VK_SUBOPTIMAL_KHR is a success code: the image was acquired, so render and present it and recreate the swap
-    // chain afterwards.
-    bool suboptimal = err == VK_SUBOPTIMAL_KHR;
-    if (!suboptimal) VK_CHECK_RESULT(err);
-
     FrameInfo frame;
-    frame.frameIndex     = frameIndex;
-    frame.imageIndex     = imageIndex;
-    frame.imageAvailable = sync.imageAvailable;
-    frame.renderComplete = renderComplete[imageIndex];
-    frame.timelineValue  = base().currentFrameSignalValue();
+    frame.frameIndex    = frameIndex;
+    frame.timelineValue = base().currentFrameSignalValue();
+
+    VkResult err    = VK_SUCCESS;
+    bool suboptimal = false;
+    if (isHeadless())
+    {
+        // The frame that last rendered into this image has completed (see the wait above).
+        frame.imageIndex = frameIndex;
+    }
+    else
+    {
+        uint32_t imageIndex = 0;
+        err                 = swapChain.acquireNextImage(sync.imageAvailable, &imageIndex);
+        if (err == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            reset();
+            return;
+        }
+        // VK_SUBOPTIMAL_KHR is a success code: the image was acquired, so render and present it and recreate the swap
+        // chain afterwards.
+        suboptimal = err == VK_SUBOPTIMAL_KHR;
+        if (!suboptimal) VK_CHECK_RESULT(err);
+
+        frame.imageIndex     = imageIndex;
+        frame.imageAvailable = sync.imageAvailable;
+        frame.renderComplete = renderComplete[imageIndex];
+    }
 
     timings.beginFrame(frame.timelineValue);
     render(frame);
@@ -151,7 +205,10 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     // Defragmentation copies may run after this frame (they wait for its timeline value).
     timings.finishFrame(base().frameTimeline, frame.timelineValue);
 
-    err = swapChain.queuePresent(base().mainQueue, imageIndex, frame.renderComplete);
+    if (!isHeadless())
+    {
+        err = swapChain.queuePresent(base().mainQueue, frame.imageIndex, frame.renderComplete);
+    }
 
     base().finish_frame();
     frameIndex = (frameIndex + 1) % framesInFlight;

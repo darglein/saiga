@@ -51,7 +51,7 @@ submodules/             Vendored git submodules: eigen, glog, googletest, glfw, 
                         libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF, glslang (built from submodules/CMakeLists.txt),
                         plus tiny-eigen and tiny-glog, which are plain files maintained in this repository
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
-.github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build (OpenGL on Mesa llvmpipe, Vulkan compile-only) + ctest
+.github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build (OpenGL on Mesa llvmpipe, Vulkan on Mesa lavapipe) + ctest
 travis/, .travis.yml    Legacy Travis CI — unused
 ```
 
@@ -68,7 +68,7 @@ sudo apt-get install -y --no-install-recommends \
   build-essential cmake ninja-build ccache \
   xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules \
   libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri \
-  libvulkan-dev
+  libvulkan-dev mesa-vulkan-drivers vulkan-validationlayers
 ```
 
 The dependency list in `README.md` is partly outdated (e.g. GLM is no longer used — Eigen is the
@@ -76,8 +76,8 @@ math backend); most image/compression libraries come from `submodules/`.
 
 ## Build (Linux)
 
-The canonical build is the CI recipe — no GPU, no samples (the OpenGL module is built and tested on
-Mesa's software renderer, the Vulkan module is only compiled). Use it unless the change needs CUDA:
+The canonical build is the CI recipe — no GPU, no samples (the OpenGL and Vulkan modules are built and tested on
+Mesa's software renderers). Use it unless the change needs CUDA:
 
 ```shell
 cmake -S . -B build -G Ninja \
@@ -93,8 +93,8 @@ cmake --build build --parallel -- -k 0
 - Without Ninja, drop `-G Ninja` and `-- -k 0` (Makefiles: `cmake --build build --parallel $(nproc)`).
 - **CMake >= 4.0** refuses the `cmake_minimum_required(VERSION 3.0)` of `submodules/glog`; add
   `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to the configure. (CI uses CMake 3.28 and does not need it.)
-- The CUDA module needs a GPU / CUDA toolkit and is **not covered by CI**. The Vulkan module is only
-  compile-checked (no tests, no samples); it needs the Vulkan headers. glslang comes from `submodules/glslang`, is linked
+- The CUDA module needs a GPU / CUDA toolkit and is **not covered by CI**. The Vulkan module is covered
+  through its headless tests (no window, swap chain or samples); it needs the Vulkan headers. glslang comes from `submodules/glslang`, is linked
   statically into `saiga_vulkan` and needs CMake >= 3.22.1 (the module is skipped with a warning below that). The OpenGL module is covered, but only through its
   headless tests (no window, renderers or samples). For a CUDA build leave `SAIGA_MODULE_CUDA=ON` and pin the archs with
   `-DSAIGA_CUDA_ARCH="86;89"` (dotless, e.g. `75;80;86;89+PTX`), otherwise the installed GPU is
@@ -119,7 +119,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Vision + Opengl + Vulkan** and
-39 tests; the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+45 tests; the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -138,13 +138,20 @@ ctest -R test_core_ini --output-on-failure             # one test
 - Test style: `using namespace Saiga;`, plain `TEST(Suite, Name)`, `EXPECT_*`/`ASSERT_*`; a
   regression test carries a short comment describing the bug it guards against.
 - Shared helpers: `tests/compare_numbers.h`, `tests/numeric_derivative.h` (numeric Jacobians for the
-  vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture).
+  vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture),
+  `tests/vulkan_test_context.h` (the `VulkanTest` fixture).
 - **OpenGL tests** (`test_opengl_*`, built when OpenGL + EGL are found) need no window or X server: the
   `OpenGLTest` fixture creates a headless EGL context (`CreateEGLContext()`, from the first EGL device —
   e.g. the NVIDIA GPU — else Mesa) and **skips** every test if there is no EGL display. Derive the
   suite from `OpenGLTest` and use `TEST_F`; it fails a test that leaves a GL error behind. The core
   profile needs a bound VAO to draw. To run them on Mesa's software renderer as CI does:
   `__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1 ctest -R test_opengl`.
+- **Vulkan tests** (`test_vulkan_*`) need no window system either: the `VulkanTest` fixture creates a
+  `Vulkan::HeadlessWindow` with the forward renderer (no surface or swap chain, the frames are rendered into offscreen
+  images; `RenderFrame()` returns one) and **skips** every test without a Vulkan 1.3 driver. Derive the suite from
+  `VulkanTest` and use `TEST_F`. The validation layer is used if installed (`vulkan-validationlayers`); a validation
+  error fails an assertion and aborts the test. The best device is used (e.g. the NVIDIA GPU); to run them on Mesa's
+  software driver lavapipe as CI does: `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json ctest -R test_vulkan`.
 
 ## Code Conventions
 
@@ -191,7 +198,7 @@ cd build && ctest --output-on-failure --parallel 4                         # all
 ```
 
 For changes in the CUDA module, which CI does not build, also build that module locally (with a GPU) and say so
-if it could not be built. CI only compiles the Vulkan module and covers the OpenGL module only through the
-`test_opengl_*` tests; for rendering changes also run a sample on a GPU (Vulkan: `samples/vulkan`, they use GLFW). The Vulkan samples save a
+if it could not be built. CI covers the OpenGL and Vulkan modules only through the headless
+`test_opengl_*` and `test_vulkan_*` tests; for rendering changes also run a sample on a GPU (Vulkan: `samples/vulkan`, they use GLFW). The Vulkan samples save a
 screenshot of frame 60 and exit when the environment variable `SAIGA_SCREENSHOT=<file.png>` is set, which allows checking
 the output without looking at the window (F12 saves `screenshot.png` interactively).

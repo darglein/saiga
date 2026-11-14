@@ -13,6 +13,7 @@
 #include "saiga/vulkan/Parameters.h"
 #include "saiga/vulkan/SwapChain.h"
 #include "saiga/vulkan/svulkan.h"
+#include "saiga/vulkan/texture/Texture.h"
 
 #include "FrameTimings.h"
 
@@ -29,7 +30,7 @@ class ImGuiVulkanRenderer;
  * Base class for all Vulkan renderers.
  * This already includes basic functionality that every renderer needs:
  * - Window management
- * - Swap Chain
+ * - Swap Chain, or offscreen color images if the window has no surface (HeadlessWindow)
  * - Instance and Device
  * - Frame synchronization: framesInFlight frames are recorded/executed concurrently. The completion of a frame is
  *   tracked with VulkanBase::frameTimeline.
@@ -77,12 +78,27 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     // Waits until the device is idle (all queues).
     void waitIdle();
 
-    int swapChainSize() { return swapChain.imageCount; }
+    // Number of color images: swap chain images, or the offscreen images of a headless renderer.
+    int swapChainSize() { return isHeadless() ? (int)offscreenImages.size() : (int)swapChain.imageCount; }
     inline VulkanBase& base() { return vulkanBase; }
 
-    vk::Format getColorFormat() const { return vk::Format(swapChain.colorFormat); }
+    vk::Format getColorFormat() const { return isHeadless() ? offscreenFormat : vk::Format(swapChain.colorFormat); }
+
+    /**
+     * True if the window did not create a surface (HeadlessWindow). The frames are then rendered into offscreen images
+     * (one per frame in flight) and nothing is presented. No swap chain or surface extension is used.
+     */
+    bool isHeadless() const { return surface == VK_NULL_HANDLE; }
 
    protected:
+    // The color image a frame renders into (FrameInfo::imageIndex).
+    vk::Image colorImage(uint32_t imageIndex) const;
+    vk::ImageView colorImageView(uint32_t imageIndex) const;
+    // The layout the color image must have at the end of the frame: present src, or transfer src if headless.
+    vk::ImageLayout finalColorLayout() const;
+    // If the color images can be the source of a copy (screenshots).
+    bool colorImagesSupportTransferSrc() const;
+
     /**
      * Size of the render surface (the swap chain images) in pixels.
      */
@@ -122,6 +138,11 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     // One per swap chain image: a binary semaphore may only be signaled again after the presentation engine has
     // consumed it, which is guaranteed once the same image is acquired again.
     std::vector<vk::Semaphore> renderComplete;
+
+    // Headless: the color images, indexed by the frame index. A frame index is only reused after its previous frame
+    // has completed.
+    static constexpr vk::Format offscreenFormat = vk::Format::eR8G8B8A8Unorm;
+    std::vector<Texture2D> offscreenImages;
 
     void destroySwapChainObjects();
     void reset();

@@ -109,12 +109,13 @@ void VulkanForwardRenderer::render(const FrameInfo& frame)
     // ImGui's vertex data is in host visible memory, one buffer per frame in flight.
     if (draw_imgui) imGui->updateBuffers(cmd, frame.frameIndex);
 
-    vk::Image colorImage = swapChain.images[frame.imageIndex];
+    vk::Image colorImage = this->colorImage(frame.imageIndex);
     vk::Image depthImage = depthBuffer.location->data.image;
 
     {
         // The swap chain image is written after the acquire (the submit waits for imageAvailable at
         // COLOR_ATTACHMENT_OUTPUT). The previous content is discarded.
+        // Headless: the previous frame that used this image has completed (VulkanRenderer::render).
         vk::ImageMemoryBarrier2 color(Stage::eColorAttachmentOutput, {}, Stage::eColorAttachmentOutput,
                                       Access::eColorAttachmentWrite | Access::eColorAttachmentRead,
                                       vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal,
@@ -138,7 +139,7 @@ void VulkanForwardRenderer::render(const FrameInfo& frame)
         vec4 clearColor = vec4(57, 57, 57, 255) / 255.0f;
 
         vk::RenderingAttachmentInfo colorAttachment;
-        colorAttachment.imageView   = swapChain.buffers[frame.imageIndex].view;
+        colorAttachment.imageView   = colorImageView(frame.imageIndex);
         colorAttachment.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
         colorAttachment.loadOp      = vk::AttachmentLoadOp::eClear;
         colorAttachment.storeOp     = vk::AttachmentStoreOp::eStore;
@@ -176,22 +177,21 @@ void VulkanForwardRenderer::render(const FrameInfo& frame)
     cmd.endRendering();
 
     std::unique_ptr<StagingBuffer> screenshot;
-    std::string screenshot_file;
-    if (!screenshotFile.empty())
+    ScreenshotCallback screenshot_callback;
+    if (screenshotCallback)
     {
-        screenshot_file = screenshotFile;
-        screenshotFile.clear();
+        screenshot_callback.swap(screenshotCallback);
         screenshot = recordScreenshot(cmd, colorImage);
     }
 
     {
-        // Hand the image to the presentation engine (the present waits for renderComplete). After a screenshot the
-        // image is in TRANSFER_SRC.
+        // Hand the image to the presentation engine (the present waits for renderComplete), headless: leave it
+        // readable. After a screenshot the image is in TRANSFER_SRC.
         auto layout = screenshot ? vk::ImageLayout::eTransferSrcOptimal : vk::ImageLayout::eColorAttachmentOptimal;
         auto stage  = screenshot ? vk::PipelineStageFlags2(Stage::eAllTransfer)
                                  : vk::PipelineStageFlags2(Stage::eColorAttachmentOutput);
         auto access = screenshot ? vk::AccessFlags2() : vk::AccessFlags2(Access::eColorAttachmentWrite);
-        vk::ImageMemoryBarrier2 present(stage, access, Stage::eNone, {}, layout, vk::ImageLayout::ePresentSrcKHR,
+        vk::ImageMemoryBarrier2 present(stage, access, Stage::eNone, {}, layout, finalColorLayout(),
                                         VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, colorImage,
                                         vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, present));
@@ -199,41 +199,54 @@ void VulkanForwardRenderer::render(const FrameInfo& frame)
 
     cmd.end();
 
-    vk::SemaphoreSubmitInfo waitInfo(frame.imageAvailable, 0, Stage::eColorAttachmentOutput);
-    std::array<vk::SemaphoreSubmitInfo, 2> signalInfos = {
-        vk::SemaphoreSubmitInfo(frame.renderComplete, 0, Stage::eAllCommands),
-        vk::SemaphoreSubmitInfo(base().frameTimeline, frame.timelineValue, Stage::eAllCommands)};
+    // A headless renderer has no swap chain semaphores (FrameInfo).
+    std::vector<vk::SemaphoreSubmitInfo> waitInfos, signalInfos;
+    if (frame.imageAvailable) waitInfos.emplace_back(frame.imageAvailable, 0, Stage::eColorAttachmentOutput);
+    if (frame.renderComplete) signalInfos.emplace_back(frame.renderComplete, 0, Stage::eAllCommands);
+    signalInfos.emplace_back(base().frameTimeline, frame.timelineValue, Stage::eAllCommands);
     vk::CommandBufferSubmitInfo cmdInfo(cmd);
 
     vk::SubmitInfo2 submitInfo;
-    submitInfo.waitSemaphoreInfoCount   = 1;
-    submitInfo.pWaitSemaphoreInfos      = &waitInfo;
+    submitInfo.waitSemaphoreInfoCount   = (uint32_t)waitInfos.size();
+    submitInfo.pWaitSemaphoreInfos      = waitInfos.data();
     submitInfo.commandBufferInfoCount   = 1;
     submitInfo.pCommandBufferInfos      = &cmdInfo;
-    submitInfo.signalSemaphoreInfoCount = signalInfos.size();
+    submitInfo.signalSemaphoreInfoCount = (uint32_t)signalInfos.size();
     submitInfo.pSignalSemaphoreInfos    = signalInfos.data();
     base().mainQueue.submit2(submitInfo);
 
     if (screenshot)
     {
         base().waitFrameValue(frame.timelineValue);
-        saveScreenshot(*screenshot, screenshot_file);
+        screenshot_callback(readScreenshot(*screenshot));
     }
     if (close_after_frame) window.close();
 }
 
+void VulkanForwardRenderer::requestScreenshot(const std::string& file)
+{
+    requestScreenshot(
+        [file](const TemplatedImage<ucvec4>& img)
+        {
+            if (img.save(file))
+                std::cout << "Saved screenshot " << file << std::endl;
+            else
+                std::cerr << "Could not save screenshot " << file << std::endl;
+        });
+}
+
 std::unique_ptr<StagingBuffer> VulkanForwardRenderer::recordScreenshot(vk::CommandBuffer cmd, vk::Image colorImage)
 {
-    if (!(swapChain.imageUsage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT))
+    if (!colorImagesSupportTransferSrc())
     {
-        std::cerr << "Screenshot not possible: the swap chain images do not support TRANSFER_SRC" << std::endl;
+        std::cerr << "Screenshot not possible: the color images do not support TRANSFER_SRC" << std::endl;
         return nullptr;
     }
     auto format = getColorFormat();
     if (format != vk::Format::eB8G8R8A8Unorm && format != vk::Format::eB8G8R8A8Srgb &&
         format != vk::Format::eR8G8B8A8Unorm && format != vk::Format::eR8G8B8A8Srgb)
     {
-        std::cerr << "Screenshot not possible: unsupported swap chain format " << vk::to_string(format) << std::endl;
+        std::cerr << "Screenshot not possible: unsupported color format " << vk::to_string(format) << std::endl;
         return nullptr;
     }
 
@@ -257,7 +270,7 @@ std::unique_ptr<StagingBuffer> VulkanForwardRenderer::recordScreenshot(vk::Comma
     return buffer;
 }
 
-void VulkanForwardRenderer::saveScreenshot(StagingBuffer& buffer, const std::string& file)
+TemplatedImage<ucvec4> VulkanForwardRenderer::readScreenshot(StagingBuffer& buffer)
 {
     TemplatedImage<ucvec4> img(SurfaceHeight, surfaceWidth);
     buffer.download(img.data(), size_t(surfaceWidth) * SurfaceHeight * 4);
@@ -271,10 +284,7 @@ void VulkanForwardRenderer::saveScreenshot(StagingBuffer& buffer, const std::str
     for (int y = 0; y < img.h; ++y)
         for (int x = 0; x < img.w; ++x) img(y, x)(3) = 255;
 
-    if (img.save(file))
-        std::cout << "Saved screenshot " << file << std::endl;
-    else
-        std::cerr << "Could not save screenshot " << file << std::endl;
+    return img;
 }
 
 }  // namespace Vulkan

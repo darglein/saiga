@@ -130,10 +130,13 @@ struct SAIGA_VULKAN_API Texture2D : public Texture
     // Uploads new content (blocking). The image must have the size and type the texture was created from.
     void uploadImage(const Image& img, bool flipY);
 
-   protected:
-    // Creates the image, view and sampler (in eUndefined layout).
+    /**
+     * Creates the image, view and sampler without content (in eUndefined layout), e.g. for a render target.
+     * eTransferDst is always added to the usage, eTransferSrc if the format supports it.
+     */
     void create(VulkanBase& _base, uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage);
 
+   protected:
     // Copies the image into a new staging buffer and records the upload (TransferDst -> ShaderReadOnly).
     void recordUpload(vk::CommandBuffer cmd, const Image& img, bool flipY, StagingBuffer& staging);
 };

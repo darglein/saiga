@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/image/templatedImage.h"
 #include "saiga/core/math/math.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/vulkan/CommandPool.h"
@@ -15,6 +16,8 @@
 #include "saiga/vulkan/buffer/DepthBuffer.h"
 #include "saiga/vulkan/pipeline/PipelineInfo.h"
 #include "saiga/vulkan/window/Window.h"
+
+#include <functional>
 
 namespace Saiga
 {
@@ -37,6 +40,8 @@ struct SAIGA_VULKAN_API ForwardRenderingParameters{void fromConfigFile(const std
 
 /**
  * Renders into the swap chain image with a depth buffer, using dynamic rendering (Vulkan 1.3).
+ * With a HeadlessWindow it renders into offscreen images instead (see VulkanRenderer::isHeadless); the result is
+ * read with requestScreenshot.
  */
 class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
 {
@@ -61,7 +66,15 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
      * Saves the next rendered frame (including the GUI) to the image file (e.g. png). The file is written at the end
      * of that frame's render call (which then waits for the GPU).
      */
-    void requestScreenshot(const std::string& file) { screenshotFile = file; }
+    void requestScreenshot(const std::string& file);
+
+    /**
+     * Passes the next rendered frame (including the GUI) to the callback: RGBA with alpha = 255, row 0 is the top
+     * row. The callback is called at the end of that frame's render call (which then waits for the GPU). It is not
+     * called if the color images can not be read back (see the error output).
+     */
+    using ScreenshotCallback = std::function<void(const TemplatedImage<ucvec4>&)>;
+    void requestScreenshot(ScreenshotCallback callback) { screenshotCallback = std::move(callback); }
 
     /**
      * For automated tests: if the environment variable SAIGA_SCREENSHOT is set to a file name, a screenshot of frame
@@ -74,12 +87,12 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
     // One per frame in flight (FrameInfo::frameIndex)
     std::vector<vk::CommandBuffer> drawCmdBuffers;
 
-    std::string screenshotFile;
+    ScreenshotCallback screenshotCallback;
     std::string autoScreenshotFile;
     int renderedFrames = 0;
     // Records the copy of the color image into a host visible buffer. Returns the buffer.
     std::unique_ptr<StagingBuffer> recordScreenshot(vk::CommandBuffer cmd, vk::Image colorImage);
-    void saveScreenshot(StagingBuffer& buffer, const std::string& file);
+    TemplatedImage<ucvec4> readScreenshot(StagingBuffer& buffer);
 };
 
 }  // namespace Vulkan

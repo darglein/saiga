@@ -39,6 +39,12 @@ class SAIGA_VULKAN_API Instance
      */
     vk::PhysicalDevice pickPhysicalDevice(vk::SurfaceKHR surface, int preferredDevice = -1);
 
+    /**
+     * Returns true if a Vulkan driver is installed that provides a device saiga can render with (without a surface,
+     * see HeadlessWindow). Creating a renderer without such a device exits the program, so e.g. tests check this first.
+     */
+    static bool suitableDeviceAvailable();
+
     // Check if the layer is available
     bool hasLayer(const std::string& name);
     bool hasExtension(const std::string& name);
@@ -75,7 +81,7 @@ class SAIGA_VULKAN_API Instance
     std::vector<std::string> _layers;
 
     // Returns a score < 0 if the device can not be used.
-    int deviceScore(vk::PhysicalDevice device, vk::SurfaceKHR surface);
+    static int deviceScore(vk::PhysicalDevice device, vk::SurfaceKHR surface);
 };
 
 }  // namespace Vulkan

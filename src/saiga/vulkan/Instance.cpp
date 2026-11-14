@@ -140,6 +140,39 @@ int Instance::deviceScore(vk::PhysicalDevice device, vk::SurfaceKHR surface)
     }
 }
 
+bool Instance::suitableDeviceAvailable()
+{
+    // Without a driver vkCreateInstance fails with VK_ERROR_INCOMPATIBLE_DRIVER.
+    try
+    {
+        if (vk::enumerateInstanceVersion() < SAIGA_VULKAN_API_VERSION) return false;
+
+        vk::ApplicationInfo appInfo;
+        appInfo.apiVersion = SAIGA_VULKAN_API_VERSION;
+        vk::InstanceCreateInfo instanceCreateInfo;
+        instanceCreateInfo.pApplicationInfo = &appInfo;
+        vk::Instance instance               = vk::createInstance(instanceCreateInfo);
+
+        bool found = false;
+        try
+        {
+            for (auto device : instance.enumeratePhysicalDevices())
+            {
+                if (deviceScore(device, nullptr) >= 0) found = true;
+            }
+        }
+        catch (const vk::SystemError&)
+        {
+        }
+        instance.destroy();
+        return found;
+    }
+    catch (const vk::SystemError&)
+    {
+        return false;
+    }
+}
+
 vk::PhysicalDevice Instance::pickPhysicalDevice(vk::SurfaceKHR surface, int preferredDevice)
 {
     std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();

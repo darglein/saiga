@@ -48,17 +48,18 @@ struct FrameInfo
     // buffers): when a frame index is reused, the previous frame with that index has completed.
     uint32_t frameIndex;
 
-    // The acquired swap chain image.
-    uint32_t imageIndex;
+    // The acquired swap chain image (headless: the offscreen image), see VulkanRenderer::colorImage.
+    uint32_t imageIndex = 0;
 
     // The submit must wait for imageAvailable (at color attachment output) ...
-    vk::Semaphore imageAvailable;
+    vk::Semaphore imageAvailable = nullptr;
 
     // ... signal renderComplete (waited on by the present) ...
-    vk::Semaphore renderComplete;
+    // Both semaphores are null for a headless renderer, which neither acquires nor presents.
+    vk::Semaphore renderComplete = nullptr;
 
     // ... and signal VulkanBase::frameTimeline with this value.
-    uint64_t timelineValue;
+    uint64_t timelineValue = 0;
 };
 
 }  // namespace Vulkan
