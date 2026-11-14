@@ -16,7 +16,7 @@ void VulkanBase::renderGUI()
     }
 
     ImGui::Indent();
-    ImGui::LabelText("Device Name", "%s", physicalDevice.getProperties().deviceName);
+    ImGui::LabelText("Device Name", "%s", physicalDevice.getProperties().deviceName.data());
 
 
     ImGui::Text("Heaps");
@@ -109,7 +109,7 @@ void VulkanBase::renderGUI()
     for (auto& prop : queueFamilyProperties)
     {
         ImGui::Separator();
-        ImGui::Text("%lu", index);
+        ImGui::Text("%zu", (size_t)index);
         ImGui::NextColumn();
         ImGui::Text("%u", prop.queueCount);
         ImGui::NextColumn();

@@ -5,6 +5,8 @@
 #include "VulkanInitializers.hpp"
 #include "VulkanTools.h"
 
+#include <algorithm>
+
 void VulkanSwapChain::initSurface(VkSurfaceKHR _surface)
 {
     surface = _surface;
@@ -159,8 +161,12 @@ void VulkanSwapChain::create(int* width, int* height, bool vsync)
     {
         // If the surface size is undefined, the size is set to
         // the size of the images requested.
-        swapchainExtent.width  = *width;
-        swapchainExtent.height = *height;
+        swapchainExtent.width =
+            std::clamp<uint32_t>(*width, surfCaps.minImageExtent.width, surfCaps.maxImageExtent.width);
+        swapchainExtent.height =
+            std::clamp<uint32_t>(*height, surfCaps.minImageExtent.height, surfCaps.maxImageExtent.height);
+        *width  = swapchainExtent.width;
+        *height = swapchainExtent.height;
     }
     else
     {
@@ -193,7 +199,7 @@ void VulkanSwapChain::create(int* width, int* height, bool vsync)
 
 
     // Determine the number of images
-    uint32_t desiredNumberOfSwapchainImages = 3;  // surfCaps.minImageCount + 1;
+    uint32_t desiredNumberOfSwapchainImages = std::max(3u, surfCaps.minImageCount);
     if ((surfCaps.maxImageCount > 0) && (desiredNumberOfSwapchainImages > surfCaps.maxImageCount))
     {
         desiredNumberOfSwapchainImages = surfCaps.maxImageCount;
@@ -263,7 +269,6 @@ void VulkanSwapChain::create(int* width, int* height, bool vsync)
     {
         createInfo.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 
 #if 0
@@ -281,6 +286,7 @@ void VulkanSwapChain::create(int* width, int* height, bool vsync)
 
 
     VK_CHECK_RESULT(vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain));
+    imageUsage = createInfo.imageUsage;
 
     // If an existing swap chain is re-created, destroy the old swap chain
     // This also cleans up all the presentable images
@@ -298,7 +304,7 @@ void VulkanSwapChain::create(int* width, int* height, bool vsync)
         colorAttachmentView.pNext                       = NULL;
         colorAttachmentView.format                      = colorFormat;
         colorAttachmentView.components                  = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
-                                          VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
+                                                           VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
         colorAttachmentView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         colorAttachmentView.subresourceRange.baseMipLevel   = 0;
         colorAttachmentView.subresourceRange.levelCount     = 1;
@@ -325,7 +331,7 @@ VkResult VulkanSwapChain::acquireNextImage(VkSemaphore presentCompleteSemaphore,
                                  imageIndex);
 }
 
-VkResult VulkanSwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore)
+VkResult VulkanSwapChain::queuePresent(Saiga::Vulkan::Queue& queue, uint32_t imageIndex, VkSemaphore waitSemaphore)
 {
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType            = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -340,7 +346,7 @@ VkResult VulkanSwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSem
         presentInfo.waitSemaphoreCount = 1;
     }
     //		return fpQueuePresentKHR(queue, &presentInfo);
-    return vkQueuePresentKHR(queue, &presentInfo);
+    return static_cast<VkResult>(queue.present(*reinterpret_cast<vk::PresentInfoKHR*>(&presentInfo)));
 }
 
 void VulkanSwapChain::cleanup()

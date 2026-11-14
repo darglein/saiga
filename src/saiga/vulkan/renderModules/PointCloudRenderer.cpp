@@ -7,12 +7,16 @@
 #include "PointCloudRenderer.h"
 
 #include "saiga/core/model/model_loader_obj.h"
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
+
+#include <locale>
+#include <sstream>
 
 namespace Saiga
 {
@@ -21,6 +25,7 @@ namespace Vulkan
 void PointCloudRenderer::destroy()
 {
     Pipeline::destroy();
+    shaderPipeline.destroy();
     uniformBufferVS.destroy();
 }
 bool PointCloudRenderer::bind(vk::CommandBuffer cmd)
@@ -44,18 +49,30 @@ void PointCloudRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, 
     uniformBufferVS.update(cmd, sizeof(UBOVS), &uboVS);
 }
 
-void PointCloudRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass, float pointSize)
+void PointCloudRenderer::init(VulkanBase& vulkanDevice, const RenderingFormats& formats, float pointSize)
 {
     PipelineBase::init(vulkanDevice, 1);
     addDescriptorSetLayout({{0, {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}}});
     addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(mat4)});
-    shaderPipeline.loadGLSL(device, {{"vulkan/point.vert", vk::ShaderStageFlagBits::eVertex,
-                                      "#define POINT_SIZE " + std::to_string(pointSize)},
+    // Not std::to_string, which uses the C locale's decimal separator (e.g. "5,000000").
+    std::ostringstream point_size_define;
+    point_size_define.imbue(std::locale::classic());
+    point_size_define << "#define POINT_SIZE " << pointSize;
+    if (!base->enabledFeatures.largePoints)
+    {
+        // Without the largePoints feature only a point size of 1 is supported.
+        point_size_define << "\n#define SAIGA_NO_LARGE_POINTS";
+        if (pointSize != 1.0f)
+        {
+            LOG(WARNING) << "Point size " << pointSize << " requested, large points is not enabled or supported";
+        }
+    }
+    shaderPipeline.loadGLSL(device, {{"vulkan/point.vert", vk::ShaderStageFlagBits::eVertex, point_size_define.str()},
                                      {"vulkan/point.frag", vk::ShaderStageFlagBits::eFragment, ""}});
     PipelineInfo info;
     info.inputAssemblyState.topology = vk::PrimitiveTopology::ePointList;
     info.addVertexInfo<VertexType>();
-    create(renderPass, info);
+    create(formats, info);
 
 
 

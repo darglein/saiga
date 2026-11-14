@@ -12,6 +12,7 @@
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/texture/Texture.h"
 
+#include <map>
 #include <utility>
 
 namespace Saiga::Vulkan
@@ -26,19 +27,34 @@ class SAIGA_VULKAN_API DescriptorSet
 
    protected:
     VulkanBase* base;
+    // Points into the PipelineBase that created the set: the set must not be used after the pipeline object is gone.
+    // Note: assign() writes the set in place, so it must not be called while a frame in flight uses the set (use a
+    // DynamicDescriptorSet for that).
     DescriptorSetLayout* layout;
     vk::DescriptorSet descriptorSet;
-    std::map<uint32_t, std::pair<Texture*, TimePoint>> assigned_textures;
-    DescriptorSet() : base(nullptr), layout(nullptr), descriptorSet(nullptr), assigned_textures() {}
+    struct AssignedTexture
+    {
+        Texture* texture = nullptr;
+        // The sampler used instead of the texture's default sampler (not owned), or null.
+        vk::Sampler sampler;
+        TimePoint time;
+    };
+    // The assigned textures and buffers with the time they were written (see BaseMemoryLocation::modified_time).
+    std::map<uint32_t, AssignedTexture> assigned_textures;
+    std::map<uint32_t, std::pair<Buffer*, TimePoint>> assigned_buffers;
+    DescriptorSet() : base(nullptr), layout(nullptr), descriptorSet(nullptr) {}
     DescriptorSet(VulkanBase* _base, DescriptorSetLayout* _layout, vk::DescriptorSet _descriptorSet)
-        : base(_base), layout(_layout), descriptorSet(_descriptorSet), assigned_textures()
+        : base(_base), layout(_layout), descriptorSet(_descriptorSet)
     {
     }
+
+    // Frees the set once all frames submitted so far (including the one being recorded) have completed.
+    void release();
 
    public:
     virtual ~DescriptorSet();
 
-    DescriptorSet(const DescriptorSet& other) = delete;
+    DescriptorSet(const DescriptorSet& other)            = delete;
     DescriptorSet& operator=(const DescriptorSet& other) = delete;
 
     DescriptorSet(DescriptorSet&& other) noexcept;
@@ -50,8 +66,11 @@ class SAIGA_VULKAN_API DescriptorSet
     inline operator bool() { return descriptorSet; }
     virtual void update() = 0;
 
-    void assign(uint32_t index, UniformBuffer* buffer);
+    // A uniform or storage buffer (the whole buffer).
+    void assign(uint32_t index, Buffer* buffer);
     void assign(uint32_t index, Texture* texture);
+    // Samples the texture with the given sampler instead of its default sampler. The sampler must outlive the set.
+    void assign(uint32_t index, Texture* texture, const Sampler& sampler);
 };
 class SAIGA_VULKAN_API StaticDescriptorSet final : public DescriptorSet
 {
@@ -62,36 +81,38 @@ class SAIGA_VULKAN_API StaticDescriptorSet final : public DescriptorSet
         : DescriptorSet(base, layout, descriptor)
     {
     }
-    StaticDescriptorSet(const StaticDescriptorSet& other) = delete;
+    StaticDescriptorSet(const StaticDescriptorSet& other)            = delete;
     StaticDescriptorSet& operator=(const StaticDescriptorSet& other) = delete;
 
-    StaticDescriptorSet(StaticDescriptorSet&& other) = default;
+    StaticDescriptorSet(StaticDescriptorSet&& other)            = default;
     StaticDescriptorSet& operator=(StaticDescriptorSet&& other) = default;
 
    public:
     inline void update() override {}
 };
 
+/**
+ * A descriptor set that follows textures and buffers moved by the defragmentation (see mark_dynamic()): update()
+ * (called by PipelineBase::bindDescriptorSet) creates a new set with the new handles if an assigned texture or buffer
+ * was moved, and frees the old set once the frames that may use it have completed.
+ */
 class SAIGA_VULKAN_API DynamicDescriptorSet final : public DescriptorSet
 {
-   private:
-    std::pair<vk::DescriptorSet, uint32_t> m_old_set;
-
    public:
     DynamicDescriptorSet() : DescriptorSet() {}
     DynamicDescriptorSet(VulkanBase* base, DescriptorSetLayout* layout, vk::DescriptorSet descriptor)
-        : DescriptorSet(base, layout, descriptor), m_old_set(nullptr, 0xFFFFFFFF)
+        : DescriptorSet(base, layout, descriptor)
     {
     }
 
-    DynamicDescriptorSet(const DynamicDescriptorSet& other) = delete;
+    DynamicDescriptorSet(const DynamicDescriptorSet& other)            = delete;
     DynamicDescriptorSet& operator=(const DynamicDescriptorSet& other) = delete;
 
-    DynamicDescriptorSet(DynamicDescriptorSet&& other) noexcept;
-    DynamicDescriptorSet& operator=(DynamicDescriptorSet&& other) noexcept;
+    DynamicDescriptorSet(DynamicDescriptorSet&& other) noexcept            = default;
+    DynamicDescriptorSet& operator=(DynamicDescriptorSet&& other) noexcept = default;
 
-    ~DynamicDescriptorSet() final;
+    ~DynamicDescriptorSet() final = default;
 
-    inline void update() override;
+    void update() override;
 };
 }  // namespace Saiga::Vulkan

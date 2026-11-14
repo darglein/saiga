@@ -63,6 +63,14 @@ class Controllable_Camera : public CameraController, public camera_t
     void disableInput() { input = false; }
     void setInput(bool v) { input = v; }
 
+    // Call instead of interpolate() while the mouse is used by something else (e.g. ImGui): ends a drag and forgets the
+    // last mouse position, so the camera does not jump when the mouse is used for the camera again.
+    void resetMouse()
+    {
+        lastMousePos = mouse.getPosition();
+        dragState    = 0;
+    }
+
 
     void mouseAction(float dx, float dy, CameraControlMode mode);
 

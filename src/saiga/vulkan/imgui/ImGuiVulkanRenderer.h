@@ -43,7 +43,7 @@ class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRender
         FrameData(FrameData&& other)      = default;
 
         FrameData& operator=(const FrameData& other) = delete;
-        FrameData& operator=(FrameData&& other) = default;
+        FrameData& operator=(FrameData&& other)      = default;
 
         void destroy(VulkanBase& base);
 
@@ -88,11 +88,12 @@ class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRender
     virtual ~ImGuiVulkanRenderer();
 
 
-    void initResources(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
+    void initResources(Saiga::Vulkan::VulkanBase& vulkanDevice, const RenderingFormats& formats);
     virtual void beginFrame() = 0;
     void endFrame();
 
     void updateBuffers(vk::CommandBuffer cmd, size_t frameIndex);
+    using ImGuiRenderer::render;
     void render(vk::CommandBuffer commandBuffer, size_t frameIndex);
 
    protected:

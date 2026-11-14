@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -9,82 +9,164 @@
 #include "saiga/core/math/imath.h"
 #include "saiga/vulkan/buffer/StagingBuffer.h"
 
+#include <cstring>
+#include <vector>
+
 namespace Saiga
 {
 namespace Vulkan
 {
 void Buffer::destroy()
 {
-    if (m_memoryLocation && bufferUsage != vk::BufferUsageFlags())
+    if (!m_memoryLocation) return;
+
+    // The device is gone after VulkanBase::destroy() (the allocator was destroyed with it).
+    if (base && base->device)
     {
-        base->memory.deallocateBuffer({bufferUsage, memoryProperties}, m_memoryLocation);
-        m_memoryLocation = nullptr;
+        // Frames in flight may still use the buffer.
+        auto b        = base;
+        auto location = m_memoryLocation;
+        base->deferDelete([b, location]() { b->memory.deallocate(location); });
     }
+    m_memoryLocation = nullptr;
+}
+
+void Buffer::destroyImmediately()
+{
+    if (!m_memoryLocation) return;
+    if (base && base->device)
+    {
+        base->memory.deallocate(m_memoryLocation);
+    }
+    m_memoryLocation = nullptr;
 }
 
 void Buffer::createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags bufferUsage,
                           const vk::MemoryPropertyFlags& memoryProperties, vk::SharingMode sharingMode)
 {
     // TODO: Sharing mode is not used yet
+    destroy();
     this->base             = &base;
     this->bufferUsage      = bufferUsage;
     this->memoryProperties = memoryProperties;
     m_memoryLocation       = base.memory.allocate({this->bufferUsage, this->memoryProperties}, size);
+    SAIGA_ASSERT(m_memoryLocation, "Buffer allocation failed");
 }
 
+void Buffer::barrier(vk::CommandBuffer cmd, vk::PipelineStageFlags2 srcStage, vk::AccessFlags2 srcAccess,
+                     vk::PipelineStageFlags2 dstStage, vk::AccessFlags2 dstAccess) const
+{
+    SAIGA_ASSERT(m_memoryLocation);
+    vk::BufferMemoryBarrier2 b;
+    b.srcStageMask        = srcStage;
+    b.srcAccessMask       = srcAccess;
+    b.dstStageMask        = dstStage;
+    b.dstAccessMask       = dstAccess;
+    b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    {
+        Memory::SafeAccessor acc(*m_memoryLocation);
+        b.buffer = m_memoryLocation->data;
+        b.offset = 0;
+        b.size   = VK_WHOLE_SIZE;
+    }
+
+    vk::DependencyInfo dep;
+    dep.bufferMemoryBarrierCount = 1;
+    dep.pBufferMemoryBarriers    = &b;
+    cmd.pipelineBarrier2(dep);
+}
 
 void Buffer::stagedUpload(VulkanBase& base, size_t size, const void* data)
 {
-    vk::CommandBuffer cmd = base.mainQueue.commandPool.createAndBeginOneTimeBuffer();
+    SAIGA_ASSERT(m_memoryLocation && size <= this->size(), "stagedUpload: the data is larger than the buffer");
+    if (size == 0) return;
 
+    // The host write to the (coherent) staging buffer is made visible by the queue submission.
     StagingBuffer staging;
     staging.init(base, size, data);
 
-    copy_buffer(cmd, m_memoryLocation, staging.m_memoryLocation);
+    vk::CommandBuffer cmd = base.mainQueue.commandPool.createAndBeginOneTimeBuffer();
+
+    // Previous commands on the queue may still read/write the buffer.
+    barrier(cmd, vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryWrite,
+            vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+    staging.copyTo(cmd, *this, 0, 0, size);
+    // Make the upload visible to all later commands.
+    barrier(cmd, vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite,
+            vk::PipelineStageFlagBits2::eAllCommands,
+            vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite);
 
     cmd.end();
     base.mainQueue.submitAndWait(cmd);
+    base.mainQueue.commandPool.freeCommandBuffer(cmd);
+
+    staging.destroyImmediately();
 }
 
 void Buffer::stagedDownload(void* data)
 {
-    vk::CommandBuffer cmd = base->mainQueue.commandPool.createAndBeginOneTimeBuffer();
+    SAIGA_ASSERT(base && m_memoryLocation);
 
     StagingBuffer staging;
     staging.init(*base, size());
 
-    copy_buffer(cmd, staging.m_memoryLocation, m_memoryLocation);
+    vk::CommandBuffer cmd = base->mainQueue.commandPool.createAndBeginOneTimeBuffer();
+
+    // Wait for previous writes to the buffer.
+    barrier(cmd, vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryWrite,
+            vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferRead);
+    copyTo(cmd, staging);
+    // The host reads the staging buffer after the fence wait.
+    staging.barrier(cmd, vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite,
+                    vk::PipelineStageFlagBits2::eHost, vk::AccessFlagBits2::eHostRead);
 
     cmd.end();
     base->mainQueue.submitAndWait(cmd);
+    base->mainQueue.commandPool.freeCommandBuffer(cmd);
 
-    staging.download(data);
+    staging.download(data, size());
+    staging.destroyImmediately();
 }
 
 vk::DescriptorBufferInfo Buffer::createInfo()
 {
-    return {m_memoryLocation->data, m_memoryLocation->offset, m_memoryLocation->size};
+    Memory::SafeAccessor acc(*m_memoryLocation);
+    return {m_memoryLocation->data, 0, m_memoryLocation->size};
 }
 
 void Buffer::flush(VulkanBase& base, vk::DeviceSize size, vk::DeviceSize offset)
 {
-    vk::MappedMemoryRange mappedRange = {};
-    mappedRange.memory                = m_memoryLocation->memory;
-    mappedRange.offset                = offset;
-    mappedRange.size                  = size;
-    base.device.flushMappedMemoryRanges(mappedRange);
+    // VMA rounds the range to nonCoherentAtomSize (and does nothing for coherent memory).
+    base.memory.flush(m_memoryLocation, offset, size);
+}
+
+void Buffer::download(void* data, size_t size)
+{
+    SAIGA_ASSERT(size <= this->size());
+    SAIGA_ASSERT(m_memoryLocation->mappedPointer, "The memory is not host visible, use stagedDownload()");
+    std::memcpy(data, m_memoryLocation->mappedPointer, size);
+}
+
+bool Buffer::mark_dynamic()
+{
+    if (!m_memoryLocation) return false;
+    return base->memory.mark_dynamic(m_memoryLocation);
 }
 
 void Buffer::copyTo(vk::CommandBuffer cmd, Buffer& target, vk::DeviceSize srcOffset, vk::DeviceSize dstOffset,
                     vk::DeviceSize size)
 {
+    SAIGA_ASSERT(m_memoryLocation && target.m_memoryLocation);
+    SAIGA_ASSERT(srcOffset <= this->size() && dstOffset <= target.size());
     if (size == VK_WHOLE_SIZE)
     {
         size = this->size() - srcOffset;
     }
     SAIGA_ASSERT(this->size() - srcOffset >= size, "Source buffer is not large enough");
     SAIGA_ASSERT(target.size() - dstOffset >= size, "Destination buffer is not large enough");
-    vk::BufferCopy bc{m_memoryLocation->offset + srcOffset, target.m_memoryLocation->offset + dstOffset, size};
+    Memory::SafeAccessor acc(*m_memoryLocation, *target.m_memoryLocation);
+    vk::BufferCopy bc{srcOffset, dstOffset, size};
     cmd.copyBuffer(m_memoryLocation->data, target.m_memoryLocation->data, bc);
 }
 
@@ -97,13 +179,16 @@ void Buffer::copyTo(vk::CommandBuffer cmd, vk::Image dstImage, vk::ImageLayout d
 
 vk::BufferImageCopy Buffer::getBufferImageCopy(vk::DeviceSize offset) const
 {
-    Memory::SafeAccessor acc(*m_memoryLocation);
-    return {m_memoryLocation->offset + offset};
+    return {offset};
 }
 
-void Buffer::update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset)
+void Buffer::update(vk::CommandBuffer cmd, size_t size, const void* data, vk::DeviceSize offset)
 {
-    cmd.updateBuffer(m_memoryLocation->data, m_memoryLocation->offset + offset, size, data);
+    // Limits of vkCmdUpdateBuffer
+    SAIGA_ASSERT(size <= 65536 && size % 4 == 0 && offset % 4 == 0, "Use a staged upload for this buffer update");
+    SAIGA_ASSERT(m_memoryLocation && offset + size <= this->size(), "Buffer::update: out of bounds");
+    Memory::SafeAccessor acc(*m_memoryLocation);
+    cmd.updateBuffer(m_memoryLocation->data, offset, size, data);
 }
 
 std::ostream& operator<<(std::ostream& os, const Buffer& buffer)

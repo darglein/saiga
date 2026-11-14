@@ -13,64 +13,41 @@ namespace Saiga
 {
 namespace Vulkan
 {
-ComputePipeline:: ComputePipeline() : PipelineBase(vk::PipelineBindPoint::eCompute) {}
+ComputePipeline::ComputePipeline() : PipelineBase(vk::PipelineBindPoint::eCompute) {}
 
 
 void ComputePipeline::create()
 {
     createPipelineLayout();
+    SAIGA_ASSERT(shaderPipeline.valid(), "Shader compilation failed");
+    replacePipeline(createPipeline());
+}
+
+vk::Pipeline ComputePipeline::createPipeline()
+{
     vk::ComputePipelineCreateInfo pipelineCreateInfo(vk::PipelineCreateFlags(), vk::PipelineShaderStageCreateInfo(),
                                                      pipelineLayout, vk::Pipeline(), 0);
     shaderPipeline.addToPipeline(pipelineCreateInfo);
-    pipeline = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
-    SAIGA_ASSERT(pipeline);
+    auto result = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
+    SAIGA_ASSERT(result.result == vk::Result::eSuccess && result.value);
+    return result.value;
 }
 
 void ComputePipeline::reload()
 {
     shaderPipeline.reload();
     if (!shaderPipeline.valid()) return;
-    reloadCounter = 3;
+    replacePipeline(createPipeline());
 }
 
 bool ComputePipeline::checkShader()
 {
-    if (autoReload)
+    if (autoReload && shaderPipeline.autoReload() && shaderPipeline.valid())
     {
-        if (shaderPipeline.autoReload())
-        {
-            if (shaderPipeline.valid()) reloadCounter = 4;
-        }
+        replacePipeline(createPipeline());
     }
-
-
-    if (reloadCounter > 0)
-    {
-        reloadCounter--;
-
-        if (reloadCounter == 0)
-        {
-            vkDestroyPipeline(device, pipeline, nullptr);
-            pipeline = nullptr;
-
-            vk::ComputePipelineCreateInfo pipelineCreateInfo(
-                vk::PipelineCreateFlags(), vk::PipelineShaderStageCreateInfo(), pipelineLayout, vk::Pipeline(), 0);
-            shaderPipeline.addToPipeline(pipelineCreateInfo);
-
-            pipeline = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
-            SAIGA_ASSERT(pipeline);
-
-            return true;
-        }
-
-        return false;
-    }
-
-
-    return true;
+    return pipeline;
 }
-
-
 
 }  // namespace Vulkan
 }  // namespace Saiga

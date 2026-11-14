@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -7,7 +7,7 @@
 
 #pragma once
 
-//#include "saiga/vulkan/buffer/DeviceMemory.h"
+// #include "saiga/vulkan/buffer/DeviceMemory.h"
 #include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/svulkan.h"
 
@@ -26,8 +26,8 @@ class SAIGA_VULKAN_API Buffer
     Memory::BufferMemoryLocation* m_memoryLocation = nullptr;
 
    public:
-    Buffer()                    = default;
-    Buffer(const Buffer& other) = delete;
+    Buffer()                               = default;
+    Buffer(const Buffer& other)            = delete;
     Buffer& operator=(const Buffer& other) = delete;
     Buffer(Buffer&& other) noexcept
         : base(other.base),
@@ -42,6 +42,7 @@ class SAIGA_VULKAN_API Buffer
     {
         if (this != &other)
         {
+            destroy();
             base                   = other.base;
             bufferUsage            = other.bufferUsage;
             memoryProperties       = other.memoryProperties;
@@ -52,17 +53,17 @@ class SAIGA_VULKAN_API Buffer
     }
 
 
-    inline vk::DeviceSize size() { return m_memoryLocation ? m_memoryLocation->size : 0; }
-
     virtual ~Buffer() { destroy(); }
 
 
+    // Allocates the buffer (a previous allocation is released with destroy()).
     void createBuffer(Saiga::Vulkan::VulkanBase& base, size_t size, vk::BufferUsageFlags bufferUsage,
                       const vk::MemoryPropertyFlags& memoryProperties,
                       vk::SharingMode sharingMode = vk::SharingMode::eExclusive);
 
     /**
-     * Perform a staged upload to the buffer. A StagingBuffer is created and used for this.
+     * Perform a staged upload to the buffer (blocking). A StagingBuffer is created and used for this.
+     * The upload waits for previous uses of the buffer on the main queue and is visible to all later commands.
      * \see Saiga::Vulkan::StagingBuffer
      * @param base A reference to a VulkanBase
      * @param size Size of the data
@@ -70,19 +71,30 @@ class SAIGA_VULKAN_API Buffer
      */
     void stagedUpload(VulkanBase& base, size_t size, const void* data);  // TODO: Remove base parameter
 
+    // Downloads the buffer through a staging buffer (blocking). data must provide size() bytes.
     void stagedDownload(void* data);
     vk::DescriptorBufferInfo createInfo();
 
+    // Flushes host writes to non coherent memory (the range is relative to the buffer).
     void flush(VulkanBase& base, vk::DeviceSize size = VK_WHOLE_SIZE,
                vk::DeviceSize offset = 0);  // TODO: Remove base parameter
 
+    /**
+     * Releases the buffer. The memory is freed once all frames submitted so far (including the one being recorded)
+     * have completed, so the buffer can be destroyed while a frame in flight still uses it.
+     */
     void destroy();
 
-    inline vk::DeviceSize offset() const { return m_memoryLocation->offset; }
-    inline vk::DeviceSize size() const { return m_memoryLocation->size; }
+    /**
+     * Releases the buffer immediately. Only use this if no pending command buffer references the buffer (e.g. a
+     * staging buffer after a blocking submit).
+     */
+    void destroyImmediately();
+
+    inline vk::DeviceSize size() const { return m_memoryLocation ? m_memoryLocation->size : 0; }
 
     /**
-     * Copy this buffer to another with vk::CommandBuffer::copyBuffer
+     * Copy this buffer to another with vk::CommandBuffer::copyBuffer. The caller is responsible for the barriers.
      * @param cmd vk::commandBuffer to use.
      * @param target Target buffer
      * @param srcOffset Offset in bytes at the source.
@@ -93,7 +105,8 @@ class SAIGA_VULKAN_API Buffer
                 vk::DeviceSize size = VK_WHOLE_SIZE);
 
     /**
-     * Copy the buffer to an image with vk::CommandBuffer::copyBufferToImage
+     * Copy the buffer to an image with vk::CommandBuffer::copyBufferToImage. The caller is responsible for the
+     * barriers.
      * @param cmd command buffer to use
      * @param dstImage Destination image
      * @param dstImageLayout Destination image layout
@@ -109,7 +122,17 @@ class SAIGA_VULKAN_API Buffer
      */
     vk::BufferImageCopy getBufferImageCopy(vk::DeviceSize offset) const;
 
-    void update(vk::CommandBuffer cmd, size_t size, void* data, vk::DeviceSize offset = 0);
+    /**
+     * Records vkCmdUpdateBuffer (outside of rendering): size <= 65536 and size, offset multiples of 4.
+     * The caller is responsible for the barriers, see barrier().
+     */
+    void update(vk::CommandBuffer cmd, size_t size, const void* data, vk::DeviceSize offset = 0);
+
+    /**
+     * Records a (synchronization2) buffer memory barrier for the whole buffer.
+     */
+    void barrier(vk::CommandBuffer cmd, vk::PipelineStageFlags2 srcStage, vk::AccessFlags2 srcAccess,
+                 vk::PipelineStageFlags2 dstStage, vk::AccessFlags2 dstAccess) const;
 
     inline bool isMapped() const { return m_memoryLocation->mappedPointer != nullptr; }
 
@@ -119,24 +142,27 @@ class SAIGA_VULKAN_API Buffer
      * Upload new data to the buffer. Only copies size() number of bytes.
      * @param data Data to upload.
      */
-    void upload(void* data, size_t size) { m_memoryLocation->upload(base->device, data, size); }
+    void upload(const void* data, size_t size) { m_memoryLocation->upload(base->device, data, size); }
 
     /**
-     * Downloads the buffer into the data vector. It must provide enough memory to store size() bytes.
-     * @param data Void-pointer to copy into.
+     * Downloads the buffer (host visible memory). data must provide size() bytes.
      */
     void download(void* data) { m_memoryLocation->download(base->device, data); }
+    // Copies the first size bytes.
+    void download(void* data, size_t size);
 
+    /**
+     * Allows the defragmentation to move the buffer (see Memory::VulkanMemory::mark_dynamic): the buffer is copied into
+     * a defragmentable pool (blocking). Host visible buffers can not be moved. A moved buffer gets a new vk::Buffer
+     * handle: bind it for each use (e.g. vertex and index buffers) or through a DynamicDescriptorSet, which is updated
+     * after a move. Returns false if the buffer stays static.
+     */
+    bool mark_dynamic();
 
-    inline void mark_dynamic()
-    {
-        if (m_memoryLocation)
-        {
-            m_memoryLocation->mark_dynamic();
-        }
-    }
+    explicit operator bool() const { return m_memoryLocation; }
 
-    explicit operator bool() { return m_memoryLocation; }
+    // The allocation (nullptr if the buffer was not created). Its handles change when a dynamic buffer is moved.
+    Memory::BufferMemoryLocation* memoryLocation() const { return m_memoryLocation; }
 
     friend std::ostream& operator<<(std::ostream& os, const Buffer& buffer);
 };

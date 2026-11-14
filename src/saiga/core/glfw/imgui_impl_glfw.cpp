@@ -78,7 +78,8 @@
 #endif
 
 // GLFW
-#include <GLFW/glfw3.h>
+// SAIGA PATCH: saiga_glfw.h defines GLFW_INCLUDE_NONE, so saiga_core does not need the OpenGL headers.
+#include "saiga/core/glfw/saiga_glfw.h"
 
 #ifdef _WIN32
 #undef APIENTRY

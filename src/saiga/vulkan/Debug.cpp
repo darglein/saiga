@@ -1,153 +1,84 @@
-/*
- * Vulkan examples debug wrapper
- *
- * Appendix for VK_EXT_Debug_Report can be found at
- * https://github.com/KhronosGroup/Vulkan-Docs/blob/1.0-VK_EXT_debug_report/doc/specs/vulkan/appendices/debug_report.txt
- *
- * Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
- *
- * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
  */
 
 #include "Debug.h"
 
+#include "saiga/core/util/assert.h"
+
 #include <iostream>
+
 namespace Saiga
 {
 namespace Vulkan
 {
-static const std::vector<std::string> typeNames = {
-    "VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT                     ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT                    ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT             ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT                      ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_QUEUE_EXT                       ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT                   ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_BUFFER_EXT              ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT                       ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT               ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT                      ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT                       ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_EVENT_EXT                       ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT                  ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_VIEW_EXT                 ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT                  ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT               ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_CACHE_EXT              ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT             ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT                 ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT                    ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_EXT       ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT                     ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT             ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT              ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT                 ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT                ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_SURFACE_KHR_EXT                 ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT               ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT_EXT   ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_DISPLAY_KHR_EXT                 ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_DISPLAY_MODE_KHR_EXT            ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_OBJECT_TABLE_NVX_EXT            ",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX_EXT",
-    "VK_DEBUG_REPORT_OBJECT_TYPE_VALIDATION_CACHE_EXT_EXT        ",
-};
-
-
-
-VkBool32 messageCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objType, uint64_t srcObject,
-                         size_t location, int32_t msgCode, const char* pLayerPrefix, const char* pMsg, void* pUserData)
+static VKAPI_ATTR VkBool32 VKAPI_CALL messageCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+                                                      VkDebugUtilsMessageTypeFlagsEXT type,
+                                                      const VkDebugUtilsMessengerCallbackDataEXT* data, void* user_data)
 {
-    // Select prefix depending on flags passed to the callback
-    // Note that multiple flags may be set for a single validation message
-    std::string prefix("");
+    const char* prefix = "INFO";
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+        prefix = "ERROR";
+    else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+        prefix = "WARNING";
 
-    // Error that may result in undefined behaviour
-    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+    std::cerr << "Vulkan " << prefix;
+    if (type & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) std::cerr << " (performance)";
+    std::cerr << ": " << (data->pMessageIdName ? data->pMessageIdName : "") << "\n  " << data->pMessage << std::endl;
+
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
     {
-        prefix += "ERROR";
-    };
-    // Warnings may hint at unexpected / non-spec API usage
-    if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
-    {
-        prefix += "WARNING";
-    };
-    // May indicate sub-optimal usage of the API
-    if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)
-    {
-        prefix += "PERFORMANCE";
-    };
-    // Informal messages that may become handy during debugging
-    if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT)
-    {
-        prefix += "INFO";
-    }
-    // Diagnostic info from the Vulkan loader and layers
-    // Usually not helpful in terms of API usage, but may help to debug layer and loader problems
-    if (flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT)
-    {
-        prefix += "DEBUG";
+        SAIGA_ASSERT(0, "Vulkan validation error");
     }
 
-    std::string typestring = (int)objType < typeNames.size() ? typeNames[objType] : std::to_string((int)objType);
-
-    // Display message to default output (console/logcat)
-
-    std::cerr << "Vulkan " << pLayerPrefix << " callback" << std::endl
-              << "  Severity    : " << prefix << std::endl
-              << "  Code        : " << msgCode << std::endl
-              << "  Object ID   : " << srcObject << std::endl
-              << "  Object Type : " << typestring << std::endl
-              << "  Location    : " << location << std::endl
-              << "  Message     : " << pMsg << std::endl
-              << std::endl;
-
-
-    SAIGA_ASSERT(0);
-    // The return value of this callback controls wether the Vulkan call that caused
-    // the validation message will be aborted or not
-    // We return VK_FALSE as we DON'T want Vulkan calls that cause a validation message
-    // (and return a VkResult) to abort
-    // If you instead want to have calls abort, pass in VK_TRUE and the function will
-    // return VK_ERROR_VALIDATION_FAILED_EXT
-    return VK_TRUE;
+    // VK_FALSE: the call that triggered the message is not aborted (VK_TRUE is reserved for layer development).
+    return VK_FALSE;
 }
 
-void Debug::init(VkInstance _instance, VkDebugReportFlagsEXT flags, VkDebugReportCallbackEXT callBack)
+vk::DebugUtilsMessengerCreateInfoEXT Debug::createInfo()
+{
+    vk::DebugUtilsMessengerCreateInfoEXT info;
+    info.messageSeverity =
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+    info.messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+                       vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+                       vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
+    // The parameter type of the callback differs between Vulkan-Hpp versions (C or C++ types), the C function is
+    // compatible with both.
+    info.pfnUserCallback = reinterpret_cast<decltype(info.pfnUserCallback)>(&messageCallback);
+    return info;
+}
+
+void Debug::init(vk::Instance _instance)
 {
     instance = _instance;
 
-    CreateDebugReportCallback = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
-        vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT"));
-    DestroyDebugReportCallback = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
-        vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT"));
-    dbgBreakCallback =
-        reinterpret_cast<PFN_vkDebugReportMessageEXT>(vkGetInstanceProcAddr(instance, "vkDebugReportMessageEXT"));
+    auto create = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+    SAIGA_ASSERT(create, "VK_EXT_debug_utils is not enabled");
 
-    VkDebugReportCallbackCreateInfoEXT dbgCreateInfo = {};
-    dbgCreateInfo.sType                              = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
-    dbgCreateInfo.pfnCallback                        = (PFN_vkDebugReportCallbackEXT)messageCallback;
-    dbgCreateInfo.flags                              = flags;
-
-    VkResult err = CreateDebugReportCallback(instance, &dbgCreateInfo, nullptr,
-                                             (callBack != VK_NULL_HANDLE) ? &callBack : &msgCallback);
-    SAIGA_ASSERT(!err);
+    VkDebugUtilsMessengerCreateInfoEXT info = createInfo();
+    VkResult err                            = create(instance, &info, nullptr, &messenger);
+    SAIGA_ASSERT(err == VK_SUCCESS);
 }
 
 void Debug::destroy()
 {
-    if (msgCallback != VK_NULL_HANDLE)
+    if (messenger != VK_NULL_HANDLE)
     {
-        DestroyDebugReportCallback(instance, msgCallback, nullptr);
+        auto destroy_fn = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+            vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
+        if (destroy_fn) destroy_fn(instance, messenger, nullptr);
+        messenger = VK_NULL_HANDLE;
     }
 }
 
 std::string Debug::getDebugValidationLayers()
 {
-    //    return "VK_LAYER_LUNARG_standard_validation";
     return "VK_LAYER_KHRONOS_validation";
 }
-
 
 }  // namespace Vulkan
 }  // namespace Saiga

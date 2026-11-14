@@ -10,8 +10,7 @@
 
 #include "saiga/core/image/imageTransformations.h"
 #include "saiga/core/math/random.h"
-#include "saiga/core/sdl/sdl_camera.h"
-#include "saiga/core/sdl/sdl_eventhandler.h"
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/color.h"
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/memory/VulkanMemory.h"
@@ -20,13 +19,12 @@
 #include "saiga/vulkan/renderModules/LineAssetRenderer.h"
 #include "saiga/vulkan/renderModules/PointCloudRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
-#include "saiga/vulkan/renderModules/TexturedAssetRenderer.h"
-#include "saiga/vulkan/window/SDLSample.h"
+#include "saiga/vulkan/window/GLFWSample.h"
 
 #include <saiga/core/imgui/imgui.h>
 #include <vector>
 using namespace Saiga;
-class VulkanExample : public VulkanSDLExampleBase
+class VulkanExample : public VulkanExampleBase
 {
    public:
     VulkanExample();
@@ -48,14 +46,12 @@ class VulkanExample : public VulkanSDLExampleBase
 
     std::shared_ptr<Saiga::Vulkan::Texture2D> texture;
 
-    Saiga::Vulkan::VulkanTexturedAsset box;
     Saiga::Vulkan::VulkanVertexColoredAsset teapot, plane;
     Saiga::Vulkan::VulkanLineVertexColoredAsset grid, frustum;
     Saiga::Vulkan::VulkanPointCloudAsset pointCloud;
     Saiga::Vulkan::AssetRenderer assetRenderer;
     Saiga::Vulkan::LineAssetRenderer lineAssetRenderer;
     Saiga::Vulkan::PointCloudRenderer pointCloudRenderer;
-    Saiga::Vulkan::TexturedAssetRenderer texturedAssetRenderer;
 
     //
     Saiga::Vulkan::StaticDescriptorSet textureDes;
@@ -67,13 +63,16 @@ class VulkanExample : public VulkanSDLExampleBase
 
 VulkanExample::VulkanExample()
 {
+    // Look at the whole scene (the default camera of VulkanExampleBase is inside the scaled teapot): teapot at the
+    // origin, wire teapot at x=-5, point cloud at x=10.
+    camera.setView(vec3(2, 9, 22), vec3(2, 1, 0), vec3(0, 1, 0));
     //    init(renderer->base());
     auto& base = renderer->base();
 
 
     {
         auto tex = std::make_shared<Saiga::Vulkan::Texture2D>();
-        Saiga::Image img("box.png");
+        Saiga::Image img("textures/box.png");
         if (img.type == Saiga::UC3)
         {
             std::cout << "adding alplha channel" << std::endl;
@@ -91,38 +90,36 @@ VulkanExample::VulkanExample()
     }
 
 
-    assetRenderer.init(base, renderer->renderPass);
-    lineAssetRenderer.init(base, renderer->renderPass, 2);
-    pointCloudRenderer.init(base, renderer->renderPass, 5);
-    texturedAssetRenderer.init(base, renderer->renderPass);
-    textureDisplay.init(base, renderer->renderPass);
+    assetRenderer.init(base, renderer->renderingFormats());
+    lineAssetRenderer.init(base, renderer->renderingFormats(), 2);
+    pointCloudRenderer.init(base, renderer->renderingFormats(), 5);
+    textureDisplay.init(base, renderer->renderingFormats());
 
     textureDes = textureDisplay.createAndUpdateDescriptorSet(*texture);
 
 
-    SAIGA_EXIT_ERROR("not implemented");
-    //    box.loadObj("box.obj");
-
-    //    box.loadObj("cat.obj");
-    box.init(renderer->base());
-    box.descriptor = texturedAssetRenderer.createAndUpdateDescriptorSet(*box.textures[0]);
-
-    SAIGA_EXIT_ERROR("not implemented");
-    //    teapot.loadObj("teapot.obj");
-    teapot.computePerVertexNormal();
+    {
+        auto mesh = UnifiedModel("models/teapot.obj")
+                        .ComputeColor()
+                        .CombinedMesh(VERTEX_POSITION | VERTEX_NORMAL | VERTEX_COLOR)
+                        .first;
+        static_cast<TriangleMesh<VertexNC, uint32_t>&>(teapot) = mesh.Mesh<VertexNC, uint32_t>();
+    }
     teapot.init(renderer->base());
     teapotTrans.setScale(vec3(2, 2, 2));
     teapotTrans.translateGlobal(vec3(0, 2, 0));
     teapotTrans.calculateModel();
 
-    SAIGA_EXIT_ERROR("todo");
-    //    plane.createCheckerBoard(ivec2(20, 20), 1.0f, Saiga::Colors::firebrick, Saiga::Colors::gray);
+    static_cast<TriangleMesh<VertexNC, uint32_t>&>(plane) =
+        CheckerBoardPlane(ivec2(20, 20), 1.0f, Saiga::Colors::firebrick, Saiga::Colors::gray)
+            .Mesh<VertexNC, uint32_t>();
     plane.init(renderer->base());
 
-    //    grid.createGrid(10, 10);
+    grid.mesh =
+        GridPlaneLineMesh(ivec2(10, 10), vec2(1, 1)).SetVertexColor(make_vec4(1)).LineMesh<VertexNC, uint32_t>();
     grid.init(renderer->base());
 
-    //    frustum.createFrustum(camera.proj, 2, make_vec4(1), true);
+    frustum.mesh = FrustumLineMesh(camera.proj, 2, true).SetVertexColor(make_vec4(1)).LineMesh<VertexNC, uint32_t>();
     frustum.init(renderer->base());
 
     pointCloud.init(base, 1000 * 1000);
@@ -142,14 +139,8 @@ VulkanExample::~VulkanExample()
 
 void VulkanExample::update(float dt)
 {
-    if (!ImGui::captureKeyboard())
-    {
-        camera.update(dt);
-    }
-    if (!ImGui::captureMouse())
-    {
-        camera.interpolate(dt, 0);
-    }
+    // Camera input, unless ImGui uses it.
+    VulkanExampleBase::update(dt);
 
 
     if (change)
@@ -169,7 +160,6 @@ void VulkanExample::transfer(vk::CommandBuffer cmd)
     assetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
     lineAssetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
     pointCloudRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
-    texturedAssetRenderer.updateUniformBuffers(cmd, camera.view, camera.proj);
 
     if (uploadChanges)
     {
@@ -197,9 +187,8 @@ void VulkanExample::render(vk::CommandBuffer cmd)
             lineAssetRenderer.pushModel(cmd, translate(vec3(-5, 1.5f, 0)));
             teapot.render(cmd);
 
-            auto gridMatrix = rotate(0.5f * pi<float>(), vec3(1, 0, 0));
-            gridMatrix      = gridMatrix * translate(vec3(0, -10, 0));
-            lineAssetRenderer.pushModel(cmd, gridMatrix);
+            // GridPlaneLineMesh lies in the xz-plane, slightly above the checkerboard.
+            lineAssetRenderer.pushModel(cmd, translate(vec3(0, 0.01f, 0)));
             grid.render(cmd);
         }
 
@@ -208,13 +197,6 @@ void VulkanExample::render(vk::CommandBuffer cmd)
         {
             pointCloudRenderer.pushModel(cmd, translate(vec3(10, 2.5f, 0)));
             pointCloud.render(cmd, 0, pointCloud.capacity);
-        }
-
-        if (texturedAssetRenderer.bind(cmd))
-        {
-            texturedAssetRenderer.pushModel(cmd, translate(vec3(-10, 1, 0)));
-            texturedAssetRenderer.bindTexture(cmd, box.descriptor);
-            box.render(cmd);
         }
     }
 
@@ -242,8 +224,6 @@ void VulkanExample::renderGUI()
 
     if (ImGui::Button("reload shader"))
     {
-        //        texturedAssetRenderer.shaderPipeline.reload();
-        texturedAssetRenderer.reload();
         assetRenderer.reload();
     }
 
@@ -256,7 +236,6 @@ void VulkanExample::renderGUI()
     //    ImGui::ShowTestWindow();
 }
 
-#undef main
 
 int main(const int argc, const char* argv[])
 {

@@ -8,24 +8,11 @@
 
 #include "saiga/core/window/Interfaces.h"
 
+#include "HeadlessWindow.h"
 #include "Window.h"
 
 #ifdef SAIGA_USE_GLFW
 #    include "GLFWWindow.h"
-#else
-namespace Saiga
-{
-using GLFWWindow = void;
-}
-#endif
-
-#ifdef SAIGA_USE_SDL
-#    include "SDLWindow.h"
-#else
-namespace Saiga
-{
-using SDLWindow = void;
-}
 #endif
 
 
@@ -36,8 +23,9 @@ namespace Vulkan
 {
 enum class WindowManagement
 {
-    SDL,
-    GLFW
+    GLFW,
+    // No window system, see HeadlessWindow.
+    Headless
 };
 
 template <WindowManagement WM>
@@ -45,18 +33,20 @@ struct GetWindowType
 {
 };
 
-template <>
-struct GetWindowType<WindowManagement::SDL>
-{
-    using Type = SDLWindow;
-};
-
+#ifdef SAIGA_USE_GLFW
 template <>
 struct GetWindowType<WindowManagement::GLFW>
 {
     using Type = GLFWWindow;
 };
+#endif
 
+
+template <>
+struct GetWindowType<WindowManagement::Headless>
+{
+    using Type = HeadlessWindow;
+};
 
 template <WindowManagement WM, typename Renderer>
 struct SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public Updating

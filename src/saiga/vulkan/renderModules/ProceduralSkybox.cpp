@@ -6,6 +6,7 @@
 
 #include "ProceduralSkybox.h"
 
+#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/model/model_loader_obj.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/Vertex.h"
@@ -21,19 +22,21 @@ namespace Vulkan
 void ProceduralSkybox::destroy()
 {
     Pipeline::destroy();
+    shaderPipeline.destroy();
 }
 
-void ProceduralSkybox::renderTexture(vk::CommandBuffer cmd, StaticDescriptorSet texture, vec2 position, vec2 size)
+void ProceduralSkybox::renderTexture(vk::CommandBuffer cmd, DescriptorSet& descriptor, vec2 position, vec2 size,
+                                     std::optional<vk::Viewport> restoreViewport)
 {
-    bindDescriptorSet(cmd, texture);
-    vk::Viewport vp(position[0], position[1], size[0], size[1]);
-    cmd.setViewport(0, vp);
+    bindDescriptorSet(cmd, descriptor);
+    cmd.setViewport(0, vk::Viewport(position[0], position[1], size[0], size[1], 0.0f, 1.0f));
     blitMesh.render(cmd);
+    if (restoreViewport) cmd.setViewport(0, *restoreViewport);
 }
 
 
 
-void ProceduralSkybox::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
+void ProceduralSkybox::init(VulkanBase& vulkanDevice, const RenderingFormats& formats)
 {
     PipelineBase::init(vulkanDevice, 1);
     addDescriptorSetLayout({{
@@ -46,10 +49,9 @@ void ProceduralSkybox::init(VulkanBase& vulkanDevice, VkRenderPass renderPass)
     info.addVertexInfo<VertexType>();
     info.rasterizationState.cullMode      = vk::CullModeFlagBits::eNone;
     info.blendAttachmentState.blendEnable = true;
-    create(renderPass, info);
+    create(formats, info);
 
-    SAIGA_EXIT_ERROR("todo");
-    //    blitMesh.createFullscreenQuad();
+    static_cast<TriangleMesh<VertexType, uint32_t>&>(blitMesh) = FullScreenQuad().Mesh<VertexType, uint32_t>();
     blitMesh.init(vulkanDevice);
 }
 

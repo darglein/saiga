@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -162,6 +163,48 @@ T CheckNotNull(const char* file, int line, const char* expression, T&& t)
 #define CHECK_LT(val1, val2) CHECK_OP(_LT, <, val1, val2)
 #define CHECK_GE(val1, val2) CHECK_OP(_GE, >=, val1, val2)
 #define CHECK_GT(val1, val2) CHECK_OP(_GT, >, val1, val2)
+
+namespace tiny_glog
+{
+// One LOG(INFO/WARNING/ERROR) line. The line is collected and written with a single write when the temporary is
+// destroyed at the end of the full expression, so lines of different threads don't interleave.
+class LogLine
+{
+   public:
+    LogLine(const char* severity, const char* file, int line) { buffer << severity << " " << file << ":" << line << "] "; }
+    ~LogLine()
+    {
+        buffer << '\n';
+        std::cerr << buffer.str() << std::flush;
+    }
+    LogLine(const LogLine&)            = delete;
+    LogLine& operator=(const LogLine&) = delete;
+
+    std::ostream& stream() { return buffer; }
+
+   private:
+    std::ostringstream buffer;
+};
+}  // namespace tiny_glog
+
+// LOG(INFO), LOG(WARNING), LOG(ERROR) and LOG(FATAL) like glog. LOG(FATAL) prints the message and then calls the
+// failure function (abort by default). The severity is pasted with ## and therefore not macro-expanded, so an ERROR
+// macro (wingdi.h) does not break LOG(ERROR).
+#define LOG(severity) TINY_GLOG_LOG_##severity
+#define TINY_GLOG_LOG_INFO tiny_glog::LogLine("I", __FILE__, __LINE__).stream()
+#define TINY_GLOG_LOG_WARNING tiny_glog::LogLine("W", __FILE__, __LINE__).stream()
+#define TINY_GLOG_LOG_ERROR tiny_glog::LogLine("E", __FILE__, __LINE__).stream()
+// An active LogStreamVoidifier ends the line and calls the failure function when it is destroyed.
+#define TINY_GLOG_LOG_FATAL                                                     \
+    if (LogStreamVoidifier _ls_void = LogStreamVoidifier(std::cerr); !_ls_void) \
+    {                                                                           \
+    }                                                                           \
+    else                                                                        \
+        _ls_void << "F " << __FILE__ << ":" << __LINE__ << "] "
+#if defined(_WIN32)
+// wingdi.h defines ERROR as 0, which is expanded before the ## when LOG is called through another macro.
+#    define TINY_GLOG_LOG_0 TINY_GLOG_LOG_ERROR
+#endif
 
 // Like glog with the default verbosity 0: only VLOG(0) prints.
 #define VLOG(x)  \

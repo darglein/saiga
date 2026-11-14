@@ -22,14 +22,18 @@ namespace GLSLANG
  * It uses the official Khronos GLSL libary glslang.
  * See: https://github.com/KhronosGroup/glslang
  *
+ * Returns an empty vector if the file is not found or does not compile.
+ * includedFiles (optional) receives the full names of all files included by the shader.
  */
-
 SAIGA_VULKAN_API std::vector<uint32_t> loadGLSL(const std::string& file, const vk::ShaderStageFlagBits shader_type,
-                                            const std::string& injection = {});
+                                                const std::string& injection            = {},
+                                                std::vector<std::string>* includedFiles = nullptr);
 
+// Returns an empty vector if the file is not found or invalid.
 SAIGA_VULKAN_API std::vector<uint32_t> loadSPIRV(const std::string& file);
 
-SAIGA_VULKAN_API void addInjectionAfterVersion(std::string& shaderString, const std::string& injection);
+// Inserts the injection in a new line after the '#version' line. Returns false if there is no '#version' line.
+SAIGA_VULKAN_API bool addInjectionAfterVersion(std::string& shaderString, const std::string& injection);
 
 
 
@@ -41,7 +45,7 @@ SAIGA_VULKAN_API void addInjectionAfterVersion(std::string& shaderString, const 
  *
  */
 SAIGA_VULKAN_API std::vector<uint32_t> createFromString(const std::string& shaderString,
-                                                    const vk::ShaderStageFlagBits shader_type);
+                                                        const vk::ShaderStageFlagBits shader_type);
 
 
 SAIGA_VULKAN_API void init();

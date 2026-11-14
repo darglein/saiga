@@ -12,8 +12,6 @@
 #include "saiga/vulkan/svulkan.h"
 
 
-typedef struct SDL_Window SDL_Window;
-
 
 namespace Saiga
 {
@@ -31,6 +29,9 @@ class SAIGA_VULKAN_API VulkanWindow : public WindowBase
     virtual void swap() override;
 
     virtual std::unique_ptr<ImGuiVulkanRenderer> createImGui(size_t frameCount) { return nullptr; }
+
+    // Size of the drawable area in pixels. Can differ from the window size with display scaling.
+    virtual ivec2 getFramebufferSize() { return ivec2(getWidth(), getHeight()); }
 
     virtual std::vector<std::string> getRequiredInstanceExtensions()       = 0;
     virtual void createSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;

@@ -9,9 +9,18 @@
 
 #include <exception>
 #include <map>
+#include <set>
 namespace Saiga::Vulkan
 {
 struct VulkanBase;
+
+/**
+ * The bindings of a descriptor set layout and (after create()) the vk::DescriptorSetLayout handle.
+ *
+ * The handle is not owned in the RAII sense: there is no destructor, destroy() must be called explicitly and is
+ * idempotent. A copy shares the handle, so destroy() must be called on exactly one of the copies (PipelineBase copies
+ * the layouts into a deferred deletion and destroys them there).
+ */
 class SAIGA_VULKAN_API DescriptorSetLayout
 {
    public:
@@ -19,9 +28,9 @@ class SAIGA_VULKAN_API DescriptorSetLayout
     using BindingMapEntry = BindingMapType::value_type;
 
    private:
-    VulkanBase* base;
+    VulkanBase* base = nullptr;
     BindingMapType bindings;
-    vk::DescriptorSetLayout layout;
+    vk::DescriptorSetLayout layout = nullptr;
 
    public:
     void destroy();
@@ -45,19 +54,24 @@ class SAIGA_VULKAN_API DescriptorSetLayout
 
     inline const vk::DescriptorSetLayoutBinding& getBindingForIndex(uint32_t index) const { return bindings.at(index); }
 
-    vk::DescriptorSet createDuplicateSet(vk::DescriptorSet set)
+    /**
+     * A new set with the same descriptors as set, except for the bindings with the given indices: these are left
+     * unwritten and must be written by the caller. A descriptor whose image, view, sampler or buffer was destroyed
+     * (e.g. of a resource the defragmenter moved) must not be copied.
+     */
+    vk::DescriptorSet createDuplicateSet(vk::DescriptorSet set, const std::set<uint32_t>& skipIndices = {})
     {
         auto duplicate = base->descriptorPool.allocateDescriptorSet(layout);
 
-        std::vector<vk::CopyDescriptorSet> copies(bindings.size());
+        std::vector<vk::CopyDescriptorSet> copies;
+        for (auto& binding : bindings)
+        {
+            if (skipIndices.count(binding.first)) continue;
+            copies.emplace_back(set, binding.second.binding, 0, duplicate, binding.second.binding, 0,
+                                binding.second.descriptorCount);
+        }
 
-        std::transform(bindings.begin(), bindings.end(), copies.begin(),
-                       [=](const std::pair<uint32_t, vk::DescriptorSetLayoutBinding>& binding) {
-                           return vk::CopyDescriptorSet{
-                               set, binding.second.binding, 0, duplicate, binding.second.binding, 0, 1};
-                       });
-
-        base->device.updateDescriptorSets(nullptr, copies);
+        if (!copies.empty()) base->device.updateDescriptorSets(nullptr, copies);
 
         return duplicate;
     }
@@ -68,6 +82,14 @@ class SAIGA_VULKAN_API DescriptorSetLayout
         auto binding = getBindingForIndex(index);
 
         return {set, binding.binding, 0, 1, binding.descriptorType, &imageInfo};
+    }
+
+    inline vk::WriteDescriptorSet getWriteForBinding(uint32_t index, vk::DescriptorSet set,
+                                                     const vk::DescriptorBufferInfo& bufferInfo) const
+    {
+        auto binding = getBindingForIndex(index);
+
+        return {set, binding.binding, 0, 1, binding.descriptorType, nullptr, &bufferInfo};
     }
 };
 

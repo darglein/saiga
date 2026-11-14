@@ -16,60 +16,42 @@ namespace Vulkan
 Pipeline::Pipeline() : PipelineBase(vk::PipelineBindPoint::eGraphics) {}
 
 
-void Pipeline::create(vk::RenderPass renderPass, PipelineInfo pipelineInfo)
+void Pipeline::create(const RenderingFormats& _formats, PipelineInfo _pipelineInfo)
 {
     SAIGA_ASSERT(isInitialized());
 
-    this->renderPass   = renderPass;
-    this->pipelineInfo = pipelineInfo;
+    formats      = _formats;
+    pipelineInfo = _pipelineInfo;
 
     createPipelineLayout();
-    //    pipelineInfo.addShaders(shaderPipeline);
-    auto pipelineCreateInfo = pipelineInfo.createCreateInfo(pipelineLayout, renderPass);
+    SAIGA_ASSERT(shaderPipeline.valid(), "Shader compilation failed");
+    replacePipeline(createPipeline());
+}
+
+vk::Pipeline Pipeline::createPipeline()
+{
+    auto pipelineCreateInfo = pipelineInfo.createCreateInfo(pipelineLayout, formats);
     shaderPipeline.addToPipeline(pipelineCreateInfo);
-    pipeline = device.createGraphicsPipeline(base->pipelineCache, pipelineCreateInfo);
-    SAIGA_ASSERT(pipeline);
+    auto result = device.createGraphicsPipeline(base->pipelineCache, pipelineCreateInfo);
+    SAIGA_ASSERT(result.result == vk::Result::eSuccess && result.value);
+    return result.value;
 }
 
 void Pipeline::reload()
 {
     shaderPipeline.reload();
     if (!shaderPipeline.valid()) return;
-    reloadCounter = 3;
+    replacePipeline(createPipeline());
 }
 
 bool Pipeline::checkShader()
 {
-    if (autoReload)
+    if (autoReload && shaderPipeline.autoReload() && shaderPipeline.valid())
     {
-        if (shaderPipeline.autoReload())
-        {
-            if (shaderPipeline.valid()) reloadCounter = 4;
-        }
+        // The old pipeline is destroyed when the frames in flight are done with it.
+        replacePipeline(createPipeline());
     }
-
-    if (reloadCounter > 0)
-    {
-        reloadCounter--;
-
-        if (reloadCounter == 0)
-        {
-            vkDestroyPipeline(device, pipeline, nullptr);
-            pipeline = nullptr;
-
-            auto pipelineCreateInfo = pipelineInfo.createCreateInfo(pipelineLayout, renderPass);
-            shaderPipeline.addToPipeline(pipelineCreateInfo);
-            pipeline = device.createGraphicsPipeline(base->pipelineCache, pipelineCreateInfo);
-            SAIGA_ASSERT(pipeline);
-
-            return true;
-        }
-
-        return false;
-    }
-
-
-    return true;
+    return pipeline;
 }
 
 }  // namespace Vulkan

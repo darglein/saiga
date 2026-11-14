@@ -43,6 +43,10 @@ void main()
         vec4 vp = ubo.view * pushConstants.model * vec4(inPos.xyz, 1.0);
         gl_Position = ubo.projection * vp;
 
+#ifdef SAIGA_NO_LARGE_POINTS
+        gl_PointSize = 1.0;
+#else
         // scale pointsize with inverse distance to camera
         gl_PointSize = 10 * float(POINT_SIZE) / length(vec3(vp));
+#endif
 }

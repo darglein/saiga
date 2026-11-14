@@ -26,9 +26,8 @@ void DescriptorSetLayout::addBinding(uint32_t index, vk::DescriptorSetLayoutBind
     {
         throw std::logic_error("If layout was created another binding cannot be added. Destroy it first.");
     }
-    auto found = std::find_if(bindings.begin(), bindings.end(), [=](const auto& entry) {
-        return entry.first == index || entry.second.binding == binding.binding;
-    });
+    auto found = std::find_if(bindings.begin(), bindings.end(), [=](const auto& entry)
+                              { return entry.first == index || entry.second.binding == binding.binding; });
 
     if (found != bindings.end())
     {
@@ -40,7 +39,7 @@ void DescriptorSetLayout::addBinding(uint32_t index, vk::DescriptorSetLayoutBind
 
 void DescriptorSetLayout::destroy()
 {
-    if (layout)
+    if (layout && base && base->device)
     {
         base->device.destroy(layout);
         layout = nullptr;
@@ -80,6 +79,7 @@ DynamicDescriptorSet DescriptorSetLayout::createDynamicDescriptorSet()
 
 void DescriptorSetLayout::create(VulkanBase* _base)
 {
+    SAIGA_ASSERT(!layout, "DescriptorSetLayout::create: the layout was already created");
     base                 = _base;
     auto bindings_vector = std::vector<vk::DescriptorSetLayoutBinding>(bindings.size());
 

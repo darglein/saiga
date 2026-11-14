@@ -24,15 +24,24 @@ class SAIGA_VULKAN_API Pipeline : public PipelineBase
     Pipeline();
 
 
-    void create(vk::RenderPass renderPass, PipelineInfo pipelineInfo = PipelineInfo());
+    // formats: the attachments of the dynamic rendering pass (vkCmdBeginRendering) the pipeline is used in.
+    void create(const RenderingFormats& formats, PipelineInfo pipelineInfo = PipelineInfo());
     void reload();
+
+    // Destroys the pipeline (deferred, see PipelineBase::destroy) and the shader modules.
+    void destroy()
+    {
+        shaderPipeline.destroy();
+        PipelineBase::destroy();
+    }
 
     bool autoReload = true;
 
    protected:
-    vk::RenderPass renderPass;
+    RenderingFormats formats;
     PipelineInfo pipelineInfo;
-    int reloadCounter = 0;
+
+    vk::Pipeline createPipeline();
 
     virtual bool checkShader() override;
 };

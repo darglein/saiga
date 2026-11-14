@@ -60,8 +60,7 @@ Utility
  * [CUDA](https://developer.nvidia.com/cuda-downloads)
  
  Vulkan
- * [LunarG SDK](https://www.lunarg.com/vulkan-sdk/)
- * [GLSLANG](https://github.com/KhronosGroup/glslang)
+ * [LunarG SDK](https://www.lunarg.com/vulkan-sdk/) (or the Vulkan headers and loader; glslang is built from `submodules/glslang`)
 
 ## Building + Running the samples
 

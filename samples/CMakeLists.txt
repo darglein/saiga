@@ -66,8 +66,8 @@ if(MODULE_VISION)
 endif()
 
 if(MODULE_VULKAN)
-    # All vulkan samples also need sdl2
-    if (SDL2_FOUND)
+    # All vulkan samples use a GLFW window
+    if (SAIGA_USE_GLFW)
         add_subdirectory(vulkan)
     endif()
 endif()

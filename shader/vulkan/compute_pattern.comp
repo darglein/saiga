@@ -1,0 +1,27 @@
+#version 450
+
+// Writes an animated pattern into a storage image (sample_vulkan_compute).
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0, rgba8) uniform writeonly image2D outputImage;
+
+layout(push_constant) uniform PushConstants
+{
+    float time;
+}
+pc;
+
+void main()
+{
+    ivec2 size = imageSize(outputImage);
+    ivec2 p    = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= size.x || p.y >= size.y) return;
+
+    vec2 uv  = (vec2(p) + 0.5) / vec2(size) * 2.0 - 1.0;
+    float r  = length(uv);
+    float a  = atan(uv.y, uv.x);
+    float v  = 0.5 + 0.5 * sin(10.0 * r - 3.0 * pc.time + 4.0 * a);
+    vec3 col = mix(vec3(0.1, 0.2, 0.6), vec3(1.0, 0.6, 0.1), v) * smoothstep(1.0, 0.95, r);
+    imageStore(outputImage, p, vec4(col, 1.0));
+}

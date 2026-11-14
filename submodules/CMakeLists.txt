@@ -86,6 +86,13 @@ if (SAIGA_BUILD_GLFW)
     message("=================================")
     message("Adding Submodule glfw")
 
+    if (SAIGA_GLFW_STATIC AND SAIGA_BUILD_SHARED)
+        # GLFW is used by saiga_core (event handler, ImGui backend), saiga_opengl and saiga_vulkan. Linked statically
+        # into each of these shared libraries, every library would have its own GLFW state (e.g. glfwInit in one, the
+        # window calls in another).
+        message(WARNING "SAIGA_GLFW_STATIC is ignored for shared saiga libraries (SAIGA_BUILD_SHARED). GLFW is built as a shared library.")
+        set(SAIGA_GLFW_STATIC OFF)
+    endif ()
     if (SAIGA_GLFW_STATIC)
         set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
     else ()
@@ -155,6 +162,11 @@ if (SAIGA_WITH_ASSIMP)
     # assimp compiles only its C++ code with -fvisibility=hidden. Its bundled C libraries (kuba zip, miniz) would
     # otherwise export symbols such as zip_open and zip_close, which then replace libzip's functions in saiga_core.
     set_target_properties(assimp PROPERTIES C_VISIBILITY_PRESET hidden)
+    # assimp's MMD/MMDPmxParser.h uses uint8_t without including <cstdint>; recent libstdc++ versions no longer pull
+    # it in transitively, so e.g. clang 19 fails on it.
+    if (NOT MSVC)
+        target_compile_options(assimp PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include cstdint>)
+    endif ()
     #set_target_properties(assimp PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SAIGA_RUNTIME_OUTPUT_DIRECTORY}")
 
 
@@ -419,3 +431,31 @@ if (SAIGA_WITH_LIBAVIF)
     message(STATUS "=================================")
 endif ()
 
+
+# glslang compiles the GLSL shaders of the vulkan module to SPIR-V. It is linked statically into saiga_vulkan
+# and only built when that module is (EXCLUDE_FROM_ALL).
+if (SAIGA_MODULE_VULKAN)
+    message("=================================")
+    if (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/glslang/CMakeLists.txt")
+        message(WARNING "The glslang submodule is missing (git submodule update --init). The vulkan module is disabled.")
+    elseif (CMAKE_VERSION VERSION_LESS 3.22.1)
+        message(WARNING "The glslang submodule needs CMake >= 3.22.1. The vulkan module is disabled.")
+    else ()
+        message("Adding Submodule glslang")
+
+        set(BUILD_SHARED_LIBS OFF)
+        set(BUILD_EXTERNAL OFF CACHE INTERNAL "")
+        set(GLSLANG_TESTS OFF CACHE INTERNAL "")
+        set(GLSLANG_ENABLE_INSTALL OFF CACHE INTERNAL "")
+        set(ENABLE_GLSLANG_BINARIES OFF CACHE INTERNAL "")
+        set(ENABLE_HLSL OFF CACHE INTERNAL "")
+        # The optimizer needs SPIRV-Tools.
+        set(ENABLE_OPT OFF CACHE INTERNAL "")
+
+        add_subdirectory(glslang EXCLUDE_FROM_ALL)
+        # Keep the glslang symbols out of the exports of saiga_vulkan, so they cannot clash with another glslang in
+        # the same process.
+        set_target_properties(glslang PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
+    endif ()
+    message("=================================")
+endif ()

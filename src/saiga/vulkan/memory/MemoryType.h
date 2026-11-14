@@ -1,10 +1,17 @@
-//
-// Created by Peter Eichinger on 2018-11-30.
-//
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
 
 #pragma once
 
+#include "saiga/export.h"
+
 #include <ostream>
+#include <tuple>
+#include <utility>
+#include <vulkan/vulkan.hpp>
 
 namespace Saiga::Vulkan::Memory
 {
@@ -34,13 +41,11 @@ struct MemoryType
         return (memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == vk::MemoryPropertyFlagBits::eHostVisible;
     }
 
+    // Lexicographic (strict weak ordering, required for the std::map keys).
     bool operator<(const MemoryType& rhs) const
     {
-        if (static_cast<unsigned int>(usageFlags) < static_cast<unsigned int>(rhs.usageFlags))
-        {
-            return true;
-        }
-        return static_cast<unsigned int>(memoryFlags) < static_cast<unsigned int>(rhs.memoryFlags);
+        return std::make_pair(static_cast<unsigned int>(usageFlags), static_cast<unsigned int>(memoryFlags)) <
+               std::make_pair(static_cast<unsigned int>(rhs.usageFlags), static_cast<unsigned int>(rhs.memoryFlags));
     }
 
     bool operator>(const MemoryType& rhs) const { return rhs < *this; }

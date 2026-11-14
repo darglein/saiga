@@ -1,9 +1,5 @@
 #version 450
 
-#ifndef POINT_SIZE
-#    define POINT_SIZE 5
-#endif
-
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
@@ -39,7 +35,6 @@ outData;
 out gl_PerVertex
 {
     vec4 gl_Position;
-    float gl_PointSize;
 };
 
 void main()
