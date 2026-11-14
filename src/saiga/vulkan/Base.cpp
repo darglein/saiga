@@ -43,6 +43,12 @@ void VulkanBase::setPhysicalDevice(Instance& instance, vk::PhysicalDevice physic
     queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 }
 
+vk::Instance VulkanBase::getInstance() const
+{
+    SAIGA_ASSERT(instance);
+    return *instance;
+}
+
 void VulkanBase::destroy()
 {
     if (!device) return;
@@ -53,10 +59,8 @@ void VulkanBase::destroy()
 
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
-    // Before the queues: the defragger frees command buffers of a pool created on the main queue.
+    // Before the queues: a defragmentation pass frees its command buffer of the main queue.
     memory.destroy();
-    // memory.destroy() defers the destruction of its own objects (e.g. the image copy pipeline).
-    flushDeferredDeletes();
 
     if (dedicated_compute_queue)
     {

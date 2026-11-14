@@ -130,6 +130,7 @@ if (MODULE_VULKAN)
     saiga_test(test_vulkan_sampler.cpp "saiga_vulkan")
     saiga_test(test_vulkan_render_target.cpp "saiga_vulkan")
     saiga_test(test_vulkan_draw.cpp "saiga_vulkan")
+    saiga_test(test_vulkan_memory.cpp "saiga_vulkan")
 endif ()
 
 if (MODULE_CUDA)

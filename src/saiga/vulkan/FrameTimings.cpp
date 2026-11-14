@@ -13,12 +13,10 @@
 namespace Saiga::Vulkan
 {
 template <typename Finder>
-void FrameTimings<Finder>::init(vk::Device _device, vk::PhysicalDevice physicalDevice, Saiga::Vulkan::Queue* _queue,
-                                Memory::VulkanMemory* _memory)
+void FrameTimings<Finder>::init(vk::Device _device, vk::PhysicalDevice physicalDevice, Saiga::Vulkan::Queue* _queue)
 {
     device = _device;
     queue  = _queue;
-    memory = _memory;
 
     timestampPeriod = physicalDevice.getProperties().limits.timestampPeriod;
     auto validBits  = physicalDevice.getQueueFamilyProperties()[queue->getQueueFamilyIndex()].timestampValidBits;
@@ -189,18 +187,6 @@ void FrameTimings<Finder>::leaveSection(const std::string& name, vk::CommandBuff
 {
     auto index = nameToSectionMap[name];
     cmd.writeTimestamp2(vk::PipelineStageFlagBits2::eBottomOfPipe, queryPool, getEnd(index));
-}
-
-template <typename Finder>
-void FrameTimings<Finder>::finishFrame(vk::Semaphore _frameTimeline, uint64_t timelineValue)
-{
-    if (bestSection.has_value() && memory)
-    {
-        // Pauses are in ns. Clamp, so that a huge (bogus) pause does not overflow.
-        auto best = std::min<uint64_t>(bestSection.value().length, uint64_t(1e9));
-        auto time = static_cast<int64_t>(0.8 * best);
-        memory->performTimedDefrag(time, _frameTimeline, timelineValue);
-    }
 }
 
 template <typename Finder>

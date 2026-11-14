@@ -43,6 +43,11 @@ src/
                         Resources: buffer/ (vertex, index, uniform, staging, indirect), texture/ (Texture2D, 2DArray,
                         Cube, 3D with mipmaps and download; Sampler; RenderTarget for offscreen passes incl. MSAA and
                         multiple color attachments)
+                        memory/: VulkanMemory allocates every buffer/image with VMA (submodules/VulkanMemoryAllocator,
+                        own vk::Buffer per allocation, offset 0); mark_dynamic() moves a resource into VMA pools that
+                        VMA's defragmentation compacts (full_defrag(), or incremental passes in update() per frame);
+                        moved handles reach descriptors through DynamicDescriptorSet, images keep the layout tracked in
+                        ImageData::layout (Texture::transitionImageLayout / setImageLayout)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -52,7 +57,7 @@ samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
                         libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF, glslang (built from submodules/CMakeLists.txt),
-                        plus tiny-eigen and tiny-glog, which are plain files maintained in this repository
+                        VulkanMemoryAllocator (header only, included by saiga_vulkan), plus tiny-eigen and tiny-glog, which are plain files maintained in this repository
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
 .github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build (OpenGL on Mesa llvmpipe, Vulkan on Mesa lavapipe) + ctest
 travis/, .travis.yml    Legacy Travis CI — unused
@@ -98,7 +103,8 @@ cmake --build build --parallel -- -k 0
   `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to the configure. (CI uses CMake 3.28 and does not need it.)
 - The CUDA module needs a GPU / CUDA toolkit and is **not covered by CI**. The Vulkan module is covered
   through its headless tests (no window, swap chain or samples); it needs the Vulkan headers. glslang comes from `submodules/glslang`, is linked
-  statically into `saiga_vulkan` and needs CMake >= 3.22.1 (the module is skipped with a warning below that). The OpenGL module is covered, but only through its
+  statically into `saiga_vulkan` and needs CMake >= 3.22.1 (the module is skipped with a warning below that). The Vulkan Memory
+  Allocator (header only) comes from `submodules/VulkanMemoryAllocator`; no saiga header includes it (the handles are forward declared). The OpenGL module is covered, but only through its
   headless tests (no window, renderers or samples). For a CUDA build leave `SAIGA_MODULE_CUDA=ON` and pin the archs with
   `-DSAIGA_CUDA_ARCH="86;89"` (dotless, e.g. `75;80;86;89+PTX`), otherwise the installed GPU is
   autodetected.
@@ -122,7 +128,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan** and
-36 tests. The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+37 tests. The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests

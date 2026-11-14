@@ -7,7 +7,7 @@
 #include "saiga/vulkan/svulkan.h"
 
 #include "FrameSync.h"
-#include "memory/VulkanMemory.h"
+#include "Queue.h"
 
 #include <chrono>
 #include <map>
@@ -98,7 +98,6 @@ class SAIGA_VULKAN_API FrameTimings
     std::set<Entry, KeyComparator> frameSections;
     std::map<std::string, uint32_t> nameToSectionMap;
     Finder finder;
-    Memory::VulkanMemory* memory = nullptr;
     void destroyPool();
 
     inline uint32_t getCount() const { return static_cast<uint32_t>(frameSections.size() * 2); }
@@ -113,8 +112,7 @@ class SAIGA_VULKAN_API FrameTimings
     FrameTimings(const FrameTimings&)            = delete;
     FrameTimings& operator=(const FrameTimings&) = delete;
 
-    void init(vk::Device device, vk::PhysicalDevice physicalDevice, Saiga::Vulkan::Queue* queue,
-              Memory::VulkanMemory* memory);
+    void init(vk::Device device, vk::PhysicalDevice physicalDevice, Saiga::Vulkan::Queue* queue);
 
     // timelineValue: the frame timeline value the frame signals when it is complete.
     void beginFrame(uint64_t timelineValue);
@@ -130,8 +128,5 @@ class SAIGA_VULKAN_API FrameTimings
     void leaveSection(const std::string& name, vk::CommandBuffer cmd);
 
     void resetFrame(vk::CommandBuffer cmd);
-
-    // Starts defragmentation copies (after the frame with the given timeline value) if a suitable pause was found.
-    void finishFrame(vk::Semaphore frameTimeline, uint64_t timelineValue);
 };
 }  // namespace Saiga::Vulkan

@@ -131,8 +131,8 @@ TEST_F(VulkanTexture, Mipmaps)
     Vulkan::Texture2D texture;
     texture.fromImage(base(), img, vk::ImageUsageFlagBits::eSampled, false, true);
     ASSERT_EQ(texture.mipLevels, 4u);
-    // Textures with mipmaps are not moved by the defragmenter.
-    EXPECT_FALSE(texture.is_movable());
+    // The defragmentation copies all mip levels.
+    EXPECT_TRUE(texture.is_movable());
 
     ExpectEqual(Download(texture, 0), img);
 

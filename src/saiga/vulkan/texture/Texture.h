@@ -81,12 +81,12 @@ struct SAIGA_VULKAN_API Texture
     }
 
     virtual ~Texture() { destroy(); }
-    uint32_t width      = 0;
-    uint32_t height     = 0;
+    uint32_t width                  = 0;
+    uint32_t height                 = 0;
     uint32_t depth                  = 1;
-    uint32_t mipLevels  = 1;
-    uint32_t layerCount = 1;
-    vk::Format format   = vk::Format::eUndefined;
+    uint32_t mipLevels              = 1;
+    uint32_t layerCount             = 1;
+    vk::Format format               = vk::Format::eUndefined;
     vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1;
 
     vk::Image image() const;
@@ -106,7 +106,17 @@ struct SAIGA_VULKAN_API Texture
      */
     void destroy();
 
+    // Records a layout transition and tracks the new layout (see setImageLayout()).
     void transitionImageLayout(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
+
+    /**
+     * The texture tracks its image layout (Memory::ImageData::layout). getDescriptorInfo() uses it, and the
+     * defragmentation copies a moved texture from it and restores it. Vulkan can not query the layout of an image, so a
+     * transition recorded with an own barrier (instead of transitionImageLayout()) must be reported with this function.
+     * The tracked layout must be the layout after all submitted command buffers.
+     */
+    void setImageLayout(vk::ImageLayout layout);
+    vk::ImageLayout getImageLayout() const;
 
     // With the default sampler of the texture
     vk::DescriptorImageInfo getDescriptorInfo();
@@ -130,16 +140,18 @@ struct SAIGA_VULKAN_API Texture
     size_t mipByteSize(uint32_t mipLevel) const;
 
     /**
-     * Allows the defragmenter to move this texture. Only textures whose format supports storage images can be moved
-     * (the defragmenter copies them with a compute shader); for the others this does nothing.
+     * Allows the defragmentation to move this texture (see Memory::VulkanMemory::mark_dynamic): it is copied into a
+     * defragmentable pool (blocking). A moved texture gets new image, view and sampler handles: use it through a
+     * DynamicDescriptorSet, which is updated after a move. Returns false if the texture stays static (the format does
+     * not support transfer src).
      */
-    void mark_dynamic();
+    bool mark_dynamic();
 
-    // True if the defragmenter can move the texture, see mark_dynamic().
+    // True if the defragmentation can move the texture, see mark_dynamic().
     bool is_movable() const { return movable; }
 
    protected:
-    // The format supports storage images and the image was created with eStorage (needed by the defragmenter).
+    // The image was created with eTransferSrc and eTransferDst (needed by the defragmentation).
     bool movable = false;
 
     struct ImageDescription

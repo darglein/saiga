@@ -75,8 +75,12 @@ class SAIGA_TEMPLATE IndirectBuffer : public Buffer
         count = std::min(count, drawCount - first);
         if (count == 0) return;
 
-        vk::Buffer buffer     = m_memoryLocation->data;
-        vk::DeviceSize offset = m_memoryLocation->offset + first * sizeof(CommandType);
+        vk::Buffer buffer;
+        {
+            Memory::SafeAccessor acc(*m_memoryLocation);
+            buffer = m_memoryLocation->data;
+        }
+        vk::DeviceSize offset = first * sizeof(CommandType);
         if (count == 1 || base->enabledFeatures.multiDrawIndirect)
         {
             drawIndirect(cmd, buffer, offset, count);

@@ -4,6 +4,7 @@
 # VULKAN_LIBS:        The list of required libraries for link_target
 # VULKAN_TARGETS:     The list of required targets
 # VULKAN_PRIVATE_TARGETS: Targets that are linked privately into saiga_vulkan
+# VMA_INCLUDE_DIR:    The include directory of the Vulkan Memory Allocator (private to saiga_vulkan)
 # MODULE_VULKAN:      True if all required dependencies are found.
 #
 
@@ -32,7 +33,18 @@ if(SAIGA_MODULE_VULKAN)
         set(GLSLANG_FOUND 0)
         message(STATUS "Package glslang::glslang           No")
     endif()
-    if(${VULKAN_FOUND} AND ${GLSLANG_FOUND})
+
+    # The Vulkan Memory Allocator (header only) from submodules/VulkanMemoryAllocator. No saiga header includes it.
+    set(VMA_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/submodules/VulkanMemoryAllocator/include")
+    if(EXISTS "${VMA_INCLUDE_DIR}/vk_mem_alloc.h")
+        set(VMA_FOUND 1)
+        message(STATUS "Package VulkanMemoryAllocator      Yes, submodule")
+    else()
+        set(VMA_FOUND 0)
+        message(WARNING "The VulkanMemoryAllocator submodule is missing (git submodule update --init). The vulkan module is disabled.")
+    endif()
+
+    if(${VULKAN_FOUND} AND ${GLSLANG_FOUND} AND ${VMA_FOUND})
         message(STATUS "Saiga vulkan enabled.")
         SET(SAIGA_USE_VULKAN 1)
     endif()

@@ -107,9 +107,8 @@ void Texture::destroy()
     {
         // Frames in flight may still use the image, view and sampler.
         auto b        = base;
-        auto t        = type;
         auto location = memoryLocation;
-        base->deferDelete([b, t, location]() { b->memory.deallocateImage(t, location); });
+        base->deferDelete([b, location]() { b->memory.deallocate(location); });
     }
     memoryLocation = nullptr;
     movable        = false;
@@ -154,6 +153,20 @@ vk::DescriptorImageInfo Texture::getDescriptorInfo(const Sampler& sampler)
     return info;
 }
 
+void Texture::setImageLayout(vk::ImageLayout layout)
+{
+    SAIGA_ASSERT(memoryLocation);
+    Memory::SafeAccessor acc(*memoryLocation);
+    memoryLocation->data.layout = layout;
+}
+
+vk::ImageLayout Texture::getImageLayout() const
+{
+    SAIGA_ASSERT(memoryLocation);
+    Memory::SafeAccessor acc(*memoryLocation);
+    return memoryLocation->data.layout;
+}
+
 vk::DescriptorImageInfo Texture::getDescriptorInfo()
 {
     SAIGA_ASSERT(memoryLocation && memoryLocation->data && memoryLocation->data.sampler);
@@ -161,16 +174,16 @@ vk::DescriptorImageInfo Texture::getDescriptorInfo()
     return memoryLocation->data.get_descriptor_info();
 }
 
-void Texture::mark_dynamic()
+bool Texture::mark_dynamic()
 {
-    if (!memoryLocation) return;
+    if (!memoryLocation) return false;
     if (!movable)
     {
         VLOG(1) << "Texture::mark_dynamic: the format " << vk::to_string(format)
-                << " does not support storage images, the texture can not be moved by the defragmenter.";
-        return;
+                << " does not support transfer src, the texture can not be moved by the defragmentation.";
+        return false;
     }
-    memoryLocation->mark_dynamic();
+    return base->memory.mark_dynamic(memoryLocation);
 }
 
 void Texture::createImage(VulkanBase& _base, const ImageDescription& d)
@@ -217,16 +230,8 @@ void Texture::createImage(VulkanBase& _base, const ImageDescription& d)
     if (usage & vk::ImageUsageFlagBits::eDepthStencilAttachment)
         check(vk::FormatFeatureFlagBits::eDepthStencilAttachment, "depth stencil attachments");
 
-    // The defragmenter copies a moved image with a compute shader (sampled -> storage), which needs storage support
-    // that is optional for many formats (3-channel, 64 bit, most snorm/16 bit). It only handles plain 2D images.
-    // Without it the texture stays static.
-    movable = d.imageType == vk::ImageType::e2D && mipLevels == 1 && layerCount == 1 && !multisampled &&
-              transferUsage && (features & vk::FormatFeatureFlagBits::eStorageImage) &&
-              (features & vk::FormatFeatureFlagBits::eSampledImage) && (usage & vk::ImageUsageFlagBits::eSampled);
-    if (movable)
-    {
-        usage |= vk::ImageUsageFlagBits::eStorage;
-    }
+    // The defragmentation copies a moved image with vkCmdCopyImage (all mip levels and layers).
+    movable = (usage & vk::ImageUsageFlagBits::eTransferSrc) && (usage & vk::ImageUsageFlagBits::eTransferDst);
 
     type = Memory::ImageType{usage, vk::MemoryPropertyFlagBits::eDeviceLocal};
 

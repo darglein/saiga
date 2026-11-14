@@ -1,11 +1,17 @@
-//
-// Created by Peter Eichinger on 2018-11-30.
-//
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
 
 #pragma once
 
+#include "saiga/export.h"
+
 #include <ostream>
+#include <tuple>
 #include <utility>
+#include <vulkan/vulkan.hpp>
 
 namespace Saiga::Vulkan::Memory
 {

@@ -1,261 +1,213 @@
-//
-// Created by Peter Eichinger on 10.10.18.
-//
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
 
 #pragma once
 #include "saiga/core/util/assert.h"
 #include "saiga/vulkan/Parameters.h"
 #include "saiga/vulkan/svulkan.h"
 
-#include "BufferChunkAllocator.h"
-#include "Defragger.h"
-#include "ImageChunkAllocator.h"
-#include "ImageCopyComputeShader.h"
+#include "BufferMemoryLocation.h"
+#include "ImageMemoryLocation.h"
 #include "MemoryType.h"
-#include "UniqueAllocator.h"
 
-#include <algorithm>
 #include <map>
 #include <memory>
 #include <mutex>
-#include <sstream>
 #include <vector>
-#include <vulkan/vulkan.hpp>
 
 #include <unordered_map>
+
+// VMA handles (vk_mem_alloc.h declares them the same way). The saiga headers do not include VMA.
+typedef struct VmaAllocator_T* VmaAllocator;
+typedef struct VmaPool_T* VmaPool;
+typedef struct VmaDefragmentationContext_T* VmaDefragmentationContext;
+
 namespace Saiga::Vulkan
 {
 struct VulkanBase;
 }
 namespace Saiga::Vulkan::Memory
 {
-static const vk::BufferUsageFlags all_buffer_usage(VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM);
-static const vk::ImageUsageFlags all_image_usage(VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM);
+// The sum over all defragmentation passes (VmaDefragmentationStats).
+struct DefragmentationStats
+{
+    uint64_t bytesMoved              = 0;
+    uint64_t bytesFreed              = 0;
+    uint32_t allocationsMoved        = 0;
+    uint32_t deviceMemoryBlocksFreed = 0;
+};
 
-static const vk::MemoryPropertyFlags all_mem_properties(VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM);
-static const vk::DeviceSize fallback_buffer_chunk_size = 64 * 1024 * 1024;
-
-static const vk::DeviceSize fallback_image_chunk_size = 32 * 1024 * 1024;
-
+/**
+ * The memory allocator of the Vulkan module, a thin layer over the Vulkan Memory Allocator (VMA,
+ * submodules/VulkanMemoryAllocator).
+ *
+ * Every buffer and image gets its own VMA allocation (sub-allocated from larger memory blocks or a dedicated
+ * allocation, chosen by VMA) and its own vk::Buffer / vk::Image. All functions are thread safe.
+ *
+ * Defragmentation (VMA's defragmentation API): only dynamic locations are moved, see mark_dynamic(). They live in
+ * separate VMA pools (one per memory type), because VMA can not defragment pools with immovable allocations well.
+ * VMA chooses the moves; this class recreates the buffers/images at the new place, copies them on the main queue and
+ * swaps the handles in the location (see BaseMemoryLocation).
+ *  - full_defrag() defragments everything and blocks.
+ *  - With enableDefragmentation, update() (called after every frame) runs one incremental pass of at most
+ *    defragBytesPerFrame bytes per frame, after a dynamic location was freed.
+ */
 class SAIGA_VULKAN_API VulkanMemory
 {
-   private:
-    uint32_t frame_number = 0;
-
    public:
+    // Incremental defragmentation after every frame (VulkanParameters::enableDefragmentation).
     bool enableDefragmentation = false;
-    bool enableChunkAllocator  = true;
+    // The maximum number of bytes an incremental defragmentation pass moves.
+    vk::DeviceSize defragBytesPerFrame = 16 * 1024 * 1024;
 
-   private:
-    template <bool usage_exact, bool memory_exact, typename T>
-    struct allocator_find_functor
-    {
-        T type;
-        explicit allocator_find_functor(T _type) : type(_type) {}
-        template <typename MapIter>
-        inline bool operator()(const MapIter& iter) const
-        {
-            bool usage_valid;
-            if (usage_exact)
-            {
-                usage_valid = iter.first.usageFlags == type.usageFlags;
-            }
-            else
-            {
-                usage_valid = (iter.first.usageFlags & type.usageFlags) == type.usageFlags;
-            }
-
-            bool memory_valid;
-
-            if (memory_exact)
-            {
-                memory_valid = iter.first.memoryFlags == type.memoryFlags;
-            }
-            else
-            {
-                memory_valid = ((iter.first.memoryFlags & type.memoryFlags) == type.memoryFlags);
-            }
-
-            return usage_valid && memory_valid;
-        }
-    };
-
-    struct BufferContainer
-    {
-        std::unique_ptr<BufferChunkAllocator> allocator;
-        std::unique_ptr<BufferDefragger> defragger;
-    };
-
-    struct ImageContainer
-    {
-        std::unique_ptr<ImageChunkAllocator> allocator;
-        std::unique_ptr<ImageDefragger> defragger;
-    };
-    using BufferMap  = std::map<BufferType, BufferContainer>;
-    using ImageMap   = std::map<ImageType, ImageContainer>;
-    using BufferIter = BufferMap::iterator;
-    using ImageIter  = ImageMap::iterator;
-
-    using BufferDefaultMap = std::map<BufferType, vk::DeviceSize>;
-    using ImageDefaultMap  = std::map<ImageType, vk::DeviceSize>;
-
-
-    VulkanBase* base{};
-    vk::PhysicalDevice m_pDevice;
-    vk::Device m_device;
-    Queue* m_queue{};
-    uint32_t m_swapchain_images{};
-    std::unique_ptr<ImageCopyComputeShader> img_copy_shader;
-
-
-    std::vector<vk::MemoryType> memoryTypes;
-
-
-    BufferDefaultMap default_buffer_chunk_sizes{
-        {BufferType{vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst,
-                    all_mem_properties},
-         1024 * 1024},
-        {BufferType{all_buffer_usage, all_mem_properties}, fallback_buffer_chunk_size}};
-
-    ImageDefaultMap default_image_chunk_sizes{
-        {ImageType{all_image_usage, all_mem_properties}, fallback_image_chunk_size}};
-
-
-    // Protects the allocator maps and the owner maps. Allocations may happen in multiple threads.
-    std::mutex allocatorMutex;
-
-    BufferMap bufferAllocators;
-    ImageMap imageAllocators;
-
-    // The allocator of each location (nullptr: fallbackAllocator). The lookup by type could find a different
-    // allocator at deallocation if an allocator was created in between.
-    std::unordered_map<BufferMemoryLocation*, BufferContainer*> bufferOwners;
-    std::unordered_map<ImageMemoryLocation*, ImageContainer*> imageOwners;
-
-    std::unique_ptr<UniqueAllocator> fallbackAllocator;
-    std::unique_ptr<FitStrategy<BufferMemoryLocation>> strategy;
-    std::unique_ptr<FitStrategy<ImageMemoryLocation>> image_strategy;
-
-
-    template <typename DefaultSizeMap, typename MemoryType>
-    inline typename DefaultSizeMap::const_iterator find_default_size(const DefaultSizeMap& defaultSizes,
-                                                                     const MemoryType& type)
-    {
-        const auto sizes_begin = defaultSizes.cbegin();
-        const auto sizes_end   = defaultSizes.cend();
-
-        auto found = std::find_if(sizes_begin, sizes_end, allocator_find_functor<false, false, MemoryType>(type));
-
-        SAIGA_ASSERT(found != defaultSizes.cend(), "No default size found. At least a fallback size must be added.");
-        return found;
-    }
-
-    BufferIter createNewBufferAllocator(BufferMap& map, const BufferDefaultMap& defaultSizes, const BufferType& type);
-
-    ImageIter createNewImageAllocator(ImageMap& map, const ImageDefaultMap& defaultSizes, const ImageType& type);
-
-    template <typename Map, typename UsageType>
-    inline typename Map::iterator findAllocator(Map& map, const MemoryType<UsageType>& memoryType)
-    {
-        const auto begin = map.begin();
-        const auto end   = map.end();
-
-        auto found = std::find_if(begin, end, allocator_find_functor<false, true, MemoryType<UsageType>>(memoryType));
-
-        if (found == end)
-        {
-            found = std::find_if(begin, end, allocator_find_functor<false, false, MemoryType<UsageType>>(memoryType));
-        }
-
-        return found;
-    }
-
-    template <typename Map, typename UsageType>
-    inline typename Map::iterator find_allocator_exact(Map& map, const MemoryType<UsageType>& memoryType)
-    {
-        const auto begin = map.begin();
-        const auto end   = map.end();
-
-        auto found = std::find_if(begin, end, allocator_find_functor<true, true, MemoryType<UsageType>>(memoryType));
-
-        return found;
-    }
-
-
-    inline vk::MemoryPropertyFlags getEffectiveFlags(const vk::MemoryPropertyFlags& flags) const
-    {
-        for (const auto& memory : memoryTypes)
-        {
-            if ((memory.propertyFlags & flags) == flags)
-            {
-                return memory.propertyFlags;
-            }
-        }
-        SAIGA_ASSERT(false, "No valid memory found");
-        return vk::MemoryPropertyFlags();
-    }
-
-
-    // Require allocatorMutex.
-    BufferContainer& getAllocatorLocked(const BufferType& type);
-    ImageContainer& getImageAllocatorLocked(const ImageType& type);
-
-    // The defraggers of all allocators. The containers are never removed before destroy().
-    std::vector<BufferDefragger*> bufferDefraggers();
-    std::vector<ImageDefragger*> imageDefraggers();
-
-   public:
-    BufferContainer& getAllocator(const BufferType& type);
-    BufferContainer& get_allocator_exact(const BufferType& type);
-    ImageContainer& getImageAllocator(const ImageType& type);
-    ImageContainer& get_image_allocator_exact(const ImageType& type);
-
-   private:
-   public:
-    void init(VulkanBase* base, uint32_t swapchain_frames, const VulkanParameters& parameters);
     VulkanMemory() = default;
     ~VulkanMemory();
     VulkanMemory(const VulkanMemory&)            = delete;
     VulkanMemory& operator=(const VulkanMemory&) = delete;
 
+    void init(VulkanBase* base, uint32_t swapchain_frames, const VulkanParameters& parameters);
+
+    // Frees the remaining allocations and destroys the allocator. The GPU must be idle.
     void destroy();
 
     void renderGUI();
 
+    /**
+     * Creates a buffer with its own memory. Host visible memory is mapped persistently (mappedPointer). The usage
+     * always includes transfer src/dst, so that the buffer can be moved by the defragmentation.
+     */
     BufferMemoryLocation* allocate(const BufferType& type, vk::DeviceSize size);
 
-    ImageMemoryLocation* allocate(const ImageType& type, ImageData& image);
-
-    void deallocateBuffer(const BufferType& type, BufferMemoryLocation* location);
-
-    void deallocateImage(const ImageType& type, ImageMemoryLocation* location);
-
-    void enable_defragmentation(const BufferType& type, bool enable);
-
-    void enable_defragmentation(const ImageType& type, bool enable);
-
-    void start_defrag(const BufferType& type);
-
-    void start_defrag(const ImageType& type);
-
-    void stop_defrag(const BufferType& type);
-
-    void stop_defrag(const ImageType& type);
-
     /**
-     * Submits defragmentation copies that take at most time (ns). They run after the frame that signals frameTimeline
-     * with waitValue.
+     * Creates the image (from image_data.image_create_info, the image must not exist yet), its memory, the view and
+     * the sampler (if image_data has a sampler create info). image_data is moved into the location.
      */
-    bool performTimedDefrag(int64_t time, vk::Semaphore frameTimeline, uint64_t waitValue);
+    ImageMemoryLocation* allocate(const ImageType& type, ImageData& image_data);
 
-    // Called once per frame.
-    void update() { frame_number++; }
+    // Frees the location immediately: the GPU must not use it anymore (see VulkanBase::deferDelete).
+    void deallocate(BufferMemoryLocation* location);
+    void deallocate(ImageMemoryLocation* location);
 
     /**
-     * Defragments all allocators with a defragger until nothing can be moved anymore. Blocks until the copies are
-     * complete. Call it from the thread that submits the frames, outside of the frame recording.
+     * Allows the defragmentation to move the location: it is moved (copied, blocking) into a defragmentable pool. Only
+     * locations that are not host visible can be dynamic (a moved mapping would invalidate pointers held by the
+     * application), images additionally need the usage transfer src and dst. Returns false if the location stays
+     * static.
+     *
+     * Moving changes the handles in location->data: read them again for every use, or use a DynamicDescriptorSet, which
+     * is updated after a move (other descriptor sets are not). A move copies an image from the layout tracked in
+     * ImageData::layout and restores it, so the tracked layout must be correct after the submitted command buffers
+     * (Texture::transitionImageLayout / setImageLayout).
+     */
+    bool mark_dynamic(BufferMemoryLocation* location);
+    bool mark_dynamic(ImageMemoryLocation* location);
+
+    // Flushes a host visible, non coherent range (relative to the location).
+    void flush(BufferMemoryLocation* location, vk::DeviceSize offset = 0, vk::DeviceSize size = VK_WHOLE_SIZE);
+
+    /**
+     * Called after every frame was submitted (VulkanBase::finish_frame). Advances the incremental defragmentation if
+     * enableDefragmentation is set.
+     */
+    void update();
+
+    /**
+     * Defragments all dynamic locations until VMA finds no more moves. Blocks until the copies are complete. Call it
+     * from the thread that submits the frames, outside of the frame recording: command buffers that were recorded but
+     * not submitted yet may still reference the old handles.
      */
     void full_defrag();
+
+    DefragmentationStats getDefragmentationStats();
+
+    // The memory used by dynamic locations (the defragmentable pools): allocated blocks and used bytes.
+    std::pair<vk::DeviceSize, vk::DeviceSize> dynamicMemoryUsage();
+
+    VmaAllocator getAllocator() const { return allocator; }
+
+   private:
+    // A move of the current defragmentation pass (VmaDefragmentationMove i of the pass).
+    struct Move
+    {
+        // One of them is set.
+        BufferMemoryLocation* buffer = nullptr;
+        ImageMemoryLocation* image   = nullptr;
+        // The handles at the old place, destroyed at the end of the pass.
+        BufferData oldBuffer = nullptr;
+        ImageData oldImage   = nullptr;
+        // The location was deallocated during the pass: VMA frees its memory at the end of the pass.
+        bool destroyed = false;
+    };
+
+    // The pass of defragContext whose copies were submitted. The copies are complete when fence is signaled.
+    struct Pass
+    {
+        bool active = false;
+        // VmaDefragmentationPassMoveInfo::pMoves (owned by the context) and moveCount.
+        void* pMoves       = nullptr;
+        uint32_t moveCount = 0;
+        std::vector<Move> moves;
+        vk::CommandBuffer cmd;
+        vk::Fence fence;
+    };
+
+    VulkanBase* base = nullptr;
+    vk::Device device;
+    VmaAllocator allocator = nullptr;
+
+    // Protects the location maps, the pools and the defragmentation state.
+    std::mutex mutex;
+
+    std::unordered_map<BufferMemoryLocation*, std::unique_ptr<BufferMemoryLocation>> buffers;
+    std::unordered_map<ImageMemoryLocation*, std::unique_ptr<ImageMemoryLocation>> images;
+
+    // The defragmentable pool of each memory type index.
+    std::map<uint32_t, VmaPool> movablePools;
+
+    // Incremental defragmentation: the pools that still have to be defragmented, the current context and pass.
+    std::vector<VmaPool> defragQueue;
+    VmaDefragmentationContext defragContext = nullptr;
+    Pass pass;
+    // A dynamic location was freed since the last defragmentation.
+    bool defragRequested = false;
+    // The GUI requested a full defragmentation, which runs in the next update().
+    bool fullDefragRequested = false;
+
+    DefragmentationStats defragStats;
+
+    VmaPool getMovablePool(uint32_t memoryTypeIndex);
+
+    // Records the copy of a location to its new place.
+    void recordBufferCopy(vk::CommandBuffer cmd, vk::Buffer src, vk::Buffer dst, vk::DeviceSize size);
+    void recordImageCopy(vk::CommandBuffer cmd, ImageData& src, ImageData& dst);
+
+    // Creates an image with the create info of src (not bound to memory, layout undefined).
+    ImageData unboundImageCopy(const ImageData& src);
+    // Binds the image of unboundImageCopy() to the allocation and creates the view and sampler.
+    void bindImageCopy(ImageData& dst, VmaAllocation allocation);
+
+    // The defragmentation functions require mutex.
+
+    // Begins defragContext for the next pool of defragQueue. Returns false if the queue is empty.
+    bool beginDefragmentation(bool full);
+    /**
+     * Begins a pass of defragContext: creates the resources at the new places, submits the copies and swaps the
+     * handles. wait: waits for the copies and ends the pass. Returns false if the context has no more moves.
+     */
+    bool beginPass(bool wait);
+    // Ends the pass, the copies must be complete. Returns false if the context has no more moves.
+    bool endPass();
+    // Waits for the copies of the active pass and ends it.
+    bool finishPass();
+    void endDefragmentation();
+    void fullDefragLocked();
+
+    // Destroys the handles and frees the memory.
+    void freeLocation(BufferMemoryLocation* location);
+    void freeLocation(ImageMemoryLocation* location);
 };
 
 }  // namespace Saiga::Vulkan::Memory

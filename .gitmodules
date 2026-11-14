@@ -44,3 +44,6 @@
 [submodule "submodules/glslang"]
 	path = submodules/glslang
 	url = ../../KhronosGroup/glslang.git
+[submodule "submodules/VulkanMemoryAllocator"]
+	path = submodules/VulkanMemoryAllocator
+	url = ../../GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git

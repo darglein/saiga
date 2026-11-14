@@ -40,7 +40,7 @@ class SAIGA_VULKAN_API UniformBuffer : public Buffer
     {
         vk::DescriptorBufferInfo descriptorInfo;
         descriptorInfo.buffer = m_memoryLocation->data;
-        descriptorInfo.offset = m_memoryLocation->offset;
+        descriptorInfo.offset = 0;
         descriptorInfo.range  = m_memoryLocation->size;
         return descriptorInfo;
     }

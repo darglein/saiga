@@ -39,10 +39,12 @@ class SAIGA_VULKAN_API DescriptorSet
         vk::Sampler sampler;
         TimePoint time;
     };
+    // The assigned textures and buffers with the time they were written (see BaseMemoryLocation::modified_time).
     std::map<uint32_t, AssignedTexture> assigned_textures;
-    DescriptorSet() : base(nullptr), layout(nullptr), descriptorSet(nullptr), assigned_textures() {}
+    std::map<uint32_t, std::pair<Buffer*, TimePoint>> assigned_buffers;
+    DescriptorSet() : base(nullptr), layout(nullptr), descriptorSet(nullptr) {}
     DescriptorSet(VulkanBase* _base, DescriptorSetLayout* _layout, vk::DescriptorSet _descriptorSet)
-        : base(_base), layout(_layout), descriptorSet(_descriptorSet), assigned_textures()
+        : base(_base), layout(_layout), descriptorSet(_descriptorSet)
     {
     }
 
@@ -64,7 +66,8 @@ class SAIGA_VULKAN_API DescriptorSet
     inline operator bool() { return descriptorSet; }
     virtual void update() = 0;
 
-    void assign(uint32_t index, UniformBuffer* buffer);
+    // A uniform or storage buffer (the whole buffer).
+    void assign(uint32_t index, Buffer* buffer);
     void assign(uint32_t index, Texture* texture);
     // Samples the texture with the given sampler instead of its default sampler. The sampler must outlive the set.
     void assign(uint32_t index, Texture* texture, const Sampler& sampler);
@@ -89,9 +92,9 @@ class SAIGA_VULKAN_API StaticDescriptorSet final : public DescriptorSet
 };
 
 /**
- * A descriptor set that follows textures moved by the defragmenter: update() (call it before the set is bound in a
- * frame) creates a new set with the new image views if an assigned texture was moved, and frees the old set once
- * the frames that may use it have completed.
+ * A descriptor set that follows textures and buffers moved by the defragmentation (see mark_dynamic()): update()
+ * (called by PipelineBase::bindDescriptorSet) creates a new set with the new handles if an assigned texture or buffer
+ * was moved, and frees the old set once the frames that may use it have completed.
  */
 class SAIGA_VULKAN_API DynamicDescriptorSet final : public DescriptorSet
 {

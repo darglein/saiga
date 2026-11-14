@@ -1,6 +1,8 @@
-//
-// Created by Peter Eichinger on 2019-03-04.
-//
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
 
 #include "DescriptorSet.h"
 
@@ -8,14 +10,17 @@
 
 namespace Saiga::Vulkan
 {
-void DescriptorSet::assign(uint32_t index, UniformBuffer* buffer)
+void DescriptorSet::assign(uint32_t index, Buffer* buffer)
 {
-    SAIGA_ASSERT(descriptorSet && layout && buffer);
+    SAIGA_ASSERT(descriptorSet && layout && buffer && buffer->memoryLocation());
     auto binding = layout->getBindingForIndex(index);
-    auto info    = buffer->getDescriptorInfo();
+    auto time    = Clock::now();
+    auto info    = buffer->createInfo();
     base->device.updateDescriptorSets(
         {vk::WriteDescriptorSet{descriptorSet, binding.binding, 0, 1, binding.descriptorType, nullptr, &info, nullptr}},
         nullptr);
+    assigned_buffers[index] = std::make_pair(buffer, time);
+    assigned_textures.erase(index);
 }
 
 void DescriptorSet::assign(uint32_t index, Texture* texture)
@@ -28,6 +33,7 @@ void DescriptorSet::assign(uint32_t index, Texture* texture)
         {vk::WriteDescriptorSet{descriptorSet, binding.binding, 0, 1, binding.descriptorType, &info, nullptr, nullptr}},
         nullptr);
     assigned_textures[index] = AssignedTexture{texture, nullptr, time};
+    assigned_buffers.erase(index);
 }
 
 void DescriptorSet::assign(uint32_t index, Texture* texture, const Sampler& sampler)
@@ -40,6 +46,7 @@ void DescriptorSet::assign(uint32_t index, Texture* texture, const Sampler& samp
         {vk::WriteDescriptorSet{descriptorSet, binding.binding, 0, 1, binding.descriptorType, &info, nullptr, nullptr}},
         nullptr);
     assigned_textures[index] = AssignedTexture{texture, sampler, time};
+    assigned_buffers.erase(index);
 }
 
 void DescriptorSet::release()
@@ -65,12 +72,14 @@ DescriptorSet::DescriptorSet(DescriptorSet&& other) noexcept
     : base(other.base),
       layout(other.layout),
       descriptorSet(other.descriptorSet),
-      assigned_textures(std::move(other.assigned_textures))
+      assigned_textures(std::move(other.assigned_textures)),
+      assigned_buffers(std::move(other.assigned_buffers))
 {
     other.base          = nullptr;
     other.layout        = nullptr;
     other.descriptorSet = nullptr;
     other.assigned_textures.clear();
+    other.assigned_buffers.clear();
 }
 
 DescriptorSet& DescriptorSet::operator=(DescriptorSet&& other) noexcept
@@ -83,11 +92,13 @@ DescriptorSet& DescriptorSet::operator=(DescriptorSet&& other) noexcept
         layout            = other.layout;
         descriptorSet     = other.descriptorSet;
         assigned_textures = std::move(other.assigned_textures);
+        assigned_buffers  = std::move(other.assigned_buffers);
 
         other.base          = nullptr;
         other.layout        = nullptr;
         other.descriptorSet = nullptr;
         other.assigned_textures.clear();
+        other.assigned_buffers.clear();
     }
 
     return *this;
@@ -118,6 +129,26 @@ void DynamicDescriptorSet::update()
             base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
 
             time = texture->memoryLocation->modified_time;
+        }
+    }
+
+    for (auto& entry : assigned_buffers)
+    {
+        auto& [buffer, time] = entry.second;
+        auto* location       = buffer->memoryLocation();
+        if (!location) continue;
+
+        if (location->modified_time > time)
+        {
+            if (!new_set)
+            {
+                new_set = layout->createDuplicateSet(descriptorSet);
+            }
+
+            auto info = buffer->createInfo();
+            base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
+
+            time = location->modified_time;
         }
     }
 

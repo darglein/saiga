@@ -1,6 +1,8 @@
-//
-// Created by Peter Eichinger on 2019-02-25.
-//
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
 
 #pragma once
 #include "MemoryLocation.h"
@@ -9,18 +11,24 @@ namespace Saiga::Vulkan::Memory
 {
 struct SAIGA_VULKAN_API BufferData
 {
+    // Every allocation has its own buffer (bound at offset 0 of the allocation).
     vk::Buffer buffer;
+    // The usage the buffer was created with (the defragmentation recreates it with the same usage).
+    vk::BufferUsageFlags usage;
 
-    BufferData(vk::Buffer _buffer) : buffer(_buffer) {}
+    BufferData(vk::Buffer _buffer, vk::BufferUsageFlags _usage = {}) : buffer(_buffer), usage(_usage) {}
 
     BufferData(std::nullptr_t) : buffer(nullptr) {}
 
-    /**
-     * Destroys the data that is owned by this object uniquely.
-     * @param device device for the data.
-     */
-    void destroy_owned_data(vk::Device device) {}
-
+    // Destroys the buffer.
+    void destroy_owned_data(vk::Device device)
+    {
+        if (buffer)
+        {
+            device.destroy(buffer);
+            buffer = nullptr;
+        }
+    }
 
     operator bool() const { return buffer; }
 
@@ -41,12 +49,4 @@ struct SAIGA_VULKAN_API BufferData
 
 using BufferMemoryLocation = BaseMemoryLocation<BufferData>;
 
-inline void copy_buffer(vk::CommandBuffer cmd, BufferMemoryLocation* target, BufferMemoryLocation* source)
-{
-    SafeAccessor safe(*source, *target);
-    SAIGA_ASSERT(target->size == source->size, "Different size copies are not supported");
-    vk::BufferCopy bc{source->offset, target->offset, target->size};
-
-    cmd.copyBuffer(static_cast<vk::Buffer>(source->data), static_cast<vk::Buffer>(target->data), bc);
-}
 }  // namespace Saiga::Vulkan::Memory

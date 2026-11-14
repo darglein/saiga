@@ -32,7 +32,6 @@ TEST_F(VulkanBuffer, HostVisibleRoundTrip)
     buffer.createBuffer(base(), size, vk::BufferUsageFlagBits::eStorageBuffer,
                         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     ASSERT_TRUE(bool(buffer));
-    // The allocation can be larger than requested (alignment).
     EXPECT_GE(buffer.size(), size);
 
     buffer.upload(data.data(), size);
@@ -56,7 +55,7 @@ TEST_F(VulkanBuffer, StagedRoundTrip)
 
     buffer.stagedUpload(base(), size, data.data());
 
-    // stagedDownload copies the whole allocation.
+    // stagedDownload copies size() bytes.
     std::vector<char> result(buffer.size());
     buffer.stagedDownload(result.data());
     EXPECT_EQ(std::memcmp(result.data(), data.data(), size), 0);

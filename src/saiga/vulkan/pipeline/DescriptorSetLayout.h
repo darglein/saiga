@@ -80,6 +80,14 @@ class SAIGA_VULKAN_API DescriptorSetLayout
 
         return {set, binding.binding, 0, 1, binding.descriptorType, &imageInfo};
     }
+
+    inline vk::WriteDescriptorSet getWriteForBinding(uint32_t index, vk::DescriptorSet set,
+                                                     const vk::DescriptorBufferInfo& bufferInfo) const
+    {
+        auto binding = getBindingForIndex(index);
+
+        return {set, binding.binding, 0, 1, binding.descriptorType, nullptr, &bufferInfo};
+    }
 };
 
 }  // namespace Saiga::Vulkan

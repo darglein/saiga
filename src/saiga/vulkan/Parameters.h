@@ -20,8 +20,8 @@ struct SAIGA_VULKAN_API VulkanParameters
     bool enableValidationLayer = true;
     bool enableImgui           = true;
     bool expand_memory_stats   = false;
+    // Incremental defragmentation of the dynamic allocations after every frame (see Memory::VulkanMemory).
     bool enableDefragmentation = false;
-    bool enableChunkAllocator  = true;
     bool vsync                 = true;
     // Index of the physical device to use (vkEnumeratePhysicalDevices order). -1: pick the best suitable device.
     int preferredDevice        = -1;

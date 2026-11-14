@@ -75,6 +75,7 @@ class SAIGA_VULKAN_API Buffer
     void stagedDownload(void* data);
     vk::DescriptorBufferInfo createInfo();
 
+    // Flushes host writes to non coherent memory (the range is relative to the buffer).
     void flush(VulkanBase& base, vk::DeviceSize size = VK_WHOLE_SIZE,
                vk::DeviceSize offset = 0);  // TODO: Remove base parameter
 
@@ -90,11 +91,6 @@ class SAIGA_VULKAN_API Buffer
      */
     void destroyImmediately();
 
-    inline vk::DeviceSize offset() const
-    {
-        SAIGA_ASSERT(m_memoryLocation);
-        return m_memoryLocation->offset;
-    }
     inline vk::DeviceSize size() const { return m_memoryLocation ? m_memoryLocation->size : 0; }
 
     /**
@@ -149,24 +145,24 @@ class SAIGA_VULKAN_API Buffer
     void upload(const void* data, size_t size) { m_memoryLocation->upload(base->device, data, size); }
 
     /**
-     * Downloads the buffer into the data vector. It must provide enough memory to store size() bytes.
-     * @param data Void-pointer to copy into.
+     * Downloads the buffer (host visible memory). data must provide size() bytes.
      */
-    // Copies the whole allocation, which can be larger than the requested size (alignment).
     void download(void* data) { m_memoryLocation->download(base->device, data); }
     // Copies the first size bytes.
     void download(void* data, size_t size);
 
-
-    inline void mark_dynamic()
-    {
-        if (m_memoryLocation)
-        {
-            m_memoryLocation->mark_dynamic();
-        }
-    }
+    /**
+     * Allows the defragmentation to move the buffer (see Memory::VulkanMemory::mark_dynamic): the buffer is copied into
+     * a defragmentable pool (blocking). Host visible buffers can not be moved. A moved buffer gets a new vk::Buffer
+     * handle: bind it for each use (e.g. vertex and index buffers) or through a DynamicDescriptorSet, which is updated
+     * after a move. Returns false if the buffer stays static.
+     */
+    bool mark_dynamic();
 
     explicit operator bool() const { return m_memoryLocation; }
+
+    // The allocation (nullptr if the buffer was not created). Its handles change when a dynamic buffer is moved.
+    Memory::BufferMemoryLocation* memoryLocation() const { return m_memoryLocation; }
 
     friend std::ostream& operator<<(std::ostream& os, const Buffer& buffer);
 };

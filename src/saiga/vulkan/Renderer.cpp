@@ -47,7 +47,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     state = State::INITIALIZED;
     base().initMemory(framesInFlight);
 
-    timings.init(base().device, base().physicalDevice, &base().mainQueue, &(base().memory));
+    timings.init(base().device, base().physicalDevice, &base().mainQueue);
     timings.registerFrameSection("TRANSFER", 0);
     timings.registerFrameSection("MAIN", 1);
     timings.registerFrameSection("IMGUI", 2);
@@ -205,9 +205,6 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     timings.beginFrame(frame.timelineValue);
     render(frame);
     sync.timelineValue = frame.timelineValue;
-
-    // Defragmentation copies may run after this frame (they wait for its timeline value).
-    timings.finishFrame(base().frameTimeline, frame.timelineValue);
 
     if (!isHeadless())
     {

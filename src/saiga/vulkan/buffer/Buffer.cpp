@@ -25,9 +25,8 @@ void Buffer::destroy()
     {
         // Frames in flight may still use the buffer.
         auto b        = base;
-        auto type     = Memory::BufferType{bufferUsage, memoryProperties};
         auto location = m_memoryLocation;
-        base->deferDelete([b, type, location]() { b->memory.deallocateBuffer(type, location); });
+        base->deferDelete([b, location]() { b->memory.deallocate(location); });
     }
     m_memoryLocation = nullptr;
 }
@@ -37,7 +36,7 @@ void Buffer::destroyImmediately()
     if (!m_memoryLocation) return;
     if (base && base->device)
     {
-        base->memory.deallocateBuffer({bufferUsage, memoryProperties}, m_memoryLocation);
+        base->memory.deallocate(m_memoryLocation);
     }
     m_memoryLocation = nullptr;
 }
@@ -68,8 +67,8 @@ void Buffer::barrier(vk::CommandBuffer cmd, vk::PipelineStageFlags2 srcStage, vk
     {
         Memory::SafeAccessor acc(*m_memoryLocation);
         b.buffer = m_memoryLocation->data;
-        b.offset = m_memoryLocation->offset;
-        b.size   = m_memoryLocation->size;
+        b.offset = 0;
+        b.size   = VK_WHOLE_SIZE;
     }
 
     vk::DependencyInfo dep;
@@ -132,37 +131,27 @@ void Buffer::stagedDownload(void* data)
 
 vk::DescriptorBufferInfo Buffer::createInfo()
 {
-    return {m_memoryLocation->data, m_memoryLocation->offset, m_memoryLocation->size};
+    Memory::SafeAccessor acc(*m_memoryLocation);
+    return {m_memoryLocation->data, 0, m_memoryLocation->size};
 }
 
 void Buffer::flush(VulkanBase& base, vk::DeviceSize size, vk::DeviceSize offset)
 {
-    vk::MappedMemoryRange mappedRange = {};
-    // The buffer is sub-allocated from a larger memory block, so the range is relative to the location.
-    mappedRange.memory = m_memoryLocation->memory;
-    mappedRange.offset = m_memoryLocation->offset + offset;
-    mappedRange.size   = size == VK_WHOLE_SIZE ? m_memoryLocation->size - offset : size;
-
-    // Offset and size must be multiples of nonCoherentAtomSize (or the size must reach the end of the memory).
-    auto atom          = base.physicalDevice.getProperties().limits.nonCoherentAtomSize;
-    auto end           = mappedRange.offset + mappedRange.size;
-    mappedRange.offset = (mappedRange.offset / atom) * atom;
-    mappedRange.size   = ((end - mappedRange.offset + atom - 1) / atom) * atom;
-    // Rounding up stays inside the memory block for sub-allocations (chunk sizes are multiples of the atom size). A
-    // dedicated allocation (offset 0) can end before the rounded end: flush to its end.
-    if (m_memoryLocation->offset == 0 && mappedRange.offset + mappedRange.size > m_memoryLocation->size)
-    {
-        mappedRange.size = VK_WHOLE_SIZE;
-    }
-    base.device.flushMappedMemoryRanges(mappedRange);
+    // VMA rounds the range to nonCoherentAtomSize (and does nothing for coherent memory).
+    base.memory.flush(m_memoryLocation, offset, size);
 }
 
 void Buffer::download(void* data, size_t size)
 {
     SAIGA_ASSERT(size <= this->size());
-    std::vector<char> tmp(this->size());
-    download(tmp.data());
-    std::memcpy(data, tmp.data(), size);
+    SAIGA_ASSERT(m_memoryLocation->mappedPointer, "The memory is not host visible, use stagedDownload()");
+    std::memcpy(data, m_memoryLocation->mappedPointer, size);
+}
+
+bool Buffer::mark_dynamic()
+{
+    if (!m_memoryLocation) return false;
+    return base->memory.mark_dynamic(m_memoryLocation);
 }
 
 void Buffer::copyTo(vk::CommandBuffer cmd, Buffer& target, vk::DeviceSize srcOffset, vk::DeviceSize dstOffset,
@@ -177,7 +166,7 @@ void Buffer::copyTo(vk::CommandBuffer cmd, Buffer& target, vk::DeviceSize srcOff
     SAIGA_ASSERT(this->size() - srcOffset >= size, "Source buffer is not large enough");
     SAIGA_ASSERT(target.size() - dstOffset >= size, "Destination buffer is not large enough");
     Memory::SafeAccessor acc(*m_memoryLocation, *target.m_memoryLocation);
-    vk::BufferCopy bc{m_memoryLocation->offset + srcOffset, target.m_memoryLocation->offset + dstOffset, size};
+    vk::BufferCopy bc{srcOffset, dstOffset, size};
     cmd.copyBuffer(m_memoryLocation->data, target.m_memoryLocation->data, bc);
 }
 
@@ -190,8 +179,7 @@ void Buffer::copyTo(vk::CommandBuffer cmd, vk::Image dstImage, vk::ImageLayout d
 
 vk::BufferImageCopy Buffer::getBufferImageCopy(vk::DeviceSize offset) const
 {
-    Memory::SafeAccessor acc(*m_memoryLocation);
-    return {m_memoryLocation->offset + offset};
+    return {offset};
 }
 
 void Buffer::update(vk::CommandBuffer cmd, size_t size, const void* data, vk::DeviceSize offset)
@@ -200,7 +188,7 @@ void Buffer::update(vk::CommandBuffer cmd, size_t size, const void* data, vk::De
     SAIGA_ASSERT(size <= 65536 && size % 4 == 0 && offset % 4 == 0, "Use a staged upload for this buffer update");
     SAIGA_ASSERT(m_memoryLocation && offset + size <= this->size(), "Buffer::update: out of bounds");
     Memory::SafeAccessor acc(*m_memoryLocation);
-    cmd.updateBuffer(m_memoryLocation->data, m_memoryLocation->offset + offset, size, data);
+    cmd.updateBuffer(m_memoryLocation->data, offset, size, data);
 }
 
 std::ostream& operator<<(std::ostream& os, const Buffer& buffer)

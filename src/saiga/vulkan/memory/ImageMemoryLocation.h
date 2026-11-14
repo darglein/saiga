@@ -1,6 +1,8 @@
-//
-// Created by Peter Eichinger on 2019-02-25.
-//
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
 
 #pragma once
 #include "MemoryLocation.h"
@@ -15,7 +17,6 @@ struct SAIGA_VULKAN_API ImageData
     vk::ImageCreateInfo image_create_info;
     vk::ImageView view;
     vk::ImageViewCreateInfo view_create_info;
-    vk::MemoryRequirements image_requirements;
     std::optional<vk::SamplerCreateInfo> sampler_create_info;
     vk::Sampler sampler;
 
@@ -26,7 +27,6 @@ struct SAIGA_VULKAN_API ImageData
           image_create_info(std::move(_image_create_info)),
           view(nullptr),
           view_create_info(std::move(_view_create_info)),
-          image_requirements(),
           sampler_create_info(),
           sampler(nullptr)
     {
@@ -39,7 +39,6 @@ struct SAIGA_VULKAN_API ImageData
           image_create_info(std::move(_image_create_info)),
           view(nullptr),
           view_create_info(std::move(_view_create_info)),
-          image_requirements(),
           sampler_create_info(std::move(_sampler_create_info)),
           sampler(nullptr)
     {
@@ -51,7 +50,6 @@ struct SAIGA_VULKAN_API ImageData
           image_create_info(),
           view(nullptr),
           view_create_info(),
-          image_requirements(),
           sampler_create_info(),
           sampler(nullptr)
     {
@@ -65,7 +63,6 @@ struct SAIGA_VULKAN_API ImageData
           image_create_info(other.image_create_info),
           view(other.view),
           view_create_info(other.view_create_info),
-          image_requirements(other.image_requirements),
           sampler_create_info(other.sampler_create_info),
           sampler(other.sampler)
     {
@@ -86,7 +83,6 @@ struct SAIGA_VULKAN_API ImageData
             this->view_create_info    = other.view_create_info;
             this->sampler             = other.sampler;
             this->sampler_create_info = other.sampler_create_info;
-            this->image_requirements  = other.image_requirements;
             this->layout              = other.layout;
 
             other.image   = nullptr;
@@ -105,22 +101,6 @@ struct SAIGA_VULKAN_API ImageData
         return layout == other.layout && image == other.image && view == other.view && sampler == other.sampler;
     }
     bool operator!=(const ImageData& other) const { return !(*this == other); }
-
-    void copy_create_info_from(ImageData const& other) { set_info(other.image_create_info, other.view_create_info); }
-
-    void set_info(vk::ImageCreateInfo const& _image_create_info, vk::ImageViewCreateInfo const& _view_create_info)
-    {
-        image_create_info = _image_create_info;
-        view_create_info  = _view_create_info;
-    }
-
-    void create_image(vk::Device device)
-    {
-        image                  = device.createImage(image_create_info);
-        image_requirements     = device.getImageMemoryRequirements(image);
-        view_create_info.image = image;
-        layout                 = image_create_info.initialLayout;
-    }
 
     void create_view(vk::Device device) { view = device.createImageView(view_create_info); }
 
@@ -273,11 +253,5 @@ struct SAIGA_VULKAN_API ImageData
 };
 using ImageMemoryLocation = BaseMemoryLocation<ImageData>;
 
-inline void bind_image_data(vk::Device device, ImageMemoryLocation* location, ImageData&& data)
-{
-    SafeAccessor safe(*location);
-    location->data = data;
-    device.bindImageMemory(location->data.image, location->memory, location->offset);
-}
 
 }  // namespace Saiga::Vulkan::Memory

@@ -23,7 +23,7 @@ void DepthBuffer::destroy()
         // Frames in flight may still render to the depth buffer.
         auto b   = base;
         auto loc = location;
-        base->deferDelete([b, loc]() { b->memory.deallocateImage(depth_buffer_type, loc); });
+        base->deferDelete([b, loc]() { b->memory.deallocate(loc); });
     }
     location = nullptr;
 }

@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "saiga/core/util/easylogging++.h"
 #include "saiga/vulkan/CommandPool.h"
 #include "saiga/vulkan/DescriptorPool.h"
 #include "saiga/vulkan/Parameters.h"
@@ -22,6 +23,7 @@
 
 #include <algorithm>
 #include <assert.h>
+#include <atomic>
 #include <deque>
 #include <exception>
 #include <functional>
@@ -125,6 +127,9 @@ struct SAIGA_VULKAN_API VulkanBase
 
     void setPhysicalDevice(Instance& instance, vk::PhysicalDevice physicalDevice);
 
+    // The instance of the physical device (set by setPhysicalDevice()).
+    vk::Instance getInstance() const;
+
     /**
      * Default destructor
      *
@@ -155,7 +160,8 @@ struct SAIGA_VULKAN_API VulkanBase
         memory.init(this, swapchain_frames, m_parameters);
     }
 
-    // Called after the current frame was submitted (with frameTimeline = currentFrameSignalValue()).
+    // Called after the current frame was submitted (with frameTimeline = currentFrameSignalValue()). The incremental
+    // defragmentation (memory.update()) submits its copies after the frame.
     inline void finish_frame()
     {
         current_frame++;
