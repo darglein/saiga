@@ -31,6 +31,19 @@ NumericType numericType(vk::Format format)
     if (std::strcmp(type, "SINT") == 0) return NumericType::SignedInt;
     return NumericType::Float;
 }
+
+// The sample counts the device supports for an attachment of this format. They depend on the format, e.g. integer
+// color formats are only covered by framebufferIntegerColorSampleCounts, not by framebufferColorSampleCounts.
+vk::SampleCountFlags attachmentSampleCounts(vk::PhysicalDevice physicalDevice, vk::Format format,
+                                            vk::ImageUsageFlags usage)
+{
+    VkImageFormatProperties properties{};
+    auto result = vkGetPhysicalDeviceImageFormatProperties(physicalDevice, static_cast<VkFormat>(format),
+                                                           VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
+                                                           static_cast<VkImageUsageFlags>(usage), 0, &properties);
+    if (result != VK_SUCCESS) return {};
+    return vk::SampleCountFlags(properties.sampleCounts);
+}
 }  // namespace
 
 void RenderTarget::destroy()
@@ -55,10 +68,18 @@ void RenderTarget::create(VulkanBase& _base, uint32_t width, uint32_t height, co
     SAIGA_ASSERT(params.colorFormats.size() <= limits.maxColorAttachments, "RenderTarget: too many color attachments");
     if (multisampled())
     {
-        SAIGA_ASSERT(params.colorFormats.empty() || (limits.framebufferColorSampleCounts & params.samples),
-                     "RenderTarget: the sample count is not supported for color attachments");
-        SAIGA_ASSERT(!hasDepth() || (limits.framebufferDepthSampleCounts & params.samples),
-                     "RenderTarget: the sample count is not supported for depth attachments");
+        for (auto format : params.colorFormats)
+        {
+            SAIGA_ASSERT(
+                attachmentSampleCounts(base->physicalDevice, format, vk::ImageUsageFlagBits::eColorAttachment) &
+                    params.samples,
+                "RenderTarget: the sample count is not supported for the color format " + vk::to_string(format));
+        }
+        SAIGA_ASSERT(!hasDepth() || (attachmentSampleCounts(base->physicalDevice, params.depthFormat,
+                                                            vk::ImageUsageFlagBits::eDepthStencilAttachment) &
+                                     params.samples),
+                     "RenderTarget: the sample count is not supported for the depth format " +
+                         vk::to_string(params.depthFormat));
     }
 
     color.resize(params.colorFormats.size());

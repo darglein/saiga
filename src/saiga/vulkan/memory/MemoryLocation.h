@@ -8,6 +8,7 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/export.h"
 
+#include <atomic>
 #include <chrono>
 #include <cstring>
 #include <mutex>
@@ -23,8 +24,9 @@ typedef struct VmaAllocation_T* VmaAllocation;
 namespace Saiga::Vulkan::Memory
 {
 /**
- * Locks the mutex of the given locations while their handles are read, if they can be moved by the defragmentation
- * (dynamic locations). The defragmentation swaps the handles of a moved location under this lock.
+ * Locks the mutex of the given locations while their handles are read. The defragmentation and
+ * VulkanMemory::mark_dynamic swap the handles of a location under this lock. It is locked for static locations as well:
+ * mark_dynamic() may make a location dynamic concurrently, so checking is_dynamic() first would race with the swap.
  */
 template <typename T>
 struct SafeAccessor final
@@ -33,35 +35,17 @@ struct SafeAccessor final
     std::unique_lock<std::mutex> lock1, lock2;
 
    public:
-    explicit SafeAccessor(T& _location) : lock1(_location.mutex, std::defer_lock)
-    {
-        if (_location.is_dynamic())
-        {
-            lock1.lock();
-        }
-    }
+    explicit SafeAccessor(T& _location) : lock1(_location.mutex) {}
 
     SafeAccessor(T& _location, T& _location2)
         : lock1(_location.mutex, std::defer_lock), lock2(_location2.mutex, std::defer_lock)
     {
         if (&_location == &_location2)
         {
-            if (_location.is_dynamic()) lock1.lock();
-            return;
-        }
-        if (_location.is_dynamic() && _location2.is_dynamic())
-        {
-            std::lock(lock1, lock2);
-            return;
-        }
-        if (_location.is_dynamic())
-        {
             lock1.lock();
+            return;
         }
-        if (_location2.is_dynamic())
-        {
-            lock2.lock();
-        }
+        std::lock(lock1, lock2);
     }
 
     SafeAccessor(const SafeAccessor&)            = delete;
@@ -90,11 +74,12 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
     // Persistently mapped pointer, if the location was requested with host visible memory.
     void* mappedPointer = nullptr;
     std::mutex mutex;
-    // The last time the handles in data were changed (by the defragmentation).
+    // The last time the handles in data were changed (by the defragmentation). Guarded by mutex, see modifiedTime().
     TimePoint modified_time = Clock::now();
 
    private:
-    bool static_mem = true;
+    // Atomic: read without the mutex by is_dynamic() / is_static().
+    std::atomic<bool> static_mem{true};
 
    public:
     explicit BaseMemoryLocation(Data _data = nullptr, VmaAllocation _allocation = nullptr, vk::DeviceSize _size = 0,
@@ -110,6 +95,12 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
 
     inline bool is_dynamic() const { return !is_static(); }
     inline bool is_static() const { return static_mem; }
+
+    TimePoint modifiedTime()
+    {
+        std::scoped_lock lock(mutex);
+        return modified_time;
+    }
 
     // Only VulkanMemory changes this (it moves the location into a defragmentable pool).
     inline void set_dynamic(bool dynamic) { static_mem = !dynamic; }

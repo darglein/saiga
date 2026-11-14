@@ -393,6 +393,9 @@ TEST_F(VulkanMemory, IncrementalDefrag)
 // frees it with the operation DESTROY then).
 TEST_F(VulkanMemory, DeallocateDuringIncrementalPass)
 {
+    // Completes a defragmentation left over by the previous tests, so the next frame begins a new one.
+    Memory().full_defrag();
+
     auto buffers   = FragmentedBuffers(64, 256 * 1024);
     auto usedStart = Memory().dynamicMemoryUsage().second;
     EXPECT_GT(usedStart, 0u);
@@ -402,6 +405,9 @@ TEST_F(VulkanMemory, DeallocateDuringIncrementalPass)
     // The frame submits the first pass, which ends in the next frame. Free all buffers in between.
     RenderFrame();
     renderer->waitIdle();
+    // Otherwise the test does not cover freeing a location that is moved by a pass. (A wrong free is caught by VMA's
+    // asserts, which are SAIGA_ASSERTs, see vk_mem_alloc.cpp.)
+    ASSERT_GT(Memory().pendingDefragmentationMoves(), 0u);
     for (auto& b : buffers) b.buffer->destroyImmediately();
     buffers.clear();
 

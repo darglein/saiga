@@ -12,6 +12,7 @@
 #include "GLSL.h"
 #include "ShaderLoaderHelper.h"
 
+#include <algorithm>
 #include <iostream>
 #include <utility>
 
@@ -162,15 +163,30 @@ bool ShaderModule::reload()
     if (file.empty() || isSpirv || !device) return false;
 
     // Compile first and keep the current module if it fails, so a pipeline can still be (re)created from it.
+    auto previousDependencies = dependencies;
     dependencies.resize(1);
-    lastWrites = getWriteTimes();
-    lastCheck  = std::chrono::steady_clock::now();
+    // The time of the shader file before compiling: a change during the compilation is detected by the next check.
+    auto fileWrite = getWriteTimes().front();
+    lastCheck      = std::chrono::steady_clock::now();
 
     std::vector<std::string> includes;
     auto spirv = GLSLANG::loadGLSL(file, stage, injection, &includes);
     dependencies.insert(dependencies.end(), includes.begin(), includes.end());
-    auto times = getWriteTimes();
-    lastWrites.insert(lastWrites.end(), times.begin() + 1, times.end());
+
+    if (spirv.empty())
+    {
+        // An include that could not be found (e.g. missing while an editor saves it) is not in includes. Keep watching
+        // the includes of the previous compilation, so the shader is reloaded when such an include appears again.
+        for (size_t i = 1; i < previousDependencies.size(); ++i)
+        {
+            if (std::find(dependencies.begin(), dependencies.end(), previousDependencies[i]) == dependencies.end())
+            {
+                dependencies.push_back(previousDependencies[i]);
+            }
+        }
+    }
+    lastWrites    = getWriteTimes();
+    lastWrites[0] = fileWrite;
 
     if (spirv.empty())
     {
@@ -194,7 +210,7 @@ std::vector<std::filesystem::file_time_type> ShaderModule::getWriteTimes() const
     {
         std::error_code ec;
         auto t = std::filesystem::last_write_time(dependencies[i], ec);
-        // A missing file (e.g. while an editor saves it) is treated as unchanged: see autoReload().
+        // A missing file gets the time min(), see autoReload().
         times[i] = ec ? std::filesystem::file_time_type::min() : t;
     }
     return times;

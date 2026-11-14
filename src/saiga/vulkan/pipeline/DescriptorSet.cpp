@@ -112,12 +112,12 @@ void DynamicDescriptorSet::update()
     for (auto& entry : assigned_textures)
     {
         auto& location = entry.second.texture->memoryLocation;
-        if (location && location->modified_time > entry.second.time) moved = true;
+        if (location && location->modifiedTime() > entry.second.time) moved = true;
     }
     for (auto& entry : assigned_buffers)
     {
         auto* location = entry.second.first->memoryLocation();
-        if (location && location->modified_time > entry.second.second) moved = true;
+        if (location && location->modifiedTime() > entry.second.second) moved = true;
     }
     if (!moved) return;
 
@@ -134,10 +134,11 @@ void DynamicDescriptorSet::update()
         auto& texture = entry.second.texture;
         if (!texture->memoryLocation) continue;
 
-        auto info = texture->getDescriptorInfo();
+        // The time before the handles are read: a move in between is detected by the next update.
+        entry.second.time = texture->memoryLocation->modifiedTime();
+        auto info         = texture->getDescriptorInfo();
         if (entry.second.sampler) info.sampler = entry.second.sampler;
         base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
-        entry.second.time = texture->memoryLocation->modified_time;
     }
 
     for (auto& entry : assigned_buffers)
@@ -146,9 +147,9 @@ void DynamicDescriptorSet::update()
         auto* location       = buffer->memoryLocation();
         if (!location) continue;
 
+        time      = location->modifiedTime();
         auto info = buffer->createInfo();
         base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
-        time = location->modified_time;
     }
 
     // Free the old set once the frames that may use it have completed.

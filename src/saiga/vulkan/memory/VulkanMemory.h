@@ -123,6 +123,9 @@ class SAIGA_VULKAN_API VulkanMemory
 
     DefragmentationStats getDefragmentationStats();
 
+    // The number of moves of the incremental defragmentation pass that is in flight (0 if there is none).
+    uint32_t pendingDefragmentationMoves();
+
     // The memory used by dynamic locations (the defragmentable pools): allocated blocks and used bytes.
     std::pair<vk::DeviceSize, vk::DeviceSize> dynamicMemoryUsage();
 

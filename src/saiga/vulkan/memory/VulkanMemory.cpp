@@ -716,6 +716,12 @@ DefragmentationStats VulkanMemory::getDefragmentationStats()
     return defragStats;
 }
 
+uint32_t VulkanMemory::pendingDefragmentationMoves()
+{
+    std::scoped_lock lock(mutex);
+    return pass.active ? static_cast<uint32_t>(pass.moves.size()) : 0;
+}
+
 std::pair<vk::DeviceSize, vk::DeviceSize> VulkanMemory::dynamicMemoryUsage()
 {
     std::scoped_lock lock(mutex);
