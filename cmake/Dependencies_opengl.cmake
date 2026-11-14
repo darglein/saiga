@@ -43,16 +43,6 @@ if (SAIGA_WITH_FREETYPE)
     endif ()
 endif ()
 
-if (SAIGA_WITH_BULLET)
-    #bullet
-    find_package(Bullet QUIET)
-    if (BULLET_FOUND)
-        SET(SAIGA_USE_BULLET 1)
-    endif ()
-    PackageHelper(Bullet "${BULLET_FOUND}" "${BULLET_INCLUDE_DIR}" "${BULLET_LIBRARIES}")
-endif ()
-
-
 #EGL
 find_package(EGL QUIET)
 if (EGL_FOUND)

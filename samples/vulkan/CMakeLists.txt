@@ -16,4 +16,7 @@ endmacro()
 
 saiga_vulkan_sample(sample_vulkan_compute.cpp)
 saiga_vulkan_sample(sample_vulkan_helloworld.cpp)
+if (JOLT_FOUND)
+  saiga_vulkan_sample(sample_vulkan_jolt.cpp Jolt)
+endif ()
 saiga_vulkan_sample(sample_vulkan_memory.cpp)

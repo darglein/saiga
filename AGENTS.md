@@ -124,6 +124,7 @@ cmake --build build --parallel -- -k 0
 | `SAIGA_DEBUG_ASAN` / `_MSAN` / `_TSAN` | OFF | Sanitizers (TSAN excludes ASAN/MSAN) |
 | `SAIGA_CUDA_ARCH` | "" | CUDA archs; empty = autodetect |
 | `SAIGA_WITH_<LIB>` | mostly ON | Use an optional library if found (ASSIMP, LIBZIP, FFMPEG, FREETYPE, LIBTIFF, YAMLCPP, OPENAL, OPENMESH, G2O, CHOLMOD, ...) |
+| `SAIGA_WITH_JOLT` | OFF | Download Jolt Physics v5.6.0 with FetchContent (`cmake/Dependencies_jolt.cmake`, not a submodule) and build the target `Jolt` (static, PIC) and `sample_vulkan_jolt`; no saiga library links it. Jolt's own options (e.g. `CROSS_PLATFORM_DETERMINISTIC`) can be set with `-D` |
 | `SAIGA_WITH_TINY_EIGEN` / `_TINY_GLOG` | OFF | Use the tiny replacements instead of Eigen / glog (disables vision + some tests) |
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
