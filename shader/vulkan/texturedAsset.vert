@@ -6,7 +6,6 @@
 layout (location = 0) in vec4 inPos;
 layout (location = 1) in vec4 inNormal;
 layout (location = 2) in vec2 inTc;
-layout (location = 3) in vec4 inData;
 
 
 

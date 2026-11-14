@@ -1,4 +1,10 @@
-﻿#include "Base.h"
+﻿/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#include "Base.h"
 
 #include "saiga/core/util/table.h"
 #include "saiga/core/util/tostring.h"
@@ -8,6 +14,8 @@
 #include "Debug.h"
 
 #include <array>
+#include <limits>
+
 namespace Saiga
 {
 namespace Vulkan
@@ -17,11 +25,19 @@ VulkanBase::VulkanBase()
     Vulkan::GLSLANG::init();
 }
 
+VulkanBase::~VulkanBase()
+{
+    destroy();
+    Vulkan::GLSLANG::quit();
+}
+
 void VulkanBase::setPhysicalDevice(Instance& instance, vk::PhysicalDevice physicalDevice)
 {
-    assert(physicalDevice);
+    SAIGA_ASSERT(physicalDevice);
     this->instance       = &instance;
     this->physicalDevice = physicalDevice;
+    apiVersion           = instance.getApiVersion();
+    SAIGA_ASSERT(physicalDevice.getProperties().apiVersion >= SAIGA_VULKAN_API_VERSION);
 
     // Queue family properties, used for setting up requested queues upon device creation
     queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
@@ -33,8 +49,14 @@ void VulkanBase::destroy()
 
     VLOG(3) << "Destroying VulkanBase with device: " << device;
 
+    flushDeferredDeletes();
+
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
 
+    // Before the queues: the defragger frees command buffers of a pool created on the main queue.
+    memory.destroy();
+    // memory.destroy() defers the destruction of its own objects (e.g. the image copy pipeline).
+    flushDeferredDeletes();
 
     if (dedicated_compute_queue)
     {
@@ -50,28 +72,93 @@ void VulkanBase::destroy()
 
     descriptorPool.destroy();
 
-    memory.destroy();
+    device.destroy(frameTimeline);
+    frameTimeline = nullptr;
 
-    if (device)
-    {
-        device.destroy();
-        device = nullptr;
-    }
+    device.destroy();
+    device = nullptr;
 
     VLOG(3) << "Vulkan device destroyed.";
 }
 
+uint64_t VulkanBase::completedFrameValue() const
+{
+    return device.getSemaphoreCounterValue(frameTimeline);
+}
 
-void VulkanBase::createLogicalDevice(VulkanParameters& parameters, bool useSwapChain)
+void VulkanBase::waitFrameValue(uint64_t value)
+{
+    if (value == 0) return;
+    vk::SemaphoreWaitInfo info;
+    info.semaphoreCount = 1;
+    info.pSemaphores    = &frameTimeline;
+    info.pValues        = &value;
+    auto result         = device.waitSemaphores(info, std::numeric_limits<uint64_t>::max());
+    SAIGA_ASSERT(result == vk::Result::eSuccess);
+}
+
+void VulkanBase::deferDelete(std::function<void()> f)
+{
+    std::scoped_lock lock(deletionMutex);
+    deletionQueue.emplace_back(currentFrameSignalValue(), std::move(f));
+}
+
+void VulkanBase::processDeferredDeletes()
+{
+    if (!device) return;
+    auto completed = completedFrameValue();
+
+    // Run outside of the lock, the functions may defer further deletions.
+    std::vector<std::function<void()>> ready;
+    {
+        std::scoped_lock lock(deletionMutex);
+        while (!deletionQueue.empty() && deletionQueue.front().first <= completed)
+        {
+            ready.push_back(std::move(deletionQueue.front().second));
+            deletionQueue.pop_front();
+        }
+    }
+    for (auto& f : ready) f();
+}
+
+void VulkanBase::flushDeferredDeletes()
+{
+    if (!device) return;
+    device.waitIdle();
+    while (true)
+    {
+        std::deque<std::pair<uint64_t, std::function<void()>>> all;
+        {
+            std::scoped_lock lock(deletionMutex);
+            all.swap(deletionQueue);
+        }
+        if (all.empty()) break;
+        for (auto& f : all) f.second();
+    }
+}
+
+void VulkanBase::createLogicalDevice(VulkanParameters& parameters, vk::SurfaceKHR surface)
 {
     m_parameters = parameters;
     std::vector<uint32_t> queueCounts(queueFamilyProperties.size(), 0);
 
-    uint32_t main_idx, transfer_idx, compute_idx;
-    bool found_main = findQueueFamily(vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eGraphics,
-                                      main_idx);  // A queue with compute or graphics can always be used for transfer
-    SAIGA_ASSERT(found_main, "A main queue with compute and graphics capabilities is required");
+    // The main queue does graphics, compute, transfer and presents.
+    uint32_t main_idx = 0;
+    bool found_main   = false;
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i)
+    {
+        auto required = vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eGraphics;
+        if ((queueFamilyProperties[i].queueFlags & required) == required &&
+            (!surface || physicalDevice.getSurfaceSupportKHR(i, surface)))
+        {
+            main_idx   = i;
+            found_main = true;
+            break;
+        }
+    }
+    SAIGA_ASSERT(found_main, "A main queue with compute, graphics (and present) capabilities is required");
 
+    uint32_t transfer_idx = main_idx, compute_idx = main_idx;
     int offset = 0;
     if (!findDedicatedQueueFamily(vk::QueueFlagBits::eCompute, compute_idx))
     {
@@ -83,45 +170,36 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, bool useSwapC
         findQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx, ++offset);
     }
 
-
     std::pair<uint32_t, uint32_t> main_queue_info, transfer_info, compute_info;
 
     main_queue_info = std::make_pair(main_idx, queueCounts[main_idx] % queueFamilyProperties[main_idx].queueCount);
     queueCounts[main_idx]++;
     compute_info =
         std::make_pair(compute_idx, queueCounts[compute_idx] % queueFamilyProperties[compute_idx].queueCount);
-
-
     queueCounts[compute_idx]++;
-
     transfer_info =
         std::make_pair(transfer_idx, queueCounts[transfer_idx] % queueFamilyProperties[transfer_idx].queueCount);
     queueCounts[transfer_idx]++;
 
     if (main_queue_info == compute_info)
     {
-        LOG(WARNING) << "Main queue and compute queue are the same";
+        VLOG(1) << "Main queue and compute queue are the same";
     }
 
     if (main_queue_info == transfer_info)
     {
-        LOG(WARNING) << "Main queue and transfer queue are the same";
+        VLOG(1) << "Main queue and transfer queue are the same";
     }
 
-    queueCounts[main_idx]     = std::min(queueCounts[main_idx], queueFamilyProperties[main_idx].queueCount);
-    queueCounts[compute_idx]  = std::min(queueCounts[compute_idx], queueFamilyProperties[compute_idx].queueCount);
-    queueCounts[transfer_idx] = std::min(queueCounts[transfer_idx], queueFamilyProperties[transfer_idx].queueCount);
+    for (uint32_t i = 0; i < queueCounts.size(); ++i)
+    {
+        queueCounts[i] = std::min(queueCounts[i], queueFamilyProperties[i].queueCount);
+    }
 
     auto maxCount = std::max_element(queueCounts.begin(), queueCounts.end());
     std::vector<float> prios(*maxCount, 1.0f);
 
-
-    // Desired queues need to be requested upon logical device creation
-    // Due to differing queue family configurations of Vulkan implementations this can be a bit tricky, especially
-    // if the application requests different queue types
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos{};
-
-
     for (uint32_t i = 0; i < queueCounts.size(); ++i)
     {
         auto queueCount = queueCounts[i];
@@ -131,72 +209,58 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, bool useSwapC
         }
     }
 
-    // Create the logical device representation
     std::vector<const char*> deviceExtensions(parameters.deviceExtensions);
-    if (useSwapChain)
+    if (surface)
     {
-        // If the device will be used for presenting to a display via a swapchain we need to request the swapchain
-        // extension
         deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }
 
-    auto featuresToEnable = parameters.physicalDeviceFeatures;
-
+    // Core features: enable the requested ones that are available.
+    auto featuresToEnable  = parameters.physicalDeviceFeatures;
     auto availableFeatures = physicalDevice.getFeatures();
-
-    if (!availableFeatures.wideLines)
+    auto disableIfMissing  = [&](vk::Bool32& requested, vk::Bool32 available, const char* name)
     {
-        featuresToEnable.wideLines = VK_FALSE;
-        LOG(ERROR) << "Wide lines requested but not available on this device";
-    }
+        if (requested && !available)
+        {
+            requested = VK_FALSE;
+            LOG(WARNING) << "Vulkan feature " << name << " requested but not available on this device";
+        }
+    };
+    disableIfMissing(featuresToEnable.wideLines, availableFeatures.wideLines, "wideLines");
+    disableIfMissing(featuresToEnable.fillModeNonSolid, availableFeatures.fillModeNonSolid, "fillModeNonSolid");
+    disableIfMissing(featuresToEnable.largePoints, availableFeatures.largePoints, "largePoints");
+    disableIfMissing(featuresToEnable.samplerAnisotropy, availableFeatures.samplerAnisotropy, "samplerAnisotropy");
 
+    // Vulkan 1.2/1.3 features saiga requires (checked in Instance::pickPhysicalDevice).
+    vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan12Features,
+                       vk::PhysicalDeviceVulkan13Features>
+        features;
+    features.get<vk::PhysicalDeviceFeatures2>().features                 = featuresToEnable;
+    features.get<vk::PhysicalDeviceVulkan12Features>().timelineSemaphore = VK_TRUE;
+    features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering  = VK_TRUE;
+    features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2  = VK_TRUE;
 
+    vk::DeviceCreateInfo deviceCreateInfo    = {};
+    deviceCreateInfo.pNext                   = &features.get<vk::PhysicalDeviceFeatures2>();
+    deviceCreateInfo.queueCreateInfoCount    = static_cast<uint32_t>(queueCreateInfos.size());
+    deviceCreateInfo.pQueueCreateInfos       = queueCreateInfos.data();
+    deviceCreateInfo.pEnabledFeatures        = nullptr;  // in VkPhysicalDeviceFeatures2
+    deviceCreateInfo.enabledExtensionCount   = (uint32_t)deviceExtensions.size();
+    deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-    vk::DeviceCreateInfo deviceCreateInfo = {};
-    //    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-
-    deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-    deviceCreateInfo.pEnabledFeatures  = &featuresToEnable;
-
-
-    if (!deviceExtensions.empty())
-    {
-        deviceCreateInfo.enabledExtensionCount   = (uint32_t)deviceExtensions.size();
-        deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    }
-
-
-    // just use the same layers as the instance
-    auto layers                          = instance->getEnabledLayers();
-    deviceCreateInfo.enabledLayerCount   = layers.size();
-    deviceCreateInfo.ppEnabledLayerNames = layers.data();
-
-#if 0
-    std::cout << "Device extensions" << std::endl;
-    for (auto de : deviceExtensions) std::cout << de << std::endl;
-
-    std::cout << "Device layers" << std::endl;
-    for (auto de : layers) std::cout << de << std::endl;
-#endif
-
-    device = physicalDevice.createDevice(deviceCreateInfo);
-
+    device          = physicalDevice.createDevice(deviceCreateInfo);
     enabledFeatures = featuresToEnable;
-
-#if 0
-    std::vector<vk::ExtensionProperties> extprops = physicalDevice.enumerateDeviceExtensionProperties();
-    for (auto e : extprops)
-    {
-        std::cout << e.specVersion << " " << e.extensionName << std::endl;
-    }
-#endif
-
 
     vk::PipelineCacheCreateInfo pipelineCacheCreateInfo = {};
     pipelineCache                                       = device.createPipelineCache(pipelineCacheCreateInfo);
     SAIGA_ASSERT(pipelineCache);
 
+    {
+        vk::SemaphoreTypeCreateInfo timelineInfo(vk::SemaphoreType::eTimeline, 0);
+        vk::SemaphoreCreateInfo semaphoreInfo;
+        semaphoreInfo.pNext = &timelineInfo;
+        frameTimeline       = device.createSemaphore(semaphoreInfo);
+    }
 
     mainQueue.create(device, main_queue_info.first, main_queue_info.second,
                      vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
@@ -212,10 +276,9 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, bool useSwapC
         computeQueue = &mainQueue;
     }
 
-    if (main_queue_info != compute_info)
+    if (main_queue_info != transfer_info)
     {
         dedicated_transfer_queue = std::make_unique<Saiga::Vulkan::Queue>();
-
         dedicated_transfer_queue->create(device, transfer_info.first, transfer_info.second);
         transferQueue = dedicated_transfer_queue.get();
     }
@@ -223,6 +286,7 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, bool useSwapC
     {
         transferQueue = &mainQueue;
     }
+
     descriptorPool.create(
         device, parameters.maxDescriptorSets,
         {
@@ -235,9 +299,6 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, bool useSwapC
 
     current_frame = 0;
 }
-
-void VulkanBase::init(VulkanParameters params) {}
-
 
 bool VulkanBase::findQueueFamily(vk::QueueFlags flags, uint32_t& family, uint32_t offset)
 {
@@ -255,8 +316,6 @@ bool VulkanBase::findQueueFamily(vk::QueueFlags flags, uint32_t& family, uint32_
 
     return false;
 }
-
-;
 
 bool VulkanBase::findDedicatedQueueFamily(vk::QueueFlags flags, uint32_t& family)
 {

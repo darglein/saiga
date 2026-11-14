@@ -42,7 +42,6 @@ class LineMesh : public Mesh<_VertexType>
 template <typename VertexType, typename IndexType>
 std::vector<VertexType> LineMesh<VertexType, IndexType>::toLineList()
 {
-    SAIGA_ASSERT(lines.size() == 0);
     std::vector<VertexType> res(lines.size() * 2);
     for (unsigned int i = 0; i < lines.size(); i++)
     {

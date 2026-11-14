@@ -43,7 +43,7 @@ LogStreamVoidifier::~LogStreamVoidifier()
 {
     if (m_stream)
     {
-        (*m_stream) << std::flush;
+        (*m_stream) << std::endl;
         g_custom_glog_fail_func();
     }
 }

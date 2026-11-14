@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -40,7 +40,7 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
     IndexBuffer(const IndexBuffer& other)     = delete;
     IndexBuffer(IndexBuffer&& other) noexcept = default;
 
-    IndexBuffer& operator=(const IndexBuffer& other) = delete;
+    IndexBuffer& operator=(const IndexBuffer& other)     = delete;
     IndexBuffer& operator=(IndexBuffer&& other) noexcept = default;
 
     ~IndexBuffer() override = default;

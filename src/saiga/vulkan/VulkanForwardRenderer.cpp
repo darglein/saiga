@@ -1,240 +1,291 @@
-﻿/*
- * Vulkan Example base class
- *
- * Copyright (C) 2016-2017 by Sascha Willems - www.saschawillems.de
- *
- * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+﻿/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
  */
-
 
 #include "VulkanForwardRenderer.h"
 
+#include "saiga/core/image/managedImage.h"
 #include "saiga/vulkan/Shader/all.h"
+#include "saiga/vulkan/buffer/StagingBuffer.h"
+#include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 
-#include "VulkanInitializers.hpp"
+#include <cstdlib>
 
 #if defined(SAIGA_OPENGL_INCLUDED)
 #    error OpenGL was included somewhere.
 #endif
 
-
 namespace Saiga
 {
 namespace Vulkan
 {
+using Stage  = vk::PipelineStageFlagBits2;
+using Access = vk::AccessFlagBits2;
+
 VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParameters vulkanParameters)
     : VulkanRenderer(window, vulkanParameters)
 {
-    setupRenderPass();
     renderCommandPool = base().mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+    drawCmdBuffers    = renderCommandPool.allocateCommandBuffers(framesInFlight, vk::CommandBufferLevel::ePrimary);
+
+    if (imGui) imGui->initResources(base(), renderingFormats());
+
+    if (const char* file = std::getenv("SAIGA_SCREENSHOT"))
+    {
+        autoScreenshotFile = file;
+    }
     std::cout << "VulkanForwardRenderer init done." << std::endl;
 }
 
 VulkanForwardRenderer::~VulkanForwardRenderer()
 {
-    base().device.destroyRenderPass(renderPass);
+    waitIdle();
+    renderCommandPool.freeCommandBuffers(drawCmdBuffers);
 }
 
+RenderingFormats VulkanForwardRenderer::renderingFormats() const
+{
+    RenderingFormats formats;
+    formats.color = {getColorFormat()};
+    formats.depth = depthBuffer.format;
+    return formats;
+}
 
 void VulkanForwardRenderer::createBuffers(int numImages, int w, int h)
 {
+    // Only called after waitIdle (see VulkanRenderer::reset), so the old depth buffer is not in use anymore.
     depthBuffer.init(base(), w, h);
-
-    frameBuffers.clear();
-    frameBuffers.resize(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        frameBuffers[i].createColorDepthStencil(w, h, swapChain.buffers[i].view, depthBuffer.location->data.view,
-                                                renderPass, base().device);
-    }
-
-
-    renderCommandPool.freeCommandBuffers(drawCmdBuffers);
-    drawCmdBuffers.clear();
-    drawCmdBuffers = renderCommandPool.allocateCommandBuffers(numImages, vk::CommandBufferLevel::ePrimary);
-
-    if (imGui) imGui->initResources(base(), renderPass);
 }
 
-
-void VulkanForwardRenderer::setupRenderPass()
-{
-    std::array<VkAttachmentDescription, 2> attachments = {};
-    // Color attachment
-    attachments[0].format         = swapChain.colorFormat;
-    attachments[0].samples        = VK_SAMPLE_COUNT_1_BIT;
-    attachments[0].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachments[0].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[0].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[0].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachments[0].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    // Depth attachment
-    attachments[1].format         = (VkFormat)depthBuffer.format;
-    attachments[1].samples        = VK_SAMPLE_COUNT_1_BIT;
-    attachments[1].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachments[1].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[1].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[1].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachments[1].finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference colorReference = {};
-    colorReference.attachment            = 0;
-    colorReference.layout                = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference depthReference = {};
-    depthReference.attachment            = 1;
-    depthReference.layout                = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpassDescription    = {};
-    subpassDescription.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpassDescription.colorAttachmentCount    = 1;
-    subpassDescription.pColorAttachments       = &colorReference;
-    subpassDescription.pDepthStencilAttachment = &depthReference;
-    subpassDescription.inputAttachmentCount    = 0;
-    subpassDescription.pInputAttachments       = nullptr;
-    subpassDescription.preserveAttachmentCount = 0;
-    subpassDescription.pPreserveAttachments    = nullptr;
-    subpassDescription.pResolveAttachments     = nullptr;
-
-    // Subpass dependencies for layout transitions
-    std::array<VkSubpassDependency, 2> dependencies;
-
-    dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
-    dependencies[0].dstSubpass      = 0;
-    dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependencies[0].srcAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-    dependencies[0].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    dependencies[1].srcSubpass      = 0;
-    dependencies[1].dstSubpass      = VK_SUBPASS_EXTERNAL;
-    dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependencies[1].dstStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    dependencies[1].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependencies[1].dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    VkRenderPassCreateInfo renderPassInfo = {};
-    renderPassInfo.sType                  = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount        = 2;  // static_cast<uint32_t>(attachments.size());
-    renderPassInfo.pAttachments           = attachments.data();
-    renderPassInfo.subpassCount           = 1;
-    renderPassInfo.pSubpasses             = &subpassDescription;
-    renderPassInfo.dependencyCount        = 1;  // static_cast<uint32_t>(dependencies.size());
-    renderPassInfo.pDependencies          = dependencies.data();
-
-    VK_CHECK_RESULT(vkCreateRenderPass(base().device, &renderPassInfo, nullptr, &renderPass));
-}
-
-
-
-void VulkanForwardRenderer::render(FrameSync& sync, int currentImage)
+void VulkanForwardRenderer::render(const FrameInfo& frame)
 {
     VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    //    std::cout << "VulkanForwardRenderer::render" << std::endl;
-    if (imGui && should_render_imgui)
+    // The ImGui frame runs even if the GUI is hidden, so that the input state (WantCaptureMouse, ...) stays current and
+    // the backend's event queue is consumed. should_render_imgui only decides whether it is drawn.
+    if (imGui)
     {
-        //        std::thread t([&](){
         imGui->beginFrame();
         renderingInterface->renderGUI();
         imGui->endFrame();
-        //        });
-        //        t.join();
+    }
+    bool draw_imgui = imGui && should_render_imgui;
+
+    renderedFrames++;
+    bool close_after_frame = false;
+    if (!autoScreenshotFile.empty() && renderedFrames == 60)
+    {
+        requestScreenshot(autoScreenshotFile);
+        close_after_frame = true;
     }
 
+    vk::CommandBuffer cmd = drawCmdBuffers[frame.frameIndex];
+    cmd.reset();
+    cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
-
-    VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-    //    cmdBufInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-
-    VkClearValue clearValues[2];
-
-    // This is blender's default viewport background color :)
-    vec4 clearColor             = vec4(57, 57, 57, 255) / 255.0f;
-    clearValues[0].color        = {{clearColor[0], clearColor[1], clearColor[2], clearColor[3]}};
-    clearValues[1].depthStencil = {1.0f, 0};
-
-    VkRenderPassBeginInfo renderPassBeginInfo    = vks::initializers::renderPassBeginInfo();
-    renderPassBeginInfo.renderPass               = renderPass;
-    renderPassBeginInfo.renderArea.offset.x      = 0;
-    renderPassBeginInfo.renderArea.offset.y      = 0;
-    renderPassBeginInfo.renderArea.extent.width  = surfaceWidth;
-    renderPassBeginInfo.renderArea.extent.height = SurfaceHeight;
-    renderPassBeginInfo.clearValueCount          = 2;
-    renderPassBeginInfo.pClearValues             = clearValues;
-
-
-    vk::CommandBuffer& cmd = drawCmdBuffers[currentImage];
-    // cmd.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
-    // Set target frame buffer
-    renderPassBeginInfo.framebuffer = frameBuffers[currentImage].framebuffer;
-
-    cmd.begin(cmdBufInfo);
     timings.resetFrame(cmd);
     timings.enterSection("TRANSFER", cmd);
+    {
+        // The buffers written in transfer() (uniform buffers, vertex data) are shared by all frames in flight:
+        // wait until earlier frames have read them (write-after-read) ...
+        vk::MemoryBarrier2 war(Stage::eVertexInput | Stage::eVertexShader | Stage::eFragmentShader, {},
+                               Stage::eAllTransfer, {});
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, war, nullptr, nullptr));
 
-    // VK_CHECK_RESULT(vkBeginCommandBuffer(cmd, &cmdBufInfo));
-    renderingInterface->transfer(cmd);
+        renderingInterface->transfer(cmd);
 
+        // ... and make the writes visible to this frame's draws.
+        vk::MemoryBarrier2 raw(
+            Stage::eAllTransfer, Access::eTransferWrite,
+            Stage::eVertexInput | Stage::eVertexShader | Stage::eFragmentShader,
+            Access::eUniformRead | Access::eShaderRead | Access::eVertexAttributeRead | Access::eIndexRead);
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, raw, nullptr, nullptr));
+    }
     timings.leaveSection("TRANSFER", cmd);
 
+    // ImGui's vertex data is in host visible memory, one buffer per frame in flight.
+    if (draw_imgui) imGui->updateBuffers(cmd, frame.frameIndex);
 
-    if (imGui && should_render_imgui) imGui->updateBuffers(cmd, currentImage);
-
-    vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    VkViewport viewport = vks::initializers::viewport((float)surfaceWidth, (float)SurfaceHeight, 0.0f, 1.0f);
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D scissor = vks::initializers::rect2D(surfaceWidth, SurfaceHeight, 0, 0);
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
-
+    vk::Image colorImage = this->colorImage(frame.imageIndex);
+    vk::Image depthImage = depthBuffer.location->data.image;
 
     {
-        // Actual rendering
-        timings.enterSection("MAIN", cmd);
-        renderingInterface->render(cmd);
-        timings.leaveSection("MAIN", cmd);
-        timings.enterSection("IMGUI", cmd);
-        if (imGui && should_render_imgui) imGui->render(cmd, currentImage);
-        timings.leaveSection("IMGUI", cmd);
+        // The swap chain image is written after the acquire (the submit waits for imageAvailable at
+        // COLOR_ATTACHMENT_OUTPUT). The previous content is discarded.
+        // Headless: the previous frame that used this image has completed (VulkanRenderer::render).
+        vk::ImageMemoryBarrier2 color(Stage::eColorAttachmentOutput, {}, Stage::eColorAttachmentOutput,
+                                      Access::eColorAttachmentWrite | Access::eColorAttachmentRead,
+                                      vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal,
+                                      VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, colorImage,
+                                      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
+
+        // The depth buffer is shared by all frames: the clear must wait for the previous frame's depth tests.
+        vk::ImageMemoryBarrier2 depth(
+            Stage::eEarlyFragmentTests | Stage::eLateFragmentTests, Access::eDepthStencilAttachmentWrite,
+            Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
+            Access::eDepthStencilAttachmentWrite | Access::eDepthStencilAttachmentRead, vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eDepthStencilAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+            depthImage, vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1));
+
+        std::array<vk::ImageMemoryBarrier2, 2> barriers = {color, depth};
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, barriers));
     }
 
-    vkCmdEndRenderPass(cmd);
+    {
+        // This is blender's default viewport background color :)
+        vec4 clearColor = vec4(57, 57, 57, 255) / 255.0f;
 
+        vk::RenderingAttachmentInfo colorAttachment;
+        colorAttachment.imageView   = colorImageView(frame.imageIndex);
+        colorAttachment.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        colorAttachment.loadOp      = vk::AttachmentLoadOp::eClear;
+        colorAttachment.storeOp     = vk::AttachmentStoreOp::eStore;
+        colorAttachment.clearValue.color =
+            vk::ClearColorValue(std::array<float, 4>{clearColor[0], clearColor[1], clearColor[2], clearColor[3]});
 
-    VK_CHECK_RESULT(vkEndCommandBuffer(cmd));
+        vk::RenderingAttachmentInfo depthAttachment;
+        depthAttachment.imageView                     = depthBuffer.location->data.view;
+        depthAttachment.imageLayout                   = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        depthAttachment.loadOp                        = vk::AttachmentLoadOp::eClear;
+        depthAttachment.storeOp                       = vk::AttachmentStoreOp::eDontCare;
+        depthAttachment.clearValue.depthStencil.depth = 1.0f;
 
-    vk::PipelineStageFlags submitPipelineStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        vk::RenderingInfo renderingInfo;
+        renderingInfo.renderArea           = vk::Rect2D({0, 0}, {(uint32_t)surfaceWidth, (uint32_t)SurfaceHeight});
+        renderingInfo.layerCount           = 1;
+        renderingInfo.colorAttachmentCount = 1;
+        renderingInfo.pColorAttachments    = &colorAttachment;
+        renderingInfo.pDepthAttachment     = &depthAttachment;
 
-    std::array<vk::Semaphore, 2> signalSemaphores{sync.renderComplete, sync.defragMayStart};
+        cmd.beginRendering(renderingInfo);
+    }
 
-    vk::SubmitInfo submitInfo;
-    //    submitInfo = vks::initializers::submitInfo();
-    submitInfo.pWaitDstStageMask    = &submitPipelineStages;
-    submitInfo.waitSemaphoreCount   = 1;
-    submitInfo.pWaitSemaphores      = &sync.imageAvailable;
-    submitInfo.signalSemaphoreCount = 2;
-    submitInfo.pSignalSemaphores    = signalSemaphores.data();
+    cmd.setViewport(0, vk::Viewport(0, 0, (float)surfaceWidth, (float)SurfaceHeight, 0.0f, 1.0f));
+    cmd.setScissor(0, vk::Rect2D({0, 0}, {(uint32_t)surfaceWidth, (uint32_t)SurfaceHeight}));
 
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers    = &cmd;
-    //    VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.frameFence));
-    base().mainQueue.submit(submitInfo, sync.frameFence);
+    timings.enterSection("MAIN", cmd);
+    renderingInterface->render(cmd);
+    timings.leaveSection("MAIN", cmd);
 
-    timings.finishFrame(sync.defragMayStart);
-    //    graphicsQueue.queue.submit(submitInfo,vk::Fence());
+    timings.enterSection("IMGUI", cmd);
+    if (draw_imgui) imGui->render(cmd, frame.frameIndex);
+    timings.leaveSection("IMGUI", cmd);
 
-    //    VK_CHECK_RESULT(swapChain.queuePresent(presentQueue, currentBuffer,  sync.renderComplete));
-    base().finish_frame();
+    cmd.endRendering();
+
+    std::unique_ptr<StagingBuffer> screenshot;
+    ScreenshotCallback screenshot_callback;
+    if (screenshotCallback)
+    {
+        screenshot_callback.swap(screenshotCallback);
+        screenshot = recordScreenshot(cmd, colorImage);
+    }
+
+    {
+        // Hand the image to the presentation engine (the present waits for renderComplete), headless: leave it
+        // readable. After a screenshot the image is in TRANSFER_SRC.
+        auto layout = screenshot ? vk::ImageLayout::eTransferSrcOptimal : vk::ImageLayout::eColorAttachmentOptimal;
+        auto stage  = screenshot ? vk::PipelineStageFlags2(Stage::eAllTransfer)
+                                 : vk::PipelineStageFlags2(Stage::eColorAttachmentOutput);
+        auto access = screenshot ? vk::AccessFlags2() : vk::AccessFlags2(Access::eColorAttachmentWrite);
+        vk::ImageMemoryBarrier2 present(stage, access, Stage::eNone, {}, layout, finalColorLayout(),
+                                        VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, colorImage,
+                                        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, present));
+    }
+
+    cmd.end();
+
+    // A headless renderer has no swap chain semaphores (FrameInfo).
+    std::vector<vk::SemaphoreSubmitInfo> waitInfos, signalInfos;
+    if (frame.imageAvailable) waitInfos.emplace_back(frame.imageAvailable, 0, Stage::eColorAttachmentOutput);
+    if (frame.renderComplete) signalInfos.emplace_back(frame.renderComplete, 0, Stage::eAllCommands);
+    signalInfos.emplace_back(base().frameTimeline, frame.timelineValue, Stage::eAllCommands);
+    vk::CommandBufferSubmitInfo cmdInfo(cmd);
+
+    vk::SubmitInfo2 submitInfo;
+    submitInfo.waitSemaphoreInfoCount   = (uint32_t)waitInfos.size();
+    submitInfo.pWaitSemaphoreInfos      = waitInfos.data();
+    submitInfo.commandBufferInfoCount   = 1;
+    submitInfo.pCommandBufferInfos      = &cmdInfo;
+    submitInfo.signalSemaphoreInfoCount = (uint32_t)signalInfos.size();
+    submitInfo.pSignalSemaphoreInfos    = signalInfos.data();
+    base().mainQueue.submit2(submitInfo);
+
+    if (screenshot)
+    {
+        base().waitFrameValue(frame.timelineValue);
+        screenshot_callback(readScreenshot(*screenshot));
+    }
+    if (close_after_frame) window.close();
 }
 
+void VulkanForwardRenderer::requestScreenshot(const std::string& file)
+{
+    requestScreenshot(
+        [file](const TemplatedImage<ucvec4>& img)
+        {
+            if (img.save(file))
+                std::cout << "Saved screenshot " << file << std::endl;
+            else
+                std::cerr << "Could not save screenshot " << file << std::endl;
+        });
+}
 
+std::unique_ptr<StagingBuffer> VulkanForwardRenderer::recordScreenshot(vk::CommandBuffer cmd, vk::Image colorImage)
+{
+    if (!colorImagesSupportTransferSrc())
+    {
+        std::cerr << "Screenshot not possible: the color images do not support TRANSFER_SRC" << std::endl;
+        return nullptr;
+    }
+    auto format = getColorFormat();
+    if (format != vk::Format::eB8G8R8A8Unorm && format != vk::Format::eB8G8R8A8Srgb &&
+        format != vk::Format::eR8G8B8A8Unorm && format != vk::Format::eR8G8B8A8Srgb)
+    {
+        std::cerr << "Screenshot not possible: unsupported color format " << vk::to_string(format) << std::endl;
+        return nullptr;
+    }
+
+    auto buffer = std::make_unique<StagingBuffer>();
+    buffer->init(base(), size_t(surfaceWidth) * SurfaceHeight * 4);
+
+    vk::ImageMemoryBarrier2 toTransfer(
+        Stage::eColorAttachmentOutput, Access::eColorAttachmentWrite, Stage::eAllTransfer, Access::eTransferRead,
+        vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::eTransferSrcOptimal, VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED, colorImage, vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
+    cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toTransfer));
+
+    vk::BufferImageCopy region = buffer->getBufferImageCopy(0);
+    region.imageSubresource    = vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1);
+    region.imageExtent         = vk::Extent3D(surfaceWidth, SurfaceHeight, 1);
+    cmd.copyImageToBuffer(colorImage, vk::ImageLayout::eTransferSrcOptimal, buffer->createInfo().buffer, region);
+
+    // Make the copy visible to the host read after the wait.
+    vk::MemoryBarrier2 toHost(Stage::eAllTransfer, Access::eTransferWrite, Stage::eHost, Access::eHostRead);
+    cmd.pipelineBarrier2(vk::DependencyInfo({}, toHost, nullptr, nullptr));
+    return buffer;
+}
+
+TemplatedImage<ucvec4> VulkanForwardRenderer::readScreenshot(StagingBuffer& buffer)
+{
+    TemplatedImage<ucvec4> img(SurfaceHeight, surfaceWidth);
+    buffer.download(img.data(), size_t(surfaceWidth) * SurfaceHeight * 4);
+    auto format = getColorFormat();
+    if (format == vk::Format::eB8G8R8A8Unorm || format == vk::Format::eB8G8R8A8Srgb)
+    {
+        for (int y = 0; y < img.h; ++y)
+            for (int x = 0; x < img.w; ++x) std::swap(img(y, x)(0), img(y, x)(2));
+    }
+    // The swap chain content is not meant to be blended: store it opaque.
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x)(3) = 255;
+
+    return img;
+}
 
 }  // namespace Vulkan
 }  // namespace Saiga

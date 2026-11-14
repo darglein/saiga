@@ -4,11 +4,16 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/config.h"
 #ifdef SAIGA_USE_GLFW
 
-#    include "GLFWWindow.h"
-
+// Declares glfwCreateWindowSurface independent of the include order.
+#    define GLFW_INCLUDE_VULKAN
+#    include "saiga/core/glfw/glfw_eventhandler.h"
 #    include "saiga/core/glfw/saiga_glfw.h"
+#    include "saiga/vulkan/imgui/ImGuiGLFWRenderer.h"
+
+#    include "GLFWWindow.h"
 
 #    if defined(SAIGA_OPENGL_INCLUDED)
 #        error OpenGL was included somewhere.
@@ -19,12 +24,9 @@ namespace Saiga
 {
 namespace Vulkan
 {
-static void printGLFWerror()
+static void glfwErrorCallback(int error, const char* description)
 {
-    //    const char* description;
-    //    glfwGetError(&description);
-    //    std::cout << "GLFW Error: " << description << std::endl;
-    SAIGA_ASSERT(0);
+    std::cout << "GLFW Error " << error << ": " << description << std::endl;
 }
 
 GLFWWindow::GLFWWindow(WindowParameters _windowParameters) : VulkanWindow(_windowParameters)
@@ -41,8 +43,18 @@ GLFWWindow::~GLFWWindow()
 
 std::unique_ptr<ImGuiVulkanRenderer> GLFWWindow::createImGui(size_t frameCount)
 {
-    // TODO: Create GLFW imgui
+    if (windowParameters.imguiParameters.enable)
+    {
+        return std::make_unique<ImGuiGLFWRenderer>(frameCount, windowParameters.imguiParameters, window);
+    }
     return nullptr;
+}
+
+ivec2 GLFWWindow::getFramebufferSize()
+{
+    int w, h;
+    glfwGetFramebufferSize(window, &w, &h);
+    return ivec2(w, h);
 }
 
 std::vector<std::string> GLFWWindow::getRequiredInstanceExtensions()
@@ -64,9 +76,10 @@ std::vector<std::string> GLFWWindow::getRequiredInstanceExtensions()
 
 void GLFWWindow::create()
 {
+    glfwSetErrorCallback(glfwErrorCallback);
     if (!glfwInit())
     {
-        printGLFWerror();
+        SAIGA_ASSERT(0, "glfwInit failed");
         return;
     }
 
@@ -79,7 +92,9 @@ void GLFWWindow::create()
 
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    // The swap chain is created once with the window size.
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_VISIBLE, windowParameters.hidden ? GLFW_FALSE : GLFW_TRUE);
     window =
         glfwCreateWindow(windowParameters.width, windowParameters.height, windowParameters.name.c_str(), NULL, NULL);
 
@@ -87,7 +102,20 @@ void GLFWWindow::create()
 
     int w, h;
     glfwGetFramebufferSize(window, &w, &h);
-    SAIGA_ASSERT(w == windowParameters.width && h == windowParameters.height);
+    if (w != windowParameters.width || h != windowParameters.height)
+    {
+        // E.g. with display scaling.
+        std::cout << "GLFW framebuffer size " << w << "x" << h << " differs from the requested window size "
+                  << windowParameters.width << "x" << windowParameters.height << std::endl;
+    }
+
+    // Input for the keyboard/mouse state and the glfw listeners (e.g. the camera). The ImGui backend chains its own
+    // callbacks to these when it is created.
+    glfwSetCursorPosCallback(window, glfw_EventHandler::cursor_position_callback);
+    glfwSetMouseButtonCallback(window, glfw_EventHandler::mouse_button_callback);
+    glfwSetScrollCallback(window, glfw_EventHandler::scroll_callback);
+    glfwSetCharCallback(window, glfw_EventHandler::character_callback);
+    glfwSetKeyCallback(window, glfw_EventHandler::key_callback);
 
     std::cout << "GLFW window created." << std::endl;
 }

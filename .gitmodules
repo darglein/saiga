@@ -41,3 +41,6 @@
 [submodule "submodules/aom"]
 	path = submodules/aom
 	url = https://aomedia.googlesource.com/aom
+[submodule "submodules/glslang"]
+	path = submodules/glslang
+	url = ../../KhronosGroup/glslang.git

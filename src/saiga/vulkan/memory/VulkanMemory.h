@@ -17,7 +17,9 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <sstream>
+#include <vector>
 #include <vulkan/vulkan.hpp>
 
 #include <unordered_map>
@@ -119,8 +121,16 @@ class SAIGA_VULKAN_API VulkanMemory
         {ImageType{all_image_usage, all_mem_properties}, fallback_image_chunk_size}};
 
 
+    // Protects the allocator maps and the owner maps. Allocations may happen in multiple threads.
+    std::mutex allocatorMutex;
+
     BufferMap bufferAllocators;
     ImageMap imageAllocators;
+
+    // The allocator of each location (nullptr: fallbackAllocator). The lookup by type could find a different
+    // allocator at deallocation if an allocator was created in between.
+    std::unordered_map<BufferMemoryLocation*, BufferContainer*> bufferOwners;
+    std::unordered_map<ImageMemoryLocation*, ImageContainer*> imageOwners;
 
     std::unique_ptr<UniqueAllocator> fallbackAllocator;
     std::unique_ptr<FitStrategy<BufferMemoryLocation>> strategy;
@@ -186,6 +196,14 @@ class SAIGA_VULKAN_API VulkanMemory
     }
 
 
+    // Require allocatorMutex.
+    BufferContainer& getAllocatorLocked(const BufferType& type);
+    ImageContainer& getImageAllocatorLocked(const ImageType& type);
+
+    // The defraggers of all allocators. The containers are never removed before destroy().
+    std::vector<BufferDefragger*> bufferDefraggers();
+    std::vector<ImageDefragger*> imageDefraggers();
+
    public:
     BufferContainer& getAllocator(const BufferType& type);
     BufferContainer& get_allocator_exact(const BufferType& type);
@@ -195,8 +213,9 @@ class SAIGA_VULKAN_API VulkanMemory
    private:
    public:
     void init(VulkanBase* base, uint32_t swapchain_frames, const VulkanParameters& parameters);
-    VulkanMemory()                    = default;
-    VulkanMemory(const VulkanMemory&) = delete;
+    VulkanMemory() = default;
+    ~VulkanMemory();
+    VulkanMemory(const VulkanMemory&)            = delete;
     VulkanMemory& operator=(const VulkanMemory&) = delete;
 
     void destroy();
@@ -223,32 +242,19 @@ class SAIGA_VULKAN_API VulkanMemory
 
     void stop_defrag(const ImageType& type);
 
-    bool performTimedDefrag(int64_t time, vk::Semaphore semaphore);
+    /**
+     * Submits defragmentation copies that take at most time (ns). They run after the frame that signals frameTimeline
+     * with waitValue.
+     */
+    bool performTimedDefrag(int64_t time, vk::Semaphore frameTimeline, uint64_t waitValue);
 
-    void update()
-    {
-        frame_number++;
-        for (auto& allocator : bufferAllocators)
-        {
-            auto* defragger = allocator.second.defragger.get();
+    // Called once per frame.
+    void update() { frame_number++; }
 
-            if (defragger)
-            {
-                defragger->update(frame_number);
-            }
-        }
-
-        for (auto& allocator : imageAllocators)
-        {
-            auto* defragger = allocator.second.defragger.get();
-
-            if (defragger)
-            {
-                defragger->update(frame_number);
-            }
-        }
-    }
-
+    /**
+     * Defragments all allocators with a defragger until nothing can be moved anymore. Blocks until the copies are
+     * complete. Call it from the thread that submits the frames, outside of the frame recording.
+     */
     void full_defrag();
 };
 

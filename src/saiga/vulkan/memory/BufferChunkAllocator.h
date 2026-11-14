@@ -16,6 +16,7 @@
 #include "MemoryStats.h"
 #include "MemoryType.h"
 
+#include <algorithm>
 #include <limits>
 #include <list>
 #include <utility>
@@ -54,8 +55,32 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public ChunkAllocator<Buffer
         auto buffer                    = m_device.createBuffer(m_bufferCreateInfo);
         auto requirements              = m_device.getBufferMemoryRequirements(buffer);
         m_allocateSize                 = requirements.size;
-        m_alignment                    = requirements.alignment;
         m_device.destroy(buffer);
+
+        // The sub-allocations are bound to descriptors with their offset, which must satisfy the device limits. All
+        // alignments are powers of two, so the maximum is a multiple of each of them.
+        const auto limits = m_pDevice.getProperties().limits;
+        m_alignment       = requirements.alignment;
+        if (type.usageFlags & vk::BufferUsageFlagBits::eUniformBuffer)
+        {
+            m_alignment = std::max(m_alignment, limits.minUniformBufferOffsetAlignment);
+        }
+        if (type.usageFlags & vk::BufferUsageFlagBits::eStorageBuffer)
+        {
+            m_alignment = std::max(m_alignment, limits.minStorageBufferOffsetAlignment);
+        }
+        if (type.usageFlags &
+            (vk::BufferUsageFlagBits::eUniformTexelBuffer | vk::BufferUsageFlagBits::eStorageTexelBuffer))
+        {
+            m_alignment = std::max(m_alignment, limits.minTexelBufferOffsetAlignment);
+        }
+        if (type.memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible &&
+            !(type.memoryFlags & vk::MemoryPropertyFlagBits::eHostCoherent))
+        {
+            // Flushes/invalidates of a non coherent allocation must not touch its neighbours.
+            m_alignment = std::max(m_alignment, limits.nonCoherentAtomSize);
+        }
+        SAIGA_ASSERT(m_chunkSize % m_alignment == 0, "The chunk size must be a multiple of the alignment");
 
         VLOG(3) << "Created new buffer allocator  " << type << ", alignment " << m_alignment;
     }
@@ -71,8 +96,8 @@ class SAIGA_VULKAN_API BufferChunkAllocator final : public ChunkAllocator<Buffer
     BufferChunkAllocator& operator=(BufferChunkAllocator&& other) noexcept
     {
         ChunkAllocator::operator=(std::move(static_cast<ChunkAllocator&&>(other)));
-        m_alignment             = other.m_alignment;
-        m_bufferCreateInfo      = other.m_bufferCreateInfo;
+        m_alignment        = other.m_alignment;
+        m_bufferCreateInfo = other.m_bufferCreateInfo;
         return *this;
     }
 

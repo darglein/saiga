@@ -32,11 +32,7 @@ class SAIGA_VULKAN_API PointCloudRenderer : public Pipeline
     void pushModel(VkCommandBuffer cmd, mat4 model);
     void updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, mat4 proj);
 
-    void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass, float pointSize);
-
-    void prepareUniformBuffers(Saiga::Vulkan::VulkanBase* vulkanDevice);
-    //    void preparePipelines(VkPipelineCache pipelineCache, VkRenderPass renderPass);
-    void setupLayoutsAndDescriptors();
+    void init(Saiga::Vulkan::VulkanBase& vulkanDevice, const RenderingFormats& formats, float pointSize);
 
    private:
     struct UBOVS

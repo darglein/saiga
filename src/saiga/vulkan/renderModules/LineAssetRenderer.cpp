@@ -21,6 +21,7 @@ namespace Vulkan
 void LineAssetRenderer::destroy()
 {
     Pipeline::destroy();
+    shaderPipeline.destroy();
     uniformBufferVS.destroy();
 }
 bool LineAssetRenderer::bind(vk::CommandBuffer cmd)
@@ -46,7 +47,7 @@ void LineAssetRenderer::updateUniformBuffers(vk::CommandBuffer cmd, mat4 view, m
     //      cmd.updateBuffer(uniformBufferVS.m_memoryLocation.buffer,uniformBufferVS.m_memoryLocation.offset,sizeof(uboVS),&uboVS);
 }
 
-void LineAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass, float lineWidth)
+void LineAssetRenderer::init(VulkanBase& vulkanDevice, const RenderingFormats& formats, float lineWidth)
 {
     PipelineBase::init(vulkanDevice, 1);
     addDescriptorSetLayout({{0, {7, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}}});
@@ -66,7 +67,7 @@ void LineAssetRenderer::init(VulkanBase& vulkanDevice, VkRenderPass renderPass, 
         }
     }
     info.addVertexInfo<VertexType>();
-    create(renderPass, info);
+    create(formats, info);
 
 
 

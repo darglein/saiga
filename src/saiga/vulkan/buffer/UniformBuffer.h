@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2021 Darius Rückert
  * Licensed under the MIT License.
  * See LICENSE file for more information.
@@ -22,7 +22,7 @@ class SAIGA_VULKAN_API UniformBuffer : public Buffer
     UniformBuffer(const UniformBuffer& other)     = delete;
     UniformBuffer(UniformBuffer&& other) noexcept = default;
 
-    UniformBuffer& operator=(const UniformBuffer& other) = delete;
+    UniformBuffer& operator=(const UniformBuffer& other)     = delete;
     UniformBuffer& operator=(UniformBuffer&& other) noexcept = default;
 
     void init(VulkanBase& base, const void* data, size_t size)

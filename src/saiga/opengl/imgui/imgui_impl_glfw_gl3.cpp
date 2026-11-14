@@ -32,9 +32,9 @@
 
 #include "imgui_impl_glfw_gl3.h"
 
-#include "internal/imgui_impl_glfw.h"
 #include "internal/imgui_impl_opengl3.h"
 #ifdef SAIGA_USE_GLFW
+#    include "saiga/core/glfw/imgui_impl_glfw.h"
 #    include "saiga/core/glfw/saiga_glfw.h"
 #    include "saiga/core/imgui/imgui.h"
 #    include "saiga/core/imgui/imgui_main_menu.h"

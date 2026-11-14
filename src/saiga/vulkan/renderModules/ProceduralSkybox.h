@@ -16,6 +16,8 @@
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/texture/Texture.h"
 
+#include <optional>
+
 namespace Saiga
 {
 namespace Vulkan
@@ -31,13 +33,17 @@ class SAIGA_VULKAN_API ProceduralSkybox : public Pipeline
 
 
     /**
-     * Render the texture at the given pixel position and size
+     * Render the texture at the given pixel position and size (the pipeline must be bound).
+     *
+     * This sets the dynamic viewport to the rectangle. If restoreViewport is given, it is set again afterwards;
+     * otherwise the caller must reset the viewport before drawing anything else.
      */
-    void renderTexture(vk::CommandBuffer cmd, StaticDescriptorSet texture, vec2 position, vec2 size);
+    void renderTexture(vk::CommandBuffer cmd, DescriptorSet& descriptor, vec2 position, vec2 size,
+                       std::optional<vk::Viewport> restoreViewport = {});
 
 
 
-    void init(Saiga::Vulkan::VulkanBase& vulkanDevice, VkRenderPass renderPass);
+    void init(Saiga::Vulkan::VulkanBase& vulkanDevice, const RenderingFormats& formats);
 
 
     StaticDescriptorSet createAndUpdateDescriptorSet(Texture& texture);

@@ -51,15 +51,12 @@ void Queue::destroy()
 void Queue::submitAndWait(vk::CommandBuffer cmd)
 {
     SAIGA_ASSERT(cmd, "invalid command buffer provided");
-    vk::SubmitInfo submitInfo;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers    = &cmd;
-    vk::FenceCreateInfo fci{};
-    vk::Fence fence = device.createFence(fci);
-    {
-        std::scoped_lock lock(submitMutex);
-        queue.submit(submitInfo, fence);
-    }
+    vk::CommandBufferSubmitInfo cmdInfo(cmd);
+    vk::SubmitInfo2 submitInfo;
+    submitInfo.commandBufferInfoCount = 1;
+    submitInfo.pCommandBufferInfos    = &cmdInfo;
+    vk::Fence fence                   = device.createFence(vk::FenceCreateInfo{});
+    submit2(submitInfo, fence);
     device.waitForFences(fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
     device.destroyFence(fence);
 }
@@ -94,6 +91,20 @@ void Queue::submit(vk::SubmitInfo submitInfo, vk::Fence fence)
 {
     std::scoped_lock submit_lock(submitMutex);
     queue.submit(submitInfo, fence);
+}
+
+void Queue::submit2(const vk::SubmitInfo2& submitInfo, vk::Fence fence)
+{
+    std::scoped_lock submit_lock(submitMutex);
+    queue.submit2(submitInfo, fence);
+}
+
+vk::Result Queue::present(const vk::PresentInfoKHR& presentInfo)
+{
+    std::scoped_lock submit_lock(submitMutex);
+    // The C function: the C++ wrapper throws on VK_ERROR_OUT_OF_DATE_KHR, which is a regular result here.
+    return static_cast<vk::Result>(
+        vkQueuePresentKHR(static_cast<VkQueue>(queue), reinterpret_cast<const VkPresentInfoKHR*>(&presentInfo)));
 }
 
 

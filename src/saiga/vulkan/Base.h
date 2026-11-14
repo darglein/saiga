@@ -22,7 +22,10 @@
 
 #include <algorithm>
 #include <assert.h>
+#include <deque>
 #include <exception>
+#include <functional>
+#include <mutex>
 
 namespace Saiga
 {
@@ -36,17 +39,52 @@ struct SAIGA_VULKAN_API VulkanBase
     // TODO: Rename to backing fields for dedicated queues
     std::unique_ptr<Queue> dedicated_compute_queue;
     std::unique_ptr<Queue> dedicated_transfer_queue;
-    Instance* instance;
+    Instance* instance = nullptr;
+
+    // Deferred deletions, see deferDelete().
+    std::mutex deletionMutex;
+    std::deque<std::pair<uint64_t, std::function<void()>>> deletionQueue;
 
    public:
-    std::atomic_uint32_t current_frame;
-    uint32_t numSwapchainFrames;
+    /**
+     * The number of the frame that is currently recorded. Incremented by finish_frame() after the frame was submitted.
+     * Frame f signals frameTimeline with the value f + 1 when all its commands on the main queue have completed.
+     */
+    std::atomic_uint32_t current_frame = 0;
+    uint32_t numSwapchainFrames        = 0;
     VulkanParameters m_parameters;
-    ~VulkanBase() { destroy(); }
+
+    // Timeline semaphore of the main queue, see current_frame.
+    vk::Semaphore frameTimeline;
+
+    // The value frameTimeline is signaled with when the current frame is complete.
+    uint64_t currentFrameSignalValue() const { return uint64_t(current_frame) + 1; }
+
+    // The value frameTimeline has reached: all frames f with f + 1 <= value are complete.
+    uint64_t completedFrameValue() const;
+
+    // Blocks until frameTimeline reaches the value.
+    void waitFrameValue(uint64_t value);
+
+    /**
+     * Executes the function (e.g. destroying a Vulkan object) once the GPU has finished all frames that were submitted
+     * so far, including the frame that is currently recorded. Use this for objects that may still be referenced by
+     * command buffers in flight.
+     */
+    void deferDelete(std::function<void()> f);
+
+    // Runs the deferred deletions whose frames are complete. Called every frame by finish_frame().
+    void processDeferredDeletes();
+
+    // Waits for the device and runs all deferred deletions.
+    void flushDeferredDeletes();
+    ~VulkanBase();
 
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
     vk::PhysicalDeviceFeatures enabledFeatures = {};
+    // The API version the device is used with (SAIGA_VULKAN_API_VERSION = 1.3)
+    uint32_t apiVersion = 0;
 
     Saiga::Vulkan::Memory::VulkanMemory memory;
 
@@ -64,7 +102,7 @@ struct SAIGA_VULKAN_API VulkanBase
      * queue as mainQueue. Depending on the GPU the queue may have other capabilities. If the GPU provides dedicated
      * transfer queues (without graphics and compute capabilities) one of them will be used.
      */
-    Queue* transferQueue;
+    Queue* transferQueue = nullptr;
 
     inline bool has_dedicated_transfer() { return dedicated_transfer_queue != nullptr; }
 
@@ -73,7 +111,7 @@ struct SAIGA_VULKAN_API VulkanBase
      * queue as mainQueue. Depending on the GPU the queue may have other capabilities.
      * If the GPU provides dedicated Compute queues (without graphics capabilities) one of them will be used.
      */
-    Queue* computeQueue;
+    Queue* computeQueue = nullptr;
     inline bool has_dedicated_compute() { return dedicated_compute_queue != nullptr; }
 
 
@@ -97,17 +135,13 @@ struct SAIGA_VULKAN_API VulkanBase
     /**
      * Create the logical device based on the assigned physical device, also gets default queue family indices
      *
-     * @param requestedFeatures Can be used to enable certain features upon device creation
-     * @param useSwapChain Set to false for headless rendering to omit the swapchain device extensions
-     * @param requestedQueueTypes Bit flags specifying the queue types to be requested from the device
+     * Enables the Vulkan 1.3 features saiga uses (dynamic rendering, synchronization2, timeline semaphores) and the
+     * requested core features that are available.
      *
-     * @return VkResult of the device creation call
+     * @param surface If set, the swapchain extension is enabled and the main queue family must support presenting to
+     *                this surface. Pass nullptr for headless rendering.
      */
-    void createLogicalDevice(VulkanParameters& parameters, bool useSwapChain = true);
-
-
-    [[deprecated("The functionality of this function was moved to createLogicalDevice(...)")]] void init(
-        VulkanParameters params);
+    void createLogicalDevice(VulkanParameters& parameters, vk::SurfaceKHR surface);
 
     void renderGUI();
 
@@ -121,9 +155,11 @@ struct SAIGA_VULKAN_API VulkanBase
         memory.init(this, swapchain_frames, m_parameters);
     }
 
+    // Called after the current frame was submitted (with frameTimeline = currentFrameSignalValue()).
     inline void finish_frame()
     {
         current_frame++;
+        processDeferredDeletes();
         memory.update();
     }
 };

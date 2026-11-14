@@ -5,8 +5,8 @@
 #include "ImageChunkAllocator.h"
 
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/util/easylogging++.h"
 #include "saiga/core/math/imath.h"
+#include "saiga/core/util/easylogging++.h"
 
 #include "SafeAllocator.h"
 
@@ -30,18 +30,41 @@ void Saiga::Vulkan::Memory::ImageChunkAllocator::headerInfo()
 
 ImageMemoryLocation* ImageChunkAllocator::allocate(ImageData& image_data)
 {
+    std::scoped_lock lock(allocationMutex);
+    const auto& requirements = image_data.image_requirements;
+
+    // The chunk allocator places an allocation at the start of a free range, and all offsets are sums of allocation
+    // sizes. Rounding every size up to a common alignment (a multiple of every image's alignment) therefore keeps
+    // all offsets aligned, also for images with a larger alignment than the ones before.
+    constexpr vk::DeviceSize common_alignment = 64 * 1024;
+    if (requirements.alignment == 0 || common_alignment % requirements.alignment != 0)
+    {
+        VLOG(3) << "Unsupported image alignment " << requirements.alignment;
+        return nullptr;
+    }
+    auto aligned_size = Saiga::iAlignUp(requirements.size, common_alignment);
+    if (aligned_size > m_chunkSize)
+    {
+        return nullptr;
+    }
+
     if (!hasInfo)
     {
-        auto memRequirements = image_data.image_requirements;
-
         vk::MemoryAllocateInfo info;
         info.allocationSize  = m_chunkSize;
-        info.memoryTypeIndex = findMemoryType(m_pDevice, memRequirements.memoryTypeBits, type.memoryFlags);
+        info.memoryTypeIndex = findMemoryType(m_pDevice, requirements.memoryTypeBits, type.memoryFlags);
         allocateInfo         = info;
         hasInfo              = true;
     }
-    auto aligned_size = Saiga::iAlignUp(image_data.image_requirements.size, image_data.image_requirements.alignment);
-    auto location     = ChunkAllocator::base_allocate(aligned_size);
+    if (((1u << allocateInfo.memoryTypeIndex) & requirements.memoryTypeBits) == 0)
+    {
+        // The memory type of this allocator can not be used for this image.
+        VLOG(3) << "Image memory type bits " << requirements.memoryTypeBits << " do not contain the memory type "
+                << allocateInfo.memoryTypeIndex << " of the allocator";
+        return nullptr;
+    }
+
+    auto location = ChunkAllocator::base_allocate(aligned_size);
 
     bind_image_data(m_device, location, std::move(image_data));
 

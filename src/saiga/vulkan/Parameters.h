@@ -22,6 +22,9 @@ struct SAIGA_VULKAN_API VulkanParameters
     bool expand_memory_stats   = false;
     bool enableDefragmentation = false;
     bool enableChunkAllocator  = true;
+    bool vsync                 = true;
+    // Index of the physical device to use (vkEnumeratePhysicalDevices order). -1: pick the best suitable device.
+    int preferredDevice        = -1;
     uint32_t maxDescriptorSets = 4096 * 4;
     // for {uniformBuffer,texture}
     std::array<uint32_t, 4> descriptorCounts = {4096, 4096, 4096, 4096};

@@ -5,11 +5,12 @@
 #pragma once
 #include "saiga/core/util/easylogging++.h"
 #include "saiga/export.h"
-#include <utility>
+
 #include <mutex>
 #include <optional>
 #include <ostream>
 #include <saiga/core/util/assert.h>
+#include <utility>
 #include <vulkan/vulkan.hpp>
 namespace Saiga::Vulkan::Memory
 {
@@ -65,7 +66,7 @@ struct SafeAccessor final
     SafeAccessor(SafeAccessor&&)      = delete;
 
     SafeAccessor& operator=(const SafeAccessor&) = delete;
-    SafeAccessor& operator=(SafeAccessor&&) = delete;
+    SafeAccessor& operator=(SafeAccessor&&)      = delete;
 };
 
 template <typename Data>
@@ -263,15 +264,14 @@ struct SAIGA_VULKAN_API BaseMemoryLocation
         }
     }
 
-    bool operator==(const BaseMemoryLocation& rhs)
+    // Compares without locking: the caller must make sure that the locations are not moved concurrently.
+    bool operator==(const BaseMemoryLocation& rhs) const
     {
-        SafeAccessor accessor(*this, rhs);
-
-        return std::tie(data, memory, offset, size, mappedPointer) ==
-               std::tie(rhs.data, rhs.memory, rhs.offset, rhs.size, rhs.mappedPointer);
+        return data == rhs.data && memory == rhs.memory && offset == rhs.offset && size == rhs.size &&
+               mappedPointer == rhs.mappedPointer;
     }
 
-    bool operator!=(const BaseMemoryLocation& rhs) { return !(rhs == *this); }
+    bool operator!=(const BaseMemoryLocation& rhs) const { return !(*this == rhs); }
 
 
     friend std::ostream& operator<<(std::ostream& os, const BaseMemoryLocation& location)

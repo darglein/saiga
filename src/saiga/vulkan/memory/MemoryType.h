@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ostream>
+#include <utility>
 
 namespace Saiga::Vulkan::Memory
 {
@@ -34,13 +35,11 @@ struct MemoryType
         return (memoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == vk::MemoryPropertyFlagBits::eHostVisible;
     }
 
+    // Lexicographic (strict weak ordering, required for the std::map keys).
     bool operator<(const MemoryType& rhs) const
     {
-        if (static_cast<unsigned int>(usageFlags) < static_cast<unsigned int>(rhs.usageFlags))
-        {
-            return true;
-        }
-        return static_cast<unsigned int>(memoryFlags) < static_cast<unsigned int>(rhs.memoryFlags);
+        return std::make_pair(static_cast<unsigned int>(usageFlags), static_cast<unsigned int>(memoryFlags)) <
+               std::make_pair(static_cast<unsigned int>(rhs.usageFlags), static_cast<unsigned int>(rhs.memoryFlags));
     }
 
     bool operator>(const MemoryType& rhs) const { return rhs < *this; }

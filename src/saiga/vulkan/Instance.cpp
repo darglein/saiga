@@ -7,12 +7,21 @@
 #include "Instance.h"
 
 #include "saiga/core/util/easylogging++.h"
-//#include "saiga/vulkan/VulkanTools.h"
+
+#include <algorithm>
+#include <iostream>
+#include <limits>
 
 namespace Saiga
 {
 namespace Vulkan
 {
+static std::string versionString(uint32_t version)
+{
+    return std::to_string(VK_API_VERSION_MAJOR(version)) + "." + std::to_string(VK_API_VERSION_MINOR(version)) + "." +
+           std::to_string(VK_API_VERSION_PATCH(version));
+}
+
 void Instance::destroy()
 {
     if (instance)
@@ -28,88 +37,178 @@ void Instance::create(const std::vector<std::string>& _instanceExtensions, bool 
 {
     SAIGA_ASSERT(!instance);
 
+    uint32_t loaderVersion = vk::enumerateInstanceVersion();
+    if (loaderVersion < SAIGA_VULKAN_API_VERSION)
+    {
+        SAIGA_EXIT_ERROR("Saiga requires Vulkan " + versionString(SAIGA_VULKAN_API_VERSION) +
+                         ", but the Vulkan loader only supports " + versionString(loaderVersion));
+    }
+    // The highest version the application uses. Devices with a lower version are rejected in pickPhysicalDevice.
+    apiVersion = SAIGA_VULKAN_API_VERSION;
+
     std::vector<std::string> instanceExtensions = _instanceExtensions;
     std::vector<std::string> instanceLayers;
 
     vk::ApplicationInfo appInfo;
     appInfo.pApplicationName = "Saiga Application";
     appInfo.pEngineName      = "Saiga";
-    appInfo.apiVersion       = VK_API_VERSION_1_1;
-
+    appInfo.apiVersion       = apiVersion;
 
     vk::InstanceCreateInfo instanceCreateInfo;
     instanceCreateInfo.pApplicationInfo = &appInfo;
 
     if (enableValidation)
     {
-        // We require both, the debug report extension as well as a validation layer
-        std::string ext = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
+        // We require both, the debug utils extension and the validation layer
+        std::string ext = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
         std::string val = Debug::getDebugValidationLayers();
-
-
         if (hasExtension(ext) && hasLayer(val))
         {
             std::cout << "Vulkan Validation layer enabled!" << std::endl;
             instanceExtensions.push_back(ext);
             instanceLayers.push_back(val);
         }
-        else if (!hasExtension(ext))
+        else
         {
-            std::cerr << "Vulkan Warning: You tried to enable the validation layer, but the extension " << ext
-                 << " was not found. Starting without valdiation layer..." << std::endl;
-            enableValidation = false;
-        }
-        else if (!hasLayer(val))
-        {
-            std::cerr << "Vulkan Warning: You tried to enable the validation layer, but the layer " << val
-                 << " was not found. Starting without valdiation layer..." << std::endl;
+            std::cerr << "Vulkan Warning: You tried to enable the validation layer, but "
+                      << (hasExtension(ext) ? "the layer " + val : "the extension " + ext)
+                      << " was not found. Starting without validation layer..." << std::endl;
             enableValidation = false;
         }
     }
+
     for (auto& s : instanceExtensions) _extensions.push_back(s);
     for (auto& s : instanceLayers) _layers.push_back(s);
 
-
     auto extensions = getEnabledExtensions();
     auto layers     = getEnabledLayers();
-
 
     instanceCreateInfo.enabledExtensionCount   = (uint32_t)extensions.size();
     instanceCreateInfo.ppEnabledExtensionNames = extensions.data();
     instanceCreateInfo.enabledLayerCount       = (uint32_t)layers.size();
     instanceCreateInfo.ppEnabledLayerNames     = layers.data();
 
+    // Also report messages of vkCreateInstance/vkDestroyInstance.
+    vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo = Debug::createInfo();
+    if (enableValidation) instanceCreateInfo.pNext = &debugCreateInfo;
+
     instance = vk::createInstance(instanceCreateInfo);
     SAIGA_ASSERT(instance);
 
-    // If requested, we enable the default validation layers for debugging
     if (enableValidation)
     {
         debug.init(instance);
     }
-    std::cout << "Vulkan instance created." << std::endl;
+    std::cout << "Vulkan instance created (API " << versionString(apiVersion) << ")." << std::endl;
 }
 
-vk::PhysicalDevice Instance::pickPhysicalDevice()
+int Instance::deviceScore(vk::PhysicalDevice device, vk::SurfaceKHR surface)
+{
+    auto properties = device.getProperties();
+    if (properties.apiVersion < SAIGA_VULKAN_API_VERSION) return -1;
+
+    auto features = device.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan12Features,
+                                        vk::PhysicalDeviceVulkan13Features>();
+    auto& f12     = features.get<vk::PhysicalDeviceVulkan12Features>();
+    auto& f13     = features.get<vk::PhysicalDeviceVulkan13Features>();
+    if (!f12.timelineSemaphore || !f13.dynamicRendering || !f13.synchronization2) return -1;
+
+    // The main queue (see VulkanBase::createLogicalDevice) needs graphics + compute and must be able to present.
+    auto families    = device.getQueueFamilyProperties();
+    bool has_present = false;
+    for (uint32_t i = 0; i < families.size(); ++i)
+    {
+        auto required = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute;
+        if ((families[i].queueFlags & required) == required && (!surface || device.getSurfaceSupportKHR(i, surface)))
+        {
+            has_present = true;
+            break;
+        }
+    }
+    if (!has_present) return -1;
+
+    switch (properties.deviceType)
+    {
+        case vk::PhysicalDeviceType::eDiscreteGpu:
+            return 3;
+        case vk::PhysicalDeviceType::eIntegratedGpu:
+            return 2;
+        case vk::PhysicalDeviceType::eVirtualGpu:
+            return 1;
+        default:
+            return 0;  // e.g. CPU (llvmpipe)
+    }
+}
+
+bool Instance::suitableDeviceAvailable()
+{
+    // Without a driver vkCreateInstance fails with VK_ERROR_INCOMPATIBLE_DRIVER.
+    try
+    {
+        if (vk::enumerateInstanceVersion() < SAIGA_VULKAN_API_VERSION) return false;
+
+        vk::ApplicationInfo appInfo;
+        appInfo.apiVersion = SAIGA_VULKAN_API_VERSION;
+        vk::InstanceCreateInfo instanceCreateInfo;
+        instanceCreateInfo.pApplicationInfo = &appInfo;
+        vk::Instance instance               = vk::createInstance(instanceCreateInfo);
+
+        bool found = false;
+        try
+        {
+            for (auto device : instance.enumeratePhysicalDevices())
+            {
+                if (deviceScore(device, nullptr) >= 0) found = true;
+            }
+        }
+        catch (const vk::SystemError&)
+        {
+        }
+        instance.destroy();
+        return found;
+    }
+    catch (const vk::SystemError&)
+    {
+        return false;
+    }
+}
+
+vk::PhysicalDevice Instance::pickPhysicalDevice(vk::SurfaceKHR surface, int preferredDevice)
 {
     std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
-    if (physicalDevices.size() == 0)
+
+    int selected   = -1;
+    int best_score = -1;
+    for (int i = 0; i < (int)physicalDevices.size(); ++i)
     {
-        SAIGA_EXIT_ERROR("Could not find a vulkan capable device.");
+        auto properties = physicalDevices[i].getProperties();
+        int score       = deviceScore(physicalDevices[i], surface);
+        std::cout << "Vulkan Device [" << i << "] : " << properties.deviceName.data() << ", API "
+                  << versionString(properties.apiVersion) << (score < 0 ? " (not suitable)" : "") << std::endl;
+
+        if (score < 0) continue;
+        if (i == preferredDevice)
+        {
+            selected   = i;
+            best_score = std::numeric_limits<int>::max();
+        }
+        else if (score > best_score)
+        {
+            selected   = i;
+            best_score = score;
+        }
     }
 
-    uint32_t selectedDevice = 0;
-    auto physicalDevice     = physicalDevices[selectedDevice];
-
+    if (selected < 0)
     {
-        vk::PhysicalDeviceProperties deviceProperties = physicalDevice.getProperties();
-
-        std::cout << "Selected Vulkan Device [" << selectedDevice << "] : " << deviceProperties.deviceName << ", ";
-        std::cout << " API: " << (deviceProperties.apiVersion >> 22) << "."
-                  << ((deviceProperties.apiVersion >> 12) & 0x3ff) << "." << (deviceProperties.apiVersion & 0xfff)
-                  << std::endl;
+        SAIGA_EXIT_ERROR("Could not find a suitable Vulkan device. Saiga requires Vulkan " +
+                         versionString(SAIGA_VULKAN_API_VERSION) +
+                         " with dynamic rendering, synchronization2 and timeline semaphores.");
     }
-    return physicalDevice;
+
+    std::cout << "Selected Vulkan Device [" << selected
+              << "] : " << physicalDevices[selected].getProperties().deviceName.data() << std::endl;
+    return physicalDevices[selected];
 }
 
 bool Instance::hasLayer(const std::string& name)
@@ -117,7 +216,7 @@ bool Instance::hasLayer(const std::string& name)
     auto prop = vk::enumerateInstanceLayerProperties();
     for (auto l : prop)
     {
-        if (std::string(l.layerName) == name) return true;
+        if (std::string(l.layerName.data()) == name) return true;
     }
     return false;
 }
@@ -127,7 +226,7 @@ bool Instance::hasExtension(const std::string& name)
     auto prop = vk::enumerateInstanceExtensionProperties();
     for (auto l : prop)
     {
-        if (std::string(l.extensionName) == name) return true;
+        if (std::string(l.extensionName.data()) == name) return true;
     }
     return false;
 }

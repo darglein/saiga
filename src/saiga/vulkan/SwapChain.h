@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "saiga/vulkan/Queue.h"
 #include "saiga/vulkan/svulkan.h"
 
 
@@ -22,10 +23,10 @@ struct SAIGA_VULKAN_API SwapChainBuffer
 class SAIGA_VULKAN_API VulkanSwapChain
 {
    private:
-    VkInstance instance;
-    VkDevice device;
-    VkPhysicalDevice physicalDevice;
-    VkSurfaceKHR surface;
+    VkInstance instance             = VK_NULL_HANDLE;
+    VkDevice device                 = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    VkSurfaceKHR surface            = VK_NULL_HANDLE;
 
    public:
     VkFormat colorFormat;
@@ -37,6 +38,8 @@ class SAIGA_VULKAN_API VulkanSwapChain
     std::vector<SwapChainBuffer> buffers;
     /** @brief Queue family index of the detected graphics and presenting device queue */
     uint32_t queueNodeIndex = UINT32_MAX;
+    // The usage flags the images were created with (color attachment + transfer src/dst if supported)
+    VkImageUsageFlags imageUsage = 0;
 
     ~VulkanSwapChain()
     {
@@ -87,7 +90,7 @@ class SAIGA_VULKAN_API VulkanSwapChain
      *
      * @return VkResult of the queue presentation
      */
-    VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore = VK_NULL_HANDLE);
+    VkResult queuePresent(Saiga::Vulkan::Queue& queue, uint32_t imageIndex, VkSemaphore waitSemaphore = VK_NULL_HANDLE);
 
 
     /**

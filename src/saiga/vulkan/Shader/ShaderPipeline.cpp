@@ -14,56 +14,58 @@ namespace Vulkan
 {
 bool ShaderPipelineBase::load(vk::Device device, std::vector<std::string> shaders)
 {
+    destroy();
     bool valid = true;
-    for (auto p : shaders)
+    for (auto& p : shaders)
     {
-        ShaderModule module;
-        valid &= module.load(device, p);
-        modules.push_back(module);
+        modules.emplace_back();
+        valid &= modules.back().load(device, p);
     }
-    return true;
+    return valid;
 }
 
 
 bool ShaderPipelineBase::loadGLSL(vk::Device device,
                                   std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders)
 {
+    destroy();
     bool valid = true;
-    for (auto p : shaders)
+    for (auto& p : shaders)
     {
-        ShaderModule module;
-        //        module.loadGLSL(device,p.second,p.first);
-        valid &= module.loadGLSL(device, std::get<1>(p), std::get<0>(p), std::get<2>(p));
-        modules.push_back(module);
+        modules.emplace_back();
+        valid &= modules.back().loadGLSL(device, std::get<1>(p), std::get<0>(p), std::get<2>(p));
     }
     return valid;
 }
 
 bool ShaderPipelineBase::loadCompute(vk::Device device, std::string shader, std::string injection)
 {
+    destroy();
     ShaderModule module;
     bool valid = module.load(device, shader, injection);
     if (valid)
     {
-        modules.push_back(module);
+        modules.push_back(std::move(module));
     }
     return valid;
 }
 
 void ShaderPipelineBase::destroy()
 {
-    for (auto& s : modules)
-    {
-        s.destroy();
-    }
+    // Vulkan allows destroying shader modules while pipelines created from them are in use, so this does not have
+    // to be deferred.
+    modules.clear();
+    pipelineInfo.clear();
 }
 
-void ShaderPipelineBase::reload()
+bool ShaderPipelineBase::reload()
 {
+    bool r = false;
     for (auto& s : modules)
     {
-        s.reload();
+        r |= s.reload();
     }
+    return r;
 }
 
 bool ShaderPipelineBase::autoReload()

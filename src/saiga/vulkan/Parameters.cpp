@@ -22,6 +22,8 @@ void VulkanParameters::fromConfigFile(const std::string& file)
     expand_memory_stats   = ini.GetBoolValue("Vulkan", "expandMemoryStats", false);
     enableDefragmentation = ini.GetAddBool("Vulkan", "enableDefragmentation", false);
     enableChunkAllocator  = ini.GetAddBool("Vulkan", "enableChunkAllocator", true);
+    vsync                 = ini.GetAddBool("Vulkan", "vsync", vsync);
+    preferredDevice       = ini.GetAddLong("Vulkan", "preferredDevice", preferredDevice);
     if (ini.changed()) ini.SaveFile(file.c_str());
 }
 

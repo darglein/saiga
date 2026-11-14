@@ -48,15 +48,15 @@ struct SAIGA_TEMPLATE Chunk
     AllocatedList allocations;
     FreeList freeList;
     std::optional<FreeListEntry> maxFreeRange;
-    void* mappedPointer;
+    void* mappedPointer = nullptr;
 
-    vk::DeviceSize allocated;
-    vk::DeviceSize size;
-    Chunk() = default;
+    vk::DeviceSize allocated = 0;
+    vk::DeviceSize size      = 0;
+    Chunk()                  = default;
 
-    Chunk(Chunk&&) = default;
-    Chunk& operator=(Chunk&&) = default;
-    Chunk(const Chunk&)       = delete;
+    Chunk(Chunk&&)                 = default;
+    Chunk& operator=(Chunk&&)      = default;
+    Chunk(const Chunk&)            = delete;
     Chunk& operator=(const Chunk&) = delete;
 
     Chunk(vk::DeviceMemory _memory, vk::Buffer _buffer, vk::DeviceSize _size, void* _mappedPointer)
@@ -76,8 +76,8 @@ struct SAIGA_TEMPLATE Chunk
    public:
     float getFragmentation() const
     {
-        auto max = 0U;
-        auto sum = 0U;
+        vk::DeviceSize max = 0;
+        vk::DeviceSize sum = 0;
         for (auto& freeEntry : freeList)
         {
             sum += freeEntry.size;
