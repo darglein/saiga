@@ -23,6 +23,7 @@ endif()
 saiga_add_version_resource(${MODULE_NAME} "Saiga Vulkan")
 
 target_link_libraries(${MODULE_NAME} PUBLIC ${VULKAN_TARGETS}  ${VULKAN_LIBS})
+target_link_libraries(${MODULE_NAME} PRIVATE ${VULKAN_PRIVATE_TARGETS})
 target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_PRIVATE_CXX_FLAGS}>")
 
 target_include_directories(

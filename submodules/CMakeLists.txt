@@ -431,3 +431,31 @@ if (SAIGA_WITH_LIBAVIF)
     message(STATUS "=================================")
 endif ()
 
+
+# glslang compiles the GLSL shaders of the vulkan module to SPIR-V. It is linked statically into saiga_vulkan
+# and only built when that module is (EXCLUDE_FROM_ALL).
+if (SAIGA_MODULE_VULKAN)
+    message("=================================")
+    if (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/glslang/CMakeLists.txt")
+        message(WARNING "The glslang submodule is missing (git submodule update --init). The vulkan module is disabled.")
+    elseif (CMAKE_VERSION VERSION_LESS 3.22.1)
+        message(WARNING "The glslang submodule needs CMake >= 3.22.1. The vulkan module is disabled.")
+    else ()
+        message("Adding Submodule glslang")
+
+        set(BUILD_SHARED_LIBS OFF)
+        set(BUILD_EXTERNAL OFF CACHE INTERNAL "")
+        set(GLSLANG_TESTS OFF CACHE INTERNAL "")
+        set(GLSLANG_ENABLE_INSTALL OFF CACHE INTERNAL "")
+        set(ENABLE_GLSLANG_BINARIES OFF CACHE INTERNAL "")
+        set(ENABLE_HLSL OFF CACHE INTERNAL "")
+        # The optimizer needs SPIRV-Tools.
+        set(ENABLE_OPT OFF CACHE INTERNAL "")
+
+        add_subdirectory(glslang EXCLUDE_FROM_ALL)
+        # Keep the glslang symbols out of the exports of saiga_vulkan, so they cannot clash with another glslang in
+        # the same process.
+        set_target_properties(glslang PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
+    endif ()
+    message("=================================")
+endif ()

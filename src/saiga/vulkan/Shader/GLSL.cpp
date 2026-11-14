@@ -10,16 +10,10 @@
 #include "saiga/core/util/fileChecker.h"
 #include "saiga/core/util/tostring.h"
 
-// glslang >= 11 installs its headers as glslang/SPIRV/..., older versions as SPIRV/...
-#if __has_include("glslang/SPIRV/GlslangToSpv.h")
-#    include "glslang/SPIRV/GlslangToSpv.h"
-#else
-#    include "SPIRV/GlslangToSpv.h"
-#endif
+// From submodules/glslang. Not <glslang/SPIRV/...>, the layout of an installed glslang: that would pick up the headers
+// of a system-wide glslang, which do not match the library saiga links.
+#include "SPIRV/GlslangToSpv.h"
 #include "glslang/Public/ShaderLang.h"
-#if __has_include("glslang/build_info.h")
-#    include "glslang/build_info.h"
-#endif
 
 #include <cstring>
 #include <deque>
@@ -339,9 +333,8 @@ static void init_resources(TBuiltInResource& Resources)
     Resources.limits.generalVariableIndexing              = 1;
     Resources.limits.generalConstantMatrixVectorIndexing  = 1;
 
-    // Limits added in later glslang versions (the values of glslang's GetDefaultResources()). They are 0 otherwise,
-    // which makes e.g. mesh shaders or dual source blending fail to compile.
-#if defined(GLSLANG_VERSION_MAJOR) && GLSLANG_VERSION_MAJOR >= 12
+    // The values of glslang's GetDefaultResources(). They are 0 otherwise, which makes e.g. mesh shaders or dual source
+    // blending fail to compile.
     Resources.maxMeshOutputVerticesNV     = 256;
     Resources.maxMeshOutputPrimitivesNV   = 512;
     Resources.maxMeshWorkGroupSizeX_NV    = 32;
@@ -361,7 +354,6 @@ static void init_resources(TBuiltInResource& Resources)
     Resources.maxTaskWorkGroupSizeZ_EXT   = 128;
     Resources.maxMeshViewCountEXT         = 4;
     Resources.maxDualSourceDrawBuffersEXT = 1;
-#endif
 }
 
 static const TBuiltInResource& GetResources()

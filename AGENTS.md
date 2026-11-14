@@ -48,7 +48,7 @@ data/                   Sample assets (textures, models)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
-                        libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF (built from submodules/CMakeLists.txt),
+                        libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF, glslang (built from submodules/CMakeLists.txt),
                         plus tiny-eigen and tiny-glog, which are plain files maintained in this repository
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
 .github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build (OpenGL on Mesa llvmpipe, Vulkan compile-only) + ctest
@@ -68,7 +68,7 @@ sudo apt-get install -y --no-install-recommends \
   build-essential cmake ninja-build ccache \
   xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules \
   libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri \
-  libvulkan-dev glslang-dev glslang-tools spirv-tools
+  libvulkan-dev
 ```
 
 The dependency list in `README.md` is partly outdated (e.g. GLM is no longer used — Eigen is the
@@ -94,8 +94,8 @@ cmake --build build --parallel -- -k 0
 - **CMake >= 4.0** refuses the `cmake_minimum_required(VERSION 3.0)` of `submodules/glog`; add
   `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to the configure. (CI uses CMake 3.28 and does not need it.)
 - The CUDA module needs a GPU / CUDA toolkit and is **not covered by CI**. The Vulkan module is only
-  compile-checked (no tests, no samples); it needs the Vulkan headers and glslang (glslang >= 11 is found through its
-  CMake config, older ones through `cmake/FindGLslang.cmake`). The OpenGL module is covered, but only through its
+  compile-checked (no tests, no samples); it needs the Vulkan headers. glslang comes from `submodules/glslang`, is linked
+  statically into `saiga_vulkan` and needs CMake >= 3.22.1 (the module is skipped with a warning below that). The OpenGL module is covered, but only through its
   headless tests (no window, renderers or samples). For a CUDA build leave `SAIGA_MODULE_CUDA=ON` and pin the archs with
   `-DSAIGA_CUDA_ARCH="86;89"` (dotless, e.g. `75;80;86;89+PTX`), otherwise the installed GPU is
   autodetected.
