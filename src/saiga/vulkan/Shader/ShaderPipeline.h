@@ -32,6 +32,9 @@ class SAIGA_VULKAN_API ShaderPipelineBase
                   std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders);
 
     bool loadCompute(vk::Device device, std::string shader, std::string injection = {});
+    // From GLSL source code in memory (no #include, not reloaded). Returns false if a shader does not compile.
+    bool loadGLSLStrings(vk::Device device,
+                         const std::vector<std::pair<vk::ShaderStageFlagBits, std::string>>& shaders);
 
 
     // Destroys the shader modules. Pipelines created from them stay valid.

@@ -39,7 +39,10 @@ src/
                         debug_utils for validation) and uses its core
                         features: dynamic rendering (pipelines take RenderingFormats, no VkRenderPass),
                         synchronization2 (pipelineBarrier2/submit2) and timeline semaphores
-                        (VulkanBase::frameTimeline; VulkanBase::deferDelete for objects in use by frames in flight)
+                        (VulkanBase::frameTimeline; VulkanBase::deferDelete for objects in use by frames in flight).
+                        Resources: buffer/ (vertex, index, uniform, staging, indirect), texture/ (Texture2D, 2DArray,
+                        Cube, 3D with mipmaps and download; Sampler; RenderTarget for offscreen passes incl. MSAA and
+                        multiple color attachments)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -119,7 +122,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan** and
-33 tests. The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+36 tests. The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests

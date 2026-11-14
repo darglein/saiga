@@ -32,7 +32,14 @@ class SAIGA_VULKAN_API DescriptorSet
     // DynamicDescriptorSet for that).
     DescriptorSetLayout* layout;
     vk::DescriptorSet descriptorSet;
-    std::map<uint32_t, std::pair<Texture*, TimePoint>> assigned_textures;
+    struct AssignedTexture
+    {
+        Texture* texture = nullptr;
+        // The sampler used instead of the texture's default sampler (not owned), or null.
+        vk::Sampler sampler;
+        TimePoint time;
+    };
+    std::map<uint32_t, AssignedTexture> assigned_textures;
     DescriptorSet() : base(nullptr), layout(nullptr), descriptorSet(nullptr), assigned_textures() {}
     DescriptorSet(VulkanBase* _base, DescriptorSetLayout* _layout, vk::DescriptorSet _descriptorSet)
         : base(_base), layout(_layout), descriptorSet(_descriptorSet), assigned_textures()
@@ -59,6 +66,8 @@ class SAIGA_VULKAN_API DescriptorSet
 
     void assign(uint32_t index, UniformBuffer* buffer);
     void assign(uint32_t index, Texture* texture);
+    // Samples the texture with the given sampler instead of its default sampler. The sampler must outlive the set.
+    void assign(uint32_t index, Texture* texture, const Sampler& sampler);
 };
 class SAIGA_VULKAN_API StaticDescriptorSet final : public DescriptorSet
 {

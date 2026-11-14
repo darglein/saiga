@@ -81,6 +81,11 @@ class SAIGA_TEMPLATE IndexBuffer : public Buffer
     }
 
     void draw(vk::CommandBuffer& cmd) { cmd.drawIndexed(indexCount, 1, 0, 0, 0); }
+
+    void drawInstanced(vk::CommandBuffer& cmd, uint32_t instanceCount, uint32_t firstInstance = 0)
+    {
+        cmd.drawIndexed(indexCount, instanceCount, 0, 0, firstInstance);
+    }
 };
 
 }  // namespace Vulkan

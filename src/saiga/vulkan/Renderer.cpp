@@ -28,6 +28,10 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
     vulkanParameters.physicalDeviceFeatures.wideLines        = VK_TRUE;
     vulkanParameters.physicalDeviceFeatures.largePoints      = VK_TRUE;
+    // For Sampler (anisotropic filtering) and IndirectBuffer. Dropped in createLogicalDevice if not available.
+    vulkanParameters.physicalDeviceFeatures.samplerAnisotropy         = VK_TRUE;
+    vulkanParameters.physicalDeviceFeatures.multiDrawIndirect         = VK_TRUE;
+    vulkanParameters.physicalDeviceFeatures.drawIndirectFirstInstance = VK_TRUE;
     base().createLogicalDevice(vulkanParameters, surface);
 
     if (!isHeadless())

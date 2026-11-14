@@ -38,6 +38,26 @@ bool ShaderPipelineBase::loadGLSL(vk::Device device,
     return valid;
 }
 
+bool ShaderPipelineBase::loadGLSLStrings(vk::Device device,
+                                         const std::vector<std::pair<vk::ShaderStageFlagBits, std::string>>& shaders)
+{
+    destroy();
+    bool valid = true;
+    for (auto& p : shaders)
+    {
+        auto spirv = GLSLANG::createFromString(p.second, p.first);
+        if (spirv.empty())
+        {
+            valid = false;
+            continue;
+        }
+        modules.emplace_back();
+        modules.back().createSPIRV(device, p.first, spirv);
+    }
+    if (!valid) destroy();
+    return valid;
+}
+
 bool ShaderPipelineBase::loadCompute(vk::Device device, std::string shader, std::string injection)
 {
     destroy();

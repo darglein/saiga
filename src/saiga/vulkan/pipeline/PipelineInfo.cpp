@@ -19,6 +19,18 @@ void PipelineInfo::addShaders(GraphicsShaderPipeline& shaders)
     //    }
 }
 
+void PipelineInfo::addVertexBinding(uint32_t binding, uint32_t stride, vk::VertexInputRate inputRate,
+                                    const std::vector<vk::VertexInputAttributeDescription>& attributes)
+{
+    for (auto& b : vertexInputBindings) SAIGA_ASSERT(b.binding != binding, "The vertex binding is already used");
+    vertexInputBindings.emplace_back(binding, stride, inputRate);
+    for (auto a : attributes)
+    {
+        SAIGA_ASSERT(a.binding == binding, "The attribute belongs to another binding");
+        vertexInputAttributes.push_back(a);
+    }
+}
+
 vk::GraphicsPipelineCreateInfo PipelineInfo::createCreateInfo(vk::PipelineLayout pipelineLayout,
                                                               const RenderingFormats& formats)
 {
@@ -26,8 +38,8 @@ vk::GraphicsPipelineCreateInfo PipelineInfo::createCreateInfo(vk::PipelineLayout
     dynamicState.pDynamicStates    = dynamicStateEnables.data();
 
     // Pipelines without vertex input (e.g. full screen passes that generate the vertices in the shader)
-    vi.vertexBindingDescriptionCount   = hasVertexInfo ? 1 : 0;
-    vi.pVertexBindingDescriptions      = hasVertexInfo ? &vertexInputBindings : nullptr;
+    vi.vertexBindingDescriptionCount   = vertexInputBindings.size();
+    vi.pVertexBindingDescriptions      = vertexInputBindings.data();
     vi.vertexAttributeDescriptionCount = vertexInputAttributes.size();
     vi.pVertexAttributeDescriptions    = vertexInputAttributes.data();
 

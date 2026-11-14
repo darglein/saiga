@@ -82,8 +82,21 @@ class SAIGA_VULKAN_API PipelineInfo
 
 
 
+    // The per-vertex attributes of the vertex type in binding 0.
     template <typename VertexType>
     void addVertexInfo();
+
+    /**
+     * Adds a vertex buffer binding with its attributes, e.g. per-instance data in binding 1:
+     *
+     *   info.addVertexBinding(1, sizeof(InstanceData), vk::VertexInputRate::eInstance,
+     *                         {{4, 1, vk::Format::eR32G32B32A32Sfloat, offsetof(InstanceData, offset)}});
+     *
+     * The attribute descriptions are {location, binding, format, offset}. Bind the buffer with
+     * VertexBuffer::bind(cmd, binding) and draw with an instance count.
+     */
+    void addVertexBinding(uint32_t binding, uint32_t stride, vk::VertexInputRate inputRate,
+                          const std::vector<vk::VertexInputAttributeDescription>& attributes);
 
     void addShaders(Saiga::Vulkan::GraphicsShaderPipeline& shaders);
 
@@ -91,13 +104,12 @@ class SAIGA_VULKAN_API PipelineInfo
     vk::GraphicsPipelineCreateInfo createCreateInfo(vk::PipelineLayout pipelineLayout, const RenderingFormats& formats);
 
    private:
-    bool hasVertexInfo = false;
     RenderingFormats renderingFormats;
     vk::PipelineRenderingCreateInfo renderingInfo;
     std::vector<vk::PipelineColorBlendAttachmentState> blendAttachmentStates;
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     vk::PipelineVertexInputStateCreateInfo vi;
-    vk::VertexInputBindingDescription vertexInputBindings;
+    std::vector<vk::VertexInputBindingDescription> vertexInputBindings;
     std::vector<vk::VertexInputAttributeDescription> vertexInputAttributes;
     vk::PipelineDynamicStateCreateInfo dynamicState;
 };
@@ -106,8 +118,10 @@ template <typename VertexType>
 void PipelineInfo::addVertexInfo()
 {
     VKVertexAttribBinder<VertexType> va;
-    va.getVKAttribs(vertexInputBindings, vertexInputAttributes);
-    hasVertexInfo = true;
+    vk::VertexInputBindingDescription binding;
+    std::vector<vk::VertexInputAttributeDescription> attributes;
+    va.getVKAttribs(binding, attributes);
+    addVertexBinding(binding.binding, binding.stride, binding.inputRate, attributes);
 }
 
 

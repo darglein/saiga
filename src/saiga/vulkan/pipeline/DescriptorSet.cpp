@@ -27,7 +27,19 @@ void DescriptorSet::assign(uint32_t index, Texture* texture)
     base->device.updateDescriptorSets(
         {vk::WriteDescriptorSet{descriptorSet, binding.binding, 0, 1, binding.descriptorType, &info, nullptr, nullptr}},
         nullptr);
-    assigned_textures[index] = std::make_pair(texture, time);
+    assigned_textures[index] = AssignedTexture{texture, nullptr, time};
+}
+
+void DescriptorSet::assign(uint32_t index, Texture* texture, const Sampler& sampler)
+{
+    SAIGA_ASSERT(descriptorSet && layout && texture && texture->memoryLocation);
+    auto binding = layout->getBindingForIndex(index);
+    auto time    = Clock::now();
+    auto info    = texture->getDescriptorInfo(sampler);
+    base->device.updateDescriptorSets(
+        {vk::WriteDescriptorSet{descriptorSet, binding.binding, 0, 1, binding.descriptorType, &info, nullptr, nullptr}},
+        nullptr);
+    assigned_textures[index] = AssignedTexture{texture, sampler, time};
 }
 
 void DescriptorSet::release()
@@ -89,7 +101,8 @@ void DynamicDescriptorSet::update()
 
     for (auto& entry : assigned_textures)
     {
-        auto& [texture, time] = entry.second;
+        auto& texture = entry.second.texture;
+        auto& time    = entry.second.time;
         if (!texture->memoryLocation) continue;
 
         if (texture->memoryLocation->modified_time > time)
@@ -101,6 +114,7 @@ void DynamicDescriptorSet::update()
             }
 
             auto info = texture->getDescriptorInfo();
+            if (entry.second.sampler) info.sampler = entry.second.sampler;
             base->device.updateDescriptorSets(layout->getWriteForBinding(entry.first, new_set, info), nullptr);
 
             time = texture->memoryLocation->modified_time;

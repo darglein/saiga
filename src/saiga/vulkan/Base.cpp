@@ -230,6 +230,9 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, vk::SurfaceKH
     disableIfMissing(featuresToEnable.fillModeNonSolid, availableFeatures.fillModeNonSolid, "fillModeNonSolid");
     disableIfMissing(featuresToEnable.largePoints, availableFeatures.largePoints, "largePoints");
     disableIfMissing(featuresToEnable.samplerAnisotropy, availableFeatures.samplerAnisotropy, "samplerAnisotropy");
+    disableIfMissing(featuresToEnable.multiDrawIndirect, availableFeatures.multiDrawIndirect, "multiDrawIndirect");
+    disableIfMissing(featuresToEnable.drawIndirectFirstInstance, availableFeatures.drawIndirectFirstInstance,
+                     "drawIndirectFirstInstance");
 
     // Vulkan 1.2/1.3 features saiga requires (checked in Instance::pickPhysicalDevice).
     vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan12Features,

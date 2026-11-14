@@ -83,6 +83,11 @@ class SAIGA_TEMPLATE VertexBuffer : public Buffer
 
     void draw(vk::CommandBuffer& cmd, int count, int first = 0) { cmd.draw(count, 1, first, 0); }
 
+    void drawInstanced(vk::CommandBuffer& cmd, uint32_t instanceCount, uint32_t firstInstance = 0)
+    {
+        cmd.draw(vertexCount, instanceCount, 0, firstInstance);
+    }
+
     void bind(vk::CommandBuffer& cmd, uint32_t firstBinding = 0)
     {
         SAIGA_ASSERT(m_memoryLocation);

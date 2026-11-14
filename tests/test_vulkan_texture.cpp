@@ -4,8 +4,9 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/vulkan/buffer/StagingBuffer.h"
 #include "saiga/vulkan/texture/Texture.h"
+
+#include <cstring>
 
 #include "vulkan_test_context.h"
 
@@ -22,32 +23,20 @@ class VulkanTexture : public VulkanTest
         return img;
     }
 
-    // Reads back an RGBA8 texture.
-    static TemplatedImage<ucvec4> Download(Vulkan::Texture2D& texture)
+    // Reads back one mip level of one layer of an RGBA8 texture.
+    static TemplatedImage<ucvec4> Download(Vulkan::Texture& texture, uint32_t mipLevel = 0, uint32_t layer = 0)
     {
-        size_t size = size_t(texture.width) * texture.height * 4;
-        Vulkan::StagingBuffer staging;
-        staging.init(base(), size);
+        auto data = texture.download(mipLevel, layer);
+        TemplatedImage<ucvec4> img(texture.mipHeight(mipLevel), texture.mipWidth(mipLevel));
+        EXPECT_EQ(data.size(), size_t(img.w) * img.h * 4);
+        if (data.size() == size_t(img.w) * img.h * 4) std::memcpy(img.data(), data.data(), data.size());
+        return img;
+    }
 
-        Submit(
-            [&](vk::CommandBuffer cmd)
-            {
-                texture.transitionImageLayout(cmd, vk::ImageLayout::eTransferSrcOptimal);
-
-                vk::BufferImageCopy region = staging.getBufferImageCopy(0);
-                region.imageSubresource    = vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1);
-                region.imageExtent         = vk::Extent3D(texture.width, texture.height, 1);
-                cmd.copyImageToBuffer(texture.memoryLocation->data.image, vk::ImageLayout::eTransferSrcOptimal,
-                                      staging.createInfo().buffer, region);
-
-                staging.barrier(cmd, vk::PipelineStageFlagBits2::eAllTransfer, vk::AccessFlagBits2::eTransferWrite,
-                                vk::PipelineStageFlagBits2::eHost, vk::AccessFlagBits2::eHostRead);
-                texture.transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
-            });
-
-        TemplatedImage<ucvec4> img(texture.height, texture.width);
-        staging.download(img.data(), size);
-        staging.destroyImmediately();
+    static TemplatedImage<ucvec4> Solid(int w, int h, ucvec4 color)
+    {
+        TemplatedImage<ucvec4> img(h, w);
+        img.getImageView().set(color);
         return img;
     }
 
@@ -112,4 +101,150 @@ TEST_F(VulkanTexture, UploadImageReplacesContent)
     auto img = Pattern(6, 6);
     texture.uploadImage(img, false);
     ExpectEqual(Download(texture), img);
+}
+
+TEST_F(VulkanTexture, DownloadKeepsLayout)
+{
+    auto img = Pattern(4, 4);
+    Vulkan::Texture2D texture;
+    texture.fromImage(base(), img, vk::ImageUsageFlagBits::eSampled, false);
+    ASSERT_EQ(texture.memoryLocation->data.layout, vk::ImageLayout::eShaderReadOnlyOptimal);
+    ExpectEqual(Download(texture), img);
+    EXPECT_EQ(texture.memoryLocation->data.layout, vk::ImageLayout::eShaderReadOnlyOptimal);
+}
+
+TEST_F(VulkanTexture, FullMipLevels)
+{
+    EXPECT_EQ(Vulkan::Texture::fullMipLevels(1, 1), 1u);
+    EXPECT_EQ(Vulkan::Texture::fullMipLevels(8, 8), 4u);
+    EXPECT_EQ(Vulkan::Texture::fullMipLevels(9, 3), 4u);
+    EXPECT_EQ(Vulkan::Texture::fullMipLevels(4, 4, 32), 6u);
+}
+
+TEST_F(VulkanTexture, Mipmaps)
+{
+    // Left half black, right half white: the average is gray.
+    TemplatedImage<ucvec4> img(8, 8);
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x) img(y, x) = x < 4 ? ucvec4(0, 0, 0, 255) : ucvec4(255, 255, 255, 255);
+
+    Vulkan::Texture2D texture;
+    texture.fromImage(base(), img, vk::ImageUsageFlagBits::eSampled, false, true);
+    ASSERT_EQ(texture.mipLevels, 4u);
+    // Textures with mipmaps are not moved by the defragmenter.
+    EXPECT_FALSE(texture.is_movable());
+
+    ExpectEqual(Download(texture, 0), img);
+
+    // 2x2: still a sharp edge
+    auto level2 = Download(texture, 2);
+    ASSERT_EQ(level2.w, 2);
+    ASSERT_EQ(level2.h, 2);
+    EXPECT_EQ(level2(0, 0), ucvec4(0, 0, 0, 255));
+    EXPECT_EQ(level2(1, 1), ucvec4(255, 255, 255, 255));
+
+    auto level3 = Download(texture, 3);
+    ASSERT_EQ(level3.w, 1);
+    ASSERT_EQ(level3.h, 1);
+    EXPECT_NEAR(level3(0, 0)(0), 128, 2);
+    EXPECT_NEAR(level3(0, 0)(1), 128, 2);
+    EXPECT_EQ(level3(0, 0)(3), 255);
+}
+
+// uploadImage must regenerate the mip levels from the new content.
+TEST_F(VulkanTexture, UploadRegeneratesMipmaps)
+{
+    Vulkan::Texture2D texture;
+    texture.fromImage(base(), Solid(4, 4, ucvec4(255, 0, 0, 255)), vk::ImageUsageFlagBits::eSampled, false, true);
+    ASSERT_EQ(texture.mipLevels, 3u);
+    EXPECT_EQ(Download(texture, 2)(0, 0), ucvec4(255, 0, 0, 255));
+
+    texture.uploadImage(Solid(4, 4, ucvec4(0, 0, 255, 255)), false);
+    EXPECT_EQ(Download(texture, 1)(1, 1), ucvec4(0, 0, 255, 255));
+    EXPECT_EQ(Download(texture, 2)(0, 0), ucvec4(0, 0, 255, 255));
+}
+
+TEST_F(VulkanTexture, Array)
+{
+    std::vector<TemplatedImage<ucvec4>> layers;
+    layers.push_back(Pattern(6, 4));
+    layers.push_back(Solid(6, 4, ucvec4(10, 20, 30, 40)));
+    layers.push_back(Solid(6, 4, ucvec4(200, 100, 50, 255)));
+
+    Vulkan::Texture2DArray texture;
+    texture.fromImages(base(), {&layers[0], &layers[1], &layers[2]}, vk::ImageUsageFlagBits::eSampled, false);
+    EXPECT_EQ(texture.layerCount, 3u);
+    EXPECT_EQ(texture.width, 6u);
+    EXPECT_EQ(texture.height, 4u);
+    for (uint32_t i = 0; i < 3; ++i) ExpectEqual(Download(texture, 0, i), layers[i]);
+
+    // Replacing one layer keeps the others.
+    auto replacement = Solid(6, 4, ucvec4(1, 2, 3, 4));
+    texture.uploadLayer(1, replacement, false);
+    ExpectEqual(Download(texture, 0, 0), layers[0]);
+    ExpectEqual(Download(texture, 0, 1), replacement);
+    ExpectEqual(Download(texture, 0, 2), layers[2]);
+}
+
+TEST_F(VulkanTexture, Cube)
+{
+    std::vector<TemplatedImage<ucvec4>> faces;
+    std::vector<const Image*> pointers;
+    for (int i = 0; i < 6; ++i) faces.push_back(Solid(4, 4, ucvec4(i * 40, 255 - i * 40, i, 255)));
+    for (auto& f : faces) pointers.push_back(&f);
+
+    Vulkan::TextureCube texture;
+    texture.fromImages(base(), pointers, vk::ImageUsageFlagBits::eSampled, false, true);
+    EXPECT_EQ(texture.layerCount, 6u);
+    EXPECT_EQ(texture.mipLevels, 3u);
+    for (uint32_t i = 0; i < 6; ++i)
+    {
+        ExpectEqual(Download(texture, 0, i), faces[i]);
+        // The mipmaps are generated per face.
+        EXPECT_EQ(Download(texture, 2, i)(0, 0), faces[i](0, 0));
+    }
+
+    auto replacement = Solid(4, 4, ucvec4(9, 8, 7, 255));
+    texture.uploadFace(3, replacement, false);
+    ExpectEqual(Download(texture, 0, 3), replacement);
+    ExpectEqual(Download(texture, 0, 2), faces[2]);
+    EXPECT_EQ(Download(texture, 2, 3)(0, 0), ucvec4(9, 8, 7, 255));
+}
+
+TEST_F(VulkanTexture, Volume)
+{
+    const int w = 5, h = 4, d = 3;
+    std::vector<uint8_t> data(w * h * d);
+    for (size_t i = 0; i < data.size(); ++i) data[i] = uint8_t(i * 3);
+
+    Vulkan::Texture3D texture;
+    texture.fromData(base(), w, h, d, vk::Format::eR8Unorm, data.data());
+    EXPECT_EQ(texture.depth, 3u);
+    EXPECT_EQ(texture.download(), data);
+
+    // Replace a 2x2x2 box at (1,1,1)
+    std::vector<uint8_t> box(8, 255);
+    texture.uploadRegion(ivec3(1, 1, 1), ivec3(2, 2, 2), box.data());
+
+    auto expected = data;
+    for (int z = 1; z < 3; ++z)
+        for (int y = 1; y < 3; ++y)
+            for (int x = 1; x < 3; ++x) expected[(z * h + y) * w + x] = 255;
+    EXPECT_EQ(texture.download(), expected);
+}
+
+TEST_F(VulkanTexture, VolumeMipmaps)
+{
+    std::vector<uint8_t> data(8 * 8 * 8, 77);
+    Vulkan::Texture3D texture;
+    texture.fromData(base(), 8, 8, 8, vk::Format::eR8Unorm, data.data(), vk::ImageUsageFlagBits::eSampled, true);
+    ASSERT_EQ(texture.mipLevels, 4u);
+
+    auto level1 = texture.download(1);
+    ASSERT_EQ(level1.size(), size_t(4 * 4 * 4));
+    for (auto v : level1) ASSERT_EQ(v, 77);
+
+    auto level3 = texture.download(3);
+    ASSERT_EQ(level3.size(), 1u);
+    EXPECT_EQ(level3[0], 77);
 }
