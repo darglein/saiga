@@ -384,8 +384,9 @@ Mat4 createTRSmatrix(const MatrixBase<D1>& t, const Quat& r, const MatrixBase<D2
     Mat3 R = r.matrix();
     for (int i = 0; i < 3; ++i)
     {
-        for (int j = 0; j < 3; ++j) m(i, j) = R(i, j) * s(j);
-        m(i, 3) = t(i);
+        // Two-index access: block views (MatrixView) have no single-index operator
+        for (int j = 0; j < 3; ++j) m(i, j) = R(i, j) * s(j, 0);
+        m(i, 3) = t(i, 0);
     }
     return m;
 }

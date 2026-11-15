@@ -267,6 +267,14 @@ class MatrixBase
     {
         static_assert(internal::sameShapeAndScalar<Derived, OtherType>,
                       "isApprox needs the same scalar type, dimensions and kind (Matrix or Array; like Eigen).");
+        if constexpr (std::is_integral_v<Scalar>)
+        {
+            // Like Eigen: integers are compared exactly (the squared norms below would overflow)
+            (void)prec;
+            for (int i = 0; i < derived().size(); ++i)
+                if (derived().at(i) != other.derived().at(i)) return false;
+            return true;
+        }
         Scalar diff = 0, a = 0, b = 0;
         for (int i = 0; i < derived().size(); ++i)
         {

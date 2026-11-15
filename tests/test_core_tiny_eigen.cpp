@@ -263,6 +263,10 @@ TEST(TinyEigen, IsApprox)
     EXPECT_TRUE(a.isApprox(a + Vec3d(1e-14, 0, 0)));
     EXPECT_FALSE(a.isApprox(a + Vec3d(1e-6, 0, 0)));
     EXPECT_TRUE(a.isApprox(a + Vec3d(1e-6, 0, 0), 1e-5));
+    // Regression: integer vectors were compared through squared norms, which wrapped ((0,0,0) ~ (65536,0,0))
+    Matrix<uint32_t, 3, 1> zero(0, 0, 0), big(65536, 0, 0);
+    EXPECT_FALSE(zero.isApprox(big));
+    EXPECT_TRUE(big.isApprox(big));
     // Relative to the smaller norm, as in Eigen: a zero vector is only approximately equal to zero
     EXPECT_TRUE(Vec3d::Zero().isApprox(Vec3d::Zero()));
     EXPECT_FALSE(Vec3d::Zero().isApprox(Vec3d(1e-20, 0, 0)));

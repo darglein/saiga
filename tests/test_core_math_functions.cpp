@@ -515,6 +515,13 @@ TEST(MathDouble, CreateTRSmatrixMatchesFloat)
     // The Vec4 overload uses xyz and ignores w
     Mat4 m4 = createTRSmatrix(Vec4(t(0), t(1), t(2), 7), r, Vec4(s(0), s(1), s(2), 9));
     EXPECT_TRUE(m4.isApprox(m));
+
+    // Regression: block views as arguments did not compile (single-index access on a view)
+    Mat4 storage              = Mat4::Zero();
+    storage.block<3, 1>(0, 3) = t;
+    storage.block<3, 1>(0, 2) = s;
+    Mat4 mb                   = createTRSmatrix(storage.block<3, 1>(0, 3), r, storage.block<3, 1>(0, 2));
+    EXPECT_TRUE(mb.isApprox(m));
 }
 
 TEST(MathDouble, LookAtMatchesFloatAndIsExactFarFromTheOrigin)
