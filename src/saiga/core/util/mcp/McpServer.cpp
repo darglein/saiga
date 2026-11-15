@@ -105,6 +105,18 @@ bool waitWritable(socket_t s, int timeoutMs)
 }
 
 // Blocking (accepted sockets; on Windows they inherit the non-blocking mode of the listener) or non-blocking mode
+// Apple has no MSG_NOSIGNAL: suppress SIGPIPE per socket instead (a client that disconnects during a response would
+// otherwise terminate the process)
+void suppressSigPipe(socket_t s)
+{
+#ifdef SO_NOSIGPIPE
+    int one = 1;
+    setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
+#else
+    (void)s;
+#endif
+}
+
 void setBlocking(socket_t s, bool blocking)
 {
 #ifdef _WIN32
@@ -586,6 +598,7 @@ bool McpServer::start(int port, const std::string& address)
     }
 
     // Non-blocking: a connection that is gone between poll() and accept() must not block the accept thread (and stop())
+    suppressSigPipe(s);
     setBlocking(s, false);
 
     sockaddr_in bound = {};
@@ -792,6 +805,7 @@ void McpServer::acceptLoop()
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
+        suppressSigPipe(s);
         setBlocking(s, true);
 
         int yes = 1;

@@ -1816,10 +1816,13 @@ the host exports the connected characters at every commit step from the same fro
 and a disconnected character from the host's own state into the next commit (§13.7). Every commit stores the latest
 export of every character that has played in the world (carried forward from the previous commit, part of the save
 directory). The host sends a connected client its export only after the world-state file of that commit has been
-renamed into place (the client keeps the newest), and on leave. **Rejoin**: if the loaded commit has a copy for the
-joining `characterId`, the host copy is authoritative: it is imported and sent back to the client, so the character
-rolls back together with the world (no item exists twice). Otherwise (a new character, or the first visit of this
-world) the client's file is imported normally. `World::exportCharacter(Entity player)` [S33] exports and sends one character at any time, so
+renamed into place (the client keeps the newest), and on leave. The host keeps the
+latest export of every character in memory until a commit stores it: the export of a clean leave (the same file the
+client receives) and the export of a disconnect. **Rejoin**: if the host has a copy for the joining `characterId`
+(in memory, else in the loaded commit), the host copy is authoritative: it is imported and sent back to the client.
+Without a crash this is the leave-time export, so nothing is lost; after a host crash (§13.7) it is the loaded commit's
+copy, so the character rolls back together with the world (no item exists twice). Otherwise (a new character, or the
+first visit of this world) the client's file is imported normally. `World::exportCharacter(Entity player)` [S33] exports and sends one character at any time, so
 a game can export more often (e.g. on inventory changes, policy). On import into the world that exported the character,
 its `Persistent` IDs are kept if still free; otherwise (and in other worlds) they are reassigned from the target world's
 counter and remapped inside the group; `PersistentId` fields pointing outside the group become null. On leave the player
@@ -2216,7 +2219,7 @@ GPU checks with MCP.
 | S30 | Placed pieces | Piece types, per-chunk piece arrays, stamped pieces of prefabs, rendering, merged far meshes per region and summary input, colliders, light descriptions, queries, live modifications (§12.5) | S27, S28 | build-a-wall scenario incl. save/load and host + client (CI); synchronous cell rebuild for a piece edit in a full base cell within the step budget; `host_step` re-run with the placed-piece base (local) |
 | S31 | Promotion and grass edits | `promote`/`demote`, tombstones from interaction, `editGrass` (§6, §12.5) | S30 | chop-a-tree scenario incl. save/load and host + client (CI) |
 | S32 | Network production | Interest radius, snapshot rate (20 Hz), cosmetic events, loss and reordering handling, snapshot packets (§13.4) | S29, S26 | all scenarios pass in the host + client variant with seeded loss and reordering (CI); `--benchmark host_step` with 7 clients within the step budget, upload per client reported against §17.10 (local) |
-| S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept) and a rejoin with the file of an older commit (receives the loaded commit's character); deposit, disconnect, commit, crash, rejoin: no duplicate item; a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
+| S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept) and a rejoin with the file of an older commit (receives the loaded commit's character); deposit, disconnect, commit, crash, rejoin: no duplicate item; leave and rejoin before the next commit: no item lost; a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
 | S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6) | S19, S16 | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local) |
 | S35 | Camera rig | Third-person camera with collision, gamepad input (§8.3, §10.6) | S29, S34 | camera collision tests (CI); reviewed in a session (local) |
 | S36 | Lighting | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11) | S19, S20 | golden images per time of day (CI) |

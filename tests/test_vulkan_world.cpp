@@ -262,8 +262,8 @@ TEST_F(VulkanWorldRender, FlatShadingIsStableFarFromTheOrigin)
     world.settings.terrain           = false;
     world.settings.water             = false;
     TemplatedImage<ucvec4> reference = RenderFrame();
-    world.settings.terrain           = true;
-    world.settings.water             = true;
+    // Water stays off: its uniform plane could pass both checks without any terrain
+    world.settings.terrain = true;
 
     TemplatedImage<ucvec4> img = RenderFrame();
     ASSERT_EQ(img.w, 96);

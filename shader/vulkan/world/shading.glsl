@@ -50,7 +50,7 @@ vec3 applyFog(vec3 color, vec3 relPos)
     else
     {
         // The ray crosses the water level: constant density below, exponential above
-        float below = dist * (y0 <= 0.0 ? -y0 : y1) / abs(y1 - y0);
+        float below = dist * (y0 <= 0.0 ? -y0 : -y1) / abs(y1 - y0);
         optical     = a * below + fogAbove(dist - below, 0.0, max(y0, y1), a, b);
     }
     float f = 1.0 - exp(-optical);
