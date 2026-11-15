@@ -258,8 +258,27 @@ TEST_F(VulkanWorldRender, FlatShadingIsStableFarFromTheOrigin)
     app.onTransfer = [&](vk::CommandBuffer cmd) { world.transfer(cmd, view, eye, aspect); };
     app.onRender   = [&](vk::CommandBuffer cmd) { world.render(cmd); };
 
+    // Reference without terrain and water: the check below must see terrain, not a uniform background
+    world.settings.terrain           = false;
+    world.settings.water             = false;
+    TemplatedImage<ucvec4> reference = RenderFrame();
+    world.settings.terrain           = true;
+    world.settings.water             = true;
+
     TemplatedImage<ucvec4> img = RenderFrame();
     ASSERT_EQ(img.w, 96);
+    ASSERT_EQ(reference.w, 96);
+    int differs = 0, pixels = 0;
+    for (int y = 8; y < 56; ++y)
+    {
+        for (int x = 8; x < 88; ++x)
+        {
+            differs += std::abs(int(img(y, x)(0)) - int(reference(y, x)(0))) > 2;
+            pixels++;
+        }
+    }
+    EXPECT_GT(differs, pixels * 9 / 10) << "the terrain does not cover the image";
+
     // The ground in front of the camera is one or two terrain triangles: neighbouring pixels have about the same
     // shade (with the bug about half of them differed by more than 20)
     int rough = 0, total = 0;

@@ -1666,13 +1666,16 @@ result as a difference rectangle (new heights minus base), never the brush; clie
   contents): sent reliably on `Channel::State` with the spawn and whenever they change (in step order with the
   snapshots' host step), never in snapshots.
 - **Snapshot size per entity**: the unreliable snapshot state of one entity (its `Host` and `OwnerAuthoritative`
-  components) fits into one packet (<= 1200 bytes after quantization, before compression); serialization asserts and
-  names the entity and the largest component otherwise. A component that can exceed it is registered `HostReliable`.
+  components) is at most 1100 bytes after serialization (quantized); serialization asserts and names the entity and the
+  largest component otherwise. Each packet has a header of at most 16 bytes (host step, flags) including a 1-byte
+  flag compressed/raw; the host sends a packet raw when compression does not shrink it, so a complete packet is at most
+  1200 bytes in every case. A component that can exceed it is registered `HostReliable`.
 - **Full-state snapshots**: at the snapshot rate (default 20 Hz; S16: every step) the host serializes each replicated
   entity once per snapshot with `visit` (quantized per field options; `Host` components and `OwnerAuthoritative`
   components, not `HostReliable`), shared by all clients; per client it concatenates the blobs of its interest set, leaving out the
   `OwnerAuthoritative` components of entities that client owns, splits the result at entity boundaries into packets of
-  <= 1200 bytes, each carrying the host step, compressed with zstd on its own and decodable alone, and sends them
+  <= 1200 bytes (bound above), each carrying the host step, compressed with zstd on its own (or raw) and decodable alone,
+  and sends them
   unreliable on `Channel::State`; a lost packet loses only its entities until the next snapshot.
   A lost snapshot is replaced by the next one; there are no per-client baselines or acknowledgements. When the network
   budget of §17.10 is exceeded, delta compression against acknowledged snapshots is the planned extension (§20).
@@ -1715,13 +1718,13 @@ player entity on the host and calls `setOwner(player, clientPeer)`; S16 sends a 
 Drop-in / drop-out: a joining client receives the seed, generator versions, world time and weather, and the state around
 its player; a leaving player's character is exported (§15.4) and sent to the client, then its player entity is removed
 (the game decides whether something stays behind, e.g. a grave). On `Disconnected` (no clean leave) the host removes the
-player's entity group in the same step without an export, with the engine-internal unload command (no `onDestroy`; other
-clients receive a destroy); the newest export the client received is authoritative, and the engine emits
+player's entity group in the same step with the engine-internal unload command (no `onDestroy`; other clients receive a
+destroy) after exporting the character from its own state into the next commit (not sent: the client is gone), and emits
 `PlayerDisconnectedEvent {characterId, position}` so the game can leave a body or grave (policy). When the host opens a
 world save directory (§15.1, from S33), it contains no player entities (the character files are authoritative); joining
 players import their character again and arrive through `requestArrival`. `World::save()`/`load()` blobs keep player
 entities (scenario round trips, §17.4). After a host crash the world and the characters roll back to the last commit
-(accepted; the commit interval is game policy; rejoining characters are matched to the loaded commit, §15.4). Host
+(accepted; the commit interval is game policy; on rejoin the loaded commit's copy of a character wins, §15.4). Host
 migration is not supported; the host's world save is the world.
 
 ### 13.8 Determinism and multiplayer [planned: S16]
@@ -1751,7 +1754,7 @@ deterministic replicas.
   generator versions), a world-state file
   (entity indices, generations and slot states, so `Entity` fields stay valid without remapping; all saved components
   (`Saved::Yes`) of resident entities through `visit`, excluding player entity groups from S33 (§15.4; until S33 players
-  are saved here); the RNG state; pending events; step index and time; from S33 the character exports of the commit,
+  are saved here); the RNG state; pending events; step index and time; from S33 the latest export of every character that has played in the world,
   §15.4) and a
   **chunk store** [planned: S25] (region files with the
   chunk states: modification state, stored generated base, entity groups). Binary, zstd compressed.
@@ -1810,11 +1813,13 @@ A player's character (the entity group of the player entity: its components, chi
 file** on the player's machine, with the same header and migrations as world saves, so characters move between worlds
 and versions; the game decides what is kept. On join the client sends it (`Channel::ChunkData`) and the host imports it;
 the host exports the connected characters at every commit step from the same frozen snapshot as the world (§15.1),
-stores these exports in the commit (part of the save directory, per commit), and sends them tagged with (world id,
-commit c) only after the world-state file naming c has been renamed into place (the client keeps the newest), and on
-leave. **Rejoin after a rollback**: if a joining client's file is from this world (same world id) but from another
-commit than the loaded one, the host uses its own export from the loaded commit instead and sends it back; the
-character rolls back together with the world (no item exists twice). Files from other worlds are imported normally. `World::exportCharacter(Entity player)` [S33] exports and sends one character at any time, so
+and a disconnected character from the host's own state into the next commit (§13.7). Every commit stores the latest
+export of every character that has played in the world (carried forward from the previous commit, part of the save
+directory). The host sends a connected client its export only after the world-state file of that commit has been
+renamed into place (the client keeps the newest), and on leave. **Rejoin**: if the loaded commit has a copy for the
+joining `characterId`, the host copy is authoritative: it is imported and sent back to the client, so the character
+rolls back together with the world (no item exists twice). Otherwise (a new character, or the first visit of this
+world) the client's file is imported normally. `World::exportCharacter(Entity player)` [S33] exports and sends one character at any time, so
 a game can export more often (e.g. on inventory changes, policy). On import into the world that exported the character,
 its `Persistent` IDs are kept if still free; otherwise (and in other worlds) they are reassigned from the target world's
 counter and remapped inside the group; `PersistentId` fields pointing outside the group become null. On leave the player
@@ -2211,7 +2216,7 @@ GPU checks with MCP.
 | S30 | Placed pieces | Piece types, per-chunk piece arrays, stamped pieces of prefabs, rendering, merged far meshes per region and summary input, colliders, light descriptions, queries, live modifications (§12.5) | S27, S28 | build-a-wall scenario incl. save/load and host + client (CI); synchronous cell rebuild for a piece edit in a full base cell within the step budget; `host_step` re-run with the placed-piece base (local) |
 | S31 | Promotion and grass edits | `promote`/`demote`, tombstones from interaction, `editGrass` (§6, §12.5) | S30 | chop-a-tree scenario incl. save/load and host + client (CI) |
 | S32 | Network production | Interest radius, snapshot rate (20 Hz), cosmetic events, loss and reordering handling, snapshot packets (§13.4) | S29, S26 | all scenarios pass in the host + client variant with seeded loss and reordering (CI); `--benchmark host_step` with 7 clients within the step budget, upload per client reported against §17.10 (local) |
-| S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept) and a rejoin with the file of an older commit (receives the loaded commit's character); a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
+| S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept) and a rejoin with the file of an older commit (receives the loaded commit's character); deposit, disconnect, commit, crash, rejoin: no duplicate item; a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
 | S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6) | S19, S16 | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local) |
 | S35 | Camera rig | Third-person camera with collision, gamepad input (§8.3, §10.6) | S29, S34 | camera collision tests (CI); reviewed in a session (local) |
 | S36 | Lighting | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11) | S19, S20 | golden images per time of day (CI) |

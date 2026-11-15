@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -48,6 +49,9 @@ static void closeSocket(socket_t s)
 {
     ::close(s);
 }
+#    ifndef MSG_NOSIGNAL
+#        define MSG_NOSIGNAL 0
+#    endif
 #endif
 
 namespace Saiga
@@ -100,30 +104,6 @@ bool waitWritable(socket_t s, int timeoutMs)
 #endif
 }
 
-// Sends the whole buffer. Gives up when the client does not read it within the response deadline or when the server
-// stops (a slow reader must not block stop()). The data is sent in small pieces after the socket is writable, so a
-// single send() does not block for long.
-bool sendAll(socket_t s, const std::string& data, const std::atomic_bool* stopping = nullptr,
-             std::chrono::seconds deadlineAfter = std::chrono::seconds(30))
-{
-    auto deadline = std::chrono::steady_clock::now() + deadlineAfter;
-    size_t sent   = 0;
-    while (sent < data.size())
-    {
-        if ((stopping && *stopping) || std::chrono::steady_clock::now() > deadline) return false;
-        if (!waitWritable(s, 100)) continue;
-        size_t piece = std::min<size_t>(data.size() - sent, 64 * 1024);
-#ifdef _WIN32
-        int n = ::send(s, data.data() + sent, (int)piece, 0);
-#else
-        ssize_t n = ::send(s, data.data() + sent, piece, MSG_NOSIGNAL);
-#endif
-        if (n <= 0) return false;
-        sent += size_t(n);
-    }
-    return true;
-}
-
 // Blocking (accepted sockets; on Windows they inherit the non-blocking mode of the listener) or non-blocking mode
 void setBlocking(socket_t s, bool blocking)
 {
@@ -135,6 +115,53 @@ void setBlocking(socket_t s, bool blocking)
     if (flags < 0) return;
     fcntl(s, F_SETFL, blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK));
 #endif
+}
+
+// Sends all data with non-blocking sends. Gives up (returns false) after the deadline or when the server stops: a
+// slow reader must not block stop(). A blocking send() could wait for its whole timeout even after poll() reported the
+// socket writable, so the socket is never blocked on: POSIX uses MSG_DONTWAIT, Windows switches the socket to
+// non-blocking mode for the duration of the call.
+bool sendAll(socket_t s, const std::string& data, const std::atomic_bool* stopping = nullptr,
+             std::chrono::seconds deadlineAfter = std::chrono::seconds(30))
+{
+    auto deadline = std::chrono::steady_clock::now() + deadlineAfter;
+    size_t sent   = 0;
+#ifdef _WIN32
+    setBlocking(s, false);
+#endif
+    bool ok = true;
+    while (sent < data.size())
+    {
+        if ((stopping && *stopping) || std::chrono::steady_clock::now() > deadline)
+        {
+            ok = false;
+            break;
+        }
+        size_t piece = std::min<size_t>(data.size() - sent, 64 * 1024);
+#ifdef _WIN32
+        int n           = ::send(s, data.data() + sent, (int)piece, 0);
+        bool wouldBlock = n < 0 && WSAGetLastError() == WSAEWOULDBLOCK;
+#else
+        ssize_t n       = ::send(s, data.data() + sent, piece, MSG_DONTWAIT | MSG_NOSIGNAL);
+        bool wouldBlock = n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR);
+#endif
+        if (wouldBlock)
+        {
+            // Short waits, so the stop flag and the deadline are checked regularly
+            waitWritable(s, 50);
+            continue;
+        }
+        if (n <= 0)
+        {
+            ok = false;
+            break;
+        }
+        sent += size_t(n);
+    }
+#ifdef _WIN32
+    setBlocking(s, true);
+#endif
+    return ok;
 }
 
 std::string toLower(std::string s)

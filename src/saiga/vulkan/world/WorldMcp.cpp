@@ -86,12 +86,21 @@ void lookFrom(Camera& camera, const vec3& eye, vec3 dir)
 {
     if (!dir.allFinite() || dir.norm() < 1e-6f) dir = vec3(0, 0, -1);
     dir.normalize();
-    // Keep away from straight up/down, the view matrix needs a non parallel up vector
+    // Keep away from straight up/down, the view matrix needs a non parallel up vector. The horizontal part is rebuilt
+    // from its direction (adding a small offset could cancel a small existing component, e.g. x = -0.001), with the
+    // horizontal direction of the current view as the fallback when it is (almost) zero.
     if (std::abs(dir(1)) > 0.999f)
     {
-        dir(1) = std::copysign(0.999f, dir(1));
-        dir(0) += 1e-3f;
-        dir.normalize();
+        vec2 h(dir(0), dir(2));
+        if (h.norm() < 1e-4f)
+        {
+            vec3 f = cameraForward(camera);
+            h      = vec2(f(0), f(2));
+            if (!h.allFinite() || h.norm() < 1e-4f) h = vec2(0, 1);
+        }
+        h          = h.normalized() * std::sqrt(1.0f - 0.999f * 0.999f);
+        float sign = dir(1) < 0 ? -1.0f : 1.0f;
+        dir        = vec3(h(0), 0.999f * sign, h(1));
     }
     // From the direction, not from eye + dir: far from the origin (and for steep directions) eye + dir loses the small
     // components of dir in float

@@ -363,3 +363,42 @@ TEST(McpServer, Http)
     EXPECT_FALSE(server.running());
 }
 #endif
+
+// stop() returns promptly while a client that never reads blocks a large response (sends are non-blocking and check
+// the stop flag; a blocking send() could wait for its whole send timeout).
+TEST(McpServer, StopWithSlowReader)
+{
+#ifdef _WIN32
+    GTEST_SKIP() << "raw client sockets are only implemented for POSIX in this test";
+#else
+    McpServer server("test");
+    std::string big(32 * 1024 * 1024, 'x');
+    server.addTool("big", "Big result", McpServer::ObjectSchema({}),
+                   [&](const Json&, McpServer::Respond r) { r(McpServer::ToolResult::Text(big)); });
+    ASSERT_TRUE(server.start(0));
+    Poller poller(server);
+
+    // A client with a small receive buffer that sends the request and never reads
+    int c   = ::socket(AF_INET, SOCK_STREAM, 0);
+    int buf = 4096;
+    setsockopt(c, SOL_SOCKET, SO_RCVBUF, &buf, sizeof(buf));
+    sockaddr_in addr = {};
+    addr.sin_family  = AF_INET;
+    addr.sin_port    = htons(uint16_t(server.port()));
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+    ASSERT_EQ(::connect(c, (sockaddr*)&addr, sizeof(addr)), 0);
+    std::string body = Request("tools/call", Json::object{{"name", "big"}, {"arguments", Json::object{}}}).dump();
+    std::string request =
+        "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: " +
+        std::to_string(body.size()) + "\r\n\r\n" + body;
+    ASSERT_EQ(::send(c, request.data(), request.size(), 0), (ssize_t)request.size());
+
+    // The server is now writing the response into the full socket buffer
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    auto t0 = std::chrono::steady_clock::now();
+    server.stop();
+    double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    EXPECT_LT(seconds, 3.0) << "stop() waited for the slow reader";
+    ::close(c);
+#endif
+}
