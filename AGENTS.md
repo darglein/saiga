@@ -171,7 +171,7 @@ ctest -R test_core_ini --output-on-failure             # one test
 - **Golden images** (`tests/golden_image.h`, `compareGolden`; PNGs in `data/tests/golden/`): a render test compares its
   image with a golden; the comparison (and the committed counts of the world goldens) gates only on lavapipe (device
   name `llvmpipe`), other devices print the metrics. A gating failure writes `golden_failed/<name>_actual.png` and
-  `_diff.png` into the working directory (`build/tests/` under ctest; CI uploads them as the artifact `golden-failed` and
+  `_diff.png` (the diff only when a readable golden of the same size exists) into the working directory (`build/tests/` under ctest; CI uploads them as the artifact `golden-failed` and
   prints the metrics of every run in the step "Golden image metrics"). The committed goldens are rendered by a local
   lavapipe (Mesa with LLVM 21.1.8); CI's lavapipe (Mesa 25.2.8, LLVM 20.1.2) differs slightly and passes within the
   tolerance (run 43754502053: `world_forest` mean 0.14/255, 0.19% of the pixels > 16/255; a Mesa update on the CI

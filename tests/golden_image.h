@@ -133,6 +133,21 @@ inline bool compareGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, con
         return saved;
     }
 
+    // Failure images go to golden_failed/ in the working directory (CI uploads them). No exceptions here: the caller
+    // must still finish its frames in flight (e.g. a read-only working directory).
+    const fs::path actualFile = fs::path("golden_failed") / (name + "_actual.png");
+    const fs::path diffFile   = fs::path("golden_failed") / (name + "_diff.png");
+    // Saved like a golden (gray if possible), so it can be copied into data/tests/golden/ as it is
+    auto writeActual = [&]()
+    {
+        std::error_code ec;
+        fs::create_directories("golden_failed", ec);
+        if (ec) ADD_FAILURE() << "could not create golden_failed/: " << ec.message();
+        saveGolden(image, actualFile.string());
+        // A diff of an earlier failure would not belong to this image
+        fs::remove(diffFile, ec);
+    };
+
     TemplatedImage<ucvec4> golden;
     GoldenLoad loaded = loadGolden(file.string(), golden);
     if (loaded != GoldenLoad::Ok)
@@ -147,6 +162,8 @@ inline bool compareGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, con
             std::cout << "golden " << file << " " << problem << " (not gating on this device)" << std::endl;
             return true;
         }
+        // Regression: these failures returned before the actual image was written, so CI had nothing to upload
+        writeActual();
         ADD_FAILURE() << "golden " << file << " " << problem;
         return false;
     }
@@ -158,6 +175,7 @@ inline bool compareGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, con
                       << golden.h << " (not gating on this device)" << std::endl;
             return true;
         }
+        writeActual();
         ADD_FAILURE() << "golden " << name << ": size " << image.w << "x" << image.h << ", golden " << golden.w << "x"
                       << golden.h;
         return false;
@@ -196,10 +214,7 @@ inline bool compareGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, con
 
     // Failure images only where the comparison gates (other devices always differ a little and would litter the working
     // directory)
-    // No exceptions here: the caller must still finish its frames in flight (e.g. a read-only working directory)
     std::error_code ec;
-    const fs::path actualFile = fs::path("golden_failed") / (name + "_actual.png");
-    const fs::path diffFile   = fs::path("golden_failed") / (name + "_diff.png");
     if (pass && gating)
     {
         // Stale images of an earlier failure would look current
@@ -208,10 +223,7 @@ inline bool compareGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, con
     }
     if (!pass && gating)
     {
-        fs::create_directories("golden_failed", ec);
-        if (ec) ADD_FAILURE() << "could not create golden_failed/: " << ec.message();
-        // Saved like a golden (gray if possible), so it can be copied into data/tests/golden/ as it is
-        saveGolden(image, actualFile.string());
+        writeActual();
         diff.save(diffFile.string());
         ADD_FAILURE() << "golden " << name << " differs: mean abs diff " << meanAbs << "/255 (limit 1), "
                       << largeFraction * 100 << "% of the pixels > 16/255 (limit 0.5%); see "

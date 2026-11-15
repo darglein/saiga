@@ -1956,7 +1956,8 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
 - Pass: mean absolute difference < 1/255 and at most 0.5% of the pixels differ by more than 16/255. It gates only when
   the device name contains `llvmpipe` (else it prints the metrics). Gray (clay) goldens are stored as 8-bit grayscale
   PNGs.
-- On a gating failure `golden_failed/<name>_actual.png` and `_diff.png` are written to the working directory
+- On a gating failure (also a missing, unreadable or differently sized golden) `golden_failed/<name>_actual.png` and
+  `_diff.png` (only when the golden can be compared) are written to the working directory
   (`build/tests/` under ctest, git-ignored; a passing comparison removes stale ones); CI uploads them (`actions/upload-artifact`, `if: failure()`, artifact
   `golden-failed`; the actual images are saved like goldens) and prints the metrics of every run from ctest's log (step
   "Golden image metrics"). The committed goldens are rendered by a local lavapipe (Mesa with LLVM 21.1.8); CI's
