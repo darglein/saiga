@@ -57,7 +57,7 @@ src/
   internal/             stb_image wrappers, precompiled-header lists
 docs/                   engine_design.md: design and implementation stages of the game engine
 shader/                 GLSL shaders (OpenGL / Vulkan)
-data/                   Sample assets (textures, models)
+data/                   Sample assets (textures, models); test goldens in data/tests/golden/
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
@@ -155,7 +155,7 @@ ctest -R test_core_ini --output-on-failure             # one test
   regression test carries a short comment describing the bug it guards against.
 - Shared helpers: `tests/compare_numbers.h`, `tests/numeric_derivative.h` (numeric Jacobians for the
   vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture),
-  `tests/vulkan_test_context.h` (the `VulkanTest` fixture).
+  `tests/vulkan_test_context.h` (the `VulkanTest` fixture), `tests/golden_image.h` (`compareGolden`, golden images).
 - **OpenGL tests** (`test_opengl_*`, built when OpenGL + EGL are found) need no window or X server: the
   `OpenGLTest` fixture creates a headless EGL context (`CreateEGLContext()`, from the first EGL device —
   e.g. the NVIDIA GPU — else Mesa) and **skips** every test if there is no EGL display. Derive the
@@ -168,6 +168,24 @@ ctest -R test_core_ini --output-on-failure             # one test
   `VulkanTest` and use `TEST_F`. The validation layer is used if installed (`vulkan-validationlayers`); a validation
   error fails an assertion and aborts the test. The best device is used (e.g. the NVIDIA GPU); to run them on Mesa's
   software driver lavapipe as CI does: `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json ctest -R test_vulkan`.
+- **Golden images** (`tests/golden_image.h`, `compareGolden`; PNGs in `data/tests/golden/`): a render test compares its
+  image with a golden; the comparison (and the committed counts of the world goldens) gates only on lavapipe (device
+  name `llvmpipe`), other devices print the metrics. A gating failure writes `golden_failed/<name>_actual.png` and
+  `_diff.png` into the working directory (`build/tests/` under ctest; CI uploads them as the artifact `golden-failed` and
+  prints the metrics of every run in the step "Golden image metrics"). The committed goldens are rendered by a local
+  lavapipe (Mesa with LLVM 21.1.8); CI's lavapipe (Mesa 25.2.8, LLVM 20.1.2) differs slightly and passes within the
+  tolerance (run 43754502053: `world_forest` mean 0.14/255, 0.19% of the pixels > 16/255; a Mesa update on the CI
+  runner may need the recipe below). Create or update goldens only on lavapipe, in a dedicated commit:
+  `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_vulkan_world
+  --gtest_filter='VulkanWorldGolden.*'` (the goldens are written to the source tree, gray images as 8-bit grayscale
+  PNGs); then copy the printed `trees per lod` counts into the `ExpectCounts` calls of `tests/test_vulkan_world.cpp`.
+  If CI fails after a Mesa update, take the actual images of the failed run (the artifact exists only for a run
+  whose comparison failed; the actual images are saved like goldens):
+  `gh run download <run-id> -n golden-failed -D /tmp/golden`, then
+  `for f in /tmp/golden/*_actual.png; do cp "$f" data/tests/golden/$(basename "$f" _actual.png).png; done`, and copy
+  the counts from the `trees per lod` lines of the step "Golden image metrics" into the `ExpectCounts` calls of
+  `tests/test_vulkan_world.cpp`; then update the Mesa/LLVM versions named here and in `docs/engine_design.md` §17.6
+  (the goldens now come from CI's lavapipe). See `docs/engine_design.md` §17.6.
 
 ## Game Engine
 

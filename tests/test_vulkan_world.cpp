@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "golden_image.h"
 #include "vulkan_test_context.h"
 
 using namespace Saiga;
@@ -139,12 +140,15 @@ TEST(VulkanWorld, SettingsJson)
 class VulkanWorldRender : public ::testing::Test
 {
    protected:
+    // The size of the rendered images
+    virtual ivec2 imageSize() const { return ivec2(96, 64); }
+
     void SetUp() override
     {
         if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
         WindowParameters windowParameters;
-        windowParameters.width  = 96;
-        windowParameters.height = 64;
+        windowParameters.width  = imageSize()(0);
+        windowParameters.height = imageSize()(1);
         windowParameters.saigaParameters.shaderDirectory.push_back(SAIGA_PROJECT_SOURCE_DIR "/shader");
         Vulkan::VulkanParameters vulkanParameters;
         vulkanParameters.enableImgui = false;
@@ -294,4 +298,100 @@ TEST_F(VulkanWorldRender, FlatShadingIsStableFarFromTheOrigin)
 
     renderer->waitIdle();
     app = VulkanTestApp();
+}
+
+// Golden images of the prototype world (docs/engine_design.md §17.6): 512 x 512, clay shading, frozen time, a 1 km
+// world with 5000 trees, seed 1, captured after 5 frames. They gate on lavapipe only; other devices print the metrics.
+// The drawn instance and terrain node counts gate on lavapipe only as well: the tree placement uses std random
+// distributions and float comparisons, so other standard libraries, compilers (FMA, -march=native) or drivers may
+// place or cull a few trees differently.
+class VulkanWorldGolden : public VulkanWorldRender
+{
+   protected:
+    ivec2 imageSize() const override { return ivec2(512, 512); }
+
+    std::string deviceName() const { return std::string(renderer->base().physicalDevice.getProperties().deviceName); }
+
+    // Renders 5 frames from the camera and returns the last one
+    TemplatedImage<ucvec4> Capture(WorldRenderer& world, const vec3& eye, const vec3& target)
+    {
+        mat4 view      = lookAt(eye, target, vec3(0, 1, 0));
+        float aspect   = float(imageSize()(0)) / float(imageSize()(1));
+        app.onTransfer = [&world, view, eye, aspect](vk::CommandBuffer cmd) { world.transfer(cmd, view, eye, aspect); };
+        app.onRender   = [&world](vk::CommandBuffer cmd) { world.render(cmd); };
+        TemplatedImage<ucvec4> img;
+        for (int i = 0; i < 5; ++i) img = RenderFrame();
+        return img;
+    }
+
+    void InitWorld(WorldRenderer& world)
+    {
+        WorldParameters params;
+        params.terrain.size = 513;  // 2 m spacing: 1 km
+        params.treeCount    = 5000;
+        params.seed         = 1;
+        world.init(*renderer, params);
+        world.settings.shading    = WorldShading::Clay;
+        world.settings.freezeTime = true;
+    }
+
+    // The committed counts (docs/engine_design.md §17.6; S19 compares its culling against them)
+    void ExpectCounts(WorldRenderer& world, const char* name, int lod0, int lod1, int lod2, int terrainNodes)
+    {
+        auto& st = world.stats();
+        std::cout << name << " trees per lod: " << st.treesVisible[0] << " " << st.treesVisible[1] << " "
+                  << st.treesVisible[2] << ", terrain nodes " << st.terrainNodes << std::endl;
+        if (!goldenGating(deviceName())) return;
+        EXPECT_EQ(st.treesVisible[0], lod0);
+        EXPECT_EQ(st.treesVisible[1], lod1);
+        EXPECT_EQ(st.treesVisible[2], lod2);
+        EXPECT_EQ(st.terrainNodes, terrainNodes);
+    }
+
+    // The callbacks reference the world: wait for the frames in flight and drop them before the world is destroyed
+    void Finish()
+    {
+        renderer->waitIdle();
+        app = VulkanTestApp();
+    }
+};
+
+TEST_F(VulkanWorldGolden, WorldOverview)
+{
+    WorldRenderer world;
+    InitWorld(world);
+    auto& hf = world.heightField();
+    // 300 m above the ground 100 m from the west edge (at the center z), looking 45 degrees down along +x: the terrain
+    // and the trees fill the image, only a thin band of sky and the far edge of the world remain at the top
+    vec3 c(100, 0, hf.worldSize() * 0.5f);
+    c(1)     = hf.height(c(0), c(2));
+    vec3 eye = c + vec3(0, 300, 0);
+    vec3 dir(std::cos(radians(45.0f)), -std::sin(radians(45.0f)), 0);
+    auto img = Capture(world, eye, eye + dir);
+    // Not ASSERT: an early return would destroy the world while frames are in flight (compareGolden also reports a
+    // size mismatch)
+    EXPECT_EQ(img.w, 512);
+    compareGolden(img, "world_overview", deviceName());
+    ExpectCounts(world, "world_overview", 0, 7, 3575, 45);
+    Finish();
+}
+
+TEST_F(VulkanWorldGolden, WorldForest)
+{
+    WorldRenderer world;
+    InitWorld(world);
+    auto& hf = world.heightField();
+    // 2 m above the ground at the edge of a clearing 28 m west and 80 m north of the center (the nearest tree is 15 m
+    // away), looking along +x and slightly down: a close tree with alpha-to-coverage foliage, grass, trunks, the
+    // forest at mid distance and the sky
+    vec3 eye(hf.worldSize() * 0.5f - 28, 0, hf.worldSize() * 0.5f - 80);
+    eye(1)   = std::max(hf.height(eye(0), eye(2)), hf.waterLevel()) + 2.0f;
+    auto img = Capture(world, eye, eye + vec3(1, -0.2f, 0));
+    // Not ASSERT: an early return would destroy the world while frames are in flight (compareGolden also reports a
+    // size mismatch)
+    EXPECT_EQ(img.w, 512);
+    compareGolden(img, "world_forest", deviceName());
+
+    ExpectCounts(world, "world_forest", 43, 281, 677, 38);
+    Finish();
 }

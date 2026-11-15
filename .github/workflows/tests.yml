@@ -72,3 +72,19 @@ jobs:
       - name: Test
         working-directory: build
         run: ctest --output-on-failure --parallel 4
+
+      # The metrics of the golden comparisons (also of passing runs), to see how far CI's Mesa is from the goldens.
+      # Read from ctest's log (ctest hides the output of passing tests), so nothing is rendered twice.
+      - name: Golden image metrics
+        if: success() || failure()
+        run: grep -E '^golden|trees per lod' build/Testing/Temporary/LastTest.log || true
+
+      # Golden image tests (tests/golden_image.h) write the actual and difference images of a failed comparison to
+      # golden_failed/ in the test working directory.
+      - name: Upload failed golden images
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: golden-failed
+          path: build/tests/golden_failed/
+          if-no-files-found: ignore
