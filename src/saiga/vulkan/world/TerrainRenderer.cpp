@@ -216,11 +216,12 @@ bool TerrainRenderer::select(int level, int x, int z, const vec3& cameraPos, con
 }
 
 void TerrainRenderer::update(vk::CommandBuffer cmd, const vec3& cameraPos, const std::array<vec4, 6>& frustum,
-                             float range0, bool water)
+                             float range0, float morphStart, bool water)
 {
     // A node of level l must fit into the morph area of level l + 1, see the CDLOD paper. With the morph starting at
-    // 70% of the range this holds for range0 >= ~2.5 node diagonals.
-    float minRange0 = 2.5f * leafSize * 1.42f;
+    // 70% of the range this holds for range0 >= ~2.5 node diagonals. A later morph start narrows the morph area (its
+    // width is proportional to 1 - morphStart), so the minimum grows accordingly.
+    float minRange0 = 2.5f * leafSize * 1.42f * std::max(1.0f, 0.3f / std::max(1.0f - morphStart, 0.01f));
     usedRange0      = std::max(range0, minRange0);
 
     std::vector<float> ranges(levels);

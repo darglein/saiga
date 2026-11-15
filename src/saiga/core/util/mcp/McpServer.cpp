@@ -36,6 +36,7 @@ static void closeSocket(socket_t s)
 }
 #else
 #    include <arpa/inet.h>
+#    include <fcntl.h>
 #    include <netinet/in.h>
 #    include <netinet/tcp.h>
 #    include <poll.h>
@@ -83,20 +84,57 @@ bool waitReadable(socket_t s, int timeoutMs)
 #endif
 }
 
-bool sendAll(socket_t s, const std::string& data)
+// Waits until the socket can take more data. Returns false on timeout.
+bool waitWritable(socket_t s, int timeoutMs)
 {
-    size_t sent = 0;
+#ifdef _WIN32
+    WSAPOLLFD p = {};
+    p.fd        = s;
+    p.events    = POLLWRNORM;
+    return WSAPoll(&p, 1, timeoutMs) > 0;
+#else
+    pollfd p = {};
+    p.fd     = s;
+    p.events = POLLOUT;
+    return ::poll(&p, 1, timeoutMs) > 0;
+#endif
+}
+
+// Sends the whole buffer. Gives up when the client does not read it within the response deadline or when the server
+// stops (a slow reader must not block stop()). The data is sent in small pieces after the socket is writable, so a
+// single send() does not block for long.
+bool sendAll(socket_t s, const std::string& data, const std::atomic_bool* stopping = nullptr,
+             std::chrono::seconds deadlineAfter = std::chrono::seconds(30))
+{
+    auto deadline = std::chrono::steady_clock::now() + deadlineAfter;
+    size_t sent   = 0;
     while (sent < data.size())
     {
+        if ((stopping && *stopping) || std::chrono::steady_clock::now() > deadline) return false;
+        if (!waitWritable(s, 100)) continue;
+        size_t piece = std::min<size_t>(data.size() - sent, 64 * 1024);
 #ifdef _WIN32
-        int n = ::send(s, data.data() + sent, (int)std::min<size_t>(data.size() - sent, 1 << 20), 0);
+        int n = ::send(s, data.data() + sent, (int)piece, 0);
 #else
-        ssize_t n = ::send(s, data.data() + sent, data.size() - sent, MSG_NOSIGNAL);
+        ssize_t n = ::send(s, data.data() + sent, piece, MSG_NOSIGNAL);
 #endif
         if (n <= 0) return false;
         sent += size_t(n);
     }
     return true;
+}
+
+// Blocking (accepted sockets; on Windows they inherit the non-blocking mode of the listener) or non-blocking mode
+void setBlocking(socket_t s, bool blocking)
+{
+#ifdef _WIN32
+    u_long mode = blocking ? 0 : 1;
+    ioctlsocket(s, FIONBIO, &mode);
+#else
+    int flags = fcntl(s, F_GETFL, 0);
+    if (flags < 0) return;
+    fcntl(s, F_SETFL, blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK));
+#endif
 }
 
 std::string toLower(std::string s)
@@ -520,6 +558,9 @@ bool McpServer::start(int port, const std::string& address)
         return false;
     }
 
+    // Non-blocking: a connection that is gone between poll() and accept() must not block the accept thread (and stop())
+    setBlocking(s, false);
+
     sockaddr_in bound = {};
     socklen_t len     = sizeof(bound);
     getsockname(s, (sockaddr*)&bound, &len);
@@ -584,6 +625,9 @@ McpServer::ToolResult McpServer::callTool(const std::string& toolName, const Jso
     {
         std::lock_guard<std::mutex> lock(pendingMutex);
         if (stopping) return ToolResult::Error("The application is shutting down");
+        // Bounded: if the main loop does not call poll(), calls must not pile up
+        if (pendingCalls.size() >= maxPendingCalls)
+            return ToolResult::Error("Too many pending tool calls (is the main loop running and calling poll()?)");
         pendingCalls.push_back(call);
     }
 
@@ -600,6 +644,12 @@ McpServer::ToolResult McpServer::callTool(const std::string& toolName, const Jso
         if (std::chrono::steady_clock::now() > deadline)
         {
             bool started = call->claimed.exchange(true);
+            if (!started)
+            {
+                // Never runs: remove it (with its arguments) from the queue
+                std::lock_guard<std::mutex> lock(pendingMutex);
+                pendingCalls.erase(std::remove(pendingCalls.begin(), pendingCalls.end(), call), pendingCalls.end());
+            }
             call->answer(ToolResult::Error(
                 started ? "Timeout: the tool started but did not answer in time (its effects may have happened)"
                         : "Timeout: the tool call was not run (is the main loop running and calling poll()?)"));
@@ -710,10 +760,12 @@ void McpServer::acceptLoop()
         socket_t s = ::accept(ls, nullptr, nullptr);
         if (s == InvalidSocket)
         {
-            // E.g. out of file descriptors: the pending connection keeps the socket readable, do not spin
+            // No connection (it was gone again; the listener is non-blocking) or e.g. out of file descriptors: the
+            // pending connection keeps the socket readable, do not spin
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
+        setBlocking(s, true);
 
         int yes = 1;
         setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (const char*)&yes, sizeof(yes));
@@ -727,7 +779,7 @@ void McpServer::acceptLoop()
         }
         if (open >= maxConnections)
         {
-            sendAll(s, httpResponse(503, "Too many connections", "text/plain", false));
+            sendAll(s, httpResponse(503, "Too many connections", "text/plain", false), &stopping);
             closeSocket(s);
             continue;
         }
@@ -827,7 +879,7 @@ void McpServer::serveConnection(Connection* connection)
 
             if (headers.count("transfer-encoding"))
             {
-                sendAll(s, httpResponse(501, "Transfer-Encoding is not supported", "text/plain", false));
+                sendAll(s, httpResponse(501, "Transfer-Encoding is not supported", "text/plain", false), &stopping);
                 return;
             }
             size_t contentLength = 0;
@@ -836,13 +888,13 @@ void McpServer::serveConnection(Connection* connection)
                 // Invalid, or larger than any size_t: 400. Valid but too large: 413.
                 if (!parseContentLength(headers["content-length"], ~size_t(0), contentLength))
                 {
-                    sendAll(s, httpResponse(400, "Invalid Content-Length", "text/plain", false));
+                    sendAll(s, httpResponse(400, "Invalid Content-Length", "text/plain", false), &stopping);
                     return;
                 }
             }
             if (contentLength > maxRequestSize)
             {
-                sendAll(s, httpResponse(413, "", "", false));
+                sendAll(s, httpResponse(413, "", "", false), &stopping);
                 return;
             }
             keepAlive = toLower(headers["connection"]) != "close" && httpVersion != "HTTP/1.0";
@@ -863,7 +915,7 @@ void McpServer::serveConnection(Connection* connection)
             buffer.erase(0, requestSize);
 
             std::string response = handleHttp(method, headers, body, keepAlive);
-            if (!sendAll(s, response)) return;
+            if (!sendAll(s, response, &stopping)) return;
             lastActivity = std::chrono::steady_clock::now();
         }
     }

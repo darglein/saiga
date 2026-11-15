@@ -76,6 +76,8 @@ class SAIGA_VULKAN_API ForestRenderer
     const std::vector<int>& bucketTriangleCounts() const { return bucketTriangles; }
     // Indirect draw commands per frame (one vkCmdDrawIndexedIndirect with all of them)
     int drawCommands() const { return int(commandTemplate.size()); }
+    // Draw calls render() issues: one multi-draw-indirect, or one indirect draw per bucket without multiDrawIndirect
+    int drawCalls() const;
     // GPU memory (meshes, instances, visible list, commands)
     size_t memoryBytes() const;
 

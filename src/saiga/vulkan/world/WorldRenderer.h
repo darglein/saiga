@@ -167,11 +167,25 @@ class SAIGA_VULKAN_API WorldRenderer
     // GPU memory of the world
     std::vector<MemoryEntry> memoryUsage() const;
 
+    // Number of the frame that transfer() prepared last (counts from 1)
+    int frameNumber() const { return statistics.frames; }
+
+    struct FrameSample
+    {
+        // CPU time of frame cpuFrame (from its transfer() to the next one)
+        double cpuMs = 0;
+        int cpuFrame = 0;
+        // GPU time of the world passes of frame gpuFrame (ms), -1 if no frame completed since the last sample. The
+        // GPU times are read back a few frames later, so gpuFrame < cpuFrame.
+        double gpuMs = -1;
+        int gpuFrame = 0;
+    };
     /**
-     * Called once per frame in transfer() with the CPU frame time (ms) and the GPU time of the world (ms, -1 if not
-     * yet available). Return true to be removed. Used e.g. for measurements over several frames.
+     * Called once per frame in transfer() with the newest samples. Return true to be removed. Used e.g. for
+     * measurements over several frames (compare the frame numbers with frameNumber() at the start to skip samples of
+     * frames prepared before).
      */
-    std::vector<std::function<bool(double cpuMs, double gpuMs)>> frameCallbacks;
+    std::vector<std::function<bool(const FrameSample&)>> frameCallbacks;
 
     double time = 0;
 
@@ -194,6 +208,7 @@ class SAIGA_VULKAN_API WorldRenderer
 
     // Culling state (kept while freezeCulling is set)
     vec3 cullPosition = vec3(0, 0, 0);
+    bool hasCullState = false;
     std::array<vec4, 6> cullFrustum;
 
     // GPU timestamps: begin of transfer() and end of render(), per frame in flight
@@ -202,6 +217,7 @@ class SAIGA_VULKAN_API WorldRenderer
     struct TimestampSlot
     {
         uint64_t frameValue = 0;
+        int frameNumber     = 0;
         bool written        = false;
     };
     std::array<TimestampSlot, 3> timestampSlots;
@@ -224,7 +240,7 @@ class SAIGA_VULKAN_API WorldRenderer
     int historyIndex = 0;
 
     // Reads the timestamps of the newest completed frame. Returns the total time or -1.
-    double readGpuTimes(std::array<double, PASS_COUNT>& passes);
+    double readGpuTimes(std::array<double, PASS_COUNT>& passes, int& frameNumber);
     void writeTimestamp(vk::CommandBuffer cmd, uint32_t marker, vk::PipelineStageFlags2 stage);
     static void smooth(double& average, double value, int frames);
 };

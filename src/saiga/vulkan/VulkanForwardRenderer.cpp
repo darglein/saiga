@@ -171,12 +171,17 @@ void VulkanForwardRenderer::render(const FrameInfo& frame)
                                       vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
 
         // The depth buffer is shared by all frames: the clear must wait for the previous frame's depth tests.
+        // Combined depth/stencil formats need both aspects (separateDepthStencilLayouts is not enabled).
+        vk::ImageAspectFlags depthAspect = vk::ImageAspectFlagBits::eDepth;
+        if (depthFormat == vk::Format::eD16UnormS8Uint || depthFormat == vk::Format::eD24UnormS8Uint ||
+            depthFormat == vk::Format::eD32SfloatS8Uint)
+            depthAspect |= vk::ImageAspectFlagBits::eStencil;
         vk::ImageMemoryBarrier2 depth(
             Stage::eEarlyFragmentTests | Stage::eLateFragmentTests, Access::eDepthStencilAttachmentWrite,
             Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
             Access::eDepthStencilAttachmentWrite | Access::eDepthStencilAttachmentRead, vk::ImageLayout::eUndefined,
             vk::ImageLayout::eDepthStencilAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-            depthVkImage, vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1));
+            depthVkImage, vk::ImageSubresourceRange(depthAspect, 0, 1, 0, 1));
 
         std::vector<vk::ImageMemoryBarrier2> barriers = {color, depth};
         if (multisampled)

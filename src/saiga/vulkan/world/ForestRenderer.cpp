@@ -338,6 +338,12 @@ void ForestRenderer::cull(vk::CommandBuffer cmd)
                   Access::eIndirectCommandRead | Access::eShaderStorageRead);
 }
 
+int ForestRenderer::drawCalls() const
+{
+    if (instances.empty()) return 0;
+    return base->enabledFeatures.multiDrawIndirect ? 1 : drawCommands();
+}
+
 void ForestRenderer::render(vk::CommandBuffer cmd, bool wireframe)
 {
     if (instances.empty()) return;

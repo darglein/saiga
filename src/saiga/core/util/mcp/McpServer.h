@@ -158,6 +158,8 @@ class SAIGA_CORE_API McpServer
 
     // Further connections are answered with 503 and closed
     static constexpr size_t maxConnections = 32;
+    // Tool calls waiting for poll()
+    static constexpr size_t maxPendingCalls = 64;
 
     void acceptLoop();
     // Serves the connection, then closes its socket and marks it done

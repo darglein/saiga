@@ -169,6 +169,57 @@ TEST(McpServer, TimedOutCallIsNotExecuted)
     EXPECT_EQ(executed, 0);
 }
 
+// Regression: timed-out calls stayed in the queue while poll() was not called, so the queue grew without bound. They
+// are removed now, and the queue is limited (a full queue rejects new calls).
+TEST(McpServer, TimedOutCallsDoNotFillTheQueue)
+{
+    McpServer server("test");
+    std::atomic_int executed{0};
+    server.addTool("count", "Counts", McpServer::ObjectSchema({}),
+                   [&](const Json&, McpServer::Respond r) { executed++, r(McpServer::ToolResult::Text("ok")); });
+    server.toolTimeoutSeconds = 0.02;
+
+    // More timed-out calls than the queue holds: each reports "not run", none reports a full queue
+    for (int i = 0; i < 80; ++i)
+    {
+        Json t = server.handleMessage(Request("tools/call", Json::object{{"name", "count"}}));
+        ASSERT_TRUE(t["result"]["isError"].bool_value());
+        ASSERT_NE(t["result"]["content"][0]["text"].string_value().find("not run"), std::string::npos) << i;
+    }
+    server.poll();
+    EXPECT_EQ(executed, 0);
+
+    // A full queue (poll() is not called while the calls wait) rejects further calls: of 70 concurrent calls 64 wait
+    // and 6 are rejected at once (only the rejected ones can finish before poll())
+    executed                  = 0;
+    server.toolTimeoutSeconds = 30;
+    std::vector<std::future<Json>> calls;
+    for (int i = 0; i < 70; ++i)
+        calls.push_back(
+            std::async(std::launch::async,
+                       [&] { return server.handleMessage(Request("tools/call", Json::object{{"name", "count"}})); }));
+    auto ready = [&]
+    {
+        int n = 0;
+        for (auto& c : calls) n += c.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+        return n;
+    };
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+    while (ready() < 6 && std::chrono::steady_clock::now() < deadline)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    ASSERT_EQ(ready(), 6);
+    while (ready() < 70 && std::chrono::steady_clock::now() < deadline)
+    {
+        server.poll();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    int rejected = 0;
+    for (auto& c : calls)
+        rejected += c.get()["result"]["content"][0]["text"].string_value().find("Too many") != std::string::npos;
+    EXPECT_EQ(rejected, 6);
+    EXPECT_EQ(executed, 64);
+}
+
 // Regression: poll() could start a call after callTool() had already reported its timeout. Now a timeout claims the
 // call: a call that was not started never runs, and the error for a started one says that it ran.
 TEST(McpServer, TimeoutOfStartedCall)

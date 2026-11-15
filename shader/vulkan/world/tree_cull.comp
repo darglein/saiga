@@ -64,7 +64,9 @@ void main()
     uint species   = min(uint(t.scaleSpecies.y), pc.speciesCount - 1u);
     vec2 b         = pc.bounds[species].xy;
     vec3 center    = t.posYaw.xyz + vec3(0.0, b.x * scale, 0.0);
-    float radius   = b.y * scale;
+    // Plus the wind displacement of tree.vert: sway (0.012 per axis) + flutter (0.004 per axis) times the wind weight
+    // (<= 1) and the wind strength, at most 0.016 * sqrt(2) < 0.025 tree heights
+    float radius   = (b.y + 0.025 * world.terrain2.z) * scale;
 
     for (int i = 0; i < 5; ++i)
     {

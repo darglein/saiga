@@ -93,7 +93,9 @@ void lookFrom(Camera& camera, const vec3& eye, vec3 dir)
         dir(0) += 1e-3f;
         dir.normalize();
     }
-    camera.setView(eye, eye + dir, vec3(0, 1, 0));
+    // From the direction, not from eye + dir: far from the origin (and for steep directions) eye + dir loses the small
+    // components of dir in float
+    camera.setView(lookAt(vec3(0, 0, 0), dir, vec3(0, 1, 0)) * translate(-eye));
 }
 
 Json cameraJson(const WorldMcpContext& c)
@@ -191,13 +193,47 @@ int intArgument(const Json& value, int lo, int hi, int defaultValue)
     return int(v);
 }
 
-// Several screenshot requests before the next frame share it: the GUI flag is saved by the first and restored by the
-// last one
+// Several screenshot requests before the next frame share it if they want the same GUI option: the GUI flag is saved
+// by the first and restored by the last one. A request with the other option waits for the next batch (frame).
 struct ScreenshotBatch
 {
     int pending      = 0;
+    bool gui         = false;
     bool previousGui = false;
+    std::vector<std::function<void()>> deferred;
 };
+
+using ScreenshotHandler = std::function<void(const TemplatedImage<ucvec4>&)>;
+
+void requestScreenshot(const WorldMcpContext& c, std::shared_ptr<ScreenshotBatch> batch, bool gui,
+                       ScreenshotHandler handler)
+{
+    if (batch->pending > 0 && batch->gui != gui)
+    {
+        batch->deferred.push_back([c, batch, gui, handler]() { requestScreenshot(c, batch, gui, handler); });
+        return;
+    }
+    if (batch->pending++ == 0)
+    {
+        batch->gui                      = gui;
+        batch->previousGui              = c.renderer->should_render_imgui;
+        c.renderer->should_render_imgui = gui;
+    }
+    c.renderer->requestScreenshot(
+        [c, batch, handler](const TemplatedImage<ucvec4>& img)
+        {
+            if (--batch->pending == 0)
+            {
+                c.renderer->should_render_imgui = batch->previousGui;
+                // The waiting requests form the next batch (the callbacks run after the frame, so they are rendered in
+                // the next one)
+                auto deferred = std::move(batch->deferred);
+                batch->deferred.clear();
+                for (auto& f : deferred) f();
+            }
+            handler(img);
+        });
+}
 
 }  // namespace
 
@@ -234,13 +270,10 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
             int maxWidth       = intArgument(args["max_width"], 64, 8192, 1280);
             if (format != "png") format = "jpg";
 
-            if (batch->pending++ == 0) batch->previousGui = c.renderer->should_render_imgui;
-            // With several requests for the same frame the last one decides about the GUI
-            c.renderer->should_render_imgui = gui;
-            c.renderer->requestScreenshot(
-                [c, batch, respond, format, maxWidth](const TemplatedImage<ucvec4>& img)
+            requestScreenshot(
+                c, batch, gui,
+                [c, respond, format, maxWidth](const TemplatedImage<ucvec4>& img)
                 {
-                    if (--batch->pending == 0) c.renderer->should_render_imgui = batch->previousGui;
                     if (img.width == 0)
                     {
                         respond(ToolResult::Error("The frame could not be read back (see the application output)"));
@@ -441,11 +474,14 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
             auto cpu      = std::make_shared<std::vector<double>>();
             auto gpu      = std::make_shared<std::vector<double>>();
             auto deadline = std::chrono::steady_clock::now() + std::chrono::duration<double>(0.8 * timeoutSeconds);
+            // Only frames prepared after this request: the frame prepared last may still use the previous settings
+            // (e.g. set_settings right before), and its GPU times arrive a few frames later
+            int firstFrame = c.world->frameNumber() + 1;
             c.world->frameCallbacks.push_back(
-                [c, frames, cpu, gpu, respond, deadline](double cpuMs, double gpuMs)
+                [c, frames, cpu, gpu, respond, deadline, firstFrame](const WorldRenderer::FrameSample& s)
                 {
-                    cpu->push_back(cpuMs);
-                    if (gpuMs >= 0) gpu->push_back(gpuMs);
+                    if (s.cpuFrame >= firstFrame) cpu->push_back(s.cpuMs);
+                    if (s.gpuMs >= 0 && s.gpuFrame >= firstFrame) gpu->push_back(s.gpuMs);
                     if ((int)cpu->size() < frames && std::chrono::steady_clock::now() < deadline) return false;
                     respond(ToolResult::FromJson(Json::object{{"frames", (int)cpu->size()},
                                                               {"requested_frames", frames},

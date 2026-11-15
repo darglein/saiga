@@ -50,10 +50,11 @@ class SAIGA_VULKAN_API TerrainRenderer
 
     /**
      * Selects the nodes for the camera position and frustum, and records the upload of the instances (outside of the
-     * rendering pass). range0: the range of level 0 in meters, it is enlarged if it is too small for the node size.
+     * rendering pass). range0: the range of level 0 in meters, it is enlarged if it is too small for the node size and
+     * the morph area (morphStart: the start of the morph as a fraction of a level's range, see terrain.vert).
      */
     void update(vk::CommandBuffer cmd, const vec3& cameraPos, const std::array<vec4, 6>& frustum, float range0,
-                bool water);
+                float morphStart, bool water);
 
     // terrain = false draws only the water nodes (the water plane without the terrain)
     void render(vk::CommandBuffer cmd, bool wireframe, bool terrain = true);
