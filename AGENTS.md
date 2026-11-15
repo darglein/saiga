@@ -22,7 +22,7 @@ optimization).
 CMakeLists.txt          Root build: all SAIGA_* options, dependency includes, configured headers, subdirs
 cmake/
   Dependencies_<module>.cmake   Finds each module's dependencies; sets MODULE_<NAME> if the module can be built
-  Module_CMakeLists.txt         Shared module recipe: GLOB_RECURSE *.cpp/*.cu/*.cc + headers into the module lib
+  Module_CMakeLists.txt         Unused old module recipe; each module's own CMakeLists.txt globs its sources
   Saiga_compiler_flags.cmake    Warning / optimization / sanitizer flags
   select_compute_arch.cmake     CUDA arch selection (SAIGA_CUDA_ARCH, else autodetect)
   Find*.cmake                   Find modules for the optional dependencies
@@ -30,11 +30,13 @@ src/
   saiga/
     core/               saiga_core: math, image (load/store/decode), util (threads, ini, file io), geometry,
                         camera, imgui, window, sound, model, time, sophus, ...
+                        util/mcp/: McpServer (MCP over HTTP JSON-RPC on loopback; tools run in poll())
                         image/stb_image.h and image/stb_image_write.h export stb (vendored in image/stb/)
     vision/             saiga_vision: ba, pgo, imu, features, reconstruction, slam, recursive solvers, ceres/g2o glue
     cuda/               saiga_cuda: device helpers, reduce/scan/shfl, memory, streams, imageProcessing, thrust helpers
     opengl/             saiga_opengl: buffers, shaders, textures, rendering, window, imgui, ffmpeg, vr
-    vulkan/             saiga_vulkan: instance, swapchain, pipelines, memory, renderer. Vulkan 1.3 core only
+    vulkan/             saiga_vulkan: instance, swapchain, pipelines, memory, renderer (VulkanForwardRenderer with
+                        ForwardRenderingParameters: MSAA, reversed-Z with an infinite far plane). Vulkan 1.3 core only
                         (instance/device API version 1.3 also on 1.4 drivers; extensions: only surface/swapchain and
                         debug_utils for validation) and uses its core
                         features: dynamic rendering (pipelines take RenderingFormats, no VkRenderPass),
@@ -48,9 +50,12 @@ src/
                         VMA's defragmentation compacts (full_defrag(), or incremental passes in update() per frame);
                         moved handles reach descriptors through DynamicDescriptorSet, images keep the layout tracked in
                         ImageData::layout (Texture::transitionImageLayout / setImageLayout)
+                        world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, MCP tools;
+                        sample_vulkan_world)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
+docs/                   engine_design.md: design and implementation stages of the game engine
 shader/                 GLSL shaders (OpenGL / Vulkan)
 data/                   Sample assets (textures, models)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
@@ -58,6 +63,7 @@ tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
                         libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF, glslang (built from submodules/CMakeLists.txt),
                         VulkanMemoryAllocator (header only, included by saiga_vulkan), plus tiny-eigen and tiny-glog, which are plain files maintained in this repository
+.mcp.json               MCP server "saiga-world" (http://127.0.0.1:8765/mcp) of the running sample_vulkan_world
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
 .github/workflows/tests.yml The CI: Ubuntu 24.04, CPU-only build (OpenGL on Mesa llvmpipe, Vulkan on Mesa lavapipe) + ctest
 travis/, .travis.yml    Legacy Travis CI — unused
@@ -125,11 +131,11 @@ cmake --build build --parallel -- -k 0
 | `SAIGA_CUDA_ARCH` | "" | CUDA archs; empty = autodetect |
 | `SAIGA_WITH_<LIB>` | mostly ON | Use an optional library if found (ASSIMP, LIBZIP, FFMPEG, FREETYPE, LIBTIFF, YAMLCPP, OPENAL, OPENMESH, G2O, CHOLMOD, ...) |
 | `SAIGA_WITH_JOLT` | OFF | Download Jolt Physics v5.6.0 with FetchContent (`cmake/Dependencies_jolt.cmake`, not a submodule) and build the target `Jolt` (static, PIC) and `sample_vulkan_jolt`; no saiga library links it. Jolt's own options (e.g. `CROSS_PLATFORM_DETERMINISTIC`) can be set with `-D` |
-| `SAIGA_WITH_TINY_EIGEN` / `_TINY_GLOG` | OFF | Use the tiny replacements instead of Eigen / glog (disables vision + some tests) |
+| `SAIGA_WITH_TINY_EIGEN` / `_TINY_GLOG` | ON | Use the tiny replacements instead of Eigen / glog (disables vision + some tests) |
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan** and
-37 tests. The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+39 tests. The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -163,6 +169,11 @@ ctest -R test_core_ini --output-on-failure             # one test
   error fails an assertion and aborts the test. The best device is used (e.g. the NVIDIA GPU); to run them on Mesa's
   software driver lavapipe as CI does: `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json ctest -R test_vulkan`.
 
+## Game Engine
+
+The game engine (`src/saiga/engine/`, planned from stage S04; the world renderer in `src/saiga/vulkan/world/` and the games built on it) is
+designed in `docs/engine_design.md`. Read its Section 1 (Rules) before changing engine or game code.
+
 ## Code Conventions
 
 - Formatting: `.clang-format` (Google base): 4-space indent, **Allman braces**, 120-column limit,
@@ -188,8 +199,10 @@ ctest -R test_core_ini --output-on-failure             # one test
 
 ## Gotchas
 
-- Module sources are **globbed** (`cmake/Module_CMakeLists.txt`): after adding or removing a
+- Module sources are **globbed** by the module's `CMakeLists.txt` files (per directory): after adding or removing a
   `.cpp`/`.cu` file, re-run the CMake configure.
+- The `saiga-world` MCP server of `.mcp.json` is only reachable while `sample_vulkan_world` runs (it fails to connect
+  otherwise; that is expected).
 - A missing optional dependency silently disables a module, a feature or a test rather than failing
   the configure — a change can "build" while its code was never compiled. Check the
   `Module enabled` / `Test enabled` lines.

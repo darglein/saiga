@@ -18,6 +18,17 @@ namespace Saiga
 {
 VulkanExampleBase::VulkanExampleBase() : StandaloneWindow("config.ini")
 {
+    initCamera();
+}
+
+VulkanExampleBase::VulkanExampleBase(const Vulkan::ForwardRenderingParameters& rendererParameters)
+    : StandaloneWindow("config.ini", rendererParameters)
+{
+    initCamera();
+}
+
+void VulkanExampleBase::initCamera()
+{
     float aspect = window->getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 50.0f, true);
     camera.setView(vec3(0, 1, 3), vec3(0, 0, 0), vec3(0, 1, 0));

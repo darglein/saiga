@@ -1,0 +1,83 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+#include "common.glsl"
+
+// Frustum culling and level of detail selection of the trees, see Saiga::Vulkan::ForestRenderer.
+
+layout(local_size_x = 256) in;
+
+struct TreeInstance
+{
+    vec4 posYaw;
+    vec4 scaleSpecies;
+};
+
+layout(std430, set = 0, binding = 1) readonly buffer Instances
+{
+    TreeInstance trees[];
+};
+
+layout(std430, set = 0, binding = 2) writeonly buffer Visible
+{
+    uint visible[];
+};
+
+struct DrawCommand
+{
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int vertexOffset;
+    uint firstInstance;
+};
+
+// One command per bucket = species * 3 + lod. firstInstance is the start of the bucket's region in Visible.
+layout(std430, set = 0, binding = 3) buffer Commands
+{
+    DrawCommand cmds[];
+};
+
+layout(push_constant) uniform PushConstants
+{
+    uint treeCount;
+    uint speciesCount;
+    uint pad0;
+    uint pad1;
+    // per species: x: bounding sphere center height, y: radius (units of the tree height)
+    vec4 bounds[4];
+}
+pc;
+
+void main()
+{
+    uint id = gl_GlobalInvocationID.x;
+    if (id >= pc.treeCount) return;
+
+    TreeInstance t = trees[id];
+    float scale    = t.scaleSpecies.x;
+    uint species   = min(uint(t.scaleSpecies.y), pc.speciesCount - 1u);
+    vec2 b         = pc.bounds[species].xy;
+    vec3 center    = t.posYaw.xyz + vec3(0.0, b.x * scale, 0.0);
+    // Plus the wind displacement of tree.vert: sway (0.012 per axis) + flutter (0.004 per axis) times the wind weight
+    // (<= 1) and the wind strength, at most 0.016 * sqrt(2) < 0.025 tree heights
+    float radius   = (b.y + 0.025 * world.terrain2.z) * scale;
+
+    for (int i = 0; i < 5; ++i)
+    {
+        if (dot(world.frustum[i].xyz, center) + world.frustum[i].w < -radius) return;
+    }
+
+    float d = distance(center, world.lodCameraPos.xyz);
+    if (d > world.trees.z) return;
+    uint lod = d < world.trees.x ? 0u : (d < world.trees.y ? 1u : 2u);
+
+    uint bucket = species * 3u + lod;
+    uint slot   = atomicAdd(cmds[bucket].instanceCount, 1u);
+    visible[cmds[bucket].firstInstance + slot] = id | (lod << 30);
+}

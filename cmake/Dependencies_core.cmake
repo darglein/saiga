@@ -121,6 +121,11 @@ endif()
 
 SET(LIBS ${LIBS} libzstd_static)
 
+if (WIN32)
+    # Sockets of the MCP server (saiga/core/util/mcp)
+    SET(LIBS ${LIBS} ws2_32)
+endif ()
+
 set(CORE_INCLUDES ${PACKAGE_INCLUDES})
 set(CORE_LIBS ${LIBS})
 set(CORE_TARGETS ${LIB_TARGETS})

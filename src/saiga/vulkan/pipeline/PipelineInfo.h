@@ -23,6 +23,8 @@ struct SAIGA_VULKAN_API RenderingFormats
     std::vector<vk::Format> color;
     vk::Format depth   = vk::Format::eUndefined;
     vk::Format stencil = vk::Format::eUndefined;
+    // Sample count of the attachments. If > 1 it overrides PipelineInfo::multisampleState.rasterizationSamples.
+    vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1;
 };
 
 class SAIGA_VULKAN_API PipelineInfo
