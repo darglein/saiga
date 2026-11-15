@@ -114,8 +114,9 @@ void RenderTarget::create(VulkanBase& _base, uint32_t width, uint32_t height, co
 RenderingFormats RenderTarget::renderingFormats() const
 {
     RenderingFormats formats;
-    formats.color = params.colorFormats;
-    formats.depth = params.depthFormat;
+    formats.color   = params.colorFormats;
+    formats.depth   = params.depthFormat;
+    formats.samples = params.samples;
     return formats;
 }
 

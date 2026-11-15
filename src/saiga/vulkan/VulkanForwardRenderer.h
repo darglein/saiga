@@ -36,7 +36,33 @@ class SAIGA_VULKAN_API VulkanForwardRenderingInterface : public RenderingInterfa
     virtual void renderGUI() {}
 };
 
-struct SAIGA_VULKAN_API ForwardRenderingParameters{void fromConfigFile(const std::string& file){}};
+struct SAIGA_VULKAN_API ForwardRenderingParameters
+{
+    // MSAA sample count of the main pass (1: off). Clamped to the largest count the device supports for the color and
+    // depth attachments. The multisampled image is resolved into the swap chain image at the end of the pass.
+    int msaaSamples = 1;
+
+    // Reversed depth: the depth buffer is cleared with 0 and closer fragments have a larger depth, so the pipelines
+    // must use eGreater / eGreaterOrEqual. With a float depth buffer this gives an almost uniform precision over the
+    // whole view distance, also with an infinite far plane (see reversedZInfinitePerspective). The render modules in
+    // renderModules/ assume the default (not reversed) depth.
+    bool reversedZ = false;
+
+    // eUndefined: eD32Sfloat with reversedZ, otherwise eD16Unorm.
+    vk::Format depthFormat = vk::Format::eUndefined;
+
+    // This is blender's default viewport background color :)
+    vec4 clearColor = vec4(57, 57, 57, 255) / 255.0f;
+
+    void fromConfigFile(const std::string& file) {}
+};
+
+/**
+ * Projection matrix for Vulkan's clip space (y down, depth in [0, 1]) with reversed depth and an infinite far plane:
+ * depth = zNear / (distance along the view direction). View space as in OpenGL (the camera looks along -z, y is up).
+ * fovy is the vertical field of view in radians.
+ */
+SAIGA_VULKAN_API mat4 reversedZInfinitePerspective(float fovy, float aspect, float zNear);
 
 /**
  * Renders into the swap chain image with a depth buffer, using dynamic rendering (Vulkan 1.3).
@@ -51,16 +77,23 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
 
     CommandPool renderCommandPool;
 
-    VulkanForwardRenderer(VulkanWindow& window, VulkanParameters vulkanParameters);
+    VulkanForwardRenderer(VulkanWindow& window, VulkanParameters vulkanParameters,
+                          const ForwardRenderingParameters& parameters = ForwardRenderingParameters());
     virtual ~VulkanForwardRenderer() override;
 
     virtual void render(const FrameInfo& frame) override;
 
     virtual void createBuffers(int numImages, int w, int h) override;
 
-    // The attachment formats of the main pass. Create the pipelines used in VulkanForwardRenderingInterface::render
-    // with these.
+    // The attachment formats (and sample count) of the main pass. Create the pipelines used in
+    // VulkanForwardRenderingInterface::render with these.
     RenderingFormats renderingFormats() const;
+
+    const ForwardRenderingParameters& parameters() const { return params; }
+    // The MSAA sample count actually used (ForwardRenderingParameters::msaaSamples clamped to the device limits).
+    vk::SampleCountFlagBits sampleCount() const { return samples; }
+    // The depth value the depth buffer is cleared with: 0 with reversed depth, otherwise 1.
+    float clearDepth() const { return params.reversedZ ? 0.0f : 1.0f; }
 
     /**
      * Saves the next rendered frame (including the GUI) to the image file (e.g. png). The file is written at the end
@@ -70,11 +103,12 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
 
     /**
      * Passes the next rendered frame (including the GUI) to the callback: RGBA with alpha = 255, row 0 is the top
-     * row. The callback is called at the end of that frame's render call (which then waits for the GPU). It is not
-     * called if the color images can not be read back (see the error output).
+     * row. The callback is called at the end of that frame's render call (which then waits for the GPU). Every
+     * requested callback is called exactly once; all requests made before a frame get the same image. If the color
+     * images can not be read back (see the error output), the callbacks get an empty image (width 0).
      */
     using ScreenshotCallback = std::function<void(const TemplatedImage<ucvec4>&)>;
-    void requestScreenshot(ScreenshotCallback callback) { screenshotCallback = std::move(callback); }
+    void requestScreenshot(ScreenshotCallback callback) { screenshotCallbacks.push_back(std::move(callback)); }
 
     /**
      * For automated tests: if the environment variable SAIGA_SCREENSHOT is set to a file name, a screenshot of frame
@@ -82,12 +116,19 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
      */
 
    protected:
-    DepthBuffer depthBuffer;
+    ForwardRenderingParameters params;
+    vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1;
+    vk::Format depthFormat          = vk::Format::eD16Unorm;
+
+    // Shared by all frames in flight. With MSAA the depth buffer is multisampled and the color is rendered into
+    // msaaColor, which is resolved into the swap chain image.
+    Texture2D depthImage;
+    Texture2D msaaColor;
 
     // One per frame in flight (FrameInfo::frameIndex)
     std::vector<vk::CommandBuffer> drawCmdBuffers;
 
-    ScreenshotCallback screenshotCallback;
+    std::vector<ScreenshotCallback> screenshotCallbacks;
     std::string autoScreenshotFile;
     int renderedFrames = 0;
     // Records the copy of the color image into a host visible buffer. Returns the buffer.

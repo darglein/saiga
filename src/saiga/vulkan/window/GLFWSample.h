@@ -33,6 +33,7 @@ class SAIGA_VULKAN_API VulkanExampleBase : public Saiga::Vulkan::StandaloneWindo
 {
    public:
     VulkanExampleBase();
+    explicit VulkanExampleBase(const Vulkan::ForwardRenderingParameters& rendererParameters);
     ~VulkanExampleBase() override;
 
     void update(float dt) override;
@@ -40,6 +41,8 @@ class SAIGA_VULKAN_API VulkanExampleBase : public Saiga::Vulkan::StandaloneWindo
 
    protected:
     Glfw_Camera<PerspectiveCamera> camera;
+
+    void initCamera();
 
     void keyPressed(int key, int scancode, int mods) override;
 };

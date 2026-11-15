@@ -66,6 +66,18 @@ struct SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public 
         init(windowParameters, vulkanParams, rendererParameters);
     }
 
+    // The window and Vulkan parameters from the config file, the renderer parameters from the caller.
+    StandaloneWindow(const std::string& config, const typename Renderer::ParameterType& rendererParameters)
+    {
+        WindowParameters windowParameters;
+        Saiga::Vulkan::VulkanParameters vulkanParams;
+
+        windowParameters.fromConfigFile(config);
+        vulkanParams.fromConfigFile(config);
+
+        init(windowParameters, vulkanParams, rendererParameters);
+    }
+
     StandaloneWindow(const WindowParameters& windowParameters, const VulkanParameters& vulkanParams,
                      const typename Renderer::ParameterType& rendererParameters)
     {
@@ -93,7 +105,7 @@ struct SAIGA_TEMPLATE StandaloneWindow : public Renderer::InterfaceType, public 
               const typename Renderer::ParameterType& rendererParameters)
     {
         window   = std::make_unique<WindowManagment>(windowParameters);
-        renderer = std::make_unique<Renderer>(*window, vulkanParams);
+        renderer = std::make_unique<Renderer>(*window, vulkanParams, rendererParameters);
 
         window->setUpdateObject(*this);
         renderer->setRenderObject(*this);

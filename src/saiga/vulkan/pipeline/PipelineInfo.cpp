@@ -48,6 +48,9 @@ vk::GraphicsPipelineCreateInfo PipelineInfo::createCreateInfo(vk::PipelineLayout
     colorBlendState.pAttachments    = blendAttachmentStates.data();
     colorBlendState.attachmentCount = blendAttachmentStates.size();
 
+    // Multisampled attachments (e.g. the MSAA main pass of VulkanForwardRenderer)
+    if (formats.samples != vk::SampleCountFlagBits::e1) multisampleState.rasterizationSamples = formats.samples;
+
     // Dynamic rendering: the attachment formats instead of a render pass.
     renderingFormats                      = formats;
     renderingInfo                         = vk::PipelineRenderingCreateInfo();
