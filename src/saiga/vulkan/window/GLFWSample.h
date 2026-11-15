@@ -34,6 +34,9 @@ class SAIGA_VULKAN_API VulkanExampleBase : public Saiga::Vulkan::StandaloneWindo
    public:
     VulkanExampleBase();
     explicit VulkanExampleBase(const Vulkan::ForwardRenderingParameters& rendererParameters);
+    // Explicit window and Vulkan parameters instead of config.ini (e.g. benchmarks with a fixed resolution)
+    VulkanExampleBase(const WindowParameters& windowParameters, const Vulkan::VulkanParameters& vulkanParameters,
+                      const Vulkan::ForwardRenderingParameters& rendererParameters);
     ~VulkanExampleBase() override;
 
     void update(float dt) override;

@@ -15,6 +15,7 @@
 #include "saiga/vulkan/world/WorldCommon.h"
 
 #include <chrono>
+#include <deque>
 #include <functional>
 
 namespace Saiga
@@ -170,22 +171,35 @@ class SAIGA_VULKAN_API WorldRenderer
     // Number of the frame that transfer() prepared last (counts from 1)
     int frameNumber() const { return statistics.frames; }
 
-    struct FrameSample
-    {
-        // CPU time of frame cpuFrame (from its transfer() to the next one)
-        double cpuMs = 0;
-        int cpuFrame = 0;
-        // GPU time of the world passes of frame gpuFrame (ms), -1 if no frame completed since the last sample. The
-        // GPU times are read back a few frames later, so gpuFrame < cpuFrame.
-        double gpuMs = -1;
-        int gpuFrame = 0;
-    };
     /**
-     * Called once per frame in transfer() with the newest samples. Return true to be removed. Used e.g. for
-     * measurements over several frames (compare the frame numbers with frameNumber() at the start to skip samples of
-     * frames prepared before).
+     * Unsmoothed times of one frame, delivered in transfer(). The frame interval of frame cpuFrame is the time from
+     * its transfer() to the next one, so it is known when frame cpuFrame + 1 is prepared. The GPU times are read back
+     * when a frame has completed, a few frames later: gpuFrame < cpuFrame, and the values belong to different frames.
+     * Match them by frame number (frame numbers count from 1, see frameNumber()).
      */
-    std::vector<std::function<bool(const FrameSample&)>> frameCallbacks;
+    struct FrameTimes
+    {
+        // Frame interval of frame cpuFrame (ms): transfer() to the next transfer(). It includes waiting for the GPU
+        // and presenting, so it is at least the GPU frame time. -1 before the second frame.
+        double cpuMs = -1;
+        // CPU work of the world in frame cpuFrame (ms): the time spent in its transfer() and render() (recording).
+        // -1 if not known.
+        double cpuWorkMs = -1;
+        int cpuFrame     = 0;
+        // GPU time of the world passes of frame gpuFrame (ms, the sum of gpuPassMs), -1 if no frame completed since
+        // the last call. Every completed frame is delivered once, the oldest first.
+        double gpuMs                             = -1;
+        std::array<double, PASS_COUNT> gpuPassMs = {};
+        int gpuFrame                             = 0;
+    };
+    // The times delivered by the last transfer()
+    const FrameTimes& lastFrameTimes() const { return lastTimes; }
+    /**
+     * Called once per frame in transfer() with the samples of that call (lastFrameTimes()). Return true to be removed.
+     * Used e.g. for measurements over several frames (compare the frame numbers with frameNumber() at the start to skip
+     * samples of frames prepared before).
+     */
+    std::vector<std::function<bool(const FrameTimes&)>> frameCallbacks;
 
     double time = 0;
 
@@ -230,8 +244,11 @@ class SAIGA_VULKAN_API WorldRenderer
 
     std::chrono::steady_clock::time_point lastFrame;
     bool hasLastFrame = false;
+    // CPU work of the current frame: transfer() time, then + render() time (see FrameTimes::cpuWorkMs)
+    double transferWorkMs = 0, frameWorkMs = -1;
 
     Stats statistics;
+    FrameTimes lastTimes;
     bool initialized = false;
 
     // Frame times of the last frames (ring buffers for the plots)
@@ -239,7 +256,16 @@ class SAIGA_VULKAN_API WorldRenderer
     std::vector<float> cpuHistory, gpuHistory;
     int historyIndex = 0;
 
-    // Reads the timestamps of the newest completed frame. Returns the total time or -1.
+    // GPU times of completed frames that were not delivered yet (oldest first)
+    struct GpuSample
+    {
+        int frame                             = 0;
+        double total                          = 0;
+        std::array<double, PASS_COUNT> passes = {};
+    };
+    std::deque<GpuSample> gpuQueue;
+    // Reads the timestamps of all completed frames into gpuQueue and returns the oldest one (its total time, -1 if
+    // the queue is empty). One frame is written per transfer(), so one sample per call keeps up.
     double readGpuTimes(std::array<double, PASS_COUNT>& passes, int& frameNumber);
     void writeTimestamp(vk::CommandBuffer cmd, uint32_t marker, vk::PipelineStageFlags2 stage);
     static void smooth(double& average, double value, int frames);

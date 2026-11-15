@@ -175,6 +175,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | World prototype: CDLOD terrain (one R32 height map, `TerrainRenderer::init(..., const HeightField&, ...)`), GPU-culled trees (`ForestRenderer`, own placement, OpenMP), procedural grass, sky, fog, gray look, GPU timestamps and statistics window; the world shaders are camera relative (float camera position: positions = (large part - camera) + small local part, `WorldUniforms::viewProjRel` without the translation) | `src/saiga/vulkan/world/`, `shader/vulkan/world/` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | World MCP tools: `screenshot`, `get_state`, `set_camera`, `move_camera`, `set_settings`, `terrain_query`, `measure_performance` | `src/saiga/vulkan/world/WorldMcp.*` | [exists], no `handleMessage` tests |
+| Benchmark runner (`sample_vulkan_world --benchmark flyover\|forest`: paths, median/p95, result JSON; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` | [exists], prototype (S03) |
 | Sample (GLFW window, polls MCP in `update()`), `.mcp.json` (`saiga-world`, port 8765) | `samples/vulkan/sample_vulkan_world.cpp` | [exists] |
 | Tests | `tests/test_vulkan_world.cpp`, `tests/test_core_mcp_server.cpp` (contains `Poller`) | [exists] |
 | Golden images: `compareGolden` (lavapipe gating, `SAIGA_UPDATE_GOLDEN`), goldens `world_overview` and `world_forest`, CI upload of failed images | `tests/golden_image.h`, `data/tests/golden/`, `.github/workflows/tests.yml` | [exists] |
@@ -1859,7 +1860,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | Connect | `.mcp.json` server `saiga-world` (`http://127.0.0.1:8765/mcp`); scripts can POST JSON-RPC | [exists] |
 | Ready | `tools/list` answers | [exists] |
 | Stop | MCP tool `quit` [planned: S14]; now: SIGTERM by the full executable path (the main thread is renamed `Saiga::main`, `pkill -x` by name does not match) | [exists] |
-| Benchmark | `--benchmark <name>` (§17.7) | [planned: S03] |
+| Benchmark | `--benchmark <name>` (§17.7) | [exists] (S03: `sample_vulkan_world`; S13: `EngineApp`) |
 
 ### 16.2 MCP tools
 
@@ -1987,19 +1988,40 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   `trees per lod` lines of the step "Golden image metrics", and the Mesa/LLVM versions named here and in AGENTS.md are
   updated (the goldens then come from CI's lavapipe); the exact commands are in AGENTS.md.
 
-### 17.7 Benchmarks [planned: S03]
+### 17.7 Benchmarks [exists: flyover, forest (S03); later benchmarks planned as marked]
 
-- `--benchmark <name>`: in S03 parsed by `sample_vulkan_world.cpp` (needs a display), moved to `engine/app/` in S13.
+- `--benchmark <name>` [exists]: parsed by `sample_vulkan_world.cpp` (needs a display); paths, statistics and the result
+  in `src/saiga/vulkan/world/WorldBenchmark.h` (`WorldBenchmark::pose`, `summarize` (median, nearest-rank p95), the
+  runner); moved to `engine/app/` in S13.
   Benchmarks `flyover` (one revolution in 600 frames on a circle of radius 3 km around the world center (the prototype's
   center (4096, 4096) until S27; from S27 `(sizeChunks * 128 m, sizeChunks * 128 m)` on the 32 km world), at the ground
   height below the camera + 300 m, looking at the center) and `forest` (2 m above max(terrain, water level) from center
   minus 300 m to center plus 300 m along x in 600 frames, looking along +x); default `WorldParameters` (8 km, 200k
-  trees); 1920 x 1080, MSAA 4; 60 warm-up frames excluded; `freezeTime`; `--benchmark` turns validation and vsync off;
-  pass keys are `WorldRenderer::gpuPassName` (from S19 `RenderScene::gpuPassName`); `quality` is `"default"` until S37.
-  Writes `benchmark_<name>.json` `{gpu, quality, frames, cpu_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}}` and
-  exits; from S13 `cpu_ms` also has `step` and `recording`, from S19 `extract` (each `{median, p95}`).
-- Per-frame values come from `struct WorldRenderer::FrameTimes { double cpuMs; std::array<double, PASS_COUNT>
-  gpuPassMs; }; const FrameTimes& WorldRenderer::lastFrameTimes() const;` (unsmoothed) [planned: S03].
+  trees); 1920 x 1080, MSAA 4; 60 warm-up frames excluded; `freezeTime`; `--benchmark` turns validation, vsync, ImGui
+  and defragmentation off; pass keys are `WorldRenderer::gpuPassName` (from S19 `RenderScene::gpuPassName`); `quality`
+  is `"default"` until S37.
+  Writes `benchmark_<name>.json` `{gpu, quality, build: {type, asserts, archnative}, frames, gpu_frames, width, height,
+  cpu_ms: {median, p95}, cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}}` to the working directory and
+  exits; the exit code is non-zero if the benchmark did not finish, the result could not be written or the rendered
+  size changed during the run (an old result file is deleted at the start, a bare `--benchmark` is an error).
+  - `cpu_ms` is the frame interval (one `transfer()` to the next): it includes waiting for the GPU and presenting, so
+    it is at least the GPU frame time. `cpu_work_ms` is the CPU work of the world in the frame (`transfer()` and the
+    command recording in `render()`).
+  - `gpu_frames`: frames with GPU times; `gpu_ms` is null without GPU times (no timestamp support).
+  - `width`/`height`: the rendered size, the swap chain extent of the measured frames (`VulkanRenderer::surfaceSize()`;
+    a warning is printed if it is not 1920 x 1080; a resize during the warm-up does not count).
+  - `build`: the CMake build type (`SAIGA_BUILD_TYPE` in `saiga_buildconfig.h`; with a multi-config generator
+    `release`/`debug` by `NDEBUG`), `SAIGA_ASSERTS`, and whether `-march=native` was really used
+    (`SAIGA_ARCHNATIVE_ACTIVE`, set by `Saiga_compiler_flags.cmake` where it adds the flag); baselines come from the
+    release build of AGENTS.md (asserts and `-march=native` off).
+  - `SAIGA_SCREENSHOT` is ignored in benchmark mode (its automatic screenshot would close the window at frame 60).
+  - No GUI and no MCP during a benchmark, and the default world (`SAIGA_WORLD_TREES` is ignored). From S13 the result
+    also has `step` and `recording`, from S19 `extract` (each `{median, p95}`).
+- Per-frame values come from `struct WorldRenderer::FrameTimes { double cpuMs; double cpuWorkMs; int cpuFrame; double
+  gpuMs; std::array<double, PASS_COUNT> gpuPassMs; int gpuFrame; }; const FrameTimes& WorldRenderer::lastFrameTimes()
+  const;` (unsmoothed; also passed to `WorldRenderer::frameCallbacks`) [exists]. The CPU values of frame N are known
+  when frame N + 1 is prepared, its GPU times when it has completed (a few frames later): samples are matched by frame
+  number. Every completed frame delivers its GPU times (one per `transfer()`, oldest first).
 - From S27 the benchmarks run on the 32 km world, from S37 at each tier's resolution of §17.10.
 - `--benchmark host_step` [S29, extended in S32]: headless, 8 scripted players in 4 islands with physics, one island
   containing 50 terrain-edited chunks with 30 container entities and 20 NPCs (from S30 additionally a base of placed
@@ -2010,8 +2032,13 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   tile/pyramid update, S28 re-runs it with collider patches; the step time stays within §17.10.
 - ECS benchmark: `tests/test_engine_ecs_benchmark.cpp` (non-gating) prints ns per entity for create, view iteration over
   1/2/3 components and destroy at 10^5 entities [planned: S07].
-- `data/tests/benchmarks.json` maps GPU name -> benchmark -> result; a regression of more than 5% must be explained.
-  Local only.
+- `data/tests/benchmarks.json` [exists] maps GPU name -> benchmark -> result; a regression of more than 5% must be
+  explained. Local only. The S03 baseline is for the development GPU (an NVIDIA RTX 5080 Laptop GPU at 1920 x 1080):
+  it is not the budget reference of §17.10 (an RTX 3060 / RX 6600 class card at 1440p); a baseline on that class is
+  added in S37, which checks the budgets. A benchmark run turns ImGui and memory defragmentation off, so the result
+  does not depend on `config.ini`. Run-to-run noise (S03, release build, two runs each): the `cpu_ms` median 0.5-0.7%,
+  its p95 1.5-1.9% (frame pacing makes the p95 the noisier value), the GPU pass medians about 1% (passes below 0.1 ms
+  up to 5%, timer resolution); compare medians, and repeat a run before reporting a regression of the frame interval.
 
 ### 17.8 Not verified automatically
 
@@ -2123,8 +2150,9 @@ the missing target is reported as open).
 | `VulkanForwardRenderer` (MSAA, reversed-Z), `MainLoop`, `StandaloneWindow` | not used by engine apps (own loop in `EngineApp`, own frame in `RenderScene`); kept for the other samples or retired later | S13, S17 |
 | gray look | `WorldSettings::shading = WorldShading::Clay` (enum with one value) [exists] | S01 (done) |
 | wall-clock `time`, OpenMP reduction in `placeTrees` | `WorldSettings::freezeTime`; serial sum (tests in `tests/test_vulkan_world.cpp`) [exists] | S01 (done) |
-| `sample_vulkan_world.cpp` | `--benchmark` (S03); `games/world/` library (S12); thin executable on `EngineApp`, `--headless` (S13) | S03, S12, S13 |
+| `sample_vulkan_world.cpp` | `--benchmark` [exists] (S03, done); `games/world/` library (S12); thin executable on `EngineApp`, `--headless` (S13) | S03 (done), S12, S13 |
 | `WorldMcp` | engine tools in `engine/tools/`; walk mode etc. as `game_*` tools | S14 |
+| `WorldBenchmark` | benchmark runner in `engine/app/` (`--benchmark` of `EngineApp`) | S13 |
 | `WorldCommon.h`, `common.glsl` (world uniforms) | uniforms per pass in `saiga_vulkan`, helpers stay | S19 |
 | `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | `RenderScene` instance sets, generic culling and instance shaders | S18, S19 |
 | `WorldRenderer`, `WorldStatistics.cpp` | passes and statistics in `RenderScene`; settings in the game | S19 |
@@ -2226,7 +2254,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 |---|---|---|---|---|
 | S01 | Prototype baseline (done) | Commit the prototype; clay shading enum, `freezeTime`, serial `placeTrees` sum (§19) | – | prototype committed, sample runs, existing tests green (CI) |
 | S02 | Golden image tests (done) | `compareGolden`, lavapipe goldens `world_overview` and `world_forest` of the prototype, CI upload of failed images (§17.6) | S01 | goldens pass in CI |
-| S03 | Benchmark runner | `--benchmark` with `flyover` / `forest`, unsmoothed frame times, baseline file (§17.7) | S01 | baseline in `data/tests/benchmarks.json` for the reference GPU (local) |
+| S03 | Benchmark runner (done) | `--benchmark` with `flyover` / `forest`, unsmoothed frame times, baseline file (§17.7) | S01 | baseline in `data/tests/benchmarks.json` for the development GPU (local) |
 | S04 | Engine module setup | `saiga_engine` and `games/` in CMake, export macro, module defines, test registration, Clang and Windows/MSVC (shared libraries) CI build jobs (§5.3) | – | `Module enabled: Engine` printed; engine library and a smoke test build and run on all CI compilers (CI) |
 | S05 | Math additions (done) | Missing tiny-eigen functions and double helpers (§7.10, R-MATH-2) | – | tiny-eigen tests for every addition (CI); `test_core_math_functions` builds and passes with Eigen (local) |
 | S06 | Core utilities | `JobPool`, `Rng`, `Hash`, logging ring buffer with `SAIGA_LOG` (§8.5, §8.6, §17.1) | S04 | unit tests: parallel-for coverage with the caller participating, RNG and hash reference values, log ring (CI) |
@@ -2260,7 +2288,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6) | S19, S16 | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local) |
 | S35 | Camera rig | Third-person camera with collision, gamepad input (§8.3, §10.6) | S29, S34 | camera collision tests (CI); reviewed in a session (local) |
 | S36 | Lighting | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11) | S19, S20 | golden images per time of day (CI) |
-| S37 | Post chain and tiers | AO, DOF, bloom, exposure, grading, render scale with spatial upscaling, quality tiers and budgets incl. Steam Deck (§10.5, §17.9, §17.10) | S36, S27 | per-pass budgets met on the desktop reference and, when available, the Steam Deck (local); golden images per tier (CI) |
+| S37 | Post chain and tiers | AO, DOF, bloom, exposure, grading, render scale with spatial upscaling, quality tiers and budgets incl. Steam Deck (§10.5, §17.9, §17.10) | S36, S27 | per-pass budgets met on the desktop reference (or reported as open per §17.10 if no such card is available) and, when available, the Steam Deck (local); benchmark baselines in `data/tests/benchmarks.json` for the desktop reference class (RTX 3060 / RX 6600, §17.10; or reported as open per §17.10 if no such card is available) (local); golden images per tier (CI) |
 | S38 | Volumetric fog | Froxel fog with light shafts, fog volumes, analytic fog to the horizon (§10.5.1) | S37 | golden images with fog and local lights (CI); fog within its budget (local) |
 | S39 | Water | Global sea plane, waves, `waterHeight`, buoyancy, exclusion volumes, rendering incl. the transparent pass, underwater (§10.9) | S28, S37 | boat-floats scenario incl. host + client; a pit dug below sea level shows water; golden images above and below water (CI); water within its budget (local) |
 | S40 | Moving platforms | `RideFrame`, local-frame movement, vehicle control through the driver's input, replication relative to platforms (§13.3) | S39, S29 | passenger stays on a host-owned boat steered by a client (turning boat, delay 2, driver and passenger on two different clients) and step-from-boat-to-dock scenarios (CI) |

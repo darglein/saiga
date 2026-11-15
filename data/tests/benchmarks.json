@@ -1,0 +1,98 @@
+{
+  "NVIDIA GeForce RTX 5080 Laptop GPU": {
+    "flyover": {
+      "build": {
+        "archnative": false,
+        "asserts": false,
+        "type": "Release"
+      },
+      "cpu_ms": {
+        "median": 2.3580895,
+        "p95": 6.493994
+      },
+      "cpu_work_ms": {
+        "median": 0.0352945,
+        "p95": 0.057027999999999995
+      },
+      "frames": 600,
+      "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "gpu_frames": 600,
+      "gpu_ms": {
+        "grass": {
+          "median": 0,
+          "p95": 3.2e-05
+        },
+        "sky": {
+          "median": 0.01072,
+          "p95": 0.011583999999999999
+        },
+        "terrain + water": {
+          "median": 0.09184,
+          "p95": 0.139232
+        },
+        "trees": {
+          "median": 1.477552,
+          "p95": 2.659712
+        },
+        "upload + cull": {
+          "median": 0.023376,
+          "p95": 0.034592
+        },
+        "wireframe": {
+          "median": 0,
+          "p95": 3.2e-05
+        }
+      },
+      "height": 1080,
+      "quality": "default",
+      "width": 1920
+    },
+    "forest": {
+      "build": {
+        "archnative": false,
+        "asserts": false,
+        "type": "Release"
+      },
+      "cpu_ms": {
+        "median": 1.973881,
+        "p95": 3.905304
+      },
+      "cpu_work_ms": {
+        "median": 0.033160999999999996,
+        "p95": 0.054083000000000006
+      },
+      "frames": 600,
+      "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "gpu_frames": 600,
+      "gpu_ms": {
+        "grass": {
+          "median": 0.627216,
+          "p95": 0.773152
+        },
+        "sky": {
+          "median": 0.005952,
+          "p95": 0.0070079999999999995
+        },
+        "terrain + water": {
+          "median": 0.049808,
+          "p95": 0.059455999999999995
+        },
+        "trees": {
+          "median": 0.476128,
+          "p95": 0.549376
+        },
+        "upload + cull": {
+          "median": 0.020928,
+          "p95": 0.023232
+        },
+        "wireframe": {
+          "median": 0,
+          "p95": 3.2e-05
+        }
+      },
+      "height": 1080,
+      "quality": "default",
+      "width": 1920
+    }
+  }
+}

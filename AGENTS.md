@@ -50,15 +50,16 @@ src/
                         VMA's defragmentation compacts (full_defrag(), or incremental passes in update() per frame);
                         moved handles reach descriptors through DynamicDescriptorSet, images keep the layout tracked in
                         ImageData::layout (Texture::transitionImageLayout / setImageLayout)
-                        world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, MCP tools;
-                        sample_vulkan_world)
+                        world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, MCP tools,
+                        benchmark runner WorldBenchmark; sample_vulkan_world)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
 docs/                   engine_design.md: design and implementation stages of the game engine;
                         stages/Sxx_<name>.plan.md: one plan per stage (template: S05_math_additions.plan.md)
 shader/                 GLSL shaders (OpenGL / Vulkan)
-data/                   Sample assets (textures, models); test goldens in data/tests/golden/
+data/                   Sample assets (textures, models); test goldens in data/tests/golden/, benchmark baselines per
+                        GPU in data/tests/benchmarks.json
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
@@ -200,6 +201,24 @@ ctest -R test_core_ini --output-on-failure             # one test
   the counts from the `trees per lod` lines of the step "Golden image metrics" into the `ExpectCounts` calls of
   `tests/test_vulkan_world.cpp`; then update the Mesa/LLVM versions named here and in `docs/engine_design.md` §17.6
   (the goldens now come from CI's lavapipe). See `docs/engine_design.md` §17.6.
+- **Benchmarks** (local, GPU and display; `docs/engine_design.md` §17.7). Baselines are measured in a separate release
+  build without asserts (§17.10) and without `-march=native` (§17.7):
+  ```shell
+  cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DSAIGA_ASSERTS=OFF -DSAIGA_ARCHNATIVE=OFF \
+    -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON -DSAIGA_BUILD_TESTS=OFF -DSAIGA_BUILD_SAMPLES=ON
+  # CMake >= 4: add -DCMAKE_POLICY_VERSION_MINIMUM=3.5; GCC 15: add -DASSIMP_WARNINGS_AS_ERRORS=OFF (see above)
+  cmake --build build-bench --target sample_vulkan_world --parallel
+  cd build-bench/samples/vulkan && ./sample_vulkan_world --benchmark flyover   # and --benchmark forest
+  ```
+  It flies a fixed path at 1920 x 1080 (validation, vsync, ImGui, defragmentation and MCP off; `SAIGA_SCREENSHOT` is
+  ignored) and writes
+  `benchmark_<name>.json` to the working directory (here `build-bench/samples/vulkan/`); the exit code is non-zero if it
+  did not finish, could not write the result or the rendered size changed during the measured frames. The JSON
+  records the build (`build: {type, asserts, archnative}`: the CMake build type, `SAIGA_ASSERTS` and whether
+  `-march=native` was really used) and the rendered size. Compare with the baseline of the GPU in
+  `data/tests/benchmarks.json` (run each benchmark twice: the frame interval `cpu_ms` median varies below 1% between
+  runs, the GPU pass medians about 1%, passes below 0.1 ms up to 5%); a regression of more than 5% must be explained
+  (R-TEST-2), and a new baseline is committed when a change is accepted.
 
 ## Game Engine
 
