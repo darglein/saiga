@@ -113,7 +113,7 @@ automatically.
 
 - **R-TEST-1** (from S12 for scenarios, now for the rest) Every gameplay feature has a scenario test (§17.2); every
   engine feature a unit test; every render feature a headless Vulkan test, and a golden image if it changes the image
-  (§17.6).
+  (§17.6; golden images start with S02, the S01 prototype tests check pixel relations only).
 - **R-TEST-2** (from S03) Changes under `engine/ecs/`, `engine/sync/`, `engine/net/`, `RenderScene`, culling, terrain,
   streaming or physics are performance relevant: run the relevant benchmarks before and after and report the numbers
   (ECS: `tests/test_engine_ecs_benchmark.cpp`; rendering, terrain, streaming: `--benchmark`, §17.7); they must stay
@@ -169,7 +169,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Part | Where | Status |
 |---|---|---|
 | Forward renderer with MSAA, reversed-Z, infinite far plane | `src/saiga/vulkan/VulkanForwardRenderer.*` | [exists] |
-| World prototype: CDLOD terrain (one R32 height map, `TerrainRenderer::init(..., const HeightField&, ...)`), GPU-culled trees (`ForestRenderer`, own placement, OpenMP), procedural grass, sky, fog, gray look, GPU timestamps and statistics window | `src/saiga/vulkan/world/`, `shader/vulkan/world/` | [exists], prototype |
+| World prototype: CDLOD terrain (one R32 height map, `TerrainRenderer::init(..., const HeightField&, ...)`), GPU-culled trees (`ForestRenderer`, own placement, OpenMP), procedural grass, sky, fog, gray look, GPU timestamps and statistics window; the world shaders are camera relative (float camera position: positions = (large part - camera) + small local part, `WorldUniforms::viewProjRel` without the translation) | `src/saiga/vulkan/world/`, `shader/vulkan/world/` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | World MCP tools: `screenshot`, `get_state`, `set_camera`, `move_camera`, `set_settings`, `terrain_query`, `measure_performance` | `src/saiga/vulkan/world/WorldMcp.*` | [exists], no `handleMessage` tests |
 | Sample (GLFW window, polls MCP in `update()`), `.mcp.json` (`saiga-world`, port 8765) | `samples/vulkan/sample_vulkan_world.cpp` | [exists] |
@@ -332,7 +332,7 @@ struct Health
 - **ID types**: `using ComponentId = uint8_t; using EventId = uint16_t; using ClassId = uint16_t;` (engine,
   `ecs/Ids.h`).
 - **IDs** come from an explicit enum per module: engine components 0..63, game components 64..255 (the game enum starts
-  at 64). Registration (`registry.registerComponent<Health>(Replicate::Host)`, optionally `Saved::No` for derived
+  at 64). Registration (`registry.registerComponent<Health>(Replicate::Host)`; modes §13.4; optionally `Saved::No` for derived
   components that are rebuilt after loading, e.g. `RenderPose`) asserts that the ID is unused and every enum value up to
   the last one registered is registered (the enums grow per stage). `Replicate` and `RunOn` are defined in S07 and
   stored, but only evaluated from S16. Templates use `T::id` directly: no type-to-ID map, no hashing on access. Events
@@ -1661,10 +1661,16 @@ result as a difference rectangle (new heights minus base), never the brush; clie
 
 ### 13.4 Replication [planned: S16 full state; S32 interest, rate, cosmetic events]
 
-- Components are registered `Replicate::Never | Host | OwnerAuthoritative`; events `Replicate::Never | Cosmetic`.
+- Components are registered `Replicate::Never | Host | HostReliable | OwnerAuthoritative`; events
+  `Replicate::Never | Cosmetic`. `HostReliable` is for large, rarely changing components (inventories, container
+  contents): sent reliably on `Channel::State` with the spawn and whenever they change (in step order with the
+  snapshots' host step), never in snapshots.
+- **Snapshot size per entity**: the unreliable snapshot state of one entity (its `Host` and `OwnerAuthoritative`
+  components) fits into one packet (<= 1200 bytes after quantization, before compression); serialization asserts and
+  names the entity and the largest component otherwise. A component that can exceed it is registered `HostReliable`.
 - **Full-state snapshots**: at the snapshot rate (default 20 Hz; S16: every step) the host serializes each replicated
   entity once per snapshot with `visit` (quantized per field options; `Host` components and `OwnerAuthoritative`
-  components), shared by all clients; per client it concatenates the blobs of its interest set, leaving out the
+  components, not `HostReliable`), shared by all clients; per client it concatenates the blobs of its interest set, leaving out the
   `OwnerAuthoritative` components of entities that client owns, splits the result at entity boundaries into packets of
   <= 1200 bytes, each carrying the host step, compressed with zstd on its own and decodable alone, and sends them
   unreliable on `Channel::State`; a lost packet loses only its entities until the next snapshot.
@@ -1715,7 +1721,8 @@ clients receive a destroy); the newest export the client received is authoritati
 world save directory (§15.1, from S33), it contains no player entities (the character files are authoritative); joining
 players import their character again and arrive through `requestArrival`. `World::save()`/`load()` blobs keep player
 entities (scenario round trips, §17.4). After a host crash the world and the characters roll back to the last commit
-(accepted; the commit interval is game policy). Host migration is not supported; the host's world save is the world.
+(accepted; the commit interval is game policy; rejoining characters are matched to the loaded commit, §15.4). Host
+migration is not supported; the host's world save is the world.
 
 ### 13.8 Determinism and multiplayer [planned: S16]
 
@@ -1740,10 +1747,12 @@ deterministic replicas.
 
 ### 15.1 Save content and layout
 
-- **World save = a directory**: a header (schema table, §15.2; seed; pinned generator versions), a world-state file
+- **World save = a directory**: a header (schema table, §15.2; seed; world id: random, created with the world; pinned
+  generator versions), a world-state file
   (entity indices, generations and slot states, so `Entity` fields stay valid without remapping; all saved components
   (`Saved::Yes`) of resident entities through `visit`, excluding player entity groups from S33 (§15.4; until S33 players
-  are saved here); the RNG state; pending events; step index and time) and a
+  are saved here); the RNG state; pending events; step index and time; from S33 the character exports of the commit,
+  §15.4) and a
   **chunk store** [planned: S25] (region files with the
   chunk states: modification state, stored generated base, entity groups). Binary, zstd compressed.
 - Dirty chunk states are written incrementally on the streaming pool; unloaded chunks live on disk, not in memory.
@@ -1800,9 +1809,12 @@ deterministic replicas.
 A player's character (the entity group of the player entity: its components, children and inventory) is a **character
 file** on the player's machine, with the same header and migrations as world saves, so characters move between worlds
 and versions; the game decides what is kept. On join the client sends it (`Channel::ChunkData`) and the host imports it;
-the host exports the connected characters at every commit step from the same frozen snapshot as the world (§15.1) and
-sends them tagged with commit c only after the world-state file naming c has been renamed into place (the client keeps
-the newest), and on leave. `World::exportCharacter(Entity player)` [S33] exports and sends one character at any time, so
+the host exports the connected characters at every commit step from the same frozen snapshot as the world (§15.1),
+stores these exports in the commit (part of the save directory, per commit), and sends them tagged with (world id,
+commit c) only after the world-state file naming c has been renamed into place (the client keeps the newest), and on
+leave. **Rejoin after a rollback**: if a joining client's file is from this world (same world id) but from another
+commit than the loaded one, the host uses its own export from the loaded commit instead and sends it back; the
+character rolls back together with the world (no item exists twice). Files from other worlds are imported normally. `World::exportCharacter(Entity player)` [S33] exports and sends one character at any time, so
 a game can export more often (e.g. on inventory changes, policy). On import into the world that exported the character,
 its `Persistent` IDs are kept if still free; otherwise (and in other worlds) they are reassigned from the target world's
 counter and remapped inside the group; `PersistentId` fields pointing outside the group become null. On leave the player
@@ -2074,9 +2086,9 @@ the missing target is reported as open).
 | `WorldCommon.h`, `common.glsl` (world uniforms) | uniforms per pass in `saiga_vulkan`, helpers stay | S19 |
 | `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | `RenderScene` instance sets, generic culling and instance shaders | S18, S19 |
 | `WorldRenderer`, `WorldStatistics.cpp` | passes and statistics in `RenderScene`; settings in the game | S19 |
-| `TerrainRenderer`, `HeightField`, `terrain.vert`, `terrain.frag`, `heightmap.glsl` | integer multi-level tiles + pyramid, edits, camera relative | S20, extended in S22 |
-| `GrassRenderer`, `grass.vert` | camera relative, mask from the prototype generator (S20); generated masks (S23); edited masks (S31) | S20 |
-| `sky.vert`, `sky.frag`, `shading.glsl` (clay lighting, height fog), water plane (a mode of `terrain.vert` / `terrain.frag`) | camera relative (S20); sky and lighting replaced in S36, water in S39 | S20 |
+| `TerrainRenderer`, `HeightField`, `terrain.vert`, `terrain.frag`, `heightmap.glsl` | integer multi-level tiles + pyramid, edits, double camera and region-relative tile data (the shaders are camera relative already) | S20, extended in S22 |
+| `GrassRenderer`, `grass.vert` | region-relative cells, mask from the prototype generator (S20); generated masks (S23); edited masks (S31) | S20 |
+| `sky.vert`, `sky.frag`, `shading.glsl` (clay lighting, height fog), water plane (a mode of `terrain.vert` / `terrain.frag`) | double camera position, sea level from `SpaceTemplate` (S20; the shaders are camera relative already); sky and lighting replaced in S36, water in S39 | S20 |
 | `FoliageGenerator`, `HeightField::generate`, `placeTrees` | generation pipeline with integer math (R-CONTENT-1) | S23 |
 | `tests/test_vulkan_world.cpp` | render tests + engine tests | S19 |
 
@@ -2186,7 +2198,7 @@ GPU checks with MCP.
 | S17 | HDR frame | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
 | S18 | Instances and culling | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |
 | S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5) | S18, S16, S14 | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local) |
-| S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, camera-relative CDLOD terrain, grass and water plane, visual tile streaming (§7.9, §12.2) | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review |
+| S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2) | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review |
 | S21 | Spaces and transitions | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20 | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, CPU tile/pyramid update) within budget (local) |
 | S23 | Generation pipeline | `Generator` interface, world plan with sites and space instances, chunk generation, prefab stamping (terrain patches, entities, static geometry; pieces in S30), tombstones, content hashes, pinned versions, the hash test on all CI compilers (§12.1, §15.3) | S20, S21, S22 | committed chunk hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present); a tombstoned instance is hidden on the client in the host + client variant (CI) |
@@ -2199,7 +2211,7 @@ GPU checks with MCP.
 | S30 | Placed pieces | Piece types, per-chunk piece arrays, stamped pieces of prefabs, rendering, merged far meshes per region and summary input, colliders, light descriptions, queries, live modifications (§12.5) | S27, S28 | build-a-wall scenario incl. save/load and host + client (CI); synchronous cell rebuild for a piece edit in a full base cell within the step budget; `host_step` re-run with the placed-piece base (local) |
 | S31 | Promotion and grass edits | `promote`/`demote`, tombstones from interaction, `editGrass` (§6, §12.5) | S30 | chop-a-tree scenario incl. save/load and host + client (CI) |
 | S32 | Network production | Interest radius, snapshot rate (20 Hz), cosmetic events, loss and reordering handling, snapshot packets (§13.4) | S29, S26 | all scenarios pass in the host + client variant with seeded loss and reordering (CI); `--benchmark host_step` with 7 clients within the step budget, upload per client reported against §17.10 (local) |
-| S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept); a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
+| S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept) and a rejoin with the file of an older commit (receives the loaded commit's character); a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
 | S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6) | S19, S16 | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local) |
 | S35 | Camera rig | Third-person camera with collision, gamepad input (§8.3, §10.6) | S29, S34 | camera collision tests (CI); reviewed in a session (local) |
 | S36 | Lighting | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11) | S19, S20 | golden images per time of day (CI) |

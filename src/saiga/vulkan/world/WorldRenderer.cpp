@@ -105,11 +105,10 @@ std::vector<std::string> WorldSettings::fromJson(const json11::Json& json)
                            }
                            else if constexpr (std::is_same_v<T, int>)
                            {
-                               // int_value() is undefined outside the int range; clamp() limits the value
+                               // int_value() is undefined outside the int range: bound the number first, clamp()
+                               // then limits it to the GUI range (debug_mode 1001 -> 1, not 0)
                                if (kv.second.is_number())
-                                   v = kv.second.number_value() >= 0 && kv.second.number_value() <= 1000
-                                           ? int(kv.second.number_value())
-                                           : 0;
+                                   v = int(std::max(-1e6, std::min(kv.second.number_value(), 1e6)));
                                else
                                    found = false;
                            }
@@ -159,9 +158,10 @@ void WorldSettings::clamp()
 void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters& parameters)
 {
     destroy();
-    renderer = &_renderer;
-    base     = &renderer->base();
-    params   = parameters;
+    renderer     = &_renderer;
+    base         = &renderer->base();
+    params       = parameters;
+    hasCullState = false;
     SAIGA_ASSERT(renderer->parameters().reversedZ, "WorldRenderer: the renderer must use reversed depth");
 
     auto t0 = std::chrono::steady_clock::now();
@@ -203,6 +203,9 @@ void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters
         auto queueProps     = base->physicalDevice.getQueueFamilyProperties()[base->mainQueue.getQueueFamilyIndex()];
         timestampsSupported = props.limits.timestampComputeAndGraphics && queueProps.timestampValidBits > 0;
         timestampPeriod     = props.limits.timestampPeriod;
+        // The slots refer to the queries of the previous pool (a re-init): the new pool's queries are not reset yet
+        timestampSlots = {};
+        timestampIndex = 0;
         if (timestampsSupported)
         {
             queryPool = base->device.createQueryPool(vk::QueryPoolCreateInfo(
@@ -261,7 +264,7 @@ void WorldRenderer::writeTimestamp(vk::CommandBuffer cmd, uint32_t marker, vk::P
     if (timestampsSupported) cmd.writeTimestamp2(stage, queryPool, currentSlot * timestampsPerFrame + marker);
 }
 
-double WorldRenderer::readGpuTimes(std::array<double, PASS_COUNT>& passes)
+double WorldRenderer::readGpuTimes(std::array<double, PASS_COUNT>& passes, int& frameNumber)
 {
     if (!timestampsSupported) return -1;
     uint64_t completed = base->completedFrameValue();
@@ -279,6 +282,7 @@ double WorldRenderer::readGpuTimes(std::array<double, PASS_COUNT>& passes)
                                          ts.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64);
     timestampSlots[best].written = false;
     if (result != vk::Result::eSuccess) return -1;
+    frameNumber = timestampSlots[best].frameNumber;
     for (int p = 0; p < PASS_COUNT; ++p) passes[p] = double(ts[p + 1] - ts[p]) * timestampPeriod * 1e-6;
     return double(ts[PASS_COUNT] - ts[0]) * timestampPeriod * 1e-6;
 }
@@ -306,7 +310,8 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
     statistics.frames++;
 
     std::array<double, PASS_COUNT> passMs;
-    double gpuMs = readGpuTimes(passMs);
+    int gpuFrame = 0;
+    double gpuMs = readGpuTimes(passMs, gpuFrame);
     if (gpuMs >= 0)
     {
         smooth(statistics.gpuMs, gpuMs, statistics.frames);
@@ -323,7 +328,12 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
     {
         for (size_t i = 0; i < frameCallbacks.size();)
         {
-            if (frameCallbacks[i](cpuMs, gpuMs))
+            FrameSample sample;
+            sample.cpuMs    = cpuMs;
+            sample.cpuFrame = statistics.frames - 1;
+            sample.gpuMs    = gpuMs;
+            sample.gpuFrame = gpuFrame;
+            if (frameCallbacks[i](sample))
                 frameCallbacks.erase(frameCallbacks.begin() + i);
             else
                 ++i;
@@ -336,21 +346,25 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
         timestampIndex = (timestampIndex + 1) % timestampSlots.size();
         cmd.resetQueryPool(queryPool, currentSlot * timestampsPerFrame, timestampsPerFrame);
         writeTimestamp(cmd, 0, Stage::eTopOfPipe);
-        timestampSlots[currentSlot].frameValue = base->currentFrameSignalValue();
-        timestampSlots[currentSlot].written    = true;
+        timestampSlots[currentSlot].frameValue  = base->currentFrameSignalValue();
+        timestampSlots[currentSlot].frameNumber = statistics.frames;
+        timestampSlots[currentSlot].written     = true;
     }
 
     mat4 proj     = projection(aspect);
     mat4 viewProj = proj * view;
-    if (!settings.freezeCulling)
+    // Frozen culling keeps the last state; it is captured once if culling was frozen before the first frame
+    if (!settings.freezeCulling || !hasCullState)
     {
         cullPosition = cameraPosition;
         cullFrustum  = frustumPlanes(viewProj);
+        hasCullState = true;
     }
 
     // Terrain node selection (records the instance upload)
     auto t0 = std::chrono::steady_clock::now();
-    terrainRenderer.update(cmd, cullPosition, cullFrustum, settings.terrainLodRange, settings.water);
+    terrainRenderer.update(cmd, cullPosition, cullFrustum, settings.terrainLodRange, settings.morphStart,
+                           settings.water);
     auto t1 = std::chrono::steady_clock::now();
     grassRenderer.update(cullPosition, cullFrustum, settings.grass ? settings.grassRadius : 0, settings.grassCellSize);
     auto t2 = std::chrono::steady_clock::now();
@@ -365,11 +379,17 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
         auto colorFormat = renderer->getColorFormat();
         bool srgbTarget  = colorFormat == vk::Format::eB8G8R8A8Srgb || colorFormat == vk::Format::eR8G8B8A8Srgb;
 
-        uniforms.viewProj     = viewProj;
-        uniforms.invViewProj  = inverse(viewProj);
-        uniforms.cameraPos    = vec4(cameraPosition(0), cameraPosition(1), cameraPosition(2), float(time));
-        uniforms.lodCameraPos = vec4(cullPosition(0), cullPosition(1), cullPosition(2), 0);
-        uniforms.sunDir       = vec4(sun(0), sun(1), sun(2), settings.sunIntensity);
+        // The view without the translation: the camera is at the origin of the relative positions
+        mat4 viewRel            = view;
+        viewRel(0, 3)           = 0;
+        viewRel(1, 3)           = 0;
+        viewRel(2, 3)           = 0;
+        mat4 viewProjRel        = proj * viewRel;
+        uniforms.viewProjRel    = viewProjRel;
+        uniforms.invViewProjRel = inverse(viewProjRel);
+        uniforms.cameraPos      = vec4(cameraPosition(0), cameraPosition(1), cameraPosition(2), float(time));
+        uniforms.lodCameraPos   = vec4(cullPosition(0), cullPosition(1), cullPosition(2), 0);
+        uniforms.sunDir         = vec4(sun(0), sun(1), sun(2), settings.sunIntensity);
         uniforms.shading  = vec4(settings.albedo, settings.ambient, settings.flatShading ? 1 : 0, srgbTarget ? 0 : 1);
         uniforms.fog      = vec4(settings.fogDensity, settings.fogFalloff, settings.fog ? 1 : 0, hf.waterLevel());
         uniforms.fogColor = vec4(0.42f, 0.42f, 0.42f, 1);
@@ -424,7 +444,7 @@ void WorldRenderer::render(vk::CommandBuffer cmd)
     if (settings.trees)
     {
         forestRenderer.render(cmd, false);
-        calls += 1;
+        calls += forestRenderer.drawCalls();
     }
     mark(PASS_TREES);
     if (settings.grass)
@@ -445,8 +465,8 @@ void WorldRenderer::render(vk::CommandBuffer cmd)
         if (settings.terrain) terrainRenderer.render(cmd, true);
         if (settings.trees) forestRenderer.render(cmd, true);
         if (settings.grass) grassRenderer.render(cmd, true);
-        calls += (settings.terrain ? terrainRenderer.drawCalls() : 0) + (settings.trees ? 1 : 0) +
-                 (settings.grass ? grassRenderer.drawCalls() : 0);
+        calls += (settings.terrain ? terrainRenderer.drawCalls() : 0) +
+                 (settings.trees ? forestRenderer.drawCalls() : 0) + (settings.grass ? grassRenderer.drawCalls() : 0);
     }
     mark(PASS_WIREFRAME);
 
@@ -540,27 +560,27 @@ void WorldRenderer::imgui()
     }
     if (ImGui::CollapsingHeader("Level of detail"))
     {
-        ImGui::SliderFloat("terrain lod range", &st.terrainLodRange, 100, 2000);
-        ImGui::SliderFloat("morph start", &st.morphStart, 0.3f, 0.95f);
-        ImGui::SliderFloat("tree lod1", &st.treeLod1, 10, 500);
-        ImGui::SliderFloat("tree lod2", &st.treeLod2, 50, 3000);
-        ImGui::SliderFloat("tree max distance", &st.treeMaxDistance, 500, 50000);
-        ImGui::SliderFloat("grass radius", &st.grassRadius, 0, 200);
-        ImGui::SliderFloat("grass cell size", &st.grassCellSize, 0.1f, 2.0f);
-        ImGui::SliderFloat("grass density", &st.grassDensity, 0, 1);
-        ImGui::SliderFloat("alpha cutoff", &st.alphaCutoff, 0.05f, 0.95f);
+        ImGui::SliderFloat("terrain lod range", &st.terrainLodRange, 100, 2000, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("morph start", &st.morphStart, 0.3f, 0.95f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("tree lod1", &st.treeLod1, 10, 500, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("tree lod2", &st.treeLod2, 50, 3000, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("tree max distance", &st.treeMaxDistance, 500, 50000, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("grass radius", &st.grassRadius, 0, 200, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("grass cell size", &st.grassCellSize, 0.1f, 2.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("grass density", &st.grassDensity, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("alpha cutoff", &st.alphaCutoff, 0.05f, 0.95f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
     }
     if (ImGui::CollapsingHeader("Lighting"))
     {
-        ImGui::SliderFloat("fovy", &st.fovy, 20, 110);
-        ImGui::SliderFloat("sun azimuth", &st.sunAzimuth, -180, 180);
-        ImGui::SliderFloat("sun elevation", &st.sunElevation, -10, 90);
-        ImGui::SliderFloat("sun intensity", &st.sunIntensity, 0, 2);
-        ImGui::SliderFloat("ambient", &st.ambient, 0, 1);
-        ImGui::SliderFloat("albedo", &st.albedo, 0, 1);
-        ImGui::SliderFloat("wind", &st.wind, 0, 4);
-        ImGui::SliderFloat("fog density", &st.fogDensity, 0, 0.002f, "%.5f");
-        ImGui::SliderFloat("fog falloff", &st.fogFalloff, 0.0001f, 0.01f, "%.5f");
+        ImGui::SliderFloat("fovy", &st.fovy, 20, 110, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("sun azimuth", &st.sunAzimuth, -180, 180, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("sun elevation", &st.sunElevation, -10, 90, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("sun intensity", &st.sunIntensity, 0, 2, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("ambient", &st.ambient, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("albedo", &st.albedo, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("wind", &st.wind, 0, 4, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("fog density", &st.fogDensity, 0, 0.002f, "%.5f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("fog falloff", &st.fogFalloff, 0.0001f, 0.01f, "%.5f", ImGuiSliderFlags_AlwaysClamp);
     }
     ImGui::End();
 

@@ -7,9 +7,12 @@
 // The uniforms of the world passes, see Saiga::Vulkan::WorldUniforms (src/saiga/vulkan/world/WorldCommon.h).
 layout(set = 0, binding = 0) uniform WorldUBO
 {
-    mat4 viewProj;
-    mat4 invViewProj;
-    // xyz: camera position, w: time (s)
+    // Camera relative: projection * view without the translation. The world passes transform positions relative to
+    // the camera (position - cameraPos, computed from small parts), so float precision does not depend on the
+    // distance to the origin.
+    mat4 viewProjRel;
+    mat4 invViewProjRel;
+    // xyz: camera position (world), w: time (s)
     vec4 cameraPos;
     // xyz: position used for the level of detail and culling
     vec4 lodCameraPos;

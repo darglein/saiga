@@ -16,22 +16,27 @@ vec3 clayLighting(vec3 N, float ao)
     return vec3(world.shading.x * (diffuse + hemi) * ao);
 }
 
-// Exponential height fog: the density decreases with the height above the water level.
-vec3 applyFog(vec3 color, vec3 pos)
+// Exponential height fog: the density decreases with the height above the water level. relPos: the position
+// relative to the camera.
+vec3 applyFog(vec3 color, vec3 relPos)
 {
     if (world.fog.z < 0.5) return color;
     vec3 ro    = world.cameraPos.xyz;
-    vec3 rd    = pos - ro;
+    vec3 rd    = relPos;
     float dist = length(rd);
     rd /= max(dist, 1e-4);
-    float a  = world.fog.x;
-    float b  = world.fog.y;
+    float a = world.fog.x;
+    float b = world.fog.y;
+    // Heights above the water level at both ends of the ray (the density is constant below the water level)
     float h0 = max(ro.y - world.fog.w, 0.0);
-    // Integral of a * exp(-b * height) along the ray
-    float k        = rd.y * b * dist;
-    float integral = abs(k) > 1e-4 ? (1.0 - exp(-k)) / k : 1.0;
-    float optical  = a * exp(-h0 * b) * dist * integral;
-    float f        = 1.0 - exp(-optical);
+    float h1 = max(ro.y + rd.y * dist - world.fog.w, 0.0);
+    // Integral of a * exp(-b * height) along the ray, from the bounded densities at both ends (no exp of a large
+    // positive number, which overflowed for a high camera looking down)
+    float e0      = exp(-b * h0);
+    float e1      = exp(-b * h1);
+    float dh      = h1 - h0;
+    float optical = abs(b * dh) > 1e-4 ? a * dist * (e0 - e1) / (b * dh) : a * dist * 0.5 * (e0 + e1);
+    float f       = 1.0 - exp(-optical);
     return mix(color, world.fogColor.rgb, clamp(f, 0.0, 1.0));
 }
 

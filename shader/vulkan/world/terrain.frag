@@ -9,6 +9,7 @@
 #include "common.glsl"
 #include "shading.glsl"
 
+// Position relative to the camera
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) flat in float inLod;

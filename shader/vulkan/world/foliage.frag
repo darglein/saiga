@@ -11,6 +11,7 @@
 
 // Trees and grass: opaque parts (layer < 0) and alpha tested cards (alpha to coverage with MSAA).
 
+// Position relative to the camera
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inUvLayer;

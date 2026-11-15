@@ -69,7 +69,8 @@ void main()
     uint seed  = hash2(cell);
 
     float cellSize = world.grass.y;
-    vec2 p         = (vec2(cell) + vec2(rnd(seed), rnd(seed))) * cellSize;
+    vec2 jitter    = vec2(rnd(seed), rnd(seed)) * cellSize;
+    vec2 p         = vec2(cell) * cellSize + jitter;
 
     // Patches of dense and sparse grass, fading out towards the radius
     float radius  = world.grass.x;
@@ -107,9 +108,11 @@ void main()
     lp.xz += vec2(sin(time * 1.7 + phase), cos(time * 1.3 + phase * 0.7)) * 0.08 * height * inNormalWind.w *
              world.terrain2.z;
 
-    vec3 pos    = vec3(p.x, h - 0.04, p.y) + lp;
+    // Relative to the camera: the large cell position and the camera are subtracted first
+    vec2 rel    = (vec2(cell) * cellSize - world.cameraPos.xz) + jitter;
+    vec3 pos    = vec3(rel.x, h - 0.04 - world.cameraPos.y, rel.y) + lp;
     outPos      = pos;
     outNormal   = normalize(mix(tn, vec3(0, 1, 0), 0.4));
     outAo       = inPosAo.w * 0.8;
-    gl_Position = world.viewProj * vec4(pos, 1.0);
+    gl_Position = world.viewProjRel * vec4(pos, 1.0);
 }

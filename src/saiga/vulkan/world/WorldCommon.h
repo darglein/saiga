@@ -26,9 +26,11 @@ namespace Vulkan
  */
 struct WorldUniforms
 {
-    mat4 viewProj;
-    mat4 invViewProj;
-    // xyz: camera position, w: time in seconds
+    // Camera relative: projection * view without the translation (the shaders transform position - cameraPos, so the
+    // float precision does not depend on the distance to the origin)
+    mat4 viewProjRel;
+    mat4 invViewProjRel;
+    // xyz: camera position (world), w: time in seconds
     vec4 cameraPos;
     // xyz: the camera position used for the level of detail and culling (differs if culling is frozen)
     vec4 lodCameraPos;

@@ -23,6 +23,7 @@ layout(push_constant) uniform PushConstants
 }
 pc;
 
+// Position relative to the camera
 layout(location = 0) out vec3 outPos;
 layout(location = 1) out vec3 outNormal;
 layout(location = 2) flat out float outLod;
@@ -33,16 +34,18 @@ void main()
     outLod    = lod;
     if (lod < 0.0)
     {
-        vec2 p      = inNode.xy + inGrid / pc.gridN * inNode.z;
-        vec3 pos    = vec3(p.x, world.fog.w, p.y);
+        // The large node origin and the camera are subtracted first, then the small local offset is added
+        vec2 rel    = (inNode.xy - world.cameraPos.xz) + inGrid / pc.gridN * inNode.z;
+        vec3 pos    = vec3(rel.x, world.fog.w - world.cameraPos.y, rel.y);
         outPos      = pos;
         outNormal   = vec3(0, 1, 0);
-        gl_Position = world.viewProj * vec4(pos, 1.0);
+        gl_Position = world.viewProjRel * vec4(pos, 1.0);
         return;
     }
 
     float spacing = inNode.z / pc.gridN;
-    vec2 p        = inNode.xy + inGrid * spacing;
+    vec2 local    = inGrid * spacing;
+    vec2 p        = inNode.xy + local;
     float h       = heightAt(p);
 
     // CDLOD morph: towards the grid of the next level when approaching the end of this level's range
@@ -56,11 +59,13 @@ void main()
         k           = clamp((dist - start) / (range - start), 0.0, 1.0);
     }
     // Odd vertices move onto their even neighbour
-    p -= mod(inGrid, 2.0) * spacing * k;
+    local -= mod(inGrid, 2.0) * spacing * k;
+    p = inNode.xy + local;
     h = heightAt(p);
 
-    vec3 pos    = vec3(p.x, h, p.y);
+    vec2 rel    = (inNode.xy - world.cameraPos.xz) + local;
+    vec3 pos    = vec3(rel.x, h - world.cameraPos.y, rel.y);
     outPos      = pos;
     outNormal   = normalAt(p, max(spacing, world.terrain.y));
-    gl_Position = world.viewProj * vec4(pos, 1.0);
+    gl_Position = world.viewProjRel * vec4(pos, 1.0);
 }

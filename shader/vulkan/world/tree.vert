@@ -61,10 +61,11 @@ void main()
         inUvLayer.z >= 0.0 ? sin(time * 4.0 + phase * 5.0 + inPosAo.x * 20.0 + inPosAo.y * 13.0) * 0.004 : 0.0;
     p.xz += (sway + flutter) * scale * inNormalWind.w * world.terrain2.z;
 
-    vec3 pos    = t.posYaw.xyz + p;
+    // Relative to the camera: the large instance position and the camera are subtracted first
+    vec3 pos    = (t.posYaw.xyz - world.cameraPos.xyz) + p;
     outPos      = pos;
     outNormal   = n;
     outUvLayer  = inUvLayer.xyz;
     outAo       = inPosAo.w;
-    gl_Position = world.viewProj * vec4(pos, 1.0);
+    gl_Position = world.viewProjRel * vec4(pos, 1.0);
 }

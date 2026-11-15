@@ -115,6 +115,11 @@ TEST(VulkanWorld, SettingsJson)
     // Regression: values from MCP were not limited (a tiny grass cell size drew billions of instances)
     r.fromJson(json11::Json::object{{"grass_cell_size", 0.0001}, {"debug_mode", 1e12}, {"fovy", NAN}});
     EXPECT_FLOAT_EQ(r.grassCellSize, 0.1f);
+    // Regression: integers above 1000 became 0 instead of the upper limit
+    EXPECT_EQ(r.debugMode, 1);
+    r.fromJson(json11::Json::object{{"debug_mode", 1001}});
+    EXPECT_EQ(r.debugMode, 1);
+    r.fromJson(json11::Json::object{{"debug_mode", -5}});
     EXPECT_EQ(r.debugMode, 0);
     EXPECT_FLOAT_EQ(r.fovy, 20.0f);
     // Regression: values of the wrong JSON type were converted silently ("90" -> 0, "true" -> false)
@@ -216,6 +221,57 @@ TEST_F(VulkanWorldRender, RendersTerrainTreesAndSky)
     EXPECT_GT(std::abs(int(bottom(0)) - int(clearTop(0))), 2);
     EXPECT_GT(world.stats().terrainNodes, 0);
     EXPECT_GT(world.stats().treesVisible[0] + world.stats().treesVisible[1] + world.stats().treesVisible[2], 0);
+
+    renderer->waitIdle();
+    app = VulkanTestApp();
+}
+
+// Regression: positions were passed to the fragment shader in world space as floats. Far from the origin (x = 7 km:
+// float steps of 0.5 mm) and close to the ground, dFdx/dFdy of the position (flat shading) were rounding noise and
+// the ground showed salt-and-pepper noise. The world passes now work with positions relative to the camera.
+TEST_F(VulkanWorldRender, FlatShadingIsStableFarFromTheOrigin)
+{
+    WorldRenderer world;
+    WorldParameters params;
+    params.terrain.size    = 2049;
+    params.terrain.spacing = 4;  // 8 km world
+    params.treeCount       = 10;
+    world.init(*renderer, params);
+    world.settings.grass       = false;
+    world.settings.trees       = false;
+    world.settings.fog         = false;
+    world.settings.flatShading = true;
+    world.settings.fovy        = 20;
+
+    auto& hf = world.heightField();
+    // 15 cm above a point far from the origin that is above the water (x ~ 7 km: float steps of 0.5 mm; with the narrow
+    // field of view a pixel covers less than 1 mm of ground, like a full HD window 0.3 m above the ground)
+    vec3 eye(0, 0, 0);
+    for (float x = hf.worldSize() * 0.85f; x > hf.worldSize() * 0.5f; x -= 16)
+    {
+        eye = vec3(x, hf.height(x, x) + 0.15f, x);
+        if (hf.height(x, x) > hf.waterLevel() + 2) break;
+    }
+    // Looking down at the ground in front of the camera
+    mat4 view      = lookAt(eye, eye + vec3(0.6f, -1.0f, 0.4f), vec3(0, 1, 0));
+    float aspect   = 96.0f / 64.0f;
+    app.onTransfer = [&](vk::CommandBuffer cmd) { world.transfer(cmd, view, eye, aspect); };
+    app.onRender   = [&](vk::CommandBuffer cmd) { world.render(cmd); };
+
+    TemplatedImage<ucvec4> img = RenderFrame();
+    ASSERT_EQ(img.w, 96);
+    // The ground in front of the camera is one or two terrain triangles: neighbouring pixels have about the same
+    // shade (with the bug about half of them differed by more than 20)
+    int rough = 0, total = 0;
+    for (int y = 8; y < 56; ++y)
+    {
+        for (int x = 8; x < 87; ++x)
+        {
+            rough += std::abs(int(img(y, x)(0)) - int(img(y, x + 1)(0))) > 20;
+            total++;
+        }
+    }
+    EXPECT_LT(rough, total / 50) << rough << " of " << total << " neighbouring pixels differ by more than 20";
 
     renderer->waitIdle();
     app = VulkanTestApp();

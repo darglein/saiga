@@ -15,8 +15,8 @@ layout(location = 0) out vec4 outColor;
 void main()
 {
     // A point on the view ray (depth 0.5 is at 2 * zNear)
-    vec4 p   = world.invViewProj * vec4(inNdc, 0.5, 1.0);
-    vec3 dir = normalize(p.xyz / p.w - world.cameraPos.xyz);
+    vec4 p   = world.invViewProjRel * vec4(inNdc, 0.5, 1.0);
+    vec3 dir = normalize(p.xyz / p.w);
 
     float t = clamp(dir.y, 0.0, 1.0);
     vec3 c  = mix(world.fogColor.rgb, world.skyColor.rgb, pow(t, 0.45));
