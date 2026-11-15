@@ -46,8 +46,11 @@ automatically.
 - **R-MATH-2** (from S05) Engine and game code compile with tiny-eigen (`SAIGA_WITH_TINY_EIGEN=ON`, the default and the
   CI configuration). Use the API subset of §7.10 and saiga's helpers in `core/math/EigenGLMInterface.h`; missing
   functions are added to tiny-eigen (part of this repository, tested in `tests/test_core_tiny_eigen.cpp`) and, where
-  needed, as double overloads to the helpers. Every `Vec*`/`Quat`/`Mat*` field has an initializer
-  (`= Vec3::Zero()`, `= Quat::Identity()`): default constructors leave them uninitialized.
+  needed, as double overloads to the helpers (tested in `tests/test_core_math_functions.cpp`: run with tiny-eigen in
+  CI; with Eigen built and run locally with the "Eigen backend check" of AGENTS.md; tiny-eigen accepts more than
+  Eigen, so only that check proves Eigen compatibility). Every
+  `Vec*`/`Quat`/`Mat*` field has an initializer (`= Vec3::Zero()`, `= Quat::Identity()`): default constructors leave
+  them uninitialized.
 
 **State**
 
@@ -177,7 +180,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Jolt (optional FetchContent, static, `SAIGA_WITH_JOLT` default OFF, not in CI, no saiga library links it) | `cmake/Dependencies_jolt.cmake` | [exists] |
 | `MainLoop`: `update(float)` at `updatesPerSecond` (default 60), `interpolate(float dt, float alpha)` and `render()` once per frame, `framesPerSecond` (default 60, 0 = unlimited) | `src/saiga/core/window/MainLoop.*` | [exists] |
 | `HeadlessWindow` (no surface; `renderFrames` calls `update` and `render`, not `interpolate`; no ImGui) | `src/saiga/vulkan/window/HeadlessWindow.*` | [exists] |
-| Double math `Vec3`, `Mat4`, `Quat` (tiny-eigen and Eigen); float-only helpers in `EigenGLMInterface.h` | `src/saiga/core/math/` | [exists] |
+| Double math `Vec3`, `Mat4`, `Quat`, `AngleAxis` (tiny-eigen and Eigen) with the R-MATH-2 subset of §7.10; float helpers and the S05 double overloads in `EigenGLMInterface.h` | `src/saiga/core/math/`, `submodules/tiny-eigen/` | [exists] |
 | Shader compiler (glslang, targets Vulkan 1.0 / SPIR-V 1.0) | `src/saiga/vulkan/Shader/GLSL.cpp` | [exists] |
 | VMA (supports virtual blocks; submodule, private to `saiga_vulkan`) | `submodules/VulkanMemoryAllocator` | [exists] |
 | Engine module `saiga_engine` | `src/saiga/engine/` | [planned: S04] |
@@ -638,12 +641,25 @@ class Rng   // PCG32
 // Hashing: FNV-1a 64 (engine/core/Hash.h) for seeds, content hashes and world.hash(); never std::hash.
 ```
 
-**Math subset (R-MATH-2)**: `Vec2/3/4`, `Mat3/4`, `Quat`; `+ - *`, `dot`, `cross`, `norm`, `normalized`, `cast<T>()`,
-`transpose`, `inverse`, `block`, `Zero/Ones/Identity`; `Quat` `* inverse conjugate normalized slerp matrix()`. Added in
-S05 (to tiny-eigen and as double helpers, with tests): `UnitX/Y/Z`, `setIdentity`, `isApprox`, `cwiseProduct/Min/Max`,
-`Matrix *=`, `Quat *=`, `angularDistance`, `Saiga::AngleAxis` (double), double overloads `createTRSmatrix(Vec3, Quat,
-Vec3)`, `lookAt`, `make_quat`, `quat_cast`. Tiny-eigen-only API (e.g. `Quaternion::FromAngleAxis`) is not used, so the
-code also compiles with Eigen (best effort, not tested in CI).
+**Math subset (R-MATH-2)** [exists]: `Vec2/3/4`, `Mat3/4`, `Quat`, `AngleAxis`; `+ - *`, `dot`, `cross`, `norm`,
+`normalized`, `cast<T>()`, `transpose`, `inverse`, `block`, `Zero/Ones/Identity`, `UnitX/Y/Z/W`, `setIdentity`,
+`isApprox` (Eigen semantics and default precision), `cwiseProduct/Min/Max`, `Matrix *=` (scalar and square matrix);
+`Quat` `* *= inverse conjugate normalized slerp matrix() isApprox angularDistance`; `AngleAxis` (double, `angle()`,
+`axis()`, `toRotationMatrix()`, `Quat(aa)`, `AngleAxis(q)`). Double helpers in `EigenGLMInterface.h` (templates
+restricted to double scalars, so float arguments keep using the float functions and Eigen expressions are not
+ambiguous): `createTRSmatrix(Vec3 or Vec4, Quat, Vec3 or Vec4)`, `lookAt(Vec3, Vec3, Vec3)` (asserts on
+`eye == center` and on `up` parallel to the view direction), `make_quat(Mat3 or Mat4)`,
+`quat_cast(Mat3 or Mat4)` (normalized). Added in S05: tiny-eigen tests in `tests/test_core_tiny_eigen.cpp`, tests of the
+subset and the double helpers in `tests/test_core_math_functions.cpp` (run with tiny-eigen in CI; with Eigen built and
+run locally with the "Eigen backend check" of AGENTS.md). For the S05 additions tiny-eigen rejects at compile time
+what Eigen rejects: `isApprox`/`cwise*` need the same scalar type and dimensions and both matrices or both arrays, the
+double helpers check the argument shapes (`RowsAtCompileTime`/`ColsAtCompileTime`, Eigen's names),
+`AngleAxis` uses its axis as given (like Eigen, also in `toRotationMatrix()`); `UnitX/Y/Z/W`/`Unit(i)` are for column
+vectors only (Eigen also allows row vectors; like Eigen the index of `Unit(i)` is not checked in release builds).
+In general tiny-eigen accepts more than Eigen (e.g. mixed float/double arithmetic such as `Vec3 + vec3`, and
+tiny-eigen-only API like `Quaternion::FromAngleAxis`), so a tiny-eigen build does not prove that code compiles with
+Eigen; only the Eigen backend check does. Float overloads with Eigen expressions as arguments can be ambiguous (`vec3`/`vec4`,
+`mat3`/`mat4` overloads); pass concrete types.
 
 ### 7.11 Not in the ECS
 
@@ -2172,18 +2188,21 @@ The sample keeps running and all tests stay green after every stage.
 
 ## 22. Implementation stages
 
-The work is split into stages; each stage gets its own plan file later (`docs/stages/Sxx_<name>.plan.md`) with the
-details (files, signatures, tests), derived from the sections of this document. A stage starts when all stages it
-depends on are done; stages without a dependency between them can be worked on in parallel. Status markers `[planned:
-Sxx]` in this document name the stage that implements an item ("Sxx, extended in Syy" when two stages contribute). Stage
-numbers identify stages; they do not define an order beyond the dependencies. An item that needs two stages without a
-dependency between them is implemented and tested by the stage that is done later; the earlier one leaves the documented
-stub (e.g. S36 renders piece lights if S30 is done, otherwise S30 adds them to the light list; S41 consumes the cosmetic
-events of S32 the same way; S36 adds impostor shadows if S27 is done; S27 bakes skinned impostors if S34 is done,
-otherwise S34 does; S27 bakes the smooth-textured material parameters if S43 is done, otherwise S43 extends the baking;
-S23 re-snaps/tombstones tier-1 instances on terrain edits if S22 is done, otherwise S22 does; S35's camera collides with
-pieces through the physics raycast, so S30 needs no camera change). "CI" = headless checks in GitHub Actions; "local" =
-GPU checks with MCP.
+The work is split into stages; each stage gets its own plan file (`docs/stages/Sxx_<name>.plan.md`) with the details
+(files, signatures, tests), derived from the sections of this document. `docs/stages/S05_math_additions.plan.md` is the
+template. Written before the implementation: Goal, Depends on, Rules that apply, Scope, Out of scope, Design notes,
+Tests, Done when, Verification (commands; the AGENTS.md recipes where they apply) and Files. Filled in when the stage is
+done: Status, Design changes (with the reason and the updated sections of this document) and Results. A stage starts
+when all stages it depends on are done; stages without a dependency between them can be worked on in parallel. Status
+markers `[planned: Sxx]` in this document name the stage that implements an item ("Sxx, extended in Syy" when two stages
+contribute). Stage numbers identify stages; they do not define an order beyond the dependencies. An item that needs two
+stages without a dependency between them is implemented and tested by the stage that is done later; the earlier one
+leaves the documented stub (e.g. S36 renders piece lights if S30 is done, otherwise S30 adds them to the light list; S41
+consumes the cosmetic events of S32 the same way; S36 adds impostor shadows if S27 is done; S27 bakes skinned impostors
+if S34 is done, otherwise S34 does; S27 bakes the smooth-textured material parameters if S43 is done, otherwise S43
+extends the baking; S23 re-snaps/tombstones tier-1 instances on terrain edits if S22 is done, otherwise S22 does; S35's
+camera collides with pieces through the physics raycast, so S30 needs no camera change). "CI" = headless checks in
+GitHub Actions; "local" = GPU checks with MCP.
 
 | Stage | Name | What is implemented | Depends on | Done when |
 |---|---|---|---|---|
@@ -2191,7 +2210,7 @@ GPU checks with MCP.
 | S02 | Golden image tests | `compareGolden`, lavapipe goldens `world_overview` and `world_forest` of the prototype, CI upload of failed images (§17.6) | S01 | goldens pass in CI |
 | S03 | Benchmark runner | `--benchmark` with `flyover` / `forest`, unsmoothed frame times, baseline file (§17.7) | S01 | baseline in `data/tests/benchmarks.json` for the reference GPU (local) |
 | S04 | Engine module setup | `saiga_engine` and `games/` in CMake, export macro, module defines, test registration, Clang and Windows/MSVC (shared libraries) CI build jobs (§5.3) | – | `Module enabled: Engine` printed; engine library and a smoke test build and run on all CI compilers (CI) |
-| S05 | Math additions | Missing tiny-eigen functions and double helpers (§7.10, R-MATH-2) | – | tiny-eigen tests for every addition (CI) |
+| S05 | Math additions (done) | Missing tiny-eigen functions and double helpers (§7.10, R-MATH-2) | – | tiny-eigen tests for every addition (CI); `test_core_math_functions` builds and passes with Eigen (local) |
 | S06 | Core utilities | `JobPool`, `Rng`, `Hash`, logging ring buffer with `SAIGA_LOG` (§8.5, §8.6, §17.1) | S04 | unit tests: parallel-for coverage with the caller participating, RNG and hash reference values, log ring (CI) |
 | S07 | ECS core | `Entity`, registry, pools, component IDs, `visit`, views, `SAIGA_LOG_E`, `ChunkId`/`RegionId`/`SpaceId`/`InstanceKey`/`PersistentId` value types (§7.1-§7.5) | S04, S05, S06 | unit tests: stale handles, deterministic order, `visit` round trip; non-gating 10^5-entity benchmark (CI) |
 | S08 | World and step loop | `World(WorldSetup)`, phases, `SystemList`, commands, structural log, events, `Transform` hierarchy, `advance`/`step`, `hash` (§7.6-§7.10, §8.1-§8.3, §8.6) | S07 | unit tests: deferred destroy, commands during iteration, structural log consumers, event latency, `advance` cap, hierarchy; hash equal for 2 runs (CI); step time with 10^5 idle entities (benchmark) |

@@ -8,8 +8,10 @@
 #include "config.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <iostream>
+#include <type_traits>
 
 #ifndef EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 // don't need to do anything here because we don't use aligned vectors
@@ -29,6 +31,38 @@ namespace internal
 
 template <typename T>
 struct traits;
+
+// Default precision of isApprox, as Eigen's NumTraits<Scalar>::dummy_precision() (tiny-eigen internal)
+template <typename Scalar>
+HD constexpr Scalar dummyPrecision()
+{
+    if constexpr (std::is_same_v<Scalar, float>)
+        return Scalar(1e-5);
+    else if constexpr (std::is_same_v<Scalar, long double>)
+        return Scalar(1e-15);
+    else if constexpr (std::is_floating_point_v<Scalar>)
+        return Scalar(1e-12);
+    else
+        return Scalar(0);
+}
+
+// True for Array (coefficient-wise algebra), false for Matrix and MatrixView
+template <typename T>
+struct isArrayDense : std::false_type
+{
+};
+template <typename _Scalar, int _Rows, int _Cols, int _Options>
+struct isArrayDense<Array<_Scalar, _Rows, _Cols, _Options>> : std::true_type
+{
+};
+
+// The operands of the coefficient-wise functions must have the same scalar and shape and both be matrices or both be
+// arrays (Eigen rejects mixed types and Matrix/Array mixes too)
+template <typename A, typename B>
+constexpr bool sameShapeAndScalar = A::Rows == B::Rows && A::Cols == B::Cols &&
+                                    std::is_same_v<typename traits<A>::Scalar, typename traits<B>::Scalar> &&
+                                    isArrayDense<typename traits<A>::DenseReturnType>::value ==
+                                        isArrayDense<typename traits<B>::DenseReturnType>::value;
 
 
 template <typename _Scalar, int _Rows, int _Cols, int _Options>
@@ -213,6 +247,75 @@ class MatrixBase
         }
     }
 
+
+    // Like Eigen: ones on the diagonal, zeros elsewhere (also for non-square matrices)
+    HD SameMatrix& setIdentity()
+    {
+        for (int i = 0; i < rows(); ++i)
+        {
+            for (int j = 0; j < cols(); ++j)
+            {
+                derived()(i, j) = i == j ? Scalar(1) : Scalar(0);
+            }
+        }
+        return derived();
+    }
+
+    // Like Eigen: |a - b|^2 <= prec^2 * min(|a|^2, |b|^2)
+    template <typename OtherType>
+    HD bool isApprox(const MatrixBase<OtherType>& other, Scalar prec = internal::dummyPrecision<Scalar>()) const
+    {
+        static_assert(internal::sameShapeAndScalar<Derived, OtherType>,
+                      "isApprox needs the same scalar type, dimensions and kind (Matrix or Array; like Eigen).");
+        Scalar diff = 0, a = 0, b = 0;
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            Scalar x = derived().at(i), y = other.derived().at(i);
+            diff += (x - y) * (x - y);
+            a += x * x;
+            b += y * y;
+        }
+        return diff <= prec * prec * std::min(a, b);
+    }
+
+    template <typename OtherType>
+    HD DenseReturnType cwiseProduct(const MatrixBase<OtherType>& other) const
+    {
+        static_assert(internal::sameShapeAndScalar<Derived, OtherType>,
+                      "cwiseProduct needs the same scalar type, dimensions and kind (Matrix or Array; like Eigen).");
+        DenseReturnType result;
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            result.at(i) = derived().at(i) * other.derived().at(i);
+        }
+        return result;
+    }
+
+    template <typename OtherType>
+    HD DenseReturnType cwiseMin(const MatrixBase<OtherType>& other) const
+    {
+        static_assert(internal::sameShapeAndScalar<Derived, OtherType>,
+                      "cwiseMin needs the same scalar type, dimensions and kind (Matrix or Array; like Eigen).");
+        DenseReturnType result;
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            result.at(i) = std::min(derived().at(i), other.derived().at(i));
+        }
+        return result;
+    }
+
+    template <typename OtherType>
+    HD DenseReturnType cwiseMax(const MatrixBase<OtherType>& other) const
+    {
+        static_assert(internal::sameShapeAndScalar<Derived, OtherType>,
+                      "cwiseMax needs the same scalar type, dimensions and kind (Matrix or Array; like Eigen).");
+        DenseReturnType result;
+        for (int i = 0; i < derived().size(); ++i)
+        {
+            result.at(i) = std::max(derived().at(i), other.derived().at(i));
+        }
+        return result;
+    }
 
     HD void setOnes()
     {
@@ -488,6 +591,9 @@ class Array : public MatrixBase<Array<_Scalar, _Rows, _Cols, _Options>>
    public:
     static constexpr int Rows = _Rows;
     static constexpr int Cols = _Cols;
+    // Eigen's names, so that shape checks compile with both backends
+    static constexpr int RowsAtCompileTime = _Rows;
+    static constexpr int ColsAtCompileTime = _Cols;
     using Scalar              = _Scalar;
     using SameMatrix          = Array<_Scalar, _Rows, _Cols, _Options>;
     static constexpr int Size = _Rows * _Cols;
@@ -597,6 +703,9 @@ class MatrixView : public MatrixBase<MatrixView<_Scalar, _Rows, _Cols, _Options>
    public:
     static constexpr int Rows = _Rows;
     static constexpr int Cols = _Cols;
+    // Eigen's names, so that shape checks compile with both backends
+    static constexpr int RowsAtCompileTime = _Rows;
+    static constexpr int ColsAtCompileTime = _Cols;
     using Scalar              = _Scalar;
     using SameMatrix          = MatrixView<_Scalar, _Rows, _Cols, _Options>;
     static constexpr int Size = _Rows * _Cols;
@@ -662,6 +771,9 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
    public:
     static constexpr int Rows = _Rows;
     static constexpr int Cols = _Cols;
+    // Eigen's names, so that shape checks compile with both backends
+    static constexpr int RowsAtCompileTime = _Rows;
+    static constexpr int ColsAtCompileTime = _Cols;
     using Scalar              = _Scalar;
     using SameMatrix          = Matrix<_Scalar, _Rows, _Cols, _Options>;
     static constexpr int Size = _Rows * _Cols;
@@ -697,6 +809,42 @@ class Matrix : public MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>
             result(i, i) = 1;
         }
         return result;
+    }
+
+    // Unit vectors. Column vectors only (Eigen also allows row vectors); like Eigen the index is only checked by assert
+    // (unchecked in release builds)
+    HD static SameMatrix Unit(int i)
+    {
+        static_assert(_Cols == 1, "Only valid for column vectors.");
+        assert(i >= 0 && i < _Rows);
+        SameMatrix result = Zero();
+        result._data[i]   = 1;
+        return result;
+    }
+    HD static SameMatrix UnitX() { return Unit(0); }
+    HD static SameMatrix UnitY()
+    {
+        static_assert(_Rows >= 2, "UnitY needs at least 2 rows.");
+        return Unit(1);
+    }
+    HD static SameMatrix UnitZ()
+    {
+        static_assert(_Rows >= 3, "UnitZ needs at least 3 rows.");
+        return Unit(2);
+    }
+    HD static SameMatrix UnitW()
+    {
+        static_assert(_Rows >= 4, "UnitW needs at least 4 rows.");
+        return Unit(3);
+    }
+
+    // Matrix product assignment (square right-hand side). The scalar versions of the base stay visible. Aliasing
+    // (m *= m) is safe: the product is computed into a temporary.
+    using MatrixBase<Matrix<_Scalar, _Rows, _Cols, _Options>>::operator*=;
+    HD SameMatrix& operator*=(const Matrix<_Scalar, _Cols, _Cols, _Options>& other)
+    {
+        *this = (*this) * other;
+        return *this;
     }
 
     HD Matrix() {}

@@ -227,6 +227,156 @@ TEST(TinyEigen, SophusCastOnConst)
     EXPECT_EQ(posef.translation(), Vec3f(1, 2, 3));
 }
 
+// ===== Stage S05: math additions (docs/engine_design.md §7.10) =====
+
+TEST(TinyEigen, UnitVectors)
+{
+    EXPECT_EQ(Vec3d::UnitX(), Vec3d(1, 0, 0));
+    EXPECT_EQ(Vec3d::UnitY(), Vec3d(0, 1, 0));
+    EXPECT_EQ(Vec3d::UnitZ(), Vec3d(0, 0, 1));
+    EXPECT_EQ(Vec4f::UnitW(), Vec4f(0, 0, 0, 1));
+    EXPECT_EQ((Matrix<double, 4, 1>::Unit(2)), (Matrix<double, 4, 1>(0, 0, 1, 0)));
+    // The compile time shape is available on all dense types, like in Eigen
+    static_assert(Vec3d::RowsAtCompileTime == 3 && Vec3d::ColsAtCompileTime == 1);
+    static_assert(Array<float, 2, 4>::RowsAtCompileTime == 2 && Array<float, 2, 4>::ColsAtCompileTime == 4);
+    Mat4d m    = Mat4d::Identity();
+    using View = decltype(m.block<3, 2>(0, 0));
+    static_assert(std::decay_t<View>::RowsAtCompileTime == 3 && std::decay_t<View>::ColsAtCompileTime == 2);
+}
+
+TEST(TinyEigen, SetIdentity)
+{
+    Mat4d m = Mat4d::Ones();
+    m.setIdentity();
+    EXPECT_EQ(m, Mat4d::Identity());
+    // Like Eigen also for non-square matrices: ones on the diagonal
+    Matrix<double, 2, 3> r = Matrix<double, 2, 3>::Ones();
+    r.setIdentity();
+    for (int i = 0; i < 2; ++i)
+        for (int j = 0; j < 3; ++j) EXPECT_EQ(r(i, j), i == j ? 1.0 : 0.0);
+}
+
+TEST(TinyEigen, IsApprox)
+{
+    Vec3d a(1, 2, 3);
+    EXPECT_TRUE(a.isApprox(a));
+    EXPECT_TRUE(a.isApprox(a + Vec3d(1e-14, 0, 0)));
+    EXPECT_FALSE(a.isApprox(a + Vec3d(1e-6, 0, 0)));
+    EXPECT_TRUE(a.isApprox(a + Vec3d(1e-6, 0, 0), 1e-5));
+    // Relative to the smaller norm, as in Eigen: a zero vector is only approximately equal to zero
+    EXPECT_TRUE(Vec3d::Zero().isApprox(Vec3d::Zero()));
+    EXPECT_FALSE(Vec3d::Zero().isApprox(Vec3d(1e-20, 0, 0)));
+    // float default precision 1e-5
+    EXPECT_TRUE(Vec3f(1, 2, 3).isApprox(Vec3f(1, 2, 3.00001f)));
+    EXPECT_FALSE(Vec3f(1, 2, 3).isApprox(Vec3f(1, 2, 3.001f)));
+    // long double default precision 1e-15 (Eigen's NumTraits<long double>)
+    using Vec3ld = Matrix<long double, 3, 1>;
+    EXPECT_TRUE(Vec3ld(1, 2, 3).isApprox(Vec3ld(1, 2, 3 + 1e-16L)));
+    EXPECT_FALSE(Vec3ld(1, 2, 3).isApprox(Vec3ld(1, 2, 3 + 1e-13L)));
+}
+
+TEST(TinyEigen, Cwise)
+{
+    Vec3d a(1, -2, 3), b(4, 5, -6);
+    EXPECT_EQ(a.cwiseProduct(b), Vec3d(4, -10, -18));
+    EXPECT_EQ(a.cwiseMin(b), Vec3d(1, -2, -6));
+    EXPECT_EQ(a.cwiseMax(b), Vec3d(4, 5, 3));
+}
+
+TEST(TinyEigen, MatrixProductAssignment)
+{
+    Matrix<double, 2, 2> a, b;
+    a(0, 0)                       = 1;
+    a(0, 1)                       = 2;
+    a(1, 0)                       = 3;
+    a(1, 1)                       = 4;
+    b(0, 0)                       = 0;
+    b(0, 1)                       = 1;
+    b(1, 0)                       = 1;
+    b(1, 1)                       = 0;
+    Matrix<double, 2, 2> expected = a * b;
+    a *= b;
+    EXPECT_EQ(a, expected);
+    // The scalar version is still available
+    a *= 2.0;
+    EXPECT_EQ(a, expected * 2.0);
+    // Self-aliasing: the product is computed into a temporary
+    Matrix<double, 2, 2> square = a * a;
+    a *= a;
+    EXPECT_EQ(a, square);
+}
+
+TEST(TinyEigen, QuaternionProductAssignmentAndAngularDistance)
+{
+    auto a = Quaternion<double>::FromAngleAxis(0.3, Vec3d(0, 1, 0));
+    auto b = Quaternion<double>::FromAngleAxis(0.5, Vec3d(0, 1, 0));
+    auto c = a;
+    c *= b;
+    EXPECT_TRUE(c.isApprox(a * b));
+    EXPECT_TRUE(c.isApprox(Quaternion<double>::FromAngleAxis(0.8, Vec3d(0, 1, 0))));
+    EXPECT_NEAR(a.angularDistance(b), 0.2, 1e-12);
+    EXPECT_NEAR(b.angularDistance(a), 0.2, 1e-12);
+    EXPECT_NEAR(a.angularDistance(a), 0, 1e-12);
+    // q and -q are the same rotation
+    Quaternion<double> minusA(-a.w(), -a.x(), -a.y(), -a.z());
+    EXPECT_NEAR(a.angularDistance(minusA), 0, 1e-7);
+
+    // The order of *= is this * other: rotations around different axes do not commute
+    auto x  = Quaternion<double>::FromAngleAxis(0.6, Vec3d(1, 0, 0));
+    auto y  = Quaternion<double>::FromAngleAxis(0.9, Vec3d(0, 1, 0));
+    auto xy = x;
+    xy *= y;
+    EXPECT_TRUE(xy.isApprox(x * y));
+    EXPECT_FALSE(xy.isApprox(y * x));
+}
+
+TEST(TinyEigen, AngleAxis)
+{
+    AngleAxis<double> aa(0.7, Vec3d(0, 0, 1));
+    Quaternion<double> q(aa);
+    EXPECT_TRUE(q.isApprox(Quaternion<double>::FromAngleAxis(0.7, Vec3d(0, 0, 1))));
+    Vec3d r = aa.toRotationMatrix() * Vec3d(1, 0, 0);
+    EXPECT_TRUE(r.isApprox(Vec3d(std::cos(0.7), std::sin(0.7), 0)));
+
+    // Back from the quaternion, also for the negated quaternion (same rotation)
+    AngleAxis<double> back(q);
+    EXPECT_NEAR(back.angle(), 0.7, 1e-12);
+    EXPECT_TRUE(back.axis().isApprox(Vec3d(0, 0, 1)));
+    AngleAxis<double> backNeg(Quaternion<double>(-q.w(), -q.x(), -q.y(), -q.z()));
+    EXPECT_NEAR(backNeg.angle(), 0.7, 1e-12);
+    EXPECT_TRUE(backNeg.axis().isApprox(Vec3d(0, 0, 1)));
+    // Identity
+    AngleAxis<double> id(Quaternion<double>::Identity());
+    EXPECT_EQ(id.angle(), 0);
+
+    // An angle above pi comes back as 2 pi - angle around the negated axis (like Eigen)
+    AngleAxis<double> big(Quaternion<double>(AngleAxis<double>(4.0, Vec3d(0, 0, 1))));
+    EXPECT_NEAR(big.angle(), 2 * 3.14159265358979323846 - 4.0, 1e-12);
+    EXPECT_TRUE(big.axis().isApprox(Vec3d(0, 0, -1)));
+    // Like Eigen, the axis is used as given (not normalized): (cos(a/2), sin(a/2) * axis)
+    Quaternion<double> scaled(AngleAxis<double>(0.5, Vec3d(0, 0, 2)));
+    EXPECT_NEAR(scaled.w(), std::cos(0.25), 1e-15);
+    EXPECT_NEAR(scaled.z(), 2 * std::sin(0.25), 1e-15);
+    // matrix() is toRotationMatrix(), Rodrigues' formula like Eigen: with a non-unit axis it is not a rotation
+    EXPECT_TRUE(aa.matrix().isApprox(aa.toRotationMatrix()));
+    AngleAxis<double> twice(0.5, Vec3d(0, 0, 2));
+    EXPECT_NEAR(twice.toRotationMatrix()(2, 2), 4 - 3 * std::cos(0.5), 1e-15);
+    // angle() and axis() are writable
+    AngleAxis<double> w;
+    w.angle() = 0.7;
+    w.axis()  = Vec3d(0, 0, 1);
+    EXPECT_TRUE(w.toRotationMatrix().isApprox(aa.toRotationMatrix()));
+    // A tiny vector part is rescaled before the norm (Eigen's stableNorm): the axis survives
+    // (1e-170 is a normal double, its square underflows to zero)
+    AngleAxis<double> underflowingNorm(Quaternion<double>(0, 1e-170, 0, 0));
+    EXPECT_NEAR(underflowingNorm.angle(), 3.14159265358979323846, 1e-12);
+    EXPECT_TRUE(underflowingNorm.axis().isApprox(Vec3d(1, 0, 0)));
+    // Regression: tiny rotations kept their axis only above a cutoff (Eigen special-cases only zero)
+    AngleAxis<double> tiny(Quaternion<double>(AngleAxis<double>(2e-13, Vec3d(0, 0, 1))));
+    EXPECT_NEAR(tiny.angle(), 2e-13, 1e-25);
+    EXPECT_TRUE(tiny.axis().isApprox(Vec3d(0, 0, 1)));
+}
+
 TEST(TinyGlog, CheckWithElse)
 {
     bool else_branch = false;

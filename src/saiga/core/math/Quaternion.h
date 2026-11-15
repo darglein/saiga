@@ -39,12 +39,16 @@ using Quaternion = Eigen::Quaternion<Scalar>;
 
 using quat = Eigen::Quaternionf;
 using Quat = Eigen::Quaterniond;
+// A rotation by an angle (radians) around a unit axis (double)
+using AngleAxis = Eigen::AngleAxisd;
 #else
 template <typename Scalar>
 using Quaternion = TinyEigen::Quaternion<Scalar>;
 
 using quat = TinyEigen::Quaternionf;
 using Quat = TinyEigen::Quaterniond;
+// A rotation by an angle (radians) around a unit axis (double)
+using AngleAxis = TinyEigen::AngleAxis<double>;
 #endif
 }  // namespace Saiga
 

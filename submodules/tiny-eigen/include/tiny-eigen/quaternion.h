@@ -24,6 +24,9 @@ class QuaternionBase
 };
 
 template <typename _Scalar>
+class AngleAxis;
+
+template <typename _Scalar>
 class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
 {
    public:
@@ -80,6 +83,15 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
     }
 
     HD Quaternion(const Matrix<Scalar, 4, 1>& coeff) { _data = coeff; }
+
+    // Like Eigen: (cos(angle / 2), sin(angle / 2) * axis); the axis is used as given (a unit axis gives a unit
+    // quaternion)
+    HD explicit Quaternion(const AngleAxis<Scalar>& aa)
+    {
+        Scalar ha = aa.angle() * Scalar(0.5);
+        Scalar s  = sin(ha);
+        *this     = SameObject(cos(ha), aa.axis().x() * s, aa.axis().y() * s, aa.axis().z() * s);
+    }
 
     HD Quaternion(const Matrix<_Scalar, 3, 3>& rm)
     {
@@ -212,6 +224,16 @@ class Quaternion : public QuaternionBase<Quaternion<_Scalar>>
 
     HD Scalar dot(const SameObject& other) const { return this->coeffs().dot(other.coeffs()); }
 
+    HD SameObject& operator*=(const SameObject& other);
+
+    // Like Eigen: the angle of the rotation between the two (unit) quaternions
+    HD Scalar angularDistance(const SameObject& other) const;
+
+    HD bool isApprox(const SameObject& other, Scalar prec = internal::dummyPrecision<Scalar>()) const
+    {
+        return coeffs().isApprox(other.coeffs(), prec);
+    }
+
     HD Scalar& x() { return _data[0]; }
     HD Scalar& y() { return _data[1]; }
     HD Scalar& z() { return _data[2]; }
@@ -243,6 +265,81 @@ HD Quaternion<_Scalar> operator*(const Quaternion<_Scalar> q1, const Quaternion<
 
     return q;
 }
+
+template <typename _Scalar>
+HD Quaternion<_Scalar>& Quaternion<_Scalar>::operator*=(const Quaternion<_Scalar>& other)
+{
+    *this = (*this) * other;
+    return *this;
+}
+
+template <typename _Scalar>
+HD _Scalar Quaternion<_Scalar>::angularDistance(const Quaternion<_Scalar>& other) const
+{
+    Quaternion<_Scalar> d = (*this) * other.conjugate();
+    return _Scalar(2) * atan2(d.vec().norm(), std::abs(d.w()));
+}
+
+// Like Eigen::AngleAxis: a rotation by angle (radians) around an axis (unit length for a rotation)
+template <typename _Scalar>
+class AngleAxis
+{
+   public:
+    using Scalar = _Scalar;
+
+    HD AngleAxis() {}
+    HD AngleAxis(Scalar angle, const Matrix<Scalar, 3, 1>& axis) : _angle(angle), _axis(axis) {}
+    HD explicit AngleAxis(const Quaternion<Scalar>& q)
+    {
+        // Like Eigen: a tiny norm is recomputed with scaling (stableNorm), only the exact identity has no axis
+        Scalar n = q.vec().norm();
+        if (n < std::numeric_limits<Scalar>::epsilon())
+        {
+            Scalar m = std::max(std::max(std::abs(q.x()), std::abs(q.y())), std::abs(q.z()));
+            n        = m > Scalar(0) ? m * (q.vec() / m).norm() : Scalar(0);
+        }
+        if (n == Scalar(0))
+        {
+            _angle = 0;
+            _axis  = Matrix<Scalar, 3, 1>(1, 0, 0);
+        }
+        else
+        {
+            _angle = Scalar(2) * atan2(n, std::abs(q.w()));
+            _axis  = (q.w() < 0 ? -q.vec() : q.vec()) / n;
+        }
+    }
+
+    HD Scalar angle() const { return _angle; }
+    HD Scalar& angle() { return _angle; }
+    HD const Matrix<Scalar, 3, 1>& axis() const { return _axis; }
+    HD Matrix<Scalar, 3, 1>& axis() { return _axis; }
+
+    // Rodrigues' formula as in Eigen (the axis is used as given, also if it is not unit length)
+    HD Matrix<Scalar, 3, 3> toRotationMatrix() const
+    {
+        Matrix<Scalar, 3, 3> res;
+        Matrix<Scalar, 3, 1> sinAxis  = std::sin(_angle) * _axis;
+        Scalar c                      = std::cos(_angle);
+        Matrix<Scalar, 3, 1> cos1Axis = (Scalar(1) - c) * _axis;
+        Scalar tmp                    = cos1Axis.x() * _axis.y();
+        res(0, 1)                     = tmp - sinAxis.z();
+        res(1, 0)                     = tmp + sinAxis.z();
+        tmp                           = cos1Axis.x() * _axis.z();
+        res(0, 2)                     = tmp + sinAxis.y();
+        res(2, 0)                     = tmp - sinAxis.y();
+        tmp                           = cos1Axis.y() * _axis.z();
+        res(1, 2)                     = tmp - sinAxis.x();
+        res(2, 1)                     = tmp + sinAxis.x();
+        for (int i = 0; i < 3; ++i) res(i, i) = cos1Axis(i) * _axis(i) + c;
+        return res;
+    }
+    HD Matrix<Scalar, 3, 3> matrix() const { return toRotationMatrix(); }
+
+   private:
+    Scalar _angle              = 0;
+    Matrix<Scalar, 3, 1> _axis = Matrix<Scalar, 3, 1>(1, 0, 0);
+};
 
 using Quaternionf = Quaternion<float>;
 using Quaterniond = Quaternion<double>;
