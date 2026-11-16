@@ -81,6 +81,20 @@ void ImGui_GLFW_Renderer::beginFrame()
 
     ImGui_ImplGlfw_NewFrame();
 
+    // Multi-viewports need a monitor. Suspend them while GLFW reports none (e.g. a disconnected remote session)
+    // and restore them once a monitor is back.
+    bool has_monitors = !ImGui::GetPlatformIO().Monitors.empty();
+    if (!has_monitors && (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable))
+    {
+        io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
+        viewports_suspended = true;
+    }
+    else if (has_monitors && viewports_suspended)
+    {
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        viewports_suspended = false;
+    }
+
     // Start the frame
     ImGui::NewFrame();
 

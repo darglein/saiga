@@ -57,7 +57,14 @@ void glfw_Window::loadGLFunctions()
 
 void glfw_Window::getCurrentPrimaryMonitorResolution(int* width, int* height)
 {
-    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    GLFWmonitor* primary    = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = primary ? glfwGetVideoMode(primary) : nullptr;
+    if (!mode)
+    {
+        *width  = 0;
+        *height = 0;
+        return;
+    }
 
     std::cout << "Video Mode: " << mode->width << " x " << mode->height << " @" << mode->refreshRate << "Hz"
               << std::endl;
@@ -70,8 +77,14 @@ void glfw_Window::getMaxResolution(int* width, int* height)
 {
     GLFWmonitor* primary = glfwGetPrimaryMonitor();
     // get max video mode resolution
-    int count;
-    const GLFWvidmode* mode = glfwGetVideoModes(primary, &count);
+    int count               = 0;
+    const GLFWvidmode* mode = primary ? glfwGetVideoModes(primary, &count) : nullptr;
+    if (!mode || count == 0)
+    {
+        *width  = 0;
+        *height = 0;
+        return;
+    }
     //    std::cout << "Video modes:" << std::endl;
     //    for (int i = 0; i < count; i++){
     //        std::cout << "Mode "<< i << ": " << mode[i].width << " x "<< mode[i].height << " @" << mode[i].refreshRate
@@ -135,11 +148,23 @@ bool glfw_Window::initWindow()
     }
 
     int monitorCount;
-    GLFWmonitor** monitors     = glfwGetMonitors(&monitorCount);
-    windowParameters.monitorId = clamp(windowParameters.monitorId, 0, monitorCount - 1);
+    GLFWmonitor** monitors  = glfwGetMonitors(&monitorCount);
+    GLFWmonitor* monitor    = nullptr;
+    const GLFWvidmode* mode = nullptr;
+    if (monitorCount > 0)
+    {
+        windowParameters.monitorId = clamp(windowParameters.monitorId, 0, monitorCount - 1);
+        monitor                    = monitors[windowParameters.monitorId];
+        mode                       = glfwGetVideoMode(monitor);
+    }
 
-    GLFWmonitor* monitor    = monitors[windowParameters.monitorId];
-    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    // Without a monitor (e.g. a session without a display) only windowed modes can work.
+    if (!mode && windowParameters.fullscreen())
+    {
+        std::cerr << "No monitor found, falling back to windowed mode." << std::endl;
+        windowParameters.mode = windowParameters.borderLess() ? WindowParameters::Mode::WindowedBorderless
+                                                              : WindowParameters::Mode::Windowed;
+    }
 
 
     //    //don't allow other resolutions than the native monitor ones in Fullscreen mode
