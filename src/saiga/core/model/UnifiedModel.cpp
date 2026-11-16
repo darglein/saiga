@@ -31,7 +31,7 @@ std::ostream& operator<<(std::ostream& strm, const UnifiedMaterial& material)
 
 UnifiedModel::UnifiedModel(const std::string& file_name)
 {
-    auto full_file = SearchPathes::model(file_name);
+    std::string full_file = SearchPathes::model(file_name).string();
     if (full_file.empty())
     {
         throw std::runtime_error("Could not open file " + file_name);

@@ -63,6 +63,7 @@ OptionsHelper(SAIGA_MODULE_OPENGL "Build the opengl module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_VULKAN "Build the vulkan module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_VISION "Build the vision module, if possible." ON)
 OptionsHelper(SAIGA_MODULE_CUDA "Build the cuda module, if possible." ON)
+OptionsHelper(SAIGA_MODULE_ENGINE "Build the game engine module (needs the vulkan module), if possible." ON)
 
 
 OptionsHelper(SAIGA_WITH_GTEST "Include the GTEST library, if possible." ON)
@@ -128,6 +129,7 @@ unset(MODULE_EXTRA)
 unset(MODULE_OPENGL)
 unset(MODULE_VISION)
 unset(MODULE_VULKAN)
+unset(MODULE_ENGINE)
 
 if (SAIGA_MODULE_CORE)
     include(Dependencies_core)
@@ -147,6 +149,9 @@ if (MODULE_CORE)
         include(Dependencies_cuda)
     endif ()
     include(Dependencies_jolt)
+    if (SAIGA_MODULE_ENGINE)
+        include(Dependencies_engine)
+    endif ()
 endif ()
 
 unset(PACKAGE_INCLUDES)
@@ -280,6 +285,12 @@ write_basic_package_version_file(
 
 add_subdirectory(src)
 add_subdirectory(shader)
+
+# The games (games/<name>/ libraries) are built with the engine, independent of SAIGA_BUILD_SAMPLES, so CI builds them
+# and their scenario tests (docs/engine_design.md §5.3)
+if (MODULE_ENGINE)
+    add_subdirectory(games)
+endif ()
 
 if (SAIGA_BUILD_SAMPLES)
     message(STATUS " ")

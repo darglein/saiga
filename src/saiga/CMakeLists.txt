@@ -15,6 +15,11 @@ if(MODULE_VULKAN)
     add_subdirectory(vulkan)
 endif()
 
+if(MODULE_ENGINE)
+    message(STATUS "Module enabled:     Engine")
+    add_subdirectory(engine)
+endif()
+
 if(MODULE_VISION)
     message(STATUS "Module enabled:     Vision")
     add_subdirectory(vision)

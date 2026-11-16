@@ -53,6 +53,12 @@
 #        define SAIGA_VULKAN_API SAIGA_HELPER_DLL_IMPORT
 #    endif
 
+#    ifdef saiga_engine_EXPORTS
+#        define SAIGA_ENGINE_API SAIGA_HELPER_DLL_EXPORT
+#    else
+#        define SAIGA_ENGINE_API SAIGA_HELPER_DLL_IMPORT
+#    endif
+
 #    ifdef saiga_vision_EXPORTS
 #        define SAIGA_VISION_API SAIGA_HELPER_DLL_EXPORT
 #    else
@@ -70,6 +76,7 @@
 #    define SAIGA_CORE_API
 #    define SAIGA_OPENGL_API
 #    define SAIGA_VULKAN_API
+#    define SAIGA_ENGINE_API
 #    define SAIGA_VISION_API
 #    define SAIGA_CUDA_API
 

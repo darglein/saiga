@@ -79,8 +79,12 @@ SAIGA_CORE_API extern void saiga_assert_fail(const std::string& __assertion, con
 
 
 // With this trick SAIGA_ASSERT is overloaded for 1 and 2 arguments. (With and without message)
+// SAIGA_ASSERT_EXPAND: MSVC's traditional preprocessor passes __VA_ARGS__ on as one argument; without the extra
+// expansion it picked SAIGA_ASSERT_NOMSG for two arguments, and the condition became the comma expression (cond, msg).
+#define SAIGA_ASSERT_EXPAND(x) x
 #define GET_SAIGA_ASSERT_MACRO(_1, _2, NAME, ...) NAME
-#define SAIGA_ASSERT(...) GET_SAIGA_ASSERT_MACRO(__VA_ARGS__, SAIGA_ASSERT_MSG, SAIGA_ASSERT_NOMSG, 0)(__VA_ARGS__)
+#define SAIGA_ASSERT(...) \
+    SAIGA_ASSERT_EXPAND(GET_SAIGA_ASSERT_MACRO(__VA_ARGS__, SAIGA_ASSERT_MSG, SAIGA_ASSERT_NOMSG, 0)(__VA_ARGS__))
 
 
 // Creates an assert with message and terminates the program.

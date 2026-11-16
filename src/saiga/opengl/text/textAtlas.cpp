@@ -35,7 +35,7 @@ TextAtlas::~TextAtlas()
 void TextAtlas::loadFont(const std::string& _font, int fontSize, int quality, int searchRange, bool bufferToFile,
                          const std::vector<Unicode::UnicodeBlock>& blocks)
 {
-    std::string font = SearchPathes::font(_font);
+    std::string font = SearchPathes::font(_font).string();
     if (font == "")
     {
         std::cerr << "Could not open file " << _font << std::endl;

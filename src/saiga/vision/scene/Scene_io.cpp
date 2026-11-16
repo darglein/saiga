@@ -124,7 +124,7 @@ void Scene::load(const std::string& file)
     std::cout << "Loading scene from " << file << "." << std::endl;
 
     (*this)       = Scene();
-    std::string f = SearchPathes::data(file);
+    std::string f = SearchPathes::data(file).string();
     if (f.empty())
     {
         std::cout << "could not find file " << file << std::endl;

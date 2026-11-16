@@ -509,6 +509,25 @@ TEST(DataStructuresDeathTest, RingBufferEmpty)
         },
         "empty buffer");
 }
+
+TEST(AssertDeathTest, AssertWithMessageFires)
+{
+    // Regression: with MSVC's traditional preprocessor SAIGA_ASSERT(cond, msg) picked the one-argument form, the
+    // condition became the comma expression (cond, msg), which is always true, so the assert never fired
+    SAIGA_ASSERT(true, "never fires");
+    EXPECT_DEATH(
+        {
+            std::cout.rdbuf(std::cerr.rdbuf());
+            SAIGA_ASSERT(1 + 1 == 3, "assert message abc");
+        },
+        "assert message abc");
+    EXPECT_DEATH(
+        {
+            std::cout.rdbuf(std::cerr.rdbuf());
+            SAIGA_ASSERT(1 + 1 == 3);
+        },
+        "Saiga Assertion");
+}
 #endif
 
 // ============================================================================

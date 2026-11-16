@@ -1,0 +1,1 @@
+saiga_game_library(racing saiga_game_common)
