@@ -248,19 +248,22 @@ class WorldSample : public VulkanExampleBase
 int main(const int argc, const char* argv[])
 {
     std::string benchmark;
+    bool benchmarkGiven = false;
     for (int i = 1; i < argc; ++i)
     {
         if (std::strcmp(argv[i], "--benchmark") == 0)
         {
-            if (i + 1 >= argc)
+            // An empty name (e.g. --benchmark "$UNSET") is an error, not the interactive sample
+            if (i + 1 >= argc || argv[i + 1][0] == '\0')
             {
                 std::cout << "--benchmark needs a name" << std::endl;
                 return 1;
             }
-            benchmark = argv[++i];
+            benchmark      = argv[++i];
+            benchmarkGiven = true;
         }
     }
-    if (!benchmark.empty() && !Vulkan::WorldBenchmark::known(benchmark))
+    if (benchmarkGiven && !Vulkan::WorldBenchmark::known(benchmark))
     {
         std::cout << "Unknown benchmark '" << benchmark << "'. Known:";
         for (auto& n : Vulkan::WorldBenchmark::names()) std::cout << " " << n;

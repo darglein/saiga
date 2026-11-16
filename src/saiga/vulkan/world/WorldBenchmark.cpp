@@ -201,6 +201,8 @@ bool WorldBenchmark::writeResult(const std::string& file, const json11::Json& js
     std::ofstream out(file);
     if (!out) return false;
     out << json.dump() << "\n";
+    // Regression: a failure of the final flush was reported as success (the stream was closed after the return)
+    out.close();
     return bool(out);
 }
 
