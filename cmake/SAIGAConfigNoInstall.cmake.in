@@ -93,7 +93,9 @@ set(INTERFACE_CUDA_INCLUDES   "@CUDA_INCLUDES@")
 set(INTERFACE_OPENGL_INCLUDES "@OPENGL_INCLUDES@")
 set(INTERFACE_VISION_INCLUDES "@VISION_INCLUDES@")
 set(INTERFACE_VULKAN_INCLUDES "@VULKAN_INCLUDES@")
-set(INTERFACE_ENGINE_INCLUDES "@ENGINE_INCLUDES@")
+# The engine headers include core and vulkan headers; the imported target links only the library file, so the
+# includes of its dependencies are listed here
+set(INTERFACE_ENGINE_INCLUDES ${SAIGA_INCLUDE_DIRS} "@CORE_INCLUDES@" "@VULKAN_INCLUDES@" "@ENGINE_INCLUDES@")
 
 set(INTERFACE_CORE_LIBARIES "@CORE_LIBS@")
 

@@ -23,8 +23,17 @@ void Vehicle::reset(const Vec3& position, double heading)
     state.orientation = yawRotation(heading);
     state.position    = position;
     if (std::isnan(position(1))) state.position(1) = (ground ? ground(position(0), position(2)) : 0) + restingHeight();
-    // The resting compression, so the damper does not see a jump in the first step
-    for (auto& c : state.compression) c = params.mass * kGravity / (4 * params.stiffness);
+    // Each wheel's actual compression at the spawn pose, so the damper does not see a jump in the first step.
+    // Regression: all wheels got the flat-ground resting compression, which on a slope differs per wheel and gave the
+    // stationary car an upward kick.
+    Mat3 R = state.orientation.matrix();
+    for (int i = 0; i < 4; ++i)
+    {
+        Vec3 mount           = state.position + R * params.wheelMounts[i];
+        double g             = ground ? ground(mount(0), mount(2)) : 0;
+        double comp          = params.restLength + params.wheelRadius - (mount(1) - g);
+        state.compression[i] = std::min(std::max(comp, 0.0), params.restLength + params.wheelRadius);
+    }
 }
 
 double Vehicle::restingHeight() const

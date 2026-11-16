@@ -141,6 +141,36 @@ TEST(FlightModel, GentleTouchdownIsNoCrash)
     EXPECT_TRUE(m.state.onGround);
 }
 
+// Regression: the bank angle came from asin and folded an inverted aircraft back to 0, so an inverted touchdown with a
+// low sink rate was accepted as a landing and the aircraft was turned upright
+TEST(FlightModel, InvertedTouchdownIsACrash)
+{
+    FlightModel m = flatWorld(0);
+    m.reset(Vec3(0, 3, 0), 0, m.trimSpeed() * 0.9);
+    m.state.orientation = m.state.orientation * axisAngle(Vec3(0, 0, 1), kPi);
+    EXPECT_NEAR(std::abs(m.bankAngle()), kPi, 1e-9);
+    m.state.velocity    = m.forward() * (m.trimSpeed() * 0.9);
+    m.state.velocity(1) = -1.0;
+    AircraftControls c;
+    c.throttle = 0;
+    fly(m, c, 3.0);
+    EXPECT_TRUE(m.state.crashed);
+}
+
+TEST(FlightAutopilot, YawReducesSideslip)
+{
+    // Regression: the autopilot's rudder worked against the model's yaw stability
+    FlightModel m = flatWorld(-10000);
+    FlightAutopilot pilot;
+    m.reset(Vec3(0, 400, 0), 0, 65);
+    // Velocity rotated 6 degrees to the side of the nose
+    m.state.velocity = axisAngle(Vec3(0, 1, 0), 6.0 * kPi / 180.0) * m.state.velocity;
+    ASSERT_GT(std::abs(m.sideSlip()), 0.05);
+    AircraftControls c = pilot.controls(m);
+    // The command points the same way as the model's restoring term (sign of beta)
+    EXPECT_GT(c.yaw * m.sideSlip(), 0);
+}
+
 TEST(FlightAutopilot, FliesTheCircuitWithoutCrashing)
 {
     // Rolling hills

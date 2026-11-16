@@ -8,6 +8,7 @@
 
 #include "games/racing/Track.h"
 
+#include <cmath>
 #include <cstdint>
 #include <limits>
 
@@ -40,7 +41,9 @@ void Track::build(const std::vector<Vec3>& control, int checkpointCount)
     samples.clear();
     distances.clear();
     gates.clear();
-    int n = int(control.size());
+    totalLength = 0;
+    step        = 1;
+    int n       = int(control.size());
     if (n < 4) return;
     auto P = [&](int i) { return Vec3(control[(i % n + n) % n](0), 0, control[(i % n + n) % n](2)); };
     // Dense samples, then resample by arc length (1 m)
@@ -49,6 +52,9 @@ void Track::build(const std::vector<Vec3>& control, int checkpointCount)
         for (int k = 0; k < 64; ++k) dense.push_back(catmullRom(P(i - 1), P(i), P(i + 1), P(i + 2), k / 64.0));
     std::vector<double> d(dense.size() + 1, 0);
     for (size_t i = 0; i < dense.size(); ++i) d[i + 1] = d[i] + (dense[(i + 1) % dense.size()] - dense[i]).norm();
+    // Regression: identical control points gave a zero length, a zero sample step and NaN positions. Degenerate
+    // geometry leaves the track empty.
+    if (!(std::isfinite(d.back()) && d.back() > 1e-6)) return;
     totalLength = d.back();
     int count   = std::max(16, int(totalLength / 1.0));
     step        = totalLength / count;
@@ -96,10 +102,25 @@ double Track::curvature(double s) const
 double Track::surfaceOffset(const Vec3& p, double& hint) const
 {
     if (samples.empty()) return 0;
-    hint     = closest(p, hint);
-    Vec3 c   = position(hint);
-    double d = std::hypot(p(0) - c(0), p(2) - c(2));
-    double h = width * 0.5;
+    bool hinted = hint >= 0;
+    hint        = closest(p, hint);
+    Vec3 c      = position(hint);
+    double d    = std::hypot(p(0) - c(0), p(2) - c(2));
+    double h    = width * 0.5;
+    if (hinted && d > h)
+    {
+        // Regression: next to another section of the track (e.g. two parallel straights) the hinted local search
+        // stayed on the curb of the first section while p was on the asphalt of the second. Off the asphalt the
+        // global closest sample decides.
+        double g  = closest(p);
+        Vec3 cg   = position(g);
+        double dg = std::hypot(p(0) - cg(0), p(2) - cg(2));
+        if (dg < d)
+        {
+            hint = g;
+            d    = dg;
+        }
+    }
     if (d <= h) return lift;
     if (d >= h + curbWidth) return 0;
     return lift * (1 - (d - h) / curbWidth);

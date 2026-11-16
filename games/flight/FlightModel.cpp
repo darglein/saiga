@@ -48,7 +48,8 @@ double FlightModel::sideSlip() const
 
 double FlightModel::bankAngle() const
 {
-    return -std::asin(clampd(right()(1), -1, 1));
+    // Full range (-pi, pi]: an inverted aircraft has a bank of about +-pi, not 0 (asin would fold it back)
+    return std::atan2(-right()(1), up()(1));
 }
 
 double FlightModel::pitchAngle() const

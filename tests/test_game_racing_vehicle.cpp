@@ -318,3 +318,65 @@ TEST(RacingDriver, AiRacesTheDemoTrackShapeWithoutRollingOver)
     EXPECT_LT(maxOff, t.width * 0.5);
     EXPECT_GT(minUp, 0.8);
 }
+
+// Regression: the width check used the end point of the step, so a crossing inside the gate width whose end point was
+// just outside it did not count and the checkpoint stayed pending
+TEST(RacingTrack, GateCrossingIsCheckedWhereTheLineIsCrossed)
+{
+    Track t;
+    t.width = 12;
+    t.build(Track::loop(Vec3(0, 0, 0), 100, 12, 3), 6);
+    LapTimer timer;
+    timer.reset(t);
+    const auto& g = t.checkpoints()[timer.nextCheckpoint];
+    Vec3 side(-g.tangent(2), 0, g.tangent(0));
+    double allowed = t.width * 0.5 + 3;
+    // Crosses at lateral offset allowed - 0.005, ends at allowed + 0.02
+    Vec3 before = g.center + side * (allowed - 0.03) - g.tangent * 0.05;
+    Vec3 after  = g.center + side * (allowed + 0.02) + g.tangent * 0.05;
+    int next    = timer.nextCheckpoint;
+    timer.update(t, before, after, 0.01);
+    EXPECT_EQ(timer.nextCheckpoint, (next + 1) % int(t.checkpoints().size()));
+}
+
+// Regression: identical control points gave a zero length and NaN positions (undefined int conversion)
+TEST(RacingTrack, DegenerateTrackIsEmpty)
+{
+    Track t;
+    t.build(std::vector<Vec3>(4, Vec3(5, 0, 5)), 4);
+    EXPECT_EQ(t.length(), 0);
+    EXPECT_TRUE(t.checkpoints().empty());
+    double hint = -1;
+    EXPECT_EQ(t.surfaceOffset(Vec3(5, 0, 5), hint), 0);
+}
+
+// Regression: on two parallel sections 10 m apart, a hint on the first section found its curb although the point was
+// on the asphalt of the second section
+TEST(RacingTrack, SurfaceOffsetNextToAParallelSection)
+{
+    std::vector<Vec3> control;
+    for (int x = 0; x <= 200; x += 25) control.push_back(Vec3(x, 0, 0));
+    for (int x = 200; x >= 0; x -= 25) control.push_back(Vec3(x, 0, 10));
+    Track t;
+    t.width = 10;
+    t.build(control, 4);
+    double s0   = t.closest(Vec3(100, 0, 0));
+    double hint = s0;
+    ASSERT_NEAR(t.position(s0)(2), 0, 0.1);
+    // 5.5 m from the first centerline (its curb), 4.5 m from the second (its asphalt)
+    EXPECT_DOUBLE_EQ(t.surfaceOffset(Vec3(100, 0, 5.5), hint), t.lift);
+    EXPECT_NEAR(t.position(hint)(2), 10, 0.1);
+}
+
+// Regression: reset gave every wheel the flat-ground resting compression; on a slope the damper saw a jump and kicked
+// the stationary car upwards
+TEST(RacingVehicle, SpawnOnASlopeHasNoUpwardKick)
+{
+    Vehicle v;
+    v.ground = [](double, double z) { return 0.1 * z; };
+    v.reset(Vec3(0, NAN, 0), 0);
+    VehicleControls c;
+
+    v.step(c, kDt);
+    EXPECT_LT(v.state.velocity(1), 0.2);
+}

@@ -54,6 +54,9 @@ void MeshRenderer::init(Vulkan::VulkanForwardRenderer& _renderer)
 void MeshRenderer::destroy()
 {
     if (!initialized) return;
+    // Release the descriptor set while the renderer (its VulkanBase) still exists; a later destructor would read a
+    // dangling base pointer
+    set = Vulkan::StaticDescriptorSet();
     pipeline.destroy();
     for (auto& m : meshes)
     {

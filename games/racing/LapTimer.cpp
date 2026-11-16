@@ -29,7 +29,10 @@ void LapTimer::update(const Track& track, const Vec3& before, const Vec3& after,
     Vec3 b(after(0) - g.center(0), 0, after(2) - g.center(2));
     double da = a.dot(g.tangent), db = b.dot(g.tangent);
     if (!(da < 0 && db >= 0)) return;
-    if ((b - g.tangent * db).norm() > track.width * 0.5 + 3) return;
+    // The width check applies where the step crosses the line (not at its end point)
+    double t = da / (da - db);
+    Vec3 x   = a + (b - a) * t;
+    if ((x - g.tangent * x.dot(g.tangent)).norm() > track.width * 0.5 + 3) return;
     checkpointsHit++;
     if (nextCheckpoint == 0)
     {

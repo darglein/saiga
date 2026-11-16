@@ -186,7 +186,8 @@ TEST(PlatformerController, CoyoteTimeAndJumpBuffer)
     // Walk off the ledge, jump 3 steps later: still allowed
     CharacterInput in;
     in.move = Vec3(1, 0, 0);
-    while (c.state.grounded) c.step(in, kDt);
+    for (int i = 0; i < 600 && c.state.grounded; ++i) c.step(in, kDt);
+    ASSERT_FALSE(c.state.grounded) << "the character did not leave the platform";
     run(c, in, 2 * kDt);
     in.jumpPressed = in.jumpHeld = true;
     c.step(in, kDt);

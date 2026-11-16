@@ -48,9 +48,9 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
     std::string type = fileEnding(file_name);
     if (type == "obj")
     {
-        ObjModelLoader loader(full_file.string());
+        ObjModelLoader loader(full_file);
         *this = loader.out_model;
-        LocateTextures(full_file.string());
+        LocateTextures(full_file);
     }
     else
     {
