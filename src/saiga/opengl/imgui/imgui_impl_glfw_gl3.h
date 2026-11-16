@@ -64,6 +64,8 @@ class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGuiRenderer,
 //    bool g_MousePressed[3] = {false, false, false};
 //    float g_MouseWheel     = 0.0f;
 
+    bool viewports_suspended = false;
+
     // not nice to make this window static
     static GLFWwindow* g_Window;
     static const char* ImGui_ImplGlfwGL3_GetClipboardText(void* user_data);
