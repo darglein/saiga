@@ -53,7 +53,8 @@ src/
                         world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, MCP tools,
                         benchmark runner WorldBenchmark; sample_vulkan_world)
     engine/             saiga_engine (namespace Saiga::Engine, needs the vulkan module): the game engine of
-                        docs/engine_design.md; core/EngineVersion so far
+                        docs/engine_design.md; core/: EngineVersion, JobPool (parallelFor, the caller
+                        participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -160,7 +161,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-40 tests (a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+41 tests (a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
