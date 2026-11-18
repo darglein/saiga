@@ -188,10 +188,14 @@ API.
   false without asserting for stale parents and also rejects cycles; `abortStep` runs the event restore and each
   release independently.
 - Event queues and component pools store `typeid(T)` and check it with `std::type_info` equality before every
-  downcast: two types with the same ID, name and size are told apart (the size check was not enough). Not the typeid
-  name: GCC gives types of the same name in the unnamed namespaces of two translation units the same name
-  (test `EventOfTheSameNameInAnotherTranslationUnit`, second translation unit `tests/engine_world_second_tu.cpp`);
-  libstdc++ and MSVC compare `type_info` across DLLs by the mangled name.
+  downcast (`isRegisteredType`, `ecs/TypeCheck.h`): two types with the same ID, name and size are told apart (the
+  size check was not enough). Not the typeid name: types of the same name in the unnamed namespaces of two translation
+  units have the same name on GCC and Clang (test `EventOfTheSameNameInAnotherTranslationUnit`, second translation
+  unit `tests/engine_world_second_tu.cpp`). `type_info` equality works across DLLs (the standard libraries compare the
+  mangled names), but Clang with libstdc++ also finds those two equal; names with `_GLOBAL__N_` (unnamed namespace on
+  the Itanium ABI) therefore also need the same `type_info` object.
+- `StructuralLog::prepare` returns a guard (`Prepared`) that appends the records and gives back the slots not appended
+  (a mutation that failed after prepare); the count rises only after the reserve succeeded.
 - `abortStep` does not allocate: the registry's free list is a vector FIFO whose capacity always covers the releases
   of all reserved slots (`Registry::reserve` makes room, `destroy` keeps it, so a destroy applied before the abort
   cannot use it up); the event restore is a swap (the readable events become pending again, the aborted step's own
@@ -199,7 +203,7 @@ API.
 
 ## Results
 
-- `tests/test_engine_world.cpp`: 45 tests pass (GCC 15), incl. 11 death tests; `tests/test_engine_ecs.cpp`: 32 tests
+- `tests/test_engine_world.cpp`: 46 tests pass (GCC 15), incl. 11 death tests; `tests/test_engine_ecs.cpp`: 32 tests
   (the reworked `Registry`/`View` keep the S07 behaviour; new entities are `Simulated`).
 - Benchmark (GCC 15, RelWithDebInfo, laptop): `World::step` with 10^5 entities 0.48 ms idle (the phase-6 scan),
   0.97 ms with a system that moves all of them; the S07 ECS numbers are unchanged (create 14.4 ms, view<3> 0.61 ms).

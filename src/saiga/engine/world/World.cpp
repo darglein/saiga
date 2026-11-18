@@ -68,9 +68,9 @@ Entity World::create()
         record(makeCommand([e](World& w) { w.activateNow(e); }));
         return e;
     }
-    log.prepare(1);  // the record cannot be lost after the change (append does not allocate)
-    Entity e = reg.create();
-    log.append(e, Transform::id, true);
+    auto record = log.prepare(1);  // the record cannot be lost after the change (append does not allocate)
+    Entity e    = reg.create();
+    record.append(e, Transform::id, true);
     return e;
 }
 
@@ -93,9 +93,9 @@ void World::destroy(Entity e)
 
 void World::activateNow(Entity e)
 {
-    log.prepare(1);
+    auto record = log.prepare(1);
     reg.activate(e);
-    log.append(e, Transform::id, true);
+    record.append(e, Transform::id, true);
 }
 
 void World::destroyNow(Entity e)
@@ -140,7 +140,7 @@ void World::destroyNow(Entity e)
         const ComponentMask m = reg.entityMask(x);
         size_t records        = 0;
         for (size_t id = 0; id < kMaxComponents; ++id) records += m.test(ComponentId(id)) ? 1 : 0;
-        log.prepare(records);
+        auto prepared          = log.prepare(records);
         const Parent* p        = reg.tryRead<Parent>(x);
         const Entity oldParent = p ? p->entity : Entity{};
         reg.destroy(x);
@@ -148,7 +148,7 @@ void World::destroyNow(Entity e)
         if (x.index < children.size()) children[x.index] = 0;
         // One removed record per component in ID order, Transform first
         for (size_t id = 0; id < kMaxComponents; ++id)
-            if (m.test(ComponentId(id))) log.append(x, ComponentId(id), false);
+            if (m.test(ComponentId(id))) prepared.append(x, ComponentId(id), false);
         if (m.test(Parent::id) || doomed.size() > 1) hierarchyDirty = true;
     }
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/util/assert.h"
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/ecs/Ids.h"
 #include "saiga/export.h"
@@ -36,24 +37,43 @@ class SAIGA_ENGINE_API StructuralLog
         bool added            = false;
     };
 
-    // Reserves room for n more records: a mutation calls prepare before it changes anything and append after it
-    // succeeded, so the record cannot be lost to an allocation failure after the change (append does not allocate then)
-    // Reserves room for n more records: a mutation calls prepare before it changes anything and append after it
-    // succeeded, so the record cannot be lost to an allocation failure after the change (append does not allocate
-    // then). Reservations are counted: a nested change (e.g. from a component's constructor) reserves and uses its own
-    // slot, never the one promised to the outer change.
-    void prepare(size_t n)
+    // Records reserved by prepare: append publishes one without allocation; the slots not appended are given back
+    // when it goes out of scope (a mutation that failed after prepare leaves no reservation behind)
+    class Prepared
     {
-        reserved += n;
-        const size_t needed = records.size() + reserved;
+       public:
+        Prepared(const Prepared&)            = delete;
+        Prepared& operator=(const Prepared&) = delete;
+        ~Prepared() { log.reserved -= left; }
+        void append(Entity e, ComponentId component, bool added)
+        {
+            SAIGA_ASSERT(left > 0, "StructuralLog: more records appended than prepared");
+            left--;
+            log.reserved--;
+            log.records.push_back(Record{e, component, added});
+        }
+
+       private:
+        friend class StructuralLog;
+        Prepared(StructuralLog& log, size_t n) : log(log), left(n) {}
+        StructuralLog& log;
+        size_t left;
+    };
+
+    // Reserves room for n more records: a mutation calls prepare before it changes anything and appends through the
+    // result after it succeeded, so the record cannot be lost to an allocation failure after the change (append does
+    // not allocate then). Reservations are counted: a nested change (e.g. from a component's constructor) reserves and
+    // uses its own slot, never the one promised to the outer change. If the reserve throws, nothing is reserved.
+    Prepared prepare(size_t n)
+    {
+        const size_t needed = records.size() + reserved + n;
         // Geometric growth: reserving exactly the needed size made every prepare reallocate (quadratic)
         if (records.capacity() < needed) records.reserve(std::max(needed, 2 * records.capacity()));
+        reserved += n;
+        return Prepared(*this, n);
     }
-    void append(Entity e, ComponentId component, bool added)
-    {
-        if (reserved > 0) reserved--;
-        records.push_back(Record{e, component, added});
-    }
+    // Slots promised by prepare and not yet appended or given back
+    size_t reservedCount() const { return reserved; }
 
     // A new consumer starts at the current end of the log
     int addConsumer();
@@ -76,8 +96,7 @@ class SAIGA_ENGINE_API StructuralLog
     std::vector<uint64_t> cursors;  // absolute position of each consumer
     std::vector<bool> active;
     std::vector<bool> consuming;  // consume() of the consumer runs (reentry asserts)
-    size_t reserved = 0;  // slots promised by prepare and not yet appended       // removed consumers keep their index,
-                          // not their cursor
+    size_t reserved = 0;          // slots promised by prepare and not yet appended or given back
 };
 
 }  // namespace Engine

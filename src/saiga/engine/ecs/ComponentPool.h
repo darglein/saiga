@@ -9,6 +9,7 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/ecs/Ids.h"
+#include "saiga/engine/ecs/TypeCheck.h"
 #include "saiga/engine/ecs/VisitBinary.h"
 
 #include <array>
@@ -43,14 +44,12 @@ class PoolBase
     {
     }
 
-    // The registered C++ type is T. Checked before every downcast: two types with the same ID, name and size are told
-    // apart. std::type_info equality, not the name: it works across the engine DLL (libstdc++ and MSVC compare the
-    // mangled names of types with external linkage) and tells apart types in unnamed namespaces of different
-    // translation units, whose typeid names are equal on GCC (libstdc++ compares those by address)
+    // The registered C++ type is T (isRegisteredType: across the engine DLL, and types in unnamed namespaces of
+    // different translation units are told apart). Checked before every downcast.
     template <class T>
     bool holds() const
     {
-        return *type == typeid(T);
+        return isRegisteredType(*type, typeid(T));
     }
     virtual ~PoolBase()                  = default;
     PoolBase(const PoolBase&)            = delete;

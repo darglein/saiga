@@ -288,7 +288,7 @@ void World::addNow(Entity e, T&& value)
         if (!acceptParent(e, value.entity)) return;
     }
     // Everything that can allocate first (the log record, the parent's count slot); after the add nothing can fail
-    log.prepare(1);
+    auto record = log.prepare(1);
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
         const Entity parent = value.entity;
@@ -299,21 +299,21 @@ void World::addNow(Entity e, T&& value)
     }
     else
         reg.add<T>(e, std::move(value));
-    log.append(e, T::id, true);
+    record.append(e, T::id, true);
 }
 
 template <class T>
 void World::removeNow(Entity e)
 {
     if (flushing && !reg.alive(e)) return;
-    log.prepare(1);
+    auto record = log.prepare(1);
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
         changeChildCount(reg.read<Parent>(e).entity, -1);
         hierarchyDirty = true;
     }
     reg.remove<T>(e);
-    log.append(e, T::id, false);
+    record.append(e, T::id, false);
 }
 
 }  // namespace Engine

@@ -9,6 +9,7 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/ecs/Ids.h"
+#include "saiga/engine/ecs/TypeCheck.h"
 #include "saiga/engine/ecs/Visit.h"
 #include "saiga/engine/ecs/VisitBinary.h"
 #include "saiga/export.h"
@@ -36,12 +37,12 @@ class EventQueueBase
         : id(id), name(name), replicate(mode), type(&type)
     {
     }
-    // The registered C++ type is E (std::type_info equality, see PoolBase::holds: across DLLs, and types in unnamed
-    // namespaces of different translation units are told apart)
+    // The registered C++ type is E (isRegisteredType: across the engine DLL, and types in unnamed namespaces of
+    // different translation units are told apart)
     template <class E>
     bool holds() const
     {
-        return *type == typeid(E);
+        return isRegisteredType(*type, typeid(E));
     }
     virtual ~EventQueueBase() = default;
     // Pending -> readable (the previous readable events are dropped)

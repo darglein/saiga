@@ -1272,11 +1272,42 @@ TEST(World, NestedChangesDoNotUseTheOuterReservation)
 {
     // prepare counts reservations: an outer prepare(1), then a nested prepare(1) + append, then the outer append
     StructuralLog log;
-    log.prepare(1);
-    log.prepare(1);
-    log.append(Entity{1, 0}, 0, true);
-    log.append(Entity{2, 0}, 0, true);
+    {
+        auto outer = log.prepare(1);
+        {
+            auto nested = log.prepare(1);
+            nested.append(Entity{1, 0}, 0, true);
+        }
+        outer.append(Entity{2, 0}, 0, true);
+    }
     EXPECT_EQ(log.size(), 2u);
+    EXPECT_EQ(log.reservedCount(), 0u);
+}
+
+// Regression: prepare counted the reservation before the reserve could throw, and a mutation that failed after
+// prepare left its reservation behind; each failure made later prepares reserve more
+TEST(World, FailedPrepareOrMutationGivesTheReservationBack)
+{
+    StructuralLog log;
+    // The reserve throws (more than max_size): nothing is reserved
+    EXPECT_THROW(log.prepare(std::numeric_limits<size_t>::max() / 2), std::length_error);
+    EXPECT_EQ(log.reservedCount(), 0u);
+    // The mutation fails after prepare: the unused slot is given back
+    auto failingMutation = [&]()
+    {
+        auto record = log.prepare(1);
+        throw std::runtime_error("mutation failed");
+    };
+    EXPECT_THROW(failingMutation(), std::runtime_error);
+    EXPECT_EQ(log.reservedCount(), 0u);
+    // Partly used: only the slots not appended are given back
+    {
+        auto records = log.prepare(3);
+        records.append(Entity{1, 0}, 0, false);
+        EXPECT_EQ(log.reservedCount(), 2u);
+    }
+    EXPECT_EQ(log.reservedCount(), 0u);
+    EXPECT_EQ(log.size(), 1u);
 }
 
 TEST(World, StructuralLogConsumerThrowsOrIsRemoved)
