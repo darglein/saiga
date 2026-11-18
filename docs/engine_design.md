@@ -177,6 +177,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | World MCP tools: `screenshot`, `get_state`, `set_camera`, `move_camera`, `set_settings`, `terrain_query`, `measure_performance` | `src/saiga/vulkan/world/WorldMcp.*` | [exists], no `handleMessage` tests |
 | Sample (GLFW window, polls MCP in `update()`), `.mcp.json` (`saiga-world`, port 8765) | `samples/vulkan/sample_vulkan_world.cpp` | [exists] |
 | Tests | `tests/test_vulkan_world.cpp`, `tests/test_core_mcp_server.cpp` (contains `Poller`) | [exists] |
+| Golden images: `compareGolden` (lavapipe gating, `SAIGA_UPDATE_GOLDEN`), goldens `world_overview` and `world_forest`, CI upload of failed images | `tests/golden_image.h`, `data/tests/golden/`, `.github/workflows/tests.yml` | [exists] |
 | Jolt (optional FetchContent, static, `SAIGA_WITH_JOLT` default OFF, not in CI, no saiga library links it) | `cmake/Dependencies_jolt.cmake` | [exists] |
 | `MainLoop`: `update(float)` at `updatesPerSecond` (default 60), `interpolate(float dt, float alpha)` and `render()` once per frame, `framesPerSecond` (default 60, 0 = unlimited) | `src/saiga/core/window/MainLoop.*` | [exists] |
 | `HeadlessWindow` (no surface; `renderFrames` calls `update` and `render`, not `interpolate`; no ImGui) | `src/saiga/vulkan/window/HeadlessWindow.*` | [exists] |
@@ -1949,25 +1950,42 @@ Headless Vulkan tests (lavapipe in CI) assert numeric render statistics (instanc
 Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) are equal except for instances within
 1e-3 relative of a frustum plane or LOD threshold, as determined by the CPU reference.
 
-### 17.6 Golden images [planned: S02]
+### 17.6 Golden images [exists]
 
-- `bool compareGolden(const TemplatedImage<ucvec4>& image, const std::string& name)` in `tests/golden_image.h`; PNGs in
-  `data/tests/golden/`.
+- `bool compareGolden(const TemplatedImage<ucvec4>& image, const std::string& name, const std::string& deviceName)` in
+  `tests/golden_image.h` (header only; `deviceName` from `VkPhysicalDeviceProperties::deviceName` decides the gating);
+  PNGs in `data/tests/golden/`.
   - Setup: clay mode, `freezeTime` (time = 0; both in `WorldSettings` until S19, then in
     `RenderSceneParameters::shading` / `freezeTime`), fixed seed, camera, 512 x 512, captured after 5 frames; small
     scenes (<= 1 km, <= 10^4 instances).
-  - Golden mode uses a fixed exposure and forces a full (non-incremental) update of every incremental effect
-    (volumetric fog and cloud history, horizon and cloud shadow maps, shadow atlas) in the captured frame.
-- S02 goldens (in `tests/test_vulkan_world.cpp`, `WorldParameters` with `terrain.size = 513` (1 km), 5000 trees, seed
-  1): `world_overview` (camera 300 m above the center, looking 30 degrees down) and `world_forest` (camera 2 m above
-  ground at the center, looking along +x); the tests also `EXPECT_EQ` the drawn instance counts per LOD against
-  committed numbers (used by S19).
+  - Golden mode uses a fixed exposure and forces a full (non-incremental) update of every incremental effect (volumetric
+    fog and cloud history, horizon and cloud shadow maps, shadow atlas) in the captured frame [planned: by the stage of
+    each effect].
+- S02 goldens (`VulkanWorldGolden.WorldOverview` / `.WorldForest` in `tests/test_vulkan_world.cpp`, `WorldParameters`
+  with `terrain.size = 513` (1 km), 5000 trees, seed 1): `world_overview` (camera 300 m above the ground 100 m from the
+  west edge at the center z, looking 45 degrees down along +x, so terrain and trees fill the image) and `world_forest`
+  (camera 2 m above max(ground, water) at the edge of a clearing 28 m west and 80 m north of the center, looking along
+  +x and slightly down: a close tree with alpha-to-coverage foliage, grass, trunks, the forest at mid distance and the
+  sky); the tests also `EXPECT_EQ` the drawn tree instances per LOD and the terrain node count against committed numbers
+  (used by S19). The counts gate only on lavapipe like the images (the placement uses std random distributions and float
+  comparisons: other standard libraries, compilers or drivers may differ by a few trees).
 - Pass: mean absolute difference < 1/255 and at most 0.5% of the pixels differ by more than 16/255. It gates only when
-  the device name contains `llvmpipe` (else it prints the metrics).
-- On failure `golden_failed/<name>_actual.png` and `_diff.png` are written to the working directory; CI uploads them
-  (`actions/upload-artifact`, `if: failure()`). Goldens are only written on lavapipe
-  (`VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json SAIGA_UPDATE_GOLDEN=1 ctest -R <test>`); a Mesa update
-  regenerates them in a dedicated commit.
+  the device name contains `llvmpipe` (else it prints the metrics). Gray (clay) goldens are stored as 8-bit grayscale
+  PNGs.
+- On a gating failure (also a missing, unreadable or differently sized golden) `golden_failed/<name>_actual.png` and
+  `_diff.png` (only when the golden can be compared) are written to the working directory
+  (`build/tests/` under ctest, git-ignored; a passing comparison removes stale ones); CI uploads them (`actions/upload-artifact`, `if: failure()`, artifact
+  `golden-failed-<job>`; the actual images are saved like goldens) and prints the metrics of every run from ctest's log (step
+  "Golden image metrics"). The committed goldens are rendered by a local lavapipe (Mesa with LLVM 21.1.8); CI's
+  lavapipe (Mesa 25.2.8, LLVM 20.1.2) differs slightly and passes within the tolerance (reference margin, run
+  43754502053: `world_overview` mean 0.005/255, 0.011% of the pixels > 16/255; `world_forest` mean 0.14/255, 0.19%); a
+  Mesa update on the CI runner may need the regeneration from the CI artifact below.
+  Goldens are only written on lavapipe, in a dedicated commit: `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+  SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_vulkan_world --gtest_filter='VulkanWorldGolden.*'` (it writes the PNGs
+  instead of comparing and does not check the counts), then the printed `trees per lod` counts are copied into the `ExpectCounts` calls. If CI fails after a Mesa update, the goldens and the committed counts are taken from the failed
+  run: the `_actual.png` images of the artifact (it exists only for a run whose comparison failed) and the
+  `trees per lod` lines of the step "Golden image metrics", and the Mesa/LLVM versions named here and in AGENTS.md are
+  updated (the goldens then come from CI's lavapipe); the exact commands are in AGENTS.md.
 
 ### 17.7 Benchmarks [planned: S03]
 
@@ -2207,7 +2225,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | Stage | Name | What is implemented | Depends on | Done when |
 |---|---|---|---|---|
 | S01 | Prototype baseline (done) | Commit the prototype; clay shading enum, `freezeTime`, serial `placeTrees` sum (§19) | – | prototype committed, sample runs, existing tests green (CI) |
-| S02 | Golden image tests | `compareGolden`, lavapipe goldens `world_overview` and `world_forest` of the prototype, CI upload of failed images (§17.6) | S01 | goldens pass in CI |
+| S02 | Golden image tests (done) | `compareGolden`, lavapipe goldens `world_overview` and `world_forest` of the prototype, CI upload of failed images (§17.6) | S01 | goldens pass in CI |
 | S03 | Benchmark runner | `--benchmark` with `flyover` / `forest`, unsmoothed frame times, baseline file (§17.7) | S01 | baseline in `data/tests/benchmarks.json` for the reference GPU (local) |
 | S04 | Engine module setup | `saiga_engine` and `games/` in CMake, export macro, module defines, test registration, Clang and Windows/MSVC (shared libraries) CI build jobs (§5.3) | – | `Module enabled: Engine` printed; engine library and a smoke test build and run on all CI compilers (CI) |
 | S05 | Math additions (done) | Missing tiny-eigen functions and double helpers (§7.10, R-MATH-2) | – | tiny-eigen tests for every addition (CI); `test_core_math_functions` builds and passes with Eigen (local) |
