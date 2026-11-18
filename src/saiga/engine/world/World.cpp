@@ -57,7 +57,29 @@ World::World(const WorldSetup& setup)
     if (setup.classes) setup.classes(classes);
     classes.validateRegistration();
 
+    prof.enabled = setup.profiling;
+    setupProfiler();
+
     createStateEntities();
+}
+
+void World::setupProfiler()
+{
+    stepScope = prof.scope("step");
+    for (int p = kFirstPhase; p <= kLastPhase; ++p)
+    {
+        const std::string phasePath = std::string("step/phase:") + phaseName(Phase(p));
+        phaseScopes[size_t(p)]      = prof.scope(phasePath);
+        for (const SystemList::System& s : systems.systems(Phase(p)))
+            systemScopes[size_t(p)].push_back(prof.scope(phasePath + "/system:" + s.name));
+        flushScopes[size_t(p)] = prof.scope(phasePath + "/commands");
+    }
+    entitiesCounter = prof.counter("entities");
+    objectsCounter  = prof.counter("game_objects");
+    prof.counter("objects_updated");  // behaviourSystem adds to it
+    commandsCounter = prof.counter("commands_applied");
+    recordsCounter  = prof.counter("structural_records");
+    gridCounter     = prof.counter("grid_items");
 }
 
 void World::createStateEntities()
@@ -89,6 +111,46 @@ void World::createStateEntities()
 
 // ---- game objects and gameplay
 // -------------------------------------------------------------------------------------------
+
+void World::addDefaultNow(Entity e, ComponentId id)
+{
+    SAIGA_ASSERT(!inStep(), "addDefaultNow: between steps");
+    SAIGA_ASSERT(id != Transform::id && id != Behaviour::id && id != Persistent::id && id != Parent::id,
+                 "addDefaultNow: this component has its own path");
+    auto record = log.prepare(1);
+    reg.addDefault(e, id);
+    record.append(e, id, true);
+}
+
+void World::removeByIdNow(Entity e, ComponentId id)
+{
+    SAIGA_ASSERT(!inStep(), "removeByIdNow: between steps");
+    if (id == Parent::id) return removeNow<Parent>(e);
+    if (id == Persistent::id) return removeNow<Persistent>(e);
+    auto record = log.prepare(1);
+    reg.removeById(e, id);
+    record.append(e, id, false);
+}
+
+Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
+                           const std::function<void(Entity)>& initial)
+{
+    SAIGA_ASSERT(!inStep(), "spawnByClass: between steps");
+    const Entity e = beginSpawn(space);
+    finishSpawn(e, info, position);
+    if (initial) initial(e);
+    startObject(e);
+    return e;
+}
+
+void World::runStepListeners()
+{
+    // Listeners may add listeners (kept) and remove themselves (return false)
+    std::vector<std::function<bool()>> current;
+    current.swap(stepListeners);
+    for (auto& l : current)
+        if (l()) stepListeners.push_back(std::move(l));
+}
 
 Entity World::beginSpawn(SpaceId space)
 {
@@ -433,6 +495,7 @@ Rng& World::random()
 void World::runStep()
 {
     // Queued player actions become ActionEvents; with the events of the last step they become readable
+    Profiler::Timer stepTimer(prof, stepScope);
     deliverActions();
     events.beginStep();
     stepEventsBegun = true;
@@ -441,14 +504,19 @@ void World::runStep()
         for (int p = kFirstPhase; p <= kLastPhase; ++p)
         {
             phase = Phase(p);
+            Profiler::Timer phaseTimer(prof, phaseScopes[size_t(p)]);
             // Teleports made in phase 7 reach the children before extract reads them (§7.4)
             if (phase == Phase::Extract) propagateTeleportsBeforeExtract(*this);
-            for (const SystemList::System& s : systems.systems(phase))
+            const auto& list = systems.systems(phase);
+            for (size_t i = 0; i < list.size(); ++i)
             {
                 // Before S16 the world is the host: client-only systems do not run
-                if (s.runOn == RunOn::Client) continue;
-                s.fn(*this, stepDt);
+                if (list[i].runOn == RunOn::Client) continue;
+                Profiler::Timer systemTimer(prof, systemScopes[size_t(p)][i]);
+                list[i].fn(*this, stepDt);
             }
+            Profiler::Timer flushTimer(prof, flushScopes[size_t(p)]);
+            prof.addCounter(commandsCounter, double(commands.size()));
             flushCommands();
         }
         // Children whose parent was teleported after their last update (phase 8) follow in the next phase 6
@@ -459,19 +527,30 @@ void World::runStep()
         // The world stays usable: the step is incomplete (the changes of the finished phases remain), the pending
         // commands are dropped and their reserved entities released; the step index does not advance
         abortStep();
+        prof.discardSample();
         throw;
     }
     phase           = Phase::None;
     stepEventsBegun = false;
     reg.shiftTransformFlags();
+    prof.setCounter(recordsCounter, double(log.size()));
     log.truncate();
     steps++;
+    prof.setCounter(entitiesCounter, double(reg.aliveCount()));
+    prof.setCounter(objectsCounter, double(reg.registered(Behaviour::id) ? reg.poolById(Behaviour::id)->size() : 0));
+    prof.setCounter(gridCounter, double(grid.size()));
 }
 
 void World::step(int n)
 {
     SAIGA_ASSERT(!inStep(), "World::step inside a step");
-    for (int i = 0; i < n; ++i) runStep();
+    for (int i = 0; i < n; ++i)
+    {
+        runStep();
+        // After runStep: its step timer has stopped
+        prof.endSample();
+        runStepListeners();
+    }
 }
 
 void World::advance(double frameDt)
@@ -485,7 +564,12 @@ void World::advance(double frameDt)
     int n = 0;
     while (accumulator >= stepDt && n < config.maxStepsPerAdvance)
     {
-        runStep();
+        {
+            runStep();
+            // After runStep: its step timer has stopped
+            prof.endSample();
+            runStepListeners();
+        }
         accumulator -= stepDt;
         n++;
     }

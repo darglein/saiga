@@ -16,6 +16,7 @@ namespace Engine
 {
 void behaviourSystem(World& w, double dt)
 {
+    double updated = 0;
     // Dense order of the Behaviour pool; only Simulated entities (phase 3)
     w.view<Behaviour>().each(
         [&](Entity, Behaviour& b)
@@ -26,8 +27,11 @@ void behaviourSystem(World& w, double dt)
             if (!b.alwaysTickEveryStep && b.sinceTick + 1e-9 < b.tickInterval) return;
             const double since = b.sinceTick;
             b.sinceTick        = 0;
+            updated++;
             b.object->update(since);
         });
+    Profiler& p = w.profiler();
+    p.addCounter(p.counter("objects_updated"), updated);
 }
 
 }  // namespace Engine

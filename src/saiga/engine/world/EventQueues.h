@@ -8,10 +8,12 @@
 
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/core/Hash.h"
+#include "saiga/engine/ecs/FieldList.h"
 #include "saiga/engine/ecs/Ids.h"
 #include "saiga/engine/ecs/TypeCheck.h"
 #include "saiga/engine/ecs/Visit.h"
 #include "saiga/engine/ecs/VisitBinary.h"
+#include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/export.h"
 
 #include <cstring>
@@ -53,6 +55,11 @@ class EventQueueBase
     // The pending events (emitted since the last beginStep) in emit order
     virtual void hashPending(Hasher& h) const = 0;
     virtual size_t pendingCount() const       = 0;
+    // Type-erased access by the world API (S10): emit from JSON (false and nothing emitted on an error), the readable
+    // events as JSON, the field list
+    virtual bool emitJson(const json11::Json& json, std::string& error) = 0;
+    virtual json11::Json readableJson() const                           = 0;
+    virtual std::vector<FieldInfo> fields() const                       = 0;
 
     const EventId id;
     const char* const name;
@@ -91,6 +98,20 @@ class EventQueue final : public EventQueueBase
         }
     }
     size_t pendingCount() const override { return pending.size(); }
+    bool emitJson(const json11::Json& json, std::string& error) override
+    {
+        E e{};
+        if (!fromJson(json, e, &error)) return false;
+        pending.push_back(std::move(e));
+        return true;
+    }
+    json11::Json readableJson() const override
+    {
+        json11::Json::array a;
+        for (const E& e : readable) a.push_back(toJson(e));
+        return a;
+    }
+    std::vector<FieldInfo> fields() const override { return describeFields<E>(); }
 
     std::vector<E> pending, readable;
 };
@@ -122,6 +143,9 @@ class SAIGA_ENGINE_API EventQueues
     void abortStep();
     void hashPending(Hasher& h) const;
     bool registered(EventId id) const { return id < queues.size() && queues[id] != nullptr; }
+    // Engine-internal (world API): the queue by name or ID, nullptr if none
+    EventQueueBase* find(const std::string& name) const;
+    EventQueueBase* find(EventId id) const { return registered(id) ? queues[id].get() : nullptr; }
     size_t registeredCount() const;
 
    private:

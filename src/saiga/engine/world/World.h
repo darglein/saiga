@@ -11,6 +11,7 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/core/JobPool.h"
+#include "saiga/engine/core/Profiler.h"
 #include "saiga/engine/core/Rng.h"
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/gameplay/ClassList.h"
@@ -26,6 +27,7 @@
 #include "saiga/export.h"
 
 #include <array>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -57,6 +59,9 @@ struct WorldSetup
     void (*events)(EventRegistry&) = nullptr;
     void (*systems)(SystemList&)   = nullptr;
     void (*classes)(ClassList&)    = nullptr;  // game object classes (S10)
+    // Times every step, phase, system and command flush and counts entities, objects and updates (Profiler, S10);
+    // false: no clock calls
+    bool profiling = true;
 };
 
 /**
@@ -237,6 +242,9 @@ class SAIGA_ENGINE_API World
     Registry& registry() { return reg; }
     const Registry& registry() const { return reg; }
     const ClassList& classList() const { return classes; }
+    // Step timings and counters (§17.1, S10); the app adds frame and GPU numbers from S13
+    Profiler& profiler() { return prof; }
+    const Profiler& profiler() const { return prof; }
     const WorldConfig& worldConfig() const { return config; }
     // Player cells of the last tick evaluation (space, x, z in TickPolicy::ringSize cells), sorted
     // (gameplay/TickSystem)
@@ -275,6 +283,18 @@ class SAIGA_ENGINE_API World
     // Children whose parent was teleported after their last update in a step (phase 8): teleported in the next
     // phase 6, sorted by index
     std::vector<Entity> pendingChildTeleports;
+    // ---- type-erased access for the world API (between steps; S10) ----
+    // Adds a default component by ID with its log record (not Transform, Behaviour, Persistent or Parent)
+    void addDefaultNow(Entity e, ComponentId id);
+    // Removes a component by ID with its log record (Parent and Persistent keep their bookkeeping; not Transform)
+    void removeByIdNow(Entity e, ComponentId id);
+    // Spawns a class by its registration: Transform, Behaviour, then initial(e) adds the initial components, then the
+    // tick interval, configure() and onSpawn()
+    Entity spawnByClass(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
+                        const std::function<void(Entity)>& initial);
+    // Runs fn after every completed step (also of step(n) and advance); fn returns false to be removed
+    void addStepListener(std::function<bool()> fn) { stepListeners.push_back(std::move(fn)); }
+
     // Recounts the children per entity from the Parent pool and marks the hierarchy order dirty (after the registry was
     // filled directly, e.g. by load in S11)
     // Returns false (and changes nothing, in every build: the caller can repair the fill) if a Parent names an entity
@@ -344,6 +364,13 @@ class SAIGA_ENGINE_API World
 
     Registry reg;
     ClassList classes;
+    Profiler prof;
+    // Scope IDs: the step, per phase, per system (in SystemList order), per command flush; counter IDs
+    int stepScope = -1;
+    std::array<int, size_t(kLastPhase) + 1> phaseScopes{}, flushScopes{};
+    std::array<std::vector<int>, size_t(kLastPhase) + 1> systemScopes;
+    int entitiesCounter = -1, objectsCounter = -1, commandsCounter = -1, recordsCounter = -1, gridCounter = -1;
+    void setupProfiler();
     StructuralLog log;
     SpatialGrid grid;
     int gridConsumer = -1;
@@ -366,6 +393,8 @@ class SAIGA_ENGINE_API World
     uint64_t actionSequence = 0;
     Entity worldState;
     std::vector<Entity> spaceStates;  // by SpaceId
+    std::vector<std::function<bool()>> stepListeners;
+    void runStepListeners();
     uint64_t persistentCounter = 0;
     std::unordered_map<uint64_t, Entity> persistentIndex;
 
