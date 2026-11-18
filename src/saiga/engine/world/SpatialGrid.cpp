@@ -10,6 +10,8 @@
 
 #include "saiga/core/util/assert.h"
 
+#include <algorithm>
+
 namespace Saiga
 {
 namespace Engine

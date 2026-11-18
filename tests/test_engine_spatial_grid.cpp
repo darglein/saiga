@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 #include <vector>
 
 using namespace Saiga;
@@ -127,13 +128,18 @@ TEST(SpatialGrid, LargeInvalidAndFarQueries)
     for (uint32_t i = 1; i <= 50; ++i) g.update(Entity{i, 0}, 0, Vec3(double(i) * 1000, 0, -double(i) * 700));
     g.update(Entity{51, 0}, 0, Vec3(std::numeric_limits<double>::quiet_NaN(), 0, 0));
     g.update(Entity{52, 0}, 0, Vec3(1e300, 0, -1e300));
+    g.update(Entity{53, 0}, 0, Vec3(std::numeric_limits<double>::infinity(), 0, 0));
     size_t n = 0;
     // A radius covering far more cells than are occupied visits the occupied cells
     g.forEachWithin(0, Vec3(0, 0, 0), 1e6, [&](const SpatialGrid::Item&) { n++; });
     EXPECT_EQ(n, 50u);
     n = 0;
     g.forEachWithin(0, Vec3(0, 0, 0), std::numeric_limits<double>::infinity(), [&](const SpatialGrid::Item&) { n++; });
-    EXPECT_EQ(n, 51u);  // not the NaN position
+    EXPECT_EQ(n, 51u);  // not the NaN or the infinite position; 52 is at a finite distance
+    // Regression: the squared radius overflowed to inf, and so did the squared distance of entity 52 (inf <= inf)
+    n = 0;
+    g.forEachWithin(0, Vec3(0, 0, 0), 1e160, [&](const SpatialGrid::Item&) { n++; });
+    EXPECT_EQ(n, 50u);
     n = 0;
     g.forEachWithin(0, Vec3(1e300, 0, -1e300), 1, [&](const SpatialGrid::Item&) { n++; });
     EXPECT_EQ(n, 1u);  // a clamped far cell
@@ -392,4 +398,63 @@ TEST(SpatialQuery, QueriesInParallelEach)
         // An interior entity has its 8 neighbours (diagonal 14.1 m) and itself within 15 m
         EXPECT_EQ(*std::max_element(counts.begin(), counts.end()), 9u);
     }
+}
+
+// Regression: the changed list took the handle from the grid, so an alive entity missing from the grid (e.g. a rebuild
+// that failed halfway) was never inserted again, even after it moved
+TEST(SpatialQuery, AMovedEntityMissingFromTheGridEntersIt)
+{
+    World w(testSetup());
+    Entity a = createAt(w, Vec3(0, 0, 0));
+    w.step();
+    w.spatialGrid().remove(a.index);
+    EXPECT_TRUE(w.queryRadius(0, Vec3(0, 0, 0), 1).empty());
+    w.get<Transform>(a).setPosition(Vec3(1, 0, 0));
+    w.step();
+    EXPECT_EQ(w.queryRadius(0, Vec3(1, 0, 0), 0), std::vector<Entity>{a});
+}
+
+namespace
+{
+bool g_throwInStreaming = false;
+Entity g_createdBeforeAbort;
+void sysCreateInGameplay(World& w, double)
+{
+    if (g_throwInStreaming && !g_createdBeforeAbort.valid())
+    {
+        g_createdBeforeAbort = w.create();
+        w.add<Tag>(g_createdBeforeAbort, Tag{7});
+    }
+}
+void sysThrowInStreaming(World&, double)
+{
+    if (g_throwInStreaming)
+    {
+        g_throwInStreaming = false;
+        throw std::runtime_error("streaming failed");
+    }
+}
+void abortSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "create", sysCreateInGameplay);
+    s.add(Phase::Streaming, "throw", sysThrowInStreaming);
+}
+}  // namespace
+
+// An entity created in phase 4 of a step that throws in phase 7 stays (its command was applied), and the grid has it
+// after the next phase 6; the abort neither loses nor duplicates it
+TEST(SpatialQuery, AnAbortedStepKeepsTheGridConsistent)
+{
+    World w(testSetup(abortSystems));
+    Entity a = createAt(w, Vec3(0, 0, 0));
+    w.step();
+    g_createdBeforeAbort = Entity{};
+    g_throwInStreaming   = true;
+    w.get<Transform>(a).setPosition(Vec3(100, 0, 0));
+    EXPECT_THROW(w.step(), std::runtime_error);
+    ASSERT_TRUE(w.alive(g_createdBeforeAbort));
+    w.step();
+    EXPECT_EQ(w.queryRadius(0, Vec3(0, 0, 0), 1, World::mask<Tag>()), std::vector<Entity>{g_createdBeforeAbort});
+    EXPECT_EQ(w.queryRadius(0, Vec3(100, 0, 0), 1), std::vector<Entity>{a});
+    EXPECT_EQ(w.spatialGrid().size(), 2u);
 }

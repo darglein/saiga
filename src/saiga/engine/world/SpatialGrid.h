@@ -11,6 +11,7 @@
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/export.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -35,6 +36,11 @@ class SAIGA_ENGINE_API SpatialGrid
    public:
     static constexpr double kCellSize = 32;
 
+    SpatialGrid() = default;
+    // Not copyable (MSVC instantiates the copy operations of an exported class: unique_ptr members)
+    SpatialGrid(const SpatialGrid&)            = delete;
+    SpatialGrid& operator=(const SpatialGrid&) = delete;
+
     struct Item
     {
         Entity entity;
@@ -42,8 +48,8 @@ class SAIGA_ENGINE_API SpatialGrid
     };
 
     // Puts the entity (by index; a newer handle of the same index replaces an older one) into the cell of (space,
-    // position), or moves it there. A non-finite coordinate maps to cell 0 in that axis (the entity is never within a
-    // finite distance of anything, see forEachWithin).
+    // position), or moves it there. A non-finite coordinate maps to cell 0 in that axis (such an entity is never
+    // found, see forEachWithin).
     void update(Entity e, SpaceId space, const Vec3& position);
     // Removes the entity with this index (no-op if it is not in the grid)
     void remove(uint32_t index);
@@ -59,7 +65,8 @@ class SAIGA_ENGINE_API SpatialGrid
 
     // Calls fn(const Item&) for every item of the space within radius of center (Euclidean distance in 3D, the boundary
     // included), in an unspecified order. Visits the cells overlapping the square of the radius, or every occupied cell
-    // of the space if those are fewer (large radii). A negative or NaN radius finds nothing.
+    // of the space if those are fewer (large radii). A negative or NaN radius finds nothing; items with a non-finite
+    // position are never found (nor is anything from a non-finite center).
     template <class F>
     void forEachWithin(SpaceId space, const Vec3& center, double radius, F&& fn) const;
 
@@ -92,10 +99,20 @@ void SpatialGrid::forEachWithin(SpaceId space, const Vec3& center, double radius
     const Cells& cells = *spaces[space];
     if (cells.empty()) return;
     const double r2 = radius * radius;
-    auto visit      = [&](const std::vector<Item>& items)
+    auto within     = [&](const Vec3& p)
+    {
+        const Vec3 d = p - center;
+        // A finite squared radius: an infinite or NaN distance fails the comparison by itself
+        if (std::isfinite(r2)) return d.squaredNorm() <= r2;
+        // The square of a huge radius overflows: compare the scaled distance (no overflow) with the radius
+        if (!std::isfinite(d.x()) || !std::isfinite(d.y()) || !std::isfinite(d.z())) return false;
+        const double m = std::max({std::abs(d.x()), std::abs(d.y()), std::abs(d.z())});
+        return m == 0 || m * std::sqrt((d / m).squaredNorm()) <= radius;
+    };
+    auto visit = [&](const std::vector<Item>& items)
     {
         for (const Item& it : items)
-            if ((it.position - center).squaredNorm() <= r2) fn(it);
+            if (within(it.position)) fn(it);
     };
 
     // The square of cells around the center; every occupied cell if that is fewer (or the bounds are not finite)

@@ -200,7 +200,7 @@ TEST(EcsBenchmark, WorldStepHundredThousandEntities)
 }
 
 // The spatial grid (S09, R-TEST-2): World::step with 10^5 entities spread over 2 km x 2 km moving at 20 m/s (the grid
-// updates every changed transform, some change cells), and 10^4 queryRadius calls of 50 m (about 60 hits each)
+// updates every changed transform, some change cells), and 10^4 queryRadius calls of 50 m (about 200 hits each)
 TEST(EcsBenchmark, SpatialGridHundredThousandEntities)
 {
     const int n = 100000;

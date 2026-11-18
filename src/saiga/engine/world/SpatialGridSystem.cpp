@@ -37,8 +37,9 @@ void spatialGridSystem(World& w, double)
     // Moved entities (changed in this or the previous step: phases 7 and 8 of the last step included)
     for (uint32_t index : w.changedTransforms())
     {
-        const Entity e = grid.entityAt(index);
-        if (!reg.alive(e)) continue;
+        // The handle from the registry, not from the grid: an alive entity missing from the grid enters it here
+        const Entity e = reg.aliveAt(index);
+        if (!e.valid()) continue;
         const Transform& t = reg.read<Transform>(e);
         grid.update(e, t.space(), t.position());
     }
@@ -48,9 +49,9 @@ void rebuildSpatialGrid(World& w)
 {
     SpatialGrid& grid = w.spatialGrid();
     grid.clear();
-    // The log records up to now are reflected by the rebuild
-    w.structuralLog().consume(w.spatialGridConsumer(), [](const StructuralLog::Record&) {});
     w.viewAll<const Transform>().each([&](Entity e, const Transform& t) { grid.update(e, t.space(), t.position()); });
+    // Last: the records up to now are reflected by the rebuild (if an insert throws, the next phase 6 applies them)
+    w.structuralLog().consume(w.spatialGridConsumer(), [](const StructuralLog::Record&) {});
 }
 
 }  // namespace Engine

@@ -75,7 +75,8 @@ Tests and docs:
   during a step (found in phase 8 of the same step and in the next step); children moved by their parent; destroying a
   parent removes the children; two worlds with the same history return the same results; brute-force comparison;
   `rebuildSpatialGrid`; idle entities leave the changed list empty; queries from `parallelEach` with 1 and 4 threads
-  give the same results.
+  give the same results; an alive entity missing from the grid enters it when it moves; an aborted step (phase 7 throws
+  after a phase-4 create) keeps the grid consistent.
 
 Benchmark (non-gating): `World::step` with 10^5 entities spread over 2 km x 2 km moving at 20 m/s, and 10^4
 `queryRadius` calls of 50 m.
@@ -96,12 +97,17 @@ API.
 - §9.5: the S09 implementation paragraph (columns, positions of the last phase 6, stale handles filtered, large radii,
   NaN, `rebuildSpatialGrid`).
 - §8.2: `spatial_grid` registered after `transform`. §3: a row for the grid; the S09 row is done.
+- Review round 1: `SpatialGrid` is not copyable (MSVC instantiates the copy operations of an exported class, its
+  `unique_ptr` members do not copy); the changed list takes the handle from the registry (`Registry::aliveAt(index)`),
+  so an alive entity missing from the grid enters it when it moves; `rebuildSpatialGrid` skips the log after the
+  inserts; a radius whose square overflows compares the scaled distance (an entity at 1e300 was found within 1e160),
+  non-finite positions are never found; tests for both and for an aborted step.
 
 ## Results
 
-- `tests/test_engine_spatial_grid.cpp`: 13 tests pass (GCC 15); the S08 world and ECS tests are unchanged.
-- Benchmark (GCC 15, RelWithDebInfo, laptop): 10^5 entities moving at 20 m/s over 2 km x 2 km: `World::step` 2.7 ms;
-  10^4 `queryRadius(50 m)` 67 ms (6.7 us per query, about 190 hits each). The S08 step benchmark with 10^5 moving
+- `tests/test_engine_spatial_grid.cpp`: 15 tests pass (GCC 15); the S08 world and ECS tests are unchanged.
+- Benchmark (GCC 15, RelWithDebInfo, laptop): 10^5 entities moving at 20 m/s over 2 km x 2 km: `World::step` 2.1-2.7 ms;
+  10^4 `queryRadius(50 m)` 70 ms (7 us per query, about 190 hits each). The S08 step benchmark with 10^5 moving
   entities rises from 0.97 ms to 1.9 ms (R-TEST-2: the grid rewrites the stored position of every changed entity,
   about 9 ns each, mostly cache misses on the entry and the item; idle entities: 0.51 ms, unchanged).
 - AddressSanitizer + UBSan and ThreadSanitizer (`parallelEach` queries, 3 repeats): no reports.
