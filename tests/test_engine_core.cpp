@@ -574,9 +574,9 @@ TEST(Log, SaigaLogFormatsIntoTheRing)
 TEST(Log, ConcurrentLoggingLosesNothing)
 {
     setLogEcho(false);
-    LogRing& ring     = engineLog();
-    uint64_t start    = ring.lastSequence();
-    const int threads = 4, perThread = 200;
+    LogRing& ring                = engineLog();
+    uint64_t start               = ring.lastSequence();
+    static constexpr int threads = 4, perThread = 200;  // static: usable in the lambda without a capture (MSVC)
     std::vector<std::thread> ts;
     for (int t = 0; t < threads; ++t)
         ts.emplace_back(
