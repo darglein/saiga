@@ -9,9 +9,13 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/components/EngineIds.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/core/Rng.h"
 #include "saiga/engine/ecs/Registry.h"
+#include "saiga/engine/gameplay/ClassList.h"
+#include "saiga/engine/gameplay/PlayerAction.h"
+#include "saiga/engine/gameplay/TickPolicy.h"
 #include "saiga/engine/world/Commands.h"
 #include "saiga/engine/world/EventQueues.h"
 #include "saiga/engine/world/EventRegistry.h"
@@ -21,12 +25,14 @@
 #include "saiga/engine/world/SystemList.h"
 #include "saiga/export.h"
 
+#include <array>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include <type_traits>
+#include <unordered_map>
 
 namespace Saiga
 {
@@ -37,6 +43,7 @@ struct WorldConfig
 {
     double stepsPerSecond  = 60;
     int maxStepsPerAdvance = 4;
+    TickPolicy ticking;  // §8.4 (S10)
 };
 
 struct WorldSetup
@@ -49,6 +56,7 @@ struct WorldSetup
     void (*components)(Registry&)  = nullptr;
     void (*events)(EventRegistry&) = nullptr;
     void (*systems)(SystemList&)   = nullptr;
+    void (*classes)(ClassList&)    = nullptr;  // game object classes (S10)
 };
 
 /**
@@ -74,6 +82,15 @@ class SAIGA_ENGINE_API World
     // ---- entities and components (§7.10) -------------------------------------------------------------------------
 
     Entity create();
+    // A game object of class T at position (space 0; spawnIn: S21 adds more spaces): Transform, Behaviour and the
+    // initial components, then configure() and onSpawn() (§9.2). During a step the entity is reserved and returned at
+    // once, the rest happens at the flush; between steps at once. Defined in gameplay/Behaviour.h.
+    template <class T, class... C>
+    Entity spawn(const Vec3& position, C&&... initial);
+    template <class T, class... C>
+    Entity spawnIn(SpaceId space, const Vec3& position, C&&... initial);
+    // The game object's onDestroy() runs first (children before parents in the cascade). World-state entities cannot
+    // be destroyed.
     void destroy(Entity e);
     bool alive(Entity e) const { return reg.alive(e); }
 
@@ -131,6 +148,52 @@ class SAIGA_ENGINE_API World
 
     EventQueues events;
 
+    // ---- gameplay (§7.8, §9.3, §9.6) ------------------------------------------------------------------------------
+
+    // A one-shot player action (before S15 a local queue): delivered as ActionEvent, readable in the next step, in
+    // (peer, sequence) order, exactly once. The player must be alive and have a Player component.
+    void queueAction(const PlayerAction& action);
+    // Before S16 the world is the host and the only peer
+    uint8_t localPeer() const { return 0; }
+    bool isHost() const { return true; }
+    // The entities a peer owns (R-NET-2); before S16 all entities
+    template <class... C>
+    View<C...> ownedBy(uint8_t /*peer*/)
+    {
+        return view<C...>();
+    }
+    // World-state components (registerGlobal) on the world-state entity, space-state components (registerSpaceState)
+    // on the space-state entity of the space (space 0 before S21). A component that is not registered as global or
+    // space state asserts.
+    template <class T>
+    T& global()
+    {
+        return reg.get<T>(globalEntity<T>());
+    }
+    template <class T>
+    const T& readGlobal() const
+    {
+        return reg.read<T>(const_cast<World*>(this)->globalEntity<T>());
+    }
+    template <class T>
+    T& spaceState(SpaceId space)
+    {
+        return reg.get<T>(spaceStateEntityOf<T>(space));
+    }
+    template <class T>
+    const T& readSpaceState(SpaceId space) const
+    {
+        return reg.read<T>(const_cast<World*>(this)->spaceStateEntityOf<T>(space));
+    }
+    // The world-state entity (Entity{} if no global component is registered) and the space-state entity of a space
+    Entity worldStateEntity() const { return worldState; }
+    Entity spaceStateEntity(SpaceId space) const { return space < spaceStates.size() ? spaceStates[space] : Entity{}; }
+    // A referable ID that survives saving (§9.6): the existing one, or the next value of the world's counter (the
+    // Persistent component is added at once between steps, at the flush during a step)
+    PersistentId makePersistent(Entity e);
+    // The alive entity with this ID, Entity{} otherwise
+    Entity resolve(PersistentId id) const;
+
     // ---- spatial queries (§9.5) ----------------------------------------------------------------------------------
 
     // The alive entities of the space within radius of center (Euclidean distance, boundary included) that have all
@@ -173,6 +236,11 @@ class SAIGA_ENGINE_API World
 
     Registry& registry() { return reg; }
     const Registry& registry() const { return reg; }
+    const ClassList& classList() const { return classes; }
+    const WorldConfig& worldConfig() const { return config; }
+    // Player cells of the last tick evaluation (space, x, z in TickPolicy::ringSize cells), sorted
+    // (gameplay/TickSystem)
+    std::vector<std::array<int64_t, 3>> tickPlayerCells;
     StructuralLog& structuralLog() { return log; }
     // Unsorted queryRadius for order-insensitive engine callers (interest sets, ticking): fn(Entity, const Vec3&
     // gridPosition) for each alive entity of the space within radius that has all components of mask, in an
@@ -222,6 +290,27 @@ class SAIGA_ENGINE_API World
     void checkNotParallel(const char* operation) const;
 
     void activateNow(Entity e);
+    // spawn: the entity (reserved during a step), then at the flush Transform and Behaviour, the initial components,
+    // and the start (tick interval, configure, onSpawn)
+    Entity beginSpawn(SpaceId space);
+    void finishSpawn(Entity e, const ClassList::ClassInfo& info, const Vec3& position);
+    void startObject(Entity e);
+    template <class T>
+    Entity globalEntity()
+    {
+        SAIGA_ASSERT(reg.isGlobal(T::id), std::string(T::name) + " is not registered as a global (registerGlobal)");
+        return worldState;
+    }
+    template <class T>
+    Entity spaceStateEntityOf(SpaceId space)
+    {
+        SAIGA_ASSERT(reg.isSpaceState(T::id),
+                     std::string(T::name) + " is not registered as space state (registerSpaceState)");
+        SAIGA_ASSERT(space < spaceStates.size(), "spaceState: the space " + std::to_string(space) + " is not loaded");
+        return spaceStates[space];
+    }
+    void createStateEntities();
+    void deliverActions();
     // add<Parent>: false if the child was destroyed because its parent is gone (during a flush); asserts between steps
     // for a dead parent and always for a cycle
     bool acceptParent(Entity child, Entity parent);
@@ -254,6 +343,7 @@ class SAIGA_ENGINE_API World
     }
 
     Registry reg;
+    ClassList classes;
     StructuralLog log;
     SpatialGrid grid;
     int gridConsumer = -1;
@@ -265,6 +355,19 @@ class SAIGA_ENGINE_API World
     std::vector<uint32_t> children;       // number of Parent components naming each entity index
     bool stepEventsBegun = false;
     std::vector<uint32_t> changed;
+    // Queued actions with their (peer, sequence) key
+    struct QueuedAction
+    {
+        uint8_t peer;
+        uint64_t sequence;
+        PlayerAction action;
+    };
+    std::vector<QueuedAction> actions;
+    uint64_t actionSequence = 0;
+    Entity worldState;
+    std::vector<Entity> spaceStates;  // by SpaceId
+    uint64_t persistentCounter = 0;
+    std::unordered_map<uint64_t, Entity> persistentIndex;
 
     WorldConfig config;
     double stepDt;
@@ -282,6 +385,8 @@ class SAIGA_ENGINE_API World
 template <class T, class... A>
 void World::add(Entity e, A&&... args)
 {
+    static_assert(T::id != ComponentId(EngineComponent::Behaviour), "Behaviour is added by spawn<T>");
+    static_assert(T::id != ComponentId(EngineComponent::Persistent), "Persistent is added by makePersistent");
     checkNotParallel("add");
     if (deferring())
     {
@@ -325,6 +430,12 @@ void World::addNow(Entity e, T&& value)
     }
     // Everything that can allocate first (the log record, the parent's count slot); after the add nothing can fail
     auto record = log.prepare(1);
+    if constexpr (T::id == ComponentId(EngineComponent::Persistent))
+    {
+        SAIGA_ASSERT(value.persistentId.valid() && !persistentIndex.count(value.persistentId.value),
+                     "Persistent: the ID is invalid or already used");
+        persistentIndex.reserve(persistentIndex.size() + 1);
+    }
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
         const Entity parent = value.entity;
@@ -332,6 +443,12 @@ void World::addNow(Entity e, T&& value)
         reg.add<T>(e, std::move(value));
         changeChildCount(parent, +1);
         hierarchyDirty = true;
+    }
+    else if constexpr (T::id == ComponentId(EngineComponent::Persistent))
+    {
+        const uint64_t id = value.persistentId.value;
+        reg.add<T>(e, std::move(value));
+        persistentIndex.emplace(id, e);  // room reserved above
     }
     else
         reg.add<T>(e, std::move(value));
@@ -348,6 +465,8 @@ void World::removeNow(Entity e)
         changeChildCount(reg.read<Parent>(e).entity, -1);
         hierarchyDirty = true;
     }
+    if constexpr (T::id == ComponentId(EngineComponent::Persistent))
+        persistentIndex.erase(reg.read<T>(e).persistentId.value);
     reg.remove<T>(e);
     record.append(e, T::id, false);
 }

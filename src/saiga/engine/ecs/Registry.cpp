@@ -283,5 +283,32 @@ std::string Registry::describe(Entity e) const
     return s;
 }
 
+int Registry::findComponent(const std::string& name) const
+{
+    for (size_t i = 0; i < kMaxComponents; ++i)
+        if (infos[i].registered && name == infos[i].name) return int(i);
+    return -1;
+}
+
+void Registry::addDefault(Entity e, ComponentId id)
+{
+    checkNotIterating("add");
+    checkAlive(e, "add");
+    SAIGA_ASSERT(id != Transform::id && infos[id].registered && pools[id], "addDefault: not a registered pool");
+    SAIGA_ASSERT(!pools[id]->has(e.index), "add: " + describe(e) + " already has " + infos[id].name);
+    pools[id]->emplaceDefault(e);
+    slots[e.index].mask.set(id);
+}
+
+void Registry::removeById(Entity e, ComponentId id)
+{
+    checkNotIterating("remove");
+    checkAlive(e, "remove");
+    SAIGA_ASSERT(id != Transform::id && infos[id].registered && pools[id], "removeById: not a registered pool");
+    SAIGA_ASSERT(pools[id]->has(e.index), "remove: " + describe(e) + " has no " + infos[id].name);
+    pools[id]->remove(e.index);
+    slots[e.index].mask.reset(id);
+}
+
 }  // namespace Engine
 }  // namespace Saiga

@@ -22,6 +22,7 @@ using ClassId     = uint16_t;
 
 constexpr size_t kMaxComponents           = 256;
 constexpr ComponentId kFirstGameComponent = 64;
+constexpr ClassId kFirstGameClass         = 64;
 
 // Network replication of a component or event (§13.4; stored from S07, evaluated from S16)
 enum class Replicate : uint8_t

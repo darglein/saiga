@@ -64,6 +64,9 @@ class SAIGA_ENGINE_API Registry
         Replicate replicate = Replicate::Never;
         Saved saved         = Saved::Yes;
         bool registered     = false;
+        // World state (§7.8): on the world-state entity (global) or on each space-state entity
+        bool global     = false;
+        bool spaceState = false;
     };
 
     Registry();
@@ -79,6 +82,22 @@ class SAIGA_ENGINE_API Registry
     // The registered engine IDs are 0..n and the game IDs 64..m without gaps (every enum value up to the last
     // registered one is registered); asserts otherwise. The world calls it after the registration lists (S08).
     void validateRegistration() const;
+    // A world-state component (§7.8, S10): registered like registerComponent and added to the world-state entity, or
+    // to each space-state entity, when the World creates them
+    template <class T>
+    void registerGlobal(Replicate mode = Replicate::Never)
+    {
+        registerComponent<T>(mode);
+        infos[T::id].global = true;
+    }
+    template <class T>
+    void registerSpaceState(Replicate mode = Replicate::Never)
+    {
+        registerComponent<T>(mode);
+        infos[T::id].spaceState = true;
+    }
+    bool isGlobal(ComponentId id) const { return infos[id].global; }
+    bool isSpaceState(ComponentId id) const { return infos[id].spaceState; }
     bool registered(ComponentId id) const { return infos[id].registered; }
     const ComponentInfo& componentInfo(ComponentId id) const { return infos[id]; }
     int registeredCount() const { return registeredComponents; }
@@ -120,6 +139,9 @@ class SAIGA_ENGINE_API Registry
     // Flags of an alive entity, not component IDs. kSimulated (§12.3) is set on every new entity (streaming clears it
     // from S24); views in phases 2-5 skip entities without it.
     static constexpr uint8_t kSimulated = 1;
+    // The world-state entity and the space-state entities (§7.8): not destroyable, not in the grid or ticking
+    static constexpr uint8_t kWorldState = 2;
+    static constexpr uint8_t kSpaceState = 4;
     uint8_t flags(Entity e) const;
     void setFlags(Entity e, uint8_t flags);
     const ComponentMask& entityMask(Entity e) const;
@@ -167,6 +189,17 @@ class SAIGA_ENGINE_API Registry
     void hashInto(Hasher& h) const;
     // Saved components only (Saved::No components are derived)
     bool savedComponent(ComponentId id) const { return infos[id].registered && infos[id].saved == Saved::Yes; }
+
+    // ---- type-erased access (the World API and MCP boundary, S10; strings only here, R-REG-2) -----------------------
+
+    // The ID of the component with this name, -1 if none is registered
+    int findComponent(const std::string& name) const;
+    // The pool of a registered component other than Transform (nullptr for Transform)
+    PoolBase* poolById(ComponentId id) const { return pools[id].get(); }
+    // Adds a default-constructed component by ID (the entity must not have it; not Transform)
+    void addDefault(Entity e, ComponentId id);
+    // Removes a component by ID (the entity must have it; not Transform)
+    void removeById(Entity e, ComponentId id);
 
     // Tests only: sets the generation of a free slot (generation wrap-around)
     void debugSetGeneration(uint32_t index, uint32_t generation);

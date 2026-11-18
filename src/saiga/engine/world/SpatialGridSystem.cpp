@@ -15,6 +15,15 @@ namespace Saiga
 {
 namespace Engine
 {
+namespace
+{
+// World-state and space-state entities are not in the grid (§7.8)
+bool stateEntity(const Registry& reg, Entity e)
+{
+    return reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState);
+}
+}  // namespace
+
 void spatialGridSystem(World& w, double)
 {
     SpatialGrid& grid   = w.spatialGrid();
@@ -28,7 +37,7 @@ void spatialGridSystem(World& w, double)
                                   {
                                       if (grid.entityAt(r.entity.index) == r.entity) grid.remove(r.entity.index);
                                   }
-                                  else if (reg.alive(r.entity))
+                                  else if (reg.alive(r.entity) && !stateEntity(reg, r.entity))
                                   {
                                       const Transform& t = reg.read<Transform>(r.entity);
                                       grid.update(r.entity, t.space(), t.position());
@@ -39,7 +48,7 @@ void spatialGridSystem(World& w, double)
     {
         // The handle from the registry, not from the grid: an alive entity missing from the grid enters it here
         const Entity e = reg.aliveAt(index);
-        if (!e.valid()) continue;
+        if (!e.valid() || stateEntity(reg, e)) continue;
         const Transform& t = reg.read<Transform>(e);
         grid.update(e, t.space(), t.position());
     }
@@ -49,7 +58,12 @@ void rebuildSpatialGrid(World& w)
 {
     SpatialGrid& grid = w.spatialGrid();
     grid.clear();
-    w.viewAll<const Transform>().each([&](Entity e, const Transform& t) { grid.update(e, t.space(), t.position()); });
+    const Registry& reg = w.registry();
+    w.viewAll<const Transform>().each(
+        [&](Entity e, const Transform& t)
+        {
+            if (!stateEntity(reg, e)) grid.update(e, t.space(), t.position());
+        });
     // Last: the records up to now are reflected by the rebuild (if an insert throws, the next phase 6 applies them)
     w.structuralLog().consume(w.spatialGridConsumer(), [](const StructuralLog::Record&) {});
 }

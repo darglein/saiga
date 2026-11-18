@@ -11,6 +11,10 @@
 #include "saiga/engine/components/EngineComponents.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/Player.h"
+#include "saiga/engine/core/Hash.h"
+#include "saiga/engine/gameplay/Behaviour.h"
+#include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/TransformSystem.h"
 
@@ -49,6 +53,109 @@ World::World(const WorldSetup& setup)
 
     registerEngineSystems(systems);
     if (setup.systems) setup.systems(systems);
+
+    if (setup.classes) setup.classes(classes);
+    classes.validateRegistration();
+
+    createStateEntities();
+}
+
+void World::createStateEntities()
+{
+    // The world-state entity and the space-state entity of space 0 exist when components are registered for them
+    // (§7.8); before S21 there is only space 0
+    bool anyGlobal = false, anySpace = false;
+    for (size_t id = 0; id < kMaxComponents; ++id)
+    {
+        anyGlobal = anyGlobal || reg.isGlobal(ComponentId(id));
+        anySpace  = anySpace || reg.isSpaceState(ComponentId(id));
+    }
+    auto make = [&](uint8_t flag, bool (Registry::*is)(ComponentId) const)
+    {
+        Entity e = create();
+        reg.setFlags(e, uint8_t(reg.flags(e) | flag));
+        for (size_t id = 0; id < kMaxComponents; ++id)
+        {
+            if (!(reg.*is)(ComponentId(id))) continue;
+            auto record = log.prepare(1);
+            reg.addDefault(e, ComponentId(id));
+            record.append(e, ComponentId(id), true);
+        }
+        return e;
+    };
+    if (anyGlobal) worldState = make(Registry::kWorldState, &Registry::isGlobal);
+    if (anySpace) spaceStates.push_back(make(Registry::kSpaceState, &Registry::isSpaceState));
+}
+
+// ---- game objects and gameplay
+// -------------------------------------------------------------------------------------------
+
+Entity World::beginSpawn(SpaceId space)
+{
+    checkNotParallel("spawn");
+    SAIGA_ASSERT(space == 0, "spawnIn: only space 0 exists before S21");
+    return create();
+}
+
+void World::finishSpawn(Entity e, const ClassList::ClassInfo& info, const Vec3& position)
+{
+    reg.get<Transform>(e).setPosition(position);
+    Behaviour b;
+    b.object        = info.factory();
+    b.object->owner = this;
+    b.object->self  = e;
+    b.classId       = info.id;
+    addNow<Behaviour>(e, std::move(b));
+}
+
+void World::startObject(Entity e)
+{
+    // configure or onSpawn may destroy the object (a command during the flush applies at once)
+    if (!reg.alive(e)) return;
+    Behaviour& b = reg.get<Behaviour>(e);
+    assignTickInterval(*this, e, b, true);
+    GameObject* o = b.object.get();
+    o->configure();
+    if (reg.alive(e) && reg.has<Behaviour>(e)) o->onSpawn();
+}
+
+void World::queueAction(const PlayerAction& action)
+{
+    checkNotParallel("queueAction");
+    SAIGA_ASSERT(reg.alive(action.player) && reg.has<Player>(action.player),
+                 "queueAction: the player is not alive or has no Player component");
+    actions.push_back(QueuedAction{reg.read<Player>(action.player).peer, actionSequence++, action});
+}
+
+void World::deliverActions()
+{
+    // (peer, sequence) order, exactly once: the queue becomes pending ActionEvents, readable in this step
+    std::stable_sort(actions.begin(), actions.end(), [](const QueuedAction& a, const QueuedAction& b)
+                     { return a.peer != b.peer ? a.peer < b.peer : a.sequence < b.sequence; });
+    for (const QueuedAction& a : actions) events.emit(ActionEvent{a.action.player, a.action.action, a.action.aim});
+    actions.clear();
+}
+
+PersistentId World::makePersistent(Entity e)
+{
+    checkNotParallel("makePersistent");
+    SAIGA_ASSERT(reg.alive(e), "makePersistent: the entity is not alive");
+    if (const Persistent* p = reg.tryRead<Persistent>(e)) return p->persistentId;
+    const PersistentId id{++persistentCounter};
+    Persistent value;
+    value.persistentId = id;
+    if (deferring())
+        record(makeCommand([e, value](World& w) mutable { w.addNow<Persistent>(e, std::move(value)); }));
+    else
+        addNow<Persistent>(e, std::move(value));
+    return id;
+}
+
+Entity World::resolve(PersistentId id) const
+{
+    auto it = persistentIndex.find(id.value);
+    if (it == persistentIndex.end() || !reg.alive(it->second)) return Entity{};
+    return it->second;
 }
 
 World::~World() = default;
@@ -100,6 +207,8 @@ Entity World::create()
 void World::destroy(Entity e)
 {
     checkNotParallel("destroy");
+    SAIGA_ASSERT(!reg.alive(e) || !(reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)),
+                 "destroy: world-state and space-state entities cannot be destroyed");
     if (deferring())
     {
         SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), "destroy: the entity is not alive");
@@ -153,10 +262,20 @@ void World::destroyNow(Entity e)
             }
         }
     }
+    // The game objects first, children before parents, while all components are present. A hook may destroy other
+    // entities (or this one: no second onDestroy) and spawn new ones.
+    for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
+    {
+        if (!reg.alive(*it)) continue;
+        Behaviour* b = reg.tryGet<Behaviour>(*it);
+        if (!b || !b->object || b->destroying) continue;
+        b->destroying = true;
+        b->object->onDestroy();
+    }
     for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
     {
         const Entity x = *it;
-        // A callback (S10 onDestroy) may have destroyed it already
+        // A hook (onDestroy) may have destroyed it already
         if (!reg.alive(x)) continue;
         // Snapshot, reserve the log records, then destroy (the only step that can throw, before any change); the
         // bookkeeping is committed afterwards without allocation
@@ -166,7 +285,10 @@ void World::destroyNow(Entity e)
         auto prepared          = log.prepare(records);
         const Parent* p        = reg.tryRead<Parent>(x);
         const Entity oldParent = p ? p->entity : Entity{};
+        const Persistent* pid  = reg.tryRead<Persistent>(x);
+        const uint64_t oldId   = pid ? pid->persistentId.value : 0;
         reg.destroy(x);
+        if (oldId) persistentIndex.erase(oldId);
         if (oldParent.valid()) changeChildCount(oldParent, -1);
         if (x.index < children.size()) children[x.index] = 0;
         // One removed record per component in ID order, Transform first
@@ -310,7 +432,8 @@ Rng& World::random()
 
 void World::runStep()
 {
-    // Events emitted in the last step or between steps become readable
+    // Queued player actions become ActionEvents; with the events of the last step they become readable
+    deliverActions();
     events.beginStep();
     stepEventsBegun = true;
     try
@@ -399,6 +522,15 @@ uint64_t World::hash() const
     const Rng::State s = rng.state();
     h.addU64(s.state).addU64(s.increment);
     events.hashPending(h);
+    // The queued actions (input that becomes events) and the Persistent counter (S10)
+    h.addU64(uint64_t(actions.size()));
+    for (const QueuedAction& a : actions)
+    {
+        h.addU64(a.peer).addU64(a.sequence).addU32(a.action.player.index).addU32(a.action.player.generation);
+        h.addU32(a.action.action);
+        for (int i = 0; i < 3; ++i) h.addDouble(a.action.aim[i]);
+    }
+    h.addU64(persistentCounter);
     h.addU64(steps);
     return h.value();
 }

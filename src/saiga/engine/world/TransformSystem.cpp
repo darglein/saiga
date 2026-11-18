@@ -10,6 +10,7 @@
 
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/world/SpatialGridSystem.h"
 #include "saiga/engine/world/World.h"
 
@@ -141,7 +142,13 @@ void transformSystem(World& w, double)
 void registerEngineSystems(SystemList& systems)
 {
     systems.add(Phase::Transform, "transform", transformSystem, RunOn::Both);
+    systems.add(Phase::Events, "behaviour_events", behaviourEventSystem);
+    systems.add(Phase::Behaviour, "behaviour", behaviourSystem);
+    systems.add(Phase::Gameplay, "player_control", playerControlSystem, RunOn::Both);
+    systems.add(Phase::Gameplay, "character_move", characterMoveSystem, RunOn::Both);
     systems.add(Phase::Transform, "spatial_grid", spatialGridSystem, RunOn::Both);
+    // After the hierarchy and the grid: the tick intervals use the positions of this step
+    systems.add(Phase::Transform, "tick", tickSystem, RunOn::Both);
 }
 
 }  // namespace Engine

@@ -25,16 +25,16 @@ namespace
 {
 enum class BenchComponent : uint8_t
 {
-    Health = kFirstGameComponent,
+    Vitality = kFirstGameComponent,
     Velocity,
     Lifetime,
     Count
 };
 
-struct Health
+struct Vitality
 {
-    static constexpr const char* name = "Health";
-    static constexpr ComponentId id   = ComponentId(BenchComponent::Health);
+    static constexpr const char* name = "Vitality";
+    static constexpr ComponentId id   = ComponentId(BenchComponent::Vitality);
     static constexpr uint32_t version = 1;
     double hp = 100, maxHp = 100;
     template <class V>
@@ -85,7 +85,7 @@ TEST(EcsBenchmark, HundredThousandEntities)
 {
     const int n = 100000;
     Registry r;
-    r.registerComponent<Health>();
+    r.registerComponent<Vitality>();
     r.registerComponent<Velocity>();
     r.registerComponent<Lifetime>();
 
@@ -95,7 +95,7 @@ TEST(EcsBenchmark, HundredThousandEntities)
     for (int i = 0; i < n; ++i)
     {
         Entity e = r.create();
-        r.add<Health>(e);
+        r.add<Vitality>(e);
         r.add<Velocity>(e, Vec3(i, 0, 1));
         r.add<Lifetime>(e);
         entities.push_back(e);
@@ -104,7 +104,7 @@ TEST(EcsBenchmark, HundredThousandEntities)
 
     t          = Timer();
     double sum = 0;
-    r.view<const Health>().each([&](Entity, const Health& h) { sum += h.hp; });
+    r.view<const Vitality>().each([&](Entity, const Vitality& h) { sum += h.hp; });
     double view1 = t.ms();
 
     t = Timer();
@@ -113,8 +113,8 @@ TEST(EcsBenchmark, HundredThousandEntities)
     double view2 = t.ms();
 
     t = Timer();
-    r.view<Health, const Velocity, Lifetime>().each(
-        [](Entity, Health& h, const Velocity& v, Lifetime& l)
+    r.view<Vitality, const Velocity, Lifetime>().each(
+        [](Entity, Vitality& h, const Velocity& v, Lifetime& l)
         {
             l.remaining -= 1.0 / 60.0;
             h.hp -= v.v(2) * 0.001;
@@ -165,7 +165,7 @@ void benchSystems(SystemList& s)
 }
 void benchComponents(Registry& r)
 {
-    r.registerComponent<Health>();
+    r.registerComponent<Vitality>();
     r.registerComponent<Velocity>();
     r.registerComponent<Lifetime>();
 }
