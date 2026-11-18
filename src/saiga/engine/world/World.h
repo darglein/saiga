@@ -16,6 +16,7 @@
 #include "saiga/engine/world/EventQueues.h"
 #include "saiga/engine/world/EventRegistry.h"
 #include "saiga/engine/world/Phase.h"
+#include "saiga/engine/world/SpatialGrid.h"
 #include "saiga/engine/world/StructuralLog.h"
 #include "saiga/engine/world/SystemList.h"
 #include "saiga/export.h"
@@ -130,6 +131,18 @@ class SAIGA_ENGINE_API World
 
     EventQueues events;
 
+    // ---- spatial queries (§9.5) ----------------------------------------------------------------------------------
+
+    // The alive entities of the space within radius of center (Euclidean distance, boundary included) that have all
+    // components of mask, sorted by entity index (deterministic). Positions as of the last phase 6: an entity moved
+    // since is found at its old position, one created since is not found until then; destroyed entities are never
+    // returned. Reserved entities are not found. Allowed in parallelEach (reads only).
+    std::vector<Entity> queryRadius(SpaceId space, const Vec3& center, double radius,
+                                    const ComponentMask& mask = ComponentMask()) const;
+    // The same into out (cleared first; allocates only if out's capacity is smaller than the result)
+    void queryRadius(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask,
+                     std::vector<Entity>& out) const;
+
     // ---- time and steps (§8.3, §8.6) -----------------------------------------------------------------------------
 
     // The world's random stream (PCG32 seeded from WorldSetup::seed; part of the hash and saves). Not in parallelEach.
@@ -161,6 +174,27 @@ class SAIGA_ENGINE_API World
     Registry& registry() { return reg; }
     const Registry& registry() const { return reg; }
     StructuralLog& structuralLog() { return log; }
+    // Unsorted queryRadius for order-insensitive engine callers (interest sets, ticking): fn(Entity, const Vec3&
+    // gridPosition) for each alive entity of the space within radius that has all components of mask, in an
+    // unspecified order. gridPosition is the position the decision was made with (the last phase 6), so a caller that
+    // needs the distance (hysteresis, nearest player) uses the same state as the query. fn must not change the grid,
+    // directly or indirectly (no step(), no rebuildSpatialGrid while the query runs); copy gridPosition to keep it.
+    // Nested read-only queries are fine.
+    template <class F>
+    void forEachWithin(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask, F&& fn) const
+    {
+        grid.forEachWithin(space, center, radius,
+                           [&](const SpatialGrid::Item& it)
+                           {
+                               // Destroyed since the last update (the slot may be reused: the generation differs)
+                               if (!reg.alive(it.entity) || !reg.entityMask(it.entity).containsAll(mask)) return;
+                               fn(it.entity, it.position);
+                           });
+    }
+    // The grid of queryRadius (updated by spatialGridSystem in phase 6) and its structural log consumer
+    SpatialGrid& spatialGrid() { return grid; }
+    const SpatialGrid& spatialGrid() const { return grid; }
+    int spatialGridConsumer() const { return gridConsumer; }
     Phase currentPhase() const { return phase; }
     bool inStep() const { return phase != Phase::None; }
     // Entities whose Transform changed in this or the previous step, sorted by index (built in phase 6)
@@ -221,6 +255,8 @@ class SAIGA_ENGINE_API World
 
     Registry reg;
     StructuralLog log;
+    SpatialGrid grid;
+    int gridConsumer = -1;
     SystemList systems;
     JobPool pool;
     Rng rng;

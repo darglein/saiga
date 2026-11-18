@@ -192,6 +192,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Engine core utilities: `JobPool` (parallel loops, the caller participates), `Rng` (PCG32), FNV-1a 64 `Hash`/`Hasher`, log ring with `SAIGA_LOG` (§8.5, §7.10, §17.1) | `src/saiga/engine/core/`, `tests/test_engine_core.cpp` | [exists] |
 | ECS core: `Registry` (entities with generations, FIFO slot reuse, pools with sparse pages, built-in `Transform`), deterministic views, `visit` with compile-time field checks, binary visitors, field lists, `ChunkId`/`RegionId`/`InstanceKey` (§7.1-§7.5) | `src/saiga/engine/ecs/`, `src/saiga/engine/components/`, `src/saiga/core/math/ChunkId.h`, `tests/test_engine_ecs.cpp`, `tests/test_engine_ecs_benchmark.cpp` | [exists] |
 | World and step loop: `World(WorldSetup)`, phases and `SystemList`, commands with reserved entities, structural log, events, `Parent`/`LocalTransform` hierarchy (`transformSystem`), `advance`/`step`, `random()`, `parallelEach`, `Simulated` filter, `hash()` (§7.6-§7.10, §8.1-§8.3, §8.6) | `src/saiga/engine/world/`, `tests/test_engine_world.cpp` | [exists] |
+| Spatial grid: 32 m cells per space updated in phase 6 (`spatialGridSystem`), `World::queryRadius` sorted by entity index (§9.5) | `src/saiga/engine/world/SpatialGrid.*`, `SpatialGridSystem.*`, `tests/test_engine_spatial_grid.cpp` | [exists] |
 | Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
 
 The rows above describe what exists today; none of it is fixed (§0). **Known deviations in the prototype** (deviation,
@@ -648,7 +649,9 @@ class World
     void load(const std::vector<uint8_t>& data);          // §15 [planned: S11]
     std::string dumpJson(Entity e = {}) const;            // all entities if e is invalid [planned: S11]
     std::vector<Entity> queryRadius(SpaceId space, const Vec3& center, double radius,
-                                    const ComponentMask& mask) const;                 // [planned: S09]
+                                    const ComponentMask& mask = {}) const;            // §9.5 [exists: S09]
+    void queryRadius(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask,
+                     std::vector<Entity>& out) const;     // reuses out's capacity [S09]
     template <class T> T& global();  template <class T> T& spaceState(SpaceId space);  // §7.8 [planned: S10]
     template <class T> const T& readGlobal() const;
     template <class T> const T& readSpaceState(SpaceId space) const;
@@ -759,6 +762,7 @@ clients apply received live modifications in phase 1.
 void registerEngineSystems(SystemList& s)
 {
     s.add(Phase::Transform, "transform", transformSystem, RunOn::Both);   // S08: hierarchy, changed list
+    s.add(Phase::Transform, "spatial_grid", spatialGridSystem, RunOn::Both);   // S09: §9.5
     s.add(Phase::Events, "behaviour_events", behaviourEventSystem);
     s.add(Phase::Behaviour, "behaviour", behaviourSystem);
     s.add(Phase::Gameplay, "character_move", characterMoveSystem, RunOn::Both);
@@ -998,10 +1002,25 @@ Reusable mechanics (telegraphed attacks, projectiles, summons, status effects) a
 | Reusable mechanic | component + system |
 | Numerous static content | tier 1; player-built: tier 1p |
 
-### 9.5 Spatial grid [planned: S09]
+### 9.5 Spatial grid [exists: S09]
 
 Uniform 32 m grid per space, updated in phase 6 for changed transforms. `queryRadius` returns entities sorted by entity
 index (deterministic). Used for ticking, gameplay queries and replication interest.
+
+S09 implementation (`engine/world/SpatialGrid.h`, `SpatialGridSystem.h`): square cells of 32 m in x and z (columns, y
+is not divided), per space a hash map from the cell to its items `{Entity, position}`; per entity index the cell and
+the slot in it (swap-and-pop removal). `spatialGridSystem` (phase 6, after `transformSystem`) reads its own structural
+log consumer (created entities enter, destroyed ones leave, in log order) and the changed list (an update without a
+cell change only rewrites the stored position); idle entities cost nothing. `queryRadius` tests the Euclidean distance
+in 3D (boundary included) against the position stored at the last phase 6: an entity moved since is found at its old
+position, one created since is not found until then (reserved entities never); destroyed entities are never returned
+(stale handles are filtered by `alive`); it visits the cells of the radius' square, or every occupied cell of the space
+if those are fewer; a negative or NaN radius finds nothing, non-finite positions are never found. `mask` defaults to no
+requirement; `Simulated` is not required (ticking uses the grid to decide it, §9.2). Queries only read and are allowed
+in `parallelEach`. Engine-internal `world.forEachWithin(space, center, radius, mask, fn(Entity, gridPosition))` is the
+unsorted form for order-insensitive callers (S10 ticking, S16 interest): it reports the stored position the decision
+was made with, so distances (hysteresis, nearest player) use the same state. The grid is derived data (not saved, not hashed); `rebuildSpatialGrid(world)` (engine-internal)
+rebuilds it from all entities (S11 `load`). World-state entities (S10) are excluded.
 
 ### 9.6 Far from players: persistence and simulation policy [planned: S25]
 
@@ -2389,7 +2408,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S06 | Core utilities (done) | `JobPool`, `Rng`, `Hash`, logging ring buffer with `SAIGA_LOG` (§8.5, §8.6, §17.1) | S04 | unit tests: parallel-for coverage with the caller participating, RNG and hash reference values, log ring (CI) |
 | S07 | ECS core (done) | `Entity`, registry, pools, component IDs, `visit`, views, `SAIGA_LOG_E`, `ChunkId`/`RegionId`/`SpaceId`/`InstanceKey`/`PersistentId` value types (§7.1-§7.5) | S04, S05, S06 | unit tests: stale handles, deterministic order, `visit` round trip; non-gating 10^5-entity benchmark (CI) |
 | S08 | World and step loop (done) | `World(WorldSetup)`, phases, `SystemList`, commands, structural log, events, `Transform` hierarchy, `advance`/`step`, `hash` (§7.6-§7.10, §8.1-§8.3, §8.6) | S07 | unit tests: deferred destroy, commands during iteration, structural log consumers, event latency, `advance` cap, hierarchy; hash equal for 2 runs (CI); step time with 10^5 idle entities (benchmark) |
-| S09 | Spatial grid | Grid per space, `queryRadius` (§9.5) | S08 | query tests incl. deterministic order (CI) |
+| S09 | Spatial grid (done) | Grid per space, `queryRadius` (§9.5) | S08 | query tests incl. deterministic order (CI) |
 | S10 | Game objects | `GameObject`, `Behaviour`, behavior and event systems, ticking policy, engine gameplay basics incl. local `PlayerAction` queue, kinematic mover, world-state entities, `Persistent` (§7.8, §8.4, §9.2-§9.4, §9.6) | S09 | lifecycle tests (spawn with initial components, commands during a step, destroy), ticking tests, `global`/`spaceState`, `PlayerAction` delivery order, `characterMoveSystem`, `makePersistent`/`resolve` (CI) |
 | S11 | Save, data and migration | Save/load blobs with schema tables and migrations, save of `Behaviour` (factory, `configure`, `onLoad`), `Persistent` counter and world-state entities, `dumpJson`, `diff`, data files (§14, §15.1, §15.2) | S10 | save/load round trip incl. a migration, a removed type and an entity with a `GameObject` (`configure` + `onLoad` called, cache rebuilt); data file load incl. the unknown-key death test (CI) |
 | S12 | Scenario framework | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `tests/test_engine_scenarios.cpp` with the test-only game object `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |

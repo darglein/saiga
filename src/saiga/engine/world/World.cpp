@@ -34,6 +34,8 @@ World::World(const WorldSetup& setup)
                      setup.config.maxStepsPerAdvance >= 1,
                  "invalid WorldConfig");
     reg.setJobPool(&pool);
+    // Before any entity exists: every create reaches the grid through the log
+    gridConsumer = log.addConsumer();
 
     // Engine lists first, then the game's (§7.9, §18.2)
     registerEngineComponents(reg);
@@ -50,6 +52,25 @@ World::World(const WorldSetup& setup)
 }
 
 World::~World() = default;
+
+// ---- spatial queries
+// ----------------------------------------------------------------------------------------------
+
+std::vector<Entity> World::queryRadius(SpaceId space, const Vec3& center, double radius,
+                                       const ComponentMask& mask) const
+{
+    std::vector<Entity> out;
+    queryRadius(space, center, radius, mask, out);
+    return out;
+}
+
+void World::queryRadius(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask,
+                        std::vector<Entity>& out) const
+{
+    out.clear();
+    forEachWithin(space, center, radius, mask, [&](Entity e, const Vec3&) { out.push_back(e); });
+    std::sort(out.begin(), out.end());
+}
 
 // ---- structural changes
 // ----------------------------------------------------------------------------------------------

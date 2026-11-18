@@ -10,6 +10,7 @@
 
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/world/SpatialGridSystem.h"
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
@@ -140,6 +141,7 @@ void transformSystem(World& w, double)
 void registerEngineSystems(SystemList& systems)
 {
     systems.add(Phase::Transform, "transform", transformSystem, RunOn::Both);
+    systems.add(Phase::Transform, "spatial_grid", spatialGridSystem, RunOn::Both);
 }
 
 }  // namespace Engine

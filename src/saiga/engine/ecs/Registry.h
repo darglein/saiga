@@ -108,6 +108,13 @@ class SAIGA_ENGINE_API Registry
                slots[e.index].state == SlotState::Alive;
     }
     uint32_t aliveCount() const { return aliveEntities; }
+    // The alive entity with this index, Entity{} if the slot is not alive (lists of indices, e.g. the changed list)
+    Entity aliveAt(uint32_t index) const
+    {
+        return index != 0 && index < slots.size() && slots[index].state == SlotState::Alive
+                   ? Entity{index, slots[index].generation}
+                   : Entity{};
+    }
     // Slots including the unused slot 0 (an upper bound of the entity indices)
     uint32_t slotCount() const { return uint32_t(slots.size()); }
     // Flags of an alive entity, not component IDs. kSimulated (§12.3) is set on every new entity (streaming clears it
