@@ -955,10 +955,10 @@ ApiResult WorldApi::changesSince(const Json& a)
                                          [&](const WindowSnapshot& s) { return s.from == from && s.to == to; });
             // A continued window whose snapshot was dropped (more than 16 windows paged at once): rebuilt from the
             // records, which may miss entities that moved twice since: reported as moves_truncated
-            if (c.to > 0 && snapshot == windows.end()) result["moves_truncated"] = true;
+            const bool evicted = c.to > 0 && snapshot == windows.end();
             if (c.to == 0 || snapshot == windows.end())
             {
-                WindowSnapshot s{from, to, {}};
+                WindowSnapshot s{from, to, {}, evicted};
                 for (uint32_t i = 1; i < lastMoved.size(); ++i)
                     if (lastMoved[i].in(from, to)) s.members.push_back(lastMoved[i].entity);
                 if (snapshot != windows.end()) windows.erase(snapshot);
@@ -966,6 +966,8 @@ ApiResult WorldApi::changesSince(const Json& a)
                 if (windows.size() > 16) windows.pop_front();
                 snapshot = windows.end() - 1;
             }
+            // Every cursor continuing a rebuilt window learns that it may miss entities
+            if (snapshot->truncated) result["moves_truncated"] = true;
             const uint32_t after = c.to > 0 ? c.index : 0;
             Json::array moved;
             bool movedMore     = false;

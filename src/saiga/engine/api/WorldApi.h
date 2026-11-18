@@ -171,6 +171,7 @@ class SAIGA_ENGINE_API WorldApi
     {
         uint64_t from = 0, to = 0;
         std::vector<Entity> members;  // index order
+        bool truncated = false;       // rebuilt after eviction: may miss entities (every cursor is told)
     };
     std::deque<WindowSnapshot> windows;
     std::shared_ptr<bool> alive;  // the world's listeners stop when the API is gone

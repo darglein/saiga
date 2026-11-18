@@ -314,6 +314,7 @@ class SAIGA_ENGINE_API World
         // Only while the listeners run (the running pass must skip it); otherwise nothing is recorded
         if (dispatchingStepListeners) removedStepListeners.push_back(id);
     }
+    size_t stepListenerCount() const { return stepListeners.size(); }
     // Runs fn when the world is destroyed (observers such as the world API detach); returns an ID for removal
     int addDestroyListener(std::function<void()> fn)
     {

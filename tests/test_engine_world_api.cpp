@@ -1331,3 +1331,55 @@ TEST(WorldApi, ApplyStopsAtTheTimeBudget)
     EXPECT_TRUE(r.value["stopped_early"].bool_value());
     EXPECT_EQ(r.value["applied"].number_value(), 0);
 }
+
+// Regression (CodeRabbit): a window snapshot rebuilt after eviction kept no truncation state, so a second cursor
+// continuing it was not told that entities may be missing
+TEST(WorldApi, EveryCursorOfAnEvictedWindowIsToldItIsTruncated)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity a = w.create(), b = w.create();
+    auto moveBoth = [&]()
+    {
+        w.get<Transform>(a).setPosition(w.read<Transform>(a).position() + Vec3(1, 0, 0));
+        w.get<Transform>(b).setPosition(w.read<Transform>(b).position() + Vec3(1, 0, 0));
+        w.step();
+    };
+    auto page = [&](const Json& c)
+    { return api.call("changes_since", Json(Json::object{{"cursor", c}, {"include_moved", true}, {"limit", 1}})); };
+    Json start = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true})")).value["cursor"];
+    moveBoth();
+    ApiResult x = page(start), y = page(start);
+    ASSERT_TRUE(x.value["moved_more"].bool_value());
+    // 16 newer unfinished windows evict this one
+    for (int i = 0; i < 16; ++i)
+    {
+        Json c = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true})")).value["cursor"];
+        moveBoth();
+        ASSERT_TRUE(page(c).value["moved_more"].bool_value());
+    }
+    EXPECT_TRUE(page(x.value["cursor"]).value["moves_truncated"].bool_value());
+    EXPECT_TRUE(page(y.value["cursor"]).value["moves_truncated"].bool_value());
+}
+
+// Repeated measurements on a world that does not step: each is an empty window and leaves no listener behind
+TEST(WorldTools, RepeatedMeasurementsWithoutStepsLeaveNoListeners)
+{
+    World w(apiSetup());
+    w.step(3);
+    McpServer server("test");
+    server.toolTimeoutSeconds = 0.4;
+    auto api                  = registerWorldTools(server, w);
+    const size_t listeners    = w.stepListenerCount();
+    {
+        Poller poller(server);
+        for (int i = 0; i < 3; ++i)
+        {
+            Json m = callTool(server, "measure_performance", obj(R"({"steps": 10})"));
+            ASSERT_FALSE(m["result"]["isError"].bool_value()) << m.dump();
+            EXPECT_EQ(toolJson(m)["samples"].number_value(), 0);
+        }
+    }
+    // Read after the polling thread stopped
+    EXPECT_EQ(w.stepListenerCount(), listeners);
+}
