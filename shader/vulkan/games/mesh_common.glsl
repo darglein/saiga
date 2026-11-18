@@ -4,7 +4,8 @@
  * See LICENSE file for more information.
  */
 
-// The uniforms and push constants of the game meshes, see Saiga::Game::MeshRenderer (games/common/MeshRenderer.h).
+// The uniforms and push constants of the game meshes, see Saiga::Game::MeshRenderer
+// (samples/games/common/MeshRenderer.h).
 layout(set = 0, binding = 0) uniform GameUBO
 {
     // Projection * view without the translation (camera relative)

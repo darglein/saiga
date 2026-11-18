@@ -1,1 +1,0 @@
-saiga_game_library(flight saiga_game_common)

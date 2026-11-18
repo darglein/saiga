@@ -6,9 +6,9 @@
  */
 #extension GL_GOOGLE_include_directive : require
 
-// Flat colored low-poly meshes of the tech demo games (games/common/MeshRenderer, transitional until the engine's
-// RenderScene). Positions are relative to the camera: the CPU computes the model matrix relative to the camera in
-// double, so the precision does not depend on the distance to the origin.
+// Flat colored low-poly meshes of the tech demo games (samples/games/common/MeshRenderer, transitional until the
+// engine's RenderScene). Positions are relative to the camera: the CPU computes the model matrix relative to the camera
+// in double, so the precision does not depend on the distance to the origin.
 
 #include "mesh_common.glsl"
 

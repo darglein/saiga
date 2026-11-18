@@ -286,12 +286,6 @@ write_basic_package_version_file(
 add_subdirectory(src)
 add_subdirectory(shader)
 
-# The games (games/<name>/ libraries) are built with the engine, independent of SAIGA_BUILD_SAMPLES, so CI builds them
-# and their scenario tests (docs/engine_design.md §5.3)
-if (MODULE_ENGINE)
-    add_subdirectory(games)
-endif ()
-
 if (SAIGA_BUILD_SAMPLES)
     message(STATUS " ")
     add_subdirectory(samples)

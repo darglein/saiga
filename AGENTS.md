@@ -12,7 +12,7 @@ optimization).
 - Build system: CMake (>= 3.16), version 1.3.2 (root `CMakeLists.txt`)
 - Namespace: `Saiga`
 - Libraries: one shared library per module — `saiga_core`, `saiga_opengl`, `saiga_vulkan`, `saiga_engine`,
-  `saiga_vision`, `saiga_cuda` (exported as `Saiga::<name>`); games in `games/<name>/` (`saiga_game_<name>`)
+  `saiga_vision`, `saiga_cuda` (exported as `Saiga::<name>`); games are samples in `samples/games/<name>/` (`game_<name>`)
 - Tests: googletest (`submodules/googletest`), one executable per test file, run with `ctest`
 - License: MIT
 
@@ -60,10 +60,10 @@ src/
 docs/                   engine_design.md: design and implementation stages of the game engine
 shader/                 GLSL shaders (OpenGL / Vulkan)
 data/                   Sample assets (textures, models)
-games/                  Games on saiga_engine, one static library per games/<name>/ (saiga_game_<name>, built with the engine,
-                        also without samples): the tech demos flight/, platformer/, racing/ and their shared common/
-                        (docs/engine_design.md §18.4); executables samples/vulkan/sample_vulkan_<game>.cpp
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
+samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples
+                        and the engine): the tech demos flight/, platformer/, racing/ and their shared common/, compiled
+                        into each game (docs/engine_design.md §18.4). Not tested by tests/ (the tests test the engine)
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
                         libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF, glslang (built from submodules/CMakeLists.txt),
@@ -71,10 +71,10 @@ submodules/             Vendored git submodules: eigen, glog, googletest, glfw, 
 .mcp.json               MCP server "saiga-world" (http://127.0.0.1:8765/mcp) of the running sample_vulkan_world
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
 .github/workflows/tests.yml The CI: Ubuntu 24.04 with GCC and with Clang, CPU-only build (OpenGL on Mesa llvmpipe, Vulkan on
-                        Mesa lavapipe) + ctest; Windows MSVC (shared libraries, Core + Vulkan + Engine + the games;
+                        Mesa lavapipe) + ctest; Windows MSVC (shared libraries, Core + Vulkan + Engine, no samples;
                         OpenGL and Vision are not built there; the Vulkan tests skip without a driver) + ctest. The
                         Ubuntu jobs fail on any skipped gtest case; the Clang job also builds the samples (incl. the
-                        tech demos, not run)
+                        tech demo games, not run)
 travis/, .travis.yml    Legacy Travis CI — unused
 ```
 
@@ -145,7 +145,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-44 tests (a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+40 tests (a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -158,8 +158,8 @@ ctest -R test_core_ini --output-on-failure             # one test
 
 - Each `tests/test_*.cpp/.cu` is its own executable, registered in `tests/CMakeLists.txt` with
   `saiga_test(<file> [extra libs])` (links `saiga_core` + gtest; vision tests pass `"saiga_vision"`,
-  CUDA tests `"saiga_cuda"`, engine tests (`test_engine_<area>.cpp`) `"saiga_engine"` and game tests
-  (`test_game_<name>_<area>.cpp`) `"saiga_game_<name>"` inside `if (MODULE_ENGINE)`). **Tests are not globbed** — a new test file must be added there,
+  CUDA tests `"saiga_cuda"`, engine tests (`test_engine_<area>.cpp`) `"saiga_engine"` inside
+  `if (MODULE_ENGINE)`; there are no game tests, the games are samples). **Tests are not globbed** — a new test file must be added there,
   inside the matching `MODULE_*` / dependency guard (e.g. the bundle-adjustment tests need
   `CERES_FOUND`).
 - Test style: `using namespace Saiga;`, plain `TEST(Suite, Name)`, `EXPECT_*`/`ASSERT_*`; a
@@ -185,11 +185,11 @@ ctest -R test_core_ini --output-on-failure             # one test
 The game engine (`src/saiga/engine/`, from stage S04; the world renderer in `src/saiga/vulkan/world/` and the games built on it) is
 designed in `docs/engine_design.md`. Read its Section 1 (Rules) before changing engine or game code.
 
-Tech demo games (§18.4): `sample_vulkan_flight`, `sample_vulkan_platformer`, `sample_vulkan_racing` (with samples ON;
+Tech demo games (§18.4): `game_flight`, `game_platformer`, `game_racing` in `samples/games/` (with samples ON;
 run from a directory with a `config.ini`). `--demo` plays by itself (autopilot, demo runner, AI driver) and simulates
 a few seconds before the first frame, so `SAIGA_SCREENSHOT=<file.png>` shows the action:
-`SAIGA_SCREENSHOT=/tmp/racing.png ./build/samples/vulkan/sample_vulkan_racing --demo`. Their simulation is tested
-headless in `tests/test_game_*.cpp`. Stages that change the renderer, physics, animation or camera keep the demos
+`SAIGA_SCREENSHOT=/tmp/racing.png ./build/samples/games/game_racing --demo`. They have no tests in `tests/` (the saiga
+tests test the engine). Stages that change the renderer, physics, animation or camera keep the demos
 working and show their feature in them.
 
 ## Code Conventions
@@ -214,7 +214,7 @@ working and show their feature in them.
 - Error checks: `SAIGA_ASSERT(cond)` / `SAIGA_ASSERT(cond, "msg")` (`saiga/core/util/assert.h`) —
   the norm across the library (glog `CHECK*` is used only in a few places).
 - Keep the code portable: it must build with GCC, Clang and MSVC (Linux and Windows). The MSVC CI job covers Core,
-  Vulkan, Engine and the games only (OpenGL and Vision are not built there).
+  Vulkan and Engine only (OpenGL, Vision and the samples are not built there).
 
 ## Gotchas
 

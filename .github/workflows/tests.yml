@@ -87,7 +87,7 @@ jobs:
           if grep -l 'result="skipped"' gtest_xml/*.xml; then echo "skipped tests (see the files above)"; exit 1; fi
 
   # The same CPU-only setup built with Clang (docs/engine_design.md S04: every engine stage builds with GCC, Clang and
-  # MSVC). This job also builds the samples, so the tech demo executables (sample_vulkan_flight/platformer/racing,
+  # MSVC). This job also builds the samples, so the tech demo games (samples/games/, game_flight/platformer/racing,
   # docs/engine_design.md §18.4) are compiled in CI; they are not run (they need a window).
   ubuntu-clang:
     name: Ubuntu Clang (CPU only, OpenGL on llvmpipe, Vulkan on lavapipe)

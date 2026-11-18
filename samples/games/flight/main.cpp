@@ -5,8 +5,8 @@
  */
 
 /**
- * Flight simulator tech demo (games/flight, docs/engine_design.md §18.4): fly a small airplane over the 8 km world
- * prototype. --demo: the autopilot flies a circuit.
+ * Flight simulator tech demo (samples/games/flight, docs/engine_design.md §18.4): fly a small airplane over the 8 km
+ * world prototype. --demo: the autopilot flies a circuit.
  *
  * Controls: W/S pitch, A/D roll, Q/E yaw, shift/ctrl throttle up/down, R respawn, G GUI, ESC quit.
  */

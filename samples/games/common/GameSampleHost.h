@@ -19,7 +19,7 @@ namespace Saiga
 namespace Game
 {
 /**
- * The shared window and loop wiring of the tech demo executables (samples/vulkan/sample_vulkan_<game>.cpp): a GLFW
+ * The shared window and loop wiring of the tech demo executables (samples/games/<game>/main.cpp): a GLFW
  * window with the forward renderer (MSAA 4, reversed Z), the game stepped at a fixed 60 Hz in update(), rendered every
  * frame with the interpolation factor, R respawns, the game's ImGui window. A sample derives, initializes the game in
  * its constructor and maps the input in stepGame(). Header only (needs GLFW, so only the samples include it).

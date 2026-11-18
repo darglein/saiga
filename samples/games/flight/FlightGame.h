@@ -20,7 +20,7 @@ namespace Game
 /**
  * The flight simulator tech demo (docs/engine_design.md §18.4): a small airplane over the 8 km world prototype
  * (WorldRenderer: CDLOD terrain, 200k GPU culled trees, grass) with a chase camera. The demo mode flies a circuit
- * with the autopilot. The sample (samples/vulkan/sample_vulkan_flight.cpp) maps the keyboard to the controls.
+ * with the autopilot. The sample (samples/games/flight/main.cpp) maps the keyboard to the controls.
  */
 class FlightGame
 {

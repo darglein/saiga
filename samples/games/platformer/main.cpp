@@ -5,8 +5,8 @@
  */
 
 /**
- * Platformer tech demo (games/platformer, docs/engine_design.md §18.4): one level, a procedurally animated character.
- * --demo: the character runs through the level by itself.
+ * Platformer tech demo (samples/games/platformer, docs/engine_design.md §18.4): one level, a procedurally animated
+ * character. --demo: the character runs through the level by itself.
  *
  * Controls: WASD move (relative to the camera), shift walk, space jump, Q/E turn the camera, R restart, G GUI, ESC.
  */

@@ -5,8 +5,8 @@
  */
 
 /**
- * Racing tech demo (games/racing, docs/engine_design.md §18.4): drive a car around a track on the terrain of the world
- * prototype. --demo: the AI driver races.
+ * Racing tech demo (samples/games/racing, docs/engine_design.md §18.4): drive a car around a track on the terrain of the
+ * world prototype. --demo: the AI driver races.
  *
  * Controls: W throttle, S brake / reverse, A/D steer, R back to the track, G GUI, ESC quit.
  */

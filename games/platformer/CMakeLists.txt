@@ -1,1 +1,0 @@
-saiga_game_library(platformer saiga_game_common)
