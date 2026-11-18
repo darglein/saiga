@@ -1263,3 +1263,31 @@ TEST(WorldTools, AMeasurementWithoutStepsIsEmpty)
     EXPECT_EQ(toolJson(m)["samples"].number_value(), 0);
     EXPECT_TRUE(toolJson(m)["stopped_early"].bool_value());
 }
+
+// Regression (CodeRabbit): with a page of 1, an entity that moved in a window but kept moving (both of its records
+// outside the window by the time its page came) was never reported; window members are a snapshot now
+TEST(WorldApi, EveryEntityOfAWindowIsDelivered)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity a = w.create(), b = w.create();
+    Json cursor = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true})")).value["cursor"];
+    std::set<uint32_t> reported;
+    for (int round = 0; round < 6; ++round)
+    {
+        // Both move every step, several times between pages
+        for (int s = 0; s < 3; ++s)
+        {
+            w.get<Transform>(a).setPosition(Vec3(double(round * 3 + s + 1), 0, 0));
+            w.get<Transform>(b).setPosition(Vec3(double(round * 3 + s + 1), 0, 0));
+            w.step();
+        }
+        ApiResult r =
+            api.call("changes_since", Json(Json::object{{"cursor", cursor}, {"include_moved", true}, {"limit", 1}}));
+        ASSERT_TRUE(r.ok) << r.error;
+        for (auto& m : r.value["moved"].array_items()) reported.insert(uint32_t(m["index"].number_value()));
+        cursor = r.value["cursor"];
+    }
+    EXPECT_TRUE(reported.count(a.index));
+    EXPECT_TRUE(reported.count(b.index)) << "b was pushed out of every window";
+}

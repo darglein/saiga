@@ -160,6 +160,14 @@ class SAIGA_ENGINE_API WorldApi
         }
     };
     std::vector<MoveRecord> lastMoved;
+    // The members of move windows that are being paged, fixed when the window opened (every entity that moved in the
+    // window is delivered, also if it moves again meanwhile); the newest 16 windows are kept
+    struct WindowSnapshot
+    {
+        uint64_t from = 0, to = 0;
+        std::vector<Entity> members;  // index order
+    };
+    std::deque<WindowSnapshot> windows;
     std::shared_ptr<bool> alive;  // the world's listeners stop when the API is gone
 };
 

@@ -942,24 +942,39 @@ ApiResult WorldApi::changesSince(const Json& a)
         {
             // The window (from, to]: fixed while it is paged, so later moves wait for the next window (an entity
             // that moves again after `to` is reported there, once)
-            const uint64_t from  = c.from;
-            const uint64_t to    = c.to > 0 ? c.to : now;
-            const uint32_t start = c.to > 0 ? c.index + 1 : 1;
+            const uint64_t from = c.from;
+            const uint64_t to   = c.to > 0 ? c.to : now;
+            // The window's members: a snapshot taken when it opened (paging reads it, so later moves cannot push an
+            // entity out of the window); rebuilt from the records if it was dropped
+            auto snapshot = std::find_if(windows.begin(), windows.end(),
+                                         [&](const WindowSnapshot& s) { return s.from == from && s.to == to; });
+            if (c.to == 0 || snapshot == windows.end())
+            {
+                WindowSnapshot s{from, to, {}};
+                for (uint32_t i = 1; i < lastMoved.size(); ++i)
+                    if (lastMoved[i].in(from, to)) s.members.push_back(lastMoved[i].entity);
+                if (snapshot != windows.end()) windows.erase(snapshot);
+                windows.push_back(std::move(s));
+                if (windows.size() > 16) windows.pop_front();
+                snapshot = windows.end() - 1;
+            }
+            const uint32_t after = c.to > 0 ? c.index : 0;
             Json::array moved;
             bool movedMore     = false;
             uint32_t lastIndex = 0;
-            for (uint32_t i = start; i < lastMoved.size(); ++i)
+            for (Entity e : snapshot->members)
             {
-                const MoveRecord& m = lastMoved[i];
-                if (!m.in(from, to) || !w->alive(m.entity)) continue;
+                if (e.index <= after || !w->alive(e)) continue;
                 if (moved.size() == size_t(limit))
                 {
                     movedMore = true;
                     break;
                 }
-                moved.push_back(entityJson(m.entity));
-                lastIndex = i;
+                moved.push_back(entityJson(e));
+                lastIndex = e.index;
             }
+            // A fully delivered window is not needed any more
+            if (!movedMore) windows.erase(snapshot);
             result["moved"] = moved;
             if (movedMore)
             {
