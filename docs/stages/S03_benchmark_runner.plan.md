@@ -94,10 +94,13 @@ S01 (§22).
   `asserts`, `archnative`: the baseline must name its build, §17.10 measures release without asserts) and
   `cpu_work_ms` (the CPU work of `transfer()` + `render()`; `cpu_ms` is the frame interval, bounded below by the GPU
   frame time). `gpu_ms` is null without GPU times. `saiga_buildconfig.h` gains `SAIGA_ARCHNATIVE`,
-  `SAIGA_ARCHNATIVE_ACTIVE` (set where `Saiga_compiler_flags.cmake` adds `-march=native`) and `SAIGA_BUILD_TYPE` (the
-  CMake build type). §17.7 updated.
-- Exit code non-zero if the benchmark did not finish or the result was not written; the old result is deleted at the
-  start; a bare `--benchmark` is an error; `SAIGA_WORLD_TREES` is ignored in benchmark mode.
+  `SAIGA_ARCHNATIVE_ACTIVE` (set where `Saiga_compiler_flags.cmake` adds `-march=native`); `saiga_vulkan` is compiled
+  with `SAIGA_BUILD_CONFIG="$<CONFIG>"` (the configuration being built, also with multi-config generators). §17.7
+  updated.
+- Exit code non-zero if the benchmark did not finish, the result was not written or a measured frame stalled
+  (`stalled_frames`: interval above 4 x the median and above 50 ms, e.g. a minimized window or a swap chain recreation);
+  the old result is deleted at the start; a bare `--benchmark` and unknown arguments are errors; `SAIGA_WORLD_TREES` is
+  ignored in benchmark mode.
 - `VulkanExampleBase` has a constructor with explicit window, Vulkan and renderer parameters (the interactive sample
   still reads `config.ini`; the benchmark overrides resolution, vsync, validation, ImGui and defragmentation).
 - Baseline GPU: the S03 row asked for "the reference GPU". The baseline is for the development GPU (RTX 5080 Laptop);
@@ -107,7 +110,7 @@ S01 (§22).
   frames (a resize during the warm-up does not count); a run whose size changed while measuring exits non-zero. A
   failed write prints its own error.
 - `build.archnative` is true only when `-march=native` was really added (decided in CMake), `build.type` is the CMake
-  build type.
+  configuration (`$<CONFIG>`).
 - `SAIGA_SCREENSHOT` is ignored in benchmark mode (`VulkanForwardRenderer::disableAutoScreenshot()`, new): its
   automatic screenshot closes the window at frame 60, which made the run fail without a hint.
 
@@ -131,9 +134,9 @@ GPU pass medians about 1%, passes below 0.1 ms up to 5% (timer resolution). Run 
 `data/tests/benchmarks.json`. The world's CPU work is small (0.03 ms); the frame interval is bound by the GPU and
 presenting. The flyover (300 m above the ground) draws no grass (its radius is 60 m).
 
-Tests: `WorldBenchmark.Summarize`, `WorldBenchmark.Paths`, `WorldBenchmark.ResultJson` (incl. `cpu_work_ms`, `build`,
-null `gpu_ms`), `VulkanWorldRender.FrameTimes` (GPU frames consecutive, no gaps) pass on the GPU and on lavapipe; all
-ctest tests pass.
+Tests: `WorldBenchmark.Summarize`, `WorldBenchmark.Paths`, `WorldBenchmark.CountStalls`, `WorldBenchmark.ResultJson`
+(incl. `cpu_work_ms`, `build`, `stalled_frames`, null `gpu_ms`), `VulkanWorldRender.FrameTimes` (GPU frames consecutive,
+no gaps) pass on the GPU and on lavapipe; all ctest tests pass.
 
 ## Files
 

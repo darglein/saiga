@@ -2001,19 +2001,21 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   and defragmentation off; pass keys are `WorldRenderer::gpuPassName` (from S19 `RenderScene::gpuPassName`); `quality`
   is `"default"` until S37.
   Writes `benchmark_<name>.json` `{gpu, quality, build: {type, asserts, archnative}, frames, gpu_frames, width, height,
-  cpu_ms: {median, p95}, cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}}` to the working directory and
-  exits; the exit code is non-zero if the benchmark did not finish, the result could not be written or the rendered
-  size changed during the run (an old result file is deleted at the start, a bare `--benchmark` is an error).
+  cpu_ms: {median, p95}, cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}, stalled_frames}` to the working
+  directory and exits; the exit code is non-zero if the benchmark did not finish, the result could not be written, or
+  the rendered size changed or a frame stalled during the measured frames (`stalled_frames`: interval above 4 x the
+  median and above 50 ms, e.g. a minimized window or a swap chain recreation; an old result file is deleted at the
+  start, a bare `--benchmark` and unknown arguments are errors).
   - `cpu_ms` is the frame interval (one `transfer()` to the next): it includes waiting for the GPU and presenting, so
     it is at least the GPU frame time. `cpu_work_ms` is the CPU work of the world in the frame (`transfer()` and the
     command recording in `render()`).
   - `gpu_frames`: frames with GPU times; `gpu_ms` is null without GPU times (no timestamp support).
   - `width`/`height`: the rendered size, the swap chain extent of the measured frames (`VulkanRenderer::surfaceSize()`;
     a warning is printed if it is not 1920 x 1080; a resize during the warm-up does not count).
-  - `build`: the CMake build type (`SAIGA_BUILD_TYPE` in `saiga_buildconfig.h`; with a multi-config generator
-    `release`/`debug` by `NDEBUG`), `SAIGA_ASSERTS`, and whether `-march=native` was really used
-    (`SAIGA_ARCHNATIVE_ACTIVE`, set by `Saiga_compiler_flags.cmake` where it adds the flag); baselines come from the
-    release build of AGENTS.md (asserts and `-march=native` off).
+  - `build`: the CMake configuration of `saiga_vulkan` (`SAIGA_BUILD_CONFIG` = `$<CONFIG>`, right with multi-config
+    generators too; without a build type `release (NDEBUG)` or `debug (no NDEBUG)`), `SAIGA_ASSERTS`, and whether
+    `-march=native` was really used (`SAIGA_ARCHNATIVE_ACTIVE`, set by `Saiga_compiler_flags.cmake` where it adds the
+    flag); baselines come from the release build of AGENTS.md (asserts and `-march=native` off).
   - `SAIGA_SCREENSHOT` is ignored in benchmark mode (its automatic screenshot would close the window at frame 60).
   - No GUI and no MCP during a benchmark, and the default world (`SAIGA_WORLD_TREES` is ignored). From S13 the result
     also has `step` and `recording`, from S19 `extract` (each `{median, p95}`).

@@ -213,8 +213,9 @@ ctest -R test_core_ini --output-on-failure             # one test
   It flies a fixed path at 1920 x 1080 (validation, vsync, ImGui, defragmentation and MCP off; `SAIGA_SCREENSHOT` is
   ignored) and writes
   `benchmark_<name>.json` to the working directory (here `build-bench/samples/vulkan/`); the exit code is non-zero if it
-  did not finish, could not write the result or the rendered size changed during the measured frames. The JSON
-  records the build (`build: {type, asserts, archnative}`: the CMake build type, `SAIGA_ASSERTS` and whether
+  did not finish, could not write the result, or the rendered size changed or a frame stalled (e.g. a minimized window)
+  during the measured frames. The JSON
+  records the build (`build: {type, asserts, archnative}`: the CMake configuration, `SAIGA_ASSERTS` and whether
   `-march=native` was really used) and the rendered size. Compare with the baseline of the GPU in
   `data/tests/benchmarks.json` (run each benchmark twice: the frame interval `cpu_ms` median varies below 1% between
   runs, the GPU pass medians about 1%, passes below 0.1 ms up to 5%); a regression of more than 5% must be explained

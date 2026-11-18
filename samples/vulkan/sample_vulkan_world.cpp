@@ -16,8 +16,9 @@
  *
  * Benchmarks (docs/engine_design.md §17.7): sample_vulkan_world --benchmark <flyover|forest> flies a fixed camera path
  * at 1920 x 1080 (validation, vsync, GUI and MCP off, frozen time, the default world: SAIGA_WORLD_TREES is ignored),
- * writes benchmark_<name>.json to the working directory and exits with 0, or with 1 if the benchmark did not finish or
- * the result could not be written (an old result file is deleted at the start).
+ * writes benchmark_<name>.json to the working directory and exits with 0, or with 1 if the benchmark did not finish, the
+ * result could not be written, the rendered size changed or a frame stalled during the measured frames (an old result
+ * file is deleted at the start). Unknown arguments are an error.
  */
 
 #include "saiga/core/imgui/imgui.h"
@@ -190,6 +191,10 @@ class WorldSample : public VulkanExampleBase
                           << " instead of 1920 x 1080 (not comparable with the baseline)" << std::endl;
             if (sizeChanged) std::cout << "Benchmark error: the rendered size changed during the run" << std::endl;
             json11::Json result = bench->result();
+            int stalls          = result["stalled_frames"].int_value();
+            if (stalls > 0)
+                std::cout << "Benchmark error: " << stalls
+                          << " stalled frames (e.g. the window was minimized or the swap chain recreated)" << std::endl;
             if (result["gpu_ms"].is_null())
                 std::cout << "Benchmark warning: no GPU times (timestamps not supported)" << std::endl;
             bool written = Vulkan::WorldBenchmark::writeResult(file, result);
@@ -197,7 +202,7 @@ class WorldSample : public VulkanExampleBase
                 std::cout << "Benchmark result: " << file << "\n" << result.dump() << std::endl;
             else
                 std::cout << "Benchmark error: could not write " << file << std::endl;
-            benchmarkOk   = written && !sizeChanged;
+            benchmarkOk   = written && !sizeChanged && stalls == 0;
             benchmarkDone = true;
             window->close();
         }
@@ -261,6 +266,13 @@ int main(const int argc, const char* argv[])
             }
             benchmark      = argv[++i];
             benchmarkGiven = true;
+        }
+        else
+        {
+            // e.g. --benchmark=forest would otherwise start the interactive sample, and a script would hang
+            std::cout << "Unknown argument '" << argv[i] << "'. Usage: sample_vulkan_world [--benchmark <name>]"
+                      << std::endl;
+            return 1;
         }
     }
     if (benchmarkGiven && !Vulkan::WorldBenchmark::known(benchmark))

@@ -30,14 +30,14 @@ bool measured(int frame)
     return frame >= firstMeasured && frame <= lastMeasured;
 }
 
-// The build configuration of saiga (saiga_buildconfig.h): the CMake build type, SAIGA_ASSERTS and whether
-// -march=native is really used (decided by Saiga_compiler_flags.cmake).
+// The build configuration of saiga: the CMake configuration (SAIGA_BUILD_CONFIG, src/saiga/vulkan/CMakeLists.txt),
+// SAIGA_ASSERTS and whether -march=native is really used (saiga_buildconfig.h, decided by Saiga_compiler_flags.cmake).
 json11::Json buildInfo()
 {
-    std::string type = SAIGA_BUILD_TYPE;
+    std::string type = SAIGA_BUILD_CONFIG;
     if (type.empty())
     {
-        // Multi-config generators have no CMAKE_BUILD_TYPE at configure time
+        // A single-config build without CMAKE_BUILD_TYPE
 #ifdef NDEBUG
         type = "release (NDEBUG)";
 #else
@@ -166,6 +166,15 @@ bool WorldBenchmark::finished() const
     return state->finished();
 }
 
+int WorldBenchmark::countStalls(const std::vector<double>& intervalsMs)
+{
+    double median = summarize(intervalsMs).median;
+    int stalls    = 0;
+    for (double ms : intervalsMs)
+        if (ms > 4 * median && ms > 50) stalls++;
+    return stalls;
+}
+
 json11::Json WorldBenchmark::result() const
 {
     auto stat = [](const std::vector<double>& v)
@@ -193,6 +202,7 @@ json11::Json WorldBenchmark::result() const
         {"cpu_ms", stat(state->cpuMs)},
         {"cpu_work_ms", stat(state->cpuWorkMs)},
         {"gpu_ms", gpu},
+        {"stalled_frames", countStalls(state->cpuMs)},
     };
 }
 

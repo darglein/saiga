@@ -198,6 +198,23 @@ TEST(WorldBenchmark, Paths)
     EXPECT_FALSE(WorldBenchmark::known("forests"));
 }
 
+// Regression: a minimized window or a swap chain recreation during the measured frames inflated p95 unnoticed
+TEST(WorldBenchmark, CountStalls)
+{
+    std::vector<double> v(600, 10.0);
+    EXPECT_EQ(WorldBenchmark::countStalls(v), 0);
+    v[100] = 2000;  // minimized for 2 s
+    v[200] = 45;    // 4.5 x the median, but not longer than 50 ms
+    EXPECT_EQ(WorldBenchmark::countStalls(v), 1);
+    // A slow device: 4 x the median counts, not the 50 ms
+    std::vector<double> slow(600, 200.0);
+    slow[5] = 700;
+    EXPECT_EQ(WorldBenchmark::countStalls(slow), 0);
+    slow[6] = 900;
+    EXPECT_EQ(WorldBenchmark::countStalls(slow), 1);
+    EXPECT_EQ(WorldBenchmark::countStalls({}), 0);
+}
+
 TEST(WorldBenchmark, ResultJson)
 {
     // No init: the benchmark only registers a frame callback, the samples are added directly
@@ -237,6 +254,7 @@ TEST(WorldBenchmark, ResultJson)
     EXPECT_TRUE(r["build"]["type"].is_string());
     EXPECT_TRUE(r["build"]["asserts"].is_bool());
     EXPECT_TRUE(r["build"]["archnative"].is_bool());
+    EXPECT_EQ(r["stalled_frames"].int_value(), 0);
     for (int p = 0; p < WorldRenderer::PASS_COUNT; ++p)
     {
         auto pass = r["gpu_ms"][WorldRenderer::gpuPassName(p)];

@@ -64,6 +64,10 @@ class SAIGA_VULKAN_API WorldBenchmark
     // Median and p95 (nearest rank) of the values; zeros for an empty list.
     static Stat summarize(std::vector<double> values);
 
+    // Frame intervals of a stalled frame: longer than 4 x the median and longer than 50 ms (a minimized window, a swap
+    // chain recreation, another program). A run with a stalled frame is not comparable.
+    static int countStalls(const std::vector<double>& intervalsMs);
+
     // Registers a frame callback at the world. The callback only uses the shared sample state (never this object); it
     // removes itself when the benchmark is finished or the benchmark object was destroyed.
     WorldBenchmark(const std::string& name, WorldRenderer& world, const std::string& gpuName);
@@ -82,7 +86,8 @@ class SAIGA_VULKAN_API WorldBenchmark
 
     /**
      * {gpu, quality, build: {type, asserts, archnative}, frames, gpu_frames, width, height, cpu_ms: {median, p95},
-     * cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}}. cpu_ms is the frame interval (FrameTimes::cpuMs),
+     * cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}, stalled_frames}. cpu_ms is the frame interval
+     * (FrameTimes::cpuMs), stalled_frames the number of measured frames whose interval is a stall (countStalls),
      * cpu_work_ms the CPU time of transfer() + render(). gpu_ms is null if no GPU times were measured (no timestamp
      * support).
      */
