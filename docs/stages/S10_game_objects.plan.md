@@ -1,6 +1,6 @@
 # S10: Game objects, ticking and the world API
 
-Status: in progress.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -205,3 +205,42 @@ the design describes the implemented API.
 
 The CI recipe of AGENTS.md, `ctest -R engine`, full ctest; AddressSanitizer + UBSan and ThreadSanitizer builds of the
 new tests.
+
+## Design changes
+
+- §8.4: ticking by grid-cell rings (`TickPolicy {ringSize, nearRing, midRing, midInterval, farInterval}`) instead of
+  distances with a round-robin cursor; `tickSystem` re-evaluates everything when the player cells change, else the
+  moved objects; a class overrides rings and intervals, not the cell size.
+- §16.2: the world tools move from S14 to S10, on `WorldApi`; new tools `describe_world`, `world_status`,
+  `add_component`, `remove_component`, `set_transform`, `get_global`, `set_global`, `emit_event`, `queue_action`,
+  `changes_since`, `get_profile`, `reset_profile`, `apply`; S14 keeps the app tools. §17.1: the profiler.
+- §7.8: the state entities exist only when components are registered for them. §7.9: `WorldSetup::classes`,
+  `profiling`. §7.10: `queueAction`, `profiler()`. §9.2, §9.3, §9.6: implementation notes (spawn as a command,
+  `onDestroy` before any removal, `Behaviour`/`Persistent` not addable with `add`, the Persistent index kept in
+  add/remove/destroy rather than from the structural log, `move` shortened to length 1, idle characters not written).
+- `World::addStepListener` (after every completed step; the API's change journal and `measure_performance`), type-erased
+  `Registry::findComponent/addDefault/removeById`, `PoolBase` JSON virtuals, `EventQueues::find` and `emitJson`.
+- The test event `DamageEvent` and the test component `Health` of `test_engine_world.cpp` and the ECS benchmark are
+  renamed (`HitEvent`, `Vitality`): the engine registers those names now.
+
+## Results
+
+- `tests/test_engine_gameobject.cpp`: 15 tests, `tests/test_engine_world_api.cpp`: 9 tests (GCC 15); the S07-S09
+  tests unchanged. Full ctest (CI options, GCC 15): 57/57.
+- Benchmark (GCC 15, RelWithDebInfo, laptop): 10^4 game objects with one player: `World::step` 0.09 ms standing (411
+  updates per step), 0.21 ms when every object is re-tiered each step. The S08 benchmark with 10^5 moving entities:
+  1.9 -> 2.3 ms (R-TEST-2: three more engine systems run their (empty) views and the tick system scans the changed list;
+  idle 0.51 ms, unchanged).
+- AddressSanitizer + UBSan: the game object and world API tests are clean. ThreadSanitizer reports races only inside
+  `McpServer`'s handoff between `poll` and `handleMessage` in the uninstrumented `saiga_core` (its synchronization is
+  not visible to TSan; the world is only touched by the polling thread while the caller blocks).
+
+## Files
+
+`src/saiga/engine/gameplay/*`, `src/saiga/engine/api/WorldApi.*`, `src/saiga/engine/tools/WorldTools.*`,
+`src/saiga/engine/core/Profiler.*`, `src/saiga/engine/ecs/{VisitJson.h,ComponentPool.h,Registry.h,Registry.cpp,Ids.h}`,
+`src/saiga/engine/components/{Player,Health,PlayerInput,CharacterIntent,Persistent}.h`, `EngineIds.h`,
+`EngineComponents.cpp`, `src/saiga/engine/world/{World,Events,EventQueues,SpatialGridSystem,TransformSystem}.*`,
+`tests/test_engine_gameobject.cpp`, `tests/test_engine_world_api.cpp`, `tests/mcp_test_helper.h`,
+`tests/test_core_mcp_server.cpp`, `tests/test_engine_world.cpp`, `tests/engine_world_second_tu.cpp`,
+`tests/test_engine_ecs_benchmark.cpp`, `tests/CMakeLists.txt`, `docs/engine_design.md`, `AGENTS.md`, this file.

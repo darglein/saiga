@@ -54,11 +54,15 @@ src/
                         benchmark runner WorldBenchmark; sample_vulkan_world)
     engine/             saiga_engine (namespace Saiga::Engine, needs the vulkan module): the game engine of
                         docs/engine_design.md; core/: EngineVersion, JobPool (parallelFor, the caller
-                        participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h); ecs/: Registry,
+                        participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h), Profiler; ecs/: Registry,
                         View, ComponentPool, visit rules and binary visitors (Visit.h, VisitBinary.h, FieldList.h),
-                        SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent, LocalTransform; world/: World
+                        VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
+                        LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent; world/: World
                         (step loop, phases, SystemList, commands, StructuralLog, EventQueues, transformSystem,
-                        SpatialGrid and spatialGridSystem for World::queryRadius)
+                        SpatialGrid and spatialGridSystem for World::queryRadius, Events.h); gameplay/: GameObject,
+                        Behaviour (+ World::spawn), ClassList, TickPolicy, the gameplay systems (Systems.h); api/:
+                        WorldApi (the world as JSON by names, for MCP, scenarios, editors); tools/: registerWorldTools
+                        (MCP world tools)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -165,7 +169,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-55 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+57 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -189,7 +193,9 @@ ctest -R test_core_ini --output-on-failure             # one test
   regression test carries a short comment describing the bug it guards against.
 - Shared helpers: `tests/compare_numbers.h`, `tests/numeric_derivative.h` (numeric Jacobians for the
   vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture),
-  `tests/vulkan_test_context.h` (the `VulkanTest` fixture), `tests/golden_image.h` (`compareGolden`, golden images).
+  `tests/vulkan_test_context.h` (the `VulkanTest` fixture), `tests/golden_image.h` (`compareGolden`, golden images),
+  `tests/mcp_test_helper.h` (`McpRequest`, the `Poller` that runs `McpServer::poll` in the background for
+  `handleMessage` tests of MCP tools).
 - **OpenGL tests** (`test_opengl_*`, built when OpenGL + EGL are found) need no window or X server: the
   `OpenGLTest` fixture creates a headless EGL context (`CreateEGLContext()`, from the first EGL device —
   e.g. the NVIDIA GPU — else Mesa) and **skips** every test if there is no EGL display. Derive the
