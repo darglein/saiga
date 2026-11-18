@@ -188,6 +188,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Shader compiler (glslang, targets Vulkan 1.0 / SPIR-V 1.0) | `src/saiga/vulkan/Shader/GLSL.cpp` | [exists] |
 | VMA (supports virtual blocks; submodule, private to `saiga_vulkan`) | `submodules/VulkanMemoryAllocator` | [exists] |
 | Engine module `saiga_engine` (CMake module, `SAIGA_ENGINE_API`, `Engine::engineVersion()`, smoke test; CI jobs GCC, Clang, Windows MSVC with shared libraries) | `src/saiga/engine/`, `.github/workflows/tests.yml` | [exists] |
+| Engine core utilities: `JobPool` (parallel loops, the caller participates), `Rng` (PCG32), FNV-1a 64 `Hash`/`Hasher`, log ring with `SAIGA_LOG` (§8.5, §7.10, §17.1) | `src/saiga/engine/core/`, `tests/test_engine_core.cpp` | [exists] |
 | Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
 
 The rows above describe what exists today; none of it is fixed (§0). **Known deviations in the prototype** (deviation,
@@ -640,13 +641,22 @@ class SystemList
     void add(Phase phase, const char* name, SystemFn fn, RunOn runOn = RunOn::Host);   // runs in registration order
 };
 
-class Rng   // PCG32
+class Rng   // PCG32 (pcg32 of pcg-random.org), engine/core/Rng.h [exists]
 {
    public:
-    uint32_t nextU32(); double uniform();   // [0, 1)
-    double uniform(double a, double b); int64_t range(int64_t a, int64_t b);
+    explicit Rng(uint64_t seed = 0, uint64_t stream = 0);   // pcg32_srandom: Rng(42, 54) gives the reference values
+    uint32_t nextU32(); uint64_t nextU64();
+    double uniform();                                         // [0, 1), 53 bits from two outputs
+    double uniform(double a, double b);                       // [a, b): fma(b - a, u, a); b -> largest double < b
+    int64_t range(int64_t a, int64_t b);                      // [a, b] inclusive, no modulo bias
+    struct State { uint64_t state, increment; };              // saved by the world
+    State state() const; void setState(const State&);
 };
+// No std::*_distribution anywhere in simulation or content code: their results differ between standard libraries.
 // Hashing: FNV-1a 64 (engine/core/Hash.h) for seeds, content hashes and world.hash(); never std::hash.
+//   fnv1a64Bytes(data, size) and constexpr fnv1a64(string_view) (separate names: fnv1a64(str.c_str(), seed) must
+//   not hash seed bytes); Hasher (addU8/U32/U64/I32/I64 as little-endian bytes,
+//   addDouble as the bit pattern, addString with its length) [exists]; hashCombine(seed, value) for derived seeds.
 ```
 
 **Math subset (R-MATH-2)** [exists]: `Vec2/3/4`, `Mat3/4`, `Quat`, `AngleAxis`; `+ - *`, `dot`, `cross`, `norm`,
@@ -811,20 +821,27 @@ class EngineApp   // engine/app/EngineApp.h
   `struct TickPolicy { double nearDistance = 50, midDistance = 200, midInterval = 0.1, farInterval = 0.5; };` in
   `WorldConfig`; a class overrides it with `virtual const TickPolicy* tickPolicy() const { return nullptr; }`; players
   and objects with `Behaviour::alwaysTickEveryStep` tick every step. `sinceTick` starts at
-  `(fnv1a(index) % 1024) / 1024.0 * tickInterval`.
+  `(hashCombine(0, index) % 1024) / 1024.0 * tickInterval`.
 - `ScenarioWorld` ticks every object every step unless `w.enableDistanceTicking()`.
 
-### 8.5 Threading [planned: S06; streaming pool: S20; network thread: S33]
+### 8.5 Threading [exists: S06 (JobPool); streaming pool: S20; network thread: S33]
 
 | Thread(s) | Work |
 |---|---|
 | main | steps (systems serially), extract, render recording, MCP |
-| frame `JobPool` (`setWorkerThreads`, the caller participates) | `parallelEach`; per-frame `JobPool::parallelFor` jobs (pose evaluation, extract); Jolt jobs through a job system adapter |
+| frame `JobPool` (`setWorkerThreads`, the caller participates) | `parallelEach`; per-frame `JobPool::parallelFor` jobs (pose evaluation, extract); Jolt jobs through a job system adapter (S28 adds a non-blocking submit/barrier API to `JobPool` for it, or uses Jolt's `JobSystemThreadPool` with the same worker count; `parallelFor` alone cannot serve Jolt) |
 | streaming pool (2-3 low-priority workers) | chunk and region generation, terrain meshing, file IO, compression |
 | network thread | socket IO only, queues to and from the main thread |
 | audio (S47) | device callback / mixing; reads a lock-free command queue filled by the main thread, writes no components |
 
-`JobPool` is new in `engine/core/` (`parallelFor(begin, end, chunk, fn)`); saiga's `ThreadPool` is not used.
+`JobPool` (`engine/core/JobPool.h`) [exists]: `JobPool(int workerThreads)`, `setWorkerThreads`, `parallelFor(int64_t
+begin, int64_t end, int64_t chunk, fn(chunkBegin, chunkEnd))`. The chunk boundaries are fixed (they never depend on the
+thread count, only the assignment of chunks to threads does); the caller takes chunks too; with 0 workers or nested
+inside a chunk of the same pool the chunks run serially in order (a chunk of another pool calls the pool normally);
+calls from different threads are serialized, except nested calls (two chunks of one job that call the pool again run
+their nested chunks at the same time); pools that call each other in a cycle from different threads deadlock and are not
+allowed; an exception of a chunk is rethrown in the caller (the remaining chunks are skipped from the moment a thread
+sees the failure, best effort); more than INT64_MAX chunks throw `std::length_error`. saiga's `ThreadPool` is not used.
 
 ### 8.6 Determinism [planned: S08]
 
@@ -1396,7 +1413,7 @@ class PhysicsWorld
   with a site.
 - **Space instances**: the plan of space 0 lists all space instances; every other instance computes its own plan with
   `plan(version, instanceSeed, template)`, whose `spaces` list is empty. The list: `SpaceId` = index in the plan's space
-  list (0 = overworld), template (`SpaceTemplate`), instance seed = fnv1a(world seed, site key); `SpaceLink::target` is
+  list (0 = overworld), template (`SpaceTemplate`), instance seed = hashCombine(world seed, site key); `SpaceLink::target` is
   filled at stamping from the plan; the list is part of the pinned plan version. Every space instance comes from the
   plan; spaces are not created or deleted at run time (§20).
 - **Content hash** per generated chunk over the integer output; a CI test compares generated chunks with committed
@@ -1564,7 +1581,7 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
 - Each peer renders only the space of its own camera; switching the space swaps the resident render data, no
   rendering of two spaces at once.
 - **Before S23** (S21): there is one space instance per `spaceTemplates` entry (`SpaceId` = template index, seed =
-  fnv1a(world seed, index)); authored enclosed geometry comes with prefabs in S23, its colliders in S28. **Before S24**:
+  hashCombine(world seed, index)); authored enclosed geometry comes with prefabs in S23, its colliders in S28. **Before S24**:
   there is no arrival mechanism; `requestTransition` completes in the next step (simulation tiles are generated
   synchronously on demand, §12.2); the loading screen waits for the visual data only on the local peer and does not
   affect the simulation.
@@ -1891,10 +1908,13 @@ tests use the `Poller` (moved to `tests/mcp_test_helper.h` in S14). Tools that n
 
 ## 17. Verification
 
-### 17.1 Logging [planned: S06]
+### 17.1 Logging [exists: S06; SAIGA_LOG_E: S07]
 
 `SAIGA_LOG(category, format, ...)` (printf style, S06) and `SAIGA_LOG_E(category, entity, format, ...)` (S07) into a
-ring buffer (MCP `logs`) and stdout; `SAIGA_ASSERT` messages name the entity and component.
+ring buffer (MCP `logs`) and stdout; `SAIGA_ASSERT` messages name the entity and component. The ring
+(`engine/core/LogRing.h`, process-wide `engineLog()`, default 4096 lines) numbers its lines 1, 2, ... and returns the
+lines after a sequence number (`since(seq)`, for `logs(since)` and scenario failure output); `setLogEcho(false)` turns
+the stdout echo off (tests, benchmarks).
 
 ### 17.2 Scenario tests [planned: S12]
 
@@ -2311,7 +2331,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S03 | Benchmark runner (done) | `--benchmark` with `flyover` / `forest`, unsmoothed frame times, baseline file (§17.7) | S01 | baseline in `data/tests/benchmarks.json` for the development GPU (local) |
 | S04 | Engine module setup and tech demos (done) | `saiga_engine` in CMake, export macro, module defines, test registration, Clang and Windows/MSVC (shared libraries) CI build jobs (§5.3); three tech demo games as samples in `samples/games/`: flight simulator, platformer, racing, with `samples/games/common` (§18.4) | – | `Module enabled: Engine` printed; engine library and a smoke test build and run on all CI compilers (CI); the games compile in the Clang job (CI); each demo runs with `--demo` without validation errors (local) |
 | S05 | Math additions (done) | Missing tiny-eigen functions and double helpers (§7.10, R-MATH-2) | – | tiny-eigen tests for every addition (CI); `test_core_math_functions` builds and passes with Eigen (local) |
-| S06 | Core utilities | `JobPool`, `Rng`, `Hash`, logging ring buffer with `SAIGA_LOG` (§8.5, §8.6, §17.1) | S04 | unit tests: parallel-for coverage with the caller participating, RNG and hash reference values, log ring (CI) |
+| S06 | Core utilities (done) | `JobPool`, `Rng`, `Hash`, logging ring buffer with `SAIGA_LOG` (§8.5, §8.6, §17.1) | S04 | unit tests: parallel-for coverage with the caller participating, RNG and hash reference values, log ring (CI) |
 | S07 | ECS core | `Entity`, registry, pools, component IDs, `visit`, views, `SAIGA_LOG_E`, `ChunkId`/`RegionId`/`SpaceId`/`InstanceKey`/`PersistentId` value types (§7.1-§7.5) | S04, S05, S06 | unit tests: stale handles, deterministic order, `visit` round trip; non-gating 10^5-entity benchmark (CI) |
 | S08 | World and step loop | `World(WorldSetup)`, phases, `SystemList`, commands, structural log, events, `Transform` hierarchy, `advance`/`step`, `hash` (§7.6-§7.10, §8.1-§8.3, §8.6) | S07 | unit tests: deferred destroy, commands during iteration, structural log consumers, event latency, `advance` cap, hierarchy; hash equal for 2 runs (CI); step time with 10^5 idle entities (benchmark) |
 | S09 | Spatial grid | Grid per space, `queryRadius` (§9.5) | S08 | query tests incl. deterministic order (CI) |
