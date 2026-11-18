@@ -22,6 +22,8 @@ struct FieldInfo
 {
     std::string name;
     std::string type;
+    // For type "enum": the value names in value order (the name tables of the schema, §15.2)
+    std::vector<std::string> enumValues;
 };
 
 template <class T>
@@ -72,9 +74,11 @@ class FieldListVisitor
         fields.push_back({name, fieldTypeName<T>()});
     }
     template <class E, size_t N>
-    void operator()(const char* name, E&, const EnumNames<N>&)
+    void operator()(const char* name, E&, const EnumNames<N>& names)
     {
-        fields.push_back({name, "enum"});
+        FieldInfo f{name, "enum", {}};
+        for (size_t i = 0; i < N; ++i) f.enumValues.push_back(names.names[i]);
+        fields.push_back(f);
     }
     template <class T>
     void operator()(const char* name, T& field, const Quantize&)

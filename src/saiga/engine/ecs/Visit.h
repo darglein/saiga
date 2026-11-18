@@ -24,11 +24,11 @@
 //
 //   template <class V> void visit(V& v) { v("hp", hp); v("state", state, EnumNames{StateNames}); }
 //
-// Supported field types: bool, fixed-size integers, double, enums (only with EnumNames), std::string, Entity,
-// PersistentId, Vec2/3/4, Quat, Mat3/4, nested structs with name, version and visit (e.g. ChunkId), and std::array /
-// std::vector of supported types (no enums inside containers). float, vec2/3/4, quat, mat3/4 only in a component with
-// `static constexpr bool allowFloat = true` (render components, R-MATH-1). Anything else is a compile error in every
-// engine visitor (checkFieldType).
+// Supported field types: bool, fixed-width integers (int8_t .. uint64_t), double, enums (only with EnumNames),
+// std::string, Entity, PersistentId, Vec2/3/4, Quat, Mat3/4, nested structs with name, version and visit (e.g.
+// ChunkId), and std::array / std::vector of supported types (no enums inside containers). float, vec2/3/4, quat, mat3/4
+// only in a component with `static constexpr bool allowFloat = true` (render components, R-MATH-1). Anything else is a
+// compile error in every engine visitor (checkFieldType).
 
 namespace Saiga
 {
@@ -104,8 +104,19 @@ template <class T>
 constexpr bool isQuat = std::is_same_v<T, Quat> || std::is_same_v<T, quat>;
 
 template <class T>
-constexpr bool isInteger = std::is_integral_v<T> && !std::is_same_v<T, bool> && !std::is_same_v<T, char> &&
-                           !std::is_same_v<T, wchar_t> && !std::is_same_v<T, char16_t> && !std::is_same_v<T, char32_t>;
+// Only the fixed-width types: long is 8 bytes on Linux and 4 on Windows, so its encoding, hash and schema type would
+// differ between platforms (on Linux long is int64_t and passes; the MSVC build rejects it)
+constexpr bool isInteger = std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int16_t> ||
+                           std::is_same_v<T, uint16_t> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> ||
+                           std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>;
+
+// The prefix of a name at compile time (allowFloat is only allowed for Render* components)
+constexpr bool startsWith(const char* s, const char* prefix)
+{
+    for (; *prefix; ++s, ++prefix)
+        if (*s != *prefix) return false;
+    return true;
+}
 }  // namespace VisitDetail
 
 // Fails to compile for a field type that visit does not support. AllowFloat: the component declares allowFloat.
@@ -131,6 +142,10 @@ constexpr void checkFieldType()
     else if constexpr (isFloatMath<T> || std::is_same_v<T, quat>)
     {
         static_assert(AllowFloat, "visit: vec/quat/mat (float) only in components with allowFloat (R-MATH-1)");
+    }
+    else if constexpr (std::is_same_v<T, std::vector<bool>>)
+    {
+        static_assert(AlwaysFalse<T>::value, "visit: std::vector<bool> is not supported (use std::vector<uint8_t>)");
     }
     else if constexpr (IsStdVector<T>::value || IsStdArray<T>::value)
     {
@@ -203,6 +218,8 @@ struct FieldTypeCheckVisitor
 template <class T>
 void checkVisitFields()
 {
+    static_assert(!AllowsFloat<T>::value || VisitDetail::startsWith(T::name, "Render"),
+                  "allowFloat only in Render* components (R-MATH-1)");
     T t{};
     FieldTypeCheckVisitor<AllowsFloat<T>::value> check;
     t.visit(check);

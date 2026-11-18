@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -163,6 +164,20 @@ struct RenderThing
     }
 };
 
+// Kept Health's ID by mistake (never registered)
+struct CopiedHealthId
+{
+    static constexpr const char* name = "Mana";
+    static constexpr ComponentId id   = ComponentId(TestComponent::Health);
+    static constexpr uint32_t version = 1;
+    double mana                       = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("mana", mana);
+    }
+};
+
 void registerTest(Registry& r)
 {
     r.registerComponent<Health>(Replicate::Host);
@@ -202,6 +217,41 @@ TEST(Ecs, CreateDestroyAndStaleHandles)
     EXPECT_FALSE(r.alive(a));
     EXPECT_TRUE(r.alive(c));
     EXPECT_FALSE(r.alive(Entity{999, 0}));
+}
+
+// A slot whose generation wraps around is retired: a stale handle with generation 0 can never match again
+TEST(Ecs, GenerationWrapAroundRetiresTheSlot)
+{
+    Registry r;
+    Entity a = r.create();
+    r.destroy(a);
+    r.debugSetGeneration(a.index, 0xFFFFFFFFu);
+    Entity b = r.create();
+    EXPECT_EQ(b.index, a.index);
+    EXPECT_EQ(b.generation, 0xFFFFFFFFu);
+    r.destroy(b);  // the generation wraps to 0: the slot is not reused
+    Entity c = r.create();
+    EXPECT_NE(c.index, a.index);
+    EXPECT_FALSE(r.alive(Entity{a.index, 0}));
+}
+
+TEST(Ecs, IterationGuardSurvivesExceptionsAndNesting)
+{
+    Registry r;
+    registerTest(r);
+    Entity e = r.create();
+    r.add<Health>(e);
+    r.add<Tag>(e);
+    EXPECT_THROW(r.view<Health>().each([](Entity, Health&) { throw std::runtime_error("x"); }), std::runtime_error);
+    EXPECT_FALSE(r.iterating());
+    // Nested views (reads inside a view are fine)
+    int inner = 0;
+    r.view<Health>().each([&](Entity, Health&) { r.view<const Tag>().each([&](Entity, const Tag&) { inner++; }); });
+    EXPECT_EQ(inner, 1);
+    EXPECT_FALSE(r.iterating());
+    // Structural changes work again after the view
+    r.remove<Tag>(e);
+    EXPECT_FALSE(r.has<Tag>(e));
 }
 
 TEST(Ecs, FreeSlotsAreReusedInFifoOrder)
@@ -335,6 +385,12 @@ TEST(EcsDeathTest, MisuseAsserts)
     EXPECT_DEATH(bare.add<Health>(b), "not registered");
     // ID used twice
     EXPECT_DEATH(r.registerComponent<Health>(), "already used");
+    // has on an unregistered component asserts like get (it is a registration bug, not "no component")
+    EXPECT_DEATH(bare.has<Health>(b), "not registered");
+    // A copy-pasted component that kept the ID of another one: the registered pool is not reinterpreted
+    Entity c = r.create();
+    r.add<Health>(c);
+    EXPECT_DEATH(r.get<CopiedHealthId>(c), "registered as Health, not Mana");
 }
 
 TEST(EcsDeathTest, StructuralChangeDuringIteration)
@@ -502,26 +558,46 @@ TEST(Ecs, VisitBinaryLayoutIsFixed)
     EXPECT_EQ(toBytes(s), (std::vector<uint8_t>{1, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0}));
 }
 
-#ifdef SAIGA_ASSERTS
-TEST(EcsDeathTest, TruncatedOrCorruptBytes)
+// Regression: the input checks were asserts, so a release build (SAIGA_ASSERTS=OFF) read past a truncated buffer.
+// Saves and network packets are untrusted: fromBytes reports the error in every build.
+TEST(Ecs, MalformedBytesAreRejected)
 {
+    std::string error;
     Inventory in;
     in.items   = {{ItemKind::Stone, 3}};
     auto bytes = toBytes(in);
-    bytes.pop_back();
     Inventory out;
-    EXPECT_DEATH(fromBytes(out, bytes), "truncated");
+    EXPECT_TRUE(fromBytes(out, bytes, &error)) << error;
+    for (size_t cut : {size_t(1), size_t(5), bytes.size() / 2})
+    {
+        auto truncated = bytes;
+        truncated.resize(bytes.size() - cut);
+        Inventory o;
+        EXPECT_FALSE(fromBytes(o, truncated, &error));
+        EXPECT_NE(error.find("truncated"), std::string::npos) << error;
+    }
     // An enum value without a name
     std::vector<uint8_t> badEnum = {7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     ItemStack s;
-    EXPECT_DEATH(fromBytes(s, badEnum), "enum value out of range");
+    EXPECT_FALSE(fromBytes(s, badEnum, &error));
+    EXPECT_NE(error.find("enum value 7 out of range"), std::string::npos) << error;
     // Bytes left over
     auto extra = toBytes(Health{});
     extra.push_back(0);
     Health h;
-    EXPECT_DEATH(fromBytes(h, extra), "left over");
+    EXPECT_FALSE(fromBytes(h, extra, &error));
+    EXPECT_NE(error.find("left over"), std::string::npos) << error;
+    // A vector length far beyond the input does not allocate: 2^40 elements of 12 bytes in 20 bytes of input
+    std::vector<uint8_t> hugeVector = {0, 0, 0, 0, 0, 1, 0, 0};
+    hugeVector.resize(28, 0);
+    std::vector<ItemStack> items;
+    EXPECT_FALSE(fromBytes(items, hugeVector, &error));
+    EXPECT_NE(error.find("does not fit"), std::string::npos) << error;
+    // A string longer than the input
+    std::vector<uint8_t> longString = {100, 0, 0, 0, 0, 0, 0, 0, 'a'};
+    std::string str;
+    EXPECT_FALSE(fromBytes(str, longString, &error));
 }
-#endif
 
 TEST(Ecs, DescribeFields)
 {
@@ -541,6 +617,8 @@ TEST(Ecs, DescribeFields)
     EXPECT_EQ(types["q"], "quatd");
     EXPECT_EQ(types["m4"], "mat4d");
     EXPECT_EQ(types["selected"], "enum");
+    auto selected = std::find_if(f.begin(), f.end(), [](const FieldInfo& x) { return x.name == "selected"; });
+    EXPECT_EQ(selected->enumValues, (std::vector<std::string>{"wood", "stone"}));
     EXPECT_EQ(types["slots"], "array<int32,3>");
     EXPECT_EQ(types["items"], "vector<ItemStack>");
     EXPECT_EQ(types["nested"], "vector<vector<double>>");

@@ -45,12 +45,14 @@ S04, S05, S06.
   `version` and `visit` (incl. `ChunkId`, `RegionId`, `InstanceKey`), `std::array` and `std::vector` of supported
   types; `float`, `vec*`, `quat`, `mat*` only in a component that declares `static constexpr bool allowFloat = true`
   (render components). Anything else is a compile error.
-- `VisitBinary.h`: `BinaryWriter` / `BinaryReader` visitors (little-endian, the double bit pattern, strings and
-  vectors with a u64 length, enums as `int64`); `toBytes(const T&)`, `fromBytes(T&, bytes)` (asserts on truncated
-  input). The base for `world.save()` (S11) and `world.hash()` (S08).
+- `VisitBinary.h`: `BinaryWriter` / `BinaryReader` visitors (little-endian, the double bit pattern, strings and vectors
+  with a u64 length, enums as `int64`); `toBytes(const T&)`, `fromBytes(T&, bytes)` (asserts on truncated input;
+  replaced in review round 1 by `fromBytes` returning false with a message in every build). The base for `world.save()`
+  (S11) and `world.hash()` (S08).
 - `FieldList.h`: `describeFields<T>()` -> `std::vector<FieldInfo{name, type}>` (type names such as `"double"`,
-  `"vec3d"`, `"vector<ItemStack>"`, `"enum State"`): the field list of the schema tables (S11) and `inspect` (S14).
-- `ComponentPool.h`: `PoolBase` (type-erased: `id`, `has(index)`, `remove(index)`, `size()`, `entities()`) and
+  `"vec3d"`, `"vector<ItemStack>"`, `"enum"` with the value names): the field list of the schema tables (S11) and
+  `inspect` (S14).
+- `ComponentPool.h`: `PoolBase` (type-erased: `id`, `has(index)`, `remove(index)`, `size()`, `denseEntities()`) and
   `ComponentPool<T>` (dense `std::vector<T>` and `std::vector<Entity>`, sparse pages of 4096 entries from the entity
   index to the dense index; swap-and-pop removal).
 - `Registry.h/.cpp` (`SAIGA_ENGINE_API`):
@@ -60,8 +62,8 @@ S04, S05, S06.
     last registered one is registered); `componentInfo(id)` (`name`, `version`, `replicate`, `saved`), `registered(id)`.
   - `create()`, `destroy(e)` (removes all components; the generation increments; the slot goes to the back of a FIFO
     free list), `alive(e)`, `add<T>(e, args...)` (asserts if present), `remove<T>(e)`, `get/tryGet/read/tryRead`,
-    `has<T>`, `mask<C...>()` (static), `entityMask(e)`, `aliveCount()`, `slotFlags(e)` / `setSlotFlags` (the
-    `Simulated` flag of §12.3 later).
+    `has<T>`, `mask<C...>()` (static), `entityMask(e)`, `aliveCount()`, `flags(e)` / `setFlags` (the `Simulated`
+    flag of §12.3 later).
   - Slots: generation, state (`Free`, `Reserved` (used from S08), `Alive`), flags, mask. Slot 0 is never used.
   - `Transform` (ID 0) is built in: every alive entity has one, stored in an array by entity index; `remove<Transform>`
     asserts.
@@ -93,9 +95,9 @@ Tests and docs:
 
 ## Design notes
 
-- `T::id` is used directly (no type map). The pools live in `std::array<std::unique_ptr<PoolBase>, 256>`; a typed
-  access casts the pool after asserting that it is registered (and in debug builds that the stored type matches, via a
-  per-type tag address).
+- `T::id` is used directly (no type map). The pools live in `std::array<std::unique_ptr<PoolBase>, 256>`; a typed access
+  casts the pool after asserting that it is registered (and, with asserts, that the registered type has the same name: a
+  copy-pasted component that kept another ID is caught).
 - Deterministic order: pools are dense arrays whose order depends only on the sequence of structural changes; free
   slots are reused FIFO. No hash maps anywhere in the store.
 - The field-type check is a visitor that only does `static_assert`s; `registerComponent<T>` instantiates `T::visit`
@@ -113,7 +115,7 @@ Tests and docs:
 - Components: `add`/`has`/`get`/`read`/`tryGet`/`tryRead`/`remove`; masks; `destroy` removes every component;
   references stay valid until a structural change (documented, not tested beyond the swap-and-pop case); death tests
   (with `SAIGA_ASSERTS`): add twice, get missing, get on a stale handle, unregistered component, ID registered twice,
-  structural change during `each`, `remove<Transform>`.
+  structural change during `each` (`remove<Transform>` is a `static_assert`).
 - Registration: `validateRegistration` accepts contiguous engine and game IDs and rejects a gap; `componentInfo`.
 - Views: one, two and three components, `const` access, `Transform`-only view over the slots, iteration order is the
   dense order of the smallest pool and is identical for two registries with the same history; removed and destroyed
@@ -148,17 +150,25 @@ implemented API.
 - `saiga_assert_fail` prints to stderr instead of stdout (assertion diagnostics; gtest death tests match stderr, so
   they can check the messages that name the entity and the component). AGENTS.md updated.
 - §3: a row for the ECS core; the S07 row is done.
+- Review round 1: `BinaryReader`/`fromBytes` validate in every build and report errors (`fromBytes` returns false; the
+  checks were asserts, compiled out in release builds, for untrusted saves and packets); vector lengths are bounded by
+  the remaining input divided by the element's minimum size; only fixed-width integers; `std::vector<bool>` rejected;
+  `allowFloat` requires the `Render` name prefix (checked at compile time, R-MATH-1 updated); the typed pool access
+  compares the registered name; `has<T>` on an unregistered type asserts; `describeFields` gives enum value names;
+  compile-fail tests of the field rules (`tests/compile_fail/ecs_field_rules.cpp`, 10 ctest cases); `printCurrentStack`
+  writes to stderr like the assert message.
 
 ## Results
 
-- `tests/test_engine_ecs.cpp`: 21 tests pass (GCC 15), including 4 death tests that match the assert messages; the
+- `tests/test_engine_ecs.cpp`: 23 tests pass (GCC 15), including 3 death tests that match the assert messages; the
   binary layout is pinned (`VisitBinary.h`).
 - `tests/test_engine_ecs_benchmark.cpp` (GCC 15, RelWithDebInfo, i9 laptop; 10^5 entities with 3 components, ms):
   create 16.5, view<1> 0.47, view<Transform, 1> 0.86, view<3> 0.66, random read 1.56, remove + re-add on half 0.92,
   destroy 13.2.
 - AddressSanitizer + UBSan (Clang 19, standalone build of the ECS tests): no reports.
 - Eigen backend: `tests/test_engine_ecs.cpp` compiles with `SAIGA_USE_EIGEN` (syntax check against `submodules/eigen`).
-- Full ctest (CI options + samples, GCC 15): 43/43 pass.
+- Compile-fail cases: 10/10 (each fails with its own `static_assert` message, the control case builds).
+- Full ctest (CI options + samples, GCC 15): 53/53 pass.
 
 ## Files
 

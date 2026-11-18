@@ -163,7 +163,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-43 tests (a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+53 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -177,7 +177,9 @@ ctest -R test_core_ini --output-on-failure             # one test
 - Each `tests/test_*.cpp/.cu` is its own executable, registered in `tests/CMakeLists.txt` with
   `saiga_test(<file> [extra libs])` (links `saiga_core` + gtest; vision tests pass `"saiga_vision"`,
   CUDA tests `"saiga_cuda"`, engine tests (`test_engine_<area>.cpp`) `"saiga_engine"` inside
-  `if (MODULE_ENGINE)`; there are no game tests, the games are samples). **Tests are not globbed** — a new test file must be added there,
+  `if (MODULE_ENGINE)`; there are no game tests, the games are samples). Compile-time rules are tested with
+  compile-fail cases (`tests/compile_fail/`, targets excluded from the build, built by ctest one at a time with
+  `PASS_REGULAR_EXPRESSION` on the `static_assert` message). **Tests are not globbed** — a new test file must be added there,
   inside the matching `MODULE_*` / dependency guard (e.g. the bundle-adjustment tests need
   `CERES_FOUND`).
 - Test style: `using namespace Saiga;`, plain `TEST(Suite, Name)`, `EXPECT_*`/`ASSERT_*`; a

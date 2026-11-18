@@ -150,6 +150,37 @@ if (MODULE_ENGINE)
     saiga_test(test_engine_core.cpp "saiga_engine")
     saiga_test(test_engine_ecs.cpp "saiga_engine")
     saiga_test(test_engine_ecs_benchmark.cpp "saiga_engine")
+
+    # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
+    # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.
+    set(ECS_FIELD_RULE_MESSAGES
+        "ecs_field_rules_ok"
+        "float fields only in components with allowFloat"
+        "enum fields need EnumNames"
+        "unsupported field type"
+        "unsupported field type"
+        "only in components with allowFloat"
+        "float fields only in components with allowFloat"
+        "is not supported \\(use std::vector<uint8_t>\\)"
+        "allowFloat only in Render"
+        "unsupported field type")
+    foreach (FIELD_CASE RANGE 0 9)
+        set(FIELD_TARGET compile_fail_ecs_field_${FIELD_CASE})
+        add_executable(${FIELD_TARGET} EXCLUDE_FROM_ALL compile_fail/ecs_field_rules.cpp)
+        target_link_libraries(${FIELD_TARGET} saiga_engine)
+        target_compile_definitions(${FIELD_TARGET} PRIVATE FIELD_CASE=${FIELD_CASE})
+        set_target_properties(${FIELD_TARGET} PROPERTIES FOLDER tests/compile_fail)
+        add_test(NAME ${FIELD_TARGET}
+                 COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ${FIELD_TARGET} --config $<CONFIG>)
+        list(GET ECS_FIELD_RULE_MESSAGES ${FIELD_CASE} FIELD_MESSAGE)
+        # One build at a time in the build directory
+        set_tests_properties(${FIELD_TARGET} PROPERTIES RESOURCE_LOCK cmake_build_dir)
+        if (FIELD_CASE EQUAL 0)
+            # The control case must build (exit code 0)
+        else ()
+            set_tests_properties(${FIELD_TARGET} PROPERTIES PASS_REGULAR_EXPRESSION "${FIELD_MESSAGE}")
+        endif ()
+    endforeach ()
 endif ()
 
 if (MODULE_CUDA)

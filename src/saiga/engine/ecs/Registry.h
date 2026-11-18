@@ -16,6 +16,7 @@
 #include "saiga/export.h"
 
 #include <array>
+#include <cstring>
 #include <deque>
 #include <memory>
 #include <string>
@@ -123,6 +124,9 @@ class SAIGA_ENGINE_API Registry
     // True while a view iterates (structural changes assert)
     bool iterating() const { return iterationDepth > 0; }
 
+    // Tests only: sets the generation of a free or alive slot (generation wrap-around)
+    void debugSetGeneration(uint32_t index, uint32_t generation);
+
    private:
     template <class... C>
     friend class View;
@@ -181,8 +185,11 @@ ComponentPool<T>& Registry::pool() const
     static_assert(T::id != Transform::id, "Transform has no pool");
     PoolBase* p = pools[T::id].get();
     SAIGA_ASSERT(p, std::string("component ") + T::name + " (ID " + std::to_string(int(T::id)) + ") is not registered");
-    SAIGA_ASSERT(p->elementSize == sizeof(T), std::string("component ID ") + std::to_string(int(T::id)) +
-                                                  " is registered as " + p->name + ", not " + T::name);
+    // The registered type must be T (e.g. a copy-pasted component that kept another's ID): the name, pointer equality
+    // first (strcmp across DLLs, where the literal may have another address)
+    SAIGA_ASSERT(p->name == T::name || std::strcmp(p->name, T::name) == 0,
+                 std::string("component ID ") + std::to_string(int(T::id)) + " is registered as " + p->name + ", not " +
+                     T::name);
     return static_cast<ComponentPool<T>&>(*p);
 }
 
@@ -217,7 +224,11 @@ bool Registry::has(Entity e) const
     if constexpr (T::id == Transform::id)
         return true;
     else
+    {
+        SAIGA_ASSERT(infos[T::id].registered, std::string("component ") + T::name + " (ID " +
+                                                  std::to_string(int(T::id)) + ") is not registered");
         return slots[e.index].mask.test(T::id);
+    }
 }
 
 template <class T>

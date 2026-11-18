@@ -108,6 +108,12 @@ void Registry::destroy(Entity e)
     aliveEntities--;
 }
 
+void Registry::debugSetGeneration(uint32_t index, uint32_t generation)
+{
+    SAIGA_ASSERT(index != 0 && index < slots.size());
+    slots[index].generation = generation;
+}
+
 uint8_t Registry::flags(Entity e) const
 {
     checkAlive(e, "flags");

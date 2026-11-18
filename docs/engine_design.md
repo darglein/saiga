@@ -41,8 +41,9 @@ automatically.
 
 - **R-MATH-1** (from S07) Simulation state is double. Components store `double`, `Vec2/3/4`, `Quat`, `Mat3/4`, integers,
   `bool`, enums, `Entity`, `PersistentId`, `ChunkId`, strings, never `float`, `vec*`, `quat`, `mat*`. Exception:
-  components whose name starts with `Render` (render-only data). Float exists only in the render path (extract, §10.3)
-  and in render data relative to a chunk or region origin (§9.1). Simulation time and `dt` are `double`.
+  components whose name starts with `Render` (render-only data) and that declare `static constexpr bool allowFloat =
+  true` (both checked at compile time by `registerComponent`). Float exists only in the render path (extract, §10.3) and
+  in render data relative to a chunk or region origin (§9.1). Simulation time and `dt` are `double`.
 - **R-MATH-2** (from S05) Engine and game code compile with tiny-eigen (`SAIGA_WITH_TINY_EIGEN=ON`, the default and the
   CI configuration). Use the API subset of §7.10 and saiga's helpers in `core/math/EigenGLMInterface.h`; missing
   functions are added to tiny-eigen (part of this repository, tested in `tests/test_core_tiny_eigen.cpp`) and, where
@@ -366,15 +367,19 @@ struct Health
   `visit`, rebuilt on load): `Behaviour::object` (`std::unique_ptr<GameObject>`) and `RigidBody::body` (the body is
   recreated from the components on load, §11).
 - `visit` lists every field: `v(name, field)` or `v(name, field, options)`. Field types: those of R-MATH-1, plus (only
-  in components that declare `static constexpr bool allowFloat = true`, the `Render*` components) `float`, `vec*`,
-  `quat`, `mat*`; `std::array` and `std::vector` of supported types (e.g. an
-  inventory as `std::vector<ItemStack>` of a `visit`-able struct). Enums are visited with
-  their names: `v("state", state, EnumNames{WandererStateNames})`; the enum ends with `Count` and the visitor checks
-  `std::size(names) == size_t(E::Count)` at compile time; enums inside containers are not supported (wrap them in a
-  nested struct). Network option: `Quantize{0.01}` (on double, `Vec`, `Mat` and `Quat` fields). Other types are compile
-  errors (`registerComponent` instantiates `visit` with a checking visitor). The binary form (`VisitBinary.h`):
-  little-endian integers, bit patterns of doubles, `bool` as one byte, enums as `int64`, strings and vectors with a
-  u64 length, matrices column-major, quaternions w, x, y, z.
+  in `Render*` components that declare `static constexpr bool allowFloat = true`) `float`, `vec*`, `quat`, `mat*`;
+  integers only as the fixed-width types (`int8_t` .. `uint64_t`: `long` differs between platforms); `std::array` and
+  `std::vector` of supported types (e.g. an inventory as `std::vector<ItemStack>` of a `visit`-able struct). Enums are
+  visited with their names: `v("state", state, EnumNames{WandererStateNames})`; the enum ends with `Count` and the
+  visitor checks `std::size(names) == size_t(E::Count)` at compile time; enums inside containers are not supported (wrap
+  them in a nested struct). Network option: `Quantize{0.01}` (on double, `Vec`, `Mat` and `Quat` fields). Other types
+  are compile errors (`registerComponent` instantiates `visit` with a checking visitor; `std::vector<bool>` is rejected
+  too; compile-fail tests in `tests/compile_fail/`). The binary form (`VisitBinary.h`): little-endian integers, bit
+  patterns of doubles, `bool` as one byte, enums as `int64`, strings and vectors with a u64 length, matrices
+  column-major, quaternions w, x, y, z. The reader treats its input as untrusted (saves, packets): every check runs in
+  every build, `fromBytes` returns false with a message (truncated input, an enum value out of range, a vector longer
+  than the input can hold, bytes left over). `describeFields<T>()` lists name and type per field, enums with their value
+  names.
 - At 200 registered types registration logs a warning (prefer fields on an existing component or a tag).
 
 ### 7.3 Storage
