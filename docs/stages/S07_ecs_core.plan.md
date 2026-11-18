@@ -188,6 +188,10 @@ implemented API.
   &error)` returns false, `toBytes(value)` stops via `SAIGA_EXIT_ERROR`); the ECS tests also pass with `SAIGA_ASSERTS`
   undefined.
 
+- CodeRabbit, fourth pass: `destroy` clears each mask bit with its component (a later destructor sees `has() == false`);
+  the writer enforces the reader's limits (`kMaxStructDepth` = 64, enum values without a name) with an error instead of
+  writing an unreadable buffer; `toBytes` encodes into a separate buffer (the output may be a field of the value).
+
 ## Notes for S08
 
 From review round 3, for the World built on this registry:
@@ -201,12 +205,13 @@ From review round 3, for the World built on this registry:
 - Const iteration (`hash() const`) and an atomic or worker-forbidden `iterationDepth` for nested views inside
   `parallelEach`; a flag predicate in `View` for `Simulated`; access to slot generations, states and the free list
   for saves (§15.1); the structural log hook in `destroy` (decide whether `Transform` is logged).
-- `Transform::visit` writes the fields without the change flags: decode into a temporary and apply through the setters
-  or `teleport` (loading, replication).
+- `Transform::visit` writes the fields without the change flags: decode into a temporary and apply position, rotation
+  and scale through the setters or `teleport`, and a different space through `World::moveToSpace` (the setters do not
+  change the space) when loading or replicating.
 
 ## Results
 
-- `tests/test_engine_ecs.cpp`: 28 tests pass (GCC 15), including 3 death tests that match the assert messages; the
+- `tests/test_engine_ecs.cpp`: 31 tests pass (GCC 15), including 3 death tests that match the assert messages; the
   binary layout is pinned (`VisitBinary.h`).
 - `tests/test_engine_ecs_benchmark.cpp` (GCC 15, RelWithDebInfo, i9 laptop; 10^5 entities with 3 components, ms):
   create 16.5, view<1> 0.47, view<Transform, 1> 0.86, view<3> 0.66, random read 1.56, remove + re-add on half 0.92,

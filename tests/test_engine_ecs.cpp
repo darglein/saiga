@@ -777,17 +777,122 @@ TEST(Ecs, SelfContainingStructRegistersAndRoundTrips)
     ASSERT_EQ(out.root.children[1].children.size(), 1u);
     EXPECT_EQ(out.root.children[1].children[0].value, 4);
 
-    // A tree deeper than the reader's nesting limit is rejected instead of overflowing the stack
+    // The nesting limit: the writer refuses a tree deeper than kMaxStructDepth (no unreadable buffer) ...
     TreeNode deep;
     TreeNode* n = &deep;
-    for (int i = 0; i < BinaryReader::kMaxDepth + 5; ++i)
+    for (int i = 0; i < kMaxStructDepth + 5; ++i)
     {
         n->children.resize(1);
         n = &n->children[0];
     }
-    TreeNode deepOut;
-    EXPECT_FALSE(fromBytes(deepOut, toBytes(deep), &error));
+    std::vector<uint8_t> bytes;
+    EXPECT_FALSE(toBytes(deep, bytes, &error));
     EXPECT_NE(error.find("nested deeper"), std::string::npos) << error;
+    // ... and the reader rejects such input (a hand-built buffer: per level value 0 and one child, then no child)
+    // instead of overflowing the stack
+    std::vector<uint8_t> wire;
+    for (int i = 0; i < kMaxStructDepth + 5; ++i)
+    {
+        wire.insert(wire.end(), {0, 0, 0, 0});              // value
+        wire.insert(wire.end(), {1, 0, 0, 0, 0, 0, 0, 0});  // one child
+    }
+    wire.insert(wire.end(), {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});  // the innermost node: value, no children
+    TreeNode deepOut;
+    EXPECT_FALSE(fromBytes(deepOut, wire, &error));
+    EXPECT_NE(error.find("nested deeper"), std::string::npos) << error;
+    // A chain of exactly kMaxStructDepth nested nodes (the root and 63 descendants) round-trips
+    TreeNode ok;
+    n = &ok;
+    for (int i = 0; i < kMaxStructDepth - 1; ++i)
+    {
+        n->children.resize(1);
+        n = &n->children[0];
+    }
+    ASSERT_TRUE(toBytes(ok, bytes, &error)) << error;
+    TreeNode okOut;
+    EXPECT_TRUE(fromBytes(okOut, bytes, &error)) << error;
+}
+
+TEST(Ecs, WriterRefusesValuesTheReaderRejects)
+{
+    std::string error;
+    std::vector<uint8_t> bytes;
+    // An enum value without a name (Count)
+    ItemStack s{ItemKind::Count, 1};
+    EXPECT_FALSE(toBytes(s, bytes, &error));
+    EXPECT_NE(error.find("has no name"), std::string::npos) << error;
+    ItemStack valid{ItemKind::Stone, 1};
+    EXPECT_TRUE(toBytes(valid, bytes, &error)) << error;
+}
+
+// Regression: toBytes cleared its output before reading the value, so an output that is a field of the value was
+// written as empty
+struct ByteBlob
+{
+    static constexpr const char* name = "ByteBlob";
+    static constexpr uint32_t version = 1;
+    std::vector<uint8_t> data;
+    template <class V>
+    void visit(V& v)
+    {
+        v("data", data);
+    }
+};
+
+TEST(Ecs, ToBytesIntoAFieldOfTheValue)
+{
+    ByteBlob b;
+    b.data = {1, 2, 3};
+    std::string error;
+    ASSERT_TRUE(toBytes(b, b.data, &error)) << error;
+    // u64 length 3, then the three bytes
+    EXPECT_EQ(b.data, (std::vector<uint8_t>{3, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3}));
+}
+
+// Regression: destroy cleared the mask after removing all components, so a component destructor saw has() == true
+// for a component that was already gone
+Registry* g_observedRegistry = nullptr;
+Entity g_observedEntity;
+int g_hasHealthInDestructor = -1;
+struct ObservesHealth
+{
+    static constexpr const char* name = "ObservesHealth";
+    static constexpr ComponentId id   = 122;
+    static constexpr uint32_t version = 1;
+    bool armed                        = false;
+    ObservesHealth()                  = default;
+    ObservesHealth(ObservesHealth&& o) noexcept : armed(o.armed) { o.armed = false; }
+    ObservesHealth& operator=(ObservesHealth&& o) noexcept
+    {
+        armed   = o.armed;
+        o.armed = false;
+        return *this;
+    }
+    ~ObservesHealth()
+    {
+        if (armed && g_observedRegistry)
+            g_hasHealthInDestructor = g_observedRegistry->entityMask(g_observedEntity).test(Health::id) ? 1 : 0;
+    }
+    template <class V>
+    void visit(V&)
+    {
+    }
+};
+
+TEST(Ecs, DestroyClearsEachMaskBitWithItsComponent)
+{
+    Registry r;
+    registerTest(r);
+    r.registerComponent<ObservesHealth>();
+    Entity e = r.create();
+    r.add<Health>(e);
+    r.add<ObservesHealth>(e);
+    r.get<ObservesHealth>(e).armed = true;
+    g_observedRegistry             = &r;
+    g_observedEntity               = e;
+    r.destroy(e);  // Health (ID 64) is removed before ObservesHealth (ID 122)
+    g_observedRegistry = nullptr;
+    EXPECT_EQ(g_hasHealthInDestructor, 0);
 }
 
 TEST(Ecs, DescribeFields)

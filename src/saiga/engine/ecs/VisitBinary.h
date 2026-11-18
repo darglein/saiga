@@ -26,12 +26,15 @@ namespace Engine
 {
 // The largest count of a vector whose elements encode to zero bytes (empty structs): written and read as a count only
 constexpr uint64_t kMaxEmptyElements = 1 << 16;
+// The largest nesting of structs (self-containing structs such as trees), for writing and reading
+constexpr int kMaxStructDepth = 64;
 
 template <class T>
 size_t minEncodedSize();
 
-// Writes the binary form. Values the reader would reject (more than kMaxEmptyElements zero-byte elements) set an error
-// in every build; the output is then incomplete (ok() / error()).
+// Writes the binary form. Values the reader would reject (more than kMaxEmptyElements zero-byte elements, structs
+// nested deeper than kMaxStructDepth, enum values without a name) set an error in every build; the output is then
+// incomplete (ok() / error()).
 class BinaryWriter
 {
    public:
@@ -48,7 +51,14 @@ class BinaryWriter
     template <class E, size_t N>
     void operator()(const char*, E& field, const EnumNames<N>&)
     {
-        writeUnsigned(uint64_t(int64_t(field)), 8);
+        // The reader rejects values without a name (e.g. E::Count): never write them
+        int64_t v = int64_t(field);
+        if (v < 0 || uint64_t(v) >= N)
+        {
+            setError("enum value " + std::to_string(v) + " has no name (" + std::to_string(N) + " names)");
+            return;
+        }
+        writeUnsigned(uint64_t(v), 8);
     }
     template <class T>
     void operator()(const char*, T& field, const Quantize&)
@@ -106,9 +116,8 @@ class BinaryWriter
             // error in every build, not an assert: the buffer would be unreadable)
             if (v.size() > kMaxEmptyElements && minEncodedSize<typename T::value_type>() == 0)
             {
-                if (err.empty())
-                    err = "vector of " + std::to_string(v.size()) +
-                          " elements without bytes (more than kMaxEmptyElements, the reader rejects it)";
+                setError("vector of " + std::to_string(v.size()) +
+                         " elements without bytes (more than kMaxEmptyElements, the reader rejects it)");
                 return;
             }
             writeUnsigned(uint64_t(v.size()), 8);
@@ -120,8 +129,16 @@ class BinaryWriter
         }
         else if constexpr (IsVisitStruct<T>::value)
         {
+            // The reader's nesting limit applies to writing too (no buffer that cannot be read back)
+            if (depth >= kMaxStructDepth)
+            {
+                setError("nested deeper than " + std::to_string(kMaxStructDepth) + " structs");
+                return;
+            }
+            depth++;
             // visit is non-const by design (one function for reading and writing)
             const_cast<T&>(v).visit(*this);
+            depth--;
         }
         else
         {
@@ -135,8 +152,14 @@ class BinaryWriter
         for (int i = 0; i < bytes; ++i) out.push_back(uint8_t(v >> (8 * i)));
     }
 
+    void setError(const std::string& message)
+    {
+        if (err.empty()) err = message;
+    }
+
     std::vector<uint8_t>& out;
     std::string err;
+    int depth = 0;
 };
 
 // Minimum number of bytes of one encoded value (bounds the allocation of a vector from its length field). Nested
@@ -323,7 +346,7 @@ class BinaryReader
     }
 
     // The largest nesting of structs (self-containing structs such as trees)
-    static constexpr int kMaxDepth = 64;
+    static constexpr int kMaxDepth = kMaxStructDepth;
 
     bool ok() const { return err.empty(); }
     const std::string& error() const { return err; }
@@ -368,10 +391,12 @@ class BinaryReader
 template <class T>
 bool toBytes(const T& value, std::vector<uint8_t>& out, std::string* error)
 {
-    out.clear();
-    BinaryWriter w(out);
+    // Into a separate buffer: out may be a field of value
+    std::vector<uint8_t> bytes;
+    BinaryWriter w(bytes);
     w.write(value);
     if (error) *error = w.error();
+    out = std::move(bytes);
     return w.ok();
 }
 

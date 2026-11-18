@@ -114,7 +114,12 @@ void Registry::destroy(Entity e)
     // components have noexcept moves and the sparse pages exist.
     destroying = true;
     for (size_t id = 1; id < kMaxComponents; ++id)
-        if (s.mask.test(ComponentId(id))) pools[id]->remove(e.index);
+    {
+        if (!s.mask.test(ComponentId(id))) continue;
+        // The bit goes with the component: a destructor of a later component sees has() == false for this one
+        s.mask.reset(ComponentId(id));
+        pools[id]->remove(e.index);
+    }
     destroying = false;
     s.mask.clear();
     s.state      = SlotState::Free;
