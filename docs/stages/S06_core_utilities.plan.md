@@ -133,10 +133,13 @@ All the tests above pass in CI on GCC, Clang and MSVC; `docs/engine_design.md` d
   picked the byte overload); `uniform(a, b)` excludes `b` also when the formula rounds up; exceptions skip the
   remaining chunks only best effort (documented; the test checks the skipping only serially); ring insertion and the
   stdout echo under one lock (stdout in sequence order). §7.10 and §8.5 updated.
+- Review round 2: `uniform(a, b)` with `std::fma` (the same rounding with and without FMA contraction, e.g.
+  `-march=native`, MSVC, aarch64); §8.5: `parallelFor` cannot host Jolt's job system, S28 adds a submit/barrier API or
+  uses Jolt's thread pool; §8.4, §12.1, §12.4 use `hashCombine` instead of a non-existent `fnv1a(a, b)`.
 
 ## Results
 
-- `tests/test_engine_core.cpp`: 21 tests pass (GCC 15, RelWithDebInfo); the PCG32 reference values of the PCG demo and
+- `tests/test_engine_core.cpp`: 22 tests pass (GCC 15, RelWithDebInfo); the PCG32 reference values of the PCG demo and
   the FNV-1a reference values hold; the pinned `range`/`uniform`/`Hasher` values are equal with GCC 15 and Clang 19.
 - ThreadSanitizer (Clang 19, the engine core sources and the test compiled with `-fsanitize=thread`): no reports in 5
   runs of the JobPool and Log tests and 20 repeats of the JobPool tests.

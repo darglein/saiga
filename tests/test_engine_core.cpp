@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <mutex>
@@ -344,6 +345,9 @@ TEST(Rng, FixedValuesOfRangeAndUniform)
         EXPECT_EQ(wide.range(-(int64_t(1) << 40), int64_t(1) << 40), e);
     Rng u(42, 54);
     EXPECT_EQ(u.uniform(), 0.6303102186438938);
+    // uniform(a, b) uses std::fma: the same values with and without FMA contraction (checked with -march=haswell)
+    Rng ab(42, 54);
+    for (double e : {5.7546532796584069, 7.2051208401029054, 7.5290504719977251}) EXPECT_EQ(ab.uniform(-3.7, 11.3), e);
 
     // The rejection paths (about half of the draws are rejected for these spans): a wrong rejection bound changes the
     // values. 64 bits: a span of 2^63 + 21; 32 bits (Lemire): a span of 2^31 + 1.
@@ -362,7 +366,7 @@ TEST(Rng, UniformIntervalNeverReturnsTheUpperBound)
     // A state whose next two outputs give the largest uniform() value is hard to construct; check the rounding case
     // directly with the same formula and the guarded function on many intervals.
     const double u = 1.0 - 1.0 / 9007199254740992.0;
-    EXPECT_EQ(1.0 + (2.0 - 1.0) * u, 2.0);  // the unguarded formula fails
+    EXPECT_EQ(std::fma(2.0 - 1.0, u, 1.0), 2.0);  // the unguarded formula rounds up to b
     Rng rng(5);
     for (int i = 0; i < 100000; ++i)
     {

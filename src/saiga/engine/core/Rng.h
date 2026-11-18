@@ -64,15 +64,17 @@ class Rng
         return double((a << 26) | b) * (1.0 / 9007199254740992.0);
     }
 
-    // [a, b) for a < b (a for a == b). a + (b - a) * u can round up to b for u close to 1: then the largest double
-    // below b is returned.
+    // [a, b) for a < b (a for a == b). std::fma: one rounding on every compiler and CPU (a * b + c may or may not be
+    // contracted to an FMA instruction depending on the build, which changes the last bit). The result can round up
+    // to b for u close to 1: then the largest double below b is returned.
     double uniform(double a, double b)
     {
-        double r = a + (b - a) * uniform();
+        double r = std::fma(b - a, uniform(), a);
         return (r < b || a == b) ? r : std::nextafter(b, a);
     }
 
-    // Uniform in [a, b] (both inclusive), without modulo bias. One output for spans up to 2^32, two above.
+    // Uniform in [a, b] (both inclusive), without modulo bias. Per attempt one output for spans up to 2^32, two above;
+    // a rejected attempt draws again.
     int64_t range(int64_t a, int64_t b)
     {
         SAIGA_ASSERT(a <= b, "Rng::range: a > b");

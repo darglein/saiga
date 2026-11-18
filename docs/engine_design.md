@@ -647,7 +647,7 @@ class Rng   // PCG32 (pcg32 of pcg-random.org), engine/core/Rng.h [exists]
     explicit Rng(uint64_t seed = 0, uint64_t stream = 0);   // pcg32_srandom: Rng(42, 54) gives the reference values
     uint32_t nextU32(); uint64_t nextU64();
     double uniform();                                         // [0, 1), 53 bits from two outputs
-    double uniform(double a, double b);                       // [a, b) (a rounding up to b is moved below b)
+    double uniform(double a, double b);                       // [a, b): fma(b - a, u, a), b is moved below b
     int64_t range(int64_t a, int64_t b);                      // [a, b] inclusive, no modulo bias
     struct State { uint64_t state, increment; };              // saved by the world
     State state() const; void setState(const State&);
@@ -821,7 +821,7 @@ class EngineApp   // engine/app/EngineApp.h
   `struct TickPolicy { double nearDistance = 50, midDistance = 200, midInterval = 0.1, farInterval = 0.5; };` in
   `WorldConfig`; a class overrides it with `virtual const TickPolicy* tickPolicy() const { return nullptr; }`; players
   and objects with `Behaviour::alwaysTickEveryStep` tick every step. `sinceTick` starts at
-  `(fnv1a(index) % 1024) / 1024.0 * tickInterval`.
+  `(hashCombine(0, index) % 1024) / 1024.0 * tickInterval`.
 - `ScenarioWorld` ticks every object every step unless `w.enableDistanceTicking()`.
 
 ### 8.5 Threading [exists: S06 (JobPool); streaming pool: S20; network thread: S33]
@@ -829,7 +829,7 @@ class EngineApp   // engine/app/EngineApp.h
 | Thread(s) | Work |
 |---|---|
 | main | steps (systems serially), extract, render recording, MCP |
-| frame `JobPool` (`setWorkerThreads`, the caller participates) | `parallelEach`; per-frame `JobPool::parallelFor` jobs (pose evaluation, extract); Jolt jobs through a job system adapter |
+| frame `JobPool` (`setWorkerThreads`, the caller participates) | `parallelEach`; per-frame `JobPool::parallelFor` jobs (pose evaluation, extract); Jolt jobs through a job system adapter (S28 adds a non-blocking submit/barrier API to `JobPool` for it, or uses Jolt's `JobSystemThreadPool` with the same worker count; `parallelFor` alone cannot serve Jolt) |
 | streaming pool (2-3 low-priority workers) | chunk and region generation, terrain meshing, file IO, compression |
 | network thread | socket IO only, queues to and from the main thread |
 | audio (S47) | device callback / mixing; reads a lock-free command queue filled by the main thread, writes no components |
@@ -1411,7 +1411,7 @@ class PhysicsWorld
   with a site.
 - **Space instances**: the plan of space 0 lists all space instances; every other instance computes its own plan with
   `plan(version, instanceSeed, template)`, whose `spaces` list is empty. The list: `SpaceId` = index in the plan's space
-  list (0 = overworld), template (`SpaceTemplate`), instance seed = fnv1a(world seed, site key); `SpaceLink::target` is
+  list (0 = overworld), template (`SpaceTemplate`), instance seed = hashCombine(world seed, site key); `SpaceLink::target` is
   filled at stamping from the plan; the list is part of the pinned plan version. Every space instance comes from the
   plan; spaces are not created or deleted at run time (§20).
 - **Content hash** per generated chunk over the integer output; a CI test compares generated chunks with committed
@@ -1579,7 +1579,7 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
 - Each peer renders only the space of its own camera; switching the space swaps the resident render data, no
   rendering of two spaces at once.
 - **Before S23** (S21): there is one space instance per `spaceTemplates` entry (`SpaceId` = template index, seed =
-  fnv1a(world seed, index)); authored enclosed geometry comes with prefabs in S23, its colliders in S28. **Before S24**:
+  hashCombine(world seed, index)); authored enclosed geometry comes with prefabs in S23, its colliders in S28. **Before S24**:
   there is no arrival mechanism; `requestTransition` completes in the next step (simulation tiles are generated
   synchronously on demand, §12.2); the loading screen waits for the visual data only on the local peer and does not
   affect the simulation.
