@@ -287,7 +287,6 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
 
     // Runs while paused (exactly n steps, within a wall-clock budget), or waits for n steps while running (answered
     // before the tool call times out, with the steps measured so far)
-    const double timeout = server.toolTimeoutSeconds;
     server.addTool(
         "measure_performance",
         "Measures n steps (default 120, at most 600: the profile history) and returns the step profile of exactly "
@@ -303,9 +302,11 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             schema["additionalProperties"] = false;
             return Json(schema);
         }(),
-        [weak, timeout, serverPtr = &server](const Json& args, McpServer::Respond respond)
+        [weak, serverPtr = &server](const Json& args, McpServer::Respond respond)
         {
-            auto a = weak.lock();
+            // The current timeout (the app may change it after registration)
+            const double timeout = serverPtr->toolTimeoutSeconds;
+            auto a               = weak.lock();
             if (!a || !a->world()) return respond(ToolResult::Error("the world is not available"));
             for (auto& kv : args.object_items())
                 if (kv.first != "steps") return respond(ToolResult::Error("unknown argument \"" + kv.first + "\""));
@@ -336,16 +337,20 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             // when the world stops stepping), when the profile is reset, or when the world is destroyed
             struct Measurement
             {
-                bool answered = false;
+                bool answered  = false;
+                bool worldGone = false;
                 uint64_t start, resets;
+                World* world        = nullptr;  // holds the destroy listener
                 int destroyListener = -1;
             };
             auto m             = std::make_shared<Measurement>();
             m->start           = w.profiler().sampleCount();
             m->resets          = w.profiler().resetCount();
+            m->world           = &w;
             m->destroyListener = w.addDestroyListener(
                 [respond, m]()
                 {
+                    m->worldGone = true;
                     if (m->answered) return;
                     m->answered = true;
                     respond(ToolResult::Error("the world was destroyed during the measurement"));
@@ -358,6 +363,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 if (!api || !api->world())
                 {
                     m->answered = true;
+                    if (!m->worldGone) m->world->removeDestroyListener(m->destroyListener);
                     respond(ToolResult::Error("the world is not available"));
                     return false;
                 }
@@ -370,10 +376,17 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                     return false;
                 }
                 const uint64_t done = world.profiler().sampleCount() - m->start;
-                if (done < uint64_t(n) && elapsed() < 0.8 * timeout) return true;
+                // Half the tool timeout: the call may have waited in the server's queue before the handler ran
+                if (done < uint64_t(n) && elapsed() < 0.5 * timeout) return true;
                 m->answered = true;
                 world.removeDestroyListener(m->destroyListener);
-                Json report = world.profiler().report(int(done));
+                // No step ran: an empty window (report(0) would be the whole history)
+                Json report = done > 0 ? world.profiler().report(int(done))
+                                       : Json(Json::object{{"unit", "ms"},
+                                                           {"samples", 0},
+                                                           {"top", Json::array{}},
+                                                           {"scopes", Json::array{}},
+                                                           {"counters", Json::array{}}});
                 if (done < uint64_t(n))
                 {
                     Json::object o     = report.object_items();

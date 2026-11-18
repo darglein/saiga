@@ -858,10 +858,11 @@ void WorldApi::trackMoves()
     // The entities whose Transform changed in any phase of the step that just ended, with their handle (a reused slot
     // is not reported as moved)
     const uint64_t stepIndex = w->stepIndex();
-    for (uint32_t index : w->changedDuringLastStep())
+    // The handles were taken when the step ended (a listener before this one may have reused a slot since)
+    for (Entity e : w->changedDuringLastStep())
     {
-        if (index >= lastMoved.size()) lastMoved.resize(size_t(index) + 1);
-        lastMoved[index] = {w->registry().aliveAt(index), stepIndex};
+        if (e.index >= lastMoved.size()) lastMoved.resize(size_t(e.index) + 1);
+        lastMoved[e.index] = {e, stepIndex};
     }
 }
 

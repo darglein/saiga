@@ -1154,14 +1154,41 @@ TEST(WorldTools, MeasurementDeadlineWithoutStepsAndReset)
         EXPECT_TRUE(toolJson(m)["stopped_early"].bool_value());
     }
     {
+        // Resets every 3 steps: one falls into the 300-step measurement whenever the request starts
         int steps = 0;
         Poller poller(server,
                       [&]()
                       {
                           w.step();
-                          if (++steps == 3) w.profiler().reset();
+                          if (++steps % 3 == 0) w.profiler().reset();
                       });
-        Json m = callTool(server, "measure_performance", obj(R"({"steps": 50})"));
-        EXPECT_TRUE(m["result"]["isError"].bool_value());
+        Json m = callTool(server, "measure_performance", obj(R"({"steps": 300})"));
+        ASSERT_TRUE(m["result"]["isError"].bool_value());
+        EXPECT_NE(m["result"]["content"][0]["text"].string_value().find("reset"), std::string::npos) << m.dump();
     }
+}
+
+// Regression (CodeRabbit): a step listener before the API's destroyed a moved entity and reused its slot; the API took
+// the handle afterwards and reported the replacement as moved
+TEST(WorldApi, MovesKeepTheHandleOfTheStep)
+{
+    World w(apiSetup());
+    Entity mover = w.create();
+    Entity replacement;
+    w.addStepListener(
+        [&]()
+        {
+            if (!w.alive(mover)) return false;
+            w.destroy(mover);
+            replacement = w.create();
+            return false;
+        });
+    WorldApi api(w);
+    Json cursor = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true})")).value["cursor"];
+    w.get<Transform>(mover).setPosition(Vec3(1, 0, 0));
+    w.step();
+    ASSERT_EQ(replacement.index, mover.index);
+    ApiResult r = api.call("changes_since", Json(Json::object{{"cursor", cursor}, {"include_moved", true}}));
+    ASSERT_TRUE(r.ok) << r.error;
+    EXPECT_TRUE(r.value["moved"].array_items().empty()) << r.value.dump();
 }

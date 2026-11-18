@@ -317,7 +317,7 @@ class SAIGA_ENGINE_API World
     // (any phase), collected during the flag shift at the end of the step (the world API's change journal)
     void retainStepChanges() { trackStepChanges++; }
     void releaseStepChanges() { trackStepChanges = std::max(0, trackStepChanges - 1); }
-    const std::vector<uint32_t>& changedDuringLastStep() const { return stepChanged; }
+    const std::vector<Entity>& changedDuringLastStep() const { return stepChanged; }
 
     // Recounts the children per entity from the Parent pool and marks the hierarchy order dirty (after the registry was
     // filled directly, e.g. by load in S11)
@@ -437,7 +437,7 @@ class SAIGA_ENGINE_API World
     std::vector<std::pair<int, std::function<void()>>> destroyListeners;
     int nextListenerId   = 0;
     int trackStepChanges = 0;
-    std::vector<uint32_t> stepChanged;
+    std::vector<Entity> stepChanged;
     void runStepListeners();
     uint64_t persistentCounter = 0;
     std::vector<std::pair<Entity, PersistentId>> pendingPersistent;  // assigned in this phase, added at the flush

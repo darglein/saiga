@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <future>
 #include <iostream>
 #include <sstream>
@@ -651,11 +652,23 @@ void McpServer::poll()
             c->answer(ToolResult::Error(std::string("Exception: ") + e.what()));
         }
     }
-    // Listeners may add listeners (kept) and remove themselves (return false)
+    // Listeners may add listeners (kept) and remove themselves (return false). A throwing listener is removed; the
+    // others still run, then the first exception is rethrown.
     std::vector<std::function<bool()>> current;
     current.swap(pollListeners);
+    std::exception_ptr first;
     for (auto& l : current)
-        if (l()) pollListeners.push_back(std::move(l));
+    {
+        try
+        {
+            if (l()) pollListeners.push_back(std::move(l));
+        }
+        catch (...)
+        {
+            if (!first) first = std::current_exception();
+        }
+    }
+    if (first) std::rethrow_exception(first);
 }
 
 McpServer::ToolResult McpServer::callTool(const std::string& toolName, const Json& arguments)
