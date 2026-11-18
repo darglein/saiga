@@ -53,11 +53,25 @@ std::filesystem::path os_path(const std::filesystem::path& path, LongPathPrefix 
         return path;
     }
 
+    const std::wstring& raw = path.native();
+    if (raw.size() >= 2 && is_separator(raw[0]) && is_separator(raw[1]))
+    {
+        // \\server\share\rest becomes \\?\UNC\server\share\rest, with only rest normalized. Not through absolute()
+        // and lexically_normal(): libstdc++ takes \\server for a root directory and loses the share.
+        const std::wstring unc  = std::filesystem::path(raw.substr(2)).make_preferred().native();
+        const size_t server_end = unc.find(L'\\');
+        const size_t share_end  = server_end == std::wstring::npos ? server_end : unc.find(L'\\', server_end + 1);
+        std::wstring normal     = unc.substr(0, share_end);
+        if (share_end != std::wstring::npos)
+        {
+            normal += std::filesystem::path(unc.substr(share_end)).lexically_normal().make_preferred().native();
+        }
+        if (prefix == LongPathPrefix::IfNeeded && normal.size() + 2 <= max_unprefixed_length) return path;
+        return verbatim_unc_prefix + normal;
+    }
+
     std::error_code ec;
-    // A \\server\share path is absolute already; libstdc++'s absolute() would take it for a path on the current drive.
-    const std::wstring& raw        = path.native();
-    const bool unc                 = raw.size() >= 2 && is_separator(raw[0]) && is_separator(raw[1]);
-    std::filesystem::path absolute = unc ? path : std::filesystem::absolute(path, ec);
+    std::filesystem::path absolute = std::filesystem::absolute(path, ec);
     if (ec) return path;
     // Windows doesn't normalize a path after the prefix, and libstdc++'s absolute() returns absolute paths as they are.
     absolute = absolute.lexically_normal().make_preferred();
@@ -65,11 +79,6 @@ std::filesystem::path os_path(const std::filesystem::path& path, LongPathPrefix 
     const std::wstring& s = absolute.native();
     if (prefix == LongPathPrefix::IfNeeded && s.size() <= max_unprefixed_length) return path;
 
-    if (s.size() >= 2 && is_separator(s[0]) && is_separator(s[1]))
-    {
-        // \\server\share\... becomes \\?\UNC\server\share\...
-        return verbatim_unc_prefix + s.substr(2);
-    }
     if (s.size() >= 3 && s[1] == L':' && is_separator(s[2]))
     {
         return verbatim_prefix + s;

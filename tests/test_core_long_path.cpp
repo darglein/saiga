@@ -80,8 +80,12 @@ static void WriteText(const std::filesystem::path& file, const std::string& cont
 
 TEST(LongPath, ShortPathsAreUnchanged)
 {
+    // Unless the working directory is so long that the relative path resolves to a long one.
     auto relative = std::filesystem::path("folder") / "file.txt";
-    EXPECT_EQ(os_path(relative), relative);
+    if (std::filesystem::absolute(relative).native().size() < 240)
+    {
+        EXPECT_EQ(os_path(relative), relative);
+    }
 
     EXPECT_EQ(os_path(short_absolute), short_absolute);
     EXPECT_EQ(os_path(std::filesystem::path()), std::filesystem::path());
@@ -94,6 +98,9 @@ TEST(LongPath, LongPathsGetThePrefix)
     auto path = os_path(std::filesystem::path(L"C:/folder/../other/" + long_name));
     EXPECT_EQ(path.native(), verbatim + L"C:\\other\\" + long_name);
 
+    // The server and share stay; only what follows them is normalized.
+    EXPECT_EQ(os_path(std::filesystem::path(L"//server/share/a/../" + long_name)).native(),
+              verbatim + L"UNC\\server\\share\\" + long_name);
     path = os_path(std::filesystem::path(L"\\\\server\\share\\" + long_name));
     EXPECT_EQ(path.native(), verbatim + L"UNC\\server\\share\\" + long_name);
 
@@ -254,6 +261,30 @@ TEST(LongPath, WriteViaShortPath)
 }
 
 #if defined(_WIN32)
+TEST(LongPath, WriteViaShortPathRefusesPrefixedTempFolder)
+{
+    // A temp folder with the prefix can't be handed to a writer that only takes short paths.
+    auto dir                 = LongDir();
+    const wchar_t* tmp       = _wgetenv(L"TMP");
+    const std::wstring saved = tmp ? tmp : L"";
+    ASSERT_EQ(_wputenv_s(L"TMP", (verbatim + std::filesystem::temp_directory_path().native()).c_str()), 0);
+    std::error_code ec;
+    const auto temp_dir = std::filesystem::temp_directory_path(ec);
+
+    bool called  = false;
+    bool written = write_via_short_path(dir / "file.mp4",
+                                        [&](const std::filesystem::path&)
+                                        {
+                                            called = true;
+                                            return true;
+                                        });
+    _wputenv_s(L"TMP", saved.c_str());
+
+    if (temp_dir.native().rfind(verbatim, 0) != 0) GTEST_SKIP() << "The temp folder lost its prefix: " << temp_dir;
+    EXPECT_FALSE(written);
+    EXPECT_FALSE(called);
+}
+
 // The access control entries of a file's DACL in SDDL, without the descriptor's control flags.
 static std::wstring AcesOf(const std::filesystem::path& file)
 {
