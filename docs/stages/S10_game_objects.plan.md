@@ -1,6 +1,6 @@
 # S10: Game objects, ticking and the world API
 
-Status: planned (MCP API under discussion).
+Status: in progress.
 
 Sections follow the stage plan template of S05.
 
@@ -144,14 +144,41 @@ class WorldApi
 | `pause`, `resume`, `step`, `time_scale` | `step(n)` only while paused | time |
 | `logs` | `since`, `category?` -> lines with sequence numbers | reads the log ring |
 
-S14 keeps the app tools (`screenshot`, `set_camera`, `move_camera`, `measure_performance`, `run_scenario`, `quit`)
-and the `game_*` renames.
+Also (decided in planning): `apply` (a list of operations of the tools above, all validated first, then applied in
+order; one result per operation), `changes_since` (`cursor` -> created, destroyed and changed entities since the
+cursor, the new cursor; from an API consumer of the structural log and the changed list), and the profiling tools of
+section 9. Entities are written `{"index", "generation"}` or `"12:3"` (results always use the object form);
+`registerWorldTools(server, world, {allowEdits})` (false: only the reading tools); paging with `limit` (default 100,
+at most 1000) and `after`. API edits are logged, not recorded as a replayable script (S12 may add that).
+
+S14 keeps the app tools (`screenshot`, `set_camera`, `move_camera`, `run_scenario`, `quit`) and the `game_*` renames;
+its frame and GPU numbers join the profiler of section 9.
+
+### 9. Profiling (`engine/core/Profiler.h/.cpp`)
+
+The numbers of the sample games' statistics window (frame, CPU work, GPU passes, counts), as data for the API, MCP and
+later an ImGui window:
+
+- `Profiler`: named scopes in a tree (`step` > `phase:<name>` > `system:<name>`, `commands:<phase>`), each with a ring of
+  the last 600 samples (10 s at 60 Hz) -> count, avg, min, p50, p95, max (ms) and the share of the parent; named
+  per-step counters (alive entities, game objects, objects updated per tick ring, commands applied, events emitted,
+  structural records, grid items) with the same history. Wall-clock time (steady clock) only for these numbers, never
+  for simulation (R-DET-1). `WorldSetup::profiling = true` (off: no clock calls).
+- The World times every step, phase, system and command flush and writes the counters.
+- From S13 the app adds `frame`, `extract`, `recording` and the GPU passes (timestamps) to the same profiler; S13's
+  ImGui window "Engine statistics" (history plots, per-phase and per-system tables like the sample's "World
+  Statistics") reads it.
+- Tools: `get_profile` (`scopes?`, `steps?` (window, default all 600)) -> the tree with the statistics and the counters;
+  `reset_profile`; `measure_performance` (`steps` (1..6000)): while paused runs that many steps and reports the
+  statistics of exactly those steps; while running reports after that many steps have run (a deferred response,
+  answered before the tool call times out).
 
 Tests and docs:
 
 - `tests/test_engine_gameobject.cpp` (lifecycle, classes, ticking, events, actions, mover, world state, Persistent),
   `tests/test_engine_world_api.cpp` (JSON visitors, every API call incl. errors, every tool through `handleMessage`),
-  `tests/mcp_test_helper.h` (the `Poller`, moved from `test_core_mcp_server.cpp`), the benchmark.
+  `tests/mcp_test_helper.h` (the `Poller`, moved from `test_core_mcp_server.cpp`), profiler tests (statistics, the tree,
+counters, `measure_performance` paused and running), the benchmark.
 - `docs/engine_design.md` §3, §7.8, §7.9 (`TickPolicy`), §7.10, §8.2, §8.4 (cell rings), §9.2-§9.6, §16.2 (tools
   moved to S10), the S10 and S14 rows; `AGENTS.md`.
 
@@ -161,17 +188,13 @@ Saving `Behaviour`, `Persistent` and world state (S11), `ScenarioWorld` and `run
 app loop (S13), app tools (S14), messages (S15), replication and real `ownedBy` (S16), terrain height (S20), more
 spaces (S21), unloading and `onCatchUp` calls (S25), Jolt characters (S29).
 
-## Design questions (to decide together)
+## Design decisions (planning)
 
-1. Entity format in tools: `{"index", "generation"}` only (§16.2), or also a short string `"12:3"`?
-2. Batch edits: one `apply` tool with a list of operations (validated together, applied in order), or one tool call
-   per change?
-3. A change feed: `changes_since(cursor)` (created / destroyed / changed entities since the cursor, from the
-   structural log and the changed list) for agents that watch the world, now or later?
-4. Read-only mode: `registerWorldTools(server, world, {allowEdits = false})` for observing agents?
-5. Paging: `limit` + `after` (index), `limit` max 1000?
-6. Should edits made through the API be recorded as a replayable script (for bug reports and scenarios), or is the log
-   enough for now?
+- Ticking by grid-cell rings (32 m) instead of distances.
+- The MCP entity tools move from S14 into S10, with the world API under them.
+- Entities in tools: the object form or `"12:3"`; `apply` for batches; `changes_since` now; a read-only mode; paging
+  with `limit` (<= 1000) and `after`; edits are logged, no replay script yet.
+- Profiling (section 9) with its tools now; the ImGui window with the app (S13).
 
 ## Done when
 
