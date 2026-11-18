@@ -10,6 +10,8 @@
 
 #include "saiga/engine/core/Log.h"
 
+#include <algorithm>
+
 namespace Saiga
 {
 namespace Engine
@@ -17,8 +19,8 @@ namespace Engine
 Registry::Registry()
 {
     // Slot 0 is never used: {0, 0} is never alive
-    slots.emplace_back();
-    transforms.emplace_back();
+    slots.push_back();
+    transforms.push_back();
 
     // Transform (ID 0) is built in: stored by entity index, present on every entity
     ComponentInfo& t = infos[Transform::id];
@@ -69,21 +71,35 @@ void Registry::validateRegistration() const
 Entity Registry::create()
 {
     checkNotIterating("create");
+    Entity e = reserveSlot();
+    reservedSlots++;
+    activate(e);
+    return e;
+}
+
+Entity Registry::reserveSlot()
+{
     uint32_t index;
-    if (!freeSlots.empty())
+    if (!freeEmpty())
     {
-        index = freeSlots.front();
-        freeSlots.pop_front();
+        index = freeSlots[freeHead++];
+        // Compact now and then (moves, no allocation; the capacity stays)
+        if (freeHead >= 1024 && 2 * freeHead >= freeSlots.size())
+        {
+            freeSlots.erase(freeSlots.begin(), freeSlots.begin() + std::ptrdiff_t(freeHead));
+            freeHead = 0;
+        }
     }
     else
     {
         SAIGA_ASSERT(slots.size() < 0xFFFFFFFFu, "create: out of entity slots");
         index = uint32_t(slots.size());
-        // Both vectors grow together: if the second allocation throws, the first is undone
-        transforms.emplace_back();
+        // Both arrays grow together: if the second allocation throws, the first is undone. Pages never move, so this
+        // is safe while a view holds references.
+        transforms.push_back();
         try
         {
-            slots.emplace_back();
+            slots.push_back();
         }
         catch (...)
         {
@@ -92,13 +108,92 @@ Entity Registry::create()
         }
     }
     Slot& s = slots[index];
-    s.state = SlotState::Alive;
+    s.state = SlotState::Reserved;
     s.flags = 0;
     s.mask.clear();
-    s.mask.set(Transform::id);
+    // A fresh slot: no view holds a reference to this Transform
     transforms[index] = Transform();
-    aliveEntities++;
     return Entity{index, s.generation};
+}
+
+Entity Registry::reserve()
+{
+    SAIGA_ASSERT(!destroying, "reserve while destroy removes the components of an entity");
+    SAIGA_ASSERT(!inParallelEach(), "reserve inside parallelEach");
+    // Room for its release first (a pop from the free list only shrinks the size)
+    ensureFreeCapacity(1);
+    Entity e = reserveSlot();
+    reservedSlots++;
+    return e;
+}
+
+void Registry::activate(Entity e)
+{
+    checkNotIterating("activate");
+    SAIGA_ASSERT(reserved(e), "activate: " + describe(e) + " is not reserved");
+    Slot& s = slots[e.index];
+    s.state = SlotState::Alive;
+    s.flags = kSimulated;
+    s.mask.set(Transform::id);
+    reservedSlots--;
+    aliveEntities++;
+}
+
+void Registry::release(Entity e)
+{
+    SAIGA_ASSERT(!inParallelEach(), "release inside parallelEach");
+    SAIGA_ASSERT(reserved(e), "release: " + describe(e) + " is not reserved");
+    Slot& s                       = slots[e.index];
+    const uint32_t nextGeneration = s.generation + 1;
+    // No allocation: reserve made room and destroy keeps it (ensureFreeCapacity)
+    SAIGA_ASSERT(canReleaseWithoutAllocation(), "release: the free list has no room for the reserved slots");
+    reservedSlots--;
+    if (nextGeneration != 0) freeSlots.push_back(e.index);
+    s.state      = SlotState::Free;
+    s.generation = nextGeneration;
+}
+
+void Registry::shiftTransformFlags()
+{
+    for (uint32_t i = 1; i < uint32_t(slots.size()); ++i)
+    {
+        Transform& t         = transforms[i];
+        t.changedLastStep    = t.changedThisStep;
+        t.teleportedLastStep = t.teleported;
+        t.changedThisStep    = 0;
+        t.teleported         = 0;
+    }
+}
+
+void Registry::ensureFreeCapacity(size_t extra)
+{
+    const size_t needed = freeSlots.size() + extra + reservedSlots;
+    if (freeSlots.capacity() < needed) freeSlots.reserve(std::max(needed, 2 * freeSlots.capacity()));
+}
+
+void Registry::hashInto(Hasher& h) const
+{
+    std::vector<uint8_t> bytes;
+    h.addU64(uint64_t(slots.size()));
+    for (uint32_t i = 1; i < uint32_t(slots.size()); ++i)
+    {
+        const Slot& s = slots[i];
+        if (s.state != SlotState::Alive) continue;
+        bytes.clear();
+        BinaryWriter w(bytes);
+        w.write(transforms[i]);
+        // The saved components in ID order, each with its ID
+        for (size_t id = 1; id < kMaxComponents; ++id)
+        {
+            if (!s.mask.test(ComponentId(id)) || !savedComponent(ComponentId(id))) continue;
+            bytes.push_back(uint8_t(id));
+            pools[id]->appendBytes(i, bytes);
+        }
+        h.addU32(i).addU32(s.generation).addU64(uint64_t(bytes.size())).add(bytes.data(), bytes.size());
+    }
+    // The free list decides the indices and generations of future entities
+    h.addU64(uint64_t(freeSlots.size() - freeHead));
+    for (size_t i = freeHead; i < freeSlots.size(); ++i) h.addU32(freeSlots[i]).addU32(slots[freeSlots[i]].generation);
 }
 
 void Registry::destroy(Entity e)
@@ -109,7 +204,12 @@ void Registry::destroy(Entity e)
     // The only step that can throw (the free list allocates) comes first: on failure nothing changed. A slot whose
     // generation wraps around is retired (a stale handle could match again).
     const uint32_t nextGeneration = s.generation + 1;
-    if (nextGeneration != 0) freeSlots.push_back(e.index);
+    if (nextGeneration != 0)
+    {
+        // Keeps the room for the releases of the reserved slots (a destroy must not use it up)
+        ensureFreeCapacity(1);
+        freeSlots.push_back(e.index);
+    }
     // Components in ID order (deterministic; the order matters for the structural log of S08). Cannot throw:
     // components have noexcept moves and the sparse pages exist.
     destroying = true;

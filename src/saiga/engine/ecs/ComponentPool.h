@@ -9,10 +9,15 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/ecs/Ids.h"
+#include "saiga/engine/ecs/TypeCheck.h"
+#include "saiga/engine/ecs/VisitBinary.h"
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <memory>
+#include <string>
+#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -34,7 +39,18 @@ class PoolBase
     static constexpr uint32_t kNone     = 0xFFFFFFFFu;
     static constexpr uint32_t kPageSize = 4096;
 
-    PoolBase(ComponentId id, const char* name, size_t elementSize) : id(id), name(name), elementSize(elementSize) {}
+    PoolBase(ComponentId id, const char* name, size_t elementSize, const std::type_info& type)
+        : id(id), name(name), elementSize(elementSize), type(&type)
+    {
+    }
+
+    // The registered C++ type is T (isRegisteredType: across the engine DLL, and types in unnamed namespaces of
+    // different translation units are told apart). Checked before every downcast.
+    template <class T>
+    bool holds() const
+    {
+        return isRegisteredType(*type, typeid(T));
+    }
     virtual ~PoolBase()                  = default;
     PoolBase(const PoolBase&)            = delete;
     PoolBase& operator=(const PoolBase&) = delete;
@@ -52,10 +68,14 @@ class PoolBase
     const std::vector<Entity>& denseEntities() const { return entities; }
 
     virtual void remove(uint32_t entityIndex) = 0;
+    // Appends the binary form (VisitBinary.h) of the entity's component; it must have one. Type-erased access for the
+    // world hash (S08) and saves (S11).
+    virtual void appendBytes(uint32_t entityIndex, std::vector<uint8_t>& out) const = 0;
 
     const ComponentId id;
     const char* const name;
     const size_t elementSize;
+    const std::type_info* const type;
 
    protected:
     // Allocates the sparse page of the entity if needed (may throw; no other state changes)
@@ -84,7 +104,7 @@ template <class T>
 class ComponentPool final : public PoolBase
 {
    public:
-    ComponentPool() : PoolBase(T::id, T::name, sizeof(T)) {}
+    ComponentPool() : PoolBase(T::id, T::name, sizeof(T), typeid(T)) {}
 
     // Aggregates are brace-initialized (add<Health>(e, 50.0, 100.0)), other types use their constructor
     template <class... A>
@@ -122,6 +142,14 @@ class ComponentPool final : public PoolBase
         data.pop_back();
         entities.pop_back();
         setSparse(entityIndex, kNone);
+    }
+
+    void appendBytes(uint32_t entityIndex, std::vector<uint8_t>& out) const override
+    {
+        BinaryWriter w(out);
+        w.write(at(entityIndex));
+        // Registered components pass the field check, so only the reader's limits can fail here (S07)
+        SAIGA_ASSERT(w.ok(), std::string("appendBytes: ") + name + ": " + w.error());
     }
 
     // The entity must have the component (checked by the registry)

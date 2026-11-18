@@ -18,6 +18,8 @@ namespace Engine
 enum class EngineComponent : uint8_t
 {
     Transform = 0,
+    Parent,
+    LocalTransform,
     Count
 };
 

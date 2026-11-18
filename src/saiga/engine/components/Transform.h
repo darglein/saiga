@@ -81,6 +81,9 @@ class Transform
     bool changedInThisStep() const { return changedThisStep != 0; }
     bool changedInLastStep() const { return changedLastStep != 0; }
     bool wasTeleported() const { return teleported != 0; }
+    // Teleported in the previous step: readers that run before a late teleport (extract in phase 8 of the last step)
+    // still see it, and phase 6 passes it on to children that did not follow yet
+    bool wasTeleportedLastStep() const { return teleportedLastStep != 0; }
 
     // For detached copies only (saves, hashes, network decoding into a temporary): reading through visit writes the
     // fields without the change flags. Applying a decoded pose to a live entity goes through the setters or teleport
@@ -119,7 +122,7 @@ class Transform
     Vec3 p                  = Vec3::Zero();
     Quat r                  = Quat::Identity();
     Vec3 s                  = Vec3::Ones();
-    uint8_t changedThisStep = 0, changedLastStep = 0, teleported = 0;
+    uint8_t changedThisStep = 0, changedLastStep = 0, teleported = 0, teleportedLastStep = 0;
 };
 
 }  // namespace Engine

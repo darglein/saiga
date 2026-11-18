@@ -9,6 +9,7 @@
 // correctness checks (the timings depend on the machine and are not compared).
 
 #include "saiga/engine/ecs/Registry.h"
+#include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
 
@@ -147,4 +148,53 @@ TEST(EcsBenchmark, HundredThousandEntities)
     EXPECT_EQ(sum, 100.0 * n);
     EXPECT_GT(rsum, 0.0);
     EXPECT_EQ(r.aliveCount(), 0u);
+}
+
+
+namespace
+{
+void moveSystem(World& w, double dt)
+{
+    w.view<Transform, const Velocity>().each([dt](Entity, Transform& t, const Velocity& v)
+                                             { t.setPosition(t.position() + v.v * dt); });
+}
+void benchSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "move", moveSystem);
+}
+void benchComponents(Registry& r)
+{
+    r.registerComponent<Health>();
+    r.registerComponent<Velocity>();
+    r.registerComponent<Lifetime>();
+}
+}  // namespace
+
+// World::step with 10^5 entities (R-TEST-2 for engine/ecs and the world): idle (only the engine's phase-6 scan) and
+// with a system that moves all of them
+TEST(EcsBenchmark, WorldStepHundredThousandEntities)
+{
+    const int n = 100000;
+    WorldSetup idleSetup;
+    idleSetup.components = benchComponents;
+    World idle(idleSetup);
+    for (int i = 0; i < n; ++i) idle.create();
+    idle.step();
+    Timer t;
+    idle.step(10);
+    double idleMs = t.ms() / 10;
+
+    WorldSetup moveSetup = idleSetup;
+    moveSetup.systems    = benchSystems;
+    World moving(moveSetup);
+    for (int i = 0; i < n; ++i) moving.add<Velocity>(moving.create(), Vec3(1, 0, 0));
+    moving.step();
+    t = Timer();
+    moving.step(10);
+    double moveMs = t.ms() / 10;
+
+    std::printf("ECS benchmark, World::step with %d entities (ms per step): idle %.3f, moving %.3f\n", n, idleMs,
+                moveMs);
+    EXPECT_EQ(idle.registry().aliveCount(), uint32_t(n));
+    EXPECT_EQ(moving.changedTransforms().size(), size_t(n));
 }

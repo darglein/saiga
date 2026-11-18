@@ -191,6 +191,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Engine module `saiga_engine` (CMake module, `SAIGA_ENGINE_API`, `Engine::engineVersion()`, smoke test; CI jobs GCC, Clang, Windows MSVC with shared libraries) | `src/saiga/engine/`, `.github/workflows/tests.yml` | [exists] |
 | Engine core utilities: `JobPool` (parallel loops, the caller participates), `Rng` (PCG32), FNV-1a 64 `Hash`/`Hasher`, log ring with `SAIGA_LOG` (§8.5, §7.10, §17.1) | `src/saiga/engine/core/`, `tests/test_engine_core.cpp` | [exists] |
 | ECS core: `Registry` (entities with generations, FIFO slot reuse, pools with sparse pages, built-in `Transform`), deterministic views, `visit` with compile-time field checks, binary visitors, field lists, `ChunkId`/`RegionId`/`InstanceKey` (§7.1-§7.5) | `src/saiga/engine/ecs/`, `src/saiga/engine/components/`, `src/saiga/core/math/ChunkId.h`, `tests/test_engine_ecs.cpp`, `tests/test_engine_ecs_benchmark.cpp` | [exists] |
+| World and step loop: `World(WorldSetup)`, phases and `SystemList`, commands with reserved entities, structural log, events, `Parent`/`LocalTransform` hierarchy (`transformSystem`), `advance`/`step`, `random()`, `parallelEach`, `Simulated` filter, `hash()` (§7.6-§7.10, §8.1-§8.3, §8.6) | `src/saiga/engine/world/`, `tests/test_engine_world.cpp` | [exists] |
 | Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
 
 The rows above describe what exists today; none of it is fixed (§0). **Known deviations in the prototype** (deviation,
@@ -308,7 +309,7 @@ Modeled on `saiga_vulkan` (`cmake/Module_CMakeLists.txt` is not used by the modu
   (game decides when).
 - Rule of thumb: what is numerous and does not change by itself is never an entity.
 
-## 7. ECS [exists: S07 (Registry, storage, views, visit); planned: S08 (World, commands, events, hierarchy)]
+## 7. ECS [exists: S07 (Registry, storage, views, visit), S08 (World, commands, structural log, events, hierarchy)]
 
 Own implementation (no EnTT or flecs): ~1500 lines an agent can read completely, fitted to <= 10^5 resident entities
 and <= 256 component types, DLL safe, with reflection and a deterministic iteration order built in.
@@ -407,7 +408,7 @@ class Transform
     template <class V> void visit(V& v);        // space, position, rotation, scale
    private:
     SpaceId sp = 0; Vec3 p = Vec3::Zero(); Quat r = Quat::Identity(); Vec3 s = Vec3::Ones();
-    uint8_t changedThisStep = 0, changedLastStep = 0, teleported = 0;
+    uint8_t changedThisStep = 0, changedLastStep = 0, teleported = 0, teleportedLastStep = 0;
 };
 struct Parent { Entity entity; };                                         // engine component
 struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Identity(); Vec3 scale = Vec3::Ones(); };
@@ -429,8 +430,14 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
 - `World::moveToSpace(e, space, position, rotation)` moves an entity and its descendants to another space (a teleport:
   the body moves to the other space's physics system, grid and interest are re-evaluated).
 - Phase 6 updates children from parents in a depth-sorted list (rebuilt on structural changes); a changed parent marks
-  its descendants changed. Destroying a parent destroys its children. Physics bodies only on roots; children with
-  colliders are kinematic (§11).
+  its descendants changed. Destroying a parent destroys its children. `add<Parent>` rejects cycles and a dead parent
+  (between steps an assert; during a flush the child is destroyed, like the child of a destroyed parent); `Parent` is
+  read-only through the World (`get`, `tryGet` and non-const views; change it with remove + add). Teleports: phase 6
+  teleports a child when its parent was teleported in this step; a teleport made in phase 7 reaches the children before
+  phase 8 (`propagateTeleportsBeforeExtract`, also a second teleport in the step); after phase 8 the children whose
+  parent was teleported after their last update are listed and teleported in the next phase 6.
+  `Transform::teleportedLastStep` is shifted like `changedLastStep`, for readers of the next step (S08). Physics bodies
+  only on roots; children with colliders are kinematic (§11).
 
 ### 7.5 Views
 
@@ -447,10 +454,12 @@ Health& w = world.get<Health>(e);          // write access
   entities (§7.6) are skipped; in phases 2-5 entities without the `Simulated` flag are skipped (§12.3).
 - `read`/`tryRead` return const references, `get`/`tryGet` mutable ones; the difference documents intent, nothing is
   tracked.
-- `parallelEach` runs on the frame `JobPool` (§8.5) with fixed chunks; while it runs, structural changes, `commands()`,
-  `events.emit` and `random()` assert.
+- `parallelEach(fn, chunk = 256)` runs on the frame `JobPool` (§8.5) with fixed chunks of the candidate list (the
+  smallest pool's dense array or the slots), so its result does not depend on the thread count; while it runs,
+  structural changes, commands, `events.emit` and `random()` assert. `world.view` passes the `Simulated` flag as a
+  required flag in phases 2-5 (`Registry::view(requiredFlags)`); every new entity has the flag until S24.
 
-### 7.6 Structural changes, commands, structural log
+### 7.6 Structural changes, commands, structural log [exists: S08]
 
 - Game code calls `world.create/spawn/destroy/add/remove` (or the `GameObject` wrappers); the world decides whether they
   apply immediately or as commands. `commands()` is engine-internal.
@@ -477,13 +486,31 @@ Health& w = world.get<Health>(e);          // write access
   render instances, bodies (from `Collider`, `RigidBody` and the saved velocities, §11) and network IDs from it.
   The replacement world of `ScenarioWorld` gets its `RecordingRenderSink` like any world (`setRenderSink`, at any time).
 
-### 7.7 Events
+S08 implementation (`engine/world/World.h`, `Commands.h`, `StructuralLog.h`): `create()` during a step reserves a slot
+(`Registry::reserve`; slots and `Transform`s live in stable pages, so this never moves a `Transform` a view callback
+holds); `add` on a reserved entity is a command too; commands are type-erased closures (a component value is moved into
+its command) applied in recording order after every phase; commands on an entity destroyed earlier in the same flush are
+dropped (e.g. a second `destroy`, or one after the parent's); `add`/`remove` check the entity when recorded and the
+component when applied (remove + add of the same component in one phase is valid). A system or command that throws
+aborts the step: the pending commands are dropped, the reserved entities released, the step index does not advance (the
+changes of the finished phases remain). Creating an entity logs a `Transform` record; destroying it logs one removed
+record per component in ID order (`Transform` first). Consumers: `structuralLog().addConsumer()`, `consume(consumer,
+fn)`, `unread(consumer)`, `removeConsumer(consumer)` (a consumer that stops reading must be removed, or the log grows).
+A cursor moves past a record after the callback returned (a throwing consumer gets it again). Every change reserves its
+record before it is made (`prepare`), so a record is never lost after a change; an aborted step leaves the step state
+first and cleans up without allocating (the registry's free list always has room for releasing every reserved entity;
+the events are restored by a swap: the readable events become pending again, the aborted step's own events are
+dropped).
+
+### 7.7 Events [exists: S08]
 
 - An event is a struct with `name`, `id` (enum, §7.2) and `visit`; registered in `registerEngineEvents` /
   `WorldSetup::events`; all event structs of a module are in its `Events.h`.
 - `world.events.emit(DamageEvent{...})`; `world.events.read<DamageEvent>()` returns the events of the previous step in
-  emit order. **Events emitted in step k are readable by all phases of step k+1, then cleared.** Pending events are
-  part of the save and the hash.
+  emit order. Events have `name`, `id` (`EventId`), `version` and `visit` (the field rules of §7.2) and noexcept moves;
+  `EventRegistry::add<E>(Replicate)` checks unique IDs and names, `validateRegistration` the contiguous ranges
+  (`EngineEvent` 0..63, game events from 64). **Events emitted in step k are readable by all phases of step k+1, then
+  cleared.** Pending events are part of the save and the hash.
 
 ### 7.8 World state
 
@@ -542,7 +569,7 @@ struct SpaceTemplate                              // S20
 struct WorldSetup
 {
     uint64_t seed = 1;
-    int workerThreads = 1;
+    int workerThreads = 1;                        // threads of parallelEach incl. the caller (S08)
     WorldConfig config;
     NetRole role = NetRole::Host;                 // [planned: S16] Host or Client
     uint8_t localPeer = 0;                        // [planned: S16]
@@ -608,7 +635,7 @@ class World
     template <class T> bool has(Entity e) const;
     template <class... C> View<C...> view();          // in phases 2-5: only `Simulated` entities (§12.3)
     template <class... C> View<C...> viewAll();       // all resident entities
-    template <class... C> ComponentMask mask() const;
+    template <class... C> static ComponentMask mask();
     EventQueues events;
     Rng& random();                    // §8.6
     double time() const; uint64_t stepIndex() const;
@@ -709,7 +736,7 @@ generic change detection (only the `Transform` flags), access declarations per s
 
 ## 8. Simulation
 
-### 8.1 One step [planned: S08]
+### 8.1 One step [exists: S08 (phases, systems, commands after every phase)]
 
 | Phase | Work | Runs on |
 |---|---|---|
@@ -726,11 +753,12 @@ Commands are applied after every phase; events of this step become readable in t
 edits and promotions apply at the flush of the phase that requested them (between steps: immediately) (§12.2, §11);
 clients apply received live modifications in phase 1.
 
-### 8.2 Registration [planned: S08]
+### 8.2 Registration [exists: S08]
 
 ```cpp
 void registerEngineSystems(SystemList& s)
 {
+    s.add(Phase::Transform, "transform", transformSystem, RunOn::Both);   // S08: hierarchy, changed list
     s.add(Phase::Events, "behaviour_events", behaviourEventSystem);
     s.add(Phase::Behaviour, "behaviour", behaviourSystem);
     s.add(Phase::Gameplay, "character_move", characterMoveSystem, RunOn::Both);
@@ -746,7 +774,7 @@ void registerEngineSystems(SystemList& s)
   (input -> `CharacterIntent`) and the movers are such `RunOn::Both` systems, never `GameObject::update`, so they run
   on the owning peer.
 
-### 8.3 Application and main loop [planned: S13; `World::advance` and `step`: S08]
+### 8.3 Application and main loop [planned: S13; `World::advance` and `step`: exist (S08)]
 
 The engine has its own main loop in `EngineApp` (`engine/app/EngineApp.h`); it does not use saiga's `MainLoop`,
 `StandaloneWindow` or `VulkanForwardRenderer` (they stay for the other samples, §0). `EngineApp` owns:
@@ -834,8 +862,9 @@ class EngineApp   // engine/app/EngineApp.h
 // The prototype WorldRenderer::init changes to (VulkanBase&, const RenderingFormats&, const WorldParameters&) in S13.
 ```
 - `World::advance(frameDt)`: accumulator += `frameDt * timeScale`; runs whole steps, at most 4; then drops the remaining
-  backlog (`accumulator = min(accumulator, 0.999 * dt)`, counted in the statistics), so `alpha = accumulator / dt` is in
-  [0, 1). When paused: no steps. `world.step(n)` runs exactly n steps.
+  backlog (`accumulator = min(accumulator, 0.999 * dt)`, counted in `droppedSteps()`), so `alpha = accumulator / dt` is
+  in [0, 1). When paused: no steps. `world.step(n)` runs exactly n steps (also when paused). A NaN frame time is
+  ignored, +inf counts as a long frame. [exists: S08]
 
 ### 8.4 Ticking game objects [planned: S10]
 
@@ -866,7 +895,7 @@ their nested chunks at the same time); pools that call each other in a cycle fro
 allowed; an exception of a chunk is rethrown in the caller (the remaining chunks are skipped from the moment a thread
 sees the failure, best effort); more than INT64_MAX chunks throw `std::length_error`. saiga's `ThreadPool` is not used.
 
-### 8.6 Determinism [planned: S08]
+### 8.6 Determinism [exists: S08 (world.random(), fixed dt, deterministic commands, events and parallelEach)]
 
 **Only scenarios are reproducible**: the same build and the same scenario (seed, scripted inputs) give the same
 result on every run in `ScenarioWorld`, so tests never flake. `ScenarioWorld` runs headless with a fixed `dt`, a fixed
@@ -1991,10 +2020,12 @@ client 1:1), then compares the host-authoritative components on the client with 
 components on the host with the last state received from the owner (`stepNetworkOnly` writes received poses without
 extrapolation), for the scenario's entities, within the quantization tolerances.
 
-### 17.4 Repeat and save/load tests [planned: S08 (hash), S12 (variants)]
+### 17.4 Repeat and save/load tests [exists: S08 (hash); planned: S12 (variants)]
 
-- `world.hash()` (FNV-1a 64 over the `visit` bytes) covers all saved components (`Saved::Yes`), the RNG state, pending
-  events, the step index and the chunk states. It is a debugging aid and the check of the repeat variant.
+- `world.hash()` (FNV-1a 64 over the `visit` bytes) covers all saved components (`Saved::Yes`) of the alive entities in
+  index order (with index and generation, `Transform` first, then the components in ID order), the free list (it decides
+  future entity indices), the RNG state, the pending events, the step index and (from S25) the chunk states. It is a
+  debugging aid and the check of the repeat variant.
 - Variants of every scenario: (a) **repeat**: the scenario runs twice and the per-step hashes must be equal (catches
   wall-clock time, unordered containers and uninitialized memory); on a mismatch the runner prints `World::diff` at the
   first differing step; (b) **save/load**: `ScenarioWorld` replaces its `World` by `load(save())` at the middle of the
@@ -2357,7 +2388,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S05 | Math additions (done) | Missing tiny-eigen functions and double helpers (§7.10, R-MATH-2) | – | tiny-eigen tests for every addition (CI); `test_core_math_functions` builds and passes with Eigen (local) |
 | S06 | Core utilities (done) | `JobPool`, `Rng`, `Hash`, logging ring buffer with `SAIGA_LOG` (§8.5, §8.6, §17.1) | S04 | unit tests: parallel-for coverage with the caller participating, RNG and hash reference values, log ring (CI) |
 | S07 | ECS core (done) | `Entity`, registry, pools, component IDs, `visit`, views, `SAIGA_LOG_E`, `ChunkId`/`RegionId`/`SpaceId`/`InstanceKey`/`PersistentId` value types (§7.1-§7.5) | S04, S05, S06 | unit tests: stale handles, deterministic order, `visit` round trip; non-gating 10^5-entity benchmark (CI) |
-| S08 | World and step loop | `World(WorldSetup)`, phases, `SystemList`, commands, structural log, events, `Transform` hierarchy, `advance`/`step`, `hash` (§7.6-§7.10, §8.1-§8.3, §8.6) | S07 | unit tests: deferred destroy, commands during iteration, structural log consumers, event latency, `advance` cap, hierarchy; hash equal for 2 runs (CI); step time with 10^5 idle entities (benchmark) |
+| S08 | World and step loop (done) | `World(WorldSetup)`, phases, `SystemList`, commands, structural log, events, `Transform` hierarchy, `advance`/`step`, `hash` (§7.6-§7.10, §8.1-§8.3, §8.6) | S07 | unit tests: deferred destroy, commands during iteration, structural log consumers, event latency, `advance` cap, hierarchy; hash equal for 2 runs (CI); step time with 10^5 idle entities (benchmark) |
 | S09 | Spatial grid | Grid per space, `queryRadius` (§9.5) | S08 | query tests incl. deterministic order (CI) |
 | S10 | Game objects | `GameObject`, `Behaviour`, behavior and event systems, ticking policy, engine gameplay basics incl. local `PlayerAction` queue, kinematic mover, world-state entities, `Persistent` (§7.8, §8.4, §9.2-§9.4, §9.6) | S09 | lifecycle tests (spawn with initial components, commands during a step, destroy), ticking tests, `global`/`spaceState`, `PlayerAction` delivery order, `characterMoveSystem`, `makePersistent`/`resolve` (CI) |
 | S11 | Save, data and migration | Save/load blobs with schema tables and migrations, save of `Behaviour` (factory, `configure`, `onLoad`), `Persistent` counter and world-state entities, `dumpJson`, `diff`, data files (§14, §15.1, §15.2) | S10 | save/load round trip incl. a migration, a removed type and an entity with a `GameObject` (`configure` + `onLoad` called, cache rebuilt); data file load incl. the unknown-key death test (CI) |

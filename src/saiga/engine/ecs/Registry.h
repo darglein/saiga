@@ -8,16 +8,19 @@
 
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/components/Transform.h"
+#include "saiga/engine/core/Hash.h"
+#include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/ecs/ComponentMask.h"
 #include "saiga/engine/ecs/ComponentPool.h"
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/ecs/Ids.h"
+#include "saiga/engine/ecs/PagedArray.h"
 #include "saiga/engine/ecs/Visit.h"
 #include "saiga/export.h"
 
 #include <array>
+#include <atomic>
 #include <cstring>
-#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
@@ -47,8 +50,9 @@ enum class SlotState : uint8_t
  * - Components: registered by T::id (enum per module, engine 0..63, game 64..255) with registerComponent<T>();
  *   Transform (ID 0) is built in, every alive entity has one.
  * - Structural changes (create, destroy, add, remove) are not allowed while a view iterates (asserted), and they may
- *   move components: references stay valid only until the next structural change.
- * - Not thread-safe; parallelEach (S08) reads and writes components of disjoint entities only.
+ *   move components: references stay valid only until the next structural change. Slots and Transforms live in
+ *   stable pages: reserve() (allowed during a view) never moves a Transform.
+ * - Not thread-safe; parallelEach reads and writes components of disjoint entities only.
  */
 class SAIGA_ENGINE_API Registry
 {
@@ -82,6 +86,20 @@ class SAIGA_ENGINE_API Registry
     // ---- entities --------------------------------------------------------------------------------------------------
 
     Entity create();
+    // A Reserved slot (the World's create during a step, §7.6): not alive, skipped by views, allowed while a view
+    // iterates. activate() makes it an alive entity with a Transform; release() returns it unused.
+    Entity reserve();
+    void activate(Entity e);
+    void release(Entity e);
+    // The free list always has room for releasing every Reserved slot (reserve allocates it, destroy keeps it): release
+    // never allocates, so an aborted step can return its reserved entities while an exception propagates
+    size_t reservedCount() const { return reservedSlots; }
+    bool canReleaseWithoutAllocation() const { return freeSlots.capacity() >= freeSlots.size() + reservedSlots; }
+    bool reserved(Entity e) const
+    {
+        return e.index != 0 && e.index < slots.size() && slots[e.index].generation == e.generation &&
+               slots[e.index].state == SlotState::Reserved;
+    }
     // Removes all components; the handle becomes stale
     void destroy(Entity e);
     bool alive(Entity e) const
@@ -92,7 +110,9 @@ class SAIGA_ENGINE_API Registry
     uint32_t aliveCount() const { return aliveEntities; }
     // Slots including the unused slot 0 (an upper bound of the entity indices)
     uint32_t slotCount() const { return uint32_t(slots.size()); }
-    // Flags of an alive entity (e.g. Simulated, §12.3); not component IDs
+    // Flags of an alive entity, not component IDs. kSimulated (§12.3) is set on every new entity (streaming clears it
+    // from S24); views in phases 2-5 skip entities without it.
+    static constexpr uint8_t kSimulated = 1;
     uint8_t flags(Entity e) const;
     void setFlags(Entity e, uint8_t flags);
     const ComponentMask& entityMask(Entity e) const;
@@ -120,11 +140,26 @@ class SAIGA_ENGINE_API Registry
     template <class... C>
     static ComponentMask mask();
     // View<const A, B>: A read-only, B writable
+    // requiredFlags: only entities that have all these flags (the World passes kSimulated in phases 2-5)
     template <class... C>
-    View<C...> view();
+    View<C...> view(uint8_t requiredFlags = 0);
 
-    // True while a view iterates (structural changes assert)
-    bool iterating() const { return iterationDepth > 0; }
+    // True while a view iterates (structural changes assert); atomic: views nested in parallelEach run on workers
+    bool iterating() const { return iterationDepth.load(std::memory_order_relaxed) > 0; }
+    // True while a parallelEach body runs (structural changes, commands, events and random() assert)
+    bool inParallelEach() const { return parallelDepth.load(std::memory_order_relaxed) > 0; }
+    // The pool of parallelEach (the World's frame JobPool); without one parallelEach runs serially
+    void setJobPool(JobPool* pool) { jobPool = pool; }
+
+    // End of a world step for every entity (§7.4): changedLastStep = changedThisStep, teleportedLastStep = teleported,
+    // changedThisStep = teleported = 0
+    void shiftTransformFlags();
+
+    // world.hash(): every alive entity in index order (index, generation, the saved components in ID order, Transform
+    // first), then the free list
+    void hashInto(Hasher& h) const;
+    // Saved components only (Saved::No components are derived)
+    bool savedComponent(ComponentId id) const { return infos[id].registered && infos[id].saved == Saved::Yes; }
 
     // Tests only: sets the generation of a free slot (generation wrap-around)
     void debugSetGeneration(uint32_t index, uint32_t generation);
@@ -149,15 +184,26 @@ class SAIGA_ENGINE_API Registry
     // Counts the registered types; logs a warning at 200 (prefer fields on existing components or tags)
     void countRegistration();
 
-    std::vector<Slot> slots;
-    std::vector<Transform> transforms;  // by entity index
-    std::deque<uint32_t> freeSlots;     // FIFO reuse
+    Entity reserveSlot();
+
+    PagedArray<Slot> slots;
+    PagedArray<Transform> transforms;  // by entity index
+    // FIFO reuse: a vector with a head index. Its capacity covers the size plus one entry per Reserved slot
+    // (canReleaseWithoutAllocation), so release does not allocate
+    std::vector<uint32_t> freeSlots;
+    size_t freeHead      = 0;
+    size_t reservedSlots = 0;  // slots in state Reserved (reserve, not yet activated or released)
+    bool freeEmpty() const { return freeHead == freeSlots.size(); }
+    // Grows the free list (geometrically) to hold `extra` more entries plus the reserved slots' releases
+    void ensureFreeCapacity(size_t extra);
     std::array<std::unique_ptr<PoolBase>, kMaxComponents> pools;
     std::array<ComponentInfo, kMaxComponents> infos;
     uint32_t aliveEntities   = 0;
     int registeredComponents = 0;
-    int iterationDepth       = 0;
-    bool destroying          = false;  // structural changes from component destructors during destroy assert
+    std::atomic<int> iterationDepth{0};
+    std::atomic<int> parallelDepth{0};
+    JobPool* jobPool = nullptr;
+    bool destroying  = false;  // structural changes from component destructors during destroy assert
 };
 
 // ---- template definitions
@@ -172,9 +218,10 @@ void Registry::registerComponent(Replicate mode, Saved saved)
     static_assert(std::is_nothrow_move_constructible_v<T> && std::is_nothrow_move_assignable_v<T>,
                   "components must have noexcept move construction and assignment");
     checkVisitFields<T>();
-    SAIGA_ASSERT(!infos[T::id].registered, std::string("registerComponent: ID ") + std::to_string(int(T::id)) + " of " +
-                                               T::name + " is already used by " +
-                                               (infos[T::id].name ? infos[T::id].name : "?"));
+    // In every build: a second registration would replace the first type's pool (or describe the wrong type)
+    if (infos[T::id].registered)
+        SAIGA_EXIT_ERROR(std::string("registerComponent: ID ") + std::to_string(int(T::id)) + " of " + T::name +
+                         " is already used by " + (infos[T::id].name ? infos[T::id].name : "?"));
     // Names are unique (saves load components by name, §15.2)
     for (size_t i = 0; i < kMaxComponents; ++i)
         SAIGA_ASSERT(
@@ -204,9 +251,8 @@ ComponentPool<T>& Registry::pool() const
     SAIGA_ASSERT(p->name == T::name || std::strcmp(p->name, T::name) == 0,
                  std::string("component ID ") + std::to_string(int(T::id)) + " is registered as " + p->name + ", not " +
                      T::name);
-    // A copy that kept both name and ID: at least the layout must match before the static_cast
-    SAIGA_ASSERT(p->elementSize == sizeof(T),
-                 std::string("component ") + T::name + " has another size than the registered type");
+    // The registered C++ type itself (a copy that kept name, ID and size is still another type)
+    SAIGA_ASSERT(p->holds<T>(), std::string("component ") + T::name + " is another C++ type than the registered one");
     return static_cast<ComponentPool<T>&>(*p);
 }
 
@@ -306,9 +352,9 @@ namespace Saiga
 namespace Engine
 {
 template <class... C>
-View<C...> Registry::view()
+View<C...> Registry::view(uint8_t requiredFlags)
 {
-    return View<C...>(*this);
+    return View<C...>(*this, requiredFlags);
 }
 
 }  // namespace Engine

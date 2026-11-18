@@ -178,6 +178,21 @@ struct CopiedHealthId
     }
 };
 
+// Health's name, ID and size, but another C++ type (never registered)
+struct HealthLookalike
+{
+    static constexpr const char* name = "Health";
+    static constexpr ComponentId id   = ComponentId(TestComponent::Health);
+    static constexpr uint32_t version = 1;
+    double a = 0, b = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("a", a);
+        v("b", b);
+    }
+};
+
 // Another ID, but Health's name
 struct SameNameAsHealth
 {
@@ -282,6 +297,30 @@ TEST(Ecs, FreeSlotsAreReusedInFifoOrder)
     EXPECT_EQ(r.create().index, 6u);
 }
 
+// Regression: the room for releasing a reserved slot was made by the World before reserving, and destroys appended to
+// the free list afterwards could use it up; release could then allocate during an aborted step
+TEST(Ecs, DestroysKeepTheRoomForReleasingReservedSlots)
+{
+    Registry r;
+    std::vector<Entity> alive;
+    for (int i = 0; i < 64; ++i) alive.push_back(r.create());
+    Entity a = r.reserve();
+    Entity b = r.reserve();
+    EXPECT_EQ(r.reservedCount(), 2u);
+    for (Entity e : alive)
+    {
+        r.destroy(e);
+        EXPECT_TRUE(r.canReleaseWithoutAllocation());
+    }
+    r.release(a);
+    EXPECT_TRUE(r.canReleaseWithoutAllocation());
+    r.activate(b);
+    EXPECT_EQ(r.reservedCount(), 0u);
+    EXPECT_TRUE(r.alive(b));
+    EXPECT_FALSE(r.reserved(a));
+    EXPECT_EQ(r.aliveCount(), 1u);
+}
+
 TEST(Ecs, ManyCreateDestroyCycles)
 {
     Registry r;
@@ -381,11 +420,12 @@ TEST(Ecs, FlagsAndTransformDefaultsOfAReusedSlot)
 {
     Registry r;
     Entity e = r.create();
-    r.setFlags(e, 1);
+    EXPECT_EQ(r.flags(e), Registry::kSimulated);  // every new entity is Simulated (§12.3)
+    r.setFlags(e, 0x80);
     r.get<Transform>(e).setPosition(Vec3(1, 2, 3));
     r.destroy(e);
     Entity n = r.create();
-    EXPECT_EQ(r.flags(n), 0);
+    EXPECT_EQ(r.flags(n), Registry::kSimulated);  // the old flags are gone
     EXPECT_EQ(r.read<Transform>(n).position(), Vec3::Zero());
 }
 
@@ -436,6 +476,9 @@ TEST(EcsDeathTest, MisuseAsserts)
     r.add<Health>(c);
     EXPECT_DEATH(r.get<CopiedHealthId>(c), "registered as Health, not Mana");
     EXPECT_DEATH(r.has<CopiedHealthId>(c), "registered as Health, not Mana");
+    // Same ID, name and size: the C++ type itself is checked before the downcast
+    static_assert(sizeof(HealthLookalike) == sizeof(Health), "the test needs the same size");
+    EXPECT_DEATH(r.get<HealthLookalike>(c), "another C\\+\\+ type");
     // A second component with an existing name (saves load by name)
     EXPECT_DEATH(r.registerComponent<SameNameAsHealth>(), "name Health is already used");
 }
