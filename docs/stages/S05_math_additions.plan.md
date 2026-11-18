@@ -29,8 +29,8 @@ tiny-eigen (`submodules/tiny-eigen/include/tiny-eigen/`, maintained in this repo
   semantics, default precision 1e-12 double / 1e-5 float), `cwiseProduct`, `cwiseMin`, `cwiseMax`. All four require the
   same scalar type and dimensions (`static_assert`, like Eigen).
 - `matrix.h`, `Matrix` / `MatrixView` / `Array`: `RowsAtCompileTime`, `ColsAtCompileTime` (Eigen's names).
-- `matrix.h`, `Matrix`: `static Unit(i)` (bounds asserted), `UnitX/Y/Z/W()` (column vectors),
-  `operator*=(const Matrix<S, C, C>&)` (aliasing safe; the scalar `*=` of the base stays visible through a
+- `matrix.h`, `Matrix`: `static Unit(i)` (bounds checked by `assert`, debug builds only), `UnitX/Y/Z/W()` (column
+  vectors), `operator*=(const Matrix<S, C, C>&)` (aliasing safe; the scalar `*=` of the base stays visible through a
   using-declaration).
 - `quaternion.h`: `Quaternion::operator*=` (this * other), `angularDistance`, `isApprox`,
   `explicit Quaternion(const AngleAxis&)` ((cos(a/2), sin(a/2) * axis), axis used as given like Eigen); new class
@@ -69,9 +69,9 @@ saiga core math (`src/saiga/core/math/`):
   `MatrixProductAssignment` (incl. `m *= m`), `QuaternionProductAssignmentAndAngularDistance` (incl. the order with
   non-commuting rotations), `AngleAxis` (incl. angles above pi, a non-unit axis, a 2e-13 rad rotation).
 - `tests/test_core_math_functions.cpp` (both backends): `MathDouble.SubsetMatchesBothBackends` (incl. `*=` order,
-  aliasing, angles above pi), `CreateTRSmatrixMatchesFloat`, `LookAtMatchesFloatAndIsExactFarFromTheOrigin`,
-  `MakeQuatAndQuatCast` (incl. 180 degree rotations), `CreateTRSmatrixMatchesFloat` also with `Vec4` arguments;
-  `MathDoubleDeathTest.LookAtRejectsDegenerateInput` (with `SAIGA_ASSERTS`).
+  aliasing, angles above pi), `CreateTRSmatrixMatchesFloat` (also with `Vec4` arguments),
+  `LookAtMatchesFloatAndIsExactFarFromTheOrigin`, `MakeQuatAndQuatCast` (incl. 180 degree rotations and a scaled
+  matrix); `MathDoubleDeathTest.LookAtRejectsDegenerateInput` (with `SAIGA_ASSERTS`).
 
 ## Done when
 

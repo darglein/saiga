@@ -558,6 +558,8 @@ TEST(MathDouble, MakeQuatAndQuatCast)
     // quat_cast normalizes: a scaled rotation matrix still gives a unit quaternion
     Mat3 scaled = r * 1.0000001;
     EXPECT_NEAR(quat_cast(scaled).norm(), 1, 1e-12);
+    // ... and still the same rotation
+    EXPECT_NEAR(quat_cast(scaled).angularDistance(q), 0, 1e-6);
     EXPECT_NEAR(quat_cast(m).angularDistance(q), 0, 1e-12);
     // 180 degree rotations (trace <= 0: the other branches of the matrix to quaternion conversion)
     for (Vec3 axis : {Vec3(0, 1, 0), Vec3(1, 0, 0), Vec3(0, 0, 1), Vec3(1, 1, 0).normalized()})
