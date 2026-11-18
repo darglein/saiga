@@ -53,6 +53,10 @@ TEST(JobPool, EveryIndexExactlyOnce)
                                      // Fixed chunk boundaries
                                      EXPECT_EQ((b - begin) % chunk, 0);
                                      EXPECT_TRUE(e == end || e - b == chunk);
+                                     // Inside the range (a chunk past end would hit the padding slot of hits)
+                                     ASSERT_GE(b, begin);
+                                     ASSERT_LT(b, e);
+                                     ASSERT_LE(e, end);
                                      for (int64_t i = b; i < e; ++i) hits[size_t(i - begin)]++;
                                  });
                 for (int64_t i = 0; i < n; ++i)
@@ -209,15 +213,87 @@ TEST(JobPool, CallsFromTwoThreads)
 {
     JobPool pool(3);
     std::atomic<int64_t> a{0}, b{0};
+    // Chunks of the two callers' jobs never run at the same time (serialized calls)
+    std::atomic<int> activeA{0}, activeB{0};
+    std::atomic<bool> overlap{false};
     std::thread other(
         [&]()
         {
-            for (int i = 0; i < 300; ++i) pool.parallelFor(0, 50, 3, [&](int64_t s, int64_t e) { a += e - s; });
+            for (int i = 0; i < 300; ++i)
+                pool.parallelFor(0, 50, 3,
+                                 [&](int64_t s, int64_t e)
+                                 {
+                                     activeA++;
+                                     if (activeB > 0) overlap = true;
+                                     a += e - s;
+                                     activeA--;
+                                 });
         });
-    for (int i = 0; i < 300; ++i) pool.parallelFor(0, 40, 3, [&](int64_t s, int64_t e) { b += e - s; });
+    for (int i = 0; i < 300; ++i)
+        pool.parallelFor(0, 40, 3,
+                         [&](int64_t s, int64_t e)
+                         {
+                             activeB++;
+                             if (activeA > 0) overlap = true;
+                             b += e - s;
+                             activeB--;
+                         });
     other.join();
     EXPECT_EQ(a.load(), 300 * 50);
     EXPECT_EQ(b.load(), 300 * 40);
+    EXPECT_FALSE(overlap.load());
+}
+
+// Regression: the nested check was one flag for all pools, so a chunk of pool B calling pool A ran A's chunks inline
+// without A's call lock, concurrently with another caller of A
+TEST(JobPool, ChunkOfAnotherPoolCallsThisPoolSerialized)
+{
+    JobPool a(2), b(2);
+    std::atomic<int> activeOuter{0}, activeInner{0};
+    std::atomic<bool> overlap{false};
+    std::atomic<int64_t> n{0};
+    // Thread 1 uses pool A directly; thread 2 calls pool A from chunks of pool B
+    std::thread direct(
+        [&]()
+        {
+            for (int i = 0; i < 200; ++i)
+                a.parallelFor(0, 8, 1,
+                              [&](int64_t, int64_t)
+                              {
+                                  activeOuter++;
+                                  if (activeInner > 0) overlap = true;
+                                  n++;
+                                  activeOuter--;
+                              });
+        });
+    for (int i = 0; i < 50; ++i)
+        b.parallelFor(0, 4, 1,
+                      [&](int64_t, int64_t)
+                      {
+                          a.parallelFor(0, 8, 1,
+                                        [&](int64_t, int64_t)
+                                        {
+                                            activeInner++;
+                                            if (activeOuter > 0) overlap = true;
+                                            n++;
+                                            activeInner--;
+                                        });
+                      });
+    direct.join();
+    EXPECT_FALSE(overlap.load());
+    EXPECT_EQ(n.load(), 200 * 8 + 50 * 4 * 8);
+}
+
+TEST(JobPool, TooManyChunksThrows)
+{
+    // 2^63 chunks do not fit int64: an error in every build, not a silently skipped loop
+    JobPool pool(0);
+    EXPECT_THROW(pool.parallelFor(std::numeric_limits<int64_t>::min(), 0, 1, [](int64_t, int64_t) {}),
+                 std::length_error);
+    // The same range with larger chunks works
+    int64_t calls = 0;
+    pool.parallelFor(std::numeric_limits<int64_t>::min(), 0, int64_t(1) << 62, [&](int64_t, int64_t) { calls++; });
+    EXPECT_EQ(calls, 2);
 }
 
 TEST(JobPool, HugeRangeWithoutOverflow)
@@ -374,6 +450,23 @@ TEST(Rng, UniformIntervalNeverReturnsTheUpperBound)
     EXPECT_EQ(rng.uniform(2.0, 2.0), 2.0);
 }
 
+// Regression: b - a overflows to infinity for [-DBL_MAX, DBL_MAX], and every draw returned the same value
+TEST(Rng, UniformWideInterval)
+{
+    Rng rng(9);
+    const double mx = std::numeric_limits<double>::max();
+    bool negative = false, positive = false;
+    for (int i = 0; i < 100; ++i)
+    {
+        double v = rng.uniform(-mx, mx);
+        ASSERT_TRUE(std::isfinite(v));
+        ASSERT_LT(v, mx);
+        negative |= v < 0;
+        positive |= v > 0;
+    }
+    EXPECT_TRUE(negative && positive);
+}
+
 TEST(Rng, StateSaveAndRestore)
 {
     Rng rng(99, 5);
@@ -451,6 +544,8 @@ TEST(Log, RingSequenceNumbersAndSince)
     EXPECT_EQ(newer[1].category, "test");
     EXPECT_TRUE(ring.since(6).empty());
     EXPECT_TRUE(ring.since(100).empty());
+    // A ring of capacity 0 is rejected in every build
+    EXPECT_THROW(LogRing(0), std::invalid_argument);
     // clear keeps the sequence counter
     ring.clear();
     EXPECT_TRUE(ring.since(0).empty());
@@ -470,6 +565,9 @@ TEST(Log, SaigaLogFormatsIntoTheRing)
     EXPECT_EQ(lines[0].message, "value 42, name x");
     EXPECT_EQ(lines[1].message, longText + "|7");
     EXPECT_EQ(lines[1].sequence, lines[0].sequence + 1);
+    // The ring keeps line breaks (only the stdout echo escapes them)
+    SAIGA_LOG("test", "first\nsecond");
+    EXPECT_EQ(engineLog().since(lines[1].sequence)[0].message, "first\nsecond");
     setLogEcho(true);
 }
 

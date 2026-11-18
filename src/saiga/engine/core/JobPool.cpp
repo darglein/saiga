@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <exception>
+#include <stdexcept>
 
 namespace Saiga
 {
@@ -19,14 +20,29 @@ namespace Engine
 {
 namespace
 {
-// Set while this thread runs chunks: a nested parallelFor runs serially
-thread_local bool insideChunk = false;
+// The pools whose chunks this thread is running (innermost first). A parallelFor of a pool in this chain is nested: it
+// runs serially without the call lock (an outer frame of the same pool holds it, or waits for this thread).
+struct ChunkFrame
+{
+    const JobPool* pool;
+    const ChunkFrame* outer;
+};
+thread_local const ChunkFrame* chunkFrames = nullptr;
+
+bool insideChunkOf(const JobPool* pool)
+{
+    for (const ChunkFrame* f = chunkFrames; f; f = f->outer)
+        if (f->pool == pool) return true;
+    return false;
+}
 
 struct InsideChunk
 {
-    bool previous;
-    InsideChunk() : previous(insideChunk) { insideChunk = true; }
-    ~InsideChunk() { insideChunk = previous; }
+    ChunkFrame frame;
+    explicit InsideChunk(const JobPool* pool) : frame{pool, chunkFrames} { chunkFrames = &frame; }
+    ~InsideChunk() { chunkFrames = frame.outer; }
+    InsideChunk(const InsideChunk&)            = delete;
+    InsideChunk& operator=(const InsideChunk&) = delete;
 };
 
 // The bounds of chunk k in unsigned arithmetic: no overflow for any int64 range (k * chunk < end - begin)
@@ -65,9 +81,8 @@ JobPool::~JobPool()
 
 void JobPool::setWorkerThreads(int count)
 {
-    // From inside a chunk it would wait for its own parallelFor (the flag is per thread, so this also rejects a chunk
-    // of another pool, which would be safe; there is no use for it)
-    SAIGA_ASSERT(!insideChunk, "JobPool::setWorkerThreads from inside a parallelFor chunk");
+    // From inside one of its own chunks it would wait for its own parallelFor
+    SAIGA_ASSERT(!insideChunkOf(this), "JobPool::setWorkerThreads from inside a chunk of this pool");
     std::lock_guard<std::mutex> call(callMutex);
     stopWorkers();
     startWorkers(count);
@@ -81,7 +96,17 @@ void JobPool::startWorkers(int count)
         stop = false;
     }
     workers.reserve(count);
-    for (int i = 0; i < count; ++i) workers.emplace_back([this]() { workerLoop(); });
+    try
+    {
+        for (int i = 0; i < count; ++i) workers.emplace_back([this]() { workerLoop(); });
+    }
+    catch (...)
+    {
+        // A thread could not be started: join the ones that were (a joinable std::thread would terminate on
+        // destruction); the pool is left with 0 workers
+        stopWorkers();
+        throw;
+    }
 }
 
 void JobPool::stopWorkers()
@@ -118,7 +143,7 @@ void JobPool::workerLoop()
 
 void JobPool::runChunks(Job& job)
 {
-    InsideChunk inside;
+    InsideChunk inside(this);
     while (!job.failed.load(std::memory_order_relaxed))
     {
         int64_t k = job.nextChunk.fetch_add(1, std::memory_order_relaxed);
@@ -146,12 +171,14 @@ void JobPool::parallelFor(int64_t begin, int64_t end, int64_t chunk, const std::
     // Unsigned: end - begin may exceed INT64_MAX (begin < 0 < end). The chunk count must fit int64 (only a range wider
     // than 2^63 with tiny chunks does not)
     uint64_t span = uint64_t(end) - uint64_t(begin);
-    SAIGA_ASSERT((span - 1) / uint64_t(chunk) < uint64_t(INT64_MAX), "JobPool::parallelFor: too many chunks");
+    // In every build (not an assert): skipping the loop silently would look like an empty range
+    if ((span - 1) / uint64_t(chunk) >= uint64_t(INT64_MAX))
+        throw std::length_error("JobPool::parallelFor: more than INT64_MAX chunks (use a larger chunk)");
     int64_t chunkCount = int64_t((span - 1) / uint64_t(chunk) + 1);
 
     auto serial = [&]()
     {
-        InsideChunk inside;
+        InsideChunk inside(this);
         for (int64_t k = 0; k < chunkCount; ++k)
         {
             int64_t b, e;
@@ -159,8 +186,8 @@ void JobPool::parallelFor(int64_t begin, int64_t end, int64_t chunk, const std::
             fn(b, e);
         }
     };
-    // Nested: serially, without the call lock (the outer parallelFor holds it)
-    if (insideChunk)
+    // Nested in a chunk of this pool: serially, without the call lock (held by the outer parallelFor)
+    if (insideChunkOf(this))
     {
         serial();
         return;

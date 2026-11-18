@@ -26,8 +26,12 @@ namespace Engine
  * on the number of threads, only which thread runs a chunk does.
  *
  * - 0 workers: the chunks run serially on the calling thread, in order.
- * - A parallelFor called from inside a chunk (nested) runs serially on that thread (no deadlock).
+ * - A parallelFor called from inside a chunk of the same pool (nested, also through other pools) runs serially on that
+ *   thread (no deadlock). A chunk of another pool calls this pool normally.
  * - parallelFor calls from different threads are serialized (one job at a time).
+ * - Not allowed: pools that call each other in a cycle from different threads (a chunk of pool B on one of B's workers
+ *   calls pool A while A's caller waits for B): that deadlocks like any lock cycle. The engine has one frame pool.
+ * - The chunk count must fit int64 (std::length_error otherwise, in every build); a wider range needs larger chunks.
  * - An exception thrown by a chunk is rethrown in the caller after all started chunks have finished; chunks are
  *   skipped from the moment a thread sees the failure (best effort: chunks claimed before may still run).
  */
@@ -56,7 +60,7 @@ class SAIGA_ENGINE_API JobPool
     void stopWorkers();
     void workerLoop();
     // Runs chunks of the job until none is left (any thread)
-    static void runChunks(Job& job);
+    void runChunks(Job& job);
 
     // One parallelFor at a time (calls from different threads wait here)
     std::mutex callMutex;

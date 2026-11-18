@@ -834,12 +834,14 @@ class EngineApp   // engine/app/EngineApp.h
 | network thread | socket IO only, queues to and from the main thread |
 | audio (S47) | device callback / mixing; reads a lock-free command queue filled by the main thread, writes no components |
 
-`JobPool` (`engine/core/JobPool.h`) [exists]: `JobPool(int workerThreads)`, `setWorkerThreads`,
-`parallelFor(int64_t begin, int64_t end, int64_t chunk, fn(chunkBegin, chunkEnd))`. The chunk boundaries are fixed
-(they never depend on the thread count, only the assignment of chunks to threads does); the caller takes chunks too;
-with 0 workers or nested inside a chunk the chunks run serially in order; calls from different threads are serialized;
-an exception of a chunk is rethrown in the caller (the remaining chunks are skipped from the moment a thread sees the
-failure, best effort). saiga's `ThreadPool` is not used.
+`JobPool` (`engine/core/JobPool.h`) [exists]: `JobPool(int workerThreads)`, `setWorkerThreads`, `parallelFor(int64_t
+begin, int64_t end, int64_t chunk, fn(chunkBegin, chunkEnd))`. The chunk boundaries are fixed (they never depend on the
+thread count, only the assignment of chunks to threads does); the caller takes chunks too; with 0 workers or nested
+inside a chunk of the same pool the chunks run serially in order (a chunk of another pool calls the pool normally);
+calls from different threads are serialized; pools that call each other in a cycle from different threads deadlock and
+are not allowed; an exception of a chunk is rethrown in the caller (the remaining chunks are skipped from the moment a
+thread sees the failure, best effort); more than INT64_MAX chunks throw `std::length_error`. saiga's `ThreadPool` is not
+used.
 
 ### 8.6 Determinism [planned: S08]
 

@@ -8,9 +8,8 @@
 
 #include "saiga/engine/core/LogRing.h"
 
-#include "saiga/core/util/assert.h"
-
 #include <cstddef>
+#include <stdexcept>
 #include <utility>
 
 namespace Saiga
@@ -19,18 +18,22 @@ namespace Engine
 {
 LogRing::LogRing(size_t capacity) : cap(capacity)
 {
-    SAIGA_ASSERT(capacity > 0);
+    // In every build: a ring of capacity 0 would pop from an empty deque
+    if (capacity == 0) throw std::invalid_argument("LogRing: capacity must be positive");
 }
 
 uint64_t LogRing::add(std::string category, std::string message)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    if (lines.size() == cap) lines.pop_front();
     Line line;
-    line.sequence = ++last;
+    line.sequence = last + 1;
     line.category = std::move(category);
     line.message  = std::move(message);
+    // Append first, then commit the sequence number and evict: a failed append (bad_alloc) changes nothing, so the
+    // kept sequence numbers stay consecutive (since() relies on it)
     lines.push_back(std::move(line));
+    last++;
+    if (lines.size() > cap) lines.pop_front();
     return last;
 }
 

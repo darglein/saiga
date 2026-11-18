@@ -66,11 +66,15 @@ class Rng
 
     // [a, b) for a < b (a for a == b). std::fma: one rounding on every compiler and CPU (a * b + c may or may not be
     // contracted to an FMA instruction depending on the build, which changes the last bit). The result can round up
-    // to b for u close to 1: then the largest double below b is returned.
+    // to b for u close to 1: then the largest double below b is returned. Finite intervals wider than DBL_MAX (b - a
+    // overflows) are computed at half scale.
     double uniform(double a, double b)
     {
         SAIGA_ASSERT(a <= b, "Rng::uniform: a > b");
-        double r = std::fma(b - a, uniform(), a);
+        double u = uniform();
+        double w = b - a;
+        double r = std::isinf(w) && std::isfinite(a) && std::isfinite(b) ? 2.0 * std::fma(0.5 * b - 0.5 * a, u, 0.5 * a)
+                                                                         : std::fma(w, u, a);
         return (r < b || a == b) ? r : std::nextafter(b, a);
     }
 

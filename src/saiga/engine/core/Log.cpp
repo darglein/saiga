@@ -48,30 +48,53 @@ bool logEcho()
     return echo;
 }
 
+namespace
+{
+// Line breaks of the stdout echo escaped: one stdout line per log call (the ring keeps the original text)
+std::string oneLine(const std::string& s)
+{
+    std::string r;
+    r.reserve(s.size());
+    for (char c : s)
+    {
+        if (c == '\n')
+            r += "\\n";
+        else if (c == '\r')
+            r += "\\r";
+        else
+            r += c;
+    }
+    return r;
+}
+}  // namespace
+
 void logPrintf(const char* category, const char* format, ...)
 {
-    std::string message;
+    // Every va_start is ended before anything that can throw (allocations)
     va_list args;
     va_start(args, format);
-    va_list copy;
-    va_copy(copy, args);
-    int size = std::vsnprintf(nullptr, 0, format, copy);
-    va_end(copy);
+    int size = std::vsnprintf(nullptr, 0, format, args);
+    va_end(args);
+
+    std::string message;
+    bool ok = size >= 0;
     if (size > 0)
     {
         message.resize(size_t(size) + 1);
-        std::vsnprintf(&message[0], message.size(), format, args);
-        message.resize(size_t(size));
+        va_start(args, format);
+        int written = std::vsnprintf(&message[0], message.size(), format, args);
+        va_end(args);
+        // The second pass can fail too (e.g. an allocation inside the formatter)
+        ok = written == size;
+        if (ok) message.resize(size_t(size));
     }
-    else if (size < 0)
-    {
-        message = std::string("(invalid log format: ") + format + ")";
-    }
-    va_end(args);
+    if (!ok) message = std::string("(invalid log format: ") + format + ")";
 
     std::lock_guard<std::mutex> lock(logMutex());
-    if (echo) std::cout << "[" << category << "] " << message << std::endl;
+    // Into the ring first: the line is kept even if the echo throws (a stream with exceptions enabled)
+    std::string echoLine = echo ? "[" + oneLine(category) + "] " + oneLine(message) : std::string();
     engineLog().add(category, std::move(message));
+    if (!echoLine.empty()) std::cout << echoLine << std::endl;
 }
 
 }  // namespace Engine

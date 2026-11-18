@@ -33,6 +33,7 @@ class SAIGA_ENGINE_API LogRing
         std::string message;
     };
 
+    // capacity > 0 (std::invalid_argument otherwise)
     explicit LogRing(size_t capacity = 4096);
 
     // Returns the sequence number of the new line

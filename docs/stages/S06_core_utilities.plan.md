@@ -43,8 +43,9 @@ All in `src/saiga/engine/core/`, namespace `Saiga::Engine`:
   - `explicit Rng(uint64_t seed = 0, uint64_t stream = 0)` (pcg32 seeding: the reference values of the PCG paper's
     demo hold);
   - `uint32_t nextU32()`; `double uniform()` in [0, 1) from 53 bits (two outputs); `double uniform(double a, double b)`
-    in [a, b) (a result rounded up to b is replaced by the largest double below b); `int64_t range(int64_t a, int64_t b)` uniform in [a, b] inclusive without modulo bias (asserts a <= b;
-    one output for spans up to 2^32, two above);
+    in [a, b) (a result rounded up to b is replaced by the largest double below b); `int64_t range(int64_t a, int64_t
+    b)` uniform in [a, b] inclusive without modulo bias (asserts a <= b; each attempt uses one `nextU32()` output for
+    spans up to 2^32 and two above, a rejected attempt draws again);
   - `struct State { uint64_t state, increment; }`, `State state() const`, `void setState(const State&)` (saved by the
     world from S08/S11), `operator==`.
 - `Hash.h` (header only): `constexpr uint64_t kFnvOffset`, `kFnvPrime`; `uint64_t fnv1a64Bytes(const void*,
@@ -139,10 +140,16 @@ All the tests above pass in CI on GCC, Clang and MSVC; `docs/engine_design.md` d
 - Review round 3: `uniform(a, b)` asserts `a <= b` (swapped bounds gave a constant); the engine log ring and its
   mutex are never destroyed (static objects may log at exit); the rounding test uses a one-ulp interval, so it reaches
   the guard; the new files are clang-formatted.
+- CodeRabbit (PR #47): the nested check is per pool (a chunk of pool B calling pool A takes A's call lock; one flag for
+  all pools ran A's chunks inline next to another caller of A); cycles between pools are documented as not allowed;
+  a failed worker start joins the started workers; more than INT64_MAX chunks and a ring of capacity 0 throw in every
+  build; `uniform(a, b)` handles intervals wider than DBL_MAX; `logPrintf` ends every `va_list` before allocating,
+  checks the second `vsnprintf`, adds to the ring before the echo and escapes line breaks in the echo; `LogRing::add`
+  commits the sequence number after the append. §8.5 updated. Tests: 25.
 
 ## Results
 
-- `tests/test_engine_core.cpp`: 22 tests pass (GCC 15, RelWithDebInfo); the PCG32 reference values of the PCG demo and
+- `tests/test_engine_core.cpp`: 25 tests pass (GCC 15, RelWithDebInfo); the PCG32 reference values of the PCG demo and
   the FNV-1a reference values hold; the pinned `range`/`uniform`/`Hasher` values are equal with GCC 15 and Clang 19.
 - ThreadSanitizer (Clang 19, the engine core sources and the test compiled with `-fsanitize=thread`): no reports in 5
   runs of the JobPool and Log tests and 20 repeats of the JobPool tests.
