@@ -724,10 +724,12 @@ TEST(Ecs, VectorOfEmptyStructsRoundTrips)
     h.tags.resize(size_t(kMaxEmptyElements));
     ASSERT_TRUE(fromBytes(out, toBytes(h), &error)) << error;
     EXPECT_EQ(out.tags.size(), size_t(kMaxEmptyElements));
-#ifdef SAIGA_ASSERTS
+    // One more: an error in every build (not an assert), so no unreadable buffer is produced
     h.tags.resize(size_t(kMaxEmptyElements) + 1);
+    std::vector<uint8_t> bytes;
+    EXPECT_FALSE(toBytes(h, bytes, &error));
+    EXPECT_NE(error.find("more than kMaxEmptyElements"), std::string::npos) << error;
     EXPECT_DEATH(toBytes(h), "more than kMaxEmptyElements");
-#endif
 }
 
 // Regression: a struct that contains itself through a vector (a tree) made the field check of registerComponent

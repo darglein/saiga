@@ -30,10 +30,15 @@ constexpr uint64_t kMaxEmptyElements = 1 << 16;
 template <class T>
 size_t minEncodedSize();
 
+// Writes the binary form. Values the reader would reject (more than kMaxEmptyElements zero-byte elements) set an error
+// in every build; the output is then incomplete (ok() / error()).
 class BinaryWriter
 {
    public:
     explicit BinaryWriter(std::vector<uint8_t>& out) : out(out) {}
+
+    bool ok() const { return err.empty(); }
+    const std::string& error() const { return err; }
 
     template <class T>
     void operator()(const char*, T& field)
@@ -97,9 +102,15 @@ class BinaryWriter
         }
         else if constexpr (IsStdVector<T>::value)
         {
-            // The reader accepts at most kMaxEmptyElements elements that encode to zero bytes: never write more
-            SAIGA_ASSERT(v.size() <= kMaxEmptyElements || minEncodedSize<typename T::value_type>() != 0,
-                         "BinaryWriter: more than kMaxEmptyElements elements without bytes (the reader rejects them)");
+            // The reader accepts at most kMaxEmptyElements elements that encode to zero bytes: never write more (an
+            // error in every build, not an assert: the buffer would be unreadable)
+            if (v.size() > kMaxEmptyElements && minEncodedSize<typename T::value_type>() == 0)
+            {
+                if (err.empty())
+                    err = "vector of " + std::to_string(v.size()) +
+                          " elements without bytes (more than kMaxEmptyElements, the reader rejects it)";
+                return;
+            }
             writeUnsigned(uint64_t(v.size()), 8);
             for (const auto& e : v) write(e);
         }
@@ -125,6 +136,7 @@ class BinaryWriter
     }
 
     std::vector<uint8_t>& out;
+    std::string err;
 };
 
 // Minimum number of bytes of one encoded value (bounds the allocation of a vector from its length field). Nested
@@ -351,13 +363,25 @@ class BinaryReader
     std::string err;
 };
 
-// The binary form of a visit struct
+// The binary form of a visit struct. Returns false (and *error) for a value the reader would reject; out is then
+// incomplete.
+template <class T>
+bool toBytes(const T& value, std::vector<uint8_t>& out, std::string* error)
+{
+    out.clear();
+    BinaryWriter w(out);
+    w.write(value);
+    if (error) *error = w.error();
+    return w.ok();
+}
+
+// The binary form of a visit struct; stops the program (in every build) for a value the reader would reject
 template <class T>
 std::vector<uint8_t> toBytes(const T& value)
 {
     std::vector<uint8_t> out;
-    BinaryWriter w(out);
-    w.write(value);
+    std::string error;
+    if (!toBytes(value, out, &error)) SAIGA_EXIT_ERROR("toBytes: " + error);
     return out;
 }
 
