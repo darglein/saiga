@@ -166,7 +166,7 @@ TEST(LongPath, IsPathTooLongError)
     // A missing file that the OS gets in a form it can open (prefixed if needed, as the temp folder can be long).
     std::error_code ec;
     const auto missing_file = os_path(TestDir() / "missing.txt");
-    std::filesystem::file_size(missing_file, ec);
+    (void)std::filesystem::file_size(missing_file, ec);
     EXPECT_TRUE(ec);
     EXPECT_FALSE(is_path_too_long_error(ec, missing_file));
 
@@ -176,7 +176,7 @@ TEST(LongPath, IsPathTooLongError)
     std::filesystem::create_directories(dir);
     auto missing = dir / std::string(250 - (dir.native().size() + 1), 'm');
     ASSERT_EQ(missing.native().size(), 250u);
-    std::filesystem::file_size(missing, ec);
+    (void)std::filesystem::file_size(missing, ec);
     EXPECT_TRUE(ec);
     EXPECT_FALSE(is_path_too_long_error(ec, missing));
 }
