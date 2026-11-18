@@ -726,7 +726,10 @@ TEST(Ticking, TheFirstUpdateGetsTheRealElapsedTime)
         w.step();
         const double elapsed = double(s + 1) / 60.0;
         for (Entity e : objects)
-            if (w.read<Health>(e).hp > 0) EXPECT_LE(w.read<Health>(e).maxHp, elapsed + 1e-9);
+            if (w.read<Health>(e).hp > 0)
+            {
+                EXPECT_LE(w.read<Health>(e).maxHp, elapsed + 1e-9);
+            }
     }
 }
 
@@ -967,3 +970,33 @@ TEST(GameObjectDeathTest, DoubleDeferredRemoveIsRefused)
     EXPECT_DEATH(w.step(), "has no Health");
 }
 #endif
+
+namespace
+{
+// Drops loot that fails to configure
+class LootDropper final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(Round2Class::Count);
+    static constexpr const char* name = "LootDropper";
+    void onDestroy() override { spawn<BadConfig>(Vec3::Zero()); }
+};
+}  // namespace
+
+// Regression: a failed spawn inside onDestroy was only queued for destruction, the exception dropped the queue and the
+// half-started object kept ticking
+TEST(GameObject, AFailedSpawnInsideOnDestroyLeavesNoObject)
+{
+    WorldSetup s = round2Setup();
+    s.classes    = [](ClassList& c)
+    {
+        round2Classes(c);
+        c.add<LootDropper>();
+    };
+    World w(s);
+    Entity d = w.spawn<LootDropper>(Vec3::Zero());
+    EXPECT_THROW(w.destroy(d), std::runtime_error);
+    int objects = 0;
+    w.viewAll<const Behaviour>().each([&](Entity, const Behaviour& b) { objects += b.classId == BadConfig::id; });
+    EXPECT_EQ(objects, 0);
+}

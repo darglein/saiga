@@ -255,12 +255,20 @@ new tests.
   are logged after they ran with the outcome; `time_scale` at most 1000; integers printed in full; profile times
   rounded with a `top` list. Not changed: `step` while running (an agent pauses first), `measure_performance` still
   answers only from steps (it answers when the world is destroyed or at the deadline), no action-name registry yet.
+- Review round 3 (portability, regressions of round 2, a build without asserts, docs): the API's `spawn` applies
+  rotation and scale only when given (it reset a class's own) and reports initial components it could not apply any
+  more (`skipped`; an initial `Parent` whose entity `onSpawn` destroyed asserted); a failed spawn inside `onDestroy` is
+  destroyed at once (the queue was dropped by the propagating exception); a deferred `add<Parent>` to a dead parent is
+  refused at record time in every build; unit quaternions stay bit-exact through JSON (normalized only when not unit,
+  zero refused only for API writes); the moved list is not repeated while structural changes are paged;
+  `std::random_device` failures fall back to the clock; includes, docs (`tickOffset`, the two spawn orders). Built and
+  tested without asserts (Release, `SAIGA_ASSERTS=OFF`) by the reviewer: passes.
 - The test event `DamageEvent` and the test component `Health` of `test_engine_world.cpp` and the ECS benchmark are
   renamed (`HitEvent`, `Vitality`): the engine registers those names now.
 
 ## Results
 
-- `tests/test_engine_gameobject.cpp`: 29 tests, `tests/test_engine_world_api.cpp`: 19 tests (GCC 15); the S07-S09
+- `tests/test_engine_gameobject.cpp`: 30 tests, `tests/test_engine_world_api.cpp`: 22 tests (GCC 15); the S07-S09
   tests unchanged. Full ctest (CI options, GCC 15): 57/57.
 - Benchmark (GCC 15, RelWithDebInfo, laptop): 10^4 game objects with one player: `World::step` 0.09 ms standing (411
   updates per step), 0.21 ms when every object is re-tiered each step. The S08 benchmark with 10^5 moving entities:

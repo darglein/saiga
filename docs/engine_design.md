@@ -896,7 +896,9 @@ class EngineApp   // engine/app/EngineApp.h
   96 m), `<= midRing` every `midInterval` (13 x 13 cells, about 200 m), else `farInterval` (also without a player in the
   space). A class overrides the rings and intervals with `virtual const TickPolicy* tickPolicy() const { return
   nullptr; }` (the cell size is always the world's); players and objects with `Behaviour::alwaysTickEveryStep` tick
-  every step. `sinceTick` of a spawned object starts at `(hashCombine(0, index) % 1024) / 1024.0 * tickInterval`.
+  every step. The first tick of a spawned object is staggered by `Behaviour::tickOffset = (hashCombine(0, index) %
+  1024) / 1024.0 * tickInterval` (it ticks when `sinceTick + tickOffset` reaches the interval; `update` gets the real
+  `sinceTick`).
 - `tickSystem` (phase 6, after the grid) keeps the sorted player cells: when they change (a player crossed a cell
   border, joined or left) every object is re-evaluated, otherwise only the objects of the changed list; `spawn`
   evaluates the new object at once. Exact and deterministic (no round-robin delay); cost per step is the moved objects
@@ -981,7 +983,7 @@ class GameObject
 ```
 
 - Optional per entity, owned by the `Behaviour` component (`std::unique_ptr<GameObject>`, `classId`, `tickInterval`,
-  `sinceTick`, `alwaysSimulate`, `alwaysTickEveryStep`; `visit` covers all but the pointer; the object is recreated
+  `sinceTick`, `tickOffset`, `alwaysSimulate`, `alwaysTickEveryStep`; `visit` covers all but the pointer; the object is recreated
   through its factory).
   `tickInterval` is recomputed in phase 6 from the grid-cell rings around the players (§8.4; `ScenarioWorld`: all
   objects tick every step).
@@ -1005,8 +1007,9 @@ class GameObject
   destroys the half-spawned entity (without `onDestroy`) before it propagates. Two deferred adds of a component, or
   removes of a missing one, are refused when applied in every build (hooks see the state before the flush). During a flush, operations on an entity reserved later in the
   same phase follow its activation (appended to the commands); so does `add<Parent>` with such a parent. `remove<Behaviour>` drops the object without
-  `onDestroy`. `onSpawn` adds a component a spawner may pass as initial only after `has<T>()` (an agent's `spawn` with
-  initial components otherwise asserts on the double add). The first tick of a spawned object is staggered by
+  `onDestroy`. C++ `spawn<T>` adds the initial components before `configure`/`onSpawn` (a hook that adds one of them
+  again asserts: check `has<T>()`); the world API's `spawn` applies them after `onSpawn`, merged into components the
+  object added itself. The first tick of a spawned object is staggered by
   `Behaviour::tickOffset`; `update` always gets the real time since the last update. `behaviourEventSystem` skips dead targets,
   entities without a game object and entities without `Simulated`.
 - The player's `GameObject` holds only host-side logic (damage, inventory, quests); movement is a system (§8.2).

@@ -218,7 +218,8 @@ void World::abandonSpawn(Entity e)
 {
     if (!reg.alive(e)) return;
     if (Behaviour* b = reg.tryGet<Behaviour>(e)) b->destroying = true;
-    destroyNow(e);
+    // At once, also inside a destroy (the queue would be dropped by the exception that is propagating)
+    destroyOne(e);
 }
 
 void World::queueAction(const PlayerAction& action)

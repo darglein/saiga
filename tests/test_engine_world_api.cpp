@@ -8,10 +8,11 @@
 
 #include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/components/Health.h"
+#include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
-#include "saiga/engine/core/Log.h"
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/tools/WorldTools.h"
@@ -677,7 +678,7 @@ TEST(Profiler, AnAbortedStepIsNotCounted)
     EXPECT_THROW(w.step(), std::runtime_error);
     w.step();
     const int scope = w.profiler().scope("step");
-    EXPECT_LT(w.profiler().scopeStats(scope, 1).max, 20.0);
+    EXPECT_LT(w.profiler().scopeStats(scope, 1).max, 25.0);  // the aborted step slept 30 ms
     EXPECT_EQ(w.profiler().sampleCount(), 1u);
 }
 
@@ -871,4 +872,113 @@ TEST(WorldApi, SpawnMergesInitialComponentsTheObjectAdded)
     ASSERT_EQ(l.value["count"].number_value(), 1);
     EXPECT_EQ(l.value["entities"][0]["values"]["Health"]["hp"].number_value(), 5);
     EXPECT_EQ(l.value["entities"][0]["distance"].number_value(), 0);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review regressions (S10 round 3)
+
+namespace
+{
+enum class Round3Class : uint16_t
+{
+    Spinner = kFirstGameClass + 2,
+    Killer,
+};
+// Sets its own rotation and scale in onSpawn
+class Spinner final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(Round3Class::Spinner);
+    static constexpr const char* name = "Spinner";
+    void onSpawn() override
+    {
+        transformWrite().setRotation(Quat(0, 0, 1, 0));
+        transformWrite().setScale(Vec3(2, 2, 2));
+    }
+};
+Entity g_victim;
+// Destroys an entity in onSpawn (the parent an agent passed as an initial component)
+class Killer final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(Round3Class::Killer);
+    static constexpr const char* name = "Killer";
+    void onSpawn() override { world().destroy(g_victim); }
+};
+}  // namespace
+
+// Regression: spawn reset a class's own rotation and scale, and an initial Parent destroyed by onSpawn asserted
+TEST(WorldApi, SpawnKeepsTheClassTransformAndReportsSkippedComponents)
+{
+    WorldSetup s = apiSetup();
+    s.classes    = [](ClassList& c)
+    {
+        c.add<Dummy>();
+        c.add<Turret>();  // the class IDs are contiguous
+        c.add<Spinner>();
+        c.add<Killer>();
+    };
+    World w(s);
+    WorldApi api(w);
+    ApiResult r = api.call("spawn", obj(R"({"class": "Spinner", "position": [0, 0, 0]})"));
+    ASSERT_TRUE(r.ok) << r.error;
+    const Entity sp = entityOf(r.value["entity"]);
+    EXPECT_EQ(w.read<Transform>(sp).scale(), Vec3(2, 2, 2));
+    EXPECT_EQ(w.read<Transform>(sp).rotation().y(), 1);
+    g_victim = w.create();
+    r        = api.call(
+        "spawn",
+        Json(Json::object{
+                   {"class", "Killer"},
+                   {"position", Json::array{0, 0, 0}},
+                   {"components", Json::object{{"Parent", Json::object{{"entity", WorldApi::entityJson(g_victim)}}}}}}));
+    ASSERT_TRUE(r.ok) << r.error;
+    EXPECT_EQ(r.value["skipped"][0]["component"].string_value(), "Parent");
+    EXPECT_FALSE(w.has<Parent>(entityOf(r.value["entity"])));
+}
+
+// Regression: a unit quaternion read and written back changed by 1 ulp (normalized again)
+TEST(VisitJson, UnitQuaternionsRoundTripExactly)
+{
+    Rng rng(3);
+    for (int i = 0; i < 1000; ++i)
+    {
+        LocalTransform t;
+        Quat q(rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0));
+        q.normalize();
+        t.rotation = q;
+        LocalTransform back;
+        ASSERT_TRUE(fromJson(toJson(t), back, nullptr, true));
+        EXPECT_EQ(back.rotation.w(), t.rotation.w());
+        EXPECT_EQ(back.rotation.x(), t.rotation.x());
+    }
+    // Not a unit quaternion: normalized (finiteOnly); zero: refused
+    LocalTransform t;
+    ASSERT_TRUE(fromJson(obj(R"({"rotation": [2, 0, 0, 0]})"), t, nullptr, true));
+    EXPECT_EQ(t.rotation.w(), 1);
+    EXPECT_FALSE(fromJson(obj(R"({"rotation": [0, 0, 0, 0]})"), t, nullptr, true));
+}
+
+// Regression: with more structural changes than a page, every page repeated the whole moved list
+TEST(WorldApi, TheMovedListIsNotRepeatedWhileChangesArePaged)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity mover = w.create();
+    ApiResult c  = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true})"));
+    w.get<Transform>(mover).setPosition(Vec3(1, 0, 0));
+    for (int i = 0; i < 30; ++i) w.create();  // 30 structural changes
+    w.step();
+    size_t movedReports = 0;
+    Json cursor         = c.value["cursor"];
+    for (int page = 0; page < 10; ++page)
+    {
+        ApiResult r =
+            api.call("changes_since", Json(Json::object{{"cursor", cursor}, {"include_moved", true}, {"limit", 10}}));
+        ASSERT_TRUE(r.ok) << r.error;
+        movedReports += r.value["moved"].array_items().size();
+        cursor = r.value["cursor"];
+        if (!r.value["more"].bool_value() && !r.value["moved_more"].bool_value()) break;
+    }
+    EXPECT_EQ(movedReports, 1u);
 }

@@ -30,7 +30,7 @@ SAIGA_ENGINE_API void characterMoveSystem(World& world, double dt);
 // Phase 6 (all), after the grid: tick intervals from the grid-cell rings around the players
 SAIGA_ENGINE_API void tickSystem(World& world, double dt);
 
-// The tick interval of one object from the current player cells; spawned: also the staggered start of sinceTick
+// The tick interval of one object from the current player cells; spawned: also the staggered first tick (tickOffset)
 SAIGA_ENGINE_API void assignTickInterval(World& world, Entity e, Behaviour& behaviour, bool spawned);
 
 }  // namespace Engine

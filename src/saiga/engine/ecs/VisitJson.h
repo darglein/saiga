@@ -29,8 +29,9 @@
 //   nested structs         objects
 //
 // Reading merges: keys that are missing keep the current values; unknown keys, wrong types, out-of-range integers and
-// wrong array lengths are errors. fromJson first checks everything without writing (a dry run on a scratch copy of the
-// structure), so a rejected document changes nothing.
+// wrong array lengths are errors. finiteOnly (writes from the world API): nan and inf are errors, quaternions need a
+// length > 0 and are normalized (unit ones stay bit-exact). fromJson first checks everything without writing (a dry run
+// on a scratch copy of the structure), so a rejected document changes nothing.
 
 namespace Saiga
 {
@@ -255,11 +256,13 @@ class JsonReader
             for (size_t k = 0; k < 4; ++k) read(j.array_items()[k], c[k], where + "[" + std::to_string(k) + "]");
             apply = wasApply;
             if (!ok()) return;
-            const double n = std::sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2] + c[3] * c[3]);
-            if (std::isfinite(n) && n < 1e-12) return fail(where, "a rotation needs a quaternion of length > 0");
+            // Writes from agents (finiteOnly): a rotation, normalized; unit quaternions stay bit-exact (round trips)
+            const double n  = std::sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2] + c[3] * c[3]);
+            const bool unit = std::abs(n - 1) <= 1e-12;
+            if (finiteOnly && n < 1e-12) return fail(where, "a rotation needs a quaternion of length > 0");
             if (apply)
             {
-                if (std::isfinite(n))
+                if (finiteOnly && !unit)
                     v = T(c[0] / n, c[1] / n, c[2] / n, c[3] / n);
                 else
                     v = T(c[0], c[1], c[2], c[3]);
@@ -352,7 +355,7 @@ class JsonReader
 
     void push(const Json& object, const std::string& prefix)
     {
-        frames.push_back(Frame{&object, {}});
+        frames.push_back(Frame{&object, {}, {}});
         path = prefix;
         if (frames.size() == 1 && !object.is_object()) fail("", "expected an object");
     }

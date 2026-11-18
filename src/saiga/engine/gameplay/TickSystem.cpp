@@ -5,8 +5,8 @@
  */
 
 // tickSystem (phase 6, after the grid; §8.4). Reads: Player and Transform of the players, Transform and Behaviour of
-// the objects, the changed list. Writes: Behaviour::tickInterval (and sinceTick of spawned objects), the world's player
-// cells.
+// the objects, the changed list. Writes: Behaviour::tickInterval (and tickOffset of spawned objects), the world's
+// player cells.
 
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/core/Hash.h"

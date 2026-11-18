@@ -91,7 +91,7 @@ std::vector<ToolSpec> toolSpecs()
         {"set_component",
          "Changes fields of a component the entity has (only the given fields; others keep their values). Bypasses "
          "game rules (e.g. Health.hp directly; emit_event with DamageEvent goes through onDamage instead). Transform: "
-         "position, rotation, scale (a teleport). Returns the new values.",
+         "position, rotation, scale (a teleport). Returns the new values and the previous ones (for an undo).",
          S::ObjectSchema({{"entity", entityProperty("The entity")},
                           {"component", comp},
                           {"values", objectProperty("Fields to change")}},

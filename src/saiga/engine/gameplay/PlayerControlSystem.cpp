@@ -13,6 +13,8 @@
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/world/World.h"
 
+#include <cmath>
+
 namespace Saiga
 {
 namespace Engine

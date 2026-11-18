@@ -280,19 +280,19 @@ bool checkComponentValues(World& w, Entity child, ComponentId id, const Json& va
     return w.registry().poolById(id)->checkJson(values, error);
 }
 
-// Adds a component with values (checked before)
-void addComponentValues(World& w, Entity e, ComponentId id, const Json& values)
+// Adds a component with values (checked before; a Parent is checked again: hooks may have changed the world since)
+bool addComponentValues(World& w, Entity e, ComponentId id, const Json& values, std::string& error)
 {
-    std::string error;
     if (id == Parent::id)
     {
         Parent p;
-        parentFromJson(w, e, values.is_null() ? emptyObject() : values, p, error);
+        if (!parentFromJson(w, e, values.is_null() ? emptyObject() : values, p, error)) return false;
         w.add<Parent>(e, p);
-        return;
+        return true;
     }
     w.addDefaultNow(e, id);
-    if (!values.is_null()) w.registry().poolById(id)->mergeJson(e.index, values, error);
+    if (!values.is_null()) return w.registry().poolById(id)->mergeJson(e.index, values, error);
+    return true;
 }
 
 // The opaque cursor of changes_since: "<epoch>.<seq>.<step>.<index>": the session (a random epoch per API, so a
@@ -334,8 +334,16 @@ WorldApi::WorldApi(World& world, bool allowEdits)
     : w(&world), allowEdits(allowEdits), alive(std::make_shared<bool>(true))
 {
     // A random session epoch: cursors of other API instances (another session, a restarted game) are rejected
-    std::random_device rd;
-    epoch                    = rd() % 1000000000u + 1;
+    try
+    {
+        std::random_device rd;
+        epoch = rd() % 1000000000u + 1;
+    }
+    catch (...)
+    {
+        // random_device may be unavailable (sandboxes): the clock is unique enough for a session epoch
+        epoch = uint32_t(std::chrono::steady_clock::now().time_since_epoch().count() % 1000000000) + 1;
+    }
     consumer                 = w->structuralLog().addConsumer();
     std::weak_ptr<bool> weak = alive;
     // The journal is filled after every step, so the structural log is never held back by an idle API
@@ -864,7 +872,9 @@ ApiResult WorldApi::changesSince(const Json& a)
     }
     const bool more = !journal.empty() && journal.back().seq > last;
     Json::object result{{"changes", changes}, {"more", more}, {"truncated", truncated}};
-    Cursor next{epoch, last, more ? c.step : w->stepIndex(), 0};
+    // While more structural changes follow, the step stays; index kMovesDone marks a moved list already returned
+    constexpr uint32_t kMovesDone = 0xFFFFFFFFu;
+    Cursor next{epoch, last, more ? c.step : w->stepIndex(), more ? kMovesDone : 0};
 
     // Moves (coalesced per entity: each entity moved after the cursor's step once), paged by entity index
     if (includeMoved)
@@ -879,9 +889,10 @@ ApiResult WorldApi::changesSince(const Json& a)
             next.step                         = w->stepIndex();
         }
         Json::array moved;
-        bool movedMore     = false;
-        uint32_t lastIndex = c.index;
-        for (uint32_t i = c.index + 1; i < lastMovedStep.size(); ++i)
+        bool movedMore      = false;
+        uint32_t lastIndex  = c.index;
+        const uint32_t from = c.index == kMovesDone ? uint32_t(lastMovedStep.size()) : c.index + 1;
+        for (uint32_t i = from; i < lastMovedStep.size(); ++i)
         {
             if (lastMovedStep[i] <= c.step) continue;
             const Entity e = w->registry().aliveAt(i);
@@ -979,7 +990,7 @@ ApiResult WorldApi::addComponent(const Json& a)
     const Json& values = a["values"];
     if (!values.is_null() && !values.is_object()) return ApiResult::failure("values: expected an object of fields");
     if (!checkComponentValues(*w, e, id, values, error)) return ApiResult::failure(error);
-    addComponentValues(*w, e, id, values);
+    if (!addComponentValues(*w, e, id, values, error)) return ApiResult::failure(error);
     return ApiResult::success(componentJson(*w, e, id));
 }
 
@@ -1085,30 +1096,41 @@ ApiResult WorldApi::spawn(const Json& a)
         w->get<Transform>(e).setPosition(position);
     }
     if (!w->alive(e)) return ApiResult::success(Json::object{{"entity", entityJson(e)}, {"alive", false}});
+    // Only the given ones: a class may have set its own rotation or scale in configure or onSpawn
     Transform& t = w->get<Transform>(e);
-    t.setRotation(rotation);
-    t.setScale(scale);
-    // After the class's configure and onSpawn: a component the object added itself is merged with the given values
+    if (!a["rotation"].is_null()) t.setRotation(rotation);
+    if (!a["scale"].is_null()) t.setScale(scale);
+    // After the class's configure and onSpawn: a component the object added itself is merged with the given values.
+    // A component that cannot be applied any more (e.g. onSpawn destroyed the Parent's entity) is skipped and reported.
+    Json::array skipped;
     for (auto& c : initial)
     {
+        if (!w->alive(e)) break;
+        bool ok = true;
+        error.clear();
         if (w->registry().entityMask(e).test(c.first))
         {
             if (c.first == Parent::id)
             {
                 Parent p = w->read<Parent>(e);
-                if (parentFromJson(*w, e, c.second, p, error))
+                ok       = parentFromJson(*w, e, c.second, p, error);
+                if (ok)
                 {
                     w->remove<Parent>(e);
                     w->add<Parent>(e, p);
                 }
             }
             else if (!c.second.is_null())
-                w->registry().poolById(c.first)->mergeJson(e.index, c.second, error);
+                ok = w->registry().poolById(c.first)->mergeJson(e.index, c.second, error);
         }
         else
-            addComponentValues(*w, e, c.first, c.second);
+            ok = addComponentValues(*w, e, c.first, c.second, error);
+        if (!ok)
+            skipped.push_back(Json::object{{"component", w->registry().componentInfo(c.first).name}, {"error", error}});
     }
-    return ApiResult::success(Json::object{{"entity", entityJson(e)}, {"alive", w->alive(e)}});
+    Json::object result{{"entity", entityJson(e)}, {"alive", w->alive(e)}};
+    if (!skipped.empty()) result["skipped"] = skipped;
+    return ApiResult::success(result);
 }
 
 ApiResult WorldApi::destroy(const Json& a)

@@ -26,6 +26,7 @@
 #include "saiga/engine/world/SystemList.h"
 #include "saiga/export.h"
 
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <memory>
@@ -474,8 +475,13 @@ void World::add(Entity e, A&&... args)
         // remove + add re-parents, §7.4); the flush asserts with the component and the entity named
         if constexpr (T::id == ComponentId(EngineComponent::Parent))
         {
-            // The parent must exist now (it may be destroyed before the flush; then the child follows it)
-            SAIGA_ASSERT(reg.alive(value.entity) || reg.reserved(value.entity), "add<Parent>: the parent is not alive");
+            // The parent must exist now (it may be destroyed before the flush; then the child follows it); refused in
+            // every build
+            if (!reg.alive(value.entity) && !reg.reserved(value.entity))
+            {
+                SAIGA_ASSERT(false, "add<Parent>: the parent is not alive");
+                return;
+            }
         }
         record(makeCommand([e, v = std::move(value)](World& w) mutable { w.addNow<T>(e, std::move(v)); }));
         return;
