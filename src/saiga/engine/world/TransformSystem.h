@@ -30,6 +30,10 @@ SAIGA_ENGINE_API bool updateChildren(World& world, bool teleportsOnly);
 // Before phase 8: teleports made in phase 7 reach the children, so extract sees them flagged (§7.4)
 SAIGA_ENGINE_API void propagateTeleportsBeforeExtract(World& world);
 
+// After phase 8: lists the children whose parent was teleported after their last update (teleported in the next
+// phase 6)
+SAIGA_ENGINE_API void collectLateChildTeleports(World& world);
+
 // The engine's systems (docs/engine_design.md §8.2), registered before the game's
 SAIGA_ENGINE_API void registerEngineSystems(SystemList& systems);
 

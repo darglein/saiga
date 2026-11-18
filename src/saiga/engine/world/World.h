@@ -170,6 +170,12 @@ class SAIGA_ENGINE_API World
     bool hierarchyDirty = true;
     // The entities with a Parent, parents before children (depth, then index); rebuilt by phase 6 when dirty
     std::vector<Entity> hierarchyOrder;
+    // Children whose parent was teleported after their last update in a step (phase 8): teleported in the next
+    // phase 6, sorted by index
+    std::vector<Entity> pendingChildTeleports;
+    // Recounts the children per entity from the Parent pool and marks the hierarchy order dirty (after the registry was
+    // filled directly, e.g. by load in S11)
+    void rebuildHierarchyState();
 
    private:
     // Structural changes are deferred during a step, except while commands are applied
@@ -185,7 +191,6 @@ class SAIGA_ENGINE_API World
     bool acceptParent(Entity child, Entity parent);
     // On an exception in a step: drops the pending commands and releases the entities they would have activated
     void abortStep();
-    // After phase 8: children of parents teleported in phases 7 and 8 (after the hierarchy update) are teleported too
     // Children per entity index (destroy skips the cascade for entities without children)
     uint32_t childCount(Entity e) const;
     void changeChildCount(Entity parent, int delta);
@@ -241,9 +246,8 @@ void World::add(Entity e, A&&... args)
     if (deferring())
     {
         SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), std::string("add<") + T::name + ">: the entity is not alive");
-        // Checked when recorded, so the failure names the system's call (an alive entity can still lose T before the
-        // flush; then add applies normally)
-        if (reg.alive(e)) SAIGA_ASSERT(!reg.has<T>(e), std::string("add<") + T::name + ">: the entity already has it");
+        // Whether e has T is checked when the command is applied (earlier commands of the phase may add or remove T:
+        // remove + add re-parents, §7.4); the flush asserts with the component and the entity named
         T value = makeComponent<T>(std::forward<A>(args)...);
         if constexpr (T::id == ComponentId(EngineComponent::Parent))
         {
@@ -263,8 +267,6 @@ void World::remove(Entity e)
     if (deferring())
     {
         SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), std::string("remove<") + T::name + ">: the entity is not alive");
-        if (reg.alive(e))
-            SAIGA_ASSERT(reg.has<T>(e), std::string("remove<") + T::name + ">: the entity does not have it");
         record(makeCommand([e](World& w) { w.removeNow<T>(e); }));
         return;
     }

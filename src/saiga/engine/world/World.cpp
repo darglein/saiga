@@ -30,7 +30,9 @@ World::World(const WorldSetup& setup)
       stepDt(1.0 / setup.config.stepsPerSecond)
 {
     SAIGA_ASSERT(setup.workerThreads >= 1, "WorldSetup::workerThreads must be at least 1 (the calling thread)");
-    SAIGA_ASSERT(setup.config.stepsPerSecond > 0 && setup.config.maxStepsPerAdvance >= 1, "invalid WorldConfig");
+    SAIGA_ASSERT(std::isfinite(setup.config.stepsPerSecond) && setup.config.stepsPerSecond > 0 &&
+                     setup.config.maxStepsPerAdvance >= 1,
+                 "invalid WorldConfig");
     reg.setJobPool(&pool);
 
     // Engine lists first, then the game's (§7.9, §18.2)
@@ -139,6 +141,14 @@ void World::destroyNow(Entity e)
     }
 }
 
+void World::rebuildHierarchyState()
+{
+    children.assign(size_t(reg.slotCount()), 0);
+    if (reg.registered(Parent::id))
+        reg.view<const Parent>().each([&](Entity, const Parent& p) { children[p.entity.index]++; });
+    hierarchyDirty = true;
+}
+
 uint32_t World::childCount(Entity e) const
 {
     return e.index < children.size() ? children[e.index] : 0;
@@ -156,8 +166,10 @@ bool World::acceptParent(Entity child, Entity parent)
     if (!reg.alive(parent))
     {
         // During a flush the parent may have been destroyed earlier in the same flush: the child follows it
+        // Between steps a dead parent is an error (refused without asserts); during a flush the parent may have been
+        // destroyed earlier in the same flush: the child follows it
         SAIGA_ASSERT(flushing, "add<Parent>: the parent is not alive");
-        destroyNow(child);
+        if (flushing) destroyNow(child);
         return false;
     }
     // No cycles: the child must not be an ancestor of the parent (or the parent itself)
@@ -243,6 +255,8 @@ void World::runStep()
             }
             flushCommands();
         }
+        // Children whose parent was teleported after their last update (phase 8) follow in the next phase 6
+        collectLateChildTeleports(*this);
     }
     catch (...)
     {
@@ -283,8 +297,10 @@ void World::advance(double frameDt)
     {
         // The backlog beyond maxStepsPerAdvance is dropped (a slow frame does not cause a spiral of catch-up steps)
         // The whole steps that are discarded (0.999 dt of the backlog is kept)
-        const double kept = 0.999 * stepDt;
-        dropped += uint64_t(std::floor((accumulator - kept) / stepDt));
+        const double kept      = 0.999 * stepDt;
+        const double discarded = std::floor((accumulator - kept) / stepDt);
+        // Clamped before the conversion (a huge or infinite backlog)
+        dropped += discarded >= 1e18 ? uint64_t(1e18) : uint64_t(discarded);
         accumulator = kept;
     }
 }

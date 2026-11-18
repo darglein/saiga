@@ -461,7 +461,7 @@ TEST(World, EventsAreReadableInTheNextStepOnly)
 {
     g_events.clear();
     World w(testSetup(eventSystems));
-    w.events.emit(DamageEvent{Entity{}, 1});  // between steps 0 and 1: belongs to step 0, readable in step 1
+    w.events.emit(DamageEvent{Entity{}, 1});  // before the first step: readable in step 0 (the first step)
     w.step(4);
     // Step index during a step is the index of that step (0-based): emitted between steps -> read in step 0;
     // emitted in step 1 -> read in step 2 (emit order), then cleared
@@ -826,8 +826,9 @@ TEST(WorldDeathTest, RecordTimeChecksOfAddAndRemove)
         w.step();
     };
     EXPECT_DEATH(run([](World& w, double) { w.remove<Health>(Entity{999, 0}); }), "the entity is not alive");
-    EXPECT_DEATH(run([](World& w, double) { w.remove<Velocity>(Entity{1, 0}); }), "does not have it");
-    EXPECT_DEATH(run([](World& w, double) { w.add<Health>(Entity{1, 0}); }), "already has it");
+    // Whether the entity has the component is checked when the command is applied (re-parenting needs remove + add)
+    EXPECT_DEATH(run([](World& w, double) { w.remove<Velocity>(Entity{1, 0}); }), "has no Velocity");
+    EXPECT_DEATH(run([](World& w, double) { w.add<Health>(Entity{1, 0}); }), "already has Health");
 }
 #endif
 
@@ -1067,6 +1068,110 @@ TEST(WorldDeathTest, AttachToALongDeadParentDuringAStepAndInfiniteTimeScale)
     EXPECT_DEATH(w.setTimeScale(std::numeric_limits<double>::infinity()), "finite");
 }
 #endif
+
+namespace
+{
+Entity g_reparentChild, g_newParent;
+void sysReparent(World& w, double)
+{
+    if (w.stepIndex() != 0) return;
+    // Remove + add inside a system (the documented way to change a Parent)
+    w.remove<Parent>(g_reparentChild);
+    w.add<Parent>(g_reparentChild, Parent{g_newParent});
+}
+void reparentSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "reparent", sysReparent);
+}
+}  // namespace
+
+// Regression: the record-time has/has-not checks ignored the commands recorded earlier in the phase, so remove + add
+// of the same component asserted
+TEST(World, ReparentingInsideASystem)
+{
+    World w(testSetup(reparentSystems));
+    Entity oldParent = w.create();
+    g_newParent      = w.create();
+    g_reparentChild  = w.create();
+    w.add<Parent>(g_reparentChild, Parent{oldParent});
+    w.get<Transform>(g_newParent).setPosition(Vec3(5, 0, 0));
+    w.step();
+    EXPECT_EQ(w.read<Parent>(g_reparentChild).entity, g_newParent);
+    EXPECT_EQ(w.read<Transform>(g_reparentChild).position(), Vec3(5, 0, 0));
+    // Destroying the old parent leaves the child alone, the new one takes it along
+    w.destroy(oldParent);
+    EXPECT_TRUE(w.alive(g_reparentChild));
+    w.destroy(g_newParent);
+    EXPECT_FALSE(w.alive(g_reparentChild));
+}
+
+namespace
+{
+Entity g_twiceParent, g_twiceChild;
+Phase g_secondTeleport               = Phase::Streaming;
+bool g_twiceChildTeleportedInExtract = false;
+double g_twiceChildXInExtract        = 0;
+void sysTeleportInGameplay(World& w, double)
+{
+    if (w.stepIndex() == 1) w.get<Transform>(g_twiceParent).teleport(Vec3(10, 0, 0), Quat::Identity());
+}
+void sysTeleportAgain(World& w, double)
+{
+    if (w.stepIndex() == 1 && w.currentPhase() == g_secondTeleport)
+        w.get<Transform>(g_twiceParent).teleport(Vec3(100, 0, 0), Quat::Identity());
+}
+void sysTwiceReader(World& w, double)
+{
+    g_twiceChildTeleportedInExtract = w.read<Transform>(g_twiceChild).wasTeleported();
+    g_twiceChildXInExtract          = w.read<Transform>(g_twiceChild).position()(0);
+}
+void twiceSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "first", sysTeleportInGameplay);
+    s.add(Phase::Streaming, "second_streaming", sysTeleportAgain);
+    s.add(Phase::Extract, "reader", sysTwiceReader);
+    s.add(Phase::Extract, "second_extract", sysTeleportAgain);
+}
+}  // namespace
+
+// Regression: a second teleport of a parent in the same step (after the child followed the first) never reached the
+// child as a teleport
+TEST(World, SecondTeleportOfAParentInOneStep)
+{
+    for (Phase second : {Phase::Streaming, Phase::Extract})
+    {
+        g_secondTeleport = second;
+        World w(testSetup(twiceSystems));
+        g_twiceParent = w.create();
+        g_twiceChild  = w.create();
+        w.add<Parent>(g_twiceChild, Parent{g_twiceParent});
+        w.step(2);
+        if (second == Phase::Streaming)
+        {
+            // Phase 7: the extract of the same step sees the child at the second target, flagged
+            EXPECT_TRUE(g_twiceChildTeleportedInExtract);
+            EXPECT_EQ(g_twiceChildXInExtract, 100.0);
+        }
+        else
+        {
+            // Phase 8 (after the reader): the child follows as a teleport in the next step
+            w.step();
+            EXPECT_TRUE(g_twiceChildTeleportedInExtract);
+            EXPECT_EQ(g_twiceChildXInExtract, 100.0);
+        }
+    }
+}
+
+// S11 fills the registry directly: rebuildHierarchyState recounts the children, so destroy cascades again
+TEST(World, RebuildHierarchyStateAfterDirectRegistryChanges)
+{
+    World w(testSetup());
+    Entity p = w.create(), c = w.create();
+    w.registry().add<Parent>(c, Parent{p});  // bypasses the World (like a loader)
+    w.rebuildHierarchyState();
+    w.destroy(p);
+    EXPECT_FALSE(w.alive(c));
+}
 
 TEST(World, RemovedConsumersDoNotHoldTheLog)
 {

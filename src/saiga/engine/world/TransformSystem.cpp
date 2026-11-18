@@ -76,10 +76,11 @@ bool updateChildren(World& w, bool teleportsOnly)
         const Entity parentEntity = w.read<Parent>(child).entity;
         const Transform& parent   = w.read<Transform>(parentEntity);
         Transform& t              = w.get<Transform>(child);
-        // A teleport of the parent in this step, or in the last step if the child did not follow then (the parent was
-        // teleported after the hierarchy update, in phase 8)
-        const bool teleport = parent.wasTeleported() || (parent.wasTeleportedLastStep() && !t.wasTeleportedLastStep());
-        if (teleportsOnly && (!teleport || t.wasTeleported())) continue;
+        // A teleport of the parent in this step, or after the child's last update in the previous step (phase 8)
+        const bool teleport = parent.wasTeleported() ||
+                              std::binary_search(w.pendingChildTeleports.begin(), w.pendingChildTeleports.end(), child);
+        // Teleports only: every child of a teleported parent is recomputed (a second teleport in the step reaches it)
+        if (teleportsOnly && !teleport) continue;
 
         LocalTransform identity;
         const LocalTransform* local = w.tryRead<LocalTransform>(child);
@@ -101,6 +102,25 @@ bool updateChildren(World& w, bool teleportsOnly)
     return any;
 }
 
+void collectLateChildTeleports(World& w)
+{
+    // After phase 8: a child whose parent was teleported but whose pose does not match the parent's any more was not
+    // updated after that teleport; it is teleported in the next phase 6
+    w.pendingChildTeleports.clear();
+    if (w.hierarchyDirty) rebuildHierarchy(w);
+    for (Entity child : w.hierarchyOrder)
+    {
+        const Transform& parent = w.read<Transform>(w.read<Parent>(child).entity);
+        if (!parent.wasTeleported()) continue;
+        LocalTransform identity;
+        const LocalTransform* local = w.tryRead<LocalTransform>(child);
+        if (!local) local = &identity;
+        const Vec3 position = parent.position() + parent.rotation() * parent.scale().cwiseProduct(local->position);
+        if (w.read<Transform>(child).position() != position) w.pendingChildTeleports.push_back(child);
+    }
+    std::sort(w.pendingChildTeleports.begin(), w.pendingChildTeleports.end());
+}
+
 void propagateTeleportsBeforeExtract(World& w)
 {
     // Teleports made in phase 7 (streaming) reach the children before extract reads them; the changed list is rebuilt
@@ -111,6 +131,7 @@ void propagateTeleportsBeforeExtract(World& w)
 void transformSystem(World& w, double)
 {
     updateChildren(w, false);
+    w.pendingChildTeleports.clear();
     buildChangedList(w);
 }
 

@@ -408,7 +408,7 @@ class Transform
     template <class V> void visit(V& v);        // space, position, rotation, scale
    private:
     SpaceId sp = 0; Vec3 p = Vec3::Zero(); Quat r = Quat::Identity(); Vec3 s = Vec3::Ones();
-    uint8_t changedThisStep = 0, changedLastStep = 0, teleported = 0;
+    uint8_t changedThisStep = 0, changedLastStep = 0, teleported = 0, teleportedLastStep = 0;
 };
 struct Parent { Entity entity; };                                         // engine component
 struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Identity(); Vec3 scale = Vec3::Ones(); };
@@ -432,11 +432,12 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
 - Phase 6 updates children from parents in a depth-sorted list (rebuilt on structural changes); a changed parent marks
   its descendants changed. Destroying a parent destroys its children. `add<Parent>` rejects cycles and a dead parent
   (between steps an assert; during a flush the child is destroyed, like the child of a destroyed parent); `Parent` is
-  read-only through the World (`get`, `tryGet` and non-const views; change it with remove + add). Teleports:
-  `Transform::teleportedLastStep` is shifted like `changedLastStep`; phase 6 teleports a child when its parent was
-  teleported in this step, or in the last step without the child following; a teleport made in phase 7 reaches the
-  children before phase 8 (`propagateTeleportsBeforeExtract`), one made in phase 8 in the next phase 6 (S08). Physics
-  bodies only on roots; children with colliders are kinematic (§11).
+  read-only through the World (`get`, `tryGet` and non-const views; change it with remove + add). Teleports: phase 6
+  teleports a child when its parent was teleported in this step; a teleport made in phase 7 reaches the children before
+  phase 8 (`propagateTeleportsBeforeExtract`, also a second teleport in the step); after phase 8 the children whose
+  parent was teleported after their last update are listed and teleported in the next phase 6.
+  `Transform::teleportedLastStep` is shifted like `changedLastStep`, for readers of the next step (S08). Physics bodies
+  only on roots; children with colliders are kinematic (§11).
 
 ### 7.5 Views
 
@@ -489,12 +490,12 @@ S08 implementation (`engine/world/World.h`, `Commands.h`, `StructuralLog.h`): `c
 (`Registry::reserve`; slots and `Transform`s live in stable pages, so this never moves a `Transform` a view callback
 holds); `add` on a reserved entity is a command too; commands are type-erased closures (a component value is moved into
 its command) applied in recording order after every phase; commands on an entity destroyed earlier in the same flush are
-dropped (e.g. a second `destroy`, or one after the parent's); `add`/`remove` check the entity and the component when
-recorded. A system or command that throws aborts the step: the pending commands are dropped, the reserved entities
-released, the step index does not advance (the changes of the finished phases remain). Creating an entity logs a
-`Transform` record; destroying it logs one removed record per component in ID order (`Transform` first). Consumers:
-`structuralLog().addConsumer()`, `consume(consumer, fn)`, `unread(consumer)`, `removeConsumer(consumer)` (a consumer
-that stops reading must be removed, or the log grows).
+dropped (e.g. a second `destroy`, or one after the parent's); `add`/`remove` check the entity when recorded and the
+component when applied (remove + add of the same component in one phase is valid). A system or command that throws
+aborts the step: the pending commands are dropped, the reserved entities released, the step index does not advance (the
+changes of the finished phases remain). Creating an entity logs a `Transform` record; destroying it logs one removed
+record per component in ID order (`Transform` first). Consumers: `structuralLog().addConsumer()`, `consume(consumer,
+fn)`, `unread(consumer)`, `removeConsumer(consumer)` (a consumer that stops reading must be removed, or the log grows).
 
 ### 7.7 Events [exists: S08]
 
@@ -629,7 +630,7 @@ class World
     template <class T> bool has(Entity e) const;
     template <class... C> View<C...> view();          // in phases 2-5: only `Simulated` entities (§12.3)
     template <class... C> View<C...> viewAll();       // all resident entities
-    template <class... C> ComponentMask mask() const;
+    template <class... C> static ComponentMask mask();
     EventQueues events;
     Rng& random();                    // §8.6
     double time() const; uint64_t stepIndex() const;
@@ -752,6 +753,7 @@ clients apply received live modifications in phase 1.
 ```cpp
 void registerEngineSystems(SystemList& s)
 {
+    s.add(Phase::Transform, "transform", transformSystem, RunOn::Both);   // S08: hierarchy, changed list
     s.add(Phase::Events, "behaviour_events", behaviourEventSystem);
     s.add(Phase::Behaviour, "behaviour", behaviourSystem);
     s.add(Phase::Gameplay, "character_move", characterMoveSystem, RunOn::Both);
@@ -857,8 +859,7 @@ class EngineApp   // engine/app/EngineApp.h
 - `World::advance(frameDt)`: accumulator += `frameDt * timeScale`; runs whole steps, at most 4; then drops the remaining
   backlog (`accumulator = min(accumulator, 0.999 * dt)`, counted in `droppedSteps()`), so `alpha = accumulator / dt` is
   in [0, 1). When paused: no steps. `world.step(n)` runs exactly n steps (also when paused). A NaN frame time is
-  ignored,
-+inf counts as a long frame. [exists: S08]
+  ignored, +inf counts as a long frame. [exists: S08]
 
 ### 8.4 Ticking game objects [planned: S10]
 
