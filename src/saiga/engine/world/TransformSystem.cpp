@@ -24,14 +24,16 @@ namespace
 // Depth of a child: number of Parent links up to a root
 int depthOf(World& w, Entity e)
 {
-    int depth = 0;
+    // add<Parent> rejects cycles, so a chain has fewer links than there are slots: the bound only guards a broken
+    // registry (direct fills), it never cuts a valid chain
+    const int max = int(w.registry().slotCount());
+    int depth     = 0;
     while (const Parent* p = w.tryRead<Parent>(e))
     {
         depth++;
-        // add<Parent> rejects cycles and dead parents; these stops keep phase 6 finite without asserts
-        SAIGA_ASSERT(depth < 1000, "Transform hierarchy: a Parent cycle (or deeper than 1000 levels)");
+        SAIGA_ASSERT(depth < max, "Transform hierarchy: a Parent cycle");
         SAIGA_ASSERT(w.alive(p->entity), "Transform hierarchy: a Parent refers to a destroyed entity");
-        if (depth >= 1000 || !w.alive(p->entity)) break;
+        if (depth >= max || !w.alive(p->entity)) break;
         e = p->entity;
     }
     return depth;

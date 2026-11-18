@@ -40,11 +40,11 @@ class View
         IterationGuard guard(*reg);
         auto access              = std::make_tuple(Accessor<C>(*reg)...);
         const ComponentMask mask = Registry::mask<C...>();
-        const size_t n           = candidates();
-        for (size_t k = 0; k < n; ++k)
+        const Traversal tr       = traversal();
+        for (size_t k = 0; k < tr.count; ++k)
         {
             Entity e;
-            if (accept(k, mask, e)) call(fn, e, access, std::index_sequence_for<C...>{});
+            if (accept(tr, k, mask, e)) call(fn, e, access, std::index_sequence_for<C...>{});
         }
     }
 
@@ -60,14 +60,15 @@ class View
         IterationGuard guard(*reg);
         ParallelGuard parallel(*reg);
         const ComponentMask mask = Registry::mask<C...>();
-        const int64_t n          = int64_t(candidates());
+        const Traversal tr       = traversal();
+        const int64_t n          = int64_t(tr.count);
         auto body                = [&](int64_t begin, int64_t end)
         {
             auto access = std::make_tuple(Accessor<C>(*reg)...);
             for (int64_t k = begin; k < end; ++k)
             {
                 Entity e;
-                if (accept(size_t(k), mask, e)) call(fn, e, access, std::index_sequence_for<C...>{});
+                if (accept(tr, size_t(k), mask, e)) call(fn, e, access, std::index_sequence_for<C...>{});
             }
         };
         if (reg->jobPool)
@@ -133,25 +134,32 @@ class View
         fn(e, std::get<I>(access).get(e.index)...);
     }
 
-    // The candidates: the slots (Transform-only view) or the dense entities of the smallest pool. Their number does not
-    // change during the iteration (no structural changes; reserving adds slots, which are not alive yet)
-    size_t candidates()
+    // The candidates of one traversal: the slots (Transform-only view) or the dense entities of the smallest pool.
+    // Local to each each()/parallelEach() call (no shared state: nested calls on the same View from worker threads do
+    // not race). Their number does not change during the traversal (no structural changes; reserving adds slots that
+    // are not alive yet).
+    struct Traversal
     {
+        PoolBase* pool = nullptr;
+        size_t count   = 0;
+    };
+    Traversal traversal() const
+    {
+        Traversal t;
         if constexpr (onlyTransform)
-        {
-            candidateCount = reg->slots.size();
-            return candidateCount;
-        }
+            t.count = reg->slots.size();
         else
         {
-            smallest = smallestPool();
-            return smallest->size();
+            t.pool  = smallestPool();
+            t.count = t.pool->size();
         }
+        return t;
     }
-    bool accept(size_t k, const ComponentMask& mask, Entity& e) const
+    bool accept(const Traversal& tr, size_t k, const ComponentMask& mask, Entity& e) const
     {
         if constexpr (onlyTransform)
         {
+            (void)tr;
             if (k == 0) return false;
             const Registry::Slot& s = reg->slots[k];
             if (s.state != SlotState::Alive || (s.flags & flags) != flags) return false;
@@ -160,7 +168,7 @@ class View
         }
         else
         {
-            e                       = smallest->denseEntities()[k];
+            e                       = tr.pool->denseEntities()[k];
             const Registry::Slot& s = reg->slots[e.index];
             return s.state == SlotState::Alive && s.mask.containsAll(mask) && (s.flags & flags) == flags;
         }
@@ -188,8 +196,6 @@ class View
 
     Registry* reg;
     uint8_t flags;
-    PoolBase* smallest    = nullptr;
-    size_t candidateCount = 0;
 };
 
 }  // namespace Engine

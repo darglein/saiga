@@ -208,9 +208,10 @@ void Registry::registerComponent(Replicate mode, Saved saved)
     static_assert(std::is_nothrow_move_constructible_v<T> && std::is_nothrow_move_assignable_v<T>,
                   "components must have noexcept move construction and assignment");
     checkVisitFields<T>();
-    SAIGA_ASSERT(!infos[T::id].registered, std::string("registerComponent: ID ") + std::to_string(int(T::id)) + " of " +
-                                               T::name + " is already used by " +
-                                               (infos[T::id].name ? infos[T::id].name : "?"));
+    // In every build: a second registration would replace the first type's pool (or describe the wrong type)
+    if (infos[T::id].registered)
+        SAIGA_EXIT_ERROR(std::string("registerComponent: ID ") + std::to_string(int(T::id)) + " of " + T::name +
+                         " is already used by " + (infos[T::id].name ? infos[T::id].name : "?"));
     // Names are unique (saves load components by name, §15.2)
     for (size_t i = 0; i < kMaxComponents; ++i)
         SAIGA_ASSERT(

@@ -35,11 +35,11 @@ void StructuralLog::consume(int consumer, const std::function<void(const Record&
     SAIGA_ASSERT(consumer >= 0 && size_t(consumer) < cursors.size() && active[consumer],
                  "StructuralLog::consume: unknown consumer");
     // Records appended by fn are consumed in this call too
-    while (cursors[consumer] < firstRecord + records.size())
+    while (active[consumer] && cursors[consumer] < firstRecord + records.size())
     {
         const Record r = records[size_t(cursors[consumer] - firstRecord)];
-        cursors[consumer]++;
         fn(r);
+        cursors[consumer]++;
     }
 }
 

@@ -128,6 +128,7 @@ void Registry::activate(Entity e)
 
 void Registry::release(Entity e)
 {
+    SAIGA_ASSERT(!inParallelEach(), "release inside parallelEach");
     SAIGA_ASSERT(reserved(e), "release: " + describe(e) + " is not reserved");
     Slot& s                       = slots[e.index];
     const uint32_t nextGeneration = s.generation + 1;

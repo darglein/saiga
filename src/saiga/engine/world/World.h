@@ -175,7 +175,8 @@ class SAIGA_ENGINE_API World
     std::vector<Entity> pendingChildTeleports;
     // Recounts the children per entity from the Parent pool and marks the hierarchy order dirty (after the registry was
     // filled directly, e.g. by load in S11)
-    void rebuildHierarchyState();
+    // Returns false (and changes nothing) if a Parent names an entity that is not alive
+    bool rebuildHierarchyState();
 
    private:
     // Structural changes are deferred during a step, except while commands are applied
@@ -194,6 +195,8 @@ class SAIGA_ENGINE_API World
     // Children per entity index (destroy skips the cascade for entities without children)
     uint32_t childCount(Entity e) const;
     void changeChildCount(Entity parent, int delta);
+    // Allocates the parent's count slot (before Parent is added, so the add cannot leave a count missing)
+    void reserveChildSlot(Entity parent);
     void destroyNow(Entity e);
     template <class T>
     void addNow(Entity e, T&& value);
@@ -283,9 +286,12 @@ void World::addNow(Entity e, T&& value)
         // A parent that is gone: the child follows it (destroyed); a cycle asserts
         if (!acceptParent(e, value.entity)) return;
     }
+    // Everything that can allocate first (the log record, the parent's count slot); after the add nothing can fail
+    log.prepare(1);
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
         const Entity parent = value.entity;
+        reserveChildSlot(parent);
         reg.add<T>(e, std::move(value));
         changeChildCount(parent, +1);
         hierarchyDirty = true;
@@ -299,6 +305,7 @@ template <class T>
 void World::removeNow(Entity e)
 {
     if (flushing && !reg.alive(e)) return;
+    log.prepare(1);
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
         changeChildCount(reg.read<Parent>(e).entity, -1);

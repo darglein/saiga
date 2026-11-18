@@ -1235,3 +1235,97 @@ TEST(World, NestedViewsInsideParallelEachOnWorkers)
     EXPECT_EQ(g_nested.load(), 64 * 3);
     EXPECT_FALSE(w.registry().iterating());
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// CodeRabbit regressions
+
+// A throwing consumer leaves the record unread (delivered again); a consumer removed in its callback stops
+TEST(World, StructuralLogConsumerThrowsOrIsRemoved)
+{
+    World w(testSetup());
+    StructuralLog& log = w.structuralLog();
+    int c              = log.addConsumer();
+    w.create();
+    w.create();
+    int calls = 0;
+    EXPECT_THROW(log.consume(c,
+                             [&](const StructuralLog::Record&)
+                             {
+                                 if (++calls == 2) throw std::runtime_error("consumer failed");
+                             }),
+                 std::runtime_error);
+    EXPECT_EQ(log.unread(c), 1u);  // the second record was not consumed
+    int seen = 0;
+    log.consume(c, [&](const StructuralLog::Record&) { seen++; });
+    EXPECT_EQ(seen, 1);
+
+    int d = log.addConsumer();
+    for (int i = 0; i < 5; ++i) w.create();
+    int delivered = 0;
+    log.consume(d,
+                [&](const StructuralLog::Record&)
+                {
+                    delivered++;
+                    log.removeConsumer(d);
+                    log.truncate();
+                });
+    EXPECT_EQ(delivered, 1);
+}
+
+// Regression: depthOf stopped at depth 1000, so a valid deeper chain could update a child before its parent
+TEST(World, DeepParentChainKeepsParentsBeforeChildren)
+{
+    World w(testSetup());
+    std::vector<Entity> chain{w.create()};
+    // Deeper than the old cutoff of 1000; created so the deepest entities have the lowest indices
+    std::vector<Entity> nodes;
+    for (int i = 0; i < 1500; ++i) nodes.push_back(w.create());
+    for (int i = 1499; i >= 0; --i)
+    {
+        w.add<Parent>(nodes[size_t(i)], Parent{chain.back()});
+        chain.push_back(nodes[size_t(i)]);
+    }
+    w.get<Transform>(chain.front()).setPosition(Vec3(3, 0, 0));
+    w.step();
+    EXPECT_EQ(w.read<Transform>(chain.back()).position(), Vec3(3, 0, 0));  // the leaf followed in the same step
+}
+
+TEST(World, RebuildHierarchyStateRejectsStaleParents)
+{
+    World w(testSetup());
+    Entity p = w.create(), c = w.create(), dead = w.create();
+    w.destroy(dead);
+    w.add<Parent>(c, Parent{p});
+    Entity x = w.create();
+    w.registry().add<Parent>(x, Parent{dead});  // a broken direct fill
+#ifndef SAIGA_ASSERTS
+    EXPECT_FALSE(w.rebuildHierarchyState());
+#endif
+    w.registry().remove<Parent>(x);
+    EXPECT_TRUE(w.rebuildHierarchyState());
+    w.destroy(p);
+    EXPECT_FALSE(w.alive(c));
+}
+
+#ifdef SAIGA_ASSERTS
+namespace
+{
+struct SameIdAsDamage
+{
+    static constexpr const char* name = "SameIdAsDamage";
+    static constexpr EventId id       = EventId(TestEvent::Damage);
+    static constexpr uint32_t version = 1;
+    template <class V>
+    void visit(V&)
+    {
+    }
+};
+}  // namespace
+
+TEST(WorldDeathTest, DuplicateEventIdStopsInEveryBuild)
+{
+    World w(testSetup());
+    EventRegistry r(w.events);
+    EXPECT_DEATH(r.add<SameIdAsDamage>(), "already used by DamageEvent");
+}
+#endif

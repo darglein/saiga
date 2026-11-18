@@ -31,7 +31,10 @@ class Registry;
 class EventQueueBase
 {
    public:
-    EventQueueBase(EventId id, const char* name, Replicate mode) : id(id), name(name), replicate(mode) {}
+    EventQueueBase(EventId id, const char* name, Replicate mode, size_t elementSize)
+        : id(id), name(name), replicate(mode), elementSize(elementSize)
+    {
+    }
     virtual ~EventQueueBase() = default;
     // Pending -> readable (the previous readable events are dropped)
     virtual void beginStep() = 0;
@@ -44,13 +47,14 @@ class EventQueueBase
     const EventId id;
     const char* const name;
     const Replicate replicate;
+    const size_t elementSize;  // with the name: the registered type (checked before the downcast)
 };
 
 template <class E>
 class EventQueue final : public EventQueueBase
 {
    public:
-    explicit EventQueue(Replicate mode) : EventQueueBase(E::id, E::name, mode) {}
+    explicit EventQueue(Replicate mode) : EventQueueBase(E::id, E::name, mode, sizeof(E)) {}
 
     void beginStep() override
     {
@@ -129,8 +133,10 @@ void EventQueues::registerEvent(Replicate mode)
         SAIGA_ASSERT(!q || std::strcmp(q->name, E::name) != 0,
                      std::string("registerEvent: the name ") + E::name + " is already used");
     if (queues.size() <= E::id) queues.resize(size_t(E::id) + 1);
-    SAIGA_ASSERT(!queues[E::id], std::string("registerEvent: ID ") + std::to_string(int(E::id)) + " of " + E::name +
-                                     " is already used by " + (queues[E::id] ? queues[E::id]->name : "?"));
+    // In every build: replacing a registered queue would hand its events to another type
+    if (queues[E::id])
+        SAIGA_EXIT_ERROR(std::string("registerEvent: ID ") + std::to_string(int(E::id)) + " of " + E::name +
+                         " is already used by " + queues[E::id]->name);
     queues[E::id] = std::make_unique<EventQueue<E>>(mode);
 }
 
@@ -142,6 +148,8 @@ EventQueue<E>& EventQueues::queue() const
     SAIGA_ASSERT(
         q->name == E::name || std::strcmp(q->name, E::name) == 0,
         std::string("event ID ") + std::to_string(int(E::id)) + " is registered as " + q->name + ", not " + E::name);
+    SAIGA_ASSERT(q->elementSize == sizeof(E),
+                 std::string("event ") + E::name + " has another size than the registered type");
     return static_cast<EventQueue<E>&>(*q);
 }
 

@@ -175,10 +175,18 @@ API.
   asserts; `rebuildHierarchyState()` recounts the children from the `Parent` pool (for S11 loading); a finite
   `stepsPerSecond`, the dropped-step count clamped; §7.4, §7.6, §7.10 (`mask` is static), §8.2 (the transform system),
   §8.3 updated.
+- CodeRabbit (PR #49): every structural change reserves its log record before the change and appends it after
+  (`StructuralLog::prepare`; the log is a vector), `destroy` snapshots, reserves and commits after `Registry::destroy`,
+  `add<Parent>` allocates the parent's count slot first; a consumer's cursor moves after its callback returned (a
+  throwing callback gets the record again) and `consume` stops when the callback removes the consumer; views keep their
+  traversal state local (nested calls on workers); `release` asserts inside `parallelEach`; duplicate component and
+  event IDs stop the program in every build, event access checks the type size; the depth and cycle walks are bounded by
+  the slot count (a valid chain deeper than 1000 kept its order); `rebuildHierarchyState` validates before it replaces
+  the counts; `abortStep` leaves the step first and cleans up best effort. §7.6 updated.
 
 ## Results
 
-- `tests/test_engine_world.cpp`: 37 tests pass (GCC 15), incl. 7 death tests; `tests/test_engine_ecs.cpp`: 31 tests
+- `tests/test_engine_world.cpp`: 41 tests pass (GCC 15), incl. 8 death tests; `tests/test_engine_ecs.cpp`: 31 tests
   (the reworked `Registry`/`View` keep the S07 behaviour; new entities are `Simulated`).
 - Benchmark (GCC 15, RelWithDebInfo, laptop): `World::step` with 10^5 entities 0.48 ms idle (the phase-6 scan),
   0.97 ms with a system that moves all of them; the S07 ECS numbers are unchanged (create 14.4 ms, view<3> 0.61 ms).

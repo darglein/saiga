@@ -65,6 +65,7 @@ Entity World::create()
         record(makeCommand([e](World& w) { w.activateNow(e); }));
         return e;
     }
+    log.prepare(1);  // the record cannot be lost after the change (append does not allocate)
     Entity e = reg.create();
     log.append(e, Transform::id, true);
     return e;
@@ -89,6 +90,7 @@ void World::destroy(Entity e)
 
 void World::activateNow(Entity e)
 {
+    log.prepare(1);
     reg.activate(e);
     log.append(e, Transform::id, true);
 }
@@ -130,23 +132,44 @@ void World::destroyNow(Entity e)
         const Entity x = *it;
         // A callback (S10 onDestroy) may have destroyed it already
         if (!reg.alive(x)) continue;
-        if (const Parent* p = reg.tryRead<Parent>(x)) changeChildCount(p->entity, -1);
+        // Snapshot, reserve the log records, then destroy (the only step that can throw, before any change); the
+        // bookkeeping is committed afterwards without allocation
+        const ComponentMask m = reg.entityMask(x);
+        size_t records        = 0;
+        for (size_t id = 0; id < kMaxComponents; ++id) records += m.test(ComponentId(id)) ? 1 : 0;
+        log.prepare(records);
+        const Parent* p        = reg.tryRead<Parent>(x);
+        const Entity oldParent = p ? p->entity : Entity{};
+        reg.destroy(x);
+        if (oldParent.valid()) changeChildCount(oldParent, -1);
         if (x.index < children.size()) children[x.index] = 0;
         // One removed record per component in ID order, Transform first
-        const ComponentMask& m = reg.entityMask(x);
         for (size_t id = 0; id < kMaxComponents; ++id)
             if (m.test(ComponentId(id))) log.append(x, ComponentId(id), false);
         if (m.test(Parent::id) || doomed.size() > 1) hierarchyDirty = true;
-        reg.destroy(x);
     }
 }
 
-void World::rebuildHierarchyState()
+bool World::rebuildHierarchyState()
 {
-    children.assign(size_t(reg.slotCount()), 0);
+    // Built separately and validated before it replaces the old counts: every Parent must name an alive entity (a
+    // stale or out-of-range handle from a direct registry fill is rejected in every build)
+    std::vector<uint32_t> counts(size_t(reg.slotCount()), 0);
+    bool ok = true;
     if (reg.registered(Parent::id))
-        reg.view<const Parent>().each([&](Entity, const Parent& p) { children[p.entity.index]++; });
+        reg.view<const Parent>().each(
+            [&](Entity, const Parent& p)
+            {
+                if (!reg.alive(p.entity))
+                    ok = false;
+                else
+                    counts[p.entity.index]++;
+            });
+    SAIGA_ASSERT(ok, "rebuildHierarchyState: a Parent names an entity that is not alive");
+    if (!ok) return false;
+    children.swap(counts);
     hierarchyDirty = true;
+    return true;
 }
 
 uint32_t World::childCount(Entity e) const
@@ -154,9 +177,14 @@ uint32_t World::childCount(Entity e) const
     return e.index < children.size() ? children[e.index] : 0;
 }
 
-void World::changeChildCount(Entity parent, int delta)
+void World::reserveChildSlot(Entity parent)
 {
     if (parent.index >= children.size()) children.resize(size_t(reg.slotCount()), 0);
+}
+
+void World::changeChildCount(Entity parent, int delta)
+{
+    reserveChildSlot(parent);
     SAIGA_ASSERT(delta > 0 || children[parent.index] > 0, "child count underflow");
     children[parent.index] = uint32_t(int64_t(children[parent.index]) + delta);
 }
@@ -172,34 +200,42 @@ bool World::acceptParent(Entity child, Entity parent)
         if (flushing) destroyNow(child);
         return false;
     }
-    // No cycles: the child must not be an ancestor of the parent (or the parent itself)
-    Entity a  = parent;
-    int depth = 0;
-    while (true)
+    // No cycles: the child must not be an ancestor of the parent (or the parent itself). An acyclic chain has fewer
+    // links than there are slots, so a longer walk means an existing cycle: refused as well (never accepted early).
+    Entity a           = parent;
+    const uint32_t max = reg.slotCount();
+    for (uint32_t depth = 0;; ++depth)
     {
         SAIGA_ASSERT(a != child, "add<Parent>: the parent is the child or one of its descendants (a cycle)");
-        if (a == child) return false;  // without asserts: refuse the cycle
+        if (a == child || depth > max) return false;
         const Parent* p = reg.tryRead<Parent>(a);
-        if (!p) break;
+        if (!p) return true;
         a = p->entity;
-        if (++depth > 100000) break;  // defensive: an existing cycle (cannot happen through add<Parent>)
     }
-    return true;
 }
 
 void World::abortStep()
 {
-    // The commands of the interrupted phase are dropped; the entities they would have activated are released
+    // The world leaves the step first (whatever happens below, the next step can run)
+    phase              = Phase::None;
+    flushing           = false;
+    const bool restore = stepEventsBegun;
+    stepEventsBegun    = false;
+    // The commands of the interrupted phase are dropped; the entities they would have activated are released; the
+    // events this step made readable are pending again (the step is repeated with them, events emitted by the aborted
+    // step after them). Best effort: called while an exception propagates, so a failure here (an allocation) must not
+    // replace it; then the events of the aborted step are lost and reserved slots are not reused.
     commands.clear();
-    // The events this step made readable are pending again: the step is repeated with them (events emitted by the
-    // aborted step stay pending after them)
-    if (stepEventsBegun) events.abortStep();
-    stepEventsBegun = false;
-    for (Entity e : pendingReserved)
-        if (reg.reserved(e)) reg.release(e);
+    try
+    {
+        if (restore) events.abortStep();
+        for (Entity e : pendingReserved)
+            if (reg.reserved(e)) reg.release(e);
+    }
+    catch (...)
+    {
+    }
     pendingReserved.clear();
-    phase    = Phase::None;
-    flushing = false;
 }
 
 void World::record(std::unique_ptr<Command> c)

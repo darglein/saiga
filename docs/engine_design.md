@@ -496,6 +496,9 @@ aborts the step: the pending commands are dropped, the reserved entities release
 changes of the finished phases remain). Creating an entity logs a `Transform` record; destroying it logs one removed
 record per component in ID order (`Transform` first). Consumers: `structuralLog().addConsumer()`, `consume(consumer,
 fn)`, `unread(consumer)`, `removeConsumer(consumer)` (a consumer that stops reading must be removed, or the log grows).
+A cursor moves past a record after the callback returned (a throwing consumer gets it again). Every change reserves its
+record before it is made (`prepare`), so a record is never lost after a change; an aborted step leaves the step state
+first and cleans up best effort.
 
 ### 7.7 Events [exists: S08]
 
