@@ -46,7 +46,7 @@ void addCustomSegfaultHandler(std::function<void()> fnc)
 
 void printCurrentStack()
 {
-    std::cout << "printCurrentStack... " << std::endl;
+    std::cerr << "printCurrentStack... " << std::endl;
     void* array[50];
     char** messages;
     int size, i;
@@ -61,7 +61,7 @@ void printCurrentStack()
     /* skip first stack frame (points here) */
     for (i = 0; i < size && messages != NULL; ++i)
     {
-        std::cout << "[bt]: (" << i << ") " << messages[i] << std::endl;
+        std::cerr << "[bt]: (" << i << ") " << messages[i] << std::endl;
     }
 
     free(messages);
@@ -168,7 +168,7 @@ void printCurrentStack()
         {
             // outWalk.append(info->Name, info->NameLen);
             // outWalk.append("\n");
-            std::cout << "[bt]: (" << i << ") " << info->Name << std::endl;
+            std::cerr << "[bt]: (" << i << ") " << info->Name << std::endl;
         }
     }
 

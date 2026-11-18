@@ -54,7 +54,9 @@ src/
                         benchmark runner WorldBenchmark; sample_vulkan_world)
     engine/             saiga_engine (namespace Saiga::Engine, needs the vulkan module): the game engine of
                         docs/engine_design.md; core/: EngineVersion, JobPool (parallelFor, the caller
-                        participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h)
+                        participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h); ecs/: Registry,
+                        View, ComponentPool, visit rules and binary visitors (Visit.h, VisitBinary.h, FieldList.h),
+                        SAIGA_LOG_E; components/: EngineIds.h, Transform
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -161,7 +163,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-41 tests (a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+53 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -175,7 +177,10 @@ ctest -R test_core_ini --output-on-failure             # one test
 - Each `tests/test_*.cpp/.cu` is its own executable, registered in `tests/CMakeLists.txt` with
   `saiga_test(<file> [extra libs])` (links `saiga_core` + gtest; vision tests pass `"saiga_vision"`,
   CUDA tests `"saiga_cuda"`, engine tests (`test_engine_<area>.cpp`) `"saiga_engine"` inside
-  `if (MODULE_ENGINE)`; there are no game tests, the games are samples). **Tests are not globbed** — a new test file must be added there,
+  `if (MODULE_ENGINE)`; there are no game tests, the games are samples). Compile-time rules are tested with
+  compile-fail cases (`tests/compile_fail/`, targets excluded from the build, built by ctest one at a time with
+  `tests/compile_fail/expect_build_failure.cmake`: the build must fail and print the `static_assert` message). Build before running ctest (as CI does): on a stale build
+  the first compile-fail case rebuilds the libraries while other tests run. **Tests are not globbed** — a new test file must be added there,
   inside the matching `MODULE_*` / dependency guard (e.g. the bundle-adjustment tests need
   `CERES_FOUND`).
 - Test style: `using namespace Saiga;`, plain `TEST(Suite, Name)`, `EXPECT_*`/`ASSERT_*`; a
@@ -265,7 +270,9 @@ working and show their feature in them.
   `src/saiga/export.h` — `SAIGA_CORE_API`, `SAIGA_VISION_API`, `SAIGA_CUDA_API`, `SAIGA_OPENGL_API`,
   `SAIGA_VULKAN_API` — or the Windows (DLL) build fails to link.
 - Error checks: `SAIGA_ASSERT(cond)` / `SAIGA_ASSERT(cond, "msg")` (`saiga/core/util/assert.h`) —
-  the norm across the library (glog `CHECK*` is used only in a few places).
+  the norm across the library (glog `CHECK*` is used only in a few places). The message is only evaluated on failure
+  and printed to stderr, so death tests can match it (`EXPECT_DEATH(stmt, "already has Health")`, inside
+  `#ifdef SAIGA_ASSERTS`).
 - Keep the code portable: it must build with GCC, Clang and MSVC (Linux and Windows). The MSVC CI job covers Core,
   Vulkan and Engine only (OpenGL, Vision and the samples are not built there).
 

@@ -1,0 +1,150 @@
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+// Non-gating ECS benchmark (docs/engine_design.md R-TEST-2, stage S07): 10^5 entities with three components. Prints
+// the times of the basic operations; compare before and after changes under engine/ecs/. The only checks are
+// correctness checks (the timings depend on the machine and are not compared).
+
+#include "saiga/engine/ecs/Registry.h"
+
+#include "gtest/gtest.h"
+
+#include <chrono>
+#include <cstdio>
+#include <vector>
+
+using namespace Saiga;
+using namespace Saiga::Engine;
+
+namespace
+{
+enum class BenchComponent : uint8_t
+{
+    Health = kFirstGameComponent,
+    Velocity,
+    Lifetime,
+    Count
+};
+
+struct Health
+{
+    static constexpr const char* name = "Health";
+    static constexpr ComponentId id   = ComponentId(BenchComponent::Health);
+    static constexpr uint32_t version = 1;
+    double hp = 100, maxHp = 100;
+    template <class V>
+    void visit(V& v)
+    {
+        v("hp", hp);
+        v("max_hp", maxHp);
+    }
+};
+
+struct Velocity
+{
+    static constexpr const char* name = "Velocity";
+    static constexpr ComponentId id   = ComponentId(BenchComponent::Velocity);
+    static constexpr uint32_t version = 1;
+    Vec3 v                            = Vec3::Zero();
+    template <class V>
+    void visit(V& vis)
+    {
+        vis("v", v);
+    }
+};
+
+struct Lifetime
+{
+    static constexpr const char* name = "Lifetime";
+    static constexpr ComponentId id   = ComponentId(BenchComponent::Lifetime);
+    static constexpr uint32_t version = 1;
+    double remaining                  = 10;
+    template <class V>
+    void visit(V& v)
+    {
+        v("remaining", remaining);
+    }
+};
+
+struct Timer
+{
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    double ms() const
+    {
+        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    }
+};
+}  // namespace
+
+TEST(EcsBenchmark, HundredThousandEntities)
+{
+    const int n = 100000;
+    Registry r;
+    r.registerComponent<Health>();
+    r.registerComponent<Velocity>();
+    r.registerComponent<Lifetime>();
+
+    std::vector<Entity> entities;
+    entities.reserve(n);
+    Timer t;
+    for (int i = 0; i < n; ++i)
+    {
+        Entity e = r.create();
+        r.add<Health>(e);
+        r.add<Velocity>(e, Vec3(i, 0, 1));
+        r.add<Lifetime>(e);
+        entities.push_back(e);
+    }
+    double create = t.ms();
+
+    t          = Timer();
+    double sum = 0;
+    r.view<const Health>().each([&](Entity, const Health& h) { sum += h.hp; });
+    double view1 = t.ms();
+
+    t = Timer();
+    r.view<Transform, const Velocity>().each([](Entity, Transform& tr, const Velocity& v)
+                                             { tr.setPosition(tr.position() + v.v * (1.0 / 60.0)); });
+    double view2 = t.ms();
+
+    t = Timer();
+    r.view<Health, const Velocity, Lifetime>().each(
+        [](Entity, Health& h, const Velocity& v, Lifetime& l)
+        {
+            l.remaining -= 1.0 / 60.0;
+            h.hp -= v.v(2) * 0.001;
+        });
+    double view3 = t.ms();
+
+    t           = Timer();
+    uint64_t x  = 12345;
+    double rsum = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        x = x * 6364136223846793005ull + 1442695040888963407ull;
+        rsum += r.read<Velocity>(entities[size_t((x >> 33) % uint64_t(n))]).v(0);
+    }
+    double randomGet = t.ms();
+
+    t = Timer();
+    for (int i = 0; i < n; i += 2) r.remove<Lifetime>(entities[size_t(i)]);
+    for (int i = 0; i < n; i += 2) r.add<Lifetime>(entities[size_t(i)]);
+    double readd = t.ms();
+
+    t = Timer();
+    for (Entity e : entities) r.destroy(e);
+    double destroy = t.ms();
+
+    std::printf(
+        "ECS benchmark, %d entities with 3 components (ms): create %.2f, view<1> %.2f, view<Transform, 1> %.2f, "
+        "view<3> %.2f, random read %.2f, remove + re-add on half %.2f, destroy %.2f\n",
+        n, create, view1, view2, view3, randomGet, readd, destroy);
+
+    // Correctness only
+    EXPECT_EQ(sum, 100.0 * n);
+    EXPECT_GT(rsum, 0.0);
+    EXPECT_EQ(r.aliveCount(), 0u);
+}

@@ -1,0 +1,257 @@
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#pragma once
+
+#include "saiga/core/math/ChunkId.h"
+#include "saiga/core/math/Quaternion.h"
+#include "saiga/core/math/Types.h"
+#include "saiga/engine/ecs/Entity.h"
+#include "saiga/engine/ecs/PersistentId.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <vector>
+
+#include <type_traits>
+
+// The field rules of visit (docs/engine_design.md §7.2). A component (or a nested struct) lists every field once:
+//
+//   template <class V> void visit(V& v) { v("hp", hp); v("state", state, EnumNames{StateNames}); }
+//
+// Supported field types: bool, fixed-width integers (int8_t .. uint64_t), double, enums (only with EnumNames),
+// std::string, Entity, PersistentId, Vec2/3/4, Quat, Mat3/4, nested structs with name, version and visit (e.g.
+// ChunkId), and std::array / std::vector of supported types (no enums inside containers). float, vec2/3/4, quat, mat3/4
+// only in a Render* component with `static constexpr bool allowFloat = true` (R-MATH-1). Anything else is a compile
+// error when the component is registered (registerComponent runs checkFieldType over all fields); the binary and
+// field-list visitors only reject types they cannot encode.
+
+namespace Saiga
+{
+namespace Engine
+{
+// Names of the values of an enum that ends with Count: v("state", state, EnumNames{StateNames}). The visitor checks at
+// compile time that the number of names equals E::Count.
+template <size_t N>
+struct EnumNames
+{
+    const char* const* names;
+    static constexpr size_t count = N;
+    constexpr EnumNames(const char* const (&n)[N]) : names(n) {}
+};
+
+// Network quantization of a field: v("pos", p, Quantize{0.01}). Accepted and checked (double, Vec, Mat, Quat); the
+// current visitors ignore the step, S16 adds it to the field list and the replication encoding.
+struct Quantize
+{
+    double step;
+};
+
+namespace VisitDetail
+{
+template <class T>
+struct AlwaysFalse : std::false_type
+{
+};
+
+template <class T>
+struct IsStdVector : std::false_type
+{
+};
+template <class T, class A>
+struct IsStdVector<std::vector<T, A>> : std::true_type
+{
+};
+
+// std::vector<bool, any allocator>
+template <class T>
+struct IsVectorOfBool : std::false_type
+{
+};
+template <class A>
+struct IsVectorOfBool<std::vector<bool, A>> : std::true_type
+{
+};
+
+template <class T>
+struct IsStdArray : std::false_type
+{
+};
+template <class T, size_t N>
+struct IsStdArray<std::array<T, N>> : std::true_type
+{
+};
+
+// Accepts every field (used to detect a member template visit)
+struct AnyVisitor
+{
+    template <class... A>
+    void operator()(A&&...)
+    {
+    }
+};
+
+template <class T, class = void>
+struct IsVisitStruct : std::false_type
+{
+};
+template <class T>
+struct IsVisitStruct<T, std::void_t<decltype(T::name), decltype(T::version),
+                                    decltype(std::declval<T&>().visit(std::declval<AnyVisitor&>()))>> : std::true_type
+{
+};
+
+template <class T>
+constexpr bool isDoubleMath = std::is_same_v<T, Vec2> || std::is_same_v<T, Vec3> || std::is_same_v<T, Vec4> ||
+                              std::is_same_v<T, Mat3> || std::is_same_v<T, Mat4>;
+template <class T>
+constexpr bool isFloatMath = std::is_same_v<T, vec2> || std::is_same_v<T, vec3> || std::is_same_v<T, vec4> ||
+                             std::is_same_v<T, mat3> || std::is_same_v<T, mat4>;
+template <class T>
+constexpr bool isQuat = std::is_same_v<T, Quat> || std::is_same_v<T, quat>;
+
+template <class T>
+// Only the fixed-width types: long is 8 bytes on Linux and 4 on Windows, so its encoding, hash and schema type would
+// differ between platforms (on Linux long is int64_t and passes; the MSVC build rejects it)
+constexpr bool isInteger = std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int16_t> ||
+                           std::is_same_v<T, uint16_t> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> ||
+                           std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>;
+
+// The prefix of a name at compile time (allowFloat is only allowed for Render* components)
+constexpr bool startsWith(const char* s, const char* prefix)
+{
+    for (; *prefix; ++s, ++prefix)
+        if (*s != *prefix) return false;
+    return true;
+}
+}  // namespace VisitDetail
+
+// Fails to compile for a field type that visit does not support. AllowFloat: the component declares allowFloat.
+template <class T, bool AllowFloat>
+constexpr void checkFieldType()
+{
+    using namespace VisitDetail;
+    if constexpr (std::is_same_v<T, bool> || isInteger<T> || std::is_same_v<T, double>)
+    {
+    }
+    else if constexpr (std::is_same_v<T, float>)
+    {
+        static_assert(AllowFloat, "visit: float fields only in components with allowFloat (render data, R-MATH-1)");
+    }
+    else if constexpr (std::is_enum_v<T>)
+    {
+        static_assert(AlwaysFalse<T>::value, "visit: enum fields need EnumNames (and are not allowed in containers)");
+    }
+    else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, Entity> || std::is_same_v<T, PersistentId> ||
+                       isDoubleMath<T> || std::is_same_v<T, Quat>)
+    {
+    }
+    else if constexpr (isFloatMath<T> || std::is_same_v<T, quat>)
+    {
+        static_assert(AllowFloat, "visit: vec/quat/mat (float) only in components with allowFloat (R-MATH-1)");
+    }
+    else if constexpr (IsVectorOfBool<T>::value)
+    {
+        // Any allocator: the bool specialization has proxy references, the reader cannot fill it
+        static_assert(AlwaysFalse<T>::value, "visit: std::vector<bool> is not supported (use std::vector<uint8_t>)");
+    }
+    else if constexpr (IsStdVector<T>::value || IsStdArray<T>::value)
+    {
+        checkFieldType<typename T::value_type, AllowFloat>();
+    }
+    else if constexpr (IsVisitStruct<T>::value)
+    {
+        // The fields of the nested struct are checked when a visitor enters it
+    }
+    else
+    {
+        static_assert(
+            AlwaysFalse<T>::value,
+            "visit: unsupported field type (see Visit.h: integers, double, bool, enums with EnumNames, "
+            "std::string, Entity, PersistentId, Vec/Quat/Mat, nested visit structs, std::array, std::vector)");
+    }
+}
+
+template <class T, class = void>
+struct AllowsFloat : std::false_type
+{
+};
+template <class T>
+struct AllowsFloat<T, std::enable_if_t<T::allowFloat>> : std::true_type
+{
+};
+
+// The check of a whole component (or nested struct) at compile time: registerComponent instantiates it.
+template <bool AllowFloat>
+struct FieldTypeCheckVisitor
+{
+    template <class T>
+    void operator()(const char*, T& field)
+    {
+        checkFieldType<T, AllowFloat>();
+        if constexpr (VisitDetail::IsVisitStruct<T>::value) enterStruct(field);
+        if constexpr (VisitDetail::IsStdVector<T>::value || VisitDetail::IsStdArray<T>::value)
+            enterElement<typename T::value_type>();
+    }
+    template <class E, size_t N>
+    void operator()(const char*, E&, const EnumNames<N>&)
+    {
+        static_assert(std::is_enum_v<E>, "visit: EnumNames on a non-enum field");
+        static_assert(N == size_t(E::Count), "visit: the number of EnumNames differs from E::Count");
+    }
+    template <class T>
+    void operator()(const char* name, T& field, const Quantize&)
+    {
+        static_assert(std::is_same_v<T, double> || VisitDetail::isDoubleMath<T> || std::is_same_v<T, Quat>,
+                      "visit: Quantize only on double, Vec/Mat and Quat fields");
+        (*this)(name, field);
+    }
+
+   private:
+    // A struct that contains itself through a container (a tree of nodes) is valid; its fields are checked once, the
+    // traversal stops when it reaches a struct type that is already being checked
+    template <class S>
+    void enterStruct(S& s)
+    {
+        for (const char* n : entered)
+            if (n == S::name || std::strcmp(n, S::name) == 0) return;
+        entered.push_back(S::name);
+        s.visit(*this);
+        entered.pop_back();
+    }
+
+    template <class E>
+    void enterElement()
+    {
+        if constexpr (VisitDetail::IsVisitStruct<E>::value)
+        {
+            E e{};
+            enterStruct(e);
+        }
+        else if constexpr (VisitDetail::IsStdVector<E>::value || VisitDetail::IsStdArray<E>::value)
+        {
+            enterElement<typename E::value_type>();
+        }
+    }
+
+    std::vector<const char*> entered;
+};
+
+template <class T>
+void checkVisitFields()
+{
+    static_assert(!AllowsFloat<T>::value || VisitDetail::startsWith(T::name, "Render"),
+                  "allowFloat only in Render* components (R-MATH-1)");
+    T t{};
+    FieldTypeCheckVisitor<AllowsFloat<T>::value> check;
+    check(T::name, t);
+}
+
+}  // namespace Engine
+}  // namespace Saiga
