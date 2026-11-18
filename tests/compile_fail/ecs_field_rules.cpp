@@ -6,11 +6,11 @@
 
 // Compile-fail cases of the visit field rules (docs/engine_design.md §7.2, R-MATH-1). Built by ctest with
 // FIELD_CASE = 0..9 (tests/CMakeLists.txt): case 0 must compile, every other case must fail with its static_assert
-// message (checked by the test's PASS_REGULAR_EXPRESSION).
+// message (checked by tests/compile_fail/expect_build_failure.cmake: the build fails and prints it).
 
 #include "saiga/engine/ecs/Registry.h"
 
-#include <map>
+#include <utility>
 #include <vector>
 
 using namespace Saiga;
@@ -47,7 +47,8 @@ using FieldType = Mode;  // enum without EnumNames
 #elif FIELD_CASE == 3
 using FieldType = int*;  // raw pointer
 #elif FIELD_CASE == 4
-using FieldType = std::map<int, int>;  // unsupported container
+using FieldType = std::pair<int32_t, int32_t>;  // unsupported type (noexcept movable everywhere, unlike std::map on
+                                                // MSVC, so only the field rule rejects it)
 #elif FIELD_CASE == 5
 using FieldType = vec3;  // float vector without allowFloat
 #elif FIELD_CASE == 6
