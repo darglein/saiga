@@ -77,8 +77,10 @@ class Vehicle
 
     // Standing at position, heading (see yawRotation)
     void reset(const Vec3& position, double heading);
-    // Standing at (x, z) at the resting height above the ground (the springs compressed by the static load, so the car
-    // does not hop). Not a NaN height for reset(): isnan is unreliable with -ffast-math (SAIGA_FAST_MATH)
+    // Standing at (x, z) at the resting height above the ground under the center: on flat ground the springs are
+    // compressed by the static load, so the car does not hop; on uneven ground each wheel's compression differs and the
+    // car may settle (reset sets each wheel's actual compression, so the dampers see no jump). Not a NaN height for
+    // reset(): isnan is unreliable with -ffast-math (SAIGA_FAST_MATH)
     void resetOnGround(double x, double z, double heading);
     // Height of the center of mass above flat ground when the car rests on its wheels
     double restingHeight() const;
