@@ -98,7 +98,7 @@ void World::destroyNow(Entity e)
     // (parent index, child) list, sorted for a deterministic order; the visited set stops at cycles (add<Parent>
     // rejects them, this keeps destroy finite regardless).
     std::vector<Entity> doomed{e};
-    if (reg.registered(Parent::id) && reg.view<const Parent>().count() > 0)
+    if (childCount(e) > 0)
     {
         std::vector<std::pair<uint32_t, Entity>> links;
         reg.view<const Parent>().each([&](Entity child, const Parent& p) { links.push_back({p.entity.index, child}); });
@@ -116,6 +116,7 @@ void World::destroyNow(Entity e)
             for (; it != links.end() && it->first == parent.index; ++it)
             {
                 const Entity child = it->second;
+                if (childCount(parent) == 0) break;
                 if (visited[child.index] || reg.read<Parent>(child).entity != parent) continue;
                 visited[child.index] = true;
                 doomed.push_back(child);
@@ -125,6 +126,10 @@ void World::destroyNow(Entity e)
     for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
     {
         const Entity x = *it;
+        // A callback (S10 onDestroy) may have destroyed it already
+        if (!reg.alive(x)) continue;
+        if (const Parent* p = reg.tryRead<Parent>(x)) changeChildCount(p->entity, -1);
+        if (x.index < children.size()) children[x.index] = 0;
         // One removed record per component in ID order, Transform first
         const ComponentMask& m = reg.entityMask(x);
         for (size_t id = 0; id < kMaxComponents; ++id)
@@ -132,6 +137,18 @@ void World::destroyNow(Entity e)
         if (m.test(Parent::id) || doomed.size() > 1) hierarchyDirty = true;
         reg.destroy(x);
     }
+}
+
+uint32_t World::childCount(Entity e) const
+{
+    return e.index < children.size() ? children[e.index] : 0;
+}
+
+void World::changeChildCount(Entity parent, int delta)
+{
+    if (parent.index >= children.size()) children.resize(size_t(reg.slotCount()), 0);
+    SAIGA_ASSERT(delta > 0 || children[parent.index] > 0, "child count underflow");
+    children[parent.index] = uint32_t(int64_t(children[parent.index]) + delta);
 }
 
 bool World::acceptParent(Entity child, Entity parent)
@@ -162,33 +179,15 @@ void World::abortStep()
 {
     // The commands of the interrupted phase are dropped; the entities they would have activated are released
     commands.clear();
+    // The events this step made readable are pending again: the step is repeated with them (events emitted by the
+    // aborted step stay pending after them)
+    if (stepEventsBegun) events.abortStep();
+    stepEventsBegun = false;
     for (Entity e : pendingReserved)
         if (reg.reserved(e)) reg.release(e);
     pendingReserved.clear();
     phase    = Phase::None;
     flushing = false;
-}
-
-void World::propagateLateTeleports()
-{
-    // Phase 6 propagated teleports made up to then; a parent teleported in phases 7 or 8 (streaming, replication) still
-    // has its flag here: its children are teleported now, so they are not interpolated across the jump
-    if (hierarchyDirty) return;  // structural changes after phase 6: the next phase 6 handles them
-    for (Entity child : hierarchyOrder)
-    {
-        if (!reg.alive(child)) continue;
-        const Entity parentEntity = reg.read<Parent>(child).entity;
-        if (!reg.alive(parentEntity)) continue;
-        const Transform& parent = reg.read<Transform>(parentEntity);
-        Transform& t            = reg.get<Transform>(child);
-        if (!parent.wasTeleported() || t.wasTeleported()) continue;
-        LocalTransform identity;
-        const LocalTransform* local = reg.tryRead<LocalTransform>(child);
-        if (!local) local = &identity;
-        t.teleport(parent.position() + parent.rotation() * parent.scale().cwiseProduct(local->position),
-                   parent.rotation() * local->rotation);
-        t.setScale(parent.scale().cwiseProduct(local->scale));
-    }
 }
 
 void World::record(std::unique_ptr<Command> c)
@@ -228,11 +227,14 @@ void World::runStep()
 {
     // Events emitted in the last step or between steps become readable
     events.beginStep();
+    stepEventsBegun = true;
     try
     {
         for (int p = kFirstPhase; p <= kLastPhase; ++p)
         {
             phase = Phase(p);
+            // Teleports made in phase 7 reach the children before extract reads them (§7.4)
+            if (phase == Phase::Extract) propagateTeleportsBeforeExtract(*this);
             for (const SystemList::System& s : systems.systems(phase))
             {
                 // Before S16 the world is the host: client-only systems do not run
@@ -241,7 +243,6 @@ void World::runStep()
             }
             flushCommands();
         }
-        propagateLateTeleports();
     }
     catch (...)
     {
@@ -250,7 +251,8 @@ void World::runStep()
         abortStep();
         throw;
     }
-    phase = Phase::None;
+    phase           = Phase::None;
+    stepEventsBegun = false;
     reg.shiftTransformFlags();
     log.truncate();
     steps++;
@@ -289,7 +291,7 @@ void World::advance(double frameDt)
 
 void World::setTimeScale(double s)
 {
-    SAIGA_ASSERT(s >= 0, "World::setTimeScale: negative scale");
+    SAIGA_ASSERT(std::isfinite(s) && s >= 0, "World::setTimeScale: the scale must be finite and not negative");
     scale = s;
 }
 

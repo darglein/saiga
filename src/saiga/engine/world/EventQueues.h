@@ -14,6 +14,7 @@
 #include "saiga/export.h"
 
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
@@ -34,6 +35,8 @@ class EventQueueBase
     virtual ~EventQueueBase() = default;
     // Pending -> readable (the previous readable events are dropped)
     virtual void beginStep() = 0;
+    // Undoes beginStep of an aborted step: the readable events go back in front of the pending ones
+    virtual void abortStep() = 0;
     // The pending events (emitted since the last beginStep) in emit order
     virtual void hashPending(Hasher& h) const = 0;
     virtual size_t pendingCount() const       = 0;
@@ -53,6 +56,13 @@ class EventQueue final : public EventQueueBase
     {
         readable.swap(pending);
         pending.clear();
+    }
+    void abortStep() override
+    {
+        readable.insert(readable.end(), std::make_move_iterator(pending.begin()),
+                        std::make_move_iterator(pending.end()));
+        pending.swap(readable);
+        readable.clear();
     }
     void hashPending(Hasher& h) const override
     {
@@ -95,6 +105,7 @@ class SAIGA_ENGINE_API EventQueues
     // Contiguous IDs: engine events 0..n, game events 64..m (like components)
     void validateRegistration() const;
     void beginStep();
+    void abortStep();
     void hashPending(Hasher& h) const;
     bool registered(EventId id) const { return id < queues.size() && queues[id] != nullptr; }
     size_t registeredCount() const;

@@ -51,34 +51,11 @@ void rebuildHierarchy(World& w)
 }
 }  // namespace
 
-void transformSystem(World& w, double)
+namespace
 {
-    if (w.hierarchyDirty) rebuildHierarchy(w);
-
-    for (Entity child : w.hierarchyOrder)
-    {
-        const Entity parentEntity = w.read<Parent>(child).entity;
-        const Transform& parent   = w.read<Transform>(parentEntity);
-        LocalTransform identity;
-        const LocalTransform* local = w.tryRead<LocalTransform>(child);
-        if (!local) local = &identity;
-
-        const Vec3 position = parent.position() + parent.rotation() * parent.scale().cwiseProduct(local->position);
-        const Quat rotation = parent.rotation() * local->rotation;
-        const Vec3 scale    = parent.scale().cwiseProduct(local->scale);
-
-        Transform& t = w.get<Transform>(child);
-        if (parent.wasTeleported())
-            t.teleport(position, rotation);
-        else
-        {
-            t.setPosition(position);
-            t.setRotation(rotation);
-        }
-        t.setScale(scale);
-    }
-
-    // The entities changed in this or the previous step (changes of phases 7 and 8 of the last step), sorted by index
+// The changed list: entities changed in this or the previous step, sorted by index
+void buildChangedList(World& w)
+{
     std::vector<uint32_t>& changed = w.changedTransformsForUpdate();
     changed.clear();
     w.viewAll<const Transform>().each(
@@ -86,6 +63,55 @@ void transformSystem(World& w, double)
         {
             if (t.changedInThisStep() || t.changedInLastStep()) changed.push_back(e.index);
         });
+}
+}  // namespace
+
+bool updateChildren(World& w, bool teleportsOnly)
+{
+    if (w.hierarchyDirty) rebuildHierarchy(w);
+
+    bool any = false;
+    for (Entity child : w.hierarchyOrder)
+    {
+        const Entity parentEntity = w.read<Parent>(child).entity;
+        const Transform& parent   = w.read<Transform>(parentEntity);
+        Transform& t              = w.get<Transform>(child);
+        // A teleport of the parent in this step, or in the last step if the child did not follow then (the parent was
+        // teleported after the hierarchy update, in phase 8)
+        const bool teleport = parent.wasTeleported() || (parent.wasTeleportedLastStep() && !t.wasTeleportedLastStep());
+        if (teleportsOnly && (!teleport || t.wasTeleported())) continue;
+
+        LocalTransform identity;
+        const LocalTransform* local = w.tryRead<LocalTransform>(child);
+        if (!local) local = &identity;
+        const Vec3 position = parent.position() + parent.rotation() * parent.scale().cwiseProduct(local->position);
+        const Quat rotation = parent.rotation() * local->rotation;
+        const Vec3 scale    = parent.scale().cwiseProduct(local->scale);
+
+        if (teleport)
+            t.teleport(position, rotation);
+        else
+        {
+            t.setPosition(position);
+            t.setRotation(rotation);
+        }
+        t.setScale(scale);
+        any = true;
+    }
+    return any;
+}
+
+void propagateTeleportsBeforeExtract(World& w)
+{
+    // Teleports made in phase 7 (streaming) reach the children before extract reads them; the changed list is rebuilt
+    // if a child was teleported
+    if (updateChildren(w, true)) buildChangedList(w);
+}
+
+void transformSystem(World& w, double)
+{
+    updateChildren(w, false);
+    buildChangedList(w);
 }
 
 void registerEngineSystems(SystemList& systems)

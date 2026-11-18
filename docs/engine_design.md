@@ -432,8 +432,11 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
 - Phase 6 updates children from parents in a depth-sorted list (rebuilt on structural changes); a changed parent marks
   its descendants changed. Destroying a parent destroys its children. `add<Parent>` rejects cycles and a dead parent
   (between steps an assert; during a flush the child is destroyed, like the child of a destroyed parent); `Parent` is
-  read-only through the World (change it with remove + add). A teleport made in phases 7 or 8 reaches the children at
-  the end of the step (S08). Physics bodies only on roots; children with colliders are kinematic (§11).
+  read-only through the World (`get`, `tryGet` and non-const views; change it with remove + add). Teleports:
+  `Transform::teleportedLastStep` is shifted like `changedLastStep`; phase 6 teleports a child when its parent was
+  teleported in this step, or in the last step without the child following; a teleport made in phase 7 reaches the
+  children before phase 8 (`propagateTeleportsBeforeExtract`), one made in phase 8 in the next phase 6 (S08). Physics
+  bodies only on roots; children with colliders are kinematic (§11).
 
 ### 7.5 Views
 

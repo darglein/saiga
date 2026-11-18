@@ -8,6 +8,7 @@
 
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/components/EngineIds.h"
+#include "saiga/engine/components/Parent.h"
 #include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/core/Rng.h"
 #include "saiga/engine/ecs/Registry.h"
@@ -112,11 +113,13 @@ class SAIGA_ENGINE_API World
     template <class... C>
     View<C...> view()
     {
+        static_assert(parentReadOnly<C...>(), "Parent in a view must be const Parent (use remove and add)");
         return reg.view<C...>(simulatedOnly(phase) ? Registry::kSimulated : 0);
     }
     template <class... C>
     View<C...> viewAll()
     {
+        static_assert(parentReadOnly<C...>(), "Parent in a view must be const Parent (use remove and add)");
         return reg.view<C...>(0);
     }
     template <class... C>
@@ -183,12 +186,20 @@ class SAIGA_ENGINE_API World
     // On an exception in a step: drops the pending commands and releases the entities they would have activated
     void abortStep();
     // After phase 8: children of parents teleported in phases 7 and 8 (after the hierarchy update) are teleported too
-    void propagateLateTeleports();
+    // Children per entity index (destroy skips the cascade for entities without children)
+    uint32_t childCount(Entity e) const;
+    void changeChildCount(Entity parent, int delta);
     void destroyNow(Entity e);
     template <class T>
     void addNow(Entity e, T&& value);
     template <class T>
     void removeNow(Entity e);
+
+    template <class... C>
+    static constexpr bool parentReadOnly()
+    {
+        return ((!std::is_same_v<std::remove_cv_t<C>, Parent> || std::is_const_v<C>) && ...);
+    }
 
     template <class T, class... A>
     static T makeComponent(A&&... args)
@@ -206,6 +217,8 @@ class SAIGA_ENGINE_API World
     Rng rng;
     std::vector<std::unique_ptr<Command>> commands;
     std::vector<Entity> pendingReserved;  // reserved by create() since the last flush
+    std::vector<uint32_t> children;       // number of Parent components naming each entity index
+    bool stepEventsBegun = false;
     std::vector<uint32_t> changed;
 
     WorldConfig config;
@@ -231,8 +244,13 @@ void World::add(Entity e, A&&... args)
         // Checked when recorded, so the failure names the system's call (an alive entity can still lose T before the
         // flush; then add applies normally)
         if (reg.alive(e)) SAIGA_ASSERT(!reg.has<T>(e), std::string("add<") + T::name + ">: the entity already has it");
-        record(makeCommand([e, v = makeComponent<T>(std::forward<A>(args)...)](World& w) mutable
-                           { w.addNow<T>(e, std::move(v)); }));
+        T value = makeComponent<T>(std::forward<A>(args)...);
+        if constexpr (T::id == ComponentId(EngineComponent::Parent))
+        {
+            // The parent must exist now (it may be destroyed before the flush; then the child follows it)
+            SAIGA_ASSERT(reg.alive(value.entity) || reg.reserved(value.entity), "add<Parent>: the parent is not alive");
+        }
+        record(makeCommand([e, v = std::move(value)](World& w) mutable { w.addNow<T>(e, std::move(v)); }));
         return;
     }
     addNow<T>(e, makeComponent<T>(std::forward<A>(args)...));
@@ -263,18 +281,29 @@ void World::addNow(Entity e, T&& value)
         // A parent that is gone: the child follows it (destroyed); a cycle asserts
         if (!acceptParent(e, value.entity)) return;
     }
-    reg.add<T>(e, std::move(value));
+    if constexpr (T::id == ComponentId(EngineComponent::Parent))
+    {
+        const Entity parent = value.entity;
+        reg.add<T>(e, std::move(value));
+        changeChildCount(parent, +1);
+        hierarchyDirty = true;
+    }
+    else
+        reg.add<T>(e, std::move(value));
     log.append(e, T::id, true);
-    if constexpr (T::id == ComponentId(EngineComponent::Parent)) hierarchyDirty = true;
 }
 
 template <class T>
 void World::removeNow(Entity e)
 {
     if (flushing && !reg.alive(e)) return;
+    if constexpr (T::id == ComponentId(EngineComponent::Parent))
+    {
+        changeChildCount(reg.read<Parent>(e).entity, -1);
+        hierarchyDirty = true;
+    }
     reg.remove<T>(e);
     log.append(e, T::id, false);
-    if constexpr (T::id == ComponentId(EngineComponent::Parent)) hierarchyDirty = true;
 }
 
 }  // namespace Engine

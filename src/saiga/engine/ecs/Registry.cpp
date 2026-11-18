@@ -141,10 +141,11 @@ void Registry::shiftTransformFlags()
 {
     for (uint32_t i = 1; i < uint32_t(slots.size()); ++i)
     {
-        Transform& t      = transforms[i];
-        t.changedLastStep = t.changedThisStep;
-        t.changedThisStep = 0;
-        t.teleported      = 0;
+        Transform& t         = transforms[i];
+        t.changedLastStep    = t.changedThisStep;
+        t.teleportedLastStep = t.teleported;
+        t.changedThisStep    = 0;
+        t.teleported         = 0;
     }
 }
 

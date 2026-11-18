@@ -47,6 +47,12 @@ void EventQueues::beginStep()
         if (q) q->beginStep();
 }
 
+void EventQueues::abortStep()
+{
+    for (auto& q : queues)
+        if (q) q->abortStep();
+}
+
 void EventQueues::hashPending(Hasher& h) const
 {
     // In ID order, each queue in emit order

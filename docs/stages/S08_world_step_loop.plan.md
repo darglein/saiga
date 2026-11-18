@@ -161,10 +161,16 @@ API.
   made in phases 7 and 8 reach the children at the end of the step; `add`/`remove` during a step check the entity and
   the component when recorded; `StructuralLog::removeConsumer`; `advance` ignores NaN, treats +inf as a long frame and
   counts only the discarded whole steps. §7.4, §7.6 and §8.3 updated.
+- Review round 2: late teleports are propagated before extract (phase 7 teleports) and through a new
+  `teleportedLastStep` flag in the next phase 6 (phase 8 teleports), also when the hierarchy changed in the same phase;
+  `destroy` skips the cascade for entities without children (child counts per slot; it sorted all `Parent` links per
+  destroy, 0.33 ms with 20,000 links); `Parent` only as `const Parent` in World views; an aborted step puts its readable
+  events back (the repeated step sees them); `add<Parent>` during a step asserts on a dead parent when recorded; the
+  time scale must be finite; `destroy` re-checks each doomed entity (S10 `onDestroy`). §7.4 updated.
 
 ## Results
 
-- `tests/test_engine_world.cpp`: 30 tests pass (GCC 15), incl. 6 death tests; `tests/test_engine_ecs.cpp`: 31 tests
+- `tests/test_engine_world.cpp`: 34 tests pass (GCC 15), incl. 7 death tests; `tests/test_engine_ecs.cpp`: 31 tests
   (the reworked `Registry`/`View` keep the S07 behaviour; new entities are `Simulated`).
 - Benchmark (GCC 15, RelWithDebInfo, laptop): `World::step` with 10^5 entities 0.48 ms idle (the phase-6 scan),
   0.97 ms with a system that moves all of them; the S07 ECS numbers are unchanged (create 14.4 ms, view<3> 0.61 ms).

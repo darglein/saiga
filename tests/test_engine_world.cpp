@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -926,29 +927,146 @@ TEST(World, AThrowingSystemLeavesTheWorldUsable)
 
 namespace
 {
-Entity g_lateParent;
-void sysTeleportInExtract(World& w, double)
+Entity g_lateParent, g_lateChild, g_unrelatedChild;
+bool g_childTeleportSeenByExtract = false;
+std::vector<double> g_childXSeenByExtract;
+void sysLateTeleport(World& w, double)
 {
-    if (w.stepIndex() == 1) w.get<Transform>(g_lateParent).teleport(Vec3(100, 0, 0), Quat::Identity());
+    if (w.stepIndex() != 1) return;
+    w.get<Transform>(g_lateParent).teleport(Vec3(100, 0, 0), Quat::Identity());
+    // A hierarchy change in the same phase must not cancel the propagation (streaming unloads parented entities)
+    if (g_unrelatedChild.valid()) w.destroy(g_unrelatedChild);
 }
-void lateTeleportSystems(SystemList& s)
+void sysExtractReader(World& w, double)
 {
-    s.add(Phase::Extract, "late_teleport", sysTeleportInExtract);
+    // Registered before the phase-8 teleport system: an extract that runs before a late teleport in the same phase
+    g_childTeleportSeenByExtract |= w.read<Transform>(g_lateChild).wasTeleported();
+    g_childXSeenByExtract.push_back(w.read<Transform>(g_lateChild).position()(0));
+}
+void lateStreamingSystems(SystemList& s)
+{
+    s.add(Phase::Streaming, "late_teleport", sysLateTeleport);
+    s.add(Phase::Extract, "extract_reader", sysExtractReader);
+}
+void lateExtractSystems(SystemList& s)
+{
+    s.add(Phase::Extract, "extract_reader", sysExtractReader);
+    s.add(Phase::Extract, "late_teleport", sysLateTeleport);
+}
+
+void setUpLateTeleport(World& w)
+{
+    g_lateParent     = w.create();
+    g_lateChild      = w.create();
+    Entity other     = w.create();
+    g_unrelatedChild = w.create();
+    w.add<Parent>(g_lateChild, Parent{g_lateParent});
+    w.add<Parent>(g_unrelatedChild, Parent{other});
+    g_childTeleportSeenByExtract = false;
+    g_childXSeenByExtract.clear();
 }
 }  // namespace
 
-// Regression: a teleport in phase 7/8 (after the hierarchy update) did not reach the children
-TEST(World, LateTeleportReachesTheChildren)
+// Regression: a teleport in phase 7 reached the children only after extract (and not at all if the hierarchy changed
+// in the same phase), so extract interpolated the child across the jump
+TEST(World, TeleportInPhase7ReachesTheChildrenBeforeExtract)
 {
-    World w(testSetup(lateTeleportSystems));
-    g_lateParent = w.create();
-    Entity child = w.create();
-    w.add<Parent>(child, Parent{g_lateParent});
+    World w(testSetup(lateStreamingSystems));
+    setUpLateTeleport(w);
     w.step(2);
-    // The child jumped in the same step (and is flagged as teleported for that step's extract)
-    EXPECT_EQ(w.read<Transform>(child).position(), Vec3(100, 0, 0));
-    EXPECT_TRUE(w.read<Transform>(child).changedInLastStep());
+    EXPECT_TRUE(g_childTeleportSeenByExtract);
+    ASSERT_EQ(g_childXSeenByExtract.size(), 2u);
+    EXPECT_EQ(g_childXSeenByExtract[1], 100.0);  // the same step's extract sees the child at the target
+    EXPECT_FALSE(w.alive(g_unrelatedChild));
 }
+
+// A teleport in phase 8 (after extract ran): the flag survives one step (teleportedLastStep) and the children are
+// teleported in the next phase 6, so the next extract sees the jump flagged
+TEST(World, TeleportInPhase8ReachesTheChildrenInTheNextStep)
+{
+    World w(testSetup(lateExtractSystems));
+    setUpLateTeleport(w);
+    w.step(2);
+    EXPECT_FALSE(g_childTeleportSeenByExtract);
+    EXPECT_TRUE(w.read<Transform>(g_lateParent).wasTeleportedLastStep());
+    w.step();
+    EXPECT_TRUE(g_childTeleportSeenByExtract);
+    EXPECT_EQ(w.read<Transform>(g_lateChild).position(), Vec3(100, 0, 0));
+    // Not teleported twice: in the following step the child moves normally again
+    g_childTeleportSeenByExtract = false;
+    w.step();
+    EXPECT_FALSE(g_childTeleportSeenByExtract);
+}
+
+namespace
+{
+bool g_throwOnce    = false;
+size_t g_eventsSeen = 0;
+void sysReadThenThrow(World& w, double)
+{
+    g_eventsSeen = w.events.read<DamageEvent>().size();
+    if (g_throwOnce)
+    {
+        g_throwOnce = false;
+        throw std::runtime_error("once");
+    }
+}
+void abortEventSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "read_throw", sysReadThenThrow);
+}
+}  // namespace
+
+// Regression: an aborted step consumed the events it had made readable; the repeated step saw none
+TEST(World, AnAbortedStepKeepsItsEvents)
+{
+    World w(testSetup(abortEventSystems));
+    w.events.emit(DamageEvent{Entity{}, 1});
+    g_throwOnce = true;
+    EXPECT_THROW(w.step(), std::runtime_error);
+    w.step();
+    EXPECT_EQ(g_eventsSeen, 1u);
+}
+
+// Regression: every destroy sorted all Parent links; entities without children skip the cascade
+TEST(World, DestroyWithoutChildrenIsCheapWithManyParents)
+{
+    World w(testSetup());
+    Entity root = w.create();
+    for (int i = 0; i < 20000; ++i) w.add<Parent>(w.create(), Parent{root});
+    std::vector<Entity> loose;
+    for (int i = 0; i < 2000; ++i) loose.push_back(w.create());
+    auto start = std::chrono::steady_clock::now();
+    for (Entity e : loose) w.destroy(e);
+    double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    // Generous bound (it was ~660 ms): a cascade per destroy would take far longer
+    EXPECT_LT(ms, 200.0);
+    // Destroying the root still destroys all children
+    w.destroy(root);
+    EXPECT_EQ(w.registry().aliveCount(), 0u);
+}
+
+#ifdef SAIGA_ASSERTS
+TEST(WorldDeathTest, AttachToALongDeadParentDuringAStepAndInfiniteTimeScale)
+{
+    auto run = []()
+    {
+        World w(testSetup(
+            [](SystemList& l)
+            {
+                l.add(Phase::Gameplay, "attach",
+                      [](World& w, double) { w.add<Parent>(Entity{1, 0}, Parent{Entity{2, 0}}); });
+            }));
+        w.create();
+        Entity dead = w.create();
+        w.destroy(dead);
+        w.step();
+    };
+    EXPECT_DEATH(run(), "the parent is not alive");
+    World w(testSetup());
+    EXPECT_DEATH(w.setTimeScale(std::numeric_limits<double>::infinity()), "finite");
+}
+#endif
 
 TEST(World, RemovedConsumersDoNotHoldTheLog)
 {
