@@ -33,8 +33,7 @@ using Json = json11::Json;
 
 namespace
 {
-constexpr size_t kJournalCapacity   = 100000;
-constexpr double kStepBudgetSeconds = 30;  // step and the paused measurement stop after this (MCP timeouts)
+constexpr size_t kJournalCapacity = 100000;
 
 struct Operation
 {
@@ -421,6 +420,12 @@ bool WorldApi::parseEntity(const Json& j, Entity& e, std::string& error)
 Json WorldApi::entityJson(Entity e)
 {
     return Json::object{{"index", double(e.index)}, {"generation", double(e.generation)}};
+}
+
+std::chrono::steady_clock::time_point WorldApi::budgetDeadline() const
+{
+    return std::chrono::steady_clock::now() +
+           std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(budget));
 }
 
 ApiResult WorldApi::call(const std::string& operation, const Json& a)
@@ -948,6 +953,9 @@ ApiResult WorldApi::changesSince(const Json& a)
             // entity out of the window); rebuilt from the records if it was dropped
             auto snapshot = std::find_if(windows.begin(), windows.end(),
                                          [&](const WindowSnapshot& s) { return s.from == from && s.to == to; });
+            // A continued window whose snapshot was dropped (more than 16 windows paged at once): rebuilt from the
+            // records, which may miss entities that moved twice since: reported as moves_truncated
+            if (c.to > 0 && snapshot == windows.end()) result["moves_truncated"] = true;
             if (c.to == 0 || snapshot == windows.end())
             {
                 WindowSnapshot s{from, to, {}};
@@ -973,8 +981,7 @@ ApiResult WorldApi::changesSince(const Json& a)
                 moved.push_back(entityJson(e));
                 lastIndex = e.index;
             }
-            // A fully delivered window is not needed any more
-            if (!movedMore) windows.erase(snapshot);
+            // Kept (other cursors may page the same window); the newest 16 windows stay
             result["moved"] = moved;
             if (movedMore)
             {
@@ -1281,11 +1288,8 @@ ApiResult WorldApi::step(const Json& a)
     if (!intArg(a, "n", 1, 100000, 1, n, error)) return ApiResult::failure(error);
     // A wall-clock budget: a long request answers before the tool call times out
     // Inside apply the batch's deadline applies (one budget for the whole request)
-    const auto deadline =
-        inBatch ? batchDeadline
-                : std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                                                         std::chrono::duration<double>(kStepBudgetSeconds));
-    int64_t ran = 0;
+    const auto deadline = inBatch ? batchDeadline : budgetDeadline();
+    int64_t ran         = 0;
     for (; ran < n; ++ran)
     {
         if (std::chrono::steady_clock::now() > deadline) break;
@@ -1321,8 +1325,7 @@ ApiResult WorldApi::apply(const Json& a)
     Json::array results;
     size_t index  = 0;
     inBatch       = true;
-    batchDeadline = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                                                           std::chrono::duration<double>(kStepBudgetSeconds));
+    batchDeadline = budgetDeadline();
     struct BatchEnd
     {
         bool& flag;
@@ -1330,6 +1333,14 @@ ApiResult WorldApi::apply(const Json& a)
     } batchEnd{inBatch};
     for (const Json& op : a["operations"].array_items())
     {
+        // The request's deadline: the remaining operations are not run (the completed results are returned)
+        if (std::chrono::steady_clock::now() > batchDeadline)
+        {
+            ApiResult stopped = ApiResult::failure("the time budget ended before operation " + std::to_string(index) +
+                                                   " (the operations before it were applied)");
+            stopped.value     = Json::object{{"results", results}, {"applied", int(index)}, {"stopped_early", true}};
+            return stopped;
+        }
         Json::object args = op.object_items();
         args.erase("op");
         ApiResult r = call(op["op"].string_value(), Json(args));

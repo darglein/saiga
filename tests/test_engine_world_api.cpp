@@ -1291,3 +1291,43 @@ TEST(WorldApi, EveryEntityOfAWindowIsDelivered)
     EXPECT_TRUE(reported.count(a.index));
     EXPECT_TRUE(reported.count(b.index)) << "b was pushed out of every window";
 }
+
+// Regression (CodeRabbit): two cursors paging the same window: the first to finish erased the snapshot the second still
+// needed; snapshots are shared and kept now
+TEST(WorldApi, TwoCursorsPageTheSameWindow)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity a = w.create(), b = w.create();
+    Json start = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true})")).value["cursor"];
+    w.get<Transform>(a).setPosition(Vec3(1, 0, 0));
+    w.get<Transform>(b).setPosition(Vec3(1, 0, 0));
+    w.step();
+    auto page = [&](const Json& c)
+    { return api.call("changes_since", Json(Json::object{{"cursor", c}, {"include_moved", true}, {"limit", 1}})); };
+    ApiResult x1 = page(start), y1 = page(start);
+    ApiResult x2 = page(x1.value["cursor"]);  // x finishes its window
+    // b moves twice before y continues
+    for (int s = 0; s < 2; ++s)
+    {
+        w.get<Transform>(b).setPosition(Vec3(2.0 + s, 0, 0));
+        w.step();
+    }
+    ApiResult y2 = page(y1.value["cursor"]);
+    ASSERT_TRUE(y2.ok) << y2.error;
+    ASSERT_EQ(y2.value["moved"].array_items().size(), 1u) << y2.value.dump();
+    EXPECT_EQ(entityOf(y2.value["moved"][0]), b);
+    EXPECT_FALSE(y2.value["moves_truncated"].bool_value());
+}
+
+// The request's time budget also ends a batch between operations
+TEST(WorldApi, ApplyStopsAtTheTimeBudget)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    api.setTimeBudget(-1);  // already over
+    ApiResult r = api.call("apply", obj(R"({"operations": [{"op": "world_status"}]})"));
+    EXPECT_FALSE(r.ok);
+    EXPECT_TRUE(r.value["stopped_early"].bool_value());
+    EXPECT_EQ(r.value["applied"].number_value(), 0);
+}

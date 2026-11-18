@@ -287,10 +287,12 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
         Json::object schema            = spec.schema.object_items();
         schema["additionalProperties"] = false;
         server.addTool(spec.name, spec.description, schema,
-                       [weak, op](const Json& args, McpServer::Respond respond)
+                       [weak, op, serverPtr = &server](const Json& args, McpServer::Respond respond)
                        {
                            auto a = weak.lock();
                            if (!a) return respond(ToolResult::Error("the world is not available"));
+                           // Half the tool timeout: the call may have waited in the server's queue
+                           a->setTimeBudget(0.5 * serverPtr->toolTimeoutSeconds);
                            respond(toResult(a->call(op, args)));
                        });
     }

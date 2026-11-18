@@ -91,6 +91,9 @@ class SAIGA_ENGINE_API WorldApi
     // The argument names of an operation (the tool schemas list exactly these)
     static std::vector<std::string> arguments(const std::string& operation);
     bool editsAllowed() const { return allowEdits; }
+    // The wall-clock budget of one request in seconds (step and apply stop when it ends; default 30). The MCP tools
+    // set it from the server's tool timeout for every call.
+    void setTimeBudget(double seconds) { budget = seconds; }
     // nullptr after the world was destroyed
     World* world() { return w; }
 
@@ -143,7 +146,9 @@ class SAIGA_ENGINE_API WorldApi
     uint64_t nextSeq = 1;
     uint32_t epoch   = 0;
     // apply: one wall-clock deadline for the whole batch (step inside it does not start a new budget)
-    bool inBatch = false;
+    bool inBatch  = false;
+    double budget = 30;
+    std::chrono::steady_clock::time_point budgetDeadline() const;
     std::chrono::steady_clock::time_point batchDeadline;
     Entity lastDestroyed;  // folds the removed records that follow a destroyed record
     bool movesTracked   = false;
