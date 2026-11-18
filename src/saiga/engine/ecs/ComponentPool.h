@@ -13,8 +13,10 @@
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
+#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -36,7 +38,19 @@ class PoolBase
     static constexpr uint32_t kNone     = 0xFFFFFFFFu;
     static constexpr uint32_t kPageSize = 4096;
 
-    PoolBase(ComponentId id, const char* name, size_t elementSize) : id(id), name(name), elementSize(elementSize) {}
+    PoolBase(ComponentId id, const char* name, size_t elementSize, const char* typeName)
+        : id(id), name(name), elementSize(elementSize), typeName(typeName)
+    {
+    }
+
+    // The registered C++ type is T (typeid name: pointer equality first, strcmp across DLLs, where the pointers
+    // differ). Checked before every downcast: two types with the same ID, name and size are told apart.
+    template <class T>
+    bool holds() const
+    {
+        const char* n = typeid(T).name();
+        return n == typeName || std::strcmp(n, typeName) == 0;
+    }
     virtual ~PoolBase()                  = default;
     PoolBase(const PoolBase&)            = delete;
     PoolBase& operator=(const PoolBase&) = delete;
@@ -61,6 +75,7 @@ class PoolBase
     const ComponentId id;
     const char* const name;
     const size_t elementSize;
+    const char* const typeName;
 
    protected:
     // Allocates the sparse page of the entity if needed (may throw; no other state changes)
@@ -89,7 +104,7 @@ template <class T>
 class ComponentPool final : public PoolBase
 {
    public:
-    ComponentPool() : PoolBase(T::id, T::name, sizeof(T)) {}
+    ComponentPool() : PoolBase(T::id, T::name, sizeof(T), typeid(T).name()) {}
 
     // Aggregates are brace-initialized (add<Health>(e, 50.0, 100.0)), other types use their constructor
     template <class... A>

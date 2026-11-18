@@ -187,10 +187,12 @@ API.
   slot promised to the outer one); `consume` rejects reentry for the same consumer; `rebuildHierarchyState` returns
   false without asserting for stale parents and also rejects cycles; `abortStep` runs the event restore and each
   release independently.
+- Event queues and component pools store `typeid(T).name()` and check it before every downcast (pointer equality,
+  `strcmp` across DLLs): two types with the same ID, name and size are told apart (the size check was not enough).
 
 ## Results
 
-- `tests/test_engine_world.cpp`: 43 tests pass (GCC 15), incl. 9 death tests; `tests/test_engine_ecs.cpp`: 31 tests
+- `tests/test_engine_world.cpp`: 44 tests pass (GCC 15), incl. 10 death tests; `tests/test_engine_ecs.cpp`: 31 tests
   (the reworked `Registry`/`View` keep the S07 behaviour; new entities are `Simulated`).
 - Benchmark (GCC 15, RelWithDebInfo, laptop): `World::step` with 10^5 entities 0.48 ms idle (the phase-6 scan),
   0.97 ms with a system that moves all of them; the S07 ECS numbers are unchanged (create 14.4 ms, view<3> 0.61 ms).

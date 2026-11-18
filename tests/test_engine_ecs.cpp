@@ -178,6 +178,21 @@ struct CopiedHealthId
     }
 };
 
+// Health's name, ID and size, but another C++ type (never registered)
+struct HealthLookalike
+{
+    static constexpr const char* name = "Health";
+    static constexpr ComponentId id   = ComponentId(TestComponent::Health);
+    static constexpr uint32_t version = 1;
+    double a = 0, b = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("a", a);
+        v("b", b);
+    }
+};
+
 // Another ID, but Health's name
 struct SameNameAsHealth
 {
@@ -437,6 +452,9 @@ TEST(EcsDeathTest, MisuseAsserts)
     r.add<Health>(c);
     EXPECT_DEATH(r.get<CopiedHealthId>(c), "registered as Health, not Mana");
     EXPECT_DEATH(r.has<CopiedHealthId>(c), "registered as Health, not Mana");
+    // Same ID, name and size: the C++ type itself is checked before the downcast
+    static_assert(sizeof(HealthLookalike) == sizeof(Health), "the test needs the same size");
+    EXPECT_DEATH(r.get<HealthLookalike>(c), "another C\\+\\+ type");
     // A second component with an existing name (saves load by name)
     EXPECT_DEATH(r.registerComponent<SameNameAsHealth>(), "name Health is already used");
 }

@@ -1337,6 +1337,35 @@ TEST(World, RebuildHierarchyStateRejectsStaleParents)
     EXPECT_FALSE(w.alive(c));
 }
 
+#ifdef SAIGA_ASSERTS
+namespace
+{
+// Same ID, name and size as DamageEvent, but another C++ type (never registered)
+struct DamageEventLookalike
+{
+    static constexpr const char* name = "DamageEvent";
+    static constexpr EventId id       = EventId(TestEvent::Damage);
+    static constexpr uint32_t version = 1;
+    Entity target;
+    double amount = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("target", target);
+        v("amount", amount);
+    }
+};
+}  // namespace
+
+// Regression: the queue lookup checked ID, name and size only, so a same-sized lookalike was downcast to the wrong type
+TEST(WorldDeathTest, EventLookalikeWithTheSameIdNameAndSize)
+{
+    static_assert(sizeof(DamageEventLookalike) == sizeof(DamageEvent), "the test needs the same size");
+    World w(testSetup());
+    EXPECT_DEATH(w.events.read<DamageEventLookalike>(), "another C\\+\\+ type");
+}
+#endif
+
 // Without the SAIGA_ASSERTS guard: the check uses SAIGA_EXIT_ERROR, active in every build
 namespace
 {

@@ -17,6 +17,7 @@
 #include <iterator>
 #include <memory>
 #include <string>
+#include <typeinfo>
 #include <vector>
 
 #include <type_traits>
@@ -31,9 +32,16 @@ class Registry;
 class EventQueueBase
 {
    public:
-    EventQueueBase(EventId id, const char* name, Replicate mode, size_t elementSize)
-        : id(id), name(name), replicate(mode), elementSize(elementSize)
+    EventQueueBase(EventId id, const char* name, Replicate mode, const char* typeName)
+        : id(id), name(name), replicate(mode), typeName(typeName)
     {
+    }
+    // The registered C++ type is E (typeid name: pointer equality first, strcmp across DLLs)
+    template <class E>
+    bool holds() const
+    {
+        const char* n = typeid(E).name();
+        return n == typeName || std::strcmp(n, typeName) == 0;
     }
     virtual ~EventQueueBase() = default;
     // Pending -> readable (the previous readable events are dropped)
@@ -47,14 +55,14 @@ class EventQueueBase
     const EventId id;
     const char* const name;
     const Replicate replicate;
-    const size_t elementSize;  // with the name: the registered type (checked before the downcast)
+    const char* const typeName;  // typeid(E).name(): the registered C++ type (checked before the downcast)
 };
 
 template <class E>
 class EventQueue final : public EventQueueBase
 {
    public:
-    explicit EventQueue(Replicate mode) : EventQueueBase(E::id, E::name, mode, sizeof(E)) {}
+    explicit EventQueue(Replicate mode) : EventQueueBase(E::id, E::name, mode, typeid(E).name()) {}
 
     void beginStep() override
     {
@@ -148,8 +156,7 @@ EventQueue<E>& EventQueues::queue() const
     SAIGA_ASSERT(
         q->name == E::name || std::strcmp(q->name, E::name) == 0,
         std::string("event ID ") + std::to_string(int(E::id)) + " is registered as " + q->name + ", not " + E::name);
-    SAIGA_ASSERT(q->elementSize == sizeof(E),
-                 std::string("event ") + E::name + " has another size than the registered type");
+    SAIGA_ASSERT(q->holds<E>(), std::string("event ") + E::name + " is another C++ type than the registered one");
     return static_cast<EventQueue<E>&>(*q);
 }
 

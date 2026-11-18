@@ -241,9 +241,8 @@ ComponentPool<T>& Registry::pool() const
     SAIGA_ASSERT(p->name == T::name || std::strcmp(p->name, T::name) == 0,
                  std::string("component ID ") + std::to_string(int(T::id)) + " is registered as " + p->name + ", not " +
                      T::name);
-    // A copy that kept both name and ID: at least the layout must match before the static_cast
-    SAIGA_ASSERT(p->elementSize == sizeof(T),
-                 std::string("component ") + T::name + " has another size than the registered type");
+    // The registered C++ type itself (a copy that kept name, ID and size is still another type)
+    SAIGA_ASSERT(p->holds<T>(), std::string("component ") + T::name + " is another C++ type than the registered one");
     return static_cast<ComponentPool<T>&>(*p);
 }
 
